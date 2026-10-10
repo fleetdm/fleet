@@ -285,13 +285,14 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 		}
 
 		// add VPP app data if needed
-		if software.VPPAppsCount > 0 {
-			meta, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, id)
+		// Skip App Store apps when no fleet is given, their versions and settings are set per fleet
+		if software.VPPAppsCount > 0 && teamID != nil {
+			versions, err := svc.ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, *teamID, id)
 			if err != nil && !fleet.IsNotFound(err) {
 				return nil, ctxerr.Wrap(ctx, err, "get VPP app metadata")
 			}
-			if meta != nil {
-				summary, err := svc.ds.GetSummaryHostVPPAppInstalls(ctx, teamID, meta.VPPAppID)
+			for _, meta := range versions {
+				summary, err := svc.ds.GetSummaryHostVPPAppInstalls(ctx, meta.VPPAppsTeamsID)
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "get VPP app status summary")
 				}
@@ -308,8 +309,13 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 						meta.Configuration = wrapped
 					}
 				}
+
+				software.AppStoreApps = append(software.AppStoreApps, meta.AppStoreAppVersion())
 			}
-			software.AppStoreApp = meta
+			// Set app_store_app to the first-added version for backwards compatibility.
+			if len(versions) > 0 {
+				software.AppStoreApp = versions[0]
+			}
 		}
 
 		// add in house app data if needed
@@ -377,6 +383,9 @@ func (svc *Service) filterInstallerDetailsForUser(ctx context.Context, teamID *u
 	if title.AppStoreApp != nil {
 		title.AppStoreApp.Configuration = nil
 	}
+	for i := range title.AppStoreApps {
+		title.AppStoreApps[i].Configuration = nil
+	}
 }
 
 func (svc *Service) SoftwareTitleNameForHostFilter(ctx context.Context, id uint, teamID *uint) (name, displayName string, err error) {
@@ -441,21 +450,4 @@ func (svc *Service) UpdateSoftwareName(ctx context.Context, titleID uint, name s
 	}
 
 	return svc.ds.UpdateSoftwareTitleName(ctx, titleID, name)
-}
-
-func (svc *Service) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID *uint, config fleet.SoftwareAutoUpdateConfig) error {
-	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	// Coerce nil teamID to 0.
-	var tID uint
-	if teamID != nil {
-		tID = *teamID
-	}
-	if err := svc.ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, tID, config); err != nil {
-		return ctxerr.Wrap(ctx, err, "updating software title auto update config")
-	}
-
-	return nil
 }

@@ -4,5 +4,6 @@
   "token": "anydesk",
   "installer_format": "dmg",
   "slug": "anydesk/darwin",
-  "default_categories": ["Productivity"]
+  "default_categories": ["Productivity"],
+  "frozen": true
 }

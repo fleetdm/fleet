@@ -1328,7 +1328,7 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, _ *fleet.MDMWipeM
 		return err
 	}
 
-	// On Fleet Free, Wipe is only available for Android (COBO) hosts. Wipe for macOS, Windows, Linux and iOS/iPadOS
+	// On Fleet Free, Wipe is only available for Android hosts. Wipe for macOS, Windows, Linux and iOS/iPadOS
 	// remains a Fleet Premium feature, implemented by the ee WipeHost method which shadows this one on Premium
 	// deployments (so Android-on-Premium also goes through ee, not here).
 	if host.FleetPlatform() != "android" {

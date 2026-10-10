@@ -112,6 +112,96 @@ func TestInstallScriptAppCopyPropagatesAndRestores(t *testing.T) {
 fi`)
 }
 
+// TestInstallScriptStopsWhenAppWontQuit runs generated install scripts in bash
+// with osascript and friends stubbed out. An app that's still running after the
+// quit timeout must not be replaced: fleetd deletes $TMPDIR after the install,
+// taking the moved-aside bundle the app is still running from.
+func TestInstallScriptStopsWhenAppWontQuit(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("as root the relaunch goes through /bin/launchctl asuser, which can't be stubbed")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+
+	installers := map[string]struct {
+		format   string
+		artifact *brewArtifact
+		replace  string
+	}{
+		"app": {"zip", &brewArtifact{App: []optjson.StringOr[*brewAppTarget]{{String: "Foo.app"}}}, `sudo cp -R`},
+		"pkg": {"pkg", &brewArtifact{Pkg: []optjson.StringOr[*brewPkgChoices]{{String: "Foo-1.0.pkg"}}}, `sudo installer -pkg`},
+	}
+
+	// mode is how the app responds: "not-running", "quits", "ignores" (accepts
+	// the quit event but keeps running), or "cancels" (the user cancels a save
+	// prompt, so the quit event fails). sleep advances SECONDS so the timeout
+	// loop doesn't take real time.
+	run := func(t *testing.T, script, mode string) (string, error) {
+		stubs := `mode=` + mode + `
+running=true
+[[ "$mode" == not-running ]] && running=false
+stat() { echo alice; }
+realpath() { echo /tmp/fleet-test/installer; }
+unzip() { :; }
+sleep() { SECONDS=$((SECONDS + $1)); }
+sudo() { echo "sudo $*"; }
+open() { :; }
+osascript() {
+  case "$2" in
+    *" to quit")
+      [[ "$mode" == quits ]] && running=false
+      [[ "$mode" == cancels ]] && return 1
+      return 0
+      ;;
+    *" is running")
+      echo "$running"
+      ;;
+  esac
+}
+`
+		out, err := exec.Command(bash, "-c", stubs+script).CombinedOutput()
+		return string(out), err
+	}
+
+	for name, installer := range installers {
+		t.Run(name, func(t *testing.T) {
+			script, err := installScriptForApp(inputApp{
+				Token:            "foo",
+				UniqueIdentifier: "com.example.Foo",
+				InstallerFormat:  installer.format,
+			}, &brewCask{Artifacts: []*brewArtifact{installer.artifact}})
+			require.NoError(t, err)
+
+			out, err := run(t, script, "not-running")
+			require.NoError(t, err, out)
+			require.Contains(t, out, installer.replace)
+			require.NotContains(t, out, "Quitting application")
+			require.NotContains(t, out, "Relaunching application")
+
+			out, err = run(t, script, "quits")
+			require.NoError(t, err, out)
+			require.Contains(t, out, "Application 'com.example.Foo' quit successfully.")
+			require.Contains(t, out, installer.replace)
+			require.Contains(t, out, "Relaunching application 'com.example.Foo'...")
+
+			for _, mode := range []string{"ignores", "cancels"} {
+				out, err = run(t, script, mode)
+				var exitErr *exec.ExitError
+				require.ErrorAs(t, err, &exitErr, out)
+				require.Equal(t, 1, exitErr.ExitCode(), out)
+				require.Contains(t, out, "Application 'com.example.Foo' did not quit.")
+				require.NotContains(t, out, installer.replace)
+				require.NotContains(t, out, "Relaunching application")
+			}
+		})
+	}
+}
+
 func TestShellDoubleQuoteEscape(t *testing.T) {
 	// Values without shell metacharacters (the common case) must pass through
 	// unchanged so the generated scripts stay byte-identical to before.

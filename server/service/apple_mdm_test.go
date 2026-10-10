@@ -4700,8 +4700,8 @@ func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing
 		ds.MaybeUpdateSetupExperienceVPPStatusFunc = func(_ context.Context, _ string, _ string, _ fleet.SetupExperienceStatusResultStatus) (bool, error) {
 			return false, nil
 		}
-		ds.IsAutoUpdateVPPInstallFunc = func(_ context.Context, _ string) (bool, error) {
-			return false, nil
+		ds.GetVPPInstallAutomationReasonsFunc = func(_ context.Context, _ string) (bool, bool, error) {
+			return false, false, nil
 		}
 		var activityCmdResult *mdm.CommandResults
 		ds.GetPastActivityDataForVPPAppInstallFunc = func(_ context.Context, c *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
@@ -4775,7 +4775,7 @@ func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing
 // TestMDMCommandAndReportResultsInstallApplicationAutoUpdateFailure covers the
 // iPad terminal-failure emission path in the InstallApplication handler.
 // Before #45011, this branch called GetPastActivityDataForVPPAppInstall and
-// emitted the activity without ever consulting IsAutoUpdateVPPInstall, so a
+// emitted the activity without ever consulting GetVPPInstallAutomationReasons, so a
 // scheduled auto-update that terminally failed was attributed to actor_full_name
 // instead of Fleet. The InstalledApplicationList success handler already did
 // the right thing; this test locks in parity for the failure path.
@@ -4812,9 +4812,9 @@ func TestMDMCommandAndReportResultsInstallApplicationAutoUpdateFailure(t *testin
 	ds.MaybeUpdateSetupExperienceVPPStatusFunc = func(_ context.Context, _ string, _ string, _ fleet.SetupExperienceStatusResultStatus) (bool, error) {
 		return false, nil
 	}
-	ds.IsAutoUpdateVPPInstallFunc = func(_ context.Context, cmd string) (bool, error) {
+	ds.GetVPPInstallAutomationReasonsFunc = func(_ context.Context, cmd string) (bool, bool, error) {
 		require.Equal(t, commandUUID, cmd)
-		return true, nil
+		return true, false, nil
 	}
 	ds.GetPastActivityDataForVPPAppInstallFunc = func(_ context.Context, _ *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
 		return nil, &fleet.ActivityInstalledAppStoreApp{HostID: 1, Status: string(fleet.SoftwareInstallFailed)}, nil
@@ -4833,7 +4833,7 @@ func TestMDMCommandAndReportResultsInstallApplicationAutoUpdateFailure(t *testin
 	)
 	require.NoError(t, err)
 
-	require.True(t, ds.IsAutoUpdateVPPInstallFuncInvoked)
+	require.True(t, ds.GetVPPInstallAutomationReasonsFuncInvoked)
 	require.True(t, ds.GetPastActivityDataForVPPAppInstallFuncInvoked)
 	require.NotNil(t, emitted)
 	require.True(t, emitted.FromAutoUpdate, "auto-update terminal failures must carry FromAutoUpdate so the activity is attributed to Fleet")
@@ -10603,7 +10603,7 @@ func assertACMEProfile(t *testing.T, content []byte, deviceSerial string) {
 }
 
 func TestAuthenticateMDMAppleDEPEnrollment(t *testing.T) {
-	svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	svc, ctx, ds, opts := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
 	machineInfo := &fleet.MDMAppleMachineInfo{Serial: "DEPSERIAL", UDID: "dep-udid", Product: "Mac15,7"}
 	const idpAccountUUID = "idp-account-uuid"
@@ -10625,9 +10625,12 @@ func TestAuthenticateMDMAppleDEPEnrollment(t *testing.T) {
 			HostUUID:       machineInfo.UDID,
 		}, nil
 	}
+	const abmTokenID, euaTeamID, otherTeamID = uint(5), uint(10), uint(20)
 	assigned := func(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error) {
-		return []*fleet.HostDEPAssignment{{HostID: 1}}, nil
+		return []*fleet.HostDEPAssignment{{HostID: 1, ABMTokenID: new(abmTokenID)}}, nil
 	}
+	var hostTeamID *uint
+	var rejections []fleet.ActivityTypeHostEnrollmentRejected
 	resetMocks := func() {
 		ds.GetMDMAppleEnrollmentProfileByTokenFunc = validToken
 		ds.GetMDMAppleEnrollmentProfileByTokenFuncInvoked = false
@@ -10635,6 +10638,21 @@ func TestAuthenticateMDMAppleDEPEnrollment(t *testing.T) {
 		ds.ConsumeMDMAppleDEPEnrollmentChallengeFuncInvoked = false
 		ds.GetHostDEPAssignmentsBySerialFunc = assigned
 		ds.GetHostDEPAssignmentsBySerialFuncInvoked = false
+		hostTeamID = new(otherTeamID)
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: id, TeamID: hostTeamID, Platform: "darwin"}, nil
+		}
+		ds.TeamIDsWithSetupExperienceIdPEnabledFunc = func(ctx context.Context) ([]uint, error) {
+			return []uint{0, euaTeamID}, nil
+		}
+		ds.TeamIDsWithSetupExperienceIdPEnabledFuncInvoked = false
+		rejections = nil
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, a activity_api.ActivityDetails) error {
+			if act, ok := a.(fleet.ActivityTypeHostEnrollmentRejected); ok {
+				rejections = append(rejections, act)
+			}
+			return nil
+		}
 	}
 	requireAuthFailed := func(t *testing.T, err error) {
 		t.Helper()
@@ -10734,6 +10752,160 @@ func TestAuthenticateMDMAppleDEPEnrollment(t *testing.T) {
 		}
 	})
 
+	t.Run("static token refused for a host in a fleet with end user authentication", func(t *testing.T) {
+		for _, teamID := range []*uint{new(euaTeamID), nil} {
+			resetMocks()
+			hostTeamID = teamID
+			_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-token", machineInfo)
+			requireAuthFailed(t, err)
+			require.Equal(t, []fleet.ActivityTypeHostEnrollmentRejected{{
+				HostID:          new(uint(1)),
+				HostSerial:      machineInfo.Serial,
+				HostUUID:        machineInfo.UDID,
+				Platform:        "darwin",
+				EnrollmentPlane: "apple_mdm",
+				Reason:          "end_user_authentication_required",
+			}}, rejections)
+		}
+	})
+
+	t.Run("one-time challenge accepted for a host in a fleet with end user authentication", func(t *testing.T) {
+		resetMocks()
+		hostTeamID = new(euaTeamID)
+		_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-challenge", machineInfo)
+		require.NoError(t, err)
+		require.False(t, ds.TeamIDsWithSetupExperienceIdPEnabledFuncInvoked)
+		require.Empty(t, rejections)
+	})
+
+	t.Run("refusals before the fleet check record no activity", func(t *testing.T) {
+		resetMocks()
+		hostTeamID = new(euaTeamID)
+		_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "unknown-token", machineInfo)
+		requireAuthFailed(t, err)
+		ds.GetHostDEPAssignmentsBySerialFunc = func(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error) {
+			return nil, nil
+		}
+		_, err = svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-token", machineInfo)
+		requireAuthFailed(t, err)
+		require.False(t, ds.TeamIDsWithSetupExperienceIdPEnabledFuncInvoked)
+		require.Empty(t, rejections)
+	})
+
+	t.Run("without a host, the AB token's default fleet for the platform decides", func(t *testing.T) {
+		for _, tc := range []struct {
+			product string
+			tok     fleet.ABMToken
+		}{
+			{"Mac15,7", fleet.ABMToken{MacOSDefaultTeamID: new(euaTeamID), IOSDefaultTeamID: new(otherTeamID), IPadOSDefaultTeamID: new(otherTeamID)}},
+			{"iPhone15,2", fleet.ABMToken{MacOSDefaultTeamID: new(otherTeamID), IOSDefaultTeamID: new(euaTeamID), IPadOSDefaultTeamID: new(otherTeamID)}},
+			{"iPad13,1", fleet.ABMToken{MacOSDefaultTeamID: new(otherTeamID), IOSDefaultTeamID: new(otherTeamID), IPadOSDefaultTeamID: new(euaTeamID)}},
+			{"iPad13,1", fleet.ABMToken{MacOSDefaultTeamID: new(otherTeamID), IOSDefaultTeamID: new(otherTeamID)}}, // "No team"
+		} {
+			resetMocks()
+			ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+				return nil, newNotFoundError()
+			}
+			ds.GetABMTokenByIDFunc = func(ctx context.Context, id uint) (*fleet.ABMToken, error) {
+				require.Equal(t, abmTokenID, id)
+				return &tc.tok, nil
+			}
+			mi := *machineInfo
+			mi.Product = tc.product
+			_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-token", &mi)
+			requireAuthFailed(t, err)
+			require.Len(t, rejections, 1, tc.product)
+			require.Nil(t, rejections[0].HostID)
+			require.Equal(t, platformFromAppleProduct(tc.product), rejections[0].Platform)
+		}
+
+		resetMocks()
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return nil, newNotFoundError()
+		}
+		ds.GetABMTokenByIDFunc = func(ctx context.Context, id uint) (*fleet.ABMToken, error) {
+			return &fleet.ABMToken{MacOSDefaultTeamID: new(otherTeamID)}, nil
+		}
+		_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-token", machineInfo)
+		require.NoError(t, err)
+		require.Empty(t, rejections)
+	})
+
+	t.Run("duplicate hosts refuse the static token if any of their fleets requires end user authentication", func(t *testing.T) {
+		hostTeams := map[uint]*uint{1: new(otherTeamID), 2: new(euaTeamID), 3: new(euaTeamID), 4: new(euaTeamID)}
+		hostUUIDs := map[uint]string{1: machineInfo.UDID, 2: "other-udid", 3: machineInfo.UDID, 4: "another-udid"}
+		for _, tc := range []struct {
+			name       string
+			hostIDs    []uint
+			wantHostID uint
+		}{
+			{"EUA host listed second", []uint{1, 2}, 2},
+			{"EUA host listed first", []uint{2, 1}, 2},
+			{"host matching the device's UDID wins", []uint{2, 3}, 3},
+			{"host matching the device's UDID wins in any order", []uint{3, 2}, 3},
+			{"lowest host ID wins without a UDID match", []uint{4, 2}, 2},
+		} {
+			resetMocks()
+			ds.GetHostDEPAssignmentsBySerialFunc = func(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error) {
+				var res []*fleet.HostDEPAssignment
+				for _, id := range tc.hostIDs {
+					res = append(res, &fleet.HostDEPAssignment{HostID: id, ABMTokenID: new(abmTokenID)})
+				}
+				return res, nil
+			}
+			ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+				return &fleet.Host{ID: id, UUID: hostUUIDs[id], TeamID: hostTeams[id], Platform: "darwin"}, nil
+			}
+			_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-token", machineInfo)
+			requireAuthFailed(t, err)
+			require.Len(t, rejections, 1, tc.name)
+			require.Equal(t, tc.wantHostID, *rejections[0].HostID, tc.name)
+		}
+	})
+
+	t.Run("without a host, any AB token's default fleet requiring end user authentication refuses the static token", func(t *testing.T) {
+		resetMocks()
+		ds.GetHostDEPAssignmentsBySerialFunc = func(ctx context.Context, serial string) ([]*fleet.HostDEPAssignment, error) {
+			return []*fleet.HostDEPAssignment{{HostID: 1, ABMTokenID: new(uint(1))}, {HostID: 2, ABMTokenID: new(uint(2))}}, nil
+		}
+		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+			return nil, newNotFoundError()
+		}
+		ds.GetABMTokenByIDFunc = func(ctx context.Context, id uint) (*fleet.ABMToken, error) {
+			if id == 1 {
+				return &fleet.ABMToken{MacOSDefaultTeamID: new(otherTeamID)}, nil
+			}
+			return &fleet.ABMToken{MacOSDefaultTeamID: new(euaTeamID)}, nil
+		}
+		_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-token", machineInfo)
+		requireAuthFailed(t, err)
+		require.Len(t, rejections, 1)
+		require.Nil(t, rejections[0].HostID)
+	})
+
+	t.Run("no fleet requiring end user authentication skips the host lookup", func(t *testing.T) {
+		resetMocks()
+		ds.TeamIDsWithSetupExperienceIdPEnabledFunc = func(ctx context.Context) ([]uint, error) {
+			return nil, nil
+		}
+		ds.HostLiteFuncInvoked = false
+		_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-token", machineInfo)
+		require.NoError(t, err)
+		require.False(t, ds.HostLiteFuncInvoked)
+		require.Empty(t, rejections)
+	})
+
+	t.Run("datastore error reading fleets with end user authentication is returned", func(t *testing.T) {
+		resetMocks()
+		ds.TeamIDsWithSetupExperienceIdPEnabledFunc = func(ctx context.Context) ([]uint, error) {
+			return nil, errors.New("boom")
+		}
+		_, err := svc.AuthenticateMDMAppleDEPEnrollment(ctx, "valid-token", machineInfo)
+		require.ErrorContains(t, err, "get fleets that require end user authentication")
+		var authErr *fleet.AuthFailedError
+		require.NotErrorAs(t, err, &authErr)
+	})
+
 	t.Run("datastore error consuming the challenge is returned", func(t *testing.T) {
 		resetMocks()
 		ds.ConsumeMDMAppleDEPEnrollmentChallengeFunc = func(ctx context.Context, challenge string) (*fleet.MDMAppleDEPEnrollmentChallenge, error) {
@@ -10802,6 +10974,72 @@ func TestMDMAppleEnrollEndpointAuthenticatesBeforeProcessing(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, resp.Error())
 		require.True(t, svc.ReconcileMDMAppleEnrollRefFuncInvoked)
+	})
+}
+
+func TestRotateMDMAppleAutomaticEnrollmentToken(t *testing.T) {
+	adminCtx := func(ctx context.Context) context.Context {
+		return viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+	}
+
+	t.Run("free license", func(t *testing.T) {
+		svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierFree})
+		_, err := svc.RotateMDMAppleAutomaticEnrollmentToken(adminCtx(ctx), nil)
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+		require.False(t, ds.RotateMDMAppleAutomaticEnrollmentTokenFuncInvoked)
+	})
+
+	svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	ctx = adminCtx(ctx)
+	expiresAt := time.Now().Add(time.Hour)
+	var gotGracePeriod time.Duration
+	var gotToken, gotJobName, gotJobTask string
+	ds.RotateMDMAppleAutomaticEnrollmentTokenFunc = func(ctx context.Context, newToken string, gracePeriod time.Duration, job *fleet.Job) (*time.Time, error) {
+		gotToken, gotGracePeriod = newToken, gracePeriod
+		var args struct {
+			Task string `json:"task"`
+		}
+		require.NoError(t, json.Unmarshal(*job.Args, &args))
+		gotJobName, gotJobTask = job.Name, args.Task
+		return &expiresAt, nil
+	}
+
+	t.Run("grace period out of range", func(t *testing.T) {
+		for _, hours := range []int{-1, fleet.MaxAutomaticEnrollmentTokenGracePeriodHours + 1} {
+			ds.RotateMDMAppleAutomaticEnrollmentTokenFuncInvoked = false
+			_, err := svc.RotateMDMAppleAutomaticEnrollmentToken(ctx, &hours)
+			var invalid *fleet.InvalidArgumentError
+			require.ErrorAs(t, err, &invalid)
+			require.False(t, ds.RotateMDMAppleAutomaticEnrollmentTokenFuncInvoked)
+		}
+	})
+
+	t.Run("defaults to 24 hours and re-registers the profiles in the same transaction", func(t *testing.T) {
+		got, err := svc.RotateMDMAppleAutomaticEnrollmentToken(ctx, nil)
+		require.NoError(t, err)
+		require.Equal(t, &expiresAt, got)
+		require.Equal(t, 24*time.Hour, gotGracePeriod)
+		require.NotEmpty(t, gotToken)
+		require.Equal(t, "macos_setup_assistant", gotJobName)
+		require.Equal(t, "update_all_profiles", gotJobTask)
+		require.False(t, ds.NewJobFuncInvoked, "the job must not be queued outside the rotation transaction")
+	})
+
+	t.Run("explicit grace period", func(t *testing.T) {
+		firstToken := gotToken
+		_, err := svc.RotateMDMAppleAutomaticEnrollmentToken(ctx, new(0))
+		require.NoError(t, err)
+		require.Zero(t, gotGracePeriod)
+		require.NotEqual(t, firstToken, gotToken)
+	})
+
+	t.Run("no automatic enrollment profile", func(t *testing.T) {
+		ds.RotateMDMAppleAutomaticEnrollmentTokenFunc = func(ctx context.Context, newToken string, gracePeriod time.Duration, job *fleet.Job) (*time.Time, error) {
+			return nil, newNotFoundError()
+		}
+		_, err := svc.RotateMDMAppleAutomaticEnrollmentToken(ctx, nil)
+		require.True(t, fleet.IsNotFound(err))
+		require.False(t, ds.NewJobFuncInvoked)
 	})
 }
 
@@ -11487,7 +11725,8 @@ func TestHandleScheduledUpdatesSkipsQueuedInstalls(t *testing.T) {
 			optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter,
 		) ([]fleet.SoftwareAutoUpdateSchedule, error) {
 			return []fleet.SoftwareAutoUpdateSchedule{{
-				TitleID: titleID,
+				TitleID:      titleID,
+				VPPAppTeamID: 1,
 				SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
 					AutoUpdateStartTime: new("00:00"),
 					AutoUpdateEndTime:   new("23:59"),
@@ -11512,14 +11751,14 @@ func TestHandleScheduledUpdatesSkipsQueuedInstalls(t *testing.T) {
 		ds.MapAdamIDsQueuedInstallsFunc = func(ctx context.Context, hostID uint) (map[string]struct{}, error) {
 			return map[string]struct{}{}, nil
 		}
-		ds.GetVPPAppByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPApp, error) {
+		ds.GetVPPAppByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, vppAppTeamID uint) (*fleet.VPPApp, error) {
 			return &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{
 				AppTeamID: 1,
 				VPPAppID:  fleet.VPPAppID{AdamID: adamID, Platform: fleet.IOSPlatform},
 			}}, nil
 		}
-		ds.IsVPPAppLabelScopedFunc = func(ctx context.Context, vppAppTeamID, hostID uint) (bool, error) {
-			return true, nil
+		ds.ListHostAppStoreAppVersionsFunc = func(ctx context.Context, host *fleet.Host) (map[uint]*fleet.HostAppStoreAppVersion, error) {
+			return map[uint]*fleet.HostAppStoreAppVersion{titleID: {VPPAppTeamID: 1, AdamID: adamID, TitleID: titleID, InScope: true}}, nil
 		}
 
 		return svc, ds, installer

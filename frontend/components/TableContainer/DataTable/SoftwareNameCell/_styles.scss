@@ -12,7 +12,8 @@
     height: 24px;
   }
 
-  &__install-icon-with-tooltip {
+  &__install-icon-with-tooltip,
+  &__configuration-icon-with-tooltip {
     display: inline-flex;
     align-items: center;
 
