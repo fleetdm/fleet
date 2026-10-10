@@ -15,6 +15,77 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestToVPPApps(t *testing.T) {
+	iosData := PlatformData{
+		Artwork:           ArtData{TemplateURL: "https://example.com/{w}x{h}.{f}"},
+		BundleID:          "com.example.mobile",
+		LatestVersionInfo: LatestVersionInfo{DisplayVersion: " 1.2.3 "},
+	}
+	macData := PlatformData{
+		Artwork:           ArtData{TemplateURL: "https://example.com/mac/{w}x{h}.{f}"},
+		BundleID:          "com.example.mac",
+		LatestVersionInfo: LatestVersionInfo{DisplayVersion: "4.5.6"},
+	}
+
+	t.Run("iPhone-only apps are also available for iPadOS compatibility mode", func(t *testing.T) {
+		apps := ToVPPApps(Metadata{
+			ID: "123",
+			Attributes: Attributes{
+				Name:           "iPhone app",
+				Platforms:      map[string]PlatformData{"ios": iosData},
+				DeviceFamilies: []string{"iphone"},
+			},
+		})
+
+		require.Len(t, apps, 2)
+		iosApp, ok := apps[fleet.IOSPlatform]
+		require.True(t, ok)
+		ipadOSApp, ok := apps[fleet.IPadOSPlatform]
+		require.True(t, ok)
+		require.Equal(t, fleet.IOSPlatform, iosApp.Platform)
+		require.Equal(t, fleet.IPadOSPlatform, ipadOSApp.Platform)
+		require.Equal(t, iosApp.AdamID, ipadOSApp.AdamID)
+		require.Equal(t, iosApp.BundleIdentifier, ipadOSApp.BundleIdentifier)
+		require.Equal(t, iosApp.IconURL, ipadOSApp.IconURL)
+		require.Equal(t, iosApp.LatestVersion, ipadOSApp.LatestVersion)
+		require.Equal(t, "1.2.3", ipadOSApp.LatestVersion)
+	})
+
+	t.Run("iPad-only apps are not made available for iOS", func(t *testing.T) {
+		apps := ToVPPApps(Metadata{
+			ID: "456",
+			Attributes: Attributes{
+				Name:           "iPad app",
+				Platforms:      map[string]PlatformData{"ios": iosData},
+				DeviceFamilies: []string{"ipad"},
+			},
+		})
+
+		require.Len(t, apps, 1)
+		require.Contains(t, apps, fleet.IPadOSPlatform)
+		require.NotContains(t, apps, fleet.IOSPlatform)
+	})
+
+	t.Run("universal apps have one entry per supported platform", func(t *testing.T) {
+		apps := ToVPPApps(Metadata{
+			ID: "789",
+			Attributes: Attributes{
+				Name: "Universal app",
+				Platforms: map[string]PlatformData{
+					"ios": iosData,
+					"osx": macData,
+				},
+				DeviceFamilies: []string{"mac", "iphone", "ipad", "appletv"},
+			},
+		})
+
+		require.Len(t, apps, 3)
+		require.Contains(t, apps, fleet.MacOSPlatform)
+		require.Contains(t, apps, fleet.IOSPlatform)
+		require.Contains(t, apps, fleet.IPadOSPlatform)
+	})
+}
+
 func TestGetBaseURLAndBuildMetadataRequest(t *testing.T) {
 	defer dev_mode.ClearAllOverrides()
 	t.Run("Default URL", func(t *testing.T) {
