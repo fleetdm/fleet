@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	ee_android "github.com/fleetdm/fleet/v4/ee/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -24,13 +25,35 @@ type Suite struct {
 	KeyValueStore fleet.KeyValueStore
 }
 
-func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
-	ds, redisPool, fleetCfg, fleetSvc, ctx := integrationtest.SetUpMySQLAndRedisAndService(t, uniqueTestName)
+type suiteOptions struct {
+	licenseTier   string
+	wrapEEService bool
+}
+
+type SuiteOption func(*suiteOptions)
+
+// WithEEAndroidService wraps the core Android service with the premium one, as
+// cmd/fleet/serve.go does, and serves requests with the given license tier.
+func WithEEAndroidService(licenseTier string) SuiteOption {
+	return func(o *suiteOptions) {
+		o.licenseTier = licenseTier
+		o.wrapEEService = true
+	}
+}
+
+func SetUpSuite(t *testing.T, uniqueTestName string, opts ...SuiteOption) *Suite {
+	options := suiteOptions{licenseTier: fleet.TierFree}
+	for _, opt := range opts {
+		opt(&options)
+	}
+
+	license := &fleet.LicenseInfo{Tier: options.licenseTier}
+	ds, redisPool, fleetCfg, fleetSvc, ctx := integrationtest.SetUpMySQLAndRedisAndService(t, uniqueTestName, &service.TestServerOpts{License: license})
 	keyValueStore := redis_key_value.New(redisPool)
 	slogLogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	proxy := android_mock.Client{}
 	proxy.InitCommonMocks()
-	androidSvc, err := android_service.NewServiceWithClient(
+	coreAndroidSvc, err := android_service.NewServiceWithClient(
 		slogLogger,
 		ds,
 		&proxy,
@@ -44,12 +67,16 @@ func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
 		android_service.WithKeyValueStore(keyValueStore),
 	)
 	require.NoError(t, err)
-	androidSvc.(*android_service.Service).AllowLocalhostServerURL = true
+	coreAndroidSvc.(*android_service.Service).AllowLocalhostServerURL = true
+	androidSvc := coreAndroidSvc
+	if options.wrapEEService {
+		eeAndroidSvc, err := ee_android.NewService(coreAndroidSvc, ds, ds, &proxy, slogLogger)
+		require.NoError(t, err)
+		androidSvc = eeAndroidSvc
+	}
 	dbConns := mysqltest.TestDBConnections(t, ds)
 	users, server := svctest.RunServerForTestsWithServiceWithDS(t, ctx, ds, fleetSvc, &service.TestServerOpts{
-		License: &fleet.LicenseInfo{
-			Tier: fleet.TierFree,
-		},
+		License:       license,
 		FleetConfig:   &fleetCfg,
 		Pool:          redisPool,
 		Logger:        slogLogger,

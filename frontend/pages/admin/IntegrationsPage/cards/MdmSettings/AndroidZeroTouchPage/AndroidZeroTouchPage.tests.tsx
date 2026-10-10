@@ -1,5 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import React from "react";
+import { QueryClient, QueryClientProvider } from "react-query";
 
 import createMockAxiosError from "__mocks__/axiosError";
 import createMockUser from "__mocks__/userMock";
@@ -10,9 +12,17 @@ import AndroidZeroTouchPage from "./AndroidZeroTouchPage";
 
 const CONFIGURED_APP_CONTEXT = {
   currentUser: createMockUser(),
+  availableTeams: [
+    { id: -1, name: "All fleets" },
+    { id: 1, name: "Workstations" },
+    { id: 0, name: "Unassigned" },
+  ],
   isPremiumTier: true,
   isAndroidMdmEnabledAndConfigured: true,
 };
+
+const getNameField = () => screen.getByRole("textbox", { name: "Name" });
+const getFleetPicker = (name: RegExp) => screen.getByRole("button", { name });
 
 describe("AndroidZeroTouchPage", () => {
   afterEach(() => {
@@ -98,12 +108,18 @@ describe("AndroidZeroTouchPage", () => {
 
     expect(screen.getByText("Android zero-touch")).toBeVisible();
     expect(screen.getByText(/Android zero-touch portal/)).toBeVisible();
-    expect(screen.getByText(/Unassigned/)).toBeVisible();
-    expect(screen.getByText(/Add configuration/)).toBeVisible();
-    expect(screen.getByRole("button", { name: /copy/i })).toBeVisible();
+    expect(getFleetPicker(/Unassigned/)).toBeEnabled();
+    expect(getNameField()).toHaveValue("Unassigned");
+    expect(screen.getByText(/use this name and pick/)).toBeVisible();
+    expect(screen.queryByText(/coming soon/i)).toBeNull();
+    expect(screen.getByRole("button", { name: "Copy name" })).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "Copy DPC extras" })
+    ).toBeEnabled();
+    expect(mdmAndroidAPI.getZeroTouchConfiguration).toHaveBeenCalledWith(0);
   });
 
-  test("shows error state on API failure and hides the copy button", async () => {
+  test("shows error state on API failure and disables the DPC extras copy button", async () => {
     jest
       .spyOn(mdmAndroidAPI, "getZeroTouchConfiguration")
       .mockRejectedValue(createMockAxiosError({ status: 403 }));
@@ -123,7 +139,127 @@ describe("AndroidZeroTouchPage", () => {
 
     expect(screen.getByText("Android zero-touch")).toBeVisible();
     expect(screen.getByText("DPC extras")).toBeVisible();
-    expect(screen.queryByRole("button", { name: /copy/i })).toBeNull();
-    expect(screen.queryByText(/Add configuration/)).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Copy DPC extras" })
+    ).toBeDisabled();
+    expect(getNameField()).toHaveValue("Unassigned");
+    expect(getFleetPicker(/Unassigned/)).toBeEnabled();
+  });
+
+  test("switching fleets requests that fleet's DPC extras and updates the name", async () => {
+    const getConfig = jest
+      .spyOn(mdmAndroidAPI, "getZeroTouchConfiguration")
+      .mockImplementation((fleetId) =>
+        Promise.resolve({ token: `token-for-fleet-${fleetId}` })
+      );
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: CONFIGURED_APP_CONTEXT,
+      },
+    });
+
+    render(<AndroidZeroTouchPage />);
+
+    await screen.findByText(/token-for-fleet-0/);
+
+    await userEvent.click(getFleetPicker(/Unassigned/));
+    await userEvent.click(screen.getByText("Workstations"));
+
+    await screen.findByText(/token-for-fleet-1/);
+    expect(getConfig).toHaveBeenLastCalledWith(1);
+    expect(getNameField()).toHaveValue("Workstations");
+    expect(screen.queryByText(/token-for-fleet-0/)).toBeNull();
+  });
+
+  test("shows the spinner while refetching a previously viewed fleet", async () => {
+    let resolveRefetch: (value: Record<string, unknown>) => void = () =>
+      undefined;
+    const getConfig = jest
+      .spyOn(mdmAndroidAPI, "getZeroTouchConfiguration")
+      .mockImplementationOnce(() => Promise.resolve({ token: "unassigned-1" }))
+      .mockImplementationOnce(() => Promise.resolve({ token: "workstations" }))
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveRefetch = resolve;
+          })
+      );
+
+    // The shared renderer's client uses cacheTime: 0, which drops the
+    // previously viewed fleet's data and hides the case under test.
+    const cachingClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const render = createCustomRenderer({
+      context: {
+        app: CONFIGURED_APP_CONTEXT,
+      },
+    });
+
+    render(
+      <QueryClientProvider client={cachingClient}>
+        <AndroidZeroTouchPage />
+      </QueryClientProvider>
+    );
+
+    await screen.findByText(/unassigned-1/);
+    await userEvent.click(getFleetPicker(/Unassigned/));
+    await userEvent.click(screen.getByText("Workstations"));
+    await screen.findByText(/workstations/);
+
+    await userEvent.click(getFleetPicker(/Workstations/));
+    await userEvent.click(screen.getByText("Unassigned"));
+
+    expect(await screen.findByTestId("spinner")).toBeVisible();
+    expect(screen.queryByText(/unassigned-1/)).toBeNull();
+    expect(getFleetPicker(/Unassigned/)).toBeDisabled();
+    expect(getConfig).toHaveBeenCalledTimes(3);
+
+    resolveRefetch({ token: "unassigned-2" });
+    await screen.findByText(/unassigned-2/);
+    expect(getFleetPicker(/Unassigned/)).toBeEnabled();
+  });
+
+  test("shows the error without retrying when the server fails", async () => {
+    const getConfig = jest
+      .spyOn(mdmAndroidAPI, "getZeroTouchConfiguration")
+      .mockRejectedValue(createMockAxiosError({ status: 500 }));
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: CONFIGURED_APP_CONTEXT,
+      },
+    });
+
+    render(<AndroidZeroTouchPage />);
+
+    expect(await screen.findByText(/gone wrong/i)).toBeVisible();
+    expect(getConfig).toHaveBeenCalledTimes(1);
+    expect(getFleetPicker(/Unassigned/)).toBeEnabled();
+  });
+
+  test("disables the fleet picker and copy buttons while the request is pending", async () => {
+    jest
+      .spyOn(mdmAndroidAPI, "getZeroTouchConfiguration")
+      .mockReturnValue(new Promise(() => undefined));
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: CONFIGURED_APP_CONTEXT,
+      },
+    });
+
+    render(<AndroidZeroTouchPage />);
+
+    expect(await screen.findByTestId("spinner")).toBeVisible();
+    expect(getFleetPicker(/Unassigned/)).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Copy name" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Copy DPC extras" })
+    ).toBeDisabled();
   });
 });
