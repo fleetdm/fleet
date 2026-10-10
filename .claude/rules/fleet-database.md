@@ -26,6 +26,7 @@ paths:
 - Guard schema changes so a failed migration can be retried
 - `CREATE TABLE`/`DROP TABLE`: use `IF NOT EXISTS`/`IF EXISTS`
 - `ALTER TABLE`: use `columnExists`/`indexExistsTx`/etc from `migration.go`
+- Migrations can be applied out of order (e.g. a migration shipped in a patch release runs after later-numbered migrations on databases already upgraded past it). Don't assume later-numbered migrations haven't run; a migration must be order-independent of migrations in flight on other branches/releases, and the guard helpers above protect against reordering as well as retries
 
 ## Migrations on large tables
 Some tables hold hundreds of millions of rows in large deployments. A migration that scans or rewrites one of them can run for hours and block a customer's upgrade (this has happened in production). Any migration that reads or writes one of these tables needs extra scrutiny:
