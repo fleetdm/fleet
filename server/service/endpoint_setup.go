@@ -35,24 +35,10 @@ func (r setupResponse) Error() error { return r.Err }
 func makeSetupEndpoint(svc fleet.Service, logger *slog.Logger, applyStarterLibrary func(ctx context.Context, serverURL, token string) error) endpoint.Endpoint {
 	return func(ctx context.Context, request any) (any, error) {
 		req := request.(setupRequest)
-		config := &fleet.AppConfig{}
-		if req.OrgInfo != nil {
-			config.OrgInfo = *req.OrgInfo
-		}
-		if req.ServerURL != nil {
-			config.ServerSettings.ServerURL = *req.ServerURL
-		}
-		config, err := svc.NewAppConfig(ctx, *config)
-		if err != nil {
-			return setupResponse{Err: err}, nil
-		}
-
 		if req.Admin == nil {
 			return setupResponse{Err: ctxerr.New(ctx, "setup request must provide admin")}, nil
 		}
 
-		// creating the user should be the last action. If there's a user
-		// present and other errors occur, the setup endpoint closes.
 		adminPayload := *req.Admin
 		if adminPayload.Email == nil || *adminPayload.Email == "" {
 			err := ctxerr.New(ctx, "admin email cannot be empty")
@@ -62,10 +48,30 @@ func makeSetupEndpoint(svc fleet.Service, logger *slog.Logger, applyStarterLibra
 			err := ctxerr.New(ctx, "admin password cannot be empty")
 			return setupResponse{Err: err}, nil
 		}
-		// Make the user an admin
+		// The admin is created first and closes setup, so an invalid server URL must be rejected here.
+		if err := validateSetupServerURL(ctx, ptr.ValOrZero(req.ServerURL)); err != nil {
+			return setupResponse{Err: err}, nil
+		}
+
+		// Creating the initial admin is the only race-safe guard on this
+		// unauthenticated endpoint, so it must succeed before app config and
+		// enroll secrets are overwritten.
 		adminPayload.GlobalRole = ptr.String(fleet.RoleAdmin)
 		admin, err := svc.CreateInitialUser(ctx, adminPayload)
 		if err != nil {
+			return setupResponse{Err: err}, nil
+		}
+
+		config := &fleet.AppConfig{}
+		if req.OrgInfo != nil {
+			config.OrgInfo = *req.OrgInfo
+		}
+		if req.ServerURL != nil {
+			config.ServerSettings.ServerURL = *req.ServerURL
+		}
+		config, err = svc.NewAppConfig(ctx, *config)
+		if err != nil {
+			logger.ErrorContext(ctx, "setup created the initial admin but failed to save app config and enroll secret", "err", err)
 			return setupResponse{Err: err}, nil
 		}
 
