@@ -310,6 +310,9 @@ const DiskEncryption = ({
     ),
   };
 
+  const ESCROW_HELP_TEXT =
+    "The recovery key lets you unlock the host if the end user forgets their password.";
+
   const renderEnforceCheckbox = (
     platform: "macos" | "windows",
     key: "macOSEnabled" | "windowsEnabled",
@@ -322,8 +325,11 @@ const DiskEncryption = ({
       className={`${baseClass}__checkbox`}
       labelTooltipContent={ENFORCE_CHECKBOX_TOOLTIP_CONTENT[platform]}
       labelTooltipClickable
+      helpText={platform === "windows" ? ESCROW_HELP_TEXT : undefined}
     >
-      Enable disk encryption
+      {platform === "windows"
+        ? "Enable disk encryption and escrow recovery key"
+        : "Enable disk encryption"}
     </Checkbox>
   );
 
@@ -340,8 +346,7 @@ const DiskEncryption = ({
       className={`${baseClass}__checkbox`}
       helpText={
         <>
-          Store the recovery key so your fleet can recover the device if the end
-          user forgets their password.
+          {ESCROW_HELP_TEXT}
           {learnMoreLink && (
             <>
               {" "}
@@ -428,7 +433,8 @@ const DiskEncryption = ({
                 {renderEscrowCheckbox(
                   "macos",
                   "macOSEscrowEnabled",
-                  formSettings.macOSEscrowEnabled
+                  formSettings.macOSEscrowEnabled,
+                  `${LEARN_MORE_ABOUT_BASE_LINK}/mdm-disk-encryption`
                 )}
               </>
             )}

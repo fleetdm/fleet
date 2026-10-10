@@ -18,6 +18,12 @@ For macOS hosts that automatically enroll, end users are forced to enable disk e
 
 For Windows, currently disk encryption is enforced on the C: volume (default system/OS drive) only on hosts with a [TPM chip](https://support.microsoft.com/en-us/topic/what-s-a-trusted-platform-module-tpm-705f241d-025d-4470-80c5-4feeb24fa1ee). For Linux, encryption requires end user interaction.
 
+## End user interaction
+
+- **Windows**: Automatic. Fleet turns on BitLocker and escrows the recovery key without any end user action. If you require a BitLocker PIN, end users are prompted to set one on their **My device** page.
+- **macOS**: Usually automatic. Hosts that automatically enroll turn on FileVault during Setup Assistant, and the key is escrowed right away. Hosts that manually enroll, or that are [migrated](#migrate-macos-hosts) from another MDM solution, need the end user to log out and log back in before Fleet can escrow the key.
+- **Linux**: Requires the end user. The disk must be encrypted during OS setup, and Fleet Desktop prompts the end user to enter their disk password so Fleet can escrow a key. [Learn more](#escrow-disk-encryption-key-on-linux).
+
 ## Enforce disk encryption
 
 You can enforce disk encryption using the Fleet UI, Fleet API, or [GitOps](https://fleetdm.com/docs/configuration/yaml-files).
@@ -30,7 +36,7 @@ You can enforce disk encryption using the Fleet UI, Fleet API, or [GitOps](https
 
 3. Under macOS, check **Enable disk encryption** and/or **Escrow recovery key with Fleet**.
 
-4. Under Windows, check **Enable disk encryption** and optionally **Require BitLocker PIN**.
+4. Under Windows, check **Enable disk encryption and escrow recovery key** and optionally **Require BitLocker PIN**.
 
 5. Under Linux, check **Escrow recovery key with Fleet**.
 
