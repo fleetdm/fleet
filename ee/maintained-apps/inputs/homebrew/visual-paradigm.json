@@ -6,5 +6,6 @@
   "slug": "visual-paradigm/darwin",
   "default_categories": [
     "Productivity"
-  ]
+  ],
+  "frozen": true
 }
