@@ -9480,6 +9480,13 @@
       "description": "WeekToDo is a weekly planner app focused on privacy."
     },
     {
+      "name": "WezTerm",
+      "slug": "wezterm/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.github.wez.wezterm",
+      "description": "WezTerm is a GPU-accelerated, cross-platform terminal emulator and multiplexer."
+    },
+    {
       "name": "WhatRoute",
       "slug": "whatroute/darwin",
       "platform": "darwin",
