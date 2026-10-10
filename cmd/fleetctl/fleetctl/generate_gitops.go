@@ -1294,6 +1294,10 @@ func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interf
 			for _, team := range token.Teams {
 				teamNames = append(teamNames, team.Name)
 			}
+			// Write "All fleets" for a token assigned to all fleets, it has no fleet names to list
+			if token.Teams != nil && len(token.Teams) == 0 {
+				teamNames = []string{fleet.DisplayNameAllTeams}
+			}
 			vppConfig = append(vppConfig, fleet.MDMAppleVolumePurchasingProgramInfo{
 				Location: token.Location,
 				Teams:    teamNames,
@@ -2477,13 +2481,6 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 		if softwareTitle.AppStoreApp != nil {
 			filenamePrefix := generateFilename(sw.Name) + "-" + sw.AppStoreApp.Platform
 			softwareSpec["platform"] = softwareTitle.AppStoreApp.Platform
-			if softwareTitle.AppStoreApp.SelfService {
-				softwareSpec["self_service"] = softwareTitle.AppStoreApp.SelfService
-			}
-
-			if softwareTitle.AppStoreApp.Categories != nil {
-				softwareSpec["categories"] = softwareTitle.AppStoreApp.Categories
-			}
 
 			if softwareTitle.DisplayName != "" {
 				softwareSpec["display_name"] = softwareTitle.DisplayName
@@ -2505,60 +2502,103 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				cmd.FilesToWrite[fileName] = icon
 			}
 
-			config := softwareTitle.AppStoreApp.Configuration
-			if config != nil && !slices.Equal(config, json.RawMessage("{}")) {
-				// all per-team software-related artifacts are generated in lib/{team}/software
-				platform := softwareTitle.AppStoreApp.Platform
-				switch platform {
-				case fleet.IOSPlatform, fleet.IPadOSPlatform:
-					// iOS/iPadOS configuration is returned as a JSON-encoded
-					// string of XML; unwrap and write the raw XML.
-					var xmlStr string
-					if err := json.Unmarshal(config, &xmlStr); err != nil {
-						fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error decoding apple app configuration %s: %s\n", sw.Name, err)
-						return nil, err
-					}
-					if xmlStr == "" {
-						break
-					}
-					fileName := fmt.Sprintf("lib/%s/software/%s", teamFilename, filenamePrefix+"-config.xml")
-					softwareSpec["configuration"] = map[string]any{
-						"path": fmt.Sprintf("../%s", fileName),
-					}
-					cmd.FilesToWrite[fileName] = []byte(xmlStr)
-				default:
-					fileName := fmt.Sprintf("lib/%s/software/%s", teamFilename, filenamePrefix+"-config.json")
-					softwareSpec["configuration"] = map[string]any{
-						"path": fmt.Sprintf("../%s", fileName),
-					}
-
-					// format config because it is received with incorrect indentation
-					var buf bytes.Buffer
-					if err := json.Indent(&buf, config, "", "  "); err != nil {
-						fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error formatting android app configuration %s: %s\n", sw.Name, err)
-						return nil, err
-					}
-
-					cmd.FilesToWrite[fileName] = buf.Bytes()
-				}
+			flatVersion := softwareTitle.AppStoreApp.AppStoreAppVersion()
+			flatVersion.AutoUpdateEnabled = softwareTitle.AutoUpdateEnabled
+			flatVersion.AutoUpdateStartTime = softwareTitle.AutoUpdateStartTime
+			flatVersion.AutoUpdateEndTime = softwareTitle.AutoUpdateEndTime
+			appVersions := []fleet.AppStoreAppVersion{flatVersion}
+			var versionSpecs []map[string]any
+			if len(softwareTitle.AppStoreApps) > 1 || (len(softwareTitle.AppStoreApps) == 1 && softwareTitle.AppStoreApps[0].Name != fleet.DefaultAppStoreAppVersionName) {
+				appVersions = softwareTitle.AppStoreApps
+				versionSpecs = make([]map[string]any, 0, len(appVersions))
 			}
 
-			// export auto-update schedule settings for iOS/iPadOS VPP apps when present.
-			// only VPP apps (those with an AdamID) support auto-update schedules.
-			if softwareTitle.AutoUpdateEnabled != nil || softwareTitle.AutoUpdateStartTime != nil || softwareTitle.AutoUpdateEndTime != nil {
-				platform := softwareTitle.AppStoreApp.Platform
-				adamID := softwareTitle.AppStoreApp.VPPAppID.AdamID
-				if (platform == fleet.IOSPlatform || platform == fleet.IPadOSPlatform) && adamID != "" {
-					if softwareTitle.AutoUpdateEnabled != nil {
-						softwareSpec["auto_update_enabled"] = *softwareTitle.AutoUpdateEnabled
+			usedVersionFilenamePrefixes := make(map[string]struct{}, len(appVersions))
+			for _, version := range appVersions {
+				versionSpec := softwareSpec
+				versionFilenamePrefix := filenamePrefix
+				if versionSpecs != nil {
+					versionSpec = map[string]any{"name": version.Name}
+					versionFilenamePrefix = filenamePrefix + "-" + generateFilename(version.Name)
+					// Add the version id when two version names map to the same file name
+					if _, ok := usedVersionFilenamePrefixes[versionFilenamePrefix]; ok {
+						versionFilenamePrefix += fmt.Sprintf("-%d", version.ID)
 					}
-					if softwareTitle.AutoUpdateStartTime != nil {
-						softwareSpec["auto_update_window_start"] = *softwareTitle.AutoUpdateStartTime
-					}
-					if softwareTitle.AutoUpdateEndTime != nil {
-						softwareSpec["auto_update_window_end"] = *softwareTitle.AutoUpdateEndTime
+					usedVersionFilenamePrefixes[versionFilenamePrefix] = struct{}{}
+				}
+
+				if version.SelfService {
+					versionSpec["self_service"] = version.SelfService
+				}
+
+				if version.Categories != nil {
+					versionSpec["categories"] = version.Categories
+				}
+
+				versionLabelKey, versionLabelNames := scopeLabels(version.LabelsIncludeAny, version.LabelsExcludeAny, version.LabelsIncludeAll)
+				if versionLabelKey != "" {
+					versionSpec[versionLabelKey] = versionLabelNames
+				}
+
+				config := version.Configuration
+				if config != nil && !slices.Equal(config, json.RawMessage("{}")) {
+					// all per-team software-related artifacts are generated in lib/{team}/software
+					switch version.Platform {
+					case fleet.IOSPlatform, fleet.IPadOSPlatform:
+						// iOS/iPadOS configuration is returned as a JSON-encoded
+						// string of XML; unwrap and write the raw XML.
+						var xmlStr string
+						if err := json.Unmarshal(config, &xmlStr); err != nil {
+							fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error decoding apple app configuration %s: %s\n", sw.Name, err)
+							return nil, err
+						}
+						if xmlStr == "" {
+							break
+						}
+						fileName := fmt.Sprintf("lib/%s/software/%s", teamFilename, versionFilenamePrefix+"-config.xml")
+						versionSpec["configuration"] = map[string]any{
+							"path": fmt.Sprintf("../%s", fileName),
+						}
+						cmd.FilesToWrite[fileName] = []byte(xmlStr)
+					default:
+						fileName := fmt.Sprintf("lib/%s/software/%s", teamFilename, versionFilenamePrefix+"-config.json")
+						versionSpec["configuration"] = map[string]any{
+							"path": fmt.Sprintf("../%s", fileName),
+						}
+
+						// format config because it is received with incorrect indentation
+						var buf bytes.Buffer
+						if err := json.Indent(&buf, config, "", "  "); err != nil {
+							fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error formatting android app configuration %s: %s\n", sw.Name, err)
+							return nil, err
+						}
+
+						cmd.FilesToWrite[fileName] = buf.Bytes()
 					}
 				}
+
+				// export auto-update schedule settings for iOS/iPadOS VPP apps when present.
+				// only VPP apps (those with an AdamID) support auto-update schedules.
+				if version.AutoUpdateEnabled != nil || version.AutoUpdateStartTime != nil || version.AutoUpdateEndTime != nil {
+					if (version.Platform == fleet.IOSPlatform || version.Platform == fleet.IPadOSPlatform) && version.AppStoreID != "" {
+						if version.AutoUpdateEnabled != nil {
+							versionSpec["auto_update_enabled"] = *version.AutoUpdateEnabled
+						}
+						if version.AutoUpdateStartTime != nil {
+							versionSpec["auto_update_window_start"] = *version.AutoUpdateStartTime
+						}
+						if version.AutoUpdateEndTime != nil {
+							versionSpec["auto_update_window_end"] = *version.AutoUpdateEndTime
+						}
+					}
+				}
+
+				if versionSpecs != nil {
+					versionSpecs = append(versionSpecs, versionSpec)
+				}
+			}
+			if versionSpecs != nil {
+				softwareSpec["versions"] = versionSpecs
 			}
 		}
 
@@ -2578,7 +2618,6 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			}
 		} else {
 			app := softwareTitle.AppStoreApp
-			labelKey, labelNames = scopeLabels(app.LabelsIncludeAny, app.LabelsExcludeAny, app.LabelsIncludeAll)
 			if _, exists := setupSoftwareByPlatformAndAppID[app.VPPAppID.String()]; exists {
 				softwareSpec["setup_experience"] = true
 			}

@@ -335,7 +335,7 @@ module.exports = {
       let closedAt = new Date(pr.closed_at).getTime();
       let daysOpen = Math.abs(closedAt - openedAt) / ONE_DAY_IN_MILLISECONDS;
       avgDaysOpen = avgDaysOpen + (daysOpen / handbookPrsMergedRecently.length);
-      sails.log.verbose('Processing',pr.head.repo.name,':: #'+pr.number,'open '+daysOpen+' days', 'rolling avg now '+avgDaysOpen);
+      sails.log.verbose('Processing',pr.base.repo.name,':: #'+pr.number,'open '+daysOpen+' days', 'rolling avg now '+avgDaysOpen);
       return avgDaysOpen;
     }, 0);
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

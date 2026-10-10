@@ -2863,7 +2863,7 @@ func testHasSelfServiceSoftwareInstallers(t *testing.T, ds *Datastore) {
 	assert.True(t, hasSelfService)
 
 	// Create a non self-service VPP for global/linux (not truly possible as VPP is Apple but for testing)
-	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: platform}}, Name: "vpp1", BundleIdentifier: "com.app.vpp1"}, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{AdamID: "adam_vpp_1", Platform: platform, Name: "vpp1", BundleIdentifier: "com.app.vpp1"}, nil, nil)
 	require.NoError(t, err)
 	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, platform, nil)
 	require.NoError(t, err)
@@ -2873,7 +2873,7 @@ func testHasSelfServiceSoftwareInstallers(t *testing.T, ds *Datastore) {
 	assert.True(t, hasSelfService)
 
 	// Create a self-service VPP for global/linux (not truly possible as VPP is Apple but for testing)
-	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_2", Platform: platform}, SelfService: true}, Name: "vpp2", BundleIdentifier: "com.app.vpp2"}, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{AdamID: "adam_vpp_2", Platform: platform, SelfService: true, Name: "vpp2", BundleIdentifier: "com.app.vpp2"}, nil, nil)
 	require.NoError(t, err)
 	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, platform, nil)
 	require.NoError(t, err)
@@ -2983,7 +2983,7 @@ func testHasSelfServiceSoftwareInstallers(t *testing.T, ds *Datastore) {
 	assert.False(t, hasSelfService, "windows host should NOT see .py packages")
 
 	// Create a self-service VPP for team/darwin
-	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_3", Platform: fleet.MacOSPlatform}, SelfService: true}, Name: "vpp3", BundleIdentifier: "com.app.vpp3"}, &team.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{AdamID: "adam_vpp_3", Platform: fleet.MacOSPlatform, SelfService: true, Name: "vpp3", BundleIdentifier: "com.app.vpp3"}, &team.ID, nil)
 	require.NoError(t, err)
 	// Check darwin
 	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, "darwin", nil)
@@ -5082,7 +5082,7 @@ func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
 		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: "darwin"}, DisplayName: ptr.String("VPP1")},
 		Name:             "vpp1",
 		BundleIdentifier: "com.app.vpp1",
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 
 	// Batch insert installers should delete previous display names
@@ -5477,7 +5477,7 @@ func testAddSoftwareTitleToMatchingSoftware(t *testing.T, ds *Datastore) {
 		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: "ios"}, DisplayName: ptr.String("VPP1")},
 		Name:             "iOS Title",
 		BundleIdentifier: "com.foo",
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 
 	host2, err := ds.NewHost(ctx, &fleet.Host{
@@ -6863,7 +6863,7 @@ func testMatchOrCreateSoftwareInstallerDuplicateConflicts(t *testing.T, ds *Data
 		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_mac", Platform: fleet.MacOSPlatform}},
 		Name:             "Mac VPP",
 		BundleIdentifier: "com.example.vpp",
-	}, &team.ID)
+	}, &team.ID, nil)
 	require.NoError(t, err)
 
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
@@ -7423,7 +7423,7 @@ func testGetSoftwareTitlesForInstallAll(t *testing.T, ds *Datastore) {
 			VPPAppID:    fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform},
 			SelfService: true,
 		},
-	}, &macTeam.ID)
+	}, &macTeam.ID, nil)
 	require.NoError(t, err)
 	got, _, err = ds.GetSoftwareTitlesForInstallAll(ctx, macHost, nil, "")
 	require.NoError(t, err)
@@ -8382,8 +8382,8 @@ VALUES (?, ?, 'com.example.historydepth', 'history-depth-vpp', '1.0', 'darwin')`
 		}
 		for _, teamID := range []uint{deepTeam, breadthTeam, narrowTeam} {
 			if _, err := q.ExecContext(ctx, `
-INSERT INTO vpp_apps_teams (adam_id, team_id, global_or_team_id, platform)
-VALUES (?, ?, ?, 'darwin')`, vppAdamID, teamID, teamID); err != nil {
+INSERT INTO vpp_apps_teams (adam_id, team_id, global_or_team_id, platform, name)
+VALUES (?, ?, ?, 'darwin', 'Default version')`, vppAdamID, teamID, teamID); err != nil {
 				return err
 			}
 		}

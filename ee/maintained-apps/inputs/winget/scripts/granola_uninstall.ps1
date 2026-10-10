@@ -32,7 +32,7 @@ function Get-AppEntries {
 
             # Only a real user's entry needs running as that user; HKLM and service SIDs are fine.
             $sid = $null
-            if ($sub.PSPath -match 'HKEY_USERS\\(S-1-5-21-[\d-]+)\\') { $sid = $matches[1] }
+            if ($sub.PSPath -match 'HKEY_USERS\\(S-1-5-21-[\d-]+|S-1-12-1-[\d-]+)\\') { $sid = $matches[1] }
 
             $entries += [PSCustomObject]@{
                 DisplayName = $name

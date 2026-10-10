@@ -477,9 +477,10 @@ func (a ActivityTypeFleetEnrolled) ActivityName() string {
 }
 
 // ActivityTypeHostEnrollmentRejected is recorded when an orbit or osquery
-// enrollment is refused by the enroll secret or host identity certificate rules. Emission is
-// rate-limited per host and reason by the service layer, since a stuck agent
-// retries every few minutes.
+// enrollment is refused by the enroll secret or host identity certificate rules,
+// or an automatic (ADE) enrollment is refused because the host's fleet requires
+// end user authentication. Emission is rate-limited per host and reason by the
+// service layer, since a stuck device retries every few minutes.
 type ActivityTypeHostEnrollmentRejected struct {
 	HostID          *uint  `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
@@ -1672,17 +1673,21 @@ func (a ActivityDisabledVPP) ActivityName() string {
 }
 
 type ActivityAddedAppStoreApp struct {
-	SoftwareTitle    string                    `json:"software_title"`
-	SoftwareTitleId  uint                      `json:"software_title_id"`
-	AppStoreID       string                    `json:"app_store_id"`
-	TeamName         *string                   `json:"team_name" renameto:"fleet_name"`
-	TeamID           *uint                     `json:"team_id" renameto:"fleet_id"`
-	Platform         InstallableDevicePlatform `json:"platform"`
-	SelfService      bool                      `json:"self_service"`
-	LabelsIncludeAny []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
-	LabelsExcludeAny []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
-	LabelsIncludeAll []ActivitySoftwareLabel   `json:"labels_include_all,omitempty"`
-	Configuration    json.RawMessage           `json:"configuration,omitempty"`
+	SoftwareTitle       string                    `json:"software_title"`
+	SoftwareTitleId     uint                      `json:"software_title_id"`
+	AppStoreID          string                    `json:"app_store_id"`
+	TeamName            *string                   `json:"team_name" renameto:"fleet_name"`
+	TeamID              *uint                     `json:"team_id" renameto:"fleet_id"`
+	Platform            InstallableDevicePlatform `json:"platform"`
+	SelfService         bool                      `json:"self_service"`
+	LabelsIncludeAny    []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny    []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
+	LabelsIncludeAll    []ActivitySoftwareLabel   `json:"labels_include_all,omitempty"`
+	Configuration       json.RawMessage           `json:"configuration,omitempty"`
+	AutoUpdateEnabled   *bool                     `json:"auto_update_enabled,omitempty"`
+	AutoUpdateStartTime *string                   `json:"auto_update_window_start,omitempty"`
+	AutoUpdateEndTime   *string                   `json:"auto_update_window_end,omitempty"`
+	VersionName         string                    `json:"version_name"`
 }
 
 func (a ActivityAddedAppStoreApp) ActivityName() string {
@@ -1700,6 +1705,11 @@ type ActivityDeletedAppStoreApp struct {
 	LabelsIncludeAny    []ActivitySoftwareLabel   `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny    []ActivitySoftwareLabel   `json:"labels_exclude_any,omitempty"`
 	LabelsIncludeAll    []ActivitySoftwareLabel   `json:"labels_include_all,omitempty"`
+	VersionName         string                    `json:"version_name"`
+	// Configuration mirrors added/edited App Store app activities so the
+	// activity-feed details modal renders the same fields regardless of which
+	// verb triggered it. Docs addition to `audit-logs.md` lands in a separate PR.
+	Configuration json.RawMessage `json:"configuration,omitempty"`
 }
 
 func (a ActivityDeletedAppStoreApp) ActivityName() string {
@@ -1707,20 +1717,22 @@ func (a ActivityDeletedAppStoreApp) ActivityName() string {
 }
 
 type ActivityInstalledAppStoreApp struct {
-	HostID              uint    `json:"host_id"`
-	HostDisplayName     string  `json:"host_display_name"`
-	SoftwareTitle       string  `json:"software_title"`
-	SoftwareDisplayName *string `json:"software_display_name,omitempty"`
-	AppStoreID          string  `json:"app_store_id"`
-	CommandUUID         string  `json:"command_uuid"`
-	Status              string  `json:"status,omitempty"`
-	SelfService         bool    `json:"self_service"`
-	PolicyID            *uint   `json:"policy_id"`
-	PolicyName          *string `json:"policy_name"`
-	HostPlatform        string  `json:"host_platform"`
-	FromSetupExperience bool    `json:"from_setup_experience"`
-	FromAutoUpdate      bool    `json:"from_auto_update"`
-	FailureReason       string  `json:"failure_reason,omitempty"`
+	HostID                  uint    `json:"host_id"`
+	HostDisplayName         string  `json:"host_display_name"`
+	SoftwareTitle           string  `json:"software_title"`
+	SoftwareDisplayName     *string `json:"software_display_name,omitempty"`
+	AppStoreID              string  `json:"app_store_id"`
+	CommandUUID             string  `json:"command_uuid"`
+	Status                  string  `json:"status,omitempty"`
+	SelfService             bool    `json:"self_service"`
+	PolicyID                *uint   `json:"policy_id"`
+	PolicyName              *string `json:"policy_name"`
+	HostPlatform            string  `json:"host_platform"`
+	FromSetupExperience     bool    `json:"from_setup_experience"`
+	FromAutoUpdate          bool    `json:"from_auto_update"`
+	FailureReason           string  `json:"failure_reason,omitempty"`
+	FromConfigurationResend bool    `json:"from_configuration_resend"`
+	VersionName             string  `json:"version_name,omitempty"`
 }
 
 func (a ActivityInstalledAppStoreApp) HostIDs() []uint {
@@ -1732,7 +1744,7 @@ func (a ActivityInstalledAppStoreApp) ActivityName() string {
 }
 
 func (a ActivityInstalledAppStoreApp) WasFromAutomation() bool {
-	return a.PolicyID != nil || a.FromSetupExperience || a.FromAutoUpdate
+	return a.PolicyID != nil || a.FromSetupExperience || a.FromAutoUpdate || a.FromConfigurationResend
 }
 
 func (a ActivityInstalledAppStoreApp) MustActivateNextUpcomingActivity() bool {
@@ -1763,6 +1775,7 @@ type ActivityEditedAppStoreApp struct {
 	AutoUpdateEnabled   *bool                     `json:"auto_update_enabled,omitempty"`
 	AutoUpdateStartTime *string                   `json:"auto_update_window_start,omitempty"`
 	AutoUpdateEndTime   *string                   `json:"auto_update_window_end,omitempty"`
+	VersionName         string                    `json:"version_name"`
 }
 
 func (a ActivityEditedAppStoreApp) ActivityName() string {

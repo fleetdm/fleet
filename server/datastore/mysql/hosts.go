@@ -1446,8 +1446,15 @@ func (ds *Datastore) applyHostFilters(
 				return "", nil, ctxerr.Wrap(ctx, err, "get available installer by team and title id")
 
 			case installerID > 0:
-				// found a software installer package
-				installerJoin, installerParams, err := ds.softwareInstallerJoin(*opt.SoftwareTitleIDFilter, *opt.SoftwareStatusFilter)
+				// found a software installer package. Reject a VPP-shaped child
+				// id (app_store_app_version_id) on a package title so a client
+				// filter is never silently dropped.
+				if opt.AppStoreAppVersionIDFilter != nil {
+					return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+						Message: "app_store_app_version_id does not apply to this software_title_id (title is a software installer package)",
+					}, "mismatched child id for title")
+				}
+				installerJoin, installerParams, err := ds.softwareInstallerJoin(*opt.SoftwareTitleIDFilter, opt.SoftwareInstallerIDFilter, *opt.SoftwareStatusFilter)
 				if err != nil {
 					return "", nil, ctxerr.Wrap(ctx, err, "software installer join")
 				}
@@ -1455,8 +1462,14 @@ func (ds *Datastore) applyHostFilters(
 				joinParams = append(joinParams, installerParams...)
 
 			case vppID != nil:
-				// found a VPP app
-				vppAppJoin, vppAppParams, err := ds.vppAppJoin(*vppID, *opt.SoftwareStatusFilter)
+				// found a VPP app. Reject a package-shaped child id
+				// (software_installer_id) on a VPP title for the same reason.
+				if opt.SoftwareInstallerIDFilter != nil {
+					return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+						Message: "software_installer_id does not apply to this software_title_id (title is a VPP app)",
+					}, "mismatched child id for title")
+				}
+				vppAppJoin, vppAppParams, err := ds.vppAppJoin(*vppID, opt.AppStoreAppVersionIDFilter, *opt.SoftwareStatusFilter)
 				if err != nil {
 					return "", nil, ctxerr.Wrap(ctx, err, "vpp app join")
 				}
@@ -1464,6 +1477,12 @@ func (ds *Datastore) applyHostFilters(
 				joinParams = append(joinParams, vppAppParams...)
 
 			case inHouseID > 0:
+				// in-house apps don't support either per-child filter.
+				if opt.SoftwareInstallerIDFilter != nil || opt.AppStoreAppVersionIDFilter != nil {
+					return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+						Message: "software_installer_id and app_store_app_version_id do not apply to in-house app titles",
+					}, "mismatched child id for title")
+				}
 				inHouseJoin, inHouseParams, err := ds.inHouseAppJoin(inHouseID, *opt.SoftwareStatusFilter)
 				if err != nil {
 					return "", nil, ctxerr.Wrap(ctx, err, "in-house app join")
@@ -1479,6 +1498,32 @@ func (ds *Datastore) applyHostFilters(
 			softwareFilter = "EXISTS (SELECT 1 FROM host_software hs INNER JOIN software sw ON hs.software_id = sw.id WHERE hs.host_id = h.id AND sw.title_id = ?)"
 			whereParams = append(whereParams, *opt.SoftwareTitleIDFilter)
 		}
+	}
+
+	// Per-package / per-version status counts in the Software Library click
+	// through to a host list filtered to one specific installer id or App Store
+	// app version id. When composed with software_status, the installer/version
+	// is scoped inside softwareInstallerJoin / vppAppJoin above so the ranking
+	// stays per-installer / per-version. The EXISTS clauses here only run when
+	// the status filter isn't set (direct API usage against title inventory).
+	if opt.SoftwareInstallerIDFilter != nil && opt.SoftwareStatusFilter == nil {
+		installerExists := "EXISTS (SELECT 1 FROM host_software_installs hsi WHERE hsi.host_id = h.id AND hsi.software_installer_id = ?)"
+		if softwareFilter == "TRUE" {
+			softwareFilter = installerExists
+		} else {
+			softwareFilter = fmt.Sprintf("(%s) AND %s", softwareFilter, installerExists)
+		}
+		whereParams = append(whereParams, *opt.SoftwareInstallerIDFilter)
+	}
+
+	if opt.AppStoreAppVersionIDFilter != nil && opt.SoftwareStatusFilter == nil {
+		versionExists := "EXISTS (SELECT 1 FROM host_vpp_software_installs hvsi WHERE hvsi.host_id = h.id AND hvsi.vpp_app_team_id = ?)"
+		if softwareFilter == "TRUE" {
+			softwareFilter = versionExists
+		} else {
+			softwareFilter = fmt.Sprintf("(%s) AND %s", softwareFilter, versionExists)
+		}
+		whereParams = append(whereParams, *opt.AppStoreAppVersionIDFilter)
 	}
 
 	failingPoliciesJoin := ""
@@ -2312,7 +2357,8 @@ func recordDeletedWindowsHostFleetsDB(ctx context.Context, tx sqlx.ExtContext, h
 	for _, teamID := range slices.Sorted(maps.Keys(uuidsByTeam)) {
 		for uuids := range slices.Chunk(uuidsByTeam[teamID], 5000) {
 			stmt, args, err := sqlx.In(`
-				UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP, deleted_host_team_id = ? WHERE host_uuid IN (?)`,
+				UPDATE mdm_windows_enrollments SET updated_at = CURRENT_TIMESTAMP, deleted_host_team_id = ?, fleetd_present_at = NULL
+				WHERE host_uuid IN (?)`,
 				teamID, uuids)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build record of deleted windows hosts' fleets")
