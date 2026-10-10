@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "13.3.0",
+      "version": "13.3.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.insomnia.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.insomnia.app' AND version_compare(bundle_short_version, '13.3.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.insomnia.app' AND version_compare(bundle_short_version, '13.3.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.insomnia.app' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/Kong/insomnia/releases/download/core%4013.3.0/Insomnia.Core-13.3.0.dmg",
+      "installer_url": "https://github.com/Kong/insomnia/releases/download/core%4013.3.1/Insomnia.Core-13.3.1.dmg",
       "install_script_ref": "74b4dc6f",
       "uninstall_script_ref": "093d2a58",
-      "sha256": "11c1b222bfa1d9203292cbedd2b142f00aae3b3b5702fbed738cdc0db1cf582f",
+      "sha256": "ad6e6260f083162e61e879b99f27d69b934ae3cdbf6817ddb284acd8a4302650",
       "default_categories": [
         "Developer tools"
       ]
