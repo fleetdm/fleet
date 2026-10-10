@@ -523,7 +523,7 @@ var (
 )
 
 // cleans up vulnerability feed entries that are incorrect from NVD, allowing fixing bugged NVD rules without needing
-// to update Fleet server
+// to update Fleet server. Wrong version bounds go in cve_overrides.json instead.
 func transformVuln(year int, item nvdapi.CVEItem) nvdapi.CVEItem {
 	if item.CVE.ID != nil && *item.CVE.ID == "CVE-2024-54559" {
 		item.CVE.Configurations[0].Nodes[0].CPEMatch = item.CVE.Configurations[0].Nodes[0].CPEMatch[0:1]
@@ -543,38 +543,6 @@ func transformVuln(year int, item nvdapi.CVEItem) nvdapi.CVEItem {
 						"docker_desktop",
 						"desktop",
 					)
-				}
-			}
-		}
-	}
-
-	// This corrects the resolved-in version to what Citrix actually reports it is
-	if item.CVE.ID != nil && *item.CVE.ID == "CVE-2024-6286" {
-		for configID := range item.CVE.Configurations {
-			for nodeID := range item.CVE.Configurations[configID].Nodes {
-				for matchID := range item.CVE.Configurations[configID].Nodes[nodeID].CPEMatch {
-					match := &item.CVE.Configurations[configID].Nodes[nodeID].CPEMatch[matchID]
-					if strings.Contains(match.Criteria, ":ltsr:") &&
-						match.VersionEndExcluding != nil && *match.VersionEndExcluding == "2203.1" {
-						match.VersionEndExcluding = ptr.String("2402")
-					}
-				}
-			}
-		}
-	}
-
-	// NVD lists ollama as vulnerable through (and including) v0.12.3 via versionEndIncluding with no
-	// versionEndExcluding, so resolved_in_version comes back empty. The fix shipped in the next
-	// release, v0.12.4. Supply versionEndExcluding here so Fleet reports the resolved version.
-	// See https://github.com/fleetdm/fleet/issues/44800.
-	if item.CVE.ID != nil && *item.CVE.ID == "CVE-2025-63389" {
-		for configID := range item.CVE.Configurations {
-			for nodeID := range item.CVE.Configurations[configID].Nodes {
-				for matchID := range item.CVE.Configurations[configID].Nodes[nodeID].CPEMatch {
-					match := &item.CVE.Configurations[configID].Nodes[nodeID].CPEMatch[matchID]
-					if strings.Contains(match.Criteria, ":ollama:ollama:") && match.VersionEndExcluding == nil {
-						match.VersionEndExcluding = new("0.12.4")
-					}
 				}
 			}
 		}
