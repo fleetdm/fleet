@@ -609,30 +609,23 @@ func buildApplicationPolicyWithConfig(ctx context.Context, appIDs []string,
 ) ([]*androidmanagement.ApplicationPolicy, error) {
 	appPolicies := make([]*androidmanagement.ApplicationPolicy, 0, len(appIDs))
 	for _, appID := range appIDs {
-		var androidAppConfig struct {
-			ManagedConfiguration     json.RawMessage `json:"managedConfiguration"`
-			WorkProfileWidgets       string          `json:"workProfileWidgets"`
-			CredentialProviderPolicy string          `json:"credentialProviderPolicy"`
-		}
+		appPolicy := &androidmanagement.ApplicationPolicy{}
 		if config := configsByAppID[appID]; config != nil {
-			if err := json.Unmarshal(config, &androidAppConfig); err != nil {
+			if err := json.Unmarshal(config, appPolicy); err != nil {
 				// should never happen, as it is stored as json in the db and is pre-validated
 				return nil, ctxerr.Wrap(ctx, err, "unmarshal android app configuration")
 			}
 		} else {
 			// if there is no config for this app, we must make sure we clear any previously-applied
 			// config.
-			androidAppConfig.ManagedConfiguration = json.RawMessage{}
-			androidAppConfig.WorkProfileWidgets = "WORK_PROFILE_WIDGETS_UNSPECIFIED"
-			androidAppConfig.CredentialProviderPolicy = "CREDENTIAL_PROVIDER_POLICY_UNSPECIFIED"
+			appPolicy.ManagedConfiguration = googleapi.RawMessage{}
+			appPolicy.WorkProfileWidgets = "WORK_PROFILE_WIDGETS_UNSPECIFIED"
+			appPolicy.CredentialProviderPolicy = "CREDENTIAL_PROVIDER_POLICY_UNSPECIFIED"
 		}
-		appPolicies = append(appPolicies, &androidmanagement.ApplicationPolicy{
-			PackageName:              appID,
-			InstallType:              installType,
-			ManagedConfiguration:     googleapi.RawMessage(androidAppConfig.ManagedConfiguration),
-			WorkProfileWidgets:       androidAppConfig.WorkProfileWidgets,
-			CredentialProviderPolicy: androidAppConfig.CredentialProviderPolicy,
-		})
+		// Set after unmarshalling so a stored config can never override them.
+		appPolicy.PackageName = appID
+		appPolicy.InstallType = installType
+		appPolicies = append(appPolicies, appPolicy)
 	}
 	return appPolicies, nil
 }

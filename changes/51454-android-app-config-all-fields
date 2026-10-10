@@ -1,0 +1,1 @@
+- Android app configuration now accepts every Android Management API `ApplicationPolicy` field (e.g. `autoUpdateMode`, `permissionGrants`, `minimumVersionCode`) except `packageName` and `installType`, which Fleet sets itself.

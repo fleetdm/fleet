@@ -136,7 +136,7 @@ Android apps can be installed via self-service in the end user's managed Google 
 
 #### Managed configuration
 
-Currently, only the `managedConfiguration`, `workProfileWidgets`, and `credentialProviderPolicy` options from [ApplicationPolicy - Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) are supported.
+All options from [ApplicationPolicy - Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) are supported except `packageName` and `installType`, which Fleet sets for you.
 
 `managedConfiguration` supports any option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
 

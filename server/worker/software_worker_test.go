@@ -620,6 +620,46 @@ func TestBuildApplicationPolicyWithConfig(t *testing.T) {
 		require.Empty(t, policies[0].WorkProfileWidgets)
 		require.Equal(t, "CREDENTIAL_PROVIDER_ALLOWED", policies[0].CredentialProviderPolicy)
 	})
+
+	t.Run("other ApplicationPolicy fields are passed through", func(t *testing.T) {
+		configs := map[string][]byte{
+			"com.example.app": []byte(`{"autoUpdateMode": "AUTO_UPDATE_HIGH_PRIORITY", "minimumVersionCode": 42, "permissionGrants": [{"permission": "android.permission.CAMERA", "policy": "GRANT"}]}`),
+		}
+		policies, err := buildApplicationPolicyWithConfig(ctx, []string{"com.example.app"}, configs, "AVAILABLE")
+		require.NoError(t, err)
+		require.Len(t, policies, 1)
+		assert.Equal(t, "AUTO_UPDATE_HIGH_PRIORITY", policies[0].AutoUpdateMode)
+		assert.EqualValues(t, 42, policies[0].MinimumVersionCode)
+		require.Len(t, policies[0].PermissionGrants, 1)
+		assert.Equal(t, "android.permission.CAMERA", policies[0].PermissionGrants[0].Permission)
+		assert.Equal(t, "GRANT", policies[0].PermissionGrants[0].Policy)
+	})
+
+	t.Run("stored packageName and installType never override Fleet's values", func(t *testing.T) {
+		configs := map[string][]byte{
+			"com.example.app": []byte(`{"packageName": "com.example.other", "installType": "KIOSK"}`),
+		}
+		policies, err := buildApplicationPolicyWithConfig(ctx, []string{"com.example.app"}, configs, "PREINSTALLED")
+		require.NoError(t, err)
+		require.Len(t, policies, 1)
+		assert.Equal(t, "com.example.app", policies[0].PackageName)
+		assert.Equal(t, "PREINSTALLED", policies[0].InstallType)
+	})
+
+	t.Run("each app gets its own configuration", func(t *testing.T) {
+		configs := map[string][]byte{
+			"com.example.configured": []byte(`{"autoUpdateMode": "AUTO_UPDATE_POSTPONED"}`),
+		}
+		policies, err := buildApplicationPolicyWithConfig(ctx, []string{"com.example.configured", "com.example.unconfigured"}, configs, "AVAILABLE")
+		require.NoError(t, err)
+		require.Len(t, policies, 2)
+		assert.Equal(t, "com.example.configured", policies[0].PackageName)
+		assert.Equal(t, "AUTO_UPDATE_POSTPONED", policies[0].AutoUpdateMode)
+		assert.Empty(t, policies[0].WorkProfileWidgets)
+		assert.Equal(t, "com.example.unconfigured", policies[1].PackageName)
+		assert.Empty(t, policies[1].AutoUpdateMode)
+		assert.Equal(t, "WORK_PROFILE_WIDGETS_UNSPECIFIED", policies[1].WorkProfileWidgets)
+	})
 }
 
 func TestMakeAndroidAppAvailableSendsEachHostItsVersionConfiguration(t *testing.T) {
