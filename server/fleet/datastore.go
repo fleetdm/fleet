@@ -4577,10 +4577,17 @@ type AndroidDatastore interface {
 	// a previously-issued command. Called by the Pub/Sub COMMAND handler on ack/error.
 	UpdateMDMAndroidCommandStatus(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error
 
-	// ListPendingMDMAndroidCommands returns commands still in the pending status that were created
-	// before createdBefore, oldest first, capped at limit rows. Used by the command reconciler cron to
-	// find commands whose Pub/Sub COMMAND notification never arrived.
-	ListPendingMDMAndroidCommands(ctx context.Context, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error)
+	// ListPendingMDMAndroidCommands returns commands still in the pending status whose operation_name
+	// starts with operationNamePrefix and that were created before createdBefore, oldest first, capped
+	// at limit rows. Used by the command reconciler cron to find commands whose Pub/Sub COMMAND
+	// notification never arrived.
+	ListPendingMDMAndroidCommands(ctx context.Context, operationNamePrefix string, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error)
+
+	// FailPendingMDMAndroidCommandsOutsidePrefix marks as error up to limit pending commands whose
+	// operation_name does not start with operationNamePrefix and that were created before
+	// createdBefore, oldest first, and returns how many it updated. Used by the command reconciler
+	// cron to retire commands issued under an enterprise Fleet is no longer connected to.
+	FailPendingMDMAndroidCommandsOutsidePrefix(ctx context.Context, operationNamePrefix string, createdBefore time.Time, errorMessage string, limit int) (int64, error)
 
 	// LockHostViaAndroidMDM inserts the LOCK row into mdm_android_commands and writes the lock_ref on host_mdm_actions in a
 	// single transaction, mirroring WipeHostViaWindowsMDM. The caller must populate cmd.CommandUUID and cmd.OperationName
