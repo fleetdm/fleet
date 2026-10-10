@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "0.5.5",
+      "version": "0.5.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.openrct2.OpenRCT2';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.openrct2.OpenRCT2' AND version_compare(bundle_short_version, '0.5.5') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.openrct2.OpenRCT2' AND version_compare(bundle_short_version, '0.5.6') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'io.openrct2.OpenRCT2' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/OpenRCT2/OpenRCT2/releases/download/v0.5.5/OpenRCT2-v0.5.5-macos-universal.zip",
+      "installer_url": "https://github.com/OpenRCT2/OpenRCT2/releases/download/v0.5.6/OpenRCT2-v0.5.6-macos-universal.zip",
       "install_script_ref": "4f27f239",
       "uninstall_script_ref": "9fdb5f82",
-      "sha256": "d02f0a3054106e60186805268828cc80068485ffa324aca7363ae1d69081fb0d",
+      "sha256": "5f57e48dbe438fd6fd5059954afe521a01365a36c11085b190067ea3204b6565",
       "default_categories": [
         "Productivity"
       ]
