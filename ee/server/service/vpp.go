@@ -420,11 +420,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	if teamName != "" {
 		tm, err := svc.ds.TeamByName(ctx, teamName)
 		if err != nil {
-			// On a dry run the team may not have been created yet, so there is no
-			// team-scoped token to validate against. Still confirm that every
-			// requested Apple app is available on some VPP token, so a wrong or
-			// unlicensed app_store_id fails the dry run instead of the first real
-			// apply of the new team.
+			// If this is a dry run, the team may not have been created yet.
 			if dryRun && fleet.IsNotFound(err) {
 				// The team-scoped write check below needs a team ID, so require
 				// global VPP app write access before reading any VPP assets.
@@ -690,11 +686,8 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			}
 
 			if dryRun {
-				// Stop here on a dry run, after confirming that the VPP token exists
-				// and that every requested app is available on it. Fetching the asset
-				// list is read-only, and validating it here means a wrong or unlicensed
-				// app_store_id fails `fleetctl gitops --dry-run` instead of the first
-				// real apply, which is what the dry run is for.
+				// Stop after the asset check, which is read-only, so a dry run
+				// rejects the same apps the apply would.
 				return nil, categories, nil
 			}
 		}
