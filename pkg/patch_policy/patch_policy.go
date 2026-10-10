@@ -219,6 +219,7 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"Android Studio":                    "= 'studio64.exe'",
 	"Audacity":                          "IN ('audacity.exe','audacity4.exe')",
 	"Beyond Compare":                    "= 'bcompare.exe'",
+	"Citrix Workspace LTSR":             "IN ('wfica32.exe','cdviewer.exe','citrix.desktopviewer.app.exe')",
 	"CLion":                             "IN ('clion.exe','clion64.exe')",
 	"Clockify Desktop":                  "= 'clockifywindows.exe'",
 	"Connect Fonts":                     "= 'monotype connect.exe'",
