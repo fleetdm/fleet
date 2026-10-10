@@ -552,6 +552,77 @@ func TestBatchAssociateVPPAppsDryRunNewTeamReportsMissingAssets(t *testing.T) {
 	require.True(t, fleet.IsNotFound(err))
 }
 
+// A dry run for a team that does not exist yet reads every unexpired token. A
+// token Apple rejects must not fail the dry run while another token answers,
+// since the team may never be assigned to it. Only when no token answers does
+// the dry run fail, and when every token is expired it fails without calling Apple.
+func TestBatchAssociateVPPAppsDryRunNewTeamToleratesUnreadableToken(t *testing.T) {
+	// dev_mode.SetOverride uses t.Setenv, which is incompatible with t.Parallel.
+
+	var calls int
+	vppSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		w.WriteHeader(http.StatusOK)
+		if r.Header.Get("Authorization") == "Bearer good" {
+			_, _ = w.Write([]byte(`{"assets":[{"adamId":"497799835"}]}`))
+			return
+		}
+		// Apple answers a revoked token with 200 and an error body.
+		_, _ = w.Write([]byte(`{"errorNumber":9622,"errorMessage":"Invalid authentication token"}`))
+	}))
+	t.Cleanup(vppSrv.Close)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", vppSrv.URL, t)
+
+	token := func(secret string, renew time.Time) *fleet.VPPTokenDB {
+		return &fleet.VPPTokenDB{OrgName: secret + "-org", Token: secret, RenewDate: renew, CountryCode: "us"}
+	}
+	valid := time.Now().Add(24 * time.Hour)
+	expired := time.Now().Add(-24 * time.Hour)
+
+	ds := new(mock.Store)
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return nil, common_mysql.NotFound("Team")
+	}
+	ds.GetDuplicateStringGroupsUnderCollationFunc = func(ctx context.Context, _ []string) ([]fleet.DuplicateStringGroup, error) {
+		return nil, nil
+	}
+	var tokens []*fleet.VPPTokenDB
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return tokens, nil
+	}
+	svc := newTestService(t, ds)
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+	payload := []fleet.VPPBatchPayload{{AppStoreID: "497799835", Platform: fleet.IOSPlatform}}
+
+	// One revoked token and one that holds the app: the dry run passes.
+	tokens = []*fleet.VPPTokenDB{token("bad", valid), token("good", valid)}
+	_, _, err := svc.BatchAssociateVPPApps(ctx, "New team", payload, true)
+	require.NoError(t, err)
+	require.Equal(t, 2, calls)
+
+	// Only revoked tokens: the dry run fails with the fetch error.
+	tokens = []*fleet.VPPTokenDB{token("bad", valid), token("worse", valid)}
+	_, _, err = svc.BatchAssociateVPPApps(ctx, "New team", payload, true)
+	require.ErrorContains(t, err, "unable to retrieve assets")
+	require.ErrorContains(t, err, "Invalid authentication token")
+
+	// Only expired tokens: the dry run fails before calling Apple.
+	calls = 0
+	tokens = []*fleet.VPPTokenDB{token("good", expired)}
+	_, _, err = svc.BatchAssociateVPPApps(ctx, "New team", payload, true)
+	require.ErrorContains(t, err, "VPP token expired")
+	require.Zero(t, calls)
+
+	// An expired token next to a valid one is ignored.
+	tokens = []*fleet.VPPTokenDB{token("bad", expired), token("good", valid)}
+	_, _, err = svc.BatchAssociateVPPApps(ctx, "New team", payload, true)
+	require.NoError(t, err)
+	require.Equal(t, 1, calls)
+
+	require.False(t, ds.BatchInsertVPPAppsFuncInvoked)
+	require.False(t, ds.SetTeamVPPAppsFuncInvoked)
+}
+
 // A dry run for a team that does not exist yet must reject the same payloads
 // the existing-team path rejects, instead of skipping them because no VPP
 // lookup applies. Each case fails before any token is read.

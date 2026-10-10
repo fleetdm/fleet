@@ -360,13 +360,19 @@ func (svc *Service) dryRunValidateVPPAssetsForNewTeam(ctx context.Context, paylo
 		return ctxerr.Wrap(ctx, err, "listing vpp tokens")
 	}
 	if len(tokens) == 0 {
-		// Nothing to validate against. The real apply reports the missing token
-		// itself, and the previous behaviour here was to skip, so keep that.
+		// A team is assigned a token only after it exists, and a new instance is
+		// often dry-run before any token is uploaded, so a missing token is left
+		// to the real apply, which reports it. When every token is expired the
+		// dry run fails instead, since whichever one the team gets cannot serve apps.
 		return nil
 	}
 
+	// A token that cannot be read is skipped while another one answers, since
+	// the team may never be assigned to it. The dry run fails on it only when no
+	// token answers.
 	available := map[string]struct{}{}
-	var unexpired int
+	var unexpired, readable int
+	var fetchErr error
 	for _, token := range tokens {
 		if time.Now().After(token.RenewDate) {
 			continue
@@ -374,14 +380,20 @@ func (svc *Service) dryRunValidateVPPAssetsForNewTeam(ctx context.Context, paylo
 		unexpired++
 		assets, err := vpp.GetAssets(ctx, token.Token, nil)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "unable to retrieve assets")
+			svc.logger.WarnContext(ctx, "skipping vpp token in dry run, unable to retrieve assets", "org_name", token.OrgName, "err", err)
+			fetchErr = err
+			continue
 		}
+		readable++
 		for _, asset := range assets {
 			available[asset.AdamID] = struct{}{}
 		}
 	}
 	if unexpired == 0 {
 		return fleet.NewUserMessageError(errors.New("Couldn't install. VPP token expired."), http.StatusUnprocessableEntity)
+	}
+	if readable == 0 {
+		return ctxerr.Wrap(ctx, fetchErr, "unable to retrieve assets")
 	}
 
 	var missing []string
