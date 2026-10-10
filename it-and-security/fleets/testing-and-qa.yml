@@ -71,6 +71,8 @@ controls:
     configuration_profiles:
       # Required for osqueryd to inherit Full Disk Access (EndpointSecurity tables)
       - path: ../lib/macos/configuration-profiles/full-disk-access-for-fleetd.mobileconfig
+      # CIS Level 2 password restrictions (CIS macOS Benchmark section 5.2)
+      - path: ../lib/macos/configuration-profiles/cis-l2-password-restrictions.mobileconfig
   setup_experience:
     macos_bootstrap_package: ""
     enable_end_user_authentication: true
@@ -88,6 +90,7 @@ controls:
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
 policies:
   # macOS policies
+  - path: ../lib/macos/policies/cis-password-restrictions.yml
   # Linux policies
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 reports:
