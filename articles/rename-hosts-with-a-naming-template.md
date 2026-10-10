@@ -9,8 +9,8 @@ This applies to Apple hosts (macOS, iOS, iPadOS) only. Windows and Android hosts
 ## Prerequisites
 
 - Fleet Premium.
-- Fleet's MDM [turned on](https://fleetdm.com/guides/macos-mdm-setup).
-- Hosts enrolled in Fleet's MDM. Personally enrolled (BYOD) hosts are skipped and never renamed.
+- MDM [turned on](https://fleetdm.com/guides/macos-mdm-setup) in Fleet.
+- Hosts enrolled to Fleet with MDM turned on. Personally enrolled (BYOD) hosts are skipped and never renamed.
 - iOS and iPadOS hosts must be supervised. Apple only applies a name change to supervised iPhones and iPads; unsupervised hosts receive the command once and land on **Failed**.
 
 ## Set a name template
