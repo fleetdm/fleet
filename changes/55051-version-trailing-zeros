@@ -1,0 +1,1 @@
+- Fixed software vulnerability matching treating versions with fewer trailing zeros as older (for example, "157.0" as lower than "157.0.0"), which reported hosts as vulnerable to CVEs already fixed in their version and missed CVEs at the start of an affected range.
