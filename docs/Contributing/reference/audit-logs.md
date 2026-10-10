@@ -2096,7 +2096,7 @@ This activity contains the following fields:
 - "fleet_id": ID of the fleet to which this App Store app was added, or `null` if it was added to no fleet.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
-- "configuration": The app's managed configuration, if set. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format.
+- "configuration": The app's managed configuration, if set. For iOS and iPadOS apps it is in XML format, and for Google Play Store apps it is in JSON format.
 
 #### Example
 
@@ -2250,7 +2250,7 @@ This activity contains the following fields:
 - "auto_update_enabled": Whether automatic updates are enabled for iOS/iPadOS App Store (VPP) apps.
 - "auto_update_window_start": Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
 - "auto_update_window_end": Update window end time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM.
-- "configuration": The app's managed configuration, if set. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format.
+- "configuration": The app's managed configuration, if set. For iOS and iPadOS apps it is in XML format, and for Google Play Store apps it is in JSON format.
 
 
 #### Example
