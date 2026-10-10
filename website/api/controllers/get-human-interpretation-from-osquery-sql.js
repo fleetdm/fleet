@@ -61,7 +61,7 @@ Please do not add any text outside of the JSON report or wrap it in a code fence
     // Fallback message in case LLM API request fails.
     let failureMessage = 'Failed to generate human interpretation using generative AI.';
 
-    let llmResponse = await sails.helpers.ai.prompt.with({prompt, expectJson: true, baseModel: 'claude-haiku-4-5'})
+    let llmResponse = await sails.helpers.ai.prompt.with({prompt, expectJson: true, baseModel: 'claude-haiku-5-5'})
     .tolerate((err)=>{
       sails.log.warn(failureMessage+'  Error details from LLM: '+err.stack);
       return { risks: failureMessage, whatWillHappenDuringMaintenance: failureMessage};

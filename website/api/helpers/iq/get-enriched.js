@@ -327,7 +327,7 @@ module.exports = {
 
             locationInfo = await sails.helpers.ai.prompt.with({
               prompt: locationPrompt,
-              baseModel: 'claude-haiku-4-5',
+              baseModel: 'claude-haiku-5-5',
               expectJson: true,
               systemPrompt: systemPromptForAddressInformation,
             }).tolerate((err)=>{
@@ -361,7 +361,7 @@ module.exports = {
     {
       "employees": 0
     }`;
-          let llmResponse = await sails.helpers.ai.prompt.with({prompt, expectJson: true, baseModel: 'claude-haiku-4-5'})
+          let llmResponse = await sails.helpers.ai.prompt.with({prompt, expectJson: true, baseModel: 'claude-haiku-5-5'})
           .tolerate((unusedErr)=>{});
 
           if (llmResponse) {

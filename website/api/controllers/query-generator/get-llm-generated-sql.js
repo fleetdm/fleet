@@ -70,7 +70,19 @@ module.exports = {
       'Do not include ```json, ```, or any markdown formatting.'+
       'Do not include any explanation or text before or after the JSON.'+
       'Your entire response must be valid JSON.';
-    let filteredTables = await sails.helpers.ai.prompt(schemaFiltrationPrompt, 'claude-haiku-4-5', true, systemPromptForQueryGeneration)
+    // Claude Haiku 5.5 has safety classifiers but no server-side fallback, so a declined filtration is
+    // retried on Claude Sonnet 5.5, which does have one.
+    let filteredTables = await sails.helpers.flow.build(async ()=>{
+      let filtrationResult = await sails.helpers.ai.prompt.with({prompt: schemaFiltrationPrompt, baseModel: 'claude-haiku-5-5', expectJson: true, systemPrompt: systemPromptForQueryGeneration})
+      .tolerate('refused', (refusal)=>{
+        sails.log.warn(`Claude Haiku 5.5 declined to filter the osquery schema for a question (refusal details: ${require('util').inspect(refusal, {depth: 3})}).  Retrying on Claude Sonnet 5.5.`);
+        return undefined;
+      });
+      if(filtrationResult === undefined) {
+        filtrationResult = await sails.helpers.ai.prompt.with({prompt: schemaFiltrationPrompt, baseModel: 'claude-sonnet-5-5', expectJson: true, systemPrompt: systemPromptForQueryGeneration, effort: 'low'});
+      }
+      return filtrationResult;
+    })
     .intercept((err)=>{
       sails.log.warn(`When trying to get a subset of tables to use to generate a query for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
       if(this.req.isSocket){
@@ -175,7 +187,7 @@ module.exports = {
 
     // Effort is set to "low" because the schema was already narrowed down to relevant tables by the
     // schema-filtration step above -- the model doesn't need to spend much effort re-deriving that context.
-    let sqlReport = await sails.helpers.ai.prompt.with({prompt:sqlPrompt, baseModel:'claude-sonnet-5', expectJson: true, systemPrompt: systemPromptForQueryGeneration, effort: 'low'})
+    let sqlReport = await sails.helpers.ai.prompt.with({prompt:sqlPrompt, baseModel:'claude-sonnet-5-5', expectJson: true, systemPrompt: systemPromptForQueryGeneration, effort: 'low'})
     .intercept((err)=>{
       if(this.req.isSocket){
         // If this request was from a socket and an error occurs, broadcast an 'error' event and unsubscribe the socket from this room.

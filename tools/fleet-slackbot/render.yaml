@@ -25,7 +25,7 @@ services:
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: ANTHROPIC_MODEL
-        value: claude-opus-4-6
+        value: claude-opus-5-5
       - key: GITHUB_WEBHOOK_SECRET
         sync: false
       - key: PORT

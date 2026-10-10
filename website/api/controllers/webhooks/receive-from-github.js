@@ -272,7 +272,7 @@ the fleet stands ready
 The GitHub issue is:
 ${issueSummary}`;
       let haikuText = await sails.helpers.ai.prompt.with({
-        baseModel: 'claude-haiku-4-5',
+        baseModel: 'claude-haiku-5-5',
         prompt,
       })
       .tolerate((err)=>{
