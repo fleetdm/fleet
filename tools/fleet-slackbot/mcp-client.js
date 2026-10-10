@@ -5,10 +5,21 @@ const { SSEClientTransport } = require("@modelcontextprotocol/sdk/client/sse.js"
 // Keeps tool results from blowing up the Claude context window.
 const MAX_TOOL_RESULT_CHARS = 20000;
 
+// Only these errors prove fleet-mcp never started the call, so retrying can't
+// run it twice (e.g. a second live query).
+function wasNeverAccepted(err) {
+  const message = err.message || "";
+  return (
+    message === "Not connected" ||
+    /^Error POSTing to endpoint \(HTTP 400\):.*Invalid session ID/.test(message)
+  );
+}
+
 class McpClient {
-  constructor({ url, authToken }) {
+  constructor({ url, authToken, toolTimeoutMs }) {
     this.url = url;
     this.authToken = authToken;
+    this.toolTimeoutMs = toolTimeoutMs;
     this.client = null;
     this.tools = [];
     this._localTools = new Map(); // name → { definition, handler }
@@ -90,15 +101,20 @@ class McpClient {
       }
     }
     console.log(`[mcp] Calling tool: ${name}(${JSON.stringify(args).slice(0, 200)})`);
+    const options = this.toolTimeoutMs ? { timeout: this.toolTimeoutMs } : undefined;
     let result;
     try {
-      result = await this.client.callTool({ name, arguments: args });
+      result = await this.client.callTool({ name, arguments: args }, undefined, options);
     } catch (err) {
-      // Connection may have dropped mid-call — try one reconnect
-      console.warn(`[mcp] Tool call failed (${err.message}), reconnecting and retrying...`);
+      if (!wasNeverAccepted(err)) {
+        throw err;
+      }
+      console.warn(
+        `[mcp] Tool call was not accepted (${err.message}), reconnecting and retrying...`
+      );
       this._connected = false;
       await this.connect();
-      result = await this.client.callTool({ name, arguments: args });
+      result = await this.client.callTool({ name, arguments: args }, undefined, options);
     }
 
     // MCP returns content as an array of content blocks
