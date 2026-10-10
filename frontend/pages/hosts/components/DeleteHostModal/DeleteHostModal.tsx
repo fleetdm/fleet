@@ -4,7 +4,7 @@ import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import Modal from "components/Modal";
 import { AppContext } from "context/app";
-import { MdmEnrollmentStatus } from "interfaces/mdm";
+import { isAndroidBYO, MdmEnrollmentStatus } from "interfaces/mdm";
 import {
   HostPlatform,
   isAndroid,
@@ -122,10 +122,13 @@ const DeleteHostModal = ({
     return (
       <>
         <p>
-          This will unenroll <b>{hostText()}</b> but won&apos;t remove company
-          data. {learnMoreLink}
+          This will remove <b>{hostText()}</b> from Fleet. It won&apos;t turn
+          off MDM or remove company data. {learnMoreLink}
         </p>
-        <p>{reEnrollInstructions}</p>
+        <p>
+          {theseHosts} won&apos;t re-enroll on {isPlural ? "their" : "its"} own.{" "}
+          {reEnrollInstructions}
+        </p>
       </>
     );
   };
@@ -134,22 +137,17 @@ const DeleteHostModal = ({
     if (!platform) {
       return null;
     }
-    if (isAndroid(platform)) {
-      return (
-        <>
-          <p>
-            This will unenroll <b>{hostText()}</b> and remove company data.
-          </p>
-          <p>This may take up to 24 hours. {learnMoreLink}</p>
-        </>
-      );
-    }
-    if (isIPadOrIPhone(platform)) {
+    if (isIPadOrIPhone(platform) || isAndroid(platform)) {
+      // Company-owned Android hosts have no Unenroll action, only Wipe.
+      const action =
+        isAndroid(platform) && !isAndroidBYO(mdmEnrollmentStatus ?? null)
+          ? "wipe"
+          : "unenroll";
       return (
         <>
           <p>{removeAllDataSentence("")}</p>
           <p>
-            {theseHosts} will re-enroll unless MDM is turned off.{" "}
+            {theseHosts} will re-enroll unless you {action} {them} first.{" "}
             {learnMoreLink}
           </p>
         </>
@@ -195,8 +193,9 @@ const DeleteHostModal = ({
             agent is uninstalled. {learnMoreLink}
           </li>
           <li>
-            iOS and iPadOS will re-enroll unless MDM is turned off. Android will
-            remove company data and may take up to 24 hours.
+            iOS, iPadOS, and personal Android hosts will re-enroll unless you
+            unenroll them first. Company-owned Android hosts will re-enroll
+            unless you wipe them first.
           </li>
         </ul>
       </>

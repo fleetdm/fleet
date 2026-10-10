@@ -73,7 +73,7 @@ describe("DeleteHostModal", () => {
     ).toBeVisible();
     expect(
       screen.getByText(
-        /iOS and iPadOS will re-enroll unless MDM is turned off/i
+        /iOS, iPadOS, and personal Android hosts will re-enroll unless you unenroll them first/i
       )
     ).toBeVisible();
     expect(screen.getByRole("link", { name: /learn more/i })).toHaveAttribute(
@@ -105,13 +105,16 @@ describe("DeleteHostModal", () => {
   );
 
   it("uses the host name for a single selected row on the Hosts page", () => {
-    renderModal({
-      selectedHostIds: [7],
-      hostName: "Pixel",
-      platform: "android",
-    });
-    expect(screen.getByText("Pixel")).toBeVisible();
-    expect(screen.getByText(/and remove company data\./i)).toBeVisible();
+    renderModal(
+      {
+        selectedHostIds: [7],
+        hostName: "Mac1",
+        platform: "darwin",
+        isMdmEnrolledInFleet: true,
+      },
+      true
+    );
+    expect(screen.getByText("Mac1")).toBeVisible();
   });
 
   it("pluralizes the per-platform copy for a same-platform selection", () => {
@@ -119,7 +122,9 @@ describe("DeleteHostModal", () => {
     expect(screen.getByText("3 hosts")).toBeVisible();
     expect(screen.getByText(/and associated data\./)).toBeVisible();
     expect(
-      screen.getByText(/These hosts will re-enroll unless MDM is turned off\./)
+      screen.getByText(
+        /These hosts will re-enroll unless you unenroll them first\./
+      )
     ).toBeVisible();
   });
 
@@ -141,10 +146,15 @@ describe("DeleteHostModal", () => {
   });
 
   it("renders the Android copy", () => {
-    renderModal({ hostName: "Pixel", platform: "android" });
-    expect(screen.getByText("Pixel")).toBeVisible();
-    expect(screen.getByText(/and remove company data\./i)).toBeVisible();
-    expect(screen.getByText(/This may take up to 24 hours\./)).toBeVisible();
+    renderModal({
+      hostName: "Pixel",
+      platform: "android",
+      mdmEnrollmentStatus: "On (automatic)",
+    });
+    expect(screen.getByText("This will remove all host data.")).toBeVisible();
+    expect(
+      screen.getByText(/This host will re-enroll unless you wipe it first\./)
+    ).toBeVisible();
     expect(screen.getByRole("link", { name: /learn more/i })).toHaveAttribute(
       "href",
       expect.stringMatching(DELETING_A_HOST_LINK)
@@ -155,7 +165,9 @@ describe("DeleteHostModal", () => {
     renderModal({ hostName: "iPad", platform: "ipados" });
     expect(screen.getByText("This will remove all host data.")).toBeVisible();
     expect(
-      screen.getByText(/This host will re-enroll unless MDM is turned off\./)
+      screen.getByText(
+        /This host will re-enroll unless you unenroll it first\./
+      )
     ).toBeVisible();
     expect(screen.getByRole("link", { name: /learn more/i })).toHaveAttribute(
       "href",
@@ -194,10 +206,12 @@ describe("DeleteHostModal", () => {
       true
     );
     expect(screen.getByText("Mac")).toBeVisible();
-    expect(screen.getByText(/but won't remove company data\./i)).toBeVisible();
+    expect(
+      screen.getByText(/won't turn off MDM or remove company data\./i)
+    ).toBeVisible();
     expect(
       screen.getByText(
-        "To re-enroll it, turn on MDM manually or reinstall Fleet's agent."
+        /This host won't re-enroll on its own\. To re-enroll it, turn on MDM manually or reinstall Fleet's agent\./
       )
     ).toBeVisible();
     expect(screen.getByRole("link", { name: /learn more/i })).toHaveAttribute(
@@ -217,7 +231,9 @@ describe("DeleteHostModal", () => {
       true
     );
     expect(screen.getByText("Mac")).toBeVisible();
-    expect(screen.getByText(/but won't remove company data\./i)).toBeVisible();
+    expect(
+      screen.getByText(/won't turn off MDM or remove company data\./i)
+    ).toBeVisible();
     expect(
       screen.getByText("sudo profiles renew -type enrollment")
     ).toBeVisible();
