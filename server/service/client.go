@@ -3404,8 +3404,8 @@ func (c *Client) doGitOpsNoTeamWebhookSettings(
 	// Apply webhook settings for "No Team"
 	// If webhook_settings are not specified, they will be applied as disabled to clear existing settings
 	teamPayload := fleet.TeamPayload{
-		WebhookSettings: &fleet.TeamWebhookSettings{
-			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+		WebhookSettings: &fleet.TeamSpecWebhookSettings{
+			FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
 				Enable: false,
 			},
 			HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
@@ -3418,7 +3418,7 @@ func (c *Client) doGitOpsNoTeamWebhookSettings(
 	if config.TeamSettings != nil {
 		if webhookSettings, ok := config.TeamSettings["webhook_settings"]; ok {
 			fpw := extractFailingPoliciesWebhook(webhookSettings)
-			teamPayload.WebhookSettings.FailingPoliciesWebhook = fpw
+			teamPayload.WebhookSettings.FailingPoliciesWebhook = &fpw
 			teamPayload.WebhookSettings.HostActivitiesWebhook = extractHostActivitiesWebhook(webhookSettings)
 		}
 	}
@@ -3977,7 +3977,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 					patchTeamID = *config.TeamID
 				}
 				if err := c.PatchFleet(patchTeamID, fleet.TeamPayload{
-					WebhookSettings: &fleet.TeamWebhookSettings{FailingPoliciesWebhook: fpw},
+					WebhookSettings: &fleet.TeamSpecWebhookSettings{FailingPoliciesWebhook: &fpw},
 				}); err != nil {
 					return fmt.Errorf("error updating failing policies webhook: %w", err)
 				}
