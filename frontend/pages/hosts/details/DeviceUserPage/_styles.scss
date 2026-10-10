@@ -1,3 +1,10 @@
+.app-wrap--device-user {
+  // Nudges the logo + card off the top edge of the ADE setup-experience
+  // window (#53270); on the browser device page it just relaxes the nav's
+  // top-vs-left balance
+  padding-top: $pad-small;
+}
+
 .app-wrap {
   .site-nav-left {
     .loading-spinner {
