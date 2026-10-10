@@ -16,8 +16,6 @@ import configAPI from "services/entities/config";
 
 import {
   IFormDataIdp,
-  isEmptyFormData,
-  METADATA_SIBLING,
   newFormDataIdp,
   validateEndUserAuthForm,
 } from "./helpers";
@@ -49,13 +47,9 @@ const EndUserAuthSection = ({
 
   const {
     formData,
-    setField,
     reset,
-    getError,
-    clearFieldError,
-    validateField,
+    getFieldProps,
     handleSubmit,
-    clearErrors,
     isSubmitting,
   } = useFormValidation<IFormDataIdp>({
     initialFormData: originalFormData.current,
@@ -66,26 +60,6 @@ const EndUserAuthSection = ({
     trimFormData(formData),
     originalFormData.current
   );
-
-  const onFieldChange = (name: keyof IFormDataIdp, value: string) => {
-    setField(name, value);
-
-    // Emptying the last field is how the configuration gets cleared, and an
-    // empty form is valid, so every required-field error stops applying.
-    if (isEmptyFormData({ ...formData, [name]: value })) {
-      clearErrors();
-      return;
-    }
-
-    // Filling either metadata field satisfies the shared requirement, but blur
-    // only revalidates the field that blurred, so the other keeps a stale copy
-    // of the message. An empty sibling can only be holding that shared error; a
-    // non-empty metadata URL may be holding a format error that still applies.
-    const sibling = METADATA_SIBLING[name];
-    if (value.trim() && sibling && !formData[sibling].trim()) {
-      clearFieldError(sibling);
-    }
-  };
 
   useEffect(() => {
     onDirtyChange(hasUnsavedChanges);
@@ -150,23 +124,13 @@ const EndUserAuthSection = ({
         >
           <InputField
             label="Identity provider name"
-            name="idp_name"
-            value={formData.idp_name}
-            error={getError("idp_name")}
-            onChange={(value: string) => onFieldChange("idp_name", value)}
-            onFocus={() => clearFieldError("idp_name")}
-            onBlur={() => validateField("idp_name")}
+            {...getFieldProps("idp_name")}
             disabled={isSubmitting || gitOpsModeEnabled}
             tooltip="A required human friendly name for the identity provider that will provide single sign-on authentication."
           />
           <InputField
             label="Entity ID"
-            name="entity_id"
-            value={formData.entity_id}
-            error={getError("entity_id")}
-            onChange={(value: string) => onFieldChange("entity_id", value)}
-            onFocus={() => clearFieldError("entity_id")}
-            onBlur={() => validateField("entity_id")}
+            {...getFieldProps("entity_id")}
             disabled={isSubmitting || gitOpsModeEnabled}
             tooltip="The Entity ID is a required URI that you use to identify Fleet when configuring the identity provider. Okta calls this Audience Restriction."
           />
@@ -178,24 +142,14 @@ const EndUserAuthSection = ({
                 <b>Metadata URL</b> will be used.
               </>
             }
-            name="metadata_url"
-            value={formData.metadata_url}
-            error={getError("metadata_url")}
-            onChange={(value: string) => onFieldChange("metadata_url", value)}
-            onFocus={() => clearFieldError("metadata_url")}
-            onBlur={() => validateField("metadata_url")}
+            {...getFieldProps("metadata_url")}
             disabled={isSubmitting || gitOpsModeEnabled}
             tooltip="Metadata URL provided by the identity provider."
           />
           <InputField
             label="Metadata"
             type="textarea"
-            name="metadata"
-            value={formData.metadata}
-            error={getError("metadata")}
-            onChange={(value: string) => onFieldChange("metadata", value)}
-            onFocus={() => clearFieldError("metadata")}
-            onBlur={() => validateField("metadata")}
+            {...getFieldProps("metadata")}
             disabled={isSubmitting || gitOpsModeEnabled}
             tooltip="Metadata XML provided by the identity provider."
           />

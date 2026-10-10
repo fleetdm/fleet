@@ -357,12 +357,14 @@ The output of `validate` is used by the calling handler to update a `formErrors`
 
 The `useFormValidation` hook in `frontend/hooks/useFormValidation.ts` implements every rule below — dirty tracking, clear-on-focus, blur-validates-one-field, submit-as-checkpoint, server errors, trimming, in-flight state. Pass it `initialFormData` and a `validate` function and wire the handlers it returns; don't hand-roll the state management. `UserForm` and `ApiUserForm` (`frontend/pages/admin/ManageUsersPage/components/`) are the reference migrations. The hook deliberately exposes no `isValid` — see [Submit button state](#submit-button-state).
 
+Spread `getFieldProps("fieldName")` onto text inputs (`InputField`, `InputFieldWithIcon`) instead of wiring `name`, `value`, `error`, `onChange`, `onFocus` and `onBlur` by hand. A field that needs extra work on change passes its own `onChange` after the spread and calls `setField` from it. Checkboxes, radios, dropdowns and other controls that commit on change call `commitFields` directly.
+
 #### When errors appear
 
 A field is **dirty** once the user has typed into it or the browser has autofilled it. It stays dirty for the session, even if the value returns to its initial state. Field errors gate on `dirty`. Form-level `isDirty` ("form has changes") is a separate concept — see [Submit button state](#submit-button-state).
 
 - Never show a field's error before the field is dirty.
-- On blur of a dirty field, run validation and show the resulting error (if any) for that field only. Do not touch errors on other fields.
+- On blur of a dirty field, run validation and show the resulting error (if any) for that field only. Never add errors to other fields (but see [When errors clear](#when-errors-clear) for removing them).
 - On submit, validate every field regardless of dirty state. If any are invalid, show all inline errors simultaneously and return without calling the API. Submit is a checkpoint that bypasses the dirty gate — pristine required fields surface their errors too.
 - On an Edit form, pre-filled values that are invalid do not show errors until the field is dirty.
 
@@ -370,7 +372,8 @@ A field is **dirty** once the user has typed into it or the browser has autofill
 
 - On focus of a field that has an error (via click, tab, or programmatic focus), clear that field's error immediately — do not wait for the user to type a valid value. The error text replaces the field's label (see [Visual affordances](#visual-affordances)), so clearing on focus restores the label and lets the user see what they're editing.
 - Re-validate on blur, not on keystroke.
-- Typing in one field never clears errors on other fields. Clearing is per-field.
+- Typing in one field never clears errors on other fields.
+- On blur, clear any other field's error that the new value made irrelevant — e.g. filling **Metadata** clears the shared "Enter metadata or a metadata URL" error on **Metadata URL**. Errors that still apply, and server-set errors, stay.
 - When a validation becomes irrelevant (e.g. a conditional requirement is removed by toggling a checkbox), clear the newly-irrelevant error immediately.
 
 #### Error priority
@@ -395,7 +398,7 @@ A field is **dirty** once the user has typed into it or the browser has autofill
 
 #### Conditional / dependent validation
 
-- Cross-field checks (e.g. password + confirmation match) run on blur of the dependent/confirmation field only, and only when both fields are non-empty. If either is empty, skip the check — the empty field's own required-error covers it. On mismatch, attach the error to the field being blurred (the dependent/confirmation), consistent with the "blur validates that field only" rule. Editing the source field after the mismatch error is set does not re-run the cross-field check; the error stays until the confirmation field is edited or re-blurred.
+- Cross-field checks (e.g. password + confirmation match) run on blur of the dependent/confirmation field only, and only when both fields are non-empty. If either is empty, skip the check — the empty field's own required-error covers it. On mismatch, attach the error to the field being blurred (the dependent/confirmation), consistent with the "blur validates that field only" rule. Editing the source field never adds a mismatch error, but if the edit makes the two match, the mismatch error clears on blur of the source field.
 - Fields that become required based on another field's state (e.g. password required when SSO is off) still follow the "no error until dirty" rule. There is no visual indicator that a field is conditionally required.
 - When a condition changes such that an existing error no longer applies (e.g. SSO toggled on), clear the error immediately.
 - Client-side "at least one X must be selected" errors render inline on the selector's label, not as a toast. Server-side variants of the same error also fire a toast in addition to the inline surface.

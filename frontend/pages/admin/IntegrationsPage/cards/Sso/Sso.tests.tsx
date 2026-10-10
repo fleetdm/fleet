@@ -100,7 +100,7 @@ describe("Sso - Fleet users", () => {
     expect(screen.queryByText("Enter metadata or a metadata URL")).toBeNull();
   });
 
-  it("clears the paired metadata error once either field is filled", async () => {
+  it("clears the paired metadata error once either field is filled and left", async () => {
     const { user } = renderSso();
 
     await user.click(screen.getByRole("checkbox", { name: "enableSso" }));
@@ -113,6 +113,7 @@ describe("Sso - Fleet users", () => {
     ).toHaveLength(2);
 
     await user.type(metadata, "<xml />");
+    await user.tab();
 
     expect(screen.queryByText("Enter metadata or a metadata URL")).toBeNull();
     // The errors the change didn't make irrelevant stay put.
@@ -131,6 +132,8 @@ describe("Sso - Fleet users", () => {
     expect(screen.getByText("Enter a valid metadata URL")).toBeInTheDocument();
 
     await user.type(metadata, "<xml />");
+    // Not `tab()`: that would focus Metadata URL, and focus clears its error.
+    await user.click(document.body);
 
     // Still applies: the URL is used over the metadata when both are set.
     expect(screen.getByText("Enter a valid metadata URL")).toBeInTheDocument();

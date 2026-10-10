@@ -96,6 +96,7 @@ const Smtp = ({
     getError,
     clearFieldError,
     validateField,
+    getFieldProps,
     handleSubmit: onSubmit,
     isSubmitting,
   } = useFormValidation<ISmtpConfigFormData>({
@@ -141,12 +142,7 @@ const Smtp = ({
       <>
         <InputField
           label="SMTP username"
-          name="smtpUsername"
-          value={formData.smtpUsername}
-          onChange={(value: string) => setField("smtpUsername", value)}
-          onFocus={() => clearFieldError("smtpUsername")}
-          onBlur={() => validateField("smtpUsername")}
-          error={getError("smtpUsername")}
+          {...getFieldProps("smtpUsername")}
           blockAutoComplete
           ignore1password={false}
           disabled={isSubmitting}
@@ -154,12 +150,7 @@ const Smtp = ({
         <InputField
           label="SMTP password"
           type="password"
-          name="smtpPassword"
-          value={formData.smtpPassword}
-          onChange={(value: string) => setField("smtpPassword", value)}
-          onFocus={() => clearFieldError("smtpPassword")}
-          onBlur={() => validateField("smtpPassword")}
-          error={getError("smtpPassword")}
+          {...getFieldProps("smtpPassword")}
           blockAutoComplete
           ignore1password={false}
           disabled={isSubmitting}
@@ -218,24 +209,14 @@ const Smtp = ({
           </Checkbox>
           <InputField
             label="Sender address"
-            name="smtpSenderAddress"
-            value={formData.smtpSenderAddress}
-            onChange={(value: string) => setField("smtpSenderAddress", value)}
-            onFocus={() => clearFieldError("smtpSenderAddress")}
-            onBlur={() => validateField("smtpSenderAddress")}
-            error={getError("smtpSenderAddress")}
+            {...getFieldProps("smtpSenderAddress")}
             tooltip="The sender address for emails from Fleet."
             disabled={isSubmitting}
           />
           <div className="smtp-server-inputs">
             <InputField
               label="SMTP server"
-              name="smtpServer"
-              value={formData.smtpServer}
-              onChange={(value: string) => setField("smtpServer", value)}
-              onFocus={() => clearFieldError("smtpServer")}
-              onBlur={() => validateField("smtpServer")}
-              error={getError("smtpServer")}
+              {...getFieldProps("smtpServer")}
               tooltip="The hostname / private IP address and corresponding port of your organization's SMTP server."
               disabled={isSubmitting}
             />
