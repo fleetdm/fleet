@@ -9,21 +9,6 @@
     @include vertical-form-layout;
   }
 
-  &__upload {
-    display: flex;
-    align-items: center;
-    gap: $pad-medium;
-
-    input[type="file"] {
-      display: none;
-    }
-  }
-
-  &__upload-help {
-    font-size: $x-small;
-    color: $ui-fleet-black-75;
-  }
-
   &__deploy {
     display: flex;
     flex-direction: column;

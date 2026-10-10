@@ -1,11 +1,12 @@
 import { AxiosResponse } from "axios";
-import React, { useContext, useRef, useState } from "react";
+import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import Editor from "components/Editor";
+import FileUploader from "components/FileUploader";
 import Checkbox from "components/forms/fields/Checkbox";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import InputField from "components/forms/fields/InputField";
@@ -154,7 +155,6 @@ const ProfileForm = ({
   // derives a profile name from when the admin leaves Name empty.
   const [uploadedFile, setUploadedFile] = useState<IUploadedFile | null>(null);
   const [serverErrors, setServerErrors] = useState<IFormErrors | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // An uploaded file the contents can't type, like a lone secret placeholder,
   // goes by its extension, as the server routes it.
@@ -300,12 +300,6 @@ const ProfileForm = ({
         response: e,
       });
     }
-  };
-
-  const onFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onFileSelected(e.target.files);
-    // let the same file be picked again after a paste
-    e.target.value = "";
   };
 
   // Typed or pasted contents are no longer the uploaded file, so the derived
@@ -511,34 +505,35 @@ const ProfileForm = ({
               inputOptions={{ maxLength: DESCRIPTION_MAX_LENGTH }}
               disabled={isFieldDisabled(disableChildren)}
             />
-            <div className={`${baseClass}__upload`}>
-              <Button
-                variant="secondary"
-                icon="upload"
-                disabled={isFieldDisabled(disableChildren)}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                Upload a profile
-              </Button>
-              <input
-                ref={fileInputRef}
-                accept={
-                  profile
-                    ? getAcceptedExtensions(profile).join(",")
-                    : ADD_PROFILE_ACCEPT
-                }
-                id="upload-profile"
-                aria-label="Upload a profile"
-                type="file"
-                disabled={isFieldDisabled(disableChildren)}
-                onChange={onFileInputChange}
-              />
-              {(hasContents || isEdit) && (
-                <span className={`${baseClass}__upload-help`}>
-                  Uploading a file will replace the profile contents below.
-                </span>
-              )}
-            </div>
+            <FileUploader
+              className={`${baseClass}__upload`}
+              variant="small"
+              graphicName="file-configuration-profile"
+              message={
+                profile ? (
+                  <>Upload a {getAcceptedExtensions(profile).join(" or ")}.</>
+                ) : (
+                  <>
+                    Upload a .mobileconfig or .json (macOS, iOS, iPadOS,
+                    Android) or .xml (Windows).
+                  </>
+                )
+              }
+              additionalInfo={
+                hasContents || isEdit
+                  ? "Uploading will replace the profile contents below."
+                  : undefined
+              }
+              buttonMessage="Upload"
+              buttonType="secondary"
+              accept={
+                profile
+                  ? getAcceptedExtensions(profile).join(",")
+                  : ADD_PROFILE_ACCEPT
+              }
+              onFileUpload={onFileSelected}
+              disabled={isFieldDisabled(disableChildren)}
+            />
             <Editor
               name="profile-contents"
               label={

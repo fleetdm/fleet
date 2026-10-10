@@ -372,7 +372,7 @@ describe("ProfileFormPage", () => {
 
     expect(screen.getByLabelText("Name")).toBeDisabled();
     expect(screen.getByLabelText("Description")).toBeDisabled();
-    expect(screen.getByLabelText("Upload a profile")).toBeDisabled();
+    expect(screen.getByLabelText("Upload")).toBeDisabled();
     expect(screen.getByLabelText("Profile contents")).toHaveAttribute(
       "readonly"
     );
@@ -468,7 +468,7 @@ describe("ProfileFormPage", () => {
       })
     );
     expect(screen.getByLabelText("Name")).toBeDisabled();
-    expect(screen.getByLabelText("Upload a profile")).toBeDisabled();
+    expect(screen.getByLabelText("Upload")).toBeDisabled();
     expect(screen.getByLabelText("Profile contents")).toHaveAttribute(
       "readonly"
     );
@@ -612,7 +612,7 @@ describe("ProfileFormPage", () => {
     const { user } = renderPage();
 
     await user.upload(
-      screen.getByLabelText("Upload a profile"),
+      screen.getByLabelText("Upload"),
       fileWithText(WINDOWS_XML, "Firewall.xml")
     );
     await waitFor(() =>
@@ -638,7 +638,7 @@ describe("ProfileFormPage", () => {
     ).toBeInTheDocument();
 
     await user.upload(
-      screen.getByLabelText("Upload a profile"),
+      screen.getByLabelText("Upload"),
       fileWithText("$FLEET_SECRET_PROFILE", "Secret.xml")
     );
     await waitFor(() =>
@@ -661,7 +661,7 @@ describe("ProfileFormPage", () => {
     const { user } = renderPage();
 
     await user.upload(
-      screen.getByLabelText("Upload a profile"),
+      screen.getByLabelText("Upload"),
       fileWithText("$FLEET_SECRET_PROFILE", "Secret.xml")
     );
     await waitFor(() =>
@@ -686,7 +686,7 @@ describe("ProfileFormPage", () => {
     );
 
     // bypasses the picker's accept filter, as a drag and drop would
-    fireEvent.change(screen.getByLabelText("Upload a profile"), {
+    fireEvent.change(screen.getByLabelText("Upload"), {
       target: { files: [fileWithText("{}", "profile.json")] },
     });
 
@@ -703,7 +703,7 @@ describe("ProfileFormPage", () => {
     const { user } = renderPage();
 
     await user.upload(
-      screen.getByLabelText("Upload a profile"),
+      screen.getByLabelText("Upload"),
       fileWithText(WINDOWS_XML, "Firewall.xml", true)
     );
 
@@ -880,7 +880,7 @@ describe("ProfileFormPage", () => {
       const { user } = renderPage(undefined, premiumRender);
       const upload = async (contents: string, name: string) => {
         await user.upload(
-          screen.getByLabelText("Upload a profile"),
+          screen.getByLabelText("Upload"),
           fileWithText(contents, name)
         );
         await waitFor(() =>
