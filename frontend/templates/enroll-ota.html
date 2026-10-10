@@ -85,6 +85,12 @@
         align-items: flex-start;
       }
 
+      /* The other lists space out multi-step instructions with images and
+         buttons between them; these are three short lines. */
+      .next-steps-instructions {
+        gap: 16px;
+      }
+
       .android-content {
         margin-top: 48px;
         display: flex;
@@ -313,8 +319,37 @@
         <div class="android-content">
           <p>Select <b>Enroll</b> and follow the steps.</p>
           <a class="enroll-link" href="" target="_blank">Enroll</a>
-          <p>Already finished? You can close this tab.</p>
         </div>
+      </section>
+    </template>
+
+    <!-- content for the /enroll/next-steps page, shown after selecting Enroll -->
+    <template id="android-next-steps-template">
+      <section class="device-instructions-content">
+        <h1>Next steps...</h1>
+        <ol class="next-steps-instructions">
+          <li>
+            <p>
+              <span>1.</span>
+              <span>Follow enrollment instructions.</span>
+            </p>
+          </li>
+          <li>
+            <p>
+              <span>2.</span>
+              <span>
+                When you see the "Your device is ready to go!" page, you're
+                done.
+              </span>
+            </p>
+          </li>
+          <li>
+            <p>
+              <span>3.</span>
+              <span>You can close this page.</span>
+            </p>
+          </li>
+        </ol>
       </section>
     </template>
 
@@ -600,6 +635,7 @@
       const ANDROID_MDM_ENABLED = "{{.AndroidMDMEnabled}}" === "true";
       const MAC_MDM_ENABLED = "{{.MacMDMEnabled}}" == "true";
       const IS_APPLE_MANUAL_ENROLLMENT_BLOCKED = "{{.AppleManualEnrollmentBlocked}}" == "true";
+      const IS_NEXT_STEPS = "{{.NextSteps}}" === "true";
       const ERROR_MESSAGE = "{{.ErrorMessage}}";
       const isFullyManaged = new URLSearchParams(window.location.search).has(
         "fully_managed",
@@ -809,6 +845,52 @@
         document.querySelector(".enroll-link").setAttribute("href", url);
       };
 
+      // Both pages carry the enroll secret: /enroll needs it to mint a token,
+      // and next-steps needs it so a non-Android visitor can be sent back to a
+      // working /enroll rather than to an "invalid URL" error.
+      const buildEnrollPath = (path) => {
+        const enrollSecret = getEnrollmentSecret();
+        if (!enrollSecret) {
+          return `{{.URLPrefix}}${path}`;
+        }
+        return `{{.URLPrefix}}${path}?enroll_secret=${encodeURIComponent(
+          enrollSecret
+        )}`;
+      };
+
+      // Held in an object so tests can replace them: location is unforgeable,
+      // and the only thing a test environment can otherwise observe is that
+      // some navigation happened, not where to.
+      const navigateTo = {
+        assign: (url) => window.location.assign(url),
+        replace: (url) => window.location.replace(url),
+      };
+
+      // Selecting Enroll sends this tab to the next-steps page, so the Enroll
+      // button is gone by the time the user comes back and can't be used twice.
+      // The link keeps its href and target, so the enrollment hand-off still
+      // opens in its own tab and long-press still works.
+      const wireEnrollNavigation = () => {
+        const enrollLink = document.querySelector(".enroll-link");
+        if (!enrollLink) {
+          return;
+        }
+
+        // Going back from next-steps restores this page from the back/forward
+        // cache with its scripts frozen, so the Enroll link would still carry
+        // the token that has already been spent. Reload to mint a fresh one,
+        // otherwise Back is another way to hit the double-enrollment error.
+        window.addEventListener("pageshow", (event) => {
+          if (event.persisted) {
+            window.location.reload();
+          }
+        });
+
+        enrollLink.addEventListener("click", () => {
+          navigateTo.assign(buildEnrollPath("/enroll/next-steps"));
+        });
+      };
+
       // dynmaic content rendering for ios and ipad only
       const setIosIpadContent = (platform) => {
         if (platform === "ios") {
@@ -884,6 +966,18 @@
 
       // here we render the page content
       document.addEventListener("DOMContentLoaded", async function () {
+        // The next-steps page is informational: it needs no token and no enroll
+        // secret of its own, so it is handled before those checks. Only Android
+        // is sent here in the first place; anyone else is returned to /enroll.
+        if (IS_NEXT_STEPS) {
+          if (getPlatform() !== "android") {
+            navigateTo.replace(buildEnrollPath("/enroll"));
+            return;
+          }
+          renderContent("android-next-steps-template");
+          return;
+        }
+
         // if there is an error message, render it
         if (ERROR_MESSAGE) {
           // format of error message is expected to use colon as separator character, e.g., "An error occurred. : Failed to parse original URL."
@@ -963,6 +1057,7 @@
               throw new Error("Failed to get enrollment token");
             }
             setEnrollTokenUrl(data.android_enrollment_url);
+            wireEnrollNavigation();
           } catch (error) {
             renderError(
               "Couldn't get Android enrollment token.",
