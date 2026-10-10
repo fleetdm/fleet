@@ -274,8 +274,11 @@ func main() {
 
 			go func() {
 				const checkTokenBase = 1 * time.Second
-				const maxTokenBackoff = 5 * time.Minute
-				tokenBackoff := backoff.New(checkTokenBase, maxTokenBackoff)
+				// tokenBackoffBaseCap is the exponential backoff ceiling before jitter.
+				// With 100% additive jitter, the effective interval at the cap is
+				// uniformly distributed in [15m, 30m). See #45553.
+				const tokenBackoffBaseCap = 15 * time.Minute
+				tokenBackoff := backoff.New(checkTokenBase, tokenBackoffBaseCap)
 				ticker := time.NewTicker(checkTokenBase)
 				defer ticker.Stop()
 				defer close(done)
