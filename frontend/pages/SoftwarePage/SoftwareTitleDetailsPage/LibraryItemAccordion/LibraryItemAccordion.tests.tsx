@@ -65,6 +65,16 @@ describe("LibraryItemAccordion", () => {
       expect(screen.getByText(/149\.0\.7827\.54/)).toBeVisible();
     });
 
+    it("renders the added timestamp", () => {
+      renderAccordion();
+      expect(screen.getByText(/^Added /)).toBeVisible();
+    });
+
+    it("hides the added timestamp when addedAt is omitted", () => {
+      renderAccordion({ addedAt: undefined });
+      expect(screen.queryByText(/^Added /)).not.toBeInTheDocument();
+    });
+
     it("does not render the expanded panel by default", () => {
       renderAccordion();
       expect(screen.queryByText("32 installed")).not.toBeInTheDocument();
