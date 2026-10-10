@@ -3530,11 +3530,14 @@ func (ds *Datastore) SyncPatchPolicyQueries(ctx context.Context) error {
 // installer. A changed query clears the policy's results, as editing a policy's
 // query does; an unchanged one keeps them.
 func (ds *Datastore) syncPatchPolicyQuery(ctx context.Context, policyID uint) error {
-	var changed bool
+	var (
+		changed bool
+		src     patchPolicySource
+		query   string
+	)
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		changed = false
 
-		var src patchPolicySource
 		err := sqlx.GetContext(ctx, tx, &src, patchPolicySourceStmt+` AND p.id = ? FOR UPDATE OF p`, fleet.PolicyTypePatch, policyID)
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
@@ -3543,7 +3546,7 @@ func (ds *Datastore) syncPatchPolicyQuery(ctx context.Context, policyID uint) er
 			return ctxerr.Wrap(ctx, err, "getting patch policy with its installer")
 		}
 
-		query, err := src.generateQuery()
+		query, err = src.generateQuery()
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "generating patch policy query")
 		}
@@ -3568,6 +3571,8 @@ func (ds *Datastore) syncPatchPolicyQuery(ctx context.Context, policyID uint) er
 		return nil
 	}
 
+	ds.logger.InfoContext(ctx, "regenerated patch policy query, clearing its results",
+		"policy_id", policyID, "software_title", src.SoftwareTitle, "old_query", src.PolicyQuery, "new_query", query)
 	if err := ds.cleanupPolicyAfterCommit(ctx, policyID, "", true, true); err != nil {
 		return ctxerr.Wrapf(ctx, err, "clearing patch policy %d results", policyID)
 	}

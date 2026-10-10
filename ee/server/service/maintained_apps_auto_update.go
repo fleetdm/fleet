@@ -20,6 +20,11 @@ import (
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 )
 
+// patchPolicySyncMaxRunTime caps the patch policy sweep's share of an auto-update
+// run, so a backlog of drifted policies, each clearing its results, can't use up
+// the budget for installer updates.
+const patchPolicySyncMaxRunTime = 10 * time.Minute
+
 // AutoUpdateFleetMaintainedApps walks every active Fleet-maintained app
 // installer and, where its pin state allows, downloads the newest published
 // version into the team's cache and advances the active installer to it. When
@@ -30,8 +35,13 @@ import (
 func AutoUpdateFleetMaintainedApps(ctx context.Context, ds fleet.Datastore, softwareInstallStore fleet.SoftwareInstallerStore, logger *slog.Logger) error {
 	// Catches up patch policies whose query fell behind their active installer, such
 	// as one refreshed in place by a server that didn't regenerate the policy. First,
-	// so a run that spends its budget on downloads can't skip it.
-	if err := ds.SyncPatchPolicyQueries(ctx); err != nil {
+	// so a run that spends its budget on downloads can't skip it. Policies it doesn't
+	// reach in time still differ, so the next run picks them up, and the
+	// policy_membership cron finishes an interrupted results cleanup.
+	syncCtx, cancel := context.WithTimeout(ctx, patchPolicySyncMaxRunTime)
+	err := ds.SyncPatchPolicyQueries(syncCtx)
+	cancel()
+	if err != nil {
 		logger.ErrorContext(ctx, "syncing patch policy queries", "err", err)
 	}
 

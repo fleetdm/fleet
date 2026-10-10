@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -160,6 +161,31 @@ func TestAutoUpdateFleetMaintainedAppsContinuesPastError(t *testing.T) {
 	require.True(t, ds.SyncPatchPolicyQueriesFuncInvoked)
 	require.True(t, ds.SetFleetMaintainedAppActiveInstallerFuncInvoked)
 	require.Equal(t, uint(2), flippedTitle)
+}
+
+func TestAutoUpdateFleetMaintainedAppsBoundsPatchPolicySync(t *testing.T) {
+	ds := new(mock.Store)
+	ds.SyncPatchPolicyQueriesFunc = func(ctx context.Context) error {
+		deadline, ok := ctx.Deadline()
+		require.True(t, ok, "patch policy sync must have its own deadline")
+		require.WithinDuration(t, time.Now().Add(patchPolicySyncMaxRunTime), deadline, time.Minute)
+		return context.DeadlineExceeded
+	}
+	teamID := uint(1)
+	ds.ListFleetMaintainedAppActiveInstallersFunc = func(ctx context.Context) ([]fleet.FMAAutoUpdateCandidate, error) {
+		require.NoError(t, ctx.Err(), "the sync's budget running out must not cancel installer updates")
+		return []fleet.FMAAutoUpdateCandidate{{TeamID: &teamID, TitleID: 1, InstallerID: 9, Slug: "only/darwin"}}, nil
+	}
+	ds.GetPinnedVersionFunc = func(ctx context.Context, tmID *uint, titleID uint) (*string, error) {
+		return nil, sql.ErrNoRows
+	}
+	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
+		return []fleet.FleetMaintainedVersion{{ID: 9, Version: "1.0"}}, nil
+	}
+
+	err := AutoUpdateFleetMaintainedApps(t.Context(), ds, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	require.NoError(t, err)
+	require.True(t, ds.GetFleetMaintainedVersionsByTitleIDFuncInvoked)
 }
 
 func TestAutoUpdateFleetMaintainedAppsReportsCancelDuringLastApp(t *testing.T) {
