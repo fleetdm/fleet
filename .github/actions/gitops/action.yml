@@ -44,7 +44,7 @@ runs:
           done
         fi
 
-        FLEET_VERSION="$(curl "$FLEET_URL/api/v1/fleet/version" --header "Authorization: Bearer $FLEET_API_TOKEN" "${CURL_HEADER_ARGS[@]}" --fail --silent | jq --raw-output '.version')"
+        FLEET_VERSION="$(curl "$FLEET_URL/api/v1/fleet/version" --header "Authorization: Bearer $FLEET_API_TOKEN" "${CURL_HEADER_ARGS[@]}" --fail --silent --connect-timeout 10 --max-time 60 | jq --raw-output '.version')"
         DEFAULT_FLEETCTL_VERSION="latest"
 
         # Decide which fleetctl version to install:
