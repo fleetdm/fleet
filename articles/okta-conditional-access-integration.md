@@ -163,6 +163,8 @@ Create an authentication policy rule that requires Fleet verification for macOS 
 
 > To apply this policy to specific apps, go to **Applications** > select an app > **Sign On** tab > **Authentication policy** and assign the policy.
 
+> **Note:** By default, users must select **Verify** on a **Verify with Fleet** prompt every time this policy runs, even on compliant devices. To skip this extra step, turn on **Skip the verify screen and redirect to the IdP authenticator** in Okta **Settings** > **Features**.
+
 ## Step 7: Configure conditional access policies in Fleet
 
 Once Okta is configured in settings, head to **Policies**. Select the fleet that you want to enable conditional access for.
