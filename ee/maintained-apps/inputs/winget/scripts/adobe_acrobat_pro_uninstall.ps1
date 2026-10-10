@@ -1,30 +1,9 @@
-# Locate Adobe Acrobat Pro uninstaller from registry and execute it silently.
-# DisplayName is "Adobe Acrobat DC (64-bit)" on DC installs and may be "Adobe Acrobat (64-bit)" on others.
+# Uninstalls Adobe Acrobat Pro (64-bit) by its MSI product code. Acrobat Reader 64-bit
+# registers the same DisplayName and publisher, so matching on name could remove Reader.
 
-$displayNames = @("Adobe Acrobat (64-bit)", "Adobe Acrobat DC (64-bit)")
-$publisher = "Adobe"
+$productCode = $PACKAGE_ID
 
-$paths = @(
-    'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
-    'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall',
-    'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall'
-)
-
-$uninstall = $null
-foreach ($p in $paths) {
-    $items = Get-ItemProperty "$p\*" -ErrorAction SilentlyContinue | Where-Object {
-        $dn = $_.DisplayName
-        if (-not $dn) { return $false }
-        if ($publisher -ne "" -and $_.Publisher -ne $publisher) { return $false }
-        foreach ($d in $displayNames) {
-            if ($dn -eq $d -or $dn -like "$d*") { return $true }
-        }
-        $false
-    }
-    if ($items) { $uninstall = $items | Select-Object -First 1; break }
-}
-
-if (-not $uninstall -or -not $uninstall.UninstallString) {
+if (-not (Test-Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$productCode")) {
     Write-Host "Uninstall entry not found"
     Exit 0
 }
@@ -34,16 +13,8 @@ foreach ($proc in $acrobatProcesses) {
     Stop-Process -Name $proc -Force -ErrorAction SilentlyContinue
 }
 
-$uninstallCommand = $uninstall.UninstallString
-
-if ($uninstallCommand -match "MsiExec\.exe\s+/[IX]\s*(\{[A-F0-9-]+\})") {
-    $productCode = $Matches[1]
-    $uninstallArgs = "/X $productCode /qn /norestart"
-    $uninstallCommand = "MsiExec.exe"
-} else {
-    Write-Host "Error: Unable to parse uninstall command: $uninstallCommand"
-    Exit 1
-}
+$uninstallCommand = "MsiExec.exe"
+$uninstallArgs = "/X $productCode /qn /norestart"
 
 Write-Host "Uninstall command: $uninstallCommand"
 Write-Host "Uninstall args: $uninstallArgs"
