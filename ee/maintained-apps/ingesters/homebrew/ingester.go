@@ -152,6 +152,11 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 	out.Name = input.Name
 	out.Version = strings.Split(cask.Version, ",")[0]
 	out.InstallerURL = cask.URL
+	if input.Token == "updf" {
+		// download.updf.com serves a Cloudflare challenge to non-browser clients;
+		// the vendor's download.superace.com serves the same path without one.
+		out.InstallerURL = strings.Replace(cask.URL, "//download.updf.com/", "//download.superace.com/", 1)
+	}
 	out.UniqueIdentifier = input.UniqueIdentifier
 	out.SHA256 = cask.SHA256
 	out.Queries = maintained_apps.FMAQueries{Exists: fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s';", out.UniqueIdentifier)}

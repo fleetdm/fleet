@@ -9060,6 +9060,13 @@
       "description": "Unity Hub is a management tool for Unity."
     },
     {
+      "name": "UPDF",
+      "slug": "updf/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.superace.updf.mac",
+      "description": "UPDF is a PDF editor."
+    },
+    {
       "name": "Upscayl",
       "slug": "upscayl/darwin",
       "platform": "darwin",
