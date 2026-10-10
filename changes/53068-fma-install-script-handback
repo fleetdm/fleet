@@ -1,0 +1,1 @@
+- Fixed Fleet-maintained apps getting permanently excluded from install script updates after an administrator clears a previously customized install script.
