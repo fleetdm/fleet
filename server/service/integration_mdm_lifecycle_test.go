@@ -1787,10 +1787,23 @@ func (s *integrationMDMTestSuite) TestSCEPRenewalVsFreshEnrollment() {
 		require.NoError(t, err)
 		firstEnrollID := lastEnrolledActivityID()
 
-		// Genuine ACME renewal (re-keyed cert without the marker OU) short-circuits: no new mdm_enrolled.
+		// Genuine ACME renewal short-circuits: no new mdm_enrolled. A bound cert is a renewal by its purpose, so
+		// re-key from an acme_renewal enrollment for this host, as the renewal profile hands out.
 		forcePendingRenewal(host.UUID)
+		renewalIdent, err := s.acmeSvc.NewACMEEnrollment(ctx, dev.SerialNumber)
+		require.NoError(t, err)
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE acme_enrollments SET purpose = ?, enrollment_id = ? WHERE path_identifier = ?`,
+				fleet.AppleMDMCertPurposeACMERenewal, host.UUID, renewalIdent)
+			return err
+		})
+		freshDirectoryURL := dev.EnrollInfo.ACMEURL
+		acmePathPrefix := freshDirectoryURL[:strings.Index(freshDirectoryURL, "/acme/")+len("/acme/")]
+		require.NoError(t, dev.UseACMEDirectory(acmePathPrefix+renewalIdent+"/directory"))
 		dev.SimulateSCEPRenewal = true
-		require.NoError(t, dev.Reenroll())
+		require.NoError(t, dev.ACMEEnroll())
+		require.NoError(t, dev.Authenticate())
+		require.NoError(t, dev.TokenUpdate(false))
 		require.False(t, renewalPending(host.UUID), "renew refs should be cleared after an ACME renewal checkin")
 		require.Equal(t, firstEnrollID, lastEnrolledActivityID(), "an ACME renewal must not emit a new mdm_enrolled activity")
 
