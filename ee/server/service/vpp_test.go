@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -559,9 +560,9 @@ func TestBatchAssociateVPPAppsDryRunNewTeamReportsMissingAssets(t *testing.T) {
 func TestBatchAssociateVPPAppsDryRunNewTeamToleratesUnreadableToken(t *testing.T) {
 	// dev_mode.SetOverride uses t.Setenv, which is incompatible with t.Parallel.
 
-	var calls int
+	var calls atomic.Int32
 	vppSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		calls++
+		calls.Add(1)
 		w.WriteHeader(http.StatusOK)
 		if r.Header.Get("Authorization") == "Bearer good" {
 			_, _ = w.Write([]byte(`{"assets":[{"adamId":"497799835"}]}`))
@@ -598,7 +599,7 @@ func TestBatchAssociateVPPAppsDryRunNewTeamToleratesUnreadableToken(t *testing.T
 	tokens = []*fleet.VPPTokenDB{token("bad", valid), token("good", valid)}
 	_, _, err := svc.BatchAssociateVPPApps(ctx, "New team", payload, true)
 	require.NoError(t, err)
-	require.Equal(t, 2, calls)
+	require.EqualValues(t, 2, calls.Load())
 
 	// Only revoked tokens: the dry run fails with the fetch error.
 	tokens = []*fleet.VPPTokenDB{token("bad", valid), token("worse", valid)}
@@ -607,17 +608,17 @@ func TestBatchAssociateVPPAppsDryRunNewTeamToleratesUnreadableToken(t *testing.T
 	require.ErrorContains(t, err, "Invalid authentication token")
 
 	// Only expired tokens: the dry run fails before calling Apple.
-	calls = 0
+	calls.Store(0)
 	tokens = []*fleet.VPPTokenDB{token("good", expired)}
 	_, _, err = svc.BatchAssociateVPPApps(ctx, "New team", payload, true)
 	require.ErrorContains(t, err, "VPP token expired")
-	require.Zero(t, calls)
+	require.Zero(t, calls.Load())
 
 	// An expired token next to a valid one is ignored.
 	tokens = []*fleet.VPPTokenDB{token("bad", expired), token("good", valid)}
 	_, _, err = svc.BatchAssociateVPPApps(ctx, "New team", payload, true)
 	require.NoError(t, err)
-	require.Equal(t, 1, calls)
+	require.EqualValues(t, 1, calls.Load())
 
 	require.False(t, ds.BatchInsertVPPAppsFuncInvoked)
 	require.False(t, ds.SetTeamVPPAppsFuncInvoked)
