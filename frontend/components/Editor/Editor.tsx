@@ -191,7 +191,12 @@ const Editor = ({
         showPrintMargin={showPrintMargin}
         placeholder={placeholder}
         editorProps={{ $blockScrolling: Infinity }}
-        setOptions={{ textInputAriaLabel: ariaLabel ?? label }}
+        setOptions={{
+          textInputAriaLabel: ariaLabel ?? label,
+          // Fleet doesn't serve Ace's worker-*.js scripts and validates content
+          // itself, so the JSON/XML syntax workers would only 404.
+          useWorker: false,
+        }}
         value={value}
         defaultValue={defaultValue}
         tabSize={2}
