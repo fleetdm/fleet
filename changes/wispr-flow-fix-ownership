@@ -1,0 +1,1 @@
+- Fixed the Wispr Flow Fleet-maintained app leaving the installed bundle owned by root, which blocked Wispr Flow's built-in updater and prompted the user for admin credentials on every launch.
