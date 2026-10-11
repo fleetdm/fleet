@@ -14199,6 +14199,57 @@ func checkSoftwareInstaller(t *testing.T, ds *mysql.Datastore, payload *fleet.Up
 	return meta.InstallerID, *meta.TitleID
 }
 
+func (s *integrationEnterpriseTestSuite) TestPackageUploadPreAuthAndTempFileCleanup() {
+	t := s.T()
+	tmpDir := t.TempDir()
+	t.Setenv("TMPDIR", tmpDir)
+	requireNoTempFiles := func() {
+		files, err := filepath.Glob(filepath.Join(tmpDir, "multipart-*"))
+		require.NoError(t, err)
+		require.Empty(t, files)
+	}
+
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	fw, err := mw.CreateFormFile("software", "a.pkg")
+	require.NoError(t, err)
+	_, err = fw.Write(bytes.Repeat([]byte{0}, 2<<20))
+	require.NoError(t, err)
+	require.NoError(t, mw.Close())
+	contentType := mw.FormDataContentType()
+
+	for _, r := range []struct{ method, path string }{
+		{"POST", "/api/latest/fleet/software/package"},
+		{"PATCH", "/api/latest/fleet/software/titles/1/package"},
+		{"POST", "/api/latest/fleet/bootstrap"},
+		{"POST", "/api/latest/fleet/mdm/bootstrap"},
+		{"POST", "/api/latest/fleet/mdm/apple/bootstrap"},
+	} {
+		res := s.DoRawWithHeaders(r.method, r.path, body.Bytes(), http.StatusUnauthorized, map[string]string{"Content-Type": contentType})
+		res.Body.Close()
+		requireNoTempFiles()
+
+		res = s.DoRawWithHeaders(r.method, r.path, body.Bytes(), http.StatusUnauthorized, map[string]string{
+			"Content-Type": contentType, "Authorization": "Bearer invalid",
+		})
+		res.Body.Close()
+		requireNoTempFiles()
+
+		res = s.DoRawWithHeaders(r.method, r.path, body.Bytes(), http.StatusUnsupportedMediaType, map[string]string{
+			"Content-Type": contentType, "Content-Encoding": "gzip", "Authorization": "Bearer " + s.token,
+		})
+		res.Body.Close()
+		requireNoTempFiles()
+	}
+
+	// An authenticated upload that parses but fails validation must not leave its file behind.
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/software/package", body.Bytes(), http.StatusBadRequest, map[string]string{
+		"Content-Type": contentType, "Authorization": "Bearer " + s.token,
+	})
+	res.Body.Close()
+	requireNoTempFiles()
+}
+
 func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndDelete() {
 	t := s.T()
 
@@ -20163,7 +20214,7 @@ func (s *integrationEnterpriseTestSuite) TestVPPAppsWithoutMDM() {
 				Platform: fleet.MacOSPlatform,
 			},
 		},
-	}, &team.ID)
+	}, &team.ID, nil)
 	require.NoError(t, err)
 
 	pkgPayload := &fleet.UploadSoftwareInstallerPayload{
@@ -20370,7 +20421,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 				Platform: fleet.MacOSPlatform,
 			},
 		},
-	}, &team1.ID)
+	}, &team1.ID, nil)
 	require.NoError(t, err)
 	// Get software title ID of the uploaded VPP app.
 	resp = listSoftwareTitlesResponse{}
@@ -29320,7 +29371,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 	vppApp, err := s.ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.IPadOSPlatform}},
-	}, &teamID)
+	}, &teamID, nil)
 	require.NoError(t, err)
 
 	// Get the software title.
@@ -29338,7 +29389,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 		AutoUpdateEndTime:   new("04:00"),
 	}, http.StatusOK, &titlesResp)
 
-	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":true, "auto_update_window_end":"04:00", "auto_update_window_start":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1", "auto_update_enabled":true, "auto_update_window_end":"04:00", "auto_update_window_start":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
 
 	// Get the software title again.
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppApp.TitleID), nil, http.StatusOK, &titlesResp, "team_id", fmt.Sprintf("%d", teamID))
@@ -29355,7 +29406,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 		DisplayName: new("New Display Name"),
 	}, http.StatusOK, &titlesResp)
 
-	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1",  "auto_update_enabled":true, "auto_update_window_end":"04:00", "auto_update_window_start":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"New Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1",  "auto_update_enabled":true, "auto_update_window_end":"04:00", "auto_update_window_start":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"New Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
 
 	// Disable the auto-update config
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", vppApp.TitleID), updateAppStoreAppRequest{
@@ -29363,7 +29414,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 		AutoUpdateEnabled: new(false),
 	}, http.StatusOK, &titlesResp)
 
-	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"New Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"New Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
 
 	// Do an update without auto-update fields to check that it still includes the auto-update values.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", vppApp.TitleID), updateAppStoreAppRequest{
@@ -29371,7 +29422,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 		DisplayName: new("Updated Display Name"),
 	}, http.StatusOK, &titlesResp)
 
-	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"Updated Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"Updated Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
 }
 
 func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
@@ -30107,15 +30158,17 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	delete(downloadedSlugs, "cloudflare-warp/windows")
 	downloadMu.Unlock()
 
-	rawResp := s.Do("POST", "/api/latest/fleet/software/batch",
+	var evictedVersionBatchResponse batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
 		batchSetSoftwareInstallersRequest{
 			Software: []*fleet.SoftwareInstallerPayload{
 				{Slug: new("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "1.0"},
 			},
 			TeamName: team.Name,
 		},
-		http.StatusBadRequest, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
-	require.Contains(t, extractServerErrorText(rawResp.Body), "specified version is not available")
+		http.StatusAccepted, &evictedVersionBatchResponse, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+	evictedVersionMessage := waitBatchSetSoftwareInstallersFailed(t, &s.withServer, team.Name, evictedVersionBatchResponse.RequestUUID)
+	require.Contains(t, evictedVersionMessage, "specified version is not available")
 
 	// Should NOT have hit the installer server — no re-download attempt
 	downloadMu.Lock()
@@ -32042,9 +32095,11 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 		var resp batchSetSoftwareInstallersResponse
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("1password/darwin"), RollbackVersion: "^1"}}, TeamName: teamName},
-			http.StatusNotFound, &resp,
+			http.StatusAccepted, &resp,
 			"team_name", teamName, "team_id", "0",
 		)
+		message := waitBatchSetSoftwareInstallersFailed(t, &s.withServer, teamName, resp.RequestUUID)
+		require.Contains(t, message, "specified major version is not available")
 	})
 }
 
@@ -37969,4 +38024,87 @@ func (s *integrationEnterpriseTestSuite) TestStagedUploadUnavailable() {
 
 	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{StagedUploadID: uuid.NewString(), Filename: "ruby.deb"},
 		http.StatusBadRequest, "Direct upload isn't available")
+}
+
+func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerFMAManifestFetchedAfterResponse() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		file, err := os.Open(filepath.Join("testdata", "software-installers", "dummy_installer.pkg"))
+		if !assert.NoError(t, err) {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer file.Close()
+		w.Header().Set("Content-Type", "application/application/x-newton-compatible-pkg")
+		_, err = io.Copy(w, file)
+		assert.NoError(t, err)
+	}))
+	t.Cleanup(installerServer.Close)
+
+	// Serve each manifest only after the test releases it, and fail the fetch if no release comes within 5s
+	manifestReleases := make(chan struct{}, 1)
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-manifestReleases:
+		case <-time.After(5 * time.Second):
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		manifest := ma.FMAManifestFile{
+			Versions: []*ma.FMAManifestApp{{
+				Version:           "6.0",
+				Queries:           ma.FMAQueries{Exists: "SELECT 1 FROM osquery_info;"},
+				InstallerURL:      installerServer.URL + "/fma.pkg",
+				SHA256:            "no_check",
+				DefaultCategories: []string{"Productivity"},
+			}},
+		}
+		assert.NoError(t, json.NewEncoder(w).Encode(manifest))
+	}))
+	t.Cleanup(manifestServer.Close)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", manifestServer.URL, t)
+
+	maintainedApp, err := s.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "1Password",
+		Slug:             "1password/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.1password.1password",
+	})
+	require.NoError(t, err)
+
+	testCases := []struct {
+		name     string
+		teamName string
+	}{
+		{
+			name:     "batch for a fleet responds before the manifest is served and reports the manifest category",
+			teamName: team.Name,
+		},
+		{
+			name:     "batch for unassigned responds before the manifest is served and reports the manifest category",
+			teamName: "",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// send the batch with the manifest still held back, the POST should respond
+			var batchResponse batchSetSoftwareInstallersResponse
+			s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{
+				Software: []*fleet.SoftwareInstallerPayload{{Slug: &maintainedApp.Slug, SelfService: true}},
+			}, http.StatusAccepted, &batchResponse, "team_name", tc.teamName)
+
+			// release the manifest, the batch should complete with the manifest category
+			manifestReleases <- struct{}{}
+			batchResult := waitBatchSetSoftwareInstallers(t, &s.withServer, tc.teamName, batchResponse.RequestUUID)
+			require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, batchResult.Status, batchResult.Message)
+			require.Len(t, batchResult.Packages, 1)
+			require.Equal(t, []string{"🖥️ Productivity"}, batchResult.Categories)
+		})
+	}
 }

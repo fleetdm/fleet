@@ -599,6 +599,100 @@ describe("VPP Install Details Modal", () => {
     mockServer.resetHandlers();
   });
 
+  describe("config-update note", () => {
+    const configUpdateRe = /When the app's configuration is updated Fleet also updates the app\./i;
+
+    const renderNoteCase = (
+      platform: "ios" | "ipados" | "darwin",
+      fleetInstallStatus: "installed" | "pending_install" | "failed_install"
+    ) => {
+      // Minimal command-results handler: a 200 with an acknowledged result so
+      // the modal routes to the status-rendering branch without errors.
+      mockServer.use(
+        http.get(baseUrl("/commands/results"), ({ request }) => {
+          const url = new URL(request.url);
+          const commandUuid = url.searchParams.get("command_uuid");
+          return HttpResponse.json({
+            results: [
+              {
+                host_uuid: "11111111-2222-3333-4444-555555555555",
+                command_uuid: commandUuid,
+                status: "Acknowledged",
+                updated_at: "2025-08-10T12:05:00Z",
+                request_type: "InstallApplication",
+                hostname: "Mock Host",
+                payload: btoa("<Command />"),
+                result: btoa("<Result />"),
+                results_metadata: { software_installed: true },
+              },
+            ],
+          });
+        })
+      );
+
+      const hostSoftware = createMockHostSoftware({
+        id: 123,
+        status: fleetInstallStatus,
+        name: "Keynote",
+        display_name: "Keynote",
+        installed_versions: [],
+        source: "apps",
+        app_store_app: createMockHostAppStoreApp({
+          platform,
+          last_install: {
+            command_uuid: "mock-uuid",
+            installed_at: "2025-08-10T12:00:00Z",
+          },
+        }),
+      });
+
+      renderWithBackend(
+        <VppInstallDetailsModal
+          details={{
+            fleetInstallStatus,
+            hostDisplayName: "Mock Host",
+            appName: "Keynote",
+            commandUuid: "mock-uuid",
+            platform,
+          }}
+          hostSoftware={hostSoftware}
+          onCancel={jest.fn()}
+        />
+      );
+    };
+
+    it("shows the note on iOS installed", async () => {
+      renderNoteCase("ios", "installed");
+      await waitFor(() => {
+        expect(screen.getByText(configUpdateRe)).toBeInTheDocument();
+      });
+    });
+
+    it("shows the note on iPadOS pending_install", async () => {
+      renderNoteCase("ipados", "pending_install");
+      await waitFor(() => {
+        expect(screen.getByText(configUpdateRe)).toBeInTheDocument();
+      });
+    });
+
+    it("omits the note on macOS installed", async () => {
+      renderNoteCase("darwin", "installed");
+      // Wait for the modal to settle before asserting absence.
+      await waitFor(() => {
+        expect(screen.getByText(/Keynote/)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(configUpdateRe)).not.toBeInTheDocument();
+    });
+
+    it("omits the note on iOS failed_install", async () => {
+      renderNoteCase("ios", "failed_install");
+      await waitFor(() => {
+        expect(screen.getByText(/Keynote/)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(configUpdateRe)).not.toBeInTheDocument();
+    });
+  });
+
   it("renders timeout follow-up copy on host details", async () => {
     mockServer.use(
       http.get(baseUrl("/commands/results"), ({ request }) => {

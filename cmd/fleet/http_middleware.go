@@ -17,7 +17,8 @@ import (
 // synchronous script runs, large software-installer and bootstrap-package
 // uploads, the Android enterprise signup SSE stream, and large MDM profile
 // batch operations. For package-upload routes it also caps the request body and
-// threads the configured max installer size through the request context.
+// threads the configured max installer size through the request context; their
+// read deadline is lifted by the route's pre-auth, after authentication.
 //
 // Deadline overrides are best-effort: if the ResponseWriter does not support
 // SetReadDeadline/SetWriteDeadline the error is logged and the request proceeds.
@@ -49,19 +50,6 @@ func apiTimeoutOverrideHandler(apiHandler http.Handler, cfg config.FleetConfig, 
 			(req.Method == http.MethodPost && strings.Contains(req.URL.Path, "orbit/software_install/package")) {
 			var zeroTime time.Time
 			rc := http.NewResponseController(rw)
-			// For large software installers and bootstrap packages, the server time needs time to read the full
-			// request body so we use the zero value to remove the deadline and override the
-			// default read timeout.
-			// TODO: Is this really how we want to handle this? Or would an arbitrarily long
-			// timeout be better?
-			if err := rc.SetReadDeadline(zeroTime); err != nil {
-				logger.ErrorContext(req.Context(),
-					"http middleware failed to override endpoint read timeout for software package upload",
-					"response_writer_type", fmt.Sprintf("%T", rw),
-					"response_writer", fmt.Sprintf("%+v", rw),
-					"err", err,
-				)
-			}
 			// For large software installers, the server time needs time to store the
 			// installer to S3 (or the configured storage location) and write the response
 			// body so we use the zero value to remove the deadline and override the

@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/md5" // nolint:gosec // used for declarative management token
 	"crypto/x509"
@@ -2985,7 +2986,131 @@ func (svc *Service) AuthenticateMDMAppleDEPEnrollment(ctx context.Context, token
 		return "", fleet.NewAuthFailedError("device is not DEP-assigned to Fleet")
 	}
 
+	if idpAccountUUID == "" {
+		if err := svc.checkAutomaticEnrollmentTokenAllowed(ctx, machineInfo, assignments); err != nil {
+			return "", err
+		}
+	}
+
 	return idpAccountUUID, nil
+}
+
+// checkAutomaticEnrollmentTokenAllowed refuses the automatic enrollment token
+// for a device whose host is in a fleet that requires end user authentication,
+// and records a host_enrollment_rejected activity. That fleet's DEP profile
+// never contains the token, so the device got its enrollment configuration
+// before its fleet required end user authentication.
+func (svc *Service) checkAutomaticEnrollmentTokenAllowed(ctx context.Context, machineInfo *fleet.MDMAppleMachineInfo, assignments []*fleet.HostDEPAssignment) error {
+	euaTeamIDs, err := svc.ds.TeamIDsWithSetupExperienceIdPEnabled(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get fleets that require end user authentication")
+	}
+	if len(euaTeamIDs) == 0 {
+		return nil
+	}
+	// TeamIDsWithSetupExperienceIdPEnabled uses 0 for "No team".
+	requiresEUA := func(teamID *uint) bool {
+		return slices.Contains(euaTeamIDs, ptr.ValOrZero(teamID))
+	}
+
+	platform := platformFromAppleProduct(machineInfo.Product)
+	host, refused, err := svc.depAssignedHostRequiringEUA(ctx, machineInfo, platform, assignments, requiresEUA)
+	if err != nil || !refused {
+		return err
+	}
+
+	var hostID *uint
+	if host != nil {
+		hostID = &host.ID
+		if host.Platform != "" {
+			platform = host.Platform
+		}
+	}
+	svc.recordEnrollmentRejected(ctx, fleet.EnrollmentRejectedEndUserAuthenticationRequired, hostID, enrollmentAttempt{
+		plane:          fleet.EnrollmentPlaneAppleMDM,
+		platform:       platform,
+		hardwareUUID:   machineInfo.UDID,
+		hardwareSerial: machineInfo.Serial,
+	})
+	return fleet.NewAuthFailedError("automatic enrollment token presented for a host in a fleet that requires end user authentication")
+}
+
+// depAssignedHostRequiringEUA reports whether the serial's active DEP
+// assignments require end user authentication, and returns the host that
+// does. Duplicate hosts can leave one serial with assignments in different
+// fleets, so any of them requiring it is enough. The host matching the
+// device's UDID, then the lowest host ID, is the one returned, so the
+// activity's rate limit applies to the same host every time. If none of the
+// assignments resolves to a host, the AB tokens' default fleets for the
+// platform decide, which is where Fleet restores a deleted pending host.
+func (svc *Service) depAssignedHostRequiringEUA(
+	ctx context.Context,
+	machineInfo *fleet.MDMAppleMachineInfo,
+	platform string,
+	assignments []*fleet.HostDEPAssignment,
+	requiresEUA func(teamID *uint) bool,
+) (*fleet.Host, bool, error) {
+	assignments = slices.SortedFunc(slices.Values(assignments), func(a, b *fleet.HostDEPAssignment) int {
+		return cmp.Compare(a.HostID, b.HostID)
+	})
+
+	var anyHost bool
+	var euaHost *fleet.Host
+	for _, a := range assignments {
+		host, err := svc.ds.HostLite(ctx, a.HostID)
+		if fleet.IsNotFound(err) {
+			continue
+		}
+		if err != nil {
+			return nil, false, ctxerr.Wrap(ctx, err, "get DEP-assigned host")
+		}
+		anyHost = true
+		if requiresEUA(host.TeamID) && (euaHost == nil || (host.UUID == machineInfo.UDID && euaHost.UUID != machineInfo.UDID)) {
+			euaHost = host
+		}
+	}
+	if anyHost {
+		return euaHost, euaHost != nil, nil
+	}
+
+	var anyToken bool
+	for _, a := range assignments {
+		if a.ABMTokenID == nil {
+			continue
+		}
+		tok, err := svc.ds.GetABMTokenByID(ctx, *a.ABMTokenID)
+		if err != nil {
+			return nil, false, ctxerr.Wrap(ctx, err, "get AB token of DEP assignment")
+		}
+		anyToken = true
+		if requiresEUA(abmTokenDefaultTeamID(tok, platform)) {
+			return nil, true, nil
+		}
+	}
+	// No AB token to read a default fleet from means "No team".
+	return nil, !anyToken && requiresEUA(nil), nil
+}
+
+func abmTokenDefaultTeamID(tok *fleet.ABMToken, platform string) *uint {
+	switch platform {
+	case "ios":
+		return tok.IOSDefaultTeamID
+	case "ipados":
+		return tok.IPadOSDefaultTeamID
+	default:
+		return tok.MacOSDefaultTeamID
+	}
+}
+
+func platformFromAppleProduct(product string) string {
+	switch {
+	case strings.HasPrefix(product, "iPhone"), strings.HasPrefix(product, "iPod"):
+		return "ios"
+	case strings.HasPrefix(product, "iPad"):
+		return "ipados"
+	default:
+		return "darwin"
+	}
 }
 
 // authenticateMDMAppleDEPEnrollmentToken checks the token is the automatic
@@ -4405,6 +4530,38 @@ func (svc *Service) GetDefaultMDMAppleSetupAssistantProfile(ctx context.Context)
 	svc.authz.SkipAuthorization(ctx)
 
 	return godep.Profile{}, nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// POST /enrollment_profiles/automatic/rotate_token
+////////////////////////////////////////////////////////////////////////////////
+
+type rotateMDMAppleAutomaticEnrollmentTokenRequest struct {
+	GracePeriodHours *int `json:"grace_period_hours"`
+}
+
+type rotateMDMAppleAutomaticEnrollmentTokenResponse struct {
+	PreviousTokenExpiresAt *time.Time `json:"previous_token_expires_at"`
+	Err                    error      `json:"error,omitempty"`
+}
+
+func (r rotateMDMAppleAutomaticEnrollmentTokenResponse) Error() error { return r.Err }
+
+func rotateMDMAppleAutomaticEnrollmentTokenEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*rotateMDMAppleAutomaticEnrollmentTokenRequest)
+	expiresAt, err := svc.RotateMDMAppleAutomaticEnrollmentToken(ctx, req.GracePeriodHours)
+	if err != nil {
+		return rotateMDMAppleAutomaticEnrollmentTokenResponse{Err: err}, nil
+	}
+	return rotateMDMAppleAutomaticEnrollmentTokenResponse{PreviousTokenExpiresAt: expiresAt}, nil
+}
+
+func (svc *Service) RotateMDMAppleAutomaticEnrollmentToken(ctx context.Context, gracePeriodHours *int) (*time.Time, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -5957,12 +6114,13 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			// returns false and the activity is attributed to actor_full_name
 			// instead of Fleet. The success path is handled separately in the
 			// InstalledApplicationList result handler.
-			fromAutoUpdate, err := svc.ds.IsAutoUpdateVPPInstall(r.Context, cmdResult.CommandUUID)
+			fromAutoUpdate, fromConfigurationResend, err := svc.ds.GetVPPInstallAutomationReasons(r.Context, cmdResult.CommandUUID)
 			if err != nil {
-				return nil, ctxerr.Wrap(r.Context, err, "checking if failed vpp install is from auto update")
+				return nil, ctxerr.Wrap(r.Context, err, "checking if failed vpp install is from auto update or a configuration re-send")
 			}
 			act.FromSetupExperience = fromSetupExperience
 			act.FromAutoUpdate = fromAutoUpdate
+			act.FromConfigurationResend = fromConfigurationResend
 			if err := svc.newActivityFn(r.Context, user, act); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "creating activity for installed app store app")
 			}
@@ -6520,6 +6678,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 	// Code below assumes svc.ds.ListSoftwareAutoUpdateSchedules with Enabled=true returns:
 	// 	- all entries with non-nil AutoUpdateStartTime and AutoUpdateEndTime
 	// 	- returned title IDs are VPP applications (currently the only entities that can have update window configured).
+	// 	- one entry per App Store app version, so a title can appear more than once.
 
 	if len(softwaresWithAutoUpdateSchedule) == 0 {
 		// Nothing else to do.
@@ -6536,9 +6695,18 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		installedVersionByBundleIdentifierAndSource[software.BundleIdentifier+software.Source] = software.Version
 	}
 
-	// 1. Filter out software that is not within the configured update window in the host timezone.
+	hostVersionByTitleID, err := svc.ds.ListHostAppStoreAppVersions(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list host app store app versions")
+	}
+
+	// 1. Filter out software that is not the host's App Store app version or not within the configured update window in the host timezone.
 	var softwaresWithinUpdateSchedule []fleet.SoftwareAutoUpdateSchedule
 	for _, softwareWithAutoUpdateSchedule := range softwaresWithAutoUpdateSchedule {
+		hostVersion, ok := hostVersionByTitleID[softwareWithAutoUpdateSchedule.TitleID]
+		if !ok || !hostVersion.InScope || hostVersion.VPPAppTeamID != softwareWithAutoUpdateSchedule.VPPAppTeamID {
+			continue
+		}
 		logger := logger.With(
 			"software_title_id", softwareWithAutoUpdateSchedule.TitleID,
 			"team_id", softwareWithAutoUpdateSchedule.TeamID,
@@ -6804,26 +6972,16 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			"installed_version", installedVersionByBundleIdentifierAndSource[bundleIdentifier+softwareTitle.Source],
 		)
 
-		vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitle.ID)
+		hostVersion := hostVersionByTitleID[softwareTitle.ID]
+		if hostVersion == nil {
+			continue
+		}
+		vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitle.ID, hostVersion.VPPAppTeamID)
 		if err != nil {
 			logger.ErrorContext(
 				ctx, "get VPP app by team and title",
 				"err", err,
 			)
-			continue
-		}
-
-		// Check the label scoping for this VPP app and host.
-		scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
-		if err != nil {
-			logger.ErrorContext(
-				ctx, "get VPP app by team and title",
-				"err", err,
-			)
-			continue
-		}
-		if !scoped {
-			logger.DebugContext(ctx, "skipping host because it's not scoped by the configured labels")
 			continue
 		}
 
