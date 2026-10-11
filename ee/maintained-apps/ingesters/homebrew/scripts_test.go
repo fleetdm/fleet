@@ -3,6 +3,8 @@ package homebrew
 import (
 	"os"
 	"os/exec"
+	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -198,6 +200,41 @@ osascript() {
 				require.NotContains(t, out, "Relaunching application")
 			}
 		})
+	}
+}
+
+// TestCustomInstallScriptsStopWhenAppWontQuit checks the quit helper copies in
+// custom install scripts. A copy that confirms the quit with pgrep reports
+// success while the app keeps running, since pgrep -f never matches the bundle
+// id. A call that carries on after a failed quit must be listed here with the
+// reason it's safe.
+func TestCustomInstallScriptsStopWhenAppWontQuit(t *testing.T) {
+	continuesAnyway := map[string]string{
+		"docker_desktop_install.sh": "runs under set -e",
+		"expressvpn-install.sh":     "vpn-installer.sh kills the app's processes before replacing it",
+		"harmony-sase-install.sh":   "the pkg force-quits the app",
+		"logitune-install.sh":       "the pkg's preinstall force-kills the app",
+	}
+	quitCall := regexp.MustCompile(`^\s*(quit_application|quit_and_track_application)\s`)
+
+	paths, err := filepath.Glob("../../inputs/homebrew/scripts/*.sh")
+	require.NoError(t, err)
+	require.NotEmpty(t, paths)
+	for _, path := range paths {
+		name := filepath.Base(path)
+		if strings.Contains(name, "uninstall") {
+			continue
+		}
+		b, err := os.ReadFile(path)
+		require.NoError(t, err)
+		for line := range strings.SplitSeq(string(b), "\n") {
+			require.NotContains(t, line, `pgrep -f "$bundle_id"`, "%s confirms the quit with pgrep", name)
+			if !quitCall.MatchString(line) || strings.Contains(line, "||") {
+				continue
+			}
+			_, ok := continuesAnyway[name]
+			require.True(t, ok, "%s: %q carries on when the app won't quit", name, strings.TrimSpace(line))
+		}
 	}
 }
 

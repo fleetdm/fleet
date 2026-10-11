@@ -8,22 +8,24 @@ quit_application() {
   local console_user; console_user=$(stat -f "%Su" /dev/console)
   if [[ $EUID -eq 0 && "$console_user" == "root" ]]; then echo "Skipping quit for '$bundle_id'."; return; fi
   echo "Quitting '$bundle_id'..."
+  local still_running
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
     osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1 || true
-    if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then echo "'$bundle_id' quit successfully."; return; fi
     sleep 1
+    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [[ "$still_running" == "false" ]]; then echo "'$bundle_id' quit successfully."; return 0; fi
   done
   echo "'$bundle_id' did not quit."
+  return 1
 }
 
 [[ -n "$INSTALLER_PATH" && -f "$INSTALLER_PATH" ]] || { echo "missing installer"; exit 1; }
 
 APPDIR="/Applications"
 
-quit_application "com.perforce.p4v"
-quit_application "com.perforce.p4merge"
-quit_application "com.perforce.p4admin"
+quit_application "com.perforce.p4v" || exit 1
+quit_application "com.perforce.p4merge" || exit 1
+quit_application "com.perforce.p4admin" || exit 1
 
 MOUNT_POINT="$(hdiutil attach -nobrowse -readonly "$INSTALLER_PATH" | awk '/\/Volumes\//{print $3; exit}')"
 [[ -n "$MOUNT_POINT" ]] || { echo "failed to mount dmg"; exit 1; }
