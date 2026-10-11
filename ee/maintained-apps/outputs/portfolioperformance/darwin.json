@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "0.88.0",
+      "version": "0.89.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'name.abuchen.portfolio.distro.product';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'name.abuchen.portfolio.distro.product' AND version_compare(bundle_short_version, '0.88.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'name.abuchen.portfolio.distro.product' AND version_compare(bundle_short_version, '0.89.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'name.abuchen.portfolio.distro.product' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/buchen/portfolio/releases/download/0.88.0/PortfolioPerformance-0.88.0-aarch64.dmg",
+      "installer_url": "https://github.com/buchen/portfolio/releases/download/0.89.0/PortfolioPerformance-0.89.0-aarch64.dmg",
       "install_script_ref": "6c106634",
       "uninstall_script_ref": "987c225a",
-      "sha256": "2977f606deb41bdf4aa2f9e4c1e520ef154630e2e81201b85b8383e5c3bcecdd",
+      "sha256": "53dc9f1b16e59f39a6aaaff4c46bf05ca3b490ae4419365dfa2d321e62e44d71",
       "default_categories": [
         "Productivity"
       ]
