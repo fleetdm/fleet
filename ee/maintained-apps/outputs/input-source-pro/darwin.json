@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.13.1",
+      "version": "2.13.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.runjuu.Input-Source-Pro';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.runjuu.Input-Source-Pro' AND version_compare(bundle_short_version, '2.13.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.runjuu.Input-Source-Pro' AND version_compare(bundle_short_version, '2.13.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.runjuu.Input-Source-Pro' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://inputsource.pro/stable/Input%20Source%20Pro%202.13.1.dmg",
+      "installer_url": "https://inputsource.pro/stable/Input%20Source%20Pro%202.13.2.dmg",
       "install_script_ref": "4bce2a80",
       "uninstall_script_ref": "40a45103",
-      "sha256": "901a9c4c3fa4d23eba8c010c1a8e2871c4a093ff0ff20ee62fc70318d3af0f42",
+      "sha256": "b39d4eff89f4f35b7ad7664e2303be95790cb92f93a3ecc73326579cde4f63d3",
       "default_categories": [
         "Productivity"
       ]
