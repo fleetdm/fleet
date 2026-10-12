@@ -1,1 +1,0 @@
-- Improved SSO session handling.

@@ -388,6 +388,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-19 10:35:00
 
+### [CVE-2026-75140](https://nvd.nist.gov/vuln/detail/CVE-2026-75140)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Only affects Java/JVM applications that parse attacker-controlled XML with jsoup's XmlTreeBuilder (deeply nested, uniquely-namespaced elements cause heap exhaustion). jsoup is bundled by Apple Transporter (itms), a local CLI upload tool included for macOS package notarization (fleetctl notarizes with rcodesign), which never parses untrusted XML.
+- **Products:** `fleetctl`,`pkg:maven/org.jsoup/jsoup`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-10-08 12:41:48
+
 ### [CVE-2026-68497](https://nvd.nist.gov/vuln/detail/CVE-2026-68497)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`

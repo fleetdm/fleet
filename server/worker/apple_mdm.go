@@ -652,7 +652,8 @@ func (a *AppleMDM) installSetupExperienceAppsOnIosIpadOS(ctx context.Context, ho
 			vppApp := &fleet.VPPApp{
 				TitleID: *app.SoftwareTitleID,
 				VPPAppTeam: fleet.VPPAppTeam{
-					VPPAppID: *vppAppID,
+					VPPAppID:  *vppAppID,
+					AppTeamID: ptr.ValOrZero(app.VPPAppTeamID),
 				},
 			}
 			opts := fleet.HostSoftwareInstallOptions{
@@ -708,6 +709,7 @@ func (a *AppleMDM) installSetupExperienceAppsOnIosIpadOS(ctx context.Context, ho
 				Status:              string(fleet.SoftwareInstallFailed),
 				HostPlatform:        host.Platform,
 				FromSetupExperience: true,
+				VersionName:         ptr.ValOrZero(app.VPPAppVersionName),
 			}
 		} else {
 			if _, ok := errors.AsType[*fleet.PreflightInstallFailedError](installErr); ok {

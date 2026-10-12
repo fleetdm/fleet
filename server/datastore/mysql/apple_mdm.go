@@ -1019,7 +1019,7 @@ func (ds *Datastore) DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.
 	}
 
 	if deleted, _ := res.RowsAffected(); deleted == 0 {
-		message := fmt.Sprintf("identifier: %s, team_id: %d", profileIdentifier, teamID)
+		message := fmt.Sprintf("identifier: %s, team_id: %d", profileIdentifier, *teamID)
 		return ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithMessage(message))
 	}
 
@@ -1307,9 +1307,9 @@ SELECT
 FROM
     mdm_apple_enrollment_profiles
 WHERE
-    token = ?
+    token = ? OR (previous_token = ? AND previous_token_expires_at > NOW(6))
 `,
-		token,
+		token, token,
 	); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("MDMAppleEnrollmentProfile"))
@@ -1317,6 +1317,57 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get enrollment profile by token")
 	}
 	return &enrollment, nil
+}
+
+func (ds *Datastore) RotateMDMAppleAutomaticEnrollmentToken(ctx context.Context, newToken string, gracePeriod time.Duration, profileUpdateJob *fleet.Job) (*time.Time, error) {
+	if newToken == "" {
+		return nil, ctxerr.New(ctx, "new automatic enrollment token is required")
+	}
+	if gracePeriod < 0 {
+		return nil, ctxerr.New(ctx, "grace period can't be negative")
+	}
+	if profileUpdateJob == nil {
+		return nil, ctxerr.New(ctx, "profile update job is required")
+	}
+
+	var previousTokenExpiresAt *time.Time
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// MySQL evaluates single-table UPDATE assignments left to right, so
+		// previous_token gets the token being replaced.
+		const rotateStmt = `
+UPDATE mdm_apple_enrollment_profiles
+SET
+    previous_token = IF(? > 0, token, NULL),
+    previous_token_expires_at = IF(? > 0, NOW(6) + INTERVAL ? MICROSECOND, NULL),
+    token = ?
+WHERE
+    type = ? AND token IS NOT NULL AND token != ''`
+		micros := gracePeriod.Microseconds()
+		res, err := tx.ExecContext(ctx, rotateStmt, micros, micros, micros, newToken, fleet.MDMAppleEnrollmentTypeAutomatic)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "rotate automatic enrollment token")
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			return ctxerr.Wrap(ctx, notFound("MDMAppleEnrollmentProfile"), "rotate automatic enrollment token")
+		}
+
+		const expiresStmt = `SELECT previous_token_expires_at FROM mdm_apple_enrollment_profiles WHERE type = ?`
+		if err := sqlx.GetContext(ctx, tx, &previousTokenExpiresAt, expiresStmt, fleet.MDMAppleEnrollmentTypeAutomatic); err != nil {
+			return ctxerr.Wrap(ctx, err, "get previous automatic enrollment token expiration")
+		}
+
+		// Queued in the same transaction so the new token is never stored without
+		// the job that publishes it to Apple. Otherwise a retry after a failed
+		// enqueue would rotate again and drop the token Apple still advertises.
+		if _, err := insertJobDB(ctx, tx, profileUpdateJob); err != nil {
+			return ctxerr.Wrap(ctx, err, "queue automatic enrollment profile update job")
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return previousTokenExpiresAt, nil
 }
 
 func (ds *Datastore) GetMDMAppleEnrollmentProfileByType(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {
@@ -2037,6 +2088,25 @@ func (ds *Datastore) IngestMDMAppleDeviceFromOTAEnrollment(
 	var previousAcctUUID string
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		previousAcctUUID = ""
+
+		// createHostFromMDMDB rewrites the UUID of the host matching the serial, so don't let a device take over
+		// a host that's still enrolled under another UUID.
+		var enrolledUUID string
+		switch err := sqlx.GetContext(ctx, tx, &enrolledUUID, `
+			SELECT h.uuid FROM hosts h
+			JOIN nano_enrollments ne ON ne.device_id = h.uuid AND ne.enabled = 1
+			WHERE h.hardware_serial = ? AND h.uuid != ?
+			LIMIT 1`, deviceInfo.Serial, deviceInfo.UDID); {
+		case err == nil:
+			ds.logger.InfoContext(ctx, "refusing OTA enrollment: serial is enrolled under another UUID",
+				"serial", deviceInfo.Serial, "claimed_uuid", deviceInfo.UDID, "enrolled_uuid", enrolledUUID)
+			return ctxerr.Wrap(ctx, &fleet.ConflictError{
+				Message: "This device's serial number belongs to a host that's already enrolled. Delete the host or turn off MDM, then try again.",
+			})
+		case !errors.Is(err, sql.ErrNoRows):
+			return ctxerr.Wrap(ctx, err, "checking for an enrolled host with the same serial")
+		}
+
 		toInsert := []hostToCreateFromMDM{
 			{
 				HardwareSerial: deviceInfo.Serial,
@@ -9511,6 +9581,24 @@ SET operation_type = ?, status = NULL, detail = '', retries = 0
 WHERE host_uuid = ? AND profile_uuid = ?`,
 		fleet.MDMOperationTypeRemove, hostUUID, profileUUID)
 	return ctxerr.Wrap(ctx, err, "queue host mdm apple profile removal")
+}
+
+func (ds *Datastore) NewAppleSCEPChallenge(ctx context.Context, info fleet.AppleSCEPChallengeInfo, ttl time.Duration) (string, error) {
+	if ttl <= 0 {
+		return "", ctxerr.New(ctx, "challenge ttl must be greater than zero")
+	}
+	challenge, err := fleet.GenerateRandom32ByteEntropyURLSafeToken()
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "generating apple scep challenge")
+	}
+	_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO mdm_apple_scep_challenges
+		(challenge, purpose, host_uuid, hardware_serial, idp_account_uuid, expires_at)
+		VALUES (?, ?, ?, ?, ?, NOW(6) + INTERVAL ? MICROSECOND)`,
+		challenge, info.Purpose, info.UUID, info.Serial, info.IDPAccountUUID, ttl.Microseconds())
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "insert apple scep challenge")
+	}
+	return string(challenge), nil
 }
 
 func (ds *Datastore) ConsumeAppleSCEPChallenge(ctx context.Context, challenge string) (*fleet.AppleSCEPChallengeInfo, error) {
