@@ -7,6 +7,7 @@ import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Graphic from "components/Graphic";
 import Icon from "components/Icon";
+import Tag from "components/Tag";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IMdmProfile, ProfilePlatform } from "interfaces/mdm";
 import { isAppleDevice, isIPadOrIPhone } from "interfaces/platform";
@@ -174,15 +175,9 @@ const ProfileListItem = ({
               <span className={`${subClass}__title`}>{name}</span>
             </TooltipWrapper>
             {isUserScoped && (
-              <TooltipWrapper
-                className={`${baseClass}__scope-tooltip`}
-                tipContent="Scoped to the user channel"
-                underline={false}
-                position="top"
-                showArrow
-              >
-                <Icon name="user" color="ui-fleet-black-33" />
-              </TooltipWrapper>
+              <Tag size="xsmall" tooltip="Scoped to the user channel">
+                User-scoped
+              </Tag>
             )}
             {hidden && (
               <TooltipWrapper
