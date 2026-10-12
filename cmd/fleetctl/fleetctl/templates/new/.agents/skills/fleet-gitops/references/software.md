@@ -77,7 +77,7 @@ The fleet file entry carries the targeting: `path`, `self_service`, `setup_exper
 - `.exe` and `.tar.gz` require both `install_script` and `uninstall_script`. Other types get Fleet's default scripts; `.msi` installs with `msiexec /quiet /norestart`.
 - A package file may also be a list of packages for staged rollouts or per-architecture installers, each with its own labels.
 - Linux: scope `.deb` to Debian-based hosts and `.rpm` to RPM-based ones with the repo's distro and architecture labels; a `.deb` offered to a Fedora host just fails.
-- Script-only packages (`.sh`, `.ps1`, `.py`) don't support install, uninstall, or pre-install overrides or `install_software` automations; set `display_name` and an `icon` inline.
+- Script-only packages (`.sh`, `.ps1`, `.py`): the file itself is the install script, so `install_script`, `url`, and `hash_sha256` don't apply. Set `display_name`, `icon`, and, when needed, `uninstall_script`, `post_install_script`, and `pre_install_query` inline on the fleet file entry (Fleet 4.89 and later). They can't be the target of an `install_software` automation.
 
 ## App Store and Google Play apps
 

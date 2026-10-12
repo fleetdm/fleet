@@ -5,7 +5,7 @@ Three YAML shapes share one engine: an osquery SQL statement that runs on the ho
 | Shape | Rows mean | Key fields | Where |
 |---|---|---|---|
 | **Policy** | At least one row = pass, zero rows = fail | `name`, `query`, `description`, `resolution`, `platform`, `critical`, labels, automations | `policies:` in `default.yml` (global, no automations) or a fleet file |
-| **Report** | Rows are collected every `interval` seconds and sent to the log destination | `name`, `query`, `description`, `platform`, `interval`, `logging`, `automations_enabled`, `observer_can_run`, `min_osquery_version`, `discard_data`, `labels_include_any` | `reports:` in `default.yml` or a fleet file (not `unassigned.yml`) |
+| **Report** | Rows are collected every `interval` seconds and sent to the log destination | `name`, `query`, `description`, `platform`, `interval`, `logging`, `automations_enabled`, `observer_can_run`, `min_osquery_version`, `discard_data`, `labels_include_any` or `labels_include_all` (no exclude lists) | `reports:` in `default.yml` or a fleet file (not `unassigned.yml`) |
 | **Label (dynamic)** | A host is in the label while the query returns rows | `name`, `description`, `query`, `platform`, `label_membership_type: dynamic` | `labels:` in `default.yml` (global) or a fleet file |
 
 Items can be inline or in a separate file referenced with `path:` (a list of items) or `paths:` (a glob of such files). Match whatever the repo does; most repos keep one file per topic under a `policies/`, `reports/`, or `labels/` folder per platform.

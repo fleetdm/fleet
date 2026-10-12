@@ -9,11 +9,12 @@ ROOT is the directory containing default.yml (default: found from the current
 directory). Exit status is 1 when anything FAILs.
 
 Needs Python 3.8+ and nothing else. YAML is parsed with PyYAML when installed,
-otherwise with Ruby's YAML (ships with macOS); without either, only the checks
-that don't need parsed YAML run. Reference data (Fleet's osquery schema, the
-Fleet-maintained app catalog, Google's Android Management API schema) is read
-from the Fleet source tree when the repo is inside it, otherwise downloaded and
-cached for a week under ~/.cache/fleet-gitops-skill. --offline skips downloads.
+otherwise with Ruby's YAML (ships with macOS); without either, the run FAILs
+and only the checks that don't need parsed YAML run. Reference data (Fleet's
+osquery schema, the Fleet-maintained app catalog, Google's Android Management
+API schema) is read from the Fleet source tree when the repo is inside it,
+otherwise downloaded and cached for a week under ~/.cache/fleet-gitops-skill.
+--offline skips downloads.
 """
 
 import argparse
@@ -44,6 +45,13 @@ LABEL_PLATFORMS = {"darwin", "windows", "linux", "ubuntu", "centos"}
 LABEL_PLATFORM_ALIASES = {"ubuntu": "linux", "centos": "linux"}
 REPORT_LOGGING = {"snapshot", "differential", "differential_ignore_removals"}
 LABEL_KEYS = ("labels_include_any", "labels_include_all", "labels_exclude_any", "labels_exclude_all")
+# Per item type: the label keys fleetctl accepts, and whether an include list may be paired with an exclude list.
+LABEL_RULES = {
+    "profile": (("labels_include_any", "labels_include_all", "labels_exclude_any"), True),
+    "policy": (LABEL_KEYS, True),
+    "software": (("labels_include_any", "labels_include_all", "labels_exclude_any"), False),
+    "report": (("labels_include_any", "labels_include_all"), False),
+}
 AUTOMATION_KEYS = ("run_script", "install_software", "resend_configuration_profile", "calendar_events_enabled")
 PATH_KEYS = {"path", "package_path", "apple_setup_assistant", "end_user_license_agreement", "activation"}
 GLOB_CHARS = set("*?[{")
@@ -213,12 +221,13 @@ def parse_yaml(text, backend):
         import yaml
         return yaml.safe_load(text)
     if backend == "ruby":
-        script = ("require 'yaml'; require 'json'; "
-                  "d = YAML.respond_to?(:unsafe_load) ? YAML.unsafe_load(STDIN.read) : YAML.load(STDIN.read); "
+        # safe_load: the repo under validation may be an untrusted branch, and plain data is all we need.
+        script = ("require 'yaml'; require 'json'; require 'date'; "
+                  "d = YAML.safe_load(STDIN.read, permitted_classes: [Date, Time, Symbol], aliases: true); "
                   "puts JSON.generate(d)")
         out = subprocess.run(["ruby", "-e", script], input=text, capture_output=True, text=True, timeout=60)
         if out.returncode != 0:
-            raise ValueError(out.stderr.strip().splitlines()[-1] if out.stderr.strip() else "ruby YAML parse failed")
+            raise ValueError(out.stderr.strip().splitlines()[0] if out.stderr.strip() else "ruby YAML parse failed")
         return json.loads(out.stdout) if out.stdout.strip() else None
     raise RuntimeError("no YAML parser available")
 
@@ -247,6 +256,14 @@ def looks_like_unquoted_time(text):
 
 # ---------------------------------------------------------------- helpers
 
+def expand_braces(pattern):
+    """fleetctl globs with doublestar, which supports {a,b}; Python's glob doesn't."""
+    m = re.search(r"\{([^{}]*)\}", pattern)
+    if not m:
+        return [pattern]
+    return [p for alt in m.group(1).split(",") for p in expand_braces(pattern[:m.start()] + alt + pattern[m.end():])]
+
+
 def resolve_refs(ctx, src, entry, what="entry"):
     """Resolve an entry's path:/paths: against the file that contains it. Returns existing Paths."""
     base = Path(src).parent
@@ -273,7 +290,7 @@ def resolve_refs(ctx, src, entry, what="entry"):
         if not isinstance(g, str) or not g:
             ctx.fail(src, f"{what}: 'paths' must be a non-empty glob string")
         else:
-            matches = sorted(m for m in glob.glob(str(base / g)) if Path(m).is_file())
+            matches = sorted({m for pat in expand_braces(g) for m in glob.glob(str(base / pat), recursive=True) if Path(m).is_file()})
             if not matches:
                 # fleetctl accepts an empty glob; scaffolded repos rely on it for folders that aren't populated yet.
                 ctx.info(src, f"{what}: paths glob {g} matches no files yet")
@@ -351,22 +368,32 @@ def walk_paths(ctx, src, node, what="file"):
             walk_paths(ctx, src, v, what)
 
 
-def check_label_keys(ctx, src, item, what, fleet):
-    inc_all = item.get("labels_include_all") or []
-    inc_any = item.get("labels_include_any") or []
-    exc_any = item.get("labels_exclude_any") or []
-    exc_all = item.get("labels_exclude_all") or []
+def check_label_keys(ctx, src, item, what, fleet, kind):
+    allowed, mix = LABEL_RULES[kind]
+    lists = {}
     for key in LABEL_KEYS:
         v = item.get(key)
-        if v is not None and (not isinstance(v, list) or not all(isinstance(x, str) for x in v)):
+        if v is None:
+            continue
+        if key not in allowed:
+            ctx.fail(src, f"{what}: '{key}' isn't supported on a {kind}; use {' or '.join(allowed)}")
+        elif not isinstance(v, list) or not all(isinstance(x, str) for x in v):
             ctx.fail(src, f"{what}: '{key}' must be a list of label names")
-    if inc_all and inc_any:
+        elif v:
+            lists[key] = v
+    inc = [k for k in lists if k.startswith("labels_include")]
+    exc = [k for k in lists if k.startswith("labels_exclude")]
+    if len(inc) > 1:
         ctx.fail(src, f"{what}: only one of labels_include_all or labels_include_any is allowed")
-    overlap = set(map(str, inc_all + inc_any)) & set(map(str, exc_any + exc_all))
+    if len(exc) > 1:
+        ctx.fail(src, f"{what}: only one of labels_exclude_any or labels_exclude_all is allowed")
+    if inc and exc and not mix:
+        ctx.fail(src, f"{what}: only one of {', '.join(allowed)} is allowed")
+    overlap = {n for k in inc for n in lists[k]} & {n for k in exc for n in lists[k]}
     if overlap:
         ctx.fail(src, f"{what}: label(s) {sorted(overlap)} appear in both an include and an exclude list")
-    for name in inc_all + inc_any + exc_any + exc_all:
-        if isinstance(name, str):
+    for names in lists.values():
+        for name in names:
             ctx.label_refs.append((name, ctx.rel(src), what, fleet))
 
 
@@ -721,7 +748,7 @@ def check_controls(ctx, fs, controls):
                 ctx.fail(src, f"controls.{key}.configuration_profiles entries must be mappings")
                 continue
             what = f"controls.{key}.configuration_profiles"
-            check_label_keys(ctx, src, entry, what, fs.name)
+            check_label_keys(ctx, src, entry, what, fs.name, "profile")
             if "name" in entry and "paths" in entry:
                 ctx.fail(src, f"{what}: 'name' can't be combined with a 'paths' glob")
             if "activation" in entry:
@@ -766,7 +793,7 @@ def check_software(ctx, fs, software):
                 ctx.fail(src, "software.packages entries must be mappings")
                 continue
             what = "software.packages"
-            check_label_keys(ctx, src, entry, what, fs.name)
+            check_label_keys(ctx, src, entry, what, fs.name, "software")
             check_bool(ctx, src, entry, "self_service", what)
             check_bool(ctx, src, entry, "setup_experience", what)
             if "icon" in entry:
@@ -809,7 +836,7 @@ def check_software(ctx, fs, software):
         if key in fs.app_store_ids:
             ctx.fail(isrc, f"{what}: listed twice for platform {plat or 'all'}")
         fs.app_store_ids.add(key)
-        check_label_keys(ctx, isrc, merged, what, fs.name)
+        check_label_keys(ctx, isrc, merged, what, fs.name, "software")
         check_bool(ctx, isrc, merged, "self_service", what)
         check_bool(ctx, isrc, merged, "setup_experience", what)
         check_categories(ctx, isrc, merged, what)
@@ -843,7 +870,7 @@ def check_software(ctx, fs, software):
             ctx.fail(isrc, f"{what}: version must be a quoted string (got {v!r}; YAML read it as {type(v).__name__})")
         elif isinstance(v, str) and not re.fullmatch(r"\^?\d+(\.\d+)*[A-Za-z0-9.+-]*", v):
             ctx.warn(isrc, f"{what}: version {v!r} doesn't look like a version or ^major constraint")
-        check_label_keys(ctx, isrc, merged, what, fs.name)
+        check_label_keys(ctx, isrc, merged, what, fs.name, "software")
         check_bool(ctx, isrc, merged, "self_service", what)
         check_bool(ctx, isrc, merged, "setup_experience", what)
         check_categories(ctx, isrc, merged, what)
@@ -904,6 +931,8 @@ def check_labels(ctx, fs, labels):
         if not isinstance(name, str) or not name:
             ctx.fail(isrc, "label needs a 'name'")
             continue
+        if not name.isascii():
+            ctx.fail(isrc, f"{what}: label names must be ASCII (no emoji or accented letters)")
         if name in BUILTIN_LABELS:
             ctx.fail(isrc, f"{what}: this name is a built-in label")
         for other_scope, names in ctx.labels_declared.items():
@@ -955,7 +984,7 @@ def check_policies(ctx, fs, policies):
             if not item.get(k):
                 ctx.warn(isrc, f"{what}: no '{k}'")
         check_bool(ctx, isrc, item, "critical", what)
-        check_label_keys(ctx, isrc, item, what, fs.name)
+        check_label_keys(ctx, isrc, item, what, fs.name, "policy")
         is_patch = item.get("type") == "patch"
         if "type" in item and not is_patch:
             ctx.fail(isrc, f"{what}: 'type' must be 'patch' or omitted")
@@ -1025,6 +1054,8 @@ def check_reports(ctx, fs, reports):
         if not isinstance(name, str) or not name:
             ctx.fail(isrc, "report needs a 'name'")
             continue
+        if not name.isascii():
+            ctx.fail(isrc, f"{what}: report names must be ASCII (no emoji or accented letters)")
         if name in fs.report_names:
             ctx.fail(isrc, f"{what}: name already used in this fleet ({fs.report_names[name]})")
         fs.report_names[name] = ctx.rel(isrc)
@@ -1043,9 +1074,7 @@ def check_reports(ctx, fs, reports):
             ctx.fail(isrc, f"{what}: logging must be one of {sorted(REPORT_LOGGING)}")
         for k in ("observer_can_run", "automations_enabled", "discard_data"):
             check_bool(ctx, isrc, item, k, what)
-        if any(k in merged for k in ("labels_include_all", "labels_exclude_any")):
-            ctx.fail(isrc, f"{what}: reports only support labels_include_any")
-        check_label_keys(ctx, isrc, merged, what, fs.name)
+        check_label_keys(ctx, isrc, merged, what, fs.name, "report")
 
 
 def check_settings(ctx, fs, data):
@@ -1114,7 +1143,7 @@ def config_files(root):
 def run_checks(ctx):
     files = config_files(ctx.root)
     if not ctx.yaml_backend:
-        ctx.warn("", "no YAML parser (install PyYAML: pip install pyyaml, or Ruby); YAML-level checks skipped")
+        ctx.fail("", "no YAML parser (install PyYAML: pip install pyyaml, or Ruby); YAML-level checks skipped")
         for f in files:
             regex_only_checks(ctx, f)
         return
