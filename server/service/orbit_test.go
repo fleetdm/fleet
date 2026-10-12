@@ -2865,6 +2865,30 @@ func TestEscrowLUKSDataStatus(t *testing.T) {
 	require.Error(t, svc.EscrowLUKSData(ctx, "", "", nil, "", "", fleet.LinuxEscrowStatusPrompting), "no host in context")
 }
 
+func TestRetryPolicyAutomationScript(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
+	host := &fleet.Host{ID: 42}
+	hsr := &fleet.HostScriptResult{
+		ScriptID:        new(uint(12)),
+		PolicyID:        new(uint(34)),
+		ScriptContentID: 56,
+		ScriptContents:  "echo original contents",
+		AttemptNumber:   new(1),
+	}
+	ds.NewHostScriptExecutionRequestFunc = func(_ context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
+		require.Equal(t, host.ID, request.HostID)
+		require.Equal(t, hsr.ScriptID, request.ScriptID)
+		require.Equal(t, hsr.PolicyID, request.PolicyID)
+		require.Equal(t, hsr.ScriptContentID, request.ScriptContentID)
+		require.Equal(t, hsr.ScriptContents, request.ScriptContents)
+		return nil, nil
+	}
+
+	require.NoError(t, svc.retryPolicyAutomationScript(t.Context(), host, hsr))
+	require.True(t, ds.NewHostScriptExecutionRequestFuncInvoked)
+}
+
 func TestSaveHostScriptResultRecordsNotificationOutcomeOnDuplicate(t *testing.T) {
 	ds := new(mock.Store)
 	opts := &TestServerOpts{SkipCreateTestUsers: true}
