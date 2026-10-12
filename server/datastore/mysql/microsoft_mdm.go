@@ -1752,7 +1752,7 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 	// MySQL will use the `host_uuid` part of the primary key as a first
 	// pass, and then filter that subset by `command_uuid`.
 	const getMatchingHostProfilesStmt = `
-		SELECT host_uuid, profile_uuid, command_uuid, retries, checksum, operation_type
+		SELECT host_uuid, profile_uuid, command_uuid, retries, checksum, operation_type, status
 		FROM host_mdm_windows_profiles
 		WHERE host_uuid = ? AND command_uuid IN (?)`
 
@@ -1812,7 +1812,9 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 			continue
 		}
 		if hp.OperationType == fleet.MDMOperationTypeInstall && payload.Status != nil && *payload.Status == fleet.MDMDeliveryVerified {
-			if _, ok := scepProxyProfileUUIDs[hp.ProfileUUID]; ok {
+			// A repeated ACK must not undo a verification this delivery already got.
+			alreadyVerified := hp.Status != nil && *hp.Status == fleet.MDMDeliveryVerified
+			if _, ok := scepProxyProfileUUIDs[hp.ProfileUUID]; ok && !alreadyVerified {
 				verifying := fleet.MDMDeliveryVerifying
 				payload.Status = &verifying
 				scepVerifying = append(scepVerifying, windowsSCEPVerifyingInstall{ProfileUUID: hp.ProfileUUID, CommandUUID: hp.CommandUUID})

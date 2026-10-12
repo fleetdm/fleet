@@ -98,15 +98,11 @@ func isUserScopedWindowsSCEPInstall(rawCommand []byte) bool {
 // fleet.WindowsSCEPStatusProbeDelay, and the queued probe keeps the enrollment's has_pending_commands set so fleetd wakes
 // the device to receive it. A probe that already exists, from a duplicate answer, is left alone.
 func (ds *Datastore) enqueueWindowsSCEPStatusProbeDB(ctx context.Context, tx sqlx.ExtContext, enrollmentID uint, cmd *fleet.MDMWindowsCommand) error {
-	var exists bool
-	if err := sqlx.GetContext(ctx, tx, &exists,
-		`SELECT EXISTS (SELECT 1 FROM windows_mdm_commands WHERE command_uuid = ?)`, cmd.CommandUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "check for existing windows scep status probe")
-	}
-	if exists {
-		return nil
-	}
-	if err := ds.mdmWindowsInsertCommandForEnrollmentIDsDB(ctx, tx, []uint{enrollmentID}, cmd); err != nil {
+	// The probe's command UUID is deterministic, so a duplicate key means it is already queued, possibly by a concurrent
+	// save of the same answer. The failed statement does not abort the transaction.
+	err := ds.mdmWindowsInsertCommandForEnrollmentIDsDB(ctx, tx, []uint{enrollmentID}, cmd)
+	var existsErr *existsError
+	if err != nil && !errors.As(err, &existsErr) {
 		return ctxerr.Wrap(ctx, err, "enqueue windows scep status probe")
 	}
 	return nil
@@ -174,8 +170,8 @@ func applyWindowsSCEPStatusProbeResultDB(ctx context.Context, tx sqlx.ExtContext
 
 func windowsSCEPStatusFailedDetail(errorCode string) string {
 	// ErrorCode is an HRESULT that the device reports as a signed 32-bit integer.
-	if code, err := strconv.ParseInt(errorCode, 10, 64); err == nil && code != 0 {
-		return fmt.Sprintf("The host reported that the SCEP certificate isn't installed (error code 0x%08X).", uint32(code)) //nolint:gosec // HRESULT bit pattern
+	if code, err := strconv.ParseInt(errorCode, 10, 32); err == nil && code != 0 {
+		return fmt.Sprintf("The host reported that the SCEP certificate isn't installed (error code 0x%08X).", uint32(int32(code)))
 	}
 	return "The host reported that the SCEP certificate isn't installed."
 }

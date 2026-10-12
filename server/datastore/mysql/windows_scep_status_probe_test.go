@@ -207,6 +207,18 @@ func testWindowsSCEPStatusProbeQueuedOnAck(t *testing.T, ds *Datastore) {
 			_, err = ds.MDMWindowsSaveResponse(ctx, in.device, windowsMDMResponse(t, in.device, ackStatus(in.installCmdUUID, "Atomic", "200")), nil)
 			require.NoError(t, err)
 			assert.Len(t, queuedSCEPStatusProbes(t, ds, in.device.ID), 1)
+
+			// Once the probe has verified the delivery, a late repeat of the ACK must not send it back to verifying.
+			probe := windowsSCEPStatusProbeCommand(in.installCmdUUID, in.profileUUID, c.userScoped, 1)
+			_, err = ds.MDMWindowsSaveResponse(ctx, in.device, windowsMDMResponse(t, in.device,
+				ackStatus(probe.CommandUUID, "Get", "200")+probeResults(probe, "1", "0")), nil)
+			require.NoError(t, err)
+			status, _, _ = readWindowsHostProfile(t, ds, in.device.HostUUID, in.profileUUID)
+			require.Equal(t, fleet.MDMDeliveryVerified, status)
+			_, err = ds.MDMWindowsSaveResponse(ctx, in.device, windowsMDMResponse(t, in.device, ackStatus(in.installCmdUUID, "Atomic", "200")), nil)
+			require.NoError(t, err)
+			status, _, _ = readWindowsHostProfile(t, ds, in.device.HostUUID, in.profileUUID)
+			assert.Equal(t, fleet.MDMDeliveryVerified, status)
 		})
 	}
 }
