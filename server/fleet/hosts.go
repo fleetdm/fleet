@@ -234,6 +234,16 @@ type HostListOptions struct {
 	// SoftwareStatusFilter filters the hosts by the status of the software installer, if any,
 	// managed by Fleet. If specified, the SoftwareTitleIDFilter must also be specified.
 	SoftwareStatusFilter *SoftwareInstallerStatus
+	// SoftwareInstallerIDFilter filters the hosts by the id of a specific
+	// software installer package on a title. Used so per-package status counts
+	// in the Software Library can click through to hosts filtered to that one
+	// installer (vs the whole title via SoftwareTitleIDFilter).
+	SoftwareInstallerIDFilter *uint
+	// AppStoreAppVersionIDFilter filters the hosts by the id of a specific
+	// admin-created App Store app version (`vpp_apps_teams.id`). Used so
+	// per-version status counts can click through to hosts filtered to that
+	// one admin version.
+	AppStoreAppVersionIDFilter *uint
 
 	OSIDFilter        *uint
 	OSNameFilter      *string
@@ -334,6 +344,8 @@ func (h HostListOptions) Empty() bool {
 		h.SoftwareVersionIDFilter == nil &&
 		h.SoftwareTitleIDFilter == nil &&
 		h.SoftwareStatusFilter == nil &&
+		h.SoftwareInstallerIDFilter == nil &&
+		h.AppStoreAppVersionIDFilter == nil &&
 		h.OSIDFilter == nil &&
 		h.OSNameFilter == nil &&
 		h.OSVersionFilter == nil &&
@@ -1857,17 +1869,10 @@ func (h *HostMDM) EnrollmentStatus() string {
 }
 
 // ValidateAndroidWipeRequest performs the Android-specific Wipe validations shared by the Fleet Free and Premium WipeHost
-// implementations. Wipe is COBO-only for Android; BYO unenroll already runs an AMAPI WIPE under the hood (see
-// UnenrollAndroidHost) and surfaces as the mdm_unenrolled activity, so routing BYO hosts through the Wipe flow would be redundant
-// and misleading. Validation failures return a typed BadRequestError or InvalidArgumentError; a failure reading the app config
-// returns the underlying datastore error. Callers wrap the result with ctxerr.
+// implementations and the custom command path. Wipe is allowed on both company-owned and personally-owned hosts; on a
+// personally-owned host AMAPI only removes the work profile. Validation failures return a typed InvalidArgumentError; a
+// failure reading the app config returns the underlying datastore error. Callers wrap the result with ctxerr.
 func ValidateAndroidWipeRequest(ctx context.Context, ds Datastore, host *Host) error {
-	if host.MDM.EnrollmentStatus != nil && IsPersonalEnrollmentStatus(*host.MDM.EnrollmentStatus) {
-		return &BadRequestError{
-			Message: "Wipe is not supported for personally-owned Android hosts. Use Unenroll instead.",
-		}
-	}
-
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		return err

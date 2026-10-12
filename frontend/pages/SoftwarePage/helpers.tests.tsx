@@ -10,15 +10,29 @@ import {
   createMockSoftwareTitle,
   createMockSoftwarePackage,
   createMockAppStoreApp,
+  createMockAppStoreAppVersion,
 } from "__mocks__/softwareMock";
+import { notify } from "components/ToastNotification";
 import { ISoftwareInstallPolicy } from "interfaces/software";
 
 import {
   getSelfServiceTooltip,
   getAutomaticInstallPoliciesCount,
+  getAutoUpdateWindowDurationMinutes,
+  getDefaultAutoUpdateFromVersions,
   getDisplayedSoftwareName,
+  routeVersionNameError,
   getSoftwareListName,
 } from "./helpers";
+
+jest.mock("components/ToastNotification", () => ({
+  notify: {
+    success: jest.fn(),
+    error: jest.fn(),
+    batch: jest.fn(),
+    dismiss: jest.fn(),
+  },
+}));
 
 it("keeps custom software names while identifying script filenames", () => {
   const title = createMockSoftwareTitle({
@@ -240,5 +254,176 @@ describe("getDisplayedSoftwareName", () => {
     expect(
       getDisplayedSoftwareName("\u200e", "My App", "com.apple.MediaRemoteUI")
     ).toBe("My App");
+  });
+});
+
+describe("getAutoUpdateWindowDurationMinutes", () => {
+  it("returns same-day duration when end > start", () => {
+    expect(getAutoUpdateWindowDurationMinutes("09:00", "10:30")).toBe(90);
+  });
+
+  it("returns zero when start equals end", () => {
+    expect(getAutoUpdateWindowDurationMinutes("12:00", "12:00")).toBe(0);
+  });
+
+  it("wraps overnight when end < start", () => {
+    // 23:00 to 00:00 = 60 minutes (the minimum valid overnight window).
+    expect(getAutoUpdateWindowDurationMinutes("23:00", "00:00")).toBe(60);
+  });
+
+  // The pre-fix regression: 23:30 to 00:15 is 45 minutes overnight but the
+  // naive `end >= start && end - start < 60` check skipped the branch, letting
+  // the sub-hour window through client-side validation.
+  it("catches short overnight windows (23:30 to 00:15 = 45 minutes)", () => {
+    expect(getAutoUpdateWindowDurationMinutes("23:30", "00:15")).toBe(45);
+  });
+
+  it("handles a full-length overnight window", () => {
+    // 22:00 to 02:00 = 240 minutes.
+    expect(getAutoUpdateWindowDurationMinutes("22:00", "02:00")).toBe(240);
+  });
+
+  it("returns null for malformed inputs", () => {
+    expect(getAutoUpdateWindowDurationMinutes("bad", "02:00")).toBeNull();
+    expect(getAutoUpdateWindowDurationMinutes("09:00", "25:00")).toBeNull();
+    expect(getAutoUpdateWindowDurationMinutes("", "")).toBeNull();
+  });
+});
+
+describe("getDefaultAutoUpdateFromVersions", () => {
+  it("returns undefined when there are no versions", () => {
+    expect(getDefaultAutoUpdateFromVersions([])).toBeUndefined();
+    expect(getDefaultAutoUpdateFromVersions(null)).toBeUndefined();
+    expect(getDefaultAutoUpdateFromVersions(undefined)).toBeUndefined();
+  });
+
+  it("returns the shared schedule when all versions agree", () => {
+    const a = createMockAppStoreAppVersion({
+      auto_update_enabled: true,
+      auto_update_window_start: "22:00",
+      auto_update_window_end: "02:00",
+    });
+    const b = createMockAppStoreAppVersion({
+      auto_update_enabled: true,
+      auto_update_window_start: "22:00",
+      auto_update_window_end: "02:00",
+    });
+    expect(getDefaultAutoUpdateFromVersions([a, b])).toEqual({
+      enabled: true,
+      windowStart: "22:00",
+      windowEnd: "02:00",
+    });
+  });
+
+  it("returns undefined when siblings disagree on the window", () => {
+    const a = createMockAppStoreAppVersion({
+      auto_update_enabled: true,
+      auto_update_window_start: "22:00",
+      auto_update_window_end: "02:00",
+    });
+    const b = createMockAppStoreAppVersion({
+      auto_update_enabled: true,
+      auto_update_window_start: "23:00",
+      auto_update_window_end: "02:00",
+    });
+    expect(getDefaultAutoUpdateFromVersions([a, b])).toBeUndefined();
+  });
+
+  it("returns undefined when siblings disagree on enabled", () => {
+    const a = createMockAppStoreAppVersion({
+      auto_update_enabled: true,
+      auto_update_window_start: "22:00",
+      auto_update_window_end: "02:00",
+    });
+    const b = createMockAppStoreAppVersion({
+      auto_update_enabled: false,
+      auto_update_window_start: "22:00",
+      auto_update_window_end: "02:00",
+    });
+    expect(getDefaultAutoUpdateFromVersions([a, b])).toBeUndefined();
+  });
+
+  it("normalizes nullish windows to empty strings when all versions agree", () => {
+    const a = createMockAppStoreAppVersion({
+      auto_update_enabled: false,
+      auto_update_window_start: null,
+      auto_update_window_end: null,
+    });
+    expect(getDefaultAutoUpdateFromVersions([a])).toEqual({
+      enabled: false,
+      windowStart: "",
+      windowEnd: "",
+    });
+  });
+});
+
+describe("routeVersionNameError", () => {
+  const setServerErrors = jest.fn();
+  const notifyError = notify.error as jest.Mock;
+
+  beforeEach(() => {
+    setServerErrors.mockClear();
+    notifyError.mockClear();
+  });
+
+  // Regression guard: the duplicate-version-name conflict must land on the
+  // Name field, not the toast. Matcher keys on the BE phrase "a version named"
+  // (see server/datastore/mysql/vpp.go and ee/server/service/vpp.go — reword
+  // those and this test breaks).
+  it("routes `A version named ...` to the Name field", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "base",
+              reason:
+                'A version named "Production" already exists for this app in this fleet.',
+            },
+          ],
+        },
+      },
+    };
+
+    routeVersionNameError(err, setServerErrors, "fallback");
+
+    expect(setServerErrors).toHaveBeenCalledWith({
+      name:
+        'A version named "Production" already exists for this app in this fleet.',
+    });
+    expect(notifyError).not.toHaveBeenCalled();
+  });
+
+  // Regression guard: an unrelated error whose reason happens to contain
+  // "name" (e.g. an unsupported FLEET_VAR username) must stay in the toast,
+  // not clobber the Name field.
+  it("routes an unrelated `name`-containing reason to the toast", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "base",
+              reason:
+                "Unsupported variable $FLEET_VAR_HOST_END_USER_EMAIL_IDP_USERNAME",
+            },
+          ],
+        },
+      },
+    };
+
+    routeVersionNameError(
+      err,
+      setServerErrors,
+      "Couldn't update. Please try again."
+    );
+
+    expect(setServerErrors).not.toHaveBeenCalled();
+    expect(notifyError).toHaveBeenCalledWith(
+      "Couldn't update. Please try again.",
+      {
+        response: err,
+      }
+    );
   });
 });

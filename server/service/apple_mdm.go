@@ -5347,14 +5347,28 @@ func (svc *MDMAppleCheckinAndCommandService) RegisterResultsHandler(commandType 
 }
 
 // certIsFromNewEnrollment reports whether the device's MDM identity certificate was issued from a
-// new-enrollment profile, identified by apple_mdm.FleetEnrollmentSubjectOU in the Subject OU. Renewal
-// profiles omit this marker, so its presence means the current checkin belongs to a fresh enrollment
-// rather than a SCEP renewal.
+// new-enrollment profile rather than a renewal. A bound certificate is decided by its binding purpose.
+// An unbound one falls back to apple_mdm.FleetEnrollmentSubjectOU in the Subject OU, which renewal
+// profiles omit.
 func certIsFromNewEnrollment(cert *x509.Certificate) bool {
 	if cert == nil {
 		return false
 	}
-	return slices.Contains(cert.Subject.OrganizationalUnit, apple_mdm.FleetEnrollmentSubjectOU)
+	binding, err := apple_mdm.ParseAppleMDMCertificateBindingExtension(cert)
+	if err != nil {
+		// unreachable for a new certificate, which the Authenticate wrapper rejects; an associated one was
+		// accepted earlier, so don't reset its host
+		return false
+	}
+	if binding == nil {
+		return slices.Contains(cert.Subject.OrganizationalUnit, apple_mdm.FleetEnrollmentSubjectOU)
+	}
+	switch binding.Purpose {
+	case fleet.AppleMDMCertPurposeADE, fleet.AppleMDMCertPurposeOTAPhaseTwo, fleet.AppleMDMCertPurposeADUE, fleet.AppleMDMCertPurposeACME:
+		return true
+	default:
+		return false
+	}
 }
 
 // Authenticate handles MDM [Authenticate][1] requests.
@@ -6114,12 +6128,13 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			// returns false and the activity is attributed to actor_full_name
 			// instead of Fleet. The success path is handled separately in the
 			// InstalledApplicationList result handler.
-			fromAutoUpdate, err := svc.ds.IsAutoUpdateVPPInstall(r.Context, cmdResult.CommandUUID)
+			fromAutoUpdate, fromConfigurationResend, err := svc.ds.GetVPPInstallAutomationReasons(r.Context, cmdResult.CommandUUID)
 			if err != nil {
-				return nil, ctxerr.Wrap(r.Context, err, "checking if failed vpp install is from auto update")
+				return nil, ctxerr.Wrap(r.Context, err, "checking if failed vpp install is from auto update or a configuration re-send")
 			}
 			act.FromSetupExperience = fromSetupExperience
 			act.FromAutoUpdate = fromAutoUpdate
+			act.FromConfigurationResend = fromConfigurationResend
 			if err := svc.newActivityFn(r.Context, user, act); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "creating activity for installed app store app")
 			}
@@ -6677,6 +6692,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 	// Code below assumes svc.ds.ListSoftwareAutoUpdateSchedules with Enabled=true returns:
 	// 	- all entries with non-nil AutoUpdateStartTime and AutoUpdateEndTime
 	// 	- returned title IDs are VPP applications (currently the only entities that can have update window configured).
+	// 	- one entry per App Store app version, so a title can appear more than once.
 
 	if len(softwaresWithAutoUpdateSchedule) == 0 {
 		// Nothing else to do.
@@ -6693,9 +6709,18 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		installedVersionByBundleIdentifierAndSource[software.BundleIdentifier+software.Source] = software.Version
 	}
 
-	// 1. Filter out software that is not within the configured update window in the host timezone.
+	hostVersionByTitleID, err := svc.ds.ListHostAppStoreAppVersions(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list host app store app versions")
+	}
+
+	// 1. Filter out software that is not the host's App Store app version or not within the configured update window in the host timezone.
 	var softwaresWithinUpdateSchedule []fleet.SoftwareAutoUpdateSchedule
 	for _, softwareWithAutoUpdateSchedule := range softwaresWithAutoUpdateSchedule {
+		hostVersion, ok := hostVersionByTitleID[softwareWithAutoUpdateSchedule.TitleID]
+		if !ok || !hostVersion.InScope || hostVersion.VPPAppTeamID != softwareWithAutoUpdateSchedule.VPPAppTeamID {
+			continue
+		}
 		logger := logger.With(
 			"software_title_id", softwareWithAutoUpdateSchedule.TitleID,
 			"team_id", softwareWithAutoUpdateSchedule.TeamID,
@@ -6961,26 +6986,16 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			"installed_version", installedVersionByBundleIdentifierAndSource[bundleIdentifier+softwareTitle.Source],
 		)
 
-		vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitle.ID)
+		hostVersion := hostVersionByTitleID[softwareTitle.ID]
+		if hostVersion == nil {
+			continue
+		}
+		vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitle.ID, hostVersion.VPPAppTeamID)
 		if err != nil {
 			logger.ErrorContext(
 				ctx, "get VPP app by team and title",
 				"err", err,
 			)
-			continue
-		}
-
-		// Check the label scoping for this VPP app and host.
-		scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
-		if err != nil {
-			logger.ErrorContext(
-				ctx, "get VPP app by team and title",
-				"err", err,
-			)
-			continue
-		}
-		if !scoped {
-			logger.DebugContext(ctx, "skipping host because it's not scoped by the configured labels")
 			continue
 		}
 

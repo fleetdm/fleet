@@ -10,12 +10,15 @@
 import React from "react";
 
 import CustomLink from "components/CustomLink";
+import { notify } from "components/ToastNotification";
+import { IFormErrors } from "hooks/useFormValidation";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { getErrorReason } from "interfaces/errors";
 import {
   IHostSoftware,
   ISoftwarePackage,
   IAppStoreApp,
+  IAppStoreAppVersion,
   ISoftwareTitle,
   ISoftwareInstallPolicyUI,
   ISoftwareInstallPolicy,
@@ -220,6 +223,19 @@ export const CUSTOM_TARGET_OPTIONS: IDropdownOption[] = [
   },
 ];
 
+/** Tooltip copy for the auto-update row icon. Shared so every surface
+ * rendering an auto-update affordance reads the same. Returns null when the
+ * window is incomplete so callers can skip rendering a tooltip at all. */
+export const getAutoUpdateTooltip = (
+  start: string,
+  end: string
+): string | null => {
+  if (!start || !end) return null;
+  return `Auto updates between ${internationalTimeOnlyFormat(
+    start
+  )} and ${internationalTimeOnlyFormat(end)} (host local time).`;
+};
+
 export const getSelfServiceTooltip = (
   isIosOrIpadosApp: boolean,
   isAndroidPlayStoreApp: boolean
@@ -227,8 +243,8 @@ export const getSelfServiceTooltip = (
   if (isAndroidPlayStoreApp) {
     return (
       <>
-        End users can install from the <strong>Play Store</strong>
-        in their work profile.
+        End users can install from the <strong>Play Store</strong> in their work
+        profile.
       </>
     );
   }
@@ -398,4 +414,102 @@ export const mergePolicies = ({
   }
 
   return Array.from(byId.values());
+};
+
+export const HHMM_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const MINUTES_IN_DAY = 24 * 60;
+
+/** Wrap-aware duration between two HH:MM times. `end < start` wraps to the
+ * next day (overnight window), so 23:30 to 00:15 returns 45. Returns `null`
+ * if either input isn't valid HH:MM; same-time inputs return 0. */
+export const getAutoUpdateWindowDurationMinutes = (
+  start: string,
+  end: string
+): number | null => {
+  if (!HHMM_RE.test(start) || !HHMM_RE.test(end)) return null;
+  const [sh, sm] = start.split(":").map(Number);
+  const [eh, em] = end.split(":").map(Number);
+  const startTotal = sh * 60 + sm;
+  const endTotal = eh * 60 + em;
+  return endTotal >= startTotal
+    ? endTotal - startTotal
+    : endTotal - startTotal + MINUTES_IN_DAY;
+};
+
+/** Flattens a `labelTargets` map (name -> selected?) into the array shape the
+ * `labels_include_any` / `labels_include_all` / `labels_exclude_any` API
+ * fields expect. Order follows `Object.entries` insertion order. */
+export const buildSelectedLabelsArray = (
+  labelTargets: Record<string, boolean>
+): string[] =>
+  Object.entries(labelTargets)
+    .filter(([, selected]) => selected)
+    .map(([name]) => name);
+
+/** Routes a submit error from the Add/Edit version modals: the backend's
+ * duplicate-version-name conflict goes to the Name field; anything else
+ * (including other errors that happen to contain "name", e.g. an unsupported
+ * `$FLEET_VAR_..._USERNAME`) stays in the error toast so admins see the real
+ * reason. */
+export const routeVersionNameError = (
+  e: unknown,
+  setServerErrors: (errs: IFormErrors | null) => void,
+  fallbackMsg: string
+): void => {
+  const reason = getErrorReason(e);
+  if (reason?.toLowerCase().includes("a version named")) {
+    setServerErrors({ name: reason });
+  } else {
+    notify.error(fallbackMsg, { response: e });
+  }
+};
+
+/** Fans a `labelTargets` map into the three `labels_*` API fields. `onInactive`
+ * controls what the two non-active fields get: `"noChange"` (undefined, so the
+ * backend treats them as unchanged) for Add, or `"clear"` (empty array, so the
+ * backend clears them) for Edit. */
+export const buildLabelsForPayload = (
+  data: {
+    targetType: "All hosts" | "Custom";
+    customTarget: "labelsIncludeAny" | "labelsIncludeAll" | "labelsExcludeAny";
+    labelTargets: Record<string, boolean>;
+  },
+  onInactive: "noChange" | "clear"
+): {
+  labels_include_any: string[] | undefined;
+  labels_include_all: string[] | undefined;
+  labels_exclude_any: string[] | undefined;
+} => {
+  const inactive: string[] | undefined =
+    onInactive === "clear" ? [] : undefined;
+  const activeKey = data.targetType === "Custom" ? data.customTarget : null;
+  const selected = buildSelectedLabelsArray(data.labelTargets);
+  const active = selected.length ? selected : inactive;
+  return {
+    labels_include_any: activeKey === "labelsIncludeAny" ? active : inactive,
+    labels_include_all: activeKey === "labelsIncludeAll" ? active : inactive,
+    labels_exclude_any: activeKey === "labelsExcludeAny" ? active : inactive,
+  };
+};
+
+/** When every existing App Store app version shares the same auto-update
+ * schedule, returns that schedule shaped for `AddVersionModal.defaultAutoUpdate`
+ * so the Add form prefills from the sibling(s). Returns undefined for zero
+ * versions or when siblings disagree (no single "right" schedule to prefer). */
+export const getDefaultAutoUpdateFromVersions = (
+  versions: IAppStoreAppVersion[] | null | undefined
+): { enabled: boolean; windowStart: string; windowEnd: string } | undefined => {
+  if (!versions?.length) return undefined;
+  const first = {
+    enabled: !!versions[0].auto_update_enabled,
+    windowStart: versions[0].auto_update_window_start ?? "",
+    windowEnd: versions[0].auto_update_window_end ?? "",
+  };
+  const allMatch = versions.every(
+    (v) =>
+      !!v.auto_update_enabled === first.enabled &&
+      (v.auto_update_window_start ?? "") === first.windowStart &&
+      (v.auto_update_window_end ?? "") === first.windowEnd
+  );
+  return allMatch ? first : undefined;
 };
