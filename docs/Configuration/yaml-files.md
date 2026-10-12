@@ -748,7 +748,7 @@ In all cases, once Fleet collects software inventory, the inventory name is used
 - `hash_sha256` specifies the SHA256 hash of the package file. If provided, and a package with that hash was already added to Fleet, the download will be skipped. This speeds up GitOps runs. If a package with that hash doesn't exist in Fleet, Fleet will download the package from the `url` and add the package if the hash matches. Fleet will error if the hash doesn't match. You can specify `hash_sha256` without `url` if the package was already added to Fleet via the UI or the API.
 - `always_download` disables conditional HTTP downloads using ETag headers. By default (`false`), Fleet stores the ETag from the download response and sends it as `If-None-Match` on subsequent GitOps runs. If the server returns 304 Not Modified, the download is skipped entirely. Set to `true` to force Fleet to re-download the package on every GitOps run. Cannot be used together with `hash_sha256` (hash-pinned packages are already cached by hash). Not all servers support ETags correctly; if your download URL returns unreliable ETags, set `always_download: true`.
 - `pre_install_query.path` is the SQL query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
-- `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg). Not supported for `.sh` and `.ps1` files.
+- `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg). Not supported for [script-only packages](#script-only).
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `post_install_script.path` is the script Fleet will run on hosts after the software install. There is no default.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon built into Fleet. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and fleet where they are added.
@@ -832,23 +832,31 @@ If your server doesn't support ETags reliably, you can disable this behavior wit
 
 ##### Script-only
 
-Script-only packages (`.sh`, `.py`, and `.ps1` files) are referenced directly inline in the fleet's YAML file. The file contents become the install script. Script packages do not support `install_script`, `uninstall_script`, `post_install_script`, `pre_install_query`, or automatic install (`install_software` in policies).
+Script-only packages (`.sh`, `.py`, and `.ps1` files) are referenced directly in the fleet's YAML file. The file's contents become the install script, so `install_script`, `url`, and `hash_sha256` aren't supported.
 
-`self_service`, `categories`, `labels`, and `icon` are specified inline in the team's YAML file.
+Specify all other options, including `uninstall_script`, `post_install_script`, `pre_install_query`, `self_service`, `categories`, labels, and `icon`, on the same entry in the fleet's YAML file.
+
+[Policies](#policies) can't reference a script-only package in `install_software`.
 
 ```yaml
 software:
   packages:
     - path: ../lib/linux/scripts/vpn-setup.sh
       display_name: VPN setup
+      uninstall_script:
+        path: ../lib/linux/scripts/vpn-remove.sh
+      post_install_script:
+        path: ../lib/linux/scripts/vpn-verify.sh
+      pre_install_query:
+        path: ../lib/linux/queries/vpn-not-configured.yml
       icon:
-         path: ../lib/icons/vpn-setup.png
+        path: ../lib/icons/vpn-setup.png
       self_service: true
       categories:
         - "🛟 Support"
       labels_include_any:
-      - Engineering
-      - Customer Support
+        - Engineering
+        - Customer Support
 ```
 
 ### app_store_apps
