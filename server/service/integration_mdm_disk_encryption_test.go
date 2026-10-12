@@ -2122,9 +2122,6 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	})
 }
 
-// ///////////////////////////////////////////////////////////////////////////
-// Common MDM config test
-
 func (s *integrationMDMTestSuite) checkMDMDiskEncryptionSummaries(t *testing.T, teamID *uint, expectedSummary fleet.MDMDiskEncryptionSummary, checkFileVaultSummary bool) {
 	var queryParams []string
 	if teamID != nil {

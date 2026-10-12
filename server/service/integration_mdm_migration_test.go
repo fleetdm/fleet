@@ -680,9 +680,6 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 	checkMigrationResponses(host, token)
 }
 
-// ///////////////////////////////////////////////////////////////////////////
-// Windows MDM tests
-
 func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 	t := s.T()
 	ctx := context.Background()

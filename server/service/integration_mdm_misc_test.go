@@ -968,9 +968,6 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 	})
 }
 
-// ///////////////////////////////////////////////////////////////////////////
-// Common helpers
-
 func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 	t := s.T()
 	s.setSkipWorkerJobs(t)
