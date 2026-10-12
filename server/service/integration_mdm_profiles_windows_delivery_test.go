@@ -26,7 +26,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	servermdm "github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -112,9 +111,9 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 			mdmDevice.AppendResponse(fleet.SyncMLCmd{
 				XMLName: xml.Name{Local: fleet.CmdStatus},
 				MsgRef:  &msgID,
-				CmdRef:  ptr.String(c.Cmd.CmdID.Value),
-				Cmd:     ptr.String(c.Verb),
-				Data:    ptr.String(status),
+				CmdRef:  new(c.Cmd.CmdID.Value),
+				Cmd:     new(c.Verb),
+				Data:    new(status),
 				Items:   nil,
 				CmdID:   fleet.CmdID{Value: uuid.NewString()},
 			})
@@ -185,9 +184,9 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 					mdmDevice.AppendResponse(fleet.SyncMLCmd{
 						XMLName: xml.Name{Local: fleet.CmdStatus},
 						MsgRef:  &msgID,
-						CmdRef:  ptr.String(c.Cmd.CmdID.Value),
-						Cmd:     ptr.String(c.Verb),
-						Data:    ptr.String(syncml.CmdStatusOK),
+						CmdRef:  new(c.Cmd.CmdID.Value),
+						Cmd:     new(c.Verb),
+						Data:    new(syncml.CmdStatusOK),
 						Items:   nil,
 						CmdID:   fleet.CmdID{Value: uuid.NewString()},
 					})
@@ -206,9 +205,9 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 					mdmDevice.AppendResponse(fleet.SyncMLCmd{
 						XMLName: xml.Name{Local: fleet.CmdStatus},
 						MsgRef:  &msgID,
-						CmdRef:  ptr.String(c.Cmd.CmdID.Value),
-						Cmd:     ptr.String(c.Verb),
-						Data:    ptr.String(syncml.CmdStatusOK),
+						CmdRef:  new(c.Cmd.CmdID.Value),
+						Cmd:     new(c.Verb),
+						Data:    new(syncml.CmdStatusOK),
 						Items:   nil,
 						CmdID:   fleet.CmdID{Value: uuid.NewString()},
 					})
@@ -223,9 +222,9 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 				mdmDevice.AppendResponse(fleet.SyncMLCmd{
 					XMLName: xml.Name{Local: fleet.CmdStatus},
 					MsgRef:  &msgID,
-					CmdRef:  ptr.String(c.Cmd.CmdID.Value),
-					Cmd:     ptr.String(c.Verb),
-					Data:    ptr.String(status),
+					CmdRef:  new(c.Cmd.CmdID.Value),
+					Cmd:     new(c.Verb),
+					Data:    new(status),
 					Items:   nil,
 					CmdID:   fleet.CmdID{Value: uuid.NewString()},
 				})
@@ -268,9 +267,9 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 				mdmDevice.AppendResponse(fleet.SyncMLCmd{
 					XMLName: xml.Name{Local: fleet.CmdStatus},
 					MsgRef:  &msgID,
-					CmdRef:  ptr.String(c.Cmd.CmdID.Value),
-					Cmd:     ptr.String(c.Verb),
-					Data:    ptr.String(syncml.CmdStatusOK),
+					CmdRef:  new(c.Cmd.CmdID.Value),
+					Cmd:     new(c.Verb),
+					Data:    new(syncml.CmdStatusOK),
 					Items:   nil,
 					CmdID:   fleet.CmdID{Value: uuid.NewString()},
 				})
@@ -285,9 +284,9 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 			mdmDevice.AppendResponse(fleet.SyncMLCmd{
 				XMLName: xml.Name{Local: fleet.CmdStatus},
 				MsgRef:  &msgID,
-				CmdRef:  ptr.String(c.Cmd.CmdID.Value),
-				Cmd:     ptr.String(c.Verb),
-				Data:    ptr.String(status),
+				CmdRef:  new(c.Cmd.CmdID.Value),
+				Cmd:     new(c.Verb),
+				Data:    new(status),
 				Items:   nil,
 				CmdID:   fleet.CmdID{Value: uuid.NewString()},
 			})
@@ -358,9 +357,9 @@ func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 			mdmDevice.AppendResponse(fleet.SyncMLCmd{
 				XMLName: xml.Name{Local: fleet.CmdStatus},
 				MsgRef:  &msgID,
-				CmdRef:  ptr.String(c.Cmd.CmdID.Value),
-				Cmd:     ptr.String(c.Verb),
-				Data:    ptr.String(status),
+				CmdRef:  new(c.Cmd.CmdID.Value),
+				Cmd:     new(c.Verb),
+				Data:    new(status),
 				Items:   nil,
 				CmdID:   fleet.CmdID{Value: uuid.NewString()},
 			})
@@ -462,8 +461,8 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	// create a non-Windows host
 	_, err = s.ds.NewHost(context.Background(), &fleet.Host{
 		ID:            1,
-		OsqueryHostID: ptr.String("non-windows-host"),
-		NodeKey:       ptr.String("non-windows-host"),
+		OsqueryHostID: new("non-windows-host"),
+		NodeKey:       new("non-windows-host"),
 		UUID:          uuid.New().String(),
 		Hostname:      fmt.Sprintf("%sfoo.local.non.windows", t.Name()),
 		Platform:      "darwin",
@@ -473,8 +472,8 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	// create a Windows host that's not enrolled into MDM
 	_, err = s.ds.NewHost(context.Background(), &fleet.Host{
 		ID:            2,
-		OsqueryHostID: ptr.String("not-mdm-enrolled"),
-		NodeKey:       ptr.String("not-mdm-enrolled"),
+		OsqueryHostID: new("not-mdm-enrolled"),
+		NodeKey:       new("not-mdm-enrolled"),
 		UUID:          uuid.New().String(),
 		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", t.Name()),
 		Platform:      "windows",
@@ -497,7 +496,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 
 			wantDeliveryStatus := fleet.WindowsResponseToDeliveryStatus(wantStatus)
 			if gotProfile.Retries <= servermdm.MaxWindowsProfileRetries && wantDeliveryStatus == fleet.MDMDeliveryFailed {
-				require.EqualValues(t, "pending", gotProfile.Status, "command_uuid", cmd.Cmd.CmdID.Value)
+				require.Equal(t, "pending", gotProfile.Status, "command_uuid", cmd.Cmd.CmdID.Value)
 			} else {
 				require.EqualValues(t, wantDeliveryStatus, gotProfile.Status, "command_uuid", cmd.Cmd.CmdID.Value)
 			}
@@ -542,7 +541,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 				XMLName: xml.Name{Local: fleet.CmdStatus},
 				MsgRef:  &msgID,
 				CmdRef:  &cmdID.Value,
-				Cmd:     ptr.String(c.Verb),
+				Cmd:     new(c.Verb),
 				Data:    &status,
 				Items:   nil,
 				CmdID:   fleet.CmdID{Value: uuid.NewString()},
@@ -702,7 +701,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	}
 	label, err = s.ds.NewLabel(context.Background(), label)
 	require.NoError(t, err)
-	require.NoError(t, s.ds.RecordLabelQueryExecutions(ctx, host, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, s.ds.RecordLabelQueryExecutions(ctx, host, map[uint]*bool{label.ID: new(true)}, time.Now(), false))
 
 	// simulate osquery reporting host mdm details (host_mdm.enrolled = 1 is condition for
 	// hosts filtering by os settings status and generating mdm profiles summaries)
@@ -1033,7 +1032,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 				XMLName: xml.Name{Local: fleet.CmdStatus},
 				MsgRef:  &msgID,
 				CmdRef:  &cmdID.Value,
-				Cmd:     ptr.String(c.Verb),
+				Cmd:     new(c.Verb),
 				Data:    &status,
 				Items:   nil,
 				CmdID:   fleet.CmdID{Value: uuid.NewString()},
@@ -1092,7 +1091,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 				XMLName: xml.Name{Local: fleet.CmdStatus},
 				MsgRef:  &msgID,
 				CmdRef:  &cmdID.Value,
-				Cmd:     ptr.String(c.Verb),
+				Cmd:     new(c.Verb),
 				Data:    &status,
 				CmdID:   fleet.CmdID{Value: uuid.NewString()},
 			})
@@ -1461,8 +1460,8 @@ func (s *integrationMDMTestSuite) TestWindowsProfilesFleetVariableSubstitution()
 				XMLName: xml.Name{Local: fleet.CmdStatus},
 				MsgRef:  &msgID,
 				CmdRef:  &cmd.Cmd.CmdID.Value,
-				Cmd:     ptr.String(cmd.Verb),
-				Data:    ptr.String(syncml.CmdStatusOK),
+				Cmd:     new(cmd.Verb),
+				Data:    new(syncml.CmdStatusOK),
 				CmdID:   fleet.CmdID{Value: uuid.NewString()},
 			})
 
@@ -1548,8 +1547,8 @@ func (s *integrationMDMTestSuite) TestWindowsProfilesFleetVariableSubstitution()
 			XMLName: xml.Name{Local: fleet.CmdStatus},
 			MsgRef:  &msgID,
 			CmdRef:  &cmd.Cmd.CmdID.Value,
-			Cmd:     ptr.String(cmd.Verb),
-			Data:    ptr.String(syncml.CmdStatusOK),
+			Cmd:     new(cmd.Verb),
+			Data:    new(syncml.CmdStatusOK),
 			CmdID:   fleet.CmdID{Value: uuid.NewString()},
 		})
 	}
@@ -1686,8 +1685,8 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
 					XMLName: xml.Name{Local: fleet.CmdStatus},
 					MsgRef:  &msgID,
 					CmdRef:  &cmd.Cmd.CmdID.Value,
-					Cmd:     ptr.String(cmd.Verb),
-					Data:    ptr.String(syncml.CmdStatusAtomicFailed),
+					Cmd:     new(cmd.Verb),
+					Data:    new(syncml.CmdStatusAtomicFailed),
 					CmdID:   fleet.CmdID{Value: uuid.NewString()},
 				}
 			} else {
@@ -1695,8 +1694,8 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
 					XMLName: xml.Name{Local: fleet.CmdStatus},
 					MsgRef:  &msgID,
 					CmdRef:  &cmd.Cmd.CmdID.Value,
-					Cmd:     ptr.String(cmd.Verb),
-					Data:    ptr.String(syncml.CmdStatusAlreadyExists),
+					Cmd:     new(cmd.Verb),
+					Data:    new(syncml.CmdStatusAlreadyExists),
 					CmdID:   fleet.CmdID{Value: uuid.NewString()},
 				}
 			}
@@ -1708,9 +1707,9 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
 						XMLName: xml.Name{Local: fleet.CmdStatus},
 						MsgRef:  &msgID,
 						CmdRef:  &addCmd.CmdID.Value,
-						Cmd:     ptr.String(fleet.CmdStatus),
+						Cmd:     new(fleet.CmdStatus),
 						// 418 triggers Replace resend logic
-						Data:  ptr.String(syncml.CmdStatusAlreadyExists),
+						Data:  new(syncml.CmdStatusAlreadyExists),
 						CmdID: fleet.CmdID{Value: uuid.NewString()},
 					}
 					mdmDevice.AppendResponse(itemCmd)
@@ -1749,8 +1748,8 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
 				XMLName: xml.Name{Local: fleet.CmdStatus},
 				MsgRef:  &msgID,
 				CmdRef:  &cmd.Cmd.CmdID.Value,
-				Cmd:     ptr.String(cmd.Verb),
-				Data:    ptr.String(syncml.CmdStatusAtomicFailed),
+				Cmd:     new(cmd.Verb),
+				Data:    new(syncml.CmdStatusAtomicFailed),
 				CmdID:   fleet.CmdID{Value: uuid.NewString()},
 			}
 			mdmDevice.AppendResponse(syncCmd)
@@ -1790,8 +1789,8 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
 				XMLName: xml.Name{Local: fleet.CmdStatus},
 				MsgRef:  &msgID,
 				CmdRef:  &cmd.Cmd.CmdID.Value,
-				Cmd:     ptr.String(cmd.Verb),
-				Data:    ptr.String(syncml.CmdStatusAtomicFailed),
+				Cmd:     new(cmd.Verb),
+				Data:    new(syncml.CmdStatusAtomicFailed),
 				CmdID:   fleet.CmdID{Value: uuid.NewString()},
 			}
 			mdmDevice.AppendResponse(syncCmd)
@@ -1801,8 +1800,8 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
 						XMLName: xml.Name{Local: fleet.CmdStatus},
 						MsgRef:  &msgID,
 						CmdRef:  &addCmd.CmdID.Value,
-						Cmd:     ptr.String(fleet.CmdStatus),
-						Data:    ptr.String(syncml.CmdStatusAlreadyExists), // 418
+						Cmd:     new(fleet.CmdStatus),
+						Data:    new(syncml.CmdStatusAlreadyExists), // 418
 						CmdID:   fleet.CmdID{Value: uuid.NewString()},
 					})
 				}
@@ -1837,8 +1836,8 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
 				XMLName: xml.Name{Local: fleet.CmdStatus},
 				MsgRef:  &msgID,
 				CmdRef:  &cmd.Cmd.CmdID.Value,
-				Cmd:     ptr.String(cmd.Verb),
-				Data:    ptr.String(syncml.CmdStatusOK),
+				Cmd:     new(cmd.Verb),
+				Data:    new(syncml.CmdStatusOK),
 				CmdID:   fleet.CmdID{Value: uuid.NewString()},
 			}
 			mdmDevice.AppendResponse(syncCmd)
@@ -1848,8 +1847,8 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
 						XMLName: xml.Name{Local: fleet.CmdStatus},
 						MsgRef:  &msgID,
 						CmdRef:  &cmd.Cmd.CmdID.Value,
-						Cmd:     ptr.String(fleet.CmdStatus),
-						Data:    ptr.String(syncml.CmdStatusOK), // 200
+						Cmd:     new(fleet.CmdStatus),
+						Data:    new(syncml.CmdStatusOK), // 200
 						CmdID:   fleet.CmdID{Value: uuid.NewString()},
 					})
 				}
@@ -1911,8 +1910,8 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
 				XMLName: xml.Name{Local: fleet.CmdStatus},
 				MsgRef:  &msgID,
 				CmdRef:  &cmd.Cmd.CmdID.Value,
-				Cmd:     ptr.String(cmd.Verb),
-				Data:    ptr.String(syncml.CmdStatusAtomicFailed), // Generic failure, should not retry
+				Cmd:     new(cmd.Verb),
+				Data:    new(syncml.CmdStatusAtomicFailed), // Generic failure, should not retry
 				CmdID:   fleet.CmdID{Value: uuid.NewString()},
 			}
 			mdmDevice.AppendResponse(syncCmd)
@@ -1922,9 +1921,9 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
 						XMLName: xml.Name{Local: fleet.CmdStatus},
 						MsgRef:  &msgID,
 						CmdRef:  &addCmd.CmdID.Value,
-						Cmd:     ptr.String(fleet.CmdStatus),
+						Cmd:     new(fleet.CmdStatus),
 						// 500 generic failure
-						Data:  ptr.String(syncml.CmdStatusBadRequest),
+						Data:  new(syncml.CmdStatusBadRequest),
 						CmdID: fleet.CmdID{Value: uuid.NewString()},
 					}
 					mdmDevice.AppendResponse(itemCmd)
@@ -1965,9 +1964,9 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
 		syncCmd := fleet.SyncMLCmd{
 			XMLName: xml.Name{Local: fleet.CmdStatus},
 			MsgRef:  &msgID,
-			Cmd:     ptr.String("Add"),
-			CmdRef:  ptr.String(""),
-			Data:    ptr.String(syncml.CmdStatusAlreadyExists),
+			Cmd:     new("Add"),
+			CmdRef:  new(""),
+			Data:    new(syncml.CmdStatusAlreadyExists),
 			CmdID:   fleet.CmdID{Value: uuid.NewString()},
 		}
 		mdmDevice2.AppendResponse(syncCmd)

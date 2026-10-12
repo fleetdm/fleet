@@ -39,7 +39,6 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -92,10 +91,10 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 	t := s.T()
 
 	appConf, err := s.ds.AppConfig(context.Background())
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 	appConf.MDM.WindowsEnabledAndConfigured = false
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 
 	var acResp appConfigResponse
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
@@ -172,9 +171,11 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 	// get the orbit config for each host, verify that only the expected ones
 	// receive the "needs enrollment to Windows MDM" notification.
 	for _, meta := range metadataHosts {
+		host := hostsBySuffix[meta.suffix]
+		require.NotNil(t, host)
 		var resp fleet.OrbitGetConfigResponse
 		s.DoJSON("POST", "/api/fleet/orbit/config",
-			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hostsBySuffix[meta.suffix].OrbitNodeKey)),
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
 			http.StatusOK, &resp)
 		require.Equal(t, meta.shouldEnroll, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
 		require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMUnenrollment)
@@ -227,12 +228,14 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 	assert.True(t, acResp.MDM.EnableTurnOnWindowsMDMManually)
 	// No hosts should be told to enroll or unenroll because (un)enrollment is all done by the end-user
 	for _, meta := range metadataHosts {
+		host := hostsBySuffix[meta.suffix]
+		require.NotNil(t, host)
 		var resp fleet.OrbitGetConfigResponse
 		s.DoJSON("POST", "/api/fleet/orbit/config",
-			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hostsBySuffix[meta.suffix].OrbitNodeKey)),
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
 			http.StatusOK, &resp)
-		require.Equal(t, false, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
-		require.Equal(t, false, resp.Notifications.NeedsMDMMigration)
+		require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
+		require.False(t, resp.Notifications.NeedsMDMMigration)
 		require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMUnenrollment)
 		require.Empty(t, resp.Notifications.WindowsMDMDiscoveryEndpoint)
 	}
@@ -250,9 +253,11 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 	// receive the "needs enrollment to Windows MDM" and "needs migration" notifications.
 	// They still get enrollment notifications as we have not proceeded with enrollment.
 	for _, meta := range metadataHosts {
+		host := hostsBySuffix[meta.suffix]
+		require.NotNil(t, host)
 		var resp fleet.OrbitGetConfigResponse
 		s.DoJSON("POST", "/api/fleet/orbit/config",
-			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hostsBySuffix[meta.suffix].OrbitNodeKey)),
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
 			http.StatusOK, &resp)
 		require.Equal(t, meta.shouldEnroll, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
 		require.Equal(t, meta.shouldMigrate, resp.Notifications.NeedsMDMMigration)
@@ -289,9 +294,11 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 	// get the orbit config for each host, only the fleet-enrolled ones get the unenrollment,
 	// and none get enrollment/migration (because MDM is now off).
 	for _, meta := range metadataHosts {
+		host := hostsBySuffix[meta.suffix]
+		require.NotNil(t, host)
 		var resp fleet.OrbitGetConfigResponse
 		s.DoJSON("POST", "/api/fleet/orbit/config",
-			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hostsBySuffix[meta.suffix].OrbitNodeKey)),
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
 			http.StatusOK, &resp)
 		require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
 		require.False(t, resp.Notifications.NeedsMDMMigration)
@@ -345,7 +352,7 @@ func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
 		require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 		// Checking if SOAP response can be unmarshalled to an golang type
-		var xmlType interface{}
+		var xmlType any
 		err = xml.Unmarshal(resBytes, &xmlType)
 		require.NoError(t, err)
 
@@ -397,7 +404,7 @@ func (s *integrationMDMTestSuite) TestInvalidDiscoveryRequest() {
 	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 	// Checking if response can be unmarshalled to an golang type
-	var xmlType interface{}
+	var xmlType any
 	err = xml.Unmarshal(resBytes, &xmlType)
 	require.NoError(t, err)
 
@@ -449,7 +456,7 @@ func (s *integrationMDMTestSuite) TestNoEmailDiscoveryRequest() {
 	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 	// Checking if SOAP response can be unmarshalled to an golang type
-	var xmlType interface{}
+	var xmlType any
 	err = xml.Unmarshal(resBytes, &xmlType)
 	require.NoError(t, err)
 
@@ -460,7 +467,7 @@ func (s *integrationMDMTestSuite) TestNoEmailDiscoveryRequest() {
 	require.True(t, s.isXMLTagContentPresent("EnrollmentVersion", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("EnrollmentPolicyServiceUrl", resSoapMsg))
 	require.True(t, s.isXMLTagContentPresent("EnrollmentServiceUrl", resSoapMsg))
-	require.True(t, !s.isXMLTagContentPresent("AuthenticationServiceUrl", resSoapMsg))
+	require.False(t, s.isXMLTagContentPresent("AuthenticationServiceUrl", resSoapMsg))
 }
 
 func (s *integrationMDMTestSuite) TestValidGetPoliciesRequestWithDeviceToken() {
@@ -484,7 +491,7 @@ func (s *integrationMDMTestSuite) TestValidGetPoliciesRequestWithDeviceToken() {
 	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 	// Checking if SOAP response can be unmarshalled to an golang type
-	var xmlType interface{}
+	var xmlType any
 	err = xml.Unmarshal(resBytes, &xmlType)
 	require.NoError(t, err)
 
@@ -534,7 +541,7 @@ func (s *integrationMDMTestSuite) TestValidGetPoliciesRequestWithAzureToken() {
 	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 	// Checking if SOAP response can be unmarshalled to an golang type
-	var xmlType interface{}
+	var xmlType any
 	err = xml.Unmarshal(resBytes, &xmlType)
 	require.NoError(t, err)
 
@@ -554,8 +561,8 @@ func (s *integrationMDMTestSuite) TestGetPoliciesRequestWithInvalidUUID() {
 	// create a new Host to get the UUID on the DB
 	_, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		ID:            1,
-		OsqueryHostID: ptr.String("Desktop-ABCQWE"),
-		NodeKey:       ptr.String("Desktop-ABCQWE"),
+		OsqueryHostID: new("Desktop-ABCQWE"),
+		NodeKey:       new("Desktop-ABCQWE"),
 		UUID:          uuid.New().String(),
 		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", s.T().Name()),
 		Platform:      "windows",
@@ -577,7 +584,7 @@ func (s *integrationMDMTestSuite) TestGetPoliciesRequestWithInvalidUUID() {
 	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 	// Checking if SOAP response can be unmarshalled to an golang type
-	var xmlType interface{}
+	var xmlType any
 	err = xml.Unmarshal(resBytes, &xmlType)
 	require.NoError(t, err)
 
@@ -610,7 +617,7 @@ func (s *integrationMDMTestSuite) TestGetPoliciesRequestWithNotElegibleHost() {
 	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 	// Checking if SOAP response can be unmarshalled to an golang type
-	var xmlType interface{}
+	var xmlType any
 	err = xml.Unmarshal(resBytes, &xmlType)
 	require.NoError(t, err)
 
@@ -644,7 +651,7 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDevice
 	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 	// Checking if SOAP response can be unmarshalled to an golang type
-	var xmlType interface{}
+	var xmlType any
 	err = xml.Unmarshal(resBytes, &xmlType)
 	require.NoError(t, err)
 
@@ -720,7 +727,7 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithAzureT
 	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 	// Checking if SOAP response can be unmarshalled to an golang type
-	var xmlType interface{}
+	var xmlType any
 	err = xml.Unmarshal(resBytes, &xmlType)
 	require.NoError(t, err)
 
@@ -766,7 +773,7 @@ func (s *integrationMDMTestSuite) TestInvalidRequestSecurityTokenRequestWithMiss
 	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 	// Checking if SOAP response can be unmarshalled to an golang type
-	var xmlType interface{}
+	var xmlType any
 	err = xml.Unmarshal(resBytes, &xmlType)
 	require.NoError(t, err)
 
@@ -870,9 +877,9 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 	require.Len(t, cmds, 3)
 	receivedCmd := cmds[cmdOneUUID]
 	require.NotNil(t, receivedCmd)
-	require.Equal(t, receivedCmd.Verb, fleet.CmdExec)
+	require.Equal(t, fleet.CmdExec, receivedCmd.Verb)
 	require.Len(t, receivedCmd.Cmd.Items, 1)
-	require.EqualValues(t, "./Device/Vendor/MSFT/Reboot/RebootNow", *receivedCmd.Cmd.Items[0].Target)
+	require.Equal(t, "./Device/Vendor/MSFT/Reboot/RebootNow", *receivedCmd.Cmd.Items[0].Target)
 
 	msgID, err := d.GetCurrentMsgID()
 	require.NoError(t, err)
@@ -881,8 +888,8 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		XMLName: xml.Name{Local: fleet.CmdStatus},
 		MsgRef:  &msgID,
 		CmdRef:  &cmdOneUUID,
-		Cmd:     ptr.String("Exec"),
-		Data:    ptr.String("200"),
+		Cmd:     new("Exec"),
+		Data:    new("200"),
 		Items:   nil,
 		CmdID:   fleet.CmdID{Value: uuid.NewString()},
 	})
@@ -964,29 +971,29 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 	require.Len(t, cmds, 5)
 	receivedCmdTwo := cmds[cmdTwoUUID]
 	require.NotNil(t, receivedCmdTwo)
-	require.Equal(t, receivedCmdTwo.Verb, fleet.CmdGet)
+	require.Equal(t, fleet.CmdGet, receivedCmdTwo.Verb)
 	require.Len(t, receivedCmdTwo.Cmd.Items, 1)
-	require.EqualValues(t, "./Device/Vendor/MSFT/DMClient/Provider/DEMO%20MDM/SignedEntDMID", *receivedCmdTwo.Cmd.Items[0].Target)
+	require.Equal(t, "./Device/Vendor/MSFT/DMClient/Provider/DEMO%20MDM/SignedEntDMID", *receivedCmdTwo.Cmd.Items[0].Target)
 
 	receivedCmdThree := cmds[cmdThreeUUID]
 	require.NotNil(t, receivedCmdThree)
-	require.Equal(t, receivedCmdThree.Verb, fleet.CmdReplace)
+	require.Equal(t, fleet.CmdReplace, receivedCmdThree.Verb)
 	require.Len(t, receivedCmdThree.Cmd.Items, 1)
-	require.EqualValues(t, "./Device/Vendor/MSFT/DMClient/Provider/DEMO%20MDM/SignedEntDMID", *receivedCmdThree.Cmd.Items[0].Target)
+	require.Equal(t, "./Device/Vendor/MSFT/DMClient/Provider/DEMO%20MDM/SignedEntDMID", *receivedCmdThree.Cmd.Items[0].Target)
 
 	receivedCmdFour := cmds[cmdFourUUID]
 	require.NotNil(t, receivedCmdFour)
-	require.Equal(t, receivedCmdFour.Verb, fleet.CmdAdd)
+	require.Equal(t, fleet.CmdAdd, receivedCmdFour.Verb)
 	require.Len(t, receivedCmdFour.Cmd.Items, 1)
-	require.EqualValues(t, "./Vendor/MSFT/WiFi/Profile/MyNetwork/WlanXml", *receivedCmdFour.Cmd.Items[0].Target)
+	require.Equal(t, "./Vendor/MSFT/WiFi/Profile/MyNetwork/WlanXml", *receivedCmdFour.Cmd.Items[0].Target)
 
 	// status 200 for command Two  (Get)
 	d.AppendResponse(fleet.SyncMLCmd{
 		XMLName: xml.Name{Local: fleet.CmdStatus},
 		MsgRef:  &msgID,
 		CmdRef:  &cmdTwoUUID,
-		Cmd:     ptr.String("Get"),
-		Data:    ptr.String("200"),
+		Cmd:     new("Get"),
+		Data:    new("200"),
 		Items:   nil,
 		CmdID:   fleet.CmdID{Value: uuid.NewString()},
 	})
@@ -996,11 +1003,11 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		XMLName: xml.Name{Local: fleet.CmdResults},
 		MsgRef:  &msgID,
 		CmdRef:  &cmdTwoUUID,
-		Cmd:     ptr.String("Replace"),
-		Data:    ptr.String("200"),
+		Cmd:     new("Replace"),
+		Data:    new("200"),
 		Items: []fleet.CmdItem{
 			{
-				Source: ptr.String("./Device/Vendor/MSFT/DMClient/Provider/DEMO%20MDM/SignedEntDMID"),
+				Source: new("./Device/Vendor/MSFT/DMClient/Provider/DEMO%20MDM/SignedEntDMID"),
 				Data:   &fleet.RawXmlData{Content: "0"},
 			},
 		},
@@ -1011,8 +1018,8 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		XMLName: xml.Name{Local: fleet.CmdStatus},
 		MsgRef:  &msgID,
 		CmdRef:  &cmdThreeUUID,
-		Cmd:     ptr.String("Replace"),
-		Data:    ptr.String("200"),
+		Cmd:     new("Replace"),
+		Data:    new("200"),
 		Items:   nil,
 		CmdID:   fleet.CmdID{Value: uuid.NewString()},
 	})
@@ -1021,8 +1028,8 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		XMLName: xml.Name{Local: fleet.CmdStatus},
 		MsgRef:  &msgID,
 		CmdRef:  &cmdFourUUID,
-		Cmd:     ptr.String("Add"),
-		Data:    ptr.String("200"),
+		Cmd:     new("Add"),
+		Data:    new("200"),
 		Items:   nil,
 		CmdID:   fleet.CmdID{Value: uuid.NewString()},
 	})
@@ -1158,10 +1165,10 @@ func (s *integrationMDMTestSuite) TestWindowsMDMCommandWithSecret() {
 	require.Len(t, cmds, 3)
 	receivedCmd := cmds[cmdOneUUID]
 	require.NotNil(t, receivedCmd)
-	require.Equal(t, receivedCmd.Verb, fleet.CmdExec)
+	require.Equal(t, fleet.CmdExec, receivedCmd.Verb)
 	require.Len(t, receivedCmd.Cmd.Items, 1)
-	require.EqualValues(t, "./Device/Vendor/MSFT/Reboot/RebootNow", *receivedCmd.Cmd.Items[0].Target)
-	assert.EqualValues(t, secretValue, receivedCmd.Cmd.Items[0].Data.Content)
+	require.Equal(t, "./Device/Vendor/MSFT/Reboot/RebootNow", *receivedCmd.Cmd.Items[0].Target)
+	assert.Equal(t, secretValue, receivedCmd.Cmd.Items[0].Data.Content)
 
 	msgID, err := d.GetCurrentMsgID()
 	require.NoError(t, err)
@@ -1170,8 +1177,8 @@ func (s *integrationMDMTestSuite) TestWindowsMDMCommandWithSecret() {
 		XMLName: xml.Name{Local: fleet.CmdStatus},
 		MsgRef:  &msgID,
 		CmdRef:  &cmdOneUUID,
-		Cmd:     ptr.String("Exec"),
-		Data:    ptr.String("200"),
+		Cmd:     new("Exec"),
+		Data:    new("200"),
 		Items:   nil,
 		CmdID:   fleet.CmdID{Value: uuid.NewString()},
 	})
@@ -1260,7 +1267,7 @@ func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommands() {
 			MsgRef:  &msgID,
 			CmdRef:  &fleetdAddCmd.Cmd.CmdID.Value,
 			Cmd:     &fleetdAddCmd.Verb,
-			Data:    ptr.String("200"),
+			Data:    new("200"),
 			Items:   nil,
 			CmdID:   fleet.CmdID{Value: uuid.NewString()},
 		})
@@ -1269,7 +1276,7 @@ func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommands() {
 			MsgRef:  &msgID,
 			CmdRef:  &fleetdExecCmd.Cmd.CmdID.Value,
 			Cmd:     &fleetdExecCmd.Verb,
-			Data:    ptr.String("200"),
+			Data:    new("200"),
 			Items:   nil,
 			CmdID:   fleet.CmdID{Value: uuid.NewString()},
 		})
@@ -1559,17 +1566,17 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedBadKeys() {
 	// Bad key
 	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, autopilotUserMail, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(badKey, defaultFakeJWTKeyID, tenantID))
 	err = mdmDevice.Enroll()
-	require.Error(s.T(), err)
+	s.Require().Error(err)
 
 	// Good key but wrong ID
 	mdmDevice = mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, autopilotUserMail, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, "bad-key-id", tenantID))
 	err = mdmDevice.Enroll()
-	require.Error(s.T(), err)
+	s.Require().Error(err)
 
 	// Happy path to ensure the setup is correct
 	mdmDevice = mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, autopilotUserMail, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
 	err = mdmDevice.Enroll()
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 }
 
 func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedTenantIDs() {
@@ -1589,12 +1596,12 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedTenantIDs() {
 	// Bad entra tenant ID
 	mdmDevice := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, autopilotUserMail, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, uuid.New().String()))
 	err = mdmDevice.Enroll()
-	require.Error(s.T(), err)
+	s.Require().Error(err)
 
 	// Happy path to ensure the setup is correct
 	mdmDevice = mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, autopilotUserMail, mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
 	err = mdmDevice.Enroll()
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 }
 
 func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping() {
@@ -1681,7 +1688,7 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 			MsgRef:  &msgID,
 			CmdRef:  &fleetdAddCmd.Cmd.CmdID.Value,
 			Cmd:     &fleetdAddCmd.Verb,
-			Data:    ptr.String("200"),
+			Data:    new("200"),
 			Items:   nil,
 			CmdID:   fleet.CmdID{Value: uuid.NewString()},
 		})
@@ -1690,7 +1697,7 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 			MsgRef:  &msgID,
 			CmdRef:  &fleetdExecCmd.Cmd.CmdID.Value,
 			Cmd:     &fleetdExecCmd.Verb,
-			Data:    ptr.String("200"),
+			Data:    new("200"),
 			Items:   nil,
 			CmdID:   fleet.CmdID{Value: uuid.NewString()},
 		})
@@ -2110,7 +2117,7 @@ func (s *integrationMDMTestSuite) TestWipeWindowsReenrollAsNewHost() {
 	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
 	require.Equal(t, "unlocked", *getHostResp.Host.MDM.DeviceStatus)
 	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
-	require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
+	require.Empty(t, *getHostResp.Host.MDM.PendingAction)
 
 	// wipe the host
 	var wipeResp fleet.WipeHostResponse
@@ -2135,9 +2142,9 @@ func (s *integrationMDMTestSuite) TestWipeWindowsReenrollAsNewHost() {
 	require.Len(t, cmds, 3)
 	wipeCmd := cmds[status.WipeMDMCommand.CommandUUID]
 	require.NotNil(t, wipeCmd)
-	require.Equal(t, wipeCmd.Verb, fleet.CmdExec)
+	require.Equal(t, fleet.CmdExec, wipeCmd.Verb)
 	require.Len(t, wipeCmd.Cmd.Items, 1)
-	require.EqualValues(t, "./Device/Vendor/MSFT/RemoteWipe/doWipeProtected", *wipeCmd.Cmd.Items[0].Target)
+	require.Equal(t, "./Device/Vendor/MSFT/RemoteWipe/doWipeProtected", *wipeCmd.Cmd.Items[0].Target)
 
 	msgID, err := winMDMClient.GetCurrentMsgID()
 	require.NoError(t, err)
@@ -2146,8 +2153,8 @@ func (s *integrationMDMTestSuite) TestWipeWindowsReenrollAsNewHost() {
 		XMLName: xml.Name{Local: fleet.CmdStatus},
 		MsgRef:  &msgID,
 		CmdRef:  &status.WipeMDMCommand.CommandUUID,
-		Cmd:     ptr.String("Exec"),
-		Data:    ptr.String("200"),
+		Cmd:     new("Exec"),
+		Data:    new("200"),
 		Items:   nil,
 		CmdID:   fleet.CmdID{Value: uuid.NewString()},
 	})

@@ -49,23 +49,15 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 
 	// add 2 android apps
 	app1 := &fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "com.test1",
-				Platform: fleet.AndroidPlatform,
-			},
-		},
+		AdamID:           "com.test1",
+		Platform:         fleet.AndroidPlatform,
 		Name:             "Test1",
 		BundleIdentifier: "com.test1",
 		IconURL:          "https://example.com/1",
 	}
 	app2 := &fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "com.test2",
-				Platform: fleet.AndroidPlatform,
-			},
-		},
+		AdamID:           "com.test2",
+		Platform:         fleet.AndroidPlatform,
 		Name:             "Test2",
 		BundleIdentifier: "com.test2",
 		IconURL:          "https://example.com/2",
@@ -307,23 +299,15 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidCancelOnUnenroll() {
 
 	// add 2 android apps
 	app1 := &fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "com.test1",
-				Platform: fleet.AndroidPlatform,
-			},
-		},
+		AdamID:           "com.test1",
+		Platform:         fleet.AndroidPlatform,
 		Name:             "Test1",
 		BundleIdentifier: "com.test1",
 		IconURL:          "https://example.com/1",
 	}
 	app2 := &fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "com.test2",
-				Platform: fleet.AndroidPlatform,
-			},
-		},
+		AdamID:           "com.test2",
+		Platform:         fleet.AndroidPlatform,
 		Name:             "Test2",
 		BundleIdentifier: "com.test2",
 		IconURL:          "https://example.com/2",
@@ -389,7 +373,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidCancelOnUnenroll() {
 		"query", app1.Name, "order_key", "name")
 	require.Len(t, getHostSw.Software, 1)
 	require.NotNil(t, getHostSw.Software[0].Status)
-	require.EqualValues(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
 
 	// turn off MDM for that host, should fail the pending install
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", host1.ID), nil, http.StatusNoContent)
@@ -400,7 +384,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidCancelOnUnenroll() {
 		"query", app1.Name, "order_key", "name")
 	require.Len(t, getHostSw.Software, 1)
 	require.NotNil(t, getHostSw.Software[0].Status)
-	require.EqualValues(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
 
 	// send a pub-sub with the status repored as deleted
 	policyName := fmt.Sprintf("enterprises/%s/policies/%s", enterpriseID, host1.UUID)
@@ -425,7 +409,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidCancelOnUnenroll() {
 		"query", app1.Name, "order_key", "name")
 	require.Len(t, getHostSw.Software, 1)
 	require.NotNil(t, getHostSw.Software[0].Status)
-	require.EqualValues(t, fleet.SoftwareInstallFailed, *getHostSw.Software[0].Status)
+	require.Equal(t, fleet.SoftwareInstallFailed, *getHostSw.Software[0].Status)
 	app1CmdUUID := getHostSw.Software[0].AppStoreApp.LastInstall.CommandUUID
 
 	// activities got created as expected
@@ -442,14 +426,14 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidCancelOnUnenroll() {
 		"query", app1.Name, "order_key", "name")
 	require.Len(t, getHostSw.Software, 1)
 	require.NotNil(t, getHostSw.Software[0].Status)
-	require.EqualValues(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
 
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host3.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
 		"query", app1.Name, "order_key", "name")
 	require.Len(t, getHostSw.Software, 1)
 	require.NotNil(t, getHostSw.Software[0].Status)
-	require.EqualValues(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
 
 	// turn off MDM for Android globally
 	var deleteEnterResp android.DefaultResponse
@@ -459,7 +443,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidCancelOnUnenroll() {
 	// we can't list software available for install anymore, we have to use adhoc sql to confirm.
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host2.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
-	require.Len(t, getHostSw.Software, 0)
+	require.Empty(t, getHostSw.Software)
 
 	var countFailed, countOther int
 	mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
@@ -484,34 +468,22 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 
 	// add some android apps
 	app1 := &fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "com.test1",
-				Platform: fleet.AndroidPlatform,
-			},
-		},
+		AdamID:           "com.test1",
+		Platform:         fleet.AndroidPlatform,
 		Name:             "Test1",
 		BundleIdentifier: "com.test1",
 		IconURL:          "https://example.com/1",
 	}
 	app2 := &fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "com.test2",
-				Platform: fleet.AndroidPlatform,
-			},
-		},
+		AdamID:           "com.test2",
+		Platform:         fleet.AndroidPlatform,
 		Name:             "Test2",
 		BundleIdentifier: "com.test2",
 		IconURL:          "https://example.com/2",
 	}
 	app3 := &fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "com.test3",
-				Platform: fleet.AndroidPlatform,
-			},
-		},
+		AdamID:           "com.test3",
+		Platform:         fleet.AndroidPlatform,
 		Name:             "Test3",
 		BundleIdentifier: "com.test3",
 		IconURL:          "https://example.com/3",
@@ -561,7 +533,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	s.runWorkerUntilDoneWithChecks(true)
 
 	// worker should have done nothing (no host to add apps to yet)
-	require.Len(t, patchAppsPolicies, 0)
+	require.Empty(t, patchAppsPolicies)
 	patchAppsPolicies = nil
 
 	var patchAppResp updateAppStoreAppResponse
@@ -673,7 +645,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 
 	s.runWorkerUntilDoneWithChecks(true)
 
-	require.Len(t, patchAppsPolicies, 0)
+	require.Empty(t, patchAppsPolicies)
 
 	// set the other two supported top-level keys for app3
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app3TitleID), &updateAppStoreAppRequest{
@@ -766,23 +738,15 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 
 	// add 2 android apps
 	app1 := &fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "com.test1",
-				Platform: fleet.AndroidPlatform,
-			},
-		},
+		AdamID:           "com.test1",
+		Platform:         fleet.AndroidPlatform,
 		Name:             "Test1",
 		BundleIdentifier: "com.test1",
 		IconURL:          "https://example.com/1",
 	}
 	app2 := &fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "com.test2",
-				Platform: fleet.AndroidPlatform,
-			},
-		},
+		AdamID:           "com.test2",
+		Platform:         fleet.AndroidPlatform,
 		Name:             "Test2",
 		BundleIdentifier: "com.test2",
 		IconURL:          "https://example.com/2",
@@ -875,7 +839,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host3.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
 		"order_key", "name")
-	require.Len(t, getHostSw.Software, 0)
+	require.Empty(t, getHostSw.Software)
 
 	// make the software installed on host1, failed on host2
 	policyName := fmt.Sprintf("enterprises/%s/policies/%s", enterpriseID, host1.UUID)
@@ -979,7 +943,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host3.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true",
 		"order_key", "name")
-	require.Len(t, getHostSw.Software, 0)
+	require.Empty(t, getHostSw.Software)
 
 	getPolicyVersion := func(hostID uint, appID string) int64 {
 		var version int64

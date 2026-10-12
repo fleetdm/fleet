@@ -33,6 +33,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/micromdm/plist"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -77,12 +78,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSAndIPadOS() {
 
 	// app 1 macOS only
 	macOSApp1 := &fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "1",
-				Platform: fleet.MacOSPlatform,
-			},
-		},
+		AdamID:           "1",
+		Platform:         fleet.MacOSPlatform,
 		Name:             "App 1",
 		BundleIdentifier: "a-1",
 		IconURL:          "https://example.com/images/1",
@@ -90,36 +87,24 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSAndIPadOS() {
 	}
 	// App 2 supports macOS, iOS, iPadOS
 	macOSApp2 := &fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "2",
-				Platform: fleet.MacOSPlatform,
-			},
-		},
+		AdamID:           "2",
+		Platform:         fleet.MacOSPlatform,
 		Name:             "App 2",
 		BundleIdentifier: "b-2",
 		IconURL:          "https://example.com/images/2",
 		LatestVersion:    "2.0.0",
 	}
 	iOSApp2 := &fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "2",
-				Platform: fleet.IOSPlatform,
-			},
-		},
+		AdamID:           "2",
+		Platform:         fleet.IOSPlatform,
 		Name:             "App 2",
 		BundleIdentifier: "b-2",
 		IconURL:          "https://example.com/images/2",
 		LatestVersion:    "2.0.0",
 	}
 	iPadOSApp2 := &fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "2",
-				Platform: fleet.IPadOSPlatform,
-			},
-		},
+		AdamID:           "2",
+		Platform:         fleet.IPadOSPlatform,
 		Name:             "App 2",
 		BundleIdentifier: "b-2",
 		IconURL:          "https://example.com/images/2",
@@ -128,12 +113,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSAndIPadOS() {
 
 	// App 3 is iPadOS only
 	iPadOSApp3 := &fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "3",
-				Platform: fleet.IPadOSPlatform,
-			},
-		},
+		AdamID:           "3",
+		Platform:         fleet.IPadOSPlatform,
 		Name:             "App 3",
 		BundleIdentifier: "c-3",
 		IconURL:          "https://example.com/images/3",
@@ -279,7 +260,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSInHouseApp() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", getVPPTokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
 
 	iOSApp := &fleet.VPPApp{
-		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "2", Platform: fleet.IOSPlatform}},
+		AdamID: "2", Platform: fleet.IOSPlatform,
 		Name:             "App 2",
 		BundleIdentifier: "b-2",
 		LatestVersion:    "2.0.0",
@@ -421,24 +402,24 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 		switch r.URL.Path {
 		case "/session":
 			err := encoder.Encode(map[string]string{"auth_session_token": "xyz"})
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case "/profile":
 			err := encoder.Encode(godep.ProfileResponse{ProfileUUID: uuid.New().String()})
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case "/server/devices":
 			err := encoder.Encode(godep.DeviceResponse{Devices: []godep.Device{device}})
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case "/devices/sync":
 			// This endpoint is polled over time to sync devices from
 			// ABM, send a repeated serial and a new one
 			err := encoder.Encode(godep.DeviceResponse{Devices: []godep.Device{device}, Cursor: "foo"})
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case "/profile/devices":
 			b, err := io.ReadAll(r.Body)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 
 			var prof profileAssignmentReq
-			require.NoError(t, json.Unmarshal(b, &prof))
+			assert.NoError(t, json.Unmarshal(b, &prof))
 
 			var resp godep.ProfileResponse
 			resp.ProfileUUID = prof.ProfileUUID
@@ -447,7 +428,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 				resp.Devices[device] = string(fleet.DEPAssignProfileResponseSuccess)
 			}
 			err = encoder.Encode(resp)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		default:
 			_, _ = w.Write([]byte(`{}`))
 		}
@@ -655,7 +636,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 	require.Equal(t, 2, installProfileCount)
 	require.True(t, profileCustomSeen)
 	require.True(t, profileFleetCASeen)
-	require.Equal(t, false, unexpectedProfileSeen)
+	require.False(t, unexpectedProfileSeen)
 
 	require.Equal(t, totalAppsToInstall, installAppCount)
 	require.Len(t, installedApps, totalAppsToInstall)
@@ -687,7 +668,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 				})
 			}
 		}
-		require.Len(t, pendingReleaseJobs, 0)
+		require.Empty(t, pendingReleaseJobs)
 		return
 	}
 
@@ -769,7 +750,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseMobileDeviceWithVPPTest(t *
 	require.Equal(t, "apple_mdm", pendingReleaseJobs[0].Name)
 	require.Contains(t, string(*pendingReleaseJobs[0].Args), worker.AppleMDMPostDEPReleaseDeviceTask)
 
-	require.Len(t, pendingVerifyJobs, 0)
+	require.Empty(t, pendingVerifyJobs)
 
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `UPDATE jobs SET not_before = ? WHERE id = ?`, time.Now().Add(-1*time.Minute).UTC(), pendingReleaseJobs[0].ID)

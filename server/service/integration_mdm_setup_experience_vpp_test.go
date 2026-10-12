@@ -28,7 +28,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"github.com/micromdm/plist"
@@ -147,7 +146,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	require.False(t, profileFileVaultSeen)
 
 	// simulate fleetd being installed and the host being orbit-enrolled now
-	enrolledHost.OsqueryHostID = ptr.String(mdmDevice.UUID)
+	enrolledHost.OsqueryHostID = new(mdmDevice.UUID)
 	enrolledHost.UUID = mdmDevice.UUID
 	orbitKey := setOrbitEnrollment(t, enrolledHost, s.ds)
 	enrolledHost.OrbitNodeKey = &orbitKey
@@ -155,7 +154,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallError() {
 	// there shouldn't be a worker Release Device pending job (we don't release that way anymore)
 	pending, err := s.ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
 	require.NoError(t, err)
-	require.Len(t, pending, 0)
+	require.Empty(t, pending)
 
 	// call the /status endpoint, the software and script should be pending
 	var statusResp fleet.GetOrbitSetupExperienceStatusResponse
@@ -375,12 +374,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 
 	// Add some VPP apps
 	macOSApp1 := &fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "1",
-				Platform: fleet.MacOSPlatform,
-			},
-		},
+		AdamID:           "1",
+		Platform:         fleet.MacOSPlatform,
 		Name:             "App 1",
 		BundleIdentifier: "a-1",
 		IconURL:          "https://example.com/images/1",
@@ -388,60 +383,40 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 	}
 
 	macOSApp2 := &fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "6",
-				Platform: fleet.MacOSPlatform,
-			},
-		},
+		AdamID:           "6",
+		Platform:         fleet.MacOSPlatform,
 		Name:             "App 6",
 		BundleIdentifier: "f-6",
 		IconURL:          "https://example.com/images/6",
 		LatestVersion:    "6.0.0",
 	}
 	macOSApp3 := &fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "7",
-				Platform: fleet.MacOSPlatform,
-			},
-		},
+		AdamID:           "7",
+		Platform:         fleet.MacOSPlatform,
 		Name:             "App 7",
 		BundleIdentifier: "g-7",
 		IconURL:          "https://example.com/images/7",
 		LatestVersion:    "7.0.0",
 	}
 	macOSApp4 := &fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "8",
-				Platform: fleet.MacOSPlatform,
-			},
-		},
+		AdamID:           "8",
+		Platform:         fleet.MacOSPlatform,
 		Name:             "App 8",
 		BundleIdentifier: "h-8",
 		IconURL:          "https://example.com/images/8",
 		LatestVersion:    "8.0.0",
 	}
 	macOSApp5 := &fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "9",
-				Platform: fleet.MacOSPlatform,
-			},
-		},
+		AdamID:           "9",
+		Platform:         fleet.MacOSPlatform,
 		Name:             "App 9",
 		BundleIdentifier: "i-9",
 		IconURL:          "https://example.com/images/9",
 		LatestVersion:    "9.0.0",
 	}
 	macOSApp6 := &fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "10",
-				Platform: fleet.MacOSPlatform,
-			},
-		},
+		AdamID:           "10",
+		Platform:         fleet.MacOSPlatform,
 		Name:             "App 10",
 		BundleIdentifier: "j-10",
 		IconURL:          "https://example.com/images/10",
@@ -559,7 +534,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 	require.False(t, profileFileVaultSeen)
 
 	// simulate fleetd being installed and the host being orbit-enrolled now
-	enrolledHost.OsqueryHostID = ptr.String(mdmDevice.UUID)
+	enrolledHost.OsqueryHostID = new(mdmDevice.UUID)
 	enrolledHost.UUID = mdmDevice.UUID
 	orbitKey := setOrbitEnrollment(t, enrolledHost, s.ds)
 	enrolledHost.OrbitNodeKey = &orbitKey
@@ -567,7 +542,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceWithLotsOfVPPApps() {
 	// there shouldn't be a worker Release Device pending job (we don't release that way anymore)
 	pending, err := s.ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
 	require.NoError(t, err)
-	require.Len(t, pending, 0)
+	require.Empty(t, pending)
 
 	// call the /status endpoint, the software and script should be pending
 	var statusResp fleet.GetOrbitSetupExperienceStatusResponse
@@ -802,12 +777,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPCRUD() {
 
 	// app 1 macOS only
 	macOSApp1 := &fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "1",
-				Platform: fleet.MacOSPlatform,
-			},
-		},
+		AdamID:           "1",
+		Platform:         fleet.MacOSPlatform,
 		Name:             "App 1",
 		BundleIdentifier: "a-1",
 		IconURL:          "https://example.com/images/1",
@@ -815,36 +786,24 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPCRUD() {
 	}
 	// App 2 supports macOS, iOS, iPadOS
 	macOSApp2 := &fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "2",
-				Platform: fleet.MacOSPlatform,
-			},
-		},
+		AdamID:           "2",
+		Platform:         fleet.MacOSPlatform,
 		Name:             "App 2",
 		BundleIdentifier: "b-2",
 		IconURL:          "https://example.com/images/2",
 		LatestVersion:    "2.0.0",
 	}
 	iOSApp2 := &fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "2",
-				Platform: fleet.IOSPlatform,
-			},
-		},
+		AdamID:           "2",
+		Platform:         fleet.IOSPlatform,
 		Name:             "App 2",
 		BundleIdentifier: "b-2",
 		IconURL:          "https://example.com/images/2",
 		LatestVersion:    "2.0.0",
 	}
 	iPadOSApp2 := &fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "2",
-				Platform: fleet.IPadOSPlatform,
-			},
-		},
+		AdamID:           "2",
+		Platform:         fleet.IPadOSPlatform,
 		Name:             "App 2",
 		BundleIdentifier: "b-2",
 		IconURL:          "https://example.com/images/2",
@@ -853,12 +812,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPCRUD() {
 
 	// App 3 is iPadOS only
 	iPadOSApp3 := &fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "3",
-				Platform: fleet.IPadOSPlatform,
-			},
-		},
+		AdamID:           "3",
+		Platform:         fleet.IPadOSPlatform,
 		Name:             "App 3",
 		BundleIdentifier: "c-3",
 		IconURL:          "https://example.com/images/3",
@@ -1056,10 +1011,10 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequiredSoftwareVPP
 
 	var updateAppResp updateAppStoreAppResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", vppTitleID),
-		&updateAppStoreAppRequest{TeamID: &team.ID, DisplayName: ptr.String("VPP ZZZ Has License")},
+		&updateAppStoreAppRequest{TeamID: &team.ID, DisplayName: new("VPP ZZZ Has License")},
 		http.StatusOK, &updateAppResp)
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", vppTitleID2),
-		&updateAppStoreAppRequest{TeamID: &team.ID, DisplayName: ptr.String("VPP AAA No License")},
+		&updateAppStoreAppRequest{TeamID: &team.ID, DisplayName: new("VPP AAA No License")},
 		http.StatusOK, &updateAppResp)
 
 	// Add the VPP apps to setup experience
@@ -1134,7 +1089,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequiredSoftwareVPP
 	require.False(t, profileFileVaultSeen)
 
 	// simulate fleetd being installed and the host being orbit-enrolled now
-	enrolledHost.OsqueryHostID = ptr.String(mdmDevice.UUID)
+	enrolledHost.OsqueryHostID = new(mdmDevice.UUID)
 	enrolledHost.UUID = mdmDevice.UUID
 	orbitKey := setOrbitEnrollment(t, enrolledHost, s.ds)
 	enrolledHost.OrbitNodeKey = &orbitKey
@@ -1142,7 +1097,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequiredSoftwareVPP
 	// there shouldn't be a worker Release Device pending job (we don't release that way anymore)
 	pending, err := s.ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
 	require.NoError(t, err)
-	require.Len(t, pending, 0)
+	require.Empty(t, pending)
 
 	// call the /status endpoint, the software and script should be pending
 	var statusResp fleet.GetOrbitSetupExperienceStatusResponse

@@ -60,13 +60,11 @@ func (s *integrationMDMTestSuite) TestAndroidHostUnenrollMDM() {
 	enterpriseId, err := s.ds.CreateEnterprise(ctx, s.users["admin1"].ID)
 	require.NoError(t, err)
 	err = s.ds.UpdateEnterprise(ctx, &android.EnterpriseDetails{
-		Enterprise: android.Enterprise{
-			ID:           enterpriseId,
-			EnterpriseID: "ultimate-fake",
-		},
-		SignupName:  "fake",
-		SignupToken: "value",
-		TopicID:     "yep",
+		ID:           enterpriseId,
+		EnterpriseID: "ultimate-fake",
+		SignupName:   "fake",
+		SignupToken:  "value",
+		TopicID:      "yep",
 	})
 	require.NoError(t, err)
 
@@ -219,7 +217,7 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 	enterpriseID, err := s.ds.CreateEnterprise(ctx, s.users["admin1"].ID)
 	require.NoError(t, err)
 	require.NoError(t, s.ds.UpdateEnterprise(ctx, &android.EnterpriseDetails{
-		Enterprise:  android.Enterprise{ID: enterpriseID, EnterpriseID: "ultimate-fake"},
+		ID: enterpriseID, EnterpriseID: "ultimate-fake",
 		SignupName:  "fake",
 		SignupToken: "value",
 		TopicID:     "yep",
@@ -267,10 +265,8 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 		body, err := json.Marshal(op)
 		require.NoError(t, err)
 		req := android_service.PubSubPushRequest{
-			PubSubMessage: android.PubSubMessage{
-				Attributes: map[string]string{"notificationType": string(android.PubSubCommand)},
-				Data:       base64.StdEncoding.EncodeToString(body),
-			},
+			Attributes: map[string]string{"notificationType": string(android.PubSubCommand)},
+			Data:       base64.StdEncoding.EncodeToString(body),
 		}
 		s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", pubsubToken)
 	}
@@ -612,7 +608,7 @@ func (s *integrationMDMTestSuite) TestAndroidCustomCommandsListAndResults() {
 	enterpriseID, err := s.ds.CreateEnterprise(ctx, s.users["admin1"].ID)
 	require.NoError(t, err)
 	require.NoError(t, s.ds.UpdateEnterprise(ctx, &android.EnterpriseDetails{
-		Enterprise:  android.Enterprise{ID: enterpriseID, EnterpriseID: "custom-cmd-fake"},
+		ID: enterpriseID, EnterpriseID: "custom-cmd-fake",
 		SignupName:  "fake",
 		SignupToken: "value",
 		TopicID:     "yep",
@@ -690,10 +686,8 @@ func (s *integrationMDMTestSuite) TestAndroidCustomCommandsListAndResults() {
 	body, err := json.Marshal(ackOp)
 	require.NoError(t, err)
 	req := android_service.PubSubPushRequest{
-		PubSubMessage: android.PubSubMessage{
-			Attributes: map[string]string{"notificationType": string(android.PubSubCommand)},
-			Data:       base64.StdEncoding.EncodeToString(body),
-		},
+		Attributes: map[string]string{"notificationType": string(android.PubSubCommand)},
+		Data:       base64.StdEncoding.EncodeToString(body),
 	}
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", pubsubToken)
 

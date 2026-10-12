@@ -1912,7 +1912,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceFlowWithRequireSoftware() {
 	// There should be no upcoming activities.
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", enrolledHost.ID),
 		nil, http.StatusOK, &hostActivitiesResp)
-	require.Equal(t, len(hostActivitiesResp.Activities), 0)
+	require.Empty(t, hostActivitiesResp.Activities)
 
 	// Reset the setup experience items.
 	statusResp = fleet.GetOrbitSetupExperienceStatusResponse{}
@@ -2081,7 +2081,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceMacOSCustomDisplayNameIcon(
 	s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
 		TitleID:     echoTitleID,
 		TeamID:      &tm.ID,
-		DisplayName: ptr.String("My Custom EchoApp"),
+		DisplayName: new("My Custom EchoApp"),
 	}, http.StatusOK, "")
 
 	iconBytes, err := os.ReadFile("testdata/icons/valid-icon.png")
@@ -2126,7 +2126,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceMacOSCustomDisplayNameIcon(
 	require.Len(t, cmds, 4)
 
 	// simulate fleetd being installed and the host being orbit-enrolled now
-	host.OsqueryHostID = ptr.String(mdmDevice.UUID)
+	host.OsqueryHostID = new(mdmDevice.UUID)
 	host.UUID = mdmDevice.UUID
 	orbitKey := setOrbitEnrollment(t, host, s.ds)
 	host.OrbitNodeKey = &orbitKey
