@@ -47,7 +47,11 @@ func SmartVerCmp(v1, v2 string) int {
 		s1 = s1[skip1:]
 		s2 = s2[skip2:]
 	}
-	// everything is equal so far, the longest wins
+	// everything is equal so far, trailing zero parts don't count ("157.0" == "157.0.0"),
+	// otherwise the longest wins
+	if isZeroSuffix(s1) && isZeroSuffix(s2) {
+		return 0
+	}
 	if len(s1) > len(s2) {
 		return 1
 	}
@@ -85,6 +89,18 @@ func parseVerParts(v string) (int, int, int) {
 		return num, len(v), len(v)
 	}
 	return num, skip, skip + 1
+}
+
+// isZeroSuffix reports whether s is made only of zero parts, e.g. "", "0" or "0.0".
+func isZeroSuffix(s string) bool {
+	for len(s) > 0 {
+		num, cmpTo, skip := parseVerParts(s)
+		if num != cmpTo || strings.Trim(s[:cmpTo], "0") != "" {
+			return false
+		}
+		s = s[skip:]
+	}
+	return true
 }
 
 // lpad pads s with n '0's
