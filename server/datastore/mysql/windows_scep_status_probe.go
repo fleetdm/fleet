@@ -14,8 +14,8 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// ClientCertificateInstall/SCEP/<id>/Status values. Anything else (32 while the enrollment is still running, a 404
-// before the node exists) means "ask again".
+// ClientCertificateInstall/SCEP/<id>/Status values. Any other value (2 while the CA answers PENDING, 32 while the
+// enrollment is still running), or a Get that fails without results, means "ask again".
 const (
 	windowsSCEPStatusSucceeded = "1"
 	windowsSCEPStatusFailed    = "16"
@@ -23,8 +23,8 @@ const (
 
 // windowsSCEPStatusProbeMaxAttempts bounds how many status probes Fleet sends for one delivery. Each probe waits
 // fleet.WindowsSCEPStatusProbeDelay and fleetd wakes the device at most once a minute, so this covers roughly 15
-// minutes: long enough for the SCEP CSP's own retries against a CA that answers PENDING (3 retries 5 minutes apart by
-// default). After that, the osquery certificate scan decides.
+// minutes. After that, the osquery certificate scan decides. A redelivery is a new install command, so it gets its own
+// probes.
 const windowsSCEPStatusProbeMaxAttempts = 15
 
 // windowsSCEPVerifyingInstall is a proxied SCEP install the host just ACKed, which now waits in "verifying".

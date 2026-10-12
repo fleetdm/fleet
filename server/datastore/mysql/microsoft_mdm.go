@@ -1513,10 +1513,12 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice 
 		}
 
 		for _, cmd := range matchingCmds {
+			isSCEPStatusProbe := fleet.IsWindowsSCEPStatusProbeCmdUUID(cmd.CommandUUID)
 			statusCode := ""
 			if status, ok := enrichedSyncML.CmdRefUUIDToStatus[cmd.CommandUUID]; ok && status.Data != nil {
 				statusCode = *status.Data
-				if status.Cmd != nil {
+				// A SCEP status probe isn't a profile command; its answer is applied below.
+				if status.Cmd != nil && !isSCEPStatusProbe {
 					// The raw MDM command may contain a $FLEET_SECRET_XXX, which should never be exposed or stored unencrypted.
 					// Note: As of 2024/12/17, on <Add>, <Replace>, and <Exec> commands are exposed to Windows MDM users, so we should not see any secrets in <Atomic> commands. This code is here for future-proofing.
 					rawCommandStr := string(cmd.RawCommand)
@@ -1555,7 +1557,7 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice 
 				wipeCmdStatus = statusCode
 			}
 
-			if fleet.IsWindowsSCEPStatusProbeCmdUUID(cmd.CommandUUID) {
+			if isSCEPStatusProbe {
 				scepStatusProbes = append(scepStatusProbes, cmd)
 			}
 		}
