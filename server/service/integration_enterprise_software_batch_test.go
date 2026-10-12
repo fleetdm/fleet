@@ -298,11 +298,11 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 			return
 		}
 		file, err := os.Open(filepath.Join("testdata", "software-installers", "ruby.deb"))
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		defer file.Close()
 		w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
 		_, err = io.Copy(w, file)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 
 	srv := httptest.NewServer(handler)
@@ -444,7 +444,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "team_id",
 		fmt.Sprint(tm.ID))
 	require.Equal(t, 0, titlesResp.Count)
-	require.Len(t, titlesResp.SoftwareTitles, 0)
+	require.Empty(t, titlesResp.SoftwareTitles)
 
 	//////////////////////////
 	// Do a request with a valid URL with no team
@@ -576,7 +576,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	titlesResp = listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(0)))
 	require.Equal(t, 0, titlesResp.Count)
-	require.Len(t, titlesResp.SoftwareTitles, 0)
+	require.Empty(t, titlesResp.SoftwareTitles)
 
 	//////////////////////////
 	// Do a request with a fleet maintained app
@@ -701,7 +701,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 		}
 
 		err := json.NewEncoder(w).Encode(manifest)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}))
 	defer manifestServer.Close()
 	mockTransport = &mockRoundTripper{
@@ -799,13 +799,13 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 	trailer := ""
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		file, err := os.Open(filepath.Join("testdata", "software-installers", "ruby.deb"))
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		defer file.Close()
 		w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
 		_, err = io.Copy(w, file)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		_, err = w.Write([]byte(trailer))
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 
 	srv := httptest.NewServer(handler)
@@ -892,7 +892,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 	newTitlesResp := listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "team_id",
 		fmt.Sprint(tm.ID))
-	require.Equal(t, true, *newTitlesResp.SoftwareTitles[0].SoftwarePackage.SelfService)
+	require.True(t, *newTitlesResp.SoftwareTitles[0].SoftwarePackage.SelfService)
 
 	// Install should still be pending
 	afterSelfServiceHostResp := getHostSoftwareResponse{}
@@ -1015,13 +1015,13 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 	// delete all installers
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{}}, http.StatusAccepted, &batchResponse, "team_name", tm.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
-	require.Len(t, packages, 0)
+	require.Empty(t, packages)
 
 	// software should no longer exist on either host
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h.ID), nil, http.StatusOK, &afterPreinstallHostResp)
-	require.Len(t, afterPreinstallHostResp.Software, 0)
+	require.Empty(t, afterPreinstallHostResp.Software)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h2.ID), nil, http.StatusOK, &afterPreinstallHostResp)
-	require.Len(t, afterPreinstallHostResp.Software, 0)
+	require.Empty(t, afterPreinstallHostResp.Software)
 
 	// pending install record should not exist
 	installDetailsResp = getSoftwareInstallResultsResponse{}
@@ -1369,11 +1369,11 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersWithPolic
 			return
 		}
 		file, err := os.Open(filepath.Join("testdata", "software-installers", fileName))
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		defer file.Close()
 		w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
 		_, err = io.Copy(w, file)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 
 	srv := httptest.NewServer(handler)
@@ -1432,23 +1432,19 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersWithPolic
 	rubyDebTitleID := resp.SoftwareTitles[0].ID
 	mtplr := fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy1Team1.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: rubyDebTitleID},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: rubyDebTitleID},
 	}, http.StatusOK, &mtplr)
 
 	// Associate ruby.deb in team2 to policy2Team2.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team2.ID, policy2Team2.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: rubyDebTitleID},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: rubyDebTitleID},
 	}, http.StatusOK, &mtplr)
 
 	// Get rid of all installers in team1.
 	softwareToInstall = []*fleet.SoftwareInstallerPayload{}
 	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusAccepted, &batchResponse, "team_name", team1.Name)
 	packages = waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team1.Name, batchResponse.RequestUUID)
-	require.Len(t, packages, 0)
+	require.Empty(t, packages)
 
 	// policy1Team1 should not be associated to any installer.
 	policy1Team1, err = s.ds.Policy(ctx, policy1Team1.ID)
@@ -1496,27 +1492,27 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 		case "/ruby.deb", "/updated/ruby.deb":
 			hitDebURL = true
 			file, err := os.Open(filepath.Join("testdata", "software-installers", "ruby.deb"))
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			defer file.Close()
 			w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
 			_, err = io.Copy(w, file)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case "/app.exe":
 			hitExeURL = true
 			file, err := os.Open(filepath.Join("..", "..", "pkg", "file", "testdata", "software-installers", "hello-world-installer.exe"))
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			defer file.Close()
 			w.Header().Set("Content-Type", "application/vnd.microsoft.portable-executable")
 			_, err = io.Copy(w, file)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case "/app.pkg":
 			hitPkgURL = true
 			file, err := os.Open(filepath.Join("testdata", "software-installers", "dummy_installer.pkg"))
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			defer file.Close()
 			w.Header().Set("Content-Type", "application/x-newton-compatible-pkg")
 			_, err = io.Copy(w, file)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 
 		default:
 			w.WriteHeader(http.StatusNotFound)
@@ -1854,19 +1850,19 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 		switch r.URL.Path {
 		case "/fma.pkg":
 			file, err := os.Open(filepath.Join("testdata", "software-installers", "dummy_installer.pkg"))
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			defer file.Close()
 			w.Header().Set("Content-Type", "application/application/x-newton-compatible-pkg")
 			_, err = io.Copy(w, file)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 
 		case "/non-fma.pkg":
 			file, err := os.Open(filepath.Join("testdata", "software-installers", "EchoApp.pkg"))
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			defer file.Close()
 			w.Header().Set("Content-Type", "application/application/x-newton-compatible-pkg")
 			_, err = io.Copy(w, file)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 
 		default:
 			w.WriteHeader(http.StatusNotFound)
@@ -1895,7 +1891,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerAndFMACategor
 		}
 
 		err := json.NewEncoder(w).Encode(manifest)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}))
 
 	t.Cleanup(manifestServer.Close)
@@ -2351,12 +2347,14 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersFMARebuil
 	require.NoError(t, err)
 	require.Equal(t, "1.0", metaA.Version)
 	require.Equal(t, "zoom-build-1.0-a.msi", metaA.Name)
-	require.Equal(t, states["/zoom/windows.json"].sha256, metaA.StorageID)
+	zoomState, ok := states["/zoom/windows.json"]
+	require.True(t, ok)
+	require.Equal(t, zoomState.sha256, metaA.StorageID)
 	require.Equal(t, "install zoom-build-1.0-a.msi", metaA.InstallScript)
 
 	// Build B: rebuilt under the SAME version 1.0 (the collision), with new bytes,
 	// filename, and install script. Recompute the manifest hash for the new bytes.
-	rebuild := states["/zoom/windows.json"]
+	rebuild := zoomState
 	rebuild.installerBytes = []byte("zoom-build-1.0-b")
 	rebuild.installerPath = "/zoom-build-1.0-b.msi"
 	rebuild.installScript = "install zoom-build-1.0-b.msi"

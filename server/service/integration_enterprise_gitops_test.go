@@ -221,21 +221,17 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	cpar := createPackResponse{}
 	var userPackID uint
 	s.DoJSON("POST", "/api/latest/fleet/packs", createPackRequest{
-		PackPayload: fleet.PackPayload{
-			Name:     new("Foobar"),
-			Disabled: new(false),
-		},
+		Name:     new("Foobar"),
+		Disabled: new(false),
 	}, http.StatusOK, &cpar)
 	userPackID = cpar.Pack.Pack.ID
 	require.NotZero(t, userPackID)
 	cur := createUserResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", createUserRequest{
-		UserPayload: fleet.UserPayload{
-			Email:      new("foo42@example.com"),
-			Password:   new("p4ssw0rd.123"),
-			Name:       new("foo42"),
-			GlobalRole: new("maintainer"),
-		},
+		Email:      new("foo42@example.com"),
+		Password:   new("p4ssw0rd.123"),
+		Name:       new("foo42"),
+		GlobalRole: new("maintainer"),
 	}, http.StatusOK, &cur)
 	maintainer := cur.User
 	var carveBeginResp fleet.CarveBeginResponse
@@ -354,17 +350,13 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to create a label, should allow.
 	clr := fleet.CreateLabelResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.CreateLabelRequest{
-		LabelPayload: fleet.LabelPayload{
-			Name:  "foo",
-			Query: "SELECT 1;",
-		},
+		Name:  "foo",
+		Query: "SELECT 1;",
 	}, http.StatusOK, &clr)
 
 	// Attempt to modify a label, should allow.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", clr.Label.ID), fleet.ModifyLabelRequest{
-		ModifyLabelPayload: fleet.ModifyLabelPayload{
-			Name: new("foo2"),
-		},
+		Name: new("foo2"),
 	}, http.StatusOK, &fleet.ModifyLabelResponse{})
 
 	// Attempt to get a label, should fail.
@@ -438,39 +430,29 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to create queries, should allow.
 	cqr := fleet.CreateQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
-		QueryPayload: fleet.QueryPayload{
-			Name:  new("foo4"),
-			Query: new("SELECT * from osquery_info;"),
-		},
+		Name:  new("foo4"),
+		Query: new("SELECT * from osquery_info;"),
 	}, http.StatusOK, &cqr)
 	cqr2 := fleet.CreateQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
-		QueryPayload: fleet.QueryPayload{
-			Name:  new("foo5"),
-			Query: new("SELECT * from os_version;"),
-		},
+		Name:  new("foo5"),
+		Query: new("SELECT * from os_version;"),
 	}, http.StatusOK, &cqr2)
 	cqr3 := fleet.CreateQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
-		QueryPayload: fleet.QueryPayload{
-			Name:  new("foo6"),
-			Query: new("SELECT * from processes;"),
-		},
+		Name:  new("foo6"),
+		Query: new("SELECT * from processes;"),
 	}, http.StatusOK, &cqr3)
 	cqr4 := fleet.CreateQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
-		QueryPayload: fleet.QueryPayload{
-			Name:  new("foo7"),
-			Query: new("SELECT * from managed_policies;"),
-		},
+		Name:  new("foo7"),
+		Query: new("SELECT * from managed_policies;"),
 	}, http.StatusOK, &cqr4)
 
 	// Attempt to edit queries, should allow.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", cqr.Query.ID), fleet.ModifyQueryRequest{
-		QueryPayload: fleet.QueryPayload{
-			Name:  new("foo4"),
-			Query: new("SELECT * FROM system_info;"),
-		},
+		Name:  new("foo4"),
+		Query: new("SELECT * FROM system_info;"),
 	}, http.StatusOK, &fleet.ModifyQueryResponse{})
 
 	// Attempt to view a query, should work.
@@ -494,9 +476,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 
 	// Attempt to edit a scheduled query in the global schedule, should allow.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/packs/schedule/%d", sqr.Scheduled.ID), fleet.ModifyScheduledQueryRequest{
-		ScheduledQueryPayload: fleet.ScheduledQueryPayload{
-			Interval: new(uint(30)),
-		},
+		Interval: new(uint(30)),
 	}, http.StatusOK, &fleet.ScheduleQueryResponse{})
 
 	// Attempt to remove a query from the global schedule, should allow.
@@ -508,16 +488,12 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to create a pack, should allow.
 	cpr := createPackResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/packs", createPackRequest{
-		PackPayload: fleet.PackPayload{
-			Name: new("foo8"),
-		},
+		Name: new("foo8"),
 	}, http.StatusOK, &cpr)
 
 	// Attempt to edit a pack, should allow.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/packs/%d", cpr.Pack.ID), modifyPackRequest{
-		PackPayload: fleet.PackPayload{
-			Name: new("foo9"),
-		},
+		Name: new("foo9"),
 	}, http.StatusOK, &modifyPackResponse{})
 
 	// Attempt to read a pack, should allow.
@@ -537,9 +513,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to edit a global policy, should allow.
 	mgplr := fleet.ModifyGlobalPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", gplr.Policy.ID), fleet.ModifyGlobalPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Query: new("SELECT * from plist WHERE path = 'foo';"),
-		},
+		Query: new("SELECT * from plist WHERE path = 'foo';"),
 	}, http.StatusOK, &mgplr)
 
 	// Attempt to read a global policy, should allow.
@@ -563,9 +537,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to edit a team policy, should allow.
 	mtplr := fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, tplr.Policy.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Query: new("SELECT * from file WHERE path = 'foo';"),
-		},
+		Query: new("SELECT * from file WHERE path = 'foo';"),
 	}, http.StatusOK, &mtplr)
 
 	// Attempt to view a team policy, should allow.
@@ -581,18 +553,14 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 
 	// Attempt to create a user, should fail.
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", createUserRequest{
-		UserPayload: fleet.UserPayload{
-			Email:      new("foo10@example.com"),
-			Name:       new("foo10"),
-			GlobalRole: new("admin"),
-		},
+		Email:      new("foo10@example.com"),
+		Name:       new("foo10"),
+		GlobalRole: new("admin"),
 	}, http.StatusForbidden, &createUserResponse{})
 
 	// Attempt to modify a user, should fail.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", admin.ID), modifyUserRequest{
-		UserPayload: fleet.UserPayload{
-			GlobalRole: new("observer"),
-		},
+		GlobalRole: new("observer"),
 	}, http.StatusForbidden, &modifyUserResponse{})
 
 	// Attempt to view a user, should fail.
@@ -624,16 +592,12 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to create a team, should allow.
 	tr := teamResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
-		TeamPayload: fleet.TeamPayload{
-			Name: new("foo11"),
-		},
+		Name: new("foo11"),
 	}, http.StatusOK, &tr)
 
 	// Attempt to edit a team, should allow.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tr.Team.ID), modifyTeamRequest{
-		TeamPayload: fleet.TeamPayload{
-			Name: new("foo12"),
-		},
+		Name: new("foo12"),
 	}, http.StatusOK, &teamResponse{})
 
 	// Attempt to edit a team's agent options, should allow.
@@ -705,28 +669,22 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to create queries in global domain, should fail.
 	tcqr := fleet.CreateQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
-		QueryPayload: fleet.QueryPayload{
-			Name:  new("foo600"),
-			Query: new("SELECT * from orbit_info;"),
-		},
+		Name:  new("foo600"),
+		Query: new("SELECT * from orbit_info;"),
 	}, http.StatusForbidden, &tcqr)
 
 	// Attempt to create queries in its team, should allow.
 	tcqr = fleet.CreateQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
-		QueryPayload: fleet.QueryPayload{
-			Name:   new("foo600"),
-			Query:  new("SELECT * from orbit_info;"),
-			TeamID: &t1.ID,
-		},
+		Name:   new("foo600"),
+		Query:  new("SELECT * from orbit_info;"),
+		TeamID: &t1.ID,
 	}, http.StatusOK, &tcqr)
 
 	// Attempt to edit own query, should allow.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", tcqr.Query.ID), fleet.ModifyQueryRequest{
-		QueryPayload: fleet.QueryPayload{
-			Name:  new("foo4"),
-			Query: new("SELECT * FROM system_info;"),
-		},
+		Name:  new("foo4"),
+		Query: new("SELECT * FROM system_info;"),
 	}, http.StatusOK, &fleet.ModifyQueryResponse{})
 
 	// Attempt to delete own query, should allow.
@@ -737,10 +695,8 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// role), so this reports not-found rather than forbidden: a forbidden
 	// would confirm the global query exists to a caller with no view of it.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", cqr4.Query.ID), fleet.ModifyQueryRequest{
-		QueryPayload: fleet.QueryPayload{
-			Name:  new("foo4"),
-			Query: new("SELECT * FROM system_info;"),
-		},
+		Name:  new("foo4"),
+		Query: new("SELECT * FROM system_info;"),
 	}, http.StatusNotFound, &fleet.ModifyQueryResponse{})
 
 	// Attempt to delete query created by somebody else, should fail.
@@ -769,19 +725,15 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to add a query to the team's schedule, should allow.
 	cqrt1 := fleet.CreateQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
-		QueryPayload: fleet.QueryPayload{
-			Name:   new("foo8"),
-			Query:  new("SELECT * from managed_policies;"),
-			TeamID: &t1.ID,
-		},
+		Name:   new("foo8"),
+		Query:  new("SELECT * from managed_policies;"),
+		TeamID: &t1.ID,
 	}, http.StatusOK, &cqrt1)
 	ttsqr := teamScheduleQueryResponse{}
 	// Add a schedule with the deprecated APIs (by referencing a global query).
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", t1.ID), teamScheduleQueryRequest{
-		ScheduledQueryPayload: fleet.ScheduledQueryPayload{
-			QueryID:  new(q1.ID),
-			Interval: new(uint(60)),
-		},
+		QueryID:  new(q1.ID),
+		Interval: new(uint(60)),
 	}, http.StatusOK, &ttsqr)
 
 	// Attempt to remove a query from the team's schedule, should allow.
@@ -823,16 +775,12 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 
 	// Attempt to edit a team policy, should allow.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, ttplr.Policy.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Query: new("SELECT * from file WHERE path = 'foobar';"),
-		},
+		Query: new("SELECT * from file WHERE path = 'foobar';"),
 	}, http.StatusOK, &fleet.ModifyTeamPolicyResponse{})
 
 	// Attempt to edit another team's policy, should fail.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t2.ID, t2p.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Query: new("SELECT * from file WHERE path = 'foobar';"),
-		},
+		Query: new("SELECT * from file WHERE path = 'foobar';"),
 	}, http.StatusForbidden, &fleet.ModifyTeamPolicyResponse{})
 
 	// Attempt to view a team policy, should allow.
@@ -851,16 +799,12 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 
 	// Attempt to edit own team, should allow.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), modifyTeamRequest{
-		TeamPayload: fleet.TeamPayload{
-			Name: new("foo123456"),
-		},
+		Name: new("foo123456"),
 	}, http.StatusOK, &teamResponse{})
 
 	// Attempt to edit another team, should fail.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", t2.ID), modifyTeamRequest{
-		TeamPayload: fleet.TeamPayload{
-			Name: new("foo123456"),
-		},
+		Name: new("foo123456"),
 	}, http.StatusForbidden, &teamResponse{})
 
 	// Attempt to edit own team's agent options, should allow.

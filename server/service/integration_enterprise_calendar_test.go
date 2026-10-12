@@ -210,9 +210,9 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
 
 	team1WebhookFired := make(chan struct{})
 	team1WebhookServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, "POST", r.Method)
+		assert.Equal(t, "POST", r.Method)
 		requestBodyBytes, err := io.ReadAll(r.Body)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		t.Logf("team1 webhook request: %s\n", requestBodyBytes)
 		team1FiredMu.Lock()
 		team1Fired++
@@ -236,9 +236,9 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
 	)
 
 	team2WebhookServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, "POST", r.Method)
+		assert.Equal(t, "POST", r.Method)
 		requestBodyBytes, err := io.ReadAll(r.Body)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		t.Logf("team2 webhook request: %s\n", requestBodyBytes)
 		team2FiredMu.Lock()
 		team2Fired++
@@ -707,7 +707,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	genDistributedReqWithPolicyResults := func(host *fleet.Host, policyResults map[uint]*bool) submitDistributedQueryResultsRequestShim {
 		var (
 			results  = make(map[string]json.RawMessage)
-			statuses = make(map[string]interface{})
+			statuses = make(map[string]any)
 			messages = make(map[string]string)
 		)
 		for policyID, policyResult := range policyResults {
@@ -857,9 +857,9 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{event.UUID}, uuids)
 	// The calendar should still be empty since event hasn't processed yet
-	assert.Zero(t, len(calendar.ListGoogleMockEvents()))
+	assert.Empty(t, calendar.ListGoogleMockEvents())
 	// We clear the queue
-	assert.NoError(t, distributedLock.RemoveFromSet(ctx, commonCalendar.QueueKey, event.UUID))
+	require.NoError(t, distributedLock.RemoveFromSet(ctx, commonCalendar.QueueKey, event.UUID))
 
 	// We release the normal lock, but grab the reserve lock instead
 	ok, err := distributedLock.ReleaseLock(ctx, commonCalendar.LockKeyPrefix+event.UUID, lockValue)
@@ -879,7 +879,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{event.UUID}, uuids)
 	// The calendar should still be empty since event hasn't processed yet
-	assert.Zero(t, len(calendar.ListGoogleMockEvents()))
+	assert.Empty(t, calendar.ListGoogleMockEvents())
 
 	// We grab the normal lock again.
 	lockValue2 := uuid.New().String()
@@ -900,7 +900,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 		for {
 			time.Sleep(100 * time.Millisecond)
 			team1CalendarEvents, err = s.ds.ListCalendarEvents(ctx, &team1.ID)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			// Event should be rescheduled on a future date/time
 			if len(team1CalendarEvents) == 1 && team1CalendarEvents[0].UUID == event.UUID &&
 				team1CalendarEvents[0].StartTime.After(event.StartTime) {
@@ -924,7 +924,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	assert.NotEqual(t, event.StartTime, eventRecreated.StartTime)
 	assert.NotEqual(t, event.EndTime, eventRecreated.EndTime)
 	assert.Equal(t, 1, calendar.MockChannelsCount())
-	assert.Equal(t, 1, len(calendar.ListGoogleMockEvents()))
+	assert.Len(t, calendar.ListGoogleMockEvents(), 1)
 
 	// The previous event UUID should not work anymore, but API returns OK because this is a common occurrence.
 	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+event.UUID, []byte(""), http.StatusOK, map[string]string{
@@ -1023,13 +1023,13 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	})
 
 	// Trigger the calendar cron async. It should wait for the lock and set reserve lock.
-	go triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 10*time.Second)
+	go triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 10*time.Second) // nolint:testifylint // must run concurrently with the lock held below; helper is shared with synchronous callers
 	done = make(chan struct{})
 	go func() {
 		for {
 			time.Sleep(100 * time.Millisecond)
 			reserveLock, err := distributedLock.Get(ctx, commonCalendar.ReservedLockKeyPrefix+event.UUID)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			if reserveLock != nil {
 				done <- struct{}{}
 				return
@@ -1053,11 +1053,11 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 		for {
 			time.Sleep(100 * time.Millisecond)
 			team1CalendarEvents, err = s.ds.ListCalendarEvents(ctx, &team1.ID)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			if len(team1CalendarEvents) == 1 && team1CalendarEvents[0].UUID == event.UUID &&
 				team1CalendarEvents[0].StartTime.After(event.StartTime) {
 				err = json.Unmarshal(team1CalendarEvents[0].Data, &details)
-				require.NoError(t, err)
+				assert.NoError(t, err)
 				assert.NotEqual(t, eTag, details.ETag, "ETag should have updated")
 				done <- struct{}{}
 				return
@@ -1207,7 +1207,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventBodyUpdate() {
 	genDistributedReqWithPolicyResults := func(host *fleet.Host, policyResults map[uint]*bool) submitDistributedQueryResultsRequestShim {
 		var (
 			results  = make(map[string]json.RawMessage)
-			statuses = make(map[string]interface{})
+			statuses = make(map[string]any)
 			messages = make(map[string]string)
 		)
 		for policyID, policyResult := range policyResults {

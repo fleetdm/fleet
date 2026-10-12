@@ -69,8 +69,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 
 	ts := fleet.ListTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &ts)
-	require.Len(t, ts.Policies, 0)
-	require.Len(t, ts.InheritedPolicies, 0)
+	require.Empty(t, ts.Policies)
+	require.Empty(t, ts.InheritedPolicies)
 
 	// create a global policy
 	gpol, err := s.ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{Name: "TestGlobalPolicy", Query: "SELECT 1"})
@@ -110,13 +110,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 
 	tc := fleet.CountTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &tc)
-	require.Nil(t, tc.Err)
+	require.NoError(t, tc.Err)
 	require.Equal(t, 1, tc.Count)
 	require.Equal(t, 0, tc.InheritedPolicyCount)
 
 	gc := fleet.CountGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies/count", nil, http.StatusOK, &gc)
-	require.Nil(t, gc.Err)
+	require.NoError(t, gc.Err)
 	require.Equal(t, 1, gc.Count)
 
 	// Test merge inherited
@@ -134,7 +134,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 
 	countResp := fleet.CountTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/count", team1.ID), nil, http.StatusOK, &countResp, "merge_inherited", "true")
-	require.Nil(t, countResp.Err)
+	require.NoError(t, countResp.Err)
 	require.Equal(t, 2, countResp.Count)
 	require.Equal(t, 1, countResp.InheritedPolicyCount)
 
@@ -145,7 +145,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicies() {
 
 	ts = fleet.ListTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &ts)
-	require.Len(t, ts.Policies, 0)
+	require.Empty(t, ts.Policies)
 }
 
 func (s *integrationEnterpriseTestSuite) TestListTeamPoliciesAutomationTypeSoftware() {
@@ -260,8 +260,8 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamPolicies() {
 	// List "No team" policies.
 	ts := fleet.ListTeamPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/teams/0/policies", nil, http.StatusOK, &ts)
-	require.Len(t, ts.Policies, 0)
-	require.Len(t, ts.InheritedPolicies, 0)
+	require.Empty(t, ts.Policies)
+	require.Empty(t, ts.InheritedPolicies)
 	// Create a placeholder global policy.
 	_, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
 		Name:  "globalPolicy1",
@@ -323,7 +323,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamPolicies() {
 	// Test merge inherited count for "No team" policies.
 	countResp := fleet.CountTeamPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/teams/0/policies/count", nil, http.StatusOK, &countResp, "merge_inherited", "true")
-	require.Nil(t, countResp.Err)
+	require.NoError(t, countResp.Err)
 	require.Equal(t, 3, countResp.Count)
 	require.Equal(t, 1, countResp.InheritedPolicyCount)
 	// Test deleting "No team" policies.
@@ -427,31 +427,27 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 	listPolByName := &fleet.ListGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, listPolByName, "query", " name1 ")
 	require.Len(t, listPolByName.Policies, 1)
-	require.Equal(t, listPolByName.Policies[0].Name, "name1")
+	require.Equal(t, "name1", listPolByName.Policies[0].Name)
 
 	patchPol1Req := &fleet.ModifyGlobalPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Name:        new("newName1"),
-			Query:       new("newQuery"),
-			Description: new("newDescription"),
-			Resolution:  new("newResolution"),
-			Platform:    new("windows"),
-			Critical:    new(false),
-		},
+		Name:        new("newName1"),
+		Query:       new("newQuery"),
+		Description: new("newDescription"),
+		Resolution:  new("newResolution"),
+		Platform:    new("windows"),
+		Critical:    new(false),
 	}
 	patchPol1 := &fleet.ModifyGlobalPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createPol1.Policy.ID), patchPol1Req, http.StatusOK, patchPol1)
 	allEqual(t, patchPol1Req, patchPol1.Policy, fields...)
 
 	patchPol2Req := &fleet.ModifyGlobalPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Name:        new("newName2"),
-			Query:       new("newQuery"),
-			Description: new("newDescription"),
-			Resolution:  new("newResolution"),
-			Platform:    new("windows"),
-			Critical:    new(true),
-		},
+		Name:        new("newName2"),
+		Query:       new("newQuery"),
+		Description: new("newDescription"),
+		Resolution:  new("newResolution"),
+		Platform:    new("windows"),
+		Critical:    new(true),
 	}
 	patchPol2 := &fleet.ModifyGlobalPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createPol2.Policy.ID), patchPol2Req, http.StatusOK, patchPol2)
@@ -480,7 +476,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 		Name:        "team1",
 		Description: "desc team1",
 	})
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 
 	createPol1 := &fleet.TeamPolicyResponse{}
 	createPol1Req := &fleet.TeamPolicyRequest{
@@ -511,40 +507,36 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 
 	listPol := &fleet.ListTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, listPol)
-	require.Len(s.T(), listPol.Policies, 2)
+	s.Require().Len(listPol.Policies, 2)
 	sort.Slice(listPol.Policies, func(i, j int) bool {
 		return listPol.Policies[i].Name < listPol.Policies[j].Name
 	})
-	require.Equal(s.T(), createPol1.Policy, listPol.Policies[0])
-	require.Equal(s.T(), createPol2.Policy, listPol.Policies[1])
+	s.Require().Equal(createPol1.Policy, listPol.Policies[0])
+	s.Require().Equal(createPol2.Policy, listPol.Policies[1])
 
 	patchPol1Req := &fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Name:                  new("newName1"),
-			Query:                 new("newQuery"),
-			Description:           new("newDescription"),
-			Resolution:            new("newResolution"),
-			Platform:              new("windows"),
-			Critical:              new(false),
-			CalendarEventsEnabled: new(false),
-			Hidden:                new(false),
-		},
+		Name:                  new("newName1"),
+		Query:                 new("newQuery"),
+		Description:           new("newDescription"),
+		Resolution:            new("newResolution"),
+		Platform:              new("windows"),
+		Critical:              new(false),
+		CalendarEventsEnabled: new(false),
+		Hidden:                new(false),
 	}
 	patchPol1 := &fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol1.Policy.ID), patchPol1Req, http.StatusOK, patchPol1)
 	allEqual(s.T(), patchPol1Req, patchPol1.Policy, fields...)
 
 	patchPol2Req := &fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Name:                  new("newName2"),
-			Query:                 new("newQuery"),
-			Description:           new("newDescription"),
-			Resolution:            new("newResolution"),
-			Platform:              new("windows"),
-			Critical:              new(true),
-			CalendarEventsEnabled: new(true),
-			Hidden:                new(true),
-		},
+		Name:                  new("newName2"),
+		Query:                 new("newQuery"),
+		Description:           new("newDescription"),
+		Resolution:            new("newResolution"),
+		Platform:              new("windows"),
+		Critical:              new(true),
+		CalendarEventsEnabled: new(true),
+		Hidden:                new(true),
 	}
 	patchPol2 := &fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol2.Policy.ID), patchPol2Req, http.StatusOK, patchPol2)
@@ -552,7 +544,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 
 	listPol = &fleet.ListTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, listPol)
-	require.Len(s.T(), listPol.Policies, 2)
+	s.Require().Len(listPol.Policies, 2)
 	sort.Slice(listPol.Policies, func(i, j int) bool {
 		return listPol.Policies[i].Name < listPol.Policies[j].Name
 	})
@@ -562,7 +554,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 
 	getPol2 := &fleet.GetPolicyByIDResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol2.Policy.ID), nil, http.StatusOK, getPol2)
-	require.Equal(s.T(), listPol.Policies[1], getPol2.Policy)
+	s.Require().Equal(listPol.Policies[1], getPol2.Policy)
 
 	// A patch that omits hidden leaves it untouched.
 	patchPol2 = &fleet.ModifyTeamPolicyResponse{}
@@ -604,7 +596,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 // allEqual compares all fields of a struct.
 // If a field is a pointer on one side but not on the other, then it follows that pointer. This is useful for optional
 // arguments.
-func allEqual(t *testing.T, expect, actual interface{}, fields ...string) {
+func allEqual(t *testing.T, expect, actual any, fields ...string) {
 	require.NotEmpty(t, fields)
 	t.Helper()
 	expV := reflect.Indirect(reflect.ValueOf(expect))
@@ -634,7 +626,7 @@ func (s *integrationEnterpriseTestSuite) TestAutofillPoliciesAuthTeamUser() {
 					}
 					switch r.URL.Path {
 					case "/ok":
-						var body map[string]interface{}
+						var body map[string]any
 						err := json.NewDecoder(r.Body).Decode(&body)
 						if err != nil {
 							t.Log(err)
@@ -830,7 +822,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyLabelsIncludeAll() {
 	switchAny := []string{lblA.Name}
 	var patchResp fleet.ModifyGlobalPolicyResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createResp.Policy.ID), fleet.ModifyGlobalPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{LabelsIncludeAny: switchAny},
+		LabelsIncludeAny: switchAny,
 	}, http.StatusOK, &patchResp)
 	require.Empty(t, patchResp.Policy.LabelsIncludeAll)
 	require.Empty(t, patchResp.Policy.LabelsExcludeAny)
@@ -840,7 +832,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyLabelsIncludeAll() {
 	switchAll := []string{lblA.Name, lblB.Name}
 	patchResp = fleet.ModifyGlobalPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createResp.Policy.ID), fleet.ModifyGlobalPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{LabelsIncludeAll: switchAll},
+		LabelsIncludeAll: switchAll,
 	}, http.StatusOK, &patchResp)
 	require.Len(t, patchResp.Policy.LabelsIncludeAll, 2)
 	require.Empty(t, patchResp.Policy.LabelsIncludeAny)
@@ -848,10 +840,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyLabelsIncludeAll() {
 	// PATCH mutex rejection. Assert on the specific validation error so a
 	// generic 400 cannot silently satisfy the test.
 	rejPatchResp := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", createResp.Policy.ID), fleet.ModifyGlobalPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			LabelsIncludeAll: []string{lblA.Name},
-			LabelsIncludeAny: []string{lblB.Name},
-		},
+		LabelsIncludeAll: []string{lblA.Name},
+		LabelsIncludeAny: []string{lblB.Name},
 	}, http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(rejPatchResp.Body), fleet.ErrPolicyConflictingIncludeLabels.Error())
 
@@ -1104,12 +1094,15 @@ func (s *integrationEnterpriseTestSuite) TestApplyPolicySpecsBatchMixedScopes() 
 	for _, p := range policies {
 		byName[p.Name] = p
 	}
-	require.Contains(t, byName, validAnyName)
-	require.Contains(t, byName, validAllName)
-	require.Contains(t, byName, validExclName)
-	require.Len(t, byName[validAnyName].LabelsIncludeAny, 1)
-	require.Len(t, byName[validAllName].LabelsIncludeAll, 2)
-	require.Len(t, byName[validExclName].LabelsExcludeAny, 1)
+	validAny, ok := byName[validAnyName]
+	require.True(t, ok)
+	validAll, ok := byName[validAllName]
+	require.True(t, ok)
+	validExcl, ok := byName[validExclName]
+	require.True(t, ok)
+	require.Len(t, validAny.LabelsIncludeAny, 1)
+	require.Len(t, validAll.LabelsIncludeAll, 2)
+	require.Len(t, validExcl.LabelsExcludeAny, 1)
 }
 
 func (s *integrationEnterpriseTestSuite) TestResetPolicy() {

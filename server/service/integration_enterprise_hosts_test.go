@@ -96,7 +96,7 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "low_disk_space", "32")
 	require.Len(t, resp.Hosts, 1)
 	assert.Equal(t, host1.ID, resp.Hosts[0].ID)
-	assert.Equal(t, 10.0, resp.Hosts[0].GigsDiskSpaceAvailable)
+	assert.InDelta(t, 10.0, resp.Hosts[0].GigsDiskSpaceAvailable, 0.001)
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "low_disk_space", "100")
@@ -534,7 +534,7 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "order_key", "cvss_score", "order_direction", "asc")
 
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp)
-	require.Len(s.T(), resp.Vulnerabilities, 0)
+	s.Require().Empty(resp.Vulnerabilities)
 
 	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -614,11 +614,11 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 	require.NoError(t, err)
 
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp)
-	require.Len(s.T(), resp.Vulnerabilities, 2)
-	require.Equal(t, resp.Count, uint(2))
+	s.Require().Len(resp.Vulnerabilities, 2)
+	require.Equal(t, uint(2), resp.Count)
 	require.False(t, resp.Meta.HasPreviousResults)
 	require.False(t, resp.Meta.HasNextResults)
-	require.Empty(t, resp.Err)
+	require.NoError(t, resp.Err)
 
 	expected := map[string]struct {
 		fleet.CVE
@@ -667,7 +667,7 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 
 	// Test Team Filter
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", "1")
-	require.Len(s.T(), resp.Vulnerabilities, 0)
+	s.Require().Empty(resp.Vulnerabilities)
 
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
@@ -682,7 +682,7 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 	require.Equal(t, uint(2), resp.Count)
 	require.False(t, resp.Meta.HasPreviousResults)
 	require.False(t, resp.Meta.HasNextResults)
-	require.Empty(t, resp.Err)
+	require.NoError(t, resp.Err)
 
 	for _, vuln := range resp.Vulnerabilities {
 		expectedVuln, ok := expected[vuln.CVE.CVE]
@@ -694,7 +694,7 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 
 	var gResp getVulnerabilityResponse
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusOK, &gResp)
-	require.Empty(t, gResp.Err)
+	require.NoError(t, gResp.Err)
 	require.Equal(t, "CVE-2021-1234", gResp.Vulnerability.CVE.CVE)
 	require.Equal(t, uint(1), gResp.Vulnerability.HostsCount)
 	require.Equal(t, "https://nvd.nist.gov/vuln/detail/CVE-2021-1234", gResp.Vulnerability.DetailsLink)
@@ -757,7 +757,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 			`SELECT id, os_version_id FROM operating_systems WHERE name = ? AND version = ? AND arch = ? AND kernel_version = ? AND platform = ?`,
 			testOS.Name, testOS.Version, testOS.Arch, testOS.KernelVersion, testOS.Platform)
 	})
-	require.Greater(t, osinfo.ID, uint(0))
+	require.Positive(t, osinfo.ID)
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_name", testOS.Name, "os_version", testOS.Version)
@@ -803,8 +803,8 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	require.Len(t, osVersionsResp.OSVersions[0].Vulnerabilities, 1)
 	require.Equal(t, "CVE-2021-1234", osVersionsResp.OSVersions[0].Vulnerabilities[0].CVE)
 	require.Equal(t, "https://nvd.nist.gov/vuln/detail/CVE-2021-1234", osVersionsResp.OSVersions[0].Vulnerabilities[0].DetailsLink)
-	require.Equal(t, *vulnMeta[0].CVSSScore, **osVersionsResp.OSVersions[0].Vulnerabilities[0].CVSSScore)
-	require.Equal(t, *vulnMeta[0].EPSSProbability, **osVersionsResp.OSVersions[0].Vulnerabilities[0].EPSSProbability)
+	require.InDelta(t, *vulnMeta[0].CVSSScore, **osVersionsResp.OSVersions[0].Vulnerabilities[0].CVSSScore, 0.001)
+	require.InDelta(t, *vulnMeta[0].EPSSProbability, **osVersionsResp.OSVersions[0].Vulnerabilities[0].EPSSProbability, 0.001)
 	require.Equal(t, *vulnMeta[0].CISAKnownExploit, **osVersionsResp.OSVersions[0].Vulnerabilities[0].CISAKnownExploit)
 	require.Equal(t, *vulnMeta[0].Published, **osVersionsResp.OSVersions[0].Vulnerabilities[0].CVEPublished)
 	require.Equal(t, vulnMeta[0].Description, **osVersionsResp.OSVersions[0].Vulnerabilities[0].Description)
@@ -824,9 +824,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	tr := teamResponse{}
 	s.DoJSON(
 		"POST", "/api/latest/fleet/teams", createTeamRequest{
-			TeamPayload: fleet.TeamPayload{
-				Name: new("os_versions_team"),
-			},
+			Name: new("os_versions_team"),
 		}, http.StatusOK, &tr,
 	)
 	osVersionResp = getOSVersionResponse{}
@@ -840,7 +838,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	require.NoError(t, err)
 	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team0.ID, []uint{hosts[0].ID})))
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "team_id", fmt.Sprintf("%d", team0.ID))
-	require.Len(t, osVersionsResp.OSVersions, 0)
+	require.Empty(t, osVersionsResp.OSVersions)
 
 	// return err if team_id is invalid
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusBadRequest, &osVersionsResp, "team_id", "invalid")
@@ -899,17 +897,17 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	// team user doesn't have acess to "no team"
 	osVersionsResp = osVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusForbidden, &osVersionsResp, "team_id", "0")
-	require.Len(t, osVersionsResp.OSVersions, 0)
+	require.Empty(t, osVersionsResp.OSVersions)
 
 	// team_id=0 is supported and returns results for hosts in "no team"
 	s.token = getTestAdminToken(t, s.server)
 	// no hosts, the results are empty
 	osVersionsResp = osVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "team_id", "0")
-	require.Len(t, osVersionsResp.OSVersions, 0)
+	require.Empty(t, osVersionsResp.OSVersions)
 	osVersionsResp = osVersionsResponse{}
 	// move the host to "no team" and update the stats
-	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(nil, []uint{hosts[0].ID})))
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(nil, []uint{hosts[0].ID}))) // nolint:nilaway // createHosts always returns at least one host
 	require.NoError(t, s.ds.UpdateOSVersions(context.Background()))
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "team_id", "0")
 	require.Len(t, osVersionsResp.OSVersions, 1)

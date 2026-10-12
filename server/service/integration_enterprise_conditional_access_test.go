@@ -63,7 +63,7 @@ func (s *integrationEnterpriseTestSuite) clearOktaConditionalAccess() {
 		},
 	}
 	b, err := json.Marshal(body)
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 	s.DoRaw("PATCH", "/api/latest/fleet/config", b, http.StatusOK)
 }
 
@@ -222,7 +222,7 @@ func genDistributedReqWithEntraIDDetails(host *fleet.Host, deviceID, userPrincip
 	return submitDistributedQueryResultsRequestShim{
 		NodeKey:  *host.NodeKey,
 		Results:  results,
-		Statuses: make(map[string]interface{}),
+		Statuses: make(map[string]any),
 		Messages: make(map[string]string),
 		Stats:    map[string]*fleet.Stats{},
 	}
@@ -363,7 +363,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 	require.NotNil(t, acResp)
 	// ConditionalAccess is always initialized, but Entra fields should be empty
 	require.NotNil(t, acResp.ConditionalAccess)
-	require.Equal(t, "", acResp.ConditionalAccess.MicrosoftEntraTenantID)
+	require.Empty(t, acResp.ConditionalAccess.MicrosoftEntraTenantID)
 	require.False(t, acResp.ConditionalAccess.MicrosoftEntraConnectionConfigured)
 
 	// Create again with a different tenant.
@@ -400,7 +400,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 	require.NotNil(t, acResp)
 	// ConditionalAccess is always initialized, but Entra fields should be empty
 	require.NotNil(t, acResp.ConditionalAccess)
-	require.Equal(t, "", acResp.ConditionalAccess.MicrosoftEntraTenantID)
+	require.Empty(t, acResp.ConditionalAccess.MicrosoftEntraTenantID)
 	require.False(t, acResp.ConditionalAccess.MicrosoftEntraConnectionConfigured)
 }
 
@@ -521,7 +521,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	wh1s, err := s.ds.LoadHostConditionalAccessStatus(ctx, windowsHost1.ID)
 	require.NoError(t, err)
 	require.Equal(t, "entraDeviceIDWindows", wh1s.DeviceID)
-	require.Equal(t, "", wh1s.UserPrincipalName)
+	require.Empty(t, wh1s.UserPrincipalName)
 	require.Nil(t, wh1s.Managed)
 	require.Nil(t, wh1s.Compliant)
 
@@ -612,7 +612,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	wh1s, err = s.ds.LoadHostConditionalAccessStatus(ctx, windowsHost1.ID)
 	require.NoError(t, err)
 	require.Equal(t, "entraDeviceIDWindows", wh1s.DeviceID)
-	require.Equal(t, "", wh1s.UserPrincipalName)
+	require.Empty(t, wh1s.UserPrincipalName)
 	require.NotNil(t, wh1s.Managed)
 	require.False(t, *wh1s.Managed) // not MDM enrolled
 	require.NotNil(t, wh1s.Compliant)
@@ -680,7 +680,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	wh1s, err = s.ds.LoadHostConditionalAccessStatus(ctx, windowsHost1.ID)
 	require.NoError(t, err)
 	require.Equal(t, "entraDeviceIDWindows", wh1s.DeviceID)
-	require.Equal(t, "", wh1s.UserPrincipalName)
+	require.Empty(t, wh1s.UserPrincipalName)
 	require.NotNil(t, wh1s.Managed)
 	require.True(t, *wh1s.Managed) // now should be MDM enrolled
 	require.NotNil(t, wh1s.Compliant)
@@ -729,7 +729,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	wh1s, err = s.ds.LoadHostConditionalAccessStatus(ctx, windowsHost1.ID)
 	require.NoError(t, err)
 	require.Equal(t, "entraDeviceIDWindows", wh1s.DeviceID)
-	require.Equal(t, "", wh1s.UserPrincipalName)
+	require.Empty(t, wh1s.UserPrincipalName)
 	require.NotNil(t, wh1s.Managed)
 	require.True(t, *wh1s.Managed)
 	require.NotNil(t, wh1s.Compliant)
@@ -771,7 +771,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	wh1s, err = s.ds.LoadHostConditionalAccessStatus(ctx, windowsHost1.ID)
 	require.NoError(t, err)
 	require.Equal(t, "entraDeviceIDWindows", wh1s.DeviceID)
-	require.Equal(t, "", wh1s.UserPrincipalName)
+	require.Empty(t, wh1s.UserPrincipalName)
 	require.NotNil(t, wh1s.Managed)
 	require.True(t, *wh1s.Managed)
 	require.NotNil(t, wh1s.Compliant)
@@ -1403,7 +1403,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBypass() {
 		var bypassResp bypassConditionalAccessResponse
 		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
 			nil, http.StatusOK, &bypassResp)
-		require.Nil(t, bypassResp.Err)
+		require.NoError(t, bypassResp.Err)
 
 		// Verify the bypass was recorded
 		bypassedAt, err := s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
@@ -1419,7 +1419,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBypass() {
 		var bypassResp bypassConditionalAccessResponse
 		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
 			nil, http.StatusOK, &bypassResp)
-		require.Nil(t, bypassResp.Err)
+		require.NoError(t, bypassResp.Err)
 
 		// Verify the activity was created with default idp_full_name when no SCIM user exists
 		s.lastActivityOfTypeMatches(
@@ -1487,7 +1487,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBypass() {
 		var bypassResp bypassConditionalAccessResponse
 		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
 			nil, http.StatusOK, &bypassResp)
-		require.Nil(t, bypassResp.Err)
+		require.NoError(t, bypassResp.Err)
 
 		// Consume the first bypass
 		bypassedAt, err := s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
@@ -1498,7 +1498,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBypass() {
 		bypassResp = bypassConditionalAccessResponse{}
 		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
 			nil, http.StatusOK, &bypassResp)
-		require.Nil(t, bypassResp.Err)
+		require.NoError(t, bypassResp.Err)
 
 		// Verify the new bypass was recorded
 		bypassedAt, err = s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
@@ -1580,7 +1580,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBypass() {
 		bypassResp = bypassConditionalAccessResponse{}
 		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
 			nil, http.StatusOK, &bypassResp)
-		require.Nil(t, bypassResp.Err)
+		require.NoError(t, bypassResp.Err)
 
 		// Verify the bypass was recorded
 		bypassedAt, err := s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
@@ -1666,7 +1666,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBypass() {
 		var bypassResp bypassConditionalAccessResponse
 		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
 			nil, http.StatusOK, &bypassResp)
-		require.Nil(t, bypassResp.Err)
+		require.NoError(t, bypassResp.Err)
 
 		bypassedAtAfter, err := s.ds.ConditionalAccessBypassedAt(ctx, host.ID)
 		require.NoError(t, err)
@@ -1703,7 +1703,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBypass() {
 		var bypassResp bypassConditionalAccessResponse
 		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
 			nil, http.StatusOK, &bypassResp)
-		require.Nil(t, bypassResp.Err)
+		require.NoError(t, bypassResp.Err)
 
 		getDeviceHostResp = getDeviceHostResponse{}
 		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
@@ -1796,7 +1796,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBypass() {
 		var bypassResp bypassConditionalAccessResponse
 		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/device/%s/bypass_conditional_access", token),
 			nil, http.StatusOK, &bypassResp)
-		require.Nil(t, bypassResp.Err)
+		require.NoError(t, bypassResp.Err)
 
 		bypassedAt, err := s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
 		require.NoError(t, err)
@@ -1885,9 +1885,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation
 	// Modify a darwin policy to enable conditional_access_enabled — should succeed (already darwin)
 	patchResp := &fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, darwinPolicyID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			ConditionalAccessEnabled: new(true),
-		},
+		ConditionalAccessEnabled: new(true),
 	}, http.StatusOK, patchResp)
 
 	// Modify a linux policy to enable conditional_access_enabled — should fail
@@ -1909,9 +1907,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPlatformValidation
 	// Modify a windows conditional_access policy to change platform to darwin — should succeed
 	patchResp = &fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, windowsPolicyID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Platform: new("darwin"),
-		},
+		Platform: new("darwin"),
 	}, http.StatusOK, patchResp)
 
 	//

@@ -113,7 +113,7 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 
 	require.Empty(t, fooPayload.Vulnerabilities)
 	require.Len(t, barPayload.Vulnerabilities, 1)
-	require.Equal(t, barPayload.Vulnerabilities[0].CVE, "cve-123")
+	require.Equal(t, "cve-123", barPayload.Vulnerabilities[0].CVE)
 	require.NotNil(t, barPayload.Vulnerabilities[0].CVSSScore, new(new(5.4)))
 	require.NotNil(t, barPayload.Vulnerabilities[0].EPSSProbability, new(new(0.5)))
 	require.NotNil(t, barPayload.Vulnerabilities[0].CISAKnownExploit, new(new(true)))
@@ -148,7 +148,7 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 
 	require.Empty(t, fooPayload.Vulnerabilities)
 	require.Len(t, barPayload.Vulnerabilities, 1)
-	require.Equal(t, barPayload.Vulnerabilities[0].CVE, "cve-123")
+	require.Equal(t, "cve-123", barPayload.Vulnerabilities[0].CVE)
 	require.NotNil(t, barPayload.Vulnerabilities[0].CVSSScore, new(new(5.4)))
 	require.NotNil(t, barPayload.Vulnerabilities[0].EPSSProbability, new(new(0.5)))
 	require.NotNil(t, barPayload.Vulnerabilities[0].CISAKnownExploit, new(new(true)))
@@ -247,7 +247,7 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 		"min_cvss_score", "10",
 		"vulnerable", "true",
 	)
-	require.Len(t, respVersions.Software, 0)
+	require.Empty(t, respVersions.Software)
 	require.Nil(t, respVersions.CountsUpdatedAt)
 
 	respVersions = listSoftwareVersionsResponse{}
@@ -269,7 +269,7 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 		"max_cvss_score", "1",
 		"vulnerable", "true",
 	)
-	require.Len(t, respVersions.Software, 0)
+	require.Empty(t, respVersions.Software)
 	require.Nil(t, respVersions.CountsUpdatedAt)
 
 	respVersions = listSoftwareVersionsResponse{}
@@ -339,7 +339,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 			})
 		}
 
-		require.EqualValues(t, want, got)
+		require.Equal(t, want, got)
 	}
 
 	softwareTitlesMatch := func(want, got []fleet.SoftwareTitle) {
@@ -370,7 +370,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 			return want[i].Name < want[j].Name
 		})
 
-		require.EqualValues(t, want, got)
+		require.Equal(t, want, got)
 	}
 
 	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
@@ -1179,7 +1179,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
 	// Test that the software titles endpoint returns a SHA256 hash.
-	require.Equal(t, *resp.SoftwareTitles[0].HashSHA256, "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628")
+	require.Equal(t, "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628", *resp.SoftwareTitles[0].HashSHA256)
 
 	// Upload an installer for the same software but different arch to a different team
 	payloadRubyTm2 := &fleet.UploadSoftwareInstallerPayload{
@@ -1206,7 +1206,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp,
 		"self_service", "1", "query", "ruby", "team_id", fmt.Sprint(team1.ID))
-	require.Len(t, resp.SoftwareTitles, 0)
+	require.Empty(t, resp.SoftwareTitles)
 
 	// update it to be self-service, check that it gets returned
 	mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
@@ -1230,7 +1230,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"self_service", "true",
 	)
 
-	require.Equal(t, resp.Count, 2)
+	require.Equal(t, 2, resp.Count)
 
 	// "No team" returns the emacs software
 	resp = listSoftwareTitlesResponse{}
@@ -1410,13 +1410,11 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 		uu := u
 		cur := createUserResponse{}
 		s.DoJSON("POST", "/api/latest/fleet/users/admin", createUserRequest{
-			UserPayload: fleet.UserPayload{
-				Email:                    &uu.Email,
-				Password:                 &test.GoodPassword,
-				Name:                     &uu.Email,
-				Teams:                    uu.Teams,
-				AdminForcedPasswordReset: new(false),
-			},
+			Email:                    &uu.Email,
+			Password:                 &test.GoodPassword,
+			Name:                     &uu.Email,
+			Teams:                    uu.Teams,
+			AdminForcedPasswordReset: new(false),
 		}, http.StatusOK, &cur)
 		extraTestUsers[k] = *cur.User
 	}
@@ -1427,7 +1425,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 
 	var softwareFoo, softwareBar *fleet.SoftwareTitleListResult
 	for _, s := range listSoftwareTitlesResp.SoftwareTitles {
-		s := s
 		switch s.Name {
 		case "foo":
 			softwareFoo = &s
@@ -1440,7 +1437,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 
 	var teamFooVersion *fleet.SoftwareVersion
 	for _, sv := range softwareFoo.Versions {
-		sv := sv
 		if sv.Version == "0.0.1" {
 			teamFooVersion = &sv
 		}
@@ -1580,17 +1576,17 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 				// List all software versions using the deprecated endpoint
 				var softwareListResp listSoftwareResponse
 				s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{}, http.StatusOK, &softwareListResp)
-				require.Equal(t, countSoftwareResp.Count, 3)
+				require.Equal(t, 3, countSoftwareResp.Count)
 			}
 
 			if tc.shouldFailTeamRead {
 				// List all software titles for a team
 				var listSoftwareTitlesResp listSoftwareTitlesResponse
-				s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{SoftwareTitleListOptions: fleet.SoftwareTitleListOptions{TeamID: &team1.ID}}, http.StatusForbidden, &listSoftwareTitlesResp)
+				s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{TeamID: &team1.ID}, http.StatusForbidden, &listSoftwareTitlesResp)
 
 				// List software versions for a team.
 				var resp listSoftwareTitlesResponse
-				s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareRequest{SoftwareListOptions: fleet.SoftwareListOptions{TeamID: &team1.ID}}, http.StatusForbidden, &resp)
+				s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareRequest{TeamID: &team1.ID}, http.StatusForbidden, &resp)
 
 				// Get a team software title (on team1 and "no team", neither
 				// visible to this team-2 user): NotFound, not Forbidden, so its
@@ -1616,13 +1612,13 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 			} else {
 				// List all software titles for a team
 				var listSoftwareTitlesResp listSoftwareTitlesResponse
-				s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{SoftwareTitleListOptions: fleet.SoftwareTitleListOptions{TeamID: &team1.ID}}, http.StatusOK, &listSoftwareTitlesResp)
+				s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{TeamID: &team1.ID}, http.StatusOK, &listSoftwareTitlesResp)
 				require.Equal(t, 1, listSoftwareTitlesResp.Count)
 				require.NotEmpty(t, listSoftwareTitlesResp.CountsUpdatedAt)
 
 				// List software versions for a team.
 				var resp listSoftwareTitlesResponse
-				s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareRequest{SoftwareListOptions: fleet.SoftwareListOptions{TeamID: &team1.ID}}, http.StatusOK, &resp)
+				s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareRequest{TeamID: &team1.ID}, http.StatusOK, &resp)
 				require.Equal(t, 1, resp.Count)
 				require.NotEmpty(t, resp.CountsUpdatedAt)
 
@@ -1640,13 +1636,13 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 
 				// Get a team count of software vesions using the deprecated endpoint
 				var countSoftwareResp countSoftwareResponse
-				s.DoJSON("GET", "/api/latest/fleet/software/count", countSoftwareRequest{SoftwareListOptions: fleet.SoftwareListOptions{TeamID: &team1.ID}}, http.StatusOK, &countSoftwareResp)
+				s.DoJSON("GET", "/api/latest/fleet/software/count", countSoftwareRequest{TeamID: &team1.ID}, http.StatusOK, &countSoftwareResp)
 				require.Equal(t, 1, countSoftwareResp.Count)
 
 				// List all software versions using the deprecated endpoint for a team
 				var softwareListResp listSoftwareResponse
-				s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{SoftwareListOptions: fleet.SoftwareListOptions{TeamID: &team1.ID}}, http.StatusOK, &softwareListResp)
-				require.Equal(t, countSoftwareResp.Count, 1)
+				s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{TeamID: &team1.ID}, http.StatusOK, &softwareListResp)
+				require.Equal(t, 1, countSoftwareResp.Count)
 			}
 		})
 	}
@@ -1667,19 +1663,19 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	// no software yet
 	var getHostSw getHostSoftwareResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
-	require.Len(t, getHostSw.Software, 0)
+	require.Empty(t, getHostSw.Software)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "self_service", "true")
-	require.Len(t, getHostSw.Software, 0)
+	require.Empty(t, getHostSw.Software)
 
 	var getDeviceSw getDeviceSoftwareResponse
 	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK)
 	err := json.NewDecoder(res.Body).Decode(&getDeviceSw)
 	require.NoError(t, err)
-	require.Len(t, getDeviceSw.Software, 0)
+	require.Empty(t, getDeviceSw.Software)
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
 	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
 	require.NoError(t, err)
-	require.Len(t, getDeviceSw.Software, 0)
+	require.Empty(t, getDeviceSw.Software)
 
 	// create some software for that host
 	software := []fleet.Software{
@@ -1702,8 +1698,8 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
 	require.Len(t, getHostSw.Software, 2) // foo and bar
-	require.Equal(t, getHostSw.Software[0].Name, "bar")
-	require.Equal(t, getHostSw.Software[1].Name, "foo")
+	require.Equal(t, "bar", getHostSw.Software[0].Name)
+	require.Equal(t, "foo", getHostSw.Software[1].Name)
 	require.Len(t, getHostSw.Software[1].InstalledVersions, 2)
 	// no package information as there is no installer
 	require.Nil(t, getHostSw.Software[0].SoftwarePackage)
@@ -1734,15 +1730,15 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Nil(t, getHostSw.Software[0].AppStoreApp)
 	require.Len(t, getHostSw.Software[0].InstalledVersions, 1)
 	require.Len(t, getHostSw.Software[0].InstalledVersions[0].Vulnerabilities, 2)
-	require.Equal(t, getHostSw.Software[0].InstalledVersions[0].Vulnerabilities, []string{"CVE-bar-1234", "CVE-bar-5678"})
+	require.Equal(t, []string{"CVE-bar-1234", "CVE-bar-5678"}, getHostSw.Software[0].InstalledVersions[0].Vulnerabilities)
 
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK)
 	getDeviceSw = getDeviceSoftwareResponse{}
 	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
 	require.NoError(t, err)
 	require.Len(t, getDeviceSw.Software, 2) // foo and bar
-	require.Equal(t, getDeviceSw.Software[0].Name, "bar")
-	require.Equal(t, getDeviceSw.Software[1].Name, "foo")
+	require.Equal(t, "bar", getDeviceSw.Software[0].Name)
+	require.Equal(t, "foo", getDeviceSw.Software[1].Name)
 	require.Len(t, getDeviceSw.Software[1].InstalledVersions, 2)
 	// no package information as there is no installer
 	require.Nil(t, getDeviceSw.Software[0].SoftwarePackage)
@@ -1769,17 +1765,17 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
 	require.Len(t, getHostSw.Software, 2) // foo and bar only — ruby is not installed, just available
-	require.Equal(t, getHostSw.Software[0].Name, "bar")
-	require.Equal(t, getHostSw.Software[1].Name, "foo")
+	require.Equal(t, "bar", getHostSw.Software[0].Name)
+	require.Equal(t, "foo", getHostSw.Software[1].Name)
 	require.Len(t, getHostSw.Software[1].InstalledVersions, 2)
 
 	// user authenticated endpoint, explicitly request to include available for install software
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software?include_available_for_install=true", host.ID), nil, http.StatusOK, &getHostSw)
 	require.Len(t, getHostSw.Software, 3) // foo, bar and ruby.deb
-	require.Equal(t, getHostSw.Software[0].Name, "bar")
-	require.Equal(t, getHostSw.Software[1].Name, "foo")
-	require.Equal(t, getHostSw.Software[2].Name, "ruby")
+	require.Equal(t, "bar", getHostSw.Software[0].Name)
+	require.Equal(t, "foo", getHostSw.Software[1].Name)
+	require.Equal(t, "ruby", getHostSw.Software[2].Name)
 	require.Len(t, getHostSw.Software[1].InstalledVersions, 2)
 	require.Nil(t, getHostSw.Software[2].AppStoreApp)
 	require.NotNil(t, getHostSw.Software[2].SoftwarePackage)
@@ -1793,14 +1789,14 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software?include_available_for_install=false", host.ID), nil, http.StatusOK, &getHostSw)
 	require.Len(t, getHostSw.Software, 2) // foo and bar
-	require.Equal(t, getHostSw.Software[0].Name, "bar")
-	require.Equal(t, getHostSw.Software[1].Name, "foo")
+	require.Equal(t, "bar", getHostSw.Software[0].Name)
+	require.Equal(t, "foo", getHostSw.Software[1].Name)
 
 	// only the installer is returned for self-service only
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "self_service", "true")
 	require.Len(t, getHostSw.Software, 1)
-	require.Equal(t, getHostSw.Software[0].Name, "ruby")
+	require.Equal(t, "ruby", getHostSw.Software[0].Name)
 
 	// available installer is not returned by device-authenticated endpoint
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK)
@@ -1808,8 +1804,8 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
 	require.NoError(t, err)
 	require.Len(t, getDeviceSw.Software, 2) // foo and bar
-	require.Equal(t, getDeviceSw.Software[0].Name, "bar")
-	require.Equal(t, getDeviceSw.Software[1].Name, "foo")
+	require.Equal(t, "bar", getDeviceSw.Software[0].Name)
+	require.Equal(t, "foo", getDeviceSw.Software[1].Name)
 	require.Len(t, getDeviceSw.Software[1].InstalledVersions, 2)
 
 	// but it gets returned for self-service only
@@ -1818,7 +1814,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
 	require.NoError(t, err)
 	require.Len(t, getDeviceSw.Software, 1)
-	require.Equal(t, getDeviceSw.Software[0].Name, "ruby")
+	require.Equal(t, "ruby", getDeviceSw.Software[0].Name)
 	require.Nil(t, getDeviceSw.Software[0].AppStoreApp)
 	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage)
 	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage.SelfService)
@@ -1850,16 +1846,14 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 
 	// create some labels
 	var labelResp fleet.CreateLabelResponse
-	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{LabelPayload: fleet.LabelPayload{
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{
 		Name:  "label1",
-		Hosts: []string{host.Hostname},
-	}}, http.StatusOK, &labelResp)
+		Hosts: []string{host.Hostname}}, http.StatusOK, &labelResp)
 	require.NotZero(t, labelResp.Label.ID)
 
-	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{LabelPayload: fleet.LabelPayload{
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{
 		Name:  "label2",
-		Hosts: []string{host.Hostname},
-	}}, http.StatusOK, &labelResp)
+		Hosts: []string{host.Hostname}}, http.StatusOK, &labelResp)
 	require.NotZero(t, labelResp.Label.ID)
 
 	// Set to "exclude any". Installer should be missing from the response for both host details and
@@ -1880,14 +1874,14 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "self_service", "true")
 	require.Len(t, getHostSw.Software, 1)
-	require.Equal(t, getHostSw.Software[0].Name, "ruby")
+	require.Equal(t, "ruby", getHostSw.Software[0].Name)
 
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
 	getDeviceSw = getDeviceSoftwareResponse{}
 	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
 	require.NoError(t, err)
 	require.Len(t, getDeviceSw.Software, 1)
-	require.Equal(t, getDeviceSw.Software[0].Name, "ruby")
+	require.Equal(t, "ruby", getDeviceSw.Software[0].Name)
 
 	// request installation on the host
 	var installResp installSoftwareResponse
@@ -1898,16 +1892,16 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
 	require.Len(t, getHostSw.Software, 2) // foo and bar — ruby has a pending install but is not yet installed
-	require.Equal(t, getHostSw.Software[0].Name, "bar")
-	require.Equal(t, getHostSw.Software[1].Name, "foo")
+	require.Equal(t, "bar", getHostSw.Software[0].Name)
+	require.Equal(t, "foo", getHostSw.Software[1].Name)
 
 	// with include_available_for_install=true, the pending install is visible
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software?include_available_for_install=true", host.ID), nil, http.StatusOK, &getHostSw)
 	require.Len(t, getHostSw.Software, 3) // foo, bar and ruby.deb
-	require.Equal(t, getHostSw.Software[0].Name, "bar")
-	require.Equal(t, getHostSw.Software[1].Name, "foo")
-	require.Equal(t, getHostSw.Software[2].Name, "ruby")
+	require.Equal(t, "bar", getHostSw.Software[0].Name)
+	require.Equal(t, "foo", getHostSw.Software[1].Name)
+	require.Equal(t, "ruby", getHostSw.Software[2].Name)
 	require.Len(t, getHostSw.Software[1].InstalledVersions, 2)
 	require.NotNil(t, getHostSw.Software[2].SoftwarePackage)
 	require.Equal(t, "ruby.deb", getHostSw.Software[2].SoftwarePackage.Name)
@@ -1922,7 +1916,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "self_service", "true")
 	require.Len(t, getHostSw.Software, 1)
-	require.Equal(t, getHostSw.Software[0].Name, "ruby")
+	require.Equal(t, "ruby", getHostSw.Software[0].Name)
 
 	// now returned by device-authenticated endpoint
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK)
@@ -1930,8 +1924,8 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
 	require.NoError(t, err)
 	require.Len(t, getDeviceSw.Software, 2) // foo, bar
-	require.Equal(t, getDeviceSw.Software[0].Name, "bar")
-	require.Equal(t, getDeviceSw.Software[1].Name, "foo")
+	require.Equal(t, "bar", getDeviceSw.Software[0].Name)
+	require.Equal(t, "foo", getDeviceSw.Software[1].Name)
 	require.Len(t, getDeviceSw.Software[0].InstalledVersions, 1)
 	require.Len(t, getDeviceSw.Software[1].InstalledVersions, 2)
 
@@ -1952,7 +1946,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
 	require.NoError(t, err)
 	require.Len(t, getDeviceSw.Software, 1)
-	require.Equal(t, getDeviceSw.Software[0].Name, "ruby")
+	require.Equal(t, "ruby", getDeviceSw.Software[0].Name)
 	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage)
 	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage.SelfService)
 	require.True(t, *getDeviceSw.Software[0].SoftwarePackage.SelfService)
@@ -1962,7 +1956,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "query", "foo")
 	require.Len(t, getHostSw.Software, 1) // foo only
-	require.Equal(t, getHostSw.Software[0].Name, "foo")
+	require.Equal(t, "foo", getHostSw.Software[0].Name)
 	require.Len(t, getHostSw.Software[0].InstalledVersions, 2)
 
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?query=bar", nil, http.StatusOK)
@@ -1970,7 +1964,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
 	require.NoError(t, err)
 	require.Len(t, getDeviceSw.Software, 1) // bar only
-	require.Equal(t, getDeviceSw.Software[0].Name, "bar")
+	require.Equal(t, "bar", getDeviceSw.Software[0].Name)
 	require.Len(t, getDeviceSw.Software[0].InstalledVersions, 1)
 
 	// Get software available for install
@@ -1979,7 +1973,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 		"true", "order_key", "name", "order_direction", "asc")
 	require.Len(t, getHostSw.Software, 1) // ruby.app
 	assert.Equal(t, "ruby", getHostSw.Software[0].Name)
-	assert.Equal(t, *getHostSw.Software[0].Status, fleet.SoftwareInstallPending)
+	assert.Equal(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
 	assert.NotNil(t, getHostSw.Software[0].SoftwarePackage)
 	assert.Equal(t, "1:2.5.1", getHostSw.Software[0].SoftwarePackage.Version)
 
@@ -2154,7 +2148,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 	)
 	result := parsePutResponse(resp)
 	iconUrl := fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?fleet_id=%d", titleID, tm.ID)
-	require.Nil(t, result.Err)
+	require.NoError(t, result.Err)
 	require.Contains(t, result.IconUrl, iconUrl)
 
 	// get activities after the PUT request
@@ -2278,7 +2272,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 		headers,
 	)
 	result = parsePutResponse(resp)
-	require.Nil(t, result.Err)
+	require.NoError(t, result.Err)
 	require.Contains(t, result.IconUrl, iconUrl)
 
 	// verify no new software title icons were created
@@ -2366,7 +2360,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 	require.Equal(t, titleID, deleteDetails.SoftwareTitleID)
 	require.Equal(t, "foo", deleteDetails.SoftwareTitle)
 	require.Equal(t, "foo.pkg", *deleteDetails.SoftwarePackage)
-	require.Equal(t, "", *deleteDetails.SoftwareIconURL, "Icon URL should be empty after deletion")
+	require.Empty(t, *deleteDetails.SoftwareIconURL, "Icon URL should be empty after deletion")
 
 	_, err = s.softwareInstallStore.Cleanup(ctx, nil, time.Now())
 	require.NoError(t, err)
@@ -2383,7 +2377,7 @@ func (s *integrationEnterpriseTestSuite) TestVPPAppsWithoutMDM() {
 
 	// Create team and add host to team
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: new("Team 1")}}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{orbitHost.ID}, TeamID: &team.ID}, http.StatusOK)
@@ -2392,12 +2386,8 @@ func (s *integrationEnterpriseTestSuite) TestVPPAppsWithoutMDM() {
 	app, err := s.ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name:             "App " + t.Name(),
 		BundleIdentifier: "bid_" + t.Name(),
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "adam_test_vpp1", // max 16 chars
-				Platform: fleet.MacOSPlatform,
-			},
-		},
+		AdamID:           "adam_test_vpp1", // max 16 chars
+		Platform:         fleet.MacOSPlatform,
 	}, &team.ID, nil)
 	require.NoError(t, err)
 
@@ -2457,7 +2447,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftwareWithLabelScoping() 
 	getHostSw := getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software?include_available_for_install=true", host.ID), nil, http.StatusOK, &getHostSw)
 	require.Len(t, getHostSw.Software, 1)
-	require.Equal(t, getHostSw.Software[0].Name, "ruby")
+	require.Equal(t, "ruby", getHostSw.Software[0].Name)
 
 	// De-scope the software by adding an exclude any label that the host has.
 	// TODO(JVE): remove/update this once the API is in place
@@ -2480,17 +2470,15 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftwareWithLabelScoping() 
 
 	// create some labels and assign them to the host
 	var labelResp fleet.CreateLabelResponse
-	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{LabelPayload: fleet.LabelPayload{
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{
 		Name:  "label1",
-		Hosts: []string{host.Hostname},
-	}}, http.StatusOK, &labelResp)
+		Hosts: []string{host.Hostname}}, http.StatusOK, &labelResp)
 	require.NotZero(t, labelResp.Label.ID)
 	lbl1 := labelResp.Label
 
-	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{LabelPayload: fleet.LabelPayload{
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{
 		Name:  "label2",
-		Query: "SELECT 1",
-	}}, http.StatusOK, &labelResp)
+		Query: "SELECT 1"}, http.StatusOK, &labelResp)
 	require.NotZero(t, labelResp.Label.ID)
 	lbl2 := labelResp.Label
 	err := s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{lbl2.ID: new(true)}, time.Now(), false)
@@ -2560,7 +2548,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 	// create two VPP apps
 	vppApp, err := s.ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.IPadOSPlatform}},
+		AdamID: "adam_vpp_app_1", Platform: fleet.IPadOSPlatform,
 	}, &teamID, nil)
 	require.NoError(t, err)
 
@@ -2865,13 +2853,12 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceHostVitalsExcludeAnyLabe
 
 	// Create the host vitals label through the API, exactly as the UI/GitOps would.
 	var labelResp fleet.CreateLabelResponse
-	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{LabelPayload: fleet.LabelPayload{
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{
 		Name: "hv-idp-group-" + t.Name(),
 		Criteria: &fleet.HostVitalCriteria{
 			Vital: new("end_user_idp_group"),
 			Value: new(groupName),
-		},
-	}}, http.StatusOK, &labelResp)
+		}}, http.StatusOK, &labelResp)
 	require.NotNil(t, labelResp.Label)
 	require.Equal(t, fleet.LabelMembershipTypeHostVitals, labelResp.Label.LabelMembershipType)
 

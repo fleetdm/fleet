@@ -126,7 +126,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		}
 
 		err := json.NewEncoder(w).Encode(manifest)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}))
 	t.Cleanup(manifestServer.Close)
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
@@ -134,14 +134,14 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 
 	// Create a team
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: new("Team 1")}}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	// Check apps returned
 	var listMAResp listFleetMaintainedAppsResponse
 	s.DoJSON(http.MethodGet, "/api/latest/fleet/software/fleet_maintained_apps", listFleetMaintainedAppsRequest{}, http.StatusOK,
 		&listMAResp, "team_id", fmt.Sprint(team.ID))
-	require.Nil(t, listMAResp.Err)
+	require.NoError(t, listMAResp.Err)
 	require.False(t, listMAResp.Meta.HasPreviousResults)
 	require.False(t, listMAResp.Meta.HasNextResults)
 	require.Len(t, listMAResp.FleetMaintainedApps, len(expectedApps))
@@ -174,7 +174,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		"per_page", "2",
 		"page", "2",
 	)
-	require.Nil(t, listMAResp2.Err)
+	require.NoError(t, listMAResp2.Err)
 	require.True(t, listMAResp2.Meta.HasPreviousResults)
 	require.True(t, listMAResp2.Meta.HasNextResults)
 	require.Len(t, listMAResp2.FleetMaintainedApps, 2)
@@ -290,7 +290,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 		PostInstallScript: "echo done",
 	}
 	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusOK, &addMAResp)
-	require.Nil(t, addMAResp.Err)
+	require.NoError(t, addMAResp.Err)
 
 	// Verify the installer has is_active = 1 for this FMA
 	var activeInstallerCount, onlyInstallerID uint
@@ -319,7 +319,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 
 	s.DoJSON(http.MethodGet, "/api/latest/fleet/software/fleet_maintained_apps", listFleetMaintainedAppsRequest{}, http.StatusOK,
 		&listMAResp, "team_id", fmt.Sprint(team.ID))
-	require.Nil(t, listMAResp.Err)
+	require.NoError(t, listMAResp.Err)
 	require.False(t, listMAResp.Meta.HasPreviousResults)
 	require.Len(t, listMAResp.FleetMaintainedApps, len(expectedApps))
 
@@ -401,7 +401,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 
 	addMAResp = addFleetMaintainedAppResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusOK, &addMAResp)
-	require.Nil(t, addMAResp.Err)
+	require.NoError(t, addMAResp.Err)
 
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
@@ -624,12 +624,12 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Empty(t, swTitle.SoftwarePackage.LabelsExcludeAny)
 	require.Empty(t, swTitle.SoftwarePackage.LabelsIncludeAll)
 	require.Len(t, swTitle.SoftwarePackage.LabelsIncludeAny, 2)
-	gotNames := make(map[string]bool)
+	gotNames := make(map[string]struct{})
 	for _, lbl := range swTitle.SoftwarePackage.LabelsIncludeAny {
-		gotNames[lbl.LabelName] = true
+		gotNames[lbl.LabelName] = struct{}{}
 	}
-	require.True(t, gotNames[lbl1.Name])
-	require.True(t, gotNames[lbl2.Name])
+	require.Contains(t, gotNames, lbl1.Name)
+	require.Contains(t, gotNames, lbl2.Name)
 
 	// Can't set non-existent label
 	req = &addFleetMaintainedAppRequest{
@@ -664,10 +664,10 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 	warpUpgradeCode := "{1BF42825-7B65-4CA9-AFFF-B7B5E1CE27B4}"
 
 	ac, err := s.ds.AppConfig(ctx)
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 	ac.Features.EnableSoftwareInventory = true
 	err = s.ds.SaveAppConfig(context.Background(), ac)
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 	time.Sleep(2 * time.Second) // Wait for the app config cache to clear
 
 	installerBytes := []byte("abc")
@@ -707,7 +707,7 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 		}
 
 		err := json.NewEncoder(w).Encode(manifest)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}))
 	t.Cleanup(manifestServer.Close)
 
@@ -736,7 +736,7 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 
 	// Create a team
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: new("Team 1")}}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	// Add WARP for Windows
@@ -755,7 +755,7 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 	}
 
 	s.DoJSON("POST", "/api/latest/fleet/software/fleet_maintained_apps", req, http.StatusOK, &addMAresp)
-	require.Nil(t, addMAresp.Err)
+	require.NoError(t, addMAresp.Err)
 
 	// Verify WARP is now in `software_installers`, a `software_tiles` row has been created, and they
 	// are associated
@@ -823,12 +823,12 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 
 	// confirm software row now in the database and `upgrade_code`s match for that row, the associated
 	// `software_titles` row, and the associated `software_installers` row
-	var swTitleId *uint
+	var swTitleId uint
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &swTitleId, "SELECT title_id FROM software WHERE upgrade_code = ?", warpUpgradeCode)
 	})
-	require.Equal(t, title.ID, *swTitleId)
-	require.Equal(t, *warpInstaller.TitleID, *swTitleId)
+	require.Equal(t, title.ID, swTitleId)
+	require.Equal(t, *warpInstaller.TitleID, swTitleId)
 
 	// GET host software endpoint, confirm upgrade_code is present
 	var hSWRes getHostSoftwareResponse
@@ -838,8 +838,8 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 		http.StatusOK, &hSWRes,
 	)
 	// should only be the single software and software title in the database
-	require.Equal(t, hSWRes.Count, 1)
-	require.Equal(t, len(hSWRes.Software), 1)
+	require.Equal(t, 1, hSWRes.Count)
+	require.Len(t, hSWRes.Software, 1)
 	sw0 := hSWRes.Software[0]
 	require.Equal(t, warpUpgradeCode, *sw0.UpgradeCode)
 
@@ -993,7 +993,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
 	// --- setup: team with cloudflare-warp v1.0, self-service on ---
 	var teamResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
-		TeamPayload: fleet.TeamPayload{Name: new("team_" + t.Name())},
+		Name: new("team_" + t.Name()),
 	}, http.StatusOK, &teamResp)
 	team := *teamResp.Team
 
@@ -1381,7 +1381,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 			Versions: versions,
 			Refs:     map[string]string{"foobaz": "Hello World!"},
 		}
-		require.NoError(t, json.NewEncoder(w).Encode(manifest))
+		assert.NoError(t, json.NewEncoder(w).Encode(manifest))
 	}))
 	t.Cleanup(manifestServer.Close)
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
@@ -1414,7 +1414,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	newTeam := func(name string) fleet.Team {
 		var resp teamResponse
 		s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
-			TeamPayload: fleet.TeamPayload{Name: new(name)},
+			Name: new(name),
 		}, http.StatusOK, &resp)
 		return *resp.Team
 	}
@@ -1496,7 +1496,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	// We should have the previous version cached in the DB
 	installers, err := s.ds.GetSoftwareInstallers(ctx, team.ID)
 	s.Require().NoError(err)
-	s.Assert().Len(installers, 2)
+	s.Len(installers, 2)
 
 	// Now add a third version — should evict v1.0, keeping only v3.0 and v2.0
 	resetFMAState(warpState, "3.0", []byte("ghi"))
@@ -1515,7 +1515,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	// DB should also only have 2 installers
 	installers, err = s.ds.GetSoftwareInstallers(ctx, team.ID)
 	s.Require().NoError(err)
-	s.Assert().Len(installers, 2)
+	s.Len(installers, 2)
 
 	// ---- Test version rollback via fleet_maintained_app_version ----
 	// Pin to version "2.0" in the batch request (simulating GitOps yaml with version specified).
@@ -1604,7 +1604,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	downloadMu.Lock()
 	warpDownloaded := downloadedSlugs["cloudflare-warp/windows"]
 	downloadMu.Unlock()
-	s.Assert().False(warpDownloaded)
+	s.False(warpDownloaded)
 
 	// ---- Test rollback to an evicted version (v1.0) ----
 	// v1.0 was evicted when v3.0 was added (max 2 cached: v3.0 + v2.0).
@@ -1692,7 +1692,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	// "installer", but that's just a fake file in this case so it'd fail.
 	// That logic isn't what we're trying to test here.
 	_, _, err = s.ds.MatchOrCreateSoftwareInstaller(ctx, customPayload)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), fmt.Sprintf(fleet.SoftwareAlreadyHasFleetMaintainedAppMessage, customPayload.Title, team.Name))
 
 	// =========================================================================
@@ -1722,7 +1722,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 			TeamID:      &uiTeam.ID,
 			SelfService: true,
 		}, http.StatusOK, &addMAResp)
-		require.Nil(t, addMAResp.Err)
+		require.NoError(t, addMAResp.Err)
 
 		// Verify v1.0 was installed and is the only (active) version.
 		uiTitle := getActiveTitleForTeam(uiTeam.ID)
@@ -2583,7 +2583,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.Equal(t, "macOS - DummyApp up to date", policyResp.Policy.Name)
 		require.Equal(t, "Outdated software might introduce security vulnerabilities or compatibility issues.", policyResp.Policy.Description)
 		require.Equal(t, "Install the latest version from self-service.", *policyResp.Policy.Resolution)
-		require.Equal(t, policyResp.Policy.Query, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.example.dummy' AND version_compare(bundle_short_version, '1.0.0') < 0);")
+		require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.example.dummy' AND version_compare(bundle_short_version, '1.0.0') < 0);", policyResp.Policy.Query)
 		require.NotNil(t, policyResp.Policy.PatchSoftware)
 		require.Equal(t, titleID, policyResp.Policy.PatchSoftware.SoftwareTitleID)
 		policyID := policyResp.Policy.ID
@@ -2687,7 +2687,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 
 		resp := teamResponse{}
 		s.DoJSON("POST", "/api/latest/fleet/fleets", &createTeamRequest{
-			TeamPayload: fleet.TeamPayload{Name: new("team_1")},
+			Name: new("team_1"),
 		}, http.StatusOK, &resp)
 		teamID := resp.Team.ID
 
@@ -3421,7 +3421,7 @@ func (s *integrationEnterpriseTestSuite) TestFleetMaintainedAppVersionPin() {
 
 	var teamResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{
-		TeamPayload: fleet.TeamPayload{Name: new("fma_pin_" + t.Name())},
+		Name: new("fma_pin_" + t.Name()),
 	}, http.StatusOK, &teamResp)
 	team := *teamResp.Team
 

@@ -280,7 +280,7 @@ func (s *integrationEnterpriseTestSuite) createHosts(t *testing.T, platforms ...
 func genDistributedReqWithPolicyResults(host *fleet.Host, policyResults map[uint]*bool) submitDistributedQueryResultsRequestShim {
 	var (
 		results  = make(map[string]json.RawMessage)
-		statuses = make(map[string]interface{})
+		statuses = make(map[string]any)
 		messages = make(map[string]string)
 	)
 	for policyID, policyResult := range policyResults {
@@ -338,7 +338,7 @@ func checkSoftwareInstaller(t *testing.T, ds *mysql.Datastore, payload *fleet.Up
 	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &platform, `SELECT platform FROM software_installers WHERE id = ?`, id)
 	})
-	require.Equal(t, payload.Platform, "linux")
+	require.Equal(t, "linux", payload.Platform)
 
 	meta, err := ds.GetSoftwareInstallerMetadataByID(context.Background(), id)
 	require.NoError(t, err)

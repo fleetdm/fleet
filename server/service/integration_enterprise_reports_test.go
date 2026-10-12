@@ -31,7 +31,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSchedule() {
 
 	ts := getTeamScheduleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
-	require.Len(t, ts.Scheduled, 0)
+	require.Empty(t, ts.Scheduled)
 
 	qr, err := s.ds.NewQuery(
 		context.Background(),
@@ -46,10 +46,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSchedule() {
 	)
 	require.NoError(t, err)
 
-	gsParams := teamScheduleQueryRequest{ScheduledQueryPayload: fleet.ScheduledQueryPayload{
+	gsParams := teamScheduleQueryRequest{
 		QueryID:  &qr.ID,
-		Interval: new(uint(42)),
-	}}
+		Interval: new(uint(42))}
 	r := teamScheduleQueryResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", team1.ID), gsParams, http.StatusOK, &r)
 
@@ -62,7 +61,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSchedule() {
 	id := ts.Scheduled[0].ID
 
 	modifyResp := modifyTeamScheduleResponse{}
-	modifyParams := modifyTeamScheduleRequest{ScheduledQueryPayload: fleet.ScheduledQueryPayload{Interval: new(uint(55))}}
+	modifyParams := modifyTeamScheduleRequest{Interval: new(uint(55))}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule/%d", team1.ID, id), modifyParams, http.StatusOK, &modifyResp)
 
 	// just to satisfy my paranoia, wanted to make sure the contents of the json would work
@@ -78,7 +77,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSchedule() {
 
 	ts = getTeamScheduleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", team1.ID), nil, http.StatusOK, &ts)
-	require.Len(t, ts.Scheduled, 0)
+	require.Empty(t, ts.Scheduled)
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamQueries() {

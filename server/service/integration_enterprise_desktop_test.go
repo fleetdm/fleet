@@ -40,7 +40,7 @@ func (s *integrationEnterpriseTestSuite) TestListDevicePolicies() {
 			"contact_url": "http://example.com/contact"
 		}
 	}`), http.StatusOK, &acResp)
-	require.Equal(t, "http://example.com/logo", acResp.OrgInfo.OrgLogoURL)
+	require.Equal(t, "http://example.com/logo", acResp.OrgInfo.OrgLogoURL) //nolint:staticcheck // set through the deprecated org_logo_url key above
 	require.Equal(t, "http://example.com/contact", acResp.OrgInfo.ContactURL)
 
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{

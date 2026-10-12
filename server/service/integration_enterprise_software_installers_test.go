@@ -27,6 +27,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	strconv "strconv"
 	"strings"
 	"testing"
@@ -204,7 +205,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 	st, err := f.Stat()
 	require.NoError(t, err)
 	expectLen = int(st.Size())
-	require.Equal(t, expectLen, 11340)
+	require.Equal(t, 11340, expectLen)
 	expectBytes = make([]byte, expectLen)
 	n, err := f.Read(expectBytes)
 	require.NoError(t, err)
@@ -218,7 +219,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		require.Equal(t, expectLen, int(r.ContentLength))
 		b, err := io.ReadAll(r.Body)
 		require.NoError(t, err)
-		require.Equal(t, expectLen, len(b))
+		require.Len(t, b, expectLen)
 		require.Equal(t, expectBytes, b)
 	}
 
@@ -226,24 +227,21 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		// status is reflected in list hosts responses and counts when filtering by software title and status
 		// create a label to test also the counts per label with the software install status filter
 		var labelResp fleet.CreateLabelResponse
-		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{LabelPayload: fleet.LabelPayload{
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{
 			Name:  t.Name(),
-			Query: "select 1",
-		}}, http.StatusOK, &labelResp)
+			Query: "select 1"}, http.StatusOK, &labelResp)
 		require.NotZero(t, labelResp.Label.ID)
 		lblA := labelResp.Label
 
-		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{LabelPayload: fleet.LabelPayload{
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{
 			Name:  "label_b" + t.Name(),
-			Query: "select 1",
-		}}, http.StatusOK, &labelResp)
+			Query: "select 1"}, http.StatusOK, &labelResp)
 		require.NotZero(t, labelResp.Label.ID)
 		lblB := labelResp.Label
 
-		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{LabelPayload: fleet.LabelPayload{
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{
 			Name:  "label_c" + t.Name(),
-			Query: "select 1",
-		}}, http.StatusOK, &labelResp)
+			Query: "select 1"}, http.StatusOK, &labelResp)
 		require.NotZero(t, labelResp.Label.ID)
 		lblC := labelResp.Label
 
@@ -442,10 +440,9 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 	t.Run("upload no team software installer with labels_include_all", func(t *testing.T) {
 		// create a label to use for include_all scoping
 		var labelResp fleet.CreateLabelResponse
-		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{LabelPayload: fleet.LabelPayload{
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{
 			Name:  t.Name(),
-			Query: "select 1",
-		}}, http.StatusOK, &labelResp)
+			Query: "select 1"}, http.StatusOK, &labelResp)
 		require.NotZero(t, labelResp.Label.ID)
 
 		payload := &fleet.UploadSoftwareInstallerPayload{
@@ -890,10 +887,9 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 	t.Run("patch software installer categories", func(t *testing.T) {
 		var labelResp fleet.CreateLabelResponse
-		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{LabelPayload: fleet.LabelPayload{
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{
 			Name:  t.Name(),
-			Query: "select 1",
-		}}, http.StatusOK, &labelResp)
+			Query: "select 1"}, http.StatusOK, &labelResp)
 		require.NotZero(t, labelResp.Label.ID)
 
 		payload := &fleet.UploadSoftwareInstallerPayload{
@@ -1083,11 +1079,11 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 
 	// Enabling software inventory globally, which will be inherited by the team
 	appConf, err := s.ds.AppConfig(context.Background())
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 	appConf.Features.EnableSoftwareInventory = true
 	appConf.ServerSettings.ScriptsDisabled = true // shouldn't stop installs/uninstalls
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 	time.Sleep(2 * time.Second) // Wait for the app config cache to clear
 
 	t.Cleanup(func() {
@@ -1347,10 +1343,9 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	// status is reflected in list hosts responses and counts when filtering by software title and status
 	// create a label to test also the counts per label with the software install status filter
 	var labelResp fleet.CreateLabelResponse
-	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{LabelPayload: fleet.LabelPayload{
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{
 		Name:  "test",
-		Hosts: []string{h.Hostname, h2.Hostname, h3.Hostname, h4.Hostname},
-	}}, http.StatusOK, &labelResp)
+		Hosts: []string{h.Hostname, h2.Hostname, h3.Hostname, h4.Hostname}}, http.StatusOK, &labelResp)
 	require.NotZero(t, labelResp.Label.ID)
 
 	cases := []struct {
@@ -1446,7 +1441,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 					"source": "deb_packages", "last_opened_at": "",
 					"installed_path": "/bin/ruby"}]`, payload.Title)),
 		},
-		Statuses: map[string]interface{}{
+		Statuses: map[string]any{
 			hostDistributedQueryPrefix + "software_linux": 0,
 		},
 		Messages: map[string]string{},
@@ -1467,7 +1462,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 		Results: map[string]json.RawMessage{
 			hostDetailQueryPrefix + "software_linux": json.RawMessage(`[]`),
 		},
-		Statuses: map[string]interface{}{
+		Statuses: map[string]any{
 			hostDistributedQueryPrefix + "software_linux": 0,
 		},
 		Messages: map[string]string{},
@@ -1528,7 +1523,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", h.ID), nil, http.StatusOK, &listUpcomingAct)
 	require.Len(t, listUpcomingAct.Activities, 1)
 	assert.Equal(t, fleet.ActivityTypeUninstalledSoftware{}.ActivityName(), listUpcomingAct.Activities[0].Type)
-	details := make(map[string]interface{}, 5)
+	details := make(map[string]any, 5)
 	require.NoError(t, json.Unmarshal(*listUpcomingAct.Activities[0].Details, &details))
 	assert.EqualValues(t, fleet.SoftwareUninstallPending, details["status"])
 
@@ -1581,7 +1576,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 		"order_direction", "desc")
 	require.NotEmpty(t, activitiesResp.Activities)
 	assert.Equal(t, fleet.ActivityTypeUninstalledSoftware{}.ActivityName(), activitiesResp.Activities[0].Type)
-	details = make(map[string]interface{}, 5)
+	details = make(map[string]any, 5)
 	require.NoError(t, json.Unmarshal(*activitiesResp.Activities[0].Details, &details))
 	assert.Equal(t, "uninstalled", details["status"])
 
@@ -1627,7 +1622,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 		"order_direction", "desc")
 	require.NotEmpty(t, activitiesResp.Activities)
 	assert.Equal(t, fleet.ActivityTypeUninstalledSoftware{}.ActivityName(), activitiesResp.Activities[0].Type)
-	details = make(map[string]interface{}, 5)
+	details = make(map[string]any, 5)
 	require.NoError(t, json.Unmarshal(*activitiesResp.Activities[0].Details, &details))
 	assert.Equal(t, "failed", details["status"])
 
@@ -1658,7 +1653,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 
 	appConf.ServerSettings.ScriptsDisabled = false // set back to normal
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall() {
@@ -1674,10 +1669,9 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall
 
 	// Create a label and assign it to the host
 	var labelResp fleet.CreateLabelResponse
-	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{LabelPayload: fleet.LabelPayload{
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{
 		Name:  t.Name(),
-		Query: "select 1",
-	}}, http.StatusOK, &labelResp)
+		Query: "select 1"}, http.StatusOK, &labelResp)
 	require.NotZero(t, labelResp.Label.ID)
 
 	err := s.ds.RecordLabelQueryExecutions(context.Background(), host1, map[uint]*bool{labelResp.Label.ID: new(true)}, time.Now(), false)
@@ -1760,7 +1754,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall
 	// nothing in upcoming activities anymore
 	listUpcomingAct = listHostUpcomingActivitiesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host1.ID), nil, http.StatusOK, &listUpcomingAct)
-	require.Len(t, listUpcomingAct.Activities, 0)
+	require.Empty(t, listUpcomingAct.Activities)
 
 	// installation shows up in past activities
 	var listPastAct listActivitiesResponse
@@ -1791,7 +1785,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host1.ID), nil, http.StatusOK, &listUpcomingAct)
 	require.Len(t, listUpcomingAct.Activities, 1)
 	assert.Equal(t, fleet.ActivityTypeUninstalledSoftware{}.ActivityName(), listUpcomingAct.Activities[0].Type)
-	uninstallDetails := make(map[string]interface{}, 5)
+	uninstallDetails := make(map[string]any, 5)
 	require.NoError(t, json.Unmarshal(*listUpcomingAct.Activities[0].Details, &uninstallDetails))
 	assert.EqualValues(t, fleet.SoftwareUninstallPending, uninstallDetails["status"])
 	assert.EqualValues(t, true, uninstallDetails["self_service"])
@@ -1806,7 +1800,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall
 	require.Equal(t, host1.DisplayName(), uninstallResult.HostName)
 	require.Equal(t, uninstallExecutionID, uninstallResult.ExecutionID)
 	require.Nil(t, uninstallResult.ExitCode)
-	require.Equal(t, "", uninstallResult.Output)
+	require.Empty(t, uninstallResult.Output)
 
 	// Host sends successful uninstall result
 	var orbitPostScriptResp fleet.OrbitPostScriptResultResponse
@@ -1821,7 +1815,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall
 		"order_direction", "desc")
 	require.NotEmpty(t, activitiesResp.Activities)
 	assert.Equal(t, fleet.ActivityTypeUninstalledSoftware{}.ActivityName(), activitiesResp.Activities[0].Type)
-	uninstallDetails = make(map[string]interface{}, 5)
+	uninstallDetails = make(map[string]any, 5)
 	require.NoError(t, json.Unmarshal(*activitiesResp.Activities[0].Details, &uninstallDetails))
 	assert.Equal(t, "uninstalled", uninstallDetails["status"])
 	assert.EqualValues(t, true, uninstallDetails["self_service"])
@@ -1888,7 +1882,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 	beforeInstall := time.Now()
 	installUUIDs := make([]string, 3)
 	titleIDs := []uint{titleID, titleID2, titleID3}
-	for i := 0; i < len(installUUIDs); i++ {
+	for i := range installUUIDs {
 		resp := installSoftwareResponse{}
 		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/software/%d/install", host.ID, titleIDs[i]), nil, http.StatusAccepted, &resp)
 		installUUIDs[i] = latestInstallUUID()
@@ -2255,7 +2249,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNoVersion() {
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.Equal(t, "NoVersion", resp.SoftwareTitles[0].Name)
-	require.Equal(t, "", resp.SoftwareTitles[0].SoftwarePackage.Version)
+	require.Empty(t, resp.SoftwareTitles[0].SoftwarePackage.Version)
 }
 
 func (s *integrationEnterpriseTestSuite) TestPKGNoBundleIdentifier() {
@@ -3543,10 +3537,10 @@ func (s *integrationEnterpriseTestSuite) TestNonPolicySoftwareInstallRetries() {
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
 		results := getInstallResults()
 		// Find the last completed result
-		for i := len(results) - 1; i >= 0; i-- {
-			if results[i].InstallScriptExitCode != nil {
-				assert.NotNil(t, results[i].AttemptNumber)
-				assert.Equal(t, 1, *results[i].AttemptNumber, "fresh sequence should start at attempt 1")
+		for _, result := range slices.Backward(results) {
+			if result.InstallScriptExitCode != nil {
+				assert.NotNil(t, result.AttemptNumber)
+				assert.Equal(t, 1, *result.AttemptNumber, "fresh sequence should start at attempt 1")
 				break
 			}
 		}
@@ -3687,8 +3681,8 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPolicies() {
 	// Check no policies were created.
 	ts := fleet.ListTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &ts)
-	require.Len(t, ts.Policies, 0)
-	require.Len(t, ts.InheritedPolicies, 0)
+	require.Empty(t, ts.Policies)
+	require.Empty(t, ts.InheritedPolicies)
 
 	// Delete and try again with automatic policy turned on.
 	pkgTitleID := getSoftwareTitleID(t, s.ds, "DummyApp", "apps")
@@ -3723,7 +3717,7 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPolicies() {
 	ts = fleet.ListTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &ts)
 	require.Len(t, ts.Policies, 1)
-	require.Len(t, ts.InheritedPolicies, 0)
+	require.Empty(t, ts.InheritedPolicies)
 	require.Equal(t, "[Install software] DummyApp (pkg)", ts.Policies[0].Name)
 
 	// Upload dummy_installer.pkg to team2 with automatic policy.
@@ -3739,7 +3733,7 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPolicies() {
 	ts = fleet.ListTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team2.ID), nil, http.StatusOK, &ts)
 	require.Len(t, ts.Policies, 1)
-	require.Len(t, ts.InheritedPolicies, 0)
+	require.Empty(t, ts.InheritedPolicies)
 	require.Equal(t, "[Install software] DummyApp (pkg)", ts.Policies[0].Name)
 
 	// Upload ruby.deb to team1 with automatic policy.
@@ -3769,7 +3763,7 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPolicies() {
 	ts = fleet.ListTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), nil, http.StatusOK, &ts)
 	require.Len(t, ts.Policies, 4)
-	require.Len(t, ts.InheritedPolicies, 0)
+	require.Empty(t, ts.InheritedPolicies)
 	require.Equal(t, "[Install software] ruby (deb)", ts.Policies[1].Name)
 	require.Equal(t, "[Install software] ruby (rpm)", ts.Policies[2].Name)
 	require.Equal(t, "[Install software] Fleet osquery (msi)", ts.Policies[3].Name)
@@ -4049,10 +4043,9 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 		require.NotZero(t, createTeamResp.Team.ID)
 
 		var labelResp fleet.CreateLabelResponse
-		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{LabelPayload: fleet.LabelPayload{
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.CreateLabelRequest{
 			Name:  "iha_label",
-			Query: "select 1",
-		}}, http.StatusOK, &labelResp)
+			Query: "select 1"}, http.StatusOK, &labelResp)
 		require.NotZero(t, labelResp.Label.ID)
 
 		payload := &fleet.UploadSoftwareInstallerPayload{

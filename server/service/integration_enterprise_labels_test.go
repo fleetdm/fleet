@@ -328,7 +328,7 @@ func (s *integrationEnterpriseTestSuite) TestLabelsHostsCounts() {
 			Password:                 new(test.GoodPassword),
 			AdminForcedPasswordReset: new(false),
 			Teams: &[]fleet.UserTeam{
-				{Team: fleet.Team{ID: tm1.ID}, Role: fleet.RoleMaintainer},
+				{ID: tm1.ID, Role: fleet.RoleMaintainer},
 			},
 		},
 		{
@@ -337,7 +337,7 @@ func (s *integrationEnterpriseTestSuite) TestLabelsHostsCounts() {
 			Password:                 new(test.GoodPassword),
 			AdminForcedPasswordReset: new(false),
 			Teams: &[]fleet.UserTeam{
-				{Team: fleet.Team{ID: tm2.ID}, Role: fleet.RoleAdmin},
+				{ID: tm2.ID, Role: fleet.RoleAdmin},
 			},
 		},
 		{
@@ -346,8 +346,8 @@ func (s *integrationEnterpriseTestSuite) TestLabelsHostsCounts() {
 			Password:                 new(test.GoodPassword),
 			AdminForcedPasswordReset: new(false),
 			Teams: &[]fleet.UserTeam{
-				{Team: fleet.Team{ID: tm1.ID}, Role: fleet.RoleObserver},
-				{Team: fleet.Team{ID: tm2.ID}, Role: fleet.RoleObserverPlus},
+				{ID: tm1.ID, Role: fleet.RoleObserver},
+				{ID: tm2.ID, Role: fleet.RoleObserverPlus},
 			},
 		},
 	}
@@ -359,10 +359,8 @@ func (s *integrationEnterpriseTestSuite) TestLabelsHostsCounts() {
 	// create a manual label with hosts across no team, team1 and team2
 	var createLbl fleet.CreateLabelResponse
 	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.CreateLabelRequest{
-		LabelPayload: fleet.LabelPayload{
-			Name:  "manual1",
-			Hosts: []string{hosts[0].UUID, hosts[1].UUID, hosts[2].UUID, hosts[3].UUID},
-		},
+		Name:  "manual1",
+		Hosts: []string{hosts[0].UUID, hosts[1].UUID, hosts[2].UUID, hosts[3].UUID},
 	}, http.StatusOK, &createLbl)
 	// user is admin, count contains all hosts
 	require.Equal(t, 4, createLbl.Label.Count)
@@ -371,10 +369,8 @@ func (s *integrationEnterpriseTestSuite) TestLabelsHostsCounts() {
 
 	// create a dynamic label always returns a count of 0 (no members yet)
 	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.CreateLabelRequest{
-		LabelPayload: fleet.LabelPayload{
-			Name:  "dynamic1",
-			Query: "select 1",
-		},
+		Name:  "dynamic1",
+		Query: "select 1",
 	}, http.StatusOK, &createLbl)
 	require.Equal(t, 0, createLbl.Label.Count)
 	lblD1 := createLbl.Label.ID
@@ -392,10 +388,8 @@ func (s *integrationEnterpriseTestSuite) TestLabelsHostsCounts() {
 
 	// create another dynamic label which will stay empty
 	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.CreateLabelRequest{
-		LabelPayload: fleet.LabelPayload{
-			Name:  "dynamic2",
-			Query: "select 2",
-		},
+		Name:  "dynamic2",
+		Query: "select 2",
 	}, http.StatusOK, &createLbl)
 	require.Equal(t, 0, createLbl.Label.Count)
 	lblD2 := createLbl.Label.ID
@@ -449,16 +443,12 @@ func (s *integrationEnterpriseTestSuite) TestLabelsHostsCounts() {
 			// create and update label and just not possible for non-global users
 			if c.u != adminUserPayload && (*c.u.Teams)[0].Role != fleet.RoleMaintainer && (*c.u.Teams)[0].Role != fleet.RoleAdmin {
 				s.DoJSON("POST", "/api/latest/fleet/labels", fleet.CreateLabelRequest{
-					LabelPayload: fleet.LabelPayload{
-						Name:  "will fail",
-						Query: "select 3",
-					},
+					Name:  "will fail",
+					Query: "select 3",
 				}, http.StatusForbidden, &createLbl)
 
 				s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", c.lblID), fleet.ModifyLabelRequest{
-					ModifyLabelPayload: fleet.ModifyLabelPayload{
-						Name: new("will fail"),
-					},
+					Name: new("will fail"),
 				}, http.StatusForbidden, &fleet.ModifyLabelResponse{})
 			}
 		})
@@ -485,7 +475,7 @@ func (s *integrationEnterpriseTestSuite) TestLabelSpecHostsAreTeamFiltered() {
 		Email:                    new("labelspec-tm1observer@example.com"),
 		Password:                 new(test.GoodPassword),
 		AdminForcedPasswordReset: new(false),
-		Teams:                    &[]fleet.UserTeam{{Team: fleet.Team{ID: tm1.ID}, Role: fleet.RoleObserver}},
+		Teams:                    &[]fleet.UserTeam{{ID: tm1.ID, Role: fleet.RoleObserver}},
 	}
 	var createUser createUserResponse
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", observer, http.StatusOK, &createUser)
@@ -493,10 +483,8 @@ func (s *integrationEnterpriseTestSuite) TestLabelSpecHostsAreTeamFiltered() {
 	labelName := "labelspec-global-manual"
 	var createLbl fleet.CreateLabelResponse
 	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.CreateLabelRequest{
-		LabelPayload: fleet.LabelPayload{
-			Name:  labelName,
-			Hosts: []string{hosts[0].UUID, hosts[1].UUID, hosts[2].UUID},
-		},
+		Name:  labelName,
+		Hosts: []string{hosts[0].UUID, hosts[1].UUID, hosts[2].UUID},
 	}, http.StatusOK, &createLbl)
 
 	var getSpec fleet.GetLabelSpecResponse

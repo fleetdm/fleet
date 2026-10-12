@@ -442,7 +442,7 @@ func (s *integrationEnterpriseTestSuite) TestResetAutomation() {
 		Name:        "team1",
 		Description: "desc team1",
 	})
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 
 	createPol1 := &fleet.TeamPolicyResponse{}
 	createPol1Req := &fleet.TeamPolicyRequest{
@@ -489,18 +489,18 @@ func (s *integrationEnterpriseTestSuite) TestResetAutomation() {
 	}}, http.StatusOK, &tmResp)
 
 	h1, err := s.ds.NewHost(ctx, &fleet.Host{})
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 
 	_, err = s.ds.RecordPolicyQueryExecutions(ctx, h1, map[uint]*bool{
 		createPol1.Policy.ID: new(false),
 		createPol2.Policy.ID: new(false),
 		createPol3.Policy.ID: new(false), // This policy is not activated for automation in config.
 	}, time.Now(), false, nil)
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 
 	pfs, err := s.ds.OutdatedAutomationBatch(ctx)
-	require.NoError(s.T(), err)
-	require.Empty(s.T(), pfs)
+	s.Require().NoError(err)
+	s.Require().Empty(pfs)
 
 	s.DoJSON("POST", "/api/latest/fleet/automations/reset", fleet.ResetAutomationRequest{
 		TeamIDs:   nil,
@@ -508,8 +508,8 @@ func (s *integrationEnterpriseTestSuite) TestResetAutomation() {
 	}, http.StatusOK, &tmResp)
 
 	pfs, err = s.ds.OutdatedAutomationBatch(ctx)
-	require.NoError(s.T(), err)
-	require.Empty(s.T(), pfs)
+	s.Require().NoError(err)
+	s.Require().Empty(pfs)
 
 	s.DoJSON("POST", "/api/latest/fleet/automations/reset", fleet.ResetAutomationRequest{
 		TeamIDs:   nil,
@@ -517,8 +517,8 @@ func (s *integrationEnterpriseTestSuite) TestResetAutomation() {
 	}, http.StatusOK, &tmResp)
 
 	pfs, err = s.ds.OutdatedAutomationBatch(ctx)
-	require.NoError(s.T(), err)
-	require.Len(s.T(), pfs, 2)
+	s.Require().NoError(err)
+	s.Require().Len(pfs, 2)
 
 	s.DoJSON("POST", "/api/latest/fleet/automations/reset", fleet.ResetAutomationRequest{
 		TeamIDs:   []uint{team1.ID},
@@ -526,8 +526,8 @@ func (s *integrationEnterpriseTestSuite) TestResetAutomation() {
 	}, http.StatusOK, &tmResp)
 
 	pfs, err = s.ds.OutdatedAutomationBatch(ctx)
-	require.NoError(s.T(), err)
-	require.Len(s.T(), pfs, 2)
+	s.Require().NoError(err)
+	s.Require().Len(pfs, 2)
 
 	s.DoJSON("POST", "/api/latest/fleet/automations/reset", fleet.ResetAutomationRequest{
 		TeamIDs:   nil,
@@ -535,8 +535,8 @@ func (s *integrationEnterpriseTestSuite) TestResetAutomation() {
 	}, http.StatusOK, &tmResp)
 
 	pfs, err = s.ds.OutdatedAutomationBatch(ctx)
-	require.NoError(s.T(), err)
-	require.Len(s.T(), pfs, 1)
+	s.Require().NoError(err)
+	s.Require().Len(pfs, 1)
 }
 
 func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers() {
@@ -645,7 +645,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	t.Cleanup(func() {
 		s.token = adminToken
 	})
-	s.token = adminTeam1Session.Key
+	s.token = adminTeam1Session.Key // nolint:nilaway // cannot be nil due to previous require
 	s.uploadSoftwareInstaller(t, rubyPayload, http.StatusOK, "")
 	s.token = adminToken
 	err = s.ds.DeleteUser(ctx, adminTeam1.ID)
@@ -718,12 +718,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	_, err = s.ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name:             "App123 " + t.Name(),
 		BundleIdentifier: "bid_" + t.Name(),
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "adam_test_vpp2", // max 16 chars
-				Platform: fleet.MacOSPlatform,
-			},
-		},
+		AdamID:           "adam_test_vpp2", // max 16 chars
+		Platform:         fleet.MacOSPlatform,
 	}, &team1.ID, nil)
 	require.NoError(t, err)
 	// Get software title ID of the uploaded VPP app.
@@ -799,30 +795,22 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	// Attempt to associate to an unknown software title.
 	mtplr := fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy1Team1.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: 999_999},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: 999_999},
 	}, http.StatusBadRequest, &mtplr)
 	// Attempt to associate to a software title without associated installer.
 	mtplr = fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy1Team1.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: foobarAppTitleID},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: foobarAppTitleID},
 	}, http.StatusBadRequest, &mtplr)
 	// Associate a VPP app to the policy (which we'll immediately overwrite)
 	mtplr = fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy1Team1.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: vppAppTitleID},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: vppAppTitleID},
 	}, http.StatusOK, &mtplr)
 	// Associate dummy_installer.pkg to policy1Team1.
 	mtplr = fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy1Team1.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: dummyInstallerPkgTitleID},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: dummyInstallerPkgTitleID},
 	}, http.StatusOK, &mtplr)
 	// Change name only (to test not setting a software_title_id).
 	mtplr = fleet.ModifyTeamPolicyResponse{}
@@ -837,9 +825,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	// Explicit set to 0 to disable.
 	mtplr = fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy1Team1.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: 0},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: 0},
 	}, http.StatusOK, &mtplr)
 	policy1Team1, err = s.ds.Policy(ctx, policy1Team1.ID)
 	require.NoError(t, err)
@@ -848,9 +834,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	// re-add software installer to policy1Team1
 	mtplr = fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy1Team1.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: dummyInstallerPkgTitleID},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: dummyInstallerPkgTitleID},
 	}, http.StatusOK, &mtplr)
 	policy1Team1, err = s.ds.Policy(ctx, policy1Team1.ID)
 	require.NoError(t, err)
@@ -896,9 +880,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	// Back to associating dummy_installer.pkg to policy1Team1.
 	mtplr = fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy1Team1.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: dummyInstallerPkgTitleID},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: dummyInstallerPkgTitleID},
 	}, http.StatusOK, &mtplr)
 	policy1Team1, err = s.ds.Policy(ctx, policy1Team1.ID)
 	require.NoError(t, err)
@@ -945,9 +927,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	// Associate ruby.deb to policy1Team1.
 	mtplr = fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy1Team1.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: rubyDebTitleID},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: rubyDebTitleID},
 	}, http.StatusOK, &mtplr)
 
 	// After changing the installer, membership and stats should be cleared.
@@ -971,17 +951,13 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	// Back to (again) associating dummy_installer.pkg to policy1Team1.
 	mtplr = fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy1Team1.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: dummyInstallerPkgTitleID},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: dummyInstallerPkgTitleID},
 	}, http.StatusOK, &mtplr)
 
 	// Associate ruby.deb to policy2Team1.
 	mtplr = fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy2Team1.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: rubyDebTitleID},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: rubyDebTitleID},
 	}, http.StatusOK, &mtplr)
 
 	// We use DoJSONWithoutAuth for distributed/write because we want the requests to not have the
@@ -1081,9 +1057,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	// Associate fleet-osquery.msi to policy4Team2.
 	mtplr = fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team2.ID, policy4Team2.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: fleetOsqueryMSITitleID},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: fleetOsqueryMSITitleID},
 	}, http.StatusOK, &mtplr)
 
 	// host3Team2 reports a failing result for policy4Team2, which should trigger an installation.
@@ -1141,9 +1115,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	// Unassociate policy4Team2 from installer.
 	mtplr = fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team2.ID, policy4Team2.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: 0},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: 0},
 	}, http.StatusOK, &mtplr)
 
 	// host3Team2 reports a failing result for policy4Team2.
@@ -1307,9 +1279,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetr
 	// Associate software installer with policy
 	var modifyResp fleet.ModifyTeamPolicyResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: softwareTitleID},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: softwareTitleID},
 	}, http.StatusOK, &modifyResp)
 	require.NotNil(t, modifyResp.Policy)
 	policy, err = s.ds.Policy(ctx, policy.ID)
@@ -1616,9 +1586,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptActivitiesAcr
 
 	var modifyResp fleet.ModifyTeamPolicyResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: script.ID},
-		},
+		ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: script.ID},
 	}, http.StatusOK, &modifyResp)
 	policy, err = s.ds.Policy(ctx, policy.ID)
 	require.NoError(t, err)
@@ -1784,9 +1752,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 
 	mtplr := fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", policy1.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: rubyDebTitleID},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: rubyDebTitleID},
 	}, http.StatusOK, &mtplr)
 
 	host1LastInstall, err := s.ds.GetHostLastInstallData(ctx, host.ID, rubyInstallerID)
@@ -1850,9 +1816,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 
 	mtplr = fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", policy2.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: vimTitleID},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: vimTitleID},
 	}, http.StatusOK, &mtplr)
 
 	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, vimInstallerID)
@@ -1930,9 +1894,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 
 	mtplr = fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", inclAllTeam.ID, policy3.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: rubyInclAllTitleID},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: rubyInclAllTitleID},
 	}, http.StatusOK, &mtplr)
 
 	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, rubyInclAllInstallerID)
@@ -1998,9 +1960,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 
 	mtplr = fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", inclAllTeam.ID, policy4.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: vimInclAllTitleID},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: vimInclAllTitleID},
 	}, http.StatusOK, &mtplr)
 
 	host1LastInstall, err = s.ds.GetHostLastInstallData(ctx, host.ID, vimInclAllInstallerID)
@@ -2135,9 +2095,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationLabelScopingRetrigg
 
 	mtplr := fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", policy1.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: rubyDebTitleID},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: rubyDebTitleID},
 	}, http.StatusOK, &mtplr)
 
 	// No install attempt yet
@@ -2364,16 +2322,12 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	// Attempt to associate to an unknown script.
 	mtplr := fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy1Team1.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: 999_999},
-		},
+		ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: 999_999},
 	}, http.StatusBadRequest, &mtplr)
 	// Associate first script to policy1Team1.
 	mtplr = fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy1Team1.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: script.ID},
-		},
+		ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: script.ID},
 	}, http.StatusOK, &mtplr)
 	// Change name only (to test not setting a script_id).
 	mtplr = fleet.ModifyTeamPolicyResponse{}
@@ -2388,9 +2342,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	// Explicit set to 0 to disable.
 	mtplr = fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy1Team1.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: 0},
-		},
+		ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: 0},
 	}, http.StatusOK, &mtplr)
 	policy1Team1, err = s.ds.Policy(ctx, policy1Team1.ID)
 	require.NoError(t, err)
@@ -2399,9 +2351,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	// re-add script to policy1Team1.
 	mtplr = fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy1Team1.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: script.ID},
-		},
+		ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: script.ID},
 	}, http.StatusOK, &mtplr)
 	policy1Team1, err = s.ds.Policy(ctx, policy1Team1.ID)
 	require.NoError(t, err)
@@ -2443,9 +2393,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	// Back to associating the script with policy1Team1.
 	mtplr = fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy1Team1.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: script.ID},
-		},
+		ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: script.ID},
 	}, http.StatusOK, &mtplr)
 	policy1Team1, err = s.ds.Policy(ctx, policy1Team1.ID)
 	require.NoError(t, err)
@@ -2491,9 +2439,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	// Change the script (temporarily to test that changing a script will clear results)
 	mtplr = fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy1Team1.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: winScript.ID},
-		},
+		ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: winScript.ID},
 	}, http.StatusOK, &mtplr)
 
 	// After changing the script, membership and stats should be cleared.
@@ -2517,17 +2463,13 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	// Back to (again) associating first script to policy1Team1.
 	mtplr = fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy1Team1.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: script.ID},
-		},
+		ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: script.ID},
 	}, http.StatusOK, &mtplr)
 
 	// Associate winScript to policy2Team1.
 	mtplr = fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, policy2Team1.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: winScript.ID},
-		},
+		ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: winScript.ID},
 	}, http.StatusOK, &mtplr)
 
 	// We use DoJSONWithoutAuth for distributed/write because we want the requests to not have the
@@ -2612,9 +2554,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	// Associate psScript to policy4Team2.
 	mtplr = fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team2.ID, policy4Team2.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: psScript.ID},
-		},
+		ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: psScript.ID},
 	}, http.StatusOK, &mtplr)
 
 	// host3Team2 reports a failing result for policy4Team2, which should trigger a script run.
@@ -2634,9 +2574,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	// Dissociate policy4Team2 from script.
 	mtplr = fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team2.ID, policy4Team2.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: 0},
-		},
+		ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: 0},
 	}, http.StatusOK, &mtplr)
 
 	// host3Team2 reports a failing result for policy4Team2.
@@ -2659,7 +2597,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	), http.StatusOK, &distributedResp)
 	hostPendingScripts, err := s.ds.ListPendingHostScriptExecutions(ctx, hostVanillaOsquery5Team1.ID, false)
 	require.NoError(t, err)
-	require.Len(t, hostPendingScripts, 0)
+	require.Empty(t, hostPendingScripts)
 
 	// activity feed should show script run as pending, with "Fleet" as author, policy ID and name set in body
 	var listResp listActivitiesResponse
@@ -2669,10 +2607,10 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	require.Equal(t, "Fleet", *listResp.Activities[0].ActorFullName)
 	require.Nil(t, listResp.Activities[0].ActorGravatar)
 	require.Equal(t, "ran_script", listResp.Activities[0].Type)
-	var activityJson map[string]interface{}
+	var activityJson map[string]any
 	err = json.Unmarshal(*listResp.Activities[0].Details, &activityJson)
 	require.NoError(t, err)
-	require.Equal(t, float64(policy4Team2.ID), activityJson["policy_id"])
+	require.InDelta(t, float64(policy4Team2.ID), activityJson["policy_id"], 0.001)
 	require.Equal(t, "policy4Team2", activityJson["policy_name"])
 
 	// post script result response
@@ -2684,13 +2622,13 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	// activity feed should show script run as completed
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host3Team2.ID), nil, http.StatusOK, &listResp)
 	require.Len(t, listResp.Activities, 1)
-	require.Equal(t, "", *listResp.Activities[0].ActorEmail) // actor email is blank rather than nil here 👀
+	require.Empty(t, *listResp.Activities[0].ActorEmail) // actor email is blank rather than nil here 👀
 	require.Equal(t, "Fleet", *listResp.Activities[0].ActorFullName)
 	require.Nil(t, listResp.Activities[0].ActorGravatar)
 	require.Equal(t, "ran_script", listResp.Activities[0].Type)
 	err = json.Unmarshal(*listResp.Activities[0].Details, &activityJson)
 	require.NoError(t, err)
-	require.Equal(t, float64(policy4Team2.ID), activityJson["policy_id"])
+	require.InDelta(t, float64(policy4Team2.ID), activityJson["policy_id"], 0.001)
 	require.Equal(t, "policy4Team2", activityJson["policy_name"])
 }
 
@@ -2738,9 +2676,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptRetries() {
 	// Associate script with policy
 	var modifyResp fleet.ModifyTeamPolicyResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: script.ID},
-		},
+		ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: script.ID},
 	}, http.StatusOK, &modifyResp)
 	require.NotNil(t, modifyResp.Policy)
 	policy, err = s.ds.Policy(ctx, policy.ID)
@@ -3048,7 +2984,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyContinuousAutomationsCRUD
 	patchOn := &fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, createDefault.Policy.ID),
 		&fleet.ModifyTeamPolicyRequest{
-			ModifyPolicyPayload: fleet.ModifyPolicyPayload{ContinuousAutomationsEnabled: new(true)},
+			ContinuousAutomationsEnabled: new(true),
 		}, http.StatusOK, patchOn)
 	require.NotNil(t, patchOn.Policy)
 	require.True(t, patchOn.Policy.ContinuousAutomationsEnabled)
@@ -3056,7 +2992,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyContinuousAutomationsCRUD
 	patchOff := &fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, createOn.Policy.ID),
 		&fleet.ModifyTeamPolicyRequest{
-			ModifyPolicyPayload: fleet.ModifyPolicyPayload{ContinuousAutomationsEnabled: new(false)},
+			ContinuousAutomationsEnabled: new(false),
 		}, http.StatusOK, patchOff)
 	require.NotNil(t, patchOff.Policy)
 	require.False(t, patchOff.Policy.ContinuousAutomationsEnabled)
@@ -3172,9 +3108,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousScripts(
 	attach := func(policyID, scriptID uint) {
 		var resp fleet.ModifyTeamPolicyResponse
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policyID), fleet.ModifyTeamPolicyRequest{
-			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-				ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: scriptID},
-			},
+			ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: scriptID},
 		}, http.StatusOK, &resp)
 	}
 	attach(continuousPolicy.ID, continuousScript.ID)
@@ -3329,9 +3263,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousScriptRe
 
 	var mtplr fleet.ModifyTeamPolicyResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: script.ID},
-		},
+		ScriptID: optjson.Any[uint]{Set: true, Valid: true, Value: script.ID},
 	}, http.StatusOK, &mtplr)
 
 	submitPolicyResult := func(passes bool) {
@@ -3506,9 +3438,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousSoftware
 	for _, p := range []*fleet.Policy{continuousPolicy, transitionPolicy} {
 		var resp fleet.ModifyTeamPolicyResponse
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, p.ID), fleet.ModifyTeamPolicyRequest{
-			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-				SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
-			},
+			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
 		}, http.StatusOK, &resp)
 	}
 
@@ -3676,9 +3606,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsContinuousSoftware
 
 	var mtplr fleet.ModifyTeamPolicyResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
 	}, http.StatusOK, &mtplr)
 
 	submitPolicyResult := func(passes bool) {
@@ -3840,9 +3768,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsFailedInstallsAreL
 
 		var resp fleet.ModifyTeamPolicyResponse
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy.ID), fleet.ModifyTeamPolicyRequest{
-			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-				SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
-			},
+			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
 		}, http.StatusOK, &resp)
 		policyIDs = append(policyIDs, policy.ID)
 	}
@@ -4031,9 +3957,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsPreInstallFailures
 
 	var resp fleet.ModifyTeamPolicyResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titlesResp.SoftwareTitles[0].ID},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titlesResp.SoftwareTitles[0].ID},
 	}, http.StatusOK, &resp)
 
 	// Report more times than the limit allows, so a counted failure would have stopped the installs.
@@ -4152,10 +4076,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwarePackageSele
 	// Modify the first policy to point at the chosen package.
 	var modResp fleet.ModifyTeamPolicyResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", teamID, defResp.Policy.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID:     optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
-			SoftwareInstallerID: optjson.Any[uint]{Set: true, Valid: true, Value: packageB},
-		},
+		SoftwareTitleID:     optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
+		SoftwareInstallerID: optjson.Any[uint]{Set: true, Valid: true, Value: packageB},
 	}, http.StatusOK, &modResp)
 	require.Equal(t, packageB, storedPackageID(defResp.Policy.ID))
 

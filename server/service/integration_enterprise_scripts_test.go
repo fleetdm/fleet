@@ -470,15 +470,15 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	var batchStatusResp fleet.BatchScriptExecutionStatusResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s", batchRes.BatchExecutionID), nil, http.StatusOK, &batchStatusResp)
 	require.Equal(t, *batchStatusResp.ScriptID, script.ID)
-	require.Equal(t, *batchStatusResp.NumTargeted, uint(2))
-	require.Equal(t, *batchStatusResp.NumPending, uint(2))
+	require.Equal(t, uint(2), *batchStatusResp.NumTargeted)
+	require.Equal(t, uint(2), *batchStatusResp.NumPending)
 
 	// Deprecated summary endpoint
 	var batchSummaryResp fleet.BatchScriptExecutionSummaryResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/summary/%s", batchRes.BatchExecutionID), nil, http.StatusOK, &batchSummaryResp)
 	require.Equal(t, batchSummaryResp.ScriptID, script.ID)
-	require.Equal(t, *batchSummaryResp.NumTargeted, uint(2))
-	require.Equal(t, *batchSummaryResp.NumPending, uint(2))
+	require.Equal(t, uint(2), *batchSummaryResp.NumTargeted)
+	require.Equal(t, uint(2), *batchSummaryResp.NumPending)
 
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeRanScriptBatch{}.ActivityName(),
@@ -494,13 +494,13 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	// List pending hosts
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s/host_results?status=pending", batchRes.BatchExecutionID), nil, http.StatusOK, &batchPendingHostsResp)
 	require.Len(t, batchPendingHostsResp.Hosts, 2)
-	require.Equal(t, batchPendingHostsResp.Count, uint(2))
-	require.Equal(t, batchPendingHostsResp.Meta.HasNextResults, false)
-	require.Equal(t, batchPendingHostsResp.Meta.HasPreviousResults, false)
-	require.Equal(t, batchPendingHostsResp.Hosts[0].Status, fleet.BatchScriptExecutionPending)
+	require.Equal(t, uint(2), batchPendingHostsResp.Count)
+	require.False(t, batchPendingHostsResp.Meta.HasNextResults)
+	require.False(t, batchPendingHostsResp.Meta.HasPreviousResults)
+	require.Equal(t, fleet.BatchScriptExecutionPending, batchPendingHostsResp.Hosts[0].Status)
 	require.Equal(t, batchPendingHostsResp.Hosts[0].DisplayName, host1.ComputerName)
 	require.Equal(t, batchPendingHostsResp.Hosts[0].ID, host1.ID)
-	require.Equal(t, batchPendingHostsResp.Hosts[1].Status, fleet.BatchScriptExecutionPending)
+	require.Equal(t, fleet.BatchScriptExecutionPending, batchPendingHostsResp.Hosts[1].Status)
 	require.Equal(t, batchPendingHostsResp.Hosts[1].DisplayName, host2.ComputerName)
 	require.Equal(t, batchPendingHostsResp.Hosts[1].ID, host2.ID)
 
@@ -516,23 +516,23 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	var batchListResp fleet.BatchScriptExecutionListResponse
 	s.DoJSON("GET", "/api/latest/fleet/scripts/batch?team_id=0&per_page=1", nil, http.StatusOK, &batchListResp)
 	require.Len(t, batchListResp.BatchScriptExecutions, 1)
-	require.Equal(t, batchListResp.Count, uint(2))
-	require.Equal(t, batchListResp.Meta.HasNextResults, true)
-	require.Equal(t, batchListResp.Meta.HasPreviousResults, false)
+	require.Equal(t, uint(2), batchListResp.Count)
+	require.True(t, batchListResp.Meta.HasNextResults)
+	require.False(t, batchListResp.Meta.HasPreviousResults)
 	require.Equal(t, batchListResp.BatchScriptExecutions[0].BatchExecutionID, batchRes2.BatchExecutionID)
 	require.Equal(t, *batchListResp.BatchScriptExecutions[0].ScriptID, script.ID)
-	require.Equal(t, *batchListResp.BatchScriptExecutions[0].NumTargeted, uint(1))
-	require.Equal(t, *batchListResp.BatchScriptExecutions[0].NumPending, uint(1))
+	require.Equal(t, uint(1), *batchListResp.BatchScriptExecutions[0].NumTargeted)
+	require.Equal(t, uint(1), *batchListResp.BatchScriptExecutions[0].NumPending)
 
 	s.DoJSON("GET", "/api/latest/fleet/scripts/batch?team_id=0&page=1&per_page=1", nil, http.StatusOK, &batchListResp)
 	require.Len(t, batchListResp.BatchScriptExecutions, 1)
-	require.Equal(t, batchListResp.Count, uint(2))
-	require.Equal(t, batchListResp.Meta.HasNextResults, false)
-	require.Equal(t, batchListResp.Meta.HasPreviousResults, true)
+	require.Equal(t, uint(2), batchListResp.Count)
+	require.False(t, batchListResp.Meta.HasNextResults)
+	require.True(t, batchListResp.Meta.HasPreviousResults)
 	require.Equal(t, batchListResp.BatchScriptExecutions[0].BatchExecutionID, batchRes.BatchExecutionID)
 	require.Equal(t, *batchListResp.BatchScriptExecutions[0].ScriptID, script.ID)
-	require.Equal(t, *batchListResp.BatchScriptExecutions[0].NumTargeted, uint(2))
-	require.Equal(t, *batchListResp.BatchScriptExecutions[0].NumPending, uint(2))
+	require.Equal(t, uint(2), *batchListResp.BatchScriptExecutions[0].NumTargeted)
+	require.Equal(t, uint(2), *batchListResp.BatchScriptExecutions[0].NumPending)
 
 	var batchResUpcoming fleet.BatchScriptRunResponse
 	// Queue scripts again, now in upcoming activities queue
@@ -644,8 +644,8 @@ func (s *integrationEnterpriseTestSuite) TestCancelBatchScripts() {
 	var batchStatusResp fleet.BatchScriptExecutionStatusResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s", batchRes.BatchExecutionID), nil, http.StatusOK, &batchStatusResp)
 	require.Equal(t, *batchStatusResp.ScriptID, script.ID)
-	require.Equal(t, *batchStatusResp.NumTargeted, uint(2))
-	require.Equal(t, *batchStatusResp.NumPending, uint(2))
+	require.Equal(t, uint(2), *batchStatusResp.NumTargeted)
+	require.Equal(t, uint(2), *batchStatusResp.NumPending)
 
 	var batchCancelResp fleet.BatchScriptCancelResponse
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s/cancel", batchRes.BatchExecutionID), nil, http.StatusOK, &batchCancelResp)
@@ -658,9 +658,9 @@ func (s *integrationEnterpriseTestSuite) TestCancelBatchScripts() {
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s", batchRes.BatchExecutionID), nil, http.StatusOK, &batchStatusResp)
 	require.Equal(t, *batchStatusResp.ScriptID, script.ID)
-	require.Equal(t, *batchStatusResp.NumTargeted, uint(2))
-	require.Equal(t, *batchStatusResp.NumPending, uint(0))
-	require.Equal(t, *batchStatusResp.NumCanceled, uint(2))
+	require.Equal(t, uint(2), *batchStatusResp.NumTargeted)
+	require.Equal(t, uint(0), *batchStatusResp.NumPending)
+	require.Equal(t, uint(2), *batchStatusResp.NumCanceled)
 
 	// Future execution
 	var batchResScheduled fleet.BatchScriptRunResponse
@@ -674,8 +674,8 @@ func (s *integrationEnterpriseTestSuite) TestCancelBatchScripts() {
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s", batchResScheduled.BatchExecutionID), nil, http.StatusOK, &batchStatusResp)
 	require.Equal(t, *batchStatusResp.ScriptID, script.ID)
-	require.Equal(t, *batchStatusResp.NumTargeted, uint(2))
-	require.Equal(t, *batchStatusResp.NumPending, uint(2))
+	require.Equal(t, uint(2), *batchStatusResp.NumTargeted)
+	require.Equal(t, uint(2), *batchStatusResp.NumPending)
 
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s/cancel", batchResScheduled.BatchExecutionID), nil, http.StatusOK, &batchCancelResp)
 
@@ -687,9 +687,9 @@ func (s *integrationEnterpriseTestSuite) TestCancelBatchScripts() {
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s", batchResScheduled.BatchExecutionID), nil, http.StatusOK, &batchStatusResp)
 	require.Equal(t, *batchStatusResp.ScriptID, script.ID)
-	require.Equal(t, *batchStatusResp.NumTargeted, uint(2))
-	require.Equal(t, *batchStatusResp.NumPending, uint(0))
-	require.Equal(t, *batchStatusResp.NumCanceled, uint(2))
+	require.Equal(t, uint(2), *batchStatusResp.NumTargeted)
+	require.Equal(t, uint(0), *batchStatusResp.NumPending)
+	require.Equal(t, uint(2), *batchStatusResp.NumCanceled)
 }
 
 func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
@@ -1228,7 +1228,7 @@ func (s *integrationEnterpriseTestSuite) TestListSavedScripts() {
 	require.NoError(t, err)
 
 	// create 5 scripts for no team and team 1
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		_, err = s.ds.NewScript(ctx, &fleet.Script{
 			Name:           string('a' + byte(i)), // i.e. "a", "b", "c", ...
 			ScriptContents: "echo",
@@ -1307,7 +1307,7 @@ func (s *integrationEnterpriseTestSuite) TestListSavedScripts() {
 			}
 			s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusOK, &listResp, queryArgs...)
 
-			require.Equal(t, len(c.wantNames), len(listResp.Scripts))
+			require.Len(t, listResp.Scripts, len(c.wantNames))
 			require.Equal(t, c.wantMeta, listResp.Meta)
 
 			var gotNames []string
@@ -1344,7 +1344,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 	require.NoError(t, err)
 
 	// create 5 scripts for no team and team 1
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		_, err = s.ds.NewScript(ctx, &fleet.Script{Name: fmt.Sprintf("test-script-details-%d.sh", i), ScriptContents: "echo"})
 		require.NoError(t, err)
 		_, err = s.ds.NewScript(ctx, &fleet.Script{Name: fmt.Sprintf("test-script-details-%d.sh", i), TeamID: &tm1.ID, ScriptContents: "echo"})
@@ -1457,7 +1457,7 @@ INSERT INTO
 VALUES
 	(%s ?,?,?,?,?,?, 1)`
 
-		args := []interface{}{}
+		args := []any{}
 		var scID uint
 		mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 			// First check if this script content already exists
@@ -1661,7 +1661,7 @@ VALUES
 		var resp fleet.GetHostScriptDetailsResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host2.ID), nil, http.StatusOK, &resp)
 		require.NotNil(t, resp.Scripts)
-		require.Len(t, resp.Scripts, 0)
+		require.Empty(t, resp.Scripts)
 	})
 
 	t.Run("windows", func(t *testing.T) {
@@ -1679,7 +1679,7 @@ VALUES
 		require.Nil(t, host4.TeamID)
 		noTeamScripts, _, err := s.ds.ListScripts(ctx, nil, fleet.ListOptions{})
 		require.NoError(t, err)
-		require.True(t, len(noTeamScripts) > 0)
+		require.NotEmpty(t, noTeamScripts)
 
 		var resp fleet.GetHostScriptDetailsResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host4.ID), nil, http.StatusOK, &resp)

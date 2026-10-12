@@ -34,13 +34,12 @@ func (s *integrationEnterpriseTestSuite) TestInvitedUserMFA() {
 	t := s.T()
 
 	// create valid invite
-	createInviteReq := createInviteRequest{InvitePayload: fleet.InvitePayload{
+	createInviteReq := createInviteRequest{
 		Email:      new("some@email.com"),
 		Name:       new("some name"),
 		GlobalRole: null.StringFrom(fleet.RoleAdmin),
 		MFAEnabled: new(true),
-		SSOEnabled: new(true),
-	}}
+		SSOEnabled: new(true)}
 	createInviteResp := createInviteResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/invites", createInviteReq, http.StatusConflict, &createInviteResp)
 	createInviteReq.SSOEnabled = nil
@@ -69,17 +68,16 @@ func (s *integrationEnterpriseTestSuite) TestInvitedUserMFA() {
 	require.True(t, createFromInviteResp.User.MFAEnabled)
 
 	// create an invite with SSO, swap to MFA
-	createInviteReq = createInviteRequest{InvitePayload: fleet.InvitePayload{
+	createInviteReq = createInviteRequest{
 		Email:      new("a@b.d"),
 		Name:       new("some other name"),
 		GlobalRole: null.StringFrom(fleet.RoleAdmin),
-		SSOEnabled: new(true),
-	}}
+		SSOEnabled: new(true)}
 	s.DoJSON("POST", "/api/latest/fleet/invites", createInviteReq, http.StatusOK, &createInviteResp)
 	validInvite = *createInviteResp.Invite
 	var updateInviteResp updateInviteResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/invites/%d", validInvite.ID), updateInviteRequest{
-		InvitePayload: fleet.InvitePayload{MFAEnabled: new(true), SSOEnabled: new(false)},
+		MFAEnabled: new(true), SSOEnabled: new(false),
 	}, http.StatusOK, &updateInviteResp)
 	require.True(t, updateInviteResp.Invite.MFAEnabled)
 }
@@ -379,7 +377,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	user, err = s.ds.UserByEmail(context.Background(), "sso_user@example.com")
 	require.NoError(t, err)
 	require.NotNil(t, user.GlobalRole)
-	require.Equal(t, *user.GlobalRole, "admin")
+	require.Equal(t, "admin", *user.GlobalRole)
 	require.Equal(t, "SSO User 1", user.Name)
 
 	// A user with pre-configured roles can be created
@@ -538,7 +536,7 @@ func (s *integrationEnterpriseTestSuite) TestListAPIEndpoints() {
 		u := &fleet.User{
 			Name:  "team " + role,
 			Email: "team-" + role + "-api-endpoints@example.com",
-			Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team.ID}, Role: role}},
+			Teams: []fleet.UserTeam{{ID: team.ID, Role: role}},
 		}
 		require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
 		_, err := s.ds.NewUser(context.Background(), u)
@@ -551,7 +549,7 @@ func (s *integrationEnterpriseTestSuite) TestListAPIEndpoints() {
 	teamAdmin := &fleet.User{
 		Name:  "team admin",
 		Email: "team-admin-api-endpoints@example.com",
-		Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team.ID}, Role: fleet.RoleAdmin}},
+		Teams: []fleet.UserTeam{{ID: team.ID, Role: fleet.RoleAdmin}},
 	}
 	require.NoError(t, teamAdmin.SetPassword(test.GoodPassword, 10, 10))
 	_, err = s.ds.NewUser(context.Background(), teamAdmin)
