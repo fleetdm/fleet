@@ -3936,6 +3936,9 @@ func (svc *Service) softwareBatchUpload(
 
 				if installer.UninstallScript == "" {
 					installer.UninstallScript = file.GetUninstallScript(installer.Extension)
+					if installer.UpgradeCode != "" {
+						installer.UninstallScript = file.UninstallMsiWithUpgradeCodeScript
+					}
 				}
 
 			case installer.Extension == "ipa":
@@ -4255,6 +4258,7 @@ func (svc *Service) fillSoftwareInstallerPayloadFromExisting(ctx context.Context
 	payload.Title = existing.Title
 	payload.StorageID = sha256Hash
 	payload.PackageIDs = existing.PackageIDs
+	payload.UpgradeCode = existing.UpgradeCode
 
 	if fleet.IsScriptPackage(existing.Extension) {
 		contents, err := svc.ds.GetAnyScriptContents(ctx, existing.InstallScriptContentID)

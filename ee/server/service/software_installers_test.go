@@ -3836,3 +3836,154 @@ func TestDownloadInstallerURLBlocksPrivateNetworks(t *testing.T) {
 		})
 	}
 }
+
+func TestFillSoftwareInstallerPayloadFromExistingUpgradeCode(t *testing.T) {
+	cases := []struct {
+		name, code, bundle, source, wantIdentity string
+	}{
+		{name: "coded msi", code: "code", source: "programs", wantIdentity: "code"},
+		{name: "no code", source: "programs", wantIdentity: "title"},
+		{name: "bundle wins", code: "code", bundle: "bundle", source: "programs", wantIdentity: "bundle"},
+		{name: "code ignored outside programs", code: "code", source: "apps", wantIdentity: "title"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			svc := newTestService(t, new(mock.Store))
+			existing := &fleet.ExistingSoftwareInstaller{Title: "title", Source: c.source, UpgradeCode: c.code, PackageIDs: []string{"product"}}
+			if c.bundle != "" {
+				existing.BundleIdentifier = &c.bundle
+			}
+			payload := &fleet.UploadSoftwareInstallerPayload{UninstallScript: "custom script"}
+			require.NoError(t, svc.fillSoftwareInstallerPayloadFromExisting(t.Context(), payload, existing, "hash"))
+			require.Equal(t, c.code, payload.UpgradeCode)
+			require.Equal(t, c.wantIdentity, payload.UniqueIdentifier())
+			require.Equal(t, "custom script", payload.UninstallScript)
+		})
+	}
+}
+
+func TestSoftwareBatchUploadMSIReuseUninstallScript(t *testing.T) {
+	const code = "{B681CB20-107E-428A-9B14-2D3C1AFED244}"
+	productDefault := file.GetUninstallScript("msi")
+	cases := []struct {
+		name, code, script, wantRaw string
+	}{
+		{name: "omitted with code", code: code, wantRaw: file.UninstallMsiWithUpgradeCodeScript},
+		{name: "omitted without code", wantRaw: productDefault},
+		{name: "custom script with upgrade code variable", code: code, script: "Write-Output $UPGRADE_CODE", wantRaw: "Write-Output $UPGRADE_CODE"},
+		// Fresh parsing normalizes this to the upgrade code script; reuse keeps explicit scripts as written.
+		{name: "explicit product code default", code: code, script: productDefault, wantRaw: productDefault},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.TeamLiteFunc = func(ctx context.Context, tmID uint) (*fleet.TeamLite, error) {
+				return &fleet.TeamLite{ID: tmID}, nil
+			}
+			ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+				return map[uint][]*fleet.ExistingSoftwareInstaller{1: {{
+					Title: "MSI", Extension: "msi", Filename: "test.msi", Platform: "windows", Source: "programs",
+					UpgradeCode: c.code, PackageIDs: []string{"product-id"},
+				}}}, nil
+			}
+			ds.GetSoftwareInstallersPendingDeletionFunc = func(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+				return nil, nil
+			}
+			var applied []*fleet.UploadSoftwareInstallerPayload
+			ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
+				applied = installers
+				return nil, nil
+			}
+			ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+				return nil
+			}
+			ds.ReconcileWindowsMaintainedAppSoftwareTitlesFunc = func(ctx context.Context) error { return nil }
+
+			svc := newTestService(t, ds)
+			svc.keyValueStore, _ = inMemoryKeyValueStore()
+			svc.softwareInstallStore = &mocksoftware.SoftwareInstallerStore{
+				ExistsFunc: func(ctx context.Context, id string) (bool, error) { return true, nil },
+			}
+
+			svc.softwareBatchUpload("req-uuid", new(uint(1)), 1, []*fleet.SoftwareInstallerPayload{{SHA256: "hash", UninstallScript: c.script}}, false)
+
+			status, err := svc.keyValueStore.Get(t.Context(), batchSoftwarePrefix+"req-uuid")
+			require.NoError(t, err)
+			require.NotNil(t, status)
+			require.Equal(t, batchSetCompleted, *status)
+			require.Len(t, applied, 1)
+			require.Equal(t, c.code, applied[0].UpgradeCode)
+			want := &fleet.UploadSoftwareInstallerPayload{Extension: "msi", UpgradeCode: c.code, PackageIDs: []string{"product-id"}, UninstallScript: c.wantRaw}
+			require.NoError(t, preProcessUninstallScript(want))
+			require.Equal(t, want.UninstallScript, applied[0].UninstallScript)
+		})
+	}
+}
+
+func TestSoftwareBatchUploadWindowsFMAKeepsManifestUninstallScript(t *testing.T) {
+	const (
+		code       = "{B681CB20-107E-428A-9B14-2D3C1AFED244}"
+		cachedHash = "1111111111111111111111111111111111111111111111111111111111111111"
+		uninstall  = "msiexec /x '{B681CB20-107E-428A-9B14-2D3C1AFED244}' /qn"
+	)
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.NoError(t, json.NewEncoder(w).Encode(ma.FMAManifestFile{
+			Versions: []*ma.FMAManifestApp{{
+				Version:            "1.0",
+				InstallerURL:       "https://example.com/app.msi",
+				SHA256:             cachedHash,
+				UpgradeCode:        code,
+				InstallScriptRef:   "install",
+				UninstallScriptRef: "uninstall",
+			}},
+			Refs: map[string]string{"install": "msiexec /i app.msi", "uninstall": uninstall},
+		}))
+	}))
+	t.Cleanup(manifestServer.Close)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
+
+	ds := new(mock.Store)
+	ds.GetMaintainedAppBySlugFunc = func(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error) {
+		return &fleet.MaintainedApp{ID: 1, Name: "App", Platform: "windows", Slug: slug}, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, tmID uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: tmID}, nil
+	}
+	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+		return nil, nil
+	}
+	ds.HasFMAInstallerVersionFunc = func(ctx context.Context, tmID *uint, fmaID uint, version string) (bool, string, error) {
+		return true, cachedHash, nil
+	}
+	ds.GetSoftwareInstallersPendingDeletionFunc = func(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+		return nil, nil
+	}
+	var applied []*fleet.UploadSoftwareInstallerPayload
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
+		applied = installers
+		return nil, nil
+	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.ReconcileWindowsMaintainedAppSoftwareTitlesFunc = func(ctx context.Context) error { return nil }
+
+	svc := newTestService(t, ds)
+	svc.keyValueStore, _ = inMemoryKeyValueStore()
+	svc.softwareInstallStore = &mocksoftware.SoftwareInstallerStore{
+		ExistsFunc: func(ctx context.Context, id string) (bool, error) { return id == cachedHash, nil },
+	}
+
+	payload := &fleet.SoftwareInstallerPayload{Slug: new("app/windows")}
+	require.NoError(t, svc.softwareInstallerPayloadFromSlug(t.Context(), payload, new(uint(1))))
+	svc.softwareBatchUpload("req-uuid", new(uint(1)), 1, []*fleet.SoftwareInstallerPayload{payload}, false)
+
+	status, err := svc.keyValueStore.Get(t.Context(), batchSoftwarePrefix+"req-uuid")
+	require.NoError(t, err)
+	require.NotNil(t, status)
+	require.Equal(t, batchSetCompleted, *status)
+	require.Len(t, applied, 1)
+	require.Empty(t, applied[0].PackageIDs)
+	require.Equal(t, code, applied[0].UpgradeCode)
+	require.Equal(t, uninstall, applied[0].UninstallScript)
+}
