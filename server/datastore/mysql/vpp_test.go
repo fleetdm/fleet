@@ -1416,7 +1416,7 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	noTeamApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp2", BundleIdentifier: "com.app.vpp2",
 		AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform,
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 	noTeamMeta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, new(uint(0)), noTeamApp.TitleID)
 	require.NoError(t, err)
