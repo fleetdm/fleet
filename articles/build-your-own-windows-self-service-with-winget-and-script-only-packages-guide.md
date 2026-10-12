@@ -12,7 +12,7 @@ Fleet 4.89.0 gave script-only packages an uninstall script, a pre-install query,
 - App Installer present on those hosts, which provides winget. Windows Server and LTSC images often ship without it.
 - Fleet Desktop available to end users, so the self-service page is reachable from the Windows system tray.
 
-> **Note:** Script-only packages do not support an `install_script` key, because the file's contents already are the install script. They also do not support automatic install through a policy. Drive these through self-service.
+> **Note:** Script-only packages don't support an `install_script` key, because the file's contents already are the install script. A policy's `install_software` in GitOps also can't reference a script-only package. Drive these through self-service.
 
 ## Step 1: Find the Store ID and package name
 

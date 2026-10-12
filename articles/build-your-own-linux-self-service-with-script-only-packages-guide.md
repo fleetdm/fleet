@@ -9,7 +9,7 @@ Fleet 4.89.0 gave script-only packages an uninstall script, a pre-install query,
 - Linux hosts enrolled in Fleet with `fleetd`, running a distribution that uses `apt-get` or `dnf`.
 - Fleet Desktop available to end users, so the self-service page is reachable.
 
-> **Note:** Script-only packages do not support an `install_script` key (the file's contents already are the install script) or automatic install through a policy. Drive installs through self-service or the setup experience, not `install_software`.
+> **Note:** Script-only packages don't support an `install_script` key, because the file's contents already are the install script. A policy's `install_software` in GitOps also can't reference a script-only package. Drive installs through self-service or the setup experience.
 
 ## Step 1: Write the install script
 

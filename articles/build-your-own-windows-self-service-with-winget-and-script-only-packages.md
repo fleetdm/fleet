@@ -170,7 +170,7 @@ labels:
 
 With `self_service: true`, the app appears on the end user's self-service page, reachable from the Fleet icon in the Windows system tray. Every app is three files and a YAML block, so adding or removing one is a pull request. Reviewers see exactly what will run, and the catalog is auditable and reversible. [Turn on GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) to make the Fleet UI reflect that these are code-managed.
 
-Script-only packages don't support automatic install through a policy, and they don't take an `install_script` key, because the file's contents already are the install script. Self-service is the delivery mechanism here, which suits Store apps anyway.
+Script-only packages don't take an `install_script` key, because the file's contents already are the install script. A policy's `install_software` in GitOps also can't reference a script-only package, so self-service is the delivery mechanism here, which suits Store apps anyway.
 
 ## Generate the whole tile from a Store ID
 
