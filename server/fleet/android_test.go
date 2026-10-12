@@ -322,3 +322,19 @@ func TestValidateUserProvided_FleetVariables(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateUserProvided_SoftwareKeys(t *testing.T) {
+	for key := range AndroidSoftwareJSONKeysFree {
+		require.Contains(t, AndroidForbiddenJSONKeys, key)
+
+		prof := MDMAndroidConfigProfile{Name: "test", RawJSON: []byte(`{"` + key + `": true}`)}
+
+		err := prof.ValidateUserProvided(true)
+		require.EqualError(t, err, AndroidForbiddenJSONKeys[key])
+		require.Contains(t, err.Error(), "Software > Add software > App store")
+
+		err = prof.ValidateUserProvided(false)
+		require.EqualError(t, err, AndroidSoftwareJSONKeysFree[key])
+		require.Contains(t, err.Error(), "Fleet Premium only")
+	}
+}
