@@ -1447,6 +1447,7 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	query, whereParams = filterHostsByStatus(ds.clock.Now(), query, opt, whereParams)
 	query, whereParams = filterHostsByTeam(query, opt, whereParams)
 	query, whereParams = filterHostsByMDM(query, opt, whereParams)
+	query, whereParams = filterHostsByDEPAssignProfile(query, opt, whereParams)
 	query, whereParams, err = filterHostsByMacOSSettingsStatus(query, opt, whereParams, diskEncryptionConfig)
 	if err != nil {
 		return "", nil, ctxerr.Wrap(ctx, err, "building macOS settings status filter")
