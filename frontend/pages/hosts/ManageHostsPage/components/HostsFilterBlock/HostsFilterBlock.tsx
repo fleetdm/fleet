@@ -677,6 +677,9 @@ const HostsFilterBlock = ({
     selectedLabel.type !== "all" &&
     selectedLabel.type !== "platform";
 
+  // The request only filters on "true" (see strToBool), so "false" must not show a pill.
+  const showDepProfileError = depProfileError === "true";
+
   if (
     showSelectedLabel ||
     policyId ||
@@ -697,7 +700,7 @@ const HostsFilterBlock = ({
     vulnerability ||
     (configProfileStatus && configProfileUUID && configProfile) ||
     (scriptBatchExecutionStatus && scriptBatchExecutionId) ||
-    depProfileError ||
+    showDepProfileError ||
     depAssignProfileResponse
   ) {
     const renderFilterPill = () => {
@@ -737,7 +740,7 @@ const HostsFilterBlock = ({
               {renderLabelFilterPill()} {renderDiskEncryptionStatusBlock()}
             </>
           );
-        case showSelectedLabel && !!depProfileError:
+        case showSelectedLabel && showDepProfileError:
           return (
             <>
               {renderLabelFilterPill()} {renderDepProfileError()}
@@ -792,7 +795,7 @@ const HostsFilterBlock = ({
           return renderConfigProfileStatusBlock();
         case !!scriptBatchExecutionStatus && !!scriptBatchExecutionId:
           return renderScriptBatchExecutionBlock();
-        case !!depProfileError:
+        case showDepProfileError:
           return renderDepProfileError();
         case !!depAssignProfileResponse:
           return renderDepAssignProfileResponse();

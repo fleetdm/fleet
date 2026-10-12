@@ -99,6 +99,21 @@ describe("HostsFilterBlock", () => {
       ).toBeInTheDocument();
     });
 
+    it("shows only the label pill when the AB issues filter is false", () => {
+      render(
+        <HostsFilterBlock
+          {...baseProps}
+          params={{ ...baseParams, depProfileError: "false" }}
+          selectedLabel={selectedLabel}
+        />
+      );
+
+      expect(screen.getByText("Engineering")).toBeInTheDocument();
+      expect(
+        screen.queryByText("Apple Business (AB) issues")
+      ).not.toBeInTheDocument();
+    });
+
     it("shows both the label and the AB profile assignment pills", () => {
       render(
         <HostsFilterBlock
