@@ -1570,6 +1570,7 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice 
 		// A proxied SCEP install the host just ACKed waits in "verifying" until the device reports the certificate, so ask
 		// it. The SCEP CSP enrolls after it ACKs, so the service holds the probe back for fleet.WindowsSCEPStatusProbeDelay.
 		if len(scepVerifying) > 0 {
+			// The host profile row doesn't record the SCEP node's scope; the install command we just matched does, and it is already in memory.
 			installRawCmds := make(map[string][]byte, len(matchingCmds))
 			for _, cmd := range matchingCmds {
 				installRawCmds[cmd.CommandUUID] = cmd.RawCommand

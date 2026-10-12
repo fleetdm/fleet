@@ -3014,9 +3014,7 @@ func espUserReleaseLocURI(provID string) string {
 	return fmt.Sprintf("./User/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID)
 }
 
-// espReleaseAttemptCmdIDPrefix marks the CmdID of every user-scope ESP release attempt Fleet sends (the initial
-// finalize's Replace and each retry).
-const espReleaseAttemptCmdIDPrefix = "esp-release-"
+const espReleaseAttemptCmdIDPrefix = fleet.WindowsESPReleaseCmdIDPrefix
 
 // isOMADMSessionStart reports whether reqMsg opens an OMA-DM session: device MsgID 1 (auth) or 2 (trusted request). The
 // device acks message N's commands in message N+1, so a command re-sent on every message keeps the session open.

@@ -60,7 +60,7 @@ func windowsSCEPStatusProbeCommand(installCmdUUID, profileUUID string, userScope
 	if userScoped {
 		scope = "./User"
 	}
-	// The SCEP node ID is the profile UUID, substituted for $FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID at delivery.
+	// The SCEP node ID is the profile UUID.
 	node := fmt.Sprintf("%s/Vendor/MSFT/ClientCertificateInstall/SCEP/%s", scope, profileUUID)
 	cmdUUID := windowsSCEPStatusProbeCmdUUID(installCmdUUID, attempt)
 	raw := fmt.Sprintf(`<Get><CmdID>%s</CmdID>`+
@@ -94,12 +94,9 @@ func isUserScopedWindowsSCEPInstall(rawCommand []byte) bool {
 	return bytes.Contains(rawCommand, []byte("/User/Vendor/MSFT/ClientCertificateInstall/SCEP"))
 }
 
-// enqueueWindowsSCEPStatusProbeDB queues a probe for the enrollment. The service holds it back for
-// fleet.WindowsSCEPStatusProbeDelay, and the queued probe keeps the enrollment's has_pending_commands set so fleetd wakes
-// the device to receive it. A probe that already exists, from a duplicate answer, is left alone.
+// enqueueWindowsSCEPStatusProbeDB queues a probe for the enrollment. A probe that already exists, from a duplicate answer, is left alone.
 func (ds *Datastore) enqueueWindowsSCEPStatusProbeDB(ctx context.Context, tx sqlx.ExtContext, enrollmentID uint, cmd *fleet.MDMWindowsCommand) error {
-	// The probe's command UUID is deterministic, so a duplicate key means it is already queued, possibly by a concurrent
-	// save of the same answer. The failed statement does not abort the transaction.
+	// The probe's command UUID is deterministic, so a duplicate key means it is already queued.
 	err := ds.mdmWindowsInsertCommandForEnrollmentIDsDB(ctx, tx, []uint{enrollmentID}, cmd)
 	var existsErr *existsError
 	if err != nil && !errors.As(err, &existsErr) {
@@ -111,8 +108,7 @@ func (ds *Datastore) enqueueWindowsSCEPStatusProbeDB(ctx context.Context, tx sql
 // applyWindowsSCEPStatusProbeResultDB applies the device's answer to a SCEP status probe to the delivery it was sent for,
 // and only while that delivery is still verifying. Status 1 means the certificate is in the store. Status 16 means the
 // enrollment failed, or that the certificate was later removed, and is charged like any other delivery failure. It
-// reports whether a profile row changed and whether the delivery is still waiting for its certificate. results is nil
-// when the device answered the Get without values.
+// reports whether a profile row changed and whether the delivery is still waiting for its certificate.
 func applyWindowsSCEPStatusProbeResultDB(ctx context.Context, tx sqlx.ExtContext, hostUUID, installCmdUUID string, results *fleet.SyncMLCmd,
 ) (changed bool, waiting bool, err error) {
 	var status, errorCode string
