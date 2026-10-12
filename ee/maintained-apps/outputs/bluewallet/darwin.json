@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "7.2.6",
+      "version": "8.0.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.bluewallet.bluewallet';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.bluewallet.bluewallet' AND version_compare(bundle_short_version, '7.2.6') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.bluewallet.bluewallet' AND version_compare(bundle_short_version, '8.0.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'io.bluewallet.bluewallet' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/BlueWallet/BlueWallet/releases/download/v7.2.6/BlueWallet.7.2.6.dmg",
+      "installer_url": "https://github.com/BlueWallet/BlueWallet/releases/download/v8.0.2/BlueWallet.8.0.2.dmg",
       "install_script_ref": "c73f23fb",
       "uninstall_script_ref": "78f446b9",
-      "sha256": "38299c0800d1bf19656638ccf64266fa1d2e614f2845918fe544c0c1b3935328",
+      "sha256": "48a00b77db731de45d2de8262a9047c06c43547f359730f966400eaf88fbf019",
       "default_categories": [
         "Productivity"
       ]

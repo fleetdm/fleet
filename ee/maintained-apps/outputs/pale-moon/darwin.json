@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "35.0.1",
+      "version": "35.0.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.pale moon';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.pale moon' AND version_compare(bundle_short_version, '35.0.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.pale moon' AND version_compare(bundle_short_version, '35.0.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.mozilla.pale moon' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://rm-us.palemoon.org/release/palemoon-35.0.1.arm64.dmg",
+      "installer_url": "https://rm-us.palemoon.org/release/palemoon-35.0.2.arm64.dmg",
       "install_script_ref": "cde456c6",
       "uninstall_script_ref": "e4f2f4b8",
-      "sha256": "0ea26f9926a53fda7615f229006a8aa96a3cd565b286c90946834f78472e4a0d",
+      "sha256": "1152e892e9e4f643e5545ca20493a8f7eb785894ac9eac68df5fbf30723c7255",
       "default_categories": [
         "Browsers"
       ]

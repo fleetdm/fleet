@@ -2565,6 +2565,7 @@ WHERE ncr.id = ?
 AND ncr.status = 'Acknowledged'
 AND hvsi.verification_at IS NULL
 AND hvsi.verification_failed_at IS NULL
+AND hvsi.canceled = 0
 	`
 
 	var result []*fleet.HostVPPSoftwareInstall

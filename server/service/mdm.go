@@ -2728,6 +2728,8 @@ func batchModifyMDMConfigProfilesEndpoint(ctx context.Context, request interface
 			LabelsIncludeAll: p.LabelsIncludeAll,
 			LabelsIncludeAny: p.LabelsIncludeAny,
 			LabelsExcludeAny: p.LabelsExcludeAny,
+			SelfService:      p.SelfService,
+			Hidden:           p.Hidden,
 		}
 	}
 	if err := svc.BatchSetMDMProfiles(ctx, req.TeamID, req.TeamName, profiles, req.DryRun, false, nil, false); err != nil {
@@ -2890,6 +2892,12 @@ func (svc *Service) BatchSetMDMProfiles(
 		labels = append(labels, profiles[i].LabelsExcludeAny...)
 
 		if err := validateProfileDeployFlags(ctx, profiles[i].SelfService, profiles[i].Hidden, isMobileconfigContents(profiles[i].Contents), "Couldn't edit configuration_profiles. "); err != nil {
+			if iaErr, ok := errors.AsType[*fleet.InvalidArgumentError](err); ok {
+				invalid := iaErr.Invalid()
+				if len(invalid) > 0 {
+					return fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", profiles[i].Name), invalid[0]["reason"])
+				}
+			}
 			return ctxerr.Wrap(ctx, err, "validating profile deploy flags")
 		}
 	}

@@ -1,1 +1,0 @@
-- Fixed the report page, report results API, and host details Reports tab failing when a host stored a result larger than MySQL's sort buffer (256 KB by default), and truncated long result values in host details Reports tab tooltips.

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -647,7 +648,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 			rootCAPool.AddCert(opts[0].ACMECertCA)
 			acmeOpts = append(acmeOpts, acme_bootstrap.WithTestAppleRootCAs(rootCAPool))
 		}
-		acmeSigner := &acmeCSRSigner{signer: depot.NewSigner(opts[0].SCEPStorage, depot.WithValidityDays(365), depot.WithAllowRenewalDays(14))}
+		acmeSigner := &acmeCSRSigner{signer: depot.NewSigner(opts[0].SCEPStorage, depot.WithValidityDays(365))}
 		acmeSvc, acmeRoutes := acme_bootstrap.New(opts[0].DBConns, redisPool, acmeacl.NewFleetDatastoreAdapter(ds, acmeSigner), logger, acmeOpts...)
 		svc.SetACMEService(acmeSvc)
 		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, acmeRoutes(log.Logged))
@@ -1656,8 +1657,8 @@ type acmeCSRSigner struct {
 	signer *depot.Signer
 }
 
-func (a *acmeCSRSigner) SignCSR(_ context.Context, csr *x509.CertificateRequest) (*x509.Certificate, error) {
-	return a.signer.Signx509CSR(csr)
+func (a *acmeCSRSigner) SignX509CSRWithCallback(csr *x509.CertificateRequest, subject pkix.Name, callback func(*x509.Certificate)) (*x509.Certificate, error) {
+	return a.signer.SignX509CSRWithCallback(csr, subject, callback)
 }
 
 // mockRoundTripper is a custom http.RoundTripper that redirects requests to a mock server.

@@ -280,9 +280,11 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 	hostIdentityCert, httpSigPresent := httpsig.FromContext(ctx)
 	if identityCert != nil {
 		if !httpSigPresent {
+			svc.recordEnrollmentRejected(ctx, fleet.EnrollmentRejectedHostIdentityCertRequired, identityCert.HostID, attempt)
 			return "", fleet.NewAuthFailedError("authentication error: missing HTTP signature")
 		}
 		if identityCert.SerialNumber != hostIdentityCert.SerialNumber {
+			svc.recordEnrollmentRejected(ctx, fleet.EnrollmentRejectedHostIdentityCertRequired, identityCert.HostID, attempt)
 			return "", fleet.NewAuthFailedError("authentication error: certificate serial number mismatch")
 		}
 	} else if httpSigPresent { // but we couldn't find the cert in DB

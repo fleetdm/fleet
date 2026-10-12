@@ -51,6 +51,10 @@ export interface ISoftwareApiParams {
   max_cvss_score?: number;
   min_cvss_score?: number;
   exploit?: boolean;
+  /** Comma-separated software sources. */
+  source?: string;
+  /** Comma-separated extension_for values, each narrowing its own source. */
+  extension_for?: string;
   availableForInstall?: boolean;
   packagesOnly?: boolean;
   selfService?: boolean;

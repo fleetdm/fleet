@@ -243,6 +243,29 @@ func TestEnrollOrbitWithOneTimeEnrollSecret(t *testing.T) {
 		require.Contains(t, f.logs.String(), "host_id=77 ")
 	})
 
+	t.Run("unsigned enrollment for a host with an identity cert is rejected and recorded", func(t *testing.T) {
+		for _, plane := range []string{"orbit", "osquery"} {
+			t.Run(plane, func(t *testing.T) {
+				f := newOneTimeEnrollFixture(t, true)
+				victim := uint(77)
+				f.ds.GetHostIdentityCertByNameFunc = func(ctx context.Context, name string) (*hostidentity_types.HostIdentityCertificate, error) {
+					return &hostidentity_types.HostIdentityCertificate{SerialNumber: 5, HostID: &victim}, nil
+				}
+				var err error
+				if plane == "orbit" {
+					_, err = f.svc.EnrollOrbit(f.ctx, f.orbitInfo(), "shared-secret", "")
+				} else {
+					_, err = f.svc.EnrollOsquery(f.ctx, "shared-secret", f.row.HardwareUUID, f.osqueryDetails())
+				}
+				requireAuthFailed(t, err)
+				require.Len(t, *f.rejections, 1)
+				require.Equal(t, fleet.EnrollmentRejectedHostIdentityCertRequired, (*f.rejections)[0].Reason)
+				require.Equal(t, &victim, (*f.rejections)[0].HostID)
+				require.Zero(t, *f.enrolled)
+			})
+		}
+	})
+
 	t.Run("unknown secret is still invalid", func(t *testing.T) {
 		f := newOneTimeEnrollFixture(t, true)
 		_, err := f.svc.EnrollOrbit(f.ctx, f.orbitInfo(), "nope", "")

@@ -4,6 +4,12 @@ Managing local administrator passwords is one of those things everyone knows mat
 
 The good news? With Fleet and 1Password Connect, you can automate the entire process. Think of it as setting up password rotation once and forgetting about it—except IT can still grab credentials when needed.
 
+> Fleet has a built-in managed local admin account for macOS and Windows hosts. It creates the account during setup, and you can
+> view and rotate its password from **Host details** > **Actions** > **Show managed account**. See the
+> [macOS setup experience guide](https://fleetdm.com/guides/setup-experience) and the
+> [Windows and Linux setup experience guide](https://fleetdm.com/guides/windows-linux-setup-experience). Use the approach below
+> if you need the passwords in your own vault, or on hosts the built-in account doesn't cover, such as Linux.
+
 ## What this solves
 
 **The problem:** Local admin accounts on macOS and Windows typically use passwords that never change. When someone leaves the team or a device is compromised, you're stuck manually resetting passwords across hundreds (or thousands) of machines.

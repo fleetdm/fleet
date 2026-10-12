@@ -2142,6 +2142,23 @@ func testGetUnverifiedVPPInstallsForHost(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		assert.Len(t, x, step.after)
 	}
+
+	// acknowledge a new install, it should be returned until it is canceled
+	cmdUUID4 := createVPPAppInstallRequest(t, ds, h1, vpp1.AdamID, nil)
+	createVPPAppInstallResult(t, ds, h1, cmdUUID4, "Acknowledged")
+
+	unverified, err := ds.GetUnverifiedVPPInstallsForHost(ctx, h1.UUID)
+	require.NoError(t, err)
+	require.Len(t, unverified, 1)
+	require.Equal(t, cmdUUID4, unverified[0].InstallCommandUUID)
+
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, `UPDATE host_vpp_software_installs SET canceled = 1 WHERE command_uuid = ?`, cmdUUID4)
+		return err
+	})
+	unverified, err = ds.GetUnverifiedVPPInstallsForHost(ctx, h1.UUID)
+	require.NoError(t, err)
+	require.Empty(t, unverified)
 }
 
 func testSoftwareTitleDisplayNameVPP(t *testing.T, ds *Datastore) {

@@ -5,6 +5,8 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -2839,4 +2841,64 @@ func computeOSUpdatesTarget(ctx context.Context, logger *slog.Logger, hosts []*f
 	}
 
 	return computedHosts
+}
+
+var AppleMDMCertificateBindingExtensionOID = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 63991, 1, 2}
+
+type AppleMDMCertificateBindingExtension struct {
+	Version int                       `json:"v"`
+	Purpose fleet.AppleMDMCertPurpose `json:"purpose"`
+	// UDID is only used for "ade" and "ota_phase*"
+	UDID *string `json:"udid,omitempty"`
+	// Serial is only used for "ade", "ota_phase*", "acme", and "acme_renewal"
+	Serial *string `json:"serial,omitempty"`
+	// IDPAccountUUID is only used for "adue"
+	IDPAccountUUID *string `json:"idp_account_uuid,omitempty"`
+	// EnrollmentID is only used for "renewal" and "acme_renewal" and is the device channel ID.
+	EnrollmentID *string `json:"enrollment_id,omitempty"`
+}
+
+func BuildAppleMDMCertificateBindingExtension(extension AppleMDMCertificateBindingExtension) (pkix.Extension, error) {
+	extension.Version = 1 // For now we force version 1
+
+	value, err := json.Marshal(extension)
+	if err != nil {
+		return pkix.Extension{}, err
+	}
+
+	asn1Value, err := asn1.Marshal(asn1.RawValue{Class: asn1.ClassUniversal, Tag: asn1.TagUTF8String, Bytes: value})
+	if err != nil {
+		return pkix.Extension{}, err
+	}
+
+	return pkix.Extension{
+		Id:    AppleMDMCertificateBindingExtensionOID,
+		Value: asn1Value,
+	}, nil
+}
+
+func AppleMDMSCEPCertificateSubject(newEnrollment bool) pkix.Name {
+	subject := pkix.Name{
+		Organization: []string{"Fleet"},
+		CommonName:   "Fleet Identity",
+	}
+
+	if newEnrollment {
+		subject.OrganizationalUnit = append(subject.OrganizationalUnit, FleetEnrollmentSubjectOU)
+	}
+
+	return subject
+}
+
+func AppleMDMAcmeCertificateSubject(newEnrollment bool) pkix.Name {
+	subject := pkix.Name{
+		CommonName:         "Fleet Identity",
+		OrganizationalUnit: []string{"fleet"},
+	}
+
+	if newEnrollment {
+		subject.OrganizationalUnit = append(subject.OrganizationalUnit, FleetEnrollmentSubjectOU)
+	}
+
+	return subject
 }

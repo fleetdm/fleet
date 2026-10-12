@@ -1107,6 +1107,7 @@ import Whatroute from "./png/Whatroute.png";
 import Whisky from "./png/Whisky.png";
 import Whispering from "./png/Whispering.png";
 import Wifiman from "./png/Wifiman.png";
+import WillowVoice from "./png/WillowVoice.png";
 import Windirstat from "./png/Windirstat.png";
 import Windowkeys from "./png/Windowkeys.png";
 import WindowsApp from "./png/WindowsApp.png";
@@ -2308,6 +2309,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   whisky: Whisky,
   whispering: Whispering,
   "wifiman desktop": Wifiman,
+  "willow voice": WillowVoice,
   windirstat: Windirstat,
   windowkeys: Windowkeys,
   "windows app": WindowsApp,

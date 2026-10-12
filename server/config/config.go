@@ -367,6 +367,16 @@ type OsqueryConfig struct {
 	// FLEET_OSQUERY_CONFIG_IN_MEMORY_CACHE=true and restarting opts a
 	// deployment in. Independent of the config ETag options above.
 	ConfigInMemoryCache bool `yaml:"config_in_memory_cache"`
+
+	// MaxConcurrentQueryReportReads bounds, per Fleet server, how many
+	// /api/osquery/log requests read a host's stored report results from the
+	// replica at once. MaxConcurrentQueryReportWrites bounds, across all Fleet
+	// servers, how many write changed ones to the primary at once. Requests over
+	// a limit skip storing their report results (the host sends fresh ones on the
+	// report's next run) instead of queueing on the database. A value <= 0
+	// disables the limit.
+	MaxConcurrentQueryReportReads  int `yaml:"max_concurrent_query_report_reads"`
+	MaxConcurrentQueryReportWrites int `yaml:"max_concurrent_query_report_writes"`
 }
 
 // Validate checks that osquery_host_identifier is one of the supported values.
@@ -1149,6 +1159,9 @@ type MDMConfig struct {
 
 	AndroidAgent     AndroidAgentConfig `yaml:"android_agent"`
 	AndroidBatchSize int                `yaml:"android_batch_size"`
+
+	// AppleSCEPStaticChallengeEnabled controls whether static SCEP challenges are allowed alongside dynamic challenges.
+	AppleSCEPStaticChallengeEnabled bool `yaml:"apple_scep_static_challenge_enabled"`
 }
 
 // IsCustomDiskEncryptionEnabled reports whether custom disk encryption configuration profiles are allowed. Any of the equivalent
@@ -1805,6 +1818,10 @@ func (man Manager) addConfigs() {
 		"Answer osquery config requests whose etag matches with the minimal 'unchanged' body straight from a Redis-backed ETag store, skipping the config build (and its database reads) entirely. Off by default; requires Redis (no effect without it) and requires osquery.config_etags to be enabled as well. While off, every config request takes the always-full-build path.")
 	man.addConfigBool("osquery.config_in_memory_cache", false,
 		"Cache the scheduled-report section of the osquery config (the response's 'packs' key) in memory, keyed by fleet (team) and the query_reports_disabled setting, instead of rebuilding it from the database on every config check-in. Off by default; while off, every check-in builds from the database. The rest of the response is never cached, and the cache is bypassed entirely for hosts with 2017 packs and for fleets with label-scoped reports, whose config differs per host.")
+	man.addConfigInt("osquery.max_concurrent_query_report_reads", 40,
+		"Maximum number of osquery log requests per Fleet server that read a host's stored report results from the database at once, to skip writing results that haven't changed. Requests over the limit skip storing report results (log destinations are unaffected). 0 disables the limit.")
+	man.addConfigInt("osquery.max_concurrent_query_report_writes", 20,
+		"Maximum number of osquery log requests across all Fleet servers that write changed report results to the database at once. Requests over the limit skip storing their changed report results (log destinations are unaffected). 0 disables the limit.")
 	man.addConfigBool("osquery.allow_body_auth_fallback", true,
 		"Selects how host-authenticated osquery requests are authenticated. When true (default), only body-based node_key is used for authentication. When false, the nodey_key header is required for authentication and the body's node_key is ignored; pre-auth rejects absent/invalid headers before the body is read.")
 
@@ -2141,6 +2158,7 @@ func (man Manager) addConfigs() {
 	man.hideConfig("mdm.android_agent.signing_sha256")
 	man.addConfigInt("mdm.android_batch_size", 100, "Maximum number of hosts per batch for Android MDM API operations (100 default; 0 = no limit)")
 	man.hideConfig("mdm.android_batch_size")
+	man.addConfigBool("mdm.apple_scep_static_challenge_enabled", true, "Allows static SCEP challenges to be used alongside dynamic challenges for Apple MDM SCEP")
 
 	// Calendar integration
 	man.addConfigDuration(
@@ -2337,6 +2355,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			ConfigETags:                      man.getConfigBool("osquery.config_etags"),
 			RedisConfigETags:                 man.getConfigBool("osquery.redis_config_etags"),
 			ConfigInMemoryCache:              man.getConfigBool("osquery.config_in_memory_cache"),
+			MaxConcurrentQueryReportReads:    man.getConfigInt("osquery.max_concurrent_query_report_reads"),
+			MaxConcurrentQueryReportWrites:   man.getConfigInt("osquery.max_concurrent_query_report_writes"),
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog:                 man.getConfigBool("activity.enable_audit_log"),
@@ -2529,8 +2549,8 @@ func (man Manager) LoadConfig() FleetConfig {
 				Package:       man.getConfigString("mdm.android_agent.package"),
 				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),
 			},
-			AndroidBatchSize: man.getConfigInt("mdm.android_batch_size"),
-
+			AndroidBatchSize:                         man.getConfigInt("mdm.android_batch_size"),
+			AppleSCEPStaticChallengeEnabled:          man.getConfigBool("mdm.apple_scep_static_challenge_enabled"),
 			AppleCommandCleanupShortRetention:        man.getConfigDuration("mdm.apple_command_cleanup_short_retention"),
 			AppleCommandCleanupStandardRetention:     man.getConfigDuration("mdm.apple_command_cleanup_standard_retention"),
 			AppleCommandCleanupMaxRowDeletionsPerRun: man.getConfigInt("mdm.apple_command_cleanup_max_row_deletions_per_run"),
@@ -3032,7 +3052,8 @@ func TestConfig() FleetConfig {
 			OSVForVulnerabilities: true,
 		},
 		MDM: MDMConfig{
-			AllowOrbitEndUserAuthBypass: true,
+			AllowOrbitEndUserAuthBypass:     true,
+			AppleSCEPStaticChallengeEnabled: true,
 		},
 		WebSocket: WebSocketConfig{
 			TransportEnabled: false,

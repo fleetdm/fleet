@@ -14199,6 +14199,57 @@ func checkSoftwareInstaller(t *testing.T, ds *mysql.Datastore, payload *fleet.Up
 	return meta.InstallerID, *meta.TitleID
 }
 
+func (s *integrationEnterpriseTestSuite) TestPackageUploadPreAuthAndTempFileCleanup() {
+	t := s.T()
+	tmpDir := t.TempDir()
+	t.Setenv("TMPDIR", tmpDir)
+	requireNoTempFiles := func() {
+		files, err := filepath.Glob(filepath.Join(tmpDir, "multipart-*"))
+		require.NoError(t, err)
+		require.Empty(t, files)
+	}
+
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	fw, err := mw.CreateFormFile("software", "a.pkg")
+	require.NoError(t, err)
+	_, err = fw.Write(bytes.Repeat([]byte{0}, 2<<20))
+	require.NoError(t, err)
+	require.NoError(t, mw.Close())
+	contentType := mw.FormDataContentType()
+
+	for _, r := range []struct{ method, path string }{
+		{"POST", "/api/latest/fleet/software/package"},
+		{"PATCH", "/api/latest/fleet/software/titles/1/package"},
+		{"POST", "/api/latest/fleet/bootstrap"},
+		{"POST", "/api/latest/fleet/mdm/bootstrap"},
+		{"POST", "/api/latest/fleet/mdm/apple/bootstrap"},
+	} {
+		res := s.DoRawWithHeaders(r.method, r.path, body.Bytes(), http.StatusUnauthorized, map[string]string{"Content-Type": contentType})
+		res.Body.Close()
+		requireNoTempFiles()
+
+		res = s.DoRawWithHeaders(r.method, r.path, body.Bytes(), http.StatusUnauthorized, map[string]string{
+			"Content-Type": contentType, "Authorization": "Bearer invalid",
+		})
+		res.Body.Close()
+		requireNoTempFiles()
+
+		res = s.DoRawWithHeaders(r.method, r.path, body.Bytes(), http.StatusUnsupportedMediaType, map[string]string{
+			"Content-Type": contentType, "Content-Encoding": "gzip", "Authorization": "Bearer " + s.token,
+		})
+		res.Body.Close()
+		requireNoTempFiles()
+	}
+
+	// An authenticated upload that parses but fails validation must not leave its file behind.
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/software/package", body.Bytes(), http.StatusBadRequest, map[string]string{
+		"Content-Type": contentType, "Authorization": "Bearer " + s.token,
+	})
+	res.Body.Close()
+	requireNoTempFiles()
+}
+
 func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndDelete() {
 	t := s.T()
 

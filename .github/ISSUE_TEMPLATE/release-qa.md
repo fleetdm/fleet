@@ -368,8 +368,11 @@ Reference: https://fleetdm.com/pricing
 <td>Verify disk encryption functionality (Windows).</td>
 <td>
 
-1. Verify able to configure Disk encryption (Windows).
+1. Verify able to configure Disk encryption (Windows). Do not enable BitLocker PIN required yet.
 2. Verify host enrolled with Disk encryption enforced successfully encrypts.
+3. On Fleet, enable BitLocker PIN required for the fleet containing this host.
+4. On host, create a standard level local user.
+5. Verify local non-admin user can set the BitLocker PIN to satisfy the Fleet requirement.
 
 </td>
 </tr>

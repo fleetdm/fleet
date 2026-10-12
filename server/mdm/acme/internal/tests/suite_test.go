@@ -2,9 +2,9 @@ package tests
 
 import (
 	"bytes"
-	"context"
 	"crypto/ecdsa"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -39,6 +39,10 @@ type integrationTestSuite struct {
 
 	attestCA    *x509.Certificate
 	attestCAKey *ecdsa.PrivateKey
+
+	// signedTemplate is the last certificate template the service asked the signer to sign: the subject it
+	// passed, with its callback applied.
+	signedTemplate *x509.Certificate
 }
 
 // setupIntegrationTest creates a new test suite with a real database and HTTP server.
@@ -53,10 +57,18 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 	rootPool := x509.NewCertPool()
 	rootPool.AddCert(cert)
 
+	suite := &integrationTestSuite{}
+
 	// Create mocks
 	providers := newMockDataProviders(
 		"https://example.com", // will update with actual test server URL after it is started
-		acme.CSRSignerFunc(func(ctx context.Context, csr *x509.CertificateRequest) (*x509.Certificate, error) {
+		acme.CSRSignerFunc(func(csr *x509.CertificateRequest, subject pkix.Name, callback func(*x509.Certificate)) (*x509.Certificate, error) {
+			tmpl := &x509.Certificate{Subject: subject}
+			if callback != nil {
+				callback(tmpl)
+			}
+			suite.signedTemplate = tmpl
+
 			res, err := tdb.DB.DB.Exec(`INSERT INTO identity_serials () VALUES ()`) // insert a row to get an auto-incremented ID for the cert serial number
 			require.NoError(t, err)
 			serialID, err := res.LastInsertId()
@@ -86,13 +98,12 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 	t.Cleanup(server.Close)
 	providers.serverURL = server.URL
 
-	return &integrationTestSuite{
-		TestDB:      tdb,
-		ds:          ds,
-		server:      server,
-		attestCA:    cert,
-		attestCAKey: key,
-	}
+	suite.TestDB = tdb
+	suite.ds = ds
+	suite.server = server
+	suite.attestCA = cert
+	suite.attestCAKey = key
+	return suite
 }
 
 // truncateTables clears all test data between tests.

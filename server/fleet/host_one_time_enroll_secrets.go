@@ -105,11 +105,14 @@ const (
 	// Fleet MDM or assigned to Fleet in Apple Business, or a Windows host that is
 	// enrolled in Fleet MDM.
 	EnrollmentRejectedSharedSecretForMDMManagedHost = "shared_secret_for_mdm_managed_host"
+	// EnrollmentRejectedHostIdentityCertRequired: an enrollment matched a host
+	// that holds a host identity certificate, but was not signed with it.
+	EnrollmentRejectedHostIdentityCertRequired = "host_identity_cert_required"
 )
 
 // EnrollmentRejectedError is returned by the datastore enroll methods when an
-// enrollment is refused by the one-time enroll secret rules. HostID is the host
-// the attempt targeted, when known.
+// enrollment is refused by the enroll secret or host identity certificate
+// rules. HostID is the host the attempt targeted, when known.
 type EnrollmentRejectedError struct {
 	Reason string
 	HostID *uint

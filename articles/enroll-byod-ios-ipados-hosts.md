@@ -1,5 +1,7 @@
 # Enroll BYOD iOS/iPadOS hosts
 
+> BYOD enrollment doesn't work if **Allow only Apple Business enrollments** is on. Only devices assigned in Apple Business can enroll.
+
 This guide will walk you through the process of inviting BYOD (Bring Your Own Device) iPhones and iPads to enroll in Fleet.
 
 By enrolling BYOD iPhones and iPads in Fleet, IT admins can manage software installations, enforce settings, and ensure devices comply with company policies. By adding BYOD devices, you can monitor, enforce settings, and manage security on BYOD iPhones and iPads in real-time, providing enhanced control without compromising user autonomy. This helps secure access to organizational resources while maintaining control over device configurations.

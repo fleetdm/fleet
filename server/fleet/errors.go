@@ -583,6 +583,12 @@ const (
 
 	// Invalid list options combinations
 	FilterTitlesByPlatformNeedsTeamIdErrMsg = "The 'platform' and 'team_id' parameters must be used together to filter the software available for install."
+
+	softwareTypeFilterDocsURL                   = "https://fleetdm.com/docs/rest-api/rest-api#list-software"
+	InvalidSoftwareSourceErrMsg                 = "Invalid source: %q isn't a valid source. See the options: " + softwareTypeFilterDocsURL
+	InvalidSoftwareExtensionForErrMsg           = "Invalid extension_for: %q isn't a valid browser or IDE. See the options: " + softwareTypeFilterDocsURL
+	SoftwareExtensionForRequiresSourceErrMsg    = "extension_for requires source. Specify a browser or IDE extension source, like source=chrome_extensions&extension_for=brave."
+	SoftwareExtensionForSourceNotSelectedErrMsg = "%q is a %q value, but source doesn't include %[2]q."
 )
 
 // Error message variables

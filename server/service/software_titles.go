@@ -90,6 +90,11 @@ func (svc *Service) ListSoftwareTitles(
 		return nil, 0, nil, fleet.ErrMissingLicense
 	}
 
+	opt.TypeFilter, err = fleet.ParseSoftwareTypeFilter(opt.Source, opt.ExtensionFor)
+	if err != nil {
+		return nil, 0, nil, err
+	}
+
 	// always include metadata for software titles
 	opt.ListOptions.IncludeMetadata = true
 	// cursor-based pagination is not supported for software titles

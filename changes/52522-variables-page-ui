@@ -1,0 +1,1 @@
+- Moved the copy button on the Variables page next to the other row actions, made it always visible, and added a "Copy the variable" tooltip. Renamed the "Variable name" column to "Variable".

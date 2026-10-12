@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"context"
+	"errors"
 	"time"
 )
 
@@ -71,4 +72,25 @@ type LiveQueryStore interface {
 	// report admits a host it didn't cover yet, when its results are discarded, and when the query
 	// is deleted.
 	ClearQueryReportsClipped(queryIDs []uint) error
+
+	// RecordQueryResultsLastFetched records that the query_results rows with the given IDs were
+	// fetched again at fetchedAt with unchanged data, for the query_results_cleanup cron to update
+	// their last_fetched. It returns ErrQueryResultsLastFetchedFull if too many are pending.
+	RecordQueryResultsLastFetched(rowIDs []uint, fetchedAt time.Time) error
+	// LoadQueryResultsLastFetched moves the recorded rows to a processing set, merging them with
+	// rows left there by a run that failed, and returns the latest fetch time of each row ID.
+	LoadQueryResultsLastFetched() (map[uint]time.Time, error)
+	// ClearProcessedQueryResultsLastFetched deletes the processing set once its rows are updated.
+	ClearProcessedQueryResultsLastFetched() error
+
+	// AcquireQueryReportWriteSlot takes one of limit write slots shared by all Fleet servers for
+	// token, reporting whether one was free. The slot is released by ReleaseQueryReportWriteSlot,
+	// or once lease expires if its holder never releases it (e.g. the server crashed).
+	AcquireQueryReportWriteSlot(token string, limit int, lease time.Duration) (bool, error)
+	// ReleaseQueryReportWriteSlot releases the write slot held by token.
+	ReleaseQueryReportWriteSlot(token string) error
 }
+
+// ErrQueryResultsLastFetchedFull is returned by RecordQueryResultsLastFetched when the pending
+// set is full, which means the cron is behind.
+var ErrQueryResultsLastFetchedFull = errors.New("too many pending query results last fetched updates")

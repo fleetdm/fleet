@@ -2180,3 +2180,22 @@ const (
 	TokenSourceDefault       = "default"
 	TokenSourceDEPAssignment = "dep_assignment"
 )
+
+type AppleMDMCertPurpose string
+
+const (
+	AppleMDMCertPurposeADE         AppleMDMCertPurpose = "ade"
+	AppleMDMCertPurposeOTAPhaseOne AppleMDMCertPurpose = "ota_phase1"
+	AppleMDMCertPurposeOTAPhaseTwo AppleMDMCertPurpose = "ota_phase2"
+	AppleMDMCertPurposeADUE        AppleMDMCertPurpose = "adue"
+	AppleMDMCertPurposeSCEPRenewal AppleMDMCertPurpose = "renewal"
+	AppleMDMCertPurposeACME        AppleMDMCertPurpose = "acme"
+	AppleMDMCertPurposeACMERenewal AppleMDMCertPurpose = "acme_renewal"
+)
+
+type AppleSCEPChallengeInfo struct {
+	Purpose        AppleMDMCertPurpose `db:"purpose"`
+	UUID           *string             `db:"host_uuid"`
+	Serial         *string             `db:"hardware_serial"`
+	IDPAccountUUID *string             `db:"idp_account_uuid"`
+}

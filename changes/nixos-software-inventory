@@ -1,0 +1,1 @@
+* Added software inventory for NixOS hosts, reported by fleetd as Nix packages.

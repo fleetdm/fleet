@@ -6610,3 +6610,26 @@ policies:
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "Payload name")
 }
+
+func TestLabelFieldLengths(t *testing.T) {
+	t.Parallel()
+
+	labelYAML := func(name, description string) string {
+		return getGlobalConfig([]string{}) + fmt.Sprintf(`
+labels:
+  - name: %q
+    description: %q
+    query: SELECT 1
+    label_membership_type: dynamic`, name, description)
+	}
+
+	// 255 two-byte characters fit varchar(255), which counts characters, not bytes.
+	_, err := gitOpsFromString(t, labelYAML("ok", strings.Repeat("é", 255)))
+	require.NoError(t, err)
+
+	_, err = gitOpsFromString(t, labelYAML("long description", strings.Repeat("a", 256)))
+	require.ErrorContains(t, err, `label "long description" description may not exceed 255 characters`)
+
+	_, err = gitOpsFromString(t, labelYAML(strings.Repeat("a", 256), "ok"))
+	require.ErrorContains(t, err, `label "`+strings.Repeat("a", 40)+`..." name may not exceed 255 characters`)
+}

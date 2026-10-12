@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.5",
+      "version": "2026.5.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'info.eurocomp.Timing2';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'info.eurocomp.Timing2' AND version_compare(bundle_short_version, '2026.5') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'info.eurocomp.Timing2' AND version_compare(bundle_short_version, '2026.5.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'info.eurocomp.Timing2' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://updates.timingapp.com/download/Timing-2026.5.dmg",
+      "installer_url": "https://updates.timingapp.com/download/Timing-2026.5.2.dmg",
       "install_script_ref": "1a5e9d7c",
       "uninstall_script_ref": "ca04fe43",
-      "sha256": "95759fb839f63063b4ae4b268dd03ef86732d9958338112022e520175e5f5be3",
+      "sha256": "800823130c2bb1592f5492c6d0dee98697328e74ad665ade45b58e68468054cc",
       "default_categories": [
         "Productivity"
       ]

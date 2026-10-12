@@ -730,6 +730,8 @@ type BatchModifyMDMConfigProfilePayload struct {
 	LabelsIncludeAll []string `json:"labels_include_all,omitempty"`
 	LabelsIncludeAny []string `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []string `json:"labels_exclude_any,omitempty"`
+	SelfService      bool     `json:"self_service,omitempty"`
+	Hidden           bool     `json:"hidden,omitempty"`
 }
 
 // MDMProfileBatchPayload represents the payload to batch-set the profiles for
