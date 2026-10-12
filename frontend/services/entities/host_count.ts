@@ -15,7 +15,7 @@ import {
   reconcileMutuallyInclusiveHostParams,
 } from "utilities/url";
 
-import { MacSettingsStatusQueryParam } from "./hosts";
+import { DEPDeviceStatus, MacSettingsStatusQueryParam } from "./hosts";
 
 export interface ISortOption {
   key: string;
@@ -59,6 +59,8 @@ export interface IHostCountLoadOptions {
   configProfileUUID?: string;
   scriptBatchExecutionStatus?: string;
   scriptBatchExecutionId?: string;
+  depProfileError?: boolean;
+  depAssignProfileResponse?: DEPDeviceStatus;
 }
 
 export default {
@@ -92,6 +94,8 @@ export default {
     const configProfileUUID = options?.configProfileUUID;
     const scriptBatchExecutionStatus = options?.scriptBatchExecutionStatus;
     const scriptBatchExecutionId = options?.scriptBatchExecutionId;
+    const depProfileError = options?.depProfileError;
+    const depAssignProfileResponse = options?.depAssignProfileResponse;
 
     const queryParams = {
       query: globalFilter,
@@ -126,6 +130,8 @@ export default {
         configProfileUUID,
         scriptBatchExecutionStatus,
         scriptBatchExecutionId,
+        depProfileError,
+        depAssignProfileResponse,
       }),
       label_id: label,
       status,

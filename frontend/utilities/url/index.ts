@@ -233,7 +233,8 @@ export const reconcileMutuallyExclusiveHostParams = ({
   if (label) {
     // backend api now allows (label + low disk space) OR (label + mdm id) OR
     // (label + mdm enrollment status) OR (label + os settings) OR (label +
-    // disk encryption). all other params are still mutually exclusive.
+    // disk encryption) OR (label + DEP profile status). all other params are
+    // still mutually exclusive.
     if (mdmId) {
       return { mdm_id: mdmId };
     }
@@ -248,6 +249,12 @@ export const reconcileMutuallyExclusiveHostParams = ({
     }
     if (diskEncryptionStatus) {
       return { [HOSTS_QUERY_PARAMS.DISK_ENCRYPTION]: diskEncryptionStatus };
+    }
+    if (depProfileError) {
+      return { dep_profile_error: true };
+    }
+    if (depAssignProfileResponse) {
+      return { dep_assign_profile_response: depAssignProfileResponse };
     }
     return {};
   }

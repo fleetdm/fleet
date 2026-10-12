@@ -172,6 +172,28 @@ describe("url utilities > reconcileMutuallyExclusiveHostParams", () => {
     });
   });
 
+  it("keeps the DEP profile error filter when a label is selected", () => {
+    expect(
+      reconcileMutuallyExclusiveHostParams({
+        label: "labels/7",
+        depProfileError: true,
+      })
+    ).toEqual({
+      dep_profile_error: true,
+    });
+  });
+
+  it("keeps the DEP assign profile response filter when a label is selected", () => {
+    expect(
+      reconcileMutuallyExclusiveHostParams({
+        label: "labels/7",
+        depAssignProfileResponse: "FAILED",
+      })
+    ).toEqual({
+      dep_assign_profile_response: "FAILED",
+    });
+  });
+
   it("returns no filters for a label alone", () => {
     expect(reconcileMutuallyExclusiveHostParams({ label: "labels/7" })).toEqual(
       {}

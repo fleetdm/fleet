@@ -81,6 +81,7 @@ const mdmWindowsEnrolledDeviceColumns = `
 		last_login_status,
 		last_login_status_at,
 		enrolled_activity_at,
+		deleted_host_team_id,
 		fleetd_present_at,
 		created_at,
 		updated_at,
@@ -775,7 +776,8 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 			credentials_acknowledged = VALUES(credentials_acknowledged),
 			-- A re-enrollment may not have ztd id, so don't overwrite.
 			ztd_registration_id   = IF(VALUES(ztd_registration_id) = '', ztd_registration_id, VALUES(ztd_registration_id)),
-			entra_device_id       = VALUES(entra_device_id)
+			entra_device_id       = VALUES(entra_device_id),
+			fleetd_present_at     = NULL
 	`
 	_, err := ds.writer(ctx).ExecContext(
 		ctx,
@@ -1998,10 +2000,11 @@ WHERE
 }
 
 func (ds *Datastore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error) {
-	// The final clause ensures we only update if the host UUID changes so we can tell the caller as this basically
-	// signals a new MDM enrollment in certain cases, as it is the first time we associate a host with an enrollment
-	// fleetd presence was observed for the previous host, so the new one must be checked again.
-	stmt := `UPDATE mdm_windows_enrollments SET host_uuid = ?, fleetd_present_at = NULL WHERE mdm_device_id = ? AND host_uuid <> ?`
+	// The final clause ensures we only update if the host UUID changes so we can tell the caller as this basically signals a new MDM
+	// enrollment in certain cases, as it is the first time we associate a host with an enrollment. A deleted host's enrollment's
+	// deleted host marker also counts as a new link.
+	stmt := `UPDATE mdm_windows_enrollments SET host_uuid = ?, fleetd_present_at = NULL
+		WHERE mdm_device_id = ? AND (host_uuid <> ? OR deleted_host_team_id IS NOT NULL)`
 	res, err := ds.writer(ctx).Exec(stmt, hostUUID, mdmDeviceID, hostUUID)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "setting host_uuid for windows enrollment")
@@ -2011,6 +2014,15 @@ func (ds *Datastore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, ho
 		return false, ctxerr.Wrap(ctx, err, "checking rows affected when setting host_uuid for windows enrollment")
 	}
 	return aff > 0, nil
+}
+
+func (ds *Datastore) MDMWindowsClearDeletedHostTeam(ctx context.Context, mdmDeviceID string) error {
+	if _, err := ds.writer(ctx).ExecContext(ctx, `
+		UPDATE mdm_windows_enrollments SET deleted_host_team_id = NULL
+		WHERE mdm_device_id = ? AND deleted_host_team_id IS NOT NULL`, mdmDeviceID); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear deleted host team of windows enrollment")
+	}
+	return nil
 }
 
 func (ds *Datastore) SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdmDeviceID string, expectFrom, to fleet.WindowsMDMAwaitingConfiguration) (bool, error) {

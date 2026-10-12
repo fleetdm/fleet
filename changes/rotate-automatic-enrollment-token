@@ -1,0 +1,1 @@
+- Added a contributor API endpoint for global admins to rotate the token Fleet puts in automatic enrollment (ADE) profiles for fleets without IdP authentication. The previous token keeps working for a grace period (24 hours by default).

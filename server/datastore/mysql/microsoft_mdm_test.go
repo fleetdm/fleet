@@ -9244,11 +9244,12 @@ func testMDMWindowsSetEnrollmentFleetdPresent(t *testing.T, ds *Datastore) {
 		return loaded.FleetdPresentAt != nil
 	}
 
-	t.Run("a re-enrollment starts unset", func(t *testing.T) {
+	t.Run("a re-enrollment or upsert starts unset", func(t *testing.T) {
 		device := insertWindowsEnrollment(t, ds, "hw-fleetd-reenroll", "")
 		require.NoError(t, ds.MDMWindowsSetEnrollmentFleetdPresent(ctx, device.ID, ""))
 		require.True(t, fleetdPresent(t, device))
-
+		// A racing duplicate enrollment request clears the flag.
+		require.False(t, fleetdPresent(t, insertWindowsEnrollment(t, ds, device.MDMHardwareID, "")))
 		_, err := ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, device.MDMHardwareID)
 		require.NoError(t, err)
 		require.False(t, fleetdPresent(t, insertWindowsEnrollment(t, ds, device.MDMHardwareID, "")))
