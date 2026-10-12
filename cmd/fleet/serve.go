@@ -415,7 +415,6 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	}
 	if appCfg.MDM.EnabledAndConfigured {
 		logger.InfoContext(cmd.Context(), "Apple MDM enabled")
-		checkSilentMigrationEnrollmentProfile(cmd.Context(), ds, logger)
 	}
 	if appCfg.MDM.AppleBMEnabledAndConfigured {
 		logger.InfoContext(cmd.Context(), "Apple Business enabled")
@@ -1029,6 +1028,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 				logger.WarnContext(ctx,
 					"Your server already has stored a SCEP challenge. Fleet will ignore this value provided via environment variables when this happens.")
 			}
+		}
+		if appCfg.MDM.EnabledAndConfigured {
+			// after the SCEP challenge is stored, since legacy migration profiles are checked against it
+			checkSilentMigrationEnrollmentProfile(ctx, ds, logger)
 		}
 		if err := service.RegisterAppleMDMProtocolServices(
 			rootMux,

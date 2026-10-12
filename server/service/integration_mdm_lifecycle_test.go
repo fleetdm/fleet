@@ -1100,7 +1100,11 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 			require.NoError(t, err)
 			require.True(t, rootCA.AppendCertsFromPEM(assets[fleet.MDMAssetCACert].Value))
 			require.NoError(t, p7.VerifyWithChain(rootCA))
-			require.Equal(t, strings.ReplaceAll(wantProfile, fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix(), info.SCEPChallenge), string(p7.Content))
+			// the renewal profile is re-encoded, so compare it decoded
+			var want, got map[string]any
+			require.NoError(t, plist.Unmarshal([]byte(strings.ReplaceAll(wantProfile, fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix(), info.SCEPChallenge)), &want))
+			require.NoError(t, plist.Unmarshal(p7.Content, &got))
+			require.Equal(t, want, got)
 		}
 		deliveredRenewal[device] = payload
 

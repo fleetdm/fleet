@@ -190,8 +190,15 @@ func TestCheckSilentMigrationEnrollmentProfile(t *testing.T) {
 		return logs.String()
 	}
 
+	profileWith := func(challenge string) *string {
+		return new(`<plist version="1.0"><dict><key>PayloadContent</key><array><dict>
+<key>PayloadType</key><string>com.apple.security.scep</string>
+<key>PayloadContent</key><dict><key>Challenge</key><string>` + challenge + `</string></dict>
+</dict></array></dict></plist>`)
+	}
+
 	require.Empty(t, check(t, nil))
-	require.Empty(t, check(t, new("<string>"+fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix()+"</string>")))
-	require.Empty(t, check(t, new("<string>"+static+"</string>")))
-	require.Contains(t, check(t, new("<string>other</string>")), "level=ERROR")
+	require.Empty(t, check(t, profileWith(fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix())))
+	require.Empty(t, check(t, profileWith(static)))
+	require.Contains(t, check(t, profileWith("other")), "level=ERROR")
 }

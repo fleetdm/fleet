@@ -9,7 +9,6 @@ import (
 	"encoding/asn1"
 	"encoding/json"
 	"encoding/pem"
-	"encoding/xml"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -32,6 +31,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
+	"github.com/micromdm/plist"
 	"github.com/smallstep/pkcs7"
 
 	depclient "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
@@ -2915,34 +2915,44 @@ func ParseAppleMDMCertificateBindingExtension(cert *x509.Certificate) (*AppleMDM
 }
 
 // SilentMigrationRenewalProfile prepares the FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE env profile for a renewal: it
-// unwraps a signed profile, since Fleet signs it at delivery, and replaces its SCEP challenge with the per-host
-// challenge placeholder. The challenge is marked with $FLEET_VAR_SILENT_MIGRATION_SCEP_CHALLENGE, or for profiles set
-// up before that variable existed, is the static challenge. It errors if the profile contains neither.
+// unwraps a signed profile, since Fleet signs it at delivery, and sets the Challenge of its SCEP payload to the
+// per-host challenge placeholder. That Challenge must be $FLEET_VAR_SILENT_MIGRATION_SCEP_CHALLENGE, or for profiles
+// set up before that variable existed, the static challenge. The profile is returned as an XML plist.
 func SilentMigrationRenewalProfile(profile []byte, staticChallenge string) ([]byte, error) {
 	if p7, err := pkcs7.Parse(profile); err == nil {
 		profile = p7.Content
 	}
-	placeholder := []byte(fleet.HostSecretPlaceholder(fleet.HostSecretSCEPChallenge))
 
-	searches := []string{
-		fleet.FleetVarSilentMigrationSCEPChallenge.WithBraces(),
-		fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix(),
+	var root map[string]any
+	if err := plist.Unmarshal(profile, &root); err != nil {
+		return nil, fmt.Errorf("parsing silent migration enrollment profile: %w", err)
 	}
-	if staticChallenge != "" {
-		// the profile is a plist, so the static value is in it XML-escaped
-		var escaped strings.Builder
-		if err := xml.EscapeText(&escaped, []byte(staticChallenge)); err != nil {
-			return nil, fmt.Errorf("escaping static SCEP challenge: %w", err)
+	payloads, _ := root["PayloadContent"].([]any)
+	var replaced bool
+	for _, p := range payloads {
+		payload, _ := p.(map[string]any)
+		if payload["PayloadType"] != "com.apple.security.scep" {
+			continue
 		}
-		searches = append(searches, escaped.String(), staticChallenge)
-	}
-	for _, s := range searches {
-		if bytes.Contains(profile, []byte(s)) {
-			return bytes.ReplaceAll(profile, []byte(s), placeholder), nil
+		content, _ := payload["PayloadContent"].(map[string]any)
+		switch challenge, _ := content["Challenge"].(string); {
+		case challenge == fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix(),
+			challenge == fleet.FleetVarSilentMigrationSCEPChallenge.WithBraces(),
+			staticChallenge != "" && challenge == staticChallenge:
+			content["Challenge"] = fleet.HostSecretPlaceholder(fleet.HostSecretSCEPChallenge)
+			replaced = true
 		}
 	}
-	return nil, fmt.Errorf("silent migration enrollment profile contains neither %s nor the static SCEP challenge",
-		fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix())
+	if !replaced {
+		return nil, fmt.Errorf("silent migration enrollment profile has no SCEP payload whose Challenge is %s or the static SCEP challenge",
+			fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix())
+	}
+
+	out, err := plist.Marshal(root)
+	if err != nil {
+		return nil, fmt.Errorf("encoding silent migration enrollment profile: %w", err)
+	}
+	return out, nil
 }
 
 func AppleMDMSCEPCertificateSubject(newEnrollment bool) pkix.Name {

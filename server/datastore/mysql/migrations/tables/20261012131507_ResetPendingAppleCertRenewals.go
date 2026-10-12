@@ -11,7 +11,7 @@ func init() {
 	MigrationClient.AddMigration(Up_20261012131507, Down_20261012131507)
 }
 
-// Up_20261008151210 cancels every pending Apple MDM certificate renewal, like ResetPendingCertRenewals, so none
+// Up_20261012131507 cancels every pending Apple MDM certificate renewal, like ResetPendingCertRenewals, so none
 // stays outstanding with a static SCEP challenge. The renewal cron re-sends them with per-host challenges, and ACME
 // renewals as acme_renewal enrollments.
 func Up_20261012131507(tx *sql.Tx) error {
@@ -25,7 +25,7 @@ func Up_20261012131507(tx *sql.Tx) error {
 		for rows.Next() {
 			var cmdUUID string
 			if err := rows.Scan(&cmdUUID); err != nil {
-				rows.Close()
+				defer rows.Close()
 				return fmt.Errorf("scanning pending cert renewal: %w", err)
 			}
 			cmdUUIDs = append(cmdUUIDs, cmdUUID)
