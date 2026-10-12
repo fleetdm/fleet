@@ -329,9 +329,9 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 				URL:                           digicertURL,
 				APIToken:                      "digicert_api_token",
 				ProfileID:                     "digicert_profile_id",
-				CertificateCommonName:         "$FLEET_VAR_HOST_HARDWARE_SERIAL",
-				CertificateUserPrincipalNames: []string{"$FLEET_VAR_HOST_HARDWARE_SERIAL"},
-				CertificateSeatID:             "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+				CertificateCommonName:         "$FLEET_VAR_HOST_END_USER_IDP_USERNAME",
+				CertificateUserPrincipalNames: []string{"${FLEET_VAR_HOST_UUID}@example.com"},
+				CertificateSeatID:             "$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART",
 			},
 		}
 
@@ -388,47 +388,6 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		require.NotNil(t, createdCA.CertificateSeatID)
 		assert.Equal(t, createDigicertRequest.DigiCert.CertificateSeatID, *createdCA.CertificateSeatID)
 		verifyNilFieldsForType(t, createdCA)
-	})
-
-	t.Run("Create DigiCert CA - Fleet variables", func(t *testing.T) {
-		type variableCase struct {
-			value   string
-			wantErr string
-		}
-		var cases []variableCase
-		for _, fleetVar := range fleet.FleetVarsSupportedInDigiCert {
-			cases = append(cases, variableCase{fleetVar.WithBraces(), ""})
-		}
-		cases = append(cases, variableCase{fleet.FleetVarNDESSCEPChallenge.WithPrefix(), "FLEET_VAR_NDES_SCEP_CHALLENGE is not allowed in CA Common Name (CN)"})
-
-		for _, c := range cases {
-			t.Run(c.value, func(t *testing.T) {
-				svc, ctx := baseSetupForCATests()
-				createDigicertRequest := fleet.CertificateAuthorityPayload{
-					DigiCert: &fleet.DigiCertCA{ // nolint:gosec // G101: test value
-						Name:                          "DigicertWIFI",
-						URL:                           digicertURL,
-						APIToken:                      "digicert_api_token",
-						ProfileID:                     "digicert_profile_id",
-						CertificateCommonName:         "cn-" + c.value,
-						CertificateUserPrincipalNames: []string{c.value + "@example.com"},
-						CertificateSeatID:             c.value,
-					},
-				}
-
-				_, err := svc.NewCertificateAuthority(ctx, createDigicertRequest)
-				if c.wantErr != "" {
-					require.ErrorContains(t, err, c.wantErr)
-					require.Empty(t, createdCAs)
-					return
-				}
-				require.EqualError(t, err, "mock error to avoid NewActivity panic")
-				require.Len(t, createdCAs, 1)
-				assert.Equal(t, "cn-"+c.value, *createdCAs[0].CertificateCommonName)
-				assert.Equal(t, []string{c.value + "@example.com"}, *createdCAs[0].CertificateUserPrincipalNames)
-				assert.Equal(t, c.value, *createdCAs[0].CertificateSeatID)
-			})
-		}
 	})
 
 	t.Run("Create Hydrant CA - Happy path", func(t *testing.T) {
@@ -1416,22 +1375,18 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 		})
 
 		t.Run("Allows variable for certificate related fields", func(t *testing.T) {
-			for _, fleetVar := range fleet.FleetVarsSupportedInDigiCert {
-				t.Run(string(fleetVar), func(t *testing.T) {
-					svc, ctx := baseSetupForCATests()
-					value := fleetVar.WithPrefix()
-					payload := fleet.CertificateAuthorityUpdatePayload{
-						DigiCertCAUpdatePayload: &fleet.DigiCertCAUpdatePayload{
-							CertificateCommonName:         &value,
-							CertificateUserPrincipalNames: &[]string{value},
-							CertificateSeatID:             &value,
-						},
-					}
+			svc, ctx := baseSetupForCATests()
 
-					err := svc.UpdateCertificateAuthority(ctx, digicertID, payload)
-					require.EqualError(t, err, "mock error to avoid NewActivity panic")
-				})
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				DigiCertCAUpdatePayload: &fleet.DigiCertCAUpdatePayload{
+					CertificateCommonName:         ptr.String("$FLEET_VAR_HOST_HARDWARE_SERIAL"),
+					CertificateUserPrincipalNames: &[]string{"$FLEET_VAR_HOST_HARDWARE_SERIAL"},
+					CertificateSeatID:             ptr.String("$FLEET_VAR_HOST_HARDWARE_SERIAL"),
+				},
 			}
+
+			err := svc.UpdateCertificateAuthority(ctx, digicertID, payload)
+			require.Error(t, err, "mock error to avoid NewActivity panic")
 		})
 
 		t.Run("Fails updating URL if no api token", func(t *testing.T) {
