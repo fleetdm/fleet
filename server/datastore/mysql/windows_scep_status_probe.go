@@ -165,9 +165,9 @@ func applyWindowsSCEPStatusProbeResultDB(ctx context.Context, tx sqlx.ExtContext
 }
 
 func windowsSCEPStatusFailedDetail(errorCode string) string {
-	// ErrorCode is an HRESULT that the device reports as a signed 32-bit integer.
+	// ErrorCode is an HRESULT that the device reports as a signed 32-bit integer; its low 32 bits are the HRESULT.
 	if code, err := strconv.ParseInt(errorCode, 10, 32); err == nil && code != 0 {
-		return fmt.Sprintf("The host reported that the SCEP certificate isn't installed (error code 0x%08X).", uint32(int32(code)))
+		return fmt.Sprintf("The host reported that the SCEP certificate isn't installed (error code 0x%08X).", code&0xFFFFFFFF)
 	}
 	return "The host reported that the SCEP certificate isn't installed."
 }
