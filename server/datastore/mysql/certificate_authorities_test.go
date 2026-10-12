@@ -636,6 +636,12 @@ func testDigiCertEditResendsProfiles(t *testing.T, ds *Datastore) {
 	teamProf := newDigiCertProfile(t, ds, "team_prof", "ca", team.ID)
 	otherProf := newDigiCertProfile(t, ds, "other_prof", "ca_other", 0)
 
+	apiEdit := func(update fleet.CertificateAuthority) func() error {
+		return func() error {
+			update.Type = ca.Type
+			return ds.UpdateCertificateAuthorityByID(ctx, ca.ID, &update)
+		}
+	}
 	// gitOpsUpdate sends the full CA, as GitOps does, with mod applied to its current values.
 	gitOpsUpdate := func(id uint, mod func(*fleet.CertificateAuthority)) error {
 		current, err := ds.GetCertificateAuthorityByID(ctx, id, true)
@@ -648,18 +654,10 @@ func testDigiCertEditResendsProfiles(t *testing.T, ds *Datastore) {
 		edit       func() error
 		wantResend bool
 	}{
-		{"API edit of the URL", func() error {
-			return ds.UpdateCertificateAuthorityByID(ctx, ca.ID, &fleet.CertificateAuthority{Type: ca.Type, URL: new("https://new.example.com")})
-		}, false},
-		{"API edit to the same seat ID", func() error {
-			return ds.UpdateCertificateAuthorityByID(ctx, ca.ID, &fleet.CertificateAuthority{Type: ca.Type, CertificateSeatID: new("seat")})
-		}, false},
-		{"API edit of the common name", func() error {
-			return ds.UpdateCertificateAuthorityByID(ctx, ca.ID, &fleet.CertificateAuthority{Type: ca.Type, CertificateCommonName: new("new-cn")})
-		}, true},
-		{"API edit of the UPN", func() error {
-			return ds.UpdateCertificateAuthorityByID(ctx, ca.ID, &fleet.CertificateAuthority{Type: ca.Type, CertificateUserPrincipalNames: &[]string{"new-upn"}})
-		}, true},
+		{"API edit of the URL", apiEdit(fleet.CertificateAuthority{URL: new("https://new.example.com")}), false},
+		{"API edit to the same seat ID", apiEdit(fleet.CertificateAuthority{CertificateSeatID: new("seat")}), false},
+		{"API edit of the common name", apiEdit(fleet.CertificateAuthority{CertificateCommonName: new("new-cn")}), true},
+		{"API edit of the UPN", apiEdit(fleet.CertificateAuthority{CertificateUserPrincipalNames: &[]string{"new-upn"}}), true},
 		{"GitOps edit of the API token", func() error {
 			return gitOpsUpdate(ca.ID, func(c *fleet.CertificateAuthority) { c.APIToken = new("new-token") })
 		}, false},

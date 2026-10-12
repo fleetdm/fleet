@@ -2218,6 +2218,7 @@ func resendDigiCertProfilesDB(ctx context.Context, tx sqlx.ExtContext, caNames [
 	if err := sqlx.SelectContext(ctx, tx, &profiles, selectStmt, selectArgs...); err != nil {
 		return ctxerr.Wrap(ctx, err, "select DigiCert profiles for resend")
 	}
+	// Keep only the profiles that actually get their certificate from one of the CAs being resent
 	profiles = slices.DeleteFunc(profiles, func(p digiCertProfile) bool {
 		return !slices.ContainsFunc(variables.Find(string(p.Mobileconfig)), func(v string) bool {
 			_, ok := dataVars[v]

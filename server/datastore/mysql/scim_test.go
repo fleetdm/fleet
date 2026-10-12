@@ -2741,6 +2741,7 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryVerifying})
 }
 
+// newDigiCertCA creates a DigiCert CA with the given certificate fields.
 func newDigiCertCA(t *testing.T, ds *Datastore, name, commonName, seatID string, upns *[]string) *fleet.CertificateAuthority {
 	ca, err := ds.NewCertificateAuthority(t.Context(), &fleet.CertificateAuthority{
 		Type: string(fleet.CATypeDigiCert), Name: &name, URL: new("https://example.com"), APIToken: new("token"), ProfileID: new("profile"),
