@@ -39,7 +39,6 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -102,8 +101,8 @@ func (s *integrationMDMTestSuite) TestBootstrapPackage() {
 
 	// get package metadata
 	s.DoJSON("GET", "/api/latest/fleet/bootstrap/0/metadata", nil, http.StatusOK, &metadataResp)
-	require.Equal(t, metadataResp.MDMAppleBootstrapPackage.Name, "pkg.pkg")
-	require.NotEmpty(t, metadataResp.MDMAppleBootstrapPackage.Sha256, "")
+	require.Equal(t, "pkg.pkg", metadataResp.MDMAppleBootstrapPackage.Name)
+	require.NotEmpty(t, metadataResp.MDMAppleBootstrapPackage.Sha256)
 	require.NotEmpty(t, metadataResp.MDMAppleBootstrapPackage.Token)
 
 	// download a package, wrong token
@@ -113,7 +112,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackage() {
 	resp := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/bootstrap?token=%s", metadataResp.MDMAppleBootstrapPackage.Token), nil, http.StatusOK)
 	respBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
-	require.EqualValues(t, signedPkg, respBytes)
+	require.Equal(t, signedPkg, respBytes)
 
 	// missing package
 	metadataResp = bootstrapPackageMetadataResponse{}
@@ -233,8 +232,8 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 
 	// create a non-macOS host
 	winHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
-		OsqueryHostID: ptr.String("non-macos-host"),
-		NodeKey:       ptr.String("non-macos-host"),
+		OsqueryHostID: new("non-macos-host"),
+		NodeKey:       new("non-macos-host"),
 		UUID:          uuid.New().String(),
 		Hostname:      fmt.Sprintf("%sfoo.local.non.macos", t.Name()),
 		Platform:      "windows",
@@ -247,8 +246,8 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 
 	// create a host that's not enrolled into MDM
 	_, err = s.ds.NewHost(context.Background(), &fleet.Host{
-		OsqueryHostID: ptr.String("not-mdm-enrolled"),
-		NodeKey:       ptr.String("not-mdm-enrolled"),
+		OsqueryHostID: new("not-mdm-enrolled"),
+		NodeKey:       new("not-mdm-enrolled"),
 		UUID:          uuid.New().String(),
 		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", t.Name()),
 		Platform:      "darwin",
@@ -262,24 +261,24 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		switch r.URL.Path {
 		case "/session":
 			err := encoder.Encode(map[string]string{"auth_session_token": "xyz"})
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case "/profile":
 			err := encoder.Encode(godep.ProfileResponse{ProfileUUID: "abc"})
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case "/server/devices":
 			err := encoder.Encode(godep.DeviceResponse{})
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case "/devices/sync":
 			depResp := []godep.Device{}
 			for _, gd := range mockRespDevices {
 				device := godep.Device{SerialNumber: gd.device.SerialNumber}
 				if gd.bootstrapResponse == "Skipped" {
-					device.MDMMigrationDeadline = ptr.Time(time.Now())
+					device.MDMMigrationDeadline = new(time.Now())
 				}
 				depResp = append(depResp, device)
 			}
 			err := encoder.Encode(godep.DeviceResponse{Devices: depResp})
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case "/profile/devices":
 			_, _ = w.Write([]byte(`{}`))
 		default:
@@ -398,8 +397,8 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
 		require.NotNil(t, hostResp.Host)
 		require.NotNil(t, hostResp.Host.MDM.MacOSSetup)
-		require.Equal(t, hostResp.Host.MDM.MacOSSetup.BootstrapPackageName, "pkg.pkg")
-		require.Equal(t, hostResp.Host.MDM.MacOSSetup.BootstrapPackageStatus, expectedStatus)
+		require.Equal(t, "pkg.pkg", hostResp.Host.MDM.MacOSSetup.BootstrapPackageName)
+		require.Equal(t, expectedStatus, hostResp.Host.MDM.MacOSSetup.BootstrapPackageStatus)
 		if expectedStatus == fleet.MDMBootstrapPackageFailed {
 			require.Equal(t, hostResp.Host.MDM.MacOSSetup.Detail, apple_mdm.FmtErrorChain(mockErrorChain))
 		} else {
@@ -411,7 +410,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", hostUUID), nil, http.StatusOK, &hostByIdentifierResp)
 		require.NotNil(t, hostByIdentifierResp.Host)
 		require.NotNil(t, hostByIdentifierResp.Host.MDM.MacOSSetup)
-		require.Equal(t, hostByIdentifierResp.Host.MDM.MacOSSetup.BootstrapPackageStatus, expectedStatus)
+		require.Equal(t, expectedStatus, hostByIdentifierResp.Host.MDM.MacOSSetup.BootstrapPackageStatus)
 		if expectedStatus == fleet.MDMBootstrapPackageFailed {
 			require.Equal(t, hostResp.Host.MDM.MacOSSetup.Detail, apple_mdm.FmtErrorChain(mockErrorChain))
 		} else {
@@ -459,7 +458,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		}
 		var countResp countHostsResponse
 		s.DoJSON("GET", countPath, nil, http.StatusOK, &countResp)
-		require.Equal(t, countResp.Count, len(expectedSerials))
+		require.Equal(t, len(expectedSerials), countResp.Count)
 	}
 
 	// check summary no team hosts
@@ -553,7 +552,7 @@ func (s *integrationMDMTestSuite) TestEULA() {
 	require.Equal(t, "no-store", resp.Header.Get("Cache-Control"))
 	respBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
-	require.EqualValues(t, pdfBytes, respBytes)
+	require.Equal(t, pdfBytes, respBytes)
 
 	// try to download EULA with a bad token
 	var downloadResp downloadBootstrapPackageResponse
@@ -777,10 +776,10 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		switch r.URL.Path {
 		case "/session":
 			err := encoder.Encode(map[string]string{"auth_session_token": "xyz"})
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case "/profile":
 			err := encoder.Encode(godep.ProfileResponse{ProfileUUID: "abc"})
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		default:
 			_, _ = w.Write([]byte(`{}`))
 		}
@@ -912,28 +911,28 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 			expectedStatus:    http.StatusOK,
 		},
 		{
-			enableRelease:     ptr.Bool(true),
+			enableRelease:     new(true),
 			setupAssistant:    "",
 			expectedRelease:   true,
 			expectedAssistant: "",
 			expectedStatus:    http.StatusOK,
 		},
 		{
-			enableRelease:     ptr.Bool(false),
+			enableRelease:     new(false),
 			setupAssistant:    "",
 			expectedRelease:   false,
 			expectedAssistant: "",
 			expectedStatus:    http.StatusOK,
 		},
 		{
-			enableRelease:     ptr.Bool(false),
+			enableRelease:     new(false),
 			setupAssistant:    asstURL,
 			expectedRelease:   false,
 			expectedAssistant: "",
 			expectedStatus:    http.StatusUnprocessableEntity,
 		},
 		{
-			enableRelease:     ptr.Bool(true),
+			enableRelease:     new(true),
 			setupAssistant:    asstAwait,
 			expectedRelease:   false,
 			expectedAssistant: "",
@@ -1093,7 +1092,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		t.Run("TestNoTeam", func(t *testing.T) {
 			var acResp appConfigResponse
 			s.Do("PATCH", "/api/latest/fleet/setup_experience",
-				fleet.MDMAppleSetupPayload{TeamID: ptr.Uint(0), EnableEndUserAuthentication: ptr.Bool(true)}, http.StatusNoContent)
+				fleet.MDMAppleSetupPayload{TeamID: new(uint(0)), EnableEndUserAuthentication: new(true)}, http.StatusNoContent)
 			acResp = appConfigResponse{}
 			s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 			require.True(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
@@ -1101,7 +1100,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 				`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0)
 
 			s.Do("PATCH", "/api/latest/fleet/setup_experience",
-				fleet.MDMAppleSetupPayload{TeamID: ptr.Uint(0), EnableEndUserAuthentication: ptr.Bool(true)}, http.StatusNoContent)
+				fleet.MDMAppleSetupPayload{TeamID: new(uint(0)), EnableEndUserAuthentication: new(true)}, http.StatusNoContent)
 			acResp = appConfigResponse{}
 			s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 			require.True(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
@@ -1109,13 +1108,13 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 				``, lastActivityID) // no new activity
 
 			s.Do("PATCH", "/api/latest/fleet/setup_experience",
-				fleet.MDMAppleSetupPayload{TeamID: ptr.Uint(0), LockEndUserInfo: ptr.Bool(true)}, http.StatusNoContent)
+				fleet.MDMAppleSetupPayload{TeamID: new(uint(0)), LockEndUserInfo: new(true)}, http.StatusNoContent)
 			s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 			require.True(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
 			require.True(t, acResp.MDM.MacOSSetup.LockEndUserInfo.Value)
 
 			s.Do("PATCH", "/api/latest/fleet/setup_experience",
-				fleet.MDMAppleSetupPayload{TeamID: ptr.Uint(0), EnableEndUserAuthentication: ptr.Bool(false)}, http.StatusNoContent)
+				fleet.MDMAppleSetupPayload{TeamID: new(uint(0)), EnableEndUserAuthentication: new(false)}, http.StatusNoContent)
 			acResp = appConfigResponse{}
 			s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 			require.False(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
@@ -1125,7 +1124,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 
 			// Can't enable Lock End User Info when EUA is disabled
 			s.Do("PATCH", "/api/latest/fleet/setup_experience",
-				fleet.MDMAppleSetupPayload{TeamID: ptr.Uint(0), LockEndUserInfo: ptr.Bool(true)}, http.StatusUnprocessableEntity)
+				fleet.MDMAppleSetupPayload{TeamID: new(uint(0)), LockEndUserInfo: new(true)}, http.StatusUnprocessableEntity)
 		})
 
 		t.Run("TestTeam", func(t *testing.T) {
@@ -1133,7 +1132,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 			expectedActivityDetail := fmt.Sprintf(`{"team_id": %d, "team_name": %q, "fleet_id": %d, "fleet_name": %q}`, tm.ID, tm.Name, tm.ID, tm.Name)
 			var tmResp teamResponse
 			s.Do("PATCH", "/api/latest/fleet/setup_experience",
-				fleet.MDMAppleSetupPayload{TeamID: &tm.ID, EnableEndUserAuthentication: ptr.Bool(true)}, http.StatusNoContent)
+				fleet.MDMAppleSetupPayload{TeamID: &tm.ID, EnableEndUserAuthentication: new(true)}, http.StatusNoContent)
 			tmResp = teamResponse{}
 			s.DoJSON("GET", tmConfigPath, nil, http.StatusOK, &tmResp)
 			require.True(t, tmResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
@@ -1141,7 +1140,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 				expectedActivityDetail, 0)
 
 			s.Do("PATCH", "/api/latest/fleet/setup_experience",
-				fleet.MDMAppleSetupPayload{TeamID: &tm.ID, EnableEndUserAuthentication: ptr.Bool(true)}, http.StatusNoContent)
+				fleet.MDMAppleSetupPayload{TeamID: &tm.ID, EnableEndUserAuthentication: new(true)}, http.StatusNoContent)
 			tmResp = teamResponse{}
 			s.DoJSON("GET", tmConfigPath, nil, http.StatusOK, &tmResp)
 			require.True(t, tmResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
@@ -1149,13 +1148,13 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 				``, lastActivityID) // no new activity
 
 			s.Do("PATCH", "/api/latest/fleet/setup_experience",
-				fleet.MDMAppleSetupPayload{TeamID: &tm.ID, LockEndUserInfo: ptr.Bool(true)}, http.StatusNoContent)
+				fleet.MDMAppleSetupPayload{TeamID: &tm.ID, LockEndUserInfo: new(true)}, http.StatusNoContent)
 			s.DoJSON("GET", tmConfigPath, nil, http.StatusOK, &tmResp)
 			require.True(t, tmResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
 			require.True(t, tmResp.Team.Config.MDM.MacOSSetup.LockEndUserInfo.Value)
 
 			s.Do("PATCH", "/api/latest/fleet/setup_experience",
-				fleet.MDMAppleSetupPayload{TeamID: &tm.ID, EnableEndUserAuthentication: ptr.Bool(false)}, http.StatusNoContent)
+				fleet.MDMAppleSetupPayload{TeamID: &tm.ID, EnableEndUserAuthentication: new(false)}, http.StatusNoContent)
 			tmResp = teamResponse{}
 			s.DoJSON("GET", tmConfigPath, nil, http.StatusOK, &tmResp)
 			require.False(t, tmResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
@@ -1165,7 +1164,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 
 			// Can't enable Lock End User Info when EUA is disabled
 			s.Do("PATCH", "/api/latest/fleet/setup_experience",
-				fleet.MDMAppleSetupPayload{TeamID: &tm.ID, LockEndUserInfo: ptr.Bool(true)}, http.StatusUnprocessableEntity)
+				fleet.MDMAppleSetupPayload{TeamID: &tm.ID, LockEndUserInfo: new(true)}, http.StatusUnprocessableEntity)
 		})
 	})
 
@@ -1200,7 +1199,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 			}
 		}`), http.StatusUnprocessableEntity, &errResp)
 		require.Len(t, errResp.Errors, 1)
-		require.Equal(t, errResp.Errors[0].Reason, "End user authentication is enabled. Please disable end user authentication in Controls > Setup experience and try again")
+		require.Equal(t, "End user authentication is enabled. Please disable end user authentication in Controls > Setup experience and try again", errResp.Errors[0].Reason)
 
 		//  disable end user authentication before clearing IdP settings
 		acResp = appConfigResponse{}
@@ -1211,7 +1210,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 				}
 			}
 		}`), http.StatusOK, &acResp)
-		require.Equal(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication, false)
+		require.False(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
 		acResp = appConfigResponse{}
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"mdm": {
@@ -1262,7 +1261,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 			}
 		}`), http.StatusUnprocessableEntity, &errResp)
 		require.Len(t, errResp.Errors, 1)
-		require.Equal(t, errResp.Errors[0].Reason, "End user authentication is enabled. Please disable end user authentication in Controls > Setup experience and try again")
+		require.Equal(t, "End user authentication is enabled. Please disable end user authentication in Controls > Setup experience and try again", errResp.Errors[0].Reason)
 
 		// 4. disable team EUA, then clear IdP
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
@@ -1301,7 +1300,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 
 		// can't use setup endpoint to enable end user authentication on no team without a configured IdP
 		s.Do("PATCH", "/api/latest/fleet/setup_experience",
-			fleet.MDMAppleSetupPayload{TeamID: ptr.Uint(0), EnableEndUserAuthentication: ptr.Bool(true)}, http.StatusUnprocessableEntity)
+			fleet.MDMAppleSetupPayload{TeamID: new(uint(0)), EnableEndUserAuthentication: new(true)}, http.StatusUnprocessableEntity)
 
 		// can't enable end user authentication on team config without a configured IdP already on app config
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), json.RawMessage(fmt.Sprintf(`{
@@ -1315,7 +1314,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 
 		// can't use setup endpoint to enable end user authentication on team without a configured IdP
 		s.Do("PATCH", "/api/latest/fleet/setup_experience",
-			fleet.MDMAppleSetupPayload{TeamID: &tm.ID, EnableEndUserAuthentication: ptr.Bool(true)}, http.StatusUnprocessableEntity)
+			fleet.MDMAppleSetupPayload{TeamID: &tm.ID, EnableEndUserAuthentication: new(true)}, http.StatusUnprocessableEntity)
 
 		// ensure IdP is empty for the rest of the tests
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -1378,38 +1377,38 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, "foo")))
 		case "/profile":
 			body, err := io.ReadAll(r.Body)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			profileCalls++
 			var prof godep.Profile
-			require.NoError(t, json.Unmarshal(body, &prof))
+			assert.NoError(t, json.Unmarshal(body, &prof))
 			switch {
 			case len(prof.ProfileName) > 125:
 				w.WriteHeader(http.StatusBadRequest)
-				require.NoError(t, encoder.Encode(map[string]any{"error": "CONFIG_NAME_INVALID"}))
+				assert.NoError(t, encoder.Encode(map[string]any{"error": "CONFIG_NAME_INVALID"}))
 			case prof.ProfileName == "":
 				w.WriteHeader(http.StatusBadRequest)
-				require.NoError(t, encoder.Encode(map[string]any{"error": "CONFIG_NAME_REQUIRED"}))
+				assert.NoError(t, encoder.Encode(map[string]any{"error": "CONFIG_NAME_REQUIRED"}))
 			case len(prof.ConfigurationWebURL) > 125:
 				w.WriteHeader(http.StatusBadRequest)
-				require.NoError(t, encoder.Encode(map[string]any{"error": "CONFIG_URL_INVALID"}))
+				assert.NoError(t, encoder.Encode(map[string]any{"error": "CONFIG_URL_INVALID"}))
 			case len(prof.Department) > 125:
 				w.WriteHeader(http.StatusBadRequest)
-				require.NoError(t, encoder.Encode(map[string]any{"error": "DEPARTMENT_INVALID"}))
+				assert.NoError(t, encoder.Encode(map[string]any{"error": "DEPARTMENT_INVALID"}))
 			case len(prof.SupportPhoneNumber) > 50:
 				w.WriteHeader(http.StatusBadRequest)
-				require.NoError(t, encoder.Encode(map[string]any{"error": "SUPPORT_PHONE_INVALID"}))
+				assert.NoError(t, encoder.Encode(map[string]any{"error": "SUPPORT_PHONE_INVALID"}))
 			case len(prof.SupportEmailAddress) > 250:
 				w.WriteHeader(http.StatusBadRequest)
-				require.NoError(t, encoder.Encode(map[string]any{"error": "SUPPORT_EMAIL_INVALID"}))
+				assert.NoError(t, encoder.Encode(map[string]any{"error": "SUPPORT_EMAIL_INVALID"}))
 			case len(prof.OrgMagic) > 256:
 				w.WriteHeader(http.StatusBadRequest)
-				require.NoError(t, encoder.Encode(map[string]any{"error": "MAGIC_INVALID"}))
+				assert.NoError(t, encoder.Encode(map[string]any{"error": "MAGIC_INVALID"}))
 			case !prof.IsMDMRemovable && !prof.IsSupervised:
 				w.WriteHeader(http.StatusBadRequest)
-				require.NoError(t, encoder.Encode(map[string]any{"error": "FLAGS_INVALID"}))
+				assert.NoError(t, encoder.Encode(map[string]any{"error": "FLAGS_INVALID"}))
 			default:
 				w.WriteHeader(http.StatusOK)
-				require.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"}))
+				assert.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"}))
 			}
 		}
 	}))
@@ -1683,7 +1682,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, "foo")))
 		case "/profile":
 			w.WriteHeader(http.StatusOK)
-			require.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"}))
+			assert.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"}))
 		}
 	}))
 	require.NoError(t, err)
@@ -1755,7 +1754,7 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 	installerID1, titleID1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &swInstallerPayload1)
 	require.NoError(t, err)
 
-	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
+	app1 := &fleet.VPPApp{Name: "vpp_app_1", AdamID: "1", Platform: fleet.MacOSPlatform, BundleIdentifier: "b1"}
 	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID, nil)
 	require.NoError(t, err)
 
@@ -1774,7 +1773,7 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 
 	var respPutSetupExperience putSetupExperienceSoftwareResponse
 	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{TeamID: team1.ID, TitleIDs: []uint{respListTitles.SoftwareTitles[0].ID, respListTitles.SoftwareTitles[1].ID}}, http.StatusOK, &respPutSetupExperience)
-	require.Nil(t, respPutSetupExperience.Error())
+	require.NoError(t, respPutSetupExperience.Error())
 
 	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
 		fmt.Sprintf(`{"platform": "darwin", "team_id": %d, "team_name": "%s", "fleet_id": %d, "fleet_name": "%s"}`, team1.ID, team1.Name, team1.ID, team1.Name), 0)
@@ -1785,7 +1784,7 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 		TeamID:   team1.ID,
 		TitleIDs: []uint{respListTitles.SoftwareTitles[0].ID, respListTitles.SoftwareTitles[1].ID},
 	}, http.StatusOK, &respPutSetupExperience)
-	require.Nil(t, respPutSetupExperience.Error())
+	require.NoError(t, respPutSetupExperience.Error())
 
 	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
 		fmt.Sprintf(`{"platform": "darwin", "team_id": %d, "team_name": "%s", "fleet_id": %d, "fleet_name": "%s"}`, team1.ID, team1.Name, team1.ID, team1.Name), 0)
@@ -1800,8 +1799,8 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name() + uuid.New().String()),
-		NodeKey:         ptr.String(t.Name() + uuid.New().String()),
+		OsqueryHostID:   new(t.Name() + uuid.New().String()),
+		NodeKey:         new(t.Name() + uuid.New().String()),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "darwin",
 		HardwareModel:   "MacBookPro16,1",
@@ -1847,12 +1846,12 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 		TitleID:           titleID1,
 		InstallerID:       installerID1,
 		Filename:          swInstallerPayload1.Filename,
-		InstallScript:     ptr.String("some new content"),
+		InstallScript:     new("some new content"),
 		PreInstallQuery:   &swInstallerPayload1.PreInstallQuery,
 		PostInstallScript: &swInstallerPayload1.PostInstallScript,
 		UninstallScript:   &swInstallerPayload1.UninstallScript,
 		Version:           swInstallerPayload1.Version,
-		SelfService:       ptr.Bool(true),
+		SelfService:       new(true),
 		UserID:            user1.ID,
 		TeamID:            &team1.ID,
 		ValidatedLabels:   &fleet.LabelIdentsWithScope{},

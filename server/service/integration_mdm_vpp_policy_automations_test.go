@@ -24,7 +24,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
@@ -62,7 +61,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 
 	// Create a team
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	// Create a couple of hosts
@@ -110,36 +109,24 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	require.NoError(t, appResp.Err)
 
 	macOSApp := fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "1",
-				Platform: fleet.MacOSPlatform,
-			},
-		},
+		AdamID:           "1",
+		Platform:         fleet.MacOSPlatform,
 		Name:             "App 1",
 		BundleIdentifier: "a-1",
 		IconURL:          "https://example.com/images/1/512x512.png",
 		LatestVersion:    "1.0.0",
 	}
 	iPadOSApp := fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "2",
-				Platform: fleet.IPadOSPlatform,
-			},
-		},
+		AdamID:           "2",
+		Platform:         fleet.IPadOSPlatform,
 		Name:             "App 2",
 		BundleIdentifier: "b-2",
 		IconURL:          "https://example.com/images/2/512x512.png",
 		LatestVersion:    "2.0.0",
 	}
 	iOSApp := fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "2",
-				Platform: fleet.IOSPlatform,
-			},
-		},
+		AdamID:           "2",
+		Platform:         fleet.IOSPlatform,
 		Name:             "App 2",
 		BundleIdentifier: "b-2",
 		IconURL:          "https://example.com/images/2/512x512.png",
@@ -150,24 +137,16 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 		&iPadOSApp,
 		&iOSApp,
 		{
-			VPPAppTeam: fleet.VPPAppTeam{
-				VPPAppID: fleet.VPPAppID{
-					AdamID:   "2",
-					Platform: fleet.MacOSPlatform,
-				},
-			},
+			AdamID:           "2",
+			Platform:         fleet.MacOSPlatform,
 			Name:             "App 2",
 			BundleIdentifier: "b-2",
 			IconURL:          "https://example.com/images/2/512x512.png",
 			LatestVersion:    "2.0.1", // different version for macOS
 		},
 		{
-			VPPAppTeam: fleet.VPPAppTeam{
-				VPPAppID: fleet.VPPAppID{
-					AdamID:   "3",
-					Platform: fleet.IPadOSPlatform,
-				},
-			},
+			AdamID:           "3",
+			Platform:         fleet.IPadOSPlatform,
 			Name:             "App 3",
 			BundleIdentifier: "c-3",
 			IconURL:          "https://example.com/images/3/512x512.png",
@@ -263,21 +242,15 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 
 	mtplr := fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy1Team1.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: iOSTitleID},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: iOSTitleID},
 	}, http.StatusBadRequest, &mtplr)
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy1Team1.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: macOSTitleID},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: macOSTitleID},
 	}, http.StatusOK, &mtplr)
 
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy3Team1.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: macOSTitleID},
-			ScriptID:        optjson.Any[uint]{Set: true, Valid: true, Value: savedTmScript.ID},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: macOSTitleID},
+		ScriptID:        optjson.Any[uint]{Set: true, Valid: true, Value: savedTmScript.ID},
 	}, http.StatusOK, &mtplr)
 
 	titleResponse := getSoftwareTitleResponse{}
@@ -288,9 +261,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	require.Equal(t, titleResponse.SoftwareTitle.AppStoreApp.AutomaticInstallPolicies[0].ID, policy1Team1.ID)
 
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy2Team1.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: macOSTitleID},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: macOSTitleID},
 	}, http.StatusOK, &mtplr)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", macOSTitleID), getSoftwareTitleRequest{
 		TeamID: &team.ID,
@@ -304,8 +275,8 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now().Add(-1 * time.Minute),
-			OsqueryHostID:   ptr.String(t.Name() + name),
-			NodeKey:         ptr.String(t.Name() + name),
+			OsqueryHostID:   new(t.Name() + name),
+			NodeKey:         new(t.Name() + name),
 			UUID:            uuid.New().String(),
 			Hostname:        fmt.Sprintf("%s.%s.local", name, t.Name()),
 			Platform:        platform,
@@ -333,7 +304,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host3,
 		map[uint]*bool{
-			policy1Team1.ID: ptr.Bool(false),
+			policy1Team1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	var countResp countHostsResponse
@@ -345,7 +316,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		orbitHost,
 		map[uint]*bool{
-			policy1Team1.ID: ptr.Bool(false),
+			policy1Team1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
@@ -356,8 +327,8 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		mdmHost,
 		map[uint]*bool{
-			policy0Team1.ID: ptr.Bool(false),
-			policy1Team1.ID: ptr.Bool(true),
+			policy0Team1.ID: new(false),
+			policy1Team1.ID: new(true),
 		},
 	), http.StatusOK, &distributedResp)
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
@@ -369,7 +340,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		mdmHost,
 		map[uint]*bool{
-			policy1Team1.ID: ptr.Bool(false),
+			policy1Team1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
@@ -382,7 +353,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		mdmHost2,
 		map[uint]*bool{
-			policy3Team1.ID: ptr.Bool(false),
+			policy3Team1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
@@ -445,18 +416,18 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 			mdmHost2.ID, mdmHost2.DisplayName(), savedTmScript.Name, scriptExecID, policy3Team1.ID, policy3Team1.Name,
 		),
 		0,
-		ptr.Bool(true),
+		new(true),
 	)
 
 	// Update the app to exclude any with l2. We should not enqueue an install here because mdmHost2
 	// has l2 (but it will re-enqueue the script for execution, immediately "activated")
-	updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), LabelsExcludeAny: []string{l2.Name}}
+	updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: new(false), LabelsExcludeAny: []string{l2.Name}}
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", macOSTitleID), updateAppReq, http.StatusOK)
 
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		mdmHost2,
 		map[uint]*bool{
-			policy3Team1.ID: ptr.Bool(false),
+			policy3Team1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
@@ -514,18 +485,18 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 			mdmHost2.ID, mdmHost2.DisplayName(), savedTmScript.Name, scriptExecID, policy3Team1.ID, policy3Team1.Name,
 		),
 		0,
-		ptr.Bool(true),
+		new(true),
 	)
 
 	// Update the app to include any with l1. We should now enqueue an install as the app is in scope
 	// (in addition to the script execution, which will be the only one "activated").
-	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), LabelsIncludeAny: []string{l1.Name, l2.Name}}
+	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: new(false), LabelsIncludeAny: []string{l1.Name, l2.Name}}
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", macOSTitleID), updateAppReq, http.StatusOK)
 
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		mdmHost2,
 		map[uint]*bool{
-			policy3Team1.ID: ptr.Bool(false),
+			policy3Team1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
@@ -549,8 +520,8 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		mdmHost,
 		map[uint]*bool{
-			policy1Team1.ID: ptr.Bool(false),
-			policy2Team1.ID: ptr.Bool(false),
+			policy1Team1.ID: new(false),
+			policy2Team1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	var countPendingInstalls uint
@@ -640,7 +611,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 			mdmHost.Platform,
 		),
 		0,
-		ptr.Bool(true),
+		new(true),
 	)
 
 	// Process script execution
@@ -683,7 +654,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 			mdmHost2.ID, mdmHost2.DisplayName(), savedTmScript.Name, scriptExecID, policy3Team1.ID, policy3Team1.Name,
 		),
 		0,
-		ptr.Bool(true),
+		new(true),
 	)
 
 	// Process mdmHost2's vpp installation
@@ -758,15 +729,15 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 			policy3Team1.Name,
 		),
 		0,
-		ptr.Bool(true),
+		new(true),
 	)
 
 	// MDM host failing already-failing policies should not trigger any installs
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		mdmHost,
 		map[uint]*bool{
-			policy1Team1.ID: ptr.Bool(false),
-			policy2Team1.ID: ptr.Bool(false),
+			policy1Team1.ID: new(false),
+			policy2Team1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
@@ -796,7 +767,7 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 
 	// Create a team
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	// Create a host and add to team
@@ -838,7 +809,7 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 
 	// Add label1 and label2 to the host
 	host.LabelUpdatedAt = time.Now()
-	err := s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{label1.ID: ptr.Bool(true), label2.ID: ptr.Bool(true)}, host.LabelUpdatedAt, false)
+	err := s.ds.RecordLabelQueryExecutions(context.Background(), host, map[uint]*bool{label1.ID: new(true), label2.ID: new(true)}, host.LabelUpdatedAt, false)
 	require.NoError(t, err)
 
 	// add VPP app. Add label1 and label3 as "exclude any" labels.
@@ -883,9 +854,7 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 
 	mtplr := fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy1.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: vppAppTitleID},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: vppAppTitleID},
 	}, http.StatusOK, &mtplr)
 
 	// Send back a failed result for the policy.
@@ -893,7 +862,7 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host,
 		map[uint]*bool{
-			policy1.ID: ptr.Bool(false),
+			policy1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	err = s.ds.UpdateHostPolicyCounts(ctx)
@@ -908,7 +877,7 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 
 	// Update the include any labels. The host has label2, so this means that the software
 	// moved in scope.
-	updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), LabelsIncludeAny: []string{label2.Name}}
+	updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: new(false), LabelsIncludeAny: []string{label2.Name}}
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", vppAppTitleID), updateAppReq, http.StatusOK)
 
 	// Send back a failed result for the policy.
@@ -916,7 +885,7 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host,
 		map[uint]*bool{
-			policy1.ID: ptr.Bool(false),
+			policy1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	err = s.ds.UpdateHostPolicyCounts(ctx)
@@ -930,7 +899,7 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 	require.Equal(t, uint(1), policy1.FailingHostCount)
 
 	// Update to exclude_any: label 2. This moves the software out of scope. The policy is still failing.
-	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), LabelsExcludeAny: []string{label2.Name}}
+	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: new(false), LabelsExcludeAny: []string{label2.Name}}
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", vppAppTitleID), updateAppReq, http.StatusOK)
 
 	err = s.ds.UpdateHostPolicyCounts(ctx)
@@ -960,7 +929,7 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host,
 		map[uint]*bool{
-			policy1.ID: ptr.Bool(false),
+			policy1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	err = s.ds.UpdateHostPolicyCounts(ctx)
@@ -972,7 +941,7 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 	require.Equal(t, uint(1), policy1.FailingHostCount)
 
 	// Update to exclude_any: label 2. This moves the software out of scope. The policy is still failing.
-	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), LabelsExcludeAny: []string{label2.Name}}
+	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: new(false), LabelsExcludeAny: []string{label2.Name}}
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", vppAppTitleID), updateAppReq, http.StatusOK)
 
 	err = s.ds.UpdateHostPolicyCounts(ctx)
@@ -984,7 +953,7 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 
 	// Update to exclude_any: label3. Host has label1, label2, so the app is in scope again and
 	// status should clear.
-	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), LabelsExcludeAny: []string{label3.Name}}
+	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: new(false), LabelsExcludeAny: []string{label3.Name}}
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", vppAppTitleID), updateAppReq, http.StatusOK)
 
 	err = s.ds.UpdateHostPolicyCounts(ctx)
@@ -998,7 +967,7 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 	s.DoJSONWithoutAuth("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host,
 		map[uint]*bool{
-			policy1.ID: ptr.Bool(false),
+			policy1.ID: new(false),
 		},
 	), http.StatusOK, &distributedResp)
 	err = s.ds.UpdateHostPolicyCounts(ctx)
@@ -1037,7 +1006,7 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationsContinuousVPPApp() {
 
 	// Team and MDM-enrolled host.
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: new(t.Name())}}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new(t.Name())}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
@@ -1108,9 +1077,7 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationsContinuousVPPApp() {
 	attach := func(policyID, titleID uint) {
 		var mtplr fleet.ModifyTeamPolicyResponse
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policyID), fleet.ModifyTeamPolicyRequest{
-			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-				SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
-			},
+			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: titleID},
 		}, http.StatusOK, &mtplr)
 	}
 	attach(continuousPolicy.ID, continuousTitleID)
@@ -1278,7 +1245,7 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationsContinuousVPPAppRetryRese
 	require.NoError(t, resp.Err)
 
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: new(t.Name())}}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new(t.Name())}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
@@ -1335,9 +1302,7 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationsContinuousVPPAppRetryRese
 
 	var mtplr fleet.ModifyTeamPolicyResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, policy.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: vppTitleID},
-		},
+		SoftwareTitleID: optjson.Any[uint]{Set: true, Valid: true, Value: vppTitleID},
 	}, http.StatusOK, &mtplr)
 
 	submitPolicyResult := func(passes bool) {

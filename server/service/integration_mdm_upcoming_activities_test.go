@@ -66,7 +66,7 @@ func (s *integrationMDMTestSuite) TestUpcomingActivitiesTurnMDMOff() {
 	var appResp getAppStoreAppsResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", nil, http.StatusOK, &appResp, "team_id", "0")
 	require.NoError(t, appResp.Err)
-	require.True(t, len(appResp.AppStoreApps) > 0)
+	require.NotEmpty(t, appResp.AppStoreApps)
 	addedApp := appResp.AppStoreApps[0]
 
 	var addedMacOSApp addAppStoreAppResponse
@@ -148,7 +148,7 @@ func (s *integrationMDMTestSuite) TestUpcomingActivitiesTurnMDMOff() {
 	hostActivitiesResp = listHostUpcomingActivitiesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", mdmHost.ID),
 		nil, http.StatusOK, &hostActivitiesResp)
-	require.Len(t, hostActivitiesResp.Activities, 0)
+	require.Empty(t, hostActivitiesResp.Activities)
 }
 
 func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
@@ -189,7 +189,7 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 	var appResp getAppStoreAppsResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", nil, http.StatusOK, &appResp, "team_id", "0")
 	require.NoError(t, appResp.Err)
-	require.True(t, len(appResp.AppStoreApps) > 0)
+	require.NotEmpty(t, appResp.AppStoreApps)
 	addedApp := appResp.AppStoreApps[0]
 
 	var addedMacOSApp addAppStoreAppResponse
@@ -279,7 +279,7 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 	}
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", mdmHost.ID), nil, http.StatusOK, &hostActivitiesResp)
-	require.Len(t, hostActivitiesResp.Activities, 0)
+	require.Empty(t, hostActivitiesResp.Activities)
 
 	// enqueue a script run and an uninstall
 	var runResp fleet.RunScriptResponse
@@ -517,14 +517,14 @@ func (s *integrationMDMTestSuite) TestCancelLockWipeUpcomingActivity() {
 	// original lock/wipe activities are preserved in the audit log, with the cancelation as the latest activity
 	var listAct listActivitiesResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", h3.ID), nil, http.StatusOK, &listAct)
-	require.True(t, len(listAct.Activities) > 1)
+	require.Greater(t, len(listAct.Activities), 1)
 	require.Equal(t, fleet.ActivityTypeCanceledRunScript{}.ActivityName(), listAct.Activities[0].Type)
 	require.Equal(t, lockActID, listAct.Activities[1].ID)
 	require.Equal(t, fleet.ActivityTypeLockedHost{}.ActivityName(), listAct.Activities[1].Type)
 
 	listAct = listActivitiesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", h4.ID), nil, http.StatusOK, &listAct)
-	require.True(t, len(listAct.Activities) > 1)
+	require.Greater(t, len(listAct.Activities), 1)
 	require.Equal(t, fleet.ActivityTypeCanceledRunScript{}.ActivityName(), listAct.Activities[0].Type)
 	require.Equal(t, wipeActID, listAct.Activities[1].ID)
 	require.Equal(t, fleet.ActivityTypeWipedHost{}.ActivityName(), listAct.Activities[1].Type)

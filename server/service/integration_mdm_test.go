@@ -1575,7 +1575,7 @@ func (s *integrationMDMTestSuite) assertHostAppleConfigProfiles(want map[*fleet.
 			return l.Identifier < r.Identifier
 		})
 		for i, wp := range wantProfs {
-			gp := gotProfs[i]
+			gp := gotProfs[i] // nolint:nilaway // require.Len above guarantees the index exists
 			require.Equal(t, wp.Identifier, gp.Identifier, "host uuid: %s, prof id: %s", h.UUID, gp.Identifier)
 			require.Equal(t, wp.OperationType, gp.OperationType, "host uuid: %s, prof id: %s", h.UUID, gp.Identifier)
 			require.Equal(t, *wp.Status, *gp.Status, "host uuid: %s, prof id: %s", h.UUID, gp.Identifier)
@@ -1592,7 +1592,7 @@ func (s *integrationMDMTestSuite) assertHostWindowsConfigProfiles(want map[*flee
 	for h, wantProfs := range want {
 		gotProfs, err := ds.GetHostMDMWindowsProfiles(ctx, h.UUID)
 		require.NoError(t, err)
-		require.Equal(t, len(wantProfs), len(gotProfs), "host uuid: %s", h.UUID)
+		require.Len(t, gotProfs, len(wantProfs), "host uuid: %s", h.UUID)
 
 		sort.Slice(gotProfs, func(i, j int) bool {
 			l, r := gotProfs[i], gotProfs[j]
@@ -1603,7 +1603,7 @@ func (s *integrationMDMTestSuite) assertHostWindowsConfigProfiles(want map[*flee
 			return l.Name < r.Name
 		})
 		for i, wp := range wantProfs {
-			gp := gotProfs[i]
+			gp := gotProfs[i] // nolint:nilaway // require.Len above guarantees the index exists
 			require.Equal(t, wp.Name, gp.Name, "host uuid: %s, prof id: %s", h.UUID, gp.Name)
 			require.Equal(t, wp.OperationType, gp.OperationType, "host uuid: %s, prof id: %s", h.UUID, gp.Name)
 			require.Equal(t, wp.Status, gp.Status, "host uuid: %s, prof id: %s", h.UUID, gp.Name)
@@ -1614,7 +1614,7 @@ func (s *integrationMDMTestSuite) assertHostWindowsConfigProfiles(want map[*flee
 func (s *integrationMDMTestSuite) assertConfigProfilesByIdentifier(teamID *uint, profileIdent string, exists bool) (profile *fleet.MDMAppleConfigProfile) {
 	t := s.T()
 	if teamID == nil {
-		teamID = ptr.Uint(0)
+		teamID = new(uint(0))
 	}
 	var cfgProfs []*fleet.MDMAppleConfigProfile
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -1641,7 +1641,7 @@ func (s *integrationMDMTestSuite) assertConfigProfilesByIdentifier(teamID *uint,
 func (s *integrationMDMTestSuite) assertMacOSConfigProfilesByName(teamID *uint, profileName string, exists bool) {
 	t := s.T()
 	if teamID == nil {
-		teamID = ptr.Uint(0)
+		teamID = new(uint(0))
 	}
 	var cfgProfs []*fleet.MDMAppleConfigProfile
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -1665,7 +1665,7 @@ func (s *integrationMDMTestSuite) assertMacOSConfigProfilesByName(teamID *uint, 
 func (s *integrationMDMTestSuite) assertMacOSDeclarationsByName(teamID *uint, declarationName string, exists bool) {
 	t := s.T()
 	if teamID == nil {
-		teamID = ptr.Uint(0)
+		teamID = new(uint(0))
 	}
 	var cfgProfs []*fleet.MDMAppleConfigProfile
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -1689,7 +1689,7 @@ func (s *integrationMDMTestSuite) assertMacOSDeclarationsByName(teamID *uint, de
 func (s *integrationMDMTestSuite) assertWindowsConfigProfilesByName(teamID *uint, profileName string, exists bool) {
 	t := s.T()
 	if teamID == nil {
-		teamID = ptr.Uint(0)
+		teamID = new(uint(0))
 	}
 	var cfgProfs []*fleet.MDMWindowsConfigProfile
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -2035,7 +2035,7 @@ func (s *integrationMDMTestSuite) runWorker() {
 	require.NoError(s.T(), err)
 	pending, err := s.ds.GetQueuedJobs(context.Background(), 1, time.Time{})
 	require.NoError(s.T(), err)
-	require.Empty(s.T(), pending)
+	s.Require().Empty(pending)
 }
 
 // runWorkerUntilDone runs queued jobs until there are no more pending jobs
@@ -2046,12 +2046,12 @@ func (s *integrationMDMTestSuite) runWorkerUntilDone() {
 
 func (s *integrationMDMTestSuite) runWorkerUntilDoneWithChecks(failIfFailedJobs bool) {
 	err := s.worker.ProcessJobs(s.T().Context())
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 
 	// Retry checking for pending jobs
-	require.Eventually(s.T(), func() bool {
+	s.Require().Eventually(func() bool {
 		pending, err := s.ds.GetQueuedJobs(s.T().Context(), 1, time.Time{})
-		require.NoError(s.T(), err)
+		s.Require().NoError(err)
 		if len(pending) == 0 {
 			return true
 		}
@@ -2067,7 +2067,7 @@ func (s *integrationMDMTestSuite) runWorkerUntilDoneWithChecks(failIfFailedJobs 
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.SelectContext(t.Context(), q, &failedJobs, "SELECT name, args, state, error FROM jobs WHERE state NOT IN ('queued', 'success')")
 		})
-		require.Empty(s.T(), failedJobs, "some jobs have failed: %s", spew.Sdump(failedJobs))
+		s.Require().Empty(failedJobs, "some jobs have failed: %s", spew.Sdump(failedJobs))
 	}
 }
 
@@ -2075,7 +2075,7 @@ func (s *integrationMDMTestSuite) runDEPSchedule() {
 	ctx := context.Background()
 	fleetSyncer := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger)
 	err := fleetSyncer.RunAssigner(ctx)
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 }
 
 func (s *integrationMDMTestSuite) runAppleOSUpdatesSchedule() {
@@ -2119,13 +2119,13 @@ func (s *integrationMDMTestSuite) runIntegrationsSchedule() {
 	)
 	for range 10 {
 		_, didTrigger, err = s.integrationsSchedule.Trigger(s.T().Context())
-		require.NoError(s.T(), err)
+		s.Require().NoError(err)
 		if didTrigger {
 			break
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	require.True(s.T(), didTrigger, "integrations schedule did not trigger after 1 second of retries")
+	s.Require().True(didTrigger, "integrations schedule did not trigger after 1 second of retries")
 
 	<-ch
 }
@@ -2141,13 +2141,13 @@ func (s *integrationMDMTestSuite) awaitRunAppleMDMWorkerSchedule() {
 	)
 	for range 10 {
 		_, didTrigger, err = s.appleMDMWorkerSchedule.Trigger(s.T().Context())
-		require.NoError(s.T(), err)
+		s.Require().NoError(err)
 		if didTrigger {
 			break
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	require.True(s.T(), didTrigger, "apple MDM worker schedule did not trigger after 1 second of retries")
+	s.Require().True(didTrigger, "apple MDM worker schedule did not trigger after 1 second of retries")
 
 	// Add timeout detection
 	done := make(chan struct{})
@@ -2181,7 +2181,7 @@ func (s *integrationMDMTestSuite) awaitRunCleanupSchedule() {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	require.True(s.T(), didTrigger, "cleanups schedule did not trigger after 1 second of retries")
+	s.Require().True(didTrigger, "cleanups schedule did not trigger after 1 second of retries")
 
 	// Add timeout detection
 	done := make(chan struct{})
@@ -2327,7 +2327,7 @@ func (s *integrationMDMTestSuite) enableABM(orgName string) *fleet.ABMToken {
 	t := s.T()
 	var abmResp generateABMKeyPairResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/ab_public_key", nil, http.StatusOK, &abmResp)
-	require.Nil(t, abmResp.Err)
+	require.NoError(t, abmResp.Err)
 	require.NotEmpty(t, abmResp.PublicKey)
 	block, _ := pem.Decode(abmResp.PublicKey)
 	require.NotNil(t, block)
@@ -2346,7 +2346,7 @@ func (s *integrationMDMTestSuite) enableABM(orgName string) *fleet.ABMToken {
 		AccessTokenExpiry: time.Date(2037, 1, 1, 0, 0, 0, 0, time.UTC),
 	}
 
-	rawToken, err := json.Marshal(testBMToken)
+	rawToken, err := json.Marshal(testBMToken) // #nosec G117 -- fake ABM token fixture, not a real credential
 	require.NoError(t, err)
 
 	cert, err := x509.ParseCertificate(block.Bytes)
@@ -2470,7 +2470,7 @@ func (s *integrationMDMTestSuite) appleCoreCertsSetup() {
 	}
 
 	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 	certDER, err := x509.CreateCertificate(rand.Reader, certTemplate, testCert, csr.PublicKey, testKey)
 	require.NoError(t, err)
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
@@ -2562,11 +2562,11 @@ type mockDigiCertServer struct {
 }
 
 type certificateReq struct {
-	CSR            string                 `json:"csr"`
-	Profile        map[string]string      `json:"profile"`
-	Seat           map[string]string      `json:"seat"`
-	DeliveryFormat string                 `json:"delivery_format"`
-	Attributes     map[string]interface{} `json:"attributes"`
+	CSR            string            `json:"csr"`
+	Profile        map[string]string `json:"profile"`
+	Seat           map[string]string `json:"seat"`
+	DeliveryFormat string            `json:"delivery_format"`
+	Attributes     map[string]any    `json:"attributes"`
 }
 
 // registerResetVPPProxyData resets the VPP proxy data after tests in `t` complete.

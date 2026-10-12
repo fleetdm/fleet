@@ -26,8 +26,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -87,13 +87,13 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhook() {
 		case "/test_mdm_migration":
 			var payload fleet.MigrateMDMDeviceWebhookPayload
 			b, err := io.ReadAll(r.Body)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			err = json.Unmarshal(b, &payload)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 
-			require.Equal(t, h.ID, payload.Host.ID)
-			require.Equal(t, h.UUID, payload.Host.UUID)
-			require.Equal(t, h.HardwareSerial, payload.Host.HardwareSerial)
+			assert.Equal(t, h.ID, payload.Host.ID)
+			assert.Equal(t, h.UUID, payload.Host.UUID)
+			assert.Equal(t, h.HardwareSerial, payload.Host.HardwareSerial)
 
 		default:
 			t.Errorf("unexpected request: %s", r.URL.Path)
@@ -157,7 +157,7 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhook() {
 		case "/profile":
 			encoder := json.NewEncoder(w)
 			err := encoder.Encode(godep.ProfileResponse{ProfileUUID: "abc"})
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case "/server/devices", "/devices/sync":
 			encoder := json.NewEncoder(w)
 			err := encoder.Encode(godep.DeviceResponse{
@@ -170,13 +170,13 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhook() {
 					},
 				},
 			})
-			require.NoError(t, err)
+			assert.NoError(t, err)
 
 		case "/profile/devices":
 			b, err := io.ReadAll(r.Body)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			var prof profileAssignmentReq
-			require.NoError(t, json.Unmarshal(b, &prof))
+			assert.NoError(t, json.Unmarshal(b, &prof))
 			var resp godep.ProfileResponse
 			resp.ProfileUUID = prof.ProfileUUID
 			resp.Devices = map[string]string{
@@ -184,7 +184,7 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhook() {
 			}
 			encoder := json.NewEncoder(w)
 			err = encoder.Encode(resp)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		}
 	}))
 	s.runDEPSchedule()
@@ -205,7 +205,7 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhook() {
 	require.False(t, webhookCalled)
 
 	// setting the refetch critical queries timestamp in the past triggers the webhook again
-	h.RefetchCriticalQueriesUntil = ptr.Time(time.Now().Add(-1 * time.Minute))
+	h.RefetchCriticalQueriesUntil = new(time.Now().Add(-1 * time.Minute))
 	err = s.ds.UpdateHost(context.Background(), h)
 	require.NoError(t, err)
 
@@ -214,7 +214,7 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhook() {
 	webhookCalled = false
 
 	// host is manually enrolled, which is allowed
-	h.RefetchCriticalQueriesUntil = ptr.Time(time.Now().Add(-1 * time.Minute))
+	h.RefetchCriticalQueriesUntil = new(time.Now().Add(-1 * time.Minute))
 	err = s.ds.UpdateHost(context.Background(), h)
 	require.NoError(t, err)
 
@@ -297,7 +297,7 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhookErrors() {
 		case "/profile":
 			encoder := json.NewEncoder(w)
 			err := encoder.Encode(godep.ProfileResponse{ProfileUUID: "abc"})
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case "/server/devices", "/devices/sync":
 			encoder := json.NewEncoder(w)
 			err := encoder.Encode(godep.DeviceResponse{
@@ -310,12 +310,12 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhookErrors() {
 					},
 				},
 			})
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case "/profile/devices":
 			b, err := io.ReadAll(r.Body)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			var prof profileAssignmentReq
-			require.NoError(t, json.Unmarshal(b, &prof))
+			assert.NoError(t, json.Unmarshal(b, &prof))
 			var resp godep.ProfileResponse
 			resp.ProfileUUID = prof.ProfileUUID
 			resp.Devices = map[string]string{
@@ -323,7 +323,7 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhookErrors() {
 			}
 			encoder := json.NewEncoder(w)
 			err = encoder.Encode(resp)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		}
 	}))
 	s.runDEPSchedule()
@@ -356,8 +356,8 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		require.Zero(t, *getDesktopResp.FailingPolicies)
 		require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
 		require.False(t, getDesktopResp.Notifications.RenewEnrollmentProfile)
-		require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)
-		require.Equal(t, acResp.OrgInfo.OrgLogoURLLightBackground, getDesktopResp.Config.OrgInfo.OrgLogoURLLightBackground)
+		require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)                               //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
+		require.Equal(t, acResp.OrgInfo.OrgLogoURLLightBackground, getDesktopResp.Config.OrgInfo.OrgLogoURLLightBackground) //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
 		require.Equal(t, acResp.OrgInfo.ContactURL, getDesktopResp.Config.OrgInfo.ContactURL)
 		require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
 		require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
@@ -377,7 +377,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 			case "/profile":
 				encoder := json.NewEncoder(w)
 				err := encoder.Encode(godep.ProfileResponse{ProfileUUID: "abc"})
-				require.NoError(t, err)
+				assert.NoError(t, err)
 			case "/server/devices", "/devices/sync":
 				encoder := json.NewEncoder(w)
 				err := encoder.Encode(godep.DeviceResponse{
@@ -390,12 +390,12 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 						},
 					},
 				})
-				require.NoError(t, err)
+				assert.NoError(t, err)
 			case "/profile/devices":
 				b, err := io.ReadAll(r.Body)
-				require.NoError(t, err)
+				assert.NoError(t, err)
 				var prof profileAssignmentReq
-				require.NoError(t, json.Unmarshal(b, &prof))
+				assert.NoError(t, json.Unmarshal(b, &prof))
 				var resp godep.ProfileResponse
 				resp.ProfileUUID = prof.ProfileUUID
 				resp.Devices = map[string]string{
@@ -403,7 +403,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 				}
 				encoder := json.NewEncoder(w)
 				err = encoder.Encode(resp)
-				require.NoError(t, err)
+				assert.NoError(t, err)
 			}
 		}))
 
@@ -442,8 +442,8 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		require.Zero(t, *getDesktopResp.FailingPolicies)
 		require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
 		require.False(t, getDesktopResp.Notifications.RenewEnrollmentProfile)
-		require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)
-		require.Equal(t, acResp.OrgInfo.OrgLogoURLLightBackground, getDesktopResp.Config.OrgInfo.OrgLogoURLLightBackground)
+		require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)                               //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
+		require.Equal(t, acResp.OrgInfo.OrgLogoURLLightBackground, getDesktopResp.Config.OrgInfo.OrgLogoURLLightBackground) //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
 		require.Equal(t, acResp.OrgInfo.ContactURL, getDesktopResp.Config.OrgInfo.ContactURL)
 		require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
 		require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
@@ -535,8 +535,8 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		require.Zero(t, *getDesktopResp.FailingPolicies)
 		require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
 		require.True(t, getDesktopResp.Notifications.RenewEnrollmentProfile)
-		require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)
-		require.Equal(t, acResp.OrgInfo.OrgLogoURLLightBackground, getDesktopResp.Config.OrgInfo.OrgLogoURLLightBackground)
+		require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)                               //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
+		require.Equal(t, acResp.OrgInfo.OrgLogoURLLightBackground, getDesktopResp.Config.OrgInfo.OrgLogoURLLightBackground) //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
 		require.Equal(t, acResp.OrgInfo.ContactURL, getDesktopResp.Config.OrgInfo.ContactURL)
 		require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
 		require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
@@ -577,8 +577,8 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		require.Zero(t, *getDesktopResp.FailingPolicies)
 		require.False(t, getDesktopResp.Notifications.NeedsMDMMigration)
 		require.False(t, getDesktopResp.Notifications.RenewEnrollmentProfile)
-		require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)
-		require.Equal(t, acResp.OrgInfo.OrgLogoURLLightBackground, getDesktopResp.Config.OrgInfo.OrgLogoURLLightBackground)
+		require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)                               //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
+		require.Equal(t, acResp.OrgInfo.OrgLogoURLLightBackground, getDesktopResp.Config.OrgInfo.OrgLogoURLLightBackground) //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
 		require.Equal(t, acResp.OrgInfo.ContactURL, getDesktopResp.Config.OrgInfo.ContactURL)
 		require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
 		require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
@@ -609,8 +609,8 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		require.Zero(t, *getDesktopResp.FailingPolicies)
 		require.True(t, getDesktopResp.Notifications.NeedsMDMMigration)
 		require.False(t, getDesktopResp.Notifications.RenewEnrollmentProfile)
-		require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)
-		require.Equal(t, acResp.OrgInfo.OrgLogoURLLightBackground, getDesktopResp.Config.OrgInfo.OrgLogoURLLightBackground)
+		require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)                               //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
+		require.Equal(t, acResp.OrgInfo.OrgLogoURLLightBackground, getDesktopResp.Config.OrgInfo.OrgLogoURLLightBackground) //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
 		require.Equal(t, acResp.OrgInfo.ContactURL, getDesktopResp.Config.OrgInfo.ContactURL)
 		require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
 		require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
@@ -641,8 +641,8 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		require.Zero(t, *getDesktopResp.FailingPolicies)
 		require.True(t, getDesktopResp.Notifications.NeedsMDMMigration)
 		require.False(t, getDesktopResp.Notifications.RenewEnrollmentProfile)
-		require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)
-		require.Equal(t, acResp.OrgInfo.OrgLogoURLLightBackground, getDesktopResp.Config.OrgInfo.OrgLogoURLLightBackground)
+		require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)                               //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
+		require.Equal(t, acResp.OrgInfo.OrgLogoURLLightBackground, getDesktopResp.Config.OrgInfo.OrgLogoURLLightBackground) //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
 		require.Equal(t, acResp.OrgInfo.ContactURL, getDesktopResp.Config.OrgInfo.ContactURL)
 		require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
 		require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
@@ -708,7 +708,7 @@ func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 		case "/profile":
 			encoder := json.NewEncoder(w)
 			err := encoder.Encode(godep.ProfileResponse{ProfileUUID: "abc"})
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case "/server/devices", "/devices/sync":
 			encoder := json.NewEncoder(w)
 			err := encoder.Encode(godep.DeviceResponse{
@@ -721,13 +721,13 @@ func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 					},
 				},
 			})
-			require.NoError(t, err)
+			assert.NoError(t, err)
 
 		case "/profile/devices":
 			b, err := io.ReadAll(r.Body)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			var prof profileAssignmentReq
-			require.NoError(t, json.Unmarshal(b, &prof))
+			assert.NoError(t, json.Unmarshal(b, &prof))
 			var resp godep.ProfileResponse
 			resp.ProfileUUID = prof.ProfileUUID
 			resp.Devices = map[string]string{
@@ -735,7 +735,7 @@ func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 			}
 			encoder := json.NewEncoder(w)
 			err = encoder.Encode(resp)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		}
 	}))
 	s.runDEPSchedule()

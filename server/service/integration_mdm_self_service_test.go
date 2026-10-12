@@ -25,7 +25,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -66,21 +65,21 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
 	require.NoError(t, err)
 	require.Len(t, getDeviceSw.Software, 1)
-	require.Equal(t, getDeviceSw.Software[0].Name, "ruby")
+	require.Equal(t, "ruby", getDeviceSw.Software[0].Name)
 	require.Nil(t, getDeviceSw.Software[0].AppStoreApp)
 	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage)
 	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage.SelfService)
 	require.True(t, *getDeviceSw.Software[0].SoftwarePackage.SelfService)
 	require.Equal(t, payload.Filename, getDeviceSw.Software[0].SoftwarePackage.Name)
 	require.Equal(t, payload.Version, getDeviceSw.Software[0].SoftwarePackage.Version)
-	require.Len(t, getDeviceSw.Software[0].SoftwarePackage.Categories, 0)
+	require.Empty(t, getDeviceSw.Software[0].SoftwarePackage.Categories)
 
 	updatePayload := &fleet.UpdateSoftwareInstallerPayload{
 		TitleID:       titleID,
 		Filename:      "ruby.deb",
-		InstallScript: ptr.String("install"),
+		InstallScript: new("install"),
 		Version:       "1:2.5.1",
-		SelfService:   ptr.Bool(true),
+		SelfService:   new(true),
 	}
 
 	// Non-existent category is silently dropped
@@ -101,7 +100,7 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
 	require.NoError(t, err)
 	require.Len(t, getDeviceSw.Software, 1)
-	require.Equal(t, getDeviceSw.Software[0].Name, "ruby")
+	require.Equal(t, "ruby", getDeviceSw.Software[0].Name)
 	require.Nil(t, getDeviceSw.Software[0].AppStoreApp)
 	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage)
 	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage.SelfService)
@@ -120,7 +119,7 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 	getHostSw := getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "include_available_for_install", "true")
 	require.Len(t, getHostSw.Software, 1)
-	require.Equal(t, getHostSw.Software[0].Name, "ruby")
+	require.Equal(t, "ruby", getHostSw.Software[0].Name)
 	require.NotNil(t, getHostSw.Software[0].SoftwarePackage)
 	require.Equal(t, "ruby.deb", getHostSw.Software[0].SoftwarePackage.Name)
 	require.NotNil(t, getHostSw.Software[0].Status)
@@ -137,7 +136,7 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
 	require.NoError(t, err)
 	require.Len(t, getDeviceSw.Software, 1)
-	require.Equal(t, getDeviceSw.Software[0].Name, "ruby")
+	require.Equal(t, "ruby", getDeviceSw.Software[0].Name)
 	require.Nil(t, getDeviceSw.Software[0].AppStoreApp)
 	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage)
 	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage.SelfService)
@@ -150,7 +149,7 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "include_available_for_install", "true")
 	require.Len(t, getHostSw.Software, 1)
-	require.Equal(t, getHostSw.Software[0].Name, "ruby")
+	require.Equal(t, "ruby", getHostSw.Software[0].Name)
 	require.NotNil(t, getHostSw.Software[0].SoftwarePackage)
 	require.Equal(t, "ruby.deb", getHostSw.Software[0].SoftwarePackage.Name)
 	require.NotNil(t, getHostSw.Software[0].Status)
@@ -180,7 +179,7 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 	var appResp getAppStoreAppsResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", nil, http.StatusOK, &appResp, "team_id", "0")
 	require.NoError(t, appResp.Err)
-	require.True(t, len(appResp.AppStoreApps) > 0)
+	require.NotEmpty(t, appResp.AppStoreApps)
 	addedApp := appResp.AppStoreApps[0]
 
 	// Add the app with cat2 and cat3
@@ -209,7 +208,7 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 	require.Contains(t, titleResponse.SoftwareTitle.AppStoreApp.Categories, cat3.Name)
 
 	// update the app and change categories
-	updateAppReq := &updateAppStoreAppRequest{TeamID: nil, SelfService: ptr.Bool(true)}
+	updateAppReq := &updateAppStoreAppRequest{TeamID: nil, SelfService: new(true)}
 	updateAppReq.Categories = []string{cat1.Name, cat3.Name}
 	var updateAppResp updateAppStoreAppResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", vppAppTitleID), updateAppReq, http.StatusOK, &updateAppResp)
@@ -391,11 +390,9 @@ func (s *integrationMDMTestSuite) TestInstallAllSelfServiceSoftware() {
 		app, err := s.ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 			Name:             name,
 			BundleIdentifier: "com.example." + name,
-			VPPAppTeam: fleet.VPPAppTeam{
-				VPPAppID:        fleet.VPPAppID{AdamID: fmt.Sprint(adamSeq), Platform: fleet.MacOSPlatform},
-				SelfService:     true,
-				ValidatedLabels: labels,
-			},
+			AdamID:           fmt.Sprint(adamSeq), Platform: fleet.MacOSPlatform,
+			SelfService:     true,
+			ValidatedLabels: labels,
 		}, teamID, nil)
 		require.NoError(t, err)
 		return app.TitleID

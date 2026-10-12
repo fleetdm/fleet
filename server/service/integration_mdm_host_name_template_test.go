@@ -462,7 +462,7 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateEndToEnd() {
 	require.Error(t, err)
 	var secretUsed *fleet.SecretUsedError
 	require.ErrorAs(t, err, &secretUsed)
-	require.Equal(t, "host_name_template", secretUsed.Entity.Type)
+	require.Equal(t, "host_name_template", secretUsed.Entity.Type) // nolint:nilaway // set by the previous require.ErrorAs
 
 	// clearing the template releases the secret for deletion
 	s.Do("POST", "/api/latest/fleet/host_name_template",

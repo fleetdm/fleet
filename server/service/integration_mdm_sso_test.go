@@ -233,7 +233,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.Equal(t, "no-store", resp.Header.Get("Cache-Control"))
 	respBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
-	require.EqualValues(t, pdfBytes, respBytes)
+	require.Equal(t, pdfBytes, respBytes)
 
 	// IdP info stored is accurate for the account
 	s.checkStoredIdPInfo(t, user1EnrollRef, "sso_user", "SSO User 1", "sso_user@example.com")
@@ -280,7 +280,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 
 	var fullAccCmd *micromdm.CommandPayload
 	require.NoError(t, plist.Unmarshal(accCmd.Raw, &fullAccCmd))
-	require.True(t, fullAccCmd.Command.AccountConfiguration.LockPrimaryAccountInfo)
+	require.True(t, fullAccCmd.Command.AccountConfiguration.LockPrimaryAccountInfo) // nolint:nilaway // set by the previous plist.Unmarshal
 	require.Equal(t, "SSO User 1", fullAccCmd.Command.AccountConfiguration.PrimaryAccountFullName)
 	require.Equal(t, "sso_user", fullAccCmd.Command.AccountConfiguration.PrimaryAccountUserName)
 
@@ -288,13 +288,13 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	var hostResp getHostResponse
 	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
 	assert.Len(t, hostResp.Host.EndUsers, 1)
-	assert.Equal(t, "", hostResp.Host.EndUsers[0].IdpFullName)                     // full name is not recorded for mdm flow until scim sync
+	assert.Empty(t, hostResp.Host.EndUsers[0].IdpFullName)                         // full name is not recorded for mdm flow until scim sync
 	assert.Equal(t, "sso_user@example.com", hostResp.Host.EndUsers[0].IdpUserName) // email is the same as the one used to enroll
 	hostID := hostResp.Host.ID
 	hostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
 	assert.Len(t, hostResp.Host.EndUsers, 1)
-	assert.Equal(t, "", hostResp.Host.EndUsers[0].IdpFullName)                     // full name is not recorded for mdm flow until scim sync
+	assert.Empty(t, hostResp.Host.EndUsers[0].IdpFullName)                         // full name is not recorded for mdm flow until scim sync
 	assert.Equal(t, "sso_user@example.com", hostResp.Host.EndUsers[0].IdpUserName) // email is the same as the one used to enroll
 
 	ac, err := s.ds.AppConfig(context.Background())
@@ -460,7 +460,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.Equal(t, "application/pdf", resp.Header.Get("content-type"))
 	respBytes, err = io.ReadAll(resp.Body)
 	require.NoError(t, err)
-	require.EqualValues(t, pdfBytes, respBytes)
+	require.Equal(t, pdfBytes, respBytes)
 
 	// IdP info stored is accurate for the account
 	s.checkStoredIdPInfo(t, user2EnrollRef, "sso_user2", "SSO User 2", "sso_user2@example.com")
@@ -957,15 +957,15 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	require.NoError(t, err)
 
 	// Add matching SCIM user with a display name (givenName + familyName)
-	createUserPayload := map[string]interface{}{
+	createUserPayload := map[string]any{
 		"schemas":    []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
 		"userName":   "some_other_username",
 		"externalID": "external_id",
-		"name": map[string]interface{}{
+		"name": map[string]any{
 			"givenName":  "SCIM",
 			"familyName": "User",
 		},
-		"emails": []map[string]interface{}{
+		"emails": []map[string]any{
 			{
 				"value":   "sso_user_no_displayname@example.com",
 				"type":    "work",
@@ -974,7 +974,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 		},
 	}
 	displayName := "SCIM User"
-	var createResp map[string]interface{}
+	var createResp map[string]any
 	s.DoJSON("POST", "/api/latest/fleet/scim/Users", createUserPayload, http.StatusCreated, &createResp)
 	// Verify the created user
 	assert.Equal(t, "some_other_username", createResp["userName"])
@@ -1140,16 +1140,16 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	require.Equal(t, 2, expectedCount)
 
 	// Also add a group to the SCIM user
-	createGroup1Payload := map[string]interface{}{
+	createGroup1Payload := map[string]any{
 		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
 		"displayName": "Test Group 1",
-		"members": []map[string]interface{}{
+		"members": []map[string]any{
 			{
 				"value": scimUserID,
 			},
 		},
 	}
-	var createGroup1Resp map[string]interface{}
+	var createGroup1Resp map[string]any
 	s.DoJSON("POST", "/api/latest/fleet/scim/Groups", createGroup1Payload, http.StatusCreated, &createGroup1Resp)
 
 	// this marked profile N2 as pending for the host as the groups changed
@@ -1218,7 +1218,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 		assert.NotNil(t, endUser.IdpInfoUpdatedAt)
 		assert.Equal(t, "external_id", endUser.IdpID)
 		assert.Equal(t, displayName, endUser.IdpFullName)
-		require.EqualValues(t, []string{"Test Group 1"}, endUser.IdpGroups)
+		require.Equal(t, []string{"Test Group 1"}, endUser.IdpGroups)
 		require.Len(t, endUser.OtherEmails, 2)
 		othersByEmail := make(map[string]string, 2)
 		for _, otherEmail := range endUser.OtherEmails {
@@ -1318,17 +1318,17 @@ func (s *integrationMDMTestSuite) setUpEndUserAuthentication(t *testing.T, lastS
 		case "/profile":
 			*lastSubmittedProfile = godep.Profile{}
 			rawProfile, err := io.ReadAll(r.Body)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			err = json.Unmarshal(rawProfile, lastSubmittedProfile)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			encoder := json.NewEncoder(w)
 			err = encoder.Encode(godep.ProfileResponse{ProfileUUID: "abc"})
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case "/profile/devices":
 			b, err := io.ReadAll(r.Body)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			var prof profileAssignmentReq
-			require.NoError(t, json.Unmarshal(b, &prof))
+			assert.NoError(t, json.Unmarshal(b, &prof))
 			var resp godep.ProfileResponse
 			resp.ProfileUUID = prof.ProfileUUID
 			resp.Devices = map[string]string{
@@ -1336,7 +1336,7 @@ func (s *integrationMDMTestSuite) setUpEndUserAuthentication(t *testing.T, lastS
 			}
 			encoder := json.NewEncoder(w)
 			err = encoder.Encode(resp)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case "/server/devices", "/devices/sync":
 			// This endpoint  is used to get an initial list of
 			// devices, return a single device
@@ -1351,7 +1351,7 @@ func (s *integrationMDMTestSuite) setUpEndUserAuthentication(t *testing.T, lastS
 					},
 				},
 			})
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		}
 	}))
 

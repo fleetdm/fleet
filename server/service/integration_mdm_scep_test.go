@@ -40,7 +40,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -182,7 +181,7 @@ func (s *integrationMDMTestSuite) runSCEPProxyTestWithOptionalSuffix(suffix stri
 	password := "pass"
 	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type:     string(fleet.CATypeNDESSCEPProxy),
-		Name:     ptr.String("bad-url"),
+		Name:     new("bad-url"),
 		URL:      &testServer.URL,
 		AdminURL: &adminUrl,
 		Username: &username,
@@ -223,7 +222,7 @@ func (s *integrationMDMTestSuite) runSCEPProxyTestWithOptionalSuffix(suffix stri
 	s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", ca.ID), nil, http.StatusNoContent)
 	ca, err = s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type:     string(fleet.CATypeNDESSCEPProxy),
-		Name:     ptr.String("bad-url"),
+		Name:     new("bad-url"),
 		URL:      &ndesTimeoutServer.URL,
 		AdminURL: &adminUrl,
 		Username: &username,
@@ -245,8 +244,8 @@ func (s *integrationMDMTestSuite) runSCEPProxyTestWithOptionalSuffix(suffix stri
 	s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", ca.ID), nil, http.StatusNoContent)
 	_, err = s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type:     string(fleet.CATypeNDESSCEPProxy),
-		Name:     ptr.String("bad-url"),
-		URL:      ptr.String(scepServer.URL + "/scep"),
+		Name:     new("bad-url"),
+		URL:      new(scepServer.URL + "/scep"),
 		AdminURL: &adminUrl,
 		Username: &username,
 		Password: &password,
@@ -309,7 +308,7 @@ func (s *integrationMDMTestSuite) runSCEPProxyTestWithOptionalSuffix(suffix stri
 		{
 			HostUUID:             host.UUID,
 			ProfileUUID:          profileUUID,
-			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-svc_scep.NDESChallengeInvalidAfter)),
+			ChallengeRetrievedAt: new(time.Now().Add(-svc_scep.NDESChallengeInvalidAfter)),
 			Type:                 fleet.CAConfigNDES,
 			CAName:               "NDES",
 		},
@@ -326,7 +325,7 @@ func (s *integrationMDMTestSuite) runSCEPProxyTestWithOptionalSuffix(suffix stri
 		{
 			HostUUID:             host.UUID,
 			ProfileUUID:          profileUUID,
-			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-svc_scep.NDESChallengeInvalidAfter + time.Minute)),
+			ChallengeRetrievedAt: new(time.Now().Add(-svc_scep.NDESChallengeInvalidAfter + time.Minute)),
 			Type:                 fleet.CAConfigNDES,
 			CAName:               "NDES",
 		},
@@ -480,7 +479,7 @@ func (s *integrationMDMTestSuite) runSmallstepSCEPProxyTestWithOptionalSuffix(su
 	password := "pass"
 	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type:         string(fleet.CATypeSmallstep),
-		Name:         ptr.String(caName),
+		Name:         new(caName),
 		URL:          &testServer.URL,
 		ChallengeURL: &challengeUrl,
 		Username:     &username,
@@ -521,7 +520,7 @@ func (s *integrationMDMTestSuite) runSmallstepSCEPProxyTestWithOptionalSuffix(su
 	s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", ca.ID), nil, http.StatusNoContent)
 	ca, err = s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type:         string(fleet.CATypeSmallstep),
-		Name:         ptr.String(caName),
+		Name:         new(caName),
 		URL:          &ndesTimeoutServer.URL,
 		ChallengeURL: &challengeUrl,
 		Username:     &username,
@@ -543,8 +542,8 @@ func (s *integrationMDMTestSuite) runSmallstepSCEPProxyTestWithOptionalSuffix(su
 	s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", ca.ID), nil, http.StatusNoContent)
 	_, err = s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type:         string(fleet.CATypeSmallstep),
-		Name:         ptr.String(caName),
-		URL:          ptr.String(scepServer.URL + "/scep"),
+		Name:         new(caName),
+		URL:          new(scepServer.URL + "/scep"),
 		ChallengeURL: &challengeUrl,
 		Username:     &username,
 		Password:     &password,
@@ -607,7 +606,7 @@ func (s *integrationMDMTestSuite) runSmallstepSCEPProxyTestWithOptionalSuffix(su
 		{
 			HostUUID:             host.UUID,
 			ProfileUUID:          profileUUID,
-			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-svc_scep.SmallstepChallengeInvalidAfter)),
+			ChallengeRetrievedAt: new(time.Now().Add(-svc_scep.SmallstepChallengeInvalidAfter)),
 			Type:                 fleet.CAConfigSmallstep,
 			CAName:               caName,
 		},
@@ -624,7 +623,7 @@ func (s *integrationMDMTestSuite) runSmallstepSCEPProxyTestWithOptionalSuffix(su
 		{
 			HostUUID:             host.UUID,
 			ProfileUUID:          profileUUID,
-			ChallengeRetrievedAt: ptr.Time(time.Now().Add(-svc_scep.SmallstepChallengeInvalidAfter + time.Minute)),
+			ChallengeRetrievedAt: new(time.Now().Add(-svc_scep.SmallstepChallengeInvalidAfter + time.Minute)),
 			Type:                 fleet.CAConfigSmallstep,
 			CAName:               caName,
 		},
@@ -661,9 +660,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 
 	caBad := newMockDigicertCA(testServer.URL, "ca")
 	certPayload := createCertificateAuthorityRequest{
-		CertificateAuthorityPayload: fleet.CertificateAuthorityPayload{
-			DigiCert: &caBad,
-		},
+		DigiCert: &caBad,
 	}
 	res := createCertificateAuthorityResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusBadRequest, &res)
@@ -705,15 +702,15 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	}
 
 	require.Len(t, digiCertsWithSecrets, 3)
-	assert.EqualValues(t, "api_token0", *digiCertsWithSecrets[0].APIToken)
-	assert.EqualValues(t, "api_token1", *digiCertsWithSecrets[1].APIToken)
-	assert.EqualValues(t, "api_token2", *digiCertsWithSecrets[2].APIToken)
+	assert.Equal(t, "api_token0", *digiCertsWithSecrets[0].APIToken)
+	assert.Equal(t, "api_token1", *digiCertsWithSecrets[1].APIToken)
+	assert.Equal(t, "api_token2", *digiCertsWithSecrets[2].APIToken)
 
 	// Check 3 added activities are present
 	var listActivities listActivitiesResponse
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
 		&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10")
-	require.True(t, len(listActivities.Activities) > 0)
+	require.NotEmpty(t, listActivities.Activities)
 	activity := fleet.ActivityAddedDigiCert{}
 	caNames := make([]string, 0, 3)
 	for _, act := range listActivities.Activities {
@@ -727,7 +724,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 		}
 	}
 	slices.Sort(caNames)
-	assert.EqualValues(t, caNames, []string{"ca0", "ca1", "ca2"})
+	assert.Equal(t, []string{"ca0", "ca1", "ca2"}, caNames)
 
 	// TODO(HCA): Re enable and switch out with endpoints once update endpoint is implemented.
 	/*
@@ -848,9 +845,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	ca := newMockDigicertCA(digiCertServer.server.URL, "my_CA")
 	ca.APIToken = "api_token0"
 	certPayload := createCertificateAuthorityRequest{
-		CertificateAuthorityPayload: fleet.CertificateAuthorityPayload{
-			DigiCert: &ca,
-		},
+		DigiCert: &ca,
 	}
 	res := createCertificateAuthorityResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusOK, &res)
@@ -861,9 +856,8 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	// trigger a profile sync
 	s.awaitTriggerProfileSchedule(t)
 	s.awaitRunAppleMDMWorkerSchedule()
-	profiles, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	_, err = s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 	require.NoError(t, err)
-	require.GreaterOrEqual(t, len(profiles), 0)
 
 	// Receive enrollment profiles (we are not checking/testing these here)
 	for {
@@ -893,7 +887,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N2", Contents: profile},
 	}}, http.StatusNoContent)
-	profiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	profiles, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, len(profiles), 1)
 
@@ -921,7 +915,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	}
 
 	type pkcs12Profile struct {
-		PayloadContent []map[string]interface{} `plist:"PayloadContent"`
+		PayloadContent []map[string]any `plist:"PayloadContent"`
 	}
 	var pkcs12Prof pkcs12Profile
 	require.NoError(t, plist.Unmarshal(rawProfile, &pkcs12Prof))
@@ -937,10 +931,10 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	assert.Equal(t, ca.ProfileID, digiCertServer.certReq.Profile["id"])
 	assert.Equal(t, ca.CertificateSeatID, digiCertServer.certReq.Seat["seat_id"])
 	assert.Equal(t, "x509", digiCertServer.certReq.DeliveryFormat)
-	assert.Equal(t, ca.CertificateCommonName, digiCertServer.certReq.Attributes["subject"].(map[string]interface{})["common_name"])
+	assert.Equal(t, ca.CertificateCommonName, digiCertServer.certReq.Attributes["subject"].(map[string]any)["common_name"])
 
 	// Need to convert UPNs to string slice since assert.Equal cannot compare string slice and interface slice
-	upnsReceived := digiCertServer.certReq.Attributes["extensions"].(map[string]interface{})["san"].(map[string]interface{})["user_principal_names"].([]interface{})
+	upnsReceived := digiCertServer.certReq.Attributes["extensions"].(map[string]any)["san"].(map[string]any)["user_principal_names"].([]any)
 	var stringSlice []string
 	for _, item := range upnsReceived {
 		if str, ok := item.(string); ok {
@@ -951,6 +945,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	digiCertServer.certReqMu.Unlock()
 	certProf, err := s.ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, p.ProfileUUID, "my_CA")
 	require.NoError(t, err)
+	require.NotNil(t, certProf)
 	require.NotNil(t, certProf.NotValidAfter)
 	assert.Equal(t, digiCertServer.notAfter, *certProf.NotValidAfter)
 
@@ -959,9 +954,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	caFail := newMockDigicertCA(digiCertServer.server.URL, "fail_CA")
 	caFail.CertificateCommonName = "Fail"
 	certPayload = createCertificateAuthorityRequest{
-		CertificateAuthorityPayload: fleet.CertificateAuthorityPayload{
-			DigiCert: &caFail,
-		},
+		DigiCert: &caFail,
 	}
 	resFail := createCertificateAuthorityResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusOK, &resFail)
@@ -1022,9 +1015,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 		CertificateSeatID:             "_${FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "}_",
 	}
 	certPayload = createCertificateAuthorityRequest{
-		CertificateAuthorityPayload: fleet.CertificateAuthorityPayload{
-			DigiCert: &caFleetVars,
-		},
+		DigiCert: &caFleetVars,
 	}
 	resFleetVars := createCertificateAuthorityResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusOK, &resFleetVars)
@@ -1101,10 +1092,10 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	assert.Equal(t, caFleetVars.ProfileID, digiCertServer.certReq.Profile["id"])
 	assert.Equal(t, "_"+host.HardwareSerial+"_", digiCertServer.certReq.Seat["seat_id"])
 	assert.Equal(t, "x509", digiCertServer.certReq.DeliveryFormat)
-	assert.Equal(t, host.HardwareSerial+" idp@example.com", digiCertServer.certReq.Attributes["subject"].(map[string]interface{})["common_name"])
+	assert.Equal(t, host.HardwareSerial+" idp@example.com", digiCertServer.certReq.Attributes["subject"].(map[string]any)["common_name"])
 
 	// Need to convert UPNs to string slice since assert.Equal cannot compare string slice and interface slice
-	upnsReceived = digiCertServer.certReq.Attributes["extensions"].(map[string]interface{})["san"].(map[string]interface{})["user_principal_names"].([]interface{})
+	upnsReceived = digiCertServer.certReq.Attributes["extensions"].(map[string]any)["san"].(map[string]any)["user_principal_names"].([]any)
 	stringSlice = nil
 	for _, item := range upnsReceived {
 		if str, ok := item.(string); ok {
@@ -1215,9 +1206,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegrationWithHostPlatform() {
 	ca := newMockDigicertCA(digiCertServer.server.URL, "my_CA")
 	ca.APIToken = "api_token0"
 	certPayload := createCertificateAuthorityRequest{
-		CertificateAuthorityPayload: fleet.CertificateAuthorityPayload{
-			DigiCert: &ca,
-		},
+		DigiCert: &ca,
 	}
 	res := createCertificateAuthorityResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusOK, &res)
@@ -1228,9 +1217,8 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegrationWithHostPlatform() {
 	// trigger a profile sync
 	s.awaitTriggerProfileSchedule(t)
 	s.awaitRunAppleMDMWorkerSchedule()
-	profiles, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	_, err = s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 	require.NoError(t, err)
-	require.GreaterOrEqual(t, len(profiles), 0)
 
 	// Receive enrollment profiles (we are not checking/testing these here)
 	for {
@@ -1257,9 +1245,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegrationWithHostPlatform() {
 		CertificateSeatID:             "seat_${FLEET_VAR_" + string(fleet.FleetVarHostPlatform) + "}",
 	}
 	certPayload = createCertificateAuthorityRequest{
-		CertificateAuthorityPayload: fleet.CertificateAuthorityPayload{
-			DigiCert: &caPlatform,
-		},
+		DigiCert: &caPlatform,
 	}
 	resPlatform := createCertificateAuthorityResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusOK, &resPlatform)
@@ -1268,7 +1254,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegrationWithHostPlatform() {
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N5", Contents: profilePlatform},
 	}}, http.StatusNoContent)
-	profiles, err = s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	profiles, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, len(profiles), 1)
 
@@ -1314,7 +1300,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegrationWithHostPlatform() {
 	}
 
 	type pkcs12Profile struct {
-		PayloadContent []map[string]interface{} `plist:"PayloadContent"`
+		PayloadContent []map[string]any `plist:"PayloadContent"`
 	}
 
 	pkcs12Prof := pkcs12Profile{}
@@ -1332,10 +1318,10 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegrationWithHostPlatform() {
 	assert.Equal(t, caPlatform.ProfileID, digiCertServer.certReq.Profile["id"])
 	assert.Equal(t, "seat_macos", digiCertServer.certReq.Seat["seat_id"])
 	assert.Equal(t, "x509", digiCertServer.certReq.DeliveryFormat)
-	assert.Equal(t, "macos-device", digiCertServer.certReq.Attributes["subject"].(map[string]interface{})["common_name"])
+	assert.Equal(t, "macos-device", digiCertServer.certReq.Attributes["subject"].(map[string]any)["common_name"])
 
 	// Need to convert UPNs to string slice since assert.Equal cannot compare string slice and interface slice
-	upnsReceived := digiCertServer.certReq.Attributes["extensions"].(map[string]interface{})["san"].(map[string]interface{})["user_principal_names"].([]interface{})
+	upnsReceived := digiCertServer.certReq.Attributes["extensions"].(map[string]any)["san"].(map[string]any)["user_principal_names"].([]any)
 	var stringSlice []string
 	for _, item := range upnsReceived {
 		if str, ok := item.(string); ok {
@@ -1394,7 +1380,7 @@ func createMockDigiCertServer(t *testing.T) *mockDigiCertServer {
 				"status": "Active",
 			}
 			err := json.NewEncoder(w).Encode(resp)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case http.MethodPost:
 			if len(certRegex.FindStringSubmatch(r.URL.Path)) != 1 {
 				w.WriteHeader(http.StatusBadRequest)
@@ -1404,24 +1390,30 @@ func createMockDigiCertServer(t *testing.T) *mockDigiCertServer {
 			defer mockServer.certReqMu.Unlock()
 			var req certificateReq
 			err := json.NewDecoder(r.Body).Decode(&req)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			mockServer.certReq = req
 
 			// Decode the PEM format CSR into DER
 			block, _ := pem.Decode([]byte(req.CSR))
-			require.NotNil(t, block, "failed to decode PEM block containing CSR")
-			require.Equal(t, "CERTIFICATE REQUEST", block.Type, "unexpected PEM block type")
+			if !assert.NotNil(t, block, "failed to decode PEM block containing CSR") {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			assert.Equal(t, "CERTIFICATE REQUEST", block.Type, "unexpected PEM block type")
 
 			// Parse the CSR
 			csr, err := x509.ParseCertificateRequest(block.Bytes)
-			require.NoError(t, err)
-			require.NoError(t, csr.CheckSignature())
+			if !assert.NoError(t, err) {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			assert.NoError(t, csr.CheckSignature())
 
 			// Setting CertificateCommonName to "Fail" allows us to test a failure getting a DigiCert certificate
 			if csr.Subject.CommonName == "Fail" {
 				w.WriteHeader(http.StatusBadRequest)
 				type errorResponse struct {
-					Errors interface{} `json:"errors"`
+					Errors any `json:"errors"`
 				}
 				err = json.NewEncoder(w).Encode(errorResponse{
 					Errors: []struct {
@@ -1433,7 +1425,7 @@ func createMockDigiCertServer(t *testing.T) *mockDigiCertServer {
 						},
 					},
 				})
-				require.NoError(t, err)
+				assert.NoError(t, err)
 				return
 			}
 
@@ -1449,15 +1441,15 @@ func createMockDigiCertServer(t *testing.T) *mockDigiCertServer {
 			}
 
 			privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 
 			certDER, err := x509.CreateCertificate(rand.Reader, certTemplate, certTemplate, &privateKey.PublicKey, privateKey)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 
 			// Encode the certificate to PEM
 			certPEM := new(bytes.Buffer)
 			err = pem.Encode(certPEM, &pem.Block{Type: "CERTIFICATE", Bytes: certDER})
-			require.NoError(t, err)
+			assert.NoError(t, err)
 
 			w.WriteHeader(http.StatusCreated)
 			resp := map[string]string{
@@ -1466,7 +1458,7 @@ func createMockDigiCertServer(t *testing.T) *mockDigiCertServer {
 				"certificate":     certPEM.String(),
 			}
 			err = json.NewEncoder(w).Encode(resp)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
@@ -1485,9 +1477,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 
 	caBad := newMockCustomSCEPProxyCA(scepServer.URL, "ca")
 	certPayload := createCertificateAuthorityRequest{
-		CertificateAuthorityPayload: fleet.CertificateAuthorityPayload{
-			CustomSCEPProxy: &caBad,
-		},
+		CustomSCEPProxy: &caBad,
 	}
 	res := createCertificateAuthorityResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusBadRequest, &res)
@@ -1531,15 +1521,15 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 	}
 
 	require.Len(t, customScepProxiesWithSecrets, 3)
-	assert.EqualValues(t, "challenge0", *customScepProxiesWithSecrets[0].Challenge)
-	assert.EqualValues(t, "challenge1", *customScepProxiesWithSecrets[1].Challenge)
-	assert.EqualValues(t, "challenge2", *customScepProxiesWithSecrets[2].Challenge)
+	assert.Equal(t, "challenge0", *customScepProxiesWithSecrets[0].Challenge)
+	assert.Equal(t, "challenge1", *customScepProxiesWithSecrets[1].Challenge)
+	assert.Equal(t, "challenge2", *customScepProxiesWithSecrets[2].Challenge)
 
 	// Check 3 added activities are present
 	var listActivities listActivitiesResponse
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
 		&listActivities, "order_key", "id", "order_direction", "desc", "per_page", "10")
-	require.True(t, len(listActivities.Activities) > 0)
+	require.NotEmpty(t, listActivities.Activities)
 	activity := fleet.ActivityAddedCustomSCEPProxy{}
 	caNames := make([]string, 0, 3)
 	for _, act := range listActivities.Activities {
@@ -1553,7 +1543,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 		}
 	}
 	slices.Sort(caNames)
-	assert.EqualValues(t, caNames, []string{"ca0", "ca1", "ca2"})
+	assert.Equal(t, []string{"ca0", "ca1", "ca2"}, caNames)
 
 	// TODO(HCA): Re enable and switch out with endpoints once update endpoint is implemented.
 	/* // Add 1, modify 1, delete 1, keep 1 the same (CustomSCEPProxy integrations)
@@ -1712,7 +1702,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 				return nil
 			default:
 				require.NoError(t, err, "Failed to check challenge existence in the database")
-				require.True(t, expectFound, fmt.Sprintf("found challenge %s, but expected not to find it", foundChallenge))
+				require.True(t, expectFound, "found challenge %s, but expected not to find it", foundChallenge)
 				require.NotEmpty(t, foundChallenge, "challenge should not be empty in the database")
 				return nil
 			}
@@ -1751,7 +1741,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 		require.NotNil(t, prof)
 		require.Equal(t, wantCAName, prof.CAName)
 		require.Equal(t, fleet.CAConfigCustomSCEPProxy, prof.Type)
-		require.EqualValues(t, fleet.MDMDeliveryVerified, *prof.Status)
+		require.Equal(t, fleet.MDMDeliveryVerified, *prof.Status)
 	}
 
 	s.awaitTriggerProfileSchedule(t)
@@ -1790,9 +1780,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	ca1 := newMockCustomSCEPProxyCA(scepServerURL, "scepName2")
 	t.Logf("scepName2 challenge:%s", ca1.Challenge)
 	certPayload := createCertificateAuthorityRequest{
-		CertificateAuthorityPayload: fleet.CertificateAuthorityPayload{
-			CustomSCEPProxy: &ca0,
-		},
+		CustomSCEPProxy: &ca0,
 	}
 	res1 := createCertificateAuthorityResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusOK, &res1)

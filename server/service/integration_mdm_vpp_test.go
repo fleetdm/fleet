@@ -30,7 +30,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/google/uuid"
@@ -73,7 +72,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 
 	// No vpp token set, but request is empty so it succeeds (clears VPP apps for the team).
 	s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name)
-	require.Len(t, batchAssociateResponse.Apps, 0)
+	require.Empty(t, batchAssociateResponse.Apps)
 
 	// No vpp token set, try association
 	// FIXME
@@ -94,7 +93,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 
 	// Remove all vpp associations from team with no members
 	s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name)
-	require.Len(t, batchAssociateResponse.Apps, 0)
+	require.Empty(t, batchAssociateResponse.Apps)
 
 	// host with valid serial number
 	hValid, err := s.ds.NewHost(context.Background(), &fleet.Host{
@@ -103,8 +102,8 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		PolicyUpdatedAt: time.Now(),
 		HardwareSerial:  "123",
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name() + uuid.New().String()),
-		NodeKey:         ptr.String(t.Name() + uuid.New().String()),
+		OsqueryHostID:   new(t.Name() + uuid.New().String()),
+		NodeKey:         new(t.Name() + uuid.New().String()),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "darwin",
 	})
@@ -116,11 +115,11 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 
 	assoc, err := s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
 	require.NoError(t, err)
-	require.Len(t, assoc, 0)
+	require.Empty(t, assoc)
 
 	// Remove all vpp associations from team with no members
 	s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name)
-	require.Len(t, batchAssociateResponse.Apps, 0)
+	require.Empty(t, batchAssociateResponse.Apps)
 
 	// Incorrect type check
 	incorrectTypes := struct {
@@ -147,7 +146,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 
 	assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
 	require.NoError(t, err)
-	require.Len(t, assoc, 0)
+	require.Empty(t, assoc)
 
 	// Associating an app we own
 	s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
@@ -177,20 +176,16 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	// Add a label
 	clr := fleet.CreateLabelResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.CreateLabelRequest{
-		LabelPayload: fleet.LabelPayload{
-			Name:  "label1" + t.Name(),
-			Query: "SELECT 1;",
-		},
+		Name:  "label1" + t.Name(),
+		Query: "SELECT 1;",
 	}, http.StatusOK, &clr)
 
 	label1 := clr.Label
 
 	clr = fleet.CreateLabelResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.CreateLabelRequest{
-		LabelPayload: fleet.LabelPayload{
-			Name:  "label2" + t.Name(),
-			Query: "SELECT 2;",
-		},
+		Name:  "label2" + t.Name(),
+		Query: "SELECT 2;",
 	}, http.StatusOK, &clr)
 
 	label2 := clr.Label
@@ -229,16 +224,16 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 			for _, l := range getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAll {
 				labelNames = append(labelNames, l.LabelName)
 			}
-			s.Assert().ElementsMatch([]string{label1.Name, label2.Name}, labelNames)
+			s.ElementsMatch([]string{label1.Name, label2.Name}, labelNames)
 		}
 	}
 
 	actual := assoc[fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform}]
 	// Only macOS version should be self-service
 	assert.Equal(t, fleet.VPPAppTeam{
-		VPPAppID:           fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform},
+		AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform,
 		SelfService:        true,
-		InstallDuringSetup: ptr.Bool(false),
+		InstallDuringSetup: new(false),
 		VersionName:        fleet.DefaultAppStoreAppVersionName,
 		AppTeamID:          meta.AppTeamID,
 		AddedAt:            actual.AddedAt,
@@ -267,9 +262,9 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	require.NoError(t, err)
 	actual = assoc[fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, Platform: fleet.MacOSPlatform}]
 	assert.Equal(t, fleet.VPPAppTeam{
-		VPPAppID:           fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, Platform: fleet.MacOSPlatform},
+		AdamID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, Platform: fleet.MacOSPlatform,
 		SelfService:        true,
-		InstallDuringSetup: ptr.Bool(false),
+		InstallDuringSetup: new(false),
 		VersionName:        fleet.DefaultAppStoreAppVersionName,
 		AppTeamID:          meta.AppTeamID,
 		AddedAt:            actual.AddedAt,
@@ -278,8 +273,8 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	require.NoError(t, err)
 	actual = assoc[fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IOSPlatform}]
 	assert.Equal(t, fleet.VPPAppTeam{
-		VPPAppID:           fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IOSPlatform},
-		InstallDuringSetup: ptr.Bool(false),
+		AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IOSPlatform,
+		InstallDuringSetup: new(false),
 		VersionName:        fleet.DefaultAppStoreAppVersionName,
 		AppTeamID:          meta.AppTeamID,
 		AddedAt:            actual.AddedAt,
@@ -288,8 +283,8 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	require.NoError(t, err)
 	actual = assoc[fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IPadOSPlatform}]
 	assert.Equal(t, fleet.VPPAppTeam{
-		VPPAppID:           fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IPadOSPlatform},
-		InstallDuringSetup: ptr.Bool(false),
+		AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IPadOSPlatform,
+		InstallDuringSetup: new(false),
 		VersionName:        fleet.DefaultAppStoreAppVersionName,
 		AppTeamID:          meta.AppTeamID,
 		AddedAt:            actual.AddedAt,
@@ -298,8 +293,8 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	require.NoError(t, err)
 	actual = assoc[fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform}]
 	assert.Equal(t, fleet.VPPAppTeam{
-		VPPAppID:           fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform},
-		InstallDuringSetup: ptr.Bool(false),
+		AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform,
+		InstallDuringSetup: new(false),
 		VersionName:        fleet.DefaultAppStoreAppVersionName,
 		AppTeamID:          meta.AppTeamID,
 		AddedAt:            actual.AddedAt,
@@ -310,11 +305,11 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 
 	// Remove all vpp associations
 	s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name)
-	require.Len(t, batchAssociateResponse.Apps, 0)
+	require.Empty(t, batchAssociateResponse.Apps)
 
 	assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
 	require.NoError(t, err)
-	require.Len(t, assoc, 0)
+	require.Empty(t, assoc)
 
 	// Test InstallDuringSetup
 	// Helper functions for verifying what's enabled for setup experience
@@ -348,11 +343,11 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		batchAssociateAppStoreAppsRequest{
 			Apps: []fleet.VPPBatchPayload{
 				// macOS only
-				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, InstallDuringSetup: ptr.Bool(true)},
+				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, InstallDuringSetup: new(true)},
 				// macOS, iOS, iPadOS
-				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, SelfService: true, InstallDuringSetup: ptr.Bool(true)},
+				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, SelfService: true, InstallDuringSetup: new(true)},
 				// iPadOS only
-				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[2].AdamID, SelfService: true, InstallDuringSetup: ptr.Bool(true)},
+				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[2].AdamID, SelfService: true, InstallDuringSetup: new(true)},
 			},
 		}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name,
 	)
@@ -388,11 +383,11 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		batchAssociateAppStoreAppsRequest{
 			Apps: []fleet.VPPBatchPayload{
 				// macOS only
-				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, InstallDuringSetup: ptr.Bool(false)},
+				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, InstallDuringSetup: new(false)},
 				// macOS, iOS, iPadOS
-				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, SelfService: true, InstallDuringSetup: ptr.Bool(false)},
+				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, SelfService: true, InstallDuringSetup: new(false)},
 				// iPadOS only
-				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[2].AdamID, SelfService: true, InstallDuringSetup: ptr.Bool(false)},
+				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[2].AdamID, SelfService: true, InstallDuringSetup: new(false)},
 			},
 		}, http.StatusOK, &batchAssociateResponse, "team_name", tmGood.Name,
 	)
@@ -410,7 +405,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID}, {AppStoreID: "com.foo.bar", Platform: fleet.AndroidPlatform},
 	}}, http.StatusBadRequest, "team_name", tmGood.Name)
 
-	s.Assert().Contains(extractServerErrorText(resp.Body), "Android MDM is not enabled")
+	s.Contains(extractServerErrorText(resp.Body), "Android MDM is not enabled")
 
 	s.enableAndroidMDM(s.T())
 
@@ -422,7 +417,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID}, {AppStoreID: "com.app.not.found", Platform: fleet.AndroidPlatform},
 	}}, http.StatusUnprocessableEntity, "team_name", tmGood.Name)
 
-	s.Assert().Contains(extractServerErrorText(resp.Body), "Validation Failed: Couldn't add software. The application ID \"com.app.not.found\" isn't available in Play Store. Please find ID on the Play Store and try again.")
+	s.Contains(extractServerErrorText(resp.Body), "Validation Failed: Couldn't add software. The application ID \"com.app.not.found\" isn't available in Play Store. Please find ID on the Play Store and try again.")
 
 	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
 		return &androidmanagement.Application{}, nil
@@ -504,9 +499,9 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 
 			var args map[string]any
 			s.Require().NoError(json.Unmarshal(*j.Args, &args))
-			s.Assert().Equal("bulk_set_android_apps_available_for_host", args["task"])
-			s.Assert().Equal(fleet.JobStateSuccess, j.State)
-			s.Assert().ElementsMatch(expectedAppIDs, args["application_ids"])
+			s.Equal("bulk_set_android_apps_available_for_host", args["task"])
+			s.Equal(fleet.JobStateSuccess, j.State)
+			s.ElementsMatch(expectedAppIDs, args["application_ids"])
 
 			return nil
 		})
@@ -515,7 +510,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	// Run worker to set apps available to device
 	time.Sleep(time.Second)
 	s.runWorker()
-	s.Assert().True(s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
+	s.True(s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
 	s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked = false
 	checkJobs([]string{chromeAppID, driveAppID})
 
@@ -539,18 +534,18 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 
 	time.Sleep(time.Second)
 	s.runWorker()
-	s.Assert().True(s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
+	s.True(s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
 	checkJobs([]string{driveAppID})
 
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSwTitles, "team_id", fmt.Sprint(tmGood.ID))
 
-	s.Assert().Len(listSwTitles.SoftwareTitles, 2)
+	s.Len(listSwTitles.SoftwareTitles, 2)
 	for _, sw := range listSwTitles.SoftwareTitles {
 		switch sw.AppStoreApp.AppStoreID {
 		case driveAppID:
-			s.Assert().Equal("DriveUpdatedName", sw.DisplayName)
+			s.Equal("DriveUpdatedName", sw.DisplayName)
 		case s.appleVPPConfigSrvConfig.Assets[0].AdamID:
-			s.Assert().Equal("VPPAppUpdatedName", sw.DisplayName)
+			s.Equal("VPPAppUpdatedName", sw.DisplayName)
 		}
 	}
 
@@ -588,16 +583,16 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 
 		time.Sleep(time.Second)
 		s.runWorker()
-		s.Assert().True(s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
+		s.True(s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
 		checkJobs([]string{driveAppID})
 
 		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSwTitles, "team_id", fmt.Sprint(tmGood.ID))
 
-		s.Assert().Len(listSwTitles.SoftwareTitles, expectedAppCount)
+		s.Len(listSwTitles.SoftwareTitles, expectedAppCount)
 		for _, sw := range listSwTitles.SoftwareTitles {
 			id, ok := displayNameToAppStoreID[key(sw.AppStoreApp)]
-			s.Assert().True(ok)
-			s.Assert().Equal(id, sw.DisplayName)
+			s.True(ok)
+			s.Equal(id, sw.DisplayName)
 		}
 	}
 
@@ -708,7 +703,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	t.Run("vpp apps with labels", func(t *testing.T) {
 		// Create a team
 		var newTeamResp teamResponse
-		s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team Labels" + t.Name())}}, http.StatusOK, &newTeamResp)
+		s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("Team Labels" + t.Name())}, http.StatusOK, &newTeamResp)
 		team := newTeamResp.Team
 
 		// Add an MDM macOS host to the team
@@ -731,12 +726,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		require.NotNil(t, l2)
 
 		includeAnyApp := fleet.VPPApp{
-			VPPAppTeam: fleet.VPPAppTeam{
-				VPPAppID: fleet.VPPAppID{
-					AdamID:   "1",
-					Platform: fleet.MacOSPlatform,
-				},
-			},
+			AdamID:           "1",
+			Platform:         fleet.MacOSPlatform,
 			Name:             "App 1",
 			BundleIdentifier: "a-1",
 			IconURL:          "https://example.com/images/1/512x512.png",
@@ -771,16 +762,12 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApp.AdamID, includeAnyApp.AdamID)
 		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsExcludeAny)
 		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAll)
-		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAny, []fleet.SoftwareScopeLabel{{LabelName: l1.Name, LabelID: l1.ID}})
+		require.Equal(t, []fleet.SoftwareScopeLabel{{LabelName: l1.Name, LabelID: l1.ID}}, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAny)
 
 		// Add an app with exclude_any labels
 		excludeAnyApp := fleet.VPPApp{
-			VPPAppTeam: fleet.VPPAppTeam{
-				VPPAppID: fleet.VPPAppID{
-					AdamID:   "2",
-					Platform: fleet.MacOSPlatform,
-				},
-			},
+			AdamID:           "2",
+			Platform:         fleet.MacOSPlatform,
 			Name:             "App 2",
 			BundleIdentifier: "b-2",
 			IconURL:          "https://example.com/images/1/512x512.png",
@@ -805,7 +792,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApp.AdamID, excludeAnyApp.AdamID)
 		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAny)
 		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAll)
-		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsExcludeAny, []fleet.SoftwareScopeLabel{{LabelName: l2.Name, LabelID: l2.ID}})
+		require.Equal(t, []fleet.SoftwareScopeLabel{{LabelName: l2.Name, LabelID: l2.ID}}, getSWTitle.SoftwareTitle.AppStoreApp.LabelsExcludeAny)
 		require.True(t, getSWTitle.SoftwareTitle.AppStoreApp.SelfService)
 
 		// Add a non-VPP software
@@ -829,7 +816,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		require.Len(t, resp.SoftwareTitles, 1)
 		nonVPPTitleID := resp.SoftwareTitles[0].ID
 
-		updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false)}
+		updateAppReq := &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: new(false)}
 
 		// Attempt to update the non-VPP software using the VPP path. Should fail.
 		s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", nonVPPTitleID), updateAppReq, http.StatusNotFound)
@@ -856,7 +843,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 		require.NotNil(t, updateAppResp.AppStoreApp)
 		require.Equal(t, updateAppResp.AppStoreApp.AppStoreID, excludeAnyApp.AdamID)
-		require.Equal(t, updateAppResp.AppStoreApp.LabelsIncludeAny, []fleet.SoftwareScopeLabel{{LabelName: l2.Name, LabelID: l2.ID}})
+		require.Equal(t, []fleet.SoftwareScopeLabel{{LabelName: l2.Name, LabelID: l2.ID}}, updateAppResp.AppStoreApp.LabelsIncludeAny)
 		require.Empty(t, updateAppResp.AppStoreApp.LabelsExcludeAny)
 		require.Empty(t, updateAppResp.AppStoreApp.LabelsIncludeAll)
 		require.False(t, updateAppResp.AppStoreApp.SelfService)
@@ -872,7 +859,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &getSWTitle, "team_id", fmt.Sprint(team.ID))
 		require.NotNil(t, getSWTitle.SoftwareTitle.AppStoreApp)
 		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApp.AdamID, excludeAnyApp.AdamID)
-		require.Equal(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAny, []fleet.SoftwareScopeLabel{{LabelName: l2.Name, LabelID: l2.ID}})
+		require.Equal(t, []fleet.SoftwareScopeLabel{{LabelName: l2.Name, LabelID: l2.ID}}, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAny)
 		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsExcludeAny)
 		require.Empty(t, getSWTitle.SoftwareTitle.AppStoreApp.LabelsIncludeAll)
 		require.False(t, getSWTitle.SoftwareTitle.AppStoreApp.SelfService)
@@ -902,12 +889,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		// iOS and iPadOS
 
 		iOSApp := fleet.VPPApp{
-			VPPAppTeam: fleet.VPPAppTeam{
-				VPPAppID: fleet.VPPAppID{
-					AdamID:   "2",
-					Platform: fleet.IOSPlatform,
-				},
-			},
+			AdamID:           "2",
+			Platform:         fleet.IOSPlatform,
 			Name:             "App 2",
 			BundleIdentifier: "b-2",
 			IconURL:          "https://example.com/images/2/512x512.png",
@@ -915,12 +898,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		}
 
 		iPadOSApp := fleet.VPPApp{
-			VPPAppTeam: fleet.VPPAppTeam{
-				VPPAppID: fleet.VPPAppID{
-					AdamID:   "2",
-					Platform: fleet.IPadOSPlatform,
-				},
-			},
+			AdamID:           "2",
+			Platform:         fleet.IPadOSPlatform,
 			Name:             "App 2",
 			BundleIdentifier: "b-2",
 			IconURL:          "https://example.com/images/2/512x512.png",
@@ -998,7 +977,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	// Create a team with unique name to avoid conflicts with other tests
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("VPPApps Test Team " + t.Name())}}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("VPPApps Test Team " + t.Name())}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	// Associate team to the VPP token.
@@ -1077,36 +1056,24 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.NoError(t, appResp.Err)
 
 	macOSApp := fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "1",
-				Platform: fleet.MacOSPlatform,
-			},
-		},
+		AdamID:           "1",
+		Platform:         fleet.MacOSPlatform,
 		Name:             "App 1",
 		BundleIdentifier: "a-1",
 		IconURL:          "https://example.com/images/1/512x512.png",
 		LatestVersion:    "1.0.0",
 	}
 	iPadOSApp := fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "2",
-				Platform: fleet.IPadOSPlatform,
-			},
-		},
+		AdamID:           "2",
+		Platform:         fleet.IPadOSPlatform,
 		Name:             "App 2",
 		BundleIdentifier: "b-2",
 		IconURL:          "https://example.com/images/2/512x512.png",
 		LatestVersion:    "2.0.0",
 	}
 	iOSApp := fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "2",
-				Platform: fleet.IOSPlatform,
-			},
-		},
+		AdamID:           "2",
+		Platform:         fleet.IOSPlatform,
 		Name:             "App 2",
 		BundleIdentifier: "b-2",
 		IconURL:          "https://example.com/images/2/512x512.png",
@@ -1117,24 +1084,16 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		&iPadOSApp,
 		&iOSApp,
 		{
-			VPPAppTeam: fleet.VPPAppTeam{
-				VPPAppID: fleet.VPPAppID{
-					AdamID:   "2",
-					Platform: fleet.MacOSPlatform,
-				},
-			},
+			AdamID:           "2",
+			Platform:         fleet.MacOSPlatform,
 			Name:             "App 2",
 			BundleIdentifier: "b-2",
 			IconURL:          "https://example.com/images/2/512x512.png",
 			LatestVersion:    "2.0.1",
 		},
 		{
-			VPPAppTeam: fleet.VPPAppTeam{
-				VPPAppID: fleet.VPPAppID{
-					AdamID:   "3",
-					Platform: fleet.IPadOSPlatform,
-				},
-			},
+			AdamID:           "3",
+			Platform:         fleet.IPadOSPlatform,
 			Name:             "App 3",
 			BundleIdentifier: "c-3",
 			IconURL:          "https://example.com/images/3/512x512.png",
@@ -1148,7 +1107,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	addedApp := expectedApps[0]
 	var addAppResp addAppStoreAppResponse
 	// Add an app store app to non-existent team
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: ptr.Uint(9999), AppStoreID: addedApp.AdamID}, http.StatusNotFound, &addAppResp)
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: new(uint(9999)), AppStoreID: addedApp.AdamID}, http.StatusNotFound, &addAppResp)
 
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: addedApp.AdamID, SelfService: true, AutomaticInstall: true}, http.StatusOK, &addAppResp)
 
@@ -1245,7 +1204,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	listSw = listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID),
 		"self_service", "true")
-	require.Len(t, listSw.SoftwareTitles, 0)
+	require.Empty(t, listSw.SoftwareTitles)
 
 	_, err := s.ds.CreateOrUpdateSoftwareTitleIcon(context.Background(), &fleet.UploadSoftwareTitleIconPayload{
 		TitleID:   macOSTitleID,
@@ -1496,7 +1455,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	listResp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", fmt.Sprint(team.ID),
 		"software_title_id", fmt.Sprint(macOSTitleID))
-	require.Len(t, listResp.Hosts, 0)
+	require.Empty(t, listResp.Hosts)
 	countResp = countHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "failed", "team_id",
 		fmt.Sprint(team.ID), "software_title_id", fmt.Sprint(macOSTitleID))
@@ -1638,22 +1597,22 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	gotSW := getHostSw.Software
 	require.Len(t, gotSW, 2) // App 1 and App 2
 	got1, got2 := gotSW[0], gotSW[1]
-	require.Equal(t, got1.Name, "App 1")
+	require.Equal(t, "App 1", got1.Name)
 	require.NotNil(t, got1.AppStoreApp)
 	require.Equal(t, got1.AppStoreApp.AppStoreID, addedApp.AdamID)
-	require.Equal(t, got1.IconUrl, ptr.String(addedApp.IconURL))
+	require.Equal(t, got1.IconUrl, new(addedApp.IconURL))
 	require.Empty(t, got1.AppStoreApp.Name) // Name is only present for installer packages
 	require.Equal(t, got1.AppStoreApp.Version, addedApp.LatestVersion)
 	require.NotNil(t, got1.Status)
-	require.Equal(t, *got1.Status, fleet.SoftwareInstalled)
+	require.Equal(t, fleet.SoftwareInstalled, *got1.Status)
 	require.Equal(t, got1.AppStoreApp.LastInstall.CommandUUID, installCmdUUID)
 	require.NotNil(t, got1.AppStoreApp.LastInstall.InstalledAt)
-	require.Equal(t, got2.Name, "App 2")
+	require.Equal(t, "App 2", got2.Name)
 	require.NotNil(t, got2.Status)
-	require.Equal(t, *got2.Status, fleet.SoftwareInstallFailed)
+	require.Equal(t, fleet.SoftwareInstallFailed, *got2.Status)
 	require.NotNil(t, got2.AppStoreApp)
 	require.Equal(t, got2.AppStoreApp.AppStoreID, errApp.AdamID)
-	require.Equal(t, got2.IconUrl, ptr.String(errApp.IconURL))
+	require.Equal(t, got2.IconUrl, new(errApp.IconURL))
 	require.Empty(t, got2.AppStoreApp.Name)
 	require.Equal(t, got2.AppStoreApp.Version, errApp.LatestVersion)
 	require.Equal(t, got2.AppStoreApp.LastInstall.CommandUUID, failedCmdUUID)
@@ -1664,15 +1623,15 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw, "query", "App 1", "include_available_for_install", "true")
 	require.Len(t, getHostSw.Software, 1) // App 1 only
 	got1 = getHostSw.Software[0]
-	require.Equal(t, got1.Name, "App 1")
+	require.Equal(t, "App 1", got1.Name)
 	require.NotNil(t, got1.AppStoreApp)
 	require.NotNil(t, got1.AppStoreApp)
 	require.Equal(t, got1.AppStoreApp.AppStoreID, addedApp.AdamID)
-	require.Equal(t, got1.IconUrl, ptr.String(addedApp.IconURL))
+	require.Equal(t, got1.IconUrl, new(addedApp.IconURL))
 	require.Empty(t, got1.AppStoreApp.Name)
 	require.Equal(t, got1.AppStoreApp.Version, addedApp.LatestVersion)
 	require.NotNil(t, got1.Status)
-	require.Equal(t, *got1.Status, fleet.SoftwareInstalled)
+	require.Equal(t, fleet.SoftwareInstalled, *got1.Status)
 	require.Equal(t, got1.AppStoreApp.LastInstall.CommandUUID, installCmdUUID)
 	require.NotNil(t, got1.AppStoreApp.LastInstall.InstalledAt)
 
@@ -1692,7 +1651,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 					"installed_path": "/Applications/a.app"}]`, addedApp.Name, addedApp.LatestVersion, addedApp.BundleIdentifier,
 			)),
 		},
-		Statuses: map[string]interface{}{
+		Statuses: map[string]any{
 			hostDistributedQueryPrefix + "software_macos": 0,
 		},
 		Messages: map[string]string{},
@@ -1707,7 +1666,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		Results: map[string]json.RawMessage{
 			hostDetailQueryPrefix + "software_macos": json.RawMessage(`[]`),
 		},
-		Statuses: map[string]interface{}{
+		Statuses: map[string]any{
 			hostDistributedQueryPrefix + "software_macos": 0,
 		},
 		Messages: map[string]string{},
@@ -1722,10 +1681,10 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	gotSW = getHostSw.Software
 	require.Len(t, gotSW, 2) // App 1 and App 2
 	got1 = gotSW[0]
-	require.Equal(t, got1.Name, "App 1")
+	require.Equal(t, "App 1", got1.Name)
 	require.NotNil(t, got1.AppStoreApp)
 	require.Equal(t, got1.AppStoreApp.AppStoreID, addedApp.AdamID)
-	require.Equal(t, got1.IconUrl, ptr.String(addedApp.IconURL))
+	require.Equal(t, got1.IconUrl, new(addedApp.IconURL))
 	require.Empty(t, got1.AppStoreApp.Name) // Name is only present for installer packages
 	require.Equal(t, got1.AppStoreApp.Version, addedApp.LatestVersion)
 	assert.Nil(t, got1.Status)
@@ -1800,7 +1759,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 				res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/software/commands/%s/results", install.deviceToken, installCmdUUID), nil, http.StatusOK)
 				err = json.NewDecoder(res.Body).Decode(&cmdResResp)
 				require.NoError(t, err)
-				require.Len(t, cmdResResp.Results, 0)
+				require.Empty(t, cmdResResp.Results)
 			}
 
 			// Get pending activity
@@ -1902,10 +1861,10 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 					require.Equal(t, got1.Name, app.Name)
 					require.NotNil(t, got1.AppStoreApp)
 					require.Equal(t, got1.AppStoreApp.AppStoreID, app.AdamID)
-					require.Equal(t, got1.IconUrl, ptr.String(app.IconURL))
+					require.Equal(t, got1.IconUrl, new(app.IconURL))
 					require.Empty(t, got1.AppStoreApp.Name) // Name is only present for installer packages
 					require.Equal(t, got1.AppStoreApp.Version, app.LatestVersion)
-					require.Equal(t, *got1.Status, fleet.SoftwareInstalled)
+					require.Equal(t, fleet.SoftwareInstalled, *got1.Status)
 					require.Equal(t, got1.AppStoreApp.LastInstall.CommandUUID, installCmdUUID)
 					require.NotNil(t, got1.AppStoreApp.LastInstall.InstalledAt)
 					foundInstalledApp = true
@@ -1956,12 +1915,8 @@ func (s *integrationMDMTestSuite) TestNoTeamVPPAppIcons() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{fleet.PolicyNoTeamID}}, http.StatusOK, &resPatchVPP)
 
 	macOSApp := fleet.VPPApp{
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "1",
-				Platform: fleet.MacOSPlatform,
-			},
-		},
+		AdamID:           "1",
+		Platform:         fleet.MacOSPlatform,
 		Name:             "App 1",
 		BundleIdentifier: "a-1",
 		IconURL:          "https://example.com/images/1/512x512.png",
@@ -1972,7 +1927,7 @@ func (s *integrationMDMTestSuite) TestNoTeamVPPAppIcons() {
 	// Add an app store app to team no team
 	addedApp := macOSApp
 	var addAppResp addAppStoreAppResponse
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: ptr.Uint(fleet.PolicyNoTeamID), AppStoreID: addedApp.AdamID, SelfService: true}, http.StatusOK, &addAppResp)
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: new(fleet.PolicyNoTeamID), AppStoreID: addedApp.AdamID, SelfService: true}, http.StatusOK, &addAppResp)
 
 	// list the software titles, to get the title id of the VPP app
 	var listSw listSoftwareTitlesResponse
@@ -2028,7 +1983,7 @@ func (s *integrationMDMTestSuite) TestVPPAppsMDMFiltering() {
 
 	// Create team and add hosts to team
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("Team 1")}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{orbitHost.ID, mdmHost.ID}, TeamID: &team.ID}, http.StatusOK)
@@ -2037,18 +1992,14 @@ func (s *integrationMDMTestSuite) TestVPPAppsMDMFiltering() {
 	_, err := s.ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name:             "App " + t.Name(),
 		BundleIdentifier: "bid_" + t.Name(),
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "adam_test_01",
-				Platform: fleet.MacOSPlatform,
-			},
-		},
+		AdamID:           "adam_test_01",
+		Platform:         fleet.MacOSPlatform,
 	}, &team.ID, nil)
 	require.NoError(t, err)
 
 	resp := getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", orbitHost.ID), getHostSoftwareRequest{}, http.StatusOK, &resp)
-	assert.Len(t, resp.Software, 0)
+	assert.Empty(t, resp.Software)
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), getHostSoftwareRequest{}, http.StatusOK, &resp, "include_available_for_install", "true")
 	assert.Len(t, resp.Software, 1)
@@ -2070,7 +2021,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersions() {
 	}
 
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1" + t.Name())}}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("Team 1" + t.Name())}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	stubbedConfig := apple_apps.StubbedConfig() // authentication is tested elsewhere
@@ -2190,7 +2141,7 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 	stubbedConfig := apple_apps.StubbedConfig() // authentication is tested elsewhere
 
 	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1" + t.Name())}}, http.StatusOK, &newTeamResp)
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("Team 1" + t.Name())}, http.StatusOK, &newTeamResp)
 	team := newTeamResp.Team
 
 	// Set up VPP token

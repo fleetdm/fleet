@@ -40,7 +40,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/nanopush"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -166,21 +165,21 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	const deviceName = "My iPhone"
 	expectedSoftware := []fleet.HostSoftwareEntry{
 		{
-			Software: fleet.Software{
-				BundleIdentifier: "com.evernote.iPhone.Evernote",
-				Name:             "Evernote",
-				Version:          "10.98.0",
-				Source:           "ios_apps",
-			},
+			BundleIdentifier: "com.evernote.iPhone.Evernote",
+			Name:             "Evernote",
+			Version:          "10.98.0",
+			Source:           "ios_apps",
 		},
 	}
 	require.Equal(t, "InstalledApplicationList", cmd.Command.RequestType)
 	cmd, err = mdmClient.AcknowledgeInstalledApplicationList(mdmClient.UUID, cmd.CommandUUID,
 		[]fleet.Software{expectedSoftware[0].Software})
 	require.NoError(t, err)
+	require.NotNil(t, cmd)
 	require.Equal(t, "CertificateList", cmd.Command.RequestType)
 	cmd, err = mdmClient.AcknowledgeCertificateList(mdmClient.UUID, cmd.CommandUUID, testCerts)
 	require.NoError(t, err)
+	require.NotNil(t, cmd)
 	require.Equal(t, "DeviceInformation", cmd.Command.RequestType)
 	_, err = mdmClient.AcknowledgeDeviceInformation(mdmClient.UUID, cmd.CommandUUID, deviceName, "iPhone SE", "America/Los_Angeles")
 	require.NoError(t, err)
@@ -221,21 +220,21 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	const deviceNameIPad = "My iPad"
 	expectedSoftware = []fleet.HostSoftwareEntry{
 		{
-			Software: fleet.Software{
-				BundleIdentifier: "com.evernote.iPhone.Evernote",
-				Name:             "Evernote",
-				Version:          "10.98.0",
-				Source:           "ipados_apps",
-			},
+			BundleIdentifier: "com.evernote.iPhone.Evernote",
+			Name:             "Evernote",
+			Version:          "10.98.0",
+			Source:           "ipados_apps",
 		},
 	}
 	require.Equal(t, "InstalledApplicationList", cmd.Command.RequestType)
 	cmd, err = mdmClientIPad.AcknowledgeInstalledApplicationList(mdmClientIPad.UUID, cmd.CommandUUID,
 		[]fleet.Software{expectedSoftware[0].Software})
 	require.NoError(t, err)
+	require.NotNil(t, cmd)
 	require.Equal(t, "CertificateList", cmd.Command.RequestType)
 	cmd, err = mdmClientIPad.AcknowledgeCertificateList(mdmClientIPad.UUID, cmd.CommandUUID, testCerts)
 	require.NoError(t, err)
+	require.NotNil(t, cmd)
 	require.Equal(t, "DeviceInformation", cmd.Command.RequestType)
 	cmd, err = mdmClientIPad.AcknowledgeDeviceInformation(mdmClientIPad.UUID, cmd.CommandUUID, deviceNameIPad, "iPad 10", "America/Los_Angeles")
 	require.NoError(t, err)
@@ -282,21 +281,21 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	const deviceNameIPod = "My iPod"
 	expectedSoftware = []fleet.HostSoftwareEntry{
 		{
-			Software: fleet.Software{
-				BundleIdentifier: "com.evernote.iPhone.Evernote",
-				Name:             "Evernote",
-				Version:          "10.98.0",
-				Source:           "ios_apps",
-			},
+			BundleIdentifier: "com.evernote.iPhone.Evernote",
+			Name:             "Evernote",
+			Version:          "10.98.0",
+			Source:           "ios_apps",
 		},
 	}
 	require.Equal(t, "InstalledApplicationList", cmd.Command.RequestType)
 	cmd, err = mdmClientIPod.AcknowledgeInstalledApplicationList(mdmClientIPod.UUID, cmd.CommandUUID,
 		[]fleet.Software{expectedSoftware[0].Software})
 	require.NoError(t, err)
+	require.NotNil(t, cmd)
 	require.Equal(t, "CertificateList", cmd.Command.RequestType)
 	cmd, err = mdmClientIPod.AcknowledgeCertificateList(mdmClientIPod.UUID, cmd.CommandUUID, testCerts)
 	require.NoError(t, err)
+	require.NotNil(t, cmd)
 	require.Equal(t, "DeviceInformation", cmd.Command.RequestType)
 	_, err = mdmClientIPod.AcknowledgeDeviceInformation(mdmClientIPod.UUID, cmd.CommandUUID, deviceNameIPod, "iPod Touch", "America/Los_Angeles")
 	require.NoError(t, err)
@@ -329,14 +328,14 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &resp, "query", "Evernote")
 	expectedTitles := []fleet.SoftwareTitleListResult{
 		{
-			BundleIdentifier: ptr.String("com.evernote.iPhone.Evernote"),
+			BundleIdentifier: new("com.evernote.iPhone.Evernote"),
 			Name:             "Evernote",
 			Source:           "ios_apps",
 			HostsCount:       2,
 			VersionsCount:    1,
 		},
 		{
-			BundleIdentifier: ptr.String("com.evernote.iPhone.Evernote"),
+			BundleIdentifier: new("com.evernote.iPhone.Evernote"),
 			Name:             "Evernote",
 			Source:           "ipados_apps",
 			HostsCount:       1,
@@ -363,9 +362,11 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	require.Equal(t, "InstalledApplicationList", cmd.Command.RequestType)
 	cmd, err = mdmClient.AcknowledgeInstalledApplicationList(mdmClient.UUID, cmd.CommandUUID, []fleet.Software{})
 	require.NoError(t, err)
+	require.NotNil(t, cmd)
 	require.Equal(t, "CertificateList", cmd.Command.RequestType)
 	cmd, err = mdmClient.AcknowledgeCertificateList(mdmClient.UUID, cmd.CommandUUID, []*x509.Certificate{})
 	require.NoError(t, err)
+	require.NotNil(t, cmd)
 	require.Equal(t, "DeviceInformation", cmd.Command.RequestType)
 	const deviceNameRenamed = "My new iPhone"
 	cmd, err = mdmClient.AcknowledgeDeviceInformation(mdmClient.UUID, cmd.CommandUUID, deviceNameRenamed, "iPhone SE", "America/Los_Angeles")
@@ -407,7 +408,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 		defer ticker.Stop()
 		for range ticker.C {
 			commands, err = s.ds.GetHostMDMCommands(context.Background(), host.ID)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			if len(commands) == commandsSentPerRefetch {
 				done <- struct{}{}
 				return
@@ -427,8 +428,11 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	require.Equal(t, "InstalledApplicationList", cmd.Command.RequestType)
 	cmd, err = mdmClient.AcknowledgeInstalledApplicationList(mdmClient.UUID, cmd.CommandUUID, []fleet.Software{})
 	require.NoError(t, err)
+	require.NotNil(t, cmd)
 	require.Equal(t, "CertificateList", cmd.Command.RequestType)
 	cmd, err = mdmClient.AcknowledgeCertificateList(mdmClient.UUID, cmd.CommandUUID, []*x509.Certificate{})
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
 	require.Equal(t, "DeviceInformation", cmd.Command.RequestType)
 	cmd, err = mdmClient.AcknowledgeDeviceInformation(mdmClient.UUID, cmd.CommandUUID, deviceNameRenamed, "iPhone SE", "America/Los_Angeles")
 	require.NoError(t, err)
@@ -856,7 +860,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 	linkedIDPAccount, err = s.ds.GetMDMIdPAccountByHostUUID(context.Background(), iPadMdmDevice.EnrollmentID())
 	require.NoError(t, err)
 	require.NotNil(t, linkedIDPAccount)
-	assert.Equal(t, linkedIDPAccount.Email, "sso_user2@example.com")
+	assert.Equal(t, "sso_user2@example.com", linkedIDPAccount.Email)
 
 	oldUrlIphoneMdmDevice := mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(
 		s.server.URL,
@@ -1022,7 +1026,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMActionsOnPersonalHost() {
 		iPhoneAccessToken,
 	)
 	require.NoError(t, iPhoneMdmDevice.Enroll())
-	assert.Equal(t, iPhoneMdmDevice.EnrollInfo.AssignedManagedAppleID, "sso_user@example.com")
+	assert.Equal(t, "sso_user@example.com", iPhoneMdmDevice.EnrollInfo.AssignedManagedAppleID)
 
 	listHostsRes := listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
@@ -1080,7 +1084,7 @@ func (s *integrationMDMTestSuite) TestRecreateDeletedIPhoneBYOD() {
 
 	listHostsRes = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
-	require.Len(t, listHostsRes.Hosts, 0)
+	require.Empty(t, listHostsRes.Hosts)
 
 	// run the reviver cron job, will send a push notification to the deleted host
 	oriPushFunc := s.pushProvider.PushFunc
@@ -1127,24 +1131,24 @@ func (s *integrationMDMTestSuite) TestRecreateDeletedIPhoneADE() {
 		switch r.URL.Path {
 		case "/session":
 			err := encoder.Encode(map[string]string{"auth_session_token": "xyz"})
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case "/profile":
 			err := encoder.Encode(godep.ProfileResponse{ProfileUUID: uuid.New().String()})
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case "/server/devices":
 			err := encoder.Encode(godep.DeviceResponse{Devices: []godep.Device{device}})
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case "/devices/sync":
 			// This endpoint is polled over time to sync devices from
 			// ABM, send a repeated serial and a new one
 			err := encoder.Encode(godep.DeviceResponse{Devices: []godep.Device{device}, Cursor: "foo"})
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case "/profile/devices":
 			b, err := io.ReadAll(r.Body)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 
 			var prof profileAssignmentReq
-			require.NoError(t, json.Unmarshal(b, &prof))
+			assert.NoError(t, json.Unmarshal(b, &prof))
 
 			var resp godep.ProfileResponse
 			resp.ProfileUUID = prof.ProfileUUID
@@ -1153,7 +1157,7 @@ func (s *integrationMDMTestSuite) TestRecreateDeletedIPhoneADE() {
 				resp.Devices[device] = string(fleet.DEPAssignProfileResponseSuccess)
 			}
 			err = encoder.Encode(resp)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		default:
 			_, _ = w.Write([]byte(`{}`))
 		}
@@ -1225,7 +1229,7 @@ func (s *integrationMDMTestSuite) TestRecreateDeletedIPhoneADE() {
 		defer ticker.Stop()
 		for range ticker.C {
 			commands, err := s.ds.GetHostMDMCommands(context.Background(), host.ID)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			if len(commands) > 0 {
 				done <- struct{}{}
 				return
@@ -1420,12 +1424,12 @@ func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
 		Platform:        string(fleet.IOSPlatform),
 		DetailUpdatedAt: time.Now().Add(-2 * time.Hour), // ensure refetch is needed
 	})
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 
 	successfulMdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, model)
 	successfulMdmDevice.SerialNumber = successfulHost.HardwareSerial
 	err = successfulMdmDevice.Enroll()
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 
 	failedHost, err := s.ds.NewHost(ctx, &fleet.Host{
 		HardwareSerial:  mdmtest.RandSerialNumber(),
@@ -1433,12 +1437,12 @@ func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
 		Platform:        string(fleet.IOSPlatform),
 		DetailUpdatedAt: time.Now().Add(-2 * time.Hour), // ensure refetch is needed
 	})
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 
 	failedMdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, model)
 	failedMdmDevice.SerialNumber = failedHost.HardwareSerial
 	err = failedMdmDevice.Enroll()
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 
 	failedHostTokenInactive, err := s.ds.NewHost(ctx, &fleet.Host{
 		HardwareSerial:  mdmtest.RandSerialNumber(),
@@ -1446,19 +1450,19 @@ func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
 		Platform:        string(fleet.IOSPlatform),
 		DetailUpdatedAt: time.Now().Add(-2 * time.Hour), // ensure refetch is needed
 	})
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 
 	failedMdmDeviceTokenInactive := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, model)
 	failedMdmDeviceTokenInactive.SerialNumber = failedHostTokenInactive.HardwareSerial
 	err = failedMdmDeviceTokenInactive.Enroll()
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 
 	originalPushFunc := s.pushProvider.PushFunc
 	s.T().Cleanup(func() {
 		s.pushProvider.PushFunc = originalPushFunc
 	})
 	s.pushProvider.PushFunc = func(_ context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
-		require.Len(s.T(), pushes, 1)
+		s.Require().Len(pushes, 1)
 		pushObject := pushes[0]
 		switch pushObject.PushMagic {
 		case "pushmagic" + successfulMdmDevice.SerialNumber:
@@ -1489,25 +1493,25 @@ func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
 	}
 
 	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, s.fleetSvc.NewActivity)
-	require.NoError(s.T(), err) // Verify it not longer throws an error
+	s.Require().NoError(err) // Verify it not longer throws an error
 
 	// Verify successful is still enrolled
 	successfulHostMDM, err := s.ds.GetHostMDM(ctx, successfulHost.ID)
-	require.NoError(s.T(), err)
-	require.NotNil(s.T(), successfulHostMDM)
-	require.True(s.T(), successfulHostMDM.Enrolled)
+	s.Require().NoError(err)
+	s.Require().NotNil(successfulHostMDM)
+	s.Require().True(successfulHostMDM.Enrolled)
 
 	// Verify random APNS error host is still enrolled
 	failedHostMDM, err := s.ds.GetHostMDM(ctx, failedHost.ID)
-	require.NoError(s.T(), err)
-	require.NotNil(s.T(), failedHostMDM)
-	require.True(s.T(), failedHostMDM.Enrolled)
+	s.Require().NoError(err)
+	s.Require().NotNil(failedHostMDM)
+	s.Require().True(failedHostMDM.Enrolled)
 
 	// Verify device token inactive host is no longer enrolled
 	failedHostMDMTokenInactive, err := s.ds.GetHostMDM(ctx, failedHostTokenInactive.ID)
-	require.NoError(s.T(), err)
-	require.NotNil(s.T(), failedHostMDMTokenInactive)
-	require.False(s.T(), failedHostMDMTokenInactive.Enrolled)
+	s.Require().NoError(err)
+	s.Require().NotNil(failedHostMDMTokenInactive)
+	s.Require().False(failedHostMDMTokenInactive.Enrolled)
 }
 
 func (s *integrationMDMTestSuite) TestInstalledApplicationListCommandForBYODiDevices() {

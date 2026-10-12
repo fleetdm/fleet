@@ -26,7 +26,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -143,7 +142,7 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 		}, http.StatusOK, &resp)
 	require.NotEmpty(t, resp.CommandUUID)
 	require.Contains(t, rawCmd, resp.CommandUUID)
-	require.Equal(t, resp.Platform, "darwin")
+	require.Equal(t, "darwin", resp.Platform)
 	require.Empty(t, resp.FailedUUIDs)
 	require.Equal(t, "ProfileList", resp.RequestType)
 
@@ -274,7 +273,7 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommandWithSecret() {
 		}, http.StatusOK, &resp)
 	require.NotEmpty(t, resp.CommandUUID)
 	require.Contains(t, rawCmd, resp.CommandUUID)
-	require.Equal(t, resp.Platform, "darwin")
+	require.Equal(t, "darwin", resp.Platform)
 	require.Empty(t, resp.FailedUUIDs)
 	require.Equal(t, "ProfileList", resp.RequestType)
 
@@ -284,6 +283,7 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommandWithSecret() {
 
 	cmd, err := mdmClient.Idle()
 	require.NoError(t, err)
+	require.NotNil(t, cmd)
 	assert.Contains(t, string(cmd.Raw), secretValue)
 	assert.NotContains(t, string(cmd.Raw), "FLEET_SECRET_VALUE")
 }
@@ -305,8 +305,8 @@ func (s *integrationMDMTestSuite) TestListMDMCommands() {
 	ctx := context.Background()
 	h, err := s.ds.NewHost(ctx, &fleet.Host{
 		Hostname:      "test-win-host-name",
-		OsqueryHostID: ptr.String("1337"),
-		NodeKey:       ptr.String("1337"),
+		OsqueryHostID: new("1337"),
+		NodeKey:       new("1337"),
 		UUID:          "test-win-host-uuid",
 		Platform:      "windows",
 	})
@@ -356,8 +356,8 @@ func (s *integrationMDMTestSuite) TestMDMWindowsCommandResults() {
 
 	h, err := s.ds.NewHost(ctx, &fleet.Host{
 		Hostname:      "test-win-host-name",
-		OsqueryHostID: ptr.String("1337"),
-		NodeKey:       ptr.String("1337"),
+		OsqueryHostID: new("1337"),
+		NodeKey:       new("1337"),
 		UUID:          "test-win-host-uuid",
 		Platform:      "windows",
 	})

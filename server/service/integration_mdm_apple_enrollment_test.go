@@ -41,7 +41,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/google/uuid"
@@ -180,13 +179,13 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	s.DoJSON("GET", "/api/latest/fleet/apns", nil, http.StatusOK, &mdmResp)
 	// returned values are dummy, this is a test certificate
 	require.Equal(t, "Fleet", mdmResp.Issuer)
-	require.NotZero(t, mdmResp.SerialNumber)
+	require.NotEmpty(t, mdmResp.SerialNumber)
 	require.Equal(t, "Fleet", mdmResp.CommonName)
 	require.NotZero(t, mdmResp.RenewDate)
 
 	var countTokensResp countABMTokensResponse
 	s.DoJSON("GET", "/api/latest/fleet/abm_tokens/count", nil, http.StatusOK, &countTokensResp)
-	assert.EqualValues(t, 0, countTokensResp.Count)
+	assert.Equal(t, 0, countTokensResp.Count)
 
 	// set up multiple ABM tokens with different org names
 	defaultOrgName := "fleet_test"
@@ -220,7 +219,7 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	require.Equal(t, fleet.TeamNameNoTeam, tok.IPadOSTeam.Name)
 
 	s.DoJSON("GET", "/api/latest/fleet/abm_tokens/count", nil, http.StatusOK, &countTokensResp)
-	assert.EqualValues(t, 2, countTokensResp.Count)
+	assert.Equal(t, 2, countTokensResp.Count)
 
 	// create a new team
 	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
@@ -308,6 +307,7 @@ func (s *integrationMDMTestSuite) TestABMTeamPersistsOnConfigChange() {
 	tokensResp := listABMTokensResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &tokensResp)
 	tok := s.getABMTokenByName(t.Name(), tokensResp.Tokens)
+	require.NotNil(t, tok)
 
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/abm_tokens/%d/teams", tok.ID), json.RawMessage(fmt.Sprintf(`{
     "ios_team_id": %d
@@ -337,6 +337,8 @@ func (s *integrationMDMTestSuite) TestABMTokenDefault() {
 	require.Len(t, tokensResp.Tokens, 2)
 	tokA := s.getABMTokenByName(orgA, tokensResp.Tokens)
 	tokB := s.getABMTokenByName(orgB, tokensResp.Tokens)
+	require.NotNil(t, tokA)
+	require.NotNil(t, tokB)
 
 	// the first token became the default when it was the only one
 	require.True(t, tokA.IsDefault)
@@ -419,7 +421,7 @@ func (s *integrationMDMTestSuite) TestABMExpiredToken() {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"auth_session_token": "abcd"}`))
 		default:
-			require.Fail(t, "unexpected return type: %s", returnType)
+			assert.Fail(t, fmt.Sprintf("unexpected return type: %s", returnType))
 		}
 	}))
 
@@ -547,7 +549,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 	listHostsRes := listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes, "mdm_id", fmt.Sprint(mdmID))
 	require.Len(t, listHostsRes.Hosts, 2)
-	require.EqualValues(
+	require.Equal(
 		t,
 		[]string{mdmDeviceA.UUID, mdmDeviceB.UUID},
 		[]string{listHostsRes.Hosts[0].UUID, listHostsRes.Hosts[1].UUID},
@@ -632,14 +634,14 @@ func (s *integrationMDMTestSuite) TestDeviceMultipleAuthMessages() {
 
 	listHostsRes := listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
-	require.Len(s.T(), listHostsRes.Hosts, 1)
+	s.Require().Len(listHostsRes.Hosts, 1)
 
 	// send the auth message again, we still have only one host
 	err = mdmDevice.Authenticate()
 	require.NoError(t, err)
 	listHostsRes = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
-	require.Len(s.T(), listHostsRes.Hosts, 1)
+	s.Require().Len(listHostsRes.Hosts, 1)
 }
 
 func (s *integrationMDMTestSuite) TestAppleMDMCSRRequest() {
@@ -649,19 +651,19 @@ func (s *integrationMDMTestSuite) TestAppleMDMCSRRequest() {
 	// missing arguments
 	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{}, http.StatusUnprocessableEntity, &errResp)
 	require.Len(t, errResp.Errors, 1)
-	require.Equal(t, errResp.Errors[0].Name, "email_address")
+	require.Equal(t, "email_address", errResp.Errors[0].Name)
 
 	// invalid email address
 	errResp = validationErrResp{}
 	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "abc", Organization: "def"}, http.StatusUnprocessableEntity, &errResp)
 	require.Len(t, errResp.Errors, 1)
-	require.Equal(t, errResp.Errors[0].Name, "email_address")
+	require.Equal(t, "email_address", errResp.Errors[0].Name)
 
 	// missing organization
 	errResp = validationErrResp{}
 	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: ""}, http.StatusUnprocessableEntity, &errResp)
 	require.Len(t, errResp.Errors, 1)
-	require.Equal(t, errResp.Errors[0].Name, "organization")
+	require.Equal(t, "organization", errResp.Errors[0].Name)
 
 	// fleetdm CSR request failed
 	s.FailNextCSRRequestWith(http.StatusBadRequest)
@@ -836,7 +838,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 	hostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", h.ID), getHostRequest{}, http.StatusOK, &hostResp)
 	require.Nil(t, hostResp.Host.MDM.Profiles)
-	require.Equal(t, "", hostResp.Host.MDM.Name)
+	require.Empty(t, hostResp.Host.MDM.Name)
 }
 
 func (s *integrationMDMTestSuite) TestEnrollOrbitAfterDEPSync() {
@@ -982,7 +984,7 @@ func (s *integrationMDMTestSuite) TestFleetdConfiguration() {
 	// a new fleetd configuration profile for that team is created
 	s.awaitTriggerProfileSchedule(t)
 	p = s.assertConfigProfilesByIdentifier(&tm.ID, mobileconfig.FleetdConfigPayloadIdentifier, true)
-	require.Contains(t, string(p.Mobileconfig), t.Name()+"team-secret")
+	require.Contains(t, string(p.Mobileconfig), t.Name()+"team-secret") // nolint:nilaway // assertConfigProfilesByIdentifier fails the test when the profile doesn't exist
 
 	// the old configuration profile is kept
 	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetdConfigPayloadIdentifier, true)
@@ -1096,7 +1098,7 @@ func (s *integrationMDMTestSuite) TestABMAssetManagement() {
 	// grab the current public key
 	var abmResp generateABMKeyPairResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/ab_public_key", nil, http.StatusOK, &abmResp)
-	require.Nil(t, abmResp.Err)
+	require.NoError(t, abmResp.Err)
 	require.NotEmpty(t, abmResp.PublicKey)
 
 	// the deprecated abm_public_key path still resolves to the same endpoint
@@ -1108,6 +1110,7 @@ func (s *integrationMDMTestSuite) TestABMAssetManagement() {
 	var tokensResp listABMTokensResponse
 	s.DoJSON("GET", "/api/latest/fleet/abm_tokens", nil, http.StatusOK, &tokensResp)
 	tok := s.getABMTokenByName(t.Name(), tokensResp.Tokens)
+	require.NotNil(t, tok)
 
 	// disable ABM
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/abm_tokens/%d", tok.ID), nil, http.StatusNoContent)
@@ -1122,7 +1125,7 @@ func (s *integrationMDMTestSuite) TestABMAssetManagement() {
 	// enable ABM again
 	var newABMResp generateABMKeyPairResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/ab_public_key", nil, http.StatusOK, &newABMResp)
-	require.Nil(t, newABMResp.Err)
+	require.NoError(t, newABMResp.Err)
 	require.NotEmpty(t, newABMResp.PublicKey)
 	block, _ := pem.Decode(newABMResp.PublicKey)
 	require.NotNil(t, block)
@@ -1131,7 +1134,7 @@ func (s *integrationMDMTestSuite) TestABMAssetManagement() {
 	// we should always return the same values to support renewing the token
 	var renewABMResp generateABMKeyPairResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/ab_public_key", nil, http.StatusOK, &renewABMResp)
-	require.Nil(t, renewABMResp.Err)
+	require.NoError(t, renewABMResp.Err)
 	require.NotEmpty(t, renewABMResp.PublicKey)
 	require.Equal(t, renewABMResp.PublicKey, newABMResp.PublicKey)
 
@@ -1184,12 +1187,12 @@ func (s *integrationMDMTestSuite) TestAPNsPushCron() {
 	// triggering the schedule again doesn't send any more pushes
 	err = ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false)
 	require.NoError(t, err)
-	require.Len(t, recordedPushes, 0)
+	require.Empty(t, recordedPushes)
 	recordedPushes = nil
 
 	// the cron to trigger pushes sends a new push request each time it
 	// runs if there are pending commands
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		err := SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger)
 		require.NoError(t, err)
 		require.Len(t, recordedPushes, 1)
@@ -1208,7 +1211,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushCron() {
 	// no more pushes are enqueued
 	err = SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
-	require.Len(t, recordedPushes, 0)
+	require.Empty(t, recordedPushes)
 }
 
 func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
@@ -1285,7 +1288,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
 	// A 'NotNow' command will not trigger a new push. Device is expected to check in again when conditions change.
 	err = ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false)
 	require.NoError(t, err)
-	require.Len(t, recordedPushes, 0)
+	require.Empty(t, recordedPushes)
 	recordedPushes = nil
 
 	// device acknowledges the commands
@@ -1320,8 +1323,8 @@ func (s *integrationMDMTestSuite) TestMDMEnrollDoesntClearLastEnrolledAtForMacOS
 		PolicyUpdatedAt: time.Now(),
 		LastEnrolledAt:  time.Now(),
 		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name() + uuid.New().String()),
-		NodeKey:         ptr.String(t.Name() + uuid.New().String()),
+		OsqueryHostID:   new(t.Name() + uuid.New().String()),
+		NodeKey:         new(t.Name() + uuid.New().String()),
 		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
 		Platform:        "darwin",
 

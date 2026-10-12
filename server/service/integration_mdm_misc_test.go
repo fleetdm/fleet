@@ -37,7 +37,6 @@ import (
 	servermdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -68,8 +67,8 @@ func (s *integrationMDMTestSuite) TestOrgLogo() {
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
 	require.NoError(t, res.Body.Close())
 	require.NoError(t, getDesktopResp.Err)
-	require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)
-	require.Equal(t, acResp.OrgInfo.OrgLogoURLLightBackground, getDesktopResp.Config.OrgInfo.OrgLogoURLLightBackground)
+	require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)                               //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
+	require.Equal(t, acResp.OrgInfo.OrgLogoURLLightBackground, getDesktopResp.Config.OrgInfo.OrgLogoURLLightBackground) //nolint:staticcheck // intentionally checks the deprecated field is still served to Fleet Desktop
 }
 
 func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
@@ -134,7 +133,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 	wantCfg, err := fleet.NewNudgeConfig(fleet.AppleOSUpdateSettings{Deadline: optjson.SetString("2022-01-04"), MinimumVersion: optjson.SetString("14.6.1")})
 	require.NoError(t, err)
 	require.Equal(t, wantCfg, resp.NudgeConfig)
-	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 20:00:00 +0000 UTC")
+	require.Equal(t, "2022-01-04 20:00:00 +0000 UTC", wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String())
 
 	// create a team with an empty macos_updates config
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
@@ -153,7 +152,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 	resp = fleet.OrbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
 	require.Empty(t, resp.NudgeConfig)
-	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 20:00:00 +0000 UTC")
+	require.Equal(t, "2022-01-04 20:00:00 +0000 UTC", wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String())
 
 	// modify the team config, add macos_updates config
 	var tmResp teamResponse
@@ -172,7 +171,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 	wantCfg, err = fleet.NewNudgeConfig(fleet.AppleOSUpdateSettings{Deadline: optjson.SetString("1992-01-01"), MinimumVersion: optjson.SetString("13.6.9")})
 	require.NoError(t, err)
 	require.Equal(t, wantCfg, resp.NudgeConfig)
-	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "1992-01-01 20:00:00 +0000 UTC")
+	require.Equal(t, "1992-01-01 20:00:00 +0000 UTC", wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String())
 
 	// create a new host, still receives the global config
 	h2 := createOrbitEnrolledHost(t, "darwin", "h2", s.ds)
@@ -194,7 +193,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 	wantCfg, err = fleet.NewNudgeConfig(fleet.AppleOSUpdateSettings{Deadline: optjson.SetString("2022-01-04"), MinimumVersion: optjson.SetString("14.6.1")})
 	require.NoError(t, err)
 	require.Equal(t, wantCfg, resp.NudgeConfig)
-	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 20:00:00 +0000 UTC")
+	require.Equal(t, "2022-01-04 20:00:00 +0000 UTC", wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String())
 
 	// host on macos > 14, shouldn't be receiving nudge configs
 	h3 := createOrbitEnrolledHost(t, "darwin", "h3", s.ds)
@@ -388,11 +387,9 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			ac := appConfig.Copy()
 			ac.AgentOptions = nil
 			ac.MDM.EndUserAuthentication = fleet.MDMEndUserAuthentication{
-				SSOProviderSettings: fleet.SSOProviderSettings{
-					EntityID:    "sso-provider",
-					IDPName:     "sso-provider",
-					MetadataURL: "https://sso-provider.example.com/metadata",
-				},
+				EntityID:    "sso-provider",
+				IDPName:     "sso-provider",
+				MetadataURL: "https://sso-provider.example.com/metadata",
 			}
 
 			// add db records for bootstrap package and setup assistant
@@ -731,7 +728,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 
 		var createTeamResp teamResponse
 		s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{fleet.TeamPayload{
-			Name: ptr.String("Ninjas"),
+			Name: new("Ninjas"),
 			MDM:  &fleet.TeamPayloadMDM{EnableDiskEncryption: optjson.SetBool(true)}, // mdm is ignored by the create team endpoint
 		}}, http.StatusOK, &createTeamResp)
 		team := createTeamResp.Team
@@ -812,7 +809,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 
 				s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
 					Name:        &team.Name,
-					Description: ptr.String(c.name),
+					Description: new(c.name),
 					MDM:         c.mdm,
 				}, c.expectedStatus, &getTeamResp)
 
@@ -1007,29 +1004,29 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 					},
 				},
 			})
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case "/profile":
 			lastSubmittedProfile = &godep.Profile{}
 			rawProfile, err := io.ReadAll(r.Body)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			err = json.Unmarshal(rawProfile, lastSubmittedProfile)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 
 			// check that the urls are not empty and equal
-			require.NotEmpty(t, lastSubmittedProfile.URL)
+			assert.NotEmpty(t, lastSubmittedProfile.URL)
 			if configurationWebURLShouldBeEmpty {
 				assert.Empty(t, lastSubmittedProfile.ConfigurationWebURL)
 			} else {
-				require.NotEmpty(t, lastSubmittedProfile.ConfigurationWebURL)
+				assert.NotEmpty(t, lastSubmittedProfile.ConfigurationWebURL)
 				assert.Equal(t, lastSubmittedProfile.URL, lastSubmittedProfile.ConfigurationWebURL)
 			}
 			err = encoder.Encode(godep.ProfileResponse{ProfileUUID: uuid.New().String()})
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case "/profile/devices":
 			b, err := io.ReadAll(r.Body)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			var prof profileAssignmentReq
-			require.NoError(t, json.Unmarshal(b, &prof))
+			assert.NoError(t, json.Unmarshal(b, &prof))
 			var resp godep.ProfileResponse
 			resp.ProfileUUID = prof.ProfileUUID
 			resp.Devices = map[string]string{
@@ -1037,7 +1034,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 			}
 			encoder := json.NewEncoder(w)
 			err = encoder.Encode(resp)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		default:
 			_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
 		}
@@ -1286,8 +1283,8 @@ func (s *integrationMDMTestSuite) TestTeamLabelsTeamDeletion() {
 
 	newHost := func(name string, platform string, teamID *uint) *fleet.Host {
 		h, err := s.ds.NewHost(t.Context(), &fleet.Host{
-			OsqueryHostID: ptr.String(t.Name() + name),
-			NodeKey:       ptr.String(t.Name() + name),
+			OsqueryHostID: new(t.Name() + name),
+			NodeKey:       new(t.Name() + name),
 			UUID:          uuid.New().String(),
 			Hostname:      fmt.Sprintf("%s.%s.local", name, t.Name()),
 			Platform:      platform,
@@ -1341,15 +1338,15 @@ func (s *integrationMDMTestSuite) TestTeamLabelsTeamDeletion() {
 	// Set label membership for l2t2.
 	distributedResp := submitDistributedQueryResultsResponse{}
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithLabelResults(macOST2, map[uint]*bool{
-		l2t2.ID:        ptr.Bool(true),
-		globalLabel.ID: ptr.Bool(true),
+		l2t2.ID:        new(true),
+		globalLabel.ID: new(true),
 	}), http.StatusOK, &distributedResp)
 
 	// Set label membership for l1t1.
 	distributedResp = submitDistributedQueryResultsResponse{}
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithLabelResults(macOST1, map[uint]*bool{
-		l1t1.ID:        ptr.Bool(true),
-		globalLabel.ID: ptr.Bool(true),
+		l1t1.ID:        new(true),
+		globalLabel.ID: new(true),
 	}), http.StatusOK, &distributedResp)
 
 	// Create an installer on t1 that references l1t1.
@@ -1367,18 +1364,14 @@ func (s *integrationMDMTestSuite) TestTeamLabelsTeamDeletion() {
 	_, err = s.ds.InsertVPPAppWithTeam(t.Context(), &fleet.VPPApp{
 		Name:             "App123 " + t.Name(),
 		BundleIdentifier: "bid_" + t.Name(),
-		VPPAppTeam: fleet.VPPAppTeam{
-			VPPAppID: fleet.VPPAppID{
-				AdamID:   "adam_test_vpp2",
-				Platform: fleet.MacOSPlatform,
-			},
-			ValidatedLabels: &fleet.LabelIdentsWithScope{
-				LabelScope: fleet.LabelScopeIncludeAny,
-				ByName: map[string]fleet.LabelIdent{
-					l1t1.Name: {
-						LabelID:   l1t1.ID,
-						LabelName: l1t1.Name,
-					},
+		AdamID:           "adam_test_vpp2",
+		Platform:         fleet.MacOSPlatform,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{
+			LabelScope: fleet.LabelScopeIncludeAny,
+			ByName: map[string]fleet.LabelIdent{
+				l1t1.Name: {
+					LabelID:   l1t1.ID,
+					LabelName: l1t1.Name,
 				},
 			},
 		},
@@ -1443,7 +1436,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsTeamDeletion() {
 	require.True(t, fleet.IsNotFound(err))
 
 	// Make sure l2t2 in t2 is unaffected.
-	_, _, err = s.ds.Label(t.Context(), l2t2.ID, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	_, _, err = s.ds.Label(t.Context(), l2t2.ID, fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 	require.NoError(t, err)
 
 	// Make sure label membership for l1t1 is gone.
@@ -1535,37 +1528,29 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 
 		// 1.A.3 Attempt to modify a global policy with team labels (should fail).
 		mgpr := &fleet.ModifyGlobalPolicyRequest{
-			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-				Name:             ptr.String("newName1"),
-				LabelsIncludeAny: []string{l1t1.Name},
-			},
+			Name:             new("newName1"),
+			LabelsIncludeAny: []string{l1t1.Name},
 		}
 		patchPol1 := &fleet.ModifyGlobalPolicyResponse{}
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicyID), mgpr, http.StatusBadRequest, patchPol1)
 		mgpr = &fleet.ModifyGlobalPolicyRequest{
-			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-				Name:             ptr.String("newName1"),
-				LabelsExcludeAny: []string{l1t1.Name},
-			},
+			Name:             new("newName1"),
+			LabelsExcludeAny: []string{l1t1.Name},
 		}
 		patchPol1 = &fleet.ModifyGlobalPolicyResponse{}
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicyID), mgpr, http.StatusBadRequest, patchPol1)
 
 		// 1.A.4 Attempt to modify a global policy with global labels (should succeed).
 		mgpr = &fleet.ModifyGlobalPolicyRequest{
-			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-				Name:             ptr.String("newName1"),
-				LabelsIncludeAny: []string{globalLabel.Name},
-			},
+			Name:             new("newName1"),
+			LabelsIncludeAny: []string{globalLabel.Name},
 		}
 		patchPol1 = &fleet.ModifyGlobalPolicyResponse{}
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicyID), mgpr, http.StatusOK, patchPol1)
 		mgpr = &fleet.ModifyGlobalPolicyRequest{
-			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-				Name:             ptr.String("newName2"),
-				LabelsIncludeAny: []string{},
-				LabelsExcludeAny: []string{globalLabel.Name},
-			},
+			Name:             new("newName2"),
+			LabelsIncludeAny: []string{},
+			LabelsExcludeAny: []string{globalLabel.Name},
 		}
 		patchPol1 = &fleet.ModifyGlobalPolicyResponse{}
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicyID), mgpr, http.StatusOK, patchPol1)
@@ -1600,31 +1585,23 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 		// 1.B.3 Attempt to edit a team policy to reference l2t2 (should fail; label is outside team).
 		mtplr := fleet.ModifyTeamPolicyResponse{}
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, teamPolicyID), fleet.ModifyTeamPolicyRequest{
-			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-				LabelsIncludeAny: []string{l2t2.Name},
-			},
+			LabelsIncludeAny: []string{l2t2.Name},
 		}, http.StatusBadRequest, &mtplr)
 		mtplr = fleet.ModifyTeamPolicyResponse{}
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, teamPolicyID), fleet.ModifyTeamPolicyRequest{
-			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-				LabelsIncludeAny: []string{},
-				LabelsExcludeAny: []string{l2t2.Name},
-			},
+			LabelsIncludeAny: []string{},
+			LabelsExcludeAny: []string{l2t2.Name},
 		}, http.StatusBadRequest, &mtplr)
 
 		// 1.B.3 Attempt to edit a team policy to reference a team label on the same team (should succeed).
 		mtplr = fleet.ModifyTeamPolicyResponse{}
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, teamPolicyID), fleet.ModifyTeamPolicyRequest{
-			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-				LabelsIncludeAny: []string{l1t1.Name},
-			},
+			LabelsIncludeAny: []string{l1t1.Name},
 		}, http.StatusOK, &mtplr)
 		mtplr = fleet.ModifyTeamPolicyResponse{}
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, teamPolicyID), fleet.ModifyTeamPolicyRequest{
-			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-				LabelsIncludeAny: []string{},
-				LabelsExcludeAny: []string{l1t1.Name, globalLabel.Name},
-			},
+			LabelsIncludeAny: []string{},
+			LabelsExcludeAny: []string{l1t1.Name, globalLabel.Name},
 		}, http.StatusOK, &mtplr)
 
 		// 1.C.1 Attempt to create a "No team" policy that references l1t1 (should fail).
@@ -1657,31 +1634,23 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 		// 1.B.3 Attempt to edit a "No team" policy with a team policy that references l2t2 (should fail).
 		mtplr = fleet.ModifyTeamPolicyResponse{}
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", noTeamPolicyID), fleet.ModifyTeamPolicyRequest{
-			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-				LabelsIncludeAny: []string{l2t2.Name},
-			},
+			LabelsIncludeAny: []string{l2t2.Name},
 		}, http.StatusBadRequest, &mtplr)
 		mtplr = fleet.ModifyTeamPolicyResponse{}
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", noTeamPolicyID), fleet.ModifyTeamPolicyRequest{
-			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-				LabelsIncludeAny: []string{},
-				LabelsExcludeAny: []string{l2t2.Name},
-			},
+			LabelsIncludeAny: []string{},
+			LabelsExcludeAny: []string{l2t2.Name},
 		}, http.StatusBadRequest, &mtplr)
 
 		// 1.B.3 Attempt to edit a team policy to reference a global label (should succeed).
 		mtplr = fleet.ModifyTeamPolicyResponse{}
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", noTeamPolicyID), fleet.ModifyTeamPolicyRequest{
-			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-				LabelsIncludeAny: []string{globalLabel.Name},
-			},
+			LabelsIncludeAny: []string{globalLabel.Name},
 		}, http.StatusOK, &mtplr)
 		mtplr = fleet.ModifyTeamPolicyResponse{}
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", noTeamPolicyID), fleet.ModifyTeamPolicyRequest{
-			ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-				LabelsIncludeAny: []string{},
-				LabelsExcludeAny: []string{globalLabel.Name},
-			},
+			LabelsIncludeAny: []string{},
+			LabelsExcludeAny: []string{globalLabel.Name},
 		}, http.StatusOK, &mtplr)
 	})
 
@@ -1689,8 +1658,8 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 		// 2.A.1 Attempt to create global query with team labels (should fail).
 		var createQueryResp fleet.CreateQueryResponse
 		reqQuery := &fleet.QueryPayload{
-			Name:             ptr.String("All teams query"),
-			Query:            ptr.String("SELECT 1;"),
+			Name:             new("All teams query"),
+			Query:            new("SELECT 1;"),
 			LabelsIncludeAny: []string{l1t1.Name},
 		}
 		s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusBadRequest, &createQueryResp)
@@ -1698,8 +1667,8 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 		// 2.A.2 Attempt to create global query with global label (should succeed).
 		createQueryResp = fleet.CreateQueryResponse{}
 		reqQuery = &fleet.QueryPayload{
-			Name:             ptr.String("All teams query"),
-			Query:            ptr.String("SELECT 1;"),
+			Name:             new("All teams query"),
+			Query:            new("SELECT 1;"),
 			LabelsIncludeAny: []string{globalLabel.Name},
 		}
 		s.DoJSON("POST", "/api/latest/fleet/queries", reqQuery, http.StatusOK, &createQueryResp)
@@ -1708,24 +1677,20 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 		// 2.A.3 Attempt to edit global query with team label (should fail).
 		modifyQueryResp := fleet.ModifyQueryResponse{}
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", globalQueryID), fleet.ModifyQueryRequest{
-			QueryPayload: fleet.QueryPayload{
-				LabelsIncludeAny: []string{l1t1.Name},
-			},
+			LabelsIncludeAny: []string{l1t1.Name},
 		}, http.StatusBadRequest, &modifyQueryResp)
 
 		// 2.A.4 Attempt to edit global query with global label (should succeed).
 		modifyQueryResp = fleet.ModifyQueryResponse{}
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", globalQueryID), fleet.ModifyQueryRequest{
-			QueryPayload: fleet.QueryPayload{
-				LabelsIncludeAny: []string{globalLabel.Name},
-			},
+			LabelsIncludeAny: []string{globalLabel.Name},
 		}, http.StatusOK, &modifyQueryResp)
 
 		// 2.B.1 Attempt to create a team query with a label of another team (should fail).
 		createQueryResp = fleet.CreateQueryResponse{}
 		reqQuery = &fleet.QueryPayload{
-			Name:             ptr.String("Team one query"),
-			Query:            ptr.String("SELECT 1;"),
+			Name:             new("Team one query"),
+			Query:            new("SELECT 1;"),
 			LabelsIncludeAny: []string{l2t2.Name},
 
 			TeamID: &t1.ID,
@@ -1735,8 +1700,8 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 		// 2.B.2 Attempt to create a team query with a label of the same team (should succeed).
 		createQueryResp = fleet.CreateQueryResponse{}
 		reqQuery = &fleet.QueryPayload{
-			Name:             ptr.String("Team one query"),
-			Query:            ptr.String("SELECT 1;"),
+			Name:             new("Team one query"),
+			Query:            new("SELECT 1;"),
 			LabelsIncludeAny: []string{l1t1.Name, globalLabel.Name},
 
 			TeamID: &t1.ID,
@@ -1747,17 +1712,13 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 		// 2.A.3 Attempt to edit a team query with a label of another team (should fail).
 		modifyQueryResp = fleet.ModifyQueryResponse{}
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", team1LabelID), fleet.ModifyQueryRequest{
-			QueryPayload: fleet.QueryPayload{
-				LabelsIncludeAny: []string{l2t2.Name, globalLabel.Name},
-			},
+			LabelsIncludeAny: []string{l2t2.Name, globalLabel.Name},
 		}, http.StatusBadRequest, &modifyQueryResp)
 
 		// 2.A.4 Attempt to edit team query with a label of the same team (should succeed).
 		modifyQueryResp = fleet.ModifyQueryResponse{}
 		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", team1LabelID), fleet.ModifyQueryRequest{
-			QueryPayload: fleet.QueryPayload{
-				LabelsIncludeAny: []string{l1t1.Name},
-			},
+			LabelsIncludeAny: []string{l1t1.Name},
 		}, http.StatusOK, &modifyQueryResp)
 	})
 

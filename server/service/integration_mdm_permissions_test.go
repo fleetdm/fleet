@@ -22,7 +22,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -57,7 +56,7 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 	u := &fleet.User{
 		Name:       "GitOps",
 		Email:      "gitops1-mdm@example.com",
-		GlobalRole: ptr.String(fleet.RoleGitOps),
+		GlobalRole: new(fleet.RoleGitOps),
 	}
 	require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
 	_, err = s.ds.NewUser(context.Background(), u)
@@ -108,7 +107,7 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 	// fails with 422 (cannot enable end user auth because no IdP is configured)
 	// and not 403 forbidden.
 	s.Do("PATCH", "/api/latest/fleet/setup_experience",
-		fleet.MDMAppleSetupPayload{TeamID: ptr.Uint(0), EnableEndUserAuthentication: ptr.Bool(true)}, http.StatusUnprocessableEntity)
+		fleet.MDMAppleSetupPayload{TeamID: new(uint(0)), EnableEndUserAuthentication: new(true)}, http.StatusUnprocessableEntity)
 
 	// Attempt to update the Apple MDM settings but with no change, just to
 	// validate the access.
@@ -127,8 +126,8 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 		Name: t1.Name,
 		MDM: fleet.TeamSpecMDM{
 			EnableDiskEncryption: optjson.SetBool(true),
-			MacOSSettings: map[string]interface{}{
-				"custom_settings": []interface{}{"foo", "bar"},
+			MacOSSettings: map[string]any{
+				"custom_settings": []any{"foo", "bar"},
 			},
 		},
 	}}}
@@ -154,8 +153,8 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 		Name: t1.Name,
 		MDM: fleet.TeamSpecMDM{
 			EnableDiskEncryption: optjson.SetBool(true),
-			MacOSSettings: map[string]interface{}{
-				"custom_settings": []interface{}{"foo", "bar"},
+			MacOSSettings: map[string]any{
+				"custom_settings": []any{"foo", "bar"},
 			},
 		},
 	}}}
@@ -181,7 +180,7 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 
 	// Attempt to retrieve host profiles fails if the host doesn't belong to the team
 	h1, err := s.ds.NewHost(ctx, &fleet.Host{
-		NodeKey:  ptr.String(t.Name() + "1"),
+		NodeKey:  new(t.Name() + "1"),
 		UUID:     t.Name() + "1",
 		Hostname: t.Name() + "foo.local",
 	})
@@ -209,7 +208,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	admin, err := s.ds.UserByEmail(ctx, "admin1@example.com")
 	require.NoError(t, err)
 	h1, err := s.ds.NewHost(ctx, &fleet.Host{
-		NodeKey:  ptr.String(t.Name() + "1"),
+		NodeKey:  new(t.Name() + "1"),
 		UUID:     t.Name() + "1",
 		Hostname: strings.ReplaceAll(t.Name()+"foo.local", "/", "_"),
 	})
@@ -242,15 +241,15 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	})
 	require.NoError(t, err)
 	team1Host, err := s.ds.NewHost(ctx, &fleet.Host{
-		OsqueryHostID: ptr.String(t.Name() + "2"),
-		NodeKey:       ptr.String(t.Name() + "2"),
+		OsqueryHostID: new(t.Name() + "2"),
+		NodeKey:       new(t.Name() + "2"),
 		UUID:          t.Name() + "2",
 		Hostname:      strings.ReplaceAll(t.Name()+"zoo.local", "/", "_"),
 		TeamID:        &t1.ID,
 		Platform:      "ubuntu",
 	})
 	require.NoError(t, err)
-	team1Host.OrbitNodeKey = ptr.String(setOrbitEnrollment(t, team1Host, s.ds))
+	team1Host.OrbitNodeKey = new(setOrbitEnrollment(t, team1Host, s.ds))
 	globalHost := createOrbitEnrolledHost(t, "ubuntu", "3", s.ds)
 	// Hosts that only exist to be deleted by the technician users below.
 	newHostToDelete := func(suffix string, teamID *uint) *fleet.Host {
@@ -306,28 +305,24 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	})
 	s.awaitTriggerProfileSchedule(t)
 	checkNextPayloads(t, globalMacOSMDMClient, false)
-	team1Host.OrbitNodeKey = ptr.String(setOrbitEnrollment(t, team1Host, s.ds))
+	team1Host.OrbitNodeKey = new(setOrbitEnrollment(t, team1Host, s.ds))
 	ggsr := getGlobalScheduleResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &ggsr)
 	require.NoError(t, ggsr.Err)
 	cpar := createPackResponse{}
 	var userPackID uint
 	s.DoJSON("POST", "/api/latest/fleet/packs", createPackRequest{
-		PackPayload: fleet.PackPayload{
-			Name:     ptr.String("Foobar"),
-			Disabled: ptr.Bool(false),
-		},
+		Name:     new("Foobar"),
+		Disabled: new(false),
 	}, http.StatusOK, &cpar)
 	userPackID = cpar.Pack.Pack.ID
 	require.NotZero(t, userPackID)
 	cur := createUserResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", createUserRequest{
-		UserPayload: fleet.UserPayload{
-			Email:      ptr.String("foo42@example.com"),
-			Password:   ptr.String("p4ssw0rd.123"),
-			Name:       ptr.String("foo42"),
-			GlobalRole: ptr.String("maintainer"),
-		},
+		Email:      new("foo42@example.com"),
+		Password:   new("p4ssw0rd.123"),
+		Name:       new("foo42"),
+		GlobalRole: new("maintainer"),
 	}, http.StatusOK, &cur)
 	maintainer := cur.User
 	var carveBeginResp fleet.CarveBeginResponse
@@ -348,7 +343,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	u := &fleet.User{
 		Name:       "Global technician",
 		Email:      "global-technician@example.com",
-		GlobalRole: ptr.String(fleet.RoleTechnician),
+		GlobalRole: new(fleet.RoleTechnician),
 	}
 	require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
 	_, err = s.ds.NewUser(context.Background(), u)
@@ -575,17 +570,13 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	// Attempt to create a global label, should allow.
 	clr := fleet.CreateLabelResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.CreateLabelRequest{
-		LabelPayload: fleet.LabelPayload{
-			Name:  "foo",
-			Query: "SELECT 1;",
-		},
+		Name:  "foo",
+		Query: "SELECT 1;",
 	}, http.StatusOK, &clr)
 
 	// Attempt to modify a label, should allow.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", clr.Label.ID), fleet.ModifyLabelRequest{
-		ModifyLabelPayload: fleet.ModifyLabelPayload{
-			Name: ptr.String("foo2"),
-		},
+		Name: new("foo2"),
 	}, http.StatusOK, &fleet.ModifyLabelResponse{})
 
 	// Attempt to get a label, should allow.
@@ -642,14 +633,10 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 
 	// Attempt to add and remove hosts to a manual label, should allow.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLabel1.ID), fleet.ModifyLabelRequest{
-		ModifyLabelPayload: fleet.ModifyLabelPayload{
-			HostIDs: []uint{h1.ID},
-		},
+		HostIDs: []uint{h1.ID},
 	}, http.StatusOK, &fleet.ModifyLabelResponse{})
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLabel1.ID), fleet.ModifyLabelRequest{
-		ModifyLabelPayload: fleet.ModifyLabelPayload{
-			HostIDs: []uint{},
-		},
+		HostIDs: []uint{},
 	}, http.StatusOK, &fleet.ModifyLabelResponse{})
 
 	// Attempt to run live queries asynchronously (new unsaved query), should allow.
@@ -662,7 +649,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 
 	// Attempt to run live queries asynchronously (saved query), should allow.
 	s.DoJSON("POST", "/api/latest/fleet/queries/run", createDistributedQueryCampaignRequest{
-		QueryID: ptr.Uint(q1.ID),
+		QueryID: new(q1.ID),
 		Selected: fleet.HostTargets{
 			HostIDs: []uint{h1.ID},
 		},
@@ -671,18 +658,14 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	// Attempt to create queries, should fail.
 	cqr := fleet.CreateQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
-		QueryPayload: fleet.QueryPayload{
-			Name:  ptr.String("foo4"),
-			Query: ptr.String("SELECT * from osquery_info;"),
-		},
+		Name:  new("foo4"),
+		Query: new("SELECT * from osquery_info;"),
 	}, http.StatusForbidden, &cqr)
 
 	// Attempt to edit queries, should fail.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", q1.ID), fleet.ModifyQueryRequest{
-		QueryPayload: fleet.QueryPayload{
-			Name:  ptr.String("foo4"),
-			Query: ptr.String("SELECT * FROM system_info;"),
-		},
+		Name:  new("foo4"),
+		Query: new("SELECT * FROM system_info;"),
 	}, http.StatusForbidden, &fleet.ModifyQueryResponse{})
 
 	// Attempt to view a query, should work.
@@ -710,16 +693,12 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	// Attempt to create a pack, should fail.
 	cpr := createPackResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/packs", createPackRequest{
-		PackPayload: fleet.PackPayload{
-			Name: ptr.String("foo8"),
-		},
+		Name: new("foo8"),
 	}, http.StatusForbidden, &cpr)
 
 	// Attempt to edit a pack, should fail.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/packs/%d", cpr.Pack.ID), modifyPackRequest{
-		PackPayload: fleet.PackPayload{
-			Name: ptr.String("foo9"),
-		},
+		Name: new("foo9"),
 	}, http.StatusForbidden, &modifyPackResponse{})
 
 	// Attempt to read a pack, should fail.
@@ -738,9 +717,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	// Attempt to edit a global policy, should fail.
 	mgplr := fleet.ModifyGlobalPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", gp2.ID), fleet.ModifyGlobalPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Query: ptr.String("SELECT * from plist WHERE path = 'foo';"),
-		},
+		Query: new("SELECT * from plist WHERE path = 'foo';"),
 	}, http.StatusForbidden, &mgplr)
 
 	// Attempt to read a global policy, should allow.
@@ -764,9 +741,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	// Attempt to edit a team policy, should fail.
 	mtplr := fleet.ModifyTeamPolicyResponse{}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t2.ID, t2p.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Query: ptr.String("SELECT * from file WHERE path = 'foo';"),
-		},
+		Query: new("SELECT * from file WHERE path = 'foo';"),
 	}, http.StatusForbidden, &mtplr)
 
 	// Attempt to view a team policy, should allow.
@@ -782,18 +757,14 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 
 	// Attempt to create a user, should fail.
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", createUserRequest{
-		UserPayload: fleet.UserPayload{
-			Email:      ptr.String("foo10@example.com"),
-			Name:       ptr.String("foo10"),
-			GlobalRole: ptr.String("admin"),
-		},
+		Email:      new("foo10@example.com"),
+		Name:       new("foo10"),
+		GlobalRole: new("admin"),
 	}, http.StatusForbidden, &createUserResponse{})
 
 	// Attempt to modify a user, should fail.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", admin.ID), modifyUserRequest{
-		UserPayload: fleet.UserPayload{
-			GlobalRole: ptr.String("observer"),
-		},
+		GlobalRole: new("observer"),
 	}, http.StatusForbidden, &modifyUserResponse{})
 
 	// Attempt to view a user, should allow.
@@ -825,16 +796,12 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	// Attempt to create a team, should fail.
 	tr := teamResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
-		TeamPayload: fleet.TeamPayload{
-			Name: ptr.String("foo11"),
-		},
+		Name: new("foo11"),
 	}, http.StatusForbidden, &tr)
 
 	// Attempt to edit a team, should fail.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), modifyTeamRequest{
-		TeamPayload: fleet.TeamPayload{
-			Name: ptr.String("foo12"),
-		},
+		Name: new("foo12"),
 	}, http.StatusForbidden, &teamResponse{})
 
 	// Attempt to edit a team's agent options, should fail.
@@ -875,7 +842,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 				},
 				{
 					Secret: "foo500",
-					TeamID: ptr.Uint(t1.ID),
+					TeamID: new(t1.ID),
 				},
 			},
 		},
@@ -1043,28 +1010,22 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	// Attempt to create queries in global domain, should allow.
 	tcqr := fleet.CreateQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
-		QueryPayload: fleet.QueryPayload{
-			Name:  ptr.String("foo600"),
-			Query: ptr.String("SELECT * from orbit_info;"),
-		},
+		Name:  new("foo600"),
+		Query: new("SELECT * from orbit_info;"),
 	}, http.StatusForbidden, &tcqr)
 
 	// Attempt to create queries in its team, should fail.
 	tcqr = fleet.CreateQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
-		QueryPayload: fleet.QueryPayload{
-			Name:   ptr.String("foo600"),
-			Query:  ptr.String("SELECT * from orbit_info;"),
-			TeamID: &t1.ID,
-		},
+		Name:   new("foo600"),
+		Query:  new("SELECT * from orbit_info;"),
+		TeamID: &t1.ID,
 	}, http.StatusForbidden, &tcqr)
 
 	// Attempt to edit query, should fail.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", q1.ID), fleet.ModifyQueryRequest{
-		QueryPayload: fleet.QueryPayload{
-			Name:  ptr.String("foo4"),
-			Query: ptr.String("SELECT * FROM system_info;"),
-		},
+		Name:  new("foo4"),
+		Query: new("SELECT * FROM system_info;"),
 	}, http.StatusForbidden, &fleet.ModifyQueryResponse{})
 
 	// Attempt to delete query, should fail.
@@ -1093,19 +1054,15 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	// Attempt to add a query to the team's schedule, should fail.
 	cqrt1 := fleet.CreateQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
-		QueryPayload: fleet.QueryPayload{
-			Name:   ptr.String("foo8"),
-			Query:  ptr.String("SELECT * from managed_policies;"),
-			TeamID: &t1.ID,
-		},
+		Name:   new("foo8"),
+		Query:  new("SELECT * from managed_policies;"),
+		TeamID: &t1.ID,
 	}, http.StatusForbidden, &cqrt1)
 	ttsqr := teamScheduleQueryResponse{}
 	// Attempt to add a schedule with the deprecated APIs (by referencing a global query), should fail.
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", t1.ID), teamScheduleQueryRequest{
-		ScheduledQueryPayload: fleet.ScheduledQueryPayload{
-			QueryID:  ptr.Uint(q1.ID),
-			Interval: ptr.Uint(60),
-		},
+		QueryID:  new(q1.ID),
+		Interval: new(uint(60)),
 	}, http.StatusForbidden, &ttsqr)
 
 	// Attempt to remove a query from the team's schedule, should fail. q1 is a
@@ -1134,24 +1091,18 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	// Attempt to create a global label, should allow.
 	clr = fleet.CreateLabelResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.CreateLabelRequest{
-		LabelPayload: fleet.LabelPayload{
-			Name:  "foo",
-			Query: "SELECT 1;",
-		},
+		Name:  "foo",
+		Query: "SELECT 1;",
 	}, http.StatusOK, &clr)
 
 	// Attempt to modify a global self-authored label, should allow.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", clr.Label.ID), fleet.ModifyLabelRequest{
-		ModifyLabelPayload: fleet.ModifyLabelPayload{
-			Name: ptr.String("foo2"),
-		},
+		Name: new("foo2"),
 	}, http.StatusOK, &fleet.ModifyLabelResponse{})
 
 	// Attempt to modify a non-authored global label, should fail.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", manualLabel1.ID), fleet.ModifyLabelRequest{
-		ModifyLabelPayload: fleet.ModifyLabelPayload{
-			Name: ptr.String("foo2"),
-		},
+		Name: new("foo2"),
 	}, http.StatusForbidden, &fleet.ModifyLabelResponse{})
 
 	// Attempt to read a global policy, should allow.
@@ -1171,16 +1122,12 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 
 	// Attempt to edit a team policy, should fail.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, t1p.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Query: ptr.String("SELECT * from file WHERE path = 'foobar';"),
-		},
+		Query: new("SELECT * from file WHERE path = 'foobar';"),
 	}, http.StatusForbidden, &fleet.ModifyTeamPolicyResponse{})
 
 	// Attempt to edit another team's policy, should fail.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t2.ID, t2p.ID), fleet.ModifyTeamPolicyRequest{
-		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Query: ptr.String("SELECT * from file WHERE path = 'foobar';"),
-		},
+		Query: new("SELECT * from file WHERE path = 'foobar';"),
 	}, http.StatusForbidden, &fleet.ModifyTeamPolicyResponse{})
 
 	// Attempt to view a team policy, should allow.
@@ -1214,16 +1161,12 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 
 	// Attempt to edit own team, should fail.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", t1.ID), modifyTeamRequest{
-		TeamPayload: fleet.TeamPayload{
-			Name: ptr.String("foo123456"),
-		},
+		Name: new("foo123456"),
 	}, http.StatusForbidden, &teamResponse{})
 
 	// Attempt to edit another team, should fail.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", t2.ID), modifyTeamRequest{
-		TeamPayload: fleet.TeamPayload{
-			Name: ptr.String("foo123456"),
-		},
+		Name: new("foo123456"),
 	}, http.StatusForbidden, &teamResponse{})
 
 	// Attempt to edit own team's agent options, should fail.
