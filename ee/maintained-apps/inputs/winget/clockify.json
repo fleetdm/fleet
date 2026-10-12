@@ -7,5 +7,7 @@
   "installer_type": "msi",
   "installer_scope": "machine",
   "program_publisher": "CAKE.com Inc.",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/clockify_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/clockify_uninstall.ps1",
   "default_categories": ["Productivity"]
 }

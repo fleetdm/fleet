@@ -4,6 +4,7 @@ import { ALL_CVE_SOFTWARE_CATEGORY_VALUES } from "interfaces/charts";
 import {
   buildInitialChartFilters,
   hostFilterLines,
+  severityDefaultSentence,
   softwareFilterLines,
 } from "./helpers";
 
@@ -45,6 +46,11 @@ describe("buildInitialChartFilters", () => {
       cvssMin: "7",
       cvssMax: "10",
     });
+    expect(buildInitialChartFilters({ cvss_max: 6 })).toMatchObject({
+      severity: "custom",
+      cvssMin: "0",
+      cvssMax: "6",
+    });
   });
 
   it("seeds present fields and falls back per-field for absent ones", () => {
@@ -75,6 +81,39 @@ describe("buildInitialChartFilters", () => {
       exclude_vulnerabilities: ["CVE-2025-50897"],
     });
     expect(filters.excludeCVEs).toEqual(["CVE-2025-50897"]);
+  });
+});
+
+describe("severityDefaultSentence", () => {
+  const cases: {
+    label: string;
+    filters: ReturnType<typeof buildInitialChartFilters>;
+    expected: string | null;
+  }[] = [
+    {
+      label: "the built-in critical default",
+      filters: buildInitialChartFilters(),
+      expected: "Severity is filtered to critical by default.",
+    },
+    {
+      label: "a seeded band",
+      filters: buildInitialChartFilters({ cvss_min: 7, cvss_max: 8.9 }),
+      expected: "Severity is filtered to high by default.",
+    },
+    {
+      label: "a seeded custom range",
+      filters: buildInitialChartFilters({ cvss_min: 0, cvss_max: 6.5 }),
+      expected: "Severity is filtered to a CVSS score of 0 to 6.5 by default.",
+    },
+    {
+      label: "a default that narrows nothing",
+      filters: buildInitialChartFilters({ cvss_min: 0, cvss_max: 10 }),
+      expected: null,
+    },
+  ];
+
+  it.each(cases)("describes $label", ({ filters, expected }) => {
+    expect(severityDefaultSentence(filters)).toBe(expected);
   });
 });
 

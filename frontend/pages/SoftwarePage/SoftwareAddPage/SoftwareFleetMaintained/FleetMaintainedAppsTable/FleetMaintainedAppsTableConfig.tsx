@@ -1,13 +1,12 @@
 import React from "react";
-import { CellProps, Column } from "react-table";
 import { InjectedRouter } from "react-router";
-
-import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-import { ICombinedFMA } from "interfaces/software";
+import { CellProps, Column } from "react-table";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import InstallerActionCell from "components/TableContainer/DataTable/InstallerActionCell";
+import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
+import { ICombinedFMA } from "interfaces/software";
 
 type IFleetMaintainedAppsTableConfig = Column<ICombinedFMA>;
 type ITableStringCellProps = IStringCellProps<ICombinedFMA>;

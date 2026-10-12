@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "0.84.0.0",
+      "version": "0.85.0.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'PuTTY release %' AND publisher = 'Simon Tatham';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'PuTTY release %' AND publisher = 'Simon Tatham' AND version_compare(version, '0.84.0.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'PuTTY release %' AND publisher = 'Simon Tatham' AND version_compare(version, '0.85.0.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'putty.exe');"
       },
-      "installer_url": "https://the.earth.li/~sgtatham/putty/0.84/w64/putty-64bit-0.84-installer.msi",
+      "installer_url": "https://the.earth.li/~sgtatham/putty/0.85/w64/putty-64bit-0.85-installer.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "48f48e23",
-      "sha256": "190d00150e67ad3ff51af4b50e76a3ab97b863a34efd50472627b17c0cf4102b",
+      "sha256": "2213ebacf962b709411d654a40087508a694756bc4e41c5a1c24ad86596b2511",
       "default_categories": [
         "Productivity"
       ],

@@ -1,15 +1,9 @@
-import React from "react";
 import { screen, waitFor, within } from "@testing-library/react";
+import React from "react";
 
-import {
-  createCustomRenderer,
-  createMockRouter,
-  getOpenModal,
-  queryOpenModal,
-} from "test/test-utils";
-import mockServer from "test/mock-server";
-import createMockUser from "__mocks__/userMock";
 import { createMockTeamSummary } from "__mocks__/teamMock";
+import createMockUser from "__mocks__/userMock";
+import { notify } from "components/ToastNotification";
 import {
   addSelfServiceCategoryConflictHandler,
   addSelfServiceCategoryErrorHandler,
@@ -22,8 +16,13 @@ import {
   emptySelfServiceCategoriesHandler,
   listSelfServiceCategoriesHandler,
 } from "test/handlers/self-service-categories-handlers";
-
-import { notify } from "components/ToastNotification";
+import mockServer from "test/mock-server";
+import {
+  createCustomRenderer,
+  createMockRouter,
+  getOpenModal,
+  queryOpenModal,
+} from "test/test-utils";
 
 import SelfServiceCategoriesPage from "./SelfServiceCategoriesPage";
 

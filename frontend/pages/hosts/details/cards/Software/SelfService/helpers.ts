@@ -1,10 +1,10 @@
+import { ISelfServiceCategory } from "interfaces/self_service_category";
 import {
   HOST_SOFTWARE_UI_IN_PROGRESS_STATUSES,
   HOST_SOFTWARE_UI_PENDING_STATUSES,
   IDeviceSoftwareWithUiStatus,
   SoftwareCategory,
 } from "interfaces/software";
-import { ISelfServiceCategory } from "interfaces/self_service_category";
 
 type CategoryFilterValue = SoftwareCategory | "All";
 

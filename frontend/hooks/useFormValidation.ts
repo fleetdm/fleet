@@ -68,6 +68,7 @@ interface IUseFormValidationReturn<TFormData> {
   getError: (name: string) => string | undefined;
   /** Wire to a field's `onFocus`. Clears that field's error, client or server. */
   clearFieldError: (name: string) => void;
+  setFieldError: (name: string, message: string) => void;
   /**
    * Wire to a field's `onBlur`. Validates that one field, and only once it is
    * dirty, so a pristine required field stays silent until submit.
@@ -93,9 +94,9 @@ interface IUseFormValidationReturn<TFormData> {
   isDirty: boolean;
 }
 
-const trimFormData = <TFormData>(
+export const trimFormData = <TFormData>(
   formData: TFormData,
-  skipTrim: readonly string[]
+  skipTrim: readonly string[] = []
 ): TFormData => {
   const trimmed = { ...formData } as Record<string, unknown>;
   Object.keys(trimmed).forEach((key) => {
@@ -283,6 +284,10 @@ const useFormValidation = <TFormData extends object>({
     });
   }, []);
 
+  const setFieldError = useCallback((name: string, message: string) => {
+    setErrors((prev) => ({ ...prev, [name]: message }));
+  }, []);
+
   const validateField = useCallback((name: string) => {
     if (!dirtyFieldsRef.current.has(name)) {
       return;
@@ -371,6 +376,7 @@ const useFormValidation = <TFormData extends object>({
     errors,
     getError,
     clearFieldError,
+    setFieldError,
     validateField,
     clearErrors,
     handleSubmit,

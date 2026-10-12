@@ -1,8 +1,8 @@
-import React from "react";
 import { screen } from "@testing-library/react";
+import type { Location as HistoryLocation } from "history";
+import React from "react";
 
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
-import type { Location as HistoryLocation } from "history";
 
 import MDMAppleSSOCallbackPage from "./MDMAppleSSOCallbackPage";
 
@@ -11,7 +11,6 @@ const render = createCustomRenderer();
 interface ICallbackQuery {
   eula_token?: string;
   profile_token?: string;
-  enrollment_reference?: string;
   initiator?: string;
   error?: boolean;
   reason?: string;

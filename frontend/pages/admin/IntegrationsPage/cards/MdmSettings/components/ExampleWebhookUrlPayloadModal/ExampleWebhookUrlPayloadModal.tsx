@@ -1,7 +1,7 @@
 import React from "react";
 
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
 import { syntaxHighlight } from "utilities/helpers";
 
 const baseClass = "example-webhook-url-payload-modal";

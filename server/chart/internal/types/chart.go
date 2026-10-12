@@ -57,7 +57,7 @@ type Datastore interface {
 	// check-in interval (LEAST of distributed_interval and config_tls_refresh,
 	// plus a 60-second grace period that mirrors fleet.OnlineIntervalBuffer).
 	// Mobile hosts (iOS, iPadOS, Android), which only check in via MDM, use
-	// their MDM activity signal (nano_enrollments.last_seen_at, falling back to
+	// their MDM activity signal (nano_seen_times.seen_time, falling back to
 	// detail_updated_at) within a fixed mobile online window. Used by datasets
 	// like uptime.
 	FindOnlineHostIDs(ctx context.Context, now time.Time, disabledFleetIDs []uint) ([]uint, error)

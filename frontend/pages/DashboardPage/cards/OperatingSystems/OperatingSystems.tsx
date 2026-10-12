@@ -1,6 +1,11 @@
+import { AxiosError } from "axios";
 import React, { useEffect } from "react";
 import { useQuery } from "react-query";
 
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import LastUpdatedText from "components/LastUpdatedText";
+import Spinner from "components/Spinner";
 import {
   OS_END_OF_LIFE_LINK_BY_PLATFORM,
   OS_VENDOR_BY_PLATFORM,
@@ -12,12 +17,6 @@ import {
   OS_VERSIONS_API_SUPPORTED_PLATFORMS,
 } from "services/entities/operating_systems";
 import { PlatformValueOptions } from "utilities/constants";
-
-import Spinner from "components/Spinner";
-import DataError from "components/DataError";
-import LastUpdatedText from "components/LastUpdatedText";
-import CustomLink from "components/CustomLink";
-import { AxiosError } from "axios";
 
 import OSTable from "./OSTable";
 
@@ -145,6 +144,11 @@ const OperatingSystems = ({
           <DataError verticalPaddingSize="pad-large" />
         ) : (
           <OSTable
+            // Remounts on platform change so react-table re-applies its
+            // default sort (version — this card only ever renders for a
+            // single platform, never "all") instead of carrying over a
+            // sort the user manually clicked on the previous platform.
+            key={selectedPlatform}
             currentTeamId={currentTeamId}
             osVersions={osVersions}
             selectedPlatform={selectedPlatform}

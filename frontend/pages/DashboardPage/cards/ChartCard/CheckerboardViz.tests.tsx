@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/no-empty-function, class-methods-use-this */
-import React from "react";
+
 import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
+import React from "react";
 
 import { IFormattedDataPoint } from "interfaces/charts";
+import { renderWithSetup } from "test/test-utils";
 
 import CheckerboardViz from "./CheckerboardViz";
 

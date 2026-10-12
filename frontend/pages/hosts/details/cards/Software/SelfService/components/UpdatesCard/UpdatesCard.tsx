@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useMemo } from "react";
 
+import Button from "components/buttons/Button";
+import Card from "components/Card";
+import CardHeader from "components/CardHeader";
+import DeviceUserError from "components/DeviceUserError";
+import Pagination from "components/Pagination";
+import Spinner from "components/Spinner";
 import {
   IDeviceSoftware,
   IDeviceSoftwareWithUiStatus,
 } from "interfaces/software";
 
-import Card from "components/Card";
-import CardHeader from "components/CardHeader";
-import Button from "components/buttons/Button";
-import Pagination from "components/Pagination";
-import Spinner from "components/Spinner";
-import DeviceUserError from "components/DeviceUserError";
 import UpdateSoftwareItem from "./UpdateSoftwareItem";
 
 const getUpdatesPageSize = (width: number): number => {
@@ -140,7 +140,7 @@ const UpdatesCard = ({
   };
 
   return (
-    <Card className={baseClass} borderRadiusSize="xxlarge" paddingSize="xlarge">
+    <Card className={baseClass} paddingSize="xlarge">
       <div className={`${baseClass}__header`}>
         <CardHeader
           header="Updates"

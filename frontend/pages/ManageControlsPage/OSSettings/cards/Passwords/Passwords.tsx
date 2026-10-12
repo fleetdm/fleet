@@ -1,31 +1,27 @@
 import React, { useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 
-import { AppContext } from "context/app";
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
+import Checkbox from "components/forms/fields/Checkbox";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import PageDescription from "components/PageDescription";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import SectionHeader from "components/SectionHeader";
+import Spinner from "components/Spinner";
 import { notify } from "components/ToastNotification";
-import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
+import TooltipWrapper from "components/TooltipWrapper";
+import { AppContext } from "context/app";
 import { getErrorReason } from "interfaces/errors";
-
+import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
+import PATHS from "router/paths";
+import configAPI from "services/entities/config";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
-
-import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
-import configAPI from "services/entities/config";
-
-import PATHS from "router/paths";
-
-import Button from "components/buttons/Button";
-import Checkbox from "components/forms/fields/Checkbox";
-import CustomLink from "components/CustomLink";
-import EmptyState from "components/EmptyState";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import Spinner from "components/Spinner";
-import SectionHeader from "components/SectionHeader";
-import PageDescription from "components/PageDescription";
-import TooltipWrapper from "components/TooltipWrapper";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
 

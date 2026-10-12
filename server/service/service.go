@@ -103,6 +103,9 @@ type Service struct {
 	// orgLogoStore stores the bytes of customer-uploaded org logos.
 	orgLogoStore fleet.OrgLogoStore
 
+	// notificationsSvc is the notifications bounded context service for write operations.
+	notificationsSvc fleet.NotificationsWriteService
+
 	// agentNotifier publishes check-in wake-ups for agents connected over the
 	// WebSocket transport; nil when the transport is disabled.
 	agentNotifier fleet.AgentCheckInNotifier
@@ -111,6 +114,15 @@ type Service struct {
 	// Avoids redundant DB queries and JSON marshaling for identical pack configs.
 	// Nil when osquery.config_in_memory_cache is disabled.
 	packConfigCache *gocache.Cache
+
+	// queryReportReadSem bounds concurrent query report reads on this server (see
+	// saveResultLogsToQueryReports). Nil when osquery.max_concurrent_query_report_reads <= 0.
+	queryReportReadSem chan struct{}
+	// queryReportWriteLimit bounds concurrent query report writes across all Fleet servers, with
+	// slots held in Redis (see acquireQueryReportWriteSlot). No limit when <= 0.
+	queryReportWriteLimit int
+	// queryReportWriteFallbackSem bounds this server's writes when Redis can't be reached.
+	queryReportWriteFallbackSem chan struct{}
 }
 
 // ConditionalAccessMicrosoftProxy is the interface of the Microsoft compliance proxy.
@@ -201,6 +213,11 @@ func NewService(
 		packConfigCache = gocache.New(PackConfigCacheTTL, 30*time.Second)
 	}
 
+	var queryReportReadSem chan struct{}
+	if n := config.Osquery.MaxConcurrentQueryReportReads; n > 0 {
+		queryReportReadSem = make(chan struct{}, n)
+	}
+
 	svc := &Service{
 		ds:                ds,
 		task:              task,
@@ -239,6 +256,9 @@ func NewService(
 		androidSvc:                      androidSvc,
 		orgLogoStore:                    orgLogoStore,
 		packConfigCache:                 packConfigCache,
+		queryReportReadSem:              queryReportReadSem,
+		queryReportWriteLimit:           config.Osquery.MaxConcurrentQueryReportWrites,
+		queryReportWriteFallbackSem:     make(chan struct{}, queryReportWriteFallbackLimit),
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }
@@ -260,6 +280,12 @@ func (svc *Service) SetConfigETagStore(store fleet.ConfigETagStore) {
 // This should be called after NewService to inject the activity service dependency.
 func (svc *Service) SetActivityService(activitySvc fleet.ActivityWriteService) {
 	svc.activitySvc = activitySvc
+}
+
+// SetNotificationsService sets the notifications bounded context service for write operations.
+// This should be called after NewService to inject the notifications service dependency.
+func (svc *Service) SetNotificationsService(notificationsSvc fleet.NotificationsWriteService) {
+	svc.notificationsSvc = notificationsSvc
 }
 
 // SetACMEService sets the ACME service module service for write operations.

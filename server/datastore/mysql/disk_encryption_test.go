@@ -9,8 +9,11 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 
 	"github.com/stretchr/testify/assert"
@@ -23,8 +26,17 @@ func TestDiskEncryption(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
+		{"TestGetHostArchivedDiskEncryptionKey", testGetHostArchivedDiskEncryptionKey},
 		{"TestCleanupDiskEncryptionKeysOnTeamChange", testCleanupDiskEncryptionKeysOnTeamChange},
 		{"TestDeleteLUKSData", testDeleteLUKSData},
+		{"TestBitLockerPINRequestLifecycle", testBitLockerPINRequestLifecycle},
+		{"TestBitLockerPINRequestExpiredIsNotCollectable", testBitLockerPINRequestExpiredIsNotCollectable},
+		{"TestBitLockerPINRequestResubmitReplaces", testBitLockerPINRequestResubmitReplaces},
+		{"TestBitLockerPINRequestDelete", testBitLockerPINRequestDelete},
+		{"TestBitLockerPINRequestCleanup", testBitLockerPINRequestCleanup},
+		{"TestDiskEncryptionKeyRotation", testDiskEncryptionKeyRotation},
+		{"TestIsAppleMDMCommandPending", testIsAppleMDMCommandPending},
+		{"TestDiskEncryptionKeyRotationInProgress", testDiskEncryptionKeyRotationInProgress},
 	}
 
 	for _, c := range cases {
@@ -194,4 +206,519 @@ func testDeleteLUKSData(t *testing.T, ds *Datastore) {
 
 	_, err = ds.GetHostDiskEncryptionKey(ctx, hostOne.ID)
 	require.True(t, fleet.IsNotFound(err))
+}
+
+func testGetHostArchivedDiskEncryptionKey(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	newHost := func(suffix, serial string, teamID *uint) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			NodeKey:         new("archived-" + suffix),
+			UUID:            "archived-" + suffix,
+			Hostname:        "archived-" + suffix,
+			HardwareSerial:  serial,
+			Platform:        "darwin",
+			TeamID:          teamID,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	archiveRow := func(hostID uint, serial, key string, createdAt time.Time) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+INSERT INTO host_disk_encryption_keys_archive (host_id, hardware_serial, base64_encrypted, base64_encrypted_salt, key_slot, created_at)
+VALUES (?, ?, ?, ?, NULL, ?)`, hostID, serial, base64.StdEncoding.EncodeToString([]byte(key)), "", createdAt)
+			return err
+		})
+	}
+
+	const serial = "SHAREDSERIAL1"
+	now := time.Now().UTC().Truncate(time.Second)
+
+	victimTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "archived-victim-fleet"})
+	require.NoError(t, err)
+	claimantTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "archived-claimant-fleet"})
+	require.NoError(t, err)
+
+	victim := newHost("victim", serial, &victimTeam.ID)
+	// Two rows for the victim so the "newest wins" ordering is actually exercised.
+	archiveRow(victim.ID, serial, "older-key", now.Add(-2*time.Hour))
+	archiveRow(victim.ID, serial, "newest-key", now.Add(-1*time.Hour))
+
+	// A second host carrying the same serial in another fleet, with no archived row
+	// of its own. This is the shape the cross-fleet disclosure relied on.
+	claimant := newHost("claimant", serial, &claimantTeam.ID)
+
+	t.Run("host id match ignores the fallback flag", func(t *testing.T) {
+		for _, fallback := range []bool{false, true} {
+			key, err := ds.GetHostArchivedDiskEncryptionKey(ctx, victim, fallback)
+			require.NoError(t, err)
+			requireDecodes(t, "newest-key", key.Base64Encrypted)
+		}
+	})
+
+	t.Run("no fallback means no serial lookup", func(t *testing.T) {
+		_, err := ds.GetHostArchivedDiskEncryptionKey(ctx, claimant, false)
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("fallback finds the newest row for the serial", func(t *testing.T) {
+		key, err := ds.GetHostArchivedDiskEncryptionKey(ctx, claimant, true)
+		require.NoError(t, err)
+		requireDecodes(t, "newest-key", key.Base64Encrypted)
+		require.Equal(t, victim.ID, key.HostID, "the row returned belongs to the other fleet's host")
+	})
+
+	t.Run("fallback needs a serial to match on", func(t *testing.T) {
+		noSerial := newHost("noserial", "", &claimantTeam.ID)
+		_, err := ds.GetHostArchivedDiskEncryptionKey(ctx, noSerial, true)
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+	})
+}
+
+func requireDecodes(t *testing.T, want, gotBase64 string) {
+	t.Helper()
+	got, err := base64.StdEncoding.DecodeString(gotBase64)
+	require.NoError(t, err)
+	require.Equal(t, want, string(got))
+}
+
+// newBitLockerPINHost creates a host with a Windows MDM enrollment, which carries the pending flag the orbit config
+// poll reads.
+func newBitLockerPINHost(t *testing.T, ds *Datastore) *fleet.Host {
+	t.Helper()
+	hostUUID := uuid.NewString()
+	host, err := ds.NewHost(t.Context(), &fleet.Host{
+		Hostname:      "pin-host-" + hostUUID,
+		OsqueryHostID: new(hostUUID),
+		NodeKey:       new(hostUUID),
+		UUID:          hostUUID,
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+	windowsEnroll(t, ds, host)
+	return host
+}
+
+// bitLockerPINPending reads the pending flag the way the orbit config poll does.
+func bitLockerPINPending(t *testing.T, ds *Datastore, hostUUID string) bool {
+	t.Helper()
+	state, err := ds.GetMDMWindowsHostConfigState(t.Context(), hostUUID)
+	require.NoError(t, err)
+	return state.BitLockerPINRequestPending
+}
+
+// storedBitLockerPIN returns the stored ciphertext, which must be NULL once nothing can collect it.
+func storedBitLockerPIN(t *testing.T, ds *Datastore, hostID uint) *string {
+	t.Helper()
+	var stored *string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(t.Context(), q, &stored, `SELECT pin_encrypted FROM host_bitlocker_pin_requests WHERE host_id = ?`, hostID)
+	})
+	return stored
+}
+
+// ageBitLockerPINRequest moves a timestamp column back by the given duration, on the database clock the queries
+// compare against. An explicit value wins over ON UPDATE CURRENT_TIMESTAMP, so the row does not snap back.
+func ageBitLockerPINRequest(t *testing.T, ds *Datastore, hostID uint, column string, by time.Duration) {
+	t.Helper()
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(), fmt.Sprintf(
+			`UPDATE host_bitlocker_pin_requests SET %s = DATE_SUB(NOW(6), INTERVAL ? SECOND) WHERE host_id = ?`, column,
+		),
+			int(by.Seconds()), hostID)
+		return err
+	})
+}
+
+func testBitLockerPINRequestLifecycle(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := newBitLockerPINHost(t, ds)
+
+	_, err := ds.GetBitLockerPINRequest(ctx, host.ID)
+	require.True(t, fleet.IsNotFound(err))
+	require.False(t, bitLockerPINPending(t, ds, host.UUID))
+
+	require.NoError(t, ds.QueueBitLockerPINRequest(ctx, host, "encrypted-pin"))
+	req, err := ds.GetBitLockerPINRequest(ctx, host.ID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.BitLockerPINRequestPending, req.Status)
+	// Queuing and raising the flag commit together, so the poll can see it immediately.
+	require.True(t, bitLockerPINPending(t, ds, host.UUID))
+
+	pin, requestUUID, err := ds.TakeBitLockerPINRequest(ctx, host)
+	require.NoError(t, err)
+	require.Equal(t, "encrypted-pin", pin)
+	require.False(t, bitLockerPINPending(t, ds, host.UUID))
+	req, err = ds.GetBitLockerPINRequest(ctx, host.ID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.BitLockerPINRequestDelivered, req.Status)
+
+	// A replayed or concurrent collect comes away with nothing, and the ciphertext is already gone.
+	_, _, err = ds.TakeBitLockerPINRequest(ctx, host)
+	require.True(t, fleet.IsNotFound(err))
+	require.Nil(t, storedBitLockerPIN(t, ds, host.ID))
+
+	// An outcome naming a submission this host never collected is refused, so a host cannot mark itself as having a PIN.
+	// A well-formed id that matches nothing and one that does not parse are refused the same way.
+	for _, forged := range []string{uuid.NewString(), "not-the-collected-request"} {
+		require.True(t, fleet.IsNotFound(ds.SetBitLockerPINRequestOutcome(ctx, host, forged, fleet.BitLockerPINRequestSet, "")))
+	}
+
+	require.NoError(t, ds.SetBitLockerPINRequestOutcome(ctx, host, requestUUID, fleet.BitLockerPINRequestSet, ""))
+	req, err = ds.GetBitLockerPINRequest(ctx, host.ID)
+	require.NoError(t, err)
+	// The row survives success so the waiting page has a positive signal to poll for.
+	require.Equal(t, fleet.BitLockerPINRequestSet, req.Status)
+}
+
+func testBitLockerPINRequestExpiredIsNotCollectable(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := newBitLockerPINHost(t, ds)
+
+	require.NoError(t, ds.QueueBitLockerPINRequest(ctx, host, "encrypted-pin"))
+	ageBitLockerPINRequest(t, ds, host.ID, "created_at", fleet.BitLockerPINRequestTTL+time.Minute)
+
+	_, _, err := ds.TakeBitLockerPINRequest(ctx, host)
+	require.True(t, fleet.IsNotFound(err))
+	// A collect that finds nothing clears the flag rather than leaving it to wake the agent on every poll.
+	require.False(t, bitLockerPINPending(t, ds, host.UUID))
+}
+
+func testBitLockerPINRequestResubmitReplaces(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := newBitLockerPINHost(t, ds)
+
+	require.NoError(t, ds.QueueBitLockerPINRequest(ctx, host, "first-pin"))
+	_, firstUUID, err := ds.TakeBitLockerPINRequest(ctx, host)
+	require.NoError(t, err)
+	require.NoError(t, ds.SetBitLockerPINRequestOutcome(ctx, host, firstUUID, fleet.BitLockerPINRequestFailed, "PIN rejected"))
+	req, err := ds.GetBitLockerPINRequest(ctx, host.ID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.BitLockerPINRequestFailed, req.Status)
+	require.Equal(t, "PIN rejected", req.Error)
+
+	// Retrying supersedes the failure: one row per host, back to pending, with the error cleared.
+	require.NoError(t, ds.QueueBitLockerPINRequest(ctx, host, "second-pin"))
+	req, err = ds.GetBitLockerPINRequest(ctx, host.ID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.BitLockerPINRequestPending, req.Status)
+	require.Empty(t, req.Error)
+	require.True(t, bitLockerPINPending(t, ds, host.UUID))
+
+	pin, secondUUID, err := ds.TakeBitLockerPINRequest(ctx, host)
+	require.NoError(t, err)
+	require.Equal(t, "second-pin", pin)
+
+	// Both requests are now past delivery, so only the request id stops a late outcome for the first landing on the second.
+	require.True(t, fleet.IsNotFound(ds.SetBitLockerPINRequestOutcome(ctx, host, firstUUID, fleet.BitLockerPINRequestSet, "")))
+	require.NoError(t, ds.SetBitLockerPINRequestOutcome(ctx, host, secondUUID, fleet.BitLockerPINRequestSet, ""))
+}
+
+func testBitLockerPINRequestDelete(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := newBitLockerPINHost(t, ds)
+
+	require.NoError(t, ds.QueueBitLockerPINRequest(ctx, host, "encrypted-pin"))
+	require.True(t, bitLockerPINPending(t, ds, host.UUID))
+
+	require.NoError(t, ds.DeleteBitLockerPINRequest(ctx, host))
+
+	_, err := ds.GetBitLockerPINRequest(ctx, host.ID)
+	require.True(t, fleet.IsNotFound(err))
+	require.False(t, bitLockerPINPending(t, ds, host.UUID))
+}
+
+func testBitLockerPINRequestCleanup(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	settle := func(t *testing.T, host *fleet.Host, outcome fleet.BitLockerPINRequestStatus, reason string) {
+		t.Helper()
+		require.NoError(t, ds.QueueBitLockerPINRequest(ctx, host, "encrypted-pin"))
+		_, requestUUID, err := ds.TakeBitLockerPINRequest(ctx, host)
+		require.NoError(t, err)
+		require.NoError(t, ds.SetBitLockerPINRequestOutcome(ctx, host, requestUUID, outcome, reason))
+	}
+	exists := func(t *testing.T, hostID uint) bool {
+		t.Helper()
+		_, err := ds.GetBitLockerPINRequest(ctx, hostID)
+		if fleet.IsNotFound(err) {
+			return false
+		}
+		require.NoError(t, err)
+		return true
+	}
+	pastRetention := bitLockerPINRequestRetention + time.Hour
+
+	oldSet := newBitLockerPINHost(t, ds)
+	settle(t, oldSet, fleet.BitLockerPINRequestSet, "")
+	ageBitLockerPINRequest(t, ds, oldSet.ID, "updated_at", pastRetention)
+
+	oldFailed := newBitLockerPINHost(t, ds)
+	settle(t, oldFailed, fleet.BitLockerPINRequestFailed, "PIN rejected")
+	ageBitLockerPINRequest(t, ds, oldFailed.ID, "updated_at", pastRetention)
+
+	recentFailed := newBitLockerPINHost(t, ds)
+	settle(t, recentFailed, fleet.BitLockerPINRequestFailed, "PIN rejected")
+
+	// The agent collected the PIN too long ago and never reported, so Fleet stops waiting for it.
+	unreported := newBitLockerPINHost(t, ds)
+	require.NoError(t, ds.QueueBitLockerPINRequest(ctx, unreported, "encrypted-pin"))
+	_, unreportedUUID, err := ds.TakeBitLockerPINRequest(ctx, unreported)
+	require.NoError(t, err)
+	ageBitLockerPINRequest(t, ds, unreported.ID, "updated_at", fleet.BitLockerPINResultTimeout+time.Minute)
+	// Refused as soon as it times out.
+	require.True(t, fleet.IsNotFound(
+		ds.SetBitLockerPINRequestOutcome(ctx, unreported, unreportedUUID, fleet.BitLockerPINRequestSet, "")))
+
+	// Collected recently, so the agent may still report.
+	recentlyCollected := newBitLockerPINHost(t, ds)
+	require.NoError(t, ds.QueueBitLockerPINRequest(ctx, recentlyCollected, "encrypted-pin"))
+	_, _, err = ds.TakeBitLockerPINRequest(ctx, recentlyCollected)
+	require.NoError(t, err)
+	ageBitLockerPINRequest(t, ds, recentlyCollected.ID, "updated_at", fleet.BitLockerPINResultTimeout-time.Minute)
+
+	// Expires in this same run, so it only just became terminal and must stay visible as a timeout for a full day.
+	justExpired := newBitLockerPINHost(t, ds)
+	require.NoError(t, ds.QueueBitLockerPINRequest(ctx, justExpired, "encrypted-pin"))
+	ageBitLockerPINRequest(t, ds, justExpired.ID, "created_at", fleet.BitLockerPINRequestTTL+time.Minute)
+
+	// Still within its TTL, so the agent can still collect it and the flag must survive the run.
+	stillPending := newBitLockerPINHost(t, ds)
+	require.NoError(t, ds.QueueBitLockerPINRequest(ctx, stillPending, "encrypted-pin"))
+
+	require.NoError(t, ds.CleanupExpiredBitLockerPINRequests(ctx))
+
+	require.False(t, exists(t, oldSet.ID), "a set row past retention is reaped")
+	require.False(t, exists(t, oldFailed.ID), "a failed row past retention is reaped")
+	require.True(t, exists(t, recentFailed.ID), "a recently finished row is kept")
+
+	for _, hostID := range []uint{justExpired.ID, unreported.ID} {
+		req, err := ds.GetBitLockerPINRequest(ctx, hostID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.BitLockerPINRequestFailed, req.Status)
+		require.Equal(t, fleet.BitLockerPINRequestTimedOutError, req.Error)
+		require.Nil(t, storedBitLockerPIN(t, ds, hostID), "a timed-out submission does not keep its ciphertext")
+	}
+
+	req, err := ds.GetBitLockerPINRequest(ctx, recentlyCollected.ID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.BitLockerPINRequestDelivered, req.Status)
+
+	// Still refused once the cron has retired it, so orbit drops the outcome. osquery still shows whether the PIN was set.
+	err = ds.SetBitLockerPINRequestOutcome(ctx, unreported, unreportedUUID, fleet.BitLockerPINRequestSet, "")
+	require.True(t, fleet.IsNotFound(err))
+
+	// The enrollment flag is what the config poll reads, so retiring a submission has to clear it.
+	require.False(t, bitLockerPINPending(t, ds, justExpired.UUID), "expiring a submission clears the enrollment flag")
+	require.True(t, bitLockerPINPending(t, ds, stillPending.UUID), "a collectable submission keeps the enrollment flag")
+}
+
+func testDiskEncryptionKeyRotation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "rotate.local", "1.1.1.1", "rotate-osquery", "rotate-node", time.Now())
+
+	ok, err := ds.SetHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-1")
+	require.NoError(t, err)
+	require.False(t, ok, "no key row to mark")
+
+	_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "blob-1", "", new(true))
+	require.NoError(t, err)
+	backdate := time.Now().Add(-time.Hour).UTC().Truncate(time.Second)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_disk_encryption_keys SET updated_at = ? WHERE host_id = ?`, backdate, host.ID)
+		return err
+	})
+	requireUnchanged := func(t *testing.T) *fleet.HostDiskEncryptionKey {
+		key, err := ds.GetHostDiskEncryptionKey(ctx, host.ID)
+		require.NoError(t, err)
+		require.True(t, backdate.Equal(key.UpdatedAt), "updated_at moved to %s", key.UpdatedAt)
+		return key
+	}
+	archiveRows := func(t *testing.T) int {
+		var n int
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &n, `SELECT COUNT(*) FROM host_disk_encryption_keys_archive WHERE host_id = ?`, host.ID))
+		return n
+	}
+
+	ok, err = ds.SetHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-1")
+	require.NoError(t, err)
+	require.True(t, ok)
+	key := requireUnchanged(t)
+	require.Equal(t, new("cmd-1"), key.RotationCommandUUID)
+
+	ok, err = ds.SetHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-2")
+	require.NoError(t, err)
+	require.False(t, ok, "a rotation is already pending")
+
+	got, err := ds.GetHostByDiskEncryptionKeyRotationCommand(ctx, "cmd-1")
+	require.NoError(t, err)
+	require.Equal(t, host.ID, got.ID)
+	_, err = ds.GetHostByDiskEncryptionKeyRotationCommand(ctx, "cmd-2")
+	require.True(t, fleet.IsNotFound(err))
+
+	// a superseded command UUID leaves the marker alone
+	require.NoError(t, ds.ClearHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-2"))
+	failed, err := ds.FailHostDiskEncryptionKeyRotation(ctx, host.ID, "cmd-2")
+	require.NoError(t, err)
+	require.False(t, failed)
+	key = requireUnchanged(t)
+	require.Equal(t, new("cmd-1"), key.RotationCommandUUID)
+	require.Equal(t, new(true), key.Decryptable)
+
+	require.NoError(t, ds.ClearHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-1"))
+	key = requireUnchanged(t)
+	require.Nil(t, key.RotationCommandUUID)
+
+	ok, err = ds.SetHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-3")
+	require.NoError(t, err)
+	require.True(t, ok)
+	failed, err = ds.FailHostDiskEncryptionKeyRotation(ctx, host.ID, "cmd-3")
+	require.NoError(t, err)
+	require.True(t, failed)
+	key = requireUnchanged(t)
+	require.Nil(t, key.RotationCommandUUID)
+	require.Equal(t, new(false), key.Decryptable)
+
+	archived := archiveRows(t)
+	require.NoError(t, ds.ReplaceHostDiskEncryptionKeyBlob(ctx, host.ID, "blob-1", "blob-2"))
+	key = requireUnchanged(t)
+	require.Equal(t, "blob-2", key.Base64Encrypted)
+	require.Equal(t, new(false), key.Decryptable)
+	require.Equal(t, archived, archiveRows(t))
+
+	// the stored key changed since it was compared, so the swap doesn't apply
+	require.NoError(t, ds.ReplaceHostDiskEncryptionKeyBlob(ctx, host.ID, "blob-1", "blob-3"))
+	require.Equal(t, "blob-2", requireUnchanged(t).Base64Encrypted)
+
+	requestedAt := func(t *testing.T) *time.Time {
+		var at *time.Time
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &at,
+			`SELECT rotation_requested_at FROM host_disk_encryption_keys WHERE host_id = ?`, host.ID))
+		return at
+	}
+	ok, err = ds.SetHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-stale")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.NotNil(t, requestedAt(t))
+	cleared, err := ds.ClearStaleHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-stale", time.Minute)
+	require.NoError(t, err)
+	require.False(t, cleared, "a just-requested rotation is not stale")
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_disk_encryption_keys SET rotation_requested_at = NOW(6) - INTERVAL 2 MINUTE, updated_at = updated_at WHERE host_id = ?`, host.ID)
+		return err
+	})
+	cleared, err = ds.ClearStaleHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "other-cmd", time.Minute)
+	require.NoError(t, err)
+	require.False(t, cleared, "only the named command is cleared")
+	cleared, err = ds.ClearStaleHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-stale", time.Minute)
+	require.NoError(t, err)
+	require.True(t, cleared)
+	key = requireUnchanged(t)
+	require.Nil(t, key.RotationCommandUUID)
+	require.Nil(t, requestedAt(t))
+
+	ok, err = ds.SetHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-4")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.NoError(t, clearHostDiskEncryptionKeyRotationByHostUUIDDB(ctx, ds.writer(ctx), host.UUID))
+	key = requireUnchanged(t)
+	require.Nil(t, key.RotationCommandUUID)
+}
+
+func testIsAppleMDMCommandPending(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "pending.local", "1.1.1.1", "pending-osquery", "pending-node", time.Now())
+	nanoEnroll(t, ds, host, false)
+	commander, storage := createMDMAppleCommanderAndStorage(t, ds)
+
+	pending, err := ds.isAppleMDMCommandPending(ctx, host.UUID, "missing")
+	require.NoError(t, err)
+	require.False(t, pending)
+
+	enqueue := func() string {
+		cmdUUID := uuid.NewString()
+		require.NoError(t, commander.EnqueueCommand(ctx, []string{host.UUID}, createRawAppleCmd(fleet.RotateFileVaultKeyCmdName, cmdUUID)))
+		return cmdUUID
+	}
+	report := func(cmdUUID, status string) {
+		require.NoError(t, storage.StoreCommandReport(&mdm.Request{EnrollID: &mdm.EnrollID{ID: host.UUID}, Context: ctx},
+			&mdm.CommandResults{CommandUUID: cmdUUID, Status: status, Raw: []byte(`<?xml version="1.0"?><plist/>`)}))
+	}
+
+	queued := enqueue()
+	pending, err = ds.isAppleMDMCommandPending(ctx, host.UUID, queued)
+	require.NoError(t, err)
+	require.True(t, pending)
+
+	report(queued, fleet.MDMAppleStatusNotNow)
+	pending, err = ds.isAppleMDMCommandPending(ctx, host.UUID, queued)
+	require.NoError(t, err)
+	require.True(t, pending, "NotNow is retried")
+
+	for _, status := range fleet.MDMAppleTerminalStatuses {
+		answered := enqueue()
+		report(answered, status)
+		pending, err = ds.isAppleMDMCommandPending(ctx, host.UUID, answered)
+		require.NoError(t, err)
+		require.False(t, pending, status)
+	}
+
+	inactive := enqueue()
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE nano_enrollment_queue SET active = 0 WHERE command_uuid = ?`, inactive)
+		return err
+	})
+	pending, err = ds.isAppleMDMCommandPending(ctx, host.UUID, inactive)
+	require.NoError(t, err)
+	require.False(t, pending)
+}
+
+func testDiskEncryptionKeyRotationInProgress(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "in-progress.local", "1.1.1.1", "in-progress-osquery", "in-progress-node", time.Now())
+	nanoEnroll(t, ds, host, false)
+	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+	_, err := ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, "blob-1", "", new(true))
+	require.NoError(t, err)
+
+	inProgress := func(t *testing.T, cmdUUID string) bool {
+		got, err := ds.IsHostDiskEncryptionKeyRotationInProgress(ctx, host.ID, host.UUID, cmdUUID, time.Minute)
+		require.NoError(t, err)
+		return got
+	}
+	backdate := func(t *testing.T) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE host_disk_encryption_keys SET rotation_requested_at = NOW(6) - INTERVAL 2 MINUTE, updated_at = updated_at WHERE host_id = ?`, host.ID)
+			return err
+		})
+	}
+
+	require.False(t, inProgress(t, "none"), "no marker")
+
+	// not queued yet, but just requested
+	ok, err := ds.SetHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-1")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.True(t, inProgress(t, "cmd-1"))
+	require.False(t, inProgress(t, "other"), "only the pending command counts")
+	backdate(t)
+	require.False(t, inProgress(t, "cmd-1"), "an old marker with no queued command is stale")
+	require.NoError(t, ds.ClearHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-1"))
+
+	// queued and unanswered, however old
+	cmdUUID := uuid.NewString()
+	ok, err = ds.SetHostDiskEncryptionKeyRotationCommand(ctx, host.ID, cmdUUID)
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.NoError(t, commander.EnqueueCommand(ctx, []string{host.UUID}, createRawAppleCmd(fleet.RotateFileVaultKeyCmdName, cmdUUID)))
+	backdate(t)
+	require.True(t, inProgress(t, cmdUUID))
 }

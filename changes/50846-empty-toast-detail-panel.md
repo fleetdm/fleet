@@ -1,1 +1,0 @@
-- Fixed error toasts showing an expandable "Raw response" panel containing an empty `{}` when the underlying error carried no details.

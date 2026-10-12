@@ -1,11 +1,11 @@
 import React, { useCallback, useState } from "react";
 
-import { getErrorReason } from "interfaces/errors";
-import mdmAppleApi from "services/entities/mdm_apple";
-
 import CustomLink from "components/CustomLink";
 import FileUploader from "components/FileUploader";
 import { notify } from "components/ToastNotification";
+import { getErrorReason } from "interfaces/errors";
+import mdmAppleApi from "services/entities/mdm_apple";
+
 import DownloadCSR from "../../../../../../components/DownloadFileButtons/DownloadCSR";
 
 interface IApplePushCertSetupProps {

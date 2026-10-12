@@ -1,21 +1,21 @@
-import React, { useCallback, useState, useMemo } from "react";
 import { isEqual } from "lodash";
+import React, { useCallback, useState, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
-import { buildQueryStringFromParams } from "utilities/url";
+import Button from "components/buttons/Button";
+import EmptyState from "components/EmptyState";
+import Checkbox from "components/forms/fields/Checkbox";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { notify, INotifyBatchItem } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
 import { isMacOS, SetupExperiencePlatform } from "interfaces/platform";
 import { ISoftwareTitle } from "interfaces/software";
-import { notify, INotifyBatchItem } from "components/ToastNotification";
-
+import PATHS from "router/paths";
 import mdmAPI from "services/entities/mdm";
+import { buildQueryStringFromParams } from "utilities/url";
 
-import Button from "components/buttons/Button";
-import Checkbox from "components/forms/fields/Checkbox";
-import EmptyState from "components/EmptyState";
-import TooltipWrapper from "components/TooltipWrapper";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import InstallSoftwareTable from "../InstallSoftwareTable";
+
 import { hasNoSoftwareUploaded } from "./helpers";
 
 const baseClass = "install-software-form";

@@ -97,6 +97,16 @@ func encryptErrHandler(val int32) error {
 		msg = "BitLocker Drive Encryption detected bootable media (CD or DVD) in the computer"
 	case ErrorCodeProtectorExists:
 		msg = "key protector cannot be added; only one key protector of this type is allowed for this drive"
+	case ErrorCodeInvalidPINLength:
+		msg = "the PIN length is not allowed by Group Policy"
+	case ErrorCodeInvalidPINChars, ErrorCodeInvalidPINCharsDetailed:
+		msg = "the PIN contains characters that are not allowed; enhanced PINs may be disabled by Group Policy"
+	case ErrorCodeTBSServiceNotRunning:
+		msg = "the TPM Base Services (TBS) service is not running"
+	case ErrorCodeLockedVolume:
+		msg = "the volume is locked"
+	case ErrorCodeForeignVolume:
+		msg = "the TPM cannot secure this volume because it does not contain the running operating system"
 	default:
 		msg = fmt.Sprintf("error code returned during encryption: %s", fveErrorCode(val))
 	}
@@ -209,6 +219,24 @@ func (v *Volume) protectWithTPM(platformValidationProfile *[]uint8) error {
 	return nil
 }
 
+// protectWithTPMAndPIN adds a TPM and PIN key protector and returns its ID. The PIN is passed to WMI unchanged, so it
+// must not be trimmed or reformatted, and must never be included in an error.
+// https://learn.microsoft.com/en-us/windows/win32/secprov/protectkeywithtpmandpin-win32-encryptablevolume
+func (v *Volume) protectWithTPMAndPIN(pin string) (string, error) {
+	var volumeKeyProtectorID ole.VARIANT
+	_ = ole.VariantInit(&volumeKeyProtectorID)
+	defer ole.VariantClear(&volumeKeyProtectorID) //nolint:errcheck
+
+	resultRaw, err := oleutil.CallMethod(v.handle, "ProtectKeyWithTPMAndPIN", nil, nil, pin, &volumeKeyProtectorID)
+	if err != nil {
+		return "", fmt.Errorf("protectKeyWithTPMAndPIN(%s): %w", v.letter, err)
+	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
+		return "", fmt.Errorf("protectKeyWithTPMAndPIN(%s): %w", v.letter, encryptErrHandler(val))
+	}
+
+	return volumeKeyProtectorID.ToString(), nil
+}
+
 // deleteKeyProtectors removes all key protectors from the volume.
 // https://learn.microsoft.com/en-us/windows/win32/secprov/deletekeyprotectors-win32-encryptablevolume
 func (v *Volume) deleteKeyProtectors() error {
@@ -217,6 +245,35 @@ func (v *Volume) deleteKeyProtectors() error {
 		return fmt.Errorf("deleteKeyProtectors(%s): %w", v.letter, err)
 	} else if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
 		return fmt.Errorf("deleteKeyProtectors(%s): %w", v.letter, encryptErrHandler(val))
+	}
+	return nil
+}
+
+// enableKeyProtectors re-enables protection on a volume whose protection is off, which erases the clear key and
+// re-seals the volume master key to the existing protectors. This is what the Resume-BitLocker cmdlet calls. It moves
+// no data: the volume stays encrypted throughout, so it completes in seconds.
+// https://learn.microsoft.com/en-us/windows/win32/secprov/enablekeyprotectors-win32-encryptablevolume
+func (v *Volume) enableKeyProtectors() error {
+	resultRaw, err := oleutil.CallMethod(v.handle, "EnableKeyProtectors")
+	if err != nil {
+		return fmt.Errorf("enableKeyProtectors(%s): %w", v.letter, err)
+	}
+	if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
+		return fmt.Errorf("enableKeyProtectors(%s): %w", v.letter, encryptErrHandler(val))
+	}
+	return nil
+}
+
+// resumeConversion restarts a conversion that was paused. It resumes whichever conversion the volume has paused,
+// encryption or decryption, so the caller has to know which one that is before calling it.
+// https://learn.microsoft.com/en-us/windows/win32/secprov/resumeconversion-win32-encryptablevolume
+func (v *Volume) resumeConversion() error {
+	resultRaw, err := oleutil.CallMethod(v.handle, "ResumeConversion")
+	if err != nil {
+		return fmt.Errorf("resumeConversion(%s): %w", v.letter, err)
+	}
+	if val, ok := resultRaw.Value().(int32); val != 0 || !ok {
+		return fmt.Errorf("resumeConversion(%s): %w", v.letter, encryptErrHandler(val))
 	}
 	return nil
 }
@@ -233,12 +290,6 @@ func (v *Volume) deleteKeyProtector(protectorID string) error {
 	}
 	return nil
 }
-
-// Key protector types for GetKeyProtectors.
-// https://learn.microsoft.com/en-us/windows/win32/secprov/getkeyprotectors-win32-encryptablevolume
-const (
-	KeyProtectorTypeNumericalPassword int32 = 3
-)
 
 // getKeyProtectorIDs returns the IDs of key protectors of the given type.
 // https://learn.microsoft.com/en-us/windows/win32/secprov/getkeyprotectors-win32-encryptablevolume
@@ -480,10 +531,13 @@ func encryptVolumeOnCOMThread(targetVolume string) (string, error) {
 	// Clean up stale key protectors (recovery passwords, TPM, etc.) that may be left over from
 	// a previous failed encryption attempt or from another MDM solution. Without this, leftover
 	// protectors cause prepareVolume to return ErrorCodeNotDecrypted and subsequent encryption
-	// attempts to silently fail. Failures are logged but not fatal since a fresh volume won't
-	// have any protectors to delete.
+	// attempts to silently fail.
+	//
+	// Callers must only reach this with a volume positively known to be fully decrypted, where there is nothing
+	// valuable to delete. A failure here is fatal rather than ignored: DeleteKeyProtectors is not atomic, so a partial
+	// failure leaves the volume with some protectors removed.
 	if err := vol.deleteKeyProtectors(); err != nil {
-		log.Debug().Err(err).Msg("could not delete existing key protectors (may not have any), continuing anyway")
+		return "", fmt.Errorf("deleting existing key protectors: %w", err)
 	}
 
 	// Read the OSEncryptionType registry policy to determine the encryption flag. If a GPO or
@@ -562,16 +616,98 @@ func rotateRecoveryKeyOnCOMThread(targetVolume string) (string, error) {
 		}
 	}
 
-	// Ensure a TPM protector exists (some pre-encrypted disks may not have one).
-	if err := vol.protectWithTPM(nil); err != nil {
-		// ErrorCodeProtectorExists is expected if a TPM protector is already present.
-		var encErr *EncryptionError
-		if !errors.As(err, &encErr) || encErr.Code() != ErrorCodeProtectorExists {
-			log.Debug().Err(err).Msg("could not add TPM protector, continuing")
+	// Give pre-encrypted disks something that can unseal at boot, without weakening a volume that already has one.
+	if err := ensureBootUnsealProtector(vol.hasBootUnsealProtector, func() error { return vol.protectWithTPM(nil) }); err != nil {
+		// A protector that already exists appeared between the check and the add, which is the desired state.
+		if !isProtectorExists(err) {
+			log.Warn().Err(err).Msg("could not ensure a boot protector exists, continuing")
 		}
 	}
 
 	return newRecoveryKey, nil
+}
+
+// hasBootUnsealProtector reports whether the volume already has a protector that can release the volume master key at
+// boot. Every TPM-family protector qualifies, and so does an external startup key on a machine without a trusted TPM.
+func (v *Volume) hasBootUnsealProtector() (bool, error) {
+	return hasAnyProtector(v, BootUnsealProtectorTypes)
+}
+
+// hasBootUnsealProtectorOnCOMThread connects to the volume and answers the same question as hasBootUnsealProtector,
+// for callers that hold no Volume of their own.
+func hasBootUnsealProtectorOnCOMThread(targetVolume string) (bool, error) {
+	vol, err := bitlockerConnect(targetVolume)
+	if err != nil {
+		return false, fmt.Errorf("connecting to the volume: %w", err)
+	}
+	defer vol.bitlockerClose()
+
+	return vol.hasBootUnsealProtector()
+}
+
+// hasRecoveryPasswordOnCOMThread reports whether the volume has a numerical password protector
+func hasRecoveryPasswordOnCOMThread(targetVolume string) (bool, error) {
+	vol, err := bitlockerConnect(targetVolume)
+	if err != nil {
+		return false, fmt.Errorf("connecting to the volume: %w", err)
+	}
+	defer vol.bitlockerClose()
+
+	ids, err := vol.getKeyProtectorIDs(KeyProtectorTypeNumericalPassword)
+	if err != nil {
+		return false, fmt.Errorf("listing recovery password protectors: %w", err)
+	}
+	return len(ids) > 0, nil
+}
+
+// addTPMProtectorOnCOMThread adds a TPM-only protector. ErrorCodeProtectorExists means the desired state is already
+// satisfied and is reported as success.
+func addTPMProtectorOnCOMThread(targetVolume string) error {
+	vol, err := bitlockerConnect(targetVolume)
+	if err != nil {
+		return fmt.Errorf("connecting to the volume: %w", err)
+	}
+	defer vol.bitlockerClose()
+
+	if err := vol.protectWithTPM(nil); err != nil && !isProtectorExists(err) {
+		return err
+	}
+	return nil
+}
+
+// setTPMAndPINProtectorOnCOMThread applies an end user's startup PIN to the volume; see setTPMAndPINProtector.
+func setTPMAndPINProtectorOnCOMThread(targetVolume, pin string) error {
+	vol, err := bitlockerConnect(targetVolume)
+	if err != nil {
+		return &PINError{Reason: PINReasonStatusUnreadable, Err: fmt.Errorf("connecting to the volume: %w", err)}
+	}
+	defer vol.bitlockerClose()
+
+	return setTPMAndPINProtector(&vol, pin)
+}
+
+// resumeConversionOnCOMThread restarts the volume's paused conversion. The caller must have established that the
+// paused conversion is an encryption; this resumes a paused decryption just as readily.
+func resumeConversionOnCOMThread(targetVolume string) error {
+	vol, err := bitlockerConnect(targetVolume)
+	if err != nil {
+		return fmt.Errorf("connecting to the volume: %w", err)
+	}
+	defer vol.bitlockerClose()
+
+	return vol.resumeConversion()
+}
+
+// enableProtectionOnCOMThread turns protection back on for a volume that is encrypted but unprotected.
+// The caller decides whether doing so is safe.
+func enableProtectionOnCOMThread(targetVolume string) error {
+	vol, err := bitlockerConnect(targetVolume)
+	if err != nil {
+		return fmt.Errorf("connecting to the volume: %w", err)
+	}
+	defer vol.bitlockerClose()
+
+	return vol.enableKeyProtectors()
 }
 
 func getEncryptionStatusOnCOMThread() ([]VolumeStatus, error) {
@@ -580,18 +716,16 @@ func getEncryptionStatusOnCOMThread() ([]VolumeStatus, error) {
 		return nil, fmt.Errorf("logical volumen enumeration %w", err)
 	}
 
-	// iterate drives
+	// Iterate drives, recording per-volume read failures rather than dropping them. A volume that is omitted from this
+	// slice is indistinguishable from a volume that is not encrypted, and callers act on that difference.
 	var volumeStatus []VolumeStatus
 	for _, drive := range drives {
 		status, err := getBitlockerStatus(drive)
-		if err == nil {
-			// Skipping errors on purpose
-			driveStatus := VolumeStatus{
-				DriveVolume: drive,
-				Status:      status,
-			}
-			volumeStatus = append(volumeStatus, driveStatus)
-		}
+		volumeStatus = append(volumeStatus, VolumeStatus{
+			DriveVolume: drive,
+			Status:      status,
+			Err:         err,
+		})
 	}
 
 	return volumeStatus, nil

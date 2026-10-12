@@ -1,9 +1,9 @@
-import React from "react";
 import { screen } from "@testing-library/react";
+import React from "react";
 
 import PATHS from "router/paths";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import mdmAPI from "services/entities/mdm";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import AssetsTab from "./AssetsTab";
 
@@ -163,7 +163,9 @@ describe("AssetsTab", () => {
     render(<AssetsTab currentTeamId={0} router={createMockRouter()} />);
 
     expect(
-      screen.getByText(/Manage assets that provide data or credentials/i)
+      screen.getByText(
+        /Add assets \(data or credentials\) to use them in Apple declaration \(DDM\) profiles/i
+      )
     ).toBeInTheDocument();
     expect(
       await screen.findByRole("button", { name: /Add asset$/i })

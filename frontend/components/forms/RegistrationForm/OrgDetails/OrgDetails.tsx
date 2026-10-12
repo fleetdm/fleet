@@ -1,14 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 
+import Button from "components/buttons/Button";
+import FileUploader from "components/FileUploader";
+import InputField from "components/forms/fields/InputField";
 import {
   ORG_LOGO_ACCEPT,
   ORG_LOGO_HELP_TEXT,
   validateOrgLogoFile,
 } from "utilities/file/orgLogoFile";
-
-import Button from "components/buttons/Button";
-import FileUploader from "components/FileUploader";
-import InputField from "components/forms/fields/InputField";
 
 interface IOrgDetailsFormData {
   org_name: string;

@@ -3,6 +3,7 @@ package live_query_mock
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/mock"
@@ -12,10 +13,25 @@ import (
 type MockLiveQuery struct {
 	mock.Mock
 	fleet.LiveQueryStore
-	GetQueryResultsCountsOverride   func(queryIDs []uint) (map[uint]int, error)
-	IncrQueryResultsCountsOverride  func(queryIDsToAmounts map[uint]int) error
-	SetQueryResultsCountOverride    func(queryID uint, count int) error
-	DeleteQueryResultsCountOverride func(queryID uint) error
+	GetQueryResultsCountsOverride            func(queryIDs []uint) (map[uint]int, error)
+	IncrQueryResultsCountsOverride           func(queryIDsToAmounts map[uint]int) error
+	SetQueryResultsCountOverride             func(queryID uint, count int) error
+	DeleteQueryResultsCountOverride          func(queryID uint) error
+	SetQueryReportsHostCountOverride         func(count int) error
+	GetQueryReportsHostCountOverride         func() (int, bool, error)
+	SetQueryReportsHostCountIfAbsentOverride func(count int) error
+	SetQueryResultsCountsIfAbsentOverride    func(counts map[uint]int) error
+	IncrQueryReportsHostCountOverride        func(delta int) error
+	MarkQueryReportsClippedOverride          func(ttlByQueryID map[uint]time.Duration) error
+	QueryReportsClippedOverride              func(queryIDs []uint) (map[uint]bool, error)
+	ClearQueryReportsClippedOverride         func(queryIDs []uint) error
+
+	RecordQueryResultsLastFetchedOverride         func(rowIDs []uint, fetchedAt time.Time) error
+	LoadQueryResultsLastFetchedOverride           func() (map[uint]time.Time, error)
+	ClearProcessedQueryResultsLastFetchedOverride func() error
+
+	AcquireQueryReportWriteSlotOverride func(token string, limit int, lease time.Duration) (bool, error)
+	ReleaseQueryReportWriteSlotOverride func(token string) error
 }
 
 var _ fleet.LiveQueryStore = (*MockLiveQuery)(nil)
@@ -46,7 +62,13 @@ func (m *MockLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) {
 }
 
 // QueryCompletedByHost mocks the live query store QueryCompletedByHost method.
-func (m *MockLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
+func (m *MockLiveQuery) QueryCompletedByHost(name string, hostID uint) (bool, error) {
+	args := m.Called(name, hostID)
+	return args.Bool(0), args.Error(1)
+}
+
+// RestoreQueryTargetForHost mocks the live query store RestoreQueryTargetForHost method.
+func (m *MockLiveQuery) RestoreQueryTargetForHost(name string, hostID uint) error {
 	args := m.Called(name, hostID)
 	return args.Error(0)
 }
@@ -94,6 +116,111 @@ func (m *MockLiveQuery) SetQueryResultsCount(queryID uint, count int) error {
 func (m *MockLiveQuery) DeleteQueryResultsCount(queryID uint) error {
 	if m.DeleteQueryResultsCountOverride != nil {
 		return m.DeleteQueryResultsCountOverride(queryID)
+	}
+	return nil
+}
+
+// SetQueryReportsHostCount mocks the live query store SetQueryReportsHostCount method.
+func (m *MockLiveQuery) SetQueryReportsHostCount(count int) error {
+	if m.SetQueryReportsHostCountOverride != nil {
+		return m.SetQueryReportsHostCountOverride(count)
+	}
+	return nil
+}
+
+// GetQueryReportsHostCount mocks the live query store GetQueryReportsHostCount method.
+func (m *MockLiveQuery) GetQueryReportsHostCount() (int, bool, error) {
+	if m.GetQueryReportsHostCountOverride != nil {
+		return m.GetQueryReportsHostCountOverride()
+	}
+	// Default to a cache hit of zero so tests opt into the database fallback explicitly.
+	return 0, true, nil
+}
+
+// SetQueryReportsHostCountIfAbsent mocks the live query store SetQueryReportsHostCountIfAbsent method.
+func (m *MockLiveQuery) SetQueryReportsHostCountIfAbsent(count int) error {
+	if m.SetQueryReportsHostCountIfAbsentOverride != nil {
+		return m.SetQueryReportsHostCountIfAbsentOverride(count)
+	}
+	return nil
+}
+
+// SetQueryResultsCountsIfAbsent mocks the live query store SetQueryResultsCountsIfAbsent method.
+func (m *MockLiveQuery) SetQueryResultsCountsIfAbsent(counts map[uint]int) error {
+	if m.SetQueryResultsCountsIfAbsentOverride != nil {
+		return m.SetQueryResultsCountsIfAbsentOverride(counts)
+	}
+	return nil
+}
+
+// IncrQueryReportsHostCount mocks the live query store IncrQueryReportsHostCount method.
+func (m *MockLiveQuery) IncrQueryReportsHostCount(delta int) error {
+	if m.IncrQueryReportsHostCountOverride != nil {
+		return m.IncrQueryReportsHostCountOverride(delta)
+	}
+	return nil
+}
+
+// MarkQueryReportsClipped mocks the live query store MarkQueryReportsClipped method.
+func (m *MockLiveQuery) MarkQueryReportsClipped(ttlByQueryID map[uint]time.Duration) error {
+	if m.MarkQueryReportsClippedOverride != nil {
+		return m.MarkQueryReportsClippedOverride(ttlByQueryID)
+	}
+	return nil
+}
+
+// QueryReportsClipped mocks the live query store QueryReportsClipped method.
+func (m *MockLiveQuery) QueryReportsClipped(queryIDs []uint) (map[uint]bool, error) {
+	if m.QueryReportsClippedOverride != nil {
+		return m.QueryReportsClippedOverride(queryIDs)
+	}
+	return map[uint]bool{}, nil
+}
+
+// ClearQueryReportsClipped mocks the live query store ClearQueryReportsClipped method.
+func (m *MockLiveQuery) ClearQueryReportsClipped(queryIDs []uint) error {
+	if m.ClearQueryReportsClippedOverride != nil {
+		return m.ClearQueryReportsClippedOverride(queryIDs)
+	}
+	return nil
+}
+
+// RecordQueryResultsLastFetched mocks the live query store RecordQueryResultsLastFetched method.
+func (m *MockLiveQuery) RecordQueryResultsLastFetched(rowIDs []uint, fetchedAt time.Time) error {
+	if m.RecordQueryResultsLastFetchedOverride != nil {
+		return m.RecordQueryResultsLastFetchedOverride(rowIDs, fetchedAt)
+	}
+	return nil
+}
+
+// LoadQueryResultsLastFetched mocks the live query store LoadQueryResultsLastFetched method.
+func (m *MockLiveQuery) LoadQueryResultsLastFetched() (map[uint]time.Time, error) {
+	if m.LoadQueryResultsLastFetchedOverride != nil {
+		return m.LoadQueryResultsLastFetchedOverride()
+	}
+	return map[uint]time.Time{}, nil
+}
+
+// ClearProcessedQueryResultsLastFetched mocks the live query store ClearProcessedQueryResultsLastFetched method.
+func (m *MockLiveQuery) ClearProcessedQueryResultsLastFetched() error {
+	if m.ClearProcessedQueryResultsLastFetchedOverride != nil {
+		return m.ClearProcessedQueryResultsLastFetchedOverride()
+	}
+	return nil
+}
+
+// AcquireQueryReportWriteSlot mocks the live query store AcquireQueryReportWriteSlot method.
+func (m *MockLiveQuery) AcquireQueryReportWriteSlot(token string, limit int, lease time.Duration) (bool, error) {
+	if m.AcquireQueryReportWriteSlotOverride != nil {
+		return m.AcquireQueryReportWriteSlotOverride(token, limit, lease)
+	}
+	return true, nil
+}
+
+// ReleaseQueryReportWriteSlot mocks the live query store ReleaseQueryReportWriteSlot method.
+func (m *MockLiveQuery) ReleaseQueryReportWriteSlot(token string) error {
+	if m.ReleaseQueryReportWriteSlotOverride != nil {
+		return m.ReleaseQueryReportWriteSlotOverride(token)
 	}
 	return nil
 }

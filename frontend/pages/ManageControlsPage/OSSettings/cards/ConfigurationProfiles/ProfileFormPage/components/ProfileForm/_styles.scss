@@ -1,0 +1,107 @@
+.profile-form {
+  @include vertical-form-layout;
+  // Fills the page column so the footer sits at the bottom.
+  flex: 1;
+
+  // Its own column, since in GitOps mode the tooltip wrapper's span sits
+  // between these fields and the form's gap.
+  &__fields {
+    @include vertical-form-layout;
+  }
+
+  &__upload {
+    display: flex;
+    align-items: center;
+    gap: $pad-medium;
+
+    input[type="file"] {
+      display: none;
+    }
+  }
+
+  &__upload-help {
+    font-size: $x-small;
+    color: $ui-fleet-black-75;
+  }
+
+  &__deploy {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  // Sized to its options, per the design, not the page width. A fixed
+  // width, since the GitOps tooltip wrapper hugs its content.
+  &__deploy-dropdown {
+    width: 240px;
+  }
+
+  &__deploy-static {
+    font-size: $x-small;
+  }
+
+  // The profile type above the editor is a quiet caption in the design, not
+  // a field label. An error keeps the standard error label.
+  .editor__label:not(.editor__label--error) {
+    font-size: $xx-small;
+    font-weight: $regular;
+    color: $ui-fleet-black-75;
+  }
+
+  &__footer {
+    position: sticky;
+    // Float above the viewport edge by the page padding, as the card sits
+    // when the form is short, so it doesn't jump once it sticks.
+    bottom: $pad-page;
+    // Ace positions its layers with z-index 1-4; stay above them.
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $pad-medium;
+    margin: auto (-$pad-large) 0;
+    padding: $pad-medium $pad-large;
+    background: $ui-off-white;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius-large;
+
+    // Fades the form out above the card on short viewports. Anchored to the
+    // padding box, so offset by the border or it paints over the top edge.
+    &::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: calc(100% + 1px);
+      height: $pad-xlarge;
+      background: linear-gradient(
+        to bottom,
+        $core-fleet-white-transparent,
+        $core-fleet-white
+      );
+      pointer-events: none;
+    }
+
+    // Masks the form scrolling through the gap below the stuck card.
+    &::after {
+      content: "";
+      position: absolute;
+      left: -1px;
+      right: -1px;
+      top: calc(100% + 1px);
+      height: $pad-page;
+      background: $core-fleet-white;
+      pointer-events: none;
+    }
+  }
+
+  &__applies-to {
+    font-size: $x-small;
+    color: $ui-fleet-black-75;
+  }
+
+  &__footer-actions {
+    display: flex;
+    gap: $pad-medium;
+  }
+}

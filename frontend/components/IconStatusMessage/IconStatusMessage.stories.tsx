@@ -1,6 +1,8 @@
-import React from "react";
 import { Meta, StoryObj } from "@storybook/react";
+import React from "react";
+
 import IconStatusMessage from ".";
+
 import "../../index.scss";
 
 const meta: Meta<typeof IconStatusMessage> = {

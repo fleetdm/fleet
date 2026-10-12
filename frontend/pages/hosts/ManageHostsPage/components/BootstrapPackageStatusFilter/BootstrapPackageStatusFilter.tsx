@@ -1,10 +1,9 @@
 import React from "react";
 
-import { IDropdownOption } from "interfaces/dropdownOption";
-import { BootstrapPackageStatus } from "interfaces/mdm";
-
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { BootstrapPackageStatus } from "interfaces/mdm";
 
 const baseClass = "bootstrap-package-status-filter";
 

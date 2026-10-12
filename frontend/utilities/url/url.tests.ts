@@ -1,6 +1,7 @@
 import {
   buildQueryStringFromParams,
   getPathWithQueryParams,
+  reconcileMutuallyExclusiveHostParams,
   reconcileMutuallyInclusiveHostParams,
 } from ".";
 
@@ -155,6 +156,60 @@ describe("url utilities > reconcileMutuallyInclusiveHostParams", () => {
       })
     ).toEqual({
       fleet_id: undefined,
+    });
+  });
+});
+
+describe("url utilities > reconcileMutuallyExclusiveHostParams", () => {
+  it("keeps the disk encryption filter when a label is selected", () => {
+    expect(
+      reconcileMutuallyExclusiveHostParams({
+        label: "labels/7",
+        diskEncryptionStatus: "verified",
+      })
+    ).toEqual({
+      os_settings_disk_encryption: "verified",
+    });
+  });
+
+  it("keeps the DEP profile error filter when a label is selected", () => {
+    expect(
+      reconcileMutuallyExclusiveHostParams({
+        label: "labels/7",
+        depProfileError: true,
+      })
+    ).toEqual({
+      dep_profile_error: true,
+    });
+  });
+
+  it("keeps the DEP assign profile response filter when a label is selected", () => {
+    expect(
+      reconcileMutuallyExclusiveHostParams({
+        label: "labels/7",
+        depAssignProfileResponse: "FAILED",
+      })
+    ).toEqual({
+      dep_assign_profile_response: "FAILED",
+    });
+  });
+
+  it("returns no filters for a label alone", () => {
+    expect(reconcileMutuallyExclusiveHostParams({ label: "labels/7" })).toEqual(
+      {}
+    );
+  });
+
+  it("drops params a label doesn't allow while keeping disk encryption", () => {
+    expect(
+      reconcileMutuallyExclusiveHostParams({
+        label: "labels/7",
+        diskEncryptionStatus: "verified",
+        policyId: 3,
+        policyResponse: "passing",
+      })
+    ).toEqual({
+      os_settings_disk_encryption: "verified",
     });
   });
 });

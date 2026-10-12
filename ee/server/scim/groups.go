@@ -6,12 +6,15 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/elimity-com/scim"
 	"github.com/elimity-com/scim/errors"
 	"github.com/elimity-com/scim/optional"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/scim2/filter-parser/v2"
 )
@@ -60,6 +63,13 @@ func (g *GroupHandler) Create(r *http.Request, attributes scim.ResourceAttribute
 	if err != nil {
 		g.logger.ErrorContext(r.Context(), "failed to create group from attributes", displayNameAttr, displayName, "err", err)
 		return scim.Resource{}, err
+	}
+	rejected, err := g.dropUnknownMembers(ctxdb.RequirePrimary(r.Context(), true), group, nil)
+	if err != nil {
+		return scim.Resource{}, err
+	}
+	if rejected != nil {
+		return scim.Resource{}, errors.ScimErrorBadParams(rejected)
 	}
 	group.ID, err = g.ds.CreateScimGroup(r.Context(), group)
 	if err != nil {
@@ -280,6 +290,24 @@ func (g *GroupHandler) Replace(r *http.Request, id string, attributes scim.Resou
 		// Otherwise, we assume that we are replacing the displayName with this operation.
 	}
 
+	ctx := ctxdb.RequirePrimary(r.Context(), true)
+	rejected, err := g.dropUnknownMembers(ctx, group, nil)
+	if err != nil {
+		return scim.Resource{}, err
+	}
+	if rejected != nil {
+		// The write reports a missing group as not found, and rejecting the members
+		// first must not turn that into a 400.
+		found, err := g.ds.ExistingScimGroupIDs(ctx, []uint{group.ID})
+		if err != nil {
+			return scim.Resource{}, ctxerr.Wrap(ctx, err, "check scim group exists")
+		}
+		if len(found) == 0 {
+			g.logger.InfoContext(r.Context(), "failed to find group to replace", "id", id)
+			return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
+		}
+		return scim.Resource{}, errors.ScimErrorBadParams(rejected)
+	}
 	err = g.ds.ReplaceScimGroup(r.Context(), group)
 	switch {
 	case fleet.IsNotFound(err):
@@ -314,12 +342,13 @@ func (g *GroupHandler) Delete(r *http.Request, id string) error {
 // Patch
 // Supporting add/replace/remove operations for "displayName", "externalId", and "members" attributes.
 func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.PatchOperation) (scim.Resource, error) {
-	ctx := r.Context()
+	ctx := ctxdb.RequirePrimary(r.Context(), true)
 	idUint, err := extractGroupIDFromValue(id)
 	if err != nil {
 		g.logger.InfoContext(ctx, "failed to parse id", "id", id, "err", err)
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 	}
+
 	group, err := g.ds.ScimGroupByID(ctx, idUint, false)
 	switch {
 	case fleet.IsNotFound(err):
@@ -330,6 +359,10 @@ func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.Patch
 		return scim.Resource{}, err
 	}
 
+	// A replace or remove-all operation declares a final membership state, which is
+	// destructive by intent; anything else is applied as a targeted delta.
+	deltas := &fleet.ScimGroupMemberDeltas{}
+	replaceAll := false
 	for _, op := range operations {
 		if op.Op != scim.PatchOperationAdd && op.Op != scim.PatchOperationReplace && op.Op != scim.PatchOperationRemove {
 			g.logger.InfoContext(ctx, "unsupported patch operation", "op", op.Op)
@@ -341,7 +374,7 @@ func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.Patch
 				g.logger.InfoContext(ctx, "the 'path' attribute is REQUIRED for 'remove' operations", "op", op.Op)
 				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 			}
-			newValues, ok := op.Value.(map[string]interface{})
+			newValues, ok := op.Value.(map[string]any)
 			if !ok {
 				g.logger.InfoContext(ctx, "unsupported patch value", "value", op.Value)
 				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
@@ -359,8 +392,8 @@ func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.Patch
 						return scim.Resource{}, err
 					}
 				case membersAttr:
-					err = g.patchMembers(ctx, op.Op, v, group)
-					if err != nil {
+					replaceAll = replaceAll || declaresFullMembership(op.Op, v)
+					if err = g.patchMembers(ctx, op.Op, v, group, deltas); err != nil {
 						return scim.Resource{}, err
 					}
 				default:
@@ -379,12 +412,12 @@ func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.Patch
 				return scim.Resource{}, err
 			}
 		case op.Path.String() == membersAttr:
-			err = g.patchMembers(ctx, op.Op, op.Value, group)
-			if err != nil {
+			replaceAll = replaceAll || declaresFullMembership(op.Op, op.Value)
+			if err = g.patchMembers(ctx, op.Op, op.Value, group, deltas); err != nil {
 				return scim.Resource{}, err
 			}
 		case op.Path.AttributePath.String() == membersAttr:
-			err = g.patchMembersWithPathFiltering(ctx, op, group)
+			err = g.patchMembersWithPathFiltering(ctx, op, group, deltas)
 			if err != nil {
 				return scim.Resource{}, err
 			}
@@ -395,7 +428,25 @@ func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.Patch
 	}
 
 	if len(operations) != 0 {
-		err = g.ds.ReplaceScimGroup(ctx, group)
+		// A replace declares the group's final membership, so the whole list needs
+		// checking.
+		checkDeltas := deltas
+		if replaceAll {
+			checkDeltas = nil
+		}
+		rejected, err := g.dropUnknownMembers(ctx, group, checkDeltas)
+		if err != nil {
+			return scim.Resource{}, err
+		}
+		if rejected != nil {
+			return scim.Resource{}, errors.ScimErrorBadParams(rejected)
+		}
+
+		if replaceAll {
+			err = g.ds.ReplaceScimGroup(ctx, group)
+		} else {
+			err = g.ds.ApplyScimGroupPatch(ctx, group, *deltas)
+		}
 		switch {
 		case fleet.IsNotFound(err):
 			g.logger.InfoContext(ctx, "failed to find group to patch", "id", id)
@@ -407,6 +458,78 @@ func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.Patch
 	}
 
 	return createGroupResource(group), nil
+}
+
+const maxLoggedUnknownMembers = 10
+
+// dropUnknownMembers removes members that reference no existing SCIM user or group
+// from group and, when given, from deltas' additions. IdPs treat a 400 as permanent,
+// so one stale or not-yet-provisioned ID must not fail the rest of a group push. A
+// request whose added members are all unknown is still rejected, unless it is a
+// delta patch that also removes members; the rejection is reported by returning the
+// unknown values, with group left unchanged.
+func (g *GroupHandler) dropUnknownMembers(
+	ctx context.Context, group *fleet.ScimGroup, deltas *fleet.ScimGroupMemberDeltas,
+) (rejected []string, err error) {
+	userIDs, childGroupIDs := group.ScimUsers, group.ChildGroups
+	if deltas != nil {
+		userIDs, childGroupIDs = deltas.AddUsers, deltas.AddChildGroups
+	}
+	foundUsers, err := g.ds.ExistingScimUserIDs(ctx, userIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "check scim group member users exist")
+	}
+	foundGroups, err := g.ds.ExistingScimGroupIDs(ctx, childGroupIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "check scim group member groups exist")
+	}
+
+	knownUsers, unknownUsers := splitKnownIDs(userIDs, foundUsers)
+	knownGroups, unknownGroups := splitKnownIDs(childGroupIDs, foundGroups)
+	if len(unknownUsers) == 0 && len(unknownGroups) == 0 {
+		return nil, nil
+	}
+
+	values := make([]string, 0, len(unknownUsers)+len(unknownGroups))
+	for _, id := range unknownUsers {
+		values = append(values, scimUserID(id))
+	}
+	for _, id := range unknownGroups {
+		values = append(values, scimGroupID(id))
+	}
+
+	// Groups can have thousands of members, and IdPs resend the same request every
+	// sync cycle, so the logged list is capped.
+	logAttrs := []any{
+		displayNameAttr, group.DisplayName,
+		"unknown_count", len(values),
+		membersAttr, values[:min(len(values), maxLoggedUnknownMembers)],
+	}
+	if group.ID != 0 {
+		logAttrs = append(logAttrs, "group_id", group.ID)
+	}
+	hasRemovals := deltas != nil && (len(deltas.RemoveUsers) > 0 || len(deltas.RemoveChildGroups) > 0)
+	if len(knownUsers) == 0 && len(knownGroups) == 0 && !hasRemovals {
+		g.logger.InfoContext(ctx, "none of the added group members exist", logAttrs...)
+		return values, nil
+	}
+	g.logger.InfoContext(ctx, "skipping unknown group members", logAttrs...)
+
+	group.ScimUsers = removeUints(group.ScimUsers, unknownUsers)
+	group.ChildGroups = removeUints(group.ChildGroups, unknownGroups)
+	if deltas != nil {
+		deltas.AddUsers = knownUsers
+		deltas.AddChildGroups = knownGroups
+	}
+	return nil, nil
+}
+
+// splitKnownIDs partitions ids, preserving order, into those in found and those not.
+func splitKnownIDs(ids []uint, found map[uint]struct{}) (known, unknown []uint) {
+	isKnown := func(id uint) bool { _, ok := found[id]; return ok }
+	known = slices.DeleteFunc(slices.Clone(ids), func(id uint) bool { return !isKnown(id) })
+	unknown = slices.DeleteFunc(slices.Clone(ids), isKnown)
+	return known, unknown
 }
 
 func (g *GroupHandler) patchExternalId(ctx context.Context, op string, v any, group *fleet.ScimGroup) error {
@@ -442,8 +565,10 @@ func (g *GroupHandler) patchDisplayName(ctx context.Context, op string, v any, g
 }
 
 // patchMembers handles add/replace/remove operations for the members attribute
-func (g *GroupHandler) patchMembers(ctx context.Context, op string, v interface{}, group *fleet.ScimGroup) error {
-	if op == scim.PatchOperationRemove {
+func (g *GroupHandler) patchMembers(
+	ctx context.Context, op string, v any, group *fleet.ScimGroup, deltas *fleet.ScimGroupMemberDeltas,
+) error {
+	if op == scim.PatchOperationRemove && v == nil {
 		// Remove all members (both users and nested child groups)
 		group.ScimUsers = []uint{}
 		group.ChildGroups = []uint{}
@@ -475,8 +600,6 @@ func (g *GroupHandler) patchMembers(ctx context.Context, op string, v interface{
 	// nested group (prefixed "group-<id>", as sent by Entra ID for nested groups).
 	userIDs := make([]uint, 0, len(membersList))
 	childGroupIDs := make([]uint, 0, len(membersList))
-	userValueStrings := make([]string, 0, len(membersList))
-	groupValueStrings := make([]string, 0, len(membersList))
 
 	for _, memberIntf := range membersList {
 		member, ok := memberIntf.(map[string]interface{})
@@ -505,50 +628,58 @@ func (g *GroupHandler) patchMembers(ctx context.Context, op string, v interface{
 		}
 		if kind == memberKindGroup {
 			childGroupIDs = append(childGroupIDs, id)
-			groupValueStrings = append(groupValueStrings, valueStr)
 		} else {
 			userIDs = append(userIDs, id)
-			userValueStrings = append(userValueStrings, valueStr)
 		}
 	}
 
-	// Verify all referenced users exist in a single database call
-	if len(userIDs) > 0 {
-		allExist, err := g.ds.ScimUsersExist(ctx, userIDs)
-		if err != nil {
-			g.logger.ErrorContext(ctx, "error checking users existence", "err", err)
-			return err
-		}
-		if !allExist {
-			g.logger.InfoContext(ctx, "one or more users not found", "userIDs", userIDs)
-			return errors.ScimErrorBadParams(userValueStrings)
-		}
-	}
-
-	// Verify all referenced child groups exist in a single database call
-	if len(childGroupIDs) > 0 {
-		allExist, err := g.ds.ScimGroupsExist(ctx, childGroupIDs)
-		if err != nil {
-			g.logger.ErrorContext(ctx, "error checking child groups existence", "err", err)
-			return err
-		}
-		if !allExist {
-			g.logger.InfoContext(ctx, "one or more child groups not found", "childGroupIDs", childGroupIDs)
-			return errors.ScimErrorBadParams(groupValueStrings)
-		}
-	}
-
-	// For add operation, append to existing members
-	if op == scim.PatchOperationAdd {
+	switch op {
+	case scim.PatchOperationAdd:
 		group.ScimUsers = appendMissingUint(group.ScimUsers, userIDs)
 		group.ChildGroups = appendMissingUint(group.ChildGroups, childGroupIDs)
-	} else {
-		// For replace operation, replace all members
+		for _, userID := range userIDs {
+			deltas.AddUser(userID)
+		}
+		for _, childGroupID := range childGroupIDs {
+			deltas.AddChildGroup(childGroupID)
+		}
+	case scim.PatchOperationRemove:
+		group.ScimUsers = removeUints(group.ScimUsers, userIDs)
+		group.ChildGroups = removeUints(group.ChildGroups, childGroupIDs)
+		for _, userID := range userIDs {
+			deltas.RemoveUser(userID)
+		}
+		for _, childGroupID := range childGroupIDs {
+			deltas.RemoveChildGroup(childGroupID)
+		}
+	default: // replace
 		group.ScimUsers = userIDs // FIXME: List should be deduplicated by us? See https://github.com/fleetdm/fleet/issues/30086
 		group.ChildGroups = childGroupIDs
 	}
 
 	return nil
+}
+
+// declaresFullMembership reports whether an unfiltered members operation declares
+// the group's final membership rather than a delta: a replace, or a remove with no
+// value. A remove naming members (Entra ID's single-member removal form) is a delta.
+func declaresFullMembership(op string, v any) bool {
+	return op == scim.PatchOperationReplace || (op == scim.PatchOperationRemove && v == nil)
+}
+
+// removeUints returns base without the elements of toRemove, preserving order.
+func removeUints(base, toRemove []uint) []uint {
+	if len(toRemove) == 0 {
+		return base
+	}
+	remove := make(map[uint]struct{}, len(toRemove))
+	for _, id := range toRemove {
+		remove[id] = struct{}{}
+	}
+	return slices.DeleteFunc(base, func(id uint) bool {
+		_, ok := remove[id]
+		return ok
+	})
 }
 
 // appendMissingUint appends to base the elements of extra that are not already
@@ -569,7 +700,9 @@ func appendMissingUint(base, extra []uint) []uint {
 
 // patchMembersWithPathFiltering handles patch operations with path filtering for members
 // This supports paths like members[value eq "422"] for add/replace/remove operations
-func (g *GroupHandler) patchMembersWithPathFiltering(ctx context.Context, op scim.PatchOperation, group *fleet.ScimGroup) error {
+func (g *GroupHandler) patchMembersWithPathFiltering(
+	ctx context.Context, op scim.PatchOperation, group *fleet.ScimGroup, deltas *fleet.ScimGroupMemberDeltas,
+) error {
 	kind, memberID, err := g.getMemberID(ctx, op)
 	if err != nil {
 		return err
@@ -578,8 +711,10 @@ func (g *GroupHandler) patchMembersWithPathFiltering(ctx context.Context, op sci
 	// Operate on the appropriate member slice depending on whether the filter
 	// targets a user or a nested child group (e.g. members[value eq "group-62"]).
 	target := &group.ScimUsers
+	recordAdd, recordRemove := deltas.AddUser, deltas.RemoveUser
 	if kind == memberKindGroup {
 		target = &group.ChildGroups
+		recordAdd, recordRemove = deltas.AddChildGroup, deltas.RemoveChildGroup
 	}
 
 	// Check if the member exists in the group
@@ -595,6 +730,10 @@ func (g *GroupHandler) patchMembersWithPathFiltering(ctx context.Context, op sci
 
 	// For remove operations, remove the member if found
 	if op.Op == scim.PatchOperationRemove {
+		// The removal is recorded even when the member is absent from the list we
+		// read: the IdP asked for it to be gone, and a targeted delete of a row
+		// that isn't there is a no-op.
+		recordRemove(memberID)
 		if !memberFound {
 			g.logger.InfoContext(ctx, "member not found in group", "member_id", memberID, "kind", kind, "op", fmt.Sprintf("%v", op))
 			// The member may have been removed already from this group. For example, if the member was deleted.
@@ -606,17 +745,8 @@ func (g *GroupHandler) patchMembersWithPathFiltering(ctx context.Context, op sci
 
 	// For add operations, add the member if not found
 	if op.Op == scim.PatchOperationAdd && !memberFound {
-		// Verify the referenced member exists
-		exists, err := g.memberExists(ctx, kind, memberID)
-		if err != nil {
-			g.logger.ErrorContext(ctx, "error checking member existence", "err", err)
-			return err
-		}
-		if !exists {
-			g.logger.InfoContext(ctx, "member not found", "member_id", memberID, "kind", kind)
-			return errors.ScimErrorBadParams([]string{memberValue(kind, memberID)})
-		}
 		*target = append(*target, memberID)
+		recordAdd(memberID)
 		return nil
 	}
 
@@ -632,6 +762,7 @@ func (g *GroupHandler) patchMembersWithPathFiltering(ctx context.Context, op sci
 		// If the value is nil or an empty object, remove the member
 		if op.Value == nil {
 			*target = append((*target)[:memberIndex], (*target)[memberIndex+1:]...)
+			recordRemove(memberID)
 			return nil
 		}
 
@@ -708,23 +839,6 @@ func classifyMemberValue(value string) (memberKind, uint, error) {
 		return memberKindUser, 0, err
 	}
 	return memberKindUser, id, nil
-}
-
-// memberExists reports whether the referenced user or nested group exists.
-func (g *GroupHandler) memberExists(ctx context.Context, kind memberKind, id uint) (bool, error) {
-	if kind == memberKindGroup {
-		return g.ds.ScimGroupsExist(ctx, []uint{id})
-	}
-	return g.ds.ScimUsersExist(ctx, []uint{id})
-}
-
-// memberValue renders the SCIM member "value" string for the given kind and ID,
-// for use in error messages.
-func memberValue(kind memberKind, id uint) string {
-	if kind == memberKindGroup {
-		return scimGroupID(id)
-	}
-	return scimUserID(id)
 }
 
 // extractGroupIDFromValue extracts the group ID from a value like "group-123"

@@ -1,3 +1,4 @@
+import { notify } from "components/ToastNotification";
 import {
   ICampaign,
   ICampaignState,
@@ -5,7 +6,6 @@ import {
   IHostWithQueryResults,
 } from "interfaces/campaign";
 import { IHost } from "interfaces/host";
-import { notify } from "components/ToastNotification";
 
 interface IResult {
   type: "result";

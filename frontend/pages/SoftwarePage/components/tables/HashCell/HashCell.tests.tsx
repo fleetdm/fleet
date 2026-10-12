@@ -1,10 +1,10 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
-
 import { noop } from "lodash";
-import { DEFAULT_INSTALLED_VERSION } from "__mocks__/hostMock";
+import React from "react";
 
+import { DEFAULT_INSTALLED_VERSION } from "__mocks__/hostMock";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+
 import HashCell from "./HashCell";
 
 describe("HashCell component", () => {

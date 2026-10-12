@@ -1,1 +1,1 @@
-export { default } from "./VersionCell";
+export { default, VersionsColumnCell } from "./VersionCell";

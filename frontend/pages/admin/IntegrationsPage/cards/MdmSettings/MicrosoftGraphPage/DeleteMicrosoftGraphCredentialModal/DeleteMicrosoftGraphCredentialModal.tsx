@@ -1,10 +1,9 @@
 import React, { useState } from "react";
 
-import microsoftGraphCredentialsAPI from "services/entities/microsoft_graph_credentials";
-
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
+import microsoftGraphCredentialsAPI from "services/entities/microsoft_graph_credentials";
 
 const baseClass = "delete-microsoft-graph-credential-modal";
 

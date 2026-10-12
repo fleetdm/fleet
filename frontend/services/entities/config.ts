@@ -1,9 +1,10 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 
+import axios, { AxiosError } from "axios";
+
+import { IConfig, IMdmConfig } from "interfaces/config";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
-import { IConfig, IMdmConfig } from "interfaces/config";
-import axios, { AxiosError } from "axios";
 
 export default {
   loadAll: (): Promise<IConfig> => {

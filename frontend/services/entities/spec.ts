@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+
+import { IEnrollSecret } from "interfaces/enroll_secret";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
-import { IEnrollSecret } from "interfaces/enroll_secret";
 
 interface IEnrollSecretSpec {
   spec: {

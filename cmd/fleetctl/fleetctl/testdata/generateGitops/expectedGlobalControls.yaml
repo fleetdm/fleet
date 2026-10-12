@@ -3,22 +3,29 @@ apple_settings:
     - labels_include_all:
         - Label A
         - Label B
+      name: Global MacOS MobileConfig Profile
       path: ./lib/profiles/global-macos-mobileconfig-profile.mobileconfig
+      self_service: true
     - labels_exclude_any:
         - Label C
+      name: Global MacOS JSON Profile
       path: ./lib/profiles/global-macos-json-profile.json
   enable_disk_encryption: false
   enable_escrow_disk_encryption_key: true
 windows_settings:
   configuration_profiles:
-    - labels_include_any:
+    - description: Blocks inbound connections
+      hidden: true
+      labels_include_any:
         - Label D
+      name: Global Windows Profile
       path: ./lib/profiles/global-windows-profile.xml
   enable_disk_encryption: true
   require_bitlocker_pin: false
 android_settings:
   configuration_profiles:
-    - path: ./lib/profiles/global-android-profile.json
+    - name: Global Android Profile
+      path: ./lib/profiles/global-android-profile.json
 macos_updates:
   minimum_version: "15.1"
   deadline: "2024-12-31"
@@ -48,6 +55,7 @@ windows_entra_tenant_ids:
 windows_migration_enabled: true
 enable_turn_on_windows_mdm_manually: false
 apple_require_hardware_attestation: false
+only_allow_apple_business_enrollment: false
 android_enabled_and_configured: true
 enable_recovery_lock_password: false
 name_template: ""

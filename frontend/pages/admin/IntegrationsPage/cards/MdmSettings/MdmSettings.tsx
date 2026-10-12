@@ -1,20 +1,21 @@
+import { AxiosError } from "axios";
 import React from "react";
 import { useQuery } from "react-query";
-import { AxiosError } from "axios";
 import { InjectedRouter } from "react-router";
 
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { IMdmApple } from "interfaces/mdm";
 import { IConfig } from "interfaces/config";
+import { IMdmApple } from "interfaces/mdm";
+import mdmAPI, { IEulaMetadataResponse } from "services/entities/mdm";
 import mdmAppleAPI, {
   IGetVppTokensResponse,
 } from "services/entities/mdm_apple";
-import mdmAPI, { IEulaMetadataResponse } from "services/entities/mdm";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
-import MdmSettingsSection from "./components/MdmSettingsSection";
+import AndroidZeroTouchSection from "./components/AndroidZeroTouchSection";
 import AppleBusinessManagerSection from "./components/AppleBusinessManagerSection";
-import EulaSection from "./components/EulaSection";
 import EndUserMigrationSection from "./components/EndUserMigrationSection";
+import EulaSection from "./components/EulaSection";
+import MdmSettingsSection from "./components/MdmSettingsSection";
 import MicrosoftEntraSection from "./components/MicrosoftEntraSection";
 
 const baseClass = "mdm-settings";
@@ -118,6 +119,10 @@ const MdmSettings = ({
       />
       {!isLoading && !hasError && hasAllData && (
         <>
+          <AndroidZeroTouchSection
+            router={router}
+            isPremiumTier={isPremiumTier}
+          />
           <AppleBusinessManagerSection
             router={router}
             isPremiumTier={isPremiumTier}

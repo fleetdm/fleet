@@ -1,6 +1,7 @@
+import { http, HttpResponse } from "msw";
+
 import createMockConfig from "__mocks__/configMock";
 import { IConfig } from "interfaces/config";
-import { http, HttpResponse } from "msw";
 import { baseUrl } from "test/test-utils";
 
 const configProfileURL = baseUrl("/configuration_profiles");

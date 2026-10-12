@@ -93,30 +93,15 @@
   }
 
   &__results-list {
-    max-height: 280px;
-    overflow-y: auto;
-    border: 1px solid $ui-fleet-black-10;
-    border-radius: $border-radius;
+    @include scrollable-checkbox-list(280px);
   }
 
   &__results-row {
-    padding: $pad-small $pad-medium;
-    border-bottom: 1px solid $ui-fleet-black-10;
-
-    &:last-child {
-      border-bottom: none;
-    }
-
-    .fleet-checkbox {
-      margin: 0;
-    }
+    @include scrollable-checkbox-list-row;
   }
 
   &__results-status {
-    padding: $pad-medium;
-    text-align: center;
-    font-size: $x-small;
-    color: $ui-fleet-black-50;
+    @include scrollable-checkbox-list-status;
   }
 
   &__tooltip-text {

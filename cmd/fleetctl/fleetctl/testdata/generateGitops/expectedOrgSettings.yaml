@@ -58,6 +58,9 @@ host_expiry_settings:
   host_expiry_enabled: false
   host_expiry_window: 59995
 integrations:
+  certificates_disable_host_end_user_binding:
+  certificates_idp_client_ids:
+  certificates_idp_introspection_urls:
   conditional_access_enabled: true
   google_calendar:
     - api_key_json: ___GITOPS_COMMENT_0___
@@ -83,10 +86,16 @@ integrations:
 mdm:
   apple_business:
     - byod_fleet: "\U0001F4F1\U0001F510 Personal mobile devices"
+      default: true
       ios_fleet: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
       ipados_fleet: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
       macos_fleet: "\U0001F4BB Workstations"
       organization_name: Fleet Device Management Inc.
+    - byod_fleet: ""
+      ios_fleet: ""
+      ipados_fleet: ""
+      macos_fleet: "\U0001F4BB Workstations"
+      organization_name: Second Org LLC
   apple_server_url: http://some-apple-server-url.com
   end_user_authentication:
     entity_id: some-mdm-entity-id.com

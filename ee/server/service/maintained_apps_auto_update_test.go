@@ -158,3 +158,29 @@ func TestAutoUpdateFleetMaintainedAppsContinuesPastError(t *testing.T) {
 	require.True(t, ds.SetFleetMaintainedAppActiveInstallerFuncInvoked)
 	require.Equal(t, uint(2), flippedTitle)
 }
+
+func TestAutoUpdateFleetMaintainedAppsReportsCancelDuringLastApp(t *testing.T) {
+	ds := new(mock.Store)
+	teamID := uint(1)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	ds.ListFleetMaintainedAppActiveInstallersFunc = func(ctx context.Context) ([]fleet.FMAAutoUpdateCandidate, error) {
+		return []fleet.FMAAutoUpdateCandidate{
+			{TeamID: &teamID, TitleID: 1, InstallerID: 9, Slug: "only/darwin"},
+		}, nil
+	}
+	// The budget runs out while the last app is in flight, so no later pass through the loop sees it.
+	ds.GetPinnedVersionFunc = func(ctx context.Context, tmID *uint, titleID uint) (*string, error) {
+		cancel()
+		return nil, sql.ErrNoRows
+	}
+	// Already on the newest cached version, so the app itself is a no-op and only the budget is left to report.
+	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(ctx context.Context, tmID *uint, titleID uint) ([]fleet.FleetMaintainedVersion, error) {
+		return []fleet.FleetMaintainedVersion{{ID: 9, Version: "1.0"}}, nil
+	}
+
+	err := AutoUpdateFleetMaintainedApps(ctx, ds, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	require.ErrorIs(t, err, context.Canceled)
+	require.False(t, ds.SetFleetMaintainedAppActiveInstallerFuncInvoked)
+}

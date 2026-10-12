@@ -1,5 +1,5 @@
-import { IUser } from "interfaces/user";
 import { IConfig } from "interfaces/config";
+import { IUser } from "interfaces/user";
 
 export const isSandboxMode = (config: IConfig): boolean => {
   return !!config.sandbox_enabled; // TODO: confirm null/undefined config should treated as false based on final API spec

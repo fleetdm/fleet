@@ -10,5 +10,6 @@
   "ignore_hash": true,
   "default_categories": [
     "Communication"
-  ]
+  ],
+  "frozen": true
 }

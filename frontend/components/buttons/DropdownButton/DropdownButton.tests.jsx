@@ -1,6 +1,6 @@
-import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { noop } from "lodash";
+import React from "react";
 
 import { DropdownButton } from "./DropdownButton";
 

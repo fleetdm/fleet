@@ -1,21 +1,19 @@
 import React from "react";
-
-import { getPathWithQueryParams } from "utilities/url";
-
 import { CellProps } from "react-table";
+
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipWrapper from "components/TooltipWrapper";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
 import {
   INumberCellProps,
   IStringCellProps,
 } from "interfaces/datatable_config";
 import { IOperatingSystemKernels } from "interfaces/operating_system";
-
 import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
-import ViewAllHostsLink from "components/ViewAllHostsLink";
-import TooltipWrapper from "components/TooltipWrapper";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import LinkCell from "components/TableContainer/DataTable/LinkCell";
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import VulnerabilitiesCell from "../VulnerabilitiesCell";
 
 interface IOsKernelsTableConfigProps {

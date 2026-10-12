@@ -1,5 +1,5 @@
-import React from "react";
 import { AxiosResponse } from "axios";
+import React from "react";
 
 import { IApiError } from "interfaces/errors";
 

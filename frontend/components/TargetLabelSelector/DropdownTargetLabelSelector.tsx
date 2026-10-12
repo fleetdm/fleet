@@ -1,17 +1,16 @@
-import React, { ReactNode } from "react";
 import classnames from "classnames";
+import React, { ReactNode } from "react";
 
-import PATHS from "router/paths";
-import { IDropdownOption } from "interfaces/dropdownOption";
-import { ILabelSummary } from "interfaces/label";
-
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Radio from "components/forms/fields/Radio";
-import DataError from "components/DataError";
 import Spinner from "components/Spinner";
-import Checkbox from "components/forms/fields/Checkbox";
-import CustomLink from "components/CustomLink";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { ILabelSummary } from "interfaces/label";
+import PATHS from "router/paths";
 
 const baseClass = "target-label-selector";
 
@@ -21,6 +20,10 @@ interface ITargetChooserProps {
   disableOptions?: boolean;
   title: string | null;
   subTitle?: string;
+  /** Slot rendered between the title/subtitle and the radio options. */
+  labelInfoBanner?: ReactNode;
+  /** Error for the target selection — renders in place of the title when set. */
+  error?: string | null;
 }
 
 const TargetChooser = ({
@@ -29,11 +32,22 @@ const TargetChooser = ({
   disableOptions = false,
   title,
   subTitle,
+  labelInfoBanner,
+  error,
 }: ITargetChooserProps) => {
   return (
     <div className="form-field">
-      {title && <div className="form-field__label">{title}</div>}
+      {title && (
+        <div
+          className={classnames("form-field__label", {
+            "form-field__label--error": !!error,
+          })}
+        >
+          {error || title}
+        </div>
+      )}
       {subTitle && <div className="form-field__subtitle">{subTitle}</div>}
+      {labelInfoBanner}
       <Radio
         className={`${baseClass}__radio-input`}
         label="All hosts"
@@ -168,6 +182,11 @@ interface IDropdownTargetLabelSelectorProps {
   title?: string;
   suppressTitle?: boolean;
   subTitle?: string;
+  /** Rendered between the "Target" label and the All-hosts / Custom radios. */
+  labelInfoBanner?: ReactNode;
+  /** Validation error for the Custom-labels selection. Rendered in place of
+   * the "Target" title. */
+  error?: string | null;
 }
 
 /**
@@ -195,6 +214,8 @@ const DropdownTargetLabelSelector = ({
   title = "Target",
   subTitle,
   suppressTitle = false,
+  labelInfoBanner,
+  error,
 }: IDropdownTargetLabelSelectorProps) => {
   const classNames = classnames(baseClass, className, "form");
 
@@ -206,6 +227,8 @@ const DropdownTargetLabelSelector = ({
         disableOptions={disableOptions}
         title={suppressTitle ? null : title}
         subTitle={subTitle}
+        labelInfoBanner={labelInfoBanner}
+        error={error}
       />
       {selectedTargetType === "Custom" && (
         <LabelChooser

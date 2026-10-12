@@ -2,17 +2,20 @@
 
 _Available in Fleet Premium_
 
-In Fleet, you can enforce OS updates on your macOS, Windows, iOS, and iPadOS hosts remotely using the Fleet UI, Fleet API, or Fleet's GitOps workflow.
+In Fleet, you can enforce OS updates on your macOS, Windows, iOS, iPadOS, Android, and Linux hosts remotely using the Fleet UI, Fleet API, or Fleet's GitOps workflow.
 
-For Apple (macOS, iOS, and iPadOS) hosts, Apple requires that the OS version is one from the [list of available OS versions](https://gdmf.apple.com/v2/pmv). The update will only be enforced if you use a version in that list.
+For Apple (macOS, iOS, and iPadOS) hosts, Apple requires that the OS version is one from the [list of available OS versions](https://sofa.macadmins.io/). The update will only be enforced if you use a version in that list.
 
-For Android hosts, you can enforce OS updates using a configuration profile with the [`systemUpdate`](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#SystemUpdate) setting. This setting is only supported on fully-managed Android hosts (not BYO). Learn how to create a configuration profile in the [custom OS settings guide](https://fleetdm.com/guides/custom-os-settings).
+For Android hosts, you can enforce OS updates using a configuration profile. See [Android](#android) below for which management types support this.
+
+For Linux hosts, you can enforce OS updates using a policy and a script. See [Linux](#linux) below.
 
 ## Fleet-managed OS updates vs. custom profiles
 
 Fleet provides two approaches to enforce OS updates:
 
 1. **Fleet-managed settings** — Use the Fleet UI, API, or GitOps YAML to set a minimum version and deadline. Fleet generates and deploys the appropriate enforcement profile automatically.
+
 2. **Custom profiles** — Upload your own [Apple DDM declaration](https://developer.apple.com/documentation/devicemanagement/softwareupdateenforcementspecific) or [Windows Update CSP](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update) profile for full control over enforcement parameters (e.g., custom enforcement time).
 
 These two approaches are **mutually exclusive** per platform. If Fleet-managed OS update settings are configured, you cannot upload a custom OS update profile (and vice versa). You must remove one before configuring the other.
@@ -25,11 +28,14 @@ You can enforce OS settings using the Fleet UI, Fleet API, or [GitOps](https://f
 
 1. Head to the **Controls** > **OS updates** tab.
 
-2. To enforce OS updates for enrolled macOS, iOS, or iPadOS hosts, select the platform and set a **Minimum version** and **Deadline**.
+2. To enforce OS updates for enrolled Apple hosts, select the **macOS**, **iOS**, or **iPadOS** tab and choose an enforcement policy:
+
+   - **Custom version** — Set a specific **Minimum version** (e.g., `15.4.1`) and an absolute **Deadline** (date). Hosts below this version will be prompted to update by the deadline.
+   - **Latest version (based on host hardware)** — Fleet automatically enforces the latest macOS version available for each host's hardware. Set **Days after release** to control how long hosts have to update after Apple publishes a new version.
 
 3. For Windows, select **Windows** and set a **Deadline** and **Grace period**.
 
-4. *macOS only*: check "Update new hosts to latest" if you would like hosts to automatically update to the latest OS version during automatic (ADE) enrollment, regardless of the minimum version and deadline settings.
+4. *macOS only*: check "Update new hosts to latest" if you would like hosts to automatically update to the latest OS version during automatic (ADE) enrollment, regardless of the minimum version and deadline settings. This is implicitly enabled when using the automatic enforcement option (latest version).
 
 Use the [modify fleet endpoint](https://fleetdm.com/docs/rest-api/rest-api#modify-team) to turn on minimum OS version enforcement. The relevant payload keys in the `mdm` object are:
 + `macos_updates`
@@ -44,6 +50,27 @@ OS version enforcement options are declared within the [controls](https://fleetd
 + [ios_updates](https://fleetdm.com/docs/configuration/yaml-files#ios-updates)
 + [ipados_updates](https://fleetdm.com/docs/configuration/yaml-files#ipados-updates)
 + [windows_updates](https://fleetdm.com/docs/configuration/yaml-files#windows-updates)
+
+### Apple (macOS, iOS, and iPadOS) examples
+_Examples also work with ios_updates and ipados_updates._
+
+Custom version with an absolute deadline:
+```yaml
+controls:
+  macos_updates:
+    minimum_version: "15.4.1"
+    deadline: "2025-07-01"
+```
+
+Automatically enforce the latest macOS version, giving hosts 14 days after Apple releases it:
+```yaml
+controls:
+  macos_updates:
+    minimum_version: "latest"
+    deadline_days: 14
+```
+
+> `deadline` (a date) is used with a specific version number. `deadline_days` (an integer) is used with automatic option (`latest`). These cannot be mixed.
 
 ## Custom OS update profiles
 
@@ -125,6 +152,73 @@ Upload a custom Windows XML profile targeting the [Update CSP](https://learn.mic
 
 See Microsoft's [Update CSP documentation](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update) for all available settings.
 
+### Android
+
+Upload a custom Android configuration profile using the [`systemUpdate`](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#SystemUpdate) setting. Learn how to create a configuration profile in the [custom OS settings guide](https://fleetdm.com/guides/custom-os-settings).
+
+Support depends on how the Android host is managed:
+
+- **Company-owned (fully-managed) hosts**: supported. `systemUpdate` controls the whole device, and Android only exposes it on fully-managed hosts.
+- **Personal (BYOD) hosts**: not supported. Android has no work profile equivalent of `systemUpdate`, since the setting applies to the whole device rather than just the work profile.
+- **OEMConfig hosts (Knox Service Plugin, Zebra, etc.)**: not supported. Fleet doesn't support [OEMConfig](https://support.google.com/work/android/answer/9388447?hl=en).
+- **[Android Open Source (AOSP)](https://source.android.com/) hosts**: not supported. Fleet's Android MDM runs on the [Android Management API](https://developers.google.com/android/management), which requires Google Mobile Services. Hosts without Google Mobile Services, like Huawei devices and other China-market Android, can't enroll in Fleet at all.
+
+
+## Linux
+
+Linux doesn't have a Fleet-managed OS update setting or an MDM protocol. Instead, use a [policy](https://fleetdm.com/docs/configuration/yaml-files#policies) to find hosts that are out of date and a [script](https://fleetdm.com/guides/scripts) to update them. Fleet can run the script automatically on hosts that fail the policy.
+
+### Prerequisites
+
+- Hosts run fleetd with scripts enabled. See the [Scripts guide](https://fleetdm.com/guides/scripts).
+- Hosts use systemd. The script runs the package manager in a systemd unit so it isn't interrupted if the script times out.
+
+### Step 1: Add the policy
+
+Add the [Operating system up to date (Linux)](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/linux/policies/latest-linux.yml) policy. It passes when a host is on the latest release of a supported series for its distribution:
+
+| Distribution | Passes on | Automatically resolve with script |
+| --- | --- | --- |
+| Ubuntu | Latest point release of 24.04 LTS or 26.04 LTS | Yes |
+| Debian | Latest point release of 13 | Yes |
+| Fedora | Latest release | Only within a release. It can't upgrade Fedora 43 to 44. |
+| Red Hat Enterprise Linux, Rocky Linux, and AlmaLinux | Latest minor release of 9 or 10 | Yes |
+| NixOS | Latest stable release | No |
+| openSUSE Leap | Latest release (16 or later) | No |
+| AMD Ryzen AI Developer Platform | Latest platform update | Yes |
+
+The policy only has rules for the series in the table, so hosts on any other series, such as Ubuntu 22.04, Debian 12, or RHEL 8, fail it. To cover another series, add a rule for it to the policy's query. Rolling-release distributions (Arch and openSUSE Tumbleweed) and distributions without a rule always pass.
+
+> **Note:** The policy's query contains the latest versions. Update them whenever a distribution ships a new release.
+
+### Step 2: Add the script
+
+Add the [update-linux-os.sh](https://github.com/fleetdm/fleet/blob/main/docs/solutions/linux/scripts/update-linux-os.sh) script. It installs all pending package updates (`apt-get upgrade` on Debian-based hosts and `dnf upgrade` on Fedora and Red Hat-based hosts). On these distributions, the point release is a package, so hosts pass the policy once the script finishes.
+
+The script never reboots the host, removes packages, or upgrades to a new release (for example, Ubuntu 24.04 to 26.04, or Fedora 43 to 44).
+
+The script can't update NixOS or openSUSE Leap hosts (see the table in Step 1). It exits with an error, so these hosts keep failing the policy until an admin updates them manually, as described in the policy's resolution.
+
+> **Note:** The script updates any Debian-based or Red Hat-based host, but the policy only checks the distributions in Step 1. Hosts on other distributions, like Linux Mint or CentOS Stream, always pass the policy, so the script never runs on them.
+
+### Step 3: Run the script when the policy fails
+
+Add these keys to the policy from Step 1. `run_script` runs the script when the policy fails. `continuous_automations_enabled` makes Fleet run it again if an update is deferred:
+
+```yaml
+policies:
+  - name: Operating system up to date (Linux)
+    platform: linux
+    # query, description, and resolution from Step 1
+    run_script:
+      path: ../scripts/update-linux-os.sh
+    continuous_automations_enabled: true
+```
+
+> **Note:** The script can only fix hosts on a release the policy covers. It can't fix hosts that fail the policy for another reason, like Ubuntu 22.04, Fedora 43, NixOS, or openSUSE Leap. With `continuous_automations_enabled`, Fleet runs the script every time one of these hosts fails the policy, and the policy never passes. To avoid this, use `labels_exclude_any` to leave those hosts out of the policy, or remove `continuous_automations_enabled`. See [policy automations](https://fleetdm.com/guides/automations) for how retries work.
+
+See the [GitOps reference](https://fleetdm.com/docs/configuration/yaml-files#policies) for all policy options.
+
 ## Apple (macOS, iOS, and iPadOS) end user experience
 
 On macOS hosts, when a minimum version is enforced, end users see a native macOS notification (DDM) once per day. Users can choose to update ahead of the deadline or schedule it for that night. 24 hours before the deadline, the notification appears hourly and ignores Do Not Disturb. One hour before the deadline, the notification appears every 30 minutes and then every 10 minutes.
@@ -177,9 +271,10 @@ If an end user was on vacation when the deadline passed, the end user is given a
 
 Fleet enforces OS updates for [quality and feature updates](https://github.com/fleetdm/fleet/blob/ca865af01312728997ea6526c548246ab98955fb/ee/server/service/mdm_profiles.go#L106). Microsoft provides documentation on [types of Windows updates](https://learn.microsoft.com/en-us/windows/deployment/update/get-started-updates-channels-tools#types-of-updates).
 
+
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="publishedOn" value="2024-08-10">
 <meta name="articleTitle" value="Enforce OS updates">
-<meta name="description" value="Learn how to manage OS updates on macOS, Windows, iOS, and iPadOS hosts">
+<meta name="description" value="Learn how to manage OS updates on macOS, Windows, iOS, iPadOS, Android, and Linux hosts.">

@@ -1,16 +1,16 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { http, HttpResponse } from "msw";
 import { noop } from "lodash";
+import { http, HttpResponse } from "msw";
+import React from "react";
 
-import { createCustomRenderer, baseUrl } from "test/test-utils";
-import mockServer from "test/mock-server";
-import { ALL_CVE_SOFTWARE_CATEGORY_VALUES } from "interfaces/charts";
-
+import createMockHost from "__mocks__/hostMock";
 import {
   SEVERITY_RANGE_INVALID_MSG,
   SeverityValue,
 } from "components/SeverityFilter";
+import { ALL_CVE_SOFTWARE_CATEGORY_VALUES } from "interfaces/charts";
+import mockServer from "test/mock-server";
+import { createCustomRenderer, baseUrl } from "test/test-utils";
 
 import ChartFilterModal, {
   IChartFilterState,
@@ -40,55 +40,60 @@ describe("ChartFilterModal PLATFORM_OPTIONS", () => {
   });
 });
 
+const baseFilters: IChartFilterState = {
+  labelIDs: [],
+  platforms: [],
+  hostFilterMode: "none",
+  selectedHosts: [],
+  softwareFilters: [...ALL_CVE_SOFTWARE_CATEGORY_VALUES],
+  knownExploit: false,
+  epssMin: "",
+  epssMax: "",
+  // A preset carries its own bounds — see IChartFilterState.
+  severity: "critical",
+  cvssMin: "9",
+  cvssMax: "10",
+  excludeCVEs: [],
+};
+
+// Any severity carries no bounds, so this is the only software-side default
+// that counts as no filter.
+const anySeverity = { severity: "any", cvssMin: "", cvssMax: "" } as const;
+
+const mockModalRequests = () =>
+  mockServer.use(
+    http.get(baseUrl("/hosts"), () =>
+      HttpResponse.json({ hosts: [], software: null })
+    ),
+    http.get(baseUrl("/labels/summary"), () =>
+      HttpResponse.json({ labels: [] })
+    ),
+    http.get(baseUrl("/vulnerabilities"), () =>
+      HttpResponse.json({
+        count: 0,
+        counts_updated_at: "",
+        vulnerabilities: [],
+        meta: { has_next_results: false, has_previous_results: false },
+      })
+    )
+  );
+
+const renderModal = (
+  props: Partial<React.ComponentProps<typeof ChartFilterModal>> = {}
+) =>
+  createCustomRenderer({ withBackendMock: true })(
+    <ChartFilterModal
+      filters={baseFilters}
+      metric="cve"
+      initialTab="software"
+      onApply={noop}
+      onCancel={noop}
+      {...props}
+    />
+  );
+
 describe("ChartFilterModal severity", () => {
-  const baseFilters: IChartFilterState = {
-    labelIDs: [],
-    platforms: [],
-    hostFilterMode: "none",
-    selectedHosts: [],
-    softwareFilters: [...ALL_CVE_SOFTWARE_CATEGORY_VALUES],
-    knownExploit: false,
-    epssMin: "",
-    epssMax: "",
-    // A preset carries its own bounds — see IChartFilterState.
-    severity: "critical",
-    cvssMin: "9",
-    cvssMax: "10",
-    excludeCVEs: [],
-  };
-
-  beforeEach(() => {
-    mockServer.use(
-      http.get(baseUrl("/hosts"), () =>
-        HttpResponse.json({ hosts: [], software: null })
-      ),
-      http.get(baseUrl("/labels/summary"), () =>
-        HttpResponse.json({ labels: [] })
-      ),
-      http.get(baseUrl("/vulnerabilities"), () =>
-        HttpResponse.json({
-          count: 0,
-          counts_updated_at: "",
-          vulnerabilities: [],
-          meta: { has_next_results: false, has_previous_results: false },
-        })
-      )
-    );
-  });
-
-  const renderModal = (
-    props: Partial<React.ComponentProps<typeof ChartFilterModal>> = {}
-  ) =>
-    createCustomRenderer({ withBackendMock: true })(
-      <ChartFilterModal
-        filters={baseFilters}
-        metric="cve"
-        initialTab="software"
-        onApply={noop}
-        onCancel={noop}
-        {...props}
-      />
-    );
+  beforeEach(mockModalRequests);
 
   it("applies the current severity selection", async () => {
     const onApply = jest.fn();
@@ -100,6 +105,24 @@ describe("ChartFilterModal severity", () => {
       expect.objectContaining({
         severity: "critical",
         cvssMin: "9",
+        cvssMax: "10",
+      })
+    );
+  });
+
+  it("re-derives severity from the edited range on Apply, rather than saving the stale preset", async () => {
+    const onApply = jest.fn();
+    const { user } = renderModal({ onApply });
+
+    await user.click(screen.getByRole("button", { name: /Advanced options/i }));
+    await user.clear(screen.getByLabelText(/Min score/i));
+    await user.type(screen.getByLabelText(/Min score/i), "5");
+    await user.click(screen.getByRole("button", { name: /Apply/i }));
+
+    expect(onApply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        severity: "custom",
+        cvssMin: "5",
         cvssMax: "10",
       })
     );
@@ -143,9 +166,7 @@ describe("ChartFilterModal severity", () => {
     await user.click(screen.getByRole("button", { name: /Clear all/i }));
     await user.click(screen.getByRole("button", { name: /Apply/i }));
 
-    expect(onApply).toHaveBeenCalledWith(
-      expect.objectContaining({ severity: "any", cvssMin: "", cvssMax: "" })
-    );
+    expect(onApply).toHaveBeenCalledWith(expect.objectContaining(anySeverity));
   });
 
   // Per frontend/docs/patterns.md#data-validation: Apply stays enabled, errors
@@ -278,14 +299,6 @@ describe("ChartFilterModal severity", () => {
       await user.click(
         screen.getByRole("button", { name: /Advanced options/i })
       );
-      await user.click(screen.getByRole("combobox", { name: "Severity" }));
-      const custom = screen
-        .getAllByTestId("dropdown-option")
-        .find((el) => el.textContent?.startsWith("Custom severity"));
-      if (!custom) {
-        throw new Error("No Custom severity option");
-      }
-      await user.click(custom);
 
       await user.type(maxScoreInput(), "{Enter}");
 
@@ -314,16 +327,109 @@ describe("ChartFilterModal severity", () => {
         screen.getByRole("button", { name: /Advanced options/i })
       );
       await user.clear(maxScoreInput());
-      await user.type(maxScoreInput(), "10");
+      // 9.5, not 10 — a corrected range that still matches no preset, so this
+      // stays focused on "Apply now works" rather than severity re-derivation
+      // (covered separately below).
+      await user.type(maxScoreInput(), "9.5");
       await user.click(screen.getByRole("button", { name: /^Apply$/i }));
 
       expect(onApply).toHaveBeenCalledWith(
         expect.objectContaining({
           severity: "custom",
           cvssMin: "9",
-          cvssMax: "10",
+          cvssMax: "9.5",
         })
       );
     });
+  });
+});
+
+describe("ChartFilterModal Clear all scope", () => {
+  beforeEach(mockModalRequests);
+
+  // baseFilters seeds a Critical severity, so it already has software filters
+  // active and none on the hosts side.
+  const softwareOnlyFilters = baseFilters;
+  const hostOnlyFilters = {
+    ...baseFilters,
+    ...anySeverity,
+    platforms: ["darwin"],
+  };
+  const bothFilters = { ...baseFilters, platforms: ["darwin"] };
+
+  it("is hidden on the Software tab when only host filters are active", () => {
+    renderModal({ filters: hostOnlyFilters });
+
+    expect(
+      screen.queryByRole("button", { name: /Clear all/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it("is hidden on the Hosts tab when only software filters are active", () => {
+    renderModal({ filters: softwareOnlyFilters, initialTab: "hosts" });
+
+    expect(
+      screen.queryByRole("button", { name: /Clear all/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it("clears only software filters from the Software tab", async () => {
+    const onApply = jest.fn();
+    const { user } = renderModal({ filters: bothFilters, onApply });
+
+    await user.click(screen.getByRole("button", { name: /Clear all/i }));
+    await user.click(screen.getByRole("button", { name: /^Apply$/i }));
+
+    expect(onApply).toHaveBeenCalledWith(
+      expect.objectContaining({ ...anySeverity, platforms: ["darwin"] })
+    );
+  });
+
+  it("clears only host filters from the Hosts tab", async () => {
+    const onApply = jest.fn();
+    const { user } = renderModal({
+      filters: bothFilters,
+      initialTab: "hosts",
+      onApply,
+    });
+
+    await user.click(screen.getByRole("button", { name: /Clear all/i }));
+    await user.click(screen.getByRole("button", { name: /^Apply$/i }));
+
+    expect(onApply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        platforms: [],
+        severity: "critical",
+        cvssMin: "9",
+        cvssMax: "10",
+      })
+    );
+  });
+
+  it("keeps hosts excluded after Clear all", async () => {
+    const host = createMockHost({ id: 7, display_name: "web-01" });
+    mockServer.use(
+      http.get(baseUrl("/hosts"), () =>
+        HttpResponse.json({ hosts: [host], software: null })
+      )
+    );
+    const onApply = jest.fn();
+    const { user } = renderModal({
+      filters: bothFilters,
+      initialTab: "hosts",
+      onApply,
+    });
+
+    await user.click(screen.getByRole("button", { name: /Clear all/i }));
+    await user.click(await screen.findByText("web-01"));
+    await user.click(screen.getByRole("button", { name: /^Apply$/i }));
+
+    // The chart only filters on selected hosts in include or exclude mode.
+    expect(onApply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        hostFilterMode: "exclude",
+        selectedHosts: [expect.objectContaining({ id: 7 })],
+      })
+    );
   });
 });

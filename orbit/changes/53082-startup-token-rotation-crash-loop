@@ -1,0 +1,1 @@
+- Fixed an Orbit crash loop on hosts that were deleted from Fleet while offline: a failed device token rotation at startup is now logged instead of exiting, so Orbit can re-enroll.

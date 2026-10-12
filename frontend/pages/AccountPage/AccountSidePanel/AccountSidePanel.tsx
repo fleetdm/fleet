@@ -1,19 +1,16 @@
 import React, { useContext, useEffect, useState } from "react";
 
-import { IUser } from "interfaces/user";
-import { IVersionResponse } from "interfaces/version";
-
-import { AppContext } from "context/app";
-
-import versionAPI from "services/entities/version";
-
 import Avatar from "components/Avatar";
-import DataSet from "components/DataSet";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
+import DataSet from "components/DataSet";
 import Radio from "components/forms/fields/Radio";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
-
+import TooltipWrapper from "components/TooltipWrapper";
+import { AppContext } from "context/app";
+import { IUser } from "interfaces/user";
+import { IVersionResponse } from "interfaces/version";
+import versionAPI from "services/entities/version";
 import {
   generateRole,
   generateRoleGroups,
@@ -23,7 +20,6 @@ import {
   ROLE_VARIOUS,
   tooltipTextWithLineBreaks,
 } from "utilities/helpers";
-import TooltipWrapper from "components/TooltipWrapper";
 import { getThemeMode, setThemeMode, ThemeMode } from "utilities/theme";
 
 interface IAccountSidePanelProps {

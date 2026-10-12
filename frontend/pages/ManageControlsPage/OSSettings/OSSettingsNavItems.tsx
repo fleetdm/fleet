@@ -1,15 +1,15 @@
 import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
 import { ISideNavItem } from "pages/admin/components/SideNav/SideNav";
+import PATHS from "router/paths";
 
-import DiskEncryption from "./cards/DiskEncryption";
-import ConfigurationProfiles from "./cards/ConfigurationProfiles";
 import Certificates from "./cards/Certificates";
-import Passwords from "./cards/Passwords";
-import HostNameTemplate from "./cards/HostNameTemplate";
+import ConfigurationProfiles from "./cards/ConfigurationProfiles";
 import { IConfigurationProfilesProps } from "./cards/ConfigurationProfiles/ConfigurationProfiles";
+import DiskEncryption from "./cards/DiskEncryption";
 import { IDiskEncryptionProps } from "./cards/DiskEncryption/DiskEncryption";
+import HostNameTemplate from "./cards/HostNameTemplate";
+import Passwords from "./cards/Passwords";
 
 export interface IOSSettingsCommonProps {
   currentTeamId: number;

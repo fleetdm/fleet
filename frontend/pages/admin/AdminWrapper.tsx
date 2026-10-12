@@ -1,14 +1,13 @@
-import React, { useContext } from "react";
-
-import { Tab, Tabs, TabList } from "react-tabs";
-import { InjectedRouter } from "react-router";
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
-
-import TabNav from "components/TabNav";
-import MainContent from "components/MainContent";
-import TabText from "components/TabText";
 import classnames from "classnames";
+import React, { useContext } from "react";
+import { InjectedRouter } from "react-router";
+import { Tab, Tabs, TabList } from "react-tabs";
+
+import MainContent from "components/MainContent";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
+import { AppContext } from "context/app";
+import PATHS from "router/paths";
 
 interface ISettingSubNavItem {
   name: string;

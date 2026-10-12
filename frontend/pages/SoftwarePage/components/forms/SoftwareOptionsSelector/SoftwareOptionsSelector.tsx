@@ -1,30 +1,30 @@
-import React from "react";
 import classnames from "classnames";
+import React from "react";
 import { useQuery } from "react-query";
 
-import Checkbox from "components/forms/fields/Checkbox";
-import Slider from "components/forms/fields/Slider";
+import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
+import Checkbox from "components/forms/fields/Checkbox";
+import Slider from "components/forms/fields/Slider";
+import FormField from "components/forms/FormField";
 import Spinner from "components/Spinner";
-
-import paths from "router/paths";
-import { getPathWithQueryParams } from "utilities/url";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
-import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
-import { IFleetMaintainedAppFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/FleetAppDetailsForm";
-import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
-import { ISoftwareAndroidFormData } from "pages/SoftwarePage/components/forms/SoftwareAndroidForm/SoftwareAndroidForm";
+import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 import {
   CATEGORIES_ITEMS,
   ICategory,
 } from "pages/hosts/details/cards/Software/SelfService/helpers";
-import Button from "components/buttons/Button";
-import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
+import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
+import { ISoftwareAndroidFormData } from "pages/SoftwarePage/components/forms/SoftwareAndroidForm/SoftwareAndroidForm";
+import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
+import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
+import { IFleetMaintainedAppFormData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/FleetAppDetailsForm";
+import paths from "router/paths";
 import selfServiceCategoriesAPI, {
   ISelfServiceCategoriesResponse,
 } from "services/entities/self_service_categories";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 const baseClass = "software-options-selector";
 
@@ -41,6 +41,11 @@ interface ICategoriesSelector {
   /** When provided, categories are fetched from the self-service categories API
    * for this fleet. When undefined, the hardcoded list is used. */
   teamId?: number;
+  /** Override the section label. Defaults to "Categories". */
+  label?: string;
+  /** Override the preview button copy. Defaults to "Preview end user
+   * experience". */
+  previewButtonLabel?: string;
 }
 
 export const AndroidOptionsDescription = () => (
@@ -56,11 +61,13 @@ export const AndroidOptionsDescription = () => (
   </p>
 );
 
-const CategoriesSelector = ({
+export const CategoriesSelector = ({
   onSelectCategory,
   selectedCategories,
   onClickPreviewEndUserExperience,
   teamId,
+  label = "Categories",
+  previewButtonLabel = "Preview end user experience",
 }: ICategoriesSelector) => {
   const isDynamic = teamId !== undefined;
 
@@ -148,17 +155,24 @@ const CategoriesSelector = ({
   };
 
   return (
-    <>
-      <div className="form-field__label">Categories</div>
+    <FormField
+      name="category"
+      label={
+        <div className={`${baseClass}__categories-header`}>
+          <span>{label}</span>
+          <Button
+            variant="subdued"
+            size="small"
+            onClick={onClickPreviewEndUserExperience}
+            className={`${baseClass}__preview-button`}
+          >
+            {previewButtonLabel}
+          </Button>
+        </div>
+      }
+    >
       {renderList()}
-      <Button
-        variant="secondary"
-        onClick={onClickPreviewEndUserExperience}
-        className={`${baseClass}__preview-button`}
-      >
-        Preview end user experience
-      </Button>
-    </>
+    </FormField>
   );
 };
 

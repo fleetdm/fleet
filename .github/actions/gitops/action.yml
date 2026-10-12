@@ -29,7 +29,9 @@ runs:
     - name: Install fleetctl
       shell: bash
       working-directory: ${{ inputs.working-directory }}
-      run: |
+      # github-env: the GITHUB_PATH write below appends the runner-controlled constant
+      # $HOME/.fleetctl, not any user-supplied value, so it cannot inject a path.
+      run: | # zizmor: ignore[github-env]
         FLEET_URL="${FLEET_URL%/}"
 
         # Build optional custom request headers from FLEET_CUSTOM_HEADERS, a comma-separated
@@ -65,7 +67,10 @@ runs:
         fi
 
         echo "Installing fleetctl v$INSTALL_VERSION..."
-        npm install -g "fleetctl@$INSTALL_VERSION" || npm install -g fleetctl@latest
+        # Fall back to the latest release when no fleetctl release matches the server version.
+        curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | FLEETCTL_VERSION="$INSTALL_VERSION" bash \
+          || curl -fsSL https://fleetdm.com/resources/install-fleetctl.sh | bash
+        echo "$HOME/.fleetctl" >> "$GITHUB_PATH"
 
     - name: Configure fleetctl
       shell: bash

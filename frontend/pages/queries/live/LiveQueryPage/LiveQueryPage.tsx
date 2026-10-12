@@ -1,35 +1,33 @@
 import React, { useState, useEffect, useContext, useCallback } from "react";
-import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
+import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
-import PATHS from "router/paths";
-import useTeamIdParam from "hooks/useTeamIdParam";
 
+import SelectTargets from "components/LiveQuery/SelectTargets";
+import MainContent from "components/MainContent";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
-import { LIVE_QUERY_STEPS, DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
-import { getPathWithQueryParams } from "utilities/url";
-import queryAPI from "services/entities/queries";
-import hostAPI from "services/entities/hosts";
+import useTeamIdParam from "hooks/useTeamIdParam";
 import { IHost, IHostResponse } from "interfaces/host";
 import { ILabel } from "interfaces/label";
-import { ITeam } from "interfaces/team";
 import {
   IGetQueryResponse,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
-
-import MainContent from "components/MainContent";
-import SelectTargets from "components/LiveQuery/SelectTargets";
-
+import { ITeam } from "interfaces/team";
 import RunQuery from "pages/queries/live/screens/RunQuery";
+import PATHS from "router/paths";
+import hostAPI from "services/entities/hosts";
+import queryAPI from "services/entities/queries";
+import { LIVE_QUERY_STEPS, DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 interface IRunQueryPageProps {
   router: InjectedRouter;
   params: Params;
   location: {
     pathname: string;
-    query: { host_id: string; fleet_id?: string };
+    query: { host_id?: string; fleet_id?: string; from?: string };
     search: string;
   };
 }
@@ -43,7 +41,7 @@ const RunQueryPage = ({
 }: IRunQueryPageProps): JSX.Element => {
   const queryId = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
 
-  const { currentTeamId } = useTeamIdParam({
+  const { teamIdForApi } = useTeamIdParam({
     location,
     router,
     includeAllTeams: true,
@@ -90,7 +88,7 @@ const RunQueryPage = ({
 
     router.push(
       getPathWithQueryParams(path, {
-        fleet_id: currentTeamId,
+        fleet_id: teamIdForApi,
       })
     );
   }
@@ -137,7 +135,12 @@ const RunQueryPage = ({
         if (!queryParamHostsAdded) {
           setQueryParamHostsAdded(true);
         }
-        router.replace(location.pathname);
+        router.replace(
+          getPathWithQueryParams(location.pathname, {
+            ...location.query,
+            host_id: undefined,
+          })
+        );
       },
     }
   );
@@ -161,10 +164,16 @@ const RunQueryPage = ({
   }, [location.pathname, storedQuery?.name]);
 
   const goToQueryEditor = useCallback(() => {
-    const path = queryId ? PATHS.EDIT_REPORT(queryId) : PATHS.NEW_REPORT;
+    let path = PATHS.NEW_REPORT;
+    if (queryId) {
+      path =
+        location.query.from === "edit"
+          ? PATHS.EDIT_REPORT(queryId)
+          : PATHS.REPORT_DETAILS(queryId);
+    }
 
-    router.push(getPathWithQueryParams(path, { fleet_id: currentTeamId }));
-  }, []);
+    router.push(getPathWithQueryParams(path, { fleet_id: teamIdForApi }));
+  }, [queryId, location.query.from, router, teamIdForApi]);
 
   const renderScreen = () => {
     const step1Props = {

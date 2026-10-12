@@ -1,14 +1,13 @@
-import React, { useContext, useState } from "react";
-
 import { screen, waitFor, fireEvent } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
+import React, { useContext, useState } from "react";
 
+import createMockHost from "__mocks__/hostMock";
+import createMockUser from "__mocks__/userMock";
+import QueryProvider, { QueryContext } from "context/query";
+import { IHost } from "interfaces/host";
 import mockServer from "test/mock-server";
 import { baseUrl, createCustomRenderer } from "test/test-utils";
-import createMockUser from "__mocks__/userMock";
-import createMockHost from "__mocks__/hostMock";
-import { IHost } from "interfaces/host";
-import QueryProvider, { QueryContext } from "context/query";
 
 import SelectTargets from "./SelectTargets";
 

@@ -232,14 +232,12 @@ const (
 	// Supported Enroll Type Full
 	ReqSecTokenEnrollTypeFull = "Full"
 
-	// Provisioning Doc Certificate Renewal Period (365 days)
-	WstepCertRenewalPeriodInDays = "365"
+	// Provisioning Doc Certificate Renewal Period in Days (180 days, matching PolicyCertRenewalPeriodInSecs)
+	WstepCertRenewalPeriodInDays = "180"
 
-	// WstepROBOSupport tells Windows whether Fleet supports ROBO auto
-	// certificate renewal. Set to "false" because Fleet does not implement
-	// the renewal endpoint. Advertising "true" causes Windows to attempt
-	// renewal, fail, and set EnrollmentState=3 on the host. See #50611.
-	WstepROBOSupport = "false"
+	// Provisioning Doc Server supports ROBO auto certificate renewal
+	// TODO: Add renewal support
+	WstepROBOSupport = "true"
 
 	// Provisioning Doc Server retry interval
 	WstepRenewRetryInterval = "4"

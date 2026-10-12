@@ -4495,6 +4495,9 @@ software:
 	ipadTeam := team("🔳🏢 Company-owned iPads")
 	byodTeam := team("📱🔐 Personal mobile devices")
 
+	// captures the token ID passed to the datastore when a run sets the default
+	var lastSetDefaultTokenID *uint
+
 	cases := []struct {
 		name             string
 		cfgs             []string
@@ -4811,6 +4814,145 @@ software:
 				assert.NotContains(t, out, "[!] gitops dry run succeeded")
 			},
 		},
+		{
+			// the yaml spells the org name decomposed (e + combining accent) while
+			// the stored token is precomposed; mismatched normalization between the
+			// existence check and the fetch used to panic the request
+			name: "org name in a different unicode form matches",
+			cfgs: []string{
+				global(`
+                                  apple_business_manager:
+                                    - organization_name: "Café Inc."
+                                      macos_team: "No team"`),
+			},
+			tokens: []*fleet.ABMToken{{ID: 1, OrganizationName: "Café Inc."}},
+			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.NoError(t, err)
+				assert.Contains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.NoError(t, err)
+				assert.Contains(t, out, "[!] gitops succeeded")
+			},
+		},
+		{
+			name: "default on one token applies",
+			cfgs: []string{
+				global(`
+                                  apple_business_manager:
+                                    - organization_name: Fleet Device Management Inc.
+                                      macos_team: "No team"
+                                    - organization_name: Foo Inc.
+                                      default: true
+                                      macos_team: "No team"`),
+			},
+			tokens: []*fleet.ABMToken{
+				{ID: 1, OrganizationName: "Fleet Device Management Inc.", IsDefault: true},
+				{ID: 2, OrganizationName: "Foo Inc."},
+			},
+			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.NoError(t, err)
+				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
+				assert.Nil(t, lastSetDefaultTokenID)
+				assert.Contains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.NoError(t, err)
+				require.NotNil(t, lastSetDefaultTokenID)
+				assert.Equal(t, uint(2), *lastSetDefaultTokenID)
+				defaults := map[string]bool{}
+				for _, e := range appCfg.MDM.AppleBusinessManager.Value {
+					defaults[e.OrganizationName] = e.Default
+				}
+				assert.Equal(t, map[string]bool{"Fleet Device Management Inc.": false, "Foo Inc.": true}, defaults)
+				assert.Contains(t, out, "[!] gitops succeeded")
+			},
+		},
+		{
+			name: "two defaults fails",
+			cfgs: []string{
+				global(`
+                                  apple_business_manager:
+                                    - organization_name: Fleet Device Management Inc.
+                                      default: true
+                                      macos_team: "No team"
+                                    - organization_name: Foo Inc.
+                                      default: true
+                                      macos_team: "No team"`),
+			},
+			tokens: []*fleet.ABMToken{
+				{ID: 1, OrganizationName: "Fleet Device Management Inc."},
+				{ID: 2, OrganizationName: "Foo Inc."},
+			},
+			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.ErrorContains(t, err, "only one Apple Business (AB) token can be the default")
+				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
+				assert.Nil(t, lastSetDefaultTokenID)
+				assert.NotContains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.ErrorContains(t, err, "only one Apple Business (AB) token can be the default")
+				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
+				assert.Nil(t, lastSetDefaultTokenID)
+				assert.NotContains(t, out, "[!] gitops succeeded")
+			},
+		},
+		{
+			name: "no default on multiple tokens clears it",
+			cfgs: []string{
+				global(`
+                                  apple_business_manager:
+                                    - organization_name: Fleet Device Management Inc.
+                                      macos_team: "No team"
+                                    - organization_name: Foo Inc.
+                                      macos_team: "No team"`),
+			},
+			tokens: []*fleet.ABMToken{
+				{ID: 1, OrganizationName: "Fleet Device Management Inc.", IsDefault: true},
+				{ID: 2, OrganizationName: "Foo Inc."},
+			},
+			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.NoError(t, err)
+				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
+				assert.False(t, ds.(*mock.Store).ClearABMTokenDefaultFuncInvoked)
+				assert.Contains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.NoError(t, err)
+				assert.True(t, ds.(*mock.Store).ClearABMTokenDefaultFuncInvoked)
+				assert.Nil(t, lastSetDefaultTokenID)
+				for _, e := range appCfg.MDM.AppleBusinessManager.Value {
+					assert.False(t, e.Default, e.OrganizationName)
+				}
+				assert.Contains(t, out, "[!] gitops succeeded")
+			},
+		},
+		{
+			name: "single token with no default key stays default",
+			cfgs: []string{
+				global(`
+                                  apple_business_manager:
+                                    - organization_name: Fleet Device Management Inc.
+                                      macos_team: "No team"`),
+			},
+			tokens: []*fleet.ABMToken{
+				{ID: 1, OrganizationName: "Fleet Device Management Inc.", IsDefault: true},
+			},
+			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.NoError(t, err)
+				assert.Empty(t, appCfg.MDM.AppleBusinessManager.Value)
+				assert.Contains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.NoError(t, err)
+				assert.Nil(t, lastSetDefaultTokenID)
+				assert.False(t, ds.(*mock.Store).ClearABMTokenDefaultFuncInvoked)
+				// the stored config reflects that a lone token is always the default
+				require.Len(t, appCfg.MDM.AppleBusinessManager.Value, 1)
+				assert.True(t, appCfg.MDM.AppleBusinessManager.Value[0].Default)
+				assert.Contains(t, out, "[!] gitops succeeded")
+			},
+		},
 	}
 
 	for _, tt := range cases {
@@ -4840,6 +4982,14 @@ software:
 			}
 
 			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+				return nil
+			}
+			lastSetDefaultTokenID = nil
+			ds.SetABMTokenDefaultFunc = func(ctx context.Context, tokenID uint) error {
+				lastSetDefaultTokenID = &tokenID
+				return nil
+			}
+			ds.ClearABMTokenDefaultFunc = func(ctx context.Context) error {
 				return nil
 			}
 			ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
@@ -7341,11 +7491,7 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 		Name:      teamName,
 	}
 
-	var autoUpdateCalls []struct {
-		titleID uint
-		teamID  uint
-		config  fleet.SoftwareAutoUpdateConfig
-	}
+	var setTeamVPPAppsCalls [][]fleet.VPPAppTeam
 
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		if name == teamName && savedTeam != nil {
@@ -7426,16 +7572,12 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 			VPPAppsTeamsID: team.ID,
 		}, nil
 	}
-	ds.InsertVPPAppWithTeamFunc = func(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error) {
+	ds.InsertVPPAppWithTeamFunc = func(ctx context.Context, app *fleet.VPPApp, teamID *uint, existingVPPAppTeamID *uint) (*fleet.VPPApp, error) {
 		return app, nil
 	}
-	ds.UpdateSoftwareTitleAutoUpdateConfigFunc = func(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error {
-		autoUpdateCalls = append(autoUpdateCalls, struct {
-			titleID uint
-			teamID  uint
-			config  fleet.SoftwareAutoUpdateConfig
-		}{titleID, teamID, config})
-		return nil
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, incomingApps []fleet.VPPAppTeam, _ map[string]uint) (bool, error) {
+		setTeamVPPAppsCalls = append(setTeamVPPAppsCalls, incomingApps)
+		return false, nil
 	}
 	ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error { return nil }
 	ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error { return nil }
@@ -7443,8 +7585,8 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 
 	// Mock DefaultTeamConfig functions for No Team webhook settings
 
-	t.Run("UpdateSoftwareTitleAutoUpdateConfig is applied for iOS VPP apps", func(t *testing.T) {
-		autoUpdateCalls = nil
+	t.Run("iOS VPP app with auto update settings sends the settings with its version", func(t *testing.T) {
+		setTeamVPPAppsCalls = nil
 		savedTeam = nil
 
 		teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -7471,19 +7613,67 @@ software:
 
 		_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
 
-		require.Len(t, autoUpdateCalls, 1, "UpdateSoftwareTitleAutoUpdateConfig should be called once")
-		assert.Equal(t, uint(100), autoUpdateCalls[0].titleID)
-		assert.Equal(t, team.ID, autoUpdateCalls[0].teamID)
-		require.NotNil(t, autoUpdateCalls[0].config.AutoUpdateEnabled)
-		assert.True(t, *autoUpdateCalls[0].config.AutoUpdateEnabled)
-		require.NotNil(t, autoUpdateCalls[0].config.AutoUpdateStartTime)
-		assert.Equal(t, "01:00", *autoUpdateCalls[0].config.AutoUpdateStartTime)
-		require.NotNil(t, autoUpdateCalls[0].config.AutoUpdateEndTime)
-		assert.Equal(t, "05:00", *autoUpdateCalls[0].config.AutoUpdateEndTime)
+		require.Len(t, setTeamVPPAppsCalls, 1, "SetTeamVPPApps should be called once")
+		require.Len(t, setTeamVPPAppsCalls[0], 1)
+		app := setTeamVPPAppsCalls[0][0]
+		assert.Equal(t, "2", app.AdamID)
+		require.NotNil(t, app.AutoUpdateEnabled)
+		assert.True(t, *app.AutoUpdateEnabled)
+		require.NotNil(t, app.AutoUpdateStartTime)
+		assert.Equal(t, "01:00", *app.AutoUpdateStartTime)
+		require.NotNil(t, app.AutoUpdateEndTime)
+		assert.Equal(t, "05:00", *app.AutoUpdateEndTime)
 	})
 
-	t.Run("UpdateSoftwareTitleAutoUpdateConfig is not called when no VPP apps provided", func(t *testing.T) {
-		autoUpdateCalls = nil
+	t.Run("iOS VPP app with two versions sends both versions in list order with their own settings", func(t *testing.T) {
+		setTeamVPPAppsCalls = nil
+		savedTeam = nil
+
+		teamFileVersions, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = teamFileVersions.WriteString(`
+controls:
+queries:
+policies:
+agent_options:
+name: TeamAutoUpdate
+team_settings:
+  secrets:
+    - secret: test
+software:
+  app_store_apps:
+    - app_store_id: "2"
+      platform: "ios"
+      versions:
+        - name: Production
+          auto_update_enabled: true
+          auto_update_window_start: "01:00"
+          auto_update_window_end: "05:00"
+        - name: Test
+          self_service: true
+`)
+		require.NoError(t, err)
+
+		_ = runAppForTest(t, []string{"gitops", "-f", teamFileVersions.Name()})
+
+		require.Len(t, setTeamVPPAppsCalls, 1, "SetTeamVPPApps should be called once")
+		require.Len(t, setTeamVPPAppsCalls[0], 2)
+		production := setTeamVPPAppsCalls[0][0]
+		assert.Equal(t, "Production", production.VersionName)
+		assert.False(t, production.SelfService)
+		require.NotNil(t, production.AutoUpdateEnabled)
+		assert.True(t, *production.AutoUpdateEnabled)
+		require.NotNil(t, production.AutoUpdateStartTime)
+		assert.Equal(t, "01:00", *production.AutoUpdateStartTime)
+		testVersion := setTeamVPPAppsCalls[0][1]
+		assert.Equal(t, "Test", testVersion.VersionName)
+		assert.True(t, testVersion.SelfService)
+		require.NotNil(t, testVersion.AutoUpdateEnabled)
+		assert.False(t, *testVersion.AutoUpdateEnabled)
+	})
+
+	t.Run("no VPP apps sends no app versions", func(t *testing.T) {
+		setTeamVPPAppsCalls = nil
 		savedTeam = nil
 
 		teamFileNoApps, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -7504,11 +7694,12 @@ software:
 
 		_ = runAppForTest(t, []string{"gitops", "-f", teamFileNoApps.Name()})
 
-		require.Empty(t, autoUpdateCalls, "UpdateSoftwareTitleAutoUpdateConfig should not be called when no VPP apps are provided")
+		require.Len(t, setTeamVPPAppsCalls, 1, "SetTeamVPPApps should be called once")
+		require.Empty(t, setTeamVPPAppsCalls[0], "no app versions should be sent when no VPP apps are provided")
 	})
 
-	t.Run("no auto update settings and no existing schedule does not call UpdateSoftwareTitleAutoUpdateConfig", func(t *testing.T) {
-		autoUpdateCalls = nil
+	t.Run("iOS VPP app without auto update settings sends automatic updates turned off", func(t *testing.T) {
+		setTeamVPPAppsCalls = nil
 		savedTeam = nil
 
 		// Ensure no existing schedules are returned for either source
@@ -7533,11 +7724,17 @@ software:
 
 		_ = runAppForTest(t, []string{"gitops", "-f", teamFileNoSettings.Name()})
 
-		require.Empty(t, autoUpdateCalls, "UpdateSoftwareTitleAutoUpdateConfig should not be called when YAML omits settings and no schedule exists")
+		require.Len(t, setTeamVPPAppsCalls, 1, "SetTeamVPPApps should be called once")
+		require.Len(t, setTeamVPPAppsCalls[0], 1)
+		app := setTeamVPPAppsCalls[0][0]
+		require.NotNil(t, app.AutoUpdateEnabled)
+		assert.False(t, *app.AutoUpdateEnabled)
+		assert.Nil(t, app.AutoUpdateStartTime)
+		assert.Nil(t, app.AutoUpdateEndTime)
 	})
 
-	t.Run("invalid auto-update window triggers error and does not call UpdateSoftwareTitleAutoUpdateConfig", func(t *testing.T) {
-		autoUpdateCalls = nil
+	t.Run("invalid auto-update window fails before any app version is sent", func(t *testing.T) {
+		setTeamVPPAppsCalls = nil
 		savedTeam = nil
 
 		teamFileInvalidWindow, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -7564,7 +7761,7 @@ software:
 
 		_, runErr := runAppNoChecks([]string{"gitops", "-f", teamFileInvalidWindow.Name()})
 		require.Error(t, runErr, "Expected error for invalid auto-update window")
-		require.Empty(t, autoUpdateCalls, "UpdateSoftwareTitleAutoUpdateConfig should not be called on invalid window")
+		require.Empty(t, setTeamVPPAppsCalls, "SetTeamVPPApps should not be called on invalid window")
 	})
 }
 
@@ -9389,12 +9586,10 @@ func TestGitOpsMicrosoftGraphCredentials(t *testing.T) {
 	}
 	// Deletions are computed from the metadata read (which decrypts nothing), so both reads must be backed by the same
 	// store or a removed key looks like "nothing was configured".
-	ds.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
-		out := make([]*fleet.MicrosoftGraphCredential, 0, len(stored))
+	ds.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
+		out := make([]*fleet.MicrosoftGraphCredentialMetadata, 0, len(stored))
 		for _, c := range stored {
-			meta := *c
-			meta.ClientSecret = ""
-			out = append(out, &meta)
+			out = append(out, &c.MicrosoftGraphCredentialMetadata)
 		}
 		return out, nil
 	}
@@ -9563,4 +9758,67 @@ policies:
 	// previously associated with it.
 	require.Equal(t, "Plain policy", appliedSpecs[1].Name)
 	require.Equal(t, new(""), appliedSpecs[1].ProfileUUID)
+}
+
+func TestGitOpsPolicyHidden(t *testing.T) {
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		return map[string]uint{}, nil
+	}
+	var appliedSpecs []*fleet.PolicySpec
+	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+		appliedSpecs = append(appliedSpecs, specs...)
+		return nil
+	}
+
+	tmpDir := t.TempDir()
+	teamYAMLPath := filepath.Join(tmpDir, "team.yml")
+	require.NoError(t, os.WriteFile(teamYAMLPath, []byte(`
+name: Hidden Policy Team
+team_settings:
+  secrets:
+    - secret: "ABC"
+queries:
+agent_options:
+software:
+controls:
+policies:
+  - name: Hidden policy
+    query: "SELECT 1"
+    hidden: true
+  - name: Plain policy
+    query: "SELECT 2"
+`), 0o600))
+
+	_, err := runAppNoChecks([]string{"gitops", "-f", teamYAMLPath})
+	require.NoError(t, err)
+
+	require.Len(t, appliedSpecs, 2)
+	require.Equal(t, "Hidden policy", appliedSpecs[0].Name)
+	require.True(t, appliedSpecs[0].Hidden)
+	require.Equal(t, "Plain policy", appliedSpecs[1].Name)
+	require.False(t, appliedSpecs[1].Hidden)
+
+	// A hidden conditional access policy is rejected before anything is applied.
+	appliedSpecs = nil
+	require.NoError(t, os.WriteFile(teamYAMLPath, []byte(`
+name: Hidden Policy Team
+team_settings:
+  secrets:
+    - secret: "ABC"
+queries:
+agent_options:
+software:
+controls:
+policies:
+  - name: Hidden conditional access policy
+    query: "SELECT 1"
+    platform: darwin
+    hidden: true
+    conditional_access_enabled: true
+`), 0o600))
+	_, err = runAppNoChecks([]string{"gitops", "-f", teamYAMLPath})
+	require.ErrorContains(t, err, `"hidden" and "conditional_access_enabled" cannot both be set`)
+	require.Empty(t, appliedSpecs)
 }

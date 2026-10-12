@@ -1,10 +1,18 @@
-export const isAcceptableStatus = (filter: string): boolean => {
+import { IConfigOverrideParamsOnTeamChange } from "hooks/useTeamIdParam";
+import { HostStatusFilter } from "interfaces/host";
+import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
+import { FLEET_SCOPED_HOST_FILTER_PARAMS } from "services/entities/hosts";
+
+export const isAcceptableStatus = (
+  filter?: string
+): filter is HostStatusFilter => {
   return (
     filter === "new" ||
     filter === "online" ||
     filter === "offline" ||
     filter === "missing" ||
-    filter === "pending"
+    filter === "pending" ||
+    filter === "enrolled"
   );
 };
 
@@ -22,3 +30,11 @@ export const isValidPemCertificate = (cert: string): boolean => {
 
   return regexPemHeader.test(cert) && regexPemFooter.test(cert);
 };
+
+const isAllFleets = (newTeamId?: number) =>
+  newTeamId === APP_CONTEXT_ALL_TEAMS_ID;
+
+export const STRIP_FLEET_SCOPED_FILTERS_ON_ALL_FLEETS = FLEET_SCOPED_HOST_FILTER_PARAMS.reduce<IConfigOverrideParamsOnTeamChange>(
+  (config, param) => ({ ...config, [param]: isAllFleets }),
+  {}
+);

@@ -7,34 +7,31 @@ import React, { useCallback, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
 
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import Slider from "components/forms/fields/Slider";
+import LastUpdatedText from "components/LastUpdatedText";
+import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
+import { ISoftwareTitle, ISoftwareVersion } from "interfaces/software";
+import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 import PATHS from "router/paths";
-import { getNextLocationPath } from "utilities/helpers";
-import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
-import { getPathWithQueryParams } from "utilities/url";
 import {
   ISoftwareTitlesResponse,
   ISoftwareVersionsResponse,
 } from "services/entities/software";
-import { ISoftwareTitle, ISoftwareVersion } from "interfaces/software";
+import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
+import { getNextLocationPath } from "utilities/helpers";
+import { getPathWithQueryParams, QueryParams } from "utilities/url";
 
-import TableContainer from "components/TableContainer";
-import Slider from "components/forms/fields/Slider";
-import CustomLink from "components/CustomLink";
-import LastUpdatedText from "components/LastUpdatedText";
-import { ITableQueryData } from "components/TableContainer/TableContainer";
-import TableCount from "components/TableContainer/TableCount";
-import Button from "components/buttons/Button";
-import TooltipWrapper from "components/TooltipWrapper";
-
-import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
-
+import {
+  ISoftwareFilters,
+  buildSoftwareFiltersQueryParams,
+  getFilterRenderDetails,
+} from "./helpers";
 import generateInventoryTableConfig from "./SoftwareInventoryTableConfig";
 import generateVersionsTableConfig from "./SoftwareVersionsTableConfig";
-import {
-  ISoftwareVulnFiltersParams,
-  buildSoftwareVulnFiltersQueryParams,
-  getVulnFilterRenderDetails,
-} from "./helpers";
 
 interface IRowProps extends Row {
   original: {
@@ -61,7 +58,7 @@ interface ISoftwareTableProps {
   perPage: number;
   orderDirection: "asc" | "desc";
   orderKey: string;
-  vulnFilters: ISoftwareVulnFiltersParams;
+  filters: ISoftwareFilters;
   currentPage: number;
   teamId?: number;
   isLoading: boolean;
@@ -80,7 +77,7 @@ const SoftwareTable = ({
   perPage,
   orderDirection,
   orderKey,
-  vulnFilters,
+  filters,
   currentPage,
   teamId,
   isLoading,
@@ -113,7 +110,7 @@ const SoftwareTable = ({
 
   const generateNewQueryParams = useCallback(
     (newTableQuery: ITableQueryData, changedParam: string) => {
-      const newQueryParam: Record<string, string | number | undefined> = {
+      const newQueryParam: QueryParams = {
         query: newTableQuery.searchQuery,
         fleet_id: teamId,
         order_direction: newTableQuery.sortDirection,
@@ -122,12 +119,12 @@ const SoftwareTable = ({
           changedParam === "pageIndex" || changedParam === "" // Changed param is "" on initial render, so we want to use the page index from the url query for bookmarkability
             ? newTableQuery.pageIndex
             : 0,
-        ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
+        ...buildSoftwareFiltersQueryParams(filters),
       };
 
       return newQueryParam;
     },
-    [teamId, vulnFilters]
+    [teamId, filters]
   );
 
   // NOTE: this is called once on initial render and every time the query changes
@@ -172,23 +169,21 @@ const SoftwareTable = ({
 
   const hasData = tableData && tableData.length > 0;
   const hasQuery = query !== "";
-  const vulnFilterDetails = getVulnFilterRenderDetails(vulnFilters);
-  const hasVulnFilters = vulnFilterDetails.filterCount > 0;
+  const { isFiltered, buttonText } = getFilterRenderDetails(filters);
 
   // Include showVersions — the titles view can have installers even when
   // the versions view is empty, so the toggle should stay interactive.
-  const isTrulyEmpty =
-    !hasData && !hasQuery && !hasVulnFilters && !showVersions;
+  const isTrulyEmpty = !hasData && !hasQuery && !isFiltered && !showVersions;
   const controlsDisabled = !isSoftwareEnabled || isTrulyEmpty;
 
   const handleShowVersionsToggle = () => {
-    const queryParams: Record<string, string | number | boolean | undefined> = {
+    const queryParams: QueryParams = {
       query,
       fleet_id: teamId,
       order_direction: orderDirection,
       order_key: orderKey,
       page: 0, // resets page index
-      ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
+      ...buildSoftwareFiltersQueryParams(filters),
     };
 
     router.replace(
@@ -242,24 +237,14 @@ const SoftwareTable = ({
           activeText="Show versions"
           disabled={controlsDisabled}
         />
-        <TooltipWrapper
-          className={`${baseClass}__filters`}
-          position="left"
-          underline={false}
-          showArrow
-          tipOffset={12}
-          tipContent={vulnFilterDetails.tooltipText}
-          disableTooltip={!hasVulnFilters}
+        <Button
+          variant="secondary"
+          onClick={onAddFiltersClick}
+          disabled={controlsDisabled}
+          icon="filter"
         >
-          <Button
-            variant="secondary"
-            onClick={onAddFiltersClick}
-            disabled={controlsDisabled}
-            icon="filter"
-          >
-            <span>{vulnFilterDetails.buttonText}</span>
-          </Button>
-        </TooltipWrapper>
+          {buttonText}
+        </Button>
       </>
     );
   };
@@ -284,7 +269,7 @@ const SoftwareTable = ({
         resultsTitle="items"
         emptyComponent={() => (
           <EmptySoftwareTable
-            vulnFilters={vulnFilters}
+            filters={filters}
             isSoftwareDisabled={!isSoftwareEnabled}
             noSearchQuery={query === ""}
             installableSoftwareExists={installableSoftwareExists}

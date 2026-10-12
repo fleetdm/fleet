@@ -1,24 +1,23 @@
 import React from "react";
 import { useQuery } from "react-query";
-import { timeAgo } from "utilities/date_format";
 
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-
+import Button from "components/buttons/Button";
+import DataError from "components/DataError";
+import InputField from "components/forms/fields/InputField";
+import { IconNames } from "components/icons";
+import IconStatusMessage from "components/IconStatusMessage";
+import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
+import Spinner from "components/Spinner";
 import { ICommandResult } from "interfaces/command";
-
 import commandApi, {
   IGetCommandResultsResponse,
   IGetHostCommandResultsQueryKey,
 } from "services/entities/command";
-
-import InputField from "components/forms/fields/InputField";
-import Modal from "components/Modal";
-import Spinner from "components/Spinner";
-import DataError from "components/DataError";
-import IconStatusMessage from "components/IconStatusMessage";
-import { IconNames } from "components/icons";
-import ModalFooter from "components/ModalFooter";
-import Button from "components/buttons/Button";
+import decodeBase64Utf8 from "utilities/base64";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { timeAgo } from "utilities/date_format";
+import formatJsonForDisplay from "utilities/json_format";
 
 const baseClass = "command-details-modal";
 
@@ -127,6 +126,26 @@ const getStatusMessage = (result: ICommandResult): React.ReactNode => {
   }
 };
 
+/** Decodes the base64 payload and result of each command result.
+ * The API returns a null result for a command that hasn't run on the host yet
+ * (e.g. a pending Android command); decoding that null must yield an empty
+ * string so the response section stays hidden rather than rendering garbage. */
+export const decodeCommandResults = (
+  resp: IGetCommandResultsResponse
+): IGetCommandResultsResponse => {
+  if (!resp?.results?.map) {
+    // this should not happen, but just in case return the response as is
+    return resp;
+  }
+  return {
+    results: resp.results.map((r) => ({
+      ...r,
+      payload: decodeBase64Utf8(r.payload),
+      result: decodeBase64Utf8(r.result),
+    })),
+  };
+};
+
 const defaultModalContentBody = (baseclass: string, result: ICommandResult) => (
   <IconStatusMessage
     className={`${baseclass}__status-message`}
@@ -197,9 +216,10 @@ export const ModalContent = ({
         <InputField
           type="textarea"
           label="Request payload:"
-          value={result.payload}
+          value={formatJsonForDisplay(result.payload)}
           readOnly
           enableCopy
+          disableResize
         />
       )}
       {!!result.result && (
@@ -210,9 +230,10 @@ export const ModalContent = ({
               Response from <b>{result.hostname}</b>:
             </>
           }
-          value={result.result}
+          value={formatJsonForDisplay(result.result)}
           readOnly
           enableCopy
+          disableResize
         />
       )}
     </div>
@@ -259,17 +280,7 @@ const CommandResultsModal = ({
             await commandApi.getCommandResults(queryKey[0].command_uuid)
           : await commandApi.getHostCommandResults(queryKey[0]);
 
-      if (!resp?.results) {
-        // this should not happen, but just in case return the response as is
-        return resp;
-      }
-      return {
-        results: resp.results.map?.((r) => ({
-          ...r,
-          payload: atob(r.payload),
-          result: atob(r.result),
-        })),
-      };
+      return decodeCommandResults(resp);
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,

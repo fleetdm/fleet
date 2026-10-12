@@ -29,9 +29,13 @@ const onlineIntervalBufferSeconds = 60
 // (iOS/iPadOS/Android) host's most recent MDM activity signal must fall for it
 // to count as online. Mobile MDM devices have no osquery check-in interval
 // (distributed_interval/config_tls_refresh are 0), so instead of a per-host
-// interval we anchor the window to the iOS/iPadOS refetch cadence (1 hour; see
-// ListIOSAndIPadOSToRefetch) plus the same grace buffer used for osquery hosts.
-const mobileOnlineWindowSeconds = 3600 + onlineIntervalBufferSeconds
+// interval we anchor the window to the iOS/iPadOS refetch cadence (1h; see
+// ListIOSAndIPadOSToRefetch) plus the 10m cron tick that dispatches it plus
+// the same grace buffer used for osquery hosts.
+// Sourced from api.MobileOnlineWindowSeconds so the fleet-side sync test
+// (TestMobileOnlineWindowMatchesChart) catches drift with
+// fleet.MobileOnlineWindow.
+const mobileOnlineWindowSeconds = api.MobileOnlineWindowSeconds
 
 // neverTimestamp mirrors server.NeverTimestamp, the sentinel written to
 // detail_updated_at before a host's first full detail refetch. Duplicated
@@ -99,8 +103,8 @@ func (ds *Datastore) GetHostIDsForFilter(ctx context.Context, hostFilter *types.
 //     grace period.
 //   - Mobile hosts (iOS, iPadOS, Android) have no osquery check-in interval, so
 //     they use their MDM activity signal — the most recent of
-//     nano_enrollments.last_seen_at (bumped on every MDM check-in, and only
-//     considered for enabled enrollments since last_seen_at is also bumped when
+//     nano_seen_times.seen_time (bumped on every MDM check-in, and only
+//     considered for enabled enrollments since the seen time is also bumped when
 //     an enrollment is disabled on checkout) and
 //     host_seen_times.seen_time, falling back to detail_updated_at (the
 //     neverTimestamp sentinel treated as null) — within mobileOnlineWindowSeconds
@@ -114,6 +118,7 @@ func (ds *Datastore) FindOnlineHostIDs(ctx context.Context, now time.Time, disab
 			LEFT JOIN nano_enrollments ne ON ne.id = h.uuid
 				AND ne.enabled = 1
 				AND ne.type IN ('Device', 'User Enrollment (Device)')
+			LEFT JOIN nano_seen_times nst ON nst.id = ne.id
 		WHERE (
 			(
 				h.platform NOT IN ('ios', 'ipados', 'android')
@@ -128,8 +133,8 @@ func (ds *Datastore) FindOnlineHostIDs(ctx context.Context, now time.Time, disab
 				AND DATE_ADD(
 					COALESCE(
 						GREATEST(
-							COALESCE(hst.seen_time, ne.last_seen_at),
-							COALESCE(ne.last_seen_at, hst.seen_time)
+							COALESCE(hst.seen_time, nst.seen_time),
+							COALESCE(nst.seen_time, hst.seen_time)
 						),
 						NULLIF(h.detail_updated_at, ?)
 					),

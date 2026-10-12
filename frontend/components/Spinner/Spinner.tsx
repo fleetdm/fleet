@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
 import classnames from "classnames";
+import React, { useEffect, useState } from "react";
 
 type Size = "x-small" | "small" | "medium";
 type PaddingSize = "small" | "medium";

@@ -208,7 +208,7 @@ Workstreet, Bahnhofstraße 8, 30159 Hanover, Germany
 **UK representative**  
 Rebecca Sham, Workstreet  
 [rebecca@workstreet.com](mailto:rebecca@workstreet.com)  
-Workstreet, Regus Exeter Business Park, 1 Emperor Way, Exeter, Devon, EX1 3QS, United Kingdom
+Workstreet, Abbey House, 83 Princes Street, Edinburgh, EH2 2ER, Scotland, UK
 
 **Data Protection Officer**  
 Graham Reilly, Workstreet  

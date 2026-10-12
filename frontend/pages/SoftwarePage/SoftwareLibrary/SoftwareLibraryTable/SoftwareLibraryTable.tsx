@@ -6,24 +6,22 @@ import React, { useCallback, useContext, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
 
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
-import { getNextLocationPath } from "utilities/helpers";
-import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
-import { getPathWithQueryParams } from "utilities/url";
-import { ISoftwareTitlesResponse } from "services/entities/software";
-import { ISoftwareTitle } from "interfaces/software";
-
-import TableContainer from "components/TableContainer";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import EmptyState from "components/EmptyState";
-import LastUpdatedText from "components/LastUpdatedText";
 import Slider from "components/forms/fields/Slider";
+import LastUpdatedText from "components/LastUpdatedText";
+import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-
+import { AppContext } from "context/app";
+import { ISoftwareTitle } from "interfaces/software";
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
+import PATHS from "router/paths";
+import { ISoftwareTitlesResponse } from "services/entities/software";
+import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
+import { getNextLocationPath } from "utilities/helpers";
+import { getPathWithQueryParams } from "utilities/url";
 
 import generateLibraryTableConfig from "./SoftwareLibraryTableConfig";
 

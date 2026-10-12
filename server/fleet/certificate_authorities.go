@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -118,6 +119,46 @@ func (c *CertificateAuthority) AuthzType() string {
 	return "certificate_authority"
 }
 
+// ESTProxyCA returns the EST connection settings of a Hydrant or custom EST CA, which store
+// their credentials in different fields.
+func (c *CertificateAuthority) ESTProxyCA() (ESTProxyCA, error) {
+	var username, password *string
+	switch CAType(c.Type) {
+	case CATypeHydrant:
+		if c.ClientID == nil {
+			return ESTProxyCA{}, errors.New("Certificate authority does not have a client ID configured.")
+		}
+		if c.ClientSecret == nil {
+			return ESTProxyCA{}, errors.New("Certificate authority does not have a client secret configured.")
+		}
+		username, password = c.ClientID, c.ClientSecret
+	case CATypeCustomESTProxy:
+		if c.Username == nil {
+			return ESTProxyCA{}, errors.New("Certificate authority does not have a username configured.")
+		}
+		if c.Password == nil {
+			return ESTProxyCA{}, errors.New("Certificate authority does not have a password configured.")
+		}
+		username, password = c.Username, c.Password
+	default:
+		return ESTProxyCA{}, fmt.Errorf("Certificate authority of type %s is not an EST certificate authority.", c.Type)
+	}
+	if c.URL == nil {
+		return ESTProxyCA{}, errors.New("Certificate authority does not have a URL configured.")
+	}
+	var name string
+	if c.Name != nil {
+		name = *c.Name
+	}
+	return ESTProxyCA{
+		ID:       c.ID,
+		Name:     name,
+		URL:      *c.URL,
+		Username: *username,
+		Password: *password,
+	}, nil
+}
+
 type CertificateAuthorityPayload struct {
 	DigiCert        *DigiCertCA           `json:"digicert,omitempty"`
 	NDESSCEPProxy   *NDESSCEPProxyCA      `json:"ndes_scep_proxy,omitempty"`
@@ -232,6 +273,15 @@ type SCEPConfigService interface {
 	ValidateSCEPURL(ctx context.Context, url string) error
 	ValidateSmallstepChallengeURL(ctx context.Context, ca SmallstepSCEPProxyCA) error
 	GetSmallstepSCEPChallenge(ctx context.Context, ca SmallstepSCEPProxyCA) (string, error)
+}
+
+// SCEPEnrollmentClient enrolls caller-supplied CSRs with an external SCEP CA on the caller's
+// behalf.
+type SCEPEnrollmentClient interface {
+	// GetCertificate enrolls csr, which must already carry any challenge the CA requires, against
+	// the SCEP server at url and returns the issued certificate. A failure expected to clear on its
+	// own is a CertificateAuthorityTransientError.
+	GetCertificate(ctx context.Context, url string, csr *x509.CertificateRequest) (*x509.Certificate, error)
 }
 
 type CustomSCEPProxyCA struct {
@@ -509,6 +559,19 @@ func (c *RequestCertificatePayload) AuthzType() string {
 	return "certificate_request"
 }
 
+// IdPCredentialsProvided reports whether the request carries IdP credentials. The three must be
+// supplied together or not at all: a partial set would clear the allowlist on the fields it does
+// carry and then skip introspection entirely, because that only runs once all three are present.
+func (c RequestCertificatePayload) IdPCredentialsProvided() (bool, error) {
+	provided := c.IDPOauthURL != nil && c.IDPToken != nil && c.IDPClientID != nil
+	if !provided && (c.IDPOauthURL != nil || c.IDPToken != nil || c.IDPClientID != nil) {
+		return false, &BadRequestError{
+			Message: "IDP Client ID, Token, and OAuth URL all must be provided, if any are provided when requesting a certificate.",
+		}
+	}
+	return provided, nil
+}
+
 type GroupedCertificateAuthorities struct {
 	EST             []ESTProxyCA           `json:"custom_est_proxy"` // Enrollment over Secure Transport
 	Hydrant         []HydrantCA            `json:"hydrant"`
@@ -516,6 +579,16 @@ type GroupedCertificateAuthorities struct {
 	NDESSCEP        *NDESSCEPProxyCA       `json:"ndes_scep_proxy"`
 	CustomScepProxy []CustomSCEPProxyCA    `json:"custom_scep_proxy"`
 	Smallstep       []SmallstepSCEPProxyCA `json:"smallstep"`
+}
+
+// IsEmpty returns true if no certificate authorities of any type are configured.
+func (g *GroupedCertificateAuthorities) IsEmpty() bool {
+	return len(g.EST) == 0 &&
+		len(g.Hydrant) == 0 &&
+		len(g.DigiCert) == 0 &&
+		g.NDESSCEP == nil &&
+		len(g.CustomScepProxy) == 0 &&
+		len(g.Smallstep) == 0
 }
 
 // ToCustomSCEPProxyCAMap converts the CustomScepProxy slice to a map keyed by CA name

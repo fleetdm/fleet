@@ -1,0 +1,1 @@
+- Fixed fleetd crashing on Windows ARM64 hosts when the `windows_updates` or `windows_update_history` tables were queried. The go-ole dependency converted OLE dates with a syscall whose ARM64 calling convention was wrong, so any pending update with a date caused an access violation that killed orbit and osqueryd. Dates are now converted in pure Go.

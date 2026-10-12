@@ -2,6 +2,8 @@
 
 You can rename macOS, iOS, and iPadOS devices by sending an MDM command through Fleet's API. This is useful for enforcing naming conventions or identifying devices at a glance.
 
+> **Note:** To enforce a naming convention across a whole team on an ongoing basis instead of renaming devices one at a time, see [Set a naming convention for macOS, iOS, and iPadOS hosts](https://fleetdm.com/guides/set-a-naming-convention-for-macos-ios-and-ipados-hosts) (Fleet Premium). It applies the same MDM command automatically whenever a host enrolls or its name changes. The steps below are for renaming one or more specific devices on demand.
+
 For more MDM commands and detailed guidance, see [MDM commands](https://fleetdm.com/guides/mdm-commands).
 
 

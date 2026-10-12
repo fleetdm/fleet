@@ -15,9 +15,13 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/psso/regtoken"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
+	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -33,6 +37,7 @@ func TestSecretVariables(t *testing.T) {
 		{"ValidateEmbeddedSecrets", testValidateEmbeddedSecrets},
 		{"ExpandEmbeddedSecrets", testExpandEmbeddedSecrets},
 		{"ExpandHostSecrets", testExpandHostSecrets},
+		{"ExpandHostSecretsFileVaultKey", testExpandHostSecretsFileVaultKey},
 		{"CreateSecretVariable", testCreateSecretVariable},
 		{"ListSecretVariables", testListSecretVariables},
 		{"DeleteSecretVariable", testDeleteSecretVariable},
@@ -275,7 +280,7 @@ func testExpandHostSecrets(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("expand recovery lock password", func(t *testing.T) {
-		doc := `<dict><key>NewPassword</key><string>$FLEET_HOST_SECRET_RECOVERY_LOCK_PASSWORD</string></dict>`
+		doc := `<dict><key>NewPassword</key><string>$FLEET_HOST_SECRET_RECOVERY_LOCK_PENDING_PASSWORD</string></dict>`
 		expected := `<dict><key>NewPassword</key><string>TEST-PASS-1234</string></dict>`
 		expanded, err := ds.ExpandHostSecrets(ctx, doc, host.UUID)
 		require.NoError(t, err)
@@ -283,7 +288,7 @@ func testExpandHostSecrets(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("expand with braces syntax", func(t *testing.T) {
-		doc := `Password: ${FLEET_HOST_SECRET_RECOVERY_LOCK_PASSWORD}`
+		doc := `Password: ${FLEET_HOST_SECRET_RECOVERY_LOCK_PENDING_PASSWORD}`
 		expected := `Password: TEST-PASS-1234`
 		expanded, err := ds.ExpandHostSecrets(ctx, doc, host.UUID)
 		require.NoError(t, err)
@@ -345,14 +350,14 @@ func testExpandHostSecrets(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		// When expanded in an XML document, special characters should be escaped
-		doc := `<dict><key>NewPassword</key><string>$FLEET_HOST_SECRET_RECOVERY_LOCK_PASSWORD</string></dict>`
+		doc := `<dict><key>NewPassword</key><string>$FLEET_HOST_SECRET_RECOVERY_LOCK_PENDING_PASSWORD</string></dict>`
 		expected := `<dict><key>NewPassword</key><string>Pass&amp;word&lt;with&gt;special&#34;chars&#39;</string></dict>`
 		expanded, err := ds.ExpandHostSecrets(ctx, doc, hostXML.UUID)
 		require.NoError(t, err)
 		assert.Equal(t, expected, expanded)
 
 		// Non-XML documents should not escape the characters
-		docNonXML := `Password: $FLEET_HOST_SECRET_RECOVERY_LOCK_PASSWORD`
+		docNonXML := `Password: $FLEET_HOST_SECRET_RECOVERY_LOCK_PENDING_PASSWORD`
 		expandedNonXML, err := ds.ExpandHostSecrets(ctx, docNonXML, hostXML.UUID)
 		require.NoError(t, err)
 		assert.Equal(t, `Password: Pass&word<with>special"chars'`, expandedNonXML)
@@ -377,7 +382,7 @@ func testExpandHostSecrets(t *testing.T, ds *Datastore) {
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, `INSERT INTO nano_devices (id, unlock_token, authenticate, platform) VALUES (?, ?, 'fake-auth', 'ios')`, hostMDM.UUID, unlockToken)
 			require.NoError(t, err)
-			_, err = q.ExecContext(ctx, `INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex, last_seen_at) VALUES (?, ?, 'Device', 'fake-topic', 'fake-push-magic', 'fake-token-hex', NOW())`, hostMDM.UUID, hostMDM.UUID)
+			_, err = q.ExecContext(ctx, `INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex) VALUES (?, ?, 'Device', 'fake-topic', 'fake-push-magic', 'fake-token-hex')`, hostMDM.UUID, hostMDM.UUID)
 			return err
 		})
 
@@ -864,4 +869,52 @@ func testDeleteUsedSecretVariable(t *testing.T, ds *Datastore) {
 	// Finally attempt to delete the secret again now that no entity is using it.
 	_, err = ds.DeleteSecretVariable(ctx, id)
 	require.NoError(t, err)
+}
+
+func testExpandHostSecretsFileVaultKey(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "fv-secret.local", "1.1.1.1", "fv-secret-osquery", "fv-secret-node", time.Now())
+	doc := `<dict><key>Password</key><string>$FLEET_HOST_SECRET_FILEVAULT_KEY</string></dict>`
+
+	_, err := ds.ExpandHostSecrets(ctx, doc, host.UUID)
+	require.True(t, fleet.IsNotFound(err), "no key stored: %v", err)
+
+	caCert, caKey, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+	require.NoError(t, ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
+		{Name: fleet.MDMAssetCACert, Value: tokenpki.PEMCertificate(caCert.Raw)},
+		{Name: fleet.MDMAssetCAKey, Value: tokenpki.PEMRSAPrivateKey(caKey)},
+	}, nil))
+
+	encrypted, err := pkcs7.Encrypt([]byte("ABCD-<&>-EFGH"), []*x509.Certificate{caCert})
+	require.NoError(t, err)
+	_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, host, base64.StdEncoding.EncodeToString(encrypted), "", new(true))
+	require.NoError(t, err)
+
+	// hosts.uuid isn't unique: a second row with the same UUID and its own key
+	duplicate, err := ds.NewHost(ctx, &fleet.Host{
+		UUID: host.UUID, Hostname: "fv-secret-duplicate.local", OsqueryHostID: new("fv-secret-duplicate"),
+		NodeKey: new("fv-secret-duplicate-node"), DetailUpdatedAt: time.Now(), LabelUpdatedAt: time.Now(),
+		PolicyUpdatedAt: time.Now(), SeenTime: time.Now(),
+	})
+	require.NoError(t, err)
+	otherKey, err := pkcs7.Encrypt([]byte("OTHER-KEY"), []*x509.Certificate{caCert})
+	require.NoError(t, err)
+	_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, duplicate, base64.StdEncoding.EncodeToString(otherKey), "", new(true))
+	require.NoError(t, err)
+
+	_, err = ds.ExpandHostSecrets(ctx, doc, host.UUID)
+	require.True(t, fleet.IsNotFound(err), "no rotation pending: %v", err)
+
+	ok, err := ds.SetHostDiskEncryptionKeyRotationCommand(ctx, host.ID, "cmd-1")
+	require.NoError(t, err)
+	require.True(t, ok)
+	expanded, err := ds.ExpandHostSecrets(ctx, doc, host.UUID)
+	require.NoError(t, err)
+	require.Equal(t, `<dict><key>Password</key><string>ABCD-&lt;&amp;&gt;-EFGH</string></dict>`, expanded)
+
+	require.NoError(t, ds.ReplaceHostDiskEncryptionKeyBlob(ctx, host.ID, base64.StdEncoding.EncodeToString(encrypted),
+		base64.StdEncoding.EncodeToString([]byte("not cms"))))
+	_, err = ds.ExpandHostSecrets(ctx, doc, host.UUID)
+	require.ErrorContains(t, err, "decrypting disk encryption key")
 }

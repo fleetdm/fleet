@@ -1,11 +1,10 @@
 import React from "react";
 
-import { IHostCertificate } from "interfaces/certificates";
-
-import Modal from "components/Modal";
-import DataSet from "components/DataSet";
 import Button from "components/buttons/Button";
+import DataSet from "components/DataSet";
+import Modal from "components/Modal";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
+import { IHostCertificate } from "interfaces/certificates";
 import { monthDayYearFormat } from "utilities/date_format";
 
 const baseClass = "certificate-details-modal";

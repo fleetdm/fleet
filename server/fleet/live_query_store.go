@@ -1,6 +1,10 @@
 package fleet
 
-import "context"
+import (
+	"context"
+	"errors"
+	"time"
+)
 
 // LiveQueryStore defines an interface for storing and retrieving the status of
 // live queries in the Fleet system.
@@ -16,8 +20,12 @@ type LiveQueryStore interface {
 	QueriesForHost(hostID uint) (map[string]string, error)
 	// QueryCompletedByHost marks the query with the given name as completed by the
 	// given host. After calling QueryCompleted, that query will no longer be
-	// sent to the host.
-	QueryCompletedByHost(name string, hostID uint) error
+	// sent to the host. It reports whether the query was active and still
+	// targeting the host at that moment.
+	QueryCompletedByHost(name string, hostID uint) (bool, error)
+	// RestoreQueryTargetForHost undoes QueryCompletedByHost for a host whose
+	// result could not be delivered, so the query is sent to it again.
+	RestoreQueryTargetForHost(name string, hostID uint) error
 	// CleanupInactiveQueries removes any inactive queries. This is used via a
 	// cron job to regularly cleanup any queries that may have failed to be
 	// stopped properly in Redis.
@@ -26,8 +34,12 @@ type LiveQueryStore interface {
 	LoadActiveQueryNames() ([]string, error)
 
 	// GetQueryResultsCounts returns the current count of query results for multiple queries.
-	// Returns a map of query ID -> count. Missing keys are returned with a count of 0.
+	// Queries with no stored count are absent from the result so callers can fall back to the
+	// database.
 	GetQueryResultsCounts(queryIDs []uint) (map[uint]int, error)
+	// SetQueryResultsCountsIfAbsent seeds counts only for queries that have none stored, so a
+	// concurrent increment from another request is never overwritten.
+	SetQueryResultsCountsIfAbsent(counts map[uint]int) error
 	// IncrQueryResultsCounts increments the query results counts by the given amounts.
 	// Takes a map of query ID -> amount to increment.
 	IncrQueryResultsCounts(queryIDsToAmounts map[uint]int) error
@@ -37,4 +49,48 @@ type LiveQueryStore interface {
 	// DeleteQueryResultsCount deletes the query results count for a query.
 	// Used when deleting a query, to remove the Redis key.
 	DeleteQueryResultsCount(queryID uint) error
+
+	// SetQueryReportsHostCount stores the total number of hosts, used to raise
+	// the query report cap so that reports are never capped below one row per host.
+	// Refreshed by the query results cleanup cron job.
+	SetQueryReportsHostCount(count int) error
+	// GetQueryReportsHostCount returns the host count stored by SetQueryReportsHostCount. ok is
+	// false when none is stored, so callers can fall back to the database.
+	GetQueryReportsHostCount() (count int, ok bool, err error)
+	// SetQueryReportsHostCountIfAbsent seeds the host count only when none is stored.
+	SetQueryReportsHostCountIfAbsent(count int) error
+	// IncrQueryReportsHostCount adjusts the stored host count by delta, so newly enrolled hosts
+	// raise the cap before the cron refreshes it.
+	IncrQueryReportsHostCount(delta int) error
+
+	// MarkQueryReportsClipped records that a host's results for each query were rejected because of
+	// the report cap. Each marker expires after its ttl so it clears itself once rejections stop.
+	MarkQueryReportsClipped(ttlByQueryID map[uint]time.Duration) error
+	// QueryReportsClipped returns which of the given queries have a clipped marker set.
+	QueryReportsClipped(queryIDs []uint) (map[uint]bool, error)
+	// ClearQueryReportsClipped removes the clipped marker for the given queries. Used when a
+	// report admits a host it didn't cover yet, when its results are discarded, and when the query
+	// is deleted.
+	ClearQueryReportsClipped(queryIDs []uint) error
+
+	// RecordQueryResultsLastFetched records that the query_results rows with the given IDs were
+	// fetched again at fetchedAt with unchanged data, for the query_results_cleanup cron to update
+	// their last_fetched. It returns ErrQueryResultsLastFetchedFull if too many are pending.
+	RecordQueryResultsLastFetched(rowIDs []uint, fetchedAt time.Time) error
+	// LoadQueryResultsLastFetched moves the recorded rows to a processing set, merging them with
+	// rows left there by a run that failed, and returns the latest fetch time of each row ID.
+	LoadQueryResultsLastFetched() (map[uint]time.Time, error)
+	// ClearProcessedQueryResultsLastFetched deletes the processing set once its rows are updated.
+	ClearProcessedQueryResultsLastFetched() error
+
+	// AcquireQueryReportWriteSlot takes one of limit write slots shared by all Fleet servers for
+	// token, reporting whether one was free. The slot is released by ReleaseQueryReportWriteSlot,
+	// or once lease expires if its holder never releases it (e.g. the server crashed).
+	AcquireQueryReportWriteSlot(token string, limit int, lease time.Duration) (bool, error)
+	// ReleaseQueryReportWriteSlot releases the write slot held by token.
+	ReleaseQueryReportWriteSlot(token string) error
 }
+
+// ErrQueryResultsLastFetchedFull is returned by RecordQueryResultsLastFetched when the pending
+// set is full, which means the cron is behind.
+var ErrQueryResultsLastFetchedFull = errors.New("too many pending query results last fetched updates")

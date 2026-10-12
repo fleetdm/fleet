@@ -27,21 +27,21 @@ quit_application() {
   echo "Quitting application '$bundle_id'..."
 
   # try to quit the application within the timeout period
-  local quit_success=false
+  local quit_success=false still_running
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    if osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1; then
-      if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then
-        echo "Application '$bundle_id' quit successfully."
-        quit_success=true
-        break
-      fi
-    fi
+    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1
     sleep 1
+    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+      echo "Application '$bundle_id' quit successfully."
+      quit_success=true
+      break
+    fi
   done
 
   if [[ "$quit_success" = false ]]; then
     echo "Application '$bundle_id' did not quit."
+    return 1
   fi
 }
 
@@ -77,8 +77,17 @@ cleanup_backup_files() {
   done
 }
 
+remove_stale_updater_bundles() {
+  local root
+  for root in / /Users/*; do
+    local updater_dir="${root%/}/Library/Application Support/Microsoft/EdgeUpdater"
+    [ -d "$updater_dir" ] || continue
+    find "$updater_dir" -type d -name "Microsoft Edge.app" -prune -exec sudo rm -rf {} + 2>/dev/null || true
+  done
+}
+
 # copy to the applications folder
-quit_application 'com.microsoft.edgemac'
+quit_application 'com.microsoft.edgemac' || exit 1
 
 # Clean up any existing backup files before creating a new one
 cleanup_backup_files
@@ -100,10 +109,9 @@ fi
 if [ -d "$APPDIR/Microsoft Edge.app" ]; then
 	# Installation successful - ensure no backup files remain
 	cleanup_backup_files
+	remove_stale_updater_bundles
 	echo "Installation verified"
 else
 	echo "Installation failed"
 	exit 1
 fi
-
-

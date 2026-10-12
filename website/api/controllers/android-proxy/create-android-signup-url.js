@@ -19,7 +19,8 @@ module.exports = {
     success: { description: 'A signup URL has been sent to the requesting Fleet server.'},
     missingOriginHeader: { description: 'The request was missing an Origin header', responseType: 'badRequest'},
     enterpriseAlreadyExists: { description: 'An Android enterprise already exists for this Fleet instance.', statusCode: 409 },
-    invalidCallbackUrl: { description: 'The provided callbackUrl could not be used to create an Android enterprise signup URL.', responseType: 'badRequest'}
+    invalidCallbackUrl: { description: 'The provided callbackUrl could not be used to create an Android enterprise signup URL.', responseType: 'badRequest'},
+    tooManyRequests: { description: 'The Android management API rate limit was exceeded.', statusCode: 429 },
   },
 
 
@@ -37,11 +38,12 @@ module.exports = {
     if(connectionforThisInstanceExists) {
       // Before throwing conflict, verify the enterprise still exists in Google
       // If it doesn't exist, clean up the stale proxy record and continue with signup
-      let isEnterpriseManagedByFleet = await sails.helpers.androidProxy.getIsEnterpriseManagedByFleet(connectionforThisInstanceExists.androidEnterpriseId)
-      .intercept({status: 429}, (err)=>{
+      let isEnterpriseManagedByFleet = await sails.helpers.androidProxy.getIsEnterpriseManagedByFleet.with({androidEnterpriseId: connectionforThisInstanceExists.androidEnterpriseId, fleetServerUrl: fleetServerUrl})
+      .intercept({status: 429}, ()=>{
         // If the Android management API returns a 429 response, log an additional warning that will trigger a help-p1 alert.
         sails.log.warn(`p1: Android management API rate limit exceeded!`);
-        return new Error(`When attempting to create a signup url for a new Android enterprise, an error occurred. Error: ${err}`);
+        // Pass the 429 through to the Fleet server rather than collapsing it into a 500, so it can retry.
+        return 'tooManyRequests';
       });
       if(isEnterpriseManagedByFleet) {
         // Enterprise still exists in Google - throw conflict
@@ -64,6 +66,12 @@ module.exports = {
       let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
       // [?] https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Signupurls.html#create
       sails.androidProxyApiRequestCount++;// Count this Android Management API request toward the per-minute total logged in api/hooks/custom/index.js.
+      let _enterpriseIdPending = 'pending:' + fleetServerUrl;
+      if (!sails.androidProxyApiRequestCountByEnterpriseId[_enterpriseIdPending]) { sails.androidProxyApiRequestCountByEnterpriseId[_enterpriseIdPending] = {count: 0, fleetServerUrl: fleetServerUrl}; }
+      sails.androidProxyApiRequestCountByEnterpriseId[_enterpriseIdPending].count++;
+      let _rtKey = _enterpriseIdPending + ':create_signup_url';
+      if (!sails.androidProxyApiRequestCountByRequestType[_rtKey]) { sails.androidProxyApiRequestCountByRequestType[_rtKey] = {count: 0, enterpriseId: _enterpriseIdPending, fleetServerUrl: fleetServerUrl, requestType: 'create_signup_url'}; }
+      sails.androidProxyApiRequestCountByRequestType[_rtKey].count++;
       let createSignupUrlResponse = await androidManagementConnection.signupUrls.create({
         // The callback URL that the admin will be redirected to after successfully creating an enterprise. Before redirecting there the system will add a query parameter to this URL named enterpriseToken which will contain an opaque token to be used for the create enterprise request. The URL will be parsed then reformatted in order to add the enterpriseToken parameter, so there may be some minor formatting changes.
         callbackUrl: callbackUrl,
@@ -73,10 +81,11 @@ module.exports = {
       return createSignupUrlResponse.data;
     }).intercept({status: 400}, (unusedErr)=>{
       return {'invalidCallbackUrl': 'The provided Callback Url could not be used to create an Android enterprise signup URL.'};
-    }).intercept({status: 429}, (err)=>{
+    }).intercept({status: 429}, ()=>{
       // If the Android management API returns a 429 response, log an additional warning that will trigger a help-p1 alert.
       sails.log.warn(`p1: Android management API rate limit exceeded!`);
-      return new Error(`When attempting to create a singup url for a new Android enterprise, an error occurred. Error: ${err}`);
+      // Pass the 429 through to the Fleet server rather than collapsing it into a 500, so it can retry.
+      return 'tooManyRequests';
     }).intercept((err)=>{
       return new Error(`When attempting to create a singup url for a new Android enterprise, an error occurred. Error: ${require('util').inspect(err)}`);
     });

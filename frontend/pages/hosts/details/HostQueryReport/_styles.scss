@@ -1,6 +1,5 @@
 .host-query-report {
   @include vertical-page-layout;
-  @include color-contrasted-sections;
 
   h1 {
     font-weight: $bold;

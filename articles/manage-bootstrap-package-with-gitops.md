@@ -47,6 +47,8 @@ bootstrap_package: "https://your-fleet-instance.com/api/v1/fleet/bootstrap?token
 
 Replace `your-fleet-instance.com` with your Fleet instance domain and `your-token-here` with the token from the previous step.
 
+The `bootstrap_package` field accepts any publicly accessible URL, like an S3 bucket. The URL must be a direct link to the .pkg file and reachable without authentication.
+
 
 ## More information
 

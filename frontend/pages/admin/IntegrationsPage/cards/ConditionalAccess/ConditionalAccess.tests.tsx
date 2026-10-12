@@ -1,7 +1,6 @@
-import React from "react";
-
 import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
+import React from "react";
 
 import createMockConfig from "__mocks__/configMock";
 import mockServer from "test/mock-server";

@@ -1,6 +1,6 @@
+import { screen, waitFor } from "@testing-library/react";
 import React from "react";
 
-import { screen, waitFor } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 
 import IssuesIndicator from "./IssuesIndicator";

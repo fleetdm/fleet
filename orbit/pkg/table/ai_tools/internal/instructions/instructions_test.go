@@ -7,7 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/fsutil"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
+	"github.com/stretchr/testify/require"
 )
 
 func write(t *testing.T, path, content string, mode os.FileMode) {
@@ -34,7 +36,7 @@ func TestScanFindsInstructionFiles(t *testing.T) {
 	write(t, filepath.Join(home, "projects", "app", ".cursor", "rules", "main.mdc"), "use tabs", 0o600)
 
 	by := map[string]Instruction{}
-	for _, in := range Scan(homes.Home{Dir: home, Username: "t"}) {
+	for _, in := range Scan(homes.Home{Dir: home, Username: "t"}, fsutil.WalkHome(home, WalkProbes())) {
 		by[in.Path] = in
 	}
 
@@ -73,7 +75,7 @@ func TestHiddenUnicode(t *testing.T) {
 	write(t, filepath.Join(home, "CLAUDE.md"), content, 0o600)
 
 	var found *Instruction
-	for _, in := range Scan(homes.Home{Dir: home, Username: "t"}) {
+	for _, in := range Scan(homes.Home{Dir: home, Username: "t"}, fsutil.WalkHome(home, WalkProbes())) {
 		if in.Name == "CLAUDE.md" {
 			cp := in
 			found = &cp
@@ -100,7 +102,7 @@ func TestWorldWritableFlag(t *testing.T) {
 	if err := os.Chmod(p, 0o666); err != nil { //nolint:gosec // test fixture: intentionally world-writable to exercise world_writable detection
 		t.Fatal(err)
 	}
-	for _, in := range Scan(homes.Home{Dir: home, Username: "t"}) {
+	for _, in := range Scan(homes.Home{Dir: home, Username: "t"}, fsutil.WalkHome(home, WalkProbes())) {
 		if in.Name == "CLAUDE.md" {
 			if !strings.Contains(in.RiskFlags, "world_writable") {
 				t.Errorf("0666 instruction file should flag world_writable: %q", in.RiskFlags)
@@ -109,4 +111,23 @@ func TestWorldWritableFlag(t *testing.T) {
 		}
 	}
 	t.Fatal("CLAUDE.md not found")
+}
+
+// Cursor lets rules be organized in folders under .cursor/rules.
+func TestScanFindsNestedCursorRules(t *testing.T) {
+	home := t.TempDir()
+	rules := filepath.Join(home, "projects", "app", ".cursor", "rules")
+	write(t, filepath.Join(rules, "main.mdc"), "use tabs", 0o600)
+	write(t, filepath.Join(rules, "frontend", "patterns.mdc"), "use hooks", 0o600)
+	write(t, filepath.Join(rules, "frontend", "react", "state.mdc"), "lift state", 0o600)
+	write(t, filepath.Join(rules, "frontend", "notes.txt"), "not a rule", 0o600)
+
+	got := map[string]string{}
+	for _, in := range Scan(homes.Home{Dir: home, Username: "t"}, fsutil.WalkHome(home, WalkProbes())) {
+		got[in.Path] = in.Tool
+	}
+	for _, rel := range []string{"main.mdc", filepath.Join("frontend", "patterns.mdc"), filepath.Join("frontend", "react", "state.mdc")} {
+		require.Equal(t, "cursor", got[filepath.Join(rules, rel)], "%s not found; got %v", rel, got)
+	}
+	require.NotContains(t, got, filepath.Join(rules, "frontend", "notes.txt"))
 }

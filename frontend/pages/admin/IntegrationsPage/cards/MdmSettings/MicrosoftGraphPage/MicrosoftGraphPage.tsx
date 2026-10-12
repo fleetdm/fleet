@@ -1,35 +1,35 @@
 import React, { useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
-import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
-import { IInputFieldParseTarget } from "interfaces/form_field";
-import { equalsIgnoreCase } from "utilities/strings/stringUtils";
-import {
-  IMicrosoftGraphCredential,
-  IMicrosoftGraphCredentialFormData,
-} from "interfaces/microsoft_graph_credential";
-import microsoftGraphCredentialsAPI, {
-  IGetMicrosoftGraphCredentialsResponse,
-} from "services/entities/microsoft_graph_credentials";
-import { getErrorReason } from "interfaces/errors";
-
 import BackButton from "components/BackButton";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import DataSet from "components/DataSet";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import IconStatusMessage from "components/IconStatusMessage";
-import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import InputField from "components/forms/fields/InputField";
 import isUUID from "components/forms/validators/valid_uuid";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
+import Icon from "components/Icon";
 import MainContent from "components/MainContent";
 import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
+import { AppContext } from "context/app";
+import { getErrorReason } from "interfaces/errors";
+import { IInputFieldParseTarget } from "interfaces/form_field";
+import {
+  IMicrosoftGraphCredential,
+  IMicrosoftGraphCredentialFormData,
+} from "interfaces/microsoft_graph_credential";
+import PATHS from "router/paths";
+import microsoftGraphCredentialsAPI, {
+  IGetMicrosoftGraphCredentialsResponse,
+} from "services/entities/microsoft_graph_credentials";
+import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
+import { equalsIgnoreCase } from "utilities/strings/stringUtils";
 
 import DeleteMicrosoftGraphCredentialModal from "./DeleteMicrosoftGraphCredentialModal";
 
@@ -284,9 +284,9 @@ const MicrosoftGraphPage = () => {
           messages.map((message) => ({ variant: "error" as const, message }))
         );
       } else {
-        notify.error(
-          getErrorReason(e) || "Couldn't save Microsoft Graph credential."
-        );
+        notify.error("Couldn't save Microsoft Graph credential.", {
+          response: e,
+        });
       }
     } finally {
       setIsSaving(false);
@@ -304,7 +304,14 @@ const MicrosoftGraphPage = () => {
       return null;
     }
 
-    const { last_synced_at, last_sync_error } = storedCredential;
+    const {
+      last_synced_at,
+      last_sync_error,
+      credential_invalid,
+    } = storedCredential;
+
+    // A rejected credential already raises the app-wide banner, so don't duplicate it here.
+    const showSyncError = !!last_sync_error && !credential_invalid;
 
     return (
       <div className={`${baseClass}__sync-status`}>
@@ -320,12 +327,18 @@ const MicrosoftGraphPage = () => {
             )
           }
         />
-        {!!last_sync_error && (
-          <IconStatusMessage
-            className={`${baseClass}__sync-error`}
-            iconName="error"
-            message={last_sync_error}
-          />
+        {showSyncError && (
+          <>
+            <TooltipWrapper
+              showArrow
+              underline={false}
+              position="top"
+              tipContent={last_sync_error}
+            >
+              <Icon name="error" />
+            </TooltipWrapper>
+            <span className="sr-only">{last_sync_error}</span>
+          </>
         )}
       </div>
     );
@@ -429,10 +442,7 @@ const MicrosoftGraphPage = () => {
               <>
                 Fleet uses a Microsoft Entra app registration to read your
                 tenant&apos;s Windows Autopilot devices and show them as pending
-                hosts. The app registration needs the{" "}
-                <b>DeviceManagementServiceConfig.Read.All</b> application
-                permission, with admin consent granted. To create it, follow the
-                instructions in the{" "}
+                hosts. To create it, follow the instructions in the{" "}
                 <CustomLink
                   newTab
                   text="guide"

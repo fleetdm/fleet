@@ -1,15 +1,16 @@
 import React from "react";
+
 import CustomLink from "components/CustomLink";
 import EmptyState from "components/EmptyState";
 import { IEmptyStateProps } from "interfaces/empty_state";
-import {
-  getVulnFilterRenderDetails,
-  ISoftwareVulnFiltersParams,
-} from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
 import { HostPlatform, isAndroid } from "interfaces/platform";
+import {
+  getFilterRenderDetails,
+  ISoftwareFilters,
+} from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
 
 export interface IEmptySoftwareTableProps {
-  vulnFilters?: ISoftwareVulnFiltersParams;
+  filters?: ISoftwareFilters;
   tableName?: string;
   isSoftwareDisabled?: boolean;
   noSearchQuery?: boolean;
@@ -30,27 +31,24 @@ const EMPTY_INFO_BY_TABLE: Record<string, string> = {
 /** Returns the display name used in filtered info text (e.g. "vulnerable software"). */
 const getFilteredTypeText = (
   tableName: string,
-  vulnFilters?: ISoftwareVulnFiltersParams
+  filters?: ISoftwareFilters
 ): string => {
-  if (vulnFilters?.vulnerable) {
+  if (filters?.vulnerable) {
     return "vulnerable software";
   }
   return tableName;
 };
 
 const EmptySoftwareTable = ({
-  vulnFilters,
+  filters,
   tableName = "software",
   isSoftwareDisabled,
   noSearchQuery = true,
   installableSoftwareExists,
   platform,
 }: IEmptySoftwareTableProps): JSX.Element => {
-  const { filterCount: vulnFiltersCount } = getVulnFilterRenderDetails(
-    vulnFilters
-  );
-
-  const isFiltered = vulnFiltersCount > 0 || !noSearchQuery;
+  const isFiltered =
+    getFilterRenderDetails(filters).isFiltered || !noSearchQuery;
 
   const getEmptyStateProps = (): IEmptyStateProps => {
     if (isSoftwareDisabled) {
@@ -90,7 +88,7 @@ const EmptySoftwareTable = ({
     }
 
     // Filtered/search state: use type-aware text (e.g. "vulnerable software")
-    const typeText = getFilteredTypeText(tableName, vulnFilters);
+    const typeText = getFilteredTypeText(tableName, filters);
     let info = `Expecting to see ${typeText}? Check back later.`;
     if (isAndroid(platform || "")) {
       info = `${info} It may take up to 24 hours for Android to report the software.`;

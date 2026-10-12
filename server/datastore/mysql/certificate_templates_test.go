@@ -1024,6 +1024,14 @@ func testGetHostCertificateTemplates(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	ct3, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		Name:                   "CCC",
+		TeamID:                 team.ID,
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=Test Subject 3",
+	})
+	require.NoError(t, err)
+
 	// Set the installation status on the certificate templates
 	_, err = ds.writer(ctx).ExecContext(ctx,
 		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type, name) VALUES (?, ?, ?, ?, ?, ?)",
@@ -1036,6 +1044,16 @@ func testGetHostCertificateTemplates(t *testing.T, ds *Datastore) {
 		h2.UUID, ct2.ID, "test-challenge", fleet.OSSettingsFailed, "some error yooo", fleet.MDMOperationTypeInstall, ct2.Name,
 	)
 	require.NoError(t, err)
+
+	// A template Fleet is retrying after a failure. Going through RetryHostCertificateTemplate
+	// rather than writing the row directly keeps this honest about what a retry actually leaves
+	// behind: an in-progress status carrying the failure detail and an incremented retry count.
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type, name) VALUES (?, ?, ?, ?, ?, ?)",
+		h2.UUID, ct3.ID, "test-challenge", fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall, ct3.Name,
+	)
+	require.NoError(t, err)
+	require.NoError(t, ds.RetryHostCertificateTemplate(ctx, h2.UUID, ct3.ID, "Network error during SCEP enrollment"))
 
 	testCases := []struct {
 		name string
@@ -1062,7 +1080,7 @@ func testGetHostCertificateTemplates(t *testing.T, ds *Datastore) {
 			func(t *testing.T, datastore *Datastore) {
 				templates, err := ds.GetHostCertificateTemplates(ctx, h2.UUID)
 				require.NoError(t, err)
-				require.Len(t, templates, 2)
+				require.Len(t, templates, 3)
 
 				// Sort the templates by name to make results deterministic
 				sort.Slice(templates, func(i, j int) bool { return templates[i].Name < templates[j].Name })
@@ -1070,11 +1088,17 @@ func testGetHostCertificateTemplates(t *testing.T, ds *Datastore) {
 				require.Equal(t, ct1.Name, templates[0].Name)
 				require.Equal(t, fleet.CertificateTemplateVerified, templates[0].Status)
 				require.Equal(t, fleet.MDMOperationTypeInstall, templates[0].OperationType)
+				require.EqualValues(t, 0, templates[0].RetryCount)
 
 				require.Equal(t, ct2.Name, templates[1].Name)
 				require.Equal(t, fleet.CertificateTemplateFailed, templates[1].Status)
 				require.Equal(t, "some error yooo", *templates[1].Detail)
 				require.Equal(t, fleet.MDMOperationTypeInstall, templates[1].OperationType)
+
+				require.Equal(t, ct3.Name, templates[2].Name)
+				require.Equal(t, fleet.CertificateTemplatePending, templates[2].Status)
+				require.Equal(t, "Network error during SCEP enrollment", *templates[2].Detail)
+				require.EqualValues(t, 1, templates[2].RetryCount)
 			},
 		},
 	}

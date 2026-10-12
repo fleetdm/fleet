@@ -4,9 +4,9 @@ import Radio from "components/forms/fields/Radio";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { EndUserLocalAccountType } from "interfaces/mdm";
 
+import { IUsersFormData } from "../../UsersForm";
 import ManagedAccountCheckbox from "../ManagedAccountCheckbox";
 import TurnOnMdmTooltipWrapper from "../TurnOnMdmTooltipWrapper";
-import { IUsersFormData } from "../../UsersForm";
 
 const baseClass = "local-account-section";
 

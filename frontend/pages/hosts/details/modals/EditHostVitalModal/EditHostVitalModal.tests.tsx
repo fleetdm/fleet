@@ -1,9 +1,8 @@
+import { screen, waitFor } from "@testing-library/react";
 import React from "react";
 
-import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
-
 import customHostVitalsAPI from "services/entities/custom_host_vitals";
+import { createCustomRenderer } from "test/test-utils";
 
 import EditHostVitalModal from "./EditHostVitalModal";
 

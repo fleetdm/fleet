@@ -13,6 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 // FleetViewerAdapter resolves the current authenticated viewer into the
@@ -41,7 +42,7 @@ func (a *FleetViewerAdapter) ViewerScope(ctx context.Context) (bool, []uint, err
 		return false, nil, errors.New("chart: no authenticated viewer in context")
 	}
 	u := vc.User
-	if u.GlobalRole != nil && *u.GlobalRole != "" {
+	if u.HasAnyGlobalRole() {
 		return true, nil, nil
 	}
 	ids := make([]uint, 0, len(u.Teams))
@@ -49,4 +50,13 @@ func (a *FleetViewerAdapter) ViewerScope(ctx context.Context) (bool, []uint, err
 		ids = append(ids, t.ID)
 	}
 	return false, ids, nil
+}
+
+// Ensure ExpandPlatform satisfies api.PlatformExpanderFn.
+var _ api.PlatformExpanderFn = ExpandPlatform
+
+// ExpandPlatform adapts fleet.ExpandPlatform for the chart service so that
+// a "linux" platform filter matches the distro names stored in hosts.platform.
+func ExpandPlatform(platform string) []string {
+	return fleet.ExpandPlatform(platform)
 }

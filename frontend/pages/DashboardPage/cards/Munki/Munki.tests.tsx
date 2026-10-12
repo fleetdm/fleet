@@ -1,12 +1,13 @@
-import React from "react";
 import { screen } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
-import createMockUser from "__mocks__/userMock";
+import React from "react";
 
+import createMockUser from "__mocks__/userMock";
 import {
   IMunkiIssuesAggregate,
   IMunkiVersionsAggregate,
 } from "interfaces/macadmins";
+import { createCustomRenderer } from "test/test-utils";
+
 import Munki from "./Munki";
 
 describe("Munki card", () => {

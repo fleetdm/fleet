@@ -1,10 +1,15 @@
 import React from "react";
-import SettingsSection from "pages/admin/components/SettingsSection";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+
+import CustomLink from "components/CustomLink";
 import Checkbox from "components/forms/fields/Checkbox";
 import InputField from "components/forms/fields/InputField";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import SettingsSection from "pages/admin/components/SettingsSection";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import type { IAdvancedSectionProps } from "../../Advanced";
+
+const baseClass = "host-lifecycle-section";
 
 const HostLifecycleSection = ({
   isPremiumTier = false,
@@ -16,6 +21,7 @@ const HostLifecycleSection = ({
     enableHostExpiry,
     hostExpiryWindow,
     requireHardwareAttestation,
+    onlyAllowAppleBusinessEnrollment,
   } = formData;
 
   return (
@@ -46,13 +52,13 @@ const HostLifecycleSection = ({
           </Checkbox>
         )}
       />
-      {enableHostExpiry && (
+      <div className={`${baseClass}__host-expiry-window`}>
         <GitOpsModeTooltipWrapper
           position="left"
           isInputField
           renderChildren={(disableChildren) => (
             <InputField
-              disabled={disableChildren}
+              disabled={!enableHostExpiry || disableChildren}
               label="Host expiry window"
               type="number"
               onChange={onInputChange}
@@ -63,23 +69,53 @@ const HostLifecycleSection = ({
             />
           )}
         />
-      )}
+      </div>
       {isPremiumTier && (
-        <GitOpsModeTooltipWrapper
-          position="left"
-          renderChildren={(disableChildren) => (
-            <Checkbox
-              disabled={disableChildren}
-              onChange={onInputChange}
-              name="requireHardwareAttestation"
-              value={requireHardwareAttestation}
-              parseTarget
-              helpText="Enabling this setting will require macOS hosts with Apple Silicon that automatically enroll (DEP) to use ACME with Managed Device Attestation"
-            >
-              Require hardware attestation
-            </Checkbox>
-          )}
-        />
+        <>
+          <GitOpsModeTooltipWrapper
+            position="left"
+            renderChildren={(disableChildren) => (
+              <Checkbox
+                disabled={disableChildren}
+                onChange={onInputChange}
+                name="requireHardwareAttestation"
+                value={requireHardwareAttestation}
+                parseTarget
+                helpText={
+                  <span>
+                    Apple hosts that support Managed Device Attestation that
+                    auto-enroll (DEP) will use ACME with Managed Device
+                    Attestation.
+                    <br /> If &quot;Allow only Apple Business enrollments&quot;
+                    is also enabled, some hosts may be unable to enroll.{" "}
+                    <CustomLink
+                      text="Learn more"
+                      newTab
+                      url={`${LEARN_MORE_ABOUT_BASE_LINK}/device-attestation`}
+                    />
+                  </span>
+                }
+              >
+                Use hardware attestation
+              </Checkbox>
+            )}
+          />
+          <GitOpsModeTooltipWrapper
+            position="left"
+            renderChildren={(disableChildren) => (
+              <Checkbox
+                disabled={disableChildren}
+                onChange={onInputChange}
+                name="onlyAllowAppleBusinessEnrollment"
+                value={onlyAllowAppleBusinessEnrollment}
+                parseTarget
+                helpText="Enabling this setting will allow only hosts from Apple Business to use MDM features. Manually turning on MDM won't work."
+              >
+                Allow only Apple Business enrollments
+              </Checkbox>
+            )}
+          />
+        </>
       )}
     </SettingsSection>
   );

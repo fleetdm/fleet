@@ -1,13 +1,11 @@
-import React from "react";
-
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createCustomRenderer } from "test/test-utils";
-import mockServer from "test/mock-server";
-
-import getTeamScriptsHandler from "test/handlers/script-handlers";
+import React from "react";
 
 import { createMockScript } from "__mocks__/scriptMock";
+import getTeamScriptsHandler from "test/handlers/script-handlers";
+import mockServer from "test/mock-server";
+import { createCustomRenderer } from "test/test-utils";
 
 import RunScriptBatchPaginatedList from "./RunScriptBatchPaginatedList";
 

@@ -1,12 +1,12 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
+import React from "react";
 
+import { createMockMdmConfig } from "__mocks__/configMock";
+import { createGetConfigHandler } from "test/handlers/config-handlers";
+import { createSetupExperienceSoftwareHandler } from "test/handlers/setup-experience-handlers";
+import { createGetTeamHandler } from "test/handlers/team-handlers";
 import mockServer from "test/mock-server";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
-import { createSetupExperienceSoftwareHandler } from "test/handlers/setup-experience-handlers";
-import { createGetConfigHandler } from "test/handlers/config-handlers";
-import { createGetTeamHandler } from "test/handlers/team-handlers";
-import { createMockMdmConfig } from "__mocks__/configMock";
 
 import InstallSoftware from "./InstallSoftware";
 
@@ -100,5 +100,56 @@ describe("InstallSoftware", () => {
     expect(
       screen.getByText(/Install software on hosts that enroll to Fleet/)
     ).toBeVisible();
+  });
+
+  describe("versioned App Store app helper suffix", () => {
+    it.each(["ios", "ipados", "android"] as const)(
+      "appends the first-added disclaimer on the %s tab when MDM is configured",
+      async (platform) => {
+        mockServer.use(createSetupExperienceSoftwareHandler());
+        // Default: Apple MDM on, Android MDM off; flip Android on so all three tabs render.
+        mockServer.use(
+          createGetConfigHandler({
+            mdm: createMockMdmConfig({ android_enabled_and_configured: true }),
+          })
+        );
+        mockServer.use(createGetTeamHandler({}));
+        const render = createCustomRenderer({ withBackendMock: true });
+
+        render(
+          <InstallSoftware
+            router={createMockRouter()}
+            currentTeamId={1}
+            urlPlatformParam={platform}
+          />
+        );
+
+        expect(
+          await screen.findByText(
+            /so the first-added version will always be installed/i
+          )
+        ).toBeVisible();
+      }
+    );
+
+    it("omits the suffix on macOS, Windows, and Linux tabs", async () => {
+      setupMdmConfigured();
+      const render = createCustomRenderer({ withBackendMock: true });
+
+      render(
+        <InstallSoftware
+          router={createMockRouter()}
+          currentTeamId={1}
+          urlPlatformParam="macos"
+        />
+      );
+
+      expect(await screen.findByRole("button", { name: "Save" })).toBeVisible();
+      expect(
+        screen.queryByText(
+          /so the first-added version will always be installed/i
+        )
+      ).toBeNull();
+    });
   });
 });

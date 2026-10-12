@@ -129,7 +129,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 
 	status := r.URL.Query().Get("status")
 	switch fleet.HostStatus(status) {
-	case fleet.StatusNew, fleet.StatusOnline, fleet.StatusOffline, fleet.StatusMIA, fleet.StatusMissing:
+	case fleet.StatusNew, fleet.StatusOnline, fleet.StatusOffline, fleet.StatusMIA, fleet.StatusMissing, fleet.StatusEnrolled:
 		hopt.StatusFilter = fleet.HostStatus(status)
 	case "":
 		// No error when unset
@@ -223,6 +223,38 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		}
 		sid := uint(id)
 		hopt.SoftwareTitleIDFilter = &sid
+	}
+
+	softwareInstallerID := r.URL.Query().Get("software_installer_id")
+	if softwareInstallerID != "" {
+		id, err := strconv.ParseUint(softwareInstallerID, 10, 32)
+		if err != nil {
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid software_installer_id: %s", softwareInstallerID)))
+		}
+		if hopt.SoftwareTitleIDFilter == nil {
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(
+				"Missing software_title_id (it must be present when software_installer_id is specified)"))
+		}
+		sid := uint(id)
+		hopt.SoftwareInstallerIDFilter = &sid
+	}
+
+	appStoreAppVersionID := r.URL.Query().Get("app_store_app_version_id")
+	if appStoreAppVersionID != "" {
+		id, err := strconv.ParseUint(appStoreAppVersionID, 10, 32)
+		if err != nil {
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid app_store_app_version_id: %s", appStoreAppVersionID)))
+		}
+		if hopt.SoftwareTitleIDFilter == nil {
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(
+				"Missing software_title_id (it must be present when app_store_app_version_id is specified)"))
+		}
+		if hopt.SoftwareInstallerIDFilter != nil {
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(
+				"software_installer_id and app_store_app_version_id are mutually exclusive"))
+		}
+		sid := uint(id)
+		hopt.AppStoreAppVersionIDFilter = &sid
 	}
 
 	softwareStatus := fleet.SoftwareInstallerStatus(strings.ToLower(r.URL.Query().Get("software_status")))
@@ -393,7 +425,8 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	enrollmentStatus := r.URL.Query().Get("mdm_enrollment_status")
 	switch fleet.MDMEnrollStatus(enrollmentStatus) {
 	case fleet.MDMEnrollStatusManual, fleet.MDMEnrollStatusAutomatic, fleet.MDMEnrollStatusPersonal,
-		fleet.MDMEnrollStatusPending, fleet.MDMEnrollStatusUnenrolled, fleet.MDMEnrollStatusEnrolled:
+		fleet.MDMEnrollStatusManualPersonal, fleet.MDMEnrollStatusPending, fleet.MDMEnrollStatusUnenrolled,
+		fleet.MDMEnrollStatusEnrolled:
 		hopt.MDMEnrollmentStatusFilter = fleet.MDMEnrollStatus(enrollmentStatus)
 	case "":
 		// No error when unset
@@ -581,6 +614,17 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 			)
 		}
 		hopt.PopulateUsers = pu
+	}
+
+	populateEndUsers := r.URL.Query().Get("populate_end_users")
+	if populateEndUsers != "" {
+		peu, err := strconv.ParseBool(populateEndUsers)
+		if err != nil {
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(fmt.Sprintf("Invalid boolean parameter populate_end_users: %s", populateEndUsers)),
+			)
+		}
+		hopt.PopulateEndUsers = peu
 	}
 
 	populateLabels := r.URL.Query().Get("populate_labels")

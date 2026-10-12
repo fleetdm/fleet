@@ -48,12 +48,22 @@ func AutoUpdateFleetMaintainedApps(ctx context.Context, ds fleet.Datastore, soft
 	manifests := map[string]*manifestEntry{}
 
 	for _, c := range candidates {
-		if err := autoUpdateOneFleetMaintainedApp(ctx, ds, softwareInstallStore, client, logger, c, manifests); err != nil {
+		// Each app can take up to InstallerTimeout to download, so a run over many apps can outlast the
+		// budget the caller gave it. Stop here rather than working through the rest; the next run resumes.
+		err = ctx.Err()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "auto-updating fleet-maintained apps")
+		}
+
+		err = autoUpdateOneFleetMaintainedApp(ctx, ds, softwareInstallStore, client, logger, c, manifests)
+		if err != nil {
 			logger.ErrorContext(ctx, "auto-updating fleet-maintained app",
 				"title_id", c.TitleID, "team_id", teamIDForLog(c.TeamID), "slug", c.Slug, "err", err)
 		}
 	}
-	return nil
+
+	// The loop check above never sees a budget that ran out during the last app, so report that here.
+	return ctxerr.Wrap(ctx, ctx.Err(), "auto-updating fleet-maintained apps")
 }
 
 func autoUpdateOneFleetMaintainedApp(
@@ -176,6 +186,7 @@ func downloadNewVersionIfEligible(
 	}
 
 	versionAlreadyCached := false
+	storageID := app.SHA256
 
 	// For a concrete manifest version the eligibility gates can run up front. For a
 	// "latest" manifest the real version isn't known until the installer is
@@ -193,15 +204,25 @@ func downloadNewVersionIfEligible(
 		}
 		// A version only counts as cached while its bytes still match the manifest, matching
 		// the GitOps path: a rebuilt package (same version, new hash) is downloaded and
-		// replaces them. A manifest without a hash can't be compared, so it downloads again.
+		// replaces them. A manifest without a hash can't be compared, so its cached version
+		// counts while the bytes are still in the store.
 		if versionExists && cachedHash == app.SHA256 {
 			versionAlreadyCached = true
+		} else if versionExists && app.SHA256 == noCheckHash && cachedHash != "" {
+			exists, err := store.Exists(ctx, cachedHash)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "checking installer store")
+			}
+			if exists {
+				// app is shared across teams, so the cached digest can't go on app.SHA256.
+				versionAlreadyCached = true
+				storageID = cachedHash
+			}
 		}
 	}
 
 	// Byte dedup: when the expected hash is known and already in the store (another
 	// team cached the same version), skip the HTTP download and reuse the bytes.
-	storageID := app.SHA256
 	needBytes := true
 	if versionAlreadyCached {
 		needBytes = false
@@ -281,7 +302,7 @@ func downloadNewVersionIfEligible(
 	if isLatest && pin != "" && !versionMatchesMajor(version, strings.TrimPrefix(pin, "^")) {
 		return "", nil
 	}
-	if version != app.Version {
+	if !versionAlreadyCached {
 		versionExists, cachedHash, err := ds.HasFMAInstallerVersion(ctx, c.TeamID, c.FleetMaintainedAppID, version)
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "checking cached version")

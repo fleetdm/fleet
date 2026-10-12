@@ -1,12 +1,11 @@
 import React from "react";
-import { timeAgo } from "utilities/date_format";
-
-import { ILastExecution, IScriptExecutionStatus } from "interfaces/script";
 
 import StatusIndicatorWithIcon, {
   IndicatorStatus,
 } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import { ILastExecution, IScriptExecutionStatus } from "interfaces/script";
+import { timeAgo } from "utilities/date_format";
 
 interface IScriptStatusDisplayConfig {
   displayText: string;

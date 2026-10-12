@@ -170,7 +170,7 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		}
 	}
 
-	if err = svc.recordCanceledSetupExperienceSoftwareActivities(ctx, host.ID, host.UUID, host.DisplayName(), res); err != nil {
+	if err = svc.recordCanceledSetupExperienceSoftwareActivities(ctx, host.ID, host.UUID, host.DisplayName(), host.TeamID, res); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "recording cancelled setup experience installs")
 	}
 
@@ -234,6 +234,7 @@ func (svc *Service) recordCanceledSetupExperienceSoftwareActivities(
 	hostID uint,
 	hostUUID string,
 	hostDisplayName string,
+	teamID *uint,
 	results []*fleet.SetupExperienceStatusResult,
 ) error {
 	for _, r := range results {
@@ -246,11 +247,20 @@ func (svc *Service) recordCanceledSetupExperienceSoftwareActivities(
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "marking canceled setup experience software install as failed")
 		}
+		var softwareDisplayName *string
+		if r.SoftwareTitleID != nil {
+			dn, dnErr := svc.ds.GetSoftwareTitleDisplayName(ctx, teamID, *r.SoftwareTitleID)
+			if dnErr != nil {
+				svc.logger.WarnContext(ctx, "failed to look up software display name for canceled setup experience activity", "err", dnErr)
+			}
+			softwareDisplayName = dn
+		}
 		if r.IsForSoftwarePackage() {
 			if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeCanceledInstallSoftware{
 				HostID:              hostID,
 				HostDisplayName:     hostDisplayName,
 				SoftwareTitle:       r.Name,
+				SoftwareDisplayName: softwareDisplayName,
 				SoftwareTitleID:     ptr.ValOrZero(r.SoftwareTitleID),
 				FromSetupExperience: true,
 			}); err != nil {
@@ -261,6 +271,7 @@ func (svc *Service) recordCanceledSetupExperienceSoftwareActivities(
 				HostID:              hostID,
 				HostDisplayName:     hostDisplayName,
 				SoftwareTitle:       r.Name,
+				SoftwareDisplayName: softwareDisplayName,
 				SoftwareTitleID:     ptr.ValOrZero(r.SoftwareTitleID),
 				FromSetupExperience: true,
 			}); err != nil {

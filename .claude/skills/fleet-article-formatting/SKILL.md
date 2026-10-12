@@ -19,7 +19,7 @@ Fleet publishes several content types under `articles/`. This skill governs the 
 |---|---|---|---|
 | **Article** | Thought-leadership, how-to, and comparison pieces in the house format (title → dek → key takeaways → CTA → body → closing) | `articles`, `comparison` | **this skill** (+ `content-style` for prose) |
 | **Guide** | Step-by-step operational how-to | `guides` | `fleet-guide-formatting` |
-| **Case study** | Customer story; requires summary/quote meta tags | `case study` | its own template (build-enforced) |
+| **Case study** | Customer story; requires summary/quote meta tags | `case study` | `fleet-case-study-formatting` |
 | **Announcement** | Product/news announcement | `announcements` | `content-style` |
 | Release notes, podcasts, webinars, whitepapers, reports | Other content types | `releases`, `podcasts`, `webinar`, `whitepaper`, `report`, … | out of scope here |
 
@@ -49,9 +49,6 @@ Use this skeleton for Fleet articles — thought-leadership posts, how-to articl
 
 ## See it live
 [Optional next-steps block: a guide link plus one or two demo/workshop bullets.]
-
----
-*Italic CTA line with links.*
 ```
 
 ### Title
@@ -106,7 +103,7 @@ A short section that restates the stakes ("The risk of waiting is real") and lan
 Fleet pieces typically carry two calls to action, and they play different roles:
 
 - **The post-takeaways button** (above) — one button, high on the page, for the reader who's already convinced.
-- **The closing CTA** — at the foot of the article, a fuller menu of next steps. This can be a short "See it live" block (a guide link plus one or two bullets such as **Get a demo** → `/contact` and **Join a GitOps training session** → `/gitops-workshop`) and/or an italic CTA line with links. Keep it to the actions that genuinely fit the piece; real links only.
+- **The closing CTA** — at the foot of the article, a fuller menu of next steps. This is a short "See it live" block (a guide link plus one or two bullets such as **Get a demo** → `/contact` and **Join a GitOps training session** → `/gitops-workshop`). Keep it to the actions that genuinely fit the piece; real links only. Don't add a horizontal rule or a trailing italic CTA line after it — the website renders its own divider below the article.
 
 ### Endmatter
 

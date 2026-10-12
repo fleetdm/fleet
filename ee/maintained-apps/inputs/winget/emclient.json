@@ -7,5 +7,6 @@
   "installer_type": "msi",
   "installer_scope": "machine",
   "program_publisher": "eM Client s.r.o.",
-  "default_categories": ["Communication"]
+  "default_categories": ["Communication"],
+  "frozen": true
 }

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/crypto"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -72,28 +73,28 @@ func (ds *Datastore) postprocessRetrievedCertificateAuthority(ctx context.Contex
 	if includeSecrets {
 		// Decrypt sensitive fields
 		if ca.APITokenEncrypted != nil {
-			decryptedAPIToken, err := decrypt(ca.APITokenEncrypted, ds.serverPrivateKey)
+			decryptedAPIToken, err := crypto.DecryptAESGCM(ca.APITokenEncrypted, ds.serverPrivateKey)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, fmt.Sprintf("decrypting API token for certificate authority %d", ca.ID))
 			}
 			ca.APIToken = ptr.String(string(decryptedAPIToken))
 		}
 		if ca.PasswordEncrypted != nil {
-			decryptedPassword, err := decrypt(ca.PasswordEncrypted, ds.serverPrivateKey)
+			decryptedPassword, err := crypto.DecryptAESGCM(ca.PasswordEncrypted, ds.serverPrivateKey)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, fmt.Sprintf("decrypting password for certificate authority %d", ca.ID))
 			}
 			ca.Password = ptr.String(string(decryptedPassword))
 		}
 		if ca.ChallengeEncrypted != nil {
-			decryptedChallenge, err := decrypt(ca.ChallengeEncrypted, ds.serverPrivateKey)
+			decryptedChallenge, err := crypto.DecryptAESGCM(ca.ChallengeEncrypted, ds.serverPrivateKey)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, fmt.Sprintf("decrypting challenge for certificate authority %d", ca.ID))
 			}
 			ca.Challenge = ptr.String(string(decryptedChallenge))
 		}
 		if ca.ClientSecretEncrypted != nil {
-			decryptedClientSecret, err := decrypt(ca.ClientSecretEncrypted, ds.serverPrivateKey)
+			decryptedClientSecret, err := crypto.DecryptAESGCM(ca.ClientSecretEncrypted, ds.serverPrivateKey)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, fmt.Sprintf("decrypting client secret for certificate authority %d", ca.ID))
 			}
@@ -264,25 +265,25 @@ func sqlGenerateArgsForInsertCertificateAuthority(ctx context.Context, serverPri
 		}
 	}
 	if ca.APIToken != nil {
-		encryptedAPIToken, err = encrypt([]byte(*ca.APIToken), serverPrivateKey)
+		encryptedAPIToken, err = crypto.EncryptAESGCM([]byte(*ca.APIToken), serverPrivateKey)
 		if err != nil {
 			return nil, "", ctxerr.Wrap(ctx, err, "encrypting API token for new certificate authority")
 		}
 	}
 	if ca.Password != nil {
-		encryptedPassword, err = encrypt([]byte(*ca.Password), serverPrivateKey)
+		encryptedPassword, err = crypto.EncryptAESGCM([]byte(*ca.Password), serverPrivateKey)
 		if err != nil {
 			return nil, "", ctxerr.Wrap(ctx, err, "encrypting password for new certificate authority")
 		}
 	}
 	if ca.Challenge != nil {
-		encryptedChallenge, err = encrypt([]byte(*ca.Challenge), serverPrivateKey)
+		encryptedChallenge, err = crypto.EncryptAESGCM([]byte(*ca.Challenge), serverPrivateKey)
 		if err != nil {
 			return nil, "", ctxerr.Wrap(ctx, err, "encrypting challenge for new certificate authority")
 		}
 	}
 	if ca.ClientSecret != nil {
-		encryptedClientSecret, err = encrypt([]byte(*ca.ClientSecret), serverPrivateKey)
+		encryptedClientSecret, err = crypto.EncryptAESGCM([]byte(*ca.ClientSecret), serverPrivateKey)
 		if err != nil {
 			return nil, "", ctxerr.Wrap(ctx, err, "encrypting client secret for new certificate authority")
 		}
@@ -751,7 +752,7 @@ func (ds *Datastore) generateUpdateQueryWithArgs(ctx context.Context, ca *fleet.
 		}
 		if ca.APIToken != nil {
 			updates = append(updates, "api_token_encrypted = ?")
-			encryptedAPIToken, err := encrypt([]byte(*ca.APIToken), ds.serverPrivateKey)
+			encryptedAPIToken, err := crypto.EncryptAESGCM([]byte(*ca.APIToken), ds.serverPrivateKey)
 			if err != nil {
 				return "", ctxerr.Wrap(ctx, err, "encrypting API token for new certificate authority")
 			}
@@ -792,7 +793,7 @@ func (ds *Datastore) generateUpdateQueryWithArgs(ctx context.Context, ca *fleet.
 		}
 		if ca.ClientSecret != nil {
 			updates = append(updates, "client_secret_encrypted = ?")
-			encryptedClientSecret, err := encrypt([]byte(*ca.ClientSecret), ds.serverPrivateKey)
+			encryptedClientSecret, err := crypto.EncryptAESGCM([]byte(*ca.ClientSecret), ds.serverPrivateKey)
 			if err != nil {
 				return "", ctxerr.Wrap(ctx, err, "encrypting client secret for new certificate authority")
 			}
@@ -814,7 +815,7 @@ func (ds *Datastore) generateUpdateQueryWithArgs(ctx context.Context, ca *fleet.
 		}
 		if ca.Password != nil {
 			updates = append(updates, "password_encrypted = ?")
-			encryptedPassword, err := encrypt([]byte(*ca.Password), ds.serverPrivateKey)
+			encryptedPassword, err := crypto.EncryptAESGCM([]byte(*ca.Password), ds.serverPrivateKey)
 			if err != nil {
 				return "", ctxerr.Wrap(ctx, err, "encrypting password for new certificate authority")
 			}
@@ -836,7 +837,7 @@ func (ds *Datastore) generateUpdateQueryWithArgs(ctx context.Context, ca *fleet.
 		}
 		if ca.Password != nil {
 			updates = append(updates, "password_encrypted = ?")
-			encryptedPassword, err := encrypt([]byte(*ca.Password), ds.serverPrivateKey)
+			encryptedPassword, err := crypto.EncryptAESGCM([]byte(*ca.Password), ds.serverPrivateKey)
 			if err != nil {
 				return "", ctxerr.Wrap(ctx, err, "encrypting password for new certificate authority")
 			}
@@ -854,7 +855,7 @@ func (ds *Datastore) generateUpdateQueryWithArgs(ctx context.Context, ca *fleet.
 		}
 		if ca.Challenge != nil {
 			updates = append(updates, "challenge_encrypted = ?")
-			encryptedChallenge, err := encrypt([]byte(*ca.Challenge), ds.serverPrivateKey)
+			encryptedChallenge, err := crypto.EncryptAESGCM([]byte(*ca.Challenge), ds.serverPrivateKey)
 			if err != nil {
 				return "", ctxerr.Wrap(ctx, err, "encrypting challenge for new certificate authority")
 			}
@@ -879,7 +880,7 @@ func (ds *Datastore) generateUpdateQueryWithArgs(ctx context.Context, ca *fleet.
 		}
 		if ca.Password != nil {
 			updates = append(updates, "password_encrypted = ?")
-			encryptedPassword, err := encrypt([]byte(*ca.Password), ds.serverPrivateKey)
+			encryptedPassword, err := crypto.EncryptAESGCM([]byte(*ca.Password), ds.serverPrivateKey)
 			if err != nil {
 				return "", ctxerr.Wrap(ctx, err, "encrypting password for new certificate authority")
 			}

@@ -1280,6 +1280,7 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
       COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
       COALESCE(hst.seen_time, h.created_at) as seen_time,
+      nstm.seen_time AS last_mdm_checked_in_at,
       COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,
       h.last_restarted_at,
       h.timezone,
@@ -1289,7 +1290,7 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 			%s
     FROM label_membership lm
     JOIN hosts h ON (lm.host_id = h.id)
-    LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
+    LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)` + hostMobileMDMSeenTimeJoin + `
     LEFT JOIN host_updates hu ON (h.id = hu.host_id)
     LEFT JOIN host_disks hd ON (h.id=hd.host_id)
     %s
@@ -1349,7 +1350,7 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	var whereParams, joinParams []interface{}
 
 	// Needed by filterHostsByStatus' missing computation so that ios/ipados hosts fall back to the
-	// MDM protocol's last_seen_at instead of being flagged missing (see hostEffectiveLastSeenExpr).
+	// MDM protocol's seen time instead of being flagged missing (see hostEffectiveLastSeenExpr).
 	if opt.StatusFilter.IsValid() {
 		query += hostMDMSeenTimeJoin
 	}
@@ -1373,7 +1374,7 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 
 		case installerID > 0:
 			// found a software installer package
-			installerJoin, installerParams, err := ds.softwareInstallerJoin(*opt.SoftwareTitleIDFilter, *opt.SoftwareStatusFilter)
+			installerJoin, installerParams, err := ds.softwareInstallerJoin(*opt.SoftwareTitleIDFilter, nil, *opt.SoftwareStatusFilter)
 			if err != nil {
 				return "", nil, ctxerr.Wrap(ctx, err, "software installer join")
 			}
@@ -1382,7 +1383,7 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 
 		case vppID != nil:
 			// found a VPP app
-			vppAppJoin, vppAppParams, err := ds.vppAppJoin(*vppID, *opt.SoftwareStatusFilter)
+			vppAppJoin, vppAppParams, err := ds.vppAppJoin(*vppID, nil, *opt.SoftwareStatusFilter)
 			if err != nil {
 				return "", nil, ctxerr.Wrap(ctx, err, "vpp app join")
 			}
@@ -1428,6 +1429,7 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 
 	if opt.OSSettingsFilter.IsValid() {
 		query += sqlJoinMDMAndroidProfilesStatus()
+		query += sqlJoinMDMWindowsProfilesStatus()
 	}
 
 	query += fmt.Sprintf(` WHERE lm.label_id = ? AND %s `, ds.whereFilterHostsByTeams(filter, "h"))
@@ -1445,6 +1447,7 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	query, whereParams = filterHostsByStatus(ds.clock.Now(), query, opt, whereParams)
 	query, whereParams = filterHostsByTeam(query, opt, whereParams)
 	query, whereParams = filterHostsByMDM(query, opt, whereParams)
+	query, whereParams = filterHostsByDEPAssignProfile(query, opt, whereParams)
 	query, whereParams, err = filterHostsByMacOSSettingsStatus(query, opt, whereParams, diskEncryptionConfig)
 	if err != nil {
 		return "", nil, ctxerr.Wrap(ctx, err, "building macOS settings status filter")
@@ -1452,10 +1455,7 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	query, whereParams = filterHostsByMacOSDiskEncryptionStatus(query, opt, whereParams, diskEncryptionConfig)
 	query, whereParams = filterHostsByMDMBootstrapPackageStatus(query, opt, whereParams)
 	if opt.OSSettingsFilter.IsValid() {
-		query, whereParams, err = ds.filterHostsByOSSettingsStatus(ctx, query, opt, whereParams, diskEncryptionConfig)
-		if err != nil {
-			return "", nil, err
-		}
+		query, whereParams = ds.filterHostsByOSSettingsStatus(ctx, query, opt, whereParams, diskEncryptionConfig)
 	} else if opt.OSSettingsDiskEncryptionFilter.IsValid() {
 		query, whereParams = ds.filterHostsByOSSettingsDiskEncryptionStatus(ctx, query, opt, whereParams, diskEncryptionConfig)
 	}
@@ -1472,7 +1472,7 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 func (ds *Datastore) CountHostsInLabel(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) (int, error) {
 	query := `SELECT count(*) FROM label_membership lm
     JOIN hosts h ON (lm.host_id = h.id)
-	LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)
+	LEFT JOIN host_seen_times hst ON (h.id=hst.host_id)` + hostMobileMDMSeenTimeJoin + `
 	LEFT JOIN host_disks hd ON (h.id=hd.host_id)
  	`
 

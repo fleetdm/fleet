@@ -72,11 +72,22 @@ jobs:
           TAG: ${{ steps.sanitize.outputs.TAG }}
           QUAY_REGISTRY_PASSWORD: ${{ secrets.QUAY_REGISTRY_PASSWORD }}
         run: |
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
-            "https://quay.io/api/v1/repository/fleetdm/fleet/tag/${TAG}" \
-            -H "Authorization: Bearer $QUAY_REGISTRY_PASSWORD")
+          # The robot account used for `docker push` can only authenticate against the
+          # registry API (not Quay's REST API), so delete the tag via the v2 manifest endpoint.
+          TOKEN=$(curl -s -u "fleetdm+fleetreleaser:$QUAY_REGISTRY_PASSWORD" \
+            "https://quay.io/v2/auth?service=quay.io&scope=repository:fleetdm/fleet:pull,push" \
+            | jq -r .token)
 
-          if [[ "$HTTP_STATUS" == "204" || "$HTTP_STATUS" == "200" ]]; then
+          if [[ -z "$TOKEN" || "$TOKEN" == "null" ]]; then
+            echo "Failed to authenticate with Quay.io. Check credentials."
+            exit 1
+          fi
+
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
+            "https://quay.io/v2/fleetdm/fleet/manifests/${TAG}" \
+            -H "Authorization: Bearer $TOKEN")
+
+          if [[ "$HTTP_STATUS" == "202" || "$HTTP_STATUS" == "200" || "$HTTP_STATUS" == "204" ]]; then
             echo "Deleted Quay.io tag: $TAG"
           elif [[ "$HTTP_STATUS" == "404" ]]; then
             echo "Quay.io tag not found (already deleted or never published): $TAG"

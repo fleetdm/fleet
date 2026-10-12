@@ -1,5 +1,5 @@
-import React, { Component } from "react";
 import { noop } from "lodash";
+import React, { Component } from "react";
 
 import { handleClickOutside } from "./helpers";
 

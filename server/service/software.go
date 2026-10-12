@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -72,6 +73,13 @@ func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc 
 	// legacy endpoint for backwards compatibility)
 	req.SoftwareListOptions.ListOptions.IncludeMetadata = true
 
+	// fleet.DefaultPerPage is effectively unbounded, and returning a whole large
+	// inventory in one response takes long enough to trip a load balancer's idle
+	// timeout, so fall back to the bounded page size instead.
+	if req.SoftwareListOptions.ListOptions.PerPage == 0 {
+		req.SoftwareListOptions.ListOptions.PerPage = platform_http.MaxPerPage
+	}
+
 	resp, meta, err := svc.ListSoftware(ctx, req.SoftwareListOptions)
 	if err != nil {
 		return listSoftwareVersionsResponse{Err: err}, nil
@@ -112,6 +120,11 @@ func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 	}
 	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit) {
 		return nil, nil, fleet.ErrMissingLicense
+	}
+
+	opt.TypeFilter, err = fleet.ParseSoftwareTypeFilter(opt.Source, opt.ExtensionFor)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	// default sort order to hosts_count descending
@@ -268,6 +281,11 @@ func (svc Service) CountSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 	// Vulnerability filters are only available in premium
 	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit) {
 		return 0, fleet.ErrMissingLicense
+	}
+
+	opt.TypeFilter, err = fleet.ParseSoftwareTypeFilter(opt.Source, opt.ExtensionFor)
+	if err != nil {
+		return 0, err
 	}
 
 	// required for vulnerability filters

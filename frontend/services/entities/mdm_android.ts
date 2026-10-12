@@ -1,6 +1,6 @@
 import sendRequest from "services";
-import endpoints from "utilities/endpoints";
 import authToken from "utilities/auth_token";
+import endpoints from "utilities/endpoints";
 
 interface IGetAndroidSignupUrlResponse {
   android_enterprise_signup_url: string;
@@ -8,6 +8,10 @@ interface IGetAndroidSignupUrlResponse {
 
 interface IGetAndroidEnterpriseResponse {
   android_enterprise_id: boolean;
+}
+
+export interface IGetZeroTouchConfigurationResponse {
+  [key: string]: unknown;
 }
 
 export default {
@@ -19,6 +23,11 @@ export default {
   getAndroidEnterprise: (): Promise<IGetAndroidEnterpriseResponse> => {
     const { MDM_ANDROID_ENTERPRISE } = endpoints;
     return sendRequest("GET", MDM_ANDROID_ENTERPRISE);
+  },
+
+  getZeroTouchConfiguration: (): Promise<IGetZeroTouchConfigurationResponse> => {
+    const { MDM_ANDROID_ZERO_TOUCH_CONFIGURATION } = endpoints;
+    return sendRequest("GET", MDM_ANDROID_ZERO_TOUCH_CONFIGURATION);
   },
 
   turnOffAndroidMdm: (): Promise<void> => {

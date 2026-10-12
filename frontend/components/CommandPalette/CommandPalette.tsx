@@ -1,3 +1,8 @@
+import {
+  Title as DialogTitle,
+  Description as DialogDescription,
+} from "@radix-ui/react-dialog";
+import { Command } from "cmdk";
 import React, {
   useContext,
   useEffect,
@@ -7,22 +12,25 @@ import React, {
   useCallback,
   useRef,
 } from "react";
-import { Command, useCommandState } from "cmdk";
-import {
-  Title as DialogTitle,
-  Description as DialogDescription,
-} from "@radix-ui/react-dialog";
 import { browserHistory } from "react-router";
 
+import Icon from "components/Icon";
 import { AppContext } from "context/app";
 import {
   APP_CONTEXT_ALL_TEAMS_ID,
   APP_CONTEXT_NO_TEAM_ID,
 } from "interfaces/team";
-import Icon from "components/Icon";
-import { isDarkMode, setThemeMode } from "utilities/theme";
 import paths from "router/paths";
+import { isDarkMode, setThemeMode } from "utilities/theme";
 
+import { isPreFilteredResult } from "./components/constants";
+import FleetPicker from "./components/FleetPicker";
+import HighlightedLabel from "./components/HighlightedLabel";
+import HostPicker from "./components/HostPicker";
+import PolicyPicker from "./components/PolicyPicker";
+import ReportPicker from "./components/ReportPicker";
+import SoftwarePicker from "./components/SoftwarePicker";
+import UprightEmoji from "./components/UprightEmoji";
 import {
   ICommandItem,
   ICommandSubItem,
@@ -33,34 +41,8 @@ import {
   pathSupportsAllFleets,
   pathSupportsUnassigned,
 } from "./helpers";
-import FleetPicker from "./components/FleetPicker";
-import HostPicker from "./components/HostPicker";
-import SoftwarePicker from "./components/SoftwarePicker";
-import ReportPicker from "./components/ReportPicker";
-import PolicyPicker from "./components/PolicyPicker";
-import HighlightedLabel from "./components/HighlightedLabel";
-import UprightEmoji from "./components/UprightEmoji";
-import { isPreFilteredResult } from "./components/constants";
 
 const baseClass = "command-palette";
-
-// Subscribes to cmdk's selected value via its internal store. We can't
-// rely on `Command.Dialog`'s `onValueChange` prop for this: in cmdk@1.1.1
-// that callback only fires when `value` is also controlled, and the
-// palette runs cmdk uncontrolled so arrow-key highlight changes never
-// reach React without this bridge. Rendered inside `Command.Dialog` so
-// the `useCommandState` context is available.
-const HighlightSubscriber = ({
-  onChange,
-}: {
-  onChange: (value: string) => void;
-}) => {
-  const value = useCommandState((state) => state.value);
-  useEffect(() => {
-    onChange(value ?? "");
-  }, [value, onChange]);
-  return null;
-};
 
 // cmdk treats `value` as the row's identity *and* as the substring it
 // filters against. Two rows with the same value collide. Including the
@@ -95,6 +77,11 @@ const CommandPalette = (): JSX.Element | null => {
   const [page, setPage] = useState<Page>("root");
   const [search, setSearch] = useState("");
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  // Controlled highlight — cmdk's uncontrolled auto-select doesn't re-run
+  // when a picker's async results replace the previous set (state.value
+  // still points at the now-unmounted row), so we set it explicitly.
+  // Empty string means "let cmdk pick the first item on next mount."
+  const [cmdkValue, setCmdkValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -160,6 +147,14 @@ const CommandPalette = (): JSX.Element | null => {
   // selected) correctly evaluates to false. canWrite would have
   // accepted them via isAnyTeamAdmin.
   const canAddSoftware =
+    !!isGlobalAdmin ||
+    !!isGlobalMaintainer ||
+    !!isTeamAdmin ||
+    !!isTeamMaintainer;
+
+  // Mirrors the Configuration profiles card: "Add profile" is for admins and
+  // maintainers of the current fleet, not its technicians.
+  const canAddConfigurationProfile =
     !!isGlobalAdmin ||
     !!isGlobalMaintainer ||
     !!isTeamAdmin ||
@@ -255,8 +250,28 @@ const CommandPalette = (): JSX.Element | null => {
       setPage("root");
       setSearch("");
       setExpandedItems(new Set());
+      // Also clear cmdkValue: if we closed while on root, the page-change
+      // effect won't fire on reopen, and a stale highlight would carry
+      // over — making Enter accidentally activate a prior row.
+      setCmdkValue("");
     }
   }, [open]);
+
+  // Reset the highlight when the page changes so cmdk auto-selects the
+  // first item on the new page rather than sticking on a value that
+  // belongs to the page we just left.
+  useEffect(() => {
+    setCmdkValue("");
+  }, [page]);
+
+  // Picker results arrive asynchronously; when they do, snap the highlight
+  // to the first row so pressing Enter opens it without a preceding arrow.
+  const handlePickerResultsChange = useCallback(
+    (firstItemValue: string | null) => {
+      setCmdkValue(firstItemValue ?? "");
+    },
+    []
+  );
 
   const canSwitchFleet =
     isPremiumTier &&
@@ -439,6 +454,7 @@ const CommandPalette = (): JSX.Element | null => {
         canManageHostActivityAutomations,
         canEditCustomVariable,
         canAddSoftware,
+        canAddConfigurationProfile,
         isAdminOrMaintainer,
         isTechnician,
         isPremiumTier,
@@ -477,6 +493,7 @@ const CommandPalette = (): JSX.Element | null => {
       canManageHostActivityAutomations,
       canEditCustomVariable,
       canAddSoftware,
+      canAddConfigurationProfile,
       isAdminOrMaintainer,
       isTechnician,
       isPremiumTier,
@@ -836,6 +853,16 @@ const CommandPalette = (): JSX.Element | null => {
     <Command.Dialog
       open={open}
       onOpenChange={handleOpenChange}
+      // Controlling `value` also switches cmdk into a mode where
+      // `onValueChange` fires on every internal selection update
+      // (arrow keys, pointer hover, filter-driven re-selects), which is
+      // what lets us drive `handleHighlightChange` from a single source
+      // instead of a `useCommandState` bridge.
+      value={cmdkValue}
+      onValueChange={(value) => {
+        setCmdkValue(value);
+        handleHighlightChange(value);
+      }}
       label="Command palette"
       className={baseClass}
       overlayClassName={`${baseClass}__overlay`}
@@ -857,7 +884,6 @@ const CommandPalette = (): JSX.Element | null => {
         return 0;
       }}
     >
-      <HighlightSubscriber onChange={handleHighlightChange} />
       {/* cmdk's Dialog wraps Radix Dialog.Content, which requires a Title and
           a Description for screen reader accessibility — without these, Radix
           logs a console error/warning on every open. Both are rendered
@@ -978,6 +1004,7 @@ const CommandPalette = (): JSX.Element | null => {
             search={search}
             showTeamColumn={!!isPremiumTier && !isPrimoMode}
             onSelect={handleSelectHost}
+            onResultsChange={handlePickerResultsChange}
           />
         )}
         {page === "view-software" && (
@@ -985,6 +1012,7 @@ const CommandPalette = (): JSX.Element | null => {
             search={search}
             currentTeam={currentTeam}
             onSelect={handleSelectSoftware}
+            onResultsChange={handlePickerResultsChange}
           />
         )}
         {page === "view-software-library" && (
@@ -993,6 +1021,7 @@ const CommandPalette = (): JSX.Element | null => {
             currentTeam={currentTeam}
             scope="library"
             onSelect={handleSelectSoftware}
+            onResultsChange={handlePickerResultsChange}
           />
         )}
         {page === "view-report" && (
@@ -1001,6 +1030,7 @@ const CommandPalette = (): JSX.Element | null => {
             currentTeam={currentTeam}
             isViewerObserver={isViewerObserverInScope}
             onSelect={handleSelectReport}
+            onResultsChange={handlePickerResultsChange}
           />
         )}
         {page === "view-policy" && (
@@ -1009,6 +1039,7 @@ const CommandPalette = (): JSX.Element | null => {
             currentTeam={currentTeam}
             isPremiumTier={!!isPremiumTier}
             onSelect={handleSelectPolicy}
+            onResultsChange={handlePickerResultsChange}
           />
         )}
       </Command.List>

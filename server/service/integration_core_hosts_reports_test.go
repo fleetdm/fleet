@@ -21,6 +21,7 @@ import (
 	"io"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -127,7 +128,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 		return err
 	})
 
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, false, true, "url", false, "", "", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, false, true, "url", false, "", "", fleet.PersonalEnrollmentTypeNone))
 	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostAll.ID, "1.3.0", []string{"error1"}, []string{"warning1"}))
 
 	macadminsData := macadminsDataResponse{}
@@ -154,7 +155,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	assert.False(t, macadminsData.Macadmins.MunkiIssues[1].HostIssueCreatedAt.IsZero())
 	assert.Equal(t, "warning", macadminsData.Macadmins.MunkiIssues[1].IssueType)
 
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, false, true, "https://simplemdm.com", true, fleet.WellKnownMDMSimpleMDM, "", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, false, true, "https://simplemdm.com", true, fleet.WellKnownMDMSimpleMDM, "", fleet.PersonalEnrollmentTypeNone))
 	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(ctx, hostAll.ID, "1.5.0", []string{"error1"}, nil))
 
 	macadminsData = macadminsDataResponse{}
@@ -170,7 +171,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	require.Len(t, macadminsData.Macadmins.MunkiIssues, 1)
 	assert.Equal(t, "error1", macadminsData.Macadmins.MunkiIssues[0].Name)
 
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, false, false, "url2", false, "", "", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostAll.ID, false, false, "url2", false, "", "", fleet.PersonalEnrollmentTypeNone))
 
 	macadminsData = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostAll.ID), nil, http.StatusOK, &macadminsData)
@@ -198,7 +199,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	assert.Equal(t, "warning1", macadminsData.Macadmins.MunkiIssues[0].Name)
 
 	// only mdm returns null on munki info
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostOnlyMDM.ID, false, true, "https://kandji.io", true, fleet.WellKnownMDMIru, "", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, hostOnlyMDM.ID, false, true, "https://kandji.io", true, fleet.WellKnownMDMIru, "", fleet.PersonalEnrollmentTypeNone))
 	macadminsData = macadminsDataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/macadmins", hostOnlyMDM.ID), nil, http.StatusOK, &macadminsData)
 	require.NotNil(t, macadminsData.Macadmins)
@@ -1030,6 +1031,16 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	})
 	require.NoError(t, err)
 
+	listHostsDiskEncryption := func() map[uint]*bool {
+		var listResp listHostsResponse
+		s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "query", t.Name())
+		byID := make(map[uint]*bool, len(listResp.Hosts))
+		for _, h := range listResp.Hosts {
+			byID[h.ID] = h.DiskEncryptionEnabled
+		}
+		return byID
+	}
+
 	// before any disk encryption is received, all hosts report NULL (even if
 	// some have disk space information, i.e. an entry exists in host_disks).
 	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hostWin.ID, 44.5, 55.6, 90.0, nil))
@@ -1048,6 +1059,12 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostLin.ID), nil, http.StatusOK, &getHostResp)
 	require.Equal(t, hostLin.ID, getHostResp.Host.ID)
 	require.Nil(t, getHostResp.Host.DiskEncryptionEnabled)
+
+	listed := listHostsDiskEncryption()
+	require.Len(t, listed, 3)
+	require.Nil(t, listed[hostWin.ID])
+	require.Nil(t, listed[hostMac.ID])
+	require.Nil(t, listed[hostLin.ID])
 
 	// set encrypted for all hosts
 	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), hostWin.ID, true, nil))
@@ -1068,6 +1085,11 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostLin.ID), nil, http.StatusOK, &getHostResp)
 	require.Equal(t, hostLin.ID, getHostResp.Host.ID)
 	require.True(t, *getHostResp.Host.DiskEncryptionEnabled)
+
+	listed = listHostsDiskEncryption()
+	require.Equal(t, new(true), listed[hostWin.ID])
+	require.Equal(t, new(true), listed[hostMac.ID])
+	require.Equal(t, new(true), listed[hostLin.ID])
 
 	// should succeed as we no longer require MDM to access this endpoint, as Linux encryption doesn't require MDM
 	var profiles getMDMProfilesSummaryResponse
@@ -1094,6 +1116,11 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostLin.ID), nil, http.StatusOK, &getHostResp)
 	require.Equal(t, hostLin.ID, getHostResp.Host.ID)
 	require.Nil(t, getHostResp.Host.DiskEncryptionEnabled)
+
+	listed = listHostsDiskEncryption()
+	require.Equal(t, new(false), listed[hostWin.ID])
+	require.Equal(t, new(false), listed[hostMac.ID])
+	require.Nil(t, listed[hostLin.ID])
 
 	// the orbit endpoint to set the disk encryption key always fails in this
 	// suite because MDM is not configured.
@@ -1237,7 +1264,7 @@ func (s *integrationTestSuite) TestGetHostIOSVitals() {
 	}
 }
 
-// hostAndroidVitalsJSONKeys are the JSON keys of the 13 Android vitals fields
+// hostAndroidVitalsJSONKeys are the JSON keys of the 15 Android vitals fields
 // added to fleet.Host: they must be fully omitted (not present, not null) from
 // the host response for non-Android hosts, or for a field that's absent from
 // the host's host_mdm_android_device_vitals row.
@@ -1245,7 +1272,7 @@ var hostAndroidVitalsJSONKeys = []string{
 	"adb_enabled", "passcode_protected", "play_protect_enabled", "encryption_type",
 	"manufacturer", "security_update_version", "device_kernel_version",
 	"bootloader_version", "system_update_status", "security_posture", "api_level",
-	"security_posture_details", "telephony_infos",
+	"security_posture_details", "telephony_infos", "imei", "meid",
 }
 
 func (s *integrationTestSuite) TestGetHostAndroidVitals() {
@@ -1282,6 +1309,8 @@ func (s *integrationTestSuite) TestGetHostAndroidVitals() {
 		BootloaderVersion:     new("slider-1.4-12345678"),
 		SystemUpdateStatus:    new("SECURITY_UPDATE_AVAILABLE"),
 		SecurityPosture:       new("POTENTIALLY_COMPROMISED"),
+		IMEI:                  new("A1000031212"),
+		MEID:                  new("A00000292788E1"),
 		APILevel:              new(int64(36)),
 		SecurityPostureDetails: []fleet.MDMAndroidPostureDetail{
 			{SecurityRisk: "COMPROMISED_OS", Advice: []string{"Factory reset the device"}},
@@ -1292,7 +1321,7 @@ func (s *integrationTestSuite) TestGetHostAndroidVitals() {
 		},
 	}
 
-	// A fully populated Android host returns all 13 fields, on both GET endpoints.
+	// A fully populated Android host returns all 15 fields, on both GET endpoints.
 	fullHost := newHost("android", "-full")
 	require.NoError(t, s.ds.SetOrUpdateHostMDMAndroidDeviceVitals(ctx, fullHost.UUID, fullVitals))
 
@@ -1303,6 +1332,8 @@ func (s *integrationTestSuite) TestGetHostAndroidVitals() {
 	require.True(t, *getHostResp.Host.AdbEnabled)
 	require.Len(t, getHostResp.Host.SecurityPostureDetails, 1)
 	require.Len(t, getHostResp.Host.TelephonyInfos, 2)
+	require.Equal(t, "A1000031212", *getHostResp.Host.IMEI)
+	require.Equal(t, "A00000292788E1", *getHostResp.Host.MEID)
 
 	hostJSON := s.getHostJSON(fmt.Sprintf("/api/latest/fleet/hosts/%d", fullHost.ID))
 	for _, key := range hostAndroidVitalsJSONKeys {
@@ -1324,7 +1355,7 @@ func (s *integrationTestSuite) TestGetHostAndroidVitals() {
 		assert.Contains(t, identifierJSON, key, "expected key %q in identifier response for fully populated Android host", key)
 	}
 
-	// A non-Android host omits all 13 keys, even though a row exists for it.
+	// A non-Android host omits all 15 keys, even though a row exists for it.
 	// (manufacturer in particular is a plausible-sounding key to leak.)
 	macHost := newHost("darwin", "-macos")
 	require.NoError(t, s.ds.SetOrUpdateHostMDMAndroidDeviceVitals(ctx, macHost.UUID, fullVitals))
@@ -1347,9 +1378,11 @@ func (s *integrationTestSuite) TestGetHostAndroidVitals() {
 	assert.NotContains(t, hostJSON, "adb_enabled")
 	assert.NotContains(t, hostJSON, "security_posture_details")
 	assert.NotContains(t, hostJSON, "telephony_infos")
+	assert.NotContains(t, hostJSON, "imei")
+	assert.NotContains(t, hostJSON, "meid")
 
 	// An Android host with no vitals row yet (hasn't reported since this
-	// shipped) omits all 13 keys, with no error.
+	// shipped) omits all 15 keys, with no error.
 	noRowHost := newHost("android", "-no-row")
 	hostJSON = s.getHostJSON(fmt.Sprintf("/api/latest/fleet/hosts/%d", noRowHost.ID))
 	for _, key := range hostAndroidVitalsJSONKeys {
@@ -2175,13 +2208,13 @@ func (s *integrationTestSuite) TestListHostReports() {
 	_, err = s.ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
 		{QueryID: qAlpha.ID, HostID: host.ID, LastFetched: earlier, Data: new(json.RawMessage(`{"col":"older"}`))},
 		{QueryID: qAlpha.ID, HostID: host.ID, LastFetched: now, Data: new(json.RawMessage(`{"col":"newest"}`))},
-	}, fleet.DefaultMaxQueryReportRows)
+	}, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	// Insert one result row for qDiscard (only appears when include_reports_dont_store_results=true).
 	_, err = s.ds.OverwriteQueryResultRows(ctx, []*fleet.ScheduledQueryResultRow{
 		{QueryID: qDiscard.ID, HostID: host.ID, LastFetched: now, Data: new(json.RawMessage(`{"col":"discarded"}`))},
-	}, fleet.DefaultMaxQueryReportRows)
+	}, fleet.DefaultMaxQueryReportRows, 0)
 	require.NoError(t, err)
 
 	url := fmt.Sprintf("/api/latest/fleet/hosts/%d/reports", host.ID)
@@ -2277,7 +2310,7 @@ func (s *integrationTestSuite) TestListHostReports() {
 		assert.False(t, discard.StoreResults)
 	})
 
-	t.Run("report_clipped when total results reach the cap", func(t *testing.T) {
+	t.Run("report_clipped is not set just because results reach the cap", func(t *testing.T) {
 		// Save the current cap before mutating.
 		var originalConfig fleet.AppConfig
 		s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &originalConfig)
@@ -2295,8 +2328,23 @@ func (s *integrationTestSuite) TestListHostReports() {
 		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "order_key", "name")
 		require.NoError(t, resp.Err)
 		require.Len(t, resp.Reports, 2)
-		assert.True(t, resp.Reports[0].ReportClipped)  // qAlpha has 2 rows == cap of 2
+		assert.False(t, resp.Reports[0].ReportClipped) // qAlpha has 2 rows == cap of 2, but nothing was rejected
 		assert.False(t, resp.Reports[1].ReportClipped) // qBeta has 0 rows
+	})
+
+	t.Run("report_clipped when a host's results were rejected below the cap", func(t *testing.T) {
+		s.lq.QueryReportsClippedOverride = func(queryIDs []uint) (map[uint]bool, error) {
+			assert.ElementsMatch(t, []uint{qAlpha.ID, qBeta.ID}, queryIDs)
+			return map[uint]bool{qBeta.ID: true}, nil
+		}
+		t.Cleanup(func() { s.lq.QueryReportsClippedOverride = nil })
+
+		var resp listHostReportsResponse
+		s.DoJSON("GET", url, nil, http.StatusOK, &resp, "order_key", "name")
+		require.NoError(t, resp.Err)
+		require.Len(t, resp.Reports, 2)
+		assert.False(t, resp.Reports[0].ReportClipped)
+		assert.True(t, resp.Reports[1].ReportClipped)
 	})
 
 	t.Run("name search", func(t *testing.T) {
@@ -2475,4 +2523,120 @@ func (s *integrationTestSuite) TestListHostReports() {
 		assert.False(t, hasIncludeAllReport(hostOnlyA.ID), "free tier must not surface include_all queries (subset of labels)")
 		assert.False(t, hasIncludeAllReport(hostBoth.ID), "free tier must not surface include_all queries (all labels)")
 	})
+}
+
+func (s *integrationTestSuite) TestHostsMDMPersonalEnrollmentFilters() {
+	t := s.T()
+	ctx := t.Context()
+
+	hosts := s.createHosts(t, "ios", "android", "darwin", "darwin", "darwin")
+	adue, workProfile, manualBYOD, companyManual, ade := hosts[0], hosts[1], hosts[2], hosts[3], hosts[4]
+	for _, c := range []struct {
+		host         *fleet.Host
+		fromDEP      bool
+		personalType fleet.PersonalEnrollmentType
+	}{
+		{adue, false, fleet.PersonalEnrollmentTypeAccountDriven},
+		{workProfile, false, fleet.PersonalEnrollmentTypeWorkProfile},
+		{manualBYOD, false, fleet.PersonalEnrollmentTypeManualProfile},
+		{companyManual, false, fleet.PersonalEnrollmentTypeNone},
+		{ade, true, fleet.PersonalEnrollmentTypeNone},
+	} {
+		require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, c.host.ID, false, true, "https://fleetdm.com", c.fromDEP, fleet.WellKnownMDMFleet, "", c.personalType))
+	}
+
+	label, err := s.ds.NewLabel(ctx, &fleet.Label{Name: t.Name(), Query: "select 1"})
+	require.NoError(t, err)
+	for _, h := range hosts {
+		require.NoError(t, s.ds.RecordLabelQueryExecutions(ctx, h, map[uint]*bool{label.ID: new(true)}, time.Now(), false))
+	}
+
+	reportHostIDs := func(t *testing.T, status string) []uint {
+		res := s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK,
+			"format", "csv", "columns", "id", "mdm_enrollment_status", status)
+		rows, err := csv.NewReader(res.Body).ReadAll()
+		res.Body.Close()
+		require.NoError(t, err)
+		var ids []uint
+		for _, row := range rows[1:] {
+			id, err := strconv.ParseUint(row[0], 10, 64)
+			require.NoError(t, err)
+			ids = append(ids, uint(id))
+		}
+		return ids
+	}
+
+	for _, c := range []struct {
+		status string
+		want   []uint
+	}{
+		{"personal", []uint{adue.ID, workProfile.ID}},
+		{"manual-personal", []uint{manualBYOD.ID}},
+		{"manual", []uint{companyManual.ID}},
+		{"automatic", []uint{ade.ID}},
+		{"enrolled", []uint{adue.ID, workProfile.ID, manualBYOD.ID, companyManual.ID, ade.ID}},
+	} {
+		t.Run(c.status, func(t *testing.T) {
+			var listResp listHostsResponse
+			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "mdm_enrollment_status", c.status)
+			require.ElementsMatch(t, c.want, pluckHostIDsFromHostResponse(listResp.Hosts))
+
+			var countResp countHostsResponse
+			s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "mdm_enrollment_status", c.status)
+			require.Equal(t, len(c.want), countResp.Count)
+
+			var labelResp listHostsResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", label.ID), nil, http.StatusOK, &labelResp, "mdm_enrollment_status", c.status)
+			require.ElementsMatch(t, c.want, pluckHostIDsFromHostResponse(labelResp.Hosts))
+
+			require.ElementsMatch(t, c.want, reportHostIDs(t, c.status))
+		})
+	}
+
+	// The single-host loaders share the MDM join, so a missing projection would fail them at runtime.
+	wantStatus := map[uint]string{
+		adue.ID:          fleet.MDMEnrollmentStatusPersonal,
+		workProfile.ID:   fleet.MDMEnrollmentStatusPersonal,
+		manualBYOD.ID:    fleet.MDMEnrollmentStatusManualPersonal,
+		companyManual.ID: fleet.MDMEnrollmentStatusManual,
+		ade.ID:           fleet.MDMEnrollmentStatusAutomatic,
+	}
+	for _, h := range hosts {
+		var hostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &hostResp)
+		require.NotNil(t, hostResp.Host.MDM.EnrollmentStatus)
+		require.Equal(t, wantStatus[h.ID], *hostResp.Host.MDM.EnrollmentStatus)
+
+		hostResp = getHostResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", h.UUID), nil, http.StatusOK, &hostResp)
+		require.Equal(t, wantStatus[h.ID], *hostResp.Host.MDM.EnrollmentStatus)
+
+		if h.Platform == "ios" {
+			continue // iOS/iPadOS authenticate the device page by UUID, not a device token
+		}
+		token := "token-" + h.UUID
+		require.NoError(t, s.ds.SetOrUpdateDeviceAuthToken(ctx, h.ID, token))
+		deviceRes := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+		var deviceResp getDeviceHostResponse
+		require.NoError(t, json.NewDecoder(deviceRes.Body).Decode(&deviceResp))
+		deviceRes.Body.Close()
+		require.Equal(t, wantStatus[h.ID], *deviceResp.Host.MDM.EnrollmentStatus)
+	}
+
+	res := s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "mdm_enrollment_status", "bogus")
+	require.Contains(t, extractServerErrorText(res.Body), "Invalid mdm_enrollment_status")
+
+	require.NoError(t, s.ds.GenerateAggregatedMunkiAndMDM(ctx))
+
+	var summary getHostMDMSummaryResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts/summary/mdm", nil, http.StatusOK, &summary)
+	require.Equal(t, 2, summary.MDMStatus.EnrolledPersonalHostsCount)
+	require.Equal(t, 1, summary.MDMStatus.EnrolledManualPersonalHostsCount)
+
+	// macadmins only aggregates macOS hosts, where the manual BYOD Mac is the only personal one.
+	var macadmins getAggregatedMacadminsDataResponse
+	s.DoJSON("GET", "/api/latest/fleet/macadmins", nil, http.StatusOK, &macadmins)
+	require.NotNil(t, macadmins.Macadmins)
+	require.Equal(t, 0, macadmins.Macadmins.MDMStatus.EnrolledPersonalHostsCount)
+	require.Equal(t, 1, macadmins.Macadmins.MDMStatus.EnrolledManualPersonalHostsCount)
 }

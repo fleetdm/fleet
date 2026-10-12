@@ -96,7 +96,7 @@ func NewClient(baseURL, deviceToken string, opts ...Option) *Client {
 	c := &Client{
 		baseURL:    strings.TrimRight(baseURL, "/"),
 		token:      strings.ToLower(deviceToken),
-		httpClient: fleethttp.NewClient(), // deliberately no timeout: SSE streams are long-lived
+		httpClient: fleethttp.NewClient(fleethttp.WithNoTimeout()), // deliberately no timeout: SSE streams are long-lived
 		backoffMin: time.Second,
 		backoffMax: 30 * time.Second,
 		logf:       func(string, ...any) {},

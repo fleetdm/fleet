@@ -2,31 +2,27 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
+import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
+import Icon from "components/Icon/Icon";
+import ListItem from "components/ListItem";
+import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
+import ProgressBar from "components/ProgressBar";
+import SectionHeader from "components/SectionHeader";
+import Spinner from "components/Spinner";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
+import { isValidScriptBatchStatus, ScriptBatchStatus } from "interfaces/script";
 import PATHS from "router/paths";
-
 import scriptsAPI, {
   IScriptBatchSummaryV2,
   IScriptBatchSummariesResponse,
 } from "services/entities/scripts";
-
-import { isValidScriptBatchStatus, ScriptBatchStatus } from "interfaces/script";
-
 import { COLORS } from "styles/var/colors";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
-import Spinner from "components/Spinner";
-import ProgressBar from "components/ProgressBar";
-import SectionHeader from "components/SectionHeader";
-import TabNav from "components/TabNav";
-import TabText from "components/TabText";
-import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
-import ListItem from "components/ListItem";
-import Icon from "components/Icon/Icon";
-import EmptyState from "components/EmptyState";
-import CustomLink from "components/CustomLink";
-
-import { IScriptsCommonProps } from "../../ScriptsNavItems";
 import { getWhen } from "../../helpers";
+import { IScriptsCommonProps } from "../../ScriptsNavItems";
 
 const baseClass = "script-batch-progress";
 

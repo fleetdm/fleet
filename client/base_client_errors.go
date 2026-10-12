@@ -202,6 +202,11 @@ func ExtractServerErrorNameReasons(body io.Reader) ([]string, []string) {
 type StatusCodeErr struct {
 	Code int
 	Body string
+	// Name is the field name the server reported alongside the error reason
+	// (e.g. "scripts[3]"), empty when the response carried none. It is not
+	// part of the Error() output; callers can use it to point at the
+	// offending input.
+	Name string
 }
 
 func (e *StatusCodeErr) Error() string {

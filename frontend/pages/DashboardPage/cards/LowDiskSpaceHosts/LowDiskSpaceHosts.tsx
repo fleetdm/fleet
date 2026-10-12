@@ -1,6 +1,6 @@
 import React from "react";
-import PATHS from "router/paths";
 
+import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 
 import HostCountCard from "../HostCountCard";

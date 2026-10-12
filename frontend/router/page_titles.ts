@@ -1,12 +1,21 @@
 // Note: Dynamic page titles are constructed for host, software, query, and policy details on their respective *DetailsPage.tsx file
 
-import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 import PATHS from "router/paths";
+import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 
 // Note: Order matters for use of array.find() (specific subpaths must be listed before their parent path)
 export default [
   { path: PATHS.DASHBOARD, title: `Dashboard | ${DOCUMENT_TITLE_SUFFIX}` },
   { path: PATHS.MANAGE_HOSTS, title: `Hosts | ${DOCUMENT_TITLE_SUFFIX}` },
+  {
+    path: PATHS.CONTROLS_CUSTOM_SETTINGS_NEW,
+    title: `Add profile | ${DOCUMENT_TITLE_SUFFIX}`,
+  },
+  {
+    // any other subpath of the profiles list is a profile's edit page
+    path: `${PATHS.CONTROLS_CUSTOM_SETTINGS}/`,
+    title: `Edit profile | ${DOCUMENT_TITLE_SUFFIX}`,
+  },
   {
     path: PATHS.CONTROLS,
     title: `Controls | ${DOCUMENT_TITLE_SUFFIX}`,

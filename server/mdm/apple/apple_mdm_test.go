@@ -2,6 +2,9 @@ package apple_mdm
 
 import (
 	"context"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/json"
 	"errors"
 	"io"
@@ -559,6 +562,60 @@ func TestEnrollmentProfileNewEnrollmentSubjectOUMarker(t *testing.T) {
 		renewal, err := GenerateACMEEnrollmentProfileMobileconfig("Fleet", "https://example.com", "acme-ident", "SERIAL123", "com.foo.bar", MDMAccessRightAll, false)
 		require.NoError(t, err)
 		require.NotContains(t, string(renewal), FleetEnrollmentSubjectOU)
+
+		// The ACME payload gets no %SerialNumber% substitution from the device, so the CN must be
+		// the literal serial to match the order's permanent-identifier at finalize.
+		for _, profile := range [][]byte{fresh, renewal} {
+			require.NotContains(t, string(profile), "%SerialNumber%")
+			require.Contains(t, string(profile), "<string>CN</string>\n\t\t\t\t\t\t<string>SERIAL123</string>")
+		}
+	})
+}
+
+// Every enrollment profile must declare the com.apple.mdm.token server capability, otherwise the
+// device never sends the GetToken check-in that Fleet answers for com.apple.maid.
+// We know we can easily add capabilities on a renewing profile, so we enforce it for all types.
+func TestEnrollmentProfileServerCapabilities(t *testing.T) {
+	const tokenCapability = "com.apple.mdm.token" // nolint:gosec // not a credential
+
+	requireTokenCapability := func(t *testing.T, profile []byte) {
+		t.Helper()
+
+		var parsed struct {
+			PayloadContent []struct {
+				PayloadType        string
+				ServerCapabilities []string
+			}
+		}
+		require.NoError(t, plist.Unmarshal(profile, &parsed))
+
+		var found bool
+		for _, payload := range parsed.PayloadContent {
+			if payload.PayloadType != "com.apple.mdm" {
+				continue
+			}
+			found = true
+			require.Contains(t, payload.ServerCapabilities, tokenCapability)
+		}
+		require.True(t, found, "no com.apple.mdm payload in profile")
+	}
+
+	t.Run("standard enrollment", func(t *testing.T) {
+		profile, err := GenerateEnrollmentProfileMobileconfig("Fleet", "https://example.com", "chal", "com.foo.bar", MDMAccessRightAll, true)
+		require.NoError(t, err)
+		requireTokenCapability(t, profile)
+	})
+
+	t.Run("account-driven enrollment", func(t *testing.T) {
+		profile, err := GenerateAccountDrivenEnrollmentProfileMobileconfig("Fleet", "https://example.com", "chal", "com.foo.bar", "user@example.com", true)
+		require.NoError(t, err)
+		requireTokenCapability(t, profile)
+	})
+
+	t.Run("ACME enrollment", func(t *testing.T) {
+		profile, err := GenerateACMEEnrollmentProfileMobileconfig("Fleet", "https://example.com", "acme-ident", "SERIAL123", "com.foo.bar", MDMAccessRightAll, true)
+		require.NoError(t, err)
+		requireTokenCapability(t, profile)
 	})
 }
 
@@ -944,11 +1001,11 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
 			return 0, nil
 		}
-		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) (map[string]bool, error) {
 			return nil, nil
 		}
 		// Mock clear flow - no hosts need clearing
-		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context, clearCommandUUID string) ([]string, error) {
 			return nil, nil
 		}
 		// Mock auto-rotation - no hosts need auto-rotation
@@ -980,11 +1037,11 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 			return 0, nil
 		}
 		hostUUID := "host-uuid-1"
-		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
-			return []string{hostUUID}, nil
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) (map[string]bool, error) {
+			return map[string]bool{hostUUID: false}, nil
 		}
 		// Mock clear flow - no hosts need clearing
-		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context, clearCommandUUID string) ([]string, error) {
 			return nil, nil
 		}
 		// Mock auto-rotation - no hosts need auto-rotation
@@ -1036,11 +1093,11 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 			return 0, nil
 		}
 		hostUUID := "host-uuid-1"
-		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
-			return []string{hostUUID}, nil
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) (map[string]bool, error) {
+			return map[string]bool{hostUUID: false}, nil
 		}
 		// Mock clear flow - no hosts need clearing
-		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context, clearCommandUUID string) ([]string, error) {
 			return nil, nil
 		}
 		// Mock auto-rotation - no hosts need auto-rotation
@@ -1092,11 +1149,11 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 			return 0, nil
 		}
 		hostUUID := "host-uuid-1"
-		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
-			return []string{hostUUID}, nil
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) (map[string]bool, error) {
+			return map[string]bool{hostUUID: false}, nil
 		}
 		// Mock clear flow - no hosts need clearing
-		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context, clearCommandUUID string) ([]string, error) {
 			return nil, nil
 		}
 		// Mock auto-rotation - no hosts need auto-rotation
@@ -1139,7 +1196,7 @@ func TestSendRecoveryLockCommands(t *testing.T) {
 type mockRecoveryLockCommander struct {
 	setRecoveryLockFn    func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	clearRecoveryLockFn  func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
-	rotateRecoveryLockFn func(ctx context.Context, hostUUID string, cmdUUID string) error
+	rotateRecoveryLockFn func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 }
 
 func (m *mockRecoveryLockCommander) SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
@@ -1156,9 +1213,9 @@ func (m *mockRecoveryLockCommander) ClearRecoveryLock(ctx context.Context, hostU
 	return nil
 }
 
-func (m *mockRecoveryLockCommander) RotateRecoveryLock(ctx context.Context, hostUUID string, cmdUUID string) error {
+func (m *mockRecoveryLockCommander) RotateRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
 	if m.rotateRecoveryLockFn != nil {
-		return m.rotateRecoveryLockFn(ctx, hostUUID, cmdUUID)
+		return m.rotateRecoveryLockFn(ctx, hostUUIDs, cmdUUID)
 	}
 	return nil
 }
@@ -1178,13 +1235,13 @@ func TestSendClearRecoveryLockCommands(t *testing.T) {
 			return 0, nil
 		}
 		// No hosts need SET
-		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) (map[string]bool, error) {
 			return nil, nil
 		}
 
 		hostUUID := "host-uuid-1"
 		// ClaimHostsForRecoveryLockClear queries verified hosts where config is disabled and marks them pending
-		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context, clearCommandUUID string) ([]string, error) {
 			return []string{hostUUID}, nil
 		}
 		// Mock auto-rotation - no hosts need auto-rotation
@@ -1217,11 +1274,11 @@ func TestSendClearRecoveryLockCommands(t *testing.T) {
 			return 0, nil
 		}
 		// No hosts need SET
-		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) (map[string]bool, error) {
 			return nil, nil
 		}
 
-		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context, clearCommandUUID string) ([]string, error) {
 			return nil, nil
 		}
 		// Mock auto-rotation - no hosts need auto-rotation
@@ -1409,4 +1466,69 @@ func TestSendManagedLocalAccountRotationCommands(t *testing.T) {
 		require.True(t, clearCalled)
 		require.Empty(t, loggedActivities)
 	})
+}
+
+func TestParseAppleMDMCertificateBindingExtension(t *testing.T) {
+	utf8Value := func(t *testing.T, s string) []byte {
+		v, err := asn1.MarshalWithParams(s, "utf8")
+		require.NoError(t, err)
+		return v
+	}
+	bindingExt := func(value []byte) pkix.Extension {
+		return pkix.Extension{Id: AppleMDMCertificateBindingExtensionOID, Value: value}
+	}
+	certWith := func(exts ...pkix.Extension) *x509.Certificate {
+		return &x509.Certificate{Extensions: exts}
+	}
+
+	t.Run("no extension", func(t *testing.T) {
+		otherExt := pkix.Extension{Id: asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 63991, 1, 1}, Value: utf8Value(t, "host-identity")}
+		binding, err := ParseAppleMDMCertificateBindingExtension(certWith(otherExt))
+		require.NoError(t, err)
+		require.Nil(t, binding)
+	})
+
+	t.Run("round trips a built extension", func(t *testing.T) {
+		ext, err := BuildAppleMDMCertificateBindingExtension(AppleMDMCertificateBindingExtension{
+			Purpose: fleet.AppleMDMCertPurposeADE, UDID: new("udid"), Serial: new("serial"),
+		})
+		require.NoError(t, err)
+		binding, err := ParseAppleMDMCertificateBindingExtension(certWith(ext))
+		require.NoError(t, err)
+		require.Equal(t, &AppleMDMCertificateBindingExtension{
+			Version: 1, Purpose: fleet.AppleMDMCertPurposeADE, UDID: new("udid"), Serial: new("serial"),
+		}, binding)
+	})
+
+	valid := bindingExt(utf8Value(t, `{"v":1,"purpose":"ade","udid":"udid","serial":"serial"}`))
+	octetString, err := asn1.Marshal([]byte(`{"v":1,"purpose":"ade"}`))
+	require.NoError(t, err)
+	printableString, err := asn1.MarshalWithParams("v1", "printable")
+	require.NoError(t, err)
+
+	rejected := []struct {
+		name string
+		cert *x509.Certificate
+	}{
+		{"duplicate extension", certWith(valid, valid)},
+		{"raw JSON instead of DER", certWith(bindingExt([]byte(`{"v":1,"purpose":"ade"}`)))},
+		{"empty value", certWith(bindingExt(nil))},
+		{"truncated DER", certWith(bindingExt(valid.Value[:len(valid.Value)-3]))},
+		{"octet string instead of UTF8String", certWith(bindingExt(octetString))},
+		{"printable string instead of UTF8String", certWith(bindingExt(printableString))},
+		{"trailing bytes after the UTF8String", certWith(bindingExt(append(append([]byte{}, valid.Value...), 0x00)))},
+		{"malformed JSON", certWith(bindingExt(utf8Value(t, `{"v":1,"purpose":`)))},
+		{"JSON of the wrong shape", certWith(bindingExt(utf8Value(t, `["ade"]`)))},
+		{"version as a string", certWith(bindingExt(utf8Value(t, `{"v":"1","purpose":"ade"}`)))},
+		{"missing version", certWith(bindingExt(utf8Value(t, `{"purpose":"ade","udid":"udid","serial":"serial"}`)))},
+		{"version 0", certWith(bindingExt(utf8Value(t, `{"v":0,"purpose":"ade","udid":"udid","serial":"serial"}`)))},
+		{"unsupported version 2", certWith(bindingExt(utf8Value(t, `{"v":2,"purpose":"ade","udid":"udid","serial":"serial"}`)))},
+	}
+	for _, c := range rejected {
+		t.Run("rejects "+c.name, func(t *testing.T) {
+			binding, err := ParseAppleMDMCertificateBindingExtension(c.cert)
+			require.Error(t, err)
+			require.Nil(t, binding)
+		})
+	}
 }

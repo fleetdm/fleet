@@ -1,7 +1,7 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
-import { createMockHostPastActivity } from "__mocks__/activityMock";
+import React from "react";
 
+import { createMockHostPastActivity } from "__mocks__/activityMock";
 import { ActivityType, IHostPastActivityType } from "interfaces/activity";
 
 import PolicyAutomationActivityItem from "./PolicyAutomationActivityItem";

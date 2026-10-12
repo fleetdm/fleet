@@ -1,4 +1,8 @@
 import React, { useState, useEffect } from "react";
+
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
+import Spinner from "components/Spinner";
 import {
   IDeviceSoftwareWithUiStatus,
   IHostSoftwareUiStatus,
@@ -6,9 +10,6 @@ import {
   isSoftwareInProgressStatus,
   isSoftwarePendingStatus,
 } from "interfaces/software";
-import Button from "components/buttons/Button";
-import Icon from "components/Icon";
-import Spinner from "components/Spinner";
 
 const baseClass = "tile-action-status";
 

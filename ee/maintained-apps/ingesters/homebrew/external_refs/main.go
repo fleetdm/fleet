@@ -13,7 +13,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"microsoft-powerpoint/darwin":   {MicrosoftVersionFromReleaseNotes},
 	"microsoft-onenote/darwin":      {MicrosoftVersionFromReleaseNotes},
 	"brave-browser/darwin":          {BraveVersionTransformer},
-	"whatsapp/darwin":               {WhatsAppVersionShortener, WhatsAppInstallerURL},
+	"whatsapp/darwin":               {WhatsAppInstallerURL},
 	"google-chrome/darwin":          {ChromePKGInstaller},
 	"google-drive/darwin":           {GoogleDriveVersionShortener},
 	"1password/darwin":              {OnePasswordPKGInstaller},
@@ -29,6 +29,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"warp/darwin":                   {WarpDirectInstaller},
 	"android-studio/darwin":         {AndroidStudioVersionShortener},
 	"microsoft-auto-update/darwin":  {MicrosoftAutoUpdateVersionShortener},
+	"microsoft-365-copilot/darwin":  {Microsoft365CopilotVersionShortener},
 	"opera/darwin":                  {OperaVersionShortener},
 	"twingate/darwin":               {TwingateVersionShortener},
 	"citrix-workspace/darwin":       {CitrixWorkspaceVersionShortener},
@@ -45,9 +46,12 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"onedrive/darwin":               {OneDriveVersionShortener},
 	"pd/darwin":                     {PdVersionTransformer},
 	"smallstepagent/darwin":         {SmallstepAgentVersionTransformer},
+	"raspberry-pi-imager/darwin":    {RaspberryPiImagerVersionTransformer},
 	"sonos/darwin":                  {SonosVersionTransformer},
 	"harmony-sase/darwin":           {HarmonySASEVersionShortener},
 	"visual-studio-code/darwin":     {VSCodeUniversalInstaller},
+	"shottr/darwin":                 {ShottrVersionTransformer},
+	"outset/darwin":                 {OutsetVersionShortener},
 }
 
 func ChromePKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {

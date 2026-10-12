@@ -1,12 +1,10 @@
 import React, { useState, useCallback, useEffect } from "react";
 
-import { ITeamFormData as IFleetFormData } from "services/entities/teams";
-
-import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-
 import InputField from "components/forms/fields/InputField";
+import Modal from "components/Modal";
+import { ITeamFormData as IFleetFormData } from "services/entities/teams";
+import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
 
 const baseClass = "create-fleet-modal";
 

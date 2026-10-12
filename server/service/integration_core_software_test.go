@@ -56,7 +56,9 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", ExtensionID: "abc", ExtensionFor: "edge"},
 		{Name: "bar", Version: "0.0.3", Source: "apps", ExtensionID: "xyz", ExtensionFor: "chrome"},
-		{Name: "baz", Version: "0.0.4", Source: "apps"},
+		// A Go binary reports its toolchain version in release, and its module path in
+		// extension_id, which is suppressed for this source only.
+		{Name: "air", Version: "v1.48.0", Source: "go_binaries", ExtensionID: "github.com/air-verse/air", Release: "go1.26.1"},
 	}
 	_, err = s.ds.UpdateHostSoftware(context.Background(), host.ID, software)
 	require.NoError(t, err)
@@ -107,6 +109,7 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 				assert.Equal(t, s.Source, contains.Source)
 				assert.Equal(t, s.ExtensionID, contains.ExtensionID)
 				assert.Equal(t, s.ExtensionFor, contains.ExtensionFor)
+				assert.Equal(t, s.Release, contains.Release)
 				assert.Equal(t, s.GenerateCPE, contains.GenerateCPE)
 				assert.Len(t, contains.Vulnerabilities, len(s.Vulnerabilities))
 				for i, vuln := range s.Vulnerabilities {
@@ -145,8 +148,19 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 		Vulnerabilities: nil,
 	}
 
+	// The module path stored in extension_id is not exposed for go_binaries; the other
+	// sources above keep theirs.
+	expectedSoftGo := &fleet.Software{
+		Name:        "air",
+		Version:     "v1.48.0",
+		Source:      "go_binaries",
+		ExtensionID: "",
+		Release:     "go1.26.1",
+	}
+
 	assertSoftware(t, hostResponse.Host.Software, expectedSoft1)
 	assertSoftware(t, hostResponse.Host.Software, expectedSoft2)
+	assertSoftware(t, hostResponse.Host.Software, expectedSoftGo)
 
 	// no software host counts have been calculated yet, so this returns nothing
 	var lsResp listSoftwareResponse
@@ -282,6 +296,21 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusBadRequest, &lsResp, "per_page", "2", "page", "-10")
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusBadRequest, &lsResp, "per_page", "-2", "page", "2")
 	s.DoJSON("GET", "/api/latest/fleet/software/count", nil, http.StatusBadRequest, &lsResp, "per_page", "-2", "page", "2")
+}
+
+// softwareTypeFilterErrorCases are the invalid source and extension_for requests, with the error each
+// returns. The exact wording is pinned in the parser's unit test.
+var softwareTypeFilterErrorCases = []struct {
+	params []string
+	reason string
+}{
+	{[]string{"source", "app"}, fmt.Sprintf(fleet.InvalidSoftwareSourceErrMsg, "app")},
+	{[]string{"source", "chrome_extensions", "extension_for", "brav"}, fmt.Sprintf(fleet.InvalidSoftwareExtensionForErrMsg, "brav")},
+	{[]string{"extension_for", "brave"}, fleet.SoftwareExtensionForRequiresSourceErrMsg},
+	{
+		[]string{"source", "apps,chrome_extensions", "extension_for", "cursor"},
+		fmt.Sprintf(fleet.SoftwareExtensionForSourceNotSelectedErrMsg, "cursor", "vscode_extensions"),
+	},
 }
 
 func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
@@ -645,6 +674,31 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	require.Equal(t, 10, versionsResp.Count)
 	// TODO(jacob) use `assertVersionsResp`
 	// assertVersionsResp(versionsResp, sws[:10], hostsCountTs, "", 10, 1)
+
+	// filter by source and extension_for; even-indexed software are Chrome extensions, odd are apps
+	for _, c := range softwareTypeFilterErrorCases {
+		res := s.Do("GET", "/api/latest/fleet/software/versions", nil, http.StatusUnprocessableEntity, c.params...)
+		require.Contains(t, extractServerErrorText(res.Body), c.reason)
+	}
+	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versionsResp,
+		"source", "chrome_extensions", "extension_for", "chrome", "per_page", "5")
+	require.Equal(t, 10, versionsResp.Count)
+	require.Len(t, versionsResp.Software, 5)
+	for _, sw := range versionsResp.Software {
+		require.Equal(t, "chrome_extensions", sw.Source)
+	}
+
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(context.Background(), time.Now()))
+	for _, c := range softwareTypeFilterErrorCases {
+		res := s.Do("GET", "/api/latest/fleet/software/titles", nil, http.StatusUnprocessableEntity, c.params...)
+		require.Contains(t, extractServerErrorText(res.Body), c.reason)
+	}
+	var titlesResp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &titlesResp, "source", "apps")
+	require.Equal(t, 10, titlesResp.Count)
+	for _, title := range titlesResp.SoftwareTitles {
+		require.Equal(t, "apps", title.Source)
+	}
 
 	// filter by the team, 2 by page
 	lsResp = listSoftwareResponse{}

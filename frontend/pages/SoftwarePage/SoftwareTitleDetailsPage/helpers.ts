@@ -7,9 +7,11 @@ import {
   ISoftwarePackage,
   IFleetMaintainedVersion,
 } from "interfaces/software";
-import endpoints from "utilities/endpoints";
 import URL_PREFIX from "router/url_prefix";
+import endpoints from "utilities/endpoints";
+
 import { getDisplayedSoftwareName } from "../helpers";
+
 import { deriveAccordionRowState } from "./LibraryItemAccordion/helpers";
 import { LibraryItemBadgeState } from "./LibraryItemAccordion/LibraryItemAccordion";
 

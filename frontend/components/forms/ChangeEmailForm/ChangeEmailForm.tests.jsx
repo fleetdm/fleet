@@ -1,7 +1,8 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
+import React from "react";
 
 import { renderWithSetup } from "test/test-utils";
+
 import ChangeEmailForm from "./ChangeEmailForm";
 
 describe("<ChangeEmailForm />", () => {

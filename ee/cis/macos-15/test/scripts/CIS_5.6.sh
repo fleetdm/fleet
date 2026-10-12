@@ -3,6 +3,8 @@
 # Removes root's secure token, disables the root account, then deletes any
 # AuthenticationAuthority value the disable step may have re-added — so the
 # key is absent (query reads value = '') regardless of OS-specific behavior.
+# `dsenableroot -d` needs an interactive admin login and silently no-ops under
+# Fleet's script runner; the `dscl delete` is what actually disables root.
 /usr/bin/sudo /usr/bin/fdesetup remove -user root 2>/dev/null || true
 /usr/bin/sudo /usr/sbin/dsenableroot -d 2>/dev/null || true
 /usr/bin/sudo /usr/bin/dscl /Local/Default delete /Users/root AuthenticationAuthority 2>/dev/null || true

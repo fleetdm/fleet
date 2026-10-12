@@ -2,7 +2,6 @@ package packaging
 
 import (
 	"bytes"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -20,39 +19,22 @@ func TestWindowsWixTemplateEUAToken(t *testing.T) {
 		Architecture:    ArchAmd64,
 	}
 
-	t.Run("EUA_TOKEN property and flag included when enabled", func(t *testing.T) {
+	t.Run("EUA_TOKEN property and env var included when enabled", func(t *testing.T) {
 		opt := baseOpt
 		opt.EnableEUATokenProperty = true
 
 		var buf bytes.Buffer
-		err := windowsWixTemplate.Execute(&buf, opt)
-		require.NoError(t, err)
-
-		output := buf.String()
-		assert.Contains(t, output, `<Property Id="EUA_TOKEN" Value="dummy"/>`)
-
-		var argsLine string
-		for line := range strings.SplitSeq(output, "\n") {
-			if strings.Contains(line, "Arguments=") && strings.Contains(line, "--fleet-url") {
-				argsLine = line
-				break
-			}
-		}
-		require.NotEmpty(t, argsLine, "ServiceInstall Arguments line not found in template output")
-		assert.Contains(t, argsLine, `--eua-token="[EUA_TOKEN]"`,
-			"eua-token flag should be in ServiceInstall Arguments")
+		require.NoError(t, windowsWixTemplate.Execute(&buf, opt))
+		assert.Contains(t, buf.String(), `<Property Id="EUA_TOKEN" Value="dummy"/>`)
+		assert.Contains(t, windowsServiceEnvironment(t, opt), "ORBIT_EUA_TOKEN=[EUA_TOKEN]")
 	})
 
-	t.Run("EUA_TOKEN property and flag absent when disabled", func(t *testing.T) {
+	t.Run("EUA_TOKEN property and env var absent when disabled", func(t *testing.T) {
 		opt := baseOpt
 		opt.EnableEUATokenProperty = false
 
 		var buf bytes.Buffer
-		err := windowsWixTemplate.Execute(&buf, opt)
-		require.NoError(t, err)
-
-		output := buf.String()
-		assert.NotContains(t, output, `EUA_TOKEN`)
-		assert.NotContains(t, output, `--eua-token`)
+		require.NoError(t, windowsWixTemplate.Execute(&buf, opt))
+		assert.NotContains(t, buf.String(), `EUA_TOKEN`)
 	})
 }

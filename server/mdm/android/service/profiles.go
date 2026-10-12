@@ -28,6 +28,10 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Log
 // ReconcileProfilesWithClient is like ReconcileProfiles but allows injecting a custom client for testing.
 // If client is nil, a new AMAPI client will be created.
 func ReconcileProfilesWithClient(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, licenseKey string, client androidmgmt.Client, androidAgentConfig config.AndroidAgentConfig, batchSize int) (err error) {
+	// Hosts whose AMAPI call hits the quota are recorded as failed and picked up on a later run; waiting out
+	// the quota here would stall every other host in the batch.
+	ctx = androidmgmt.WithoutRetry(ctx)
+
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get app config")
@@ -45,7 +49,7 @@ func ReconcileProfilesWithClient(ctx context.Context, ds fleet.Datastore, logger
 	}
 
 	if client == nil {
-		client = newAMAPIClient(ctx, logger, licenseKey)
+		client = NewAMAPIClient(ctx, logger, licenseKey)
 		authSecret, err := getClientAuthenticationSecret(ctx, ds)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting Android client authentication secret for profile reconciler")
@@ -116,6 +120,14 @@ func getClientAuthenticationSecret(ctx context.Context, ds fleet.Datastore) (str
 func (r *profileReconciler) ReconcileProfiles(ctx context.Context, cursor string, batchSize int) (int, error) {
 	if err := r.reconcileCertificateTemplates(ctx); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "reconcile certificate templates")
+	}
+
+	// Profile rows are only written once the whole batch was sent, so a host can have its
+	// rows reset for redelivery (e.g. by the setup experience replacing its policy) after they
+	// were read here. Rows reset since this time are not overwritten with the stale state.
+	selectedAt, err := r.DS.GetMDMAndroidProfilesWriteTime(ctx)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "get current time before listing android profiles to send")
 	}
 
 	// get the list of hosts that need to have their profiles applied
@@ -195,7 +207,7 @@ func (r *profileReconciler) ReconcileProfiles(ctx context.Context, cursor string
 		r.Logger.DebugContext(ctx, "android profile reconciler processed hosts", "host_count", hostCount, "profile_count", len(bulkHostProfs))
 	}
 
-	if err := r.DS.BulkUpsertMDMAndroidHostProfiles(ctx, bulkHostProfs); err != nil {
+	if err := r.DS.BulkUpsertMDMAndroidHostProfilesUnlessResetSince(ctx, bulkHostProfs, selectedAt); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "bulk upsert android host profiles")
 	}
 	return hostCount, nil

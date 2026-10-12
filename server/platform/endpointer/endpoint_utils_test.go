@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -183,6 +185,71 @@ func TestHTTPPreAuthMiddlewareRunsBeforeDecode(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 	assert.False(t, decodeCalled, "decoder must not run when pre-auth rejects")
 	assert.False(t, authCalled, "auth middleware must not run when pre-auth rejects")
+}
+
+func TestMultipartTempFilesRemovedAfterRequest(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("TMPDIR", tmpDir)
+
+	for _, decodeErr := range []error{nil, errors.New("bad form")} {
+		var spooled int
+		var flushable bool
+		r := mux.NewRouter()
+		ce := &CommonEndpointer[testHandlerFunc]{
+			EP: nopEP{},
+			MakeDecoderFn: func(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
+				return func(ctx context.Context, r *http.Request) (any, error) {
+					if err := r.ParseMultipartForm(1 << 10); err != nil {
+						return nil, err
+					}
+					files, _ := filepath.Glob(filepath.Join(tmpDir, "multipart-*"))
+					spooled = len(files)
+					return nopRequest{}, decodeErr
+				}
+			},
+			EncodeFn: func(ctx context.Context, w http.ResponseWriter, i any) error {
+				_, flushable = w.(http.Flusher)
+				w.WriteHeader(http.StatusOK)
+				return nil
+			},
+			AuthMiddleware: func(next endpoint.Endpoint) endpoint.Endpoint {
+				return func(ctx context.Context, req any) (any, error) {
+					if authctx, ok := authz_ctx.FromContext(ctx); ok {
+						authctx.SetChecked()
+					}
+					return next(ctx, req)
+				}
+			},
+			Router: r,
+			Opts:   []kithttp.ServerOption{kithttp.ServerErrorEncoder(func(_ context.Context, _ error, w http.ResponseWriter) { w.WriteHeader(http.StatusBadRequest) })},
+		}
+		ce.handleEndpoint("/", func(ctx context.Context, request any) (platform_http.Errorer, error) {
+			return nopResponse{}, nil
+		}, nil, "POST")
+		srv := httptest.NewServer(r)
+		t.Cleanup(srv.Close)
+
+		var body bytes.Buffer
+		mw := multipart.NewWriter(&body)
+		fw, err := mw.CreateFormFile("software", "a.pkg")
+		require.NoError(t, err)
+		_, err = fw.Write(bytes.Repeat([]byte{0}, 64<<10))
+		require.NoError(t, err)
+		require.NoError(t, mw.Close())
+
+		resp, err := http.Post(srv.URL+"/", mw.FormDataContentType(), &body)
+		require.NoError(t, err)
+		resp.Body.Close()
+		srv.Close() // waits for the finalizer
+
+		require.Equal(t, 1, spooled, "file part should be spooled to disk")
+		if decodeErr == nil {
+			assert.True(t, flushable, "encoder must still see http.Flusher")
+		}
+		files, err := filepath.Glob(filepath.Join(tmpDir, "multipart-*"))
+		require.NoError(t, err)
+		assert.Empty(t, files, "decode error: %v", decodeErr)
+	}
 }
 
 // TestHTTPPreAuthMiddlewarePassThrough asserts that when the pre-auth
@@ -576,6 +643,35 @@ func TestMakeDecoderGzipBomb(t *testing.T) {
 	})
 }
 
+// A DecodeBody that hands its decode error back as a UserMessageError, as applyTeamSpecsRequest does, only
+// gets a 413 for an oversized body if that wrapper still unwraps to the http.MaxBytesError underneath.
+// Without it the request is answered with a 400 carrying the raw read error.
+func TestMakeDecoderBodyDecoderWrappedSizeError(t *testing.T) {
+	const limit = 100
+	isBodyDecoder := func(v reflect.Value) bool {
+		_, ok := reflect.TypeAssert[*testGzipBodyDecoderType](v)
+		return ok
+	}
+	decodeBodyFn := func(_ context.Context, _ *http.Request, v reflect.Value, body io.Reader) error {
+		if err := json.NewDecoder(body).Decode(v.Interface()); err != nil {
+			return platform_http.NewUserMessageError(err, http.StatusBadRequest)
+		}
+		return nil
+	}
+	decode := MakeDecoder(testGzipBodyDecoderType{}, defaultJSONUnmarshal, nil, isBodyDecoder, decodeBodyFn, nil, limit)
+
+	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"data":"`+strings.Repeat("x", limit*10)+`"}`))
+	_, err := decode(t.Context(), r)
+	ple, ok := errors.AsType[platform_http.PayloadTooLargeError](err)
+	require.True(t, ok, "an oversized body must be reported as PayloadTooLargeError, got: %v", err)
+	assert.Equal(t, int64(limit), ple.MaxRequestSize)
+
+	w := httptest.NewRecorder()
+	EncodeError(t.Context(), err, w, nil)
+	assert.Equal(t, http.StatusRequestEntityTooLarge, w.Code)
+	assert.NotContains(t, w.Body.String(), "request body too large")
+}
+
 // TestMakeEndpointRequestSizeOverride asserts the precedence between a
 // route's own resolved limit and a configured EndpointRequestSizeOverrides entry.
 // The override only wins when it's larger, and it's never consulted
@@ -597,10 +693,17 @@ func TestMakeEndpointRequestSizeOverride(t *testing.T) {
 			expectedLimit: 10,
 		},
 		{
+			desc:          "Global can never override route limit",
+			globalDefault: 10,
+			routeLimit:    5,
+			expectedLimit: 5,
+		},
+		{
 			desc:          "Override lower than resolved default: default wins",
 			globalDefault: 10,
-			overrides:     map[string]int64{path: 5},
-			expectedLimit: 10,
+			routeLimit:    5,
+			overrides:     map[string]int64{path: 3},
+			expectedLimit: 5,
 		},
 		{
 			desc:          "Override higher than resolved default: override wins",
@@ -761,4 +864,29 @@ func TestMakeDecoderPremiumErrorNamesTheJSONField(t *testing.T) {
 	t.Run("a field that is not premium gated still decodes", func(t *testing.T) {
 		require.NoError(t, decodeBody(t, `{"free":"ok"}`))
 	})
+}
+
+type renamedPremiumRequest struct {
+	TeamIDs     []uint `json:"team_ids" premium:"true" renameto:"fleet_ids"`
+	InstallerID uint   `json:"software_installer_id" renameto:"software_package_id,inline" premium:"true"`
+}
+
+func TestMakeDecoderPremiumErrorNamesTheRenamedFieldAsSent(t *testing.T) {
+	decode := MakeDecoder(renamedPremiumRequest{}, defaultJSONUnmarshal, nil, nil, nil, nil, -1)
+
+	for _, tc := range []struct {
+		body string
+		want string
+	}{
+		{body: `{"fleet_ids":[1]}`, want: "option fleet_ids requires a premium license"},
+		{body: `{"team_ids":[1]}`, want: "option team_ids requires a premium license"},
+		{body: `{"software_package_id":1}`, want: "option software_package_id requires a premium license"},
+		{body: `{"software_installer_id":1}`, want: "option software_installer_id requires a premium license"},
+	} {
+		t.Run(tc.body, func(t *testing.T) {
+			r := httptest.NewRequest("POST", "/", strings.NewReader(tc.body))
+			_, err := decode(t.Context(), r)
+			require.ErrorContains(t, err, tc.want)
+		})
+	}
 }

@@ -1,11 +1,11 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
+import React from "react";
 
 import { createMockConfig, createMockMdmConfig } from "__mocks__/configMock";
-import { IConfig } from "interfaces/config";
-import { createCustomRenderer } from "test/test-utils";
-import configAPI from "services/entities/config";
 import { notify } from "components/ToastNotification";
+import { IConfig } from "interfaces/config";
+import configAPI from "services/entities/config";
+import { createCustomRenderer } from "test/test-utils";
 
 import AddEntraClientIdModal from "./AddEntraClientIDModal";
 

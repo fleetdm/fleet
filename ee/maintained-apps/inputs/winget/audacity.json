@@ -7,7 +7,8 @@
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/audacity_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/audacity_uninstall.ps1",
   "installer_arch": "x64",
-  "installer_type": "exe",
+  "installer_type": "msi",
   "installer_scope": "machine",
+  "program_publisher": "Audacity",
   "default_categories": ["Productivity"]
 }

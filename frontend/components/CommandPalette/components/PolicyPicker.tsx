@@ -1,22 +1,22 @@
-import React from "react";
 import { Command } from "cmdk";
+import React, { useEffect } from "react";
 
-import { APP_CONTEXT_ALL_TEAMS_ID, ITeamSummary } from "interfaces/team";
-import globalPoliciesAPI from "services/entities/global_policies";
-import teamPoliciesAPI from "services/entities/team_policies";
+import CriticalPolicyBadge from "components/CriticalPolicyBadge";
+import { PATCH_TOOLTIP_CONTENT } from "components/SoftwareInstallPolicyBadges/SoftwareInstallPolicyBadges";
+import Tag from "components/Tag";
 import {
   ILoadAllPoliciesResponse,
   ILoadTeamPoliciesResponse,
   IPolicyStats,
 } from "interfaces/policy";
-import CriticalPolicyBadge from "components/CriticalPolicyBadge";
-import Tag from "components/Tag";
-import { PATCH_TOOLTIP_CONTENT } from "components/SoftwareInstallPolicyBadges/SoftwareInstallPolicyBadges";
+import { APP_CONTEXT_ALL_TEAMS_ID, ITeamSummary } from "interfaces/team";
+import globalPoliciesAPI from "services/entities/global_policies";
+import teamPoliciesAPI from "services/entities/team_policies";
 
-import usePickerSearch from "./usePickerSearch";
 import { RESULT_PREFIXES } from "./constants";
-import getFleetSuffix from "./pickerCopy";
 import HighlightedLabel from "./HighlightedLabel";
+import getFleetSuffix from "./pickerCopy";
+import usePickerSearch from "./usePickerSearch";
 
 const baseClass = "command-palette";
 
@@ -28,6 +28,9 @@ interface IPolicyPickerProps {
   /** Critical-policy badge is Premium-only (matches PoliciesTable). */
   isPremiumTier?: boolean;
   onSelect: (policyId: number) => void;
+  /** Fires when the results list identity changes, with the cmdk value of
+   *  the first item (or null when empty). See HostPicker for rationale. */
+  onResultsChange?: (firstItemValue: string | null) => void;
 }
 
 const PolicyPicker = ({
@@ -35,6 +38,7 @@ const PolicyPicker = ({
   currentTeam,
   isPremiumTier = false,
   onSelect,
+  onResultsChange,
 }: IPolicyPickerProps): JSX.Element => {
   const teamId =
     currentTeam && currentTeam.id !== APP_CONTEXT_ALL_TEAMS_ID
@@ -69,6 +73,14 @@ const PolicyPicker = ({
     },
     selectItems: (data) => data?.policies ?? [],
   });
+
+  const firstItemValue =
+    policies.length > 0 ? `${RESULT_PREFIXES.policy}${policies[0].id}` : null;
+  // See HostPicker.
+  const itemsSignature = policies.map((p) => p.id).join(",");
+  useEffect(() => {
+    onResultsChange?.(firstItemValue);
+  }, [itemsSignature, firstItemValue, onResultsChange]);
 
   if (isLoading && policies.length === 0) {
     return <div className={`${baseClass}__empty`}>Looking for policies...</div>;

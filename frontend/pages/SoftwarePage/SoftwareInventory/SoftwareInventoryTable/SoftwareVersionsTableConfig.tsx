@@ -1,20 +1,20 @@
 import React from "react";
-import { CellProps, Column } from "react-table";
 import { InjectedRouter } from "react-router";
+import { CellProps, Column } from "react-table";
 
-import { getPathWithQueryParams } from "utilities/url";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
+import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import {
   formatSoftwareType,
+  formatSoftwareVersion,
   ISoftwareVersion,
   ISoftwareVulnerability,
 } from "interfaces/software";
-import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import PATHS from "router/paths";
-
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import ViewAllHostsLink from "components/ViewAllHostsLink";
-import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+import { getPathWithQueryParams } from "utilities/url";
 
 import VulnerabilitiesCell from "../../components/tables/VulnerabilitiesCell";
 
@@ -43,7 +43,13 @@ const generateTableHeaders = (
       disableSortBy: false,
       accessor: "name",
       Cell: (cellProps: ITableStringCellProps) => {
-        const { id, name, display_name, source } = cellProps.row.original;
+        const {
+          id,
+          name,
+          display_name,
+          bundle_identifier,
+          source,
+        } = cellProps.row.original;
 
         const softwareVersionDetailsPath = getPathWithQueryParams(
           PATHS.SOFTWARE_VERSION_DETAILS(id.toString()),
@@ -56,6 +62,7 @@ const generateTableHeaders = (
           <SoftwareNameCell
             name={name}
             display_name={display_name}
+            bundle_identifier={bundle_identifier}
             source={source}
             // iconUrl does not exist on ISoftwareVersion
             path={softwareVersionDetailsPath}
@@ -70,7 +77,7 @@ const generateTableHeaders = (
       disableSortBy: true,
       accessor: "version",
       Cell: (cellProps: ITableStringCellProps) => (
-        <TextCell value={cellProps.cell.value} />
+        <TextCell value={formatSoftwareVersion(cellProps.row.original)} />
       ),
     },
     {

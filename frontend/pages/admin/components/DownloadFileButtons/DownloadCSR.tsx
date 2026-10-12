@@ -1,9 +1,9 @@
 import React, { FormEvent, useCallback, useMemo, useState } from "react";
 
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 import mdmAppleApi from "services/entities/mdm_apple";
 
-import Icon from "components/Icon";
-import Button from "components/buttons/Button";
 import { RequestState, downloadBase64ToFile } from "./helpers";
 
 interface IDownloadCSRProps {

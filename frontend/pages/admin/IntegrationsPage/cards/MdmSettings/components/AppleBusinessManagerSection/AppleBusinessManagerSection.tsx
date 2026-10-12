@@ -1,11 +1,10 @@
 import React, { useContext } from "react";
 import { InjectedRouter } from "react-router";
-import PATHS from "router/paths";
-
-import { AppContext } from "context/app";
 
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import { AppContext } from "context/app";
 import SettingsSection from "pages/admin/components/SettingsSection";
+import PATHS from "router/paths";
 
 import AppleAutomaticEnrollmentCard from "./AppleAutomaticEnrollmentCard";
 import VppCard from "./VppCard/VppCard";
@@ -43,6 +42,9 @@ const AppleBusinessManagerSection = ({
             viewDetails={navigateToAppleAutomaticEnrollment}
             isAppleMdmOn={!!config?.mdm.enabled_and_configured}
             configured={!!config?.mdm.apple_bm_enabled_and_configured}
+            onlyAllowAppleBusinessEnrollment={
+              !!config?.mdm.only_allow_apple_business_enrollment
+            }
           />
           <VppCard
             viewDetails={navigateToVppSetup}

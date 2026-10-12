@@ -27,7 +27,7 @@ module.exports.routes = {
   // Note that, in this app, these API endpoints may be accessed using the `Cloud.*()` methods
   // from the Parasails library, or by using those method names as the `action` in <ajax-form>.
   '/api/v1/account/logout':                           { action: 'account/logout' },
-  'GET  /entrance/signup-okta-user-or-redirect':    { action: 'entrance/signup-okta-user-or-redirect' },
+  'GET  /entrance/signup-sso-user-or-redirect':    { action: 'entrance/signup-sso-user-or-redirect' },
   'GET /download': { action: 'download-fleet-installer' },
 
 };

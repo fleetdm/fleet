@@ -1,8 +1,8 @@
+import { screen } from "@testing-library/react";
 import React, { useContext } from "react";
 
-import { screen } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
 import createMockUser from "__mocks__/userMock";
+import { renderWithSetup } from "test/test-utils";
 
 import AppProvider, { AppContext, sortAvailableTeams } from "./app";
 

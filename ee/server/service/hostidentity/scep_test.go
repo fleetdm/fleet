@@ -10,14 +10,19 @@ import (
 	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"log/slog"
 	"math/big"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
+	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/jmoiron/sqlx"
 	"github.com/smallstep/scep"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -131,4 +136,39 @@ func TestRenewalMiddleware_CNMismatchRejected(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, nextSignerCalled, "next signer should be called when CN matches")
 	})
+}
+
+func TestPKIOperationUndecryptableEnvelope(t *testing.T) {
+	caCert, caKey, err := scepdepot.NewSCEPCACertKey()
+	require.NoError(t, err)
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caCert.Raw})
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(caKey)})
+
+	ds := new(mock.Store)
+	ds.GetAllMDMConfigAssetsByNameFunc = func(_ context.Context, _ []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+			fleet.MDMAssetHostIdentityCACert: {Name: fleet.MDMAssetHostIdentityCACert, Value: certPEM},
+			fleet.MDMAssetHostIdentityCAKey:  {Name: fleet.MDMAssetHostIdentityCAKey, Value: keyPEM},
+		}, nil
+	}
+
+	signerCalled := false
+	signer := scepserver.CSRSignerContextFunc(func(context.Context, *scep.CSRReqMessage) (*x509.Certificate, error) {
+		signerCalled = true
+		return &x509.Certificate{}, nil
+	})
+	svc := NewSCEPService(ds, signer, slog.New(slog.DiscardHandler))
+
+	req, err := mdmtest.NewPKCSReqUndecryptableBy(caCert)
+	require.NoError(t, err)
+
+	respBytes, err := svc.PKIOperation(t.Context(), req.Raw)
+	require.NoError(t, err)
+
+	certRep, err := scep.ParsePKIMessage(respBytes)
+	require.NoError(t, err)
+	assert.Equal(t, scep.FAILURE, certRep.PKIStatus)
+	assert.Equal(t, scep.BadRequest, certRep.FailInfo)
+	assert.Equal(t, req.TransactionID, certRep.TransactionID)
+	assert.False(t, signerCalled, "signer must not run when the envelope cannot be decrypted")
 }

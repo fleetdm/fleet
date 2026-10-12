@@ -19,7 +19,7 @@ Updated from v1.0.0 to v1.1.0 (CIS "Jun 1, 2026" release). Changes:
 - **3.5** — only the CIS *remediation* changed (`chmod 700`), but its *audit* still checks 440, so Fleet's query is unchanged (it accepts 440/400).
 - **5.1.6** — CIS added `2>/dev/null`; `find_cmd` already handles that, so the query is unchanged.
 - **5.1.7** — query now excludes the non-accessible `/Library/AppStore` folder.
-- **5.3.1** — CIS split disk encryption into internal (5.3.1) and external (5.3.2) and moved the internal APFS check to **Automated**; a new 5.3.1 policy was added (previously Manual/limitation). 5.3.2 (external) and 5.3.3 (FAT32/ExFAT) remain in **Limitations**.
+- **5.3.1** — CIS split disk encryption into internal (5.3.1) and external (5.3.2) and moved the internal APFS check to **Automated**; a new 5.3.1 policy was added (previously Manual/limitation). Apple's sealed asset cryptex volumes (no role, names ending in `Cryptex`) are excluded since they cannot be encrypted. 5.3.2 (external) and 5.3.3 (FAT32/ExFAT) remain in **Limitations**.
 - **5.6** — audit now detects a lingering root *secure token*; the existing `AuthenticationAuthority` query already covers it, so only the resolution and pass script changed (`fdesetup remove -user root`).
 
 ## Sections covered
@@ -281,8 +281,10 @@ perform out-of-band checks.
   (Automated; it was Manual in v1.0.0). Query uses the fleetd
   `apfs_volumes` table, requiring `filevault=1` on every volume
   that has no reserved role (VM/Update/Recovery/Preboot/xART/
-  Hardware). The table does not distinguish internal from external
-  disks, so it evaluates all non-role volumes; external volumes
+  Hardware). Apple's sealed, read-only asset cryptex volumes (no
+  role, names ending in `Cryptex`) cannot be encrypted and are
+  excluded. The table does not distinguish internal from external
+  disks, so it evaluates all other non-role volumes; external volumes
   (CIS 5.3.2) and FAT32/ExFAT (5.3.3) are documented in
   Limitations. Encryption cannot be applied by a script, so no
   test scripts ship (MANUAL).
@@ -389,7 +391,10 @@ perform out-of-band checks.
   console user, a non-root user must be logged in when the policy
   is evaluated (see the console-user caveat in
   `ee/cis/CIS-BENCHMARKS.md`); the `_pass`/`_fail` scripts toggle
-  corners for the console user.
+  corners for the console user. They write the user's Dock plist by
+  path so they also work through Fleet's script execution, where
+  per-user `defaults write` fails (see the console-user pattern in
+  `ee/cis/CIS-BENCHMARKS.md`).
 
 ### Section 2.9 notes
 

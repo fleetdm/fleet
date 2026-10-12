@@ -1,6 +1,7 @@
 package android
 
 import (
+	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"log/slog"
 	"os"
 	"testing"
@@ -19,11 +20,13 @@ import (
 
 type Suite struct {
 	integrationtest.BaseSuite
-	AndroidProxy *android_mock.Client
+	AndroidProxy  *android_mock.Client
+	KeyValueStore fleet.KeyValueStore
 }
 
 func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
 	ds, redisPool, fleetCfg, fleetSvc, ctx := integrationtest.SetUpMySQLAndRedisAndService(t, uniqueTestName)
+	keyValueStore := redis_key_value.New(redisPool)
 	slogLogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	proxy := android_mock.Client{}
 	proxy.InitCommonMocks()
@@ -38,6 +41,7 @@ func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
 			Package:       "com.fleetdm.agent",
 			SigningSHA256: "abc123def456",
 		},
+		android_service.WithKeyValueStore(keyValueStore),
 	)
 	require.NoError(t, err)
 	androidSvc.(*android_service.Service).AllowLocalhostServerURL = true
@@ -61,7 +65,8 @@ func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
 			Users:    users,
 			Server:   server,
 		},
-		AndroidProxy: &proxy,
+		AndroidProxy:  &proxy,
+		KeyValueStore: keyValueStore,
 	}
 
 	integrationtest.SetUpServerURL(t, ds, server)

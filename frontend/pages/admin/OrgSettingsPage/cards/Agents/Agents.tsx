@@ -1,19 +1,19 @@
-import React, { useState, useEffect } from "react";
 import yaml from "js-yaml";
-import paths from "router/paths";
-import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
-import { EMPTY_AGENT_OPTIONS } from "utilities/constants";
+import React, { useState, useEffect } from "react";
 
-import SettingsSection from "pages/admin/components/SettingsSection";
-import PageDescription from "components/PageDescription";
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 // @ts-ignore
 import validateYaml from "components/forms/validators/validate_yaml";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import InfoBanner from "components/InfoBanner/InfoBanner";
+import PageDescription from "components/PageDescription";
 // @ts-ignore
 import YamlAce from "components/YamlAce";
-import CustomLink from "components/CustomLink";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import SettingsSection from "pages/admin/components/SettingsSection";
+import paths from "router/paths";
+import { EMPTY_AGENT_OPTIONS } from "utilities/constants";
+import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
 
 import { IAppConfigFormProps } from "../constants";
 

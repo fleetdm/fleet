@@ -1,18 +1,17 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { useQueryClient } from "react-query";
 
-import { IInputFieldParseTarget } from "interfaces/form_field";
-import { IConfig } from "interfaces/config";
-import configAPI from "services/entities/config";
-import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
-
-import { notify } from "components/ToastNotification";
-import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import Card from "components/Card";
-import PageDescription from "components/PageDescription";
+import InputField from "components/forms/fields/InputField";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import PageDescription from "components/PageDescription";
+import { notify } from "components/ToastNotification";
+import { IConfig } from "interfaces/config";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 import SettingsSection from "pages/admin/components/SettingsSection";
+import configAPI from "services/entities/config";
+import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
 
 const API_KEY_JSON_PLACEHOLDER = `{
   "type": "service_account",

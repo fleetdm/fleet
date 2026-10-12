@@ -37,7 +37,7 @@ func (lowLevelAPI *GoogleCalendarLoadAPI) Configure(ctx context.Context, _ strin
 	lowLevelAPI.userToImpersonate = userToImpersonate
 	lowLevelAPI.ctx = ctx
 	if lowLevelAPI.client == nil {
-		lowLevelAPI.client = fleethttp.NewClient()
+		lowLevelAPI.client = fleethttp.NewClient(fleethttp.WithNoTimeout())
 	}
 	lowLevelAPI.serverURL = serverURL
 	return nil

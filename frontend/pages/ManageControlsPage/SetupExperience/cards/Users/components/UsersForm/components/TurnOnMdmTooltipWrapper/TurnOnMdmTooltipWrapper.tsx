@@ -1,9 +1,8 @@
 import React from "react";
 
-import PATHS from "router/paths";
-
 import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";
+import PATHS from "router/paths";
 
 const MDM_BY_PLATFORM = {
   apple: { url: PATHS.ADMIN_INTEGRATIONS_MDM_APPLE, text: "Apple MDM" },

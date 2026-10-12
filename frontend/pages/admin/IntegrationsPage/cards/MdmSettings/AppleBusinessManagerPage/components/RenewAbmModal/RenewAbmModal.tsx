@@ -1,12 +1,11 @@
 import React, { useState, useCallback } from "react";
 
-import mdmAppleBmAPI from "services/entities/mdm_apple_bm";
-
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import { FileUploader } from "components/FileUploader/FileUploader";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
+import mdmAppleBmAPI from "services/entities/mdm_apple_bm";
 
 import { getErrorMessage } from "./helpers";
 

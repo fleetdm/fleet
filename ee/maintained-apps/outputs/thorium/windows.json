@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.4.0",
+      "version": "3.5.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Thorium' AND publisher = 'EDRLab';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Thorium' AND publisher = 'EDRLab' AND version_compare(version, '3.4.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Thorium' AND publisher = 'EDRLab' AND version_compare(version, '3.5.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'thorium reader.exe');"
       },
-      "installer_url": "https://github.com/edrlab/thorium-reader/releases/download/v3.4.0/Thorium.Setup.3.4.0.exe",
+      "installer_url": "https://github.com/edrlab/thorium-reader/releases/download/v3.5.1/Thorium-3.5.1-x64.exe",
       "install_script_ref": "df65625a",
       "uninstall_script_ref": "50082df0",
-      "sha256": "4f8eb97e3572602f27372125e300246db2cf9281f670b0f844b853c9c1340b67",
+      "sha256": "ad33003c0648b8f8f91cb9368b457701f23b1ed9443b01c94934f756f7ed98fd",
       "default_categories": [
         "Productivity"
       ]

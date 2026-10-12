@@ -92,3 +92,14 @@ func randomIndex(n int) int {
 		}
 	}
 }
+
+// HostManagedLocalAccountWindowsRotationInfo identifies a Windows host due for automatic rotation. It has no account
+// UUID: Windows rotation is a notification fleetd acts on for the one account it owns.
+type HostManagedLocalAccountWindowsRotationInfo struct {
+	HostUUID    string `db:"host_uuid"`
+	HostID      uint   `db:"host_id"`
+	DisplayName string `db:"display_name"`
+	// InitiatedByFleet is true for view-armed rotations, which the cron logs; manual ones were already logged with the
+	// user as actor.
+	InitiatedByFleet bool `db:"initiated_by_fleet"`
+}

@@ -1,28 +1,27 @@
 import React, { useContext, useEffect, useId } from "react";
-import PATHS from "router/paths";
-
-import { PRIMO_TOOLTIP } from "utilities/constants";
-
-import { AppContext } from "context/app";
-
-import { ITeam } from "interfaces/team";
-import { UserRole } from "interfaces/user";
-import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
-
 import { SingleValue } from "react-select-5";
+
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import Checkbox from "components/forms/fields/Checkbox";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import ModalFooter from "components/ModalFooter";
 import InputField from "components/forms/fields/InputField";
-import Checkbox from "components/forms/fields/Checkbox";
 import Radio from "components/forms/fields/Radio";
 import InfoBanner from "components/InfoBanner/InfoBanner";
-import CustomLink from "components/CustomLink";
+import ModalFooter from "components/ModalFooter";
 import TooltipWrapper from "components/TooltipWrapper";
+import { AppContext } from "context/app";
+import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
+import { ITeam } from "interfaces/team";
+import { UserRole } from "interfaces/user";
+import PATHS from "router/paths";
+import { PRIMO_TOOLTIP } from "utilities/constants";
+
+import { roleOptions } from "../../helpers/userManagementHelpers";
 import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 import SelectRoleForm from "../SelectRoleForm/SelectRoleForm";
-import { roleOptions } from "../../helpers/userManagementHelpers";
+
 import {
   isPasswordShown,
   NewUserType,

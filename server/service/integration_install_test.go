@@ -373,7 +373,7 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerFleetVariables() {
 	}{
 		{&fleet.UploadSoftwareInstallerPayload{TeamID: &teamID, Filename: "ruby.deb", InstallScript: "echo $FLEET_VAR_NONEXISTENT"}, unsupportedVarErrMsg},
 		{&fleet.UploadSoftwareInstallerPayload{TeamID: &teamID, Filename: "ruby.deb", PostInstallScript: "echo ${FLEET_VAR_NONEXISTENT}"}, unsupportedVarErrMsg},
-		{&fleet.UploadSoftwareInstallerPayload{TeamID: &teamID, Filename: "ruby.deb", UninstallScript: "echo $FLEET_VAR_NDES_SCEP_CHALLENGE"}, "Fleet variable $FLEET_VAR_NDES_SCEP_CHALLENGE is not supported in scripts."},
+		{&fleet.UploadSoftwareInstallerPayload{TeamID: &teamID, Filename: "ruby.deb", UninstallScript: "echo $FLEET_VAR_NDES_SCEP_PROXY_URL"}, "Fleet variable $FLEET_VAR_NDES_SCEP_PROXY_URL is not supported in scripts."},
 	}
 	for _, c := range uploadCases {
 		s.uploadSoftwareInstaller(t, c.payload, http.StatusUnprocessableEntity, c.errMsg)
@@ -415,9 +415,12 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerFleetVariables() {
 		InstallUUID:  installUUID,
 		OrbitNodeKey: *host.OrbitNodeKey,
 	}, http.StatusOK, &detailsResp)
-	require.Equal(t, "install "+host.HardwareSerial, detailsResp.InstallScript)
-	require.Equal(t, "post "+host.UUID, detailsResp.PostInstallScript)
-	require.Equal(t, "uninstall ubuntu", detailsResp.UninstallScript)
+	requireVarsDelivered(t, detailsResp.InstallScript, "install $FLEET_VAR_HOST_HARDWARE_SERIAL",
+		map[string]string{"HOST_HARDWARE_SERIAL": host.HardwareSerial})
+	requireVarsDelivered(t, detailsResp.PostInstallScript, "post ${FLEET_VAR_HOST_UUID}",
+		map[string]string{"HOST_UUID": host.UUID})
+	requireVarsDelivered(t, detailsResp.UninstallScript, "uninstall $FLEET_VAR_HOST_PLATFORM",
+		map[string]string{"HOST_PLATFORM": "ubuntu"})
 
 	// the host completes the install so the queue is free for the failure case
 	s.Do("POST", "/api/fleet/orbit/software_install/result", fleet.OrbitPostSoftwareInstallResultRequest{

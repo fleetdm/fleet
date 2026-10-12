@@ -2,34 +2,31 @@ import React, { useState, useCallback, useContext } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 
-import { AppContext } from "context/app";
+import BackButton from "components/BackButton";
+import EditPackForm from "components/forms/packs/EditPackForm";
+import MainContent from "components/MainContent";
 import { notify } from "components/ToastNotification";
-
+import { AppContext } from "context/app";
+import { getErrorReason } from "interfaces/errors";
 import { IPack, IStoredPackResponse } from "interfaces/pack";
 import { IQuery } from "interfaces/query";
+import {
+  IQueryKeyQueriesLoadAll,
+  ISchedulableQuery,
+} from "interfaces/schedulable_query";
 import {
   IPackQueryFormData,
   IScheduledQuery,
   IStoredScheduledQueriesResponse,
 } from "interfaces/scheduled_query";
 import { ITarget, ITargetsAPIResponse } from "interfaces/target";
-import {
-  IQueryKeyQueriesLoadAll,
-  ISchedulableQuery,
-} from "interfaces/schedulable_query";
-import { getErrorReason } from "interfaces/errors";
-
+import PATHS from "router/paths";
 import packsAPI from "services/entities/packs";
 import queriesAPI, { IQueriesResponse } from "services/entities/queries";
 import scheduledQueriesAPI from "services/entities/scheduled_queries";
-
-import PATHS from "router/paths";
 // @ts-ignore
 import deepDifference from "utilities/deep_difference";
 
-import BackButton from "components/BackButton";
-import EditPackForm from "components/forms/packs/EditPackForm";
-import MainContent from "components/MainContent";
 import PackQueryEditorModal from "./components/PackQueryEditorModal";
 import RemovePackQueryModal from "./components/RemovePackQueryModal";
 

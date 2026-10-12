@@ -134,12 +134,23 @@ func ValidateHostNameTemplate(tmpl string) (string, error) {
 // save time, and that every custom host vital ($FLEET_HOST_VITAL_<id>) it
 // references is a known vital ID. It returns the normalized template to
 // persist.
-func ValidateHostNameTemplateWithSecrets(ctx context.Context, ds Datastore, tmpl string) (string, error) {
+//
+// canReferenceSecrets must come from the caller's permission to write secret
+// variables: a resolved template puts the secret's plaintext in every enrolled
+// Apple host's name, which any role on the fleet can read.
+func ValidateHostNameTemplateWithSecrets(ctx context.Context, ds Datastore, tmpl string, canReferenceSecrets bool) (string, error) {
 	validated, err := ValidateHostNameTemplate(tmpl)
 	if err != nil {
 		return "", err
 	}
-	if len(ContainsPrefixVars(validated, ServerSecretPrefix)) > 0 {
+	if secrets := ContainsPrefixVars(validated, ServerSecretPrefix); len(secrets) > 0 {
+		// Checked before existence so the error can't distinguish a defined
+		// secret from an undefined one.
+		if !canReferenceSecrets {
+			return "", NewInvalidArgumentError("name_template",
+				fmt.Sprintf("Custom variable $%s%s can only be used in a host name template by a global admin, maintainer, or GitOps user.",
+					ServerSecretPrefix, secrets[0]))
+		}
 		if err := ds.ValidateEmbeddedSecrets(ctx, []string{validated}); err != nil {
 			// A referenced-but-undefined secret is a user input error (422); surface
 			// the underlying message (which names the missing secret) as an
