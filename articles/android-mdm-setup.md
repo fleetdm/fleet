@@ -4,8 +4,6 @@ This guide provides instructions to turn on Android MDM features by connecting F
 
 Fleet supports Android devices that are [Play Protect certified](https://support.google.com/googleplay/answer/7165974?hl=en) (previously known as GMS).
 
-## Personal (BYOD) hosts with Fleet Free
-
 With Fleet Free, you can enroll personal (BYOD) Android hosts with a work profile, enforce OS settings with [configuration profiles](https://fleetdm.com/guides/custom-os-settings), and see host vitals and software. You can't manage apps in the work profile, because adding [Play Store apps](https://fleetdm.com/guides/install-app-store-apps#google-play-android) requires [Fleet Premium](https://fleetdm.com/pricing).
 
 ## Turn on
