@@ -83,4 +83,4 @@ The registry pulled the package within days, and the provenance badge never flag
 <meta name="authorGitHubUsername" value="robinedev">
 <meta name="publishedOn" value="2026-10-12">
 <meta name="category" value="industry news">
-<meta name="description" value="Tensorlake npm 0.5.144 carried valid build provenance and still harvested credentials. How to find every host that installed it, and what to rotate first.">
+<meta name="description" value="Tensorlake npm 0.5.144 had valid build provenance yet harvested credentials. How to find every host that installed it, and what to rotate first.">
