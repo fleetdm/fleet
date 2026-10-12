@@ -31,7 +31,6 @@ jest.mock("services/entities/mdm", () => ({
     // 404 is how the API reports that nothing has been uploaded yet.
     getEULAMetadata: jest.fn().mockRejectedValue({ status: 404 }),
     getWindowsEULAMetadata: jest.fn().mockRejectedValue({ status: 404 }),
-    deleteWindowsEULA: jest.fn().mockResolvedValue({}),
   },
 }));
 

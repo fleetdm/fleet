@@ -535,28 +535,32 @@ func (ec *eulaContent) Handle(res *http.Response) error {
 
 const eulaAPIPath = "/api/latest/fleet/setup_experience/eula"
 
+// ErrWindowsEULANotSupported means the server predates Windows EULAs: it
+// ignores the platform parameter, so its answers would be about the macOS EULA.
+var ErrWindowsEULANotSupported = errors.New("the Fleet server doesn't support Windows EULAs; upgrade it to use windows_eula")
+
 // eulaEndpoints is what differs between the macOS and Windows EULA requests;
 // the client logic for both is the same. Requests by token don't need the
 // platform: the token belongs to one EULA.
 type eulaEndpoints struct {
-	query string // platform query parameter, left out for macOS so older servers still understand it
-	label string // names the EULA in error messages
+	platform fleet.MDMEULAPlatform // sent for Windows only, so macOS requests stay as they always were
+	label    string                // names the EULA in error messages
 }
 
 var (
 	macOSEULAEndpoints   = eulaEndpoints{label: "eula"}
-	windowsEULAEndpoints = eulaEndpoints{query: "platform=windows", label: "Windows EULA"}
+	windowsEULAEndpoints = eulaEndpoints{platform: fleet.MDMEULAPlatformWindows, label: "Windows EULA"}
 )
 
 // withQuery adds the platform parameter to the rest of a request's query.
 func (e eulaEndpoints) withQuery(query string) string {
-	if e.query == "" {
+	if e.platform == "" {
 		return query
 	}
 	if query == "" {
-		return e.query
+		return "platform=" + string(e.platform)
 	}
-	return query + "&" + e.query
+	return query + "&platform=" + string(e.platform)
 }
 
 func (c *Client) GetEULAContent(token string) ([]byte, error) {
@@ -609,8 +613,13 @@ func (c *Client) getEULAContent(token string) ([]byte, error) {
 func (c *Client) getEULAMetadata(e eulaEndpoints) (*fleet.MDMEULA, error) {
 	verb, path := "GET", eulaAPIPath+"/metadata"
 	var responseBody getMDMEULAMetadataResponse
-	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, e.withQuery(""))
-	return responseBody.MDMEULA, err
+	if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, e.withQuery("")); err != nil {
+		return nil, err
+	}
+	if e.platform != "" && (responseBody.MDMEULA == nil || responseBody.Platform != e.platform) {
+		return nil, ErrWindowsEULANotSupported
+	}
+	return responseBody.MDMEULA, nil
 }
 
 func (c *Client) deleteEULAIfNeeded(e eulaEndpoints, dryRun bool) error {

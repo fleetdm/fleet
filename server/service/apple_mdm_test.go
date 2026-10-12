@@ -228,6 +228,9 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo, tweakCfg ...
 	ds.MDMGetEULABytesFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform, token string) (*fleet.MDMEULA, error) {
 		return &fleet.MDMEULA{}, nil
 	}
+	ds.MDMGetEULAPlatformFunc = func(ctx context.Context, token string) (fleet.MDMEULAPlatform, error) {
+		return fleet.MDMEULAPlatformDarwin, nil
+	}
 	ds.MDMInsertEULAFunc = func(ctx context.Context, eula *fleet.MDMEULA) error {
 		return nil
 	}

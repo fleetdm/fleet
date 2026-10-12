@@ -785,10 +785,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple", getAppleMDMEndpoint, nil)
 	mdmAppleMW.GET("/api/_version_/fleet/apns", getAppleMDMEndpoint, nil)
 
-	// EULA routes, for macOS and Windows. Upload and metadata take a platform
-	// query param, and on the token routes the token decides. The platform's
-	// MDM is checked past the route either way, so the token routes only check
-	// that some MDM is on.
+	// EULA routes, for macOS and Windows. The platform's MDM is checked past the
+	// route, once the platform param or the token says which platform it is.
 
 	// Deprecated: POST /mdm/setup/eula is now deprecated, replaced by the
 	// POST /setup_experience/eula endpoint.

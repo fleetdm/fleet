@@ -284,7 +284,7 @@ func (createMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) 
 }
 
 // eulaPlatform reads the platform the EULA endpoints act on. It defaults to
-// darwin, the only platform before Windows got its own agreement.
+// darwin for backward compatibility.
 func eulaPlatform(v string) (fleet.MDMEULAPlatform, error) {
 	switch p := fleet.MDMEULAPlatform(v); p {
 	case "":

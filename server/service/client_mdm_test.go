@@ -2,11 +2,13 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/beevik/etree"
@@ -216,4 +218,50 @@ func TestGitOpsWindowsEULAWaitsForWindowsMDMToSettle(t *testing.T) {
 			require.Equal(t, 1, uploads)
 		})
 	}
+}
+
+func TestGitOpsWindowsEULASkipsServerWithoutWindowsEULAs(t *testing.T) {
+	// A server that predates Windows EULAs ignores the platform parameter and answers with its macOS EULA, without a
+	// platform field. Acting on that answer would delete or replace the macOS agreement.
+	var requests []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests = append(requests, r.Method+" "+r.URL.RequestURI())
+		if r.Method == http.MethodGet && r.URL.Path == "/api/latest/fleet/setup_experience/eula/metadata" {
+			_, _ = w.Write([]byte(`{"name": "eula.pdf", "token": "mac-token", "created_at": "2026-10-01T00:00:00Z"}`))
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+	client, err := NewClient(srv.URL, true, "", "")
+	require.NoError(t, err)
+	client.SetToken("test-token")
+
+	// macOS requests don't change, so they keep working with that server
+	meta, err := client.GetEULAMetadata()
+	require.NoError(t, err)
+	require.Equal(t, "mac-token", meta.Token)
+
+	_, err = client.GetWindowsEULAMetadata()
+	require.ErrorIs(t, err, ErrWindowsEULANotSupported)
+
+	mdPath := filepath.Join(t.TempDir(), "terms.md")
+	require.NoError(t, os.WriteFile(mdPath, []byte("# Terms\n"), 0o600))
+	appConfig := &fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	appConfig.MDM.WindowsEnabledAndConfigured = true
+	for _, path := range []string{mdPath, ""} {
+		var logged strings.Builder
+		logFn := func(format string, args ...any) { fmt.Fprintf(&logged, format, args...) }
+		require.NoError(t, client.doGitOpsWindowsEULA(path, appConfig, nil, "", false, logFn))
+		require.Equal(t, "[!] skipping windows_eula: "+ErrWindowsEULANotSupported.Error()+"\n", logged.String())
+	}
+
+	// nothing was uploaded or deleted
+	require.Equal(t, []string{
+		"GET /api/latest/fleet/setup_experience/eula/metadata",
+		"GET /api/latest/fleet/setup_experience/eula/metadata?platform=windows",
+		"GET /api/latest/fleet/setup_experience/eula/metadata?platform=windows",
+		"GET /api/latest/fleet/setup_experience/eula/metadata?platform=windows",
+	}, requests)
 }

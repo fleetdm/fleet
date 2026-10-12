@@ -4397,12 +4397,20 @@ func (c *Client) doGitOpsWindowsEULA(
 		// asks for a fresh read instead (no_cache); the EULA endpoints can't.
 		windowsMDMSettle()
 	}
+	var err error
 	if path == "" {
-		if err := c.DeleteWindowsEULAIfNeeded(dryRun); err != nil {
-			return fmt.Errorf("error deleting Windows EULA: %w", err)
+		if err = c.DeleteWindowsEULAIfNeeded(dryRun); err != nil {
+			err = fmt.Errorf("error deleting Windows EULA: %w", err)
 		}
-	} else if err := c.UploadWindowsEULAIfNeeded(resolveApplyRelativePath(baseDir, path), dryRun); err != nil {
-		return fmt.Errorf("error uploading Windows EULA: %w", err)
+	} else if err = c.UploadWindowsEULAIfNeeded(resolveApplyRelativePath(baseDir, path), dryRun); err != nil {
+		err = fmt.Errorf("error uploading Windows EULA: %w", err)
+	}
+	switch {
+	case errors.Is(err, ErrWindowsEULANotSupported):
+		logFn("[!] skipping windows_eula: %s\n", ErrWindowsEULANotSupported)
+		return nil
+	case err != nil:
+		return err
 	}
 
 	if dryRun {

@@ -740,12 +740,18 @@ func (svc *Service) eulaPlatformForToken(ctx context.Context, token string) (fle
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "getting EULA platform")
 	}
-	if platform == fleet.MDMEULAPlatformWindows {
-		err = svc.VerifyMDMWindowsConfigured(ctx)
-	} else {
+	switch platform {
+	case fleet.MDMEULAPlatformDarwin:
 		err = svc.VerifyMDMAppleConfigured(ctx)
+	case fleet.MDMEULAPlatformWindows:
+		err = svc.VerifyMDMWindowsConfigured(ctx)
+	default:
+		err = ctxerr.Errorf(ctx, "EULA has unsupported platform %q", platform)
 	}
-	return platform, err
+	if err != nil {
+		return "", err
+	}
+	return platform, nil
 }
 
 func (svc *Service) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, error) {

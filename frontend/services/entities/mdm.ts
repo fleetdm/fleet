@@ -417,23 +417,20 @@ const mdmService = {
     return sendRequest("GET", MDM_EULA(token));
   },
 
+  // The Windows EULA shares the endpoints; deleting and downloading only need
+  // its token.
   getWindowsEULAMetadata: () => {
-    const { MDM_WINDOWS_EULA_METADATA } = endpoints;
-    return sendRequest("GET", MDM_WINDOWS_EULA_METADATA);
+    const { MDM_EULA_METADATA } = endpoints;
+    return sendRequest("GET", `${MDM_EULA_METADATA}?platform=windows`);
   },
 
   uploadWindowsEULA: (file: File) => {
-    const { MDM_WINDOWS_EULA_UPLOAD } = endpoints;
+    const { MDM_EULA_UPLOAD } = endpoints;
 
     const formData = new FormData();
     formData.append("eula", file);
 
-    return sendRequest("POST", MDM_WINDOWS_EULA_UPLOAD, formData);
-  },
-
-  deleteWindowsEULA: (token: string) => {
-    const { MDM_WINDOWS_EULA } = endpoints;
-    return sendRequest("DELETE", MDM_WINDOWS_EULA(token));
+    return sendRequest("POST", `${MDM_EULA_UPLOAD}?platform=windows`, formData);
   },
 
   updateRequireAllSoftwareMacOS: (teamId: number, isEnabled: boolean) => {

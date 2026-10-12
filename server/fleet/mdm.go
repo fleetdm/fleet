@@ -323,8 +323,9 @@ type MDMEULA struct {
 	Sha256    []byte    `json:"sha256" db:"sha256"`
 	Token     string    `json:"token"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
-	// Platform is implied by the endpoint serving it, so it is not in the API.
-	Platform MDMEULAPlatform `json:"-" db:"platform"`
+	// Platform lets clients tell a server that predates Windows EULAs, which
+	// ignores the platform parameter and answers for macOS, from a current one.
+	Platform MDMEULAPlatform `json:"platform,omitempty" db:"platform"`
 }
 
 // MDMEULAMetadataLookup is the cached result of looking up a platform's EULA
