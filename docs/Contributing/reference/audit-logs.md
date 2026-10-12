@@ -2168,6 +2168,7 @@ This activity contains the following fields:
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
 - "version_name": Name of the admin-created App Store app version that was deleted. Defaults to "Default version" when the admin didn't set one.
+- "configuration": The app's managed configuration, if set. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format.
 
 #### Example
 
@@ -2191,7 +2192,8 @@ This activity contains the following fields:
       "id": 17
     }
   ],
-  "version_name": "Production"
+  "version_name": "Production",
+  "configuration": "<dict><key>ServerURL</key><string>https://example.com</string></dict>"
 }
 ```
 
