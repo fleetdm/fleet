@@ -19,8 +19,10 @@
     }
   }
 
+  // box-shadow instead of border-right: Chromium rounds fractional border
+  // widths down to whole pixels, so a 1.5px border renders at 1px.
   &__avatar-upper-dash {
-    border-right: 1.5px solid $ui-fleet-black-25;
+    box-shadow: inset -1.5px 0 0 $ui-fleet-black-25;
     grid-column-start: 1;
     grid-column-end: 2;
     grid-row-start: 1;
@@ -28,7 +30,7 @@
   }
 
   &__avatar-lower-dash {
-    border-right: 1.5px solid $ui-fleet-black-25;
+    box-shadow: inset -1.5px 0 0 $ui-fleet-black-25;
     grid-column-start: 1;
     grid-column-end: 2;
     grid-row-start: 3;
@@ -120,13 +122,13 @@
 
   &:first-child {
     .feed-list-item__avatar-upper-dash {
-      border-right: none;
+      box-shadow: none;
     }
   }
 
   &:last-child {
     .feed-list-item__avatar-lower-dash {
-      border-right: none;
+      box-shadow: none;
     }
   }
 
