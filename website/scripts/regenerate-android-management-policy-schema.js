@@ -60,10 +60,13 @@ module.exports = {
       schemaNamesToVisit = _.union(schemaNamesToVisit, findSchemaNamesReferencedWithin(allSchemas[schemaName]));
     }
 
-    // Keep a property's first sentence, plus any later sentence about deprecation, replacement, or
-    // precedence.  Several fields bury "Replaces x (deprecated)" or "If tetheringSettings is set, this
-    // setting is ignored" after the first sentence, and those are how the model finds the field that
-    // actually takes effect.
+    // Keep a property's first two sentences, plus any later sentence about deprecation, replacement,
+    // precedence, or a requirement.  The first sentence alone is often too vague to match a request:
+    // funDisabled's is "Whether the user is allowed to have fun.", and the model refused "disable Easter
+    // eggs" because the second sentence, the one naming the Easter egg game, was dropped.  Later
+    // sentences like "Replaces x (deprecated)", "If tetheringSettings is set, this setting is ignored",
+    // and "screenTimeoutMode must be SCREEN_TIMEOUT_ENFORCED" are how the model finds the field that
+    // actually takes effect and the fields it depends on.
     //
     // Google opens many descriptions with a bare "Optional." or "Required.", which would otherwise be
     // the only sentence kept -- printingPolicy came through as just "Optional.".  Some sentences
@@ -71,12 +74,22 @@ module.exports = {
     // directly followed by a capital letter is a boundary too.
     let prunePropertyDescription = (description)=>{
       let sentences = _.reject(description.split(/(?<=\.)\s+|(?<=[a-z]\.)(?=[A-Z])/), (sentence)=>{
-        return /^(optional|required)\.?$/i.test(sentence.trim());
+        return /^(optional|required)?\.?$/i.test(sentence.trim());
       });
       return _.union(
-        _.first(sentences) ? [_.first(sentences)] : [],
-        _.filter(_.rest(sentences), (sentence)=>{ return /deprecat|replaces|instead|ignored|no effect|overrid|\buse\b/i.test(sentence); })
+        _.take(sentences, 2),
+        _.filter(_.drop(sentences, 2), (sentence)=>{ return /deprecat|replaces|instead|ignored|no effect|overrid|\buse\b|\bmust\b/i.test(sentence); })
       ).join(' ');
+    };
+
+    // Google marks some enum values deprecated without deprecating the field -- locationMode's OFF is
+    // replaced by LOCATION_DISABLED -- and the field's own enum list is the only place the model looks
+    // for a value, so a deprecated one is dropped rather than flagged.
+    let pruneEnum = (schema)=>{
+      if(!schema.enum || !schema.enumDeprecated) {
+        return schema.enum;
+      }
+      return _.filter(schema.enum, (value, index)=>{ return !schema.enumDeprecated[index]; });
     };
 
     // The full closure is ~161 KB (~41k tokens), too large to put in a prompt, so keep only what
@@ -91,9 +104,9 @@ module.exports = {
     let prunedSchemasByName = _.reduce(relevantSchemaNames, (prunedSoFar, schemaName)=>{
       prunedSoFar[schemaName] = {
         properties: _.mapValues(allSchemas[schemaName].properties || {}, (property)=>{
-          let prunedProperty = _.pick(property, ['type', '$ref', 'format', 'enum', 'deprecated']);
+          let prunedProperty = _.pick(_.extend({}, property, {enum: pruneEnum(property)}), ['type', '$ref', 'format', 'enum', 'deprecated']);
           if(property.items) {
-            prunedProperty.items = _.pick(property.items, ['$ref', 'type', 'format', 'enum']);
+            prunedProperty.items = _.pick(_.extend({}, property.items, {enum: pruneEnum(property.items)}), ['$ref', 'type', 'format', 'enum']);
           }
           if(property.description) {
             prunedProperty.description = prunePropertyDescription(property.description);
