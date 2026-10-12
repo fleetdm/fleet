@@ -4224,9 +4224,7 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 	// First, determine the decryption function based on the host platform and configuration.
 	var decryptFn func(b64 string) (string, error)
 	switch {
-	case fleet.IsLinux(host.Platform):
-		// any Linux key was escrowed through LUKS, including on distributions no longer eligible
-		// for new escrows
+	case host.IsLUKSSupported():
 		if svc.config.Server.PrivateKey == "" {
 			return nil, errors.New("private key is unavailable")
 		}
@@ -4282,7 +4280,7 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 	// current row is authoritative: it only goes missing once the verify query
 	// proved the key slot is gone, so the archived key is known to be dead.
 	var archivedKey *fleet.HostArchivedDiskEncryptionKey
-	if !fleet.IsLinux(host.Platform) {
+	if !host.IsLUKSSupported() {
 		// Check global-scoped permission only for falling back to serial
 		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionRead); err != nil {
 			// The user can't read hosts without a team-id, global scoped - limit the fallback to only host ID.

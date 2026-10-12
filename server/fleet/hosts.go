@@ -1243,6 +1243,8 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 // LUKSSupportedPlatforms are the Host.Platform values Fleet escrows LUKS keys for. Fedora isn't
 // listed because it reports its platform as "rhel"; IsLUKSSupported matches it on OS version.
 // The datastore builds its disk encryption SQL filters from this list.
+// IMPORTANT: When updating this, also make sure to update LUKS_ESCROW_SUPPORTED_LINUX_PLATFORMS in
+// frontend/interfaces/platform.ts.
 var LUKSSupportedPlatforms = []string{
 	"ubuntu", // also Kubuntu
 	"zorin",
