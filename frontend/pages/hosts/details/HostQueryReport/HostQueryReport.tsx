@@ -3,7 +3,6 @@ import { useQuery } from "react-query";
 import { browserHistory, InjectedRouter } from "react-router";
 import { Params } from "react-router/lib/Router";
 
-import BackButton from "components/BackButton";
 import Button from "components/buttons/Button";
 import MainContent from "components/MainContent";
 import ShowQueryModal from "components/modals/ShowQueryModal";
@@ -115,25 +114,18 @@ const HostQueryReport = ({
     );
     return (
       <div className={`${baseClass}__header`}>
-        <div className={`${baseClass}__header__row1`}>
-          <BackButton
-            text="Back to host details"
-            path={PATHS.HOST_DETAILS(hostId)}
-          />
-        </div>
-        <div className={`${baseClass}__header__row2`}>
-          {!hqrError && <h1 className="host-name">{hostName}</h1>}
-          <Button
-            onClick={() => {
-              browserHistory.push(fullReportPath);
-            }}
-          >
-            View report for all hosts
-          </Button>
-        </div>
+        {!hqrError && <h1 className="host-name">{hostName}</h1>}
+        <Button
+          variant="secondary"
+          onClick={() => {
+            browserHistory.push(fullReportPath);
+          }}
+        >
+          View report for all hosts
+        </Button>
       </div>
     );
-  }, [queryId, hostId, hqrError, hostName]);
+  }, [queryId, hqrError, hostName]);
 
   return (
     <MainContent className={baseClass}>
