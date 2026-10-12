@@ -2781,20 +2781,20 @@ func testTriggerResendDigiCertProfiles(t *testing.T, ds *Datastore) {
 	checkResend := func(affectedVar fleet.FleetVarName, wantPending ...*fleet.MDMAppleConfigProfile) {
 		t.Run(string(affectedVar), func(t *testing.T) {
 			for _, p := range allProfiles {
-				forceSetAppleHostProfileStatus(t, ds, host.UUID, p, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
-				forceSetAppleHostProfileStatus(t, ds, otherHost.UUID, p, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+				forceSetAppleHostProfileStatus(t, ds, host.UUID, p, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+				forceSetAppleHostProfileStatus(t, ds, otherHost.UUID, p, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
 			}
 			ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 				return triggerResendProfilesUsingVariables(ctx, tx, []uint{host.ID}, []fleet.FleetVarName{affectedVar})
 			})
 			var want, wantOther []hostProfileStatus
 			for _, p := range allProfiles {
-				status := fleet.MDMDeliveryVerifying
+				status := fleet.MDMDeliveryVerified
 				if slices.Contains(wantPending, p) {
 					status = fleet.MDMDeliveryPending
 				}
 				want = append(want, hostProfileStatus{p.ProfileUUID, status})
-				wantOther = append(wantOther, hostProfileStatus{p.ProfileUUID, fleet.MDMDeliveryVerifying})
+				wantOther = append(wantOther, hostProfileStatus{p.ProfileUUID, fleet.MDMDeliveryVerified})
 			}
 			assertHostProfileStatus(t, ds, host.UUID, want...)
 			assertHostProfileStatus(t, ds, otherHost.UUID, wantOther...)
