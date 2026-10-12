@@ -208,6 +208,21 @@ func (s *certVerifierEnrollmentCheckinService) Authenticate(r *mdm.Request, m *m
 	if err != nil {
 		return ctxerr.Wrap(r.Context, err, "checking cert hash association")
 	}
+
+	// A device's serial doesn't change, so a known host must keep claiming its own. Bindings only pin the serial for a
+	// new certificate, and scep_renewal doesn't pin it at all.
+	if resolved.Type == mdm.Device {
+		info, err := s.ds.GetHostMDMCheckinInfo(r.Context, resolved.DeviceChannelID)
+		switch {
+		case err == nil:
+			if info.HardwareSerial != "" && info.HardwareSerial != m.SerialNumber {
+				return s.reject(r, m, nil, "serial does not match the enrolled host")
+			}
+		case !fleet.IsNotFound(err):
+			return ctxerr.Wrap(r.Context, err, "getting host checkin info")
+		}
+	}
+
 	if associated {
 		// a resend of an Authenticate already accepted for this enrollment
 		return s.CheckinAndCommandService.Authenticate(r, m)
