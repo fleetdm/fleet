@@ -26,28 +26,12 @@ func (svc *Service) MDMCreateWindowsEULA(ctx context.Context, name string, file 
 	return fleet.ErrMissingLicense
 }
 
-func (svc *Service) MDMGetWindowsEULABytes(ctx context.Context, token string) (*fleet.MDMEULA, error) {
-	// skipauth: No authorization check needed due to implementation returning
-	// only license error.
-	svc.authz.SkipAuthorization(ctx)
-
-	return nil, fleet.ErrMissingLicense
-}
-
 func (svc *Service) MDMGetWindowsEULAMetadata(ctx context.Context) (*fleet.MDMEULA, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
 	return nil, fleet.ErrMissingLicense
-}
-
-func (svc *Service) MDMDeleteWindowsEULA(ctx context.Context, token string, dryRun bool) error {
-	// skipauth: No authorization check needed due to implementation returning
-	// only license error.
-	svc.authz.SkipAuthorization(ctx)
-
-	return fleet.ErrMissingLicense
 }
 
 type windowsTOSTemplateData struct {

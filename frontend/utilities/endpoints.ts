@@ -238,7 +238,7 @@ export default {
   MDM_EULA_UPLOAD: `/${API_VERSION}/fleet/mdm/setup/eula`,
   MDM_EULA_METADATA: `/${API_VERSION}/fleet/mdm/setup/eula/metadata`,
   MDM_WINDOWS_EULA: (token: string) =>
-    `/${API_VERSION}/fleet/setup_experience/eula/${token}?platform=windows`,
+    `/${API_VERSION}/fleet/setup_experience/eula/${token}`,
   MDM_WINDOWS_EULA_UPLOAD: `/${API_VERSION}/fleet/setup_experience/eula?platform=windows`,
   MDM_WINDOWS_EULA_METADATA: `/${API_VERSION}/fleet/setup_experience/eula/metadata?platform=windows`,
   HOST_MDM: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/mdm`,

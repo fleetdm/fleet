@@ -400,22 +400,20 @@ func (svc *Service) MDMCreateEULA(ctx context.Context, name string, file io.Read
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMEULARequest struct {
-	Token    string `url:"token"`
-	Platform string `query:"platform,optional"`
+	Token string `url:"token"`
 }
 
 type getMDMEULAResponse struct {
 	Err error `json:"error,omitempty"`
 
 	// fields used in hijackRender to build the response
-	eula     *fleet.MDMEULA
-	platform fleet.MDMEULAPlatform
+	eula *fleet.MDMEULA
 }
 
 func (r getMDMEULAResponse) Error() error { return r.Err }
 
 func (r getMDMEULAResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
-	if r.platform == fleet.MDMEULAPlatformWindows {
+	if r.eula.Platform == fleet.MDMEULAPlatformWindows {
 		// Markdown is downloaded, never rendered as a page in the browser.
 		writeEULAFile(ctx, w, r.eula, "text/markdown; charset=utf-8", true)
 		return
@@ -425,25 +423,13 @@ func (r getMDMEULAResponse) HijackRender(ctx context.Context, w http.ResponseWri
 
 func getMDMEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getMDMEULARequest)
-	platform, err := eulaPlatform(req.Platform)
-	if err != nil {
-		setAuthCheckedOnPreAuthErr(ctx)
-		return getMDMEULAResponse{Err: err}, nil
-	}
-	if err := verifyEULAPlatformMDM(ctx, svc, platform); err != nil {
-		return getMDMEULAResponse{Err: err}, nil
-	}
 
-	get := svc.MDMGetEULABytes
-	if platform == fleet.MDMEULAPlatformWindows {
-		get = svc.MDMGetWindowsEULABytes
-	}
-	eula, err := get(ctx, req.Token)
+	eula, err := svc.MDMGetEULABytes(ctx, req.Token)
 	if err != nil {
 		return getMDMEULAResponse{Err: err}, nil
 	}
 
-	return getMDMEULAResponse{eula: eula, platform: platform}, nil
+	return getMDMEULAResponse{eula: eula}, nil
 }
 
 func (svc *Service) MDMGetEULABytes(ctx context.Context, token string) (*fleet.MDMEULA, error) {
@@ -510,9 +496,8 @@ func (svc *Service) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, err
 ////////////////////////////////////////////////////////////////////////////////
 
 type deleteMDMEULARequest struct {
-	Token    string `url:"token"`
-	DryRun   bool   `query:"dry_run,optional"` // if true, apply validation but do not delete
-	Platform string `query:"platform,optional"`
+	Token  string `url:"token"`
+	DryRun bool   `query:"dry_run,optional"` // if true, apply validation but do not delete
 }
 
 type deleteMDMEULAResponse struct {
@@ -523,20 +508,7 @@ func (r deleteMDMEULAResponse) Error() error { return r.Err }
 
 func deleteMDMEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteMDMEULARequest)
-	platform, err := eulaPlatform(req.Platform)
-	if err != nil {
-		setAuthCheckedOnPreAuthErr(ctx)
-		return deleteMDMEULAResponse{Err: err}, nil
-	}
-	if err := verifyEULAPlatformMDM(ctx, svc, platform); err != nil {
-		return deleteMDMEULAResponse{Err: err}, nil
-	}
-
-	remove := svc.MDMDeleteEULA
-	if platform == fleet.MDMEULAPlatformWindows {
-		remove = svc.MDMDeleteWindowsEULA
-	}
-	if err := remove(ctx, req.Token, req.DryRun); err != nil {
+	if err := svc.MDMDeleteEULA(ctx, req.Token, req.DryRun); err != nil {
 		return deleteMDMEULAResponse{Err: err}, nil
 	}
 	return deleteMDMEULAResponse{}, nil

@@ -696,7 +696,15 @@ func (svc *Service) MDMGetEULABytes(ctx context.Context, token string) (*fleet.M
 	// request.
 	svc.authz.SkipAuthorization(ctx)
 
-	return svc.ds.MDMGetEULABytes(ctx, fleet.MDMEULAPlatformDarwin, token)
+	platform, err := svc.eulaPlatformForToken(ctx, token)
+	if err != nil {
+		return nil, err
+	}
+	eula, err := svc.ds.MDMGetEULABytes(ctx, platform, token)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting EULA")
+	}
+	return eula, nil
 }
 
 func (svc *Service) MDMDeleteEULA(ctx context.Context, token string, dryRun bool) error {
@@ -704,20 +712,40 @@ func (svc *Service) MDMDeleteEULA(ctx context.Context, token string, dryRun bool
 		return err
 	}
 
+	platform, err := svc.eulaPlatformForToken(ctx, token)
+	if err != nil {
+		return err
+	}
+
 	if dryRun {
 		return nil
 	}
 
-	if err := svc.ds.MDMDeleteEULA(ctx, fleet.MDMEULAPlatformDarwin, token); err != nil {
+	if err := svc.ds.MDMDeleteEULA(ctx, platform, token); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting EULA")
 	}
 
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx),
-		fleet.ActivityTypeDeletedEndUserAgreement{Platform: fleet.MDMEULAPlatformDarwin}); err != nil {
+		fleet.ActivityTypeDeletedEndUserAgreement{Platform: platform}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for deleted end user agreement")
 	}
 
 	return nil
+}
+
+// eulaPlatformForToken returns the platform of the EULA the token belongs to,
+// once that platform's MDM is turned on. The token alone identifies the EULA.
+func (svc *Service) eulaPlatformForToken(ctx context.Context, token string) (fleet.MDMEULAPlatform, error) {
+	platform, err := svc.ds.MDMGetEULAPlatform(ctx, token)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "getting EULA platform")
+	}
+	if platform == fleet.MDMEULAPlatformWindows {
+		err = svc.VerifyMDMWindowsConfigured(ctx)
+	} else {
+		err = svc.VerifyMDMAppleConfigured(ctx)
+	}
+	return platform, err
 }
 
 func (svc *Service) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, error) {
@@ -799,39 +827,6 @@ func validateMarkdownEULA(name string, content []byte) error {
 	default:
 		return &fleet.BadRequestError{Message: "The file couldn't be read as markdown.", InternalErr: err}
 	}
-}
-
-func (svc *Service) MDMGetWindowsEULABytes(ctx context.Context, token string) (*fleet.MDMEULA, error) {
-	// skipauth: this resource is authorized using the token provided in the
-	// request, like the macOS EULA.
-	svc.authz.SkipAuthorization(ctx)
-
-	eula, err := svc.ds.MDMGetEULABytes(ctx, fleet.MDMEULAPlatformWindows, token)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting Windows EULA")
-	}
-	return eula, nil
-}
-
-func (svc *Service) MDMDeleteWindowsEULA(ctx context.Context, token string, dryRun bool) error {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{Platform: fleet.MDMEULAPlatformWindows}, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	if dryRun {
-		return nil
-	}
-
-	if err := svc.ds.MDMDeleteEULA(ctx, fleet.MDMEULAPlatformWindows, token); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting Windows EULA")
-	}
-
-	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx),
-		fleet.ActivityTypeDeletedEndUserAgreement{Platform: fleet.MDMEULAPlatformWindows}); err != nil {
-		return ctxerr.Wrap(ctx, err, "create activity for deleted end user agreement")
-	}
-
-	return nil
 }
 
 func (svc *Service) MDMGetWindowsEULAMetadata(ctx context.Context) (*fleet.MDMEULA, error) {

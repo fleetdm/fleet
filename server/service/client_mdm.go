@@ -536,7 +536,8 @@ func (ec *eulaContent) Handle(res *http.Response) error {
 const eulaAPIPath = "/api/latest/fleet/setup_experience/eula"
 
 // eulaEndpoints is what differs between the macOS and Windows EULA requests;
-// the client logic for both is the same.
+// the client logic for both is the same. Requests by token don't need the
+// platform: the token belongs to one EULA.
 type eulaEndpoints struct {
 	query string // platform query parameter, left out for macOS so older servers still understand it
 	label string // names the EULA in error messages
@@ -559,7 +560,7 @@ func (e eulaEndpoints) withQuery(query string) string {
 }
 
 func (c *Client) GetEULAContent(token string) ([]byte, error) {
-	return c.getEULAContent(macOSEULAEndpoints, token)
+	return c.getEULAContent(token)
 }
 
 func (c *Client) GetEULAMetadata() (*fleet.MDMEULA, error) {
@@ -571,7 +572,7 @@ func (c *Client) DeleteEULAIfNeeded(dryRun bool) error {
 }
 
 func (c *Client) DeleteEULA(token string, dryRun bool) error {
-	return c.deleteEULA(macOSEULAEndpoints, token, dryRun)
+	return c.deleteEULA(token, dryRun)
 }
 
 func (c *Client) UploadEULAIfNeeded(eulaPath string, dryRun bool) error {
@@ -583,7 +584,7 @@ func (c *Client) UploadEULA(eulaPath string, dryRun bool) error {
 }
 
 func (c *Client) GetWindowsEULAContent(token string) ([]byte, error) {
-	return c.getEULAContent(windowsEULAEndpoints, token)
+	return c.getEULAContent(token)
 }
 
 func (c *Client) GetWindowsEULAMetadata() (*fleet.MDMEULA, error) {
@@ -598,10 +599,10 @@ func (c *Client) UploadWindowsEULAIfNeeded(eulaPath string, dryRun bool) error {
 	return c.uploadEULAIfNeeded(windowsEULAEndpoints, eulaPath, dryRun)
 }
 
-func (c *Client) getEULAContent(e eulaEndpoints, token string) ([]byte, error) {
+func (c *Client) getEULAContent(token string) ([]byte, error) {
 	verb, path := "GET", eulaAPIPath+"/"+token
 	var responseBody eulaContent
-	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, e.withQuery(""))
+	err := c.authenticatedRequest(nil, verb, path, &responseBody)
 	return responseBody.Bytes, err
 }
 
@@ -622,17 +623,17 @@ func (c *Client) deleteEULAIfNeeded(e eulaEndpoints, dryRun bool) error {
 		return fmt.Errorf("getting %s metadata: %w", e.label, err)
 	}
 
-	err = c.deleteEULA(e, eula.Token, dryRun)
+	err = c.deleteEULA(eula.Token, dryRun)
 	if err != nil {
 		return fmt.Errorf("deleting %s: %w", e.label, err)
 	}
 	return nil
 }
 
-func (c *Client) deleteEULA(e eulaEndpoints, token string, dryRun bool) error {
+func (c *Client) deleteEULA(token string, dryRun bool) error {
 	verb, path := "DELETE", eulaAPIPath+"/"+token
 	var responseBody deleteMDMEULAResponse
-	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, e.withQuery(fmt.Sprintf("dry_run=%t", dryRun)))
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, fmt.Sprintf("dry_run=%t", dryRun))
 	return err
 }
 
@@ -667,7 +668,7 @@ func (c *Client) uploadEULAIfNeeded(e eulaEndpoints, eulaPath string, dryRun boo
 				return err
 			}
 		}
-		err = c.deleteEULA(e, oldMeta.Token, dryRun)
+		err = c.deleteEULA(oldMeta.Token, dryRun)
 		if err != nil {
 			return fmt.Errorf("deleting old %s: %w", e.label, err)
 		}

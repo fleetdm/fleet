@@ -5521,7 +5521,7 @@ func (s *integrationMDMTestSuite) TestWindowsEULA() {
 	winToken := metadataResp.Token
 
 	// download, as an attachment and never as a renderable page; like the macOS PDF, the token is enough
-	resp := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s?platform=windows", winToken), nil, http.StatusOK)
+	resp := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", winToken), nil, http.StatusOK)
 	require.EqualValues(t, len(mdBytes), resp.ContentLength)
 	require.Equal(t, "text/markdown; charset=utf-8", resp.Header.Get("Content-Type"))
 	require.Contains(t, resp.Header.Get("Content-Disposition"), "attachment")
@@ -5532,7 +5532,7 @@ func (s *integrationMDMTestSuite) TestWindowsEULA() {
 	require.Equal(t, mdBytes, got)
 
 	var downloadResp getMDMEULAResponse
-	s.DoJSON("GET", "/api/latest/fleet/setup_experience/eula/bad-token?platform=windows", nil, http.StatusNotFound, &downloadResp)
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/eula/bad-token", nil, http.StatusNotFound, &downloadResp)
 
 	// the device now sees the rendered agreement in place of the default terms,
 	// with the link flattened to its text
@@ -5550,7 +5550,7 @@ func (s *integrationMDMTestSuite) TestWindowsEULA() {
 	// replacing the agreement shows the new one on the next request, not the
 	// previously rendered page
 	var replaceResp deleteMDMEULAResponse
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s?platform=windows", winToken), nil, http.StatusOK, &replaceResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", winToken), nil, http.StatusOK, &replaceResp)
 	// It has an HTML table with merged cells, as pandoc writes it from a Word document.
 	revised := "# Revised terms\n\n<table style=\"width:84%;\">\n<tr><th colspan=\"2\">Coverage</th></tr>\n" +
 		"<tr><td>Laptop</td><td><u>Yes</u></td></tr>\n</table>\n"
@@ -5565,30 +5565,44 @@ func (s *integrationMDMTestSuite) TestWindowsEULA() {
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/eula/metadata?platform=windows", nil, http.StatusOK, &metadataResp)
 	winToken = metadataResp.Token
 
-	// the two platforms are isolated: a token only works with its own platform, and the platform must be one of the two
+	// both agreements share the endpoints: the token picks the agreement, and the platform must be one of the two
 	pdfBytes := []byte("%PDF-1.pdf-contents")
 	s.uploadEULA(&fleet.MDMEULA{Bytes: pdfBytes, Name: "eula.pdf"}, http.StatusOK, "")
 	var macMeta getMDMEULAMetadataResponse
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/eula/metadata", nil, http.StatusOK, &macMeta)
 	macToken := macMeta.Token
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s?platform=windows", macToken), nil, http.StatusNotFound, &downloadResp)
-	var macDownload getMDMEULAResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", winToken), nil, http.StatusNotFound, &macDownload)
-	var deleteResp deleteMDMEULAResponse
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s?platform=windows", macToken), nil, http.StatusNotFound, &deleteResp)
-	var macDelete deleteMDMEULAResponse
+	resp = s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", macToken), nil, http.StatusOK)
+	require.Equal(t, "application/pdf", resp.Header.Get("Content-Type"))
+	resp = s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", winToken), nil, http.StatusOK)
+	require.Equal(t, "text/markdown; charset=utf-8", resp.Header.Get("Content-Type"))
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/eula/metadata?platform=linux", nil, http.StatusBadRequest, &macMeta)
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", winToken), nil, http.StatusNotFound, &macDelete)
+
+	// each agreement still needs its own platform's MDM, even with another platform's on
+	appCfg, err := s.ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	setWindowsMDM := func(on bool) {
+		appCfg.MDM.WindowsEnabledAndConfigured = on
+		require.NoError(t, s.ds.SaveAppConfig(context.Background(), appCfg))
+	}
+	setWindowsMDM(false)
+	t.Cleanup(func() { setWindowsMDM(true) })
+	res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", winToken), nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "Windows MDM isn't turned on")
+	s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", macToken), nil, http.StatusOK)
+	setWindowsMDM(true)
+
+	var deleteResp deleteMDMEULAResponse
+	var macDelete deleteMDMEULAResponse
 
 	// a dry run delete keeps the agreement
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s?platform=windows&dry_run=true", winToken), nil, http.StatusOK, &deleteResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s?dry_run=true", winToken), nil, http.StatusOK, &deleteResp)
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/eula/metadata?platform=windows", nil, http.StatusOK, &metadataResp)
 
 	// delete the Windows agreement; macOS keeps its EULA and the device is back on the default terms
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s?platform=windows", winToken), nil, http.StatusOK, &deleteResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", winToken), nil, http.StatusOK, &deleteResp)
 	s.lastActivityMatches(fleet.ActivityTypeDeletedEndUserAgreement{}.ActivityName(), `{"platform":"windows"}`, 0)
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/eula/metadata?platform=windows", nil, http.StatusNotFound, &metadataResp)
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s?platform=windows", winToken), nil, http.StatusNotFound, &deleteResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", winToken), nil, http.StatusNotFound, &deleteResp)
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/eula/metadata", nil, http.StatusOK, &macMeta)
 	require.Contains(t, tosPage(), "Fleet is open-source software")
 

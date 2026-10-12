@@ -1221,8 +1221,8 @@ type Service interface {
 
 	GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID *uint) (*MDMAppleBootstrapPackageSummary, error)
 
-	// MDMGetEULABytes returns the contents of the EULA that matches
-	// the given token.
+	// MDMGetEULABytes returns the contents of the EULA, macOS or Windows,
+	// that matches the given token.
 	//
 	// A token is required as the means of authentication for this resource
 	// since it can be publicly accessed with anyone with a valid token.
@@ -1232,7 +1232,7 @@ type Service interface {
 	MDMGetEULAMetadata(ctx context.Context) (*MDMEULA, error)
 	// MDMCreateEULA adds a new EULA file.
 	MDMCreateEULA(ctx context.Context, name string, file io.ReadSeeker, dryRun bool) error
-	// MDMAppleDelete EULA removes an EULA entry.
+	// MDMDeleteEULA removes the EULA, macOS or Windows, that matches the token.
 	MDMDeleteEULA(ctx context.Context, token string, dryRun bool) error
 
 	// MDMCreateWindowsEULA adds the terms shown to end users during Windows Entra enrollment, as a
@@ -1240,11 +1240,6 @@ type Service interface {
 	MDMCreateWindowsEULA(ctx context.Context, name string, file io.ReadSeeker, dryRun bool) error
 	// MDMGetWindowsEULAMetadata returns metadata about the Windows EULA.
 	MDMGetWindowsEULAMetadata(ctx context.Context) (*MDMEULA, error)
-	// MDMGetWindowsEULABytes returns the Windows EULA markdown matching the token. Like the macOS
-	// EULA, the token authorizes it.
-	MDMGetWindowsEULABytes(ctx context.Context, token string) (*MDMEULA, error)
-	// MDMDeleteWindowsEULA removes the Windows EULA.
-	MDMDeleteWindowsEULA(ctx context.Context, token string, dryRun bool) error
 
 	// Create or update the MDM Apple Setup Assistant for a team or no team.
 	SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *MDMAppleSetupAssistant) (*MDMAppleSetupAssistant, error)

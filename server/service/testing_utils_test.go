@@ -985,8 +985,6 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"DELETE", "/api/latest/fleet/mdm/apple/setup/eula/token", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/setup/eula/metadata", false, false},
 		// The Windows EULA upload is absent for the same reason as the other EULA uploads.
-		{"GET", "/api/latest/fleet/setup_experience/eula/0982A979-B1C9-4BDF-B584-5A37D32A1172?platform=windows", false, true},
-		{"DELETE", "/api/latest/fleet/setup_experience/eula/token?platform=windows", false, true},
 		{"GET", "/api/latest/fleet/setup_experience/eula/metadata?platform=windows", false, true},
 		{"GET", "/api/latest/fleet/mdm/apple/enrollment_profile", false, false},
 		{"GET", "/api/latest/fleet/enrollment_profiles/automatic", false, false},
@@ -1049,8 +1047,6 @@ func windowsMDMConfigurationRequiredEndpoints() []string {
 	return []string{
 		"/api/fleet/orbit/disk_encryption_key",
 		"/api/fleet/orbit/disk_encryption_protection",
-		"/api/latest/fleet/setup_experience/eula/0982A979-B1C9-4BDF-B584-5A37D32A1172?platform=windows",
-		"/api/latest/fleet/setup_experience/eula/token?platform=windows",
 		"/api/latest/fleet/setup_experience/eula/metadata?platform=windows",
 	}
 }

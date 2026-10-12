@@ -2343,6 +2343,8 @@ type Datastore interface {
 	// the database. A token is required since the macOS file is publicly
 	// accessible by anyone with the token.
 	MDMGetEULABytes(ctx context.Context, platform MDMEULAPlatform, token string) (*MDMEULA, error)
+	// MDMGetEULAPlatform returns the platform of the EULA with the given token.
+	MDMGetEULAPlatform(ctx context.Context, token string) (MDMEULAPlatform, error)
 	// MDMInsertEULA inserts a new EULA in the database for eula.Platform.
 	MDMInsertEULA(ctx context.Context, eula *MDMEULA) error
 	// MDMDeleteEULA deletes the platform's EULA file from the database.
