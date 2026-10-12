@@ -12701,6 +12701,7 @@ func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
 	require.NoError(t, err)
 	mdmDevice = mdmtest.NewTestMDMClientAppleDesktopManual(s.server.URL, desktopToken)
 	mdmDevice.UUID = host.UUID
+	mdmDevice.SerialNumber = host.HardwareSerial
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 	s.awaitRunAppleMDMWorkerSchedule()
