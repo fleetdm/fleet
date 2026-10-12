@@ -3,9 +3,9 @@ package service
 // macOS setup tests for the MDM suite.
 //
 // Belongs here: bootstrap packages and their status, the EULA, macOS setup settings and the setup
-// assistant, setup experience software, and the managed local account.
+// assistant, and the managed local account.
 //
-// Does not belong here: setup experience scripts, software flows, and their release
+// Does not belong here: setup experience scripts and software, and their release
 // (integration_mdm_setup_experience_test.go), ADE profile assignment (integration_mdm_dep_test.go),
 // and end user authentication (integration_mdm_sso_test.go).
 
@@ -40,7 +40,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
-	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
@@ -1720,168 +1719,6 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 		EnrollmentProfile: json.RawMessage(fmt.Sprintf(defaultProf, "no_abm_at_all")),
 	}, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(r.Body), "No Apple Business Manager (ABM) token found")
-}
-
-func (s *integrationMDMTestSuite) TestSetupExperience() {
-	t := s.T()
-	ds := s.ds
-	ctx := context.Background()
-
-	test.CreateInsertGlobalVPPToken(t, ds)
-	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
-
-	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
-	require.NoError(t, err)
-
-	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
-	require.NoError(t, err)
-	swInstallerPayload1 := fleet.UploadSoftwareInstallerPayload{
-		InstallScript:     "hello",
-		PreInstallQuery:   "SELECT 1",
-		PostInstallScript: "world",
-		UninstallScript:   "goodbye",
-		InstallerFile:     tfr1,
-		StorageID:         "storage1",
-		Filename:          "file1",
-		Title:             "file1",
-		Version:           "1.0",
-		Source:            "apps",
-		UserID:            user1.ID,
-		TeamID:            &team1.ID,
-		Platform:          string(fleet.MacOSPlatform),
-		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
-	}
-	installerID1, titleID1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &swInstallerPayload1)
-	require.NoError(t, err)
-
-	app1 := &fleet.VPPApp{Name: "vpp_app_1", AdamID: "1", Platform: fleet.MacOSPlatform, BundleIdentifier: "b1"}
-	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID, nil)
-	require.NoError(t, err)
-
-	var respListTitles listSoftwareTitlesResponse
-	s.DoJSON(
-		"GET", "/api/latest/fleet/software/titles",
-		listSoftwareTitlesRequest{},
-		http.StatusOK, &respListTitles,
-		"team_id", fmt.Sprint(team1.ID),
-	)
-	require.Len(t, respListTitles.SoftwareTitles, 2)
-
-	var respGetSetupExperience getSetupExperienceSoftwareResponse
-	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{}, http.StatusOK, &respGetSetupExperience, "team_id", fmt.Sprint(team1.ID))
-	require.Len(t, respGetSetupExperience.SoftwareTitles, 2)
-
-	var respPutSetupExperience putSetupExperienceSoftwareResponse
-	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{TeamID: team1.ID, TitleIDs: []uint{respListTitles.SoftwareTitles[0].ID, respListTitles.SoftwareTitles[1].ID}}, http.StatusOK, &respPutSetupExperience)
-	require.NoError(t, respPutSetupExperience.Error())
-
-	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
-		fmt.Sprintf(`{"platform": "darwin", "team_id": %d, "team_name": "%s", "fleet_id": %d, "fleet_name": "%s"}`, team1.ID, team1.Name, team1.ID, team1.Name), 0)
-
-	respPutSetupExperience = putSetupExperienceSoftwareResponse{}
-	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
-		Platform: "macos",
-		TeamID:   team1.ID,
-		TitleIDs: []uint{respListTitles.SoftwareTitles[0].ID, respListTitles.SoftwareTitles[1].ID},
-	}, http.StatusOK, &respPutSetupExperience)
-	require.NoError(t, respPutSetupExperience.Error())
-
-	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
-		fmt.Sprintf(`{"platform": "darwin", "team_id": %d, "team_name": "%s", "fleet_id": %d, "fleet_name": "%s"}`, team1.ID, team1.Name, team1.ID, team1.Name), 0)
-
-	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{}, http.StatusOK, &respGetSetupExperience, "team_id", fmt.Sprint(team1.ID))
-	require.Len(t, respGetSetupExperience.SoftwareTitles, 2)
-
-	desktopToken := uuid.New().String()
-	mdmDevice := mdmtest.NewTestMDMClientAppleDesktopManual(s.server.URL, desktopToken)
-	fleetHost, err := ds.NewHost(context.Background(), &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   new(t.Name() + uuid.New().String()),
-		NodeKey:         new(t.Name() + uuid.New().String()),
-		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
-		Platform:        "darwin",
-		HardwareModel:   "MacBookPro16,1",
-		TeamID:          &team1.ID,
-
-		UUID:           mdmDevice.UUID,
-		HardwareSerial: mdmDevice.SerialNumber,
-	})
-	require.NoError(t, err)
-
-	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), fleetHost.ID, desktopToken)
-	require.NoError(t, err)
-
-	orbitNodeKey := setOrbitEnrollment(t, fleetHost, ds)
-
-	err = mdmDevice.Enroll()
-	require.NoError(t, err)
-
-	var orbitRes fleet.GetOrbitSetupExperienceStatusResponse
-	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", fleet.GetOrbitSetupExperienceStatusRequest{OrbitNodeKey: orbitNodeKey}, http.StatusOK, &orbitRes)
-
-	require.Len(t, orbitRes.Results.Software, 2)
-
-	var vppFound, softwareFound bool
-	for _, res := range orbitRes.Results.Software {
-
-		if res.Name == "file1" {
-			softwareFound = true
-		}
-		if res.Name == "vpp_app_1" {
-			vppFound = true
-		}
-	}
-
-	require.True(t, vppFound, "vpp app not found in status results")
-	require.True(t, softwareFound, "software installer app not found in status results")
-
-	awaitingConfig, err := s.ds.GetHostAwaitingConfiguration(ctx, fleetHost.UUID)
-	require.NoError(t, err)
-	require.True(t, awaitingConfig)
-
-	updatePayload := &fleet.UpdateSoftwareInstallerPayload{
-		TitleID:           titleID1,
-		InstallerID:       installerID1,
-		Filename:          swInstallerPayload1.Filename,
-		InstallScript:     new("some new content"),
-		PreInstallQuery:   &swInstallerPayload1.PreInstallQuery,
-		PostInstallScript: &swInstallerPayload1.PostInstallScript,
-		UninstallScript:   &swInstallerPayload1.UninstallScript,
-		Version:           swInstallerPayload1.Version,
-		SelfService:       new(true),
-		UserID:            user1.ID,
-		TeamID:            &team1.ID,
-		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
-	}
-
-	s.updateSoftwareInstaller(t, updatePayload, http.StatusOK, "")
-
-	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status", fleet.GetOrbitSetupExperienceStatusRequest{OrbitNodeKey: orbitNodeKey}, http.StatusOK, &orbitRes)
-
-	require.Len(t, orbitRes.Results.Software, 2)
-
-	vppFound = false
-	softwareFound = false
-	for _, res := range orbitRes.Results.Software {
-
-		if res.Name == "file1" {
-			softwareFound = true
-			assert.Equal(t, fleet.SetupExperienceStatusRunning, res.Status)
-		}
-		if res.Name == "vpp_app_1" {
-			vppFound = true
-		}
-	}
-
-	require.True(t, vppFound, "vpp app not found in status results")
-	require.True(t, softwareFound, "software installer app not found in status results")
-
-	awaitingConfig, err = s.ds.GetHostAwaitingConfiguration(ctx, fleetHost.UUID)
-	require.NoError(t, err)
-	require.True(t, awaitingConfig)
 }
 
 func (s *integrationMDMTestSuite) TestManagedLocalAccount() {

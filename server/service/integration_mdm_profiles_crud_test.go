@@ -3,8 +3,8 @@ package service
 // Cross-platform configuration profile CRUD tests for the MDM suite.
 //
 // Belongs here: creating, updating, and listing profiles through the platform-agnostic endpoints,
-// label scoping (include any, exclude any), secret variables in uploaded profiles, and Android
-// profile status.
+// label scoping (include any, exclude any), secret variables in uploaded profiles, profile metadata
+// (name, description, self-service, hidden), and Android profile status.
 //
 // Does not belong here: platform-specific delivery and status (integration_mdm_profiles_apple_test.go,
 // integration_mdm_profiles_windows_delivery_test.go) and batch endpoints
@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"sort"
 	"strings"
@@ -1946,4 +1947,312 @@ func (s *integrationMDMTestSuite) TestHostMDMAndroidProfilesStatus() {
 
 	// Profiles that failed because they were overriden should stay failed
 	getHostProfiles(host1.ID, []string{string(fleet.MDMDeliveryVerified), string(fleet.MDMDeliveryVerified), string(fleet.MDMDeliveryFailed)})
+}
+
+func (s *integrationMDMTestSuite) TestConfigProfileNameAndDescription() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	teamFields := func(extra map[string][]string) map[string][]string {
+		fields := map[string][]string{"team_id": {fmt.Sprint(team.ID)}}
+		maps.Copy(fields, extra)
+		return fields
+	}
+
+	create := func(fileName string, content []byte, extra map[string][]string, wantStatus int) string {
+		body, headers := generateNewProfileMultipartRequest(t, fileName, content, s.token, teamFields(extra))
+		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), wantStatus, headers)
+		defer res.Body.Close()
+		if wantStatus != http.StatusOK {
+			return ""
+		}
+		var resp newMDMConfigProfileResponse
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&resp))
+		return resp.ProfileUUID
+	}
+	update := func(profileUUID, fileName string, content []byte, fields map[string][]string, wantStatus int) {
+		body, headers := generateMultipartRequest(t, "profile", fileName, content, s.token, fields)
+		res := s.DoRawWithHeaders("PATCH", "/api/latest/fleet/configuration_profiles/"+profileUUID, body.Bytes(), wantStatus, headers)
+		res.Body.Close()
+	}
+	get := func(profileUUID string) *fleet.MDMConfigProfilePayload {
+		var resp getMDMConfigProfileResponse
+		s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/"+profileUUID, getMDMConfigProfileRequest{}, http.StatusOK, &resp)
+		return resp.MDMConfigProfilePayload
+	}
+	list := func() map[string]*fleet.MDMConfigProfilePayload {
+		var resp listMDMConfigProfilesResponse
+		s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID))
+		byUUID := make(map[string]*fleet.MDMConfigProfilePayload, len(resp.Profiles))
+		for _, p := range resp.Profiles {
+			byUUID[p.ProfileUUID] = p
+		}
+		return byUUID
+	}
+
+	// create: explicit name and description on every type, derived
+	// name otherwise
+	appleUUID := create("apple.mobileconfig", mobileconfigForTest("Payload Apple", "com.test.named.apple"),
+		map[string][]string{"name": {"Custom Apple"}, "description": {"Blocks the camera"}}, http.StatusOK)
+	appleDerivedUUID := create("apple2.mobileconfig", mobileconfigForTest("Payload Apple 2", "com.test.derived.apple"), nil, http.StatusOK)
+	winUUID := create("firewall.xml", syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Firewall/Test"),
+		map[string][]string{"name": {"Custom Windows"}, "description": {"Firewall rules"}}, http.StatusOK)
+	winDerivedUUID := create("bitlocker-report.xml", syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Bitlocker/Test"), nil, http.StatusOK)
+	declUUID := create("decl.json", declBytesForTest("com.test.named.decl", "named"),
+		map[string][]string{"name": {"Custom Declaration"}, "description": {"A declaration"}}, http.StatusOK)
+
+	apple := get(appleUUID)
+	require.Equal(t, "Custom Apple", apple.Name)
+	require.Equal(t, "Blocks the camera", apple.Description)
+	require.Equal(t, "Payload Apple", apple.PayloadDisplayName)
+
+	appleDerived := get(appleDerivedUUID)
+	require.Equal(t, "Payload Apple 2", appleDerived.Name)
+	require.Empty(t, appleDerived.Description)
+	require.Equal(t, "Payload Apple 2", appleDerived.PayloadDisplayName)
+
+	win := get(winUUID)
+	require.Equal(t, "Custom Windows", win.Name)
+	require.Equal(t, "Firewall rules", win.Description)
+	require.Empty(t, win.PayloadDisplayName)
+	require.Equal(t, "bitlocker-report", get(winDerivedUUID).Name)
+
+	decl := get(declUUID)
+	require.Equal(t, "Custom Declaration", decl.Name)
+	require.Equal(t, "A declaration", decl.Description)
+	require.Empty(t, decl.PayloadDisplayName)
+
+	listed := list()
+	require.Len(t, listed, 5)
+	listedApple, listedAppleDerived, listedWin, listedDecl := listed[appleUUID], listed[appleDerivedUUID], listed[winUUID], listed[declUUID]
+	require.NotNil(t, listedApple)
+	require.NotNil(t, listedAppleDerived)
+	require.NotNil(t, listedWin)
+	require.NotNil(t, listedDecl)
+	require.Equal(t, "Blocks the camera", listedApple.Description)
+	require.Equal(t, "Payload Apple", listedApple.PayloadDisplayName)
+	require.Equal(t, "Payload Apple 2", listedAppleDerived.PayloadDisplayName)
+	require.Equal(t, "Firewall rules", listedWin.Description)
+	require.Empty(t, listedWin.PayloadDisplayName)
+	require.Equal(t, "A declaration", listedDecl.Description)
+
+	// create: validation
+	create("blank.xml", syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Blank/Test"),
+		map[string][]string{"name": {"   "}}, http.StatusUnprocessableEntity)
+	// Windows validation keeps its existing 400s for long and reserved names
+	create("long.xml", syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Long/Test"),
+		map[string][]string{"name": {strings.Repeat("n", fleet.MaxProfileNameLength+1)}}, http.StatusBadRequest)
+	create("longdesc.xml", syncMLForTest("./Device/Vendor/MSFT/Policy/Config/LongDesc/Test"),
+		map[string][]string{"description": {strings.Repeat("d", fleet.MDMProfileMaxDescriptionLen+1)}}, http.StatusUnprocessableEntity)
+	create("reserved.xml", syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Reserved/Test"),
+		map[string][]string{"name": {servermdm.FleetdConfigProfileName}}, http.StatusBadRequest)
+	create("secret.mobileconfig", mobileconfigForTest("Payload Secret", "com.test.secret.apple"),
+		map[string][]string{"name": {"Wi-Fi $FLEET_SECRET_PSK"}}, http.StatusUnprocessableEntity)
+	// same name as the Apple profile, on another platform, in the same team
+	create("dup.xml", syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Dup/Test"),
+		map[string][]string{"name": {"Custom Apple"}}, http.StatusConflict)
+
+	// update: description only, nothing else moves
+	update(appleUUID, "", nil, map[string][]string{"description": {"Blocks the camera for real"}}, http.StatusOK)
+	updated := get(appleUUID)
+	require.Equal(t, "Custom Apple", updated.Name)
+	require.Equal(t, "Blocks the camera for real", updated.Description)
+	require.Equal(t, apple.UploadedAt, updated.UploadedAt)
+	require.Equal(t, apple.Checksum, updated.Checksum)
+
+	// update: an empty description clears it
+	update(appleUUID, "", nil, map[string][]string{"description": {""}}, http.StatusOK)
+	require.Empty(t, get(appleUUID).Description)
+
+	// update: a replacement file with another PayloadDisplayName keeps the name
+	update(appleUUID, "apple.mobileconfig", mobileconfigForTest("Renamed Payload", "com.test.named.apple"), nil, http.StatusOK)
+	updated = get(appleUUID)
+	require.Equal(t, "Custom Apple", updated.Name)
+	require.Equal(t, "Renamed Payload", updated.PayloadDisplayName)
+	require.NotEqual(t, apple.Checksum, updated.Checksum)
+
+	// update: rename a Windows profile without new content
+	update(winUUID, "", nil, map[string][]string{"name": {"Renamed Windows"}}, http.StatusOK)
+	renamedWin := get(winUUID)
+	require.Equal(t, "Renamed Windows", renamedWin.Name)
+	require.Equal(t, "Firewall rules", renamedWin.Description)
+	require.Equal(t, win.UploadedAt, renamedWin.UploadedAt)
+
+	// update: a replacement Windows file doesn't rename from the file name
+	update(winUUID, "something-else.xml", syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Firewall/Test2"), nil, http.StatusOK)
+	require.Equal(t, "Renamed Windows", get(winUUID).Name)
+
+	// update: declarations can be renamed too
+	update(declUUID, "", nil, map[string][]string{"name": {"Renamed Declaration"}, "description": {""}}, http.StatusOK)
+	renamedDecl := get(declUUID)
+	require.Equal(t, "Renamed Declaration", renamedDecl.Name)
+	require.Empty(t, renamedDecl.Description)
+
+	// update: collisions and limits
+	update(winUUID, "", nil, map[string][]string{"name": {"Custom Apple"}}, http.StatusConflict)
+	update(declUUID, "", nil, map[string][]string{"name": {"Custom Apple"}}, http.StatusConflict)
+	update(appleUUID, "", nil, map[string][]string{"name": {" "}}, http.StatusUnprocessableEntity)
+	update(appleUUID, "", nil, map[string][]string{"name": {servermdm.FleetdConfigProfileName}}, http.StatusUnprocessableEntity)
+
+	// batch: name and description are stored, display_name still works
+	// as an alias
+	batch := func(profiles []fleet.BatchModifyMDMConfigProfilePayload, wantStatus int) {
+		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
+			ConfigurationProfiles: profiles,
+		}, wantStatus, "team_id", fmt.Sprint(team.ID))
+	}
+	batch([]fleet.BatchModifyMDMConfigProfilePayload{
+		// padded like a hand-written YAML value; stored trimmed
+		{Profile: mobileconfigForTest("Payload Batch", "com.test.batch.apple"), Name: "  Batch Apple ", Description: " batch apple\n"},
+		{Profile: syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Batch/Test"), DisplayName: "Batch Windows", Description: "batch windows"},
+		{Profile: declBytesForTest("com.test.batch.decl", "batch"), Name: "Batch Declaration"},
+	}, http.StatusNoContent)
+	listed = list()
+	require.Len(t, listed, 3)
+	byName := make(map[string]*fleet.MDMConfigProfilePayload, len(listed))
+	for _, p := range listed {
+		byName[p.Name] = p
+	}
+	batchApple, batchWin, batchDecl := byName["Batch Apple"], byName["Batch Windows"], byName["Batch Declaration"]
+	require.NotNil(t, batchApple)
+	require.NotNil(t, batchWin)
+	require.NotNil(t, batchDecl)
+	require.Equal(t, "batch apple", batchApple.Description)
+	require.Equal(t, "Payload Batch", batchApple.PayloadDisplayName)
+	require.Equal(t, "batch windows", batchWin.Description)
+	require.Empty(t, batchDecl.Description)
+
+	// batch: name and display_name must agree when both are given
+	batch([]fleet.BatchModifyMDMConfigProfilePayload{
+		{Profile: syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Batch/Test"), Name: "A", DisplayName: "B"},
+	}, http.StatusUnprocessableEntity)
+	batch([]fleet.BatchModifyMDMConfigProfilePayload{
+		{Profile: syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Batch/Test"), Name: "Same", DisplayName: "Same"},
+	}, http.StatusNoContent)
+	require.Len(t, list(), 1)
+
+	// a name of only whitespace is rejected rather than derived
+	batch([]fleet.BatchModifyMDMConfigProfilePayload{
+		{Profile: syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Batch/Test"), Name: "   "},
+	}, http.StatusUnprocessableEntity)
+
+	// display_name alone doesn't rename a .mobileconfig, but it still has to
+	// agree with name when both are given
+	batch([]fleet.BatchModifyMDMConfigProfilePayload{
+		{Profile: mobileconfigForTest("Payload Alias", "com.test.batch.alias"), DisplayName: "Ignored"},
+	}, http.StatusNoContent)
+	listed = list()
+	require.Len(t, listed, 1)
+	for _, p := range listed {
+		require.Equal(t, "Payload Alias", p.Name)
+	}
+	batch([]fleet.BatchModifyMDMConfigProfilePayload{
+		{Profile: mobileconfigForTest("Payload Alias", "com.test.batch.alias"), Name: "A", DisplayName: "B"},
+	}, http.StatusUnprocessableEntity)
+
+	// a PayloadDisplayName is held to the same length limit as a given name
+	batch([]fleet.BatchModifyMDMConfigProfilePayload{
+		{Profile: mobileconfigForTest(strings.Repeat("p", fleet.MaxProfileNameLength+1), "com.test.batch.long")},
+	}, http.StatusUnprocessableEntity)
+}
+
+func (s *integrationMDMTestSuite) TestConfigProfileSelfServiceAndHidden() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	teamID := fmt.Sprint(team.ID)
+
+	create := func(fileName string, content []byte, fields map[string][]string, wantStatus int) string {
+		fields["team_id"] = []string{teamID}
+		body, headers := generateNewProfileMultipartRequest(t, fileName, content, s.token, fields)
+		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), wantStatus, headers)
+		defer res.Body.Close()
+		var resp newMDMConfigProfileResponse
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&resp))
+		return resp.ProfileUUID
+	}
+	update := func(profileUUID string, fields map[string][]string, wantStatus int) {
+		body, headers := generateMultipartRequest(t, "profile", "", nil, s.token, fields)
+		s.DoRawWithHeaders("PATCH", "/api/latest/fleet/configuration_profiles/"+profileUUID, body.Bytes(), wantStatus, headers).Body.Close()
+	}
+	get := func(profileUUID string) *fleet.MDMConfigProfilePayload {
+		var resp getMDMConfigProfileResponse
+		s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/"+profileUUID, getMDMConfigProfileRequest{}, http.StatusOK, &resp)
+		return resp.MDMConfigProfilePayload
+	}
+	installOn := func(hostUUID, profileUUID, identifier string) {
+		require.NoError(t, s.ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
+			ProfileUUID: profileUUID, ProfileIdentifier: identifier, HostUUID: hostUUID, CommandUUID: uuid.NewString(),
+			OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerified, Checksum: []byte("csum"), Scope: fleet.PayloadScopeSystem,
+		}}))
+	}
+	requireOptedIn := func(hostUUID, profileUUID string) {
+		ok, err := s.ds.HasHostMDMProfileOptIn(ctx, hostUUID, profileUUID)
+		require.NoError(t, err)
+		require.True(t, ok)
+	}
+	yes := []string{"true"}
+
+	ssUUID := create("ss.mobileconfig", mobileconfigForTest("SS", "com.test.ss"), map[string][]string{"self_service": yes}, http.StatusOK)
+	winUUID := create("hidden.xml", syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Hidden/Test"), map[string][]string{"hidden": yes}, http.StatusOK)
+	declUUID := create("hidden-decl.json", declBytesForTest("com.test.hidden.decl", "hidden"), map[string][]string{"hidden": yes}, http.StatusOK)
+	require.True(t, get(ssUUID).SelfService)
+	require.True(t, get(winUUID).Hidden)
+	require.True(t, get(declUUID).Hidden)
+
+	create("ss.xml", syncMLForTest("./Device/Vendor/MSFT/Policy/Config/SS/Test"), map[string][]string{"self_service": yes}, http.StatusUnprocessableEntity)
+	create("ss.json", declBytesForTest("com.test.ss.decl", "ss"), map[string][]string{"self_service": yes}, http.StatusUnprocessableEntity)
+	create("both.mobileconfig", mobileconfigForTest("Both", "com.test.both"), map[string][]string{"self_service": yes, "hidden": yes}, http.StatusUnprocessableEntity)
+	create("bad.mobileconfig", mobileconfigForTest("Bad", "com.test.bad"), map[string][]string{"hidden": {"nope"}}, http.StatusBadRequest)
+	// hidden is validated against the stored self_service
+	update(ssUUID, map[string][]string{"hidden": yes}, http.StatusUnprocessableEntity)
+	update(declUUID, map[string][]string{"self_service": yes}, http.StatusUnprocessableEntity)
+
+	// flipping to self-service opts in hosts that have it, without moving uploaded_at
+	forcedUUID := create("forced.mobileconfig", mobileconfigForTest("Forced", "com.test.forced"), map[string][]string{}, http.StatusOK)
+	installOn("host-1", forcedUUID, "com.test.forced")
+	before := get(forcedUUID)
+	update(forcedUUID, map[string][]string{"self_service": yes}, http.StatusOK)
+	after := get(forcedUUID)
+	require.True(t, after.SelfService)
+	require.Equal(t, before.UploadedAt, after.UploadedAt)
+	requireOptedIn("host-1", forcedUUID)
+	update(forcedUUID, map[string][]string{"description": {"kept"}}, http.StatusOK)
+	require.True(t, get(forcedUUID).SelfService)
+
+	var listResp listMDMConfigProfilesResponse
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &listResp, "team_id", teamID)
+	for _, p := range listResp.Profiles {
+		require.Equal(t, p.ProfileUUID == ssUUID || p.ProfileUUID == forcedUUID, p.SelfService, p.Name)
+		require.Equal(t, p.ProfileUUID == winUUID || p.ProfileUUID == declUUID, p.Hidden, p.Name)
+	}
+
+	// batch: the flip seeds opt-ins too, and is declarative for the flags
+	batch := func(profiles []fleet.MDMProfileBatchPayload, wantStatus int) {
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: profiles}, wantStatus, "team_id", teamID)
+	}
+	batch([]fleet.MDMProfileBatchPayload{{Name: "B", Contents: mobileconfigForTest("B", "com.test.b")}}, http.StatusNoContent)
+	var bUUID string
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &bUUID, `SELECT profile_uuid FROM mdm_apple_configuration_profiles WHERE identifier = 'com.test.b'`)
+	})
+	installOn("host-2", bUUID, "com.test.b")
+	batch([]fleet.MDMProfileBatchPayload{
+		{Name: "B", Contents: mobileconfigForTest("B", "com.test.b"), SelfService: true},
+		{Name: "W", Contents: syncMLForTest("./Device/Vendor/MSFT/Policy/Config/W/Test"), Hidden: true},
+		{Name: "A", Contents: []byte(`{"cameraDisabled": true}`), Hidden: true},
+	}, http.StatusNoContent)
+	require.True(t, get(bUUID).SelfService)
+	requireOptedIn("host-2", bUUID)
+	listResp = listMDMConfigProfilesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &listResp, "team_id", teamID)
+	require.Len(t, listResp.Profiles, 3)
+	for _, p := range listResp.Profiles {
+		require.Equal(t, p.Name == "W" || p.Name == "A", p.Hidden, p.Name)
+	}
+	batch([]fleet.MDMProfileBatchPayload{{Name: "W", Contents: syncMLForTest("./Device/Vendor/MSFT/Policy/Config/W/Test"), SelfService: true}}, http.StatusUnprocessableEntity)
 }

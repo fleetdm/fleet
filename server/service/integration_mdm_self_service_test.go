@@ -5,7 +5,7 @@ package service
 // Belongs here: software categories and installing all self-service software from Fleet Desktop.
 //
 // Does not belong here: VPP app management (integration_mdm_vpp_test.go) and self-service
-// configuration profiles (integration_mdm_config_profiles_test.go).
+// configuration profiles (integration_mdm_profiles_crud_test.go).
 
 import (
 	"context"

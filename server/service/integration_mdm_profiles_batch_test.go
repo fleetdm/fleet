@@ -1598,3 +1598,36 @@ func (s *integrationMDMTestSuite) TestSpecTeamsOSUpdatesDeployToHosts() {
 	resp.Body.Close()
 	assertAppleDeclarationGone(iPadOSHost.UUID, iPadOSUpdateIdent)
 }
+
+func (s *integrationMDMTestSuite) TestBatchModifyConfigProfilesSelfServiceAndHidden() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	teamID := fmt.Sprint(team.ID)
+
+	// raw JSON so the request isn't limited to the fields the Go struct knows about
+	batch := func(profiles []map[string]any, wantStatus int) {
+		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", map[string]any{"configuration_profiles": profiles}, wantStatus, "team_id", teamID)
+	}
+	batch([]map[string]any{
+		{"name": "SS", "profile": mobileconfigForTest("SS", "com.test.batchmodify.ss"), "self_service": true},
+		{"name": "W", "profile": syncMLForTest("./Device/Vendor/MSFT/Policy/Config/BatchModifyW/Test"), "hidden": true},
+		{"name": "D", "profile": declBytesForTest("com.test.batchmodify.decl", "d"), "hidden": true},
+		{"name": "Plain", "profile": mobileconfigForTest("Plain", "com.test.batchmodify.plain")},
+	}, http.StatusNoContent)
+
+	var listResp listMDMConfigProfilesResponse
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &listResp, "team_id", teamID)
+	require.Len(t, listResp.Profiles, 4)
+	for _, p := range listResp.Profiles {
+		require.Equal(t, p.Name == "SS", p.SelfService, p.Name)
+		require.Equal(t, p.Name == "W" || p.Name == "D", p.Hidden, p.Name)
+	}
+
+	// validation applies here too
+	batch([]map[string]any{
+		{"name": "W", "profile": syncMLForTest("./Device/Vendor/MSFT/Policy/Config/BatchModifyW/Test"), "self_service": true},
+	}, http.StatusUnprocessableEntity)
+}

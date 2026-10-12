@@ -8,8 +8,7 @@ package service
 // which hosts count toward them.
 //
 // Does not belong here: Apple recovery lock passwords (integration_mdm_recovery_lock_test.go) and
-// configuration profiles in general (integration_mdm_profiles_test.go,
-// integration_mdm_config_profiles_test.go).
+// configuration profiles in general (integration_mdm_profiles_*_test.go).
 
 import (
 	"context"

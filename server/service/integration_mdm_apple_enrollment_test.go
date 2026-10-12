@@ -3,9 +3,10 @@ package service
 // Apple (macOS) MDM enrollment tests for the MDM suite.
 //
 // Belongs here: Apple MDM and APNs setup (CSR, certificates, ABM tokens and assets), manual and
-// automatic macOS enrollment and unenrollment, enrollment profiles and their signatures and SCEP
-// challenges, check-in messages (authenticate, user authenticate, bootstrap token), service
-// discovery, the fleetd configuration profile and install command, and APNs pushes.
+// automatic macOS enrollment and unenrollment, enrollment profiles (including the OTA profile) and
+// their signatures and SCEP challenges, check-in messages (authenticate, user authenticate,
+// bootstrap token), service discovery, the fleetd configuration profile and install command, and
+// APNs pushes.
 //
 // Does not belong here: ADE/DEP profile assignment and release (integration_mdm_dep_test.go),
 // iOS/iPadOS and BYOD enrollment (integration_mdm_ios_ipados_test.go), migration from another MDM
@@ -34,6 +35,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -1795,5 +1797,87 @@ func (s *integrationMDMTestSuite) TestAppleEnrollmentProfilesCarryBoundSCEPChall
 	require.NoError(t, adueDevice.Enroll())
 	requireBound(t, adueDevice.EnrollInfo.SCEPChallenge, fleet.AppleSCEPChallengeInfo{
 		Purpose: fleet.AppleMDMCertPurposeADUE, IDPAccountUUID: new(account.UUID),
+	})
+}
+
+func (s *integrationMDMTestSuite) TestOTAProfile() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Getting profile for non-existent secret it's ok
+	s.Do("GET", "/api/latest/fleet/enrollment_profiles/ota", getOTAProfileRequest{}, http.StatusOK, "enroll_secret", "not-real")
+
+	// Create an enroll secret; has some special characters that should be escaped in the profile
+	globalEnrollSec := "global_enroll+_/sec"
+	escSec := url.QueryEscape(globalEnrollSec)
+	s.Do("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: globalEnrollSec}},
+		},
+	}, http.StatusOK)
+
+	cfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+
+	t.Run("gets profile with idp uuid included if boyd cookie is set", func(t *testing.T) {
+		// Get profile with that enroll secret
+		j, err := json.Marshal(getOTAProfileRequest{})
+		require.NoError(t, err)
+
+		idpUUID := uuid.New()
+		sessionID := s.mustBYODIdPSession(t, idpUUID.String())
+		resp := s.DoRawWithHeaders("GET", "/api/latest/fleet/enrollment_profiles/ota", j, http.StatusOK, map[string]string{
+			"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, sessionID),
+		}, "enroll_secret", globalEnrollSec)
+
+		require.NotZero(t, resp.ContentLength)
+		require.Contains(t, resp.Header.Get("Content-Disposition"), `attachment;filename="fleet-mdm-enrollment-profile.mobileconfig"`)
+		require.Contains(t, resp.Header.Get("Content-Type"), "application/x-apple-aspen-config")
+		require.Contains(t, resp.Header.Get("X-Content-Type-Options"), "nosniff")
+		defer resp.Body.Close()
+		b, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		require.Equal(t, resp.ContentLength, int64(len(b)))
+		require.Contains(t, string(b), "com.fleetdm.fleet.mdm.apple.ota")
+		require.Contains(t, string(b), fmt.Sprintf("%s/api/v1/fleet/ota_enrollment?enroll_secret=%s&amp;idp_session=%s", cfg.ServerSettings.ServerURL, escSec, url.QueryEscape(sessionID)))
+		require.NotContains(t, string(b), idpUUID.String())
+
+		// the raw account reference is not a session, so the profile carries no account
+		resp = s.DoRawWithHeaders("GET", "/api/latest/fleet/enrollment_profiles/ota", j, http.StatusOK, map[string]string{
+			"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, idpUUID.String()),
+		}, "enroll_secret", globalEnrollSec)
+		defer resp.Body.Close()
+		b, err = io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		require.NotContains(t, string(b), idpUUID.String())
+		require.Contains(t, string(b), cfg.OrgInfo.OrgName)
+	})
+
+	t.Run("does not include idp_uuid in the url if cookie is not set", func(t *testing.T) {
+		resp := s.Do("GET", "/api/latest/fleet/enrollment_profiles/ota", &getOTAProfileRequest{}, http.StatusOK, "enroll_secret", globalEnrollSec)
+		require.NotZero(t, resp.ContentLength)
+		require.Contains(t, resp.Header.Get("Content-Disposition"), `attachment;filename="fleet-mdm-enrollment-profile.mobileconfig"`)
+		require.Contains(t, resp.Header.Get("Content-Type"), "application/x-apple-aspen-config")
+		require.Contains(t, resp.Header.Get("X-Content-Type-Options"), "nosniff")
+		b, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		require.Equal(t, resp.ContentLength, int64(len(b)))
+		require.Contains(t, string(b), "com.fleetdm.fleet.mdm.apple.ota")
+		require.Contains(t, string(b), fmt.Sprintf("%s/api/v1/fleet/ota_enrollment?enroll_secret=%s", cfg.ServerSettings.ServerURL, escSec))
+		require.NotContains(t, string(b), "idp_session=")
+		require.Contains(t, string(b), cfg.OrgInfo.OrgName)
+	})
+
+	t.Run("returns 403 if no idp_uuid is set when required by config", func(t *testing.T) {
+		// update config to require idp_uuid
+		cfg.MDM.MacOSSetup.EnableEndUserAuthentication = true
+		err := s.ds.SaveAppConfig(ctx, cfg)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			cfg.MDM.MacOSSetup.EnableEndUserAuthentication = false
+			err := s.ds.SaveAppConfig(ctx, cfg)
+			require.NoError(t, err)
+		})
+		s.Do("GET", "/api/latest/fleet/enrollment_profiles/ota", &getOTAProfileRequest{}, http.StatusForbidden, "enroll_secret", globalEnrollSec)
 	})
 }
