@@ -45,7 +45,7 @@ func TestSetupExperience(t *testing.T) {
 		{"FirstAddedPerTitleNoDoubleQueue", testEnqueueSetupExperienceFirstAddedPerTitle},
 		{"FirstAddedAppStoreAppVersionNoDoubleQueue", testEnqueueSetupExperienceFirstAddedAppStoreAppVersion},
 		{"InHouseApps", testSetupExperienceInHouseApps},
-		{"GetHostDeviceConfiguredStatus", testGetHostDeviceConfiguredStatus},
+		{"UnsetHostAwaitingConfiguration", testUnsetHostAwaitingConfiguration},
 		{"EnqueueInHouseApps", testEnqueueSetupExperienceInHouseApps},
 	}
 
@@ -3283,64 +3283,40 @@ func testEnqueueSetupExperienceFirstAddedAppStoreAppVersion(t *testing.T, ds *Da
 	}
 }
 
-func testGetHostDeviceConfiguredStatus(t *testing.T, ds *Datastore) {
+func testUnsetHostAwaitingConfiguration(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
+	hostUUID := uuid.NewString()
 
-	host := test.NewHost(t, ds, "release.local", "1.1.1.1", "release-key", uuid.NewString(), time.Now())
-	nanoEnroll(t, ds, host, false)
-	enrolledAt := time.Now().Add(-time.Hour).UTC().Truncate(time.Second)
-	exec := func(stmt string, args ...any) {
-		_, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
-		require.NoError(t, err)
-	}
-	exec(`UPDATE nano_devices SET authenticate_at = ? WHERE id = ?`, enrolledAt, host.UUID)
-
-	enqueue := func(requestType string, queuedAt time.Time) string {
-		cmdUUID := uuid.NewString()
-		exec(`INSERT INTO nano_commands (command_uuid, request_type, command) VALUES (?, ?, '<?xml')`, cmdUUID, requestType)
-		exec(`INSERT INTO nano_enrollment_queue (id, command_uuid, created_at) VALUES (?, ?, ?)`, host.UUID, cmdUUID, queuedAt)
-		return cmdUUID
-	}
-	report := func(cmdUUID, status string) {
-		exec(`INSERT INTO nano_command_results (id, command_uuid, status, result) VALUES (?, ?, ?, '<?xml version="1.0"?><plist/>')
-			ON DUPLICATE KEY UPDATE status = VALUES(status)`, host.UUID, cmdUUID, status)
-	}
-	assertStatus := func(wantPending, wantAcknowledged bool) {
+	assertUnset := func(want bool) {
 		t.Helper()
-		pending, acknowledged, err := ds.GetHostDeviceConfiguredStatus(ctx, host.UUID)
+		cleared, err := ds.UnsetHostAwaitingConfiguration(ctx, hostUUID)
 		require.NoError(t, err)
-		assert.Equal(t, wantPending, pending, "pending")
-		assert.Equal(t, wantAcknowledged, acknowledged, "acknowledged")
+		assert.Equal(t, want, cleared)
+		awaiting, err := ds.GetHostAwaitingConfiguration(ctx, hostUUID)
+		if err == nil {
+			assert.False(t, awaiting)
+		} else {
+			require.True(t, fleet.IsNotFound(err))
+		}
 	}
 
-	assertStatus(false, false)
+	// no row
+	assertUnset(false)
 
-	// An acknowledged release from a previous enrollment of the same host does not count.
-	oldCmd := enqueue("DeviceConfigured", enrolledAt.Add(-24*time.Hour))
-	report(oldCmd, fleet.MDMAppleStatusAcknowledged)
-	assertStatus(false, false)
+	require.NoError(t, ds.SetHostAwaitingConfiguration(ctx, hostUUID, true))
+	assertUnset(true)
+	// only the first call clears it
+	assertUnset(false)
 
-	// Other command types are ignored.
-	enqueue("InstallProfile", enrolledAt.Add(time.Minute))
-	assertStatus(false, false)
+	require.NoError(t, ds.SetHostAwaitingConfiguration(ctx, hostUUID, false))
+	assertUnset(false)
 
-	cmd := enqueue("DeviceConfigured", enrolledAt.Add(time.Minute))
-	assertStatus(true, false)
-
-	report(cmd, fleet.MDMAppleStatusNotNow)
-	assertStatus(true, false)
-
-	report(cmd, fleet.MDMAppleStatusError)
-	assertStatus(false, false)
-
-	report(cmd, fleet.MDMAppleStatusAcknowledged)
-	assertStatus(false, true)
-
-	// An inactive queue entry (cleared on re-enrollment) is not pending.
-	inactive := enqueue("DeviceConfigured", enrolledAt.Add(2*time.Minute))
-	exec(`UPDATE nano_enrollment_queue SET active = 0 WHERE command_uuid = ?`, inactive)
-	assertStatus(false, true)
-
-	enqueue("DeviceConfigured", enrolledAt.Add(3*time.Minute))
-	assertStatus(true, true)
+	// another host's flag is untouched
+	other := uuid.NewString()
+	require.NoError(t, ds.SetHostAwaitingConfiguration(ctx, other, true))
+	require.NoError(t, ds.SetHostAwaitingConfiguration(ctx, hostUUID, true))
+	assertUnset(true)
+	awaiting, err := ds.GetHostAwaitingConfiguration(ctx, other)
+	require.NoError(t, err)
+	assert.True(t, awaiting)
 }

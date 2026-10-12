@@ -214,7 +214,6 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 			svc.logger.InfoContext(ctx, "releasing device, all DEP enrollment commands, profiles, software installs and script execution have completed", "host_uuid", host.UUID)
 		}
 
-		// Host will be marked as no longer "awaiting configuration" in the command handler
 		if err := apple_mdm.ReleaseDevice(ctx, svc.ds, svc.mdmAppleCommander, svc.logger, host.UUID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "release device")
 		}

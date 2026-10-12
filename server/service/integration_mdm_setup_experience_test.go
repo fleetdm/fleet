@@ -6271,18 +6271,13 @@ func (s *integrationMDMTestSuite) TestSetupExperienceStatusPollsSendOneDeviceCon
 	}
 	require.Equal(t, 1, countDeviceConfigured())
 
-	require.Equal(t, []string{"DeviceConfigured"}, ackAll())
+	// The release clears the flag when it's sent, without waiting for the device's result.
 	awaiting, err := s.ds.GetHostAwaitingConfiguration(ctx, host.UUID)
 	require.NoError(t, err)
 	require.False(t, awaiting)
 
-	// Simulate the DeviceConfigured result handler failing to clear the flag: the next poll
-	// clears it from the acknowledged result instead of sending another release.
-	require.NoError(t, s.ds.SetHostAwaitingConfiguration(ctx, host.UUID, true))
+	require.Equal(t, []string{"DeviceConfigured"}, ackAll())
 	pollStatus()
-	awaiting, err = s.ds.GetHostAwaitingConfiguration(ctx, host.UUID)
-	require.NoError(t, err)
-	require.False(t, awaiting)
 	require.Equal(t, 1, countDeviceConfigured())
 	require.Empty(t, ackAll())
 }

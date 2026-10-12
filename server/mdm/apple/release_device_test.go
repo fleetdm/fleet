@@ -27,53 +27,54 @@ func TestReleaseDevice(t *testing.T) {
 	ctx := t.Context()
 	logger := slog.New(slog.DiscardHandler)
 
-	setup := func(pending, acknowledged bool) (*mock.Store, *[]bool) {
+	setup := func(cleared bool, unsetErr error) (*mock.Store, *[]bool) {
 		ds := new(mock.Store)
-		ds.GetHostDeviceConfiguredStatusFunc = func(context.Context, string) (bool, bool, error) {
-			return pending, acknowledged, nil
+		ds.UnsetHostAwaitingConfigurationFunc = func(context.Context, string) (bool, error) {
+			return cleared, unsetErr
 		}
-		var awaitingSet []bool
+		var restored []bool
 		ds.SetHostAwaitingConfigurationFunc = func(_ context.Context, _ string, awaiting bool) error {
-			awaitingSet = append(awaitingSet, awaiting)
+			restored = append(restored, awaiting)
 			return nil
 		}
-		return ds, &awaitingSet
+		return ds, &restored
 	}
 
-	t.Run("sends when none is pending", func(t *testing.T) {
-		ds, awaitingSet := setup(false, false)
+	t.Run("sends when this call clears the flag", func(t *testing.T) {
+		ds, restored := setup(true, nil)
 		cmdr := &fakeReleaseCommander{}
 		require.NoError(t, ReleaseDevice(ctx, ds, cmdr, logger, "host"))
 		assert.Equal(t, 1, cmdr.calls)
-		assert.Empty(t, *awaitingSet)
+		assert.Empty(t, *restored)
 	})
 
-	t.Run("skips while one is pending", func(t *testing.T) {
-		ds, awaitingSet := setup(true, false)
+	t.Run("skips when the flag was already cleared", func(t *testing.T) {
+		ds, restored := setup(false, nil)
 		cmdr := &fakeReleaseCommander{}
 		require.NoError(t, ReleaseDevice(ctx, ds, cmdr, logger, "host"))
 		assert.Zero(t, cmdr.calls)
-		assert.Empty(t, *awaitingSet)
+		assert.Empty(t, *restored)
 	})
 
-	t.Run("acknowledged clears the awaiting flag instead of sending", func(t *testing.T) {
-		ds, awaitingSet := setup(true, true)
+	t.Run("failing to clear the flag sends nothing", func(t *testing.T) {
+		ds, _ := setup(false, errors.New("lock wait timeout"))
 		cmdr := &fakeReleaseCommander{}
-		require.NoError(t, ReleaseDevice(ctx, ds, cmdr, logger, "host"))
+		require.ErrorContains(t, ReleaseDevice(ctx, ds, cmdr, logger, "host"), "lock wait timeout")
 		assert.Zero(t, cmdr.calls)
-		assert.Equal(t, []bool{false}, *awaitingSet)
+	})
+
+	t.Run("enqueue failure restores the flag", func(t *testing.T) {
+		ds, restored := setup(true, nil)
+		cmdr := &fakeReleaseCommander{err: errors.New("db down")}
+		require.ErrorContains(t, ReleaseDevice(ctx, ds, cmdr, logger, "host"), "db down")
+		assert.Equal(t, []bool{true}, *restored)
 	})
 
 	t.Run("push failure after enqueue is not an error", func(t *testing.T) {
-		ds, _ := setup(false, false)
+		ds, restored := setup(true, nil)
 		cmdr := &fakeReleaseCommander{err: &NotificationFailedError{err: errors.New("apns down")}}
 		require.NoError(t, ReleaseDevice(ctx, ds, cmdr, logger, "host"))
 		assert.Equal(t, 1, cmdr.calls)
-	})
-
-	t.Run("enqueue failure is returned", func(t *testing.T) {
-		ds, _ := setup(false, false)
-		cmdr := &fakeReleaseCommander{err: errors.New("db down")}
-		require.ErrorContains(t, ReleaseDevice(ctx, ds, cmdr, logger, "host"), "db down")
+		assert.Empty(t, *restored)
 	})
 }

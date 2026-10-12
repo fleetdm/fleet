@@ -439,7 +439,7 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 	if (args.ReleaseDeviceAttempt >= minAttempts && time.Since(*args.ReleaseDeviceStartedAt) >= maxWaitTime) ||
 		(args.ReleaseDeviceAttempt >= maxAttempts) {
 		a.Log.InfoContext(ctx, "releasing device after too many attempts or too long wait", "host_uuid", args.HostUUID, "attempts", args.ReleaseDeviceAttempt)
-		if err := apple_mdm.ReleaseDevice(ctx, a.Datastore, a.Commander, a.Log, args.HostUUID); err != nil {
+		if err := apple_mdm.SendDeviceConfigured(ctx, a.Commander, a.Log, args.HostUUID); err != nil {
 			return ctxerr.Wrapf(ctx, err, "release device after %d attempts", args.ReleaseDeviceAttempt)
 		}
 		return nil
@@ -574,7 +574,7 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 
 	// release the device
 	a.Log.InfoContext(ctx, "releasing device, all DEP enrollment commands and profiles have completed", "host_uuid", args.HostUUID)
-	if err := apple_mdm.ReleaseDevice(ctx, a.Datastore, a.Commander, a.Log, args.HostUUID); err != nil {
+	if err := apple_mdm.SendDeviceConfigured(ctx, a.Commander, a.Log, args.HostUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "release device")
 	}
 	return nil
