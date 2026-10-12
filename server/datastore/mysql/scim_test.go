@@ -2761,8 +2761,8 @@ func testTriggerResendDigiCertProfiles(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		return ca
 	}
-	newDigiCertProfile := func(name, caName string) *fleet.MDMAppleConfigProfile {
-		cp := generateAppleCP(name, name, 0)
+	newDigiCertProfile := func(name, caName string, teamID uint) *fleet.MDMAppleConfigProfile {
+		cp := generateAppleCP(name, name, teamID)
 		cp.Mobileconfig = []byte("<data>" + fleet.FleetVarDigiCertDataPrefix.WithPrefix() + caName + "</data>")
 		profile, err := ds.NewMDMAppleConfigProfile(ctx, *cp, []fleet.FleetVarName{fleet.FleetVarName(string(fleet.FleetVarDigiCertDataPrefix) + caName)})
 		require.NoError(t, err)
@@ -2773,12 +2773,16 @@ func testTriggerResendDigiCertProfiles(t *testing.T, ds *Datastore) {
 	newDigiCertCA("ca_groups", "cn", "seat", &[]string{fleet.FleetVarHostEndUserIDPGroups.WithPrefix() + "@example.com"})
 	serialCA := newDigiCertCA("ca_serial", fleet.FleetVarHostHardwareSerial.WithPrefix(), "seat", &[]string{"upn"})
 
-	profUsername := newDigiCertProfile("username", "ca_username")
-	profGroups := newDigiCertProfile("groups", "ca_groups")
-	profSerial := newDigiCertProfile("serial", "ca_serial")
+	profUsername := newDigiCertProfile("username", "ca_username", 0)
+	profGroups := newDigiCertProfile("groups", "ca_groups", 0)
+	profSerial := newDigiCertProfile("serial", "ca_serial", 0)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "digicert_team"})
+	require.NoError(t, err)
+	// Uses the same CA but belongs to another team than the hosts, so it must not be resent.
+	profOtherTeam := newDigiCertProfile("other_team", "ca_username", team.ID)
 	profNone, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("none", "none", 0), nil)
 	require.NoError(t, err)
-	allProfiles := []*fleet.MDMAppleConfigProfile{profUsername, profGroups, profSerial, profNone}
+	allProfiles := []*fleet.MDMAppleConfigProfile{profUsername, profGroups, profSerial, profNone, profOtherTeam}
 
 	cases := []struct {
 		name         string
@@ -2827,7 +2831,8 @@ func testTriggerResendDigiCertProfiles(t *testing.T, ds *Datastore) {
 		hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
 		hostProfileStatus{profGroups.ProfileUUID, fleet.MDMDeliveryVerifying},
 		hostProfileStatus{profSerial.ProfileUUID, fleet.MDMDeliveryPending},
-		hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying})
+		hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profOtherTeam.ProfileUUID, fleet.MDMDeliveryVerifying})
 }
 
 // for https://github.com/fleetdm/fleet/issues/28820

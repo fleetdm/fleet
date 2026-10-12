@@ -2176,20 +2176,31 @@ func triggerResendDigiCertProfilesUsingVariables(ctx context.Context, tx sqlx.Ex
 		return nil
 	}
 
-	// The UPDATE below limits this to the affected hosts; host_mdm_apple_profiles has no index to filter by profile here.
+	// Scoped to the affected hosts' teams rather than their host_mdm_apple_profiles rows, which have no index by profile alone. The UPDATE
+	// below limits the resend to the affected hosts.
+	selectStmt, selectArgs, err := sqlx.In(`
+		SELECT macp.profile_uuid, macp.mobileconfig
+		FROM mdm_apple_configuration_profiles macp
+		WHERE
+			EXISTS (
+				SELECT 1
+				FROM hosts h
+				WHERE h.id IN (?) AND (macp.team_id = h.team_id OR (COALESCE(macp.team_id, 0) = 0 AND h.team_id IS NULL))
+			) AND
+			EXISTS (
+				SELECT 1
+				FROM mdm_configuration_profile_variables mcpv
+					JOIN fleet_variables fv ON fv.id = mcpv.fleet_variable_id
+				WHERE mcpv.apple_profile_uuid = macp.profile_uuid AND fv.name = ?
+			)`, hostIDs, "FLEET_VAR_"+string(fleet.FleetVarDigiCertDataPrefix))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare select DigiCert profiles for resend")
+	}
 	var profiles []struct {
 		ProfileUUID  string `db:"profile_uuid"`
 		Mobileconfig []byte `db:"mobileconfig"`
 	}
-	if err := sqlx.SelectContext(ctx, tx, &profiles, `
-		SELECT macp.profile_uuid, macp.mobileconfig
-		FROM mdm_apple_configuration_profiles macp
-		WHERE EXISTS (
-			SELECT 1
-			FROM mdm_configuration_profile_variables mcpv
-				JOIN fleet_variables fv ON fv.id = mcpv.fleet_variable_id
-			WHERE mcpv.apple_profile_uuid = macp.profile_uuid AND fv.name = ?
-		)`, "FLEET_VAR_"+string(fleet.FleetVarDigiCertDataPrefix)); err != nil {
+	if err := sqlx.SelectContext(ctx, tx, &profiles, selectStmt, selectArgs...); err != nil {
 		return ctxerr.Wrap(ctx, err, "select DigiCert profiles for resend")
 	}
 	var profileUUIDs []string
