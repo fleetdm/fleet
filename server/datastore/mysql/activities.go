@@ -2249,9 +2249,6 @@ func buildPolicyAutomationBranches(ds *Datastore, policyID uint, filter fleet.Te
 //     host_software_installs.
 //  4. VPP software-install activities (installed_app_store_app), linked via
 //     host_vpp_software_installs.
-//
-// The total sums script, software install and VPP install runs from host_policy_automation_run_counts instead of
-// counting those branches' rows.
 func (ds *Datastore) ListPolicyAutomationActivities(ctx context.Context, policyID uint, filter fleet.TeamFilter, opts fleet.ListOptions, status string) ([]*fleet.PolicyAutomationActivity, *fleet.PaginationMetadata, error) {
 	branches, err := buildPolicyAutomationBranches(ds, policyID, filter, status)
 	if err != nil {
@@ -2271,6 +2268,15 @@ func (ds *Datastore) ListPolicyAutomationActivities(ctx context.Context, policyI
 		escaped = strings.ReplaceAll(escaped, "%", "\\%")
 		likeArg = escaped + "%"
 	}
+	// Break activity type ties by created_at in the opposite direction, which the policy_id, activity_type, created_at DESC
+	// index reads in order both ways.
+	if opts.OrderKey == "activity_type" {
+		opts.TestSecondaryOrderKey = "created_at"
+		opts.TestSecondaryOrderDirection = fleet.OrderDescending
+		if opts.OrderDirection == fleet.OrderDescending {
+			opts.TestSecondaryOrderDirection = fleet.OrderAscending
+		}
+	}
 	// Sort and cut each branch to the rows up to the end of the requested page, so a branch reads only those rows from the
 	// index instead of the policy's whole history. Skip it for cursor pagination, which filters after the cut.
 	var branchOrderAndLimit string
@@ -2284,7 +2290,16 @@ func (ds *Datastore) ListPolicyAutomationActivities(ctx context.Context, policyI
 		if opts.OrderDirection == fleet.OrderDescending {
 			direction = "DESC"
 		}
-		branchOrderAndLimit = fmt.Sprintf(" ORDER BY %s %s LIMIT %d", branchOrderColumn, direction, (opts.Page+1)*perPage+1)
+		branchOrder := branchOrderColumn + " " + direction
+		secondaryOrderColumn, secondaryOrderKeyAllowed := policyAutomationActivityBranchOrderKeys[opts.TestSecondaryOrderKey]
+		if secondaryOrderKeyAllowed {
+			secondaryDirection := "ASC"
+			if opts.TestSecondaryOrderDirection == fleet.OrderDescending {
+				secondaryDirection = "DESC"
+			}
+			branchOrder += ", " + secondaryOrderColumn + " " + secondaryDirection
+		}
+		branchOrderAndLimit = fmt.Sprintf(" ORDER BY %s LIMIT %d", branchOrder, (opts.Page+1)*perPage+1)
 	}
 
 	for _, b := range branches {

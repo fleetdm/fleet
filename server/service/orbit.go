@@ -1597,7 +1597,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 				scriptSucceeded := hsr.ExitCode != nil && *hsr.ExitCode == 0
 				err = svc.ds.IncrementHostPolicyAutomationRunCount(ctx, *hsr.PolicyID, host.ID, fleet.ActivityTypeRanScript{}, scriptSucceeded)
 				if err != nil {
-					return ctxerr.Wrap(ctx, err, "increment host policy automation run count for script")
+					svc.logger.ErrorContext(ctx, "increment host policy automation run count for script", "host_id", host.ID, "execution_id", hsr.ExecutionID, "err", err)
 				}
 			}
 		}
@@ -2457,7 +2457,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			installSucceeded := status == fleet.SoftwareInstalled
 			err = svc.ds.IncrementHostPolicyAutomationRunCount(ctx, *hsi.PolicyID, host.ID, fleet.ActivityTypeInstalledSoftware{}, installSucceeded)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "increment host policy automation run count for software install")
+				svc.logger.ErrorContext(ctx, "increment host policy automation run count for software install", "host_id", host.ID, "install_uuid", result.InstallUUID, "err", err)
 			}
 		}
 
