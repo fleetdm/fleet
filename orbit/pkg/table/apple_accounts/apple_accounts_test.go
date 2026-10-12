@@ -256,27 +256,40 @@ func TestGenerateEnvironmentFailures(t *testing.T) {
 
 func TestCachedUsers(t *testing.T) {
 	setUsers(t)
+	release := make(chan struct{})
 	var calls atomic.Int32
 	listUsers = func(ctx context.Context) ([]localUser, error) {
 		calls.Add(1)
-		// One caller's cancellation must not cut the shared lookup short.
+		<-release
+		// A canceled caller must not cut the shared lookup short.
 		assert.NoError(t, ctx.Err())
 		return []localUser{{UID: me, Username: "someone"}}, nil
 	}
 
+	// A canceled caller leaves at once, while the lookup it started carries on.
 	canceled, cancel := context.WithCancel(t.Context())
 	cancel()
+	_, err := cachedUsers(canceled)
+	require.ErrorIs(t, err, context.Canceled)
+	require.Eventually(t, func() bool { return calls.Load() == 1 }, time.Second, time.Millisecond)
+
+	// Concurrent callers share that lookup.
 	results := make([][]localUser, 8)
 	errs := make([]error, len(results))
 	var wg sync.WaitGroup
 	for i := range results {
-		wg.Go(func() { results[i], errs[i] = cachedUsers(canceled) })
+		wg.Go(func() { results[i], errs[i] = cachedUsers(t.Context()) })
 	}
+	time.Sleep(50 * time.Millisecond) // let the callers join the lookup
+	close(release)
 	wg.Wait()
 	for i := range results {
 		require.NoError(t, errs[i])
 		assert.Len(t, results[i], 1)
 	}
+	// Later callers get the cached result.
+	_, err = cachedUsers(t.Context())
+	require.NoError(t, err)
 	assert.Equal(t, int32(1), calls.Load())
 
 	// A failed lookup fails the query and isn't cached.
@@ -285,11 +298,36 @@ func TestCachedUsers(t *testing.T) {
 		calls.Add(1)
 		return nil, errors.New("dscl failed")
 	}
-	_, err := cachedUsers(t.Context())
+	_, err = cachedUsers(t.Context())
 	require.ErrorContains(t, err, "dscl failed")
 	_, err = Generate(t.Context(), table.QueryContext{})
 	require.ErrorContains(t, err, "dscl failed")
 	assert.Equal(t, int32(3), calls.Load())
+}
+
+// A user lookup that never returns (a stat blocked on a stalled network home,
+// say) times out instead of hanging every query, and isn't started again
+// while it's stuck.
+func TestCachedUsersStalledLookup(t *testing.T) {
+	setUsers(t)
+	origTimeout := readTimeout
+	t.Cleanup(func() { readTimeout = origTimeout })
+	readTimeout = 50 * time.Millisecond
+
+	release := make(chan struct{})
+	t.Cleanup(func() { close(release) })
+	var calls atomic.Int32
+	listUsers = func(context.Context) ([]localUser, error) {
+		calls.Add(1)
+		<-release
+		return nil, nil
+	}
+
+	for range 3 {
+		_, err := Generate(t.Context(), table.QueryContext{})
+		require.ErrorContains(t, err, "listing users: timed out")
+	}
+	assert.Equal(t, int32(1), calls.Load())
 }
 
 // A read that never returns (an open blocked on a stalled network mount, say)
@@ -350,6 +388,70 @@ func TestReadUserSharesConcurrentReads(t *testing.T) {
 		assert.Len(t, results[i], 1)
 	}
 	assert.Equal(t, int32(1), calls.Load())
+}
+
+func TestScanHomes(t *testing.T) {
+	dir := t.TempDir()
+	elsewhere := t.TempDir()
+	for _, name := range []string{"alice", ".hidden", "Shared"} {
+		require.NoError(t, os.Mkdir(filepath.Join(dir, name), 0o700))
+	}
+	require.NoError(t, os.Symlink(elsewhere, filepath.Join(dir, "linked")))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "file"), nil, 0o600))
+
+	users, err := scanHomes(dir)
+	require.NoError(t, err)
+	assert.Equal(t, []localUser{
+		{Username: "alice", HomeDir: filepath.Join(dir, "alice")},
+		{Username: "linked", HomeDir: filepath.Join(dir, "linked")},
+	}, users)
+
+	users, err = scanHomes(filepath.Join(dir, "missing"))
+	require.NoError(t, err)
+	assert.Empty(t, users)
+
+	if os.Geteuid() != 0 {
+		unreadable := filepath.Join(dir, "alice")
+		require.NoError(t, os.Chmod(unreadable, 0))
+		t.Cleanup(func() { os.Chmod(unreadable, 0o700) }) //nolint:errcheck,gosec // best effort, so TempDir can clean up
+		_, err = scanHomes(unreadable)
+		require.ErrorIs(t, err, fs.ErrPermission)
+	}
+}
+
+func TestResolveHomes(t *testing.T) {
+	root := t.TempDir()
+	alice := filepath.Join(root, "alice")
+	bob := filepath.Join(root, "bob")
+	require.NoError(t, os.Mkdir(alice, 0o700))
+	require.NoError(t, os.Mkdir(bob, 0o700))
+	require.NoError(t, os.Symlink(alice, filepath.Join(root, "alias")))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "file"), nil, 0o600))
+
+	users, err := resolveHomes([]localUser{
+		{UID: "501", GID: "20", Username: "alice", HomeDir: alice},
+		{Username: "bob", HomeDir: bob},
+		{Username: "alias", HomeDir: filepath.Join(root, "alias")},      // alice's home again
+		{Username: "gone", HomeDir: filepath.Join(root, "gone")},        // no home
+		{Username: "file", HomeDir: filepath.Join(root, "file")},        // not a directory
+		{Username: "nested", HomeDir: filepath.Join(root, "file", "x")}, // ENOTDIR
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []localUser{
+		{UID: "501", GID: "20", Username: "alice", HomeDir: alice},
+		{UID: me, GID: myGID, Username: "bob", HomeDir: bob},
+	}, users)
+
+	// A home that exists but can't be checked fails the lookup rather than
+	// dropping the user.
+	if os.Geteuid() != 0 {
+		locked := filepath.Join(root, "locked")
+		require.NoError(t, os.Mkdir(locked, 0o700))
+		require.NoError(t, os.Chmod(locked, 0))
+		t.Cleanup(func() { os.Chmod(locked, 0o700) }) //nolint:errcheck,gosec // best effort, so TempDir can clean up
+		_, err = resolveHomes([]localUser{{Username: "carol", HomeDir: filepath.Join(locked, "carol")}})
+		require.ErrorIs(t, err, fs.ErrPermission)
+	}
 }
 
 func TestMatchesConstraints(t *testing.T) {

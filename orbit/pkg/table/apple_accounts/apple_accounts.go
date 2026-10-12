@@ -88,14 +88,16 @@ var (
 	listUsers    = localUsers
 	readAccounts = readAppleAccounts
 
-	// readTimeout bounds one user's read, including file operations that
-	// can't be canceled, such as an open that blocks on a stalled network
-	// mount or on downloading a cloud file. Swapped out in tests.
+	// readTimeout bounds the user lookup and each user's read, including file
+	// operations that can't be canceled, such as a stat or open that blocks on
+	// a stalled network mount or on downloading a cloud file. Swapped out in
+	// tests.
 	readTimeout = 15 * time.Second
 
-	// reads lets concurrent queries share one read per user, and keeps a read
-	// stuck past readTimeout from being started again while it's still stuck.
-	reads singleflight.Group
+	// flights lets concurrent queries share one user lookup and one read per
+	// user, and keeps an operation stuck past readTimeout from being started
+	// again while it's still stuck.
+	flights singleflight.Group
 
 	usersCache struct {
 		sync.Mutex
@@ -174,20 +176,45 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 }
 
 // cachedUsers returns listUsers' result, reusing it for usersCacheTTL.
-// Concurrent callers wait for a single lookup, which is detached from the
-// caller's cancellation so one canceled query can't fail it for the others.
 func cachedUsers(ctx context.Context) ([]localUser, error) {
 	usersCache.Lock()
-	defer usersCache.Unlock()
-	if time.Now().After(usersCache.expires) {
-		users, err := listUsers(context.WithoutCancel(ctx))
-		if err != nil {
-			return nil, fmt.Errorf("listing users: %w", err)
-		}
-		usersCache.users = users
-		usersCache.expires = time.Now().Add(usersCacheTTL)
+	users, fresh := usersCache.users, time.Now().Before(usersCache.expires)
+	usersCache.Unlock()
+	if fresh {
+		return users, nil
 	}
-	return usersCache.users, nil
+	v, err := shared(ctx, "users", func(ctx context.Context) (any, error) {
+		users, err := listUsers(ctx)
+		if err != nil {
+			return nil, err
+		}
+		usersCache.Lock()
+		usersCache.users, usersCache.expires = users, time.Now().Add(usersCacheTTL)
+		usersCache.Unlock()
+		return users, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("listing users: %w", err)
+	}
+	users, _ = v.([]localUser)
+	return users, nil
+}
+
+// shared runs fn once for all concurrent callers with the same key and waits
+// for it for at most readTimeout. fn is detached from the caller's
+// cancellation, so one canceled query can't fail it for the others.
+func shared(ctx context.Context, key string, fn func(context.Context) (any, error)) (any, error) {
+	ch := flights.DoChan(key, func() (any, error) { return fn(context.WithoutCancel(ctx)) })
+	timer := time.NewTimer(readTimeout)
+	defer timer.Stop()
+	select {
+	case r := <-ch:
+		return r.Val, r.Err
+	case <-timer.C:
+		return nil, fmt.Errorf("timed out after %s", readTimeout)
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 // matchesConstraints reports whether u can satisfy the query's equality
@@ -214,22 +241,77 @@ func matchesConstraints(u localUser, queryContext table.QueryContext) bool {
 	return true
 }
 
-// readUser runs readAccounts for u under readTimeout.
+// readUser runs readAccounts for u, shared with concurrent queries and
+// bounded by readTimeout.
 func readUser(ctx context.Context, u localUser) ([]appleAccount, error) {
-	ch := reads.DoChan(u.UID+"\x00"+u.HomeDir, func() (any, error) {
-		return readAccounts(context.WithoutCancel(ctx), u)
+	v, err := shared(ctx, "read\x00"+u.UID+"\x00"+u.HomeDir, func(ctx context.Context) (any, error) {
+		return readAccounts(ctx, u)
 	})
-	timer := time.NewTimer(readTimeout)
-	defer timer.Stop()
-	select {
-	case r := <-ch:
-		accounts, _ := r.Val.([]appleAccount)
-		return accounts, r.Err
-	case <-timer.C:
-		return nil, fmt.Errorf("timed out after %s", readTimeout)
-	case <-ctx.Done():
-		return nil, ctx.Err()
+	accounts, _ := v.([]appleAccount)
+	return accounts, err
+}
+
+// scanHomes lists the entries of dir (normally /Users) that may be home
+// directories, named after the entry. Symlinks are included; resolveHomes
+// keeps the ones that lead to a directory.
+func scanHomes(dir string) ([]localUser, error) {
+	entries, err := os.ReadDir(dir)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
 	}
+	if err != nil {
+		// A partial scan would silently leave users out.
+		return nil, fmt.Errorf("listing %s: %w", dir, err)
+	}
+	var users []localUser
+	for _, e := range entries {
+		name := e.Name()
+		if (e.IsDir() || e.Type()&fs.ModeSymlink != 0) && !strings.HasPrefix(name, ".") && name != "Shared" {
+			users = append(users, localUser{Username: name, HomeDir: filepath.Join(dir, name)})
+		}
+	}
+	return users, nil
+}
+
+// resolveHomes returns the candidates whose home directory exists, sorted by
+// home directory. A candidate whose home is already listed is dropped, so
+// earlier candidates win. Homes are compared by device and inode
+// (os.SameFile) rather than by path: APFS is usually case-insensitive, and a
+// home can be reached through a symlink. A missing UID or GID is filled in
+// from the directory's owner.
+func resolveHomes(candidates []localUser) ([]localUser, error) {
+	var seen []os.FileInfo
+	var users []localUser
+	for _, u := range candidates {
+		info, err := os.Stat(u.HomeDir)
+		if errors.Is(err, fs.ErrNotExist) || errors.Is(err, syscall.ENOTDIR) {
+			// No home directory, so no accounts database.
+			continue
+		}
+		if err != nil {
+			// Skipping a home that can't be checked would make its user
+			// look signed out.
+			return nil, fmt.Errorf("checking home directory %s: %w", u.HomeDir, err)
+		}
+		if !info.IsDir() || slices.ContainsFunc(seen, func(s os.FileInfo) bool { return os.SameFile(s, info) }) {
+			continue
+		}
+		st, ok := info.Sys().(*syscall.Stat_t)
+		if !ok {
+			return nil, fmt.Errorf("checking home directory %s: unexpected file info", u.HomeDir)
+		}
+		seen = append(seen, info)
+		if u.UID == "" {
+			u.UID = strconv.FormatUint(uint64(st.Uid), 10)
+		}
+		if u.GID == "" {
+			u.GID = strconv.FormatUint(uint64(st.Gid), 10)
+		}
+		users = append(users, u)
+	}
+	// Stable ordering keeps query results comparable between runs.
+	slices.SortFunc(users, func(a, b localUser) int { return strings.Compare(a.HomeDir, b.HomeDir) })
+	return users, nil
 }
 
 // readAppleAccounts returns the Apple Accounts recorded in the accounts

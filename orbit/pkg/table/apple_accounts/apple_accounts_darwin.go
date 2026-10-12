@@ -6,13 +6,11 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/micromdm/plist"
 	"golang.org/x/sys/unix"
@@ -49,43 +47,11 @@ func localUsers(ctx context.Context) ([]localUser, error) {
 	// and the choice between two records sharing a home is stable.
 	slices.SortFunc(candidates, func(a, b localUser) int { return strings.Compare(a.Username, b.Username) })
 
-	entries, _ := os.ReadDir("/Users")
-	for _, e := range entries {
-		name := e.Name()
-		if e.IsDir() && !strings.HasPrefix(name, ".") && name != "Shared" {
-			candidates = append(candidates, localUser{Username: name, HomeDir: filepath.Join("/Users", name)})
-		}
+	scanned, err := scanHomes("/Users")
+	if err != nil {
+		return nil, err
 	}
-
-	// Home directories are compared by device and inode (os.SameFile) rather
-	// than by path: APFS is usually case-insensitive, and a home can be reached
-	// through a symlink, so two different paths may be the same directory.
-	var seen []os.FileInfo
-	var users []localUser
-	for _, u := range candidates {
-		info, err := os.Stat(u.HomeDir)
-		if err != nil || !info.IsDir() {
-			continue
-		}
-		if slices.ContainsFunc(seen, func(s os.FileInfo) bool { return os.SameFile(s, info) }) {
-			continue
-		}
-		stat, ok := info.Sys().(*syscall.Stat_t)
-		if !ok {
-			continue
-		}
-		seen = append(seen, info)
-		if u.UID == "" {
-			u.UID = strconv.FormatUint(uint64(stat.Uid), 10)
-		}
-		if u.GID == "" {
-			u.GID = strconv.FormatUint(uint64(stat.Gid), 10)
-		}
-		users = append(users, u)
-	}
-	// Stable ordering keeps query results comparable between runs.
-	slices.SortFunc(users, func(a, b localUser) int { return strings.Compare(a.HomeDir, b.HomeDir) })
-	return users, nil
+	return resolveHomes(append(candidates, scanned...))
 }
 
 // parseDsclRecords parses `dscl -plist . -readall /Users` output into the
