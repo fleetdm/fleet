@@ -2850,6 +2850,20 @@ func TestCertIsFromNewEnrollment(t *testing.T) {
 	require.False(t, certIsFromNewEnrollment(nil))
 	require.False(t, certIsFromNewEnrollment(&x509.Certificate{Subject: pkix.Name{OrganizationalUnit: []string{"Some Other OU"}}}))
 	require.True(t, certIsFromNewEnrollment(&x509.Certificate{Subject: pkix.Name{OrganizationalUnit: []string{apple_mdm.FleetEnrollmentSubjectOU}}}))
+
+	// a bound certificate is decided by its purpose, whatever its OU says
+	for purpose, fresh := range map[fleet.AppleMDMCertPurpose]bool{
+		fleet.AppleMDMCertPurposeADE:         true,
+		fleet.AppleMDMCertPurposeOTAPhaseTwo: true,
+		fleet.AppleMDMCertPurposeADUE:        true,
+		fleet.AppleMDMCertPurposeACME:        true,
+		fleet.AppleMDMCertPurposeSCEPRenewal: false,
+		fleet.AppleMDMCertPurposeACMERenewal: false,
+	} {
+		binding := &apple_mdm.AppleMDMCertificateBindingExtension{Purpose: purpose}
+		require.Equal(t, fresh, certIsFromNewEnrollment(newBindingCert(t, binding)), purpose)
+		require.Equal(t, fresh, certIsFromNewEnrollment(newBindingCert(t, binding, apple_mdm.FleetEnrollmentSubjectOU)), purpose)
+	}
 }
 
 func TestAppleMDMUnenrollment(t *testing.T) {
