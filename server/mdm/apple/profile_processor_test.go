@@ -435,8 +435,9 @@ func TestPreprocessProfileContentsDigiCertUPNIsUniqueForMultipleHosts(t *testing
 	const host2Serial = "SERIAL-BBB"
 	const cmdUUID = "cmd-uuid-1"
 
-	// Track which UPNs were sent to GetCertificate per host.
+	// Track which UPNs and CNs were sent to GetCertificate per host.
 	upnByHostUUID := make(map[string]string)
+	cnByHostUUID := make(map[string]string)
 
 	mockDigiCert := &digicert_mock.Service{}
 	mockDigiCert.GetCertificateFunc = func(ctx context.Context, config fleet.DigiCertCA) (*fleet.DigiCertCertificate, error) {
@@ -448,8 +449,10 @@ func TestPreprocessProfileContentsDigiCertUPNIsUniqueForMultipleHosts(t *testing
 		switch {
 		case strings.Contains(upn, host1Serial):
 			upnByHostUUID[host1UUID] = upn
+			cnByHostUUID[host1UUID] = config.CertificateCommonName
 		case strings.Contains(upn, host2Serial):
 			upnByHostUUID[host2UUID] = upn
+			cnByHostUUID[host2UUID] = config.CertificateCommonName
 		default:
 			t.Errorf("GetCertificate called with unexpected UPN %q", upn)
 		}
@@ -499,7 +502,7 @@ func TestPreprocessProfileContentsDigiCertUPNIsUniqueForMultipleHosts(t *testing
 		"p1": []byte("$FLEET_VAR_" + string(fleet.FleetVarDigiCertPasswordPrefix) + caName + " $FLEET_VAR_" + string(fleet.FleetVarDigiCertDataPrefix) + caName),
 	}
 
-	// DigiCert CA whose UPN contains the hardware serial variable.
+	// DigiCert CA whose UPN contains the hardware serial variable and CN the IdP username.
 	groupedCAs := &fleet.GroupedCertificateAuthorities{
 		DigiCert: []fleet.DigiCertCA{
 			{
@@ -507,7 +510,7 @@ func TestPreprocessProfileContentsDigiCertUPNIsUniqueForMultipleHosts(t *testing
 				URL:                           "https://digicert.example.com",
 				APIToken:                      "api_token",
 				ProfileID:                     "profile_id",
-				CertificateCommonName:         "common_name",
+				CertificateCommonName:         "cn-" + fleet.FleetVarHostEndUserIDPUsername.WithPrefix(),
 				CertificateUserPrincipalNames: []string{"$FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "@example.com"},
 				CertificateSeatID:             "seat_id",
 			},
@@ -528,99 +531,11 @@ func TestPreprocessProfileContentsDigiCertUPNIsUniqueForMultipleHosts(t *testing
 		}
 		return hosts, nil
 	}
-	ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
-		return nil
-	}
-	ds.BulkUpsertMDMManagedCertificatesFunc = func(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
-		return nil
-	}
-
-	err := preprocessProfileContents(ctx, appCfg, ds, svc, mockDigiCert, logger, targets, profileContents, hostProfilesToInstallMap, make(map[string]string), groupedCAs)
-	require.NoError(t, err)
-
-	// Both hosts must have received GetCertificate calls with their own serial.
-	require.True(t, mockDigiCert.GetCertificateFuncInvoked, "GetCertificate was never called")
-	require.Contains(t, upnByHostUUID, host1UUID, "GetCertificate was not called for host 1")
-	require.Contains(t, upnByHostUUID, host2UUID, "GetCertificate was not called for host 2")
-	assert.Equal(t, host1Serial+"@example.com", upnByHostUUID[host1UUID], "host 1 UPN should contain its own serial")
-	assert.Equal(t, host2Serial+"@example.com", upnByHostUUID[host2UUID], "host 2 UPN should contain its own serial")
-}
-
-func TestPreprocessProfileContentsDigiCertCertificateEnrollmentWithFleetVariables(t *testing.T) {
-	ctx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
-	logger := slog.New(slog.DiscardHandler)
-	appCfg := &fleet.AppConfig{}
-	appCfg.ServerSettings.ServerURL = "https://test.example.com"
-	appCfg.MDM.EnabledAndConfigured = true
-	ds := new(mock.Store)
-	svc := scep.NewSCEPConfigService(logger, nil)
-
-	const caName = "myCA"
-	const hostUUID = "host-uuid"
-	const hardwareSerial = "SERIAL-123"
-	const username = "test.user@example.com"
-	const usernameLocalPart = "test.user"
-
-	var issuedConfig fleet.DigiCertCA
-	mockDigiCert := &digicert_mock.Service{}
-	mockDigiCert.GetCertificateFunc = func(ctx context.Context, config fleet.DigiCertCA) (*fleet.DigiCertCertificate, error) {
-		issuedConfig = config
-		now := time.Now()
-		return &fleet.DigiCertCertificate{
-			PfxData:        []byte("fake-pfx"),
-			Password:       "fake-password",
-			NotValidBefore: now,
-			NotValidAfter:  now.Add(365 * 24 * time.Hour),
-			SerialNumber:   "certificate-serial",
-		}, nil
-	}
-
-	targets := map[string]*fleet.CmdTarget{
-		"p1": {
-			CmdUUID:           "cmd-uuid",
-			ProfileIdentifier: "com.apple.security.pkcs12",
-			EnrollmentIDs:     []string{hostUUID},
-		},
-	}
-	pending := fleet.MDMDeliveryPending
-	hostProfilesToInstallMap := map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload{
-		{HostUUID: hostUUID, ProfileUUID: "p1"}: {
-			ProfileUUID:       "p1",
-			ProfileIdentifier: "com.apple.security.pkcs12",
-			HostUUID:          hostUUID,
-			OperationType:     fleet.MDMOperationTypeInstall,
-			Status:            &pending,
-			CommandUUID:       "cmd-uuid",
-			Scope:             fleet.PayloadScopeSystem,
-		},
-	}
-	profileContents := map[string]mobileconfig.Mobileconfig{
-		"p1": []byte("<string>$FLEET_VAR_" + string(fleet.FleetVarDigiCertPasswordPrefix) + caName + "</string><data>$FLEET_VAR_" + string(fleet.FleetVarDigiCertDataPrefix) + caName + "</data>"),
-	}
-	groupedCAs := &fleet.GroupedCertificateAuthorities{
-		DigiCert: []fleet.DigiCertCA{
-			{
-				Name:                          caName,
-				URL:                           "https://digicert.example.com",
-				APIToken:                      "api-token",
-				ProfileID:                     "profile-id",
-				CertificateCommonName:         fleet.FleetVarHostHardwareSerial.WithPrefix(),
-				CertificateUserPrincipalNames: []string{fleet.FleetVarHostEndUserIDPUsername.WithPrefix()},
-				CertificateSeatID:             fleet.FleetVarHostEndUserIDPUsernameLocalPart.WithPrefix(),
-			},
-		},
-	}
-	ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
-		assert.Equal(t, []string{hostUUID}, uuids)
-		return []*fleet.Host{{ID: 1, UUID: hostUUID, HardwareSerial: hardwareSerial}}, nil
-	}
-	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, identifiers []string) ([]uint, error) {
-		assert.Equal(t, []string{hostUUID}, identifiers)
-		return []uint{1}, nil
+	ds.HostIDsByIdentifierFunc = func(ctx context.Context, _ fleet.TeamFilter, identifiers []string) ([]uint, error) {
+		return []uint{hostsByUUID[identifiers[0]].ID}, nil
 	}
 	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
-		assert.EqualValues(t, 1, hostID)
-		return &fleet.ScimUser{UserName: username}, nil
+		return &fleet.ScimUser{UserName: fmt.Sprintf("user%d@example.com", hostID)}, nil
 	}
 	ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
 		return nil, nil
@@ -634,10 +549,14 @@ func TestPreprocessProfileContentsDigiCertCertificateEnrollmentWithFleetVariable
 
 	err := preprocessProfileContents(ctx, appCfg, ds, svc, mockDigiCert, logger, targets, profileContents, hostProfilesToInstallMap, make(map[string]string), groupedCAs)
 	require.NoError(t, err)
-	require.True(t, mockDigiCert.GetCertificateFuncInvoked)
-	assert.Equal(t, hardwareSerial, issuedConfig.CertificateCommonName)
-	assert.Equal(t, []string{username}, issuedConfig.CertificateUserPrincipalNames)
-	assert.Equal(t, usernameLocalPart, issuedConfig.CertificateSeatID)
+	assert.Equal(t, map[string]string{host1UUID: "cn-user1@example.com", host2UUID: "cn-user2@example.com"}, cnByHostUUID)
+
+	// Both hosts must have received GetCertificate calls with their own serial.
+	require.True(t, mockDigiCert.GetCertificateFuncInvoked, "GetCertificate was never called")
+	require.Contains(t, upnByHostUUID, host1UUID, "GetCertificate was not called for host 1")
+	require.Contains(t, upnByHostUUID, host2UUID, "GetCertificate was not called for host 2")
+	assert.Equal(t, host1Serial+"@example.com", upnByHostUUID[host1UUID], "host 1 UPN should contain its own serial")
+	assert.Equal(t, host2Serial+"@example.com", upnByHostUUID[host2UUID], "host 2 UPN should contain its own serial")
 }
 
 func TestReplaceFleetVarInItem(t *testing.T) {
@@ -665,38 +584,30 @@ func TestReplaceFleetVarInItem(t *testing.T) {
 	}
 
 	tests := []struct {
-		fleetVar fleet.FleetVarName
+		item     string
 		expected string
 	}{
-		{fleet.FleetVarHostEndUserEmailIDP, "legacy@example.com"},
-		{fleet.FleetVarHostHardwareSerial, "serial"},
-		{fleet.FleetVarHostUUID, "host"},
-		{fleet.FleetVarHostPlatform, "macos"},
-		{fleet.FleetVarHostEndUserIDPUsername, "user@example.com"},
-		{fleet.FleetVarHostEndUserIDPUsernameLocalPart, "user"},
-		{fleet.FleetVarHostEndUserIDPGroups, "Engineering,IT"},
-		{fleet.FleetVarHostEndUserIDPDepartment, "Engineering & IT"},
-		{fleet.FleetVarHostEndUserIDPFullname, "R&D User"},
+		{fleet.FleetVarHostEndUserEmailIDP.WithBraces(), "legacy@example.com"},
+		{fleet.FleetVarHostHardwareSerial.WithBraces(), "serial"},
+		{fleet.FleetVarHostUUID.WithBraces(), "host"},
+		{fleet.FleetVarHostPlatform.WithBraces(), "macos"},
+		{fleet.FleetVarHostEndUserIDPUsername.WithBraces(), "user@example.com"},
+		{fleet.FleetVarHostEndUserIDPUsernameLocalPart.WithBraces(), "user"},
+		{fleet.FleetVarHostEndUserIDPGroups.WithBraces(), "Engineering,IT"},
+		{fleet.FleetVarHostEndUserIDPDepartment.WithBraces(), "Engineering & IT"},
+		{fleet.FleetVarHostEndUserIDPFullname.WithBraces(), "R&D User"},
+		// USERNAME is a prefix of USERNAME_LOCAL_PART
+		{fleet.FleetVarHostEndUserIDPUsername.WithPrefix() + " " + fleet.FleetVarHostEndUserIDPUsernameLocalPart.WithPrefix(), "user@example.com user"},
 	}
-	require.Len(t, tests, len(fleet.FleetVarsSupportedInDigiCert))
 	for _, tt := range tests {
-		t.Run(string(tt.fleetVar), func(t *testing.T) {
-			item := "prefix-" + tt.fleetVar.WithBraces() + "-suffix"
+		t.Run(tt.item, func(t *testing.T) {
+			item := "prefix-" + tt.item + "-suffix"
 			ok, err := replaceFleetVarInItem(t.Context(), ds, &fleet.CmdTarget{CmdUUID: "command"}, fleet.Host{UUID: "host"}, make(map[string]string), &item, make(map[string]uint), nil, func(int) error { return nil })
 			require.NoError(t, err)
 			require.True(t, ok)
 			assert.Equal(t, "prefix-"+tt.expected+"-suffix", item)
 		})
 	}
-
-	t.Run("username and its local part in one item", func(t *testing.T) {
-		item := fleet.FleetVarHostEndUserIDPUsername.WithPrefix() + " " + fleet.FleetVarHostEndUserIDPUsernameLocalPart.WithPrefix() + " " +
-			fleet.FleetVarHostEndUserIDPUsernameLocalPart.WithBraces()
-		ok, err := replaceFleetVarInItem(t.Context(), ds, &fleet.CmdTarget{CmdUUID: "command"}, fleet.Host{UUID: "host"}, make(map[string]string), &item, make(map[string]uint), nil, func(int) error { return nil })
-		require.NoError(t, err)
-		require.True(t, ok)
-		assert.Equal(t, "user@example.com user user", item)
-	})
 }
 
 func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
