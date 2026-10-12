@@ -4135,7 +4135,7 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 			true,
 			0,
 			`{"playStoreMode": "BLACKLIST"}`,
-			`Android configuration profile can't include "playStoreMode" setting. To manage Android software, add Google Play apps in Fleet. Learn more: https://fleetdm.com/learn-more-about/android-software`,
+			`Android configuration profile can't include "playStoreMode" setting. To manage Android software, add Play Store apps in Fleet. Learn more: https://fleetdm.com/learn-more-about/android-software`,
 		},
 		{
 			"android profile with team and free license",

@@ -70,7 +70,7 @@ var AndroidSoftwareJSONKeysFree = map[string]string{
 }
 
 func androidSoftwareKeyErrPremium(key string) string {
-	return fmt.Sprintf(`Android configuration profile can't include %q setting. To manage Android software, add Google Play apps in Fleet. Learn more: https://fleetdm.com/learn-more-about/android-software`, key)
+	return fmt.Sprintf(`Android configuration profile can't include %q setting. To manage Android software, add Play Store apps in Fleet. Learn more: https://fleetdm.com/learn-more-about/android-software`, key)
 }
 
 func androidSoftwareKeyErrFree(key string) string {
