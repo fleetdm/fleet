@@ -789,11 +789,12 @@ func TestSetupExperienceNextStepRunningScriptResult(t *testing.T) {
 		return result, nil
 	}
 	var updatedTo []fleet.SetupExperienceStatusResultStatus
+	rowMatches := true
 	ds.MaybeUpdateSetupExperienceScriptStatusFunc = func(ctx context.Context, gotHostUUID, gotExecID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
 		assert.Equal(t, hostUUID, gotHostUUID)
 		assert.Equal(t, execID, gotExecID)
 		updatedTo = append(updatedTo, status)
-		return true, nil
+		return rowMatches, nil
 	}
 
 	runningStep := func(execID *string) *fleet.SetupExperienceStatusResult {
@@ -811,6 +812,7 @@ func TestSetupExperienceNextStepRunningScriptResult(t *testing.T) {
 		name         string
 		execID       *string
 		result       *fleet.HostScriptResult
+		rowChanged   bool
 		wantFinished bool
 		wantUpdate   []fleet.SetupExperienceStatusResultStatus
 	}{
@@ -825,10 +827,15 @@ func TestSetupExperienceNextStepRunningScriptResult(t *testing.T) {
 			name: "recorded failure", execID: &execID, result: &fleet.HostScriptResult{ExecutionID: execID, ExitCode: new(int64(1))},
 			wantFinished: true, wantUpdate: []fleet.SetupExperienceStatusResultStatus{fleet.SetupExperienceStatusFailure},
 		},
+		{
+			// the step points at another execution or already finished: keep waiting rather than finish from a stale read
+			name: "recorded result but step row no longer matches", execID: &execID, result: &fleet.HostScriptResult{ExecutionID: execID, ExitCode: new(int64(0))},
+			rowChanged: true, wantUpdate: []fleet.SetupExperienceStatusResultStatus{fleet.SetupExperienceStatusSuccess},
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			step, result, updatedTo = runningStep(c.execID), c.result, nil
+			step, result, updatedTo, rowMatches = runningStep(c.execID), c.result, nil, !c.rowChanged
 			finished, err := svc.SetupExperienceNextStep(ctx, host)
 			require.NoError(t, err)
 			assert.Equal(t, c.wantFinished, finished)

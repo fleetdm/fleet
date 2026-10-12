@@ -496,8 +496,13 @@ func (svc *Service) syncSetupExperienceScriptResult(ctx context.Context, hostUUI
 		return false, nil
 	}
 	status := fleet.SetupExperienceScriptResult{ExitCode: int(*res.ExitCode)}.SetupExperienceStatus()
-	if _, err := svc.ds.MaybeUpdateSetupExperienceScriptStatus(ctx, hostUUID, *step.ScriptExecutionID, status); err != nil {
+	updated, err := svc.ds.MaybeUpdateSetupExperienceScriptStatus(ctx, hostUUID, *step.ScriptExecutionID, status)
+	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "update setup experience script status from recorded result")
+	}
+	if !updated {
+		// The step moved to another execution or finished concurrently; re-read it on the next poll.
+		return false, nil
 	}
 	step.Status = status
 	return true, nil
