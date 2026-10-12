@@ -18,10 +18,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -36,7 +36,7 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	u := &fleet.User{
 		Name:       "GitOps",
 		Email:      "gitops-TestPuppetMatchPreassignProfiles@example.com",
-		GlobalRole: ptr.String(fleet.RoleGitOps),
+		GlobalRole: new(fleet.RoleGitOps),
 	}
 	require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
 	_, err := s.ds.NewUser(context.Background(), u)
@@ -54,8 +54,8 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 
 	// create a host that's not enrolled into MDM
 	nonMDMHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
-		OsqueryHostID: ptr.String("not-mdm-enrolled"),
-		NodeKey:       ptr.String("not-mdm-enrolled"),
+		OsqueryHostID: new("not-mdm-enrolled"),
+		NodeKey:       new("not-mdm-enrolled"),
 		UUID:          uuid.New().String(),
 		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", t.Name()),
 		Platform:      "darwin",
@@ -87,19 +87,19 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	s.awaitRunAppleMDMWorkerSchedule()
 
 	// preassign an empty profile, fails
-	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "empty", HostUUID: nonMDMHost.UUID, Profile: nil}}, http.StatusUnprocessableEntity)
+	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{ExternalHostIdentifier: "empty", HostUUID: nonMDMHost.UUID, Profile: nil}, http.StatusUnprocessableEntity)
 
 	// preassign a valid profile to the MDM host
 	prof1 := mobileconfigForTest("n1", "i1")
-	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "mdm1", HostUUID: mdmHost.UUID, Profile: prof1}}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{ExternalHostIdentifier: "mdm1", HostUUID: mdmHost.UUID, Profile: prof1}, http.StatusNoContent)
 
 	// preassign another valid profile to the MDM host
 	prof2 := mobileconfigForTest("n2", "i2")
-	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "mdm1", HostUUID: mdmHost.UUID, Profile: prof2, Group: "g1"}}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{ExternalHostIdentifier: "mdm1", HostUUID: mdmHost.UUID, Profile: prof2, Group: "g1"}, http.StatusNoContent)
 
 	// preassign a valid profile to the non-MDM host, still works as the host is not validated in this call
 	prof3 := mobileconfigForTest("n3", "i3")
-	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "non-mdm", HostUUID: nonMDMHost.UUID, Profile: prof3, Group: "g2"}}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{ExternalHostIdentifier: "non-mdm", HostUUID: nonMDMHost.UUID, Profile: prof3, Group: "g2"}, http.StatusNoContent)
 
 	// match with an invalid external host id, succeeds as it is the same as if
 	// there was no matching to do (no preassignment was done)
@@ -213,8 +213,8 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	// additionally, use external host identifiers with different
 	// suffixes to simulate real world distributed scenarios where more
 	// than one puppet server might be running at the time.
-	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "6f36ab2c-1a40-429b-9c9d-07c9029f4aa8-puppetcompiler06.test.example.com", HostUUID: mdmHost.UUID, Profile: prof1, Group: "g1"}}, http.StatusNoContent)
-	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "6f36ab2c-1a40-429b-9c9d-07c9029f4aa8-puppetcompiler01.test.example.com", HostUUID: mdmHost.UUID, Profile: prof4, Group: "g4"}}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{ExternalHostIdentifier: "6f36ab2c-1a40-429b-9c9d-07c9029f4aa8-puppetcompiler06.test.example.com", HostUUID: mdmHost.UUID, Profile: prof1, Group: "g1"}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{ExternalHostIdentifier: "6f36ab2c-1a40-429b-9c9d-07c9029f4aa8-puppetcompiler01.test.example.com", HostUUID: mdmHost.UUID, Profile: prof4, Group: "g4"}, http.StatusNoContent)
 
 	// match with the mdm host succeeds and assigns it to tm2
 	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/match", matchMDMApplePreassignmentRequest{ExternalHostIdentifier: "6f36ab2c-1a40-429b-9c9d-07c9029f4aa8-puppetcompiler03.test.example.com"}, http.StatusNoContent)
@@ -276,8 +276,8 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 
 	// preassign the MDM host using "g1" and "g4", should match existing
 	// team tmLite2, and nothing be done since the host is already in tmLite2
-	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "mdm2", HostUUID: mdmHost2.UUID, Profile: prof1, Group: "g1"}}, http.StatusNoContent)
-	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "mdm2", HostUUID: mdmHost2.UUID, Profile: prof4, Group: "g4"}}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{ExternalHostIdentifier: "mdm2", HostUUID: mdmHost2.UUID, Profile: prof1, Group: "g1"}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{ExternalHostIdentifier: "mdm2", HostUUID: mdmHost2.UUID, Profile: prof4, Group: "g4"}, http.StatusNoContent)
 	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/match", matchMDMApplePreassignmentRequest{ExternalHostIdentifier: "mdm2"}, http.StatusNoContent)
 
 	// the host is still part of tmLite2
@@ -335,7 +335,7 @@ func (s *integrationMDMTestSuite) TestPuppetRun() {
 			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, "foo")))
 		case "/profile":
 			w.WriteHeader(http.StatusOK)
-			require.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"}))
+			assert.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"}))
 		}
 	}))
 
@@ -343,7 +343,7 @@ func (s *integrationMDMTestSuite) TestPuppetRun() {
 	u := &fleet.User{
 		Name:       "GitOps",
 		Email:      "gitops-TestPuppetRun@example.com",
-		GlobalRole: ptr.String(fleet.RoleGitOps),
+		GlobalRole: new(fleet.RoleGitOps),
 	}
 	require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
 	_, err := s.ds.NewUser(context.Background(), u)

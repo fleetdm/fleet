@@ -23,7 +23,6 @@ import (
 	servermdm "github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -367,18 +366,18 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	require.Equal(t, "N1", listResp.Profiles[0].Name)
 	require.Equal(t, "N2", listResp.Profiles[1].Name)
 	require.Equal(t, "N4", listResp.Profiles[2].Name)
-	require.Equal(t, listResp.Profiles[0].LabelsIncludeAll, []fleet.ConfigurationProfileLabel{
+	require.Equal(t, []fleet.ConfigurationProfileLabel{
 		{LabelID: lbl1.ID, LabelName: lbl1.Name},
 		{LabelID: lbl2.ID, LabelName: lbl2.Name},
-	})
+	}, listResp.Profiles[0].LabelsIncludeAll)
 	require.Nil(t, listResp.Profiles[0].LabelsExcludeAny)
-	require.Equal(t, listResp.Profiles[1].LabelsIncludeAll, []fleet.ConfigurationProfileLabel{
+	require.Equal(t, []fleet.ConfigurationProfileLabel{
 		{LabelID: lbl1.ID, LabelName: lbl1.Name},
-	})
+	}, listResp.Profiles[1].LabelsIncludeAll)
 	require.Nil(t, listResp.Profiles[1].LabelsExcludeAny)
-	require.Equal(t, listResp.Profiles[2].LabelsExcludeAny, []fleet.ConfigurationProfileLabel{
+	require.Equal(t, []fleet.ConfigurationProfileLabel{
 		{LabelID: lbl2.ID, LabelName: lbl2.Name},
-	})
+	}, listResp.Profiles[2].LabelsExcludeAny)
 	require.Nil(t, listResp.Profiles[2].LabelsIncludeAll)
 
 	// successful batch-set that updates some labels
@@ -392,14 +391,14 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	require.Len(t, listResp.Profiles, 2)
 	require.Equal(t, "N1", listResp.Profiles[0].Name)
 	require.Equal(t, "N2", listResp.Profiles[1].Name)
-	require.Equal(t, listResp.Profiles[0].LabelsExcludeAny, []fleet.ConfigurationProfileLabel{
+	require.Equal(t, []fleet.ConfigurationProfileLabel{
 		{LabelID: lbl1.ID, LabelName: lbl1.Name},
 		{LabelID: lbl3.ID, LabelName: lbl3.Name},
-	})
+	}, listResp.Profiles[0].LabelsExcludeAny)
 	require.Nil(t, listResp.Profiles[0].LabelsIncludeAll)
-	require.Equal(t, listResp.Profiles[1].LabelsIncludeAll, []fleet.ConfigurationProfileLabel{
+	require.Equal(t, []fleet.ConfigurationProfileLabel{
 		{LabelID: lbl2.ID, LabelName: lbl2.Name},
-	})
+	}, listResp.Profiles[1].LabelsIncludeAll)
 	require.Nil(t, listResp.Profiles[1].LabelsExcludeAny)
 
 	// names cannot be duplicated across platforms
@@ -668,18 +667,18 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 	require.Equal(t, "N1", listResp.Profiles[0].Name)
 	require.Equal(t, "N2", listResp.Profiles[1].Name)
 	require.Equal(t, "N4", listResp.Profiles[2].Name)
-	require.Equal(t, listResp.Profiles[0].LabelsIncludeAny, []fleet.ConfigurationProfileLabel{
+	require.Equal(t, []fleet.ConfigurationProfileLabel{
 		{LabelID: lbl1.ID, LabelName: lbl1.Name},
 		{LabelID: lbl2.ID, LabelName: lbl2.Name},
-	})
+	}, listResp.Profiles[0].LabelsIncludeAny)
 	require.Nil(t, listResp.Profiles[0].LabelsExcludeAny)
-	require.Equal(t, listResp.Profiles[1].LabelsIncludeAll, []fleet.ConfigurationProfileLabel{
+	require.Equal(t, []fleet.ConfigurationProfileLabel{
 		{LabelID: lbl1.ID, LabelName: lbl1.Name},
-	})
+	}, listResp.Profiles[1].LabelsIncludeAll)
 	require.Nil(t, listResp.Profiles[1].LabelsExcludeAny)
-	require.Equal(t, listResp.Profiles[2].LabelsExcludeAny, []fleet.ConfigurationProfileLabel{
+	require.Equal(t, []fleet.ConfigurationProfileLabel{
 		{LabelID: lbl2.ID, LabelName: lbl2.Name},
-	})
+	}, listResp.Profiles[2].LabelsExcludeAny)
 	require.Nil(t, listResp.Profiles[2].LabelsIncludeAll)
 
 	// successful batch-set that updates some labels
@@ -693,14 +692,14 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 	require.Len(t, listResp.Profiles, 2)
 	require.Equal(t, "N1", listResp.Profiles[0].Name)
 	require.Equal(t, "N2", listResp.Profiles[1].Name)
-	require.Equal(t, listResp.Profiles[0].LabelsExcludeAny, []fleet.ConfigurationProfileLabel{
+	require.Equal(t, []fleet.ConfigurationProfileLabel{
 		{LabelID: lbl1.ID, LabelName: lbl1.Name},
 		{LabelID: lbl3.ID, LabelName: lbl3.Name},
-	})
+	}, listResp.Profiles[0].LabelsExcludeAny)
 	require.Nil(t, listResp.Profiles[0].LabelsIncludeAll)
-	require.Equal(t, listResp.Profiles[1].LabelsIncludeAll, []fleet.ConfigurationProfileLabel{
+	require.Equal(t, []fleet.ConfigurationProfileLabel{
 		{LabelID: lbl2.ID, LabelName: lbl2.Name},
-	})
+	}, listResp.Profiles[1].LabelsIncludeAll)
 	require.Nil(t, listResp.Profiles[1].LabelsExcludeAny)
 
 	// names cannot be duplicated across platforms
@@ -745,7 +744,7 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 	// Get the current list of configuration profiles
 	var currentProfiles listMDMConfigProfilesResponse
 	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", nil, http.StatusOK, &currentProfiles)
-	require.Greater(t, len(currentProfiles.Profiles), 0)
+	require.NotEmpty(t, currentProfiles.Profiles)
 
 	// Now we disable all three MDM's
 	appCfg, err := s.ds.AppConfig(ctx)
@@ -1005,19 +1004,17 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 
 	// edit team mdm config to turn on disk encryption and os updates
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tmResp.Team.ID), modifyTeamRequest{
-		TeamPayload: fleet.TeamPayload{
-			Name: ptr.String(t.Name()),
-			MDM: &fleet.TeamPayloadMDM{
-				EnableDiskEncryption: optjson.SetBool(true),
-				WindowsUpdates: &fleet.WindowsUpdates{
-					DeadlineDays:    optjson.SetInt(4),
-					GracePeriodDays: optjson.SetInt(1),
-				},
-				MacOSUpdates: &fleet.AppleOSUpdateSettings{
-					Deadline:       optjson.SetString("2023-12-31"),
-					MinimumVersion: optjson.SetString("14.6.1"),
-					UpdateNewHosts: optjson.SetBool(true),
-				},
+		Name: new(t.Name()),
+		MDM: &fleet.TeamPayloadMDM{
+			EnableDiskEncryption: optjson.SetBool(true),
+			WindowsUpdates: &fleet.WindowsUpdates{
+				DeadlineDays:    optjson.SetInt(4),
+				GracePeriodDays: optjson.SetInt(1),
+			},
+			MacOSUpdates: &fleet.AppleOSUpdateSettings{
+				Deadline:       optjson.SetString("2023-12-31"),
+				MinimumVersion: optjson.SetString("14.6.1"),
+				UpdateNewHosts: optjson.SetBool(true),
 			},
 		},
 	}, http.StatusOK, &teamResponse{})
@@ -1028,7 +1025,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	require.Equal(t, 1, tmResp.Team.Config.MDM.WindowsUpdates.GracePeriodDays.Value)
 	require.Equal(t, "2023-12-31", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
 	require.Equal(t, "14.6.1", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
-	require.Equal(t, true, tmResp.Team.Config.MDM.MacOSUpdates.UpdateNewHosts.Value)
+	require.True(t, tmResp.Team.Config.MDM.MacOSUpdates.UpdateNewHosts.Value)
 
 	require.NoError(t, ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false))
 
@@ -1109,7 +1106,7 @@ func (s *integrationMDMTestSuite) TestBatchResendMDMProfiles() {
 	s.Do("GET", fmt.Sprintf("/api/v1/fleet/configuration_profiles/%s/status", "zno-such-profile"), nil, http.StatusNotFound)
 
 	// get status for existing profiles, all 0 counts
-	for _, uuid := range []string{profNameToPayload["N1"].ProfileUUID, profNameToPayload["N2"].ProfileUUID, profNameToPayload["N3"].ProfileUUID, profNameToPayload["N4"].ProfileUUID} {
+	for _, uuid := range []string{profNameToPayload["N1"].ProfileUUID, profNameToPayload["N2"].ProfileUUID, profNameToPayload["N3"].ProfileUUID, profNameToPayload["N4"].ProfileUUID} { // nolint:nilaway // every name looked up here was inserted from the list response above
 		var statusResp getMDMConfigProfileStatusResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/configuration_profiles/%s/status", uuid), getMDMConfigProfileStatusRequest{}, http.StatusOK, &statusResp)
 		require.Equal(t, fleet.MDMConfigProfileStatus{}, statusResp.MDMConfigProfileStatus)
@@ -1318,7 +1315,7 @@ func (s *integrationMDMTestSuite) TestSpecTeamsOSUpdatesDeployToHosts() {
 	// macOS 14+ is a dynamic label; use RecordLabelQueryExecutions to simulate osquery results.
 	require.Contains(t, lblIDs, fleet.BuiltinLabelMacOS14Plus)
 	require.NoError(t, s.ds.RecordLabelQueryExecutions(ctx, macOSHost,
-		map[uint]*bool{lblIDs[fleet.BuiltinLabelMacOS14Plus]: ptr.Bool(true)}, time.Now(), false))
+		map[uint]*bool{lblIDs[fleet.BuiltinLabelMacOS14Plus]: new(true)}, time.Now(), false))
 
 	// iOS and iPadOS are manual labels; insert label membership directly.
 	require.Contains(t, lblIDs, fleet.BuiltinLabelIOS)

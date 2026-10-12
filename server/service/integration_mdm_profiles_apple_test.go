@@ -33,7 +33,6 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -140,8 +139,8 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	// create a non-macOS host
 	_, err = s.ds.NewHost(context.Background(), &fleet.Host{
 		ID:            1,
-		OsqueryHostID: ptr.String("non-macos-host"),
-		NodeKey:       ptr.String("non-macos-host"),
+		OsqueryHostID: new("non-macos-host"),
+		NodeKey:       new("non-macos-host"),
 		UUID:          uuid.New().String(),
 		Hostname:      fmt.Sprintf("%sfoo.local.non.macos", t.Name()),
 		Platform:      "windows",
@@ -151,8 +150,8 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	// create a host that's not enrolled into MDM
 	_, err = s.ds.NewHost(context.Background(), &fleet.Host{
 		ID:            2,
-		OsqueryHostID: ptr.String("not-mdm-enrolled"),
-		NodeKey:       ptr.String("not-mdm-enrolled"),
+		OsqueryHostID: new("not-mdm-enrolled"),
+		NodeKey:       new("not-mdm-enrolled"),
 		UUID:          uuid.New().String(),
 		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", t.Name()),
 		Platform:      "darwin",
@@ -506,7 +505,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 		require.Equal(t, "DeclarativeManagement", cmd.Command.RequestType)
 		cmd, err = d.Acknowledge(cmd.CommandUUID)
 		require.NoError(t, err)
-		require.Nil(t, cmd, fmt.Sprintf("expected no more commands, but got: %+v", cmd))
+		require.Nil(t, cmd, "expected no more commands, but got: %+v", cmd)
 		_, err = d.DeclarativeManagement("tokens")
 		require.NoError(t, err)
 	}
@@ -666,10 +665,10 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 		require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, s.ds, h, report))
 	}
 
-	setProfileUploadedAt := func(t *testing.T, uploadedAt time.Time, identifiers ...interface{}) {
+	setProfileUploadedAt := func(t *testing.T, uploadedAt time.Time, identifiers ...any) {
 		bindVars := strings.TrimSuffix(strings.Repeat("?, ", len(identifiers)), ", ")
 		stmt := fmt.Sprintf("UPDATE mdm_apple_configuration_profiles SET uploaded_at = ? WHERE identifier IN(%s)", bindVars)
-		args := append([]interface{}{uploadedAt}, identifiers...)
+		args := append([]any{uploadedAt}, identifiers...)
 		mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 			_, err := tx.ExecContext(ctx, stmt, args...)
 			return err
@@ -924,18 +923,18 @@ func (s *integrationMDMTestSuite) TestMDMAppleListConfigProfiles() {
 		var listResp listMDMAppleConfigProfilesResponse
 		s.DoJSON("GET", "/api/v1/fleet/mdm/apple/profiles", nil, http.StatusOK, &listResp)
 		require.NotNil(t, listResp.ConfigProfiles) // expect empty slice instead of nil
-		require.Len(t, listResp.ConfigProfiles, 0)
+		require.Empty(t, listResp.ConfigProfiles)
 
 		listResp = listMDMAppleConfigProfilesResponse{}
 		s.DoJSON("GET", fmt.Sprintf(`/api/v1/fleet/mdm/apple/profiles?team_id=%d`, testTeam.ID), nil, http.StatusOK, &listResp)
 		require.NotNil(t, listResp.ConfigProfiles) // expect empty slice instead of nil
-		require.Len(t, listResp.ConfigProfiles, 0)
+		require.Empty(t, listResp.ConfigProfiles)
 
 		var hostProfilesResp getHostProfilesResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/configuration_profiles", mdmHost.ID), nil, http.StatusOK, &hostProfilesResp)
 		require.NotNil(t, hostProfilesResp.Profiles) // expect empty slice instead of nil
-		require.Len(t, hostProfilesResp.Profiles, 0)
-		require.EqualValues(t, mdmHost.ID, hostProfilesResp.HostID)
+		require.Empty(t, hostProfilesResp.Profiles)
+		require.Equal(t, mdmHost.ID, hostProfilesResp.HostID)
 	})
 
 	t.Run("with profiles", func(t *testing.T) {
@@ -988,7 +987,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleListConfigProfiles() {
 		require.Len(t, hostProfilesResp.Profiles, 1)
 		require.Equal(t, p1.Name, hostProfilesResp.Profiles[0].Name)
 		require.Equal(t, p1.Identifier, hostProfilesResp.Profiles[0].Identifier)
-		require.EqualValues(t, mdmHost.ID, hostProfilesResp.HostID)
+		require.Equal(t, mdmHost.ID, hostProfilesResp.HostID)
 
 		// add the host to a team
 		err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&testTeam.ID, []uint{mdmHost.ID}))
@@ -998,7 +997,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleListConfigProfiles() {
 		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/configuration_profiles", mdmHost.ID), nil, http.StatusOK, &hostProfilesResp)
 		require.NotNil(t, hostProfilesResp.Profiles)
 		require.Len(t, hostProfilesResp.Profiles, 2)
-		require.EqualValues(t, mdmHost.ID, hostProfilesResp.HostID)
+		require.Equal(t, mdmHost.ID, hostProfilesResp.HostID)
 	})
 }
 
@@ -1227,8 +1226,8 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{
-				"custom_settings": []map[string]interface{}{
+			MacOSSettings: map[string]any{
+				"custom_settings": []map[string]any{
 					{"path": "foo", "labels": []string{"a", "b"}},
 					{"path": "bar", "labels_exclude_any": []string{"c"}},
 				},
@@ -1249,7 +1248,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{"foo_bar": 123},
+			MacOSSettings: map[string]any{"foo_bar": 123},
 		},
 	}}}
 	res := s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
@@ -1260,7 +1259,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{"custom_settings": []interface{}{"A", true}},
+			MacOSSettings: map[string]any{"custom_settings": []any{"A", true}},
 		},
 	}}}
 	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
@@ -1288,7 +1287,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{"custom_settings": []map[string]interface{}{}},
+			MacOSSettings: map[string]any{"custom_settings": []map[string]any{}},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
@@ -1303,7 +1302,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{"custom_settings": []map[string]interface{}{}},
+			MacOSSettings: map[string]any{"custom_settings": []map[string]any{}},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
@@ -1315,8 +1314,8 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{
-				"custom_settings": []map[string]interface{}{
+			MacOSSettings: map[string]any{
+				"custom_settings": []map[string]any{
 					{"path": "bar", "labels": []string{"x"}},
 					{"path": "foo", "labels": []string{"a", "b"}, "labels_include_all": []string{"c"}},
 				},
@@ -1484,6 +1483,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	// Verify there is a command on the user channel for h1
 	enrollmentIds, err := s.ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
 	require.NoError(t, err)
+	require.NotNil(t, h1UserEnrollment)
 	assert.Contains(t, enrollmentIds, h1UserEnrollment.ID)
 	assert.Contains(t, enrollmentIds, h1.UUID)
 	assert.Contains(t, enrollmentIds, h2.UUID)
@@ -1537,6 +1537,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	// Verify there is a command on the user channel for h3
 	enrollmentIds, err = s.ds.GetEnrollmentIDsWithPendingMDMAppleCommands(ctx)
 	require.NoError(t, err)
+	require.NotNil(t, h3UserEnrollment)
 	assert.Contains(t, enrollmentIds, h3UserEnrollment.ID)
 	assert.Contains(t, enrollmentIds, h3.UUID)
 	assert.Contains(t, enrollmentIds, h4.UUID)
@@ -1680,7 +1681,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	var g1ProfID uint
 	for _, p := range noTeamProfs {
 		if p.Identifier == "G1" {
-			g1ProfID = p.ProfileID
+			g1ProfID = p.ProfileID //nolint:staticcheck // the legacy Apple profile endpoints take the deprecated numeric ID
 			break
 		}
 	}
@@ -1713,7 +1714,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	var tm21ProfID uint
 	for _, p := range tm2Profs {
 		if p.Identifier == "T2.1" {
-			tm21ProfID = p.ProfileID
+			tm21ProfID = p.ProfileID //nolint:staticcheck // the legacy Apple profile endpoints take the deprecated numeric ID
 			break
 		}
 	}
@@ -2070,7 +2071,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	}
 	setTestProfileID := func(name string, id uint) {
 		tp := testProfiles[name]
-		tp.ProfileID = id
+		tp.ProfileID = id //nolint:staticcheck // the legacy Apple profile endpoints take the deprecated numeric ID
 		testProfiles[name] = tp
 	}
 
@@ -2111,8 +2112,8 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	var newCP fleet.MDMAppleConfigProfile
 	err = json.NewDecoder(newResp.Body).Decode(&newCP)
 	require.NoError(t, err)
-	require.NotEmpty(t, newCP.ProfileID)
-	setTestProfileID("TestNoTeam", newCP.ProfileID)
+	require.NotEmpty(t, newCP.ProfileID)            //nolint:staticcheck // the legacy Apple profile endpoints take the deprecated numeric ID
+	setTestProfileID("TestNoTeam", newCP.ProfileID) //nolint:staticcheck // the legacy Apple profile endpoints take the deprecated numeric ID
 
 	// create new profile (with team id)
 	generateTestProfile("TestWithTeamID", "")
@@ -2120,8 +2121,8 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	newResp = s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(newResp.Body).Decode(&newCP)
 	require.NoError(t, err)
-	require.NotEmpty(t, newCP.ProfileID)
-	setTestProfileID("TestWithTeamID", newCP.ProfileID)
+	require.NotEmpty(t, newCP.ProfileID)                //nolint:staticcheck // the legacy Apple profile endpoints take the deprecated numeric ID
+	setTestProfileID("TestWithTeamID", newCP.ProfileID) //nolint:staticcheck // the legacy Apple profile endpoints take the deprecated numeric ID
 
 	// Create a profile that we're going to remove immediately
 	generateTestProfile("TestImmediateDelete", "")
@@ -2130,8 +2131,8 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	newCP = fleet.MDMAppleConfigProfile{}
 	err = json.NewDecoder(newResp.Body).Decode(&newCP)
 	require.NoError(t, err)
-	require.NotEmpty(t, newCP.ProfileID)
-	setTestProfileID("TestImmediateDelete", newCP.ProfileID)
+	require.NotEmpty(t, newCP.ProfileID)                     //nolint:staticcheck // the legacy Apple profile endpoints take the deprecated numeric ID
+	setTestProfileID("TestImmediateDelete", newCP.ProfileID) //nolint:staticcheck // the legacy Apple profile endpoints take the deprecated numeric ID
 
 	// We need to run the cron to produce host profile entries
 	s.awaitTriggerProfileSchedule(t)
@@ -2153,14 +2154,14 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	// now delete the profile before it's sent, we should see the host_mdm_apple_profiles entry go
 	// away
 	deletedCP := testProfiles["TestImmediateDelete"]
-	deletePath := fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
+	deletePath := fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID) //nolint:staticcheck // the legacy Apple profile endpoints take the deprecated numeric ID
 	var deleteResp deleteMDMAppleConfigProfileResponse
 	s.DoJSON("DELETE", deletePath, nil, http.StatusOK, &deleteResp)
 	// confirm deleted
 	var listResp listMDMAppleConfigProfilesResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/profiles", listMDMAppleConfigProfilesRequest{TeamID: teamDelete.ID}, http.StatusOK, &listResp)
-	require.Len(t, listResp.ConfigProfiles, 0)
-	getPath := fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
+	require.Empty(t, listResp.ConfigProfiles)
+	getPath := fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID) //nolint:staticcheck // the legacy Apple profile endpoints take the deprecated numeric ID
 	_ = s.DoRawWithHeaders("GET", getPath, nil, http.StatusNotFound, map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.token)})
 
 	// Doing these cron run kinda muddies the test scenario, but can be discussed in PR review what we want to do here.
@@ -2194,37 +2195,37 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 
 	// get profile (no team)
 	expectedCP = testProfiles["TestNoTeam"]
-	getPath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", expectedCP.ProfileID)
+	getPath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", expectedCP.ProfileID) //nolint:staticcheck // the legacy Apple profile endpoints take the deprecated numeric ID
 	getResp := s.DoRawWithHeaders("GET", getPath, nil, http.StatusOK, map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.token)})
 	checkGetResponse(getResp, expectedCP)
 
 	// get profile (team 1)
 	expectedCP = testProfiles["TestWithTeamID"]
-	getPath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", expectedCP.ProfileID)
+	getPath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", expectedCP.ProfileID) //nolint:staticcheck // the legacy Apple profile endpoints take the deprecated numeric ID
 	getResp = s.DoRawWithHeaders("GET", getPath, nil, http.StatusOK, map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.token)})
 	checkGetResponse(getResp, expectedCP)
 
 	// delete profile (no team)
 	deletedCP = testProfiles["TestNoTeam"]
-	deletePath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
+	deletePath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID) //nolint:staticcheck // the legacy Apple profile endpoints take the deprecated numeric ID
 	s.DoJSON("DELETE", deletePath, nil, http.StatusOK, &deleteResp)
 	// confirm deleted
 	listResp = listMDMAppleConfigProfilesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/profiles", listMDMAppleConfigProfilesRequest{}, http.StatusOK, &listResp)
-	require.Len(t, listResp.ConfigProfiles, 0)
-	getPath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
+	require.Empty(t, listResp.ConfigProfiles)
+	getPath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID) //nolint:staticcheck // the legacy Apple profile endpoints take the deprecated numeric ID
 	_ = s.DoRawWithHeaders("GET", getPath, nil, http.StatusNotFound, map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.token)})
 
 	// delete profile (team 1)
 	deletedCP = testProfiles["TestWithTeamID"]
-	deletePath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
+	deletePath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID) //nolint:staticcheck // the legacy Apple profile endpoints take the deprecated numeric ID
 	deleteResp = deleteMDMAppleConfigProfileResponse{}
 	s.DoJSON("DELETE", deletePath, nil, http.StatusOK, &deleteResp)
 	// confirm deleted
 	listResp = listMDMAppleConfigProfilesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/profiles", listMDMAppleConfigProfilesRequest{TeamID: testTeam.ID}, http.StatusOK, &listResp)
-	require.Len(t, listResp.ConfigProfiles, 0)
-	getPath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID)
+	require.Empty(t, listResp.ConfigProfiles)
+	getPath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", deletedCP.ProfileID) //nolint:staticcheck // the legacy Apple profile endpoints take the deprecated numeric ID
 	_ = s.DoRawWithHeaders("GET", getPath, nil, http.StatusNotFound, map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.token)})
 
 	// fail to create new profile (no team), invalid fleet secret
@@ -2332,7 +2333,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	profile := s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
 
 	// try to delete the profile
-	deletePath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", profile.ProfileID)
+	deletePath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", profile.ProfileID) //nolint:nilaway,staticcheck // assertConfigProfilesByIdentifier fails the test when the profile doesn't exist; the legacy Apple profile endpoints take the deprecated numeric ID
 	deleteResp = deleteMDMAppleConfigProfileResponse{}
 	s.DoJSON("DELETE", deletePath, nil, http.StatusBadRequest, &deleteResp)
 }
@@ -2549,6 +2550,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 	// Host acknowledges installing the profile and grabs the remove command
 	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 	require.NoError(t, err)
+	require.NotNil(t, cmd)
 	assert.Equal(t, "RemoveProfile", cmd.Command.RequestType)
 	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 	require.NoError(t, err)
@@ -2674,11 +2676,11 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 	// user-scoped profiles show up as status nil (no user-enrollment yet)
 	assertHostProfiles([]hostProfile{
 		{
-			ProfileUUID:       profNameToPayload["A1"].ProfileUUID,
-			ProfileIdentifier: profNameToPayload["A1"].Identifier,
-			ProfileName:       profNameToPayload["A1"].Name,
-			Status:            ptr.String(string(fleet.MDMDeliveryPending)),
-			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			ProfileUUID:       profNameToPayload["A1"].ProfileUUID, // nolint:nilaway // every name looked up here was inserted from the list response above
+			ProfileIdentifier: profNameToPayload["A1"].Identifier,  // nolint:nilaway // every name looked up here was inserted from the list response above
+			ProfileName:       profNameToPayload["A1"].Name,        // nolint:nilaway // every name looked up here was inserted from the list response above
+			Status:            new(string(fleet.MDMDeliveryPending)),
+			OperationType:     new(string(fleet.MDMOperationTypeInstall)),
 			Retries:           0,
 			Scope:             string(fleet.PayloadScopeSystem),
 		},
@@ -2687,7 +2689,7 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 			ProfileIdentifier: profNameToPayload["A2"].Identifier,
 			ProfileName:       profNameToPayload["A2"].Name,
 			Status:            nil,
-			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			OperationType:     new(string(fleet.MDMOperationTypeInstall)),
 			Retries:           0,
 			Scope:             string(fleet.PayloadScopeUser),
 		},
@@ -2696,7 +2698,7 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 			ProfileIdentifier: profNameToPayload["A3"].Identifier,
 			ProfileName:       profNameToPayload["A3"].Name,
 			Status:            nil,
-			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			OperationType:     new(string(fleet.MDMOperationTypeInstall)),
 			Retries:           0,
 			Scope:             string(fleet.PayloadScopeUser),
 		},
@@ -2722,8 +2724,8 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 			ProfileUUID:       profNameToPayload["A1"].ProfileUUID,
 			ProfileIdentifier: profNameToPayload["A1"].Identifier,
 			ProfileName:       profNameToPayload["A1"].Name,
-			Status:            ptr.String(string(fleet.MDMDeliveryVerified)),
-			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Status:            new(string(fleet.MDMDeliveryVerified)),
+			OperationType:     new(string(fleet.MDMOperationTypeInstall)),
 			Retries:           0,
 			Scope:             string(fleet.PayloadScopeSystem),
 		},
@@ -2732,7 +2734,7 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 			ProfileIdentifier: profNameToPayload["A2"].Identifier,
 			ProfileName:       profNameToPayload["A2"].Name,
 			Status:            nil,
-			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			OperationType:     new(string(fleet.MDMOperationTypeInstall)),
 			Retries:           0,
 			Scope:             string(fleet.PayloadScopeUser),
 		},
@@ -2741,7 +2743,7 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 			ProfileIdentifier: profNameToPayload["A3"].Identifier,
 			ProfileName:       profNameToPayload["A3"].Name,
 			Status:            nil,
-			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			OperationType:     new(string(fleet.MDMOperationTypeInstall)),
 			Retries:           0,
 			Scope:             string(fleet.PayloadScopeUser),
 		},
@@ -2760,8 +2762,8 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 			ProfileUUID:       profNameToPayload["A1"].ProfileUUID,
 			ProfileIdentifier: profNameToPayload["A1"].Identifier,
 			ProfileName:       profNameToPayload["A1"].Name,
-			Status:            ptr.String(string(fleet.MDMDeliveryVerified)),
-			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Status:            new(string(fleet.MDMDeliveryVerified)),
+			OperationType:     new(string(fleet.MDMOperationTypeInstall)),
 			Retries:           0,
 			Scope:             string(fleet.PayloadScopeSystem),
 		},
@@ -2769,8 +2771,8 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 			ProfileUUID:       profNameToPayload["A2"].ProfileUUID,
 			ProfileIdentifier: profNameToPayload["A2"].Identifier,
 			ProfileName:       profNameToPayload["A2"].Name,
-			Status:            ptr.String(string(fleet.MDMDeliveryPending)),
-			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Status:            new(string(fleet.MDMDeliveryPending)),
+			OperationType:     new(string(fleet.MDMOperationTypeInstall)),
 			Retries:           0,
 			Scope:             string(fleet.PayloadScopeUser),
 		},
@@ -2778,8 +2780,8 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 			ProfileUUID:       profNameToPayload["A3"].ProfileUUID,
 			ProfileIdentifier: profNameToPayload["A3"].Identifier,
 			ProfileName:       profNameToPayload["A3"].Name,
-			Status:            ptr.String(string(fleet.MDMDeliveryPending)),
-			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Status:            new(string(fleet.MDMDeliveryPending)),
+			OperationType:     new(string(fleet.MDMOperationTypeInstall)),
 			Retries:           0,
 			Scope:             string(fleet.PayloadScopeUser),
 		},
@@ -2806,8 +2808,8 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 			ProfileUUID:       profNameToPayload["A1"].ProfileUUID,
 			ProfileIdentifier: profNameToPayload["A1"].Identifier,
 			ProfileName:       profNameToPayload["A1"].Name,
-			Status:            ptr.String(string(fleet.MDMDeliveryVerified)),
-			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Status:            new(string(fleet.MDMDeliveryVerified)),
+			OperationType:     new(string(fleet.MDMOperationTypeInstall)),
 			Retries:           0,
 			Scope:             string(fleet.PayloadScopeSystem),
 		},
@@ -2815,8 +2817,8 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 			ProfileUUID:       profNameToPayload["A2"].ProfileUUID,
 			ProfileIdentifier: profNameToPayload["A2"].Identifier,
 			ProfileName:       profNameToPayload["A2"].Name,
-			Status:            ptr.String(string(fleet.MDMDeliveryVerified)),
-			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Status:            new(string(fleet.MDMDeliveryVerified)),
+			OperationType:     new(string(fleet.MDMOperationTypeInstall)),
 			Retries:           0,
 			Scope:             string(fleet.PayloadScopeUser),
 		},
@@ -2824,8 +2826,8 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 			ProfileUUID:       profNameToPayload["A3"].ProfileUUID,
 			ProfileIdentifier: profNameToPayload["A3"].Identifier,
 			ProfileName:       profNameToPayload["A3"].Name,
-			Status:            ptr.String(string(fleet.MDMDeliveryPending)),
-			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Status:            new(string(fleet.MDMDeliveryPending)),
+			OperationType:     new(string(fleet.MDMOperationTypeInstall)),
 			Retries:           0,
 			Scope:             string(fleet.PayloadScopeUser),
 		},
@@ -2855,8 +2857,8 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 			ProfileUUID:       profNameToPayload["A1"].ProfileUUID,
 			ProfileIdentifier: profNameToPayload["A1"].Identifier,
 			ProfileName:       profNameToPayload["A1"].Name,
-			Status:            ptr.String(string(fleet.MDMDeliveryVerified)),
-			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Status:            new(string(fleet.MDMDeliveryVerified)),
+			OperationType:     new(string(fleet.MDMOperationTypeInstall)),
 			Retries:           0,
 			Scope:             string(fleet.PayloadScopeSystem),
 		},
@@ -2864,8 +2866,8 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 			ProfileUUID:       profNameToPayload["A2"].ProfileUUID,
 			ProfileIdentifier: profNameToPayload["A2"].Identifier,
 			ProfileName:       profNameToPayload["A2"].Name,
-			Status:            ptr.String(string(fleet.MDMDeliveryVerified)),
-			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Status:            new(string(fleet.MDMDeliveryVerified)),
+			OperationType:     new(string(fleet.MDMOperationTypeInstall)),
 			Retries:           0,
 			Scope:             string(fleet.PayloadScopeUser),
 		},
@@ -2874,7 +2876,7 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 			ProfileIdentifier: profNameToPayload["A3"].Identifier,
 			ProfileName:       profNameToPayload["A3"].Name,
 			Status:            nil,
-			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			OperationType:     new(string(fleet.MDMOperationTypeInstall)),
 			Retries:           1,
 			Scope:             string(fleet.PayloadScopeUser),
 		},
@@ -2911,8 +2913,8 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 			ProfileUUID:       profNameToPayload["A1"].ProfileUUID,
 			ProfileIdentifier: profNameToPayload["A1"].Identifier,
 			ProfileName:       profNameToPayload["A1"].Name,
-			Status:            ptr.String(string(fleet.MDMDeliveryVerified)),
-			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Status:            new(string(fleet.MDMDeliveryVerified)),
+			OperationType:     new(string(fleet.MDMOperationTypeInstall)),
 			Retries:           0,
 			Scope:             string(fleet.PayloadScopeSystem),
 		},
@@ -2920,8 +2922,8 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 			ProfileUUID:       profNameToPayload["A2"].ProfileUUID,
 			ProfileIdentifier: profNameToPayload["A2"].Identifier,
 			ProfileName:       profNameToPayload["A2"].Name,
-			Status:            ptr.String(string(fleet.MDMDeliveryVerified)),
-			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Status:            new(string(fleet.MDMDeliveryVerified)),
+			OperationType:     new(string(fleet.MDMOperationTypeInstall)),
 			Retries:           0,
 			Scope:             string(fleet.PayloadScopeUser),
 		},
@@ -2929,8 +2931,8 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 			ProfileUUID:       profNameToPayload["A3"].ProfileUUID,
 			ProfileIdentifier: profNameToPayload["A3"].Identifier,
 			ProfileName:       profNameToPayload["A3"].Name,
-			Status:            ptr.String(string(fleet.MDMDeliveryFailed)),
-			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
+			Status:            new(string(fleet.MDMDeliveryFailed)),
+			OperationType:     new(string(fleet.MDMOperationTypeInstall)),
 			Retries:           servermdm.MaxAppleProfileRetries,
 			Scope:             string(fleet.PayloadScopeUser),
 		},

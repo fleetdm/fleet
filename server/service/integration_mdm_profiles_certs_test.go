@@ -33,7 +33,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -130,9 +129,9 @@ func testWindowsSCEPProfile(s *integrationMDMTestSuite, windowsScepProfile []byt
 	// Create Custom SCEP CA
 	ca := &fleet.CertificateAuthority{
 		Type:      string(fleet.CATypeCustomSCEPProxy),
-		Name:      ptr.String("INTEGRATION"),
-		Challenge: ptr.String("integration-test"),
-		URL:       ptr.String(scepServerURL),
+		Name:      new("INTEGRATION"),
+		Challenge: new("integration-test"),
+		URL:       new(scepServerURL),
 	}
 
 	_, err := s.ds.NewCertificateAuthority(ctx, ca)
@@ -164,7 +163,7 @@ func testWindowsSCEPProfile(s *integrationMDMTestSuite, windowsScepProfile []byt
 		if p.Name == "WindowsSCEPProfile" {
 			foundProfile = true
 			require.NotNil(t, p.Status)
-			assert.EqualValues(t, fleet.MDMDeliveryPending, *p.Status)
+			assert.Equal(t, fleet.MDMDeliveryPending, *p.Status)
 		}
 	}
 	require.True(t, foundProfile, "WindowsSCEPProfile not found for host")
@@ -212,7 +211,7 @@ func testWindowsSCEPProfile(s *integrationMDMTestSuite, windowsScepProfile []byt
 		if p.Name == "WindowsSCEPProfile" {
 			foundProfile = true
 			require.NotNil(t, p.Status)
-			assert.EqualValues(t, fleet.MDMDeliveryVerified, *p.Status)
+			assert.Equal(t, fleet.MDMDeliveryVerified, *p.Status)
 		}
 	}
 	require.True(t, foundProfile, "WindowsSCEPProfile not found for host")
@@ -478,9 +477,9 @@ func (s *integrationMDMTestSuite) TestWindowsSCEPProfilePreferredVariableAccepte
 	scepServer := scep_server.StartTestSCEPServer(t)
 	_, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type:      string(fleet.CATypeCustomSCEPProxy),
-		Name:      ptr.String("INTEGRATION"),
-		Challenge: ptr.String("integration-test"),
-		URL:       ptr.String(scepServer.URL + "/scep"),
+		Name:      new("INTEGRATION"),
+		Challenge: new("integration-test"),
+		URL:       new(scepServer.URL + "/scep"),
 	})
 	require.NoError(t, err)
 

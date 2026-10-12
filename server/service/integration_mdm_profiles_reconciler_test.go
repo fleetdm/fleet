@@ -26,7 +26,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -83,7 +82,7 @@ func (s *integrationMDMTestSuite) TestDeleteMDMProfileCancelsInstalls() {
 
 	// deleting without any affected host is fine
 	var deleteResp deleteMDMConfigProfileResponse
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", profNameToPayload["A1"].ProfileUUID), nil, http.StatusOK, &deleteResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", profNameToPayload["A1"].ProfileUUID), nil, http.StatusOK, &deleteResp) // nolint:nilaway // every name looked up here was inserted from the list response above
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", profNameToPayload["D1"].ProfileUUID), nil, http.StatusOK, &deleteResp)
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", profNameToPayload["W1"].ProfileUUID), nil, http.StatusOK, &deleteResp)
 
@@ -242,7 +241,7 @@ func (s *integrationMDMTestSuite) TestDeleteMDMProfileCancelsInstalls() {
 				XMLName: xml.Name{Local: fleet.CmdStatus},
 				MsgRef:  &msgID,
 				CmdRef:  &c.Cmd.CmdID.Value,
-				Cmd:     ptr.String(c.Verb),
+				Cmd:     new(c.Verb),
 				Data:    &status,
 				CmdID:   fleet.CmdID{Value: uuid.NewString()},
 			})
@@ -423,7 +422,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 		}
 	}
 	require.NotNil(t, testProfile)
-	require.EqualValues(t, fleet.MDMDeliveryPending, *testProfile.Status)
+	require.Equal(t, fleet.MDMDeliveryPending, *testProfile.Status)
 
 	// Now simulate the race condition:
 	// we trigger a resend before the acknowledgement comes back
@@ -443,7 +442,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 		}
 	}
 	require.NotNil(t, testProfile)
-	require.EqualValues(t, fleet.MDMDeliveryPending, *testProfile.Status) // Should be NULL (pending for the user)
+	require.Equal(t, fleet.MDMDeliveryPending, *testProfile.Status) // Should be NULL (pending for the user)
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var status *fleet.MDMDeliveryStatus
 		err := sqlx.GetContext(t.Context(), q, &status, `SELECT status FROM host_mdm_apple_profiles WHERE profile_identifier = ?`, testProfile.Identifier)
@@ -492,7 +491,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 		}
 	}
 	require.NotNil(t, testProfile)
-	require.EqualValues(t, fleet.MDMDeliveryPending, *testProfile.Status)
+	require.Equal(t, fleet.MDMDeliveryPending, *testProfile.Status)
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var status *fleet.MDMDeliveryStatus
 		err := sqlx.GetContext(t.Context(), q, &status, `SELECT status FROM host_mdm_apple_profiles WHERE profile_identifier = ?`, testProfile.Identifier)
@@ -538,7 +537,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 		}
 	}
 	require.NotNil(t, testProfile)
-	require.EqualValues(t, fleet.MDMDeliveryVerifying, *testProfile.Status)
+	require.Equal(t, fleet.MDMDeliveryVerifying, *testProfile.Status)
 
 	// Verify deleting the device mapping also triggers a resend
 	s.Do("PUT", "/api/latest/fleet/hosts/"+hostIdStr+"/device_mapping", putHostDeviceMappingRequest{

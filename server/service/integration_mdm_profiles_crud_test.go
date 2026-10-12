@@ -1031,7 +1031,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 
 	// create 5 profiles for no team and team 1, names are A, B, C ... for global and
 	// tA, tB, tC ... for team 1. Alternate macOS and Windows profiles.
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		name := string('A' + byte(i))
 		if i%2 == 0 {
 			prof, err := fleet.NewMDMAppleConfigProfile(mcBytesForTest(name, name+".identifier", name+".uuid"), nil)
@@ -1273,7 +1273,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 			}
 			s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", nil, http.StatusOK, &listResp, queryArgs...)
 
-			require.Equal(t, len(c.wantNames), len(listResp.Profiles))
+			require.Len(t, listResp.Profiles, len(c.wantNames))
 			require.Equal(t, c.wantMeta, listResp.Meta)
 
 			var gotNames []string
@@ -1344,7 +1344,7 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 
 	// create a few labels
 	labels := make([]*fleet.Label, 5)
-	for i := 0; i < len(labels); i++ {
+	for i := range labels {
 		label, err := s.ds.NewLabel(ctx, &fleet.Label{Name: fmt.Sprintf("label-%d", i), Query: "select 1;"})
 		require.NoError(t, err)
 		labels[i] = label
@@ -1573,7 +1573,7 @@ func (s *integrationMDMTestSuite) TestMDMProfilesIncludeAnyLabels() {
 
 	// create a few labels, we'll use the first five for "exclude any" profiles and the remaining for "include any"
 	labels := make([]*fleet.Label, 10)
-	for i := 0; i < len(labels); i++ {
+	for i := range labels {
 		label, err := s.ds.NewLabel(ctx, &fleet.Label{Name: fmt.Sprintf("label-%d", i), Query: "select 1;"})
 		require.NoError(t, err)
 		labels[i] = label
@@ -1678,8 +1678,8 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariablesUpload() {
 
 	getProfileContents := func(profileUUID string) string {
 		profile, err := s.ds.GetMDMAppleDeclaration(context.Background(), profileUUID)
-		require.NoError(s.T(), err)
-		assert.NotNil(s.T(), profile.SecretsUpdatedAt)
+		s.Require().NoError(err)
+		s.NotNil(profile.SecretsUpdatedAt)
 		return string(profile.RawJSON)
 	}
 
@@ -1817,8 +1817,8 @@ func (s *integrationMDMTestSuite) TestAppleConfigSecretVariablesUpload() {
 
 	getProfileContents := func(profileUUID string) string {
 		profile, err := s.ds.GetMDMAppleConfigProfile(context.Background(), profileUUID)
-		require.NoError(s.T(), err)
-		assert.NotNil(s.T(), profile.SecretsUpdatedAt)
+		s.Require().NoError(err)
+		s.NotNil(profile.SecretsUpdatedAt)
 		return string(profile.Mobileconfig)
 	}
 
@@ -1847,7 +1847,7 @@ func (s *integrationMDMTestSuite) TestWindowsConfigSecretVariablesUpload() {
 
 	getProfileContents := func(profileUUID string) string {
 		profile, err := s.ds.GetMDMWindowsConfigProfile(context.Background(), profileUUID)
-		require.NoError(s.T(), err)
+		s.Require().NoError(err)
 		return string(profile.SyncML)
 	}
 
