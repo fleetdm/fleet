@@ -316,7 +316,7 @@ func ValidateSoftwareLabels(ctx context.Context, svc fleet.Service, teamID *uint
 }
 
 func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) error {
-	if len(payload.PackageIDs) == 0 {
+	if len(payload.PackageIDs) == 0 && payload.UpgradeCode == "" {
 		// do nothing, this could be a FMA which won't include the installer when editing the scripts
 		return nil
 	}
@@ -328,7 +328,7 @@ func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) er
 	}
 
 	// Only validate and substitute $PACKAGE_ID if it appears in the script
-	if file.PackageIDRegex.MatchString(payload.UninstallScript) {
+	if len(payload.PackageIDs) > 0 && file.PackageIDRegex.MatchString(payload.UninstallScript) {
 		if err := file.ValidatePackageIdentifiers(payload.PackageIDs, ""); err != nil {
 			return err
 		}

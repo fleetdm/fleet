@@ -109,6 +109,14 @@ quotes and braces for (
 	payload.UpgradeCode = "foo"
 	require.NoError(t, preProcessUninstallScript(&payload))
 	assert.Equal(t, `'foo'`, payload.UninstallScript)
+
+	payload = fleet.UploadSoftwareInstallerPayload{
+		Extension:       "msi",
+		UninstallScript: "$PACKAGE_ID $UPGRADE_CODE",
+		UpgradeCode:     "foo",
+	}
+	require.NoError(t, preProcessUninstallScript(&payload))
+	assert.Equal(t, `$PACKAGE_ID 'foo'`, payload.UninstallScript)
 }
 
 func TestPreProcessUninstallScriptMaliciousInput(t *testing.T) {
