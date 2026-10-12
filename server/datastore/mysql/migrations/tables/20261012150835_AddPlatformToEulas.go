@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261007200650, Down_20261007200650)
+	MigrationClient.AddMigration(Up_20261012150835, Down_20261012150835)
 }
 
-func Up_20261007200650(tx *sql.Tx) error {
+func Up_20261012150835(tx *sql.Tx) error {
 	// eulas held a single row pinned at id = 1. Keying it by platform instead
 	// lets macOS (PDF) and Windows (markdown) each have their own agreement.
 	// The default only backfills the existing row, then it is dropped so every
@@ -38,6 +38,6 @@ func Up_20261007200650(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20261007200650(tx *sql.Tx) error {
+func Down_20261012150835(tx *sql.Tx) error {
 	return nil
 }
