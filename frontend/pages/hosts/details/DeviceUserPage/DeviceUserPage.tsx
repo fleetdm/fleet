@@ -725,11 +725,7 @@ const DeviceUserPage = ({
   );
 
   const renderDeviceUserPage = () => {
-    // While the toggle's refetch is in flight the cached list is for the other
-    // toggle state, so blank the card instead of showing the wrong rows.
-    const displayedPolicies = isDupDetailsPreviousData
-      ? []
-      : host?.policies || [];
+    const displayedPolicies = host?.policies || [];
     // Counted from the list the tab shows, so it follows the hidden-policies toggle.
     const failingPoliciesCount = displayedPolicies.filter(
       (p) => p.response === "fail"
