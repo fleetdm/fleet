@@ -189,11 +189,12 @@ func TestGitOpsWindowsEULAWaitsForWindowsMDMToSettle(t *testing.T) {
 			waits = 0
 			var uploads int
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "windows", r.URL.Query().Get("platform"))
 				switch r.Method + " " + r.URL.Path {
-				case "GET /api/latest/fleet/setup_experience/windows_eula/metadata":
+				case "GET /api/latest/fleet/setup_experience/eula/metadata":
 					w.WriteHeader(http.StatusNotFound)
 					_, _ = w.Write([]byte(`{"message": "Resource Not Found"}`))
-				case "POST /api/latest/fleet/setup_experience/windows_eula":
+				case "POST /api/latest/fleet/setup_experience/eula":
 					uploads++
 					_, _ = w.Write([]byte("{}"))
 				default:

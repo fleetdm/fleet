@@ -802,9 +802,9 @@ func validateMarkdownEULA(name string, content []byte) error {
 }
 
 func (svc *Service) MDMGetWindowsEULABytes(ctx context.Context, token string) (*fleet.MDMEULA, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{Platform: fleet.MDMEULAPlatformWindows}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
+	// skipauth: this resource is authorized using the token provided in the
+	// request, like the macOS EULA.
+	svc.authz.SkipAuthorization(ctx)
 
 	eula, err := svc.ds.MDMGetEULABytes(ctx, fleet.MDMEULAPlatformWindows, token)
 	if err != nil {

@@ -244,11 +244,26 @@ func (svc *Service) VerifyMDMAppleConfigured(ctx context.Context) error {
 ////////////////////////////////////////////////////////////////////////////////
 
 type createMDMEULARequest struct {
-	EULA   *multipart.FileHeader
-	DryRun bool `query:"dry_run,optional"` // if true, apply validation but do not save changes
+	EULA     *multipart.FileHeader
+	DryRun   bool `query:"dry_run,optional"` // if true, apply validation but do not save changes
+	Platform fleet.MDMEULAPlatform
 }
 
 func (createMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	platform, err := eulaPlatform(r.URL.Query().Get("platform"))
+	if err != nil {
+		return nil, err
+	}
+
+	if platform == fleet.MDMEULAPlatformWindows {
+		// The route limit is the macOS one, so the much smaller Windows limit is set here.
+		eula, dryRun, err := decodeEULAUpload(r, "eula", fleet.MaxWindowsEULARequestSize)
+		if err != nil {
+			return nil, err
+		}
+		return &createMDMEULARequest{EULA: eula, DryRun: dryRun, Platform: platform}, nil
+	}
+
 	// The route limit bounds the body; operators can raise it per endpoint.
 	eula, dryRun, err := decodeEULAUpload(r, "eula", 0)
 	if err != nil {
@@ -262,9 +277,32 @@ func (createMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) 
 	}
 
 	return &createMDMEULARequest{
-		EULA:   eula,
-		DryRun: dryRun,
+		EULA:     eula,
+		DryRun:   dryRun,
+		Platform: platform,
 	}, nil
+}
+
+// eulaPlatform reads the platform the EULA endpoints act on. It defaults to
+// darwin, the only platform before Windows got its own agreement.
+func eulaPlatform(v string) (fleet.MDMEULAPlatform, error) {
+	switch p := fleet.MDMEULAPlatform(v); p {
+	case "":
+		return fleet.MDMEULAPlatformDarwin, nil
+	case fleet.MDMEULAPlatformDarwin, fleet.MDMEULAPlatformWindows:
+		return p, nil
+	default:
+		return "", &fleet.BadRequestError{Message: `platform must be "darwin" or "windows"`}
+	}
+}
+
+// verifyEULAPlatformMDM checks that the platform's MDM is turned on. The
+// endpoints serve both platforms, so route middleware can't do it.
+func verifyEULAPlatformMDM(ctx context.Context, svc fleet.Service, platform fleet.MDMEULAPlatform) error {
+	if platform == fleet.MDMEULAPlatformWindows {
+		return svc.VerifyMDMWindowsConfigured(ctx)
+	}
+	return svc.VerifyMDMAppleConfigured(ctx)
 }
 
 // decodeEULAUpload parses an EULA upload, macOS or Windows: the file in field
@@ -275,6 +313,9 @@ func decodeEULAUpload(r *http.Request, field string, maxBody int64) (*multipart.
 		r.Body = http.MaxBytesReader(nil, r.Body, maxBody)
 	}
 	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize) //nolint:gosec // G120: bounded by the route limit, and by maxBody when set
+	if _, tooLarge := errors.AsType[*http.MaxBytesError](err); tooLarge && maxBody > 0 {
+		return nil, false, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxBody}
+	}
 	if err != nil {
 		return nil, false, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -326,13 +367,20 @@ func (r createMDMEULAResponse) Error() error { return r.Err }
 
 func createMDMEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*createMDMEULARequest)
+	if err := verifyEULAPlatformMDM(ctx, svc, req.Platform); err != nil {
+		return createMDMEULAResponse{Err: err}, nil
+	}
 	ff, err := req.EULA.Open()
 	if err != nil {
 		return createMDMEULAResponse{Err: err}, nil
 	}
 	defer ff.Close()
 
-	if err := svc.MDMCreateEULA(ctx, req.EULA.Filename, ff, req.DryRun); err != nil {
+	create := svc.MDMCreateEULA
+	if req.Platform == fleet.MDMEULAPlatformWindows {
+		create = svc.MDMCreateWindowsEULA
+	}
+	if err := create(ctx, req.EULA.Filename, ff, req.DryRun); err != nil {
 		return createMDMEULAResponse{Err: err}, nil
 	}
 
@@ -352,31 +400,50 @@ func (svc *Service) MDMCreateEULA(ctx context.Context, name string, file io.Read
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMEULARequest struct {
-	Token string `url:"token"`
+	Token    string `url:"token"`
+	Platform string `query:"platform,optional"`
 }
 
 type getMDMEULAResponse struct {
 	Err error `json:"error,omitempty"`
 
 	// fields used in hijackRender to build the response
-	eula *fleet.MDMEULA
+	eula     *fleet.MDMEULA
+	platform fleet.MDMEULAPlatform
 }
 
 func (r getMDMEULAResponse) Error() error { return r.Err }
 
 func (r getMDMEULAResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+	if r.platform == fleet.MDMEULAPlatformWindows {
+		// Markdown is downloaded, never rendered as a page in the browser.
+		writeEULAFile(ctx, w, r.eula, "text/markdown; charset=utf-8", true)
+		return
+	}
 	writeEULAFile(ctx, w, r.eula, "application/pdf", false)
 }
 
 func getMDMEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getMDMEULARequest)
+	platform, err := eulaPlatform(req.Platform)
+	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return getMDMEULAResponse{Err: err}, nil
+	}
+	if err := verifyEULAPlatformMDM(ctx, svc, platform); err != nil {
+		return getMDMEULAResponse{Err: err}, nil
+	}
 
-	eula, err := svc.MDMGetEULABytes(ctx, req.Token)
+	get := svc.MDMGetEULABytes
+	if platform == fleet.MDMEULAPlatformWindows {
+		get = svc.MDMGetWindowsEULABytes
+	}
+	eula, err := get(ctx, req.Token)
 	if err != nil {
 		return getMDMEULAResponse{Err: err}, nil
 	}
 
-	return getMDMEULAResponse{eula: eula}, nil
+	return getMDMEULAResponse{eula: eula, platform: platform}, nil
 }
 
 func (svc *Service) MDMGetEULABytes(ctx context.Context, token string) (*fleet.MDMEULA, error) {
@@ -391,7 +458,9 @@ func (svc *Service) MDMGetEULABytes(ctx context.Context, token string) (*fleet.M
 // GET /mdm/setup/eula/{token}/metadata
 ////////////////////////////////////////////////////////////////////////////////
 
-type getMDMEULAMetadataRequest struct{}
+type getMDMEULAMetadataRequest struct {
+	Platform string `query:"platform,optional"`
+}
 
 type getMDMEULAMetadataResponse struct {
 	*fleet.MDMEULA
@@ -401,7 +470,21 @@ type getMDMEULAMetadataResponse struct {
 func (r getMDMEULAMetadataResponse) Error() error { return r.Err }
 
 func getMDMEULAMetadataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	eula, err := svc.MDMGetEULAMetadata(ctx)
+	req := request.(*getMDMEULAMetadataRequest)
+	platform, err := eulaPlatform(req.Platform)
+	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return getMDMEULAMetadataResponse{Err: err}, nil
+	}
+	if err := verifyEULAPlatformMDM(ctx, svc, platform); err != nil {
+		return getMDMEULAMetadataResponse{Err: err}, nil
+	}
+
+	get := svc.MDMGetEULAMetadata
+	if platform == fleet.MDMEULAPlatformWindows {
+		get = svc.MDMGetWindowsEULAMetadata
+	}
+	eula, err := get(ctx)
 	if err != nil && !fleet.IsNotFound(err) {
 		return getMDMEULAMetadataResponse{Err: err}, nil
 	}
@@ -427,8 +510,9 @@ func (svc *Service) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, err
 ////////////////////////////////////////////////////////////////////////////////
 
 type deleteMDMEULARequest struct {
-	Token  string `url:"token"`
-	DryRun bool   `query:"dry_run,optional"` // if true, apply validation but do not delete
+	Token    string `url:"token"`
+	DryRun   bool   `query:"dry_run,optional"` // if true, apply validation but do not delete
+	Platform string `query:"platform,optional"`
 }
 
 type deleteMDMEULAResponse struct {
@@ -439,7 +523,20 @@ func (r deleteMDMEULAResponse) Error() error { return r.Err }
 
 func deleteMDMEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteMDMEULARequest)
-	if err := svc.MDMDeleteEULA(ctx, req.Token, req.DryRun); err != nil {
+	platform, err := eulaPlatform(req.Platform)
+	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return deleteMDMEULAResponse{Err: err}, nil
+	}
+	if err := verifyEULAPlatformMDM(ctx, svc, platform); err != nil {
+		return deleteMDMEULAResponse{Err: err}, nil
+	}
+
+	remove := svc.MDMDeleteEULA
+	if platform == fleet.MDMEULAPlatformWindows {
+		remove = svc.MDMDeleteWindowsEULA
+	}
+	if err := remove(ctx, req.Token, req.DryRun); err != nil {
 		return deleteMDMEULAResponse{Err: err}, nil
 	}
 	return deleteMDMEULAResponse{}, nil

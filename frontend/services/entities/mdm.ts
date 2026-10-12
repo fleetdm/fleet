@@ -426,7 +426,7 @@ const mdmService = {
     const { MDM_WINDOWS_EULA_UPLOAD } = endpoints;
 
     const formData = new FormData();
-    formData.append("windows_eula", file);
+    formData.append("eula", file);
 
     return sendRequest("POST", MDM_WINDOWS_EULA_UPLOAD, formData);
   },

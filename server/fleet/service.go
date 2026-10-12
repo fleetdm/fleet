@@ -1240,8 +1240,8 @@ type Service interface {
 	MDMCreateWindowsEULA(ctx context.Context, name string, file io.ReadSeeker, dryRun bool) error
 	// MDMGetWindowsEULAMetadata returns metadata about the Windows EULA.
 	MDMGetWindowsEULAMetadata(ctx context.Context) (*MDMEULA, error)
-	// MDMGetWindowsEULABytes returns the Windows EULA markdown matching the token. Unlike the macOS
-	// EULA this is not fetched by devices, so it requires an authenticated user.
+	// MDMGetWindowsEULABytes returns the Windows EULA markdown matching the token. Like the macOS
+	// EULA, the token authorizes it.
 	MDMGetWindowsEULABytes(ctx context.Context, token string) (*MDMEULA, error)
 	// MDMDeleteWindowsEULA removes the Windows EULA.
 	MDMDeleteWindowsEULA(ctx context.Context, token string, dryRun bool) error

@@ -533,18 +533,30 @@ func (ec *eulaContent) Handle(res *http.Response) error {
 	return err
 }
 
-// eulaEndpoints is what differs between the macOS and Windows EULA APIs; the
-// client logic for both is the same.
+const eulaAPIPath = "/api/latest/fleet/setup_experience/eula"
+
+// eulaEndpoints is what differs between the macOS and Windows EULA requests;
+// the client logic for both is the same.
 type eulaEndpoints struct {
-	path  string // base path of the endpoints
-	field string // multipart field of the upload
+	query string // platform query parameter, left out for macOS so older servers still understand it
 	label string // names the EULA in error messages
 }
 
 var (
-	macOSEULAEndpoints   = eulaEndpoints{path: "/api/latest/fleet/setup_experience/eula", field: "eula", label: "eula"}
-	windowsEULAEndpoints = eulaEndpoints{path: "/api/latest/fleet/setup_experience/windows_eula", field: "windows_eula", label: "Windows EULA"}
+	macOSEULAEndpoints   = eulaEndpoints{label: "eula"}
+	windowsEULAEndpoints = eulaEndpoints{query: "platform=windows", label: "Windows EULA"}
 )
+
+// withQuery adds the platform parameter to the rest of a request's query.
+func (e eulaEndpoints) withQuery(query string) string {
+	if e.query == "" {
+		return query
+	}
+	if query == "" {
+		return e.query
+	}
+	return query + "&" + e.query
+}
 
 func (c *Client) GetEULAContent(token string) ([]byte, error) {
 	return c.getEULAContent(macOSEULAEndpoints, token)
@@ -587,17 +599,16 @@ func (c *Client) UploadWindowsEULAIfNeeded(eulaPath string, dryRun bool) error {
 }
 
 func (c *Client) getEULAContent(e eulaEndpoints, token string) ([]byte, error) {
-	verb, path := "GET", e.path+"/"+token
+	verb, path := "GET", eulaAPIPath+"/"+token
 	var responseBody eulaContent
-	err := c.authenticatedRequest(nil, verb, path, &responseBody)
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, e.withQuery(""))
 	return responseBody.Bytes, err
 }
 
 func (c *Client) getEULAMetadata(e eulaEndpoints) (*fleet.MDMEULA, error) {
-	verb, path := "GET", e.path+"/metadata"
-	// Both platforms return the same body, so the macOS response type serves both.
+	verb, path := "GET", eulaAPIPath+"/metadata"
 	var responseBody getMDMEULAMetadataResponse
-	err := c.authenticatedRequest(nil, verb, path, &responseBody)
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, e.withQuery(""))
 	return responseBody.MDMEULA, err
 }
 
@@ -619,9 +630,9 @@ func (c *Client) deleteEULAIfNeeded(e eulaEndpoints, dryRun bool) error {
 }
 
 func (c *Client) deleteEULA(e eulaEndpoints, token string, dryRun bool) error {
-	verb, path := "DELETE", e.path+"/"+token
+	verb, path := "DELETE", eulaAPIPath+"/"+token
 	var responseBody deleteMDMEULAResponse
-	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, fmt.Sprintf("dry_run=%t", dryRun))
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, e.withQuery(fmt.Sprintf("dry_run=%t", dryRun)))
 	return err
 }
 
@@ -666,13 +677,13 @@ func (c *Client) uploadEULAIfNeeded(e eulaEndpoints, eulaPath string, dryRun boo
 }
 
 func (c *Client) uploadEULA(e eulaEndpoints, eulaPath string, dryRun bool) error {
-	verb, path := "POST", e.path
+	verb, path := "POST", eulaAPIPath
 
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 
 	// add the eula field
-	fw, err := w.CreateFormFile(e.field, filepath.Base(eulaPath))
+	fw, err := w.CreateFormFile("eula", filepath.Base(eulaPath))
 	if err != nil {
 		return err
 	}
@@ -691,7 +702,7 @@ func (c *Client) uploadEULA(e eulaEndpoints, eulaPath string, dryRun bool) error
 		return fmt.Errorf("closing writer: %w", err)
 	}
 
-	resp, err := c.doContextWithBodyAndHeaders(context.Background(), verb, path, fmt.Sprintf("dry_run=%t", dryRun),
+	resp, err := c.doContextWithBodyAndHeaders(context.Background(), verb, path, e.withQuery(fmt.Sprintf("dry_run=%t", dryRun)),
 		b.Bytes(),
 		map[string]string{
 			"Content-Type":  w.FormDataContentType(),
