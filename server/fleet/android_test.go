@@ -331,7 +331,7 @@ func TestValidateUserProvided_SoftwareKeys(t *testing.T) {
 
 		err := prof.ValidateUserProvided(true)
 		require.EqualError(t, err, AndroidForbiddenJSONKeys[key])
-		require.Contains(t, err.Error(), "Software > Add software > App store")
+		require.Contains(t, err.Error(), "https://fleetdm.com/learn-more-about/android-software")
 
 		err = prof.ValidateUserProvided(false)
 		require.EqualError(t, err, AndroidSoftwareJSONKeysFree[key])

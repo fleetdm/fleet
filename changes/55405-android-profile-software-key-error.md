@@ -1,1 +1,1 @@
-- Updated the error shown when an Android configuration profile includes a software setting (like `playStoreMode`): Fleet Premium users are pointed to **Software > Add software > App store**, and Fleet Free users are told Android software management is Premium only.
+- Updated the error shown when an Android configuration profile includes a software setting (like `playStoreMode`): Fleet Premium users are pointed to Google Play app management in Fleet, and Fleet Free users are told Android software management is Premium only.
