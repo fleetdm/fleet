@@ -5,7 +5,7 @@ package service
 // Belongs here: migrating macOS hosts from another MDM to Fleet — the macOS migration settings, the
 // migration webhook, the end-to-end migration flow, and silent migration edge cases.
 //
-// Does not belong here: Windows MDM migration (integration_mdm_windows_test.go) and fresh
+// Does not belong here: Windows MDM migration (integration_mdm_windows_enrollment_test.go) and fresh
 // enrollments (integration_mdm_apple_enrollment_test.go).
 
 import (

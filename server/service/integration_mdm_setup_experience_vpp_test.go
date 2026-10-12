@@ -6,7 +6,7 @@ package service
 // errors (including Apple server errors), required VPP software, and large numbers of VPP apps.
 //
 // Does not belong here: VPP apps on iOS/iPadOS setup experience
-// (integration_mdm_setup_experience_ios_test.go), VPP apps outside setup experience
+// (integration_mdm_setup_experience_ios_ipados_test.go), VPP apps outside setup experience
 // (integration_vpp_install_test.go), and setup experience packages and scripts
 // (integration_mdm_setup_experience_test.go).
 

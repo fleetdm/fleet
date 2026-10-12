@@ -7,7 +7,7 @@ package service
 // profile status.
 //
 // Does not belong here: platform-specific delivery and status (integration_mdm_profiles_apple_test.go,
-// integration_mdm_profiles_windows_test.go) and batch endpoints
+// integration_mdm_profiles_windows_delivery_test.go) and batch endpoints
 // (integration_mdm_profiles_batch_test.go).
 
 import (

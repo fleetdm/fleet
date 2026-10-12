@@ -8,7 +8,7 @@ package service
 // triggered by policy automations.
 //
 // Does not belong here: the normal delivery and status flows (integration_mdm_profiles_apple_test.go,
-// integration_mdm_profiles_windows_test.go) and the batch-resend endpoint
+// integration_mdm_profiles_windows_delivery_test.go) and the batch-resend endpoint
 // (integration_mdm_profiles_batch_test.go).
 
 import (

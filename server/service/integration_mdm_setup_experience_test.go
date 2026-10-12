@@ -8,8 +8,8 @@ package service
 // experience endpoints themselves (platform handling and isolation).
 //
 // Does not belong here: VPP apps in setup experience (integration_mdm_setup_experience_vpp_test.go),
-// iOS/iPadOS (integration_mdm_setup_experience_ios_test.go), Android
-// (integration_mdm_setup_experience_android_test.go), and Windows/Linux setup experience on the
+// iOS/iPadOS (integration_mdm_setup_experience_ios_ipados_test.go), Android
+// (integration_mdm_setup_experience_android_apps_test.go), and Windows/Linux setup experience on the
 // enterprise suite (integration_enterprise_setup_experience_test.go).
 
 import (

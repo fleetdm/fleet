@@ -7,7 +7,7 @@ package service
 //
 // Does not belong here: lock, unlock, wipe, and cancelling commands (integration_mdm_commands_test.go),
 // upcoming activities (integration_mdm_upcoming_activities_test.go), and Android custom commands
-// (integration_mdm_android_test.go).
+// (integration_mdm_android_enrollment_test.go).
 
 import (
 	"bytes"
