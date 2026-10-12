@@ -22,6 +22,14 @@ import (
 
 const ADUEEnrollmentChallengeExpiration = 1 * time.Hour
 
+// DefaultAutomaticEnrollmentTokenGracePeriodHours and
+// MaxAutomaticEnrollmentTokenGracePeriodHours bound how long the previous
+// automatic enrollment token keeps working after a rotation.
+const (
+	DefaultAutomaticEnrollmentTokenGracePeriodHours = 24
+	MaxAutomaticEnrollmentTokenGracePeriodHours     = 720
+)
+
 // MDMAppleDEPEnrollmentChallengeExpiration is how long the one-time token
 // handed out after end user authentication during automatic enrollment (ADE)
 // stays valid.

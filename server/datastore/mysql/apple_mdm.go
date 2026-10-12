@@ -1019,7 +1019,7 @@ func (ds *Datastore) DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.
 	}
 
 	if deleted, _ := res.RowsAffected(); deleted == 0 {
-		message := fmt.Sprintf("identifier: %s, team_id: %d", profileIdentifier, teamID)
+		message := fmt.Sprintf("identifier: %s, team_id: %d", profileIdentifier, *teamID)
 		return ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithMessage(message))
 	}
 
@@ -1307,9 +1307,9 @@ SELECT
 FROM
     mdm_apple_enrollment_profiles
 WHERE
-    token = ?
+    token = ? OR (previous_token = ? AND previous_token_expires_at > NOW(6))
 `,
-		token,
+		token, token,
 	); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("MDMAppleEnrollmentProfile"))
@@ -1317,6 +1317,57 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get enrollment profile by token")
 	}
 	return &enrollment, nil
+}
+
+func (ds *Datastore) RotateMDMAppleAutomaticEnrollmentToken(ctx context.Context, newToken string, gracePeriod time.Duration, profileUpdateJob *fleet.Job) (*time.Time, error) {
+	if newToken == "" {
+		return nil, ctxerr.New(ctx, "new automatic enrollment token is required")
+	}
+	if gracePeriod < 0 {
+		return nil, ctxerr.New(ctx, "grace period can't be negative")
+	}
+	if profileUpdateJob == nil {
+		return nil, ctxerr.New(ctx, "profile update job is required")
+	}
+
+	var previousTokenExpiresAt *time.Time
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// MySQL evaluates single-table UPDATE assignments left to right, so
+		// previous_token gets the token being replaced.
+		const rotateStmt = `
+UPDATE mdm_apple_enrollment_profiles
+SET
+    previous_token = IF(? > 0, token, NULL),
+    previous_token_expires_at = IF(? > 0, NOW(6) + INTERVAL ? MICROSECOND, NULL),
+    token = ?
+WHERE
+    type = ? AND token IS NOT NULL AND token != ''`
+		micros := gracePeriod.Microseconds()
+		res, err := tx.ExecContext(ctx, rotateStmt, micros, micros, micros, newToken, fleet.MDMAppleEnrollmentTypeAutomatic)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "rotate automatic enrollment token")
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			return ctxerr.Wrap(ctx, notFound("MDMAppleEnrollmentProfile"), "rotate automatic enrollment token")
+		}
+
+		const expiresStmt = `SELECT previous_token_expires_at FROM mdm_apple_enrollment_profiles WHERE type = ?`
+		if err := sqlx.GetContext(ctx, tx, &previousTokenExpiresAt, expiresStmt, fleet.MDMAppleEnrollmentTypeAutomatic); err != nil {
+			return ctxerr.Wrap(ctx, err, "get previous automatic enrollment token expiration")
+		}
+
+		// Queued in the same transaction so the new token is never stored without
+		// the job that publishes it to Apple. Otherwise a retry after a failed
+		// enqueue would rotate again and drop the token Apple still advertises.
+		if _, err := insertJobDB(ctx, tx, profileUpdateJob); err != nil {
+			return ctxerr.Wrap(ctx, err, "queue automatic enrollment profile update job")
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return previousTokenExpiresAt, nil
 }
 
 func (ds *Datastore) GetMDMAppleEnrollmentProfileByType(ctx context.Context, typ fleet.MDMAppleEnrollmentType) (*fleet.MDMAppleEnrollmentProfile, error) {

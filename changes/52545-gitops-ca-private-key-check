@@ -1,1 +1,0 @@
-- Fixed GitOps runs failing with "Server private key must be configured" when no certificate authorities are configured.

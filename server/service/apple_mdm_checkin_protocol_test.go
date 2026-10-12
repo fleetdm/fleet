@@ -248,7 +248,9 @@ func TestCertVerifierEnrollmentCheckinServiceAuthenticate(t *testing.T) {
 		static        bool
 		associated    bool
 		enrolled      bool
-		allowed       bool
+		// hostSerial is the serial of the device's existing host, empty if it has none
+		hostSerial string
+		allowed    bool
 	}{
 		{name: "ade matching", cert: newBindingCert(t, bind(fleet.AppleMDMCertPurposeADE, deviceIdentity)), msg: device(udid, serial), allowed: true},
 		{name: "ade other udid", cert: newBindingCert(t, bind(fleet.AppleMDMCertPurposeADE, deviceIdentity)), msg: device("other", serial)},
@@ -276,7 +278,10 @@ func TestCertVerifierEnrollmentCheckinServiceAuthenticate(t *testing.T) {
 
 		{name: "renewal of its own device", cert: newBindingCert(t, bind(fleet.AppleMDMCertPurposeSCEPRenewal, func(b *apple_mdm.AppleMDMCertificateBindingExtension) {
 			b.EnrollmentID = new(udid)
-		})), msg: device(udid, serial), allowed: true},
+		})), msg: device(udid, serial), hostSerial: serial, allowed: true},
+		{name: "renewal of its own device claiming another serial", cert: newBindingCert(t, bind(fleet.AppleMDMCertPurposeSCEPRenewal, func(b *apple_mdm.AppleMDMCertificateBindingExtension) {
+			b.EnrollmentID = new(udid)
+		})), msg: device(udid, "other"), hostSerial: serial},
 		{name: "renewal presented as another device", cert: newBindingCert(t, bind(fleet.AppleMDMCertPurposeSCEPRenewal, func(b *apple_mdm.AppleMDMCertificateBindingExtension) {
 			b.EnrollmentID = new(udid)
 		})), msg: device("host-b", serial)},
@@ -318,8 +323,11 @@ func TestCertVerifierEnrollmentCheckinServiceAuthenticate(t *testing.T) {
 		{name: "unsupported version but associated", cert: newRawBindingCert(t, utf8Value(`{"v":2,"purpose":"ade","udid":"`+udid+`","serial":"`+serial+`"}`)), msg: device(udid, serial), associated: true, allowed: true},
 		{name: "supported version control", cert: newRawBindingCert(t, utf8Value(validBindingJSON)), msg: device(udid, serial), allowed: true},
 		{name: "mismatched but associated", cert: newBindingCert(t, bind(fleet.AppleMDMCertPurposeADE, deviceIdentity)), msg: device("other", serial), associated: true, allowed: true},
+		{name: "associated with its host's serial", cert: newBindingCert(t, bind(fleet.AppleMDMCertPurposeADE, deviceIdentity)), msg: device(udid, serial), associated: true, hostSerial: serial, allowed: true},
+		{name: "associated claiming another serial", cert: newBindingCert(t, bind(fleet.AppleMDMCertPurposeADE, deviceIdentity)), msg: device(udid, "other"), associated: true, hostSerial: serial},
 
 		{name: "unbound with static on", cert: newBindingCert(t, nil), msg: device(udid, serial), static: true, allowed: true},
+		{name: "unbound with static on claiming another serial", cert: newBindingCert(t, nil), msg: device(udid, "other"), static: true, hostSerial: serial},
 		{name: "unbound with static off", cert: newBindingCert(t, nil), msg: device(udid, serial)},
 		{name: "unbound associated with static off", cert: newBindingCert(t, nil), msg: device(udid, serial), associated: true, allowed: true},
 		{name: "bound with static on is still checked", cert: newBindingCert(t, bind(fleet.AppleMDMCertPurposeADE, deviceIdentity)), msg: device("other", serial), static: true},
@@ -332,6 +340,12 @@ func TestCertVerifierEnrollmentCheckinServiceAuthenticate(t *testing.T) {
 					return &fleet.NanoEnrollment{ID: id}, nil
 				}
 				return nil, nil
+			}
+			ds.GetHostMDMCheckinInfoFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
+				if c.hostSerial == "" {
+					return nil, newNotFoundError()
+				}
+				return &fleet.HostMDMCheckinInfo{HardwareSerial: c.hostSerial}, nil
 			}
 			ds.GetADUEEnrollmentChallengeFunc = func(ctx context.Context, challenge string) (*fleet.ADUEEnrollmentChallenge, error) {
 				if challenge != adueToken {
