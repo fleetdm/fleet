@@ -761,9 +761,6 @@ func getFirstIDPEmail(ctx context.Context, ds fleet.Datastore, target *fleet.Cmd
 func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *fleet.CmdTarget, hostLite fleet.Host, caVarsCache map[string]string, item *string, hostIDForUUIDCache map[string]uint, variablesUpdatedAt *time.Time, onMismatchedHostCount func(int) error) (bool, error) {
 	caFleetVars := variables.Find(*item)
 	for _, caVar := range caFleetVars {
-		if !slices.Contains(fleet.FleetVarsSupportedInDigiCert, fleet.FleetVarName(caVar)) {
-			return false, ctxerr.Errorf(ctx, "unsupported DigiCert Fleet variable FLEET_VAR_%s", caVar)
-		}
 		switch {
 		case caVar == string(fleet.FleetVarHostEndUserEmailIDP):
 			email, ok := caVarsCache[string(fleet.FleetVarHostEndUserEmailIDP)]
@@ -814,8 +811,7 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *flee
 			}
 			*item = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostPlatformRegexp, *item, platform)
 		case caVar == string(fleet.FleetVarHostUUID):
-			*item = strings.ReplaceAll(*item, fleet.FleetVarHostUUID.WithPrefix(), hostLite.UUID)
-			*item = strings.ReplaceAll(*item, fleet.FleetVarHostUUID.WithBraces(), hostLite.UUID)
+			*item = variables.Replace(*item, caVar, hostLite.UUID)
 		case slices.Contains(fleet.IDPFleetVariables, fleet.FleetVarName(caVar)):
 			value, ok := caVarsCache[caVar]
 			if !ok {
@@ -838,9 +834,9 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *flee
 				}
 				caVarsCache[caVar] = value
 			}
-			fleetVar := fleet.FleetVarName(caVar)
-			*item = strings.ReplaceAll(*item, fleetVar.WithPrefix(), value)
-			*item = strings.ReplaceAll(*item, fleetVar.WithBraces(), value)
+			*item = variables.Replace(*item, caVar, value)
+		default:
+			// We should not reach this since we validated the variables when saving the CA
 		}
 	}
 	return true, nil

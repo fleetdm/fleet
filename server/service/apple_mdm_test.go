@@ -9553,13 +9553,9 @@ func TestValidatePSSORegistrationTokenVariable(t *testing.T) {
 
 func TestValidateConfigProfileFleetVariables(t *testing.T) {
 	t.Parallel()
-	digiCertCA := newMockDigicertCA("https://example.com", "caName")
-	digiCertCA.CertificateCommonName = fleet.FleetVarHostEndUserIDPFullname.WithPrefix()
-	digiCertCA.CertificateUserPrincipalNames = []string{fleet.FleetVarHostEndUserIDPUsername.WithBraces()}
-	digiCertCA.CertificateSeatID = fleet.FleetVarHostEndUserIDPDepartment.WithPrefix()
 	groupedCAs := &fleet.GroupedCertificateAuthorities{
 		DigiCert: []fleet.DigiCertCA{
-			digiCertCA,
+			newMockDigicertCA("https://example.com", "caName"),
 			newMockDigicertCA("https://example.com", "caName2"),
 		},
 		CustomScepProxy: []fleet.CustomSCEPProxyCA{
@@ -9601,10 +9597,7 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			profile: digiCertForValidation("${FLEET_VAR_DIGICERT_PASSWORD_caName}", "${FLEET_VAR_DIGICERT_DATA_caName}", "Name",
 				"com.apple.security.pkcs12"),
 			errMsg: "",
-			vars: []string{
-				"DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName", "HOST_END_USER_IDP_FULL_NAME",
-				"HOST_END_USER_IDP_USERNAME", "HOST_END_USER_IDP_DEPARTMENT",
-			},
+			vars:   []string{"DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName"},
 		},
 		{
 			name: "DigiCert 2 profiles with swapped variables",
@@ -9617,10 +9610,7 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			profile: digiCertForValidation2("${FLEET_VAR_DIGICERT_PASSWORD_caName}", "${FLEET_VAR_DIGICERT_DATA_caName}",
 				"$FLEET_VAR_DIGICERT_PASSWORD_caName2", "$FLEET_VAR_DIGICERT_DATA_caName2"),
 			errMsg: "",
-			vars: []string{
-				"DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName", "DIGICERT_PASSWORD_caName2", "DIGICERT_DATA_caName2",
-				"HOST_END_USER_IDP_FULL_NAME", "HOST_END_USER_IDP_USERNAME", "HOST_END_USER_IDP_DEPARTMENT",
-			},
+			vars:   []string{"DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName", "DIGICERT_PASSWORD_caName2", "DIGICERT_DATA_caName2"},
 		},
 		{
 			name: "Custom SCEP renewal ID shows up in the wrong place",
@@ -9677,10 +9667,7 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			name:    "Custom SCEP and DigiCert profiles happy path",
 			profile: customSCEPDigiCertForValidation("${FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName}", "${FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName}"),
 			errMsg:  "",
-			vars: []string{
-				"DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName", "CUSTOM_SCEP_CHALLENGE_scepName", "CUSTOM_SCEP_PROXY_URL_scepName", "SCEP_RENEWAL_ID",
-				"HOST_END_USER_IDP_FULL_NAME", "HOST_END_USER_IDP_USERNAME", "HOST_END_USER_IDP_DEPARTMENT",
-			},
+			vars:    []string{"DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName", "CUSTOM_SCEP_CHALLENGE_scepName", "CUSTOM_SCEP_PROXY_URL_scepName", "SCEP_RENEWAL_ID"},
 		},
 		{
 			name:    "Custom profile with IdP variables and unknown variable",
@@ -9764,7 +9751,7 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			errMsg:  "",
 			vars: []string{
 				"DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName", "NDES_SCEP_CHALLENGE", "NDES_SCEP_PROXY_URL",
-				"SCEP_RENEWAL_ID", "HOST_END_USER_IDP_FULL_NAME", "HOST_END_USER_IDP_USERNAME", "HOST_END_USER_IDP_DEPARTMENT",
+				"SCEP_RENEWAL_ID",
 			},
 		},
 		{

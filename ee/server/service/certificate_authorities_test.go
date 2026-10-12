@@ -321,44 +321,17 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 	})
 
 	t.Run("Create DigiCert CA - Happy path with variables", func(t *testing.T) {
-		for _, fleetVar := range fleet.FleetVarsSupportedInDigiCert {
-			t.Run(string(fleetVar), func(t *testing.T) {
-				svc, ctx := baseSetupForCATests()
-				value := fleetVar.WithPrefix()
-				createDigicertRequest := fleet.CertificateAuthorityPayload{
-					DigiCert: &fleet.DigiCertCA{
-						Name:                          "DigicertWIFI",
-						URL:                           digicertURL,
-						APIToken:                      "digicert_api_token",
-						ProfileID:                     "digicert_profile_id",
-						CertificateCommonName:         value,
-						CertificateUserPrincipalNames: []string{value},
-						CertificateSeatID:             value,
-					},
-				}
-
-				_, err := svc.NewCertificateAuthority(ctx, createDigicertRequest)
-				require.EqualError(t, err, "mock error to avoid NewActivity panic")
-				require.Len(t, createdCAs, 1)
-				createdCA := createdCAs[0]
-				assert.Equal(t, value, *createdCA.CertificateCommonName)
-				assert.Equal(t, []string{value}, *createdCA.CertificateUserPrincipalNames)
-				assert.Equal(t, value, *createdCA.CertificateSeatID)
-			})
-		}
-	})
-
-	t.Run("Create DigiCert CA - Happy path with hardware serial and IDP username variables", func(t *testing.T) {
 		svc, ctx := baseSetupForCATests()
+
 		createDigicertRequest := fleet.CertificateAuthorityPayload{
 			DigiCert: &fleet.DigiCertCA{
 				Name:                          "DigicertWIFI",
 				URL:                           digicertURL,
 				APIToken:                      "digicert_api_token",
 				ProfileID:                     "digicert_profile_id",
-				CertificateCommonName:         fleet.FleetVarHostHardwareSerial.WithPrefix(),
-				CertificateUserPrincipalNames: []string{fleet.FleetVarHostEndUserIDPUsername.WithPrefix()},
-				CertificateSeatID:             fleet.FleetVarHostEndUserIDPUsernameLocalPart.WithPrefix(),
+				CertificateCommonName:         "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+				CertificateUserPrincipalNames: []string{"$FLEET_VAR_HOST_HARDWARE_SERIAL"},
+				CertificateSeatID:             "$FLEET_VAR_HOST_HARDWARE_SERIAL",
 			},
 		}
 
@@ -366,13 +339,20 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		require.EqualError(t, err, "mock error to avoid NewActivity panic")
 		require.Len(t, createdCAs, 1)
 		createdCA := createdCAs[0]
+
+		assert.Equal(t, createDigicertRequest.DigiCert.Name, *createdCA.Name)
+		assert.Equal(t, createDigicertRequest.DigiCert.URL, *createdCA.URL)
+		assert.Equal(t, string(fleet.CATypeDigiCert), createdCA.Type)
+		require.NotNil(t, createdCA.APIToken)
+		assert.Equal(t, createDigicertRequest.DigiCert.APIToken, *createdCA.APIToken)
+		require.NotNil(t, createdCA.ProfileID)
+		assert.Equal(t, createDigicertRequest.DigiCert.ProfileID, *createdCA.ProfileID)
 		require.NotNil(t, createdCA.CertificateCommonName)
 		assert.Equal(t, createDigicertRequest.DigiCert.CertificateCommonName, *createdCA.CertificateCommonName)
-		require.NotNil(t, createdCA.CertificateUserPrincipalNames)
-		assert.Equal(t, createDigicertRequest.DigiCert.CertificateUserPrincipalNames, *createdCA.CertificateUserPrincipalNames)
+		assert.ElementsMatch(t, createDigicertRequest.DigiCert.CertificateUserPrincipalNames, *createdCA.CertificateUserPrincipalNames)
 		require.NotNil(t, createdCA.CertificateSeatID)
 		assert.Equal(t, createDigicertRequest.DigiCert.CertificateSeatID, *createdCA.CertificateSeatID)
-		t.Logf("created DigiCert config: CN=%q UPN=%q seat ID=%q", *createdCA.CertificateCommonName, *createdCA.CertificateUserPrincipalNames, *createdCA.CertificateSeatID)
+		verifyNilFieldsForType(t, createdCA)
 	})
 
 	t.Run("Create DigiCert CA - Happy path with no UPNs", func(t *testing.T) {
@@ -410,25 +390,43 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		verifyNilFieldsForType(t, createdCA)
 	})
 
-	t.Run("Create DigiCert CA - rejects custom variables", func(t *testing.T) {
-		for _, value := range []string{"$FLEET_SECRET_CERTIFICATE_ID", "$FLEET_HOST_VITAL_ASSET_TAG"} {
-			t.Run(value, func(t *testing.T) {
+	t.Run("Create DigiCert CA - Fleet variables", func(t *testing.T) {
+		type variableCase struct {
+			value   string
+			wantErr string
+		}
+		var cases []variableCase
+		for _, fleetVar := range fleet.FleetVarsSupportedInDigiCert {
+			cases = append(cases, variableCase{fleetVar.WithBraces(), ""})
+		}
+		cases = append(cases, variableCase{fleet.FleetVarNDESSCEPChallenge.WithPrefix(), "FLEET_VAR_NDES_SCEP_CHALLENGE is not allowed in CA Common Name (CN)"})
+
+		for _, c := range cases {
+			t.Run(c.value, func(t *testing.T) {
 				svc, ctx := baseSetupForCATests()
 				createDigicertRequest := fleet.CertificateAuthorityPayload{
-					DigiCert: &fleet.DigiCertCA{
+					DigiCert: &fleet.DigiCertCA{ // nolint:gosec // G101: test value
 						Name:                          "DigicertWIFI",
 						URL:                           digicertURL,
 						APIToken:                      "digicert_api_token",
 						ProfileID:                     "digicert_profile_id",
-						CertificateCommonName:         value,
-						CertificateUserPrincipalNames: []string{value},
-						CertificateSeatID:             value,
+						CertificateCommonName:         "cn-" + c.value,
+						CertificateUserPrincipalNames: []string{c.value + "@example.com"},
+						CertificateSeatID:             c.value,
 					},
 				}
 
 				_, err := svc.NewCertificateAuthority(ctx, createDigicertRequest)
-				require.Error(t, err)
-				require.Empty(t, createdCAs)
+				if c.wantErr != "" {
+					require.ErrorContains(t, err, c.wantErr)
+					require.Empty(t, createdCAs)
+					return
+				}
+				require.EqualError(t, err, "mock error to avoid NewActivity panic")
+				require.Len(t, createdCAs, 1)
+				assert.Equal(t, "cn-"+c.value, *createdCAs[0].CertificateCommonName)
+				assert.Equal(t, []string{c.value + "@example.com"}, *createdCAs[0].CertificateUserPrincipalNames)
+				assert.Equal(t, c.value, *createdCAs[0].CertificateSeatID)
 			})
 		}
 	})

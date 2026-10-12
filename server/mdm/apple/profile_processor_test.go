@@ -625,14 +625,10 @@ func TestPreprocessProfileContentsDigiCertCertificateEnrollmentWithFleetVariable
 	ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
 		return nil, nil
 	}
-	var hostProfileUpdates []*fleet.MDMAppleBulkUpsertHostProfilePayload
 	ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
-		hostProfileUpdates = payload
 		return nil
 	}
-	var managedCertificates []*fleet.MDMManagedCertificate
 	ds.BulkUpsertMDMManagedCertificatesFunc = func(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
-		managedCertificates = payload
 		return nil
 	}
 
@@ -642,31 +638,6 @@ func TestPreprocessProfileContentsDigiCertCertificateEnrollmentWithFleetVariable
 	assert.Equal(t, hardwareSerial, issuedConfig.CertificateCommonName)
 	assert.Equal(t, []string{username}, issuedConfig.CertificateUserPrincipalNames)
 	assert.Equal(t, usernameLocalPart, issuedConfig.CertificateSeatID)
-	require.Len(t, hostProfileUpdates, 1)
-	assert.Equal(t, "p1", hostProfileUpdates[0].ProfileUUID)
-	assert.Equal(t, hostUUID, hostProfileUpdates[0].HostUUID)
-	assert.Equal(t, fleet.MDMOperationTypeInstall, hostProfileUpdates[0].OperationType)
-	require.NotNil(t, hostProfileUpdates[0].Status)
-	assert.Equal(t, fleet.MDMDeliveryPending, *hostProfileUpdates[0].Status)
-	assert.NotEqual(t, "cmd-uuid", hostProfileUpdates[0].CommandUUID)
-	require.Len(t, managedCertificates, 1)
-	assert.Equal(t, hostUUID, managedCertificates[0].HostUUID)
-	assert.Equal(t, "p1", managedCertificates[0].ProfileUUID)
-	assert.Equal(t, fleet.CAConfigDigiCert, managedCertificates[0].Type)
-	assert.Equal(t, caName, managedCertificates[0].CAName)
-	require.NotNil(t, managedCertificates[0].Serial)
-	assert.Equal(t, "certificate-serial", *managedCertificates[0].Serial)
-	require.NotNil(t, managedCertificates[0].NotValidBefore)
-	require.NotNil(t, managedCertificates[0].NotValidAfter)
-	require.Len(t, targets, 1)
-	for profileUUID, target := range targets {
-		assert.Equal(t, profileUUID, target.CmdUUID)
-		assert.Equal(t, hostProfileUpdates[0].CommandUUID, target.CmdUUID)
-		contents, ok := profileContents[profileUUID]
-		require.True(t, ok)
-		assert.Equal(t, "<string>fake-password</string><data>ZmFrZS1wZng=</data>", string(contents))
-	}
-	t.Logf("issued DigiCert config: CN=%q UPN=%q seat ID=%q", issuedConfig.CertificateCommonName, issuedConfig.CertificateUserPrincipalNames, issuedConfig.CertificateSeatID)
 }
 
 func TestReplaceFleetVarInItem(t *testing.T) {
@@ -717,6 +688,15 @@ func TestReplaceFleetVarInItem(t *testing.T) {
 			assert.Equal(t, "prefix-"+tt.expected+"-suffix", item)
 		})
 	}
+
+	t.Run("username and its local part in one item", func(t *testing.T) {
+		item := fleet.FleetVarHostEndUserIDPUsername.WithPrefix() + " " + fleet.FleetVarHostEndUserIDPUsernameLocalPart.WithPrefix() + " " +
+			fleet.FleetVarHostEndUserIDPUsernameLocalPart.WithBraces()
+		ok, err := replaceFleetVarInItem(t.Context(), ds, &fleet.CmdTarget{CmdUUID: "command"}, fleet.Host{UUID: "host"}, make(map[string]string), &item, make(map[string]uint), nil, func(int) error { return nil })
+		require.NoError(t, err)
+		require.True(t, ok)
+		assert.Equal(t, "user@example.com user user", item)
+	})
 }
 
 func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {

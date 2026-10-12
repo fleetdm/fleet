@@ -57,6 +57,7 @@ func TestScim(t *testing.T) {
 		{"ScimNestedGroups", testScimNestedGroups},
 		{"TriggerResendIdPProfiles", testTriggerResendIdPProfiles},
 		{"TriggerResendIdPProfilesOnTeam", testTriggerResendIdPProfilesOnTeam},
+		{"TriggerResendDigiCertProfiles", testTriggerResendDigiCertProfiles},
 		{"TriggerResendCertTemplatesAndAppConfigs", testTriggerResendCertTemplatesAndAppConfigs},
 		{"SetOrUpdateHostSCIMUserMapping", testSetOrUpdateHostSCIMUserMapping},
 	}
@@ -2738,6 +2739,95 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
 		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
 		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryVerifying})
+}
+
+func testTriggerResendDigiCertProfiles(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+	otherHost := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now())
+
+	newDigiCertCA := func(name, commonName, seatID string, upns *[]string) *fleet.CertificateAuthority {
+		ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+			Type:                          string(fleet.CATypeDigiCert),
+			Name:                          &name,
+			URL:                           new("https://example.com"),
+			APIToken:                      new("token"),
+			ProfileID:                     new("profile"),
+			CertificateCommonName:         &commonName,
+			CertificateUserPrincipalNames: upns,
+			CertificateSeatID:             &seatID,
+		})
+		require.NoError(t, err)
+		return ca
+	}
+	newDigiCertProfile := func(name, caName string) *fleet.MDMAppleConfigProfile {
+		cp := generateAppleCP(name, name, 0)
+		cp.Mobileconfig = []byte("<data>" + fleet.FleetVarDigiCertDataPrefix.WithPrefix() + caName + "</data>")
+		profile, err := ds.NewMDMAppleConfigProfile(ctx, *cp, []fleet.FleetVarName{fleet.FleetVarName(string(fleet.FleetVarDigiCertDataPrefix) + caName)})
+		require.NoError(t, err)
+		return profile
+	}
+
+	newDigiCertCA("ca_username", fleet.FleetVarHostEndUserIDPUsername.WithPrefix(), fleet.FleetVarHostEndUserEmailIDP.WithBraces(), nil)
+	newDigiCertCA("ca_groups", "cn", "seat", &[]string{fleet.FleetVarHostEndUserIDPGroups.WithPrefix() + "@example.com"})
+	serialCA := newDigiCertCA("ca_serial", fleet.FleetVarHostHardwareSerial.WithPrefix(), "seat", &[]string{"upn"})
+
+	profUsername := newDigiCertProfile("username", "ca_username")
+	profGroups := newDigiCertProfile("groups", "ca_groups")
+	profSerial := newDigiCertProfile("serial", "ca_serial")
+	profNone, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("none", "none", 0), nil)
+	require.NoError(t, err)
+	allProfiles := []*fleet.MDMAppleConfigProfile{profUsername, profGroups, profSerial, profNone}
+
+	cases := []struct {
+		name         string
+		affectedVars []fleet.FleetVarName
+		wantPending  []*fleet.MDMAppleConfigProfile
+	}{
+		{"username in common name", []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername}, []*fleet.MDMAppleConfigProfile{profUsername}},
+		{"legacy email in seat ID", []fleet.FleetVarName{fleet.FleetVarHostEndUserEmailIDP}, []*fleet.MDMAppleConfigProfile{profUsername}},
+		{"groups in UPN", []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups}, []*fleet.MDMAppleConfigProfile{profGroups}},
+		{"variable no CA uses", []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPFullname}, nil},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			for _, p := range allProfiles {
+				forceSetAppleHostProfileStatus(t, ds, host.UUID, p, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+				forceSetAppleHostProfileStatus(t, ds, otherHost.UUID, p, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+			}
+
+			ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+				return triggerResendProfilesUsingVariables(ctx, tx, []uint{host.ID}, c.affectedVars)
+			})
+
+			var want, wantOther []hostProfileStatus
+			for _, p := range allProfiles {
+				status := fleet.MDMDeliveryVerifying
+				if slices.Contains(c.wantPending, p) {
+					status = fleet.MDMDeliveryPending
+				}
+				want = append(want, hostProfileStatus{p.ProfileUUID, status})
+				wantOther = append(wantOther, hostProfileStatus{p.ProfileUUID, fleet.MDMDeliveryVerifying})
+			}
+			assertHostProfileStatus(t, ds, host.UUID, want...)
+			assertHostProfileStatus(t, ds, otherHost.UUID, wantOther...)
+		})
+	}
+
+	// The CA is read at resend time, so an edited CA is picked up without touching the profile.
+	require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, serialCA.ID, &fleet.CertificateAuthority{
+		Type:                  string(fleet.CATypeDigiCert),
+		CertificateCommonName: new(fleet.FleetVarHostEndUserIDPFullname.WithPrefix()),
+	}))
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		return triggerResendProfilesUsingVariables(ctx, tx, []uint{host.ID}, []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPFullname})
+	})
+	assertHostProfileStatus(t, ds, host.UUID,
+		hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profGroups.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profSerial.ProfileUUID, fleet.MDMDeliveryPending},
+		hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying})
 }
 
 // for https://github.com/fleetdm/fleet/issues/28820
