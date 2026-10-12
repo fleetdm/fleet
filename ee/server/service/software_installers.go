@@ -310,7 +310,7 @@ func ValidateSoftwareLabels(ctx context.Context, svc fleet.Service, teamID *uint
 }
 
 func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) error {
-	if len(payload.PackageIDs) == 0 {
+	if len(payload.PackageIDs) == 0 && payload.UpgradeCode == "" {
 		// do nothing, this could be a FMA which won't include the installer when editing the scripts
 		return nil
 	}
@@ -322,7 +322,7 @@ func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) er
 	}
 
 	// Only validate and substitute $PACKAGE_ID if it appears in the script
-	if file.PackageIDRegex.MatchString(payload.UninstallScript) {
+	if len(payload.PackageIDs) > 0 && file.PackageIDRegex.MatchString(payload.UninstallScript) {
 		if err := file.ValidatePackageIdentifiers(payload.PackageIDs, ""); err != nil {
 			return err
 		}
@@ -3880,6 +3880,9 @@ func (svc *Service) softwareBatchUpload(
 
 				if installer.UninstallScript == "" {
 					installer.UninstallScript = file.GetUninstallScript(installer.Extension)
+					if installer.UpgradeCode != "" {
+						installer.UninstallScript = file.UninstallMsiWithUpgradeCodeScript
+					}
 				}
 
 			case installer.Extension == "ipa":
@@ -4199,6 +4202,7 @@ func (svc *Service) fillSoftwareInstallerPayloadFromExisting(ctx context.Context
 	payload.Title = existing.Title
 	payload.StorageID = sha256Hash
 	payload.PackageIDs = existing.PackageIDs
+	payload.UpgradeCode = existing.UpgradeCode
 
 	if fleet.IsScriptPackage(existing.Extension) {
 		contents, err := svc.ds.GetAnyScriptContents(ctx, existing.InstallScriptContentID)

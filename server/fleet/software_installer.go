@@ -787,6 +787,7 @@ type ExistingSoftwareInstaller struct {
 	BundleIdentifier       *string `db:"bundle_identifier"`
 	Title                  string  `db:"title"`
 	PackageIDList          string  `db:"package_ids"`
+	UpgradeCode            string  `db:"upgrade_code"`
 	PackageIDs             []string
 	StorageID              string  `db:"storage_id"`
 	HTTPETag               *string `db:"http_etag"`
