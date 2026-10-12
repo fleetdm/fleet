@@ -2192,10 +2192,9 @@ func handleResendingAlreadyExistsCommands(ctx context.Context, svc *Service, alr
 // getPendingMDMCmds returns the list of pending MDM commands for the given enrollment, plus onlyPollCmdsPending: true
 // when everything still pending (if anything) is an internal poll-schedule Replace.
 //
-// A SCEP status probe is held back until it has been queued for fleet.WindowsSCEPStatusProbeDelay. One is queued when
-// the host ACKs a SCEP install, and another for each answer that is still pending, and the SCEP CSP enrolls after it
-// ACKs, so a probe sent right away would only see the enrollment in progress. Held back, a probe still counts as
-// pending, which keeps has_pending_commands set and has fleetd wake the device again.
+// A SCEP status probe is held back until it has been queued for fleet.WindowsSCEPStatusProbeDelay, so it goes out on the
+// next MDM session after ACK. Held back, a probe still counts as pending, which keeps has_pending_commands set and has
+// fleetd wake the device again.
 func (svc *Service) getPendingMDMCmds(ctx context.Context, enrollmentID uint) ([]*mdm_types.SyncMLCmd, bool, error) {
 	pendingCmds, err := svc.ds.MDMWindowsGetPendingCommands(ctx, enrollmentID)
 	if err != nil {
