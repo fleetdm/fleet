@@ -84,6 +84,11 @@ const AddAssetModal = ({
   return (
     <Modal className={baseClass} title="Add asset" onExit={onDone}>
       <div className={`${baseClass}__modal-content-wrap`}>
+        <p>
+          Assets are reusable data or credentials (like certificates) that Apple
+          declaration (DDM) profiles reference. Define an asset once and use it
+          in many profiles.
+        </p>
         <FileUploader
           graphicName="file-json"
           title="Upload asset"
