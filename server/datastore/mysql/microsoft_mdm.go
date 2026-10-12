@@ -1814,9 +1814,12 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 			continue
 		}
 		if hp.OperationType == fleet.MDMOperationTypeInstall && payload.Status != nil && *payload.Status == fleet.MDMDeliveryVerified {
-			// A repeated ACK must not undo a verification this delivery already got.
-			alreadyVerified := hp.Status != nil && *hp.Status == fleet.MDMDeliveryVerified
-			if _, ok := scepProxyProfileUUIDs[hp.ProfileUUID]; ok && !alreadyVerified {
+			if _, ok := scepProxyProfileUUIDs[hp.ProfileUUID]; ok {
+				// Only the first ACK of a delivery moves it out of pending. A late or repeated one arrives after Fleet already
+				// resolved the delivery (verified, failed, or reset for a retry) and must leave the row as it is.
+				if hp.Status == nil || *hp.Status != fleet.MDMDeliveryPending {
+					continue
+				}
 				verifying := fleet.MDMDeliveryVerifying
 				payload.Status = &verifying
 				scepVerifying = append(scepVerifying, windowsSCEPVerifyingInstall{ProfileUUID: hp.ProfileUUID, CommandUUID: hp.CommandUUID})

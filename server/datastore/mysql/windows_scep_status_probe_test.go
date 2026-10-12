@@ -284,6 +284,8 @@ func testApplyWindowsSCEPStatusProbeResults(t *testing.T, ds *Datastore) {
 			require.NoError(t, ds.MDMWindowsInsertCommandForHosts(ctx, []string{in.device.HostUUID}, probe))
 
 			answerProbe(t, ds, in, probe, c.status, c.errorCode)
+			// A late repeat of the install ACK must leave the outcome as it is.
+			ackInstall(t, ds, in)
 
 			status, detail, retries := readWindowsHostProfile(t, ds, in.device.HostUUID, in.profileUUID)
 			assert.Equal(t, c.wantStatus, status)

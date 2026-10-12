@@ -547,6 +547,34 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 		})
 	}
 
+	// A profile the device's SCEP status reported as installed is backstopped too while its certificate never matched the
+	// renewal ID (the CA rewrote the subject), because Fleet can't renew it. A matched certificate keeps it verified.
+	for _, matched := range []bool{false, true} {
+		t.Run(fmt.Sprintf("backstop on verified: certificate matched=%t", matched), func(t *testing.T) {
+			h := mkHost(t, fmt.Sprintf("backstop-verified-%t", matched))
+			p := fmt.Sprintf("w-backstop-verified-%t", matched)
+			upsertWinProfile(t, h, p, "cmd-backstop-verified", fleet.MDMDeliveryVerified, 0)
+			insertConfigProfile(t, p, p, false)
+			nvb, nva := time.Now().Add(-time.Hour), time.Now().Add(time.Hour)
+			if matched {
+				upsertHMMC(t, h, p, fleet.CAConfigNDES, &nvb, &nva)
+			} else {
+				upsertHMMC(t, h, p, fleet.CAConfigNDES, nil, nil)
+			}
+			backdateProfile(t, h, p, 2*time.Hour)
+			ingest(t, h, plainCert(t, h, "verified-cert", fleet.SystemHostCertificate, ""))
+
+			status, _, retries := getProfile(t, h, p)
+			if matched {
+				require.Equal(t, fleet.MDMDeliveryVerified, status)
+				require.Zero(t, retries)
+			} else {
+				require.Empty(t, status, "queued for another delivery")
+				require.Equal(t, 1, retries)
+			}
+		})
+	}
+
 	// Redelivering resets updated_at, so a retried profile is back inside the grace window and the backstop must leave
 	// it alone until the next window elapses.
 	t.Run("backstop: a retried profile is not failed again until the next grace window", func(t *testing.T) {
