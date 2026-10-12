@@ -3762,6 +3762,7 @@ To filter Windows hosts using `os_name` and `os_version`, set `os_name` to the f
           "name": "glibc",
           "version": "2.12",
           "source": "rpm_packages",
+          "ai_tool": false,
           "generated_cpe": "cpe:2.3:a:gnu:glibc:2.12:*:*:*:*:*:*:*",
           "last_opened_at": "2021-08-18T21:14:00Z",
           "vulnerabilities": [
@@ -4327,6 +4328,7 @@ Returns the information of the specified host.
         "name": "macOSApp",
         "version": "1.0",
         "source": "apps",
+        "ai_tool": false,
         "bundle_identifier": "com.some.app",
         "last_opened_at": "2021-08-18T21:14:00Z",
         "generated_cpe": "",
@@ -4338,6 +4340,7 @@ Returns the information of the specified host.
         "name": "Windows",
         "version": "1.0",
         "source": "programs",
+        "ai_tool": false,
         "upgrade_code": "{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}",
         "last_opened_at": "2021-08-18T21:14:00Z",
         "generated_cpe": "",
@@ -4705,6 +4708,7 @@ A profile with `"status": null` is a self-service profile the host can install b
         "name": "Gmail",
         "version": "6.0.240414",
         "source": "ios_apps",
+        "ai_tool": false,
         "bundle_identifier": "com.google.Gmail",
         "last_opened_at": "2021-08-18T21:14:00Z",
         "generated_cpe": "",
@@ -4716,6 +4720,7 @@ A profile with `"status": null` is a self-service profile the host can install b
         "name": "Slack",
         "version": "23.10.10",
         "source": "ios_apps",
+        "ai_tool": false,
         "bundle_identifier": "com.tinyspeck.chatlyio",
         "last_opened_at": "2021-08-18T21:14:00Z",
         "generated_cpe": "",
@@ -4919,6 +4924,7 @@ A profile with `"status": null` is a self-service profile the host can install b
         "name": "Gmail",
         "version": "2026.05.04.123456789",
         "source": "android_apps",
+        "ai_tool": false,
         "application_id": "com.google.android.gm",
         "generated_cpe": "",
         "vulnerabilities": null,
@@ -4929,6 +4935,7 @@ A profile with `"status": null` is a self-service profile the host can install b
         "name": "Slack",
         "version": "26.05.10.0",
         "source": "android_apps",
+        "ai_tool": false,
         "application_id": "com.Slack",
         "generated_cpe": "",
         "vulnerabilities": null,
@@ -5204,6 +5211,7 @@ If `hostname` is specified when there is more than one host with the same hostna
         "name": "Automat",
         "version": "0.8.0",
         "source": "python_packages",
+        "ai_tool": false,
         "browser": "",
         "extension_for": "",
         "generated_cpe": "",
@@ -5487,6 +5495,7 @@ If `hostname` is specified when there is more than one host with the same hostna
         "name": "Gmail",
         "version": "6.0.240414",
         "source": "ios_apps",
+        "ai_tool": false,
         "browser": "",
         "extension_for": "",
         "generated_cpe": "",
@@ -5687,6 +5696,7 @@ If `hostname` is specified when there is more than one host with the same hostna
         "name": "Gmail",
         "version": "2026.05.04.123456789",
         "source": "android_apps",
+        "ai_tool": false,
         "application_id": "com.google.android.gm",
         "generated_cpe": "",
         "vulnerabilities": null,
@@ -5697,6 +5707,7 @@ If `hostname` is specified when there is more than one host with the same hostna
         "name": "Slack",
         "version": "26.05.10.0",
         "source": "android_apps",
+        "ai_tool": false,
         "application_id": "com.Slack",
         "generated_cpe": "",
         "vulnerabilities": null,
@@ -5936,6 +5947,7 @@ For iOS/iPadOS hosts, Fleet omits identifying details from the response: `uuid`,
         "name": "SomeApp.app",
         "version": "1.0",
         "source": "apps",
+        "ai_tool": false,
         "browser": "",
         "extension_for": "",
         "bundle_identifier": "com.some.app",
@@ -6667,6 +6679,8 @@ Each entry in `installed_versions` includes `release` when set. For `rpm_package
 
 `software_package.has_uninstall_script` is `true` when the installer has a non-empty uninstall script configured. It's omitted for VPP and in-house apps. For `.tgz` and script-only (`.ps1`/`.sh`/`.py`) packages the uninstall script is optional, so this field is what tells clients whether uninstall is actually available.
 
+`ai_tool` is available in Fleet Premium. It's `true` when Fleet identified the software as an AI tool. Learn more in the [software inventory reference](https://fleetdm.com/guides/software-inventory-reference#ai-tools). On Fleet Free, it's omitted.
+
 `skipped_install` is `true` when the last install was a patch-when-closed skip (the target app was open). `status` is `failed_install` in that case; the field distinguishes a deferred install from a real failure. Omitted otherwise.
 
 On iOS, iPadOS, and Android App Store apps, `app_store_app.version_id` and `app_store_app.version_name` identify which admin-created version of the title was delivered to the host. Both are `null` when the title has a single version or the host hasn't received any version yet.
@@ -6833,6 +6847,8 @@ For `homebrew_packages`, Fleet returns one entry per Mach-O executable in the fo
 Each entry in `installed_versions` includes `release` when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions.
 
 `software_package.has_uninstall_script` is `true` when the installer has a non-empty uninstall script configured. It's omitted for VPP and in-house apps. For `.tgz` and script-only (`.ps1`/`.sh`/`.py`) packages the uninstall script is optional, so this field is what tells clients whether uninstall is actually available.
+
+`ai_tool` is available in Fleet Premium. It's `true` when Fleet identified the software as an AI tool. Learn more in the [software inventory reference](https://fleetdm.com/guides/software-inventory-reference#ai-tools). On Fleet Free, it's omitted.
 
 `skipped_install` is `true` when the last install was a patch-when-closed skip (the target app was open). `status` is `failed_install` in that case; the field distinguishes a deferred install from a real failure. Omitted otherwise.
 
@@ -14895,6 +14911,8 @@ Get a list of all software.
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
+`ai_tool` is available in Fleet Premium. It's `true` when Fleet identified the software as an AI tool. Learn more in the [software inventory reference](https://fleetdm.com/guides/software-inventory-reference#ai-tools). On Fleet Free, it's omitted.
+
 Each entry in `versions` includes `release` when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions.
 
 A software title can have more than one package. The `packages` array lists all packages added for the title. `software_package` is kept for backwards compatibility and contains the oldest (first added) package; it's `null` when no package is available.
@@ -15025,6 +15043,8 @@ Get a list of all software versions.
 
 `browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
+`ai_tool` is available in Fleet Premium. It's `true` when Fleet identified the software as an AI tool. Learn more in the [software inventory reference](https://fleetdm.com/guides/software-inventory-reference#ai-tools). On Fleet Free, it's omitted.
+
 `release` is included when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions. `generated_cpe` is empty for Go binaries. Their vulnerabilities come from the [Go vulnerability database](https://vuln.go.dev) instead of NVD.
 
 ### List operating systems
@@ -15117,6 +15137,7 @@ Returns information about the specified software. By default, `versions` are sor
     "name": "Slack",
     "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/90/f7/27/90f727be-835b-54ad-4d9d-8b597e63e321/electron.png/512x512bb.png",
     "source": "apps",
+    "ai_tool": false,
     "extension_for": "",
     "browser": "",
     "hosts_count": 5,
@@ -15251,6 +15272,8 @@ Returns information about the specified software. By default, `versions` are sor
 
 `browser` and `extension_for` fields are included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
+`ai_tool` is available in Fleet Premium. It's `true` when Fleet identified the software as an AI tool. Learn more in the [software inventory reference](https://fleetdm.com/guides/software-inventory-reference#ai-tools). On Fleet Free, it's omitted.
+
 Each entry in `versions` includes `release` when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions.
 
 A software title can have more than one package. The `packages` array lists all packages added for the title, including per-package `self_service`, `categories`, and labels (`labels_include_any`, `labels_exclude_any`, `labels_include_all`). `software_package` is kept for backwards compatibility and contains the oldest (first added) package.
@@ -15348,6 +15371,7 @@ Returns information about the specified software version.
     "version": "117.0",
     "bundle_identifier": "org.mozilla.firefox",
     "source": "apps",
+    "ai_tool": false,
     "generated_cpe": "cpe:2.3:a:mozilla:firefox:117.0:*:*:*:*:macos:*:*",
     "vulnerabilities": [
       {
