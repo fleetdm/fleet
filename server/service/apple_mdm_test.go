@@ -259,6 +259,9 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo, tweakCfg ...
 			fleet.MDMAssetCAKey:    {Value: keyPEM},
 		}, nil
 	}
+	ds.NewAppleSCEPChallengeFunc = func(ctx context.Context, info fleet.AppleSCEPChallengeInfo, ttl time.Duration) (string, error) {
+		return "dynamic-challenge", nil
+	}
 
 	ds.GetABMTokenOrgNamesAssociatedWithTeamFunc = func(ctx context.Context, teamID *uint) ([]string, error) {
 		return []string{"foobar"}, nil
@@ -2844,6 +2847,23 @@ func TestMDMAuthenticateSCEPRenewalWithNewEnrollmentCert(t *testing.T) {
 	require.True(t, ds.MDMAppleUpsertHostFuncInvoked)
 	require.True(t, ds.MDMResetEnrollmentFuncInvoked)
 	require.True(t, ds.SetHostMDMAppleEnrollmentPermissionsFuncInvoked)
+}
+
+func TestGetMDMManualEnrollmentProfileStaticChallenge(t *testing.T) {
+	premium := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+
+	svc, ctx, _, _ := setupAppleMDMService(t, premium, func(cfg *config.FleetConfig) {
+		cfg.MDM.AppleSCEPStaticChallengeEnabled = false
+	})
+	_, err := svc.GetMDMManualEnrollmentProfile(test.UserContext(ctx, test.UserAdmin), false)
+	var badRequest *fleet.BadRequestError
+	require.ErrorAs(t, err, &badRequest)
+	require.ErrorContains(t, err, fleet.ManualEnrollmentStaticChallengeDisabledErrMsg)
+
+	svc, ctx, _, _ = setupAppleMDMService(t, premium)
+	profile, err := svc.GetMDMManualEnrollmentProfile(test.UserContext(ctx, test.UserAdmin), false)
+	require.NoError(t, err)
+	require.NotEmpty(t, profile)
 }
 
 func TestCertIsFromNewEnrollment(t *testing.T) {
