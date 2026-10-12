@@ -4,6 +4,12 @@ This guide provides instructions to turn on Android MDM features by connecting F
 
 Fleet supports Android devices that are [Play Protect certified](https://support.google.com/googleplay/answer/7165974?hl=en) (previously known as GMS).
 
+## Personal (BYOD) hosts with Fleet Free
+
+With Fleet Free, you can enroll personal (BYOD) Android hosts with a work profile, enforce OS settings with [configuration profiles](https://fleetdm.com/guides/custom-os-settings), and see host vitals and the software installed in the work profile.
+
+With Fleet Free, you can't manage apps in the work profile, and end users can't install any apps there. End users can only install apps that you add in Fleet, and adding [Play Store apps](https://fleetdm.com/guides/install-app-store-apps#google-play-android) requires [Fleet Premium](https://fleetdm.com/pricing). Enforcing OS updates, deploying certificates, and lock and wipe also require Fleet Premium.
+
 ## Turn on
 
 To turn on Android MDM, connect Android Enterprise on **Settings > Integrations > Mobile device management (MDM)** page.
