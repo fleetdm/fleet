@@ -19,6 +19,11 @@ var termsFragments = []string{
 	"<u>under</u>", "<div>\nblock\n</div>", "<!-- note -->", "<script>alert(1)</script>",
 	`<img src=x onerror="alert(1)">`, `<a href="javascript:alert(1)">x</a>`, `<p style="color:red">styled</p>`,
 	"&lt;not a tag&gt;", "&#x3C;script&#x3E;", "\u200b", "émoji 🎉", "*", "_", "[", "]", "(", ")", "<", ">", "\t", "    indented",
+	"<table style=\"width:84%\">\n<colgroup>\n<col style=\"width: 28%\" />\n</colgroup>\n<tr>\n<th colspan=\"2\">Coverage</th>\n</tr>",
+	"<td rowspan=\"2\" onclick=\"alert(1)\">Laptop</td>", "<td colspan=\"1000\">wide</td>", "</table>", "<tr>", "</tr>",
+	"H<sub>2</sub>O", "x<sup>2</sup>", "<span class=\"smallcaps\">caps</span>", "<td><div>boxed</div></td>",
+	"<a href=\"https://example.com\">linked</a>", "<p><b>", "</b>", "<!-- c -->", "<![CDATA[x]]>", "<td colspan=\"9\" rowspan=\"9\">big</td>",
+	`<code class="language-go">`, "<table><tr><td>", "</td></tr></table>",
 }
 
 func genTerms(t *rapid.T) []byte {
@@ -32,10 +37,15 @@ func genTerms(t *rapid.T) []byte {
 	return []byte(b.String())
 }
 
+var (
+	alignValue = regexp.MustCompile(`^(left|center|right)$`)
+	wantSpan   = regexp.MustCompile(`^([1-9][0-9]?|100)$`)
+)
+
 // allowedAttr mirrors termsPolicy: the attributes each element may keep, and the values they may take.
 var allowedAttr = map[string]map[string]*regexp.Regexp{
-	"th":    {"align": regexp.MustCompile(`^(left|center|right)$`)},
-	"td":    {"align": regexp.MustCompile(`^(left|center|right)$`)},
+	"th":    {"align": alignValue, "colspan": wantSpan, "rowspan": wantSpan},
+	"td":    {"align": alignValue, "colspan": wantSpan, "rowspan": wantSpan},
 	"ol":    {"start": regexp.MustCompile(`^[0-9]+$`)},
 	"code":  {"class": regexp.MustCompile(`^language-[a-zA-Z0-9_+-]+$`)},
 	"input": {"type": regexp.MustCompile(`^checkbox$`), "checked": regexp.MustCompile(`^$`), "disabled": regexp.MustCompile(`^$`)},
@@ -44,8 +54,9 @@ var allowedAttr = map[string]map[string]*regexp.Regexp{
 var allowedElements = func() map[string]struct{} {
 	set := map[string]struct{}{}
 	for _, e := range []string{
-		"p", "br", "hr", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "strong", "em", "b", "i", "del", "s",
-		"code", "pre", "blockquote", "table", "thead", "tbody", "tr", "th", "td", "input",
+		"p", "br", "hr", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "strong", "em", "b", "i", "u", "del", "s",
+		"sub", "sup", "code", "pre", "blockquote", "table", "caption", "thead", "tbody", "tfoot", "tr",
+		"th", "td", "input",
 	} {
 		set[e] = struct{}{}
 	}
@@ -79,5 +90,34 @@ func TestRenderTermsProperties(t *testing.T) {
 			require.NoError(t, renderErr)
 			require.NotEmpty(t, out)
 		}
+
+		// Whatever the document leaves open, the page's own markup after it
+		// stays outside it.
+		page, err := html.Parse(strings.NewReader(`<div class="eula-custom">` + out + `</div><button>Agree</button>`))
+		require.NoError(t, err)
+		require.False(t, insideCustom(findElement(page, "button")), out)
 	})
+}
+
+func findElement(n *html.Node, tag string) *html.Node {
+	if n.Type == html.ElementNode && n.Data == tag {
+		return n
+	}
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		if found := findElement(c, tag); found != nil {
+			return found
+		}
+	}
+	return nil
+}
+
+func insideCustom(n *html.Node) bool {
+	for p := n.Parent; p != nil; p = p.Parent {
+		for _, a := range p.Attr {
+			if a.Key == "class" && a.Val == "eula-custom" {
+				return true
+			}
+		}
+	}
+	return false
 }
