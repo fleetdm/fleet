@@ -75,10 +75,11 @@
 }
 
 .host-report-card {
+  // Top-aligned so Actions stays on the title row when the description wraps.
   &__header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     gap: $pad-medium;
     margin-bottom: px-to-rem(24);
   }
@@ -95,9 +96,11 @@
     flex-shrink: 0;
   }
 
+  // Matches the Actions button height so the title and "Last updated" center on it.
   &__title-row {
     display: flex;
-    align-items: baseline;
+    align-items: center;
+    min-height: 36px;
     gap: $pad-medium;
     flex-wrap: wrap;
   }

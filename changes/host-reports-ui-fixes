@@ -1,0 +1,1 @@
+- Polished the host details **Reports** tab and host report page: "Last updated" and **Actions** stay aligned with the report name when the description is long, the **View report for all hosts** button uses the secondary style, and the **Back to host details** link is removed.
