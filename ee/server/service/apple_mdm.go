@@ -75,18 +75,19 @@ func (svc *Service) GetMDMAppleAccountEnrollmentProfile(ctx context.Context, enr
 		return nil, ctxerr.Wrap(ctx, err, "extracting topic from APNs cert")
 	}
 
-	assets, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
-		fleet.MDMAssetSCEPChallenge,
-	}, nil)
+	scepChallenge, err := svc.ds.NewAppleSCEPChallenge(ctx, fleet.AppleSCEPChallengeInfo{
+		Purpose:        fleet.AppleMDMCertPurposeADUE,
+		IDPAccountUUID: &enrollChallenge.IdPAccountUUID,
+	}, fleet.AppleSCEPEnrollmentChallengeTTL)
 	if err != nil {
-		return nil, fmt.Errorf("loading SCEP challenge from the database: %w", err)
+		return nil, ctxerr.Wrap(ctx, err, "creating account driven enrollment SCEP challenge")
 	}
 	enrollURL := appConfig.MDMUrl()
 
 	enrollmentProf, err := apple_mdm.GenerateAccountDrivenEnrollmentProfileMobileconfig(
 		appConfig.OrgInfo.OrgName,
 		enrollURL,
-		string(assets[fleet.MDMAssetSCEPChallenge].Value),
+		scepChallenge,
 		topic,
 		idpAccount.Email,
 		true, // fresh enrollment
