@@ -2,6 +2,7 @@ import { screen } from "@testing-library/react";
 import { noop } from "lodash";
 import React from "react";
 
+import { createMockLabel } from "__mocks__/labelsMock";
 import { createMockSoftware } from "__mocks__/softwareMock";
 import { createCustomRenderer } from "test/test-utils";
 import { PolicyResponse } from "utilities/constants";
@@ -77,6 +78,40 @@ describe("HostsFilterBlock", () => {
       );
 
       expect(screen.getByText("openssl 1.1.1k")).toBeInTheDocument();
+    });
+  });
+
+  describe("label combined with an Apple Business filter", () => {
+    const selectedLabel = createMockLabel({ display_text: "Engineering" });
+
+    it("shows both the label and the AB issues pills", () => {
+      render(
+        <HostsFilterBlock
+          {...baseProps}
+          params={{ ...baseParams, depProfileError: "true" }}
+          selectedLabel={selectedLabel}
+        />
+      );
+
+      expect(screen.getByText("Engineering")).toBeInTheDocument();
+      expect(
+        screen.getByText("Apple Business (AB) issues")
+      ).toBeInTheDocument();
+    });
+
+    it("shows both the label and the AB profile assignment pills", () => {
+      render(
+        <HostsFilterBlock
+          {...baseProps}
+          params={{ ...baseParams, depAssignProfileResponse: "FAILED" }}
+          selectedLabel={selectedLabel}
+        />
+      );
+
+      expect(screen.getByText("Engineering")).toBeInTheDocument();
+      expect(
+        screen.getByText("Apple Business (AB) issue: Failed")
+      ).toBeInTheDocument();
     });
   });
 });

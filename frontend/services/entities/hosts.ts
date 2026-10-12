@@ -664,7 +664,7 @@ export default {
         os_settings_disk_encryption: diskEncryptionStatus,
         vulnerability,
         dep_profile_error: depProfileError,
-        dep_assing_profile_response: depAssignProfileResponse,
+        dep_assign_profile_response: depAssignProfileResponse,
       },
     });
   },
