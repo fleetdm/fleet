@@ -101,9 +101,15 @@ module.exports = {
     // filtered out: the model is told to use the replacement, and it can only name the replacement
     // if it can see both.  Matching "deprecat" in descriptions instead would also flag fields like
     // AdvancedSecurityOverrides.developerSettings, which only mention deprecating something else.
-    let prunedSchemasByName = _.reduce(relevantSchemaNames, (prunedSoFar, schemaName)=>{
+    //
+    // Policy is written first, then the schemas it references in alphabetical order, and properties
+    // alphabetically within each.  The discovery document's key order shifts between fetches, which
+    // otherwise turns every regeneration into a diff of the whole file.
+    let prunedSchemasByName = _.reduce(['Policy'].concat(_.sortBy(_.without(relevantSchemaNames, 'Policy'))), (prunedSoFar, schemaName)=>{
+      let properties = allSchemas[schemaName].properties || {};
       prunedSoFar[schemaName] = {
-        properties: _.mapValues(allSchemas[schemaName].properties || {}, (property)=>{
+        properties: _.reduce(_.sortBy(_.keys(properties)), (prunedPropertiesSoFar, propertyName)=>{
+          let property = properties[propertyName];
           let prunedProperty = _.pick(_.extend({}, property, {enum: pruneEnum(property)}), ['type', '$ref', 'format', 'enum', 'deprecated']);
           if(property.items) {
             prunedProperty.items = _.pick(_.extend({}, property.items, {enum: pruneEnum(property.items)}), ['$ref', 'type', 'format', 'enum']);
@@ -111,8 +117,9 @@ module.exports = {
           if(property.description) {
             prunedProperty.description = prunePropertyDescription(property.description);
           }
-          return prunedProperty;
-        })
+          prunedPropertiesSoFar[propertyName] = prunedProperty;
+          return prunedPropertiesSoFar;
+        }, {})
       };
       return prunedSoFar;
     }, {});

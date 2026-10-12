@@ -1,6 +1,53 @@
 {
   "Policy": {
     "properties": {
+      "accountTypesWithManagementDisabled": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Account types that can't be managed by the user."
+      },
+      "addUserDisabled": {
+        "type": "boolean",
+        "description": "Whether adding new users and profiles is disabled. For devices where managementMode is DEVICE_OWNER this field is ignored and the user is never allowed to add or remove users."
+      },
+      "adjustVolumeDisabled": {
+        "type": "boolean",
+        "description": "Whether adjusting the master volume is disabled. Also mutes the device."
+      },
+      "advancedSecurityOverrides": {
+        "$ref": "AdvancedSecurityOverrides",
+        "description": "Advanced security settings. In most cases, setting these is not needed."
+      },
+      "alwaysOnVpnPackage": {
+        "$ref": "AlwaysOnVpnPackage",
+        "description": "Configuration for an always-on VPN connection. Use with vpn_config_disabled to prevent modification of this setting."
+      },
+      "androidDevicePolicyTracks": {
+        "type": "array",
+        "deprecated": true,
+        "items": {
+          "type": "string",
+          "enum": [
+            "APP_TRACK_UNSPECIFIED",
+            "PRODUCTION",
+            "BETA"
+          ]
+        },
+        "description": "This setting is not supported. Any value is ignored."
+      },
+      "appAutoUpdatePolicy": {
+        "type": "string",
+        "enum": [
+          "APP_AUTO_UPDATE_POLICY_UNSPECIFIED",
+          "CHOICE_TO_THE_USER",
+          "NEVER",
+          "WIFI_ONLY",
+          "ALWAYS"
+        ],
+        "description": "Recommended alternative: autoUpdateMode which is set per app, provides greater flexibility around update frequency. When autoUpdateMode is set to AUTO_UPDATE_POSTPONED or AUTO_UPDATE_HIGH_PRIORITY, this field has no effect."
+      },
       "appFunctions": {
         "type": "string",
         "enum": [
@@ -10,55 +57,21 @@
         ],
         "description": "Controls whether apps on the device for fully managed devices or in the work profile for devices with work profiles are allowed to expose app functions."
       },
-      "usbMassStorageEnabled": {
-        "type": "boolean",
-        "deprecated": true,
-        "description": "Whether USB storage is enabled. Deprecated."
-      },
-      "installUnknownSourcesAllowed": {
-        "type": "boolean",
-        "deprecated": true,
-        "description": "This field has no effect."
-      },
-      "wifiConfigDisabled": {
-        "type": "boolean",
-        "deprecated": true,
-        "description": "Whether configuring Wi-Fi networks is disabled. If configureWifi is set to anything other than CONFIGURE_WIFI_UNSPECIFIED, this setting is ignored."
-      },
-      "permittedInputMethods": {
-        "$ref": "PackageNameList",
-        "description": "If present, only the input methods provided by packages in this list are permitted."
-      },
-      "factoryResetDisabled": {
-        "type": "boolean",
-        "description": "Whether factory resetting from settings is disabled."
-      },
-      "uninstallAppsDisabled": {
-        "type": "boolean",
-        "description": "Whether user uninstallation of applications is disabled."
-      },
-      "vpnConfigDisabled": {
-        "type": "boolean",
-        "description": "Whether configuring VPN is disabled."
-      },
-      "minimumApiLevel": {
-        "type": "integer",
-        "format": "int32",
-        "description": "The minimum allowed Android API level."
-      },
-      "oncCertificateProviders": {
+      "applications": {
         "type": "array",
         "items": {
-          "$ref": "OncCertificateProvider"
+          "$ref": "ApplicationPolicy"
         },
-        "description": "This feature is not generally available."
+        "description": "Policy applied to apps. This can have at most 3,000 elements."
       },
-      "permissionGrants": {
-        "type": "array",
-        "items": {
-          "$ref": "PermissionGrant"
-        },
-        "description": "Explicit permission or group grants or denials for all apps. These values override the default_permission_policy."
+      "assistContentPolicy": {
+        "type": "string",
+        "enum": [
+          "ASSIST_CONTENT_POLICY_UNSPECIFIED",
+          "ASSIST_CONTENT_DISALLOWED",
+          "ASSIST_CONTENT_ALLOWED"
+        ],
+        "description": "Controls whether AssistContent (https://developer.android.com/reference/android/app/assist/AssistContent) is allowed to be sent to a privileged app such as an assistant app. AssistContent includes screenshots and information about an app, such as package name."
       },
       "autoDateAndTimeZone": {
         "type": "string",
@@ -69,23 +82,19 @@
         ],
         "description": "Whether auto date, time, and time zone are enabled on a company-owned device. If this is set, then autoTimeRequired is ignored."
       },
-      "recommendedGlobalProxy": {
-        "$ref": "ProxyInfo",
-        "description": "The network-independent global HTTP proxy."
-      },
-      "version": {
-        "type": "string",
-        "format": "int64",
-        "description": "The version of the policy."
-      },
-      "longSupportMessage": {
-        "$ref": "UserFacingMessage",
-        "description": "A message displayed to the user in the device administators settings screen."
-      },
-      "tetheringConfigDisabled": {
+      "autoTimeRequired": {
         "type": "boolean",
         "deprecated": true,
-        "description": "Whether configuring tethering and portable hotspots is disabled. If tetheringSettings is set to anything other than TETHERING_SETTINGS_UNSPECIFIED, this setting is ignored."
+        "description": "Whether auto time is required, which prevents the user from manually setting the date and time. If autoDateAndTimeZone is set, this field is ignored."
+      },
+      "autofillPolicy": {
+        "type": "string",
+        "enum": [
+          "AUTOFILL_POLICY_UNSPECIFIED",
+          "AUTOFILL_USER_CHOICE",
+          "AUTOFILL_DISABLED"
+        ],
+        "description": "The policy for the autofill service."
       },
       "backupService": {
         "type": "string",
@@ -94,7 +103,24 @@
           "BACKUP_SERVICE_DISABLED",
           "BACKUP_SERVICE_USER_CHOICE"
         ],
-        "description": "Controls whether the backup service is disabled."
+        "description": "Controls whether the backup service is disabled. Supported only on fully managed devices running Android 8 and above."
+      },
+      "blockApplicationsEnabled": {
+        "type": "boolean",
+        "deprecated": true,
+        "description": "This field has no effect."
+      },
+      "bluetoothConfigDisabled": {
+        "type": "boolean",
+        "description": "Whether configuring bluetooth is disabled."
+      },
+      "bluetoothContactSharingDisabled": {
+        "type": "boolean",
+        "description": "Whether bluetooth contact sharing is disabled."
+      },
+      "bluetoothDisabled": {
+        "type": "boolean",
+        "description": "Whether bluetooth is disabled. Prefer this setting over bluetooth_config_disabled because bluetooth_config_disabled can be bypassed by the user."
       },
       "cameraAccess": {
         "type": "string",
@@ -106,53 +132,33 @@
         ],
         "description": "Controls the use of the camera and whether the user has access to the camera access toggle."
       },
-      "assistContentPolicy": {
-        "type": "string",
-        "enum": [
-          "ASSIST_CONTENT_POLICY_UNSPECIFIED",
-          "ASSIST_CONTENT_DISALLOWED",
-          "ASSIST_CONTENT_ALLOWED"
-        ],
-        "description": "Controls whether AssistContent (https://developer.android.com/reference/android/app/assist/AssistContent) is allowed to be sent to a privileged app such as an assistant app."
-      },
-      "debuggingFeaturesAllowed": {
+      "cameraDisabled": {
         "type": "boolean",
         "deprecated": true,
-        "description": "Whether the user is allowed to enable debugging features."
+        "description": "If camera_access is set to any value other than CAMERA_ACCESS_UNSPECIFIED, this has no effect. Otherwise this field controls whether cameras are disabled: If true, all cameras are disabled, otherwise they are available."
       },
-      "addUserDisabled": {
+      "cellBroadcastsConfigDisabled": {
         "type": "boolean",
-        "description": "Whether adding new users and profiles is disabled. For devices where managementMode is DEVICE_OWNER this field is ignored and the user is never allowed to add or remove users."
+        "description": "Whether configuring cell broadcast is disabled."
       },
-      "skipFirstUseHintsEnabled": {
-        "type": "boolean",
-        "description": "Flag to skip hints on the first use."
+      "choosePrivateKeyRules": {
+        "type": "array",
+        "items": {
+          "$ref": "ChoosePrivateKeyRule"
+        },
+        "description": "Rules for determining apps' access to private keys. See ChoosePrivateKeyRule for details. This must be empty if any application has CERT_SELECTION delegation scope."
       },
-      "statusBarDisabled": {
-        "type": "boolean",
+      "complianceRules": {
+        "type": "array",
         "deprecated": true,
-        "description": "Whether the status bar is disabled. DEPRECATED. To disable the status bar on a kiosk device, use InstallType KIOSK or kioskCustomLauncherEnabled."
+        "items": {
+          "$ref": "ComplianceRule"
+        },
+        "description": "Rules declaring which mitigating actions to take when a device is not compliant with its policy. When the conditions for multiple rules are satisfied, all of the mitigating actions for the rules are taken. Use policy enforcement rules instead."
       },
-      "funDisabled": {
+      "createWindowsDisabled": {
         "type": "boolean",
-        "description": "Whether the user is allowed to have fun."
-      },
-      "dataRoamingDisabled": {
-        "type": "boolean",
-        "description": "Whether roaming data services are disabled."
-      },
-      "smsDisabled": {
-        "type": "boolean",
-        "description": "Whether sending and receiving SMS messages is disabled."
-      },
-      "keyguardDisabled": {
-        "type": "boolean",
-        "description": "If true, this disables the Lock Screen (https://source.android.com/docs/core/display/multi_display/lock-screen) for primary and/or secondary displays."
-      },
-      "usbFileTransferDisabled": {
-        "type": "boolean",
-        "deprecated": true,
-        "description": "Whether transferring files over USB is disabled."
+        "description": "Whether creating windows besides app windows is disabled."
       },
       "credentialProviderPolicyDefault": {
         "type": "string",
@@ -162,91 +168,112 @@
           "CREDENTIAL_PROVIDER_DEFAULT_DISALLOWED_EXCEPT_SYSTEM",
           "CREDENTIAL_PROVIDER_DEFAULT_ALLOWED"
         ],
-        "description": "Controls which apps are allowed to act as credential providers on Android 14 and above."
-      },
-      "cellBroadcastsConfigDisabled": {
-        "type": "boolean",
-        "description": "Whether configuring cell broadcast is disabled."
+        "description": "Controls which apps are allowed to act as credential providers on Android 14 and above. These apps store credentials, see this (https://developer.android.com/training/sign-in/passkeys) and this (https://developer.android.com/reference/androidx/credentials/CredentialManager) for details."
       },
       "credentialsConfigDisabled": {
         "type": "boolean",
         "description": "Whether configuring user credentials is disabled."
       },
-      "networkEscapeHatchEnabled": {
-        "type": "boolean",
-        "description": "Whether the network escape hatch is enabled. Note: Setting wifiConfigDisabled to true will override this setting under specific circumstances. Setting configureWifi to DISALLOW_CONFIGURING_WIFI will override this setting under specific circumstances."
+      "crossDevicePolicies": {
+        "$ref": "CrossDevicePolicies",
+        "description": "Policies controlling cross-device communication."
       },
-      "setWallpaperDisabled": {
-        "type": "boolean",
-        "description": "Whether changing the wallpaper is disabled."
+      "crossProfilePolicies": {
+        "$ref": "CrossProfilePolicies",
+        "description": "Cross-profile policies applied on the device."
       },
-      "unmuteMicrophoneDisabled": {
+      "dataRoamingDisabled": {
+        "type": "boolean",
+        "description": "Whether roaming data services are disabled."
+      },
+      "debuggingFeaturesAllowed": {
         "type": "boolean",
         "deprecated": true,
-        "description": "If microphone_access is set to any value other than MICROPHONE_ACCESS_UNSPECIFIED, this has no effect."
-      },
-      "displaySettings": {
-        "$ref": "DisplaySettings",
-        "description": "Controls for the display settings."
-      },
-      "permittedAccessibilityServices": {
-        "$ref": "PackageNameList",
-        "description": "Specifies permitted accessibility services."
+        "description": "Whether the user is allowed to enable debugging features."
       },
       "defaultApplicationSettings": {
         "type": "array",
         "items": {
           "$ref": "DefaultApplicationSetting"
         },
-        "description": "The default application setting for supported types."
+        "description": "The default application setting for supported types. If the default application is successfully set for at least one app type on a profile, users are prevented from changing any default applications on that profile."
       },
-      "removeUserDisabled": {
-        "type": "boolean",
-        "description": "Whether removing other users is disabled."
-      },
-      "microphoneAccess": {
+      "defaultPermissionPolicy": {
         "type": "string",
         "enum": [
-          "MICROPHONE_ACCESS_UNSPECIFIED",
-          "MICROPHONE_ACCESS_USER_CHOICE",
-          "MICROPHONE_ACCESS_DISABLED",
-          "MICROPHONE_ACCESS_ENFORCED"
+          "PERMISSION_POLICY_UNSPECIFIED",
+          "PROMPT",
+          "GRANT",
+          "DENY"
         ],
-        "description": "Controls the use of the microphone and whether the user has access to the microphone access toggle."
+        "description": "The default permission policy for runtime permission requests."
+      },
+      "deviceConnectivityManagement": {
+        "$ref": "DeviceConnectivityManagement",
+        "description": "Covers controls for device connectivity such as Wi-Fi, USB data access, keyboard/mouse connections, and more."
       },
       "deviceOwnerLockScreenInfo": {
         "$ref": "UserFacingMessage",
         "description": "The device owner information to be shown on the lock screen."
       },
-      "maximumTimeToLock": {
+      "deviceRadioState": {
+        "$ref": "DeviceRadioState",
+        "description": "Covers controls for radio state such as Wi-Fi, bluetooth, and more."
+      },
+      "displaySettings": {
+        "$ref": "DisplaySettings",
+        "description": "Controls for the display settings."
+      },
+      "encryptionPolicy": {
         "type": "string",
-        "format": "int64",
-        "description": "Maximum time in milliseconds for user activity until the device locks."
+        "enum": [
+          "ENCRYPTION_POLICY_UNSPECIFIED",
+          "ENABLED_WITHOUT_PASSWORD",
+          "ENABLED_WITH_PASSWORD"
+        ],
+        "description": "Whether encryption is enabled"
       },
-      "statusReportingSettings": {
-        "$ref": "StatusReportingSettings",
-        "description": "Status reporting settings"
+      "ensureVerifyAppsEnabled": {
+        "type": "boolean",
+        "deprecated": true,
+        "description": "Whether app verification is force-enabled."
       },
-      "kioskCustomization": {
-        "$ref": "KioskCustomization",
-        "description": "Settings controlling the behavior of a device in kiosk mode."
+      "enterpriseDisplayNameVisibility": {
+        "type": "string",
+        "enum": [
+          "ENTERPRISE_DISPLAY_NAME_VISIBILITY_UNSPECIFIED",
+          "ENTERPRISE_DISPLAY_NAME_VISIBLE",
+          "ENTERPRISE_DISPLAY_NAME_HIDDEN"
+        ],
+        "description": "Controls whether the enterpriseDisplayName is visible on the device (e.g. lock screen message on company-owned devices)."
       },
-      "stayOnPluggedModes": {
+      "factoryResetDisabled": {
+        "type": "boolean",
+        "description": "Whether factory resetting from settings is disabled."
+      },
+      "frpAdminEmails": {
         "type": "array",
         "items": {
-          "type": "string",
-          "enum": [
-            "BATTERY_PLUGGED_MODE_UNSPECIFIED",
-            "AC",
-            "USB",
-            "WIRELESS"
-          ]
+          "type": "string"
         },
-        "description": "The battery plugged in modes for which the device stays on."
+        "description": "Email addresses of device administrators for factory reset protection. When the device is factory reset, it will require one of these admins to log in with the Google account email and password to unlock the device."
       },
-      "bluetoothConfigDisabled": {
+      "funDisabled": {
         "type": "boolean",
-        "description": "Whether configuring bluetooth is disabled."
+        "description": "Whether the user is allowed to have fun. Controls whether the Easter egg game in Settings is disabled."
+      },
+      "installAppsDisabled": {
+        "type": "boolean",
+        "description": "Whether user installation of apps is disabled."
+      },
+      "installUnknownSourcesAllowed": {
+        "type": "boolean",
+        "deprecated": true,
+        "description": "This field has no effect."
+      },
+      "keyguardDisabled": {
+        "type": "boolean",
+        "description": "If true, this disables the Lock Screen (https://source.android.com/docs/core/display/multi_display/lock-screen) for primary and/or secondary displays. This policy is supported only in dedicated device management mode."
       },
       "keyguardDisabledFeatures": {
         "type": "array",
@@ -269,264 +296,86 @@
         },
         "description": "Disabled keyguard customizations, such as widgets."
       },
-      "bluetoothContactSharingDisabled": {
-        "type": "boolean",
-        "description": "Whether bluetooth contact sharing is disabled."
-      },
-      "usageLog": {
-        "$ref": "UsageLog",
-        "description": "Configuration of device activity logging."
-      },
-      "deviceRadioState": {
-        "$ref": "DeviceRadioState",
-        "description": "Covers controls for radio state such as Wi-Fi, bluetooth, and more."
-      },
-      "persistentPreferredActivities": {
-        "type": "array",
-        "items": {
-          "$ref": "PersistentPreferredActivity"
-        },
-        "description": "Default intent handler activities."
-      },
-      "openNetworkConfiguration": {
-        "type": "object",
-        "description": "Network configuration for the device."
-      },
-      "screenCaptureDisabled": {
-        "type": "boolean",
-        "description": "Whether screen capture is disabled."
-      },
-      "safeBootDisabled": {
-        "type": "boolean",
-        "deprecated": true,
-        "description": "Whether rebooting the device into safe boot is disabled."
-      },
-      "systemUpdate": {
-        "$ref": "SystemUpdate",
-        "description": "The system update policy, which controls how OS updates are applied."
-      },
-      "autoTimeRequired": {
-        "type": "boolean",
-        "deprecated": true,
-        "description": "Whether auto time is required, which prevents the user from manually setting the date and time. If autoDateAndTimeZone is set, this field is ignored."
-      },
-      "networkResetDisabled": {
-        "type": "boolean",
-        "description": "Whether resetting network settings is disabled."
-      },
-      "wipeDataFlags": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "enum": [
-            "WIPE_DATA_FLAG_UNSPECIFIED",
-            "WIPE_ESIMS"
-          ]
-        },
-        "description": "Wipe flags to indicate what data is wiped when a device or profile wipe is triggered due to any reason (for example, non-compliance)."
-      },
-      "personalUsagePolicies": {
-        "$ref": "PersonalUsagePolicies",
-        "description": "Policies managing personal usage on a company-owned device."
-      },
       "kioskCustomLauncherEnabled": {
         "type": "boolean",
         "description": "Whether the kiosk custom launcher is enabled. This replaces the home screen with a launcher that locks down the device to the apps installed via the applications setting. Use kioskCustomization to further configure the kiosk device behavior."
       },
-      "blockApplicationsEnabled": {
-        "type": "boolean",
-        "deprecated": true,
-        "description": "This field has no effect."
-      },
-      "autofillPolicy": {
-        "type": "string",
-        "enum": [
-          "AUTOFILL_POLICY_UNSPECIFIED",
-          "AUTOFILL_USER_CHOICE",
-          "AUTOFILL_DISABLED"
-        ],
-        "description": "The policy for the autofill service."
-      },
-      "policyEnforcementRules": {
-        "type": "array",
-        "items": {
-          "$ref": "PolicyEnforcementRule"
-        },
-        "description": "Rules that define the behavior when a particular policy can not be applied on device"
-      },
-      "deviceConnectivityManagement": {
-        "$ref": "DeviceConnectivityManagement",
-        "description": "Covers controls for device connectivity such as Wi-Fi, USB data access, keyboard/mouse connections, and more."
-      },
-      "adjustVolumeDisabled": {
-        "type": "boolean",
-        "description": "Whether adjusting the master volume is disabled."
-      },
-      "shortSupportMessage": {
-        "$ref": "UserFacingMessage",
-        "description": "A message displayed to the user in the settings screen wherever functionality has been disabled by the admin."
-      },
-      "choosePrivateKeyRules": {
-        "type": "array",
-        "items": {
-          "$ref": "ChoosePrivateKeyRule"
-        },
-        "description": "Rules for determining apps' access to private keys."
-      },
-      "shareLocationDisabled": {
-        "type": "boolean",
-        "description": "Whether location sharing is disabled."
-      },
-      "outgoingBeamDisabled": {
-        "type": "boolean",
-        "description": "Whether using NFC to beam data from apps is disabled."
+      "kioskCustomization": {
+        "$ref": "KioskCustomization",
+        "description": "Settings controlling the behavior of a device in kiosk mode. To enable kiosk mode, set kioskCustomLauncherEnabled to true or specify an app in the policy with the KIOSK role."
       },
       "locationMode": {
         "type": "string",
         "enum": [
           "LOCATION_MODE_UNSPECIFIED",
-          "HIGH_ACCURACY",
-          "SENSORS_ONLY",
-          "BATTERY_SAVING",
-          "OFF",
           "LOCATION_USER_CHOICE",
           "LOCATION_ENFORCED",
           "LOCATION_DISABLED"
         ],
         "description": "The degree of location detection enabled."
       },
-      "advancedSecurityOverrides": {
-        "$ref": "AdvancedSecurityOverrides",
-        "description": "Advanced security settings."
+      "longSupportMessage": {
+        "$ref": "UserFacingMessage",
+        "description": "A message displayed to the user in the device administators settings screen."
       },
-      "frpAdminEmails": {
-        "type": "array",
-        "items": {
-          "type": "string"
-        },
-        "description": "Email addresses of device administrators for factory reset protection."
-      },
-      "wifiConfigsLockdownEnabled": {
-        "type": "boolean",
-        "deprecated": true,
-        "description": "This is deprecated."
-      },
-      "androidDevicePolicyTracks": {
-        "type": "array",
-        "deprecated": true,
-        "items": {
-          "type": "string",
-          "enum": [
-            "APP_TRACK_UNSPECIFIED",
-            "PRODUCTION",
-            "BETA"
-          ]
-        },
-        "description": "This setting is not supported. Any value is ignored."
-      },
-      "ensureVerifyAppsEnabled": {
-        "type": "boolean",
-        "deprecated": true,
-        "description": "Whether app verification is force-enabled."
-      },
-      "setupActions": {
-        "type": "array",
-        "items": {
-          "$ref": "SetupAction"
-        },
-        "description": "Action to take during the setup process."
-      },
-      "privateKeySelectionEnabled": {
-        "type": "boolean",
-        "description": "Allows showing UI on a device for a user to choose a private key alias if there are no matching rules in ChoosePrivateKeyRules. This value will have no effect if any application has CERT_SELECTION delegation scope."
-      },
-      "createWindowsDisabled": {
-        "type": "boolean",
-        "description": "Whether creating windows besides app windows is disabled."
-      },
-      "name": {
+      "maximumTimeToLock": {
         "type": "string",
-        "description": "The name of the policy in the form enterprises/{enterpriseId}/policies/{policyId}."
+        "format": "int64",
+        "description": "Maximum time in milliseconds for user activity until the device locks. A value of 0 means there is no restriction."
       },
-      "workAccountSetupConfig": {
-        "$ref": "WorkAccountSetupConfig",
-        "description": "Controls the work account setup configuration, such as details of whether a Google authenticated account is required."
+      "microphoneAccess": {
+        "type": "string",
+        "enum": [
+          "MICROPHONE_ACCESS_UNSPECIFIED",
+          "MICROPHONE_ACCESS_USER_CHOICE",
+          "MICROPHONE_ACCESS_DISABLED",
+          "MICROPHONE_ACCESS_ENFORCED"
+        ],
+        "description": "Controls the use of the microphone and whether the user has access to the microphone access toggle. This applies only on fully managed devices."
+      },
+      "minimumApiLevel": {
+        "type": "integer",
+        "format": "int32",
+        "description": "The minimum allowed Android API level. A NonComplianceDetail with OS_NOT_PERMITTED is reported if the Android API level of the device is lower than this value."
+      },
+      "mobileNetworksConfigDisabled": {
+        "type": "boolean",
+        "description": "Whether configuring mobile networks is disabled."
+      },
+      "modifyAccountsDisabled": {
+        "type": "boolean",
+        "description": "Whether adding or removing accounts is disabled."
       },
       "mountPhysicalMediaDisabled": {
         "type": "boolean",
         "description": "Whether the user mounting physical external media is disabled."
       },
-      "accountTypesWithManagementDisabled": {
+      "name": {
+        "type": "string",
+        "description": "The name of the policy in the form enterprises/{enterpriseId}/policies/{policyId}."
+      },
+      "networkEscapeHatchEnabled": {
+        "type": "boolean",
+        "description": "Whether the network escape hatch is enabled. If a network connection can't be made at boot time, the escape hatch prompts the user to temporarily connect to a network in order to refresh the device policy. Note: Setting wifiConfigDisabled to true will override this setting under specific circumstances. Setting configureWifi to DISALLOW_CONFIGURING_WIFI will override this setting under specific circumstances."
+      },
+      "networkResetDisabled": {
+        "type": "boolean",
+        "description": "Whether resetting network settings is disabled. This applies only on fully managed devices."
+      },
+      "oncCertificateProviders": {
         "type": "array",
         "items": {
-          "type": "string"
+          "$ref": "OncCertificateProvider"
         },
-        "description": "Account types that can't be managed by the user."
+        "description": "This feature is not generally available."
       },
-      "defaultPermissionPolicy": {
-        "type": "string",
-        "enum": [
-          "PERMISSION_POLICY_UNSPECIFIED",
-          "PROMPT",
-          "GRANT",
-          "DENY"
-        ],
-        "description": "The default permission policy for runtime permission requests."
+      "openNetworkConfiguration": {
+        "type": "object",
+        "description": "Network configuration for the device. See configure networks for more information."
       },
-      "setUserIconDisabled": {
+      "outgoingBeamDisabled": {
         "type": "boolean",
-        "description": "Whether changing the user icon is disabled."
-      },
-      "crossProfilePolicies": {
-        "$ref": "CrossProfilePolicies",
-        "description": "Cross-profile policies applied on the device."
-      },
-      "cameraDisabled": {
-        "type": "boolean",
-        "deprecated": true,
-        "description": "If camera_access is set to any value other than CAMERA_ACCESS_UNSPECIFIED, this has no effect."
-      },
-      "installAppsDisabled": {
-        "type": "boolean",
-        "description": "Whether user installation of apps is disabled."
-      },
-      "encryptionPolicy": {
-        "type": "string",
-        "enum": [
-          "ENCRYPTION_POLICY_UNSPECIFIED",
-          "ENABLED_WITHOUT_PASSWORD",
-          "ENABLED_WITH_PASSWORD"
-        ],
-        "description": "Whether encryption is enabled"
-      },
-      "enterpriseDisplayNameVisibility": {
-        "type": "string",
-        "enum": [
-          "ENTERPRISE_DISPLAY_NAME_VISIBILITY_UNSPECIFIED",
-          "ENTERPRISE_DISPLAY_NAME_VISIBLE",
-          "ENTERPRISE_DISPLAY_NAME_HIDDEN"
-        ],
-        "description": "Controls whether the enterpriseDisplayName is visible on the device (e.g."
-      },
-      "passwordRequirements": {
-        "$ref": "PasswordRequirements",
-        "deprecated": true,
-        "description": "Password requirements. DEPRECATED - Use passwordPolicies."
-      },
-      "alwaysOnVpnPackage": {
-        "$ref": "AlwaysOnVpnPackage",
-        "description": "Configuration for an always-on VPN connection. Use with vpn_config_disabled to prevent modification of this setting."
-      },
-      "applications": {
-        "type": "array",
-        "items": {
-          "$ref": "ApplicationPolicy"
-        },
-        "description": "Policy applied to apps."
-      },
-      "crossDevicePolicies": {
-        "$ref": "CrossDevicePolicies",
-        "description": "Policies controlling cross-device communication."
+        "description": "Whether using NFC to beam data from apps is disabled."
       },
       "outgoingCallsDisabled": {
         "type": "boolean",
@@ -537,15 +386,54 @@
         "items": {
           "$ref": "PasswordRequirements"
         },
-        "description": "Password requirement policies."
+        "description": "Password requirement policies. Different policies can be set for work profile or fully managed devices by setting the password_scope field in the policy."
       },
-      "complianceRules": {
-        "type": "array",
+      "passwordRequirements": {
+        "$ref": "PasswordRequirements",
         "deprecated": true,
+        "description": "Password requirements. The field password_requirements.require_password_unlock must not be set. DEPRECATED - Use passwordPolicies."
+      },
+      "permissionGrants": {
+        "type": "array",
         "items": {
-          "$ref": "ComplianceRule"
+          "$ref": "PermissionGrant"
         },
-        "description": "Rules declaring which mitigating actions to take when a device is not compliant with its policy. Use policy enforcement rules instead."
+        "description": "Explicit permission or group grants or denials for all apps. These values override the default_permission_policy."
+      },
+      "permittedAccessibilityServices": {
+        "$ref": "PackageNameList",
+        "description": "Specifies permitted accessibility services. If the field is not set, any accessibility service can be used."
+      },
+      "permittedInputMethods": {
+        "$ref": "PackageNameList",
+        "description": "If present, only the input methods provided by packages in this list are permitted. If this field is present, but the list is empty, then only system input methods are permitted."
+      },
+      "persistentPreferredActivities": {
+        "type": "array",
+        "items": {
+          "$ref": "PersistentPreferredActivity"
+        },
+        "description": "Default intent handler activities. Warning: Do not configure this and default_application_settings for the same intent domain, such as web browsing."
+      },
+      "personalUsagePolicies": {
+        "$ref": "PersonalUsagePolicies",
+        "description": "Policies managing personal usage on a company-owned device."
+      },
+      "playStoreMode": {
+        "type": "string",
+        "enum": [
+          "PLAY_STORE_MODE_UNSPECIFIED",
+          "WHITELIST",
+          "BLACKLIST"
+        ],
+        "description": "This mode controls which apps are available to the user in the Play Store and the behavior on the device when apps are removed from the policy."
+      },
+      "policyEnforcementRules": {
+        "type": "array",
+        "items": {
+          "$ref": "PolicyEnforcementRule"
+        },
+        "description": "Rules that define the behavior when a particular policy can not be applied on device"
       },
       "preferentialNetworkService": {
         "type": "string",
@@ -563,71 +451,476 @@
           "PRINTING_DISALLOWED",
           "PRINTING_ALLOWED"
         ],
-        "description": "Controls whether printing is allowed."
+        "description": "Controls whether printing is allowed. This is supported on devices running Android 9 and above."
       },
-      "appAutoUpdatePolicy": {
+      "privateKeySelectionEnabled": {
+        "type": "boolean",
+        "description": "Allows showing UI on a device for a user to choose a private key alias if there are no matching rules in ChoosePrivateKeyRules. For devices below Android P, setting this may leave enterprise keys vulnerable. This value will have no effect if any application has CERT_SELECTION delegation scope."
+      },
+      "recommendedGlobalProxy": {
+        "$ref": "ProxyInfo",
+        "description": "The network-independent global HTTP proxy. Typically proxies should be configured per-network in open_network_configuration."
+      },
+      "removeUserDisabled": {
+        "type": "boolean",
+        "description": "Whether removing other users is disabled."
+      },
+      "safeBootDisabled": {
+        "type": "boolean",
+        "deprecated": true,
+        "description": "Whether rebooting the device into safe boot is disabled."
+      },
+      "screenCaptureDisabled": {
+        "type": "boolean",
+        "description": "Whether screen capture is disabled. This also blocks Circle to Search (https://support.google.com/android/answer/14508957)."
+      },
+      "setUserIconDisabled": {
+        "type": "boolean",
+        "description": "Whether changing the user icon is disabled. This applies only on devices running Android 7 and above."
+      },
+      "setWallpaperDisabled": {
+        "type": "boolean",
+        "description": "Whether changing the wallpaper is disabled."
+      },
+      "setupActions": {
+        "type": "array",
+        "items": {
+          "$ref": "SetupAction"
+        },
+        "description": "Action to take during the setup process. At most one action may be specified."
+      },
+      "shareLocationDisabled": {
+        "type": "boolean",
+        "description": "Whether location sharing is disabled."
+      },
+      "shortSupportMessage": {
+        "$ref": "UserFacingMessage",
+        "description": "A message displayed to the user in the settings screen wherever functionality has been disabled by the admin. If the message is longer than 200 characters it may be truncated."
+      },
+      "skipFirstUseHintsEnabled": {
+        "type": "boolean",
+        "description": "Flag to skip hints on the first use. Enterprise admin can enable the system recommendation for apps to skip their user tutorial and other introductory hints on first start-up."
+      },
+      "smsDisabled": {
+        "type": "boolean",
+        "description": "Whether sending and receiving SMS messages is disabled."
+      },
+      "statusBarDisabled": {
+        "type": "boolean",
+        "deprecated": true,
+        "description": "Whether the status bar is disabled. This disables notifications, quick settings, and other screen overlays that allow escape from full-screen mode. DEPRECATED. To disable the status bar on a kiosk device, use InstallType KIOSK or kioskCustomLauncherEnabled."
+      },
+      "statusReportingSettings": {
+        "$ref": "StatusReportingSettings",
+        "description": "Status reporting settings"
+      },
+      "stayOnPluggedModes": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "BATTERY_PLUGGED_MODE_UNSPECIFIED",
+            "AC",
+            "USB",
+            "WIRELESS"
+          ]
+        },
+        "description": "The battery plugged in modes for which the device stays on. When using this setting, it is recommended to clear maximum_time_to_lock so that the device doesn't lock itself while it stays on."
+      },
+      "systemUpdate": {
+        "$ref": "SystemUpdate",
+        "description": "The system update policy, which controls how OS updates are applied. If the update type is WINDOWED, the update window will automatically apply to Play app updates as well."
+      },
+      "tetheringConfigDisabled": {
+        "type": "boolean",
+        "deprecated": true,
+        "description": "Whether configuring tethering and portable hotspots is disabled. If tetheringSettings is set to anything other than TETHERING_SETTINGS_UNSPECIFIED, this setting is ignored."
+      },
+      "uninstallAppsDisabled": {
+        "type": "boolean",
+        "description": "Whether user uninstallation of applications is disabled. This prevents apps from being uninstalled, even those removed using applications"
+      },
+      "unmuteMicrophoneDisabled": {
+        "type": "boolean",
+        "deprecated": true,
+        "description": "If microphone_access is set to any value other than MICROPHONE_ACCESS_UNSPECIFIED, this has no effect. Otherwise this field controls whether microphones are disabled: If true, all microphones are disabled, otherwise they are available."
+      },
+      "usageLog": {
+        "$ref": "UsageLog",
+        "description": "Configuration of device activity logging."
+      },
+      "usbFileTransferDisabled": {
+        "type": "boolean",
+        "deprecated": true,
+        "description": "Whether transferring files over USB is disabled. This is supported only on company-owned devices."
+      },
+      "usbMassStorageEnabled": {
+        "type": "boolean",
+        "deprecated": true,
+        "description": "Whether USB storage is enabled. Deprecated."
+      },
+      "version": {
         "type": "string",
-        "enum": [
-          "APP_AUTO_UPDATE_POLICY_UNSPECIFIED",
-          "CHOICE_TO_THE_USER",
-          "NEVER",
-          "WIFI_ONLY",
-          "ALWAYS"
-        ],
-        "description": "Recommended alternative: autoUpdateMode which is set per app, provides greater flexibility around update frequency. When autoUpdateMode is set to AUTO_UPDATE_POSTPONED or AUTO_UPDATE_HIGH_PRIORITY, this field has no effect."
+        "format": "int64",
+        "description": "The version of the policy. This is a read-only field."
       },
-      "bluetoothDisabled": {
+      "vpnConfigDisabled": {
         "type": "boolean",
-        "description": "Whether bluetooth is disabled."
+        "description": "Whether configuring VPN is disabled."
       },
-      "playStoreMode": {
-        "type": "string",
-        "enum": [
-          "PLAY_STORE_MODE_UNSPECIFIED",
-          "WHITELIST",
-          "BLACKLIST"
-        ],
-        "description": "This mode controls which apps are available to the user in the Play Store and the behavior on the device when apps are removed from the policy."
-      },
-      "modifyAccountsDisabled": {
+      "wifiConfigDisabled": {
         "type": "boolean",
-        "description": "Whether adding or removing accounts is disabled."
+        "deprecated": true,
+        "description": "Whether configuring Wi-Fi networks is disabled. Supported on fully managed devices and work profiles on company-owned devices. If configureWifi is set to anything other than CONFIGURE_WIFI_UNSPECIFIED, this setting is ignored."
       },
-      "mobileNetworksConfigDisabled": {
+      "wifiConfigsLockdownEnabled": {
         "type": "boolean",
-        "description": "Whether configuring mobile networks is disabled."
+        "deprecated": true,
+        "description": "This is deprecated."
+      },
+      "wipeDataFlags": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "WIPE_DATA_FLAG_UNSPECIFIED",
+            "WIPE_ESIMS"
+          ]
+        },
+        "description": "Wipe flags to indicate what data is wiped when a device or profile wipe is triggered due to any reason (for example, non-compliance). This does not apply to the enterprises.devices.delete method. This list must not have duplicates."
+      },
+      "workAccountSetupConfig": {
+        "$ref": "WorkAccountSetupConfig",
+        "description": "Controls the work account setup configuration, such as details of whether a Google authenticated account is required."
       }
     }
   },
-  "PackageNameList": {
+  "AdvancedSecurityOverrides": {
     "properties": {
-      "packageNames": {
+      "commonCriteriaMode": {
+        "type": "string",
+        "enum": [
+          "COMMON_CRITERIA_MODE_UNSPECIFIED",
+          "COMMON_CRITERIA_MODE_DISABLED",
+          "COMMON_CRITERIA_MODE_ENABLED"
+        ],
+        "description": "Controls Common Criteria Mode—security standards defined in the Common Criteria for Information Technology Security Evaluation (https://www.commoncriteriaportal.org/) (CC). Enabling Common Criteria Mode increases certain security components on a device, see CommonCriteriaMode for details. Standard device use may be affected."
+      },
+      "contentProtectionPolicy": {
+        "type": "string",
+        "enum": [
+          "CONTENT_PROTECTION_POLICY_UNSPECIFIED",
+          "CONTENT_PROTECTION_DISABLED",
+          "CONTENT_PROTECTION_ENFORCED",
+          "CONTENT_PROTECTION_USER_CHOICE"
+        ],
+        "description": "Controls whether content protection, which scans for deceptive apps, is enabled. This is supported on Android 15 and above."
+      },
+      "developerSettings": {
+        "type": "string",
+        "enum": [
+          "DEVELOPER_SETTINGS_UNSPECIFIED",
+          "DEVELOPER_SETTINGS_DISABLED",
+          "DEVELOPER_SETTINGS_ALLOWED"
+        ],
+        "description": "Controls access to developer settings: developer options and safe boot. Replaces safeBootDisabled (deprecated) and debuggingFeaturesAllowed (deprecated)."
+      },
+      "googlePlayProtectVerifyApps": {
+        "type": "string",
+        "enum": [
+          "GOOGLE_PLAY_PROTECT_VERIFY_APPS_UNSPECIFIED",
+          "VERIFY_APPS_ENFORCED",
+          "VERIFY_APPS_USER_CHOICE"
+        ],
+        "description": "Whether Google Play Protect verification (https://support.google.com/accounts/answer/2812853) is enforced. Replaces ensureVerifyAppsEnabled (deprecated)."
+      },
+      "mtePolicy": {
+        "type": "string",
+        "enum": [
+          "MTE_POLICY_UNSPECIFIED",
+          "MTE_USER_CHOICE",
+          "MTE_ENFORCED",
+          "MTE_DISABLED"
+        ],
+        "description": "Controls Memory Tagging Extension (MTE) (https://source.android.com/docs/security/test/memory-safety/arm-mte) on the device. The device needs to be rebooted to apply changes to the MTE policy."
+      },
+      "personalAppsThatCanReadWorkNotifications": {
         "type": "array",
         "items": {
           "type": "string"
         },
-        "description": "A list of package names."
+        "description": "Personal apps that can read work profile notifications using a NotificationListenerService (https://developer.android.com/reference/android/service/notification/NotificationListenerService). By default, no personal apps (aside from system apps) can read work notifications. Each value in the list must be a package name."
+      },
+      "untrustedAppsPolicy": {
+        "type": "string",
+        "enum": [
+          "UNTRUSTED_APPS_POLICY_UNSPECIFIED",
+          "DISALLOW_INSTALL",
+          "ALLOW_INSTALL_IN_PERSONAL_PROFILE_ONLY",
+          "ALLOW_INSTALL_DEVICE_WIDE"
+        ],
+        "description": "The policy for untrusted apps (apps from unknown sources) enforced on the device. Replaces install_unknown_sources_allowed (deprecated)."
       }
     }
   },
-  "OncCertificateProvider": {
+  "AlwaysOnVpnPackage": {
     "properties": {
-      "certificateReferences": {
+      "lockdownEnabled": {
+        "type": "boolean",
+        "description": "Disallows networking when the VPN is not connected."
+      },
+      "packageName": {
+        "type": "string",
+        "description": "The package name of the VPN app."
+      }
+    }
+  },
+  "ApiLevelCondition": {
+    "properties": {
+      "minApiLevel": {
+        "type": "integer",
+        "format": "int32",
+        "description": "The minimum desired Android Framework API level. If the device doesn't meet the minimum requirement, this condition is satisfied. Must be greater than zero."
+      }
+    }
+  },
+  "ApnPolicy": {
+    "properties": {
+      "apnSettings": {
+        "type": "array",
+        "items": {
+          "$ref": "ApnSetting"
+        },
+        "description": "APN settings for override APNs. There must not be any conflict between any of APN settings provided, otherwise the policy will be rejected. If some of the APN settings result in non-compliance of INVALID_VALUE , they will be ignored."
+      },
+      "overrideApns": {
+        "type": "string",
+        "enum": [
+          "OVERRIDE_APNS_UNSPECIFIED",
+          "OVERRIDE_APNS_DISABLED",
+          "OVERRIDE_APNS_ENABLED"
+        ],
+        "description": "Whether override APNs are disabled or enabled. See DevicePolicyManager.setOverrideApnsEnabled (https://developer.android.com/reference/android/app/admin/DevicePolicyManager#setOverrideApnsEnabled) for more details."
+      }
+    }
+  },
+  "ApnSetting": {
+    "properties": {
+      "alwaysOnSetting": {
+        "type": "string",
+        "enum": [
+          "ALWAYS_ON_SETTING_UNSPECIFIED",
+          "NOT_ALWAYS_ON",
+          "ALWAYS_ON"
+        ],
+        "description": "Whether User Plane resources have to be activated during every transition from CM-IDLE mode to CM-CONNECTED state for this APN. See 3GPP TS 23.501 section 5.6.13."
+      },
+      "apn": {
+        "type": "string",
+        "description": "Name of the APN. Policy will be rejected if this field is empty."
+      },
+      "apnTypes": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "APN_TYPE_UNSPECIFIED",
+            "ENTERPRISE",
+            "BIP",
+            "CBS",
+            "DEFAULT",
+            "DUN",
+            "EMERGENCY",
+            "FOTA",
+            "HIPRI",
+            "IA",
+            "IMS",
+            "MCX",
+            "MMS",
+            "RCS",
+            "SUPL",
+            "VSIM",
+            "XCAP"
+          ]
+        },
+        "description": "Usage categories for the APN. Policy will be rejected if this field is empty or contains APN_TYPE_UNSPECIFIED or duplicates. APN types that are not supported on the device or management mode will be ignored. If this results in the empty list, the APN setting will be ignored, because apnTypes is a required field."
+      },
+      "authType": {
+        "type": "string",
+        "enum": [
+          "AUTH_TYPE_UNSPECIFIED",
+          "NONE",
+          "PAP",
+          "CHAP",
+          "PAP_OR_CHAP"
+        ],
+        "description": "Authentication type of the APN."
+      },
+      "carrierId": {
+        "type": "integer",
+        "format": "int32",
+        "description": "Carrier ID for the APN. A value of 0 (default) means not set and negative values are rejected."
+      },
+      "displayName": {
+        "type": "string",
+        "description": "Human-readable name that describes the APN. Policy will be rejected if this field is empty."
+      },
+      "mmsProxyAddress": {
+        "type": "string",
+        "description": "MMS (Multimedia Messaging Service) proxy address of the APN which can be an IP address or hostname (not a URL)."
+      },
+      "mmsProxyPort": {
+        "type": "integer",
+        "format": "int32",
+        "description": "MMS (Multimedia Messaging Service) proxy port of the APN. A value of 0 (default) means not set and negative values are rejected."
+      },
+      "mmsc": {
+        "type": "string",
+        "description": "MMSC (Multimedia Messaging Service Center) URI of the APN."
+      },
+      "mtuV4": {
+        "type": "integer",
+        "format": "int32",
+        "description": "The default MTU (Maximum Transmission Unit) size in bytes of the IPv4 routes brought up by this APN setting. A value of 0 (default) means not set and negative values are rejected."
+      },
+      "mtuV6": {
+        "type": "integer",
+        "format": "int32",
+        "description": "The MTU (Maximum Transmission Unit) size of the IPv6 mobile interface to which the APN connected. A value of 0 (default) means not set and negative values are rejected."
+      },
+      "mvnoType": {
+        "type": "string",
+        "enum": [
+          "MVNO_TYPE_UNSPECIFIED",
+          "GID",
+          "ICCID",
+          "IMSI",
+          "SPN"
+        ],
+        "description": "MVNO match type for the APN."
+      },
+      "networkTypes": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "NETWORK_TYPE_UNSPECIFIED",
+            "EDGE",
+            "GPRS",
+            "GSM",
+            "HSDPA",
+            "HSPA",
+            "HSPAP",
+            "HSUPA",
+            "IWLAN",
+            "LTE",
+            "NR",
+            "TD_SCDMA",
+            "UMTS"
+          ]
+        },
+        "description": "Radio technologies (network types) the APN may use. Policy will be rejected if this field contains NETWORK_TYPE_UNSPECIFIED or duplicates."
+      },
+      "numericOperatorId": {
+        "type": "string",
+        "description": "The numeric operator ID of the APN. Numeric operator ID is defined as MCC (Mobile Country Code) + MNC (Mobile Network Code)."
+      },
+      "password": {
+        "type": "string",
+        "description": "APN password of the APN."
+      },
+      "protocol": {
+        "type": "string",
+        "enum": [
+          "PROTOCOL_UNSPECIFIED",
+          "IP",
+          "IPV4V6",
+          "IPV6",
+          "NON_IP",
+          "PPP",
+          "UNSTRUCTURED"
+        ],
+        "description": "The protocol to use to connect to this APN."
+      },
+      "proxyAddress": {
+        "type": "string",
+        "description": "The proxy address of the APN."
+      },
+      "proxyPort": {
+        "type": "integer",
+        "format": "int32",
+        "description": "The proxy port of the APN. A value of 0 (default) means not set and negative values are rejected."
+      },
+      "roamingProtocol": {
+        "type": "string",
+        "enum": [
+          "PROTOCOL_UNSPECIFIED",
+          "IP",
+          "IPV4V6",
+          "IPV6",
+          "NON_IP",
+          "PPP",
+          "UNSTRUCTURED"
+        ],
+        "description": "The protocol to use to connect to this APN while the device is roaming."
+      },
+      "username": {
+        "type": "string",
+        "description": "APN username of the APN."
+      }
+    }
+  },
+  "ApplicationPolicy": {
+    "properties": {
+      "accessibleTrackIds": {
         "type": "array",
         "items": {
           "type": "string"
         },
-        "description": "This feature is not generally available."
+        "description": "List of the app’s track IDs that a device belonging to the enterprise can access. If the list contains multiple track IDs, devices receive the latest version among all accessible tracks."
       },
-      "contentProviderEndpoint": {
-        "$ref": "ContentProviderEndpoint",
-        "description": "This feature is not generally available."
-      }
-    }
-  },
-  "PermissionGrant": {
-    "properties": {
-      "policy": {
+      "alwaysOnVpnLockdownExemption": {
+        "type": "string",
+        "enum": [
+          "ALWAYS_ON_VPN_LOCKDOWN_EXEMPTION_UNSPECIFIED",
+          "VPN_LOCKDOWN_ENFORCED",
+          "VPN_LOCKDOWN_EXEMPTION"
+        ],
+        "description": "Specifies whether the app is allowed networking when the VPN is not connected and alwaysOnVpnPackage.lockdownEnabled is enabled. If set to VPN_LOCKDOWN_ENFORCED, the app is not allowed networking, and if set to VPN_LOCKDOWN_EXEMPTION, the app is allowed networking."
+      },
+      "autoUpdateMode": {
+        "type": "string",
+        "enum": [
+          "AUTO_UPDATE_MODE_UNSPECIFIED",
+          "AUTO_UPDATE_DEFAULT",
+          "AUTO_UPDATE_POSTPONED",
+          "AUTO_UPDATE_HIGH_PRIORITY"
+        ],
+        "description": "Controls the auto-update mode for the app."
+      },
+      "connectedWorkAndPersonalApp": {
+        "type": "string",
+        "enum": [
+          "CONNECTED_WORK_AND_PERSONAL_APP_UNSPECIFIED",
+          "CONNECTED_WORK_AND_PERSONAL_APP_DISALLOWED",
+          "CONNECTED_WORK_AND_PERSONAL_APP_ALLOWED"
+        ],
+        "description": "Controls whether the app can communicate with itself across a device’s work and personal profiles, subject to user consent."
+      },
+      "credentialProviderPolicy": {
+        "type": "string",
+        "enum": [
+          "CREDENTIAL_PROVIDER_POLICY_UNSPECIFIED",
+          "CREDENTIAL_PROVIDER_ALLOWED",
+          "CREDENTIAL_PROVIDER_DISALLOWED"
+        ],
+        "description": "Whether the app is allowed to act as a credential provider on Android 14 and above."
+      },
+      "customAppConfig": {
+        "$ref": "CustomAppConfig",
+        "description": "Configuration for this custom app.install_type must be set to CUSTOM for this to be set."
+      },
+      "defaultPermissionPolicy": {
         "type": "string",
         "enum": [
           "PERMISSION_POLICY_UNSPECIFIED",
@@ -635,71 +928,363 @@
           "GRANT",
           "DENY"
         ],
-        "description": "The policy for granting the permission."
+        "description": "The default policy for all permissions requested by the app. If specified, this overrides the policy-level default_permission_policy which applies to all apps. It does not override the permission_grants which applies to all apps."
       },
-      "permission": {
+      "delegatedScopes": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "DELEGATED_SCOPE_UNSPECIFIED",
+            "CERT_INSTALL",
+            "MANAGED_CONFIGURATIONS",
+            "BLOCK_UNINSTALL",
+            "PERMISSION_GRANT",
+            "PACKAGE_ACCESS",
+            "ENABLE_SYSTEM_APP",
+            "NETWORK_ACTIVITY_LOGS",
+            "SECURITY_LOGS",
+            "CERT_SELECTION"
+          ]
+        },
+        "description": "The scopes delegated to the app from Android Device Policy. These provide additional privileges for the applications they are applied to."
+      },
+      "disabled": {
+        "type": "boolean",
+        "description": "Whether the app is disabled. When disabled, the app data is still preserved."
+      },
+      "extensionConfig": {
+        "$ref": "ExtensionConfig",
+        "deprecated": true,
+        "description": "Configuration to enable this app as an extension app, with the capability of interacting with Android Device Policy offline. This field can be set for at most one app. The signing key certificate fingerprint of the app on the device must match one of the entries in ApplicationPolicy.signingKeyCerts or ExtensionConfig.signingKeyFingerprintsSha256 (deprecated) or the signing key certificate fingerprints obtained from Play Store for the app to be able to communicate with Android Device Policy. If the app is not on Play Store and if ApplicationPolicy.signingKeyCerts and ExtensionConfig.signingKeyFingerprintsSha256 (deprecated) are not set, a NonComplianceDetail with INVALID_VALUE is reported."
+      },
+      "installConstraint": {
+        "type": "array",
+        "items": {
+          "$ref": "InstallConstraint"
+        },
+        "description": "The constraints for installing the app. You can specify a maximum of one InstallConstraint."
+      },
+      "installPriority": {
+        "type": "integer",
+        "format": "int32",
+        "description": "Amongst apps with installType set to: FORCE_INSTALLED PREINSTALLEDthis controls the relative priority of installation. A value of 0 (default) means this app has no priority over other apps."
+      },
+      "installType": {
         "type": "string",
-        "description": "The Android permission or group, e.g."
+        "enum": [
+          "INSTALL_TYPE_UNSPECIFIED",
+          "PREINSTALLED",
+          "FORCE_INSTALLED",
+          "BLOCKED",
+          "AVAILABLE",
+          "REQUIRED_FOR_SETUP",
+          "CUSTOM"
+        ],
+        "description": "The type of installation to perform."
+      },
+      "lockTaskAllowed": {
+        "type": "boolean",
+        "deprecated": true,
+        "description": "Whether the app is allowed to lock itself in full-screen mode. DEPRECATED. Use InstallType KIOSK or kioskCustomLauncherEnabled to configure a dedicated device."
+      },
+      "managedConfiguration": {
+        "type": "object",
+        "description": "Managed configuration applied to the app. The format for the configuration is dictated by the ManagedProperty values supported by the app. Each field name in the managed configuration must match the key field of the ManagedProperty. The field value must be compatible with the type of the ManagedProperty: *type* *JSON value* BOOL true or false STRING string INTEGER number CHOICE string MULTISELECT array of strings HIDDEN string BUNDLE_ARRAY array of objects Note: string values cannot be longer than 65535 characters."
+      },
+      "managedConfigurationTemplate": {
+        "$ref": "ManagedConfigurationTemplate",
+        "description": "The managed configurations template for the app, saved from the managed configurations iframe. This field is ignored if managed_configuration is set."
+      },
+      "minimumVersionCode": {
+        "type": "integer",
+        "format": "int32",
+        "description": "The minimum version of the app that runs on the device. If set, the device attempts to update the app to at least this version code. The app must already be published to Google Play with a version code greater than or equal to this value."
+      },
+      "packageName": {
+        "type": "string",
+        "description": "The package name of the app. For example, com.google.android.youtube for the YouTube app."
+      },
+      "permissionGrants": {
+        "type": "array",
+        "items": {
+          "$ref": "PermissionGrant"
+        },
+        "description": "Explicit permission grants or denials for the app. These values override the default_permission_policy and permission_grants which apply to all apps."
+      },
+      "preferentialNetworkId": {
+        "type": "string",
+        "enum": [
+          "PREFERENTIAL_NETWORK_ID_UNSPECIFIED",
+          "NO_PREFERENTIAL_NETWORK",
+          "PREFERENTIAL_NETWORK_ID_ONE",
+          "PREFERENTIAL_NETWORK_ID_TWO",
+          "PREFERENTIAL_NETWORK_ID_THREE",
+          "PREFERENTIAL_NETWORK_ID_FOUR",
+          "PREFERENTIAL_NETWORK_ID_FIVE"
+        ],
+        "description": "ID of the preferential network the application uses. There must be a configuration for the specified network ID in preferentialNetworkServiceConfigs. If set to PREFERENTIAL_NETWORK_ID_UNSPECIFIED, the application will use the default network ID specified in defaultPreferentialNetworkId."
+      },
+      "roles": {
+        "type": "array",
+        "items": {
+          "$ref": "Role"
+        },
+        "description": "Roles the app has. Apps having certain roles can be exempted from power and background execution restrictions, suspension and hibernation on Android 14 and above. The app can use this notification to bootstrap itself after the installation. For the exemptions to be applied and the app to be notified about the roles, the signing key certificate fingerprint of the app on the device must match one of the signing key certificate fingerprints obtained from Play Store or one of the entries in ApplicationPolicy.signingKeyCerts. There must not be duplicate roles with the same roleType."
+      },
+      "signingKeyCerts": {
+        "type": "array",
+        "items": {
+          "$ref": "ApplicationSigningKeyCert"
+        },
+        "description": "Signing key certificates of the app. This field is required in the following cases: The app has installType set to CUSTOM (i.e. an extension app) but ExtensionConfig.signingKeyFingerprintsSha256 (deprecated) is not set and the app does not exist on the Play Store."
+      },
+      "userControlSettings": {
+        "type": "string",
+        "enum": [
+          "USER_CONTROL_SETTINGS_UNSPECIFIED",
+          "USER_CONTROL_ALLOWED",
+          "USER_CONTROL_DISALLOWED"
+        ],
+        "description": "Specifies whether user control is permitted for the app. User control includes user actions like force-stopping and clearing app data."
+      },
+      "workProfileWidgets": {
+        "type": "string",
+        "enum": [
+          "WORK_PROFILE_WIDGETS_UNSPECIFIED",
+          "WORK_PROFILE_WIDGETS_ALLOWED",
+          "WORK_PROFILE_WIDGETS_DISALLOWED"
+        ],
+        "description": "Specifies whether the app installed in the work profile is allowed to add widgets to the home screen."
       }
     }
   },
-  "ProxyInfo": {
+  "ApplicationReportingSettings": {
     "properties": {
-      "port": {
+      "includeRemovedApps": {
+        "type": "boolean",
+        "description": "Whether removed apps are included in application reports."
+      }
+    }
+  },
+  "ApplicationSigningKeyCert": {
+    "properties": {
+      "signingKeyCertFingerprintSha256": {
+        "type": "string",
+        "format": "byte",
+        "description": "The SHA-256 hash value of the signing key certificate of the app. This must be a valid SHA-256 hash value, i.e."
+      }
+    }
+  },
+  "BlockAction": {
+    "properties": {
+      "blockAfterDays": {
         "type": "integer",
         "format": "int32",
-        "description": "The port of the direct proxy."
+        "description": "Number of days the policy is non-compliant before the device or work profile is blocked. To block access immediately, set to 0. blockAfterDays must be less than wipeAfterDays."
       },
-      "excludedHosts": {
+      "blockScope": {
+        "type": "string",
+        "enum": [
+          "BLOCK_SCOPE_UNSPECIFIED",
+          "BLOCK_SCOPE_WORK_PROFILE",
+          "BLOCK_SCOPE_DEVICE"
+        ],
+        "description": "Specifies the scope of this BlockAction. Only applicable to devices that are company-owned."
+      }
+    }
+  },
+  "ChoosePrivateKeyRule": {
+    "properties": {
+      "packageNames": {
         "type": "array",
         "items": {
           "type": "string"
         },
-        "description": "For a direct proxy, the hosts for which the proxy is bypassed."
+        "description": "The package names to which this rule applies. The signing key certificate fingerprint of the app is verified against the signing key certificate fingerprints provided by Play Store and ApplicationPolicy.signingKeyCerts ."
       },
-      "pacUri": {
+      "privateKeyAlias": {
         "type": "string",
-        "description": "The URI of the PAC script used to configure the proxy."
+        "description": "The alias of the private key to be used."
       },
-      "host": {
+      "urlPattern": {
         "type": "string",
-        "description": "The host of the direct proxy."
+        "description": "The URL pattern to match against the URL of the request. If not set or empty, it matches all URLs."
       }
     }
   },
-  "UserFacingMessage": {
+  "ComplianceRule": {
     "properties": {
-      "defaultMessage": {
-        "type": "string",
-        "description": "The default message displayed if no localized message is specified or the user's locale doesn't match with any of the localized messages."
+      "apiLevelCondition": {
+        "$ref": "ApiLevelCondition",
+        "description": "A condition which is satisfied if the Android Framework API level on the device doesn't meet a minimum requirement."
       },
-      "localizedMessages": {
-        "type": "object",
-        "description": "A map containing pairs, where locale is a well-formed BCP 47 language (https://www.w3.org/International/articles/language-tags/) code, such as en-US, es-ES, or fr."
+      "disableApps": {
+        "type": "boolean",
+        "description": "If set to true, the rule includes a mitigating action to disable apps so that the device is effectively disabled, but app data is preserved. If the device is running an app in locked task mode, the app will be closed and a UI showing the reason for non-compliance will be displayed."
+      },
+      "nonComplianceDetailCondition": {
+        "$ref": "NonComplianceDetailCondition",
+        "description": "A condition which is satisfied if there exists any matching NonComplianceDetail for the device."
+      },
+      "packageNamesToDisable": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "If set, the rule includes a mitigating action to disable apps specified in the list, but app data is preserved."
       }
     }
   },
-  "DisplaySettings": {
+  "ContentProviderEndpoint": {
     "properties": {
-      "screenTimeoutSettings": {
-        "$ref": "ScreenTimeoutSettings",
-        "description": "Controls the screen timeout settings."
+      "packageName": {
+        "type": "string",
+        "description": "This feature is not generally available."
       },
-      "screenBrightnessSettings": {
-        "$ref": "ScreenBrightnessSettings",
-        "description": "Controls the screen brightness settings."
+      "signingCertsSha256": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "This feature is not generally available."
+      },
+      "uri": {
+        "type": "string",
+        "description": "This feature is not generally available."
+      }
+    }
+  },
+  "CrossDevicePolicies": {
+    "properties": {
+      "nearbyAppStreaming": {
+        "type": "string",
+        "enum": [
+          "NEARBY_APP_STREAMING_UNSPECIFIED",
+          "NEARBY_APP_STREAMING_USER_CHOICE",
+          "NEARBY_APP_STREAMING_DISABLED",
+          "NEARBY_APP_STREAMING_USER_CHOICE_SAME_MANAGED_ACCOUNT"
+        ],
+        "description": "Manages video streaming of apps on the device for fully managed devices or in the work profile for devices with work profiles to nearby devices. This is supported on Android 13 and above."
+      },
+      "nearbyNotificationStreaming": {
+        "type": "string",
+        "enum": [
+          "NEARBY_NOTIFICATION_STREAMING_UNSPECIFIED",
+          "NEARBY_NOTIFICATION_STREAMING_USER_CHOICE",
+          "NEARBY_NOTIFICATION_STREAMING_DISABLED",
+          "NEARBY_NOTIFICATION_STREAMING_USER_CHOICE_SAME_MANAGED_ACCOUNT"
+        ],
+        "description": "Manages streaming of notifications from apps on the device for fully managed devices or in the work profile for devices with work profiles to nearby devices. This is supported on Android 13 and above."
+      },
+      "taskContinuityHandoff": {
+        "type": "string",
+        "enum": [
+          "TASK_CONTINUITY_HANDOFF_UNSPECIFIED",
+          "TASK_CONTINUITY_HANDOFF_ALLOWED",
+          "TASK_CONTINUITY_HANDOFF_DISALLOWED"
+        ],
+        "description": "Controls the task continuity handoff (https://developer.android.com/partners/android-17/features#handoff) feature. This policy applies to the entire device for fully managed devices, and to the work profile for devices with a work profile."
+      }
+    }
+  },
+  "CrossProfilePolicies": {
+    "properties": {
+      "crossProfileAppFunctions": {
+        "type": "string",
+        "enum": [
+          "CROSS_PROFILE_APP_FUNCTIONS_UNSPECIFIED",
+          "CROSS_PROFILE_APP_FUNCTIONS_DISALLOWED",
+          "CROSS_PROFILE_APP_FUNCTIONS_ALLOWED"
+        ],
+        "description": "Controls whether personal profile apps can invoke app functions exposed by apps in the work profile."
+      },
+      "crossProfileCopyPaste": {
+        "type": "string",
+        "enum": [
+          "CROSS_PROFILE_COPY_PASTE_UNSPECIFIED",
+          "COPY_FROM_WORK_TO_PERSONAL_DISALLOWED",
+          "CROSS_PROFILE_COPY_PASTE_ALLOWED"
+        ],
+        "description": "Whether text copied from one profile (personal or work) can be pasted in the other profile."
+      },
+      "crossProfileDataSharing": {
+        "type": "string",
+        "enum": [
+          "CROSS_PROFILE_DATA_SHARING_UNSPECIFIED",
+          "CROSS_PROFILE_DATA_SHARING_DISALLOWED",
+          "DATA_SHARING_FROM_WORK_TO_PERSONAL_DISALLOWED",
+          "CROSS_PROFILE_DATA_SHARING_ALLOWED"
+        ],
+        "description": "Whether data from one profile (personal or work) can be shared with apps in the other profile. Specifically controls simple data sharing via intents."
+      },
+      "exemptionsToShowWorkContactsInPersonalProfile": {
+        "$ref": "PackageNameList",
+        "description": "List of apps which are excluded from the ShowWorkContactsInPersonalProfile setting. For this to be set, ShowWorkContactsInPersonalProfile must be set to one of the following values: SHOW_WORK_CONTACTS_IN_PERSONAL_PROFILE_ALLOWED."
+      },
+      "showWorkContactsInPersonalProfile": {
+        "type": "string",
+        "enum": [
+          "SHOW_WORK_CONTACTS_IN_PERSONAL_PROFILE_UNSPECIFIED",
+          "SHOW_WORK_CONTACTS_IN_PERSONAL_PROFILE_DISALLOWED",
+          "SHOW_WORK_CONTACTS_IN_PERSONAL_PROFILE_ALLOWED",
+          "SHOW_WORK_CONTACTS_IN_PERSONAL_PROFILE_DISALLOWED_EXCEPT_SYSTEM"
+        ],
+        "description": "Whether personal apps can access contacts stored in the work profile. See also exemptions_to_show_work_contacts_in_personal_profile."
+      },
+      "workProfileWidgetsDefault": {
+        "type": "string",
+        "enum": [
+          "WORK_PROFILE_WIDGETS_DEFAULT_UNSPECIFIED",
+          "WORK_PROFILE_WIDGETS_DEFAULT_ALLOWED",
+          "WORK_PROFILE_WIDGETS_DEFAULT_DISALLOWED"
+        ],
+        "description": "Specifies the default behaviour for work profile widgets. If the policy does not specify work_profile_widgets for a specific application, it will behave according to the value specified here."
+      }
+    }
+  },
+  "CustomAppConfig": {
+    "properties": {
+      "userUninstallSettings": {
+        "type": "string",
+        "enum": [
+          "USER_UNINSTALL_SETTINGS_UNSPECIFIED",
+          "DISALLOW_UNINSTALL_BY_USER",
+          "ALLOW_UNINSTALL_BY_USER"
+        ],
+        "description": "User uninstall settings of the custom app."
+      }
+    }
+  },
+  "Date": {
+    "properties": {
+      "day": {
+        "type": "integer",
+        "format": "int32",
+        "description": "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant."
+      },
+      "month": {
+        "type": "integer",
+        "format": "int32",
+        "description": "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day."
+      },
+      "year": {
+        "type": "integer",
+        "format": "int32",
+        "description": "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year."
+      }
+    }
+  },
+  "DefaultApplication": {
+    "properties": {
+      "packageName": {
+        "type": "string",
+        "description": "The package name that should be set as the default application. The policy is rejected if the package name is invalid."
       }
     }
   },
   "DefaultApplicationSetting": {
     "properties": {
-      "defaultApplications": {
-        "type": "array",
-        "items": {
-          "$ref": "DefaultApplication"
-        },
-        "description": "The list of applications that can be set as the default app for a given type."
-      },
       "defaultApplicationScopes": {
         "type": "array",
         "items": {
@@ -711,7 +1296,7 @@
             "SCOPE_PERSONAL_PROFILE"
           ]
         },
-        "description": "The scopes to which the policy should be applied."
+        "description": "The scopes to which the policy should be applied. This list must not be empty or contain duplicates."
       },
       "defaultApplicationType": {
         "type": "string",
@@ -727,150 +1312,98 @@
           "DEFAULT_WALLET"
         ],
         "description": "The app type to set the default application."
-      }
-    }
-  },
-  "StatusReportingSettings": {
-    "properties": {
-      "applicationReportingSettings": {
-        "$ref": "ApplicationReportingSettings",
-        "description": "Application reporting settings."
       },
-      "applicationReportsEnabled": {
-        "type": "boolean",
-        "description": "Whether app reports are enabled."
-      },
-      "powerManagementEventsEnabled": {
-        "type": "boolean",
-        "description": "Whether power management event reporting is enabled."
-      },
-      "deviceSettingsEnabled": {
-        "type": "boolean",
-        "description": "Whether device settings reporting is enabled."
-      },
-      "hardwareStatusEnabled": {
-        "type": "boolean",
-        "description": "Whether hardware status reporting is enabled."
-      },
-      "networkInfoEnabled": {
-        "type": "boolean",
-        "description": "Whether network info reporting is enabled."
-      },
-      "commonCriteriaModeEnabled": {
-        "type": "boolean",
-        "description": "Whether Common Criteria Mode reporting is enabled."
-      },
-      "systemPropertiesEnabled": {
-        "type": "boolean",
-        "description": "Whether system properties reporting is enabled."
-      },
-      "softwareInfoEnabled": {
-        "type": "boolean",
-        "description": "Whether software info reporting is enabled."
-      },
-      "defaultApplicationInfoReportingEnabled": {
-        "type": "boolean",
-        "description": "Whether defaultApplicationInfo reporting is enabled."
-      },
-      "memoryInfoEnabled": {
-        "type": "boolean",
-        "description": "Whether memory event reporting is enabled."
-      },
-      "displayInfoEnabled": {
-        "type": "boolean",
-        "description": "Whether displays reporting is enabled."
-      }
-    }
-  },
-  "KioskCustomization": {
-    "properties": {
-      "deviceSettings": {
-        "type": "string",
-        "enum": [
-          "DEVICE_SETTINGS_UNSPECIFIED",
-          "SETTINGS_ACCESS_ALLOWED",
-          "SETTINGS_ACCESS_BLOCKED"
-        ],
-        "description": "Specifies whether the Settings app is allowed in kiosk mode."
-      },
-      "systemNavigation": {
-        "type": "string",
-        "enum": [
-          "SYSTEM_NAVIGATION_UNSPECIFIED",
-          "NAVIGATION_ENABLED",
-          "NAVIGATION_DISABLED",
-          "HOME_BUTTON_ONLY"
-        ],
-        "description": "Specifies which navigation features are enabled (e.g."
-      },
-      "powerButtonActions": {
-        "type": "string",
-        "enum": [
-          "POWER_BUTTON_ACTIONS_UNSPECIFIED",
-          "POWER_BUTTON_AVAILABLE",
-          "POWER_BUTTON_BLOCKED"
-        ],
-        "description": "Sets the behavior of a device in kiosk mode when a user presses and holds (long-presses) the Power button."
-      },
-      "systemErrorWarnings": {
-        "type": "string",
-        "enum": [
-          "SYSTEM_ERROR_WARNINGS_UNSPECIFIED",
-          "ERROR_AND_WARNINGS_ENABLED",
-          "ERROR_AND_WARNINGS_MUTED"
-        ],
-        "description": "Specifies whether system error dialogs for crashed or unresponsive apps are blocked in kiosk mode."
-      },
-      "statusBar": {
-        "type": "string",
-        "enum": [
-          "STATUS_BAR_UNSPECIFIED",
-          "NOTIFICATIONS_AND_SYSTEM_INFO_ENABLED",
-          "NOTIFICATIONS_AND_SYSTEM_INFO_DISABLED",
-          "SYSTEM_INFO_ONLY"
-        ],
-        "description": "Specifies whether system info and notifications are disabled in kiosk mode."
-      }
-    }
-  },
-  "UsageLog": {
-    "properties": {
-      "enabledLogTypes": {
+      "defaultApplications": {
         "type": "array",
         "items": {
-          "type": "string",
-          "enum": [
-            "LOG_TYPE_UNSPECIFIED",
-            "SECURITY_LOGS",
-            "NETWORK_ACTIVITY_LOGS"
-          ]
+          "$ref": "DefaultApplication"
         },
-        "description": "Specifies which log types are enabled."
+        "description": "The list of applications that can be set as the default app for a given type. This list must not be empty or contain duplicates. The signing key certificate fingerprint of the app on the device must also match one of the signing key certificate fingerprints obtained from Play Store or one of the entries in ApplicationPolicy.signingKeyCerts in order to be set as the default. If the defaultApplicationScopes contains SCOPE_FULLY_MANAGED or SCOPE_WORK_PROFILE, the app must have an entry in applications with installType set to a value other than BLOCKED.A NonComplianceDetail with APP_NOT_INSTALLED reason and DEFAULT_APPLICATION_SETTING_FAILED_FOR_SCOPE specific reason is reported if none of the apps in the list are installed."
+      }
+    }
+  },
+  "DeviceConnectivityManagement": {
+    "properties": {
+      "apnPolicy": {
+        "$ref": "ApnPolicy",
+        "description": "Access Point Name (APN) policy. Configuration for Access Point Names (APNs) which may override any other APNs on the device. See OVERRIDE_APNS_ENABLED and overrideApns for details."
       },
-      "uploadOnCellularAllowed": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "enum": [
-            "LOG_TYPE_UNSPECIFIED",
-            "SECURITY_LOGS",
-            "NETWORK_ACTIVITY_LOGS"
-          ]
-        },
-        "description": "Specifies which of the enabled log types can be uploaded over mobile data."
+      "bluetoothSharing": {
+        "type": "string",
+        "enum": [
+          "BLUETOOTH_SHARING_UNSPECIFIED",
+          "BLUETOOTH_SHARING_ALLOWED",
+          "BLUETOOTH_SHARING_DISALLOWED"
+        ],
+        "description": "Controls whether Bluetooth sharing is allowed."
+      },
+      "configureWifi": {
+        "type": "string",
+        "enum": [
+          "CONFIGURE_WIFI_UNSPECIFIED",
+          "ALLOW_CONFIGURING_WIFI",
+          "DISALLOW_ADD_WIFI_CONFIG",
+          "DISALLOW_CONFIGURING_WIFI"
+        ],
+        "description": "Controls Wi-Fi configuring privileges. Based on the option set, user will have either full or limited or no control in configuring Wi-Fi networks."
+      },
+      "preferentialNetworkServiceSettings": {
+        "$ref": "PreferentialNetworkServiceSettings",
+        "description": "Preferential network service configuration. Setting this field will override preferentialNetworkService."
+      },
+      "privateDnsSettings": {
+        "$ref": "PrivateDnsSettings",
+        "description": "The global private DNS settings."
+      },
+      "tetheringSettings": {
+        "type": "string",
+        "enum": [
+          "TETHERING_SETTINGS_UNSPECIFIED",
+          "ALLOW_ALL_TETHERING",
+          "DISALLOW_WIFI_TETHERING",
+          "DISALLOW_ALL_TETHERING"
+        ],
+        "description": "Controls tethering settings. Based on the value set, the user is partially or fully disallowed from using different forms of tethering."
+      },
+      "usbDataAccess": {
+        "type": "string",
+        "enum": [
+          "USB_DATA_ACCESS_UNSPECIFIED",
+          "ALLOW_USB_DATA_TRANSFER",
+          "DISALLOW_USB_FILE_TRANSFER",
+          "DISALLOW_USB_DATA_TRANSFER"
+        ],
+        "description": "Controls what files and/or data can be transferred via USB. Supported only on company-owned devices."
+      },
+      "wifiDirectSettings": {
+        "type": "string",
+        "enum": [
+          "WIFI_DIRECT_SETTINGS_UNSPECIFIED",
+          "ALLOW_WIFI_DIRECT",
+          "DISALLOW_WIFI_DIRECT"
+        ],
+        "description": "Controls configuring and using Wi-Fi direct settings. Supported on company-owned devices running Android 13 and above."
+      },
+      "wifiRoamingPolicy": {
+        "$ref": "WifiRoamingPolicy",
+        "description": "Wi-Fi roaming policy."
+      },
+      "wifiSsidPolicy": {
+        "$ref": "WifiSsidPolicy",
+        "description": "Restrictions on which Wi-Fi SSIDs the device can connect to. Note that this does not affect which networks can be configured on the device."
       }
     }
   },
   "DeviceRadioState": {
     "properties": {
-      "userInitiatedAddEsimSettings": {
+      "airplaneModeState": {
         "type": "string",
         "enum": [
-          "USER_INITIATED_ADD_ESIM_SETTINGS_UNSPECIFIED",
-          "USER_INITIATED_ADD_ESIM_ALLOWED",
-          "USER_INITIATED_ADD_ESIM_DISALLOWED"
+          "AIRPLANE_MODE_STATE_UNSPECIFIED",
+          "AIRPLANE_MODE_USER_CHOICE",
+          "AIRPLANE_MODE_DISABLED"
         ],
-        "description": "Controls whether the user is allowed to add eSIM profiles."
+        "description": "Controls whether airplane mode can be toggled by the user or not."
       },
       "cellularTwoGState": {
         "type": "string",
@@ -901,6 +1434,15 @@
         ],
         "description": "Controls the state of the ultra wideband setting and whether the user can toggle it on or off."
       },
+      "userInitiatedAddEsimSettings": {
+        "type": "string",
+        "enum": [
+          "USER_INITIATED_ADD_ESIM_SETTINGS_UNSPECIFIED",
+          "USER_INITIATED_ADD_ESIM_ALLOWED",
+          "USER_INITIATED_ADD_ESIM_DISALLOWED"
+        ],
+        "description": "Controls whether the user is allowed to add eSIM profiles."
+      },
       "wifiState": {
         "type": "string",
         "enum": [
@@ -910,822 +1452,35 @@
           "WIFI_DISABLED"
         ],
         "description": "Controls current state of Wi-Fi and if user can change its state."
-      },
-      "airplaneModeState": {
-        "type": "string",
-        "enum": [
-          "AIRPLANE_MODE_STATE_UNSPECIFIED",
-          "AIRPLANE_MODE_USER_CHOICE",
-          "AIRPLANE_MODE_DISABLED"
-        ],
-        "description": "Controls whether airplane mode can be toggled by the user or not."
       }
     }
   },
-  "PersistentPreferredActivity": {
+  "DisplaySettings": {
     "properties": {
-      "categories": {
-        "type": "array",
-        "items": {
-          "type": "string"
-        },
-        "description": "The intent categories to match in the filter."
+      "screenBrightnessSettings": {
+        "$ref": "ScreenBrightnessSettings",
+        "description": "Controls the screen brightness settings."
       },
-      "actions": {
-        "type": "array",
-        "items": {
-          "type": "string"
-        },
-        "description": "The intent actions to match in the filter. If no actions are included, the intent action is ignored."
-      },
-      "receiverActivity": {
-        "type": "string",
-        "description": "The activity that should be the default intent handler."
+      "screenTimeoutSettings": {
+        "$ref": "ScreenTimeoutSettings",
+        "description": "Controls the screen timeout settings."
       }
     }
   },
-  "SystemUpdate": {
+  "ExtensionConfig": {
     "properties": {
-      "startMinutes": {
-        "type": "integer",
-        "format": "int32",
-        "description": "If the type is WINDOWED, the start of the maintenance window, measured as the number of minutes after midnight in the device's local time."
-      },
-      "freezePeriods": {
-        "type": "array",
-        "items": {
-          "$ref": "FreezePeriod"
-        },
-        "description": "An annually repeating time period in which over-the-air (OTA) system updates are postponed to freeze the OS version running on a device."
-      },
-      "type": {
+      "notificationReceiver": {
         "type": "string",
-        "enum": [
-          "SYSTEM_UPDATE_TYPE_UNSPECIFIED",
-          "AUTOMATIC",
-          "WINDOWED",
-          "POSTPONE"
-        ],
-        "description": "The type of system update to configure."
-      },
-      "endMinutes": {
-        "type": "integer",
-        "format": "int32",
-        "description": "If the type is WINDOWED, the end of the maintenance window, measured as the number of minutes after midnight in device's local time."
-      }
-    }
-  },
-  "PersonalUsagePolicies": {
-    "properties": {
-      "crossDevicePolicies": {
-        "$ref": "PersonalCrossDevicePolicies",
-        "description": "Policies controlling cross-device communication in the personal profile."
-      },
-      "cameraDisabled": {
-        "type": "boolean",
-        "description": "If true, the camera is disabled on the personal profile."
-      },
-      "accountTypesWithManagementDisabled": {
-        "type": "array",
-        "items": {
-          "type": "string"
-        },
-        "description": "Account types that can't be managed by the user."
-      },
-      "personalApplications": {
-        "type": "array",
-        "items": {
-          "$ref": "PersonalApplicationPolicy"
-        },
-        "description": "Policy applied to applications in the personal profile."
-      },
-      "bluetoothSharing": {
-        "type": "string",
-        "enum": [
-          "BLUETOOTH_SHARING_UNSPECIFIED",
-          "BLUETOOTH_SHARING_ALLOWED",
-          "BLUETOOTH_SHARING_DISALLOWED"
-        ],
-        "description": "Whether bluetooth sharing is allowed."
-      },
-      "privateSpacePolicy": {
-        "type": "string",
-        "enum": [
-          "PRIVATE_SPACE_POLICY_UNSPECIFIED",
-          "PRIVATE_SPACE_ALLOWED",
-          "PRIVATE_SPACE_DISALLOWED"
-        ],
-        "description": "Controls whether a private space is allowed on the device."
-      },
-      "personalPlayStoreMode": {
-        "type": "string",
-        "enum": [
-          "PLAY_STORE_MODE_UNSPECIFIED",
-          "BLACKLIST",
-          "BLOCKLIST",
-          "ALLOWLIST"
-        ],
-        "description": "Used together with personalApplications to control how apps in the personal profile are allowed or blocked."
-      },
-      "screenCaptureDisabled": {
-        "type": "boolean",
-        "description": "If true, screen capture is disabled for all users."
-      },
-      "maxDaysWithWorkOff": {
-        "type": "integer",
-        "format": "int32",
-        "description": "Controls how long the work profile can stay off."
-      }
-    }
-  },
-  "PolicyEnforcementRule": {
-    "properties": {
-      "settingName": {
-        "type": "string",
-        "description": "The top-level policy to enforce."
-      },
-      "blockAction": {
-        "$ref": "BlockAction",
-        "description": "An action to block access to apps and data on a company owned device or in a work profile."
-      },
-      "wipeAction": {
-        "$ref": "WipeAction",
-        "description": "An action to reset a company owned device or delete a work profile."
-      }
-    }
-  },
-  "DeviceConnectivityManagement": {
-    "properties": {
-      "usbDataAccess": {
-        "type": "string",
-        "enum": [
-          "USB_DATA_ACCESS_UNSPECIFIED",
-          "ALLOW_USB_DATA_TRANSFER",
-          "DISALLOW_USB_FILE_TRANSFER",
-          "DISALLOW_USB_DATA_TRANSFER"
-        ],
-        "description": "Controls what files and/or data can be transferred via USB."
-      },
-      "bluetoothSharing": {
-        "type": "string",
-        "enum": [
-          "BLUETOOTH_SHARING_UNSPECIFIED",
-          "BLUETOOTH_SHARING_ALLOWED",
-          "BLUETOOTH_SHARING_DISALLOWED"
-        ],
-        "description": "Controls whether Bluetooth sharing is allowed."
-      },
-      "apnPolicy": {
-        "$ref": "ApnPolicy",
-        "description": "Access Point Name (APN) policy. Configuration for Access Point Names (APNs) which may override any other APNs on the device. See OVERRIDE_APNS_ENABLED and overrideApns for details."
-      },
-      "preferentialNetworkServiceSettings": {
-        "$ref": "PreferentialNetworkServiceSettings",
-        "description": "Preferential network service configuration. Setting this field will override preferentialNetworkService."
-      },
-      "privateDnsSettings": {
-        "$ref": "PrivateDnsSettings",
-        "description": "The global private DNS settings."
-      },
-      "tetheringSettings": {
-        "type": "string",
-        "enum": [
-          "TETHERING_SETTINGS_UNSPECIFIED",
-          "ALLOW_ALL_TETHERING",
-          "DISALLOW_WIFI_TETHERING",
-          "DISALLOW_ALL_TETHERING"
-        ],
-        "description": "Controls tethering settings."
-      },
-      "wifiDirectSettings": {
-        "type": "string",
-        "enum": [
-          "WIFI_DIRECT_SETTINGS_UNSPECIFIED",
-          "ALLOW_WIFI_DIRECT",
-          "DISALLOW_WIFI_DIRECT"
-        ],
-        "description": "Controls configuring and using Wi-Fi direct settings."
-      },
-      "wifiRoamingPolicy": {
-        "$ref": "WifiRoamingPolicy",
-        "description": "Wi-Fi roaming policy."
-      },
-      "wifiSsidPolicy": {
-        "$ref": "WifiSsidPolicy",
-        "description": "Restrictions on which Wi-Fi SSIDs the device can connect to."
-      },
-      "configureWifi": {
-        "type": "string",
-        "enum": [
-          "CONFIGURE_WIFI_UNSPECIFIED",
-          "ALLOW_CONFIGURING_WIFI",
-          "DISALLOW_ADD_WIFI_CONFIG",
-          "DISALLOW_CONFIGURING_WIFI"
-        ],
-        "description": "Controls Wi-Fi configuring privileges."
-      }
-    }
-  },
-  "ChoosePrivateKeyRule": {
-    "properties": {
-      "urlPattern": {
-        "type": "string",
-        "description": "The URL pattern to match against the URL of the request."
-      },
-      "privateKeyAlias": {
-        "type": "string",
-        "description": "The alias of the private key to be used."
-      },
-      "packageNames": {
-        "type": "array",
-        "items": {
-          "type": "string"
-        },
-        "description": "The package names to which this rule applies."
-      }
-    }
-  },
-  "AdvancedSecurityOverrides": {
-    "properties": {
-      "developerSettings": {
-        "type": "string",
-        "enum": [
-          "DEVELOPER_SETTINGS_UNSPECIFIED",
-          "DEVELOPER_SETTINGS_DISABLED",
-          "DEVELOPER_SETTINGS_ALLOWED"
-        ],
-        "description": "Controls access to developer settings: developer options and safe boot. Replaces safeBootDisabled (deprecated) and debuggingFeaturesAllowed (deprecated)."
-      },
-      "mtePolicy": {
-        "type": "string",
-        "enum": [
-          "MTE_POLICY_UNSPECIFIED",
-          "MTE_USER_CHOICE",
-          "MTE_ENFORCED",
-          "MTE_DISABLED"
-        ],
-        "description": "Controls Memory Tagging Extension (MTE) (https://source.android.com/docs/security/test/memory-safety/arm-mte) on the device."
-      },
-      "contentProtectionPolicy": {
-        "type": "string",
-        "enum": [
-          "CONTENT_PROTECTION_POLICY_UNSPECIFIED",
-          "CONTENT_PROTECTION_DISABLED",
-          "CONTENT_PROTECTION_ENFORCED",
-          "CONTENT_PROTECTION_USER_CHOICE"
-        ],
-        "description": "Controls whether content protection, which scans for deceptive apps, is enabled."
-      },
-      "personalAppsThatCanReadWorkNotifications": {
-        "type": "array",
-        "items": {
-          "type": "string"
-        },
-        "description": "Personal apps that can read work profile notifications using a NotificationListenerService (https://developer.android.com/reference/android/service/notification/NotificationListenerService)."
-      },
-      "untrustedAppsPolicy": {
-        "type": "string",
-        "enum": [
-          "UNTRUSTED_APPS_POLICY_UNSPECIFIED",
-          "DISALLOW_INSTALL",
-          "ALLOW_INSTALL_IN_PERSONAL_PROFILE_ONLY",
-          "ALLOW_INSTALL_DEVICE_WIDE"
-        ],
-        "description": "The policy for untrusted apps (apps from unknown sources) enforced on the device. Replaces install_unknown_sources_allowed (deprecated)."
-      },
-      "commonCriteriaMode": {
-        "type": "string",
-        "enum": [
-          "COMMON_CRITERIA_MODE_UNSPECIFIED",
-          "COMMON_CRITERIA_MODE_DISABLED",
-          "COMMON_CRITERIA_MODE_ENABLED"
-        ],
-        "description": "Controls Common Criteria Mode—security standards defined in the Common Criteria for Information Technology Security Evaluation (https://www.commoncriteriaportal.org/) (CC). Standard device use may be affected."
-      },
-      "googlePlayProtectVerifyApps": {
-        "type": "string",
-        "enum": [
-          "GOOGLE_PLAY_PROTECT_VERIFY_APPS_UNSPECIFIED",
-          "VERIFY_APPS_ENFORCED",
-          "VERIFY_APPS_USER_CHOICE"
-        ],
-        "description": "Whether Google Play Protect verification (https://support.google.com/accounts/answer/2812853) is enforced. Replaces ensureVerifyAppsEnabled (deprecated)."
-      }
-    }
-  },
-  "SetupAction": {
-    "properties": {
-      "launchApp": {
-        "$ref": "LaunchAppAction",
-        "description": "An action to launch an app."
-      },
-      "description": {
-        "$ref": "UserFacingMessage",
-        "description": "Description of this action."
-      },
-      "title": {
-        "$ref": "UserFacingMessage",
-        "description": "Title of this action."
-      }
-    }
-  },
-  "WorkAccountSetupConfig": {
-    "properties": {
-      "requiredAccountEmail": {
-        "type": "string",
-        "description": "The specific google work account email address to be added. Once set and a Google authenticated account is added to the device, changing this field will have no effect, and thus recommended to be set only once."
-      },
-      "authenticationType": {
-        "type": "string",
-        "enum": [
-          "AUTHENTICATION_TYPE_UNSPECIFIED",
-          "AUTHENTICATION_TYPE_NOT_ENFORCED",
-          "GOOGLE_AUTHENTICATED"
-        ],
-        "description": "The authentication type of the user on the device."
-      }
-    }
-  },
-  "CrossProfilePolicies": {
-    "properties": {
-      "workProfileWidgetsDefault": {
-        "type": "string",
-        "enum": [
-          "WORK_PROFILE_WIDGETS_DEFAULT_UNSPECIFIED",
-          "WORK_PROFILE_WIDGETS_DEFAULT_ALLOWED",
-          "WORK_PROFILE_WIDGETS_DEFAULT_DISALLOWED"
-        ],
-        "description": "Specifies the default behaviour for work profile widgets."
-      },
-      "showWorkContactsInPersonalProfile": {
-        "type": "string",
-        "enum": [
-          "SHOW_WORK_CONTACTS_IN_PERSONAL_PROFILE_UNSPECIFIED",
-          "SHOW_WORK_CONTACTS_IN_PERSONAL_PROFILE_DISALLOWED",
-          "SHOW_WORK_CONTACTS_IN_PERSONAL_PROFILE_ALLOWED",
-          "SHOW_WORK_CONTACTS_IN_PERSONAL_PROFILE_DISALLOWED_EXCEPT_SYSTEM"
-        ],
-        "description": "Whether personal apps can access contacts stored in the work profile."
-      },
-      "crossProfileAppFunctions": {
-        "type": "string",
-        "enum": [
-          "CROSS_PROFILE_APP_FUNCTIONS_UNSPECIFIED",
-          "CROSS_PROFILE_APP_FUNCTIONS_DISALLOWED",
-          "CROSS_PROFILE_APP_FUNCTIONS_ALLOWED"
-        ],
-        "description": "Controls whether personal profile apps can invoke app functions exposed by apps in the work profile."
-      },
-      "exemptionsToShowWorkContactsInPersonalProfile": {
-        "$ref": "PackageNameList",
-        "description": "List of apps which are excluded from the ShowWorkContactsInPersonalProfile setting."
-      },
-      "crossProfileDataSharing": {
-        "type": "string",
-        "enum": [
-          "CROSS_PROFILE_DATA_SHARING_UNSPECIFIED",
-          "CROSS_PROFILE_DATA_SHARING_DISALLOWED",
-          "DATA_SHARING_FROM_WORK_TO_PERSONAL_DISALLOWED",
-          "CROSS_PROFILE_DATA_SHARING_ALLOWED"
-        ],
-        "description": "Whether data from one profile (personal or work) can be shared with apps in the other profile."
-      },
-      "crossProfileCopyPaste": {
-        "type": "string",
-        "enum": [
-          "CROSS_PROFILE_COPY_PASTE_UNSPECIFIED",
-          "COPY_FROM_WORK_TO_PERSONAL_DISALLOWED",
-          "CROSS_PROFILE_COPY_PASTE_ALLOWED"
-        ],
-        "description": "Whether text copied from one profile (personal or work) can be pasted in the other profile."
-      }
-    }
-  },
-  "PasswordRequirements": {
-    "properties": {
-      "maximumFailedPasswordsForWipe": {
-        "type": "integer",
-        "format": "int32",
-        "description": "Number of incorrect device-unlock passwords that can be entered before a device is wiped."
-      },
-      "unifiedLockSettings": {
-        "type": "string",
-        "enum": [
-          "UNIFIED_LOCK_SETTINGS_UNSPECIFIED",
-          "ALLOW_UNIFIED_WORK_AND_PERSONAL_LOCK",
-          "REQUIRE_SEPARATE_WORK_LOCK"
-        ],
-        "description": "Controls whether a unified lock is allowed for the device and the work profile, on devices running Android 9 and above with a work profile."
-      },
-      "passwordExpirationTimeout": {
-        "type": "string",
-        "format": "google-duration",
-        "description": "Password expiration timeout."
-      },
-      "passwordMinimumLength": {
-        "type": "integer",
-        "format": "int32",
-        "description": "The minimum allowed password length."
-      },
-      "passwordMinimumLetters": {
-        "type": "integer",
-        "format": "int32",
-        "description": "Minimum number of letters required in the password."
-      },
-      "passwordHistoryLength": {
-        "type": "integer",
-        "format": "int32",
-        "description": "The length of the password history."
-      },
-      "passwordScope": {
-        "type": "string",
-        "enum": [
-          "SCOPE_UNSPECIFIED",
-          "SCOPE_DEVICE",
-          "SCOPE_PROFILE"
-        ],
-        "description": "The scope that the password requirement applies to."
-      },
-      "passwordMinimumUpperCase": {
-        "type": "integer",
-        "format": "int32",
-        "description": "Minimum number of upper case letters required in the password."
-      },
-      "requirePasswordUnlock": {
-        "type": "string",
-        "enum": [
-          "REQUIRE_PASSWORD_UNLOCK_UNSPECIFIED",
-          "USE_DEFAULT_DEVICE_TIMEOUT",
-          "REQUIRE_EVERY_DAY"
-        ],
-        "description": "The length of time after a device or work profile is unlocked using a strong form of authentication (password, PIN, pattern) that it can be unlocked using any other authentication method (e.g."
-      },
-      "passwordQuality": {
-        "type": "string",
-        "enum": [
-          "PASSWORD_QUALITY_UNSPECIFIED",
-          "BIOMETRIC_WEAK",
-          "SOMETHING",
-          "NUMERIC",
-          "NUMERIC_COMPLEX",
-          "ALPHABETIC",
-          "ALPHANUMERIC",
-          "COMPLEX",
-          "COMPLEXITY_LOW",
-          "COMPLEXITY_MEDIUM",
-          "COMPLEXITY_HIGH"
-        ],
-        "description": "The required password quality."
-      },
-      "passwordMinimumSymbols": {
-        "type": "integer",
-        "format": "int32",
-        "description": "Minimum number of symbols required in the password."
-      },
-      "passwordMinimumNumeric": {
-        "type": "integer",
-        "format": "int32",
-        "description": "Minimum number of numerical digits required in the password."
-      },
-      "passwordMinimumNonLetter": {
-        "type": "integer",
-        "format": "int32",
-        "description": "Minimum number of non-letter characters (numerical digits or symbols) required in the password."
-      },
-      "passwordMinimumLowerCase": {
-        "type": "integer",
-        "format": "int32",
-        "description": "Minimum number of lower case letters required in the password."
-      }
-    }
-  },
-  "AlwaysOnVpnPackage": {
-    "properties": {
-      "packageName": {
-        "type": "string",
-        "description": "The package name of the VPN app."
-      },
-      "lockdownEnabled": {
-        "type": "boolean",
-        "description": "Disallows networking when the VPN is not connected."
-      }
-    }
-  },
-  "ApplicationPolicy": {
-    "properties": {
-      "customAppConfig": {
-        "$ref": "CustomAppConfig",
-        "description": "Configuration for this custom app.install_type must be set to CUSTOM for this to be set."
-      },
-      "disabled": {
-        "type": "boolean",
-        "description": "Whether the app is disabled."
-      },
-      "minimumVersionCode": {
-        "type": "integer",
-        "format": "int32",
-        "description": "The minimum version of the app that runs on the device."
-      },
-      "installConstraint": {
-        "type": "array",
-        "items": {
-          "$ref": "InstallConstraint"
-        },
-        "description": "The constraints for installing the app."
-      },
-      "alwaysOnVpnLockdownExemption": {
-        "type": "string",
-        "enum": [
-          "ALWAYS_ON_VPN_LOCKDOWN_EXEMPTION_UNSPECIFIED",
-          "VPN_LOCKDOWN_ENFORCED",
-          "VPN_LOCKDOWN_EXEMPTION"
-        ],
-        "description": "Specifies whether the app is allowed networking when the VPN is not connected and alwaysOnVpnPackage.lockdownEnabled is enabled."
-      },
-      "extensionConfig": {
-        "$ref": "ExtensionConfig",
         "deprecated": true,
-        "description": "Configuration to enable this app as an extension app, with the capability of interacting with Android Device Policy offline. The signing key certificate fingerprint of the app on the device must match one of the entries in ApplicationPolicy.signingKeyCerts or ExtensionConfig.signingKeyFingerprintsSha256 (deprecated) or the signing key certificate fingerprints obtained from Play Store for the app to be able to communicate with Android Device Policy. If the app is not on Play Store and if ApplicationPolicy.signingKeyCerts and ExtensionConfig.signingKeyFingerprintsSha256 (deprecated) are not set, a NonComplianceDetail with INVALID_VALUE is reported."
+        "description": "Fully qualified class name of the receiver service class for Android Device Policy to notify the extension app of any local command status updates. The service must be exported in the extension app's AndroidManifest.xml and extend NotificationReceiverService (https://developers.google.com/android/management/reference/amapi/com/google/android/managementapi/notification/NotificationReceiverService) (see Integrate with the AMAPI SDK (https://developers.google.com/android/management/sdk-integration) guide for more details)."
       },
-      "installType": {
-        "type": "string",
-        "enum": [
-          "INSTALL_TYPE_UNSPECIFIED",
-          "PREINSTALLED",
-          "FORCE_INSTALLED",
-          "BLOCKED",
-          "AVAILABLE",
-          "REQUIRED_FOR_SETUP",
-          "KIOSK",
-          "CUSTOM"
-        ],
-        "description": "The type of installation to perform."
-      },
-      "connectedWorkAndPersonalApp": {
-        "type": "string",
-        "enum": [
-          "CONNECTED_WORK_AND_PERSONAL_APP_UNSPECIFIED",
-          "CONNECTED_WORK_AND_PERSONAL_APP_DISALLOWED",
-          "CONNECTED_WORK_AND_PERSONAL_APP_ALLOWED"
-        ],
-        "description": "Controls whether the app can communicate with itself across a device’s work and personal profiles, subject to user consent."
-      },
-      "signingKeyCerts": {
+      "signingKeyFingerprintsSha256": {
         "type": "array",
-        "items": {
-          "$ref": "ApplicationSigningKeyCert"
-        },
-        "description": "Signing key certificates of the app. an extension app) but ExtensionConfig.signingKeyFingerprintsSha256 (deprecated) is not set and the app does not exist on the Play Store."
-      },
-      "autoUpdateMode": {
-        "type": "string",
-        "enum": [
-          "AUTO_UPDATE_MODE_UNSPECIFIED",
-          "AUTO_UPDATE_DEFAULT",
-          "AUTO_UPDATE_POSTPONED",
-          "AUTO_UPDATE_HIGH_PRIORITY"
-        ],
-        "description": "Controls the auto-update mode for the app."
-      },
-      "installPriority": {
-        "type": "integer",
-        "format": "int32",
-        "description": "Amongst apps with installType set to: FORCE_INSTALLED PREINSTALLEDthis controls the relative priority of installation."
-      },
-      "accessibleTrackIds": {
-        "type": "array",
-        "items": {
-          "type": "string"
-        },
-        "description": "List of the app’s track IDs that a device belonging to the enterprise can access."
-      },
-      "managedConfigurationTemplate": {
-        "$ref": "ManagedConfigurationTemplate",
-        "description": "The managed configurations template for the app, saved from the managed configurations iframe. This field is ignored if managed_configuration is set."
-      },
-      "permissionGrants": {
-        "type": "array",
-        "items": {
-          "$ref": "PermissionGrant"
-        },
-        "description": "Explicit permission grants or denials for the app. These values override the default_permission_policy and permission_grants which apply to all apps."
-      },
-      "userControlSettings": {
-        "type": "string",
-        "enum": [
-          "USER_CONTROL_SETTINGS_UNSPECIFIED",
-          "USER_CONTROL_ALLOWED",
-          "USER_CONTROL_DISALLOWED"
-        ],
-        "description": "Specifies whether user control is permitted for the app."
-      },
-      "lockTaskAllowed": {
-        "type": "boolean",
         "deprecated": true,
-        "description": "Whether the app is allowed to lock itself in full-screen mode. DEPRECATED. Use InstallType KIOSK or kioskCustomLauncherEnabled to configure a dedicated device."
-      },
-      "packageName": {
-        "type": "string",
-        "description": "The package name of the app."
-      },
-      "preferentialNetworkId": {
-        "type": "string",
-        "enum": [
-          "PREFERENTIAL_NETWORK_ID_UNSPECIFIED",
-          "NO_PREFERENTIAL_NETWORK",
-          "PREFERENTIAL_NETWORK_ID_ONE",
-          "PREFERENTIAL_NETWORK_ID_TWO",
-          "PREFERENTIAL_NETWORK_ID_THREE",
-          "PREFERENTIAL_NETWORK_ID_FOUR",
-          "PREFERENTIAL_NETWORK_ID_FIVE"
-        ],
-        "description": "ID of the preferential network the application uses. If set to PREFERENTIAL_NETWORK_ID_UNSPECIFIED, the application will use the default network ID specified in defaultPreferentialNetworkId."
-      },
-      "credentialProviderPolicy": {
-        "type": "string",
-        "enum": [
-          "CREDENTIAL_PROVIDER_POLICY_UNSPECIFIED",
-          "CREDENTIAL_PROVIDER_ALLOWED",
-          "CREDENTIAL_PROVIDER_DISALLOWED"
-        ],
-        "description": "Whether the app is allowed to act as a credential provider on Android 14 and above."
-      },
-      "delegatedScopes": {
-        "type": "array",
-        "items": {
-          "type": "string",
-          "enum": [
-            "DELEGATED_SCOPE_UNSPECIFIED",
-            "CERT_INSTALL",
-            "MANAGED_CONFIGURATIONS",
-            "BLOCK_UNINSTALL",
-            "PERMISSION_GRANT",
-            "PACKAGE_ACCESS",
-            "ENABLE_SYSTEM_APP",
-            "NETWORK_ACTIVITY_LOGS",
-            "SECURITY_LOGS",
-            "CERT_SELECTION"
-          ]
-        },
-        "description": "The scopes delegated to the app from Android Device Policy."
-      },
-      "workProfileWidgets": {
-        "type": "string",
-        "enum": [
-          "WORK_PROFILE_WIDGETS_UNSPECIFIED",
-          "WORK_PROFILE_WIDGETS_ALLOWED",
-          "WORK_PROFILE_WIDGETS_DISALLOWED"
-        ],
-        "description": "Specifies whether the app installed in the work profile is allowed to add widgets to the home screen."
-      },
-      "roles": {
-        "type": "array",
-        "items": {
-          "$ref": "Role"
-        },
-        "description": "Roles the app has. The app can use this notification to bootstrap itself after the installation."
-      },
-      "managedConfiguration": {
-        "type": "object",
-        "description": "Managed configuration applied to the app."
-      },
-      "defaultPermissionPolicy": {
-        "type": "string",
-        "enum": [
-          "PERMISSION_POLICY_UNSPECIFIED",
-          "PROMPT",
-          "GRANT",
-          "DENY"
-        ],
-        "description": "The default policy for all permissions requested by the app. If specified, this overrides the policy-level default_permission_policy which applies to all apps. It does not override the permission_grants which applies to all apps."
-      }
-    }
-  },
-  "CrossDevicePolicies": {
-    "properties": {
-      "taskContinuityHandoff": {
-        "type": "string",
-        "enum": [
-          "TASK_CONTINUITY_HANDOFF_UNSPECIFIED",
-          "TASK_CONTINUITY_HANDOFF_ALLOWED",
-          "TASK_CONTINUITY_HANDOFF_DISALLOWED"
-        ],
-        "description": "Controls the task continuity handoff (https://developer.android.com/partners/android-17/features#handoff) feature."
-      },
-      "nearbyAppStreaming": {
-        "type": "string",
-        "enum": [
-          "NEARBY_APP_STREAMING_UNSPECIFIED",
-          "NEARBY_APP_STREAMING_USER_CHOICE",
-          "NEARBY_APP_STREAMING_DISABLED",
-          "NEARBY_APP_STREAMING_USER_CHOICE_SAME_MANAGED_ACCOUNT"
-        ],
-        "description": "Manages video streaming of apps on the device for fully managed devices or in the work profile for devices with work profiles to nearby devices."
-      },
-      "nearbyNotificationStreaming": {
-        "type": "string",
-        "enum": [
-          "NEARBY_NOTIFICATION_STREAMING_UNSPECIFIED",
-          "NEARBY_NOTIFICATION_STREAMING_USER_CHOICE",
-          "NEARBY_NOTIFICATION_STREAMING_DISABLED",
-          "NEARBY_NOTIFICATION_STREAMING_USER_CHOICE_SAME_MANAGED_ACCOUNT"
-        ],
-        "description": "Manages streaming of notifications from apps on the device for fully managed devices or in the work profile for devices with work profiles to nearby devices."
-      }
-    }
-  },
-  "ComplianceRule": {
-    "properties": {
-      "packageNamesToDisable": {
-        "type": "array",
         "items": {
           "type": "string"
         },
-        "description": "If set, the rule includes a mitigating action to disable apps specified in the list, but app data is preserved."
-      },
-      "disableApps": {
-        "type": "boolean",
-        "description": "If set to true, the rule includes a mitigating action to disable apps so that the device is effectively disabled, but app data is preserved."
-      },
-      "apiLevelCondition": {
-        "$ref": "ApiLevelCondition",
-        "description": "A condition which is satisfied if the Android Framework API level on the device doesn't meet a minimum requirement."
-      },
-      "nonComplianceDetailCondition": {
-        "$ref": "NonComplianceDetailCondition",
-        "description": "A condition which is satisfied if there exists any matching NonComplianceDetail for the device."
-      }
-    }
-  },
-  "ContentProviderEndpoint": {
-    "properties": {
-      "signingCertsSha256": {
-        "type": "array",
-        "items": {
-          "type": "string"
-        },
-        "description": "This feature is not generally available."
-      },
-      "packageName": {
-        "type": "string",
-        "description": "This feature is not generally available."
-      },
-      "uri": {
-        "type": "string",
-        "description": "This feature is not generally available."
-      }
-    }
-  },
-  "ScreenTimeoutSettings": {
-    "properties": {
-      "screenTimeoutMode": {
-        "type": "string",
-        "enum": [
-          "SCREEN_TIMEOUT_MODE_UNSPECIFIED",
-          "SCREEN_TIMEOUT_USER_CHOICE",
-          "SCREEN_TIMEOUT_ENFORCED"
-        ],
-        "description": "Controls whether the user is allowed to configure the screen timeout."
-      },
-      "screenTimeout": {
-        "type": "string",
-        "format": "google-duration",
-        "description": "Controls the screen timeout duration."
-      }
-    }
-  },
-  "ScreenBrightnessSettings": {
-    "properties": {
-      "screenBrightnessMode": {
-        "type": "string",
-        "enum": [
-          "SCREEN_BRIGHTNESS_MODE_UNSPECIFIED",
-          "BRIGHTNESS_USER_CHOICE",
-          "BRIGHTNESS_AUTOMATIC",
-          "BRIGHTNESS_FIXED"
-        ],
-        "description": "Controls the screen brightness mode."
-      },
-      "screenBrightness": {
-        "type": "integer",
-        "format": "int32",
-        "description": "The screen brightness between 1 and 255 where 1 is the lowest and 255 is the highest brightness."
-      }
-    }
-  },
-  "DefaultApplication": {
-    "properties": {
-      "packageName": {
-        "type": "string",
-        "description": "The package name that should be set as the default application."
-      }
-    }
-  },
-  "ApplicationReportingSettings": {
-    "properties": {
-      "includeRemovedApps": {
-        "type": "boolean",
-        "description": "Whether removed apps are included in application reports."
+        "description": "Hex-encoded SHA-256 hashes of the signing key certificates of the extension app. Only hexadecimal string representations of 64 characters are valid. The signing key certificate fingerprint of the extension app on the device must match one of the signing key certificate fingerprints obtained from the Play Store or the ones provided in this field for the app to be able to communicate with Android Device Policy. In production use cases, it is recommended to leave this empty."
       }
     }
   },
@@ -1733,165 +1488,93 @@
     "properties": {
       "endDate": {
         "$ref": "Date",
-        "description": "The end date (inclusive) of the freeze period."
+        "description": "The end date (inclusive) of the freeze period. Must be no later than 90 days from the start date. Note: day and month must be set."
       },
       "startDate": {
         "$ref": "Date",
-        "description": "The start date (inclusive) of the freeze period."
+        "description": "The start date (inclusive) of the freeze period. Note: day and month must be set."
       }
     }
   },
-  "PersonalCrossDevicePolicies": {
+  "InstallConstraint": {
     "properties": {
-      "taskContinuityHandoff": {
+      "chargingConstraint": {
         "type": "string",
         "enum": [
-          "TASK_CONTINUITY_HANDOFF_UNSPECIFIED",
-          "TASK_CONTINUITY_HANDOFF_ALLOWED",
-          "TASK_CONTINUITY_HANDOFF_DISALLOWED"
+          "CHARGING_CONSTRAINT_UNSPECIFIED",
+          "CHARGING_NOT_REQUIRED",
+          "INSTALL_ONLY_WHEN_CHARGING"
         ],
-        "description": "Controls the task continuity handoff (https://developer.android.com/partners/android-17/features#handoff) feature for the personal profile on company-owned devices with a work profile."
-      }
-    }
-  },
-  "PersonalApplicationPolicy": {
-    "properties": {
-      "packageName": {
-        "type": "string",
-        "description": "The package name of the application."
+        "description": "Charging constraint."
       },
-      "installType": {
+      "deviceIdleConstraint": {
         "type": "string",
         "enum": [
-          "INSTALL_TYPE_UNSPECIFIED",
-          "BLOCKED",
-          "AVAILABLE"
+          "DEVICE_IDLE_CONSTRAINT_UNSPECIFIED",
+          "DEVICE_IDLE_NOT_REQUIRED",
+          "INSTALL_ONLY_WHEN_DEVICE_IDLE"
         ],
-        "description": "The type of installation to perform."
-      }
-    }
-  },
-  "BlockAction": {
-    "properties": {
-      "blockAfterDays": {
-        "type": "integer",
-        "format": "int32",
-        "description": "Number of days the policy is non-compliant before the device or work profile is blocked."
+        "description": "Device idle constraint."
       },
-      "blockScope": {
+      "networkTypeConstraint": {
         "type": "string",
         "enum": [
-          "BLOCK_SCOPE_UNSPECIFIED",
-          "BLOCK_SCOPE_WORK_PROFILE",
-          "BLOCK_SCOPE_DEVICE"
+          "NETWORK_TYPE_CONSTRAINT_UNSPECIFIED",
+          "INSTALL_ON_ANY_NETWORK",
+          "INSTALL_ONLY_ON_UNMETERED_NETWORK"
         ],
-        "description": "Specifies the scope of this BlockAction."
+        "description": "Network type constraint."
       }
     }
   },
-  "WipeAction": {
+  "KioskCustomization": {
     "properties": {
-      "wipeAfterDays": {
-        "type": "integer",
-        "format": "int32",
-        "description": "Number of days the policy is non-compliant before the device or work profile is wiped."
-      },
-      "preserveFrp": {
-        "type": "boolean",
-        "description": "Whether the factory-reset protection data is preserved on the device."
-      }
-    }
-  },
-  "ApnPolicy": {
-    "properties": {
-      "apnSettings": {
-        "type": "array",
-        "items": {
-          "$ref": "ApnSetting"
-        },
-        "description": "APN settings for override APNs. If some of the APN settings result in non-compliance of INVALID_VALUE , they will be ignored."
-      },
-      "overrideApns": {
+      "deviceSettings": {
         "type": "string",
         "enum": [
-          "OVERRIDE_APNS_UNSPECIFIED",
-          "OVERRIDE_APNS_DISABLED",
-          "OVERRIDE_APNS_ENABLED"
+          "DEVICE_SETTINGS_UNSPECIFIED",
+          "SETTINGS_ACCESS_ALLOWED",
+          "SETTINGS_ACCESS_BLOCKED"
         ],
-        "description": "Whether override APNs are disabled or enabled. See DevicePolicyManager.setOverrideApnsEnabled (https://developer.android.com/reference/android/app/admin/DevicePolicyManager#setOverrideApnsEnabled) for more details."
-      }
-    }
-  },
-  "PreferentialNetworkServiceSettings": {
-    "properties": {
-      "preferentialNetworkServiceConfigs": {
-        "type": "array",
-        "items": {
-          "$ref": "PreferentialNetworkServiceConfig"
-        },
-        "description": "Preferential network service configurations which enables having multiple enterprise slices. If a configuration is not referenced by any application by setting ApplicationPolicy.preferentialNetworkId or by setting defaultPreferentialNetworkId, it will be ignored."
+        "description": "Specifies whether the Settings app is allowed in kiosk mode."
       },
-      "defaultPreferentialNetworkId": {
+      "powerButtonActions": {
         "type": "string",
         "enum": [
-          "PREFERENTIAL_NETWORK_ID_UNSPECIFIED",
-          "NO_PREFERENTIAL_NETWORK",
-          "PREFERENTIAL_NETWORK_ID_ONE",
-          "PREFERENTIAL_NETWORK_ID_TWO",
-          "PREFERENTIAL_NETWORK_ID_THREE",
-          "PREFERENTIAL_NETWORK_ID_FOUR",
-          "PREFERENTIAL_NETWORK_ID_FIVE"
+          "POWER_BUTTON_ACTIONS_UNSPECIFIED",
+          "POWER_BUTTON_AVAILABLE",
+          "POWER_BUTTON_BLOCKED"
         ],
-        "description": "Default preferential network ID for the applications that are not in applications or if ApplicationPolicy.preferentialNetworkId is set to PREFERENTIAL_NETWORK_ID_UNSPECIFIED."
-      }
-    }
-  },
-  "PrivateDnsSettings": {
-    "properties": {
-      "privateDnsMode": {
+        "description": "Sets the behavior of a device in kiosk mode when a user presses and holds (long-presses) the Power button."
+      },
+      "statusBar": {
         "type": "string",
         "enum": [
-          "PRIVATE_DNS_MODE_UNSPECIFIED",
-          "PRIVATE_DNS_USER_CHOICE",
-          "PRIVATE_DNS_AUTOMATIC",
-          "PRIVATE_DNS_SPECIFIED_HOST"
+          "STATUS_BAR_UNSPECIFIED",
+          "NOTIFICATIONS_AND_SYSTEM_INFO_ENABLED",
+          "NOTIFICATIONS_AND_SYSTEM_INFO_DISABLED",
+          "SYSTEM_INFO_ONLY"
         ],
-        "description": "The configuration mode for device's global private DNS settings."
+        "description": "Specifies whether system info and notifications are disabled in kiosk mode."
       },
-      "privateDnsHost": {
-        "type": "string",
-        "description": "The hostname of the DNS server."
-      }
-    }
-  },
-  "WifiRoamingPolicy": {
-    "properties": {
-      "wifiRoamingSettings": {
-        "type": "array",
-        "items": {
-          "$ref": "WifiRoamingSetting"
-        },
-        "description": "Wi-Fi roaming settings."
-      }
-    }
-  },
-  "WifiSsidPolicy": {
-    "properties": {
-      "wifiSsidPolicyType": {
+      "systemErrorWarnings": {
         "type": "string",
         "enum": [
-          "WIFI_SSID_POLICY_TYPE_UNSPECIFIED",
-          "WIFI_SSID_DENYLIST",
-          "WIFI_SSID_ALLOWLIST"
+          "SYSTEM_ERROR_WARNINGS_UNSPECIFIED",
+          "ERROR_AND_WARNINGS_ENABLED",
+          "ERROR_AND_WARNINGS_MUTED"
         ],
-        "description": "Type of the Wi-Fi SSID policy to be applied."
+        "description": "Specifies whether system error dialogs for crashed or unresponsive apps are blocked in kiosk mode. When blocked, the system will force-stop the app as if the user chooses the \"close app\" option on the UI."
       },
-      "wifiSsids": {
-        "type": "array",
-        "items": {
-          "$ref": "WifiSsid"
-        },
-        "description": "List of Wi-Fi SSIDs that should be applied in the policy."
+      "systemNavigation": {
+        "type": "string",
+        "enum": [
+          "SYSTEM_NAVIGATION_UNSPECIFIED",
+          "NAVIGATION_ENABLED",
+          "NAVIGATION_DISABLED",
+          "HOME_BUTTON_ONLY"
+        ],
+        "description": "Specifies which navigation features are enabled (e.g. Home, Overview buttons) in kiosk mode."
       }
     }
   },
@@ -1903,76 +1586,6 @@
       }
     }
   },
-  "CustomAppConfig": {
-    "properties": {
-      "userUninstallSettings": {
-        "type": "string",
-        "enum": [
-          "USER_UNINSTALL_SETTINGS_UNSPECIFIED",
-          "DISALLOW_UNINSTALL_BY_USER",
-          "ALLOW_UNINSTALL_BY_USER"
-        ],
-        "description": "User uninstall settings of the custom app."
-      }
-    }
-  },
-  "InstallConstraint": {
-    "properties": {
-      "networkTypeConstraint": {
-        "type": "string",
-        "enum": [
-          "NETWORK_TYPE_CONSTRAINT_UNSPECIFIED",
-          "INSTALL_ON_ANY_NETWORK",
-          "INSTALL_ONLY_ON_UNMETERED_NETWORK"
-        ],
-        "description": "Network type constraint."
-      },
-      "deviceIdleConstraint": {
-        "type": "string",
-        "enum": [
-          "DEVICE_IDLE_CONSTRAINT_UNSPECIFIED",
-          "DEVICE_IDLE_NOT_REQUIRED",
-          "INSTALL_ONLY_WHEN_DEVICE_IDLE"
-        ],
-        "description": "Device idle constraint."
-      },
-      "chargingConstraint": {
-        "type": "string",
-        "enum": [
-          "CHARGING_CONSTRAINT_UNSPECIFIED",
-          "CHARGING_NOT_REQUIRED",
-          "INSTALL_ONLY_WHEN_CHARGING"
-        ],
-        "description": "Charging constraint."
-      }
-    }
-  },
-  "ExtensionConfig": {
-    "properties": {
-      "signingKeyFingerprintsSha256": {
-        "type": "array",
-        "deprecated": true,
-        "items": {
-          "type": "string"
-        },
-        "description": "Hex-encoded SHA-256 hashes of the signing key certificates of the extension app. In production use cases, it is recommended to leave this empty."
-      },
-      "notificationReceiver": {
-        "type": "string",
-        "deprecated": true,
-        "description": "Fully qualified class name of the receiver service class for Android Device Policy to notify the extension app of any local command status updates."
-      }
-    }
-  },
-  "ApplicationSigningKeyCert": {
-    "properties": {
-      "signingKeyCertFingerprintSha256": {
-        "type": "string",
-        "format": "byte",
-        "description": "The SHA-256 hash value of the signing key certificate of the app."
-      }
-    }
-  },
   "ManagedConfigurationTemplate": {
     "properties": {
       "configurationVariables": {
@@ -1981,40 +1594,12 @@
       },
       "templateId": {
         "type": "string",
-        "description": "The ID of the managed configurations template."
-      }
-    }
-  },
-  "Role": {
-    "properties": {
-      "roleType": {
-        "type": "string",
-        "enum": [
-          "ROLE_TYPE_UNSPECIFIED",
-          "COMPANION_APP",
-          "KIOSK",
-          "MOBILE_THREAT_DEFENSE_ENDPOINT_DETECTION_RESPONSE",
-          "SYSTEM_HEALTH_MONITORING"
-        ],
-        "description": "The type of the role an app can have."
-      }
-    }
-  },
-  "ApiLevelCondition": {
-    "properties": {
-      "minApiLevel": {
-        "type": "integer",
-        "format": "int32",
-        "description": "The minimum desired Android Framework API level."
+        "description": "The ID of the managed configurations template. This value must be a numeric string containing exactly one or more digits (for example, \"123456\")."
       }
     }
   },
   "NonComplianceDetailCondition": {
     "properties": {
-      "packageName": {
-        "type": "string",
-        "description": "The package name of the app that's out of compliance."
-      },
       "nonComplianceReason": {
         "type": "string",
         "enum": [
@@ -2034,210 +1619,292 @@
           "APP_SIGNING_CERT_MISMATCH",
           "PROJECT_NOT_PERMITTED"
         ],
-        "description": "The reason the device is not in compliance with the setting."
+        "description": "The reason the device is not in compliance with the setting. If not set, then this condition matches any reason."
+      },
+      "packageName": {
+        "type": "string",
+        "description": "The package name of the app that's out of compliance. If not set, then this condition matches any package name."
       },
       "settingName": {
         "type": "string",
-        "description": "The name of the policy setting."
+        "description": "The name of the policy setting. This is the JSON field name of a top-level Policy field."
       }
     }
   },
-  "Date": {
+  "OncCertificateProvider": {
     "properties": {
-      "day": {
-        "type": "integer",
-        "format": "int32",
-        "description": "Day of a month."
+      "certificateReferences": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "This feature is not generally available."
       },
-      "month": {
-        "type": "integer",
-        "format": "int32",
-        "description": "Month of a year."
-      },
-      "year": {
-        "type": "integer",
-        "format": "int32",
-        "description": "Year of the date."
+      "contentProviderEndpoint": {
+        "$ref": "ContentProviderEndpoint",
+        "description": "This feature is not generally available."
       }
     }
   },
-  "ApnSetting": {
+  "PackageNameList": {
     "properties": {
-      "password": {
-        "type": "string",
-        "description": "APN password of the APN."
-      },
-      "mtuV6": {
-        "type": "integer",
-        "format": "int32",
-        "description": "The MTU (Maximum Transmission Unit) size of the IPv6 mobile interface to which the APN connected."
-      },
-      "roamingProtocol": {
-        "type": "string",
-        "enum": [
-          "PROTOCOL_UNSPECIFIED",
-          "IP",
-          "IPV4V6",
-          "IPV6",
-          "NON_IP",
-          "PPP",
-          "UNSTRUCTURED"
-        ],
-        "description": "The protocol to use to connect to this APN while the device is roaming."
-      },
-      "mtuV4": {
-        "type": "integer",
-        "format": "int32",
-        "description": "The default MTU (Maximum Transmission Unit) size in bytes of the IPv4 routes brought up by this APN setting."
-      },
-      "mmsProxyPort": {
-        "type": "integer",
-        "format": "int32",
-        "description": "MMS (Multimedia Messaging Service) proxy port of the APN."
-      },
-      "proxyAddress": {
-        "type": "string",
-        "description": "The proxy address of the APN."
-      },
-      "apn": {
-        "type": "string",
-        "description": "Name of the APN."
-      },
-      "mvnoType": {
-        "type": "string",
-        "enum": [
-          "MVNO_TYPE_UNSPECIFIED",
-          "GID",
-          "ICCID",
-          "IMSI",
-          "SPN"
-        ],
-        "description": "MVNO match type for the APN."
-      },
-      "proxyPort": {
-        "type": "integer",
-        "format": "int32",
-        "description": "The proxy port of the APN."
-      },
-      "numericOperatorId": {
-        "type": "string",
-        "description": "The numeric operator ID of the APN."
-      },
-      "authType": {
-        "type": "string",
-        "enum": [
-          "AUTH_TYPE_UNSPECIFIED",
-          "NONE",
-          "PAP",
-          "CHAP",
-          "PAP_OR_CHAP"
-        ],
-        "description": "Authentication type of the APN."
-      },
-      "displayName": {
-        "type": "string",
-        "description": "Human-readable name that describes the APN."
-      },
-      "carrierId": {
-        "type": "integer",
-        "format": "int32",
-        "description": "Carrier ID for the APN."
-      },
-      "alwaysOnSetting": {
-        "type": "string",
-        "enum": [
-          "ALWAYS_ON_SETTING_UNSPECIFIED",
-          "NOT_ALWAYS_ON",
-          "ALWAYS_ON"
-        ],
-        "description": "Whether User Plane resources have to be activated during every transition from CM-IDLE mode to CM-CONNECTED state for this APN."
-      },
-      "protocol": {
-        "type": "string",
-        "enum": [
-          "PROTOCOL_UNSPECIFIED",
-          "IP",
-          "IPV4V6",
-          "IPV6",
-          "NON_IP",
-          "PPP",
-          "UNSTRUCTURED"
-        ],
-        "description": "The protocol to use to connect to this APN."
-      },
-      "mmsc": {
-        "type": "string",
-        "description": "MMSC (Multimedia Messaging Service Center) URI of the APN."
-      },
-      "username": {
-        "type": "string",
-        "description": "APN username of the APN."
-      },
-      "mmsProxyAddress": {
-        "type": "string",
-        "description": "MMS (Multimedia Messaging Service) proxy address of the APN which can be an IP address or hostname (not a URL)."
-      },
-      "apnTypes": {
+      "packageNames": {
         "type": "array",
         "items": {
-          "type": "string",
-          "enum": [
-            "APN_TYPE_UNSPECIFIED",
-            "ENTERPRISE",
-            "BIP",
-            "CBS",
-            "DEFAULT",
-            "DUN",
-            "EMERGENCY",
-            "FOTA",
-            "HIPRI",
-            "IA",
-            "IMS",
-            "MCX",
-            "MMS",
-            "RCS",
-            "SUPL",
-            "VSIM",
-            "XCAP"
-          ]
+          "type": "string"
         },
-        "description": "Usage categories for the APN. APN types that are not supported on the device or management mode will be ignored. If this results in the empty list, the APN setting will be ignored, because apnTypes is a required field."
+        "description": "A list of package names."
+      }
+    }
+  },
+  "PasswordRequirements": {
+    "properties": {
+      "maximumFailedPasswordsForWipe": {
+        "type": "integer",
+        "format": "int32",
+        "description": "Number of incorrect device-unlock passwords that can be entered before a device is wiped. A value of 0 means there is no restriction."
       },
-      "networkTypes": {
+      "passwordExpirationTimeout": {
+        "type": "string",
+        "format": "google-duration",
+        "description": "Password expiration timeout."
+      },
+      "passwordHistoryLength": {
+        "type": "integer",
+        "format": "int32",
+        "description": "The length of the password history. After setting this field, the user won't be able to enter a new password that is the same as any password in the history."
+      },
+      "passwordMinimumLength": {
+        "type": "integer",
+        "format": "int32",
+        "description": "The minimum allowed password length. A value of 0 means there is no restriction."
+      },
+      "passwordMinimumLetters": {
+        "type": "integer",
+        "format": "int32",
+        "description": "Minimum number of letters required in the password. Only enforced when password_quality is COMPLEX."
+      },
+      "passwordMinimumLowerCase": {
+        "type": "integer",
+        "format": "int32",
+        "description": "Minimum number of lower case letters required in the password. Only enforced when password_quality is COMPLEX."
+      },
+      "passwordMinimumNonLetter": {
+        "type": "integer",
+        "format": "int32",
+        "description": "Minimum number of non-letter characters (numerical digits or symbols) required in the password. Only enforced when password_quality is COMPLEX."
+      },
+      "passwordMinimumNumeric": {
+        "type": "integer",
+        "format": "int32",
+        "description": "Minimum number of numerical digits required in the password. Only enforced when password_quality is COMPLEX."
+      },
+      "passwordMinimumSymbols": {
+        "type": "integer",
+        "format": "int32",
+        "description": "Minimum number of symbols required in the password. Only enforced when password_quality is COMPLEX."
+      },
+      "passwordMinimumUpperCase": {
+        "type": "integer",
+        "format": "int32",
+        "description": "Minimum number of upper case letters required in the password. Only enforced when password_quality is COMPLEX."
+      },
+      "passwordQuality": {
+        "type": "string",
+        "enum": [
+          "PASSWORD_QUALITY_UNSPECIFIED",
+          "BIOMETRIC_WEAK",
+          "SOMETHING",
+          "NUMERIC",
+          "NUMERIC_COMPLEX",
+          "ALPHABETIC",
+          "ALPHANUMERIC",
+          "COMPLEX",
+          "COMPLEXITY_LOW",
+          "COMPLEXITY_MEDIUM",
+          "COMPLEXITY_HIGH"
+        ],
+        "description": "The required password quality."
+      },
+      "passwordScope": {
+        "type": "string",
+        "enum": [
+          "SCOPE_UNSPECIFIED",
+          "SCOPE_DEVICE",
+          "SCOPE_PROFILE"
+        ],
+        "description": "The scope that the password requirement applies to."
+      },
+      "requirePasswordUnlock": {
+        "type": "string",
+        "enum": [
+          "REQUIRE_PASSWORD_UNLOCK_UNSPECIFIED",
+          "USE_DEFAULT_DEVICE_TIMEOUT",
+          "REQUIRE_EVERY_DAY"
+        ],
+        "description": "The length of time after a device or work profile is unlocked using a strong form of authentication (password, PIN, pattern) that it can be unlocked using any other authentication method (e.g. fingerprint, trust agents, face)."
+      },
+      "unifiedLockSettings": {
+        "type": "string",
+        "enum": [
+          "UNIFIED_LOCK_SETTINGS_UNSPECIFIED",
+          "ALLOW_UNIFIED_WORK_AND_PERSONAL_LOCK",
+          "REQUIRE_SEPARATE_WORK_LOCK"
+        ],
+        "description": "Controls whether a unified lock is allowed for the device and the work profile, on devices running Android 9 and above with a work profile. This can be set only if password_scope is set to SCOPE_PROFILE, the policy will be rejected otherwise."
+      }
+    }
+  },
+  "PermissionGrant": {
+    "properties": {
+      "permission": {
+        "type": "string",
+        "description": "The Android permission or group, e.g. android.permission."
+      },
+      "policy": {
+        "type": "string",
+        "enum": [
+          "PERMISSION_POLICY_UNSPECIFIED",
+          "PROMPT",
+          "GRANT",
+          "DENY"
+        ],
+        "description": "The policy for granting the permission."
+      }
+    }
+  },
+  "PersistentPreferredActivity": {
+    "properties": {
+      "actions": {
         "type": "array",
         "items": {
-          "type": "string",
-          "enum": [
-            "NETWORK_TYPE_UNSPECIFIED",
-            "EDGE",
-            "GPRS",
-            "GSM",
-            "HSDPA",
-            "HSPA",
-            "HSPAP",
-            "HSUPA",
-            "IWLAN",
-            "LTE",
-            "NR",
-            "TD_SCDMA",
-            "UMTS"
-          ]
+          "type": "string"
         },
-        "description": "Radio technologies (network types) the APN may use."
+        "description": "The intent actions to match in the filter. If any actions are included in the filter, then an intent's action must be one of those values for it to match. If no actions are included, the intent action is ignored."
+      },
+      "categories": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "The intent categories to match in the filter. An intent includes the categories that it requires, all of which must be included in the filter in order to match."
+      },
+      "receiverActivity": {
+        "type": "string",
+        "description": "The activity that should be the default intent handler. This should be an Android component name, e.g."
+      }
+    }
+  },
+  "PersonalApplicationPolicy": {
+    "properties": {
+      "installType": {
+        "type": "string",
+        "enum": [
+          "INSTALL_TYPE_UNSPECIFIED",
+          "BLOCKED",
+          "AVAILABLE"
+        ],
+        "description": "The type of installation to perform."
+      },
+      "packageName": {
+        "type": "string",
+        "description": "The package name of the application."
+      }
+    }
+  },
+  "PersonalCrossDevicePolicies": {
+    "properties": {
+      "taskContinuityHandoff": {
+        "type": "string",
+        "enum": [
+          "TASK_CONTINUITY_HANDOFF_UNSPECIFIED",
+          "TASK_CONTINUITY_HANDOFF_ALLOWED",
+          "TASK_CONTINUITY_HANDOFF_DISALLOWED"
+        ],
+        "description": "Controls the task continuity handoff (https://developer.android.com/partners/android-17/features#handoff) feature for the personal profile on company-owned devices with a work profile. To disable Handoff device-wide on a company-owned device, both crossDevicePolicies.taskContinuityHandoff and this policy should be set to TASK_CONTINUITY_HANDOFF_DISALLOWED."
+      }
+    }
+  },
+  "PersonalUsagePolicies": {
+    "properties": {
+      "accountTypesWithManagementDisabled": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Account types that can't be managed by the user."
+      },
+      "bluetoothSharing": {
+        "type": "string",
+        "enum": [
+          "BLUETOOTH_SHARING_UNSPECIFIED",
+          "BLUETOOTH_SHARING_ALLOWED",
+          "BLUETOOTH_SHARING_DISALLOWED"
+        ],
+        "description": "Whether bluetooth sharing is allowed."
+      },
+      "cameraDisabled": {
+        "type": "boolean",
+        "description": "If true, the camera is disabled on the personal profile."
+      },
+      "crossDevicePolicies": {
+        "$ref": "PersonalCrossDevicePolicies",
+        "description": "Policies controlling cross-device communication in the personal profile."
+      },
+      "maxDaysWithWorkOff": {
+        "type": "integer",
+        "format": "int32",
+        "description": "Controls how long the work profile can stay off. The minimum duration must be at least 3 days."
+      },
+      "personalApplications": {
+        "type": "array",
+        "items": {
+          "$ref": "PersonalApplicationPolicy"
+        },
+        "description": "Policy applied to applications in the personal profile."
+      },
+      "personalPlayStoreMode": {
+        "type": "string",
+        "enum": [
+          "PLAY_STORE_MODE_UNSPECIFIED",
+          "BLOCKLIST",
+          "ALLOWLIST"
+        ],
+        "description": "Used together with personalApplications to control how apps in the personal profile are allowed or blocked."
+      },
+      "privateSpacePolicy": {
+        "type": "string",
+        "enum": [
+          "PRIVATE_SPACE_POLICY_UNSPECIFIED",
+          "PRIVATE_SPACE_ALLOWED",
+          "PRIVATE_SPACE_DISALLOWED"
+        ],
+        "description": "Controls whether a private space is allowed on the device."
+      },
+      "screenCaptureDisabled": {
+        "type": "boolean",
+        "description": "If true, screen capture is disabled for all users. This also blocks Circle to Search (https://support.google.com/android/answer/14508957)."
+      }
+    }
+  },
+  "PolicyEnforcementRule": {
+    "properties": {
+      "blockAction": {
+        "$ref": "BlockAction",
+        "description": "An action to block access to apps and data on a company owned device or in a work profile. This action also triggers a user-facing notification with information (where possible) on how to correct the compliance issue. Note: wipeAction must also be specified."
+      },
+      "settingName": {
+        "type": "string",
+        "description": "The top-level policy to enforce. For example, applications or passwordPolicies."
+      },
+      "wipeAction": {
+        "$ref": "WipeAction",
+        "description": "An action to reset a company owned device or delete a work profile. Note: blockAction must also be specified."
       }
     }
   },
   "PreferentialNetworkServiceConfig": {
     "properties": {
-      "nonMatchingNetworks": {
-        "type": "string",
-        "enum": [
-          "NON_MATCHING_NETWORKS_UNSPECIFIED",
-          "NON_MATCHING_NETWORKS_ALLOWED",
-          "NON_MATCHING_NETWORKS_DISALLOWED"
-        ],
-        "description": "Whether apps this configuration applies to are blocked from using networks other than the preferential service."
-      },
       "fallbackToDefaultConnection": {
         "type": "string",
         "enum": [
@@ -2245,7 +1912,16 @@
           "FALLBACK_TO_DEFAULT_CONNECTION_ALLOWED",
           "FALLBACK_TO_DEFAULT_CONNECTION_DISALLOWED"
         ],
-        "description": "Whether fallback to the device-wide default network is allowed."
+        "description": "Whether fallback to the device-wide default network is allowed. If this is set to FALLBACK_TO_DEFAULT_CONNECTION_ALLOWED, then nonMatchingNetworks must not be set to NON_MATCHING_NETWORKS_DISALLOWED, the policy will be rejected otherwise."
+      },
+      "nonMatchingNetworks": {
+        "type": "string",
+        "enum": [
+          "NON_MATCHING_NETWORKS_UNSPECIFIED",
+          "NON_MATCHING_NETWORKS_ALLOWED",
+          "NON_MATCHING_NETWORKS_DISALLOWED"
+        ],
+        "description": "Whether apps this configuration applies to are blocked from using networks other than the preferential service. If this is set to NON_MATCHING_NETWORKS_DISALLOWED, then fallbackToDefaultConnection must be set to FALLBACK_TO_DEFAULT_CONNECTION_DISALLOWED."
       },
       "preferentialNetworkId": {
         "type": "string",
@@ -2258,7 +1934,275 @@
           "PREFERENTIAL_NETWORK_ID_FOUR",
           "PREFERENTIAL_NETWORK_ID_FIVE"
         ],
-        "description": "Preferential network identifier."
+        "description": "Preferential network identifier. This must not be set to NO_PREFERENTIAL_NETWORK or PREFERENTIAL_NETWORK_ID_UNSPECIFIED, the policy will be rejected otherwise."
+      }
+    }
+  },
+  "PreferentialNetworkServiceSettings": {
+    "properties": {
+      "defaultPreferentialNetworkId": {
+        "type": "string",
+        "enum": [
+          "PREFERENTIAL_NETWORK_ID_UNSPECIFIED",
+          "NO_PREFERENTIAL_NETWORK",
+          "PREFERENTIAL_NETWORK_ID_ONE",
+          "PREFERENTIAL_NETWORK_ID_TWO",
+          "PREFERENTIAL_NETWORK_ID_THREE",
+          "PREFERENTIAL_NETWORK_ID_FOUR",
+          "PREFERENTIAL_NETWORK_ID_FIVE"
+        ],
+        "description": "Default preferential network ID for the applications that are not in applications or if ApplicationPolicy.preferentialNetworkId is set to PREFERENTIAL_NETWORK_ID_UNSPECIFIED. There must be a configuration for the specified network ID in preferentialNetworkServiceConfigs, unless this is set to NO_PREFERENTIAL_NETWORK."
+      },
+      "preferentialNetworkServiceConfigs": {
+        "type": "array",
+        "items": {
+          "$ref": "PreferentialNetworkServiceConfig"
+        },
+        "description": "Preferential network service configurations which enables having multiple enterprise slices. There must not be multiple configurations with the same preferentialNetworkId. If a configuration is not referenced by any application by setting ApplicationPolicy.preferentialNetworkId or by setting defaultPreferentialNetworkId, it will be ignored."
+      }
+    }
+  },
+  "PrivateDnsSettings": {
+    "properties": {
+      "privateDnsHost": {
+        "type": "string",
+        "description": "The hostname of the DNS server. This must be set if and only if private_dns_mode is set to PRIVATE_DNS_SPECIFIED_HOST."
+      },
+      "privateDnsMode": {
+        "type": "string",
+        "enum": [
+          "PRIVATE_DNS_MODE_UNSPECIFIED",
+          "PRIVATE_DNS_USER_CHOICE",
+          "PRIVATE_DNS_AUTOMATIC",
+          "PRIVATE_DNS_SPECIFIED_HOST"
+        ],
+        "description": "The configuration mode for device's global private DNS settings. If this is set to PRIVATE_DNS_SPECIFIED_HOST, then private_dns_host must be set."
+      }
+    }
+  },
+  "ProxyInfo": {
+    "properties": {
+      "excludedHosts": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "For a direct proxy, the hosts for which the proxy is bypassed. The host names may contain wildcards such as *.example.com."
+      },
+      "host": {
+        "type": "string",
+        "description": "The host of the direct proxy."
+      },
+      "pacUri": {
+        "type": "string",
+        "description": "The URI of the PAC script used to configure the proxy."
+      },
+      "port": {
+        "type": "integer",
+        "format": "int32",
+        "description": "The port of the direct proxy."
+      }
+    }
+  },
+  "Role": {
+    "properties": {
+      "roleType": {
+        "type": "string",
+        "enum": [
+          "ROLE_TYPE_UNSPECIFIED",
+          "COMPANION_APP",
+          "KIOSK",
+          "MOBILE_THREAT_DEFENSE_ENDPOINT_DETECTION_RESPONSE",
+          "SYSTEM_HEALTH_MONITORING"
+        ],
+        "description": "The type of the role an app can have."
+      }
+    }
+  },
+  "ScreenBrightnessSettings": {
+    "properties": {
+      "screenBrightness": {
+        "type": "integer",
+        "format": "int32",
+        "description": "The screen brightness between 1 and 255 where 1 is the lowest and 255 is the highest brightness. A value of 0 (default) means no screen brightness set. screenBrightnessMode must be either BRIGHTNESS_AUTOMATIC or BRIGHTNESS_FIXED to set this."
+      },
+      "screenBrightnessMode": {
+        "type": "string",
+        "enum": [
+          "SCREEN_BRIGHTNESS_MODE_UNSPECIFIED",
+          "BRIGHTNESS_USER_CHOICE",
+          "BRIGHTNESS_AUTOMATIC",
+          "BRIGHTNESS_FIXED"
+        ],
+        "description": "Controls the screen brightness mode."
+      }
+    }
+  },
+  "ScreenTimeoutSettings": {
+    "properties": {
+      "screenTimeout": {
+        "type": "string",
+        "format": "google-duration",
+        "description": "Controls the screen timeout duration. The screen timeout duration must be greater than 0, otherwise it is rejected. If this is set, screenTimeoutMode must be SCREEN_TIMEOUT_ENFORCED."
+      },
+      "screenTimeoutMode": {
+        "type": "string",
+        "enum": [
+          "SCREEN_TIMEOUT_MODE_UNSPECIFIED",
+          "SCREEN_TIMEOUT_USER_CHOICE",
+          "SCREEN_TIMEOUT_ENFORCED"
+        ],
+        "description": "Controls whether the user is allowed to configure the screen timeout."
+      }
+    }
+  },
+  "SetupAction": {
+    "properties": {
+      "description": {
+        "$ref": "UserFacingMessage",
+        "description": "Description of this action."
+      },
+      "launchApp": {
+        "$ref": "LaunchAppAction",
+        "description": "An action to launch an app. The app will be launched with an intent containing an extra with key com.google.android.apps.work.clouddpc. If SetupAction references an app, the corresponding installType in the application policy must be set as REQUIRED_FOR_SETUP or said setup will fail."
+      },
+      "title": {
+        "$ref": "UserFacingMessage",
+        "description": "Title of this action."
+      }
+    }
+  },
+  "StatusReportingSettings": {
+    "properties": {
+      "applicationReportingSettings": {
+        "$ref": "ApplicationReportingSettings",
+        "description": "Application reporting settings. Only applicable if application_reports_enabled is true."
+      },
+      "applicationReportsEnabled": {
+        "type": "boolean",
+        "description": "Whether app reports are enabled."
+      },
+      "commonCriteriaModeEnabled": {
+        "type": "boolean",
+        "description": "Whether Common Criteria Mode reporting is enabled. This is supported only on company-owned devices."
+      },
+      "defaultApplicationInfoReportingEnabled": {
+        "type": "boolean",
+        "description": "Whether defaultApplicationInfo reporting is enabled."
+      },
+      "deviceSettingsEnabled": {
+        "type": "boolean",
+        "description": "Whether device settings reporting is enabled."
+      },
+      "displayInfoEnabled": {
+        "type": "boolean",
+        "description": "Whether displays reporting is enabled. Report data is not available for personally owned devices with work profiles."
+      },
+      "hardwareStatusEnabled": {
+        "type": "boolean",
+        "description": "Whether hardware status reporting is enabled. Report data is not available for personally owned devices with work profiles."
+      },
+      "memoryInfoEnabled": {
+        "type": "boolean",
+        "description": "Whether memory event reporting is enabled."
+      },
+      "networkInfoEnabled": {
+        "type": "boolean",
+        "description": "Whether network info reporting is enabled."
+      },
+      "powerManagementEventsEnabled": {
+        "type": "boolean",
+        "description": "Whether power management event reporting is enabled. Report data is not available for personally owned devices with work profiles."
+      },
+      "softwareInfoEnabled": {
+        "type": "boolean",
+        "description": "Whether software info reporting is enabled."
+      },
+      "systemPropertiesEnabled": {
+        "type": "boolean",
+        "description": "Whether system properties reporting is enabled."
+      }
+    }
+  },
+  "SystemUpdate": {
+    "properties": {
+      "endMinutes": {
+        "type": "integer",
+        "format": "int32",
+        "description": "If the type is WINDOWED, the end of the maintenance window, measured as the number of minutes after midnight in device's local time. This value must be between 0 and 1439, inclusive."
+      },
+      "freezePeriods": {
+        "type": "array",
+        "items": {
+          "$ref": "FreezePeriod"
+        },
+        "description": "An annually repeating time period in which over-the-air (OTA) system updates are postponed to freeze the OS version running on a device. To prevent freezing the device indefinitely, each freeze period must be separated by at least 60 days."
+      },
+      "startMinutes": {
+        "type": "integer",
+        "format": "int32",
+        "description": "If the type is WINDOWED, the start of the maintenance window, measured as the number of minutes after midnight in the device's local time. This value must be between 0 and 1439, inclusive."
+      },
+      "type": {
+        "type": "string",
+        "enum": [
+          "SYSTEM_UPDATE_TYPE_UNSPECIFIED",
+          "AUTOMATIC",
+          "WINDOWED",
+          "POSTPONE"
+        ],
+        "description": "The type of system update to configure."
+      }
+    }
+  },
+  "UsageLog": {
+    "properties": {
+      "enabledLogTypes": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "LOG_TYPE_UNSPECIFIED",
+            "SECURITY_LOGS",
+            "NETWORK_ACTIVITY_LOGS"
+          ]
+        },
+        "description": "Specifies which log types are enabled. Note that users will receive on-device messaging when usage logging is enabled."
+      },
+      "uploadOnCellularAllowed": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "LOG_TYPE_UNSPECIFIED",
+            "SECURITY_LOGS",
+            "NETWORK_ACTIVITY_LOGS"
+          ]
+        },
+        "description": "Specifies which of the enabled log types can be uploaded over mobile data. By default logs are queued for upload when the device connects to WiFi."
+      }
+    }
+  },
+  "UserFacingMessage": {
+    "properties": {
+      "defaultMessage": {
+        "type": "string",
+        "description": "The default message displayed if no localized message is specified or the user's locale doesn't match with any of the localized messages. A default message must be provided if any localized messages are provided."
+      },
+      "localizedMessages": {
+        "type": "object",
+        "description": "A map containing pairs, where locale is a well-formed BCP 47 language (https://www.w3.org/International/articles/language-tags/) code, such as en-US, es-ES, or fr."
+      }
+    }
+  },
+  "WifiRoamingPolicy": {
+    "properties": {
+      "wifiRoamingSettings": {
+        "type": "array",
+        "items": {
+          "$ref": "WifiRoamingSetting"
+        },
+        "description": "Wi-Fi roaming settings. SSIDs provided in this list must be unique, the policy will be rejected otherwise."
       }
     }
   },
@@ -2285,6 +2229,56 @@
       "wifiSsid": {
         "type": "string",
         "description": "Wi-Fi SSID represented as a string."
+      }
+    }
+  },
+  "WifiSsidPolicy": {
+    "properties": {
+      "wifiSsidPolicyType": {
+        "type": "string",
+        "enum": [
+          "WIFI_SSID_POLICY_TYPE_UNSPECIFIED",
+          "WIFI_SSID_DENYLIST",
+          "WIFI_SSID_ALLOWLIST"
+        ],
+        "description": "Type of the Wi-Fi SSID policy to be applied."
+      },
+      "wifiSsids": {
+        "type": "array",
+        "items": {
+          "$ref": "WifiSsid"
+        },
+        "description": "List of Wi-Fi SSIDs that should be applied in the policy. This field must be non-empty when WifiSsidPolicyType is set to WIFI_SSID_ALLOWLIST."
+      }
+    }
+  },
+  "WipeAction": {
+    "properties": {
+      "preserveFrp": {
+        "type": "boolean",
+        "description": "Whether the factory-reset protection data is preserved on the device. This setting applies to fully managed devices and work profiles on company-owned devices."
+      },
+      "wipeAfterDays": {
+        "type": "integer",
+        "format": "int32",
+        "description": "Number of days the policy is non-compliant before the device or work profile is wiped. wipeAfterDays must be greater than blockAfterDays."
+      }
+    }
+  },
+  "WorkAccountSetupConfig": {
+    "properties": {
+      "authenticationType": {
+        "type": "string",
+        "enum": [
+          "AUTHENTICATION_TYPE_UNSPECIFIED",
+          "AUTHENTICATION_TYPE_NOT_ENFORCED",
+          "GOOGLE_AUTHENTICATED"
+        ],
+        "description": "The authentication type of the user on the device."
+      },
+      "requiredAccountEmail": {
+        "type": "string",
+        "description": "The specific google work account email address to be added. This field is only relevant if authenticationType is GOOGLE_AUTHENTICATED. This must be an enterprise account and not a consumer account. Once set and a Google authenticated account is added to the device, changing this field will have no effect, and thus recommended to be set only once. The email address must be all lowercase."
       }
     }
   }
