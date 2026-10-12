@@ -1219,6 +1219,31 @@ WHERE host_uuid = ?
 	return awaitingConfiguration, nil
 }
 
+func (ds *Datastore) GetHostDeviceConfiguredStatus(ctx context.Context, hostUUID string) (pending, acknowledged bool, err error) {
+	// Commands queued before the latest Authenticate belong to a previous enrollment (a
+	// re-enrolled host keeps its UUID), so an old acknowledgment must not count.
+	const stmt = `
+SELECT
+	COALESCE(MAX(ncr.status IS NULL OR ncr.status = 'NotNow'), 0) AS pending,
+	COALESCE(MAX(ncr.status = 'Acknowledged'), 0) AS acknowledged
+FROM nano_enrollment_queue nq
+JOIN nano_commands nc ON nc.command_uuid = nq.command_uuid
+JOIN nano_devices nd ON nd.id = nq.id
+LEFT JOIN nano_command_results ncr ON ncr.command_uuid = nq.command_uuid AND ncr.id = nq.id
+WHERE nq.id = ? AND nq.active = 1 AND nc.request_type = 'DeviceConfigured' AND nq.created_at >= nd.authenticate_at
+	`
+	var res struct {
+		Pending      bool `db:"pending"`
+		Acknowledged bool `db:"acknowledged"`
+	}
+	// Primary, not replica: a lagging replica would miss the command queued by the previous
+	// status poll and let a duplicate through.
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &res, stmt, hostUUID); err != nil {
+		return false, false, ctxerr.Wrap(ctx, err, "getting host DeviceConfigured status")
+	}
+	return res.Pending, res.Acknowledged, nil
+}
+
 func (ds *Datastore) MaybeUpdateSetupExperienceVPPStatus(ctx context.Context, hostUUID string, nanoCommandUUID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
 	stmt := `UPDATE setup_experience_status_results SET status = ? WHERE host_uuid = ? AND nano_command_uuid = ? AND status NOT IN (?, ?, ?)`
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, status, hostUUID, nanoCommandUUID, fleet.SetupExperienceStatusSuccess, fleet.SetupExperienceStatusFailure, fleet.SetupExperienceStatusCancelled)

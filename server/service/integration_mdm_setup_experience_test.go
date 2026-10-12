@@ -6194,3 +6194,95 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallAppleServerError(
 	}
 	require.Equal(t, []string{"DeviceConfigured"}, releaseCommands)
 }
+
+func (s *integrationMDMTestSuite) TestSetupExperienceStatusPollsSendOneDeviceConfigured() {
+	t := s.T()
+	ctx := t.Context()
+
+	s.setSkipWorkerJobs(t)
+
+	device, host, _ := s.createTeamDeviceForSetupExperienceWithProfileSoftwareAndScript()
+
+	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+	mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+	mdmDevice.SerialNumber = device.SerialNumber
+	require.NoError(t, mdmDevice.Enroll())
+
+	s.awaitTriggerProfileSchedule(t)
+	s.awaitRunAppleMDMWorkerSchedule()
+
+	ackAll := func() []string {
+		var requestTypes []string
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			if cmd.Command.RequestType != "DeclarativeManagement" {
+				requestTypes = append(requestTypes, cmd.Command.RequestType)
+			}
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+		return requestTypes
+	}
+	ackAll()
+
+	host.OsqueryHostID = new(mdmDevice.UUID)
+	host.UUID = mdmDevice.UUID
+	orbitKey := setOrbitEnrollment(t, host, s.ds)
+	host.OrbitNodeKey = &orbitKey
+
+	pollStatus := func() {
+		var statusResp fleet.GetOrbitSetupExperienceStatusResponse
+		s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &statusResp)
+	}
+	countDeviceConfigured := func() int {
+		var count int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count, `
+				SELECT COUNT(*) FROM nano_enrollment_queue nq
+				JOIN nano_commands nc ON nc.command_uuid = nq.command_uuid
+				WHERE nq.id = ? AND nc.request_type = 'DeviceConfigured'`, host.UUID)
+		})
+		return count
+	}
+
+	// Cancel the software install and then the script so that every setup step is done.
+	pollStatus()
+	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, *host.TeamID)
+	require.NoError(t, err)
+	for _, r := range results {
+		if r.HostSoftwareInstallsExecutionID != nil {
+			s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", host.ID, *r.HostSoftwareInstallsExecutionID), nil, http.StatusNoContent)
+		}
+	}
+	pollStatus()
+	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, *host.TeamID)
+	require.NoError(t, err)
+	for _, r := range results {
+		if r.ScriptExecutionID != nil {
+			s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", host.ID, *r.ScriptExecutionID), nil, http.StatusNoContent)
+		}
+	}
+
+	// The device does not check in between polls, so the first DeviceConfigured stays unanswered.
+	for range 5 {
+		pollStatus()
+	}
+	require.Equal(t, 1, countDeviceConfigured())
+
+	require.Equal(t, []string{"DeviceConfigured"}, ackAll())
+	awaiting, err := s.ds.GetHostAwaitingConfiguration(ctx, host.UUID)
+	require.NoError(t, err)
+	require.False(t, awaiting)
+
+	// Simulate the DeviceConfigured result handler failing to clear the flag: the next poll
+	// clears it from the acknowledged result instead of sending another release.
+	require.NoError(t, s.ds.SetHostAwaitingConfiguration(ctx, host.UUID, true))
+	pollStatus()
+	awaiting, err = s.ds.GetHostAwaitingConfiguration(ctx, host.UUID)
+	require.NoError(t, err)
+	require.False(t, awaiting)
+	require.Equal(t, 1, countDeviceConfigured())
+	require.Empty(t, ackAll())
+}
