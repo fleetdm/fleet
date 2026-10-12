@@ -1540,8 +1540,7 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice 
 			}
 
 			rawResult := []byte{}
-			// A Get answer carries its values in Items rather than a top-level Data element.
-			if result, ok := enrichedSyncML.CmdRefUUIDToResults[cmd.CommandUUID]; ok && (result.Data != nil || len(result.Items) > 0) {
+			if result, ok := enrichedSyncML.CmdRefUUIDToResults[cmd.CommandUUID]; ok && result.Data != nil {
 				var err error
 				rawResult, err = xml.Marshal(result)
 				if err != nil {

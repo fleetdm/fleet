@@ -104,6 +104,9 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsSetEnrollmentFleetdPresent", testMDMWindowsSetEnrollmentFleetdPresent},
 		{"TestWindowsEnrollmentDefaultFleet", testWindowsEnrollmentDefaultFleet},
 		{"TestMDMWindowsDeleteEnrolledDeviceOnReenrollmentReturnsHostUUID", testMDMWindowsDeleteEnrolledDeviceOnReenrollmentReturnsHostUUID},
+		{"TestWindowsSCEPStatusProbeQueuedOnAck", testWindowsSCEPStatusProbeQueuedOnAck},
+		{"TestWindowsSCEPStatusProbeRepeatedAck", testWindowsSCEPStatusProbeRepeatedAck},
+		{"TestApplyWindowsSCEPStatusProbeResults", testApplyWindowsSCEPStatusProbeResults},
 	}
 
 	for _, c := range cases {
@@ -5890,7 +5893,11 @@ type enrichResponseEntry struct {
 	UUID       string
 }
 
-func createResponseAsEnrichedSyncML(t *testing.T, enrolledDevice *fleet.MDMWindowsEnrolledDevice, entries []enrichResponseEntry) fleet.EnrichedSyncML {
+// createResponseAsEnrichedSyncML builds a device message that acks the given commands. extraBody is appended to the
+// SyncBody as is, for elements such as <Results>.
+func createResponseAsEnrichedSyncML(t *testing.T, enrolledDevice *fleet.MDMWindowsEnrolledDevice, entries []enrichResponseEntry,
+	extraBody ...string,
+) fleet.EnrichedSyncML {
 	rawResponse := fmt.Sprintf(`
 <SyncML
     xmlns="SYNCML:SYNCML1.2">
@@ -5925,6 +5932,7 @@ func createResponseAsEnrichedSyncML(t *testing.T, enrolledDevice *fleet.MDMWindo
 			<Data>%d</Data>
 		</Status>`, i+2, entry.UUID, entry.Type, entry.StatusCode)
 	}
+	rawResponse += strings.Join(extraBody, "")
 	rawResponse += `
         <Final/>
     </SyncBody>

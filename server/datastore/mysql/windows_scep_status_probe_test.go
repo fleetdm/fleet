@@ -1,7 +1,6 @@
 package mysql
 
 import (
-	"encoding/xml"
 	"fmt"
 	"strings"
 	"testing"
@@ -14,23 +13,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestWindowsSCEPStatusProbeCommands(t *testing.T) {
+func TestNextWindowsSCEPStatusProbeCommand(t *testing.T) {
 	installCmdUUID := uuid.NewString()
 	profileUUID := "w" + uuid.NewString()
-
-	probe := windowsSCEPStatusProbeCommand(installCmdUUID, profileUUID, false, 1)
-	node := "./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/" + profileUUID
-	assert.Equal(t, node+"/Status", probe.TargetLocURI)
-	assert.Contains(t, string(probe.RawCommand), "<CmdID>"+probe.CommandUUID+"</CmdID>")
-	assert.Contains(t, string(probe.RawCommand), node+"/ErrorCode")
-	assert.True(t, fleet.IsWindowsSCEPStatusProbeCmdUUID(probe.CommandUUID))
-
-	gotInstall, gotAttempt, ok := parseWindowsSCEPStatusProbeCmdUUID(probe.CommandUUID)
-	require.True(t, ok)
-	assert.Equal(t, installCmdUUID, gotInstall)
-	assert.Equal(t, 1, gotAttempt)
-	_, _, ok = parseWindowsSCEPStatusProbeCmdUUID(installCmdUUID)
-	assert.False(t, ok)
 
 	cases := []struct {
 		name        string
@@ -53,24 +38,9 @@ func TestWindowsSCEPStatusProbeCommands(t *testing.T) {
 			assert.Equal(t, *windowsSCEPStatusProbeCommand(installCmdUUID, profileUUID, c.userScoped, c.wantAttempt), *next)
 		})
 	}
-}
 
-func TestWindowsSCEPStatusProbes(t *testing.T) {
-	ds := CreateMySQLDS(t)
-
-	cases := []struct {
-		name string
-		fn   func(t *testing.T, ds *Datastore)
-	}{
-		{"Probe queued when a SCEP install is ACKed", testWindowsSCEPStatusProbeQueuedOnAck},
-		{"Apply probe results", testApplyWindowsSCEPStatusProbeResults},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			defer TruncateTables(t, ds)
-			c.fn(t, ds)
-		})
-	}
+	_, _, ok := parseWindowsSCEPStatusProbeCmdUUID(installCmdUUID)
+	assert.False(t, ok, "an ordinary command UUID is not a probe")
 }
 
 type windowsSCEPInstall struct {
@@ -94,20 +64,13 @@ func setUpWindowsSCEPInstall(t *testing.T, ds *Datastore, userScoped bool, caTyp
 	if userScoped {
 		scope = "./User"
 	}
-	install := &fleet.MDMWindowsCommand{
+	require.NoError(t, ds.MDMWindowsInsertCommandForHosts(ctx, []string{in.device.HostUUID}, &fleet.MDMWindowsCommand{
 		CommandUUID: in.installCmdUUID,
 		RawCommand: fmt.Appendf(nil, `<Atomic><CmdID>%s</CmdID><Exec><CmdID>%s</CmdID><Item><Target>`+
 			`<LocURI>%s/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Install/Enroll</LocURI></Target></Item></Exec></Atomic>`,
 			in.installCmdUUID, uuid.NewString(), scope, in.profileUUID),
-	}
-	require.NoError(t, ds.mdmWindowsInsertCommandForEnrollmentIDsDB(t.Context(), ds.primary, []uint{in.device.ID}, install))
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `
-			INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, profile_name, status, operation_type, command_uuid)
-			VALUES (?, ?, ?, ?, ?, ?)`,
-			in.device.HostUUID, in.profileUUID, "scep-"+in.profileUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall, in.installCmdUUID)
-		return err
-	})
+	}))
+	setWindowsSCEPInstallRow(t, ds, in, in.installCmdUUID, fleet.MDMDeliveryPending, 0)
 	if caType != "" {
 		require.NoError(t, ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{{
 			HostUUID: in.device.HostUUID, ProfileUUID: in.profileUUID, Type: caType, CAName: "CA-" + string(caType),
@@ -116,45 +79,73 @@ func setUpWindowsSCEPInstall(t *testing.T, ds *Datastore, userScoped bool, caTyp
 	return in
 }
 
-// queuedSCEPStatusProbes returns the probe commands queued for the enrollment.
-func queuedSCEPStatusProbes(t *testing.T, ds *Datastore, enrollmentID uint) []fleet.MDMWindowsCommand {
+// setWindowsSCEPInstallRow sets the host profile row for the install's profile.
+func setWindowsSCEPInstallRow(t *testing.T, ds *Datastore, in windowsSCEPInstall, cmdUUID string, status fleet.MDMDeliveryStatus,
+	retries int,
+) {
 	t.Helper()
-	var probes []fleet.MDMWindowsCommand
+	ctx := t.Context()
+	require.NoError(t, ds.BulkUpsertMDMWindowsHostProfiles(ctx, []*fleet.MDMWindowsBulkUpsertHostProfilePayload{{
+		ProfileUUID:   in.profileUUID,
+		ProfileName:   "scep-" + in.profileUUID,
+		HostUUID:      in.device.HostUUID,
+		CommandUUID:   cmdUUID,
+		OperationType: fleet.MDMOperationTypeInstall,
+		Status:        &status,
+		Checksum:      []byte{1},
+	}}))
+	if retries == 0 {
+		return
+	}
+	// No datastore method sets the retry count directly.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.SelectContext(t.Context(), q, &probes, `
-			SELECT c.command_uuid, c.raw_command, c.target_loc_uri
-			FROM windows_mdm_command_queue q JOIN windows_mdm_commands c ON c.command_uuid = q.command_uuid
-			WHERE q.enrollment_id = ? AND c.command_uuid LIKE 'scep-status-%'
-			ORDER BY c.command_uuid`, enrollmentID)
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm_windows_profiles SET retries = ? WHERE host_uuid = ? AND profile_uuid = ?`,
+			retries, in.device.HostUUID, in.profileUUID)
+		return err
 	})
+}
+
+// pendingSCEPStatusProbes returns the probes queued for the enrollment that the device hasn't answered yet.
+func pendingSCEPStatusProbes(t *testing.T, ds *Datastore, enrollmentID uint) []*fleet.MDMWindowsCommand {
+	t.Helper()
+	cmds, err := ds.MDMWindowsGetPendingCommands(t.Context(), enrollmentID)
+	require.NoError(t, err)
+	var probes []*fleet.MDMWindowsCommand
+	for _, cmd := range cmds {
+		if fleet.IsWindowsSCEPStatusProbeCmdUUID(cmd.CommandUUID) {
+			probes = append(probes, cmd)
+		}
+	}
 	return probes
 }
 
-// windowsMDMResponse wraps SyncML body commands in a device message, the way a Windows 11 host sends them.
-func windowsMDMResponse(t *testing.T, device *fleet.MDMWindowsEnrolledDevice, body string) fleet.EnrichedSyncML {
-	t.Helper()
-	raw := fmt.Sprintf(`<SyncML xmlns="SYNCML:SYNCML1.2"><SyncHdr><VerDTD>1.2</VerDTD><VerProto>DM/1.2</VerProto><SessionID>1</SessionID>`+
-		`<MsgID>3</MsgID><Target><LocURI>https://example.com/api/mdm/microsoft/management</LocURI></Target><Source><LocURI>%s</LocURI></Source>`+
-		`</SyncHdr><SyncBody>`+
-		`<Status><CmdID>1</CmdID><MsgRef>2</MsgRef><CmdRef>0</CmdRef><Cmd>SyncHdr</Cmd><Data>200</Data></Status>`+
-		`%s<Final/></SyncBody></SyncML>`, device.MDMDeviceID, body)
-	syncML := &fleet.SyncML{}
-	require.NoError(t, xml.Unmarshal([]byte(raw), syncML))
-	syncML.Raw = []byte(raw)
-	return fleet.NewEnrichedSyncML(syncML)
-}
-
-func ackStatus(cmdUUID, cmd, code string) string {
-	return fmt.Sprintf(`<Status><CmdID>%s</CmdID><MsgRef>2</MsgRef><CmdRef>%s</CmdRef><Cmd>%s</Cmd><Data>%s</Data></Status>`,
-		uuid.NewString(), cmdUUID, cmd, code)
-}
-
+// probeResults is the <Results> a Windows 11 host sends for a probe.
 func probeResults(probe *fleet.MDMWindowsCommand, status, errorCode string) string {
 	node := strings.TrimSuffix(probe.TargetLocURI, "/Status")
-	return fmt.Sprintf(`<Results><CmdID>%s</CmdID><MsgRef>2</MsgRef><CmdRef>%s</CmdRef>`+
+	return fmt.Sprintf(`<Results><CmdID>%s</CmdID><MsgRef>1</MsgRef><CmdRef>%s</CmdRef>`+
 		`<Item><Source><LocURI>%s/Status</LocURI></Source><Meta><Format xmlns="syncml:metinf">int</Format></Meta><Data>%s</Data></Item>`+
 		`<Item><Source><LocURI>%s/ErrorCode</LocURI></Source><Meta><Format xmlns="syncml:metinf">int</Format></Meta><Data>%s</Data></Item>`+
 		`</Results>`, uuid.NewString(), probe.CommandUUID, node, status, node, errorCode)
+}
+
+func ackInstall(t *testing.T, ds *Datastore, in windowsSCEPInstall) {
+	t.Helper()
+	_, err := ds.MDMWindowsSaveResponse(t.Context(), in.device, createResponseAsEnrichedSyncML(t, in.device, []enrichResponseEntry{
+		{Type: "Atomic", StatusCode: 200, UUID: in.installCmdUUID},
+	}), nil)
+	require.NoError(t, err)
+}
+
+func answerProbe(t *testing.T, ds *Datastore, in windowsSCEPInstall, probe *fleet.MDMWindowsCommand, status, errorCode string) {
+	t.Helper()
+	entries := []enrichResponseEntry{{Type: "Get", StatusCode: 404, UUID: probe.CommandUUID}}
+	var results []string
+	if status != "" {
+		entries[0].StatusCode = 200
+		results = append(results, probeResults(probe, status, errorCode))
+	}
+	_, err := ds.MDMWindowsSaveResponse(t.Context(), in.device, createResponseAsEnrichedSyncML(t, in.device, entries, results...), nil)
+	require.NoError(t, err)
 }
 
 func testWindowsSCEPStatusProbeQueuedOnAck(t *testing.T, ds *Datastore) {
@@ -165,62 +156,60 @@ func testWindowsSCEPStatusProbeQueuedOnAck(t *testing.T, ds *Datastore) {
 		userScoped bool
 		caType     fleet.CAConfigAssetType
 		wantStatus fleet.MDMDeliveryStatus
-		wantProbe  bool
+		wantScope  string // empty when no probe should be queued
 	}{
-		{name: "device-scoped custom SCEP", caType: fleet.CAConfigCustomSCEPProxy, wantStatus: fleet.MDMDeliveryVerifying, wantProbe: true},
-		{name: "user-scoped custom SCEP", userScoped: true, caType: fleet.CAConfigCustomSCEPProxy, wantStatus: fleet.MDMDeliveryVerifying, wantProbe: true},
-		{name: "device-scoped NDES", caType: fleet.CAConfigNDES, wantStatus: fleet.MDMDeliveryVerifying, wantProbe: true},
-		{name: "user-scoped NDES", userScoped: true, caType: fleet.CAConfigNDES, wantStatus: fleet.MDMDeliveryVerifying, wantProbe: true},
+		{name: "device-scoped custom SCEP", caType: fleet.CAConfigCustomSCEPProxy, wantStatus: fleet.MDMDeliveryVerifying, wantScope: "./Device"},
+		{name: "user-scoped custom SCEP", userScoped: true, caType: fleet.CAConfigCustomSCEPProxy, wantStatus: fleet.MDMDeliveryVerifying, wantScope: "./User"},
+		{name: "device-scoped NDES", caType: fleet.CAConfigNDES, wantStatus: fleet.MDMDeliveryVerifying, wantScope: "./Device"},
+		{name: "user-scoped NDES", userScoped: true, caType: fleet.CAConfigNDES, wantStatus: fleet.MDMDeliveryVerifying, wantScope: "./User"},
 		{name: "not proxied by Fleet", wantStatus: fleet.MDMDeliveryVerified},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			defer TruncateTables(t, ds)
 			in := setUpWindowsSCEPInstall(t, ds, c.userScoped, c.caType)
-			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				_, err := q.ExecContext(ctx, `UPDATE mdm_windows_enrollments SET has_pending_commands = 0 WHERE id = ?`, in.device.ID)
-				return err
-			})
 
-			ack := windowsMDMResponse(t, in.device, ackStatus(in.installCmdUUID, "Atomic", "200"))
-			_, err := ds.MDMWindowsSaveResponse(ctx, in.device, ack, nil)
-			require.NoError(t, err)
+			ackInstall(t, ds, in)
 
 			status, _, _ := readWindowsHostProfile(t, ds, in.device.HostUUID, in.profileUUID)
 			assert.Equal(t, c.wantStatus, status)
-			probes := queuedSCEPStatusProbes(t, ds, in.device.ID)
-			if !c.wantProbe {
+
+			// The session refreshes has_pending_commands once nothing deliverable is left; a queued probe keeps it set, which
+			// is what has fleetd wake the device for the probe.
+			require.NoError(t, ds.MDMWindowsRefreshHasPendingCommands(ctx, in.device.ID))
+			device, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, in.device.MDMDeviceID)
+			require.NoError(t, err)
+
+			probes := pendingSCEPStatusProbes(t, ds, in.device.ID)
+			if c.wantScope == "" {
 				assert.Empty(t, probes)
+				assert.False(t, device.HasPendingCommands)
 				return
 			}
 			require.Len(t, probes, 1)
-			assert.Equal(t, *windowsSCEPStatusProbeCommand(in.installCmdUUID, in.profileUUID, c.userScoped, 1), probes[0])
-
-			// The queued probe is what has fleetd wake the device for the next session.
-			var hasPending bool
-			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				return sqlx.GetContext(ctx, q, &hasPending, `SELECT has_pending_commands FROM mdm_windows_enrollments WHERE id = ?`, in.device.ID)
-			})
-			assert.True(t, hasPending)
-
-			// A repeated ACK doesn't queue a second probe.
-			_, err = ds.MDMWindowsSaveResponse(ctx, in.device, windowsMDMResponse(t, in.device, ackStatus(in.installCmdUUID, "Atomic", "200")), nil)
-			require.NoError(t, err)
-			assert.Len(t, queuedSCEPStatusProbes(t, ds, in.device.ID), 1)
-
-			// Once the probe has verified the delivery, a late repeat of the ACK must not send it back to verifying.
-			probe := windowsSCEPStatusProbeCommand(in.installCmdUUID, in.profileUUID, c.userScoped, 1)
-			_, err = ds.MDMWindowsSaveResponse(ctx, in.device, windowsMDMResponse(t, in.device,
-				ackStatus(probe.CommandUUID, "Get", "200")+probeResults(probe, "1", "0")), nil)
-			require.NoError(t, err)
-			status, _, _ = readWindowsHostProfile(t, ds, in.device.HostUUID, in.profileUUID)
-			require.Equal(t, fleet.MDMDeliveryVerified, status)
-			_, err = ds.MDMWindowsSaveResponse(ctx, in.device, windowsMDMResponse(t, in.device, ackStatus(in.installCmdUUID, "Atomic", "200")), nil)
-			require.NoError(t, err)
-			status, _, _ = readWindowsHostProfile(t, ds, in.device.HostUUID, in.profileUUID)
-			assert.Equal(t, fleet.MDMDeliveryVerified, status)
+			assert.Equal(t, fmt.Sprintf("%s/Vendor/MSFT/ClientCertificateInstall/SCEP/%s/Status", c.wantScope, in.profileUUID),
+				probes[0].TargetLocURI)
+			assert.True(t, device.HasPendingCommands)
 		})
 	}
+}
+
+func testWindowsSCEPStatusProbeRepeatedAck(t *testing.T, ds *Datastore) {
+	in := setUpWindowsSCEPInstall(t, ds, false, fleet.CAConfigNDES)
+
+	ackInstall(t, ds, in)
+	ackInstall(t, ds, in)
+	probes := pendingSCEPStatusProbes(t, ds, in.device.ID)
+	require.Len(t, probes, 1, "a repeated ACK must not queue a second probe")
+
+	answerProbe(t, ds, in, probes[0], "1", "0")
+	status, _, _ := readWindowsHostProfile(t, ds, in.device.HostUUID, in.profileUUID)
+	require.Equal(t, fleet.MDMDeliveryVerified, status)
+
+	// A late repeat of the ACK must not send the delivery back to verifying.
+	ackInstall(t, ds, in)
+	status, _, _ = readWindowsHostProfile(t, ds, in.device.HostUUID, in.profileUUID)
+	assert.Equal(t, fleet.MDMDeliveryVerified, status)
 }
 
 func testApplyWindowsSCEPStatusProbeResults(t *testing.T, ds *Datastore) {
@@ -259,6 +248,7 @@ func testApplyWindowsSCEPStatusProbeResults(t *testing.T, ds *Datastore) {
 		},
 		{
 			name: "failed with retries left", status: "16", errorCode: "-2145844748", attempt: 1,
+			// Back to NULL (pending) so the profile manager redelivers it.
 			installStatus: fleet.MDMDeliveryVerifying, wantStatus: "", wantRetries: 1,
 		},
 		{
@@ -284,54 +274,34 @@ func testApplyWindowsSCEPStatusProbeResults(t *testing.T, ds *Datastore) {
 		t.Run(c.name, func(t *testing.T) {
 			defer TruncateTables(t, ds)
 			in := setUpWindowsSCEPInstall(t, ds, false, fleet.CAConfigNDES)
-			probe := windowsSCEPStatusProbeCommand(in.installCmdUUID, in.profileUUID, false, c.attempt)
-			require.NoError(t, ds.mdmWindowsInsertCommandForEnrollmentIDsDB(ctx, ds.primary, []uint{in.device.ID}, probe))
-
-			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				cmdUUID := in.installCmdUUID
-				if c.newerDelivery {
-					cmdUUID = uuid.NewString()
-				}
-				_, err := q.ExecContext(ctx, `UPDATE host_mdm_windows_profiles SET status = ?, retries = ?, command_uuid = ? WHERE host_uuid = ?`,
-					c.installStatus, c.retries, cmdUUID, in.device.HostUUID)
-				return err
-			})
-			require.NoError(t, ds.ReconcileWindowsProfilesStatus(ctx))
-
-			body := ackStatus(probe.CommandUUID, "Get", "404")
-			if c.status != "" {
-				body = ackStatus(probe.CommandUUID, "Get", "200") + probeResults(probe, c.status, c.errorCode)
+			cmdUUID := in.installCmdUUID
+			if c.newerDelivery {
+				cmdUUID = uuid.NewString()
 			}
-			_, err := ds.MDMWindowsSaveResponse(ctx, in.device, windowsMDMResponse(t, in.device, body), nil)
-			require.NoError(t, err)
+			setWindowsSCEPInstallRow(t, ds, in, cmdUUID, c.installStatus, c.retries)
+			require.NoError(t, ds.ReconcileWindowsProfilesStatus(ctx))
+			probe := windowsSCEPStatusProbeCommand(in.installCmdUUID, in.profileUUID, false, c.attempt)
+			require.NoError(t, ds.MDMWindowsInsertCommandForHosts(ctx, []string{in.device.HostUUID}, probe))
+
+			answerProbe(t, ds, in, probe, c.status, c.errorCode)
 
 			status, detail, retries := readWindowsHostProfile(t, ds, in.device.HostUUID, in.profileUUID)
 			assert.Equal(t, c.wantStatus, status)
 			assert.Equal(t, c.wantRetries, retries)
 			assert.Equal(t, c.wantDetail, detail)
 
-			probes := queuedSCEPStatusProbes(t, ds, in.device.ID)
+			probes := pendingSCEPStatusProbes(t, ds, in.device.ID)
 			if c.wantNextProbe {
-				require.Len(t, probes, 2)
-				assert.Contains(t, probes, *nextWindowsSCEPStatusProbeCommand(*probe))
+				require.Len(t, probes, 1)
+				assert.Equal(t, nextWindowsSCEPStatusProbeCommand(*probe).CommandUUID, probes[0].CommandUUID)
 			} else {
-				assert.Len(t, probes, 1)
+				assert.Empty(t, probes)
 			}
 
 			// The rollup must follow without waiting for the reconcile cron.
 			rollup := readWindowsProfilesStatusRollup(t, ds)[in.device.HostUUID]
 			require.NoError(t, ds.ReconcileWindowsProfilesStatus(ctx))
 			assert.Equal(t, readWindowsProfilesStatusRollup(t, ds)[in.device.HostUUID], rollup)
-
-			if c.status != "" {
-				// The answer is kept with the command result.
-				var rawResult string
-				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-					return sqlx.GetContext(ctx, q, &rawResult, `SELECT raw_result FROM windows_mdm_command_results WHERE command_uuid = ?`,
-						probe.CommandUUID)
-				})
-				assert.Contains(t, rawResult, "<Data>"+c.status+"</Data>")
-			}
 		})
 	}
 }
