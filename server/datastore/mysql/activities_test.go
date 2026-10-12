@@ -51,6 +51,7 @@ func TestActivity(t *testing.T) {
 		{"ActivateScriptPackageUninstallWithCorruptPayload", testActivateScriptPackageUninstallWithCorruptPayload},
 		{"ListPolicyAutomationActivities", testListPolicyAutomationActivities},
 		{"ListPolicyAutomationActivitiesNotifyBeforePatching", testListPolicyAutomationActivitiesNotifyBeforePatching},
+		{"PolicyAutomationRunCounts", testPolicyAutomationRunCounts},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -3283,12 +3284,12 @@ func testListPolicyAutomationActivities(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
 		name:    "ran_script",
-		details: map[string]any{"script_execution_id": scriptSuccessExecID, "script_name": "my-script.sh"},
+		details: map[string]any{"script_execution_id": scriptSuccessExecID, "script_name": "my-script.sh", "policy_id": policy.ID},
 		hostIDs: []uint{h1.ID},
 	}))
 	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
 		name:    "ran_script",
-		details: map[string]any{"script_execution_id": scriptFailureExecID, "script_name": "my-script.sh"},
+		details: map[string]any{"script_execution_id": scriptFailureExecID, "script_name": "my-script.sh", "policy_id": policy.ID},
 		hostIDs: []uint{h1.ID},
 	}))
 
@@ -3309,12 +3310,12 @@ func testListPolicyAutomationActivities(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
 		name:    "installed_software",
-		details: map[string]any{"install_uuid": swSuccessExecID, "software_title": "My Software", "status": "installed"},
+		details: map[string]any{"install_uuid": swSuccessExecID, "software_title": "My Software", "status": "installed", "policy_id": policy.ID},
 		hostIDs: []uint{h1.ID},
 	}))
 	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
 		name:    "installed_software",
-		details: map[string]any{"install_uuid": swFailureExecID, "software_title": "My Software", "status": "failed_install"},
+		details: map[string]any{"install_uuid": swFailureExecID, "software_title": "My Software", "status": "failed_install", "policy_id": policy.ID},
 		hostIDs: []uint{h1.ID},
 	}))
 
@@ -3333,7 +3334,7 @@ func testListPolicyAutomationActivities(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
 		name:    "installed_software",
-		details: map[string]any{"install_uuid": swRemovedExecID, "software_title": "My Software", "status": "installed"},
+		details: map[string]any{"install_uuid": swRemovedExecID, "software_title": "My Software", "status": "installed", "policy_id": policy.ID},
 		hostIDs: []uint{h1.ID},
 	}))
 
@@ -3359,12 +3360,12 @@ func testListPolicyAutomationActivities(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
 		name:    "installed_app_store_app",
-		details: map[string]any{"command_uuid": vppSuccessCmdUUID, "software_title": "My VPP App", "status": "installed"},
+		details: map[string]any{"command_uuid": vppSuccessCmdUUID, "software_title": "My VPP App", "status": "installed", "policy_id": policy.ID},
 		hostIDs: []uint{h1.ID},
 	}))
 	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
 		name:    "installed_app_store_app",
-		details: map[string]any{"command_uuid": vppFailureCmdUUID, "software_title": "My VPP App", "status": "failed_install"},
+		details: map[string]any{"command_uuid": vppFailureCmdUUID, "software_title": "My VPP App", "status": "failed_install", "policy_id": policy.ID},
 		hostIDs: []uint{h1.ID},
 	}))
 
@@ -3583,7 +3584,7 @@ func testListPolicyAutomationActivities(t *testing.T, ds *Datastore) {
 		// details intentionally omits "status".
 		require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
 			name:    "installed_software",
-			details: map[string]any{"install_uuid": execID, "software_title": "My Software"},
+			details: map[string]any{"install_uuid": execID, "software_title": "My Software", "policy_id": policy.ID},
 			hostIDs: []uint{h1.ID},
 		}))
 
@@ -3781,4 +3782,98 @@ func testListPolicyAutomationActivitiesNotifyBeforePatching(t *testing.T, ds *Da
 		require.Len(t, displayed, 1)
 		require.Contains(t, string(*displayed[0].Details), bothPolicies)
 	})
+}
+
+func testPolicyAutomationRunCounts(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "run-counts-team"})
+	require.NoError(t, err)
+	teamHost := test.NewHost(t, ds, "run-counts-team-host", "10.1.0.1", "run-counts-key-1", "run-counts-uuid-1", time.Now())
+	noTeamHost := test.NewHost(t, ds, "run-counts-no-team-host", "10.1.0.2", "run-counts-key-2", "run-counts-uuid-2", time.Now())
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET team_id = ? WHERE id = ?`, team.ID, teamHost.ID)
+	require.NoError(t, err)
+
+	policy, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "run-counts-policy", Query: "SELECT 1"})
+	require.NoError(t, err)
+	require.NotNil(t, policy)
+
+	// count a successful and a failed script run on the fleet host and a successful one on the Unassigned host
+	require.NoError(t, ds.IncrementHostPolicyAutomationRunCount(ctx, policy.ID, teamHost.ID, fleet.ActivityTypeRanScript{}, true))
+	require.NoError(t, ds.IncrementHostPolicyAutomationRunCount(ctx, policy.ID, teamHost.ID, fleet.ActivityTypeRanScript{}, false))
+	require.NoError(t, ds.IncrementHostPolicyAutomationRunCount(ctx, policy.ID, noTeamHost.ID, fleet.ActivityTypeRanScript{}, true))
+
+	// count a successful install on the fleet host and a failed one on the Unassigned host
+	require.NoError(t, ds.IncrementHostPolicyAutomationRunCount(ctx, policy.ID, teamHost.ID, fleet.ActivityTypeInstalledSoftware{}, true))
+	require.NoError(t, ds.IncrementHostPolicyAutomationRunCount(ctx, policy.ID, noTeamHost.ID, fleet.ActivityTypeInstalledSoftware{}, false))
+
+	// count a verified VPP install on the fleet host and a failed one on the Unassigned host
+	require.NoError(t, ds.IncrementHostPolicyAutomationRunCount(ctx, policy.ID, teamHost.ID, fleet.ActivityInstalledAppStoreApp{}, true))
+	require.NoError(t, ds.IncrementHostPolicyAutomationRunCount(ctx, policy.ID, noTeamHost.ID, fleet.ActivityInstalledAppStoreApp{}, false))
+
+	type runCount struct {
+		PolicyID     uint   `db:"policy_id"`
+		ActivityType string `db:"activity_type"`
+		HostID       uint   `db:"host_id"`
+		SuccessCount uint   `db:"success_count"`
+		FailCount    uint   `db:"fail_count"`
+	}
+
+	// read the count rows, each counted run should be on its host's row for its activity type
+	var counts []runCount
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &counts, `SELECT * FROM host_policy_automation_run_counts ORDER BY activity_type, host_id`))
+	expectedCounts := []runCount{
+		{PolicyID: policy.ID, ActivityType: "installed_app_store_app", HostID: teamHost.ID, SuccessCount: 1},
+		{PolicyID: policy.ID, ActivityType: "installed_app_store_app", HostID: noTeamHost.ID, FailCount: 1},
+		{PolicyID: policy.ID, ActivityType: "installed_software", HostID: teamHost.ID, SuccessCount: 1},
+		{PolicyID: policy.ID, ActivityType: "installed_software", HostID: noTeamHost.ID, FailCount: 1},
+		{PolicyID: policy.ID, ActivityType: "ran_script", HostID: teamHost.ID, SuccessCount: 1, FailCount: 1},
+		{PolicyID: policy.ID, ActivityType: "ran_script", HostID: noTeamHost.ID, SuccessCount: 1},
+	}
+	require.Equal(t, expectedCounts, counts)
+
+	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}, IncludeObserver: true}
+	teamFilter := fleet.TeamFilter{
+		User:            &fleet.User{Teams: []fleet.UserTeam{{ID: team.ID, Role: fleet.RoleObserver}}},
+		IncludeObserver: true,
+	}
+	countOpts := fleet.ListOptions{IncludeMetadata: true, PerPage: 10}
+
+	// list the policy's runs as an admin, the total should sum the script, install and VPP counts of both hosts
+	_, meta, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, countOpts, "")
+	require.NoError(t, err)
+	require.NotNil(t, meta)
+	require.Equal(t, uint(7), meta.TotalResults)
+
+	// list only failed runs, the total should sum only the fail counts
+	_, meta, err = ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, countOpts, "error")
+	require.NoError(t, err)
+	require.NotNil(t, meta)
+	require.Equal(t, uint(3), meta.TotalResults)
+
+	// list only successful runs, the total should sum only the success counts
+	_, meta, err = ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, countOpts, "success")
+	require.NoError(t, err)
+	require.NotNil(t, meta)
+	require.Equal(t, uint(4), meta.TotalResults)
+
+	// list as an observer of the fleet, the total should leave out the Unassigned host
+	_, meta, err = ds.ListPolicyAutomationActivities(ctx, policy.ID, teamFilter, countOpts, "")
+	require.NoError(t, err)
+	require.NotNil(t, meta)
+	require.Equal(t, uint(4), meta.TotalResults)
+
+	// search for the Unassigned host by name, the total should only count its runs
+	searchOpts := fleet.ListOptions{IncludeMetadata: true, PerPage: 10, MatchQuery: "run-counts-no-team"}
+	_, meta, err = ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, searchOpts, "")
+	require.NoError(t, err)
+	require.NotNil(t, meta)
+	require.Equal(t, uint(3), meta.TotalResults)
+
+	// delete the policy, its count rows should be deleted with it
+	_, err = ds.DeleteGlobalPolicies(ctx, []uint{policy.ID})
+	require.NoError(t, err)
+	var remainingRows int
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &remainingRows, `SELECT COUNT(*) FROM host_policy_automation_run_counts`))
+	require.Zero(t, remainingRows)
 }

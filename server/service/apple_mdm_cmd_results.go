@@ -201,6 +201,15 @@ func NewInstalledApplicationListResultsHandler(
 				return ctxerr.Wrap(ctx, err, "creating activity for installed app store app")
 			}
 
+			// In-house app installs have no policy_id, so only VPP installs are counted.
+			if expectedInstall.PolicyID != nil {
+				installVerified := terminalStatus == fleet.MDMAppleStatusAcknowledged
+				err = ds.IncrementHostPolicyAutomationRunCount(ctx, *expectedInstall.PolicyID, expectedInstall.HostID, fleet.ActivityInstalledAppStoreApp{}, installVerified)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "increment host policy automation run count for vpp install")
+				}
+			}
+
 			return nil
 		}
 

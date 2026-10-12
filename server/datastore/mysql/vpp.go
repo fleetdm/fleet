@@ -2733,7 +2733,8 @@ SELECT
 	ncr.status AS install_command_status,
 	va.bundle_identifier AS bundle_identifier,
 	va.latest_version AS expected_version,
-	hvsi.retry_count AS retry_count
+	hvsi.retry_count AS retry_count,
+	hvsi.policy_id AS policy_id
 FROM nano_command_results ncr
 JOIN host_vpp_software_installs hvsi ON hvsi.command_uuid = ncr.command_uuid
 JOIN vpp_apps va ON va.adam_id = hvsi.adam_id AND va.platform = hvsi.platform

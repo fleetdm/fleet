@@ -975,6 +975,10 @@ type Datastore interface {
 	// SetHostSoftwareInstallResult records the result of a software installation
 	SetHostSoftwareInstallResult(ctx context.Context, result *HostSoftwareInstallResultPayload, attemptNumber *int) (wasCanceled bool, err error)
 
+	// IncrementHostPolicyAutomationRunCount adds one finished run of a policy automation on a host to
+	// host_policy_automation_run_counts, under the type of the activity written for the run.
+	IncrementHostPolicyAutomationRunCount(ctx context.Context, policyID uint, hostID uint, activity ActivityDetails, succeeded bool) error
+
 	// CreateIntermediateInstallFailureRecord creates a completed failure record for an
 	// installation attempt that will be retried, while keeping the original pending.
 	// It returns a deterministic execution ID for the failure record (unique per base

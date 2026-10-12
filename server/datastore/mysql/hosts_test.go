@@ -10931,6 +10931,10 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		uuid.NewString(), host.ID)
 	require.NoError(t, err)
 
+	// Insert into host_policy_automation_run_counts table (no host FK, cleaned up via hostRefs).
+	err = ds.IncrementHostPolicyAutomationRunCount(ctx, policy.ID, host.ID, fleet.ActivityTypeRanScript{}, true)
+	require.NoError(t, err)
+
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool

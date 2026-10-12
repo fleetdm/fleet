@@ -233,6 +233,7 @@ type HostVPPSoftwareInstall struct {
 	BundleIdentifier     string     `db:"bundle_identifier"`
 	RetryCount           int        `db:"retry_count"`
 	ExpectedVersion      string     `db:"expected_version"`
+	PolicyID             *uint      `db:"policy_id"`
 }
 
 type HostVPPSoftwareInstallLite struct {
