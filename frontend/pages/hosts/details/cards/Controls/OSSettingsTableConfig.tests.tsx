@@ -142,6 +142,32 @@ describe("generateTableData - host name row", () => {
   });
 });
 
+describe("generateTableData - Linux disk encryption row", () => {
+  const mdmData = createMockHostMdmData({
+    os_settings: {
+      disk_encryption: { status: "action_required", detail: "" },
+      certificates: [],
+    },
+  });
+
+  it.each(["ubuntu", "zorin", "rhel"])(
+    "builds the disk encryption row for %s hosts",
+    (platform) => {
+      const rows = generateTableData(mdmData, platform) ?? [];
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].status).toBe("action_required");
+    }
+  );
+
+  it.each(["arch", "omarchy", "cachyos", "manjaro", "debian"])(
+    "builds no rows for %s hosts, which Fleet cannot escrow keys for",
+    (platform) => {
+      expect(generateTableData(mdmData, platform)).toBeNull();
+    }
+  );
+});
+
 describe("countFailedControls", () => {
   it("counts nothing when there are no rows", () => {
     expect(countFailedControls(null)).toBe(0);
