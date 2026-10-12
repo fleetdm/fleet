@@ -1008,6 +1008,33 @@ func (svc *Service) GetDefaultMDMAppleSetupAssistantProfile(ctx context.Context)
 	return godepProfile, &profile.UpdatedAt, nil
 }
 
+func (svc *Service) RotateMDMAppleAutomaticEnrollmentToken(ctx context.Context, gracePeriodHours *int) (*time.Time, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEnrollmentProfile{}, fleet.ActionWrite); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	hours := fleet.DefaultAutomaticEnrollmentTokenGracePeriodHours
+	if gracePeriodHours != nil {
+		hours = *gracePeriodHours
+	}
+	if hours < 0 || hours > fleet.MaxAutomaticEnrollmentTokenGracePeriodHours {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("grace_period_hours",
+			fmt.Sprintf("must be between 0 and %d", fleet.MaxAutomaticEnrollmentTokenGracePeriodHours)))
+	}
+
+	// Apple only learns the new URL when each fleet's profile is re-defined and
+	// its devices re-assigned.
+	job, err := worker.NewMacosSetupAssistantJob(worker.MacosSetupAssistantUpdateAllProfiles, nil)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build automatic enrollment profile update job")
+	}
+	expiresAt, err := svc.ds.RotateMDMAppleAutomaticEnrollmentToken(ctx, uuid.NewString(), time.Duration(hours)*time.Hour, job)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "rotate automatic enrollment token")
+	}
+	return expiresAt, nil
+}
+
 func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleSetupAssistant{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
@@ -1932,6 +1959,10 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context, personal 
 
 	if appConfig.MDM.OnlyAllowAppleBusinessEnrollment {
 		return nil, &fleet.BadRequestError{Message: fleet.AdminOnlyEnrollmentForbiddenErrMsg}
+	}
+	// the manual profile isn't tied to a device, so it can only carry the static challenge
+	if !svc.config.MDM.AppleSCEPStaticChallengeEnabled {
+		return nil, &fleet.BadRequestError{Message: fleet.ManualEnrollmentStaticChallengeDisabledErrMsg}
 	}
 
 	topic, err := assets.APNSTopic(ctx, svc.ds)

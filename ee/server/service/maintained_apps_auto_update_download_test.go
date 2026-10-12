@@ -284,6 +284,7 @@ func TestAutoUpdateNoCheckHashMarksCachedVersionCurrent(t *testing.T) {
 	}
 
 	require.NoError(t, AutoUpdateFleetMaintainedApps(context.Background(), ds, memStore(), discardLogger()))
+	require.Equal(t, 1, srv.installerHits, "cached bytes are missing from the store, so they're downloaded")
 	// Without a hash the bytes may turn out to be ones Fleet already had, so the version the
 	// manifest publishes still has to become the newest download.
 	require.Equal(t, uint(7), markedInstallerID)
@@ -329,13 +330,46 @@ func TestAutoUpdateNoCheckHashCachedVersionWithChangedOpenQueryRefreshesTheInsta
 	}
 
 	// Run the cron, the active installer should get the manifest's new open query.
-	require.NoError(t, AutoUpdateFleetMaintainedApps(context.Background(), ds, memStore(), discardLogger()))
-	require.Equal(t, 1, srv.installerHits)
+	require.NoError(t, AutoUpdateFleetMaintainedApps(context.Background(), ds, memStore(downloadedHash), discardLogger()))
+	require.Equal(t, 0, srv.installerHits)
 	require.True(t, ds.UpdateInstallerScriptsAndQueriesFuncInvoked)
 	require.Equal(t, uint(9), gotInstallerID)
 	require.Equal(t, testFMALatest, gotVersion)
 	require.Equal(t, srv.open, gotAppOpenQuery)
 	require.False(t, ds.InsertFleetMaintainedAppVersionFuncInvoked)
+}
+
+func TestAutoUpdateNoCheckHashCachedVersionSkipsDownloadPerTeam(t *testing.T) {
+	srv := newFakeManifestServer(t)
+	srv.sha = noCheckHash
+	ds := baseDownloadStore(t, testFMALatest, 9)
+	teamA, teamB := uint(1), uint(2)
+	ds.ListFleetMaintainedAppActiveInstallersFunc = func(ctx context.Context) ([]fleet.FMAAutoUpdateCandidate, error) {
+		return []fleet.FMAAutoUpdateCandidate{
+			{TeamID: &teamA, TitleID: testFMATitleID, FleetMaintainedAppID: testFMAAppID, InstallerID: 9, Version: testFMALatest, Slug: testFMASlug},
+			{TeamID: &teamB, TitleID: testFMATitleID, FleetMaintainedAppID: testFMAAppID, InstallerID: 19, Version: testFMALatest, Slug: testFMASlug},
+		}, nil
+	}
+	// Each team cached the version under different bytes, both still in the store.
+	ds.HasFMAInstallerVersionFunc = func(ctx context.Context, tmID *uint, fmaID uint, version string) (bool, string, error) {
+		if *tmID == teamA {
+			return true, "hash-a", nil
+		}
+		return true, "hash-b", nil
+	}
+	var lookedUp []string
+	ds.GetSoftwareInstallerMetadataByStorageIDFunc = func(ctx context.Context, storageID string) (fleet.CachedInstallerMetadata, error) {
+		lookedUp = append(lookedUp, storageID)
+		return fleet.CachedInstallerMetadata{}, nil
+	}
+	ds.InsertFleetMaintainedAppVersionFunc = func(ctx context.Context, activeInstallerID uint, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+		t.Fatal("must not insert a version that is already cached")
+		return 0, nil
+	}
+
+	require.NoError(t, AutoUpdateFleetMaintainedApps(context.Background(), ds, memStore("hash-a", "hash-b"), discardLogger()))
+	require.Equal(t, 0, srv.installerHits)
+	require.Equal(t, []string{"hash-a", "hash-b"}, lookedUp)
 }
 
 func TestAutoUpdateCaretMajorExceededSkipsDownload(t *testing.T) {

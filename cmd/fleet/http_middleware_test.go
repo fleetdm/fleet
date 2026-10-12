@@ -5,11 +5,22 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	"github.com/stretchr/testify/assert"
 )
+
+type deadlineRecorder struct {
+	*httptest.ResponseRecorder
+	readDeadlineSet bool
+}
+
+func (d *deadlineRecorder) SetReadDeadline(time.Time) error {
+	d.readDeadlineSet = true
+	return nil
+}
 
 func TestAPITimeoutOverrideHandler(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
@@ -53,13 +64,15 @@ func TestAPITimeoutOverrideHandler(t *testing.T) {
 				seen = installersize.FromContext(req.Context())
 			})
 
+			rec := &deadlineRecorder{ResponseRecorder: httptest.NewRecorder()}
 			apiTimeoutOverrideHandler(downstream, cfg, logger).ServeHTTP(
-				httptest.NewRecorder(),
+				rec,
 				httptest.NewRequest(tc.method, tc.path, nil),
 			)
 
 			assert.True(t, called, "the wrapped API handler must always be invoked")
 			assert.Equal(t, tc.wantInstallerSize, seen)
+			assert.False(t, rec.readDeadlineSet)
 		})
 	}
 }
