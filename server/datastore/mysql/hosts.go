@@ -1610,17 +1610,6 @@ func (ds *Datastore) applyHostFilters(
 		hostMDMSeenJoin += hostMDMSeenTimeJoin
 	}
 
-	var depStatusFilter string
-	wantFailedDEP := ptr.ValOrZero(opt.DEPProfileErrorFilter)
-	wantDepResp := string(ptr.ValOrZero(opt.DEPAssignProfileResponseFilter))
-	switch {
-	case wantFailedDEP:
-		depStatusFilter = `AND hdep.deleted_at IS NULL AND hdep.assign_profile_response IN ('` + string(fleet.DEPAssignProfileResponseFailed) + `', '` + string(fleet.DEPAssignProfileResponseThrottled) + `')`
-	case wantDepResp != "":
-		depStatusFilter = `AND hdep.deleted_at IS NULL AND hdep.assign_profile_response = ?`
-		whereParams = append(whereParams, wantDepResp)
-	}
-
 	sqlStmt += fmt.Sprintf(
 		`FROM hosts h
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
@@ -1645,7 +1634,7 @@ func (ds *Datastore) applyHostFilters(
 	%s
 	%s
 	%s
-		WHERE TRUE AND %s AND %s AND %s AND %s AND %s %s
+		WHERE TRUE AND %s AND %s AND %s AND %s AND %s
     `,
 
 		// JOINs
@@ -1672,7 +1661,6 @@ func (ds *Datastore) applyHostFilters(
 		munkiFilter,
 		lowDiskSpaceFilter,
 		batchScriptExecutionFilter,
-		depStatusFilter,
 	)
 
 	now := ds.clock.Now()
@@ -1680,6 +1668,7 @@ func (ds *Datastore) applyHostFilters(
 	sqlStmt, whereParams = filterHostsByTeam(sqlStmt, opt, whereParams)
 	sqlStmt, whereParams = filterHostsByPolicy(sqlStmt, opt, whereParams)
 	sqlStmt, whereParams = filterHostsByMDM(sqlStmt, opt, whereParams)
+	sqlStmt, whereParams = filterHostsByDEPAssignProfile(sqlStmt, opt, whereParams)
 	sqlStmt, whereParams = filterHostsByConnectedToFleet(sqlStmt, opt, whereParams)
 	diskEncryptionConfig, err := ds.GetConfigEnableDiskEncryption(ctx, opt.TeamFilter)
 	if err != nil {
@@ -1767,6 +1756,18 @@ func filterHostsByTeam(sql string, opt fleet.HostListOptions, params []interface
 	sql += ` AND h.team_id = ?`
 	params = append(params, *opt.TeamFilter)
 
+	return sql, params
+}
+
+// Requires the hdep join from hostMDMJoin.
+func filterHostsByDEPAssignProfile(sql string, opt fleet.HostListOptions, params []any) (string, []any) {
+	switch {
+	case ptr.ValOrZero(opt.DEPProfileErrorFilter):
+		sql += ` AND hdep.deleted_at IS NULL AND hdep.assign_profile_response IN ('` + string(fleet.DEPAssignProfileResponseFailed) + `', '` + string(fleet.DEPAssignProfileResponseThrottled) + `')`
+	case opt.DEPAssignProfileResponseFilter != nil && *opt.DEPAssignProfileResponseFilter != "":
+		sql += ` AND hdep.deleted_at IS NULL AND hdep.assign_profile_response = ?`
+		params = append(params, string(*opt.DEPAssignProfileResponseFilter))
+	}
 	return sql, params
 }
 
@@ -1990,7 +1991,7 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(ctx context.Context, sql stri
 	// supported linux platforms if disk encryption is enabled.
 	includeLinuxCond := "FALSE"
 	if diskEncryptionConfig.LinuxEscrowEnabled {
-		includeLinuxCond = `(h.platform = 'ubuntu' OR h.platform = 'zorin' OR h.os_version LIKE 'Fedora%%')`
+		includeLinuxCond = sqlLUKSSupportedHostCond
 	}
 
 	sqlFmt := ` AND (
@@ -2112,7 +2113,7 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(ctx context.Con
 		return sql, params
 	}
 
-	sqlFmt := " AND h.platform IN('windows', 'darwin', 'ubuntu', 'zorin', 'rhel')"
+	sqlFmt := " AND h.platform IN('windows', 'darwin', 'rhel', " + sqlLUKSSupportedPlatforms + ")"
 	if opt.TeamFilter == nil {
 		// OS settings filter is not compatible with the "all teams" option so append the "no
 		// team" filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
@@ -2121,7 +2122,7 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(ctx context.Con
 	sqlFmt += ` AND (
 		(h.platform = 'windows' AND mwe.host_uuid IS NOT NULL AND hmdm.enrolled = 1 AND hmdm.is_server = 0 AND %s) -- windows
 		OR (h.platform = 'darwin' AND ne.id IS NOT NULL AND hmdm.enrolled = 1 AND %s) -- apple
-		OR ((h.platform = 'ubuntu' OR h.platform = 'zorin' OR h.os_version LIKE 'Fedora%%') AND %s) -- linux
+		OR (` + sqlLUKSSupportedHostCond + ` AND %s) -- linux
 	)`
 
 	var subqueryMacOS string

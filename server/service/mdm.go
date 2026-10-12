@@ -829,6 +829,10 @@ func (svc *Service) enqueueMicrosoftMDMCommand(ctx context.Context, rawXMLCmd []
 		return nil, ctxerr.Wrap(ctx, err, "validate windows mdm command")
 	}
 
+	if err := fleet.ValidateWindowsMDMCommandID(cmdMsg.CmdID.Value); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validate windows mdm command id")
+	}
+
 	if cmdMsg.IsPremium() {
 		lic, err := svc.License(ctx)
 		if err != nil {

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.117.0",
+      "version": "1.118.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.xnview.XnConvert';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.xnview.XnConvert' AND version_compare(bundle_short_version, '1.117.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.xnview.XnConvert' AND version_compare(bundle_short_version, '1.118.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.xnview.XnConvert' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.xnview.com/old_versions/XnConvert/XnConvert-1.117.0-mac.dmg",
+      "installer_url": "https://download.xnview.com/old_versions/XnConvert/XnConvert-1.118.0-mac.dmg",
       "install_script_ref": "33555072",
       "uninstall_script_ref": "f3ef51be",
-      "sha256": "53ab78eb6bae4132efa91d0fc94d9c62e544795bd90c3bc7294d1e8a6bae2de6",
+      "sha256": "2d1e64bcb12e9d84788cca5ca9eb97bda2d7f07eaff7ff2f0b24aafbebeae597",
       "default_categories": [
         "Productivity"
       ]

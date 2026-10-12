@@ -6,6 +6,7 @@ import React from "react";
 import createMockConfig from "__mocks__/configMock";
 import createMockQuery from "__mocks__/queryMock";
 import createMockUser from "__mocks__/userMock";
+import { QueryContext } from "context/query";
 import mockServer from "test/mock-server";
 import {
   createCustomRenderer,
@@ -47,6 +48,71 @@ const mockRouter = createMockRouter();
 const mockLocation = createMockLocation();
 
 describe("EditQueryForm - component", () => {
+  it.each([false, true])(
+    "marks live runs as editor-originated (observer=%s)",
+    async (isGlobalObserver) => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            currentUser: createMockUser(),
+            isGlobalObserver,
+            isGlobalAdmin: !isGlobalObserver,
+            isPremiumTier: false,
+            isOnGlobalTeam: true,
+            config: createMockConfig(),
+          },
+        },
+      });
+      const QueryState = ({ children }: { children: React.ReactNode }) => {
+        const value = React.useContext(QueryContext);
+        return (
+          <QueryContext.Provider
+            value={{
+              ...value,
+              lastEditedQueryId: 1,
+              lastEditedQueryObserverCanRun: true,
+              lastEditedQueryName: mockQuery.name,
+              lastEditedQueryBody: mockQuery.query,
+            }}
+          >
+            {children}
+          </QueryContext.Provider>
+        );
+      };
+      const { user } = render(
+        <QueryState>
+          <EditQueryForm
+            router={mockRouter}
+            location={mockLocation}
+            queryIdForEdit={1}
+            apiTeamIdForQuery={2}
+            currentTeamId={2}
+            showOpenSchemaActionText
+            storedQuery={createMockQuery()}
+            isStoredQueryLoading={false}
+            isQuerySaving={false}
+            isQueryUpdating={false}
+            onSubmitNewQuery={jest.fn()}
+            onOsqueryTableSelect={jest.fn()}
+            onUpdate={jest.fn()}
+            onOpenSchemaSidebar={jest.fn()}
+            renderLiveQueryWarning={jest.fn()}
+            backendValidators={{}}
+            showConfirmSaveChangesModal={false}
+            setShowConfirmSaveChangesModal={jest.fn()}
+          />
+        </QueryState>
+      );
+      await user.click(
+        await screen.findByRole("button", { name: "Live report" })
+      );
+      expect(mockRouter.push).toHaveBeenCalledWith(
+        "/reports/1/live?from=edit&fleet_id=2"
+      );
+    }
+  );
+
   it("disables save button for missing query name", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,

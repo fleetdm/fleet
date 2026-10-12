@@ -2078,14 +2078,37 @@ func testListHostsDEPFilters(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 	})
 
+	// --- label-scoped lists use a separate query builder ---
+
+	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "dep-filter-test-label", Query: "select 1"})
+	require.NoError(t, err)
+	for _, h := range []*fleet.Host{hostSuccess, hostFailed, hostThrottled, hostNoDEP} {
+		require.NoError(t, ds.RecordLabelQueryExecutions(ctx, h, map[uint]*bool{label.ID: new(true)}, time.Now(), false))
+	}
+
+	t.Run("dep_profile_error=true combined with label", func(t *testing.T) {
+		hosts := listHostsInLabelCheckCount(t, ds, filter, label.ID, fleet.HostListOptions{DEPProfileErrorFilter: new(true)}, 2)
+		assert.ElementsMatch(t, []uint{hostFailed.ID, hostThrottled.ID}, []uint{hosts[0].ID, hosts[1].ID})
+	})
+
+	t.Run("dep_assign_profile_response combined with label", func(t *testing.T) {
+		resp := fleet.DEPAssignProfileResponseSuccess
+		hosts := listHostsInLabelCheckCount(t, ds, filter, label.ID, fleet.HostListOptions{DEPAssignProfileResponseFilter: &resp}, 1)
+		assert.Equal(t, hostSuccess.ID, hosts[0].ID)
+
+		// hostNotAccessible is not in the label.
+		resp = fleet.DEPAssignProfileResponseNotAccessible
+		listHostsInLabelCheckCount(t, ds, filter, label.ID, fleet.HostListOptions{DEPAssignProfileResponseFilter: &resp}, 0)
+	})
+
 	// --- combining dep_profile_error with other filters ---
 
 	t.Run("dep_profile_error=true combined with team filter", func(t *testing.T) {
-		// Create a second team and assign hostFailed to it.
+		// Create a second team and assign hostFailed and hostSuccess to it.
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "dep-filter-test-team"})
 		require.NoError(t, err)
 
-		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hostFailed.ID}))
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hostFailed.ID, hostSuccess.ID}))
 		require.NoError(t, err)
 
 		depErr := true
@@ -2095,6 +2118,12 @@ func testListHostsDEPFilters(t *testing.T, ds *Datastore) {
 			TeamFilter:            &team.ID,
 		}, 1)
 		require.Len(t, hosts, 1)
+		assert.Equal(t, hostFailed.ID, hosts[0].ID)
+
+		hosts = listHostsInLabelCheckCount(t, ds, filter, label.ID, fleet.HostListOptions{
+			DEPProfileErrorFilter: &depErr,
+			TeamFilter:            &team.ID,
+		}, 1)
 		assert.Equal(t, hostFailed.ID, hosts[0].ID)
 	})
 }

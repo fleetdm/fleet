@@ -481,9 +481,10 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		}
 
 		// Backstop: a proxied Windows SCEP profile that never gets its certificate would otherwise sit in
-		// "verifying" forever. Once the grace period has elapsed and this report proves we could read the store
-		// where the certificate belongs but it isn't there, fail it. Runs after the flip above, so anything still
-		// "verifying" here has no observed certificate.
+		// "verifying" forever, and one the device reported as installed would stay "verified" even though Fleet can't
+		// match the certificate for renewal. Once the grace period has elapsed and this report proves we could read the
+		// store where the certificate belongs but no matching certificate is there, fail it. Runs after the flip above,
+		// so no row it considers has an observed certificate.
 		failedRows, err := failStuckWindowsSCEPProfilesDB(ctx, tx, hostUUID, anyUserCertObserved)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "fail stuck windows scep profiles")
@@ -500,9 +501,10 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 	})
 }
 
-// windowsSCEPVerificationGracePeriod is how long a proxied Windows SCEP profile may stay in "verifying" (measured from
-// the host's ACK of the profile, i.e. host_mdm_windows_profiles.updated_at) before an ingest that proves the relevant
-// certificate store was readable, yet lacks the certificate, is treated as a failure.
+// windowsSCEPVerificationGracePeriod is how long a proxied Windows SCEP profile may stay "verifying", or "verified" by the
+// device's SCEP status, without osquery matching its certificate (measured from host_mdm_windows_profiles.updated_at)
+// before an ingest that proves the relevant certificate store was readable, yet lacks the certificate, is treated as a
+// failure.
 const windowsSCEPVerificationGracePeriod = time.Hour
 
 // windowsSCEPCertNotFoundDetail is the failure detail recorded when the verification backstop fires.
@@ -518,6 +520,10 @@ const windowsSCEPCertNotFoundDetail = "Fleet did not detect the SCEP certificate
 //     can read only while that user is logged in. We act only when this report includes at least one user
 //     certificate, proving a user store was readable. SINGLE-USER ASSUMPTION: Fleet does not track which user a
 //     ./User Windows profile targets, so we assume the device has one primary user.
+//
+// It also covers a profile the device's SCEP status reported as installed (verified) whose certificate osquery has never
+// matched to the profile's renewal ID, which happens when the CA rewrites the requested subject. The certificate is on
+// the host, but Fleet can't renew it, so it is treated as missing like any other.
 //
 // A certificate that never arrives is a delivery failure like any other, so it spends the profile's retries before it
 // becomes terminal: while retries are left the profile goes back to pending and the profile manager redelivers it with
@@ -537,10 +543,13 @@ func failStuckWindowsSCEPProfilesDB(ctx context.Context, tx sqlx.ExtContext, hos
 	where := `
 			WHERE hwmp.host_uuid = ?
 				AND hwmp.operation_type = ?
-				AND hwmp.status = ?
+				AND hwmp.status IN (?, ?)
 				AND hmmc.type IN (?)
+				AND hmmc.not_valid_after IS NULL
 				AND hwmp.updated_at < DATE_SUB(NOW(), INTERVAL ? SECOND)`
-	whereArgs := []any{hostUUID, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying, caTypeStrs, graceSeconds}
+	whereArgs := []any{
+		hostUUID, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerified, caTypeStrs, graceSeconds,
+	}
 	if !anyUserCertObserved {
 		// Only the LocalMachine store is provably readable this run. Restrict to device-scoped profiles (SyncML
 		// without a ./User SCEP node); a user-scoped certificate may just be waiting for its user to log in.
