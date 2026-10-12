@@ -282,7 +282,13 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 			case fleet.SetupExperienceStatusPending:
 				scriptsPending = append(scriptsPending, status)
 			case fleet.SetupExperienceStatusRunning:
-				scriptsRunning++
+				finished, err := svc.syncSetupExperienceScriptResult(ctx, hostUUID, status)
+				if err != nil {
+					return false, err
+				}
+				if !finished {
+					scriptsRunning++
+				}
 			}
 		}
 	}
@@ -470,6 +476,31 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 	}
 
 	return false, nil
+}
+
+// syncSetupExperienceScriptResult marks a running setup experience script step finished if its result is already
+// recorded. Saving the result and updating the step are separate writes, and fleetd doesn't resend a result whose
+// save request failed, so a failure between them would otherwise leave the step running forever.
+func (svc *Service) syncSetupExperienceScriptResult(ctx context.Context, hostUUID string, step *fleet.SetupExperienceStatusResult) (bool, error) {
+	if step.ScriptExecutionID == nil {
+		return false, nil
+	}
+	res, err := svc.ds.GetHostScriptExecutionResult(ctx, *step.ScriptExecutionID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return false, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "get setup experience script result")
+	}
+	if res.ExitCode == nil {
+		return false, nil
+	}
+	status := fleet.SetupExperienceScriptResult{ExitCode: int(*res.ExitCode)}.SetupExperienceStatus()
+	if _, err := svc.ds.MaybeUpdateSetupExperienceScriptStatus(ctx, hostUUID, *step.ScriptExecutionID, status); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "update setup experience script status from recorded result")
+	}
+	step.Status = status
+	return true, nil
 }
 
 // advancePolicyGatedSetupExperienceItem drives a policy-gated Windows/Linux setup-experience software item. The item's installer
