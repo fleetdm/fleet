@@ -6,9 +6,7 @@ Fleet supports Android devices that are [Play Protect certified](https://support
 
 ## Personal (BYOD) hosts with Fleet Free
 
-With Fleet Free, you can enroll personal (BYOD) Android hosts with a work profile, enforce OS settings with [configuration profiles](https://fleetdm.com/guides/custom-os-settings), and see host vitals and the software installed in the work profile.
-
-With Fleet Free, you can't manage apps in the work profile, and end users can't install any apps there. End users can only install apps that you add in Fleet, and adding [Play Store apps](https://fleetdm.com/guides/install-app-store-apps#google-play-android) requires [Fleet Premium](https://fleetdm.com/pricing). Enforcing OS updates, deploying certificates, and lock and wipe also require Fleet Premium.
+With Fleet Free, you can enroll personal (BYOD) Android hosts with a work profile, enforce OS settings with [configuration profiles](https://fleetdm.com/guides/custom-os-settings), and see host vitals and software. You can't manage apps in the work profile, because adding [Play Store apps](https://fleetdm.com/guides/install-app-store-apps#google-play-android) requires [Fleet Premium](https://fleetdm.com/pricing).
 
 ## Turn on
 
