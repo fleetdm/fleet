@@ -2970,7 +2970,7 @@ _Available in Fleet Premium._
 | enable_end_user_authentication       | boolean | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#end-user-authentication). |
 | lock_end_user_info                   | boolean | If set to true, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`) |
 
-> `enable_managed_local_account` and `end_user_local_account_type` are deprecated as of Fleet 4.95. It is maintained for backwards compatibility. Please use the platform based `enable_managed_local_account` and `apple_settings.end_user_local_account_type` instead.
+> `enable_managed_local_account` and `end_user_local_account_type` are deprecated as of Fleet 5.0. It is maintained for backwards compatibility. Please use the platform based `enable_managed_local_account` and `apple_settings.end_user_local_account_type` instead.
 
 <br/>
 
@@ -2996,7 +2996,7 @@ _Available in Fleet Premium._
 | enable_managed_local_account           | boolean | Whether to create the managed local account (default: `false`). |
 | end_user_local_account_type            | string  | The end user account type. Requires `enable_managed_local_account` to be `true`. Options: `"admin"`, `"standard"`, `"none"` (default: `"admin"`). |
 
-> `managed_local_account_settings` and `managed_local_account_settings.enabled` are deprecated as of Fleet 4.95. It is maintained for backwards compatibility. Please use `enable_managed_local_account` instead.
+> `managed_local_account_settings` and `managed_local_account_settings.enabled` are deprecated as of Fleet 5.0. It is maintained for backwards compatibility. Please use `enable_managed_local_account` instead.
 
 <br/>
 
@@ -16794,7 +16794,7 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 | enable_disk_encryption             | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true. |
 | enable_escrow_disk_encryption_key  | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. Supported for macOS and Linux hosts. |
 
-> `managed_local_account_settings` and `managed_local_account_settings.enabled` are deprecated as of Fleet 4.95. It is maintained for backwards compatibility. Please use `enable_managed_local_account` instead.
+> `managed_local_account_settings` and `managed_local_account_settings.enabled` are deprecated as of Fleet 5.0. It is maintained for backwards compatibility. Please use `enable_managed_local_account` instead.
 
 <br/>
 
@@ -16833,7 +16833,7 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 | enable_end_user_authentication        | boolean | If set to true, IdP authentication will be required during automatic MDM enrollment of new macOS hosts. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#require-idp-authentication).
 | lock_end_user_info                    | boolean | If set to true, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`) |
 
-> `enable_managed_local_account` and `end_user_local_account_type` are deprecated as of Fleet 4.95. It is maintained for backwards compatibility. Please use the platform based `enable_managed_local_account` and `apple_settings.end_user_local_account_type` instead.
+> `enable_managed_local_account` and `end_user_local_account_type` are deprecated as of Fleet 5.0. It is maintained for backwards compatibility. Please use the platform based `enable_managed_local_account` and `apple_settings.end_user_local_account_type` instead.
 
 ##### Example request body
 
