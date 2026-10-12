@@ -90,6 +90,7 @@ const AddAssetModal = ({
           in many profiles.
         </p>
         <FileUploader
+          className={`${baseClass}__file-uploader`}
           graphicName="file-json"
           title="Upload asset"
           message={
