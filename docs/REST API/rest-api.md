@@ -766,14 +766,15 @@ Only one of the objects is allowed in a single request.
 
 #### Parameters
 
-| Name            | Type    | In   | Description                                                 |
-|---------------- |-------- |------|-------------------------------------------------------------|
-| digicert   | object | body | See [digicert](#digicert) |
+| Name              | Type   | In   | Description                                                 |
+|------------------ |------- |------|-------------------------------------------------------------|
+| digicert          | object | body | See [digicert](#digicert) |
 | ndes_scep_proxy   | object | body | Used for both Microsoft NDES and Okta CAs (Okta uses NDES under the hood). See [ndes_scep_proxy](#ndes-scep-proxy) |
-| custom_scep_proxy   | object | body | See [custom_scep_proxy](#custom-scep-proxy) |
-| custom_est_proxy   | object | body | See [custom_est_proxy](#custom-est-proxy) |
-| hydrant   | object | body | See [hydrant](#hydrant) |
-| smallstep   | object | body | See [smallstep](#smallstep) |
+| custom_scep_proxy | object | body | See [custom_scep_proxy](#custom-scep-proxy) |
+| custom_est_proxy  | object | body | See [custom_est_proxy](#custom-est-proxy) |
+| hydrant           | object | body | See [hydrant](#hydrant) |
+| smallstep         | object | body | See [smallstep](#smallstep) |
+| ejbca             | object | body | See [ejbca](#ejbca) |
 
 ##### digicert
 
@@ -846,6 +847,16 @@ Object with the following structure:
 | username  | string | **Required**. The **Challenge Basic Authentication Username** from Smallstep. |
 | password  | string | **Required**. The **Challenge Basic Authentication Password** from Smallstep. |
 
+##### ejbca
+
+Object with the following structure:
+
+| Name                    | Type    | Description   |
+| ---------------------   | ------- | ---------------------------------------------------- |
+| name                    | string  | **Required**. Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. |
+| url                     | string  | **Required**. URL of the EJBCA REST API endpoint. |
+| password                | string  | **Required**. The password for the client certificate. |
+
 #### Example
 
 `POST /api/v1/fleet/certificate_authorities`
@@ -865,6 +876,13 @@ Object with the following structure:
     ],
     "certificate_seat_id": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
   }
+},
+{
+  "ejbca": {
+    "name": "WIFI_CERTIFICATE",
+    "url": "https://ejbca.example.com:8443",
+    "password": "********"
+  }
 }
 ```
 
@@ -877,6 +895,11 @@ Object with the following structure:
   "id": 1,
   "name": "WIFI_CERTIFICATE",
   "type": "digicert"
+},
+{
+  "id": 7,
+  "name": "EJBCA_WIFI",
+  "type": "ejbca"
 }
 ```
 
