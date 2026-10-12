@@ -8,13 +8,14 @@ import TooltipWrapper from "components/TooltipWrapper";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 
 import {
-  CUSTOM_SEVERITY_VALUE,
   getSeverityBand,
   getSeverityOption,
   ISeverityFieldErrors,
   ISeverityFilterValue,
+  parseSeverityScore,
   SEVERITY_DROPDOWN_OPTIONS,
   SEVERITY_HELP_TEXT,
+  severityForRange,
   SeverityScoreField,
 } from "./helpers";
 
@@ -57,6 +58,17 @@ const SeverityFilter = ({
     onChange({ severity, minScore, maxScore, [name]: value as string });
   };
 
+  const onScoreBlurred = (field: SeverityScoreField) => {
+    const derived = severityForRange(
+      parseSeverityScore(minScore),
+      parseSeverityScore(maxScore)
+    );
+    if (derived !== severity) {
+      onChange({ severity: derived, minScore, maxScore });
+    }
+    onScoreBlur?.(field);
+  };
+
   const renderLabel = () => (
     <TooltipWrapper
       tipContent="The worst case impact across different environments (CVSS version 3.x base score)."
@@ -73,49 +85,47 @@ const SeverityFilter = ({
         ariaLabel="Severity"
         label={renderLabel()}
         options={SEVERITY_DROPDOWN_OPTIONS}
-        value={severity}
+        value={getSeverityOption(severity)}
         onChange={onChangeSeverity}
         placeholder="Any severity"
         className={`${baseClass}__dropdown`}
         isDisabled={disabled}
         helpText={SEVERITY_HELP_TEXT}
       />
-      {severity === CUSTOM_SEVERITY_VALUE && (
-        <div className={`${baseClass}__cvss-range`}>
-          <InputField
-            label="Min score"
-            onChange={onScoreChange}
-            onBlur={() => onScoreBlur?.("minScore")}
-            onFocus={() => onScoreFocus?.("minScore")}
-            name="minScore"
-            value={minScore}
-            disabled={disabled}
-            type="number"
-            placeholder="0.0"
-            min={0}
-            max={10}
-            step={0.1}
-            parseTarget
-            error={errors?.minScore}
-          />
-          <InputField
-            label="Max score"
-            onChange={onScoreChange}
-            onBlur={() => onScoreBlur?.("maxScore")}
-            onFocus={() => onScoreFocus?.("maxScore")}
-            name="maxScore"
-            value={maxScore}
-            disabled={disabled}
-            type="number"
-            placeholder="10.0"
-            min={0}
-            max={10}
-            step={0.1}
-            parseTarget
-            error={errors?.maxScore}
-          />
-        </div>
-      )}
+      <div className={`${baseClass}__cvss-range`}>
+        <InputField
+          label="Min score"
+          onChange={onScoreChange}
+          onBlur={() => onScoreBlurred("minScore")}
+          onFocus={() => onScoreFocus?.("minScore")}
+          name="minScore"
+          value={minScore}
+          disabled={disabled}
+          type="number"
+          placeholder="0.0"
+          min={0}
+          max={10}
+          step={0.1}
+          parseTarget
+          error={errors?.minScore}
+        />
+        <InputField
+          label="Max score"
+          onChange={onScoreChange}
+          onBlur={() => onScoreBlurred("maxScore")}
+          onFocus={() => onScoreFocus?.("maxScore")}
+          name="maxScore"
+          value={maxScore}
+          disabled={disabled}
+          type="number"
+          placeholder="10.0"
+          min={0}
+          max={10}
+          step={0.1}
+          parseTarget
+          error={errors?.maxScore}
+        />
+      </div>
     </div>
   );
 };

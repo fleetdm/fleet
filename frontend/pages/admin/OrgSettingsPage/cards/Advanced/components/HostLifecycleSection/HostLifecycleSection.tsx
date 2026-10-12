@@ -9,6 +9,8 @@ import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import type { IAdvancedSectionProps } from "../../Advanced";
 
+const baseClass = "host-lifecycle-section";
+
 const HostLifecycleSection = ({
   isPremiumTier = false,
   onInputChange,
@@ -50,13 +52,13 @@ const HostLifecycleSection = ({
           </Checkbox>
         )}
       />
-      {enableHostExpiry && (
+      <div className={`${baseClass}__host-expiry-window`}>
         <GitOpsModeTooltipWrapper
           position="left"
           isInputField
           renderChildren={(disableChildren) => (
             <InputField
-              disabled={disableChildren}
+              disabled={!enableHostExpiry || disableChildren}
               label="Host expiry window"
               type="number"
               onChange={onInputChange}
@@ -67,7 +69,7 @@ const HostLifecycleSection = ({
             />
           )}
         />
-      )}
+      </div>
       {isPremiumTier && (
         <>
           <GitOpsModeTooltipWrapper

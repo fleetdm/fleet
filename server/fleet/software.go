@@ -395,8 +395,9 @@ type SoftwareAutoUpdateConfig struct {
 }
 
 type SoftwareAutoUpdateSchedule struct {
-	TitleID uint `json:"title_id" db:"title_id"`
-	TeamID  uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TitleID      uint `json:"title_id" db:"title_id"`
+	TeamID       uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	VPPAppTeamID uint `json:"-" db:"vpp_app_team_id"`
 	SoftwareAutoUpdateConfig
 }
 
@@ -510,8 +511,10 @@ type SoftwareTitle struct {
 	SoftwarePackage *SoftwareInstaller `json:"software_package" db:"-"`
 	// Packages holds every package, first-added first; nil (marshals to null) when none.
 	Packages []SoftwareInstaller `json:"packages" db:"-"`
-	// AppStoreApp is the VPP app information for this title.
+	// AppStoreApp holds the first-added App Store app version for backwards compatibility, nil when there is none.
 	AppStoreApp *VPPAppStoreApp `json:"app_store_app" db:"-"`
+	// AppStoreApps holds every App Store app version, first-added first, nil when there is none.
+	AppStoreApps []AppStoreAppVersion `json:"app_store_apps" db:"-"`
 	// BundleIdentifier is used by Apple installers to uniquely identify
 	// the software installed. It's surfaced in software_titles to match
 	// with existing software entries.
@@ -1032,6 +1035,7 @@ func SoftwareFromOsqueryRow(
 
 type VPPBatchPayload struct {
 	AppStoreID         string   `json:"app_store_id"`
+	VersionName        string   `json:"name"`
 	SelfService        bool     `json:"self_service"`
 	InstallDuringSetup *bool    `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
 	LabelsExcludeAny   []string `json:"labels_exclude_any"`
@@ -1059,6 +1063,7 @@ func (v VPPBatchPayload) GetAppStoreID() string {
 
 type VPPBatchPayloadWithPlatform struct {
 	AppStoreID         string                    `json:"app_store_id"`
+	VersionName        string                    `json:"name"`
 	SelfService        bool                      `json:"self_service"`
 	Platform           InstallableDevicePlatform `json:"platform"`
 	InstallDuringSetup *bool                     `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated

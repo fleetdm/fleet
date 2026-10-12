@@ -1,0 +1,7 @@
+- Reduced the cost of the `ai_tools` table so it can run hourly on every host: network connections are enumerated only when a socket or a process-derived MCP server needs them (no `lsof` on macOS for inventory queries), per-process fields are read on first use, and agent binary hashes are cached while the binary is unchanged.
+- `ai_tools` now walks each user's home once for MCP configs, instruction files, frameworks and workspaces, reading each directory's listing instead of probing files one by one.
+- The per-value calls osquery makes for an `ai_tools` query with a `type IN (...)` list now share one home enumeration, process snapshot and walk.
+- `ai_tools` agent rows now report the version of Claude Code and Cursor Agent installed by their native installers, report the installed binary instead of the bin-directory link in `path` (the link stays in `detail.binary_path`).
+- Fixed `ai_tools` reporting Claude Code's `~/.claude` folder as a second `claude-code` agent once it contained skills.
+- Fixed `ai_tools` framework detection missing Python dependencies written with a version specifier, extras or environment marker, and added `requirements.txt` as a source.
+- Fixed `ai_tools` reporting project instruction files, MCP configs and agent candidates twice on case-insensitive filesystems (once under `~/Projects` and once under `~/projects`).
