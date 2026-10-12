@@ -1,10 +1,8 @@
 # Roadmap preview, October 2026
 
-<!-- TODO: Embed the walkthrough video after the HoIT review.
 <div purpose="embedded-content">
    <iframe src="https://www.youtube.com/embed/iNmb6T380ho?si=rRjSKJiFXU-z37XY" allowfullscreen></iframe>
 </div>
--->
 
 The Fleet roadmap is set for fall 2026. This quarter is about AI you can put to work and Windows you can fully manage. Watch the video above for a walkthrough, or continue reading for the highlights.
 
