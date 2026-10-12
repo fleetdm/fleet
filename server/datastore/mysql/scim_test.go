@@ -2741,6 +2741,24 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryVerifying})
 }
 
+func newDigiCertCA(t *testing.T, ds *Datastore, name, commonName, seatID string, upns *[]string) *fleet.CertificateAuthority {
+	ca, err := ds.NewCertificateAuthority(t.Context(), &fleet.CertificateAuthority{
+		Type: string(fleet.CATypeDigiCert), Name: &name, URL: new("https://example.com"), APIToken: new("token"), ProfileID: new("profile"),
+		CertificateCommonName: &commonName, CertificateUserPrincipalNames: upns, CertificateSeatID: &seatID,
+	})
+	require.NoError(t, err)
+	return ca
+}
+
+// newDigiCertProfile creates an Apple profile that gets its certificate from the named DigiCert CA.
+func newDigiCertProfile(t *testing.T, ds *Datastore, name, caName string, teamID uint) *fleet.MDMAppleConfigProfile {
+	cp := generateAppleCP(name, name, teamID)
+	cp.Mobileconfig = []byte("<data>" + fleet.FleetVarDigiCertDataPrefix.WithPrefix() + caName + "</data>")
+	profile, err := ds.NewMDMAppleConfigProfile(t.Context(), *cp, []fleet.FleetVarName{fleet.FleetVarName(string(fleet.FleetVarDigiCertDataPrefix) + caName)})
+	require.NoError(t, err)
+	return profile
+}
+
 func testTriggerResendDigiCertProfiles(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -2749,31 +2767,15 @@ func testTriggerResendDigiCertProfiles(t *testing.T, ds *Datastore) {
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "digicert_team"})
 	require.NoError(t, err)
 
-	newDigiCertCA := func(name, commonName, seatID string, upns *[]string) *fleet.CertificateAuthority {
-		ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
-			Type: string(fleet.CATypeDigiCert), Name: &name, URL: new("https://example.com"), APIToken: new("token"), ProfileID: new("profile"),
-			CertificateCommonName: &commonName, CertificateUserPrincipalNames: upns, CertificateSeatID: &seatID,
-		})
-		require.NoError(t, err)
-		return ca
-	}
-	newDigiCertProfile := func(name, caName string, teamID uint) *fleet.MDMAppleConfigProfile {
-		cp := generateAppleCP(name, name, teamID)
-		cp.Mobileconfig = []byte("<data>" + fleet.FleetVarDigiCertDataPrefix.WithPrefix() + caName + "</data>")
-		profile, err := ds.NewMDMAppleConfigProfile(ctx, *cp, []fleet.FleetVarName{fleet.FleetVarName(string(fleet.FleetVarDigiCertDataPrefix) + caName)})
-		require.NoError(t, err)
-		return profile
-	}
-
 	// "ca" is a prefix of "ca_groups", so a resend for "ca" must not match the "ca_groups" profile.
-	newDigiCertCA("ca", fleet.FleetVarHostEndUserIDPUsername.WithPrefix(), fleet.FleetVarHostEndUserEmailIDP.WithBraces(), nil)
-	newDigiCertCA("ca_groups", "cn", "seat", &[]string{fleet.FleetVarHostEndUserIDPGroups.WithPrefix() + "@example.com"})
-	serialCA := newDigiCertCA("ca_serial", fleet.FleetVarHostHardwareSerial.WithPrefix(), "seat", &[]string{"upn"})
+	newDigiCertCA(t, ds, "ca", fleet.FleetVarHostEndUserIDPUsername.WithPrefix(), fleet.FleetVarHostEndUserEmailIDP.WithBraces(), nil)
+	newDigiCertCA(t, ds, "ca_groups", "cn", "seat", &[]string{fleet.FleetVarHostEndUserIDPGroups.WithPrefix() + "@example.com"})
+	serialCA := newDigiCertCA(t, ds, "ca_serial", fleet.FleetVarHostHardwareSerial.WithPrefix(), "seat", &[]string{"upn"})
 
-	profUsername := newDigiCertProfile("username", "ca", 0)
-	profGroups := newDigiCertProfile("groups", "ca_groups", 0)
-	profSerial := newDigiCertProfile("serial", "ca_serial", 0)
-	profOtherTeam := newDigiCertProfile("other_team", "ca", team.ID) // not the hosts' team, so never resent
+	profUsername := newDigiCertProfile(t, ds, "username", "ca", 0)
+	profGroups := newDigiCertProfile(t, ds, "groups", "ca_groups", 0)
+	profSerial := newDigiCertProfile(t, ds, "serial", "ca_serial", 0)
+	profOtherTeam := newDigiCertProfile(t, ds, "other_team", "ca", team.ID) // not the hosts' team, so never resent
 	profNone, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("none", "none", 0), nil)
 	require.NoError(t, err)
 	allProfiles := []*fleet.MDMAppleConfigProfile{profUsername, profGroups, profSerial, profOtherTeam, profNone}
