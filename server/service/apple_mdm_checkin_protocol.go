@@ -19,7 +19,6 @@ import (
 
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
-	nano_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
 	nanomdm_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/certauth"
 )
@@ -175,7 +174,7 @@ func (s *MDMAppleGetTokenService) signMAIDToken(ctx context.Context, logger *slo
 // ============ Check-in Wrappers ============
 
 type certVerifierEnrollmentCheckinService struct {
-	nano_service.CheckinAndCommandService
+	nanomdm_service.CheckinAndCommandService
 	ds          fleet.Datastore
 	nanoStorage fleet.MDMAppleStore
 	config      config.MDMConfig
@@ -183,7 +182,7 @@ type certVerifierEnrollmentCheckinService struct {
 }
 
 // newCertVerifierEnrollmentCheckinService wraps next with the certificate verifier enrollment check.
-func newCertVerifierEnrollmentCheckinService(next nano_service.CheckinAndCommandService, ds fleet.Datastore, nanoStorage fleet.MDMAppleStore, config config.MDMConfig, logger *slog.Logger) nano_service.CheckinAndCommandService {
+func newCertVerifierEnrollmentCheckinService(next nanomdm_service.CheckinAndCommandService, ds fleet.Datastore, nanoStorage fleet.MDMAppleStore, config config.MDMConfig, logger *slog.Logger) nanomdm_service.CheckinAndCommandService {
 	return &certVerifierEnrollmentCheckinService{CheckinAndCommandService: next, ds: ds, nanoStorage: nanoStorage, config: config, logger: logger}
 }
 
@@ -314,7 +313,8 @@ func (s *certVerifierEnrollmentCheckinService) reject(r *mdm.Request, m *mdm.Aut
 		"claimed_enrollment_id", m.EnrollmentID,
 	}
 	if binding != nil {
-		attrs = append(attrs,
+		attrs = append(
+			attrs,
 			"bound_purpose", binding.Purpose,
 			"bound_udid", ptr.ValOrZero(binding.UDID),
 			"bound_serial", ptr.ValOrZero(binding.Serial),
@@ -323,5 +323,5 @@ func (s *certVerifierEnrollmentCheckinService) reject(r *mdm.Request, m *mdm.Aut
 		)
 	}
 	s.logger.InfoContext(r.Context, "rejecting MDM Authenticate", attrs...)
-	return nano_service.NewHTTPStatusError(http.StatusForbidden, errors.New(reason))
+	return nanomdm_service.NewHTTPStatusError(http.StatusForbidden, errors.New(reason))
 }
