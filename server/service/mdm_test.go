@@ -4122,6 +4122,22 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 			"",
 		},
 		{
+			"android software setting without premium license",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			0,
+			`{"playStoreMode": "BLACKLIST"}`,
+			`Android configuration profile can't include "playStoreMode" setting. Android software management is Fleet Premium only.`,
+		},
+		{
+			"android software setting with premium license",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			true,
+			0,
+			`{"playStoreMode": "BLACKLIST"}`,
+			`Android configuration profile can't include "playStoreMode" setting. To manage Android software, add Google Play apps in Fleet. Learn more: https://fleetdm.com/learn-more-about/android-software`,
+		},
+		{
 			"android profile with team and free license",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 			false,
