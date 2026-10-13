@@ -23,8 +23,8 @@ To disable Developer options:
    - Samsung devices: select **Developer options** at the bottom of Settings, under About phone.
 2. At the top, select the toggle to turn off Developer options.
 
+## How Android hosts get changes from Fleet
 
-# How Android hosts get changes from Fleet
 Fleet only communicates with Android hosts directly for certificate delivery. For all other features, Fleet and each host communicate through Google's Android Management API (AMAPI). Fleet delivers these changes by updating the host's policy, which is stored on Google's servers:
 
 - [Software deployment](https://fleetdm.com/guides/install-app-store-apps)
