@@ -4849,6 +4849,40 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 
 	patchAppsPolicies = nil
 
+	// other ApplicationPolicy fields are sent to the host as well
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app3TitleID), &updateAppStoreAppRequest{
+		TeamID:        nil,
+		Configuration: json.RawMessage(`{"managedConfiguration": 3, "autoUpdateMode": "AUTO_UPDATE_HIGH_PRIORITY", "minimumVersionCode": 42, "permissionGrants": [{"permission": "android.permission.CAMERA", "policy": "GRANT"}]}`),
+	}, http.StatusOK, &patchAppResp)
+
+	s.runWorkerUntilDoneWithChecks(true)
+
+	require.Len(t, patchAppsPolicies, 1)
+	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
+		{
+			PackageName:          app3.VPPAppID.AdamID,
+			InstallType:          "AVAILABLE",
+			ManagedConfiguration: googleapi.RawMessage(`3`),
+			AutoUpdateMode:       "AUTO_UPDATE_HIGH_PRIORITY",
+			MinimumVersionCode:   42,
+			PermissionGrants:     []*androidmanagement.PermissionGrant{{Permission: "android.permission.CAMERA", Policy: "GRANT"}},
+		},
+	}, patchAppsPolicies[0])
+
+	patchAppsPolicies = nil
+
+	// packageName and installType are reserved for Fleet
+	for _, deniedConfig := range []string{`{"packageName": "com.example.other"}`, `{"installType": "FORCE_INSTALLED"}`} {
+		res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app3TitleID), &updateAppStoreAppRequest{
+			TeamID:        nil,
+			Configuration: json.RawMessage(deniedConfig),
+		}, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), `"packageName" and "installType" are not supported as top-level keys.`)
+	}
+
+	s.runWorkerUntilDoneWithChecks(true)
+	require.Empty(t, patchAppsPolicies)
+
 	// patch with a different config just to trigger the worker
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app3TitleID), &updateAppStoreAppRequest{
 		TeamID:        nil,
