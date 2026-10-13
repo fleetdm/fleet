@@ -3660,7 +3660,12 @@ func (svc *Service) softwareBatchUpload(
 				}
 				switch {
 				case p.MaintainedApp.SHA256 != noCheckHash:
-					fmaVersionCached = versionExists && cachedHash == p.MaintainedApp.SHA256
+					if versionExists && cachedHash == p.MaintainedApp.SHA256 {
+						fmaVersionCached, err = svc.softwareInstallStore.Exists(ctx, cachedHash)
+						if err != nil {
+							return ctxerr.Wrap(ctx, err, "check cached FMA installer in store")
+						}
+					}
 				case versionExists && cachedHash != "" && cachedHash != noCheckHash:
 					// A manifest without a hash has nothing to compare, so the cached
 					// bytes identify the version. Their digest replaces the sentinel
@@ -3863,6 +3868,14 @@ func (svc *Service) softwareBatchUpload(
 					p.MaintainedApp.SHA256, err = file.SHA256FromTempFileReader(installer.InstallerFile)
 					if err != nil {
 						return fmt.Errorf("maintained app %s error generating hash: %w", p.MaintainedApp.UniqueIdentifier, err)
+					}
+				} else if !fmaVersionCached && installer.InstallerFile != nil {
+					gotHash, err := file.SHA256FromTempFileReader(installer.InstallerFile)
+					if err != nil {
+						return fmt.Errorf("maintained app %s error generating hash: %w", p.MaintainedApp.UniqueIdentifier, err)
+					}
+					if gotHash != p.MaintainedApp.SHA256 {
+						return fmt.Errorf("maintained app %s: mismatch in maintained app SHA256 hash", p.MaintainedApp.UniqueIdentifier)
 					}
 				}
 				extension := extensionFromFilename(installer.Filename)
