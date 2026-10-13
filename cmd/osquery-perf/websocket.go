@@ -91,7 +91,7 @@ func (w *wsTransport) run() {
 		w.connected.Store(true)
 		// Like orbit, fetch the orbit config on connect: changes made before
 		// the server registered the connection were never notified.
-		w.agent.requestOrbitConfig("connect")
+		w.agent.orbitConfigTransportConnected()
 		w.readLoop(conn)
 		w.connected.Store(false)
 		w.agent.stats.UpdateWebSocketConnected(-1)
@@ -151,7 +151,7 @@ func (w *wsTransport) readLoop(conn *websocket.Conn) {
 			w.trigger()
 		case fleet.AgentWSMessageTypeOrbitConfig:
 			w.agent.stats.IncrementWebSocketNotifications()
-			w.agent.requestOrbitConfig("nudge")
+			w.agent.requestOrbitConfig()
 		}
 	}
 }
@@ -305,21 +305,20 @@ func (a *agent) distributedAPIPrefix() string {
 // orbitConfigDefaultInterval is orbit's default orbit config poll interval.
 const orbitConfigDefaultInterval = 30 * time.Second
 
-// orbitConfigRequest asks runOrbitLoop to fetch the orbit config now.
-type orbitConfigRequest struct {
-	cause string    // "nudge" or "connect"
-	at    time.Time // when a nudge arrived, for the nudge→fetch latency
+// requestOrbitConfig asks for an orbit config fetch now because of a nudge.
+// Like orbit, nudges arriving before the pending one is served are merged into
+// it.
+func (a *agent) requestOrbitConfig() {
+	select {
+	case a.orbitConfigNudge <- time.Now():
+	default:
+	}
 }
 
-// requestOrbitConfig asks for an orbit config fetch now. Like orbit, requests
-// arriving before the pending one is served are merged into it.
-func (a *agent) requestOrbitConfig(cause string) {
-	req := orbitConfigRequest{cause: cause}
-	if cause == "nudge" {
-		req.at = time.Now()
-	}
+// orbitConfigTransportConnected mirrors orbit's TransportConnected.
+func (a *agent) orbitConfigTransportConnected() {
 	select {
-	case a.orbitConfigReq <- req:
+	case a.orbitConfigConnected <- struct{}{}:
 	default:
 	}
 }

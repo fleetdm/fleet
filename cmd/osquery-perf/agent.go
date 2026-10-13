@@ -520,11 +520,14 @@ type agent struct {
 	wsMu        sync.Mutex
 	ws          *wsTransport
 	wsSupported bool
-	// orbitConfigReq (size 1) requests an orbit config fetch now, from an
-	// orbit/config nudge or a connect; requests arriving before it is served
-	// are merged. orbitConfigDisconnected (size 1) reports a dropped
-	// WebSocket, ending a slow fallback interval (see runOrbitLoop).
-	orbitConfigReq          chan orbitConfigRequest
+	// Like orbit, each WebSocket event has its own channel (size 1, merging
+	// events arriving before it is served), so a pending connect can't
+	// swallow a nudge. orbitConfigNudge carries when the first pending
+	// orbit/config nudge arrived; orbitConfigConnected reports a connect;
+	// orbitConfigDisconnected reports a dropped WebSocket, ending a slow
+	// fallback interval (see runOrbitLoop).
+	orbitConfigNudge        chan time.Time
+	orbitConfigConnected    chan struct{}
 	orbitConfigDisconnected chan struct{}
 
 	// isEnrolledToMDM is true when the mdmDevice has enrolled.
@@ -879,7 +882,8 @@ func newAgent(
 		mdmAPNSPushURL: mdmAPNSPushURL,
 		ddmDeclTokens:  make(map[string]string),
 
-		orbitConfigReq:          make(chan orbitConfigRequest, 1),
+		orbitConfigNudge:        make(chan time.Time, 1),
+		orbitConfigConnected:    make(chan struct{}, 1),
 		orbitConfigDisconnected: make(chan struct{}, 1),
 
 		disableScriptExec:        disableScriptExec,
@@ -1311,6 +1315,27 @@ func (a *agent) runOrbitLoop() {
 
 	var lastEnrollAttempt time.Time
 
+	// fetchOrbitConfig serves a nudge or connect; nudgedAt is when the nudge
+	// arrived (zero for a connect), for the nudge→fetch latency.
+	fetchOrbitConfig := func(cause string, nudgedAt time.Time) {
+		orbitConfigTimer.Stop()
+		cfg, err := orbitClient.GetConfig()
+		lastOrbitConfigFetch = time.Now()
+		a.stats.IncrementOrbitConfigFetches(cause)
+		if !nudgedAt.IsZero() {
+			a.stats.RecordOrbitConfigNudgeLatency(time.Since(nudgedAt))
+		}
+		if err != nil {
+			a.stats.IncrementOrbitErrors()
+			orbitConfigInterval = orbitConfigDefaultInterval
+			orbitConfigTimer.Reset(orbitConfigInterval)
+			return
+		}
+		orbitConfigInterval = a.nextOrbitConfigInterval(cfg)
+		orbitConfigTimer.Reset(orbitConfigInterval)
+		a.handleOrbitConfig(cfg, orbitClient, &lastEnrollAttempt)
+	}
+
 	for {
 		select {
 		case <-a.orbitConfigDisconnected:
@@ -1319,29 +1344,16 @@ func (a *agent) runOrbitLoop() {
 				orbitConfigTimer.Reset(time.Duration(rand.Int63n(int64(orbitConfigInterval)))) // nolint:gosec // ignore weak randomizer
 			}
 			continue
-		case req := <-a.orbitConfigReq:
+		case <-a.orbitConfigConnected:
 			// Like orbit, a connect fetches only when the server nudges, at most
 			// once per default interval.
-			if req.cause == "connect" && (orbitConfigInterval <= orbitConfigDefaultInterval ||
-				time.Since(lastOrbitConfigFetch) < orbitConfigDefaultInterval) {
+			if orbitConfigInterval <= orbitConfigDefaultInterval ||
+				time.Since(lastOrbitConfigFetch) < orbitConfigDefaultInterval {
 				continue
 			}
-			orbitConfigTimer.Stop()
-			cfg, err := orbitClient.GetConfig()
-			lastOrbitConfigFetch = time.Now()
-			a.stats.IncrementOrbitConfigFetches(req.cause)
-			if !req.at.IsZero() {
-				a.stats.RecordOrbitConfigNudgeLatency(time.Since(req.at))
-			}
-			if err != nil {
-				a.stats.IncrementOrbitErrors()
-				orbitConfigInterval = orbitConfigDefaultInterval
-				orbitConfigTimer.Reset(orbitConfigInterval)
-				continue
-			}
-			orbitConfigInterval = a.nextOrbitConfigInterval(cfg)
-			orbitConfigTimer.Reset(orbitConfigInterval)
-			a.handleOrbitConfig(cfg, orbitClient, &lastEnrollAttempt)
+			fetchOrbitConfig("connect", time.Time{})
+		case at := <-a.orbitConfigNudge:
+			fetchOrbitConfig("nudge", at)
 		case <-orbitConfigTimer.C:
 			cfg, err := orbitClient.GetConfig()
 			lastOrbitConfigFetch = time.Now()
