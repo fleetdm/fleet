@@ -120,7 +120,11 @@ describe("DeleteHostModal", () => {
   it("pluralizes the per-platform copy for a same-platform selection", () => {
     renderModal({ selectedHostIds: [1, 2, 3], platform: "ipados" });
     expect(screen.getByText("3 hosts")).toBeVisible();
-    expect(screen.getByText(/and associated data\./)).toBeVisible();
+    expect(
+      screen.getByText(
+        /and associated data from Fleet\. It won.t remove data from the hosts\./
+      )
+    ).toBeVisible();
     expect(
       screen.getByText(
         /These hosts will re-enroll unless you unenroll them first\./
@@ -151,7 +155,11 @@ describe("DeleteHostModal", () => {
       platform: "android",
       mdmEnrollmentStatus: "On (automatic)",
     });
-    expect(screen.getByText("This will remove all host data.")).toBeVisible();
+    expect(
+      screen.getByText(
+        "This will remove all host data from Fleet. It won't remove data from the host."
+      )
+    ).toBeVisible();
     expect(
       screen.getByText(/This host will re-enroll unless you wipe it first\./)
     ).toBeVisible();
@@ -163,7 +171,11 @@ describe("DeleteHostModal", () => {
 
   it("renders the iOS and iPadOS copy", () => {
     renderModal({ hostName: "iPad", platform: "ipados" });
-    expect(screen.getByText("This will remove all host data.")).toBeVisible();
+    expect(
+      screen.getByText(
+        "This will remove all host data from Fleet. It won't remove data from the host."
+      )
+    ).toBeVisible();
     expect(
       screen.getByText(
         /This host will re-enroll unless you unenroll it first\./

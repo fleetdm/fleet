@@ -145,7 +145,10 @@ const DeleteHostModal = ({
           : "unenroll";
       return (
         <>
-          <p>{removeAllDataSentence("")}</p>
+          <p>
+            {removeAllDataSentence(" from Fleet")} It won&apos;t remove data
+            from {isPlural ? "the hosts" : "the host"}.
+          </p>
           <p>
             {theseHosts} will re-enroll unless you {action} {them} first.{" "}
             {learnMoreLink}
