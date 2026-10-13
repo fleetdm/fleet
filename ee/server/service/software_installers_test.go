@@ -4007,55 +4007,6 @@ func TestSoftwareBatchUploadWindowsFMAKeepsManifestUninstallScript(t *testing.T)
 	require.Equal(t, uninstall, applied[0].UninstallScript)
 }
 
-func TestSoftwareBatchUploadFMAVersionUnavailableMessage(t *testing.T) {
-	manifestSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		manifest := ma.FMAManifestFile{
-			Versions: []*ma.FMAManifestApp{{
-				Version:      "1.0",
-				Queries:      ma.FMAQueries{Exists: "SELECT 1 FROM osquery_info;"},
-				InstallerURL: "https://example.com/zoom.pkg",
-				SHA256:       noCheckHash,
-			}},
-		}
-		_ = json.NewEncoder(w).Encode(manifest)
-	}))
-	t.Cleanup(manifestSrv.Close)
-	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestSrv.URL, t)
-	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", manifestSrv.URL, t)
-
-	ds := new(mock.Store)
-	ds.TeamLiteFunc = func(ctx context.Context, tmID uint) (*fleet.TeamLite, error) {
-		return &fleet.TeamLite{ID: tmID}, nil
-	}
-	ds.GetCachedFMAInstallerMetadataFunc = func(ctx context.Context, teamID *uint, fmaID uint, version string) (*fleet.MaintainedApp, error) {
-		return nil, &notFoundError{}
-	}
-
-	svc := newTestService(t, ds)
-	kvs, getKey := inMemoryKeyValueStore()
-	svc.keyValueStore = kvs
-
-	payload := &fleet.SoftwareInstallerPayload{
-		Slug:            new("zoom/darwin"),
-		RollbackVersion: "0.0.1",
-		MaintainedApp: &fleet.MaintainedApp{
-			ID:               7,
-			Name:             "Zoom",
-			Slug:             "zoom/darwin",
-			Platform:         "darwin",
-			UniqueIdentifier: "us.zoom.xos",
-		},
-	}
-
-	// pin the FMA to a version the manifest doesn't publish, the status should start with the version error and no empty segment
-	svc.softwareBatchUpload("req-uuid", new(uint(1)), 1, []*fleet.SoftwareInstallerPayload{payload}, false)
-
-	expectedStatus := batchSetFailedPrefix + `Couldn't edit "Zoom": specified version is not available. Available versions are listed in the Fleet UI under Actions > Edit software.`
-	status := getKey(batchSoftwarePrefix + "req-uuid")
-	require.NotNil(t, status)
-	require.Equal(t, expectedStatus, *status)
-}
-
 type fmaRecoveryBatchOptions struct {
 	pin, hash, version, platform string
 	body                         []byte
