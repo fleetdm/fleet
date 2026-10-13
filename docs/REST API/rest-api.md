@@ -1819,6 +1819,7 @@ None.
     "microsoft_graph_credential_invalid": false,
     "enable_turn_on_windows_mdm_manually": false,
     "apple_require_hardware_attestation": false,
+    "enable_profile_validation": true,
     "name_template": "",
     "macos_updates": {
       "minimum_version": "12.3.1",
@@ -2215,6 +2216,7 @@ Modifies the Fleet's configuration with the supplied information.
     "microsoft_graph_credential_invalid": false,
     "enable_turn_on_windows_mdm_manually": false,
     "apple_require_hardware_attestation": false,
+    "enable_profile_validation": true,
     "enable_recovery_lock_password": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
@@ -2897,8 +2899,9 @@ When updating conditional access config, all `conditional_access` fields must ei
 | windows_entra_client_ids          | array | _Available in Fleet Premium._ Microsoft Entra application (client) IDs for the applications used to enroll Windows hosts via Microsoft Entra. Set this when you set up Entra enrollment: Microsoft Entra issues v2 access tokens whose audience is the application's client ID, so Fleet needs the client ID to authorize enrollment. Find your **Application (client) ID** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Overview**. |
 | microsoft_graph_credential_invalid | boolean | _Available in Fleet Premium._ Read-only. `true` when at least one Microsoft Graph credential has been rejected by Microsoft Entra or denied by Microsoft Graph, so Windows Autopilot devices are no longer syncing. Resolve it by supplying a new client secret, or granting admin consent, with [Modify Microsoft Graph credentials](#modify-microsoft-graph-credentials). Fleet computes this field, so it's ignored if you try to set it. |
 | enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
-| windows_require_bitlocker_pin           | boolean | _Deprecated at this level._ Use `windows_settings.require_bitlocker_pin` instead. |
+| windows_require_bitlocker_pin      | boolean | _Deprecated at this level._ Use `windows_settings.require_bitlocker_pin` instead. |
 | apple_require_hardware_attestation | boolean | _Available in Fleet Premium._ Specifies whether or not to require Apple Silicon macOS hosts to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment. |
+| enable_profile_validation          | boolean | Specifies whether or not to validate the type, keys, and value types of configuration profiles (Apple and Windows) when they're added. Default is `true`. Set to `false` to skip this validation. |
 | enable_recovery_lock_password     | boolean | _Available in Fleet Premium._ Unassigned hosts will have Recovery Lock password enabled if set to true. |
 | name_template                     | string  | _Available in Fleet Premium._ Naming convention applied to "Unassigned" macOS, iOS, and iPadOS hosts. Supports the built-in host identity and IdP end-user variables and custom (`$FLEET_SECRET_*`) variables; certificate authority variables aren't supported. See the [Update host name template](#update-host-name-template) endpoint for the full list. An empty string clears the template. To set the template for a fleet, use that endpoint. |
 | macos_updates            | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
