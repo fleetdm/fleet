@@ -816,7 +816,11 @@ internal sealed class FleetService : IDisposable
         var fromEnv = Environment.GetEnvironmentVariable("FLEET_URL");
         if (!string.IsNullOrWhiteSpace(fromEnv)) return fromEnv.Trim();
 #endif
-        return string.IsNullOrWhiteSpace(_fleetUrlFromService) ? null : _fleetUrlFromService;
+        if (string.IsNullOrWhiteSpace(_fleetUrlFromService)) return null;
+        var url = _fleetUrlFromService.Trim();
+        // Same rule as orbit (and the macOS app): a scheme-less value such as
+        // fleet.example.com:8080 means HTTPS. An explicit http:// is still rejected later.
+        return url.StartsWith("http", StringComparison.Ordinal) ? url : "https://" + url;
     }
 
     /// <summary>
