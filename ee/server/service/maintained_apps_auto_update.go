@@ -202,12 +202,15 @@ func downloadNewVersionIfEligible(
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "checking cached version")
 		}
-		// A version only counts as cached while its bytes still match the manifest, matching
-		// the GitOps path: a rebuilt package (same version, new hash) is downloaded and
-		// replaces them. A manifest without a hash can't be compared, so its cached version
-		// counts while the bytes are still in the store.
+		// A version only counts as cached while its bytes are in the store and still match the
+		// manifest, matching the GitOps path: a rebuilt package (same version, new hash) is
+		// downloaded and replaces them. A manifest without a hash can't be compared, so its
+		// cached version counts while the bytes are still in the store.
 		if versionExists && cachedHash == app.SHA256 {
-			versionAlreadyCached = true
+			versionAlreadyCached, err = store.Exists(ctx, cachedHash)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "checking installer store")
+			}
 		} else if versionExists && app.SHA256 == noCheckHash && cachedHash != "" {
 			exists, err := store.Exists(ctx, cachedHash)
 			if err != nil {
@@ -365,6 +368,29 @@ func downloadNewVersionIfEligible(
 		return "", ctxerr.Wrap(ctx, err, "processing uninstall script")
 	}
 
+	// Refuse to persist a row whose uninstall script still has unsubstituted
+	// template variables (e.g. metadata extraction failed and preProcess silently
+	// no-op'd): promoting it would record uninstalls as succeeding while the app
+	// stays installed. Skip this candidate; the next run retries.
+	if !versionAlreadyCached && (file.PackageIDRegex.MatchString(payload.UninstallScript) || file.UpgradeCodeRegex.MatchString(payload.UninstallScript)) {
+		return "", ctxerr.Errorf(ctx, "uninstall script for %q still has unsubstituted template variables; skipping cache", c.Slug)
+	}
+
+	// Store the bytes before creating the DB row, so a Put failure can't leave a
+	// row pointing at installer bytes that aren't in the store — which the caller
+	// would then promote the active installer to.
+	if needBytes && tfr != nil {
+		exists, err := store.Exists(ctx, storageID)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "checking installer store")
+		}
+		if !exists {
+			if err := store.Put(ctx, storageID, tfr); err != nil {
+				return "", ctxerr.Wrap(ctx, err, "storing installer")
+			}
+		}
+	}
+
 	// No row to write, so the scripts and queries go onto the one already there.
 	if versionAlreadyCached {
 		if file.PackageIDRegex.MatchString(payload.UninstallScript) ||
@@ -382,29 +408,6 @@ func downloadNewVersionIfEligible(
 			logger.WarnContext(ctx, "refreshing installer scripts and queries", "slug", c.Slug, "err", err)
 		}
 		return version, nil
-	}
-
-	// Refuse to persist a row whose uninstall script still has unsubstituted
-	// template variables (e.g. metadata extraction failed and preProcess silently
-	// no-op'd): promoting it would record uninstalls as succeeding while the app
-	// stays installed. Skip this candidate; the next run retries.
-	if file.PackageIDRegex.MatchString(payload.UninstallScript) || file.UpgradeCodeRegex.MatchString(payload.UninstallScript) {
-		return "", ctxerr.Errorf(ctx, "uninstall script for %q still has unsubstituted template variables; skipping cache", c.Slug)
-	}
-
-	// Store the bytes before creating the DB row, so a Put failure can't leave a
-	// row pointing at installer bytes that aren't in the store — which the caller
-	// would then promote the active installer to.
-	if needBytes && tfr != nil {
-		exists, err := store.Exists(ctx, storageID)
-		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "checking installer store")
-		}
-		if !exists {
-			if err := store.Put(ctx, storageID, tfr); err != nil {
-				return "", ctxerr.Wrap(ctx, err, "storing installer")
-			}
-		}
 	}
 
 	if _, err := ds.InsertFleetMaintainedAppVersion(ctx, c.InstallerID, payload); err != nil {
