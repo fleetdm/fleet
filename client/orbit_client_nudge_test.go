@@ -77,7 +77,7 @@ func nudgedConfig(pollInterval int) fleet.OrbitConfig {
 func TestConfigRefreshCoalescesDuringRun(t *testing.T) {
 	srv := &configServer{}
 	oc := newNudgeTestClient(t, srv)
-	oc.ReceiverUpdateInterval = time.Hour
+	oc.DefaultConfigPollInterval = time.Hour
 
 	release := make(chan struct{})
 	var runs atomic.Int32
@@ -105,7 +105,7 @@ func TestConfigRefreshCoalescesDuringRun(t *testing.T) {
 
 func TestNextConfigInterval(t *testing.T) {
 	oc := newNudgeTestClient(t, &configServer{})
-	oc.ReceiverUpdateInterval = 30 * time.Second
+	oc.DefaultConfigPollInterval = 30 * time.Second
 	connected := true
 	oc.SetTransportConnectedFunc(func() bool { return connected })
 
@@ -149,7 +149,7 @@ func TestConfigPollSlowsDownAndReportsFallbackChanges(t *testing.T) {
 	// The hint is in seconds, so test with a 1s fallback against a 100ms default.
 	srv.set(nudgedConfig(1))
 	oc := newNudgeTestClient(t, srv)
-	oc.ReceiverUpdateInterval = 100 * time.Millisecond
+	oc.DefaultConfigPollInterval = 100 * time.Millisecond
 	var connected atomic.Bool
 	connected.Store(true)
 	oc.SetTransportConnectedFunc(connected.Load)
@@ -185,7 +185,7 @@ func TestConfigPollSlowsDownAndReportsFallbackChanges(t *testing.T) {
 func TestTransportConnectedFetchGating(t *testing.T) {
 	srv := &configServer{}
 	oc := newNudgeTestClient(t, srv)
-	oc.ReceiverUpdateInterval = 300 * time.Millisecond
+	oc.DefaultConfigPollInterval = 300 * time.Millisecond
 	oc.SetTransportConnectedFunc(func() bool { return true })
 	runConfigReceivers(t, oc)
 

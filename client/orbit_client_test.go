@@ -136,7 +136,7 @@ func TestConfigReceiverErrors(t *testing.T) {
 
 func TestExecuteConfigReceiversCancel(t *testing.T) {
 	client := clientWithConfig(t, &fleet.OrbitConfig{})
-	client.ReceiverUpdateInterval = 100 * time.Millisecond
+	client.DefaultConfigPollInterval = 100 * time.Millisecond
 
 	var calls1, calls2 int
 	requiredCalls := 4
@@ -168,7 +168,7 @@ func TestExecuteConfigReceiversInterrupt(t *testing.T) {
 	client := clientWithConfig(t, &fleet.OrbitConfig{})
 	defer client.receiverUpdateCancelFunc()
 
-	client.ReceiverUpdateInterval = 100 * time.Millisecond
+	client.DefaultConfigPollInterval = 100 * time.Millisecond
 
 	var called bool
 	rfunc := fleet.OrbitConfigReceiverFunc(func(cfg *fleet.OrbitConfig) error {
@@ -199,7 +199,7 @@ func TestExecuteConfigReceiversInterrupt(t *testing.T) {
 
 func TestExecuteConfigReceiversBackoffOnError(t *testing.T) {
 	client := clientWithConfig(t, &fleet.OrbitConfig{})
-	client.ReceiverUpdateInterval = 1 * time.Second
+	client.DefaultConfigPollInterval = 1 * time.Second
 
 	var callTimes []time.Time
 	callCount := 0
@@ -242,7 +242,7 @@ func TestExecuteConfigReceiversBackoffOnError(t *testing.T) {
 
 func TestExecuteConfigReceiversResetOnSuccess(t *testing.T) {
 	client := clientWithConfig(t, &fleet.OrbitConfig{})
-	client.ReceiverUpdateInterval = 1 * time.Second
+	client.DefaultConfigPollInterval = 1 * time.Second
 
 	callCount := 0
 	var intervalAfterRecovery time.Duration

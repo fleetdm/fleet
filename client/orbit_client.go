@@ -69,8 +69,10 @@ type OrbitClient struct {
 
 	// Interfaces that will receive updated configs
 	ConfigReceivers []fleet.OrbitConfigReceiver
-	// How frequently a new config will be fetched
-	ReceiverUpdateInterval time.Duration
+	// DefaultConfigPollInterval is how often the config is fetched unless the server nudges this agent on changes,
+	// which allows slower fallback polling (see nextConfigInterval). It is also the minimum poll interval and the
+	// base of the error backoff.
+	DefaultConfigPollInterval time.Duration
 	// receiverUpdateContext used by ExecuteConfigReceivers to cancel the update loop.
 	receiverUpdateContext context.Context
 	// receiverUpdateCancelFunc is used to cancel receiverUpdateContext.
@@ -234,10 +236,10 @@ type OnGetConfigErrFuncs struct {
 }
 
 var (
-	netErrInterval                     = 5 * time.Minute
-	configRetryOnNetworkError          = 30 * time.Second
-	defaultOrbitConfigReceiverInterval = 30 * time.Second
-	maxConfigBackoff                   = 5 * time.Minute
+	netErrInterval            = 5 * time.Minute
+	configRetryOnNetworkError = 30 * time.Second
+	defaultConfigPollInterval = 30 * time.Second
+	maxConfigBackoff          = 5 * time.Minute
 	// downloadStallTimeout bounds a software-installer download that makes no
 	// progress (e.g. a network filter dropping packets mid-transfer). It resets
 	// on any received bytes, so slow-but-healthy downloads are unaffected.
@@ -290,7 +292,7 @@ func NewOrbitClient(
 		enrolled:                   false,
 		onGetConfigErrFns:          onGetConfigErrFns,
 		lastIdleConnectionsCleanup: time.Now(),
-		ReceiverUpdateInterval:     defaultOrbitConfigReceiverInterval,
+		DefaultConfigPollInterval:  defaultConfigPollInterval,
 		receiverUpdateContext:      ctx,
 		receiverUpdateCancelFunc:   cancelFunc,
 		hostIdentityCertPath:       hostIdentityCertPath,
@@ -311,7 +313,7 @@ func (oc *OrbitClient) TriggerConfigRefresh() {
 
 // TransportConnected tells ExecuteConfigReceivers that the WebSocket transport connected: changes made between the
 // last fetch and the server registering the connection were not nudged, so the config is fetched now, if the server
-// nudges (its last config had a fallback poll interval) and the last fetch is at least ReceiverUpdateInterval old (a
+// nudges (its last config had a fallback poll interval) and the last fetch is at least DefaultConfigPollInterval old (a
 // flapping connection must not poll faster than without the transport). Non-blocking.
 func (oc *OrbitClient) TransportConnected() {
 	select {
@@ -321,7 +323,7 @@ func (oc *OrbitClient) TransportConnected() {
 }
 
 // TransportDisconnected tells ExecuteConfigReceivers that the WebSocket transport disconnected, so changes are no
-// longer nudged: a slow fallback poll is shortened to ReceiverUpdateInterval. Non-blocking.
+// longer nudged: a slow fallback poll is shortened to DefaultConfigPollInterval. Non-blocking.
 func (oc *OrbitClient) TransportDisconnected() {
 	select {
 	case oc.disconnectedCh <- struct{}{}:
@@ -331,7 +333,7 @@ func (oc *OrbitClient) TransportDisconnected() {
 
 // SetTransportConnectedFunc sets the function reporting whether the WebSocket transport is connected. While it is,
 // and the server sends a fallback poll interval, quiet configs are fetched at that interval instead of
-// ReceiverUpdateInterval, as the server nudges this agent on changes (see TriggerConfigRefresh).
+// DefaultConfigPollInterval, as the server nudges this agent on changes (see TriggerConfigRefresh).
 func (oc *OrbitClient) SetTransportConnectedFunc(f func() bool) {
 	oc.transportConnected = f
 }
@@ -439,12 +441,12 @@ func (oc *OrbitClient) RegisterConfigReceiver(cr fleet.OrbitConfigReceiver) {
 }
 
 func (oc *OrbitClient) ExecuteConfigReceivers() error {
-	interval := oc.ReceiverUpdateInterval
+	interval := oc.DefaultConfigPollInterval
 	timer := time.NewTimer(interval)
 	defer timer.Stop()
 
 	// Backoff tracker for the config polling loop. See #45553.
-	configBackoff := backoff.New(oc.ReceiverUpdateInterval, maxConfigBackoff)
+	configBackoff := backoff.New(oc.DefaultConfigPollInterval, maxConfigBackoff)
 
 	var lastConfig *fleet.OrbitConfig
 	var lastRun time.Time
@@ -455,10 +457,12 @@ func (oc *OrbitClient) ExecuteConfigReceivers() error {
 		case <-oc.receiverUpdateContext.Done():
 			return nil
 		case <-timer.C:
-			fallbackPoll = !configBackoff.InBackoff() && interval > oc.ReceiverUpdateInterval
+			// interval is only above the default while nudges are trusted. A backoff retry fires on its own delay
+			// but leaves interval at its pre-failure value, so it must not count as a fallback poll.
+			fallbackPoll = !configBackoff.InBackoff() && interval > oc.DefaultConfigPollInterval
 		case <-oc.disconnectedCh:
-			if interval > oc.ReceiverUpdateInterval && !configBackoff.InBackoff() {
-				interval = oc.ReceiverUpdateInterval
+			if interval > oc.DefaultConfigPollInterval && !configBackoff.InBackoff() {
+				interval = oc.DefaultConfigPollInterval
 				// Spread out: a server restart disconnects every agent at once.
 				timer.Reset(rand.N(interval)) //nolint:gosec // jitter does not need cryptographic randomness
 			}
@@ -466,7 +470,7 @@ func (oc *OrbitClient) ExecuteConfigReceivers() error {
 		case <-oc.connectedCh:
 			nudged := lastConfig != nil && lastConfig.WebSocketTransport != nil &&
 				lastConfig.WebSocketTransport.OrbitConfigPollInterval != nil
-			if !nudged || configBackoff.InBackoff() || time.Since(lastRun) < oc.ReceiverUpdateInterval {
+			if !nudged || configBackoff.InBackoff() || time.Since(lastRun) < oc.DefaultConfigPollInterval {
 				continue
 			}
 			timer.Stop()
@@ -511,18 +515,18 @@ func (oc *OrbitClient) ExecuteConfigReceivers() error {
 
 // nextConfigInterval returns how long to wait before polling the config again after a successful run with cfg: the
 // server's fallback interval when the WebSocket transport is connected (so changes are nudged) and nothing is
-// pending, otherwise ReceiverUpdateInterval, as many receivers use the poll as their clock while they have work.
+// pending, otherwise DefaultConfigPollInterval, as many receivers use the poll as their clock while they have work.
 func (oc *OrbitClient) nextConfigInterval(cfg *fleet.OrbitConfig) time.Duration {
 	if cfg == nil || cfg.WebSocketTransport == nil || cfg.WebSocketTransport.OrbitConfigPollInterval == nil ||
 		oc.transportConnected == nil || !oc.transportConnected() || !cfg.Notifications.IsQuiet() {
-		return oc.ReceiverUpdateInterval
+		return oc.DefaultConfigPollInterval
 	}
 	for _, receiver := range oc.ConfigReceivers {
 		if p, ok := receiver.(FrequentPoller); ok && p.NeedsFrequentPolling() {
-			return oc.ReceiverUpdateInterval
+			return oc.DefaultConfigPollInterval
 		}
 	}
-	return max(oc.ReceiverUpdateInterval, time.Duration(*cfg.WebSocketTransport.OrbitConfigPollInterval)*time.Second)
+	return max(oc.DefaultConfigPollInterval, time.Duration(*cfg.WebSocketTransport.OrbitConfigPollInterval)*time.Second)
 }
 
 // recordFallbackChanges records the fields that differ between prev and cur, to report on the next config request.
