@@ -9,6 +9,28 @@ const SYSTEM_PROMPT = require("./system-prompt");
 // var or the `maxToolCalls` constructor option.
 const DEFAULT_MAX_TOOL_CALLS = 100;
 
+// When a model is declined mid-stream, the server keeps its partial output ahead of the last
+// `fallback` block. Of that partial, only text and completed server-tool pairs may be acted on
+// or sent back; its thinking and tool_use blocks must be dropped.
+function contentAfterFallback(content) {
+  const boundary = content.findLastIndex((b) => b.type === "fallback");
+  if (boundary === -1) {
+    return content;
+  }
+  const declined = content.slice(0, boundary);
+  const serverToolUseIds = new Set(declined.filter((b) => b.type === "server_tool_use").map((b) => b.id));
+  const serverToolResultIds = new Set(
+    declined.filter((b) => b.tool_use_id && serverToolUseIds.has(b.tool_use_id)).map((b) => b.tool_use_id)
+  );
+  const kept = declined.filter(
+    (b) =>
+      b.type === "text" ||
+      (b.type === "server_tool_use" && serverToolResultIds.has(b.id)) ||
+      (b.tool_use_id && serverToolResultIds.has(b.tool_use_id))
+  );
+  return [...kept, ...content.slice(boundary)];
+}
+
 class ClaudeClient {
   constructor({ apiKey, model, mcpClient, maxToolCalls }) {
     this.client = new Anthropic({ apiKey, timeout: 10 * 60 * 1000 });
@@ -155,15 +177,21 @@ class ClaudeClient {
   async _streamMessage(messages, tools, onText, options = {}) {
     const params = {
       model: this.model,
-      max_tokens: 16000,
+      // Thinking is always on and counts toward max_tokens.
+      max_tokens: 64000,
       system: SYSTEM_PROMPT,
       messages,
+      output_config: { effort: "medium" },
+      // Safety classifiers can decline benign security-related requests; this re-runs
+      // a declined request on the model Anthropic recommends for that refusal category.
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
     };
 
     // Add MCP tools + Anthropic server-side tools (web search)
     const allTools = [
       ...tools,
-      { type: "web_search_20250305", name: "web_search", max_uses: 3 },
+      { type: "web_search_20260209", name: "web_search", max_uses: 3 },
     ];
     if (allTools.length > 0) {
       params.tools = allTools;
@@ -174,7 +202,7 @@ class ClaudeClient {
     }
 
     // Use streaming to get partial text for live Slack updates
-    const stream = this.client.messages.stream(params);
+    const stream = this.client.beta.messages.stream(params);
 
     if (onText) {
       stream.on("text", (text) => {
@@ -185,10 +213,14 @@ class ClaudeClient {
     const response = await stream.finalMessage();
 
     console.log(
-      `[claude] Response: ${response.usage.input_tokens} in / ${response.usage.output_tokens} out tokens, stop: ${response.stop_reason}`
+      `[claude] Response: ${response.usage.input_tokens} in / ${response.usage.output_tokens} out tokens, stop: ${response.stop_reason}, model: ${response.model}`
     );
 
-    return response;
+    if (response.stop_reason === "refusal") {
+      throw new Error(`Claude returned a refusal (category: ${response.stop_details?.category ?? "none"})`);
+    }
+
+    return { ...response, content: contentAfterFallback(response.content) };
   }
 
   // ──────────────────────────────────────────────────

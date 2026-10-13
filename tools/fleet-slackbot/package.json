@@ -11,7 +11,7 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "0.39.0",
+    "@anthropic-ai/sdk": "0.129.0",
     "@modelcontextprotocol/sdk": "1.31.0",
     "@octokit/rest": "21.1.1",
     "@slack/bolt": "4.7.2",

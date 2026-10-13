@@ -81,7 +81,7 @@ GITHUB_BOT_USERNAME=your-bot-github-username   # used to ignore the bot's own PR
 GITOPS_BASE_PATH=it-and-security                # path within the repo to the GitOps config
 
 ANTHROPIC_API_KEY=sk-ant-...
-ANTHROPIC_MODEL=claude-opus-4-6                  # optional, this is the default
+ANTHROPIC_MODEL=claude-opus-5-5                  # optional, this is the default (overrides must support effort and fallbacks: "default")
 MAX_TOOL_CALLS=100                               # safety cap on tool calls per response (default: 100)
 
 FLEET_MCP_URL=http://localhost:8181/sse

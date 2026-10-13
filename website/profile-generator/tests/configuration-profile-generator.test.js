@@ -10,7 +10,8 @@
  * deliberately:
  *
  *   sails_custom__anthropicSecret='…' npm run test-profile-generator
- *   sails_custom__anthropicSecret='…' BASE_MODEL=claude-sonnet-5 npm run test-profile-generator
+ *   sails_custom__anthropicSecret='…' BASE_MODEL=claude-haiku-5-5 npm run test-profile-generator
+ *   sails_custom__anthropicSecret='…' EFFORT=medium npm run test-profile-generator
  *   sails_custom__anthropicSecret='…' LOG_ALL_GENERATIONS=1 npm run test-profile-generator
  *   sails_custom__anthropicSecret='…' REPEATS=1 npm run test-profile-generator
  *
@@ -27,9 +28,11 @@ const util = require('util');
 const { TEST_CASES, checkExpectations } = require('../configuration-profile-generator-cases');
 
 
-// Overridable because the interesting question is usually whether a cheaper model can still pass
-// these, and the answer changes with every model release.  Same default as the script.
-const BASE_MODEL = process.env.BASE_MODEL || 'claude-haiku-4-5';
+// The model and effort the action generates with, so a plain run measures production.  Both are
+// overridable because the interesting question is usually whether a cheaper model or a lower effort can
+// still pass these, and the answer changes with every model release.  Same defaults as the script.
+const BASE_MODEL = process.env.BASE_MODEL || 'claude-sonnet-5-5';
+const EFFORT = process.env.EFFORT || 'low';
 
 const LOG_ALL_GENERATIONS = process.env.LOG_ALL_GENERATIONS;
 
@@ -228,12 +231,14 @@ async function generateOnce(testCase) {
       naturalLanguageInstructions: testCase.instructions,
       useApplePayloadTypeLookup: true,
     });
-    let rawResult = await sails.helpers.ai.prompt.with({
+    let promptOptions = {
       systemPrompt: generatorConfiguration.systemPrompt,
       prompt: generatorConfiguration.userPrompt,
       baseModel: BASE_MODEL,
       expectJson: true,
-    });
+      effort: EFFORT,
+    };
+    let rawResult = await sails.helpers.ai.prompt.with(promptOptions);
     // The same step the action runs, so a case asserts on the profile an admin would download.
     if(testCase.profileType === 'csp' && rawResult.configurationProfile) {
       let withAdmxInstalls = await sails.helpers.addAdmxInstallCommandsToWindowsProfile.with({ profile: rawResult.configurationProfile });

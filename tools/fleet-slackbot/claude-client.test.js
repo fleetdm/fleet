@@ -6,7 +6,7 @@ const ClaudeClient = require("./claude-client");
 const TEST_MAX_TOOL_CALLS = 5;
 
 // makeStreamingResponse builds a fake of the object returned by
-// `client.messages.stream(...)` — a thenable-ish thing with `.on(...)` for
+// `client.beta.messages.stream(...)` — a thenable-ish thing with `.on(...)` for
 // "text" events and `.finalMessage()` returning a full message.
 function makeStreamingResponse(stopReason, contentBlocks) {
   return {
@@ -68,7 +68,7 @@ test("runAgentLoop forces a final no-tools response when the budget is exhausted
     mcpClient: fakeMcpClient,
     maxToolCalls: TEST_MAX_TOOL_CALLS,
   });
-  client.client = fakeClient;
+  client.client = { beta: fakeClient };
 
   const result = await client.runAgentLoop("Tell me something.");
 
@@ -150,7 +150,7 @@ test("runAgentLoop caps tool calls within a single fanned-out turn", async () =>
     mcpClient: fakeMcpClient,
     maxToolCalls: TEST_MAX_TOOL_CALLS,
   });
-  client.client = fakeClient;
+  client.client = { beta: fakeClient };
   // Wrap callTool to record executions.
   const originalCallTool = fakeMcpClient.callTool.bind(fakeMcpClient);
   client.mcpClient.callTool = async (name, input) => {
@@ -200,11 +200,83 @@ test("runAgentLoop returns end_turn text without forcing the fallback when Claud
     model: "claude-test",
     mcpClient: { getAnthropicTools: () => [] },
   });
-  client.client = fakeClient;
+  client.client = { beta: fakeClient };
 
   const result = await client.runAgentLoop("Hello");
   assert.equal(result, "Done.");
   assert.equal(callCount, 1);
+});
+
+test("runAgentLoop throws a 'Claude returned' error on a refusal", async () => {
+  const fakeClient = {
+    messages: {
+      stream() {
+        return makeStreamingResponse("refusal", []);
+      },
+    },
+  };
+
+  const client = new ClaudeClient({
+    apiKey: "test",
+    model: "claude-test",
+    mcpClient: { getAnthropicTools: () => [] },
+  });
+  client.client = { beta: fakeClient };
+
+  await assert.rejects(client.runAgentLoop("Hello"), /^Error: Claude returned a refusal/);
+});
+
+test("runAgentLoop ignores the declined model's thinking and tool calls before a fallback block", async () => {
+  const calls = [];
+  const executedTools = [];
+  const fakeClient = {
+    messages: {
+      stream(params) {
+        calls.push(params);
+        if (calls.length === 1) {
+          return makeStreamingResponse("tool_use", [
+            { type: "thinking", thinking: "", signature: "sig" },
+            { type: "text", text: "Checking " },
+            { type: "tool_use", id: "tu_declined", name: "stub_tool", input: {} },
+            { type: "server_tool_use", id: "srv_unpaired", name: "web_search", input: {} },
+            { type: "fallback", from: { model: "claude-test" }, to: { model: "claude-fallback" } },
+            { type: "text", text: "the hosts." },
+            { type: "tool_use", id: "tu_served", name: "stub_tool", input: {} },
+          ]);
+        }
+        return makeStreamingResponse("end_turn", [{ type: "text", text: "Done." }]);
+      },
+    },
+  };
+
+  const client = new ClaudeClient({
+    apiKey: "test",
+    model: "claude-test",
+    mcpClient: {
+      getAnthropicTools: () => [
+        { name: "stub_tool", description: "stub", input_schema: { type: "object" } },
+      ],
+      callTool: async () => "stub result",
+    },
+  });
+  client.client = { beta: fakeClient };
+  const originalCallTool = client.mcpClient.callTool;
+  client.mcpClient.callTool = async (name, input) => {
+    executedTools.push(input);
+    return originalCallTool(name, input);
+  };
+
+  const result = await client.runAgentLoop("Which hosts?");
+  assert.equal(result, "Done.");
+  assert.equal(executedTools.length, 1);
+
+  const echoed = calls[1].messages.find((m) => m.role === "assistant").content;
+  assert.deepEqual(
+    echoed.map((b) => b.id ?? b.type),
+    ["text", "fallback", "text", "tu_served"]
+  );
+  const toolResults = calls[1].messages.at(-1).content;
+  assert.deepEqual(toolResults.map((r) => r.tool_use_id), ["tu_served"]);
 });
 
 test("ClaudeClient maxToolCalls defaults to DEFAULT_MAX_TOOL_CALLS and accepts override", () => {
