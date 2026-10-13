@@ -286,7 +286,6 @@ import DBeaverLite from "./png/DBeaverLite.png";
 import DBeaverUltimate from "./png/DBeaverUltimate.png";
 import Dbgate from "./png/Dbgate.png";
 import Dbvisualizer from "./png/Dbvisualizer.png";
-import Debookee from "./png/Debookee.png";
 import Deckset from "./png/Deckset.png";
 import DeepL from "./png/DeepL.png";
 import Deezer from "./png/Deezer.png";
@@ -1060,7 +1059,6 @@ import UltimakerCura from "./png/UltimakerCura.png";
 import Unclutter from "./png/Unclutter.png";
 import Unicodechecker from "./png/Unicodechecker.png";
 import UnityHub from "./png/UnityHub.png";
-import Updf from "./png/Updf.png";
 import Upscayl from "./png/Upscayl.png";
 import UsageApp from "./png/UsageApp.png";
 import Utm from "./png/Utm.png";
@@ -1450,7 +1448,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   dbeaverultimate: DBeaverUltimate,
   dbgate: Dbgate,
   dbvisualizer: Dbvisualizer,
-  debookee: Debookee,
   deckset: Deckset,
   deepl: DeepL,
   deezer: Deezer,
@@ -2254,7 +2251,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   unclutter: Unclutter,
   unicodechecker: Unicodechecker,
   "unity hub": UnityHub,
-  updf: Updf,
   upscayl: Upscayl,
   usage: UsageApp,
   utm: Utm,

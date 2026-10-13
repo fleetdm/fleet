@@ -2389,13 +2389,6 @@
       "description": "DCV Viewer is used for connecting to the NICE DCV remote display protocol."
     },
     {
-      "name": "Debookee",
-      "slug": "debookee/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.iwaxx.Debookee",
-      "description": "Debookee is a network traffic analyser."
-    },
-    {
       "name": "Deckset",
       "slug": "deckset/darwin",
       "platform": "darwin",
@@ -9058,13 +9051,6 @@
       "platform": "darwin",
       "unique_identifier": "com.unity3d.unityhub",
       "description": "Unity Hub is a management tool for Unity."
-    },
-    {
-      "name": "UPDF",
-      "slug": "updf/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.superace.updf.mac",
-      "description": "UPDF is a PDF editor."
     },
     {
       "name": "Upscayl",

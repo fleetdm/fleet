@@ -57,7 +57,7 @@ On the morning of a new team member's first day, IT sends them the Google Logins
 
 Upon receiving any device, follow these steps to process incoming equipment.
 1. Find the device in ["🍽️ Dogfood"](https://dogfood.fleetdm.com/dashboard) to confirm the correct equipment was received.
-2. Visibly inspect equipment and all related components (e.g. laptop charger) for damage.
+2. Visually inspect equipment and all related components (e.g. laptop charger) for damage.
 3. Remove any stickers and clean devices and components.
 4. Using the device's charger, plug in the device.
 5. Using your company laptop, navigate to the host in dogfood, and click `actions` » `Unlock` and copy the unlock code. 

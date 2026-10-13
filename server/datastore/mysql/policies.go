@@ -1882,7 +1882,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 				SELECT NULL si_id, vat.id vat_id FROM vpp_apps_teams vat
 				JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
 				WHERE global_or_team_id = ? AND title_id = ?
-				ORDER BY si_id IS NULL, si_id ASC
+				ORDER BY si_id IS NULL, si_id ASC, vat_id ASC
 				LIMIT 1`,
 			teamNameToID[spec.Team], spec.SoftwareTitleID, teamNameToID[spec.Team], spec.SoftwareTitleID)
 		if err != nil {
@@ -3159,21 +3159,24 @@ func (ds *Datastore) updateInheritedGlobalPolicyCounts(ctx context.Context, db s
 // every policy, or of just one when policyID is set. Cost is linear in the number of
 // policies covered.
 func updatePolicyCounts(ctx context.Context, db sqlx.ExtContext, policyID *uint) error {
-	stmt := `
-		INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count)
+	type policyStat struct {
+		PolicyID         uint `db:"policy_id"`
+		PassingHostCount uint `db:"passing_host_count"`
+		FailingHostCount uint `db:"failing_host_count"`
+	}
+
+	// Counting via INSERT ... SELECT would take shared next-key locks on every scanned
+	// policy_membership row (REPEATABLE READ), stalling all policy result writes for the
+	// whole statement. A plain SELECT is a lock-free consistent read.
+	selectStmt := `
 		SELECT
-			p.id,
-			NULL AS inherited_team_id, -- using NULL to represent global scope
-			COALESCE(SUM(IF(pm.passes IS NULL, 0, pm.passes = 1)), 0),
-			COALESCE(SUM(IF(pm.passes IS NULL, 0, pm.passes = 0)), 0)
+			p.id AS policy_id,
+			COALESCE(SUM(IF(pm.passes IS NULL, 0, pm.passes = 1)), 0) AS passing_host_count,
+			COALESCE(SUM(IF(pm.passes IS NULL, 0, pm.passes = 0)), 0) AS failing_host_count
 		FROM policies p
 		LEFT JOIN policy_membership pm ON p.id = pm.policy_id
 		%s
-		GROUP BY p.id
-		ON DUPLICATE KEY UPDATE
-			updated_at = NOW(),
-			passing_host_count = VALUES(passing_host_count),
-			failing_host_count = VALUES(failing_host_count)`
+		GROUP BY p.id`
 	var (
 		where string
 		args  []any
@@ -3182,8 +3185,33 @@ func updatePolicyCounts(ctx context.Context, db sqlx.ExtContext, policyID *uint)
 		where = "WHERE p.id = ?"
 		args = append(args, *policyID)
 	}
-	if _, err := db.ExecContext(ctx, fmt.Sprintf(stmt, where), args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "update host policy counts for global and team policies")
+	var stats []policyStat
+	if err := sqlx.SelectContext(ctx, db, &stats, fmt.Sprintf(selectStmt, where), args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "select host policy counts for global and team policies")
+	}
+
+	// Joining policies skips any policy deleted since the SELECT, which would otherwise
+	// fail the whole batch on the policy_stats foreign key.
+	const upsertStmt = `
+		INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count)
+		SELECT p.id, NULL, -- using NULL to represent global scope
+			v.passing_host_count, v.failing_host_count
+		FROM (VALUES %s) AS v (policy_id, passing_host_count, failing_host_count)
+		JOIN policies p ON p.id = v.policy_id
+		ON DUPLICATE KEY UPDATE
+			updated_at = NOW(),
+			passing_host_count = VALUES(passing_host_count),
+			failing_host_count = VALUES(failing_host_count)`
+	for batch := range slices.Chunk(stats, 1000) {
+		rows := make([]string, 0, len(batch))
+		args := make([]any, 0, len(batch)*3)
+		for _, s := range batch {
+			rows = append(rows, "ROW(?, ?, ?)")
+			args = append(args, s.PolicyID, s.PassingHostCount, s.FailingHostCount)
+		}
+		if _, err := db.ExecContext(ctx, fmt.Sprintf(upsertStmt, strings.Join(rows, ",")), args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "update host policy counts for global and team policies")
+		}
 	}
 	return nil
 }

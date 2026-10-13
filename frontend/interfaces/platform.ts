@@ -182,6 +182,8 @@ export const isMobilePlatform = (platform: string | HostPlatform) =>
 
 // --- OS Settings and Disk Encryption support by Platform ---
 
+/** Linux platforms whose disk encryption status Fleet displays (host vitals, OS settings card).
+ * Display only: escrow eligibility is LUKS_ESCROW_SUPPORTED_LINUX_PLATFORMS below. */
 export const DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS = [
   "ubuntu", // covers Kubuntu
   "zorin", // Zorin OS (Ubuntu-based)
@@ -194,13 +196,23 @@ export const DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS = [
   "omarchy", // Omarchy (Arch-based)
 ] as const;
 
+/** Linux distributions Fleet escrows LUKS keys for. Must match LUKSSupportedPlatforms on the
+ * server. Fedora reports rhel and is matched on OS version instead. */
+export const LUKS_ESCROW_SUPPORTED_LINUX_PLATFORMS = [
+  "ubuntu", // covers Kubuntu
+  "zorin",
+] as const;
+
 export const isDiskEncryptionSupportedLinuxPlatform = (
   platform: HostPlatform,
   os_version: string
 ) => {
-  const isFedora =
-    platform === "rhel" && os_version.toLowerCase().includes("fedora");
-  return isFedora || platform === "ubuntu" || platform === "zorin";
+  if (platform === "rhel") {
+    return os_version.toLowerCase().includes("fedora");
+  }
+  return LUKS_ESCROW_SUPPORTED_LINUX_PLATFORMS.includes(
+    platform as typeof LUKS_ESCROW_SUPPORTED_LINUX_PLATFORMS[number]
+  );
 };
 
 const DISK_ENCRYPTION_SUPPORTED_PLATFORMS = [
