@@ -1822,12 +1822,10 @@ func uploadPreAuth(svc fleet.Service, logger *slog.Logger) func(http.Handler) ht
 				reject(err)
 				return
 			}
-			if v.User.IsAdminForcedPasswordReset() {
-				reject(fleet.ErrPasswordResetRequired)
-				return
-			}
+			// Runs the forced password reset and API-only checks that follow decode, in the same order.
 			probeCtx := viewer.NewContext(kithttp.PopulateRequestContext(auth.RouteTemplateRequestFunc(ctx, r), r), *v)
-			if _, err := auth.APIOnlyEndpointCheck(func(context.Context, any) (any, error) { return nil, nil })(probeCtx, nil); err != nil {
+			noop := func(context.Context, any) (any, error) { return nil, nil }
+			if _, err := auth.AuthenticatedUser(svc, auth.APIOnlyEndpointCheck(noop))(probeCtx, nil); err != nil {
 				reject(err)
 				return
 			}
