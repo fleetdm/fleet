@@ -169,10 +169,10 @@ Fleet also supports using the Fleet Desktop app's built-in PSSO extension to ach
 
 ## End user agreement (EULA)
 
-To require an end user agreement, in Fleet, head to **Settings > Integrations > MDM > End user agreement** or use the [Fleet API](/docs/rest-api/rest-api#create-end-user-agreement). Setup experiences between macOS and Windows differ, which is why you need to upload different file types for each platform.
+To require an end user agreement, in Fleet, head to **Settings > Integrations > MDM > End user license agreement (EULA)** or use the [Fleet API](/docs/rest-api/rest-api#create-end-user-agreement). Setup experiences between macOS and Windows differ, which is why you need to upload different file types for each platform.
 
 - **macOS**: Upload a PDF. The end user license agreement (EULA) is displayed for macOS hosts that automatically enroll via Apple Business (AB). Use the [Fleet API](/docs/rest-api/rest-api#create-eula) to upload, view, or delete it.
-- **Windows**: Upload a markdown file. The terms and conditions are displayed for Windows hosts that automatically enroll via Microsoft Entra. Use the [Fleet API](/docs/rest-api/rest-api#create-windows-eula) to upload, view, or delete it. If no custom terms are uploaded, Fleet uses a default terms of service page.
+- **Windows**: Upload a markdown file (512 KB max, only tables and text styles render as HTML, links render as plain text). The terms and conditions are displayed for Windows hosts that enroll via Microsoft Entra. Use the [Fleet API](/docs/rest-api/rest-api#create-eula) to upload, view, or delete it. If no custom terms are uploaded, Fleet uses a default terms of service page.
 
 ## Bootstrap package
 
