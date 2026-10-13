@@ -146,7 +146,7 @@ To silently patch the app when this policy fails and app is not open, set both `
 
 To notify the end user before the app is patched, set `install_software` and `notify_before_patching` to `true`. Fleet checks if the app is open, and if yes shows a notification listing the apps that will be updated, waits 1 hour, then installs the patch. A reminder is shown 5 minutes before the install. This option is only available on macOS, and requires the Fleet Desktop app (available as a Fleet-maintained app).
 
-To patch the app at a scheduled time, set `install_software` and `patch_deadline` to `true`. If the app isn't open, Fleet patches it right away. If the app is open, Fleet waits for the next deadline in the fleet's [`patch_deadline_schedule`](#patch-deadline-schedule). 1 hour before the deadline, Fleet shows the end user a notification listing the apps that will close and update. A reminder is shown 5 minutes before the install. If the notification can't be shown (for example, the host is offline or the screen is locked), Fleet shows it as soon as it can and installs 1 hour later. This option is only available on macOS, and requires the Fleet Desktop app (available as a Fleet-maintained app). If `patch_deadline_schedule` isn't set, `fleetctl gitops` returns an error.
+To patch the app at a scheduled time, set `install_software` and `patch_deadline` to `true`. If the app isn't open, Fleet patches it right away. If the app is open, Fleet waits for the next deadline in the fleet's [`patch_deadline_settings`](#patch-deadline-settings). 1 hour before the deadline, Fleet shows the end user a notification listing the apps that will close and update. A reminder is shown 5 minutes before the install. If the notification can't be shown (for example, the host is offline or the screen is locked), Fleet shows it as soon as it can and installs 1 hour later. This option is only available on macOS, and requires the Fleet Desktop app (available as a Fleet-maintained app).
 
 Only one of `patch_when_closed`, `notify_before_patching`, or `patch_deadline` can be set to `true`.
 
@@ -669,7 +669,7 @@ The `software` section allows you to configure packages, store apps (Apple App S
 - `packages` is a list of paths to custom packages (.pkg, .ipa, .msi, .exe, .deb, .rpm, .tar.gz, .sh, .py, or .ps1).
 - `app_store_apps` is a list of Apple App Store or Android Play Store apps.
 - `fleet_maintained_apps` is a list of Fleet-maintained apps.
-- `patch_deadline_schedule` sets when Fleet patches apps that have `patch_deadline` enabled. See [patch_deadline_schedule](#patch-deadline-schedule).
+- `patch_deadline_settings` sets when Fleet patches apps that have `patch_deadline` enabled. See [patch_deadline_settings](#patch-deadline-settings).
 
 Currently, you can specify `install_software` in the [`policies` YAML](#policies) to automatically install software when a host fails a policy.
 
@@ -685,7 +685,7 @@ Script-only packages (.sh, .ps1, .py) also support $FLEET_SECRET_* variables. Fl
 
 ```yaml
 software:
-  patch_deadline_schedule: # Available in Fleet Premium
+  patch_deadline_settings: # Available in Fleet Premium
     days:
       - monday
       - wednesday
@@ -760,16 +760,16 @@ software:
 
 In all cases, once Fleet collects software inventory, the inventory name is used instead.
 
-### patch_deadline_schedule
+### patch_deadline_settings
 
 _Available in Fleet Premium_
 
-`patch_deadline_schedule` sets when Fleet patches Fleet-maintained apps that have a [patch policy](#patch-policy) with `patch_deadline` set to `true`. Fleet shows the end user a notification 1 hour before the deadline.
+`patch_deadline_settings` sets when Fleet patches Fleet-maintained apps that have a [patch policy](#patch-policy) with `patch_deadline` set to `true`. Fleet shows the end user a notification 1 hour before the deadline.
 
 - `days` is a list of days of the week when the deadline applies. Options are `monday`, `tuesday`, `wednesday`, `thursday`, `friday`, `saturday`, and `sunday`. Required.
-- `time` is the deadline, formatted as `HH:MM` in the host's local time (e.g. `"11:00"`). If Fleet hasn't collected the host's timezone yet, UTC is used. Must be wrapped in quotes so it is processed as a string. Required.
+- `time` is the deadline, formatted as `HH:MM` in the host's local time (e.g. `"11:00"`). Fleet doesn't patch a host until it has collected the host's timezone. Must be wrapped in quotes so it is processed as a string. Required.
 
-If `patch_deadline_schedule` is omitted, the schedule is removed. Policies with `patch_deadline` set to `true` can't be added unless a schedule is set.
+If `patch_deadline_settings` is omitted, Fleet uses the default: Tuesday at `"17:00"`.
 
 ### packages
 
