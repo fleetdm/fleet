@@ -8,13 +8,13 @@ import (
 	"log/slog"
 	"strings"
 	"time"
+	"uuid"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -357,21 +357,18 @@ func ingestWindowsAutopilotDevicesDB(
 	// An unresolved device may already be enrolled in Fleet, from before it was registered in Autopilot (or before the tenant was
 	// connected). Adopting its host rather than creating a duplicate is tried first through the IDs its Windows MDM enrollment
 	// recorded, which identify the device exactly, then through its serial.
-	// Doing the reads inside the TX to make sure we have the latest host data and to eliminate races.
 	hostIDByEnrollment, err := unclaimedHostIDsByMDMEnrollmentDB(ctx, tx, unresolved)
 	if err != nil {
 		return err
 	}
 	// Hosts carrying this serial that no Autopilot record has claimed yet. Hosts already claimed by a different Autopilot record
-	// are excluded, which is what keeps two records for one serial on two hosts.
+	// are excluded.
 	unclaimedBySerial, err := unclaimedHostIDsBySerialDB(ctx, tx, serials)
 	if err != nil {
 		return err
 	}
 
-	// host_autopilot_devices is keyed by host_id. Track device claims in memory to make sure a one-to-one match. The exact
-	// matches claim their hosts before any serial match runs, so a serial match can never take a host another device in the
-	// batch is known to own.
+	// host_autopilot_devices is keyed by host_id. Track device claims in memory to make sure a one-to-one match.
 	claimed := make(map[uint]struct{}, len(devices))
 	resolved := make([]*fleet.HostAutopilotDevice, 0, len(devices))
 	resolve := func(dev *fleet.HostAutopilotDevice, hostID uint) {
@@ -572,8 +569,8 @@ WHERE e.host_uuid != '' AND had.host_id IS NULL AND (`+strings.Join(conditions, 
 // without one.
 func parseEntraDeviceID(id string) (uuid.UUID, bool) {
 	parsed, err := uuid.Parse(id)
-	if err != nil || parsed == uuid.Nil {
-		return uuid.Nil, false
+	if err != nil || parsed == uuid.Nil() {
+		return uuid.Nil(), false
 	}
 	return parsed, true
 }

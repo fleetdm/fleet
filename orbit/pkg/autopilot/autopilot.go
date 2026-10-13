@@ -4,8 +4,7 @@ package autopilot
 import (
 	"encoding/json"
 	"fmt"
-
-	"github.com/google/uuid"
+	"uuid"
 )
 
 // parseRegistrationID extracts the Autopilot device ID (ZTDID) from the policy cache JSON. The field is absent when the device

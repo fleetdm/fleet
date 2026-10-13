@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"uuid"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
@@ -29,7 +30,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	"github.com/google/uuid"
 )
 
 // enrollOrbitResponse wraps the fleet type to add HijackRender.
