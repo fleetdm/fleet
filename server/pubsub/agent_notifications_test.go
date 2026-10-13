@@ -218,9 +218,9 @@ func TestAgentNotificationsResubscribe(t *testing.T) {
 
 	// Still delivering after resubscribing. Publish until received, as
 	// notifications published before the resubscription are lost.
-	require.Eventually(t, func() bool {
-		require.NoError(t, notifier.NotifyOrbitConfigHosts(ctx, []uint{testHostIDOffset + 1}, fleet.AgentWSReasonActivity))
-		return received.Load() > 0
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.NoError(c, notifier.NotifyOrbitConfigHosts(ctx, []uint{testHostIDOffset + 1}, fleet.AgentWSReasonActivity))
+		assert.Positive(c, received.Load())
 	}, 5*time.Second, 200*time.Millisecond)
 }
 
