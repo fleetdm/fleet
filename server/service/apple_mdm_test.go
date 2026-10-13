@@ -2674,7 +2674,7 @@ func TestMDMAuthenticateAccountDrivenUserEnrollment(t *testing.T) {
 		keyValueStore:    redis_key_value.New(redistest.NopRedis()),
 		logger:           slog.New(slog.DiscardHandler),
 	}
-	ctx := context.Background()
+	ctx := t.Context()
 	enrollID, productName := "B24CC50B-75F5-4FF2-8D2C-25B4CD900703", "iPad15,7"
 
 	ds.MDMAppleUpsertHostFunc = func(ctx context.Context, mdmHost *fleet.Host, personalType fleet.PersonalEnrollmentType) error {
