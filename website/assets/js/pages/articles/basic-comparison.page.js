@@ -6,18 +6,7 @@ parasails.registerPage('basic-comparison', {
     subtopics: [],
     lastScrollTop: 0,
     scrollDistance: 0,
-    tableHeadersForMobileComparisonTable: [],
-    syncing: false,
-    formData: { /* … */ },
-    formErrors: { /* … */ },
-    cloudError: '',
-    demoFormRules: {
-      emailAddress: { isEmail: true, required: true },
-      firstName: { required: true },
-      lastName: { required: true },
-      organization: { required: true },
-      numberOfHosts: { required: true },
-    },
+    tableHeadersForMobileComparisonTable: []
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -57,12 +46,6 @@ parasails.registerPage('basic-comparison', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-
-    handleSubmittingDemoForm: async function(argins) {
-      this.syncing = true;
-      this.goto(await parasails.util.submitDemoRequest(argins));
-    },
-
     handleScrollingInArticle: function () {
       let rightNavBar = document.querySelector('div[purpose="right-sidebar"]');
       let scrollTop = window.pageYOffset;
