@@ -4849,6 +4849,40 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 
 	patchAppsPolicies = nil
 
+	// other ApplicationPolicy fields are sent to the host as well
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app3TitleID), &updateAppStoreAppRequest{
+		TeamID:        nil,
+		Configuration: json.RawMessage(`{"managedConfiguration": 3, "autoUpdateMode": "AUTO_UPDATE_HIGH_PRIORITY", "minimumVersionCode": 42, "permissionGrants": [{"permission": "android.permission.CAMERA", "policy": "GRANT"}]}`),
+	}, http.StatusOK, &patchAppResp)
+
+	s.runWorkerUntilDoneWithChecks(true)
+
+	require.Len(t, patchAppsPolicies, 1)
+	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
+		{
+			PackageName:          app3.VPPAppID.AdamID,
+			InstallType:          "AVAILABLE",
+			ManagedConfiguration: googleapi.RawMessage(`3`),
+			AutoUpdateMode:       "AUTO_UPDATE_HIGH_PRIORITY",
+			MinimumVersionCode:   42,
+			PermissionGrants:     []*androidmanagement.PermissionGrant{{Permission: "android.permission.CAMERA", Policy: "GRANT"}},
+		},
+	}, patchAppsPolicies[0])
+
+	patchAppsPolicies = nil
+
+	// packageName and installType are reserved for Fleet
+	for _, deniedConfig := range []string{`{"packageName": "com.example.other"}`, `{"installType": "FORCE_INSTALLED"}`} {
+		res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app3TitleID), &updateAppStoreAppRequest{
+			TeamID:        nil,
+			Configuration: json.RawMessage(deniedConfig),
+		}, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), `"packageName" and "installType" are not supported as top-level keys.`)
+	}
+
+	s.runWorkerUntilDoneWithChecks(true)
+	require.Empty(t, patchAppsPolicies)
+
 	// patch with a different config just to trigger the worker
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app3TitleID), &updateAppStoreAppRequest{
 		TeamID:        nil,
@@ -6193,4 +6227,91 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPInstallAppleServerError(
 		require.NoError(t, err)
 	}
 	require.Equal(t, []string{"DeviceConfigured"}, releaseCommands)
+}
+
+func (s *integrationMDMTestSuite) TestSetupExperienceStatusPollsSendOneDeviceConfigured() {
+	t := s.T()
+	ctx := t.Context()
+
+	s.setSkipWorkerJobs(t)
+
+	device, host, _ := s.createTeamDeviceForSetupExperienceWithProfileSoftwareAndScript()
+
+	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+	mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+	mdmDevice.SerialNumber = device.SerialNumber
+	require.NoError(t, mdmDevice.Enroll())
+
+	s.awaitTriggerProfileSchedule(t)
+	s.awaitRunAppleMDMWorkerSchedule()
+
+	ackAll := func() []string {
+		var requestTypes []string
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			if cmd.Command.RequestType != "DeclarativeManagement" {
+				requestTypes = append(requestTypes, cmd.Command.RequestType)
+			}
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+		return requestTypes
+	}
+	ackAll()
+
+	host.OsqueryHostID = new(mdmDevice.UUID)
+	host.UUID = mdmDevice.UUID
+	orbitKey := setOrbitEnrollment(t, host, s.ds)
+	host.OrbitNodeKey = &orbitKey
+
+	pollStatus := func() {
+		var statusResp fleet.GetOrbitSetupExperienceStatusResponse
+		s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &statusResp)
+	}
+	countDeviceConfigured := func() int {
+		var count int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count, `
+				SELECT COUNT(*) FROM nano_enrollment_queue nq
+				JOIN nano_commands nc ON nc.command_uuid = nq.command_uuid
+				WHERE nq.id = ? AND nc.request_type = 'DeviceConfigured'`, host.UUID)
+		})
+		return count
+	}
+
+	// Cancel the software install and then the script so that every setup step is done.
+	pollStatus()
+	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, *host.TeamID)
+	require.NoError(t, err)
+	for _, r := range results {
+		if r.HostSoftwareInstallsExecutionID != nil {
+			s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", host.ID, *r.HostSoftwareInstallsExecutionID), nil, http.StatusNoContent)
+		}
+	}
+	pollStatus()
+	results, err = s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, *host.TeamID)
+	require.NoError(t, err)
+	for _, r := range results {
+		if r.ScriptExecutionID != nil {
+			s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", host.ID, *r.ScriptExecutionID), nil, http.StatusNoContent)
+		}
+	}
+
+	// The device does not check in between polls, so the first DeviceConfigured stays unanswered.
+	for range 5 {
+		pollStatus()
+	}
+	require.Equal(t, 1, countDeviceConfigured())
+
+	// The release clears the flag when it's sent, without waiting for the device's result.
+	awaiting, err := s.ds.GetHostAwaitingConfiguration(ctx, host.UUID)
+	require.NoError(t, err)
+	require.False(t, awaiting)
+
+	require.Equal(t, []string{"DeviceConfigured"}, ackAll())
+	pollStatus()
+	require.Equal(t, 1, countDeviceConfigured())
+	require.Empty(t, ackAll())
 }

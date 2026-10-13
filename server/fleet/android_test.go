@@ -41,7 +41,7 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 			name:        "invalid - workProfileWidgets bad type",
 			config:      json.RawMessage(`{"workProfileWidgets": false}`),
 			expectError: true,
-			errorMsg:    "Couldn't update configuration. Invalid JSON.",
+			errorMsg:    `Couldn't update configuration. "workProfileWidgets" format is wrong.`,
 		},
 		{
 			name:        "invalid - workProfileWidgets bad value",
@@ -79,7 +79,7 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 			name:        "invalid - credentialProviderPolicy bad type",
 			config:      json.RawMessage(`{"credentialProviderPolicy": true}`),
 			expectError: true,
-			errorMsg:    "Couldn't update configuration. Invalid JSON.",
+			errorMsg:    `Couldn't update configuration. "credentialProviderPolicy" format is wrong.`,
 		},
 		{
 			name:        "valid - empty object",
@@ -127,22 +127,125 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 			errorMsg:    "Couldn't update configuration. Invalid JSON.",
 		},
 		{
+			name:        "invalid - literal null",
+			config:      json.RawMessage(`null`),
+			expectError: true,
+			errorMsg:    "Couldn't update configuration. Invalid JSON.",
+		},
+		{
 			name:        "invalid - unknown top-level key",
 			config:      json.RawMessage(`{"invalidKey": "value"}`),
 			expectError: true,
-			errorMsg:    `Couldn't update configuration. Only "managedConfiguration", "workProfileWidgets", and "credentialProviderPolicy" are supported as top-level keys.`,
+			errorMsg:    `Couldn't update configuration. Unknown top-level key "invalidKey".`,
 		},
 		{
 			name:        "invalid - extra key with valid keys",
 			config:      json.RawMessage(`{"managedConfiguration": {}, "extraKey": "value"}`),
 			expectError: true,
-			errorMsg:    `Couldn't update configuration. Only "managedConfiguration", "workProfileWidgets", and "credentialProviderPolicy" are supported as top-level keys.`,
+			errorMsg:    `Couldn't update configuration. Unknown top-level key "extraKey".`,
 		},
 		{
-			name:        "invalid - multiple invalid keys",
-			config:      json.RawMessage(`{"key1": "value1", "key2": "value2"}`),
+			name:        "invalid - multiple invalid keys reports the first in sorted order",
+			config:      json.RawMessage(`{"key2": "value2", "key1": "value1"}`),
 			expectError: true,
-			errorMsg:    `Couldn't update configuration. Only "managedConfiguration", "workProfileWidgets", and "credentialProviderPolicy" are supported as top-level keys.`,
+			errorMsg:    `Couldn't update configuration. Unknown top-level key "key1".`,
+		},
+		{
+			name:        "invalid - misspelled ApplicationPolicy field",
+			config:      json.RawMessage(`{"autoUpdteMode": "AUTO_UPDATE_HIGH_PRIORITY"}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. Unknown top-level key "autoUpdteMode".`,
+		},
+		// Denied keys
+		{
+			name:        "invalid - packageName",
+			config:      json.RawMessage(`{"packageName": "com.example.other"}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "packageName" and "installType" are not supported as top-level keys.`,
+		},
+		{
+			name:        "invalid - installType",
+			config:      json.RawMessage(`{"installType": "FORCE_INSTALLED"}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "packageName" and "installType" are not supported as top-level keys.`,
+		},
+		{
+			name:        "invalid - installType with valid keys",
+			config:      json.RawMessage(`{"managedConfiguration": {"key": "value"}, "installType": "KIOSK"}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "packageName" and "installType" are not supported as top-level keys.`,
+		},
+		{
+			name:        "invalid - denied key takes precedence over unknown key",
+			config:      json.RawMessage(`{"aaaUnknown": 1, "packageName": "com.example.other"}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "packageName" and "installType" are not supported as top-level keys.`,
+		},
+		{
+			name:        "valid - packageName nested in managedConfiguration",
+			config:      json.RawMessage(`{"managedConfiguration": {"packageName": "com.example.other", "installType": "x"}}`),
+			expectError: false,
+		},
+		// Other ApplicationPolicy fields
+		{
+			name:        "valid - autoUpdateMode",
+			config:      json.RawMessage(`{"autoUpdateMode": "AUTO_UPDATE_HIGH_PRIORITY"}`),
+			expectError: false,
+		},
+		{
+			name:        "valid - permissionGrants",
+			config:      json.RawMessage(`{"permissionGrants": [{"permission": "android.permission.CAMERA", "policy": "GRANT"}]}`),
+			expectError: false,
+		},
+		{
+			name:        "valid - several ApplicationPolicy fields",
+			config:      json.RawMessage(`{"managedConfiguration": {"key": "value"}, "minimumVersionCode": 42, "disabled": false, "installConstraint": [{"chargingConstraint": "CHARGING_NOT_REQUIRED"}], "delegatedScopes": ["MANAGED_CONFIGURATIONS"]}`),
+			expectError: false,
+		},
+		{
+			name:        "invalid - wrong type for minimumVersionCode",
+			config:      json.RawMessage(`{"minimumVersionCode": "abc"}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "minimumVersionCode" format is wrong.`,
+		},
+		{
+			name:        "invalid - wrong type nested in permissionGrants",
+			config:      json.RawMessage(`{"permissionGrants": [{"permission": 5}]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "permissionGrants.0.permission" format is wrong.`,
+		},
+		{
+			name:        "invalid - capitalized denied key",
+			config:      json.RawMessage(`{"PackageName": "com.example.other"}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "packageName" and "installType" are not supported as top-level keys.`,
+		},
+		{
+			name:        "valid - capitalized ApplicationPolicy field",
+			config:      json.RawMessage(`{"ManagedConfiguration": {"key": "value"}}`),
+			expectError: false,
+		},
+		{
+			name:        "invalid - Go-only ApplicationPolicy field",
+			config:      json.RawMessage(`{"ForceSendFields": ["Disabled"]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. Unknown top-level key "ForceSendFields".`,
+		},
+		{
+			name:        "invalid - misspelled nested key",
+			config:      json.RawMessage(`{"permissionGrants": [{"permision": "android.permission.CAMERA", "policy": "GRANT"}]}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. Unknown key "permision".`,
+		},
+		{
+			name:        "valid - arbitrary keys nested in managedConfiguration",
+			config:      json.RawMessage(`{"managedConfiguration": {"anything": {"goes": [1, {"here": true}]}}}`),
+			expectError: false,
+		},
+		{
+			name:        "valid - Fleet variable in a non-managedConfiguration field",
+			config:      json.RawMessage(`{"extensionConfig": {"notificationReceiver": "$FLEET_VAR_HOST_UUID"}}`),
+			expectError: false,
 		},
 		// Fleet variable tests
 		{

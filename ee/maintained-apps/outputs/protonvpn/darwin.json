@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.5.1",
+      "version": "6.5.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'ch.protonvpn.mac';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ch.protonvpn.mac' AND version_compare(bundle_short_version, '6.5.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ch.protonvpn.mac' AND version_compare(bundle_short_version, '6.5.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'ch.protonvpn.mac' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://vpn.protondownload.com/download/macos/6.5.1/ProtonVPN_mac_v6.5.1.dmg",
+      "installer_url": "https://vpn.protondownload.com/download/macos/6.5.2/ProtonVPN_mac_v6.5.2.dmg",
       "install_script_ref": "8bef980c",
       "uninstall_script_ref": "b30707da",
-      "sha256": "d50a49f14c50b0ef8ad68a89fc9685d5699ba2d4f92cb4c34317291b425435f8",
+      "sha256": "662ea912764a95f3b100e1c22695a3fc2a2366de10df81762f3c36a5307eefc0",
       "default_categories": [
         "Productivity"
       ]
