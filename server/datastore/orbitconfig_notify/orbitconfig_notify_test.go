@@ -48,7 +48,7 @@ type hookCase struct {
 	name string
 	// want is the notification expected after a changing write.
 	want string
-	run  func(ds *mock.Store, d *Datastore, unchanged bool, writeErr error) error
+	run  func(ctx context.Context, ds *mock.Store, d *Datastore, unchanged bool, writeErr error) error
 	// alwaysNotifies is set for methods that notify without comparing.
 	alwaysNotifies bool
 	// notifiesOnError is set for methods whose failed write may have
@@ -60,7 +60,7 @@ var hookCases = []hookCase{
 	{
 		name: "SaveAppConfig",
 		want: "scope global settings",
-		run: func(ds *mock.Store, d *Datastore, unchanged bool, writeErr error) error {
+		run: func(ctx context.Context, ds *mock.Store, d *Datastore, unchanged bool, writeErr error) error {
 			before := &fleet.AppConfig{AgentOptions: new(json.RawMessage(`{"script_execution_timeout":300}`))}
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return before, nil }
 			ds.SaveAppConfigFunc = func(ctx context.Context, info *fleet.AppConfig) error { return writeErr }
@@ -68,13 +68,13 @@ var hookCases = []hookCase{
 			if !unchanged {
 				after.MDM.WindowsEnabledAndConfigured = true
 			}
-			return d.SaveAppConfig(context.Background(), after)
+			return d.SaveAppConfig(ctx, after)
 		},
 	},
 	{
 		name: "SaveTeam",
 		want: "scope team:3 settings",
-		run: func(ds *mock.Store, d *Datastore, unchanged bool, writeErr error) error {
+		run: func(ctx context.Context, ds *mock.Store, d *Datastore, unchanged bool, writeErr error) error {
 			ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 				return &fleet.TeamLite{ID: tid, Config: fleet.TeamConfigLite{AgentOptions: new(json.RawMessage(`{}`))}}, nil
 			}
@@ -83,14 +83,14 @@ var hookCases = []hookCase{
 			if !unchanged {
 				team.Config.AgentOptions = new(json.RawMessage(`{"command_line_flags":{"verbose":true}}`))
 			}
-			_, err := d.SaveTeam(context.Background(), team)
+			_, err := d.SaveTeam(ctx, team)
 			return err
 		},
 	},
 	{
 		name: "SaveDefaultTeamConfig",
 		want: "scope team:0 settings",
-		run: func(ds *mock.Store, d *Datastore, unchanged bool, writeErr error) error {
+		run: func(ctx context.Context, ds *mock.Store, d *Datastore, unchanged bool, writeErr error) error {
 			ds.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) {
 				return &fleet.TeamConfig{}, nil
 			}
@@ -99,16 +99,16 @@ var hookCases = []hookCase{
 			if !unchanged {
 				config.MDM.EnableDiskEncryption = true
 			}
-			return d.SaveDefaultTeamConfig(context.Background(), config)
+			return d.SaveDefaultTeamConfig(ctx, config)
 		},
 	},
 	{
 		name:           "DeleteTeam",
 		want:           "scope team:0 settings",
 		alwaysNotifies: true,
-		run: func(ds *mock.Store, d *Datastore, unchanged bool, writeErr error) error {
+		run: func(ctx context.Context, ds *mock.Store, d *Datastore, unchanged bool, writeErr error) error {
 			ds.DeleteTeamFunc = func(ctx context.Context, tid uint) error { return writeErr }
-			return d.DeleteTeam(context.Background(), 3)
+			return d.DeleteTeam(ctx, 3)
 		},
 	},
 	{
@@ -116,9 +116,9 @@ var hookCases = []hookCase{
 		want:            "hosts [1 2] settings",
 		alwaysNotifies:  true,
 		notifiesOnError: true,
-		run: func(ds *mock.Store, d *Datastore, unchanged bool, writeErr error) error {
+		run: func(ctx context.Context, ds *mock.Store, d *Datastore, unchanged bool, writeErr error) error {
 			ds.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error { return writeErr }
-			return d.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(new(uint(3)), []uint{1, 2}))
+			return d.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(new(uint(3)), []uint{1, 2}))
 		},
 	},
 }
@@ -128,13 +128,13 @@ func TestHooks(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			t.Run("changed", func(t *testing.T) {
 				ds, notifier, d := newTestDatastore()
-				require.NoError(t, c.run(ds, d, false, nil))
+				require.NoError(t, c.run(t.Context(), ds, d, false, nil))
 				require.Equal(t, []string{c.want}, notifier.calls)
 			})
 
 			t.Run("unchanged", func(t *testing.T) {
 				ds, notifier, d := newTestDatastore()
-				require.NoError(t, c.run(ds, d, true, nil))
+				require.NoError(t, c.run(t.Context(), ds, d, true, nil))
 				if c.alwaysNotifies {
 					require.Equal(t, []string{c.want}, notifier.calls)
 				} else {
@@ -144,7 +144,7 @@ func TestHooks(t *testing.T) {
 
 			t.Run("write fails", func(t *testing.T) {
 				ds, notifier, d := newTestDatastore()
-				require.Error(t, c.run(ds, d, false, errors.New("boom")))
+				require.Error(t, c.run(t.Context(), ds, d, false, errors.New("boom")))
 				if c.notifiesOnError {
 					require.Equal(t, []string{c.want}, notifier.calls)
 				} else {
@@ -159,7 +159,7 @@ func TestSaveAppConfigUnreadableBeforeNotifies(t *testing.T) {
 	ds, notifier, d := newTestDatastore()
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return nil, errors.New("boom") }
 	ds.SaveAppConfigFunc = func(ctx context.Context, info *fleet.AppConfig) error { return nil }
-	require.NoError(t, d.SaveAppConfig(context.Background(), &fleet.AppConfig{}))
+	require.NoError(t, d.SaveAppConfig(t.Context(), &fleet.AppConfig{}))
 	require.Equal(t, []string{"scope global settings"}, notifier.calls)
 }
 
