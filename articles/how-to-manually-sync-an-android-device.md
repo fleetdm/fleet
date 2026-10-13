@@ -1,9 +1,5 @@
 # How to manually sync an Android device
 
-For Android hosts, there's no **Refetch** button on the **Host details** page in Fleet because Android hosts sync data automatically when they change. 
-
-## How changes sync on Android hosts
-
 Fleet doesn't communicate with Android hosts directly. Fleet and each host communicate through Google's Android Management API (AMAPI). Fleet delivers these changes by updating the host's policy in AMAPI:
 
 - Software installs and uninstalls
@@ -38,7 +34,7 @@ Host details, like the OS version and installed software, also come from these s
 
 Some changes don't use the host's policy, so manually syncing won't speed them up:
 
-- **Lock**, **Wipe**, and **Clear passcode** are sent to the host as AMAPI commands instead of policy changes.
+- Commands like **Lock**, **Wipe**, and **Clear passcode** are sent to the host as MDM commands instead of policy changes.
 - Certificates are installed by the Fleet app on the host, which checks Fleet for new certificates every 15 minutes.
 
 ## Sync manually
