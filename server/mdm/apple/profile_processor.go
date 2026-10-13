@@ -590,7 +590,7 @@ func preprocessProfileContents(
 					// Populate Fleet vars in the CA fields
 					caVarsCache := make(map[string]string)
 
-					ok, err := replaceFleetVarInItem(ctx, ds, target, hostLite, caVarsCache, &caCopy.CertificateCommonName, hostIDForUUIDCache, variablesUpdatedAt, onMismatchedHostCount)
+					ok, err := replaceFleetVarInDigiCertItem(ctx, ds, target, hostLite, caVarsCache, &caCopy.CertificateCommonName, hostIDForUUIDCache, variablesUpdatedAt, onMismatchedHostCount)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "populating Fleet variables in DigiCert CA common name")
 					}
@@ -598,7 +598,7 @@ func preprocessProfileContents(
 						failed = true
 						break fleetVarLoop
 					}
-					ok, err = replaceFleetVarInItem(ctx, ds, target, hostLite, caVarsCache, &caCopy.CertificateSeatID, hostIDForUUIDCache, variablesUpdatedAt, onMismatchedHostCount)
+					ok, err = replaceFleetVarInDigiCertItem(ctx, ds, target, hostLite, caVarsCache, &caCopy.CertificateSeatID, hostIDForUUIDCache, variablesUpdatedAt, onMismatchedHostCount)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "populating Fleet variables in DigiCert CA seat ID")
 					}
@@ -608,7 +608,7 @@ func preprocessProfileContents(
 					}
 					if len(caCopy.CertificateUserPrincipalNames) > 0 {
 						for i := range caCopy.CertificateUserPrincipalNames {
-							ok, err = replaceFleetVarInItem(ctx, ds, target, hostLite, caVarsCache, &caCopy.CertificateUserPrincipalNames[i], hostIDForUUIDCache, variablesUpdatedAt, onMismatchedHostCount)
+							ok, err = replaceFleetVarInDigiCertItem(ctx, ds, target, hostLite, caVarsCache, &caCopy.CertificateUserPrincipalNames[i], hostIDForUUIDCache, variablesUpdatedAt, onMismatchedHostCount)
 							if err != nil {
 								return ctxerr.Wrap(ctx, err, "populating Fleet variables in DigiCert CA user principal name")
 							}
@@ -758,7 +758,7 @@ func getFirstIDPEmail(ctx context.Context, ds fleet.Datastore, target *fleet.Cmd
 	return emails[0], true, nil
 }
 
-func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *fleet.CmdTarget, hostLite fleet.Host, caVarsCache map[string]string, item *string, hostIDForUUIDCache map[string]uint, variablesUpdatedAt *time.Time, onMismatchedHostCount func(int) error) (bool, error) {
+func replaceFleetVarInDigiCertItem(ctx context.Context, ds fleet.Datastore, target *fleet.CmdTarget, hostLite fleet.Host, caVarsCache map[string]string, item *string, hostIDForUUIDCache map[string]uint, variablesUpdatedAt *time.Time, onMismatchedHostCount func(int) error) (bool, error) {
 	caFleetVars := variables.Find(*item)
 	for _, caVar := range caFleetVars {
 		switch {
@@ -775,7 +775,7 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *flee
 				}
 				caVarsCache[string(fleet.FleetVarHostEndUserEmailIDP)] = email
 			}
-			*item = profiles.ReplaceFleetVariableInXML(fleetVarHostEndUserEmailIDPRegexp, *item, email)
+			*item = variables.Replace(*item, caVar, email)
 		case caVar == string(fleet.FleetVarHostHardwareSerial):
 			hardwareSerial, ok := caVarsCache[string(fleet.FleetVarHostHardwareSerial)]
 			if !ok {
@@ -790,7 +790,7 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *flee
 				hardwareSerial = hostLite.HardwareSerial
 				caVarsCache[string(fleet.FleetVarHostHardwareSerial)] = hostLite.HardwareSerial
 			}
-			*item = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostHardwareSerialRegexp, *item, hardwareSerial)
+			*item = variables.Replace(*item, caVar, hardwareSerial)
 		case caVar == string(fleet.FleetVarHostPlatform):
 			platform, ok := caVarsCache[string(fleet.FleetVarHostPlatform)]
 			if !ok {
@@ -809,7 +809,7 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *flee
 
 				caVarsCache[string(fleet.FleetVarHostPlatform)] = platform
 			}
-			*item = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostPlatformRegexp, *item, platform)
+			*item = variables.Replace(*item, caVar, platform)
 		case caVar == string(fleet.FleetVarHostUUID):
 			*item = variables.Replace(*item, caVar, hostLite.UUID)
 		case slices.Contains(fleet.IDPFleetVariables, fleet.FleetVarName(caVar)):
@@ -821,7 +821,7 @@ func replaceFleetVarInItem(ctx context.Context, ds fleet.Datastore, target *flee
 						CommandUUID:        target.CmdUUID,
 						HostUUID:           hostLite.UUID,
 						Status:             &fleet.MDMDeliveryFailed,
-						Detail:             errMsg,
+						Detail:             strings.TrimSpace(errMsg) + " The variable is used in the DigiCert certificate authority, not in the profile.",
 						OperationType:      fleet.MDMOperationTypeInstall,
 						VariablesUpdatedAt: variablesUpdatedAt,
 					})
