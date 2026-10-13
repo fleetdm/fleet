@@ -677,7 +677,10 @@ internal sealed class FleetService : IDisposable
         _ = Task.Run(async () =>
         {
             await Task.Delay(TokenRetryDelay).ConfigureAwait(false);
-            await Application.Current.Dispatcher.InvokeAsync(RefreshTokenIfNeeded);
+            // Re-enter the handler rather than only reloading on a changed token: an
+            // unchanged token triggers no navigation, so nothing else would schedule
+            // the remaining attempts.
+            await Application.Current.Dispatcher.InvokeAsync(OnNavigationError);
         });
     }
 
