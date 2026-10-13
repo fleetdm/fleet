@@ -49,6 +49,9 @@ type EnterpriseOverrides struct {
 	SetupExperienceNextStep           func(ctx context.Context, host *Host) (bool, error)
 	GetVPPTokenIfCanInstallVPPApps    func(ctx context.Context, appleDevice bool, host *Host) (string, error)
 	InstallVPPAppPostValidation       func(ctx context.Context, host *Host, vppApp *VPPApp, token string, opts HostSoftwareInstallOptions) (string, error)
+	// VerifyAppleAccountProvisioning checks Apple account provisioning IdP
+	// settings with the IdP before they're saved.
+	VerifyAppleAccountProvisioning func(ctx context.Context, settings AppleAccountProvisioning, clientSecret string) error
 }
 
 type OsqueryService interface {

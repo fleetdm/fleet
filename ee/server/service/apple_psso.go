@@ -537,6 +537,16 @@ func pssoIDTokenIssuer(settings *fleet.PSSOSettings) string {
 // restart. Returns the interface so an alternate backend (e.g. an LDAP bind
 // client for IdPs that reject ROPG) can be selected here later. Tests fake
 // the upstream IdP at the network boundary via PSSOOIDCROPGClient.HTTPClient.
+// verifyAppleAccountProvisioning checks Apple account provisioning settings
+// with the IdP before they're saved.
+func (svc *Service) verifyAppleAccountProvisioning(ctx context.Context, settings fleet.AppleAccountProvisioning, clientSecret string) error {
+	return pssoIdPClientFromSettings(&fleet.PSSOSettings{
+		IdPTokenURL:     settings.OAuthIdPTokenURL.Value,
+		IdPClientID:     settings.OAuthIdPClientID.Value,
+		IdPClientSecret: clientSecret,
+	}).VerifyConfig(ctx)
+}
+
 func pssoIdPClientFromSettings(settings *fleet.PSSOSettings) fleet.PSSOIdPClient {
 	return PSSOOIDCROPGClient{
 		TokenURL:     settings.IdPTokenURL,
