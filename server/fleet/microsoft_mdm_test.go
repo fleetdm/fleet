@@ -1301,6 +1301,32 @@ func TestIsFleetInternalCmdID(t *testing.T) {
 	}
 }
 
+func TestValidateWindowsMDMCommandID(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		cmdID   string
+		wantErr bool
+	}{
+		{"random UUID", "550e8400-e29b-41d4-a716-446655440000", false},
+		{"short ID", "1", false},
+		{"reserved prefix in the middle", "my-" + WindowsSCEPStatusProbeCmdUUIDPrefix + "1", false},
+		{"Fleet internal", FleetInternalCmdIDPrefix + "devdetail-smbios-serial", true},
+		{"SCEP status probe", WindowsSCEPStatusProbeCmdUUIDPrefix + "550e8400-e29b-41d4-a716-446655440000-1", true},
+		{"ESP release", WindowsESPReleaseCmdIDPrefix + "550e8400-e29b-41d4-a716-446655440000", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateWindowsMDMCommandID(tc.cmdID)
+			if !tc.wantErr {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, "is reserved for commands Fleet sends")
+			var invalidArgErr *InvalidArgumentError
+			require.ErrorAs(t, err, &invalidArgErr)
+		})
+	}
+}
+
 func TestEnrollmentVersionAtLeast(t *testing.T) {
 	const minVersion = syncml.MinSupportedEnrollmentVersion // "4.0"
 

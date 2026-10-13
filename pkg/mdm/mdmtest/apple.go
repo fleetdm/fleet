@@ -813,16 +813,24 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfile(path string, body []byte) (e
 	c.EnrollInfo = *enrollInfo
 
 	if enrollInfo.ACMEURL != "" {
-		if c.acmeCertCA == nil || c.acmeCertCAKey == nil {
-			return errors.New("ACME enrollment requested but no cert/key provided")
-		}
-		c.acmeClient = &acme.Client{
-			Key:          c.acmeCertCAKey,
-			DirectoryURL: enrollInfo.ACMEURL,
-			HTTPClient:   fleethttp.NewClient(fleethttp.WithNoTimeout()),
-		}
+		return c.UseACMEDirectory(enrollInfo.ACMEURL)
 	}
 
+	return nil
+}
+
+// UseACMEDirectory points the device's next ACMEEnroll at directoryURL, as installing a profile with that ACME
+// payload would.
+func (c *TestAppleMDMClient) UseACMEDirectory(directoryURL string) error {
+	if c.acmeCertCA == nil || c.acmeCertCAKey == nil {
+		return errors.New("ACME enrollment requested but no cert/key provided")
+	}
+	c.EnrollInfo.ACMEURL = directoryURL
+	c.acmeClient = &acme.Client{
+		Key:          c.acmeCertCAKey,
+		DirectoryURL: directoryURL,
+		HTTPClient:   fleethttp.NewClient(fleethttp.WithNoTimeout()),
+	}
 	return nil
 }
 
