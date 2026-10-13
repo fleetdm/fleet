@@ -6,6 +6,7 @@ import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import configAPI from "services/entities/config";
 
 import { IAddTenantFormValidation, validateFormData } from "./helpers";
@@ -21,7 +22,8 @@ interface IAddEntraTenantModalProps {
 }
 
 const AddEntraTenantModal = ({ onExit }: IAddEntraTenantModalProps) => {
-  const { setConfig, config } = useContext(AppContext);
+  const { config } = useContext(AppContext);
+  const updateAppConfig = useUpdateAppConfig();
 
   const [isAdding, setIsAdding] = React.useState(false);
   const [formData, setFormData] = React.useState<IAddTenantFormData>({
@@ -65,7 +67,7 @@ const AddEntraTenantModal = ({ onExit }: IAddEntraTenantModalProps) => {
             windows_entra_tenant_ids: [...currentTenantIds, tenantId],
           },
         });
-        setConfig(updateData);
+        updateAppConfig(updateData);
         notify.success("Successfully added tenant");
         onExit();
       } catch (error) {

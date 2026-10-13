@@ -19,6 +19,7 @@ import Spinner from "components/Spinner";
 import { notify } from "components/ToastNotification";
 import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import { IConfig } from "interfaces/config";
 import { getErrorReason } from "interfaces/errors";
 import PATHS from "router/paths";
@@ -37,8 +38,8 @@ interface ITurnOnAndroidMdmProps {
 }
 
 const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
-  const { setConfig } = useContext(AppContext);
   const queryClient = useQueryClient();
+  const updateAppConfig = useUpdateAppConfig();
 
   // TODO: figure out issue with aborting the SSE fetch when the window is closed
   const newWindow = useRef<Window | null>(null);
@@ -69,14 +70,13 @@ const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
           ...prevConfig,
           mdm: { ...prevConfig.mdm, android_enabled_and_configured: true },
         };
-        setConfig(patched);
-        queryClient.setQueryData(["config"], patched);
+        updateAppConfig(patched);
       }
       notify.success("Android MDM turned on successfully.");
       setSetupSse(false);
       router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
     },
-    [queryClient, router, setConfig]
+    [queryClient, router, updateAppConfig]
   );
 
   useEffect(() => {

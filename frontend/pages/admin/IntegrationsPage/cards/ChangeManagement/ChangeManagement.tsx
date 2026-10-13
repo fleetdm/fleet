@@ -14,6 +14,7 @@ import Spinner from "components/Spinner";
 import { notify } from "components/ToastNotification";
 import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import { IConfig } from "interfaces/config";
 import { getErrorReason } from "interfaces/errors";
 import { IInputFieldParseTarget } from "interfaces/form_field";
@@ -51,7 +52,7 @@ const validate = (formData: IChangeManagementFormData) => {
 };
 
 const ChangeManagement = () => {
-  const { setConfig } = useContext(AppContext);
+  const updateAppConfig = useUpdateAppConfig();
 
   const [formData, setFormData] = useState<IChangeManagementFormData>({
     // dummy values, will be populated with fresh config API response
@@ -85,7 +86,7 @@ const ChangeManagement = () => {
         exceptSoftware: exceptions.software,
         exceptSecrets: exceptions.secrets,
       });
-      setConfig(data);
+      updateAppConfig(data);
     },
   });
 
@@ -143,7 +144,7 @@ const ChangeManagement = () => {
         exceptSecrets: updatedConfig.gitops.exceptions.secrets,
       });
 
-      setConfig(updatedConfig);
+      updateAppConfig(updatedConfig);
 
       notify.success("Successfully updated settings");
     } catch (e) {

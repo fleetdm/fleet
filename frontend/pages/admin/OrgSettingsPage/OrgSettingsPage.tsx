@@ -6,6 +6,7 @@ import { InjectedRouter, Params } from "react-router/lib/Router";
 import Spinner from "components/Spinner";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import { IConfig } from "interfaces/config";
 import { IApiError } from "interfaces/errors";
 import paths from "router/paths";
@@ -29,9 +30,8 @@ const OrgSettingsPage = ({ params, router }: IOrgSettingsPageProps) => {
   const DEFAULT_SETTINGS_SECTION = ORG_SETTINGS_NAV_ITEMS[0];
 
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
-  const { isFreeTier, isPremiumTier, setConfig, isSandboxMode } = useContext(
-    AppContext
-  );
+  const { isFreeTier, isPremiumTier, isSandboxMode } = useContext(AppContext);
+  const updateAppConfig = useUpdateAppConfig();
 
   if (isSandboxMode) {
     // redirect to Integrations page in sandbox mode
@@ -39,14 +39,13 @@ const OrgSettingsPage = ({ params, router }: IOrgSettingsPageProps) => {
   }
   const handlePageError = useErrorHandler();
 
-  const {
-    data: appConfig,
-    isLoading: isLoadingAppConfig,
-    refetch: refetchConfig,
-  } = useQuery<IConfig, Error, IConfig>(["config"], () => configAPI.loadAll(), {
-    select: (data: IConfig) => data,
+  const { data: appConfig, isLoading: isLoadingAppConfig } = useQuery<
+    IConfig,
+    Error,
+    IConfig
+  >(["config"], () => configAPI.loadAll(), {
     onSuccess: (data) => {
-      setConfig(data);
+      updateAppConfig(data);
     },
   });
 
@@ -63,9 +62,9 @@ const OrgSettingsPage = ({ params, router }: IOrgSettingsPageProps) => {
       diff.agent_options = formUpdates.agent_options;
 
       try {
-        await configAPI.update(diff);
+        const updatedConfig = await configAPI.update(diff);
+        updateAppConfig(updatedConfig);
         notify.success("Successfully updated settings.");
-        refetchConfig();
         return true;
       } catch (response) {
         const resp = response as undefined | { data: IApiError };
@@ -102,7 +101,7 @@ const OrgSettingsPage = ({ params, router }: IOrgSettingsPageProps) => {
         setIsUpdatingSettings(false);
       }
     },
-    [appConfig, refetchConfig]
+    [appConfig, updateAppConfig]
   );
 
   // filter out non-premium options

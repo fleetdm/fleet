@@ -15,6 +15,7 @@ const MIGRATION_CHECKBOX_LABEL =
 
 const renderPage = (mdm: Partial<IMdmConfig> = {}, isPremiumTier = true) => {
   const render = createCustomRenderer({
+    withBackendMock: true,
     context: {
       app: {
         isPremiumTier,

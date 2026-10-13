@@ -4,6 +4,7 @@ import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import configAPI from "services/entities/config";
 
 const baseClass = "delete-entra-client-id-modal";
@@ -17,7 +18,8 @@ const DeleteEntraClientIdModal = ({
   clientId,
   onExit,
 }: IDeleteEntraClientIdModalProps) => {
-  const { setConfig, config } = useContext(AppContext);
+  const { config } = useContext(AppContext);
+  const updateAppConfig = useUpdateAppConfig();
 
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -32,7 +34,7 @@ const DeleteEntraClientIdModal = ({
           windows_entra_client_ids: updatedClientIds,
         },
       });
-      setConfig(updateData);
+      updateAppConfig(updateData);
       notify.success("Client ID deleted successfully.");
       onExit();
     } catch (err) {

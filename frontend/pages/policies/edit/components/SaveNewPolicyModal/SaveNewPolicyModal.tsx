@@ -22,6 +22,7 @@ import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import useDeepEffect from "hooks/useDeepEffect";
 import { IPlatformSelector } from "hooks/usePlatformSelector";
+import useUpdateAppConfig from "hooks/useUpdateAppConfig";
 import { IConfig } from "interfaces/config";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
@@ -100,8 +101,9 @@ const SaveNewPolicyModal = ({
   fleetName,
   router,
 }: ISaveNewPolicyModalProps): JSX.Element => {
-  const { isPremiumTier, setConfig } = useContext(AppContext);
+  const { isPremiumTier } = useContext(AppContext);
   const queryClient = useQueryClient();
+  const updateAppConfig = useUpdateAppConfig();
   const {
     lastEditedQueryName,
     lastEditedQueryDescription,
@@ -240,8 +242,7 @@ const SaveNewPolicyModal = ({
             if (isGlobalPolicy) {
               requests.push(
                 configAPI.update(webhookPayload).then((updatedConfig) => {
-                  queryClient.setQueryData(["config"], updatedConfig);
-                  setConfig(updatedConfig);
+                  updateAppConfig(updatedConfig);
                 })
               );
             } else if (policyTeamId !== undefined) {
