@@ -25,7 +25,7 @@ To disable Developer options:
 
 
 # How Android hosts get changes from Fleet
-Fleet doesn't communicate with Android hosts directly. Fleet and each host communicate through Google's Android Management API (AMAPI). Fleet delivers these changes by updating the host's policy in AMAPI:
+Fleet only communicates with Android hosts directly for certificate delivery. For all other features, Fleet and each host communicate through Google's Android Management API (AMAPI). Fleet delivers these changes by updating the host's policy in AMAPI:
 
 - [Software deployment](https://fleetdm.com/guides/install-app-store-apps)
 - [Configuration profiles](https://fleetdm.com/guides/custom-os-settings)
