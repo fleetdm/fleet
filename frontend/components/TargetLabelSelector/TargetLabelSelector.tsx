@@ -11,8 +11,10 @@ import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import Tag from "components/Tag";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { ILabelSummary } from "interfaces/label";
 import { listNamesFromSelectedLabels } from "services/entities/labels";
+import { getGitOpsModeTipContent } from "utilities/helpers";
 
 const baseClass = "target-label-selector";
 
@@ -61,10 +63,15 @@ const SelectedLabelBadges = ({
   onSelectLabel,
   disableOptions,
 }: ISelectedLabelBadgesProps) => {
+  const { gitOpsModeEnabled, repoURL } = useGitOpsMode();
   const selectedNames = listNamesFromSelectedLabels(selectedLabels);
   if (!selectedNames.length) {
     return null;
   }
+  const gitOpsTip =
+    disableOptions && gitOpsModeEnabled && repoURL
+      ? getGitOpsModeTipContent(repoURL)
+      : undefined;
   return (
     <div className={`${baseClass}__selected-badges`}>
       {selectedNames.map((name) => (
@@ -73,6 +80,7 @@ const SelectedLabelBadges = ({
           type="dismissible"
           size="small"
           disabled={disableOptions}
+          tooltip={gitOpsTip}
           dismissLabel={`Remove ${name}`}
           onDismiss={() => onSelectLabel({ name, value: false })}
         >

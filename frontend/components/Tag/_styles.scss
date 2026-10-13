@@ -66,6 +66,12 @@
     &:focus-within {
       border-color: $core-fleet-black;
     }
+
+    &.tag--disabled {
+      border-color: $ui-fleet-black-33;
+      color: $ui-fleet-black-33;
+      cursor: not-allowed;
+    }
   }
 
   &__label {
@@ -102,8 +108,7 @@
     }
 
     &:disabled {
-      cursor: default;
-      opacity: 0.5;
+      cursor: not-allowed;
     }
   }
 }
