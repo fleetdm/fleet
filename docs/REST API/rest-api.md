@@ -8428,27 +8428,58 @@ Update a configuration profile to target hosts with specific labels.
 
 ### Autofill configuration profile name and description
 
-_Available in Fleet Free_
-
 Generates a name and description for a configuration profile using AI.
+
+Returns `400` when AI features are disabled (`server_settings.ai_features_disabled`).
 
 `POST /api/v1/fleet/autofill/configuration_profile/name_description`
 
 #### Parameters
 
-| Name                          | Type   | In   | Description                                         |
-| ----------------------------- | ------ | --   | --------------------------------------------------- |
-| natural_language_instructions | string | body | **Required.** What the profile should enforce.      |
-| platform                      | string | body | **Required.** One of `apple`, `windows`, `android`. |
+| Name                          | Type   | In   | Description                                    |
+| ----------------------------- | ------ | ---- | ---------------------------------------------- |
+| natural_language_instructions | string | body | **Required.** What the profile should enforce. |
+| platform                      | string | body | **Required.** One of `apple` or `windows`.     |
 
-#### Example response
+#### Example
+
+`POST /api/v1/fleet/autofill/configuration_profile/name_description`
+
+##### Request body
+
+```json
+{
+  "natural_language_instructions": "Turn off AirDrop",
+  "platform": "apple"
+}
+```
+
+##### Default response
 
 `Status: 200`
 
 ```json
 {
-  "name": "Passcode Settings",
-  "description": "Enforces a passcode on macOS devices."
+  "name": "Disable AirDrop (macOS)",
+  "description": "Sets `allowAirDrop` to `false` under the `com.apple.applicationaccess` restrictions payload, so AirDrop can't be turned on from Control Center or Finder on managed Macs."
+}
+```
+
+##### Generation failed
+
+`Status: 422 Unprocessable entity`
+
+Returned when Fleet can't reach the AI service, or the AI service returns an error or times out. Retrying might succeed.
+
+```json
+{
+  "message": "Couldn't generate configuration profile name and description",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "The AI service timed out."
+    }
+  ]
 }
 ```
 
@@ -8456,26 +8487,84 @@ Generates a name and description for a configuration profile using AI.
 
 ### Autofill configuration profile content
 
-_Available in Fleet Free_
-
 Generates configuration profile content using AI.
+
+For Apple, Fleet generates a declaration (DDM) profile when one declaration can enforce the instructions. Otherwise, Fleet generates a .mobileconfig profile. For Windows, Fleet generates an XML profile.
+
+Returns `400` when AI features are disabled (`server_settings.ai_features_disabled`).
 
 `POST /api/v1/fleet/autofill/configuration_profile/content`
 
 #### Parameters
 
-| Name                          | Type   | In   | Description                                         |
-| ----------------------------- | ------ | --   | --------------------------------------------------- |
-| natural_language_instructions | string | body | **Required.** What the profile should enforce.      |
-| platform                      | string | body | **Required.** One of `apple`, `windows`, `android`. |
+| Name                          | Type    | In   | Description                                    |
+| ----------------------------- | ------- | ---- | ---------------------------------------------- |
+| natural_language_instructions | string  | body | **Required.** What the profile should enforce. |
+| platform                      | string  | body | **Required.** One of `apple` or `windows`.     |
+| fleet_id                      | integer | body | _Available in Fleet Premium_. The fleet ID for the profile. Fleet checks the generated profile against this fleet's settings, like OS updates, before returning it. If not specified, Fleet checks against hosts that are "Unassigned". |
 
-#### Example response
+#### Example
+
+`POST /api/v1/fleet/autofill/configuration_profile/content`
+
+##### Request body
+
+```json
+{
+  "natural_language_instructions": "Turn off AirDrop",
+  "platform": "apple"
+}
+```
+
+##### Default response
 
 `Status: 200`
 
 ```json
 {
-  "content": "<base64-encoded profile>"
+  "type": "mobileconfig",
+  "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n...\n</plist>",
+  "delivery_notes": ""
+}
+```
+
+`type` is one of `mobileconfig`, `declaration`, or `windows`.
+
+`delivery_notes` describes anything you need to do or decide that isn't visible in the profile, like adding a companion asset declaration. It's an empty string when there's nothing to note.
+
+##### Profile can't be generated
+
+`Status: 422 Unprocessable entity`
+
+Returned when AI can't turn the instructions into a single profile for the platform, like a setting that doesn't exist on the platform or a profile that needs more than one file. Also returned when the generated profile fails the checks Fleet runs when you add a profile, like settings Fleet manages through disk encryption or OS updates. Retrying with the same instructions usually returns the same error.
+
+```json
+{
+  "message": "Couldn't generate configuration profile",
+  "errors": [
+    {
+      "name": "natural_language_instructions",
+      "reason": "AirDrop is a macOS/iOS feature controlled via the Apple com.apple.applicationaccess payload; there is no corresponding Windows CSP node, so this setting cannot be enforced on Windows devices."
+    }
+  ]
+}
+```
+
+##### Generation failed
+
+`Status: 422 Unprocessable entity`
+
+Returned when Fleet can't reach the AI service, or the AI service returns an error or times out. Retrying might succeed.
+
+```json
+{
+  "message": "Couldn't generate configuration profile",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "The AI service timed out."
+    }
+  ]
 }
 ```
 
@@ -12166,8 +12255,6 @@ Resets [webhook and ticket policy automations](https://fleetdm.com/docs/using-fl
 ---
 
 ### Autofill policy
-
-_Available in Fleet Premium_
 
 Generates a human-readable description and resolution for a policy query using AI. 
 
