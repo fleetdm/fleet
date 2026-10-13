@@ -71,8 +71,6 @@ The agent needs a browser on the device to sign in. Add Chrome (or another brows
 5. Paste the JSON from [Write the managed configuration](#write-the-managed-configuration) and select **Save**.
 6. To install both apps during setup on newly enrolled devices, head to **Controls > Setup experience > Install software**, select the **Android** tab, select **Add software**, choose Chrome and the agent, and select **Save**.
 
-> **Note:** Setup experience software only applies to devices that enroll afterward. To get the apps on an already enrolled device, install them from the host's **Software** tab or re-enroll the device.
-
 ### GitOps
 
 1. Save the managed configuration in your repo, for example at `platforms/android/managed-app-configurations/cloudflare-one-agent.json`.
@@ -151,10 +149,6 @@ To change which apps are tunneled, edit `tunneled_apps`. In the Fleet UI, select
 **The agent shows "default web browser not found"**
 
 Install a browser through Fleet, as described in [Add the agent and a browser](#add-the-agent-and-a-browser).
-
-**`https://one.one.one.one/help` says "Using DNS over WARP: No" on a tunneled browser**
-
-This page is misleading on Android. Chrome's Secure DNS and Android's Private DNS talk to 1.1.1.1 directly. Use `https://www.cloudflare.com/cdn-cgi/trace` instead. It shows `warp=plus` when the device is enrolled in Zero Trust and `gateway=on` when Gateway applies.
 
 **A Gateway DNS policy doesn't block a domain**
 
