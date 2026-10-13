@@ -9962,19 +9962,19 @@ _Available in Fleet Premium_
 
 _Available in Fleet Premium_
 
-Upload an EULA that will be shown during the DEP flow.
+Upload an EULA that will be shown during the macOS DEP flow or Windows enrollment. If no custom terms are uploaded for Windows, Fleet uses a default terms of service page.
 
 > You need to send a request of type `multipart/form-data`.
-
-> This endpoint accepts a maximum request body size of 25MiB.
+> For darwin, this endpoint accepts a maximum request body size of 25MiB. For windows, the markdown file must be 512 KB or smaller.
 
 `POST /api/v1/fleet/setup_experience/eula`
 
 #### Parameters
 
-| Name | Type | In   | Description                                       |
-| ---- | ---- | ---- | ------------------------------------------------- |
-| eula | file | body | **Required**. A PDF document containing the EULA. |
+| Name     | Type   | In   | Description                                       |
+| -------- | ------ | ---- | ------------------------------------------------- |
+| platform | string | body | The platform of the EULA. Options are `darwin` and `windows`. Defaults to `darwin`. Returns 422 if the value is not `darwin` or `windows`. |
+| eula     | file   | body | **Required**. A PDF document containing the EULA (`darwin`), or a markdown file containing the terms and conditions (`windows`). |
 
 #### Example
 
@@ -9993,10 +9993,16 @@ eula="eula.pdf"
 ### Get EULA metadata
 
 _Available in Fleet Premium_
-
+ 
 Get information about the EULA file that was uploaded to Fleet. If no EULA was previously uploaded, this endpoint returns a `404` status code.
 
 `GET /api/v1/fleet/setup_experience/eula/metadata`
+
+#### Parameters
+
+| Name     | Type   | In    | Description                                       |
+| -------- | ------ | ----- | ------------------------------------------------- |
+| platform | string | query | The platform of the EULA. Options are `darwin` and `windows`. Defaults to `darwin`. Returns 422 if the value is not `darwin` or `windows`. |
 
 #### Example
 
@@ -10010,7 +10016,8 @@ Get information about the EULA file that was uploaded to Fleet. If no EULA was p
 {
   "name": "eula.pdf",
   "token": "AA598E2A-7952-46E3-B89D-526D45F7E233",
-  "created_at": "2023-04-20T13:02:05Z"
+  "created_at": "2023-04-20T13:02:05Z",
+  "platform": "darwin"
 }
 ```
 
@@ -10047,6 +10054,8 @@ Delete an EULA file.
 _Available in Fleet Premium_
 
 Download an EULA file
+
+> The response for `Content-Type: application/pdf` for `darwin` and `Content-Type: text/markdown; charset=utf-8` for Windows.
 
 `GET /api/v1/fleet/setup_experience/eula/:token`
 
