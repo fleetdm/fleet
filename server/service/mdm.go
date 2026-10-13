@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -248,22 +249,11 @@ type createMDMEULARequest struct {
 }
 
 func (createMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
+	// The route limit bounds the body; operators can raise it per endpoint.
+	eula, dryRun, err := decodeEULAUpload(r, "eula", 0)
 	if err != nil {
-		return nil, &fleet.BadRequestError{
-			Message:     "failed to parse multipart form",
-			InternalErr: err,
-		}
+		return nil, err
 	}
-
-	if r.MultipartForm.File["eula"] == nil {
-		return nil, &fleet.BadRequestError{
-			Message:     "eula multipart field is required",
-			InternalErr: err,
-		}
-	}
-
-	eula := r.MultipartForm.File["eula"][0]
 
 	if eula.Size > fleet.MaxEULASize {
 		return nil, &fleet.BadRequestError{
@@ -271,14 +261,61 @@ func (createMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) 
 		}
 	}
 
-	dryRun := false
-	if v := r.URL.Query().Get("dry_run"); v != "" {
-		dryRun, _ = strconv.ParseBool(v)
-	}
 	return &createMDMEULARequest{
 		EULA:   eula,
 		DryRun: dryRun,
 	}, nil
+}
+
+// decodeEULAUpload parses an EULA upload, macOS or Windows: the file in field
+// and the dry_run flag. A positive maxBody also bounds the body here, on top of
+// the route limit.
+func decodeEULAUpload(r *http.Request, field string, maxBody int64) (*multipart.FileHeader, bool, error) {
+	if maxBody > 0 {
+		r.Body = http.MaxBytesReader(nil, r.Body, maxBody)
+	}
+	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize) //nolint:gosec // G120: bounded by the route limit, and by maxBody when set
+	if err != nil {
+		return nil, false, &fleet.BadRequestError{
+			Message:     "failed to parse multipart form",
+			InternalErr: err,
+		}
+	}
+
+	files := r.MultipartForm.File[field]
+	if len(files) == 0 {
+		return nil, false, &fleet.BadRequestError{
+			Message: field + " multipart field is required",
+		}
+	}
+
+	dryRun := false
+	if v := r.URL.Query().Get("dry_run"); v != "" {
+		// A mistyped dry run must not save.
+		if dryRun, err = strconv.ParseBool(v); err != nil {
+			return nil, false, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode dry_run bool in query: %s", err.Error())}
+		}
+	}
+	return files[0], dryRun, nil
+}
+
+// writeEULAFile writes an EULA download, macOS or Windows. nosniff keeps the
+// browser on contentType, and an attachment is saved rather than rendered.
+func writeEULAFile(ctx context.Context, w http.ResponseWriter, eula *fleet.MDMEULA, contentType string, attachment bool) {
+	w.Header().Set("Content-Length", strconv.Itoa(len(eula.Bytes)))
+	w.Header().Set("Content-Type", contentType)
+	if attachment {
+		w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": eula.Name}))
+	}
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+
+	// OK to just log the error here as writing anything on
+	// `http.ResponseWriter` sets the status code to 200 (and it can't be
+	// changed.) Clients should rely on matching content-length with the
+	// header provided
+	if n, err := w.Write(eula.Bytes); err != nil {
+		logging.WithExtras(ctx, "err", err, "bytes_copied", n)
+	}
 }
 
 type createMDMEULAResponse struct {
@@ -328,17 +365,7 @@ type getMDMEULAResponse struct {
 func (r getMDMEULAResponse) Error() error { return r.Err }
 
 func (r getMDMEULAResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
-	w.Header().Set("Content-Length", strconv.Itoa(len(r.eula.Bytes)))
-	w.Header().Set("Content-Type", "application/pdf")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-
-	// OK to just log the error here as writing anything on
-	// `http.ResponseWriter` sets the status code to 200 (and it can't be
-	// changed.) Clients should rely on matching content-length with the
-	// header provided
-	if n, err := w.Write(r.eula.Bytes); err != nil {
-		logging.WithExtras(ctx, "err", err, "bytes_copied", n)
-	}
+	writeEULAFile(ctx, w, r.eula, "application/pdf", false)
 }
 
 func getMDMEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {

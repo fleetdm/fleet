@@ -5,9 +5,12 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/beevik/etree"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -162,5 +165,54 @@ func TestUploadBootstrapPackageIfNeededStagesBeforeDelete(t *testing.T) {
 			require.Error(t, err)
 			require.NotContains(t, calls, "DELETE /api/latest/fleet/mdm/bootstrap/3")
 		}
+	}
+}
+
+func TestGitOpsWindowsEULAWaitsForWindowsMDMToSettle(t *testing.T) {
+	var waits int
+	settle := windowsMDMSettle
+	windowsMDMSettle = func() { waits++ }
+	t.Cleanup(func() { windowsMDMSettle = settle })
+
+	mdPath := filepath.Join(t.TempDir(), "terms.md")
+	require.NoError(t, os.WriteFile(mdPath, []byte("# Terms\n"), 0o600))
+
+	for _, tt := range []struct {
+		name        string
+		mdmOnBefore bool
+		wantWaits   int
+	}{
+		{name: "turned on by this run", wantWaits: 1},
+		{name: "already on", mdmOnBefore: true, wantWaits: 0},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			waits = 0
+			var uploads int
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.Method + " " + r.URL.Path {
+				case "GET /api/latest/fleet/setup_experience/windows_eula/metadata":
+					w.WriteHeader(http.StatusNotFound)
+					_, _ = w.Write([]byte(`{"message": "Resource Not Found"}`))
+				case "POST /api/latest/fleet/setup_experience/windows_eula":
+					uploads++
+					_, _ = w.Write([]byte("{}"))
+				default:
+					t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+				}
+			}))
+			defer srv.Close()
+			client, err := NewClient(srv.URL, true, "", "")
+			require.NoError(t, err)
+			client.SetToken("test-token")
+
+			appConfig := &fleet.EnrichedAppConfig{}
+			appConfig.License = &fleet.LicenseInfo{Tier: fleet.TierPremium}
+			appConfig.MDM.WindowsEnabledAndConfigured = tt.mdmOnBefore
+			assumptions := &fleet.TeamSpecsDryRunAssumptions{WindowsEnabledAndConfigured: optjson.SetBool(true)}
+
+			require.NoError(t, client.doGitOpsWindowsEULA(mdPath, appConfig, assumptions, "", false, func(string, ...any) {}))
+			require.Equal(t, tt.wantWaits, waits)
+			require.Equal(t, 1, uploads)
+		})
 	}
 }
