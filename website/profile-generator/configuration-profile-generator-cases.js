@@ -1647,7 +1647,7 @@ const TEST_CASES = [
     instructions: 'Prevent devices from connecting to open wifi networks.',
     expect: {
       mustContain: [
-        '"deviceConnectivityManagement": {"minimumWifiSecurityLevel": "PERSONAL_NETWORK_SECURITY"}',
+        '"deviceRadioState": {"minimumWifiSecurityLevel": "PERSONAL_NETWORK_SECURITY"}',
       ]
     }
   },
