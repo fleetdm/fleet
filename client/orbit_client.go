@@ -618,6 +618,7 @@ func (oc *OrbitClient) enroll() (string, error) {
 		ComputerName:      oc.hostInfo.ComputerName,
 		HardwareModel:     oc.hostInfo.HardwareModel,
 		EUAToken:          oc.euaToken,
+		AutopilotDeviceID: oc.hostInfo.AutopilotDeviceID,
 	}
 	var resp fleet.EnrollOrbitResponse
 	err := oc.request(verb, path, params, &resp)

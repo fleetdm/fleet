@@ -346,6 +346,10 @@ func ingestWindowsAutopilotDevicesDB(
 		if _, ok := ingest.hostIDByZTD[dev.AutopilotDeviceID]; ok {
 			continue
 		}
+		// A placeholder serial is shared by unrelated machines, so it can never adopt a host.
+		if fleet.IsPlaceholderHardwareSerial(dev.HardwareSerial) {
+			continue
+		}
 		serials = append(serials, dev.HardwareSerial)
 	}
 	// Hosts carrying this serial that no Autopilot record has claimed yet. Adopting one covers the machine that was
@@ -381,38 +385,23 @@ func ingestWindowsAutopilotDevicesDB(
 	}
 
 	if len(toCreate) > 0 {
-		createSerials := make([]string, 0, len(toCreate))
-		for _, dev := range toCreate {
-			createSerials = append(createSerials, dev.HardwareSerial)
-		}
-		if err := insertPendingWindowsAutopilotHostsDB(ctx, tx, ingest.defaultTeamID, toCreate); err != nil {
-			return err
-		}
-		// This query returns the host ids of newly created hosts.
-		created, err := unclaimedHostIDsBySerialDB(ctx, tx, createSerials)
+		created, err := insertPendingWindowsAutopilotHostsDB(ctx, tx, ingest, toCreate, claimed)
 		if err != nil {
 			return err
 		}
-		newHostIDs := make([]uint, 0, len(toCreate))
-		newHosts := make([]fleet.Host, 0, len(toCreate))
-		for _, dev := range toCreate {
-			hostID, ok := popUnclaimedHostID(created, dev.HardwareSerial, claimed)
-			if !ok {
-				// Should not happen: we just inserted one host per device. Skip rather than write host_id 0.
-				ingest.logger.ErrorContext(ctx, "no host resolved for a just-created autopilot device, skipping it",
-					"autopilot_device_id", dev.AutopilotDeviceID, "hardware_serial", dev.HardwareSerial)
-				ctxerr.Handle(ctx, ctxerr.New(ctx, "no host resolved for a just-created autopilot device"))
-				continue
+		newHostIDs := make([]uint, 0, len(created))
+		newHosts := make([]fleet.Host, 0, len(created))
+		for _, dev := range created {
+			claimed[dev.HostID] = struct{}{}
+			resolved = append(resolved, dev)
+			newHostIDs = append(newHostIDs, dev.HostID)
+			// The model is what makes the display name render as "model (serial)". The serial shown is the one Autopilot
+			// reports, even a placeholder, because that is what the admin sees in Intune.
+			displaySerial := dev.HardwareSerial
+			if displaySerial == "" {
+				displaySerial = dev.AutopilotDeviceID
 			}
-			copied := *dev
-			copied.HostID = hostID
-			claimed[hostID] = struct{}{}
-			resolved = append(resolved, &copied)
-			newHostIDs = append(newHostIDs, hostID)
-			// The model is what makes the display name render as "model (serial)"
-			newHosts = append(newHosts, fleet.Host{
-				ID: hostID, HardwareSerial: copied.HardwareSerial, HardwareModel: copied.HardwareModel,
-			})
+			newHosts = append(newHosts, fleet.Host{ID: dev.HostID, HardwareSerial: displaySerial, HardwareModel: dev.HardwareModel})
 		}
 		if err := upsertWindowsAutopilotHostMDMInfoDB(ctx, tx, ingest.serverURL, ingest.mdmID, newHostIDs); err != nil {
 			return err
@@ -503,27 +492,102 @@ ORDER BY h.id`, serials)
 	return bySerial, nil
 }
 
-// insertPendingWindowsAutopilotHostsDB creates the bare host rows. The never-timestamp sentinel on last_enrolled_at and
-// detail_updated_at marks the host as never having checked in
-func insertPendingWindowsAutopilotHostsDB(ctx context.Context, tx sqlx.ExtContext, teamID *uint, devices []*fleet.HostAutopilotDevice) error {
-	if len(devices) == 0 {
-		return nil
+// insertPendingWindowsAutopilotHostsDB creates a bare host row for each device and returns copies of the devices with
+// HostID set. claimed holds the hosts that other devices in this batch already resolved to.
+//
+// A device with a real serial is created in one bulk insert, and its new host is found again by that serial. A device with
+// a placeholder serial cannot be found that way, since enrolled hosts with that serial (stored as empty) would match too,
+// so it is inserted on its own and takes the insert ID. Such devices are rare.
+func insertPendingWindowsAutopilotHostsDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	ingest windowsAutopilotIngest,
+	devices []*fleet.HostAutopilotDevice,
+	claimed map[uint]struct{},
+) ([]*fleet.HostAutopilotDevice, error) {
+	var bySerial, byInsertID []*fleet.HostAutopilotDevice
+	for _, dev := range devices {
+		if fleet.IsPlaceholderHardwareSerial(dev.HardwareSerial) {
+			byInsertID = append(byInsertID, dev)
+		} else {
+			bySerial = append(bySerial, dev)
+		}
 	}
 
+	created := make([]*fleet.HostAutopilotDevice, 0, len(devices))
+	if len(bySerial) > 0 {
+		if _, err := insertPendingWindowsAutopilotHostRowsDB(ctx, tx, ingest.defaultTeamID, bySerial); err != nil {
+			return nil, err
+		}
+		serials := make([]string, 0, len(bySerial))
+		for _, dev := range bySerial {
+			serials = append(serials, dev.HardwareSerial)
+		}
+		unclaimed, err := unclaimedHostIDsBySerialDB(ctx, tx, serials)
+		if err != nil {
+			return nil, err
+		}
+		for _, dev := range bySerial {
+			hostID, ok := popUnclaimedHostID(unclaimed, dev.HardwareSerial, claimed)
+			if !ok {
+				// Should not happen: we just inserted one host per device. Skip rather than write host_id 0.
+				ingest.logger.ErrorContext(ctx, "no host resolved for a just-created autopilot device, skipping it",
+					"autopilot_device_id", dev.AutopilotDeviceID, "hardware_serial", dev.HardwareSerial)
+				ctxerr.Handle(ctx, ctxerr.New(ctx, "no host resolved for a just-created autopilot device"))
+				continue
+			}
+			// Mark the claim now so the next device sharing this serial takes a different new host.
+			claimed[hostID] = struct{}{}
+			copied := *dev
+			copied.HostID = hostID
+			created = append(created, &copied)
+		}
+	}
+
+	for _, dev := range byInsertID {
+		res, err := insertPendingWindowsAutopilotHostRowsDB(ctx, tx, ingest.defaultTeamID, []*fleet.HostAutopilotDevice{dev})
+		if err != nil {
+			return nil, err
+		}
+		hostID, err := res.LastInsertId()
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "last insert id for pending windows autopilot host")
+		}
+		copied := *dev
+		copied.HostID = uint(hostID) //nolint:gosec // dismiss G115, an auto-increment ID is never negative
+		created = append(created, &copied)
+	}
+	return created, nil
+}
+
+// insertPendingWindowsAutopilotHostRowsDB inserts the bare host rows. The never-timestamp sentinel on last_enrolled_at and
+// detail_updated_at marks the host as never having checked in. A placeholder serial is stored empty, the same way osquery
+// stores it once the device enrolls.
+func insertPendingWindowsAutopilotHostRowsDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	teamID *uint,
+	devices []*fleet.HostAutopilotDevice,
+) (sql.Result, error) {
 	stmt := `
 INSERT INTO hosts (hardware_serial, hardware_model, hardware_vendor, platform, last_enrolled_at, detail_updated_at, osquery_host_id, refetch_requested, team_id)
 VALUES %s`
 
 	args := make([]any, 0, len(devices)*4)
 	for _, dev := range devices {
-		args = append(args, dev.HardwareSerial, dev.HardwareModel, dev.HardwareVendor, teamID)
+		serial := dev.HardwareSerial
+		if fleet.IsPlaceholderHardwareSerial(serial) {
+			serial = ""
+		}
+		args = append(args, serial, dev.HardwareModel, dev.HardwareVendor, teamID)
 	}
 	values := strings.TrimSuffix(strings.Repeat(
 		"(?, ?, ?, 'windows', '"+server.NeverTimestamp+"', '"+server.NeverTimestamp+"', NULL, 1, ?),", len(devices)), ",")
-	if _, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, values), args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "insert pending windows autopilot hosts")
+	res, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, values), args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "insert pending windows autopilot hosts")
 	}
-	return nil
+	return res, nil
 }
 
 // upsertWindowsAutopilotHostMDMInfoDB marks the hosts as pending: enrolled=0 with installed_from_dep=1 renders as

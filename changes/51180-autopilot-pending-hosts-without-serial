@@ -1,0 +1,1 @@
+- Windows Autopilot devices with a placeholder hardware serial (for example "Default string") now appear in Fleet as pending hosts, and every Autopilot device is matched to its pending host by its Autopilot device ID when fleetd enrolls, so devices that share a serial each stay a single host.

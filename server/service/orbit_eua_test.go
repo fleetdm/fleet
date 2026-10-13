@@ -516,4 +516,155 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 		require.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked, "the host must not be relinked to the claimant")
 		require.False(t, ds.AddHostsToTeamFuncInvoked, "a refused link must not carry the default fleet with it")
 	})
+
+	const autopilotDeviceID = "efdb13f9-44d6-4f99-a93f-08833fccef82"
+	autopilotHostInfo := hostInfo
+	autopilotHostInfo.AutopilotDeviceID = strings.ToUpper(autopilotDeviceID)
+
+	ownsAutopilotRecord := func(ds *enrollOrbitStore, hostID uint) {
+		ds.HostIDByAutopilotDeviceIDFunc = func(ctx context.Context, id string) (uint, error) {
+			require.Equal(t, autopilotDeviceID, id)
+			return hostID, nil
+		}
+	}
+
+	t.Run("the Autopilot device ID is tried before the serial", func(t *testing.T) {
+		svc, ds, _ := newSvc(t)
+		ownsAutopilotRecord(ds, 42)
+		ds.MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationIDFunc = func(ctx context.Context, ztdRegistrationID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			require.Equal(t, autopilotDeviceID, ztdRegistrationID, "the device ID is normalized before it is looked up")
+			return &fleet.MDMWindowsEnrolledDevice{ID: 1, MDMDeviceID: "device-1", MDMHardwareID: "autopilot-hardware-id"}, nil
+		}
+		// Refuse the link so the test stops at the conflict check, which shows which enrollment was picked.
+		ds.MDMWindowsConflictingEnrollmentHardwareIDFunc = func(ctx context.Context, hostUUID, mdmHardwareID string) (bool, string, error) {
+			require.Equal(t, "autopilot-hardware-id", mdmHardwareID)
+			return true, "incumbent-hardware-id", nil
+		}
+
+		_, err := svc.EnrollOrbit(t.Context(), autopilotHostInfo, "secret", "")
+		require.NoError(t, err)
+		require.True(t, ds.MDMWindowsConflictingEnrollmentHardwareIDFuncInvoked)
+		require.False(t, ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFuncInvoked,
+			"a refused Autopilot match must not fall through to a weaker identifier")
+	})
+
+	for _, tc := range []struct {
+		name      string
+		lookupErr error
+	}{
+		{"no enrollment carries the Autopilot device ID: falls back to the serial", newNotFoundError()},
+		{"Autopilot device ID lookup error: falls back to the serial", errors.New("db unavailable")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, ds, _ := newSvc(t)
+			ownsAutopilotRecord(ds, 42)
+			ds.MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationIDFunc = func(ctx context.Context, ztdRegistrationID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+				return nil, tc.lookupErr
+			}
+			ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc = func(ctx context.Context, serial string) (*fleet.MDMWindowsEnrolledDevice, error) {
+				require.Equal(t, testSerial, serial)
+				return nil, newNotFoundError()
+			}
+
+			_, err := svc.EnrollOrbit(t.Context(), autopilotHostInfo, "secret", "")
+			require.NoError(t, err)
+			require.True(t, ds.MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationIDFuncInvoked)
+			require.True(t, ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFuncInvoked)
+		})
+	}
+
+	t.Run("an Autopilot device ID whose record this host does not own is not used", func(t *testing.T) {
+		for name, owner := range map[string]func(ctx context.Context, id string) (uint, error){
+			"owned by another host": func(ctx context.Context, id string) (uint, error) { return 7, nil },
+			"no record":             func(ctx context.Context, id string) (uint, error) { return 0, newNotFoundError() },
+		} {
+			t.Run(name, func(t *testing.T) {
+				svc, ds, _ := newSvc(t)
+				ds.HostIDByAutopilotDeviceIDFunc = owner
+				ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc = func(ctx context.Context, serial string) (*fleet.MDMWindowsEnrolledDevice, error) {
+					return nil, newNotFoundError()
+				}
+
+				_, err := svc.EnrollOrbit(t.Context(), autopilotHostInfo, "secret", "")
+				require.NoError(t, err)
+				require.False(t, ds.MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationIDFuncInvoked,
+					"presenting another device's ID must not pull that device's enrollment onto this host")
+				require.True(t, ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFuncInvoked)
+			})
+		}
+	})
+
+	t.Run("an enrollment whose device reported a different serial is not linked", func(t *testing.T) {
+		svc, ds, _ := newSvc(t)
+		ownsAutopilotRecord(ds, 42)
+		otherSerial := "SER-OTHER"
+		ds.MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationIDFunc = func(ctx context.Context, ztdRegistrationID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return &fleet.MDMWindowsEnrolledDevice{ID: 1, MDMDeviceID: "device-1", MDMHardwareID: "other-hardware-id", HardwareSerial: &otherSerial}, nil
+		}
+		ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc = func(ctx context.Context, serial string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return nil, newNotFoundError()
+		}
+
+		_, err := svc.EnrollOrbit(t.Context(), autopilotHostInfo, "secret", "")
+		require.NoError(t, err)
+		require.False(t, ds.MDMWindowsConflictingEnrollmentHardwareIDFuncInvoked, "the mismatched enrollment is skipped before any link attempt")
+		require.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+	})
+
+	t.Run("a placeholder serial is never used to find an enrollment", func(t *testing.T) {
+		svc, ds, _ := newSvc(t)
+		placeholderHostInfo := hostInfo
+		placeholderHostInfo.HardwareSerial = "Default string"
+
+		_, err := svc.EnrollOrbit(t.Context(), placeholderHostInfo, "secret", "")
+		require.NoError(t, err)
+		require.False(t, ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFuncInvoked)
+	})
+}
+
+// TestEnrollOrbitAutopilotDeviceID covers how EnrollOrbit treats the Autopilot device ID fleetd reports: a usable one reaches the
+// datastore normalized, and anything else is dropped without failing the enrollment.
+func TestEnrollOrbitAutopilotDeviceID(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		platform string
+		reported string
+		want     string
+	}{
+		{"windows GUID is normalized", "windows", "{EFDB13F9-44D6-4F99-A93F-08833FCCEF82}", "efdb13f9-44d6-4f99-a93f-08833fccef82"},
+		{"not a GUID is dropped", "windows", "Default string", ""},
+		{"non-windows platform is dropped", "darwin", "efdb13f9-44d6-4f99-a93f-08833fccef82", ""},
+		{"not reported", "windows", "", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var received fleet.DatastoreEnrollOrbitConfig
+			inner := new(mock.Store)
+			ds := &enrollOrbitStore{
+				Store: inner,
+				enrollOrbitFunc: func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
+					for _, opt := range opts {
+						opt(&received)
+					}
+					return &fleet.Host{ID: 42, UUID: "host-uuid-1", Platform: tc.platform}, nil
+				},
+			}
+			svc, _ := newTestService(t, ds, nil, nil, &TestServerOpts{})
+			inner.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
+				return &fleet.EnrollSecret{Secret: secret}, nil
+			}
+			inner.GetHostIdentityCertByNameFunc = func(ctx context.Context, name string) (*hostidentity_types.HostIdentityCertificate, error) {
+				return nil, newNotFoundError()
+			}
+			inner.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{}, nil
+			}
+			inner.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error { return nil }
+
+			_, err := svc.EnrollOrbit(t.Context(), fleet.OrbitHostInfo{
+				HardwareUUID: "hw-uuid-1", Hostname: "DESKTOP-1", Platform: tc.platform, AutopilotDeviceID: tc.reported,
+			}, "secret", "")
+			require.NoError(t, err)
+			require.Equal(t, tc.want, received.HostInfo.AutopilotDeviceID)
+		})
+	}
 }
