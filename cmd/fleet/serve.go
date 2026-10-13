@@ -324,9 +324,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	var delayedAgentNotifier *pubsub.DelayedAgentNotifier
 	if config.WebSocket.TransportEnabled {
 		agentNotifier = pubsub.NewRedisAgentNotifier(redisPool, logger.With("component", "agent-notifier"))
-		// Delay wake-ups by the TTL of the in-memory caches the notified
-		// agent's request reads, so it can't be served a snapshot predating
-		// the change (see pubsub.DelayedAgentNotifier).
+		// Live query and scoped orbit config wake-ups are delayed by the TTL of
+		// the in-memory caches the notified agent's request reads, so it can't
+		// be served a snapshot predating the change. Host orbit config wake-ups
+		// read nothing cached; their delay only batches them (see
+		// pubsub.DelayedAgentNotifier).
 		delayedAgentNotifier = pubsub.NewDelayedAgentNotifier(agentNotifier, pubsub.AgentNotifierDelays{
 			LiveQuery:        liveQueryMemCacheDuration,
 			OrbitConfigHosts: orbitConfigHostsBatchWindow,
