@@ -3980,7 +3980,7 @@ This activity contains the following fields:
 Generated when a user uploads a custom end user agreement file (EULA for macOS, terms and conditions for Windows).
 
 This activity contains the following fields:
-- "platform": the platform of the agreement ("macos" or "windows").
+- "platform": the platform of the agreement ("darwin" or "windows").
 
 #### Example
 
@@ -3995,7 +3995,7 @@ This activity contains the following fields:
 Generated when a user deletes a custom end user agreement file (EULA for macOS, terms and conditions for Windows).
 
 This activity contains the following fields:
-- "platform": the platform of the agreement ("macos" or "windows").
+- "platform": the platform of the agreement ("darwin" or "windows").
 
 #### Example
 
