@@ -56,8 +56,6 @@ Cloudflare documents Android MDM settings only in [Intune's format](https://deve
 
 See Cloudflare's [per-app VPN parameters](https://developers.cloudflare.com/cloudflare-one/team-and-resources/devices/cloudflare-one-client/deployment/mdm-deployment/parameters/#per-app-vpn-parameters-android) for the full list of keys.
 
-> **Note:** Android app configurations support built-in `$FLEET_VAR_*` host variables, but not `$FLEET_SECRET_*` variables. A team name isn't sensitive, so hardcoding it is fine.
-
 ## Add the agent and a browser
 
 The agent needs a browser on the device to sign in. Add Chrome (or another browser) alongside the agent.
