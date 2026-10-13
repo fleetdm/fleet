@@ -84,6 +84,28 @@ const getServerFieldErrors = (err: unknown): IFormErrors => {
   return errors;
 };
 
+// Reasons of the server errors that don't belong to one of the form's fields.
+const getNonFieldServerErrorReasons = (err: unknown): string[] => {
+  const e = err as {
+    data?: { errors?: unknown };
+    response?: { data?: { errors?: unknown } };
+  };
+  const errors = e?.data?.errors ?? e?.response?.data?.errors;
+  if (!Array.isArray(errors)) {
+    return [];
+  }
+  const fieldNames = Object.values(SERVER_ERROR_NAMES);
+  return errors
+    .filter(
+      (fe): fe is { name?: string; reason: string } =>
+        !!fe &&
+        typeof fe.reason === "string" &&
+        fe.reason !== "" &&
+        !fieldNames.includes(fe.name)
+    )
+    .map((fe) => fe.reason);
+};
+
 const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
   const { gitOpsModeEnabled } = useGitOpsMode();
   const queryClient = useQueryClient();
@@ -162,14 +184,18 @@ const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
       await queryClient.invalidateQueries(["config"]);
       notify.success("Successfully updated settings.");
     } catch (err) {
-      setServerFormErrors(getServerFieldErrors(err));
-      const reason = getErrorReason(err);
-      notify.error(
-        reason
-          ? `Failed to update settings: ${reason}`
-          : "Failed to update settings.",
-        { response: err }
-      );
+      const fieldErrors = getServerFieldErrors(err);
+      // useFormValidation shows field errors inline and toasts them, so only
+      // toast here what has no field to show on.
+      setServerFormErrors(fieldErrors);
+      const generalReasons = getNonFieldServerErrorReasons(err);
+      if (generalReasons.length > 0) {
+        notify.error(`Failed to update settings: ${generalReasons.join(" ")}`, {
+          response: err,
+        });
+      } else if (Object.keys(fieldErrors).length === 0) {
+        notify.error("Failed to update settings.", { response: err });
+      }
     } finally {
       setIsUpdating(false);
     }
