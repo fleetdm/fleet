@@ -11,8 +11,6 @@ This guide covers fully managed devices. Work profile (BYOD) devices, HTTP filte
 - A Cloudflare Zero Trust organization.
 - For GitOps: a [Fleet GitOps repo](https://fleetdm.com/docs/configuration/yaml-files).
 
-> **Warning:** Enrolling devices with a Cloudflare service token doesn't work yet. Fleet doesn't substitute secret variables (`$FLEET_SECRET_*`) in Android app managed configurations, so the agent receives the literal variable name as the credential. Don't put the token in the configuration as plaintext. Until [fleetdm/fleet#55512](https://github.com/fleetdm/fleet/issues/55512) is resolved, have users sign in with a one-time PIN or your identity provider.
-
 ## Configure Cloudflare Zero Trust
 
 1. In Cloudflare, create your Zero Trust organization. Your team name becomes `<team>.cloudflareaccess.com`.
@@ -171,7 +169,7 @@ The browser's own DNS over HTTPS (DoH) can bypass Gateway. Turn off Chrome's **S
 
 **The agent shows "authentication required" or "incorrect credentials"**
 
-You're likely using service-token enrollment with `$FLEET_SECRET_*`. The agent reads `auth_client_id` and `auth_client_secret` from the managed configuration, but Fleet doesn't substitute secret variables there. See the warning in [Prerequisites](#prerequisites).
+You're likely using service-token enrollment with `$FLEET_SECRET_*`. The agent reads `auth_client_id` and `auth_client_secret` from the managed configuration, but Fleet doesn't substitute secret variables there.
 
 **The device has no network after enabling lockdown**
 
