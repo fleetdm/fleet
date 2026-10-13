@@ -1509,7 +1509,7 @@ const TEST_CASES = [
     id: 'android-developer-settings',
     profileType: 'android',
     instructions: 'Block developer options.',
-    readByEye: 'developerSettings must be NESTED inside advancedSecurityOverrides.  The assertion only checks both strings are present, so a flattened top-level developerSettings would still pass -- and would be silently discarded on delivery.',
+    readByEye: 'developerSettings must be nested inside advancedSecurityOverrides; the exact nested substring below verifies that shape.',
     // CANARY.  Nested enum -- the exact shape where a typo one level down is silently discarded
     // rather than rejected.
     expect: {

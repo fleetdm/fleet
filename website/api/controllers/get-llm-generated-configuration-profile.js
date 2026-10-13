@@ -54,7 +54,7 @@ module.exports = {
       // is only available once the helper has finished.
       let profileTypeDescriptions = {
         csp: 'CSP XML profile that enforces OS settings on Windows devices',
-        mobileconfig: 'XML .mobileconfig profile that enforces OS settings on macOS/iOS/ipadOS devices',
+        mobileconfig: 'XML .mobileconfig profile that enforces OS settings on macOS/iOS/iPadOS devices',
         ddm: 'Apple DDM declaration in JSON format that enforces OS settings on macOS devices',
         android: 'Android Management API Policy in JSON format that enforces OS settings on Android devices',
       };
