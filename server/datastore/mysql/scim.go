@@ -342,9 +342,19 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 		}
 
 		usernameChanged := old.UserName != user.UserName
-		departmentChanged := !cmp.Equal(old.Department, user.Department)
-		nameChanged := !cmp.Equal(old.GivenName, user.GivenName) || !cmp.Equal(old.FamilyName, user.FamilyName)
-		externalIDChanged := !cmp.Equal(old.ExternalID, user.ExternalID)
+		var changedVars []fleet.FleetVarName
+		if usernameChanged {
+			changedVars = append(changedVars, fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart)
+		}
+		if !cmp.Equal(old.Department, user.Department) {
+			changedVars = append(changedVars, fleet.FleetVarHostEndUserIDPDepartment)
+		}
+		if !cmp.Equal(old.GivenName, user.GivenName) || !cmp.Equal(old.FamilyName, user.FamilyName) {
+			changedVars = append(changedVars, fleet.FleetVarHostEndUserIDPFullname)
+		}
+		if !cmp.Equal(old.ExternalID, user.ExternalID) {
+			changedVars = append(changedVars, fleet.FleetVarHostEndUserIDPExternalID)
+		}
 		// every store the rename flows into holds an email address
 		renamedBetweenEmails := usernameChanged &&
 			fleet.ValidateEmail(old.UserName) == nil &&
@@ -376,7 +386,7 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 		}
 		user.Groups = groups
 
-		if !usernameChanged && !departmentChanged && !nameChanged && !externalIDChanged {
+		if len(changedVars) == 0 {
 			return nil
 		}
 
@@ -394,7 +404,7 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 			}
 		}
 
-		certs, err := triggerResendProfilesForIDPUserChange(ctx, tx, hostIDs, idpEmailChangedHostIDs)
+		certs, err := triggerResendProfilesForIDPUserChange(ctx, tx, hostIDs, changedVars, idpEmailChangedHostIDs)
 		if err != nil {
 			return err
 		}
@@ -1712,22 +1722,15 @@ func getHostIDsHavingScimIDPUsers(ctx context.Context, tx sqlx.ExtContext, scimU
 	return hostIDs, nil
 }
 
-// triggerResendProfilesForIDPUserChange resends SCIM attribute profiles on
+// triggerResendProfilesForIDPUserChange resends profiles using changedVars on
 // scimHostIDs and IdP email profiles on idpEmailChangedHostIDs; a host can be in
 // either set without being in the other.
-func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtContext, scimHostIDs, idpEmailChangedHostIDs []uint) ([]fleet.ActivityTypeResentCertificate, error) {
-	vars := []fleet.FleetVarName{
-		fleet.FleetVarHostEndUserIDPUsername,
-		fleet.FleetVarHostEndUserIDPUsernameLocalPart,
-		fleet.FleetVarHostEndUserIDPDepartment,
-		fleet.FleetVarHostEndUserIDPFullname,
-		fleet.FleetVarHostEndUserIDPExternalID,
-	}
-	resentCerts, err := selectCertTemplatesToResend(ctx, tx, scimHostIDs, fleetVarNamesToDBVars(vars))
+func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtContext, scimHostIDs []uint, changedVars []fleet.FleetVarName, idpEmailChangedHostIDs []uint) ([]fleet.ActivityTypeResentCertificate, error) {
+	resentCerts, err := selectCertTemplatesToResend(ctx, tx, scimHostIDs, fleetVarNamesToDBVars(changedVars))
 	if err != nil {
 		return nil, err
 	}
-	if err := triggerResendProfilesUsingVariables(ctx, tx, scimHostIDs, vars); err != nil {
+	if err := triggerResendProfilesUsingVariables(ctx, tx, scimHostIDs, changedVars); err != nil {
 		return nil, err
 	}
 

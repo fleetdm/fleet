@@ -749,6 +749,20 @@ func TestReplaceCertificateVariables(t *testing.T) {
 		require.Contains(t, err.Error(), "unsupported Fleet variable")
 	})
 
+	t.Run("dollar signs in values are substituted literally", func(t *testing.T) {
+		ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+			return &fleet.ScimUser{
+				UserName:   "jane@example.com",
+				Department: new("R$1D"),
+				ExternalID: new("tenant$1"),
+			}, nil
+		}
+		result, err := svc.replaceCertificateVariables(t.Context(),
+			"UID=$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID,OU=$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT", host, nil)
+		require.NoError(t, err)
+		require.Equal(t, "UID=tenant$1,OU=R$1D", result)
+	})
+
 	t.Run("special characters are RFC 4514 escaped", func(t *testing.T) {
 		dept := "Sales, Marketing + Ops"
 		ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {

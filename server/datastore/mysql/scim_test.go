@@ -57,7 +57,7 @@ func TestScim(t *testing.T) {
 		{"ScimNestedGroups", testScimNestedGroups},
 		{"TriggerResendIdPProfiles", testTriggerResendIdPProfiles},
 		{"TriggerResendIdPProfilesOnTeam", testTriggerResendIdPProfilesOnTeam},
-		{"TriggerResendIdPProfilesOnExternalIDChange", testTriggerResendIdPProfilesOnExternalIDChange},
+		{"TriggerResendIdPProfilesOnlyForChangedAttributes", testTriggerResendIdPProfilesOnlyForChangedAttributes},
 		{"TriggerResendCertTemplatesAndAppConfigs", testTriggerResendCertTemplatesAndAppConfigs},
 		{"SetOrUpdateHostSCIMUserMapping", testSetOrUpdateHostSCIMUserMapping},
 	}
@@ -2741,7 +2741,7 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryVerifying})
 }
 
-func testTriggerResendIdPProfilesOnExternalIDChange(t *testing.T, ds *Datastore) {
+func testTriggerResendIdPProfilesOnlyForChangedAttributes(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	host := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
@@ -2751,12 +2751,19 @@ func testTriggerResendIdPProfilesOnExternalIDChange(t *testing.T, ds *Datastore)
 	require.NoError(t, err)
 	profNone, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("b", "b", 0), nil)
 	require.NoError(t, err)
+	profUsername, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("c", "c", 0), nil)
+	require.NoError(t, err)
 	profWExternalID, err := ds.NewMDMWindowsConfigProfile(ctx, *generateWindowsCP("w", "w", 0), nil)
 	require.NoError(t, err)
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `INSERT INTO mdm_configuration_profile_variables (apple_profile_uuid, fleet_variable_id)
 			SELECT ?, id FROM fleet_variables WHERE name = ?`, profExternalID.ProfileUUID, "FLEET_VAR_"+string(fleet.FleetVarHostEndUserIDPExternalID))
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx, `INSERT INTO mdm_configuration_profile_variables (apple_profile_uuid, fleet_variable_id)
+			SELECT ?, id FROM fleet_variables WHERE name = ?`, profUsername.ProfileUUID, "FLEET_VAR_"+string(fleet.FleetVarHostEndUserIDPUsername))
 		if err != nil {
 			return err
 		}
@@ -2773,6 +2780,7 @@ func testTriggerResendIdPProfilesOnExternalIDChange(t *testing.T, ds *Datastore)
 	setAllVerifying := func() {
 		forceSetAppleHostProfileStatus(t, ds, host.UUID, profExternalID, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 		forceSetAppleHostProfileStatus(t, ds, host.UUID, profNone, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+		forceSetAppleHostProfileStatus(t, ds, host.UUID, profUsername, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 		forceSetWindowsHostProfileStatus(t, ds, hostW.UUID, profWExternalID, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	}
 	setAllVerifying()
@@ -2782,7 +2790,8 @@ func testTriggerResendIdPProfilesOnExternalIDChange(t *testing.T, ds *Datastore)
 	require.NoError(t, err)
 	assertHostProfileStatus(t, ds, host.UUID,
 		hostProfileStatus{profExternalID.ProfileUUID, fleet.MDMDeliveryVerifying},
-		hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying})
+		hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryVerifying})
 	assertHostProfileStatus(t, ds, hostW.UUID,
 		hostProfileStatus{profWExternalID.ProfileUUID, fleet.MDMDeliveryVerifying})
 
@@ -2791,11 +2800,31 @@ func testTriggerResendIdPProfilesOnExternalIDChange(t *testing.T, ds *Datastore)
 		require.NoError(t, err)
 		assertHostProfileStatus(t, ds, host.UUID,
 			hostProfileStatus{profExternalID.ProfileUUID, fleet.MDMDeliveryPending},
-			hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying})
+			hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+			hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryVerifying})
 		assertHostProfileStatus(t, ds, hostW.UUID,
 			hostProfileStatus{profWExternalID.ProfileUUID, fleet.MDMDeliveryPending})
 		setAllVerifying()
 	}
+
+	// neither profile uses the department
+	_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser, UserName: "a@example.com", Department: new("Eng")})
+	require.NoError(t, err)
+	assertHostProfileStatus(t, ds, host.UUID,
+		hostProfileStatus{profExternalID.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, hostW.UUID,
+		hostProfileStatus{profWExternalID.ProfileUUID, fleet.MDMDeliveryVerifying})
+
+	_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser, UserName: "b@example.com", Department: new("Eng")})
+	require.NoError(t, err)
+	assertHostProfileStatus(t, ds, host.UUID,
+		hostProfileStatus{profExternalID.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryPending})
+	assertHostProfileStatus(t, ds, hostW.UUID,
+		hostProfileStatus{profWExternalID.ProfileUUID, fleet.MDMDeliveryVerifying})
 }
 
 // for https://github.com/fleetdm/fleet/issues/28820
