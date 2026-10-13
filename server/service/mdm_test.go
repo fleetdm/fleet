@@ -4123,7 +4123,7 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 		},
 		{
 			"android software setting without premium license",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
 			false,
 			0,
 			`{"playStoreMode": "BLACKLIST"}`,
@@ -4131,7 +4131,7 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 		},
 		{
 			"android software setting with premium license",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
 			true,
 			0,
 			`{"playStoreMode": "BLACKLIST"}`,
