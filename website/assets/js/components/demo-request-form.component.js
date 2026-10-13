@@ -34,9 +34,9 @@ parasails.registerComponent('demoRequestForm', {
         <h2>See Fleet on your own devices</h2>
         <p>Bring your current tools and your device count. On the call, we'll cover:</p>
         <div purpose="demo-request-checklist">
-          <p>What your current setup maps to in Fleet</p>
-          <p>Which tools Fleet replaces, and what stays</p>
-          <p>What the move looks like. We'll do the migration for you.</p>
+          <p>How Fleet works across macOS, Windows, Linux, iOS and Android</p>
+          <p>Where Fleet fits next to what you already run</p>
+          <p>What getting started looks like, plus support and training for your team</p>
         </div>
       </div>
       <div purpose="demo-request-card">
@@ -73,7 +73,7 @@ parasails.registerComponent('demoRequestForm', {
           </div>
           <cloud-error v-if="cloudError && cloudError !== 'invalidEmailDomain'"></cloud-error>
           <ajax-button purpose="demo-request-submit" type="submit" :syncing="syncing" class="btn btn-primary">Get a demo</ajax-button>
-          <p purpose="demo-request-note">All fields are required. We'll reply within one business day.</p>
+          <p purpose="demo-request-note">All fields are required. We usually reply within one business day.</p>
         </ajax-form>
       </div>
     </div>
