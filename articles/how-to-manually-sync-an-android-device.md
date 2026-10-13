@@ -4,7 +4,13 @@ For Android hosts, there's no **Refetch** button on the **Host details** page in
 
 ## How changes sync on Android hosts
 
-Fleet doesn't communicate with Android hosts directly. Fleet and each host communicate through Google's Android Management API (AMAPI):
+Fleet doesn't communicate with Android hosts directly. Fleet and each host communicate through Google's Android Management API (AMAPI). Fleet delivers these changes by updating the host's policy in AMAPI:
+
+- Software installs and uninstalls
+- Configuration profiles
+- Managed app configuration
+
+Each change follows the same steps:
 
 1. Fleet updates the host's policy in AMAPI. For example, when you install an app, Fleet adds it to the policy's application list.
 2. The next time the host syncs with Google, Google delivers the updated policy and the host applies it. In this example, the host installs the app.
@@ -27,6 +33,13 @@ sequenceDiagram
 ```
 
 Fleet doesn't control when steps 2 and 3 happen. Sometimes changes don't appear immediately due to Google rate limiting, so a status like "Install pending" can stay in Fleet longer than you'd expect.
+
+Host details, like the OS version and installed software, also come from these status reports. That's why there's no **Refetch** button for Android hosts.
+
+Some changes don't use the host's policy, so manually syncing won't speed them up:
+
+- **Lock**, **Wipe**, and **Clear passcode** are sent to the host as AMAPI commands instead of policy changes.
+- Certificates are installed by the Fleet app on the host, which checks Fleet for new certificates every 15 minutes.
 
 ## Sync manually
 
