@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -119,4 +120,35 @@ func TestEnrollOrbitWindowsOneTimeSecretLink(t *testing.T) {
 			require.Equal(t, tc.want, received.HostInfo.AutopilotDeviceID)
 		})
 	}
+
+	t.Run("an enrollment that no longer exists clears the one fleetd sent", func(t *testing.T) {
+		svc, ds := newSvc(t, firstInstall)
+		ds.MDMWindowsGetEnrolledDeviceByIDFunc = func(ctx context.Context, id uint) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return nil, newNotFoundError()
+		}
+		var received fleet.DatastoreEnrollOrbitConfig
+		ds.EnrollOrbitFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
+			for _, opt := range opts {
+				opt(&received)
+			}
+			return &fleet.Host{ID: 42, UUID: "host-uuid-1", Platform: "windows"}, nil
+		}
+
+		withOtherDevicesID := hostInfo
+		withOtherDevicesID.AutopilotDeviceID = "11111111-2222-3333-4444-555555555555"
+		_, err := svc.EnrollOrbit(t.Context(), withOtherDevicesID, firstInstall.Secret, "")
+		require.NoError(t, err)
+		require.Empty(t, received.HostInfo.AutopilotDeviceID)
+	})
+
+	t.Run("failing to read the enrollment fails the enrollment", func(t *testing.T) {
+		svc, ds := newSvc(t, firstInstall)
+		ds.MDMWindowsGetEnrolledDeviceByIDFunc = func(ctx context.Context, id uint) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return nil, errors.New("db unavailable")
+		}
+
+		_, err := svc.EnrollOrbit(t.Context(), hostInfo, firstInstall.Secret, "")
+		require.Error(t, err, "enrolling without the enrollment's Autopilot device ID could claim another device's pending host")
+		require.False(t, ds.EnrollOrbitFuncInvoked)
+	})
 }

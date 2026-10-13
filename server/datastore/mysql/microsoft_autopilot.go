@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -340,45 +341,61 @@ func ingestWindowsAutopilotDevicesDB(
 	devices []*fleet.HostAutopilotDevice,
 ) error {
 	// Resolution is keyed on the Autopilot device ID. Windows serials are not unique. Only devices that no Autopilot record already
-	// resolves need a serial lookup, so the rest are left out of the query.
+	// resolves need a further lookup, so the rest are left out of the queries.
+	unresolved := make([]*fleet.HostAutopilotDevice, 0, len(devices))
 	serials := make([]string, 0, len(devices))
 	for _, dev := range devices {
 		if _, ok := ingest.hostIDByZTD[dev.AutopilotDeviceID]; ok {
 			continue
 		}
+		unresolved = append(unresolved, dev)
 		// A placeholder serial is shared by unrelated machines, so it can never adopt a host.
-		if fleet.IsPlaceholderHardwareSerial(dev.HardwareSerial) {
-			continue
+		if !fleet.IsPlaceholderHardwareSerial(dev.HardwareSerial) {
+			serials = append(serials, dev.HardwareSerial)
 		}
-		serials = append(serials, dev.HardwareSerial)
 	}
-	// Hosts carrying this serial that no Autopilot record has claimed yet. Adopting one covers the machine that was
-	// already enrolled in Fleet before it was registered in Autopilot; without it we would create a duplicate host.
-	// Hosts already claimed by a different Autopilot record are excluded, which is what keeps two records for one
-	// serial on two hosts.
-	// Doing the read inside the TX to make sure we have the latest host data and to eliminate races.
+	// An unresolved device may already be enrolled in Fleet, from before it was registered in Autopilot (or before the tenant was
+	// connected). Adopting its host rather than creating a duplicate is tried first through the IDs its Windows MDM enrollment
+	// recorded, which identify the device exactly, then through its serial.
+	// Doing the reads inside the TX to make sure we have the latest host data and to eliminate races.
+	hostIDByEnrollment, err := unclaimedHostIDsByMDMEnrollmentDB(ctx, tx, unresolved)
+	if err != nil {
+		return err
+	}
+	// Hosts carrying this serial that no Autopilot record has claimed yet. Hosts already claimed by a different Autopilot record
+	// are excluded, which is what keeps two records for one serial on two hosts.
 	unclaimedBySerial, err := unclaimedHostIDsBySerialDB(ctx, tx, serials)
 	if err != nil {
 		return err
 	}
 
-	// host_autopilot_devices is keyed by host_id. Track device claims in memory to make sure a one-to-one match.
+	// host_autopilot_devices is keyed by host_id. Track device claims in memory to make sure a one-to-one match. The exact
+	// matches claim their hosts before any serial match runs, so a serial match can never take a host another device in the
+	// batch is known to own.
 	claimed := make(map[uint]struct{}, len(devices))
 	resolved := make([]*fleet.HostAutopilotDevice, 0, len(devices))
-	toCreate := make([]*fleet.HostAutopilotDevice, 0, len(devices))
+	resolve := func(dev *fleet.HostAutopilotDevice, hostID uint) {
+		copied := *dev
+		copied.HostID = hostID
+		claimed[hostID] = struct{}{}
+		resolved = append(resolved, &copied)
+	}
+	bySerial := make([]*fleet.HostAutopilotDevice, 0, len(unresolved))
 	for _, dev := range devices {
 		if hostID, ok := ingest.hostIDByZTD[dev.AutopilotDeviceID]; ok {
-			copied := *dev
-			copied.HostID = hostID
-			claimed[hostID] = struct{}{}
-			resolved = append(resolved, &copied)
+			resolve(dev, hostID)
 			continue
 		}
+		if hostID, ok := hostIDByEnrollment[dev.AutopilotDeviceID]; ok {
+			resolve(dev, hostID)
+			continue
+		}
+		bySerial = append(bySerial, dev)
+	}
+	toCreate := make([]*fleet.HostAutopilotDevice, 0, len(bySerial))
+	for _, dev := range bySerial {
 		if hostID, ok := popUnclaimedHostID(unclaimedBySerial, dev.HardwareSerial, claimed); ok {
-			copied := *dev
-			copied.HostID = hostID
-			claimed[hostID] = struct{}{}
-			resolved = append(resolved, &copied)
+			resolve(dev, hostID)
 			continue
 		}
 		toCreate = append(toCreate, dev)
@@ -459,6 +476,106 @@ func hostIDsByAutopilotDeviceIDDB(ctx context.Context, q sqlx.QueryerContext, zt
 		return nil, err
 	}
 	return byID, nil
+}
+
+// unclaimedHostIDsByMDMEnrollmentDB matches devices to the Windows hosts that no live Autopilot record claims, through the IDs
+// the host's Windows MDM enrollment recorded: the Autopilot device ID (ZTDID) the device supplied at enrollment, and the Entra
+// device ID from the token Microsoft signed for it. Both are the same values Microsoft Graph returns for the Autopilot record.
+//
+// A candidate enrollment must not contradict the device on either ID, which keeps a device-supplied ZTDID from outweighing a
+// signed Entra device ID. A device is only matched when its candidates point at exactly one host, and a host only goes to one
+// device; anything ambiguous is left to the serial match. The result is keyed by Autopilot device ID.
+func unclaimedHostIDsByMDMEnrollmentDB(ctx context.Context, tx sqlx.ExtContext, devices []*fleet.HostAutopilotDevice) (map[string]uint, error) {
+	ztdIDs := make([]string, 0, len(devices))
+	entraIDs := make([]any, 0, len(devices))
+	for _, dev := range devices {
+		if dev.AutopilotDeviceID != "" {
+			ztdIDs = append(ztdIDs, dev.AutopilotDeviceID)
+		}
+		if entraID, ok := parseEntraDeviceID(dev.EntraDeviceID); ok {
+			entraIDs = append(entraIDs, entraID[:])
+		}
+	}
+	if len(ztdIDs) == 0 && len(entraIDs) == 0 {
+		return map[string]uint{}, nil
+	}
+
+	var conditions []string
+	var args []any
+	if len(ztdIDs) > 0 {
+		conditions = append(conditions, "e.ztd_registration_id IN (?)")
+		args = append(args, ztdIDs)
+	}
+	if len(entraIDs) > 0 {
+		conditions = append(conditions, "e.entra_device_id IN (?)")
+		args = append(args, entraIDs)
+	}
+	stmt, args, err := sqlx.In(`
+SELECT e.ztd_registration_id, COALESCE(BIN_TO_UUID(e.entra_device_id), '') AS entra_device_id, h.id AS host_id
+FROM mdm_windows_enrollments e
+JOIN hosts h ON h.uuid = e.host_uuid AND h.platform = 'windows'
+LEFT JOIN host_autopilot_devices had ON had.host_id = h.id AND had.deleted_at IS NULL
+WHERE e.host_uuid != '' AND had.host_id IS NULL AND (`+strings.Join(conditions, " OR ")+`)`, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build IN clause for autopilot ids on windows mdm enrollments")
+	}
+	var rows []struct {
+		ZTDRegistrationID string `db:"ztd_registration_id"`
+		EntraDeviceID     string `db:"entra_device_id"`
+		HostID            uint   `db:"host_id"`
+	}
+	if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select hosts by autopilot ids on windows mdm enrollments")
+	}
+
+	// sameID reports whether two IDs are both present and equal, and contradicts whether both are present and differ.
+	sameID := func(a, b string) bool { return a != "" && b != "" && strings.EqualFold(a, b) }
+	contradicts := func(a, b string) bool { return a != "" && b != "" && !strings.EqualFold(a, b) }
+
+	matched := make(map[string]uint, len(devices))
+	devicesByHost := make(map[uint]int, len(devices))
+	for _, dev := range devices {
+		entraID := ""
+		if parsed, ok := parseEntraDeviceID(dev.EntraDeviceID); ok {
+			entraID = parsed.String()
+		}
+		var hostID uint
+		ambiguous := false
+		for _, row := range rows {
+			if !sameID(row.ZTDRegistrationID, dev.AutopilotDeviceID) && !sameID(row.EntraDeviceID, entraID) {
+				continue
+			}
+			if contradicts(row.ZTDRegistrationID, dev.AutopilotDeviceID) || contradicts(row.EntraDeviceID, entraID) {
+				ambiguous = true
+				break
+			}
+			if hostID != 0 && hostID != row.HostID {
+				ambiguous = true
+				break
+			}
+			hostID = row.HostID
+		}
+		if hostID != 0 && !ambiguous {
+			matched[dev.AutopilotDeviceID] = hostID
+			devicesByHost[hostID]++
+		}
+	}
+	for deviceID, hostID := range matched {
+		if devicesByHost[hostID] > 1 {
+			delete(matched, deviceID)
+		}
+	}
+	return matched, nil
+}
+
+// parseEntraDeviceID parses an Entra device ID as Graph reports it. Graph reports the all-zero GUID, or nothing, for a device
+// without one.
+func parseEntraDeviceID(id string) (uuid.UUID, bool) {
+	parsed, err := uuid.Parse(id)
+	if err != nil || parsed == uuid.Nil {
+		return uuid.Nil, false
+	}
+	return parsed, true
 }
 
 // unclaimedHostIDsBySerialDB returns, per serial, the Windows hosts that no live Autopilot record points at, in id

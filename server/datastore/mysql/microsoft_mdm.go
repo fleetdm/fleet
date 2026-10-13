@@ -493,8 +493,7 @@ func (ds *Datastore) MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationID(ct
 }
 
 // getUnlinkedWindowsEnrolledDeviceBy looks up the single unlinked enrollment whose column equals value. column is always a
-// constant from the callers above. The host_uuid prefix of idx_mdm_windows_enrollments_host_uuid_hardware_serial limits the
-// read to unlinked enrollments; the ztd_registration_id lookup then filters those rows. It runs once per orbit enrollment.
+// constant from the callers above, and each is indexed.
 func (ds *Datastore) getUnlinkedWindowsEnrolledDeviceBy(ctx context.Context, column, value string) (*fleet.MDMWindowsEnrolledDevice, error) {
 	if value == "" {
 		return nil, ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice").WithMessage("empty "+column))

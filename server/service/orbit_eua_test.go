@@ -548,12 +548,14 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 			"a refused Autopilot match must not fall through to a weaker identifier")
 	})
 
+	// Only "not found" moves on to the serial. An error leaves the link to the next MDM session rather than guess.
 	for _, tc := range []struct {
-		name      string
-		lookupErr error
+		name           string
+		lookupErr      error
+		triesTheSerial bool
 	}{
-		{"no enrollment carries the Autopilot device ID: falls back to the serial", newNotFoundError()},
-		{"Autopilot device ID lookup error: falls back to the serial", errors.New("db unavailable")},
+		{"no enrollment carries the Autopilot device ID: falls back to the serial", newNotFoundError(), true},
+		{"Autopilot device ID lookup error: stops", errors.New("db unavailable"), false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			svc, ds, _ := newSvc(t)
@@ -567,11 +569,23 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 			}
 
 			_, err := svc.EnrollOrbit(t.Context(), autopilotHostInfo, "secret", "")
-			require.NoError(t, err)
+			require.NoError(t, err, "a failed reverse link never fails the enrollment")
 			require.True(t, ds.MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationIDFuncInvoked)
-			require.True(t, ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFuncInvoked)
+			require.Equal(t, tc.triesTheSerial, ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFuncInvoked)
 		})
 	}
+
+	t.Run("an error checking who owns the Autopilot record stops the reverse link", func(t *testing.T) {
+		svc, ds, _ := newSvc(t)
+		ds.HostIDByAutopilotDeviceIDFunc = func(ctx context.Context, id string) (uint, error) {
+			return 0, errors.New("db unavailable")
+		}
+
+		_, err := svc.EnrollOrbit(t.Context(), autopilotHostInfo, "secret", "")
+		require.NoError(t, err)
+		require.False(t, ds.MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationIDFuncInvoked)
+		require.False(t, ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFuncInvoked)
+	})
 
 	t.Run("an Autopilot device ID whose record this host does not own is not used", func(t *testing.T) {
 		for name, owner := range map[string]func(ctx context.Context, id string) (uint, error){
@@ -609,6 +623,8 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, ds.MDMWindowsConflictingEnrollmentHardwareIDFuncInvoked, "the mismatched enrollment is skipped before any link attempt")
 		require.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+		require.False(t, ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFuncInvoked,
+			"identifiers that already disagree must not go on to link whatever enrollment carries the serial")
 	})
 
 	t.Run("a placeholder serial is never used to find an enrollment", func(t *testing.T) {
