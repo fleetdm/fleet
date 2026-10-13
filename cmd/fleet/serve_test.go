@@ -115,8 +115,6 @@ func TestMaybeSendStatistics(t *testing.T) {
 			SystemUsersEnabled:                   true,
 			HostsStatusWebHookEnabled:            true,
 			NumWeeklyActiveUsers:                 111,
-			NumWeeklyPolicyViolationDaysActual:   0,
-			NumWeeklyPolicyViolationDaysPossible: 0,
 			HostsEnrolledByOperatingSystem: map[string][]fleet.HostsCountByOSVersion{
 				"linux": {
 					fleet.HostsCountByOSVersion{Version: "1.2.3", NumEnrolled: 22},
@@ -164,18 +162,12 @@ func TestMaybeSendStatistics(t *testing.T) {
 		recorded = true
 		return nil
 	}
-	cleanedup := false
-	ds.CleanupStatisticsFunc = func(ctx context.Context) error {
-		cleanedup = true
-		return nil
-	}
 
 	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	err := trySendStatistics(ctx, ds, fleet.StatisticsFrequency, ts.URL, fleetConfig, slog.Default())
 	require.NoError(t, err)
 	assert.True(t, recorded)
-	require.True(t, cleanedup)
-	assert.JSONEq(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numHostsABMPending":888,"numUsers":99,"numSoftwareVersions":100,"numHostSoftwares":101,"numSoftwareTitles":102,"numHostSoftwareInstalledPaths":103,"numSoftwareCPEs":104,"numSoftwareCVEs":105,"numTeams":9,"numPolicies":0,"numPoliciesAutomationEnabledSoftware":7,"numQueries":200,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"mdmMacOsEnabled":false,"hostExpiryEnabled":false,"mdmWindowsEnabled":false,"mdmAndroidEnabled":false,"mdmRecoveryLockPasswordEnabled":false,"liveQueryDisabled":false,"numWeeklyActiveUsers":111,"numWeeklyPolicyViolationDaysActual":0,"numWeeklyPolicyViolationDaysPossible":0,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"hostsEnrolledByOrbitVersion":[],"hostsEnrolledByOsqueryVersion":[],"storedErrors":[],"numHostsNotResponding":0,"aiFeaturesDisabled":true,"maintenanceWindowsEnabled":true,"maintenanceWindowsConfigured":true,"idpGoogleWorkspaceConfigured":true,"numHostsFleetDesktopEnabled":1984,"fleetDesktopSSOEnabled":true,"fleetMaintainedAppsMacOS":[{"name":"1password/darwin","patchPolicy":true,"softwareAutomation":false}],"fleetMaintainedAppsWindows":[{"name":"google-chrome/windows","patchPolicy":true,"softwareAutomation":true}],"conditionalAccessEnabled":false,"oktaConditionalAccessConfigured":true,"conditionalAccessBypassDisabled":false,"entraConditionalAccessConfigured":true,"gitOpsModeEnabled":true,"gitOpsModeExceptions":["labels","software","secrets"],"numHostsFleetMDMEnrolledMacOS":12,"numHostsFleetMDMEnrolledWindows":34,"numMDMAppleProfiles":0,"numMDMWindowsProfiles":0,"numMDMAppleDeclarations":0,"numMDMAndroidProfiles":0,"resultLogDestination":"firehose","statusLogDestination":"filesystem","auditLogDestination":"kinesis","anyVulnerabilitiesWebhookEnabled":true,"anyFailingPoliciesWebhookEnabled":true,"anyHostActivitiesWebhookEnabled":true,"globalActivityWebhookEnabled":true,"ticketDestinationConfigured":true,"ssoConfiguredFleetUsers":true,"ssoConfiguredEndUsers":true,"accountProvisioningConfigured":true,"idpSCIMConfigured":true,"certificateAuthorityConfigured":true}`, requestBody)
+	assert.JSONEq(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numHostsABMPending":888,"numUsers":99,"numSoftwareVersions":100,"numHostSoftwares":101,"numSoftwareTitles":102,"numHostSoftwareInstalledPaths":103,"numSoftwareCPEs":104,"numSoftwareCVEs":105,"numTeams":9,"numPolicies":0,"numPoliciesAutomationEnabledSoftware":7,"numQueries":200,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"mdmMacOsEnabled":false,"hostExpiryEnabled":false,"mdmWindowsEnabled":false,"mdmAndroidEnabled":false,"mdmRecoveryLockPasswordEnabled":false,"liveQueryDisabled":false,"numWeeklyActiveUsers":111,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"hostsEnrolledByOrbitVersion":[],"hostsEnrolledByOsqueryVersion":[],"storedErrors":[],"numHostsNotResponding":0,"aiFeaturesDisabled":true,"maintenanceWindowsEnabled":true,"maintenanceWindowsConfigured":true,"idpGoogleWorkspaceConfigured":true,"numHostsFleetDesktopEnabled":1984,"fleetDesktopSSOEnabled":true,"fleetMaintainedAppsMacOS":[{"name":"1password/darwin","patchPolicy":true,"softwareAutomation":false}],"fleetMaintainedAppsWindows":[{"name":"google-chrome/windows","patchPolicy":true,"softwareAutomation":true}],"conditionalAccessEnabled":false,"oktaConditionalAccessConfigured":true,"conditionalAccessBypassDisabled":false,"entraConditionalAccessConfigured":true,"gitOpsModeEnabled":true,"gitOpsModeExceptions":["labels","software","secrets"],"numHostsFleetMDMEnrolledMacOS":12,"numHostsFleetMDMEnrolledWindows":34,"numMDMAppleProfiles":0,"numMDMWindowsProfiles":0,"numMDMAppleDeclarations":0,"numMDMAndroidProfiles":0,"resultLogDestination":"firehose","statusLogDestination":"filesystem","auditLogDestination":"kinesis","anyVulnerabilitiesWebhookEnabled":true,"anyFailingPoliciesWebhookEnabled":true,"anyHostActivitiesWebhookEnabled":true,"globalActivityWebhookEnabled":true,"ticketDestinationConfigured":true,"ssoConfiguredFleetUsers":true,"ssoConfiguredEndUsers":true,"accountProvisioningConfigured":true,"idpSCIMConfigured":true,"certificateAuthorityConfigured":true}`, requestBody)
 }
 
 func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
@@ -202,17 +194,11 @@ func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
 		recorded = true
 		return nil
 	}
-	cleanedup := false
-	ds.CleanupStatisticsFunc = func(ctx context.Context) error {
-		cleanedup = true
-		return nil
-	}
 
 	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	err := trySendStatistics(ctx, ds, fleet.StatisticsFrequency, ts.URL, fleetConfig, slog.Default())
 	require.NoError(t, err)
 	assert.False(t, recorded)
-	assert.False(t, cleanedup)
 	assert.False(t, called)
 }
 
@@ -257,8 +243,6 @@ func TestMaybeSendStatisticsSendsIfNotConfiguredForPremium(t *testing.T) {
 	ds.ShouldSendStatisticsFunc = func(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error) {
 		return fleet.StatisticsPayload{}, true, nil
 	}
-
-	ds.CleanupStatisticsFunc = func(ctx context.Context) error { return nil }
 
 	ds.RecordStatisticsSentFunc = func(ctx context.Context) error { return nil }
 

@@ -86,10 +86,6 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount active users")
 		}
-		amountPolicyViolationDaysActual, amountPolicyViolationDaysPossible, err := amountPolicyViolationDaysDB(ctx, ds.reader(ctx))
-		if err != nil && err != sql.ErrNoRows {
-			return ctxerr.Wrap(ctx, err, "amount policy violation days")
-		}
 		storedErrs, err := ctxerr.Aggregate(ctx)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "statistics error store")
@@ -163,8 +159,6 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.MDMRecoveryLockPasswordEnabled = appConfig.MDM.EnableRecoveryLockPassword.Value
 		stats.LiveQueryDisabled = appConfig.ServerSettings.LiveQueryDisabled
 		stats.NumWeeklyActiveUsers = amountWeeklyUsers
-		stats.NumWeeklyPolicyViolationDaysActual = amountPolicyViolationDaysActual
-		stats.NumWeeklyPolicyViolationDaysPossible = amountPolicyViolationDaysPossible
 		stats.HostsEnrolledByOperatingSystem = enrolledHostsByOS
 		stats.HostsEnrolledByOrbitVersion = amountHostsByOrbitVersion
 		stats.HostsEnrolledByOsqueryVersion = amountHostsByOsqueryVersion
@@ -327,14 +321,6 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 func (ds *Datastore) RecordStatisticsSent(ctx context.Context) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE statistics SET updated_at = CURRENT_TIMESTAMP LIMIT 1`)
 	return ctxerr.Wrap(ctx, err, "update statistics")
-}
-
-func (ds *Datastore) CleanupStatistics(ctx context.Context) error {
-	// reset weekly count of policy violation days
-	if err := ds.InitializePolicyViolationDays(ctx); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (ds *Datastore) GetTableRowCounts(ctx context.Context) (map[string]uint, error) {
