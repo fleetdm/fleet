@@ -63,11 +63,11 @@ const (
 	// MDMMigrationTypeADE indicates that the MDM migration is for an ADE enrolled host.
 	MDMMigrationTypeADE = "ade"
 	// MDMMigrationTypePreSonoma indicates that the MDM migration is for a host on a macOS version < 14.
+	// It's no longer written, but is still read from migration files left by older fleetd versions.
 	MDMMigrationTypePreSonoma = "pre-sonoma"
 	// MDMMigrationOfflineWatcherInterval is the interval at which the offline watcher checks for
 	// the presence of the migration file.
 	MDMMigrationOfflineWatcherInterval = 3 * time.Minute
-	SonomaMajorVersion                 = 14
 
 	// OrbitTUFTargetName is the target name of the orbit component of fleetd in TUF.
 	OrbitTUFTargetName = "orbit"
