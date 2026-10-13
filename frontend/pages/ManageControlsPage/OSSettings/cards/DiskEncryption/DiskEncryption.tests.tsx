@@ -150,23 +150,27 @@ describe("DiskEncryption", () => {
     [
       "macos",
       "macOS",
-      ["Enable disk encryption", "Escrow recovery key with Fleet"],
+      ["Enable disk encryption (FileVault)", "Escrow recovery key with Fleet"],
       ["Require BitLocker PIN"],
     ],
     [
       "windows",
       "Windows",
       [
-        "Enable disk encryption and escrow recovery key",
+        "Enable disk encryption and escrow recovery key (BitLocker)",
         "Require BitLocker PIN",
       ],
-      ["Enable disk encryption", "Escrow recovery key with Fleet"],
+      ["Enable disk encryption (FileVault)", "Escrow recovery key with Fleet"],
     ],
     [
       "linux",
       "Linux",
       ["Escrow recovery key with Fleet"],
-      ["Enable disk encryption", "Require BitLocker PIN"],
+      [
+        "Enable disk encryption (FileVault)",
+        "Enable disk encryption and escrow recovery key (BitLocker)",
+        "Require BitLocker PIN",
+      ],
     ],
   ] as const)(
     "selects the %s tab from the URL and renders its checkboxes",
