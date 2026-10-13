@@ -85,12 +85,6 @@
         align-items: flex-start;
       }
 
-      /* The other lists space out multi-step instructions with images and
-         buttons between them; these are three short lines. */
-      .next-steps-instructions {
-        gap: 16px;
-      }
-
       .android-content {
         margin-top: 48px;
         display: flex;
@@ -326,30 +320,11 @@
     <!-- content for the /enroll/next-steps page, shown after selecting Enroll -->
     <template id="android-next-steps-template">
       <section class="device-instructions-content">
-        <h1>Next steps...</h1>
-        <ol class="next-steps-instructions">
-          <li>
-            <p>
-              <span>1.</span>
-              <span>Follow enrollment instructions.</span>
-            </p>
-          </li>
-          <li>
-            <p>
-              <span>2.</span>
-              <span>
-                When you see the "Your device is ready to go!" page, you're
-                done.
-              </span>
-            </p>
-          </li>
-          <li>
-            <p>
-              <span>3.</span>
-              <span>You can close this page.</span>
-            </p>
-          </li>
-        </ol>
+        <h1>After setup...</h1>
+        <div class="android-content">
+          <p>You're done! &#127881;</p>
+          <p>Close this page after you set up your work profile.</p>
+        </div>
       </section>
     </template>
 

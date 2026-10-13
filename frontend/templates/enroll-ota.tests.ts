@@ -242,14 +242,13 @@ describe("enroll-ota.html — /enroll/next-steps", () => {
   it("renders the next steps for Android and fetches nothing", async () => {
     const { fetchMock } = await loadPage({ nextSteps: true });
 
-    expect(heading()).toBe("Next steps...");
-    const steps = Array.from(
-      doc.querySelectorAll("#main-content li")
-    ).map((li) => li.textContent?.replace(/\s+/g, " ").trim());
-    expect(steps).toEqual([
-      "1. Follow enrollment instructions.",
-      '2. When you see the "Your device is ready to go!" page, you\'re done.',
-      "3. You can close this page.",
+    expect(heading()).toBe("After setup...");
+    const lines = Array.from(
+      doc.querySelectorAll("#main-content p")
+    ).map((paragraph) => paragraph.textContent?.replace(/\s+/g, " ").trim());
+    expect(lines).toEqual([
+      "You're done! \u{1F389}",
+      "Close this page after you set up your work profile.",
     ]);
     // Informational page: no token, and nothing left to select.
     expect(fetchMock).not.toHaveBeenCalled();
@@ -284,7 +283,7 @@ describe("enroll-ota.html — /enroll/next-steps", () => {
   it("shows the next steps rather than an error when the secret is absent", async () => {
     await loadPage({ nextSteps: true, search: "" });
 
-    expect(heading()).toBe("Next steps...");
+    expect(heading()).toBe("After setup...");
     expect(doc.querySelector(".error-title")).toBeNull();
   });
 });

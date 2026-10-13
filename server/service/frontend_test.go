@@ -186,8 +186,8 @@ func TestServeEndUserEnrollNextSteps(t *testing.T) {
 			require.NoError(t, err)
 			bodyString := string(bodyBytes)
 			assert.Contains(t, bodyString, `IS_NEXT_STEPS = "true"`)
-			assert.Contains(t, bodyString, "Next steps...")
-			assert.Contains(t, bodyString, "You can close this page.")
+			assert.Contains(t, bodyString, "After setup...")
+			assert.Contains(t, bodyString, "Close this page after you set up your work profile.")
 		})
 	}
 }
