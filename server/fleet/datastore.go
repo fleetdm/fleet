@@ -2337,16 +2337,16 @@ type Datastore interface {
 	GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*HostMDMMacOSSetup, error)
 
 	// MDMGetEULAMetadata returns metadata information about the EULA
-	// filed stored in the database.
-	MDMGetEULAMetadata(ctx context.Context) (*MDMEULA, error)
-	// MDMGetEULABytes returns the bytes of the EULA file stored in
-	// the database. A token is required since this file is publicly
+	// file stored in the database for the given platform.
+	MDMGetEULAMetadata(ctx context.Context, platform MDMEULAPlatform) (*MDMEULA, error)
+	// MDMGetEULABytes returns the bytes of the platform's EULA file stored in
+	// the database. A token is required since the macOS file is publicly
 	// accessible by anyone with the token.
-	MDMGetEULABytes(ctx context.Context, token string) (*MDMEULA, error)
-	// MDMInsertEULA inserts a new EULA in the database
+	MDMGetEULABytes(ctx context.Context, platform MDMEULAPlatform, token string) (*MDMEULA, error)
+	// MDMInsertEULA inserts a new EULA in the database for eula.Platform.
 	MDMInsertEULA(ctx context.Context, eula *MDMEULA) error
-	// MDMDeleteEULA deletes the EULA file from the database
-	MDMDeleteEULA(ctx context.Context, token string) error
+	// MDMDeleteEULA deletes the platform's EULA file from the database.
+	MDMDeleteEULA(ctx context.Context, platform MDMEULAPlatform, token string) error
 
 	// Create or update the MDM Apple Setup Assistant for a team or no team.
 	SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *MDMAppleSetupAssistant) (*MDMAppleSetupAssistant, error)
@@ -4583,10 +4583,17 @@ type AndroidDatastore interface {
 	// a previously-issued command. Called by the Pub/Sub COMMAND handler on ack/error.
 	UpdateMDMAndroidCommandStatus(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error
 
-	// ListPendingMDMAndroidCommands returns commands still in the pending status that were created
-	// before createdBefore, oldest first, capped at limit rows. Used by the command reconciler cron to
-	// find commands whose Pub/Sub COMMAND notification never arrived.
-	ListPendingMDMAndroidCommands(ctx context.Context, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error)
+	// ListPendingMDMAndroidCommands returns commands still in the pending status whose operation_name
+	// starts with operationNamePrefix and that were created before createdBefore, oldest first, capped
+	// at limit rows. Used by the command reconciler cron to find commands whose Pub/Sub COMMAND
+	// notification never arrived.
+	ListPendingMDMAndroidCommands(ctx context.Context, operationNamePrefix string, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error)
+
+	// FailPendingMDMAndroidCommandsOutsidePrefix marks as error up to limit pending commands whose
+	// operation_name does not start with operationNamePrefix and that were created before
+	// createdBefore, oldest first, and returns how many it updated. Used by the command reconciler
+	// cron to retire commands issued under an enterprise Fleet is no longer connected to.
+	FailPendingMDMAndroidCommandsOutsidePrefix(ctx context.Context, operationNamePrefix string, createdBefore time.Time, errorMessage string, limit int) (int64, error)
 
 	// LockHostViaAndroidMDM inserts the LOCK row into mdm_android_commands and writes the lock_ref on host_mdm_actions in a
 	// single transaction, mirroring WipeHostViaWindowsMDM. The caller must populate cmd.CommandUUID and cmd.OperationName

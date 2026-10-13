@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
@@ -175,6 +176,18 @@ var (
 		FleetVarHostEndUserIDPDepartment,
 		FleetVarHostEndUserIDPFullname,
 	}
+	// FleetVarsSupportedInDigiCert lists the variables allowed in a DigiCert CA's common name, seat ID, and UPN.
+	FleetVarsSupportedInDigiCert = []FleetVarName{
+		FleetVarHostEndUserEmailIDP,
+		FleetVarHostHardwareSerial,
+		FleetVarHostPlatform,
+		FleetVarHostUUID,
+		FleetVarHostEndUserIDPUsername,
+		FleetVarHostEndUserIDPUsernameLocalPart,
+		FleetVarHostEndUserIDPGroups,
+		FleetVarHostEndUserIDPDepartment,
+		FleetVarHostEndUserIDPFullname,
+	}
 )
 
 type AppleMDM struct {
@@ -307,6 +320,14 @@ func (bp *MDMAppleBootstrapPackage) URL(host string) (string, error) {
 	return pkgURL.String(), nil
 }
 
+// MDMEULAPlatform is a platform that can have its own EULA.
+type MDMEULAPlatform string
+
+const (
+	MDMEULAPlatformDarwin  MDMEULAPlatform = "darwin"
+	MDMEULAPlatformWindows MDMEULAPlatform = "windows"
+)
+
 // MDMEULA represents an EULA (End User License Agreement) file.
 type MDMEULA struct {
 	Name      string    `json:"name"`
@@ -314,10 +335,58 @@ type MDMEULA struct {
 	Sha256    []byte    `json:"sha256" db:"sha256"`
 	Token     string    `json:"token"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	// Platform is implied by the endpoint serving it, so it is not in the API.
+	Platform MDMEULAPlatform `json:"-" db:"platform"`
 }
 
+// MDMEULAMetadataLookup is the cached result of looking up a platform's EULA
+// metadata. A nil EULA records that none is uploaded: that is the usual answer,
+// and caching it is what keeps the Windows terms page off the database.
+type MDMEULAMetadataLookup struct {
+	EULA *MDMEULA
+}
+
+// Clone implements Cloner.
+func (l *MDMEULAMetadataLookup) Clone() (Cloner, error) {
+	clone := &MDMEULAMetadataLookup{}
+	if l.EULA != nil {
+		eula := *l.EULA
+		eula.Bytes = bytes.Clone(l.EULA.Bytes)
+		eula.Sha256 = bytes.Clone(l.EULA.Sha256)
+		clone.EULA = &eula
+	}
+	return clone, nil
+}
+
+// MaxEULAFileNameLength matches the eulas.name column, varchar(255).
+const MaxEULAFileNameLength = 255
+
+// MDMEULADefaultDarwinFileName names a macOS EULA whose uploaded name has nothing usable left after sanitizing. The
+// content is always a PDF, so the extension holds.
+const MDMEULADefaultDarwinFileName = "eula.pdf"
+
+// AuthzType is the same for every platform: their EULAs have the same access.
 func (e MDMEULA) AuthzType() string {
-	return "mdm_apple_eula"
+	return "mdm_eula"
+}
+
+// SanitizeEULAFileName returns the last element of an uploaded EULA file name,
+// splitting on both "/" and "\", without control or format characters (such as
+// a right-to-left override that disguises the extension). fleetctl
+// generate-gitops writes the stored name to disk on any OS, so it must not
+// carry a path. It returns "" when nothing usable is left.
+func SanitizeEULAFileName(name string) string {
+	name = name[strings.LastIndexAny(name, `/\`)+1:]
+	name = strings.TrimSpace(strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
+			return -1
+		}
+		return r
+	}, name))
+	if name == "." || name == ".." {
+		return ""
+	}
+	return name
 }
 
 // ExpectedMDMProfile represents an MDM profile that is expected to be installed on a host.

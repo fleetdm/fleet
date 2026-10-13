@@ -11,15 +11,18 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/agentws"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	carvestorectx "github.com/fleetdm/fleet/v4/server/contexts/carvestore"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -676,6 +679,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// endpoints using `neMDM` below in this file.
 	mdmConfiguredMiddleware := mdmconfigured.NewMDMConfigMiddleware(svc)
 	mdmAppleMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
+	mdmWindowsMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyWindowsMDM())
 
 	// Deprecated: POST /mdm/apple/enqueue is now deprecated, replaced by the
 	// platform-agnostic POST /mdm/commands/run. It is still supported
@@ -807,6 +811,14 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/setup/eula/metadata", getMDMEULAMetadataEndpoint, getMDMEULAMetadataRequest{})
 	// Deprecated: DELETE /mdm/apple/setup/eula/:token is now deprecated, replaced by the platform agnostic /mdm/setup/eula/:token
 	mdmAppleMW.DELETE("/api/_version_/fleet/mdm/apple/setup/eula/{token}", deleteMDMEULAEndpoint, deleteMDMEULARequest{})
+
+	// Windows end user agreement. The download is user authenticated: Fleet renders this document
+	// into the enrollment page itself, so no device ever fetches it by token the way macOS devices
+	// fetch the PDF.
+	mdmWindowsMW.WithRequestBodySizeLimit(fleet.MaxWindowsEULARequestSize).POST("/api/_version_/fleet/setup_experience/windows_eula", createMDMWindowsEULAEndpoint, createMDMWindowsEULARequest{})
+	mdmWindowsMW.GET("/api/_version_/fleet/setup_experience/windows_eula/metadata", getMDMWindowsEULAMetadataEndpoint, getMDMWindowsEULAMetadataRequest{})
+	mdmWindowsMW.GET("/api/_version_/fleet/setup_experience/windows_eula/{token}", getMDMWindowsEULAEndpoint, getMDMWindowsEULARequest{})
+	mdmWindowsMW.DELETE("/api/_version_/fleet/setup_experience/windows_eula/{token}", deleteMDMWindowsEULAEndpoint, deleteMDMWindowsEULARequest{})
 
 	mdmAppleMW.WithRequestBodySizeLimit(fleet.MaxProfileSize).POST("/api/_version_/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileEndpoint, preassignMDMAppleProfileRequest{})
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/profiles/match", matchMDMApplePreassignmentEndpoint, matchMDMApplePreassignmentRequest{})
@@ -1795,7 +1807,7 @@ func WithMDMEnrollmentMiddleware(svc fleet.Service, logger *slog.Logger, next ht
 	}
 }
 
-// uploadPreAuth rejects package uploads without a valid session before the
+// uploadPreAuth rejects package uploads without a package write role before the
 // body is read, and only then lifts the read deadline for large uploads.
 func uploadPreAuth(svc fleet.Service, logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -1814,8 +1826,26 @@ func uploadPreAuth(svc fleet.Service, logger *slog.Logger) func(http.Handler) ht
 				reject(fleet.NewAuthHeaderRequiredError("no auth token"))
 				return
 			}
-			if _, err := auth.AuthViewer(ctx, string(bearer), svc); err != nil {
+			v, err := auth.AuthViewer(ctx, string(bearer), svc)
+			if err != nil {
 				reject(err)
+				return
+			}
+			// Runs the forced password reset and API-only checks that follow decode, in the same order.
+			probeCtx := viewer.NewContext(kithttp.PopulateRequestContext(auth.RouteTemplateRequestFunc(ctx, r), r), *v)
+			noop := func(context.Context, any) (any, error) { return nil, nil }
+			if _, err := auth.AuthenticatedUser(svc, auth.APIOnlyEndpointCheck(noop))(probeCtx, nil); err != nil {
+				reject(err)
+				return
+			}
+			// Mirrors the package write rules in policy.rego, pinned by TestUploadPreAuthMatchesAuthz.
+			// fleet_id arrives after the file in the body, so only a role on some fleet is checkable here.
+			canWrite := func(role string) bool {
+				return role == fleet.RoleAdmin || role == fleet.RoleMaintainer || role == fleet.RoleGitOps
+			}
+			if (v.User.GlobalRole == nil || !canWrite(*v.User.GlobalRole)) &&
+				!slices.ContainsFunc(v.User.Teams, func(t fleet.UserTeam) bool { return canWrite(t.Role) }) {
+				reject(authz.ForbiddenWithInternal("no package write role on any fleet", nil, nil, fleet.ActionWrite))
 				return
 			}
 			if err := http.NewResponseController(w).SetReadDeadline(time.Time{}); err != nil {
