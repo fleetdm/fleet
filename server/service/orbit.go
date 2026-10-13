@@ -2625,6 +2625,7 @@ func (svc *Service) retryPolicyAutomationScript(ctx context.Context, host *fleet
 		HostID:          host.ID,
 		ScriptID:        hsr.ScriptID,
 		PolicyID:        hsr.PolicyID,
+		ScriptContentID: hsr.ScriptContentID,
 		ScriptContents:  hsr.ScriptContents,
 		DeferActivation: svc.deferFleetInitiatedActivation(),
 	})

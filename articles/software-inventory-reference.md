@@ -88,6 +88,7 @@ Each software type below lists its `source`, and browser and IDE extensions also
 | openSUSE MicroOS and Aeon | ❌ |
 | SteamOS | ❌ |
 | Bazzite, Bluefin, and Aurora | ❌ |
+| Fedora Atomic desktops (Silverblue, Kinoite, and others) | ❌ |
 | Ubuntu Core | ❌ |
 | IGEL OS | ❌ |
 | Any other distribution | ❌ |
@@ -96,7 +97,8 @@ Each software type below lists its `source`, and browser and IDE extensions also
 - NVIDIA DGX OS reports as Ubuntu (DGX OS 7 as Ubuntu 24.04, DGX OS 6 as Ubuntu 22.04) because its `/etc/os-release` is Ubuntu's. Fleet doesn't read `/etc/dgx-release`, so the host appears as Ubuntu on the **Software** > **OS** page and the DGX OS version isn't reported. DGX Spark is arm64; use the `arm64` fleetd package.
 - Raspberry Pi OS 64-bit reports as Debian and is covered. Raspberry Pi OS 32-bit reports as `raspbian`, which Fleet doesn't recognize.
 - Alpine, elementary OS, Deepin, Garuda, Clear Linux, Photon OS, Solus, Parrot OS, Vanilla OS, openSUSE MicroOS, Aeon, and any distribution not listed above: Fleet recognizes Linux by matching the platform value Fleet reads from `/etc/os-release` against a [fixed list](https://github.com/fleetdm/fleet/blob/main/server/fleet/hosts.go). Hosts with any other value enroll, but Fleet doesn't collect an OS entry or software inventory for them.
-- SteamOS, Bazzite, Bluefin, and Aurora: these use immutable root filesystems. Installing Fleet's agent is unsupported, and their platform values aren't in Fleet's list.
+- Fedora Atomic desktops, Bazzite, Bluefin, and Aurora use rpm-ostree, which keeps the OS read-only. Fleet's agent package can't be installed on them. Support is tracked in [#48694](https://github.com/fleetdm/fleet/issues/48694).
+- SteamOS also has a read-only OS, and Fleet's agent package can't be installed on it.
 - Ubuntu Core runs snaps only. Fleet's agent isn't packaged as a snap, so Ubuntu Core hosts can't enroll.
 - [IGEL OS](https://www.igel.com/secure-endpoint-os/) uses an immutable root filesystem, and software is delivered as IGEL apps through IGEL's App Portal. Fleet's agent isn't available as an IGEL app, so IGEL OS isn't supported.
 
@@ -166,7 +168,7 @@ If Fleet already collects an AI tool as another type, such as a macOS app or an 
 
 | Type | Collected on | Name | Version | Vendor | Install path | Vulnerabilities | Caveats |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| AI desktop apps | macOS, Windows | ✅ | ✅ | ✅ | ✅ | ✅ | Keep their existing type, such as macOS app or Windows app. Covers apps such as ChatGPT, Claude, Cursor, LM Studio, and Ollama. |
+| AI desktop apps | macOS, Windows | ✅ | ✅ | ✅ | ✅ | ✅ | Keep their existing type, such as macOS app or Windows app. Covers apps such as ChatGPT, Claude, Cursor, LM Studio, Ollama, and Jan. |
 | AI mobile apps | iOS/iPadOS, Android | ✅ | ✅ | ❌ | ❌ | ❌ | Collected as iOS, iPadOS, or Android apps, but not marked as AI tools. The `ai_tools` table runs in Fleet's agent, which doesn't run on mobile devices. |
 | AI CLI tools | macOS, Windows, Linux | ✅ | ✅ | ❌ | ✅ | ✅ Only when installed with a package manager. | CLIs installed with a package manager keep that type, such as npm package, Homebrew package, or Go binary. Learn more in [Packages](#packages) and [Binaries and other](#binaries-and-other). CLIs installed any other way, such as Claude Code's native installer, appear as **AI CLI tool** (`source`: `ai_clis`). |
 | MCP servers | macOS, Windows, Linux | ✅ | N/A | ❌ | ✅ | ❌ | Appear as **MCP server** (`source`: `mcp_servers`). Most MCP servers don't have a version, because they update on the fly, locally or remotely. The install path is the config file that declares the server. |
@@ -175,9 +177,11 @@ If Fleet already collects an AI tool as another type, such as a macOS app or an 
 | AI browser extensions | macOS, Windows, Linux | ✅ | ✅ | ❌ | ✅ | ✅ | Keep their [browser extensions](#browser-extensions) type, such as Chrome extension. |
 | Live AI and MCP sockets | ❌ Not in inventory | ❌ | ❌ | ❌ | ❌ | ❌ | Open network ports for running AI tools, such as a local model server's API port. They aren't software, so they don't appear in software inventory. You can report on them with the `ai_tools` table's `sockets` type. |
 | AI models | ❌ Not collected | ❌ | ❌ | ❌ | ❌ | ❌ | Fleet doesn't collect installed model weights or which model a local runner has loaded. Only the runner app is visible, under AI desktop apps. |
+| AI sessions | ❌ Not collected | ❌ | ❌ | ❌ | ❌ | ❌ | Fleet doesn't track AI agent sessions, such as which user ran Claude Code, Codex, or Cursor, when, or in which project. A `sessions` or `memory` directory only counts as evidence of an agent workspace; its contents aren't read. Seeing AI sessions on the **Host details** page is [coming soon](https://github.com/fleetdm/fleet/issues/51825). |
 
 - Fleet marks an AI tool collected as another type by matching install paths. Windows apps whose registry entry has no install location, such as some per-user installs, aren't marked. Linux desktop apps aren't marked, because Linux packages don't report an install path.
 - On hosts running an older version of Fleet's agent, AI CLI tools from a native installer, such as Claude Code's, show no version. AI CLI tools installed with Homebrew also appear as a separate **AI CLI tool** with no version, and the Homebrew package isn't marked as an AI tool. Update Fleet's agent to fix both.
+
 
 ## Binaries and other
 

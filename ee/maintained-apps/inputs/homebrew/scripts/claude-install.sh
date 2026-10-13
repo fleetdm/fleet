@@ -38,21 +38,21 @@ quit_and_track_application() {
   echo "Quitting application '$bundle_id'..."
 
   # try to quit the application within the timeout period
-  local quit_success=false
+  local quit_success=false still_running
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    if osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1; then
-      if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then
-        echo "Application '$bundle_id' quit successfully."
-        quit_success=true
-        break
-      fi
-    fi
+    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1
     sleep 1
+    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+      echo "Application '$bundle_id' quit successfully."
+      quit_success=true
+      break
+    fi
   done
 
   if [[ "$quit_success" = false ]]; then
     echo "Application '$bundle_id' did not quit."
+    return 1
   fi
 }
 
@@ -102,7 +102,7 @@ relaunch_application() {
 # extract contents
 unzip "$INSTALLER_PATH" -d "$TMPDIR"
 # copy to the applications folder
-quit_and_track_application 'com.anthropic.claudefordesktop'
+quit_and_track_application 'com.anthropic.claudefordesktop' || exit 1
 if [ -d "$APPDIR/Claude.app" ]; then
 	sudo mv "$APPDIR/Claude.app" "$TMPDIR/Claude.app.bkp" || exit $?
 fi

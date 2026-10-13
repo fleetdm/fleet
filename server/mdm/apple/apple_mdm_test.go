@@ -2,6 +2,9 @@ package apple_mdm
 
 import (
 	"context"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/json"
 	"errors"
 	"io"
@@ -1463,4 +1466,69 @@ func TestSendManagedLocalAccountRotationCommands(t *testing.T) {
 		require.True(t, clearCalled)
 		require.Empty(t, loggedActivities)
 	})
+}
+
+func TestParseAppleMDMCertificateBindingExtension(t *testing.T) {
+	utf8Value := func(t *testing.T, s string) []byte {
+		v, err := asn1.MarshalWithParams(s, "utf8")
+		require.NoError(t, err)
+		return v
+	}
+	bindingExt := func(value []byte) pkix.Extension {
+		return pkix.Extension{Id: AppleMDMCertificateBindingExtensionOID, Value: value}
+	}
+	certWith := func(exts ...pkix.Extension) *x509.Certificate {
+		return &x509.Certificate{Extensions: exts}
+	}
+
+	t.Run("no extension", func(t *testing.T) {
+		otherExt := pkix.Extension{Id: asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 63991, 1, 1}, Value: utf8Value(t, "host-identity")}
+		binding, err := ParseAppleMDMCertificateBindingExtension(certWith(otherExt))
+		require.NoError(t, err)
+		require.Nil(t, binding)
+	})
+
+	t.Run("round trips a built extension", func(t *testing.T) {
+		ext, err := BuildAppleMDMCertificateBindingExtension(AppleMDMCertificateBindingExtension{
+			Purpose: fleet.AppleMDMCertPurposeADE, UDID: new("udid"), Serial: new("serial"),
+		})
+		require.NoError(t, err)
+		binding, err := ParseAppleMDMCertificateBindingExtension(certWith(ext))
+		require.NoError(t, err)
+		require.Equal(t, &AppleMDMCertificateBindingExtension{
+			Version: 1, Purpose: fleet.AppleMDMCertPurposeADE, UDID: new("udid"), Serial: new("serial"),
+		}, binding)
+	})
+
+	valid := bindingExt(utf8Value(t, `{"v":1,"purpose":"ade","udid":"udid","serial":"serial"}`))
+	octetString, err := asn1.Marshal([]byte(`{"v":1,"purpose":"ade"}`))
+	require.NoError(t, err)
+	printableString, err := asn1.MarshalWithParams("v1", "printable")
+	require.NoError(t, err)
+
+	rejected := []struct {
+		name string
+		cert *x509.Certificate
+	}{
+		{"duplicate extension", certWith(valid, valid)},
+		{"raw JSON instead of DER", certWith(bindingExt([]byte(`{"v":1,"purpose":"ade"}`)))},
+		{"empty value", certWith(bindingExt(nil))},
+		{"truncated DER", certWith(bindingExt(valid.Value[:len(valid.Value)-3]))},
+		{"octet string instead of UTF8String", certWith(bindingExt(octetString))},
+		{"printable string instead of UTF8String", certWith(bindingExt(printableString))},
+		{"trailing bytes after the UTF8String", certWith(bindingExt(append(append([]byte{}, valid.Value...), 0x00)))},
+		{"malformed JSON", certWith(bindingExt(utf8Value(t, `{"v":1,"purpose":`)))},
+		{"JSON of the wrong shape", certWith(bindingExt(utf8Value(t, `["ade"]`)))},
+		{"version as a string", certWith(bindingExt(utf8Value(t, `{"v":"1","purpose":"ade"}`)))},
+		{"missing version", certWith(bindingExt(utf8Value(t, `{"purpose":"ade","udid":"udid","serial":"serial"}`)))},
+		{"version 0", certWith(bindingExt(utf8Value(t, `{"v":0,"purpose":"ade","udid":"udid","serial":"serial"}`)))},
+		{"unsupported version 2", certWith(bindingExt(utf8Value(t, `{"v":2,"purpose":"ade","udid":"udid","serial":"serial"}`)))},
+	}
+	for _, c := range rejected {
+		t.Run("rejects "+c.name, func(t *testing.T) {
+			binding, err := ParseAppleMDMCertificateBindingExtension(c.cert)
+			require.Error(t, err)
+			require.Nil(t, binding)
+		})
+	}
 }

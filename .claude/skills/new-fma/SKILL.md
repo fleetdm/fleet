@@ -81,6 +81,8 @@ go run cmd/maintained-apps/main.go --slug="<token>/<platform>" --debug
    - Read `CFBundleIdentifier` (→ `unique_identifier`), `CFBundleShortVersionString`, and `CFBundleVersion` from the app's `Info.plist`.
    - **Compare both versions to the cask `version`.** The generated patched query compares `bundle_short_version`. If that's missing or is a marketing version (`3.8.7` for cask `3.8.7.19194`), the patch policy fails on every host forever. The validator still passes, because it accepts a match on either column. Fix it with a per-token branch in `ee/maintained-apps/ingesters/homebrew/ingester.go` ([queries.md](references/queries.md#when-the-version-column-doesnt-track-the-manifest)).
 3. **Create `inputs/homebrew/<token>.json`**: `name`, `slug` (`<token>/darwin`), `unique_identifier`, `token` (the cask token, which can differ from the slug), `installer_format`, `default_categories`. Install/uninstall scripts auto-generate from the cask's artifacts and `zap`. To change them, add per-app scripts in `inputs/homebrew/scripts/` via `install_script_path`/`uninstall_script_path` rather than editing the shared template in `ingesters/homebrew/scripts.go`, which regenerates every macOS FMA. `pre_uninstall_scripts`/`post_uninstall_scripts` can't be combined with a custom uninstall script.
+   - **A custom install script starts from the generated one**, with its helpers copied verbatim from `scripts.go`. Call `quit_and_track_application '<bundle id>' || exit 1` before anything moves or replaces the app, and detach any disk image the script still has mounted before exiting. The helper returns 1 when the app won't quit (for example, the user cancels a save prompt), and an app replaced while it's running loses its files when fleetd deletes `$TMPDIR`. A copied helper that confirms the quit with `pgrep -f "$bundle_id"` is stale: that never matches, because an app's command line is its executable path.
+   - **Changing a helper in `scripts.go` means syncing its copies** in `inputs/homebrew/scripts/`. Grep for the old line as well as the function name: older scripts carry their own `quit_application` variants.
 4. **Generate, finalize, and run the queries** through osquery: [Finalize](#finalize), then [queries.md](references/queries.md).
 
 ## Workflow: Windows
@@ -151,6 +153,7 @@ A green run means the installer downloaded, installed, and something with a simi
 
 - [ ] Identity fields come from the real installer (MSI Property table, Burn manifest, Inno/NSIS metadata, `AppsAndFeaturesEntries`, Info.plist), not from catalog names. Anything unverified is called out in the PR.
 - [ ] macOS: the cask has an `app` artifact; `installer_format` matches the real download; `bundle_short_version` tracks the cask version, or a per-token override was added.
+- [ ] macOS custom install script: helpers match `scripts.go`, and a failed `quit_and_track_application` stops the script before the app is replaced.
 - [ ] Second platform: slug token and `name` match the existing FMA.
 - [ ] Windows: silent switches match the framework you confirmed; custom uninstall uses the defensive UninstallString parser.
 - [ ] **Scope proven, not assumed**: installed on a host as SYSTEM, and the payload and registration were where you expected. Nothing under `S-1-5-18`/`.DEFAULT`. If you couldn't test it, the PR says so.

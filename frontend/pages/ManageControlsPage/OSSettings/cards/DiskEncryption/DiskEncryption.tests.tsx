@@ -124,9 +124,9 @@ const platformTabPath = (
   });
 
 const findEnforceCheckbox = () =>
-  screen.findByRole("checkbox", { name: "Enable disk encryption" });
+  screen.findByRole("checkbox", { name: /^Enable disk encryption/ });
 const findEscrowCheckbox = () =>
-  screen.findByRole("checkbox", { name: "Escrow recovery key with Fleet" });
+  screen.findByRole("checkbox", { name: "Escrow recovery key" });
 const findPINCheckbox = () =>
   screen.findByRole("checkbox", { name: "Require BitLocker PIN" });
 
@@ -150,20 +150,27 @@ describe("DiskEncryption", () => {
     [
       "macos",
       "macOS",
-      ["Enable disk encryption", "Escrow recovery key with Fleet"],
+      ["Enable disk encryption (FileVault)", "Escrow recovery key"],
       ["Require BitLocker PIN"],
     ],
     [
       "windows",
       "Windows",
-      ["Enable disk encryption", "Require BitLocker PIN"],
-      ["Escrow recovery key with Fleet"],
+      [
+        "Enable disk encryption (BitLocker) and escrow recovery key",
+        "Require BitLocker PIN",
+      ],
+      ["Enable disk encryption (FileVault)", "Escrow recovery key"],
     ],
     [
       "linux",
       "Linux",
-      ["Escrow recovery key with Fleet"],
-      ["Enable disk encryption", "Require BitLocker PIN"],
+      ["Escrow recovery key"],
+      [
+        "Enable disk encryption (FileVault)",
+        "Enable disk encryption (BitLocker) and escrow recovery key",
+        "Require BitLocker PIN",
+      ],
     ],
   ] as const)(
     "selects the %s tab from the URL and renders its checkboxes",
