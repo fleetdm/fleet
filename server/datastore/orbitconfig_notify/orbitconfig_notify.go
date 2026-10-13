@@ -159,9 +159,9 @@ func (d *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 }
 
 func (d *Datastore) AddHostsToTeam(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
-	if err := d.Datastore.AddHostsToTeam(ctx, params); err != nil {
-		return err
-	}
+	err := d.Datastore.AddHostsToTeam(ctx, params)
+	// Notify even on error: batches commit independently, so earlier ones may
+	// have moved hosts. Hosts that didn't move just fetch an unchanged config.
 	d.notifyHosts(ctx, params.HostIDs, "AddHostsToTeam")
-	return nil
+	return err
 }

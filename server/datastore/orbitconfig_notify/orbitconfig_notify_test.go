@@ -51,6 +51,9 @@ type hookCase struct {
 	run  func(ds *mock.Store, d *Datastore, unchanged bool, writeErr error) error
 	// alwaysNotifies is set for methods that notify without comparing.
 	alwaysNotifies bool
+	// notifiesOnError is set for methods whose failed write may have
+	// partially committed.
+	notifiesOnError bool
 }
 
 var hookCases = []hookCase{
@@ -109,9 +112,10 @@ var hookCases = []hookCase{
 		},
 	},
 	{
-		name:           "AddHostsToTeam",
-		want:           "hosts [1 2] settings",
-		alwaysNotifies: true,
+		name:            "AddHostsToTeam",
+		want:            "hosts [1 2] settings",
+		alwaysNotifies:  true,
+		notifiesOnError: true,
 		run: func(ds *mock.Store, d *Datastore, unchanged bool, writeErr error) error {
 			ds.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error { return writeErr }
 			return d.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(new(uint(3)), []uint{1, 2}))
@@ -141,7 +145,11 @@ func TestHooks(t *testing.T) {
 			t.Run("write fails", func(t *testing.T) {
 				ds, notifier, d := newTestDatastore()
 				require.Error(t, c.run(ds, d, false, errors.New("boom")))
-				require.Empty(t, notifier.calls)
+				if c.notifiesOnError {
+					require.Equal(t, []string{c.want}, notifier.calls)
+				} else {
+					require.Empty(t, notifier.calls)
+				}
 			})
 		})
 	}
