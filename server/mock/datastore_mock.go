@@ -906,6 +906,8 @@ type AsyncBatchSaveHostsScheduledQueryStatsFunc func(ctx context.Context, stats 
 
 type UpdateHostSoftwareFunc func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error)
 
+type MarkSoftwareAsAIToolFunc func(ctx context.Context, software []fleet.Software) error
+
 type UpdateHostSoftwareInstalledPathsFunc func(ctx context.Context, hostID uint, reported map[string]fleet.ExecutableHashes, mutationResults *fleet.UpdateHostSoftwareDBResult) error
 
 type UpdateHostFunc func(ctx context.Context, host *fleet.Host) error
@@ -3885,6 +3887,9 @@ type DataStore struct {
 
 	UpdateHostSoftwareFunc        UpdateHostSoftwareFunc
 	UpdateHostSoftwareFuncInvoked bool
+
+	MarkSoftwareAsAIToolFunc        MarkSoftwareAsAIToolFunc
+	MarkSoftwareAsAIToolFuncInvoked bool
 
 	UpdateHostSoftwareInstalledPathsFunc        UpdateHostSoftwareInstalledPathsFunc
 	UpdateHostSoftwareInstalledPathsFuncInvoked bool
@@ -9458,6 +9463,13 @@ func (s *DataStore) UpdateHostSoftware(ctx context.Context, hostID uint, softwar
 	s.UpdateHostSoftwareFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateHostSoftwareFunc(ctx, hostID, software)
+}
+
+func (s *DataStore) MarkSoftwareAsAITool(ctx context.Context, software []fleet.Software) error {
+	s.mu.Lock()
+	s.MarkSoftwareAsAIToolFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkSoftwareAsAIToolFunc(ctx, software)
 }
 
 func (s *DataStore) UpdateHostSoftwareInstalledPaths(ctx context.Context, hostID uint, reported map[string]fleet.ExecutableHashes, mutationResults *fleet.UpdateHostSoftwareDBResult) error {

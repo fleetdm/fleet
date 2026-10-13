@@ -55,6 +55,7 @@ func TestSoftware(t *testing.T) {
 		{"HostVulnSummariesBySoftwareIDs", testHostVulnSummariesBySoftwareIDs},
 		{"UpdateHostSoftware", testUpdateHostSoftware},
 		{"GoBinaries", testSoftwareGoBinaries},
+		{"AITool", testSoftwareAITool},
 		{"UpdateHostSoftwareDeadlock", testUpdateHostSoftwareDeadlock},
 		{"UpdateHostSoftwareUpdatesSoftware", testUpdateHostSoftwareUpdatesSoftware},
 		{"UpdateHostSoftwareSameBundleIDDifferentNames", testUpdateHostSoftwareSameBundleIDDifferentNames},
@@ -621,6 +622,10 @@ func TestSoftwareOrderKeysCoverListedColumns(t *testing.T) {
 	notSelected := map[string]struct{}{
 		"last_opened_at": {},
 	}
+	// Returned by the list, but a flag is not a useful sort key.
+	notSortable := map[string]struct{}{
+		"ai_tool": {},
+	}
 
 	sortable := softwareOrderKeys(fleet.SoftwareListOptions{IncludeCVEScores: true, WithHostCounts: true})
 	typ := reflect.TypeFor[fleet.Software]()
@@ -630,7 +635,9 @@ func TestSoftwareOrderKeysCoverListedColumns(t *testing.T) {
 			continue
 		}
 		_, allowed := sortable[column]
-		_, skipped := notSelected[column]
+		_, notSelectedColumn := notSelected[column]
+		_, notSortableColumn := notSortable[column]
+		skipped := notSelectedColumn || notSortableColumn
 
 		if field.Tag.Get("json") == "-" {
 			assert.False(t, allowed, "%s is not returned by the list, so sorting on it would expose it", column)
@@ -15844,5 +15851,100 @@ func testListHostSoftwareTypeFilter(t *testing.T, ds *Datastore) {
 				require.Equal(t, fleet.SoftwareInstallPending, *pending.Status)
 			}
 		})
+	}
+}
+
+func testSoftwareAITool(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	fleetdHost := test.NewHost(t, ds, "aitool1", "", "aitool1key", "aitool1uuid", time.Now(), test.WithPlatform("darwin"))
+	osqueryHost := test.NewHost(t, ds, "aitool2", "", "aitool2key", "aitool2uuid", time.Now(), test.WithPlatform("darwin"))
+
+	aiToolByName := func(t *testing.T) map[string]bool {
+		var rows []struct {
+			Name   string `db:"name"`
+			AITool bool   `db:"ai_tool"`
+		}
+		require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &rows, `SELECT name, ai_tool FROM software WHERE name IN ('Claude', 'Safari', 'github', 'Codex')`))
+		out := make(map[string]bool, len(rows))
+		for _, r := range rows {
+			out[r.Name] = r.AITool
+		}
+		return out
+	}
+
+	claude := fleet.Software{Name: "Claude", Version: "1.2.4", Source: "apps", BundleIdentifier: "com.anthropic.claudefordesktop"}
+	safari := fleet.Software{Name: "Safari", Version: "18.0", Source: "apps", BundleIdentifier: "com.apple.Safari"}
+	codex := fleet.Software{Name: "Codex", Version: "0.46.0", Source: "npm_packages"}
+	github := fleet.Software{Name: "github", Source: "mcp_servers", AITool: true}
+	flaggedClaude := claude
+	flaggedClaude.AITool = true
+
+	// New rows are inserted with the flag.
+	_, err := ds.UpdateHostSoftware(ctx, fleetdHost.ID, []fleet.Software{flaggedClaude, safari, github})
+	require.NoError(t, err)
+	require.Equal(t, map[string]bool{"Claude": true, "Safari": false, "github": true}, aiToolByName(t))
+
+	// The host's current software carries the flag, so ingestion can skip rows already flagged.
+	result, err := ds.UpdateHostSoftware(ctx, fleetdHost.ID, []fleet.Software{flaggedClaude, safari, github})
+	require.NoError(t, err)
+	currentAITool := make(map[string]bool, len(result.WasCurrInstalled))
+	for _, sw := range result.WasCurrInstalled {
+		currentAITool[sw.Name] = sw.AITool
+	}
+	require.Equal(t, map[string]bool{"Claude": true, "Safari": false, "github": true}, currentAITool)
+
+	// The same software reported by a host without the table leaves the flag alone.
+	_, err = ds.UpdateHostSoftware(ctx, osqueryHost.ID, []fleet.Software{claude, safari})
+	require.NoError(t, err)
+	require.NoError(t, ds.MarkSoftwareAsAITool(ctx, nil))
+	require.Equal(t, map[string]bool{"Claude": true, "Safari": false, "github": true}, aiToolByName(t))
+
+	// A row that already exists unflagged is flagged even when the host's software set is
+	// unchanged, which writes nothing in UpdateHostSoftware.
+	_, err = ds.UpdateHostSoftware(ctx, osqueryHost.ID, []fleet.Software{claude, safari, codex})
+	require.NoError(t, err)
+	require.False(t, aiToolByName(t)["Codex"])
+	flaggedCodex := codex
+	flaggedCodex.AITool = true
+	result, err = ds.UpdateHostSoftware(ctx, osqueryHost.ID, []fleet.Software{claude, safari, flaggedCodex})
+	require.NoError(t, err)
+	require.Empty(t, result.Inserted)
+	require.Empty(t, result.Deleted)
+	require.False(t, aiToolByName(t)["Codex"])
+	require.NoError(t, ds.MarkSoftwareAsAITool(ctx, []fleet.Software{flaggedCodex}))
+	require.Equal(t, map[string]bool{"Claude": true, "Safari": false, "github": true, "Codex": true}, aiToolByName(t))
+
+	// Rows already flagged are not written again: the hourly ingest stays off the writer.
+	_, err = ds.writer(ctx).ExecContext(ctx, `CREATE TABLE test_software_updates (id INT AUTO_INCREMENT PRIMARY KEY)`)
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx, `CREATE TRIGGER test_count_software_updates AFTER UPDATE ON software FOR EACH ROW INSERT INTO test_software_updates () VALUES ()`)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = ds.writer(ctx).ExecContext(ctx, `DROP TRIGGER IF EXISTS test_count_software_updates`)
+		_, _ = ds.writer(ctx).ExecContext(ctx, `DROP TABLE IF EXISTS test_software_updates`)
+	})
+	require.NoError(t, ds.MarkSoftwareAsAITool(ctx, []fleet.Software{flaggedCodex, flaggedClaude}))
+	var updates int
+	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &updates, `SELECT COUNT(*) FROM test_software_updates`))
+	require.Zero(t, updates)
+
+	// Unknown software is ignored.
+	require.NoError(t, ds.MarkSoftwareAsAITool(ctx, []fleet.Software{{Name: "never-seen", Source: "ai_clis", AITool: true}}))
+
+	// The versions list reads the flag on the optimized path and the fallback path.
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	listOpts := func(orderKey string) fleet.SoftwareListOptions {
+		return fleet.SoftwareListOptions{ListOptions: fleet.ListOptions{OrderKey: orderKey}, WithHostCounts: true}
+	}
+	require.True(t, canUseOptimizedListQuery(listOpts("hosts_count")))
+	require.False(t, canUseOptimizedListQuery(listOpts("name")))
+	for _, orderKey := range []string{"hosts_count", "name"} {
+		listed, _, err := ds.ListSoftware(ctx, listOpts(orderKey))
+		require.NoError(t, err)
+		got := make(map[string]bool, len(listed))
+		for _, sw := range listed {
+			got[sw.Name] = sw.AITool
+		}
+		require.Equal(t, map[string]bool{"Claude": true, "Safari": false, "github": true, "Codex": true}, got, orderKey)
 	}
 }

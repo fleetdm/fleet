@@ -1355,9 +1355,9 @@ FROM go_binaries`,
 }
 
 // softwareAITools reports what fleetd's ai_tools table finds. MCP servers, catalog agent CLIs,
-// agent instruction files and skills become their own sources. AI apps, IDE plugins and browser
-// extensions have no source of their own: they are reported with the pseudo-source "ai_tools" and
-// never stored.
+// agent instruction files and skills become their own sources; AI apps, IDE plugins and browser
+// extensions are reported with the pseudo-source "ai_tools" so AIToolsProcessResults can flag the
+// software another source already reports at the same path. Pseudo-source rows are never stored.
 //
 // The two NOT predicates keep out rows that would make poor titles:
 //   - Agents without the "catalog" evidence token are multi-signal candidates, named after a
@@ -2563,7 +2563,7 @@ var (
 )
 
 func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
-	var software []fleet.Software
+	var software, aiTools []fleet.Software
 	sPaths := map[string]fleet.ExecutableHashes{}
 
 	for _, row := range rows {
@@ -2606,7 +2606,11 @@ func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.
 			continue
 		}
 
+		s.AITool = row["ai_tool"] == "1"
 		software = append(software, *s)
+		if s.AITool {
+			aiTools = append(aiTools, *s)
+		}
 
 		installedPath := strings.TrimSpace(row["installed_path"])
 		if installedPath != "" &&
@@ -2664,6 +2668,27 @@ func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.
 
 	if err := ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, sPaths, result); err != nil {
 		return ctxerr.Wrap(ctx, err, "update software installed path")
+	}
+
+	// UpdateHostSoftware only writes the flag on insert, and writes nothing when the host's
+	// software set is unchanged, so rows that already exist are flagged here. Rows the host
+	// already reported flagged are skipped, so an unchanged host makes no extra query.
+	if len(aiTools) > 0 && result != nil {
+		flagged := make(map[string]struct{}, len(aiTools))
+		for _, sw := range result.WasCurrInstalled {
+			if sw.AITool {
+				flagged[sw.ToUniqueStr()] = struct{}{}
+			}
+		}
+		aiTools = slices.DeleteFunc(aiTools, func(sw fleet.Software) bool {
+			_, ok := flagged[sw.ToUniqueStr()]
+			return ok
+		})
+	}
+	if len(aiTools) > 0 {
+		if err := ds.MarkSoftwareAsAITool(ctx, aiTools); err != nil {
+			return ctxerr.Wrap(ctx, err, "mark software as ai tool")
+		}
 	}
 
 	return nil
@@ -2970,8 +2995,8 @@ var (
 
 // AIToolsProcessResults merges the software_ai_tools rows into the software rows of a host on the
 // given platform. The existing type wins: an ai_tools row reported at the install path of software
-// another source already reports is dropped instead of adding a second title. Only unmatched MCP
-// servers, agent CLIs and instruction files are added.
+// another source already reports flags that row (ai_tool = "1") instead of adding a second title.
+// Only unmatched MCP servers, agent CLIs and instruction files are added.
 func AIToolsProcessResults(platform string, mainRows, aiRows []map[string]string) []map[string]string {
 	if len(aiRows) == 0 {
 		return mainRows
@@ -3041,12 +3066,15 @@ func AIToolsProcessResults(platform string, mainRows, aiRows []map[string]string
 			}
 		}
 		// A match is software another source already reports, so storing the row would add a
-		// second title. AI apps, IDE plugins and browser extensions have no source of their own
-		// and are never stored.
+		// second title; the match is flagged instead. AI apps, IDE plugins and browser extensions
+		// have no source of their own and are never stored.
+		for _, i := range matched {
+			mainRows[i]["ai_tool"] = "1"
+		}
 		if len(matched) > 0 || ai["source"] == "ai_tools" {
-			// TODO: set ai_tool boolean here.
 			continue
 		}
+		ai["ai_tool"] = "1"
 		out = append(out, ai)
 	}
 	return out
