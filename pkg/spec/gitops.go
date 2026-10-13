@@ -397,6 +397,7 @@ type FleetMaintainedApp struct {
 type GitOpsMDM struct {
 	fleet.MDM
 	EndUserLicenseAgreement any `json:"end_user_license_agreement,omitempty"`
+	WindowsEULA             any `json:"windows_eula,omitempty"`
 }
 
 // GitOpsOrgSettings defines the valid keys for the top-level `org_settings:` section.
@@ -844,6 +845,9 @@ func reanchorOrgSettingsPaths(orgSettings map[string]any, orgSettingsDir string)
 	if mdm, ok := orgSettings["mdm"].(map[string]any); ok {
 		if eula, ok := mdm["end_user_license_agreement"].(string); ok && eula != "" {
 			mdm["end_user_license_agreement"] = anchor(eula)
+		}
+		if winEULA, ok := mdm["windows_eula"].(string); ok && winEULA != "" {
+			mdm["windows_eula"] = anchor(winEULA)
 		}
 	}
 }
