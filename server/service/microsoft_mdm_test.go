@@ -3626,9 +3626,11 @@ func TestIsFleetdPresentOnDevice(t *testing.T) {
 		noVersion   bool          // host_orbit_info has an empty version
 		seenOffset  time.Duration // host's last check-in, relative to the enrollment's created_at
 		usedByOrbit bool          // orbit enrolled with a one-time secret minted for the enrollment
+		recorded    bool          // the enrollment already records fleetd as present
 		wantPresent bool
 	}{
 		{name: "non-UPN enrollment is always present", nonUPN: true, wantPresent: true},
+		{name: "UPN already recorded as present skips the host lookups", recorded: true, seenOffset: -20 * 24 * time.Hour, wantPresent: true},
 		{name: "UPN not yet linked to a host", unlinked: true, wantPresent: false},
 		{name: "UPN with empty orbit version", noVersion: true, seenOffset: time.Minute, wantPresent: false},
 		{name: "UPN with empty orbit version, one-time secret used by orbit", noVersion: true, usedByOrbit: true, wantPresent: true},
@@ -3659,7 +3661,7 @@ func TestIsFleetdPresentOnDevice(t *testing.T) {
 			}
 
 			ds := new(mock.Store)
-			ds.HostLiteByIdentifierFunc = func(context.Context, string) (*fleet.HostLite, error) {
+			ds.WindowsHostLiteByUUIDFunc = func(context.Context, string) (*fleet.HostLite, error) {
 				return &fleet.HostLite{ID: 1, SeenTime: enrolledAt.Add(tc.seenOffset)}, nil
 			}
 			ds.GetHostOrbitInfoFunc = func(context.Context, uint) (*fleet.HostOrbitInfo, error) {
@@ -3668,15 +3670,28 @@ func TestIsFleetdPresentOnDevice(t *testing.T) {
 			ds.WindowsMDMEnrollSecretUsedByOrbitFunc = func(context.Context, uint) (bool, error) {
 				return tc.usedByOrbit, nil
 			}
+			ds.MDMWindowsSetEnrollmentFleetdPresentFunc = func(ctx context.Context, enrollmentID uint, linkedHostUUID string) error {
+				assert.EqualValues(t, 17, enrollmentID)
+				assert.Equal(t, hostUUID, linkedHostUUID)
+				return nil
+			}
 			svc := &Service{ds: ds}
 
+			var recordedAt *time.Time
+			if tc.recorded {
+				recordedAt = &enrolledAt
+			}
 			present, err := svc.isFleetdPresentOnDevice(t.Context(), &fleet.MDMWindowsEnrolledDevice{
+				ID:              17,
 				MDMEnrollUserID: enrollUser,
 				HostUUID:        hostUUID,
 				CreatedAt:       enrolledAt,
+				FleetdPresentAt: recordedAt,
 			})
 			require.NoError(t, err)
 			assert.Equal(t, tc.wantPresent, present)
+			assert.Equal(t, !tc.recorded && !tc.nonUPN && !tc.unlinked, ds.WindowsHostLiteByUUIDFuncInvoked)
+			assert.Equal(t, tc.wantPresent && !tc.recorded && !tc.nonUPN, ds.MDMWindowsSetEnrollmentFleetdPresentFuncInvoked)
 		})
 	}
 }
@@ -3702,7 +3717,7 @@ func TestReleaseUnusedFleetdInstallSecret(t *testing.T) {
 			t.Parallel()
 
 			ds := new(mock.Store)
-			ds.HostLiteByIdentifierFunc = func(context.Context, string) (*fleet.HostLite, error) {
+			ds.WindowsHostLiteByUUIDFunc = func(context.Context, string) (*fleet.HostLite, error) {
 				return &fleet.HostLite{ID: 1, SeenTime: enrolledAt.Add(tc.seenOffset)}, nil
 			}
 			ds.GetHostOrbitInfoFunc = func(context.Context, uint) (*fleet.HostOrbitInfo, error) {
@@ -3715,6 +3730,7 @@ func TestReleaseUnusedFleetdInstallSecret(t *testing.T) {
 				assert.EqualValues(t, 17, enrollmentID)
 				return nil
 			}
+			ds.MDMWindowsSetEnrollmentFleetdPresentFunc = func(context.Context, uint, string) error { return nil }
 			svc := &Service{ds: ds, config: config.FleetConfig{MDM: config.MDMConfig{WindowsOneTimeEnrollSecrets: !tc.disabled}}}
 
 			svc.releaseUnusedFleetdInstallSecret(t.Context(), &fleet.MDMWindowsEnrolledDevice{
@@ -4034,4 +4050,37 @@ func TestGetPendingMDMCmdsSkipsCommandThatFailsExpansion(t *testing.T) {
 	require.NoError(t, err, "a failed expansion must not fail the whole management session")
 	require.Len(t, cmds, 1)
 	require.Equal(t, "good", cmds[0].CmdID.Value)
+}
+
+func TestGetPendingMDMCmdsHoldsBackRecentSCEPStatusProbes(t *testing.T) {
+	probeUUID := fleet.WindowsSCEPStatusProbeCmdUUIDPrefix + "install-1"
+	var probeQueuedAt time.Time
+	ds := new(mock.Store)
+	ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
+		return []*fleet.MDMWindowsCommand{{
+			CommandUUID: probeUUID,
+			RawCommand:  []byte(`<Get><CmdID>` + probeUUID + `</CmdID><Item><Target><LocURI>./Device/A</LocURI></Target></Item></Get>`),
+			CreatedAt:   probeQueuedAt,
+		}}, nil
+	}
+	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) { return document, nil }
+	svc, _ := newTestService(t, ds, nil, nil)
+
+	for _, c := range []struct {
+		name     string
+		age      time.Duration
+		wantSent int
+	}{
+		{name: "just queued", age: 0, wantSent: 0},
+		{name: "queued long enough", age: fleet.WindowsSCEPStatusProbeDelay + time.Second, wantSent: 1},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			probeQueuedAt = time.Now().Add(-c.age)
+			cmds, onlyPollCmdsPending, err := svc.(validationMiddleware).Service.(*Service).getPendingMDMCmds(t.Context(), 1)
+			require.NoError(t, err)
+			require.Len(t, cmds, c.wantSent)
+			// A held-back probe is still pending, so the session must not clear has_pending_commands.
+			require.False(t, onlyPollCmdsPending)
+		})
+	}
 }

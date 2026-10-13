@@ -38,21 +38,21 @@ quit_and_track_application() {
   echo "Quitting application '$bundle_id'..."
 
   # try to quit the application within the timeout period
-  local quit_success=false
+  local quit_success=false still_running
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    if osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1; then
-      if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then
-        echo "Application '$bundle_id' quit successfully."
-        quit_success=true
-        break
-      fi
-    fi
+    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1
     sleep 1
+    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+      echo "Application '$bundle_id' quit successfully."
+      quit_success=true
+      break
+    fi
   done
 
   if [[ "$quit_success" = false ]]; then
     echo "Application '$bundle_id' did not quit."
+    return 1
   fi
 }
 
@@ -102,7 +102,7 @@ relaunch_application() {
 # extract contents
 unzip "$INSTALLER_PATH" -d "$TMPDIR"
 # copy to the applications folder
-quit_and_track_application 'com.anthropic.claudefordesktop'
+quit_and_track_application 'com.anthropic.claudefordesktop' || exit 1
 if [ -d "$APPDIR/Claude.app" ]; then
 	sudo mv "$APPDIR/Claude.app" "$TMPDIR/Claude.app.bkp" || exit $?
 fi
@@ -122,9 +122,12 @@ if [[ -z "$target_user" || "$target_user" == "root" || "$target_user" == "loginw
   # last user that logged in.
   target_user=$(defaults read /Library/Preferences/com.apple.loginwindow lastUserName 2>/dev/null)
 fi
-if [[ -n "$target_user" && "$target_user" != "root" ]] && id -u "$target_user" >/dev/null 2>&1; then
-  sudo chown -R "$target_user":staff "$APPDIR/Claude.app"
-  echo "Assigned ownership of Claude.app to '$target_user' so Claude can auto-update."
+if [[ -n "$target_user" && "$target_user" != "root" && "$target_user" != "_mbsetupuser" ]] && id -u "$target_user" >/dev/null 2>&1; then
+  if sudo chown -R "$target_user":staff "$APPDIR/Claude.app"; then
+    echo "Assigned ownership of Claude.app to '$target_user' so Claude can auto-update."
+  else
+    echo "Failed to assign ownership of Claude.app to '$target_user'; Claude will prompt the user to fix ownership before it can auto-update."
+  fi
 else
   echo "No logged-in (or last logged-in) user found; Claude.app stays owned by root and Claude will prompt the user to fix ownership before it can auto-update."
 fi

@@ -13,8 +13,17 @@ export const UPLOAD_ERROR_MESSAGES = {
   },
   unsigned: {
     condition: (reason: string) => reason.includes("file is not"),
-    message:
-      "Couldn’t upload. The package must be signed. Click “Learn more” below to learn how to sign.",
+    message: (
+      <>
+        Couldn’t upload. The package must be signed.{" "}
+        <CustomLink
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/sign-bootstrap-package`}
+          text="Learn more"
+          newTab
+          variant="flash-message-link"
+        />
+      </>
+    ),
   },
   noDistribution: {
     condition: (reason: string) =>

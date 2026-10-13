@@ -746,6 +746,8 @@ const ManageHostsPage = ({
         configProfileUUID,
         scriptBatchExecutionStatus,
         scriptBatchExecutionId,
+        depProfileError: strToBool(depProfileError),
+        depAssignProfileResponse,
       },
     ],
     ({ queryKey }) => hostCountAPI.load(queryKey[0]),

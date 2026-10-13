@@ -1,0 +1,1 @@
+- Reduced database load from Windows MDM check-ins of Entra and Autopilot enrolled hosts by remembering when fleetd is present instead of looking up the host on every check-in.

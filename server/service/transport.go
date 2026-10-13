@@ -225,6 +225,38 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.SoftwareTitleIDFilter = &sid
 	}
 
+	softwareInstallerID := r.URL.Query().Get("software_installer_id")
+	if softwareInstallerID != "" {
+		id, err := strconv.ParseUint(softwareInstallerID, 10, 32)
+		if err != nil {
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid software_installer_id: %s", softwareInstallerID)))
+		}
+		if hopt.SoftwareTitleIDFilter == nil {
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(
+				"Missing software_title_id (it must be present when software_installer_id is specified)"))
+		}
+		sid := uint(id)
+		hopt.SoftwareInstallerIDFilter = &sid
+	}
+
+	appStoreAppVersionID := r.URL.Query().Get("app_store_app_version_id")
+	if appStoreAppVersionID != "" {
+		id, err := strconv.ParseUint(appStoreAppVersionID, 10, 32)
+		if err != nil {
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid app_store_app_version_id: %s", appStoreAppVersionID)))
+		}
+		if hopt.SoftwareTitleIDFilter == nil {
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(
+				"Missing software_title_id (it must be present when app_store_app_version_id is specified)"))
+		}
+		if hopt.SoftwareInstallerIDFilter != nil {
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(
+				"software_installer_id and app_store_app_version_id are mutually exclusive"))
+		}
+		sid := uint(id)
+		hopt.AppStoreAppVersionIDFilter = &sid
+	}
+
 	softwareStatus := fleet.SoftwareInstallerStatus(strings.ToLower(r.URL.Query().Get("software_status")))
 	if softwareStatus != "" {
 		if !softwareStatus.IsValid() {
