@@ -46,13 +46,13 @@ Upload the `.msi` to Fleet as a software installer. Fleet Desktop will appear in
 
 The MSI can be wrapped as a Win32 app and deployed via Intune. The installer's MDM-equivalent check (orbit must be installed) ensures fleetd is deployed first.
 
-## How It Works
+## How it works
 
-1. **Reads the Fleet URL** from the `Fleet osquery` Windows service's `ImagePath` registry value (parsed from the `--fleet-url` arg baked in by fleetd's MSI)
-2. **Reads the device token** from `<root-dir>\identifier` — `<root-dir>` is parsed from the same service args (`--root-dir`), defaulting to `C:\Program Files\Orbit\`
+1. **Reads the Fleet URL** from the `Fleet osquery` Windows service's registry configuration, written by fleetd's MSI (see [Configuration sources](#configuration-sources))
+2. **Reads the device token** from `<root-dir>\identifier` — `<root-dir>` comes from the same service configuration, defaulting to `C:\Program Files\Orbit\`
 3. **Opens the self-service portal** at `{FleetURL}/device/{token}/self-service` in an embedded WebView2 window
 
-### Token Rotation
+### Token rotation
 
 The device token in `C:\Program Files\Orbit\identifier` rotates every hour. Fleet Desktop handles this automatically:
 
@@ -60,7 +60,7 @@ The device token in `C:\Program Files\Orbit\identifier` rotates every hour. Flee
 - On HTTP 401/403 errors or error-page detection, the app immediately checks for a new token and retries (up to 3 attempts with 5-second delays)
 - Token refreshes are invisible to the user — the page silently reloads with the new token
 
-### File Downloads
+### File downloads
 
 When Fleet serves downloadable content, files are saved to the user's `Downloads` folder with deduplicated names (e.g., `installer (1).msi` if the original exists).
 
@@ -154,8 +154,9 @@ dotnet run --project FleetDesktop\FleetDesktop.csproj
 
 | Source | Purpose |
 |--------|---------|
-| `HKLM\SYSTEM\CurrentControlSet\Services\Fleet osquery\ImagePath` (`--fleet-url`) | Fleet server URL — baked into the service args by fleetd's MSI |
-| `HKLM\SYSTEM\CurrentControlSet\Services\Fleet osquery\ImagePath` (`--root-dir`) | Orbit root directory — used to locate `identifier` |
+| `HKLM\SYSTEM\CurrentControlSet\Services\Fleet osquery\Environment` (`ORBIT_FLEET_URL`) | Fleet server URL, written by fleetd MSIs built with Fleet v4.93.0 or later. Checked first. |
+| `HKLM\SYSTEM\CurrentControlSet\Services\Fleet osquery\Environment` (`ORBIT_ROOT_DIR`) | Orbit root directory, used to locate `identifier`. Checked first. |
+| `HKLM\SYSTEM\CurrentControlSet\Services\Fleet osquery\ImagePath` (`--fleet-url`, `--root-dir`) | Same values as service arguments, written by fleetd MSIs built with earlier Fleet versions. Used when `Environment` doesn't have them. |
 | `<root-dir>\identifier` | Device authentication token (rotates hourly) |
 
 > **Note:** Fleet Desktop requires fleetd to be installed and enrolled. The MSI refuses to install if `C:\Program Files\Orbit\bin\orbit\orbit.exe` is missing.

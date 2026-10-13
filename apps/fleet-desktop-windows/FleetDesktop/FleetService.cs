@@ -75,33 +75,35 @@ internal sealed class FleetService : IDisposable
 
     public FleetService()
     {
-        // On Windows, the Fleet URL and root-dir live as command-line arguments
-        // baked into the "Fleet osquery" service's ImagePath registry value by
-        // fleetd's own WiX installer. (Unlike macOS, there's no fleet_url.txt —
-        // that file is written only on darwin from an Apple config profile.)
+        // fleetd's WiX installer configures orbit on the "Fleet osquery" service:
+        // through the service's Environment registry value (ORBIT_FLEET_URL,
+        // ORBIT_ROOT_DIR) since Fleet v4.93.0, and through command-line arguments
+        // in its ImagePath (--fleet-url, --root-dir) before that. Hosts can run
+        // either, so check both. (Unlike macOS, there's no fleet_url.txt — that
+        // file is written only on darwin from an Apple config profile.)
+        var serviceEnv = ReadOrbitServiceEnvironment();
         var serviceArgs = ReadOrbitServiceArgs();
-        _fleetUrlFromService = serviceArgs != null ? ExtractArg(serviceArgs, "fleet-url") : null;
+        _fleetUrlFromService = GetNonEmpty(serviceEnv, "ORBIT_FLEET_URL")
+            ?? (serviceArgs != null ? ExtractArg(serviceArgs, "fleet-url") : null);
 
-        _orbitRoot = ResolveOrbitRoot(serviceArgs);
+        _orbitRoot = ResolveOrbitRoot(serviceEnv, serviceArgs);
         _tokenFile = Path.Combine(_orbitRoot, "identifier");
     }
 
-    private static string ResolveOrbitRoot(string? serviceArgs)
+    private static string ResolveOrbitRoot(Dictionary<string, string>? serviceEnv, string? serviceArgs)
     {
         var fromEnv = Environment.GetEnvironmentVariable("ORBIT_ROOT_DIR");
         if (!string.IsNullOrWhiteSpace(fromEnv))
         {
             return fromEnv.Trim();
         }
-        if (serviceArgs != null)
+        var fromService = GetNonEmpty(serviceEnv, "ORBIT_ROOT_DIR")
+            ?? (serviceArgs != null ? ExtractArg(serviceArgs, "root-dir") : null);
+        if (!string.IsNullOrWhiteSpace(fromService))
         {
-            var fromService = ExtractArg(serviceArgs, "root-dir");
-            if (!string.IsNullOrWhiteSpace(fromService))
-            {
-                // fleetd's WiX template uses [ORBITROOT]. → trailing "\." which Path.Combine
-                // tolerates, but trim it so error messages show a clean path.
-                return fromService.TrimEnd('.', '\\', '/').TrimEnd('\\', '/');
-            }
+            // fleetd's WiX template uses [ORBITROOT]. → trailing "\." which Path.Combine
+            // tolerates, but trim it so error messages show a clean path.
+            return fromService.TrimEnd('.', '\\', '/').TrimEnd('\\', '/');
         }
         // Last-resort default install path.
         var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
@@ -111,6 +113,37 @@ internal sealed class FleetService : IDisposable
         }
         return Path.Combine(programFiles, "Orbit");
     }
+
+    /// <summary>
+    /// Reads HKLM\SYSTEM\CurrentControlSet\Services\Fleet osquery\Environment, a
+    /// multi-string of NAME=value entries. Returns null if the service or value
+    /// isn't present (e.g. fleetd installed by an MSI built before Fleet v4.93.0).
+    /// </summary>
+    private static Dictionary<string, string>? ReadOrbitServiceEnvironment()
+    {
+        try
+        {
+            using var key = Registry.LocalMachine.OpenSubKey(
+                @"SYSTEM\CurrentControlSet\Services\Fleet osquery");
+            if (key?.GetValue("Environment") is not string[] entries) return null;
+            var env = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in entries)
+            {
+                var eq = entry.IndexOf('=');
+                if (eq > 0) env[entry[..eq]] = entry[(eq + 1)..];
+            }
+            return env;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string? GetNonEmpty(Dictionary<string, string>? env, string name) =>
+        env != null && env.TryGetValue(name, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value.Trim()
+            : null;
 
     /// <summary>
     /// Reads HKLM\SYSTEM\CurrentControlSet\Services\Fleet osquery\ImagePath.
@@ -525,8 +558,8 @@ internal sealed class FleetService : IDisposable
             ShowFatalError(
                 "Fleet Desktop could not find the Fleet server URL.\n\n" +
                 "Expected to read it from the \"Fleet osquery\" Windows service " +
-                "(HKLM\\SYSTEM\\CurrentControlSet\\Services\\Fleet osquery\\ImagePath, " +
-                "--fleet-url argument).\n\n" +
+                "(HKLM\\SYSTEM\\CurrentControlSet\\Services\\Fleet osquery: ORBIT_FLEET_URL in " +
+                "Environment, or the --fleet-url argument in ImagePath).\n\n" +
                 "Ensure the Fleet orbit agent (fleetd) is installed and enrolled on this machine. " +
                 "Contact your administrator if the problem persists.");
             return false;
@@ -540,7 +573,7 @@ internal sealed class FleetService : IDisposable
             ShowFatalError(
                 "The configured Fleet URL must use HTTPS.\n\n" +
                 $"Read: {fleetUrl}\n\n" +
-                "Check the --fleet-url argument on the \"Fleet osquery\" service.");
+                "Check ORBIT_FLEET_URL (or --fleet-url) on the \"Fleet osquery\" service.");
             return false;
         }
 
@@ -768,8 +801,8 @@ internal sealed class FleetService : IDisposable
     // ---- Config / file reading ----------------------------------------------
 
     /// <summary>
-    /// Returns the Fleet server URL parsed from the "Fleet osquery" service's
-    /// ImagePath in the registry. Debug builds only: the FLEET_URL env var takes
+    /// Returns the Fleet server URL read from the "Fleet osquery" service's
+    /// registry configuration. Debug builds only: the FLEET_URL env var takes
     /// precedence for local testing. It is compiled out of Release builds because
     /// a user-writable environment variable must not be able to redirect the
     /// device token to an attacker-controlled host.
