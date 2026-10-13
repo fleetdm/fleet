@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"html/template"
-	"io"
 	"sync"
 	"time"
 
@@ -15,24 +14,8 @@ import (
 )
 
 ////////////////////////////////////////////////////////////////////////////////
-// Windows EULA, served by the /setup_experience/eula endpoints with platform=windows
+// Windows MDM terms page, which renders the Windows EULA
 ////////////////////////////////////////////////////////////////////////////////
-
-func (svc *Service) MDMCreateWindowsEULA(ctx context.Context, name string, file io.ReadSeeker, dryRun bool) error {
-	// skipauth: No authorization check needed due to implementation returning
-	// only license error.
-	svc.authz.SkipAuthorization(ctx)
-
-	return fleet.ErrMissingLicense
-}
-
-func (svc *Service) MDMGetWindowsEULAMetadata(ctx context.Context) (*fleet.MDMEULA, error) {
-	// skipauth: No authorization check needed due to implementation returning
-	// only license error.
-	svc.authz.SkipAuthorization(ctx)
-
-	return nil, fleet.ErrMissingLicense
-}
 
 type windowsTOSTemplateData struct {
 	RedirectURL string

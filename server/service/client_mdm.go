@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/beevik/etree"
+	"github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -539,28 +540,51 @@ const eulaAPIPath = "/api/latest/fleet/setup_experience/eula"
 // ignores the platform parameter, so its answers would be about the macOS EULA.
 var ErrWindowsEULANotSupported = errors.New("the Fleet server doesn't support Windows EULAs; upgrade it to use windows_eula")
 
-// eulaEndpoints is what differs between the macOS and Windows EULA requests;
-// the client logic for both is the same. Requests by token don't need the
+// eulaTarget is what differs between the macOS and Windows EULA requests; the
+// client logic for both is the same. Requests by token don't need the
 // platform: the token belongs to one EULA.
-type eulaEndpoints struct {
+type eulaTarget struct {
 	platform fleet.MDMEULAPlatform // sent for Windows only, so macOS requests stay as they always were
 	label    string                // names the EULA in error messages
 }
 
 var (
-	macOSEULAEndpoints   = eulaEndpoints{label: "eula"}
-	windowsEULAEndpoints = eulaEndpoints{platform: fleet.MDMEULAPlatformWindows, label: "Windows EULA"}
+	macOSEULATarget   = eulaTarget{label: "eula"}
+	windowsEULATarget = eulaTarget{platform: fleet.MDMEULAPlatformWindows, label: "Windows EULA"}
 )
 
-// withQuery adds the platform parameter to the rest of a request's query.
-func (e eulaEndpoints) withQuery(query string) string {
+// metadataQuery is the platform parameter for the metadata request; uploads
+// send it as a form field instead.
+func (e eulaTarget) metadataQuery() string {
 	if e.platform == "" {
-		return query
+		return ""
 	}
-	if query == "" {
-		return "platform=" + string(e.platform)
+	return "platform=" + string(e.platform)
+}
+
+// windowsEULASupported tells whether the server takes a platform on the EULA
+// endpoints. A server from before Windows EULAs ignores the parameter and
+// answers for macOS, so the one reliable probe is a platform it must reject.
+func (c *Client) windowsEULASupported() (bool, error) {
+	if c.windowsEULASupport != nil {
+		return *c.windowsEULASupport, nil
 	}
-	return query + "&platform=" + string(e.platform)
+	var responseBody getMDMEULAMetadataResponse
+	err := c.authenticatedRequestWithQuery(nil, "GET", eulaAPIPath+"/metadata", &responseBody, "platform=probe")
+	var statusErr *client.StatusCodeErr
+	var supported bool
+	switch {
+	case err == nil, isNotFoundErr(err):
+		// answered for macOS
+	case errors.As(err, &statusErr) && statusErr.Code == http.StatusUnprocessableEntity && statusErr.Name == "platform":
+		supported = true
+	case errors.As(err, &statusErr) && statusErr.Code == http.StatusBadRequest:
+		// an older server's Apple MDM middleware answered
+	default:
+		return false, err
+	}
+	c.windowsEULASupport = &supported
+	return supported, nil
 }
 
 func (c *Client) GetEULAContent(token string) ([]byte, error) {
@@ -568,11 +592,11 @@ func (c *Client) GetEULAContent(token string) ([]byte, error) {
 }
 
 func (c *Client) GetEULAMetadata() (*fleet.MDMEULA, error) {
-	return c.getEULAMetadata(macOSEULAEndpoints)
+	return c.getEULAMetadata(macOSEULATarget)
 }
 
 func (c *Client) DeleteEULAIfNeeded(dryRun bool) error {
-	return c.deleteEULAIfNeeded(macOSEULAEndpoints, dryRun)
+	return c.deleteEULAIfNeeded(macOSEULATarget, dryRun)
 }
 
 func (c *Client) DeleteEULA(token string, dryRun bool) error {
@@ -580,27 +604,23 @@ func (c *Client) DeleteEULA(token string, dryRun bool) error {
 }
 
 func (c *Client) UploadEULAIfNeeded(eulaPath string, dryRun bool) error {
-	return c.uploadEULAIfNeeded(macOSEULAEndpoints, eulaPath, dryRun)
+	return c.uploadEULAIfNeeded(macOSEULATarget, eulaPath, dryRun)
 }
 
 func (c *Client) UploadEULA(eulaPath string, dryRun bool) error {
-	return c.uploadEULA(macOSEULAEndpoints, eulaPath, dryRun)
-}
-
-func (c *Client) GetWindowsEULAContent(token string) ([]byte, error) {
-	return c.getEULAContent(token)
+	return c.uploadEULA(macOSEULATarget, eulaPath, dryRun)
 }
 
 func (c *Client) GetWindowsEULAMetadata() (*fleet.MDMEULA, error) {
-	return c.getEULAMetadata(windowsEULAEndpoints)
+	return c.getEULAMetadata(windowsEULATarget)
 }
 
 func (c *Client) DeleteWindowsEULAIfNeeded(dryRun bool) error {
-	return c.deleteEULAIfNeeded(windowsEULAEndpoints, dryRun)
+	return c.deleteEULAIfNeeded(windowsEULATarget, dryRun)
 }
 
 func (c *Client) UploadWindowsEULAIfNeeded(eulaPath string, dryRun bool) error {
-	return c.uploadEULAIfNeeded(windowsEULAEndpoints, eulaPath, dryRun)
+	return c.uploadEULAIfNeeded(windowsEULATarget, eulaPath, dryRun)
 }
 
 func (c *Client) getEULAContent(token string) ([]byte, error) {
@@ -610,19 +630,25 @@ func (c *Client) getEULAContent(token string) ([]byte, error) {
 	return responseBody.Bytes, err
 }
 
-func (c *Client) getEULAMetadata(e eulaEndpoints) (*fleet.MDMEULA, error) {
+func (c *Client) getEULAMetadata(e eulaTarget) (*fleet.MDMEULA, error) {
+	if e.platform != "" {
+		supported, err := c.windowsEULASupported()
+		if err != nil {
+			return nil, err
+		}
+		if !supported {
+			return nil, ErrWindowsEULANotSupported
+		}
+	}
 	verb, path := "GET", eulaAPIPath+"/metadata"
 	var responseBody getMDMEULAMetadataResponse
-	if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, e.withQuery("")); err != nil {
+	if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, e.metadataQuery()); err != nil {
 		return nil, err
-	}
-	if e.platform != "" && (responseBody.MDMEULA == nil || responseBody.Platform != e.platform) {
-		return nil, ErrWindowsEULANotSupported
 	}
 	return responseBody.MDMEULA, nil
 }
 
-func (c *Client) deleteEULAIfNeeded(e eulaEndpoints, dryRun bool) error {
+func (c *Client) deleteEULAIfNeeded(e eulaTarget, dryRun bool) error {
 	eula, err := c.getEULAMetadata(e)
 	switch {
 	case isNotFoundErr(err):
@@ -646,7 +672,7 @@ func (c *Client) deleteEULA(token string, dryRun bool) error {
 	return err
 }
 
-func (c *Client) uploadEULAIfNeeded(e eulaEndpoints, eulaPath string, dryRun bool) error {
+func (c *Client) uploadEULAIfNeeded(e eulaTarget, eulaPath string, dryRun bool) error {
 	oldMeta, err := c.getEULAMetadata(e)
 	// not found is OK, it means this is our first time uploading a eula
 	if err != nil && !isNotFoundErr(err) {
@@ -686,11 +712,17 @@ func (c *Client) uploadEULAIfNeeded(e eulaEndpoints, eulaPath string, dryRun boo
 	return c.uploadEULA(e, eulaPath, dryRun)
 }
 
-func (c *Client) uploadEULA(e eulaEndpoints, eulaPath string, dryRun bool) error {
+func (c *Client) uploadEULA(e eulaTarget, eulaPath string, dryRun bool) error {
 	verb, path := "POST", eulaAPIPath
 
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
+
+	if e.platform != "" {
+		if err := w.WriteField("platform", string(e.platform)); err != nil {
+			return err
+		}
+	}
 
 	// add the eula field
 	fw, err := w.CreateFormFile("eula", filepath.Base(eulaPath))
@@ -712,7 +744,7 @@ func (c *Client) uploadEULA(e eulaEndpoints, eulaPath string, dryRun bool) error
 		return fmt.Errorf("closing writer: %w", err)
 	}
 
-	resp, err := c.doContextWithBodyAndHeaders(context.Background(), verb, path, e.withQuery(fmt.Sprintf("dry_run=%t", dryRun)),
+	resp, err := c.doContextWithBodyAndHeaders(context.Background(), verb, path, fmt.Sprintf("dry_run=%t", dryRun),
 		b.Bytes(),
 		map[string]string{
 			"Content-Type":  w.FormDataContentType(),

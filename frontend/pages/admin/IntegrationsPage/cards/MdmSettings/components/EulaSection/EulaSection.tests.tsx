@@ -173,7 +173,7 @@ describe("EulaSection", () => {
   });
 
   it.each(PLATFORM_CASES)(
-    "uploads a $tab agreement through its endpoint and refetches",
+    "uploads a $tab agreement with its platform's upload call and refetches",
     async ({ platform, tab, file, upload, otherUpload }) => {
       const onChange = jest.fn();
       const { user } = renderSection({

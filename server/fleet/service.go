@@ -1227,19 +1227,14 @@ type Service interface {
 	// A token is required as the means of authentication for this resource
 	// since it can be publicly accessed with anyone with a valid token.
 	MDMGetEULABytes(ctx context.Context, token string) (*MDMEULA, error)
-	// MDMGetEULAMetadata returns metadata about the EULA file that can
-	// be used by clients to display information.
-	MDMGetEULAMetadata(ctx context.Context) (*MDMEULA, error)
-	// MDMCreateEULA adds a new EULA file.
-	MDMCreateEULA(ctx context.Context, name string, file io.ReadSeeker, dryRun bool) error
+	// MDMGetEULAMetadata returns metadata about the platform's EULA; an empty
+	// platform means darwin.
+	MDMGetEULAMetadata(ctx context.Context, platform MDMEULAPlatform) (*MDMEULA, error)
+	// MDMCreateEULA adds a new EULA file: a PDF for darwin, or the markdown
+	// terms shown during Windows Entra enrollment; an empty platform means darwin.
+	MDMCreateEULA(ctx context.Context, platform MDMEULAPlatform, name string, file io.ReadSeeker, dryRun bool) error
 	// MDMDeleteEULA removes the EULA, macOS or Windows, that matches the token.
 	MDMDeleteEULA(ctx context.Context, token string, dryRun bool) error
-
-	// MDMCreateWindowsEULA adds the terms shown to end users during Windows Entra enrollment, as a
-	// markdown file.
-	MDMCreateWindowsEULA(ctx context.Context, name string, file io.ReadSeeker, dryRun bool) error
-	// MDMGetWindowsEULAMetadata returns metadata about the Windows EULA.
-	MDMGetWindowsEULAMetadata(ctx context.Context) (*MDMEULA, error)
 
 	// Create or update the MDM Apple Setup Assistant for a team or no team.
 	SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *MDMAppleSetupAssistant) (*MDMAppleSetupAssistant, error)

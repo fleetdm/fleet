@@ -47,6 +47,8 @@ type Client struct {
 	outputWriter       io.Writer
 	errWriter          io.Writer
 	seenLicenseExpired bool
+	// windowsEULASupport caches the probe in windowsEULASupported.
+	windowsEULASupport *bool
 }
 
 type ClientOption func(*Client) error
@@ -4407,7 +4409,10 @@ func (c *Client) doGitOpsWindowsEULA(
 	}
 	switch {
 	case errors.Is(err, ErrWindowsEULANotSupported):
-		logFn("[!] skipping windows_eula: %s\n", ErrWindowsEULANotSupported)
+		// With nothing configured there is nothing to warn about.
+		if path != "" {
+			logFn("[!] skipping windows_eula: %s\n", ErrWindowsEULANotSupported)
+		}
 		return nil
 	case err != nil:
 		return err

@@ -316,6 +316,19 @@ const (
 	MDMEULAPlatformWindows MDMEULAPlatform = "windows"
 )
 
+// Validated returns the platform an EULA request acts on. Empty means darwin,
+// so clients from before Windows EULAs keep working.
+func (p MDMEULAPlatform) Validated() (MDMEULAPlatform, error) {
+	switch p {
+	case "":
+		return MDMEULAPlatformDarwin, nil
+	case MDMEULAPlatformDarwin, MDMEULAPlatformWindows:
+		return p, nil
+	default:
+		return "", NewInvalidArgumentError("platform", `must be "darwin" or "windows"`)
+	}
+}
+
 // MDMEULA represents an EULA (End User License Agreement) file.
 type MDMEULA struct {
 	Name      string    `json:"name"`
@@ -323,8 +336,7 @@ type MDMEULA struct {
 	Sha256    []byte    `json:"sha256" db:"sha256"`
 	Token     string    `json:"token"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
-	// Platform lets clients tell a server that predates Windows EULAs, which
-	// ignores the platform parameter and answers for macOS, from a current one.
+	// Platform is reported in metadata, since the endpoints serve both.
 	Platform MDMEULAPlatform `json:"platform,omitempty" db:"platform"`
 }
 

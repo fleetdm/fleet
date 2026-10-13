@@ -250,22 +250,8 @@ type createMDMEULARequest struct {
 }
 
 func (createMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	platform, err := eulaPlatform(r.URL.Query().Get("platform"))
-	if err != nil {
-		return nil, err
-	}
-
-	if platform == fleet.MDMEULAPlatformWindows {
-		// The route limit is the macOS one, so the much smaller Windows limit is set here.
-		eula, dryRun, err := decodeEULAUpload(r, "eula", fleet.MaxWindowsEULARequestSize)
-		if err != nil {
-			return nil, err
-		}
-		return &createMDMEULARequest{EULA: eula, DryRun: dryRun, Platform: platform}, nil
-	}
-
 	// The route limit bounds the body; operators can raise it per endpoint.
-	eula, dryRun, err := decodeEULAUpload(r, "eula", 0)
+	eula, dryRun, err := decodeEULAUpload(r)
 	if err != nil {
 		return nil, err
 	}
@@ -276,6 +262,10 @@ func (createMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) 
 		}
 	}
 
+	var platform fleet.MDMEULAPlatform
+	if v := r.MultipartForm.Value["platform"]; len(v) > 0 {
+		platform = fleet.MDMEULAPlatform(v[0])
+	}
 	return &createMDMEULARequest{
 		EULA:     eula,
 		DryRun:   dryRun,
@@ -283,39 +273,29 @@ func (createMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) 
 	}, nil
 }
 
-// eulaPlatform reads the platform the EULA endpoints act on. It defaults to
-// darwin for backward compatibility.
-func eulaPlatform(v string) (fleet.MDMEULAPlatform, error) {
-	switch p := fleet.MDMEULAPlatform(v); p {
-	case "":
-		return fleet.MDMEULAPlatformDarwin, nil
-	case fleet.MDMEULAPlatformDarwin, fleet.MDMEULAPlatformWindows:
-		return p, nil
-	default:
-		return "", &fleet.BadRequestError{Message: `platform must be "darwin" or "windows"`}
+// eulaPlatform validates the platform and checks that its MDM is on, which the
+// shared routes can't do in middleware. The free build keeps answering the MDM
+// error before the license one.
+func eulaPlatform(ctx context.Context, svc fleet.Service, platform fleet.MDMEULAPlatform) (fleet.MDMEULAPlatform, error) {
+	platform, err := platform.Validated()
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err)
 	}
-}
-
-// verifyEULAPlatformMDM checks that the platform's MDM is turned on. The
-// endpoints serve both platforms, so route middleware can't do it.
-func verifyEULAPlatformMDM(ctx context.Context, svc fleet.Service, platform fleet.MDMEULAPlatform) error {
 	if platform == fleet.MDMEULAPlatformWindows {
-		return svc.VerifyMDMWindowsConfigured(ctx)
+		err = svc.VerifyMDMWindowsConfigured(ctx)
+	} else {
+		err = svc.VerifyMDMAppleConfigured(ctx)
 	}
-	return svc.VerifyMDMAppleConfigured(ctx)
+	if err != nil {
+		return "", err
+	}
+	return platform, nil
 }
 
-// decodeEULAUpload parses an EULA upload, macOS or Windows: the file in field
-// and the dry_run flag. A positive maxBody also bounds the body here, on top of
-// the route limit.
-func decodeEULAUpload(r *http.Request, field string, maxBody int64) (*multipart.FileHeader, bool, error) {
-	if maxBody > 0 {
-		r.Body = http.MaxBytesReader(nil, r.Body, maxBody)
-	}
-	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize) //nolint:gosec // G120: bounded by the route limit, and by maxBody when set
-	if _, tooLarge := errors.AsType[*http.MaxBytesError](err); tooLarge && maxBody > 0 {
-		return nil, false, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxBody}
-	}
+// decodeEULAUpload parses an EULA upload: the file in the eula field and the
+// dry_run flag.
+func decodeEULAUpload(r *http.Request) (*multipart.FileHeader, bool, error) {
+	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize) //nolint:gosec // G120: bounded by the route limit
 	if err != nil {
 		return nil, false, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -323,10 +303,10 @@ func decodeEULAUpload(r *http.Request, field string, maxBody int64) (*multipart.
 		}
 	}
 
-	files := r.MultipartForm.File[field]
+	files := r.MultipartForm.File["eula"]
 	if len(files) == 0 {
 		return nil, false, &fleet.BadRequestError{
-			Message: field + " multipart field is required",
+			Message: "eula multipart field is required",
 		}
 	}
 
@@ -349,6 +329,8 @@ func writeEULAFile(ctx context.Context, w http.ResponseWriter, eula *fleet.MDMEU
 		w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": eula.Name}))
 	}
 	w.Header().Set("X-Content-Type-Options", "nosniff")
+	// The token is the only secret; a cached copy would outlive a delete.
+	w.Header().Set("Cache-Control", "no-store")
 
 	// OK to just log the error here as writing anything on
 	// `http.ResponseWriter` sets the status code to 200 (and it can't be
@@ -367,31 +349,27 @@ func (r createMDMEULAResponse) Error() error { return r.Err }
 
 func createMDMEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*createMDMEULARequest)
-	if err := verifyEULAPlatformMDM(ctx, svc, req.Platform); err != nil {
-		return createMDMEULAResponse{Err: err}, nil
-	}
 	ff, err := req.EULA.Open()
 	if err != nil {
 		return createMDMEULAResponse{Err: err}, nil
 	}
 	defer ff.Close()
 
-	create := svc.MDMCreateEULA
-	if req.Platform == fleet.MDMEULAPlatformWindows {
-		create = svc.MDMCreateWindowsEULA
-	}
-	if err := create(ctx, req.EULA.Filename, ff, req.DryRun); err != nil {
+	if err := svc.MDMCreateEULA(ctx, req.Platform, req.EULA.Filename, ff, req.DryRun); err != nil {
 		return createMDMEULAResponse{Err: err}, nil
 	}
 
 	return createMDMEULAResponse{}, nil
 }
 
-func (svc *Service) MDMCreateEULA(ctx context.Context, name string, file io.ReadSeeker, dryRun bool) error {
+func (svc *Service) MDMCreateEULA(ctx context.Context, platform fleet.MDMEULAPlatform, name string, file io.ReadSeeker, dryRun bool) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
+	if _, err := eulaPlatform(ctx, svc, platform); err != nil {
+		return err
+	}
 	return fleet.ErrMissingLicense
 }
 
@@ -457,20 +435,7 @@ func (r getMDMEULAMetadataResponse) Error() error { return r.Err }
 
 func getMDMEULAMetadataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getMDMEULAMetadataRequest)
-	platform, err := eulaPlatform(req.Platform)
-	if err != nil {
-		setAuthCheckedOnPreAuthErr(ctx)
-		return getMDMEULAMetadataResponse{Err: err}, nil
-	}
-	if err := verifyEULAPlatformMDM(ctx, svc, platform); err != nil {
-		return getMDMEULAMetadataResponse{Err: err}, nil
-	}
-
-	get := svc.MDMGetEULAMetadata
-	if platform == fleet.MDMEULAPlatformWindows {
-		get = svc.MDMGetWindowsEULAMetadata
-	}
-	eula, err := get(ctx)
+	eula, err := svc.MDMGetEULAMetadata(ctx, fleet.MDMEULAPlatform(req.Platform))
 	if err != nil && !fleet.IsNotFound(err) {
 		return getMDMEULAMetadataResponse{Err: err}, nil
 	}
@@ -483,11 +448,14 @@ func getMDMEULAMetadataEndpoint(ctx context.Context, request interface{}, svc fl
 	return getMDMEULAMetadataResponse{MDMEULA: eula}, nil
 }
 
-func (svc *Service) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, error) {
+func (svc *Service) MDMGetEULAMetadata(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
+	if _, err := eulaPlatform(ctx, svc, platform); err != nil {
+		return nil, err
+	}
 	return nil, fleet.ErrMissingLicense
 }
 

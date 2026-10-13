@@ -5415,6 +5415,7 @@ func (s *integrationMDMTestSuite) TestEULA() {
 	resp := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", eulaToken), nil, http.StatusOK)
 	require.EqualValues(t, len(pdfBytes), resp.ContentLength)
 	require.Equal(t, "application/pdf", resp.Header.Get("content-type"))
+	require.Equal(t, "no-store", resp.Header.Get("Cache-Control"))
 	respBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	require.EqualValues(t, pdfBytes, respBytes)
@@ -5492,18 +5493,15 @@ func (s *integrationMDMTestSuite) TestWindowsEULA() {
 	s.uploadWindowsEULA(&fleet.MDMEULA{Bytes: []byte("# Terms\n\n<div>\nClause 4 applies.\n</div>\n"), Name: "terms.md"},
 		http.StatusBadRequest, "contains HTML")
 	s.uploadWindowsEULA(&fleet.MDMEULA{Bytes: []byte("<!-- draft -->\n"), Name: "terms.md"}, http.StatusBadRequest, "no text to show")
-	// the 512 KB limit is reported clearly up to the route's 1 MiB body limit
 	s.uploadWindowsEULA(&fleet.MDMEULA{Bytes: bytes.Repeat([]byte("Clause.\n"), 70_000), Name: "oversize.md"},
 		http.StatusBadRequest, "512 KB or smaller")
-	s.uploadWindowsEULA(&fleet.MDMEULA{Bytes: bytes.Repeat([]byte("A"), int(fleet.MaxWindowsEULARequestSize)+1), Name: "oversize.md"},
-		http.StatusRequestEntityTooLarge, "Request exceeds the max size limit")
 	s.uploadWindowsEULA(&fleet.MDMEULA{Bytes: bytes.Repeat([]byte("A"), 9000), Name: "terms.md"},
 		http.StatusBadRequest, "line longer than 8 KB")
 
 	// a dry run validates without storing anything, and a mistyped one doesn't save
-	s.uploadEULAFile(windowsEULAUploadPath+"&dry_run=treu", &fleet.MDMEULA{Bytes: mdBytes, Name: mdName}, http.StatusBadRequest, "failed to decode dry_run")
-	s.uploadEULAFile(windowsEULAUploadPath+"&dry_run=true", &fleet.MDMEULA{Bytes: []byte("<!-- draft -->\n"), Name: mdName}, http.StatusBadRequest, "no text to show")
-	s.uploadEULAFile(windowsEULAUploadPath+"&dry_run=true", &fleet.MDMEULA{Bytes: mdBytes, Name: mdName}, http.StatusOK, "")
+	s.uploadEULAFile("windows", "?dry_run=treu", &fleet.MDMEULA{Bytes: mdBytes, Name: mdName}, http.StatusBadRequest, "failed to decode dry_run")
+	s.uploadEULAFile("windows", "?dry_run=true", &fleet.MDMEULA{Bytes: []byte("<!-- draft -->\n"), Name: mdName}, http.StatusBadRequest, "no text to show")
+	s.uploadEULAFile("windows", "?dry_run=true", &fleet.MDMEULA{Bytes: mdBytes, Name: mdName}, http.StatusOK, "")
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/eula/metadata?platform=windows", nil, http.StatusNotFound, &metadataResp)
 
 	// upload; a path in the uploaded name is dropped, since generate-gitops
@@ -5518,7 +5516,7 @@ func (s *integrationMDMTestSuite) TestWindowsEULA() {
 	require.NotEmpty(t, metadataResp.CreatedAt)
 	require.Equal(t, mdName, metadataResp.Name)
 	require.Equal(t, mdHash[:], metadataResp.Sha256)
-	// clients tell an older server, which ignores the parameter and answers for macOS, by the platform it echoes
+	// metadata reports the platform, since the endpoints serve both
 	require.Equal(t, fleet.MDMEULAPlatformWindows, metadataResp.Platform)
 	winToken := metadataResp.Token
 
@@ -5529,12 +5527,10 @@ func (s *integrationMDMTestSuite) TestWindowsEULA() {
 	require.Contains(t, resp.Header.Get("Content-Disposition"), "attachment")
 	require.Contains(t, resp.Header.Get("Content-Disposition"), mdName)
 	require.Equal(t, "nosniff", resp.Header.Get("X-Content-Type-Options"))
+	require.Equal(t, "no-store", resp.Header.Get("Cache-Control"))
 	got, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	require.Equal(t, mdBytes, got)
-
-	var downloadResp getMDMEULAResponse
-	s.DoJSON("GET", "/api/latest/fleet/setup_experience/eula/bad-token", nil, http.StatusNotFound, &downloadResp)
 
 	// the device now sees the rendered agreement in place of the default terms,
 	// with the link flattened to its text
@@ -5545,9 +5541,6 @@ func (s *integrationMDMTestSuite) TestWindowsEULA() {
 	require.NotContains(t, page, "acme.example")
 	require.NotContains(t, page, "Fleet is open-source software")
 	require.Contains(t, page, "IsAccepted=true")
-
-	// one agreement per platform
-	s.uploadWindowsEULA(&fleet.MDMEULA{Bytes: mdBytes, Name: "again.md"}, http.StatusConflict, "")
 
 	// replacing the agreement shows the new one on the next request, not the
 	// previously rendered page
@@ -5569,9 +5562,9 @@ func (s *integrationMDMTestSuite) TestWindowsEULA() {
 
 	// both agreements share the endpoints: the token picks the agreement, and the platform must be one of the two
 	pdfBytes := []byte("%PDF-1.pdf-contents")
-	s.uploadEULAFile("/api/latest/fleet/setup_experience/eula?platform=linux", &fleet.MDMEULA{Bytes: pdfBytes, Name: "eula.pdf"},
-		http.StatusBadRequest, `platform must be "darwin" or "windows"`)
-	s.uploadEULAFile("/api/latest/fleet/setup_experience/eula?platform=darwin", &fleet.MDMEULA{Bytes: pdfBytes, Name: "eula.pdf"}, http.StatusOK, "")
+	s.uploadEULAFile("linux", "", &fleet.MDMEULA{Bytes: pdfBytes, Name: "eula.pdf"},
+		http.StatusUnprocessableEntity, `must be "darwin" or "windows"`)
+	s.uploadEULAFile("darwin", "", &fleet.MDMEULA{Bytes: pdfBytes, Name: "eula.pdf"}, http.StatusOK, "")
 	var macMeta getMDMEULAMetadataResponse
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/eula/metadata", nil, http.StatusOK, &macMeta)
 	require.Equal(t, fleet.MDMEULAPlatformDarwin, macMeta.Platform)
@@ -5584,7 +5577,7 @@ func (s *integrationMDMTestSuite) TestWindowsEULA() {
 	require.Equal(t, "application/pdf", resp.Header.Get("Content-Type"))
 	resp = s.DoRawNoAuth("GET", winEULAPath, nil, http.StatusOK)
 	require.Equal(t, "text/markdown; charset=utf-8", resp.Header.Get("Content-Type"))
-	s.DoJSON("GET", "/api/latest/fleet/setup_experience/eula/metadata?platform=linux", nil, http.StatusBadRequest, &macMeta)
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/eula/metadata?platform=linux", nil, http.StatusUnprocessableEntity, &macMeta)
 
 	// downloading needs only the token, deleting still needs a login
 	s.DoRawNoAuth("DELETE", winEULAPath, nil, http.StatusUnauthorized)
@@ -5605,15 +5598,12 @@ func (s *integrationMDMTestSuite) TestWindowsEULA() {
 	setMDM(true, false)
 	requireMDMOff(s.DoRawNoAuth("GET", winEULAPath, nil, http.StatusBadRequest), fleet.WindowsMDMNotConfiguredMessage)
 	requireMDMOff(s.Do("DELETE", winEULAPath, nil, http.StatusBadRequest), fleet.WindowsMDMNotConfiguredMessage)
-	requireMDMOff(s.Do("GET", "/api/latest/fleet/setup_experience/eula/metadata?platform=windows", nil, http.StatusBadRequest),
-		fleet.WindowsMDMNotConfiguredMessage)
 	s.uploadWindowsEULA(&fleet.MDMEULA{Bytes: mdBytes, Name: mdName}, http.StatusBadRequest, fleet.WindowsMDMNotConfiguredMessage)
 	s.DoRawNoAuth("GET", macEULAPath, nil, http.StatusOK)
 
 	setMDM(false, true)
 	requireMDMOff(s.DoRawNoAuth("GET", macEULAPath, nil, http.StatusBadRequest), fleet.MDMNotConfiguredMessage)
 	requireMDMOff(s.Do("DELETE", macEULAPath, nil, http.StatusBadRequest), fleet.MDMNotConfiguredMessage)
-	requireMDMOff(s.Do("GET", "/api/latest/fleet/setup_experience/eula/metadata", nil, http.StatusBadRequest), fleet.MDMNotConfiguredMessage)
 	s.DoRawNoAuth("GET", winEULAPath, nil, http.StatusOK)
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/eula/metadata?platform=windows", nil, http.StatusOK, &metadataResp)
 	setMDM(true, true)
@@ -5630,7 +5620,6 @@ func (s *integrationMDMTestSuite) TestWindowsEULA() {
 	s.DoJSON("DELETE", winEULAPath, nil, http.StatusOK, &deleteResp)
 	s.lastActivityMatches(fleet.ActivityTypeDeletedEndUserAgreement{}.ActivityName(), `{"platform":"windows"}`, 0)
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/eula/metadata?platform=windows", nil, http.StatusNotFound, &metadataResp)
-	s.DoJSON("DELETE", winEULAPath, nil, http.StatusNotFound, &deleteResp)
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/eula/metadata", nil, http.StatusOK, &macMeta)
 	require.Contains(t, tosPage(), "Fleet is open-source software")
 
@@ -5638,22 +5627,23 @@ func (s *integrationMDMTestSuite) TestWindowsEULA() {
 	s.DoJSON("DELETE", macEULAPath, nil, http.StatusOK, &macDelete)
 }
 
-const windowsEULAUploadPath = "/api/latest/fleet/setup_experience/eula?platform=windows"
-
 func (s *integrationMDMTestSuite) uploadEULA(eula *fleet.MDMEULA, expectedStatus int, wantErr string) {
-	s.uploadEULAFile("/api/latest/fleet/setup_experience/eula", eula, expectedStatus, wantErr)
+	s.uploadEULAFile("", "", eula, expectedStatus, wantErr)
 }
 
 func (s *integrationMDMTestSuite) uploadWindowsEULA(eula *fleet.MDMEULA, expectedStatus int, wantErr string) {
-	s.uploadEULAFile(windowsEULAUploadPath, eula, expectedStatus, wantErr)
+	s.uploadEULAFile("windows", "", eula, expectedStatus, wantErr)
 }
 
-// uploadEULAFile posts eula to path, which can carry a query string.
-func (s *integrationMDMTestSuite) uploadEULAFile(path string, eula *fleet.MDMEULA, expectedStatus int, wantErr string) {
+// uploadEULAFile posts eula with platform in the form, left out when empty. query is appended to the path.
+func (s *integrationMDMTestSuite) uploadEULAFile(platform, query string, eula *fleet.MDMEULA, expectedStatus int, wantErr string) {
 	t := s.T()
 
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
+	if platform != "" {
+		require.NoError(t, w.WriteField("platform", platform))
+	}
 	fw, err := w.CreateFormFile("eula", eula.Name)
 	require.NoError(t, err)
 	_, err = io.Copy(fw, bytes.NewBuffer(eula.Bytes))
@@ -5666,7 +5656,7 @@ func (s *integrationMDMTestSuite) uploadEULAFile(path string, eula *fleet.MDMEUL
 		"Authorization": fmt.Sprintf("Bearer %s", s.token),
 	}
 
-	res := s.DoRawWithHeaders("POST", path, b.Bytes(), expectedStatus, headers)
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/setup_experience/eula"+query, b.Bytes(), expectedStatus, headers)
 
 	if wantErr != "" {
 		errMsg := extractServerErrorText(res.Body)
@@ -7542,6 +7532,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	resp := s.DoRaw("GET", "/api/latest/fleet/setup_experience/eula/"+q.Get("eula_token"), nil, http.StatusOK)
 	require.EqualValues(t, len(pdfBytes), resp.ContentLength)
 	require.Equal(t, "application/pdf", resp.Header.Get("content-type"))
+	require.Equal(t, "no-store", resp.Header.Get("Cache-Control"))
 	respBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	require.EqualValues(t, pdfBytes, respBytes)

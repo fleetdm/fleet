@@ -31,6 +31,7 @@ jest.mock("services/entities/mdm", () => ({
     // 404 is how the API reports that nothing has been uploaded yet.
     getEULAMetadata: jest.fn().mockRejectedValue({ status: 404 }),
     getWindowsEULAMetadata: jest.fn().mockRejectedValue({ status: 404 }),
+    deleteEULA: jest.fn().mockResolvedValue({}),
   },
 }));
 
@@ -135,5 +136,7 @@ describe("MdmSettings end user agreement section", () => {
       )
     ).toBeInTheDocument();
     expect(screen.queryByText("terms.md")).not.toBeInTheDocument();
+    expect(jest.mocked(mdmAPI.deleteEULA)).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(mdmAPI.deleteEULA)).toHaveBeenCalledWith("win-token");
   });
 });

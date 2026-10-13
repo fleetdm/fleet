@@ -2214,8 +2214,8 @@ func (ds *Datastore) MDMGetEULAMetadata(ctx context.Context, platform fleet.MDME
 }
 
 func (ds *Datastore) MDMGetEULABytes(ctx context.Context, platform fleet.MDMEULAPlatform, token string) (*fleet.MDMEULA, error) {
-	// Matching the platform too keeps one platform's endpoints from reaching
-	// the other platform's file with a token.
+	// The platform is matched too, so a token found under one platform can't
+	// read the other's file.
 	stmt := "SELECT name, bytes, platform FROM eulas WHERE token = ? AND platform = ?"
 	var eula fleet.MDMEULA
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &eula, stmt, token, platform); err != nil {
