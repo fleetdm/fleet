@@ -391,12 +391,12 @@ func testHostMDMAppleEnrollmentPermissions(t *testing.T, ds *Datastore) {
 	require.Equal(t, apple_mdm.MDMAccessRightAll, perms.AccessRights)
 	require.False(t, perms.IsPersonalEnrollment)
 
-	// Record a personal (BYOD) enrollment in host_mdm; access rights still default
-	// until a permissions row is written.
+	// Record a personal (BYOD) enrollment in host_mdm; with no permissions row
+	// the access rights default to the narrowed personal bitmask.
 	require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://example.com?byod=1", false, "Fleet", "", fleet.PersonalEnrollmentTypeManualProfile))
 	perms, err = ds.GetHostMDMAppleEnrollmentPermissions(ctx, host.UUID)
 	require.NoError(t, err)
-	require.Equal(t, apple_mdm.MDMAccessRightAll, perms.AccessRights)
+	require.Equal(t, apple_mdm.AppleEnrollmentAccessRights(true), perms.AccessRights)
 	require.True(t, perms.IsPersonalEnrollment)
 
 	// Persist the narrowed BYOD bitmask and confirm it is read back together with
