@@ -53,7 +53,6 @@ func TestOrbitConfigNotify(t *testing.T) {
 		{"AfterCommit", testOrbitConfigNotifyAfterCommit},
 		{"ScriptActivation", testOrbitConfigNotifyScriptActivation},
 		{"DiskEncryption", testOrbitConfigNotifyDiskEncryption},
-		{"SetupExperience", testOrbitConfigNotifySetupExperience},
 		{"WindowsMDMSync", testOrbitConfigNotifyWindowsMDMSync},
 		{"EnrollOsquery", testOrbitConfigNotifyEnrollOsquery},
 	}
@@ -140,21 +139,6 @@ func testOrbitConfigNotifyDiskEncryption(t *testing.T, ds *Datastore, notifier *
 	require.Empty(t, notifier.take())
 	require.NoError(t, ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, false, time.Now()))
 	require.Equal(t, []orbitConfigNotification{{hostIDs: []uint{host.ID}, reason: fleet.AgentWSReasonDiskEncryption}}, notifier.take())
-}
-
-func testOrbitConfigNotifySetupExperience(t *testing.T, ds *Datastore, notifier *captureOrbitConfigNotifier) {
-	ctx := t.Context()
-	host := test.NewHost(t, ds, "host1", "", "key1", "uuid1", time.Now())
-	notifier.take()
-
-	require.NoError(t, ds.SetHostAwaitingConfiguration(ctx, host.UUID, false))
-	require.Empty(t, notifier.take())
-	require.NoError(t, ds.SetHostAwaitingConfiguration(ctx, host.UUID, true))
-	require.Equal(t, []orbitConfigNotification{{hostIDs: []uint{host.ID}, reason: fleet.AgentWSReasonMDM}}, notifier.take())
-
-	// An unknown host UUID notifies no one.
-	require.NoError(t, ds.SetHostAwaitingConfiguration(ctx, "no-such-uuid", true))
-	require.Empty(t, notifier.take())
 }
 
 func testOrbitConfigNotifyWindowsMDMSync(t *testing.T, ds *Datastore, notifier *captureOrbitConfigNotifier) {

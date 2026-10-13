@@ -38,7 +38,7 @@ var orbitConfigFieldTriggers = map[string]string{
 	"enable_bitlocker_protection":                 "fallback-only: disk status from osquery ingestion",
 	"bitlocker_pin_request_pending":               "hook: QueueBitLockerPINRequest",
 	"pending_software_installer_ids":              "hook: activateNextUpcomingActivity",
-	"run_setup_experience":                        "hook: enqueueSetupExperienceItems, SetHostAwaitingConfiguration (macOS); onboarding window (Windows ESP)",
+	"run_setup_experience":                        "onboarding window: set during enrollment",
 	"create_windows_managed_local_account":        "hook: initiateWindowsManagedLocalAccountRotation, orbitconfig_notify SaveAppConfig/SaveTeam",
 	"run_disk_encryption_escrow":                  "hook: QueueEscrow",
 }

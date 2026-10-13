@@ -539,7 +539,7 @@ func (oc *OrbitClient) recordFallbackChanges(prev, cur *fleet.OrbitConfig) {
 	if len(changed) == 0 {
 		return
 	}
-	log.Info().Strs("fields", changed).Msg("orbit config change found by fallback poll")
+	log.Debug().Strs("fields", changed).Msg("orbit config change found by fallback poll")
 
 	oc.fallbackChangesMu.Lock()
 	defer oc.fallbackChangesMu.Unlock()
