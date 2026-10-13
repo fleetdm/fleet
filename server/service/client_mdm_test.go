@@ -190,10 +190,14 @@ func TestGitOpsWindowsEULAWaitsForWindowsMDMToSettle(t *testing.T) {
 			var uploads int
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch r.Method + " " + r.URL.Path {
-				case "GET /api/latest/fleet/setup_experience/windows_eula/metadata":
+				case "GET /api/latest/fleet/setup_experience/eula/metadata":
+					assert.Equal(t, "windows", r.URL.Query().Get("platform"))
 					w.WriteHeader(http.StatusNotFound)
 					_, _ = w.Write([]byte(`{"message": "Resource Not Found"}`))
-				case "POST /api/latest/fleet/setup_experience/windows_eula":
+				case "POST /api/latest/fleet/setup_experience/eula":
+					// fleetctl sends the platform in the form, like the other uploads
+					assert.Equal(t, "windows", r.PostFormValue("platform"))
+					assert.Empty(t, r.URL.Query().Get("platform"))
 					uploads++
 					_, _ = w.Write([]byte("{}"))
 				default:
@@ -215,4 +219,55 @@ func TestGitOpsWindowsEULAWaitsForWindowsMDMToSettle(t *testing.T) {
 			require.Equal(t, 1, uploads)
 		})
 	}
+}
+
+// fleetctl and the server are expected to be the same version, but a server older than fleetctl ignores the platform
+// and answers for its macOS EULA. fleetctl must fail then, rather than delete or replace that EULA.
+func TestGitOpsWindowsEULARefusesMacOSMetadata(t *testing.T) {
+	var requests []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests = append(requests, r.Method+" "+r.URL.RequestURI())
+		if r.Method == http.MethodGet && r.URL.Path == "/api/latest/fleet/setup_experience/eula/metadata" {
+			_, _ = w.Write([]byte(`{"name": "eula.pdf", "token": "mac-token", "created_at": "2026-10-01T00:00:00Z"}`))
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+	client, err := NewClient(srv.URL, true, "", "")
+	require.NoError(t, err)
+	client.SetToken("test-token")
+
+	mdPath := filepath.Join(t.TempDir(), "terms.md")
+	require.NoError(t, os.WriteFile(mdPath, []byte("# Terms\n"), 0o600))
+	appConfig := &fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	appConfig.MDM.WindowsEnabledAndConfigured = true
+	for _, path := range []string{mdPath, ""} {
+		err := client.doGitOpsWindowsEULA(path, appConfig, nil, "", false, func(string, ...any) {})
+		require.ErrorContains(t, err, "the server didn't return the Windows EULA")
+	}
+
+	// nothing was uploaded or deleted
+	require.Equal(t, []string{
+		"GET /api/latest/fleet/setup_experience/eula/metadata?platform=windows",
+		"GET /api/latest/fleet/setup_experience/eula/metadata?platform=windows",
+	}, requests)
+}
+
+func TestEULAMacOSRequestsSendNoPlatform(t *testing.T) {
+	var requests []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests = append(requests, r.Method+" "+r.URL.RequestURI())
+		_, _ = w.Write([]byte(`{"name": "eula.pdf", "token": "mac-token", "created_at": "2026-10-01T00:00:00Z"}`))
+	}))
+	defer srv.Close()
+	client, err := NewClient(srv.URL, true, "", "")
+	require.NoError(t, err)
+	client.SetToken("test-token")
+
+	meta, err := client.GetEULAMetadata()
+	require.NoError(t, err)
+	require.Equal(t, "mac-token", meta.Token)
+	require.Equal(t, []string{"GET /api/latest/fleet/setup_experience/eula/metadata"}, requests)
 }
