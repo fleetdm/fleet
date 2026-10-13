@@ -148,7 +148,12 @@ jobs:
               | unique_by(.VulnerabilityID + "|" + (.PkgName // "") + "|" + .image)
               | sort_by(.Severity, .VulnerabilityID, .image)
               | map("• *\(.VulnerabilityID)* (\(.Severity // "UNKNOWN")) in `\(safe(.image))` — \(safe(.PkgName // "?")) \(safe(.InstalledVersion // "?")) → \(safe(.FixedVersion // "?"))\\n    _\(safe(.Title // "(no title)"))_")
-              | join("\\n")
+              # Slack rejects section text over 3000 chars (invalid_blocks), so cap the list.
+              | (reduce .[] as $l ({kept: [], len: 0, full: false};
+                  if .full or (.len + ($l | length) + 2 > 2500) then .full = true
+                  else .kept += [$l] | .len += ($l | length) + 2 end)) as $r
+              | ($r.kept | join("\\n"))
+                + (if length > ($r.kept | length) then "\\n…and \(length - ($r.kept | length)) more — see job logs" else "" end)
             ' "${files[@]}")
           fi
           echo "cve_list=${cve_list:-(no CVE list available — check job logs)}" >> "$GITHUB_OUTPUT"
