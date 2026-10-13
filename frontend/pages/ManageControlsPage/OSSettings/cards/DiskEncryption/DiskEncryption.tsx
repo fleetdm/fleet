@@ -310,6 +310,11 @@ const DiskEncryption = ({
       onChange={onToggleSetting(key)}
       value={value}
       className={`${baseClass}__checkbox`}
+      labelTooltipContent={
+        platform === "macos"
+          ? "Fleet escrows the recovery key even if disk encryption isn't enabled."
+          : undefined
+      }
       helpText={
         <>
           {ESCROW_HELP_TEXT}
