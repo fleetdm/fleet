@@ -42,11 +42,16 @@ const NotifyBeforePatchingDetailsModal = ({
 }: INotifyBeforePatchingDetailsModalProps) => {
   const {
     host_display_name: hostName,
-    software_titles: titles = [],
+    software_titles: legacyTitles = [],
+    softwares,
     status,
     time_before: timeBefore,
     script_execution_id: scriptExecutionId,
   } = details;
+
+  // Prefer the richer `softwares` field on new activities; fall back to the
+  // legacy flat `software_titles` for pre-override activity rows.
+  const titles = softwares ?? legacyTitles;
 
   const timeLabel = formatNotifyTimeLabel(timeBefore);
   const failed = isNotifyFailure(status);
@@ -131,7 +136,13 @@ const NotifyBeforePatchingDetailsModal = ({
         {hasOverflowApps && (
           <DataSet
             title="Apps"
-            value={titles.map((t) => getDisplayedSoftwareName(t)).join(", ")}
+            value={titles
+              .map((t) =>
+                typeof t === "string"
+                  ? getDisplayedSoftwareName(t)
+                  : getDisplayedSoftwareName(t.title, t.display_name)
+              )
+              .join(", ")}
           />
         )}
         {hasDetailsContent && (

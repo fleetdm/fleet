@@ -715,10 +715,24 @@ func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *not
 	}
 
 	// A policy that was deleted leaves patch_notification_apps.policy_id null.
+	// ListPatchNotificationApps already resolves DisplayName via COALESCE on
+	// software_title_display_names, falling back to the raw title name. Treat
+	// DisplayName as an override only when it differs from Name, so the activity
+	// JSON carries a nil display_name for titles with no per-team rename.
 	softwareTitles := make([]string, 0, len(apps))
+	softwares := make([]fleet.NotifySoftwareTitle, 0, len(apps))
 	policyIDs := make([]uint, 0, len(apps))
 	for _, app := range apps {
 		softwareTitles = append(softwareTitles, app.Name)
+		software := fleet.NotifySoftwareTitle{
+			Title:   app.Name,
+			TitleID: app.SoftwareTitleID,
+		}
+		if app.DisplayName != "" && app.DisplayName != app.Name {
+			name := app.DisplayName
+			software.DisplayName = &name
+		}
+		softwares = append(softwares, software)
 		if app.PolicyID != nil {
 			policyIDs = append(policyIDs, *app.PolicyID)
 		}
@@ -755,6 +769,7 @@ func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *not
 		HostDisplayName:       host.DisplayName(),
 		PatchNotificationUUID: notification.UUID,
 		SoftwareTitles:        softwareTitles,
+		Softwares:             softwares,
 		PolicyIDs:             policyIDs,
 		TimeBefore:            int(timeBefore.Seconds()),
 		InstallAt:             installAt,

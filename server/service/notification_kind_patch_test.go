@@ -746,6 +746,7 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 		wantStatus     string
 		wantTimeBefore int
 		wantTitles     []string
+		wantSoftwares  []fleet.NotifySoftwareTitle
 		wantPolicyIDs  []uint
 	}{
 		{
@@ -755,7 +756,11 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 			wantStatus:     "success",
 			wantTimeBefore: 3600,
 			wantTitles:     []string{"AppOne", "AppTwo"},
-			wantPolicyIDs:  []uint{30, 31},
+			wantSoftwares: []fleet.NotifySoftwareTitle{
+				{Title: "AppOne", TitleID: 10},
+				{Title: "AppTwo", TitleID: 11},
+			},
+			wantPolicyIDs: []uint{30, 31},
 		},
 		{
 			name:           "a displayed reminder records five minutes as its time before",
@@ -765,7 +770,11 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 			wantStatus:     "success",
 			wantTimeBefore: 300,
 			wantTitles:     []string{"AppOne", "AppTwo"},
-			wantPolicyIDs:  []uint{30, 31},
+			wantSoftwares: []fleet.NotifySoftwareTitle{
+				{Title: "AppOne", TitleID: 10},
+				{Title: "AppTwo", TitleID: 11},
+			},
+			wantPolicyIDs: []uint{30, 31},
 		},
 		{
 			name:           "a screen locked failure is recorded the first time it happens",
@@ -774,7 +783,11 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 			wantStatus:     "failed",
 			wantTimeBefore: 3600,
 			wantTitles:     []string{"AppOne", "AppTwo"},
-			wantPolicyIDs:  []uint{30, 31},
+			wantSoftwares: []fleet.NotifySoftwareTitle{
+				{Title: "AppOne", TitleID: 10},
+				{Title: "AppTwo", TitleID: 11},
+			},
+			wantPolicyIDs: []uint{30, 31},
 		},
 		{
 			name:           "a repeat of the same failure is not recorded again",
@@ -791,7 +804,11 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 			wantStatus:     "failed",
 			wantTimeBefore: 3600,
 			wantTitles:     []string{"AppOne", "AppTwo"},
-			wantPolicyIDs:  []uint{30, 31},
+			wantSoftwares: []fleet.NotifySoftwareTitle{
+				{Title: "AppOne", TitleID: 10},
+				{Title: "AppTwo", TitleID: 11},
+			},
+			wantPolicyIDs: []uint{30, 31},
 		},
 		{
 			// a policy deleted after the notification was created leaves
@@ -805,7 +822,30 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 			wantStatus:     "success",
 			wantTimeBefore: 3600,
 			wantTitles:     []string{"AppOne", "AppThree"},
-			wantPolicyIDs:  []uint{30},
+			wantSoftwares: []fleet.NotifySoftwareTitle{
+				{Title: "AppOne", TitleID: 10},
+				{Title: "AppThree", TitleID: 12},
+			},
+			wantPolicyIDs: []uint{30},
+		},
+		{
+			// An admin-picked per-team override is snapshotted into display_name;
+			// a title with no override (DisplayName == Name from the datastore
+			// COALESCE) leaves display_name nil so the UI can tell them apart.
+			name:    "an admin display name override is snapshotted into softwares",
+			outcome: notifications_api.NotificationOutcome{Displayed: true, ExitCode: 0, ExecutionID: "exec-7"},
+			apps: []fleet.PatchNotificationAppDetail{
+				{SoftwareTitleID: 10, Name: "AppOne", DisplayName: "Custom AppOne", PolicyID: new(uint(30))},
+				{SoftwareTitleID: 11, Name: "AppTwo", DisplayName: "AppTwo", PolicyID: new(uint(31))},
+			},
+			wantStatus:     "success",
+			wantTimeBefore: 3600,
+			wantTitles:     []string{"AppOne", "AppTwo"},
+			wantSoftwares: []fleet.NotifySoftwareTitle{
+				{Title: "AppOne", TitleID: 10, DisplayName: new("Custom AppOne")},
+				{Title: "AppTwo", TitleID: 11},
+			},
+			wantPolicyIDs: []uint{30, 31},
 		},
 	}
 
@@ -872,6 +912,7 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 			require.Equal(t, c.outcome.ExitCode, *activity.ExitCode)
 
 			require.Equal(t, c.wantTitles, activity.SoftwareTitles)
+			require.Equal(t, c.wantSoftwares, activity.Softwares)
 			require.Equal(t, c.wantPolicyIDs, activity.PolicyIDs)
 		})
 	}

@@ -2618,7 +2618,8 @@ const TAGGED_TEMPLATES = {
     }
     const {
       host_display_name: hostName,
-      software_titles: titles = [],
+      software_titles: legacyTitles = [],
+      softwares,
       status,
       time_before: timeBefore,
     } = details;
@@ -2626,7 +2627,9 @@ const TAGGED_TEMPLATES = {
     const failed = isNotifyFailure(status);
     const verb = failed ? "failed to notify" : "notified";
 
-    const titleList = renderNotifyTitleList(titles);
+    // Prefer the richer `softwares` field on new activities; fall back to the
+    // legacy flat `software_titles` for pre-override activity rows.
+    const titleList = renderNotifyTitleList(softwares ?? legacyTitles);
 
     return (
       <>

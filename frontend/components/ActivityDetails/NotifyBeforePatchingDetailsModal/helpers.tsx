@@ -1,6 +1,9 @@
 import React from "react";
 
-import { INotifyActivityStatus } from "interfaces/activity";
+import {
+  INotifyActivityStatus,
+  INotifySoftwareTitle,
+} from "interfaces/activity";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 // Loose input — details.status is typed as `string | undefined` on
@@ -105,31 +108,40 @@ export const isNotifyBeforePatchingSkip = (
   preInstallOutput?: string | null
 ): boolean => !!preInstallOutput?.includes(NOTIFY_SKIP_MARKER);
 
+// Legacy activity rows stored only software_titles (string[]); new rows add
+// softwares with per-team display name overrides. Accept both so callers can
+// pass `details.softwares ?? details.software_titles` without branching.
+export type NotifyTitleInput = string | INotifySoftwareTitle;
+
+const toSoftwareTitle = (input: NotifyTitleInput): INotifySoftwareTitle =>
+  typeof input === "string" ? { title: input } : input;
+
 // Bold titles, Oxford comma. Inline all when ≤ INLINE_APP_LIMIT; past that
 // truncate to 3 + ", and N more apps". Returns null on empty input.
-// TODO(BE contract): software_titles is currently string[]; if BE emits
-// objects with display_name, swap this to render the display name.
-export const renderNotifyTitleList = (titles: string[]): React.ReactNode => {
+export const renderNotifyTitleList = (
+  titles: NotifyTitleInput[]
+): React.ReactNode => {
   if (titles.length === 0) return null;
-  const bold = (name: string) => (
-    <strong>{getDisplayedSoftwareName(name)}</strong>
+  const items = titles.map(toSoftwareTitle);
+  const bold = (item: INotifySoftwareTitle) => (
+    <strong>{getDisplayedSoftwareName(item.title, item.display_name)}</strong>
   );
-  if (titles.length === 1) return bold(titles[0]);
-  if (titles.length === 2) {
+  if (items.length === 1) return bold(items[0]);
+  if (items.length === 2) {
     return (
       <>
-        {bold(titles[0])} and {bold(titles[1])}
+        {bold(items[0])} and {bold(items[1])}
       </>
     );
   }
-  if (titles.length <= INLINE_APP_LIMIT) {
-    const head = titles.slice(0, -1);
-    const tail = titles[titles.length - 1];
+  if (items.length <= INLINE_APP_LIMIT) {
+    const head = items.slice(0, -1);
+    const tail = items[items.length - 1];
     return (
       <>
-        {head.map((t, i) => (
-          <React.Fragment key={t}>
-            {bold(t)}
+        {head.map((item, i) => (
+          <React.Fragment key={item.title_id ?? item.title}>
+            {bold(item)}
             {i < head.length - 1 ? ", " : ", and "}
           </React.Fragment>
         ))}
@@ -139,8 +151,8 @@ export const renderNotifyTitleList = (titles: string[]): React.ReactNode => {
   }
   // When truncating past INLINE_APP_LIMIT, always name the first N inline;
   // overflow is always ≥ 2, so no pluralize needed.
-  const shown = titles.slice(0, TRUNCATED_INLINE_COUNT);
-  const overflow = titles.length - TRUNCATED_INLINE_COUNT;
+  const shown = items.slice(0, TRUNCATED_INLINE_COUNT);
+  const overflow = items.length - TRUNCATED_INLINE_COUNT;
   return (
     <>
       {bold(shown[0])}, {bold(shown[1])}, {bold(shown[2])}, and {overflow} more
