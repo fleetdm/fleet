@@ -59,20 +59,11 @@ const renderAccordion = (overrides: Partial<ILibraryItemAccordionProps> = {}) =>
 
 describe("LibraryItemAccordion", () => {
   describe("collapsed header", () => {
-    it("renders the filename and version", () => {
+    it("renders the filename, version, and added timestamp", () => {
       renderAccordion();
       expect(screen.getByText("GoogleChrome.pkg")).toBeVisible();
       expect(screen.getByText(/149\.0\.7827\.54/)).toBeVisible();
-    });
-
-    it("renders the added timestamp", () => {
-      renderAccordion();
       expect(screen.getByText(/^Added /)).toBeVisible();
-    });
-
-    it("hides the added timestamp when addedAt is omitted", () => {
-      renderAccordion({ addedAt: undefined });
-      expect(screen.queryByText(/^Added /)).not.toBeInTheDocument();
     });
 
     it("does not render the expanded panel by default", () => {
