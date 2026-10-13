@@ -71,9 +71,12 @@ module.exports = {
     // Google opens many descriptions with a bare "Optional." or "Required.", which would otherwise be
     // the only sentence kept -- printingPolicy came through as just "Optional.".  Some sentences
     // also run together with no space ("Use passwordPolicies.Note:Complexity..."), so a period
-    // directly followed by a capital letter is a boundary too.
+    // directly followed by a capitalized word is a boundary too -- but only after a standalone word,
+    // and only before a word, so dotted identifiers like android.permission.READ_CALENDAR and
+    // ApplicationPolicy.InstallType.CUSTOM stay whole.  "e.g." and "i.e." are not boundaries, or the
+    // example that follows them, which is usually what shows the value's format, is cut off.
     let prunePropertyDescription = (description)=>{
-      let sentences = _.reject(description.split(/(?<=\.)\s+|(?<=[a-z]\.)(?=[A-Z])/), (sentence)=>{
+      let sentences = _.reject(description.split(/(?<!\b(?:e\.g|i\.e|etc|vs)\.)(?<=\.)\s+|(?<=(?:^|[\s(])[A-Za-z]+\)?\.)(?=[A-Z][a-z]*(?:[\s:,]|$))/), (sentence)=>{
         return /^(optional|required)?\.?$/i.test(sentence.trim());
       });
       return _.union(

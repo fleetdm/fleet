@@ -1037,7 +1037,7 @@
         "items": {
           "$ref": "ApplicationSigningKeyCert"
         },
-        "description": "Signing key certificates of the app. This field is required in the following cases: The app has installType set to CUSTOM (i.e. an extension app) but ExtensionConfig.signingKeyFingerprintsSha256 (deprecated) is not set and the app does not exist on the Play Store."
+        "description": "Signing key certificates of the app. This field is required in the following cases: The app has installType set to CUSTOM (i.e. a custom app). The app has extensionConfig set (i.e. an extension app) but ExtensionConfig.signingKeyFingerprintsSha256 (deprecated) is not set and the app does not exist on the Play Store."
       },
       "userControlSettings": {
         "type": "string",
@@ -1072,7 +1072,7 @@
       "signingKeyCertFingerprintSha256": {
         "type": "string",
         "format": "byte",
-        "description": "The SHA-256 hash value of the signing key certificate of the app. This must be a valid SHA-256 hash value, i.e."
+        "description": "The SHA-256 hash value of the signing key certificate of the app. This must be a valid SHA-256 hash value, i.e. 32 bytes."
       }
     }
   },
@@ -1318,7 +1318,7 @@
         "items": {
           "$ref": "DefaultApplication"
         },
-        "description": "The list of applications that can be set as the default app for a given type. This list must not be empty or contain duplicates. The signing key certificate fingerprint of the app on the device must also match one of the signing key certificate fingerprints obtained from Play Store or one of the entries in ApplicationPolicy.signingKeyCerts in order to be set as the default. If the defaultApplicationScopes contains SCOPE_FULLY_MANAGED or SCOPE_WORK_PROFILE, the app must have an entry in applications with installType set to a value other than BLOCKED.A NonComplianceDetail with APP_NOT_INSTALLED reason and DEFAULT_APPLICATION_SETTING_FAILED_FOR_SCOPE specific reason is reported if none of the apps in the list are installed."
+        "description": "The list of applications that can be set as the default app for a given type. This list must not be empty or contain duplicates. The signing key certificate fingerprint of the app on the device must also match one of the signing key certificate fingerprints obtained from Play Store or one of the entries in ApplicationPolicy.signingKeyCerts in order to be set as the default. If the defaultApplicationScopes contains SCOPE_FULLY_MANAGED or SCOPE_WORK_PROFILE, the app must have an entry in applications with installType set to a value other than BLOCKED."
       }
     }
   },
@@ -1742,7 +1742,7 @@
           "USE_DEFAULT_DEVICE_TIMEOUT",
           "REQUIRE_EVERY_DAY"
         ],
-        "description": "The length of time after a device or work profile is unlocked using a strong form of authentication (password, PIN, pattern) that it can be unlocked using any other authentication method (e.g. fingerprint, trust agents, face)."
+        "description": "The length of time after a device or work profile is unlocked using a strong form of authentication (password, PIN, pattern) that it can be unlocked using any other authentication method (e.g. fingerprint, trust agents, face). After the specified time period elapses, only strong forms of authentication can be used to unlock the device or work profile."
       },
       "unifiedLockSettings": {
         "type": "string",
@@ -1759,7 +1759,7 @@
     "properties": {
       "permission": {
         "type": "string",
-        "description": "The Android permission or group, e.g. android.permission."
+        "description": "The Android permission or group, e.g. android.permission.READ_CALENDAR or android.permission_group.CALENDAR."
       },
       "policy": {
         "type": "string",
@@ -1791,7 +1791,7 @@
       },
       "receiverActivity": {
         "type": "string",
-        "description": "The activity that should be the default intent handler. This should be an Android component name, e.g."
+        "description": "The activity that should be the default intent handler. This should be an Android component name, e.g. com.android.enterprise.app/.MainActivity."
       }
     }
   },
@@ -2064,7 +2064,7 @@
       },
       "launchApp": {
         "$ref": "LaunchAppAction",
-        "description": "An action to launch an app. The app will be launched with an intent containing an extra with key com.google.android.apps.work.clouddpc. If SetupAction references an app, the corresponding installType in the application policy must be set as REQUIRED_FOR_SETUP or said setup will fail."
+        "description": "An action to launch an app. The app will be launched with an intent containing an extra with key com.google.android.apps.work.clouddpc.EXTRA_LAUNCHED_AS_SETUP_ACTION set to the boolean value true to indicate that this is a setup action flow. If SetupAction references an app, the corresponding installType in the application policy must be set as REQUIRED_FOR_SETUP or said setup will fail."
       },
       "title": {
         "$ref": "UserFacingMessage",
