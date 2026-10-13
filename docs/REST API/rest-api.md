@@ -15127,6 +15127,8 @@ A software title can have more than one app store apps on the same fleet for iOS
 
 For iOS, iPadOS, and Android apps, each version includes `configuration`, the version's managed app configuration. It's in XML format for iOS and iPadOS apps, and JSON format for Android apps.
 
+For Android apps, each version includes `deploy`. It's `true` if Fleet automatically installs the version on targeted hosts. It's always `false` for Apple apps.
+
 If a host is in scope for more than one version, Fleet installs the one that was added first (the earliest `created_at`).
 
 > Install, pending, and failed counts in `app_store_apps.status` are separate for each version.
@@ -15762,7 +15764,8 @@ You can add more than one version of the same app to a fleet. Fleet always insta
 | name | string | body | The version's name (e.g. `"Production"`). Must be unique for the software title on the fleet. |
 | platform | string | body | The platform of the app (`darwin`, `ios`, `ipados`, or `android`). Default is `darwin`. |
 | vpp_token_id | integer | body | **Required if the fleet has more than one VPP token**. The ID of the VPP token to add the Apple App Store app from. The VPP token must be assigned to the fleet. Fleet uses this VPP token for all requests to Apple related to the app in this fleet, like assigning licenses. Not needed if the fleet has only one VPP token. Not supported for Android apps. |
-| self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, for Android in **Play Store** app in end user's work profile, and for iOS/iPadOS in [self-service web](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) app.  |
+| self_service | boolean | body | **Required if platform is Android and `deploy` is `false`**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, for Android in **Play Store** app in end user's work profile, and for iOS/iPadOS in [self-service web](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) app.  |
+| deploy | boolean | body | Android only. If `true`, Fleet automatically installs the app on all targeted hosts, and end users can't remove it. If changed from `true` to `false`, Fleet uninstalls the app from the hosts that have it. Default is `false`. |
 | automatic_install | boolean | body | macOS only. If `true`, creates a policy that triggers an install only on hosts missing the app ("Force install"). Default is `false`. |
 | labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
@@ -15787,6 +15790,19 @@ An Apple App Store app can be added to a fleet from only one VPP token per platf
   "fleet_id": 2,
   "platform": "ipados",
   "self_service": true
+}
+```
+
+##### Request body deploying an Android app
+
+```json
+{
+  "app_store_id": "us.zoom.videomeetings",
+  "fleet_id": 2,
+  "platform": "android",
+  "name": "Production",
+  "deploy": true,
+  "labels_include_any": ["Engineering"]
 }
 ```
 
@@ -15845,7 +15861,8 @@ A software title can have more than one version of the same App Store app on a f
 | version_id | integer | body | ID of the version of the app to update. **Required when the title has more than one version** on the fleet. |
 | name | string | body | The version's name (e.g. `"Production"`). Must be unique for the software title on the fleet. |
 | display_name    | string  | body | Optional override for the default `name`. |
-| self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
+| self_service | boolean | body | **Required if platform is Android and `deploy` is `false`**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
+| deploy | boolean | body | Android only. If `true`, Fleet automatically installs the app on all targeted hosts, and end users can't remove it. If changed from `true` to `false`, Fleet uninstalls the app from the hosts that have it. Default is `false`. |
 | categories | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**. |
 | auto_update_enabled | boolean | body | Whether to enable automatic updates for iOS/iPadOS App Store (VPP) apps. |
 | auto_update_window_start | string | body | Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM. Required if `auto_update_enabled` is `true`. |
@@ -15856,6 +15873,8 @@ A software title can have more than one version of the same App Store app on a f
 | configuration | object | body | The version's managed app configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android. |
 
 All settings are set per version, so updating one version doesn't change any other version of the same app.
+
+If `deploy` is `true` and the version's labels change, Fleet installs the app on hosts that are now in scope and uninstalls it from hosts that are no longer in scope.
 
 Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
@@ -15878,6 +15897,19 @@ If a host is in scope for more than one version, Fleet installs the one that was
     "Product",
     "Marketing"
   ]
+}
+```
+
+##### Request body turning off deploy for an Android version
+
+Fleet uninstalls the app from the hosts that have it.
+
+```json
+{
+  "fleet_id": 2,
+  "version_id": 43,
+  "deploy": false,
+  "self_service": true
 }
 ```
 
