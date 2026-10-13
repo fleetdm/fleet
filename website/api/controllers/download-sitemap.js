@@ -73,6 +73,13 @@ module.exports = {
       '/infrastructure-as-code',
       '/endpoint-governance',
       '/ai',
+      '/deployment',
+      '/arch-linux-management',
+      '/omarchy',
+      '/capex-savings',
+      '/security-and-control',
+      '/linux-management',
+      '/europe',
       // Other stuff:
       // > Note: /handbook overview page is already included amongst the markdown pages
       // > Note: Same for /docs
@@ -86,10 +93,10 @@ module.exports = {
       '/scripts',// « overview page (all subpages are dynamic)
       '/os-settings',
       '/fast-track',
-      '/meetups',
       '/customers',
-      '/gitops-workshop',
+      '/workshops',
       '/download',
+
 
       // Landing pages:
       '/lp/patch-faster',

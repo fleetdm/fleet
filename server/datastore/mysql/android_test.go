@@ -57,6 +57,7 @@ func TestAndroid(t *testing.T) {
 		{"GetAndroidPolicyRequestByUUID", testGetAndroidPolicyRequestByUUID},
 		{"MDMAndroidCommandCRUD", testMDMAndroidCommandCRUD},
 		{"ListPendingMDMAndroidCommands", testListPendingMDMAndroidCommands},
+		{"FailPendingMDMAndroidCommandsOutsidePrefix", testFailPendingMDMAndroidCommandsOutsidePrefix},
 		{"LockWipeHostViaAndroidMDM", testLockWipeHostViaAndroidMDM},
 		{"ListHostMDMAndroidProfilesPendingInstallWithVersion", testListHostMDMAndroidProfilesPendingInstallWithVersion},
 		{"BulkDeleteMDMAndroidHostProfiles", testBulkDeleteMDMAndroidHostProfiles},
@@ -2971,32 +2972,8 @@ func testMDMAndroidCommandCRUD(t *testing.T, ds *Datastore) {
 func testListPendingMDMAndroidCommands(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	// insertCommand creates a command row and backdates created_at so the age cutoff can be exercised
-	// without waiting. Returns the command_uuid.
 	insertCommand := func(t *testing.T, status string, age time.Duration) string {
-		cmdUUID := uuid.NewString()
-		require.NoError(t, ds.NewMDMAndroidCommand(ctx, &android.MDMAndroidCommand{
-			CommandUUID:   cmdUUID,
-			HostUUID:      "host-" + cmdUUID,
-			OperationName: "enterprises/E1/devices/D1/operations/" + cmdUUID,
-			CommandType:   string(android.MDMAndroidCommandTypeLock),
-			Status:        status,
-		}))
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx,
-				`UPDATE mdm_android_commands SET created_at = NOW(6) - INTERVAL ? SECOND WHERE command_uuid = ?`,
-				int(age.Seconds()), cmdUUID)
-			return err
-		})
-		return cmdUUID
-	}
-
-	uuidsOf := func(cmds []*android.MDMAndroidCommand) []string {
-		got := make([]string, 0, len(cmds))
-		for _, cmd := range cmds {
-			got = append(got, cmd.CommandUUID)
-		}
-		return got
+		return insertAndroidCommandForReconcileTest(t, ds, "enterprises/E1/devices/D1/operations/", status, age)
 	}
 
 	oldest := insertCommand(t, string(android.MDMAndroidCommandStatusPending), 72*time.Hour)
@@ -3005,24 +2982,28 @@ func testListPendingMDMAndroidCommands(t *testing.T, ds *Datastore) {
 	tooRecent := insertCommand(t, string(android.MDMAndroidCommandStatusPending), time.Hour)
 	acknowledged := insertCommand(t, string(android.MDMAndroidCommandStatusAcknowledged), 48*time.Hour)
 	errored := insertCommand(t, string(android.MDMAndroidCommandStatusError), 48*time.Hour)
+	// E10 shares E1 as a string prefix, so it also checks the prefix is matched up to the trailing slash.
+	otherEnterprise := insertAndroidCommandForReconcileTest(t, ds, "enterprises/E10/devices/D1/operations/",
+		string(android.MDMAndroidCommandStatusPending), 96*time.Hour)
 
 	t.Run("returns only pending rows older than the cutoff, oldest first", func(t *testing.T) {
-		cmds, err := ds.ListPendingMDMAndroidCommands(ctx, time.Now().Add(-24*time.Hour), 100)
+		cmds, err := ds.ListPendingMDMAndroidCommands(ctx, "enterprises/E1/", time.Now().Add(-24*time.Hour), 100)
 		require.NoError(t, err)
-		require.Equal(t, []string{oldest, middle, newest}, uuidsOf(cmds))
-		require.NotContains(t, uuidsOf(cmds), tooRecent)
-		require.NotContains(t, uuidsOf(cmds), acknowledged)
-		require.NotContains(t, uuidsOf(cmds), errored)
+		require.Equal(t, []string{oldest, middle, newest}, androidCommandUUIDs(cmds))
+		require.NotContains(t, androidCommandUUIDs(cmds), tooRecent)
+		require.NotContains(t, androidCommandUUIDs(cmds), acknowledged)
+		require.NotContains(t, androidCommandUUIDs(cmds), errored)
+		require.NotContains(t, androidCommandUUIDs(cmds), otherEnterprise)
 	})
 
 	t.Run("limit caps the batch to the oldest rows", func(t *testing.T) {
-		cmds, err := ds.ListPendingMDMAndroidCommands(ctx, time.Now().Add(-24*time.Hour), 2)
+		cmds, err := ds.ListPendingMDMAndroidCommands(ctx, "enterprises/E1/", time.Now().Add(-24*time.Hour), 2)
 		require.NoError(t, err)
-		require.Equal(t, []string{oldest, middle}, uuidsOf(cmds))
+		require.Equal(t, []string{oldest, middle}, androidCommandUUIDs(cmds))
 	})
 
 	t.Run("returns all fields needed to reconcile", func(t *testing.T) {
-		cmds, err := ds.ListPendingMDMAndroidCommands(ctx, time.Now().Add(-24*time.Hour), 1)
+		cmds, err := ds.ListPendingMDMAndroidCommands(ctx, "enterprises/E1/", time.Now().Add(-24*time.Hour), 1)
 		require.NoError(t, err)
 		require.Len(t, cmds, 1)
 		assert.Equal(t, oldest, cmds[0].CommandUUID)
@@ -3038,10 +3019,90 @@ func testListPendingMDMAndroidCommands(t *testing.T, ds *Datastore) {
 	})
 
 	t.Run("no matching rows returns an empty slice", func(t *testing.T) {
-		cmds, err := ds.ListPendingMDMAndroidCommands(ctx, time.Now().Add(-365*24*time.Hour), 100)
+		cmds, err := ds.ListPendingMDMAndroidCommands(ctx, "enterprises/E1/", time.Now().Add(-365*24*time.Hour), 100)
 		require.NoError(t, err)
 		require.Empty(t, cmds)
 	})
+}
+
+func testFailPendingMDMAndroidCommandsOutsidePrefix(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	const grace = 7 * 24 * time.Hour
+	const msg = "sent under a previous enterprise"
+	pending := string(android.MDMAndroidCommandStatusPending)
+
+	oldestOrphan := insertAndroidCommandForReconcileTest(t, ds, "enterprises/OLD/devices/D1/operations/", pending, grace+3*time.Hour)
+	lookalikeOrphan := insertAndroidCommandForReconcileTest(t, ds, "enterprises/E10/devices/D1/operations/", pending, grace+2*time.Hour)
+	newestOrphan := insertAndroidCommandForReconcileTest(t, ds, "enterprises/OLD/devices/D1/operations/", pending, grace+time.Hour)
+	orphanInGrace := insertAndroidCommandForReconcileTest(t, ds, "enterprises/OLD/devices/D1/operations/", pending, grace-time.Hour)
+	current := insertAndroidCommandForReconcileTest(t, ds, "enterprises/E1/devices/D1/operations/", pending, grace+time.Hour)
+	acknowledgedOrphan := insertAndroidCommandForReconcileTest(t, ds, "enterprises/OLD/devices/D1/operations/",
+		string(android.MDMAndroidCommandStatusAcknowledged), grace+time.Hour)
+
+	statusOf := func(t *testing.T, cmdUUID string) *android.MDMAndroidCommand {
+		cmd, err := ds.GetMDMAndroidCommandByUUID(ctx, cmdUUID)
+		require.NoError(t, err)
+		return cmd
+	}
+
+	t.Run("limit fails the oldest rows first", func(t *testing.T) {
+		n, err := ds.FailPendingMDMAndroidCommandsOutsidePrefix(ctx, "enterprises/E1/", time.Now().Add(-grace), msg, 2)
+		require.NoError(t, err)
+		require.EqualValues(t, 2, n)
+		assert.Equal(t, string(android.MDMAndroidCommandStatusError), statusOf(t, oldestOrphan).Status)
+		assert.Equal(t, string(android.MDMAndroidCommandStatusError), statusOf(t, lookalikeOrphan).Status)
+		assert.Equal(t, pending, statusOf(t, newestOrphan).Status)
+	})
+
+	t.Run("fails only pending rows of other enterprises past the cutoff", func(t *testing.T) {
+		n, err := ds.FailPendingMDMAndroidCommandsOutsidePrefix(ctx, "enterprises/E1/", time.Now().Add(-grace), msg, 100)
+		require.NoError(t, err)
+		require.EqualValues(t, 1, n)
+
+		failed := statusOf(t, newestOrphan)
+		assert.Equal(t, string(android.MDMAndroidCommandStatusError), failed.Status)
+		assert.Equal(t, sql.Null[string]{V: msg, Valid: true}, failed.ErrorMessage)
+		assert.False(t, failed.ErrorCode.Valid)
+
+		assert.Equal(t, pending, statusOf(t, orphanInGrace).Status)
+		assert.Equal(t, pending, statusOf(t, current).Status)
+		assert.Equal(t, string(android.MDMAndroidCommandStatusAcknowledged), statusOf(t, acknowledgedOrphan).Status)
+	})
+
+	t.Run("nothing left to fail returns zero", func(t *testing.T) {
+		n, err := ds.FailPendingMDMAndroidCommandsOutsidePrefix(ctx, "enterprises/E1/", time.Now().Add(-grace), msg, 100)
+		require.NoError(t, err)
+		require.Zero(t, n)
+	})
+}
+
+// insertAndroidCommandForReconcileTest creates a command row under operationNamePrefix and backdates
+// created_at so age cutoffs can be exercised without waiting. Returns the command_uuid.
+func insertAndroidCommandForReconcileTest(t *testing.T, ds *Datastore, operationNamePrefix, status string, age time.Duration) string {
+	ctx := t.Context()
+	cmdUUID := uuid.NewString()
+	require.NoError(t, ds.NewMDMAndroidCommand(ctx, &android.MDMAndroidCommand{
+		CommandUUID:   cmdUUID,
+		HostUUID:      "host-" + cmdUUID,
+		OperationName: operationNamePrefix + cmdUUID,
+		CommandType:   string(android.MDMAndroidCommandTypeLock),
+		Status:        status,
+	}))
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE mdm_android_commands SET created_at = NOW(6) - INTERVAL ? SECOND WHERE command_uuid = ?`,
+			int(age.Seconds()), cmdUUID)
+		return err
+	})
+	return cmdUUID
+}
+
+func androidCommandUUIDs(cmds []*android.MDMAndroidCommand) []string {
+	got := make([]string, 0, len(cmds))
+	for _, cmd := range cmds {
+		got = append(got, cmd.CommandUUID)
+	}
+	return got
 }
 
 // newBareAndroidHostForTest inserts a minimal android-platform host row. Use this for tests
@@ -4014,6 +4075,17 @@ func setupTestApp(t *testing.T, ds *Datastore, appID string) {
 	require.NoError(t, err)
 }
 
+func setupTestAppInFleet(t *testing.T, ds *Datastore, appID string, platform fleet.InstallableDevicePlatform, teamID uint) uint {
+	res, err := ds.writer(testCtx()).ExecContext(testCtx(), `
+		INSERT INTO vpp_apps_teams (adam_id, platform, team_id, global_or_team_id, name)
+		VALUES (?, ?, ?, ?, 'Default version')
+	`, appID, platform, ptr.UintOrNilIfZero(teamID), teamID)
+	require.NoError(t, err)
+	id, err := res.LastInsertId()
+	require.NoError(t, err)
+	return uint(id) //nolint:gosec // dismiss G115
+}
+
 // setupTestTeam creates a test team
 func setupTestTeam(t *testing.T, ds *Datastore) uint {
 	team, err := ds.NewTeam(testCtx(), &fleet.Team{Name: "Test Team"})
@@ -4024,11 +4096,12 @@ func setupTestTeam(t *testing.T, ds *Datastore) uint {
 func testInsertAndGetAndroidAppConfiguration(t *testing.T, ds *Datastore) {
 	appID := "com.example.testapp"
 	setupTestApp(t, ds, appID)
+	appTeamID := setupTestAppInFleet(t, ds, appID, fleet.AndroidPlatform, 0)
 
 	configuration := json.RawMessage(`{"managedConfiguration": {"key": "value"}}`)
 
 	// Insert configuration
-	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), 0, appID, configuration))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), appTeamID, configuration))
 
 	// Get configuration
 	retrieved, err := ds.GetAndroidAppConfiguration(testCtx(), appID, 0)
@@ -4037,13 +4110,13 @@ func testInsertAndGetAndroidAppConfiguration(t *testing.T, ds *Datastore) {
 	require.JSONEq(t, string(configuration), string(retrieved))
 
 	// test bulk-get configuration
-	configsByAppID, err := ds.BulkGetAndroidAppConfigurations(testCtx(), []string{appID}, 0)
+	configsByAppID, err := ds.BulkGetAndroidAppConfigurations(testCtx(), []uint{appTeamID})
 	require.NoError(t, err)
 	require.Len(t, configsByAppID, 1)
 	require.Equal(t, string(retrieved), string(configsByAppID[appID]))
 
 	// bulk-get configuration returns any known app config, ignores others
-	configsByAppID, err = ds.BulkGetAndroidAppConfigurations(testCtx(), []string{appID, "no-such-app"}, 0)
+	configsByAppID, err = ds.BulkGetAndroidAppConfigurations(testCtx(), []uint{appTeamID, 999999})
 	require.NoError(t, err)
 	require.Len(t, configsByAppID, 1)
 	require.Equal(t, string(retrieved), string(configsByAppID[appID]))
@@ -4052,15 +4125,16 @@ func testInsertAndGetAndroidAppConfiguration(t *testing.T, ds *Datastore) {
 func testUpdateAndroidAppConfiguration(t *testing.T, ds *Datastore) {
 	appID := "com.example.updateapp"
 	setupTestApp(t, ds, appID)
+	appTeamID := setupTestAppInFleet(t, ds, appID, fleet.AndroidPlatform, 0)
 
 	configuration := json.RawMessage(`{"managedConfiguration": {"key": "value1"}}`)
 
 	// Insert initial configuration
-	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), 0, appID, configuration))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), appTeamID, configuration))
 
 	// Update configuration
 	newConfig := json.RawMessage(`{"managedConfiguration": {"key": "value2"}, "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"}`)
-	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), 0, appID, newConfig))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), appTeamID, newConfig))
 
 	// Verify update
 	retrieved, err := ds.GetAndroidAppConfiguration(testCtx(), appID, 0)
@@ -4071,11 +4145,12 @@ func testUpdateAndroidAppConfiguration(t *testing.T, ds *Datastore) {
 func testDeleteAndroidAppConfiguration(t *testing.T, ds *Datastore) {
 	appID := "com.example.deleteapp"
 	setupTestApp(t, ds, appID)
+	appTeamID := setupTestAppInFleet(t, ds, appID, fleet.AndroidPlatform, 0)
 
 	configuration := json.RawMessage(`{"managedConfiguration": {}}`)
 
 	// Insert configuration
-	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), 0, appID, configuration))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), appTeamID, configuration))
 
 	// Verify it exists
 	_, err := ds.GetAndroidAppConfiguration(testCtx(), appID, 0)
@@ -4107,11 +4182,12 @@ func testAndroidAppConfigurationCascadeDeleteTeam(t *testing.T, ds *Datastore) {
 	appID := "com.example.teamcascadeapp"
 	setupTestApp(t, ds, appID)
 	teamID := setupTestTeam(t, ds)
+	appTeamID := setupTestAppInFleet(t, ds, appID, fleet.AndroidPlatform, teamID)
 
 	configuration := json.RawMessage(`{"managedConfiguration": {}}`)
 
 	// Insert configuration
-	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), teamID, appID, configuration))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), appTeamID, configuration))
 
 	// Verify it exists
 	_, err := ds.GetAndroidAppConfiguration(testCtx(), appID, teamID)
@@ -4131,14 +4207,16 @@ func testAndroidAppConfigurationGlobalVsTeam(t *testing.T, ds *Datastore) {
 	appID := "com.example.globalvsteamapp"
 	setupTestApp(t, ds, appID)
 	teamID := setupTestTeam(t, ds)
+	globalAppTeamID := setupTestAppInFleet(t, ds, appID, fleet.AndroidPlatform, 0)
+	teamAppTeamID := setupTestAppInFleet(t, ds, appID, fleet.AndroidPlatform, teamID)
 
 	// Insert global configuration
 	globalConfiguration := json.RawMessage(`{"managedConfiguration": {"env": "global"}}`)
-	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), 0, appID, globalConfiguration))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), globalAppTeamID, globalConfiguration))
 
 	// Insert team configuration
 	teamConfiguration := json.RawMessage(`{"managedConfiguration": {"env": "team"}}`)
-	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), teamID, appID, teamConfiguration))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), teamAppTeamID, teamConfiguration))
 
 	// Verify global configuration
 	retrievedGlobal, err := ds.GetAndroidAppConfiguration(testCtx(), appID, 0)
@@ -4167,7 +4245,7 @@ func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
 			VPPAppID:      fleet.VPPAppID{AdamID: "something_android_app_1", Platform: fleet.AndroidPlatform},
 			Configuration: testConfig,
 		},
-	}, &team1.ID)
+	}, &team1.ID, nil)
 	require.NoError(t, err)
 
 	app2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
@@ -4176,7 +4254,7 @@ func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
 			VPPAppID:      fleet.VPPAppID{AdamID: "adam_vpp_app_forapple_1", Platform: fleet.IOSPlatform},
 			Configuration: []byte(`<dict><key>FromIOSTest</key><true/></dict>`),
 		},
-	}, &team1.ID)
+	}, &team1.ID, nil)
 	require.NoError(t, err)
 
 	// Get android app without team
@@ -4200,7 +4278,7 @@ func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
 	// Edit android app
 	newConfig := []byte(`{"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"}`)
 	app1.VPPAppTeam.Configuration = newConfig
-	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID, nil)
 	require.NoError(t, err)
 
 	// Check that configuration was changed
@@ -4212,11 +4290,11 @@ func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
 	// Add invalid configuration
 	badConfig := []byte(`"-": "-"`)
 	app1.VPPAppTeam.Configuration = badConfig
-	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID, nil)
 	require.Error(t, err)
 
 	// Delete app, should delete configuration
-	require.NoError(t, ds.DeleteVPPAppFromTeam(ctx, &team1.ID, app1.VPPAppID))
+	require.NoError(t, ds.DeleteVPPAppFromTeam(ctx, &team1.ID, app1.VPPAppID, nil))
 	_, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, app1.TitleID)
 	require.ErrorContains(t, err, "not found")
 	_, err = ds.GetAndroidAppConfiguration(ctx, app1.AdamID, team1.ID)
@@ -4228,9 +4306,10 @@ func testHasAndroidAppConfigurationChanged(t *testing.T, ds *Datastore) {
 
 	appID := "com.example.testapp"
 	setupTestApp(t, ds, appID)
+	appTeamID := setupTestAppInFleet(t, ds, appID, fleet.AndroidPlatform, 0)
 
 	configuration := json.RawMessage(`{"managedConfiguration": {"a": 1}}`)
-	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), 0, appID, configuration))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), appTeamID, configuration))
 
 	cases := []struct {
 		desc         string
@@ -4301,7 +4380,7 @@ func testHasAndroidAppConfigurationChanged(t *testing.T, ds *Datastore) {
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			got, err := ds.HasAndroidAppConfigurationChanged(ctx, c.compareAppID, 0, json.RawMessage(c.newConfig))
+			got, err := ds.HasAndroidAppConfigurationChanged(ctx, c.compareAppID, 0, nil, json.RawMessage(c.newConfig))
 			require.NoError(t, err)
 			require.Equal(t, c.changed, got)
 		})
@@ -4434,7 +4513,7 @@ func testAndroidResetOnReenrollment(t *testing.T, ds *Datastore) {
 	vppApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "com.app.vpp1", Platform: fleet.AndroidPlatform}},
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 
 	// installKinds are seeded for both hosts; only "pending" may be failed by the reset.

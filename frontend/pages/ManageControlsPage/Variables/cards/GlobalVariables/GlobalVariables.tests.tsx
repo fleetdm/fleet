@@ -9,6 +9,9 @@ import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import GlobalVariables from "./GlobalVariables";
 
+// Table cells also render their text in a hidden truncation tooltip.
+const CELL_TEXT = { selector: ".data-table__tooltip-truncated-text" };
+
 const baseUrl = (path: string) => {
   return `/api/latest/fleet${path}`;
 };
@@ -179,13 +182,33 @@ describe("Custom variables", () => {
       render(<GlobalVariables {...baseProps} />);
       await waitFor(
         () => {
-          expect(screen.getByText("SECRET_UNO")).toBeInTheDocument();
-          expect(screen.getByText("SECRET_DOS")).toBeInTheDocument();
+          expect(screen.getByText("SECRET_UNO", CELL_TEXT)).toBeInTheDocument();
+          expect(screen.getByText("SECRET_DOS", CELL_TEXT)).toBeInTheDocument();
         },
         {
           timeout: 3000,
         }
       );
+      expect(
+        screen.getByRole("columnheader", { name: "Variable" })
+      ).toBeInTheDocument();
+    });
+
+    it("shows the copy button but not delete when user cannot edit", async () => {
+      const renderReadOnly = createCustomRenderer({
+        withBackendMock: true,
+        context: { app: { isGlobalAdmin: false, isGlobalMaintainer: false } },
+      });
+      renderReadOnly(<GlobalVariables {...baseProps} />);
+      await waitFor(() => {
+        expect(screen.getByText("SECRET_UNO", CELL_TEXT)).toBeInTheDocument();
+      });
+      expect(
+        screen.getByRole("button", { name: "Copy SECRET_UNO" })
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Delete SECRET_UNO" })
+      ).not.toBeInTheDocument();
     });
 
     describe("gitops mode", () => {
@@ -213,7 +236,7 @@ describe("Custom variables", () => {
       it("deleting a variable is successful in GitOps mode", async () => {
         const { user } = renderInGOM(<GlobalVariables {...baseProps} />);
         await waitFor(() => {
-          expect(screen.getByText("SECRET_UNO")).toBeInTheDocument();
+          expect(screen.getByText("SECRET_UNO", CELL_TEXT)).toBeInTheDocument();
         });
         const deleteButton = screen.getByRole("button", {
           name: "Delete SECRET_UNO",
@@ -232,8 +255,12 @@ describe("Custom variables", () => {
           expect(
             screen.queryByText(/Delete custom variable\?/)
           ).not.toBeInTheDocument();
-          expect(screen.queryByText("SECRET_UNO")).not.toBeInTheDocument();
-          expect(screen.queryByText("SECRET_DOS")).toBeInTheDocument();
+          expect(
+            screen.queryByText("SECRET_UNO", CELL_TEXT)
+          ).not.toBeInTheDocument();
+          expect(
+            screen.queryByText("SECRET_DOS", CELL_TEXT)
+          ).toBeInTheDocument();
         });
       });
     });
@@ -278,9 +305,9 @@ describe("Custom variables", () => {
         await user.type(valueInput, "Secret Value");
         await user.click(saveButton);
         await waitFor(() => {
-          expect(screen.getByText("SECRET_UNO")).toBeInTheDocument();
-          expect(screen.getByText("SECRET_DOS")).toBeInTheDocument();
-          expect(screen.getByText("NEW_SECRET")).toBeInTheDocument();
+          expect(screen.getByText("SECRET_UNO", CELL_TEXT)).toBeInTheDocument();
+          expect(screen.getByText("SECRET_DOS", CELL_TEXT)).toBeInTheDocument();
+          expect(screen.getByText("NEW_SECRET", CELL_TEXT)).toBeInTheDocument();
         });
       });
       it("does not allow saving without name", async () => {
@@ -327,7 +354,7 @@ describe("Custom variables", () => {
         expect(screen.getByText("Add variable")).toBeInTheDocument();
       });
       await waitFor(() => {
-        expect(screen.getByText("SECRET_UNO")).toBeInTheDocument();
+        expect(screen.getByText("SECRET_UNO", CELL_TEXT)).toBeInTheDocument();
       });
       // The row action is a trash-icon button labeled "Delete <name>".
       const deleteButton = screen.getByRole("button", {
@@ -349,8 +376,10 @@ describe("Custom variables", () => {
         expect(
           screen.queryByText(/Delete custom variable\?/)
         ).not.toBeInTheDocument();
-        expect(screen.queryByText("SECRET_UNO")).not.toBeInTheDocument();
-        expect(screen.queryByText("SECRET_DOS")).toBeInTheDocument();
+        expect(
+          screen.queryByText("SECRET_UNO", CELL_TEXT)
+        ).not.toBeInTheDocument();
+        expect(screen.queryByText("SECRET_DOS", CELL_TEXT)).toBeInTheDocument();
       });
     });
   });

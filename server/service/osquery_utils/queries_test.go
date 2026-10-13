@@ -715,7 +715,7 @@ func TestGetDetailQueries(t *testing.T) {
 
 	queriesWithUsersAndSoftware := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}, Integrations{}, nil)
 	qs = baseQueries
-	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_jetbrains_plugins", "software_adobe_plugins", "software_linux_fleetd_pacman",
+	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_jetbrains_plugins", "software_adobe_plugins", "software_linux_fleetd_pacman", "software_linux_fleetd_nix",
 		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_macos_executable_sha256", "software_macos_homebrew_executable_sha256", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at", "software_windows_acrobat_dc", "software_go_binaries", "software_windows_program_files_scan")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
@@ -3171,6 +3171,7 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 	host := &fleet.Host{ID: 1, UUID: "mdm-windows-hw-uuid"}
 
 	returnEnrollmentsUpdated := true
+	ds.MDMWindowsClearDeletedHostTeamFunc = func(ctx context.Context, mdmDeviceID string) error { return nil }
 	ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID string, deviceID string) (bool, error) {
 		require.NotEmpty(t, deviceID)
 		require.Equal(t, host.UUID, hostUUID)
@@ -4385,6 +4386,44 @@ func TestSoftwareLinuxPacmanVersion(t *testing.T) {
 	}, got)
 }
 
+// TestSoftwareLinuxNix runs the Nix software query against sqlite, which osquery embeds.
+func TestSoftwareLinuxNix(t *testing.T) {
+	require.Equal(t, []string{"nixos"}, softwareLinuxNix.Platforms)
+	require.Equal(t, discoveryTable("fleetd_nix_packages"), softwareLinuxNix.Discovery)
+	require.Nil(t, softwareLinuxNix.IngestFunc)
+	require.Nil(t, softwareLinuxNix.DirectIngestFunc)
+	require.Nil(t, softwareLinuxNix.DirectTaskIngestFunc)
+
+	db, err := sql.Open("sqlite3", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+
+	_, err = db.Exec(`CREATE TABLE fleetd_nix_packages (name TEXT, version TEXT, output TEXT, store_path TEXT, direct INTEGER, profiles TEXT)`)
+	require.NoError(t, err)
+	_, err = db.Exec(`INSERT INTO fleetd_nix_packages VALUES
+		('openssl', '3.0.14', '', '/nix/store/aaa-openssl-3.0.14', 0, ''),
+		('openssl', '3.0.14', 'bin', '/nix/store/bbb-openssl-3.0.14-bin', 1, 'system')`)
+	require.NoError(t, err)
+
+	rows, err := db.Query(softwareLinuxNix.Query)
+	require.NoError(t, err)
+	defer rows.Close()
+
+	type pkg struct{ name, version, source, installedPath string }
+	var got []pkg
+	for rows.Next() {
+		var p pkg
+		var extensionID, extensionFor, release, vendor, arch string
+		require.NoError(t, rows.Scan(&p.name, &p.version, &extensionID, &extensionFor, &p.source, &release, &vendor, &arch, &p.installedPath))
+		got = append(got, p)
+	}
+	require.NoError(t, rows.Err())
+	require.Equal(t, []pkg{
+		{name: "openssl", version: "3.0.14", source: "nix_packages", installedPath: "/nix/store/aaa-openssl-3.0.14"},
+		{name: "openssl", version: "3.0.14", source: "nix_packages", installedPath: "/nix/store/bbb-openssl-3.0.14-bin"},
+	}, got)
+}
+
 func TestSoftwareAdobePlugins(t *testing.T) {
 	// Adobe Creative Cloud doesn't run on Linux, and the adobe_plugins table only
 	// exists on fleetd builds that ship it.
@@ -5430,6 +5469,7 @@ func (e *notFoundErrorForTest) IsNotFound() bool { return true }
 // newLinkWindowsHostMDMEnrollmentStore mocks the first link of an enrollment to a host.
 func newLinkWindowsHostMDMEnrollmentStore(device *fleet.MDMWindowsEnrolledDevice) *mock.Store {
 	ds := new(mock.Store)
+	ds.MDMWindowsClearDeletedHostTeamFunc = func(ctx context.Context, mdmDeviceID string) error { return nil }
 	ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID, mdmDeviceID string) (bool, error) {
 		return true, nil
 	}
@@ -5482,6 +5522,38 @@ func TestLinkWindowsHostMDMEnrollmentKeepsAutopilotPendingMarker(t *testing.T) {
 			require.NoError(t, err)
 			require.True(t, updated)
 			assert.Equal(t, tc.wantDEPCleared, depCleared)
+		})
+	}
+}
+
+func TestLinkWindowsHostMDMEnrollmentDeletedHostReturns(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name       string
+		enrollUser string
+		replaceErr error
+		wantClear  bool
+	}{
+		{name: "user-driven enrollment", enrollUser: "user@example.com", wantClear: true},
+		{name: "failed bookkeeping keeps the marker for a retry", enrollUser: "user@example.com", replaceErr: errors.New("replace failed")},
+		{name: "programmatic enrollment", enrollUser: "host-uuid", wantClear: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := newLinkWindowsHostMDMEnrollmentStore(&fleet.MDMWindowsEnrolledDevice{MDMEnrollUserID: tc.enrollUser, DeletedHostTeamID: new(uint(0))})
+			ds.ReplaceHostDeviceMappingFunc = func(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping, source string) error {
+				return tc.replaceErr
+			}
+
+			_, err := LinkWindowsHostMDMEnrollment(t.Context(), slog.New(slog.DiscardHandler), ds, 1, "host-uuid", "device-1", false)
+			if tc.replaceErr != nil {
+				require.ErrorIs(t, err, tc.replaceErr)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tc.wantClear, ds.MDMWindowsClearDeletedHostTeamFuncInvoked)
+			// The returning host keeps the fleet its enroll secret put it in, so the default fleet is not even looked up.
+			require.False(t, ds.GetWindowsEnrollmentDefaultFleetFuncInvoked)
 		})
 	}
 }

@@ -1186,7 +1186,7 @@ func TestAppleMDM(t *testing.T) {
 				Name: "vpp_worker-" + idx, LatestVersion: "1.0.0", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "depworker-" + idx, Platform: fleet.IOSPlatform}},
 				BundleIdentifier: "b" + idx,
 			}
-			vppAppWithTeam, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &tm.ID)
+			vppAppWithTeam, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &tm.ID, nil)
 			require.NoError(t, err)
 			expectedAppInstalls = append(expectedAppInstalls, vppAppWithTeam)
 		}
@@ -1343,7 +1343,7 @@ INSERT INTO setup_experience_status_results (
 				Name: "vpp_worker-" + idx, LatestVersion: "1.0.0", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "depworker-" + idx, Platform: fleet.IOSPlatform}},
 				BundleIdentifier: "b" + idx,
 			}
-			vppAppWithTeam, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &tm.ID)
+			vppAppWithTeam, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &tm.ID, nil)
 			require.NoError(t, err)
 			expectedAppInstalls = append(expectedAppInstalls, vppAppWithTeam)
 		}
@@ -1516,7 +1516,7 @@ INSERT INTO setup_experience_status_results (
 			VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "fail-adam-id", Platform: fleet.IOSPlatform}},
 			BundleIdentifier: "com.example.fail",
 		}
-		vppAppWithTeam, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &tm.ID)
+		vppAppWithTeam, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &tm.ID, nil)
 		require.NoError(t, err)
 
 		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
