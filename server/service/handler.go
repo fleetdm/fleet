@@ -1838,7 +1838,7 @@ func uploadPreAuth(svc fleet.Service, logger *slog.Logger) func(http.Handler) ht
 			}
 			if (v.User.GlobalRole == nil || !canWrite(*v.User.GlobalRole)) &&
 				!slices.ContainsFunc(v.User.Teams, func(t fleet.UserTeam) bool { return canWrite(t.Role) }) {
-				reject(authz.ForbiddenWithInternal("no package write role on any fleet", v.User, nil, fleet.ActionWrite))
+				reject(authz.ForbiddenWithInternal("no package write role on any fleet", nil, nil, fleet.ActionWrite))
 				return
 			}
 			if err := http.NewResponseController(w).SetReadDeadline(time.Time{}); err != nil {
