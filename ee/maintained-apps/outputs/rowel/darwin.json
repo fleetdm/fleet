@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.0.1",
+      "version": "1.0.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'app.rowel.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.rowel.desktop' AND version_compare(bundle_short_version, '1.0.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.rowel.desktop' AND version_compare(bundle_short_version, '1.0.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'app.rowel.desktop' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/fwdai/rowel/releases/download/v1.0.1/Rowel_1.0.1_universal.dmg",
+      "installer_url": "https://github.com/fwdai/rowel/releases/download/v1.0.2/Rowel_1.0.2_universal.dmg",
       "install_script_ref": "e00fe9de",
       "uninstall_script_ref": "5b3870ab",
-      "sha256": "028b5345868eb06a2f3127fec2813dbf9652126092fb24934881bb177fd2a42d",
+      "sha256": "3071746cc13532dc6e436c412b9a238db8806591a95675f51925812d5f818a70",
       "default_categories": [
         "Security"
       ]
