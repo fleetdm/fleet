@@ -253,7 +253,7 @@ describe("EulaSection", () => {
 
     expect(open).toHaveBeenCalledTimes(1);
     expect(open).toHaveBeenCalledWith(
-      "/api/latest/fleet/mdm/setup/eula/mac-token",
+      "/api/latest/fleet/setup_experience/eula/mac-token",
       "_blank"
     );
     open.mockRestore();

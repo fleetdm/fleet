@@ -5583,30 +5583,31 @@ func (s *integrationMDMTestSuite) TestWindowsEULA() {
 	s.DoRawNoAuth("DELETE", winEULAPath, nil, http.StatusUnauthorized)
 
 	// each agreement still needs its own platform's MDM, even with another platform's on
-	appCfg, err := s.ds.AppConfig(context.Background())
+	appCfg, err := s.ds.AppConfig(t.Context())
 	require.NoError(t, err)
-	setMDM := func(apple, windows bool) {
+	setMDM := func(ctx context.Context, apple, windows bool) {
 		appCfg.MDM.EnabledAndConfigured = apple
 		appCfg.MDM.WindowsEnabledAndConfigured = windows
-		require.NoError(t, s.ds.SaveAppConfig(context.Background(), appCfg))
+		require.NoError(t, s.ds.SaveAppConfig(ctx, appCfg))
 	}
-	t.Cleanup(func() { setMDM(true, true) })
+	// t.Context() is canceled before cleanups run.
+	t.Cleanup(func() { setMDM(context.Background(), true, true) })
 	requireMDMOff := func(res *http.Response, msg string) {
 		require.Contains(t, extractServerErrorText(res.Body), msg)
 	}
 
-	setMDM(true, false)
+	setMDM(t.Context(), true, false)
 	requireMDMOff(s.DoRawNoAuth("GET", winEULAPath, nil, http.StatusBadRequest), fleet.WindowsMDMNotConfiguredMessage)
 	requireMDMOff(s.Do("DELETE", winEULAPath, nil, http.StatusBadRequest), fleet.WindowsMDMNotConfiguredMessage)
 	s.uploadWindowsEULA(&fleet.MDMEULA{Bytes: mdBytes, Name: mdName}, http.StatusBadRequest, fleet.WindowsMDMNotConfiguredMessage)
 	s.DoRawNoAuth("GET", macEULAPath, nil, http.StatusOK)
 
-	setMDM(false, true)
+	setMDM(t.Context(), false, true)
 	requireMDMOff(s.DoRawNoAuth("GET", macEULAPath, nil, http.StatusBadRequest), fleet.MDMNotConfiguredMessage)
 	requireMDMOff(s.Do("DELETE", macEULAPath, nil, http.StatusBadRequest), fleet.MDMNotConfiguredMessage)
 	s.DoRawNoAuth("GET", winEULAPath, nil, http.StatusOK)
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/eula/metadata?platform=windows", nil, http.StatusOK, &metadataResp)
-	setMDM(true, true)
+	setMDM(t.Context(), true, true)
 
 	var deleteResp deleteMDMEULAResponse
 	var macDelete deleteMDMEULAResponse

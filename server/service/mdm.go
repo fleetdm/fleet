@@ -281,12 +281,7 @@ func eulaPlatform(ctx context.Context, svc fleet.Service, platform fleet.MDMEULA
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err)
 	}
-	if platform == fleet.MDMEULAPlatformWindows {
-		err = svc.VerifyMDMWindowsConfigured(ctx)
-	} else {
-		err = svc.VerifyMDMAppleConfigured(ctx)
-	}
-	if err != nil {
+	if err := platform.VerifyMDM(ctx, svc); err != nil {
 		return "", err
 	}
 	return platform, nil

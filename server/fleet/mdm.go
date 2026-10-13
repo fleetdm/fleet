@@ -329,6 +329,23 @@ func (p MDMEULAPlatform) Validated() (MDMEULAPlatform, error) {
 	}
 }
 
+// VerifyMDM checks that the platform's MDM is turned on: Apple for darwin,
+// Windows for windows. An unknown platform fails closed.
+func (p MDMEULAPlatform) VerifyMDM(ctx context.Context, svc interface {
+	VerifyMDMAppleConfigured(ctx context.Context) error
+	VerifyMDMWindowsConfigured(ctx context.Context) error
+},
+) error {
+	switch p {
+	case MDMEULAPlatformDarwin:
+		return svc.VerifyMDMAppleConfigured(ctx)
+	case MDMEULAPlatformWindows:
+		return svc.VerifyMDMWindowsConfigured(ctx)
+	default:
+		return fmt.Errorf("EULA has unsupported platform %q", p)
+	}
+}
+
 // MDMEULA represents an EULA (End User License Agreement) file.
 type MDMEULA struct {
 	Name      string    `json:"name"`

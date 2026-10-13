@@ -737,21 +737,10 @@ func (svc *Service) eulaPlatform(ctx context.Context, platform fleet.MDMEULAPlat
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err)
 	}
-	if err := svc.verifyEULAPlatformMDM(ctx, platform); err != nil {
+	if err := platform.VerifyMDM(ctx, svc); err != nil {
 		return "", err
 	}
 	return platform, nil
-}
-
-func (svc *Service) verifyEULAPlatformMDM(ctx context.Context, platform fleet.MDMEULAPlatform) error {
-	switch platform {
-	case fleet.MDMEULAPlatformDarwin:
-		return svc.VerifyMDMAppleConfigured(ctx)
-	case fleet.MDMEULAPlatformWindows:
-		return svc.VerifyMDMWindowsConfigured(ctx)
-	default:
-		return ctxerr.Errorf(ctx, "EULA has unsupported platform %q", platform)
-	}
 }
 
 func (svc *Service) MDMGetEULABytes(ctx context.Context, token string) (*fleet.MDMEULA, error) {
@@ -803,7 +792,7 @@ func (svc *Service) eulaPlatformForToken(ctx context.Context, token string) (fle
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "getting EULA platform")
 	}
-	if err := svc.verifyEULAPlatformMDM(ctx, platform); err != nil {
+	if err := platform.VerifyMDM(ctx, svc); err != nil {
 		return "", err
 	}
 	return platform, nil
