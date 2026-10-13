@@ -11,7 +11,7 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import { notify } from "components/ToastNotification";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
 import useGitOpsMode from "hooks/useGitOpsMode";
-import { getErrorReason } from "interfaces/errors";
+import { splitServerErrors } from "interfaces/errors";
 import SettingsSection from "pages/admin/components/SettingsSection";
 import { IAppConfigFormProps } from "pages/admin/OrgSettingsPage/cards/constants";
 import configAPI from "services/entities/config";
@@ -69,41 +69,6 @@ const SERVER_ERROR_NAMES: Record<keyof IFormData, string> = {
   tokenUrl: "mdm.apple_account_provisioning.oauth_idp_token_url",
   clientId: "mdm.apple_account_provisioning.oauth_idp_client_id",
   clientSecret: "mdm.apple_account_provisioning.oauth_idp_client_secret",
-};
-
-const getServerFieldErrors = (err: unknown): IFormErrors => {
-  const errors: IFormErrors = {};
-  (Object.keys(SERVER_ERROR_NAMES) as (keyof IFormData)[]).forEach((field) => {
-    const reason = getErrorReason(err, {
-      nameEquals: SERVER_ERROR_NAMES[field],
-    });
-    if (reason) {
-      errors[field] = reason;
-    }
-  });
-  return errors;
-};
-
-// Reasons of the server errors that don't belong to one of the form's fields.
-const getNonFieldServerErrorReasons = (err: unknown): string[] => {
-  const e = err as {
-    data?: { errors?: unknown };
-    response?: { data?: { errors?: unknown } };
-  };
-  const errors = e?.data?.errors ?? e?.response?.data?.errors;
-  if (!Array.isArray(errors)) {
-    return [];
-  }
-  const fieldNames = Object.values(SERVER_ERROR_NAMES);
-  return errors
-    .filter(
-      (fe): fe is { name?: string; reason: string } =>
-        !!fe &&
-        typeof fe.reason === "string" &&
-        fe.reason !== "" &&
-        !fieldNames.includes(fe.name)
-    )
-    .map((fe) => fe.reason);
 };
 
 const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
@@ -184,13 +149,15 @@ const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
       await queryClient.invalidateQueries(["config"]);
       notify.success("Successfully updated settings.");
     } catch (err) {
-      const fieldErrors = getServerFieldErrors(err);
+      const { fieldErrors, otherReasons } = splitServerErrors(
+        err,
+        SERVER_ERROR_NAMES
+      );
       // useFormValidation shows field errors inline and toasts them, so only
       // toast here what has no field to show on.
       setServerFormErrors(fieldErrors);
-      const generalReasons = getNonFieldServerErrorReasons(err);
-      if (generalReasons.length > 0) {
-        notify.error(`Failed to update settings: ${generalReasons.join(" ")}`, {
+      if (otherReasons.length > 0) {
+        notify.error(`Failed to update settings: ${otherReasons.join(" ")}`, {
           response: err,
         });
       } else if (Object.keys(fieldErrors).length === 0) {
