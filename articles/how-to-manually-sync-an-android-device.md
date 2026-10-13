@@ -25,7 +25,7 @@ To disable Developer options:
 
 
 # How Android hosts get changes from Fleet
-Fleet only communicates with Android hosts directly for certificate delivery. For all other features, Fleet and each host communicate through Google's Android Management API (AMAPI). Fleet delivers these changes by updating the host's policy in AMAPI:
+Fleet only communicates with Android hosts directly for certificate delivery. For all other features, Fleet and each host communicate through Google's Android Management API (AMAPI). Fleet delivers these changes by updating the host's policy, which is stored on Google's servers:
 
 - [Software deployment](https://fleetdm.com/guides/install-app-store-apps)
 - [Configuration profiles](https://fleetdm.com/guides/custom-os-settings)
@@ -33,7 +33,7 @@ Fleet only communicates with Android hosts directly for certificate delivery. Fo
 
 Each change follows the same steps:
 
-1. Fleet updates the host's policy in AMAPI. For example, when you install an app, Fleet adds it to the policy's application list.
+1. Fleet updates the host's policy in Google's servers (via AMAPI). For example, when you install an app, Fleet adds it to the policy's application list.
 2. The next time the host syncs with Google, Google delivers the updated policy and the host applies it. In this example, the host installs the app.
 3. The host sends a status report to Google, and Google forwards it to Fleet. Fleet then updates the host's details, such as the app's status.
 
