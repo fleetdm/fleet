@@ -1234,6 +1234,8 @@ func TestEnqueueWindowsMDMCommand(t *testing.T) {
 			fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret) + `</Data></Item></Exec>`, "is reserved for profiles managed by Fleet", ""},
 		{"recovery lock password placeholder", false, `<Exec><CmdID>1</CmdID><Item><Target><LocURI>./FooBar</LocURI></Target><Data>` +
 			fleet.HostSecretPlaceholder(fleet.HostSecretRecoveryLockPassword) + `</Data></Item></Exec>`, "is reserved for profiles managed by Fleet", ""},
+		{"SCEP status probe CmdID", false, `<Exec><CmdID>` + fleet.WindowsSCEPStatusProbeCmdUUIDPrefix +
+			`c0ffee-1</CmdID><Item><Target><LocURI>./FooBar</LocURI></Target></Item></Exec>`, "is reserved for commands Fleet sends", ""},
 	}
 
 	for _, c := range cases {

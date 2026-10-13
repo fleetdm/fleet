@@ -4051,3 +4051,36 @@ func TestGetPendingMDMCmdsSkipsCommandThatFailsExpansion(t *testing.T) {
 	require.Len(t, cmds, 1)
 	require.Equal(t, "good", cmds[0].CmdID.Value)
 }
+
+func TestGetPendingMDMCmdsHoldsBackRecentSCEPStatusProbes(t *testing.T) {
+	probeUUID := fleet.WindowsSCEPStatusProbeCmdUUIDPrefix + "install-1"
+	var probeQueuedAt time.Time
+	ds := new(mock.Store)
+	ds.MDMWindowsGetPendingCommandsFunc = func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error) {
+		return []*fleet.MDMWindowsCommand{{
+			CommandUUID: probeUUID,
+			RawCommand:  []byte(`<Get><CmdID>` + probeUUID + `</CmdID><Item><Target><LocURI>./Device/A</LocURI></Target></Item></Get>`),
+			CreatedAt:   probeQueuedAt,
+		}}, nil
+	}
+	ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) { return document, nil }
+	svc, _ := newTestService(t, ds, nil, nil)
+
+	for _, c := range []struct {
+		name     string
+		age      time.Duration
+		wantSent int
+	}{
+		{name: "just queued", age: 0, wantSent: 0},
+		{name: "queued long enough", age: fleet.WindowsSCEPStatusProbeDelay + time.Second, wantSent: 1},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			probeQueuedAt = time.Now().Add(-c.age)
+			cmds, onlyPollCmdsPending, err := svc.(validationMiddleware).Service.(*Service).getPendingMDMCmds(t.Context(), 1)
+			require.NoError(t, err)
+			require.Len(t, cmds, c.wantSent)
+			// A held-back probe is still pending, so the session must not clear has_pending_commands.
+			require.False(t, onlyPollCmdsPending)
+		})
+	}
+}
