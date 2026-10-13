@@ -1,0 +1,1 @@
+- Fleet Premium: added AI tools to software inventory from fleetd's `ai_tools` table. MCP servers, AI CLI tools and AI skills are new software types.
