@@ -9,7 +9,7 @@ import { notify } from "components/ToastNotification";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import SettingsSection from "pages/admin/components/SettingsSection";
-import { IEulaMetadataResponse } from "services/entities/mdm";
+import mdmAPI, { IEulaMetadataResponse } from "services/entities/mdm";
 
 import DeleteEulaModal from "./components/DeleteEulaModal/DeleteEulaModal";
 import EulaUploader from "./components/EulaUploader/EulaUploader";
@@ -50,7 +50,8 @@ const EulaSection = ({ eulas }: IEulaSectionProps) => {
 
     setIsDeleting(true);
     try {
-      await EULA_PLATFORM_CONFIG[platformToDelete].remove(eula.metadata.token);
+      // The token alone picks the platform's agreement.
+      await mdmAPI.deleteEULA(eula.metadata.token);
       notify.success("Successfully deleted.");
     } catch (e) {
       notify.error("Couldn’t delete. Please try again.", { response: e });

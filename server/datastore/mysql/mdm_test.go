@@ -3561,6 +3561,16 @@ func testMDMEULA(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, terms.Bytes, gotTerms.Bytes)
 
+		// The token alone tells the agreements apart.
+		platform, err := ds.MDMGetEULAPlatform(ctx, terms.Token)
+		require.NoError(t, err)
+		require.Equal(t, windows, platform)
+		platform, err = ds.MDMGetEULAPlatform(ctx, eula.Token)
+		require.NoError(t, err)
+		require.Equal(t, darwin, platform)
+		_, err = ds.MDMGetEULAPlatform(ctx, uuid.New().String())
+		require.ErrorAs(t, err, &nfe)
+
 		// A token only reaches the file of the platform asked for.
 		_, err = ds.MDMGetEULABytes(ctx, windows, eula.Token)
 		require.ErrorAs(t, err, &nfe)

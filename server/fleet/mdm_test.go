@@ -1011,3 +1011,23 @@ func TestSanitizeEULAFileName(t *testing.T) {
 		require.Equal(t, tc.want, fleet.SanitizeEULAFileName(tc.in), "%q", tc.in)
 	}
 }
+
+func TestMDMEULAPlatformValidated(t *testing.T) {
+	for _, tc := range []struct {
+		in   fleet.MDMEULAPlatform
+		want fleet.MDMEULAPlatform
+	}{
+		{"", fleet.MDMEULAPlatformDarwin},
+		{fleet.MDMEULAPlatformDarwin, fleet.MDMEULAPlatformDarwin},
+		{fleet.MDMEULAPlatformWindows, fleet.MDMEULAPlatformWindows},
+	} {
+		got, err := tc.in.Validated()
+		require.NoError(t, err, tc.in)
+		require.Equal(t, tc.want, got)
+	}
+	for _, in := range []fleet.MDMEULAPlatform{"linux", "Windows", "macos", " darwin"} {
+		_, err := in.Validated()
+		var invalid *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &invalid, in)
+	}
+}

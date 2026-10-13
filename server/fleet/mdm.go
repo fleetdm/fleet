@@ -316,6 +316,38 @@ const (
 	MDMEULAPlatformWindows MDMEULAPlatform = "windows"
 )
 
+// Validated returns the platform an EULA request acts on. Empty means darwin,
+// so clients from before Windows EULAs keep working.
+func (p MDMEULAPlatform) Validated() (MDMEULAPlatform, error) {
+	switch p {
+	case "":
+		return MDMEULAPlatformDarwin, nil
+	case MDMEULAPlatformDarwin, MDMEULAPlatformWindows:
+		return p, nil
+	default:
+		return "", NewInvalidArgumentError("platform", `must be "darwin" or "windows"`)
+	}
+}
+
+// ValidateEULAPlatform returns the platform an EULA request acts on, once
+// that platform's MDM is turned on. The EULA routes serve both platforms, so
+// route middleware can't check the MDM; the free and Premium builds share this.
+func ValidateEULAPlatform(ctx context.Context, svc Service, platform MDMEULAPlatform) (MDMEULAPlatform, error) {
+	platform, err := platform.Validated()
+	if err != nil {
+		return "", err
+	}
+	if platform == MDMEULAPlatformWindows {
+		err = svc.VerifyMDMWindowsConfigured(ctx)
+	} else {
+		err = svc.VerifyMDMAppleConfigured(ctx) // Validated leaves only darwin
+	}
+	if err != nil {
+		return "", err
+	}
+	return platform, nil
+}
+
 // MDMEULA represents an EULA (End User License Agreement) file.
 type MDMEULA struct {
 	Name      string    `json:"name"`
@@ -323,8 +355,8 @@ type MDMEULA struct {
 	Sha256    []byte    `json:"sha256" db:"sha256"`
 	Token     string    `json:"token"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
-	// Platform is implied by the endpoint serving it, so it is not in the API.
-	Platform MDMEULAPlatform `json:"-" db:"platform"`
+	// Platform is reported in metadata, since the endpoints serve both.
+	Platform MDMEULAPlatform `json:"platform,omitempty" db:"platform"`
 }
 
 // MDMEULAMetadataLookup is the cached result of looking up a platform's EULA
