@@ -24,6 +24,22 @@
     color: $ui-fleet-black-75;
   }
 
+  &__deploy {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  // Sized to its options, per the design, not the page width. A fixed
+  // width, since the GitOps tooltip wrapper hugs its content.
+  &__deploy-dropdown {
+    width: 240px;
+  }
+
+  &__deploy-static {
+    font-size: $x-small;
+  }
+
   // The profile type above the editor is a quiet caption in the design, not
   // a field label. An error keeps the standard error label.
   .editor__label:not(.editor__label--error) {

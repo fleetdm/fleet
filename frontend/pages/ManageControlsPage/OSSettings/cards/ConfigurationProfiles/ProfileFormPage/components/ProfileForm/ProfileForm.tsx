@@ -6,6 +6,8 @@ import { InjectedRouter } from "react-router";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import Editor from "components/Editor";
+import Checkbox from "components/forms/fields/Checkbox";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import InputField from "components/forms/fields/InputField";
 import FormField from "components/forms/FormField";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -67,6 +69,11 @@ const EDITOR_MAX_LINES = 30;
 // default isn't documented.
 const PROFILE_NAMES_PER_PAGE = 1000;
 
+const DEPLOY_OPTIONS = [
+  { label: "Force install", value: "force" },
+  { label: "End user initiated (manual)", value: "self_service" },
+];
+
 const UNRECOGNIZED_CONTENTS_ERROR =
   "Paste a .mobileconfig, declaration (.json), Android (.json) or Windows (.xml) profile";
 
@@ -84,6 +91,8 @@ interface IProfileFormData {
   includeMode: LabelTargetMode;
   includeLabels: Record<string, boolean>;
   excludeLabels: Record<string, boolean>;
+  selfService: boolean;
+  hidden: boolean;
 }
 
 interface IEditedProfile {
@@ -106,6 +115,8 @@ const initialFormDataFor = (editing?: IEditedProfile): IProfileFormData => {
     includeMode: profile?.labels_include_all?.length ? "all" : "any",
     includeLabels: labelsToSelection(includeLabels),
     excludeLabels: labelsToSelection(excludeLabels),
+    selfService: profile?.self_service ?? false,
+    hidden: profile?.hidden ?? false,
   };
 };
 
@@ -220,6 +231,11 @@ const ProfileForm = ({
   // can replace the contents; submitting is what gets blocked.
   const isMDMEnabled = profile ? isPlatformMDMEnabled : isAnyMDMEnabled;
 
+  // Only a .mobileconfig can be self-service; replacing the contents with
+  // another type resets it to force.
+  const canSelfService = contentType === "mobileconfig";
+  const { selfService, hidden } = formData;
+
   const labelKey = generateCustomTargetLabelKey(formData);
   const initialLabelKey = generateCustomTargetLabelKey(initialFormData);
 
@@ -231,9 +247,22 @@ const ProfileForm = ({
   const contentsChanged = formData.contents !== initialFormData.contents;
   const targetChanged =
     JSON.stringify(labelKey) !== JSON.stringify(initialLabelKey);
+  const deployChanged =
+    selfService !== initialFormData.selfService ||
+    hidden !== initialFormData.hidden;
   const hasChanges =
-    nameChanged || descriptionChanged || contentsChanged || targetChanged;
+    nameChanged ||
+    descriptionChanged ||
+    contentsChanged ||
+    targetChanged ||
+    deployChanged;
+  // Free can't set either flag, so it sends neither.
+  const deployFields = isPremiumTier ? { selfService, hidden } : {};
   useBlockNavigation(hasChanges || isSubmitting);
+
+  // An existing profile's type is fixed; on add the new contents decide it.
+  const keepsSelfService = (type: ProfileContentType | null) =>
+    !!profile || type === "mobileconfig";
 
   const onFileSelected = async (files: FileList | null) => {
     if (!files || files.length === 0) {
@@ -254,11 +283,15 @@ const ProfileForm = ({
       return;
     }
     try {
-      commitFields({ contents: await file.text() });
-      setUploadedFile({
-        name: details.name,
-        type: contentTypeForExtension(details.ext),
+      const contents = await file.text();
+      const type = contentTypeForExtension(details.ext);
+      commitFields({
+        contents,
+        ...(!keepsSelfService(detectProfileContentType(contents) ?? type) && {
+          selfService: false,
+        }),
       });
+      setUploadedFile({ name: details.name, type });
       // commitFields validated without the file's type, so a stale error can
       // survive it; submit checks the new contents again.
       clearFieldError("contents");
@@ -279,6 +312,9 @@ const ProfileForm = ({
   // name and type shouldn't come from it.
   const onContentsChange = (value: string) => {
     setField("contents", value);
+    if (!keepsSelfService(detectProfileContentType(value))) {
+      setField("selfService", false);
+    }
     setUploadedFile(null);
   };
 
@@ -329,6 +365,7 @@ const ProfileForm = ({
           name: data.name || undefined,
           description: data.description || undefined,
           ...labelKey,
+          ...deployFields,
         });
         notify.success("Successfully uploaded.");
       } else {
@@ -340,6 +377,7 @@ const ProfileForm = ({
           name: nameChanged ? data.name : undefined,
           description: descriptionChanged ? data.description : undefined,
           ...labelKey,
+          ...deployFields,
         });
         notify.success("Successfully updated profile.");
       }
@@ -532,6 +570,60 @@ const ProfileForm = ({
           </div>
         )}
       />
+      {isPremiumTier && (
+        // One tooltip per control, to its right, so it doesn't cover the
+        // fields above.
+        <div className={`${baseClass}__deploy`}>
+          {canSelfService ? (
+            <GitOpsModeTooltipWrapper
+              position="right"
+              tipOffset={8}
+              renderChildren={(disableChildren) => (
+                <DropdownWrapper
+                  label="Deploy"
+                  name="deploy"
+                  className={`${baseClass}__deploy-dropdown`}
+                  options={DEPLOY_OPTIONS}
+                  value={selfService ? "self_service" : "force"}
+                  onChange={(option) => {
+                    const isSelfService = option?.value === "self_service";
+                    // self-service profiles can't be hidden
+                    commitFields({
+                      selfService: isSelfService,
+                      hidden: isSelfService ? false : formData.hidden,
+                    });
+                  }}
+                  isDisabled={isFieldDisabled(disableChildren)}
+                />
+              )}
+            />
+          ) : (
+            <FormField label="Deploy" name="deploy">
+              <span className={`${baseClass}__deploy-static`}>
+                Force install
+              </span>
+            </FormField>
+          )}
+          {!selfService && (
+            <GitOpsModeTooltipWrapper
+              position="right"
+              tipOffset={8}
+              renderChildren={(disableChildren) => (
+                <Checkbox
+                  name="hidden"
+                  ariaLabel="Hide from end user"
+                  value={hidden}
+                  onChange={(value: boolean) => commitFields({ hidden: value })}
+                  labelTooltipContent="When checked, this profile is hidden from the end user's default list of profiles in Fleet Desktop."
+                  disabled={isFieldDisabled(disableChildren)}
+                >
+                  Hide from end user
+                </Checkbox>
+              )}
+            />
+          )}
+        </div>
+      )}
       {isPremiumTier && (
         <GitOpsModeTooltipWrapper
           isInputField

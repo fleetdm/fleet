@@ -18,6 +18,8 @@ const baseProfile: IMdmProfile = {
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-01T00:00:00Z",
   checksum: null,
+  self_service: false,
+  hidden: false,
 };
 
 const renderItem = (profile: IMdmProfile) =>

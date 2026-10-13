@@ -50,6 +50,8 @@ export interface IUploadProfileApiParams {
   labelsIncludeAll?: string[];
   labelsIncludeAny?: string[];
   labelsExcludeAny?: string[];
+  selfService?: boolean;
+  hidden?: boolean;
 }
 
 export interface IUpdateProfileApiParams {
@@ -64,6 +66,9 @@ export interface IUpdateProfileApiParams {
   labelsIncludeAll?: string[];
   labelsIncludeAny?: string[];
   labelsExcludeAny?: string[];
+  /** Omit to keep the current deploy mode. */
+  selfService?: boolean;
+  hidden?: boolean;
 }
 
 export interface IGetAssetsApiParams {
@@ -179,6 +184,8 @@ const mdmService = {
     labelsIncludeAll,
     labelsIncludeAny,
     labelsExcludeAny,
+    selfService,
+    hidden,
   }: IUploadProfileApiParams) => {
     const { MDM_PROFILES } = endpoints;
 
@@ -207,6 +214,13 @@ const mdmService = {
       formData.append("labels_exclude_any", label);
     });
 
+    if (selfService !== undefined) {
+      formData.append("self_service", String(selfService));
+    }
+    if (hidden !== undefined) {
+      formData.append("hidden", String(hidden));
+    }
+
     return sendRequest("POST", MDM_PROFILES, formData);
   },
 
@@ -221,6 +235,8 @@ const mdmService = {
     labelsIncludeAll,
     labelsIncludeAny,
     labelsExcludeAny,
+    selfService,
+    hidden,
   }: IUpdateProfileApiParams) => {
     const { CONFIG_PROFILE } = endpoints;
 
@@ -247,6 +263,13 @@ const mdmService = {
     labelsExcludeAny?.forEach((label) => {
       formData.append("labels_exclude_any", label);
     });
+
+    if (selfService !== undefined) {
+      formData.append("self_service", String(selfService));
+    }
+    if (hidden !== undefined) {
+      formData.append("hidden", String(hidden));
+    }
 
     return sendRequest("PATCH", CONFIG_PROFILE(profileUUID), formData);
   },

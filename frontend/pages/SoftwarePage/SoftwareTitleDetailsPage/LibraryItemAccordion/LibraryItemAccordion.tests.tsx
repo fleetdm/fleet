@@ -4,7 +4,7 @@ import React from "react";
 
 import { ILabelSoftwareTitle } from "interfaces/label";
 import paths from "router/paths";
-import { renderWithSetup } from "test/test-utils";
+import { createCustomRenderer, renderWithSetup } from "test/test-utils";
 import { stringToClipboard } from "utilities/copy_text";
 import { getPathWithQueryParams } from "utilities/url";
 
@@ -767,6 +767,61 @@ describe("LibraryItemAccordion", () => {
         container,
         /latest status from the Google Play Store/i
       );
+    });
+  });
+
+  describe("multi-version App Store rows (versions layout)", () => {
+    const versionRowProps: Partial<ILibraryItemAccordionProps> = {
+      filename: "Production",
+      installerType: "app-store",
+      isFma: false,
+      isIosOrIpadosApp: true,
+      canActivateMultipleVersions: true,
+      hideVersion: true,
+      isSelfService: true,
+      isAutoUpdateEnabled: true,
+      autoUpdateWindowStart: "00:00",
+      autoUpdateWindowEnd: "04:00",
+      onEditClick: jest.fn(),
+      onSelfServiceClick: jest.fn(),
+      onAutoUpdateClick: jest.fn(),
+    };
+
+    // The embedded SoftwareIcon runs a useQuery for a custom-icon blob when
+    // installerType is "app-store", which needs a QueryClient in scope.
+    const renderVersionRow = (
+      overrides: Partial<ILibraryItemAccordionProps> = {}
+    ) => {
+      const render = createCustomRenderer({ withBackendMock: true });
+      return render(
+        <LibraryItemAccordion
+          {...baseProps}
+          {...versionRowProps}
+          {...overrides}
+        />
+      );
+    };
+
+    it("renders the admin's version name without the store version chip", () => {
+      renderVersionRow();
+      expect(screen.getByText("Production")).toBeVisible();
+      expect(screen.queryByText(/149\.0\.7827\.54/)).not.toBeInTheDocument();
+    });
+
+    it("renders the self-service and auto-update row icons", () => {
+      renderVersionRow();
+      // Both icons share the "Edit version" aria-label on multi-version rows.
+      expect(
+        screen.getAllByRole("button", { name: /Edit version/i })
+      ).toHaveLength(2);
+    });
+
+    it("hides the auto-update icon when the version has it off", () => {
+      renderVersionRow({ isAutoUpdateEnabled: false });
+      // Self-service icon still renders with the same aria-label.
+      expect(
+        screen.getAllByRole("button", { name: /Edit version/i })
+      ).toHaveLength(1);
     });
   });
 });

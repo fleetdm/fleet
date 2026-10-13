@@ -88,6 +88,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"InstallStatusUsesLatestRowPerHost", testInstallStatusUsesLatestRowPerHost},
 		{"InstallStatusDoesNotScanHistoryPerHostRow", testInstallStatusDoesNotScanHistoryPerHostRow},
 		{"GetSoftwareInstallDetailsCustomHostVitals", testGetSoftwareInstallDetailsCustomHostVitals},
+		{"BatchSetSoftwareInstallersUnchangedDoesNotBlockInstallEnqueues", testBatchSetSoftwareInstallersUnchangedDoesNotBlockInstallEnqueues},
 	}
 
 	for _, c := range cases {
@@ -2862,7 +2863,7 @@ func testHasSelfServiceSoftwareInstallers(t *testing.T, ds *Datastore) {
 	assert.True(t, hasSelfService)
 
 	// Create a non self-service VPP for global/linux (not truly possible as VPP is Apple but for testing)
-	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: platform}}, Name: "vpp1", BundleIdentifier: "com.app.vpp1"}, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{AdamID: "adam_vpp_1", Platform: platform, Name: "vpp1", BundleIdentifier: "com.app.vpp1"}, nil, nil)
 	require.NoError(t, err)
 	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, platform, nil)
 	require.NoError(t, err)
@@ -2872,7 +2873,7 @@ func testHasSelfServiceSoftwareInstallers(t *testing.T, ds *Datastore) {
 	assert.True(t, hasSelfService)
 
 	// Create a self-service VPP for global/linux (not truly possible as VPP is Apple but for testing)
-	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_2", Platform: platform}, SelfService: true}, Name: "vpp2", BundleIdentifier: "com.app.vpp2"}, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{AdamID: "adam_vpp_2", Platform: platform, SelfService: true, Name: "vpp2", BundleIdentifier: "com.app.vpp2"}, nil, nil)
 	require.NoError(t, err)
 	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, platform, nil)
 	require.NoError(t, err)
@@ -2982,7 +2983,7 @@ func testHasSelfServiceSoftwareInstallers(t *testing.T, ds *Datastore) {
 	assert.False(t, hasSelfService, "windows host should NOT see .py packages")
 
 	// Create a self-service VPP for team/darwin
-	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_3", Platform: fleet.MacOSPlatform}, SelfService: true}, Name: "vpp3", BundleIdentifier: "com.app.vpp3"}, &team.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{AdamID: "adam_vpp_3", Platform: fleet.MacOSPlatform, SelfService: true, Name: "vpp3", BundleIdentifier: "com.app.vpp3"}, &team.ID, nil)
 	require.NoError(t, err)
 	// Check darwin
 	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, "darwin", nil)
@@ -4451,6 +4452,7 @@ func testGetTeamsWithInstallerByHash(t *testing.T, ds *Datastore) {
 		foundPlatforms = append(foundPlatforms, inst.Platform)
 		require.Equal(t, "inhouse", inst.StorageID)
 		require.Nil(t, inst.HTTPETag) // in-house apps don't have ETags
+		require.Empty(t, inst.UpgradeCode)
 	}
 	require.ElementsMatch(t, []string{"ios", "ipados"}, foundPlatforms)
 
@@ -4488,6 +4490,45 @@ func testGetTeamsWithInstallerByHash(t *testing.T, ds *Datastore) {
 
 	require.Len(t, installers[1], 1)
 	require.Equal(t, installer1Team1, installers[1][0].InstallerID)
+	t.Run("installer upgrade code", func(t *testing.T) {
+		testExistingInstallerUpgradeCode(t, ds, team1.ID, user.ID, func() (*fleet.ExistingSoftwareInstaller, error) {
+			rows, err := ds.GetTeamsWithInstallerByHash(ctx, "msi-hash", "https://example.com/msi")
+			if err != nil || len(rows[team1.ID]) != 1 {
+				return nil, err
+			}
+			return rows[team1.ID][0], nil
+		})
+	})
+}
+
+// testExistingInstallerUpgradeCode checks that a reuse lookup returns the
+// installer's upgrade code, not the title's.
+func testExistingInstallerUpgradeCode(t *testing.T, ds *Datastore, teamID, userID uint, lookup func() (*fleet.ExistingSoftwareInstaller, error)) {
+	ctx := t.Context()
+	const installerCode = "{B681CB20-107E-428A-9B14-2D3C1AFED244}"
+	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		TeamID: &teamID, UserID: userID, Title: "MSI", Filename: "test.msi",
+		Extension: "msi", Platform: "windows", Source: "programs", Version: "1.0",
+		StorageID: "msi-hash", URL: "https://example.com/msi", UpgradeCode: installerCode,
+		PackageIDs: []string{"product-id"}, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE software_titles SET upgrade_code = ? WHERE id = ?", "different-title-code", titleID)
+		return err
+	})
+	for _, code := range []string{installerCode, ""} {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, "UPDATE software_installers SET upgrade_code = ? WHERE id = ?", code, installerID)
+			return err
+		})
+		existing, err := lookup()
+		require.NoError(t, err)
+		require.NotNil(t, existing)
+		require.Equal(t, installerID, existing.InstallerID)
+		require.Equal(t, code, existing.UpgradeCode)
+		require.Equal(t, []string{"product-id"}, existing.PackageIDs)
+	}
 }
 
 func testEditDeleteSoftwareInstallersActivateNextActivity(t *testing.T, ds *Datastore) {
@@ -5081,7 +5122,7 @@ func testSoftwareTitleDisplayName(t *testing.T, ds *Datastore) {
 		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: "darwin"}, DisplayName: ptr.String("VPP1")},
 		Name:             "vpp1",
 		BundleIdentifier: "com.app.vpp1",
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 
 	// Batch insert installers should delete previous display names
@@ -5476,7 +5517,7 @@ func testAddSoftwareTitleToMatchingSoftware(t *testing.T, ds *Datastore) {
 		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: "ios"}, DisplayName: ptr.String("VPP1")},
 		Name:             "iOS Title",
 		BundleIdentifier: "com.foo",
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 
 	host2, err := ds.NewHost(ctx, &fleet.Host{
@@ -6698,6 +6739,11 @@ func testGetInstallerByTeamAndURL(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "active_hash", existing.StorageID, "must return the active installer, not the inactive duplicate")
 	require.NotNil(t, existing.HTTPETag)
 	assert.Equal(t, etag, *existing.HTTPETag)
+	t.Run("installer upgrade code", func(t *testing.T) {
+		testExistingInstallerUpgradeCode(t, ds, team1.ID, user.ID, func() (*fleet.ExistingSoftwareInstaller, error) {
+			return ds.GetInstallerByTeamAndURL(ctx, &team1.ID, "https://example.com/msi")
+		})
+	})
 }
 
 func testBatchSetFMACancelsPendingOnActiveRow(t *testing.T, ds *Datastore) {
@@ -6862,7 +6908,7 @@ func testMatchOrCreateSoftwareInstallerDuplicateConflicts(t *testing.T, ds *Data
 		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_mac", Platform: fleet.MacOSPlatform}},
 		Name:             "Mac VPP",
 		BundleIdentifier: "com.example.vpp",
-	}, &team.ID)
+	}, &team.ID, nil)
 	require.NoError(t, err)
 
 	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
@@ -7422,7 +7468,7 @@ func testGetSoftwareTitlesForInstallAll(t *testing.T, ds *Datastore) {
 			VPPAppID:    fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform},
 			SelfService: true,
 		},
-	}, &macTeam.ID)
+	}, &macTeam.ID, nil)
 	require.NoError(t, err)
 	got, _, err = ds.GetSoftwareTitlesForInstallAll(ctx, macHost, nil, "")
 	require.NoError(t, err)
@@ -8381,8 +8427,8 @@ VALUES (?, ?, 'com.example.historydepth', 'history-depth-vpp', '1.0', 'darwin')`
 		}
 		for _, teamID := range []uint{deepTeam, breadthTeam, narrowTeam} {
 			if _, err := q.ExecContext(ctx, `
-INSERT INTO vpp_apps_teams (adam_id, team_id, global_or_team_id, platform)
-VALUES (?, ?, ?, 'darwin')`, vppAdamID, teamID, teamID); err != nil {
+INSERT INTO vpp_apps_teams (adam_id, team_id, global_or_team_id, platform, name)
+VALUES (?, ?, ?, 'darwin', 'Default version')`, vppAdamID, teamID, teamID); err != nil {
 				return err
 			}
 		}
@@ -8659,4 +8705,66 @@ func testCleanupHostSoftwareInstalls(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.EqualValues(t, 1, deleted)
 	assert.False(t, exists(deletedHostPending))
+}
+
+func testBatchSetSoftwareInstallersUnchangedDoesNotBlockInstallEnqueues(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	payloads := func(names ...string) []*fleet.UploadSoftwareInstallerPayload {
+		var out []*fleet.UploadSoftwareInstallerPayload
+		for _, n := range names {
+			file, err := fleet.NewTempFileReader(bytes.NewReader([]byte(n)), t.TempDir)
+			require.NoError(t, err)
+			out = append(out, &fleet.UploadSoftwareInstallerPayload{
+				InstallScript: "install " + n, InstallerFile: file, StorageID: n, Filename: n + ".pkg",
+				Title: n, Source: "apps", Version: "1.0", UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+			})
+		}
+		return out
+	}
+	setup := func(name string, names ...string) (*fleet.Team, []uint, []uint) {
+		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + name})
+		require.NoError(t, err)
+		_, err = ds.BatchSetSoftwareInstallers(ctx, &tm.ID, payloads(names...))
+		require.NoError(t, err)
+		var ids []uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &ids, `SELECT id FROM software_installers WHERE global_or_team_id = ? ORDER BY id`, tm.ID)
+		})
+		require.Len(t, ids, len(names))
+		var policyIDs []uint
+		for i, id := range ids {
+			p, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{Name: fmt.Sprintf("%s-%s-%d", t.Name(), name, i), Query: "SELECT 1", SoftwareInstallerID: &id})
+			require.NoError(t, err)
+			policyIDs = append(policyIDs, p.ID)
+		}
+		return tm, ids, policyIDs
+	}
+	tmA, _, policiesA := setup("A", "a1", "a2")
+	_, idsB, policiesB := setup("B", "b1")
+	host := test.NewHost(t, ds, "h1", "10.0.0.1", "1", "uuid1", time.Now())
+
+	// Policy-automation installs queued, not yet committed, holding the policy rows their foreign key
+	// checks lock: one in another fleet, one on a policy in the applied fleet.
+	enqTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	defer func() { _ = enqTx.Rollback() }()
+	require.NotEmpty(t, idsB)
+	require.NotEmpty(t, policiesB)
+	require.NotEmpty(t, policiesA)
+	for _, policyID := range []uint{policiesB[0], policiesA[0]} {
+		res, err := enqTx.ExecContext(ctx, `INSERT INTO upcoming_activities (host_id, priority, activity_type, execution_id, payload) VALUES (?, 0, 'software_install', UUID(), JSON_OBJECT())`, host.ID)
+		require.NoError(t, err)
+		uaID, _ := res.LastInsertId()
+		_, err = enqTx.ExecContext(ctx, `INSERT INTO software_install_upcoming_activities (upcoming_activity_id, software_installer_id, policy_id) VALUES (?, ?, ?)`, uaID, idsB[0], policyID)
+		require.NoError(t, err)
+	}
+
+	// Nothing is removed, so the apply must not touch policies or pending installs it would otherwise lock.
+	applyCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	_, err = ds.BatchSetSoftwareInstallers(applyCtx, &tmA.ID, payloads("a1", "a2"))
+	require.NoError(t, err)
+	require.NoError(t, enqTx.Rollback())
 }

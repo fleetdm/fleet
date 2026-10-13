@@ -7,6 +7,7 @@ import (
 	"crypto/subtle"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"database/sql/driver"
 	"errors"
 	"fmt"
@@ -724,7 +725,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	notificationsSvc.RegisterKind(patchNotificationKind)
 
 	// Bootstrap ACME service module
-	acmeSigner := &acmeCSRSigner{signer: scepdepot.NewSigner(scepStorage, scepdepot.WithValidityDays(config.MDM.AppleSCEPSignerValidityDays), scepdepot.WithAllowRenewalDays(14))}
+	acmeSigner := &acmeCSRSigner{signer: scepdepot.NewSigner(scepStorage, scepdepot.WithValidityDays(config.MDM.AppleSCEPSignerValidityDays))}
 	acmeSvc, acmeRoutes := createACMEServiceModule(ds, dbConns, redisPool, logger, acmeSigner)
 	// Inject the ACME service module into the main service
 	svc.SetACMEService(acmeSvc)
@@ -1245,8 +1246,8 @@ type acmeCSRSigner struct {
 	signer *scepdepot.Signer
 }
 
-func (a *acmeCSRSigner) SignCSR(_ context.Context, csr *x509.CertificateRequest) (*x509.Certificate, error) {
-	return a.signer.Signx509CSR(csr)
+func (s *acmeCSRSigner) SignX509CSRWithCallback(csr *x509.CertificateRequest, subject pkix.Name, callback func(tmpl *x509.Certificate)) (*x509.Certificate, error) {
+	return s.signer.SignX509CSRWithCallback(csr, subject, callback)
 }
 
 func createACMEServiceModule(ds fleet.Datastore, dbConns *common_mysql.DBConnections, redisPool fleet.RedisPool, logger *slog.Logger, csrSigner acme.CSRSigner) (acme_api.Service, endpointer.HandlerRoutesFunc) {
@@ -1326,7 +1327,8 @@ func createNotificationsBoundedContext(svc fleet.Service, ds fleet.Datastore, db
 
 	// Bans an IP after repeated device auth failures, same protection as the
 	// other /device/{token}/... endpoints registered in server/service/handler.go.
-	ipBanner := redis.NewIPBanner(redisPool, "ipbanner::",
+	ipBanner := redis.NewIPBanner(
+		redisPool, "ipbanner::",
 		service.DeviceIPAllowedConsecutiveFailingRequestsCount,
 		service.DeviceIPAllowedConsecutiveFailingRequestsTimeWindow,
 		service.DeviceIPBanTime,

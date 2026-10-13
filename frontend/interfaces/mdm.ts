@@ -254,6 +254,10 @@ export interface IMdmProfile {
   // otherwise. Note this differs from the host details endpoint, which reports
   // the derived channel as lowercase "user"/"device" (see ProfileScope).
   scope?: PayloadScope | null;
+  /** Only ever true for .mobileconfig profiles. */
+  self_service: boolean;
+  /** Never true together with self_service. */
+  hidden: boolean;
 }
 
 /** An Apple DDM asset (com.apple.asset.*) that declarations can reference. */

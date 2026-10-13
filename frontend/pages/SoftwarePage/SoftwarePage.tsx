@@ -17,11 +17,11 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 import { IConfig } from "interfaces/config";
 import { IJiraIntegration, IZendeskIntegration } from "interfaces/integration";
 import { SelectedPlatform } from "interfaces/platform";
+import { SOFTWARE_TYPES } from "interfaces/software";
 import { APP_CONTEXT_ALL_TEAMS_ID, ITeamConfig } from "interfaces/team";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 import PATHS from "router/paths";
 import configAPI from "services/entities/config";
-import { ISoftwareApiParams } from "services/entities/software";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { getNextLocationPath } from "utilities/helpers";
 import {
@@ -33,9 +33,9 @@ import AddSoftwareModal from "./components/modals/AddSoftwareModal";
 import ManageAutomationsModal from "./components/modals/ManageSoftwareAutomationsModal";
 import SoftwareFiltersModal from "./components/modals/SoftwareFiltersModal";
 import {
-  buildSoftwareVulnFiltersQueryParams,
-  getSoftwareVulnFiltersFromQueryParams,
-  ISoftwareVulnFiltersParams,
+  buildSoftwareFiltersQueryParams,
+  getSoftwareFiltersFromQueryParams,
+  ISoftwareFilters,
 } from "./SoftwareInventory/SoftwareInventoryTable/helpers";
 
 interface ISoftwareSubNavItem {
@@ -202,9 +202,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   // Library uses a self-service toggle (boolean), not the old dropdown filter
   const selfServiceOnly = queryParams?.self_service === "true";
 
-  const softwareVulnFilters = getSoftwareVulnFiltersFromQueryParams(
-    queryParams
-  );
+  const softwareFilters = getSoftwareFiltersFromQueryParams(queryParams);
 
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false
@@ -371,14 +369,14 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     router,
   ]);
 
-  const onApplyVulnFilters = (vulnFilters: ISoftwareVulnFiltersParams) => {
-    const newQueryParams: ISoftwareApiParams = {
+  const onApplyFilters = (filters: ISoftwareFilters) => {
+    const newQueryParams = {
       query,
       teamId: currentTeamId,
       orderDirection: sortDirection,
       orderKey: sortHeader,
       page: 0, // resets page index
-      ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
+      ...buildSoftwareFiltersQueryParams(filters),
     };
 
     router.replace(
@@ -526,7 +524,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             query,
             showExploitedVulnerabilitiesOnly,
             selfServiceOnly,
-            vulnFilters: softwareVulnFilters,
+            filters: softwareFilters,
             onAddFiltersClick: toggleSoftwareFiltersModal,
           })}
         </div>
@@ -581,9 +579,10 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
         {showSoftwareFiltersModal && (
           <SoftwareFiltersModal
             onExit={toggleSoftwareFiltersModal}
-            onSubmit={onApplyVulnFilters}
-            vulnFilters={softwareVulnFilters}
+            onSubmit={onApplyFilters}
+            filters={softwareFilters}
             isPremiumTier={isPremiumTier || false}
+            availableTypes={SOFTWARE_TYPES}
           />
         )}
       </>

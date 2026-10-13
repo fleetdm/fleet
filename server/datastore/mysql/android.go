@@ -256,6 +256,13 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 	}
 	ds.setTimesToNonZero(host)
 
+	// Use the device's report time so a delayed or retried Pub/Sub delivery doesn't push the
+	// missing and expiry clocks later. ENROLLMENT payloads can omit it.
+	seenTime := time.Now().UTC()
+	if !host.DetailUpdatedAt.Equal(common_mysql.GetDefaultNonZeroTime()) {
+		seenTime = host.DetailUpdatedAt.UTC() //nolint:nilaway // IsValid above rejects a nil host
+	}
+
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "update Android host get app config")
@@ -276,7 +283,10 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 			cpu_type = :cpu_type,
 			hardware_model = :hardware_model,
 			hardware_vendor = :hardware_vendor,
-			uuid = :uuid
+			uuid = :uuid,
+			-- a re-enrolling device keeps its row, so the enrollment time is refreshed here,
+			-- as EnrollHost does for osquery hosts. A plain status report leaves it alone.
+			last_enrolled_at = IF(:from_enroll, NOW(), last_enrolled_at)
 		WHERE id = :id
 		`
 		_, err := sqlx.NamedExecContext(ctx, tx, stmt, map[string]interface{}{
@@ -294,9 +304,23 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 			"hardware_model":    host.HardwareModel,
 			"hardware_vendor":   host.HardwareVendor,
 			"uuid":              host.UUID,
+			"from_enroll":       fromEnroll,
 		})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "update Android host")
+		}
+
+		// An Android host never checks in through osquery, so the AMAPI status reports that
+		// drive this update are the only evidence Fleet has heard from the device. Without a
+		// host_seen_times row the host reads as last seen when its row was created.
+		// The stale-message check runs before this and is recorded after, so an older report
+		// processed concurrently can commit last; never move the seen time backwards.
+		if _, err := tx.ExecContext(ctx, `
+			INSERT INTO host_seen_times (host_id, seen_time) VALUES (?, ?)
+			ON DUPLICATE KEY UPDATE seen_time = GREATEST(COALESCE(seen_time, VALUES(seen_time)), VALUES(seen_time))`,
+			host.Host.ID, seenTime,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "update Android host seen time")
 		}
 
 		// Keep android_devices.team_id in sync so the team survives host deletion.
@@ -611,9 +635,10 @@ func (ds *Datastore) insertAndroidHostLabelMembershipTx(ctx context.Context, tx 
 // BulkSetAndroidHostsUnenrolled sets all android hosts to unenrolled (for when
 // Android MDM is turned off for all Fleet).
 func (ds *Datastore) BulkSetAndroidHostsUnenrolled(ctx context.Context) error {
+	// installed_from_dep is also cleared because Android has no DEP/ABM equivalent (no "Pending" state).
 	_, err := ds.writer(ctx).ExecContext(ctx, `
 UPDATE host_mdm
-	SET server_url = '', mdm_id = NULL, enrolled = 0
+	SET server_url = '', mdm_id = NULL, enrolled = 0, installed_from_dep = 0
 	WHERE host_id IN (
 		SELECT id FROM hosts WHERE platform = 'android'
 	)`)
@@ -1985,6 +2010,52 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context, cursor st
 	return toApplyProfiles, toRemoveProfiles, err
 }
 
+// ResetMDMAndroidHostProfilesForRedelivery marks every profile install of the host as
+// needing to be sent again (creating the rows of applicable profiles it has none for) and
+// drops its pending removals. It is used after the host's policy was replaced by one without
+// any profile settings.
+func (ds *Datastore) ResetMDMAndroidHostProfilesForRedelivery(ctx context.Context, hostUUID string) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE host_mdm_android_profiles
+			SET
+				status = NULL,
+				detail = '',
+				policy_request_uuid = NULL,
+				device_request_uuid = NULL,
+				request_fail_count = 0,
+				included_in_policy_version = NULL,
+				can_reverify = 0,
+				-- always bumped, even when the row already looked reset, so that
+				-- BulkUpsertMDMAndroidHostProfilesUnlessResetSince can tell it was reset
+				updated_at = CURRENT_TIMESTAMP(6)
+			WHERE host_uuid = ? AND operation_type = ?`,
+			hostUUID, fleet.MDMOperationTypeInstall); err != nil {
+			return ctxerr.Wrap(ctx, err, "reset android host profile installs")
+		}
+		// The replaced policy no longer holds these settings, so the removal is done.
+		if _, err := tx.ExecContext(ctx,
+			`DELETE FROM host_mdm_android_profiles WHERE host_uuid = ? AND operation_type = ?`,
+			hostUUID, fleet.MDMOperationTypeRemove); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete android host profile removals")
+		}
+		// A host that was never sent its profiles (e.g. newly enrolled) has no rows to reset,
+		// so a reconciler already sending them would record them as delivered in the replaced
+		// policy. Create the rows as reset so that write is discarded too.
+		insertMissingStmt := fmt.Sprintf(`
+			INSERT INTO host_mdm_android_profiles (host_uuid, profile_uuid, profile_name, operation_type, status, detail)
+			SELECT ds.host_uuid, ds.profile_uuid, ds.name, ?, NULL, ''
+			FROM ( %s ) ds
+			ON DUPLICATE KEY UPDATE host_uuid = host_mdm_android_profiles.host_uuid`,
+			fmt.Sprintf(androidApplicableProfilesQuery, "h.uuid = ?", "h.uuid = ?", "h.uuid = ?", "h.uuid = ?", "h.uuid = ?", "h.uuid = ?"))
+		if _, err := tx.ExecContext(ctx, insertMissingStmt,
+			fleet.MDMOperationTypeInstall, hostUUID, hostUUID, hostUUID, hostUUID, hostUUID, hostUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert missing android host profiles")
+		}
+		return nil
+	})
+}
+
 func (ds *Datastore) GetMDMAndroidProfilesContents(ctx context.Context, uuids []string) (map[string]json.RawMessage, error) {
 	if len(uuids) == 0 {
 		return nil, nil
@@ -2025,22 +2096,51 @@ func (ds *Datastore) GetMDMAndroidProfilesContents(ctx context.Context, uuids []
 }
 
 func (ds *Datastore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error {
-	return ds.bulkUpsertMDMAndroidHostProfiles(ctx, payload, false)
+	return ds.bulkUpsertMDMAndroidHostProfiles(ctx, payload, false, nil)
 }
 
-// bulkUpsertMDMAndroidHostProfiles upserts host/profile rows.
-func (ds *Datastore) bulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload, preserveExistingDetail bool) error {
+// GetMDMAndroidProfilesWriteTime returns the primary's current time at microsecond
+// precision, comparable to host_mdm_android_profiles.updated_at.
+func (ds *Datastore) GetMDMAndroidProfilesWriteTime(ctx context.Context) (time.Time, error) {
+	var now time.Time
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &now, `SELECT NOW(6)`); err != nil {
+		return time.Time{}, ctxerr.Wrap(ctx, err, "get android profiles write time")
+	}
+	return now, nil
+}
+
+func (ds *Datastore) BulkUpsertMDMAndroidHostProfilesUnlessResetSince(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload, since time.Time) error {
+	return ds.bulkUpsertMDMAndroidHostProfiles(ctx, payload, false, &since)
+}
+
+// bulkUpsertMDMAndroidHostProfiles upserts host/profile rows. When unlessResetSince is set,
+// existing rows that were reset for redelivery (status NULL) at or after that time are left
+// as-is, so a writer working from state read before the reset cannot undo it.
+func (ds *Datastore) bulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload, preserveExistingDetail bool, unlessResetSince *time.Time) error {
 	if len(payload) == 0 {
 		return nil
 	}
 
-	detailUpdate := "detail = VALUES(detail),"
-	if preserveExistingDetail {
-		// detail intentionally omitted from the ON DUPLICATE KEY UPDATE clause:
-		// the reconciler owns this field and may carry a forward-looking message
-		// (e.g. "Waiting for certificate ..." on withheld ONC profiles) that
-		// must survive this state reset.
-		detailUpdate = ""
+	// detail is omitted when preserving it: the reconciler owns this field and may carry a
+	// forward-looking message (e.g. "Waiting for certificate ..." on withheld ONC profiles)
+	// that must survive this state reset.
+	updatedColumns := []string{"status", "operation_type"}
+	if !preserveExistingDetail {
+		updatedColumns = append(updatedColumns, "detail")
+	}
+	updatedColumns = append(updatedColumns, "profile_name", "policy_request_uuid", "device_request_uuid",
+		"request_fail_count", "included_in_policy_version", "checksum", "can_reverify")
+
+	var updateAssignments []string
+	var updateArgs []any
+	for _, col := range updatedColumns {
+		if unlessResetSince == nil {
+			updateAssignments = append(updateAssignments, fmt.Sprintf("%s = VALUES(%s)", col, col))
+			continue
+		}
+		updateAssignments = append(updateAssignments,
+			fmt.Sprintf("%s = IF(status IS NULL AND updated_at >= ?, %s, VALUES(%s))", col, col, col))
+		updateArgs = append(updateArgs, *unlessResetSince)
 	}
 
 	executeUpsertBatch := func(valuePart string, args []any) error {
@@ -2062,18 +2162,10 @@ func (ds *Datastore) bulkUpsertMDMAndroidHostProfiles(ctx context.Context, paylo
 			)
 			VALUES %s
 			ON DUPLICATE KEY UPDATE
-				status = VALUES(status),
-				operation_type = VALUES(operation_type),
 				%s
-				profile_name = VALUES(profile_name),
-				policy_request_uuid = VALUES(policy_request_uuid),
-				device_request_uuid = VALUES(device_request_uuid),
-				request_fail_count = VALUES(request_fail_count),
-				included_in_policy_version = VALUES(included_in_policy_version),
-				checksum = VALUES(checksum),
-				can_reverify = VALUES(can_reverify)
-`, strings.TrimSuffix(valuePart, ","), detailUpdate,
+`, strings.TrimSuffix(valuePart, ","), strings.Join(updateAssignments, ",\n\t\t\t\t"),
 		)
+		args = slices.Concat(args, updateArgs)
 
 		// Taken from BulkUpsertMDMAppleHostProfiles: We need to run with retry
 		// due to deadlocks. The INSERT/ON DUPLICATE KEY UPDATE pattern is prone
@@ -2459,7 +2551,7 @@ func (ds *Datastore) bulkSetPendingMDMAndroidHostProfilesDB(
 		}
 	}
 
-	if err := ds.bulkUpsertMDMAndroidHostProfiles(ctx, profilesToUpsert, true); err != nil {
+	if err := ds.bulkUpsertMDMAndroidHostProfiles(ctx, profilesToUpsert, true, nil); err != nil {
 		return false, ctxerr.Wrap(ctx, err, "bulk reset android host profiles to pending")
 	}
 
@@ -2512,10 +2604,11 @@ func (ds *Datastore) InsertAndroidSetupExperienceSoftwareInstall(ctx context.Con
 				command_uuid,
 				self_service,
 				associated_event_id,
-				platform
+				platform,
+				vpp_app_team_id
 			)
 		VALUES
-			(?, ?, ?, ?, ?, ?)`
+			(?, ?, ?, ?, ?, ?, ?)`
 
 	_, err := ds.writer(ctx).ExecContext(
 		ctx, stmt,
@@ -2525,6 +2618,7 @@ func (ds *Datastore) InsertAndroidSetupExperienceSoftwareInstall(ctx context.Con
 		false,
 		payload.AssociatedEventID,
 		fleet.AndroidPlatform,
+		ptr.UintOrNilIfZero(payload.VPPAppTeamID),
 	)
 	return ctxerr.Wrap(ctx, err, "inserting android setup experience software install")
 }
@@ -2605,28 +2699,38 @@ WHERE
 // HasAndroidAppConfigurationChanged checks if the new configuration for an Android app
 // identified by application_id and global_or_team_id is different from the existing one. This
 // is a datastore method so that we rely on mysql's canonicalisation of JSON for comparison.
-func (ds *Datastore) HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig []byte) (bool, error) {
-	const stmt = `
+func (ds *Datastore) HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, vppAppTeamID *uint, newConfig []byte) (bool, error) {
+	stmt := `
 SELECT
-	CAST(? AS JSON) != configuration AS has_changed
+	COALESCE(CAST(? AS JSON) != CAST(configuration AS JSON), ?) AS has_changed
 FROM
-	android_app_configurations
+	vpp_apps_teams
 WHERE
-	application_id = ? AND
-	global_or_team_id = ?
+	adam_id = ? AND
+	global_or_team_id = ? AND
+	platform = 'android'
 `
 
 	newConfigStr := string(newConfig)
+	newConfigIsSet := true
 	if len(newConfigStr) == 0 {
 		newConfigStr = "{}" // consider an empty config as an empty JSON for comparison's sake
+		newConfigIsSet = false
 	}
 
+	args := []any{newConfigStr, newConfigIsSet, applicationID, teamID}
+	if vppAppTeamID != nil {
+		stmt += ` AND id = ?`
+		args = append(args, *vppAppTeamID)
+	}
+	stmt += ` ORDER BY id LIMIT 1`
+
 	var hasChanged bool
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfigStr, applicationID, teamID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, args...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// old config does not exist, so old one is changed if not empty
-			return len(newConfig) > 0, nil
+			return newConfigIsSet, nil
 		}
 		return false, ctxerr.Wrap(ctx, err, "compare android app configuration")
 	}
@@ -2635,7 +2739,7 @@ WHERE
 
 // GetAndroidAppConfiguration retrieves the configuration for an Android app by app ID and team
 func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) ([]byte, error) {
-	stmt := `SELECT configuration FROM android_app_configurations WHERE application_id = ? AND global_or_team_id = ?`
+	stmt := `SELECT configuration FROM vpp_apps_teams WHERE adam_id = ? AND global_or_team_id = ? AND platform = 'android' ORDER BY id LIMIT 1`
 
 	var config []byte
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, applicationID, teamID)
@@ -2645,17 +2749,18 @@ func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, application
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get android app configuration")
 	}
+	if config == nil {
+		return nil, ctxerr.Wrap(ctx, notFound("AndroidAppConfiguration"))
+	}
 
 	return config, nil
 }
 
 func (ds *Datastore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) ([]byte, error) {
 	stmt := `
-	SELECT aac.configuration
-	FROM android_app_configurations aac
-	JOIN vpp_apps_teams vat
-		ON vat.adam_id = aac.application_id AND vat.global_or_team_id = aac.global_or_team_id
-	WHERE vat.id = ?
+	SELECT configuration
+	FROM vpp_apps_teams
+	WHERE id = ? AND configuration IS NOT NULL
 `
 
 	var config []byte
@@ -2670,20 +2775,20 @@ func (ds *Datastore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, 
 	return config, nil
 }
 
-func (ds *Datastore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string][]byte, error) {
+func (ds *Datastore) BulkGetAndroidAppConfigurations(ctx context.Context, vppAppTeamIDs []uint) (map[string][]byte, error) {
 	const bulkGetStmt = `
 	SELECT
-		application_id,
-		configuration
-	FROM android_app_configurations
-	WHERE application_id IN (?) AND global_or_team_id = ?
+		vat.adam_id AS application_id,
+		vat.configuration
+	FROM vpp_apps_teams vat
+	WHERE vat.id IN (?) AND vat.platform = 'android' AND vat.configuration IS NOT NULL
 	`
 
-	if len(appIDs) == 0 {
+	if len(vppAppTeamIDs) == 0 {
 		return nil, nil
 	}
 
-	stmt, args, err := sqlx.In(bulkGetStmt, appIDs, teamID)
+	stmt, args, err := sqlx.In(bulkGetStmt, vppAppTeamIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building bulk get android app configurations query")
 	}
@@ -2734,8 +2839,8 @@ WHERE
 // DeleteAndroidAppConfiguration removes an Android app configuration.
 func (ds *Datastore) DeleteAndroidAppConfiguration(ctx context.Context, appID string, teamID uint) error {
 	stmt := `
-		DELETE FROM android_app_configurations
-		WHERE application_id = ? AND global_or_team_id = ?
+		UPDATE vpp_apps_teams SET configuration = NULL
+		WHERE adam_id = ? AND global_or_team_id = ? AND platform = 'android' AND configuration IS NOT NULL
 	`
 
 	result, err := ds.writer(ctx).ExecContext(ctx, stmt, appID, teamID)
@@ -2756,41 +2861,24 @@ func (ds *Datastore) DeleteAndroidAppConfiguration(ctx context.Context, appID st
 }
 
 // updateAndroidAppConfigurationTx inserts or updates an app configuration using a transaction
-func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, teamID uint, appID string, config []byte) error {
+func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, vppAppTeamID uint, config []byte) error {
 	err := fleet.ValidateAndroidAppConfiguration(config)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating android app configuration")
 	}
 
-	stmt := `
-		INSERT INTO
-			android_app_configurations (application_id, team_id, global_or_team_id, configuration)
-		VALUES (?, ?, ?, ?)
-		ON DUPLICATE KEY UPDATE
-			configuration = VALUES(configuration)
-	`
-
-	_, err = tx.ExecContext(ctx, stmt, appID, ptr.UintOrNilIfZero(teamID), teamID, config)
+	_, err = tx.ExecContext(ctx, `UPDATE vpp_apps_teams SET configuration = ? WHERE id = ?`, config, vppAppTeamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updateAndroidAppConfiguration")
 	}
 
 	// Track which fleet variables this app config uses so SCIM can trigger resends.
-	var appConfigID uint
-	if err := sqlx.GetContext(
-		ctx, tx, &appConfigID,
-		`SELECT id FROM android_app_configurations WHERE application_id = ? AND global_or_team_id = ?`,
-		appID, teamID,
-	); err != nil {
-		return ctxerr.Wrap(ctx, err, "getting android app configuration id for variable tracking")
-	}
-
 	found := variables.Find(string(config))
 	fleetVars := make([]fleet.FleetVarName, len(found))
 	for i, v := range found {
 		fleetVars[i] = fleet.FleetVarName(v)
 	}
-	if err := setAppConfigVariableAssociations(ctx, tx, appConfigID, fleetVars); err != nil {
+	if err := setAppConfigVariableAssociations(ctx, tx, vppAppTeamID, fleetVars); err != nil {
 		return ctxerr.Wrap(ctx, err, "setting app config variable associations")
 	}
 
@@ -2799,8 +2887,8 @@ func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sql
 
 // setAppConfigVariableAssociations replaces the variable associations for an
 // android app configuration in mdm_configuration_profile_variables.
-func setAppConfigVariableAssociations(ctx context.Context, tx sqlx.ExtContext, appConfigID uint, fleetVars []fleet.FleetVarName) error {
-	if _, err := tx.ExecContext(ctx, `DELETE FROM mdm_configuration_profile_variables WHERE android_app_configuration_id = ?`, appConfigID); err != nil {
+func setAppConfigVariableAssociations(ctx context.Context, tx sqlx.ExtContext, vppAppTeamID uint, fleetVars []fleet.FleetVarName) error {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM mdm_configuration_profile_variables WHERE vpp_app_team_id = ?`, vppAppTeamID); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting app config variable associations")
 	}
 
@@ -2826,7 +2914,7 @@ func setAppConfigVariableAssociations(ctx context.Context, tx sqlx.ExtContext, a
 			match := (!def.IsPrefix && def.Name == varWithPrefix) || (def.IsPrefix && strings.HasPrefix(varWithPrefix, def.Name))
 			if match {
 				values.WriteString("(?, ?),")
-				args = append(args, appConfigID, def.ID)
+				args = append(args, vppAppTeamID, def.ID)
 				break
 			}
 		}
@@ -2837,7 +2925,7 @@ func setAppConfigVariableAssociations(ctx context.Context, tx sqlx.ExtContext, a
 	}
 
 	stmt := fmt.Sprintf(`
-		INSERT INTO mdm_configuration_profile_variables (android_app_configuration_id, fleet_variable_id)
+		INSERT INTO mdm_configuration_profile_variables (vpp_app_team_id, fleet_variable_id)
 		VALUES %s
 		ON DUPLICATE KEY UPDATE fleet_variable_id = VALUES(fleet_variable_id)
 	`, strings.TrimSuffix(values.String(), ","))

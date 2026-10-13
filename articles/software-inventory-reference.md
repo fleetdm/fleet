@@ -87,6 +87,7 @@ Software inventory in Fleet collects the apps, operating systems, browser extens
 | SteamOS | ❌ |
 | Bazzite, Bluefin, and Aurora | ❌ |
 | Ubuntu Core | ❌ |
+| IGEL OS | ❌ |
 | Any other distribution | ❌ |
 
 - Fedora, Rocky Linux, AlmaLinux, and Oracle Linux report as RHEL because they ship `/etc/redhat-release`. Fleet shows them under RHEL on the **Software** > **OS** page.
@@ -95,6 +96,7 @@ Software inventory in Fleet collects the apps, operating systems, browser extens
 - Alpine, elementary OS, Deepin, Garuda, Clear Linux, Photon OS, Solus, Parrot OS, Vanilla OS, openSUSE MicroOS, Aeon, and any distribution not listed above: Fleet recognizes Linux by matching the platform value Fleet reads from `/etc/os-release` against a [fixed list](https://github.com/fleetdm/fleet/blob/main/server/fleet/hosts.go). Hosts with any other value enroll, but Fleet doesn't collect an OS entry or software inventory for them.
 - SteamOS, Bazzite, Bluefin, and Aurora: these use immutable root filesystems. Installing Fleet's agent is unsupported, and their platform values aren't in Fleet's list.
 - Ubuntu Core runs snaps only. Fleet's agent isn't packaged as a snap, so Ubuntu Core hosts can't enroll.
+- [IGEL OS](https://www.igel.com/secure-endpoint-os/) uses an immutable root filesystem, and software is delivered as IGEL apps through IGEL's App Portal. Fleet's agent isn't available as an IGEL app, so IGEL OS isn't supported.
 
 ## Browser extensions
 
@@ -168,6 +170,7 @@ Fleet's agent includes an [ai_tools](https://github.com/fleetdm/fleet/blob/main/
 | AI browser extensions | ❌ Not in inventory | ❌ | ❌ | ❌ | ❌ | ❌ | The `ai_tools` table's `browser_extension` type, separate from the general [browser extensions](#browser-extensions) above. |
 | AI skills | ❌ Not collected | ❌ | ❌ | ❌ | ❌ | ❌ | Files such as Claude Code's `SKILL.md` or a project's `.agents/skills` directory aren't inventoried as their own entities.  |
 | AI models | ❌ Not collected | ❌ | ❌ | ❌ | ❌ | ❌ | Fleet doesn't enumerate installed model weights or which model a local runner has loaded. Only the runner app or listening socket is visible, under AI desktop apps and Live AI and MCP sockets above. |
+| AI sessions | ❌ Not collected | ❌ | ❌ | ❌ | ❌ | ❌ | Fleet doesn't track AI agent sessions, such as which user ran Claude Code, Codex, or Cursor, when, or in which project. A `sessions` or `memory` directory only counts as evidence of an agent workspace; its contents aren't read. Seeing AI sessions on the **Host details** page is [coming soon](https://github.com/fleetdm/fleet/issues/51825). |
 
 ## Binaries and other
 

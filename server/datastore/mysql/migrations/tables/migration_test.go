@@ -182,6 +182,7 @@ WHERE
 		{"utf8mb4_bin", "sessions", "key", "utf8mb4"},
 		{"utf8mb4_bin", "teams", "name_bin", "utf8mb4"},
 		{"utf8mb4_bin", "verification_tokens", "token", "utf8mb4"},
+		{"utf8mb4_bin", "mdm_apple_scep_challenges", "challenge", "utf8mb4"},
 	}
 
 	require.ElementsMatch(t, exceptions, nonStandardCollations)

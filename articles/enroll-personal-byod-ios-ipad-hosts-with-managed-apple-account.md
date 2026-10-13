@@ -14,6 +14,7 @@ With Account-driven User Enrollment, end users can separate work and personal da
 - [Step 4: Create a fleet for personal hosts](#step-4-create-a-fleet-for-personal-hosts)
 - [Step 5: Instructions for end users](#step-6-instructions-for-end-users)
 
+> Account-driven User Enrollment is completely disabled when **Allow only Apple Business enrollments** is on. Personal devices can't enroll.
 
 ## Step 1: Connect Apple Business (AB) to Fleet
 

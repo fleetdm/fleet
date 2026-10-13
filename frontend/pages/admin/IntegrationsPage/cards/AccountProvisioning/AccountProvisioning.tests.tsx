@@ -322,7 +322,7 @@ describe("AccountProvisioning", () => {
       await user.click(screen.getByRole("button", { name: /save/i }));
     };
 
-    it("surfaces field-level server errors inline on the matching fields and in the toast", async () => {
+    it("surfaces field-level server errors inline and toasts each once", async () => {
       (configAPI.update as jest.Mock).mockRejectedValue({
         status: 422,
         data: {
@@ -353,9 +353,61 @@ describe("AccountProvisioning", () => {
         screen.getByText(/must be a valid https url/i)
       ).toBeInTheDocument();
       expect(notify.error).toHaveBeenCalledWith(
-        expect.stringContaining("must be provided when changing"),
+        "oauth_idp_client_secret must be provided when changing oauth_idp_token_url"
+      );
+      expect(notify.error).toHaveBeenCalledWith("must be a valid https URL");
+      // The form's validation hook toasts field errors; the save handler must
+      // not toast them again.
+      expect(notify.error).toHaveBeenCalledTimes(2);
+    });
+
+    it("toasts a non-field reason alongside field errors in the same response", async () => {
+      (configAPI.update as jest.Mock).mockRejectedValue({
+        status: 422,
+        data: {
+          message: "Validation Failed",
+          errors: [
+            {
+              name: "mdm.apple_account_provisioning.oauth_idp_token_url",
+              reason: "must be a valid https URL",
+            },
+            {
+              name: "mdm.apple_account_provisioning",
+              reason: "Missing required private key",
+            },
+          ],
+        },
+      });
+
+      const { user } = render(<AccountProvisioning {...defaultProps} />);
+      await fillValidForm(user);
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/must be a valid https url/i)
+        ).toBeInTheDocument();
+      });
+      expect(notify.error).toHaveBeenCalledWith(
+        "Failed to update settings: Missing required private key",
         expect.anything()
       );
+      expect(notify.error).toHaveBeenCalledWith("must be a valid https URL");
+      expect(notify.error).toHaveBeenCalledTimes(2);
+    });
+
+    it("toasts a generic failure when the response has no errors", async () => {
+      (configAPI.update as jest.Mock).mockRejectedValue({ status: 500 });
+
+      const { user } = render(<AccountProvisioning {...defaultProps} />);
+      await fillValidForm(user);
+
+      await waitFor(() => {
+        expect(notify.error).toHaveBeenCalledWith(
+          "Failed to update settings.",
+          expect.anything()
+        );
+      });
+      expect(notify.error).toHaveBeenCalledTimes(1);
     });
 
     it("includes the server reason in the error toast for non-field errors", async () => {
