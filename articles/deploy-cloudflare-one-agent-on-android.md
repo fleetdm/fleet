@@ -13,9 +13,9 @@ This guide covers fully managed devices. Work profile (BYOD) devices, HTTP filte
 
 ## Configure Cloudflare Zero Trust
 
-1. In Cloudflare, create your Zero Trust organization. Your team name becomes `<team>.cloudflareaccess.com`.
-2. Add a device enrollment permissions rule with the action **Allow** that includes the users you want to enroll. A one-time PIN is enough, so you don't need an identity provider to test.
-3. Leave the default device profile as is (WARP mode, auto-connect off), or set it to match your policy.
+1. In Cloudflare, [create your Zero Trust organization](https://developers.cloudflare.com/cloudflare-one/setup/). Your team name becomes `<team>.cloudflareaccess.com`.
+2. Add a [device enrollment permissions](https://developers.cloudflare.com/cloudflare-one/team-and-resources/devices/cloudflare-one-client/deployment/device-enrollment/#set-device-enrollment-permissions) rule with the action **Allow** that includes the users you want to enroll. A [one-time PIN](https://developers.cloudflare.com/cloudflare-one/integrations/identity-providers/one-time-pin/) is enough, so you don't need an identity provider to test.
+3. Leave the default [device profile](https://developers.cloudflare.com/cloudflare-one/team-and-resources/devices/cloudflare-one-client/configure/device-profiles/) as is (WARP mode, auto-connect off), or set it to match your policy.
 
 ## Write the managed configuration
 
