@@ -621,6 +621,8 @@ type SoftwareTitleListResult struct {
 // IMPORTANT: When updating this, also make sure to update SOFTWARE_TYPE_VARIANTS in frontend code.
 var softwareTypeFilterSources = map[string][]string{
 	"adobe_plugins":       nil,
+	"ai_clis":             nil,
+	"ai_skills":           nil,
 	"android_apps":        nil,
 	"apps":                nil,
 	"chocolatey_packages": nil,
@@ -630,6 +632,7 @@ var softwareTypeFilterSources = map[string][]string{
 	"ie_extensions":       nil,
 	"ios_apps":            nil,
 	"ipados_apps":         nil,
+	"mcp_servers":         nil,
 	"nix_packages":        nil,
 	"npm_packages":        nil,
 	"pacman_packages":     nil,

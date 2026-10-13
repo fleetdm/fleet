@@ -1307,6 +1307,17 @@ func TestParseSoftwareTypeFilter(t *testing.T) {
 			},
 		},
 		{
+			name:   "AI tool sources",
+			source: "ai_clis,mcp_servers,ai_skills",
+			want:   SoftwareTypeFilter{"ai_clis": nil, "mcp_servers": nil, "ai_skills": nil},
+		},
+		{
+			name:       "the ai_tools pseudo-source is never stored",
+			source:     "ai_tools",
+			wantArg:    "source",
+			wantReason: `Invalid source: "ai_tools" isn't a valid source. See the options: https://fleetdm.com/docs/rest-api/rest-api#list-software`,
+		},
+		{
 			name:       "unknown source",
 			source:     "apps,app",
 			wantArg:    "source",
