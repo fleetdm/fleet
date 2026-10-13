@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261012211246, Down_20261012211246)
+	MigrationClient.AddMigration(Up_20261013144647, Down_20261013144647)
 }
 
-func Up_20261012211246(tx *sql.Tx) error {
+func Up_20261013144647(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
 CREATE TABLE IF NOT EXISTS host_policy_automation_run_counts (
 	policy_id     INT UNSIGNED NOT NULL,
@@ -80,6 +80,6 @@ ORDER BY policy_id, host_id`)
 	return nil
 }
 
-func Down_20261012211246(tx *sql.Tx) error {
+func Down_20261013144647(tx *sql.Tx) error {
 	return nil
 }

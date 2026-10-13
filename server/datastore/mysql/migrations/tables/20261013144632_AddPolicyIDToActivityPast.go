@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261012135052, Down_20261012135052)
+	MigrationClient.AddMigration(Up_20261013144632, Down_20261013144632)
 }
 
-func Up_20261012135052(tx *sql.Tx) error {
+func Up_20261013144632(tx *sql.Tx) error {
 	// Use BIGINT so an out of range policy_id in details becomes NULL instead of failing the activity insert.
 	if !columnExists(tx, "activity_past", "policy_id") {
 		_, err := tx.Exec(`ALTER TABLE activity_past
@@ -30,6 +30,6 @@ func Up_20261012135052(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20261012135052(tx *sql.Tx) error {
+func Down_20261013144632(tx *sql.Tx) error {
 	return nil
 }
