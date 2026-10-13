@@ -2,7 +2,35 @@
 
 For Android hosts, there's no **Refetch** button on the **Host details** page in Fleet because Android hosts sync data automatically when they change. 
 
-Sometimes changes don't appear immediately due to Google rate limiting. For testing, if you have physical access to the Android host, you can sync manually to speed things up:
+## How changes sync on Android hosts
+
+Fleet doesn't communicate with Android hosts directly. Fleet and each host communicate through Google's Android Management API (AMAPI):
+
+1. Fleet updates the host's policy in AMAPI. For example, when you install an app, Fleet adds it to the policy's application list.
+2. The next time the host syncs with Google, Google delivers the updated policy and the host applies it. In this example, the host installs the app.
+3. The host sends a status report to Google, and Google forwards it to Fleet. Fleet then updates the host's details, such as the app's status.
+
+```mermaid
+sequenceDiagram
+    participant Fleet
+    participant Google as Google (AMAPI)
+    participant Host as Android host
+
+    Note over Fleet: Status: Install pending
+    Fleet->>Google: 1. Update ApplicationPolicy
+    Host->>Google: Syncs with Google
+    Google->>Host: 2. Deliver updated policy
+    Note over Host: Installs app
+    Host->>Google: 3. Send status report
+    Google->>Fleet: Forward via Pub/Sub
+    Note over Fleet: Status: Installed
+```
+
+Fleet doesn't control when steps 2 and 3 happen. Sometimes changes don't appear immediately due to Google rate limiting, so a status like "Install pending" can stay in Fleet longer than you'd expect.
+
+## Sync manually
+
+For testing, if you have physical access to the Android host, you can sync manually to speed things up:
 
 1. Go to your Work Profile in **Settings**:
    1. Google devices: select your name at the top of **Settings**, then select your Work Profile.
