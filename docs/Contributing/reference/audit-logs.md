@@ -1823,7 +1823,8 @@ This activity contains the following fields:
 - "host_display_name": Display name of the host.
 - "patch_notification_uuid": ID of the notification. The reminder for the same notification reuses this ID.
 - "status": Whether notification is displayed or failed.
-- "software_titles": Names of the software titles included in the notification.
+- "software_titles": Names of the software titles included in the notification. Legacy field; `software` carries the same list with per-team display name overrides.
+- "software": Software titles included in the notification. Each entry has `title` (raw name), `title_id`, and `display_name` (set only when an admin picked a per-team override).
 - "policy_ids": IDs of the patch policies included in the notification.
 - "time_before": Either 1 hour or 5 minutes before patch is forced.
 - "install_at": Timestamp at which the apps will be installed if the end user doesn't update them first.
@@ -1838,6 +1839,10 @@ This activity contains the following fields:
   "host_display_name": "Anna's MacBook Pro",
   "patch_notification_uuid": "9f8c1c1e-0b1a-4f2a-9a3e-6c5d4b3a2f10",
   "software_titles": ["1Password", "Slack"],
+  "software": [
+    { "title": "1Password", "title_id": 42, "display_name": "1Password 8" },
+    { "title": "Slack", "title_id": 57 }
+  ],
   "status": "success",
   "policy_ids": [1337, 1338],
   "time_before": 3600,
