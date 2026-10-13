@@ -6,36 +6,46 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261013144647, Down_20261013144647)
+	MigrationClient.AddMigration(Up_20261013161959, Down_20261013161959)
 }
 
-func Up_20261013144647(tx *sql.Tx) error {
-	if _, err := tx.Exec(`
-CREATE TABLE IF NOT EXISTS host_policy_automation_run_counts (
+func Up_20261013161959(tx *sql.Tx) error {
+	// Drop the table first so a rerun after a failed backfill starts from an empty table.
+	_, err := tx.Exec(`DROP TABLE IF EXISTS host_policy_automation_run_counts`)
+	if err != nil {
+		return fmt.Errorf("drop host_policy_automation_run_counts table: %w", err)
+	}
+
+	_, err = tx.Exec(`
+CREATE TABLE host_policy_automation_run_counts (
 	policy_id     INT UNSIGNED NOT NULL,
 	activity_type VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
 	host_id       INT UNSIGNED NOT NULL,
 	success_count INT UNSIGNED NOT NULL DEFAULT 0,
 	fail_count    INT UNSIGNED NOT NULL DEFAULT 0,
 	PRIMARY KEY (policy_id, activity_type, host_id),
-	KEY idx_host_policy_automation_run_counts_host_id (host_id),
 	CONSTRAINT fk_host_policy_automation_run_counts_policy_id FOREIGN KEY (policy_id) REFERENCES policies (id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`); err != nil {
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+	if err != nil {
 		return fmt.Errorf("create host_policy_automation_run_counts table: %w", err)
 	}
 
-	return backfillHostPolicyAutomationRunCounts(tx)
+	err = backfillHostPolicyAutomationRunCounts(tx)
+	if err != nil {
+		return err
+	}
+
+	// Add the host_id index after the backfill, building it in one pass is faster than updating it for every inserted row.
+	_, err = tx.Exec(`ALTER TABLE host_policy_automation_run_counts ADD KEY idx_host_policy_automation_run_counts_host_id (host_id)`)
+	if err != nil {
+		return fmt.Errorf("add host_policy_automation_run_counts host_id index: %w", err)
+	}
+	return nil
 }
 
 func backfillHostPolicyAutomationRunCounts(tx *sql.Tx) error {
-	// Start a new transaction because CREATE TABLE committed the migration's transaction, so a failed backfill rolls back and the rerun starts from an empty table.
-	_, err := tx.Exec(`START TRANSACTION`)
-	if err != nil {
-		return fmt.Errorf("start backfill transaction: %w", err)
-	}
-
 	// Sort each insert in primary key order so rows append to the end of the table instead of splitting random pages.
-	_, err = tx.Exec(`
+	_, err := tx.Exec(`
 INSERT INTO host_policy_automation_run_counts (policy_id, activity_type, host_id, success_count, fail_count)
 SELECT policy_id, 'ran_script', host_id, SUM(exit_code = 0), SUM(exit_code != 0)
 FROM host_script_results
@@ -80,6 +90,6 @@ ORDER BY policy_id, host_id`)
 	return nil
 }
 
-func Down_20261013144647(tx *sql.Tx) error {
+func Down_20261013161959(tx *sql.Tx) error {
 	return nil
 }

@@ -1279,6 +1279,12 @@ WHERE command_uuid = ?
 				act.FromAutoUpdate = inst.FromAutoUpdate
 				act.FromConfigurationResend = inst.FromConfigurationResend
 				entry.User, entry.AppStoreActivity = user, act
+				if act.PolicyID != nil {
+					err = incrementHostPolicyAutomationRunCountDB(ctx, tx, *act.PolicyID, act.HostID, act, false)
+					if err != nil {
+						return err
+					}
+				}
 			case softwareTypeInHouseApp:
 				user, act, err := ds.getPastActivityDataForInHouseAppInstallDB(ctx, tx, cmdResults)
 				if err != nil {
@@ -2367,13 +2373,17 @@ func (ds *Datastore) ListPolicyAutomationActivities(ctx context.Context, policyI
 }
 
 func (ds *Datastore) IncrementHostPolicyAutomationRunCount(ctx context.Context, policyID uint, hostID uint, activity fleet.ActivityDetails, succeeded bool) error {
+	return incrementHostPolicyAutomationRunCountDB(ctx, ds.writer(ctx), policyID, hostID, activity, succeeded)
+}
+
+func incrementHostPolicyAutomationRunCountDB(ctx context.Context, tx sqlx.ExecerContext, policyID uint, hostID uint, activity fleet.ActivityDetails, succeeded bool) error {
 	const stmt = `
 		INSERT INTO host_policy_automation_run_counts (policy_id, activity_type, host_id, success_count, fail_count)
 		VALUES (?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			success_count = success_count + VALUES(success_count),
 			fail_count = fail_count + VALUES(fail_count)`
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, policyID, activity.ActivityName(), hostID, succeeded, !succeeded)
+	_, err := tx.ExecContext(ctx, stmt, policyID, activity.ActivityName(), hostID, succeeded, !succeeded)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "increment host policy automation run count")
 	}

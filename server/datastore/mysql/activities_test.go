@@ -52,6 +52,7 @@ func TestActivity(t *testing.T) {
 		{"ListPolicyAutomationActivities", testListPolicyAutomationActivities},
 		{"ListPolicyAutomationActivitiesNotifyBeforePatching", testListPolicyAutomationActivitiesNotifyBeforePatching},
 		{"PolicyAutomationRunCounts", testPolicyAutomationRunCounts},
+		{"PolicyAutomationRunCountsFailedPendingVPPInstalls", testPolicyAutomationRunCountsFailedPendingVPPInstalls},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -3876,4 +3877,89 @@ func testPolicyAutomationRunCounts(t *testing.T, ds *Datastore) {
 	var remainingRows int
 	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &remainingRows, `SELECT COUNT(*) FROM host_policy_automation_run_counts`))
 	require.Zero(t, remainingRows)
+}
+
+func testPolicyAutomationRunCountsFailedPendingVPPInstalls(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	policy, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "pending-vpp-policy", Query: "SELECT 1"})
+	require.NoError(t, err)
+	require.NotNil(t, policy)
+	vppApp := &fleet.VPPApp{
+		Name:             "pending-vpp-app",
+		AdamID:           "pending-vpp-app",
+		Platform:         fleet.MacOSPlatform,
+		BundleIdentifier: "com.example.pending-vpp-app",
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp, nil, nil)
+	require.NoError(t, err)
+	policyInstallOpts := fleet.HostSoftwareInstallOptions{PolicyID: &policy.ID}
+
+	turnOffHost := test.NewHost(t, ds, "pending-vpp-turn-off-host", "10.2.0.1", "pending-vpp-key-1", "pending-vpp-uuid-1", time.Now())
+	nanoEnrollAndSetHostMDMData(t, ds, turnOffHost, false)
+	stuckHost := test.NewHost(t, ds, "pending-vpp-stuck-host", "10.2.0.2", "pending-vpp-key-2", "pending-vpp-uuid-2", time.Now())
+	nanoEnrollAndSetHostMDMData(t, ds, stuckHost, false)
+
+	// send a policy VPP install to the first host and fail it after its install command errored, then send a second one that stays pending
+	erroredExecID := uuid.NewString()
+	require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, turnOffHost.ID, vppApp.VPPAppID, erroredExecID, "", policyInstallOpts))
+	pendingExecID := uuid.NewString()
+	require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, turnOffHost.ID, vppApp.VPPAppID, pendingExecID, "", policyInstallOpts))
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO nano_command_results (id, command_uuid, status, result)
+			VALUES (?, ?, 'Error', '<?xml version="1.0" encoding="UTF-8"?>')`, turnOffHost.UUID, erroredExecID)
+		return err
+	})
+	require.NoError(t, ds.SetVPPInstallAsFailed(ctx, turnOffHost.ID, erroredExecID, ""))
+
+	// turn off MDM for the first host, only the pending install should get a failed activity
+	_, activities, err := ds.MDMTurnOff(ctx, turnOffHost.UUID)
+	require.NoError(t, err)
+	var failedInstallCommandUUIDs []string
+	for _, activity := range activities {
+		appStoreActivity, isAppStoreActivity := activity.(*fleet.ActivityInstalledAppStoreApp)
+		if isAppStoreActivity {
+			failedInstallCommandUUIDs = append(failedInstallCommandUUIDs, appStoreActivity.CommandUUID)
+		}
+	}
+	require.Equal(t, []string{pendingExecID}, failedInstallCommandUUIDs)
+
+	// queue a policy VPP install on the second host, acknowledge it and backdate its activation past the timeout, the cleanup should fail it
+	stuckExecID := uuid.NewString()
+	require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, stuckHost.ID, vppApp.VPPAppID, stuckExecID, "", policyInstallOpts))
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), stuckHost.ID, "")
+	require.NoError(t, err)
+	twoDaysAgo := time.Now().Add(-48 * time.Hour)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE upcoming_activities SET activated_at = ? WHERE execution_id = ?`, twoDaysAgo, stuckExecID)
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx, `
+			INSERT INTO nano_command_results (id, command_uuid, status, result, updated_at)
+			VALUES (?, ?, 'Acknowledged', '<?xml version="1.0" encoding="UTF-8"?>', ?)`, stuckHost.UUID, stuckExecID, twoDaysAgo)
+		return err
+	})
+	reaped, err := ds.ReapStuckActivatedMDMInstalls(ctx, 24*time.Hour, 10)
+	require.NoError(t, err)
+	require.Len(t, reaped, 1)
+
+	type runCount struct {
+		PolicyID     uint   `db:"policy_id"`
+		ActivityType string `db:"activity_type"`
+		HostID       uint   `db:"host_id"`
+		SuccessCount uint   `db:"success_count"`
+		FailCount    uint   `db:"fail_count"`
+	}
+
+	// read the count rows, each install that got a failed activity should be counted as one failed run on its host
+	var counts []runCount
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &counts, `SELECT * FROM host_policy_automation_run_counts ORDER BY host_id`))
+	expectedCounts := []runCount{
+		{PolicyID: policy.ID, ActivityType: "installed_app_store_app", HostID: turnOffHost.ID, FailCount: 1},
+		{PolicyID: policy.ID, ActivityType: "installed_app_store_app", HostID: stuckHost.ID, FailCount: 1},
+	}
+	require.Equal(t, expectedCounts, counts)
 }

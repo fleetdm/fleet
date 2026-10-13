@@ -4742,6 +4742,9 @@ func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing
 			activityCmdResult = c
 			return nil, &fleet.ActivityInstalledAppStoreApp{HostID: 1, Status: string(fleet.SoftwareInstallFailed)}, nil
 		}
+		ds.SetVPPInstallAsFailedFunc = func(_ context.Context, _ uint, _ string, _ string) error {
+			return nil
+		}
 
 		cr := &mdm.CommandResults{
 			Enrollment:  mdm.Enrollment{UDID: hostUUID},
@@ -4852,6 +4855,9 @@ func TestMDMCommandAndReportResultsInstallApplicationAutoUpdateFailure(t *testin
 	}
 	ds.GetPastActivityDataForVPPAppInstallFunc = func(_ context.Context, _ *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
 		return nil, &fleet.ActivityInstalledAppStoreApp{HostID: 1, Status: string(fleet.SoftwareInstallFailed)}, nil
+	}
+	ds.SetVPPInstallAsFailedFunc = func(_ context.Context, _ uint, _ string, _ string) error {
+		return nil
 	}
 
 	_, err := svc.CommandAndReportResults(
