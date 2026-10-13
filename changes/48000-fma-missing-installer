@@ -1,1 +1,1 @@
-- Fixed GitOps and the Fleet-maintained app auto-update job keeping a cached installer after its file went missing from the installer store, which made installs fail. Fleet now downloads the installer again and checks it against the app's SHA256 hash.
+- Fixed GitOps and the Fleet-maintained app auto-update job keeping a cached installer after its file went missing from the installer store, which made installs fail. Fleet now downloads the installer again. GitOps checks the download against the app's SHA256 hash when the app has one.
