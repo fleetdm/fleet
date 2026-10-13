@@ -865,6 +865,29 @@ This activity contains the following fields:
 }
 ```
 
+## edited_patch_deadline_settings
+
+Generated when the patch deadline days or time are modified for a fleet.
+
+This activity contains the following fields:
+- "fleet_id": The ID of the fleet that the patch deadline settings apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
+- "fleet_name": The name of the fleet that the patch deadline settings apply to, `null` if they apply to devices that are not in a fleet ("Unassigned").
+- "days": Days of the week when the deadline applies.
+- "time": The deadline, formatted as `HH:MM` in the host's local time.
+
+#### Example
+
+```json
+{
+  "team_id": 3,
+  "team_name": "Workstations",
+  "fleet_id": 3,
+  "fleet_name": "Workstations",
+  "days": ["monday", "wednesday", "friday"],
+  "time": "11:00"
+}
+```
+
 ## enabled_macos_update_new_hosts
 
 Generated when a user turns on updates during macOS Setup Assistant for hosts that automatically enroll (ADE).
@@ -1816,7 +1839,7 @@ This activity contains the following fields:
 
 ## notified_end_user_before_patching
 
-Generated when Fleet shows an end user a notification before patching.
+Generated when Fleet shows an end user a notification before patching, for patch policies with `notify_before_patching` or `patch_deadline` set to `true`.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
