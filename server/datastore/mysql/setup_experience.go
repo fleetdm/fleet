@@ -1219,17 +1219,6 @@ WHERE host_uuid = ?
 	return awaitingConfiguration, nil
 }
 
-func (ds *Datastore) UnsetHostAwaitingConfiguration(ctx context.Context, hostUUID string) (bool, error) {
-	res, err := ds.writer(ctx).ExecContext(ctx,
-		`UPDATE host_mdm_apple_awaiting_configuration SET awaiting_configuration = 0 WHERE host_uuid = ? AND awaiting_configuration = 1`,
-		hostUUID)
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "unset host awaiting configuration")
-	}
-	n, _ := res.RowsAffected()
-	return n > 0, nil
-}
-
 func (ds *Datastore) MaybeUpdateSetupExperienceVPPStatus(ctx context.Context, hostUUID string, nanoCommandUUID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
 	stmt := `UPDATE setup_experience_status_results SET status = ? WHERE host_uuid = ? AND nano_command_uuid = ? AND status NOT IN (?, ?, ?)`
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, status, hostUUID, nanoCommandUUID, fleet.SetupExperienceStatusSuccess, fleet.SetupExperienceStatusFailure, fleet.SetupExperienceStatusCancelled)

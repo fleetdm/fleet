@@ -45,7 +45,6 @@ func TestSetupExperience(t *testing.T) {
 		{"FirstAddedPerTitleNoDoubleQueue", testEnqueueSetupExperienceFirstAddedPerTitle},
 		{"FirstAddedAppStoreAppVersionNoDoubleQueue", testEnqueueSetupExperienceFirstAddedAppStoreAppVersion},
 		{"InHouseApps", testSetupExperienceInHouseApps},
-		{"UnsetHostAwaitingConfiguration", testUnsetHostAwaitingConfiguration},
 		{"EnqueueInHouseApps", testEnqueueSetupExperienceInHouseApps},
 	}
 
@@ -3281,42 +3280,4 @@ func testEnqueueSetupExperienceFirstAddedAppStoreAppVersion(t *testing.T, ds *Da
 		require.NotNil(t, results[0].VPPAppVersionName)
 		require.Equal(t, fleet.DefaultAppStoreAppVersionName, *results[0].VPPAppVersionName)
 	}
-}
-
-func testUnsetHostAwaitingConfiguration(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-	hostUUID := uuid.NewString()
-
-	assertUnset := func(want bool) {
-		t.Helper()
-		cleared, err := ds.UnsetHostAwaitingConfiguration(ctx, hostUUID)
-		require.NoError(t, err)
-		assert.Equal(t, want, cleared)
-		awaiting, err := ds.GetHostAwaitingConfiguration(ctx, hostUUID)
-		if err == nil {
-			assert.False(t, awaiting)
-		} else {
-			require.True(t, fleet.IsNotFound(err))
-		}
-	}
-
-	// no row
-	assertUnset(false)
-
-	require.NoError(t, ds.SetHostAwaitingConfiguration(ctx, hostUUID, true))
-	assertUnset(true)
-	// only the first call clears it
-	assertUnset(false)
-
-	require.NoError(t, ds.SetHostAwaitingConfiguration(ctx, hostUUID, false))
-	assertUnset(false)
-
-	// another host's flag is untouched
-	other := uuid.NewString()
-	require.NoError(t, ds.SetHostAwaitingConfiguration(ctx, other, true))
-	require.NoError(t, ds.SetHostAwaitingConfiguration(ctx, hostUUID, true))
-	assertUnset(true)
-	awaiting, err := ds.GetHostAwaitingConfiguration(ctx, other)
-	require.NoError(t, err)
-	assert.True(t, awaiting)
 }

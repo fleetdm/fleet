@@ -3715,9 +3715,6 @@ type Datastore interface {
 	// GetHostAwaitingConfiguration returns a boolean indicating whether or not the given host is
 	// in the setup experience flow (which runs during macOS Setup Assistant).
 	GetHostAwaitingConfiguration(ctx context.Context, hostUUID string) (bool, error)
-	// UnsetHostAwaitingConfiguration clears the host's awaiting-configuration flag if it is set, and
-	// reports whether this call cleared it.
-	UnsetHostAwaitingConfiguration(ctx context.Context, hostUUID string) (bool, error)
 
 	// GetTeamsWithInstallerByHash gets a map of teamIDs (0 for No team) to software installers
 	// metadata by the installer's hash.

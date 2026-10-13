@@ -5,30 +5,31 @@ import (
 	"errors"
 	"log/slog"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
 )
 
-// ReleaseDevice sends DeviceConfigured to a host held in Setup Assistant by the setup experience. It
-// clears the host's awaiting-configuration flag first, which stops fleetd from polling the status
-// endpoint, and only the call that clears it sends the command, so repeated or concurrent polls send
-// it once. Clearing before enqueueing means a failed write sends nothing.
+// ReleaseDevice sends DeviceConfigured to a host held in Setup Assistant by the setup experience,
+// then clears its awaiting-configuration flag, which stops fleetd from polling the status endpoint.
+// Polls after the flag is cleared send nothing. The flag is cleared after the send, not before, so a
+// failure in between leaves it set for a later poll to retry rather than leaving the host unreleased.
 func ReleaseDevice(ctx context.Context, ds fleet.Datastore, commander fleet.MDMAppleCommandIssuer, logger *slog.Logger, hostUUID string) error {
-	cleared, err := ds.UnsetHostAwaitingConfiguration(ctx, hostUUID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "unset host awaiting configuration")
+	// Primary: a lagging replica would still show a flag that the previous poll just cleared.
+	awaiting, err := ds.GetHostAwaitingConfiguration(ctxdb.RequirePrimary(ctx, true), hostUUID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "get host awaiting configuration")
 	}
-	if !cleared {
+	if !awaiting {
 		return nil
 	}
 
 	if err := SendDeviceConfigured(ctx, commander, logger, hostUUID); err != nil {
-		// Nothing was queued, so put the flag back for the next poll to retry.
-		if restoreErr := ds.SetHostAwaitingConfiguration(ctx, hostUUID, true); restoreErr != nil {
-			logger.ErrorContext(ctx, "restoring host awaiting configuration after DeviceConfigured enqueue failed", "host_uuid", hostUUID, "err", restoreErr)
-		}
 		return err
+	}
+	if err := ds.SetHostAwaitingConfiguration(ctx, hostUUID, false); err != nil {
+		return ctxerr.Wrap(ctx, err, "unset host awaiting configuration")
 	}
 	return nil
 }

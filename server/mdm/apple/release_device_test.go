@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/stretchr/testify/assert"
@@ -23,58 +24,71 @@ func (f *fakeReleaseCommander) DeviceConfigured(context.Context, string, string)
 	return f.err
 }
 
+type notFoundErr struct{}
+
+func (notFoundErr) Error() string    { return "not found" }
+func (notFoundErr) IsNotFound() bool { return true }
+
 func TestReleaseDevice(t *testing.T) {
 	ctx := t.Context()
 	logger := slog.New(slog.DiscardHandler)
 
-	setup := func(cleared bool, unsetErr error) (*mock.Store, *[]bool) {
+	setup := func(awaiting bool, getErr, setErr error) (*mock.Store, *[]bool) {
 		ds := new(mock.Store)
-		ds.UnsetHostAwaitingConfigurationFunc = func(context.Context, string) (bool, error) {
-			return cleared, unsetErr
+		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, _ string) (bool, error) {
+			assert.True(t, ctxdb.IsPrimaryRequired(ctx), "flag must be read from the primary")
+			return awaiting, getErr
 		}
-		var restored []bool
+		var set []bool
 		ds.SetHostAwaitingConfigurationFunc = func(_ context.Context, _ string, awaiting bool) error {
-			restored = append(restored, awaiting)
-			return nil
+			set = append(set, awaiting)
+			return setErr
 		}
-		return ds, &restored
+		return ds, &set
 	}
 
-	t.Run("sends when this call clears the flag", func(t *testing.T) {
-		ds, restored := setup(true, nil)
+	t.Run("sends then clears the flag", func(t *testing.T) {
+		ds, set := setup(true, nil, nil)
 		cmdr := &fakeReleaseCommander{}
 		require.NoError(t, ReleaseDevice(ctx, ds, cmdr, logger, "host"))
 		assert.Equal(t, 1, cmdr.calls)
-		assert.Empty(t, *restored)
+		assert.Equal(t, []bool{false}, *set)
 	})
 
-	t.Run("skips when the flag was already cleared", func(t *testing.T) {
-		ds, restored := setup(false, nil)
+	t.Run("skips when the flag is already cleared", func(t *testing.T) {
+		ds, set := setup(false, nil, nil)
 		cmdr := &fakeReleaseCommander{}
 		require.NoError(t, ReleaseDevice(ctx, ds, cmdr, logger, "host"))
 		assert.Zero(t, cmdr.calls)
-		assert.Empty(t, *restored)
+		assert.Empty(t, *set)
 	})
 
-	t.Run("failing to clear the flag sends nothing", func(t *testing.T) {
-		ds, _ := setup(false, errors.New("lock wait timeout"))
+	t.Run("skips when the host has no flag", func(t *testing.T) {
+		ds, _ := setup(false, notFoundErr{}, nil)
 		cmdr := &fakeReleaseCommander{}
-		require.ErrorContains(t, ReleaseDevice(ctx, ds, cmdr, logger, "host"), "lock wait timeout")
+		require.NoError(t, ReleaseDevice(ctx, ds, cmdr, logger, "host"))
 		assert.Zero(t, cmdr.calls)
 	})
 
-	t.Run("enqueue failure restores the flag", func(t *testing.T) {
-		ds, restored := setup(true, nil)
+	t.Run("enqueue failure keeps the flag for a retry", func(t *testing.T) {
+		ds, set := setup(true, nil, nil)
 		cmdr := &fakeReleaseCommander{err: errors.New("db down")}
 		require.ErrorContains(t, ReleaseDevice(ctx, ds, cmdr, logger, "host"), "db down")
-		assert.Equal(t, []bool{true}, *restored)
+		assert.Empty(t, *set)
+	})
+
+	t.Run("failing to clear the flag after sending is returned", func(t *testing.T) {
+		ds, _ := setup(true, nil, errors.New("lock wait timeout"))
+		cmdr := &fakeReleaseCommander{}
+		require.ErrorContains(t, ReleaseDevice(ctx, ds, cmdr, logger, "host"), "lock wait timeout")
+		assert.Equal(t, 1, cmdr.calls)
 	})
 
 	t.Run("push failure after enqueue is not an error", func(t *testing.T) {
-		ds, restored := setup(true, nil)
+		ds, set := setup(true, nil, nil)
 		cmdr := &fakeReleaseCommander{err: &NotificationFailedError{err: errors.New("apns down")}}
 		require.NoError(t, ReleaseDevice(ctx, ds, cmdr, logger, "host"))
 		assert.Equal(t, 1, cmdr.calls)
-		assert.Empty(t, *restored)
+		assert.Equal(t, []bool{false}, *set)
 	})
 }

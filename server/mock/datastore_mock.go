@@ -2040,8 +2040,6 @@ type SetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string,
 
 type GetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string) (bool, error)
 
-type UnsetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string) (bool, error)
-
 type GetTeamsWithInstallerByHashFunc func(ctx context.Context, sha256 string, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error)
 
 type GetInstallerByTeamAndURLFunc func(ctx context.Context, teamID *uint, url string) (*fleet.ExistingSoftwareInstaller, error)
@@ -5614,9 +5612,6 @@ type DataStore struct {
 
 	GetHostAwaitingConfigurationFunc        GetHostAwaitingConfigurationFunc
 	GetHostAwaitingConfigurationFuncInvoked bool
-
-	UnsetHostAwaitingConfigurationFunc        UnsetHostAwaitingConfigurationFunc
-	UnsetHostAwaitingConfigurationFuncInvoked bool
 
 	GetTeamsWithInstallerByHashFunc        GetTeamsWithInstallerByHashFunc
 	GetTeamsWithInstallerByHashFuncInvoked bool
@@ -13497,13 +13492,6 @@ func (s *DataStore) GetHostAwaitingConfiguration(ctx context.Context, hostUUID s
 	s.GetHostAwaitingConfigurationFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostAwaitingConfigurationFunc(ctx, hostUUID)
-}
-
-func (s *DataStore) UnsetHostAwaitingConfiguration(ctx context.Context, hostUUID string) (bool, error) {
-	s.mu.Lock()
-	s.UnsetHostAwaitingConfigurationFuncInvoked = true
-	s.mu.Unlock()
-	return s.UnsetHostAwaitingConfigurationFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) GetTeamsWithInstallerByHash(ctx context.Context, sha256 string, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
