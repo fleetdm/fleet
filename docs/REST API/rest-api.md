@@ -8430,6 +8430,8 @@ Update a configuration profile to target hosts with specific labels.
 
 Generates a name and description for a configuration profile using AI.
 
+The generated name is meant for declaration (DDM) and Windows profiles. A .mobileconfig profile carries its own name, which [Autofill configuration profile content](#autofill-configuration-profile-content) returns as `name`.
+
 Returns `400` when AI features are disabled (`server_settings.ai_features_disabled`).
 
 `POST /api/v1/fleet/autofill/configuration_profile/name_description`
@@ -8523,12 +8525,15 @@ Returns `400` when AI features are disabled (`server_settings.ai_features_disabl
 ```json
 {
   "type": "mobileconfig",
+  "name": "AirDrop Disabled",
   "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n...\n</plist>",
   "delivery_notes": ""
 }
 ```
 
 `type` is one of `mobileconfig`, `declaration`, or `windows`.
+
+`name` is the .mobileconfig profile's `PayloadDisplayName`. It's the name end users see in System Settings, and the name Fleet gives the profile by default. It's `null` for declaration and Windows profiles.
 
 `delivery_notes` describes anything you need to do or decide that isn't visible in the profile, like adding a companion asset declaration. It's an empty string when there's nothing to note.
 
