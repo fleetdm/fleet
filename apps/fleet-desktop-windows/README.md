@@ -172,8 +172,8 @@ The MSI registers the `fleet://` URL scheme machine-wide. Other tools and script
 | `fleet://policies` | Opens the Policies tab |
 | `fleet://refetch` | Triggers a device refetch and opens the app |
 | `fleet://update_all` | Opens Self-service and clicks its "Update all" button |
-| `fleet://install_all` | Opens Self-service and clicks its "Install all" button — Fleet's confirmation modal still requires the user to confirm |
-| `fleet://install_all?category_id=3` | Same, but filters Self-service to that category first so the install is scoped to it |
+| `fleet://install_all?category_id=3` | Opens Self-service filtered to that category and clicks its "Install all" button — Fleet's confirmation modal still requires the user to confirm |
+| `fleet://install_all` | Opens Self-service only. Fleet shows "Install all" only when a category is selected, so one click can't queue the whole catalog; without `category_id` there's no button to click |
 | `fleet://anything-else` | Brings the app to the foreground |
 
 The dash forms `fleet://update-all` and `fleet://install-all` are also accepted.

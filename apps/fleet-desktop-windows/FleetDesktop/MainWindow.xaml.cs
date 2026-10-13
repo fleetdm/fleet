@@ -81,6 +81,14 @@ public partial class MainWindow : Window
     private bool IsFleetHost(string? host) =>
         host != null && string.Equals(host, _fleetHost, StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>Whether the URI is on the configured Fleet origin: HTTPS, same host and port.
+    /// A host match alone would let an http:// link carry the device token unencrypted.</summary>
+    private bool IsFleetOrigin(Uri uri) =>
+        _homeUrl != null &&
+        string.Equals(uri.Scheme, "https", StringComparison.OrdinalIgnoreCase) &&
+        IsFleetHost(uri.Host) &&
+        uri.Port == _homeUrl.Port;
+
     /// <summary>Case-insensitive check against the pinned SSO/IdP host.</summary>
     private bool IsCurrentSsoHost(string? host) =>
         host != null && string.Equals(host, _ssoHost, StringComparison.OrdinalIgnoreCase);
@@ -236,9 +244,18 @@ public partial class MainWindow : Window
         }
         var scheme = uri.Scheme?.ToLowerInvariant() ?? "";
 
-        // Same-host navigations and about: are always allowed.
-        if (IsFleetHost(uri.Host)) return;
+        // Fleet-origin navigations and about: are always allowed.
+        if (IsFleetOrigin(uri)) return;
         if (scheme == "about") return;
+
+        // The Fleet host over plain HTTP or another port: block it rather than open it
+        // externally, which would still send the device token. Not navigating home
+        // avoids a loop if the server itself redirects to HTTP.
+        if (IsFleetHost(uri.Host))
+        {
+            e.Cancel = true;
+            return;
+        }
 
         // During an active SSO flow, keep external IdP redirects in the WebView so
         // the chain completes in-app — but only over HTTPS, only while the flow is
@@ -426,7 +443,9 @@ public partial class MainWindow : Window
         // while the flow is fresh) to this view, everything else to the default browser.
         e.Handled = true;
         if (!Uri.TryCreate(e.Uri, UriKind.Absolute, out var uri)) return;
-        if (IsFleetHost(uri.Host) ||
+        // Fleet host over plain HTTP or another port: drop it (see OnNavigationStarting).
+        if (IsFleetHost(uri.Host) && !IsFleetOrigin(uri)) return;
+        if (IsFleetOrigin(uri) ||
             (SsoFlowActive && !SsoFlowExpired && IsCurrentSsoHost(uri.Host)))
         {
             WebView.CoreWebView2.Navigate(uri.ToString());
