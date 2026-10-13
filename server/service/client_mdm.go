@@ -18,7 +18,6 @@ import (
 	"strings"
 
 	"github.com/beevik/etree"
-	"github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -536,10 +535,6 @@ func (ec *eulaContent) Handle(res *http.Response) error {
 
 const eulaAPIPath = "/api/latest/fleet/setup_experience/eula"
 
-// ErrWindowsEULANotSupported means the server predates Windows EULAs: it
-// ignores the platform parameter, so its answers would be about the macOS EULA.
-var ErrWindowsEULANotSupported = errors.New("the Fleet server doesn't support Windows EULAs; upgrade it to use windows_eula")
-
 // eulaTarget is what differs between the macOS and Windows EULA requests; the
 // client logic for both is the same. Requests by token don't need the
 // platform: the token belongs to one EULA.
@@ -560,31 +555,6 @@ func (e eulaTarget) metadataQuery() string {
 		return ""
 	}
 	return "platform=" + string(e.platform)
-}
-
-// windowsEULASupported tells whether the server takes a platform on the EULA
-// endpoints. A server from before Windows EULAs ignores the parameter and
-// answers for macOS, so the one reliable probe is a platform it must reject.
-func (c *Client) windowsEULASupported() (bool, error) {
-	if c.windowsEULASupport != nil {
-		return *c.windowsEULASupport, nil
-	}
-	var responseBody getMDMEULAMetadataResponse
-	err := c.authenticatedRequestWithQuery(nil, "GET", eulaAPIPath+"/metadata", &responseBody, "platform=probe")
-	var statusErr *client.StatusCodeErr
-	var supported bool
-	switch {
-	case err == nil, isNotFoundErr(err):
-		// answered for macOS
-	case errors.As(err, &statusErr) && statusErr.Code == http.StatusUnprocessableEntity && statusErr.Name == "platform":
-		supported = true
-	case errors.As(err, &statusErr) && statusErr.Code == http.StatusBadRequest:
-		// an older server's Apple MDM middleware answered
-	default:
-		return false, err
-	}
-	c.windowsEULASupport = &supported
-	return supported, nil
 }
 
 func (c *Client) GetEULAContent(token string) ([]byte, error) {
@@ -631,19 +601,15 @@ func (c *Client) getEULAContent(token string) ([]byte, error) {
 }
 
 func (c *Client) getEULAMetadata(e eulaTarget) (*fleet.MDMEULA, error) {
-	if e.platform != "" {
-		supported, err := c.windowsEULASupported()
-		if err != nil {
-			return nil, err
-		}
-		if !supported {
-			return nil, ErrWindowsEULANotSupported
-		}
-	}
 	verb, path := "GET", eulaAPIPath+"/metadata"
 	var responseBody getMDMEULAMetadataResponse
 	if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, e.metadataQuery()); err != nil {
 		return nil, err
+	}
+	// A server older than fleetctl ignores the platform and answers for macOS;
+	// deleting or replacing that EULA by mistake is worse than failing.
+	if e.platform != "" && responseBody.Platform != e.platform {
+		return nil, fmt.Errorf("the server didn't return the %s; it may be older than fleetctl", e.label)
 	}
 	return responseBody.MDMEULA, nil
 }

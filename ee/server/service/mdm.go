@@ -635,9 +635,9 @@ func (svc *Service) MDMCreateEULA(ctx context.Context, platform fleet.MDMEULAPla
 	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{}, fleet.ActionWrite); err != nil {
 		return err
 	}
-	platform, err := svc.eulaPlatform(ctx, platform)
+	platform, err := fleet.ValidateEULAPlatform(ctx, svc, platform)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err)
 	}
 
 	name = fleet.SanitizeEULAFileName(name)
@@ -730,19 +730,6 @@ func readMarkdownEULA(ctx context.Context, f io.ReadSeeker) ([]byte, error) {
 	return content, nil
 }
 
-// eulaPlatform validates the platform an EULA request names and checks that
-// its MDM is on. The routes serve both platforms, so middleware can't do it.
-func (svc *Service) eulaPlatform(ctx context.Context, platform fleet.MDMEULAPlatform) (fleet.MDMEULAPlatform, error) {
-	platform, err := platform.Validated()
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err)
-	}
-	if err := platform.VerifyMDM(ctx, svc); err != nil {
-		return "", err
-	}
-	return platform, nil
-}
-
 func (svc *Service) MDMGetEULABytes(ctx context.Context, token string) (*fleet.MDMEULA, error) {
 	// skipauth: this resource is authorized using the token provided in the
 	// request.
@@ -792,8 +779,8 @@ func (svc *Service) eulaPlatformForToken(ctx context.Context, token string) (fle
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "getting EULA platform")
 	}
-	if err := platform.VerifyMDM(ctx, svc); err != nil {
-		return "", err
+	if platform, err = fleet.ValidateEULAPlatform(ctx, svc, platform); err != nil {
+		return "", ctxerr.Wrap(ctx, err)
 	}
 	return platform, nil
 }
@@ -802,9 +789,9 @@ func (svc *Service) MDMGetEULAMetadata(ctx context.Context, platform fleet.MDMEU
 	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
-	platform, err := svc.eulaPlatform(ctx, platform)
+	platform, err := fleet.ValidateEULAPlatform(ctx, svc, platform)
 	if err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err)
 	}
 
 	// The per-instance cache is for the enrollment pages, which read this on

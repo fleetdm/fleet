@@ -1461,12 +1461,12 @@ func TestEULAPlatformChecks(t *testing.T) {
 	baseSvc.VerifyMDMWindowsConfiguredFunc = func(ctx context.Context) error { return windowsOff }
 
 	// an unknown platform is refused before any MDM check, and empty means darwin
-	_, err := svc.eulaPlatform(ctx, "linux")
+	_, err := fleet.ValidateEULAPlatform(ctx, svc, "linux")
 	var invalid *fleet.InvalidArgumentError
 	require.ErrorAs(t, err, &invalid)
-	_, err = svc.eulaPlatform(ctx, "")
+	_, err = fleet.ValidateEULAPlatform(ctx, svc, "")
 	require.ErrorIs(t, err, appleOff)
-	_, err = svc.eulaPlatform(ctx, fleet.MDMEULAPlatformWindows)
+	_, err = fleet.ValidateEULAPlatform(ctx, svc, fleet.MDMEULAPlatformWindows)
 	require.ErrorIs(t, err, windowsOff)
 
 	// a token's platform comes from the database and needs the same MDM
@@ -1499,5 +1499,5 @@ func TestEULAPlatformChecks(t *testing.T) {
 	require.Equal(t, fleet.MDMEULAPlatformWindows, platform)
 	// a row with a platform the code doesn't know fails closed
 	_, err = svc.eulaPlatformForToken(ctx, "odd")
-	require.ErrorContains(t, err, "unsupported platform")
+	require.ErrorAs(t, err, &invalid)
 }

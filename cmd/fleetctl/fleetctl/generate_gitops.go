@@ -1290,10 +1290,6 @@ func (cmd *GenerateGitopsCommand) writeEULA(
 		if service.IsNotFoundErr(err) {
 			return "", nil
 		}
-		if errors.Is(err, service.ErrWindowsEULANotSupported) {
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Skipping %s: %s\n", label, err)
-			return "", nil
-		}
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting %s metadata: %s\n", label, err)
 		return "", err
 	}

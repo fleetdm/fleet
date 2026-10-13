@@ -1031,18 +1031,3 @@ func TestMDMEULAPlatformValidated(t *testing.T) {
 		require.ErrorAs(t, err, &invalid, in)
 	}
 }
-
-type eulaMDMChecks struct{ apple, windows error }
-
-func (c eulaMDMChecks) VerifyMDMAppleConfigured(context.Context) error   { return c.apple }
-func (c eulaMDMChecks) VerifyMDMWindowsConfigured(context.Context) error { return c.windows }
-
-func TestMDMEULAPlatformVerifyMDM(t *testing.T) {
-	appleOff, windowsOff := errors.New("apple off"), errors.New("windows off")
-	checks := eulaMDMChecks{apple: appleOff, windows: windowsOff}
-	require.ErrorIs(t, fleet.MDMEULAPlatformDarwin.VerifyMDM(t.Context(), checks), appleOff)
-	require.ErrorIs(t, fleet.MDMEULAPlatformWindows.VerifyMDM(t.Context(), checks), windowsOff)
-	// a platform without its own check fails closed rather than borrowing another's
-	require.ErrorContains(t, fleet.MDMEULAPlatform("linux").VerifyMDM(t.Context(), eulaMDMChecks{}), "unsupported platform")
-	require.ErrorContains(t, fleet.MDMEULAPlatform("").VerifyMDM(t.Context(), eulaMDMChecks{}), "unsupported platform")
-}

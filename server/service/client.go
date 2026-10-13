@@ -47,8 +47,6 @@ type Client struct {
 	outputWriter       io.Writer
 	errWriter          io.Writer
 	seenLicenseExpired bool
-	// windowsEULASupport caches the probe in windowsEULASupported.
-	windowsEULASupport *bool
 }
 
 type ClientOption func(*Client) error
@@ -4399,23 +4397,12 @@ func (c *Client) doGitOpsWindowsEULA(
 		// asks for a fresh read instead (no_cache); the EULA endpoints can't.
 		windowsMDMSettle()
 	}
-	var err error
 	if path == "" {
-		if err = c.DeleteWindowsEULAIfNeeded(dryRun); err != nil {
-			err = fmt.Errorf("error deleting Windows EULA: %w", err)
+		if err := c.DeleteWindowsEULAIfNeeded(dryRun); err != nil {
+			return fmt.Errorf("error deleting Windows EULA: %w", err)
 		}
-	} else if err = c.UploadWindowsEULAIfNeeded(resolveApplyRelativePath(baseDir, path), dryRun); err != nil {
-		err = fmt.Errorf("error uploading Windows EULA: %w", err)
-	}
-	switch {
-	case errors.Is(err, ErrWindowsEULANotSupported):
-		// With nothing configured there is nothing to warn about.
-		if path != "" {
-			logFn("[!] skipping windows_eula: %s\n", ErrWindowsEULANotSupported)
-		}
-		return nil
-	case err != nil:
-		return err
+	} else if err := c.UploadWindowsEULAIfNeeded(resolveApplyRelativePath(baseDir, path), dryRun); err != nil {
+		return fmt.Errorf("error uploading Windows EULA: %w", err)
 	}
 
 	if dryRun {

@@ -262,8 +262,13 @@ func (createMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) 
 		}
 	}
 
-	var platform fleet.MDMEULAPlatform
-	if v := r.MultipartForm.Value["platform"]; len(v) > 0 {
+	// Metadata takes the platform in the query string, so the upload accepts it
+	// there too; the form field, as in other uploads, takes precedence.
+	platform := fleet.MDMEULAPlatform(r.URL.Query().Get("platform"))
+	if v := r.MultipartForm.Value["platform"]; len(v) > 0 && v[0] != "" {
+		if platform != "" && platform != fleet.MDMEULAPlatform(v[0]) {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("platform", "the form and the query string name different platforms"))
+		}
 		platform = fleet.MDMEULAPlatform(v[0])
 	}
 	return &createMDMEULARequest{
@@ -271,20 +276,6 @@ func (createMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) 
 		DryRun:   dryRun,
 		Platform: platform,
 	}, nil
-}
-
-// eulaPlatform validates the platform and checks that its MDM is on, which the
-// shared routes can't do in middleware. The free build keeps answering the MDM
-// error before the license one.
-func eulaPlatform(ctx context.Context, svc fleet.Service, platform fleet.MDMEULAPlatform) (fleet.MDMEULAPlatform, error) {
-	platform, err := platform.Validated()
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err)
-	}
-	if err := platform.VerifyMDM(ctx, svc); err != nil {
-		return "", err
-	}
-	return platform, nil
 }
 
 // decodeEULAUpload parses an EULA upload: the file in the eula field and the
@@ -362,8 +353,9 @@ func (svc *Service) MDMCreateEULA(ctx context.Context, platform fleet.MDMEULAPla
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	if _, err := eulaPlatform(ctx, svc, platform); err != nil {
-		return err
+	// The MDM error comes before the license one, as when middleware checked it.
+	if _, err := fleet.ValidateEULAPlatform(ctx, svc, platform); err != nil {
+		return ctxerr.Wrap(ctx, err)
 	}
 	return fleet.ErrMissingLicense
 }
@@ -448,8 +440,9 @@ func (svc *Service) MDMGetEULAMetadata(ctx context.Context, platform fleet.MDMEU
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	if _, err := eulaPlatform(ctx, svc, platform); err != nil {
-		return nil, err
+	// The MDM error comes before the license one, as when middleware checked it.
+	if _, err := fleet.ValidateEULAPlatform(ctx, svc, platform); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
 	}
 	return nil, fleet.ErrMissingLicense
 }

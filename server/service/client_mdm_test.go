@@ -2,13 +2,11 @@ package service
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/beevik/etree"
@@ -170,17 +168,6 @@ func TestUploadBootstrapPackageIfNeededStagesBeforeDelete(t *testing.T) {
 	}
 }
 
-// eulaMetadataStub answers like a current server with no agreement, including the client's support probe.
-func eulaMetadataStub(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Query().Get("platform") == "probe" {
-		w.WriteHeader(http.StatusUnprocessableEntity)
-		_, _ = w.Write([]byte(`{"message": "Validation Failed", "errors": [{"name": "platform", "reason": "must be \"darwin\" or \"windows\""}]}`))
-		return
-	}
-	w.WriteHeader(http.StatusNotFound)
-	_, _ = w.Write([]byte(`{"message": "Resource Not Found"}`))
-}
-
 func TestGitOpsWindowsEULAWaitsForWindowsMDMToSettle(t *testing.T) {
 	var waits int
 	settle := windowsMDMSettle
@@ -204,8 +191,13 @@ func TestGitOpsWindowsEULAWaitsForWindowsMDMToSettle(t *testing.T) {
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch r.Method + " " + r.URL.Path {
 				case "GET /api/latest/fleet/setup_experience/eula/metadata":
-					eulaMetadataStub(w, r)
+					assert.Equal(t, "windows", r.URL.Query().Get("platform"))
+					w.WriteHeader(http.StatusNotFound)
+					_, _ = w.Write([]byte(`{"message": "Resource Not Found"}`))
 				case "POST /api/latest/fleet/setup_experience/eula":
+					// fleetctl sends the platform in the form, like the other uploads
+					assert.Equal(t, "windows", r.PostFormValue("platform"))
+					assert.Empty(t, r.URL.Query().Get("platform"))
 					uploads++
 					_, _ = w.Write([]byte("{}"))
 				default:
@@ -229,79 +221,38 @@ func TestGitOpsWindowsEULAWaitsForWindowsMDMToSettle(t *testing.T) {
 	}
 }
 
-// Servers from before Windows EULAs ignore the platform parameter and answer for the macOS EULA, whatever its
-// state. The client must leave that EULA alone, and stay quiet when windows_eula isn't set.
-func TestGitOpsWindowsEULAServerSupport(t *testing.T) {
-	const metadataPath = "/api/latest/fleet/setup_experience/eula/metadata"
-	macOSEULA := `{"name": "eula.pdf", "token": "mac-token", "created_at": "2026-10-01T00:00:00Z"}`
-	mdmOff := `{"message": "` + fleet.MDMNotConfiguredMessage + `", "errors": [{"name": "base", "reason": "` + fleet.MDMNotConfiguredMessage + `"}]}`
-	answer := func(status int, body string) http.HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(status)
-			_, _ = w.Write([]byte(body))
+// fleetctl and the server are expected to be the same version, but a server older than fleetctl ignores the platform
+// and answers for its macOS EULA. fleetctl must fail then, rather than delete or replace that EULA.
+func TestGitOpsWindowsEULARefusesMacOSMetadata(t *testing.T) {
+	var requests []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests = append(requests, r.Method+" "+r.URL.RequestURI())
+		if r.Method == http.MethodGet && r.URL.Path == "/api/latest/fleet/setup_experience/eula/metadata" {
+			_, _ = w.Write([]byte(`{"name": "eula.pdf", "token": "mac-token", "created_at": "2026-10-01T00:00:00Z"}`))
+			return
 		}
-	}
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+	client, err := NewClient(srv.URL, true, "", "")
+	require.NoError(t, err)
+	client.SetToken("test-token")
 
 	mdPath := filepath.Join(t.TempDir(), "terms.md")
 	require.NoError(t, os.WriteFile(mdPath, []byte("# Terms\n"), 0o600))
-
-	for _, tt := range []struct {
-		name      string
-		metadata  http.HandlerFunc
-		supported bool
-	}{
-		{"current server", eulaMetadataStub, true},
-		{"older server with a macOS EULA", answer(http.StatusOK, macOSEULA), false},
-		{"older server without an EULA", answer(http.StatusNotFound, `{"message": "Resource Not Found"}`), false},
-		{"older server with Apple MDM off", answer(http.StatusBadRequest, mdmOff), false},
-	} {
-		for _, path := range []string{mdPath, ""} {
-			t.Run(fmt.Sprintf("%s, windows_eula set: %t", tt.name, path != ""), func(t *testing.T) {
-				var requests []string
-				srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					requests = append(requests, r.Method+" "+r.URL.RequestURI())
-					switch r.Method + " " + r.URL.Path {
-					case "GET " + metadataPath:
-						tt.metadata(w, r)
-					case "POST /api/latest/fleet/setup_experience/eula":
-						// the server reads the platform from the form, never from the query
-						assert.Equal(t, "windows", r.PostFormValue("platform"))
-						assert.Empty(t, r.URL.Query().Get("platform"))
-						_, _ = w.Write([]byte("{}"))
-					default:
-						t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
-					}
-				}))
-				defer srv.Close()
-				client, err := NewClient(srv.URL, true, "", "")
-				require.NoError(t, err)
-				client.SetToken("test-token")
-
-				appConfig := &fleet.EnrichedAppConfig{}
-				appConfig.License = &fleet.LicenseInfo{Tier: fleet.TierPremium}
-				appConfig.MDM.WindowsEnabledAndConfigured = true
-				var logged strings.Builder
-				logFn := func(format string, args ...any) { fmt.Fprintf(&logged, format, args...) }
-				require.NoError(t, client.doGitOpsWindowsEULA(path, appConfig, nil, "", false, logFn))
-
-				probe := "GET " + metadataPath + "?platform=probe"
-				switch {
-				case tt.supported && path != "":
-					require.Equal(t, []string{probe, "GET " + metadataPath + "?platform=windows", "POST /api/latest/fleet/setup_experience/eula?dry_run=false"}, requests)
-					require.Equal(t, "[+] applied Windows EULA\n", logged.String())
-				case tt.supported:
-					require.Equal(t, []string{probe, "GET " + metadataPath + "?platform=windows"}, requests)
-					require.Equal(t, "[+] applied Windows EULA\n", logged.String())
-				case path != "":
-					require.Equal(t, []string{probe}, requests)
-					require.Equal(t, "[!] skipping windows_eula: "+ErrWindowsEULANotSupported.Error()+"\n", logged.String())
-				default:
-					require.Equal(t, []string{probe}, requests)
-					require.Empty(t, logged.String())
-				}
-			})
-		}
+	appConfig := &fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	appConfig.MDM.WindowsEnabledAndConfigured = true
+	for _, path := range []string{mdPath, ""} {
+		err := client.doGitOpsWindowsEULA(path, appConfig, nil, "", false, func(string, ...any) {})
+		require.ErrorContains(t, err, "the server didn't return the Windows EULA")
 	}
+
+	// nothing was uploaded or deleted
+	require.Equal(t, []string{
+		"GET /api/latest/fleet/setup_experience/eula/metadata?platform=windows",
+		"GET /api/latest/fleet/setup_experience/eula/metadata?platform=windows",
+	}, requests)
 }
 
 func TestEULAMacOSRequestsSendNoPlatform(t *testing.T) {

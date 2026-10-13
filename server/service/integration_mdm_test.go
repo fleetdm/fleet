@@ -5564,6 +5564,11 @@ func (s *integrationMDMTestSuite) TestWindowsEULA() {
 	pdfBytes := []byte("%PDF-1.pdf-contents")
 	s.uploadEULAFile("linux", "", &fleet.MDMEULA{Bytes: pdfBytes, Name: "eula.pdf"},
 		http.StatusUnprocessableEntity, `must be "darwin" or "windows"`)
+	// the platform can also come in the query string, as on metadata; the form and the query can't disagree
+	s.uploadEULAFile("", "?platform=windows&dry_run=true", &fleet.MDMEULA{Bytes: mdBytes, Name: mdName}, http.StatusOK, "")
+	s.uploadEULAFile("windows", "?platform=windows&dry_run=true", &fleet.MDMEULA{Bytes: mdBytes, Name: mdName}, http.StatusOK, "")
+	s.uploadEULAFile("windows", "?platform=darwin&dry_run=true", &fleet.MDMEULA{Bytes: mdBytes, Name: mdName},
+		http.StatusUnprocessableEntity, "different platforms")
 	s.uploadEULAFile("darwin", "", &fleet.MDMEULA{Bytes: pdfBytes, Name: "eula.pdf"}, http.StatusOK, "")
 	var macMeta getMDMEULAMetadataResponse
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/eula/metadata", nil, http.StatusOK, &macMeta)

@@ -43,8 +43,6 @@ type MockClient struct {
 	WindowsEULAName string
 	// no EULA uploaded on either platform
 	WithoutEULAs bool
-	// the server predates Windows EULAs
-	WithoutWindowsEULASupport bool
 }
 
 func (c MockClient) GetProfileActivation(profileID string) ([]byte, error) {
@@ -951,9 +949,6 @@ func (c MockClient) GetWindowsEULAMetadata() (*fleet.MDMEULA, error) {
 	if c.WithoutEULAs {
 		return nil, &client.NotFoundErr{}
 	}
-	if c.WithoutWindowsEULASupport {
-		return nil, service.ErrWindowsEULANotSupported
-	}
 	name := "terms.md"
 	if c.WindowsEULAName != "" {
 		name = c.WindowsEULAName
@@ -1446,35 +1441,16 @@ func TestGenerateGitopsWithoutEULAs(t *testing.T) {
 	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
-func TestGenerateGitopsServerWithoutWindowsEULAs(t *testing.T) {
-	configureFMAManifestServer(t)
-	tempDir, output := runGenerateGitopsToDirWithOutput(t, &MockClient{WithoutWindowsEULASupport: true})
-
-	assert.Contains(t, output, "Skipping Windows EULA: "+service.ErrWindowsEULANotSupported.Error())
-	defaultYML, err := os.ReadFile(filepath.Join(tempDir, "default.yml"))
-	require.NoError(t, err)
-	assert.Contains(t, string(defaultYML), "end_user_license_agreement: ./lib/eula/test.pdf")
-	assert.Contains(t, string(defaultYML), "windows_eula:\n")
-	_, err = os.Stat(filepath.Join(tempDir, "lib", "eula", "terms.md"))
-	require.ErrorIs(t, err, os.ErrNotExist)
-}
-
 // runGenerateGitopsToDir runs generate-gitops against client and returns the directory it wrote to.
 func runGenerateGitopsToDir(t *testing.T, client *MockClient) string {
 	t.Helper()
-	dir, _ := runGenerateGitopsToDirWithOutput(t, client)
-	return dir
-}
-
-func runGenerateGitopsToDirWithOutput(t *testing.T, client *MockClient) (dir, output string) {
-	t.Helper()
 	buf := new(bytes.Buffer)
-	dir = t.TempDir()
+	dir := t.TempDir()
 	flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
 	flagSet.String("dir", dir, "")
 	cliContext := cli.NewContext(&cli.App{Name: "test", Usage: "test", Writer: buf, ErrWriter: buf}, flagSet, nil)
 	require.NoError(t, createGenerateGitopsAction(client)(cliContext), buf.String())
-	return dir, buf.String()
+	return dir
 }
 
 func TestGenerateGitopsFree(t *testing.T) {
