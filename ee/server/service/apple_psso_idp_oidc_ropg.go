@@ -293,8 +293,8 @@ func (c PSSOOIDCROPGClient) VerifyConfig(ctx context.Context) error {
 	if reply.description != "" {
 		idpDetail += ": " + reply.description
 	}
-	if len(idpDetail) > 300 {
-		idpDetail = idpDetail[:300] + "…"
+	if r := []rune(idpDetail); len(r) > 300 {
+		idpDetail = string(r[:300]) + "…"
 	}
 	switch {
 	case reply.code == "" && reply.status == http.StatusOK:
