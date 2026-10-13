@@ -97,12 +97,6 @@ The agent needs a browser on the device to sign in. Add Chrome (or another brows
 
 The `app_store_id` for an Android app is its Google Play package name.
 
-> **Note:** `setup_experience: true` only applies to devices that enroll after you merge the change. To get the apps on an already enrolled device, install them from the host's **Software** tab or re-enroll the device.
-
-> **Note:** GitOps doesn't expand `${VAR}` environment variables in the file you reference in `configuration.path`, so they reach the device as literal text.
-
-> **Note:** GitOps expands environment variables in the whole YAML file, comments included, and rejects `FLEET_SECRET_*` anywhere except profiles and scripts. A comment in your YAML that names a secret variable fails the dry run.
-
 ## Turn on always-on VPN
 
 Skip this section if you don't need the VPN on at all times.
@@ -165,10 +159,6 @@ This page is misleading on Android. Chrome's Secure DNS and Android's Private DN
 **A Gateway DNS policy doesn't block a domain**
 
 The browser's own DNS over HTTPS (DoH) can bypass Gateway. Turn off Chrome's **Secure DNS** and check Android's **Private DNS** setting. Firefox has its own DoH setting too.
-
-**The agent shows "authentication required" or "incorrect credentials"**
-
-You're likely using service-token enrollment with `$FLEET_SECRET_*`. The agent reads `auth_client_id` and `auth_client_secret` from the managed configuration, but Fleet doesn't substitute secret variables there.
 
 **The device has no network after enabling lockdown**
 
