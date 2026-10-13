@@ -1646,9 +1646,12 @@ org_settings:
 
 ##### windows_eula
 
-You can set a custom end user license agreement (EULA) file for your end users on Windows.
+You can require an end user to agree to terms and conditions before they can use their new Windows host.
 
 - `windows_eula` is the path to the markdown file.
+
+> Requires Fleet Premium and Windows MDM turned on. Otherwise, GitOps skips this key.
+> Removing the key deletes the Windows agreement.
 
 Can only be configured for "All fleets" (`org_settings`).
 
@@ -1657,7 +1660,7 @@ Can only be configured for "All fleets" (`org_settings`).
 ```yaml
 org_settings:
   mdm:
-    windows_eula: ./lib/toc.md
+    windows_eula: ./lib/windows-terms.md
 ```
 
 ##### apple_server_url
