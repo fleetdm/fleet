@@ -143,8 +143,8 @@ type OrbitHostInfo struct {
 	ComputerName string
 	// HardwareModel is the device's hardware model. For example: Standard PC (Q35 + ICH9, 2009)
 	HardwareModel string
-	// AutopilotDeviceID is the Windows Autopilot device ID (ZTDID) the device cached from its Autopilot profile, the same
-	// GUID Microsoft Graph returns as windowsAutopilotDeviceIdentity.id. Empty when the device has no Autopilot profile.
+	// AutopilotDeviceID is the Windows Autopilot device ID (ZTDID) the device cached from its Autopilot profile. Empty
+	// when the device has no Autopilot profile.
 	AutopilotDeviceID string
 }
 
