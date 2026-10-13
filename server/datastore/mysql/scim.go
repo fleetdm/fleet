@@ -295,8 +295,9 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 			Department *string `db:"department"`
 			GivenName  *string `db:"given_name"`
 			FamilyName *string `db:"family_name"`
+			ExternalID *string `db:"external_id"`
 		}{}
-		err := sqlx.GetContext(ctx, tx, &old, `SELECT user_name, department, given_name, family_name FROM scim_users WHERE id = ?`, user.ID)
+		err := sqlx.GetContext(ctx, tx, &old, `SELECT user_name, department, given_name, family_name, external_id FROM scim_users WHERE id = ?`, user.ID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return notFound("scim user").WithID(user.ID)
@@ -343,6 +344,7 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 		usernameChanged := old.UserName != user.UserName
 		departmentChanged := !cmp.Equal(old.Department, user.Department)
 		nameChanged := !cmp.Equal(old.GivenName, user.GivenName) || !cmp.Equal(old.FamilyName, user.FamilyName)
+		externalIDChanged := !cmp.Equal(old.ExternalID, user.ExternalID)
 		// every store the rename flows into holds an email address
 		renamedBetweenEmails := usernameChanged &&
 			fleet.ValidateEmail(old.UserName) == nil &&
@@ -374,7 +376,7 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 		}
 		user.Groups = groups
 
-		if !usernameChanged && !departmentChanged && !nameChanged {
+		if !usernameChanged && !departmentChanged && !nameChanged && !externalIDChanged {
 			return nil
 		}
 
@@ -1719,6 +1721,7 @@ func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtConte
 		fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 		fleet.FleetVarHostEndUserIDPDepartment,
 		fleet.FleetVarHostEndUserIDPFullname,
+		fleet.FleetVarHostEndUserIDPExternalID,
 	}
 	resentCerts, err := selectCertTemplatesToResend(ctx, tx, scimHostIDs, fleetVarNamesToDBVars(vars))
 	if err != nil {
@@ -1763,6 +1766,7 @@ func triggerResendProfilesForIDPUserDeleted(ctx context.Context, tx sqlx.ExtCont
 		fleet.FleetVarHostEndUserIDPGroups,
 		fleet.FleetVarHostEndUserIDPDepartment,
 		fleet.FleetVarHostEndUserIDPFullname,
+		fleet.FleetVarHostEndUserIDPExternalID,
 	}
 	resentCerts, err := selectCertTemplatesToResend(ctx, tx, hostIDs, fleetVarNamesToDBVars(vars))
 	if err != nil {
@@ -1824,6 +1828,7 @@ func triggerResendProfilesForIDPUserAddedToHost(ctx context.Context, tx sqlx.Ext
 		fleet.FleetVarHostEndUserIDPDepartment,
 		fleet.FleetVarHostEndUserIDPGroups,
 		fleet.FleetVarHostEndUserIDPFullname,
+		fleet.FleetVarHostEndUserIDPExternalID,
 	}
 	resentCerts, err := selectCertTemplatesToResend(ctx, tx, []uint{hostID}, fleetVarNamesToDBVars(vars))
 	if err != nil {

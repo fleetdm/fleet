@@ -44,6 +44,7 @@ var fleetVarsSupportedInCertificateTemplates = []fleet.FleetVarName{
 	fleet.FleetVarHostEndUserIDPGroups,
 	fleet.FleetVarHostEndUserIDPDepartment,
 	fleet.FleetVarHostEndUserIDPFullname,
+	fleet.FleetVarHostEndUserIDPExternalID,
 }
 
 // extractCertTemplateFleetVars returns the deduplicated fleet variables found in
@@ -245,6 +246,15 @@ func (svc *Service) replaceCertificateVariables(ctx context.Context, input strin
 				return "", ctxerr.Errorf(ctx, "host %s does not have an IDP full name for variable %s", host.UUID, fleetVar)
 			}
 			result = fleet.FleetVarHostEndUserIDPFullnameRegexp.ReplaceAllString(result, escapeDNValue(fullName))
+		case string(fleet.FleetVarHostEndUserIDPExternalID):
+			user, err := requireIDPUser(fleetVar)
+			if err != nil {
+				return "", err
+			}
+			if user.IdpID == "" {
+				return "", ctxerr.Errorf(ctx, "host %s does not have an IDP external ID for variable %s", host.UUID, fleetVar)
+			}
+			result = fleet.FleetVarHostEndUserIDPExternalIDRegexp.ReplaceAllString(result, escapeDNValue(user.IdpID))
 		default:
 			return "", ctxerr.Errorf(ctx, "unsupported Fleet variable %s in certificate template", fleetVar)
 		}

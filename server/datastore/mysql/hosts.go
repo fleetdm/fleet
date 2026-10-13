@@ -5605,6 +5605,7 @@ func deleteHostSCIMUserMappingFor(ctx context.Context, exec sqlx.ExtContext, hos
 		fleet.FleetVarHostEndUserIDPGroups,
 		fleet.FleetVarHostEndUserIDPDepartment,
 		fleet.FleetVarHostEndUserIDPFullname,
+		fleet.FleetVarHostEndUserIDPExternalID,
 	}
 	resentCerts, err := selectCertTemplatesToResend(ctx, exec, []uint{hostID}, fleetVarNamesToDBVars(vars))
 	if err != nil {

@@ -57,6 +57,7 @@ func TestScim(t *testing.T) {
 		{"ScimNestedGroups", testScimNestedGroups},
 		{"TriggerResendIdPProfiles", testTriggerResendIdPProfiles},
 		{"TriggerResendIdPProfilesOnTeam", testTriggerResendIdPProfilesOnTeam},
+		{"TriggerResendIdPProfilesOnExternalIDChange", testTriggerResendIdPProfilesOnExternalIDChange},
 		{"TriggerResendCertTemplatesAndAppConfigs", testTriggerResendCertTemplatesAndAppConfigs},
 		{"SetOrUpdateHostSCIMUserMapping", testSetOrUpdateHostSCIMUserMapping},
 	}
@@ -2407,7 +2408,7 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 	// user1, does not trigger anything
 	group2, err := ds.CreateScimGroup(ctx, &fleet.ScimGroup{DisplayName: "g2"})
 	require.NoError(t, err)
-	_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser1, UserName: "A@example.com", ExternalID: new("A")})
+	_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser1, UserName: "A@example.com", Active: new(true)})
 	require.NoError(t, err)
 
 	assertHostProfileStatus(t, ds, host1.UUID,
@@ -2738,6 +2739,63 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 		hostProfileStatus{profWUsername.ProfileUUID, fleet.MDMDeliveryVerifying},
 		hostProfileStatus{profWGroup.ProfileUUID, fleet.MDMDeliveryVerifying},
 		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryVerifying})
+}
+
+func testTriggerResendIdPProfilesOnExternalIDChange(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+	hostW := test.NewHost(t, ds, "hostW1", "2", "hostW1key", "hostW1uuid", time.Now(), test.WithPlatform("windows"))
+
+	profExternalID, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("a", "a", 0), nil)
+	require.NoError(t, err)
+	profNone, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("b", "b", 0), nil)
+	require.NoError(t, err)
+	profWExternalID, err := ds.NewMDMWindowsConfigProfile(ctx, *generateWindowsCP("w", "w", 0), nil)
+	require.NoError(t, err)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO mdm_configuration_profile_variables (apple_profile_uuid, fleet_variable_id)
+			SELECT ?, id FROM fleet_variables WHERE name = ?`, profExternalID.ProfileUUID, "FLEET_VAR_"+string(fleet.FleetVarHostEndUserIDPExternalID))
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx, `INSERT INTO mdm_configuration_profile_variables (windows_profile_uuid, fleet_variable_id)
+			SELECT ?, id FROM fleet_variables WHERE name = ?`, profWExternalID.ProfileUUID, "FLEET_VAR_"+string(fleet.FleetVarHostEndUserIDPExternalID))
+		return err
+	})
+
+	scimUser, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "a@example.com", ExternalID: new("ext-1")})
+	require.NoError(t, err)
+	require.NoError(t, ds.associateHostWithScimUser(ctx, host.ID, scimUser))
+	require.NoError(t, ds.associateHostWithScimUser(ctx, hostW.ID, scimUser))
+
+	setAllVerifying := func() {
+		forceSetAppleHostProfileStatus(t, ds, host.UUID, profExternalID, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+		forceSetAppleHostProfileStatus(t, ds, host.UUID, profNone, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+		forceSetWindowsHostProfileStatus(t, ds, hostW.UUID, profWExternalID, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	}
+	setAllVerifying()
+
+	// same external ID, nothing to resend
+	_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser, UserName: "a@example.com", ExternalID: new("ext-1")})
+	require.NoError(t, err)
+	assertHostProfileStatus(t, ds, host.UUID,
+		hostProfileStatus{profExternalID.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, hostW.UUID,
+		hostProfileStatus{profWExternalID.ProfileUUID, fleet.MDMDeliveryVerifying})
+
+	for _, newExternalID := range []*string{new("ext-2"), nil} {
+		_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser, UserName: "a@example.com", ExternalID: newExternalID})
+		require.NoError(t, err)
+		assertHostProfileStatus(t, ds, host.UUID,
+			hostProfileStatus{profExternalID.ProfileUUID, fleet.MDMDeliveryPending},
+			hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying})
+		assertHostProfileStatus(t, ds, hostW.UUID,
+			hostProfileStatus{profWExternalID.ProfileUUID, fleet.MDMDeliveryPending})
+		setAllVerifying()
+	}
 }
 
 // for https://github.com/fleetdm/fleet/issues/28820
