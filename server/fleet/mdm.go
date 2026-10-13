@@ -176,6 +176,18 @@ var (
 		FleetVarHostEndUserIDPDepartment,
 		FleetVarHostEndUserIDPFullname,
 	}
+	// FleetVarsSupportedInDigiCert lists the variables allowed in a DigiCert CA's common name, seat ID, and UPN.
+	FleetVarsSupportedInDigiCert = []FleetVarName{
+		FleetVarHostEndUserEmailIDP,
+		FleetVarHostHardwareSerial,
+		FleetVarHostPlatform,
+		FleetVarHostUUID,
+		FleetVarHostEndUserIDPUsername,
+		FleetVarHostEndUserIDPUsernameLocalPart,
+		FleetVarHostEndUserIDPGroups,
+		FleetVarHostEndUserIDPDepartment,
+		FleetVarHostEndUserIDPFullname,
+	}
 )
 
 type AppleMDM struct {

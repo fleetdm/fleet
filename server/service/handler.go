@@ -11,15 +11,18 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/agentws"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	carvestorectx "github.com/fleetdm/fleet/v4/server/contexts/carvestore"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -1804,7 +1807,7 @@ func WithMDMEnrollmentMiddleware(svc fleet.Service, logger *slog.Logger, next ht
 	}
 }
 
-// uploadPreAuth rejects package uploads without a valid session before the
+// uploadPreAuth rejects package uploads without a package write role before the
 // body is read, and only then lifts the read deadline for large uploads.
 func uploadPreAuth(svc fleet.Service, logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -1823,8 +1826,26 @@ func uploadPreAuth(svc fleet.Service, logger *slog.Logger) func(http.Handler) ht
 				reject(fleet.NewAuthHeaderRequiredError("no auth token"))
 				return
 			}
-			if _, err := auth.AuthViewer(ctx, string(bearer), svc); err != nil {
+			v, err := auth.AuthViewer(ctx, string(bearer), svc)
+			if err != nil {
 				reject(err)
+				return
+			}
+			// Runs the forced password reset and API-only checks that follow decode, in the same order.
+			probeCtx := viewer.NewContext(kithttp.PopulateRequestContext(auth.RouteTemplateRequestFunc(ctx, r), r), *v)
+			noop := func(context.Context, any) (any, error) { return nil, nil }
+			if _, err := auth.AuthenticatedUser(svc, auth.APIOnlyEndpointCheck(noop))(probeCtx, nil); err != nil {
+				reject(err)
+				return
+			}
+			// Mirrors the package write rules in policy.rego, pinned by TestUploadPreAuthMatchesAuthz.
+			// fleet_id arrives after the file in the body, so only a role on some fleet is checkable here.
+			canWrite := func(role string) bool {
+				return role == fleet.RoleAdmin || role == fleet.RoleMaintainer || role == fleet.RoleGitOps
+			}
+			if (v.User.GlobalRole == nil || !canWrite(*v.User.GlobalRole)) &&
+				!slices.ContainsFunc(v.User.Teams, func(t fleet.UserTeam) bool { return canWrite(t.Role) }) {
+				reject(authz.ForbiddenWithInternal("no package write role on any fleet", nil, nil, fleet.ActionWrite))
 				return
 			}
 			if err := http.NewResponseController(w).SetReadDeadline(time.Time{}); err != nil {
