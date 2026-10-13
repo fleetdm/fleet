@@ -21,16 +21,16 @@ const NotifiedEndUserBeforePatchingActivityItem = ({
   const { details } = activity;
   const {
     software_titles: legacyTitles = [],
-    softwares,
+    software,
     status,
     time_before: timeBefore,
   } = details;
   const timeLabel = formatNotifyTimeLabel(timeBefore);
   const failed = isNotifyFailure(status);
   const verb = failed ? "failed to notify" : "notified";
-  // Prefer the richer `softwares` field on new activities; fall back to the
+  // Prefer the richer `software` field on new activities; fall back to the
   // legacy flat `software_titles` for pre-override activity rows.
-  const titleList = renderNotifyTitleList(softwares ?? legacyTitles);
+  const titleList = renderNotifyTitleList(software ?? legacyTitles);
 
   return (
     <ActivityItem

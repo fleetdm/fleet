@@ -426,7 +426,7 @@ export interface IActivityDetails {
   software_titles?: string[];
   /** Rich form of `software_titles` with per-team display name overrides. The
    * renderer prefers this when present and falls back to `software_titles`. */
-  softwares?: INotifySoftwareTitle[];
+  software?: INotifySoftwareTitle[];
   software_titles_count?: number;
   /** Custom name set per team by admin */
   software_display_name?: string;

@@ -43,15 +43,15 @@ const NotifyBeforePatchingDetailsModal = ({
   const {
     host_display_name: hostName,
     software_titles: legacyTitles = [],
-    softwares,
+    software,
     status,
     time_before: timeBefore,
     script_execution_id: scriptExecutionId,
   } = details;
 
-  // Prefer the richer `softwares` field on new activities; fall back to the
+  // Prefer the richer `software` field on new activities; fall back to the
   // legacy flat `software_titles` for pre-override activity rows.
-  const titles = softwares ?? legacyTitles;
+  const titles = software ?? legacyTitles;
 
   const timeLabel = formatNotifyTimeLabel(timeBefore);
   const failed = isNotifyFailure(status);

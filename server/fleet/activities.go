@@ -1466,9 +1466,9 @@ type ActivityTypeNotifiedEndUserBeforePatching struct {
 	HostDisplayName       string     `json:"host_display_name"`
 	PatchNotificationUUID string     `json:"patch_notification_uuid"`
 	// SoftwareTitles is the legacy flat list, kept so pre-override activity rows
-	// still render. New activities also populate Softwares, which the UI prefers.
+	// still render. New activities also populate Software, which the UI prefers.
 	SoftwareTitles    []string              `json:"software_titles"`
-	Softwares         []NotifySoftwareTitle `json:"softwares,omitempty"`
+	Software          []NotifySoftwareTitle `json:"software,omitempty"`
 	PolicyIDs         []uint                `json:"policy_ids"`
 	TimeBefore        int                   `json:"time_before"`
 	InstallAt         *time.Time            `json:"install_at"`
