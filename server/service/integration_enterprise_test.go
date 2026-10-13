@@ -14279,8 +14279,8 @@ func (s *integrationEnterpriseTestSuite) TestPackageUploadPreAuthAndTempFileClea
 				writerDone := make(chan struct{})
 				defer func() {
 					close(releaseBody)
-					reader.Close()
-					writer.Close()
+					_ = reader.Close()
+					_ = writer.Close()
 					<-writerDone
 				}()
 				go func() {
