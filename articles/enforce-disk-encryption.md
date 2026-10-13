@@ -14,7 +14,7 @@ For macOS hosts that automatically enroll, end users are forced to enable disk e
 
 > Fleet offers two options for macOS disk encryption:
   - Enable disk encryption: Fleet enforces FileVault and escrows the recovery key.
-  - Escrow recovery key with Fleet: Fleet stores the recovery key but does not prompt users to turn on FileVault. Use when a third-party tool (e.g. XCreds) handles enforcement.
+  - Escrow recovery key: Fleet stores the recovery key but does not prompt users to turn on FileVault. Use when a third-party tool (e.g. XCreds) handles enforcement.
 
 For Windows, currently disk encryption is enforced on the C: volume (default system/OS drive) only on hosts with a [TPM chip](https://support.microsoft.com/en-us/topic/what-s-a-trusted-platform-module-tpm-705f241d-025d-4470-80c5-4feeb24fa1ee). For Linux, encryption requires end user interaction.
 
@@ -34,11 +34,11 @@ You can enforce disk encryption using the Fleet UI, Fleet API, or [GitOps](https
 
 2. Choose which fleet you want to enforce disk encryption on by selecting the desired fleet in the fleets dropdown in the upper left corner.
 
-3. Under macOS, check **Enable disk encryption (FileVault)** and/or **Escrow recovery key with Fleet**.
+3. Under macOS, check **Enable disk encryption (FileVault)** and/or **Escrow recovery key**.
 
 4. Under Windows, check **Enable disk encryption (BitLocker) and escrow recovery key** and optionally **Require BitLocker PIN**.
 
-5. Under Linux, check **Escrow recovery key with Fleet**.
+5. Under Linux, check **Escrow recovery key**.
 
 6. Select **Save**.
 

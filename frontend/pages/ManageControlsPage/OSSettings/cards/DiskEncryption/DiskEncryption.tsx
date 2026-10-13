@@ -322,7 +322,7 @@ const DiskEncryption = ({
         </>
       }
     >
-      Escrow recovery key with Fleet
+      Escrow recovery key
     </Checkbox>
   );
 
