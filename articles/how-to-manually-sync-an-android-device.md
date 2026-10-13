@@ -34,7 +34,7 @@ Fleet only communicates with Android hosts directly for certificate delivery. Fo
 Each change follows the same steps:
 
 1. Fleet updates the host's policy on Google's servers (via AMAPI). For example, when you install an app, Fleet adds it to the policy's application list.
-2. The next time the host syncs with Google (on average ~1 hour), Google delivers the updated policy and the host applies it. In this example, the host installs the app.
+2. The next time the host syncs with Google (around an hour), Google delivers the updated policy and the host applies it. In this example, the host installs the app.
 3. The host sends a status report to Google, and Google forwards it to Fleet. Fleet then updates the host's details, such as the app's status.
 
 ```mermaid
