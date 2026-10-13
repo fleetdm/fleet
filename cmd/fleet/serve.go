@@ -772,20 +772,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		agentWSHub.InstanceID = instanceID
 		svc.SetAgentCheckInNotifier(delayedAgentNotifier)
 
-		var onResubscribe func()
 		if config.WebSocket.OrbitConfigEnabled {
 			agentWSHub.EnableScopedNotifications(ctx, ds, config.WebSocket.CheckBatchSize, config.WebSocket.OrbitConfigSpread)
-			// Orbit config notifications published while the subscription was
-			// down are lost, and nothing else re-sends them: have every held
-			// agent fetch. Live queries and interval work are re-notified by
-			// the interval check job.
-			onResubscribe = func() {
-				agentWSHub.QueueScope(agentws.ScopedNotification{
-					MsgType: fleet.AgentWSMessageTypeOrbitConfig,
-					Reason:  fleet.AgentWSReasonResync,
-					Scope:   fleet.AgentNotificationScopeGlobal,
-				})
-			}
 		}
 		go agentNotifier.Subscribe(ctx, func(n pubsub.AgentNotification) {
 			switch {
@@ -798,7 +786,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			default:
 				agentWSHub.Notify(n.Type, n.Reason, n.HostIDs)
 			}
-		}, onResubscribe)
+		})
 		// Each instance checks only the connections it holds, so this is a
 		// plain per-instance goroutine, not a locked cron job.
 		go (&agentws.IntervalChecker{

@@ -51,7 +51,7 @@ func TestPacerSpreadsAndMerges(t *testing.T) {
 	}
 	require.Equal(t, 100, p.add(fleet.AgentWSMessageTypeOrbitConfig, fleet.AgentWSReasonSettings, ids))
 	// Already queued hosts are merged, keeping the latest reason.
-	require.Equal(t, 0, p.add(fleet.AgentWSMessageTypeOrbitConfig, fleet.AgentWSReasonResync, ids[:10]))
+	require.Equal(t, 0, p.add(fleet.AgentWSMessageTypeOrbitConfig, fleet.AgentWSReasonMDM, ids[:10]))
 	require.Equal(t, 100, p.queueLen())
 
 	// A tick releases its share of the remaining window, FIFO.
@@ -59,7 +59,7 @@ func TestPacerSpreadsAndMerges(t *testing.T) {
 	batch := p.next(start)
 	require.Len(t, batch, 10)
 	for _, id := range ids[:10] {
-		assert.Equal(t, fleet.AgentWSReasonResync, batch[pacedKey{hostID: id, msgType: fleet.AgentWSMessageTypeOrbitConfig}])
+		assert.Equal(t, fleet.AgentWSReasonMDM, batch[pacedKey{hostID: id, msgType: fleet.AgentWSMessageTypeOrbitConfig}])
 	}
 	// Halfway through the window, 90 targets left over 500ms: 18 per tick.
 	require.Len(t, p.next(start.Add(500*time.Millisecond)), 18)
@@ -146,16 +146,16 @@ func TestHubNotifyScope(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, fleet.AgentWSMessage{Type: fleet.AgentWSMessageTypeOrbitConfig, Reason: fleet.AgentWSReasonSettings}, msg)
 
-	n, err = hub.NotifyScope(t.Context(), fleet.AgentWSMessageTypeOrbitConfig, fleet.AgentWSReasonResync, fleet.AgentNotificationScopeGlobal)
+	n, err = hub.NotifyScope(t.Context(), fleet.AgentWSMessageTypeOrbitConfig, fleet.AgentWSReasonMDM, fleet.AgentNotificationScopeGlobal)
 	require.NoError(t, err)
 	require.Equal(t, 2, n)
 	for _, ws := range []*websocket.Conn{ws1, ws2} {
 		msg, err := readMsg(t, ws, 2*time.Second)
 		require.NoError(t, err)
-		assert.Equal(t, fleet.AgentWSReasonResync, msg.Reason)
+		assert.Equal(t, fleet.AgentWSReasonMDM, msg.Reason)
 	}
 	require.Zero(t, hub.PacerQueueLen())
-	assert.Equal(t, map[string]int64{fleet.AgentWSReasonSettings: 2, fleet.AgentWSReasonResync: 2},
+	assert.Equal(t, map[string]int64{fleet.AgentWSReasonSettings: 2, fleet.AgentWSReasonMDM: 2},
 		hub.NotifyCounts()[fleet.AgentWSMessageTypeOrbitConfig])
 
 	lister.err = errors.New("db down")
@@ -202,11 +202,11 @@ func TestHubScopeWorkerLoadsHostsOnce(t *testing.T) {
 	}
 
 	// QueueScope goes through the worker.
-	hub.QueueScope(ScopedNotification{MsgType: fleet.AgentWSMessageTypeOrbitConfig, Reason: fleet.AgentWSReasonResync, Scope: fleet.AgentNotificationScopeGlobal})
+	hub.QueueScope(ScopedNotification{MsgType: fleet.AgentWSMessageTypeOrbitConfig, Reason: fleet.AgentWSReasonMDM, Scope: fleet.AgentNotificationScopeGlobal})
 	for _, ws := range []*websocket.Conn{ws1, ws2} {
 		msg, err := readMsg(t, ws, 2*time.Second)
 		require.NoError(t, err)
-		assert.Equal(t, fleet.AgentWSReasonResync, msg.Reason)
+		assert.Equal(t, fleet.AgentWSReasonMDM, msg.Reason)
 	}
 
 	// NotifyPaced only queues held hosts.

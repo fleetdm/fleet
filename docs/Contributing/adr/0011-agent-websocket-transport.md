@@ -125,7 +125,7 @@ Enabled with the server setting `websocket.orbit_config_enabled` (requires `webs
 
 - **Per-host changes** (a script, software install or uninstall activated; Windows MDM commands queued; macOS setup experience; Linux escrow, BitLocker PIN, key rotation; Windows managed account rotation; osquery enrollment) nudge the host after the writing transaction commits, from the MySQL datastore.
 - **Fleet-wide and global changes** (app config, fleet config, fleet deletion, hosts changing fleet) are nudged by a datastore decorator, only when an orbit config input actually changed. Scoped nudges are published once (`scope` = `global` or `team:<id>`), delayed by the per-instance config cache TTL (1 minute), and each instance spreads the resulting fetches over `websocket.orbit_config_spread` (default 30 seconds).
-- When the Redis subscription recovers from a failure, each instance nudges all its agents (`reason=resync`), as notifications published meanwhile are lost.
+- Notifications published while an instance's Redis subscription is down are lost; affected agents get the change on their fallback poll. Instances don't nudge all their agents when the subscription recovers: every agent would fetch at once right as Redis recovers.
 - The agent also fetches its orbit config right after each (re)connect, and reports the fields a fallback poll found changed in the `X-Fleet-Orbit-Config-Fallback-Changes` header (counted by the `fleet.agentws.orbit_config.fallback_changes` metric). Raise the fallback interval only once that metric is near zero.
 
 ### Keepalive and agent liveness

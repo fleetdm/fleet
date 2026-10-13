@@ -42,7 +42,7 @@ func TestAgentNotificationsRoundTrip(t *testing.T) {
 				mu.Lock()
 				defer mu.Unlock()
 				received = append(received, n)
-			}, nil)
+			})
 		}()
 		<-subscribed
 		// Give the SUBSCRIBE command time to reach Redis before publishing.
@@ -204,12 +204,9 @@ func TestAgentNotificationsResubscribe(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	var resubscribes atomic.Int32
 	var received atomic.Int32
-	go notifier.Subscribe(ctx, func(n AgentNotification) { received.Add(1) }, func() { resubscribes.Add(1) })
+	go notifier.Subscribe(ctx, func(n AgentNotification) { received.Add(1) })
 	time.Sleep(200 * time.Millisecond)
-	// The first subscription is not a resubscription.
-	require.Zero(t, resubscribes.Load())
 
 	// Kill the subscription connection; Subscribe reconnects after its 1s
 	// backoff. This also kills other pub/sub clients of this Redis (e.g. a
@@ -219,11 +216,12 @@ func TestAgentNotificationsResubscribe(t *testing.T) {
 	conn.Close()
 	require.NoError(t, err)
 
-	require.Eventually(t, func() bool { return resubscribes.Load() == 1 }, 5*time.Second, 50*time.Millisecond)
-
-	// Still delivering after resubscribing.
-	require.NoError(t, notifier.NotifyOrbitConfigHosts(ctx, []uint{testHostIDOffset + 1}, fleet.AgentWSReasonActivity))
-	require.Eventually(t, func() bool { return received.Load() == 1 }, 5*time.Second, 50*time.Millisecond)
+	// Still delivering after resubscribing. Publish until received, as
+	// notifications published before the resubscription are lost.
+	require.Eventually(t, func() bool {
+		require.NoError(t, notifier.NotifyOrbitConfigHosts(ctx, []uint{testHostIDOffset + 1}, fleet.AgentWSReasonActivity))
+		return received.Load() > 0
+	}, 5*time.Second, 200*time.Millisecond)
 }
 
 func TestAgentNotificationsChunking(t *testing.T) {
@@ -239,7 +237,7 @@ func TestAgentNotificationsChunking(t *testing.T) {
 		mu.Lock()
 		defer mu.Unlock()
 		received = append(received, n)
-	}, nil)
+	})
 	time.Sleep(200 * time.Millisecond)
 
 	// 2.5 chunks worth of host IDs must arrive as 3 messages covering all IDs.

@@ -111,15 +111,16 @@ func (n *RedisAgentNotifier) publish(ctx context.Context, notification AgentNoti
 // deliver callback until ctx is done, resubscribing with backoff when the
 // Redis connection fails.
 //
-// Notifications published while the subscription is down are lost, so
-// onResubscribe (if not nil) is called each time the subscription is
-// re-established after a failure, letting the caller resync its agents.
+// Notifications published while the subscription is down are lost. They are
+// not resynced on recovery, which would make every held agent fetch at once
+// right as Redis recovers: live queries and interval work are re-notified by
+// the interval check job, and orbit config changes reach agents on their
+// fallback poll.
 //
-// Run it in its own goroutine; deliver and onResubscribe are called
-// synchronously from the loop and must not block for long.
-func (n *RedisAgentNotifier) Subscribe(ctx context.Context, deliver func(AgentNotification), onResubscribe func()) {
+// Run it in its own goroutine; deliver is called synchronously from the loop
+// and must not block for long.
+func (n *RedisAgentNotifier) Subscribe(ctx context.Context, deliver func(AgentNotification)) {
 	backoff := subscribeRetryBaseInterval
-	failed := false
 	for {
 		if ctx.Err() != nil {
 			return
@@ -127,11 +128,7 @@ func (n *RedisAgentNotifier) Subscribe(ctx context.Context, deliver func(AgentNo
 
 		err := n.subscribeOnce(ctx, deliver, func() {
 			backoff = subscribeRetryBaseInterval
-			if failed && onResubscribe != nil {
-				onResubscribe()
-			}
 		})
-		failed = true
 		if ctx.Err() != nil {
 			return
 		}

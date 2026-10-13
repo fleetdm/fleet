@@ -43,7 +43,6 @@ const (
 	AgentWSReasonDiskEncryption = "disk-encryption" // disk encryption escrow, key rotation or BitLocker PIN
 	AgentWSReasonSettings       = "settings"        // fleet-wide or global settings, or the host's fleet
 	AgentWSReasonEnroll         = "enroll"          // osquery enrolled, enabling flags gated on it
-	AgentWSReasonResync         = "resync"          // notifications may have been lost (e.g. the Redis subscription failed)
 )
 
 // Reasons for a distributed/read notification triggered by interval work,
