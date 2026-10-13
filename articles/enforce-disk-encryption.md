@@ -36,7 +36,7 @@ You can enforce disk encryption using the Fleet UI, Fleet API, or [GitOps](https
 
 3. Under macOS, check **Enable disk encryption (FileVault)** and/or **Escrow recovery key with Fleet**.
 
-4. Under Windows, check **Enable disk encryption and escrow recovery key (BitLocker)** and optionally **Require BitLocker PIN**.
+4. Under Windows, check **Enable disk encryption (BitLocker) and escrow recovery key** and optionally **Require BitLocker PIN**.
 
 5. Under Linux, check **Escrow recovery key with Fleet**.
 

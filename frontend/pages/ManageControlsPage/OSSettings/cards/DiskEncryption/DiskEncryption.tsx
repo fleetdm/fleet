@@ -294,7 +294,7 @@ const DiskEncryption = ({
       helpText={platform === "windows" ? ESCROW_HELP_TEXT : undefined}
     >
       {platform === "windows"
-        ? "Enable disk encryption and escrow recovery key (BitLocker)"
+        ? "Enable disk encryption (BitLocker) and escrow recovery key"
         : "Enable disk encryption (FileVault)"}
     </Checkbox>
   );
