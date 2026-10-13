@@ -2,9 +2,9 @@
 
 Fleet doesn't communicate with Android hosts directly. Fleet and each host communicate through Google's Android Management API (AMAPI). Fleet delivers these changes by updating the host's policy in AMAPI:
 
-- Software deployment
-- Configuration profiles
-- Managed app configuration
+- [Software deployment](https://fleetdm.com/guides/install-app-store-apps)
+- [Configuration profiles](https://fleetdm.com/guides/custom-os-settings)
+- [App configuration](https://fleetdm.com/guides/install-app-store-apps#managed-configuration)
 
 Each change follows the same steps:
 
