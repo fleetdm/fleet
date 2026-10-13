@@ -2389,13 +2389,6 @@
       "description": "DCV Viewer is used for connecting to the NICE DCV remote display protocol."
     },
     {
-      "name": "Debookee",
-      "slug": "debookee/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.iwaxx.Debookee",
-      "description": "Debookee is a network traffic analyser."
-    },
-    {
       "name": "Deckset",
       "slug": "deckset/darwin",
       "platform": "darwin",
