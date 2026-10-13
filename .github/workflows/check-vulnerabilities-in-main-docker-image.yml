@@ -114,8 +114,8 @@ jobs:
               | (reduce .[] as $l ({kept: [], len: 0, full: false};
                   if .full or (.len + ($l | length) + 2 > 2500) then .full = true
                   else .kept += [$l] | .len += ($l | length) + 2 end)) as $r
-              | ($r.kept | join("\\n"))
-                + (if length > ($r.kept | length) then "\\n…and \(length - ($r.kept | length)) more — see job logs" else "" end)
+              | $r.kept + (if length > ($r.kept | length) then ["…and \(length - ($r.kept | length)) more — see job logs"] else [] end)
+              | join("\\n")
             ' "${files[@]}")
           fi
           echo "cve_list=${cve_list:-(no CVE list available — check job logs)}" >> "$GITHUB_OUTPUT"
