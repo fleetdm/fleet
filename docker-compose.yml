@@ -87,9 +87,9 @@ services:
       - /var/lib/mysql:rw,noexec,nosuid
       - /tmpfs
 
-  # Unauthenticated SMTP server.
+  # Unauthenticated SMTP server. Kept the "mailhog" service name to avoid churn in CI and env vars.
   mailhog:
-    image: mailhog/mailhog:latest
+    image: axllent/mailpit:latest
     ports:
       - "127.0.0.1:${FLEET_MAILHOG_WEB_PORT:-8025}:8025"
       - "127.0.0.1:${FLEET_MAILHOG_SMTP_PORT:-1025}:1025"
