@@ -54,17 +54,12 @@ If a customer or prospect request is missing a Gong snippet or requires addition
 
 At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-flow/#but-wait-isnt-this-waterfall) and [other organizations](https://speakerdeck.com/mikermcneil/i-love-apis), every change to the product's UI gets [wireframed first](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach).
 
-1. Take the top user story that is assigned to you in the "Ready" column of [your product group's board](https://fleetdm.com/handbook/company/product-groups#current-product-groups) and move it to "In progress."
-  
-2. Create a new file inside the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) Figma project by duplicating "\[TEMPLATE\] Starter file" (pinned to the top of the project). The starter file includes three predefined pages: "Cover," "Ready," and "Scratchpad."
+1. Take the top user story that is assigned to you in the "Drafting" column of [your product group's board](https://fleetdm.com/handbook/company/product-groups#current-product-groups) and create a new file inside the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) Figma project by duplicating "\[TEMPLATE\] Starter file" (pinned to the top of the project). The starter file includes three predefined pages: "Cover," "Ready," and "Scratchpad."
    -  **Cover**: This page has a component with the issue number and issue name.
    -  **Ready**: Use this page to communicate design reviews and development.
-1. Take the top user story that is assigned to you in the "Drafting" column of [your product group's board](https://fleetdm.com/handbook/company/product-groups#current-product-groups) and create a new file inside the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) Figma project by duplicating "\[TEMPLATE\] Starter file" (pinned to the top of the project). The starter file includes three predefined pages: "Cover," "Ready," and "Scratchpad."
--  **Cover**: This page has a component with the issue number and issue name.
--  **Ready**: Use this page to communicate design reviews and development.
--  **Scratchpad**: Use this page to keep "work in progress" designs that might be useful in the future.
+   -  **Scratchpad**: Use this page to keep "work in progress" designs that might be useful in the future.
 
-3. If the story requires API or YAML file changes, open a pull request (PR) to the reference docs with the proposed design. Pay attention to existing conventions (URL structure, parameter names, response format) and aim to be consistent. Your PR should follow these guidelines:
+2. If the story requires API or YAML file changes, open a pull request (PR) to the reference docs with the proposed design. Pay attention to existing conventions (URL structure, parameter names, response format) and aim to be consistent. Your PR should follow these guidelines:
    - Make a PR against the docs release branch for the version you expect this feature to be in. Docs release branches are named using the format `docs-vX.X.X`, so if you're designing for Fleet 4.61.0, you would make a PR to `docs-v4.61.0`.
    - If an API endpoint is being added, document it in [`api_endpoints.yml`](https://github.com/fleetdm/fleet/blob/main/server/api_endpoints/api_endpoints.yml). (This allows granular access for API-only users.)
    - Add a link to the issue in the PR description.
@@ -72,13 +67,14 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
    - Mark the PR ready for review. (Draft PRs do not auto-request reviews.)
    - After your changes are approved by the API design DRI, they will merge your changes into the docs release branch.
 
-4. Add links to the user story as specified in the [issue template](https://github.com/fleetdm/fleet/issues/new?template=story.md).
+3. Add links to the user story as specified in the [issue template](https://github.com/fleetdm/fleet/issues/new?template=story.md).
 
-5. If you (Product Designer) have capacity to update Fleet's guides, add a link to the guide update PR in the "Feature guide changes" checkbox under the "Engineering" section. If not, it's up to the Engineer assigned to the story during implementation to make sure guides are updated.
+4. If you (Product Designer) have capacity to update Fleet's guides, add a link to the guide update PR in the "Feature guide changes" checkbox under the "Engineering" section. If not, it's up to the Engineer assigned to the story during implementation to make sure guides are updated.
 
-6. Draft changes to the Fleet product that solve the problem specified in the story.
+5. Draft changes to the Fleet product that solve the problem specified in the story.
    - Constantly place yourself in the shoes of a user while drafting changes.
-   - Use dev notes (component available in our library) to highlight important information to engineers and other teammates. - Reach out to sales, customer success, and demand for a business perspective.
+   - Use dev notes (component available in our library) to highlight important information to engineers and other teammates.
+   - Reach out to sales, customer success, and demand for a business perspective.
    - Engage engineering to gain insight into technical costs and feasibility.
 
 > When significant input from engineering is necessary, notify the EM so that they can create a timebox issue and decide if planned work can be deprioritized.
