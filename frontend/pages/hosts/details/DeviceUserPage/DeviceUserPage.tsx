@@ -363,11 +363,6 @@ const DeviceUserPage = ({
               }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
             } else {
               resetHostRefetchStates();
-              if (shouldNotify) {
-                notify.error(
-                  `This host is offline. Please try refetching host vitals later.`
-                );
-              }
             }
           } else {
             const totalElapsedTime = Date.now() - refetchStartTime;
