@@ -244,7 +244,7 @@ func (h *Hub) notifyScopes(ctx context.Context, ns []ScopedNotification) (int, e
 	}
 
 	hostIDs := h.HeldHostIDs()
-	var teamOf map[uint]uint // host ID → fleet ID (0 for "No fleet"), loaded on demand
+	var byTeam map[uint][]uint // fleet ID (0 for "No fleet") → held host IDs, loaded on demand
 	queued := 0
 	var errs []error
 	for _, n := range ns {
@@ -257,26 +257,20 @@ func (h *Hub) notifyScopes(ctx context.Context, ns []ScopedNotification) (int, e
 			errs = append(errs, ctxerr.Errorf(ctx, "unknown agent notification scope %q", n.Scope))
 			continue
 		}
-		if teamOf == nil {
-			teamOf = make(map[uint]uint, len(hostIDs))
+		if byTeam == nil {
+			byTeam = make(map[uint][]uint)
 			for chunk := range slices.Chunk(hostIDs, h.scopeBatchSize) {
 				hosts, err := h.hostLister.ListHostsLiteByIDs(ctx, chunk)
 				if err != nil {
 					return queued, ctxerr.Wrap(ctx, err, "list hosts for scoped notification")
 				}
 				for _, host := range hosts {
-					// Fleet ID 0 is "No fleet".
-					teamOf[host.ID] = ptr.ValOrZero(host.TeamID)
+					tid := ptr.ValOrZero(host.TeamID)
+					byTeam[tid] = append(byTeam[tid], host.ID)
 				}
 			}
 		}
-		var inTeam []uint
-		for id, tid := range teamOf {
-			if tid == teamID {
-				inTeam = append(inTeam, id)
-			}
-		}
-		queued += h.pacer.add(n.MsgType, n.Reason, inTeam)
+		queued += h.pacer.add(n.MsgType, n.Reason, byTeam[teamID])
 	}
 	return queued, errors.Join(errs...)
 }

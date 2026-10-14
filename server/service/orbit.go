@@ -618,6 +618,9 @@ func resolveOrbitDebugLogging(ctx context.Context, host *fleet.Host, flags json.
 // enabled.
 const orbitConfigOnboardingWindow = time.Hour
 
+// GetOrbitConfig returns the host's orbit config. With orbit config nudges enabled, connected agents poll it rarely, so
+// a write changing its output must notify them: per-host writes via mysql's notifyOrbitConfig, fleet-wide and global
+// ones via the orbitconfig_notify datastore decorator. A missed write is only picked up by the slow fallback poll.
 func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)

@@ -14,8 +14,9 @@ type pacedKey struct {
 	msgType string
 }
 
-// pacer spreads the notifications of a fleet-wide or global change evenly
-// over a window, so that every connected agent doesn't fetch at once. Targets
+// pacer spreads notifications evenly over a window, so that the agents of a
+// fleet-wide or global change, or of a per-host write targeting many hosts
+// (see Hub.NotifyPaced), don't all fetch at once. Targets
 // queued while a drain is in progress are merged into it, at most once per
 // host and message type (keeping the latest reason).
 type pacer struct {

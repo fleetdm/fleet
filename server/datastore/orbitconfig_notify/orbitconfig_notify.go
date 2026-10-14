@@ -44,13 +44,13 @@ func New(ds fleet.Datastore, notifier fleet.AgentCheckInNotifier, logger *slog.L
 	}
 }
 
-func (d *Datastore) notifyScope(ctx context.Context, scope fleet.AgentNotificationScope, source string) {
+func (d *Datastore) publishScope(ctx context.Context, scope fleet.AgentNotificationScope, source string) {
 	if err := d.notifier.NotifyOrbitConfigScope(ctx, scope, fleet.AgentWSReasonSettings); err != nil {
 		d.logger.ErrorContext(ctx, "notify orbit config change", "scope", scope, "source", source, "err", err)
 	}
 }
 
-func (d *Datastore) notifyHosts(ctx context.Context, hostIDs []uint, source string) {
+func (d *Datastore) publishHosts(ctx context.Context, hostIDs []uint, source string) {
 	if len(hostIDs) == 0 {
 		return
 	}
@@ -115,7 +115,7 @@ func (d *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) er
 	if changed(before, appConfigOrbitInputs(info)) {
 		// Global agent options apply to "No fleet" hosts, but MDM settings to
 		// every host.
-		d.notifyScope(ctx, fleet.AgentNotificationScopeGlobal, "SaveAppConfig")
+		d.publishScope(ctx, fleet.AgentNotificationScopeGlobal, "SaveAppConfig")
 	}
 	return nil
 }
@@ -130,7 +130,7 @@ func (d *Datastore) SaveTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 		return nil, err
 	}
 	if changed(before, &teamConfigInputs{AgentOptions: team.Config.AgentOptions, MDM: team.Config.MDM}) {
-		d.notifyScope(ctx, fleet.AgentNotificationScopeTeam(team.ID), "SaveTeam")
+		d.publishScope(ctx, fleet.AgentNotificationScopeTeam(team.ID), "SaveTeam")
 	}
 	return saved, nil
 }
@@ -144,7 +144,7 @@ func (d *Datastore) SaveDefaultTeamConfig(ctx context.Context, config *fleet.Tea
 		return err
 	}
 	if config != nil && changed(before, &teamConfigInputs{AgentOptions: config.AgentOptions, MDM: config.MDM}) {
-		d.notifyScope(ctx, fleet.AgentNotificationScopeTeam(0), "SaveDefaultTeamConfig")
+		d.publishScope(ctx, fleet.AgentNotificationScopeTeam(0), "SaveDefaultTeamConfig")
 	}
 	return nil
 }
@@ -154,7 +154,7 @@ func (d *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 		return err
 	}
 	// The fleet's hosts moved to "No fleet"; they are no longer in its scope.
-	d.notifyScope(ctx, fleet.AgentNotificationScopeTeam(0), "DeleteTeam")
+	d.publishScope(ctx, fleet.AgentNotificationScopeTeam(0), "DeleteTeam")
 	return nil
 }
 
@@ -162,6 +162,6 @@ func (d *Datastore) AddHostsToTeam(ctx context.Context, params *fleet.AddHostsTo
 	err := d.Datastore.AddHostsToTeam(ctx, params)
 	// Notify even on error: batches commit independently, so earlier ones may
 	// have moved hosts. Hosts that didn't move just fetch an unchanged config.
-	d.notifyHosts(ctx, params.HostIDs, "AddHostsToTeam")
+	d.publishHosts(ctx, params.HostIDs, "AddHostsToTeam")
 	return err
 }
