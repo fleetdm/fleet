@@ -1713,7 +1713,7 @@ func (s *integrationMDMTestSuite) TestSCEPRenewalVsFreshEnrollment() {
 				}
 				if _, err := mdmtest.ParseEnrollmentProfile(content); err == nil {
 					renewCmdUUID, profile = cmd.CommandUUID, payload
-					if _, err = dev.NotNow(cmd.CommandUUID); err != nil {
+					if cmd, err = dev.NotNow(cmd.CommandUUID); err != nil {
 						break
 					}
 					continue
