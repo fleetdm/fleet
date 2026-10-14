@@ -641,7 +641,12 @@ const EditQueryForm = ({
 
     return (
       <>
-        <form className={baseClass} autoComplete="off">
+        {/* No submit button, so Enter in the name field would navigate. */}
+        <form
+          className={baseClass}
+          autoComplete="off"
+          onSubmit={(evt) => evt.preventDefault()}
+        >
           {isExistingQuery ? (
             <div className={`${baseClass}__page-header`}>
               <h1 className={`${baseClass}__page-title`}>Edit report</h1>
