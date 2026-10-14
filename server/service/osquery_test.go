@@ -7306,3 +7306,48 @@ func TestQueryReportCapReadsMissingHostCountFromDB(t *testing.T) {
 	ds.CountAllHostsFunc = func(ctx context.Context) (int, error) { return 0, errors.New("db down") }
 	require.Equal(t, 3, serv.queryReportCap(ctx, settings))
 }
+
+func TestPolicyAutomationSkipsDeletedInstaller(t *testing.T) {
+	const hostID = uint(42)
+	titleID := uint(7)
+
+	// A GitOps run deleted installer 100 while the host's other policy, with installer 200, still needs its install.
+	for name, failure := range map[string]struct{ metadataErr, insertErr error }{
+		"metadata lookup": {metadataErr: newNotFoundError()},
+		"install insert":  {insertErr: newNotFoundError()},
+	} {
+		t.Run(name, func(t *testing.T) {
+			ds := new(mock.Store)
+			svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{})
+			svcImpl := svc.(validationMiddleware).Service.(*Service)
+			ds.GetPoliciesWithAssociatedInstallerFunc = func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicySoftwareInstallerData, error) {
+				return []fleet.PolicySoftwareInstallerData{{ID: 1, InstallerID: 100}, {ID: 2, InstallerID: 200}}, nil
+			}
+			ds.GetSoftwareInstallerMetadataByIDFunc = func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
+				if id == 100 && failure.metadataErr != nil {
+					return nil, failure.metadataErr
+				}
+				return &fleet.SoftwareInstaller{InstallerID: id, TitleID: &titleID, Platform: "windows"}, nil
+			}
+			ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) { return true, nil }
+			ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+				return nil, nil
+			}
+			var queued []uint
+			ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID, swInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
+				if swInstallerID == 100 && failure.insertErr != nil {
+					return "", failure.insertErr
+				}
+				queued = append(queued, swInstallerID)
+				return "exec-uuid", nil
+			}
+
+			orbitKey := "orbit-key"
+			policyFailed := false
+			failing := map[uint]*bool{1: &policyFailed, 2: &policyFailed}
+			newlyFailing := map[uint]struct{}{1: {}, 2: {}}
+			require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "windows", &orbitKey, "", failing, newlyFailing))
+			require.Equal(t, []uint{200}, queued)
+		})
+	}
+}
