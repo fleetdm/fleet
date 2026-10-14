@@ -156,6 +156,16 @@ services:
     volumes:
       - data-s3:/data:rw
 
+  # Azurite emulator for Azure Blob Storage (software installers/bootstrap packages/icons/org logos)
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:3.35.0
+    command: ["azurite-blob", "--blobHost", "0.0.0.0", "--blobPort", "10000", "--skipApiVersionCheck"]
+    ports:
+      - "127.0.0.1:${FLEET_AZURITE_PORT:-10000}:10000"
+    volumes:
+      - data-azurite:/data:rw
+
 volumes:
   mysql-persistent-volume:
   data-s3:
+  data-azurite:

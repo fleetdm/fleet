@@ -3,6 +3,7 @@ package config
 import (
 	"bytes"
 	"context"
+	"crypto"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -49,8 +50,8 @@ func TestConfigRoundtrip(t *testing.T) {
 	// true.
 	original := &FleetConfig{}
 	v := reflect.ValueOf(original)
-	for conf_index := 0; conf_index < v.Elem().NumField(); conf_index++ {
-		conf_v := v.Elem().Field(conf_index)
+	var populate func(conf_v reflect.Value, name string, conf_index int)
+	populate = func(conf_v reflect.Value, name string, conf_index int) {
 		conf_t := conf_v.Type()
 		for key_index := 0; key_index < conf_v.NumField(); key_index++ {
 			// ignore unexported fields
@@ -61,7 +62,7 @@ func TestConfigRoundtrip(t *testing.T) {
 			key_v := conf_v.Field(key_index)
 			switch key_v.Interface().(type) {
 			case string:
-				switch conf_v.Type().Field(key_index).Name {
+				switch conf_t.Field(key_index).Name {
 				case "TLSProfile":
 					// we have to explicitly set value for this key as it will only
 					// accept intermediate or modern
@@ -79,12 +80,12 @@ func TestConfigRoundtrip(t *testing.T) {
 				case "GlobalEnrollSecret":
 					key_v.SetString("")
 				default:
-					key_v.SetString(v.Elem().Type().Field(conf_index).Name + "_" + conf_v.Type().Field(key_index).Name)
+					key_v.SetString(name + "_" + conf_t.Field(key_index).Name)
 				}
 			case int:
 				key_v.SetInt(int64(conf_index*100 + key_index))
 			case bool:
-				switch conf_v.Type().Field(key_index).Name {
+				switch conf_t.Field(key_index).Name {
 				// These are deprecated field names in the S3 config. Set them to zero value, which leads to the new fields being populated instead.
 				case "DisableSSL", "ForceS3PathStyle":
 					key_v.SetBool(false)
@@ -94,8 +95,14 @@ func TestConfigRoundtrip(t *testing.T) {
 			case time.Duration:
 				d := time.Duration(conf_index*100 + key_index)
 				key_v.Set(reflect.ValueOf(d))
+			case AzureConfig:
+				// nested under CloudStorage
+				populate(key_v, name+"_"+conf_t.Field(key_index).Name, conf_index)
 			}
 		}
+	}
+	for conf_index := 0; conf_index < v.Elem().NumField(); conf_index++ {
+		populate(v.Elem().Field(conf_index), v.Elem().Type().Field(conf_index).Name, conf_index)
 	}
 
 	// Marshal the generated config
@@ -1624,3 +1631,103 @@ func TestSoftwareInstallersSignedURLKeys(t *testing.T) {
 		})
 	}
 }
+
+func TestSoftwareInstallersBackend(t *testing.T) {
+	s3Cfg := S3Config{SoftwareInstallersBucket: "bucket"}
+	azureCfg := AzureConfig{SoftwareInstallersContainer: "container"}
+
+	cases := []struct {
+		name    string
+		cfg     FleetConfig
+		want    StorageBackend
+		wantErr string
+	}{
+		{name: "local", cfg: FleetConfig{}, want: StorageBackendLocal},
+		{name: "s3 only", cfg: FleetConfig{S3: s3Cfg}, want: StorageBackendS3},
+		{name: "azure only", cfg: FleetConfig{CloudStorage: CloudStorageConfig{Azure: azureCfg}}, want: StorageBackendAzure},
+		{
+			name:    "both",
+			cfg:     FleetConfig{S3: s3Cfg, CloudStorage: CloudStorageConfig{Azure: azureCfg}},
+			wantErr: "Couldn't configure. `s3_software_installers_bucket` and `cloud_storage_azure_files_container` cannot both be set; choose one storage backend for software installers.",
+		},
+		{
+			// the carves bucket does not select the software installers backend
+			name: "s3 carves only", cfg: FleetConfig{S3: S3Config{CarvesBucket: "carves"}}, want: StorageBackendLocal,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := c.cfg.SoftwareInstallersBackend()
+			if c.wantErr != "" {
+				require.EqualError(t, err, c.wantErr)
+				require.Equal(t, StorageBackendLocal, got)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, c.want, got)
+			}
+
+			var fatalErr error
+			c.cfg.ValidateSoftwareInstallersBackend(func(err error, _ string) { fatalErr = err })
+			if c.wantErr != "" {
+				require.EqualError(t, fatalErr, c.wantErr)
+			} else {
+				require.NoError(t, fatalErr)
+			}
+		})
+	}
+}
+
+func TestSoftwareInstallersSignedURLAndStagedUpload(t *testing.T) {
+	cases := []struct {
+		name             string
+		cfg              FleetConfig
+		wantSigned       bool
+		wantStagedUpload bool
+	}{
+		{name: "default", cfg: FleetConfig{}},
+		{
+			name:       "s3 cloudfront signer",
+			cfg:        FleetConfig{S3: S3Config{SoftwareInstallersBucket: "b", SoftwareInstallersCloudFrontSigner: &testSigner{}}},
+			wantSigned: true,
+		},
+		{
+			name:             "s3 signed url with bucket",
+			cfg:              FleetConfig{S3: S3Config{SoftwareInstallersBucket: "b", SoftwareInstallersSignedURL: true}},
+			wantSigned:       true,
+			wantStagedUpload: true,
+		},
+		{
+			// matches the pre-existing behavior: staged upload requires a bucket, signing does not
+			name:       "s3 signed url without bucket",
+			cfg:        FleetConfig{S3: S3Config{SoftwareInstallersSignedURL: true}},
+			wantSigned: true,
+		},
+		{
+			name: "azure signed url",
+			cfg: FleetConfig{CloudStorage: CloudStorageConfig{Azure: AzureConfig{
+				SoftwareInstallersContainer: "c", SoftwareInstallersSignedURL: true,
+			}}},
+			wantSigned: true,
+		},
+		{
+			name: "azure without signed url",
+			cfg:  FleetConfig{CloudStorage: CloudStorageConfig{Azure: AzureConfig{SoftwareInstallersContainer: "c"}}},
+		},
+		{
+			name: "azure signed url without container",
+			cfg:  FleetConfig{CloudStorage: CloudStorageConfig{Azure: AzureConfig{SoftwareInstallersSignedURL: true}}},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			require.Equal(t, c.wantSigned, c.cfg.SoftwareInstallersSignedURLEnabled())
+			require.Equal(t, c.wantStagedUpload, c.cfg.StagedUploadAvailable())
+		})
+	}
+}
+
+type testSigner struct{}
+
+func (*testSigner) Public() crypto.PublicKey { return nil }
+
+func (*testSigner) Sign(io.Reader, []byte, crypto.SignerOpts) ([]byte, error) { return nil, nil }
