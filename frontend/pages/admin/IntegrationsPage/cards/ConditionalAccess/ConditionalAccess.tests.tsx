@@ -201,11 +201,11 @@ describe("Conditional access", () => {
         expect(screen.getByText("Okta conditional access")).toBeInTheDocument();
       });
 
-      // Fill in text fields
+      // Fill in text fields. textboxes[0] is the read-only User scope profile.
       const textboxes = screen.getAllByRole("textbox");
-      await user.type(textboxes[0], TEST_OKTA_IDP_ID); // IdP ID
-      await user.type(textboxes[1], "https://example.com/acs"); // ACS URL
-      await user.type(textboxes[2], "https://example.com"); // Audience URI
+      await user.type(textboxes[1], TEST_OKTA_IDP_ID); // IdP ID
+      await user.type(textboxes[2], "https://example.com/acs"); // ACS URL
+      await user.type(textboxes[3], "https://example.com"); // Audience URI
 
       // Upload certificate file
       const certificateContent = `-----BEGIN CERTIFICATE-----

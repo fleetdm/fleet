@@ -3,8 +3,8 @@ import React, { useCallback, useContext, useState } from "react";
 import { useQuery } from "react-query";
 
 import Button from "components/buttons/Button";
-import CopyButton from "components/buttons/CopyButton";
 import CustomLink from "components/CustomLink";
+import Editor from "components/Editor";
 import FileUploader from "components/FileUploader";
 import InputField from "components/forms/fields/InputField";
 import valid_url from "components/forms/validators/valid_url";
@@ -316,22 +316,18 @@ const OktaConditionalAccessModal = ({
         </div>
 
         {/* User Scope Profile */}
-        <div className={`${baseClass}__user-scope-profile`}>
-          <div className={`${baseClass}__user-scope-profile-header`}>
-            <span className={`${baseClass}__user-scope-profile-label`}>
-              User scope profile
-            </span>
-            <CopyButton
-              copyText={appleProfile}
-              variant="secondary"
-              ariaLabel="Copy user scope profile"
-              disabled={!appleProfile}
-            />
-          </div>
-          <pre className={`${baseClass}__user-scope-profile-code`}>
-            <code>{appleProfile}</code>
-          </pre>
-        </div>
+        <Editor
+          label="User scope profile"
+          ariaLabel="user scope profile"
+          name="user-scope-profile"
+          mode="xml"
+          value={appleProfile}
+          readOnly
+          enableCopy
+          copyButtonLocation="label"
+          wrapEnabled
+          maxLines={10}
+        />
 
         {/* Help text */}
         <p className={`${baseClass}__field-instructions`}>

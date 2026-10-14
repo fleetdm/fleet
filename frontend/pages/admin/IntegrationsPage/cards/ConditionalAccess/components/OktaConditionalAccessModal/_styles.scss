@@ -18,43 +18,8 @@
     }
   }
 
-  &__user-scope-profile {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-small;
-  }
-
-  &__user-scope-profile-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  &__user-scope-profile-label {
-    font-size: $small;
-    font-weight: $bold;
-    color: $ui-fleet-black-75;
-  }
-
-  &__user-scope-profile-code {
-    background-color: $ui-off-white;
-    color: $core-fleet-black;
-    border: 1px solid $ui-fleet-black-10;
-    border-radius: $border-radius;
-    padding: $pad-medium;
-    overflow: auto;
-    max-height: 200px;
-    font-size: $xx-small;
-    line-height: 1.5;
-    white-space: pre-wrap;
-    word-break: break-all;
-    margin: 0;
-  }
-
   // Certificate file uploader wrapper
   &__file-uploader-wrapper {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-small; // 0.5rem gap between error and FileUploader
+    @include flex-column-8px-gap;
   }
 }
