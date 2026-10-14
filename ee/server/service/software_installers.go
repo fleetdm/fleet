@@ -4101,8 +4101,8 @@ func (svc *Service) softwareBatchUpload(
 		return
 	}
 	if len(deletedPackages) > 0 {
-		// A payload whose bundle identifier or upgrade code matches no title attaches
-		// to a same-name title, which the unique identifiers above do not match.
+		// The apply resolves a payload by bundle id or upgrade code, else by name, so it can keep a
+		// title whose unique identifier differs from the payload's, which the match above does not see.
 		var keptTitleIDs []uint
 		for _, p := range uploads {
 			titleID, err := svc.ds.GetExistingSoftwareInstallerTitleID(ctxdb.RequirePrimary(ctx, true), p)
