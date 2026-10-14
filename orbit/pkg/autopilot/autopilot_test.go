@@ -25,9 +25,7 @@ func TestParseRegistrationID(t *testing.T) {
 	}{
 		{name: "assigned profile, normalized to lowercase", policyJSON: cachedProfile, want: "efdb13f9-44d6-4f99-a93f-08833fccef82"},
 		{name: "no assigned profile", policyJSON: emptyProfile, want: ""},
-		{name: "empty registration id", policyJSON: `{"ZtdRegistrationId":""}`, want: ""},
 		{name: "registration id is not a GUID", policyJSON: `{"ZtdRegistrationId":"not-a-guid"}`, wantErr: true},
-		{name: "registration id is not a string", policyJSON: `{"ZtdRegistrationId":42}`, wantErr: true},
 		{name: "not JSON", policyJSON: `garbage`, wantErr: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

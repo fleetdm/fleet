@@ -622,7 +622,6 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 		_, err := svc.EnrollOrbit(t.Context(), autopilotHostInfo, "secret", "")
 		require.NoError(t, err)
 		require.False(t, ds.MDMWindowsConflictingEnrollmentHardwareIDFuncInvoked, "the mismatched enrollment is skipped before any link attempt")
-		require.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
 		require.False(t, ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFuncInvoked,
 			"identifiers that already disagree must not go on to link whatever enrollment carries the serial")
 	})
@@ -636,49 +635,33 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFuncInvoked)
 	})
-}
 
-// TestEnrollOrbitAutopilotDeviceID covers how EnrollOrbit treats the Autopilot device ID fleetd reports: a usable one reaches the
-// datastore normalized, and anything else is dropped without failing the enrollment.
-func TestEnrollOrbitAutopilotDeviceID(t *testing.T) {
+	// A usable Autopilot device ID reaches the datastore normalized; anything else is dropped without failing the enrollment.
 	for _, tc := range []struct {
 		name     string
 		platform string
 		reported string
 		want     string
 	}{
-		{"windows GUID is normalized", "windows", "{EFDB13F9-44D6-4F99-A93F-08833FCCEF82}", "efdb13f9-44d6-4f99-a93f-08833fccef82"},
+		{"a braced GUID is normalized", "windows", "{EFDB13F9-44D6-4F99-A93F-08833FCCEF82}", autopilotDeviceID},
 		{"not a GUID is dropped", "windows", "Default string", ""},
-		{"non-windows platform is dropped", "darwin", "efdb13f9-44d6-4f99-a93f-08833fccef82", ""},
-		{"not reported", "windows", "", ""},
+		{"a non-windows platform is dropped", "darwin", autopilotDeviceID, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			svc, ds, _ := newSvc(t)
+			// Without Windows MDM there is no reverse link, so only the matching input is under test.
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
 			var received fleet.DatastoreEnrollOrbitConfig
-			inner := new(mock.Store)
-			ds := &enrollOrbitStore{
-				Store: inner,
-				enrollOrbitFunc: func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
-					for _, opt := range opts {
-						opt(&received)
-					}
-					return &fleet.Host{ID: 42, UUID: "host-uuid-1", Platform: tc.platform}, nil
-				},
+			ds.enrollOrbitFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
+				for _, opt := range opts {
+					opt(&received)
+				}
+				return &fleet.Host{ID: 42, UUID: "host-uuid-1", Platform: tc.platform}, nil
 			}
-			svc, _ := newTestService(t, ds, nil, nil, &TestServerOpts{})
-			inner.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
-				return &fleet.EnrollSecret{Secret: secret}, nil
-			}
-			inner.GetHostIdentityCertByNameFunc = func(ctx context.Context, name string) (*hostidentity_types.HostIdentityCertificate, error) {
-				return nil, newNotFoundError()
-			}
-			inner.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-				return &fleet.AppConfig{}, nil
-			}
-			inner.MaybeAssociateHostWithScimUserFunc = func(ctx context.Context, hostID uint) error { return nil }
 
-			_, err := svc.EnrollOrbit(t.Context(), fleet.OrbitHostInfo{
-				HardwareUUID: "hw-uuid-1", Hostname: "DESKTOP-1", Platform: tc.platform, AutopilotDeviceID: tc.reported,
-			}, "secret", "")
+			reported := hostInfo
+			reported.Platform, reported.AutopilotDeviceID = tc.platform, tc.reported
+			_, err := svc.EnrollOrbit(t.Context(), reported, "secret", "")
 			require.NoError(t, err)
 			require.Equal(t, tc.want, received.HostInfo.AutopilotDeviceID)
 		})

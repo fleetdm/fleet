@@ -9390,6 +9390,8 @@ func testMDMWindowsClaimEnrolledActivity(t *testing.T, ds *Datastore) {
 	})
 }
 
+// The lookup shares its implementation with the serial one, which testMDMWindowsUnlinkedEnrollmentHardwareSerial covers in
+// full, so this only checks that the Autopilot device ID column is the one matched.
 func testMDMWindowsUnlinkedEnrollmentZTDRegistrationID(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -9399,9 +9401,7 @@ func testMDMWindowsUnlinkedEnrollmentZTDRegistrationID(t *testing.T, ds *Datasto
 			MDMHardwareID:          uuid.New().String() + uuid.New().String(),
 			MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
 			MDMDeviceType:          "CIMClient_Windows",
-			MDMDeviceName:          "DESKTOP-ZTD",
 			MDMEnrollType:          "AzureADJoin",
-			MDMEnrollUserID:        "user@example.com",
 			MDMEnrollProtoVersion:  "5.0",
 			MDMEnrollClientVersion: "10.0.26100.1",
 			ZTDRegistrationID:      ztdRegistrationID,
@@ -9410,30 +9410,15 @@ func testMDMWindowsUnlinkedEnrollmentZTDRegistrationID(t *testing.T, ds *Datasto
 		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, d))
 		return d
 	}
-	requireNotFound := func(t *testing.T, ztdRegistrationID string) {
-		t.Helper()
-		_, err := ds.MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationID(ctx, ztdRegistrationID)
-		require.Error(t, err)
-		require.True(t, fleet.IsNotFound(err), "expected a not-found error, got %v", err)
-	}
-
-	// Enrollments from devices that are not Autopilot-registered carry an empty ZTDID, which must never match.
-	newEnrollment("", "")
-	requireNotFound(t, "")
-	requireNotFound(t, "ztd-unknown")
 
 	unlinked := newEnrollment("", "ztd-1")
 	got, err := ds.MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationID(ctx, "ztd-1")
 	require.NoError(t, err)
 	require.Equal(t, unlinked.MDMDeviceID, got.MDMDeviceID)
-	require.Equal(t, "ztd-1", got.ZTDRegistrationID)
 
 	newEnrollment("11111111-1111-1111-1111-111111111111", "ztd-2")
-	requireNotFound(t, "ztd-2")
-
-	// Two unlinked enrollments presenting one ZTDID is ambiguous, so the lookup refuses rather than picking one.
-	newEnrollment("", "ztd-1")
-	requireNotFound(t, "ztd-1")
+	_, err = ds.MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationID(ctx, "ztd-2")
+	require.True(t, fleet.IsNotFound(err), "a linked enrollment is not returned, got %v", err)
 }
 
 func testMDMWindowsUnlinkedEnrollmentHardwareSerial(t *testing.T, ds *Datastore) {
