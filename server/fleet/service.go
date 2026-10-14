@@ -767,9 +767,9 @@ type Service interface {
 	// service creation when the transport is enabled.
 	SetAgentCheckInNotifier(notifier AgentCheckInNotifier)
 
-	// NewACMEEnrollment creates a new ACME enrollment using the ACME service module. It returns the
-	// ACME identifier for the new enrollment, which is used to track the enrollment process and link it to a host.
-	NewACMEEnrollment(ctx context.Context, hostIdentifier string) (string, error)
+	// NewACMEEnrollment forwards to the ACME service module (see ACMEWriteService). Production wires the module into
+	// the renewal cron directly; integration tests reach it through the Fleet service.
+	NewACMEEnrollment(ctx context.Context, hostIdentifier string, purpose AppleMDMCertPurpose, enrollmentID *string) (string, error)
 
 	// NewActivity creates the given activity on the datastore.
 	//
