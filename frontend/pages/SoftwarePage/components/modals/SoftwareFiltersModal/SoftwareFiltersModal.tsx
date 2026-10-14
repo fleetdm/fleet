@@ -29,6 +29,8 @@ interface ISoftwareFiltersModalProps {
   isPremiumTier: boolean;
   /** Types offered in the picker. The picker is hidden when omitted. */
   availableTypes?: readonly ISoftwareType[];
+  /** Shows the Premium-only "AI tools" toggle. */
+  showAiToolFilter?: boolean;
 }
 
 type IFormData = {
@@ -42,8 +44,12 @@ const SoftwareFiltersModal = ({
   filters,
   isPremiumTier,
   availableTypes,
+  showAiToolFilter = false,
 }: ISoftwareFiltersModalProps) => {
   const [selectedTypes, setSelectedTypes] = useState(filters.types ?? []);
+  const [aiToolFilterEnabled, setAiToolFilterEnabled] = useState(
+    filters.aiTool || false
+  );
   const [vulnSoftwareFilterEnabled, setVulnSoftwareFilterEnabled] = useState(
     filters.vulnerable || false
   );
@@ -135,11 +141,12 @@ const SoftwareFiltersModal = ({
       minCvssScore: min,
       maxCvssScore: max,
       types: selectedTypes,
+      aiTool: aiToolFilterEnabled || undefined,
     });
   };
 
   // Implicit submission clicks the form's first submit-type button, which is
-  // the Vulnerable software Slider (its <button> has no type), so Enter is
+  // a Slider (its <button> has no type), so Enter is
   // handled here instead: ignored in the type search, Apply in score fields.
   const onFormKeyDown = (evt: React.KeyboardEvent<HTMLFormElement>) => {
     const target = evt.target as HTMLInputElement;
@@ -158,6 +165,15 @@ const SoftwareFiltersModal = ({
             availableTypes={availableTypes}
             selectedKeys={selectedTypes}
             onChange={setSelectedTypes}
+          />
+        )}
+        {isPremiumTier && showAiToolFilter && (
+          <Slider
+            value={aiToolFilterEnabled}
+            onChange={() => setAiToolFilterEnabled(!aiToolFilterEnabled)}
+            inactiveText="AI tools"
+            activeText="AI tools"
+            ariaLabel="AI tools"
           />
         )}
         <Slider
