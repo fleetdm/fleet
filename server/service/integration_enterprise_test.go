@@ -15,6 +15,7 @@ import (
 	"image/png"
 	"io"
 	"log/slog"
+	"maps"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -11359,6 +11360,9 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		for i := range got {
 			require.NotZero(t, got[i].ID)
 			got[i].ID = 0
+			require.NotNil(t, got[i].AITool)
+			require.False(t, *got[i].AITool)
+			got[i].AITool = nil
 
 			for j := range got[i].Versions {
 				require.NotZero(t, got[i].Versions[j].ID)
@@ -11400,6 +11404,9 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 			require.NotZero(t, got[i].ID)
 			got[i].CountsUpdatedAt = nil
 			got[i].ID = 0
+			require.NotNil(t, got[i].AITool)
+			require.False(t, *got[i].AITool)
+			got[i].AITool = nil
 
 			for j := range got[i].Versions {
 				require.NotZero(t, got[i].Versions[j].ID)
@@ -37972,4 +37979,184 @@ func (s *integrationEnterpriseTestSuite) TestStagedUploadUnavailable() {
 
 	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{StagedUploadID: uuid.NewString(), Filename: "ruby.deb"},
 		http.StatusBadRequest, "Direct upload isn't available")
+}
+
+func (s *integrationEnterpriseTestSuite) TestAIToolFilter() {
+	t := s.T()
+	ctx := t.Context()
+
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	newHost := func(name string) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   new(t.Name() + name),
+			NodeKey:         new(t.Name() + name),
+			UUID:            uuid.New().String(),
+			Hostname:        t.Name() + name + ".local",
+			Platform:        "darwin",
+		})
+		require.NoError(t, err)
+		return h
+	}
+	teamHost := newHost("team")
+	noTeamHost := newHost("noteam")
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{teamHost.ID})))
+
+	_, err = s.ds.UpdateHostSoftware(ctx, teamHost.ID, []fleet.Software{
+		{Name: "AIToolClaude", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.aitoolclaude", AITool: new(true)},
+		{Name: "AIToolSlack", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.aitoolslack"},
+		{Name: "aitool-codex", Version: "1.0", Source: "ai_clis", AITool: new(true)},
+	})
+	require.NoError(t, err)
+	_, err = s.ds.UpdateHostSoftware(ctx, noTeamHost.ID, []fleet.Software{
+		{Name: "AIToolSlack", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.aitoolslack"},
+		{Name: "aitool-github", Version: "0.1", Source: "mcp_servers", AITool: new(true)},
+	})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+	token := "ai_tool_premium_token"
+	createDeviceTokenForHost(t, s.ds, teamHost.ID, token)
+
+	// flag returns an item's ai_tool, which Premium sets on every item.
+	flag := func(name string, aiTool *bool) bool {
+		require.NotNil(t, aiTool, "ai_tool missing on %q", name)
+		return *aiTool
+	}
+
+	// Restrict the cross-host lists to this test's software, which all match "aitool".
+	listTitles := func(params ...string) (map[string]bool, int) {
+		var resp listSoftwareTitlesResponse
+		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &resp, append(params, "query", "aitool")...)
+		got := make(map[string]bool, len(resp.SoftwareTitles))
+		for _, title := range resp.SoftwareTitles {
+			got[title.Name] = flag(title.Name, title.AITool)
+		}
+		return got, resp.Count
+	}
+	listVersions := func(params ...string) (map[string]bool, int) {
+		var resp listSoftwareVersionsResponse
+		s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &resp, append(params, "query", "aitool")...)
+		var countResp countSoftwareResponse
+		s.DoJSON("GET", "/api/latest/fleet/software/count", nil, http.StatusOK, &countResp, append(params, "query", "aitool")...)
+		require.Equal(t, resp.Count, countResp.Count)
+		got := make(map[string]bool, len(resp.Software))
+		for _, sw := range resp.Software {
+			got[sw.Name] = flag(sw.Name, sw.AITool)
+		}
+		return got, resp.Count
+	}
+	hostSoftware := func(sw []*fleet.HostSoftwareWithInstaller) map[string]bool {
+		got := make(map[string]bool, len(sw))
+		for _, s := range sw {
+			got[s.Name] = flag(s.Name, s.AITool)
+		}
+		return got
+	}
+	listHostSoftware := func(params ...string) (map[string]bool, int) {
+		var resp getHostSoftwareResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", teamHost.ID), nil, http.StatusOK, &resp, params...)
+		return hostSoftware(resp.Software), resp.Count
+	}
+	listDeviceSoftware := func(params ...string) (map[string]bool, int) {
+		var resp getDeviceSoftwareResponse
+		res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK, params...)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&resp))
+		require.NoError(t, res.Body.Close())
+		return hostSoftware(resp.Software), resp.Count
+	}
+
+	allFlags := map[string]bool{"AIToolClaude": true, "AIToolSlack": false, "aitool-codex": true, "aitool-github": true}
+	teamHostFlags := map[string]bool{"AIToolClaude": true, "AIToolSlack": false, "aitool-codex": true}
+	for _, c := range []struct {
+		name string
+		list func(params ...string) (map[string]bool, int)
+		all  map[string]bool
+	}{
+		{"titles", listTitles, allFlags},
+		{"versions", listVersions, allFlags},
+		{"host", listHostSoftware, teamHostFlags},
+		{"device", listDeviceSoftware, teamHostFlags},
+	} {
+		got, count := c.list()
+		require.Equal(t, c.all, got, c.name)
+		require.Equal(t, len(c.all), count, c.name)
+
+		want := make(map[string]bool)
+		for name, aiTool := range c.all {
+			if aiTool {
+				want[name] = true
+			}
+		}
+		got, count = c.list("ai_tool", "true")
+		require.Equal(t, want, got, c.name)
+		require.Equal(t, len(want), count, c.name)
+
+		got, count = c.list("ai_tool", "true", "source", "apps")
+		require.Equal(t, map[string]bool{"AIToolClaude": true}, got, c.name)
+		require.Equal(t, 1, count, c.name)
+
+		// Paging through the filtered list returns every match once.
+		paged := make(map[string]bool)
+		for page := 0; page < len(want); page++ {
+			got, count = c.list("ai_tool", "true", "per_page", "1", "page", strconv.Itoa(page), "order_key", "name")
+			require.Len(t, got, 1, c.name)
+			require.Equal(t, len(want), count, c.name)
+			maps.Copy(paged, got)
+		}
+		require.Equal(t, want, paged, c.name)
+
+		for _, source := range []string{"mcp_servers", "ai_clis", "ai_skills", "apps,mcp_servers"} {
+			c.list("source", source)
+		}
+	}
+
+	got, count := listTitles("ai_tool", "true", "team_id", fmt.Sprint(tm.ID))
+	require.Equal(t, map[string]bool{"AIToolClaude": true, "aitool-codex": true}, got)
+	require.Equal(t, 2, count)
+	got, count = listVersions("ai_tool", "true", "team_id", fmt.Sprint(tm.ID))
+	require.Equal(t, map[string]bool{"AIToolClaude": true, "aitool-codex": true}, got)
+	require.Equal(t, 2, count)
+
+	res := s.Do("GET", "/api/latest/fleet/software/titles", nil, http.StatusUnprocessableEntity, "source", "ai_tool")
+	require.Contains(t, extractServerErrorText(res.Body), fmt.Sprintf(fleet.InvalidSoftwareSourceErrMsg, "ai_tool"))
+
+	// By-id endpoints and host details carry the flag too.
+	var titlesResp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &titlesResp, "query", "aitool")
+	for _, listed := range titlesResp.SoftwareTitles {
+		var titleResp getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", listed.ID), nil, http.StatusOK, &titleResp)
+		require.Equal(t, flag(listed.Name, listed.AITool), flag(listed.Name, titleResp.SoftwareTitle.AITool), listed.Name)
+	}
+	var versionsResp listSoftwareVersionsResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versionsResp, "query", "aitool")
+	for _, listed := range versionsResp.Software {
+		var versionResp getSoftwareResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", listed.ID), nil, http.StatusOK, &versionResp)
+		require.Equal(t, flag(listed.Name, listed.AITool), flag(listed.Name, versionResp.Software.AITool), listed.Name)
+	}
+	teamHostAITool := make(map[string]*bool, len(teamHostFlags))
+	for name, aiTool := range teamHostFlags {
+		teamHostAITool[name] = &aiTool
+	}
+	get := func(path string, params ...string) *http.Response {
+		return s.Do("GET", path, nil, http.StatusOK, params...)
+	}
+	require.Equal(t, teamHostAITool, aiToolByName(t, get(fmt.Sprintf("/api/latest/fleet/hosts/%d", teamHost.ID)), "host", "software"))
+	require.Equal(t, teamHostAITool, aiToolByName(t, get("/api/latest/fleet/hosts/identifier/"+teamHost.UUID), "host", "software"))
+	require.Equal(t, teamHostAITool, aiToolByName(t,
+		s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK), "host", "software"))
+	var hostsResp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hostsResp, "populate_software", "true", "query", teamHost.Hostname)
+	require.Len(t, hostsResp.Hosts, 1)
+	populated := make(map[string]bool, len(hostsResp.Hosts[0].Software))
+	for _, sw := range hostsResp.Hosts[0].Software {
+		populated[sw.Name] = flag(sw.Name, sw.AITool)
+	}
+	require.Equal(t, teamHostFlags, populated)
 }

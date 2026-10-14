@@ -108,7 +108,8 @@ type Software struct {
 	ExtensionFor string `json:"extension_for" db:"extension_for"`
 	// AITool is true when fleetd's ai_tools table reported this software. It is not part of the
 	// software's identity (ToUniqueStr, ComputeRawChecksum), so the flag can be set on an existing row.
-	AITool bool `json:"ai_tool" db:"ai_tool"`
+	// It's a Premium field: the service clears it on Free so it's omitted from responses.
+	AITool *bool `json:"ai_tool,omitempty" db:"ai_tool"`
 	// Browser is the browser type this extension is for (deprecated, use extension_for instead)
 	Browser string `json:"browser"`
 
@@ -528,6 +529,9 @@ type SoftwareTitle struct {
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 	// DisplayName is an end-user friendly name.
 	DisplayName string `json:"display_name" db:"display_name"`
+	// AITool is true when any software row of this title is flagged as an AI tool. It's a Premium
+	// field: the service clears it on Free so it's omitted from responses.
+	AITool *bool `json:"ai_tool,omitempty" db:"-"`
 	SoftwareAutoUpdateConfig
 }
 
@@ -616,6 +620,9 @@ type SoftwareTitleListResult struct {
 	// https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 	DisplayName string  `json:"display_name" db:"display_name"`
+	// AITool is true when any software row of this title is flagged as an AI tool. It's a Premium
+	// field: the service clears it on Free so it's omitted from responses.
+	AITool *bool `json:"ai_tool,omitempty" db:"-"`
 	SoftwareAutoUpdateConfig
 }
 
@@ -730,6 +737,7 @@ type SoftwareTitleListOptions struct {
 	PackageName         string  `query:"package_name,optional"`
 	Source              string  `query:"source,optional"`
 	ExtensionFor        string  `query:"extension_for,optional"`
+	AITool              bool    `query:"ai_tool,optional"`
 
 	// TypeFilter is the validated form of Source and ExtensionFor, set by the service layer.
 	TypeFilter SoftwareTypeFilter
@@ -773,6 +781,7 @@ type HostSoftwareTitleListOptions struct {
 
 	Source       string `query:"source,optional"`
 	ExtensionFor string `query:"extension_for,optional"`
+	AITool       bool   `query:"ai_tool,optional"`
 
 	// TypeFilter is the validated form of Source and ExtensionFor, set by the service layer.
 	TypeFilter SoftwareTypeFilter
@@ -883,6 +892,7 @@ type SoftwareListOptions struct {
 	MaximumCVSS                 float64 `query:"max_cvss_score,optional"`
 	Source                      string  `query:"source,optional"`
 	ExtensionFor                string  `query:"extension_for,optional"`
+	AITool                      bool    `query:"ai_tool,optional"`
 
 	// TypeFilter is the validated form of Source and ExtensionFor, set by the service layer.
 	TypeFilter SoftwareTypeFilter

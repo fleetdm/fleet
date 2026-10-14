@@ -2212,9 +2212,9 @@ func TestDirectIngestSoftware(t *testing.T) {
 
 		require.NoError(t, directIngestSoftware(ctx, logger, &host, ds, data))
 		require.Len(t, ingested, 3)
-		require.True(t, ingested[0].AITool)
-		require.False(t, ingested[1].AITool)
-		require.True(t, ingested[2].AITool)
+		require.True(t, ptr.ValOrZero(ingested[0].AITool))
+		require.False(t, ptr.ValOrZero(ingested[1].AITool))
+		require.True(t, ptr.ValOrZero(ingested[2].AITool))
 		require.True(t, ds.MarkSoftwareAsAIToolFuncInvoked)
 		require.Equal(t, []fleet.Software{ingested[0], ingested[2]}, marked)
 		first := ingested
@@ -2226,7 +2226,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 
 		// Software the host already reports flagged needs no lookup.
 		flaggedClaude, unflaggedGithub := first[0], first[2]
-		unflaggedGithub.AITool = false
+		unflaggedGithub.AITool = nil
 		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
 			return &fleet.UpdateHostSoftwareDBResult{WasCurrInstalled: []fleet.Software{flaggedClaude, first[1], unflaggedGithub}}, nil
 		}

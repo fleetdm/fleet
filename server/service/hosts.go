@@ -500,6 +500,9 @@ func (svc *Service) StreamHosts(ctx context.Context, opt fleet.HostListOptions) 
 						yield(nil, ctxerr.Wrapf(ctx, err, "get software vulnerability details for host %d", host.ID))
 						return
 					}
+					if !premiumLicense {
+						omitHostSoftwareAITool(host.HostSoftware.Software)
+					}
 				}
 
 				if opt.PopulatePolicies {
@@ -1843,10 +1846,21 @@ func (svc *Service) verifyMDMConfiguredAndConnected(ctx context.Context, host *f
 	return nil
 }
 
+// omitHostSoftwareAITool clears the ai_tool field, which is Fleet Premium, so it's omitted on Free.
+// That also hides software flagged before a downgrade, since the flag is never reset in the database.
+func omitHostSoftwareAITool(software []fleet.HostSoftwareEntry) {
+	for i := range software {
+		software[i].AITool = nil
+	}
+}
+
 func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
 	if !opts.ExcludeSoftware {
 		if err := svc.ds.LoadHostSoftware(ctx, host, opts.IncludeCVEScores); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "load host software")
+		}
+		if !license.IsPremium(ctx) {
+			omitHostSoftwareAITool(host.HostSoftware.Software)
 		}
 	}
 
@@ -4810,11 +4824,11 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 		host = h
 	}
 
-	// Vulnerability severity filters (CVSS score, known exploit) are a Fleet Premium feature.
+	// Vulnerability severity filters (CVSS score, known exploit) and the AI tools filter are Fleet Premium features.
 	// This applies to both the user-authenticated host software endpoint and the
 	// device-authenticated "My device" software endpoint. The vulnerable=true requirement for
-	// these filters is enforced in the datastore.
-	if opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0 || opts.KnownExploit {
+	// the severity filters is enforced in the datastore.
+	if opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0 || opts.KnownExploit || opts.AITool {
 		if !license.IsPremium(ctx) {
 			return nil, nil, fleet.ErrMissingLicense
 		}
@@ -4847,6 +4861,11 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 	software, meta, err := svc.ds.ListHostSoftware(ctx, host, opts)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "list host software")
+	}
+	if !license.IsPremium(ctx) {
+		for _, s := range software {
+			s.AITool = nil
+		}
 	}
 
 	if len(software) > 0 {
