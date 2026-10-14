@@ -7492,13 +7492,6 @@
       "description": "RightFont is a font manager that helps preview, install, sync and manage fonts."
     },
     {
-      "name": "RingCentral",
-      "slug": "ringcentral/windows",
-      "platform": "windows",
-      "unique_identifier": "RingCentral",
-      "description": "RingCentral is an app for business phone calls, messaging, and video meetings."
-    },
-    {
       "name": "Rive",
       "slug": "rive/darwin",
       "platform": "darwin",
