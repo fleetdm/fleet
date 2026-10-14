@@ -8,13 +8,13 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261012131507, Down_20261012131507)
+	MigrationClient.AddMigration(Up_20261014074522, Down_20261014074522)
 }
 
 // Up_20261012131507 cancels every pending Apple MDM certificate renewal, like ResetPendingCertRenewals, so none
 // stays outstanding with a static SCEP challenge. The renewal cron re-sends them with per-host challenges, and ACME
 // renewals as acme_renewal enrollments.
-func Up_20261012131507(tx *sql.Tx) error {
+func Up_20261014074522(tx *sql.Tx) error {
 	// a renewal command is shared by up to ~100 associations, so batch by distinct command
 	const batchSize = 100
 	for {
@@ -59,6 +59,6 @@ func Up_20261012131507(tx *sql.Tx) error {
 	}
 }
 
-func Down_20261012131507(tx *sql.Tx) error {
+func Down_20261014074522(tx *sql.Tx) error {
 	return nil
 }
