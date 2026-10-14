@@ -910,13 +910,12 @@ func testIngestAdoptsHostsThroughMDMEnrollment(t *testing.T, ds *Datastore) {
 	assert.Equal(t, sharedIdentified.ID, stored[ztdShared].HostID, "the exact match wins over the serial order")
 	assert.Equal(t, sharedOther.ID, stored["ap-shared-other"].HostID, "the other device on the serial takes the remaining host")
 
-	t.Run("a host another Autopilot record claims is not adopted", func(t *testing.T) {
-		// The NucBox's host is claimed now; a second registration presenting its Entra device ID gets a pending host instead.
-		require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{
-			withEntraID(autopilotDeviceWithID("ap-reregistered", "Default string", ""), entraNucBox),
-		}))
-		assert.NotEqual(t, nucBox.ID, autopilotDevicesByDeviceID(t, ds, testTenantA)["ap-reregistered"].HostID)
-	})
+	// The NucBox's host is claimed now, so a second registration presenting its Entra device ID gets a pending host instead.
+	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{
+		withEntraID(autopilotDeviceWithID("ap-reregistered", "Default string", ""), entraNucBox),
+	}))
+	assert.NotEqual(t, nucBox.ID, autopilotDevicesByDeviceID(t, ds, testTenantA)["ap-reregistered"].HostID,
+		"a host another Autopilot record claims is not adopted")
 }
 
 // A pending Autopilot host must be reused when the device actually enrolls, rather than a second host being created.
@@ -1029,6 +1028,7 @@ func testOrbitEnrollMatchesPendingAutopilotHostByDeviceID(t *testing.T, ds *Data
 	})
 
 	t.Run("the hardware UUID wins over the Autopilot device ID", func(t *testing.T) {
+		// This should not happen in practice. We leave the Autopilot pending host as is in case this was a host takeover attempt.
 		require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{
 			autopilotDeviceWithID("ap-reenroll", "Default string", ""),
 		}))
@@ -1042,6 +1042,7 @@ func testOrbitEnrollMatchesPendingAutopilotHostByDeviceID(t *testing.T, ds *Data
 	})
 
 	t.Run("a device whose Autopilot device ID is not synced yet does not take a host by serial", func(t *testing.T) {
+		// Edge case where an Autopilot device has a device ID but Fleet doesn't have it.
 		require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{
 			autopilotDeviceWithID("ap-synced", "UNSYNCED-SERIAL", ""),
 		}))
