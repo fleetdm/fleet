@@ -2509,6 +2509,17 @@ func (svc *Service) clearPasscodeApple(ctx context.Context, host *fleet.Host, ap
 		})
 	}
 
+	// The unlock token survives unenrollment, so it can't stand in for this check.
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
+	}
+	if !connected {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "Can't clear passcode for the host because it doesn't have MDM turned on.",
+		})
+	}
+
 	mdmData, err := svc.ds.GetHostMDM(ctx, host.ID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host MDM data")
