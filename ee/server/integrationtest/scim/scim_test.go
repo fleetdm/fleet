@@ -1292,8 +1292,10 @@ func testHostIdPAssociationAndRename(t *testing.T, s *Suite) {
 		Fullname: "SCIM Multi",
 		Email:    userName,
 	}))
-	require.NoError(t, s.DS.AssociateHostMDMIdPAccount(ctx, host1.UUID, idpUUID))
-	require.NoError(t, s.DS.AssociateHostMDMIdPAccount(ctx, host2.UUID, idpUUID))
+	_, err := s.DS.AssociateHostMDMIdPAccount(ctx, host1.UUID, idpUUID)
+	require.NoError(t, err)
+	_, err = s.DS.AssociateHostMDMIdPAccount(ctx, host2.UUID, idpUUID)
+	require.NoError(t, err)
 
 	// Provision the user through the SCIM API, as an IdP would.
 	createPayload := map[string]any{

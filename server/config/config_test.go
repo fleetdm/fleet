@@ -1401,6 +1401,33 @@ func TestOsqueryConfigInMemoryCacheDefault(t *testing.T) {
 	require.True(t, man.LoadConfig().Osquery.ConfigInMemoryCache)
 }
 
+func TestOsqueryQueryReportConcurrencyLimits(t *testing.T) {
+	load := func(yaml string) OsqueryConfig {
+		var cmd cobra.Command
+		cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+		man := NewManager(&cmd)
+		man.viper.SetConfigType("yaml")
+		require.NoError(t, man.viper.ReadConfig(strings.NewReader(yaml)))
+		return man.LoadConfig().Osquery
+	}
+
+	testutils.SaveEnv(t)
+	os.Clearenv()
+	cfg := load("")
+	require.Equal(t, 40, cfg.MaxConcurrentQueryReportReads)
+	require.Equal(t, 20, cfg.MaxConcurrentQueryReportWrites)
+
+	cfg = load("osquery:\n  max_concurrent_query_report_reads: 80\n  max_concurrent_query_report_writes: 0\n")
+	require.Equal(t, 80, cfg.MaxConcurrentQueryReportReads)
+	require.Zero(t, cfg.MaxConcurrentQueryReportWrites)
+
+	t.Setenv("FLEET_OSQUERY_MAX_CONCURRENT_QUERY_REPORT_READS", "5")
+	t.Setenv("FLEET_OSQUERY_MAX_CONCURRENT_QUERY_REPORT_WRITES", "7")
+	cfg = load("")
+	require.Equal(t, 5, cfg.MaxConcurrentQueryReportReads)
+	require.Equal(t, 7, cfg.MaxConcurrentQueryReportWrites)
+}
+
 func TestOsqueryConfigValidate(t *testing.T) {
 	t.Parallel()
 
@@ -1565,6 +1592,28 @@ func TestValidateWebSocketConfig(t *testing.T) {
 			called := false
 			cfg.Validate(func(err error, msg string) { called = true })
 			require.True(t, called)
+		})
+	}
+}
+
+func TestSoftwareInstallersSignedURLKeys(t *testing.T) {
+	for _, c := range []struct {
+		env  string
+		want bool
+	}{
+		{"", false},
+		{"FLEET_S3_SOFTWARE_INSTALLERS_GCS_SIGNED_URL", true},
+		{"FLEET_S3_SOFTWARE_INSTALLERS_SIGNED_URL", true},
+	} {
+		t.Run(c.env, func(t *testing.T) {
+			testutils.SaveEnv(t)
+			os.Clearenv()
+			if c.env != "" {
+				t.Setenv(c.env, "true")
+			}
+			cmd := &cobra.Command{}
+			cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+			require.Equal(t, c.want, NewManager(cmd).LoadConfig().S3.SoftwareInstallersSignedURL)
 		})
 	}
 }

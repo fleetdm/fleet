@@ -1094,23 +1094,25 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 
 	// Get app store app installer label usage
 	for _, vppApp := range config.Software.AppStoreApps {
-		var labels []string
-		if len(vppApp.LabelsIncludeAny) > 0 {
-			labels = vppApp.LabelsIncludeAny
-		}
-		if len(vppApp.LabelsExcludeAny) > 0 {
-			if len(labels) > 0 {
-				return nil, fmt.Errorf("App Store App '%s' has multiple label keys; please choose one of `labels_include_all`, `labels_include_any`, `labels_exclude_any`.", vppApp.AppStoreID)
+		for _, version := range vppApp.ListVersions() {
+			var labels []string
+			if len(version.LabelsIncludeAny) > 0 {
+				labels = version.LabelsIncludeAny
 			}
-			labels = vppApp.LabelsExcludeAny
-		}
-		if len(vppApp.LabelsIncludeAll) > 0 {
-			if len(labels) > 0 {
-				return nil, fmt.Errorf("App Store App '%s' has multiple label keys; please choose one of `labels_include_all`, `labels_include_any`, `labels_exclude_any`.", vppApp.AppStoreID)
+			if len(version.LabelsExcludeAny) > 0 {
+				if len(labels) > 0 {
+					return nil, fmt.Errorf("App Store App '%s' has multiple label keys; please choose one of `labels_include_all`, `labels_include_any`, `labels_exclude_any`.", vppApp.AppStoreID)
+				}
+				labels = version.LabelsExcludeAny
 			}
-			labels = vppApp.LabelsIncludeAll
+			if len(version.LabelsIncludeAll) > 0 {
+				if len(labels) > 0 {
+					return nil, fmt.Errorf("App Store App '%s' has multiple label keys; please choose one of `labels_include_all`, `labels_include_any`, `labels_exclude_any`.", vppApp.AppStoreID)
+				}
+				labels = version.LabelsIncludeAll
+			}
+			updateLabelUsage(labels, vppApp.AppStoreID, "App Store App", result)
 		}
-		updateLabelUsage(labels, vppApp.AppStoreID, "App Store App", result)
 	}
 
 	for _, maintainedApp := range config.Software.FleetMaintainedApps {

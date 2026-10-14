@@ -3187,13 +3187,18 @@ func testTriggerResendCertTemplatesAndAppConfigs(t *testing.T, ds *Datastore) {
 		_, err := q.ExecContext(ctx, `INSERT INTO vpp_apps (adam_id, platform) VALUES (?, 'android')`, appID)
 		return err
 	})
+	var appTeamID int64
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id) VALUES (?, 'android', 0)`, appID)
+		res, err := q.ExecContext(ctx, `INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id, name) VALUES (?, 'android', 0, 'Default version')`, appID)
+		if err != nil {
+			return err
+		}
+		appTeamID, err = res.LastInsertId()
 		return err
 	})
 
 	config := []byte(`{"managedConfiguration":{"user":"$FLEET_VAR_HOST_END_USER_IDP_USERNAME"}}`)
-	err = ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), 0, appID, config)
+	err = ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), uint(appTeamID), config) //nolint:gosec // dismiss G115
 	require.NoError(t, err)
 
 	// Assign a SCIM user to the host.
@@ -3274,7 +3279,8 @@ func newScimIdPMappingHost(t *testing.T, ds *Datastore, suffix, acctUsername, ac
 
 	host := newScimIdPMappingHostOnly(t, ds, suffix)
 	acct := insertScimIdPAccount(t, ds, acctUsername, acctEmail)
-	require.NoError(t, ds.AssociateHostMDMIdPAccount(ctx, host.UUID, acct.UUID))
+	_, err := ds.AssociateHostMDMIdPAccount(ctx, host.UUID, acct.UUID)
+	require.NoError(t, err)
 
 	scimUserID, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: scimUserName})
 	require.NoError(t, err)
@@ -3388,7 +3394,8 @@ func testReplaceScimUserRenameUpdatesHostIdPMapping(t *testing.T, ds *Datastore)
 		requireHostIdPDeviceMapping(t, ds, fx.host.ID, newName)
 
 		// simulates the reconcile that runs on MDM authenticate
-		require.NoError(t, ds.AssociateHostMDMIdPAccount(ctx, fx.host.UUID, fx.acct.UUID))
+		_, err = ds.AssociateHostMDMIdPAccount(ctx, fx.host.UUID, fx.acct.UUID)
+		require.NoError(t, err)
 		requireHostIdPDeviceMapping(t, ds, fx.host.ID, newName)
 	})
 
@@ -3438,14 +3445,15 @@ func testReplaceScimUserRenameUpdatesHostIdPMapping(t *testing.T, ds *Datastore)
 		fx := newScimIdPMappingHost(t, ds, "shared1", "jdoe", oldName, oldName)
 
 		host2 := newScimIdPMappingHostOnly(t, ds, "shared2")
-		require.NoError(t, ds.AssociateHostMDMIdPAccount(ctx, host2.UUID, fx.acct.UUID))
+		_, err := ds.AssociateHostMDMIdPAccount(ctx, host2.UUID, fx.acct.UUID)
+		require.NoError(t, err)
 		requireHostIdPDeviceMapping(t, ds, host2.ID, oldName)
 		require.NoError(t, ds.associateHostWithScimUser(ctx, host2.ID, fx.scimUserID))
 
 		const otherName = "frank@example.com"
 		other := newScimIdPMappingHost(t, ds, "shared3", "frank", otherName, otherName)
 
-		_, err := ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: fx.scimUserID, UserName: newName})
+		_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: fx.scimUserID, UserName: newName})
 		require.NoError(t, err)
 
 		requireHostIdPDeviceMapping(t, ds, fx.host.ID, newName)
@@ -3491,7 +3499,8 @@ func testReplaceScimUserRenameUpdatesHostIdPMapping(t *testing.T, ds *Datastore)
 		const bobOld, bobNew = "bob@example.com", "robert@example.com"
 		alice := newScimIdPMappingHost(t, ds, "reassign1", "alice.r", aliceName, aliceName)
 		host2 := newScimIdPMappingHostOnly(t, ds, "reassign2")
-		require.NoError(t, ds.AssociateHostMDMIdPAccount(ctx, host2.UUID, alice.acct.UUID))
+		_, err := ds.AssociateHostMDMIdPAccount(ctx, host2.UUID, alice.acct.UUID)
+		require.NoError(t, err)
 		requireHostIdPDeviceMapping(t, ds, host2.ID, aliceName)
 
 		bobID, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: bobOld})
@@ -3684,7 +3693,8 @@ func testReplaceScimUserRenameResendsEmailIdPProfiles(t *testing.T, ds *Datastor
 	const sharedOld, sharedNew = "mia@example.com", "mia.chen@example.com"
 	shared := newScimIdPMappingHost(t, ds, "resendshared", "mia", sharedOld, sharedOld)
 	unlinked := newScimIdPMappingHostOnly(t, ds, "resendunlinked")
-	require.NoError(t, ds.AssociateHostMDMIdPAccount(ctx, unlinked.UUID, shared.acct.UUID))
+	_, err = ds.AssociateHostMDMIdPAccount(ctx, unlinked.UUID, shared.acct.UUID)
+	require.NoError(t, err)
 	requireHostIdPDeviceMapping(t, ds, unlinked.ID, sharedOld)
 	_, err = ds.ScimUserByHostID(ctx, unlinked.ID)
 	require.True(t, fleet.IsNotFound(err))
@@ -3709,7 +3719,8 @@ func testReplaceScimUserRenameResendsEmailIdPProfiles(t *testing.T, ds *Datastor
 	dual := newScimIdPMappingHost(t, ds, "resenddualold", "opal", dualOld, dualOld)
 	dualNewHost := newScimIdPMappingHostOnly(t, ds, "resenddualnew")
 	dualNewAcct := insertScimIdPAccount(t, ds, "opal.vance", dualNew)
-	require.NoError(t, ds.AssociateHostMDMIdPAccount(ctx, dualNewHost.UUID, dualNewAcct.UUID))
+	_, err = ds.AssociateHostMDMIdPAccount(ctx, dualNewHost.UUID, dualNewAcct.UUID)
+	require.NoError(t, err)
 	requireHostIdPDeviceMapping(t, ds, dualNewHost.ID, dualNew)
 	require.NoError(t, ds.associateHostWithScimUser(ctx, dualNewHost.ID, dual.scimUserID))
 	forceSetAppleHostProfileStatus(t, ds, dual.host.UUID, profEmail, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)

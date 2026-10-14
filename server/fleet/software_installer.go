@@ -673,6 +673,7 @@ type UploadSoftwareInstallerPayload struct {
 	PreInstallQuery      string
 	PostInstallScript    string
 	InstallerFile        *TempFileReader // TODO: maybe pull this out of the payload and only pass it to methods that need it (e.g., won't be needed when storing metadata in the database)
+	StagedUploadID       string          // when set, InstallerFile is read from this staged upload
 	StorageID            string
 	Filename             string
 	Title                string
@@ -789,6 +790,7 @@ type ExistingSoftwareInstaller struct {
 	BundleIdentifier       *string `db:"bundle_identifier"`
 	Title                  string  `db:"title"`
 	PackageIDList          string  `db:"package_ids"`
+	UpgradeCode            string  `db:"upgrade_code"`
 	PackageIDs             []string
 	StorageID              string  `db:"storage_id"`
 	HTTPETag               *string `db:"http_etag"`
@@ -804,6 +806,8 @@ type UpdateSoftwareInstallerPayload struct {
 	UserID uint
 	// optional; used for pulling metadata + persisting new installer package to file system
 	InstallerFile *TempFileReader
+	// when set, InstallerFile is read from this staged upload
+	StagedUploadID string
 	// update the installer with these fields (*not* PATCH semantics at that point; while the
 	// associated endpoint is a PATCH, the entire row will be updated to these values, including
 	// blanks, so make sure they're set from either user input or the existing installer row
@@ -970,7 +974,7 @@ type HostSoftwareWithInstaller struct {
 	AppStoreApp *SoftwarePackageOrApp `json:"app_store_app"`
 
 	// SoftwareAutoUpdateConfig carries VPP auto-update fields (enabled + window).
-	// Populated post-pagination from software_update_schedules keyed on the host's
+	// Populated post-pagination from vpp_apps_teams keyed on the host's
 	// team + title ID. Nil for hosts with no team (matches list-titles semantics).
 	SoftwareAutoUpdateConfig
 }
@@ -1022,6 +1026,10 @@ type PatchPolicyData struct {
 type SoftwarePackageOrApp struct {
 	// AppStoreID is only present for VPP apps.
 	AppStoreID string `json:"app_store_id,omitempty"`
+	// VersionID is only present for VPP apps.
+	VersionID uint `json:"version_id,omitempty"`
+	// VersionName is only present for VPP apps with more than one version.
+	VersionName string `json:"version_name,omitempty"`
 	// Name is only present for software installer packages.
 	Name string `json:"name,omitempty"`
 	// AutomaticInstallPolicies is present for Fleet maintained apps and custom packages
@@ -1475,14 +1483,18 @@ type HostSoftwareInstallOptions struct {
 	// release cron activates it within the configured per-minute budget. Set
 	// by policy-automation paths when activity.fleet_initiated_release_per_minute > 0.
 	DeferActivation bool
+	// VPPAppTeamID is the vpp_apps_teams row an App Store app install is for.
+	VPPAppTeamID uint
+	// ForConfigurationResend means the install request re-sends an iOS/iPadOS App Store app configuration, which means it was Fleet-initiated.
+	ForConfigurationResend bool
 }
 
 // IsFleetInitiated returns true if the software install is initiated by Fleet.
-// Software installs initiated via a policy, scheduled updates or setup
-// experience are fleet-initiated (and we also make sure SelfService is false,
-// as this case is always user-initiated).
+// Software installs initiated via a policy, scheduled updates, configuration
+// re-sends or setup experience are fleet-initiated (and we also make sure
+// SelfService is false, as this case is always user-initiated).
 func (o HostSoftwareInstallOptions) IsFleetInitiated() bool {
-	return !o.SelfService && (o.PolicyID != nil || o.ForScheduledUpdates || o.ForSetupExperience)
+	return !o.SelfService && (o.PolicyID != nil || o.ForScheduledUpdates || o.ForConfigurationResend || o.ForSetupExperience)
 }
 
 // Priority returns the upcoming activities queue priority to use for this

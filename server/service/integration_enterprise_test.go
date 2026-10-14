@@ -6134,6 +6134,146 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotCreateUserInOtherTea
 	require.NotNil(t, resp.User)
 }
 
+func (s *integrationEnterpriseTestSuite) TestTeamAdminCannotEscalateViaEmptyGlobalRole() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	otherTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_other"})
+	require.NoError(t, err)
+	defer func() {
+		s.token = s.getTestAdminToken()
+		require.NoError(t, s.ds.DeleteTeam(ctx, team.ID))
+		require.NoError(t, s.ds.DeleteTeam(ctx, otherTeam.ID))
+	}()
+	otherTeamLabel, err := s.ds.NewLabel(ctx, &fleet.Label{
+		Name:                t.Name() + "_other_label",
+		Query:               "SELECT 1",
+		TeamID:              &otherTeam.ID,
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+
+	teamAdminEmail := t.Name() + "_team_admin@example.com"
+	teamAdmin := &fleet.User{
+		Name:  teamAdminEmail,
+		Email: teamAdminEmail,
+		Teams: []fleet.UserTeam{{Team: *team, Role: fleet.RoleAdmin}},
+	}
+	require.NoError(t, teamAdmin.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(ctx, teamAdmin)
+	require.NoError(t, err)
+
+	s.token = s.getTestToken(teamAdmin.Email, test.GoodPassword)
+
+	var createResp createUserResponse
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", map[string]any{
+		"name":                        "svc",
+		"email":                       t.Name() + "_svc@example.com",
+		"password":                    test.GoodPassword,
+		"global_role":                 "",
+		"teams":                       []map[string]any{{"id": team.ID, "role": fleet.RoleAdmin}},
+		"api_only":                    true,
+		"admin_forced_password_reset": false,
+	}, http.StatusUnprocessableEntity, &createResp)
+	_, err = s.ds.UserByEmail(ctx, t.Name()+"_svc@example.com")
+	require.True(t, fleet.IsNotFound(err))
+
+	createResp = createUserResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
+		"name":        t.Name() + "_svc_api",
+		"global_role": "",
+		"fleets":      []map[string]any{{"id": team.ID, "role": fleet.RoleAdmin}},
+	}, http.StatusUnprocessableEntity, &createResp)
+	require.Nil(t, createResp.User)
+	require.Empty(t, createResp.Token)
+
+	var selfModResp modifyUserResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", teamAdmin.ID), map[string]any{
+		"global_role": "",
+		"teams":       []map[string]any{{"id": team.ID, "role": fleet.RoleAdmin}},
+	}, http.StatusUnprocessableEntity, &selfModResp)
+
+	plantedEmail := t.Name() + "_planted@example.com"
+	planted := &fleet.User{
+		Name:  plantedEmail,
+		Email: plantedEmail,
+		Teams: []fleet.UserTeam{{Team: *team, Role: fleet.RoleAdmin}},
+	}
+	require.NoError(t, planted.SetPassword(test.GoodPassword, 10, 10))
+	planted, err = s.ds.NewUser(ctx, planted)
+	require.NoError(t, err)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE users SET global_role = '' WHERE id = ?`, planted.ID)
+		return err
+	})
+
+	s.token = s.getTestToken(planted.Email, test.GoodPassword)
+
+	var labelsResp fleet.ListLabelsResponse
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusForbidden, &labelsResp, "team_id", fmt.Sprint(otherTeam.ID))
+	labelsResp = fleet.ListLabelsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &labelsResp)
+	for _, lbl := range labelsResp.Labels {
+		require.NotEqual(t, otherTeamLabel.ID, lbl.ID)
+	}
+
+	var meResp getUserResponse
+	s.DoJSON("GET", "/api/latest/fleet/me", nil, http.StatusOK, &meResp)
+	require.Len(t, meResp.AvailableTeams, 1)
+	require.Equal(t, team.ID, meResp.AvailableTeams[0].ID)
+
+	globalAdminEmail := t.Name() + "_global_admin@example.com"
+	globalAdmin := &fleet.User{
+		Name:       globalAdminEmail,
+		Email:      globalAdminEmail,
+		GlobalRole: new(fleet.RoleAdmin),
+	}
+	require.NoError(t, globalAdmin.SetPassword(test.GoodPassword, 10, 10))
+	globalAdmin, err = s.ds.NewUser(ctx, globalAdmin)
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, s.ds.DeleteUser(ctx, globalAdmin.ID))
+	}()
+
+	// First step of demoting a global admin: getting them onto a team the caller administers.
+	var teamUsersResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/users", team.ID), map[string]any{
+		"users": []map[string]any{{"id": globalAdmin.ID, "role": fleet.RoleObserver}},
+	}, http.StatusForbidden, &teamUsersResp)
+	globalAdmin, err = s.ds.UserByID(ctx, globalAdmin.ID)
+	require.NoError(t, err)
+	require.Empty(t, globalAdmin.Teams)
+
+	// Even if a global admin ends up with a membership row on the caller's
+	// team, a team admin must not be able to demote them through it.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO user_teams (user_id, team_id, role) VALUES (?, ?, ?)`,
+			globalAdmin.ID, team.ID, fleet.RoleObserver)
+		return err
+	})
+	var modResp modifyUserResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", globalAdmin.ID), map[string]any{
+		"teams": []map[string]any{{"id": team.ID, "role": fleet.RoleObserver}},
+	}, http.StatusForbidden, &modResp)
+	globalAdmin, err = s.ds.UserByID(ctx, globalAdmin.ID)
+	require.NoError(t, err)
+	require.NotNil(t, globalAdmin.GlobalRole)
+	require.Equal(t, fleet.RoleAdmin, *globalAdmin.GlobalRole)
+
+	modResp = modifyUserResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", planted.ID), map[string]any{
+		"global_role": fleet.RoleAdmin,
+	}, http.StatusForbidden, &modResp)
+
+	planted, err = s.ds.UserByID(ctx, planted.ID)
+	require.NoError(t, err)
+	require.NotNil(t, planted.GlobalRole)
+	require.Empty(t, *planted.GlobalRole)
+}
+
 func (s *integrationEnterpriseTestSuite) TestDeviceSSOWithoutAppleMDM() {
 	t := s.T()
 
@@ -14059,6 +14199,57 @@ func checkSoftwareInstaller(t *testing.T, ds *mysql.Datastore, payload *fleet.Up
 	return meta.InstallerID, *meta.TitleID
 }
 
+func (s *integrationEnterpriseTestSuite) TestPackageUploadPreAuthAndTempFileCleanup() {
+	t := s.T()
+	tmpDir := t.TempDir()
+	t.Setenv("TMPDIR", tmpDir)
+	requireNoTempFiles := func() {
+		files, err := filepath.Glob(filepath.Join(tmpDir, "multipart-*"))
+		require.NoError(t, err)
+		require.Empty(t, files)
+	}
+
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	fw, err := mw.CreateFormFile("software", "a.pkg")
+	require.NoError(t, err)
+	_, err = fw.Write(bytes.Repeat([]byte{0}, 2<<20))
+	require.NoError(t, err)
+	require.NoError(t, mw.Close())
+	contentType := mw.FormDataContentType()
+
+	for _, r := range []struct{ method, path string }{
+		{"POST", "/api/latest/fleet/software/package"},
+		{"PATCH", "/api/latest/fleet/software/titles/1/package"},
+		{"POST", "/api/latest/fleet/bootstrap"},
+		{"POST", "/api/latest/fleet/mdm/bootstrap"},
+		{"POST", "/api/latest/fleet/mdm/apple/bootstrap"},
+	} {
+		res := s.DoRawWithHeaders(r.method, r.path, body.Bytes(), http.StatusUnauthorized, map[string]string{"Content-Type": contentType})
+		res.Body.Close()
+		requireNoTempFiles()
+
+		res = s.DoRawWithHeaders(r.method, r.path, body.Bytes(), http.StatusUnauthorized, map[string]string{
+			"Content-Type": contentType, "Authorization": "Bearer invalid",
+		})
+		res.Body.Close()
+		requireNoTempFiles()
+
+		res = s.DoRawWithHeaders(r.method, r.path, body.Bytes(), http.StatusUnsupportedMediaType, map[string]string{
+			"Content-Type": contentType, "Content-Encoding": "gzip", "Authorization": "Bearer " + s.token,
+		})
+		res.Body.Close()
+		requireNoTempFiles()
+	}
+
+	// An authenticated upload that parses but fails validation must not leave its file behind.
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/software/package", body.Bytes(), http.StatusBadRequest, map[string]string{
+		"Content-Type": contentType, "Authorization": "Bearer " + s.token,
+	})
+	res.Body.Close()
+	requireNoTempFiles()
+}
+
 func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndDelete() {
 	t := s.T()
 
@@ -16176,6 +16367,107 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersSideEffec
 	// pending install record should not exist
 	installDetailsResp = getSoftwareInstallResultsResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/install/%s/results", installUUID), nil, http.StatusNotFound, &installDetailsResp)
+}
+
+func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersMSIReusePreservesUpgradeCode() {
+	t := s.T()
+	ctx := t.Context()
+
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	tmB, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "-B"})
+	require.NoError(t, err)
+
+	const etag = `"fleet-osquery-msi-v1"`
+	var (
+		mu          sync.Mutex
+		ifNoneMatch []string
+	)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		ifNoneMatch = append(ifNoneMatch, r.Header.Get("If-None-Match"))
+		mu.Unlock()
+		w.Header().Set("ETag", etag)
+		if r.Header.Get("If-None-Match") == etag {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		http.ServeFile(w, r, filepath.Join("testdata", "software-installers", "fleet-osquery.msi"))
+	}))
+	t.Cleanup(srv.Close)
+	msiURL := srv.URL + "/fleet-osquery.msi"
+
+	type installerState struct {
+		InstallerID          uint   `db:"installer_id"`
+		TitleID              uint   `db:"title_id"`
+		StorageID            string `db:"storage_id"`
+		InstallerUpgradeCode string `db:"installer_upgrade_code"`
+		TitleUpgradeCode     string `db:"title_upgrade_code"`
+		UninstallScript      string `db:"uninstall_script"`
+	}
+	getState := func(teamID uint) installerState {
+		var st installerState
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &st, `
+				SELECT si.id AS installer_id, si.title_id, si.storage_id,
+					si.upgrade_code AS installer_upgrade_code,
+					COALESCE(st.upgrade_code, '') AS title_upgrade_code,
+					sc.contents AS uninstall_script
+				FROM software_installers si
+				JOIN software_titles st ON st.id = si.title_id
+				JOIN script_contents sc ON sc.id = si.uninstall_script_content_id
+				WHERE si.global_or_team_id = ? AND si.is_active = 1`, teamID)
+		})
+		return st
+	}
+	batchDeleted := func(teamName string, payloads []*fleet.SoftwareInstallerPayload, dryRun bool) []fleet.DeletedSoftwarePackage {
+		var resp batchSetSoftwareInstallersResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/batch",
+			batchSetSoftwareInstallersRequest{Software: payloads},
+			http.StatusAccepted, &resp, "team_name", teamName, "dry_run", strconv.FormatBool(dryRun))
+		result := waitBatchSetSoftwareInstallers(t, &s.withServer, teamName, resp.RequestUUID)
+		require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, result.Status, result.Message)
+		return result.DeletedPackages
+	}
+	batch := func(teamName string, payload *fleet.SoftwareInstallerPayload, dryRun bool) {
+		require.Empty(t, batchDeleted(teamName, []*fleet.SoftwareInstallerPayload{payload}, dryRun))
+	}
+
+	// Fresh download and parse; the uninstall script is omitted so Fleet generates it.
+	batch(tm.Name, &fleet.SoftwareInstallerPayload{URL: msiURL}, false)
+	fresh := getState(tm.ID)
+	require.Equal(t, "{B681CB20-107E-428A-9B14-2D3C1AFED244}", fresh.InstallerUpgradeCode)
+	require.Equal(t, fresh.InstallerUpgradeCode, fresh.TitleUpgradeCode)
+	require.Contains(t, fresh.UninstallScript, fresh.InstallerUpgradeCode)
+
+	// Reuse by hash from another fleet: fleet B gets its own installer with the same metadata.
+	for _, dryRun := range []bool{true, false} {
+		batch(tmB.Name, &fleet.SoftwareInstallerPayload{URL: msiURL, SHA256: fresh.StorageID}, dryRun)
+	}
+	copied := getState(tmB.ID)
+	require.NotEqual(t, fresh.InstallerID, copied.InstallerID)
+	copied.InstallerID = fresh.InstallerID
+	require.Equal(t, fresh, copied)
+	require.Equal(t, fresh, getState(tm.ID))
+
+	// Reuse via conditional download (HTTP 304).
+	batch(tm.Name, &fleet.SoftwareInstallerPayload{URL: msiURL}, false)
+	require.Equal(t, fresh, getState(tm.ID))
+
+	// Reuse by hash, without a download.
+	for _, dryRun := range []bool{true, false} {
+		batch(tm.Name, &fleet.SoftwareInstallerPayload{URL: msiURL, SHA256: fresh.StorageID}, dryRun)
+		require.Equal(t, fresh, getState(tm.ID))
+	}
+
+	// Removing the MSI from the payload still reports it.
+	deleted := batchDeleted(tm.Name, []*fleet.SoftwareInstallerPayload{}, true)
+	require.Len(t, deleted, 1)
+	require.Equal(t, fresh.TitleID, deleted[0].TitleID)
+
+	mu.Lock()
+	require.Equal(t, []string{"", etag}, ifNoneMatch)
+	mu.Unlock()
 }
 
 func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersConditionalDownload() {
@@ -20023,7 +20315,7 @@ func (s *integrationEnterpriseTestSuite) TestVPPAppsWithoutMDM() {
 				Platform: fleet.MacOSPlatform,
 			},
 		},
-	}, &team.ID)
+	}, &team.ID, nil)
 	require.NoError(t, err)
 
 	pkgPayload := &fleet.UploadSoftwareInstallerPayload{
@@ -20230,7 +20522,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 				Platform: fleet.MacOSPlatform,
 			},
 		},
-	}, &team1.ID)
+	}, &team1.ID, nil)
 	require.NoError(t, err)
 	// Get software title ID of the uploaded VPP app.
 	resp = listSoftwareTitlesResponse{}
@@ -24840,6 +25132,11 @@ func (m *mockedConditionalAccessMicrosoftProxy) GetMessageStatus(
 
 var mockedConditionalAccessMicrosoftProxyInstance = &mockedConditionalAccessMicrosoftProxy{}
 
+const (
+	testEntraTenantID      = "6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b"
+	otherTestEntraTenantID = "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
+)
+
 func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 	t := s.T()
 	t.Cleanup(func() {
@@ -24869,19 +25166,34 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 	// Restore token for global admin.
 	s.token = s.getTestAdminToken()
 
+	// Tenant IDs that are not canonical GUIDs are rejected.
+	for _, invalidTenantID := range []string{
+		"",
+		"foobar",
+		testEntraTenantID + "&fleetServerSecret=smuggled",
+		"{" + testEntraTenantID + "}",
+		"urn:uuid:" + testEntraTenantID,
+		strings.ReplaceAll(testEntraTenantID, "-", ""),
+	} {
+		res := s.Do("POST", "/api/latest/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateRequest{
+			MicrosoftTenantID: invalidTenantID,
+		}, http.StatusUnprocessableEntity)
+		require.Contains(t, extractServerErrorText(res.Body), "must be a valid Microsoft Entra tenant ID (GUID)", invalidTenantID)
+	}
+
 	// Setup integration.
 	mockedConditionalAccessMicrosoftProxyInstance.getResponse = &conditional_access_microsoft_proxy.GetResponse{
-		TenantID:        "foobar",
+		TenantID:        testEntraTenantID,
 		SetupDone:       false,
 		AdminConsentURL: "https://example.com",
 	}
 	mockedConditionalAccessMicrosoftProxyInstance.createResponse = &conditional_access_microsoft_proxy.CreateResponse{
-		TenantID: "foobar",
+		TenantID: testEntraTenantID,
 		Secret:   "secret",
 	}
 	r = conditionalAccessMicrosoftCreateResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateRequest{
-		MicrosoftTenantID: "foobar",
+		MicrosoftTenantID: testEntraTenantID,
 	}, http.StatusOK, &r)
 	require.Equal(t, "https://example.com", r.MicrosoftAuthenticationURL)
 
@@ -24890,7 +25202,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.NotNil(t, acResp.ConditionalAccess)
-	require.Equal(t, "foobar", acResp.ConditionalAccess.MicrosoftEntraTenantID)
+	require.Equal(t, testEntraTenantID, acResp.ConditionalAccess.MicrosoftEntraTenantID)
 	require.False(t, acResp.ConditionalAccess.MicrosoftEntraConnectionConfigured)
 
 	// Confirm should return that the setup is not done.
@@ -24900,7 +25212,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 
 	// Confirm now should succeed.
 	mockedConditionalAccessMicrosoftProxyInstance.getResponse = &conditional_access_microsoft_proxy.GetResponse{
-		TenantID:  "foobar",
+		TenantID:  testEntraTenantID,
 		SetupDone: true,
 	}
 	c = conditionalAccessMicrosoftConfirmResponse{}
@@ -24913,12 +25225,12 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 	// Create will succeed if using the same tenant ID.
 	r = conditionalAccessMicrosoftCreateResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateRequest{
-		MicrosoftTenantID: "foobar",
+		MicrosoftTenantID: testEntraTenantID,
 	}, http.StatusOK, &r)
 	// Create will should fail if using the a different tenant ID (if the setup is done).
 	r = conditionalAccessMicrosoftCreateResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateRequest{
-		MicrosoftTenantID: "zoobar",
+		MicrosoftTenantID: otherTestEntraTenantID,
 	}, http.StatusBadRequest, &r)
 
 	// Test app config returns that the configuration is done.
@@ -24926,7 +25238,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.NotNil(t, acResp.ConditionalAccess)
-	require.Equal(t, "foobar", acResp.ConditionalAccess.MicrosoftEntraTenantID)
+	require.Equal(t, testEntraTenantID, acResp.ConditionalAccess.MicrosoftEntraTenantID)
 	require.True(t, acResp.ConditionalAccess.MicrosoftEntraConnectionConfigured)
 
 	// Delete endpoint.
@@ -24948,17 +25260,17 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 
 	// Create again with a different tenant.
 	mockedConditionalAccessMicrosoftProxyInstance.getResponse = &conditional_access_microsoft_proxy.GetResponse{
-		TenantID:        "zoobar",
+		TenantID:        otherTestEntraTenantID,
 		SetupDone:       false,
 		AdminConsentURL: "https://example.com",
 	}
 	mockedConditionalAccessMicrosoftProxyInstance.createResponse = &conditional_access_microsoft_proxy.CreateResponse{
-		TenantID: "zoobar",
+		TenantID: otherTestEntraTenantID,
 		Secret:   "secret",
 	}
 	r = conditionalAccessMicrosoftCreateResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateRequest{
-		MicrosoftTenantID: "zoobar",
+		MicrosoftTenantID: otherTestEntraTenantID,
 	}, http.StatusOK, &r)
 
 	// Test app config returns that the new integration was created.
@@ -24966,7 +25278,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessBasicSetup() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 	require.NotNil(t, acResp.ConditionalAccess)
-	require.Equal(t, "zoobar", acResp.ConditionalAccess.MicrosoftEntraTenantID)
+	require.Equal(t, otherTestEntraTenantID, acResp.ConditionalAccess.MicrosoftEntraTenantID)
 	require.False(t, acResp.ConditionalAccess.MicrosoftEntraConnectionConfigured)
 
 	// Simulate a not found error on the proxy (should allow deletion to start over).
@@ -24989,20 +25301,20 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 
 	// Setup integration.
 	mockedConditionalAccessMicrosoftProxyInstance.getResponse = &conditional_access_microsoft_proxy.GetResponse{
-		TenantID:        "foobar",
+		TenantID:        testEntraTenantID,
 		SetupDone:       false,
 		AdminConsentURL: "https://example.com",
 	}
 	mockedConditionalAccessMicrosoftProxyInstance.createResponse = &conditional_access_microsoft_proxy.CreateResponse{
-		TenantID: "foobar",
+		TenantID: testEntraTenantID,
 		Secret:   "secret",
 	}
 	var r conditionalAccessMicrosoftCreateResponse
 	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateRequest{
-		MicrosoftTenantID: "foobar",
+		MicrosoftTenantID: testEntraTenantID,
 	}, http.StatusOK, &r)
 	mockedConditionalAccessMicrosoftProxyInstance.getResponse = &conditional_access_microsoft_proxy.GetResponse{
-		TenantID:  "foobar",
+		TenantID:  testEntraTenantID,
 		SetupDone: true,
 	}
 	var c conditionalAccessMicrosoftConfirmResponse
@@ -25488,20 +25800,20 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPoliciesEntraResul
 
 	// Setup integration.
 	mockedConditionalAccessMicrosoftProxyInstance.getResponse = &conditional_access_microsoft_proxy.GetResponse{
-		TenantID:        "foobar",
+		TenantID:        testEntraTenantID,
 		SetupDone:       false,
 		AdminConsentURL: "https://example.com",
 	}
 	mockedConditionalAccessMicrosoftProxyInstance.createResponse = &conditional_access_microsoft_proxy.CreateResponse{
-		TenantID: "foobar",
+		TenantID: testEntraTenantID,
 		Secret:   "secret",
 	}
 	var r conditionalAccessMicrosoftCreateResponse
 	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateRequest{
-		MicrosoftTenantID: "foobar",
+		MicrosoftTenantID: testEntraTenantID,
 	}, http.StatusOK, &r)
 	mockedConditionalAccessMicrosoftProxyInstance.getResponse = &conditional_access_microsoft_proxy.GetResponse{
-		TenantID:  "foobar",
+		TenantID:  testEntraTenantID,
 		SetupDone: true,
 	}
 	var c conditionalAccessMicrosoftConfirmResponse
@@ -29160,7 +29472,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 	vppApp, err := s.ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.IPadOSPlatform}},
-	}, &teamID)
+	}, &teamID, nil)
 	require.NoError(t, err)
 
 	// Get the software title.
@@ -29178,7 +29490,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 		AutoUpdateEndTime:   new("04:00"),
 	}, http.StatusOK, &titlesResp)
 
-	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":true, "auto_update_window_end":"04:00", "auto_update_window_start":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1", "auto_update_enabled":true, "auto_update_window_end":"04:00", "auto_update_window_start":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
 
 	// Get the software title again.
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppApp.TitleID), nil, http.StatusOK, &titlesResp, "team_id", fmt.Sprintf("%d", teamID))
@@ -29195,7 +29507,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 		DisplayName: new("New Display Name"),
 	}, http.StatusOK, &titlesResp)
 
-	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1",  "auto_update_enabled":true, "auto_update_window_end":"04:00", "auto_update_window_start":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"New Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1",  "auto_update_enabled":true, "auto_update_window_end":"04:00", "auto_update_window_start":"02:00", "platform":"ipados", "self_service":false, "software_display_name":"New Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
 
 	// Disable the auto-update config
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", vppApp.TitleID), updateAppStoreAppRequest{
@@ -29203,7 +29515,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 		AutoUpdateEnabled: new(false),
 	}, http.StatusOK, &titlesResp)
 
-	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"New Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"New Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
 
 	// Do an update without auto-update fields to check that it still includes the auto-update values.
 	s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", vppApp.TitleID), updateAppStoreAppRequest{
@@ -29211,7 +29523,7 @@ func (s *integrationEnterpriseTestSuite) TestUpdateSoftwareAutoUpdateConfig() {
 		DisplayName: new("Updated Display Name"),
 	}, http.StatusOK, &titlesResp)
 
-	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"Updated Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"version_name": "Default version", "app_store_id":"adam_vpp_app_1", "auto_update_enabled":false, "platform":"ipados", "self_service":false, "software_display_name":"Updated Display Name", "software_icon_url":null, "software_title":"vpp1", "software_title_id":%d, "team_id":%d, "team_name":"%s", "fleet_id":%d, "fleet_name":"%s"}`, vppApp.TitleID, team.ID, team.Name, team.ID, team.Name), 0)
 }
 
 func (s *integrationEnterpriseTestSuite) TestFMAAutoUpdateCron() {
@@ -29947,15 +30259,17 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	delete(downloadedSlugs, "cloudflare-warp/windows")
 	downloadMu.Unlock()
 
-	rawResp := s.Do("POST", "/api/latest/fleet/software/batch",
+	var evictedVersionBatchResponse batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch",
 		batchSetSoftwareInstallersRequest{
 			Software: []*fleet.SoftwareInstallerPayload{
 				{Slug: new("cloudflare-warp/windows"), SelfService: true, RollbackVersion: "1.0"},
 			},
 			TeamName: team.Name,
 		},
-		http.StatusBadRequest, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
-	require.Contains(t, extractServerErrorText(rawResp.Body), "specified version is not available")
+		http.StatusAccepted, &evictedVersionBatchResponse, "team_name", team.Name, "team_id", fmt.Sprint(team.ID))
+	evictedVersionMessage := waitBatchSetSoftwareInstallersFailed(t, &s.withServer, team.Name, evictedVersionBatchResponse.RequestUUID)
+	require.Contains(t, evictedVersionMessage, "specified version is not available")
 
 	// Should NOT have hit the installer server — no re-download attempt
 	downloadMu.Lock()
@@ -31882,9 +32196,11 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 		var resp batchSetSoftwareInstallersResponse
 		s.DoJSON("POST", "/api/latest/fleet/software/batch",
 			batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: new("1password/darwin"), RollbackVersion: "^1"}}, TeamName: teamName},
-			http.StatusNotFound, &resp,
+			http.StatusAccepted, &resp,
 			"team_name", teamName, "team_id", "0",
 		)
+		message := waitBatchSetSoftwareInstallersFailed(t, &s.withServer, teamName, resp.RequestUUID)
+		require.Contains(t, message, "specified major version is not available")
 	})
 }
 
@@ -37799,4 +38115,97 @@ func (s *integrationEnterpriseTestSuite) TestEntraJoinUserDetailQueryPopulatesId
 	require.Equal(t, "manual.user@example.com", endUsers[0].IdpUserName)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID), nil, http.StatusOK, &mappingResp)
 	require.Len(t, mappingResp.DeviceMapping, 1)
+}
+
+func (s *integrationEnterpriseTestSuite) TestStagedUploadUnavailable() {
+	t := s.T()
+	res := s.Do("POST", "/api/latest/fleet/staged_upload",
+		createStagedUploadRequest{Target: fleet.StagedUploadTargetSoftwarePackage, Size: 1}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "Direct upload isn't available")
+
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{StagedUploadID: uuid.NewString(), Filename: "ruby.deb"},
+		http.StatusBadRequest, "Direct upload isn't available")
+}
+
+func (s *integrationEnterpriseTestSuite) TestBatchSoftwareInstallerFMAManifestFetchedAfterResponse() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		file, err := os.Open(filepath.Join("testdata", "software-installers", "dummy_installer.pkg"))
+		if !assert.NoError(t, err) {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer file.Close()
+		w.Header().Set("Content-Type", "application/application/x-newton-compatible-pkg")
+		_, err = io.Copy(w, file)
+		assert.NoError(t, err)
+	}))
+	t.Cleanup(installerServer.Close)
+
+	// Serve each manifest only after the test releases it, and fail the fetch if no release comes within 5s
+	manifestReleases := make(chan struct{}, 1)
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-manifestReleases:
+		case <-time.After(5 * time.Second):
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		manifest := ma.FMAManifestFile{
+			Versions: []*ma.FMAManifestApp{{
+				Version:           "6.0",
+				Queries:           ma.FMAQueries{Exists: "SELECT 1 FROM osquery_info;"},
+				InstallerURL:      installerServer.URL + "/fma.pkg",
+				SHA256:            "no_check",
+				DefaultCategories: []string{"Productivity"},
+			}},
+		}
+		assert.NoError(t, json.NewEncoder(w).Encode(manifest))
+	}))
+	t.Cleanup(manifestServer.Close)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", manifestServer.URL, t)
+
+	maintainedApp, err := s.ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "1Password",
+		Slug:             "1password/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.1password.1password",
+	})
+	require.NoError(t, err)
+
+	testCases := []struct {
+		name     string
+		teamName string
+	}{
+		{
+			name:     "batch for a fleet responds before the manifest is served and reports the manifest category",
+			teamName: team.Name,
+		},
+		{
+			name:     "batch for unassigned responds before the manifest is served and reports the manifest category",
+			teamName: "",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// send the batch with the manifest still held back, the POST should respond
+			var batchResponse batchSetSoftwareInstallersResponse
+			s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{
+				Software: []*fleet.SoftwareInstallerPayload{{Slug: &maintainedApp.Slug, SelfService: true}},
+			}, http.StatusAccepted, &batchResponse, "team_name", tc.teamName)
+
+			// release the manifest, the batch should complete with the manifest category
+			manifestReleases <- struct{}{}
+			batchResult := waitBatchSetSoftwareInstallers(t, &s.withServer, tc.teamName, batchResponse.RequestUUID)
+			require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, batchResult.Status, batchResult.Message)
+			require.Len(t, batchResult.Packages, 1)
+			require.Equal(t, []string{"🖥️ Productivity"}, batchResult.Categories)
+		})
+	}
 }

@@ -1,14 +1,22 @@
 package tests
 
 import (
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
+	"net/url"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/testhelpers"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/stretchr/testify/require"
 )
@@ -1527,11 +1535,93 @@ func testGetAuthorization(t *testing.T, s *integrationTestSuite) {
 }
 
 func testFinalizeOrder(t *testing.T, s *integrationTestSuite) {
+	// finalizeCrafted finalizes a ready order with a CSR asking for everything Fleet must not copy: extra Subject
+	// attributes, every SAN type and a forged binding extension. It returns the template the service signed.
+	finalizeCrafted := func(t *testing.T, purpose string, enrollmentID *string, ous ...string) (*types.Enrollment, *x509.Certificate) {
+		enroll, privateKey, accountURL, orderResp, nonce := s.createOrderForFinalize(t)
+		_, err := s.DB.ExecContext(t.Context(), `UPDATE acme_enrollments SET purpose = ?, enrollment_id = ? WHERE id = ?`, purpose, enrollmentID, enroll.ID)
+		require.NoError(t, err)
+		deviceKey := s.makeOrderReady(t, orderResp.ID)
+
+		forged, err := asn1.MarshalWithParams(`{"v":1,"purpose":"acme","serial":"forged"}`, "utf8")
+		require.NoError(t, err)
+		csrDER, err := x509.CreateCertificateRequest(rand.Reader, &x509.CertificateRequest{
+			Subject: pkix.Name{
+				CommonName:         enroll.HostIdentifier,
+				Organization:       []string{"Evil Corp"},
+				OrganizationalUnit: ous,
+				Country:            []string{"US"},
+			},
+			DNSNames:        []string{"evil.example.com"},
+			EmailAddresses:  []string{"evil@example.com"},
+			IPAddresses:     []net.IP{net.ParseIP("10.0.0.1")},
+			URIs:            []*url.URL{{Scheme: "urn", Opaque: "device:apple:uuid:forged"}},
+			ExtraExtensions: []pkix.Extension{{Id: apple_mdm.AppleMDMCertificateBindingExtensionOID, Value: forged}},
+		}, deviceKey)
+		require.NoError(t, err)
+
+		s.signedTemplate = nil
+		finalizeURL := s.finalizeOrderURL(enroll.PathIdentifier, orderResp.ID)
+		payload := map[string]any{"csr": base64.RawURLEncoding.EncodeToString(csrDER)}
+		_, acmeErr, resp := s.finalizeOrder(t, finalizeURL, buildJWS(t, privateKey, nonce, accountURL, finalizeURL, payload))
+		require.Equal(t, http.StatusOK, resp.StatusCode, acmeErr)
+		require.NotNil(t, s.signedTemplate)
+		return enroll, s.signedTemplate
+	}
+
+	requireCleanTemplate := func(t *testing.T, tmpl *x509.Certificate, wantOU []string) map[string]any {
+		require.Equal(t, pkix.Name{CommonName: "Fleet Identity", OrganizationalUnit: wantOU}, tmpl.Subject)
+		require.Empty(t, tmpl.DNSNames)
+		require.Empty(t, tmpl.EmailAddresses)
+		require.Empty(t, tmpl.IPAddresses)
+		require.Empty(t, tmpl.URIs)
+		require.Len(t, tmpl.ExtraExtensions, 1)
+		ext := tmpl.ExtraExtensions[0]
+		require.True(t, ext.Id.Equal(apple_mdm.AppleMDMCertificateBindingExtensionOID))
+		require.False(t, ext.Critical)
+		var raw string
+		rest, err := asn1.UnmarshalWithParams(ext.Value, &raw, "utf8")
+		require.NoError(t, err)
+		require.Empty(t, rest)
+		var binding map[string]any
+		require.NoError(t, json.Unmarshal([]byte(raw), &binding))
+		return binding
+	}
+
+	t.Run("acme enrollment signs a clean subject and binding", func(t *testing.T) {
+		enroll, tmpl := finalizeCrafted(t, "acme", nil, "extra-ou", apple_mdm.FleetEnrollmentSubjectOU)
+		binding := requireCleanTemplate(t, tmpl, []string{"fleet", apple_mdm.FleetEnrollmentSubjectOU})
+		require.Equal(t, map[string]any{"v": 1.0, "purpose": "acme", "serial": enroll.HostIdentifier}, binding)
+	})
+
+	t.Run("acme renewal signs a clean subject and binding", func(t *testing.T) {
+		enroll, tmpl := finalizeCrafted(t, "acme_renewal", new("device-channel-id"))
+		binding := requireCleanTemplate(t, tmpl, []string{"fleet"})
+		require.Equal(t, map[string]any{
+			"v": 1.0, "purpose": "acme_renewal", "serial": enroll.HostIdentifier, "enrollment_id": "device-channel-id",
+		}, binding)
+	})
+
+	t.Run("unsupported enrollment purpose is not signed", func(t *testing.T) {
+		enroll, privateKey, accountURL, orderResp, nonce := s.createOrderForFinalize(t)
+		_, err := s.DB.ExecContext(t.Context(), `UPDATE acme_enrollments SET purpose = 'ade' WHERE id = ?`, enroll.ID)
+		require.NoError(t, err)
+		deviceKey := s.makeOrderReady(t, orderResp.ID)
+		csrPEM, err := testhelpers.GenerateCSRDERWithKey(deviceKey, enroll.HostIdentifier)
+		require.NoError(t, err)
+
+		s.signedTemplate = nil
+		finalizeURL := s.finalizeOrderURL(enroll.PathIdentifier, orderResp.ID)
+		_, _, resp := s.finalizeOrder(t, finalizeURL, buildJWS(t, privateKey, nonce, accountURL, finalizeURL, map[string]any{"csr": csrPEM}))
+		require.NotEqual(t, http.StatusOK, resp.StatusCode)
+		require.Nil(t, s.signedTemplate)
+	})
+
 	t.Run("successful finalize", func(t *testing.T) {
 		enroll, privateKey, accountURL, orderResp, nonce := s.createOrderForFinalize(t)
-		s.makeOrderReady(t, orderResp.ID)
+		deviceKey := s.makeOrderReady(t, orderResp.ID)
 
-		csrPEM, _, err := testhelpers.GenerateCSRDER(enroll.HostIdentifier)
+		csrPEM, err := testhelpers.GenerateCSRDERWithKey(deviceKey, enroll.HostIdentifier)
 		require.NoError(t, err)
 		finalizeURL := s.finalizeOrderURL(enroll.PathIdentifier, orderResp.ID)
 		payload := map[string]any{"csr": csrPEM}
@@ -1546,6 +1636,77 @@ func testFinalizeOrder(t *testing.T, s *integrationTestSuite) {
 		require.Regexp(t, "/api/mdm/acme/"+enroll.PathIdentifier+`/orders/\d+/certificate`, result.Certificate)
 		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
 		require.NotEmpty(t, resp.Header.Get("Location"))
+	})
+
+	t.Run("CSR key does not match the attested key", func(t *testing.T) {
+		enroll, privateKey, accountURL, orderResp, nonce := s.createOrderForFinalize(t)
+		s.makeOrderReady(t, orderResp.ID)
+
+		// a fresh key, not the one the attestation vouched for
+		csrPEM, _, err := testhelpers.GenerateCSRDER(enroll.HostIdentifier)
+		require.NoError(t, err)
+		finalizeURL := s.finalizeOrderURL(enroll.PathIdentifier, orderResp.ID)
+		payload := map[string]any{"csr": csrPEM}
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, finalizeURL, payload)
+		_, acmeErr, resp := s.finalizeOrder(t, finalizeURL, jwsBody)
+
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "badCSR")
+		require.Contains(t, acmeErr.Detail, "attested device key")
+		require.NotEmpty(t, resp.Header.Get("Replay-Nonce"))
+	})
+
+	t.Run("no attested key on record", func(t *testing.T) {
+		enroll, privateKey, accountURL, orderResp, nonce := s.createOrderForFinalize(t)
+		deviceKey := s.makeOrderReady(t, orderResp.ID)
+		// as for a challenge validated before attested keys were recorded
+		_, err := s.DB.ExecContext(t.Context(), `UPDATE acme_challenges SET attested_public_key = NULL WHERE acme_authorization_id IN (SELECT id FROM acme_authorizations WHERE acme_order_id = ?)`, orderResp.ID)
+		require.NoError(t, err)
+
+		csrPEM, err := testhelpers.GenerateCSRDERWithKey(deviceKey, enroll.HostIdentifier)
+		require.NoError(t, err)
+		finalizeURL := s.finalizeOrderURL(enroll.PathIdentifier, orderResp.ID)
+		payload := map[string]any{"csr": csrPEM}
+		jwsBody := buildJWS(t, privateKey, nonce, accountURL, finalizeURL, payload)
+		_, acmeErr, resp := s.finalizeOrder(t, finalizeURL, jwsBody)
+
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "badCSR")
+	})
+
+	t.Run("finalize after device attestation only certifies the attested key", func(t *testing.T) {
+		enroll := &types.Enrollment{NotValidAfter: new(time.Now().Add(24 * time.Hour)), HostIdentifier: "valid-serial"}
+		s.InsertACMEEnrollment(t, enroll)
+		privateKey, accountURL, orderResp, challengeURL, challengeToken, nonce := s.createOrderAndChallenge(t, enroll)
+
+		deviceKey, err := testhelpers.GenerateTestKey()
+		require.NoError(t, err)
+		leafCert, err := testhelpers.BuildAttestationLeafCertForKey(s.attestCA, s.attestCAKey, &deviceKey.PublicKey, enroll.HostIdentifier, challengeToken)
+		require.NoError(t, err)
+		attestation, err := testhelpers.BuildAppleDeviceAttestationPayload(leafCert, s.attestCA)
+		require.NoError(t, err)
+		challengeResp, acmeErr, resp := s.doChallenge(t, challengeURL, buildJWS(t, privateKey, nonce, accountURL, challengeURL, attestation))
+		require.Nil(t, acmeErr)
+		require.Equal(t, types.ChallengeStatusValid, challengeResp.Status)
+		nonce = resp.Header.Get("Replay-Nonce")
+
+		finalizeURL := s.finalizeOrderURL(enroll.PathIdentifier, orderResp.ID)
+		otherCSR, _, err := testhelpers.GenerateCSRDER(enroll.HostIdentifier)
+		require.NoError(t, err)
+		_, acmeErr, resp = s.finalizeOrder(t, finalizeURL, buildJWS(t, privateKey, nonce, accountURL, finalizeURL, map[string]any{"csr": otherCSR}))
+		require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		require.NotNil(t, acmeErr)
+		require.Contains(t, acmeErr.Type, "badCSR")
+		nonce = resp.Header.Get("Replay-Nonce")
+
+		attestedCSR, err := testhelpers.GenerateCSRDERWithKey(deviceKey, enroll.HostIdentifier)
+		require.NoError(t, err)
+		result, acmeErr, resp := s.finalizeOrder(t, finalizeURL, buildJWS(t, privateKey, nonce, accountURL, finalizeURL, map[string]any{"csr": attestedCSR}))
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.Nil(t, acmeErr)
+		require.Equal(t, types.OrderStatusValid, result.Status)
 	})
 
 	t.Run("order not ready - pending status", func(t *testing.T) {
@@ -1567,10 +1728,10 @@ func testFinalizeOrder(t *testing.T, s *integrationTestSuite) {
 
 	t.Run("already finalized order", func(t *testing.T) {
 		enroll, privateKey, accountURL, orderResp, nonce := s.createOrderForFinalize(t)
-		s.makeOrderReady(t, orderResp.ID)
+		deviceKey := s.makeOrderReady(t, orderResp.ID)
 
 		// finalize the order first
-		csrPEM, _, err := testhelpers.GenerateCSRDER(enroll.HostIdentifier)
+		csrPEM, err := testhelpers.GenerateCSRDERWithKey(deviceKey, enroll.HostIdentifier)
 		require.NoError(t, err)
 		finalizeURL := s.finalizeOrderURL(enroll.PathIdentifier, orderResp.ID)
 		payload := map[string]any{"csr": csrPEM}

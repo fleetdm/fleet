@@ -121,7 +121,7 @@ func TestInitiateMDMSSOACSURLWithURLPrefix(t *testing.T) {
 
 			svc, _ := newMDMSSOTestService(t, mdmSSOTestAppConfig(tc.serverURL, true), cfg)
 
-			_, _, idpURL, err := svc.InitiateMDMSSO(t.Context(), "", "", "")
+			_, _, idpURL, err := svc.InitiateMDMSSO(t.Context(), "", "", "", nil)
 			require.NoError(t, err)
 			require.NotEmpty(t, idpURL)
 
@@ -158,7 +158,11 @@ func TestInitiateMDMSSOSetsNoRelayState(t *testing.T) {
 		fleet.SSOInitiatorAccountDrivenEnroll + ":cf2b9a1e4d7c8f36b05e91a2d4c7e830f16b5a92",
 	} {
 		t.Run(initiator, func(t *testing.T) {
-			_, _, idpURL, err := svc.InitiateMDMSSO(t.Context(), initiator, "", hostUUIDFor(initiator))
+			var deviceInfo *fleet.MDMAppleMachineInfo
+			if initiator == fleet.SSOInitiatorAppleMDMSSO {
+				deviceInfo = &fleet.MDMAppleMachineInfo{Serial: "SERIAL1", UDID: "udid-1"}
+			}
+			_, _, idpURL, err := svc.InitiateMDMSSO(t.Context(), initiator, "", hostUUIDFor(initiator), deviceInfo)
 			require.NoError(t, err)
 
 			parsed, err := url.Parse(idpURL)
@@ -166,6 +170,32 @@ func TestInitiateMDMSSOSetsNoRelayState(t *testing.T) {
 			require.Empty(t, parsed.Query().Get("RelayState"))
 		})
 	}
+}
+
+func TestInitiateMDMSSOAppleMDMSSORequiresDeviceIdentity(t *testing.T) {
+	svc, _ := newMDMSSOTestService(t,
+		mdmSSOTestAppConfig("https://fleet.example.com", true), config.TestConfig())
+
+	for _, tc := range []struct {
+		name       string
+		deviceInfo *fleet.MDMAppleMachineInfo
+	}{
+		{"no deviceinfo", nil},
+		{"no serial", &fleet.MDMAppleMachineInfo{UDID: "udid-1"}},
+		{"no udid", &fleet.MDMAppleMachineInfo{Serial: "SERIAL1"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, _, idpURL, err := svc.InitiateMDMSSO(t.Context(), fleet.SSOInitiatorAppleMDMSSO, "", "", tc.deviceInfo)
+			var badReq *fleet.BadRequestError
+			require.ErrorAs(t, err, &badReq)
+			require.Empty(t, idpURL)
+		})
+	}
+
+	// other initiators don't need it
+	_, _, idpURL, err := svc.InitiateMDMSSO(t.Context(), fleet.SSOInitiatorOTAEnroll, "", "", nil)
+	require.NoError(t, err)
+	require.NotEmpty(t, idpURL)
 }
 
 func TestDeviceSSOErrorURL(t *testing.T) {
@@ -278,7 +308,7 @@ func TestInitiateMDMSSOSetupExperienceRequiresPendingPrompt(t *testing.T) {
 			}
 
 			_, _, idpURL, err := svc.InitiateMDMSSO(
-				t.Context(), fleet.SSOInitiatorOrbitSetupExperience, "", tc.hostUUID)
+				t.Context(), fleet.SSOInitiatorOrbitSetupExperience, "", tc.hostUUID, nil)
 			if tc.wantRefused {
 				require.Error(t, err)
 				require.Empty(t, idpURL)

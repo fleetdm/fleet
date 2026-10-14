@@ -608,6 +608,26 @@ func TestMDMProfileSpecsMatch(t *testing.T) {
 			},
 			expected: true,
 		},
+		{
+			name: "Hidden Flag Change Is A Change",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", Hidden: false},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path1", Hidden: true},
+			},
+			expected: false,
+		},
+		{
+			name: "SelfService Flag Change Is A Change",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", SelfService: false},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path1", SelfService: true},
+			},
+			expected: false,
+		},
 	}
 
 	for _, tc := range tests {
@@ -628,13 +648,15 @@ func TestMDMProfileSpecsMatchPanicsOnDuplicatePaths(t *testing.T) {
 	clean := []fleet.MDMProfileSpec{{Path: "/a"}, {Path: "/b"}}
 
 	t.Run("duplicates in a", func(t *testing.T) {
-		require.PanicsWithValue(t,
+		require.PanicsWithValue(
+			t,
 			`MDMProfileSpecsMatch: a contains duplicate Path "/a"; upstream validation should have rejected this`,
 			func() { fleet.MDMProfileSpecsMatch(dup, clean) },
 		)
 	})
 	t.Run("duplicates in b", func(t *testing.T) {
-		require.PanicsWithValue(t,
+		require.PanicsWithValue(
+			t,
 			`MDMProfileSpecsMatch: b contains duplicate Path "/a"; upstream validation should have rejected this`,
 			func() { fleet.MDMProfileSpecsMatch(clean, dup) },
 		)
@@ -968,4 +990,24 @@ func TestPayloadDisplayNameFromMobileconfig(t *testing.T) {
 	require.Equal(t, "Top level", fleet.PayloadDisplayNameFromMobileconfig(mc))
 	require.Empty(t, fleet.PayloadDisplayNameFromMobileconfig([]byte("<plist/>")))
 	require.Empty(t, fleet.PayloadDisplayNameFromMobileconfig(nil))
+}
+
+func TestSanitizeEULAFileName(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct{ in, want string }{
+		{"terms.md", "terms.md"},
+		{"../../terms.md", "terms.md"},
+		{`..\..\Startup\run.pdf`, "run.pdf"},
+		{"a/", ""},
+		{"..", ""},
+		{".", ""},
+		{"a/..", ""},
+		{"", ""},
+		{" terms.md\t", "terms.md"},
+		{"ter\x00ms\r\n.md", "terms.md"},
+		{"terms\u202edm.exe", "termsdm.exe"},
+	} {
+		require.Equal(t, tc.want, fleet.SanitizeEULAFileName(tc.in), "%q", tc.in)
+	}
 }

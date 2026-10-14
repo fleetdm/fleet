@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	carvestorectx "github.com/fleetdm/fleet/v4/server/contexts/carvestore"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
+	"github.com/fleetdm/fleet/v4/server/contexts/token"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -30,6 +31,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/certauth"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/multi"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/nanomdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/challenge"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -455,10 +457,11 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/package/token", getSoftwareInstallerTokenEndpoint,
 		getSoftwareInstallerRequest{})
 	// Software package endpoints are already limited to max installer size in serve.go
-	ue.SkipRequestBodySizeLimit().POST("/api/_version_/fleet/software/package", uploadSoftwareInstallerEndpoint, uploadSoftwareInstallerRequest{})
+	ue.SkipRequestBodySizeLimit().WithHTTPPreAuth(uploadPreAuth(svc, logger)).POST("/api/_version_/fleet/software/package", uploadSoftwareInstallerEndpoint, uploadSoftwareInstallerRequest{})
+	ue.POST("/api/_version_/fleet/staged_upload", createStagedUploadEndpoint, createStagedUploadRequest{})
 	ue.PATCH("/api/_version_/fleet/software/titles/{id:[0-9]+}/name", updateSoftwareNameEndpoint, updateSoftwareNameRequest{})
 	// Software package endpoints are already limited to max installer size in serve.go
-	ue.SkipRequestBodySizeLimit().PATCH("/api/_version_/fleet/software/titles/{id:[0-9]+}/package", updateSoftwareInstallerEndpoint, updateSoftwareInstallerRequest{})
+	ue.SkipRequestBodySizeLimit().WithHTTPPreAuth(uploadPreAuth(svc, logger)).PATCH("/api/_version_/fleet/software/titles/{id:[0-9]+}/package", updateSoftwareInstallerEndpoint, updateSoftwareInstallerRequest{})
 	ue.DELETE("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/available_for_install", deleteSoftwareInstallerEndpoint, deleteSoftwareInstallerRequest{})
 	ue.GET("/api/_version_/fleet/software/install/{install_uuid}/results", getSoftwareInstallResultsEndpoint,
 		getSoftwareInstallResultsRequest{})
@@ -673,6 +676,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// endpoints using `neMDM` below in this file.
 	mdmConfiguredMiddleware := mdmconfigured.NewMDMConfigMiddleware(svc)
 	mdmAppleMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
+	mdmWindowsMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyWindowsMDM())
 
 	// Deprecated: POST /mdm/apple/enqueue is now deprecated, replaced by the
 	// platform-agnostic POST /mdm/commands/run. It is still supported
@@ -710,6 +714,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/enrollment_profile", getMDMAppleSetupAssistantEndpoint, getMDMAppleSetupAssistantRequest{})
 	mdmAppleMW.GET("/api/_version_/fleet/enrollment_profiles/automatic", getMDMAppleSetupAssistantEndpoint, getMDMAppleSetupAssistantRequest{})
 	mdmAppleMW.GET("/api/_version_/fleet/enrollment_profiles/automatic/default", getDefaultMDMAppleSetupAssistantProfileEndpoint, nil)
+	mdmAppleMW.POST("/api/_version_/fleet/enrollment_profiles/automatic/rotate_token", rotateMDMAppleAutomaticEnrollmentTokenEndpoint, rotateMDMAppleAutomaticEnrollmentTokenRequest{})
 
 	// Deprecated: DELETE /mdm/apple/enrollment_profile is now deprecated, replaced by the
 	// DELETE /enrollment_profiles/automatic endpoint.
@@ -736,8 +741,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// Deprecated: POST /mdm/bootstrap is now deprecated, replaced by the
 	// POST /bootstrap endpoint.
 	// Bootstrap endpoints are already max size limited to installer size in serve.go
-	mdmAppleMW.SkipRequestBodySizeLimit().POST("/api/_version_/fleet/mdm/bootstrap", uploadBootstrapPackageEndpoint, uploadBootstrapPackageRequest{})
-	mdmAppleMW.SkipRequestBodySizeLimit().POST("/api/_version_/fleet/bootstrap", uploadBootstrapPackageEndpoint, uploadBootstrapPackageRequest{})
+	mdmAppleMW.SkipRequestBodySizeLimit().WithHTTPPreAuth(uploadPreAuth(svc, logger)).POST("/api/_version_/fleet/mdm/bootstrap", uploadBootstrapPackageEndpoint, uploadBootstrapPackageRequest{})
+	mdmAppleMW.SkipRequestBodySizeLimit().WithHTTPPreAuth(uploadPreAuth(svc, logger)).POST("/api/_version_/fleet/bootstrap", uploadBootstrapPackageEndpoint, uploadBootstrapPackageRequest{})
 
 	// Deprecated: GET /mdm/bootstrap/:team_id/metadata is now deprecated, replaced by the
 	// GET /bootstrap/:team_id/metadata endpoint.
@@ -756,7 +761,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// Deprecated: POST /mdm/apple/bootstrap is now deprecated, replaced by the platform agnostic /mdm/bootstrap
 	// Bootstrap endpoints are already max size limited to installer size in serve.go
-	mdmAppleMW.SkipRequestBodySizeLimit().POST("/api/_version_/fleet/mdm/apple/bootstrap", uploadBootstrapPackageEndpoint, uploadBootstrapPackageRequest{})
+	mdmAppleMW.SkipRequestBodySizeLimit().WithHTTPPreAuth(uploadPreAuth(svc, logger)).POST("/api/_version_/fleet/mdm/apple/bootstrap", uploadBootstrapPackageEndpoint, uploadBootstrapPackageRequest{})
 	// Deprecated: GET /mdm/apple/bootstrap/:team_id/metadata is now deprecated, replaced by the platform agnostic /mdm/bootstrap/:team_id/metadata
 	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/bootstrap/{fleet_id:[0-9]+}/metadata", bootstrapPackageMetadataEndpoint, bootstrapPackageMetadataRequest{})
 	// Deprecated: DELETE /mdm/apple/bootstrap/:team_id is now deprecated, replaced by the platform agnostic /mdm/bootstrap/:team_id
@@ -803,6 +808,14 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/setup/eula/metadata", getMDMEULAMetadataEndpoint, getMDMEULAMetadataRequest{})
 	// Deprecated: DELETE /mdm/apple/setup/eula/:token is now deprecated, replaced by the platform agnostic /mdm/setup/eula/:token
 	mdmAppleMW.DELETE("/api/_version_/fleet/mdm/apple/setup/eula/{token}", deleteMDMEULAEndpoint, deleteMDMEULARequest{})
+
+	// Windows end user agreement. The download is user authenticated: Fleet renders this document
+	// into the enrollment page itself, so no device ever fetches it by token the way macOS devices
+	// fetch the PDF.
+	mdmWindowsMW.WithRequestBodySizeLimit(fleet.MaxWindowsEULARequestSize).POST("/api/_version_/fleet/setup_experience/windows_eula", createMDMWindowsEULAEndpoint, createMDMWindowsEULARequest{})
+	mdmWindowsMW.GET("/api/_version_/fleet/setup_experience/windows_eula/metadata", getMDMWindowsEULAMetadataEndpoint, getMDMWindowsEULAMetadataRequest{})
+	mdmWindowsMW.GET("/api/_version_/fleet/setup_experience/windows_eula/{token}", getMDMWindowsEULAEndpoint, getMDMWindowsEULARequest{})
+	mdmWindowsMW.DELETE("/api/_version_/fleet/setup_experience/windows_eula/{token}", deleteMDMWindowsEULAEndpoint, deleteMDMWindowsEULARequest{})
 
 	mdmAppleMW.WithRequestBodySizeLimit(fleet.MaxProfileSize).POST("/api/_version_/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileEndpoint, preassignMDMAppleProfileRequest{})
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/profiles/match", matchMDMApplePreassignmentEndpoint, matchMDMApplePreassignmentRequest{})
@@ -1437,7 +1450,7 @@ func RegisterAppleMDMProtocolServices(
 	svc fleet.Service,
 	ds fleet.Datastore,
 ) error {
-	if err := registerSCEP(mux, scepConfig, scepStorage, mdmStorage, logger, fleetConfig, ds); err != nil {
+	if err := registerAppleMDMSCEP(mux, scepConfig, scepStorage, ds, logger, fleetConfig, ds); err != nil {
 		return fmt.Errorf("scep: %w", err)
 	}
 	if err := registerMDM(mux, mdmStorage, checkinAndCommandService, ddmService, profileService, getTokenService, logger, fleetConfig, ds); err != nil {
@@ -1511,33 +1524,23 @@ func registerPSSO(
 	return nil
 }
 
-// registerSCEP registers the HTTP handler for SCEP service needed for enrollment to MDM.
+// registerAppleMDMSCEP registers the HTTP handler for SCEP service needed for enrollment to Apple MDM.
 // Returns the SCEP CA certificate that can be used by verifiers.
-func registerSCEP(
+func registerAppleMDMSCEP(
 	mux *http.ServeMux,
 	scepConfig config.MDMConfig,
 	scepStorage scep_depot.Depot,
-	mdmStorage fleet.MDMAppleStore,
+	mdmStorage challenge.AppleMDMSCEPStore,
 	logger *slog.Logger,
 	fleetConfig config.FleetConfig,
 	appCfgGetter fleet.GetsAppConfig,
 ) error {
-	var signer scepserver.CSRSignerContext = scepserver.SignCSRAdapter(scep_depot.NewSigner(
+	depotSigner := scep_depot.NewSigner(
 		scepStorage,
 		scep_depot.WithValidityDays(scepConfig.AppleSCEPSignerValidityDays),
-		// This value was allowed to be configured via --mdm_apple_scep_signer_allow_renewal_days but there was no real use case for
-		// customizing it and it was confusing for customers, so it has been removed and replaced with the default of 14. For discussion,
-		// see https://github.com/fleetdm/fleet/issues/38611 and https://github.com/fleetdm/fleet/issues/37880#issuecomment-3805983198
-		// Fleet has a 180-day renewal cron that is completely unrelated to this or its value
-		scep_depot.WithAllowRenewalDays(14),
-	))
-	assets, err := mdmStorage.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge}, nil)
-	if err != nil {
-		return fmt.Errorf("retrieving SCEP challenge: %w", err)
-	}
+	)
 
-	scepChallenge := string(assets[fleet.MDMAssetSCEPChallenge].Value)
-	signer = scepserver.StaticChallengeMiddleware(scepChallenge, signer)
+	signer := challenge.AppleMDMChallengeMiddleware(logger.With("component", "mdm-apple-scep"), mdmStorage, scepConfig.AppleSCEPStaticChallengeEnabled, depotSigner)
 	scepService := NewSCEPService(
 		mdmStorage,
 		signer,
@@ -1645,6 +1648,7 @@ func registerMDM(
 	// the HTTP handler actually returns to the device. See abOnlyEnrollmentCheckinService's
 	// doc comment for why this can't live inside checkinAndCommandService itself.
 	mdmService = newABOnlyEnrollmentCheckinService(mdmService, ds, logger.With("component", "http-mdm-apple-mdm", "handler", "ab-only-enrollment"))
+	mdmService = newCertVerifierEnrollmentCheckinService(mdmService, ds, mdmStorage, fleetConfig.MDM, logger.With("component", "http-mdm-apple-mdm", "handler", "cert-verifier"))
 	var mdmHandler http.Handler = httpmdm.CheckinAndCommandHandler(mdmService, mdmLogger.With("handler", "checkin-command"))
 	verifyDisable, exists := os.LookupEnv("FLEET_MDM_APPLE_SCEP_VERIFY_DISABLE")
 	if exists && (strings.EqualFold(verifyDisable, "true") || verifyDisable == "1") {
@@ -1797,5 +1801,36 @@ func WithMDMEnrollmentMiddleware(svc fleet.Service, logger *slog.Logger, next ht
 		}
 
 		next.ServeHTTP(w, r)
+	}
+}
+
+// uploadPreAuth rejects package uploads without a valid session before the
+// body is read, and only then lifts the read deadline for large uploads.
+func uploadPreAuth(svc fleet.Service, logger *slog.Logger) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
+			reject := func(err error) {
+				logger.WarnContext(ctx, "package upload rejected before body read", "path", r.URL.Path, "remote_addr", r.RemoteAddr, "err", err)
+				encodeError(ctx, err, w)
+			}
+			if r.Header.Get("Content-Encoding") != "" {
+				reject(fleet.NewUserMessageError(errors.New("unsupported Content-Encoding"), http.StatusUnsupportedMediaType))
+				return
+			}
+			bearer := token.FromHTTPRequest(r)
+			if bearer == "" {
+				reject(fleet.NewAuthHeaderRequiredError("no auth token"))
+				return
+			}
+			if _, err := auth.AuthViewer(ctx, string(bearer), svc); err != nil {
+				reject(err)
+				return
+			}
+			if err := http.NewResponseController(w).SetReadDeadline(time.Time{}); err != nil {
+				logger.ErrorContext(ctx, "failed to remove read deadline for package upload", "err", err)
+			}
+			next.ServeHTTP(w, r)
+		})
 	}
 }
