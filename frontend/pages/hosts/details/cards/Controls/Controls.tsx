@@ -228,9 +228,6 @@ const Controls = ({
   }, [controls, isDeviceUser, showHiddenProfiles, typeFilter, searchQuery]);
 
   const tableCustomFilters = (): JSX.Element | null => {
-    if (!isMacOSHost) {
-      return null;
-    }
     if (isDeviceUser) {
       if (!isPremiumTier) {
         return null;
@@ -247,6 +244,11 @@ const Controls = ({
         />
       );
     }
+
+    if (!isMacOSHost) {
+      return null;
+    }
+
     return (
       <>
         <DropdownWrapper

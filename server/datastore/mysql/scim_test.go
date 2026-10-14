@@ -57,6 +57,7 @@ func TestScim(t *testing.T) {
 		{"ScimNestedGroups", testScimNestedGroups},
 		{"TriggerResendIdPProfiles", testTriggerResendIdPProfiles},
 		{"TriggerResendIdPProfilesOnTeam", testTriggerResendIdPProfilesOnTeam},
+		{"TriggerResendDigiCertProfiles", testTriggerResendDigiCertProfiles},
 		{"TriggerResendCertTemplatesAndAppConfigs", testTriggerResendCertTemplatesAndAppConfigs},
 		{"SetOrUpdateHostSCIMUserMapping", testSetOrUpdateHostSCIMUserMapping},
 	}
@@ -2740,6 +2741,81 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryVerifying})
 }
 
+// newDigiCertCA creates a DigiCert CA with the given certificate fields.
+func newDigiCertCA(t *testing.T, ds *Datastore, name, commonName, seatID string, upns *[]string) *fleet.CertificateAuthority {
+	ca, err := ds.NewCertificateAuthority(t.Context(), &fleet.CertificateAuthority{
+		Type: string(fleet.CATypeDigiCert), Name: &name, URL: new("https://example.com"), APIToken: new("token"), ProfileID: new("profile"),
+		CertificateCommonName: &commonName, CertificateUserPrincipalNames: upns, CertificateSeatID: &seatID,
+	})
+	require.NoError(t, err)
+	return ca
+}
+
+// newDigiCertProfile creates an Apple profile that gets its certificate from the named DigiCert CA.
+func newDigiCertProfile(t *testing.T, ds *Datastore, name, caName string, teamID uint) *fleet.MDMAppleConfigProfile {
+	cp := generateAppleCP(name, name, teamID)
+	cp.Mobileconfig = []byte("<data>" + fleet.FleetVarDigiCertDataPrefix.WithPrefix() + caName + "</data>")
+	profile, err := ds.NewMDMAppleConfigProfile(t.Context(), *cp, []fleet.FleetVarName{fleet.FleetVarName(string(fleet.FleetVarDigiCertDataPrefix) + caName)})
+	require.NoError(t, err)
+	return profile
+}
+
+func testTriggerResendDigiCertProfiles(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+	otherHost := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now())
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "digicert_team"})
+	require.NoError(t, err)
+
+	// "ca" is a prefix of "ca_groups", so a resend for "ca" must not match the "ca_groups" profile.
+	newDigiCertCA(t, ds, "ca", fleet.FleetVarHostEndUserIDPUsername.WithPrefix(), fleet.FleetVarHostEndUserEmailIDP.WithBraces(), nil)
+	newDigiCertCA(t, ds, "ca_groups", "cn", "seat", &[]string{fleet.FleetVarHostEndUserIDPGroups.WithPrefix() + "@example.com"})
+	serialCA := newDigiCertCA(t, ds, "ca_serial", fleet.FleetVarHostHardwareSerial.WithPrefix(), "seat", &[]string{"upn"})
+
+	profUsername := newDigiCertProfile(t, ds, "username", "ca", 0)
+	profGroups := newDigiCertProfile(t, ds, "groups", "ca_groups", 0)
+	profSerial := newDigiCertProfile(t, ds, "serial", "ca_serial", 0)
+	profOtherTeam := newDigiCertProfile(t, ds, "other_team", "ca", team.ID) // not the hosts' team, so never resent
+	profNone, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("none", "none", 0), nil)
+	require.NoError(t, err)
+	allProfiles := []*fleet.MDMAppleConfigProfile{profUsername, profGroups, profSerial, profOtherTeam, profNone}
+
+	checkResend := func(affectedVar fleet.FleetVarName, wantPending ...*fleet.MDMAppleConfigProfile) {
+		t.Run(string(affectedVar), func(t *testing.T) {
+			for _, p := range allProfiles {
+				forceSetAppleHostProfileStatus(t, ds, host.UUID, p, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+				forceSetAppleHostProfileStatus(t, ds, otherHost.UUID, p, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+			}
+			ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+				return triggerResendProfilesUsingVariables(ctx, tx, []uint{host.ID}, []fleet.FleetVarName{affectedVar})
+			})
+			var want, wantOther []hostProfileStatus
+			for _, p := range allProfiles {
+				status := fleet.MDMDeliveryVerified
+				if slices.Contains(wantPending, p) {
+					status = fleet.MDMDeliveryPending
+				}
+				want = append(want, hostProfileStatus{p.ProfileUUID, status})
+				wantOther = append(wantOther, hostProfileStatus{p.ProfileUUID, fleet.MDMDeliveryVerified})
+			}
+			assertHostProfileStatus(t, ds, host.UUID, want...)
+			assertHostProfileStatus(t, ds, otherHost.UUID, wantOther...)
+		})
+	}
+
+	checkResend(fleet.FleetVarHostEndUserIDPUsername, profUsername)
+	checkResend(fleet.FleetVarHostEndUserEmailIDP, profUsername)
+	checkResend(fleet.FleetVarHostEndUserIDPGroups, profGroups)
+	checkResend(fleet.FleetVarHostEndUserIDPFullname)
+
+	// The CA is read at resend time, so an edited CA is picked up without touching the profile.
+	require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, serialCA.ID, &fleet.CertificateAuthority{
+		Type: string(fleet.CATypeDigiCert), CertificateCommonName: new(fleet.FleetVarHostEndUserIDPFullname.WithPrefix()),
+	}))
+	checkResend(fleet.FleetVarHostEndUserIDPFullname, profSerial)
+}
+
 // for https://github.com/fleetdm/fleet/issues/28820
 func testTriggerResendIdPProfilesOnTeam(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
@@ -3187,13 +3263,18 @@ func testTriggerResendCertTemplatesAndAppConfigs(t *testing.T, ds *Datastore) {
 		_, err := q.ExecContext(ctx, `INSERT INTO vpp_apps (adam_id, platform) VALUES (?, 'android')`, appID)
 		return err
 	})
+	var appTeamID int64
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id) VALUES (?, 'android', 0)`, appID)
+		res, err := q.ExecContext(ctx, `INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id, name) VALUES (?, 'android', 0, 'Default version')`, appID)
+		if err != nil {
+			return err
+		}
+		appTeamID, err = res.LastInsertId()
 		return err
 	})
 
 	config := []byte(`{"managedConfiguration":{"user":"$FLEET_VAR_HOST_END_USER_IDP_USERNAME"}}`)
-	err = ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), 0, appID, config)
+	err = ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), uint(appTeamID), config) //nolint:gosec // dismiss G115
 	require.NoError(t, err)
 
 	// Assign a SCIM user to the host.

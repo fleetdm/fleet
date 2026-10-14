@@ -562,6 +562,94 @@ const TEST_CASES = [
     }
   },
 
+  // Third-party apps, from the ADMX templates in profile-generator/schema/admx-templates/.  The ADMXInstall
+  // commands are added after generation, so asserting on them checks that the right templates were picked
+  // up from the policies the model chose.
+  {
+    id: 'csp-admx-chrome-homepage',
+    profileType: 'csp',
+    instructions: 'Set the Chrome homepage to https://fleetdm.com.',
+    readByEye: 'The ADMXInstall <Replace> comes first, and the policy is a <Replace>.',
+    expect: {
+      mustContain: [
+        'ConfigOperations/ADMXInstall/GoogleChrome/Policy/GoogleChromeAdmxFile',
+        './Device/Vendor/MSFT/Policy/Config/GoogleChrome~Policy~googlechrome~Startup/HomepageLocation<',
+        '<data id="HomepageLocation" value="https://fleetdm.com"/>',
+        '<enabled/>',
+      ],
+      mustContainElement: [['Format', 'chr']],
+      mustNotContain: ['&lt;enabled/&gt;'],
+      // Outside CDATA, because the embedded chrome.admx defines the _recommended twin too.
+      mustNotContainOutsideCdata: ['<?xml', 'HomepageLocation_recommended'],
+    }
+  },
+  {
+    id: 'csp-admx-chrome-restore-last-session',
+    profileType: 'csp',
+    instructions: 'Make Chrome reopen the last session when it starts.',
+    expect: {
+      mustContain: [
+        'ConfigOperations/ADMXInstall/GoogleChrome/Policy/GoogleChromeAdmxFile',
+        'Policy/Config/GoogleChrome~Policy~googlechrome~Startup/RestoreOnStartup<',
+        // An enum takes the item's value, never the label or the item's position.
+        '<data id="RestoreOnStartup" value="1"/>',
+      ],
+      mustNotContainOutsideCdata: ['RestoreOnStartup_recommended'],
+    }
+  },
+  {
+    id: 'csp-admx-chrome-force-install-extension',
+    profileType: 'csp',
+    instructions: 'Force-install the Chrome extension with ID ddkjiahejlhfcafbddmgiahcphecmpfh on every computer.',
+    readByEye: 'The list value is name/value pairs: 1&#xF000;<extension ID>, optionally followed by ;<update URL>.',
+    expect: {
+      mustContain: [
+        'ConfigOperations/ADMXInstall/GoogleChrome/Policy/GoogleChromeAdmxFile',
+        'Policy/Config/GoogleChrome~Policy~googlechrome~Extensions/ExtensionInstallForcelist<',
+        '<data id="ExtensionInstallForcelistDesc" value="1&#xF000;ddkjiahejlhfcafbddmgiahcphecmpfh',
+      ],
+    }
+  },
+  {
+    id: 'csp-admx-firefox-disable-telemetry',
+    profileType: 'csp',
+    instructions: 'Turn off telemetry in Firefox.',
+    expect: {
+      mustContain: [
+        'ConfigOperations/ADMXInstall/MozillaFirefox/Policy/MozillaFirefoxAdmxFile',
+        'Policy/Config/MozillaFirefox~Policy~firefox/DisableTelemetry<',
+        '<enabled/>',
+      ],
+      mustNotContain: ['System/AllowTelemetry', '<data id='],
+    }
+  },
+  {
+    id: 'csp-admx-google-update-pin-chrome-version',
+    profileType: 'csp',
+    instructions: 'Keep Google Chrome on version 128 and stop it updating past that.',
+    readByEye: 'Pol_UpdatePolicyGoogleChrome may also be set, but not to 0 (updates disabled), which would also stop 128.x security fixes.  Google documents the prefix with a trailing dot (128.), though 128 alone also pins it.',
+    expect: {
+      mustContain: [
+        'ConfigOperations/ADMXInstall/GoogleUpdate/Policy/GoogleUpdateAdmxFile',
+        'Policy/Config/GoogleUpdate~Policy~Cat_GoogleUpdate~Cat_Applications~Cat_GoogleChrome/Pol_TargetVersionPrefixGoogleChrome<',
+        '<data id="Part_TargetVersionPrefix" value="128',
+      ],
+    }
+  },
+  {
+    id: 'csp-admx-mixed-with-windows-setting',
+    profileType: 'csp',
+    instructions: 'Turn off Cortana and set the Chrome homepage to https://fleetdm.com.',
+    expect: {
+      mustContain: [
+        'Policy/Config/Experience/AllowCortana',
+        'ConfigOperations/ADMXInstall/GoogleChrome/Policy/GoogleChromeAdmxFile',
+        'Policy/Config/GoogleChrome~Policy~googlechrome~Startup/HomepageLocation<',
+      ],
+      mustContainElement: [['Format', 'int'], ['Format', 'chr'], ['Data', '0']],
+    }
+  },
+
   //  ╔╦╗╔═╗╔╗ ╦╦  ╔═╗╔═╗╔╗╔╔═╗╦╔═╗
   //  ║║║║ ║╠╩╗║║  ║╣ ║  ║║║╠╣ ║║ ╦
   //  ╩ ╩╚═╝╚═╝╩╩═╝╚═╝╚═╝╝╚╝╚  ╩╚═╝
@@ -1398,7 +1486,351 @@ const TEST_CASES = [
     readByEye: 'Another state-not-setting.  ConfigDataInstall (CIS 1.5) keeps XProtect definitions current but does not make XProtect run, so a profile carrying only that key answers a different request.',
     expect: { expectFailure: true }
   },
-
+  //  ╔═╗╔╗╔╔╦╗╦═╗╔═╗╦╔╦╗
+  //  ╠═╣║║║ ║║╠╦╝║ ║║ ║║
+  //  ╩ ╩╝╚╝═╩╝╩╚═╚═╝╩═╩╝
+  {
+    id: 'android-disable-adding-google-accounts',
+    profileType: 'android',
+    instructions: 'Prevent users from managing google accounts on a device, but allow other accounts.',
+    expect: {
+      mustContain: ['"accountTypesWithManagementDisabled":["com.google"]']
+    }
+  },
+  {
+    id: 'android-disable-adding-accounts',
+    profileType: 'android',
+    instructions: 'Prevent users from adding new accounts to the device',
+    expect: {
+      mustContain: ['"modifyAccountsDisabled":true']
+    }
+  },
+  {
+    id: 'android-developer-settings',
+    profileType: 'android',
+    instructions: 'Block developer options.',
+    readByEye: 'developerSettings must be nested inside advancedSecurityOverrides; the exact nested substring below verifies that shape.',
+    // CANARY.  Nested enum -- the exact shape where a typo one level down is silently discarded
+    // rather than rejected.
+    expect: {
+      mustContain: [
+        'advancedSecurityOverrides',
+        'developerSettings',
+        'DEVELOPER_SETTINGS_DISABLED',
+        '"advancedSecurityOverrides": {"developerSettings": "DEVELOPER_SETTINGS_DISABLED"}'
+      ]
+    }
+  },
+  {
+    id: 'android-camera',
+    profileType: 'android',
+    instructions: 'Disable the camera.',
+    expect: {
+      mustContain: ['cameraAccess', 'CAMERA_ACCESS_DISABLED'],
+      mustNotContain: ['cameraDisabled', 'camera_access_disabled'],
+    }
+  },
+  {
+    id: 'android-screenshots',
+    profileType: 'android',
+    instructions: 'Block screenshots.',
+    expect: {
+      mustContain: ['screenCaptureDisabled'],
+    }
+  },
+  {
+    id: 'android-factory-reset',
+    profileType: 'android',
+    instructions: 'Prevent users from factory resetting the device.',
+    expect: {
+      mustContain: ['"factoryResetDisabled":true'],
+    }
+  },
+  {
+    id: 'android-password-length',
+    profileType: 'android',
+    instructions: 'Require a 10-character password.',
+    expect: {
+      mustContain: ['passwordPolicies', 'passwordMinimumLength', '10'],
+      mustNotContain: ['passwordRequirements']
+    }
+  },
+  {
+    id: 'android-failed-attempts',
+    profileType: 'android',
+    instructions: 'Wipe the device after 10 failed password attempts.',
+    expect: {
+      mustContain: ['passwordPolicies', 'maximumFailedPasswordsForWipe'],
+      mustNotContain: ['passwordRequirements']
+    }
+  },
+  {
+    id: 'android-bluetooth-contact-sharing',
+    profileType: 'android',
+    instructions: 'Turn off Bluetooth contact sharing.',
+    expect: {
+      mustContain: ['bluetoothContactSharingDisabled']
+    }
+  },
+  {
+    id: 'android-copy-paste-between-profiles',
+    profileType: 'android',
+    instructions: 'Prevent users from copying content from managed applications into unmanaged personal applications',
+    expect: {
+      mustContain: [
+        '"crossProfilePolicies"',
+        '"crossProfileCopyPaste": "COPY_FROM_WORK_TO_PERSONAL_DISALLOWED"'
+      ]
+    }
+  },
+  {
+    id: 'android-untrusted-apps-with-play-protect',
+    profileType: 'android',
+    instructions: 'Allow users to download and install APK files, but enforce Google Play protect',
+    expect: {
+      mustContain: [
+        '"googlePlayProtectVerifyApps": "VERIFY_APPS_ENFORCED"',
+        '"untrustedAppsPolicy": "ALLOW_INSTALL_DEVICE_WIDE"',
+        '"advancedSecurityOverrides"'
+      ]
+    }
+  },
+  {
+    id: 'android-untrusted-apps',
+    profileType: 'android',
+    instructions: 'Prevent users from installing downloaded apk files',
+    expect: {
+      mustContain: [
+        '"advancedSecurityOverrides"',
+        '"untrustedAppsPolicy": "DISALLOW_INSTALL"',
+      ]
+    }
+  },
+  {
+    id: 'android-disable-biometric-auth',
+    profileType: 'android',
+    instructions: 'Prevent users from using biometric authetication to unlock the device',
+    expect: {
+      mustContain: [
+        '"keyguardDisabledFeatures"',
+        '"BIOMETRICS"',
+      ]
+    }
+  },
+  {
+    id: 'android-iris-auth',
+    profileType: 'android',
+    instructions: 'Prevent users from using iris scanners to unlock the device',
+    expect: {
+      mustContain: [
+        '"keyguardDisabledFeatures"',
+        '"IRIS"',
+      ]
+    }
+  },
+  {
+    id: 'android-os-update-window',
+    profileType: 'android',
+    instructions: 'Set devices to automatically install OS updates at 2:00 am nightly',
+    expect: {
+      mustContain: [
+        '"systemUpdate"',
+        '"type": "WINDOWED"',
+        '"startMinutes": 120',
+        '"endMinutes": 180',
+      ]
+    }
+  },
+  {
+    id: 'android-wifi-security-restriction',
+    profileType: 'android',
+    instructions: 'Prevent devices from connecting to open wifi networks.',
+    expect: {
+      mustContain: [
+        '"deviceRadioState": {"minimumWifiSecurityLevel": "PERSONAL_NETWORK_SECURITY"}',
+      ]
+    }
+  },
+  {
+    id: 'android-disable-fun',
+    profileType: 'android',
+    instructions: 'Disable Android easter eggs.',
+    expect: {
+      mustContain: [
+        '"funDisabled": true',
+      ]
+    }
+  },
+  {
+    id: 'android-lock-screen-message',
+    profileType: 'android',
+    instructions: 'Show "Property of Acme Corp. If found, call 555-0100." on the lock screen.',
+    // Nested UserFacingMessage, and the message must be reproduced exactly.
+    expect: {
+      mustContain: ['"deviceOwnerLockScreenInfo":{"defaultMessage":"Property of Acme Corp. If found, call 555-0100."']
+    }
+  },
+  {
+    id: 'android-screen-timeout',
+    profileType: 'android',
+    canary: true,
+    instructions: 'Turn the screen off after 2 minutes of inactivity and do not let users change it.',
+    readByEye: 'screenTimeoutSettings must be nested inside displaySettings, not at the top level.',
+    // Two levels of nesting, a google-duration string, and a mode that must accompany the duration.
+    expect: {
+      mustContain: ['"displaySettings":{', '"screenTimeoutSettings":{', '"screenTimeout":"120s"', 'SCREEN_TIMEOUT_ENFORCED'],
+      mustNotContain: ['"screenTimeout":120']
+    }
+  },
+  {
+    id: 'android-usb-file-transfer',
+    profileType: 'android',
+    instructions: 'Block file transfers over USB.',
+    // usbFileTransferDisabled is deprecated in favour of deviceConnectivityManagement.usbDataAccess.
+    expect: {
+      mustContain: ['"deviceConnectivityManagement":{', 'DISALLOW_USB_FILE_TRANSFER'],
+      mustNotContain: ['usbFileTransferDisabled']
+    }
+  },
+  {
+    id: 'android-wifi-config',
+    profileType: 'android',
+    instructions: 'Do not let users add or change Wi-Fi networks.',
+    expect: {
+      mustContain: ['"deviceConnectivityManagement":{', 'DISALLOW_CONFIGURING_WIFI'],
+      mustNotContain: ['wifiConfigDisabled']
+    }
+  },
+  {
+    id: 'android-wifi-hotspot-only',
+    profileType: 'android',
+    instructions: 'Block the Wi-Fi hotspot, but still allow USB tethering.',
+    // Picks the narrower of two enum values, and avoids deprecated tetheringConfigDisabled.
+    expect: {
+      mustContain: ['DISALLOW_WIFI_TETHERING'],
+      mustNotContain: ['DISALLOW_ALL_TETHERING', 'tetheringConfigDisabled']
+    }
+  },
+  {
+    id: 'android-microphone',
+    profileType: 'android',
+    instructions: 'Disable the microphone.',
+    expect: {
+      mustContain: ['"microphoneAccess":"MICROPHONE_ACCESS_DISABLED"'],
+      mustNotContain: ['unmuteMicrophoneDisabled']
+    }
+  },
+  {
+    id: 'android-unknown-sources',
+    profileType: 'android',
+    instructions: 'Block installing apps from unknown sources.',
+    expect: {
+      mustContain: ['"advancedSecurityOverrides":{', '"untrustedAppsPolicy":"DISALLOW_INSTALL"'],
+      mustNotContain: ['installUnknownSourcesAllowed']
+    }
+  },
+  {
+    id: 'android-play-protect',
+    profileType: 'android',
+    instructions: 'Force Google Play Protect app verification on.',
+    expect: {
+      mustContain: ['"advancedSecurityOverrides":{', '"googlePlayProtectVerifyApps":"VERIFY_APPS_ENFORCED"'],
+      mustNotContain: ['ensureVerifyAppsEnabled']
+    }
+  },
+  {
+    id: 'android-auto-time',
+    profileType: 'android',
+    instructions: 'Require automatic date and time.',
+    expect: {
+      mustContain: ['"autoDateAndTimeZone":"AUTO_DATE_AND_TIME_ZONE_ENFORCED"'],
+      mustNotContain: ['autoTimeRequired']
+    }
+  },
+  {
+    id: 'android-location-off',
+    profileType: 'android',
+    instructions: 'Turn off location services.',
+    // OFF is a deprecated value of locationMode; LOCATION_DISABLED replaces it.
+    expect: {
+      mustContain: ['"locationMode":"LOCATION_DISABLED"'],
+      mustNotContain: ['"OFF"', 'shareLocationDisabled']
+    }
+  },
+  {
+    id: 'android-keyguard-features',
+    profileType: 'android',
+    instructions: 'Hide the camera shortcut and notifications on the lock screen.',
+    // Array of enums, and only the two asked for.
+    expect: {
+      mustContain: ['keyguardDisabledFeatures', '"CAMERA"', '"NOTIFICATIONS"'],
+      mustNotContain: ['ALL_FEATURES', 'cameraAccess']
+    }
+  },
+  {
+    id: 'android-printing',
+    profileType: 'android',
+    instructions: 'Disable printing.',
+    // Google's description for this field starts with "Optional.", which the pruning once kept as the whole description.
+    expect: {
+      mustContain: ['"printingPolicy":"PRINTING_DISALLOWED"']
+    }
+  },
+  {
+    id: 'android-frp-admin',
+    profileType: 'android',
+    instructions: 'After a factory reset, only it-admin@example.com should be able to unlock the device.',
+    expect: {
+      mustContain: ['"frpAdminEmails":["it-admin@example.com"]']
+    }
+  },
+  {
+    id: 'android-deny-permissions',
+    profileType: 'android',
+    instructions: 'Automatically deny app permission requests.',
+    expect: {
+      mustContain: ['"defaultPermissionPolicy":"DENY"']
+    }
+  },
+  {
+    id: 'android-work-profile-password',
+    profileType: 'android',
+    instructions: 'Require an alphanumeric password with at least 8 characters for the work profile.',
+    expect: {
+      mustContain: ['"passwordPolicies":[{', 'ALPHANUMERIC', '"passwordMinimumLength":8', 'SCOPE_PROFILE'],
+      mustNotContain: ['passwordRequirements', 'SCOPE_DEVICE']
+    }
+  },
+  {
+    id: 'android-stay-on-while-charging',
+    profileType: 'android',
+    instructions: 'Keep the screen on while the device is charging from AC or USB.',
+    expect: {
+      mustContain: ['stayOnPluggedModes', '"AC"', '"USB"'],
+      mustNotContain: ['"WIRELESS"']
+    }
+  },
+  {
+    id: 'android-multiple-restrictions',
+    profileType: 'android',
+    instructions: 'Disable the camera, block screenshots, and prevent factory reset.',
+    expect: {
+      mustContain: ['CAMERA_ACCESS_DISABLED', '"screenCaptureDisabled":true', '"factoryResetDisabled":true'],
+      mustNotContain: ['cameraDisabled']
+    }
+  },
+  {
+    id: 'negative-android-nonexistent-hostname',
+    profileType: 'android',
+    instructions: 'Set the device hostname to ACME-1234.',
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'negative-android-geofence-alert',
+    profileType: 'android',
+    instructions: 'Email IT when the device leaves the office.',
+    expect: { expectFailure: true }
+  },
 
 ];
 

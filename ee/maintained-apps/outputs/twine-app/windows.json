@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.12.0",
+      "version": "2.12.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Twine' AND publisher = 'Chris Klimas';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Twine' AND publisher = 'Chris Klimas' AND version_compare(version, '2.12.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Twine' AND publisher = 'Chris Klimas' AND version_compare(version, '2.12.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'twine.exe');"
       },
-      "installer_url": "https://github.com/klembot/twinejs/releases/download/2.12.0/Twine-2.12.0-Windows.exe",
+      "installer_url": "https://github.com/klembot/twinejs/releases/download/2.12.1/Twine-2.12.1-Windows.exe",
       "install_script_ref": "df65625a",
       "uninstall_script_ref": "0b25103b",
-      "sha256": "1292d6dddc64b89583cca6e17123215e5d7cd35c32cdea1c14edfff7599e6ebc",
+      "sha256": "0e6f772064f40af5514db78b0384d317491bf068291769252566c3dfda8094f5",
       "default_categories": [
         "Productivity"
       ]
