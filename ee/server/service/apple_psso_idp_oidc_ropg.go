@@ -61,7 +61,8 @@ var ropgVerifyTimeout = 10 * time.Second
 type ropgVerifyOutcome int
 
 const (
-	ropgVerifyUnknown ropgVerifyOutcome = iota
+	// The zero value: a code ropgVerifyOutcomes doesn't list.
+	_ ropgVerifyOutcome = iota
 	// ropgVerifyOK: the IdP accepted the client and rejected only the user,
 	// which it checks after authenticating the client (RFC 6749 section 5.2).
 	ropgVerifyOK

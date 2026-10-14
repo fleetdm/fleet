@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -206,11 +207,12 @@ func TestPSSOOIDCROPGClientVerifyConfigUnreachable(t *testing.T) {
 	}
 
 	t.Run("unknown host", func(t *testing.T) {
-		client := &http.Client{Transport: &http.Transport{
-			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				return nil, &net.DNSError{Err: "no such host", Name: "idp.invalid", Server: "10.0.0.53:53", IsNotFound: true}
-			},
-		}}
+		transport := fleethttp.NewTransport()
+		transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			return nil, &net.DNSError{Err: "no such host", Name: "idp.invalid", Server: "10.0.0.53:53", IsNotFound: true}
+		}
+		client := fleethttp.NewClient()
+		client.Transport = transport
 		msg := verify(t, "https://idp.invalid/oauth2/v1/token", client)
 		require.Contains(t, msg, "Fleet couldn't find the host idp.invalid.")
 		require.NotContains(t, msg, "10.0.0.53")
