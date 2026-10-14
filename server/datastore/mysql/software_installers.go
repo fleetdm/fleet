@@ -579,6 +579,19 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 
 	// update the upgrade code for a title, since optimisticGetOrInsert uses only the select if it already exists
 	if payload.Source == "programs" && payload.UpgradeCode != "" {
+		// The UPDATE locks the title row even when nothing changes, which holds up installs of this title in every
+		// fleet until the caller's transaction commits, so skip it when nothing would change.
+		var current struct {
+			Name        string  `db:"name"`
+			UpgradeCode *string `db:"upgrade_code"`
+		}
+		if err := sqlx.GetContext(ctx, tx, &current, `SELECT name, upgrade_code FROM software_titles WHERE id = ? FOR SHARE`, titleID); err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "load software title")
+		}
+		if ptr.ValOrZero(current.UpgradeCode) == payload.UpgradeCode && (payload.FleetMaintainedAppID == nil || current.Name == payload.Title) {
+			return titleID, nil
+		}
+
 		updateStmt := `UPDATE software_titles SET upgrade_code = ? WHERE id = ?`
 		updateArgs := []any{payload.UpgradeCode, titleID}
 
@@ -3821,6 +3834,25 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 				return ctxerr.Errorf(ctx, "labels have not been validated for installer with name %s", installer.Filename)
 			}
 
+			// Leave an unchanged custom package alone. Rewriting it locks its row and its scripts' rows until the
+			// apply commits, which holds up every install and script queued against them.
+			if installer.FleetMaintainedAppID == nil {
+				titleID := titleIDByInstaller[installer]
+				unchangedID, err := unchangedCustomInstallerID(ctx, tx, globalOrTeamID, titleID, installer)
+				if err != nil {
+					return ctxerr.Wrapf(ctx, err, "check for unchanged installer with name %q", installer.Filename)
+				}
+				if unchangedID != 0 {
+					if displayNameIDMap[titleID] != installer.DisplayName {
+						if err := updateSoftwareTitleDisplayName(ctx, tx, tmID, titleID, installer.DisplayName); err != nil {
+							return ctxerr.Wrapf(ctx, err, "update software title display name for installer with name %q", installer.Filename)
+						}
+					}
+					keptInstallerIDs = append(keptInstallerIDs, unchangedID)
+					continue
+				}
+			}
+
 			isRes, err := insertScriptContents(ctx, tx, installer.InstallScript)
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "inserting install script contents for software installer with name %q", installer.Filename)
@@ -4302,6 +4334,79 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 		return nil, err
 	}
 	return modifiedInstallers, nil
+}
+
+// unchangedCustomInstallerID returns the ID of the stored custom package that already matches p in everything
+// BatchSetSoftwareInstallers writes for it, or 0 if there's none.
+func unchangedCustomInstallerID(ctx context.Context, tx sqlx.ExtContext, globalOrTeamID, titleID uint, p *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+	// Scripts are compared by checksum, so an unchanged package never upserts script_contents. Text is compared as
+	// BINARY because the columns' collation ignores case, accents, and trailing spaces.
+	const stmt = `
+SELECT si.id
+FROM software_installers si
+JOIN script_contents isc ON isc.id = si.install_script_content_id
+JOIN script_contents usc ON usc.id = si.uninstall_script_content_id
+LEFT JOIN script_contents psc ON psc.id = si.post_install_script_content_id
+JOIN users u ON u.id = si.user_id
+WHERE si.global_or_team_id = ? AND si.title_id = ? AND si.dedup_token = ? AND si.fleet_maintained_app_id IS NULL
+	AND si.is_active = 1
+	AND isc.md5_checksum = UNHEX(?) AND usc.md5_checksum = UNHEX(?) AND psc.md5_checksum <=> UNHEX(?)
+	AND BINARY si.pre_install_query = BINARY ? AND si.self_service = ? AND BINARY si.patch_query = BINARY ?
+	AND BINARY si.app_open_query = BINARY ? AND si.install_script_edited = ? AND si.uninstall_script_edited = ?
+	AND (? IS NULL OR si.install_during_setup = ?)
+	AND BINARY si.filename = BINARY ? AND BINARY si.extension = BINARY ? AND BINARY si.version = BINARY ?
+	AND BINARY si.platform = BINARY ? AND BINARY si.upgrade_code = BINARY ? AND BINARY si.url = BINARY ?
+	AND BINARY si.http_etag <=> BINARY ? AND si.user_id = ?
+	AND BINARY si.user_name = BINARY u.name AND BINARY si.user_email = BINARY u.email
+	AND COALESCE((SELECT GROUP_CONCAT(label_id, ':', exclude, ':', require_all ORDER BY label_id)
+		FROM software_installer_labels WHERE software_installer_id = si.id), '') = ?
+	AND COALESCE((SELECT GROUP_CONCAT(software_category_id ORDER BY software_category_id)
+		FROM software_installer_software_categories WHERE software_installer_id = si.id), '') = ?
+FOR SHARE OF si`
+
+	var postInstallMD5 *string
+	if p.PostInstallScript != "" {
+		postInstallMD5 = new(md5ChecksumScriptContent(p.PostInstallScript))
+	}
+	labelFlags := "0:0" // exclude:require_all
+	switch p.ValidatedLabels.LabelScope {
+	case fleet.LabelScopeExcludeAny:
+		labelFlags = "1:0"
+	case fleet.LabelScopeIncludeAll:
+		labelFlags = "0:1"
+	}
+	labelIDs := make([]uint, 0, len(p.ValidatedLabels.ByName))
+	for _, l := range p.ValidatedLabels.ByName {
+		labelIDs = append(labelIDs, l.LabelID)
+	}
+	labels := make([]string, 0, len(labelIDs))
+	for _, id := range slices.Sorted(slices.Values(labelIDs)) {
+		labels = append(labels, fmt.Sprintf("%d:%s", id, labelFlags))
+	}
+	categories := make([]string, 0, len(p.CategoryIDs))
+	for _, id := range slices.Sorted(slices.Values(p.CategoryIDs)) {
+		categories = append(categories, fmt.Sprint(id))
+	}
+
+	var id uint
+	err := sqlx.GetContext(ctx, tx, &id, stmt,
+		globalOrTeamID, titleID, p.StorageID,
+		md5ChecksumScriptContent(p.InstallScript), md5ChecksumScriptContent(p.UninstallScript), postInstallMD5,
+		p.PreInstallQuery, p.SelfService, p.PatchQuery,
+		p.AppOpenQuery, p.InstallScriptEdited, p.UninstallScriptEdited,
+		p.InstallDuringSetup, p.InstallDuringSetup,
+		p.Filename, p.Extension, p.Version,
+		p.Platform, p.UpgradeCode, p.URL,
+		p.HTTPETag, p.UserID,
+		strings.Join(labels, ","), strings.Join(categories, ","),
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "load unchanged installer")
+	}
+	return id, nil
 }
 
 func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostPlatform string, hostTeamID *uint) (bool, error) {
