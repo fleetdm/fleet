@@ -845,7 +845,7 @@ type storageBackendCandidate struct {
 func (f FleetConfig) softwareInstallersBackendCandidates() []storageBackendCandidate {
 	return []storageBackendCandidate{
 		{StorageBackendS3, f.S3.SoftwareInstallersBucket != "", "s3_software_installers_bucket"},
-		{StorageBackendAzure, f.CloudStorage.Azure.SoftwareInstallersContainer != "", "cloud_storage_azure_files_container"},
+		{StorageBackendAzure, f.CloudStorage.Azure.SoftwareInstallersContainer != "", "cloud_storage.azure.files_container"},
 	}
 }
 
@@ -881,11 +881,20 @@ func (f FleetConfig) ValidateSoftwareInstallersBackend(initFatal func(err error,
 // SoftwareInstallersSignedURLEnabled reports whether downloads of software
 // installers and in-house apps should be handed out as signed URLs (pointing
 // directly at the object store) instead of proxying the bytes through Fleet.
+// Only the signing settings of the selected storage backend are considered.
 func (f FleetConfig) SoftwareInstallersSignedURLEnabled() bool {
-	if f.S3.SoftwareInstallersCloudFrontSigner != nil || f.S3.SoftwareInstallersSignedURL {
-		return true
+	backend, err := f.SoftwareInstallersBackend()
+	if err != nil {
+		return false
 	}
-	return f.CloudStorage.Azure.SoftwareInstallersContainer != "" && f.CloudStorage.Azure.SoftwareInstallersSignedURL
+	switch backend {
+	case StorageBackendS3:
+		return f.S3.SoftwareInstallersCloudFrontSigner != nil || f.S3.SoftwareInstallersSignedURL
+	case StorageBackendAzure:
+		return f.CloudStorage.Azure.SoftwareInstallersSignedURL
+	default:
+		return false
+	}
 }
 
 // StagedUploadAvailable reports whether clients can upload packages straight

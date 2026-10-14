@@ -1648,7 +1648,7 @@ func TestSoftwareInstallersBackend(t *testing.T) {
 		{
 			name:    "both",
 			cfg:     FleetConfig{S3: s3Cfg, CloudStorage: CloudStorageConfig{Azure: azureCfg}},
-			wantErr: "Couldn't configure. `s3_software_installers_bucket` and `cloud_storage_azure_files_container` cannot both be set; choose one storage backend for software installers.",
+			wantErr: "Couldn't configure. `s3_software_installers_bucket` and `cloud_storage.azure.files_container` cannot both be set; choose one storage backend for software installers.",
 		},
 		{
 			// the carves bucket does not select the software installers backend
@@ -1697,10 +1697,36 @@ func TestSoftwareInstallersSignedURLAndStagedUpload(t *testing.T) {
 			wantStagedUpload: true,
 		},
 		{
-			// matches the pre-existing behavior: staged upload requires a bucket, signing does not
-			name:       "s3 signed url without bucket",
-			cfg:        FleetConfig{S3: S3Config{SoftwareInstallersSignedURL: true}},
-			wantSigned: true,
+			// S3 is only selected when a bucket is set, so its signing settings are ignored otherwise
+			name: "s3 signed url without bucket",
+			cfg:  FleetConfig{S3: S3Config{SoftwareInstallersSignedURL: true}},
+		},
+		{
+			name: "s3 cloudfront signer without bucket",
+			cfg:  FleetConfig{S3: S3Config{SoftwareInstallersCloudFrontSigner: &testSigner{}}},
+		},
+		{
+			name: "s3 signed url ignored when azure is selected",
+			cfg: FleetConfig{
+				S3:           S3Config{SoftwareInstallersSignedURL: true},
+				CloudStorage: CloudStorageConfig{Azure: AzureConfig{SoftwareInstallersContainer: "c"}},
+			},
+		},
+		{
+			name: "azure signed url ignored when s3 is selected",
+			cfg: FleetConfig{
+				S3:           S3Config{SoftwareInstallersBucket: "b"},
+				CloudStorage: CloudStorageConfig{Azure: AzureConfig{SoftwareInstallersSignedURL: true}},
+			},
+			wantStagedUpload: false,
+		},
+		{
+			name: "both backends configured",
+			cfg: FleetConfig{
+				S3:           S3Config{SoftwareInstallersBucket: "b", SoftwareInstallersSignedURL: true},
+				CloudStorage: CloudStorageConfig{Azure: AzureConfig{SoftwareInstallersContainer: "c", SoftwareInstallersSignedURL: true}},
+			},
+			wantStagedUpload: true,
 		},
 		{
 			name: "azure signed url",
