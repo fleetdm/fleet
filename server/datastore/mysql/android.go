@@ -350,19 +350,28 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 		// update storage data in host_disks table for API consumption
 		switch {
 		case host.Host.GigsDiskSpaceAvailable < 0:
-			// AMAPI omits storage measurements from enrollment payloads and from status reports
-			// sent before the device has measured, so -1 only replaces a row with no real
-			// measurement yet. A kept measurement keeps its total too, so the three values always
-			// agree. Decided in one statement on the writer so a lagging replica can't make it
-			// drop a known value. The condition reads only columns that stay unchanged whenever
-			// it holds, so assignment order doesn't matter.
+			// AMAPI omits storage measurements from enrollment payloads and from the status
+			// reports a re-enrolled device sends before it measures again. Until then, keep the
+			// measurement from before the enrollment (with its total, so the three values agree)
+			// instead of writing -1 over it. Once a measurement has been recorded since the
+			// enrollment, a report without one is written as reported.
+			//
+			// last_enrolled_at has second precision, so a measurement from the same second as the
+			// enrollment counts as before it. A measurement equal to the stored one doesn't move
+			// updated_at (SetOrUpdateHostDisksSpace skips the write), so it also counts as before.
+			//
+			// Decided in one statement on the writer so a lagging replica can't make it drop a
+			// known value. The condition only reads columns that stay unchanged whenever it holds,
+			// so assignment order doesn't matter.
+			const keepMeasurement = `gigs_disk_space_available >= 0 AND gigs_total_disk_space > 0 AND
+				updated_at < (SELECT last_enrolled_at FROM hosts WHERE id = VALUES(host_id)) + INTERVAL 1 SECOND`
 			if _, err := tx.ExecContext(ctx, `
 				INSERT INTO host_disks (host_id, gigs_disk_space_available, percent_disk_space_available, gigs_total_disk_space, gigs_all_disk_space)
 				VALUES (?, ?, ?, ?, NULL)
 				ON DUPLICATE KEY UPDATE
-					percent_disk_space_available = IF(gigs_disk_space_available >= 0 AND gigs_total_disk_space > 0, percent_disk_space_available, VALUES(percent_disk_space_available)),
-					gigs_disk_space_available = IF(gigs_disk_space_available >= 0 AND gigs_total_disk_space > 0, gigs_disk_space_available, VALUES(gigs_disk_space_available)),
-					gigs_total_disk_space = IF(gigs_disk_space_available >= 0 AND gigs_total_disk_space > 0, gigs_total_disk_space, VALUES(gigs_total_disk_space)),
+					percent_disk_space_available = IF(`+keepMeasurement+`, percent_disk_space_available, VALUES(percent_disk_space_available)),
+					gigs_disk_space_available = IF(`+keepMeasurement+`, gigs_disk_space_available, VALUES(gigs_disk_space_available)),
+					gigs_total_disk_space = IF(`+keepMeasurement+`, gigs_total_disk_space, VALUES(gigs_total_disk_space)),
 					gigs_all_disk_space = NULL`,
 				host.Host.ID, host.Host.GigsDiskSpaceAvailable, host.Host.PercentDiskSpaceAvailable, host.Host.GigsTotalDiskSpace,
 			); err != nil {

@@ -24550,7 +24550,7 @@ func (s *integrationMDMTestSuite) TestAndroidReenrollKeepsDiskSpace() {
 	s.enableAndroidMDM(t)
 
 	// The enrollment helper's payload carries MEASURED memory events: 35 GB free of 128 GB.
-	host, deviceInfo, pubSubToken := s.createAndEnrollAndroidDevice(t, "test-android-disk-reenroll", nil, false)
+	host, deviceInfo, pubSubToken := s.createAndEnrollAndroidDevice(t, "android-disk-reenroll", nil, false)
 
 	// AMAPI omits memory events from enrollment payloads and from status reports sent before
 	// the device has measured storage, but still reports the 64 GB internal total.
@@ -24577,7 +24577,20 @@ func (s *integrationMDMTestSuite) TestAndroidReenrollKeepsDiskSpace() {
 		assert.InDelta(t, total, hostResp.Host.GigsTotalDiskSpace, 0.01)
 	}
 
+	// Moves the host's enrollment and stored measurement an hour into the past, so their order
+	// relative to later writes doesn't depend on last_enrolled_at's second precision.
+	age := func(hostID uint) {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(t.Context(), `UPDATE hosts SET last_enrolled_at = last_enrolled_at - INTERVAL 1 HOUR WHERE id = ?`, hostID); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(t.Context(), `UPDATE host_disks SET updated_at = updated_at - INTERVAL 1 HOUR WHERE host_id = ?`, hostID)
+			return err
+		})
+	}
+
 	requireDisk(host.ID, 35, 27.34, 128)
+	age(host.ID)
 
 	// Re-enroll, then a status report, neither carrying a measurement.
 	push(withoutMemoryEvents(enrollmentMessageWithEnterpriseSpecificID(t, deviceInfo, host.UUID)))
@@ -24585,10 +24598,20 @@ func (s *integrationMDMTestSuite) TestAndroidReenrollKeepsDiskSpace() {
 	push(withoutMemoryEvents(statusReportMessageWithEnterpriseSpecificID(t, deviceInfo, host.UUID)))
 	requireDisk(host.ID, 35, 27.34, 128)
 
+	// A host that has measured since it enrolled reports what it sends: a status report without
+	// a measurement reads as not supported.
+	measuredHost, measuredDeviceInfo, _ := s.createAndEnrollAndroidDevice(t, "android-disk-measured", nil, false)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(), `UPDATE hosts SET last_enrolled_at = last_enrolled_at - INTERVAL 1 HOUR WHERE id = ?`, measuredHost.ID)
+		return err
+	})
+	push(withoutMemoryEvents(statusReportMessageWithEnterpriseSpecificID(t, measuredDeviceInfo, measuredHost.UUID)))
+	requireDisk(measuredHost.ID, -1, -1, 64)
+
 	// A device new to Fleet that has never measured storage still reads as not supported.
 	newDeviceID := strings.ToUpper(uuid.New().String())
 	push(withoutMemoryEvents(enrollmentMessageWithEnterpriseSpecificID(t, androidmanagement.Device{
-		Name:                createAndroidDeviceID("test-android-disk-never-measured"),
+		Name:                createAndroidDeviceID("android-disk-unmeasured"),
 		EnrollmentTokenData: deviceInfo.EnrollmentTokenData,
 	}, newDeviceID)))
 	var hosts listHostsResponse

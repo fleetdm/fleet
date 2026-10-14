@@ -2243,7 +2243,7 @@ func TestAndroidStorageExtraction(t *testing.T) {
 		require.NoError(t, err)
 
 		require.NotNil(t, updatedHost)
-		// UpdateAndroidHost keeps a stored measurement over -1, and still needs the current total.
+		// UpdateAndroidHost decides whether a measurement from before the re-enrollment is kept.
 		require.InDelta(t, 64.0, updatedHost.Host.GigsTotalDiskSpace, 0.1)
 		require.InDelta(t, -1, updatedHost.Host.GigsDiskSpaceAvailable, 0.01)
 		require.InDelta(t, -1, updatedHost.Host.PercentDiskSpaceAvailable, 0.01)
