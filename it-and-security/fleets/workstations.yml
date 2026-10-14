@@ -74,7 +74,8 @@ agent_options:
     # --- Windows process auditing via ETW ---
     enable_process_etw_events: true
   update_channels:
-    osqueryd: stable
+    # Temporarily use edge for testing 5.24.0. Bring back to stable once 5.24.0 is released.
+    osqueryd: edge
     orbit: stable
     desktop: stable
 controls:
