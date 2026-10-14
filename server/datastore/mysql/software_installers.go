@@ -2011,6 +2011,21 @@ VALUES
 	execID := uuid.NewString()
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Lock the title and installer before writing the activity rows, in the order a GitOps apply locks them
+		// before clearing an installer's queued installs. Taking them in the other order deadlocks with that apply.
+		var locked bool
+		if installerDetails.TitleID != nil {
+			if err := sqlx.GetContext(ctx, tx, &locked, `SELECT 1 FROM software_titles WHERE id = ? FOR SHARE`, *installerDetails.TitleID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+				return ctxerr.Wrap(ctx, err, "lock software title")
+			}
+		}
+		if err := sqlx.GetContext(ctx, tx, &locked, `SELECT 1 FROM software_installers WHERE id = ? FOR SHARE`, softwareInstallerID); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return notFound("SoftwareInstaller").WithID(softwareInstallerID)
+			}
+			return ctxerr.Wrap(ctx, err, "lock software installer")
+		}
+
 		res, err := tx.ExecContext(ctx, insertUAStmt,
 			hostID,
 			opts.Priority(),
@@ -3643,6 +3658,13 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 		removingInstallers := len(removedInstallerIDs) > 0
 
 		if removingInstallers {
+			// Lock the fleet's installers before any policy or pending install write, so an install being queued waits
+			// here instead of deadlocking with them. All of them, since the loop below rewrites kept installers after
+			// the pending install deletes.
+			if _, err := tx.ExecContext(ctx, `SELECT id FROM software_installers WHERE global_or_team_id = ? FOR UPDATE`, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "lock installers")
+			}
+
 			stmt, args, err = sqlx.In(unsetInstallersNotInListFromPolicies, globalOrTeamID, titleIDs)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "build statement to unset obsolete installers from policies")
@@ -3976,6 +3998,12 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 			// For FMA installers: determine the active version, then evict old versions
 			// (protecting the active one from eviction).
 			if installer.FleetMaintainedAppID != nil {
+				// Lock the title's installers before re-pointing their policies below, in the order queuing an install
+				// takes them.
+				if _, err := tx.ExecContext(ctx, `SELECT id FROM software_installers WHERE global_or_team_id = ? AND title_id = ? FOR UPDATE`, globalOrTeamID, titleID); err != nil {
+					return ctxerr.Wrapf(ctx, err, "lock installers for %q", installer.Filename)
+				}
+
 				// Determine which installer should be "active" for this FMA and team. A literal RollbackVersion pins
 				// that exact cached version; a "^major" caret or an empty value falls through to the newest just
 				// inserted version, which the slug resolver already chose, so the caret string must not be matched here.
@@ -4240,6 +4268,14 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 				return ctxerr.Wrap(ctx, err, "find dropped packages")
 			}
 			if len(droppedInstallerIDs) > 0 {
+				// Lock the dropped packages before re-pointing their policies, in the order queuing an install takes them.
+				lockStmt, lockArgs, err := sqlx.In(`SELECT id FROM software_installers WHERE id IN (?) FOR UPDATE`, droppedInstallerIDs)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "build statement to lock dropped packages")
+				}
+				if _, err := tx.ExecContext(ctx, lockStmt, lockArgs...); err != nil {
+					return ctxerr.Wrap(ctx, err, "lock dropped packages")
+				}
 				repointStmt, repointArgs, err := sqlx.In(repointDeletedInstallerPolicies, globalOrTeamID, keptInstallerIDs, globalOrTeamID, customPackageTitleIDs, keptInstallerIDs)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "build statement to re-point dropped policies")
