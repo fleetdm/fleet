@@ -113,6 +113,9 @@ const OktaConditionalAccessModal = ({
       [OKTA_CERTIFICATE]: "",
     },
     validate,
+    // The certificate is PEM content pulled from a file; a trailing newline
+    // after -----END CERTIFICATE----- is part of the format.
+    skipTrim: [OKTA_CERTIFICATE],
   });
 
   // Fetch Apple profile with automatic retries

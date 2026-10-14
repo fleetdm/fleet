@@ -723,4 +723,165 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
       ).toBeInTheDocument();
     });
   });
+
+  describe("Okta modal validation", () => {
+    const renderOktaModal = async () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            isPremiumTier: true,
+            config: createEmptyConditionalAccessConfig(),
+          },
+        },
+      });
+      const utils = render(<ConditionalAccess />);
+      const connectButtons = screen.getAllByText("Connect");
+      await utils.user.click(connectButtons[0]);
+      await waitFor(() => {
+        expect(screen.getByText("Okta conditional access")).toBeInTheDocument();
+      });
+      return utils;
+    };
+
+    it("Shows no field errors on open", async () => {
+      await renderOktaModal();
+
+      expect(screen.queryByText("Enter IdP ID")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Enter assertion consumer service URL")
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText("Enter audience URI")).not.toBeInTheDocument();
+      expect(screen.queryByText("Upload certificate")).not.toBeInTheDocument();
+    });
+
+    it("Does not show an error while the user types and clears, before blur", async () => {
+      const { user } = await renderOktaModal();
+
+      // textboxes[0] is the readonly Editor; [1] is IdP ID.
+      const textboxes = screen.getAllByRole("textbox");
+      await user.type(textboxes[1], "x");
+      await user.clear(textboxes[1]);
+
+      expect(screen.queryByText("Enter IdP ID")).not.toBeInTheDocument();
+    });
+
+    it("Shows the IdP ID error on blur of a dirty-then-empty field", async () => {
+      const { user } = await renderOktaModal();
+
+      const textboxes = screen.getAllByRole("textbox");
+      await user.type(textboxes[1], "x");
+      await user.clear(textboxes[1]);
+      // Blur by tabbing to the next field.
+      await user.tab();
+
+      expect(await screen.findByText("Enter IdP ID")).toBeInTheDocument();
+    });
+
+    it("Clears the IdP ID error on focus after it was shown", async () => {
+      const { user } = await renderOktaModal();
+
+      const textboxes = screen.getAllByRole("textbox");
+      await user.type(textboxes[1], "x");
+      await user.clear(textboxes[1]);
+      await user.tab();
+      await screen.findByText("Enter IdP ID");
+
+      await user.click(textboxes[1]);
+
+      expect(screen.queryByText("Enter IdP ID")).not.toBeInTheDocument();
+    });
+
+    it("Reveals every field's error on submit of an empty form", async () => {
+      const { user } = await renderOktaModal();
+
+      const saveButton = screen.getByRole("button", { name: "Save" });
+      expect(saveButton).toBeEnabled();
+      await user.click(saveButton);
+
+      expect(await screen.findByText("Enter IdP ID")).toBeInTheDocument();
+      expect(
+        screen.getByText("Enter assertion consumer service URL")
+      ).toBeInTheDocument();
+      expect(screen.getByText("Enter audience URI")).toBeInTheDocument();
+      expect(screen.getByText("Upload certificate")).toBeInTheDocument();
+    });
+  });
+
+  describe("Entra modal validation", () => {
+    it("Shows 'Enter tenant ID' when submitting with an empty tenant", async () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            isPremiumTier: true,
+            config: createEmptyConditionalAccessConfig(),
+          },
+        },
+      });
+
+      const { user } = render(<ConditionalAccess />);
+
+      const connectButtons = screen.getAllByText("Connect");
+      await user.click(connectButtons[1]);
+
+      await waitFor(() => {
+        expect(
+          screen.getByText("Microsoft Entra conditional access")
+        ).toBeInTheDocument();
+      });
+
+      const saveButton = screen.getByRole("button", { name: "Save" });
+      expect(saveButton).toBeEnabled();
+      await user.click(saveButton);
+
+      expect(await screen.findByText("Enter tenant ID")).toBeInTheDocument();
+    });
+
+    it("Inlines the backend's microsoft_tenant_id GUID error on the tenant field", async () => {
+      mockServer.use(
+        http.post(baseUrl("/conditional-access/microsoft"), () => {
+          return HttpResponse.json(
+            {
+              message: "Validation Failed",
+              errors: [
+                {
+                  name: "microsoft_tenant_id",
+                  reason: "must be a valid Microsoft Entra tenant ID (GUID)",
+                },
+              ],
+            },
+            { status: 422 }
+          );
+        })
+      );
+
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            isPremiumTier: true,
+            config: createEmptyConditionalAccessConfig(),
+          },
+        },
+      });
+
+      const { user } = render(<ConditionalAccess />);
+
+      const connectButtons = screen.getAllByText("Connect");
+      await user.click(connectButtons[1]);
+      await waitFor(() => {
+        expect(
+          screen.getByText("Microsoft Entra conditional access")
+        ).toBeInTheDocument();
+      });
+
+      await user.type(screen.getByRole("textbox"), "not-a-guid");
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(
+        await screen.findByText("Enter a valid tenant ID (GUID format)")
+      ).toBeInTheDocument();
+    });
+  });
 });
