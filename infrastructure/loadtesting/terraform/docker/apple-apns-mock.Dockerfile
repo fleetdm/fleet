@@ -1,4 +1,4 @@
-FROM golang:1.27.1-alpine3.23@sha256:c8500dc1e6c8d8db60a2c6986bc591517c3be360ca448b9df43449dec430cc34
+FROM golang:1.27.2-alpine3.23@sha256:2ac5c2a64f1f970b5120fe21c6a5e3d9190b196a9ead95797564738ecd07a8a2
 ARG TAG
 RUN apk add git
 RUN git clone -b "$TAG" --depth=1 --no-tags --progress --no-recurse-submodules https://github.com/fleetdm/fleet.git

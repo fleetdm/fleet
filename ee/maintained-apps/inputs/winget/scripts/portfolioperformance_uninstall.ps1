@@ -37,7 +37,7 @@ function Get-AppEntries {
             # Only a real user's entry needs the uninstaller run for them; HKLM and the
             # service SIDs are already in the right context.
             $sid = $null
-            if ($sub.PSPath -match 'HKEY_USERS\\(S-1-5-21-[\d-]+)\\') { $sid = $matches[1] }
+            if ($sub.PSPath -match 'HKEY_USERS\\(S-1-5-21-[\d-]+|S-1-12-1-[\d-]+)\\') { $sid = $matches[1] }
 
             $entries += [PSCustomObject]@{
                 DisplayName = $name
@@ -235,4 +235,6 @@ try {
     $exitCode = 1
 }
 
+# Exit turns a code above Int32.MaxValue, such as a task's HRESULT, into 0.
+if ($exitCode -gt [int]::MaxValue) { $exitCode = 1 }
 Exit $exitCode

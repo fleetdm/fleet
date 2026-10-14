@@ -50,8 +50,8 @@ describe("Software Summary Card", () => {
     // Get the text with aria label "software display name"
     const displayNameElement = screen.getByLabelText("software display name");
     expect(displayNameElement).toHaveTextContent(softwareTitle.name);
-    // Check for type "Application (macOS)"
-    expect(screen.getByText("Application (macOS)")).toBeInTheDocument();
+    // Check for type "macOS app"
+    expect(screen.getByText("macOS app")).toBeInTheDocument();
     // Check that the icon component is called with the correct URL.
     expect(mockSoftwareIcon).toHaveBeenCalledWith({
       url: "https://example.com/icon.png",

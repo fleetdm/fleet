@@ -153,7 +153,11 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	// the script result can be retrieved
 	script, err := ds.GetHostScriptExecutionResult(ctx, createdScript1.ExecutionID)
 	require.NoError(t, err)
+	var scriptContentID uint
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &scriptContentID, `SELECT id FROM script_contents WHERE contents = ?`, "echo"))
+	require.Equal(t, scriptContentID, script.ScriptContentID)
 	expectScript := *createdScript1
+	expectScript.ScriptContentID = scriptContentID
 	expectScript.Output = "foo"
 	expectScript.Runtime = 2
 	expectScript.ExitCode = ptr.Int64(0)
@@ -180,10 +184,24 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	require.Len(t, pending, 1)
 	require.Equal(t, createdScript2.ID, pending[0].ID)
 
+	// Keep this request queued to exercise upcoming result retrieval.
+	queuedScript, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         1,
+		ScriptContents: "echo3",
+	})
+	require.NoError(t, err)
+	script, err = ds.GetHostScriptExecutionResult(ctx, queuedScript.ExecutionID)
+	require.NoError(t, err)
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &scriptContentID, `SELECT id FROM script_contents WHERE contents = ?`, "echo3"))
+	require.Equal(t, scriptContentID, script.ScriptContentID)
+
 	// the script result can be retrieved even if it has no result yet
 	script, err = ds.GetHostScriptExecutionResult(ctx, createdScript2.ExecutionID)
 	require.NoError(t, err)
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &scriptContentID, `SELECT id FROM script_contents WHERE contents = ?`, "echo2"))
+	require.Equal(t, scriptContentID, script.ScriptContentID)
 	expectedScript := *createdScript2
+	expectedScript.ScriptContentID = scriptContentID
 	expectedScript.CreatedAt, script.CreatedAt = time.Time{}, time.Time{}
 	require.Equal(t, &expectedScript, script)
 
@@ -225,6 +243,8 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	script, err = ds.GetHostScriptExecutionResult(ctx, createdScript2.ExecutionID)
 	require.NoError(t, err)
 	require.Equal(t, expectedOutput, script.Output)
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{HostID: 1, ExecutionID: queuedScript.ExecutionID}, nil)
+	require.NoError(t, err)
 
 	// create an async execution request
 	time.Sleep(time.Millisecond) // ensure a different timestamp
