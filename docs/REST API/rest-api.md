@@ -15127,7 +15127,7 @@ A software title can have more than one app store apps on the same fleet for iOS
 
 For iOS, iPadOS, and Android apps, each version includes `configuration`, the version's managed app configuration. It's in XML format for iOS and iPadOS apps, and JSON format for Android apps.
 
-For Android apps, each version includes `deploy`. If `deploy` is `true`, Fleet automatically installs that version on targeted hosts. If `false`, the app is uninstalled from targeted hosts.
+For Android apps, each version includes `deploy`. If `deploy` is `true`, Fleet automatically installs that version on targeted hosts. If it's changed from `true` to `false`, Fleet uninstalls the app from the hosts that have it.
 
 If a host is in scope for more than one version, Fleet installs the one that was added first (the earliest `created_at`).
 
