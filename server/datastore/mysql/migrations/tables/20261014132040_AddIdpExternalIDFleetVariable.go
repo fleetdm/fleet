@@ -9,10 +9,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261013130210, Down_20261013130210)
+	MigrationClient.AddMigration(Up_20261014132040, Down_20261014132040)
 }
 
-func Up_20261013130210(tx *sql.Tx) error {
+func Up_20261014132040(tx *sql.Tx) error {
 	insStmt := `
 	INSERT INTO fleet_variables (
 		name, is_prefix, created_at
@@ -32,6 +32,6 @@ func Up_20261013130210(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20261013130210(tx *sql.Tx) error {
+func Down_20261014132040(tx *sql.Tx) error {
 	return nil
 }

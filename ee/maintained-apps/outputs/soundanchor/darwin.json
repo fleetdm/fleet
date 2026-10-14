@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.8.3",
+      "version": "1.9.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'me.kopiro.soundanchor';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'me.kopiro.soundanchor' AND version_compare(bundle_short_version, '1.8.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'me.kopiro.soundanchor' AND version_compare(bundle_short_version, '1.9.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'me.kopiro.soundanchor' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://cdn.kopiro.me/soundanchor/soundanchor-1.8.3.dmg",
+      "installer_url": "https://cdn.kopiro.me/soundanchor/soundanchor-1.9.0.dmg",
       "install_script_ref": "88489fa7",
       "uninstall_script_ref": "d88b4a36",
-      "sha256": "6647785c1ddf776f40408f0b824425d5706d200acb1bc8cd6cc68f44e4f3b74f",
+      "sha256": "7c1c9c81ba6a2d7b4774363a4e77811519362cf373afafda8738792aaa543a0e",
       "default_categories": [
         "Utilities"
       ]

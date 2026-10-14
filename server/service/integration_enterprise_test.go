@@ -14209,6 +14209,30 @@ func (s *integrationEnterpriseTestSuite) TestPackageUploadPreAuthAndTempFileClea
 		require.Empty(t, files)
 	}
 
+	ctx := t.Context()
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team1"})
+	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team2"})
+	require.NoError(t, err)
+	users := []struct {
+		name  string
+		user  *fleet.User
+		token string
+	}{
+		{name: "global observer", user: &fleet.User{GlobalRole: new(fleet.RoleObserver)}},
+		{name: "team1 observer", user: &fleet.User{Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleObserver}}}},
+		{name: "team1 maintainer", user: &fleet.User{Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleMaintainer}}}},
+	}
+	for i := range users {
+		u := users[i].user
+		u.Email = fmt.Sprintf("upload_preauth_%d@example.com", i)
+		u.Name = u.Email
+		require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
+		_, err := s.ds.NewUser(ctx, u)
+		require.NoError(t, err)
+		users[i].token = s.getTestToken(u.Email, test.GoodPassword)
+	}
+
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
 	fw, err := mw.CreateFormFile("software", "a.pkg")
@@ -14240,11 +14264,81 @@ func (s *integrationEnterpriseTestSuite) TestPackageUploadPreAuthAndTempFileClea
 		})
 		res.Body.Close()
 		requireNoTempFiles()
+
+		for _, user := range users[:2] {
+			t.Run(r.method+" "+r.path+"/"+user.name, func(t *testing.T) {
+				reader, writer := io.Pipe()
+				mw := multipart.NewWriter(writer)
+				requestCtx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
+				defer cancel()
+				req, err := http.NewRequestWithContext(requestCtx, r.method, s.server.URL+r.path, reader)
+				require.NoError(t, err)
+				req.Header.Set("Content-Type", mw.FormDataContentType())
+				req.Header.Set("Authorization", "Bearer "+user.token)
+				releaseBody := make(chan struct{})
+				writerDone := make(chan struct{})
+				defer func() {
+					close(releaseBody)
+					_ = reader.Close()
+					_ = writer.Close()
+					<-writerDone
+				}()
+				go func() {
+					defer close(writerDone)
+					field := "software"
+					if strings.HasSuffix(r.path, "/bootstrap") {
+						field = "package"
+					}
+					if part, err := mw.CreateFormFile(field, "a.pkg"); err == nil {
+						_, _ = part.Write(make([]byte, 1<<20))
+					}
+					// Keep the closing boundary and EOF back until a response arrives.
+					<-releaseBody
+				}()
+				type result struct {
+					status int
+					err    error
+				}
+				response := make(chan result, 1)
+				go func() {
+					res, err := s.server.Client().Do(req)
+					if err != nil {
+						response <- result{err: err}
+						return
+					}
+					res.Body.Close()
+					response <- result{status: res.StatusCode}
+				}()
+				select {
+				case res := <-response:
+					require.NoError(t, res.err)
+					require.Equal(t, http.StatusForbidden, res.status)
+				case <-time.After(2 * time.Second):
+					t.Fatal("upload didn't return 403 while the body was open")
+				}
+				requireNoTempFiles()
+			})
+		}
 	}
 
 	// An authenticated upload that parses but fails validation must not leave its file behind.
 	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/software/package", body.Bytes(), http.StatusBadRequest, map[string]string{
 		"Content-Type": contentType, "Authorization": "Bearer " + s.token,
+	})
+	res.Body.Close()
+	requireNoTempFiles()
+
+	// A writer on another fleet still reaches the per-fleet check after parsing.
+	body.Reset()
+	mw = multipart.NewWriter(&body)
+	fw, err = mw.CreateFormFile("software", "a.pkg")
+	require.NoError(t, err)
+	_, err = fw.Write(make([]byte, 2<<20))
+	require.NoError(t, err)
+	require.NoError(t, mw.WriteField("fleet_id", strconv.FormatUint(uint64(team2.ID), 10)))
+	require.NoError(t, mw.Close())
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/software/package", body.Bytes(), http.StatusForbidden, map[string]string{
+		"Content-Type": mw.FormDataContentType(), "Authorization": "Bearer " + users[2].token,
 	})
 	res.Body.Close()
 	requireNoTempFiles()

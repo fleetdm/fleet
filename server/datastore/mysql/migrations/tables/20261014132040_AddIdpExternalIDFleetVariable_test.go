@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20261013130210(t *testing.T) {
+func TestUp_20261014132040(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	var count int
