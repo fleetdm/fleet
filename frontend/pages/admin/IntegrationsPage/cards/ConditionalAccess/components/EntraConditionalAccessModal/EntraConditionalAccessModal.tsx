@@ -1,12 +1,11 @@
-import { size } from "lodash";
-import React, { useState } from "react";
+import React from "react";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
-import { IInputFieldParseTarget } from "interfaces/form_field";
+import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
 import conditionalAccessAPI from "services/entities/conditional_access";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
@@ -18,16 +17,12 @@ interface IFormData {
   [MSETID]: string;
 }
 
-interface IFormErrors {
-  [MSETID]?: string | null;
-}
-
-const validate = (formData: IFormData) => {
-  const errs: IFormErrors = {};
-  if (!formData[MSETID]) {
-    errs[MSETID] = "Tenant ID must be present";
+const validate = (data: IFormData): IFormErrors => {
+  const errors: IFormErrors = {};
+  if (!data[MSETID].trim()) {
+    errors[MSETID] = "Enter tenant ID";
   }
-  return errs;
+  return errors;
 };
 
 export interface IEntraConditionalAccessModalProps {
@@ -39,47 +34,34 @@ const EntraConditionalAccessModal = ({
   onCancel,
   onSuccess,
 }: IEntraConditionalAccessModalProps) => {
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [formData, setFormData] = useState<IFormData>({
-    [MSETID]: "",
+  const {
+    formData,
+    setField,
+    getError,
+    clearFieldError,
+    validateField,
+    handleSubmit,
+    isSubmitting,
+  } = useFormValidation<IFormData>({
+    initialFormData: { [MSETID]: "" },
+    validate,
   });
-  const [formErrors, setFormErrors] = useState<IFormErrors>({});
 
-  const onSubmit = async (evt: React.FormEvent<HTMLFormElement>) => {
-    evt.preventDefault();
-
-    const errs = validate(formData);
-    if (Object.keys(errs).length > 0) {
-      setFormErrors(errs);
-      return;
-    }
-    setIsUpdating(true);
+  const onValidSubmit = async (data: IFormData) => {
     try {
       const {
         microsoft_authentication_url: msAuthURL,
       } = await conditionalAccessAPI.triggerMicrosoftConditionalAccess(
-        formData[MSETID]
+        data[MSETID]
       );
       window.open(msAuthURL);
-      setIsUpdating(false);
-      // Close modal and show banner on main page
       onSuccess();
     } catch (e) {
       notify.error(
         "Could not update conditional access integration settings.",
         { response: e }
       );
-      setIsUpdating(false);
     }
-  };
-
-  const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
-    setFormData({ ...formData, [name]: value });
-    setFormErrors({}); // Clear any existing error
-  };
-
-  const onInputBlur = () => {
-    setFormErrors(validate(formData));
   };
 
   return (
@@ -89,7 +71,7 @@ const EntraConditionalAccessModal = ({
       className={baseClass}
       width="large"
     >
-      <form onSubmit={onSubmit} autoComplete="off">
+      <form onSubmit={handleSubmit(onValidSubmit)} autoComplete="off">
         <p className={`${baseClass}__instructions`}>
           To configure Microsoft Entra conditional access, follow the
           instructions in the{" "}
@@ -102,18 +84,19 @@ const EntraConditionalAccessModal = ({
         <InputField
           label="Microsoft Entra tenant ID"
           helpText="You can find this in your Microsoft Entra admin center."
-          onChange={onInputChange}
           name={MSETID}
           value={formData[MSETID]}
-          parseTarget
-          onBlur={onInputBlur}
-          error={formErrors[MSETID]}
+          onChange={(value: string) => setField(MSETID, value)}
+          onFocus={() => clearFieldError(MSETID)}
+          onBlur={() => validateField(MSETID)}
+          error={getError(MSETID)}
+          disabled={isSubmitting}
         />
         <div className="modal-cta-wrap">
           <Button
             type="submit"
-            disabled={!!size(formErrors)}
-            isLoading={isUpdating}
+            disabled={isSubmitting}
+            isLoading={isSubmitting}
           >
             Save
           </Button>
