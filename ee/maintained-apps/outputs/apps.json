@@ -3505,7 +3505,7 @@
       "name": "ForkLift",
       "slug": "forklift/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.binarynights.ForkLift-4",
+      "unique_identifier": "com.binarynights.ForkLift",
       "description": "ForkLift is a finder replacement and FTP, SFTP, WebDAV and Amazon s3 client."
     },
     {
