@@ -3155,28 +3155,30 @@ in place of S3. Only one of `s3_software_installers_bucket` and `azure_software_
 may be set.
 
 - Default value: none
-- Environment variable: `FLEET_AZURE_SOFTWARE_INSTALLERS_ACCOUNT_NAME`
+- Environment variable: `FLEET_CLOUD_STORAGE_AZURE_FILES_ACCOUNT_NAME`
 - Config file format:
   ```yaml
-  azure:
-    software_installers_account_name: myfleetstorageaccount
+  cloud_storage:
+    azure:
+      files_account_name: myfleetstorageaccount
   ```
 
-### azure_software_installers_account_key
+### cloud_storage_azure_files_account_key
 
 *Available in Fleet Premium.*
 
 Azure Storage account shared key, used to authenticate against the storage account.
 
 - Default value: none
-- Environment variable: `FLEET_AZURE_SOFTWARE_INSTALLERS_ACCOUNT_KEY`
+- Environment variable: `FLEET_CLOUD_STORAGE_AZURE_FILES_ACCOUNT_KEY`
 - Config file format:
   ```yaml
-  azure:
-    software_installers_account_key: <account key>
+  cloud_storage:
+    azure:
+      files_account_key: <account key>
   ```
 
-### azure_software_installers_container
+### cloud_storage_azure_files_container
 
 *Available in Fleet Premium.*
 
@@ -3184,14 +3186,15 @@ Azure Storage container where uploaded software installers, bootstrap packages, 
 icons, and org logos are stored.
 
 - Default value: none
-- Environment variable: `FLEET_AZURE_SOFTWARE_INSTALLERS_CONTAINER`
+- Environment variable: `FLEET_CLOUD_STORAGE_AZURE_FILES_CONTAINER`
 - Config file format:
   ```yaml
-  azure:
-    software_installers_container: fleet-software-installers
+  cloud_storage:
+    azure:
+      files_container: fleet-software-installers
   ```
 
-### azure_software_installers_container_url
+### cloud_storage_azure_files_container_url
 
 *Available in Fleet Premium.*
 
@@ -3201,14 +3204,15 @@ Azure Blob Storage endpoint override. Leave blank to use the default
 testing.
 
 - Default value: none
-- Environment variable: `FLEET_AZURE_SOFTWARE_INSTALLERS_CONTAINER_URL`
+- Environment variable: `FLEET_CLOUD_STORAGE_AZURE_FILES_CONTAINER_URL`
 - Config file format:
   ```yaml
-  azure:
-    software_installers_container_url: http://127.0.0.1:10000/devstoreaccount1
+  cloud_storage:
+    azure:
+      files_container_url: http://127.0.0.1:10000/devstoreaccount1
   ```
 
-### azure_software_installers_signed_url
+### cloud_storage_azure_files_signed_url
 
 *Available in Fleet Premium.*
 
@@ -3217,11 +3221,12 @@ for installer, in-house app, and bootstrap package downloads instead of proxying
 Fleet.
 
 - Default value: false
-- Environment variable: `FLEET_AZURE_SOFTWARE_INSTALLERS_SIGNED_URL`
+- Environment variable: `FLEET_CLOUD_STORAGE_AZURE_FILES_SIGNED_URL`
 - Config file format:
   ```yaml
-  azure:
-    software_installers_signed_url: true
+  cloud_storage:  
+    azure:
+      files_signed_url: true
   ```
 
 ### s3_carves_bucket
