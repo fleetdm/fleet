@@ -1017,9 +1017,10 @@ func newTestService(t *testing.T, ds fleet.Datastore) *Service {
 	require.NoError(t, err)
 	defaultMockCustomHostVitalsValidation(ds)
 	svc := &Service{
-		authz:  authorizer,
-		ds:     ds,
-		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Service: &svcmock.Service{VerifyMDMAppleConfiguredFunc: func(context.Context) error { return nil }},
+		authz:   authorizer,
+		ds:      ds,
+		logger:  slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
 	return svc
 }

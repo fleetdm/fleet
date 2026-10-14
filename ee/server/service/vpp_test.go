@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	svcmock "github.com/fleetdm/fleet/v4/server/mock/service"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
@@ -349,10 +350,11 @@ func TestGetAppStoreAppsDoesNotWriteMetadata(t *testing.T) {
 	authorizer, err := authz.NewAuthorizer()
 	require.NoError(t, err)
 	svc := &Service{
-		authz:  authorizer,
-		ds:     ds,
-		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
-		config: config.FleetConfig{MDM: config.MDMConfig{AppleConnectJWT: "test-jwt"}},
+		Service: &svcmock.Service{VerifyMDMAppleConfiguredFunc: func(context.Context) error { return nil }},
+		authz:   authorizer,
+		ds:      ds,
+		logger:  slog.New(slog.NewTextHandler(io.Discard, nil)),
+		config:  config.FleetConfig{MDM: config.MDMConfig{AppleConnectJWT: "test-jwt"}},
 	}
 	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
@@ -848,4 +850,60 @@ func TestGetVPPTokensScoping(t *testing.T) {
 			require.ElementsMatch(t, tt.wantIDs, gotIDs)
 		})
 	}
+}
+
+func TestAppStoreAppsRequireAppleMDM(t *testing.T) {
+	t.Parallel()
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	setup := func(t *testing.T) (*Service, *mock.Store, *svcmock.Service) {
+		ds := new(mock.Store)
+		svc, baseSvc := newTestServiceWithMock(t, ds)
+		baseSvc.VerifyMDMAppleConfiguredFunc = func(context.Context) error { return fleet.ErrMDMNotConfigured }
+		ds.GetVPPTokenByTeamIDFunc = func(context.Context, *uint) (*fleet.VPPTokenDB, error) {
+			return &fleet.VPPTokenDB{ID: 1}, nil
+		}
+		ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+		ds.TeamByNameFunc = func(context.Context, string) (*fleet.Team, error) {
+			return nil, common_mysql.NotFound("Team")
+		}
+		ds.GetDuplicateStringGroupsUnderCollationFunc = func(context.Context, []string) ([]fleet.DuplicateStringGroup, error) {
+			return nil, nil
+		}
+		return svc, ds, baseSvc
+	}
+
+	t.Run("listing VPP apps", func(t *testing.T) {
+		svc, ds, _ := setup(t)
+		_, err := svc.GetAppStoreApps(ctx, nil)
+		require.ErrorIs(t, err, fleet.ErrMDMNotConfigured)
+		require.False(t, ds.GetVPPTokenByTeamIDFuncInvoked, "the VPP token must not be used")
+	})
+
+	t.Run("adding an Apple app", func(t *testing.T) {
+		svc, _, _ := setup(t)
+		_, err := svc.AddAppStoreApp(ctx, nil, fleet.VPPAppTeam{AdamID: "497799835", Platform: fleet.MacOSPlatform})
+		require.ErrorIs(t, err, fleet.ErrMDMNotConfigured)
+	})
+
+	t.Run("adding an Android app doesn't need Apple MDM", func(t *testing.T) {
+		svc, _, baseSvc := setup(t)
+		// The add fails later for reasons outside this test; it must not stop at the Apple MDM check.
+		_, err := svc.AddAppStoreApp(ctx, nil, fleet.VPPAppTeam{AdamID: "com.example.app", Platform: fleet.AndroidPlatform})
+		require.NotErrorIs(t, err, fleet.ErrMDMNotConfigured)
+		require.False(t, baseSvc.VerifyMDMAppleConfiguredFuncInvoked)
+	})
+
+	t.Run("GitOps dry run for a new fleet with an Apple app", func(t *testing.T) {
+		svc, _, _ := setup(t)
+		_, _, err := svc.BatchAssociateVPPApps(ctx, "New fleet", []fleet.VPPBatchPayload{{AppStoreID: "497799835", Platform: fleet.IOSPlatform}}, true)
+		require.ErrorIs(t, err, fleet.ErrMDMNotConfigured)
+	})
+
+	t.Run("GitOps dry run for a new fleet with only Android apps", func(t *testing.T) {
+		svc, _, baseSvc := setup(t)
+		_, _, err := svc.BatchAssociateVPPApps(ctx, "New fleet", []fleet.VPPBatchPayload{{AppStoreID: "com.example.app", Platform: fleet.AndroidPlatform}}, true)
+		require.NoError(t, err)
+		require.False(t, baseSvc.VerifyMDMAppleConfiguredFuncInvoked)
+	})
 }

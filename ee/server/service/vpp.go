@@ -354,6 +354,9 @@ func (svc *Service) dryRunValidateVPPAssetsForNewTeam(ctx context.Context, paylo
 	if len(wanted) == 0 {
 		return nil
 	}
+	if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+		return ctxerr.Wrap(ctx, err, "check Apple MDM enabled for VPP apps")
+	}
 
 	tokens, err := svc.ds.ListVPPTokens(ctx)
 	if err != nil {
@@ -563,6 +566,9 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 			var err error
 			if payload.Platform.IsApplePlatform() && vppToken == "" {
+				if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+					return nil, nil, ctxerr.Wrap(ctx, err, "check Apple MDM enabled for VPP apps")
+				}
 				teamTokenInfo, err = svc.getVPPTokenInfo(ctx, teamID)
 				if err != nil {
 					return nil, nil, fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "could not retrieve vpp token"), http.StatusUnprocessableEntity)
@@ -900,6 +906,9 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
+	if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "check Apple MDM enabled for VPP apps")
+	}
 
 	tokenInfo, err := svc.getVPPTokenInfo(ctx, teamID)
 	if err != nil {
@@ -990,6 +999,11 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	if !appID.Platform.SupportsAppStoreApps() {
 		return nil, fleet.NewInvalidArgumentError("platform",
 			fmt.Sprintf("platform must be one of '%s', '%s', '%s', or '%s'", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform, fleet.AndroidPlatform))
+	}
+	if appID.Platform.IsApplePlatform() {
+		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "check Apple MDM enabled for VPP app")
+		}
 	}
 
 	// Auto-update is iOS/iPadOS only. Validate here and clear on other platforms; the datastore stores whatever strings arrive, and gitops/API bypass the FE validator.
