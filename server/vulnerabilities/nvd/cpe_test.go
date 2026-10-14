@@ -1562,6 +1562,21 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version: "3.8.0",
 			}, cpe: "",
 		},
+		// 2026-09-28: there are no entries for the bash python package at the NVD dataset, only GNU bash.
+		{
+			software: fleet.Software{
+				Name:    "bash",
+				Source:  "python_packages",
+				Version: "0.6",
+			}, cpe: "",
+		},
+		{
+			software: fleet.Software{
+				Name:    "python3-bash",
+				Source:  "python_packages",
+				Version: "0.6",
+			}, cpe: "",
+		},
 		{ // checks vendor/product matching based on bundle name, including EAPs
 			software: fleet.Software{
 				Name:             "GoLand EAP.app",

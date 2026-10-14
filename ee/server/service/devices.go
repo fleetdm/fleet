@@ -392,7 +392,7 @@ func (svc *Service) getHostSetupExperienceStatus(ctx context.Context, host *flee
 	}
 
 	// Add activities for canceled installs + setup experience run
-	err = svc.recordCanceledSetupExperienceSoftwareActivities(ctx, host.ID, hostUUID, host.DisplayName(), results)
+	err = svc.recordCanceledSetupExperienceSoftwareActivities(ctx, host.ID, hostUUID, host.DisplayName(), host.TeamID, results)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "recording cancelled setup experience installs")
 	}

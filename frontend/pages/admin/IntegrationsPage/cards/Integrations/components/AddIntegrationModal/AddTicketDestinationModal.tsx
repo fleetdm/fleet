@@ -55,6 +55,7 @@ const AddTicketDestinationModal = ({
         {!testingConnection && (
           <>
             <DropdownWrapper
+              ariaLabel="Select ticket destination"
               name="destination"
               label="Ticket destination"
               onChange={onDestinationChange}

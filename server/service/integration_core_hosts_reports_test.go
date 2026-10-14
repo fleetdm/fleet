@@ -21,6 +21,7 @@ import (
 	"io"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -2522,4 +2523,120 @@ func (s *integrationTestSuite) TestListHostReports() {
 		assert.False(t, hasIncludeAllReport(hostOnlyA.ID), "free tier must not surface include_all queries (subset of labels)")
 		assert.False(t, hasIncludeAllReport(hostBoth.ID), "free tier must not surface include_all queries (all labels)")
 	})
+}
+
+func (s *integrationTestSuite) TestHostsMDMPersonalEnrollmentFilters() {
+	t := s.T()
+	ctx := t.Context()
+
+	hosts := s.createHosts(t, "ios", "android", "darwin", "darwin", "darwin")
+	adue, workProfile, manualBYOD, companyManual, ade := hosts[0], hosts[1], hosts[2], hosts[3], hosts[4]
+	for _, c := range []struct {
+		host         *fleet.Host
+		fromDEP      bool
+		personalType fleet.PersonalEnrollmentType
+	}{
+		{adue, false, fleet.PersonalEnrollmentTypeAccountDriven},
+		{workProfile, false, fleet.PersonalEnrollmentTypeWorkProfile},
+		{manualBYOD, false, fleet.PersonalEnrollmentTypeManualProfile},
+		{companyManual, false, fleet.PersonalEnrollmentTypeNone},
+		{ade, true, fleet.PersonalEnrollmentTypeNone},
+	} {
+		require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, c.host.ID, false, true, "https://fleetdm.com", c.fromDEP, fleet.WellKnownMDMFleet, "", c.personalType))
+	}
+
+	label, err := s.ds.NewLabel(ctx, &fleet.Label{Name: t.Name(), Query: "select 1"})
+	require.NoError(t, err)
+	for _, h := range hosts {
+		require.NoError(t, s.ds.RecordLabelQueryExecutions(ctx, h, map[uint]*bool{label.ID: new(true)}, time.Now(), false))
+	}
+
+	reportHostIDs := func(t *testing.T, status string) []uint {
+		res := s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK,
+			"format", "csv", "columns", "id", "mdm_enrollment_status", status)
+		rows, err := csv.NewReader(res.Body).ReadAll()
+		res.Body.Close()
+		require.NoError(t, err)
+		var ids []uint
+		for _, row := range rows[1:] {
+			id, err := strconv.ParseUint(row[0], 10, 64)
+			require.NoError(t, err)
+			ids = append(ids, uint(id))
+		}
+		return ids
+	}
+
+	for _, c := range []struct {
+		status string
+		want   []uint
+	}{
+		{"personal", []uint{adue.ID, workProfile.ID}},
+		{"manual-personal", []uint{manualBYOD.ID}},
+		{"manual", []uint{companyManual.ID}},
+		{"automatic", []uint{ade.ID}},
+		{"enrolled", []uint{adue.ID, workProfile.ID, manualBYOD.ID, companyManual.ID, ade.ID}},
+	} {
+		t.Run(c.status, func(t *testing.T) {
+			var listResp listHostsResponse
+			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "mdm_enrollment_status", c.status)
+			require.ElementsMatch(t, c.want, pluckHostIDsFromHostResponse(listResp.Hosts))
+
+			var countResp countHostsResponse
+			s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "mdm_enrollment_status", c.status)
+			require.Equal(t, len(c.want), countResp.Count)
+
+			var labelResp listHostsResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", label.ID), nil, http.StatusOK, &labelResp, "mdm_enrollment_status", c.status)
+			require.ElementsMatch(t, c.want, pluckHostIDsFromHostResponse(labelResp.Hosts))
+
+			require.ElementsMatch(t, c.want, reportHostIDs(t, c.status))
+		})
+	}
+
+	// The single-host loaders share the MDM join, so a missing projection would fail them at runtime.
+	wantStatus := map[uint]string{
+		adue.ID:          fleet.MDMEnrollmentStatusPersonal,
+		workProfile.ID:   fleet.MDMEnrollmentStatusPersonal,
+		manualBYOD.ID:    fleet.MDMEnrollmentStatusManualPersonal,
+		companyManual.ID: fleet.MDMEnrollmentStatusManual,
+		ade.ID:           fleet.MDMEnrollmentStatusAutomatic,
+	}
+	for _, h := range hosts {
+		var hostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &hostResp)
+		require.NotNil(t, hostResp.Host.MDM.EnrollmentStatus)
+		require.Equal(t, wantStatus[h.ID], *hostResp.Host.MDM.EnrollmentStatus)
+
+		hostResp = getHostResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", h.UUID), nil, http.StatusOK, &hostResp)
+		require.Equal(t, wantStatus[h.ID], *hostResp.Host.MDM.EnrollmentStatus)
+
+		if h.Platform == "ios" {
+			continue // iOS/iPadOS authenticate the device page by UUID, not a device token
+		}
+		token := "token-" + h.UUID
+		require.NoError(t, s.ds.SetOrUpdateDeviceAuthToken(ctx, h.ID, token))
+		deviceRes := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+		var deviceResp getDeviceHostResponse
+		require.NoError(t, json.NewDecoder(deviceRes.Body).Decode(&deviceResp))
+		deviceRes.Body.Close()
+		require.Equal(t, wantStatus[h.ID], *deviceResp.Host.MDM.EnrollmentStatus)
+	}
+
+	res := s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "mdm_enrollment_status", "bogus")
+	require.Contains(t, extractServerErrorText(res.Body), "Invalid mdm_enrollment_status")
+
+	require.NoError(t, s.ds.GenerateAggregatedMunkiAndMDM(ctx))
+
+	var summary getHostMDMSummaryResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts/summary/mdm", nil, http.StatusOK, &summary)
+	require.Equal(t, 2, summary.MDMStatus.EnrolledPersonalHostsCount)
+	require.Equal(t, 1, summary.MDMStatus.EnrolledManualPersonalHostsCount)
+
+	// macadmins only aggregates macOS hosts, where the manual BYOD Mac is the only personal one.
+	var macadmins getAggregatedMacadminsDataResponse
+	s.DoJSON("GET", "/api/latest/fleet/macadmins", nil, http.StatusOK, &macadmins)
+	require.NotNil(t, macadmins.Macadmins)
+	require.Equal(t, 0, macadmins.Macadmins.MDMStatus.EnrolledPersonalHostsCount)
+	require.Equal(t, 1, macadmins.Macadmins.MDMStatus.EnrolledManualPersonalHostsCount)
 }

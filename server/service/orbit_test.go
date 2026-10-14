@@ -2868,7 +2868,7 @@ func TestEnrollOrbitRecordsPendingEndUserAuth(t *testing.T) {
 		ds.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
 			return &fleet.MDMIdPAccount{UUID: "acct-uuid-1"}, nil
 		}
-		ds.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, acctUUID string) error { return nil }
+		ds.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, acctUUID string) (string, error) { return acctUUID, nil }
 
 		nodeKey, err := svc.EnrollOrbit(euaCtx(ctx), hostInfo, "secret", "")
 		require.NoError(t, err)
@@ -2904,6 +2904,36 @@ func TestEnrollOrbitRecordsPendingEndUserAuth(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, pending)
 	})
+}
+
+func TestEnrollOrbitLogsIdPAccountLink(t *testing.T) {
+	opts := &TestServerOpts{}
+	ds, svc, ctx := newEnrollOrbitEUATestService(t, true, config.TestConfig(), opts)
+
+	ds.GetMDMIdPAccountByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+		return &fleet.MDMIdPAccount{UUID: "acct-uuid-1"}, nil
+	}
+	ds.AssociateHostMDMIdPAccountFunc = func(ctx context.Context, hostUUID, acctUUID string) (string, error) {
+		return "acct-uuid-0", nil
+	}
+	ds.GetMDMIdPAccountByUUIDFunc = func(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
+		return &fleet.MDMIdPAccount{UUID: uuid, Email: uuid + "@example.com"}, nil
+	}
+	var activities []fleet.ActivityTypeBoundHostToIdPAccount
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+		if bound, ok := act.(fleet.ActivityTypeBoundHostToIdPAccount); ok {
+			activities = append(activities, bound)
+		}
+		return nil
+	}
+
+	_, err := svc.EnrollOrbit(euaCtx(ctx), enrollOrbitEUATestHostInfo, "secret", "")
+	require.NoError(t, err)
+	require.Equal(t, []fleet.ActivityTypeBoundHostToIdPAccount{{
+		HostUUID:         enrollOrbitEUATestHostInfo.HardwareUUID,
+		IdPEmail:         "acct-uuid-1@example.com",
+		ReplacedIdPEmail: "acct-uuid-0@example.com",
+	}}, activities)
 }
 
 // enrollOrbitEUATestHostInfo is a first-time Linux enrollment, the shape both
@@ -3023,6 +3053,30 @@ func TestEscrowLUKSDataStatus(t *testing.T) {
 	require.False(t, ds.ReportEscrowErrorFuncInvoked)
 
 	require.Error(t, svc.EscrowLUKSData(ctx, "", "", nil, "", "", fleet.LinuxEscrowStatusPrompting), "no host in context")
+}
+
+func TestRetryPolicyAutomationScript(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
+	host := &fleet.Host{ID: 42}
+	hsr := &fleet.HostScriptResult{
+		ScriptID:        new(uint(12)),
+		PolicyID:        new(uint(34)),
+		ScriptContentID: 56,
+		ScriptContents:  "echo original contents",
+		AttemptNumber:   new(1),
+	}
+	ds.NewHostScriptExecutionRequestFunc = func(_ context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
+		require.Equal(t, host.ID, request.HostID)
+		require.Equal(t, hsr.ScriptID, request.ScriptID)
+		require.Equal(t, hsr.PolicyID, request.PolicyID)
+		require.Equal(t, hsr.ScriptContentID, request.ScriptContentID)
+		require.Equal(t, hsr.ScriptContents, request.ScriptContents)
+		return nil, nil
+	}
+
+	require.NoError(t, svc.retryPolicyAutomationScript(t.Context(), host, hsr))
+	require.True(t, ds.NewHostScriptExecutionRequestFuncInvoked)
 }
 
 func TestSaveHostScriptResultRecordsNotificationOutcomeOnDuplicate(t *testing.T) {

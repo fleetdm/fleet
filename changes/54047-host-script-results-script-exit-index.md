@@ -1,0 +1,1 @@
+- Improved the performance of applying scripts through GitOps on Fleet instances with a large script-run history

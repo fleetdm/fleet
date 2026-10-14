@@ -223,6 +223,14 @@ func testPatchNotificationAddAndListApps(t *testing.T, ds *Datastore) {
 	require.Len(t, apps, 1)
 	require.Equal(t, "Notified App (renamed)", apps[0].DisplayName)
 	require.True(t, apps[0].HasIcon)
+	require.False(t, apps[0].UpdatedInInventory)
+
+	// set the app as updated in inventory, the listed app should report it
+	require.NoError(t, ds.SetPatchNotificationAppsUpdatedInInventory(ctx, notificationUUID, []uint{titleID}))
+	apps, err = ds.ListPatchNotificationApps(ctx, notificationUUID)
+	require.NoError(t, err)
+	require.Len(t, apps, 1)
+	require.True(t, apps[0].UpdatedInInventory)
 
 	// deleting the policy sets patch_notification_apps.policy_id to null, and the app stays listed
 	_, err = ds.DeleteTeamPolicies(ctx, team.ID, []uint{policy.ID})
@@ -506,6 +514,16 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 	}))
 	require.NoError(t, ds.SetPatchNotificationAppsQueued(ctx, actedHandled, []uint{handledTitleID}))
 
+	// add an acted notification whose only unqueued app the inventory showed as updated, the notification should not be listed
+	actedUpdatedInInventory := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationActed, 1)
+	setInstallAt(actedUpdatedInInventory, now.Add(-time.Minute))
+	markDisplayed(actedUpdatedInInventory)
+	updatedInInventoryTitleID := newTestSoftwareTitle(t, ds, "Updated In Inventory App")
+	require.NoError(t, ds.AddPatchNotificationApp(ctx, actedUpdatedInInventory, fleet.PatchNotificationApp{
+		SoftwareTitleID: updatedInInventoryTitleID,
+	}))
+	require.NoError(t, ds.SetPatchNotificationAppsUpdatedInInventory(ctx, actedUpdatedInInventory, []uint{updatedInInventoryTitleID}))
+
 	due, err := ds.ListPatchNotificationsDue(ctx, now.Add(5*time.Minute), 500)
 	require.NoError(t, err)
 
@@ -519,6 +537,7 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 	require.NotContains(t, byUUID, reminderQueued)
 	require.NotContains(t, byUUID, notDisplayed)
 	require.NotContains(t, byUUID, actedHandled)
+	require.NotContains(t, byUUID, actedUpdatedInInventory)
 	require.Contains(t, byUUID, actedUnhandled)
 	for _, notificationUUID := range terminal {
 		require.NotContains(t, byUUID, notificationUUID)
@@ -656,4 +675,19 @@ func testPatchNotificationAppInstallStatuses(t *testing.T, ds *Datastore) {
 	statuses, err = ds.ListPatchNotificationAppInstallStatuses(ctx, notificationUUID)
 	require.NoError(t, err)
 	require.Equal(t, map[uint]fleet.SoftwareInstallerStatus{titleID: "canceled_install"}, statuses)
+
+	// add an install carrying the app open query that ran with the app closed, the app should report installed
+	installedWithAppOpenQueryAt := appJoinedAt.Add(5 * time.Minute)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_software_installs
+				(execution_id, host_id, software_installer_id, pre_install_query_output, install_script_exit_code,
+				override_pre_install_query, created_at, updated_at)
+			VALUES (?, ?, ?, '1', 0, 1, ?, ?)`,
+			uuid.NewString(), host.ID, secondInstallerID, installedWithAppOpenQueryAt, installedWithAppOpenQueryAt)
+		return err
+	})
+	statuses, err = ds.ListPatchNotificationAppInstallStatuses(ctx, notificationUUID)
+	require.NoError(t, err)
+	require.Equal(t, map[uint]fleet.SoftwareInstallerStatus{titleID: fleet.SoftwareInstalled}, statuses)
 }

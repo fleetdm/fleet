@@ -43,6 +43,7 @@ func TestSetupExperience(t *testing.T) {
 		{"CrossPlatformShScripts", testSetupExperienceCrossPlatformShScripts},
 		{"CrossPlatformPyScripts", testSetupExperienceCrossPlatformPyScripts},
 		{"FirstAddedPerTitleNoDoubleQueue", testEnqueueSetupExperienceFirstAddedPerTitle},
+		{"FirstAddedAppStoreAppVersionNoDoubleQueue", testEnqueueSetupExperienceFirstAddedAppStoreAppVersion},
 		{"InHouseApps", testSetupExperienceInHouseApps},
 		{"EnqueueInHouseApps", testEnqueueSetupExperienceInHouseApps},
 	}
@@ -503,11 +504,11 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 
 	// Create some VPP apps and add them to setup experience
 	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
-	vpp1, err := ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
+	vpp1, err := ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID, nil)
 	require.NoError(t, err)
 
 	app2 := &fleet.VPPApp{Name: "vpp_app_2", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "2", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b2"}
-	vpp2, err := ds.InsertVPPAppWithTeam(ctx, app2, &team2.ID)
+	vpp2, err := ds.InsertVPPAppWithTeam(ctx, app2, &team2.ID, nil)
 	require.NoError(t, err)
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -863,7 +864,7 @@ func testEnqueueSetupExperienceItemsWithDisplayName(t *testing.T, ds *Datastore)
 		BundleIdentifier: "com.aaa.vpp",
 		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "dn_adam_1", Platform: fleet.MacOSPlatform}},
 	}
-	vpp1, err := ds.InsertVPPAppWithTeam(ctx, vppApp1, &team.ID)
+	vpp1, err := ds.InsertVPPAppWithTeam(ctx, vppApp1, &team.ID, nil)
 	require.NoError(t, err)
 
 	vppApp2 := &fleet.VPPApp{
@@ -871,7 +872,7 @@ func testEnqueueSetupExperienceItemsWithDisplayName(t *testing.T, ds *Datastore)
 		BundleIdentifier: "com.zzz.vpp",
 		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "dn_adam_2", Platform: fleet.MacOSPlatform}},
 	}
-	vpp2, err := ds.InsertVPPAppWithTeam(ctx, vppApp2, &team.ID)
+	vpp2, err := ds.InsertVPPAppWithTeam(ctx, vppApp2, &team.ID, nil)
 	require.NoError(t, err)
 
 	// Mark both VPP apps for setup experience
@@ -974,7 +975,7 @@ func testEnqueueSetupExperienceItemsWithDisplayName(t *testing.T, ds *Datastore)
 		BundleIdentifier: "com.mmm.vpp",
 		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "dn_adam_3", Platform: fleet.MacOSPlatform}},
 	}
-	vpp3, err := ds.InsertVPPAppWithTeam(ctx, vppApp3, &team.ID)
+	vpp3, err := ds.InsertVPPAppWithTeam(ctx, vppApp3, &team.ID, nil)
 	require.NoError(t, err)
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -1174,24 +1175,24 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	assert.NotNil(t, meta)
 
 	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
-	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID, nil)
 	require.NoError(t, err)
 
 	app2 := &fleet.VPPApp{Name: "vpp_app_2", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "2", Platform: fleet.IOSPlatform}}, BundleIdentifier: "b2"}
-	_, err = ds.InsertVPPAppWithTeam(ctx, app2, &team1.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app2, &team1.ID, nil)
 	require.NoError(t, err)
 
 	app3 := &fleet.VPPApp{Name: "vpp_app_3", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "3", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b3"}
-	_, err = ds.InsertVPPAppWithTeam(ctx, app3, &team2.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app3, &team2.ID, nil)
 	require.NoError(t, err)
 
-	vpp1, err := ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
+	vpp1, err := ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID, nil)
 	require.NoError(t, err)
 
-	vpp2, err := ds.InsertVPPAppWithTeam(ctx, app2, &team1.ID)
+	vpp2, err := ds.InsertVPPAppWithTeam(ctx, app2, &team1.ID, nil)
 	require.NoError(t, err)
 
-	vpp3, err := ds.InsertVPPAppWithTeam(ctx, app3, &team2.ID)
+	vpp3, err := ds.InsertVPPAppWithTeam(ctx, app3, &team2.ID, nil)
 	require.NoError(t, err)
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -1564,20 +1565,20 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	assert.NotNil(t, meta)
 
 	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
-	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID, nil)
 	require.NoError(t, err)
 
 	app2 := &fleet.VPPApp{Name: "vpp_app_2", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "2", Platform: fleet.IOSPlatform}}, BundleIdentifier: "b2"}
-	_, err = ds.InsertVPPAppWithTeam(ctx, app2, &team1.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app2, &team1.ID, nil)
 	require.NoError(t, err)
 
 	app3 := &fleet.VPPApp{Name: "vpp_app_3", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "3", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b3"}
-	_, err = ds.InsertVPPAppWithTeam(ctx, app3, &team2.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app3, &team2.ID, nil)
 	require.NoError(t, err)
 
 	// iOS version of app1, has the same adam ID
 	app4 := &fleet.VPPApp{Name: "vpp_app_1: iOS", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.IOSPlatform}}, BundleIdentifier: "b1"}
-	_, err = ds.InsertVPPAppWithTeam(ctx, app4, &team1.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app4, &team1.ID, nil)
 	require.NoError(t, err)
 
 	titleSoftware := make(map[string]uint)
@@ -1745,7 +1746,7 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 	assert.NoError(t, err)
 	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
 	assert.NoError(t, err)
-	vppApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{BundleIdentifier: "com.test.test", Name: "test.app", LatestVersion: "1.0.0"}, nil)
+	vppApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{BundleIdentifier: "com.test.test", Name: "test.app", LatestVersion: "1.0.0"}, nil, nil)
 	require.NoError(t, err)
 	var vppAppsTeamsID uint
 	err = sqlx.GetContext(context.Background(), ds.reader(ctx),
@@ -1789,12 +1790,13 @@ func testSetupExperienceStatusResults(t *testing.T, ds *Datastore) {
 			Source:              ptr.String("apps"),
 		},
 		{
-			HostUUID:        hostUUID,
-			Name:            "vpp",
-			Status:          fleet.SetupExperienceStatusPending,
-			VPPAppTeamID:    ptr.Uint(vppAppsTeamsID),
-			SoftwareTitleID: ptr.Uint(vppApp.TitleID),
-			Source:          ptr.String("apps"),
+			HostUUID:          hostUUID,
+			Name:              "vpp",
+			Status:            fleet.SetupExperienceStatusPending,
+			VPPAppTeamID:      new(vppAppsTeamsID),
+			VPPAppVersionName: new(fleet.DefaultAppStoreAppVersionName),
+			SoftwareTitleID:   new(vppApp.TitleID),
+			Source:            new("apps"),
 		},
 		{
 			HostUUID:                hostUUID,
@@ -2137,7 +2139,7 @@ func testUpdateStatusGuardsTerminalStates(t *testing.T, ds *Datastore) {
 		BundleIdentifier: "com.guard.test",
 		Name:             "guard_test.app",
 		LatestVersion:    "1.0.0",
-	}, nil)
+	}, nil, nil)
 	require.NoError(t, err)
 	var vppAppsTeamsID uint
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &vppAppsTeamsID,
@@ -2618,6 +2620,103 @@ func testSetupExperiencePolicyGate(t *testing.T, ds *Datastore) {
 		forHost, err := ds.GetSetupExperiencePolicyIDsForHost(ctx, host.UUID)
 		require.NoError(t, err)
 		require.ElementsMatch(t, []uint{p1.ID, p2.ID}, forHost, "all of the installer's gating policies must be distributed during setup, not just the marker")
+	})
+
+	// newFMAInstaller creates a Windows Fleet-maintained app installer flagged for setup experience, as a patch policy requires one.
+	newFMAInstaller := func(t *testing.T, title string, teamID uint) (installerID, titleID uint) {
+		app, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+			Name:             title,
+			Slug:             strings.ToLower(title) + "/windows",
+			Platform:         "windows",
+			UniqueIdentifier: title,
+		})
+		require.NoError(t, err)
+		tfr, err := fleet.NewTempFileReader(strings.NewReader("installer"), t.TempDir)
+		require.NoError(t, err)
+		installerID, titleID, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript:        "echo install",
+			InstallerFile:        tfr,
+			StorageID:            "pg-storage-" + uuid.NewString(),
+			Filename:             title + ".msi",
+			Title:                title,
+			Version:              "1.0",
+			Source:               "programs",
+			UserID:               user.ID,
+			TeamID:               &teamID,
+			Platform:             "windows",
+			Extension:            "msi",
+			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+			FleetMaintainedAppID: &app.ID,
+		})
+		require.NoError(t, err)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, e := q.ExecContext(ctx, "UPDATE software_installers SET install_during_setup = 1 WHERE id = ?", installerID)
+			return e
+		})
+		return installerID, titleID
+	}
+
+	t.Run("patch policy that installs the app does not gate", func(t *testing.T) {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "pg-patch"})
+		require.NoError(t, err)
+		installerID, titleID := newFMAInstaller(t, "PatchOnly", team.ID)
+		// "Patch when app is closed" / "Force patch": a patch policy whose install-software automation points at the installer.
+		_, err = ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
+			Type:                         fleet.PolicyTypePatch,
+			PatchSoftwareTitleID:         &titleID,
+			SoftwareInstallerID:          &installerID,
+			PatchWhenClosed:              true,
+			ContinuousAutomationsEnabled: true,
+		})
+		require.NoError(t, err)
+
+		host := newHost("windows", &team.ID)
+		_, err = ds.EnqueueSetupExperienceItems(ctx, host.Platform, "windows", host.UUID, team.ID)
+		require.NoError(t, err)
+
+		// The patch policy passes on a host without the app, so it must not be used as a gate: the item installs unconditionally.
+		gatedFlags := readPolicyGated(host.UUID)
+		require.Contains(t, gatedFlags, "PatchOnly")
+		require.False(t, gatedFlags["PatchOnly"], "a patch policy must not gate a setup-experience item")
+
+		forInstaller, err := ds.GetSetupExperiencePolicyIDsForInstaller(ctx, installerID)
+		require.NoError(t, err)
+		require.Empty(t, forInstaller)
+		forHost, err := ds.GetSetupExperiencePolicyIDsForHost(ctx, host.UUID)
+		require.NoError(t, err)
+		require.Empty(t, forHost, "the patch policy must not be distributed as a gating policy during setup")
+	})
+
+	t.Run("patch policy alongside an install policy: only the install policy gates", func(t *testing.T) {
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "pg-patch-mixed"})
+		require.NoError(t, err)
+		installerID, titleID := newFMAInstaller(t, "PatchMixed", team.ID)
+		_, err = ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
+			Type:                 fleet.PolicyTypePatch,
+			PatchSoftwareTitleID: &titleID,
+			SoftwareInstallerID:  &installerID,
+		})
+		require.NoError(t, err)
+		installPolicy, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
+			Name:                "mixed-install",
+			Query:               "SELECT 1;",
+			SoftwareInstallerID: &installerID,
+		})
+		require.NoError(t, err)
+
+		host := newHost("windows", &team.ID)
+		_, err = ds.EnqueueSetupExperienceItems(ctx, host.Platform, "windows", host.UUID, team.ID)
+		require.NoError(t, err)
+
+		gatedFlags := readPolicyGated(host.UUID)
+		require.True(t, gatedFlags["PatchMixed"])
+
+		forInstaller, err := ds.GetSetupExperiencePolicyIDsForInstaller(ctx, installerID)
+		require.NoError(t, err)
+		require.Equal(t, []uint{installPolicy.ID}, forInstaller)
+		forHost, err := ds.GetSetupExperiencePolicyIDsForHost(ctx, host.UUID)
+		require.NoError(t, err)
+		require.Equal(t, []uint{installPolicy.ID}, forHost)
 	})
 }
 
@@ -3110,4 +3209,75 @@ func testEnqueueSetupExperienceFirstAddedPerTitle(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.True(t, enqueued)
 	assertSinglePackageQueued()
+}
+
+func testEnqueueSetupExperienceFirstAddedAppStoreAppVersion(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "se-app-store-app-versions"})
+	require.NoError(t, err)
+
+	const adamID = "66665555"
+	setupTestVPPApp(t, ds, adamID, fleet.IOSPlatform)
+
+	cases := []struct {
+		name    string
+		fleetID uint
+	}{
+		{name: "no team", fleetID: 0},
+		{name: "team", fleetID: team.ID},
+	}
+	for _, c := range cases {
+		t.Log(c.name)
+		fleetID := c.fleetID
+
+		// add two versions of the app and flag both for setup
+		var versionA *fleet.VPPApp
+		if c.fleetID == 0 {
+			versionA, err = ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, adamID, fleet.IOSPlatform, nil)
+		} else {
+			versionA, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+				Name:             "SetupVersionsApp",
+				AdamID:           adamID,
+				Platform:         fleet.IOSPlatform,
+				BundleIdentifier: "com.example." + adamID,
+			}, &team.ID, nil)
+		}
+		require.NoError(t, err)
+		require.NotNil(t, versionA)
+		versionB, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+			Name:             "SetupVersionsApp",
+			BundleIdentifier: "com.example." + adamID,
+			AdamID:           adamID,
+			Platform:         fleet.IOSPlatform,
+			VersionName:      "Beta",
+		}, &fleetID, nil)
+		require.NoError(t, err)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, "UPDATE vpp_apps_teams SET install_during_setup = 1 WHERE id IN (?, ?)", versionA.AppTeamID, versionB.AppTeamID)
+			return err
+		})
+
+		hostUUID := "se-app-store-app-versions-" + c.name
+		_, err = ds.NewHost(ctx, &fleet.Host{
+			Hostname:       hostUUID,
+			UUID:           hostUUID,
+			Platform:       "ios",
+			HardwareSerial: hostUUID,
+		})
+		require.NoError(t, err)
+
+		// enqueue setup experience items, only the first-added version should be queued
+		enqueued, err := ds.EnqueueSetupExperienceItems(ctx, "ios", "ios", hostUUID, fleetID)
+		require.NoError(t, err)
+		require.True(t, enqueued)
+		results, err := ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, fleetID)
+		require.NoError(t, err)
+		require.Len(t, results, 1)
+		require.NotNil(t, results[0].VPPAppTeamID)
+		require.Equal(t, versionA.AppTeamID, *results[0].VPPAppTeamID)
+		require.NotNil(t, results[0].VPPAppVersionName)
+		require.Equal(t, fleet.DefaultAppStoreAppVersionName, *results[0].VPPAppVersionName)
+	}
 }

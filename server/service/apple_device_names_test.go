@@ -124,7 +124,7 @@ func TestReconcileHostDeviceNamesExpandsCustomHostVitals(t *testing.T) {
 	t.Run("host's value is substituted and a matching name verifies without a command", func(t *testing.T) {
 		ds.ListHostsPendingDeviceNameCommandFunc = func(_ context.Context, _ int) ([]fleet.HostDeviceNamePending, error) {
 			return []fleet.HostDeviceNamePending{
-				{HostID: 2, HostUUID: "host-2", HardwareSerial: "SERIAL2", Platform: "darwin", ComputerName: "WS-engineering"},
+				{HostID: 2, HostUUID: "host-2", HardwareSerial: "SERIAL2", Platform: "darwin", ComputerName: "WS-engineering", NameReportedSinceEnrollment: true},
 			}, nil
 		}
 		ds.ExpandCustomHostVitalsFunc = func(_ context.Context, hostID uint, document string) (string, error) {

@@ -980,8 +980,11 @@ func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet
 		if err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "getting full user with id %d", user.ID)
 		}
-		if fullUser.GlobalRole != nil && currentUser.GlobalRole == nil {
-			return nil, ctxerr.New(ctx, "A user with a global role cannot be added to a team by a non global user.")
+		if fullUser.HasAnyGlobalRole() && (currentUser == nil || !currentUser.HasAnyGlobalRole()) {
+			return nil, authz.ForbiddenWithInternal(
+				"A user with a global role cannot be added to a team by a non global user.",
+				currentUser, fullUser, fleet.ActionWriteMembers,
+			)
 		}
 	}
 
@@ -1080,7 +1083,7 @@ func (svc *Service) ListAvailableTeamsForUser(ctx context.Context, user *fleet.U
 	}
 
 	availableTeams := []*fleet.TeamSummary{}
-	if user.GlobalRole != nil {
+	if user.HasAnyGlobalRole() {
 		ts, err := svc.ds.TeamsSummary(ctx)
 		if err != nil {
 			return nil, err

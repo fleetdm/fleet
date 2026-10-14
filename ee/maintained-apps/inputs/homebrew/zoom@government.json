@@ -1,0 +1,10 @@
+{
+  "name": "Zoom for Government",
+  "unique_identifier": "us.zoom.xos",
+  "token": "zoom@government",
+  "installer_format": "pkg",
+  "slug": "zoom@government/darwin",
+  "default_categories": ["Communication"],
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/zoom_install.sh",
+  "cask_path": "ee/maintained-apps/inputs/homebrew/custom-tap/api/zoom@government.json"
+}

@@ -3,6 +3,7 @@ package s3
 import (
 	"context"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -81,4 +82,39 @@ func TestSignGCSPresignedURL(t *testing.T) {
 		_, err := NewSoftwareInstallerStore(cfg)
 		require.ErrorContains(t, err, "sts assume role")
 	})
+}
+
+func TestPresignPutGCS(t *testing.T) {
+	cfg := config.S3Config{
+		SoftwareInstallersBucket:           "test-bucket",
+		SoftwareInstallersRegion:           "auto",
+		SoftwareInstallersEndpointURL:      "https://storage.googleapis.com",
+		SoftwareInstallersAccessKeyID:      "GOOG-test",
+		SoftwareInstallersSecretAccessKey:  "secret",
+		SoftwareInstallersForceS3PathStyle: true,
+	}
+
+	store, err := NewStagedUploadStore(cfg)
+	require.NoError(t, err)
+	_, err = store.PresignPut(t.Context(), "abc123", 42, time.Hour)
+	require.ErrorIs(t, err, fleet.ErrNotConfigured)
+
+	cfg.SoftwareInstallersSignedURL = true
+	store, err = NewStagedUploadStore(cfg)
+	require.NoError(t, err)
+	signed, err := store.PresignPut(t.Context(), "abc123", 42, time.Hour)
+	require.NoError(t, err)
+
+	u, err := url.Parse(signed)
+	require.NoError(t, err)
+	require.Equal(t, "https", u.Scheme)
+	require.Equal(t, "storage.googleapis.com", u.Host)
+	require.Equal(t, "/test-bucket/uploads/abc123", u.Path)
+	q := u.Query()
+	require.Equal(t, "3600", q.Get("X-Amz-Expires"))
+	require.Contains(t, q.Get("X-Amz-SignedHeaders"), "content-length")
+	require.NotEmpty(t, q.Get("X-Amz-Signature"))
+	for k := range q {
+		require.NotContains(t, strings.ToLower(k), "checksum")
+	}
 }

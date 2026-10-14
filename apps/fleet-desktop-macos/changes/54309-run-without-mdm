@@ -1,0 +1,1 @@
+- Fleet Desktop now runs on Macs that aren't MDM-enrolled. When the fleetd configuration profile isn't present, the app reads the Fleet URL from the orbit launchd plist (`ORBIT_FLEET_URL`), and the installer no longer requires the managed preferences profile.

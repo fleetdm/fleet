@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -77,7 +78,7 @@ func (ds *Datastore) BulkUpsertHostDeviceNameEnforcement(ctx context.Context, te
 		SELECT h.uuid, NULL` + deviceNameEligibleHostsJoins + `
 		WHERE ` + deviceNameEligibleHostsWhere + `
 			AND ` + teamFilter + `
-		ON DUPLICATE KEY UPDATE status = NULL, command_uuid = NULL, expected_device_name = NULL, detail = NULL`
+		ON DUPLICATE KEY UPDATE status = NULL, command_uuid = NULL, expected_device_name = NULL, detail = NULL, retries = 0`
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk upsert host device name enforcement")
@@ -132,9 +133,11 @@ func (ds *Datastore) ListHostsPendingDeviceNameCommand(ctx context.Context, limi
 			h.hardware_serial,
 			h.platform,
 			h.computer_name,
+			COALESCE(h.detail_updated_at > nd.authenticate_at, 0) AS name_reported_since_enrollment,
 			h.team_id
 		FROM host_mdm_apple_device_names hmadn
 		JOIN hosts h ON h.uuid = hmadn.host_uuid
+		LEFT JOIN nano_devices nd ON nd.id = h.uuid
 		WHERE hmadn.status IS NULL
 		LIMIT ?`
 
@@ -167,34 +170,61 @@ func (ds *Datastore) SetHostDeviceNameStatus(ctx context.Context, hostUUID strin
 	return nil
 }
 
-func (ds *Datastore) UpdateHostDeviceNameStatusFromCommand(ctx context.Context, commandUUID string, acknowledged bool, detail string) error {
-	// The command result is one of exactly two outcomes: acknowledged (the
-	// device applied the rename → verifying) or an error (→ failed).
-	status := fleet.MDMDeliveryFailed
-	if acknowledged {
-		status = fleet.MDMDeliveryVerifying
-	}
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// The UPDATE is authoritative. A 0-row result means no current row holds
-		// this command UUID: it was superseded by a newer command for the same
-		// host (the row keeps only the latest) or the row was deleted. Either way
-		// the result is stale and callers must treat this not-found as ignorable.
-		const updateStmt = `
+func (ds *Datastore) UpdateHostDeviceNameStatusFromCommand(ctx context.Context, commandUUID string, acknowledged bool, detail string, retryable bool) (fleet.DeviceNameRetryOutcome, error) {
+	var outcome fleet.DeviceNameRetryOutcome
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		outcome = fleet.DeviceNameNotRetried
+
+		// Every UPDATE below is authoritative. A 0-row result means no current row
+		// holds this command UUID: it was superseded by a newer command for the
+		// same host (the row keeps only the latest) or the row was deleted. Either
+		// way the result is stale and callers must treat this not-found as ignorable.
+		if !acknowledged {
+			if retryable {
+				// Re-queue for the cron while retries remain, keeping the device's error
+				// as the detail until the next attempt; command_uuid is cleared so a late
+				// result for this command can't match the row again.
+				res, err := tx.ExecContext(ctx, `
+					UPDATE host_mdm_apple_device_names
+					SET status = NULL, command_uuid = NULL, detail = ?, retries = retries + 1
+					WHERE command_uuid = ? AND retries < ?`,
+					detail, commandUUID, mdm.MaxAppleDeviceNameRetries)
+				if err != nil {
+					return ctxerr.Wrapf(ctx, err, "retry host device name from failed command %s", commandUUID)
+				}
+				if affected, _ := res.RowsAffected(); affected > 0 {
+					outcome = fleet.DeviceNameRetried
+					return nil
+				}
+			}
+
+			res, err := tx.ExecContext(ctx, `
+				UPDATE host_mdm_apple_device_names
+				SET status = ?, detail = ?
+				WHERE command_uuid = ?`,
+				fleet.MDMDeliveryFailed, detail, commandUUID)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "fail host device name from command %s", commandUUID)
+			}
+			if affected, _ := res.RowsAffected(); affected == 0 {
+				return ctxerr.Wrap(ctx, notFound("HostDeviceNameEnforcement").WithName(commandUUID))
+			}
+			if retryable {
+				outcome = fleet.DeviceNameRetriesExhausted
+			}
+			return nil
+		}
+
+		res, err := tx.ExecContext(ctx, `
 			UPDATE host_mdm_apple_device_names
 			SET status = ?, detail = ?
-			WHERE command_uuid = ?`
-		res, err := tx.ExecContext(ctx, updateStmt, status, detail, commandUUID)
+			WHERE command_uuid = ?`,
+			fleet.MDMDeliveryVerifying, detail, commandUUID)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "update host device name status from command %s", commandUUID)
 		}
 		if affected, _ := res.RowsAffected(); affected == 0 {
 			return ctxerr.Wrap(ctx, notFound("HostDeviceNameEnforcement").WithName(commandUUID))
-		}
-
-		if !acknowledged {
-			// Only an acknowledgment renames the host; error results just record
-			// the failure on the row.
-			return nil
 		}
 
 		// Acknowledged: rename the host in Fleet in this same transaction so the
@@ -232,6 +262,10 @@ func (ds *Datastore) UpdateHostDeviceNameStatusFromCommand(ctx context.Context, 
 		}
 		return nil
 	})
+	if err != nil {
+		return fleet.DeviceNameNotRetried, err
+	}
+	return outcome, nil
 }
 
 // deviceNameVerifyGracePeriod is how long after an acknowledgment (the row
@@ -243,48 +277,107 @@ func (ds *Datastore) UpdateHostDeviceNameStatusFromCommand(ctx context.Context, 
 // clock (updated_at vs NOW()), so there's no cross-machine skew to pad for.
 const deviceNameVerifyGracePeriod = 60 * time.Second
 
-func (ds *Datastore) UpdateHostDeviceNameStatusFromReport(ctx context.Context, hostUUID, reportedName string) error {
-	// Only rows already awaiting or past verification are reconciled against the
-	// device-reported name: a match confirms the rename (verified), a mismatch
-	// records drift (failed). Rows in any other state and hosts with no row are
-	// left untouched.
-	//
-	// A mismatch on a row acknowledged within the last deviceNameVerifyGracePeriod
-	// is left untouched (false drift; failed rows only recover via an explicit
-	// resend). Rows already verified reached that state through a fresh
-	// post-rename report, so a mismatch there is genuine drift regardless of age.
-	// When the CASEs resolve to the current values, MySQL skips the row write,
-	// preserving updated_at (the grace anchor).
-	const stmt = `
-		UPDATE host_mdm_apple_device_names
-		SET
-			status = CASE
-				WHEN expected_device_name = ? THEN ?
-				WHEN status = ? AND updated_at > DATE_SUB(NOW(6), INTERVAL ? SECOND) THEN status
-				ELSE ? END,
-			detail = CASE
-				WHEN expected_device_name = ? THEN ''
-				WHEN status = ? AND updated_at > DATE_SUB(NOW(6), INTERVAL ? SECOND) THEN detail
-				ELSE ? END
-		WHERE host_uuid = ?
-			AND status IN (?, ?)`
-
-	const driftDetail = "Host was renamed on the device and no longer matches the fleet's naming template."
+func (ds *Datastore) UpdateHostDeviceNameStatusFromReport(ctx context.Context, hostUUID, reportedName string) (fleet.DeviceNameRetryOutcome, error) {
+	// This runs on every name report from every MDM Apple host, and most reports need
+	// no change (no row, or a verified row that still matches), so read first and only
+	// write on a real transition. The primary is read because replica lag right after an
+	// acknowledgment could hide the verifying state and delay verification to the next
+	// report. Each UPDATE below keeps its full guard, so a row that changes between the
+	// read and the write is left alone and the next report re-evaluates it.
+	var row struct {
+		Status             *fleet.MDMDeliveryStatus `db:"status"`
+		ExpectedDeviceName *string                  `db:"expected_device_name"`
+		Retries            uint                     `db:"retries"`
+		InGracePeriod      bool                     `db:"in_grace_period"`
+	}
 	graceSeconds := int(deviceNameVerifyGracePeriod.Seconds())
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt,
-		reportedName, fleet.MDMDeliveryVerified, fleet.MDMDeliveryVerifying, graceSeconds, fleet.MDMDeliveryFailed,
-		reportedName, fleet.MDMDeliveryVerifying, graceSeconds, driftDetail,
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &row, `
+		SELECT status, expected_device_name, retries,
+			updated_at > DATE_SUB(NOW(6), INTERVAL ? SECOND) AS in_grace_period
+		FROM host_mdm_apple_device_names
+		WHERE host_uuid = ?`, graceSeconds, hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fleet.DeviceNameNotRetried, nil
+		}
+		return fleet.DeviceNameNotRetried, ctxerr.Wrap(ctx, err, "get host device name row for report")
+	}
+
+	// Only rows already awaiting or past verification are reconciled against the
+	// device-reported name.
+	if row.Status == nil || (*row.Status != fleet.MDMDeliveryVerifying && *row.Status != fleet.MDMDeliveryVerified) {
+		return fleet.DeviceNameNotRetried, nil
+	}
+
+	if row.ExpectedDeviceName != nil && *row.ExpectedDeviceName == reportedName {
+		if *row.Status == fleet.MDMDeliveryVerified {
+			return fleet.DeviceNameNotRetried, nil
+		}
+		if _, err := ds.writer(ctx).ExecContext(ctx, `
+			UPDATE host_mdm_apple_device_names
+			SET status = ?, detail = ''
+			WHERE host_uuid = ?
+				AND status = ?
+				AND expected_device_name = ?`,
+			fleet.MDMDeliveryVerified, hostUUID, fleet.MDMDeliveryVerifying, reportedName,
+		); err != nil {
+			return fleet.DeviceNameNotRetried, ctxerr.Wrap(ctx, err, "verify host device name from report")
+		}
+		return fleet.DeviceNameNotRetried, nil
+	}
+
+	// A mismatch is drift. A mismatch on a row acknowledged within the last
+	// deviceNameVerifyGracePeriod is skipped as a stale pre-rename report.
+	if *row.Status == fleet.MDMDeliveryVerifying && row.InGracePeriod {
+		return fleet.DeviceNameNotRetried, nil
+	}
+	const driftWhere = `
+		WHERE host_uuid = ?
+			AND status IN (?, ?)
+			AND NOT (expected_device_name <=> ?)
+			AND NOT (status = ? AND updated_at > DATE_SUB(NOW(6), INTERVAL ? SECOND))`
+	driftArgs := []any{
 		hostUUID,
 		fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerified,
-	); err != nil {
-		return ctxerr.Wrap(ctx, err, "update host device name status from report")
+		reportedName,
+		fleet.MDMDeliveryVerifying, graceSeconds,
 	}
-	return nil
+
+	if row.Retries < mdm.MaxAppleDeviceNameRetries {
+		// Re-queue the row exactly like ResendHostDeviceName so the cron re-enforces the
+		// template.
+		res, err := ds.writer(ctx).ExecContext(ctx, `
+			UPDATE host_mdm_apple_device_names
+			SET status = NULL, command_uuid = NULL, retries = retries + 1`+driftWhere+`
+				AND retries < ?`,
+			append(driftArgs, mdm.MaxAppleDeviceNameRetries)...)
+		if err != nil {
+			return fleet.DeviceNameNotRetried, ctxerr.Wrap(ctx, err, "re-queue drifted host device name from report")
+		}
+		if rows, _ := res.RowsAffected(); rows > 0 {
+			return fleet.DeviceNameRetried, nil
+		}
+		return fleet.DeviceNameNotRetried, nil
+	}
+
+	driftDetail := fmt.Sprintf("Host was renamed on the device and no longer matches the fleet's naming template. "+
+		"Fleet re-applied the template %d times. Select Resend to try again.", mdm.MaxAppleDeviceNameRetries)
+	res, err := ds.writer(ctx).ExecContext(ctx, `
+		UPDATE host_mdm_apple_device_names
+		SET status = ?, detail = ?`+driftWhere+`
+			AND retries >= ?`,
+		append(append([]any{fleet.MDMDeliveryFailed, driftDetail}, driftArgs...), mdm.MaxAppleDeviceNameRetries)...)
+	if err != nil {
+		return fleet.DeviceNameNotRetried, ctxerr.Wrap(ctx, err, "fail drifted host device name from report")
+	}
+	if rows, _ := res.RowsAffected(); rows > 0 {
+		return fleet.DeviceNameRetriesExhausted, nil
+	}
+	return fleet.DeviceNameNotRetried, nil
 }
 
 func (ds *Datastore) GetHostDeviceNameEnforcement(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
 	const stmt = `
-		SELECT host_uuid, status, command_uuid, expected_device_name, COALESCE(detail, '') AS detail, created_at, updated_at
+		SELECT host_uuid, status, command_uuid, expected_device_name, COALESCE(detail, '') AS detail, retries, created_at, updated_at
 		FROM host_mdm_apple_device_names
 		WHERE host_uuid = ?`
 
@@ -302,7 +395,7 @@ func (ds *Datastore) ResendHostDeviceName(ctx context.Context, hostUUID string) 
 	// Reset the status to NULL to trigger resending on the next cron run, same as
 	// ResendHostMDMProfile. command_uuid is cleared too so a late acknowledgment
 	// for the previous command can't match this row and undo the resend.
-	const stmt = `UPDATE host_mdm_apple_device_names SET status = NULL, command_uuid = NULL WHERE host_uuid = ?`
+	const stmt = `UPDATE host_mdm_apple_device_names SET status = NULL, command_uuid = NULL, retries = 0 WHERE host_uuid = ?`
 
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID)
 	if err != nil {

@@ -29,6 +29,7 @@ var (
 	AppleOSVersionDeadlineInvalidMessage         = "The deadline isn't a valid date."
 	CantDeleteHostUnverifiedABMMessage           = "Couldn't delete host. Fleet couldn't reach Apple Business to check whether this host is still assigned. Please try again."
 	MyDeviceURLUnsupportedPlatformMessage        = "The My device page is only supported for macOS, Windows, Linux, and iOS/iPadOS hosts."
+	MyDeviceURLNotEnrolledMessage                = "The My device page isn't available until this host enrolls in MDM."
 	CantTurnOffMDMForWindowsHostsMessage         = "Can't turn off MDM for Windows hosts."
 	CantTurnOffMDMAlreadyTurnedOffMessage        = "Couldn't turn off MDM. This host already has MDM turned off."
 	CantTurnOffMDMForPersonalHostsMessage        = "Couldn't turn off MDM. This command isn't available for personal hosts."
@@ -582,6 +583,12 @@ const (
 
 	// Invalid list options combinations
 	FilterTitlesByPlatformNeedsTeamIdErrMsg = "The 'platform' and 'team_id' parameters must be used together to filter the software available for install."
+
+	softwareTypeFilterDocsURL                   = "https://fleetdm.com/docs/rest-api/rest-api#list-software"
+	InvalidSoftwareSourceErrMsg                 = "Invalid source: %q isn't a valid source. See the options: " + softwareTypeFilterDocsURL
+	InvalidSoftwareExtensionForErrMsg           = "Invalid extension_for: %q isn't a valid browser or IDE. See the options: " + softwareTypeFilterDocsURL
+	SoftwareExtensionForRequiresSourceErrMsg    = "extension_for requires source. Specify a browser or IDE extension source, like source=chrome_extensions&extension_for=brave."
+	SoftwareExtensionForSourceNotSelectedErrMsg = "%q is a %q value, but source doesn't include %[2]q."
 )
 
 // Error message variables
@@ -609,6 +616,22 @@ func (e ConflictError) Error() string {
 func (e ConflictError) StatusCode() int {
 	return http.StatusConflict
 }
+
+// CertificateAuthorityTransientError is the 503 for a certificate request the CA could not
+// serve for a reason expected to clear on its own, such as no response or an HTTP 5xx.
+// Retry-After tells callers such as curl --retry when to try again.
+type CertificateAuthorityTransientError struct {
+	Message           string
+	RetryAfterSeconds int
+}
+
+func (e CertificateAuthorityTransientError) Error() string { return e.Message }
+
+// StatusCode implements the kithttp.StatusCoder interface.
+func (e CertificateAuthorityTransientError) StatusCode() int { return http.StatusServiceUnavailable }
+
+// RetryAfter implements platform_http.ErrWithRetryAfter.
+func (e CertificateAuthorityTransientError) RetryAfter() int { return e.RetryAfterSeconds }
 
 // LinuxEscrowInFlightError is the 409 for a LUKS escrow request refused because fleetd is already
 // handling one. Retry-After is how long until that state expires if fleetd sends nothing further.
@@ -666,3 +689,5 @@ func (e *ABOnlyEnrollmentForbiddenError) Internal() string {
 }
 
 const AdminOnlyEnrollmentForbiddenErrMsg = "Manual enrollment is not available because only Apple Business enrollment is allowed for this organization."
+
+const ManualEnrollmentStaticChallengeDisabledErrMsg = "Manual enrollment profile is not available because the static SCEP challenge is disabled for this Fleet server."

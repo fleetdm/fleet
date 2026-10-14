@@ -265,10 +265,8 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
       ),
   },
   failed_install_update_available: {
-    iconName: "error-outline", // Match update available icon and not failed install icon
-    iconColor: "ui-fleet-black-50",
-    displayText: "Update available", // Shows "Update available" modal instead of "Failed" modal as of 4.82 #31663
-    // Tooltip indicates failure info in host activity logs
+    iconName: "error",
+    displayText: "Failed", // Opens Install details modal
     tooltip: failedInstallTooltip,
   },
   failed_uninstall_update_available: {

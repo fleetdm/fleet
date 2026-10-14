@@ -7,6 +7,7 @@ import (
 	"crypto/subtle"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"database/sql/driver"
 	"errors"
 	"fmt"
@@ -498,6 +499,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		},
 		config.MDM.AndroidAgent,
 		redis_key_value.New(redisPool),
+		android_service.WithInstallReapTimeout(config.Server.VPPInstallReapTimeout),
 	)
 	if err != nil {
 		initFatal(err, "initializing android service")
@@ -554,6 +556,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	var softwareInstallStore fleet.SoftwareInstallerStore
 	var bootstrapPackageStore fleet.MDMBootstrapPackageStore
 	var softwareTitleIconStore fleet.SoftwareTitleIconStore
+	var stagedUploadStore fleet.StagedUploadStore
 	var distributedLock fleet.Lock
 	if license.IsPremium() {
 		hydrantService := est.NewService(est.WithLogger(logger))
@@ -600,6 +603,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 				initFatal(err, "initializing S3 software title icon store")
 			}
 			logger.InfoContext(ctx, "using S3 software title icon store", "bucket", config.S3.SoftwareInstallersBucket)
+
+			stagedUploadStore, err = s3.NewStagedUploadStore(config.S3)
+			if err != nil {
+				initFatal(err, "initializing S3 staged upload store")
+			}
 		} else {
 			installerDir := os.TempDir()
 			if dir := os.Getenv("FLEET_SOFTWARE_INSTALLER_STORE_DIR"); dir != "" {
@@ -647,6 +655,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			softwareInstallStore,
 			bootstrapPackageStore,
 			softwareTitleIconStore,
+			stagedUploadStore,
 			distributedLock,
 			redis_key_value.New(redisPool),
 			redis_install_attempts.New(redisPool),
@@ -716,7 +725,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	notificationsSvc.RegisterKind(patchNotificationKind)
 
 	// Bootstrap ACME service module
-	acmeSigner := &acmeCSRSigner{signer: scepdepot.NewSigner(scepStorage, scepdepot.WithValidityDays(config.MDM.AppleSCEPSignerValidityDays), scepdepot.WithAllowRenewalDays(14))}
+	acmeSigner := &acmeCSRSigner{signer: scepdepot.NewSigner(scepStorage, scepdepot.WithValidityDays(config.MDM.AppleSCEPSignerValidityDays))}
 	acmeSvc, acmeRoutes := createACMEServiceModule(ds, dbConns, redisPool, logger, acmeSigner)
 	// Inject the ACME service module into the main service
 	svc.SetACMEService(acmeSvc)
@@ -785,6 +794,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		softwareInstallStore:   softwareInstallStore,
 		bootstrapPackageStore:  bootstrapPackageStore,
 		softwareTitleIconStore: softwareTitleIconStore,
+		stagedUploadStore:      stagedUploadStore,
 		androidSvc:             androidSvc,
 		activitySvc:            activitySvc,
 		notificationsSvc:       notificationsSvc,
@@ -970,6 +980,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", otelmw.WrapHandlerDynamic(service.ServeStaticAssets("/assets/", serveCSP), config)))
 
 	if len(config.Server.PrivateKey) > 0 {
+		mdmStorage.SetNewActivityFunc(svc.NewActivity)
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 		ddmService := service.NewMDMAppleDDMService(ds, logger)
 		getTokenService := service.NewMDMAppleGetTokenService(ds, logger)
@@ -1235,8 +1246,8 @@ type acmeCSRSigner struct {
 	signer *scepdepot.Signer
 }
 
-func (a *acmeCSRSigner) SignCSR(_ context.Context, csr *x509.CertificateRequest) (*x509.Certificate, error) {
-	return a.signer.Signx509CSR(csr)
+func (s *acmeCSRSigner) SignX509CSRWithCallback(csr *x509.CertificateRequest, subject pkix.Name, callback func(tmpl *x509.Certificate)) (*x509.Certificate, error) {
+	return s.signer.SignX509CSRWithCallback(csr, subject, callback)
 }
 
 func createACMEServiceModule(ds fleet.Datastore, dbConns *common_mysql.DBConnections, redisPool fleet.RedisPool, logger *slog.Logger, csrSigner acme.CSRSigner) (acme_api.Service, endpointer.HandlerRoutesFunc) {
@@ -1316,7 +1327,8 @@ func createNotificationsBoundedContext(svc fleet.Service, ds fleet.Datastore, db
 
 	// Bans an IP after repeated device auth failures, same protection as the
 	// other /device/{token}/... endpoints registered in server/service/handler.go.
-	ipBanner := redis.NewIPBanner(redisPool, "ipbanner::",
+	ipBanner := redis.NewIPBanner(
+		redisPool, "ipbanner::",
 		service.DeviceIPAllowedConsecutiveFailingRequestsCount,
 		service.DeviceIPAllowedConsecutiveFailingRequestsTimeWindow,
 		service.DeviceIPBanTime,

@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/google/go-cmp/cmp"
 	"github.com/jmoiron/sqlx"
 )
@@ -1054,49 +1055,9 @@ func (ds *Datastore) ScimGroupByID(ctx context.Context, id uint, excludeUsers bo
 	return group, nil
 }
 
-// ScimGroupsExist checks if all the provided SCIM group IDs exist in the datastore.
-// If the slice is empty, it returns true. This mirrors ScimUsersExist.
-func (ds *Datastore) ScimGroupsExist(ctx context.Context, ids []uint) (bool, error) {
-	if len(ids) == 0 {
-		return true, nil
-	}
-
-	// Create a set to track which IDs we've found
-	foundIDs := make(map[uint]struct{}, len(ids))
-
-	batchSize := 10000
-	err := common_mysql.BatchProcessSimple(ids, batchSize, func(batchIDs []uint) error {
-		query, args, err := sqlx.In(`
-			SELECT id
-			FROM scim_groups
-			WHERE id IN (?)
-		`, batchIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "prepare scim groups exist batch query")
-		}
-
-		var foundBatchIDs []uint
-		err = sqlx.SelectContext(ctx, ds.reader(ctx), &foundBatchIDs, query, args...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "check if scim groups exist in batch")
-		}
-
-		for _, id := range foundBatchIDs {
-			foundIDs[id] = struct{}{}
-		}
-		return nil
-	})
-	if err != nil {
-		return false, err
-	}
-
-	// Verify that all requested IDs were found
-	for _, id := range ids {
-		if _, ok := foundIDs[id]; !ok {
-			return false, nil
-		}
-	}
-	return true, nil
+// ExistingScimGroupIDs returns the subset of ids that reference existing SCIM groups.
+func (ds *Datastore) ExistingScimGroupIDs(ctx context.Context, ids []uint) (map[uint]struct{}, error) {
+	return existingScimIDs(ctx, ds.reader(ctx), "scim_groups", ids)
 }
 
 // insertScimGroupChildren inserts direct parent -> child SCIM group edges
@@ -2152,6 +2113,10 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		}
 	}
 
+	if err := triggerResendDigiCertProfilesUsingVariables(ctx, tx, hostIDs, affectedVars); err != nil {
+		return err
+	}
+
 	// Resend certificate templates that use affected variables.
 	certParams := map[string]any{
 		"host_ids":               hostIDs,
@@ -2182,6 +2147,98 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		return ctxerr.Wrap(ctx, err, "resend host name templates for idp change")
 	}
 
+	return nil
+}
+
+// triggerResendDigiCertProfilesUsingVariables resends Apple profiles that get a certificate from a DigiCert CA whose common name, seat
+// ID, or UPN uses an affected variable. The variable is in the CA, not the profile, so the profile has no association with it.
+func triggerResendDigiCertProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []fleet.FleetVarName) error {
+	var cas []struct {
+		Name   string `db:"name"`
+		Fields string `db:"fields"`
+	}
+	// The UPNs column is a JSON array of strings, and variables.Find works on its raw text.
+	if err := sqlx.SelectContext(ctx, tx, &cas, `
+		SELECT name, CONCAT_WS(' ', certificate_common_name, certificate_seat_id, certificate_user_principal_names) AS fields
+		FROM certificate_authorities
+		WHERE type = ?`, fleet.CATypeDigiCert); err != nil {
+		return ctxerr.Wrap(ctx, err, "select DigiCert CAs for resend")
+	}
+	affectedDataVars := make(map[string]struct{})
+	for _, ca := range cas {
+		if slices.ContainsFunc(variables.Find(ca.Fields), func(v string) bool {
+			return slices.Contains(affectedVars, fleet.FleetVarName(v))
+		}) {
+			affectedDataVars[string(fleet.FleetVarDigiCertDataPrefix)+ca.Name] = struct{}{}
+		}
+	}
+	if len(affectedDataVars) == 0 {
+		return nil
+	}
+
+	// Scoped to the affected hosts' teams rather than their host_mdm_apple_profiles rows, which have no index by profile alone. The UPDATE
+	// below limits the resend to the affected hosts.
+	selectStmt, selectArgs, err := sqlx.In(`
+		SELECT macp.profile_uuid, macp.mobileconfig
+		FROM mdm_apple_configuration_profiles macp
+		WHERE
+			EXISTS (
+				SELECT 1
+				FROM hosts h
+				WHERE h.id IN (?) AND (macp.team_id = h.team_id OR (COALESCE(macp.team_id, 0) = 0 AND h.team_id IS NULL))
+			) AND
+			EXISTS (
+				SELECT 1
+				FROM mdm_configuration_profile_variables mcpv
+					JOIN fleet_variables fv ON fv.id = mcpv.fleet_variable_id
+				WHERE mcpv.apple_profile_uuid = macp.profile_uuid AND fv.name = ?
+			)`, hostIDs, "FLEET_VAR_"+string(fleet.FleetVarDigiCertDataPrefix))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare select DigiCert profiles for resend")
+	}
+	var profiles []struct {
+		ProfileUUID  string `db:"profile_uuid"`
+		Mobileconfig []byte `db:"mobileconfig"`
+	}
+	if err := sqlx.SelectContext(ctx, tx, &profiles, selectStmt, selectArgs...); err != nil {
+		return ctxerr.Wrap(ctx, err, "select DigiCert profiles for resend")
+	}
+	var profileUUIDs []string
+	for _, p := range profiles {
+		if slices.ContainsFunc(variables.Find(string(p.Mobileconfig)), func(v string) bool {
+			_, ok := affectedDataVars[v]
+			return ok
+		}) {
+			profileUUIDs = append(profileUUIDs, p.ProfileUUID)
+		}
+	}
+	if len(profileUUIDs) == 0 {
+		return nil
+	}
+
+	updateStmt, updateArgs, err := sqlx.In(`
+		UPDATE
+			host_mdm_apple_profiles hmap
+			JOIN hosts h
+				ON h.uuid = hmap.host_uuid
+			JOIN mdm_apple_configuration_profiles macp
+				ON (macp.team_id = h.team_id OR (COALESCE(macp.team_id, 0) = 0 AND h.team_id IS NULL)) AND
+					 macp.profile_uuid = hmap.profile_uuid
+		SET
+			hmap.status = NULL,
+			hmap.detail = NULL,
+			hmap.command_uuid = ''
+		WHERE
+			h.id IN (?) AND
+			hmap.profile_uuid IN (?) AND
+			hmap.operation_type = ? AND
+			hmap.status IS NOT NULL`, hostIDs, profileUUIDs, fleet.MDMOperationTypeInstall)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare resend DigiCert profiles")
+	}
+	if _, err := tx.ExecContext(ctx, updateStmt, updateArgs...); err != nil {
+		return ctxerr.Wrap(ctx, err, "resend DigiCert profiles")
+	}
 	return nil
 }
 
@@ -2243,25 +2300,32 @@ func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostI
 		return nil
 	}
 
-	// Find app configs that use any of the affected variables.
-	const findAffectedApps = `
+	// Find app configs that use any of the affected variables. Skip a version when the host is in scope
+	// for an earlier version of the same app, the host gets the configuration of that earlier version.
+	findAffectedApps := fmt.Sprintf(`
 	SELECT DISTINCT
-		aac.application_id,
+		vat.adam_id AS application_id,
+		vat.platform,
+		vat.global_or_team_id,
 		vat.id AS app_team_id
 	FROM
 		mdm_configuration_profile_variables mcpv
-		JOIN android_app_configurations aac
-			ON mcpv.android_app_configuration_id = aac.id
 		JOIN fleet_variables fv
 			ON mcpv.fleet_variable_id = fv.id
 		JOIN vpp_apps_teams vat
-			ON vat.adam_id = aac.application_id AND vat.global_or_team_id = aac.global_or_team_id AND vat.platform = 'android'
+			ON mcpv.vpp_app_team_id = vat.id
 		JOIN hosts h
-			ON aac.global_or_team_id = COALESCE(h.team_id, 0)
+			ON vat.global_or_team_id = COALESCE(h.team_id, 0)
 	WHERE
 		fv.name IN (?) AND
-		h.id IN (?)
-`
+		h.id IN (?) AND
+		NOT EXISTS (
+			SELECT 1 FROM vpp_apps_teams earlier_vat
+			WHERE earlier_vat.adam_id = vat.adam_id AND earlier_vat.platform = vat.platform
+				AND earlier_vat.global_or_team_id = vat.global_or_team_id AND earlier_vat.id < vat.id
+				AND EXISTS (%s)
+		)
+`, fmt.Sprintf(labelScopedFilter, softwareTypeVPP, "earlier_vat.id"))
 
 	findStmt, findArgs, err := sqlx.In(findAffectedApps, affectedVars, hostIDs)
 	if err != nil {
@@ -2269,12 +2333,28 @@ func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostI
 	}
 
 	type affectedApp struct {
-		ApplicationID string `db:"application_id"`
-		AppTeamID     uint   `db:"app_team_id"`
+		ApplicationID  string                          `db:"application_id"`
+		Platform       fleet.InstallableDevicePlatform `db:"platform"`
+		GlobalOrTeamID uint                            `db:"global_or_team_id"`
+		AppTeamID      uint                            `db:"app_team_id"`
 	}
-	var apps []affectedApp
-	if err := sqlx.SelectContext(ctx, tx, &apps, findStmt, findArgs...); err != nil {
+	var affectedApps []affectedApp
+	if err := sqlx.SelectContext(ctx, tx, &affectedApps, findStmt, findArgs...); err != nil {
 		return ctxerr.Wrap(ctx, err, "find affected app configs")
+	}
+
+	// Re-send iOS and iPadOS apps with the new configuration to the affected hosts that have them
+	var apps []affectedApp
+	for _, app := range affectedApps {
+		if app.Platform != fleet.IOSPlatform && app.Platform != fleet.IPadOSPlatform {
+			apps = append(apps, app)
+			continue
+		}
+		appID := fleet.VPPAppID{AdamID: app.ApplicationID, Platform: app.Platform}
+		err = insertResendVPPAppConfigurationJob(ctx, tx, appID, app.GlobalOrTeamID, []uint{app.AppTeamID}, false, hostIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "queue vpp app configuration resend")
+		}
 	}
 
 	if len(apps) == 0 {
@@ -2341,50 +2421,29 @@ func emailsRequireUpdate(currentEmails, newEmails []fleet.ScimUserEmail) bool {
 	return false
 }
 
-// ScimUsersExist checks if all the provided SCIM user IDs exist in the datastore
-// If the slice is empty, it returns true
-// This method processes IDs in batches to handle large numbers of IDs efficiently
-func (ds *Datastore) ScimUsersExist(ctx context.Context, ids []uint) (bool, error) {
-	if len(ids) == 0 {
-		return true, nil
-	}
+// ExistingScimUserIDs returns the subset of ids that reference existing SCIM users.
+func (ds *Datastore) ExistingScimUserIDs(ctx context.Context, ids []uint) (map[uint]struct{}, error) {
+	return existingScimIDs(ctx, ds.reader(ctx), "scim_users", ids)
+}
 
-	// Create a map to track which IDs we've found
-	foundIDs := make(map[uint]bool, len(ids))
-
-	batchSize := 10000
-	err := common_mysql.BatchProcessSimple(ids, batchSize, func(batchIDs []uint) error {
-		query, args, err := sqlx.In(`
-			SELECT id
-			FROM scim_users
-			WHERE id IN (?)
-		`, batchIDs)
+func existingScimIDs(ctx context.Context, q sqlx.QueryerContext, table string, ids []uint) (map[uint]struct{}, error) {
+	found := make(map[uint]struct{}, len(ids))
+	err := common_mysql.BatchProcessSimple(ids, 10000, func(batchIDs []uint) error {
+		query, args, err := sqlx.In(fmt.Sprintf("SELECT id FROM %s WHERE id IN (?)", table), batchIDs)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "prepare scim users exist batch query")
+			return ctxerr.Wrap(ctx, err, "prepare existing ids query for "+table)
 		}
-
-		var foundBatchIDs []uint
-		err = sqlx.SelectContext(ctx, ds.reader(ctx), &foundBatchIDs, query, args...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "check if scim users exist in batch")
+		var batchFound []uint
+		if err := sqlx.SelectContext(ctx, q, &batchFound, query, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "select existing ids from "+table)
 		}
-
-		// Mark found IDs
-		for _, id := range foundBatchIDs {
-			foundIDs[id] = true
+		for _, id := range batchFound {
+			found[id] = struct{}{}
 		}
 		return nil
 	})
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-
-	// Check if all IDs were found
-	for _, id := range ids {
-		if !foundIDs[id] {
-			return false, nil
-		}
-	}
-
-	return true, nil
+	return found, nil
 }

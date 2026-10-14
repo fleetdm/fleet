@@ -1,0 +1,1 @@
+- Fixed modals rendering wider than the window at narrow viewports (768px), which cut off their edges and padding.

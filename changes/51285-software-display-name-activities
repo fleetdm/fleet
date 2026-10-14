@@ -1,0 +1,1 @@
+- Software install, uninstall, and cancellation activities on the dashboard and Host details page now show a title's per-fleet "Software name" override (when one is set) instead of the raw installer or App Store name. Activities recorded before this change, and titles without an override, keep rendering the raw name.

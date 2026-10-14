@@ -47,6 +47,7 @@ type ControlsWithTypes struct {
 	MacOSSettings   *fleet.MacOSSettings   `json:"macos_settings" renameto:"apple_settings"`
 	WindowsSettings *fleet.WindowsSettings `json:"windows_settings"`
 	AndroidSettings *fleet.AndroidSettings `json:"android_settings"`
+	LinuxSettings   *fleet.LinuxSettings   `json:"linux_settings"`
 
 	AppleRequireHardwareAttestation  bool `json:"apple_require_hardware_attestation"`
 	OnlyAllowAppleBusinessEnrollment bool `json:"only_allow_apple_business_enrollment"`

@@ -968,6 +968,117 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 		require.Len(t, queuedInstalls(host.ID), 1)
 	})
 
+	t.Run("apps Fleet installs or the inventory shows updated while the reminder is on screen show as updated after the deadline", func(t *testing.T) {
+		host := newNotifiableHost(t, "notif-updated-during-reminder")
+		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "updated-during-reminder-team"})
+		require.NoError(t, err)
+		require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
+
+		// add two installers on version 2.0.0 to the host's fleet, Fleet installs the first app and the second is updated outside Fleet
+		installerID, _, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript: "echo", Filename: "updated-during-reminder.pkg", StorageID: uuid.NewString(),
+			Title: "Updated During Reminder App", Version: "2.0.0", Source: "apps", Platform: "darwin",
+			UserID: s.users["admin1@example.com"].ID,
+			TeamID: &team.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+
+		var titleID uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &titleID,
+				`SELECT title_id FROM software_installers WHERE id = ?`, installerID)
+		})
+
+		inventoryInstallerID, _, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			InstallScript: "echo", Filename: "updated-in-inventory.pkg", StorageID: uuid.NewString(),
+			Title: "Updated In Inventory App", Version: "2.0.0", Source: "apps", Platform: "darwin",
+			UserID: s.users["admin1@example.com"].ID,
+			TeamID: &team.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+
+		var inventoryTitleID uint
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &inventoryTitleID,
+				`SELECT title_id FROM software_installers WHERE id = ?`, inventoryInstallerID)
+		})
+
+		// create a patch notification for the host that lists both apps
+		notificationUUID := newTestNotification(t, s.ds, host.ID, fleet.PatchNotificationKind, `{"reminder": false}`)
+		require.NoError(t, s.ds.NewPatchNotification(ctx, notificationUUID))
+		require.NoError(t, s.ds.AddPatchNotificationApp(ctx, notificationUUID, fleet.PatchNotificationApp{
+			SoftwareTitleID: titleID, SoftwareInstallerID: &installerID,
+		}))
+		require.NoError(t, s.ds.AddPatchNotificationApp(ctx, notificationUUID, fleet.PatchNotificationApp{
+			SoftwareTitleID: inventoryTitleID, SoftwareInstallerID: &inventoryInstallerID,
+		}))
+
+		// move install_at inside the reminder window and display the notification, so the host shows the 5 minute reminder
+		setTestInstallAt(t, s.ds, notificationUUID, "NOW(6) + INTERVAL 4 MINUTE")
+		dispatch(t)
+		dispatched := getTestNotification(t, s.ds, notificationUUID)
+		require.NotNil(t, dispatched.ExecutionID)
+		_, token := fetchScript(t, host, *dispatched.ExecutionID)
+		postScriptResult(host, *dispatched.ExecutionID, 0)
+		reminderDisplayed := getTestNotification(t, s.ds, notificationUUID)
+		require.JSONEq(t, `{"reminder": true}`, string(reminderDisplayed.Payload))
+
+		// install the app from Fleet while the reminder is on screen
+		executionID, err := s.ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{})
+		require.NoError(t, err)
+		s.Do("POST", "/api/fleet/orbit/software_install/result", fleet.OrbitPostSoftwareInstallResultRequest{
+			OrbitNodeKey: *host.OrbitNodeKey,
+			HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
+				HostID: host.ID, InstallUUID: executionID, InstallScriptExitCode: new(0), InstallScriptOutput: new("ok"),
+			},
+		}, http.StatusNoContent)
+
+		// update the second app outside Fleet while the reminder is on screen, so only the host's software inventory shows the installer's version
+		_, err = s.ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+			{Name: "Updated In Inventory App", Version: "2.0.0", Source: "apps"},
+		})
+		require.NoError(t, err)
+
+		// move the deadline into the past and run the deadline pass, neither app should get an install
+		markTestHostSeen(t, s.ds, host.ID)
+		setTestInstallAt(t, s.ds, notificationUUID, "NOW(6) - INTERVAL 1 MINUTE")
+		require.NoError(t, s.patchNotificationKind.RemindAndInstallDuePatches(ctx))
+
+		acted := getTestNotification(t, s.ds, notificationUUID)
+		require.Equal(t, notifications_api.EndUserNotificationActed, acted.Status)
+
+		var upcomingInstalls int
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &upcomingInstalls,
+				`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, host.ID)
+		})
+		require.Zero(t, upcomingInstalls)
+
+		apps, err := s.ds.ListPatchNotificationApps(ctx, notificationUUID)
+		require.NoError(t, err)
+		// apps are listed by display name, so the Fleet installed app comes first
+		require.Len(t, apps, 2)
+		require.Equal(t, titleID, apps[0].SoftwareTitleID)
+		require.True(t, apps[0].InstallQueued)
+		require.False(t, apps[0].UpdatedInInventory)
+		require.Equal(t, inventoryTitleID, apps[1].SoftwareTitleID)
+		require.False(t, apps[1].InstallQueued)
+		require.True(t, apps[1].UpdatedInInventory)
+
+		// refetch the reminder as the open toast does, both apps should show as updated
+		var view notifications_api.NotificationView
+		s.DoJSONWithoutAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/notifications/%s", token, notificationUUID),
+			nil, http.StatusOK, &view)
+		require.Len(t, view.Items, 2)
+		require.Equal(t, titleID, view.Items[0].SoftwareTitleID)
+		require.Equal(t, string(fleet.SoftwareInstalled), view.Items[0].InstallStatus)
+		require.Equal(t, "Updated", view.Items[0].Status)
+		require.Equal(t, inventoryTitleID, view.Items[1].SoftwareTitleID)
+		require.Equal(t, string(fleet.SoftwareInstalled), view.Items[1].InstallStatus)
+		require.Equal(t, "Updated", view.Items[1].Status)
+		require.Equal(t, []notifications_api.NotificationAction{{ID: "dismiss", Label: "Hide"}}, view.Actions)
+	})
+
 	// One policy run queues installs for two apps: the open app skips and opens a notification, the closed
 	// app installs and asks for a refetch, and that refetch's policy run used to open a second notification.
 	t.Run("a refetch during a patch notification does not open a second notification", func(t *testing.T) {

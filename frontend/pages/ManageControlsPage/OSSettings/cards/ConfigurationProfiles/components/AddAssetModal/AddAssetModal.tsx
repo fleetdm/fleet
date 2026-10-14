@@ -1,10 +1,8 @@
 import React, { useRef, useState } from "react";
 
 import Button from "components/buttons/Button";
-import Card from "components/Card";
 import CustomLink from "components/CustomLink";
-import Graphic from "components/Graphic";
-import Icon from "components/Icon";
+import FileUploader from "components/FileUploader";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
 import { getErrorReason } from "interfaces/errors";
@@ -17,67 +15,11 @@ const LEARN_MORE_URL =
 
 const DEFAULT_ERROR_MESSAGE = "Couldn't add asset. Please try again.";
 
-interface IFileChooserProps {
-  isLoading: boolean;
-  onFileOpen: (files: FileList | null) => void;
-}
-
-const FileChooser = ({ isLoading, onFileOpen }: IFileChooserProps) => {
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  return (
-    <div className={`${baseClass}__file-chooser`}>
-      <Graphic name="file-json" className={`${baseClass}__graphic`} />
-      <span className={`${baseClass}__file-chooser--title`}>Upload asset</span>
-      <span className={`${baseClass}__file-chooser--message`}>
-        Only JSON files with com.apple.asset.* are supported. Referenced data
-        (Reference.DataURL) must be self-hosted.{" "}
-        <CustomLink newTab text="Learn more" url={LEARN_MORE_URL} />
-      </span>
-      <Button
-        className={`${baseClass}__upload-button`}
-        variant="secondary"
-        isLoading={isLoading}
-        onClick={() => inputRef.current?.click()}
-      >
-        <span className={`${baseClass}__file-chooser--button-wrap`}>
-          Choose file <Icon name="upload" />
-        </span>
-      </Button>
-      <input
-        ref={inputRef}
-        accept=".json"
-        id="upload-asset"
-        type="file"
-        hidden
-        onChange={(e) => {
-          onFileOpen(e.target.files);
-        }}
-      />
-    </div>
-  );
-};
-
-const FileDetails = ({ fileName }: { fileName: string }) => {
+const splitFileName = (fileName: string): { name: string; ext: string } => {
   const lastDot = fileName.lastIndexOf(".");
   const name = lastDot > 0 ? fileName.slice(0, lastDot) : fileName;
   const ext = lastDot > 0 ? fileName.slice(lastDot + 1) : "";
-
-  return (
-    <div className={`${baseClass}__selected-file`}>
-      <Graphic name="file-json" className={`${baseClass}__graphic`} />
-      <div className={`${baseClass}__selected-file--details`}>
-        <div className={`${baseClass}__selected-file--details--name`}>
-          {name}
-        </div>
-        {ext && (
-          <div className={`${baseClass}__selected-file--details--platform`}>
-            .{ext}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  return { name, ext };
 };
 
 interface IAddAssetModalProps {
@@ -133,16 +75,31 @@ const AddAssetModal = ({
     }
   };
 
+  let fileDetails;
+  if (fileName) {
+    const { name, ext } = splitFileName(fileName);
+    fileDetails = { name, description: ext ? `.${ext}` : undefined };
+  }
+
   return (
     <Modal className={baseClass} title="Add asset" onExit={onDone}>
       <div className={`${baseClass}__modal-content-wrap`}>
-        <Card color="grey" className={`${baseClass}__file`}>
-          {!fileName ? (
-            <FileChooser isLoading={isLoading} onFileOpen={onFileOpen} />
-          ) : (
-            <FileDetails fileName={fileName} />
-          )}
-        </Card>
+        <FileUploader
+          graphicName="file-json"
+          title="Upload asset"
+          message={
+            <>
+              Only JSON files with com.apple.asset.* are supported. Referenced
+              data (Reference.DataURL) must be self-hosted.{" "}
+              <CustomLink newTab text="Learn more" url={LEARN_MORE_URL} />
+            </>
+          }
+          accept=".json"
+          buttonType="secondary"
+          buttonMessage="Choose file"
+          onFileUpload={onFileOpen}
+          fileDetails={fileDetails}
+        />
         <div className="modal-cta-wrap">
           <Button
             onClick={onAddAsset}

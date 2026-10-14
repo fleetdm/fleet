@@ -19,6 +19,7 @@ import {
   AppleDisplayPlatform,
   isAndroid,
   isIPadOrIPhone,
+  isMobilePlatform,
   PLATFORM_DISPLAY_NAMES,
 } from "interfaces/platform";
 import {
@@ -27,6 +28,7 @@ import {
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
 import { API_NO_TEAM_ID } from "interfaces/team";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import {
   formatMdmCommandNameForActivityItem,
   PREMIUM_ONLY_DETAIL_ACTIVITIES,
@@ -58,6 +60,7 @@ const ACTIVITIES_WITH_DETAILS = new Set([
   ActivityType.FailedEnrollmentProfileRenewal,
   ActivityType.NotifiedEndUserBeforePatching,
   ActivityType.HostEnrollmentRejected,
+  ActivityType.FailedToRotateDiskEncryptionKey,
 ]);
 
 const getProfilesPlatformDisplayName = (
@@ -172,6 +175,19 @@ const getMacOSSetupAssistantMessage = (
 
 const isPassiveRoleActivity = (activity: IActivity): boolean =>
   !!activity.details?.jit || activity.actor_id === activity.details?.user_id;
+
+const eulaPlatformSuffix = (activity: IActivity) => {
+  const platform = activity.details?.platform;
+  return platform ? ` for ${PLATFORM_DISPLAY_NAMES[platform]} hosts` : "";
+};
+
+// macOS activities carry version_name ("Default version") too; scope the
+// suffix to mobile so macOS copy stays unchanged.
+const makeVersionSuffix = (
+  platform: string | undefined,
+  versionName: string | undefined
+): string =>
+  versionName && isMobilePlatform(platform || "") ? ` (${versionName})` : "";
 
 const TAGGED_TEMPLATES = {
   liveQueryActivityTemplate: (activity: IActivity) => {
@@ -413,7 +429,7 @@ const TAGGED_TEMPLATES = {
     );
   },
   hostEnrollmentRejected: (activity: IActivity) => {
-    const { host_display_name, host_serial } = activity.details || {};
+    const { host_display_name, host_serial, reason } = activity.details || {};
     let host: React.ReactNode = "a host";
     if (host_display_name) {
       host = <b>{host_display_name}</b>;
@@ -421,6 +437,14 @@ const TAGGED_TEMPLATES = {
       host = (
         <>
           a host with serial number <b>{host_serial}</b>
+        </>
+      );
+    }
+    if (reason === "end_user_authentication_required") {
+      return (
+        <>
+          rejected an automatic enrollment for {host} because IdP authentication
+          is required.
         </>
       );
     }
@@ -668,6 +692,24 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         triggered rotation of the Recovery Lock password for{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  rotatedDiskEncryptionKey: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        triggered rotation of the disk encryption key for{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  failedToRotateDiskEncryptionKey: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        failed to rotate the disk encryption key for{" "}
         <b>{activity.details?.host_display_name}</b>.
       </>
     );
@@ -1039,6 +1081,20 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  addedEndUserAgreement: (activity: IActivity) => (
+    <>
+      {" "}
+      added an end user agreement (EULA)
+      {eulaPlatformSuffix(activity)}.
+    </>
+  ),
+  deletedEndUserAgreement: (activity: IActivity) => (
+    <>
+      {" "}
+      deleted an end user agreement (EULA)
+      {eulaPlatformSuffix(activity)}.
+    </>
+  ),
   deletedMDMBootstrapPackage: (activity: IActivity) => {
     const packageName = activity.details?.bootstrap_package_name;
     return (
@@ -1512,6 +1568,19 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  optInConfigProfile: (activity: IActivity) => {
+    const verb =
+      activity.type === ActivityType.InstalledOptInConfigurationProfile
+        ? "installed"
+        : "uninstalled";
+    return (
+      <>
+        {activity.details?.self_service ? <b>End user</b> : ""} {verb} the
+        opt-in <b>{activity.details?.profile_name}</b> profile on{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
   resentConfigProfileBatch: (activity: IActivity) => {
     return (
       <>
@@ -1587,24 +1656,40 @@ const TAGGED_TEMPLATES = {
 
     const {
       host_display_name: hostName,
-      software_title: title,
+      host_platform: hostPlatform,
+      software_title,
+      software_display_name,
       status,
       source,
       self_service,
       from_setup_experience,
       skipped_install,
+      version_name: versionName,
     } = details;
+    const title = getDisplayedSoftwareName(
+      software_title,
+      software_display_name
+    );
 
     const showSoftwarePackage =
       !!details.software_package &&
       activity.type === ActivityType.InstalledSoftware;
     const isScriptPackageSource = SCRIPT_PACKAGE_SOURCES.includes(source || "");
 
+    // Install activities use host_platform (per-host); make/edit/delete use
+    // platform (per-title). Both route through makeVersionSuffix for the same
+    // "mobile only, else empty" rule.
+    const versionSuffix =
+      activity.type === ActivityType.InstalledAppStoreApp
+        ? makeVersionSuffix(hostPlatform, versionName)
+        : "";
+
     if (skipped_install) {
       return (
         <>
           {" "}
-          skipped install of <b>{title}</b> on <b>{hostName}</b>.
+          skipped install of <b>{title}</b>
+          {versionSuffix} on <b>{hostName}</b>.
         </>
       );
     }
@@ -1617,7 +1702,8 @@ const TAGGED_TEMPLATES = {
         <>
           {" "}
           <b>{title}</b>
-          {showSoftwarePackage && ` (${details.software_package})`}{" "}
+          {showSoftwarePackage && ` (${details.software_package})`}
+          {versionSuffix}{" "}
           {getInstallUninstallStatusPredicatePassive(
             status,
             isScriptPackageSource
@@ -1634,8 +1720,8 @@ const TAGGED_TEMPLATES = {
         {" "}
         {getInstallUninstallStatusPredicate(status, isScriptPackageSource)}{" "}
         <b>{title}</b>
-        {showSoftwarePackage && ` (${details.software_package})`} on{" "}
-        <b>{hostName}</b>
+        {showSoftwarePackage && ` (${details.software_package})`}
+        {versionSuffix} on <b>{hostName}</b>
         {from_setup_experience ? " during setup experience" : ""}.
       </>
     );
@@ -1648,9 +1734,14 @@ const TAGGED_TEMPLATES = {
 
     const {
       host_display_name: hostName,
-      software_title: title,
+      software_title,
+      software_display_name,
       self_service,
     } = details;
+    const title = getDisplayedSoftwareName(
+      software_title,
+      software_display_name
+    );
     const status =
       details.status === "failed" ? "failed_uninstall" : details.status;
 
@@ -1732,12 +1823,16 @@ const TAGGED_TEMPLATES = {
     );
   },
   addedAppStoreApp: (activity: IActivity) => {
-    const { software_title: swTitle, platform: swPlatform } =
-      activity.details || {};
+    const {
+      software_title: swTitle,
+      platform: swPlatform,
+      version_name: versionName,
+    } = activity.details || {};
     return (
       <>
         {" "}
-        added <b>{swTitle}</b>{" "}
+        added <b>{swTitle}</b>
+        {makeVersionSuffix(swPlatform, versionName)}{" "}
         {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}
         to{" "}
         {activity.details?.team_name ? (
@@ -1752,13 +1847,22 @@ const TAGGED_TEMPLATES = {
     );
   },
   editedAppStoreApp: (activity: IActivity) => {
-    const { software_title: swTitle, platform: swPlatform } =
-      activity.details || {};
+    const {
+      software_title,
+      software_display_name,
+      platform,
+      version_name: versionName,
+    } = activity.details || {};
+    const title = getDisplayedSoftwareName(
+      software_title,
+      software_display_name
+    );
     return (
       <>
         {" "}
-        edited <b>{swTitle}</b>{" "}
-        {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}
+        edited <b>{title}</b>
+        {makeVersionSuffix(platform, versionName)}{" "}
+        {platform ? `(${PLATFORM_DISPLAY_NAMES[platform]}) ` : ""}
         on{" "}
         {activity.details?.team_name ? (
           <>
@@ -1772,13 +1876,22 @@ const TAGGED_TEMPLATES = {
     );
   },
   deletedAppStoreApp: (activity: IActivity) => {
-    const { software_title: swTitle, platform: swPlatform } =
-      activity.details || {};
+    const {
+      software_title,
+      software_display_name,
+      platform,
+      version_name: versionName,
+    } = activity.details || {};
+    const title = getDisplayedSoftwareName(
+      software_title,
+      software_display_name
+    );
     return (
       <>
         {" "}
-        deleted <b>{swTitle}</b>{" "}
-        {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}
+        deleted <b>{title}</b>
+        {makeVersionSuffix(platform, versionName)}{" "}
+        {platform ? `(${PLATFORM_DISPLAY_NAMES[platform]}) ` : ""}
         from{" "}
         {activity.details?.team_name ? (
           <>
@@ -1907,10 +2020,15 @@ const TAGGED_TEMPLATES = {
   },
   canceledInstallSoftware: (activity: IActivity) => {
     const {
-      software_title: title,
+      software_title,
+      software_display_name,
       host_display_name: hostName,
       from_setup_experience: fromSetupExperience,
     } = activity.details || {};
+    const title = getDisplayedSoftwareName(
+      software_title,
+      software_display_name
+    );
     return (
       <>
         {" "}
@@ -1923,8 +2041,15 @@ const TAGGED_TEMPLATES = {
     );
   },
   canceledSetupExperience: (activity: IActivity) => {
-    const { software_title: title, host_display_name: hostName } =
-      activity.details || {};
+    const {
+      software_title,
+      software_display_name,
+      host_display_name: hostName,
+    } = activity.details || {};
+    const title = getDisplayedSoftwareName(
+      software_title,
+      software_display_name
+    );
     return (
       <>
         {" "}
@@ -1934,8 +2059,15 @@ const TAGGED_TEMPLATES = {
     );
   },
   canceledUninstallSoftware: (activity: IActivity) => {
-    const { software_title: title, host_display_name: hostName } =
-      activity.details || {};
+    const {
+      software_title,
+      software_display_name,
+      host_display_name: hostName,
+    } = activity.details || {};
+    const title = getDisplayedSoftwareName(
+      software_title,
+      software_display_name
+    );
     return (
       <>
         {" "}
@@ -2163,6 +2295,14 @@ const TAGGED_TEMPLATES = {
         kept <b>{activity.details?.host_uuid}</b> linked to the identity
         provider account <b>{activity.details?.existing_idp_email}</b> instead
         of <b>{activity.details?.idp_email}</b>.
+      </>
+    );
+  },
+  unboundHostFromIdpAccount: (activity: IActivity) => {
+    return (
+      <>
+        unlinked <b>{activity.details?.host_uuid}</b> from the identity provider
+        account <b>{activity.details?.idp_email}</b>.
       </>
     );
   },
@@ -2603,6 +2743,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.RotatedHostRecoveryLockPassword: {
       return TAGGED_TEMPLATES.rotatedHostRecoveryLockPassword(activity);
     }
+    case ActivityType.RotatedDiskEncryptionKey: {
+      return TAGGED_TEMPLATES.rotatedDiskEncryptionKey(activity);
+    }
+    case ActivityType.FailedToRotateDiskEncryptionKey: {
+      return TAGGED_TEMPLATES.failedToRotateDiskEncryptionKey(activity);
+    }
     case ActivityType.EnabledManagedLocalAccount: {
       return TAGGED_TEMPLATES.enabledManagedLocalAccount(activity);
     }
@@ -2712,6 +2858,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedBootstrapPackage: {
       return TAGGED_TEMPLATES.deletedMDMBootstrapPackage(activity);
+    }
+    case ActivityType.AddedEndUserAgreement: {
+      return TAGGED_TEMPLATES.addedEndUserAgreement(activity);
+    }
+    case ActivityType.DeletedEndUserAgreement: {
+      return TAGGED_TEMPLATES.deletedEndUserAgreement(activity);
     }
     case ActivityType.ChangedMacOSSetupAssistant: {
       return TAGGED_TEMPLATES.changedMacOSSetupAssistant(activity);
@@ -2829,6 +2981,10 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.ResentConfigurationProfile: {
       return TAGGED_TEMPLATES.resentConfigProfile(activity);
+    }
+    case ActivityType.InstalledOptInConfigurationProfile:
+    case ActivityType.UninstalledOptInConfigurationProfile: {
+      return TAGGED_TEMPLATES.optInConfigProfile(activity);
     }
     case ActivityType.ResentConfigurationProfileBatch: {
       return TAGGED_TEMPLATES.resentConfigProfileBatch(activity);
@@ -2981,6 +3137,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.BoundHostToIdpAccount: {
       return TAGGED_TEMPLATES.boundHostToIdpAccount(activity);
     }
+    case ActivityType.UnboundHostFromIdpAccount: {
+      return TAGGED_TEMPLATES.unboundHostFromIdpAccount(activity);
+    }
     case ActivityType.RefusedHostIdpAccountChange: {
       return TAGGED_TEMPLATES.refusedHostIdpAccountChange(activity);
     }
@@ -3123,6 +3282,9 @@ const GlobalActivityItem = ({
       case ActivityType.InstalledAllSelfServiceSoftware:
         // The template carries the "End user" subject for this roll-up.
         return null;
+      case ActivityType.InstalledOptInConfigurationProfile:
+      case ActivityType.UninstalledOptInConfigurationProfile:
+        return activity.details?.self_service ? null : DEFAULT_ACTOR_DISPLAY;
       case ActivityType.CreatedDiskEncryptionPIN:
         // The template carries the "End user" subject for this roll-up.
         return null;

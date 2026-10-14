@@ -280,6 +280,9 @@ func (k *patchNotificationKind) renderView(ctx context.Context, notification *no
 			if app.SoftwareInstallerID == nil {
 				installStatus = fleet.SoftwareInstallFailed
 			}
+			if app.UpdatedInInventory {
+				installStatus = fleet.SoftwareInstalled
+			}
 
 			switch installStatus {
 			case fleet.SoftwareInstalled:
@@ -457,8 +460,9 @@ func (k *patchNotificationKind) remindOrInstallDuePatch(
 		}
 	}
 
-	// leave out the apps updated since the notification was created, so the reminder stops naming them and nothing is queued for them
+	// leave out the apps the host already updated or Fleet installed since they joined the notification, so nothing is queued for them
 	var alreadyUpdatedTitleIDs []uint
+	var updatedInInventoryTitleIDs []uint
 	remaining := make([]fleet.PatchNotificationAppDetail, 0, len(apps))
 	for _, app := range apps {
 		if app.SoftwareInstallerID == nil {
@@ -468,6 +472,7 @@ func (k *patchNotificationKind) remindOrInstallDuePatch(
 
 		appKey := fleet.HostSoftwareTitleKey{HostID: duePatch.HostID, SoftwareTitleID: app.SoftwareTitleID}
 
+		// Count the app as updated when every version of it in the host's software inventory matches the installer's version
 		installed := installedVersions[appKey]
 		upToDate := len(installed) > 0
 		for _, installedVersion := range installed {
@@ -478,6 +483,7 @@ func (k *patchNotificationKind) remindOrInstallDuePatch(
 		}
 		if upToDate {
 			alreadyUpdatedTitleIDs = append(alreadyUpdatedTitleIDs, app.SoftwareTitleID)
+			updatedInInventoryTitleIDs = append(updatedInInventoryTitleIDs, app.SoftwareTitleID)
 			continue
 		}
 
@@ -495,15 +501,15 @@ func (k *patchNotificationKind) remindOrInstallDuePatch(
 		remaining = append(remaining, app)
 	}
 
-	// Render builds the toast from these rows, so updated apps stop being named
-	if len(alreadyUpdatedTitleIDs) > 0 {
-		err := k.ds.DeletePatchNotificationApps(ctx, duePatch.NotificationUUID, alreadyUpdatedTitleIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "delete patch notification apps that no longer need updating")
-		}
-	}
-
 	if !notificationIsReminder && duePatch.Status != notifications_api.EndUserNotificationActed {
+		// Render builds the toast from these rows, so updated apps stop being named
+		if len(alreadyUpdatedTitleIDs) > 0 {
+			err := k.ds.DeletePatchNotificationApps(ctx, duePatch.NotificationUUID, alreadyUpdatedTitleIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "delete patch notification apps that no longer need updating")
+			}
+		}
+
 		// nothing left to update, so the notification closes instead of reminding
 		if len(remaining) == 0 {
 			_, err := k.notificationSvc.ActOnNotification(ctx, duePatch.NotificationUUID)
@@ -520,20 +526,32 @@ func (k *patchNotificationKind) remindOrInstallDuePatch(
 		return nil
 	}
 
-	// Moving the status to acted is what claims the queueing, so an Update now press and this pass
-	// cannot both send the same installs.
+	// Set the notification to acted before queueing, so an Update now press and this pass don't both queue the same installs
 	actedInThisPass, err := k.notificationSvc.ActOnNotification(ctx, duePatch.NotificationUUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "act on patch notification")
 	}
-	// Not claiming the queueing has two causes. Acted at read time is an earlier pass that stopped
-	// part way, which this one finishes. Acted only now is an Update now press, which queues the
-	// installs instead. Or verify dropped every app.
-	if (!actedInThisPass && duePatch.Status != notifications_api.EndUserNotificationActed) || len(remaining) == 0 {
+	// Return when an Update now press acted first, it queues the installs itself. Carry on when an earlier pass acted and stopped part way, to queue the installs it left.
+	if !actedInThisPass && duePatch.Status != notifications_api.EndUserNotificationActed {
 		return nil
 	}
 
-	_, err = k.queuePatchNotificationInstalls(ctx, duePatch.NotificationUUID, duePatch.HostID, remaining, installsByTitle)
+	// Record the apps the inventory shows as updated instead of deleting them, so the reminder on screen still lists them as updated
+	err = k.ds.SetPatchNotificationAppsUpdatedInInventory(ctx, duePatch.NotificationUUID, updatedInInventoryTitleIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set patch notification apps updated in inventory")
+	}
+
+	// Queue every other app, an app Fleet installed since it joined is set as queued without a new install.
+	// Skip an app an earlier pass recorded as updated in inventory even if the inventory changed since, the toast already shows it as updated.
+	appsToQueue := make([]fleet.PatchNotificationAppDetail, 0, len(apps))
+	for _, app := range apps {
+		if app.UpdatedInInventory || slices.Contains(updatedInInventoryTitleIDs, app.SoftwareTitleID) {
+			continue
+		}
+		appsToQueue = append(appsToQueue, app)
+	}
+	_, err = k.queuePatchNotificationInstalls(ctx, duePatch.NotificationUUID, duePatch.HostID, appsToQueue, installsByTitle)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "queue patch notification installs at the deadline")
 	}

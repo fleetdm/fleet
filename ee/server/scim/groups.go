@@ -14,6 +14,7 @@ import (
 	"github.com/elimity-com/scim/errors"
 	"github.com/elimity-com/scim/optional"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/scim2/filter-parser/v2"
 )
@@ -62,6 +63,13 @@ func (g *GroupHandler) Create(r *http.Request, attributes scim.ResourceAttribute
 	if err != nil {
 		g.logger.ErrorContext(r.Context(), "failed to create group from attributes", displayNameAttr, displayName, "err", err)
 		return scim.Resource{}, err
+	}
+	rejected, err := g.dropUnknownMembers(ctxdb.RequirePrimary(r.Context(), true), group, nil)
+	if err != nil {
+		return scim.Resource{}, err
+	}
+	if rejected != nil {
+		return scim.Resource{}, errors.ScimErrorBadParams(rejected)
 	}
 	group.ID, err = g.ds.CreateScimGroup(r.Context(), group)
 	if err != nil {
@@ -282,6 +290,24 @@ func (g *GroupHandler) Replace(r *http.Request, id string, attributes scim.Resou
 		// Otherwise, we assume that we are replacing the displayName with this operation.
 	}
 
+	ctx := ctxdb.RequirePrimary(r.Context(), true)
+	rejected, err := g.dropUnknownMembers(ctx, group, nil)
+	if err != nil {
+		return scim.Resource{}, err
+	}
+	if rejected != nil {
+		// The write reports a missing group as not found, and rejecting the members
+		// first must not turn that into a 400.
+		found, err := g.ds.ExistingScimGroupIDs(ctx, []uint{group.ID})
+		if err != nil {
+			return scim.Resource{}, ctxerr.Wrap(ctx, err, "check scim group exists")
+		}
+		if len(found) == 0 {
+			g.logger.InfoContext(r.Context(), "failed to find group to replace", "id", id)
+			return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
+		}
+		return scim.Resource{}, errors.ScimErrorBadParams(rejected)
+	}
 	err = g.ds.ReplaceScimGroup(r.Context(), group)
 	switch {
 	case fleet.IsNotFound(err):
@@ -402,14 +428,18 @@ func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.Patch
 	}
 
 	if len(operations) != 0 {
-		newUsers, newChildGroups := deltas.AddUsers, deltas.AddChildGroups
 		// A replace declares the group's final membership, so the whole list needs
 		// checking.
+		checkDeltas := deltas
 		if replaceAll {
-			newUsers, newChildGroups = group.ScimUsers, group.ChildGroups
+			checkDeltas = nil
 		}
-		if err := g.verifyMembersExist(ctx, newUsers, newChildGroups); err != nil {
+		rejected, err := g.dropUnknownMembers(ctx, group, checkDeltas)
+		if err != nil {
 			return scim.Resource{}, err
+		}
+		if rejected != nil {
+			return scim.Resource{}, errors.ScimErrorBadParams(rejected)
 		}
 
 		if replaceAll {
@@ -430,36 +460,76 @@ func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.Patch
 	return createGroupResource(group), nil
 }
 
-// verifyMembersExist checks that the given members exist, in one query per
-// member kind.
-func (g *GroupHandler) verifyMembersExist(ctx context.Context, userIDs, childGroupIDs []uint) error {
-	if err := g.verifyMemberKindExists(ctx, memberKindUser, userIDs, g.ds.ScimUsersExist); err != nil {
-		return err
+const maxLoggedUnknownMembers = 10
+
+// dropUnknownMembers removes members that reference no existing SCIM user or group
+// from group and, when given, from deltas' additions. IdPs treat a 400 as permanent,
+// so one stale or not-yet-provisioned ID must not fail the rest of a group push. A
+// request whose added members are all unknown is still rejected, unless it is a
+// delta patch that also removes members; the rejection is reported by returning the
+// unknown values, with group left unchanged.
+func (g *GroupHandler) dropUnknownMembers(
+	ctx context.Context, group *fleet.ScimGroup, deltas *fleet.ScimGroupMemberDeltas,
+) (rejected []string, err error) {
+	userIDs, childGroupIDs := group.ScimUsers, group.ChildGroups
+	if deltas != nil {
+		userIDs, childGroupIDs = deltas.AddUsers, deltas.AddChildGroups
 	}
-	return g.verifyMemberKindExists(ctx, memberKindGroup, childGroupIDs, g.ds.ScimGroupsExist)
+	foundUsers, err := g.ds.ExistingScimUserIDs(ctx, userIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "check scim group member users exist")
+	}
+	foundGroups, err := g.ds.ExistingScimGroupIDs(ctx, childGroupIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "check scim group member groups exist")
+	}
+
+	knownUsers, unknownUsers := splitKnownIDs(userIDs, foundUsers)
+	knownGroups, unknownGroups := splitKnownIDs(childGroupIDs, foundGroups)
+	if len(unknownUsers) == 0 && len(unknownGroups) == 0 {
+		return nil, nil
+	}
+
+	values := make([]string, 0, len(unknownUsers)+len(unknownGroups))
+	for _, id := range unknownUsers {
+		values = append(values, scimUserID(id))
+	}
+	for _, id := range unknownGroups {
+		values = append(values, scimGroupID(id))
+	}
+
+	// Groups can have thousands of members, and IdPs resend the same request every
+	// sync cycle, so the logged list is capped.
+	logAttrs := []any{
+		displayNameAttr, group.DisplayName,
+		"unknown_count", len(values),
+		membersAttr, values[:min(len(values), maxLoggedUnknownMembers)],
+	}
+	if group.ID != 0 {
+		logAttrs = append(logAttrs, "group_id", group.ID)
+	}
+	hasRemovals := deltas != nil && (len(deltas.RemoveUsers) > 0 || len(deltas.RemoveChildGroups) > 0)
+	if len(knownUsers) == 0 && len(knownGroups) == 0 && !hasRemovals {
+		g.logger.InfoContext(ctx, "none of the added group members exist", logAttrs...)
+		return values, nil
+	}
+	g.logger.InfoContext(ctx, "skipping unknown group members", logAttrs...)
+
+	group.ScimUsers = removeUints(group.ScimUsers, unknownUsers)
+	group.ChildGroups = removeUints(group.ChildGroups, unknownGroups)
+	if deltas != nil {
+		deltas.AddUsers = knownUsers
+		deltas.AddChildGroups = knownGroups
+	}
+	return nil, nil
 }
 
-func (g *GroupHandler) verifyMemberKindExists(
-	ctx context.Context, kind memberKind, ids []uint, exist func(context.Context, []uint) (bool, error),
-) error {
-	if len(ids) == 0 {
-		return nil
-	}
-	allExist, err := exist(ctx, ids)
-	if err != nil {
-		g.logger.ErrorContext(ctx, "error checking members existence", "err", err)
-		return err
-	}
-	if !allExist {
-		// Render the member IDs back into the "value" strings the request used.
-		values := make([]string, 0, len(ids))
-		for _, id := range ids {
-			values = append(values, memberValue(kind, id))
-		}
-		g.logger.InfoContext(ctx, "one or more members not found", "members", values)
-		return errors.ScimErrorBadParams(values)
-	}
-	return nil
+// splitKnownIDs partitions ids, preserving order, into those in found and those not.
+func splitKnownIDs(ids []uint, found map[uint]struct{}) (known, unknown []uint) {
+	isKnown := func(id uint) bool { _, ok := found[id]; return ok }
+	known = slices.DeleteFunc(slices.Clone(ids), func(id uint) bool { return !isKnown(id) })
+	unknown = slices.DeleteFunc(slices.Clone(ids), isKnown)
+	return known, unknown
 }
 
 func (g *GroupHandler) patchExternalId(ctx context.Context, op string, v any, group *fleet.ScimGroup) error {
@@ -599,7 +669,17 @@ func declaresFullMembership(op string, v any) bool {
 
 // removeUints returns base without the elements of toRemove, preserving order.
 func removeUints(base, toRemove []uint) []uint {
-	return slices.DeleteFunc(base, func(id uint) bool { return slices.Contains(toRemove, id) })
+	if len(toRemove) == 0 {
+		return base
+	}
+	remove := make(map[uint]struct{}, len(toRemove))
+	for _, id := range toRemove {
+		remove[id] = struct{}{}
+	}
+	return slices.DeleteFunc(base, func(id uint) bool {
+		_, ok := remove[id]
+		return ok
+	})
 }
 
 // appendMissingUint appends to base the elements of extra that are not already
@@ -759,13 +839,6 @@ func classifyMemberValue(value string) (memberKind, uint, error) {
 		return memberKindUser, 0, err
 	}
 	return memberKindUser, id, nil
-}
-
-func memberValue(kind memberKind, id uint) string {
-	if kind == memberKindGroup {
-		return scimGroupID(id)
-	}
-	return scimUserID(id)
 }
 
 // extractGroupIDFromValue extracts the group ID from a value like "group-123"
