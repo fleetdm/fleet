@@ -872,28 +872,37 @@ func testUpdateAndroidHostKeepsDiskMeasurement(t *testing.T, ds *Datastore) {
 		name       string
 		reports    []diskReport
 		fromEnroll bool
-		want       diskReport
+		// encryptionOnlyRow seeds a host_disks row holding only encryption data, so its disk
+		// columns are at their 0 defaults rather than a measurement.
+		encryptionOnlyRow bool
+		want              diskReport
 	}{
 		{
-			name:    "status report without a measurement keeps the stored one",
+			name:    "status report without a measurement keeps the stored one with its total",
 			reports: []diskReport{measured, notMeasured},
-			want:    diskReport{available: 95.3, percent: 86.4, total: 128},
+			want:    measured,
 		},
 		{
-			name:       "re-enrollment without a measurement keeps the stored one",
+			name:       "re-enrollment without a measurement keeps the stored one with its total",
 			reports:    []diskReport{measured, notMeasured},
 			fromEnroll: true,
-			want:       diskReport{available: 95.3, percent: 86.4, total: 128},
+			want:       measured,
 		},
 		{
 			name:    "a full disk is a measurement and is kept",
 			reports: []diskReport{{available: 0, percent: 0, total: 64}, notMeasured},
-			want:    diskReport{available: 0, percent: 0, total: 128},
+			want:    diskReport{available: 0, percent: 0, total: 64},
 		},
 		{
 			name:    "host with no stored disk data records not supported",
 			reports: []diskReport{notMeasured},
 			want:    notMeasured,
+		},
+		{
+			name:              "a row without disk data records not supported and keeps its other columns",
+			reports:           []diskReport{notMeasured},
+			encryptionOnlyRow: true,
+			want:              notMeasured,
 		},
 		{
 			name:    "host that has only reported not supported keeps reporting it",
@@ -940,6 +949,10 @@ func testUpdateAndroidHostKeepsDiskMeasurement(t *testing.T, ds *Datastore) {
 			otherHost := newHost(fmt.Sprintf("keep-disk-other-%d", i))
 			report(otherHost, measured, false)
 
+			if c.encryptionOnlyRow {
+				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, host.Host.ID, true, nil))
+			}
+
 			// Only the last report is the one under test; earlier ones set up the stored state.
 			for j, r := range c.reports {
 				report(host, r, j == len(c.reports)-1 && c.fromEnroll)
@@ -947,6 +960,13 @@ func testUpdateAndroidHostKeepsDiskMeasurement(t *testing.T, ds *Datastore) {
 
 			requireDisk(host.Host.ID, c.want)
 			requireDisk(otherHost.Host.ID, measured)
+
+			if c.encryptionOnlyRow {
+				got, err := ds.Host(ctx, host.Host.ID)
+				require.NoError(t, err)
+				require.NotNil(t, got.DiskEncryptionEnabled)
+				assert.True(t, *got.DiskEncryptionEnabled)
+			}
 		})
 	}
 }
