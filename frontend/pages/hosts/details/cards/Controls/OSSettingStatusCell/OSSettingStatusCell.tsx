@@ -24,7 +24,7 @@ const OSSettingStatusCell = ({ profile }: IOSSettingStatusCellProps) => {
 
   return (
     <span className={baseClass}>
-      <Icon name={iconName} />
+      {iconName && <Icon name={iconName} />}
       <span className={`${baseClass}__status-text`}>{statusText}</span>
     </span>
   );

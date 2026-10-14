@@ -23,22 +23,26 @@
   }
 
   [purpose='hero-container'] {
-    background: #FFFFFF;
+    // On the hero rather than #homepage (like other pages) so the gradient starts below the announcement banner.
+    background: linear-gradient(180deg, #E8F1F6 0%, #FFF 144px);
     overflow: hidden;
-  }
-
-  [purpose='hero-background-image'] {
-    background: url('/images/homepage-hero-2500x420@2x.png');
-    background-size: auto 329px;
-    background-repeat: no-repeat;
-    background-position-x: calc(~'100% + -50%');
-    background-position-y: top;
   }
 
   [purpose='homepage-hero'] {
     padding: 64px;
     max-width: 1200px;
-    // height: 448px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+  }
+  [purpose='hero-image'] {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 50%;
+    img {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+    }
   }
   [purpose='ticker-container'] {
     overflow: hidden;
@@ -71,12 +75,36 @@
     }
   }
   [purpose='hero-text'] {
-    max-width: 490px;
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 50%;
+    display: flex;
+    flex-direction: column;
     text-align: left;
     h1 {
-      max-width: 640px;
-      font-size: 32px;
+      // Sized so the longest ticker option fits on one line in a half-width column.
+      font-size: 40px;
       margin-bottom: 32px;
+    }
+    // Unlike the centered bottom CTA ticker, the hero ticker is left aligned and sized in ems so it scales with the heading.
+    [purpose='ticker-container'] {
+      display: flex;
+      left: 0;
+      transform: none;
+    }
+    [purpose='option-container'] {
+      display: flex;
+      flex-direction: column;
+      height: 1.2em;
+    }
+    [purpose='hero-ticker-option'] {
+      transform: translateY(1.6em);
+      &.visible {
+        transform: translateY(0%);
+      }
+      &.animating-out {
+        transform: translateY(-1.6em);
+      }
     }
     [purpose='hero-subtitle'] {
       color: #515774;
@@ -936,7 +964,10 @@
     }
 
     [purpose='hero-text'] {
-      max-width: 380px;
+      h1 {
+        // Scales with the half-width column so the longest ticker option fits on one line.
+        font-size: ~'min(40px, calc((100vw - 96px) / 25))';
+      }
     }
     [purpose='hero-quote'] {
       [purpose='hero-quote-profile-image'] {
@@ -1024,11 +1055,31 @@
     [purpose='homepage-hero'] {
       max-width: 100%;
       padding: 48px 32px;
-      // height: 418px;
+      flex-direction: column;
+      gap: 48px;
     }
-    [purpose='hero-background-image'] {
-      // background-size: auto 400px;
-      background-position: calc(~'100% + -56%') top;
+    [purpose='hero-text'] {
+      max-width: 100%;
+      width: 100%;
+      text-align: center;
+      h1 {
+        font-size: 48px;
+        margin-bottom: 24px;
+      }
+      [purpose='ticker-container'] {
+        margin: 0 auto;
+      }
+      [purpose='hero-subtitle'] {
+        max-width: 600px;
+        margin: 0 auto 24px;
+      }
+      [purpose='button-row'] {
+        justify-content: center;
+      }
+    }
+    [purpose='hero-image'] {
+      max-width: 800px;
+      width: 100%;
     }
 
     [purpose='homepage-content'] {
@@ -1242,36 +1293,12 @@
       font-size: 48px;
     }
 
-    [purpose='homepage-hero'] {
-      // height: 100%;
-      // padding: 48px 27px 330px 24px;
-      height: 600px;
-    }
-    [purpose='hero-container'] {
-      background: linear-gradient(180deg, #FFF 0%, #EEF7F8 150px);
-    }
-    [purpose='hero-background-image'] {
-      background: url('/images/homepage-hero-sm-767x347@2x.png');
-      background-size: auto 347px;
-      background-position: center bottom;
-      background-repeat: no-repeat;
-    }
     [purpose='hero-text'] {
-      width: 100%;
-      max-width: 100%;
       h1 {
-        text-align: center;
-        max-width: 480px;
-        font-size: 48px;
-        margin: 0 auto 24px;
-      }
-      [purpose='hero-subtitle'] {
-        text-align: center;
-        max-width: 600px;
-        margin: 0 auto 24px;
+        // Sized so the longest ticker option still fits on one line.
+        font-size: ~'min(48px, 7vw)';
       }
       [purpose='button-row'] {
-        justify-content: center;
         [purpose='cta-button'] {
           width: unset;
         }
@@ -1478,13 +1505,14 @@
       padding-top: 32px;
       padding-left: 16px;
       padding-right: 16px;
-      height: 600px;
     }
 
     [purpose='hero-text'] {
       h1 {
-        max-width: 360px;
-        font-size: 36px;
+        font-size: ~'min(36px, 7.2vw)';
+      }
+      [purpose='ticker-container'] {
+        white-space: nowrap;
       }
     }
     [purpose='homepage-content'] {
@@ -1556,9 +1584,6 @@
         border-bottom: 1px solid #E2E4EA;
         border-right: none;
       }
-    }
-    [purpose='hero-background-image'] {
-      background-size: auto 337px;
     }
     [purpose='hero-text'] {
       [purpose='button-row'] {
@@ -1690,13 +1715,7 @@
     [purpose='homepage-hero'] {
       padding-top: 44px;
       padding-left: 16px;
-      padding-right: 17px;
-      padding-bottom: 240px;
-      height: unset;
-    }
-
-    [purpose='hero-background-image'] {
-      background-size: auto 265px;
+      padding-right: 16px;
     }
 
     [purpose='hero-text'] {

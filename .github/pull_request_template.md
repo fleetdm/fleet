@@ -51,6 +51,11 @@ For unreleased bug fixes in a release candidate, one of:
 - [ ] Ensured the correct collation is explicitly set for character columns (`COLLATE utf8mb4_unicode_ci`).
 - [ ] Ensured the migration can be retried if it was partially applied after a failure.
 
+## Apple MDM commands
+
+- [ ] For new Apple MDM commands Fleet enqueues automatically (new request type or `CommandUUID` prefix), added the command to a cleanup retention class or confirmed it should be kept indefinitely. See [Apple MDM command lifecycle and cleanup](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/mdm/apple/apple-mdm-command-lifecycle.md#adding-a-new-command-or-a-new-reference).
+- [ ] For new columns that store an Apple MDM command UUID Fleet reads later, added a reference guard to the cleanup and an index on the column in a migration.
+
 ## New Fleet configuration settings
 
 - [ ] Setting(s) is/are explicitly excluded from GitOps

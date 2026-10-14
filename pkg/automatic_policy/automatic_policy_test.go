@@ -155,3 +155,29 @@ Software won't be installed on Linux hosts with Debian-based distributions becau
 	SELECT 1 FROM rpm_packages WHERE name = 'Barzoo'
 );`, policyData.Query)
 }
+
+func TestPolicyQueryEscapesQuotes(t *testing.T) {
+	const payload = "x' UNION SELECT 1 FROM shadow --"
+	const escaped = "x'' UNION SELECT 1 FROM shadow --"
+
+	for _, tc := range []struct {
+		name string
+		meta InstallerMetadata
+		want string
+	}{
+		{"mac bundle identifier", MacInstallerMetadata{Title: "x", BundleIdentifier: payload}, "bundle_identifier = '" + escaped + "';"},
+		{"pkg bundle identifier", FullInstallerMetadata{Extension: "pkg", Title: "x", BundleIdentifier: payload}, "bundle_identifier = '" + escaped + "';"},
+		{"msi upgrade code", FullInstallerMetadata{Extension: "msi", Title: "x", UpgradeCode: payload}, "upgrade_code = '" + escaped + "';"},
+		{"msi product code", FullInstallerMetadata{Extension: "msi", Title: "x", PackageIDs: []string{payload}}, "identifying_number = '" + escaped + "';"},
+		{"deb title", FullInstallerMetadata{Extension: "deb", Title: payload}, "name = '" + escaped + "' AND status"},
+		{"rpm title", FullInstallerMetadata{Extension: "rpm", Title: payload}, "name = '" + escaped + "'\n);"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			policyData, err := Generate(tc.meta)
+			require.NoError(t, err)
+			require.Contains(t, policyData.Query, tc.want)
+			// Name and description aren't SQL and must keep the original value.
+			require.NotContains(t, policyData.Name, "''")
+		})
+	}
+}

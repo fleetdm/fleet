@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/luks"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
@@ -89,6 +90,15 @@ type OrbitClient struct {
 
 	// openSSOWindow is a function that opens a browser window to the SSO URL.
 	openSSOWindow func() error
+
+	// refreshEnrollSecret, when set, runs before every enroll attempt. A non-empty result replaces enrollSecret, so a secret
+	// delivered while orbit runs is used without a restart.
+	refreshEnrollSecret func() string
+	// enrollSecretRefreshed records that refreshEnrollSecret replaced enrollSecret since the last successful enroll.
+	enrollSecretRefreshed bool
+
+	// onEnrollRejected, when set, runs each time the server rejects the secret an enroll attempt presented.
+	onEnrollRejected func()
 }
 
 // time-to-live for config cache
@@ -112,6 +122,16 @@ type configCache struct {
 
 func (oc *OrbitClient) SetOpenSSOWindowFunc(f func() error) {
 	oc.openSSOWindow = f
+}
+
+// SetEnrollSecretRefresher sets a function consulted before every enroll attempt for a newer enroll secret.
+func (oc *OrbitClient) SetEnrollSecretRefresher(f func() string) {
+	oc.refreshEnrollSecret = f
+}
+
+// SetOnEnrollRejected sets a function called each time the server rejects an enroll attempt's secret.
+func (oc *OrbitClient) SetOnEnrollRejected(f func()) {
+	oc.onEnrollRejected = f
 }
 
 func (oc *OrbitClient) request(verb string, path string, params any, resp any) error {
@@ -207,6 +227,9 @@ var (
 	// progress (e.g. a network filter dropping packets mid-transfer). It resets
 	// on any received bytes, so slow-but-healthy downloads are unaffected.
 	downloadStallTimeout = 60 * time.Second
+	// responseHeaderTimeout bounds the wait for response headers, which
+	// downloadStallTimeout doesn't cover. Downloads have no request deadline.
+	responseHeaderTimeout = 45 * time.Second
 )
 
 // NewOrbitClient creates a new OrbitClient.
@@ -235,7 +258,8 @@ func NewOrbitClient(
 		// Don't advertise the end-user auth capability so the Fleet server enrolls this host without prompting for EUA.
 		delete(orbitCapabilities, fleet.CapabilityEndUserAuth)
 	}
-	bc, err := NewBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCert, orbitCapabilities, httpSignerWrapper)
+	bc, err := NewBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCert, orbitCapabilities, httpSignerWrapper,
+		fleethttp.WithResponseHeaderTimeout(responseHeaderTimeout))
 	if err != nil {
 		return nil, err
 	}
@@ -574,6 +598,14 @@ func (oc *OrbitClient) Ping() error {
 }
 
 func (oc *OrbitClient) enroll() (string, error) {
+	// Callers hold enrollLock, which is what makes updating enrollSecret here safe.
+	if oc.refreshEnrollSecret != nil {
+		if secret := oc.refreshEnrollSecret(); secret != "" && secret != oc.enrollSecret {
+			oc.enrollSecret = secret
+			oc.enrollSecretRefreshed = true
+		}
+	}
+
 	verb, path := "POST", "/api/fleet/orbit/enroll"
 	params := fleet.EnrollOrbitRequest{
 		EnrollSecret:      oc.enrollSecret,
@@ -674,6 +706,9 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 				time.Sleep(20 * time.Second)
 				return retry.ErrorOutcomeResetAttempts
 			default:
+				if errors.Is(err, ErrUnauthenticated) && oc.onEnrollRejected != nil {
+					oc.onEnrollRejected()
+				}
 				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "enroll failed, retrying")
 				return retry.ErrorOutcomeNormalRetry
 			}
@@ -686,6 +721,15 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 	}
 	// Enrollment succeeded and the new key has been written, so clear any armed re-enroll / 401 streak.
 	oc.clearReenrollState()
+	// osquery was started with the enroll secret orbit held then, so it would keep re-enrolling with the old one. Restarting hands
+	// it the new secret, and only now is that safe: the node key on disk is valid, so the restarted orbit does not need to enroll.
+	if oc.enrollSecretRefreshed {
+		oc.enrollSecretRefreshed = false
+		if oc.receiverUpdateCancelFunc != nil {
+			log.Info().Msg("enrolled with a newly delivered enroll secret, restarting so osquery uses it")
+			oc.receiverUpdateCancelFunc()
+		}
+	}
 	return orbitNodeKey_, nil
 }
 

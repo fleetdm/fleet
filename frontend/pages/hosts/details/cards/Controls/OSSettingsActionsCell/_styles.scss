@@ -1,0 +1,28 @@
+.os-settings-actions-cell {
+  display: flex;
+  align-items: center;
+  gap: $pad-small;
+
+  .component__tooltip-wrapper {
+    margin: 0; // Override 10px vertical margin
+  }
+
+  &__resending,
+  &__rotating {
+    .icon {
+      animation: spin 2s linear infinite;
+    }
+  }
+
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+      transform-origin: center center;
+    }
+
+    100% {
+      transform: rotate(360deg);
+      transform-origin: center center;
+    }
+  }
+}

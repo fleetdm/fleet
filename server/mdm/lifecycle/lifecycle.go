@@ -48,10 +48,10 @@ type HostOptions struct {
 	FromMDMMigration        bool
 	// TeamID is currently only used for resetApple to assign the host to the correct team for account driven enrollments.
 	TeamID *uint
-	// IsPersonalEnrollment indicates a manual (profile-driven) BYOD enrollment
-	// where the end user chose "Personal" on the /enroll page. For Account-Driven
-	// User Enrollments (UserEnrollmentID != "") this is set automatically.
-	IsPersonalEnrollment bool
+	// PersonalEnrollmentType is manual_profile for a manual (profile-driven) BYOD
+	// enrollment where the end user chose "Personal" on the /enroll page. For
+	// Account-Driven User Enrollments (UserEnrollmentID != "") it is set automatically.
+	PersonalEnrollmentType fleet.PersonalEnrollmentType
 }
 
 // HostLifecycle manages MDM host lifecycle actions
@@ -150,11 +150,11 @@ func (t *HostLifecycle) resetWindows(ctx context.Context, opts HostOptions) erro
 func (t *HostLifecycle) resetApple(ctx context.Context, opts HostOptions) error {
 	// Account-Driven User Enrollment (BYOD iOS) uses UserEnrollmentID as
 	// the device identifier when UUID/serial are not yet known.
-	isPersonalEnrollment := opts.IsPersonalEnrollment
+	personalType := opts.PersonalEnrollmentType
 	if opts.UUID == "" && opts.HardwareSerial == "" && opts.UserEnrollmentID != "" {
 		opts.UUID = opts.UserEnrollmentID
 		opts.HardwareSerial = opts.UserEnrollmentID
-		isPersonalEnrollment = true
+		personalType = fleet.PersonalEnrollmentTypeAccountDriven
 	}
 	if opts.UUID == "" || opts.HardwareSerial == "" || opts.HardwareModel == "" {
 		return ctxerr.New(ctx, "UUID, HardwareSerial and HardwareModel options are required for this action")
@@ -174,7 +174,7 @@ func (t *HostLifecycle) resetApple(ctx context.Context, opts HostOptions) error 
 	// to centralize the flow control in the lifecycle methods.
 	if !opts.SCEPRenewalInProgress {
 		// upsert the host to ensure we have the latest information
-		if err := t.ds.MDMAppleUpsertHost(ctx, host, isPersonalEnrollment); err != nil {
+		if err := t.ds.MDMAppleUpsertHost(ctx, host, personalType); err != nil {
 			return ctxerr.Wrap(ctx, err, "upserting mdm host")
 		}
 	}

@@ -256,6 +256,11 @@ func (s *FileStorage) SetRecoveryLockFailed(_ context.Context, _ string, _ strin
 	return nil
 }
 
+func (s *FileStorage) SetDiskEncryptionKeyRotationFailed(_ context.Context, _ string, _ string, _ string) error {
+	// NOT IMPLEMENTED
+	return nil
+}
+
 func (s *FileStorage) BulkDeleteHostUserCommandsWithoutResults(_ context.Context, _ map[string][]string) error {
 	// NOT IMPLEMENTED
 	return nil

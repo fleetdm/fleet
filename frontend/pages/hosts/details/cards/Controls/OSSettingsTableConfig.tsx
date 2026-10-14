@@ -2,7 +2,7 @@ import React from "react";
 import { Column, Row } from "react-table";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import { IStringCellProps } from "interfaces/datatable_config";
 import { HostAndroidCertStatus, IHostMdmData } from "interfaces/host";
 import {
@@ -17,7 +17,10 @@ import {
   MdmProfileStatus,
   ProfilePlatform,
 } from "interfaces/mdm";
-import { isAppleDevice } from "interfaces/platform";
+import {
+  isAppleDevice,
+  LUKS_ESCROW_SUPPORTED_LINUX_PLATFORMS,
+} from "interfaces/platform";
 import { isDDMProfile } from "services/entities/mdm";
 
 import {
@@ -31,8 +34,8 @@ import {
   WIN_DISK_ENC_SYNTHETIC_PROFILE_UUID,
 } from "../../helpers";
 
+import OSSettingsActionsCell from "./OSSettingsActionsCell";
 import OSSettingsNameCell from "./OSSettingsNameCell";
-import OSSettingsResendCell from "./OSSettingsResendCell";
 import OSSettingStatusCell from "./OSSettingStatusCell";
 import { getControlDisplayOption } from "./statusDisplayConfig";
 
@@ -52,11 +55,13 @@ export type INonDDMProfileStatus = MdmProfileStatus | "action_required";
 export type OsSettingsTableStatusValue =
   | MdmDDMProfileStatus
   | INonDDMProfileStatus
-  | HostAndroidCertStatus;
+  | HostAndroidCertStatus
+  | null;
 
 /** Ranked off the displayed status, not the raw API value — several API
  * statuses share a display name. */
 const STATUS_SORT_ORDER = [
+  "---",
   "Failed",
   "Action required",
   "Enforcing",
@@ -103,11 +108,13 @@ export const getRowActionProps = (
   const isAndroidConfigProfile =
     platform === "android" && !isAndroidCertificate;
 
+  const isResendableProfile =
+    !SYNTHETIC_PROFILE_UUIDS.includes(profileUUID) &&
+    (isWindowsProfile || isAppleMobileConfigProfile || isAndroidCertificate);
+
   return {
-    canResendProfiles:
-      canResendProfiles &&
-      !SYNTHETIC_PROFILE_UUIDS.includes(profileUUID) &&
-      (isWindowsProfile || isAppleMobileConfigProfile || isAndroidCertificate),
+    canResendProfiles: canResendProfiles && isResendableProfile,
+    lacksResendPermission: !canResendProfiles && isResendableProfile,
     // With one-time enroll secrets, resending the Fleetd configuration profile
     // is how an admin gives a host a usable enroll secret, and that profile
     // sits in "verifying" until osquery's next profile refetch.
@@ -126,17 +133,39 @@ export const getRowActionProps = (
   };
 };
 
-const generateTableConfig = (
-  canResendProfiles: boolean,
-  resendRequest: (profileUUID: string) => Promise<void>,
-  onProfileResent: () => void,
-  resendCertificateRequest?: (certificateTemplateId: number) => Promise<void>,
-  canRotateRecoveryLockPassword?: boolean,
-  rotateRecoveryLockPassword?: () => Promise<void>,
-  canResendHostNameTemplate?: boolean,
-  resendHostNameTemplate?: () => Promise<void>,
-  canResendFleetdWhileVerifying?: boolean
-): ITableColumnConfig[] => {
+interface IGenerateTableConfigOptions {
+  canResendProfiles: boolean;
+  resendRequest: (profileUUID: string) => Promise<void>;
+  onProfileResent: () => void | Promise<unknown>;
+  resendCertificateRequest?: (certificateTemplateId: number) => Promise<void>;
+  canRotateRecoveryLockPassword?: boolean;
+  rotateRecoveryLockPassword?: () => Promise<void>;
+  canResendHostNameTemplate?: boolean;
+  resendHostNameTemplate?: () => Promise<void>;
+  canResendFleetdWhileVerifying?: boolean;
+  canManageSelfServiceProfiles?: boolean;
+  onInstall?: (profile: IHostMdmProfileWithAddedStatus) => Promise<void>;
+  onClickUninstall?: (profile: IHostMdmProfileWithAddedStatus) => void;
+  isActionRequested?: (profile: IHostMdmProfileWithAddedStatus) => boolean;
+  isDeviceUser?: boolean;
+}
+
+const generateTableConfig = ({
+  canResendProfiles,
+  resendRequest,
+  onProfileResent,
+  resendCertificateRequest,
+  canRotateRecoveryLockPassword,
+  rotateRecoveryLockPassword,
+  canResendHostNameTemplate,
+  resendHostNameTemplate,
+  canResendFleetdWhileVerifying,
+  canManageSelfServiceProfiles,
+  onInstall,
+  onClickUninstall,
+  isActionRequested,
+  isDeviceUser,
+}: IGenerateTableConfigOptions): ITableColumnConfig[] => {
   return [
     {
       Header: (cellProps) => (
@@ -150,6 +179,8 @@ const generateTableConfig = (
             profileName={cellProps.cell.value}
             scope={cellProps.row.original.scope}
             managedAccount={cellProps.row.original.managed_local_account}
+            hidden={cellProps.row.original.hidden}
+            isDeviceUser={isDeviceUser}
           />
         );
       },
@@ -166,7 +197,7 @@ const generateTableConfig = (
         a: Row<IHostMdmProfileWithAddedStatus>,
         b: Row<IHostMdmProfileWithAddedStatus>
       ) => getStatusSortRank(a.original) - getStatusSortRank(b.original),
-      Cell: (cellProps: ITableStringCellProps) => {
+      Cell: (cellProps: { row: Row<IHostMdmProfileWithAddedStatus> }) => {
         return <OSSettingStatusCell profile={cellProps.row.original} />;
       },
     },
@@ -175,10 +206,13 @@ const generateTableConfig = (
       id: "details",
       accessor: "detail",
       disableSortBy: true,
-      // TextCell defaults to `w250`, which would cap the cell at 202px.
-      // Truncation lives on the cell in _styles.scss instead.
       Cell: (cellProps: ITableStringCellProps) => {
-        return <TextCell value={cellProps.cell.value} className="" />;
+        return (
+          <TooltipTruncatedTextCell
+            value={cellProps.cell.value}
+            tooltipBreakOnWord
+          />
+        );
       },
     },
     {
@@ -195,7 +229,7 @@ const generateTableConfig = (
         );
 
         return (
-          <OSSettingsResendCell
+          <OSSettingsActionsCell
             canResendProfiles={rowActions.canResendProfiles}
             canResendWhileVerifying={rowActions.canResendWhileVerifying}
             canRotateRecoveryLockPassword={
@@ -205,13 +239,17 @@ const generateTableConfig = (
             showDisabledResendForAndroidProfile={
               rowActions.showDisabledResendForAndroidProfile
             }
+            lacksResendPermission={rowActions.lacksResendPermission}
             profile={cellProps.row.original}
             resendRequest={resendRequest}
             resendCertificateRequest={resendCertificateRequest}
             rotateRecoveryLockPassword={rotateRecoveryLockPassword}
             resendHostNameTemplate={resendHostNameTemplate}
             onProfileResent={onProfileResent}
-            revealOnRowHover
+            canManageSelfServiceProfiles={canManageSelfServiceProfiles}
+            onInstall={onInstall}
+            onClickUninstall={onClickUninstall}
+            isActionRequested={!!isActionRequested?.(cellProps.row.original)}
           />
         );
       },
@@ -343,17 +381,21 @@ export const generateTableData = (
   hostMDMData: IHostMdmData,
   platform: string
 ) => {
+  // rhel is Fedora here: the OS settings card is only shown for Fedora among rhel-like hosts
+  if (
+    platform === "rhel" ||
+    LUKS_ESCROW_SUPPORTED_LINUX_PLATFORMS.includes(
+      platform as typeof LUKS_ESCROW_SUPPORTED_LINUX_PLATFORMS[number]
+    )
+  ) {
+    return makeLinuxRows(hostMDMData);
+  }
+
   switch (platform) {
     case "windows":
       return makeWindowsRows(hostMDMData);
     case "darwin":
       return makeDarwinRows(hostMDMData);
-    case "ubuntu":
-      return makeLinuxRows(hostMDMData);
-    case "zorin":
-      return makeLinuxRows(hostMDMData);
-    case "rhel":
-      return makeLinuxRows(hostMDMData);
     case "ios":
     case "ipados":
       return makeAppleMobileRows(hostMDMData, platform);

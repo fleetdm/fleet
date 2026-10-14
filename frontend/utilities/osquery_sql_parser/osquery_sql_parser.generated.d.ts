@@ -32,9 +32,14 @@ export interface ParseResult {
   ast: unknown;
 }
 
-// The generated parse() also accepts an options argument (start rule,
-// tracer); it is deliberately omitted here — the wrapper never passes one.
-export function parse(input: string): ParseResult;
+// Omit startRule to parse with the default "start" rule. "no_stmt" (enabled by
+// --allowed-start-rules in the generate script) returns nothing useful; callers
+// only check whether it throws.
+export interface ParseOptions {
+  startRule?: "no_stmt";
+}
+
+export function parse(input: string, options?: ParseOptions): ParseResult;
 
 export const StartRules: readonly string[];
 

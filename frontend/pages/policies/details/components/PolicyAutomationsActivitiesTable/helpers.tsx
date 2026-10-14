@@ -4,6 +4,7 @@ import {
 } from "components/ActivityDetails/InstallDetails/constants";
 import {
   getAutomationNotifiedMessage,
+  getCaveatMessage,
   SKIPPED_INSTALL_NOTIFY_EXPLANATION,
 } from "components/ActivityDetails/NotifyBeforePatchingDetailsModal/helpers";
 import { ActivityType } from "interfaces/activity";
@@ -128,6 +129,20 @@ export const getDetailOutputText = (
     activity.status === "success"
   ) {
     return getAutomationNotifiedMessage(activity.details?.time_before);
+  }
+  // Notify failure: reason keyed on the notification script's exit code (e.g.
+  // screen locked → 41). Falls through to the generic output fallback below
+  // when neither the exit code nor a deferred-notification signal is present.
+  if (
+    activity.type === ActivityType.NotifiedEndUserBeforePatching &&
+    activity.status === "error"
+  ) {
+    const reason = getCaveatMessage(
+      "failed",
+      activity.details?.script_execution_id,
+      activity.details?.exit_code
+    );
+    if (reason) return reason;
   }
   if (activity.details?.skipped_install) {
     return isNotifySkip(activity)

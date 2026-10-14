@@ -206,6 +206,7 @@ const MDMStatusModal = ({
 
     try {
       await hostAPI.apnsPing(hostId);
+      notify.success("Successfully sent request to check in.");
       onSuccessfulCheckIn();
     } catch (error) {
       notify.error("Failed to send an APNS ping.", { response: error });
@@ -274,7 +275,7 @@ const MDMStatusModal = ({
         </div>
         <ViewAllHostsLink
           queryParams={{ mdm_enrollment_status: enrollmentFilterValue }}
-          rowHover
+          variant="secondary"
           noLink
         />
       </>
@@ -307,7 +308,8 @@ const MDMStatusModal = ({
           <Button
             onClick={handleClickCheckInNow}
             icon="refresh"
-            variant="subdued"
+            variant="secondary"
+            size="small"
             disabled={isCheckingIn}
             isLoading={isCheckingIn}
           >
@@ -352,7 +354,7 @@ const MDMStatusModal = ({
                   ?.assign_profile_response || ""
               ).toLowerCase(),
             }}
-            rowHover
+            variant="secondary"
             noLink
           />
         )}

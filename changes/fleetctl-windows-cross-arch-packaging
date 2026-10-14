@@ -1,0 +1,1 @@
+- Fixed `fleetctl package` on Windows failing to build a package for another architecture (e.g. `--arch=arm64` on an x86 machine).

@@ -847,8 +847,19 @@ func IsTerminalNDESChallengeError(err error) bool {
 }
 
 // NDESChallengeErrorToDetail translates NDES-specific error types into user-friendly messages
-// for profile failure details. Used by both Apple and Windows NDES profile processing.
+// for profile failure details. Used by both Apple and Windows NDES profile processing, which leave
+// the profile queued on a transient failure, so that message promises another attempt.
 func NDESChallengeErrorToDetail(err error) string {
+	return ndesChallengeErrorToDetail(err, true)
+}
+
+// NDESChallengeErrorToScriptDetail is NDESChallengeErrorToDetail for a script run, which is
+// recorded as failed on any challenge failure, so no retry is promised.
+func NDESChallengeErrorToScriptDetail(err error) string {
+	return ndesChallengeErrorToDetail(err, false)
+}
+
+func ndesChallengeErrorToDetail(err error, willRetry bool) string {
 	varName := fleet.FleetVarNDESSCEPChallenge.WithPrefix()
 	switch {
 	case errors.As(err, &NDESInvalidError{}):
@@ -861,7 +872,11 @@ func NDESChallengeErrorToDetail(err error) string {
 		return fmt.Sprintf("This account does not have sufficient permissions to enroll with SCEP. Fleet couldn't populate %s. "+
 			"Please update the account with NDES SCEP enroll permissions and try again.", varName)
 	case errors.As(err, &NDESTransientError{}):
-		return fmt.Sprintf("Fleet couldn't reach NDES to populate %s and will try again. %s", varName, err.Error())
+		var retry string
+		if willRetry {
+			retry = " and will try again"
+		}
+		return fmt.Sprintf("Fleet couldn't reach NDES to populate %s%s. %s", varName, retry, err.Error())
 	default:
 		return fmt.Sprintf("Fleet couldn't populate %s. %s", varName, err.Error())
 	}

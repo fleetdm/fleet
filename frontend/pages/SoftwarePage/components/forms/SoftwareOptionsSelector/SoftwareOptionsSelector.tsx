@@ -7,6 +7,7 @@ import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import Checkbox from "components/forms/fields/Checkbox";
 import Slider from "components/forms/fields/Slider";
+import FormField from "components/forms/FormField";
 import Spinner from "components/Spinner";
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 import {
@@ -40,6 +41,11 @@ interface ICategoriesSelector {
   /** When provided, categories are fetched from the self-service categories API
    * for this fleet. When undefined, the hardcoded list is used. */
   teamId?: number;
+  /** Override the section label. Defaults to "Categories". */
+  label?: string;
+  /** Override the preview button copy. Defaults to "Preview end user
+   * experience". */
+  previewButtonLabel?: string;
 }
 
 export const AndroidOptionsDescription = () => (
@@ -55,11 +61,13 @@ export const AndroidOptionsDescription = () => (
   </p>
 );
 
-const CategoriesSelector = ({
+export const CategoriesSelector = ({
   onSelectCategory,
   selectedCategories,
   onClickPreviewEndUserExperience,
   teamId,
+  label = "Categories",
+  previewButtonLabel = "Preview end user experience",
 }: ICategoriesSelector) => {
   const isDynamic = teamId !== undefined;
 
@@ -147,17 +155,24 @@ const CategoriesSelector = ({
   };
 
   return (
-    <>
-      <div className="form-field__label">Categories</div>
+    <FormField
+      name="category"
+      label={
+        <div className={`${baseClass}__categories-header`}>
+          <span>{label}</span>
+          <Button
+            variant="subdued"
+            size="small"
+            onClick={onClickPreviewEndUserExperience}
+            className={`${baseClass}__preview-button`}
+          >
+            {previewButtonLabel}
+          </Button>
+        </div>
+      }
+    >
       {renderList()}
-      <Button
-        variant="secondary"
-        onClick={onClickPreviewEndUserExperience}
-        className={`${baseClass}__preview-button`}
-      >
-        Preview end user experience
-      </Button>
-    </>
+    </FormField>
   );
 };
 

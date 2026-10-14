@@ -83,6 +83,9 @@ const filterTooltip = (
 interface IChartCardProps {
   currentTeamId?: number;
   historicalDataEnabled?: Record<HistoricalDataConfigKey, boolean>;
+  // Org-level historical_data settings only, needed to decide who can turn
+  // collection back on when the effective (AND'd) value is disabled.
+  historicalDataGloballyEnabled?: Record<HistoricalDataConfigKey, boolean>;
   // GitOps-managed default filter state for the current scope (org or fleet).
   // Seeds the chart's filter controls on load; UI edits are not persisted.
   filterDefaults?: IVulnExposureFilterDefaults;
@@ -91,6 +94,7 @@ interface IChartCardProps {
 const ChartCard = ({
   currentTeamId,
   historicalDataEnabled,
+  historicalDataGloballyEnabled,
   filterDefaults,
 }: IChartCardProps): JSX.Element => {
   const [selectedMetric, setSelectedMetric] = useState("uptime");
@@ -298,6 +302,9 @@ const ChartCard = ({
       return (
         <DataCollectionDisabledState
           datasetLabel={DATASET_LABEL[datasetConfigKey]}
+          globallyEnabled={
+            historicalDataGloballyEnabled?.[datasetConfigKey] ?? true
+          }
           currentTeamId={currentTeamId}
         />
       );
@@ -339,6 +346,7 @@ const ChartCard = ({
         <div className={`${baseClass}__header-left`}>
           {DATASET_OPTIONS.length > 1 ? (
             <DropdownWrapper
+              ariaLabel="Select dataset"
               name="dataset"
               value={selectedMetric}
               options={DATASET_OPTIONS}

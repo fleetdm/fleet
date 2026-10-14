@@ -1,0 +1,1 @@
+- Reduced database load when loading a host's details, and when many hosts start failing a policy with an App Store app automation at once (for example, after a GitOps run edits that policy).

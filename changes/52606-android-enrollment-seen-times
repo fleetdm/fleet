@@ -1,0 +1,1 @@
+- Fixed Android host details keeping the original enrollment date after a device re-enrolled, and Android hosts never updating their last-seen time after they were first added.

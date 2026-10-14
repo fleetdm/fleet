@@ -1,0 +1,1 @@
+* Fixed Windows 10 and Windows 11 CIS policies that could never pass (firewall logging, printer drivers, NTP server, remote SAM calls), service policies that always passed regardless of service state, and numeric threshold policies that compared registry values as text.

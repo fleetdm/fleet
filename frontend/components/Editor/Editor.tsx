@@ -29,6 +29,8 @@ export type EditorMode =
 export interface IEditorProps {
   focus?: boolean;
   label?: string;
+  /** Accessible name for the text input. Defaults to `label`. */
+  ariaLabel?: string;
   labelTooltip?: string | JSX.Element;
   error?: string | null;
   readOnly?: boolean;
@@ -62,9 +64,16 @@ export interface IEditorProps {
    */
   isFormField?: boolean;
   maxLines?: number;
+  /** @default 2 */
+  minLines?: number;
+  /** @default true */
+  showPrintMargin?: boolean;
+  /** Shown while the editor is empty. */
+  placeholder?: string;
   className?: string;
   onChange?: (value: string, event?: Ace.Delta) => void;
   onBlur?: () => void;
+  onFocus?: () => void;
   /** Called after the Ace editor mounts with the editor instance. */
   onLoad?: (editor: Ace.Editor) => void;
 }
@@ -79,6 +88,7 @@ export interface IEditorProps {
 const Editor = ({
   helpText,
   label,
+  ariaLabel,
   labelTooltip,
   error,
   focus,
@@ -91,9 +101,13 @@ const Editor = ({
   mode = "text",
   isFormField = true,
   maxLines = 20,
+  minLines = 2,
+  showPrintMargin = true,
+  placeholder,
   className,
   onChange,
   onBlur,
+  onFocus,
   onLoad: onLoadProp,
 }: IEditorProps) => {
   const classNames = classnames(baseClass, className, {
@@ -172,15 +186,19 @@ const Editor = ({
         theme="fleet"
         width="100%"
         readOnly={readOnly}
-        minLines={2}
+        minLines={minLines}
         maxLines={maxLines}
+        showPrintMargin={showPrintMargin}
+        placeholder={placeholder}
         editorProps={{ $blockScrolling: Infinity }}
+        setOptions={{ textInputAriaLabel: ariaLabel ?? label }}
         value={value}
         defaultValue={defaultValue}
         tabSize={2}
         focus={focus}
         onChange={onChange}
         onBlur={onBlur}
+        onFocus={onFocus}
         onLoad={onLoadHandler}
       />
       {renderHelpText()}

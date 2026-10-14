@@ -4,11 +4,12 @@ package homebrew_outdated
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"os"
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"syscall"
 	"time"
@@ -25,10 +26,27 @@ var brewPaths = []string{
 	"/usr/local/bin/brew",
 }
 
-// brewTimeout is the total budget shared across all brew invocations in a single
-// Generate (outdated + optional fallback + cask enrichment). `brew outdated` may
-// perform a `git fetch` of formula/cask metadata, so it is generous.
+// brewTimeout is the budget shared by a scan's brew calls, which may still
+// download the package API data or, after a Homebrew upgrade, portable Ruby.
 const brewTimeout = 60 * time.Second
+
+// apiRefreshInterval is how old the package API data may get before a query
+// re-downloads it.
+const apiRefreshInterval = 24 * time.Hour
+
+// brewQueryEnv returns env for the query calls. Homebrew's auto-update (self
+// update plus a git fetch of every tap) can outlast the query budget, so it is
+// skipped; only the package API data, where core formulae and casks get
+// current_version, is refreshed.
+func brewQueryEnv(env []string) []string {
+	return append(slices.Clone(env),
+		"HOMEBREW_NO_AUTO_UPDATE=1",
+		"HOMEBREW_FORCE_API_AUTO_UPDATE=1",
+		"HOMEBREW_API_AUTO_UPDATE_SECS="+strconv.Itoa(int(apiRefreshInterval.Seconds())),
+		// Keeps configuration hints out of surfaced errors.
+		"HOMEBREW_NO_ENV_HINTS=1",
+	)
+}
 
 // Generate is called to return the results for the table at query time.
 func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
@@ -63,22 +81,6 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		return nil, nil
 	}
 
-	// Warn if the console user doesn't own the Homebrew install: brew can still
-	// read as a non-owner, but its auto-update git fetch may fail (the tap repos
-	// are owned by the install user), which can leave current_version stale. Stat
-	// the brew binary, not the prefix root: on Intel the prefix (/usr/local) root
-	// is root-owned even for a normal install, while the binary is owned by the
-	// installer on both Intel and Apple Silicon. Best-effort diagnostics only.
-	if fi, statErr := os.Stat(brewPath); statErr == nil {
-		if st, ok := fi.Sys().(*syscall.Stat_t); ok && st.Uid != uid {
-			log.Warn().
-				Str("brew", brewPath).
-				Uint32("owner_uid", st.Uid).
-				Uint32("console_uid", uid).
-				Msg("homebrew_outdated: console user does not own the Homebrew installation; brew auto-update may fail, so current_version could be stale")
-		}
-	}
-
 	// Build brew's environment: HOME points at the console user's home so brew
 	// reads/writes caches as that user rather than root, and the prefix's bin is on
 	// PATH so brew finds its own tooling (including for a non-standard per-user
@@ -88,9 +90,21 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		env = append(env, "HOME="+homeDir)
 	}
 
-	// Bound the whole sequence of brew calls (pushdown outdated + optional fallback
-	// + cask enrichment) with a single shared deadline so cumulative latency stays
-	// capped rather than each call getting its own full timeout.
+	rows, err := cache.get(ctx, brewPath+":"+strconv.FormatUint(uint64(uid), 10), time.Now(), func(scanCtx context.Context) ([]map[string]string, error) {
+		return queryRows(scanCtx, brewPath, prefix, uid, gid, brewQueryEnv(env))
+	})
+	if err != nil {
+		return nil, err
+	}
+	return filterRows(rows, nameConstraints(queryContext)), nil
+}
+
+// cache holds the last full scan; see scanCache.
+var cache scanCache
+
+// queryRows runs the brew calls for a full scan and builds the rows.
+func queryRows(ctx context.Context, brewPath, prefix string, uid, gid uint32, env []string) ([]map[string]string, error) {
+	// Both brew calls share one deadline.
 	ctx, cancel := context.WithTimeout(ctx, brewTimeout)
 	defer cancel()
 
@@ -98,10 +112,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		return runBrew(ctx, brewPath, uid, gid, env, args...)
 	}
 
-	// Push `name = <x>` constraints down to brew so a query for specific packages
-	// (e.g. a policy) doesn't trigger a full `brew outdated` scan. outdatedPackages
-	// falls back to a full scan if a pushed-down name is unknown.
-	pkgs, err := outdatedPackages(run, nameConstraints(queryContext))
+	pkgs, err := outdatedPackages(run)
 	if err != nil {
 		return nil, err
 	}
@@ -150,13 +161,21 @@ func consoleHome(uid uint32) string {
 }
 
 // runBrew executes brew with the given args as the console user and returns
-// stdout. It honors the deadline on ctx (set once by Generate) so all brew calls
-// in a single Generate share one budget.
+// stdout, honoring the scan's shared deadline on ctx.
 func runBrew(ctx context.Context, brewPath string, uid, gid uint32, env []string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, brewPath, args...)
 	cmd.Env = env
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Credential: &syscall.Credential{Uid: uid, Gid: gid},
 	}
-	return cmd.Output()
+	out, err := cmd.Output()
+	if err != nil {
+		// A call killed at the deadline surfaces as "signal: killed"; name the
+		// deadline too.
+		if ctxErr := ctx.Err(); ctxErr != nil && !errors.Is(err, ctxErr) {
+			err = fmt.Errorf("%w: %w", ctxErr, err)
+		}
+		return out, describeBrewError(err)
+	}
+	return out, nil
 }

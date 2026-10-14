@@ -373,7 +373,7 @@ func (s *integrationInstallTestSuite) TestSoftwareInstallerFleetVariables() {
 	}{
 		{&fleet.UploadSoftwareInstallerPayload{TeamID: &teamID, Filename: "ruby.deb", InstallScript: "echo $FLEET_VAR_NONEXISTENT"}, unsupportedVarErrMsg},
 		{&fleet.UploadSoftwareInstallerPayload{TeamID: &teamID, Filename: "ruby.deb", PostInstallScript: "echo ${FLEET_VAR_NONEXISTENT}"}, unsupportedVarErrMsg},
-		{&fleet.UploadSoftwareInstallerPayload{TeamID: &teamID, Filename: "ruby.deb", UninstallScript: "echo $FLEET_VAR_NDES_SCEP_CHALLENGE"}, "Fleet variable $FLEET_VAR_NDES_SCEP_CHALLENGE is not supported in scripts."},
+		{&fleet.UploadSoftwareInstallerPayload{TeamID: &teamID, Filename: "ruby.deb", UninstallScript: "echo $FLEET_VAR_NDES_SCEP_PROXY_URL"}, "Fleet variable $FLEET_VAR_NDES_SCEP_PROXY_URL is not supported in scripts."},
 	}
 	for _, c := range uploadCases {
 		s.uploadSoftwareInstaller(t, c.payload, http.StatusUnprocessableEntity, c.errMsg)

@@ -12,6 +12,7 @@ type GlobalPolicyRequest struct {
 	Resolution       string   `json:"resolution"`
 	Platform         string   `json:"platform"`
 	Critical         bool     `json:"critical" premium:"true"`
+	Hidden           bool     `json:"hidden" premium:"true"`
 	LabelsIncludeAny []string `json:"labels_include_any" premium:"true"`
 	LabelsIncludeAll []string `json:"labels_include_all" premium:"true"`
 	LabelsExcludeAny []string `json:"labels_exclude_any" premium:"true"`
@@ -190,6 +191,7 @@ type TeamPolicyRequest struct {
 	LabelsExcludeAny             []string `json:"labels_exclude_any" premium:"true"`
 	LabelsExcludeAll             []string `json:"labels_exclude_all" premium:"true"`
 	ConditionalAccessEnabled     bool     `json:"conditional_access_enabled"`
+	Hidden                       bool     `json:"hidden" premium:"true"`
 	ContinuousAutomationsEnabled bool     `json:"continuous_automations_enabled" premium:"true"`
 	Type                         *string  `json:"type"`
 	PatchSoftwareTitleID         *uint    `json:"patch_software_title_id"`

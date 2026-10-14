@@ -119,7 +119,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 		require.NoError(t, err)
 
 		s.lq.On("QueriesForHost", uint(1)).Return(map[string]string{fmt.Sprint(q1.ID): query}, nil)
-		s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(nil)
+		s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(true, nil)
 		s.lq.On("RunQuery", mock.Anything, query, []uint{host.ID}).Return(nil)
 		s.lq.On("StopQuery", mock.Anything).Return(nil)
 
@@ -362,7 +362,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostMultipleQuery() {
 		fmt.Sprint(q1.ID): "select 1 from osquery;",
 		fmt.Sprint(q2.ID): "select 2 from osquery;",
 	}, nil)
-	s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(nil)
+	s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(true, nil)
 	s.lq.On("RunQuery", mock.Anything, "select 1 from osquery;", []uint{host.ID}).Return(nil)
 	s.lq.On("RunQuery", mock.Anything, "select 2 from osquery;", []uint{host.ID}).Return(nil)
 	s.lq.On("StopQuery", mock.Anything).Return(nil)
@@ -479,7 +479,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestMultipleHostMultipleQuery() {
 		fmt.Sprint(q1.ID): "select 1 from osquery;",
 		fmt.Sprint(q2.ID): "select 2 from osquery;",
 	}, nil)
-	s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(nil)
+	s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(true, nil)
 	s.lq.On("RunQuery", mock.Anything, "select 1 from osquery;", []uint{h1.ID, h2.ID}).Return(nil)
 	s.lq.On("RunQuery", mock.Anything, "select 2 from osquery;", []uint{h1.ID, h2.ID}).Return(nil)
 	s.lq.On("StopQuery", mock.Anything).Return(nil)
@@ -585,7 +585,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesSomeFailToAuthorize() {
 	require.NoError(t, err)
 
 	s.lq.On("QueriesForHost", uint(1)).Return(map[string]string{fmt.Sprint(q1.ID): "select 2 from osquery;"}, nil)
-	s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(nil)
+	s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(true, nil)
 	s.lq.On("RunQuery", mock.Anything, "select 2 from osquery;", []uint{host.ID}).Return(nil)
 	s.lq.On("StopQuery", mock.Anything).Return(nil)
 
@@ -834,7 +834,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsOnSomeHost() {
 
 		s.lq.On("QueriesForHost", h1.ID).Return(map[string]string{fmt.Sprint(q1.ID): "select 1 from osquery;"}, nil)
 		s.lq.On("QueriesForHost", h2.ID).Return(map[string]string{fmt.Sprint(q1.ID): "select 1 from osquery;"}, nil)
-		s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(nil)
+		s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(true, nil)
 		s.lq.On("RunQuery", mock.Anything, "select 1 from osquery;", []uint{h1.ID, h2.ID}).Return(nil)
 		s.lq.On("StopQuery", mock.Anything).Return(nil)
 

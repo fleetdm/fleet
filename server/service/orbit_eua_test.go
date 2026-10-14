@@ -429,6 +429,7 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 		ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc = func(ctx context.Context, serial string) (*fleet.MDMWindowsEnrolledDevice, error) {
 			return device, nil
 		}
+		ds.MDMWindowsClearDeletedHostTeamFunc = func(ctx context.Context, mdmDeviceID string) error { return nil }
 		ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID string, deviceID string) (bool, error) {
 			require.Equal(t, "host-uuid-1", hostUUID)
 			require.Equal(t, "device-1", deviceID)
@@ -461,6 +462,10 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 		ds.DeleteHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint) ([]fleet.ActivityTypeResentCertificate, error) {
 			return nil, nil
 		}
+		ds.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFunc = func(ctx context.Context, enrollmentID uint) error {
+			require.EqualValues(t, 1, enrollmentID)
+			return nil
+		}
 
 		var enrolledActivity *fleet.ActivityTypeMDMEnrolled
 		serverOpts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
@@ -474,6 +479,7 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, nodeKey)
 		require.True(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+		require.True(t, ds.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFuncInvoked, "orbit enrolling proves fleetd runs on the device")
 		require.True(t, ds.AddHostsToTeamFuncInvoked, "default fleet must be assigned before EnrollOrbit returns")
 		require.NotNil(t, assignedTeamID)
 		require.Equal(t, defaultTeamID, *assignedTeamID)

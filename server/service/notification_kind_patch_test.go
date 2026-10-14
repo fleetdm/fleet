@@ -80,7 +80,8 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 		otherInstall *fleet.HostLastInstallData
 		// NotificationAwaitingDisplay: this host has a notification the end user
 		// has not seen yet
-		awaiting bool
+		awaiting            bool
+		awaitingRemindsNext bool
 		// the skipped install carries no software title, so there is no app to name
 		noTitle bool
 		// NewPatchNotification: the patch_notifications row can't be written
@@ -100,6 +101,13 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 			awaiting:    true,
 			wantCreated: false,
 			wantAppOn:   awaitingUUID,
+		},
+		{
+			name:                "the app gets its own notification when the one awaiting display is the 5 minute reminder",
+			awaiting:            true,
+			awaitingRemindsNext: true,
+			wantCreated:         true,
+			wantAppOn:           createdUUID,
 		},
 		{
 			name:      "an app already listed on a pending or dispatched notification is not listed twice",
@@ -163,6 +171,12 @@ func TestCreatePatchNotificationForEndUser(t *testing.T) {
 					return nil, nil
 				}
 				return &notifications_api.EndUserNotification{UUID: awaitingUUID, Payload: patchNotificationFirstNoticePayload}, nil
+			}
+			ds.GetPatchNotificationFunc = func(_ context.Context, _ string) (*fleet.PatchNotification, error) {
+				if !c.awaitingRemindsNext {
+					return nil, nil
+				}
+				return &fleet.PatchNotification{InstallAt: new(time.Now().UTC().Add(2 * time.Minute))}, nil
 			}
 			notificationsSvc.CreateNotificationFunc = func(_ context.Context, notification *notifications_api.EndUserNotification) (*notifications_api.EndUserNotification, error) {
 				require.Equal(t, hostID, notification.HostID)
@@ -376,7 +390,9 @@ func TestPatchNotificationUpdateNow(t *testing.T) {
 			ds.GetDeviceAuthTokenIfFreshFunc = func(_ context.Context, _ uint, _ time.Duration) (string, error) {
 				return "device-token", nil
 			}
-
+			ds.GetPatchNotificationFunc = func(_ context.Context, _ string) (*fleet.PatchNotification, error) {
+				return nil, nil
+			}
 			// the end user pressed Update now on this notification
 			view, err := kind.updateNow(context.Background(), &notifications_api.EndUserNotification{
 				UUID: "notification-uuid", HostID: hostID, Status: c.status,
@@ -482,7 +498,9 @@ func TestPatchNotificationUpdateNowResumesAfterFailure(t *testing.T) {
 	ds.GetDeviceAuthTokenIfFreshFunc = func(_ context.Context, _ uint, _ time.Duration) (string, error) {
 		return "device-token", nil
 	}
-
+	ds.GetPatchNotificationFunc = func(_ context.Context, _ string) (*fleet.PatchNotification, error) {
+		return nil, nil
+	}
 	notification := &notifications_api.EndUserNotification{
 		UUID: "notification-uuid", HostID: hostID,
 		Status:  notifications_api.EndUserNotificationDispatched,
@@ -610,7 +628,9 @@ func TestPatchNotificationRenderInstallStatuses(t *testing.T) {
 			ds.GetDeviceAuthTokenIfFreshFunc = func(_ context.Context, _ uint, _ time.Duration) (string, error) {
 				return "device-token", nil
 			}
-
+			ds.GetPatchNotificationFunc = func(_ context.Context, _ string) (*fleet.PatchNotification, error) {
+				return nil, nil
+			}
 			view, err := kind.Render(context.Background(), &notifications_api.EndUserNotification{
 				UUID: "notification-uuid", HostID: hostID,
 				Status:  c.notificationStatus,
@@ -622,6 +642,39 @@ func TestPatchNotificationRenderInstallStatuses(t *testing.T) {
 			require.Equal(t, c.wantInstallStatus, view.Items[0].InstallStatus)
 		})
 	}
+}
+
+func TestPatchNotificationRenderUpdatedInInventory(t *testing.T) {
+	ds := new(mock.Store)
+	kind := &patchNotificationKind{
+		ds: ds, notificationSvc: &stubNotificationService{acts: true}, logger: slog.New(slog.DiscardHandler),
+	}
+	ds.ListPatchNotificationAppsFunc = func(_ context.Context, _ string) ([]fleet.PatchNotificationAppDetail, error) {
+		return []fleet.PatchNotificationAppDetail{{
+			SoftwareTitleID: 10, SoftwareInstallerID: new(uint(20)), Name: "1Password", UpdatedInInventory: true,
+		}}, nil
+	}
+	ds.ListPatchNotificationAppInstallStatusesFunc = func(_ context.Context, _ string) (map[uint]fleet.SoftwareInstallerStatus, error) {
+		return nil, nil
+	}
+	ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
+	ds.GetDeviceAuthTokenIfFreshFunc = func(_ context.Context, _ uint, _ time.Duration) (string, error) {
+		return "device-token", nil
+	}
+	ds.GetPatchNotificationFunc = func(_ context.Context, _ string) (*fleet.PatchNotification, error) {
+		return nil, nil
+	}
+
+	// render an acted notification whose app the deadline found updated in inventory with no Fleet install, the app should show updated
+	view, err := kind.Render(t.Context(), &notifications_api.EndUserNotification{
+		UUID: "notification-uuid", HostID: 1,
+		Status:  notifications_api.EndUserNotificationActed,
+		Payload: patchNotificationReminderPayload,
+	})
+	require.NoError(t, err)
+	require.Len(t, view.Items, 1)
+	require.Equal(t, "Updated", view.Items[0].Status)
+	require.Equal(t, "installed", view.Items[0].InstallStatus)
 }
 
 // A notification whose apps are gone, after an admin deletes the title, fails rather than retrying.
@@ -643,6 +696,28 @@ func TestPatchNotificationRenderWithNoApps(t *testing.T) {
 	require.Error(t, err)
 	require.Nil(t, view)
 	require.Equal(t, notifications_api.EndUserNotificationReasonNothingToShow, notificationSvc.failedReason)
+}
+
+func TestShouldNotificationBeReminder(t *testing.T) {
+	now := time.Now().UTC()
+
+	cases := []struct {
+		name      string
+		installAt *time.Time
+		want      bool
+	}{
+		{"a notification with no install_at is not the reminder", nil, false},
+		{"a notification with install_at more than 5 minutes ahead is not the reminder", new(now.Add(6 * time.Minute)), false},
+		{"a notification with install_at within 5 minutes is the reminder", new(now.Add(4 * time.Minute)), true},
+		{"a notification past install_at is not the reminder", new(now.Add(-time.Minute)), false},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := shouldNotificationBeReminder(&fleet.PatchNotification{InstallAt: c.installAt}, now)
+			require.Equal(t, c.want, got)
+		})
+	}
 }
 
 // What the activity OnOutcome records: which apps and policies it names, which
@@ -793,6 +868,8 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 				require.Equal(t, deadline, *activity.InstallAt)
 			}
 			require.Equal(t, c.outcome.ExecutionID, activity.ScriptExecutionID)
+			require.NotNil(t, activity.ExitCode)
+			require.Equal(t, c.outcome.ExitCode, *activity.ExitCode)
 
 			require.Equal(t, c.wantTitles, activity.SoftwareTitles)
 			require.Equal(t, c.wantPolicyIDs, activity.PolicyIDs)
@@ -837,12 +914,19 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 		alreadyActed bool
 		// the notification is already acted, which an earlier pass stopping part way through leaves behind
 		statusActed bool
+		hostOffline bool
+		// an earlier deadline pass recorded the first app as updated in inventory
+		firstAppUpdatedInInventory bool
 
 		wantReminder bool
 		wantInstalls []uint
 		// the pass tried to take the notification, whether or not it got it
 		wantActed       bool
 		wantAppsDropped []uint
+		// apps set as queued without an install, checked as a subset because the pass also marks the apps it queues
+		wantMarkedQueued []uint
+		// apps recorded as updated in the host's software inventory
+		wantUpdatedInInventory []uint
 	}{
 		{
 			name:              "an app updated during the hour is dropped from the reminder",
@@ -872,6 +956,16 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			wantInstalls:      []uint{oneInstallerID, twoInstallerID},
 		},
 		{
+			name:                   "an app the host's software inventory shows on the installer's version is recorded as updated in inventory without an install at the deadline",
+			untilDeadline:          -time.Minute,
+			displayed:              true,
+			reminder:               true,
+			installedVersions:      map[uint]string{oneTitleID: installerVersion, twoTitleID: "1.0.0"},
+			wantActed:              true,
+			wantInstalls:           []uint{twoInstallerID},
+			wantUpdatedInInventory: []uint{oneTitleID},
+		},
+		{
 			// Fleet's own install record catches a My device self-service update before the host's
 			// software inventory has refreshed to show it
 			name:              "an app Fleet installed since it was added to the notification is not installed again",
@@ -882,7 +976,7 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			lastInstalled:     new(appAddedAt.Add(time.Minute)),
 			wantActed:         true,
 			wantInstalls:      []uint{twoInstallerID},
-			wantAppsDropped:   []uint{oneTitleID},
+			wantMarkedQueued:  []uint{oneTitleID},
 		},
 		{
 			// the app was added after Fleet's install finished, because its policy failed anyway, so
@@ -942,7 +1036,7 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 		{
 			// if an earlier pass set the status to acted and then stopped before queueing, the apps
 			// are still unhandled. ActOnNotification returns false against that status, and
-			// isStatusActed is what lets this pass carry on and queue them.
+			// the acted status read with the notification is what lets this pass carry on and queue them.
 			name:              "an acted notification with an app still unhandled has its installs queued",
 			untilDeadline:     -time.Minute,
 			displayed:         true,
@@ -954,6 +1048,29 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			wantInstalls:      []uint{oneInstallerID, twoInstallerID},
 		},
 		{
+			name:              "a notification acted on from the 1 hour notice with an app still unhandled has its installs queued",
+			untilDeadline:     -time.Minute,
+			displayed:         true,
+			statusActed:       true,
+			alreadyActed:      true,
+			installedVersions: behind,
+			wantActed:         true,
+			wantInstalls:      []uint{oneInstallerID, twoInstallerID},
+		},
+		{
+			// the inventory reports the old version again by the time a later pass finishes the installs
+			name:                       "an acted notification with an app an earlier pass recorded as updated in inventory does not install that app",
+			untilDeadline:              -time.Minute,
+			displayed:                  true,
+			reminder:                   true,
+			statusActed:                true,
+			alreadyActed:               true,
+			firstAppUpdatedInInventory: true,
+			installedVersions:          behind,
+			wantActed:                  true,
+			wantInstalls:               []uint{twoInstallerID},
+		},
+		{
 			name:              "an Update now that got there first stops the deadline installing the same apps again",
 			untilDeadline:     -time.Minute,
 			displayed:         true,
@@ -961,6 +1078,28 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			installedVersions: behind,
 			alreadyActed:      true,
 			wantActed:         true,
+		},
+		{
+			name:              "a deadline reached on an offline host sends the notification again instead of installing",
+			untilDeadline:     -time.Minute,
+			displayed:         true,
+			reminder:          true,
+			installedVersions: behind,
+			hostOffline:       true,
+			wantReminder:      true,
+		},
+		{
+			// the installs are partly queued already, so the rest go out even with the host offline
+			name:              "an acted notification with an app still unhandled on an offline host has its installs queued",
+			untilDeadline:     -time.Minute,
+			displayed:         true,
+			reminder:          true,
+			statusActed:       true,
+			alreadyActed:      true,
+			hostOffline:       true,
+			installedVersions: behind,
+			wantActed:         true,
+			wantInstalls:      []uint{oneInstallerID, twoInstallerID},
 		},
 		{
 			// an offline host and a reminder still on its way both leave displayed_at null, and
@@ -1003,6 +1142,7 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 					Payload:          payload,
 					DisplayedAt:      displayed,
 					InstallAt:        time.Now().UTC().Add(c.untilDeadline),
+					HostOnline:       !c.hostOffline,
 				}}, nil
 			}
 
@@ -1012,7 +1152,7 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 			ds.ListPatchNotificationAppsForNotificationsFunc = func(_ context.Context, uuids []string) (map[string][]fleet.PatchNotificationAppDetail, error) {
 				appReads++
 				all := []fleet.PatchNotificationAppDetail{
-					{SoftwareTitleID: oneTitleID, SoftwareInstallerID: new(oneInstallerID), PolicyID: new(policyID), InstallerVersion: installerVersion, CreatedAt: appAddedAt},
+					{SoftwareTitleID: oneTitleID, SoftwareInstallerID: new(oneInstallerID), PolicyID: new(policyID), InstallerVersion: installerVersion, CreatedAt: appAddedAt, UpdatedInInventory: c.firstAppUpdatedInInventory},
 					{SoftwareTitleID: twoTitleID, SoftwareInstallerID: new(twoInstallerID), PolicyID: new(policyID), InstallerVersion: installerVersion, CreatedAt: appAddedAt},
 				}
 				listed := make([]fleet.PatchNotificationAppDetail, 0, len(all))
@@ -1085,6 +1225,11 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 				markedQueued = append(markedQueued, softwareTitleIDs...)
 				return nil
 			}
+			var updatedInInventory []uint
+			ds.SetPatchNotificationAppsUpdatedInInventoryFunc = func(_ context.Context, _ string, softwareTitleIDs []uint) error {
+				updatedInInventory = append(updatedInInventory, softwareTitleIDs...)
+				return nil
+			}
 
 			passErr := kind.RemindAndInstallDuePatches(context.Background())
 			if c.firstInstallFails {
@@ -1104,6 +1249,8 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 
 			require.ElementsMatch(t, c.wantInstalls, installs)
 			require.ElementsMatch(t, c.wantAppsDropped, gotDropped)
+			require.Subset(t, markedQueued, c.wantMarkedQueued)
+			require.ElementsMatch(t, c.wantUpdatedInInventory, updatedInInventory)
 			require.Equal(t, c.wantActed, notificationSvc.actInvoked)
 
 			if !c.wantReminder {
@@ -1111,7 +1258,12 @@ func TestRemindAndInstallDuePatches(t *testing.T) {
 				return
 			}
 			require.True(t, notificationSvc.delayInvoked)
-			require.JSONEq(t, string(patchNotificationReminderPayload), string(notificationSvc.delayPayload))
+			if c.hostOffline {
+				require.JSONEq(t, string(patchNotificationFirstNoticePayload), string(notificationSvc.delayPayload),
+					"a reminder toast still open switches to the 1 hour copy")
+				return
+			}
+			require.Nil(t, notificationSvc.delayPayload, "the notice is set when orbit fetches the script")
 		})
 	}
 }

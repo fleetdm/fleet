@@ -1,0 +1,12 @@
+.profile-form-page {
+  @include vertical-page-layout;
+  // Fill the viewport below the 50px top nav so the footer sits at the bottom
+  // even when the form is short; once the form is taller it sticks there.
+  min-height: calc(100vh - 50px - 2 * $pad-page);
+
+  // Keeps the back button at its own width; stretched by the column, its
+  // text would center.
+  &__header-links {
+    display: flex;
+  }
+}

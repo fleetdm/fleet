@@ -5,6 +5,24 @@ It would be great if computers always performed flawlessly, but sometimes errors
 
 ## Finding fleetd logs
 
+### Combined Orbit/osquery logs
+
+Logs from the currently running instance of fleetd can be retrieved by querying the `fleetd_logs` table:
+
+```SELECT * from fleetd_logs```
+
+To retrieve more detailed logs, you can run one of our health check scripts:
+
+- [Linux health check](https://github.com/fleetdm/fleet/blob/main/docs/solutions/linux/scripts/linux_ubuntu_fleetd_healthcheck.sh)
+- [macOS health check](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/scripts/fleetd_healthcheck_macos.sh)
+- [Windows health check](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/fleetd-healthcheck.ps1)
+
+### osquery status logs
+
+We highly recommend using one of Fleet's [logging plugins ](https://fleetdm.com/guides/log-destinations)to forward osquery status logs automatically to your preferred datastore.
+
+### Locating logs locally
+
 Fleetd will send stdout/stderr logs to the following directories:
 
 - macOS: `/var/log/orbit/orbit.std{out|err}.log`.
@@ -23,7 +41,6 @@ The Fleet Desktop log files can be found in the following directories depending 
 - Linux: `$XDG_STATE_HOME/Fleet` or `$HOME/.local/state/Fleet`
 
 The log file name is `fleet-desktop.log`.
-
 
 ## Enabling debug mode for fleetd
 

@@ -155,6 +155,7 @@ org_settings:
       location: Fleet Device Management Inc.
     windows_automatic_enrollment:
       default_fleet: "💻 Workstations"
+    windows_eula: ./lib/eula/terms.md
   org_info:
     contact_url: https://fleetdm.com/company/contact
     org_logo_url_dark_mode: http://some-org-logo-url.com
@@ -209,6 +210,7 @@ policies:
   continuous_automations_enabled: false
   critical: false
   description: This is a global policy
+  hidden: false
   install_software:
     hash_sha256: software-package-hash ___GITOPS_COMMENT_1___
   labels_include_any:
@@ -225,6 +227,7 @@ policies:
   continuous_automations_enabled: false
   critical: false
   description: This is a global policy with include_all scope
+  hidden: false
   labels_exclude_all:
   - Label E
   labels_include_all:

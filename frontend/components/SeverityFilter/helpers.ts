@@ -72,13 +72,17 @@ export const SEVERITY_DROPDOWN_OPTIONS: ISeverityOption[] = [
     minSeverity: min,
     maxSeverity: max,
   })),
+];
+
+const ALL_SEVERITY_OPTIONS: ISeverityOption[] = [
+  ...SEVERITY_DROPDOWN_OPTIONS,
   CUSTOM_SEVERITY_OPTION,
 ];
 
 export const getSeverityOption = (
   severity?: string
 ): ISeverityOption | undefined =>
-  SEVERITY_DROPDOWN_OPTIONS.find((option) => option.value === severity);
+  ALL_SEVERITY_OPTIONS.find((option) => option.value === severity);
 
 export const getSeverityBand = (severity: SeverityValue) =>
   SEVERITY_BANDS.find((band) => band.value === severity);
@@ -110,12 +114,21 @@ export interface ISeverityFilters {
   max?: number;
 }
 
+/** A score input's text as a number, or undefined when empty or not a number. */
+export const parseSeverityScore = (score: string): number | undefined => {
+  if (score.trim() === "") {
+    return undefined;
+  }
+  const parsed = Number(score);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
 export const severityFilters = ({
   minScore,
   maxScore,
 }: ISeverityScores): ISeverityFilters => {
-  const min = minScore === "" ? undefined : Number(minScore);
-  const max = maxScore === "" ? undefined : Number(maxScore);
+  const min = parseSeverityScore(minScore);
+  const max = parseSeverityScore(maxScore);
 
   if (min === SCORE_MIN && max === SCORE_MAX) {
     return {};
@@ -138,8 +151,8 @@ export const severityValueLabel = ({
     severity === CUSTOM_SEVERITY_VALUE &&
     !isEmpty(severityFilters({ minScore, maxScore }))
   ) {
-    const min = minScore === "" ? 0 : Number(minScore);
-    const max = maxScore === "" ? 10 : Number(maxScore);
+    const min = parseSeverityScore(minScore) ?? SCORE_MIN;
+    const max = parseSeverityScore(maxScore) ?? SCORE_MAX;
     return `${name} (${min} to ${max})`;
   }
 

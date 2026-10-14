@@ -1,0 +1,1 @@
+- Added support for `$FLEET_VAR_HOST_UUID` and the `$FLEET_VAR_HOST_END_USER_IDP_*` variables in a DigiCert certificate authority's common name, seat ID, and UPN. Certificates that use an IdP variable are reissued when the host's IdP values change.
