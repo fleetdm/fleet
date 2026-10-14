@@ -866,8 +866,29 @@ App Store apps support `path:` (single file) and `paths:` (glob pattern) referen
 - `auto_update_enabled` enables automatic updates for the app (default: `false`). Only supported for iOS and iPadOS App Store (VPP) apps.
 - `auto_update_window_start` is the start of the daily maintenance window during which Fleet will apply automatic updates, formatted as `HH:MM` in the host's local time (e.g. `"00:00"`). Required when `auto_update_enabled` is `true`. Must be wrapped in quotes so it is processed as a string.
 - `auto_update_window_end` is the end of the daily maintenance window, formatted as `HH:MM` in the host's local time (e.g. `"04:00"`). Required when `auto_update_enabled` is `true`. If the end time is earlier than the start time, the window wraps to the next day (e.g. `"22:00"` to `"02:00"`). Must be wrapped in quotes so it is processed as a string.
+- `location` is the name of the organization unit in Apple Business for the VPP token that the Apple App Store app is added from (optional). Only needed if the fleet has more than one VPP token and you want to add the app from a VPP token other than the fleet's first-added VPP token. The VPP token must be assigned to the fleet in [`volume_purchasing_program`](#volume-purchasing-program). Not supported for Android apps.
 
 To add the same App Store app for multiple platforms, specify the `app_store_id` multiple times, along with the `platform` you want. If you don't specify a platform, one app for each available platform will be added (macOS, iOS, and iPadOS).
+
+#### Multiple VPP tokens
+
+If a fleet has more than one VPP token, Fleet uses the first-added VPP token for Apple App Store apps without a `location`. The first-added VPP token is the one that was uploaded to Fleet first, out of the VPP tokens assigned to the fleet (including a VPP token assigned to "All fleets"). If the app isn't available in that VPP token, GitOps fails. Specify `location` to add it from a different VPP token.
+
+Each Apple App Store app can be added to a fleet from only one VPP token per platform. Fleet uses that VPP token to assign licenses.
+
+If an app is already added to the fleet and `location` isn't specified, Fleet keeps the app's current VPP token. This way, adding a new VPP token to a fleet, or removing one, doesn't change the VPP token of apps that are already added. If you specify a `location` that's different from the app's current VPP token, GitOps fails. To move an app to a different VPP token, remove the app from your YAML, run GitOps, and then add the app back with the new `location`.
+
+To keep the first-added VPP token, renew it instead of deleting it and uploading a new one. A VPP token that's deleted and uploaded again counts as the most recently added VPP token.
+
+```yaml
+software:
+  app_store_apps:
+    - app_store_id: "546505307" # Added from the fleet's first-added VPP token
+      platform: ios
+    - app_store_id: "1091189122" # Added from the second VPP token
+      platform: ios
+      location: Acme Japan
+```
 
 When you update an Android app's configuration via GitOps, the app's settings are applied without reinstalling the app. The install status will show as "Pending" until the configuration is applied.
 
@@ -1299,10 +1320,10 @@ org_settings:
         url: https://one.digicert.com
         api_token: $DIGICERT_API_TOKEN
         profile_id: 926dbcdd-41c4-4fe5-96c3-b6a7f0da81d8
-        certificate_common_name: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
+        certificate_common_name: $FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART@example.com
         certificate_user_principal_names:
-          - $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
-        certificate_seat_id: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
+          - $FLEET_VAR_HOST_END_USER_IDP_USERNAME
+        certificate_seat_id: $FLEET_VAR_HOST_HARDWARE_SERIAL
     ndes_scep_proxy:
       url: https://example.com/certsrv/mscep/mscep.dll
       admin_url: https://example.com/certsrv/mscep_admin/
@@ -1333,6 +1354,10 @@ org_settings:
         challenge_url: https://example.scep.smallstep.com/xr9f4db7-83f1-48ab-8982-8b6870d4fl85/challenge
         username: $SMALLSTEP_USERNAME
         password: $SMALLSTEP_PASSWORD
+    ejbca:
+      - name: EJBCA_WIFI
+        url: https://ejbca.example.com:8443
+        password: $EJBCA_CLIENT_P12_PASSWORD
 ```
 
 #### digicert
@@ -1341,9 +1366,11 @@ org_settings:
 - `url` is the URL to DigiCert One instance (default: `https://one.digicert.com`).
 - `api_token` is the token used to authenticate requests to DigiCert.
 - `profile_id` is the ID of certificate profile in DigiCert.
-- `certificate_common_name` is the certificate's CN.
-- `certificate_user_principal_names` is the certificate's user principal names (UPN) attribute in Subject Alternative Name (SAN).
-- `certificate_seat_id` is the ID of the DigiCert's seat. Seats are license units in DigiCert.
+- `certificate_common_name` is the certificate's CN. Accepts these Fleet variables: `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_PLATFORM`, `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`, `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`, `$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME`, `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`, `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`, and the legacy `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. Available on Apple hosts only.
+- `certificate_user_principal_names` is the certificate's user principal names (UPN) attribute in Subject Alternative Name (SAN). Accepts the same Fleet variables as `certificate_common_name`.
+- `certificate_seat_id` is the ID of the DigiCert's seat. Seats are license units in DigiCert. Accepts the same Fleet variables as `certificate_common_name`.
+
+When `certificate_common_name`, `certificate_user_principal_names`, or `certificate_seat_id` is edited, certificates are reissued to every host with a configuration profile that uses this CA, across all fleets. Editing only other fields, like `url` or `api_token`, doesn't reissue certificates. Certificates are also reissued when a host's IdP variable value changes.
 
 Can only be configured for "All fleets" (`org_settings`).
 
@@ -1385,6 +1412,12 @@ Can only be configured for "All fleets" (`org_settings`).
 - `challenge_url` is the **Webhook URL** from Smallstep.
 - `username` is the **Challenge Basic Authentication Username** from Smallstep.
 - `password` is the **Challenge Basic Authentication Password** from Smallstep.
+
+#### ejbca
+
+- `name` is the name of certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
+- `url` is the URL of the EJBCA REST API endpoint.
+- `password` is the password for the client certificate.
 
 Can only be configured for "All fleets" (`org_settings`).
 
@@ -1573,7 +1606,11 @@ org_settings:
 
 After you've uploaded a [Volume Purchasing Program](https://fleetdm.com/guides/macos-mdm-setup#volume-purchasing-program-vpp) (VPP) token, the  `volume_purchasing_program` section lets you configure the fleets in Fleet that have access to that VPP token's App Store apps. Currently, adding a VPP token is only available using Fleet's UI.
 - `location` is the name of the organization unit in the Apple Business account. Apple previously called this "location." Fleet will rename it to "organization unit" in the next major version.
-- `fleets` is a list of fleet names. If you choose specific fleets, App Store apps in this VPP account will only be available to install on hosts in these fleets. If not specified, App Store apps will not be available to install on any fleet. To apply it to all fleets, use `- All fleets`. 
+- `fleets` is a list of fleet names. If you choose specific fleets, App Store apps in this VPP account will only be available to install on hosts in these fleets. If not specified, App Store apps will not be available to install on any fleet. To apply it to all fleets, use `- All fleets`. A VPP token can't be assigned to `All fleets` and specific fleets at the same time.
+
+A fleet can have more than one VPP token. A VPP token assigned to `All fleets` is available in every fleet, including fleets created later, in addition to any other VPP tokens assigned to those fleets. Learn how Fleet chooses the VPP token for each app in [multiple VPP tokens](#multiple-vpp-tokens).
+
+When you remove a VPP token from a fleet, App Store apps that were added to that fleet from that VPP token are deleted from the fleet.
 
 Can only be configured for "All fleets" (`org_settings`).
 
