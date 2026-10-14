@@ -656,6 +656,8 @@ func testDigiCertEditResendsProfiles(t *testing.T, ds *Datastore) {
 	}{
 		{"API edit of the URL", apiEdit(fleet.CertificateAuthority{URL: new("https://new.example.com")}), false},
 		{"API edit to the same seat ID", apiEdit(fleet.CertificateAuthority{CertificateSeatID: new("seat")}), false},
+		{"API edit to the same profile ID", apiEdit(fleet.CertificateAuthority{ProfileID: new("profile")}), false},
+		{"API edit of the profile ID", apiEdit(fleet.CertificateAuthority{ProfileID: new("new-profile")}), true},
 		{"API edit of the common name", apiEdit(fleet.CertificateAuthority{CertificateCommonName: new("new-cn")}), true},
 		{"API edit of the UPN", apiEdit(fleet.CertificateAuthority{CertificateUserPrincipalNames: &[]string{"new-upn"}}), true},
 		{"GitOps edit of the API token", func() error {

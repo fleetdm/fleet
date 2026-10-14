@@ -407,7 +407,7 @@ func (ds *Datastore) BatchApplyCertificateAuthorities(ctx context.Context, ops f
 // getDigiCertCAsForUpdateDB returns the DigiCert CAs matching where, by name, locked until the transaction ends.
 func (ds *Datastore) getDigiCertCAsForUpdateDB(ctx context.Context, tx sqlx.ExtContext, where string, args ...any) (map[string]*fleet.CertificateAuthority, error) {
 	stmt, args, err := sqlx.In(`
-		SELECT id, type, name, certificate_common_name, certificate_user_principal_names, certificate_seat_id
+		SELECT id, type, name, profile_id, certificate_common_name, certificate_user_principal_names, certificate_seat_id
 		FROM certificate_authorities
 		WHERE type = ? AND `+where+`
 		FOR UPDATE`, append([]any{fleet.CATypeDigiCert}, args...)...)
@@ -431,7 +431,8 @@ func (ds *Datastore) getDigiCertCAsForUpdateDB(ctx context.Context, tx sqlx.ExtC
 // digiCertCertificateFieldsChanged reports whether an update changes what DigiCert puts in issued certificates. Nil fields in the update
 // are left unchanged.
 func digiCertCertificateFieldsChanged(oldCA, ca *fleet.CertificateAuthority) bool {
-	return ca.CertificateCommonName != nil && *ca.CertificateCommonName != ptr.ValOrZero(oldCA.CertificateCommonName) ||
+	return ca.ProfileID != nil && *ca.ProfileID != ptr.ValOrZero(oldCA.ProfileID) ||
+		ca.CertificateCommonName != nil && *ca.CertificateCommonName != ptr.ValOrZero(oldCA.CertificateCommonName) ||
 		ca.CertificateSeatID != nil && *ca.CertificateSeatID != ptr.ValOrZero(oldCA.CertificateSeatID) ||
 		ca.CertificateUserPrincipalNames != nil &&
 			!slices.Equal(*ca.CertificateUserPrincipalNames, ptr.ValOrZero(oldCA.CertificateUserPrincipalNames))

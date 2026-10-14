@@ -609,22 +609,36 @@ func TestReplaceFleetVarInDigiCertItem(t *testing.T) {
 		})
 	}
 
-	t.Run("failure detail mentions DigiCert", func(t *testing.T) {
-		ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
-			return &fleet.ScimUser{UserName: "user@example.com"}, nil
-		}
-		var detail string
-		ds.UpdateOrDeleteHostMDMAppleProfileFunc = func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
-			detail = profile.Detail
-			return nil
-		}
-		item := fleet.FleetVarHostEndUserIDPDepartment.WithBraces()
-		ok, err := replaceFleetVarInDigiCertItem(t.Context(), ds, &fleet.CmdTarget{CmdUUID: "command"}, fleet.Host{UUID: "host"}, make(map[string]string), &item, make(map[string]uint), nil, func(int) error { return nil })
-		require.NoError(t, err)
-		require.False(t, ok)
-		assert.Contains(t, detail, "Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT.")
-		assert.Contains(t, detail, "DigiCert certificate authority")
-	})
+	// Failures mention the DigiCert CA, since the variable lives in its fields and not in the profile.
+	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return &fleet.ScimUser{UserName: "user@example.com"}, nil
+	}
+	ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
+		return nil, nil
+	}
+	var failureDetail string
+	ds.UpdateOrDeleteHostMDMAppleProfileFunc = func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
+		failureDetail = profile.Detail
+		return nil
+	}
+	failures := []struct {
+		fleetVar fleet.FleetVarName
+		detail   string
+	}{
+		{fleet.FleetVarHostEndUserIDPDepartment, "Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT."},
+		{fleet.FleetVarHostEndUserEmailIDP, "Fleet couldn't populate $FLEET_VAR_HOST_END_USER_EMAIL_IDP."},
+	}
+	for _, tt := range failures {
+		t.Run("failure "+string(tt.fleetVar), func(t *testing.T) {
+			failureDetail = ""
+			item := tt.fleetVar.WithBraces()
+			ok, err := replaceFleetVarInDigiCertItem(t.Context(), ds, &fleet.CmdTarget{CmdUUID: "command"}, fleet.Host{UUID: "host"}, make(map[string]string), &item, make(map[string]uint), nil, func(int) error { return nil })
+			require.NoError(t, err)
+			require.False(t, ok)
+			assert.Contains(t, failureDetail, tt.detail)
+			assert.Contains(t, failureDetail, "DigiCert certificate authority")
+		})
+	}
 }
 
 func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {

@@ -1,2 +1,2 @@
 - Added support for `$FLEET_VAR_HOST_UUID` and the `$FLEET_VAR_HOST_END_USER_IDP_*` variables in a DigiCert certificate authority's common name, seat ID, and UPN. Certificates that use an IdP variable are reissued when the host's IdP values change.
-- Editing a DigiCert certificate authority's common name, seat ID, or UPN, in the UI, API, or GitOps, now reissues certificates to every host that has a certificate from that certificate authority.
+- Editing a DigiCert certificate authority's common name, seat ID, UPN, or profile ID, in the UI, API, or GitOps, now reissues certificates to every host that has a certificate from that certificate authority.
