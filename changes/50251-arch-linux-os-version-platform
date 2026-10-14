@@ -1,0 +1,1 @@
+- Fixed the "Arch Linux" row in Software > OS reporting an arbitrary Arch-based distribution (e.g. `cachyos` or `omarchy`) as its platform. The row now always reports `arch`; each host's own platform is unchanged.

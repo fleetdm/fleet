@@ -2189,6 +2189,7 @@ func directIngestOSUnixLike(ctx context.Context, logger *slog.Logger, host *flee
 		return ctxerr.Errorf(ctx, "directIngestOSUnixLike invalid number of rows: %d", len(rows))
 	}
 	name := rows[0]["name"]
+	platform := rows[0]["platform"]
 	// forceRollingVersion is set for Arch-based distributions that report their
 	// own release number but must still be recorded as "rolling". See the
 	// Omarchy case below for why the version cannot be derived in that case.
@@ -2218,6 +2219,13 @@ func directIngestOSUnixLike(ctx context.Context, logger *slog.Logger, host *flee
 		name = "Arch Linux"
 		forceRollingVersion = true
 	}
+	// Distributions aggregated onto the "Arch Linux" row also take its platform,
+	// otherwise each distro gets its own operating_systems row and the merged OS
+	// version reports whichever one is read first. The host's own platform is
+	// ingested separately and keeps the distro ID.
+	if name == "Arch Linux" {
+		platform = "arch"
+	}
 	version := rows[0]["version"]
 	major := rows[0]["major"]
 	minor := rows[0]["minor"]
@@ -2226,7 +2234,6 @@ func directIngestOSUnixLike(ctx context.Context, logger *slog.Logger, host *flee
 	extra := rows[0]["extra"]
 	arch := rows[0]["arch"]
 	kernelVersion := rows[0]["kernel_version"]
-	platform := rows[0]["platform"]
 
 	hostOS := fleet.OperatingSystem{Name: name, Arch: arch, KernelVersion: kernelVersion, Platform: platform}
 	hostOS.Version = parseOSVersion(name, version, major, minor, patch, build, extra)

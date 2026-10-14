@@ -1959,6 +1959,7 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 					"build":          "",
 					"arch":           "aarch64",
 					"kernel_version": "6.6.10-1-ARCH",
+					"platform":       "archarm",
 				},
 			},
 			expected: fleet.OperatingSystem{
@@ -1966,6 +1967,7 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				Version:       "1.2.3",
 				Arch:          "aarch64",
 				KernelVersion: "6.6.10-1-ARCH",
+				Platform:      "arch",
 			},
 		},
 		{
@@ -1979,6 +1981,7 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 					"build":          "",
 					"arch":           "x86_64",
 					"kernel_version": "6.6.10-1-ARCH",
+					"platform":       "arch",
 				},
 			},
 			expected: fleet.OperatingSystem{
@@ -1986,6 +1989,7 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				Version:       "1.2.3",
 				Arch:          "x86_64",
 				KernelVersion: "6.6.10-1-ARCH",
+				Platform:      "arch",
 			},
 		},
 		{
@@ -2002,6 +2006,7 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 					"build":          "rolling",
 					"arch":           "x86_64",
 					"kernel_version": "6.16.3-2-cachyos",
+					"platform":       "cachyos",
 				},
 			},
 			expected: fleet.OperatingSystem{
@@ -2009,6 +2014,7 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				Version:       "rolling",
 				Arch:          "x86_64",
 				KernelVersion: "6.16.3-2-cachyos",
+				Platform:      "arch",
 			},
 		},
 		{
@@ -2025,6 +2031,7 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 					"build":          "4.0.0",
 					"arch":           "x86_64",
 					"kernel_version": "6.16.3-arch1-1",
+					"platform":       "omarchy",
 				},
 			},
 			expected: fleet.OperatingSystem{
@@ -2032,6 +2039,7 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				Version:       "rolling",
 				Arch:          "x86_64",
 				KernelVersion: "6.16.3-arch1-1",
+				Platform:      "arch",
 			},
 		},
 		{
@@ -2047,6 +2055,7 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 					"build":          "",
 					"arch":           "x86_64",
 					"kernel_version": "6.18.44+rex+5-amd64",
+					"platform":       "amd-ryzen-ai-developer-platform",
 				},
 			},
 			expected: fleet.OperatingSystem{
@@ -2054,6 +2063,7 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				Version:       "1.0.0",
 				Arch:          "x86_64",
 				KernelVersion: "6.18.44+rex+5-amd64",
+				Platform:      "amd-ryzen-ai-developer-platform",
 			},
 		},
 	} {
