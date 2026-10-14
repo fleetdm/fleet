@@ -419,36 +419,38 @@ func (c *TestAppleMDMClient) Reenroll() error {
 	return c.enrollDevice(false)
 }
 
-// Renew installs a renewal enrollment profile the device received in an InstallProfile command (signed or not): it
-// re-keys with the profile's SCEP challenge or ACME directory and checks in again, without fetching a new profile.
-func (c *TestAppleMDMClient) Renew(profile []byte) error {
+// Renew installs a renewal enrollment profile the device received in the InstallProfile command cmdUUID (signed or
+// not): it re-keys with the profile's SCEP challenge or ACME directory, checks in again without fetching a new
+// profile, and then acknowledges the command with its new identity, like a real device. It returns the server's
+// response to that acknowledgment.
+func (c *TestAppleMDMClient) Renew(cmdUUID string, profile []byte) (*mdm.Command, error) {
 	if p7, err := pkcs7.Parse(profile); err == nil {
 		profile = p7.Content
 	}
 	enrollInfo, err := ParseEnrollmentProfile(profile)
 	if err != nil {
-		return fmt.Errorf("parse renewal profile: %w", err)
+		return nil, fmt.Errorf("parse renewal profile: %w", err)
 	}
 	enrollInfo.RawProfile = profile
 	c.EnrollInfo = *enrollInfo
 
 	if enrollInfo.ACMEURL != "" {
 		if err := c.UseACMEDirectory(enrollInfo.ACMEURL); err != nil {
-			return err
+			return nil, err
 		}
 		if err := c.ACMEEnroll(); err != nil {
-			return fmt.Errorf("ACME enroll: %w", err)
+			return nil, fmt.Errorf("ACME enroll: %w", err)
 		}
 	} else if err := c.SCEPEnroll(); err != nil {
-		return fmt.Errorf("scep enroll: %w", err)
+		return nil, fmt.Errorf("scep enroll: %w", err)
 	}
 	if err := c.Authenticate(); err != nil {
-		return fmt.Errorf("authenticate: %w", err)
+		return nil, fmt.Errorf("authenticate: %w", err)
 	}
 	if err := c.TokenUpdate(false); err != nil {
-		return fmt.Errorf("token update: %w", err)
+		return nil, fmt.Errorf("token update: %w", err)
 	}
-	return nil
+	return c.Acknowledge(cmdUUID)
 }
 
 func (c *TestAppleMDMClient) UserEnroll() error {

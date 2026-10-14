@@ -1039,8 +1039,12 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc)
 	require.NoError(t, err)
 
-	// deliveredRenewal holds the renewal profile each device received, which it later renews with
-	deliveredRenewal := map[*mdmtest.TestAppleMDMClient][]byte{}
+	// deliveredRenewal holds the renewal command each device received, which it later renews with and acknowledges
+	type renewal struct {
+		cmdUUID string
+		profile []byte
+	}
+	deliveredRenewal := map[*mdmtest.TestAppleMDMClient]renewal{}
 	checkRenewCertCommand := func(device *mdmtest.TestAppleMDMClient, enrollRef string, wantProfile string, wantManagedAppleID string) {
 		cmd, err := device.Idle()
 		require.NoError(t, err)
@@ -1106,12 +1110,10 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 			require.NoError(t, plist.Unmarshal(p7.Content, &got))
 			require.Equal(t, want, got)
 		}
-		deliveredRenewal[device] = payload
+		deliveredRenewal[device] = renewal{cmdUUID: renewCmdUUID, profile: payload}
 
-		// for testing convenience, we'll acknowledge the command right away, but in practice the
-		// device completes the enroll steps (SCEP, Autheniticate, TokenUpdate) before it sends
-		// the Acknowledge for the enrollment profile command
-		cmd, err = device.Acknowledge(renewCmdUUID)
+		// defer it again; the device acknowledges it only after renewing, like a real device
+		cmd, err = device.NotNow(renewCmdUUID)
 		require.NoError(t, err)
 		require.Nil(t, cmd)
 	}
@@ -1138,35 +1140,29 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.NoError(t, err)
 	checkRenewCertCommand(migratedDevice, "", string(migrationProfile), "")
 
-	// another cron run shouldn't enqueue more commands
+	// another cron run shouldn't enqueue more commands: the pending renewal is the only one
 	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc)
 	require.NoError(t, err)
 
-	cmd, err = manualEnrolledDevice.Idle()
-	require.NoError(t, err)
-	require.Nil(t, cmd)
-
-	cmd, err = automaticEnrolledDevice.Idle()
-	require.NoError(t, err)
-	require.Nil(t, cmd)
-
-	cmd, err = automaticEnrolledDeviceWithRef.Idle()
-	require.NoError(t, err)
-	require.Nil(t, cmd)
-
-	cmd, err = migratedDevice.Idle()
-	require.NoError(t, err)
-	require.Nil(t, cmd)
-
-	cmd, err = iPhoneMdmDevice.Idle()
-	require.NoError(t, err)
-	require.Nil(t, cmd)
-
-	// Devices renew their SCEP cert with the renewal profile they were sent, using its per-host challenge.
-	for _, d := range []*mdmtest.TestAppleMDMClient{
+	renewingDevices := []*mdmtest.TestAppleMDMClient{
 		manualEnrolledDevice, automaticEnrolledDevice, automaticEnrolledDeviceWithRef, migratedDevice, iPhoneMdmDevice,
-	} {
-		require.NoError(t, d.Renew(deliveredRenewal[d]))
+	}
+	for _, d := range renewingDevices {
+		cmd, err = d.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		require.Equal(t, deliveredRenewal[d].cmdUUID, cmd.CommandUUID)
+		cmd, err = d.NotNow(cmd.CommandUUID)
+		require.NoError(t, err)
+		require.Nil(t, cmd)
+	}
+
+	// Devices renew their SCEP cert with the renewal profile they were sent, using its per-host challenge, and then
+	// acknowledge the renewal command with their new identity.
+	for _, d := range renewingDevices {
+		cmd, err = d.Renew(deliveredRenewal[d].cmdUUID, deliveredRenewal[d].profile)
+		require.NoError(t, err)
+		require.Nil(t, cmd)
 	}
 
 	// no new commands are enqueued right after enrollment
@@ -1700,29 +1696,34 @@ func (s *integrationMDMTestSuite) TestSCEPRenewalVsFreshEnrollment() {
 		require.NoError(t, RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc))
 		require.True(t, renewalPending(hostUUID), "a SCEP renewal command should be pending after the renewal cron")
 	}
-	// pushedRenewalProfile acknowledges the device's queued commands and returns the renewal enrollment profile the
-	// cron pushed.
-	pushedRenewalProfile := func(dev *mdmtest.TestAppleMDMClient) []byte {
+	// renewWithPushedProfile acknowledges the device's other queued commands, then renews with the renewal
+	// enrollment profile the cron pushed and acknowledges it afterwards, like a real device.
+	renewWithPushedProfile := func(dev *mdmtest.TestAppleMDMClient) {
+		var renewCmdUUID string
 		var profile []byte
 		cmd, err := dev.Idle()
-		for ; cmd != nil && err == nil; cmd, err = dev.Acknowledge(cmd.CommandUUID) {
-			if cmd.Command.RequestType != "InstallProfile" {
-				continue
+		for cmd != nil && err == nil {
+			if cmd.Command.RequestType == "InstallProfile" {
+				var fullCmd micromdm.CommandPayload
+				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+				payload := fullCmd.Command.InstallProfile.Payload
+				content := payload
+				if p7, err := pkcs7.Parse(payload); err == nil {
+					content = p7.Content
+				}
+				if _, err := mdmtest.ParseEnrollmentProfile(content); err == nil {
+					renewCmdUUID, profile = cmd.CommandUUID, payload
+					cmd, err = dev.NotNow(cmd.CommandUUID)
+					continue
+				}
 			}
-			var fullCmd micromdm.CommandPayload
-			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-			payload := fullCmd.Command.InstallProfile.Payload
-			content := payload
-			if p7, err := pkcs7.Parse(payload); err == nil {
-				content = p7.Content
-			}
-			if _, err := mdmtest.ParseEnrollmentProfile(content); err == nil {
-				profile = payload
-			}
+			cmd, err = dev.Acknowledge(cmd.CommandUUID)
 		}
 		require.NoError(t, err)
 		require.NotEmpty(t, profile, "the renewal cron should have pushed a renewal profile")
-		return profile
+		cmd, err = dev.Renew(renewCmdUUID, profile)
+		require.NoError(t, err)
+		require.Nil(t, cmd)
 	}
 	lastEnrolledActivityID := func() uint {
 		return s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(), "", 0)
@@ -1764,7 +1765,7 @@ func (s *integrationMDMTestSuite) TestSCEPRenewalVsFreshEnrollment() {
 		forcePendingRenewal(host.UUID)
 
 		// the device re-keys from the renewal profile it was pushed, with its per-host challenge
-		require.NoError(t, dev.Renew(pushedRenewalProfile(dev)))
+		renewWithPushedProfile(dev)
 
 		// The renewal is short-circuited: refs cleared, but NO new mdm_enrolled activity.
 		require.False(t, renewalPending(host.UUID), "renew refs should be cleared after a renewal checkin")
@@ -1838,7 +1839,7 @@ func (s *integrationMDMTestSuite) TestSCEPRenewalVsFreshEnrollment() {
 		// Genuine ACME renewal short-circuits: no new mdm_enrolled. The device re-keys from the renewal profile the
 		// cron pushed, whose ACME enrollment is an acme_renewal bound to this host.
 		forcePendingRenewal(host.UUID)
-		require.NoError(t, dev.Renew(pushedRenewalProfile(dev)))
+		renewWithPushedProfile(dev)
 		require.False(t, renewalPending(host.UUID), "renew refs should be cleared after an ACME renewal checkin")
 		require.Equal(t, firstEnrollID, lastEnrolledActivityID(), "an ACME renewal must not emit a new mdm_enrolled activity")
 

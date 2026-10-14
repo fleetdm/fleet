@@ -15,10 +15,11 @@ func init() {
 // stays outstanding with a static SCEP challenge. The renewal cron re-sends them with per-host challenges, and ACME
 // renewals as acme_renewal enrollments.
 func Up_20261012131507(tx *sql.Tx) error {
-	const batchSize = 1000
+	// a renewal command is shared by up to ~100 associations, so batch by distinct command
+	const batchSize = 100
 	for {
 		var cmdUUIDs []string
-		rows, err := tx.Query(`SELECT renew_command_uuid FROM nano_cert_auth_associations WHERE renew_command_uuid IS NOT NULL LIMIT ?`, batchSize)
+		rows, err := tx.Query(`SELECT DISTINCT renew_command_uuid FROM nano_cert_auth_associations WHERE renew_command_uuid IS NOT NULL LIMIT ?`, batchSize)
 		if err != nil {
 			return fmt.Errorf("selecting pending cert renewals: %w", err)
 		}
