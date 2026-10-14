@@ -135,6 +135,5 @@ labels:
 custom_host_vitals:
   # Set daily from Retriever's warehouse API by a scheduled routine.
   - name: Warehouse status
-  # Set daily from the Apple Business API by a scheduled routine. The value is
-  # the latest AppleCare or limited warranty end date, as YYYY-MM-DD.
+  # Set daily from the Apple Business API by a scheduled routine.
   - name: AppleCare warranty expiration
