@@ -1023,8 +1023,7 @@ func orbitAction(c *cli.Context) error {
 		ComputerName:   osqueryHostInfo.ComputerName,
 		HardwareModel:  osqueryHostInfo.HardwareModel,
 	}
-	// Lets Fleet match the device to its pending Autopilot host exactly, which the serial cannot do when it is a placeholder or
-	// shared with another device. Failing to read it only loses that, so enrollment goes on.
+	// Lets Fleet match the device to its pending Autopilot host exactly, which the serial cannot do reliably.
 	if autopilotDeviceID, err := autopilot.RegistrationID(); err != nil {
 		log.Debug().Err(err).Msg("read autopilot device id")
 	} else {

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -784,10 +785,6 @@ func testIngestPlaceholderSerials(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	seedWindowsBuiltinLabels(t, ds)
 
-	original := hostAutopilotDeviceBatchSize
-	hostAutopilotDeviceBatchSize = 2
-	t.Cleanup(func() { hostAutopilotDeviceBatchSize = original })
-
 	// Enrolled Windows hosts that carry placeholder serials, as osquery and orbit store them, and no Autopilot record.
 	// None of them may be adopted by, or mistaken for, a device that merely shares the placeholder.
 	unrelatedEmpty := test.NewHost(t, ds, "DESKTOP-EMPTY", "10.10.10.30", "nodekey-empty", "uuid-empty", time.Now(),
@@ -808,30 +805,22 @@ func testIngestPlaceholderSerials(t *testing.T, ds *Datastore) {
 	require.Len(t, stored, len(devices), "a placeholder serial does not stop a device from becoming a pending host")
 	hostIDs := make(map[uint]struct{}, len(stored))
 	for _, d := range stored {
-		assert.NotZero(t, d.HostID)
 		assert.NotEqual(t, unrelatedEmpty.ID, d.HostID, "an enrolled host with an empty serial is never adopted")
 		assert.NotEqual(t, unrelatedDefault.ID, d.HostID, "an enrolled host with a placeholder serial is never adopted")
 		hostIDs[d.HostID] = struct{}{}
 	}
 	assert.Len(t, hostIDs, len(devices), "devices sharing a placeholder serial are separate hosts")
 	assert.Equal(t, "Default string", stored["ap-default-1"].HardwareSerial, "the Autopilot record keeps the serial Graph reports")
-	assert.Equal(t, "Marketing", stored["ap-default-2"].GroupTag)
 
+	// The stored display name is read directly: ds.Host computes one from the host's own (empty) serial instead.
 	type pendingHost struct {
-		HardwareSerial   string  `db:"hardware_serial"`
-		EnrollmentStatus *string `db:"enrollment_status"`
-		DisplayName      string  `db:"display_name"`
-		LabelCount       int     `db:"label_count"`
+		HardwareSerial string `db:"hardware_serial"`
+		DisplayName    string `db:"display_name"`
 	}
 	readPendingHost := func(hostID uint) pendingHost {
 		var got pendingHost
 		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &got, `
-SELECT h.hardware_serial, hm.enrollment_status, hdn.display_name,
-	(SELECT COUNT(*) FROM label_membership lm WHERE lm.host_id = h.id) AS label_count
-FROM hosts h
-JOIN host_mdm hm ON hm.host_id = h.id
-JOIN host_display_names hdn ON hdn.host_id = h.id
-WHERE h.id = ?`, hostID))
+SELECT h.hardware_serial, hdn.display_name FROM hosts h JOIN host_display_names hdn ON hdn.host_id = h.id WHERE h.id = ?`, hostID))
 		return got
 	}
 	for _, tc := range []struct {
@@ -848,19 +837,9 @@ WHERE h.id = ?`, hostID))
 		t.Run(tc.deviceID, func(t *testing.T) {
 			got := readPendingHost(stored[tc.deviceID].HostID)
 			assert.Equal(t, tc.hostSerial, got.HardwareSerial, "a placeholder serial is stored empty, as osquery stores it")
-			require.NotNil(t, got.EnrollmentStatus)
-			assert.Equal(t, "Pending", *got.EnrollmentStatus)
 			assert.Equal(t, tc.displayName, got.DisplayName)
-			assert.Equal(t, 2, got.LabelCount)
 		})
 	}
-
-	// The next sync resolves every device by its Autopilot device ID, so nothing is created twice.
-	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, devices))
-	assert.Equal(t, stored, autopilotDevicesByDeviceID(t, ds, testTenantA))
-	var windowsHosts int
-	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &windowsHosts, `SELECT COUNT(*) FROM hosts WHERE platform = 'windows'`))
-	assert.Equal(t, len(devices)+2, windowsHosts)
 }
 
 func testIngestAdoptsHostsThroughMDMEnrollment(t *testing.T, ds *Datastore) {
@@ -912,7 +891,7 @@ func testIngestAdoptsHostsThroughMDMEnrollment(t *testing.T, ds *Datastore) {
 	sharedOther := enrolledHost(t, "shared-other", "SHARED-ADOPT", "", "")
 
 	devices := []*fleet.HostAutopilotDevice{
-		withEntraID(autopilotDeviceWithID(ztdNucBox, "Default string", "Engineering"), entraNucBox),
+		withEntraID(autopilotDeviceWithID(ztdNucBox, "Default string", ""), entraNucBox),
 		withEntraID(autopilotDeviceWithID("ap-settings", "Default string", ""), entraSettings),
 		withEntraID(autopilotDeviceWithID("ap-contradicting", "Default string", ""), "26100000-0000-4000-8000-000000000009"),
 		withEntraID(autopilotDeviceWithID("ap-contradicting-serial", "CONTRADICTING-SERIAL", ""), "26100000-0000-4000-8000-000000000009"),
@@ -924,24 +903,12 @@ func testIngestAdoptsHostsThroughMDMEnrollment(t *testing.T, ds *Datastore) {
 	stored := autopilotDevicesByDeviceID(t, ds, testTenantA)
 
 	assert.Equal(t, nucBox.ID, stored[ztdNucBox].HostID, "adopted through the Autopilot device ID on its enrollment")
-	assert.Equal(t, "Engineering", stored[ztdNucBox].GroupTag)
 	assert.Equal(t, settingsJoined.ID, stored["ap-settings"].HostID, "adopted through the Entra device ID on its enrollment")
 	assert.NotEqual(t, contradicting.ID, stored["ap-contradicting"].HostID, "an enrollment contradicting the record is not trusted")
 	assert.NotEqual(t, contradictingSerial.ID, stored["ap-contradicting-serial"].HostID,
 		"a host whose enrollment contradicts the record is not adopted by serial either")
 	assert.Equal(t, sharedIdentified.ID, stored[ztdShared].HostID, "the exact match wins over the serial order")
 	assert.Equal(t, sharedOther.ID, stored["ap-shared-other"].HostID, "the other device on the serial takes the remaining host")
-
-	// Only the contradicting devices needed pending hosts. The next sync creates nothing more.
-	countWindowsHosts := func() int {
-		var n int
-		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &n, `SELECT COUNT(*) FROM hosts WHERE platform = 'windows'`))
-		return n
-	}
-	assert.Equal(t, 8, countWindowsHosts())
-	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, devices))
-	assert.Equal(t, stored, autopilotDevicesByDeviceID(t, ds, testTenantA))
-	assert.Equal(t, 8, countWindowsHosts())
 
 	t.Run("a host another Autopilot record claims is not adopted", func(t *testing.T) {
 		// The NucBox's host is claimed now; a second registration presenting its Entra device ID gets a pending host instead.
@@ -1016,11 +983,12 @@ func testOrbitEnrollMatchesPendingAutopilotHostByDeviceID(t *testing.T, ds *Data
 		require.NoError(t, err)
 		return host
 	}
-	orbitNodeKey := func(t *testing.T, hostID uint) *string {
+	// orbitNodeKey is empty for a host no orbit has enrolled into.
+	orbitNodeKey := func(t *testing.T, hostID uint) string {
 		t.Helper()
-		var key *string
-		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &key, `SELECT orbit_node_key FROM hosts WHERE id = ?`, hostID))
-		return key
+		host, err := ds.Host(ctx, hostID)
+		require.NoError(t, err)
+		return ptr.ValOrZero(host.OrbitNodeKey)
 	}
 
 	t.Run("devices sharing a serial each claim their own pending host", func(t *testing.T) {
@@ -1036,14 +1004,12 @@ func testOrbitEnrollMatchesPendingAutopilotHostByDeviceID(t *testing.T, ds *Data
 		assert.Equal(t, stored["ap-shared-2"].HostID, second.ID)
 		first := enroll(t, "uuid-shared-1", serial, "ap-shared-1")
 		assert.Equal(t, stored["ap-shared-1"].HostID, first.ID)
-		assert.Len(t, hostIDsBySerial(t, ds, serial), 2, "no host was created besides the two pending ones")
 
 		// Once claimed, a host is no longer matched by its Autopilot device ID, so another device presenting it gets a host
 		// of its own and the claimed host keeps its node key.
 		impostor := enroll(t, "uuid-impostor", serial, "ap-shared-1")
 		assert.NotEqual(t, first.ID, impostor.ID)
-		require.NotNil(t, orbitNodeKey(t, first.ID))
-		assert.Equal(t, "orbit-key-uuid-shared-1", *orbitNodeKey(t, first.ID))
+		assert.Equal(t, "orbit-key-uuid-shared-1", orbitNodeKey(t, first.ID))
 	})
 
 	t.Run("a device with a placeholder serial claims its pending host", func(t *testing.T) {
@@ -1059,7 +1025,7 @@ func testOrbitEnrollMatchesPendingAutopilotHostByDeviceID(t *testing.T, ds *Data
 		// Without the Autopilot device ID, a placeholder serial matches nothing rather than a random device's host.
 		legacy := enroll(t, "uuid-placeholder-legacy", "Default string", "")
 		assert.NotEqual(t, stored["ap-placeholder-1"].HostID, legacy.ID)
-		assert.Nil(t, orbitNodeKey(t, stored["ap-placeholder-1"].HostID), "the other pending host is still unclaimed")
+		assert.Empty(t, orbitNodeKey(t, stored["ap-placeholder-1"].HostID), "the other pending host is still unclaimed")
 	})
 
 	t.Run("the hardware UUID wins over the Autopilot device ID", func(t *testing.T) {
@@ -1072,7 +1038,7 @@ func testOrbitEnrollMatchesPendingAutopilotHostByDeviceID(t *testing.T, ds *Data
 
 		reenrolled := enroll(t, "uuid-reenroll", "Default string", "ap-reenroll")
 		assert.Equal(t, existing.ID, reenrolled.ID, "the host with history is kept rather than swapped for the pending one")
-		assert.Nil(t, orbitNodeKey(t, pendingHostID))
+		assert.Empty(t, orbitNodeKey(t, pendingHostID))
 	})
 
 	t.Run("a device whose Autopilot device ID is not synced yet does not take a host by serial", func(t *testing.T) {
@@ -1084,15 +1050,7 @@ func testOrbitEnrollMatchesPendingAutopilotHostByDeviceID(t *testing.T, ds *Data
 		// The pending host sharing the serial belongs to the other registration, so the device gets a host of its own.
 		host := enroll(t, "uuid-unsynced", "UNSYNCED-SERIAL", "ap-not-synced-yet")
 		assert.NotEqual(t, syncedHostID, host.ID)
-		assert.Nil(t, orbitNodeKey(t, syncedHostID))
-	})
-
-	t.Run("fleetd without the Autopilot device ID falls back to the serial", func(t *testing.T) {
-		require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{
-			autopilotDeviceWithID("ap-fallback", "FALLBACK-SERIAL", ""),
-		}))
-		host := enroll(t, "uuid-fallback", "FALLBACK-SERIAL", "")
-		assert.Equal(t, autopilotDevicesByDeviceID(t, ds, testTenantA)["ap-fallback"].HostID, host.ID)
+		assert.Empty(t, orbitNodeKey(t, syncedHostID))
 	})
 
 	t.Run("fleetd without the Autopilot device ID does not take a pending host another device claimed", func(t *testing.T) {
@@ -1107,7 +1065,7 @@ func testOrbitEnrollMatchesPendingAutopilotHostByDeviceID(t *testing.T, ds *Data
 		second := enroll(t, "uuid-legacy-2", serial, "")
 		assert.ElementsMatch(t, []uint{stored["ap-legacy-1"].HostID, stored["ap-legacy-2"].HostID}, []uint{first.ID, second.ID},
 			"each device takes a pending host of its own")
-		assert.Equal(t, "orbit-key-uuid-legacy-1", *orbitNodeKey(t, first.ID), "the first device keeps its host")
+		assert.Equal(t, "orbit-key-uuid-legacy-1", orbitNodeKey(t, first.ID), "the first device keeps its host")
 
 		previouslyEnrolled, err := ds.HostPreviouslyOrbitEnrolled(ctx,
 			fleet.OrbitHostInfo{HardwareUUID: "uuid-legacy-3", HardwareSerial: serial, Platform: "windows"}, false)

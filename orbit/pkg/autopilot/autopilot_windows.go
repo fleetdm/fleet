@@ -9,15 +9,14 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
-// Windows writes the profile it downloaded from the Autopilot service here, as one JSON string. The ZTDID is not stored
-// as a value of its own anywhere else.
+// Windows writes the profile it downloaded from the Autopilot service here, as one JSON string.
 const (
 	policyCacheKeyPath   = `SOFTWARE\Microsoft\Provisioning\AutopilotPolicyCache`
 	policyCacheValueName = "PolicyJsonCache"
 )
 
-// RegistrationID returns the device's Autopilot device ID (ZTDID), the GUID Microsoft Graph returns as
-// windowsAutopilotDeviceIdentity.id. It returns an empty string when the device has no Autopilot profile.
+// RegistrationID returns the device's Autopilot device ID (ZTDID). It returns an empty string when the device has no
+// Autopilot profile.
 func RegistrationID() (string, error) {
 	return registrationID(registry.LOCAL_MACHINE, policyCacheKeyPath)
 }
