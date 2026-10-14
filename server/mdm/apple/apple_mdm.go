@@ -31,6 +31,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
+	"github.com/micromdm/plist"
+	"github.com/smallstep/pkcs7"
 
 	depclient "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
@@ -2875,6 +2877,82 @@ func BuildAppleMDMCertificateBindingExtension(extension AppleMDMCertificateBindi
 		Id:    AppleMDMCertificateBindingExtensionOID,
 		Value: asn1Value,
 	}, nil
+}
+
+// ParseAppleMDMCertificateBindingExtension returns the certificate's binding extension, or nil if it has none. It
+// errors on a malformed or duplicated extension, or an unsupported version.
+func ParseAppleMDMCertificateBindingExtension(cert *x509.Certificate) (*AppleMDMCertificateBindingExtension, error) {
+	var found *pkix.Extension
+	for i := range cert.Extensions {
+		if !cert.Extensions[i].Id.Equal(AppleMDMCertificateBindingExtensionOID) {
+			continue
+		}
+		if found != nil {
+			return nil, errors.New("duplicate certificate binding extension")
+		}
+		found = &cert.Extensions[i]
+	}
+	if found == nil {
+		return nil, nil
+	}
+
+	var raw string
+	rest, err := asn1.UnmarshalWithParams(found.Value, &raw, "utf8")
+	if err != nil {
+		return nil, fmt.Errorf("decoding certificate binding extension: %w", err)
+	}
+	if len(rest) > 0 {
+		return nil, errors.New("trailing data after certificate binding extension")
+	}
+	var binding AppleMDMCertificateBindingExtension
+	if err := json.Unmarshal([]byte(raw), &binding); err != nil {
+		return nil, fmt.Errorf("unmarshaling certificate binding extension: %w", err)
+	}
+	if binding.Version != 1 {
+		return nil, fmt.Errorf("unsupported certificate binding version %d", binding.Version)
+	}
+	return &binding, nil
+}
+
+// SilentMigrationRenewalProfile prepares the FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE env profile for a renewal: it
+// unwraps a signed profile, since Fleet signs it at delivery, and sets the Challenge of its SCEP payload to the
+// per-host challenge placeholder. That Challenge must be $FLEET_VAR_SILENT_MIGRATION_SCEP_CHALLENGE, or for profiles
+// set up before that variable existed, the static challenge. The profile is returned as an XML plist.
+func SilentMigrationRenewalProfile(profile []byte, staticChallenge string) ([]byte, error) {
+	if p7, err := pkcs7.Parse(profile); err == nil {
+		profile = p7.Content
+	}
+
+	var root map[string]any
+	if err := plist.Unmarshal(profile, &root); err != nil {
+		return nil, fmt.Errorf("parsing silent migration enrollment profile: %w", err)
+	}
+	payloads, _ := root["PayloadContent"].([]any)
+	var replaced bool
+	for _, p := range payloads {
+		payload, _ := p.(map[string]any)
+		if payload["PayloadType"] != "com.apple.security.scep" {
+			continue
+		}
+		content, _ := payload["PayloadContent"].(map[string]any)
+		switch challenge, _ := content["Challenge"].(string); {
+		case challenge == fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix(),
+			challenge == fleet.FleetVarSilentMigrationSCEPChallenge.WithBraces(),
+			staticChallenge != "" && challenge == staticChallenge:
+			content["Challenge"] = fleet.HostSecretPlaceholder(fleet.HostSecretSCEPChallenge)
+			replaced = true
+		}
+	}
+	if !replaced {
+		return nil, fmt.Errorf("silent migration enrollment profile has no SCEP payload whose Challenge is %s or the static SCEP challenge",
+			fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix())
+	}
+
+	out, err := plist.Marshal(root)
+	if err != nil {
+		return nil, fmt.Errorf("encoding silent migration enrollment profile: %w", err)
+	}
+	return out, nil
 }
 
 func AppleMDMSCEPCertificateSubject(newEnrollment bool) pkix.Name {

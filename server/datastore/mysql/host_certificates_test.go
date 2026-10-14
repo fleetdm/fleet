@@ -18,7 +18,9 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -154,9 +156,10 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 	ackVerified := func(t *testing.T, h *fleet.Host, cmdUUID string) {
 		t.Helper()
 		verified := fleet.MDMDeliveryVerified
-		require.NoError(t, updateMDMWindowsHostProfileStatusFromResponseDB(ctx, ds.writer(ctx),
+		_, err := updateMDMWindowsHostProfileStatusFromResponseDB(ctx, ds.writer(ctx),
 			[]*fleet.MDMWindowsProfilePayload{{HostUUID: h.UUID, CommandUUID: cmdUUID, Status: &verified}},
-			fleet.WindowsUserContextPresent, true))
+			fleet.WindowsUserContextPresent, true)
+		require.NoError(t, err)
 	}
 
 	// insertConfigProfile creates the team config profile row whose SyncML scope (./Device vs ./User) the backstop
@@ -541,6 +544,34 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 				wantRollup = fleet.MDMDeliveryPending
 			}
 			requireRollupMatchesReconcile(t, h.UUID, wantRollup)
+		})
+	}
+
+	// A profile the device's SCEP status reported as installed is backstopped too while its certificate never matched the
+	// renewal ID (the CA rewrote the subject), because Fleet can't renew it. A matched certificate keeps it verified.
+	for _, matched := range []bool{false, true} {
+		t.Run(fmt.Sprintf("backstop on verified: certificate matched=%t", matched), func(t *testing.T) {
+			h := mkHost(t, fmt.Sprintf("backstop-verified-%t", matched))
+			p := fmt.Sprintf("w-backstop-verified-%t", matched)
+			upsertWinProfile(t, h, p, "cmd-backstop-verified", fleet.MDMDeliveryVerified, 0)
+			insertConfigProfile(t, p, p, false)
+			nvb, nva := time.Now().Add(-time.Hour), time.Now().Add(time.Hour)
+			if matched {
+				upsertHMMC(t, h, p, fleet.CAConfigNDES, &nvb, &nva)
+			} else {
+				upsertHMMC(t, h, p, fleet.CAConfigNDES, nil, nil)
+			}
+			backdateProfile(t, h, p, 2*time.Hour)
+			ingest(t, h, plainCert(t, h, "verified-cert", fleet.SystemHostCertificate, ""))
+
+			status, _, retries := getProfile(t, h, p)
+			if matched {
+				require.Equal(t, fleet.MDMDeliveryVerified, status)
+				require.Zero(t, retries)
+			} else {
+				require.Empty(t, status, "queued for another delivery")
+				require.Equal(t, 1, retries)
+			}
 		})
 	}
 
@@ -1652,6 +1683,66 @@ func testUpdateHostCertificatesPreciseSourceWrites(t *testing.T, ds *Datastore) 
 	require.Equal(t, systemRowID, after[0].ID, "unchanged system source row must keep its primary key")
 	require.Equal(t, "system", after[0].Source)
 	require.Equal(t, "bob", after[1].Username, "alice's source row should be replaced by bob's")
+}
+
+// Uses a replica, as the cleanup selects there: lag must neither hide rows forever nor make the loop re-select deleted ones.
+func TestCleanupDeletedHostCerts(t *testing.T) {
+	opts := &testing_utils.DatastoreTestOptions{DummyReplica: true}
+	ds := CreateMySQLDSWithOptions(t, opts)
+	ctx := t.Context()
+	now := time.Now().UTC()
+	cutoff := now.Add(-30 * 24 * time.Hour)
+
+	host := test.NewHost(t, ds, "cleanup", "", "cleanup-key", "cleanup-uuid", now)
+	ingest := func(origin fleet.HostCertificateOrigin, commonNames ...string) {
+		var certs []*fleet.HostCertificateRecord
+		for _, cn := range commonNames {
+			certs = append(certs, mkTestCertRecord(t, host.ID, cn, fleet.SystemHostCertificate, ""))
+		}
+		require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, certs, origin, nil))
+	}
+	ingest(fleet.HostCertificateOriginOsquery, "expired-a", "expired-b", "expired-c", "recent", "live")
+	ingest(fleet.HostCertificateOriginMDM, "expired-mdm")
+	// No datastore method soft-deletes with a past timestamp. Distinct timestamps fix the cursor order to a, b, c, since
+	// UpdateHostCertificates inserts in map iteration order, so the id order is random.
+	expired := now.Add(-60 * 24 * time.Hour)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_certificates SET deleted_at = CASE common_name
+			WHEN 'recent' THEN ? WHEN 'expired-b' THEN ? WHEN 'expired-c' THEN ? ELSE ? END WHERE common_name <> 'live'`,
+			now.Add(-24*time.Hour), expired.Add(time.Second), expired.Add(2*time.Second), expired)
+		return err
+	})
+	// ListHostCertificates hides soft-deleted rows, so read the primary directly.
+	requirePrimaryState := func(wantCommonNames []string, wantSources int) {
+		var names []string
+		var sources int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if err := sqlx.SelectContext(ctx, q, &names, `SELECT common_name FROM host_certificates ORDER BY common_name`); err != nil {
+				return err
+			}
+			return sqlx.GetContext(ctx, q, &sources, `SELECT COUNT(*) FROM host_certificate_sources`)
+		})
+		require.Equal(t, wantCommonNames, names)
+		require.Equal(t, wantSources, sources)
+	}
+	cleanup := func(batchSize, maxBatches int, wantDeleted int64) {
+		deleted, err := cleanupSoftDeletedHostCertsDB(ctx, ds, cutoff, batchSize, maxBatches)
+		require.NoError(t, err)
+		require.Equal(t, wantDeleted, deleted)
+	}
+
+	// Not replicated yet, so nothing is visible to delete.
+	cleanup(2, 2, 0)
+	opts.RunReplication()
+
+	// The batch cap stops the osquery pass after two of its three expired certs, and the mdm pass still runs on its own budget.
+	cleanup(2, 1, 3)
+	requirePrimaryState([]string{"expired-c", "live", "recent"}, 3)
+
+	// The replica still returns the three deleted certs. The cursor moves past them instead of re-selecting them until the cap, so the
+	// run reaches the third osquery cert. Source rows go with their certs via the cascade.
+	cleanup(2, 10, 1)
+	requirePrimaryState([]string{"live", "recent"}, 2)
 }
 
 // mkTestCertRecord builds a HostCertificateRecord for hostID with a random serial, valid from an hour ago to 24 hours

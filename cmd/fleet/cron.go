@@ -1133,6 +1133,7 @@ func newWorkerIntegrationsSchedule(
 	chartSvc chart_api.Service,
 	androidBatchSize int,
 	newActivitySvc activity_api.NewActivityService,
+	vppInstaller fleet.AppleMDMVPPInstaller,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronWorkerIntegrations)
@@ -1197,6 +1198,7 @@ func newWorkerIntegrationsSchedule(
 		Log:              logger,
 		AndroidModule:    androidModule,
 		AndroidBatchSize: androidBatchSize,
+		VPPInstaller:     vppInstaller,
 	}
 	chartScrubGlobal := &worker.ChartScrubGlobal{
 		ChartService: chartSvc,
@@ -1658,6 +1660,9 @@ func newCleanupsAndAggregationSchedule(
 			}
 			return nil
 		}),
+		schedule.WithJob("cleanup_host_certificates", func(ctx context.Context) error {
+			return cleanupHostCertificatesCronJob(ctx, ds, logger, config.Server.DeletedHostCertificatesRetention)
+		}),
 		schedule.WithJob("cleanup_host_mdm_apple_profiles", func(ctx context.Context) error {
 			return ds.CleanupHostMDMAppleProfiles(ctx)
 		}),
@@ -1813,6 +1818,24 @@ func cleanupHostScriptResultsCronJob(ctx context.Context, ds fleet.Datastore, lo
 	}
 	if deleted > 0 {
 		logger.InfoContext(ctx, "cleaned up host script results", "deleted", deleted)
+	}
+	return nil
+}
+
+// cleanupHostCertificatesCronJob is disabled by a non-positive retention
+func cleanupHostCertificatesCronJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, retention time.Duration) error {
+	if retention <= 0 {
+		return nil
+	}
+	deleted, err := ds.CleanupSoftDeletedHostCertificates(ctx, time.Now().Add(-retention).UTC())
+	if err != nil {
+		if deleted > 0 {
+			logger.WarnContext(ctx, "cleanup soft-deleted host certificates failed after partial progress", "deleted", deleted)
+		}
+		return err
+	}
+	if deleted > 0 {
+		logger.InfoContext(ctx, "cleaned up soft-deleted host certificates", "deleted", deleted)
 	}
 	return nil
 }

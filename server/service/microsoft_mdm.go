@@ -1308,8 +1308,11 @@ func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri str
 		return "", ctxerr.Wrap(ctx, err, "issue generating TOS content")
 	}
 
+	data := windowsTOSTemplateData{RedirectURL: redirectUri, ClientData: reqID}
+	data.Content = svc.customWindowsTOSContent(ctx)
+
 	var htmlBuf bytes.Buffer
-	err = tmpl.Execute(&htmlBuf, map[string]string{"RedirectURL": redirectUri, "ClientData": reqID})
+	err = tmpl.Execute(&htmlBuf, data)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "executing TOS template content")
 	}
@@ -1486,11 +1489,14 @@ func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, enrolledDevice 
 	// If user identity is a MS-MDM UPN it means that the device was enrolled through user-driven flow
 	// This means that fleetd might not be installed
 	if microsoft_mdm.IsValidUPN(enrolledDevice.MDMEnrollUserID) {
+		if enrolledDevice.FleetdPresentAt != nil {
+			return true, nil
+		}
 		var isPresent bool
 		if enrolledDevice.HostUUID != "" {
-			host, err := svc.ds.HostLiteByIdentifier(ctx, enrolledDevice.HostUUID)
+			host, err := svc.ds.WindowsHostLiteByUUID(ctx, enrolledDevice.HostUUID)
 			if err != nil && !fleet.IsNotFound(err) {
-				return false, ctxerr.Wrap(ctx, err, "get host lite by identifier")
+				return false, ctxerr.Wrap(ctx, err, "get windows host lite by uuid")
 			}
 			if host != nil {
 				orbitInfo, err := svc.ds.GetHostOrbitInfo(ctx, host.ID)
@@ -1514,6 +1520,13 @@ func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, enrolledDevice 
 				return false, ctxerr.Wrap(ctx, err, "check one-time enroll secret used by orbit")
 			}
 			isPresent = usedByOrbit
+		}
+		if isPresent {
+			// Best effort: if this fails, the next session checks again.
+			if err := svc.ds.MDMWindowsSetEnrollmentFleetdPresent(ctx, enrolledDevice.ID, enrolledDevice.HostUUID); err != nil {
+				svc.logger.ErrorContext(ctx, "windows mdm: failed to record fleetd present", "err", err, "device_id", enrolledDevice.MDMDeviceID)
+				ctxerr.Handle(ctx, err)
+			}
 		}
 		return isPresent, nil
 	}
@@ -1871,6 +1884,7 @@ scan:
 	// Always refresh in-memory HostUUID after a successful link attempt.
 	enrolledDevice.HostUUID = host.UUID
 	if updated {
+		enrolledDevice.FleetdPresentAt = nil // the relink cleared it
 		svc.releaseUnusedFleetdInstallSecret(ctx, enrolledDevice)
 	}
 	return updated
@@ -1931,6 +1945,7 @@ func (svc *Service) linkWindowsHostMDMEnrollmentByHostID(ctx context.Context, en
 	}
 	enrolledDevice.HostUUID = host.UUID
 	if updated {
+		enrolledDevice.FleetdPresentAt = nil // the relink cleared it
 		svc.releaseUnusedFleetdInstallSecret(ctx, enrolledDevice)
 	}
 	return updated
@@ -2179,6 +2194,10 @@ func handleResendingAlreadyExistsCommands(ctx context.Context, svc *Service, alr
 
 // getPendingMDMCmds returns the list of pending MDM commands for the given enrollment, plus onlyPollCmdsPending: true
 // when everything still pending (if anything) is an internal poll-schedule Replace.
+//
+// A SCEP status probe is held back until it has been queued for fleet.WindowsSCEPStatusProbeDelay, so it goes out on the
+// next MDM session after ACK. Held back, a probe still counts as pending, which keeps has_pending_commands set and has
+// fleetd wake the device again.
 func (svc *Service) getPendingMDMCmds(ctx context.Context, enrollmentID uint) ([]*mdm_types.SyncMLCmd, bool, error) {
 	pendingCmds, err := svc.ds.MDMWindowsGetPendingCommands(ctx, enrollmentID)
 	if err != nil {
@@ -2192,6 +2211,10 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, enrollmentID uint) ([
 		isPollCmd := pendingCmd.TargetLocURI == syncml.DMClientPollIntervalLocURI
 		if !isPollCmd {
 			onlyPollCmdsPending = false
+		}
+		if fleet.IsWindowsSCEPStatusProbeCmdUUID(pendingCmd.CommandUUID) &&
+			svc.clock.Now().Sub(pendingCmd.CreatedAt) < fleet.WindowsSCEPStatusProbeDelay {
+			continue
 		}
 		// The raw MDM command may contain a $FLEET_SECRET_XXX, the value of which should never be exposed or stored unencrypted.
 		rawCommandWithSecret, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(pendingCmd.RawCommand))
@@ -2993,9 +3016,7 @@ func espUserReleaseLocURI(provID string) string {
 	return fmt.Sprintf("./User/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID)
 }
 
-// espReleaseAttemptCmdIDPrefix marks the CmdID of every user-scope ESP release attempt Fleet sends (the initial
-// finalize's Replace and each retry).
-const espReleaseAttemptCmdIDPrefix = "esp-release-"
+const espReleaseAttemptCmdIDPrefix = fleet.WindowsESPReleaseCmdIDPrefix
 
 // isOMADMSessionStart reports whether reqMsg opens an OMA-DM session: device MsgID 1 (auth) or 2 (trusted request). The
 // device acks message N's commands in message N+1, so a command re-sent on every message keeps the session open.

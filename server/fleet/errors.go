@@ -689,3 +689,5 @@ func (e *ABOnlyEnrollmentForbiddenError) Internal() string {
 }
 
 const AdminOnlyEnrollmentForbiddenErrMsg = "Manual enrollment is not available because only Apple Business enrollment is allowed for this organization."
+
+const ManualEnrollmentStaticChallengeDisabledErrMsg = "Manual enrollment profile is not available because the static SCEP challenge is disabled for this Fleet server."
