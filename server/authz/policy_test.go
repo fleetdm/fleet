@@ -3439,8 +3439,15 @@ func TestHostHealth(t *testing.T) {
 
 func TestMDMAppleEULA(t *testing.T) {
 	t.Parallel()
+	testMDMEULA(t, &fleet.MDMEULA{Platform: fleet.MDMEULAPlatformDarwin})
+}
 
-	eula := &fleet.MDMEULA{}
+func TestMDMWindowsEULA(t *testing.T) {
+	t.Parallel()
+	testMDMEULA(t, &fleet.MDMEULA{Platform: fleet.MDMEULAPlatformWindows})
+}
+
+func testMDMEULA(t *testing.T, eula *fleet.MDMEULA) {
 	runTestCases(t, []authTestCase{
 		{user: nil, object: eula, action: read, allow: false},
 		{user: test.UserGitOps, object: eula, action: read, allow: true},
