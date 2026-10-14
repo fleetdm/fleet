@@ -426,6 +426,10 @@ var hostDetailQueries = map[string]DetailQuery{
 	"uptime": {
 		Query: "select * from uptime limit 1",
 		IngestFunc: func(ctx context.Context, logger *slog.Logger, host *fleet.Host, rows []map[string]string) error {
+			// fleetd-chrome returns no rows until it records its first startup.
+			if len(rows) == 0 && host.Platform == "chrome" {
+				return nil
+			}
 			if len(rows) != 1 {
 				logger.ErrorContext(ctx, fmt.Sprintf("detail_query_uptime expected single result got %d", len(rows)),
 					"component", "service", "method", "IngestFunc")
@@ -443,7 +447,7 @@ var hostDetailQueries = map[string]DetailQuery{
 
 			return nil
 		},
-		Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
+		Platforms: append(fleet.HostLinuxOSs, "darwin", "windows", "chrome"),
 	},
 	"disk_space_unix": {
 		// GROUP BY device collapses bind mounts so a filesystem mounted at multiple paths is counted once.
