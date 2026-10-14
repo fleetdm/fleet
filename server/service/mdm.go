@@ -2771,6 +2771,13 @@ func (r batchModifyMDMConfigProfilesResponse) Status() int  { return http.Status
 func batchModifyMDMConfigProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchModifyMDMConfigProfilesRequest)
 
+	// The list replaces the fleet's whole set, so a missing key must not be read as "delete everything";
+	// an explicit [] still clears it.
+	if req.ConfigurationProfiles == nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return batchSetMDMProfilesResponse{Err: fleet.NewInvalidArgumentError("configuration_profiles", "configuration_profiles is required")}, nil
+	}
+
 	// We want to still use the existing BatchSetMDMProfiles method, so we convert
 	// the payload to the expected type.
 	profiles := make([]fleet.MDMProfileBatchPayload, len(req.ConfigurationProfiles))

@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"database/sql"
 	_ "embed"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -5655,7 +5656,7 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 	require.Contains(t, extractServerErrorText(resp.Body), "Validation Failed: maximum configuration profile file size is 1 MB")
 
 	// apply an empty set to no-team
-	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: nil}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{}}, http.StatusNoContent)
 	// Nothing changed, so no activity items
 	s.lastActivityOfTypeDoesNotMatch(
 		fleet.ActivityTypeEditedMacosProfile{}.ActivityName(),
@@ -5674,11 +5675,11 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 	)
 
 	// apply to both team id and name
-	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: nil},
+	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{}},
 		http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID), "team_name", tm.Name)
 
 	// invalid team name
-	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: nil},
+	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{}},
 		http.StatusNotFound, "team_name", uuid.New().String())
 
 	// duplicate PayloadDisplayName
@@ -5959,6 +5960,44 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 
 	// Now do a batch without any profiles to ensure we can delete with all MDM's disabled.
 	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{}}, http.StatusNoContent)
+}
+
+func (s *integrationMDMTestSuite) TestBatchModifyMDMProfilesRequiresConfigurationProfiles() {
+	t := s.T()
+	ctx := t.Context()
+
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	teamID := fmt.Sprint(tm.ID)
+
+	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
+		{DisplayName: "N1", Profile: mobileconfigForTest("N1", "I1")},
+	}}, http.StatusNoContent, "team_id", teamID)
+
+	assertProfileCount := func(want int) {
+		var resp listMDMConfigProfilesResponse
+		s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", nil, http.StatusOK, &resp, "team_id", teamID)
+		require.Len(t, resp.Profiles, want)
+	}
+	assertProfileCount(1)
+
+	for _, body := range []string{
+		`{}`,
+		`{"configuration_profiles": null}`,
+		// the body shape of /mdm/profiles/batch
+		`{"profiles": [{"name": "N1", "contents": "` + base64.StdEncoding.EncodeToString(mobileconfigForTest("N1", "I1")) + `"}]}`,
+	} {
+		res := s.DoRaw("POST", "/api/latest/fleet/configuration_profiles/batch", []byte(body), http.StatusUnprocessableEntity, "team_id", teamID)
+		require.Contains(t, extractServerErrorText(res.Body), "configuration_profiles", body)
+		assertProfileCount(1)
+
+		s.DoRaw("POST", "/api/latest/fleet/configuration_profiles/batch", []byte(body), http.StatusUnprocessableEntity, "team_id", teamID, "dry_run", "true")
+		assertProfileCount(1)
+	}
+
+	// An explicit empty list still clears the fleet.
+	s.DoRaw("POST", "/api/latest/fleet/configuration_profiles/batch", []byte(`{"configuration_profiles": []}`), http.StatusNoContent, "team_id", teamID)
+	assertProfileCount(0)
 }
 
 func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
