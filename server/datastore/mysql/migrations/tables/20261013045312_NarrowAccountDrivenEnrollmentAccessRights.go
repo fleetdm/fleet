@@ -15,14 +15,15 @@ func init() {
 // because the personal check only looked for byod=1 in the ServerURL. Apple
 // never grants lock (4) or erase (8) on a user enrollment, so clear those bits.
 func Up_20261013045312(tx *sql.Tx) error {
-	// Bounding every index column keeps this a range read of the
-	// (small) account-driven slice instead of a scan of host_mdm.
+	// Bounding every index column keeps this a range read of the (small)
+	// account-driven slice instead of a scan of host_mdm. Personal
+	// enrollments are never written with installed_from_dep = 1.
 	rows, err := tx.Query(`
 		SELECT h.uuid
 		FROM host_mdm hm FORCE INDEX (host_mdm_enrolled_dep_personal_type_idx)
 		JOIN hosts h ON h.id = hm.host_id
 		WHERE hm.enrolled IN (0, 1)
-			AND hm.installed_from_dep IN (0, 1)
+			AND hm.installed_from_dep = 0
 			AND hm.is_personal_enrollment = 1
 			AND hm.personal_enrollment_type = 'account_driven'
 	`)
