@@ -357,7 +357,7 @@ func ingestWindowsAutopilotDevicesDB(
 	// An unresolved device may already be enrolled in Fleet, from before it was registered in Autopilot (or before the tenant was
 	// connected). Adopting its host rather than creating a duplicate is tried first through the IDs its Windows MDM enrollment
 	// recorded, which identify the device exactly, then through its serial.
-	hostIDByEnrollment, err := unclaimedHostIDsByMDMEnrollmentDB(ctx, tx, unresolved)
+	hostIDByEnrollment, contradictedHostIDs, err := unclaimedHostIDsByMDMEnrollmentDB(ctx, tx, unresolved)
 	if err != nil {
 		return err
 	}
@@ -370,6 +370,11 @@ func ingestWindowsAutopilotDevicesDB(
 
 	// host_autopilot_devices is keyed by host_id. Track device claims in memory to make sure a one-to-one match.
 	claimed := make(map[uint]struct{}, len(devices))
+	// A host whose enrollment contradicts a device's Autopilot record belongs to some other device, so a serial match must not
+	// adopt it either.
+	for hostID := range contradictedHostIDs {
+		claimed[hostID] = struct{}{}
+	}
 	resolved := make([]*fleet.HostAutopilotDevice, 0, len(devices))
 	resolve := func(dev *fleet.HostAutopilotDevice, hostID uint) {
 		copied := *dev
@@ -475,14 +480,17 @@ func hostIDsByAutopilotDeviceIDDB(ctx context.Context, q sqlx.QueryerContext, zt
 	return byID, nil
 }
 
-// unclaimedHostIDsByMDMEnrollmentDB matches devices to the Windows hosts that no live Autopilot record claims, through the IDs
-// the host's Windows MDM enrollment recorded: the Autopilot device ID (ZTDID) the device supplied at enrollment, and the Entra
-// device ID from the token Microsoft signed for it. Both are the same values Microsoft Graph returns for the Autopilot record.
+// unclaimedHostIDsByMDMEnrollmentDB matches devices to the unclaimed Windows hosts, through the IDs the host's Windows
+// MDM enrollment recorded: the Autopilot device ID (ZTDID) the device supplied at enrollment, and the Entra device ID
+// from the token Microsoft signed for it. Both are the same values Microsoft Graph returns for the Autopilot record.
 //
-// A candidate enrollment must not contradict the device on either ID, which keeps a device-supplied ZTDID from outweighing a
-// signed Entra device ID. A device is only matched when its candidates point at exactly one host, and a host only goes to one
-// device; anything ambiguous is left to the serial match. The result is keyed by Autopilot device ID.
-func unclaimedHostIDsByMDMEnrollmentDB(ctx context.Context, tx sqlx.ExtContext, devices []*fleet.HostAutopilotDevice) (map[string]uint, error) {
+// It returns the matches keyed by Autopilot device ID, and the hosts whose enrollment matched a device on one ID but
+// contradicted it on the other.
+func unclaimedHostIDsByMDMEnrollmentDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	devices []*fleet.HostAutopilotDevice,
+) (matched map[string]uint, contradicted map[uint]struct{}, err error) {
 	ztdIDs := make([]string, 0, len(devices))
 	entraIDs := make([]any, 0, len(devices))
 	for _, dev := range devices {
@@ -494,7 +502,7 @@ func unclaimedHostIDsByMDMEnrollmentDB(ctx context.Context, tx sqlx.ExtContext, 
 		}
 	}
 	if len(ztdIDs) == 0 && len(entraIDs) == 0 {
-		return map[string]uint{}, nil
+		return map[string]uint{}, map[uint]struct{}{}, nil
 	}
 
 	var conditions []string
@@ -514,7 +522,7 @@ JOIN hosts h ON h.uuid = e.host_uuid AND h.platform = 'windows'
 LEFT JOIN host_autopilot_devices had ON had.host_id = h.id AND had.deleted_at IS NULL
 WHERE e.host_uuid != '' AND had.host_id IS NULL AND (`+strings.Join(conditions, " OR ")+`)`, args...)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "build IN clause for autopilot ids on windows mdm enrollments")
+		return nil, nil, ctxerr.Wrap(ctx, err, "build IN clause for autopilot ids on windows mdm enrollments")
 	}
 	var rows []struct {
 		ZTDRegistrationID string `db:"ztd_registration_id"`
@@ -522,14 +530,15 @@ WHERE e.host_uuid != '' AND had.host_id IS NULL AND (`+strings.Join(conditions, 
 		HostID            uint   `db:"host_id"`
 	}
 	if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "select hosts by autopilot ids on windows mdm enrollments")
+		return nil, nil, ctxerr.Wrap(ctx, err, "select hosts by autopilot ids on windows mdm enrollments")
 	}
 
 	// sameID reports whether two IDs are both present and equal, and contradicts whether both are present and differ.
 	sameID := func(a, b string) bool { return a != "" && b != "" && strings.EqualFold(a, b) }
 	contradicts := func(a, b string) bool { return a != "" && b != "" && !strings.EqualFold(a, b) }
 
-	matched := make(map[string]uint, len(devices))
+	matched = make(map[string]uint, len(devices))
+	contradicted = make(map[uint]struct{})
 	devicesByHost := make(map[uint]int, len(devices))
 	for _, dev := range devices {
 		entraID := ""
@@ -537,22 +546,23 @@ WHERE e.host_uuid != '' AND had.host_id IS NULL AND (`+strings.Join(conditions, 
 			entraID = parsed.String()
 		}
 		var hostID uint
-		ambiguous := false
+		refused := false
 		for _, row := range rows {
 			if !sameID(row.ZTDRegistrationID, dev.AutopilotDeviceID) && !sameID(row.EntraDeviceID, entraID) {
 				continue
 			}
 			if contradicts(row.ZTDRegistrationID, dev.AutopilotDeviceID) || contradicts(row.EntraDeviceID, entraID) {
-				ambiguous = true
-				break
+				// Keep scanning so every contradicting host is reported.
+				contradicted[row.HostID] = struct{}{}
+				refused = true
+				continue
 			}
 			if hostID != 0 && hostID != row.HostID {
-				ambiguous = true
-				break
+				refused = true
 			}
 			hostID = row.HostID
 		}
-		if hostID != 0 && !ambiguous {
+		if hostID != 0 && !refused {
 			matched[dev.AutopilotDeviceID] = hostID
 			devicesByHost[hostID]++
 		}
@@ -562,7 +572,7 @@ WHERE e.host_uuid != '' AND had.host_id IS NULL AND (`+strings.Join(conditions, 
 			delete(matched, deviceID)
 		}
 	}
-	return matched, nil
+	return matched, contradicted, nil
 }
 
 // parseEntraDeviceID parses an Entra device ID as Graph reports it. Graph reports the all-zero GUID, or nothing, for a device
@@ -606,12 +616,8 @@ ORDER BY h.id`, serials)
 	return bySerial, nil
 }
 
-// insertPendingWindowsAutopilotHostsDB creates a bare host row for each device and returns copies of the devices with
-// HostID set. claimed holds the hosts that other devices in this batch already resolved to.
-//
-// A device with a real serial is created in one bulk insert, and its new host is found again by that serial. A device with
-// a placeholder serial cannot be found that way, since enrolled hosts with that serial (stored as empty) would match too,
-// so it is inserted on its own and takes the insert ID. Such devices are rare.
+// insertPendingWindowsAutopilotHostsDB creates a pending host for each device that resolved to no existing host, and returns
+// copies of the devices with HostID set to their new host.
 func insertPendingWindowsAutopilotHostsDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,

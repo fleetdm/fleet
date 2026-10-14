@@ -905,6 +905,8 @@ func testIngestAdoptsHostsThroughMDMEnrollment(t *testing.T, ds *Datastore) {
 	settingsJoined := enrolledHost(t, "settings", "", "", entraSettings)
 	// An enrollment whose Entra device ID contradicts the Autopilot record's, though its Autopilot device ID agrees.
 	contradicting := enrolledHost(t, "contradicting", "", "ap-contradicting", entraOther)
+	// The same contradiction on a host whose real serial matches the record's.
+	contradictingSerial := enrolledHost(t, "contradicting-serial", "CONTRADICTING-SERIAL", "ap-contradicting-serial", entraOther)
 	// Two hosts sharing a real serial. Only the lower-numbered one's enrollment identifies a device.
 	sharedIdentified := enrolledHost(t, "shared-identified", "SHARED-ADOPT", ztdShared, "")
 	sharedOther := enrolledHost(t, "shared-other", "SHARED-ADOPT", "", "")
@@ -913,6 +915,7 @@ func testIngestAdoptsHostsThroughMDMEnrollment(t *testing.T, ds *Datastore) {
 		withEntraID(autopilotDeviceWithID(ztdNucBox, "Default string", "Engineering"), entraNucBox),
 		withEntraID(autopilotDeviceWithID("ap-settings", "Default string", ""), entraSettings),
 		withEntraID(autopilotDeviceWithID("ap-contradicting", "Default string", ""), "26100000-0000-4000-8000-000000000009"),
+		withEntraID(autopilotDeviceWithID("ap-contradicting-serial", "CONTRADICTING-SERIAL", ""), "26100000-0000-4000-8000-000000000009"),
 		// Listed first, so on serial alone it would take the lower-numbered host that its sibling's enrollment identifies.
 		withEntraID(autopilotDeviceWithID("ap-shared-other", "SHARED-ADOPT", ""), "00000000-0000-0000-0000-000000000000"),
 		autopilotDeviceWithID(ztdShared, "SHARED-ADOPT", ""),
@@ -924,19 +927,21 @@ func testIngestAdoptsHostsThroughMDMEnrollment(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "Engineering", stored[ztdNucBox].GroupTag)
 	assert.Equal(t, settingsJoined.ID, stored["ap-settings"].HostID, "adopted through the Entra device ID on its enrollment")
 	assert.NotEqual(t, contradicting.ID, stored["ap-contradicting"].HostID, "an enrollment contradicting the record is not trusted")
+	assert.NotEqual(t, contradictingSerial.ID, stored["ap-contradicting-serial"].HostID,
+		"a host whose enrollment contradicts the record is not adopted by serial either")
 	assert.Equal(t, sharedIdentified.ID, stored[ztdShared].HostID, "the exact match wins over the serial order")
 	assert.Equal(t, sharedOther.ID, stored["ap-shared-other"].HostID, "the other device on the serial takes the remaining host")
 
-	// Only the contradicting device needed a pending host. The next sync creates nothing more.
+	// Only the contradicting devices needed pending hosts. The next sync creates nothing more.
 	countWindowsHosts := func() int {
 		var n int
 		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &n, `SELECT COUNT(*) FROM hosts WHERE platform = 'windows'`))
 		return n
 	}
-	assert.Equal(t, 6, countWindowsHosts())
+	assert.Equal(t, 8, countWindowsHosts())
 	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, devices))
 	assert.Equal(t, stored, autopilotDevicesByDeviceID(t, ds, testTenantA))
-	assert.Equal(t, 6, countWindowsHosts())
+	assert.Equal(t, 8, countWindowsHosts())
 
 	t.Run("a host another Autopilot record claims is not adopted", func(t *testing.T) {
 		// The NucBox's host is claimed now; a second registration presenting its Entra device ID gets a pending host instead.
