@@ -857,6 +857,7 @@ func TestGetInHouseAppManifest(t *testing.T) {
 	require.ErrorAs(t, err, &permErr)
 
 	signer, _ := rsa.GenerateKey(rand.Reader, 2048)
+	svc.config.S3.SoftwareInstallersBucket = "test-bucket"
 	svc.config.S3.SoftwareInstallersCloudFrontSigner = signer
 	signerURL := "https://example.cloudfront.net"
 
