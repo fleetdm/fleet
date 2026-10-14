@@ -44,6 +44,9 @@ assert(Number.isSafeInteger(REPEATS) && REPEATS > 0 && REPEATS < 11, 'REPEATS mu
 // a case that is both wrong and slow reports the wrong part first.
 const MAX_ELAPSED_MS = 10000;
 
+// contour has no Windows CSP validator, so csp profiles are never sent to it.
+const PROFILE_TYPES_CONTOUR_CAN_VALIDATE = ['mobileconfig', 'ddm'];
+
 
 describe('configuration profile generator', function() {
 
@@ -52,12 +55,31 @@ describe('configuration profile generator', function() {
   this.timeout(60000);
   this.slow(MAX_ELAPSED_MS);
 
-  before(function() {
+  // Set in the `before` below when the contour binary can be run on this machine.
+  let isContourAvailable = false;
+
+  before(async function() {
     // Without a secret every single case would fail the same unexplained way, which reads as a
     // broken prompt rather than an unconfigured machine.
     if(!sails.config.custom.anthropicSecret) {
       console.log('    (skipping: sails.config.custom.anthropicSecret is not set -- re-run with sails_custom__anthropicSecret=… to actually generate anything.)');
       this.skip();
+    }
+
+    // Checked once, up front, rather than per test.  Stated either way, so a run that skipped contour
+    // cannot be mistaken for one where contour found nothing wrong.
+    let contourVersion = await sails.helpers.process.executeCommand.with({
+      command: 'contour --version',
+      timeout: 10000,
+    })
+    .tolerate(()=>{
+      return undefined;
+    });
+    if(contourVersion) {
+      isContourAvailable = true;
+      console.log(`    (validating generated ${PROFILE_TYPES_CONTOUR_CAN_VALIDATE.join(' and ')} profiles with ${_.trim(contourVersion.stdout) || 'contour'})`);
+    } else {
+      console.log('    (not validating generated profiles with contour: the `contour` binary is not on PATH)');
     }
   });
 
@@ -157,6 +179,25 @@ describe('configuration profile generator', function() {
               };
 
               let checkFailures = checkExpectations(expectations, generatedProfile);
+
+              // Errors fail the test, warnings only get logged: contour warns about things that are true of a
+              // perfectly good profile -- a payload type Apple has since superseded, for instance.  Unlike the
+              // script, a contour that is installed but could not check the profile fails the test too, since
+              // that would otherwise pass looking exactly like a profile contour found nothing wrong with.
+              let contourResult;
+              if(isContourAvailable && PROFILE_TYPES_CONTOUR_CAN_VALIDATE.includes(profileType)) {
+                contourResult = await sails.helpers.validateConfigurationProfileWithContour.with({
+                  profileType,
+                  profile: generatedProfile.profile,
+                });
+                if(!contourResult.ran) {
+                  checkFailures.push(`contour: not run -- ${contourResult.skippedBecause}`);
+                }
+                for (let contourError of contourResult.errors) {
+                  checkFailures.push(`contour: ${contourError}`);
+                }
+              }
+
               assert.strictEqual(
                 checkFailures.length, 0,
                 `${testCase.canary ? 'CANARY -- ' : ''}${checkFailures.length} check(s) failed:\n` +
@@ -176,7 +217,9 @@ describe('configuration profile generator', function() {
                   (testCase.readByEye ? `      CONFIRM BY EYE: ${testCase.readByEye}\n` : '') +
                   (whatTheLookupProvided ? `      ${whatTheLookupProvided.trim()}\n` : '') +
                   `      profileFilename: ${generatedProfile.profileFilename}\n` +
-                  `      deliveryNotes: ${JSON.stringify(generatedProfile.deliveryNotes)}\n\n` +
+                  `      deliveryNotes: ${JSON.stringify(generatedProfile.deliveryNotes)}\n` +
+                  (contourResult && contourResult.warnings.length > 0 ? `      contour warnings:\n${contourResult.warnings.map((contourWarning)=>{ return `        - ${contourWarning}`; }).join('\n')}\n` : '') +
+                  '\n' +
                   `${withAdmxTemplatesCollapsed(generatedProfile.profile)}\n\n` +
                   `      settingsEnforced:\n${util.inspect(generatedProfile.items, { depth: 4, colors: false })}\n`
                 );
