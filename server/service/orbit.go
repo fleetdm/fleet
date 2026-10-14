@@ -68,10 +68,7 @@ func enrollOrbitEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	return enrollOrbitResponse{fleet.EnrollOrbitResponse{OrbitNodeKey: nodeKey}}, nil
 }
 
-// windowsEnrollmentAutopilotDeviceID returns the Autopilot device ID a Windows MDM enrollment reported, for an orbit enrollment
-// presenting a one-time secret minted for that enrollment. The secret came over the enrollment's own MDM channel, so its ID is
-// the one to match on, and the ID fleetd presents is ignored: otherwise a device could pair its own secret with another
-// device's ID and claim that device's pending Autopilot host. Returns "" when the enrollment no longer exists.
+// windowsEnrollmentAutopilotDeviceID returns the Autopilot device ID a Windows MDM enrollment reported.
 func (svc *Service) windowsEnrollmentAutopilotDeviceID(ctx context.Context, enrollmentID uint) (string, error) {
 	device, err := svc.ds.MDMWindowsGetEnrolledDeviceByID(ctx, enrollmentID)
 	switch {
@@ -90,12 +87,6 @@ func (svc *Service) windowsEnrollmentAutopilotDeviceID(ctx context.Context, enro
 // reverseLinkWindowsMDMEnrollment links an automatic (user-driven or Autopilot) Windows MDM enrollment that was created before
 // fleetd was installed. Linking it now, before orbit fetches its config and runs its one-shot setup-experience init, makes the
 // Windows enrollment default fleet (and therefore the ESP's software and profiles) apply to this host from the start.
-//
-// The enrollment is found by the Autopilot device ID it supplied at enrollment, then by the SMBIOS serial the OMA-DM session
-// stored on it. Both are asserted by the device, the same trust as the DevDetail path this mirrors, so the link must not
-// claim a host that already belongs to different hardware. Each lookup refuses when several unlinked enrollments share the
-// value. Only "not found" moves on to the next lookup; any other outcome ends the attempt, and the next MDM session retries. A Windows orbit enrollment is not linked when it is not MDM, when it is already linked, or when it is a programmatic
-// fleetd-first enrollment.
 func (svc *Service) reverseLinkWindowsMDMEnrollment(ctx context.Context, host *fleet.Host, hostInfo fleet.OrbitHostInfo) {
 	// Link by the Autopilot device ID only when this host now owns that device's Autopilot record, so presenting another
 	// device's ID cannot pull that device's enrollment onto this host.
@@ -107,6 +98,7 @@ func (svc *Service) reverseLinkWindowsMDMEnrollment(ctx context.Context, host *f
 			// Not knowing whether this host owns the record, a serial match could link the wrong enrollment. The next MDM
 			// session links it instead.
 			svc.logger.ErrorContext(ctx, "failed to look up autopilot record for reverse link", "err", err, "host_uuid", host.UUID)
+			ctxerr.Handle(ctx, err)
 			return
 		case err != nil || ownerHostID != host.ID:
 			autopilotDeviceID = ""
@@ -132,6 +124,7 @@ func (svc *Service) reverseLinkWindowsMDMEnrollment(ctx context.Context, host *f
 		if err != nil {
 			svc.logger.ErrorContext(ctx, "failed to look up unlinked windows mdm enrollment",
 				"err", err, "host_uuid", host.UUID, lookup.idKey, lookup.id)
+			ctxerr.Handle(ctx, err)
 			return
 		}
 		// An enrollment whose device reported a different serial is some other machine's. Stop rather than try the serial,
@@ -147,6 +140,7 @@ func (svc *Service) reverseLinkWindowsMDMEnrollment(ctx context.Context, host *f
 		if _, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, device.MDMDeviceID, true); err != nil {
 			svc.logger.ErrorContext(ctx, "failed to reverse-link windows mdm enrollment at orbit enroll",
 				"err", err, "host_uuid", host.UUID, "device_id", device.MDMDeviceID)
+			ctxerr.Handle(ctx, err)
 			return
 		}
 		// The enrollment predates this host record, so its mdm_enrolled activity was deferred; record it now that there is a
@@ -352,12 +346,17 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		enrollTeamID = oneTime.TeamID
 		secretOpts = append(secretOpts, fleet.WithEnrollOrbitOneTimeEnrollSecret(oneTime.ID))
 		if enrollmentID := oneTime.WindowsEnrollmentID(); enrollmentID != nil {
-			// Fail rather than enroll without the ID: the serial fallback could hand a shared-serial device another device's
-			// pending host, and this secret's enrollment would then be linked to it.
 			autopilotDeviceID, err := svc.windowsEnrollmentAutopilotDeviceID(ctx, *enrollmentID)
 			if err != nil {
 				recordErrorDetail(ctx, err)
 				return "", fleet.OrbitError{Message: "enroll failed"}
+			}
+			// We flag autopilot device ID difference. Maybe a device re-registered in Autopilot after it enrolled. The
+			// enrollment's ID is used either way.
+			if hostInfo.AutopilotDeviceID != "" && autopilotDeviceID != "" && hostInfo.AutopilotDeviceID != autopilotDeviceID {
+				svc.logger.WarnContext(ctx, "orbit enroll: autopilot device id differs from the one-time secret's enrollment, using the enrollment's",
+					"enrollment_id", *enrollmentID, "presented_autopilot_device_id", hostInfo.AutopilotDeviceID,
+					"enrollment_autopilot_device_id", autopilotDeviceID)
 			}
 			hostInfo.AutopilotDeviceID = autopilotDeviceID
 		}
