@@ -2483,6 +2483,11 @@ func TestRekeyWindowsDevice(t *testing.T) {
 		}, nil
 	}
 
+	hostSeenAt := time.Now().Add(-windowsMDMRekeyMaxOffline - time.Hour)
+	ds.WindowsHostLiteByUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.HostLite, error) {
+		return &fleet.HostLite{ID: 1, UUID: hostUUID, SeenTime: hostSeenAt}, nil
+	}
+
 	ds.MDMWindowsUpdateEnrolledDeviceCredentialsFunc = func(ctx context.Context, deviceId string, credentialsHash []byte) error {
 		require.Equal(t, "device", deviceId)
 		credsHash = &credentialsHash
@@ -2560,6 +2565,12 @@ func TestRekeyWindowsDevice(t *testing.T) {
 	err := xml.Unmarshal([]byte(syncml), &req)
 	require.NoError(t, err)
 
+	// A legacy enrollment whose host has not been seen past the cutoff is not rekeyed.
+	_, err = svc.GetMDMWindowsManagementResponse(ctx, req)
+	require.ErrorContains(t, err, "device was not MDM enrolled")
+	require.Nil(t, credsHash)
+
+	hostSeenAt = time.Now()
 	res, err := svc.GetMDMWindowsManagementResponse(ctx, req)
 	require.NoError(t, err)
 	require.NotNil(t, res)
