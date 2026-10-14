@@ -37,6 +37,7 @@ func TestAndroid(t *testing.T) {
 		{"UpdateAndroidHostEnrollmentTimes", testUpdateAndroidHostEnrollmentTimes},
 		{"AndroidMDMStats", testAndroidMDMStats},
 		{"AndroidHostStorageData", testAndroidHostStorageData},
+		{"UpdateAndroidHostKeepsDiskMeasurement", testUpdateAndroidHostKeepsDiskMeasurement},
 		{"NewMDMAndroidConfigProfile", testNewMDMAndroidConfigProfile},
 		{"GetMDMAndroidConfigProfile", testGetMDMAndroidConfigProfile},
 		{"UpdateMDMAndroidConfigProfile", testUpdateMDMAndroidConfigProfile},
@@ -856,6 +857,98 @@ func testAndroidHostStorageData(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 256.0, updatedFullHost.GigsTotalDiskSpace, "Updated total disk space should be saved in host_disks")
 	assert.Equal(t, 64.0, updatedFullHost.GigsDiskSpaceAvailable, "Updated available disk space should be saved in host_disks")
 	assert.Equal(t, 25.0, updatedFullHost.PercentDiskSpaceAvailable, "Updated disk space percentage should be saved in host_disks")
+}
+
+func testUpdateAndroidHostKeepsDiskMeasurement(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+
+	type diskReport struct {
+		available, percent, total float64
+	}
+	measured := diskReport{available: 95.3, percent: 86.4, total: 110.3}
+	notMeasured := diskReport{available: -1, percent: -1, total: 128}
+
+	cases := []struct {
+		name       string
+		reports    []diskReport
+		fromEnroll bool
+		want       diskReport
+	}{
+		{
+			name:    "status report without a measurement keeps the stored one",
+			reports: []diskReport{measured, notMeasured},
+			want:    diskReport{available: 95.3, percent: 86.4, total: 128},
+		},
+		{
+			name:       "re-enrollment without a measurement keeps the stored one",
+			reports:    []diskReport{measured, notMeasured},
+			fromEnroll: true,
+			want:       diskReport{available: 95.3, percent: 86.4, total: 128},
+		},
+		{
+			name:    "a full disk is a measurement and is kept",
+			reports: []diskReport{{available: 0, percent: 0, total: 64}, notMeasured},
+			want:    diskReport{available: 0, percent: 0, total: 128},
+		},
+		{
+			name:    "host with no stored disk data records not supported",
+			reports: []diskReport{notMeasured},
+			want:    notMeasured,
+		},
+		{
+			name:    "host that has only reported not supported keeps reporting it",
+			reports: []diskReport{notMeasured, {available: -1, percent: -1, total: 256}},
+			want:    diskReport{available: -1, percent: -1, total: 256},
+		},
+		{
+			name:    "a measurement replaces not supported",
+			reports: []diskReport{notMeasured, measured},
+			want:    measured,
+		},
+		{
+			name:    "a new measurement replaces the stored one",
+			reports: []diskReport{measured, {available: 50, percent: 25, total: 200}},
+			want:    diskReport{available: 50, percent: 25, total: 200},
+		},
+	}
+
+	for i, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ctx := t.Context()
+
+			newHost := func(enterpriseSpecificID string) *fleet.AndroidHost {
+				created, err := ds.NewAndroidHost(ctx, createAndroidHost(enterpriseSpecificID), false)
+				require.NoError(t, err)
+				return created
+			}
+			report := func(host *fleet.AndroidHost, r diskReport, fromEnroll bool) {
+				host.Host.GigsDiskSpaceAvailable = r.available
+				host.Host.PercentDiskSpaceAvailable = r.percent
+				host.Host.GigsTotalDiskSpace = r.total
+				require.NoError(t, ds.UpdateAndroidHost(ctx, host, fromEnroll, false))
+			}
+			requireDisk := func(hostID uint, want diskReport) {
+				got, err := ds.Host(ctx, hostID)
+				require.NoError(t, err)
+				assert.InDelta(t, want.available, got.GigsDiskSpaceAvailable, 0.01)
+				assert.InDelta(t, want.percent, got.PercentDiskSpaceAvailable, 0.01)
+				assert.InDelta(t, want.total, got.GigsTotalDiskSpace, 0.01)
+			}
+
+			host := newHost(fmt.Sprintf("keep-disk-%d", i))
+			// Another host with a measurement, so a write that isn't scoped to the host shows up.
+			otherHost := newHost(fmt.Sprintf("keep-disk-other-%d", i))
+			report(otherHost, measured, false)
+
+			// Only the last report is the one under test; earlier ones set up the stored state.
+			for j, r := range c.reports {
+				report(host, r, j == len(c.reports)-1 && c.fromEnroll)
+			}
+
+			requireDisk(host.Host.ID, c.want)
+			requireDisk(otherHost.Host.ID, measured)
+		})
+	}
 }
 
 func testNewMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {

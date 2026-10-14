@@ -349,7 +349,25 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 
 		// update storage data in host_disks table for API consumption
 		// Check != 0 to allow -1 sentinel value for "not supported" to be stored
-		if host.Host.GigsTotalDiskSpace != 0 || host.Host.GigsDiskSpaceAvailable != 0 {
+		switch {
+		case host.Host.GigsDiskSpaceAvailable < 0:
+			// AMAPI omits storage measurements from enrollment payloads and from status reports
+			// sent before the device has measured, so -1 only replaces a row with no real
+			// measurement yet. Decided in one statement on the writer so a lagging replica can't
+			// make it drop a known value.
+			if _, err := tx.ExecContext(ctx, `
+				INSERT INTO host_disks (host_id, gigs_disk_space_available, percent_disk_space_available, gigs_total_disk_space, gigs_all_disk_space)
+				VALUES (?, ?, ?, ?, NULL)
+				ON DUPLICATE KEY UPDATE
+					percent_disk_space_available = IF(gigs_disk_space_available >= 0, percent_disk_space_available, VALUES(percent_disk_space_available)),
+					gigs_disk_space_available = IF(gigs_disk_space_available >= 0, gigs_disk_space_available, VALUES(gigs_disk_space_available)),
+					gigs_total_disk_space = VALUES(gigs_total_disk_space),
+					gigs_all_disk_space = NULL`,
+				host.Host.ID, host.Host.GigsDiskSpaceAvailable, host.Host.PercentDiskSpaceAvailable, host.Host.GigsTotalDiskSpace,
+			); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating Android host disk space without a measurement")
+			}
+		case host.Host.GigsTotalDiskSpace != 0 || host.Host.GigsDiskSpaceAvailable != 0:
 			err = ds.SetOrUpdateHostDisksSpace(ctx, host.Host.ID,
 				host.Host.GigsDiskSpaceAvailable,
 				host.Host.PercentDiskSpaceAvailable,
@@ -372,7 +390,8 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 //
 // Note that it deliberately does not clear the host's vitals (host_disks,
 // host_operating_system) the way appleHostRefsForMDMReset does. The enrollment
-// overwrites both unconditionally, so deleting them buys nothing, and it is unsafe
+// overwrites both (keeping a disk measurement it doesn't carry), so deleting them
+// buys nothing, and it is unsafe
 // with a read replica: SetOrUpdateHostDisksSpace and UpdateHostOperatingSystem both
 // read the current row from the replica and skip the write when the values are
 // unchanged, so a lagging replica makes the enrollment skip a write that the delete

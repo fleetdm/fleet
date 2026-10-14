@@ -1574,7 +1574,7 @@ func TestUpdateHost(t *testing.T) {
 		require.Equal(t, "Android 15 (2026-05-01)", capturedHost.Host.OSVersion)
 	})
 
-	t.Run("status report without MEASURED events still records storage as not supported", func(t *testing.T) {
+	t.Run("status report without MEASURED events passes not supported to the datastore", func(t *testing.T) {
 		existingHost.Host.GigsTotalDiskSpace = 0
 		existingHost.Host.GigsDiskSpaceAvailable = 0
 		existingHost.Host.PercentDiskSpaceAvailable = 0
@@ -1603,8 +1603,7 @@ func TestUpdateHost(t *testing.T) {
 
 		require.NoError(t, svc.ProcessPubSubPush(t.Context(), "value", message))
 
-		// Only an enrollment keeps the last measurement. A status report is written as reported, so a
-		// host that stops measuring shows "Not supported" and its total stays current.
+		// The service passes -1 through; UpdateAndroidHost decides whether a stored measurement wins.
 		require.NotNil(t, capturedHost)
 		require.InDelta(t, 128.0, capturedHost.Host.GigsTotalDiskSpace, 0.1)
 		require.InDelta(t, -1, capturedHost.Host.GigsDiskSpaceAvailable, 0.01)
@@ -2210,7 +2209,7 @@ func TestAndroidStorageExtraction(t *testing.T) {
 		require.Equal(t, float64(-1), createdHost.Host.PercentDiskSpaceAvailable, "should set percent available to -1 when MEASURED events are missing")
 	})
 
-	t.Run("re-enrollment without MEASURED events keeps the stored storage", func(t *testing.T) {
+	t.Run("re-enrollment without MEASURED events passes not supported to the datastore", func(t *testing.T) {
 		const esid = "REENROLL-TEST-ESID"
 		existing := &fleet.AndroidHost{
 			Host:   &fleet.Host{ID: 42, UUID: "reenroll-uuid", Platform: "android"},
@@ -2244,11 +2243,10 @@ func TestAndroidStorageExtraction(t *testing.T) {
 		require.NoError(t, err)
 
 		require.NotNil(t, updatedHost)
-		// Zero leaves host_disks untouched, so the stored measurement survives. Writing the
-		// -1 sentinel here is what showed a previously measured host as "Not supported".
-		require.Zero(t, updatedHost.Host.GigsDiskSpaceAvailable, "must not overwrite stored available space")
-		require.Zero(t, updatedHost.Host.PercentDiskSpaceAvailable, "must not overwrite stored percentage")
-		require.Zero(t, updatedHost.Host.GigsTotalDiskSpace, "must not overwrite stored total")
+		// UpdateAndroidHost keeps a stored measurement over -1, and still needs the current total.
+		require.InDelta(t, 64.0, updatedHost.Host.GigsTotalDiskSpace, 0.1)
+		require.InDelta(t, -1, updatedHost.Host.GigsDiskSpaceAvailable, 0.01)
+		require.InDelta(t, -1, updatedHost.Host.PercentDiskSpaceAvailable, 0.01)
 	})
 
 	t.Run("re-enrollment with MEASURED events still updates storage", func(t *testing.T) {
