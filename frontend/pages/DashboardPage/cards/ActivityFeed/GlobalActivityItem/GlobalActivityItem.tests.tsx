@@ -1300,6 +1300,39 @@ describe("Activity Feed", () => {
     expect(withNoTeams).toBeNull();
   });
 
+  it.each<[ActivityType, "darwin" | "windows" | undefined, string]>([
+    [
+      ActivityType.AddedEndUserAgreement,
+      "darwin",
+      "added an end user agreement (EULA) for macOS hosts.",
+    ],
+    [
+      ActivityType.AddedEndUserAgreement,
+      undefined,
+      "added an end user agreement (EULA).",
+    ],
+    [
+      ActivityType.AddedEndUserAgreement,
+      "windows",
+      "added an end user agreement (EULA) for Windows hosts.",
+    ],
+    [
+      ActivityType.DeletedEndUserAgreement,
+      "darwin",
+      "deleted an end user agreement (EULA) for macOS hosts.",
+    ],
+    [
+      ActivityType.DeletedEndUserAgreement,
+      "windows",
+      "deleted an end user agreement (EULA) for Windows hosts.",
+    ],
+  ])("renders a '%s' activity for platform %s", (type, platform, expected) => {
+    const activity = createMockActivity({ type, details: { platform } });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(expected, { exact: false })).toBeInTheDocument();
+  });
+
   it("renders a 'deleted_bootstrap_package' type activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.DeletedBootstrapPackage,
