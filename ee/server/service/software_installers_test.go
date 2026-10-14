@@ -3074,7 +3074,6 @@ func TestSoftwareBatchUploadFMAVersionCache(t *testing.T) {
 	const (
 		teamID         = uint(1)
 		cachedHash     = "1111111111111111111111111111111111111111111111111111111111111111"
-		otherHash      = "2222222222222222222222222222222222222222222222222222222222222222"
 		installerBytes = "installer bytes"
 	)
 	downloadedHash := fmt.Sprintf("%x", sha256.Sum256([]byte(installerBytes)))
@@ -3129,18 +3128,27 @@ func TestSoftwareBatchUploadFMAVersionCache(t *testing.T) {
 		},
 		{
 			name:          "hashed manifest reuses the cached version",
+			bytesInStore:  true,
 			manifestHash:  cachedHash,
 			versionExists: true,
 			cachedHash:    cachedHash,
 			wantStorageID: cachedHash,
 		},
 		{
+			name:          "hashed manifest downloads when the cached bytes are gone",
+			manifestHash:  downloadedHash,
+			versionExists: true,
+			cachedHash:    downloadedHash,
+			wantDownload:  true,
+			wantStorageID: downloadedHash,
+		},
+		{
 			name:          "hashed manifest downloads a rebuilt version",
-			manifestHash:  otherHash,
+			manifestHash:  downloadedHash,
 			versionExists: true,
 			cachedHash:    cachedHash,
 			wantDownload:  true,
-			wantStorageID: otherHash,
+			wantStorageID: downloadedHash,
 		},
 	}
 
@@ -3203,12 +3211,14 @@ func TestSoftwareBatchUploadFMAVersionCache(t *testing.T) {
 			svc := newTestService(t, ds)
 			kvs, _ := inMemoryKeyValueStore()
 			svc.keyValueStore = kvs
-			svc.softwareInstallStore = &mocksoftware.SoftwareInstallerStore{
+			store := &mocksoftware.SoftwareInstallerStore{
 				ExistsFunc: func(ctx context.Context, id string) (bool, error) {
 					return id == c.cachedHash && c.bytesInStore, nil
 				},
 				PutFunc: func(context.Context, string, io.ReadSeeker) error { return nil },
 			}
+
+			svc.softwareInstallStore = store
 
 			payload := &fleet.SoftwareInstallerPayload{
 				Slug: new("zoom/darwin"),
@@ -3227,6 +3237,7 @@ func TestSoftwareBatchUploadFMAVersionCache(t *testing.T) {
 			require.Len(t, applied, 1)
 			require.Equal(t, c.wantStorageID, applied[0].StorageID)
 			require.Equal(t, !c.wantDownload, applied[0].FMAVersionCached)
+			require.Equal(t, c.wantDownload, store.PutFuncInvoked)
 		})
 	}
 }
@@ -3994,4 +4005,181 @@ func TestSoftwareBatchUploadWindowsFMAKeepsManifestUninstallScript(t *testing.T)
 	require.Empty(t, applied[0].PackageIDs)
 	require.Equal(t, code, applied[0].UpgradeCode)
 	require.Equal(t, uninstall, applied[0].UninstallScript)
+}
+
+type fmaRecoveryBatchOptions struct {
+	pin, hash, version, platform string
+	body                         []byte
+	dryRun, present, cached      bool
+	existsErr                    error
+}
+
+type fmaRecoveryBatchResult struct {
+	status    string
+	downloads int32
+	stored    []byte
+	applied   []*fleet.UploadSoftwareInstallerPayload
+	ds        *mock.Store
+	store     *mocksoftware.SoftwareInstallerStore
+}
+
+func runFMARecoveryBatch(t *testing.T, opts fmaRecoveryBatchOptions) *fmaRecoveryBatchResult {
+	t.Helper()
+	if opts.body == nil {
+		opts.body = []byte("installer bytes")
+	}
+	if opts.hash == "" {
+		opts.hash = fmt.Sprintf("%x", sha256.Sum256(opts.body))
+	}
+	if opts.version == "" {
+		opts.version = "1.0"
+	}
+	if opts.platform == "" {
+		opts.platform = "windows"
+	}
+	r := &fmaRecoveryBatchResult{ds: new(mock.Store)}
+	var downloads atomic.Int32
+	installer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		downloads.Add(1)
+		_, _ = w.Write(opts.body)
+	}))
+	t.Cleanup(installer.Close)
+	filename := "app.exe"
+	if opts.platform == "darwin" {
+		filename = "app.pkg"
+	}
+	url := installer.URL + "/" + filename
+	manifest := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		_ = json.NewEncoder(w).Encode(ma.FMAManifestFile{
+			Versions: []*ma.FMAManifestApp{{Version: opts.version, SHA256: opts.hash,
+				InstallerURL: url, InstallScriptRef: "i", UninstallScriptRef: "u",
+				Queries: ma.FMAQueries{Exists: "SELECT 1"}}},
+			Refs: map[string]string{"i": "echo install", "u": "echo uninstall"},
+		})
+	}))
+	t.Cleanup(manifest.Close)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifest.URL, t)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", manifest.URL, t)
+	ds := r.ds
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) { return &fleet.TeamLite{ID: id}, nil }
+	ds.GetTeamsWithInstallerByHashFunc = func(context.Context, string, string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+		return nil, nil
+	}
+	ds.GetInstallerByTeamAndURLFunc = func(context.Context, *uint, string) (*fleet.ExistingSoftwareInstaller, error) { return nil, nil }
+	ds.HasFMAInstallerVersionFunc = func(context.Context, *uint, uint, string) (bool, string, error) { return opts.cached, opts.hash, nil }
+	ds.GetCachedFMAInstallerMetadataFunc = func(context.Context, *uint, uint, string) (*fleet.MaintainedApp, error) {
+		return &fleet.MaintainedApp{Version: "1.0", SHA256: opts.hash, InstallerURL: url,
+			Platform: opts.platform, InstallScript: "echo install", UninstallScript: "echo uninstall"}, nil
+	}
+	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(context.Context, *uint, uint) ([]fleet.FleetMaintainedVersion, error) {
+		return []fleet.FleetMaintainedVersion{{ID: 9, Version: "1.0"}}, nil
+	}
+	ds.GetSoftwareInstallersPendingDeletionFunc = func(context.Context, *uint, []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+		return nil, nil
+	}
+	ds.BatchSetSoftwareInstallersFunc = func(_ context.Context, _ *uint, p []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
+		r.applied = p
+		return nil, nil
+	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(context.Context, *uint, []*fleet.UploadSoftwareInstallerPayload) error { return nil }
+	ds.ReconcileWindowsMaintainedAppSoftwareTitlesFunc = func(context.Context) error { return nil }
+	r.store = &mocksoftware.SoftwareInstallerStore{
+		ExistsFunc: func(context.Context, string) (bool, error) { return opts.present, opts.existsErr },
+		PutFunc: func(_ context.Context, id string, content io.ReadSeeker) error {
+			var err error
+			r.stored, err = io.ReadAll(content)
+			return err
+		},
+	}
+	svc := newTestService(t, ds)
+	svc.softwareInstallStore = r.store
+	kvs, _ := inMemoryKeyValueStore()
+	svc.keyValueStore = kvs
+	p := &fleet.SoftwareInstallerPayload{Slug: new("example/" + opts.platform), RollbackVersion: opts.pin,
+		MaintainedApp: &fleet.MaintainedApp{ID: 7, Name: "Example", Slug: "example/" + opts.platform,
+			Platform: opts.platform, UniqueIdentifier: "example", TitleID: new(uint(1))}}
+	svc.softwareBatchUpload("fma-recovery", new(uint(1)), 1, []*fleet.SoftwareInstallerPayload{p}, opts.dryRun)
+	status, err := kvs.Get(t.Context(), batchSoftwarePrefix+"fma-recovery")
+	require.NoError(t, err)
+	require.NotNil(t, status)
+	r.status, r.downloads = *status, downloads.Load()
+	return r
+}
+
+func TestSoftwareBatchUploadFMAMissingBytes(t *testing.T) {
+	for _, tc := range []struct{ name, pin, platform, version string }{
+		{name: "darwin", platform: "darwin"}, {name: "windows", platform: "windows"},
+		{name: "literal pin", pin: "1.0"}, {name: "caret fallback", pin: "^1", version: "2.0"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := runFMARecoveryBatch(t, fmaRecoveryBatchOptions{cached: true, pin: tc.pin, platform: tc.platform, version: tc.version})
+			require.Equal(t, batchSetCompleted, r.status)
+			require.EqualValues(t, 1, r.downloads)
+			require.Equal(t, []byte("installer bytes"), r.stored, "hashing must rewind before Put")
+			require.Len(t, r.applied, 1)
+			require.False(t, r.applied[0].FMAVersionCached)
+			require.Equal(t, "1.0", r.applied[0].Version)
+		})
+	}
+}
+
+func TestSoftwareBatchUploadFMAHashMismatch(t *testing.T) {
+	for _, tc := range []struct {
+		name, pin string
+		cached    bool
+	}{
+		{name: "uncached"}, {name: "cached", cached: true},
+		{name: "literal pin", pin: "1.0", cached: true},
+		{name: "caret fallback", pin: "^1", cached: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			version := "1.0"
+			if tc.pin == "^1" {
+				version = "2.0"
+			}
+			r := runFMARecoveryBatch(t, fmaRecoveryBatchOptions{cached: tc.cached, pin: tc.pin, version: version, hash: strings.Repeat("a", 64)})
+			require.Contains(t, r.status, batchSetFailedPrefix)
+			require.Contains(t, r.status, "mismatch in maintained app SHA256 hash")
+			require.False(t, r.store.PutFuncInvoked)
+			require.False(t, r.ds.BatchSetSoftwareInstallersFuncInvoked)
+			require.False(t, r.ds.BatchSetInHouseAppsInstallersFuncInvoked)
+		})
+	}
+}
+
+func TestSoftwareBatchUploadFMADryRunMissingBytes(t *testing.T) {
+	r := runFMARecoveryBatch(t, fmaRecoveryBatchOptions{cached: true, dryRun: true})
+	require.Equal(t, batchSetCompleted, r.status)
+	require.EqualValues(t, 1, r.downloads)
+	require.False(t, r.store.PutFuncInvoked)
+	require.False(t, r.ds.BatchSetSoftwareInstallersFuncInvoked)
+}
+
+func TestSoftwareBatchUploadFMAExistsError(t *testing.T) {
+	r := runFMARecoveryBatch(t, fmaRecoveryBatchOptions{cached: true, existsErr: errors.New("AccessDenied")})
+	require.Contains(t, r.status, "AccessDenied")
+	require.Zero(t, r.downloads)
+	require.False(t, r.store.PutFuncInvoked)
+	require.False(t, r.ds.BatchSetSoftwareInstallersFuncInvoked)
+}
+
+func TestSoftwareBatchUploadFMALatestHashRewinds(t *testing.T) {
+	body, err := os.ReadFile("testdata/dummy_installer.pkg")
+	require.NoError(t, err)
+	r := runFMARecoveryBatch(t, fmaRecoveryBatchOptions{body: body, version: "latest", platform: "darwin"})
+	require.Equal(t, batchSetCompleted, r.status)
+	require.Equal(t, body, r.stored)
+	require.Len(t, r.applied, 1)
+	require.Equal(t, "1.0.0", r.applied[0].Version)
+}
+
+func TestSoftwareBatchUploadFMANoCheckLatestRewinds(t *testing.T) {
+	body, err := os.ReadFile("testdata/dummy_installer.pkg")
+	require.NoError(t, err)
+	r := runFMARecoveryBatch(t, fmaRecoveryBatchOptions{body: body, hash: noCheckHash, version: "latest", platform: "darwin"})
+	require.Equal(t, batchSetCompleted, r.status)
+	require.Equal(t, body, r.stored)
+	require.Len(t, r.applied, 1)
+	require.Equal(t, "1.0.0", r.applied[0].Version)
+	require.Equal(t, fmt.Sprintf("%x", sha256.Sum256(body)), r.applied[0].StorageID)
 }
