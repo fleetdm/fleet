@@ -63,6 +63,20 @@ jobs:
       # Get dependencies (including dev deps)
       - run: cd website/ && npm install
 
+      # Install the latest release of contour, which will be used to validate generated configuration profiles.
+      - name: Install contour
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/contour"
+          cd "$RUNNER_TEMP/contour"
+          gh release download --repo macadmins/contour \
+            --pattern 'contour-[0-9]*-x86_64-unknown-linux-gnu.tar.gz' \
+            --pattern 'checksums-x86_64-unknown-linux-gnu.txt'
+          sha256sum --check --ignore-missing --strict checksums-x86_64-unknown-linux-gnu.txt
+          tar -xzf contour-*-x86_64-unknown-linux-gnu.tar.gz contour
+          echo "$RUNNER_TEMP/contour" >> "$GITHUB_PATH"
+          ./contour --version
       # Run the configuration profile generator tests
       - run: cd website/ && npm run test-profile-generator
         env:
