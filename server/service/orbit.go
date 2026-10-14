@@ -12,7 +12,6 @@ import (
 	"slices"
 	"strings"
 	"time"
-	"uuid"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
@@ -69,15 +68,6 @@ func enrollOrbitEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	return enrollOrbitResponse{fleet.EnrollOrbitResponse{OrbitNodeKey: nodeKey}}, nil
 }
 
-// normalizeAutopilotDeviceID returns the canonical form of an Autopilot device ID, or "" when it is not a GUID.
-func normalizeAutopilotDeviceID(id string) string {
-	parsed, err := uuid.Parse(id)
-	if err != nil {
-		return ""
-	}
-	return parsed.String()
-}
-
 // windowsEnrollmentAutopilotDeviceID returns the Autopilot device ID a Windows MDM enrollment reported, for an orbit enrollment
 // presenting a one-time secret minted for that enrollment. The secret came over the enrollment's own MDM channel, so its ID is
 // the one to match on, and the ID fleetd presents is ignored: otherwise a device could pair its own secret with another
@@ -90,7 +80,11 @@ func (svc *Service) windowsEnrollmentAutopilotDeviceID(ctx context.Context, enro
 	case err != nil:
 		return "", ctxerr.Wrap(ctx, err, "load windows mdm enrollment for its autopilot device id")
 	}
-	return normalizeAutopilotDeviceID(device.ZTDRegistrationID), nil
+	parsed, ok := fleet.ParseNonNilUUID(device.ZTDRegistrationID)
+	if !ok {
+		return "", nil
+	}
+	return parsed.String(), nil
 }
 
 // reverseLinkWindowsMDMEnrollment links an automatic (user-driven or Autopilot) Windows MDM enrollment that was created before
@@ -306,12 +300,13 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 	// The Autopilot device ID is matched against a GUID and only identifies a Windows device. Anything else is dropped rather
 	// than failing the enrollment, which then falls back to the other identifiers.
 	if hostInfo.AutopilotDeviceID != "" {
-		normalized := normalizeAutopilotDeviceID(hostInfo.AutopilotDeviceID)
-		if normalized == "" || hostInfo.Platform != "windows" {
+		parsed, ok := fleet.ParseNonNilUUID(hostInfo.AutopilotDeviceID)
+		if !ok || hostInfo.Platform != "windows" {
 			svc.logger.DebugContext(ctx, "ignoring unusable autopilot device id at orbit enroll", "platform", hostInfo.Platform)
-			normalized = ""
+			hostInfo.AutopilotDeviceID = ""
+		} else {
+			hostInfo.AutopilotDeviceID = parsed.String()
 		}
-		hostInfo.AutopilotDeviceID = normalized
 	}
 
 	logging.WithLevel(

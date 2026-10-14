@@ -2633,7 +2633,6 @@ func matchHostDuringEnrollment(
 	// Windows Autopilot pre-creates a pending host from the Autopilot registry, so orbit-enroll has to be able to find it.
 	// Both branches below only match a host that has never checked in, so a device presenting another device's
 	// identifiers can claim a pending host but never take over an enrolled one. Once claimed, the host is matched by UUID.
-	//
 	// The Autopilot device ID (ZTDID), reported by fleetd, identifies the pending host exactly.
 	if autopilotDeviceID != "" && platform == "windows" && !orbitEnrollingWithOsqueryIdentifier {
 		if query.Len() > 0 {

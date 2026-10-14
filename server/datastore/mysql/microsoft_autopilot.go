@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"strings"
 	"time"
-	"uuid"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -497,7 +496,7 @@ func unclaimedHostIDsByMDMEnrollmentDB(
 		if dev.AutopilotDeviceID != "" {
 			ztdIDs = append(ztdIDs, dev.AutopilotDeviceID)
 		}
-		if entraID, ok := parseEntraDeviceID(dev.EntraDeviceID); ok {
+		if entraID, ok := fleet.ParseNonNilUUID(dev.EntraDeviceID); ok {
 			entraIDs = append(entraIDs, entraID[:])
 		}
 	}
@@ -542,7 +541,7 @@ WHERE e.host_uuid != '' AND had.host_id IS NULL AND (`+strings.Join(conditions, 
 	devicesByHost := make(map[uint]int, len(devices))
 	for _, dev := range devices {
 		entraID := ""
-		if parsed, ok := parseEntraDeviceID(dev.EntraDeviceID); ok {
+		if parsed, ok := fleet.ParseNonNilUUID(dev.EntraDeviceID); ok {
 			entraID = parsed.String()
 		}
 		var hostID uint
@@ -573,16 +572,6 @@ WHERE e.host_uuid != '' AND had.host_id IS NULL AND (`+strings.Join(conditions, 
 		}
 	}
 	return matched, contradicted, nil
-}
-
-// parseEntraDeviceID parses an Entra device ID as Graph reports it. Graph reports the all-zero GUID, or nothing, for a device
-// without one.
-func parseEntraDeviceID(id string) (uuid.UUID, bool) {
-	parsed, err := uuid.Parse(id)
-	if err != nil || parsed == uuid.Nil() {
-		return uuid.Nil(), false
-	}
-	return parsed, true
 }
 
 // unclaimedHostIDsBySerialDB returns, per serial, the Windows hosts that no live Autopilot record points at, in id
