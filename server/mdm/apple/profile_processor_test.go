@@ -559,7 +559,7 @@ func TestPreprocessProfileContentsDigiCertUPNIsUniqueForMultipleHosts(t *testing
 	assert.Equal(t, host2Serial+"@example.com", upnByHostUUID[host2UUID], "host 2 UPN should contain its own serial")
 }
 
-func TestReplaceFleetVarInItem(t *testing.T) {
+func TestReplaceFleetVarInDigiCertItem(t *testing.T) {
 	ds := new(mock.Store)
 	ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
 		return []*fleet.Host{{ID: 1, UUID: "host", HardwareSerial: "serial", Platform: "darwin"}}, nil
@@ -568,7 +568,7 @@ func TestReplaceFleetVarInItem(t *testing.T) {
 		return []uint{1}, nil
 	}
 	ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
-		return []string{"legacy@example.com"}, nil
+		return []string{"o'brien@example.com"}, nil
 	}
 	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 		return &fleet.ScimUser{
@@ -580,14 +580,14 @@ func TestReplaceFleetVarInItem(t *testing.T) {
 		}, nil
 	}
 	ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
-		return []*fleet.HostDeviceMapping{{Email: "legacy@example.com"}}, nil
+		return []*fleet.HostDeviceMapping{{Email: "o'brien@example.com"}}, nil
 	}
 
 	tests := []struct {
 		item     string
 		expected string
 	}{
-		{fleet.FleetVarHostEndUserEmailIDP.WithBraces(), "legacy@example.com"},
+		{fleet.FleetVarHostEndUserEmailIDP.WithBraces(), "o'brien@example.com"},
 		{fleet.FleetVarHostHardwareSerial.WithBraces(), "serial"},
 		{fleet.FleetVarHostUUID.WithBraces(), "host"},
 		{fleet.FleetVarHostPlatform.WithBraces(), "macos"},
@@ -602,10 +602,41 @@ func TestReplaceFleetVarInItem(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.item, func(t *testing.T) {
 			item := "prefix-" + tt.item + "-suffix"
-			ok, err := replaceFleetVarInItem(t.Context(), ds, &fleet.CmdTarget{CmdUUID: "command"}, fleet.Host{UUID: "host"}, make(map[string]string), &item, make(map[string]uint), nil, func(int) error { return nil })
+			ok, err := replaceFleetVarInDigiCertItem(t.Context(), ds, &fleet.CmdTarget{CmdUUID: "command"}, fleet.Host{UUID: "host"}, make(map[string]string), &item, make(map[string]uint), nil, func(int) error { return nil })
 			require.NoError(t, err)
 			require.True(t, ok)
 			assert.Equal(t, "prefix-"+tt.expected+"-suffix", item)
+		})
+	}
+
+	// Failures mention the DigiCert CA, since the variable lives in its fields and not in the profile.
+	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return &fleet.ScimUser{UserName: "user@example.com"}, nil
+	}
+	ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
+		return nil, nil
+	}
+	var failureDetail string
+	ds.UpdateOrDeleteHostMDMAppleProfileFunc = func(ctx context.Context, profile *fleet.HostMDMAppleProfile) error {
+		failureDetail = profile.Detail
+		return nil
+	}
+	failures := []struct {
+		fleetVar fleet.FleetVarName
+		detail   string
+	}{
+		{fleet.FleetVarHostEndUserIDPDepartment, "Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT."},
+		{fleet.FleetVarHostEndUserEmailIDP, "Fleet couldn't populate $FLEET_VAR_HOST_END_USER_EMAIL_IDP."},
+	}
+	for _, tt := range failures {
+		t.Run("failure "+string(tt.fleetVar), func(t *testing.T) {
+			failureDetail = ""
+			item := tt.fleetVar.WithBraces()
+			ok, err := replaceFleetVarInDigiCertItem(t.Context(), ds, &fleet.CmdTarget{CmdUUID: "command"}, fleet.Host{UUID: "host"}, make(map[string]string), &item, make(map[string]uint), nil, func(int) error { return nil })
+			require.NoError(t, err)
+			require.False(t, ok)
+			assert.Contains(t, failureDetail, tt.detail)
+			assert.Contains(t, failureDetail, "DigiCert certificate authority")
 		})
 	}
 }
