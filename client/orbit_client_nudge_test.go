@@ -129,6 +129,19 @@ func TestNextConfigInterval(t *testing.T) {
 	poller.needs = false
 	assert.Equal(t, 5*time.Minute, oc.nextConfigInterval(&quiet))
 
+	// A receiver quieting the flags it no longer needs frequent polling for, without changing the fetched config.
+	quieter := &notificationQuieter{}
+	oc.RegisterConfigReceiver(quieter)
+	synced := nudgedConfig(300)
+	synced.Notifications.WindowsMDMSyncRequest = true
+	assert.Equal(t, 30*time.Second, oc.nextConfigInterval(&synced))
+	quieter.quiet = true
+	assert.Equal(t, 5*time.Minute, oc.nextConfigInterval(&synced))
+	assert.True(t, synced.Notifications.WindowsMDMSyncRequest)
+	// Other flags still hold the default interval.
+	synced.Notifications.RunDiskEncryptionEscrow = true
+	assert.Equal(t, 30*time.Second, oc.nextConfigInterval(&synced))
+
 	// Not connected: changes aren't nudged.
 	connected = false
 	assert.Equal(t, 30*time.Second, oc.nextConfigInterval(&quiet))
@@ -143,6 +156,15 @@ type frequentPoller struct{ needs bool }
 
 func (p *frequentPoller) Run(*fleet.OrbitConfig) error { return nil }
 func (p *frequentPoller) NeedsFrequentPolling() bool   { return p.needs }
+
+type notificationQuieter struct{ quiet bool }
+
+func (q *notificationQuieter) Run(*fleet.OrbitConfig) error { return nil }
+func (q *notificationQuieter) QuietNotifications(n *fleet.OrbitConfigNotifications) {
+	if q.quiet {
+		n.WindowsMDMSyncRequest = false
+	}
+}
 
 func TestConfigPollSlowsDownAndReportsFallbackChanges(t *testing.T) {
 	srv := &configServer{}

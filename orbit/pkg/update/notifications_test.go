@@ -1523,4 +1523,41 @@ func TestWindowsMDMSync(t *testing.T) {
 		require.True(t, r.lastRun.IsZero(), "lastRun must remain unset after failures")
 		require.Contains(t, logBuf.String(), "triggering on-demand Windows MDM sync failed")
 	})
+
+	t.Run("request is quieted after repeated attempts until it clears", func(t *testing.T) {
+		logBuf.Reset()
+		quieted := func(r *windowsMDMSyncConfigReceiver) bool {
+			n := fleet.OrbitConfigNotifications{WindowsMDMSyncRequest: true}
+			r.QuietNotifications(&n)
+			return !n.WindowsMDMSyncRequest
+		}
+
+		r, calls := newCounting(0, io.ErrUnexpectedEOF)
+		for range windowsMDMSyncFastAttempts - 1 {
+			runSync(t, r, true)
+		}
+		require.False(t, quieted(r))
+		runSync(t, r, true)
+		require.True(t, quieted(r))
+		// Attempts continue at whatever pace the config is fetched.
+		runSync(t, r, true)
+		require.Equal(t, int32(windowsMDMSyncFastAttempts+1), calls.Load())
+		require.True(t, quieted(r))
+
+		// The server stopped requesting a sync: the next request gets fast attempts again.
+		runSync(t, r, false)
+		require.False(t, quieted(r))
+	})
+
+	t.Run("throttled runs are not attempts", func(t *testing.T) {
+		logBuf.Reset()
+		r, calls := newCounting(time.Hour, nil)
+		for range windowsMDMSyncFastAttempts {
+			runSync(t, r, true)
+		}
+		require.Equal(t, int32(1), calls.Load())
+		n := fleet.OrbitConfigNotifications{WindowsMDMSyncRequest: true}
+		r.QuietNotifications(&n)
+		require.True(t, n.WindowsMDMSyncRequest)
+	})
 }

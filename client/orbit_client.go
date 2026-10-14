@@ -128,6 +128,14 @@ type FrequentPoller interface {
 	NeedsFrequentPolling() bool
 }
 
+// NotificationQuieter is implemented by config receivers that can tell a notification flag they handle no longer needs the config poll
+// as its retry clock (e.g. retrying at that pace has stopped helping), so the flag doesn't keep the config from being fetched at Fleet's
+// slower fallback interval.
+type NotificationQuieter interface {
+	// QuietNotifications clears from n the flags that don't need frequent polling. n is a copy of the fetched notifications.
+	QuietNotifications(n *fleet.OrbitConfigNotifications)
+}
+
 // ssoWindowReopenInterval is the minimum time between SSO window open attempts.
 // If the user closes the SSO browser window before completing authentication,
 // the window will be re-opened after this interval.
@@ -518,7 +526,16 @@ func (oc *OrbitClient) ExecuteConfigReceivers() error {
 // pending, otherwise DefaultConfigPollInterval, as many receivers use the poll as their clock while they have work.
 func (oc *OrbitClient) nextConfigInterval(cfg *fleet.OrbitConfig) time.Duration {
 	if cfg == nil || cfg.WebSocketTransport == nil || cfg.WebSocketTransport.OrbitConfigPollInterval == nil ||
-		oc.transportConnected == nil || !oc.transportConnected() || !cfg.Notifications.IsQuiet() {
+		oc.transportConnected == nil || !oc.transportConnected() {
+		return oc.DefaultConfigPollInterval
+	}
+	notifs := cfg.Notifications
+	for _, receiver := range oc.ConfigReceivers {
+		if q, ok := receiver.(NotificationQuieter); ok {
+			q.QuietNotifications(&notifs)
+		}
+	}
+	if !notifs.IsQuiet() {
 		return oc.DefaultConfigPollInterval
 	}
 	for _, receiver := range oc.ConfigReceivers {
