@@ -539,6 +539,16 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 	}
 
+	// Checked before anything is written, so a rejected batch doesn't leave new categories behind.
+	for _, payload := range payloadsWithPlatform {
+		if payload.Platform == "" || payload.Platform.IsApplePlatform() {
+			if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "check Apple MDM enabled for VPP apps")
+			}
+			break
+		}
+	}
+
 	// since we actually add categories here, it's possible they can stay orphaned until the next run if the run fails
 	categories, err := svc.batchAddSelfServiceCategories(ctx, teamID, categoryNames, dryRun)
 	if err != nil {
@@ -566,9 +576,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 			var err error
 			if payload.Platform.IsApplePlatform() && vppToken == "" {
-				if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
-					return nil, nil, ctxerr.Wrap(ctx, err, "check Apple MDM enabled for VPP apps")
-				}
 				teamTokenInfo, err = svc.getVPPTokenInfo(ctx, teamID)
 				if err != nil {
 					return nil, nil, fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "could not retrieve vpp token"), http.StatusUnprocessableEntity)

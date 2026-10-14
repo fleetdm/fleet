@@ -888,10 +888,21 @@ func TestAppStoreAppsRequireAppleMDM(t *testing.T) {
 
 	t.Run("adding an Android app doesn't need Apple MDM", func(t *testing.T) {
 		svc, _, baseSvc := setup(t)
-		// The add fails later for reasons outside this test; it must not stop at the Apple MDM check.
+		// Label validation runs after the Apple MDM check and fails in this test's context, so reaching it proves
+		// the add got past the check.
 		_, err := svc.AddAppStoreApp(ctx, nil, fleet.VPPAppTeam{AdamID: "com.example.app", Platform: fleet.AndroidPlatform})
-		require.NotErrorIs(t, err, fleet.ErrMDMNotConfigured)
+		require.ErrorContains(t, err, "validating software labels")
 		require.False(t, baseSvc.VerifyMDMAppleConfiguredFuncInvoked)
+	})
+
+	t.Run("GitOps apply with an Apple app writes nothing", func(t *testing.T) {
+		svc, ds, _ := setup(t)
+		ds.ListSoftwareCategoriesFunc = func(context.Context, uint) ([]fleet.SoftwareCategory, error) { return nil, nil }
+		_, _, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
+			{AppStoreID: "497799835", Platform: fleet.IOSPlatform, Categories: []string{"New category"}},
+		}, false)
+		require.ErrorIs(t, err, fleet.ErrMDMNotConfigured)
+		require.False(t, ds.ListSoftwareCategoriesFuncInvoked, "categories must not be written for a rejected batch")
 	})
 
 	t.Run("GitOps dry run for a new fleet with an Apple app", func(t *testing.T) {
