@@ -715,10 +715,12 @@ func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *not
 	}
 
 	// A policy that was deleted leaves patch_notification_apps.policy_id null.
-	// ListPatchNotificationApps already resolves DisplayName via COALESCE on
-	// software_title_display_names, falling back to the raw title name. Treat
-	// DisplayName as an override only when it differs from Name, so the activity
-	// JSON carries a nil display_name for titles with no per-team rename.
+	// Snapshot the admin's raw per-team override via DisplayNameOverride, which
+	// is nil only when no override exists. Checking app.DisplayName != app.Name
+	// would conflate "no override" with "override explicitly equal to the raw
+	// title" (e.g. the admin pinned "Microsoft.CompanyPortal" to preserve the
+	// dotted form against the FE's WELL_KNOWN normalization) and silently drop
+	// the admin's choice.
 	softwareTitles := make([]string, 0, len(apps))
 	software := make([]fleet.NotifySoftwareTitle, 0, len(apps))
 	policyIDs := make([]uint, 0, len(apps))
@@ -728,9 +730,8 @@ func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *not
 			Title:   app.Name,
 			TitleID: app.SoftwareTitleID,
 		}
-		if app.DisplayName != "" && app.DisplayName != app.Name {
-			name := app.DisplayName
-			item.DisplayName = &name
+		if app.DisplayNameOverride != nil {
+			item.DisplayName = new(*app.DisplayNameOverride)
 		}
 		software = append(software, item)
 		if app.PolicyID != nil {

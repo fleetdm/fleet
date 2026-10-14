@@ -109,11 +109,13 @@ export const isNotifyBeforePatchingSkip = (
 ): boolean => !!preInstallOutput?.includes(NOTIFY_SKIP_MARKER);
 
 // Legacy activity rows stored only software_titles (string[]); new rows add
-// softwares with per-team display name overrides. Accept both so callers can
-// pass `details.softwares ?? details.software_titles` without branching.
+// software with per-team display name overrides. Accept both so callers can
+// pass `details.software ?? details.software_titles` without branching.
 export type NotifyTitleInput = string | INotifySoftwareTitle;
 
-const toSoftwareTitle = (input: NotifyTitleInput): INotifySoftwareTitle =>
+export const toSoftwareTitle = (
+  input: NotifyTitleInput
+): INotifySoftwareTitle =>
   typeof input === "string" ? { title: input } : input;
 
 // Bold titles, Oxford comma. Inline all when ≤ INLINE_APP_LIMIT; past that

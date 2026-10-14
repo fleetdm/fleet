@@ -829,23 +829,29 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 			wantPolicyIDs: []uint{30},
 		},
 		{
-			// An admin-picked per-team override is snapshotted into display_name;
-			// a title with no override (DisplayName == Name from the datastore
-			// COALESCE) leaves display_name nil so the UI can tell them apart.
+			// Three cases colliding at app.DisplayName == app.Name:
+			//   - AppOne has an override that differs from the raw name
+			//   - AppTwo has no override (DisplayNameOverride nil, DisplayName=COALESCE
+			//     fallback to Name)
+			//   - Microsoft.CompanyPortal has an override explicitly EQUAL to the raw name
+			//     (admin pinning the dotted form against the FE's WELL_KNOWN normalization).
+			// Only the no-override case must leave DisplayName nil on the activity.
 			name:    "an admin display name override is snapshotted into software",
 			outcome: notifications_api.NotificationOutcome{Displayed: true, ExitCode: 0, ExecutionID: "exec-7"},
 			apps: []fleet.PatchNotificationAppDetail{
-				{SoftwareTitleID: 10, Name: "AppOne", DisplayName: "Custom AppOne", PolicyID: new(uint(30))},
-				{SoftwareTitleID: 11, Name: "AppTwo", DisplayName: "AppTwo", PolicyID: new(uint(31))},
+				{SoftwareTitleID: 10, Name: "AppOne", DisplayName: "Custom AppOne", DisplayNameOverride: new("Custom AppOne"), PolicyID: new(uint(30))},
+				{SoftwareTitleID: 11, Name: "AppTwo", DisplayName: "AppTwo", DisplayNameOverride: nil, PolicyID: new(uint(31))},
+				{SoftwareTitleID: 12, Name: "Microsoft.CompanyPortal", DisplayName: "Microsoft.CompanyPortal", DisplayNameOverride: new("Microsoft.CompanyPortal"), PolicyID: new(uint(32))},
 			},
 			wantStatus:     "success",
 			wantTimeBefore: 3600,
-			wantTitles:     []string{"AppOne", "AppTwo"},
+			wantTitles:     []string{"AppOne", "AppTwo", "Microsoft.CompanyPortal"},
 			wantSoftware: []fleet.NotifySoftwareTitle{
 				{Title: "AppOne", TitleID: 10, DisplayName: new("Custom AppOne")},
 				{Title: "AppTwo", TitleID: 11},
+				{Title: "Microsoft.CompanyPortal", TitleID: 12, DisplayName: new("Microsoft.CompanyPortal")},
 			},
-			wantPolicyIDs: []uint{30, 31},
+			wantPolicyIDs: []uint{30, 31, 32},
 		},
 	}
 

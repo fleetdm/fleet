@@ -27,6 +27,7 @@ import {
   formatNotifyTimeLabel,
   isNotifyFailure,
   retryUnless404,
+  toSoftwareTitle,
 } from "./helpers";
 
 const baseClass = "notify-before-patching-details-modal";
@@ -137,11 +138,8 @@ const NotifyBeforePatchingDetailsModal = ({
           <DataSet
             title="Apps"
             value={titles
-              .map((t) =>
-                typeof t === "string"
-                  ? getDisplayedSoftwareName(t)
-                  : getDisplayedSoftwareName(t.title, t.display_name)
-              )
+              .map(toSoftwareTitle)
+              .map((t) => getDisplayedSoftwareName(t.title, t.display_name))
               .join(", ")}
           />
         )}
