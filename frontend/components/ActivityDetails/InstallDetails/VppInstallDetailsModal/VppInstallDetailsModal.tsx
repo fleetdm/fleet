@@ -27,6 +27,10 @@ import {
   IHostSoftware,
   SoftwareInstallUninstallStatus,
 } from "interfaces/software";
+import {
+  compareVersions,
+  getInstallerVersion,
+} from "pages/hosts/details/cards/Software/helpers";
 import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
 import commandAPI, {
   IGetCommandResultsResponse,
@@ -457,11 +461,25 @@ export const VppInstallDetailsModal = ({
   // - From the Activity feed: hostSoftware is undefined (we trust command result status).
   const openedFromHostSoftwarePage = !!hostSoftware;
 
+  // True when inventory has a version strictly older than the installer version
+  // (i.e. ui_status is `failed_install_update_available`). In that case the row
+  // reads "Failed" and must open to the failure, not an "is installed" override.
+  const installerVersion = hostSoftware
+    ? getInstallerVersion(hostSoftware)
+    : null;
+  const hasAvailableUpdate =
+    !!installerVersion &&
+    !!hostSoftware?.installed_versions?.some(
+      (iv) => compareVersions(iv.version, installerVersion) === -1
+    );
+
   // Used only for overriding failed_install/failed_uninstall -> "is installed."
-  // - From Host -> Software: override based on inventory.
+  // - From Host -> Software: override only when inventory is on the installer
+  //   version. If an update is still available the row says "Failed" and the
+  //   modal must mirror that; otherwise keep the installed override.
   // - From Activity feed: never override (always show the failure).
   const canOverrideFailureWithInstalled = openedFromHostSoftwarePage
-    ? inventoryReportsInstalled
+    ? inventoryReportsInstalled && !hasAvailableUpdate
     : false;
 
   // Used to

@@ -711,9 +711,9 @@ type GetMDMAppleBootstrapPackageSummaryFunc func(ctx context.Context, teamID *ui
 
 type MDMGetEULABytesFunc func(ctx context.Context, token string) (*fleet.MDMEULA, error)
 
-type MDMGetEULAMetadataFunc func(ctx context.Context) (*fleet.MDMEULA, error)
+type MDMGetEULAMetadataFunc func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error)
 
-type MDMCreateEULAFunc func(ctx context.Context, name string, file io.ReadSeeker, dryRun bool) error
+type MDMCreateEULAFunc func(ctx context.Context, platform fleet.MDMEULAPlatform, name string, file io.ReadSeeker, dryRun bool) error
 
 type MDMDeleteEULAFunc func(ctx context.Context, token string, dryRun bool) error
 
@@ -4995,18 +4995,18 @@ func (s *Service) MDMGetEULABytes(ctx context.Context, token string) (*fleet.MDM
 	return s.MDMGetEULABytesFunc(ctx, token)
 }
 
-func (s *Service) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, error) {
+func (s *Service) MDMGetEULAMetadata(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 	s.mu.Lock()
 	s.MDMGetEULAMetadataFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMGetEULAMetadataFunc(ctx)
+	return s.MDMGetEULAMetadataFunc(ctx, platform)
 }
 
-func (s *Service) MDMCreateEULA(ctx context.Context, name string, file io.ReadSeeker, dryRun bool) error {
+func (s *Service) MDMCreateEULA(ctx context.Context, platform fleet.MDMEULAPlatform, name string, file io.ReadSeeker, dryRun bool) error {
 	s.mu.Lock()
 	s.MDMCreateEULAFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMCreateEULAFunc(ctx, name, file, dryRun)
+	return s.MDMCreateEULAFunc(ctx, platform, name, file, dryRun)
 }
 
 func (s *Service) MDMDeleteEULA(ctx context.Context, token string, dryRun bool) error {
