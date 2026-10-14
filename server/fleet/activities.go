@@ -1462,9 +1462,9 @@ type NotifySoftwareTitle struct {
 }
 
 type ActivityTypeNotifiedEndUserBeforePatching struct {
-	HostID                uint       `json:"host_id"`
-	HostDisplayName       string     `json:"host_display_name"`
-	PatchNotificationUUID string     `json:"patch_notification_uuid"`
+	HostID                uint   `json:"host_id"`
+	HostDisplayName       string `json:"host_display_name"`
+	PatchNotificationUUID string `json:"patch_notification_uuid"`
 	// SoftwareTitles is the legacy flat list, kept so pre-override activity rows
 	// still render. New activities also populate Software, which the UI prefers.
 	SoftwareTitles    []string              `json:"software_titles"`

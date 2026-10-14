@@ -746,7 +746,7 @@ func TestPatchNotificationOnOutcome(t *testing.T) {
 		wantStatus     string
 		wantTimeBefore int
 		wantTitles     []string
-		wantSoftware  []fleet.NotifySoftwareTitle
+		wantSoftware   []fleet.NotifySoftwareTitle
 		wantPolicyIDs  []uint
 	}{
 		{
