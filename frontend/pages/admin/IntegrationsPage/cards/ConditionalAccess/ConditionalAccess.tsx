@@ -5,6 +5,7 @@ import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import Checkbox from "components/forms/fields/Checkbox";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { IconNames } from "components/icons";
 import Modal from "components/Modal";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
@@ -12,6 +13,7 @@ import SectionHeader from "components/SectionHeader";
 import { notify } from "components/ToastNotification";
 import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { IConfig, isOktaConditionalAccessConfigured } from "interfaces/config";
 import SettingsSection from "pages/admin/components/SettingsSection";
 import paths from "router/paths";
@@ -159,6 +161,7 @@ enum EntraPhase {
 const ConditionalAccess = () => {
   // HOOKS
   const { isPremiumTier, setConfig, config } = useContext(AppContext);
+  const { gitOpsModeEnabled } = useGitOpsMode();
 
   const [entraPhase, setEntraPhase] = useState<EntraPhase>(
     EntraPhase.NotConfigured
@@ -358,24 +361,33 @@ const ConditionalAccess = () => {
   // RENDER
 
   const renderOktaContent = () => {
-    return (
-      <SectionCard
-        header={oktaConfigured ? undefined : "Okta"}
-        iconName={oktaConfigured ? "success" : undefined}
-        cta={
-          oktaConfigured ? (
+    let oktaCta: React.JSX.Element;
+    if (oktaConfigured) {
+      oktaCta = (
+        <GitOpsModeTooltipWrapper
+          renderChildren={(disableChildren) => (
             <Button
               variant="subdued"
               onClick={handleOktaDelete}
               icon="trash"
               iconPosition="right"
+              disabled={disableChildren}
             >
               Delete
             </Button>
-          ) : (
-            <Button onClick={toggleOktaModal}>Connect</Button>
-          )
-        }
+          )}
+        />
+      );
+    } else {
+      // Connect stays enabled; the modal gates its own Save.
+      oktaCta = <Button onClick={toggleOktaModal}>Connect</Button>;
+    }
+
+    return (
+      <SectionCard
+        header={oktaConfigured ? undefined : "Okta"}
+        iconName={oktaConfigured ? "success" : undefined}
+        cta={oktaCta}
       >
         {oktaConfigured ? (
           <span>
@@ -434,6 +446,8 @@ const ConditionalAccess = () => {
 
     let entraCta: React.JSX.Element | undefined;
     if (entraIsConfigured) {
+      // Entra setup is DB-backed (POST/DELETE /conditional-access/microsoft),
+      // not AppConfig. GitOps YAML can't manage it, so delete isn't gated.
       entraCta = (
         <Button
           variant="subdued"
@@ -530,38 +544,51 @@ const ConditionalAccess = () => {
         <div className={`${baseClass}__end-user-experience`}>
           <SectionHeader title="End user experience" />
           <form onSubmit={handleSaveBypassSettings}>
-            <Checkbox
-              onChange={() => setBypassDisabled(!bypassDisabled)}
-              name="bypassDisabled"
-              value={!bypassDisabled}
+            <div
+              className={`form ${
+                gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
+              }`}
             >
-              <TooltipWrapper
-                tipContent={
-                  <>
-                    Bypassing is valid for a single login attempt and is tracked
-                    in audit logs. Critical policies can never be bypassed.
-                    <br />
-                    <i>
-                      (Default: <strong>On</strong>)
-                    </i>
-                  </>
-                }
-                showArrow={false}
+              <Checkbox
+                onChange={() => setBypassDisabled(!bypassDisabled)}
+                name="bypassDisabled"
+                value={!bypassDisabled}
+                disabled={gitOpsModeEnabled}
               >
-                Bypass for non-critical policies
-              </TooltipWrapper>
-            </Checkbox>
-            <Button
-              type="submit"
-              isLoading={isUpdatingBypass}
-              disabled={
-                bypassDisabled ===
-                  (config?.conditional_access?.bypass_disabled ?? false) ||
-                !config
-              }
-            >
-              Save
-            </Button>
+                <TooltipWrapper
+                  tipContent={
+                    <>
+                      Bypassing is valid for a single login attempt and is
+                      tracked in audit logs. Critical policies can never be
+                      bypassed.
+                      <br />
+                      <i>
+                        (Default: <strong>On</strong>)
+                      </i>
+                    </>
+                  }
+                  showArrow={false}
+                >
+                  Bypass for non-critical policies
+                </TooltipWrapper>
+              </Checkbox>
+            </div>
+            <GitOpsModeTooltipWrapper
+              renderChildren={(disableChildren) => (
+                <Button
+                  type="submit"
+                  isLoading={isUpdatingBypass}
+                  disabled={
+                    disableChildren ||
+                    bypassDisabled ===
+                      (config?.conditional_access?.bypass_disabled ?? false) ||
+                    !config
+                  }
+                >
+                  Save
+                </Button>
+              )}
+            />
           </form>
         </div>
       )}
