@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -21,6 +22,8 @@ type configServer struct {
 	cfg     fleet.OrbitConfig
 	headers []string
 	count   atomic.Int32
+	// status, when set, is returned instead of the config.
+	status atomic.Int32
 }
 
 func (s *configServer) set(cfg fleet.OrbitConfig) {
@@ -38,6 +41,10 @@ func (s *configServer) fallbackHeaders() []string {
 func newNudgeTestClient(t *testing.T, srv *configServer) *OrbitClient {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		srv.count.Add(1)
+		if status := srv.status.Load(); status != 0 {
+			w.WriteHeader(int(status))
+			return
+		}
 		srv.mu.Lock()
 		if h := r.Header.Get(fleet.OrbitConfigFallbackChangesHeader); h != "" {
 			srv.headers = append(srv.headers, h)
@@ -202,6 +209,40 @@ func TestConfigPollSlowsDownAndReportsFallbackChanges(t *testing.T) {
 	before = srv.count.Load()
 	time.Sleep(500 * time.Millisecond)
 	require.GreaterOrEqual(t, srv.count.Load()-before, int32(3))
+}
+
+func TestNudgesDuringBackoff(t *testing.T) {
+	oldRetry := configRetryOnNetworkError
+	configRetryOnNetworkError = time.Millisecond
+	t.Cleanup(func() { configRetryOnNetworkError = oldRetry })
+
+	srv := &configServer{}
+	srv.set(nudgedConfig(3600))
+	oc := newNudgeTestClient(t, srv)
+	// Also the backoff base: no retry fires during the test.
+	oc.DefaultConfigPollInterval = time.Hour
+	oc.SetTransportConnectedFunc(func() bool { return true })
+	var receiverRuns atomic.Int32
+	oc.RegisterConfigReceiver(fleet.OrbitConfigReceiverFunc(func(*fleet.OrbitConfig) error {
+		receiverRuns.Add(1)
+		return errors.New("receiver failed")
+	}))
+	runConfigReceivers(t, oc)
+
+	// A failing receiver puts the loop in backoff, but the server is healthy: nudges are served.
+	oc.TriggerConfigRefresh()
+	require.Eventually(t, func() bool { return receiverRuns.Load() == 1 }, 5*time.Second, 10*time.Millisecond)
+	oc.TriggerConfigRefresh()
+	require.Eventually(t, func() bool { return receiverRuns.Load() == 2 }, 5*time.Second, 10*time.Millisecond)
+
+	// Fetching fails: the retry is left to the backoff timer.
+	srv.status.Store(http.StatusInternalServerError)
+	oc.TriggerConfigRefresh()
+	require.Eventually(t, func() bool { return srv.count.Load() == 4 }, 5*time.Second, 10*time.Millisecond) // fetch + its retry
+	oc.TriggerConfigRefresh()
+	oc.TransportConnected()
+	time.Sleep(200 * time.Millisecond)
+	require.EqualValues(t, 4, srv.count.Load())
 }
 
 func TestTransportConnectedFetchGating(t *testing.T) {

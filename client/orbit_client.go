@@ -458,6 +458,9 @@ func (oc *OrbitClient) ExecuteConfigReceivers() error {
 
 	var lastConfig *fleet.OrbitConfig
 	var lastRun time.Time
+	// lastFetchFailed reports whether the last run failed to fetch the config. Backoff is also entered on receiver errors,
+	// during which the server may be healthy and nudges must still be served.
+	lastFetchFailed := false
 	for {
 		// The timer firing on the slow interval is the fallback poll: a change it finds was not nudged.
 		fallbackPoll := false
@@ -478,13 +481,13 @@ func (oc *OrbitClient) ExecuteConfigReceivers() error {
 		case <-oc.connectedCh:
 			nudged := lastConfig != nil && lastConfig.WebSocketTransport != nil &&
 				lastConfig.WebSocketTransport.OrbitConfigPollInterval != nil
-			if !nudged || configBackoff.InBackoff() || time.Since(lastRun) < oc.DefaultConfigPollInterval {
+			if !nudged || lastFetchFailed || time.Since(lastRun) < oc.DefaultConfigPollInterval {
 				continue
 			}
 			timer.Stop()
 		case <-oc.refreshCh:
-			if configBackoff.InBackoff() {
-				// The server is failing; leave the retry to the backoff timer.
+			if lastFetchFailed {
+				// Fetching the config is failing; leave the retry to the backoff timer.
 				continue
 			}
 			timer.Stop()
@@ -492,6 +495,7 @@ func (oc *OrbitClient) ExecuteConfigReceivers() error {
 
 		lastRun = time.Now()
 		cfg, err := oc.runConfigReceivers()
+		lastFetchFailed = cfg == nil
 		if cfg != nil {
 			if fallbackPoll && lastConfig != nil {
 				oc.recordFallbackChanges(lastConfig, cfg)
