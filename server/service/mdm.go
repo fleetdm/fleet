@@ -2816,7 +2816,8 @@ type batchSetMDMProfilesRequest struct {
 type backwardsCompatProfilesParam []fleet.MDMProfileBatchPayload
 
 func (bcp *backwardsCompatProfilesParam) UnmarshalJSON(data []byte) error {
-	if len(data) == 0 {
+	// null stays nil so the endpoint can reject it like a missing key.
+	if len(data) == 0 || bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
 		return nil
 	}
 
@@ -2865,6 +2866,12 @@ func (r batchSetMDMProfilesResponse) Status() int { return http.StatusNoContent 
 
 func batchSetMDMProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchSetMDMProfilesRequest)
+	// The list replaces the fleet's whole set, so a missing key must not be read as "delete everything";
+	// an explicit [] (or {} in the deprecated format) still clears it.
+	if req.Profiles == nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return batchSetMDMProfilesResponse{Err: fleet.NewInvalidArgumentError("profiles", "profiles is required")}, nil
+	}
 	if err := svc.BatchSetMDMProfiles(
 		ctx, req.TeamID, req.TeamName, req.Profiles, req.DryRun, false, req.AssumeEnabled, req.NoCache,
 	); err != nil {
