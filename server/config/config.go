@@ -842,20 +842,20 @@ type storageBackendCandidate struct {
 // softwareInstallersBackendCandidates is the single place that knows where
 // each backend's selecting config lives. To add a backend (or to move S3 under
 // CloudStorage), only this list needs to change.
-func (c FleetConfig) softwareInstallersBackendCandidates() []storageBackendCandidate {
+func (f FleetConfig) softwareInstallersBackendCandidates() []storageBackendCandidate {
 	return []storageBackendCandidate{
-		{StorageBackendS3, c.S3.SoftwareInstallersBucket != "", "s3_software_installers_bucket"},
-		{StorageBackendAzure, c.CloudStorage.Azure.SoftwareInstallersContainer != "", "cloud_storage_azure_files_container"},
+		{StorageBackendS3, f.S3.SoftwareInstallersBucket != "", "s3_software_installers_bucket"},
+		{StorageBackendAzure, f.CloudStorage.Azure.SoftwareInstallersContainer != "", "cloud_storage_azure_files_container"},
 	}
 }
 
 // SoftwareInstallersBackend returns the object store configured for the
 // software installers group, or an error if more than one is configured since
 // only one backend can be selected.
-func (c FleetConfig) SoftwareInstallersBackend() (StorageBackend, error) {
+func (f FleetConfig) SoftwareInstallersBackend() (StorageBackend, error) {
 	var keys []string
 	backend := StorageBackendLocal
-	for _, cand := range c.softwareInstallersBackendCandidates() {
+	for _, cand := range f.softwareInstallersBackendCandidates() {
 		if cand.configured {
 			backend = cand.backend
 			keys = append(keys, "`"+cand.key+"`")
@@ -872,8 +872,8 @@ func (c FleetConfig) SoftwareInstallersBackend() (StorageBackend, error) {
 
 // ValidateSoftwareInstallersBackend fails initialization if more than one
 // object store is configured for the software installers group.
-func (c FleetConfig) ValidateSoftwareInstallersBackend(initFatal func(err error, msg string)) {
-	if _, err := c.SoftwareInstallersBackend(); err != nil {
+func (f FleetConfig) ValidateSoftwareInstallersBackend(initFatal func(err error, msg string)) {
+	if _, err := f.SoftwareInstallersBackend(); err != nil {
 		initFatal(err, "software installers storage")
 	}
 }
@@ -881,17 +881,17 @@ func (c FleetConfig) ValidateSoftwareInstallersBackend(initFatal func(err error,
 // SoftwareInstallersSignedURLEnabled reports whether downloads of software
 // installers and in-house apps should be handed out as signed URLs (pointing
 // directly at the object store) instead of proxying the bytes through Fleet.
-func (c FleetConfig) SoftwareInstallersSignedURLEnabled() bool {
-	if c.S3.SoftwareInstallersCloudFrontSigner != nil || c.S3.SoftwareInstallersSignedURL {
+func (f FleetConfig) SoftwareInstallersSignedURLEnabled() bool {
+	if f.S3.SoftwareInstallersCloudFrontSigner != nil || f.S3.SoftwareInstallersSignedURL {
 		return true
 	}
-	return c.CloudStorage.Azure.SoftwareInstallersContainer != "" && c.CloudStorage.Azure.SoftwareInstallersSignedURL
+	return f.CloudStorage.Azure.SoftwareInstallersContainer != "" && f.CloudStorage.Azure.SoftwareInstallersSignedURL
 }
 
 // StagedUploadAvailable reports whether clients can upload packages straight
 // to object storage. Only supported with S3-compatible storage for now.
-func (c FleetConfig) StagedUploadAvailable() bool {
-	return c.S3.SoftwareInstallersSignedURL && c.S3.SoftwareInstallersBucket != ""
+func (f FleetConfig) StagedUploadAvailable() bool {
+	return f.S3.SoftwareInstallersSignedURL && f.S3.SoftwareInstallersBucket != ""
 }
 
 // PubSubConfig defines configs the for Google PubSub logging plugin
