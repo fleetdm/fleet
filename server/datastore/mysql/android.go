@@ -357,8 +357,7 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 			// enrollment, a report without one is written as reported.
 			//
 			// last_enrolled_at has second precision, so a measurement from the same second as the
-			// enrollment counts as before it. A measurement equal to the stored one doesn't move
-			// updated_at (SetOrUpdateHostDisksSpace skips the write), so it also counts as before.
+			// enrollment counts as before it.
 			//
 			// Decided in one statement on the writer so a lagging replica can't make it drop a
 			// known value. The condition only reads columns that stay unchanged whenever it holds,
@@ -385,6 +384,17 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 				nil)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "updating Android host disk space")
+			}
+			// SetOrUpdateHostDisksSpace skips the write when the measurement equals the stored one,
+			// which would leave updated_at before the enrollment and keep the measurement past the
+			// first one since. Record that one was received. This runs after it because it writes
+			// on its own connection and would wait on this transaction's row lock.
+			if _, err := tx.ExecContext(ctx, `
+				UPDATE host_disks SET updated_at = CURRENT_TIMESTAMP(6)
+				WHERE host_id = ? AND updated_at < (SELECT last_enrolled_at FROM hosts WHERE id = ?) + INTERVAL 1 SECOND`,
+				host.Host.ID, host.Host.ID,
+			); err != nil {
+				return ctxerr.Wrap(ctx, err, "recording Android host disk measurement since enrollment")
 			}
 		}
 

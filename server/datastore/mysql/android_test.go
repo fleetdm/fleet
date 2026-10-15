@@ -918,6 +918,16 @@ func testUpdateAndroidHostKeepsDiskMeasurement(t *testing.T, ds *Datastore) {
 			want: notMeasured,
 		},
 		{
+			// SetOrUpdateHostDisksSpace skips an unchanged measurement, so ending the keep can't
+			// depend on the disk values being written.
+			name: "after a re-enrollment, a measurement equal to the stored one ends the keep",
+			steps: []step{
+				age, status(measured), age, reenroll(notMeasured),
+				age, status(measured), status(notMeasured),
+			},
+			want: notMeasured,
+		},
+		{
 			name:  "host with no stored disk data records not supported on re-enrollment",
 			steps: []step{age, reenroll(notMeasured)},
 			want:  notMeasured,
