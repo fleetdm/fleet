@@ -89,21 +89,6 @@ var hookCases = []hookCase{
 		},
 	},
 	{
-		name: "SaveDefaultTeamConfig",
-		want: "scope team:0 settings",
-		run: func(ctx context.Context, ds *mock.Store, d *Datastore, unchanged bool, writeErr error) error {
-			ds.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) {
-				return &fleet.TeamConfig{}, nil
-			}
-			ds.SaveDefaultTeamConfigFunc = func(ctx context.Context, config *fleet.TeamConfig) error { return writeErr }
-			config := &fleet.TeamConfig{}
-			if !unchanged {
-				config.MDM.EnableDiskEncryption = true
-			}
-			return d.SaveDefaultTeamConfig(ctx, config)
-		},
-	},
-	{
 		name:           "DeleteTeam",
 		want:           "scope team:0 settings",
 		alwaysNotifies: true,
@@ -206,11 +191,6 @@ func TestSaveAppConfigScope(t *testing.T) {
 			want:   []string{"scope team:0 settings"},
 		},
 		{
-			name:   "no fleet macOS updates",
-			change: func(cfg *fleet.AppConfig) { cfg.MDM.MacOSUpdates.MinimumVersion = optjson.SetString("15.1") },
-			want:   []string{"scope team:0 settings"},
-		},
-		{
 			name: "no fleet agent options other than script timeout",
 			change: func(cfg *fleet.AppConfig) {
 				cfg.AgentOptions = new(json.RawMessage(`{"script_execution_timeout":300,"command_line_flags":{"verbose":true}}`))
@@ -223,6 +203,10 @@ func TestSaveAppConfigScope(t *testing.T) {
 				cfg.MDM.MacOSSetup.EnableEndUserAuthentication = true
 			},
 		},
+		{
+			name:   "no fleet macOS updates",
+			change: func(cfg *fleet.AppConfig) { cfg.MDM.MacOSUpdates.MinimumVersion = optjson.SetString("15.1") },
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -234,6 +218,54 @@ func TestSaveAppConfigScope(t *testing.T) {
 			after := &fleet.AppConfig{AgentOptions: new(json.RawMessage(`{"script_execution_timeout":300}`))}
 			c.change(after)
 			require.NoError(t, d.SaveAppConfig(t.Context(), after))
+			require.Equal(t, c.want, notifier.calls)
+		})
+	}
+}
+
+func TestSaveTeamScope(t *testing.T) {
+	cases := []struct {
+		name   string
+		change func(cfg *fleet.TeamConfig)
+		want   []string
+	}{
+		{
+			name: "agent options",
+			change: func(cfg *fleet.TeamConfig) {
+				cfg.AgentOptions = new(json.RawMessage(`{"command_line_flags":{"verbose":true}}`))
+			},
+			want: []string{"scope team:3 settings"},
+		},
+		{
+			name:   "disk encryption",
+			change: func(cfg *fleet.TeamConfig) { cfg.MDM.MacOSSettings.EnableDiskEncryption = optjson.SetBool(true) },
+			want:   []string{"scope team:3 settings"},
+		},
+		{
+			name:   "BitLocker PIN",
+			change: func(cfg *fleet.TeamConfig) { cfg.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(true) },
+			want:   []string{"scope team:3 settings"},
+		},
+		{
+			name:   "macOS updates",
+			change: func(cfg *fleet.TeamConfig) { cfg.MDM.MacOSUpdates.MinimumVersion = optjson.SetString("15.1") },
+		},
+		{
+			name:   "setting not read by orbit config",
+			change: func(cfg *fleet.TeamConfig) { cfg.MDM.MacOSSetup.EnableEndUserAuthentication = true },
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds, notifier, d := newTestDatastore()
+			ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+				return &fleet.TeamLite{ID: tid, Config: fleet.TeamConfigLite{AgentOptions: new(json.RawMessage(`{}`))}}, nil
+			}
+			ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) { return team, nil }
+			team := &fleet.Team{ID: 3, Config: fleet.TeamConfig{AgentOptions: new(json.RawMessage(`{}`))}}
+			c.change(&team.Config)
+			_, err := d.SaveTeam(t.Context(), team)
+			require.NoError(t, err)
 			require.Equal(t, c.want, notifier.calls)
 		})
 	}

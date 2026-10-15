@@ -94,7 +94,6 @@ type appConfigGlobalInputs struct {
 // for "No fleet" hosts.
 type appConfigNoTeamInputs struct {
 	AgentOptions   *json.RawMessage
-	MacOSUpdates   fleet.AppleOSUpdateSettings
 	DiskEncryption fleet.DiskEncryptionConfig
 }
 
@@ -119,15 +118,20 @@ func appConfigOrbitInputs(cfg *fleet.AppConfig) (*appConfigGlobalInputs, *appCon
 			ScriptExecutionTimeout:         opts.ScriptExecutionTimeout,
 		}, &appConfigNoTeamInputs{
 			AgentOptions:   cfg.AgentOptions,
-			MacOSUpdates:   cfg.MDM.MacOSUpdates,
 			DiskEncryption: cfg.MDM.DiskEncryptionConfig(),
 		}
 }
 
-// teamConfigInputs are the fleet config fields GetOrbitConfig reads.
+// teamConfigInputs are the fleet config fields GetOrbitConfig reads. The
+// macOS updates settings are left out: they only feed Nudge, for macOS
+// versions orbit config nudges don't support.
 type teamConfigInputs struct {
-	AgentOptions *json.RawMessage
-	MDM          fleet.TeamMDM
+	AgentOptions   *json.RawMessage
+	DiskEncryption fleet.DiskEncryptionConfig
+}
+
+func teamConfigOrbitInputs(agentOptions *json.RawMessage, mdm *fleet.TeamMDM) *teamConfigInputs {
+	return &teamConfigInputs{AgentOptions: agentOptions, DiskEncryption: mdm.DiskEncryptionConfig()}
 }
 
 func (d *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) error {
@@ -156,30 +160,16 @@ func (d *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) er
 func (d *Datastore) SaveTeam(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 	var before *teamConfigInputs
 	if t, err := d.Datastore.TeamLite(freshCtx(ctx), team.ID); err == nil {
-		before = &teamConfigInputs{AgentOptions: t.Config.AgentOptions, MDM: t.Config.MDM}
+		before = teamConfigOrbitInputs(t.Config.AgentOptions, &t.Config.MDM)
 	}
 	saved, err := d.Datastore.SaveTeam(ctx, team)
 	if err != nil {
 		return nil, err
 	}
-	if changed(before, &teamConfigInputs{AgentOptions: team.Config.AgentOptions, MDM: team.Config.MDM}) {
+	if changed(before, teamConfigOrbitInputs(team.Config.AgentOptions, &team.Config.MDM)) {
 		d.publishScope(ctx, fleet.AgentNotificationScopeTeam(team.ID), "SaveTeam")
 	}
 	return saved, nil
-}
-
-func (d *Datastore) SaveDefaultTeamConfig(ctx context.Context, config *fleet.TeamConfig) error {
-	var before *teamConfigInputs
-	if cfg, err := d.Datastore.DefaultTeamConfig(freshCtx(ctx)); err == nil && cfg != nil {
-		before = &teamConfigInputs{AgentOptions: cfg.AgentOptions, MDM: cfg.MDM}
-	}
-	if err := d.Datastore.SaveDefaultTeamConfig(ctx, config); err != nil {
-		return err
-	}
-	if config != nil && changed(before, &teamConfigInputs{AgentOptions: config.AgentOptions, MDM: config.MDM}) {
-		d.publishScope(ctx, fleet.AgentNotificationScopeTeam(0), "SaveDefaultTeamConfig")
-	}
-	return nil
 }
 
 func (d *Datastore) DeleteTeam(ctx context.Context, tid uint) error {

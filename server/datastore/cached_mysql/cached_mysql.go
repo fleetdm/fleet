@@ -108,7 +108,6 @@ func MaxOrbitConfigInputTTL() time.Duration {
 		defaultAppConfigExpiration,
 		defaultTeamAgentOptionsExpiration,
 		defaultTeamMDMConfigExpiration,
-		defaultDefaultTeamConfigExpiration,
 	)
 }
 
