@@ -2690,6 +2690,7 @@ func testAndroidVPPLatestFailedInstall(t *testing.T, ds *Datastore) {
 		return app
 	}
 	reinstalled, failed, canceled := newApp("com.app.reinstalled"), newApp("com.app.failed"), newApp("com.app.canceled")
+	removed, previousEnrollment := newApp("com.app.removed"), newApp("com.app.previous.enrollment")
 
 	insertInstall := func(hostID uint, app *fleet.VPPApp) string {
 		cmdUUID := uuid.NewString()
@@ -2713,18 +2714,30 @@ func testAndroidVPPLatestFailedInstall(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.BulkSetVPPInstallsAsFailed(ctx, host.Host.ID, []string{reinstalledFailedCmd}))
 	insertInstall(host.Host.ID, reinstalled)
 
-	// A canceled install after a failure doesn't hide it, as in the host software status.
+	// A canceled or removed install after a failure doesn't hide it, as in the host software status.
 	failedCmd := insertInstall(host.Host.ID, failed)
 	canceledFailedCmd := insertInstall(host.Host.ID, canceled)
+	removedFailedCmd := insertInstall(host.Host.ID, removed)
 	otherHostFailedCmd := insertInstall(otherHost.Host.ID, failed)
-	require.NoError(t, ds.BulkSetVPPInstallsAsFailed(ctx, host.Host.ID, []string{failedCmd, canceledFailedCmd, otherHostFailedCmd}))
+	// A failure from before the host's current enrollment is not returned.
+	previousEnrollmentFailedCmd := insertInstall(host.Host.ID, previousEnrollment)
+	require.NoError(t, ds.BulkSetVPPInstallsAsFailed(ctx, host.Host.ID,
+		[]string{failedCmd, canceledFailedCmd, removedFailedCmd, otherHostFailedCmd, previousEnrollmentFailedCmd}))
 	canceledCmd := insertInstall(host.Host.ID, canceled)
+	removedCmd := insertInstall(host.Host.ID, removed)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET canceled = 1 WHERE command_uuid = ?`, canceledCmd)
+		if _, err := q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET canceled = 1 WHERE command_uuid = ?`, canceledCmd); err != nil {
+			return err
+		}
+		if _, err := q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET removed = 1 WHERE command_uuid = ?`, removedCmd); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET created_at = created_at - INTERVAL 1 HOUR WHERE command_uuid = ?`,
+			previousEnrollmentFailedCmd)
 		return err
 	})
 
-	require.ElementsMatch(t, []string{failedCmd, canceledFailedCmd}, listFailed(host.Host.UUID))
+	require.ElementsMatch(t, []string{failedCmd, canceledFailedCmd, removedFailedCmd}, listFailed(host.Host.UUID))
 	require.Equal(t, []string{otherHostFailedCmd}, listFailed(otherHost.Host.UUID))
 	require.Empty(t, listFailed("no-such-uuid"))
 
@@ -2745,7 +2758,7 @@ func testAndroidVPPLatestFailedInstall(t *testing.T, ds *Datastore) {
 	// Verifying a failed install clears the failure, so the host shows it installed.
 	require.NoError(t, ds.BulkSetVPPInstallsAsVerified(ctx, host.Host.ID, []string{failedCmd}))
 	require.Equal(t, fleet.SoftwareInstalled, hostStatus(failed))
-	require.Equal(t, []string{canceledFailedCmd}, listFailed(host.Host.UUID))
+	require.ElementsMatch(t, []string{canceledFailedCmd, removedFailedCmd}, listFailed(host.Host.UUID))
 	require.Equal(t, []string{otherHostFailedCmd}, listFailed(otherHost.Host.UUID))
 
 	summary, err := ds.GetSummaryHostVPPAppInstalls(ctx, failed.AppTeamID)

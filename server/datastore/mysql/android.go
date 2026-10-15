@@ -2678,8 +2678,10 @@ WHERE
 }
 
 func (ds *Datastore) ListHostMDMAndroidVPPAppsLatestFailedInstall(ctx context.Context, hostUUID string) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
-	// Ranked like the host software status, so this returns only failures the host
-	// currently shows, not one that a later install (e.g. after re-enrolling) replaced.
+	// Only the latest install per app counts, so a failure that a later install replaced
+	// is never revisited. Installs from before the current enrollment are left out too:
+	// re-enrolling fails them, and until the setup experience creates the new installs
+	// they would otherwise still be the latest.
 	const stmt = `
 SELECT
 	host_id,
@@ -2695,8 +2697,9 @@ FROM (
 		hvsi.associated_event_id,
 		hvsi.created_at,
 		hvsi.verification_failed_at,
+		h.last_enrolled_at,
 		ROW_NUMBER() OVER (
-			PARTITION BY hvsi.adam_id
+			PARTITION BY hvsi.adam_id, hvsi.platform
 			ORDER BY hvsi.created_at DESC, hvsi.id DESC
 		) AS rn
 	FROM
@@ -2704,13 +2707,14 @@ FROM (
 		INNER JOIN hosts h ON hvsi.host_id = h.id
 	WHERE
 		h.uuid = ? AND
-		h.platform = ? AND
+		hvsi.platform = ? AND
 		hvsi.removed = 0 AND
 		hvsi.canceled = 0
 ) ranked
 WHERE
 	ranked.rn = 1 AND
-	ranked.verification_failed_at IS NOT NULL
+	ranked.verification_failed_at IS NOT NULL AND
+	ranked.created_at >= ranked.last_enrolled_at
 `
 
 	var failedInstalls []*fleet.HostAndroidVPPSoftwareInstall
@@ -2724,14 +2728,14 @@ WHERE
 func (ds *Datastore) BulkSetVPPInstallsAsVerified(ctx context.Context, hostID uint, commandUUIDs []string) error {
 	// A device can report an app installed after Fleet already failed its install, so
 	// verifying also clears the failure.
-	return ds.bulkSetVPPInstallsAsFinalState(ctx, hostID, commandUUIDs, "verification_at", "verification_failed_at")
+	return ds.bulkSetVPPInstallsAsFinalState(ctx, hostID, commandUUIDs, "verification_at = CURRENT_TIMESTAMP(6), verification_failed_at = NULL")
 }
 
 func (ds *Datastore) BulkSetVPPInstallsAsFailed(ctx context.Context, hostID uint, commandUUIDs []string) error {
-	return ds.bulkSetVPPInstallsAsFinalState(ctx, hostID, commandUUIDs, "verification_failed_at", "verification_at")
+	return ds.bulkSetVPPInstallsAsFinalState(ctx, hostID, commandUUIDs, "verification_failed_at = CURRENT_TIMESTAMP(6)")
 }
 
-func (ds *Datastore) bulkSetVPPInstallsAsFinalState(ctx context.Context, hostID uint, commandUUIDs []string, column, clearColumn string) error {
+func (ds *Datastore) bulkSetVPPInstallsAsFinalState(ctx context.Context, hostID uint, commandUUIDs []string, setFinalState string) error {
 	if len(commandUUIDs) == 0 {
 		return nil
 	}
@@ -2742,12 +2746,11 @@ func (ds *Datastore) bulkSetVPPInstallsAsFinalState(ctx context.Context, hostID 
 UPDATE
 	host_vpp_software_installs
 SET
-	%s = CURRENT_TIMESTAMP(6),
-	%s = NULL,
+	%s,
 	verification_command_uuid = ?
 WHERE
 	command_uuid IN (?)
-`, column, clearColumn)
+`, setFinalState)
 
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		verificationUUID := uuid.NewString()

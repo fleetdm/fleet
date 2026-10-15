@@ -3066,12 +3066,16 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 		require.ElementsMatch(t, []string{"timed-out", "rejected"}, installs.failed)
 		require.Empty(t, installs.verified)
 
-		// Not reported as installed, so both stay failed and neither is failed again.
+		// Not reported as installed, so both stay failed and neither is failed again. With no
+		// app installed in the report there is nothing to override, so failures aren't read.
+		mockDS.ListHostMDMAndroidVPPAppsLatestFailedInstallFuncInvoked = false
 		pushStatusReport(t, []*androidmanagement.ApplicationReport{{PackageName: "com.example.timedout", State: "REMOVED"}}, notApproved)
+		require.False(t, mockDS.ListHostMDMAndroidVPPAppsLatestFailedInstallFuncInvoked)
 		require.Len(t, installs.failed, 2)
 		require.Empty(t, installs.verified)
 
 		pushStatusReport(t, []*androidmanagement.ApplicationReport{{PackageName: "com.example.timedout", State: "INSTALLED"}}, notApproved)
+		require.True(t, mockDS.ListHostMDMAndroidVPPAppsLatestFailedInstallFuncInvoked)
 		require.Equal(t, []string{"timed-out"}, installs.verified)
 
 		// A failure from an explicit non-compliance report is overridden the same way.

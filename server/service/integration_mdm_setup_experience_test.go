@@ -4732,13 +4732,29 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidFailedInstallReporte
 	require.Equal(t, []string{string(fleet.SoftwareInstalled)}, installActivityStatuses(apps[0]))
 	require.Equal(t, []string{string(fleet.SoftwareInstallFailed), string(fleet.SoftwareInstalled)}, installActivityStatuses(apps[1]))
 
+	reEnroll := func(appReports []*androidmanagement.ApplicationReport) {
+		// Re-enrolling happens well after the previous enrollment's installs were created,
+		// which the host's second-precision enrollment time can't tell apart in a fast test.
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(t.Context(),
+				`UPDATE host_vpp_software_installs SET created_at = created_at - INTERVAL 1 MINUTE WHERE host_id = ?`, host.ID)
+			return err
+		})
+		device := androidmanagement.Device{Name: deviceInfo.Name, EnrollmentTokenData: deviceInfo.EnrollmentTokenData}
+		if len(appReports) > 0 {
+			device.AppliedPolicyName = fmt.Sprintf("enterprises/%s/policies/%s", enterpriseID, host.UUID)
+			device.AppliedPolicyVersion = policyVersion
+			device.ApplicationReports = appReports
+			device.LastPolicySyncTime = time.Now().Format(time.RFC3339Nano)
+		}
+		msg := enrollmentMessageWithEnterpriseSpecificID(t, device, host.UUID)
+		s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &android_service.PubSubPushRequest{PubSubMessage: *msg},
+			http.StatusOK, "token", string(pubSubToken.Value))
+	}
+
 	// After re-enrolling, a failure of the new install is overridden too, and the
 	// previous enrollment's installs are left alone.
-	msg := enrollmentMessageWithEnterpriseSpecificID(t, androidmanagement.Device{
-		Name: deviceInfo.Name, EnrollmentTokenData: deviceInfo.EnrollmentTokenData,
-	}, host.UUID)
-	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &android_service.PubSubPushRequest{PubSubMessage: *msg},
-		http.StatusOK, "token", string(pubSubToken.Value))
+	reEnroll(nil)
 	s.runWorkerUntilDoneWithChecks(true)
 	require.Equal(t, map[string]fleet.SoftwareInstallerStatus{
 		apps[0].Name: fleet.SoftwareInstallPending, apps[1].Name: fleet.SoftwareInstallPending,
@@ -4750,6 +4766,32 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidFailedInstallReporte
 		apps[0].Name: fleet.SoftwareInstalled, apps[1].Name: fleet.SoftwareInstalled,
 	}, hostStatuses())
 	// re-enrolling cleared the host's past activities, so these are only the new enrollment's
+	require.Equal(t, []string{string(fleet.SoftwareInstalled)}, installActivityStatuses(apps[0]))
+	require.Equal(t, []string{string(fleet.SoftwareInstallFailed), string(fleet.SoftwareInstalled)}, installActivityStatuses(apps[1]))
+
+	// Re-enroll while an install is still pending, which fails it. The device reporting the
+	// app installed, in the enrollment message or before the setup experience creates the
+	// new installs, must not override that failure, or the app would get a second
+	// "installed" activity once its new install is verified.
+	reEnroll(nil)
+	s.runWorkerUntilDoneWithChecks(true)
+	pushStatusReport([]*androidmanagement.ApplicationReport{installed(apps[0])}, nil)
+	require.Equal(t, map[string]fleet.SoftwareInstallerStatus{
+		apps[0].Name: fleet.SoftwareInstalled, apps[1].Name: fleet.SoftwareInstallPending,
+	}, hostStatuses())
+
+	reEnroll([]*androidmanagement.ApplicationReport{installed(apps[0]), installed(apps[1])})
+	pushStatusReport([]*androidmanagement.ApplicationReport{installed(apps[0]), installed(apps[1])}, nil)
+	require.Equal(t, map[string]fleet.SoftwareInstallerStatus{
+		apps[0].Name: fleet.SoftwareInstalled, apps[1].Name: fleet.SoftwareInstallFailed,
+	}, hostStatuses())
+	require.Equal(t, []string{string(fleet.SoftwareInstallFailed)}, installActivityStatuses(apps[1]))
+
+	s.runWorkerUntilDoneWithChecks(true)
+	pushStatusReport([]*androidmanagement.ApplicationReport{installed(apps[0]), installed(apps[1])}, nil)
+	require.Equal(t, map[string]fleet.SoftwareInstallerStatus{
+		apps[0].Name: fleet.SoftwareInstalled, apps[1].Name: fleet.SoftwareInstalled,
+	}, hostStatuses())
 	require.Equal(t, []string{string(fleet.SoftwareInstalled)}, installActivityStatuses(apps[0]))
 	require.Equal(t, []string{string(fleet.SoftwareInstallFailed), string(fleet.SoftwareInstalled)}, installActivityStatuses(apps[1]))
 }
