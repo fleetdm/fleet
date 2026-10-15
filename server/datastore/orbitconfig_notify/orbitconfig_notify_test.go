@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/stretchr/testify/require"
@@ -161,6 +162,81 @@ func TestSaveAppConfigUnreadableBeforeNotifies(t *testing.T) {
 	ds.SaveAppConfigFunc = func(ctx context.Context, info *fleet.AppConfig) error { return nil }
 	require.NoError(t, d.SaveAppConfig(t.Context(), &fleet.AppConfig{}))
 	require.Equal(t, []string{"scope global settings"}, notifier.calls)
+}
+
+func TestSaveAppConfigScope(t *testing.T) {
+	cases := []struct {
+		name   string
+		change func(cfg *fleet.AppConfig)
+		want   []string
+	}{
+		{
+			name:   "MDM turned on",
+			change: func(cfg *fleet.AppConfig) { cfg.MDM.EnabledAndConfigured = true },
+			want:   []string{"scope global settings"},
+		},
+		{
+			name:   "server URL",
+			change: func(cfg *fleet.AppConfig) { cfg.ServerSettings.ServerURL = "https://other.example.com" },
+			want:   []string{"scope global settings"},
+		},
+		{
+			name: "global script timeout",
+			change: func(cfg *fleet.AppConfig) {
+				cfg.AgentOptions = new(json.RawMessage(`{"script_execution_timeout":600}`))
+			},
+			want: []string{"scope global settings"},
+		},
+		{
+			name: "MDM turned on and no fleet disk encryption",
+			change: func(cfg *fleet.AppConfig) {
+				cfg.MDM.EnabledAndConfigured = true
+				cfg.MDM.MacOSSettings.EnableDiskEncryption = optjson.SetBool(true)
+			},
+			want: []string{"scope global settings"},
+		},
+		{
+			name:   "no fleet disk encryption",
+			change: func(cfg *fleet.AppConfig) { cfg.MDM.MacOSSettings.EnableDiskEncryption = optjson.SetBool(true) },
+			want:   []string{"scope team:0 settings"},
+		},
+		{
+			name:   "no fleet BitLocker PIN",
+			change: func(cfg *fleet.AppConfig) { cfg.MDM.WindowsSettings.RequireBitLockerPIN = optjson.SetBool(true) },
+			want:   []string{"scope team:0 settings"},
+		},
+		{
+			name:   "no fleet macOS updates",
+			change: func(cfg *fleet.AppConfig) { cfg.MDM.MacOSUpdates.MinimumVersion = optjson.SetString("15.1") },
+			want:   []string{"scope team:0 settings"},
+		},
+		{
+			name: "no fleet agent options other than script timeout",
+			change: func(cfg *fleet.AppConfig) {
+				cfg.AgentOptions = new(json.RawMessage(`{"script_execution_timeout":300,"command_line_flags":{"verbose":true}}`))
+			},
+			want: []string{"scope team:0 settings"},
+		},
+		{
+			name: "setting not read by orbit config",
+			change: func(cfg *fleet.AppConfig) {
+				cfg.MDM.MacOSSetup.EnableEndUserAuthentication = true
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds, notifier, d := newTestDatastore()
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{AgentOptions: new(json.RawMessage(`{"script_execution_timeout":300}`))}, nil
+			}
+			ds.SaveAppConfigFunc = func(ctx context.Context, info *fleet.AppConfig) error { return nil }
+			after := &fleet.AppConfig{AgentOptions: new(json.RawMessage(`{"script_execution_timeout":300}`))}
+			c.change(after)
+			require.NoError(t, d.SaveAppConfig(t.Context(), after))
+			require.Equal(t, c.want, notifier.calls)
+		})
+	}
 }
 
 // TestEveryWrappedMethodHasAHookCase requires each method declared by the

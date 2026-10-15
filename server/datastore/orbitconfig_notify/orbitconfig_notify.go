@@ -76,24 +76,52 @@ func changed[T any](before, after *T) bool {
 	return errB != nil || errA != nil || string(a) != string(b)
 }
 
-// appConfigInputs are the app config fields GetOrbitConfig reads.
-type appConfigInputs struct {
-	AgentOptions    *json.RawMessage
-	MDM             fleet.MDM
-	ServerURL       string
-	ScriptsDisabled bool
+// appConfigGlobalInputs are the app config fields GetOrbitConfig reads for
+// every host.
+type appConfigGlobalInputs struct {
+	MDMEnabled                     bool
+	MacOSMigrationEnabled          bool
+	WindowsMDMEnabled              bool
+	EnableTurnOnWindowsMDMManually bool
+	WindowsMigrationEnabled        bool
+	ServerURL                      string
+	ScriptsDisabled                bool
+	// Hosts in a fleet fall back to the global script timeout.
+	ScriptExecutionTimeout int
 }
 
-func appConfigOrbitInputs(cfg *fleet.AppConfig) *appConfigInputs {
+// appConfigNoTeamInputs are the app config fields GetOrbitConfig reads only
+// for "No fleet" hosts.
+type appConfigNoTeamInputs struct {
+	AgentOptions   *json.RawMessage
+	MacOSUpdates   fleet.AppleOSUpdateSettings
+	DiskEncryption fleet.DiskEncryptionConfig
+}
+
+func appConfigOrbitInputs(cfg *fleet.AppConfig) (*appConfigGlobalInputs, *appConfigNoTeamInputs) {
 	if cfg == nil {
-		return nil
+		return nil, nil
 	}
-	return &appConfigInputs{
-		AgentOptions:    cfg.AgentOptions,
-		MDM:             cfg.MDM,
-		ServerURL:       cfg.ServerSettings.ServerURL,
-		ScriptsDisabled: cfg.ServerSettings.ScriptsDisabled,
+	var opts fleet.AgentOptions
+	if cfg.AgentOptions != nil {
+		// An unparsable value leaves the timeout at 0; AgentOptions still
+		// compares raw below.
+		_ = json.Unmarshal(*cfg.AgentOptions, &opts)
 	}
+	return &appConfigGlobalInputs{
+			MDMEnabled:                     cfg.MDM.EnabledAndConfigured,
+			MacOSMigrationEnabled:          cfg.MDM.MacOSMigration.Enable,
+			WindowsMDMEnabled:              cfg.MDM.WindowsEnabledAndConfigured,
+			EnableTurnOnWindowsMDMManually: cfg.MDM.EnableTurnOnWindowsMDMManually,
+			WindowsMigrationEnabled:        cfg.MDM.WindowsMigrationEnabled,
+			ServerURL:                      cfg.ServerSettings.ServerURL,
+			ScriptsDisabled:                cfg.ServerSettings.ScriptsDisabled,
+			ScriptExecutionTimeout:         opts.ScriptExecutionTimeout,
+		}, &appConfigNoTeamInputs{
+			AgentOptions:   cfg.AgentOptions,
+			MacOSUpdates:   cfg.MDM.MacOSUpdates,
+			DiskEncryption: cfg.MDM.DiskEncryptionConfig(),
+		}
 }
 
 // teamConfigInputs are the fleet config fields GetOrbitConfig reads.
@@ -105,17 +133,22 @@ type teamConfigInputs struct {
 func (d *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) error {
 	// GitOps saves the app config on every run, mostly unchanged: only notify
 	// on an actual change.
-	var before *appConfigInputs
+	// "No fleet" settings live on the app config too: notify every host only
+	// for the fields read for every host.
+	var beforeGlobal *appConfigGlobalInputs
+	var beforeNoTeam *appConfigNoTeamInputs
 	if cfg, err := d.Datastore.AppConfig(freshCtx(ctx)); err == nil {
-		before = appConfigOrbitInputs(cfg)
+		beforeGlobal, beforeNoTeam = appConfigOrbitInputs(cfg)
 	}
 	if err := d.Datastore.SaveAppConfig(ctx, info); err != nil {
 		return err
 	}
-	if changed(before, appConfigOrbitInputs(info)) {
-		// Global agent options apply to "No fleet" hosts, but MDM settings to
-		// every host.
+	afterGlobal, afterNoTeam := appConfigOrbitInputs(info)
+	switch {
+	case changed(beforeGlobal, afterGlobal):
 		d.publishScope(ctx, fleet.AgentNotificationScopeGlobal, "SaveAppConfig")
+	case changed(beforeNoTeam, afterNoTeam):
+		d.publishScope(ctx, fleet.AgentNotificationScopeTeam(0), "SaveAppConfig")
 	}
 	return nil
 }
