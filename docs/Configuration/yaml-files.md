@@ -1578,7 +1578,7 @@ org_settings:
 #### volume_purchasing_program
 
 After you've uploaded a [Volume Purchasing Program](https://fleetdm.com/guides/macos-mdm-setup#volume-purchasing-program-vpp) (VPP) token, the  `volume_purchasing_program` section lets you configure the fleets in Fleet that have access to that VPP token's App Store apps. Currently, adding a VPP token is only available using Fleet's UI.
-- `location` is the name of the organization unit in the Apple Business account. Apple previously called this "location." Fleet will rename it to "organization unit" in the next major version.
+- `organization_unit` is the name of the organization unit in the Apple Business account. Apple previously called this "location." `location` is deprecated as of Fleet 5.0. It's maintained for backwards compatibility. Please use `organization_unit` instead.
 - `fleets` is a list of fleet names. If you choose specific fleets, App Store apps in this VPP account will only be available to install on hosts in these fleets. If not specified, App Store apps will not be available to install on any fleet. To apply it to all fleets, use `- All fleets`. 
 
 Can only be configured for "All fleets" (`org_settings`).
@@ -1589,7 +1589,7 @@ Can only be configured for "All fleets" (`org_settings`).
 org_settings:
   mdm:
     volume_purchasing_program: # Available in Fleet Premium
-    - location: Fleet Device Management Inc.
+    - organization_unit: Fleet Device Management Inc.
       fleets:
       - 💻 Workstations
       - 💻🐣 Workstations (canary)

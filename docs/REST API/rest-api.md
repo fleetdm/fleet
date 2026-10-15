@@ -10399,7 +10399,8 @@ None.
     {
       "id": 1,
       "org_name": "Fleet Device Management Inc.",
-      "location": "https://example.com/mdm/apple/mdm",
+      "organization_unit": "Fleet Device Management Inc.",
+      "location": "Fleet Device Management Inc.",
       "country_code": "us",
       "renew_date": "2023-11-29T00:00:00Z",
       "teams": [
@@ -10442,6 +10443,8 @@ None.
   ]
 }
 ```
+
+`organization_unit` is the name of the organization unit in Apple Business that's associated with the VPP token. Apple previously called this "location." `location` is deprecated as of Fleet 5.0. It's maintained for backwards compatibility. Please use `organization_unit` instead.
 
 ### Get Android Enterprise
 
