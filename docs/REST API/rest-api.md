@@ -12003,8 +12003,7 @@ The semantics for creating a fleet policy are the same as for global policies, s
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
 | software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. If `software_title_id` is specified and the software has `labels_include_any` or `labels_exclude_any` defined, the policy will inherit this target in addition to specified `platform`.                                                                     |
-| software_package_id | integer | body | _Available in Fleet Premium_. ID of the specific package to install when the software title has multiple packages. |
-| software_installer_id | integer | body | _Available in Fleet Premium_. ID of a specific package of `software_title_id` to install on failure. If omitted, defaults to the title's first-added package. |                                                                    |
+| software_package_id | integer | body | _Available in Fleet Premium_. ID of the specific package to install when the software title has multiple packages. If omitted, defaults to the title's first-added package. |
 | script_id         | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails.                                                                 |
 | profile_uuid      | string  | body | _Available in Fleet Premium_. UUID of the configuration profile to resend if the policy fails. The profile must belong to the same fleet. |
 | continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. If the install software automation does not resolve the policy after 10 attempts, Fleet will wait 24 hours before retrying. |
@@ -12242,8 +12241,7 @@ _Available in Fleet Premium_
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
 | software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to `null` to remove the automation.                              |
-| software_package_id     | integer | body | _Available in Fleet Premium_. ID of the specific package to install when the software title has multiple packages. Set to `null` to clear the pinned package. |
-| software_installer_id   | integer | body | _Available in Fleet Premium_. ID of a specific package of `software_title_id` to install on failure. If omitted, defaults to the title's first-added package.                              |
+| software_package_id     | integer | body | _Available in Fleet Premium_. ID of the specific package to install when the software title has multiple packages. If omitted, defaults to the title's first-added package. Set to `null` to clear the pinned package. |
 | script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `null` to remove the automation.                                          |
 | profile_uuid            | string  | body | _Available in Fleet Premium_. UUID of the configuration profile to resend if the policy fails. Set to `null` to remove the automation. The profile must belong to the same fleet. |
 | continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. If the install software automation does not resolve the policy after 10 attempts, Fleet will wait 24 hours before retrying. |
@@ -14818,7 +14816,7 @@ Returns information about the specified software. By default, `versions` are sor
             "version": "4.50.128",
             "platform": "darwin",
             "uploaded_at": "2026-06-04T17:29:09.155424Z",
-            "installer_id": 36817,
+            "id": 36817,
             "install_script": "#!/bin/sh\n\ninstaller -pkg \"$INSTALLER_PATH\" -target /\n",
             "pre_install_query": "",
             "post_install_script": "",
@@ -14851,7 +14849,7 @@ Returns information about the specified software. By default, `versions` are sor
             "version": "4.51.133",
             "platform": "darwin",
             "uploaded_at": "2026-06-10T09:14:51.482217Z",
-            "installer_id": 36901,
+            "id": 36901,
             "install_script": "#!/bin/sh\n\ninstaller -pkg \"$INSTALLER_PATH\" -target /\n",
             "pre_install_query": "",
             "post_install_script": "",
@@ -14927,6 +14925,8 @@ Returns information about the specified software. By default, `versions` are sor
 Each entry in `versions` includes `release` when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions.
 
 A software title can have more than one package. The `packages` array lists all packages added for the title, including per-package `self_service`, `categories`, and labels (`labels_include_any`, `labels_exclude_any`, `labels_include_all`). `software_package` is kept for backwards compatibility and contains the oldest (first added) package.
+
+> `installer_id` is deprecated as of Fleet 5.0. It's maintained for backwards compatibility. Please use `id` instead.
 
 > Install, pending, and failed counts in `packages.status` are combined across policy automations, setup experience, and manual installs.
 
@@ -15226,7 +15226,7 @@ labels_exclude_any="QA"
     "version": "4.50.128",
     "platform": "darwin",
     "uploaded_at": "2026-06-04T17:43:46.125681Z",
-    "installer_id": 36818,
+    "id": 36818,
     "install_script": "#!/bin/sh\n\ninstaller -pkg \"$INSTALLER_PATH\" -target /\n",
     "pre_install_query": "",
     "post_install_script": "",
@@ -15313,7 +15313,7 @@ post_install_script="sudo /Applications/Falcon.app/Contents/Resources/falconctl 
 
 ```json
 {
-  "software_installer": {
+  "software_package": {
     "team_id": 310,
     "title_id": 2792,
     "name": "Slack-4.45.64-macOS.pkg",
@@ -15321,7 +15321,7 @@ post_install_script="sudo /Applications/Falcon.app/Contents/Resources/falconctl 
     "version": "4.45.64",
     "platform": "darwin",
     "uploaded_at": "2026-06-04T17:47:23Z",
-    "installer_id": 36818,
+    "id": 36818,
     "install_script": "#!/bin/sh\n\ninstaller -pkg \"$INSTALLER_PATH\" -target /\n",
     "pre_install_query": "",
     "post_install_script": "",
@@ -15996,7 +15996,7 @@ Deletes software that's available for install. For Android hosts, the software i
 | ----            | ------- | ---- | --------------------------------------------     |
 | software_title_id              | integer | path | **Required**. The ID of the software title to delete software available for install. |
 | fleet_id | integer | query | **Required**. The fleet ID. Deletes a software package added to the specified fleet. |
-| installer_id | integer | query | Deletes only the specified package. If omitted, all of the title's packages on the fleet are deleted. |
+| package_id | integer | query | Deletes only the specified package. If omitted, all of the title's packages on the fleet are deleted. |
 
 #### Example
 
