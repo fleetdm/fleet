@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-15T19:18:16.731Z",
+  "generatedAt": "2026-10-15T21:09:43.178Z",
   "source": "https://github.com/ProfileManifests/ProfileManifests/tree/master/Manifests/ManagedPreferencesApplications",
   "entries": [
     {
@@ -119,6 +119,7 @@
           "type": "integer",
           "min": 1,
           "max": 1440,
+          "unitNote": "(in minutes)",
           "description": "Set auto-lock timeout -- Enforces the lock on idle time preference (Preferences > Security > Lock)."
         },
         {
@@ -203,6 +204,7 @@
           "key": "OPPrefMasterPasswordTimeoutInMinutesKey",
           "type": "integer",
           "min": -1,
+          "unitNote": "(in minutes)",
           "description": "Master Password Timeout -- Enforces a configured master password timeout (Preferences > Security > Require Master Password every ...) if: 1) Biometric or Apple Watch unlock is possible based on the related preferences and the hardware configuration 2) The user has configured…"
         },
         {
@@ -238,6 +240,7 @@
         {
           "key": "LockTimeout",
           "type": "integer",
+          "unitNote": "(in minutes)",
           "description": "Lock on Idle Time -- Enforces the lock on idle time preference (Preferences > Security > Lock after computer is idle)."
         },
         {
@@ -248,6 +251,7 @@
         {
           "key": "PasteboardClearTimeout",
           "type": "integer",
+          "unitNote": "(in seconds)",
           "description": "Clear Clipboard Time -- Enforces the clear clipboard contents after X seconds preference (Preferences > Security > Clipboard)"
         },
         {
@@ -289,7 +293,7 @@
       "name": "com.alectrona.patch-agent",
       "displayName": "Alectrona Patch Agent",
       "keywords": [
-        "patch"
+        "alectrona patch agent"
       ],
       "title": "Alectrona Patch Agent",
       "description": "Settings for Patch Agent",
@@ -506,7 +510,7 @@
       "displayName": "Alectrona Patch Command Line Tool",
       "keywords": [
         "patch command line",
-        "patch"
+        "alectrona patch"
       ],
       "title": "Alectrona Patch Command Line Tool",
       "description": "Alectrona Patch Command Line Tool settings",
@@ -1192,6 +1196,7 @@
           "key": "setupReminderNagInterval",
           "type": "integer",
           "default": 86400,
+          "unitNote": "(in seconds)",
           "description": "Reminder Nag Interval -- The interval, in seconds, between setup notifications."
         },
         {
@@ -1264,6 +1269,7 @@
         {
           "key": "pwReqMinimumPasswordAge",
           "type": "integer",
+          "unitNote": "(in days)",
           "description": "Password Minimum Age -- The minimum age of passwords before they can be changed."
         },
         {
@@ -1302,6 +1308,7 @@
           "key": "passwordNotificationDays",
           "type": "integer",
           "default": 15,
+          "unitNote": "(in days)",
           "description": "Password Expire Notification -- Determines the amount of days before password expiration that the user receives expiration notifications."
         },
         {
@@ -1319,6 +1326,7 @@
           "key": "connectDelay",
           "type": "integer",
           "default": 0,
+          "unitNote": "(in seconds)",
           "description": "Connect Delay -- Delay starting the connection process when your organization's network is detected. This may be useful for customers who use Cisco NAC and need to delay connection while host checks are performed."
         },
         {
@@ -1330,12 +1338,14 @@
           "key": "connectReminderNagInterval",
           "type": "integer",
           "default": 86400,
+          "unitNote": "(in seconds)",
           "description": "Connection Reminder Interval -- The interval, in seconds, between connection reminders."
         },
         {
           "key": "dailyReconnectTime",
           "type": "integer",
           "default": 86400,
+          "unitNote": "(in seconds)",
           "description": "Daily Reconnect Time -- The interval, in seconds, that Enterprise Connect should attempt its daily reconnect. Set this to 0 to disable the daily reconnect."
         },
         {
@@ -1381,6 +1391,7 @@
           "key": "shareMountWaitSeconds",
           "type": "integer",
           "default": 0,
+          "unitNote": "(in seconds)",
           "description": "Share Mount Delay -- Delay the mounting of network shares when your organization's network is detected. This may be useful for customers who use Cisco NAC and need to delay connection while host checks are performed."
         },
         {
@@ -1543,7 +1554,7 @@
       "name": "com.apple.logic10",
       "displayName": "Logic Pro X",
       "keywords": [
-        "logic"
+        "logic pro"
       ],
       "title": "Logic Pro X",
       "description": "Logic Pro X settings",
@@ -1651,7 +1662,7 @@
       "name": "com.apple.motionapp",
       "displayName": "Motion",
       "keywords": [
-        "motion"
+        "apple motion"
       ],
       "title": "Motion",
       "description": "Motion settings",
@@ -1758,6 +1769,7 @@
         {
           "key": "HeightInChars",
           "type": "integer",
+          "unitNote": "(in lines)",
           "description": "By default, the Window Size height is 30 lines. Enable this setting to change this default window height."
         },
         {
@@ -1783,6 +1795,7 @@
         {
           "key": "NSFixedPitchFontSize",
           "type": "integer",
+          "unitNote": "(in pt)",
           "description": "Plain Text Font Size -- Enter the desired font size for plain text documents."
         },
         {
@@ -1793,6 +1806,7 @@
         {
           "key": "NSFontSize",
           "type": "integer",
+          "unitNote": "(in pt)",
           "description": "Rich Text Font Size -- Enter the desired font size for rich text documents."
         },
         {
@@ -1930,6 +1944,7 @@
         {
           "key": "WidthInChars",
           "type": "integer",
+          "unitNote": "(in lines)",
           "description": "By default, the Window Size width is 90 lines. Enable this setting to change this default window width."
         },
         {
@@ -2655,6 +2670,7 @@
             10
           ],
           "default": 100,
+          "unitNote": "(in %)",
           "description": "Magnification -- Sets the default magnification for new text documents."
         },
         {
@@ -4274,6 +4290,7 @@
           "min": 1,
           "max": 365,
           "default": 7,
+          "unitNote": "(in days)",
           "description": "Remove rescued items after ## days -- You can adjust the interval from 1 to 365 days."
         },
         {
@@ -4406,6 +4423,7 @@
           "key": "AutoSaveIntervalInMinutes_v2",
           "type": "integer",
           "default": 1,
+          "unitNote": "(in minutes)",
           "description": "Auto Save Interval In Minutes: v2 -- If document auto-save for crash recovery is on, this preference will define the default save time interval."
         },
         {
@@ -4443,6 +4461,7 @@
           "type": "real",
           "min": 0.1,
           "default": 10,
+          "unitNote": "(in seconds)",
           "description": "BRIEF State Timeout -- The progressive (BRIEF compatible) behavior of the Home and End keys operates within a specific time period; if you wait longer than that, the behavior state resets. The factory default timeout period is ten seconds."
         },
         {
@@ -4683,6 +4702,7 @@
           "type": "integer",
           "min": 0,
           "default": 16777216,
+          "unitNote": "(in characters)",
           "description": "Editor: Auto Word Count Size Threshold -- Automatic word counting is disabled for documents over a set size threshold, in order to avoid needless delays when working on very large documents. The factory default is 16M characters - 16777216 -, but you may change this limit."
         },
         {
@@ -4707,6 +4727,7 @@
           "key": "Editor_SoftWrapLengthThreshold",
           "type": "integer",
           "default": 50331648,
+          "unitNote": "(in bytes)",
           "description": "Editor: Soft Wrap Length Threshold -- For text documents whose size exceeds a certain threshold (expressed in bytes), BBEdit will ignore the Soft Wrap Text preference and leave wrapping off in order to improve the performance of opening very large files."
         },
         {
@@ -4714,6 +4735,7 @@
           "type": "integer",
           "min": 0,
           "default": 1048576,
+          "unitNote": "(in characters)",
           "description": "Editor: Spell Check Length Limit -- Since \"Find All Misspelled Words\" is pretty much pointless on files over a certain size, the maximum amount of text checked by this command is limited to 1M - 1024 squared - characters. This may be adjusted."
         },
         {
@@ -4835,6 +4857,7 @@
           "key": "FixedWidthFontSmoothingThreshold",
           "type": "integer",
           "default": 8,
+          "unitNote": "(in pt)",
           "description": "Fixed Width Font Smoothing Threshold -- Whether or not BBEdit uses text smoothing - antialiasing - may be adjusted separately for fixed-width and for proportional fonts. The factory default smoothing thresholds are 8pt for fixed width fonts, and 4pt for proportional fonts, respectively."
         },
         {
@@ -4847,6 +4870,7 @@
           "key": "FontSmoothingThreshold",
           "type": "integer",
           "default": 4,
+          "unitNote": "(in pt)",
           "description": "Font Smoothing Threshold -- Whether or not BBEdit uses text smoothing - antialiasing - may be adjusted separately for fixed-width and for proportional fonts. Font sizes above the specified FixedWidthFontSmoothingThreshold are smoothed; font sizes below the threshold are not."
         },
         {
@@ -5077,6 +5101,7 @@
           "type": "integer",
           "min": 0,
           "default": 1048576,
+          "unitNote": "(in characters)",
           "description": "Max Document Length For Completion Tokenizer -- Since \"Find All Misspelled Words\" is pretty much pointless on files over a certain size, the maximum amount of text checked by this command is limited to 1M - 1024 squared - characters. This may be adjusted."
         },
         {
@@ -5112,6 +5137,7 @@
         {
           "key": "MostRecentItemsGroupLimit",
           "type": "integer",
+          "unitNote": "(in recent items)",
           "description": "Most Recent Items Group Limit -- The \"Remember the … most recently used items\" setting in the Application preferences applies to all item types. So, if it's set to 15, BBEdit will remember 15 text documents, 15 folders, 15 projects, 15 images, and so on."
         },
         {
@@ -5166,6 +5192,7 @@
           "key": "OpenByNameMaxWildcardMatches",
           "type": "integer",
           "default": 200,
+          "unitNote": "(in matches)",
           "description": "Open By Name Max Wildcard Matches -- When searching for matches, Open File by Name limits the number of matches to a reasonable maximum. The factory default is 200."
         },
         {
@@ -5250,24 +5277,28 @@
           "key": "NSRecentDocumentsLimit_Folders",
           "type": "integer",
           "default": 15,
+          "unitNote": "(in folders)",
           "description": "Recent Items: Remember ## Folders -- The \"Remember the … most recently used items\" setting in the Application preferences applies to all item types. So, if it's set to 15, BBEdit will remember 15 text documents, 15 folders, 15 projects, 15 images, and so on."
         },
         {
           "key": "NSRecentDocumentsLimit_Images",
           "type": "integer",
           "default": 15,
+          "unitNote": "(in images)",
           "description": "Recent Items: Remember ## Images -- The \"Remember the … most recently used items\" setting in the Application preferences applies to all item types. So, if it's set to 15, BBEdit will remember 15 text documents, 15 folders, 15 projects, 15 images, and so on."
         },
         {
           "key": "NSRecentDocumentsLimit_Projects",
           "type": "integer",
           "default": 15,
+          "unitNote": "(in projects)",
           "description": "Recent Items: Remember ## Projects -- The \"Remember the … most recently used items\" setting in the Application preferences applies to all item types. So, if it's set to 15, BBEdit will remember 15 text documents, 15 folders, 15 projects, 15 images, and so on."
         },
         {
           "key": "NSRecentDocumentsLimit_Shell Worksheets",
           "type": "integer",
           "default": 15,
+          "unitNote": "(in projects)",
           "description": "Recent Items: Remember ## Shell Worksheets -- The \"Remember the … most recently used items\" setting in the Application preferences applies to all item types. So, if it's set to 15, BBEdit will remember 15 text documents, 15 folders, 15 projects, 15 images, and so on."
         },
         {
@@ -5382,6 +5413,7 @@
           "key": "SFTPConnectionTimeout",
           "type": "integer",
           "default": 20,
+          "unitNote": "(in seconds)",
           "description": "SFTP Connection Timeout -- Most of the time, the default timeout for connecting to an SFTP server will suffice; however, if the server is heavily loaded it may take longer to respond."
         },
         {
@@ -5478,6 +5510,7 @@
           "key": "SSHServerKeepaliveInterval",
           "type": "integer",
           "default": 0,
+          "unitNote": "(in seconds)",
           "description": "SSH Server Keepalive Interval -- If you have problems with your SSH server closing the connection after a period of non-use (which will subsequently cause errors in BBEdit), you can tell BBEdit to send a periodic \"keepalive\" message to while connected to the server."
         },
         {
@@ -5740,6 +5773,7 @@
           "key": "SUScheduledCheckInterval",
           "type": "integer",
           "default": 86400,
+          "unitNote": "(in seconds)",
           "description": "Automatic Update Check Interval -- Controls the automatic update check interval. The default is 1 day (86400 seconds). Setting to 0 disables updates."
         }
       ]
@@ -6739,6 +6773,7 @@
         {
           "key": "BrowserSwitcherDelay",
           "type": "integer",
+          "unitNote": "(in milliseconds)",
           "description": "Browser Switcher Delay -- This policy controls how long to wait before launching an alternative browser, in milliseconds. When this policy is set to a number, Brave Browser shows a message for that many milliseconds, and then opens the alternative browser."
         },
         {
@@ -7312,6 +7347,7 @@
         {
           "key": "DiskCacheSize",
           "type": "integer",
+          "unitNote": "(in bytes)",
           "description": "Set disk cache size -- Configures the cache size that Brave Browser will use for storing cached files on the disk."
         },
         {
@@ -7695,6 +7731,7 @@
           "key": "MaxConnectionsPerProxy",
           "type": "integer",
           "default": 32,
+          "unitNote": "(in connections)",
           "description": "Maximal number of concurrent connections to the proxy server -- Specifies the maximal number of simultaneous connections to the proxy server."
         },
         {
@@ -7703,6 +7740,7 @@
           "min": 1000,
           "max": 300000,
           "default": 5000,
+          "unitNote": "(in milliseconds)",
           "description": "Maximum fetch delay after a policy invalidation -- Specifies the maximum delay in milliseconds between receiving a policy invalidation and fetching the new policy from the device management service."
         },
         {
@@ -7797,6 +7835,7 @@
           "min": 1800000,
           "max": 86400000,
           "default": 10800000,
+          "unitNote": "(in milliseconds)",
           "description": "Policy Refresh Rate -- Refresh rate for user policy. Specifies the period in milliseconds at which the device management service is queried for user policy information. Setting this policy overrides the default value of 3 hours."
         },
         {
@@ -7848,6 +7887,7 @@
         {
           "key": "RelaunchNotificationPeriod",
           "type": "integer",
+          "unitNote": "(in milliseconds)",
           "description": "Update time period -- Allows you to set the time period, in milliseconds, over which users are notified that Brave Browser must be relaunched or that a Brave Browser OS device must be restarted to apply a pending update."
         },
         {
@@ -8072,6 +8112,7 @@
           "key": "TotalMemoryLimitMb",
           "type": "integer",
           "min": 1024,
+          "unitNote": "(in MB)",
           "description": "Total Memory Limit -- Configures the amount of memory that a single Brave Browser instance can use before tabs start being discarded (I.E. the memory used by the tab will be freed and the tab will have to be reloaded when switched to) to save memory."
         },
         {
@@ -8467,11 +8508,13 @@
                 {
                   "key": "width",
                   "type": "integer",
+                  "unitNote": "(in micrometers)",
                   "description": "Width -- Width of the page"
                 },
                 {
                   "key": "height",
                   "type": "integer",
+                  "unitNote": "(in micrometers)",
                   "description": "Height -- Height of the page"
                 }
               ]
@@ -8796,6 +8839,7 @@
         {
           "key": "RemoteAccessHostUdpPortRange",
           "type": "string",
+          "unitNote": "(in port range)",
           "description": "Restrict the UDP port range used by the remote access host -- Restricts the UDP port range used by the remote access host in this machine."
         },
         {
@@ -9040,6 +9084,7 @@
           "key": "SUScheduledCheckInterval",
           "type": "integer",
           "default": 86400,
+          "unitNote": "(in seconds)",
           "description": "Automatic Update Check Interval -- Controls the automatic update check interval. The default is 1 day (86400 seconds). Setting to 0 disables updates."
         },
         {
@@ -9060,8 +9105,9 @@
       "name": "com.citrix.receiver.nomas",
       "displayName": "Citrix Receiver",
       "keywords": [
-        "receiver",
-        "nomas"
+        "nomas",
+        "citrix receiver",
+        "citrix"
       ],
       "title": "Citrix Receiver",
       "description": "Citrix Receiver",
@@ -9117,7 +9163,8 @@
         },
         {
           "key": "MenuBarAutoShowDelay",
-          "type": "real"
+          "type": "real",
+          "unitNote": "(in Seconds)"
         },
         {
           "key": "UDPStackParameters",
@@ -9220,7 +9267,8 @@
       "name": "com.cloudflare.warp",
       "displayName": "Cloudflare WARP Client",
       "keywords": [
-        "warp"
+        "warp",
+        "cloudflare"
       ],
       "title": "Cloudflare WARP Client",
       "description": "Use this section to define settings for Cloudflare WARP",
@@ -9327,7 +9375,8 @@
       "name": "com.crowdstrike.falcon",
       "displayName": "CrowdStrike Falcon",
       "keywords": [
-        "falcon"
+        "falcon",
+        "crowdstrike"
       ],
       "title": "CrowdStrike Falcon",
       "description": "CrowdStrike Falcon Settings",
@@ -10516,7 +10565,7 @@
       "name": "com.frontapp.Front",
       "displayName": "Front",
       "keywords": [
-        "front"
+        "front app"
       ],
       "title": "Front",
       "description": "Settings for the Front app for macOS",
@@ -11488,6 +11537,7 @@
               "key": "wait_interval",
               "type": "integer",
               "default": 900,
+              "unitNote": "(in Seconds)",
               "description": "Wait Interval -- The number of seconds to wait in between ansible-pull runs."
             },
             {
@@ -11906,6 +11956,7 @@
               "key": "allowedDeferrals",
               "type": "integer",
               "default": 1000000,
+              "unitNote": "(in deferrals)",
               "description": "Allowed Deferrals -- The number of times a user can defer Nudge (change it from the currently active window) before the \"aggressive user experience\" is enabled."
             },
             {
@@ -11924,12 +11975,14 @@
               "key": "gracePeriodInstallDelay",
               "type": "integer",
               "default": 23,
+              "unitNote": "(in hours)",
               "description": "Grace Period Install Delay -- The amount of time in hours Nudge will extend the requiredInstallationDate for newly provisioned devices."
             },
             {
               "key": "gracePeriodLaunchDelay",
               "type": "integer",
               "default": 1,
+              "unitNote": "(in hours)",
               "description": "Grace Period Launch Delay -- The amount of time in hours Nudge will bypass launching for newly provided devices."
             },
             {
@@ -11942,60 +11995,70 @@
               "key": "imminentRefreshCycle",
               "type": "integer",
               "default": 600,
+              "unitNote": "(in seconds)",
               "description": "Imminent Refresh Cycle -- The amount of time in seconds Nudge will use as a timer to refresh the user interface if it is not the currently active window. This key is directly tied to its partner key `imminentWindowTime` to know when to trigger this timer."
             },
             {
               "key": "allowedDeferralsUntilForcedSecondaryQuitButton",
               "type": "integer",
               "default": 14,
+              "unitNote": "(in deferrals)",
               "description": "Allowed Deferrals until Forced Secondary Quit Button -- The number of times a user can defer Nudge (change it from the currently active window) before both quit buttons need to be actioned."
             },
             {
               "key": "approachingRefreshCycle",
               "type": "integer",
               "default": 6000,
+              "unitNote": "(in seconds)",
               "description": "Approaching Refresh Cycle -- The amount of time in seconds Nudge will use as a timer to refresh the user interface if it is not the currently active window. This key is directly tied to its partner key `approachingWindowTime` to know when to trigger this timer."
             },
             {
               "key": "approachingWindowTime",
               "type": "integer",
               "default": 72,
+              "unitNote": "(in hours)",
               "description": "Approaching Window Time -- The amount of time in hours Nudge will use to determine that the `requiredInstallationDate` is \"approaching\"."
             },
             {
               "key": "elapsedRefreshCycle",
               "type": "integer",
               "default": 300,
+              "unitNote": "(in seconds)",
               "description": "Elapsed Refresh Cycle -- The amount of time in seconds Nudge will use as a timer to refresh the user interface if it is not the currently active window. This key is triggered once the `requiredInstallationDate` has expired."
             },
             {
               "key": "imminentRefeshCycle",
               "type": "integer",
               "default": 600,
+              "unitNote": "(in seconds)",
               "description": "Imminent Refresh Cycle"
             },
             {
               "key": "imminentWindowTime",
               "type": "integer",
               "default": 24,
+              "unitNote": "(in hours)",
               "description": "Imminent Window Time -- The amount of time in hours Nudge will use to determine that the `requiredInstallationDate` is \"imminent\"."
             },
             {
               "key": "initialRefreshCycle",
               "type": "integer",
               "default": 18000,
+              "unitNote": "(in seconds)",
               "description": "Initial Refresh Cycle -- The amount of time in seconds Nudge will use as a timer to refresh the user interface if it is not the currently active window. This key is triggered for all Nudge launches until the `approachingWindowTime` has been passed."
             },
             {
               "key": "maxRandomDelayInSeconds",
               "type": "integer",
               "default": 1200,
+              "unitNote": "(in seconds)",
               "description": "Max Random Delay -- The maximum amount of delay Nudge will utilize before launching the UI. This is useful if you do not want your users to all receive the Nudge prompt at the exact time of the LaunchAgent."
             },
             {
               "key": "nudgeRefreshCycle",
               "type": "integer",
               "default": 60,
+              "unitNote": "(in seconds)",
               "description": "Nudge Refresh Cycle -- The amount of time in seconds Nudge will use as its core timer to refresh all the core code paths. Note: While you can lower this setting, it could make Nudge too aggressive. Be mindful of decreasing this value."
             },
             {
@@ -13152,24 +13215,28 @@
           "key": "DeferralPeriod",
           "type": "integer",
           "default": 14400,
+          "unitNote": "(in seconds)",
           "description": "Deferral Period -- Number of seconds between when the user clicks \"Defer\" and the next prompt appears."
         },
         {
           "key": "HardRestartDelay",
           "type": "integer",
           "default": 300,
+          "unitNote": "(in seconds)",
           "description": "Hard Restart Delay -- Number of seconds to wait between attempting a soft restart and forcing a restart."
         },
         {
           "key": "MaxDeferralTime",
           "type": "integer",
           "default": 259200,
+          "unitNote": "(in seconds)",
           "description": "Maximum Deferral Time -- Number of seconds between the first script run and the updates being enforced."
         },
         {
           "key": "PromptTimeout",
           "type": "integer",
           "default": 3600,
+          "unitNote": "(in seconds)",
           "description": "Prompt Timeout -- Number of seconds to wait before timing out the Install or Defer prompt."
         },
         {
@@ -13182,6 +13249,7 @@
           "key": "UpdateDelay",
           "type": "integer",
           "default": 600,
+          "unitNote": "(in seconds)",
           "description": "Update Delay -- Number of seconds to wait between displaying the \"install updates\" message and applying updates, then attempting a soft restart."
         },
         {
@@ -13441,24 +13509,28 @@
           "key": "DeferralPeriod",
           "type": "integer",
           "default": 14400,
+          "unitNote": "(in seconds)",
           "description": "Deferral Period -- Number of seconds between when the user clicks \"Defer\" and the next prompt appears."
         },
         {
           "key": "HardRestartDelay",
           "type": "integer",
           "default": 300,
+          "unitNote": "(in seconds)",
           "description": "Hard Restart Delay -- Number of seconds to wait between attempting a soft restart and forcing a restart."
         },
         {
           "key": "MaxDeferralTime",
           "type": "integer",
           "default": 259200,
+          "unitNote": "(in seconds)",
           "description": "Maximum Deferral Time -- Number of seconds between the first script run and the updates being enforced."
         },
         {
           "key": "PromptTimeout",
           "type": "integer",
           "default": 3600,
+          "unitNote": "(in seconds)",
           "description": "Prompt Timeout -- Number of seconds to wait before timing out the Install or Defer prompt."
         },
         {
@@ -13471,6 +13543,7 @@
           "key": "UpdateDelay",
           "type": "integer",
           "default": 600,
+          "unitNote": "(in seconds)",
           "description": "Update Delay -- Number of seconds to wait between displaying the \"install updates\" message and applying updates, then attempting a soft restart."
         },
         {
@@ -14592,6 +14665,7 @@
         {
           "key": "BrowserSwitcherDelay",
           "type": "integer",
+          "unitNote": "(in milliseconds)",
           "description": "Browser Switcher Delay -- This policy controls how long to wait before launching an alternative browser, in milliseconds. When this policy is set to a number, Chrome shows a message for that many milliseconds, and then opens the alternative browser."
         },
         {
@@ -15165,6 +15239,7 @@
         {
           "key": "DiskCacheSize",
           "type": "integer",
+          "unitNote": "(in bytes)",
           "description": "Set disk cache size -- Configures the cache size that Google Chrome will use for storing cached files on the disk."
         },
         {
@@ -15548,6 +15623,7 @@
           "key": "MaxConnectionsPerProxy",
           "type": "integer",
           "default": 32,
+          "unitNote": "(in connections)",
           "description": "Maximal number of concurrent connections to the proxy server -- Specifies the maximal number of simultaneous connections to the proxy server."
         },
         {
@@ -15556,6 +15632,7 @@
           "min": 1000,
           "max": 300000,
           "default": 5000,
+          "unitNote": "(in milliseconds)",
           "description": "Maximum fetch delay after a policy invalidation -- Specifies the maximum delay in milliseconds between receiving a policy invalidation and fetching the new policy from the device management service."
         },
         {
@@ -15650,6 +15727,7 @@
           "min": 1800000,
           "max": 86400000,
           "default": 10800000,
+          "unitNote": "(in milliseconds)",
           "description": "Policy Refresh Rate -- Refresh rate for user policy. Specifies the period in milliseconds at which the device management service is queried for user policy information. Setting this policy overrides the default value of 3 hours."
         },
         {
@@ -15701,6 +15779,7 @@
         {
           "key": "RelaunchNotificationPeriod",
           "type": "integer",
+          "unitNote": "(in milliseconds)",
           "description": "Update time period -- Allows you to set the time period, in milliseconds, over which users are notified that Google Chrome must be relaunched or that a Google Chrome OS device must be restarted to apply a pending update."
         },
         {
@@ -15925,6 +16004,7 @@
           "key": "TotalMemoryLimitMb",
           "type": "integer",
           "min": 1024,
+          "unitNote": "(in MB)",
           "description": "Total Memory Limit -- Configures the amount of memory that a single Google Chrome instance can use before tabs start being discarded (I.E. the memory used by the tab will be freed and the tab will have to be reloaded when switched to) to save memory."
         },
         {
@@ -16320,11 +16400,13 @@
                 {
                   "key": "width",
                   "type": "integer",
+                  "unitNote": "(in micrometers)",
                   "description": "Width -- Width of the page"
                 },
                 {
                   "key": "height",
                   "type": "integer",
+                  "unitNote": "(in micrometers)",
                   "description": "Height -- Height of the page"
                 }
               ]
@@ -16649,6 +16731,7 @@
         {
           "key": "RemoteAccessHostUdpPortRange",
           "type": "string",
+          "unitNote": "(in port range)",
           "description": "Restrict the UDP port range used by the remote access host -- Restricts the UDP port range used by the remote access host in this machine."
         },
         {
@@ -16822,7 +16905,8 @@
       "name": "com.google.drivefs.settings",
       "displayName": "Google Drive for desktop",
       "keywords": [
-        "drive"
+        "google drive",
+        "drivefs"
       ],
       "title": "Google Drive for desktop",
       "description": "Use this section to define settings for Google Drive for desktop",
@@ -16852,11 +16936,13 @@
         {
           "key": "BandwidthRxKBPS",
           "type": "integer",
+          "unitNote": "(in kB/s)",
           "description": "Max Downstream Bandwidth -- Maximum downstream kilobytes per second."
         },
         {
           "key": "BandwidthTxKBPS",
           "type": "integer",
+          "unitNote": "(in kB/s)",
           "description": "Max Upstream Bandwidth -- Maximum upstream kilobytes per second."
         },
         {
@@ -16868,6 +16954,7 @@
         {
           "key": "ContentCacheMaxKbytes",
           "type": "integer",
+          "unitNote": "(in Kilobytes)",
           "description": "Max Content Cache Size -- Sets the limit on content cache size in kilobytes. The limit is capped at 20% of the available space on the hard drive regardless of the setting value."
         },
         {
@@ -16929,6 +17016,7 @@
         {
           "key": "MinFreeDiskSpaceKBytes",
           "type": "integer",
+          "unitNote": "(in Kilobytes)",
           "description": "Minimum Free Disk Space -- Controls the amount of local space used by Drive for desktop's cache. Stops writing content to the disk when free disk space gets below this threshold, in kilobytes."
         },
         {
@@ -16975,8 +17063,8 @@
       "name": "com.google.Keystone",
       "displayName": "Google Software Updates",
       "keywords": [
-        "google",
-        "keystone"
+        "keystone",
+        "google software update"
       ],
       "title": "Google Software Updates",
       "description": "Google Software Update Settings",
@@ -17024,6 +17112,7 @@
                   "type": "integer",
                   "min": 0,
                   "max": 23,
+                  "unitNote": "(in hour)",
                   "description": "Global Google Update Schedule - Start Hour -- The time in 24-hour clock format, that auto-updates start. Use a value between 0 - midnight - and 23."
                 },
                 {
@@ -17031,11 +17120,13 @@
                   "type": "integer",
                   "min": 0,
                   "max": 59,
+                  "unitNote": "(in minute)",
                   "description": "Global Google Update Schedule - Start Minute -- The minute, within the starting hour, that auto-updates start. Use a value between 0 and 59."
                 },
                 {
                   "key": "UpdatesSupressedDurationMin",
                   "type": "integer",
+                  "unitNote": "(in minutes)",
                   "description": "Global Google Update Schedule - Duration -- The length of time, in minutes, that auto-updates can be made. If you set this value to 0, the system behaves as if no update window is specified."
                 },
                 {
@@ -17082,6 +17173,7 @@
                 {
                   "key": "TargetVersionPrefix",
                   "type": "string",
+                  "unitNote": "(in major version)",
                   "format": "^[\\d]+\\.$",
                   "description": "Chrome Update Version Pin -- Pin an application to a single version. This stops your devices from updating to versions of the app beyond the number you specify. This should be done only temporarily, such as while testing a new version."
                 },
@@ -17131,6 +17223,7 @@
                 {
                   "key": "TargetVersionPrefix",
                   "type": "string",
+                  "unitNote": "(in major version)",
                   "format": "^[\\d]+\\.$",
                   "description": "Drive File Stream Update Version Pin -- Pin an application to a single version. This stops your devices from updating to versions of the app beyond the number you specify. This should be done only temporarily, such as while testing a new version."
                 }
@@ -17162,6 +17255,7 @@
                 {
                   "key": "TargetVersionPrefix",
                   "type": "string",
+                  "unitNote": "(in major version)",
                   "format": "^[\\d]+\\.$",
                   "description": "Chat Update Version Pin -- Pin an application to a single version. This stops your devices from updating to versions of the app beyond the number you specify. This should be done only temporarily, such as while testing a new version."
                 }
@@ -17193,6 +17287,7 @@
                 {
                   "key": "TargetVersionPrefix",
                   "type": "string",
+                  "unitNote": "(in major version)",
                   "format": "^[\\d]+\\.$",
                   "description": "Backup & Sync Update Version Pin -- Pin an application to a single version. This stops your devices from updating to versions of the app beyond the number you specify. This should be done only temporarily, such as while testing a new version."
                 }
@@ -17419,18 +17514,21 @@
           "key": "MailDirectoryFileSizeThresholdKB",
           "type": "integer",
           "default": 100,
+          "unitNote": "(in KB)",
           "description": "Mail Max File Size -- Per-file size limit (KB) for files stored in the event log mail directory."
         },
         {
           "key": "MailDirectorySizeThresholdMB",
           "type": "integer",
           "default": 500,
+          "unitNote": "(in MB)",
           "description": "Mail Max Size -- Total file size limit (MB) for all files stored in the event log mail directory."
         },
         {
           "key": "MailDirectoryEventMaxFlushTimeSec",
           "type": "integer",
           "default": 5,
+          "unitNote": "(in seconds)",
           "description": "Mail Max Event Buffer -- Maximum time (seconds) events will stay buffered in memory before being flushed to disk."
         },
         {
@@ -17463,12 +17561,14 @@
           "key": "MetricExportInterval",
           "type": "integer",
           "default": 30,
+          "unitNote": "(in seconds)",
           "description": "Metric Export Interval -- Time (seconds) between exporting metrics."
         },
         {
           "key": "MetricExportTimeout",
           "type": "integer",
           "default": 30,
+          "unitNote": "(in seconds)",
           "description": "Metric Export Timeout -- Timeout (seconds) for exporting metrics."
         }
       ]
@@ -17525,6 +17625,7 @@
           "key": "KeyEscrowInterval",
           "type": "integer",
           "default": 1,
+          "unitNote": "(in Hours)",
           "description": "Recovery key re-escrow interval -- Time interval in Hours for how often Crypt tries to re-escrow the key to Crypt-Server after the first successful escrow."
         },
         {
@@ -18096,7 +18197,8 @@
       "name": "com.jamf.connect.login",
       "displayName": "Jamf Connect Login (Okta)",
       "keywords": [
-        "connect"
+        "jamf connect",
+        "jamf connect login"
       ],
       "title": "Jamf Connect Login (Okta)",
       "description": "Jamf Connect Login settings",
@@ -18276,7 +18378,7 @@
       "name": "com.jamf.connect.shares",
       "displayName": "Jamf Connect Shares",
       "keywords": [
-        "connect"
+        "jamf connect shares"
       ],
       "title": "Jamf Connect Shares",
       "description": "Jamf Connect Shares settings",
@@ -18391,8 +18493,7 @@
       "displayName": "Jamf Connect Sync",
       "keywords": [
         "connect sync",
-        "connect",
-        "sync"
+        "jamf connect sync"
       ],
       "title": "Jamf Connect Sync",
       "description": "Jamf Connect Sync Settings",
@@ -18420,6 +18521,7 @@
           "key": "PeriodicUpdateTime",
           "type": "integer",
           "default": 15,
+          "unitNote": "(in minutes)",
           "description": "Specifies the interval, in minutes, between background updates."
         },
         {
@@ -18495,7 +18597,8 @@
         {
           "key": "ExpirationWarningDays",
           "type": "integer",
-          "default": 5
+          "default": 5,
+          "unitNote": "(in days)"
         },
         {
           "key": "PasswordExpirationMenu",
@@ -18506,12 +18609,14 @@
           "key": "PasswordExpirationMenuDays",
           "type": "integer",
           "default": 15,
+          "unitNote": "(in days)",
           "description": "An integer, in days remaining, before the password expiration countdown is displayed in the menu bar."
         },
         {
           "key": "ChangePasswordTimer",
           "type": "integer",
           "default": 3,
+          "unitNote": "(in minutes)",
           "description": "Specifies an interval, in minutes, until the user is prompted to sign in again after a password change."
         },
         {
@@ -18705,7 +18810,8 @@
         {
           "key": "ActionsUpdateTime",
           "type": "integer",
-          "default": 15
+          "default": 15,
+          "unitNote": "(in minutes)"
         },
         {
           "key": "GetHelpType",
@@ -18815,8 +18921,7 @@
       "displayName": "Jamf Connect Verify",
       "keywords": [
         "connect verify",
-        "connect",
-        "verify"
+        "jamf connect verify"
       ],
       "title": "Jamf Connect Verify",
       "description": "Jamf Connect Verify settings",
@@ -18989,11 +19094,13 @@
         {
           "key": "KerberosShowCountdownLimit",
           "type": "integer",
+          "unitNote": "(in days)",
           "description": "An integer, in days remaining, before the password expiration countdown is displayed in the menu bar."
         },
         {
           "key": "TimerKerberosCheck",
-          "type": "integer"
+          "type": "integer",
+          "unitNote": "(in minutes)"
         },
         {
           "key": "KeychainItemsCreateSerial",
@@ -19031,11 +19138,13 @@
         },
         {
           "key": "TimerLocalCheck",
-          "type": "integer"
+          "type": "integer",
+          "unitNote": "(in minutes)"
         },
         {
           "key": "TimerNetworkCheck",
-          "type": "integer"
+          "type": "integer",
+          "unitNote": "(in minutes)"
         },
         {
           "key": "LocalPasswordIgnore",
@@ -20077,7 +20186,7 @@
       "name": "com.jamf.trust",
       "displayName": "Jamf Trust",
       "keywords": [
-        "trust"
+        "jamf trust"
       ],
       "title": "Jamf Trust",
       "description": "Jamf Trust settings",
@@ -20171,7 +20280,7 @@
       "displayName": "Elevate24",
       "keywords": [
         "elevate24",
-        "elevate"
+        "jigsaw24 elevate"
       ],
       "title": "Elevate24",
       "description": "macOS privilege access management tool from Jigsaw24",
@@ -20978,7 +21087,8 @@
       "name": "com.macjutsu.super",
       "displayName": "S.U.P.E.R.M.A.N",
       "keywords": [
-        "super"
+        "superman",
+        "macjutsu"
       ],
       "title": "S.U.P.E.R.M.A.N",
       "description": "Use this section to define settings for S.U.P.E.R.M.A.N (super)",
@@ -21447,6 +21557,7 @@
           "key": "SUScheduledCheckInterval",
           "type": "integer",
           "default": 86400,
+          "unitNote": "(in seconds)",
           "description": "Automatic Update Check Interval -- Controls the automatic update check interval. The default is 1 day (86400 seconds). Setting to 0 disables updates."
         },
         {
@@ -21473,7 +21584,11 @@
       "name": "com.microsoft.autoupdate2",
       "displayName": "Microsoft AutoUpdate",
       "keywords": [
-        "autoupdate"
+        "autoupdate",
+        "microsoft autoupdate",
+        "mau",
+        "microsoft 365 apps",
+        "office updates"
       ],
       "title": "Microsoft AutoUpdate",
       "description": "Microsoft AutoUpdate settings",
@@ -21593,30 +21708,35 @@
           "key": "UpdateCheckInterval",
           "type": "integer",
           "default": 780,
+          "unitNote": "(in Minutes)",
           "description": "Update Check Interval -- Specifies the number of minutes between checking for updates. Default is set to check every 13 hours."
         },
         {
           "key": "UpdateCheckFrequency",
           "type": "integer",
           "default": 720,
+          "unitNote": "(in Minutes)",
           "deprecated": true,
           "description": "Update Check Frequency -- Change how often the Microsoft AutoUpdate daemon will look for updates. The default is 720 minutes (12 hrs). By reducing this value MAU will look for updates sooner."
         },
         {
           "key": "UpdateDeadline.DaysBeforeForcedQuit",
           "type": "integer",
+          "unitNote": "(in Days)",
           "description": "Update Deadline: Days Before Forced Quit -- Force quit applications and update X number of days after MAU first detects the update on each computer."
         },
         {
           "key": "UpdateDeadline.FinalCountDown",
           "type": "integer",
           "default": 60,
+          "unitNote": "(in Minutes)",
           "description": "Update Deadline: Final Countdown Timer -- How many minutes is the final countdown timer once the update deadline is reached."
         },
         {
           "key": "UpdateDeadline.StartAutomaticUpdates",
           "type": "integer",
           "default": 3,
+          "unitNote": "(in Days)",
           "description": "Update Deadline: Start Automatic Updates -- How many days in advance of the deadline that Automatic Download and Install mode begins. Temporarily overrides \"HowToCheck\" with \"AutomaticDownload\" until all updates are applied."
         },
         {
@@ -21705,6 +21825,7 @@
                 {
                   "key": "UpdateDeadline.DaysBeforeForcedQuit",
                   "type": "integer",
+                  "unitNote": "(in Days)",
                   "description": "Update Deadline: Days Before Forced Quit -- Force quit this application and update X number of days after MAU first detects the update on each computer. Can be used in conjunction with the higher level option of the same setting for more restrictive per-application updating."
                 }
               ]
@@ -21727,6 +21848,7 @@
                 {
                   "key": "UpdateDeadline.DaysBeforeForcedQuit",
                   "type": "integer",
+                  "unitNote": "(in Days)",
                   "description": "Update Deadline: Days Before Forced Quit -- Force quit this application and update X number of days after MAU first detects the update on each computer. Can be used in conjunction with the higher level option of the same setting for more restrictive per-application updating."
                 }
               ]
@@ -21749,6 +21871,7 @@
                 {
                   "key": "UpdateDeadline.DaysBeforeForcedQuit",
                   "type": "integer",
+                  "unitNote": "(in Days)",
                   "description": "Update Deadline: Days Before Forced Quit -- Force quit this application and update X number of days after MAU first detects the update on each computer. Can be used in conjunction with the higher level option of the same setting for more restrictive per-application updating."
                 }
               ]
@@ -21776,6 +21899,7 @@
                 {
                   "key": "UpdateDeadline.DaysBeforeForcedQuit",
                   "type": "integer",
+                  "unitNote": "(in Days)",
                   "description": "Update Deadline: Days Before Forced Quit -- Force quit this application and update X number of days after MAU first detects the update on each computer. Can be used in conjunction with the higher level option of the same setting for more restrictive per-application updating."
                 }
               ]
@@ -21803,6 +21927,7 @@
                 {
                   "key": "UpdateDeadline.DaysBeforeForcedQuit",
                   "type": "integer",
+                  "unitNote": "(in Days)",
                   "description": "Update Deadline: Days Before Forced Quit -- Force quit this application and update X number of days after MAU first detects the update on each computer. Can be used in conjunction with the higher level option of the same setting for more restrictive per-application updating."
                 }
               ]
@@ -21830,6 +21955,7 @@
                 {
                   "key": "UpdateDeadline.DaysBeforeForcedQuit",
                   "type": "integer",
+                  "unitNote": "(in Days)",
                   "description": "Update Deadline: Days Before Forced Quit -- Force quit this application and update X number of days after MAU first detects the update on each computer. Can be used in conjunction with the higher level option of the same setting for more restrictive per-application updating."
                 }
               ]
@@ -21857,6 +21983,7 @@
                 {
                   "key": "UpdateDeadline.DaysBeforeForcedQuit",
                   "type": "integer",
+                  "unitNote": "(in Days)",
                   "description": "Update Deadline: Days Before Forced Quit -- Force quit this application and update X number of days after MAU first detects the update on each computer. Can be used in conjunction with the higher level option of the same setting for more restrictive per-application updating."
                 }
               ]
@@ -21879,6 +22006,7 @@
                 {
                   "key": "UpdateDeadline.DaysBeforeForcedQuit",
                   "type": "integer",
+                  "unitNote": "(in Days)",
                   "description": "Update Deadline: Days Before Forced Quit -- Force quit this application and update X number of days after MAU first detects the update on each computer. Can be used in conjunction with the higher level option of the same setting for more restrictive per-application updating."
                 }
               ]
@@ -21901,6 +22029,7 @@
                 {
                   "key": "UpdateDeadline.DaysBeforeForcedQuit",
                   "type": "integer",
+                  "unitNote": "(in Days)",
                   "description": "Update Deadline: Days Before Forced Quit -- Force quit this application and update X number of days after MAU first detects the update on each computer. Can be used in conjunction with the higher level option of the same setting for more restrictive per-application updating."
                 }
               ]
@@ -21928,6 +22057,7 @@
                 {
                   "key": "UpdateDeadline.DaysBeforeForcedQuit",
                   "type": "integer",
+                  "unitNote": "(in Days)",
                   "description": "Update Deadline: Days Before Forced Quit -- Force quit this application and update X number of days after MAU first detects the update on each computer. Can be used in conjunction with the higher level option of the same setting for more restrictive per-application updating."
                 }
               ]
@@ -21955,6 +22085,7 @@
                 {
                   "key": "UpdateDeadline.DaysBeforeForcedQuit",
                   "type": "integer",
+                  "unitNote": "(in Days)",
                   "description": "Update Deadline: Days Before Forced Quit -- Force quit this application and update X number of days after MAU first detects the update on each computer. Can be used in conjunction with the higher level option of the same setting for more restrictive per-application updating."
                 }
               ]
@@ -21977,6 +22108,7 @@
                 {
                   "key": "UpdateDeadline.DaysBeforeForcedQuit",
                   "type": "integer",
+                  "unitNote": "(in Days)",
                   "description": "Update Deadline: Days Before Forced Quit -- Force quit this application and update X number of days after MAU first detects the update on each computer. Can be used in conjunction with the higher level option of the same setting for more restrictive per-application updating."
                 }
               ]
@@ -21999,6 +22131,7 @@
                 {
                   "key": "UpdateDeadline.DaysBeforeForcedQuit",
                   "type": "integer",
+                  "unitNote": "(in Days)",
                   "description": "Update Deadline: Days Before Forced Quit -- Force quit this application and update X number of days after MAU first detects the update on each computer. Can be used in conjunction with the higher level option of the same setting for more restrictive per-application updating."
                 }
               ]
@@ -22021,6 +22154,7 @@
                 {
                   "key": "UpdateDeadline.DaysBeforeForcedQuit",
                   "type": "integer",
+                  "unitNote": "(in Days)",
                   "description": "Update Deadline: Days Before Forced Quit -- Force quit this application and update X number of days after MAU first detects the update on each computer. Can be used in conjunction with the higher level option of the same setting for more restrictive per-application updating."
                 }
               ]
@@ -22476,7 +22610,7 @@
       "name": "com.microsoft.Edge",
       "displayName": "Microsoft Edge",
       "keywords": [
-        "edge"
+        "microsoft edge"
       ],
       "title": "Microsoft Edge",
       "description": "Microsoft Edge Managed Settings",
@@ -23665,6 +23799,7 @@
         {
           "key": "DiskCacheSize",
           "type": "integer",
+          "unitNote": "(in bytes)",
           "description": "Set disk cache size -- Configures the cache size that Microsoft Edge will use for storing cached files on the disk."
         },
         {
@@ -24028,6 +24163,7 @@
           "key": "MaxConnectionsPerProxy",
           "type": "integer",
           "default": 32,
+          "unitNote": "(in connections)",
           "description": "Maximal number of concurrent connections to the proxy server -- Specifies the maximal number of simultaneous connections to the proxy server."
         },
         {
@@ -24101,6 +24237,7 @@
           "min": 1800000,
           "max": 86400000,
           "default": 10800000,
+          "unitNote": "(in milliseconds)",
           "description": "Policy Refresh Rate -- Refresh rate for user policy. Specifies the period in milliseconds at which the device management service is queried for user policy information. Setting this policy overrides the default value of 3 hours."
         },
         {
@@ -24183,6 +24320,7 @@
         {
           "key": "RelaunchNotificationPeriod",
           "type": "integer",
+          "unitNote": "(in milliseconds)",
           "description": "Update time period -- Allows you to set the time period, in milliseconds, over which users are notified that Microsoft Edge must be relaunched to apply a pending update."
         },
         {
@@ -24371,6 +24509,7 @@
         {
           "key": "TotalMemoryLimitMb",
           "type": "integer",
+          "unitNote": "(in bytes)",
           "description": "Set limit on megabytes of memory a single Microsoft Edge instance can use. -- Configures the amount of memory that a single Microsoft Edge instance can use before tabs start getting discarded to save memory. The memory used by the tab will be freed and the tab will have to be reloaded when switched to."
         },
         {
@@ -25080,7 +25219,10 @@
       "name": "com.microsoft.office",
       "displayName": "Microsoft Office",
       "keywords": [
-        "office"
+        "office",
+        "microsoft office",
+        "microsoft 365 apps",
+        "office 365"
       ],
       "title": "Microsoft Office",
       "description": "Microsoft Office settings",
@@ -25372,6 +25514,7 @@
           "type": "integer",
           "min": 1,
           "max": 99,
+          "unitNote": "(in %)",
           "description": "Automatic upload bandwidth percentage -- Percentage of local upload bandwidth that the sync client can use."
         },
         {
@@ -25379,6 +25522,7 @@
           "type": "integer",
           "min": 50,
           "max": 100000,
+          "unitNote": "(in KB/sec)",
           "description": "Maximum Upload Bandwidth -- Upload throughput in KB/sec that the sync client can use."
         },
         {
@@ -25386,6 +25530,7 @@
           "type": "integer",
           "min": 50,
           "max": 100000,
+          "unitNote": "(in KB/sec)",
           "description": "Maximum Download Bandwidth -- Sets the maximum download throughput rate in kilobytes (KB)/sec for computers running the OneDrive sync client."
         },
         {
@@ -25922,8 +26067,9 @@
       "name": "com.microsoft.rdc.macos",
       "displayName": "Windows App",
       "keywords": [
-        "windows",
-        "rdc"
+        "rdc",
+        "windows app",
+        "remote desktop"
       ],
       "title": "Windows App",
       "description": "Settings for Windows App, previously Microsoft Remote Desktop",
@@ -26004,6 +26150,7 @@
           "key": "autoAcceptTimeout",
           "type": "integer",
           "default": 300,
+          "unitNote": "(in seconds)",
           "description": "Auto Accept Timeout -- Auto-Accept timeout for users without Server-side Conversation History."
         },
         {
@@ -26060,7 +26207,8 @@
       "displayName": "Visual Studio Code",
       "keywords": [
         "visual studio code",
-        "vscode"
+        "vscode",
+        "vs code"
       ],
       "title": "Visual Studio Code",
       "description": "Visual Studio Code settings",
@@ -26294,7 +26442,8 @@
       "displayName": "Microsoft Defender for Endpoint",
       "keywords": [
         "defender for endpoint",
-        "wdav"
+        "wdav",
+        "defender"
       ],
       "title": "Microsoft Defender for Endpoint",
       "description": "Microsoft Defender for Endpoint settings",
@@ -26533,6 +26682,7 @@
               "min": 1,
               "max": 180,
               "default": 90,
+              "unitNote": "(in days)",
               "description": "Scan results retention -- Specify the number of days that results are retained in the scan history on the device. Old scan results are removed from the history. Old quarantined files that are also removed from the disk."
             },
             {
@@ -27063,7 +27213,7 @@
       "name": "com.microsoft.Word",
       "displayName": "Microsoft Word",
       "keywords": [
-        "word"
+        "microsoft word"
       ],
       "title": "Microsoft Word",
       "description": "Microsoft Word settings",
@@ -27647,18 +27797,21 @@
           "key": "SpoolDirectoryFileSizeThresholdKB",
           "type": "integer",
           "default": 250,
+          "unitNote": "(in KB)",
           "description": "Spool Max File Size -- Per-file size limit (KB) for protobuf spool files."
         },
         {
           "key": "SpoolDirectorySizeThresholdMB",
           "type": "integer",
           "default": 100,
+          "unitNote": "(in MB)",
           "description": "Spool Max Size -- Total size limit (MB) for protobuf spool directory."
         },
         {
           "key": "SpoolDirectoryEventMaxFlushTimeSec",
           "type": "integer",
           "default": 15,
+          "unitNote": "(in seconds)",
           "description": "Spool Max Event Buffer -- Maximum time (seconds) events are buffered before flushing to disk."
         },
         {
@@ -27722,12 +27875,14 @@
           "key": "MetricExportInterval",
           "type": "integer",
           "default": 30,
+          "unitNote": "(in seconds)",
           "description": "Metric Export Interval -- Time (seconds) between exporting metrics."
         },
         {
           "key": "MetricExportTimeout",
           "type": "integer",
           "default": 30,
+          "unitNote": "(in seconds)",
           "description": "Metric Export Timeout -- Timeout (seconds) for exporting metrics."
         },
         {
@@ -27812,6 +27967,7 @@
           "type": "integer",
           "min": 15,
           "default": 600,
+          "unitNote": "(in seconds)",
           "description": "File Access Policy Update Interval -- How often (in seconds) to re-read the file access policy config."
         },
         {
@@ -27842,6 +27998,7 @@
           "type": "integer",
           "min": 0,
           "default": 15,
+          "unitNote": "(in seconds)",
           "description": "File Access Global Window Size -- Window size over which the log rate limit is applied. Set to 0 to disable rate limiting."
         },
         {
@@ -27939,8 +28096,8 @@
       "name": "com.okta.mobile.auth-service-extension",
       "displayName": "Okta Verify (SSO Extension)",
       "keywords": [
-        "verify",
-        "auth-service-extension"
+        "auth-service-extension",
+        "okta verify"
       ],
       "title": "Okta Verify (SSO Extension)",
       "description": "Use this section to define settings for Okta Verify (SSO Extension)",
@@ -28036,7 +28193,7 @@
       "name": "com.okta.mobile",
       "displayName": "Okta Verify",
       "keywords": [
-        "verify"
+        "okta verify"
       ],
       "title": "Okta Verify",
       "description": "Use this section to define settings for Okta Verify",
@@ -28295,6 +28452,7 @@
           "key": "SUScheduledCheckInterval",
           "type": "integer",
           "default": 86400,
+          "unitNote": "(in seconds)",
           "description": "Automatic Update Check Interval -- Controls the automatic update check interval. The default is 1 day (86400 seconds). Setting to 0 disables updates."
         },
         {
@@ -28456,7 +28614,7 @@
       "name": "com.secondsonconsulting.baseline",
       "displayName": "Baseline by Second Son Consulting",
       "keywords": [
-        "baseline"
+        "second son baseline"
       ],
       "title": "Baseline by Second Son Consulting",
       "description": "Baseline by Second Son Consulting Configuration",
@@ -29032,7 +29190,7 @@
       "name": "com.secondsonconsulting.renew",
       "displayName": "Renew - Second Son Consulting",
       "keywords": [
-        "renew"
+        "second son renew"
       ],
       "title": "Renew - Second Son Consulting",
       "description": "Renew Configuration",
@@ -29058,6 +29216,7 @@
               "type": "integer",
               "required": true,
               "min": -1,
+              "unitNote": "(in deferrals)",
               "description": "Maximum number of deferrals -- This is the maximum number of deferrals a user receives before Renew enters \"Aggressive\" mode. Set to '-1' to disable deferrals."
             },
             {
@@ -29065,6 +29224,7 @@
               "type": "integer",
               "required": true,
               "min": 0,
+              "unitNote": "(in days)",
               "description": "Uptime Threshold -- The number of days which a device is online prior to the Renew experience starting."
             },
             {
@@ -29079,6 +29239,7 @@
               "type": "integer",
               "required": true,
               "min": 0,
+              "unitNote": "(in hours)",
               "description": "Deferral Duration -- The minimum number of hours between when a user is notified that they need to restart."
             }
           ]
@@ -29416,6 +29577,7 @@
           "key": "SUScheduledCheckInterval",
           "type": "integer",
           "default": 86400,
+          "unitNote": "(in seconds)",
           "description": "Automatic Update Check Interval -- Controls the automatic update check interval. The default is 1 day (86400 seconds). Setting to 0 disables updates."
         },
         {
@@ -29624,7 +29786,8 @@
       "name": "com.todesktop.230313mzl4w4u92",
       "displayName": "Cursor",
       "keywords": [
-        "cursor"
+        "cursor ide",
+        "cursor editor"
       ],
       "title": "Cursor",
       "description": "Cursor settings",
@@ -29811,6 +29974,7 @@
           "key": "SecondsToRenew",
           "type": "integer",
           "default": 3600,
+          "unitNote": "(in seconds)",
           "description": "Seconds To Renew Kerberos Tickets"
         },
         {
@@ -29902,36 +30066,42 @@
             {
               "key": "minLength",
               "type": "string",
+              "unitNote": "(in characters)",
               "format": "^[0-9]+$",
               "description": "Minimum Password Length -- Minimum password length"
             },
             {
               "key": "minLowerCase",
               "type": "string",
+              "unitNote": "(in lowercase letters)",
               "format": "^[0-9]+$",
               "description": "Minimum Lowercase Letters -- Minimum # of lowercase letters required in password"
             },
             {
               "key": "minUpperCase",
               "type": "string",
+              "unitNote": "(in uppercase letters)",
               "format": "^[0-9]+$",
               "description": "Minimum Uppercase Letters -- Minimum # of uppercase letters required in password"
             },
             {
               "key": "minNumber",
               "type": "string",
+              "unitNote": "(in numbers)",
               "format": "^[0-9]+$",
               "description": "Minimum Numbers -- Minimum # of numbers required in password"
             },
             {
               "key": "minSymbol",
               "type": "string",
+              "unitNote": "(in symbols)",
               "format": "^[0-9]+$",
               "description": "Minimum Symbols -- Minimum # of symbols required in password"
             },
             {
               "key": "minMatches",
               "type": "string",
+              "unitNote": "(in matches)",
               "format": "^[0-9]+$",
               "description": "Minimum Password Policy Matches -- Minimum # of password policies that must be met (not including length)"
             }
@@ -29973,6 +30143,7 @@
           "key": "PasswordExpireAlertTime",
           "type": "integer",
           "default": 1296000,
+          "unitNote": "(in seconds)",
           "description": "Password Expiration Alert Time -- Number of seconds before a user's password expiration that an alert is shown. (Set to 0 to never be bothered. Defaults to 15 days or 1,296,000 seconds.)"
         },
         {
@@ -29983,11 +30154,13 @@
         {
           "key": "PasswordExpireCustomWarnTime",
           "type": "integer",
+          "unitNote": "(in days)",
           "description": "Password Expiration Custom Warning Time -- Number of days remaining before the custom alert is shown, and in yellow."
         },
         {
           "key": "PasswordExpireCustomAlertTime",
           "type": "integer",
+          "unitNote": "(in days)",
           "description": "Password Expiration Custom Alert Time -- Number of days remaining before the custom alert is shown, and in red."
         },
         {
@@ -30014,6 +30187,7 @@
         {
           "key": "AutoRenewCert",
           "type": "integer",
+          "unitNote": "(in Days)",
           "description": "Automatic Certificate Renewal -- Number of days until the certificate expires before automatically renewing it."
         },
         {
@@ -30281,6 +30455,7 @@
           "key": "SignInWindowAlertTime",
           "type": "integer",
           "default": 360,
+          "unitNote": "(in seconds)",
           "description": "Force Sign In Window on Top Timer -- Time in seconds between the SignInWindowAlert making the Sign In window the foremost window."
         },
         {
@@ -30649,6 +30824,7 @@
           "min": 0,
           "max": 168,
           "default": 3,
+          "unitNote": "(in hours)",
           "description": "Password Change Check Rate Hours -- The number of hours between checks. Default value: 3. Minimum value: 0. Max value: 168."
         },
         {
@@ -30657,6 +30833,7 @@
           "min": 0,
           "max": 59,
           "default": 0,
+          "unitNote": "(in minutes)",
           "description": "Password Change Check Rate Minutes -- The number of minutes between checks. Default value: 0. Minimum value: 0. Max value: 59. This value is added to refreshRateHours. If refreshRateHours is 0, minimum for refreshRateMinutes becomes 5."
         },
         {
@@ -31546,7 +31723,7 @@
       "name": "corp.sap.privileges",
       "displayName": "SAP Privileges",
       "keywords": [
-        "privileges"
+        "sap privileges"
       ],
       "title": "SAP Privileges",
       "description": "Use this section to define settings for the SAP Privileges app",
@@ -31565,12 +31742,14 @@
           "key": "ExpirationInterval",
           "type": "integer",
           "min": 0,
+          "unitNote": "(in minutes)",
           "description": "Expiration Interval -- Set a fixed time interval after which administrator privileges expire and revert to standard user rights"
         },
         {
           "key": "ExpirationIntervalMax",
           "type": "integer",
           "min": 0,
+          "unitNote": "(in minutes)",
           "description": "Expiration Interval Max -- Set a maximum time interval for a user to request administrative privileges"
         },
         {
@@ -31651,11 +31830,13 @@
         {
           "key": "DockToggleTimeout",
           "type": "integer",
+          "unitNote": "(in minutes)",
           "description": "Dock Toggle Timeout -- Sets a fixed timeout for the Dock tile's Toggle Privileges command. After this time, the admin rights are removed and set back to standard user rights. A value of 0 disables the timeout and allows the user to permanently toggle privileges."
         },
         {
           "key": "DockToggleMaxTimeout",
           "type": "integer",
+          "unitNote": "(in minutes)",
           "description": "Dock Toggle Max Timeout -- Set a maximum timeout for the Dock tile's Toggle Privileges command. This generally works the same way as the DockToggleTimeout but allows the user to choose every timeout value up to the one specified."
         },
         {
@@ -31679,6 +31860,7 @@
           "min": 1,
           "max": 250,
           "default": 250,
+          "unitNote": "(in characters)",
           "description": "Reason Maximum Length -- Specifies the maximum number of characters the user can enter as the reason for becoming an admin"
         },
         {
@@ -31687,6 +31869,7 @@
           "min": 1,
           "max": 100,
           "default": 10,
+          "unitNote": "(in characters)",
           "description": "Reason Minimum Length -- Specifies the minimum number of characters the user has to enter as the reason for becoming an admin."
         },
         {
@@ -31902,6 +32085,7 @@
                   "type": "integer",
                   "min": 480,
                   "default": 480,
+                  "unitNote": "(in bytes)",
                   "description": "Maximum Message Size -- Specify the maximum size of the syslog message (header + event message). If the syslog message is larger than the specified maximum, the message will be truncated at the end."
                 }
               ]
@@ -32492,18 +32676,21 @@
           "key": "DaysTillExpiration",
           "type": "integer",
           "default": 60,
+          "unitNote": "(in days)",
           "description": "Days Till Password Expiration"
         },
         {
           "key": "PasswordLength",
           "type": "integer",
           "default": 12,
+          "unitNote": "(in characters)",
           "description": "Password Length"
         },
         {
           "key": "PasswordGrouping",
           "type": "integer",
           "default": 0,
+          "unitNote": "(in characters)",
           "description": "Password Grouping"
         },
         {
@@ -32636,6 +32823,7 @@
           "key": "SUScheduledCheckInterval",
           "type": "integer",
           "default": 86400,
+          "unitNote": "(in seconds)",
           "description": "Automatic Update Check Interval -- Controls the automatic update check interval. The default is 1 day (86400 seconds). Setting to 0 disables updates."
         },
         {
@@ -33824,6 +34012,7 @@
           "type": "integer",
           "min": 0,
           "default": 1,
+          "unitNote": "(in Days)",
           "description": "Days Between Notifications -- Number of days between user notifications from Managed Software Center. Set to 0 to have Managed Software Center notify every time a background check runs if there are available updates."
         },
         {
@@ -33831,6 +34020,7 @@
           "type": "integer",
           "min": 0,
           "default": 3,
+          "unitNote": "(in Days)",
           "description": "Use Notification Center Days -- Number of days Notification Center notifications should be used before switching to launching Managed Software Center."
         },
         {
@@ -33927,6 +34117,7 @@
           "min": 1,
           "max": 30,
           "default": 10,
+          "unitNote": "(in Seconds)",
           "description": "Download Retry Sleep Seconds -- How many seconds to wait between download retries. Valid values are 1-30."
         },
         {
@@ -34117,7 +34308,7 @@
       "displayName": "NoMAD Login",
       "keywords": [
         "nomad",
-        "ad"
+        "nomad login"
       ],
       "title": "NoMAD Login",
       "description": "NoMAD Login settings",
@@ -34780,8 +34971,7 @@
       "name": "menu.nomad.login.okta",
       "displayName": "NoMAD Login+",
       "keywords": [
-        "nomad",
-        "okta"
+        "nomad"
       ],
       "title": "NoMAD Login+",
       "description": "NoMAD Login+ settings",
@@ -34938,6 +35128,7 @@
           "key": "PeriodicUpdateTime",
           "type": "integer",
           "default": 15,
+          "unitNote": "(in Minutes)",
           "description": "Time in minutes between periodic background updates."
         },
         {
@@ -35116,6 +35307,7 @@
           "key": "ChangePasswordTimer",
           "type": "integer",
           "default": 3,
+          "unitNote": "(in Minutes)",
           "description": "Time in minutes until the user is prompted to sign in again after a Password Change."
         },
         {
@@ -35132,12 +35324,14 @@
           "key": "PasswordExpirationMenuDays",
           "type": "integer",
           "default": 15,
+          "unitNote": "(in Days)",
           "description": "Number of days remaining before the password expiration countdown is shown in the menu bar."
         },
         {
           "key": "ExpirationWarningDays",
           "type": "integer",
           "default": 5,
+          "unitNote": "(in Days)",
           "description": "Number of days remaining before sending notifications via the Notification Center."
         },
         {
@@ -35218,6 +35412,7 @@
           "key": "ActionsUpdateTime",
           "type": "integer",
           "default": 15,
+          "unitNote": "(in Minutes)",
           "description": "Number of minutes between updating the Actions Menu."
         },
         {
@@ -35514,6 +35709,7 @@
         {
           "key": "scriptTimeOut",
           "type": "string",
+          "unitNote": "(in seconds)",
           "description": "By default, MunkiReport kills a script if it takes longer than 10 seconds to run. You can override this behavior by adding the scriptTimeOut preference key."
         },
         {
@@ -36000,7 +36196,8 @@
       "displayName": "SupportApp by Root3",
       "keywords": [
         "supportapp by root3",
-        "support"
+        "supportapp",
+        "root3"
       ],
       "title": "SupportApp by Root3",
       "description": "SupportApp by Root3 settings",
@@ -36270,6 +36467,7 @@
           "key": "UptimeDaysLimit",
           "type": "integer",
           "default": 0,
+          "unitNote": "(in days)",
           "description": "Maximum uptime in days -- Days of uptime after which a notification badge is shown"
         },
         {
@@ -36277,6 +36475,7 @@
           "type": "integer",
           "min": 0,
           "default": 0,
+          "unitNote": "(in days)",
           "description": "Maximum password expiry in days -- Days until password expiry after which a notification badge is shown"
         },
         {
@@ -36289,6 +36488,7 @@
           "key": "StorageLimit",
           "type": "integer",
           "default": 0,
+          "unitNote": "(in %)",
           "description": "Maximum used storage percentage -- Percentage of storage after which a notification badge is shown"
         },
         {
@@ -38902,7 +39102,8 @@
       "name": "org.mozilla.firefox",
       "displayName": "Firefox",
       "keywords": [
-        "firefox"
+        "firefox",
+        "mozilla"
       ],
       "title": "Firefox",
       "description": "Configures Firefox settings. Firefox 78 is the last major release with support for macOS versions 10.9, 10.10 and 10.11.",
@@ -41463,6 +41664,7 @@
           "key": "SUScheduledCheckInterval",
           "type": "integer",
           "default": 86400,
+          "unitNote": "(in seconds)",
           "description": "Automatic Update Check Interval -- Controls the automatic update check interval. The default is 1 day (86400 seconds). Setting to 0 disables updates."
         },
         {
@@ -42834,11 +43036,13 @@
         {
           "key": "BandwidthLimitUp",
           "type": "string",
+          "unitNote": "(in Kbps)",
           "description": "Maximum Bandwidth -- Limit the Maximum amount of bandwidth by the Mac client"
         },
         {
           "key": "BandwidthLimitDown",
           "type": "string",
+          "unitNote": "(in Kbps)",
           "description": "Minimum Bandwidth -- Limit the Minimum amount of bandwidth used by the Mac client"
         },
         {
@@ -43141,6 +43345,7 @@
           "key": "DiscoveryFrequency",
           "type": "integer",
           "default": 24,
+          "unitNote": "(in hours)",
           "description": "Discovery Frequency -- The number of hours since the last successful App Discovery before App Auto-Patch will run discovery again."
         },
         {
@@ -43229,6 +43434,7 @@
           "key": "DialogTimeoutConfirmInstall",
           "type": "integer",
           "default": 15,
+          "unitNote": "(in seconds)",
           "description": "Confirm Install Dialog Timeout -- The number of seconds given to the user to respond to the \"Are you sure?\" confirmation dialog shown after clicking Install Now on the deferral dialog. If the timer expires with no response, App Auto-Patch defaults to continuing with the install"
         },
         {
@@ -43280,6 +43486,7 @@
         {
           "key": "BannerHeight",
           "type": "integer",
+          "unitNote": "(in points)",
           "description": "Banner Height -- Overrides the default height, in points, of the banner image set by BannerImage. Invalid (non-integer) values are ignored. Has no effect unless BannerImage is also configured"
         },
         {
@@ -43420,6 +43627,7 @@
           "key": "StaleProcessTimeoutSeconds",
           "type": "integer",
           "default": 3600,
+          "unitNote": "(in seconds)",
           "description": "Stale Process Timeout Seconds -- Seconds of missing heartbeat after which a leftover App Auto-Patch process is treated as hung and recovered (graceful TERM, then KILL if needed). The PID file is also validated so a recycled PID is not mistaken for a live AAP run."
         },
         {

@@ -339,6 +339,11 @@ at the words an admin would use for an app.`,
             description = description.slice(0, 250).replace(/\s+\S*$/, '') + '…';
           }
 
+          // The unit is sometimes the only thing that says what a number counts, e.g., SAP Privileges'
+          // ExpirationInterval is minutes.  pfm_value_placeholder is left out: nearly every one is an example value
+          // (example.com, a made-up Okta client ID) that the model would copy.
+          let unitNote = pfmKey.pfm_value_unit ? `(in ${pfmKey.pfm_value_unit})` : undefined;
+
           let rangeList = _.isArray(pfmKey.pfm_range_list) ? pfmKey.pfm_range_list : undefined;
           let rangeListTitles = _.isArray(pfmKey.pfm_range_list_titles) ? pfmKey.pfm_range_list_titles : undefined;
           let converted = _.omit({
@@ -352,6 +357,7 @@ at the words an admin would use for an app.`,
             max: pfmKey.pfm_range_max,
             // Only plain values: a few defaults are whole dictionaries, which document the manifest more than the key.
             default: (_.isString(pfmKey.pfm_default) && pfmKey.pfm_default !== '') || _.isNumber(pfmKey.pfm_default) || _.isBoolean(pfmKey.pfm_default) ? pfmKey.pfm_default : undefined,
+            unitNote,
             format: pfmKey.pfm_format,
             deprecated: pfmKey.pfm_app_deprecated !== undefined || undefined,
             // The key's title and description, since the title is often what says what a key is about, e.g., "Default clipboard setting".
