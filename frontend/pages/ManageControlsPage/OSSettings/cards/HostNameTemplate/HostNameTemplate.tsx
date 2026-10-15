@@ -1,32 +1,28 @@
 import React, { useContext, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "react-query";
 
-import { AppContext } from "context/app";
-import { notify } from "components/ToastNotification";
-import { API_NO_TEAM_ID } from "interfaces/team";
-import { getErrorReason } from "interfaces/errors";
-
-import {
-  DEFAULT_USE_QUERY_OPTIONS,
-  LEARN_MORE_ABOUT_BASE_LINK,
-} from "utilities/constants";
-
-import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
-import configAPI from "services/entities/config";
-import hostNameTemplateAPI from "services/entities/host_name_template";
-
-import PATHS from "router/paths";
-import { getPathWithQueryParams } from "utilities/url";
-
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import EmptyState from "components/EmptyState";
 import InputField from "components/forms/fields/InputField";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import Spinner from "components/Spinner";
-import SectionHeader from "components/SectionHeader";
-import PageDescription from "components/PageDescription";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import PageDescription from "components/PageDescription";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import SectionHeader from "components/SectionHeader";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { getErrorReason } from "interfaces/errors";
+import { API_NO_TEAM_ID } from "interfaces/team";
+import PATHS from "router/paths";
+import configAPI from "services/entities/config";
+import hostNameTemplateAPI from "services/entities/host_name_template";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
 

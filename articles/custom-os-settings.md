@@ -99,17 +99,19 @@ Fleet API: Use the [Create configuration profile endpoint](https://fleetdm.com/d
 
 A configuration profile only applies to hosts on the platform it's built for. A macOS, iOS, or iPadOS profile (`.mobileconfig` or `.json`) never installs on Windows or Android hosts, and a Windows profile (`.xml`) never installs on Apple hosts. You don't need a label to keep a profile on the right platform.
 
-On Fleet Premium, you can use labels to scope a profile to a subset of those hosts. There are three targeting modes, and you can use only one per profile:
+On Fleet Premium, you can use labels to scope a profile to a subset of those hosts. There are three targeting modes. Each profile can use one include mode (**Include all** or **Include any**), **Exclude any**, or one include mode combined with **Exclude any**:
 
 - **Include all:** the profile applies to hosts that have all of the selected labels.
 - **Include any:** the profile applies to hosts that have any of the selected labels.
 - **Exclude any:** the profile applies to hosts that have none of the selected labels.
 
+When you combine an include mode with **Exclude any**, the profile applies to hosts that match the include labels and have none of the exclude labels. A label can't appear in both lists.
+
 If you don't select any labels, the profile applies to all hosts that support its platform.
 
-Fleet UI: on the **Add profile** modal, select **Custom**, choose a targeting mode, and select one or more labels.
+Fleet UI: on the **Add profile** modal, select **Custom**, then select labels on the **Include** tab (choose **Any** or **All**), the **Exclude** tab, or both.
 
-GitOps: set `labels_include_all`, `labels_include_any`, or `labels_exclude_any` on the profile. Each takes a list of label names. See the [YAML reference](https://fleetdm.com/docs/configuration/yaml-files) for the full syntax.
+GitOps: on the profile, set `labels_include_all` or `labels_include_any`, and/or `labels_exclude_any`. Each takes a list of label names. See the [YAML reference](https://fleetdm.com/docs/configuration/yaml-files) for the full syntax.
 
 ```yaml
 controls:
@@ -138,6 +140,8 @@ If two Windows profiles configure the same setting (LocURI) and one is removed, 
 Currently, on macOS and Windows hosts, Fleet supports enforcing OS settings at the device (device scoped) and user (user scoped) levels. The iOS, iPadOS, and Android platforms only support device-scoped configuration profiles.
 
 If a macOS host is automatically enrolled (via [ADE](https://support.apple.com/en-us/102300)), user-scoped profiles are delivered to the user that was created during first time setup. For Macs that enrolled and turned on MDM manually, user-scoped profiles are delivered to the user that turned on MDM on the **Fleet Desktop > My device** page.
+
+On Windows, Fleet does not support user-scoped profiles on devices shared by multiple users. User-scoped profiles are delivered to the currently signed-in user, so the user who completes the initial enrollment receives all user-scoped profiles defined at that time. If an admin adds or changes user-scoped profiles later, they may be delivered to a different user.
 
 How to deliver user-scoped configuration profiles:
 
@@ -187,6 +191,8 @@ Here's an example DDM (`com.apple.configuration.*`) snippet:
 
 2. To make your Windows configuration profiles user scoped, replace `./Device` with `./User` in all `<LocURI>` elements.
 
+Fleet delivers user-scoped profiles after an end user signs in to the host. Until then, they show **Pending**. If a profile includes both `./Device` and `./User` settings, Fleet delivers the whole profile after an end user signs in, so put device-scoped settings in a separate profile to deliver them right away.
+
 #### Upgrading from below 4.71.0
 
 Fleet added support for user-scoped macOS configuration profiles in Fleet 4.71.0. If you're upgrading Fleet from a version below 4.71.0, here's how to prepare your already enrolled hosts for macOS user-scoped configuration profiles:
@@ -204,6 +210,54 @@ Edit user-scoped configuration profiles that are already installed on hosts:
 In versions older than 4.71.0, Fleet always delivered configuration profiles to the device scope (even when the profile's `PayloadScope` was set to `User`)
 
 If you want to make sure the profile stays device-scoped, update `PayloadScope` to `System` or remove `PayloadScope` entirely. The default scope in Fleet is `System`. 
+
+### Self-service
+
+_Available in Fleet Premium_
+
+By default, configuration profiles are enforced when Fleet automatically installs and removes them on targeted hosts. You can instead make a profile self-service (opt-in), so it appears on the end user's **My device > Controls** tab and is only installed when the user chooses to install it.
+
+Self-service profiles are available for `.mobileconfig` profiles (macOS, iOS, iPadOS). They are not supported for Windows (`.xml`), Android (`.json`), or DDM declaration (`.json`) profiles.
+
+When a profile is self-service:
+- Fleet does **not** automatically install it on targeted hosts.
+- The end user sees the profile on the **My device > Controls** tab and can install or uninstall it on demand.
+- Label scoping still controls which hosts *see* the profile in self-service, but does not force-install it.
+- When the user uninstalls a self-service profile, Fleet sends the appropriate removal command (e.g., `RemoveProfile` on Apple platforms).
+
+Fleet UI: 
+
+1. In the Fleet UI, head to the **Controls > OS settings > Configuration profiles** page.
+
+2. Click **Add profile**, and upload a `.mobileconfig` configuration profile.
+
+3. Select **End user initiated (manual)** in the **Deploy** dropdown.
+
+4. Click **Add profile**.
+
+GitOps: 
+
+Set `self_service: true` on the profile:
+
+```yaml
+controls:
+  macos_settings:
+    configuration_profiles:
+      - paths: ../lib/macos/profiles/*.mobileconfig
+        self_service: true
+```
+
+Fleet API:
+
+Pass `"self_service": true` to the Create configuration profile endpoint.
+
+#### Hidden profiles
+
+You can also mark an enforced (`self_service: false`) profile as hidden. Hidden profiles are installed automatically but are hidden from the end user on the **My device > Controls** tab by default. End users can toggle "Show hidden profiles" to view them, but these profiles do not require the end user to take any action.
+
+`self_service` must be `false` to use hidden.
+
+GitOps: set `hidden: true` on the profile. Fleet API: pass `"hidden": true`.
 
 ## See status
 

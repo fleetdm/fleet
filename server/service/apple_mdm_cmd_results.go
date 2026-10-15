@@ -124,7 +124,7 @@ func NewInstalledApplicationListResultsHandler(
 			// Used to mark the install as failed
 			failFn func(ctx context.Context, hostID uint, installUUID string, verificationUUID string) error
 			// Used to get the activity data for an install
-			activityFn func(ctx context.Context, results *mdm.CommandResults, fromSetupExp bool, fromAutoUpdate bool) (*fleet.User, fleet.ActivityDetails, error)
+			activityFn func(ctx context.Context, results *mdm.CommandResults, fromSetupExp bool, fromAutoUpdate bool, fromConfigurationResend bool) (*fleet.User, fleet.ActivityDetails, error)
 		}
 
 		// The requireXcodeSpecialCase is used to identify if we need to poll the list of apps
@@ -137,9 +137,9 @@ func NewInstalledApplicationListResultsHandler(
 			expectedInstall *fleet.HostVPPSoftwareInstall,
 			setter installStatusSetter,
 		) error {
-			fromAutoUpdate, err := ds.IsAutoUpdateVPPInstall(ctx, expectedInstall.InstallCommandUUID)
+			fromAutoUpdate, fromConfigurationResend, err := ds.GetVPPInstallAutomationReasons(ctx, expectedInstall.InstallCommandUUID)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "checking if vpp install is from auto update")
+				return ctxerr.Wrap(ctx, err, "checking if vpp install is from auto update or a configuration re-send")
 			}
 			// If we don't find the app in the result, then we need to poll for it (within the timeout).
 			appFromResult, appWasReported := installsByBundleID[expectedInstall.BundleIdentifier]
@@ -187,7 +187,7 @@ func NewInstalledApplicationListResultsHandler(
 			}
 
 			// create an activity for installing only if we're in a terminal state
-			user, act, err := setter.activityFn(ctx, &mdm.CommandResults{CommandUUID: expectedInstall.InstallCommandUUID, Status: terminalStatus}, fromSetupExperience, fromAutoUpdate)
+			user, act, err := setter.activityFn(ctx, &mdm.CommandResults{CommandUUID: expectedInstall.InstallCommandUUID, Status: terminalStatus}, fromSetupExperience, fromAutoUpdate, fromConfigurationResend)
 			if err != nil {
 				if fleet.IsNotFound(err) {
 					// Then this isn't an MDM-based install, so no activity generated
@@ -208,7 +208,7 @@ func NewInstalledApplicationListResultsHandler(
 			setter := installStatusSetter{
 				ds.SetVPPInstallAsVerified,
 				ds.SetVPPInstallAsFailed,
-				func(ctx context.Context, results *mdm.CommandResults, fromSetupExp bool, fromAutoUpdate bool) (*fleet.User, fleet.ActivityDetails, error) {
+				func(ctx context.Context, results *mdm.CommandResults, fromSetupExp bool, fromAutoUpdate bool, fromConfigurationResend bool) (*fleet.User, fleet.ActivityDetails, error) {
 					user, act, err := ds.GetPastActivityDataForVPPAppInstall(ctx, results)
 					if err != nil {
 						return nil, nil, err
@@ -216,6 +216,7 @@ func NewInstalledApplicationListResultsHandler(
 
 					act.FromSetupExperience = fromSetupExp
 					act.FromAutoUpdate = fromAutoUpdate
+					act.FromConfigurationResend = fromConfigurationResend
 
 					return user, act, nil
 				},
@@ -232,7 +233,7 @@ func NewInstalledApplicationListResultsHandler(
 				ds.SetInHouseAppInstallAsFailed,
 				// fromAutoUpdate is ignored: in-house apps have no auto-update flow
 				// and ActivityTypeInstalledSoftware has no field for it.
-				func(ctx context.Context, results *mdm.CommandResults, fromSetupExp bool, _ bool) (*fleet.User, fleet.ActivityDetails, error) {
+				func(ctx context.Context, results *mdm.CommandResults, fromSetupExp bool, _ bool, _ bool) (*fleet.User, fleet.ActivityDetails, error) {
 					user, act, err := ds.GetPastActivityDataForInHouseAppInstall(ctx, results)
 					if err != nil {
 						return nil, nil, err
@@ -264,18 +265,26 @@ func NewInstalledApplicationListResultsHandler(
 					return ctxerr.Wrap(ctx, err, "request refetch for host after vpp install verification")
 				}
 			default:
+				hostMDM, err := ds.GetHostMDMCheckinInfo(ctx, installedAppResult.HostUUID())
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "get host mdm checkin info to refetch apps")
+				}
+				// BYOD devices are only queried for managed apps.
+				isBYOD := !hostMDM.InstalledFromDEP
+
 				// Track before enqueueing so a fast device ack can't race the
 				// insert and leave an orphaned row; on enqueue failure nothing
 				// was queued and the row is removed again, but it stays when
 				// only the APNs notification failed since the command is
 				// durably queued.
-				hostCmd := fleet.HostMDMCommand{HostID: hostID, CommandType: fleet.RefetchAppsCommandUUIDPrefix}
+				cmdUUID := fleet.RefetchAppsCommandUUID()
+				hostCmd := fleet.HostMDMCommand{HostID: hostID, CommandType: fleet.RefetchAppsCommandUUIDPrefix, CommandUUID: cmdUUID}
 				err = ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{hostCmd})
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "add host mdm commands")
 				}
 
-				err = commander.InstalledApplicationList(ctx, []string{installedAppResult.HostUUID()}, fleet.RefetchAppsCommandUUID(), false)
+				err = commander.InstalledApplicationList(ctx, []string{installedAppResult.HostUUID()}, cmdUUID, isBYOD)
 				if err != nil {
 					if _, isNotifErr := errors.AsType[*apple_mdm.NotificationFailedError](err); !isNotifErr {
 						if rmErr := ds.RemoveHostMDMCommand(ctx, hostCmd); rmErr != nil {

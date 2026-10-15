@@ -56,9 +56,10 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
     <Property Id="ARPNOMODIFY" Value="yes" Secure="yes" />
 
     <Property Id="FLEET_URL" Value="{{ if .FleetURL }}{{ .FleetURL }}{{ end }}"/>
-    <Property Id="FLEET_SECRET" Value="dummy"/>
+    <Property Id="FLEET_SECRET" Value="dummy" Hidden="yes"/>
     <Property Id="ENABLE_SCRIPTS" Value="{{ if .EnableScripts }}True{{ else }}False{{ end }}"/>
 	<Property Id="FLEET_DESKTOP" Value="{{ if .Desktop }}True{{ else }}False{{ end }}"/>
+    <Property Id="BYPASS_END_USER_AUTH" Value="{{ if .BypassEndUserAuth }}True{{ else }}False{{ end }}" Secure="yes"/>
     {{ if .EnableEndUserEmailProperty }}
 		<Property Id="END_USER_EMAIL" Value="{{ if .EndUserEmail }}{{ .EndUserEmail }}{{ else }}dummy{{end}}"/>
     {{ end }}
@@ -124,7 +125,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                   {{ if .EnableEUATokenProperty }}<MultiStringValue>ORBIT_EUA_TOKEN=[EUA_TOKEN]</MultiStringValue>{{ end }}
                   {{ if .OsqueryDB }}<MultiStringValue>ORBIT_OSQUERY_DB={{ .OsqueryDB }}</MultiStringValue>{{ end }}
                   {{ if .DisableSetupExperience }}<MultiStringValue>ORBIT_DISABLE_SETUP_EXPERIENCE=true</MultiStringValue>{{ end }}
-                  {{ if .BypassEndUserAuth }}<MultiStringValue>ORBIT_BYPASS_END_USER_AUTH=true</MultiStringValue>{{ end }}
+                  <MultiStringValue>ORBIT_BYPASS_END_USER_AUTH=[BYPASS_END_USER_AUTH]</MultiStringValue>
                 </RegistryValue>
                 <!--
                   ##############################################################################################
@@ -194,6 +195,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                   BinaryKey="WixCA"
                   DllEntry="WixQuietExec64"
                   Execute="deferred"
+                  HideTarget="yes"
                   Return="check"
                   Impersonate="no" />
 

@@ -11,6 +11,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Head of Strategic Growth               | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
 | Channel Manager, North America        | [Eric Comeau](https://www.linkedin.com/in/escomeau/) _([@escomeau](https://github.com/escomeau))_ <br> [Suzy Beck](https://www.linkedin.com/in/suzy-beck/) _([@SuzyBeck](https://github.com/suzybeck))_
 | Account Executive (AE)                | <sup><sub> _See [🚂 Go-To-Market operations](https://fleetdm.com/handbook/company/go-to-market-operations#current-gtm-motions)_
+| Solutions Consultant (SC)             | <sup><sub> _See [🚂 Go-To-Market operations](https://fleetdm.com/handbook/company/go-to-market-operations#current-gtm-motions)_
 | Solutions Specialist                  | <sup><sub> _See [🚂 Go-To-Market operations](https://fleetdm.com/handbook/company/go-to-market-operations#current-gtm-motions)_
 
 
@@ -33,7 +34,7 @@ For current sales territory assignments, see the ["GTM territory assignments"](h
 
 ## Responsibilities
 
-The Sales department is directly responsible for attaining the revenue goals of Fleet and helping to deliver upon our customers' objectives.
+The Sales department is directly responsible for attaining the revenue goals of Fleet, solutions consulting, and helping to deliver upon our customers' objectives.
 
 
 ### Add an account to your patch

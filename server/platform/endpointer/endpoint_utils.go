@@ -106,6 +106,23 @@ func requestFieldName(sf reflect.StructField) string {
 	return name
 }
 
+// sentFieldName is requestFieldName for a field that may have been renamed.
+// The rewriter maps a `renameto` name back to the json tag before decoding, so
+// a caller who used the new name would otherwise be told about a key they never
+// sent.
+func sentFieldName(sf reflect.StructField, rewriter *JSONKeyRewriteReader) string {
+	name := requestFieldName(sf)
+	renameTo, ok := sf.Tag.Lookup("renameto")
+	if !ok || rewriter == nil || slices.Contains(rewriter.UsedDeprecatedKeys(), name) {
+		return name
+	}
+	newName, _, err := ParseTag(renameTo)
+	if err != nil || newName == "" {
+		return name
+	}
+	return newName
+}
+
 // aliasRulesCache caches the result of ExtractAliasRules by reflect.Type so
 // that the reflection walk happens only once per struct type, not on every
 // request.
@@ -796,7 +813,7 @@ func MakeDecoder(
 					if val && !fp.V.IsZero() {
 						return nil, &platform_http.BadRequestError{Message: fmt.Sprintf(
 							"option %s requires a premium license",
-							requestFieldName(fp.Sf),
+							sentFieldName(fp.Sf, rewriter),
 						)}
 					}
 					continue
@@ -1051,9 +1068,14 @@ func (e *CommonEndpointer[H]) makeEndpoint(f H, v any, path string) http.Handler
 	}
 
 	limit := e.requestBodySizeLimit
+	if limit == 0 {
+		// fallback to the default max request body size ONLY if a custom value is not provided.
+		limit = platform_http.MaxRequestBodySize
+	}
+
 	if limit != -1 {
-		// Use the maximum of instance defaults and any override (if configured)
-		limit = max(limit, platform_http.MaxRequestBodySize, platform_http.EndpointRequestSizeOverrides[path])
+		// Let endpoint specific overrides expand, but always use the set max in handler.go if set.
+		limit = max(limit, platform_http.EndpointRequestSizeOverrides[path])
 	}
 	h := newServer(endp, e.MakeDecoderFn(v, limit), e.EncodeFn, e.Opts)
 	// The HTTP pre-auth middleware runs outside the kithttp.Server so it can
@@ -1072,7 +1094,16 @@ func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, encodeFn
 	// returning authz check missing instead of the more relevant error. Should be addressed as part
 	// of #4406.
 	e = authzcheck.NewMiddleware().AuthzCheck()(e)
-	return kithttp.NewServer(e, decodeFn, encodeFn, opts...)
+	srv := kithttp.NewServer(e, decodeFn, encodeFn, opts...)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		srv.ServeHTTP(w, r)
+		// net/http only removes multipart temp files for its own *http.Request, and
+		// decoders parse the form on a copy of it. Not a kithttp finalizer, which
+		// would hide http.Flusher from the encoder.
+		if r.MultipartForm != nil {
+			_ = r.MultipartForm.RemoveAll()
+		}
+	})
 }
 
 func (e *CommonEndpointer[H]) StartingAtVersion(version string) *CommonEndpointer[H] {

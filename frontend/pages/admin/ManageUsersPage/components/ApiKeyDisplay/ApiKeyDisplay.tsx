@@ -1,8 +1,8 @@
 import React from "react";
 
-import InfoBanner from "components/InfoBanner/InfoBanner";
-import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
 import Button from "components/buttons/Button";
+import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
+import InfoBanner from "components/InfoBanner/InfoBanner";
 
 const baseClass = "api-key-display";
 

@@ -1,10 +1,11 @@
 import React from "react";
+
+import Icon from "components/Icon";
 import {
   ISelectLabel,
   ISelectTeam,
   ISelectTargetsEntity,
 } from "interfaces/target";
-import Icon from "components/Icon";
 import {
   PlatformLabelNameFromAPI,
   LABEL_DISPLAY_MAP,

@@ -2,9 +2,10 @@
  * Tests ToastCard's expandable detail panel: which payloads are worth
  * revealing and which are suppressed.
  */
-import React from "react";
+
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import React from "react";
 
 import ToastCard from "./ToastCard";
 

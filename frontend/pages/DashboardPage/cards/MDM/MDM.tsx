@@ -1,16 +1,15 @@
 import React, { useMemo, useState } from "react";
-import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { Row } from "react-table";
+import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
-import { IMdmStatusCardData, IMdmSummaryMdmSolution } from "interfaces/mdm";
-
-import TabNav from "components/TabNav";
-import TabText from "components/TabText";
-import TableContainer from "components/TableContainer";
-import Spinner from "components/Spinner";
+import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
-import CustomLink from "components/CustomLink";
+import Spinner from "components/Spinner";
+import TableContainer from "components/TableContainer";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
+import { IMdmStatusCardData, IMdmSummaryMdmSolution } from "interfaces/mdm";
 
 import {
   generateSolutionsTableHeaders,

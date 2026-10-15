@@ -15,8 +15,9 @@
  * parser bug.
  */
 
-import { astify } from ".";
 import corpus from "./corpus.json";
+
+import { astify } from ".";
 
 interface ICorpusQuery {
   query: string;

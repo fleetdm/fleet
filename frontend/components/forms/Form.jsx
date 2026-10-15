@@ -1,6 +1,6 @@
-import React, { Component } from "react";
-import PropTypes from "prop-types";
 import { isEqual, noop } from "lodash";
+import PropTypes from "prop-types";
+import React, { Component } from "react";
 
 const defaultValidate = () => {
   return { valid: true, errors: {} };

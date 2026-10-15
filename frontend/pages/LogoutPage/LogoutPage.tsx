@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
 import { notify } from "components/ToastNotification";
+import PATHS from "router/paths";
 import sessionsAPI from "services/entities/sessions";
 import authToken from "utilities/auth_token";
 

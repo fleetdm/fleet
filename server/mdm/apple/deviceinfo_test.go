@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
+	"encoding/base64"
 	"math/big"
 	"os"
 	"slices"
@@ -231,6 +232,77 @@ func TestVerifyMachineInfoSignatureSyntheticChains(t *testing.T) {
 
 		err = verifyAppleSignedPKCS7(p7, []*x509.Certificate{deviceCA.cert})
 		require.ErrorContains(t, err, "signature verification failed")
+	})
+}
+
+func TestDeviceinfoVerificationLimits(t *testing.T) {
+	content := []byte("<plist><dict></dict></plist>")
+
+	t.Run("oversized certificate bag is rejected before chain verification", func(t *testing.T) {
+		deviceCA := newTestCA(t, x509.ECDSAWithSHA256)
+		leaf := newTestCert(t, deviceCA, x509.ECDSAWithSHA256, false, time.Now().Add(24*time.Hour))
+
+		// the leaf alone verifies against the pinned CA; only the padded bag
+		// causes rejection
+		bag := make([]*x509.Certificate, 0, maxDeviceinfoCerts)
+		for range maxDeviceinfoCerts {
+			bag = append(bag, newTestCA(t, x509.ECDSAWithSHA256).cert)
+		}
+		blob := signPKCS7(t, content, leaf, bag, true)
+		p7 := parsePKCS7(t, blob)
+
+		err := verifyAppleSignedPKCS7(p7, []*x509.Certificate{deviceCA.cert})
+		require.ErrorContains(t, err, "too many certificates")
+	})
+
+	t.Run("chain walk stops at the signature check budget", func(t *testing.T) {
+		deviceCA := newTestCA(t, x509.ECDSAWithSHA256)
+		leaf := newTestCert(t, deviceCA, x509.ECDSAWithSHA256, false, time.Now().Add(24*time.Hour))
+		unrelatedCA := newTestCA(t, x509.ECDSAWithSHA256)
+
+		decoyKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		require.NoError(t, err)
+		decoys := func(n int) []*x509.Certificate {
+			bag := make([]*x509.Certificate, n)
+			for i := range bag {
+				bag[i] = &x509.Certificate{
+					Raw:                   []byte{byte(i), byte(i >> 8)},
+					RawSubject:            leaf.cert.RawIssuer,
+					IsCA:                  true,
+					BasicConstraintsValid: true,
+					PublicKeyAlgorithm:    x509.ECDSA,
+					PublicKey:             &decoyKey.PublicKey,
+				}
+			}
+			return bag
+		}
+
+		err = verifyChainToDeviceCA(leaf.cert, decoys(maxChainSignatureChecks), []*x509.Certificate{unrelatedCA.cert})
+		require.ErrorContains(t, err, "verifying signature of")
+		require.NotErrorIs(t, err, errChainSignatureBudget)
+
+		err = verifyChainToDeviceCA(leaf.cert, decoys(maxChainSignatureChecks+1), []*x509.Certificate{unrelatedCA.cert})
+		require.ErrorIs(t, err, errChainSignatureBudget)
+	})
+
+	t.Run("oversized deviceinfo is rejected before parsing", func(t *testing.T) {
+		// one byte over shares the limit's base64 length and is caught after
+		// decoding; far over is caught before decoding
+		for _, size := range []int{maxDeviceinfoSize + 1, 4 * maxDeviceinfoSize} {
+			b64 := base64.StdEncoding.EncodeToString(make([]byte, size))
+			_, _, err := ParseDeviceinfo(b64)
+			require.ErrorContains(t, err, "deviceinfo exceeds", size)
+		}
+	})
+
+	t.Run("genuine captures fit within every limit", func(t *testing.T) {
+		for _, name := range []string{"machineinfo-ipados.der", "machineinfo-account-driven-iphone.der"} {
+			buf, err := os.ReadFile("testdata/deviceinfo/" + name)
+			require.NoError(t, err)
+			_, p7, err := ParseDeviceinfo(base64.StdEncoding.EncodeToString(buf))
+			require.NoError(t, err, name)
+			require.NoError(t, VerifyMachineInfoSignature(p7), name)
+		}
 	})
 }
 

@@ -1,0 +1,1 @@
+- Host details page: the "View all hosts" and "Check in now" buttons in the MDM status modal are now always visible (previously shown only on row hover) and use Fleet's updated secondary button style. Clicking "Check in now" now shows a confirmation toast.

@@ -1,16 +1,14 @@
+import classNames from "classnames";
 import React, { useContext } from "react";
 import { InjectedRouter } from "react-router";
 
-import UnsupportedScreenSize from "layouts/UnsupportedScreenSize";
-
-import { AppContext } from "context/app";
-import classNames from "classnames";
-
-import paths from "router/paths";
-import SiteTopNav from "components/top_nav/SiteTopNav";
 import CommandPalette from "components/CommandPalette";
-import { QueryParams } from "utilities/url";
+import SiteTopNav from "components/top_nav/SiteTopNav";
+import { AppContext } from "context/app";
+import UnsupportedScreenSize from "layouts/UnsupportedScreenSize";
 import shouldShowUnsupportedScreen from "layouts/UnsupportedScreenSize/helpers";
+import paths from "router/paths";
+import { QueryParams } from "utilities/url";
 
 interface ICoreLayoutProps {
   children: React.ReactNode;

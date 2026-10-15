@@ -1,15 +1,14 @@
 import React from "react";
 
-import TextCell from "components/TableContainer/DataTable/TextCell";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
-
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import { IDropdownOption } from "interfaces/dropdownOption";
 import {
   IJiraIntegration,
   IZendeskIntegration,
   IIntegrationTableData as IIntegrationCompleteData,
 } from "interfaces/integration";
-import { IDropdownOption } from "interfaces/dropdownOption";
 
 import JiraIcon from "../../../../../../assets/images/icon-jira-24x24@2x.png";
 import ZendeskIcon from "../../../../../../assets/images/icon-zendesk-32x24@2x.png";

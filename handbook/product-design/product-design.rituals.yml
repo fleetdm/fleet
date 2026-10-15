@@ -2,7 +2,7 @@
   task: "🦢📊 Product design review" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-07"
   frequency: "Triweekly"
-  description: "1. Review each product group's board to confirm only stories we're working on remain in the 'Drafting' column. Update milestones if necessary. 2. Prepare the '🎁 Feature fest' board."
+  description: "1. Review each product group's board to confirm only stories we're working on remain in the 'Drafting' column. Update milestones if necessary. 2. Review the drafting plan for the next release cycle."
   moreInfoUrl:  
   dri: "noahtalerman" 
 -
@@ -100,13 +100,6 @@
   frequency: "Weekly" 
   description: "Learn more about the confirm and celebrate ritual."
   moreInfoUrl:  https://fleetdm.com/handbook/product-design#confirm-and-celebrate
-  dri: "noahtalerman"
--
-  task: "📝 Understanding our competitor(s)"
-  startedOn: "2026-01-26" 
-  frequency: "Weekly" 
-  description: "For each user story in the current release cycle, find a solution using our competitor(s) tools. Discuss how this solution affects how we're thinking about the Fleet solution. For each story, do we just want to be as good as our competitor(s)? Better?"
-  moreInfoUrl:
   dri: "noahtalerman"
 -
   task: "Review reference docs for upcoming release"

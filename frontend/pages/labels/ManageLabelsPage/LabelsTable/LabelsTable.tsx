@@ -1,12 +1,10 @@
 import React, { memo } from "react";
 
-import { ILabel } from "interfaces/label";
-
-import { IUser } from "interfaces/user";
-
+import EmptyState from "components/EmptyState";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import EmptyState from "components/EmptyState";
+import { ILabel } from "interfaces/label";
+import { IUser } from "interfaces/user";
 
 import { generateDataSet, generateTableHeaders } from "./LabelsTableConfig";
 

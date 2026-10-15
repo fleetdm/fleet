@@ -1,9 +1,10 @@
-import React from "react";
 import { Meta, StoryObj } from "@storybook/react";
 import { noop } from "lodash";
+import React from "react";
 
-import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
 import Avatar from "components/Avatar";
+import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
+
 // @ts-ignore
 import DropdownButton from ".";
 

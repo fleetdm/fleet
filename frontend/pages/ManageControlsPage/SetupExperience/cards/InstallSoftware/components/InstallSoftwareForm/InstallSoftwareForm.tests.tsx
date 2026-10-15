@@ -1,14 +1,14 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { createMockRouter, createCustomRenderer } from "test/test-utils";
 import { noop } from "lodash";
-import { SETUP_EXPERIENCE_PLATFORMS } from "interfaces/platform";
+import React from "react";
 
 import {
   createMockSoftwarePackage,
   createMockSoftwareTitle,
 } from "__mocks__/softwareMock";
+import { SETUP_EXPERIENCE_PLATFORMS } from "interfaces/platform";
 import mdmAPI from "services/entities/mdm";
+import { createMockRouter, createCustomRenderer } from "test/test-utils";
 
 import InstallSoftwareForm from "./InstallSoftwareForm";
 

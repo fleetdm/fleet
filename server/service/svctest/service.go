@@ -79,6 +79,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		softwareInstallStore   fleet.SoftwareInstallerStore
 		bootstrapPackageStore  fleet.MDMBootstrapPackageStore
 		softwareTitleIconStore fleet.SoftwareTitleIconStore
+		stagedUploadStore      fleet.StagedUploadStore
 		distributedLock        fleet.Lock
 		keyValueStore          fleet.KeyValueStore
 		androidService         android.Service
@@ -139,6 +140,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if opts[0].SoftwareTitleIconStore != nil {
 			softwareTitleIconStore = opts[0].SoftwareTitleIconStore
 		}
+		stagedUploadStore = opts[0].StagedUploadStore
 
 		// allow to explicitly set MDM storage to nil
 		mdmStorage = opts[0].MDMStorage
@@ -265,6 +267,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			softwareInstallStore,
 			bootstrapPackageStore,
 			softwareTitleIconStore,
+			stagedUploadStore,
 			distributedLock,
 			keyValueStore,
 			installAttemptCounter,
@@ -295,6 +298,10 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	// Set up mock ACME service for unit tests. When DBConns is provided,
 	// RunServerForTestsWithServiceWithDS will overwrite this with the real service module.
 	svc.SetACMEService(&fleet_mock.MockACMEService{})
+
+	// Set up mock notifications service for unit tests. When DBConns is provided,
+	// RunServerForTestsWithServiceWithDS will overwrite this with the real bounded context.
+	svc.SetNotificationsService(&fleet_mock.MockNotificationsService{})
 
 	return svc, ctx
 }

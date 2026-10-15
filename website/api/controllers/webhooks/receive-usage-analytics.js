@@ -46,8 +46,8 @@ module.exports = {
     numHostsFleetDesktopEnabled: {type: 'number', defaultsTo: 0 },
     numQueries: {type: 'number', defaultsTo: 0 },
     numHostsABMPending: {type: 'number', defaultsTo: 0 },
-    fleetMaintainedAppsWindows: {type: ['string'], defaultsTo: [] },
-    fleetMaintainedAppsMacOS: {type: ['string'], defaultsTo: [] },
+    fleetMaintainedAppsWindows: {type: 'ref', defaultsTo: [] },
+    fleetMaintainedAppsMacOS: {type: 'ref', defaultsTo: [] },
     oktaConditionalAccessConfigured: {type: 'boolean', defaultsTo: false},
     entraConditionalAccessConfigured: {type: 'boolean', defaultsTo: false},
     conditionalAccessBypassDisabled: {type: 'boolean', defaultsTo: false},
@@ -57,6 +57,21 @@ module.exports = {
     fleetDesktopSSOEnabled: {type: 'boolean', defaultsTo: false},
     numHostsFleetMDMEnrolledMacOS: {type: 'number', defaultsTo: 0 },
     numHostsFleetMDMEnrolledWindows: {type: 'number', defaultsTo: 0 },
+    resultLogDestination: {type: 'string', defaultsTo: 'unknown'},
+    statusLogDestination: {type: 'string', defaultsTo: 'unknown'},
+    auditLogDestination: {type: 'string', defaultsTo: 'unknown'},
+    anyVulnerabilitiesWebhookEnabled: {type: 'boolean', defaultsTo: false},
+    anyFailingPoliciesWebhookEnabled: {type: 'boolean', defaultsTo: false},
+    anyHostActivitiesWebhookEnabled: {type: 'boolean', defaultsTo: false},
+    globalActivityWebhookEnabled: {type: 'boolean', defaultsTo: false},
+    ticketDestinationConfigured: {type: 'boolean', defaultsTo: false},
+    ssoConfiguredFleetUsers: {type: 'boolean', defaultsTo: false},
+    ssoConfiguredEndUsers: {type: 'boolean', defaultsTo: false},
+    accountProvisioningConfigured: {type: 'boolean', defaultsTo: false},
+    idpSCIMConfigured: {type: 'boolean', defaultsTo: false},
+    idpGoogleWorkspaceConfigured: {type: 'boolean', defaultsTo: false},
+    certificateAuthorityConfigured: {type: 'boolean', defaultsTo: false},
+    numPoliciesAutomationEnabledSoftware: {type: 'number', defaultsTo: 0 },
   },
 
 
@@ -66,9 +81,11 @@ module.exports = {
 
 
   fn: async function (inputs) {
-    // If organization was reported as an empty string, set it to the default value.
-    if(inputs.organization === '') {
-      inputs.organization = 'unknown';
+    // Empty strings would fail the model's `required` validation, so fall back to the default value.
+    for(let stringInput of ['organization', 'resultLogDestination', 'statusLogDestination', 'auditLogDestination']) {
+      if(inputs[stringInput] === '') {
+        inputs[stringInput] = 'unknown';
+      }
     }
     // Create a database record for these usage statistics.
     await HistoricalUsageSnapshot.create(Object.assign({}, inputs));

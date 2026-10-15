@@ -1,12 +1,13 @@
-import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
+import { noop } from "lodash";
+import React from "react";
+
 import {
   createMockHostSoftware,
   createMockHostAppStoreApp,
   createMockHostSoftwarePackage,
 } from "__mocks__/hostMock";
-import { noop } from "lodash";
+import { renderWithSetup } from "test/test-utils";
 
 import InstallStatusCell from "./InstallStatusCell";
 
@@ -374,6 +375,40 @@ describe("InstallStatusCell - component", () => {
     });
   });
 
+  it("renders 'Patch skipped' status with tooltip and opens install details on click", async () => {
+    const onShowInstallDetails = jest.fn();
+    const { user } = renderWithSetup(
+      <InstallStatusCell
+        software={{
+          ...createMockHostSoftware({
+            status: "failed_install",
+            skipped_install: true,
+            software_package: testSoftwarePackage,
+          }),
+          ui_status: "skipped_install",
+        }}
+        onShowUpdateDetails={noop}
+        onShowInstallDetails={onShowInstallDetails}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
+        onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
+      />
+    );
+
+    const button = screen.getByRole("button", { name: /patch skipped/i });
+    expect(button).toBeInTheDocument();
+    expect(screen.getByTestId("error-outline-icon")).toBeInTheDocument();
+
+    await user.hover(button);
+    await waitFor(() => {
+      expect(screen.getByText(/The app was open/i)).toBeInTheDocument();
+    });
+
+    await user.click(button);
+    expect(onShowInstallDetails).toHaveBeenCalledTimes(1);
+  });
+
   it("renders 'Failed' for a script-only package that failed to run", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
@@ -517,7 +552,8 @@ describe("InstallStatusCell - component", () => {
     });
   });
 
-  it("renders 'Update available' with failure tooltip for failed_install_update_available", async () => {
+  it("renders 'Failed' with failure tooltip for failed_install_update_available", async () => {
+    const onShowInstallDetails = jest.fn();
     const { user } = renderWithSetup(
       <InstallStatusCell
         software={{
@@ -528,23 +564,24 @@ describe("InstallStatusCell - component", () => {
           ui_status: "failed_install_update_available",
         }}
         onShowUpdateDetails={noop}
-        onShowInstallDetails={noop}
+        onShowInstallDetails={onShowInstallDetails}
         onShowIpaInstallDetails={noop}
         onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
       />
     );
-    expect(
-      screen.getByRole("button", { name: /Update available/i })
-    ).toBeInTheDocument();
-    expect(screen.getByTestId("error-outline-icon")).toBeInTheDocument();
+    const failedButton = screen.getByRole("button", { name: /Failed/i });
+    expect(failedButton).toBeInTheDocument();
+    expect(screen.getByTestId("error-icon")).toBeInTheDocument();
 
-    // Still see failure message in tooltip
-    await user.hover(screen.getByText("Update available"));
+    await user.hover(screen.getByText("Failed"));
     await waitFor(() => {
       expect(screen.getByText(/failed to install/i)).toBeInTheDocument();
     });
+
+    failedButton.click();
+    expect(onShowInstallDetails).toHaveBeenCalled();
   });
 
   it("renders 'Update available' with failed uninstall tooltip for failed_uninstall_update_available", async () => {

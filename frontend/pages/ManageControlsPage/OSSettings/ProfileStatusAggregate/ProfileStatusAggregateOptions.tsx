@@ -1,6 +1,7 @@
 import React from "react";
-import { MdmProfileStatus } from "interfaces/mdm";
+
 import { IndicatorStatus } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
+import { MdmProfileStatus } from "interfaces/mdm";
 
 interface IAggregateDisplayOption {
   value: MdmProfileStatus;

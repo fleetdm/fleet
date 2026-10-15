@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-
-import { ITeam } from "interfaces/team";
-import { UserRole } from "interfaces/user";
-import Checkbox from "components/forms/fields/Checkbox";
 import { SingleValue } from "react-select-5";
+
+import Checkbox from "components/forms/fields/Checkbox";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import { ITeam } from "interfaces/team";
+import { UserRole } from "interfaces/user";
+
 import { roleOptions } from "../../helpers/userManagementHelpers";
 
 interface ITeamCheckboxListItem extends ITeam {
@@ -136,6 +137,7 @@ const SelectedTeamsForm = ({
             </Checkbox>
             {isChecked && (
               <DropdownWrapper
+                ariaLabel={`Role for ${name}`}
                 name={name}
                 value={role}
                 className={`${baseClass}__role-dropdown`}

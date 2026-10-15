@@ -1,7 +1,7 @@
-import { IEndUserAuthentication } from "interfaces/config";
-import { IFormErrors } from "hooks/useFormValidation";
-
 import isURL from "validator/lib/isURL";
+
+import { IFormErrors } from "hooks/useFormValidation";
+import { IEndUserAuthentication } from "interfaces/config";
 
 export interface IFormDataIdp {
   idp_name: string;

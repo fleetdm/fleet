@@ -1,9 +1,9 @@
-import React from "react";
 import { screen } from "@testing-library/react";
 import { noop } from "lodash";
+import React from "react";
 
-import { createCustomRenderer } from "test/test-utils";
 import { IMdmAsset } from "interfaces/mdm";
+import { createCustomRenderer } from "test/test-utils";
 
 import AssetListItem from "./AssetListItem";
 

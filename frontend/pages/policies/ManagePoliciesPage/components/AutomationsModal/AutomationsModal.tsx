@@ -1,8 +1,11 @@
 import React, { useContext, useRef, useState } from "react";
 import { useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
-import { AppContext } from "context/app";
+
+import Button from "components/buttons/Button";
+import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
 import { IConfig, isConditionalAccessConfigured } from "interfaces/config";
 import { ITeamIntegrations } from "interfaces/integration";
 import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
@@ -11,8 +14,7 @@ import teamsAPI, {
   ILoadTeamResponse,
   IUpdateTeamFormData,
 } from "services/entities/teams";
-import Modal from "components/Modal";
-import Button from "components/buttons/Button";
+
 import {
   CalendarEventPreviewModal,
   CalendarEventsModal,

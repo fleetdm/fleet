@@ -1,19 +1,18 @@
-import React, { useContext, useEffect, useRef } from "react";
 import { AxiosResponse } from "axios";
 import { isEqual } from "lodash";
+import React, { useContext, useEffect, useRef } from "react";
 
-import { expandErrorReasonRequired } from "interfaces/errors";
-import { IEndUserAuthentication } from "interfaces/config";
-import configAPI from "services/entities/config";
-import { AppContext } from "context/app";
-import useFormValidation, { trimFormData } from "hooks/useFormValidation";
-
-import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button/Button";
+import CustomLink from "components/CustomLink";
+import InputField from "components/forms/fields/InputField";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import CustomLink from "components/CustomLink";
 import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import useFormValidation, { trimFormData } from "hooks/useFormValidation";
+import { IEndUserAuthentication } from "interfaces/config";
+import { expandErrorReasonRequired } from "interfaces/errors";
+import configAPI from "services/entities/config";
 
 import {
   IFormDataIdp,

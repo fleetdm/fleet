@@ -1,14 +1,14 @@
-import React from "react";
 import { screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
+import React from "react";
 
-import { createCustomRenderer, baseUrl } from "test/test-utils";
-import mockServer from "test/mock-server";
-import { ALL_CVE_SOFTWARE_CATEGORY_VALUES } from "interfaces/charts";
 import { SEVERITY_SCORE_RANGE_ERROR } from "components/SeverityFilter";
+import { ALL_CVE_SOFTWARE_CATEGORY_VALUES } from "interfaces/charts";
+import mockServer from "test/mock-server";
+import { createCustomRenderer, baseUrl } from "test/test-utils";
 
-import SoftwareFilters from "./SoftwareFilters";
 import { EPSS_RANGE_HELP, NO_CATEGORIES_MSG } from "./helpers";
+import SoftwareFilters from "./SoftwareFilters";
 
 const emptyVulnsHandler = http.get(baseUrl("/vulnerabilities"), () =>
   HttpResponse.json({
@@ -174,7 +174,7 @@ describe("SoftwareFilters", () => {
 
     await user.click(screen.getByRole("button", { name: /Advanced options/i }));
 
-    const pill = screen.getByRole("button", { name: /CVE-2025-0001/i });
+    const pill = screen.getByRole("button", { name: /Remove CVE-2025-0001/i });
     expect(pill).toBeInTheDocument();
 
     await user.click(pill);

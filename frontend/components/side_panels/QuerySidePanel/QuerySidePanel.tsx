@@ -1,19 +1,18 @@
 import React from "react";
 
+import CustomLink from "components/CustomLink";
+import FleetMarkdown from "components/FleetMarkdown";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import Icon from "components/Icon/Icon";
 import { IOsQueryTable } from "interfaces/osquery_table";
 import { osqueryTableNames } from "utilities/osquery_tables";
 
-import DropdownWrapper from "components/forms/fields/DropdownWrapper";
-import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import FleetMarkdown from "components/FleetMarkdown";
-import CustomLink from "components/CustomLink";
-import Icon from "components/Icon/Icon";
-
+import EventedTableTag from "./EventedTableTag";
 import QueryTableColumns from "./QueryTableColumns";
-import QueryTablePlatforms from "./QueryTablePlatforms";
 import QueryTableExample from "./QueryTableExample";
 import QueryTableNotes from "./QueryTableNotes";
-import EventedTableTag from "./EventedTableTag";
+import QueryTablePlatforms from "./QueryTablePlatforms";
 
 interface IQuerySidePanel {
   selectedOsqueryTable: IOsQueryTable;

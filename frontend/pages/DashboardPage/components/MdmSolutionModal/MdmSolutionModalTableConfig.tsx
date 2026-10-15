@@ -1,11 +1,10 @@
 import React from "react";
 
-import { IMdmSolution } from "interfaces/mdm";
-
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import ViewAllHostsLink from "components/ViewAllHostsLink";
-import TooltipWrapper from "components/TooltipWrapper";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipWrapper from "components/TooltipWrapper";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
+import { IMdmSolution } from "interfaces/mdm";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties

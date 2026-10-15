@@ -1,15 +1,15 @@
+import { screen, waitFor } from "@testing-library/react";
 import React from "react";
 
-import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
-import mockServer from "test/mock-server";
+import createMockConfig from "__mocks__/configMock";
+import { createMockLabel } from "__mocks__/labelsMock";
+import labelsAPI from "services/entities/labels";
 import {
   getLabelHandler,
   getLabelHostsHandler,
 } from "test/handlers/label-handlers";
-import createMockConfig from "__mocks__/configMock";
-import { createMockLabel } from "__mocks__/labelsMock";
-import labelsAPI from "services/entities/labels";
+import mockServer from "test/mock-server";
+import { createCustomRenderer } from "test/test-utils";
 
 import EditLabelPage from "./EditLabelPage";
 

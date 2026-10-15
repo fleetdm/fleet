@@ -1,9 +1,9 @@
+import { render, screen } from "@testing-library/react";
 import React from "react";
 
-import { render, screen } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
 import { createMockHostSoftware } from "__mocks__/hostMock";
 import { IHostSoftwareUiStatus } from "interfaces/software";
+import { renderWithSetup } from "test/test-utils";
 
 import { StatusMessage, ModalButtons } from "./SoftwareUninstallDetailsModal";
 

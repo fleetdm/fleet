@@ -1,7 +1,6 @@
 import { size } from "lodash";
 
 import validUrl from "components/forms/validators/valid_url";
-
 import INVALID_SERVER_URL_MESSAGE from "utilities/error_messages";
 
 const validate = (formData) => {

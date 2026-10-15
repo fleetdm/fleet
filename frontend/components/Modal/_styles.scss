@@ -26,6 +26,22 @@
     }
   }
 
+  // Tab rows are sized for full-width pages; inside a capped modal they'd shrink
+  // tabs below their text width and wrap labels like "iOS & iPadOS" mid-phrase.
+  // Extra class needed to outrank `.tab-nav .react-tabs__*`, which loads later.
+  &__background &__modal_container .react-tabs {
+    &__tab-list {
+      flex-wrap: wrap;
+      height: auto;
+      min-height: 33px;
+    }
+
+    &__tab {
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+  }
+
   &__content-wrapper {
     margin-top: $pad-large;
     font-size: $x-small;
@@ -66,6 +82,9 @@
   &__modal_container {
     @include position(absolute, 22px null null null);
     box-sizing: border-box;
+    // Fixed widths below exceed the narrowest supported viewport (768px), so
+    // cap every modal to the window minus a gutter on each side.
+    max-width: calc(100vw - #{$pad-large} * 2);
     background-color: $core-fleet-white;
     padding: $pad-xxlarge;
     border-radius: 8px;

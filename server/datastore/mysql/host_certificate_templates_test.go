@@ -132,7 +132,7 @@ func createEnrolledAndroidHost(t *testing.T, ctx context.Context, ds *Datastore,
 		Platform: "android",
 	})
 	require.NoError(t, err)
-	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "", false, "", "", false)
+	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "", false, "", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 	return host
 }

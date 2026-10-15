@@ -1,30 +1,29 @@
-import React, { useState, useContext } from "react";
-import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
 import FileSaver from "file-saver";
-import { PolicyContext } from "context/policy";
+import React, { useState, useContext } from "react";
+import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
+import Button from "components/buttons/Button";
+import EmptyState from "components/EmptyState";
+import InfoBanner from "components/InfoBanner";
+import ShowQueryModal from "components/modals/ShowQueryModal";
+import AwaitingResults from "components/queries/LiveResults/AwaitingResults";
+import LiveResultsHeading from "components/queries/LiveResults/LiveResultsHeading";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
+import TooltipWrapper from "components/TooltipWrapper";
+import { PolicyContext } from "context/policy";
+import { ICampaign } from "interfaces/campaign";
+import { ITarget } from "interfaces/target";
 import {
   generateCSVFilename,
   generateCSVPolicyResults,
   generateCSVPolicyErrors,
 } from "utilities/generate_csv";
-import { ICampaign } from "interfaces/campaign";
-import { ITarget } from "interfaces/target";
 
-import Button from "components/buttons/Button";
-import EmptyState from "components/EmptyState";
-import TabNav from "components/TabNav";
-import TabText from "components/TabText";
-import InfoBanner from "components/InfoBanner";
-import ShowQueryModal from "components/modals/ShowQueryModal";
-import TooltipWrapper from "components/TooltipWrapper";
-
-import LiveResultsHeading from "components/queries/LiveResults/LiveResultsHeading";
-import AwaitingResults from "components/queries/LiveResults/AwaitingResults";
-
-import PolicyResultsTable from "../PolicyResultsTable/PolicyResultsTable";
 import PolicyQueriesErrorsTable from "../PolicyErrorsTable/PolicyErrorsTable";
+import PolicyResultsTable from "../PolicyResultsTable/PolicyResultsTable";
+
 import { getYesNoCounts } from "./helpers";
 
 interface IPolicyResultsProps {

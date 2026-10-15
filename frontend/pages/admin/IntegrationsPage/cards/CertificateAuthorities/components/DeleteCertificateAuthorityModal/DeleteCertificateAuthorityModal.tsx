@@ -1,12 +1,11 @@
 import React, { useState } from "react";
 
-import { ICertificateAuthorityPartial } from "interfaces/certificates";
-import { getErrorReason } from "interfaces/errors";
-import certificatesAPI from "services/entities/certificates";
-
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
+import { ICertificateAuthorityPartial } from "interfaces/certificates";
+import { getErrorReason } from "interfaces/errors";
+import certificatesAPI from "services/entities/certificates";
 
 const baseClass = "delete-certificate-authority-modal";
 

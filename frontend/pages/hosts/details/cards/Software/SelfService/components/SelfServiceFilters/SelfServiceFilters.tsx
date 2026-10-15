@@ -1,9 +1,8 @@
-import React from "react";
 import classnames from "classnames";
-
-import { ISelfServiceCategory } from "interfaces/self_service_category";
+import React from "react";
 
 import SearchField from "components/forms/fields/SearchField";
+import { ISelfServiceCategory } from "interfaces/self_service_category";
 
 import CategoryFilter from "../CategoryFilter";
 

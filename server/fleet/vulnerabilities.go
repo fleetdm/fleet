@@ -118,6 +118,7 @@ type Vulnerability interface {
 	Key() string
 }
 
+// VulnerabilitySource identifies which data source produced a vulnerability.
 type VulnerabilitySource int
 
 const (
@@ -132,6 +133,7 @@ const (
 	UbuntuOSVSource
 	RHELOSVSource
 	AndroidOSVSource
+	GoVulnDBSource
 )
 
 type VulnerabilityWithMetadata struct {

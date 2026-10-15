@@ -54,11 +54,12 @@ Use the routing table below. If the table looks stale (line numbers shifted, a c
 | `python_packages` | any | NVD (target SW = python) | Same |
 | `chocolatey_packages` | Windows | NVD | |
 | `vscode_extensions`, `jetbrains_plugins`, `chrome_extensions`, `firefox_addons`, `safari_extensions`, `ie_extensions` | any | NVD | |
-| `go_binaries`, `portage_packages` | any | NVD | |
+| `go_binaries` | any | **Go vulnerability database** | Matched on module path (`software.extension_id`) and Go toolchain version (`software.release`), not CPE — `server/vulnerabilities/govulndb/`. Excluded from NVD in `server/vulnerabilities/nvd/cpe.go` |
+| `portage_packages` | any | NVD | |
 | `ios_apps`, `ipados_apps` | iOS/iPadOS | None — excluded from NVD | `server/vulnerabilities/nvd/cpe.go` `AllSoftwareIterator` |
 | (n/a — `os_versions` table) | Windows | **MSRC** | Operates on `os_versions`, not `software` — `server/vulnerabilities/msrc/analyzer.go` |
 
-<!-- Routing table last verified at commit f92e1e2c34. If you re-verify against current code, bump this. -->
+<!-- Routing table last verified at commit a0f584dfef. If you re-verify against current code, bump this. -->
 
 ### Detail-query → source mapping
 
@@ -66,7 +67,7 @@ Use the routing table below. If the table looks stale (line numbers shifted, a c
 
 ### Dispatch entry points (read on each invocation)
 
-`cmd/fleet/cron.go` — `checkNVDVulnerabilities`, `checkOvalVulnerabilities`, `checkOSVVulnerabilities`, `checkRHELOSVVulnerabilities`, `checkMacOfficeVulnerabilities`, `checkWinOfficeVulnerabilities`, `checkCustomVulnerabilities`. vulncheck supplements NVD: `server/vulnerabilities/nvd/sync/cve_syncer.go`.
+`cmd/fleet/cron.go` — `checkNVDVulnerabilities`, `checkOvalVulnerabilities`, `checkOSVVulnerabilities`, `checkRHELOSVVulnerabilities`, `checkMacOfficeVulnerabilities`, `checkWinOfficeVulnerabilities`, `checkGoVulnDBVulnerabilities`, `checkCustomVulnerabilities`. vulncheck supplements NVD: `server/vulnerabilities/nvd/sync/cve_syncer.go`.
 
 Pick the scanner from the table. If the bug is on `apps`/`programs` and the software is Microsoft Office, the scanner is macoffice/winoffice — not NVD. Confirm before continuing.
 

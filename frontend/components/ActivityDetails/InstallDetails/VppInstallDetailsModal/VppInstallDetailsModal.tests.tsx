@@ -1,17 +1,18 @@
-import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "react-query";
 import { http, HttpResponse } from "msw";
+import React from "react";
+import { QueryClient, QueryClientProvider } from "react-query";
+
+import {
+  createMockHostAppStoreApp,
+  createMockHostSoftware,
+} from "__mocks__/hostMock";
+import mockServer from "test/mock-server";
 import {
   createCustomRenderer,
   renderWithSetup,
   baseUrl,
 } from "test/test-utils";
-import mockServer from "test/mock-server";
-import {
-  createMockHostAppStoreApp,
-  createMockHostSoftware,
-} from "__mocks__/hostMock";
 
 import VppInstallDetailsModal, {
   getStatusMessage,
@@ -598,6 +599,100 @@ describe("VPP Install Details Modal", () => {
     mockServer.resetHandlers();
   });
 
+  describe("config-update note", () => {
+    const configUpdateRe = /When the app's configuration is updated Fleet also updates the app\./i;
+
+    const renderNoteCase = (
+      platform: "ios" | "ipados" | "darwin",
+      fleetInstallStatus: "installed" | "pending_install" | "failed_install"
+    ) => {
+      // Minimal command-results handler: a 200 with an acknowledged result so
+      // the modal routes to the status-rendering branch without errors.
+      mockServer.use(
+        http.get(baseUrl("/commands/results"), ({ request }) => {
+          const url = new URL(request.url);
+          const commandUuid = url.searchParams.get("command_uuid");
+          return HttpResponse.json({
+            results: [
+              {
+                host_uuid: "11111111-2222-3333-4444-555555555555",
+                command_uuid: commandUuid,
+                status: "Acknowledged",
+                updated_at: "2025-08-10T12:05:00Z",
+                request_type: "InstallApplication",
+                hostname: "Mock Host",
+                payload: btoa("<Command />"),
+                result: btoa("<Result />"),
+                results_metadata: { software_installed: true },
+              },
+            ],
+          });
+        })
+      );
+
+      const hostSoftware = createMockHostSoftware({
+        id: 123,
+        status: fleetInstallStatus,
+        name: "Keynote",
+        display_name: "Keynote",
+        installed_versions: [],
+        source: "apps",
+        app_store_app: createMockHostAppStoreApp({
+          platform,
+          last_install: {
+            command_uuid: "mock-uuid",
+            installed_at: "2025-08-10T12:00:00Z",
+          },
+        }),
+      });
+
+      renderWithBackend(
+        <VppInstallDetailsModal
+          details={{
+            fleetInstallStatus,
+            hostDisplayName: "Mock Host",
+            appName: "Keynote",
+            commandUuid: "mock-uuid",
+            platform,
+          }}
+          hostSoftware={hostSoftware}
+          onCancel={jest.fn()}
+        />
+      );
+    };
+
+    it("shows the note on iOS installed", async () => {
+      renderNoteCase("ios", "installed");
+      await waitFor(() => {
+        expect(screen.getByText(configUpdateRe)).toBeInTheDocument();
+      });
+    });
+
+    it("shows the note on iPadOS pending_install", async () => {
+      renderNoteCase("ipados", "pending_install");
+      await waitFor(() => {
+        expect(screen.getByText(configUpdateRe)).toBeInTheDocument();
+      });
+    });
+
+    it("omits the note on macOS installed", async () => {
+      renderNoteCase("darwin", "installed");
+      // Wait for the modal to settle before asserting absence.
+      await waitFor(() => {
+        expect(screen.getByText(/Keynote/)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(configUpdateRe)).not.toBeInTheDocument();
+    });
+
+    it("omits the note on iOS failed_install", async () => {
+      renderNoteCase("ios", "failed_install");
+      await waitFor(() => {
+        expect(screen.getByText(/Keynote/)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(configUpdateRe)).not.toBeInTheDocument();
+    });
+  });
+
   it("renders timeout follow-up copy on host details", async () => {
     mockServer.use(
       http.get(baseUrl("/commands/results"), ({ request }) => {
@@ -666,6 +761,87 @@ describe("VPP Install Details Modal", () => {
       screen.getByText(
         /If the install finishes later, Fleet will update the status when the host is refetched/i
       )
+    ).toBeInTheDocument();
+  });
+
+  it("renders the Single App Mode copy when an iPadOS install fails with Error 1407", async () => {
+    const errorResult = `<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0">
+<dict>
+  <key>ErrorChain</key>
+  <array>
+    <dict>
+      <key>ErrorCode</key>
+      <integer>1407</integer>
+      <key>ErrorDomain</key>
+      <string>DeviceManagement.error</string>
+      <key>LocalizedDescription</key>
+      <string>The user is already being prompted.</string>
+    </dict>
+  </array>
+  <key>Status</key>
+  <string>Error</string>
+</dict>
+</plist>`;
+    mockServer.use(
+      http.get(baseUrl("/commands/results"), ({ request }) => {
+        const url = new URL(request.url);
+        const commandUuid = url.searchParams.get("command_uuid");
+
+        return HttpResponse.json({
+          results: [
+            {
+              host_uuid: "11111111-2222-3333-4444-555555555555",
+              command_uuid: commandUuid,
+              status: "Error",
+              updated_at: "2025-08-10T12:05:00Z",
+              request_type: "InstallApplication",
+              hostname: "iPad-kiosk-1334",
+              payload: btoa("<Command />"),
+              result: btoa(errorResult),
+            },
+          ],
+        });
+      })
+    );
+
+    renderWithBackend(
+      <VppInstallDetailsModal
+        details={{
+          fleetInstallStatus: "failed_install",
+          hostDisplayName: "iPad-kiosk-1334",
+          appName: "Zoom",
+          commandUuid: "error-1407-uuid",
+          platform: "ipados",
+          fleetInitiated: true,
+        }}
+        onCancel={jest.fn()}
+      />
+    );
+
+    // load the 1407 command result, the status line should name Fleet, the app and the host
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          (_, element) =>
+            element?.tagName === "SPAN" &&
+            element.textContent ===
+              "Fleet failed to install Zoom on iPad-kiosk-1334."
+        )
+      ).toBeInTheDocument();
+    });
+    // check the guidance line, it should tell the admin to disable Single App Mode
+    expect(
+      screen.getByText(
+        "For hosts in Single App Mode, temporarily disable that mode to install the update."
+      )
+    ).toBeInTheDocument();
+    // check the generic Apple failure copy, it should not render
+    expect(
+      screen.queryByText(/The MDM command to install/i)
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Details/i })
     ).toBeInTheDocument();
   });
 

@@ -1,9 +1,9 @@
-import React from "react";
 import { screen, render } from "@testing-library/react";
 import { noop } from "lodash";
+import React from "react";
 
-import { createMockRouter } from "test/test-utils";
 import { createMockQueryStats } from "__mocks__/queryMock";
+import { createMockRouter } from "test/test-utils";
 
 import HostQueries from ".";
 

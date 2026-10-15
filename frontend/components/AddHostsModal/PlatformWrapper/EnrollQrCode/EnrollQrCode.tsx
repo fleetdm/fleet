@@ -1,5 +1,5 @@
-import React from "react";
 import { QRCodeSVG } from "qrcode.react";
+import React from "react";
 
 // Pinned to dark-on-light in both themes rather than using the equivalent
 // design tokens, which invert under `body.dark-mode` ($ui-fleet-black-75

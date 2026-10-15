@@ -1,15 +1,14 @@
 import React, { useMemo, useState } from "react";
 
-import { ISoftwareTitleDetails } from "interfaces/software";
-import softwareAPI from "services/entities/software";
-import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
-
-import { notify } from "components/ToastNotification";
-import Modal from "components/Modal";
-import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
 import Radio from "components/forms/fields/Radio";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
+import { notify } from "components/ToastNotification";
+import { ISoftwareTitleDetails } from "interfaces/software";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import softwareAPI from "services/entities/software";
 
 import { deriveVersionOptions, getPreselectedVersionValue } from "./helpers";
 

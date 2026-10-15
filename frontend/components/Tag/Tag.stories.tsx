@@ -1,9 +1,10 @@
-import React from "react";
 import { Meta, StoryObj } from "@storybook/react";
+import React from "react";
 
 import Icon from "components/Icon";
 
 import Tag from "./Tag";
+
 import "../../index.scss";
 
 const meta: Meta<typeof Tag> = {

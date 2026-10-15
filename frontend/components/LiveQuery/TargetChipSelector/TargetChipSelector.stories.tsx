@@ -1,7 +1,11 @@
-import React from "react";
 import { Meta, StoryObj } from "@storybook/react";
+import React from "react";
+
 import { ISelectLabel, ISelectTeam } from "interfaces/target";
-import TargetChipSelector from "./TargetChipSelector"; // Adjust the path if necessary
+
+import TargetChipSelector from "./TargetChipSelector";
+
+// Adjust the path if necessary
 
 const meta: Meta<typeof TargetChipSelector> = {
   component: TargetChipSelector,

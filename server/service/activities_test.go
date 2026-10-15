@@ -2,6 +2,9 @@ package service
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"log/slog"
 	"testing"
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
@@ -98,8 +101,54 @@ func Test_logRoleChangeActivities(t *testing.T) {
 				GlobalRole: tt.newRole,
 				Teams:      newTeams,
 			}
-			require.NoError(t, fleet.LogRoleChangeActivities(ctx, svc, &fleet.User{}, tt.oldRole, oldTeams, newUser))
+			require.NoError(t, fleet.LogRoleChangeActivities(ctx, svc, &fleet.User{}, tt.oldRole, oldTeams, newUser, false))
 			require.Equal(t, tt.expectActivities, activities)
+		})
+	}
+}
+
+func isRoleChangeActivity(activity activity_api.ActivityDetails) bool {
+	switch activity.(type) {
+	case fleet.ActivityTypeChangedUserGlobalRole,
+		fleet.ActivityTypeDeletedUserGlobalRole,
+		fleet.ActivityTypeChangedUserTeamRole,
+		fleet.ActivityTypeDeletedUserTeamRole:
+		return true
+	}
+	return false
+}
+
+func TestNewUserRoleActivityJIT(t *testing.T) {
+	for _, jitProvisioned := range []bool{true, false} {
+		t.Run(fmt.Sprintf("jit=%t", jitProvisioned), func(t *testing.T) {
+			ds := new(mock.Store)
+			opts := &TestServerOpts{}
+			svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+			var roleActivities []fleet.ActivityTypeChangedUserGlobalRole
+			opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+				if a, ok := activity.(fleet.ActivityTypeChangedUserGlobalRole); ok {
+					roleActivities = append(roleActivities, a)
+				}
+				return nil
+			}
+			ds.NewUserFunc = func(ctx context.Context, user *fleet.User) (*fleet.User, error) {
+				user.ID = 1
+				return user, nil
+			}
+
+			_, err := svc.NewUser(ctx, fleet.UserPayload{
+				Name:           new("SSO User"),
+				Email:          new("sso@example.com"),
+				SSOEnabled:     new(true),
+				GlobalRole:     new(fleet.RoleObserver),
+				JITProvisioned: jitProvisioned,
+			})
+			require.NoError(t, err)
+
+			require.Len(t, roleActivities, 1)
+			require.Equal(t, fleet.RoleObserver, roleActivities[0].Role)
+			require.Equal(t, jitProvisioned, roleActivities[0].JIT)
 		})
 	}
 }
@@ -405,4 +454,30 @@ func TestGetHostActivitiesWebhookSettings(t *testing.T) {
 		require.Nil(t, settings)
 		require.False(t, ds.ListHostsLiteByIDsFuncInvoked)
 	})
+}
+
+// The wipe or erase this cleanup follows is already recorded, and the caller can't reach this code
+// again on a retry, so a notifications failure is logged rather than returned.
+func TestCancelActivitiesAndNotificationsForHost(t *testing.T) {
+	ctx := context.Background()
+	ds := new(mock.Store)
+	ds.BatchCancelAllHostUpcomingActivitiesFunc = func(context.Context, uint) ([]fleet.ActivityDetails, error) {
+		return nil, nil
+	}
+
+	notificationsSvc := &mock.MockNotificationsService{}
+	notificationsSvc.FailNotificationsForHostFunc = func(context.Context, uint, string) error {
+		return errors.New("notifications are down")
+	}
+
+	err := cancelActivitiesAndNotificationsForHost(ctx, ds, notificationsSvc, slog.New(slog.DiscardHandler), 1)
+	require.NoError(t, err)
+	require.True(t, notificationsSvc.FailNotificationsForHostFuncInvoked)
+
+	// Cancelling the upcoming activities is the part of this cleanup the caller can still retry.
+	ds.BatchCancelAllHostUpcomingActivitiesFunc = func(context.Context, uint) ([]fleet.ActivityDetails, error) {
+		return nil, errors.New("database is down")
+	}
+	err = cancelActivitiesAndNotificationsForHost(ctx, ds, notificationsSvc, slog.New(slog.DiscardHandler), 1)
+	require.Error(t, err)
 }

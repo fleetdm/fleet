@@ -1,10 +1,9 @@
 import React from "react";
 
-import strUtils from "utilities/strings";
-
-import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
+import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
+import strUtils from "utilities/strings";
 
 const pluralizeHost = (count: number) => {
   return strUtils.pluralize(count, "host");

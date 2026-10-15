@@ -226,3 +226,22 @@ func TestParseBracketedOutput(t *testing.T) {
 		})
 	}
 }
+
+func TestSudoCommand(t *testing.T) {
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "NIXOS")
+	sudoPath := filepath.Join(dir, "sudo")
+	origMarker, origSudo := nixosMarkerFile, nixosSudoPath
+	t.Cleanup(func() { nixosMarkerFile, nixosSudoPath = origMarker, origSudo })
+
+	nixosMarkerFile, nixosSudoPath = filepath.Join(dir, "missing"), sudoPath
+	require.NoError(t, os.WriteFile(sudoPath, nil, 0o600))
+	require.Equal(t, "sudo", sudoCommand(), "not NixOS: PATH lookup as before")
+
+	nixosMarkerFile = marker
+	require.NoError(t, os.WriteFile(marker, nil, 0o600))
+	require.Equal(t, sudoPath, sudoCommand(), "NixOS with the wrapper present")
+
+	nixosSudoPath = filepath.Join(dir, "missing-sudo")
+	require.Equal(t, "sudo", sudoCommand(), "NixOS without the wrapper falls back to PATH")
+}

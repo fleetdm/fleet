@@ -1,13 +1,11 @@
-import React from "react";
-
-import Tag from "components/Tag";
-import { ILabel } from "interfaces/label";
 import classnames from "classnames";
+import React from "react";
 
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
-
+import Tag from "components/Tag";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
+import { ILabel } from "interfaces/label";
 
 const baseClass = "host-labels-card";
 
@@ -41,11 +39,7 @@ const Labels = ({
     });
 
   return (
-    <Card
-      borderRadiusSize="xxlarge"
-      paddingSize="xlarge"
-      className={classNames}
-    >
+    <Card paddingSize="xlarge" className={classNames}>
       <CardHeader header="Labels" />
       {labelItems.length === 0 ? (
         <p className="info-flex__item">

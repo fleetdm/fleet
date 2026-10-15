@@ -1,11 +1,11 @@
 import React, { FormEvent, useCallback, useMemo, useState } from "react";
 
-import mdmAppleBusinessManagerApi from "services/entities/mdm_apple_bm";
-import { getErrorReason } from "interfaces/errors";
-
-import Icon from "components/Icon";
 import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 import { notify } from "components/ToastNotification";
+import { getErrorReason } from "interfaces/errors";
+import mdmAppleBusinessManagerApi from "services/entities/mdm_apple_bm";
+
 import { downloadBase64ToFile, RequestState } from "./helpers";
 
 interface IDownloadABMKeyProps {

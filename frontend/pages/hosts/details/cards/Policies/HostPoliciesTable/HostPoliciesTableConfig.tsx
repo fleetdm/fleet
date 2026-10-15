@@ -1,14 +1,13 @@
+import { noop } from "lodash";
 import React from "react";
 
-import { IHostPolicy } from "interfaces/policy";
-import { PolicyResponse, DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import { noop } from "lodash";
-
+import POLICY_STATUS_TO_INDICATOR_PARAMS from "components/policies/helpers";
 import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import ViewAllHostsLink from "components/ViewAllHostsLink";
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
-import POLICY_STATUS_TO_INDICATOR_PARAMS from "components/policies/helpers";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
+import { IHostPolicy } from "interfaces/policy";
+import { PolicyResponse, DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 interface IEnhancedHostPolicy extends IHostPolicy {
   status: PolicyStatus | null;

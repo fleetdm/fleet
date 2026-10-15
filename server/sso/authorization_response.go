@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/beevik/etree"
 	"github.com/crewjam/saml"
@@ -94,6 +95,33 @@ func (r resp) AssertionAttributes() []fleet.SAMLAttribute {
 		}
 	}
 	return attrs
+}
+
+// AssertionID partially implements the fleet.Auth interface.
+func (r resp) AssertionID() string {
+	if r.assertion == nil {
+		return ""
+	}
+	return r.assertion.ID
+}
+
+// AssertionNotOnOrAfter partially implements the fleet.Auth interface.
+func (r resp) AssertionNotOnOrAfter() time.Time {
+	var notOnOrAfter time.Time
+	if r.assertion == nil {
+		return notOnOrAfter
+	}
+	if r.assertion.Conditions != nil {
+		notOnOrAfter = r.assertion.Conditions.NotOnOrAfter
+	}
+	if r.assertion.Subject != nil {
+		for _, sc := range r.assertion.Subject.SubjectConfirmations {
+			if sc.SubjectConfirmationData != nil && sc.SubjectConfirmationData.NotOnOrAfter.After(notOnOrAfter) {
+				notOnOrAfter = sc.SubjectConfirmationData.NotOnOrAfter
+			}
+		}
+	}
+	return notOnOrAfter
 }
 
 // DecodeSAMLResponse base64-decodes the SAMLResponse.

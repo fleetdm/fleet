@@ -1,8 +1,7 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
-import { createMockHostMdmProfile } from "__mocks__/hostMock";
+import React from "react";
 
+import { createMockHostMdmProfile } from "__mocks__/hostMock";
 import {
   FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID,
   IHostMdmProfile,
@@ -12,6 +11,7 @@ import {
   generateWinDiskEncryptionSetting,
   HOST_NAME_SYNTHETIC_PROFILE_UUID,
 } from "pages/hosts/details/helpers";
+import { createCustomRenderer } from "test/test-utils";
 
 import ControlDetailsModal from "./ControlDetailsModal";
 
@@ -231,15 +231,13 @@ describe("ControlDetailsModal", () => {
       ).toBeInTheDocument();
     });
 
-    it("hides the Resend action when the page doesn't allow resending", () => {
+    it("disables the Resend action when the user can't resend", () => {
       renderModal({
         control: failedWindowsProfile,
         canResendProfiles: false,
       });
 
-      expect(
-        screen.queryByRole("button", { name: /Resend/ })
-      ).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Resend/ })).toBeDisabled();
     });
 
     it("closes the modal after a successful resend", async () => {

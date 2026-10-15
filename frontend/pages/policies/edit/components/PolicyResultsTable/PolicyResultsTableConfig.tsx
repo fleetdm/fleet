@@ -1,15 +1,14 @@
 /* eslint-disable react/prop-types */
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
-import React from "react";
-import { memoize } from "lodash";
 
+import { memoize } from "lodash";
+import React from "react";
 import { ColumnInstance } from "react-table";
 
 import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
-import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-
+import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import { IPolicyHostResponse } from "interfaces/host";
 import sortUtils from "utilities/sort";
 

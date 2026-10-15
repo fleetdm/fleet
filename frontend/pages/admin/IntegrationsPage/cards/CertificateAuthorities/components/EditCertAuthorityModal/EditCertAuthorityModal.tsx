@@ -1,14 +1,21 @@
 import React, { useState } from "react";
 import { useQuery } from "react-query";
 
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { ICertificateAuthorityPartial } from "interfaces/certificates";
-import certificatesAPI from "services/entities/certificates";
-
+import DataError from "components/DataError";
 import Modal from "components/Modal";
 import Spinner from "components/Spinner";
-import DataError from "components/DataError";
 import { notify } from "components/ToastNotification";
+import { ICertificateAuthorityPartial } from "interfaces/certificates";
+import certificatesAPI from "services/entities/certificates";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+
+import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
+import CustomESTForm from "../CustomESTForm";
+import CustomSCEPForm from "../CustomSCEPForm";
+import DigicertForm from "../DigicertForm";
+import HydrantForm from "../HydrantForm";
+import NDESForm from "../NDESForm";
+import SmallstepForm from "../SmallstepForm";
 
 import {
   generateDefaultFormData,
@@ -16,14 +23,6 @@ import {
   getErrorMessage,
   updateFormData,
 } from "./helpers";
-
-import DigicertForm from "../DigicertForm";
-import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
-import NDESForm from "../NDESForm";
-import CustomSCEPForm from "../CustomSCEPForm";
-import HydrantForm from "../HydrantForm";
-import SmallstepForm from "../SmallstepForm";
-import CustomESTForm from "../CustomESTForm";
 
 const baseClass = "edit-cert-authority-modal";
 

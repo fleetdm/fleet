@@ -1,8 +1,9 @@
-import React from "react";
 import { Meta, StoryFn } from "@storybook/react";
 import { noop } from "lodash";
+import React from "react";
 
 import { IPaginationProps } from "./Pagination";
+
 import Pagination from ".";
 
 import "../../index.scss";

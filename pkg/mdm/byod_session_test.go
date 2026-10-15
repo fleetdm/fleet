@@ -3,7 +3,6 @@ package mdm
 import (
 	"context"
 	"errors"
-	"sync"
 	"testing"
 	"time"
 
@@ -16,25 +15,7 @@ import (
 func TestBYODIdPSession(t *testing.T) {
 	t.Parallel()
 
-	var mu sync.Mutex
-	vals := map[string]string{}
-	kv := &mockredis.KeyValueStore{
-		SetFunc: func(_ context.Context, key, value string, _ time.Duration) error {
-			mu.Lock()
-			defer mu.Unlock()
-			vals[key] = value
-			return nil
-		},
-		GetFunc: func(_ context.Context, key string) (*string, error) {
-			mu.Lock()
-			defer mu.Unlock()
-			v, ok := vals[key]
-			if !ok {
-				return nil, nil
-			}
-			return &v, nil
-		},
-	}
+	kv := mockredis.NewMemKeyValueStore()
 	clk := clock.NewMockClock()
 	ctx := t.Context()
 

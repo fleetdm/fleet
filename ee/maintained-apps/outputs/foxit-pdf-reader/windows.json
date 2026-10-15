@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.2.0.39747",
+      "version": "2026.2.1.39815",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Foxit PDF Reader' AND publisher = 'Foxit Software Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Foxit PDF Reader' AND publisher = 'Foxit Software Inc.' AND version_compare(version, '2026.2.0.39747') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Foxit PDF Reader' AND publisher = 'Foxit Software Inc.' AND version_compare(version, '2026.2.1.39815') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'foxit pdf reader.exe');"
       },
-      "installer_url": "https://cdn01.foxitsoftware.com/product/reader/desktop/win/2026.2.0/FoxitPDFReader20262_L10N_Setup_x64.exe",
+      "installer_url": "https://cdn01.foxitsoftware.com/product/reader/desktop/win/2026.2.1/FoxitPDFReader202621_L10N_Setup_x64.exe",
       "install_script_ref": "4ce619b8",
       "uninstall_script_ref": "8dbc0197",
-      "sha256": "a706fff6acbe7e2c15d2b0360a30305b6ff9e25b54324b08f7115df8b97bd9f2",
+      "sha256": "71f1a0cb46c0854e7b45d675f2ebbd5052261a0d95f6513dc6aa087c6350ee27",
       "default_categories": [
         "Productivity"
       ]

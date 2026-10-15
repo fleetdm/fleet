@@ -467,7 +467,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 		t.Run(tt.Name, func(t *testing.T) {
 			t.Run("programmatic enrollment", func(t *testing.T) {
 				host, device := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
-				err := s.ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false)
+				err := s.ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 				require.NoError(t, err)
 				if tt.DrainEnrollBacklog {
 					s.recordWindowsHostStatus(host, device)
@@ -496,7 +496,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsWindows() {
 				device.DeviceID = host.UUID
 				require.NoError(t, device.Enroll())
 
-				err = s.ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false)
+				err = s.ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 				require.NoError(t, err)
 
 				if tt.DrainEnrollBacklog {
@@ -836,7 +836,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 			true,
 			fleet.WellKnownMDMFleet,
 			"foo",
-			false,
+			fleet.PersonalEnrollmentTypeNone,
 		),
 	)
 	require.NoError(t, err)
@@ -1127,20 +1127,18 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.NoError(t, err)
 	require.Nil(t, cmd)
 
-	// Devices renew their SCEP cert by re-enrolling. A genuine renewal re-keys from a pushed renewal
-	// profile, which (unlike a freshly-fetched enrollment profile) carries no new-enrollment Subject OU;
-	// SimulateSCEPRenewal replays the full re-enroll flow but omits that marker so the checkin is treated
-	// as a renewal rather than a fresh enrollment.
+	// Devices renew their SCEP cert by re-keying from the pushed renewal profile, which (unlike a
+	// freshly-fetched enrollment profile) carries the static challenge and no new-enrollment Subject OU.
+	// Re-fetching the enrollment profile would mint a purpose-bound challenge and look like a fresh enrollment.
 	for _, d := range []*mdmtest.TestAppleMDMClient{
 		manualEnrolledDevice, automaticEnrolledDevice, automaticEnrolledDeviceWithRef, migratedDevice, iPhoneMdmDevice,
 	} {
 		d.SimulateSCEPRenewal = true
+		d.EnrollInfo.SCEPChallenge = s.scepChallenge
+		require.NoError(t, d.SCEPEnroll())
+		require.NoError(t, d.Authenticate())
+		require.NoError(t, d.TokenUpdate(false))
 	}
-	require.NoError(t, manualEnrolledDevice.Reenroll())
-	require.NoError(t, automaticEnrolledDevice.Reenroll())
-	require.NoError(t, automaticEnrolledDeviceWithRef.Reenroll())
-	require.NoError(t, migratedDevice.Reenroll())
-	require.NoError(t, iPhoneMdmDevice.Reenroll())
 
 	// no new commands are enqueued right after enrollment
 	cmd, err = manualEnrolledDevice.Idle()
@@ -1716,6 +1714,8 @@ func (s *integrationMDMTestSuite) TestSCEPRenewalVsFreshEnrollment() {
 		// Subject carries no new-enrollment OU (verified in the server/mdm/apple unit tests), so the
 		// issued cert lacks the marker.
 		dev.EnrollInfo.SCEPSubjectOUs = nil
+		// the enrollment's dynamic challenge is single use; renewal profiles carry the static one
+		dev.EnrollInfo.SCEPChallenge = s.scepChallenge
 		require.NoError(t, dev.SCEPEnroll())
 		require.NoError(t, dev.Authenticate())
 		require.NoError(t, dev.TokenUpdate(false))
@@ -1787,10 +1787,23 @@ func (s *integrationMDMTestSuite) TestSCEPRenewalVsFreshEnrollment() {
 		require.NoError(t, err)
 		firstEnrollID := lastEnrolledActivityID()
 
-		// Genuine ACME renewal (re-keyed cert without the marker OU) short-circuits: no new mdm_enrolled.
+		// Genuine ACME renewal short-circuits: no new mdm_enrolled. A bound cert is a renewal by its purpose, so
+		// re-key from an acme_renewal enrollment for this host, as the renewal profile hands out.
 		forcePendingRenewal(host.UUID)
+		renewalIdent, err := s.acmeSvc.NewACMEEnrollment(ctx, dev.SerialNumber)
+		require.NoError(t, err)
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE acme_enrollments SET purpose = ?, enrollment_id = ? WHERE path_identifier = ?`,
+				fleet.AppleMDMCertPurposeACMERenewal, host.UUID, renewalIdent)
+			return err
+		})
+		freshDirectoryURL := dev.EnrollInfo.ACMEURL
+		acmePathPrefix := freshDirectoryURL[:strings.Index(freshDirectoryURL, "/acme/")+len("/acme/")]
+		require.NoError(t, dev.UseACMEDirectory(acmePathPrefix+renewalIdent+"/directory"))
 		dev.SimulateSCEPRenewal = true
-		require.NoError(t, dev.Reenroll())
+		require.NoError(t, dev.ACMEEnroll())
+		require.NoError(t, dev.Authenticate())
+		require.NoError(t, dev.TokenUpdate(false))
 		require.False(t, renewalPending(host.UUID), "renew refs should be cleared after an ACME renewal checkin")
 		require.Equal(t, firstEnrollID, lastEnrolledActivityID(), "an ACME renewal must not emit a new mdm_enrolled activity")
 

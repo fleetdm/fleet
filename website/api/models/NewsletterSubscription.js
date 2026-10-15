@@ -26,11 +26,22 @@ module.exports = {
     isUnsubscribedFromAll: {
       type: 'boolean',
       description: 'Whether this newsletter subscription has been updated to indicate a preference for unsubscribing from all current and future newsletters.',
+      defaultsTo: false,
     },
 
     isSubscribedToReleases: {
       type: 'boolean',
       description: 'Whether the email address associated with this newsletter subscription will be sent release posts and security update emails'
+    },
+
+    newsletterEmailsSent: {
+      type: 'json',
+      description: 'A list of emails this newsletter subscriber was sent.',
+      defaultsTo: [],
+      example: [
+        'email-newsletter-2026-08',
+        'email-newsletter-2026-09',
+      ],
     },
 
     // isSubscribedToProductArticles: {

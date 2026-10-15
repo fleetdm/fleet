@@ -35,6 +35,7 @@ const BASE_CONTEXT: ICommandPaletteContext = {
   canManageReportAutomations: true,
   canEditCustomVariable: true,
   canAddSoftware: true,
+  canAddConfigurationProfile: true,
   isAdminOrMaintainer: true,
   isTechnician: false,
   isPremiumTier: true,
@@ -255,6 +256,30 @@ describe("CommandPalette helpers", () => {
       expect(ids).not.toContain("turn-on-apple-mdm");
     });
 
+    it("shows Android zero-touch only once Android MDM is configured", () => {
+      const androidMdmOff = buildPaletteItems({
+        ...BASE_CONTEXT,
+        isAndroidMdmEnabledAndConfigured: false,
+      }).map((i) => i.id);
+      const androidMdmOn = buildPaletteItems({
+        ...BASE_CONTEXT,
+        isAndroidMdmEnabledAndConfigured: true,
+      }).map((i) => i.id);
+
+      expect(androidMdmOff).not.toContain("android-zero-touch");
+      expect(androidMdmOn).toContain("android-zero-touch");
+    });
+
+    it("hides Android zero-touch from non-admins", () => {
+      const ids = buildPaletteItems({
+        ...BASE_CONTEXT,
+        isAndroidMdmEnabledAndConfigured: true,
+        canAccessSettings: false,
+      }).map((i) => i.id);
+
+      expect(ids).not.toContain("android-zero-touch");
+    });
+
     it("shows Microsoft Graph on premium regardless of whether Windows MDM is on", () => {
       // The Autopilot sync only reads the tenant's registry, so the credential is useful before Windows MDM is on.
       const windowsMdmOff = buildPaletteItems({
@@ -389,6 +414,90 @@ describe("CommandPalette helpers", () => {
       expect(keywords).toContain("google calendar");
       expect(keywords).toContain("conditional access");
       expect(keywords).toContain("sso");
+    });
+
+    it("shows Add profile to admins and maintainers once some MDM is on", () => {
+      const items = buildPaletteItems({
+        ...BASE_CONTEXT,
+        canAddConfigurationProfile: true,
+      });
+      const addProfile = items.find((i) => i.id === "add-profile");
+      expect(addProfile?.path).toContain(
+        "/controls/os-settings/configuration-profiles/new"
+      );
+    });
+
+    it("gives Add profile single-word keywords that don't repeat the label", () => {
+      const keywords =
+        buildPaletteItems(BASE_CONTEXT).find((i) => i.id === "add-profile")
+          ?.keywords ?? [];
+      expect(keywords).toEqual(
+        expect.arrayContaining(["create", "new", "csp", "windows"])
+      );
+      keywords.forEach((keyword) => {
+        expect(keyword).not.toMatch(/\s/);
+        expect(["add", "profile"]).not.toContain(keyword);
+      });
+    });
+
+    it("shows which fleet Add profile lands on from All fleets", () => {
+      const availableTeams = [
+        { id: -1, name: "All fleets" },
+        { id: 3, name: "Servers" },
+        { id: 5, name: "Workstations" },
+      ];
+      const fromAllFleets = buildPaletteItems({
+        ...BASE_CONTEXT,
+        availableTeams,
+      }).find((i) => i.id === "add-profile");
+      expect(fromAllFleets?.teamName).toBe("Workstations");
+
+      const fromFleet = buildPaletteItems({
+        ...BASE_CONTEXT,
+        availableTeams,
+        hasTeamSelected: true,
+        currentTeam: { id: 3, name: "Servers" },
+      }).find((i) => i.id === "add-profile");
+      expect(fromFleet?.teamName).toBeUndefined();
+    });
+
+    it.each([
+      [
+        "users who aren't admins or maintainers",
+        { canAddConfigurationProfile: false, isAdminOrMaintainer: false },
+      ],
+      [
+        "an admin elsewhere who is a technician of the current fleet",
+        { canAddConfigurationProfile: false, isAdminOrMaintainer: true },
+      ],
+      [
+        "everyone when no MDM is on",
+        {
+          config: createMockConfig({
+            mdm: {
+              ...createMockConfig().mdm,
+              enabled_and_configured: false,
+              windows_enabled_and_configured: false,
+              android_enabled_and_configured: false,
+            },
+          }),
+        },
+      ],
+      [
+        "everyone in GitOps mode",
+        {
+          config: createMockConfig({
+            gitops: {
+              ...createMockConfig().gitops,
+              gitops_mode_enabled: true,
+              repository_url: "https://github.com/fleetdm/fleet-config",
+            },
+          }),
+        },
+      ],
+    ])("hides Add profile from %s", (_, overrides) => {
+      const items = buildPaletteItems({ ...BASE_CONTEXT, ...overrides });
+      expect(items.find((i) => i.id === "add-profile")).toBeUndefined();
     });
 
     it("excludes certificates and passwords for technicians", () => {
@@ -749,6 +858,14 @@ describe("CommandPalette helpers", () => {
       expect(ids).not.toContain("edit-vpp");
     });
 
+    it("hides Android zero-touch, whose page paywalls on Free", () => {
+      const ids = buildPaletteItems({
+        ...FREE_CONTEXT,
+        isAndroidMdmEnabledAndConfigured: true,
+      }).map((i) => i.id);
+      expect(ids).not.toContain("android-zero-touch");
+    });
+
     it("hides the Microsoft Graph command, whose page paywalls on Free", () => {
       const ids = buildPaletteItems(FREE_CONTEXT).map((i) => i.id);
       expect(ids).not.toContain("edit-microsoft-graph");
@@ -1010,6 +1127,37 @@ describe("CommandPalette helpers", () => {
           })
         );
         expect(url.searchParams.has("software_status")).toBe(false);
+      });
+
+      it.each([
+        "os_settings=pending",
+        "apple_settings=failing",
+        "macos_settings=latest",
+        "os_settings_disk_encryption=verified",
+        "macos_bootstrap_package=failed",
+        "bootstrap_package=pending",
+      ])("strips %s when switching to All fleets", (filter) => {
+        const [name] = filter.split("=");
+        const url = parse(
+          buildFleetSwitchUrl({
+            pathname: paths.MANAGE_HOSTS,
+            currentSearch: `?fleet_id=1&${filter}&query=mac`,
+            fleetId: -1,
+          })
+        );
+        expect(url.searchParams.has(name)).toBe(false);
+        expect(url.searchParams.get("query")).toBe("mac");
+      });
+
+      it("preserves fleet-scoped filters when switching between specific fleets", () => {
+        const url = parse(
+          buildFleetSwitchUrl({
+            pathname: paths.MANAGE_HOSTS,
+            currentSearch: "?fleet_id=1&os_settings=pending",
+            fleetId: 2,
+          })
+        );
+        expect(url.searchParams.get("os_settings")).toBe("pending");
       });
 
       it("preserves software_status when switching between specific fleets", () => {

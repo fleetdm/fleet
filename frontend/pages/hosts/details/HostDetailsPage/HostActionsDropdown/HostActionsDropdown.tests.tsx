@@ -1,14 +1,15 @@
-import React from "react";
-import { noop } from "lodash";
 import { screen, waitFor } from "@testing-library/react";
+import { noop } from "lodash";
+import React from "react";
+
+import createMockTeam from "__mocks__/teamMock";
+import createMockUser from "__mocks__/userMock";
+import { MDM_ENROLLMENT_STATUSES, MdmEnrollmentStatus } from "interfaces/mdm";
 import { createCustomRenderer } from "test/test-utils";
 
-import createMockUser from "__mocks__/userMock";
-import createMockTeam from "__mocks__/teamMock";
-import { MDM_ENROLLMENT_STATUSES, MdmEnrollmentStatus } from "interfaces/mdm";
+import { HostMdmDeviceStatusUIState } from "../../helpers";
 
 import HostActionsDropdown from "./HostActionsDropdown";
-import { HostMdmDeviceStatusUIState } from "../../helpers";
 
 describe("Host Actions Dropdown", () => {
   describe("Transfer action", () => {
@@ -186,61 +187,56 @@ describe("Host Actions Dropdown", () => {
       });
     });
 
-    it("renders the Query action as disabled when a host is locked", async () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isGlobalAdmin: true,
-            currentUser: createMockUser(),
+    it.each<[HostMdmDeviceStatusUIState, string]>([
+      ["locked", "You can't run a live report on a locked host."],
+      ["wiped", "You can't run a live report on a wiped host."],
+      [
+        "locking",
+        "You can't run a live report while the host's device status is updating.",
+      ],
+      [
+        "unlocking",
+        "You can't run a live report while the host's device status is updating.",
+      ],
+      [
+        "wiping",
+        "You can't run a live report while the host's device status is updating.",
+      ],
+      [
+        "clearing_passcode",
+        "You can't run a live report while the host's device status is updating.",
+      ],
+    ])(
+      "explains why Live report is disabled on an online %s host",
+      async (status, tooltip) => {
+        const render = createCustomRenderer({
+          context: {
+            app: {
+              isGlobalAdmin: true,
+              currentUser: createMockUser(),
+            },
           },
-        },
-      });
+        });
 
-      const { user } = render(
-        <HostActionsDropdown
-          hostTeamId={null}
-          onSelect={noop}
-          hostStatus="offline"
-          hostMdmEnrollmentStatus={null}
-          hostMdmDeviceStatus="locked"
-          hostScriptsEnabled
-        />
-      );
+        const { user } = render(
+          <HostActionsDropdown
+            hostTeamId={null}
+            onSelect={noop}
+            hostStatus="online"
+            hostPlatform="ubuntu"
+            hostMdmEnrollmentStatus={null}
+            hostMdmDeviceStatus={status}
+            hostScriptsEnabled
+          />
+        );
 
-      await user.click(screen.getByText("Actions"));
-      expect(
-        screen.getByText("Live report").parentElement?.parentElement
-          ?.parentElement
-      ).toHaveClass("actions-dropdown-select__option--is-disabled");
-    });
-
-    it("renders the Query action as disabled when a host is updating", async () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isGlobalAdmin: true,
-            currentUser: createMockUser(),
-          },
-        },
-      });
-
-      const { user } = render(
-        <HostActionsDropdown
-          hostTeamId={null}
-          onSelect={noop}
-          hostStatus="online"
-          hostMdmEnrollmentStatus={null}
-          hostMdmDeviceStatus="locking"
-          hostScriptsEnabled
-        />
-      );
-
-      await user.click(screen.getByText("Actions"));
-
-      expect(screen.getByText("Live report").parentElement).toHaveClass(
-        "actions-dropdown-select__option--is-disabled"
-      );
-    });
+        await user.click(screen.getByText("Actions"));
+        const option = screen.getByText("Live report");
+        expect(option).toHaveAttribute("aria-disabled", "true");
+        await user.hover(option);
+        expect(await screen.findByText(tooltip)).toBeInTheDocument();
+      }
+    );
   });
 
   describe("Show disk encryption key action", () => {
@@ -667,6 +663,115 @@ describe("Host Actions Dropdown", () => {
       await user.click(screen.getByText("Actions"));
 
       expect(screen.getByText("Delete")).toBeInTheDocument();
+    });
+
+    it("renders when the user is a global technician", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalTechnician: true,
+            currentUser: createMockUser({ global_role: "technician" }),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Delete")).toBeInTheDocument();
+    });
+
+    it("renders when the user is a technician on the host's fleet", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            currentUser: createMockUser({
+              teams: [createMockTeam({ id: 1, role: "technician" })],
+            }),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={1}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Delete")).toBeInTheDocument();
+    });
+
+    it("does not render when the user is a technician on another fleet", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            currentUser: createMockUser({
+              teams: [createMockTeam({ id: 1, role: "technician" })],
+            }),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={2}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Delete")).not.toBeInTheDocument();
+    });
+
+    it("does not render when the user is a global observer", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalObserver: true,
+            currentUser: createMockUser({ global_role: "observer" }),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Delete")).not.toBeInTheDocument();
     });
   });
 
@@ -1548,7 +1653,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostPlatform="android"
-          hostMdmEnrollmentStatus="On (manual - personal)"
+          hostMdmEnrollmentStatus="On (personal)"
           isConnectedToFleetMdm
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled={false}
@@ -1776,88 +1881,92 @@ describe("Host Actions Dropdown", () => {
     );
   });
 
-  describe("personally enrolled hosts (e.g. enrollment status => On (manual - personal))", () => {
-    it("render only the Transfer and Delete options for personally enrolled ios host", async () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isMacMdmEnabledAndConfigured: true,
-            isPremiumTier: true,
-            isGlobalAdmin: true,
-            currentUser: createMockUser(),
+  describe.each(["On (personal)", "On (manual - personal)"] as const)(
+    "personally enrolled hosts (enrollment status %s)",
+    (enrollmentStatus) => {
+      it("render only the Transfer, Unenroll, and Delete options for personally enrolled ios host", async () => {
+        const render = createCustomRenderer({
+          context: {
+            app: {
+              isMacMdmEnabledAndConfigured: true,
+              isPremiumTier: true,
+              isGlobalAdmin: true,
+              currentUser: createMockUser(),
+            },
           },
-        },
+        });
+
+        const { user } = render(
+          <HostActionsDropdown
+            hostTeamId={null}
+            onSelect={noop}
+            hostStatus="online"
+            hostMdmEnrollmentStatus={enrollmentStatus}
+            hostMdmDeviceStatus="unlocked"
+            isConnectedToFleetMdm
+            hostScriptsEnabled
+            hostPlatform="ios"
+          />
+        );
+
+        await user.click(screen.getByText("Actions"));
+
+        expect(screen.getByText("Transfer")).toBeInTheDocument();
+        expect(screen.getByText("Delete")).toBeInTheDocument();
+        expect(screen.queryByText("Live report")).not.toBeInTheDocument();
+        expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
+        expect(screen.queryByText("Run script")).not.toBeInTheDocument();
+        expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
+        expect(screen.queryByText("Lock")).not.toBeInTheDocument();
+        expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
+        expect(screen.getByText("Unenroll")).toBeInTheDocument();
+        expect(
+          screen.queryByText("Show disk encryption key")
+        ).not.toBeInTheDocument();
       });
 
-      const { user } = render(
-        <HostActionsDropdown
-          hostTeamId={null}
-          onSelect={noop}
-          hostStatus="online"
-          hostMdmEnrollmentStatus={"On (manual - personal)"}
-          hostMdmDeviceStatus="unlocked"
-          isConnectedToFleetMdm
-          hostScriptsEnabled
-          hostPlatform="ios"
-        />
-      );
-
-      await user.click(screen.getByText("Actions"));
-
-      expect(screen.getByText("Transfer")).toBeInTheDocument();
-      expect(screen.getByText("Delete")).toBeInTheDocument();
-      expect(screen.queryByText("Live report")).not.toBeInTheDocument();
-      expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
-      expect(screen.queryByText("Run script")).not.toBeInTheDocument();
-      expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
-      expect(screen.queryByText("Lock")).not.toBeInTheDocument();
-      expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
-      expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
-      expect(
-        screen.queryByText("Show disk encryption key")
-      ).not.toBeInTheDocument();
-    });
-
-    it("render only the Transfer and Delete options for personally enrolled ipad host", async () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isPremiumTier: true,
-            isGlobalAdmin: true,
-            currentUser: createMockUser(),
+      it("render only the Transfer, Unenroll, and Delete options for personally enrolled ipad host", async () => {
+        const render = createCustomRenderer({
+          context: {
+            app: {
+              isMacMdmEnabledAndConfigured: true,
+              isPremiumTier: true,
+              isGlobalAdmin: true,
+              currentUser: createMockUser(),
+            },
           },
-        },
+        });
+
+        const { user } = render(
+          <HostActionsDropdown
+            hostTeamId={null}
+            onSelect={noop}
+            hostStatus="online"
+            hostMdmEnrollmentStatus={enrollmentStatus}
+            isConnectedToFleetMdm
+            hostMdmDeviceStatus="unlocked"
+            hostScriptsEnabled
+            hostPlatform="ipados"
+          />
+        );
+
+        await user.click(screen.getByText("Actions"));
+
+        expect(screen.getByText("Transfer")).toBeInTheDocument();
+        expect(screen.getByText("Delete")).toBeInTheDocument();
+        expect(screen.queryByText("Live report")).not.toBeInTheDocument();
+        expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
+        expect(screen.queryByText("Run script")).not.toBeInTheDocument();
+        expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
+        expect(screen.queryByText("Lock")).not.toBeInTheDocument();
+        expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
+        expect(screen.getByText("Unenroll")).toBeInTheDocument();
+        expect(
+          screen.queryByText("Show disk encryption key")
+        ).not.toBeInTheDocument();
       });
-
-      const { user } = render(
-        <HostActionsDropdown
-          hostTeamId={null}
-          onSelect={noop}
-          hostStatus="online"
-          hostMdmEnrollmentStatus={"On (manual - personal)"}
-          isConnectedToFleetMdm
-          hostMdmDeviceStatus="unlocked"
-          hostScriptsEnabled
-          hostPlatform="ipados"
-        />
-      );
-
-      await user.click(screen.getByText("Actions"));
-
-      expect(screen.getByText("Transfer")).toBeInTheDocument();
-      expect(screen.getByText("Delete")).toBeInTheDocument();
-      expect(screen.queryByText("Live report")).not.toBeInTheDocument();
-      expect(screen.queryByText("Clear passcode")).not.toBeInTheDocument();
-      expect(screen.queryByText("Run script")).not.toBeInTheDocument();
-      expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
-      expect(screen.queryByText("Lock")).not.toBeInTheDocument();
-      expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
-      expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
-      expect(
-        screen.queryByText("Show disk encryption key")
-      ).not.toBeInTheDocument();
-    });
-  });
+    }
+  );
 
   describe("Show Recovery Lock password action", () => {
     it("renders the action when recovery lock is enabled and host is macOS connected to Fleet MDM", async () => {
@@ -2061,7 +2170,7 @@ describe("Host Actions Dropdown", () => {
       await user.hover(option);
       await waitFor(() => {
         expect(
-          screen.getByText(/Recovery Lock password is unavailable/i)
+          screen.getByText(/Recovery Lock password isn't available yet/i)
         ).toBeInTheDocument();
       });
     });

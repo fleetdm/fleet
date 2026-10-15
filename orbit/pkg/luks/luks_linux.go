@@ -40,6 +40,30 @@ const (
 
 var ErrKeySlotFull = regexp.MustCompile(`Key slot \d+ is full`)
 
+// promptOutcome is how the passphrase prompt ended.
+type promptOutcome int
+
+const (
+	promptEntered promptOutcome = iota
+	promptCanceled
+	promptTimedOut
+)
+
+func (lr *LuksRunner) reportsEscrowStatus() bool {
+	return lr.escrower.GetServerCapabilities().Has(fleet.CapabilityLinuxEscrowStatus)
+}
+
+// sendEscrowStatus is a no-op without the server capability. prompting (per re-prompt) and
+// escrowing (on acceptance) refresh the server's in-flight state through retries and key slot work.
+func (lr *LuksRunner) sendEscrowStatus(status string) {
+	if !lr.reportsEscrowStatus() {
+		return
+	}
+	if err := lr.escrower.SendLinuxKeyEscrowStatus(status); err != nil {
+		log.Debug().Err(err).Str("status", status).Msg("failed to report LUKS escrow status")
+	}
+}
+
 // luksDevice abstracts the subset of the go-blockdevice LUKS operations that
 // the escrow flow needs. *luksdevice.LUKS satisfies it; tests substitute a
 // fake so the prompt/validate logic can be exercised without cryptsetup or a

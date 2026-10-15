@@ -1,9 +1,9 @@
-import React from "react";
 import classnames from "classnames";
+import React from "react";
 
 import CustomLink from "components/CustomLink";
-import Icon from "components/Icon";
 import Graphic from "components/Graphic";
+import Icon from "components/Icon";
 import { Padding } from "styles/var/padding";
 
 const baseClass = "data-error";

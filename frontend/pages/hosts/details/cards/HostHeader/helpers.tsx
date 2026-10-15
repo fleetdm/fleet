@@ -1,7 +1,9 @@
 import React from "react";
-import { isMacOS, isIPadOrIPhone } from "interfaces/platform";
+
 import CustomLink from "components/CustomLink";
+import { isMacOS, isIPadOrIPhone } from "interfaces/platform";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
 import { HostMdmDeviceStatusUIState } from "../../helpers";
 
 interface IDeviceStatusTag {

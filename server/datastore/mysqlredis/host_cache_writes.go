@@ -85,9 +85,9 @@ func (d *Datastore) SetOrUpdateHostDisksEncryption(
 	return nil
 }
 
-// SetOrUpdateHostDiskTpmPIN invalidates by host ID after the inner write.
-func (d *Datastore) SetOrUpdateHostDiskTpmPIN(ctx context.Context, hostID uint, pinSet bool) error {
-	if err := d.Datastore.SetOrUpdateHostDiskTpmPIN(ctx, hostID, pinSet); err != nil {
+// SetOrUpdateHostDiskBitLockerProtectors invalidates by host ID after the inner write.
+func (d *Datastore) SetOrUpdateHostDiskBitLockerProtectors(ctx context.Context, hostID uint, bootProtectorSet, tpmPINSet bool) error {
+	if err := d.Datastore.SetOrUpdateHostDiskBitLockerProtectors(ctx, hostID, bootProtectorSet, tpmPINSet); err != nil {
 		return err
 	}
 	d.hostCacheDeleteByID(ctx, hostID, "update")

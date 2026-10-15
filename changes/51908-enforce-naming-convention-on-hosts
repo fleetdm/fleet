@@ -1,0 +1,1 @@
+* Updated host name templates to be automatically re-applied (up to 3 times) when a macOS, iOS, or iPadOS host is renamed on the device or rejects the rename, instead of the host being marked as failed right away. Hosts currently marked as failed because they were renamed on the device are re-enforced after upgrading Fleet.

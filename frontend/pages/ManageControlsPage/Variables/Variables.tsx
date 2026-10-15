@@ -2,10 +2,9 @@ import React, { useContext, useEffect, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { Params } from "react-router/lib/Router";
 
-import { AppContext } from "context/app";
-
-import SideNav from "pages/admin/components/SideNav";
 import PageDescription from "components/PageDescription";
+import { AppContext } from "context/app";
+import SideNav from "pages/admin/components/SideNav";
 
 import getVariablesNavItems from "./VariablesNavItems";
 

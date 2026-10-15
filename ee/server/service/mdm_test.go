@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -858,6 +859,153 @@ func TestUpdateABMTokenTeams(t *testing.T) {
 	})
 }
 
+func TestSetABMTokenDefault(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	svc := Service{ds: ds, authz: authorizer}
+
+	tokA := &fleet.ABMToken{ID: 1, OrganizationName: "Org A"}
+	tokB := &fleet.ABMToken{ID: 2, OrganizationName: "Org B"}
+	tokenCount := 2
+
+	resetState := func(defaultID uint) {
+		tokA.IsDefault = tokA.ID == defaultID
+		tokB.IsDefault = tokB.ID == defaultID
+		ds.SetABMTokenDefaultFuncInvoked = false
+		ds.ClearABMTokenDefaultFuncInvoked = false
+		ds.SaveAppConfigFuncInvoked = false
+	}
+
+	ds.GetABMTokenByIDFunc = func(ctx context.Context, tokenID uint) (*fleet.ABMToken, error) {
+		switch tokenID {
+		case tokA.ID:
+			return tokA, nil
+		case tokB.ID:
+			return tokB, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.SetABMTokenDefaultFunc = func(ctx context.Context, tokenID uint) error {
+		tokA.IsDefault = tokA.ID == tokenID
+		tokB.IsDefault = tokB.ID == tokenID
+		return nil
+	}
+	ds.ClearABMTokenDefaultFunc = func(ctx context.Context) error {
+		tokA.IsDefault = false
+		tokB.IsDefault = false
+		return nil
+	}
+	ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
+		return tokenCount, nil
+	}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{tokA, tokB}[:tokenCount], nil
+	}
+	appCfg := &fleet.AppConfig{MDM: fleet.MDM{AppleBusinessManager: optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{
+		{OrganizationName: tokA.OrganizationName},
+		{OrganizationName: tokB.OrganizationName},
+	})}}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return appCfg, nil
+	}
+	var updatedAppCfg *fleet.AppConfig
+	ds.SaveAppConfigFunc = func(ctx context.Context, cfg *fleet.AppConfig) error {
+		updatedAppCfg = cfg
+		return nil
+	}
+
+	appCfgDefaults := func() map[string]bool {
+		m := make(map[string]bool)
+		for _, e := range updatedAppCfg.MDM.AppleBusinessManager.Value {
+			m[e.OrganizationName] = e.Default
+		}
+		return m
+	}
+
+	t.Run("only admins are authorized", func(t *testing.T) {
+		cases := []struct {
+			desc    string
+			user    *fleet.User
+			wantErr error
+		}{
+			{"no role", test.UserNoRoles, test.ErrForbidden},
+			{"observer", test.UserObserver, test.ErrForbidden},
+			{"observer+", test.UserObserverPlus, test.ErrForbidden},
+			{"maintainer", test.UserMaintainer, test.ErrForbidden},
+			{"gitops", test.UserGitOps, test.ErrForbidden},
+			{"admin", test.UserAdmin, nil},
+		}
+		for _, c := range cases {
+			t.Run(c.desc, func(t *testing.T) {
+				resetState(tokA.ID)
+				ctx := test.UserContext(t.Context(), c.user)
+				_, err := svc.SetABMTokenDefault(ctx, tokB.ID, new(true))
+				test.RequireErrKind(t, c.wantErr, err)
+			})
+		}
+	})
+
+	adminCtx := test.UserContext(t.Context(), test.UserAdmin)
+
+	t.Run("omitted default value is rejected", func(t *testing.T) {
+		resetState(tokA.ID)
+		_, err := svc.SetABMTokenDefault(adminCtx, tokB.ID, nil)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "missing required argument")
+		assert.False(t, ds.SetABMTokenDefaultFuncInvoked)
+		assert.False(t, ds.ClearABMTokenDefaultFuncInvoked)
+	})
+
+	t.Run("unknown token id is not found", func(t *testing.T) {
+		resetState(tokA.ID)
+		_, err := svc.SetABMTokenDefault(adminCtx, 999, new(true))
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("setting default moves it from the other token", func(t *testing.T) {
+		resetState(tokA.ID)
+		token, err := svc.SetABMTokenDefault(adminCtx, tokB.ID, new(true))
+		require.NoError(t, err)
+		assert.True(t, token.IsDefault)
+		assert.True(t, ds.SetABMTokenDefaultFuncInvoked)
+		require.True(t, ds.SaveAppConfigFuncInvoked)
+		assert.Equal(t, map[string]bool{"Org A": false, "Org B": true}, appCfgDefaults())
+	})
+
+	t.Run("unsetting the default clears it", func(t *testing.T) {
+		resetState(tokB.ID)
+		token, err := svc.SetABMTokenDefault(adminCtx, tokB.ID, new(false))
+		require.NoError(t, err)
+		assert.False(t, token.IsDefault)
+		assert.True(t, ds.ClearABMTokenDefaultFuncInvoked)
+		require.True(t, ds.SaveAppConfigFuncInvoked)
+		assert.Equal(t, map[string]bool{"Org A": false, "Org B": false}, appCfgDefaults())
+	})
+
+	t.Run("unsetting a non-default token is a no-op", func(t *testing.T) {
+		resetState(tokA.ID)
+		token, err := svc.SetABMTokenDefault(adminCtx, tokB.ID, new(false))
+		require.NoError(t, err)
+		assert.False(t, token.IsDefault)
+		assert.False(t, ds.SetABMTokenDefaultFuncInvoked)
+		assert.False(t, ds.ClearABMTokenDefaultFuncInvoked)
+		assert.False(t, ds.SaveAppConfigFuncInvoked)
+	})
+
+	t.Run("unsetting the only token's default is rejected", func(t *testing.T) {
+		tokenCount = 1
+		t.Cleanup(func() { tokenCount = 2 })
+		resetState(tokA.ID)
+		_, err := svc.SetABMTokenDefault(adminCtx, tokA.ID, new(false))
+		require.Error(t, err)
+		require.ErrorContains(t, err, "always the default")
+		assert.False(t, ds.ClearABMTokenDefaultFuncInvoked)
+	})
+}
+
 func TestMDMAppleEditedAppleOSUpdatesDeclaration(t *testing.T) {
 	ctx := context.Background()
 	teamID := uint(1)
@@ -1243,4 +1391,62 @@ func TestDeleteABMTokenSyncsAppConfig(t *testing.T) {
 		assert.Equal(t, "org2", got.OrganizationName)
 		assert.False(t, got.Default)
 	})
+}
+
+func TestValidateMarkdownEULA(t *testing.T) {
+	t.Parallel()
+
+	table := strings.Repeat("| h ", 100) + "|\n" + strings.Repeat("| - ", 100) + "|\n" + strings.Repeat("| x |\n", 100)
+	cases := []struct {
+		name, file, content, want string
+	}{
+		{"valid", "terms.md", "# Terms\n", ""},
+		{"not markdown", "terms.pdf", "# Terms\n", "The file must be a markdown (.md) file."},
+		{"name too long", strings.Repeat("a", 253) + ".md", "# Terms\n", "The file name must be 255 characters or fewer."},
+		{"empty", "terms.md", " \n\t", "The file is empty."},
+		{"too large", "terms.md", strings.Repeat("Clause.\n", 70_000), "The file must be 512 KB or smaller."},
+		{"not utf-8", "terms.md", "\xff\xfeA", "The file must be UTF-8 text."},
+		{"line too long", "terms.md", strings.Repeat("a", 9000), "The file has a line longer than 8 KB. Split long paragraphs into shorter lines and upload again."},
+		{"nested too deep", "terms.md", strings.Repeat("> ", 40) + "Clause\n", "The file nests lists, quotes or HTML too deeply."},
+		{"tables too large", "terms.md", table, "The file's tables have more than 10,000 cells in total."},
+		{"rendered too large", "terms.md", strings.Repeat(strings.Repeat("`<` ", 2_000)+"\n", 64), "The file is too large to show. Make it shorter and upload again."},
+		{"too many lines", "terms.md", strings.Repeat("a\n", 10_001), "The file has more than 10,000 lines."},
+		{"too much formatting", "terms.md", strings.Repeat("**a** ", 600) + "\n", "The file has too much formatting in one paragraph or list. Add blank lines between paragraphs and upload again."},
+		{"html", "terms.md", "<div>\nClause 4.\n</div>\n", "The file contains HTML other than tables and text styles. Convert it to markdown and upload again."},
+		{"nothing to show", "terms.md", "<!-- draft -->\n", "The file has no text to show."},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := validateMarkdownEULA(tc.file, []byte(tc.content))
+			if tc.want == "" {
+				require.NoError(t, err)
+				return
+			}
+			var bre *fleet.BadRequestError
+			require.ErrorAs(t, err, &bre)
+			require.Equal(t, tc.want, bre.Message)
+		})
+	}
+}
+
+func TestEULAMetadataBypassesCache(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	svc := &Service{ds: ds, authz: authorizer}
+	ctx := test.UserContext(t.Context(), test.UserAdmin)
+
+	var platforms []fleet.MDMEULAPlatform
+	ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
+		require.True(t, ctxdb.IsCachedMysqlBypassed(ctx), platform)
+		platforms = append(platforms, platform)
+		return &fleet.MDMEULA{}, nil
+	}
+	_, err = svc.MDMGetEULAMetadata(ctx)
+	require.NoError(t, err)
+	_, err = svc.MDMGetWindowsEULAMetadata(ctx)
+	require.NoError(t, err)
+	require.Equal(t, []fleet.MDMEULAPlatform{fleet.MDMEULAPlatformDarwin, fleet.MDMEULAPlatformWindows}, platforms)
 }

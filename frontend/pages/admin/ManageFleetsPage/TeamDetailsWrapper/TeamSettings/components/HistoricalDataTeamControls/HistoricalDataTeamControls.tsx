@@ -1,10 +1,9 @@
 import React from "react";
 
-import { IInputFieldParseTarget } from "interfaces/form_field";
-
-import SectionHeader from "components/SectionHeader";
 import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import SectionHeader from "components/SectionHeader";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 
 interface IHistoricalDataTeamControlsProps {
   disableHostsActive: boolean;

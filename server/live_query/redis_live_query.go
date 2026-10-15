@@ -79,14 +79,16 @@ import (
 )
 
 const (
-	bitsInByte              = 8
-	queryKeyPrefix          = "livequery:"
-	sqlKeyPrefix            = "sql:"
-	activeQueriesKey        = "livequery:active"
-	activeReverseQueriesKey = "livequery:active:reverse"
-	reverseHostKeyPrefix    = "livequery:host:"
-	queryExpiration         = 7 * 24 * time.Hour
-	queryResultsCountPrefix = "query_results_count:"
+	bitsInByte               = 8
+	queryKeyPrefix           = "livequery:"
+	sqlKeyPrefix             = "sql:"
+	activeQueriesKey         = "livequery:active"
+	activeReverseQueriesKey  = "livequery:active:reverse"
+	reverseHostKeyPrefix     = "livequery:host:"
+	queryExpiration          = 7 * 24 * time.Hour
+	queryResultsCountPrefix  = "query_results_count:"
+	queryReportsHostCountKey = "query_reports_host_count"
+	queryReportClippedPrefix = "query_report_clipped:"
 )
 
 type redisLiveQuery struct {
@@ -394,7 +396,7 @@ func (r *redisLiveQuery) collectBatchQueriesForHost(hostID uint, queryKeys []str
 	return nil
 }
 
-func (r *redisLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
+func (r *redisLiveQuery) QueryCompletedByHost(name string, hostID uint) (bool, error) {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
@@ -403,24 +405,36 @@ func (r *redisLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
 	// (SREM on an absent member, and the guarded SETBIT below on an absent key).
 	// This avoids relying on a possibly-stale cache to pick the model, where a
 	// wrong guess would leave the host still receiving the query.
-	if _, err := conn.Do("SREM", reverseHostKey(hostID), name); err != nil {
-		return fmt.Errorf("srem reverse host key: %w", err)
+	//
+	// Both commands also return whether the host was still a target; the caller
+	// uses that to reject results from hosts the campaign never targeted.
+	removed, err := redigo.Int(conn.Do("SREM", reverseHostKey(hostID), name))
+	if err != nil {
+		return false, fmt.Errorf("srem reverse host key: %w", err)
 	}
 
-	targetKey, _ := generateKeys(name)
+	targetKey, sqlKey := generateKeys(name)
 
 	// Update the bitfield for this host only if the key exists.
 	// If the key doesn't exist (e.g. query marked as completed or cancelled)
 	// then we don't want to call SETBIT because it will create a new
 	// key (that won't expire and linger "forever").
+	//
+	// EXISTS on the SQL key is the "still active" check: StopQuery deletes it,
+	// but leaves per-host set entries behind.
 	const setBitScript = `
+	local active = redis.call('EXISTS', KEYS[2])
+	local prev = 0
 	if redis.call('EXISTS', KEYS[1]) == 1 then
-		return redis.call('SETBIT', KEYS[1], ARGV[1], ARGV[2])
-	else
-		return nil
-	end`
-	if _, err := conn.Do("EVAL", setBitScript, 1, targetKey, hostID, 0); err != nil {
-		return fmt.Errorf("setbit query key: %w", err)
+		prev = redis.call('SETBIT', KEYS[1], ARGV[1], ARGV[2])
+	end
+	return {active, prev}`
+	res, err := redigo.Ints(conn.Do("EVAL", setBitScript, 2, targetKey, sqlKey, hostID, 0))
+	if err != nil {
+		return false, fmt.Errorf("setbit query key: %w", err)
+	}
+	if len(res) != 2 {
+		return false, fmt.Errorf("setbit query key: unexpected script result %v", res)
 	}
 
 	// NOTE(mna): we could remove the query here if all bits are now off, meaning
@@ -429,6 +443,42 @@ func (r *redisLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
 	// needed anyway as StopQuery appears to be called every time a campaign is
 	// run (see svc.CompleteCampaign).
 
+	active, wasBitTarget := res[0] == 1, res[1] == 1
+	return active && (wasBitTarget || removed == 1), nil
+}
+
+func (r *redisLiveQuery) RestoreQueryTargetForHost(name string, hostID uint) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	targetKey, _ := generateKeys(name)
+
+	// A broadcast (large) query has a bitfield, so set the bit back. Without one
+	// the query is small-target (or already stopped, in which case the per-host
+	// entry is just another stale one), so re-add the per-host membership.
+	const restoreBitScript = `
+	if redis.call('EXISTS', KEYS[1]) == 1 then
+		redis.call('SETBIT', KEYS[1], ARGV[1], 1)
+		return 1
+	end
+	return 0`
+	hadBitfield, err := redigo.Int(conn.Do("EVAL", restoreBitScript, 1, targetKey, hostID))
+	if err != nil {
+		return fmt.Errorf("restore bitfield target: %w", err)
+	}
+	if hadBitfield == 1 {
+		return nil
+	}
+
+	// No bitfield: this is a small-target (reverse index) query, whose targets
+	// live in each host's own set rather than under the campaign.
+	hostKey := reverseHostKey(hostID)
+	if _, err := conn.Do("SADD", hostKey, name); err != nil {
+		return fmt.Errorf("sadd reverse host key: %w", err)
+	}
+	if _, err := conn.Do("EXPIRE", hostKey, int(queryExpiration.Seconds())); err != nil {
+		return fmt.Errorf("expire reverse host key: %w", err)
+	}
 	return nil
 }
 
@@ -784,7 +834,7 @@ func queryResultsCountKey(queryID uint) string {
 }
 
 // GetQueryResultsCounts returns the current count of query results for multiple queries.
-// Returns a map of query ID -> count. Missing keys are returned with a count of 0.
+// Queries with no stored count are absent from the result.
 func (r *redisLiveQuery) GetQueryResultsCounts(queryIDs []uint) (map[uint]int, error) {
 	if len(queryIDs) == 0 {
 		return make(map[uint]int), nil
@@ -831,8 +881,7 @@ func (r *redisLiveQuery) collectBatchResultsCounts(keys []string, keyToID map[st
 	for _, key := range keys {
 		count, err := redigo.Int(conn.Receive())
 		if err != nil {
-			if err == redigo.ErrNil {
-				results[keyToID[key]] = 0
+			if errors.Is(err, redigo.ErrNil) {
 				continue
 			}
 			return fmt.Errorf("receive query results count: %w", err)
@@ -900,6 +949,54 @@ func (r *redisLiveQuery) incrBatchResultsCounts(keys []string, amountByKey map[s
 	return nil
 }
 
+// SetQueryResultsCountsIfAbsent seeds counts only for queries that have none stored.
+func (r *redisLiveQuery) SetQueryResultsCountsIfAbsent(counts map[uint]int) error {
+	if len(counts) == 0 {
+		return nil
+	}
+
+	// Keys have no hash tag, so group them by slot like the increments.
+	keys := make([]string, 0, len(counts))
+	countByKey := make(map[string]int, len(counts))
+	for queryID, count := range counts {
+		key := queryResultsCountKey(queryID)
+		keys = append(keys, key)
+		countByKey[key] = count
+	}
+
+	for _, slotKeys := range redis.SplitKeysBySlot(r.pool, keys...) {
+		if err := r.setBatchResultsCountsIfAbsent(slotKeys, countByKey); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *redisLiveQuery) setBatchResultsCountsIfAbsent(keys []string, countByKey map[string]int) error {
+	// Plain connection: redis.ConfigureDoer wraps it in a redisc.RetryConn whose Send is unsupported.
+	conn := r.pool.Get()
+	defer conn.Close()
+
+	for _, key := range keys {
+		if err := conn.Send("SET", key, countByKey[key], "NX"); err != nil {
+			return fmt.Errorf("send set query results count if absent: %w", err)
+		}
+	}
+
+	if err := conn.Flush(); err != nil {
+		return fmt.Errorf("flush pipeline: %w", err)
+	}
+
+	for range keys {
+		if _, err := conn.Receive(); err != nil {
+			return fmt.Errorf("receive set query results count if absent: %w", err)
+		}
+	}
+
+	return nil
+}
+
 // SetQueryResultsCount sets the query results count for a query to a specific value.
 // Used to reset counts to zero when a query is modified, or to adjust the count
 // in the cleanup cron job after deleting excess rows.
@@ -926,5 +1023,352 @@ func (r *redisLiveQuery) DeleteQueryResultsCount(queryID uint) error {
 		return fmt.Errorf("delete query results count: %w", err)
 	}
 
+	return nil
+}
+
+// SetQueryReportsHostCount stores the total number of hosts used to compute the
+// effective query report cap.
+func (r *redisLiveQuery) SetQueryReportsHostCount(count int) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	if _, err := conn.Do("SET", queryReportsHostCountKey, count); err != nil {
+		return fmt.Errorf("set query reports host count: %w", err)
+	}
+
+	return nil
+}
+
+// GetQueryReportsHostCount returns the host count stored by SetQueryReportsHostCount. ok is
+// false when none is stored.
+func (r *redisLiveQuery) GetQueryReportsHostCount() (int, bool, error) {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	count, err := redigo.Int(conn.Do("GET", queryReportsHostCountKey))
+	if err != nil {
+		if errors.Is(err, redigo.ErrNil) {
+			return 0, false, nil
+		}
+		return 0, false, fmt.Errorf("get query reports host count: %w", err)
+	}
+
+	return count, true, nil
+}
+
+// SetQueryReportsHostCountIfAbsent seeds the host count only when none is stored.
+func (r *redisLiveQuery) SetQueryReportsHostCountIfAbsent(count int) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	if _, err := conn.Do("SET", queryReportsHostCountKey, count, "NX"); err != nil {
+		return fmt.Errorf("set query reports host count if absent: %w", err)
+	}
+
+	return nil
+}
+
+// IncrQueryReportsHostCount adjusts the stored host count by delta.
+func (r *redisLiveQuery) IncrQueryReportsHostCount(delta int) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	if _, err := conn.Do("INCRBY", queryReportsHostCountKey, delta); err != nil {
+		return fmt.Errorf("incr query reports host count: %w", err)
+	}
+
+	return nil
+}
+
+func queryReportClippedKey(queryID uint) string {
+	return fmt.Sprintf("%s%d", queryReportClippedPrefix, queryID)
+}
+
+// MarkQueryReportsClipped sets the clipped marker for each query, refreshing its expiration.
+func (r *redisLiveQuery) MarkQueryReportsClipped(ttlByQueryID map[uint]time.Duration) error {
+	if len(ttlByQueryID) == 0 {
+		return nil
+	}
+
+	// Keys have no hash tag, so group them by slot like the result counts.
+	keys := make([]string, 0, len(ttlByQueryID))
+	ttlByKey := make(map[string]time.Duration, len(ttlByQueryID))
+	for queryID, ttl := range ttlByQueryID {
+		key := queryReportClippedKey(queryID)
+		keys = append(keys, key)
+		ttlByKey[key] = ttl
+	}
+
+	for _, slotKeys := range redis.SplitKeysBySlot(r.pool, keys...) {
+		if err := r.markBatchClipped(slotKeys, ttlByKey); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *redisLiveQuery) markBatchClipped(keys []string, ttlByKey map[string]time.Duration) error {
+	// Plain connection: redis.ConfigureDoer wraps it in a redisc.RetryConn whose Send is unsupported.
+	conn := r.pool.Get()
+	defer conn.Close()
+
+	for _, key := range keys {
+		if err := conn.Send("SET", key, 1, "EX", int(ttlByKey[key].Seconds())); err != nil {
+			return fmt.Errorf("send set query report clipped: %w", err)
+		}
+	}
+
+	if err := conn.Flush(); err != nil {
+		return fmt.Errorf("flush pipeline: %w", err)
+	}
+
+	for range keys {
+		if _, err := conn.Receive(); err != nil {
+			return fmt.Errorf("receive set query report clipped: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// QueryReportsClipped returns which of the given queries currently have a clipped marker.
+// Queries without a marker are absent from the returned map.
+func (r *redisLiveQuery) QueryReportsClipped(queryIDs []uint) (map[uint]bool, error) {
+	clipped := make(map[uint]bool, len(queryIDs))
+	if len(queryIDs) == 0 {
+		return clipped, nil
+	}
+
+	// Keys have no hash tag, so group them by slot like the result counts.
+	keys := make([]string, 0, len(queryIDs))
+	keyToID := make(map[string]uint, len(queryIDs))
+	for _, queryID := range queryIDs {
+		key := queryReportClippedKey(queryID)
+		keys = append(keys, key)
+		keyToID[key] = queryID
+	}
+
+	for _, slotKeys := range redis.SplitKeysBySlot(r.pool, keys...) {
+		if err := r.collectBatchClipped(slotKeys, keyToID, clipped); err != nil {
+			return nil, err
+		}
+	}
+
+	return clipped, nil
+}
+
+func (r *redisLiveQuery) collectBatchClipped(keys []string, keyToID map[string]uint, clipped map[uint]bool) error {
+	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	for _, key := range keys {
+		if err := conn.Send("EXISTS", key); err != nil {
+			return fmt.Errorf("send exists query report clipped: %w", err)
+		}
+	}
+
+	if err := conn.Flush(); err != nil {
+		return fmt.Errorf("flush pipeline: %w", err)
+	}
+
+	for _, key := range keys {
+		exists, err := redigo.Bool(conn.Receive())
+		if err != nil {
+			return fmt.Errorf("receive query report clipped: %w", err)
+		}
+		if exists {
+			clipped[keyToID[key]] = true
+		}
+	}
+
+	return nil
+}
+
+// ClearQueryReportsClipped removes the clipped marker for the given queries.
+func (r *redisLiveQuery) ClearQueryReportsClipped(queryIDs []uint) error {
+	if len(queryIDs) == 0 {
+		return nil
+	}
+
+	keys := make([]string, 0, len(queryIDs))
+	for _, queryID := range queryIDs {
+		keys = append(keys, queryReportClippedKey(queryID))
+	}
+
+	// Keys have no hash tag, so DEL them one slot at a time.
+	for _, slotKeys := range redis.SplitKeysBySlot(r.pool, keys...) {
+		conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+		args := make([]any, 0, len(slotKeys))
+		for _, key := range slotKeys {
+			args = append(args, key)
+		}
+		_, err := conn.Do("DEL", args...)
+		conn.Close()
+		if err != nil {
+			return fmt.Errorf("clear query reports clipped: %w", err)
+		}
+	}
+
+	return nil
+}
+
+const (
+	// The hash tag keeps both sets in the same cluster slot for the script that moves rows between them.
+	queryResultsLastFetchedKey           = "{query_results_last_fetched}"
+	queryResultsLastFetchedProcessingKey = "{query_results_last_fetched}:processing"
+	// queryResultsLastFetchedTTL keeps the sets from lingering if the cron stops running.
+	queryResultsLastFetchedTTL       = 24 * time.Hour
+	queryResultsLastFetchedScanCount = 1000
+)
+
+// queryResultsLastFetchedMaxPending bounds the recorded set if the cron falls behind. A var so
+// tests can lower it.
+var queryResultsLastFetchedMaxPending = 500_000
+
+// RecordQueryResultsLastFetched adds the row IDs to a sorted set scored by fetch time.
+func (r *redisLiveQuery) RecordQueryResultsLastFetched(rowIDs []uint, fetchedAt time.Time) error {
+	if len(rowIDs) == 0 {
+		return nil
+	}
+
+	// KEYS[1]: recorded set
+	// ARGV[1]: ttl for the key
+	// ARGV[2]: maximum number of pending members
+	// ARGV[3:]: score/member pairs
+	//
+	// Members are added one at a time because unpack() is limited to a few thousand values.
+	script := redigo.NewScript(1, `
+    if redis.call('ZCARD', KEYS[1]) >= tonumber(ARGV[2]) then
+      return 0
+    end
+    for i = 3, #ARGV, 2 do
+      redis.call('ZADD', KEYS[1], ARGV[i], ARGV[i+1])
+    end
+    redis.call('EXPIRE', KEYS[1], ARGV[1])
+    return 1
+  `)
+
+	args := redigo.Args{queryResultsLastFetchedKey, int(queryResultsLastFetchedTTL.Seconds()), queryResultsLastFetchedMaxPending}
+	ts := fetchedAt.Unix()
+	for _, id := range rowIDs {
+		args = args.Add(ts, id)
+	}
+
+	conn := r.pool.Get()
+	defer conn.Close()
+	if err := redis.BindConn(r.pool, conn, queryResultsLastFetchedKey); err != nil {
+		return fmt.Errorf("bind redis connection: %w", err)
+	}
+	added, err := redigo.Int(script.Do(conn, args...))
+	if err != nil {
+		return fmt.Errorf("record query results last fetched: %w", err)
+	}
+	if added == 0 {
+		return fleet.ErrQueryResultsLastFetchedFull
+	}
+	return nil
+}
+
+// LoadQueryResultsLastFetched keeps the latest fetch time of a row that is both recorded and
+// left in the processing set by a failed run.
+func (r *redisLiveQuery) LoadQueryResultsLastFetched() (map[uint]time.Time, error) {
+	// KEYS[1]: recorded set
+	// KEYS[2]: processing set
+	// ARGV[1]: ttl for the processing key
+	script := redigo.NewScript(2, `
+    redis.call('ZUNIONSTORE', KEYS[2], 2, KEYS[1], KEYS[2], 'AGGREGATE', 'MAX')
+    redis.call('DEL', KEYS[1])
+    return redis.call('EXPIRE', KEYS[2], ARGV[1])
+  `)
+
+	conn := r.pool.Get()
+	defer conn.Close()
+	if err := redis.BindConn(r.pool, conn, queryResultsLastFetchedKey, queryResultsLastFetchedProcessingKey); err != nil {
+		return nil, fmt.Errorf("bind redis connection: %w", err)
+	}
+	if _, err := script.Do(conn, queryResultsLastFetchedKey, queryResultsLastFetchedProcessingKey, int(queryResultsLastFetchedTTL.Seconds())); err != nil {
+		return nil, fmt.Errorf("move query results last fetched to processing: %w", err)
+	}
+
+	// ZSCAN can return a member more than once.
+	fetched := make(map[uint]time.Time)
+	cursor := 0
+	for {
+		res, err := redigo.Values(conn.Do("ZSCAN", queryResultsLastFetchedProcessingKey, cursor, "COUNT", queryResultsLastFetchedScanCount))
+		if err != nil {
+			return nil, fmt.Errorf("scan query results last fetched: %w", err)
+		}
+		var vals []uint
+		if _, err := redigo.Scan(res, &cursor, &vals); err != nil {
+			return nil, fmt.Errorf("convert scan results: %w", err)
+		}
+		for i := 0; i+1 < len(vals); i += 2 {
+			fetched[vals[i]] = time.Unix(int64(vals[i+1]), 0).UTC() //nolint:gosec // dismiss G115
+		}
+		if cursor == 0 {
+			return fetched, nil
+		}
+	}
+}
+
+// ClearProcessedQueryResultsLastFetched deletes the processing set.
+func (r *redisLiveQuery) ClearProcessedQueryResultsLastFetched() error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	if _, err := conn.Do("DEL", queryResultsLastFetchedProcessingKey); err != nil {
+		return fmt.Errorf("delete query results last fetched processing set: %w", err)
+	}
+	return nil
+}
+
+// queryReportWriteSlotsKey is a sorted set of write slot holder tokens scored by lease expiry, in
+// unix milliseconds.
+const queryReportWriteSlotsKey = "query_report_write_slots"
+
+// AcquireQueryReportWriteSlot uses leases rather than a counter so slots held by a server that
+// dies are freed. Expiry is based on the Fleet servers' clocks, so clock skew between them only
+// shortens or extends leases by that much.
+func (r *redisLiveQuery) AcquireQueryReportWriteSlot(token string, limit int, lease time.Duration) (bool, error) {
+	// KEYS[1]: slots set
+	// ARGV[1]: now (unix ms)
+	// ARGV[2]: limit
+	// ARGV[3]: lease (ms)
+	// ARGV[4]: token
+	script := redigo.NewScript(1, `
+    local now = tonumber(ARGV[1])
+    redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', now)
+    if redis.call('ZCARD', KEYS[1]) >= tonumber(ARGV[2]) then
+      return 0
+    end
+    redis.call('ZADD', KEYS[1], now + tonumber(ARGV[3]), ARGV[4])
+    -- Only extend the key's expiry, so it never drops slots with a longer lease.
+    if redis.call('PTTL', KEYS[1]) < tonumber(ARGV[3]) then
+      redis.call('PEXPIRE', KEYS[1], ARGV[3])
+    end
+    return 1
+  `)
+
+	conn := r.pool.Get()
+	defer conn.Close()
+	if err := redis.BindConn(r.pool, conn, queryReportWriteSlotsKey); err != nil {
+		return false, fmt.Errorf("bind redis connection: %w", err)
+	}
+	acquired, err := redigo.Int(script.Do(conn, queryReportWriteSlotsKey, time.Now().UnixMilli(), limit, lease.Milliseconds(), token))
+	if err != nil {
+		return false, fmt.Errorf("acquire query report write slot: %w", err)
+	}
+	return acquired == 1, nil
+}
+
+// ReleaseQueryReportWriteSlot removes token from the slots set.
+func (r *redisLiveQuery) ReleaseQueryReportWriteSlot(token string) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	if _, err := conn.Do("ZREM", queryReportWriteSlotsKey, token); err != nil {
+		return fmt.Errorf("release query report write slot: %w", err)
+	}
 	return nil
 }

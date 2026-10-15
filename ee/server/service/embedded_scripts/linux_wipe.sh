@@ -2,6 +2,14 @@
 
 NETWORK_FS_TYPES="nfs|nfs4|cifs|smb|smbfs|fuse\.sshfs|afs|ncpfs|9p"
 
+# passwd -l below only reaches accounts in /etc/shadow, so directory users
+# (SSSD/LDAP/Kerberos/AD) need pam_nologin to keep them out mid-wipe.
+block_logins() {
+    _msg="Fleet is wiping this system."
+    echo "$_msg" > /etc/nologin
+    echo "$_msg" > /run/nologin
+}
+
 # Function to log out all users and lock their passwords except root
 logout_users() {
     for user in $(who | awk '{print $1}' | sort | uniq)
@@ -224,9 +232,24 @@ if [ "$1" = "wipe" ]; then
     # We are in the detached child process
     wipe_all_files
 else
-    # We are in the parent shell, logout users and begin the detached
-    # wipe child process
+    # We are in the parent shell, block and logout users and begin the detached
+    # wipe child process.
+    # Stage before locking anyone out: fleetd deletes this script's directory as
+    # soon as we return, and systemd-run returns before the child has opened it.
+    # /run stays writable on read-only-root images and the wipe never deletes it.
+    WIPE_SCRIPT=/run/fleet_wipe.sh
+    if ! cp "$0" "$WIPE_SCRIPT"; then
+        echo "Could not stage the wipe, so not locking logins on a host that will not be wiped" >&2
+        exit 1
+    fi
+    block_logins
     logout_users
     echo "Wiping, system will be unreachable"
-    (/usr/bin/nohup sh $0 wipe >/dev/null 2>/dev/null </dev/null) &
+    # orbit.service is KillMode=control-group with CPUQuota=20%, so a nohup child
+    # dies on every orbit restart and runs at a fifth of one CPU. Branch on
+    # systemd-run failing rather than existing, or an old systemd leaves a host
+    # locked out by block_logins and never wiped.
+    if ! systemd-run --unit=fleet-wipe /bin/sh "$WIPE_SCRIPT" wipe; then
+        (/usr/bin/nohup sh "$WIPE_SCRIPT" wipe >/dev/null 2>/dev/null </dev/null) &
+    fi
 fi

@@ -6,5 +6,6 @@
   "slug": "macwhisper/darwin",
   "default_categories": [
     "Productivity"
-  ]
+  ],
+  "frozen": true
 }

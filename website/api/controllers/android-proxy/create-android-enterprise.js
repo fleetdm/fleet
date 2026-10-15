@@ -38,7 +38,8 @@ module.exports = {
     invalidEnterpriseToken: {
       description: 'The provided enterprise token is invalid or expired.',
       responseType: 'badRequest'
-    }
+    },
+    tooManyRequests: { description: 'The Android management API rate limit was exceeded.', statusCode: 429 },
   },
 
 
@@ -136,6 +137,12 @@ module.exports = {
       // Now create the new enterprise for this Fleet server.
       // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises.html#create
       sails.androidProxyApiRequestCount++;// Count this Android Management API request toward the per-minute total logged in api/hooks/custom/index.js.
+      let _enterpriseIdPending = 'pending:' + fleetServerUrl;
+      if (!sails.androidProxyApiRequestCountByEnterpriseId[_enterpriseIdPending]) { sails.androidProxyApiRequestCountByEnterpriseId[_enterpriseIdPending] = {count: 0, fleetServerUrl: fleetServerUrl}; }
+      sails.androidProxyApiRequestCountByEnterpriseId[_enterpriseIdPending].count++;
+      let _rtKey = _enterpriseIdPending + ':create_enterprise';
+      if (!sails.androidProxyApiRequestCountByRequestType[_rtKey]) { sails.androidProxyApiRequestCountByRequestType[_rtKey] = {count: 0, enterpriseId: _enterpriseIdPending, fleetServerUrl: fleetServerUrl, requestType: 'create_enterprise'}; }
+      sails.androidProxyApiRequestCountByRequestType[_rtKey].count++;
       let createEnterpriseResponse = await androidManagementConnection.enterprises.create({
         agreementAccepted: true,
         enterpriseToken: enterpriseToken,
@@ -162,10 +169,11 @@ module.exports = {
     }).intercept({status: 403}, (err)=>{
       sails.log.warn('Error details when creating Android enterprise with Android Management API (from 403):', require('util').inspect(err));
       return {'invalidEnterpriseToken': 'Access forbidden to Android Management API.'};
-    }).intercept({status: 429}, (err)=>{
+    }).intercept({status: 429}, ()=>{
       // If the Android management API returns a 429 response, log an additional warning that will trigger a help-p1 alert.
       sails.log.warn(`p1: Android management API rate limit exceeded!`);
-      return new Error(`When attempting to create a new Android enterprise, an error occurred. Error: ${require('util').inspect(err)}`);
+      // Pass the 429 through to the Fleet server rather than collapsing it into a 500, so it can retry.
+      return 'tooManyRequests';
     }).intercept((err)=>{
       // For all other errors (5XX, network errors, etc.), maintain existing behavior
       return new Error(`When attempting to create a new Android enterprise, an error occurred. Error: ${require('util').inspect(err)}`);

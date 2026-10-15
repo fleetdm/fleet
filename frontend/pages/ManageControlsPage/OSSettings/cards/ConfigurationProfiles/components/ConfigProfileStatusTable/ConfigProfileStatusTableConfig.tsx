@@ -1,15 +1,14 @@
 import React from "react";
 import { Column } from "react-table";
 
+import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
+import { IndicatorStatus } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
 import {
   INumberCellProps,
   IStringCellProps,
 } from "interfaces/datatable_config";
 import { MdmProfileStatus } from "interfaces/mdm";
 import { IGetConfigProfileStatusResponse } from "services/entities/config_profiles";
-
-import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
-import { IndicatorStatus } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
 
 import ConfigProfileHostCountCell from "../ConfigProfileHostCountCell";
 

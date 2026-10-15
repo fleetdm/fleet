@@ -1,12 +1,15 @@
 import React from "react";
-import SettingsSection from "pages/admin/components/SettingsSection";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+
+import CustomLink from "components/CustomLink";
 import Checkbox from "components/forms/fields/Checkbox";
 import InputField from "components/forms/fields/InputField";
-import CustomLink from "components/CustomLink";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import SettingsSection from "pages/admin/components/SettingsSection";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import type { IAdvancedSectionProps } from "../../Advanced";
+
+const baseClass = "host-lifecycle-section";
 
 const HostLifecycleSection = ({
   isPremiumTier = false,
@@ -49,13 +52,13 @@ const HostLifecycleSection = ({
           </Checkbox>
         )}
       />
-      {enableHostExpiry && (
+      <div className={`${baseClass}__host-expiry-window`}>
         <GitOpsModeTooltipWrapper
           position="left"
           isInputField
           renderChildren={(disableChildren) => (
             <InputField
-              disabled={disableChildren}
+              disabled={!enableHostExpiry || disableChildren}
               label="Host expiry window"
               type="number"
               onChange={onInputChange}
@@ -66,7 +69,7 @@ const HostLifecycleSection = ({
             />
           )}
         />
-      )}
+      </div>
       {isPremiumTier && (
         <>
           <GitOpsModeTooltipWrapper

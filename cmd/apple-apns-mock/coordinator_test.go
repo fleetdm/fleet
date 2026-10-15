@@ -9,9 +9,13 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	redigo "github.com/gomodule/redigo/redis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -133,6 +137,38 @@ func TestCoordinatorPushCrossesInstances(t *testing.T) {
 	assert.EqualValues(t, 1, holder.reg.deliveredLive.Load(), "the holder delivered it")
 	assert.EqualValues(t, 0, pusher.reg.deliveredLive.Load(), "the pusher holds no stream")
 	assert.EqualValues(t, 1, pusher.reg.stored.Load(), "the pusher wrote the pending key")
+}
+
+func TestCoordinatorPushBurstWaitsForConnection(t *testing.T) {
+	// Fleet pushes to thousands of devices at once. Calls past the pool limit
+	// must wait for a connection rather than fail with "pool exhausted".
+	prefix := "apnsmock:" + t.Name() + ":"
+	env := testRedisEnv{
+		pool: redistest.SetupRedisWithConfig(t, prefix, false, false, false, redis.PoolConfig{
+			MaxOpenConns:    3, // one is held by the subscription
+			ConnWaitTimeout: 5 * time.Second,
+		}),
+		prefix: prefix,
+		nodes:  new(atomic.Int64),
+	}
+	c := newTestCoordinator(t, env)
+
+	const pushes = 200
+	errs := make(chan error, pushes)
+	var wg sync.WaitGroup
+	for i := range pushes {
+		wg.Go(func() {
+			errs <- c.Push(t.Context(), fmt.Sprintf("aabb%04d", i), []byte(`{"mdm":"m"}`), time.Time{})
+		})
+	}
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		require.NoError(t, err)
+	}
+	assert.EqualValues(t, 0, c.reg.redisErrors.Load())
+	assert.EqualValues(t, pushes, c.reg.stored.Load())
 }
 
 func TestCoordinatorOfflinePushClaimedOnConnect(t *testing.T) {

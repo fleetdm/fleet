@@ -14,6 +14,10 @@ You can read more about the anatomy of these files and what they do in [Fleet's 
 
 2. Open your Terminal, run `fleetctl new`, and follow instructions in the output.
 
+## Use AI
+
+This repository includes a `CLAUDE.md` and a `fleet-gitops` skill so Claude Code can write policies, reports, and configuration profiles for you. See [Use Claude Code with Fleet](https://fleetdm.com/guides/use-claude-code-with-fleet) to sign up and get started, with or without GitOps. Codex and Copilot support is coming soon.
+
 ## Tips
 
 The action (GitHub) or pipeline (GitLab) runs will fail until you add `FLEET_URL` and `FLEET_API_TOKEN` as [secrets (GitHub)](#github) or [CI/CD variables (GitLab)](#gitlab).

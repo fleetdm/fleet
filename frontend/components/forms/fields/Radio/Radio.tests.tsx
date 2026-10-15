@@ -1,7 +1,8 @@
-import React from "react";
-import { noop } from "lodash";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { noop } from "lodash";
+import React from "react";
+
 import { renderWithSetup } from "test/test-utils";
 
 import Radio from "./Radio";

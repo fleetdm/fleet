@@ -185,6 +185,9 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
 		return []fleet.VPPAppResponse{}, nil
 	}
+	ds.GetDuplicateStringGroupsUnderCollationFunc = func(ctx context.Context, values []string) ([]fleet.DuplicateStringGroup, error) {
+		return nil, nil
+	}
 	ds.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
 		return nil, nil
 	}
@@ -631,6 +634,12 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
 		return nil
 	}
+	ds.SetABMTokenDefaultFunc = func(ctx context.Context, tokenID uint) error {
+		return nil
+	}
+	ds.ClearABMTokenDefaultFunc = func(ctx context.Context) error {
+		return nil
+	}
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 		return []*fleet.VPPTokenDB{}, nil
 	}
@@ -659,7 +668,7 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
 		return document, nil, nil
 	}
-	ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+	ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 		return nil, &notFoundError{} // No existing EULA
 	}
 	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {

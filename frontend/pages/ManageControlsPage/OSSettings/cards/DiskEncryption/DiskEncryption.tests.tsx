@@ -1,25 +1,27 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 import { delay, http, HttpResponse } from "msw";
+import React from "react";
 
-import PATHS from "router/paths";
+import createMockConfig, { createMockMdmConfig } from "__mocks__/configMock";
+import createMockTeam from "__mocks__/teamMock";
 import { IMdmConfig } from "interfaces/config";
+import { ILabelSummary } from "interfaces/label";
 import { DiskEncryptionSettingsPlatform } from "interfaces/platform";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-import { getPathWithQueryParams } from "utilities/url";
+import PATHS from "router/paths";
+import { createGetConfigHandler } from "test/handlers/config-handlers";
+import {
+  createGetDiskEncryptionSummaryHandler,
+  createUpdateDiskEncryptionHandler,
+} from "test/handlers/disk-encryption-handlers";
+import { getLabelsSummaryHandler } from "test/handlers/label-handlers";
 import mockServer from "test/mock-server";
 import {
   baseUrl,
   createCustomRenderer,
   createMockRouter,
 } from "test/test-utils";
-import createMockConfig, { createMockMdmConfig } from "__mocks__/configMock";
-import createMockTeam from "__mocks__/teamMock";
-import { createGetConfigHandler } from "test/handlers/config-handlers";
-import {
-  createGetDiskEncryptionSummaryHandler,
-  createUpdateDiskEncryptionHandler,
-} from "test/handlers/disk-encryption-handlers";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 import DiskEncryption from "./DiskEncryption";
 
@@ -122,13 +124,21 @@ const platformTabPath = (
   });
 
 const findEnforceCheckbox = () =>
-  screen.findByRole("checkbox", { name: "Enable disk encryption" });
+  screen.findByRole("checkbox", { name: /^Enable disk encryption/ });
 const findEscrowCheckbox = () =>
-  screen.findByRole("checkbox", { name: "Escrow recovery key with Fleet" });
+  screen.findByRole("checkbox", { name: "Escrow recovery key" });
 const findPINCheckbox = () =>
   screen.findByRole("checkbox", { name: "Require BitLocker PIN" });
 
 describe("DiskEncryption", () => {
+  // the status table always requests the labels summary; a default empty
+  // response keeps tests that don't care about it from hitting unhandled
+  // requests. Tests that do care re-register the handler, which takes
+  // precedence over this one.
+  beforeEach(() => {
+    mockServer.use(getLabelsSummaryHandler([]));
+  });
+
   it("renders the premium feature message for free tier", () => {
     renderDiskEncryption({ teamId: 0, isPremiumTier: false });
 
@@ -140,20 +150,27 @@ describe("DiskEncryption", () => {
     [
       "macos",
       "macOS",
-      ["Enable disk encryption", "Escrow recovery key with Fleet"],
+      ["Enable disk encryption (FileVault)", "Escrow recovery key"],
       ["Require BitLocker PIN"],
     ],
     [
       "windows",
       "Windows",
-      ["Enable disk encryption", "Require BitLocker PIN"],
-      ["Escrow recovery key with Fleet"],
+      [
+        "Enable disk encryption (BitLocker) and escrow recovery key",
+        "Require BitLocker PIN",
+      ],
+      ["Enable disk encryption (FileVault)", "Escrow recovery key"],
     ],
     [
       "linux",
       "Linux",
-      ["Escrow recovery key with Fleet"],
-      ["Enable disk encryption", "Require BitLocker PIN"],
+      ["Escrow recovery key"],
+      [
+        "Enable disk encryption (FileVault)",
+        "Enable disk encryption (BitLocker) and escrow recovery key",
+        "Require BitLocker PIN",
+      ],
     ],
   ] as const)(
     "selects the %s tab from the URL and renders its checkboxes",
@@ -465,6 +482,7 @@ describe("DiskEncryption", () => {
       renderDiskEncryption({
         urlPlatformParam: platform,
         mdm,
+        gitOpsModeEnabled: true,
       });
 
       expect(
@@ -521,5 +539,52 @@ describe("DiskEncryption", () => {
 
     renderDiskEncryption({ urlPlatformParam: "windows" });
     expect(await screen.findByText("Verified")).toBeInTheDocument();
+  });
+
+  const BUILTIN_PLATFORM_LABELS: ILabelSummary[] = [
+    { id: 6, name: "macOS", label_type: "builtin" },
+    { id: 10, name: "MS Windows", label_type: "builtin" },
+    { id: 12, name: "All Linux", label_type: "builtin" },
+  ];
+
+  it.each([
+    ["macos", 6, { macOSEnabled: true }],
+    ["windows", 10, { windowsEnabled: true }],
+    ["linux", 12, { linuxEscrowEnabled: true }],
+  ] as const)(
+    "links a status row on the %s tab to that platform's built-in label with the status filter",
+    async (platform, labelId, teamSettings) => {
+      mockServer.use(createGetTeamHandler(teamSettings));
+      mockServer.use(createGetDiskEncryptionSummaryHandler());
+      mockServer.use(getLabelsSummaryHandler(BUILTIN_PLATFORM_LABELS));
+      const { user, router } = renderDiskEncryption({
+        urlPlatformParam: platform,
+      });
+
+      await user.click(await screen.findByText("Verified"));
+
+      expect(router.push).toHaveBeenCalledWith(
+        getPathWithQueryParams(PATHS.MANAGE_HOSTS_LABEL(labelId), {
+          os_settings_disk_encryption: "verified",
+          fleet_id: 1,
+        })
+      );
+    }
+  );
+
+  it("links a status row to the unfiltered hosts page when the platform label is missing", async () => {
+    mockServer.use(createGetTeamHandler({ macOSEnabled: true }));
+    mockServer.use(createGetDiskEncryptionSummaryHandler());
+    mockServer.use(getLabelsSummaryHandler([]));
+    const { user, router } = renderDiskEncryption();
+
+    await user.click(await screen.findByText("Verified"));
+
+    expect(router.push).toHaveBeenCalledWith(
+      getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
+        os_settings_disk_encryption: "verified",
+        fleet_id: 1,
+      })
+    );
   });
 });

@@ -1,23 +1,23 @@
-import React, { useContext } from "react";
-import { InjectedRouter } from "react-router";
-import { Location } from "history";
-import { useQuery } from "react-query";
 import { AxiosError } from "axios";
+import { Location } from "history";
 import { omit } from "lodash";
+import React, { useContext } from "react";
+import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
 
+import DataError from "components/DataError";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import Spinner from "components/Spinner";
+import { AppContext } from "context/app";
 import softwareAPI, {
   ISoftwareFleetMaintainedAppsQueryParams,
   ISoftwareFleetMaintainedAppsResponse,
 } from "services/entities/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { AppContext } from "context/app";
 
-import Spinner from "components/Spinner";
-import DataError from "components/DataError";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import { ISoftwareAddPageQueryParams } from "../SoftwareAddPage";
 
 import FleetMaintainedAppsTable from "./FleetMaintainedAppsTable";
-import { ISoftwareAddPageQueryParams } from "../SoftwareAddPage";
 
 const baseClass = "software-fleet-maintained";
 

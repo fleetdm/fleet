@@ -114,6 +114,18 @@ func sweepAPNsPushes(ctx context.Context, ds fleet.Datastore, notifier apnsNotif
 					"enrollment_id", id, "reason", APNSReason(pushErr), "err", pushErr)
 			}
 		}
+		if ctx.Err() != nil {
+			// The run was cut short (the cron's run cap, or shutdown), so part
+			// of this page was never pushed — and those failures are folded
+			// into the per-enrollment rejections above. Leave the cursor
+			// unadvanced so the next tick retries the whole page: re-pushing
+			// the part that did go out is harmless, APNs coalesces stored
+			// pushes. Advancing here would skip the unpushed enrollments for
+			// the rest of the lap.
+			logger.WarnContext(ctx, "APNs sweep run cut short, page will be retried next tick",
+				"enrollments", len(eligible), "err", ctx.Err())
+			return nil
+		}
 	}
 
 	if pageFull {

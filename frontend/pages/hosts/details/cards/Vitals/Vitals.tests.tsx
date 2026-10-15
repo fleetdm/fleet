@@ -1,22 +1,22 @@
-import React from "react";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { pick } from "lodash";
-import { createCustomRenderer } from "test/test-utils";
-
-import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
+import React from "react";
 
 import createMockHost, { createMockHostGeolocation } from "__mocks__/hostMock";
-import { IHost } from "interfaces/host";
 import { createMockHostMdmData } from "__mocks__/mdmMock";
+import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
+import { IHostCustomVital } from "interfaces/custom_host_vitals";
+import { IHost } from "interfaces/host";
 import { MdmEnrollmentStatus } from "interfaces/mdm";
 import { HostPlatform } from "interfaces/platform";
-import { IHostCustomVital } from "interfaces/custom_host_vitals";
+import { createCustomRenderer } from "test/test-utils";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
   HOST_VITALS_DATA,
 } from "utilities/constants";
 import { normalizeEmptyValues } from "utilities/helpers";
+
 import Vitals from "./Vitals";
 
 jest.mock("hooks/useCheckTruncatedElement", () => ({
@@ -55,7 +55,7 @@ describe("Vitals Card component", () => {
       hardware_serial: "",
       uuid: "enrollment-id-12345",
       mdm: createMockHostMdmData({
-        enrollment_status: "On (manual - personal)",
+        enrollment_status: "On (personal)",
       }),
     });
 
@@ -142,7 +142,7 @@ describe("Vitals Card component", () => {
       hardware_serial: "",
       uuid: "enrollment-id-12345",
       mdm: createMockHostMdmData({
-        enrollment_status: "On (manual - personal)",
+        enrollment_status: "On (personal)",
       }),
     });
 
@@ -165,7 +165,7 @@ describe("Vitals Card component", () => {
       hardware_serial: "",
       uuid: "enrollment-id-12345",
       mdm: createMockHostMdmData({
-        enrollment_status: "On (manual - personal)",
+        enrollment_status: "On (personal)",
       }),
     });
 
@@ -611,17 +611,20 @@ describe("View all vitals button", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("does not render the button for a personal (BYOD) iOS host even when toggleVitalsModal is provided", () => {
-    renderVitalsCard({
-      platform: "ios",
-      withToggle: true,
-      enrollmentStatus: "On (manual - personal)",
-    });
+  it.each(["On (personal)", "On (manual - personal)"] as const)(
+    "does not render the button for a personal (BYOD) iOS host (%s) even when toggleVitalsModal is provided",
+    (enrollmentStatus) => {
+      renderVitalsCard({
+        platform: "ios",
+        withToggle: true,
+        enrollmentStatus,
+      });
 
-    expect(
-      screen.queryByRole("button", { name: "View all" })
-    ).not.toBeInTheDocument();
-  });
+      expect(
+        screen.queryByRole("button", { name: "View all" })
+      ).not.toBeInTheDocument();
+    }
+  );
 });
 
 describe("Card vitals cap", () => {
@@ -748,17 +751,20 @@ describe("Card vitals cap", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("does not cap a personal (BYOD) iOS host, since there's nothing extra behind 'View all'", () => {
-    const { container } = renderCard("ios", {
-      customHostVitals: makeCustomVitals(10),
-      enrollmentStatus: "On (manual - personal)",
-    });
+  it.each(["On (personal)", "On (manual - personal)"] as const)(
+    "does not cap a personal (BYOD) iOS host (%s), since there's nothing extra behind 'View all'",
+    (enrollmentStatus) => {
+      const { container } = renderCard("ios", {
+        customHostVitals: makeCustomVitals(10),
+        enrollmentStatus,
+      });
 
-    expect(getRenderedVitals(container).length).toBeGreaterThan(CAP);
-    expect(
-      screen.queryByRole("button", { name: "View all" })
-    ).not.toBeInTheDocument();
-  });
+      expect(getRenderedVitals(container).length).toBeGreaterThan(CAP);
+      expect(
+        screen.queryByRole("button", { name: "View all" })
+      ).not.toBeInTheDocument();
+    }
+  );
 
   it("leaves other platforms uncapped, rendering vitals outside the iOS subset", () => {
     const { container } = renderCard("darwin", {
@@ -781,7 +787,7 @@ describe("Card vitals cap", () => {
       hardware_serial: "",
       uuid: "enrollment-id-12345",
       mdm: createMockHostMdmData({
-        enrollment_status: "On (manual - personal)",
+        enrollment_status: "On (personal)",
       }),
     });
 
@@ -1199,14 +1205,14 @@ describe("Android vitals", () => {
   const ANDROID_VITAL_TITLES = [
     "Bootloader version",
     "Encryption status",
-    "Play Protect enabled",
+    "Play Protect",
     "Kernel version",
     "Manufacturer",
     "Passcode set",
     "Security posture",
     "Security update version",
     "Software update status",
-    "USB debugging enabled",
+    "USB debugging",
   ];
 
   /** Shown only for company-owned hosts. */
@@ -1285,9 +1291,9 @@ describe("Android vitals", () => {
     expect(getVitalValue(container, "Security update version")).toBe(
       "May 1, 2026"
     );
-    expect(getVitalValue(container, "USB debugging enabled")).toBe("True");
+    expect(getVitalValue(container, "USB debugging")).toBe("Enabled");
     expect(getVitalValue(container, "Passcode set")).toBe("True");
-    expect(getVitalValue(container, "Play Protect enabled")).toBe("True");
+    expect(getVitalValue(container, "Play Protect")).toBe("Enabled");
   });
 
   it("maps the AMAPI enum values to human-readable labels", () => {
@@ -1330,7 +1336,7 @@ describe("Android vitals", () => {
     expect(getVitalValue(container, "Security posture")).toBe("constructor");
   });
 
-  it("renders booleans as True/False, including a reported false", () => {
+  it("renders booleans, including a reported false", () => {
     const { container } = renderAndroidCard(
       createMockAndroidHost({
         adb_enabled: false,
@@ -1341,9 +1347,9 @@ describe("Android vitals", () => {
 
     // `false` must survive the trip through normalizeEmptyValues rather than
     // collapsing into the empty-cell value.
-    expect(getVitalValue(container, "USB debugging enabled")).toBe("False");
+    expect(getVitalValue(container, "USB debugging")).toBe("Disabled");
     expect(getVitalValue(container, "Passcode set")).toBe("False");
-    expect(getVitalValue(container, "Play Protect enabled")).toBe("True");
+    expect(getVitalValue(container, "Play Protect")).toBe("Enabled");
   });
 
   it("formats the security update version as a readable date", () => {
@@ -1434,7 +1440,7 @@ describe("Android vitals", () => {
       createMockAndroidHost({
         meid: "A00000292788E1",
         mdm: createMockHostMdmData({
-          enrollment_status: "On (manual - personal)",
+          enrollment_status: "On (personal)",
         }),
       })
     );

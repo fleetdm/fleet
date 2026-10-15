@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.5.0",
+      "version": "4.6.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Creative Force Triad %' AND publisher = 'Creative Force';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Creative Force Triad %' AND publisher = 'Creative Force' AND version_compare(version, '4.5.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Creative Force Triad %' AND publisher = 'Creative Force' AND version_compare(version, '4.6.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'creative force triad.exe');"
       },
-      "installer_url": "https://download.creativeforce.io/released-files.042024/prod/triad/win/Triad-4.5.0-win.exe",
+      "installer_url": "https://download.creativeforce.io/released-files.042024/prod/triad/win/Triad-4.6.0-win-x64.exe",
       "install_script_ref": "8568dd32",
       "uninstall_script_ref": "ab58ffcc",
-      "sha256": "24d35a2a9181475b9dc0a3560bee2fb7174600b3e46fc76a5b54b67866ea6c1f",
+      "sha256": "bf8099a9a06e7895e12b519b30954d8939731e3464d4ff101edb001750f67bf7",
       "default_categories": [
         "Productivity"
       ]

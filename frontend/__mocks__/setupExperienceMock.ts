@@ -4,6 +4,7 @@ import {
   IGetSetupExperienceScriptResponse,
   IGetSetupExperienceSoftwareResponse,
 } from "services/entities/mdm";
+
 import { createMockSoftwareTitle } from "./softwareMock";
 
 const DEFAULT_SETUP_EXPIERENCE_SCRIPT: IGetSetupExperienceScriptResponse = {

@@ -114,20 +114,28 @@ const (
 	CapabilityWindowsMDMSync Capability = "windows_mdm_sync"
 	// CapabilityWindowsManagedLocalAccount is set when fleetd can create and hide the Windows managed local admin account and escrow its password.
 	CapabilityWindowsManagedLocalAccount Capability = "windows_managed_local_account"
+	// CapabilityWindowsBitLockerPIN is set when fleetd can apply an end-user-chosen BitLocker startup PIN to the volume
+	// on their behalf. The server only offers the PIN form, and only asks the agent for a PIN, when the host's most
+	// recent Windows MDM enrollment has reported this; hosts on older fleetd keep the legacy Manage BitLocker instructions.
+	CapabilityWindowsBitLockerPIN Capability = "windows_bitlocker_pin"
+	// CapabilityWindowsDiskEncryptionErrorKeepsKey denotes that the server records a Windows disk encryption client error without
+	// discarding the key it already holds. This prevents newer agents from sending a destructive operation to an old server.
+	CapabilityWindowsDiskEncryptionErrorKeepsKey Capability = "windows_disk_encryption_error_keeps_key"
 )
 
 func GetServerOrbitCapabilities() CapabilityMap {
 	return CapabilityMap{
-		CapabilityOrbitEndpoints:            {},
-		CapabilityTokenRotation:             {},
-		CapabilityEndUserEmail:              {},
-		CapabilityEscrowBuddy:               {},
-		CapabilityLinuxDiskEncryptionEscrow: {},
-		CapabilityLUKSRecoveryKeyEscrow:     {},
-		CapabilityLinuxEscrowStatus:         {},
-		CapabilitySetupExperience:           {},
-		CapabilityWebSetupExperience:        {},
-		CapabilityMacOSWebSetupExperience:   {},
+		CapabilityOrbitEndpoints:                     {},
+		CapabilityTokenRotation:                      {},
+		CapabilityEndUserEmail:                       {},
+		CapabilityEscrowBuddy:                        {},
+		CapabilityLinuxDiskEncryptionEscrow:          {},
+		CapabilityLUKSRecoveryKeyEscrow:              {},
+		CapabilityLinuxEscrowStatus:                  {},
+		CapabilitySetupExperience:                    {},
+		CapabilityWebSetupExperience:                 {},
+		CapabilityMacOSWebSetupExperience:            {},
+		CapabilityWindowsDiskEncryptionErrorKeepsKey: {},
 	}
 }
 
@@ -140,18 +148,23 @@ func GetServerDeviceCapabilities() CapabilityMap {
 }
 
 func GetOrbitClientCapabilities() CapabilityMap {
+	return orbitClientCapabilitiesForOS(runtime.GOOS)
+}
+
+func orbitClientCapabilitiesForOS(goos string) CapabilityMap {
 	capabilities := CapabilityMap{
 		CapabilityEscrowBuddy:     {},
 		CapabilitySetupExperience: {},
 	}
 	// On non-macOS systems, include end user auth capability.
-	if runtime.GOOS != "darwin" {
+	if goos != "darwin" {
 		capabilities[CapabilityEndUserAuth] = struct{}{}
 	}
 	// Windows fleetd can start an on-demand OMA-DM session (windowsMDMSyncConfigReceiver) when the server signals queued MDM commands.
-	if runtime.GOOS == "windows" {
+	if goos == "windows" {
 		capabilities[CapabilityWindowsMDMSync] = struct{}{}
 		capabilities[CapabilityWindowsManagedLocalAccount] = struct{}{}
+		capabilities[CapabilityWindowsBitLockerPIN] = struct{}{}
 	}
 	return capabilities
 }

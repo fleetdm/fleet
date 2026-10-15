@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -509,20 +510,26 @@ func TestListRequestShape(t *testing.T) {
 func TestErrorBodyIsBoundedBeforeReading(t *testing.T) {
 	t.Parallel()
 	const huge = 5 << 20 // 5MB
-	var served atomic.Int64
 	gs := newGraphServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadGateway)
 		chunk := bytes.Repeat([]byte("x"), 64<<10)
 		for written := 0; written < huge; written += len(chunk) {
-			n, err := w.Write(chunk)
-			served.Add(int64(n))
-			if err != nil {
+			if _, err := w.Write(chunk); err != nil {
 				return
 			}
 		}
 	})
 
-	_, err := gs.client(t).ListWindowsAutopilotDevices(t.Context())
+	c := gs.client(t)
+	cc, ok := c.(*client)
+	require.True(t, ok)
+	counter := &graphBodyCounter{base: cc.baseClient.Transport}
+	if counter.base == nil {
+		counter.base = http.DefaultTransport
+	}
+	cc.baseClient.Transport = counter
+
+	_, err := c.ListWindowsAutopilotDevices(t.Context())
 	require.Error(t, err)
 
 	graphErr, ok := errors.AsType[*Error](err)
@@ -532,7 +539,35 @@ func TestErrorBodyIsBoundedBeforeReading(t *testing.T) {
 	assert.Contains(t, graphErr.Message, "truncated")
 
 	// The retained message is bounded either way, because truncateBody trims it after the fact. What distinguishes a
-	// bounded read is that the client stops pulling, so the server never gets to write the whole body.
-	assert.Less(t, served.Load(), int64(huge),
+	// bounded read is how much the client pulls. Counting the server's writes instead is flaky: socket buffers can
+	// absorb the whole body before the client closes the connection.
+	assert.LessOrEqual(t, counter.read.Load(), int64(maxErrorBodyBytes+1),
 		"the client must stop reading rather than allocate the entire error body")
+}
+
+// graphBodyCounter counts the Graph response body bytes a client reads. Token responses are excluded so the count
+// covers only the call under test.
+type graphBodyCounter struct {
+	base http.RoundTripper
+	read atomic.Int64
+}
+
+func (g *graphBodyCounter) RoundTrip(req *http.Request) (*http.Response, error) {
+	resp, err := g.base.RoundTrip(req)
+	if err != nil || strings.HasSuffix(req.URL.Path, "/oauth2/v2.0/token") {
+		return resp, err
+	}
+	resp.Body = &countingReadCloser{ReadCloser: resp.Body, read: &g.read}
+	return resp, nil
+}
+
+type countingReadCloser struct {
+	io.ReadCloser
+	read *atomic.Int64
+}
+
+func (c *countingReadCloser) Read(p []byte) (int, error) {
+	n, err := c.ReadCloser.Read(p)
+	c.read.Add(int64(n))
+	return n, err
 }

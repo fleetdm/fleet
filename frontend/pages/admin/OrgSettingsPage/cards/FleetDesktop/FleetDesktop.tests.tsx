@@ -1,14 +1,13 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { renderWithSetup, createMockRouter } from "test/test-utils";
-
-import { IConfig, IEndUserAuthentication } from "interfaces/config";
+import React from "react";
 
 import createMockConfig, { createMockMdmConfig } from "__mocks__/configMock";
-
-import FleetDesktop from "./FleetDesktop";
+import { IConfig, IEndUserAuthentication } from "interfaces/config";
+import { renderWithSetup, createMockRouter } from "test/test-utils";
 
 import { DEFAULT_TRANSPARENCY_URL } from "../constants";
+
+import FleetDesktop from "./FleetDesktop";
 
 const mdmWithIdP = (idp?: Partial<IEndUserAuthentication>) =>
   createMockMdmConfig({

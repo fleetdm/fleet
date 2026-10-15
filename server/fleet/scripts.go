@@ -259,6 +259,8 @@ type HostScriptResult struct {
 	ExecutionID string `json:"execution_id" db:"execution_id"`
 	// BatchExecutionID is an identifier that links this execution to a larger batch job
 	BatchExecutionID *string `json:"batch_execution_id" db:"batch_execution_id"`
+	// ScriptContentID is the identifier of the script contents to execute.
+	ScriptContentID uint `json:"-" db:"script_content_id"`
 	// ScriptContents is the content of the script to execute.
 	ScriptContents string `json:"script_contents" db:"script_contents"`
 	// Output is the combined stdout/stderr output of the script. It is empty
@@ -292,6 +294,10 @@ type HostScriptResult struct {
 	// the request was synchronous or asynchronous. It is otherwise not returned
 	// as part of any API endpoint.
 	SyncRequest bool `json:"-" db:"sync_request"`
+
+	// IsInternal is true for scripts Fleet queued for itself rather than for a
+	// user-requested run. Not returned as part of any API endpoint.
+	IsInternal bool `json:"-" db:"is_internal"`
 
 	// TeamID is only used for authorization, it must be set to the team id of
 	// the host when checking authorization and is otherwise not set.

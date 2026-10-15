@@ -1,10 +1,8 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
-
-import { renderWithSetup } from "test/test-utils";
+import React from "react";
 
 import FleetDetails from "components/forms/RegistrationForm/FleetDetails";
-
+import { renderWithSetup } from "test/test-utils";
 import INVALID_SERVER_URL_MESSAGE from "utilities/error_messages";
 
 describe("FleetDetails - form", () => {

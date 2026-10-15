@@ -1,11 +1,10 @@
 import React, { useState } from "react";
 
-import { IHostEndUser } from "interfaces/host";
-
-import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
+import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import { IHostEndUser } from "interfaces/host";
 
 import { generateUsernameValues } from "../../helpers";
 

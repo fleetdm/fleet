@@ -1,13 +1,13 @@
-import React from "react";
 import { screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
+import React from "react";
 
+import mockServer from "test/mock-server";
 import {
   baseUrl,
   createCustomRenderer,
   createMockRouter,
 } from "test/test-utils";
-import mockServer from "test/mock-server";
 
 import ConfigurationProfiles from "./ConfigurationProfiles";
 
@@ -131,5 +131,69 @@ describe("ConfigurationProfiles Profiles-tab header", () => {
     expect(
       screen.queryByRole("button", { name: /Add profile$/i })
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("ConfigurationProfiles add and edit", () => {
+  const profile = {
+    profile_uuid: "w-123",
+    team_id: 2,
+    name: "Firewall",
+    platform: "windows",
+    identifier: null,
+    created_at: "2024-01-01T00:00:00Z",
+    updated_at: "2024-01-01T00:00:00Z",
+    checksum: null,
+  };
+
+  const renderList = () => {
+    const router = createMockRouter();
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPremiumTier: true,
+          isGlobalAdmin: true,
+          config: mdmEnabledConfig,
+        },
+      },
+    });
+    const results = render(
+      <ConfigurationProfiles {...baseProps} currentTeamId={2} router={router} />
+    );
+    return { ...results, router };
+  };
+
+  it("opens the add page for the current fleet", async () => {
+    mockServer.use(emptyProfilesHandler);
+    const { user, router } = renderList();
+
+    await user.click(
+      await screen.findByRole("button", { name: /Add profile$/i })
+    );
+
+    expect(router.push).toHaveBeenCalledTimes(1);
+    expect(router.push).toHaveBeenCalledWith(
+      "/controls/os-settings/configuration-profiles/new?fleet_id=2"
+    );
+  });
+
+  it("opens a profile's edit page for the current fleet", async () => {
+    mockServer.use(
+      http.get(baseUrl("/mdm/profiles"), () =>
+        HttpResponse.json({
+          profiles: [profile],
+          meta: { has_next_results: false, has_previous_results: false },
+        })
+      )
+    );
+    const { user, router } = renderList();
+
+    await user.click(await screen.findByLabelText("Edit Firewall"));
+
+    expect(router.push).toHaveBeenCalledTimes(1);
+    expect(router.push).toHaveBeenCalledWith(
+      "/controls/os-settings/configuration-profiles/w-123?fleet_id=2"
+    );
   });
 });

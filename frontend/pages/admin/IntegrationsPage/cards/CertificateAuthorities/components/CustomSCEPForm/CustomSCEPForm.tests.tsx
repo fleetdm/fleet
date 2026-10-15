@@ -1,6 +1,7 @@
-import React from "react";
-import { noop } from "lodash";
 import { render, screen } from "@testing-library/react";
+import { noop } from "lodash";
+import React from "react";
+
 import { renderWithSetup } from "test/test-utils";
 
 import CustomSCEPForm, { ICustomSCEPFormData } from "./CustomSCEPForm";

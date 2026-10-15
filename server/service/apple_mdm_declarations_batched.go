@@ -12,10 +12,26 @@ import (
 	"github.com/google/uuid"
 )
 
-// reconcileAppleDeclarationsBatchSize bounds how many hosts the batched
-// DDM reconciliation cron processes per tick. Kept independent of the
-// profile batch size so the two passes can be tuned separately.
-var reconcileAppleDeclarationsBatchSize = 5000
+// reconcileAppleDeclarationsBatchSize is the scan window: how many enrolled Apple hosts the DDM reconciler reads per snapshot.
+// Kept independent of the profile batch size so the two passes can be tuned separately.
+//
+// var rather than const so tests can override it.
+var reconcileAppleDeclarationsBatchSize = 2000
+
+// reconcileAppleDeclarationsDeliveryCap bounds how many distinct hosts the DDM cron schedules work for per tick, smoothing
+// writer pressure during bulk events the same way the profile reconciler's cap does. Set <= 0 to disable.
+//
+// var rather than const so tests can override it.
+var reconcileAppleDeclarationsDeliveryCap = 2000
+
+// reconcileAppleDeclarationsScanBudget is the wall-clock budget for a single tick's drain loop, so a no-work pass over the
+// whole fleet finishes inside one tick instead of taking ceil(hosts/batch) ticks.
+//
+// Smaller than the profile reconciler's budget because both run in the same 30s schedule, along with device names — see
+// newAppleMDMProfileManagerSchedule.
+//
+// var rather than const so tests can override it.
+var reconcileAppleDeclarationsScanBudget = 8 * time.Second
 
 // ReconcileAppleDeclarationsBatched is the cursor-based DDM equivalent of
 // ReconcileAppleProfilesBatched. It pulls one bounded host window per
@@ -43,85 +59,40 @@ func ReconcileAppleDeclarationsBatched(
 		return nil
 	}
 
-	cursor, err := ds.GetMDMAppleDeclarationReconcileCursor(ctx)
-	if err != nil {
-		logger.WarnContext(ctx, "failed to read apple MDM declaration reconcile cursor; starting from beginning", "err", err)
-		cursor = ""
+	// Read the cursor; on error, treat as start-of-pass and continue. A stale or missing cursor is harmless because the
+	// in-memory diff writes only what actually differs from the current state.
+	entryCursor, cerr := ds.GetMDMAppleDeclarationReconcileCursor(ctx)
+	if cerr != nil {
+		logger.WarnContext(ctx, "failed to read apple MDM declaration reconcile cursor; starting from beginning", "err", cerr)
+		entryCursor = ""
 	}
 
-	hosts, allDecls, hostLabels, currentByHost, pageFull, err := ds.GetAppleDeclarationReconcileSnapshot(ctx, cursor, reconcileAppleDeclarationsBatchSize)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "loading apple declaration reconcile snapshot")
-	}
-	logger.DebugContext(ctx, "ddm batched reconcile: loaded snapshot",
-		"cursor", cursor, "hosts_in_batch", len(hosts), "declaration_count", len(allDecls))
-
-	if len(hosts) == 0 {
-		if cursor != "" {
-			logger.DebugContext(ctx, "apple MDM declaration reconcile pass complete; resetting cursor", "cursor", cursor)
-			if cerr := ds.SetMDMAppleDeclarationReconcileCursor(ctx, ""); cerr != nil {
-				logger.WarnContext(ctx, "failed to reset apple MDM declaration reconcile cursor", "err", cerr)
-			}
-		}
-		return nil
-	}
-
-	// Advance the cursor whenever the underlying host page was full — not when
-	// len(hosts) hits the batch size. Duplicate-UUID host rows are collapsed
-	// after the SQL LIMIT, so a full page can dedupe to fewer than batchSize
-	// hosts; treating that as the end of the host universe wraps the cursor
-	// early and permanently starves every host later in the UUID ordering.
-	var nextCursor string
-	if pageFull {
-		nextCursor = hosts[len(hosts)-1].UUID
-	}
+	cursor := entryCursor
+	// commitCursor is the cursor value to persist at tick end. It advances only past windows that were fully delivered; the
+	// deferred write fires only when err == nil, so an error leaves the cursor untouched and the next tick re-scans from the
+	// same point. Re-scanning is cheap and idempotent since delivered work is now pending.
+	commitCursor := entryCursor
 
 	defer func() {
 		switch {
 		case err != nil:
 			logger.WarnContext(ctx, "ddm batched reconcile: tick errored; cursor not advanced",
-				"cursor", cursor, "next_cursor", nextCursor, "err", err)
-		case cursor != nextCursor:
-			if cerr := ds.SetMDMAppleDeclarationReconcileCursor(ctx, nextCursor); cerr != nil {
-				logger.WarnContext(ctx, "failed to advance apple MDM declaration reconcile cursor", "err", cerr)
+				"cursor", entryCursor, "err", err)
+		case commitCursor != entryCursor:
+			if serr := ds.SetMDMAppleDeclarationReconcileCursor(ctx, commitCursor); serr != nil {
+				logger.WarnContext(ctx, "failed to advance apple MDM declaration reconcile cursor", "err", serr)
 			} else {
 				logger.DebugContext(ctx, "ddm batched reconcile: cursor advanced",
-					"cursor", cursor, "next_cursor", nextCursor)
+					"cursor", entryCursor, "next_cursor", commitCursor)
 			}
 		default:
-			logger.DebugContext(ctx, "ddm batched reconcile: tick complete, cursor unchanged",
-				"cursor", cursor)
+			logger.DebugContext(ctx, "ddm batched reconcile: tick complete, cursor unchanged", "cursor", entryCursor)
 		}
 	}()
 
-	declsWithBrokenLabel := make(map[string]struct{})
-	declsByTeam := make(map[uint][]*fleet.AppleDeclarationForReconcile, 4)
-	for _, d := range allDecls {
-		declsByTeam[d.TeamID] = append(declsByTeam[d.TeamID], d)
-
-		if d.HasBrokenLabel() {
-			declsWithBrokenLabel[d.DeclarationUUID] = struct{}{}
-		}
-	}
-
-	changedDeviceHostUUIDs, changedUserHostUUIDs, declRowsToWrite := apple_mdm.ComputeDeclarationDeltas(
-		hosts, hostLabels, currentByHost, declsByTeam, declsWithBrokenLabel,
-	)
-
-	logger.DebugContext(ctx, "ddm batched reconcile: computed deltas",
-		"changed_device_hosts", len(changedDeviceHostUUIDs),
-		"changed_user_hosts", len(changedUserHostUUIDs),
-		"host_decl_rows_to_write", len(declRowsToWrite))
-
-	// NOTE: we intentionally do NOT early-return when there are no declaration
-	// deltas. Hosts that requested a resync (MDMAppleHostDeclarationsGetAndClearResync
-	// below) must still be poked even when nothing changed this tick — that's the
-	// whole point of the resync flag, and leaving it unhandled would strand the
-	// flag set forever. All the steps below no-op cheaply on empty inputs.
-
 	// Memoized resolver: the user-channel enrollment ID for a host, or "" if the
-	// host has no user channel yet. Shared between the delta and resync passes so
-	// each host is looked up at most once.
+	// host has no user channel yet. Tick-scoped (not per window) so the resync pass
+	// below reuses the lookups the drain loop already paid for.
 	userEnrollmentByHost := make(map[string]string)
 	getUserEnrollmentID := func(hostUUID string) (string, error) {
 		if id, ok := userEnrollmentByHost[hostUUID]; ok {
@@ -139,74 +110,180 @@ func ReconcileAppleDeclarationsBatched(
 		return id, nil
 	}
 
-	// Decide user-channel delivery for hosts with user-scoped changes: deliver
-	// now if the user channel exists, hold within the grace window, or fail with
-	// a user-facing detail (iOS/iPadOS have no user channel; macOS past the grace
-	// window with no user channel is a hard failure). This mutates the pending
-	// user-scoped install rows in declRowsToWrite before they are written, and
-	// returns any user-scoped removes that can't be delivered (no user channel)
-	// so they can be deleted rather than left pending forever.
-	userEnrollmentIDsToSend, failedUserDecls, userRemovesToDelete, err := resolveUserChannelDeliveries(
-		ctx, logger, hosts, changedUserHostUUIDs, declRowsToWrite, getUserEnrollmentID,
-	)
-	if err != nil {
-		return err
-	}
+	// Accumulated across every window drained this tick, so a bulk change sends one DeclarativeManagement command per channel
+	// per tick rather than one per window.
+	var deviceSendAccum, userSendAccum []string
 
-	// Undeliverable user-scoped removes are deleted, not written as pending.
-	writeRows := declRowsToWrite
-	if len(userRemovesToDelete) > 0 {
-		skip := make(map[*fleet.MDMAppleHostDeclaration]struct{}, len(userRemovesToDelete))
-		for _, r := range userRemovesToDelete {
-			skip[r] = struct{}{}
+	deadline := time.Now().Add(reconcileAppleDeclarationsScanBudget)
+	deliveredHosts := 0
+
+	for drain := true; drain; {
+		hosts, allDecls, hostLabels, currentByHost, pageFull, serr := ds.GetAppleDeclarationReconcileSnapshot(ctx, cursor, reconcileAppleDeclarationsBatchSize)
+		if serr != nil {
+			err = ctxerr.Wrap(ctx, serr, "loading apple declaration reconcile snapshot")
+			return err
 		}
-		writeRows = make([]*fleet.MDMAppleHostDeclaration, 0, len(declRowsToWrite))
-		for _, r := range declRowsToWrite {
-			if _, ok := skip[r]; !ok {
-				writeRows = append(writeRows, r)
+		logger.DebugContext(ctx, "ddm batched reconcile: loaded snapshot",
+			"cursor", cursor, "hosts_in_batch", len(hosts), "declaration_count", len(allDecls))
+
+		if len(hosts) == 0 {
+			// Reached the end of the host space (or empty fleet): reset the cursor so the next pass restarts from the beginning.
+			commitCursor = ""
+			break
+		}
+
+		declsWithBrokenLabel := make(map[string]struct{})
+		declsByTeam := make(map[uint][]*fleet.AppleDeclarationForReconcile, 4)
+		for _, d := range allDecls {
+			declsByTeam[d.TeamID] = append(declsByTeam[d.TeamID], d)
+
+			if d.HasBrokenLabel() {
+				declsWithBrokenLabel[d.DeclarationUUID] = struct{}{}
 			}
 		}
-	}
 
-	if err := ds.BulkUpsertMDMAppleHostDeclarations(ctx, writeRows); err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk upsert host mdm apple declarations")
-	}
+		changedDeviceHostUUIDs, changedUserHostUUIDs, declRowsToWrite := apple_mdm.ComputeDeclarationDeltas(
+			hosts, hostLabels, currentByHost, declsByTeam, declsWithBrokenLabel,
+		)
 
-	if err := ds.BulkDeleteMDMAppleHostDeclarations(ctx, userRemovesToDelete); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting undeliverable user-scoped declaration removals")
-	}
+		logger.DebugContext(ctx, "ddm batched reconcile: computed deltas",
+			"changed_device_hosts", len(changedDeviceHostUUIDs),
+			"changed_user_hosts", len(changedUserHostUUIDs),
+			"host_decl_rows_to_write", len(declRowsToWrite))
 
-	// The bulk upsert writes status but not detail, so persist the user-facing
-	// detail for user-scoped declarations we failed above.
-	for _, f := range failedUserDecls {
-		if err := ds.SetHostMDMAppleDeclarationStatus(ctx, f.hostUUID, f.declarationUUID, &fleet.MDMDeliveryFailed, f.detail, nil); err != nil {
-			return ctxerr.Wrap(ctx, err, "setting failed user-scoped declaration detail")
+		// NOTE: unlike the old single-window version, an empty-delta window may fall through cheaply here. The resync flag is
+		// serviced once per tick after the loop, so it can no longer be stranded by an early exit from one window.
+
+		// Apply the per-tick delivery cap at host granularity, before any user-channel resolution, so we don't pay for work we
+		// would only discard. Hosts come back ascending by uuid, so capping keeps a contiguous prefix of the work-hosts and the
+		// cursor can resume at the last delivered host.
+		workHosts := declarationHostsWithWork(hosts, changedDeviceHostUUIDs, changedUserHostUUIDs)
+		// Advance past the whole window by default; pageFull (not len(hosts)) decides end-of-space, because duplicate-UUID host
+		// rows are collapsed after the SQL LIMIT and a full page can dedupe to fewer than batchSize hosts.
+		advanceTo := hosts[len(hosts)-1].UUID
+
+		partial := false
+		if reconcileAppleDeclarationsDeliveryCap > 0 {
+			// Invariant: deliveredHosts < cap here. We stop below as soon as it reaches the cap. So remaining >= 1.
+			remaining := reconcileAppleDeclarationsDeliveryCap - deliveredHosts
+			if len(workHosts) > remaining {
+				allowed := make(map[string]struct{}, remaining)
+				for _, h := range workHosts[:remaining] {
+					allowed[h] = struct{}{}
+				}
+				changedDeviceHostUUIDs = filterStringsBySet(changedDeviceHostUUIDs, allowed)
+				changedUserHostUUIDs = filterStringsBySet(changedUserHostUUIDs, allowed)
+				declRowsToWrite = filterDeclarationRowsByHost(declRowsToWrite, allowed)
+				advanceTo = workHosts[remaining-1] // resume after the last delivered host
+				workHosts = workHosts[:remaining]
+				partial = true
+			}
 		}
+
+		// Decide user-channel delivery for hosts with user-scoped changes: deliver
+		// now if the user channel exists, hold within the grace window, or fail with
+		// a user-facing detail (iOS/iPadOS have no user channel; macOS past the grace
+		// window with no user channel is a hard failure). This mutates the pending
+		// user-scoped install rows in declRowsToWrite before they are written, and
+		// returns any user-scoped removes that can't be delivered (no user channel)
+		// so they can be deleted rather than left pending forever.
+		userEnrollmentIDsToSend, failedUserDecls, userRemovesToDelete, uerr := resolveUserChannelDeliveries(
+			ctx, logger, hosts, changedUserHostUUIDs, declRowsToWrite, getUserEnrollmentID,
+		)
+		if uerr != nil {
+			err = uerr
+			return err
+		}
+
+		// Undeliverable user-scoped removes are deleted, not written as pending.
+		writeRows := declRowsToWrite
+		if len(userRemovesToDelete) > 0 {
+			skip := make(map[*fleet.MDMAppleHostDeclaration]struct{}, len(userRemovesToDelete))
+			for _, r := range userRemovesToDelete {
+				skip[r] = struct{}{}
+			}
+			writeRows = make([]*fleet.MDMAppleHostDeclaration, 0, len(declRowsToWrite))
+			for _, r := range declRowsToWrite {
+				if _, ok := skip[r]; !ok {
+					writeRows = append(writeRows, r)
+				}
+			}
+		}
+
+		if werr := ds.BulkUpsertMDMAppleHostDeclarations(ctx, writeRows); werr != nil {
+			err = ctxerr.Wrap(ctx, werr, "bulk upsert host mdm apple declarations")
+			return err
+		}
+
+		if derr := ds.BulkDeleteMDMAppleHostDeclarations(ctx, userRemovesToDelete); derr != nil {
+			err = ctxerr.Wrap(ctx, derr, "deleting undeliverable user-scoped declaration removals")
+			return err
+		}
+
+		// The bulk upsert writes status but not detail, so persist the user-facing
+		// detail for user-scoped declarations we failed above.
+		for _, f := range failedUserDecls {
+			if serr := ds.SetHostMDMAppleDeclarationStatus(ctx, f.hostUUID, f.declarationUUID, &fleet.MDMDeliveryFailed, f.detail, nil); serr != nil {
+				err = ctxerr.Wrap(ctx, serr, "setting failed user-scoped declaration detail")
+				return err
+			}
+		}
+
+		deviceSendAccum = append(deviceSendAccum, changedDeviceHostUUIDs...)
+		userSendAccum = append(userSendAccum, userEnrollmentIDsToSend...)
+		deliveredHosts += len(workHosts)
+
+		// Advance only after the window's writes succeeded.
+		commitCursor = advanceTo
+		cursor = advanceTo
+
+		switch {
+		case partial:
+			// Delivery cap hit mid-window; the un-delivered remainder resumes next tick from cursor = advanceTo.
+			drain = false
+		case !pageFull:
+			// Short page => end of the host space; reset for the next pass.
+			commitCursor = ""
+			drain = false
+		case reconcileAppleDeclarationsDeliveryCap > 0 && deliveredHosts >= reconcileAppleDeclarationsDeliveryCap:
+			// Delivery cap reached exactly at a window boundary.
+			drain = false
+		case time.Now().After(deadline):
+			// Scan budget exhausted; resume next tick from cursor = advanceTo.
+			drain = false
+		}
+		// Otherwise keep draining the next window within this tick.
 	}
 
 	// Find any hosts that requested a resync, partitioned by channel. This is
 	// used to cover special cases where we're not 100% certain of the
 	// declarations on the device.
-	deviceResyncHosts, userResyncHosts, err := ds.MDMAppleHostDeclarationsGetAndClearResync(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting and clearing resync hosts")
+	//
+	// Deliberately outside the drain loop: this is a fleet-wide, destructive read-and-clear, not scoped to the current host
+	// window. Inside the loop the first window would claim and clear the flags for the whole fleet and every later window
+	// would re-query for nothing.
+	deviceResyncHosts, userResyncHosts, rerr := ds.MDMAppleHostDeclarationsGetAndClearResync(ctx)
+	if rerr != nil {
+		err = ctxerr.Wrap(ctx, rerr, "getting and clearing resync hosts")
+		return err
 	}
 
 	// Device channel: the enrollment ID is the host UUID.
-	deviceSend := dedupeStrings(append(changedDeviceHostUUIDs, deviceResyncHosts...))
+	deviceSend := dedupeStrings(append(deviceSendAccum, deviceResyncHosts...))
 
 	// User channel: resync hosts also need their user enrollment resolved (and
 	// are skipped if the channel doesn't exist).
 	for _, hostUUID := range userResyncHosts {
-		userEnrollmentID, err := getUserEnrollmentID(hostUUID)
-		if err != nil {
+		userEnrollmentID, uerr := getUserEnrollmentID(hostUUID)
+		if uerr != nil {
+			err = uerr
 			return err
 		}
 		if userEnrollmentID != "" {
-			userEnrollmentIDsToSend = append(userEnrollmentIDsToSend, userEnrollmentID)
+			userSendAccum = append(userSendAccum, userEnrollmentID)
 		}
 	}
-	userSend := dedupeStrings(userEnrollmentIDsToSend)
+	userSend := dedupeStrings(userSendAccum)
 
 	// TODO: Consider a similar approach to profiles where if failed to send the command for the host, reset the status so we resend it again.
 	// now it will just end up in a state where it never retries to send the DeclarativeManagement command.
@@ -226,6 +303,49 @@ func ReconcileAppleDeclarationsBatched(
 	}
 
 	return nil
+}
+
+// declarationHostsWithWork returns the host UUIDs that have at least one device- or user-channel declaration change in this
+// window, in the order hosts are given (ascending by uuid). The drain loop uses this both to count delivered hosts against the
+// cap and to pick the contiguous prefix to deliver when the cap is reached mid-window.
+func declarationHostsWithWork(hosts []*fleet.AppleHostReconcileInfo, changedDeviceHostUUIDs, changedUserHostUUIDs []string) []string {
+	work := make(map[string]struct{}, len(changedDeviceHostUUIDs)+len(changedUserHostUUIDs))
+	for _, u := range changedDeviceHostUUIDs {
+		work[u] = struct{}{}
+	}
+	for _, u := range changedUserHostUUIDs {
+		work[u] = struct{}{}
+	}
+	ordered := make([]string, 0, len(work))
+	for _, h := range hosts {
+		if _, ok := work[h.UUID]; ok {
+			ordered = append(ordered, h.UUID)
+		}
+	}
+	return ordered
+}
+
+// filterStringsBySet returns only the entries present in allowed, preserving order.
+func filterStringsBySet(in []string, allowed map[string]struct{}) []string {
+	out := make([]string, 0, len(in))
+	for _, s := range in {
+		if _, ok := allowed[s]; ok {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// filterDeclarationRowsByHost returns only the rows whose HostUUID is in the allowed set, preserving order. Filtering by host
+// (rather than by row) keeps every row for a delivered host together, so a host is never written half-reconciled.
+func filterDeclarationRowsByHost(rows []*fleet.MDMAppleHostDeclaration, allowed map[string]struct{}) []*fleet.MDMAppleHostDeclaration {
+	out := make([]*fleet.MDMAppleHostDeclaration, 0, len(rows))
+	for _, r := range rows {
+		if _, ok := allowed[r.HostUUID]; ok {
+			out = append(out, r)
+		}
+	}
+	return out
 }
 
 // failedUserDeclaration records a user-scoped declaration that couldn't be

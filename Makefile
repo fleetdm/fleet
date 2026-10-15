@@ -495,15 +495,9 @@ mock: .prefix
 	go generate github.com/fleetdm/fleet/v4/server/mock github.com/fleetdm/fleet/v4/server/mock/mockresult github.com/fleetdm/fleet/v4/server/service/mock github.com/fleetdm/fleet/v4/server/mdm/android/mock
 generate-mock: mock
 
-.help-short--fleet-mcp-generate:
-	@echo "Run go generate for the fleet-mcp module"
-generate-fleet-mcp: .prefix
-	cd cmd/fleet-mcp && go generate ./...
-
-
 .help-short--doc:
 	@echo "Generate updated API documentation for activities, osquery flags"
-doc: .prefix generate-fleet-mcp
+doc: .prefix
 	go generate github.com/fleetdm/fleet/v4/server/fleet
 	go generate github.com/fleetdm/fleet/v4/server/service/osquery_utils
 
@@ -823,11 +817,13 @@ else
 endif
 
 # Download the osqueryd Linux executable from a pull request in osquery/osquery
-# and extract it into out-path.
+# and extract it into out-path. It is extracted from the deb (default) or rpm
+# package artifact. Supported on macOS and Linux (rpm requires bsdtar, or
+# rpm2cpio and cpio).
 #
 # Usage:
 # make osqueryd-linux pr=8844 arch=amd64 out-path=.
-# make osqueryd-linux pr=8844 arch=arm64 out-path=.
+# make osqueryd-linux pr=8844 arch=arm64 pkg=rpm out-path=.
 osqueryd-linux:
 ifndef pr
 	@echo "Error: pr argument is required (e.g. make osqueryd-linux pr=8844 arch=amd64 out-path=.)"
@@ -837,10 +833,15 @@ ifndef out-path
 	@echo "Error: out-path argument is required (e.g. make osqueryd-linux pr=8844 arch=amd64 out-path=.)"
 	@exit 1
 endif
+	$(eval PKG := $(or $(pkg),deb))
+ifeq ($(filter $(or $(pkg),deb),deb rpm),)
+	@echo "Error: pkg must be 'deb' or 'rpm' (got '$(pkg)')"
+	@exit 1
+endif
 ifeq ($(arch),amd64)
-	$(eval ARTIFACT_NAME := linux_unsigned_release_tgz)
+	$(eval ARTIFACT_NAME := linux_unsigned_release_$(PKG))
 else ifeq ($(arch),arm64)
-	$(eval ARTIFACT_NAME := linux_unsigned_release_tgz_aarch64)
+	$(eval ARTIFACT_NAME := linux_unsigned_release_$(PKG)_aarch64)
 else
 	@echo "Error: arch must be 'amd64' or 'arm64' (got '$(arch)')"
 	@exit 1
@@ -869,17 +870,25 @@ endif
 			rm -rf $(TMP_DIR); \
 			exit 1; \
 		fi
-	@INNER_TGZ=$$(find $(TMP_DIR)/artifact -name '*.tar.gz' -o -name '*.tgz' | head -1) && \
-		if [ -z "$$INNER_TGZ" ]; then \
-			echo "Error: no tarball found inside downloaded artifact"; \
+	@PKG_FILE=$$(find $(TMP_DIR)/artifact -name '*.$(PKG)' | head -1) && \
+		if [ -z "$$PKG_FILE" ]; then \
+			echo "Error: no .$(PKG) package found inside downloaded artifact"; \
 			rm -rf $(TMP_DIR); \
 			exit 1; \
 		fi && \
 		mkdir -p $(TMP_DIR)/extracted && \
-		tar xf "$$INNER_TGZ" -C $(TMP_DIR)/extracted
-	@OSQUERYD=$$(find $(TMP_DIR)/extracted -type f -name 'osqueryd' | head -1) && \
-		if [ -z "$$OSQUERYD" ]; then \
-			echo "Error: osqueryd not found in extracted artifact. Contents:"; \
+		if [ "$(PKG)" = "deb" ]; then \
+			mkdir -p $(TMP_DIR)/deb && \
+			(cd $(TMP_DIR)/deb && ar x "$$PKG_FILE") && \
+			tar xf $(TMP_DIR)/deb/data.tar.* -C $(TMP_DIR)/extracted; \
+		elif command -v bsdtar >/dev/null 2>&1; then \
+			bsdtar xf "$$PKG_FILE" -C $(TMP_DIR)/extracted; \
+		else \
+			(cd $(TMP_DIR)/extracted && rpm2cpio "$$PKG_FILE" | cpio -idm --quiet); \
+		fi || { rm -rf $(TMP_DIR); exit 1; }
+	@OSQUERYD=$(TMP_DIR)/extracted/opt/osquery/bin/osqueryd && \
+		if [ ! -f "$$OSQUERYD" ]; then \
+			echo "Error: opt/osquery/bin/osqueryd not found in extracted package. Contents:"; \
 			find $(TMP_DIR)/extracted -type f; \
 			rm -rf $(TMP_DIR); \
 			exit 1; \
@@ -887,6 +896,68 @@ endif
 		cp "$$OSQUERYD" "$(out-path)/osqueryd" && \
 		chmod +x "$(out-path)/osqueryd" && \
 		echo "Extracted osqueryd to $(out-path)/osqueryd"
+	rm -rf $(TMP_DIR)
+
+# Download the osqueryd.exe Windows executable from a pull request in
+# osquery/osquery and extract it into out-path. It is extracted from the
+# unsigned release package data artifact. Supported on macOS and Linux
+# (requires unzip).
+#
+# Usage:
+# make osqueryd-windows pr=8844 out-path=.
+# make osqueryd-windows-arm64 pr=8844 out-path=.
+osqueryd-windows: ARTIFACT_NAME := windows64_unsigned_release_package_data
+osqueryd-windows-arm64: ARTIFACT_NAME := windowsarm64_unsigned_release_package_data
+osqueryd-windows osqueryd-windows-arm64:
+ifndef pr
+	@echo "Error: pr argument is required (e.g. make $@ pr=8844 out-path=.)"
+	@exit 1
+endif
+ifndef out-path
+	@echo "Error: out-path argument is required (e.g. make $@ pr=8844 out-path=.)"
+	@exit 1
+endif
+	$(eval TMP_DIR := $(shell mktemp -d))
+	@echo "Fetching $(ARTIFACT_NAME) artifact from osquery/osquery PR $(pr)..."
+	@PR_SHA=$$(gh pr view -R osquery/osquery $(pr) --json headRefOid -q .headRefOid) && \
+		echo "PR head SHA: $$PR_SHA" && \
+		RUN_IDS=$$(gh api "repos/osquery/osquery/actions/runs?head_sha=$$PR_SHA" \
+			-q '[.workflow_runs[] | .id] | .[]') && \
+		if [ -z "$$RUN_IDS" ]; then \
+			echo "Error: no workflow runs found for PR $(pr)"; \
+			rm -rf $(TMP_DIR); \
+			exit 1; \
+		fi && \
+		DOWNLOADED=false && \
+		for run_id in $$RUN_IDS; do \
+			if gh run download -R osquery/osquery $$run_id -n $(ARTIFACT_NAME) -D $(TMP_DIR)/artifact 2>/dev/null; then \
+				DOWNLOADED=true; \
+				echo "Downloaded artifact from run $$run_id"; \
+				break; \
+			fi; \
+		done && \
+		if [ "$$DOWNLOADED" != "true" ]; then \
+			echo "Error: $(ARTIFACT_NAME) artifact not found in any workflow run for PR $(pr)"; \
+			rm -rf $(TMP_DIR); \
+			exit 1; \
+		fi
+	@ZIP_FILE=$$(find $(TMP_DIR)/artifact -name '*.zip' | head -1) && \
+		if [ -z "$$ZIP_FILE" ]; then \
+			echo "Error: no .zip found inside downloaded artifact"; \
+			rm -rf $(TMP_DIR); \
+			exit 1; \
+		fi && \
+		mkdir -p $(TMP_DIR)/extracted && \
+		unzip -q "$$ZIP_FILE" -d $(TMP_DIR)/extracted || { rm -rf $(TMP_DIR); exit 1; }
+	@OSQUERYD="$(TMP_DIR)/extracted/package_data/Program Files/osquery/osqueryd/osqueryd.exe" && \
+		if [ ! -f "$$OSQUERYD" ]; then \
+			echo "Error: package_data/Program Files/osquery/osqueryd/osqueryd.exe not found in extracted artifact. Contents:"; \
+			find $(TMP_DIR)/extracted -type f; \
+			rm -rf $(TMP_DIR); \
+			exit 1; \
+		fi && \
+		cp "$$OSQUERYD" "$(out-path)/osqueryd.exe" && \
+		echo "Extracted osqueryd.exe to $(out-path)/osqueryd.exe"
 	rm -rf $(TMP_DIR)
 
 # Generate nudge.app.tar.gz bundle from nudge repo.
@@ -989,18 +1060,16 @@ desktop-windows-arm64:
 
 # Build desktop executable for Linux.
 #
+# CGO is disabled so the result is a fully static binary with no glibc
+# dependency, runnable on older distros (e.g. Ubuntu 20.04) regardless of the
+# host used to build it.
+#
 # Usage:
 # FLEET_DESKTOP_VERSION=0.0.1 make desktop-linux
 #
 # Output: desktop.tar.gz
 desktop-linux:
-	docker build -f Dockerfile-desktop-linux -t desktop-linux-builder .
-	docker run --rm -v $(shell pwd):/output desktop-linux-builder /bin/bash -c "\
-		mkdir -p /output/fleet-desktop && \
-		CGO_ENABLED=1 CC=musl-gcc go build -o /output/fleet-desktop/fleet-desktop -ldflags \"-s -w -linkmode external -extldflags \\\"-static\\\" -X=main.version=$(FLEET_DESKTOP_VERSION)\" /usr/src/fleet/orbit/cmd/desktop && \
-		cd /output && \
-		tar czf desktop.tar.gz fleet-desktop && \
-		rm -r fleet-desktop"
+	$(call build-desktop-linux,amd64)
 
 # Build desktop executable for Linux ARM.
 #
@@ -1009,13 +1078,14 @@ desktop-linux:
 #
 # Output: desktop.tar.gz
 desktop-linux-arm64:
-	docker build -f Dockerfile-desktop-linux -t desktop-linux-builder .
-	docker run --rm -v $(shell pwd):/output desktop-linux-builder /bin/bash -c "\
-		mkdir -p /output/fleet-desktop && \
-		GOARCH=arm64 go build -o /output/fleet-desktop/fleet-desktop -ldflags \"-s -w -X=main.version=$(FLEET_DESKTOP_VERSION)\" /usr/src/fleet/orbit/cmd/desktop && \
-		cd /output && \
-		tar czf desktop.tar.gz fleet-desktop && \
-		rm -r fleet-desktop"
+	$(call build-desktop-linux,arm64)
+
+define build-desktop-linux
+	rm -rf fleet-desktop && mkdir -p fleet-desktop
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(1) go build -trimpath -o fleet-desktop/fleet-desktop -ldflags "-s -w -X=main.version=$(FLEET_DESKTOP_VERSION)" ./orbit/cmd/desktop
+	tar czf desktop.tar.gz fleet-desktop
+	rm -r fleet-desktop
+endef
 
 # Build orbit executable for Windows.
 # This generates orbit executable for Windows that includes versioninfo binary properties
@@ -1079,7 +1149,7 @@ vex-report:
 	sh -c 'go run ./tools/vex-parser ./security/vex/wix >> security/status.md'
 
 # make update-go version=1.24.4
-UPDATE_GO_DOCKERFILES := ./Dockerfile-desktop-linux ./infrastructure/loadtesting/terraform/docker/loadtest.Dockerfile ./infrastructure/loadtesting/terraform/docker/apple-apns-mock.Dockerfile ./infrastructure/loadtesting/terraform/docker/android-amapi-mock.Dockerfile ./tools/mdm/migration/mdmproxy/Dockerfile
+UPDATE_GO_DOCKERFILES := ./infrastructure/loadtesting/terraform/docker/loadtest.Dockerfile ./infrastructure/loadtesting/terraform/docker/apple-apns-mock.Dockerfile ./infrastructure/loadtesting/terraform/docker/android-amapi-mock.Dockerfile ./tools/mdm/migration/mdmproxy/Dockerfile
 UPDATE_GO_MODS := \
 	go.mod \
 	./tools/mdm/windows/bitlocker/go.mod \

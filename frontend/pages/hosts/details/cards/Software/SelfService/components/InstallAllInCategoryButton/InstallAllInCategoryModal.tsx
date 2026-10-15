@@ -1,7 +1,7 @@
 import React from "react";
 
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
 
 const baseClass = "install-all-in-category-modal";
 

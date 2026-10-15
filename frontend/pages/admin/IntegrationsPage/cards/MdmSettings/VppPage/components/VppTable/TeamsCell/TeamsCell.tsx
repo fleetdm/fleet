@@ -1,10 +1,9 @@
 import React from "react";
 
-import { ITokenTeam } from "interfaces/mdm";
-import { getTeamDisplayName } from "interfaces/team";
-
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
+import { ITokenTeam } from "interfaces/mdm";
+import { getTeamDisplayName } from "interfaces/team";
 
 const baseClass = "teams-cell";
 

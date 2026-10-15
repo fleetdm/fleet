@@ -1,21 +1,20 @@
 import React from "react";
 
-import { IAddCertAuthorityFormData } from "services/entities/certificates";
+import CustomLink from "components/CustomLink";
 import { ICertificateAuthorityType } from "interfaces/certificates";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { getErrorReason } from "interfaces/errors";
+import { IAddCertAuthorityFormData } from "services/entities/certificates";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
-import CustomLink from "components/CustomLink";
-
-import { IDigicertFormData } from "../DigicertForm/DigicertForm";
 import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
-import { INDESFormData } from "../NDESForm/NDESForm";
-import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
-import { IHydrantFormData } from "../HydrantForm/HydrantForm";
-import { ISmallstepFormData } from "../SmallstepForm/SmallstepForm";
 import { ICustomESTFormData } from "../CustomESTForm/CustomESTForm";
+import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
+import { IDigicertFormData } from "../DigicertForm/DigicertForm";
 import CA_LABEL_BY_TYPE from "../helpers";
+import { IHydrantFormData } from "../HydrantForm/HydrantForm";
+import { INDESFormData } from "../NDESForm/NDESForm";
+import { ISmallstepFormData } from "../SmallstepForm/SmallstepForm";
 
 // keep these alphabetized
 const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
@@ -215,6 +214,8 @@ const INVALID_CHALLENGE_ERROR =
   "Invalid challenge. Please correct and try again.";
 const INVALID_CHALLENGE_URL_OR_CREDENTIALS_ERROR =
   "Invalid challenge URL or credentials. Please correct and try again.";
+const CA_NOT_FOUND_ERROR =
+  "Fleet couldn't find the CA at the specified URL. Please correct and try again.";
 
 /**
  * Matches the server's URL errors, which name the CA type inside the message (e.g. "Invalid
@@ -257,6 +258,8 @@ export const getDisplayErrMessage = (err: unknown): string | JSX.Element => {
     message = INVALID_CHALLENGE_URL_OR_CREDENTIALS_ERROR;
   } else if (reason.includes("invalid challenge")) {
     message = INVALID_CHALLENGE_ERROR;
+  } else if (reason.includes("couldn't find the ca at the specified url")) {
+    message = CA_NOT_FOUND_ERROR;
   } else if (invalidUrlMatch) {
     message = `${invalidUrlMatch[0]} Please correct and try again.`;
   } else if (

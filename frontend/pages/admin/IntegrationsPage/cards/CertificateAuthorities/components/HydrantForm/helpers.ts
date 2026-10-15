@@ -1,6 +1,5 @@
-import { ICertificateAuthorityPartial } from "interfaces/certificates";
-
 import valid_url from "components/forms/validators/valid_url";
+import { ICertificateAuthorityPartial } from "interfaces/certificates";
 
 import { IHydrantFormData } from "./HydrantForm";
 

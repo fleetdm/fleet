@@ -1,8 +1,8 @@
-import React from "react";
 import { screen } from "@testing-library/react";
+import React from "react";
 
-import { createCustomRenderer } from "test/test-utils";
 import { createMockSelfServiceCategory } from "test/handlers/self-service-categories-handlers";
+import { createCustomRenderer } from "test/test-utils";
 
 import SelfServiceFilters from "./SelfServiceFilters";
 

@@ -47,7 +47,18 @@ func GenerateTestAttestationCA() (*x509.Certificate, *ecdsa.PrivateKey, error) {
 	return cert, key, nil
 }
 
+// BuildAttestationLeafCert builds an attestation leaf for a freshly generated device key.
 func BuildAttestationLeafCert(ca *x509.Certificate, caKey *ecdsa.PrivateKey, serial, token string) (*x509.Certificate, error) {
+	key, err := GenerateTestKey()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate key for attestation leaf cert: %w", err)
+	}
+	return BuildAttestationLeafCertForKey(ca, caKey, &key.PublicKey, serial, token)
+}
+
+// BuildAttestationLeafCertForKey builds an attestation leaf vouching for the given device key, which
+// the device must then use for its CSR.
+func BuildAttestationLeafCertForKey(ca *x509.Certificate, caKey *ecdsa.PrivateKey, deviceKey *ecdsa.PublicKey, serial, token string) (*x509.Certificate, error) {
 	template := &x509.Certificate{
 		Subject:               pkix.Name{CommonName: "Test Attestation Leaf"},
 		KeyUsage:              x509.KeyUsageDigitalSignature,
@@ -70,11 +81,7 @@ func BuildAttestationLeafCert(ca *x509.Certificate, caKey *ecdsa.PrivateKey, ser
 		},
 	}
 
-	key, err := GenerateTestKey()
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate key for attestation leaf cert: %w", err)
-	}
-	certDER, err := x509.CreateCertificate(rand.Reader, template, ca, key.Public(), caKey)
+	certDER, err := x509.CreateCertificate(rand.Reader, template, ca, deviceKey, caKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create attestation leaf certificate: %w", err)
 	}
@@ -127,6 +134,15 @@ func GenerateCSRDER(commonName string, organizationalUnits ...string) (string, *
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to generate key for CSR: %w", err)
 	}
+	encoded, err := GenerateCSRDERWithKey(key, commonName, organizationalUnits...)
+	if err != nil {
+		return "", nil, err
+	}
+	return encoded, key, nil
+}
+
+// GenerateCSRDERWithKey is like GenerateCSRDER but signs the CSR with the given key.
+func GenerateCSRDERWithKey(key *ecdsa.PrivateKey, commonName string, organizationalUnits ...string) (string, error) {
 	template := &x509.CertificateRequest{
 		Subject: pkix.Name{
 			CommonName:         commonName,
@@ -135,10 +151,9 @@ func GenerateCSRDER(commonName string, organizationalUnits ...string) (string, *
 	}
 	csrDER, err := x509.CreateCertificateRequest(rand.Reader, template, key)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to create CSR: %w", err)
+		return "", fmt.Errorf("failed to create CSR: %w", err)
 	}
 
 	// base64 URL encode the DER csr as per the RFC 7.4 spec
-	encoded := base64.RawURLEncoding.EncodeToString(csrDER)
-	return encoded, key, nil
+	return base64.RawURLEncoding.EncodeToString(csrDER), nil
 }

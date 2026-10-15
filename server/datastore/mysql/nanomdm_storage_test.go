@@ -447,7 +447,7 @@ func testEnqueueDeviceLockCommandRaceCondition(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Enable MDM for the host
-	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://test.local", false, "test-ref", "", false)
+	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://test.local", false, "test-ref", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	// Create nano_devices record first

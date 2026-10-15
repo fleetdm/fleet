@@ -1,18 +1,18 @@
 import React, { useMemo, useState } from "react";
 
-import { IInputFieldParseTarget } from "interfaces/form_field";
-import { HistoricalDataConfigKey } from "interfaces/charts";
-
-import validUrl from "components/forms/validators/valid_url";
 import Button from "components/buttons/Button";
 import ConfirmDataCollectionDisableModal from "components/ConfirmDataCollectionDisableModal";
+import validUrl from "components/forms/validators/valid_url";
+import { HistoricalDataConfigKey } from "interfaces/charts";
 import { IConfig } from "interfaces/config";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 import { isPremiumTier } from "utilities/permissions/permissions";
 
 import { IAppConfigFormProps } from "../constants";
-import HostLifecycleSection from "./components/HostLifecycleSection";
+
 import ActivityDataRetentionSection from "./components/ActivityDataRetentionSection";
 import FeaturesSection from "./components/FeaturesSection";
+import HostLifecycleSection from "./components/HostLifecycleSection";
 import ServerAuthenticationSection from "./components/ServerAuthenticationSection";
 
 interface IAdvancedConfigFormData {

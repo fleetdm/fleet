@@ -13,22 +13,31 @@ agent_options:
       logger_tls_period: 10
       pack_delimiter: /
 controls:
+  android_enabled_and_configured: true
   android_settings:
     configuration_profiles:
-    - path: ./lib/profiles/global-android-profile.json
+    - name: Global Android Profile
+      path: ./lib/profiles/global-android-profile.json
   apple_settings:
     configuration_profiles:
     - labels_include_all:
       - Label A
       - Label B
+      name: Global MacOS MobileConfig Profile
       path: ./lib/profiles/global-macos-mobileconfig-profile.mobileconfig
+      self_service: true
     - labels_exclude_any:
       - Label C
+      name: Global MacOS JSON Profile
       path: ./lib/profiles/global-macos-json-profile.json
+  windows_enabled_and_configured: true
   windows_settings:
     configuration_profiles:
-    - labels_include_any:
+    - description: Blocks inbound connections
+      hidden: true
+      labels_include_any:
       - Label D
+      name: Global Windows Profile
       path: ./lib/profiles/global-windows-profile.xml
 custom_host_vitals:
 - name: Asset tag
@@ -118,6 +127,9 @@ org_settings:
     host_expiry_enabled: false
     host_expiry_window: 59995
   integrations:
+    certificates_disable_host_end_user_binding:
+    certificates_idp_client_ids:
+    certificates_idp_introspection_urls:
     conditional_access_enabled: true
     google_calendar:
     - api_key_json: # TODO: Add your Google Calendar API key JSON here
@@ -197,6 +209,7 @@ policies:
   continuous_automations_enabled: false
   critical: false
   description: This is a global policy
+  hidden: false
   install_software:
     hash_sha256: # TODO: Add your hash_sha256 here
   name: Global Policy
@@ -210,6 +223,7 @@ policies:
   continuous_automations_enabled: false
   critical: false
   description: This is a global policy with include_all scope
+  hidden: false
   name: Global Policy Include All
   platform: darwin
   query: SELECT * FROM global_policy WHERE id = 2

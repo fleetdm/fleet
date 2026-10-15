@@ -135,6 +135,12 @@ func (w *COMWorker) AddTPMProtector(targetVolume string) error {
 	return w.exec(func() (any, error) { return nil, addTPMProtectorOnCOMThread(targetVolume) }).err
 }
 
+// SetTPMAndPINProtector applies an end user's startup PIN to a protected, fully encrypted volume and removes its TPM-only
+// protectors. A failure is a *PINError whose Reason can be shown to the end user.
+func (w *COMWorker) SetTPMAndPINProtector(targetVolume, pin string) error {
+	return w.exec(func() (any, error) { return nil, setTPMAndPINProtectorOnCOMThread(targetVolume, pin) }).err
+}
+
 // ResumeConversion restarts a paused conversion. It resumes a paused decryption as readily as a paused encryption, so
 // callers must establish which one is paused first.
 func (w *COMWorker) ResumeConversion(targetVolume string) error {

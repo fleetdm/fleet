@@ -35,6 +35,7 @@ func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		Resolution:       req.Resolution,
 		Platform:         req.Platform,
 		Critical:         req.Critical,
+		Hidden:           req.Hidden,
 		LabelsIncludeAny: req.LabelsIncludeAny,
 		LabelsIncludeAll: req.LabelsIncludeAll,
 		LabelsExcludeAny: req.LabelsExcludeAny,
@@ -173,15 +174,15 @@ func deleteGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc 
 // DeleteGlobalPolicies deletes the given policies from the database.
 // It also deletes the given ids from the failing policies webhook configuration.
 func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
 	if len(ids) == 0 {
 		return nil, nil
 	}
 	policiesByID, err := svc.ds.PoliciesByID(ctx, ids)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting policies by ID")
-	}
-	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
-		return nil, err
 	}
 	for _, policy := range policiesByID {
 		if policy.PolicyData.TeamID != nil {
@@ -254,11 +255,12 @@ func (svc Service) removeGlobalPoliciesFromWebhookConfig(ctx context.Context, id
 /////////////////////////////////////////////////////////////////////////////////
 
 const (
-	errPolicyAllFleetsForConditionalAccess          = "\"All fleets\" policy cannot have conditional_access_enabled set"
-	errPolicyAllFleetsForContinuousAutomations      = "\"All fleets\" policy cannot have continuous_automations_enabled set"
-	errPolicyAllFleetsForProfiles                   = "\"All fleets\" policy cannot have profile_uuid set"
-	errPolicyAllFleetsForScripts                    = "\"All fleets\" policy cannot have script_id set"
-	errPatchWhenClosedRequiresContinuousAutomations = "If \"patch_when_closed\" is true, \"continuous_automations_enabled\" can't be set to false."
+	errPolicyAllFleetsForConditionalAccess               = "\"All fleets\" policy cannot have conditional_access_enabled set"
+	errPolicyAllFleetsForContinuousAutomations           = "\"All fleets\" policy cannot have continuous_automations_enabled set"
+	errPolicyAllFleetsForProfiles                        = "\"All fleets\" policy cannot have profile_uuid set"
+	errPolicyAllFleetsForScripts                         = "\"All fleets\" policy cannot have script_id set"
+	errPatchWhenClosedRequiresContinuousAutomations      = "If \"patch_when_closed\" is true, \"continuous_automations_enabled\" can't be set to false."
+	errNotifyBeforePatchingRequiresContinuousAutomations = "If \"notify_before_patching\" is true, \"continuous_automations_enabled\" can't be set to false."
 )
 
 func modifyGlobalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
@@ -516,6 +518,15 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 
 		// PatchWhenClosed is premium-only.
 		if policy.PatchWhenClosed && !license.IsPremium(ctx) {
+			return fleet.ErrMissingLicense
+		}
+
+		if policy.Hidden && !license.IsPremium(ctx) {
+			return fleet.ErrMissingLicense
+		}
+
+		// NotifyBeforePatching is premium-only.
+		if policy.NotifyBeforePatching && !license.IsPremium(ctx) {
 			return fleet.ErrMissingLicense
 		}
 

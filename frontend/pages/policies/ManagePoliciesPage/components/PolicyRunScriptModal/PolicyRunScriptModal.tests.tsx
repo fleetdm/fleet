@@ -1,5 +1,7 @@
 import { IScript } from "interfaces/script";
+
 import { IFormPolicy } from "../PoliciesPaginatedList/PoliciesPaginatedList";
+
 import { getTrulyDirtyItems } from "./PolicyRunScriptModal";
 
 describe("getTrulyDirtyItems", () => {

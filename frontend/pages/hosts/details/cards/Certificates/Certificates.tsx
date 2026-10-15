@@ -1,16 +1,14 @@
-import React from "react";
 import classnames from "classnames";
-
-import { IGetHostCertificatesResponse } from "services/entities/hosts";
-
-import { IHostCertificate } from "interfaces/certificates";
-import { IListSort } from "interfaces/list_options";
-import { HostPlatform } from "interfaces/platform";
+import React from "react";
 
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
 import DataError from "components/DataError";
 import DeviceUserError from "components/DeviceUserError";
+import { IHostCertificate } from "interfaces/certificates";
+import { IListSort } from "interfaces/list_options";
+import { HostPlatform } from "interfaces/platform";
+import { IGetHostCertificatesResponse } from "services/entities/hosts";
 
 import CertificatesTable from "./CertificatesTable";
 
@@ -85,11 +83,7 @@ const CertificatesCard = ({
   const classNames = classnames(baseClass, className);
 
   return (
-    <Card
-      className={classNames}
-      borderRadiusSize="xxlarge"
-      paddingSize="xlarge"
-    >
+    <Card className={classNames} paddingSize="xlarge">
       <CardHeader header="Certificates" />
       {renderContent()}
     </Card>

@@ -1,10 +1,10 @@
+import classnames from "classnames";
 import React, { useState, useEffect } from "react";
 import { browserHistory } from "react-router";
 
-import Card from "components/Card";
-import Button from "components/buttons/Button";
 import AutomationsButton from "components/buttons/AutomationsButton";
-import classnames from "classnames";
+import Button from "components/buttons/Button";
+import Card from "components/Card";
 
 interface IInfoCardProps {
   title: string;
@@ -128,7 +128,7 @@ const useInfoCard = ({
   const classNames = classnames(baseClass, className);
 
   return (
-    <Card className={classNames} paddingSize="xlarge" borderRadiusSize="large">
+    <Card className={classNames} paddingSize="xlarge">
       {showTitle && (
         <div>
           <div className={`${baseClass}__section-title-cta`}>

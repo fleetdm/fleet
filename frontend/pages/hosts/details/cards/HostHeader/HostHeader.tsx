@@ -1,17 +1,17 @@
-import React, { useRef } from "react";
 import classnames from "classnames";
-
-import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
+import React, { useRef } from "react";
 
 import Button from "components/buttons/Button";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 import TooltipWrapper from "components/TooltipWrapper";
+import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 import { MdmEnrollmentStatus } from "interfaces/mdm";
+import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { humanLastSeen, internationalTimeFormat } from "utilities/helpers";
 
 import { HostMdmDeviceStatusUIState } from "../../helpers";
+
 import {
   ANDROID_NO_REFETCH_TOOLTIP_MESSAGE,
   DEVICE_STATUS_TAGS,

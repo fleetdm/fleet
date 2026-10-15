@@ -1,24 +1,21 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import { useQuery, useQueryClient } from "react-query";
 
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { getFileDetails, IFileDetails } from "utilities/file/fileUtils";
-import softwareAPI from "services/entities/software";
-import labelsAPI, { getCustomLabels } from "services/entities/labels";
-
+import FileProgressModal from "components/FileProgressModal";
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
 import useBlockNavigation from "hooks/useBlockNavigation";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { ILabelSummary } from "interfaces/label";
-
-import { notify } from "components/ToastNotification";
-import Modal from "components/Modal";
-import FileProgressModal from "components/FileProgressModal";
-import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
-
 import PackageForm from "pages/SoftwarePage/components/forms/PackageForm";
 import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
-
+import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 import { getErrorMessage } from "pages/SoftwarePage/SoftwareAddPage/SoftwareCustomPackage/helpers";
+import labelsAPI, { getCustomLabels } from "services/entities/labels";
+import softwareAPI from "services/entities/software";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getFileDetails, IFileDetails } from "utilities/file/fileUtils";
 
 import { getFileTypeRestriction } from "./helpers";
 
@@ -55,6 +52,7 @@ const AddPackageModal = ({
   const { gitOpsModeEnabled } = useGitOpsMode("software");
   const restriction = getFileTypeRestriction(existingPackageName);
 
+  const { config } = useContext(AppContext);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadDetails, setUploadDetails] = useState<IFileDetails | null>(null);
   const [
@@ -94,6 +92,7 @@ const AddPackageModal = ({
         data: formData,
         teamId,
         softwareTitleId,
+        directUpload: config?.staged_upload_available,
         onUploadProgress: (progressEvent) => {
           const progress = progressEvent.progress || 0;
           // Keep the progress bar at 97% until the server finalizes its

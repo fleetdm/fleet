@@ -1,5 +1,5 @@
-import createMockUser from "__mocks__/userMock";
 import createMockConfig, { createMockMdmConfig } from "__mocks__/configMock";
+import createMockUser from "__mocks__/userMock";
 import { IEndUserAuthentication } from "interfaces/config";
 
 import permissions from ".";

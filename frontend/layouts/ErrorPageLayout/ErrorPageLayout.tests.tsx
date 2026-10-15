@@ -1,9 +1,9 @@
-import React from "react";
 import { screen } from "@testing-library/react";
+import React from "react";
 
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
-import createMockUser from "__mocks__/userMock";
 import createMockConfig from "__mocks__/configMock";
+import createMockUser from "__mocks__/userMock";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import ErrorPageLayout from "./ErrorPageLayout";
 

@@ -436,17 +436,22 @@ func testDeleteUsedCustomHostVital(t *testing.T, ds *Datastore) {
 
 	t.Run("android app configurations", func(t *testing.T) {
 		const appID = "org.mozilla.firefox"
+		var appTeamID int64
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			if _, err := q.ExecContext(ctx,
 				`INSERT INTO vpp_apps (adam_id, platform, name) VALUES (?, 'android', 'Firefox')`, appID); err != nil {
 				return err
 			}
-			_, err := q.ExecContext(ctx,
-				`INSERT INTO vpp_apps_teams (adam_id, platform, team_id, global_or_team_id) VALUES (?, 'android', ?, ?)`,
+			res, err := q.ExecContext(ctx,
+				`INSERT INTO vpp_apps_teams (adam_id, platform, team_id, global_or_team_id, name) VALUES (?, 'android', ?, ?, 'Default version')`,
 				appID, foobarTeam.ID, foobarTeam.ID)
+			if err != nil {
+				return err
+			}
+			appTeamID, err = res.LastInsertId()
 			return err
 		})
-		require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), foobarTeam.ID, appID,
+		require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), uint(appTeamID), //nolint:gosec // dismiss G115
 			[]byte(fmt.Sprintf(`{"managedConfiguration":{"assetTag":"%s"}}`, token))))
 
 		_, err = ds.DeleteCustomHostVital(ctx, id)
@@ -675,6 +680,10 @@ func testSetHostCustomHostVitalValueResendsProfiles(t *testing.T, ds *Datastore)
 	forceSetAndroidHostProfileStatus(t, ds, androidHost.UUID, profAVital, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 	forceSetAndroidHostProfileStatus(t, ds, androidHost.UUID, profANone, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
 
+	// Reconcile OS status rollup to a known baseline before the resend.
+	require.NoError(t, ds.ReconcileWindowsProfilesStatus(ctx))
+	require.Equal(t, string(fleet.MDMDeliveryVerifying), readWindowsProfilesStatusRollup(t, ds)[winHost.UUID])
+
 	// DDM declaration referencing the vital, delivered (verifying) to the mac host.
 	bracedToken := fmt.Sprintf("${%s%d}", fleet.CustomHostVitalPrefix, vitalID)
 	declVital, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
@@ -700,6 +709,9 @@ func testSetHostCustomHostVitalValueResendsProfiles(t *testing.T, ds *Datastore)
 	assertHostProfileStatus(t, ds, winHost.UUID,
 		hostProfileStatus{profWVital.ProfileUUID, fleet.MDMDeliveryPending},
 		hostProfileStatus{profWNone.ProfileUUID, fleet.MDMDeliveryVerifying})
+
+	// Resetting the Windows profile moved the host into the pending bucket, so the rollup has to follow on the same transaction.
+	require.Equal(t, string(fleet.MDMDeliveryPending), readWindowsProfilesStatusRollup(t, ds)[winHost.UUID])
 	assertHostProfileStatus(t, ds, androidHost.UUID,
 		hostProfileStatus{profAVital.ProfileUUID, fleet.MDMDeliveryPending},
 		hostProfileStatus{profANone.ProfileUUID, fleet.MDMDeliveryVerifying})
@@ -772,7 +784,7 @@ func testSetHostCustomHostVitalValueResendsAndroidAppConfigs(t *testing.T, ds *D
 				return err
 			}
 			res, err := q.ExecContext(ctx,
-				`INSERT INTO vpp_apps_teams (adam_id, platform, team_id, global_or_team_id) VALUES (?, 'android', ?, ?)`,
+				`INSERT INTO vpp_apps_teams (adam_id, platform, team_id, global_or_team_id, name) VALUES (?, 'android', ?, ?, 'Default version')`,
 				appID, ptr.UintOrNilIfZero(teamID), teamID)
 			if err != nil {
 				return err
@@ -794,12 +806,12 @@ func testSetHostCustomHostVitalValueResendsAndroidAppConfigs(t *testing.T, ds *D
 	configWith := func(tok string) []byte {
 		return []byte(fmt.Sprintf(`{"managedConfiguration":{"assetTag":"%s"}}`, tok))
 	}
-	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), 0, vitalAppID, configWith(token)))
-	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), 0, otherAppID, configWith(otherToken)))
-	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), otherTeam.ID, otherTeamAppID, configWith(token)))
-	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), 0, lookalikeAppID, configWith(lookalikeToken)))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), appTeamIDs[vitalAppID], configWith(token)))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), appTeamIDs[otherAppID], configWith(otherToken)))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), appTeamIDs[otherTeamAppID], configWith(token)))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), appTeamIDs[lookalikeAppID], configWith(lookalikeToken)))
 	// A bare mention with no '$' isn't a variable reference, but INSTR matches it.
-	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), 0, noSigilAppID,
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), appTeamIDs[noSigilAppID],
 		[]byte(fmt.Sprintf(`{"managedConfiguration":{"note":"see %s%d in the runbook"}}`, fleet.CustomHostVitalPrefix, vitalID))))
 
 	type appConfigResendJob struct {
@@ -881,7 +893,7 @@ func testSetHostCustomHostVitalValueResendsAndroidAppConfigs(t *testing.T, ds *D
 	// A second app referencing the same vital gets its own resend, so both
 	// apps' policies are re-pushed off one value change.
 	addApp(secondVitalAppID, 0)
-	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), 0, secondVitalAppID, configWith(token)))
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), appTeamIDs[secondVitalAppID], configWith(token)))
 	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, androidHost.Host.ID, vitalID, "Sales"))
 	jobs = drainJobs()
 	require.Len(t, jobs, 2)
@@ -976,7 +988,7 @@ func testReconcileSnapshotMarksVitalDeclarations(t *testing.T, ds *Datastore) {
 	// A macOS host must be MDM-enrolled to enter the reconcile window; otherwise
 	// the snapshot skips loading declarations entirely.
 	host := test.NewHost(t, ds, "macos-1", "1", "macos-1-key", "macos-1-uuid", time.Now())
-	err := ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, "", false)
+	err := ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 	nanoEnroll(t, ds, host, false)
 

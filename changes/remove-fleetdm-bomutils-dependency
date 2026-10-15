@@ -1,1 +1,0 @@
-* Deprecated `fleetdm/bomutils` docker image. Starting in 4.90.0, `fleetctl` does not use `fleetdm/bomutils` to generate `.pkg` fleetd installers.

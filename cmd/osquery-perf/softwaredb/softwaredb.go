@@ -81,7 +81,7 @@ func RandomSoftwareCount(platform string) int {
 	if !ok {
 		return 0
 	}
-	return config.min + rand.IntN(config.max-config.min+1) // nolint:gosec,G404 // load testing, not security-sensitive
+	return config.min + rand.IntN(config.max-config.min+1) //nolint:gosec // G404: load testing, not security-sensitive
 }
 
 // DarwinSoftware represents macOS/iOS software
@@ -146,6 +146,11 @@ func (db *DB) DarwinToMaps(indices []uint32) []map[string]string {
 		}
 		if s.ExtensionFor != nil {
 			m["browser"] = *s.ExtensionFor
+		}
+		if s.Source == "homebrew_packages" {
+			// Homebrew formulae report their keg directory, which is what the executable hash
+			// override query joins on.
+			m["installed_path"] = "/opt/homebrew/Cellar/" + s.Name
 		}
 		results = append(results, m)
 	}
@@ -214,7 +219,7 @@ func (db *DB) UbuntuToMaps(indices []uint32) []map[string]string {
 // maxPoolSize is the total number of available software items in the database.
 func MaybeMutateSoftware(indices []uint32, maxPoolSize int) []uint32 {
 	// Only mutate 20% of the time
-	if rand.Float64() >= SoftwareMutationProb { // nolint:gosec,G404 // load testing, not security-sensitive
+	if rand.Float64() >= SoftwareMutationProb { //nolint:gosec // G404: load testing, not security-sensitive
 		return indices
 	}
 
@@ -223,20 +228,20 @@ func MaybeMutateSoftware(indices []uint32, maxPoolSize int) []uint32 {
 	copy(result, indices)
 
 	// Randomly remove 0-20 items
-	numToRemove := rand.IntN(MaxSoftwareRemove + 1) // nolint:gosec,G404 // load testing, not security-sensitive
+	numToRemove := rand.IntN(MaxSoftwareRemove + 1) //nolint:gosec // G404: load testing, not security-sensitive
 	if numToRemove > len(result) {
 		numToRemove = len(result)
 	}
 	if numToRemove > 0 {
 		// Remove random items
-		rand.Shuffle(len(result), func(i, j int) { // nolint:gosec,G404 // load testing, not security-sensitive
+		rand.Shuffle(len(result), func(i, j int) { //nolint:gosec // G404: load testing, not security-sensitive
 			result[i], result[j] = result[j], result[i]
 		})
 		result = result[:len(result)-numToRemove]
 	}
 
 	// Randomly add 0-20 items
-	numToAdd := rand.IntN(MaxSoftwareAdd + 1) // nolint:gosec,G404 // load testing, not security-sensitive
+	numToAdd := rand.IntN(MaxSoftwareAdd + 1) //nolint:gosec // G404: load testing, not security-sensitive
 	if numToAdd > 0 {
 		// Create a map of existing indices for quick lookup
 		existing := make(map[uint32]bool, len(result))
@@ -249,7 +254,7 @@ func MaybeMutateSoftware(indices []uint32, maxPoolSize int) []uint32 {
 		attempts := 0
 		maxAttempts := numToAdd * 10 // Avoid infinite loop
 		for added < numToAdd && attempts < maxAttempts {
-			newIdx := uint32(rand.IntN(maxPoolSize)) // nolint:gosec,G404 // load testing, not security-sensitive
+			newIdx := uint32(rand.IntN(maxPoolSize)) //nolint:gosec // G404: load testing, not security-sensitive
 			if !existing[newIdx] {
 				result = append(result, newIdx)
 				existing[newIdx] = true
