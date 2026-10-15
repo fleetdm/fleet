@@ -175,6 +175,25 @@ Once events have been settled for the upcoming quarter, Fleet does not make chan
 3. After the meeting, the Content Specialist will communicate the settled events by moving all settled events to the "All 🎪 Official (planned & settled events)" tab of the 🎪 Events spreadsheet (confidential doc) and removing any proposed that were not prioritized.
 -->
 
+### GitOps workshops
+
+Fleet's in-person GitOps workshops give people a hands-on way to try Fleet and earn a certification. They also bring local contacts from active deals into the room and give Fleet net new exposure.
+
+> DRIs:
+>
+> Allen Houchins ([@allenhouchins](https://github.com/allenhouchins)), Head of IT and Solutions Consulting, is the DRI for the GitOps workshop program.
+> The workshop instructor leads each session.
+
+Rules of engagement:
+
+- Workshops happen in cities big enough to have an NFL team.
+- By default, the full year of workshops is planned at once, and each location is locked in a year ahead.
+- AEs, CAMs, and SCs can use workshops that are already scheduled to support their own deals.
+- If a rep, CAM, or SC asks "Can we do a workshop in this city?", the answer is: "Can you do an in-person [POV](https://fleetdm.com/handbook/company/go-to-market-operations#proof-of-value-pov) or a sales-led dinner in that city?"
+- Every attendee gets a certification and an [NFR (Not For Resale) environment](https://fleetdm.com/handbook/company/go-to-market-operations#nfr-instances).
+- Exceptions need approval from the DRI. For example, MacAdmins events, or sponsorships for new events that aren't on the annual list.
+
+
 ### Settle content strategy
 
 <!-- 2026-06-02 TODO: Is this still a thing? If so, we need to update the responsibility -->
