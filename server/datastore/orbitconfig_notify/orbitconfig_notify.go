@@ -107,19 +107,21 @@ func appConfigOrbitInputs(cfg *fleet.AppConfig) (*appConfigGlobalInputs, *appCon
 		// compares raw below.
 		_ = json.Unmarshal(*cfg.AgentOptions, &opts)
 	}
-	return &appConfigGlobalInputs{
-			MDMEnabled:                     cfg.MDM.EnabledAndConfigured,
-			MacOSMigrationEnabled:          cfg.MDM.MacOSMigration.Enable,
-			WindowsMDMEnabled:              cfg.MDM.WindowsEnabledAndConfigured,
-			EnableTurnOnWindowsMDMManually: cfg.MDM.EnableTurnOnWindowsMDMManually,
-			WindowsMigrationEnabled:        cfg.MDM.WindowsMigrationEnabled,
-			ServerURL:                      cfg.ServerSettings.ServerURL,
-			ScriptsDisabled:                cfg.ServerSettings.ScriptsDisabled,
-			ScriptExecutionTimeout:         opts.ScriptExecutionTimeout,
-		}, &appConfigNoTeamInputs{
-			AgentOptions:   cfg.AgentOptions,
-			DiskEncryption: cfg.MDM.DiskEncryptionConfig(),
-		}
+	global := &appConfigGlobalInputs{
+		MDMEnabled:                     cfg.MDM.EnabledAndConfigured,
+		MacOSMigrationEnabled:          cfg.MDM.MacOSMigration.Enable,
+		WindowsMDMEnabled:              cfg.MDM.WindowsEnabledAndConfigured,
+		EnableTurnOnWindowsMDMManually: cfg.MDM.EnableTurnOnWindowsMDMManually,
+		WindowsMigrationEnabled:        cfg.MDM.WindowsMigrationEnabled,
+		ServerURL:                      cfg.ServerSettings.ServerURL,
+		ScriptsDisabled:                cfg.ServerSettings.ScriptsDisabled,
+		ScriptExecutionTimeout:         opts.ScriptExecutionTimeout,
+	}
+	noTeam := &appConfigNoTeamInputs{
+		AgentOptions:   cfg.AgentOptions,
+		DiskEncryption: cfg.MDM.DiskEncryptionConfig(),
+	}
+	return global, noTeam
 }
 
 // teamConfigInputs are the fleet config fields GetOrbitConfig reads. The
