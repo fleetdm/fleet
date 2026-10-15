@@ -2,6 +2,7 @@
 # winget installer type convention for Burn bundles.
 
 $exeFilePath = "${env:INSTALLER_PATH}"
+$logPath = Join-Path $env:TEMP "OktaVerifyInstall.log"
 $expectedExitCodes = @(0, 1641, 3010)
 
 try {
@@ -12,7 +13,7 @@ try {
 
     $processOptions = @{
         FilePath     = "$exeFilePath"
-        ArgumentList = "/quiet /norestart"
+        ArgumentList = "/quiet /norestart /log `"$logPath`""
         PassThru     = $true
         Wait         = $true
         NoNewWindow  = $true
@@ -23,6 +24,10 @@ try {
     Write-Host "Install exit code: $exitCode"
 
     if ($expectedExitCodes -contains $exitCode) { Exit 0 }
+    if (Test-Path $logPath) {
+        Write-Host "Last lines of the installer log ($logPath):"
+        Get-Content $logPath -Tail 80 | ForEach-Object { Write-Host $_ }
+    }
     Exit $exitCode
 } catch {
     Write-Host "Error: $_"
