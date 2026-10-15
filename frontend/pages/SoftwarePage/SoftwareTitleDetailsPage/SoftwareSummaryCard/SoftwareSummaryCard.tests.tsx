@@ -50,8 +50,8 @@ describe("Software Summary Card", () => {
     // Get the text with aria label "software display name"
     const displayNameElement = screen.getByLabelText("software display name");
     expect(displayNameElement).toHaveTextContent(softwareTitle.name);
-    // Check for type "Application (macOS)"
-    expect(screen.getByText("Application (macOS)")).toBeInTheDocument();
+    // Check for type "macOS app"
+    expect(screen.getByText("macOS app")).toBeInTheDocument();
     // Check that the icon component is called with the correct URL.
     expect(mockSoftwareIcon).toHaveBeenCalledWith({
       url: "https://example.com/icon.png",
@@ -91,7 +91,6 @@ describe("Software Summary Card", () => {
       renderCard(renderPremium, fmaTitle());
       expect(screen.getByText("Fleet-maintained app slug")).toBeInTheDocument();
       expect(screen.getByText("zoom/darwin")).toBeInTheDocument();
-      expect(screen.queryByText("ID")).not.toBeInTheDocument();
     });
 
     it("shows the App Store ID for Apple VPP apps on Premium", () => {
@@ -118,6 +117,19 @@ describe("Software Summary Card", () => {
       expect(screen.getByText("Google Play ID")).toBeInTheDocument();
       expect(screen.getByText("com.test.app")).toBeInTheDocument();
       expect(screen.queryByText("App Store ID")).not.toBeInTheDocument();
+    });
+
+    it("hides the Google Play ID for Android web apps", () => {
+      renderCard(
+        renderPremium,
+        createMockSoftwareTitle({
+          software_package: null,
+          app_store_app: createMockAppStoreAppAndroid({
+            app_store_id: "com.google.enterprise.webapp.abc123",
+          }),
+        })
+      );
+      expect(screen.queryByText("Google Play ID")).not.toBeInTheDocument();
     });
 
     it("shows no GitOps IDs for custom packages", () => {

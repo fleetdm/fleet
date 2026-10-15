@@ -1,4 +1,4 @@
-import { waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import React from "react";
 
 import createMockConfig from "__mocks__/configMock";
@@ -136,12 +136,16 @@ const FLEET_ADMIN = {
   }) as IUser,
 };
 
-const renderLibraryTab = ({
+const renderPage = ({
+  pathname,
   query = {},
   app,
+  children = <div />,
 }: {
-  query?: { fleet_id?: string };
+  pathname: string;
+  query?: Record<string, string>;
   app: Record<string, unknown>;
+  children?: React.ReactElement;
 }) => {
   const router = createMockRouter();
   const render = createCustomRenderer({
@@ -157,17 +161,17 @@ const renderLibraryTab = ({
     },
   });
 
-  const search = query.fleet_id ? `?fleet_id=${query.fleet_id}` : "";
-  render(
+  const params = new URLSearchParams(query).toString();
+  const rendered = render(
     <SoftwarePage
       router={router}
-      location={{ pathname: PATHS.SOFTWARE_LIBRARY, search, query, hash: "" }}
+      location={{ pathname, search: params && `?${params}`, query, hash: "" }}
     >
-      <div />
+      {children}
     </SoftwarePage>
   );
 
-  return router;
+  return { router, ...rendered };
 };
 
 describe("SoftwarePage Library tab redirect", () => {
@@ -181,7 +185,7 @@ describe("SoftwarePage Library tab redirect", () => {
       app: { isFreeTier: true, isPremiumTier: false, ...GLOBAL_ADMIN },
     },
   ])("redirects to Inventory with no fleet id when $name", async ({ app }) => {
-    const router = renderLibraryTab({ app });
+    const { router } = renderPage({ pathname: PATHS.SOFTWARE_LIBRARY, app });
 
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith(PATHS.SOFTWARE_INVENTORY);
@@ -198,9 +202,65 @@ describe("SoftwarePage Library tab redirect", () => {
       app: { isPremiumTier: true, ...FLEET_ADMIN, availableTeams: undefined },
     },
   ])("stays on Library when $name", async ({ app }) => {
-    const router = renderLibraryTab({ query: { fleet_id: "7" }, app });
+    const { router } = renderPage({
+      pathname: PATHS.SOFTWARE_LIBRARY,
+      query: { fleet_id: "7" },
+      app,
+    });
 
     await waitFor(() => undefined);
     expect(router.replace).not.toHaveBeenCalled();
+  });
+});
+
+describe("SoftwarePage type filter", () => {
+  const FiltersOpener = ({
+    onAddFiltersClick,
+  }: {
+    onAddFiltersClick?: () => void;
+  }) => (
+    <button type="button" onClick={onAddFiltersClick}>
+      Open filters
+    </button>
+  );
+
+  const renderInventoryTab = (query: Record<string, string>) =>
+    renderPage({
+      pathname: PATHS.SOFTWARE_INVENTORY,
+      query,
+      app: { isPremiumTier: true, ...GLOBAL_ADMIN },
+      children: <FiltersOpener />,
+    });
+
+  it("restores the selection from the URL and writes it back on Apply", async () => {
+    const { router, user } = renderInventoryTab({
+      types: "macos_app,foo,brave_extension",
+    });
+
+    await user.click(screen.getByRole("button", { name: "Open filters" }));
+
+    expect(
+      screen
+        .getAllByRole("checkbox", { checked: true })
+        .map((el) => el.textContent)
+    ).toEqual(["Brave extension", "macOS app"]);
+
+    await user.click(screen.getByRole("button", { name: "Apply" }));
+
+    expect(router.replace).toHaveBeenLastCalledWith(
+      expect.stringContaining("types=brave_extension%2Cmacos_app")
+    );
+  });
+
+  it("writes no types param once every type is cleared", async () => {
+    const { router, user } = renderInventoryTab({ types: "macos_app" });
+
+    await user.click(screen.getByRole("button", { name: "Open filters" }));
+    await user.click(screen.getByRole("checkbox", { name: "macOS app" }));
+    await user.click(screen.getByRole("button", { name: "Apply" }));
+
+    expect(router.replace).toHaveBeenLastCalledWith(
+      expect.not.stringContaining("types=")
+    );
   });
 });

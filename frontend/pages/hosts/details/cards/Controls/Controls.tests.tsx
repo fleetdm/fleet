@@ -613,4 +613,16 @@ describe("Controls card", () => {
       screen.queryByRole("switch", { name: "Show hidden profiles" })
     ).not.toBeInTheDocument();
   });
+
+  it("shows the hidden profile toggle for other platforms", async () => {
+    renderControls({
+      isDeviceUser: true,
+      isPremiumTier: true,
+      isMacOSHost: false,
+      controls: [control({ profile_uuid: "w", status: "verified" })],
+    });
+    expect(
+      screen.queryByRole("switch", { name: "Show hidden profiles" })
+    ).toBeInTheDocument();
+  });
 });

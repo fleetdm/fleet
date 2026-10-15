@@ -1392,21 +1392,61 @@ func TestMacOSSettingsFromMapCustomSettings(t *testing.T) {
 
 	// null is the same as omitted, but any other non-string is rejected
 	require.NoError(t, json.Unmarshal([]byte(`{"custom_settings": [
-		{"path": "a", "name": null, "description": null}
+		{"path": "a", "name": null, "description": null},
+		{"path": null},
+		{}
 	]}`), &raw))
 	_, err = s.FromMap(raw)
 	require.NoError(t, err)
-	require.Equal(t, []MDMProfileSpec{{Path: "a"}}, s.CustomSettings)
+	require.Equal(t, []MDMProfileSpec{{Path: "a"}, {}, {}}, s.CustomSettings)
 
 	for _, tc := range []struct{ field, value string }{
 		{"description", `123`},
 		{"description", `{"a": "b"}`},
 		{"name", `true`},
 		{"name", `["x"]`},
+		{"path", `123`},
+		{"path", `true`},
+		{"path", `["x"]`},
 	} {
 		require.NoError(t, json.Unmarshal([]byte(`{"custom_settings": [{"path": "a", "`+
 			tc.field+`": `+tc.value+`}]}`), &raw))
 		_, err = s.FromMap(raw)
 		require.ErrorContains(t, err, "macos_settings.custom_settings."+tc.field+" of type string", tc.value)
+	}
+}
+
+func TestMacOSSettingsFromMapCustomSettingsLabels(t *testing.T) {
+	for _, field := range []string{"labels", "labels_include_all", "labels_include_any", "labels_exclude_any"} {
+		t.Run(field, func(t *testing.T) {
+			for _, value := range []string{`"Engineering"`, `123`, `{}`, `[1, "Engineering"]`, `["Engineering", false]`, `[null]`} {
+				t.Run(value, func(t *testing.T) {
+					var raw map[string]any
+					require.NoError(t, json.Unmarshal([]byte(`{"custom_settings": [{"path": "a", "`+field+`": `+value+`}]}`), &raw))
+					s := MacOSSettings{CustomSettings: []MDMProfileSpec{{Path: "existing"}}}
+					_, err := s.FromMap(raw)
+					var typeErr *json.UnmarshalTypeError
+					require.ErrorAs(t, err, &typeErr)
+					require.Equal(t, "macos_settings.custom_settings."+field, typeErr.Field)
+					require.Equal(t, []MDMProfileSpec{{Path: "existing"}}, s.CustomSettings)
+				})
+			}
+			for _, value := range []string{`null`, `[]`, `["Engineering", "Sales"]`} {
+				t.Run(value, func(t *testing.T) {
+					input := `{"custom_settings": [{"path": "a", "` + field + `": ` + value + `}]}`
+					var raw map[string]any
+					require.NoError(t, json.Unmarshal([]byte(input), &raw))
+					var want, got MacOSSettings
+					require.NoError(t, json.Unmarshal([]byte(input), &want))
+					if value == `[]` {
+						want.CustomSettings = []MDMProfileSpec{{Path: "a"}}
+					}
+					_, err := got.FromMap(raw)
+					require.NoError(t, err)
+					require.Len(t, got.CustomSettings, 1)
+					require.Equal(t, want.CustomSettings, got.CustomSettings)
+				})
+			}
+		})
 	}
 }

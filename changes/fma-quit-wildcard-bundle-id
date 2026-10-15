@@ -1,0 +1,1 @@
+* Fixed uninstall scripts for Fleet-maintained apps whose Homebrew cask quits the app by a wildcard bundle ID (balenaEtcher, Default Folder X, Elgato Wave Link, and VyprVPN): the script now quits every running app that matches before removing it, instead of skipping the quit.

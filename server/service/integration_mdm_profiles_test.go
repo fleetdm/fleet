@@ -11288,6 +11288,20 @@ func (s *integrationMDMTestSuite) TestSelfServiceAppleConfigProfileInstallUninst
 	linuxHost := createOrbitEnrolledHost(t, "linux", "self_service_linux", s.ds)
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/install", linuxHost.ID, ssUUID), nil, http.StatusBadRequest)
 
+	// A macOS host with MDM off neither lists nor accepts the self-service profile.
+	noMDMHost := createOrbitEnrolledHost(t, "darwin", "self_service_no_mdm", s.ds)
+	var noMDMResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", noMDMHost.ID), nil, http.StatusOK, &noMDMResp)
+	if noMDMResp.Host.MDM.Profiles != nil {
+		for _, p := range *noMDMResp.Host.MDM.Profiles {
+			require.NotEqual(t, ssUUID, p.ProfileUUID)
+		}
+	}
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/install", noMDMHost.ID, ssUUID), nil, http.StatusBadRequest)
+	optedIn, err := s.ds.HasHostMDMProfileOptIn(ctx, noMDMHost.UUID, ssUUID)
+	require.NoError(t, err)
+	require.False(t, optedIn)
+
 	// Admin opts the host in; the reconciler then installs the profile.
 	s.Do("POST", adminPath(ssUUID, "install"), nil, http.StatusAccepted)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeInstalledOptInConfigurationProfile{}.ActivityName(), activity(false), 0)
@@ -11334,20 +11348,75 @@ func (s *integrationMDMTestSuite) TestSelfServiceAppleConfigProfileInstallUninst
 	require.Equal(t, fleet.MDMOperationTypeInstall, p.OperationType)
 	require.Equal(t, fleet.MDMDeliveryVerifying, *p.Status)
 
-	// Remove it again, then install and uninstall before the reconciler runs: the never-sent install is dropped
-	// and nothing is sent to the device.
+	// Install and uninstall are refused until the other reaches a terminal state, so a command still in flight can't
+	// undo the newer request (e.g. a late InstallProfile ack leaving the profile on the device without an opt-in).
+	reconcileOnly := func() {
+		require.NoError(t, kv.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID))
+		require.NoError(t, ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false))
+	}
+	ackAll := func() {
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+	}
+	s.Do("POST", adminPath(ssUUID, "uninstall"), nil, http.StatusAccepted)
+	s.Do("POST", adminPath(ssUUID, "install"), nil, http.StatusConflict)
+	reconcileOnly()
+	s.DoRawNoAuth("POST", devicePath(ssUUID, "install"), nil, http.StatusConflict)
+	ackAll()
+	require.Nil(t, hostProfile("ISS1"))
+
+	s.Do("POST", adminPath(ssUUID, "install"), nil, http.StatusAccepted)
+	s.Do("POST", adminPath(ssUUID, "uninstall"), nil, http.StatusConflict)
+	reconcileOnly()
+	s.DoRawNoAuth("POST", devicePath(ssUUID, "uninstall"), nil, http.StatusConflict)
+	ackAll()
+	p = hostProfile("ISS1")
+	require.NotNil(t, p)
+	require.Equal(t, fleet.MDMDeliveryVerifying, *p.Status)
 	s.Do("POST", adminPath(ssUUID, "uninstall"), nil, http.StatusAccepted)
 	reconcileAndAck()
 	require.Nil(t, hostProfile("ISS1"))
-	s.Do("POST", adminPath(ssUUID, "install"), nil, http.StatusAccepted)
-	requireQueued(fleet.MDMOperationTypeInstall)
-	s.Do("POST", adminPath(ssUUID, "uninstall"), nil, http.StatusAccepted)
-	require.Nil(t, hostProfile("ISS1"))
 	requireAvailable()
-	require.NoError(t, kv.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID))
-	require.NoError(t, ReconcileAppleProfilesBatched(ctx, s.ds, s.mdmCommander, kv, s.logger, 0, false))
-	cmd, err := mdmDevice.Idle()
-	require.NoError(t, err)
-	require.Nil(t, cmd)
-	require.Nil(t, hostProfile("ISS1"))
+}
+
+// The silent migration SCEP challenge variable and the SCEP challenge host secret make Fleet put an MDM enrollment
+// challenge into a profile, so they're rejected in every way configuration profiles are uploaded.
+func (s *integrationMDMTestSuite) TestAppleProfileSCEPChallengeVariablesRejected() {
+	t := s.T()
+
+	for _, c := range []struct {
+		variable string
+		errMsg   string
+	}{
+		{
+			"FLEET_VAR_" + string(fleet.FleetVarSilentMigrationSCEPChallenge),
+			"Fleet variable " + fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix() + " is not supported in configuration profiles.",
+		},
+		{
+			fleet.HostSecretPrefix + fleet.HostSecretSCEPChallenge,
+			// single upload and batch reject it through different checks, with different messages
+			fleet.HostSecretPrefix + fleet.HostSecretSCEPChallenge,
+		},
+	} {
+		profile := mobileconfigForTest("N-"+c.variable, "I-"+c.variable, c.variable)
+
+		body, headers := generateNewProfileMultipartRequest(t, "scep-challenge.mobileconfig", profile, s.token, nil)
+		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
+		require.Contains(t, extractServerErrorText(res.Body), c.errMsg)
+
+		res = s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
+			ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{{Name: "N-" + c.variable, Profile: profile}},
+		}, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), c.errMsg)
+
+		// the endpoint GitOps applies profiles with
+		res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{
+			Profiles: []fleet.MDMProfileBatchPayload{{Name: "N-" + c.variable, Contents: profile}},
+		}, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), c.errMsg)
+	}
 }

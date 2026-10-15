@@ -261,6 +261,8 @@ export interface IHostSoftwareQueryParams extends QueryParams {
   max_cvss_score?: number;
   exploit?: boolean;
   macos_applications?: boolean;
+  source?: string;
+  extension_for?: string;
 }
 
 export interface IHostSoftwareQueryKey extends IHostSoftwareQueryParams {
@@ -662,7 +664,7 @@ export default {
         os_settings_disk_encryption: diskEncryptionStatus,
         vulnerability,
         dep_profile_error: depProfileError,
-        dep_assing_profile_response: depAssignProfileResponse,
+        dep_assign_profile_response: depAssignProfileResponse,
       },
     });
   },

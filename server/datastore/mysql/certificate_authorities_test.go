@@ -5,9 +5,11 @@ import (
 	"context"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,6 +26,7 @@ func TestCertificateAuthority(t *testing.T) {
 		{"CreateCertificateAuthority", testCreateCertificateAuthority},
 		{"Delete", testDeleteCertificateAuthority},
 		{"UpdateCertificateAuthorityByID", testUpdateCertificateAuthorityByID},
+		{"DigiCertEditResendsProfiles", testDigiCertEditResendsProfiles},
 	}
 
 	for _, c := range cases {
@@ -616,6 +619,80 @@ func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {
 		require.Equal(t, "updated-username", *updatedCA.Username)
 		require.Equal(t, "updated-password", *updatedCA.Password)
 	})
+}
+
+func testDigiCertEditResendsProfiles(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team"})
+	require.NoError(t, err)
+	host := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+	teamHost := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{teamHost.ID})))
+
+	ca := newDigiCertCA(t, ds, "ca", "cn", "seat", &[]string{"upn"})
+	otherCA := newDigiCertCA(t, ds, "ca_other", "cn", "seat", nil)
+	prof := newDigiCertProfile(t, ds, "prof", "ca", 0)
+	teamProf := newDigiCertProfile(t, ds, "team_prof", "ca", team.ID)
+	otherProf := newDigiCertProfile(t, ds, "other_prof", "ca_other", 0)
+
+	apiEdit := func(update fleet.CertificateAuthority) func() error {
+		return func() error {
+			update.Type = ca.Type
+			return ds.UpdateCertificateAuthorityByID(ctx, ca.ID, &update)
+		}
+	}
+	// gitOpsUpdate sends the full CA, as GitOps does, with mod applied to its current values.
+	gitOpsUpdate := func(id uint, mod func(*fleet.CertificateAuthority)) error {
+		current, err := ds.GetCertificateAuthorityByID(ctx, id, true)
+		require.NoError(t, err)
+		mod(current)
+		return ds.BatchApplyCertificateAuthorities(ctx, fleet.CertificateAuthoritiesBatchOperations{Update: []*fleet.CertificateAuthority{current}})
+	}
+	cases := []struct {
+		name       string
+		edit       func() error
+		wantResend bool
+	}{
+		{"API edit of the URL", apiEdit(fleet.CertificateAuthority{URL: new("https://new.example.com")}), false},
+		{"API edit to the same seat ID", apiEdit(fleet.CertificateAuthority{CertificateSeatID: new("seat")}), false},
+		{"API edit to the same profile ID", apiEdit(fleet.CertificateAuthority{ProfileID: new("profile")}), false},
+		{"API edit of the profile ID", apiEdit(fleet.CertificateAuthority{ProfileID: new("new-profile")}), true},
+		{"API edit of the common name", apiEdit(fleet.CertificateAuthority{CertificateCommonName: new("new-cn")}), true},
+		{"API edit of the UPN", apiEdit(fleet.CertificateAuthority{CertificateUserPrincipalNames: &[]string{"new-upn"}}), true},
+		{"GitOps edit of the API token", func() error {
+			return gitOpsUpdate(ca.ID, func(c *fleet.CertificateAuthority) { c.APIToken = new("new-token") })
+		}, false},
+		// otherCA was stored without UPNs, and GitOps sends an empty list.
+		{"GitOps edit of another CA with an empty UPN list", func() error {
+			return gitOpsUpdate(otherCA.ID, func(c *fleet.CertificateAuthority) {
+				c.APIToken = new("new-token")
+				c.CertificateUserPrincipalNames = &[]string{}
+			})
+		}, false},
+		{"GitOps edit of the seat ID", func() error {
+			return gitOpsUpdate(ca.ID, func(c *fleet.CertificateAuthority) { c.CertificateSeatID = new("new-seat") })
+		}, true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			for _, p := range []*fleet.MDMAppleConfigProfile{prof, otherProf} {
+				forceSetAppleHostProfileStatus(t, ds, host.UUID, p, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+			}
+			forceSetAppleHostProfileStatus(t, ds, teamHost.UUID, teamProf, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+
+			require.NoError(t, c.edit())
+
+			wantStatus := fleet.MDMDeliveryVerified
+			if c.wantResend {
+				wantStatus = fleet.MDMDeliveryPending
+			}
+			assertHostProfileStatus(t, ds, host.UUID,
+				hostProfileStatus{prof.ProfileUUID, wantStatus},
+				hostProfileStatus{otherProf.ProfileUUID, fleet.MDMDeliveryVerified})
+			assertHostProfileStatus(t, ds, teamHost.UUID, hostProfileStatus{teamProf.ProfileUUID, wantStatus})
+		})
+	}
 }
 
 // // TODO(hca): refactor old app config test to cover new implementations

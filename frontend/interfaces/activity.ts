@@ -102,6 +102,8 @@ export enum ActivityType {
   EditedDiskEncryptionSettings = "edited_disk_encryption_settings",
   AddedBootstrapPackage = "added_bootstrap_package",
   DeletedBootstrapPackage = "deleted_bootstrap_package",
+  AddedEndUserAgreement = "added_end_user_agreement",
+  DeletedEndUserAgreement = "deleted_end_user_agreement",
   ChangedMacOSSetupAssistant = "changed_macos_setup_assistant",
   DeletedMacOSSetupAssistant = "deleted_macos_setup_assistant",
   EnabledMacOSSetupEndUserAuth = "enabled_macos_setup_end_user_auth",
@@ -236,7 +238,9 @@ export enum ActivityType {
 export type EnrollmentRejectedReason =
   | "one_time_secret_spent"
   | "one_time_secret_identifier_mismatch"
-  | "shared_secret_for_mdm_managed_host";
+  | "shared_secret_for_mdm_managed_host"
+  | "host_identity_cert_required"
+  | "end_user_authentication_required";
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
 export type IHostPastActivityType =
@@ -405,6 +409,10 @@ export interface IActivityDetails {
   software_package?: string;
   software_title_id?: number;
   software_title?: string;
+  /** Admin version label (e.g. "Production") on iOS/iPadOS/Android App Store app activities. */
+  version_name?: string;
+  /** Managed app configuration on App Store app activities. XML for iOS/iPadOS, JSON for Android. */
+  configuration?: string | Record<string, unknown>;
   /** Titles covered by a single notify-before-patching notification. */
   software_titles?: string[];
   software_titles_count?: number;
@@ -482,6 +490,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   added_conditional_access_microsoft: "Added conditional access: Microsoft",
   added_custom_scep_proxy: "Added certificate authority (CA): custom SCEP",
   added_digicert: "Added certificate authority (CA): DigiCert",
+  added_end_user_agreement: "Added end user agreement (EULA)",
   added_microsoft_entra_tenant: "Added Microsoft Entra tenant",
   added_microsoft_entra_client_id: "Added Microsoft Entra client ID",
   added_microsoft_graph_credential: "Added Microsoft Graph credential",
@@ -518,6 +527,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   deleted_custom_scep_proxy: "Deleted certificate authority (CA): custom SCEP",
   deleted_declaration_profile: "Deleted declaration (DDM) profile",
   deleted_digicert: "Deleted certificate authority (CA): DigiCert",
+  deleted_end_user_agreement: "Deleted end user agreement (EULA)",
   deleted_macos_profile: "Deleted configuration profile: Apple",
   deleted_macos_setup_assistant: "Deleted macOS automatic enrollment profile",
   deleted_microsoft_entra_tenant: "Deleted Microsoft Entra tenant",
