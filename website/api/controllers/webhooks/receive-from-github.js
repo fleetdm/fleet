@@ -294,6 +294,29 @@ ${issueSummary}`;
       });
 
     } else if (
+      ghNoun === 'issues' && ['labeled','edited'].includes(action) && repository && repository.full_name === 'fleetdm/fleet'
+    ) {
+      // Issue labeled/edited: ask Claude (via GitHub Actions) to plan or implement the issue.
+      //  • `plan` label applied, or the description of an issue that has the `plan` label is edited → Claude posts/updates a plan comment.
+      //  • `implement` label applied → Claude implements the plan and opens a draft PR.
+      // Only maintainers can trigger this (the same people who can apply labels), and edits/labels from bots are ignored.
+      // See .github/workflows/claude-plan-and-implement.yml
+      let planLabel = sails.config.custom.githubLabelToPlanWithClaude;
+      let implementLabel = sails.config.custom.githubLabelToImplementWithClaude;
+      let wasDoneByMaintainer = GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.some((username)=>username.toLowerCase() === sender.login.toLowerCase())
+        && sender.type !== 'Bot' && sender.login !== 'fleet-release';
+      let mode;
+      if (action === 'labeled' && label && label.name === planLabel) {
+        mode = 'plan';
+      } else if (action === 'labeled' && label && label.name === implementLabel) {
+        mode = 'implement';
+      } else if (action === 'edited' && changes && changes.body && _.pluck(issue.labels, 'name').includes(planLabel)) {
+        mode = 'plan';
+      }//ﬁ
+      if (mode && wasDoneByMaintainer && issue.state === 'open') {
+        await sails.helpers.githubAutomations.dispatchClaudeWorkflow.with({ issueNumber: issue.number, mode });
+      }//ﬁ
+    } else if (
       (ghNoun === 'pull_request' &&  ['opened','reopened','edited', 'synchronize', 'ready_for_review'].includes(action))
     ) {
       //  ██████╗ ██╗   ██╗██╗     ██╗         ██████╗ ███████╗ ██████╗ ██╗   ██╗███████╗███████╗████████╗

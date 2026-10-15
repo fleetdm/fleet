@@ -482,10 +482,12 @@ module.exports.custom = {
   // slackWebhookUrlForNewlyCreatedOppts: '…',
 
   // GitHub bot:
-  // githubAccessToken: '…',
+  // githubAccessToken: '…',// « Must be allowed to run workflows in fleetdm/fleet ("Actions: write") to dispatch claude-plan-and-implement.yml.
   // githubBotWebhookSecret: '…',
   // slackWebhookUrlForGithubBot: '…',
   // mergeFreezeAccessToken: '…',
+  githubLabelToPlanWithClaude: ':plan',// « Applying this label to an issue (or editing the description of an issue that has it) makes Claude post a plan.
+  githubLabelToImplementWithClaude: ':implement',// « Applying this label makes Claude implement the plan and open a draft PR.
 
   // Metrics:
   // engMetricsGcpServiceAccountKey: '…',
