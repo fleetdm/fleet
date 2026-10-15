@@ -629,6 +629,7 @@ ${COULD_NOT_GENERATE_SHAPE}`;
       'Write credentials the admin supplied as literals, since the profile is unusable without them.  Do not invent a placeholder.  Note in "deliveryNotes" that the file contains a cleartext credential.',
       'When a platform requires a companion artifact the profile cannot contain -- a DDM activation declaration, a referenced asset declaration -- generate the configuration itself and describe the companion in "deliveryNotes".',
       'If a setting is commonly managed by an MDM directly rather than by a custom profile, such as disk encryption, still generate the profile as asked and note in "deliveryNotes" that some MDMs manage this natively and may reject or conflict with a custom profile.',
+      'Never put a URL or a link in "reasonWhyAProfileCouldNotBeGenerated".  Name the setting and say why it could not be generated, in plain words.',
     ].concat(isWrittenFromSettings ? [] : [
       'Escape newlines inside "configurationProfile" as \\n so the surrounding JSON stays valid.  Do not emit raw line breaks inside the string, and do not collapse the profile onto one line.',
     ]);
@@ -661,6 +662,8 @@ ${COULD_NOT_GENERATE_SHAPE}`;
           ]),
           // Node identity.
           'Emit only LocURI paths that exist in a published CSP.  Never construct, guess, or extrapolate a path, and name the CSP you used in "schemaReference".',
+          'Never write to the DMClient, DMAcc, or EnrollmentStatusTracking CSPs.  The MDM uses them to manage the device, and a profile that changes them can cut the device off from it.  If the request needs one of them, such as changing how often the device checks in, return the "couldNotGenerateProfile" shape.',
+          'Microsoft Edge has no CSP nodes of its own.  The Policy CSP\'s Browser area configures Edge Legacy, which current Windows no longer has, so a profile that uses it does nothing.  For any request about Microsoft Edge, return the "couldNotGenerateProfile" shape.',
           'Percent-encode any character in a LocURI path segment that is not URI-legal.  An SSID named "Cool Network" is Cool%20Network in the LocURI, while the value inside the payload keeps its literal spaces.',
           // Type integrity.  The largest source of silent failure.
           ...(isWrittenFromSettings ? [
@@ -727,6 +730,7 @@ ${COULD_NOT_GENERATE_SHAPE}`;
           // Key fidelity.
           'Apple payload keys are not consistently cased, and the inconsistency is inside a single dict.  The passcode payload uses forcePIN, minLength, and allowSimple -- lowercase first letter -- beside PascalCase PayloadIdentifier and PayloadType.  Reproduce every key exactly as documented for its payload type.  Never normalize casing in either direction.',
           'Use only keys documented for the payload type you chose.  An invented key is written into the profile and nothing downstream rejects it, so the profile looks right and does nothing.',
+          'Apple removed the com.apple.SoftwareUpdate payload, and the update deferral keys in com.apple.applicationaccess (forceDelayed*SoftwareUpdates and enforcedSoftwareUpdate*Delay), in macOS 27, in favor of the com.apple.configuration.softwareupdate.settings declaration.  Still use them when the request needs them, and say in "deliveryNotes" that they stop working in macOS 27 and that the software update settings declaration replaces them.',
           'Choose the payload type by finding the key, not by the payload type\'s name.  Locate the key that does what was asked in the provided list, then use the payload type it is listed under -- even when another payload type\'s name sounds closer to the request.  App Store app updates are AutomaticallyInstallAppUpdates in com.apple.SoftwareUpdate, not anything in com.apple.appstore.  Before returning, confirm every key in each PayloadContent dict is listed under that dict\'s PayloadType.',
           'When more than one key in a payload could plausibly satisfy the request, use the one whose description says it does what was asked, and say what the chosen value actually does in valueMeaning.  Return couldNotGenerateProfile only when no key\'s description says it does what was asked.',
           'A request for a whole group of settings -- every iCloud feature, all sharing services -- asks for each key in the provided list that belongs to the group.  Set each of them, rather than looking for one key that does them all.',
@@ -899,8 +903,13 @@ a field that does not appear here does not exist.`,
       // can change.  Offered both, the lookup named the recommended twin for "make Chrome reopen the last
       // session", so it is only offered when the request asks for a default.
       let requestAsksForADefault = /\b(recommend\w*|default|suggest\w*|user can change|users can change)\b/.test(lowercaseInstructions);
+      // The MDM uses these CSPs to manage the device itself, so a profile that writes to them can cut the device off from its MDM.
+      const MANAGEMENT_PLANE_CSPS = ['DMClient', 'DMAcc', 'EnrollmentStatusTracking'];
       // Keep the nodes a profile can set: a template's policies only when the request names its app (leaving out its _recommended policies unless the request asks for a default), and every other node a profile can write to.
       let nodesAProfileCanSet = _.filter(nodeFile.nodes, (node)=>{
+        if(_.contains(MANAGEMENT_PLANE_CSPS, node.csp)) {
+          return false;
+        }
         if(node.admxTemplate) {
           return _.contains(admxTemplateIdsTheRequestNames, node.admxTemplate) && (requestAsksForADefault || !/_recommended(~|$)/.test(node.area));
         }
