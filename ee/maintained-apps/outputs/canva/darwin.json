@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.126.0",
+      "version": "1.126.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.canva.CanvaDesktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.canva.CanvaDesktop' AND version_compare(bundle_short_version, '1.126.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.canva.CanvaDesktop' AND version_compare(bundle_short_version, '1.126.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.canva.CanvaDesktop' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://desktop-release.canva.com/Canva-1.126.0-universal.dmg",
+      "installer_url": "https://desktop-release.canva.com/Canva-1.126.1-universal.dmg",
       "install_script_ref": "767fa37e",
       "uninstall_script_ref": "8588c4f7",
-      "sha256": "aecb9512bb6a1ace0ee029fc6592a9a26bb1a516806743ab2ce286e641e7dde2",
+      "sha256": "6a70b551a3732dd2873b5f0813afaafa34fbed7e2ad95178bd9765eb782c67d4",
       "default_categories": [
         "Productivity"
       ]

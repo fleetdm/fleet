@@ -307,9 +307,13 @@ const VersionFormFields = ({
 
       <Editor
         label="Configuration"
+        name="configuration"
         mode={editorMode}
         value={formData.configuration}
         onChange={(next: string) => setField("configuration", next)}
+        onFocus={() => clearFieldError("configuration")}
+        onBlur={() => validateField("configuration")}
+        error={getError("configuration")}
         helpText={configHelpText}
       />
 

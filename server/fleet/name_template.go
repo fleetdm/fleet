@@ -35,6 +35,7 @@ var idpVarsInNameTemplates = []FleetVarName{
 	FleetVarHostEndUserIDPGroups,
 	FleetVarHostEndUserIDPDepartment,
 	FleetVarHostEndUserIDPFullname,
+	FleetVarHostEndUserIDPExternalID,
 }
 
 // fleetVarsSupportedInHostNameTemplates is the allow-list of built-in Fleet

@@ -4849,6 +4849,40 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 
 	patchAppsPolicies = nil
 
+	// other ApplicationPolicy fields are sent to the host as well
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app3TitleID), &updateAppStoreAppRequest{
+		TeamID:        nil,
+		Configuration: json.RawMessage(`{"managedConfiguration": 3, "autoUpdateMode": "AUTO_UPDATE_HIGH_PRIORITY", "minimumVersionCode": 42, "permissionGrants": [{"permission": "android.permission.CAMERA", "policy": "GRANT"}]}`),
+	}, http.StatusOK, &patchAppResp)
+
+	s.runWorkerUntilDoneWithChecks(true)
+
+	require.Len(t, patchAppsPolicies, 1)
+	require.ElementsMatch(t, []*androidmanagement.ApplicationPolicy{
+		{
+			PackageName:          app3.VPPAppID.AdamID,
+			InstallType:          "AVAILABLE",
+			ManagedConfiguration: googleapi.RawMessage(`3`),
+			AutoUpdateMode:       "AUTO_UPDATE_HIGH_PRIORITY",
+			MinimumVersionCode:   42,
+			PermissionGrants:     []*androidmanagement.PermissionGrant{{Permission: "android.permission.CAMERA", Policy: "GRANT"}},
+		},
+	}, patchAppsPolicies[0])
+
+	patchAppsPolicies = nil
+
+	// packageName and installType are reserved for Fleet
+	for _, deniedConfig := range []string{`{"packageName": "com.example.other"}`, `{"installType": "FORCE_INSTALLED"}`} {
+		res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app3TitleID), &updateAppStoreAppRequest{
+			TeamID:        nil,
+			Configuration: json.RawMessage(deniedConfig),
+		}, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), `"packageName" and "installType" are not supported as top-level keys.`)
+	}
+
+	s.runWorkerUntilDoneWithChecks(true)
+	require.Empty(t, patchAppsPolicies)
+
 	// patch with a different config just to trigger the worker
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", app3TitleID), &updateAppStoreAppRequest{
 		TeamID:        nil,
@@ -6280,4 +6314,79 @@ func (s *integrationMDMTestSuite) TestSetupExperienceStatusPollsSendOneDeviceCon
 	pollStatus()
 	require.Equal(t, 1, countDeviceConfigured())
 	require.Empty(t, ackAll())
+}
+
+func (s *integrationMDMTestSuite) TestSetupExperienceScriptResultSavedWithoutStepUpdate() {
+	t := s.T()
+	ctx := t.Context()
+
+	s.setSkipWorkerJobs(t)
+
+	device, host, _ := s.createTeamDeviceForSetupExperienceWithProfileSoftwareAndScript()
+
+	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+	mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+	mdmDevice.SerialNumber = device.SerialNumber
+	require.NoError(t, mdmDevice.Enroll())
+
+	s.awaitTriggerProfileSchedule(t)
+	s.awaitRunAppleMDMWorkerSchedule()
+
+	ackAll := func() []string {
+		var requestTypes []string
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			if cmd.Command.RequestType != "DeclarativeManagement" {
+				requestTypes = append(requestTypes, cmd.Command.RequestType)
+			}
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+		return requestTypes
+	}
+	ackAll()
+
+	host.OsqueryHostID = new(mdmDevice.UUID)
+	host.UUID = mdmDevice.UUID
+	orbitKey := setOrbitEnrollment(t, host, s.ds)
+	host.OrbitNodeKey = &orbitKey
+
+	pollStatus := func() *fleet.SetupExperienceStatusPayload {
+		var statusResp fleet.GetOrbitSetupExperienceStatusResponse
+		s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
+			json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &statusResp)
+		return statusResp.Results
+	}
+
+	// Cancel the software install so the script is the only remaining step and gets queued.
+	pollStatus()
+	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, *host.TeamID)
+	require.NoError(t, err)
+	for _, r := range results {
+		if r.HostSoftwareInstallsExecutionID != nil {
+			s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", host.ID, *r.HostSoftwareInstallsExecutionID), nil, http.StatusNoContent)
+		}
+	}
+	pollStatus()
+	// The status is built before the next step runs, so the script shows as running from the following poll.
+	payload := pollStatus()
+	require.NotNil(t, payload.Script)
+	require.Equal(t, fleet.SetupExperienceStatusRunning, payload.Script.Status)
+	require.NotNil(t, payload.Script.ScriptExecutionID)
+
+	// Record the result without updating the setup experience step, as when the result request fails after the
+	// result is saved.
+	_, _, err = s.ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      host.ID,
+		ExecutionID: *payload.Script.ScriptExecutionID,
+		Output:      "done",
+		ExitCode:    0,
+	}, nil)
+	require.NoError(t, err)
+
+	pollStatus()
+	payload = pollStatus()
+	require.Equal(t, fleet.SetupExperienceStatusSuccess, payload.Script.Status)
+	require.Equal(t, []string{"DeviceConfigured"}, ackAll())
 }

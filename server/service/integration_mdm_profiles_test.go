@@ -11382,3 +11382,41 @@ func (s *integrationMDMTestSuite) TestSelfServiceAppleConfigProfileInstallUninst
 	require.Nil(t, hostProfile("ISS1"))
 	requireAvailable()
 }
+
+// The silent migration SCEP challenge variable and the SCEP challenge host secret make Fleet put an MDM enrollment
+// challenge into a profile, so they're rejected in every way configuration profiles are uploaded.
+func (s *integrationMDMTestSuite) TestAppleProfileSCEPChallengeVariablesRejected() {
+	t := s.T()
+
+	for _, c := range []struct {
+		variable string
+		errMsg   string
+	}{
+		{
+			"FLEET_VAR_" + string(fleet.FleetVarSilentMigrationSCEPChallenge),
+			"Fleet variable " + fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix() + " is not supported in configuration profiles.",
+		},
+		{
+			fleet.HostSecretPrefix + fleet.HostSecretSCEPChallenge,
+			// single upload and batch reject it through different checks, with different messages
+			fleet.HostSecretPrefix + fleet.HostSecretSCEPChallenge,
+		},
+	} {
+		profile := mobileconfigForTest("N-"+c.variable, "I-"+c.variable, c.variable)
+
+		body, headers := generateNewProfileMultipartRequest(t, "scep-challenge.mobileconfig", profile, s.token, nil)
+		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
+		require.Contains(t, extractServerErrorText(res.Body), c.errMsg)
+
+		res = s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
+			ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{{Name: "N-" + c.variable, Profile: profile}},
+		}, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), c.errMsg)
+
+		// the endpoint GitOps applies profiles with
+		res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{
+			Profiles: []fleet.MDMProfileBatchPayload{{Name: "N-" + c.variable, Contents: profile}},
+		}, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), c.errMsg)
+	}
+}

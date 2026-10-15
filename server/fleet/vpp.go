@@ -321,6 +321,7 @@ var FleetVarsSupportedInAppleAppConfig = []FleetVarName{
 	FleetVarHostEndUserIDPGroups,
 	FleetVarHostEndUserIDPDepartment,
 	FleetVarHostEndUserIDPFullname,
+	FleetVarHostEndUserIDPExternalID,
 }
 
 // ValidateAppleAppConfiguration validates a managed app configuration payload

@@ -8,7 +8,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
-	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -25,10 +24,11 @@ func TestAndroidZeroTouch(t *testing.T) {
 		{"CreateDuplicateTeam", testZeroTouchCreateDuplicateTeam},
 		{"ConcurrentCreate", testZeroTouchConcurrentCreate},
 		{"DeleteAll", testZeroTouchDeleteAll},
+		{"DeleteFleetCascades", testZeroTouchDeleteFleetCascades},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer testing_utils.TruncateTables(t, ds.primary, ds.logger, nil)
+			defer TruncateTables(t, ds)
 			c.fn(t, ds)
 		})
 	}
@@ -192,4 +192,36 @@ func testZeroTouchDeleteAll(t *testing.T, ds *Datastore) {
 	// Deleting again should not error
 	err = ds.DeleteZeroTouchEnrollmentTokens(testCtx())
 	require.NoError(t, err)
+}
+
+func testZeroTouchDeleteFleetCascades(t *testing.T, ds *Datastore) {
+	expiresAt := time.Now().Add(100 * 365 * 24 * time.Hour)
+
+	deletedFleet, err := ds.NewTeam(testCtx(), &fleet.Team{Name: "zt-cascade-deleted"})
+	require.NoError(t, err)
+	keptFleet, err := ds.NewTeam(testCtx(), &fleet.Team{Name: "zt-cascade-kept"})
+	require.NoError(t, err)
+
+	for _, teamID := range []*uint{nil, &deletedFleet.ID, &keptFleet.ID} {
+		_, err := ds.CreateZeroTouchEnrollmentToken(testCtx(), &android.ZeroTouchToken{
+			TeamID:     teamID,
+			TokenName:  fmt.Sprintf("enterprises/LC00test/enrollmentTokens/%d", globalOrTeamID(teamID)),
+			TokenValue: fmt.Sprintf("value%d", globalOrTeamID(teamID)),
+			ExpiresAt:  expiresAt,
+		})
+		require.NoError(t, err)
+	}
+
+	require.NoError(t, ds.DeleteTeam(testCtx(), deletedFleet.ID))
+
+	_, err = ds.GetZeroTouchEnrollmentToken(testCtx(), &deletedFleet.ID)
+	assert.True(t, fleet.IsNotFound(err), "deleted fleet's token should be cascade-deleted")
+
+	kept, err := ds.GetZeroTouchEnrollmentToken(testCtx(), &keptFleet.ID)
+	require.NoError(t, err)
+	assert.Equal(t, fmt.Sprintf("value%d", keptFleet.ID), kept.TokenValue)
+
+	unassigned, err := ds.GetZeroTouchEnrollmentToken(testCtx(), nil)
+	require.NoError(t, err)
+	assert.Equal(t, "value0", unassigned.TokenValue)
 }

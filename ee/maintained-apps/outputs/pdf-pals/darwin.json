@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.9.0",
+      "version": "1.11.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'co.podzim.PDFPals';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'co.podzim.PDFPals' AND version_compare(bundle_short_version, '1.9.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'co.podzim.PDFPals' AND version_compare(bundle_short_version, '1.11.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'co.podzim.PDFPals' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.pdfpals.com/releases/PDFPals-1.9.0.dmg",
+      "installer_url": "https://download.pdfpals.com/releases/PDFPals-1.11.0.dmg",
       "install_script_ref": "2572f927",
       "uninstall_script_ref": "c9c61a4e",
-      "sha256": "fe9bbb8521f21e4d1ae161b58aa7707d1b9001bbbf2ed0c890f84a00d905a91c",
+      "sha256": "7499b79ed03e2b44cd6db8329576ad22308f3fea328f58ff71fc93352c334556",
       "default_categories": [
         "Communication"
       ]

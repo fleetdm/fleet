@@ -26,7 +26,7 @@ Examples:
 
     profileType: {
       type: 'string',
-      isIn: ['mobileconfig', 'csp', 'ddm'],
+      isIn: ['mobileconfig', 'csp', 'ddm', 'android'],
       description: 'Generate one profile of this type, or, with no other inputs, run only this type\'s cases.'
     },
 
