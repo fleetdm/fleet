@@ -140,7 +140,7 @@ You can create a patch policy by setting `type` to `patch` and specifying `fleet
 
 A patch policy's `query` automatically updates. Hosts will fail this policy if they're not running the latest version found in [the app's metadata](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `version` is set for `fleet_maintained_apps`, that version is included in the query.
 
-To patch the app when this policy fails, set one of these options to `true`. Only one can be `true`. If none are set, Fleet doesn't patch the app automatically.
+To patch the app when this policy fails, set one of these options to `true`. Only one can be `true`. If none are set, the policy only reports hosts that aren't running the latest version, and Fleet doesn't patch the app.
 
 - `force_patch`: Fleet patches the app when this policy fails, whether or not the app is open.
 - `patch_when_closed`: Fleet silently patches the app when this policy fails and the app isn't open.
