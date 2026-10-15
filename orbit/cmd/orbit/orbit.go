@@ -2883,9 +2883,13 @@ func openBrowserWindow(browserURL string) error {
 
 		// Bare names are resolved by the user's login shell (execuser runs
 		// `sudo -i`), which also covers non-FHS layouts such as NixOS.
+		// xdg-open comes first so the user's default browser is honored; firefox
+		// is only a fallback for minimal images that ship without xdg-utils.
 		browserBin := "xdg-open"
-		if _, err := exec.LookPath("firefox"); err == nil {
-			browserBin = "firefox"
+		if _, err := exec.LookPath("xdg-open"); err != nil {
+			if _, err := exec.LookPath("firefox"); err == nil {
+				browserBin = "firefox"
+			}
 		}
 
 		var opts []execuser.Option
