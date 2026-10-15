@@ -234,13 +234,10 @@ export default {
   MDM_BOOTSTRAP_PACKAGE: `/${API_VERSION}/fleet/bootstrap`,
   MDM_BOOTSTRAP_PACKAGE_SUMMARY: `/${API_VERSION}/fleet/mdm/bootstrap/summary`,
   MDM_SETUP: `/${API_VERSION}/fleet/mdm/apple/setup`,
-  MDM_EULA: (token: string) => `/${API_VERSION}/fleet/mdm/setup/eula/${token}`,
-  MDM_EULA_UPLOAD: `/${API_VERSION}/fleet/mdm/setup/eula`,
-  MDM_EULA_METADATA: `/${API_VERSION}/fleet/mdm/setup/eula/metadata`,
-  MDM_WINDOWS_EULA: (token: string) =>
-    `/${API_VERSION}/fleet/setup_experience/windows_eula/${token}`,
-  MDM_WINDOWS_EULA_UPLOAD: `/${API_VERSION}/fleet/setup_experience/windows_eula`,
-  MDM_WINDOWS_EULA_METADATA: `/${API_VERSION}/fleet/setup_experience/windows_eula/metadata`,
+  MDM_EULA: (token: string) =>
+    `/${API_VERSION}/fleet/setup_experience/eula/${token}`,
+  MDM_EULA_UPLOAD: `/${API_VERSION}/fleet/setup_experience/eula`,
+  MDM_EULA_METADATA: `/${API_VERSION}/fleet/setup_experience/eula/metadata`,
   HOST_MDM: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/mdm`,
   HOST_ENCRYPTION_KEY: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/encryption_key`,

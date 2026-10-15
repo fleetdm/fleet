@@ -3505,7 +3505,7 @@
       "name": "ForkLift",
       "slug": "forklift/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.binarynights.ForkLift-4",
+      "unique_identifier": "com.binarynights.ForkLift",
       "description": "ForkLift is a finder replacement and FTP, SFTP, WebDAV and Amazon s3 client."
     },
     {
@@ -7490,13 +7490,6 @@
       "platform": "darwin",
       "unique_identifier": "com.rightfontapp.RightFont5",
       "description": "RightFont is a font manager that helps preview, install, sync and manage fonts."
-    },
-    {
-      "name": "RingCentral",
-      "slug": "ringcentral/windows",
-      "platform": "windows",
-      "unique_identifier": "RingCentral",
-      "description": "RingCentral is an app for business phone calls, messaging, and video meetings."
     },
     {
       "name": "Rive",

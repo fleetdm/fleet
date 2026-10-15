@@ -79,6 +79,7 @@ const (
 	FleetVarHostEndUserIDPGroups            FleetVarName = "HOST_END_USER_IDP_GROUPS"
 	FleetVarHostEndUserIDPDepartment        FleetVarName = "HOST_END_USER_IDP_DEPARTMENT"
 	FleetVarHostEndUserIDPFullname          FleetVarName = "HOST_END_USER_IDP_FULL_NAME"
+	FleetVarHostEndUserIDPExternalID        FleetVarName = "HOST_END_USER_IDP_EXTERNAL_ID"
 	FleetVarHostUUID                        FleetVarName = "HOST_UUID"
 	FleetVarHostPlatform                    FleetVarName = "HOST_PLATFORM"
 
@@ -103,6 +104,11 @@ const (
 	// at command-fetch time (so the token is never stored and never visible on
 	// the /mdm/commands endpoint).
 	FleetVarPSSODeviceRegistrationToken FleetVarName = "PSSO_DEVICE_REGISTRATION_TOKEN" // nolint:gosec // G101: variable name, not a credential
+
+	// FleetVarSilentMigrationSCEPChallenge marks the SCEP challenge in the FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE
+	// env profile. It's replaced with the SCEP challenge host secret when renewals are sent, and is deliberately
+	// absent from the variables allowed in configuration profiles, so uploads can't get an enrollment challenge.
+	FleetVarSilentMigrationSCEPChallenge FleetVarName = "SILENT_MIGRATION_SCEP_CHALLENGE" // nolint:gosec // G101: variable name, not a credential
 
 	// Certificate authority variables
 	FleetVarNDESSCEPChallenge            FleetVarName = "NDES_SCEP_CHALLENGE"
@@ -151,6 +157,7 @@ var (
 	FleetVarNDESSCEPChallengeRegexp               = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarNDESSCEPChallenge))
 	FleetVarNDESSCEPProxyURLRegexp                = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarNDESSCEPProxyURL))
 	FleetVarHostEndUserIDPFullnameRegexp          = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPFullname))
+	FleetVarHostEndUserIDPExternalIDRegexp        = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPExternalID))
 	FleetVarCertificateRenewalIDRegexp            = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarCertificateRenewalID))
 	// FleetVarRenewalIDRegexp matches either the preferred CERTIFICATE_RENEWAL_ID
 	// or the legacy SCEP_RENEWAL_ID name. Use this for validation checks where
@@ -175,19 +182,16 @@ var (
 		FleetVarHostEndUserIDPGroups,
 		FleetVarHostEndUserIDPDepartment,
 		FleetVarHostEndUserIDPFullname,
+		FleetVarHostEndUserIDPExternalID,
 	}
 	// FleetVarsSupportedInDigiCert lists the variables allowed in a DigiCert CA's common name, seat ID, and UPN.
-	FleetVarsSupportedInDigiCert = []FleetVarName{
+	// The IdP variables come from IDPFleetVariables because that's the list the CA field substitution resolves.
+	FleetVarsSupportedInDigiCert = slices.Concat([]FleetVarName{
 		FleetVarHostEndUserEmailIDP,
 		FleetVarHostHardwareSerial,
 		FleetVarHostPlatform,
 		FleetVarHostUUID,
-		FleetVarHostEndUserIDPUsername,
-		FleetVarHostEndUserIDPUsernameLocalPart,
-		FleetVarHostEndUserIDPGroups,
-		FleetVarHostEndUserIDPDepartment,
-		FleetVarHostEndUserIDPFullname,
-	}
+	}, IDPFleetVariables)
 )
 
 type AppleMDM struct {
@@ -328,6 +332,38 @@ const (
 	MDMEULAPlatformWindows MDMEULAPlatform = "windows"
 )
 
+// Validated returns the platform an EULA request acts on. Empty means darwin,
+// so clients from before Windows EULAs keep working.
+func (p MDMEULAPlatform) Validated() (MDMEULAPlatform, error) {
+	switch p {
+	case "":
+		return MDMEULAPlatformDarwin, nil
+	case MDMEULAPlatformDarwin, MDMEULAPlatformWindows:
+		return p, nil
+	default:
+		return "", NewInvalidArgumentError("platform", `must be "darwin" or "windows"`)
+	}
+}
+
+// ValidateEULAPlatform returns the platform an EULA request acts on, once
+// that platform's MDM is turned on. The EULA routes serve both platforms, so
+// route middleware can't check the MDM; the free and Premium builds share this.
+func ValidateEULAPlatform(ctx context.Context, svc Service, platform MDMEULAPlatform) (MDMEULAPlatform, error) {
+	platform, err := platform.Validated()
+	if err != nil {
+		return "", err
+	}
+	if platform == MDMEULAPlatformWindows {
+		err = svc.VerifyMDMWindowsConfigured(ctx)
+	} else {
+		err = svc.VerifyMDMAppleConfigured(ctx) // Validated leaves only darwin
+	}
+	if err != nil {
+		return "", err
+	}
+	return platform, nil
+}
+
 // MDMEULA represents an EULA (End User License Agreement) file.
 type MDMEULA struct {
 	Name      string    `json:"name"`
@@ -335,8 +371,8 @@ type MDMEULA struct {
 	Sha256    []byte    `json:"sha256" db:"sha256"`
 	Token     string    `json:"token"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
-	// Platform is implied by the endpoint serving it, so it is not in the API.
-	Platform MDMEULAPlatform `json:"-" db:"platform"`
+	// Platform is reported in metadata, since the endpoints serve both.
+	Platform MDMEULAPlatform `json:"platform,omitempty" db:"platform"`
 }
 
 // MDMEULAMetadataLookup is the cached result of looking up a platform's EULA

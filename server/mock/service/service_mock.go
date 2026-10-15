@@ -429,7 +429,7 @@ type SetACMEServiceFunc func(acmeSvc fleet.ACMEWriteService)
 
 type SetAgentCheckInNotifierFunc func(notifier fleet.AgentCheckInNotifier)
 
-type NewACMEEnrollmentFunc func(ctx context.Context, hostIdentifier string) (string, error)
+type NewACMEEnrollmentFunc func(ctx context.Context, hostIdentifier string, purpose fleet.AppleMDMCertPurpose, enrollmentID *string) (string, error)
 
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
 
@@ -711,19 +711,11 @@ type GetMDMAppleBootstrapPackageSummaryFunc func(ctx context.Context, teamID *ui
 
 type MDMGetEULABytesFunc func(ctx context.Context, token string) (*fleet.MDMEULA, error)
 
-type MDMGetEULAMetadataFunc func(ctx context.Context) (*fleet.MDMEULA, error)
+type MDMGetEULAMetadataFunc func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error)
 
-type MDMCreateEULAFunc func(ctx context.Context, name string, file io.ReadSeeker, dryRun bool) error
+type MDMCreateEULAFunc func(ctx context.Context, platform fleet.MDMEULAPlatform, name string, file io.ReadSeeker, dryRun bool) error
 
 type MDMDeleteEULAFunc func(ctx context.Context, token string, dryRun bool) error
-
-type MDMCreateWindowsEULAFunc func(ctx context.Context, name string, file io.ReadSeeker, dryRun bool) error
-
-type MDMGetWindowsEULAMetadataFunc func(ctx context.Context) (*fleet.MDMEULA, error)
-
-type MDMGetWindowsEULABytesFunc func(ctx context.Context, token string) (*fleet.MDMEULA, error)
-
-type MDMDeleteWindowsEULAFunc func(ctx context.Context, token string, dryRun bool) error
 
 type SetOrUpdateMDMAppleSetupAssistantFunc func(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error)
 
@@ -2095,18 +2087,6 @@ type Service struct {
 
 	MDMDeleteEULAFunc        MDMDeleteEULAFunc
 	MDMDeleteEULAFuncInvoked bool
-
-	MDMCreateWindowsEULAFunc        MDMCreateWindowsEULAFunc
-	MDMCreateWindowsEULAFuncInvoked bool
-
-	MDMGetWindowsEULAMetadataFunc        MDMGetWindowsEULAMetadataFunc
-	MDMGetWindowsEULAMetadataFuncInvoked bool
-
-	MDMGetWindowsEULABytesFunc        MDMGetWindowsEULABytesFunc
-	MDMGetWindowsEULABytesFuncInvoked bool
-
-	MDMDeleteWindowsEULAFunc        MDMDeleteWindowsEULAFunc
-	MDMDeleteWindowsEULAFuncInvoked bool
 
 	SetOrUpdateMDMAppleSetupAssistantFunc        SetOrUpdateMDMAppleSetupAssistantFunc
 	SetOrUpdateMDMAppleSetupAssistantFuncInvoked bool
@@ -4028,11 +4008,11 @@ func (s *Service) SetAgentCheckInNotifier(notifier fleet.AgentCheckInNotifier) {
 	s.SetAgentCheckInNotifierFunc(notifier)
 }
 
-func (s *Service) NewACMEEnrollment(ctx context.Context, hostIdentifier string) (string, error) {
+func (s *Service) NewACMEEnrollment(ctx context.Context, hostIdentifier string, purpose fleet.AppleMDMCertPurpose, enrollmentID *string) (string, error) {
 	s.mu.Lock()
 	s.NewACMEEnrollmentFuncInvoked = true
 	s.mu.Unlock()
-	return s.NewACMEEnrollmentFunc(ctx, hostIdentifier)
+	return s.NewACMEEnrollmentFunc(ctx, hostIdentifier, purpose, enrollmentID)
 }
 
 func (s *Service) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
@@ -5015,18 +4995,18 @@ func (s *Service) MDMGetEULABytes(ctx context.Context, token string) (*fleet.MDM
 	return s.MDMGetEULABytesFunc(ctx, token)
 }
 
-func (s *Service) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, error) {
+func (s *Service) MDMGetEULAMetadata(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 	s.mu.Lock()
 	s.MDMGetEULAMetadataFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMGetEULAMetadataFunc(ctx)
+	return s.MDMGetEULAMetadataFunc(ctx, platform)
 }
 
-func (s *Service) MDMCreateEULA(ctx context.Context, name string, file io.ReadSeeker, dryRun bool) error {
+func (s *Service) MDMCreateEULA(ctx context.Context, platform fleet.MDMEULAPlatform, name string, file io.ReadSeeker, dryRun bool) error {
 	s.mu.Lock()
 	s.MDMCreateEULAFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMCreateEULAFunc(ctx, name, file, dryRun)
+	return s.MDMCreateEULAFunc(ctx, platform, name, file, dryRun)
 }
 
 func (s *Service) MDMDeleteEULA(ctx context.Context, token string, dryRun bool) error {
@@ -5034,34 +5014,6 @@ func (s *Service) MDMDeleteEULA(ctx context.Context, token string, dryRun bool) 
 	s.MDMDeleteEULAFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMDeleteEULAFunc(ctx, token, dryRun)
-}
-
-func (s *Service) MDMCreateWindowsEULA(ctx context.Context, name string, file io.ReadSeeker, dryRun bool) error {
-	s.mu.Lock()
-	s.MDMCreateWindowsEULAFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMCreateWindowsEULAFunc(ctx, name, file, dryRun)
-}
-
-func (s *Service) MDMGetWindowsEULAMetadata(ctx context.Context) (*fleet.MDMEULA, error) {
-	s.mu.Lock()
-	s.MDMGetWindowsEULAMetadataFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMGetWindowsEULAMetadataFunc(ctx)
-}
-
-func (s *Service) MDMGetWindowsEULABytes(ctx context.Context, token string) (*fleet.MDMEULA, error) {
-	s.mu.Lock()
-	s.MDMGetWindowsEULABytesFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMGetWindowsEULABytesFunc(ctx, token)
-}
-
-func (s *Service) MDMDeleteWindowsEULA(ctx context.Context, token string, dryRun bool) error {
-	s.mu.Lock()
-	s.MDMDeleteWindowsEULAFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMDeleteWindowsEULAFunc(ctx, token, dryRun)
 }
 
 func (s *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {

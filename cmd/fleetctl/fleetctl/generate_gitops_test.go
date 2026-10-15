@@ -939,6 +939,9 @@ func (c MockClient) GetEULAMetadata() (*fleet.MDMEULA, error) {
 }
 
 func (MockClient) GetEULAContent(token string) ([]byte, error) {
+	if token == "test-windows-eula-token" {
+		return []byte("# Windows terms\n"), nil
+	}
 	return []byte("This is the EULA content."), nil
 }
 
@@ -954,10 +957,6 @@ func (c MockClient) GetWindowsEULAMetadata() (*fleet.MDMEULA, error) {
 		Name:  name,
 		Token: "test-windows-eula-token",
 	}, nil
-}
-
-func (MockClient) GetWindowsEULAContent(token string) ([]byte, error) {
-	return []byte("# Windows terms\n"), nil
 }
 
 func (MockClient) GetOrgLogoContent(mode fleet.OrgLogoMode) ([]byte, string, error) {

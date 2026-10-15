@@ -1768,7 +1768,11 @@ func orbitAction(c *cli.Context) error {
 			NodeKeyFunc:        orbitClient.GetNodeKey,
 			Client:             orbitClient,
 			Cache:              wstransport.NewQueryCache(),
+			OnOrbitConfig:      orbitClient.TriggerConfigRefresh,
+			OnConnect:          orbitClient.TransportConnected,
+			OnDisconnect:       orbitClient.TransportDisconnected,
 		})
+		orbitClient.SetTransportConnectedFunc(wsManager.Connected)
 		addSubsystem(&g, "websocket transport", wsManager)
 		extensionOpts = append(extensionOpts, table.WithPlugin(wstransport.NewDistributedPlugin(wsManager, orbitClient)))
 	}

@@ -1370,6 +1370,8 @@ type MDMGetEULAMetadataFunc func(ctx context.Context, platform fleet.MDMEULAPlat
 
 type MDMGetEULABytesFunc func(ctx context.Context, platform fleet.MDMEULAPlatform, token string) (*fleet.MDMEULA, error)
 
+type MDMGetEULAPlatformFunc func(ctx context.Context, token string) (fleet.MDMEULAPlatform, error)
+
 type MDMInsertEULAFunc func(ctx context.Context, eula *fleet.MDMEULA) error
 
 type MDMDeleteEULAFunc func(ctx context.Context, platform fleet.MDMEULAPlatform, token string) error
@@ -4613,6 +4615,9 @@ type DataStore struct {
 
 	MDMGetEULABytesFunc        MDMGetEULABytesFunc
 	MDMGetEULABytesFuncInvoked bool
+
+	MDMGetEULAPlatformFunc        MDMGetEULAPlatformFunc
+	MDMGetEULAPlatformFuncInvoked bool
 
 	MDMInsertEULAFunc        MDMInsertEULAFunc
 	MDMInsertEULAFuncInvoked bool
@@ -11162,6 +11167,13 @@ func (s *DataStore) MDMGetEULABytes(ctx context.Context, platform fleet.MDMEULAP
 	s.MDMGetEULABytesFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMGetEULABytesFunc(ctx, platform, token)
+}
+
+func (s *DataStore) MDMGetEULAPlatform(ctx context.Context, token string) (fleet.MDMEULAPlatform, error) {
+	s.mu.Lock()
+	s.MDMGetEULAPlatformFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMGetEULAPlatformFunc(ctx, token)
 }
 
 func (s *DataStore) MDMInsertEULA(ctx context.Context, eula *fleet.MDMEULA) error {
