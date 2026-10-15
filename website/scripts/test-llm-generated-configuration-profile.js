@@ -236,6 +236,7 @@ csp cases report as not-checked either way.`
           });
           // The same step the action runs, so a case is checked against the profile an admin would download.
           if(testCase.profileType === 'csp' && rawResult.configurationProfile) {
+            rawResult.configurationProfile = await sails.helpers.removeSyncmlEnvelopeFromWindowsProfile.with({ profile: rawResult.configurationProfile });
             let withAdmxInstalls = await sails.helpers.addAdmxInstallCommandsToWindowsProfile.with({ profile: rawResult.configurationProfile });
             rawResult.configurationProfile = withAdmxInstalls.profile;
             rawResult.deliveryNotes = _.compact([rawResult.deliveryNotes].concat(withAdmxInstalls.deliveryNotes)).join(' ');
