@@ -685,7 +685,7 @@ Script-only packages (.sh, .ps1, .py) also support $FLEET_SECRET_* variables. Fl
 
 ```yaml
 software:
-  patch_deadline_settings: # Available in Fleet Premium
+  patch_deadline_settings:
     days:
       - monday
       - wednesday
