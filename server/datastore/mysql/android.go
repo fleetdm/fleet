@@ -356,8 +356,8 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 			// instead of writing -1 over it. Once a measurement has been recorded since the
 			// enrollment, a report without one is written as reported.
 			//
-			// last_enrolled_at has second precision, so a measurement from the same second as the
-			// enrollment counts as before it.
+			// last_enrolled_at has second precision. A measurement received since the enrollment
+			// moves updated_at past that second (see below), so one inside it predates the enrollment.
 			//
 			// Decided in one statement on the writer so a lagging replica can't make it drop a
 			// known value. The condition only reads columns that stay unchanged whenever it holds,
@@ -385,14 +385,18 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "updating Android host disk space")
 			}
-			// SetOrUpdateHostDisksSpace skips the write when the measurement equals the stored one,
-			// which would leave updated_at before the enrollment and keep the measurement past the
-			// first one since. Record that one was received. This runs after it because it writes
-			// on its own connection and would wait on this transaction's row lock.
+			// Record that a measurement was received since the enrollment. SetOrUpdateHostDisksSpace
+			// skips the write when it equals the stored one, and a write within the enrollment's
+			// second would still read as before it, so move updated_at to at least the end of that
+			// second. That can put it up to a second in the future, which nothing else reads for
+			// Android. This runs after SetOrUpdateHostDisksSpace because that writes on its own
+			// connection and would wait on this transaction's row lock.
 			if _, err := tx.ExecContext(ctx, `
-				UPDATE host_disks SET updated_at = CURRENT_TIMESTAMP(6)
-				WHERE host_id = ? AND updated_at < (SELECT last_enrolled_at FROM hosts WHERE id = ?) + INTERVAL 1 SECOND`,
-				host.Host.ID, host.Host.ID,
+				UPDATE host_disks
+				JOIN hosts ON hosts.id = host_disks.host_id
+				SET host_disks.updated_at = GREATEST(CURRENT_TIMESTAMP(6), hosts.last_enrolled_at + INTERVAL 1 SECOND)
+				WHERE host_disks.host_id = ? AND host_disks.updated_at < hosts.last_enrolled_at + INTERVAL 1 SECOND`,
+				host.Host.ID,
 			); err != nil {
 				return ctxerr.Wrap(ctx, err, "recording Android host disk measurement since enrollment")
 			}

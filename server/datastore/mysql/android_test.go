@@ -928,6 +928,24 @@ func testUpdateAndroidHostKeepsDiskMeasurement(t *testing.T, ds *Datastore) {
 			want: notMeasured,
 		},
 		{
+			// No age before the measurement: last_enrolled_at has second precision, so the
+			// measurement normally lands in the re-enrollment's second.
+			name: "a measurement in the re-enrollment's second ends the keep",
+			steps: []step{
+				age, status(measured), age, reenroll(notMeasured),
+				status(remeasured), status(notMeasured),
+			},
+			want: notMeasured,
+		},
+		{
+			name: "an unchanged measurement in the re-enrollment's second ends the keep",
+			steps: []step{
+				age, status(measured), age, reenroll(notMeasured),
+				status(measured), status(notMeasured),
+			},
+			want: notMeasured,
+		},
+		{
 			name:  "host with no stored disk data records not supported on re-enrollment",
 			steps: []step{age, reenroll(notMeasured)},
 			want:  notMeasured,
