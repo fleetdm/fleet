@@ -739,6 +739,70 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
       await user.type(screen.getByRole("textbox"), "test-tenant-id");
       expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
     });
+
+    it("Disables Okta delete confirmation if GitOps turns on while it's open", async () => {
+      const baseConditionalAccess = {
+        microsoft_entra_tenant_id: "",
+        microsoft_entra_connection_configured: false,
+        okta_idp_id: TEST_OKTA_IDP_ID,
+        okta_assertion_consumer_service_url: "https://example.com/acs",
+        okta_audience_uri: "https://example.com",
+        okta_certificate: "cert-data",
+        bypass_disabled: false,
+      };
+      const gitopsOffConfig = createMockConfig({
+        conditional_access: baseConditionalAccess,
+        gitops: {
+          gitops_mode_enabled: false,
+          repository_url: "https://github.com/example/fleet-gitops",
+          exceptions: { labels: false, software: false, secrets: true },
+        },
+      });
+      const gitopsOnConfig = createMockConfig({
+        conditional_access: baseConditionalAccess,
+        gitops: {
+          gitops_mode_enabled: true,
+          repository_url: "https://github.com/example/fleet-gitops",
+          exceptions: { labels: false, software: false, secrets: true },
+        },
+      });
+
+      const client = new QueryClient({
+        defaultOptions: { queries: { retry: false, cacheTime: 0 } },
+      });
+      const Harness = ({ app }: { app: Partial<IAppContext> }) => (
+        <QueryClientProvider client={client}>
+          <AppContext.Provider value={{ ...initialState, ...app }}>
+            <ConditionalAccess />
+          </AppContext.Provider>
+        </QueryClientProvider>
+      );
+
+      const user = userEvent.setup();
+      const { rerender } = rtlRender(
+        <Harness app={{ isPremiumTier: true, config: gitopsOffConfig }} />
+      );
+
+      // Open the Okta delete confirmation while GitOps is off.
+      const deleteButtons = screen.getAllByRole("button", { name: "Delete" });
+      await user.click(deleteButtons[0]);
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Before you delete, first unblock all end users/)
+        ).toBeInTheDocument();
+      });
+
+      // Flip GitOps on; both the card trigger and the open confirmation's
+      // Delete must disable so the write can't bypass the card-level gate.
+      rerender(
+        <Harness app={{ isPremiumTier: true, config: gitopsOnConfig }} />
+      );
+
+      const deleteButtonsAfter = screen.getAllByRole("button", {
+        name: "Delete",
+      });
+      deleteButtonsAfter.forEach((btn) => expect(btn).toBeDisabled());
+    });
   });
 
   describe("Premium tier", () => {
