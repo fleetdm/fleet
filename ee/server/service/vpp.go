@@ -757,7 +757,13 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			androidApp, err := svc.androidModule.EnterprisesApplications(ctx, enterprise.Name(), a.AdamID)
 			if err != nil {
 				if fleet.IsNotFound(err) {
-					return nil, nil, fleet.NewInvalidArgumentError("app_store_id", fmt.Sprintf("Couldn't add software. The application ID %q isn't available in Play Store. Please find ID on the Play Store and try again.", a.AdamID))
+					// Google collapses "enterprise unknown" and "app not in catalog" into the same 404.
+					// IsEnterpriseAlive distinguishes the two without destructive cleanup — surface the
+					// reconnect copy only when the probe confidently returns alive=false.
+					if alive, probeErr := svc.androidModule.IsEnterpriseAlive(ctx); probeErr == nil && !alive {
+						return nil, nil, fleet.NewInvalidArgumentError("app_store_id", "Couldn't add software. Fleet is no longer connected to your Android Enterprise. An admin can reconnect Android MDM in Settings > Integrations > Mobile device management, then try again.")
+					}
+					return nil, nil, fleet.NewInvalidArgumentError("app_store_id", fmt.Sprintf("Couldn't add software. The application ID %q isn't available in your organization's managed Google Play. Approve it at https://play.google.com/work, or verify the ID and try again.", a.AdamID))
 				}
 				return nil, nil, ctxerr.Wrap(ctx, err, "bulk add app store apps: check if android app exists")
 			}
@@ -1110,7 +1116,13 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		androidApp, err := svc.androidModule.EnterprisesApplications(ctx, androidEnterpriseName, appID.AdamID)
 		if err != nil {
 			if fleet.IsNotFound(err) {
-				return nil, fleet.NewInvalidArgumentError("app_store_id", fmt.Sprintf("Couldn't add software. The application ID %q isn't available in Play Store. Please find ID on the Play Store and try again.", appID.AdamID))
+				// Google collapses "enterprise unknown" and "app not in catalog" into the same 404.
+				// IsEnterpriseAlive distinguishes the two without destructive cleanup — surface the
+				// reconnect copy only when the probe confidently returns alive=false.
+				if alive, probeErr := svc.androidModule.IsEnterpriseAlive(ctx); probeErr == nil && !alive {
+					return nil, fleet.NewInvalidArgumentError("app_store_id", "Couldn't add software. Fleet is no longer connected to your Android Enterprise. An admin can reconnect Android MDM in Settings > Integrations > Mobile device management, then try again.")
+				}
+				return nil, fleet.NewInvalidArgumentError("app_store_id", fmt.Sprintf("Couldn't add software. The application ID %q isn't available in your organization's managed Google Play. Approve it at https://play.google.com/work, or verify the ID and try again.", appID.AdamID))
 			}
 			return nil, ctxerr.Wrap(ctx, err, "add app store app: check if android app exists")
 		}
