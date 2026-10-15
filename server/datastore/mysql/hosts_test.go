@@ -3390,20 +3390,16 @@ func testHostsMobileOnlineOffline(t *testing.T, ds *Datastore) {
 		assert.Equal(t, fleet.StatusOffline, h.Status(now), "Host.Status for %s", h.Hostname)
 	}
 
-	// Live-query target flow: mobile hosts must be excluded from
-	// CountHostsInTargets and HostIDsInTargets at the datastore layer.
-	// SearchHosts no longer filters them here; the service layer handles
-	// that for the target picker so the label picker can still find them.
+	// Mobile hosts are included in CountHostsInTargets and HostIDsInTargets
+	// (pre-#52518 behavior restored so the picker and campaign stay consistent).
 	targetIDs := append(append([]uint{}, expectedOnline...), expectedOffline...)
 	metrics, err := ds.CountHostsInTargets(ctx, filter, fleet.HostTargets{HostIDs: targetIDs}, now)
 	require.NoError(t, err)
-	assert.Equal(t, uint(0), metrics.OnlineHosts, "mobile hosts must not contribute to target metrics online")
-	assert.Equal(t, uint(0), metrics.OfflineHosts, "mobile hosts must not contribute to target metrics offline")
-	assert.Equal(t, uint(0), metrics.TotalHosts, "mobile hosts must not contribute to target metrics total")
+	assert.Equal(t, uint(len(targetIDs)), metrics.TotalHosts, "all mobile hosts contribute to target metrics")
 
 	ids, err := ds.HostIDsInTargets(ctx, filter, fleet.HostTargets{HostIDs: targetIDs})
 	require.NoError(t, err)
-	assert.Empty(t, ids, "mobile hosts must not flow into liveQueryStore.RunQuery")
+	assert.ElementsMatch(t, targetIDs, ids, "mobile hosts included in HostIDsInTargets")
 
 	// SearchHosts returns all platforms including mobile. The live-query
 	// target picker filters mobile hosts at the service layer so that the
