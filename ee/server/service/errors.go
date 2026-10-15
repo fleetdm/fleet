@@ -8,10 +8,20 @@ import (
 
 type notFoundError struct {
 	fleet.ErrorWithUUID
+	reason string
 }
 
 func (e *notFoundError) Error() string {
+	if e.reason != "" {
+		return e.reason
+	}
 	return "not found"
+}
+
+func NewNotFoundError(reason string) *notFoundError {
+	return &notFoundError{
+		reason: reason,
+	}
 }
 
 // IsNotFound implements the service.IsNotFound interface (from the non-premium

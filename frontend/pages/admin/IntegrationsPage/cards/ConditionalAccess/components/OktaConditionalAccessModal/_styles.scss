@@ -1,4 +1,9 @@
 .okta-conditional-access-modal {
+  &__certificate-section {
+    @include flex-column-24px-gap;
+    align-items: flex-start;
+  }
+
   .file-uploader {
     &__title,
     &__internal-error {

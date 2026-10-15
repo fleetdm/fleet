@@ -29,7 +29,11 @@ func (nopLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) {
 	return map[string]string{}, nil
 }
 
-func (nopLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
+func (nopLiveQuery) QueryCompletedByHost(name string, hostID uint) (bool, error) {
+	return true, nil
+}
+
+func (nopLiveQuery) RestoreQueryTargetForHost(name string, hostID uint) error {
 	return nil
 }
 
@@ -86,6 +90,26 @@ func (q nopLiveQuery) QueryReportsClipped([]uint) (map[uint]bool, error) {
 }
 
 func (q nopLiveQuery) ClearQueryReportsClipped([]uint) error {
+	return nil
+}
+
+func (q nopLiveQuery) RecordQueryResultsLastFetched([]uint, time.Time) error {
+	return nil
+}
+
+func (q nopLiveQuery) LoadQueryResultsLastFetched() (map[uint]time.Time, error) {
+	return map[uint]time.Time{}, nil
+}
+
+func (q nopLiveQuery) ClearProcessedQueryResultsLastFetched() error {
+	return nil
+}
+
+func (q nopLiveQuery) AcquireQueryReportWriteSlot(string, int, time.Duration) (bool, error) {
+	return true, nil
+}
+
+func (q nopLiveQuery) ReleaseQueryReportWriteSlot(string) error {
 	return nil
 }
 

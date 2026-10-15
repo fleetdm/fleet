@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.90.0",
+      "version": "2.91.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Microsoft Azure CLI (64-bit)' AND publisher = 'Microsoft Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Microsoft Azure CLI (64-bit)' AND publisher = 'Microsoft Corporation' AND version_compare(version, '2.90.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Microsoft Azure CLI (64-bit)' AND publisher = 'Microsoft Corporation' AND version_compare(version, '2.91.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'microsoft azure cli.exe');"
       },
-      "installer_url": "https://azcliprod.blob.core.windows.net/msi/azure-cli-2.90.0-x64.msi",
+      "installer_url": "https://azcliprod.blob.core.windows.net/msi/azure-cli-2.91.0-x64.msi",
       "install_script_ref": "20a8820c",
       "uninstall_script_ref": "621ad74f",
-      "sha256": "d5c1918eab32063219bea575e0d545149969c24751cb5f90ad2388b5df72222f",
+      "sha256": "e9f512d127a9bc6c3832b928ccbf04ab9467a199bca63a1155f9d533ceb9f461",
       "default_categories": [
         "Developer tools"
       ],

@@ -249,6 +249,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     },
   },
   max_software_package_size: 10 * 1024 * 1024 * 1024,
+  staged_upload_available: false,
 };
 
 export const createMockConfig = (overrides?: Partial<IConfig>): IConfig => {

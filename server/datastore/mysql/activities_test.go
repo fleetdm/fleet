@@ -230,7 +230,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		Name: "vpp_no_team_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "3", Platform: fleet.MacOSPlatform}},
 		BundleIdentifier: "b3",
 	}
-	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp, nil, nil)
 	require.NoError(t, err)
 
 	// install the VPP app on h1
@@ -706,19 +706,19 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 		Name: "vpp_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "vpp1", Platform: fleet.MacOSPlatform}},
 		BundleIdentifier: "vpp1",
 	}
-	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp1, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp1, nil, nil)
 	require.NoError(t, err)
 	vppApp2 := &fleet.VPPApp{
 		Name: "vpp_2", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "vpp2", Platform: fleet.MacOSPlatform}},
 		BundleIdentifier: "vpp2",
 	}
-	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp2, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp2, nil, nil)
 	require.NoError(t, err)
 	vppApp1IOS := &fleet.VPPApp{
 		Name: "vpp_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "vpp1", Platform: fleet.IOSPlatform}},
 		BundleIdentifier: "vpp1",
 	}
-	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp1IOS, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp1IOS, nil, nil)
 	require.NoError(t, err)
 
 	// create a software installer that can be installed later
@@ -1198,7 +1198,7 @@ func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
 		Name: "vpp_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "vpp1", Platform: fleet.MacOSPlatform}},
 		BundleIdentifier: "vpp1",
 	}
-	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp1, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp1, nil, nil)
 	require.NoError(t, err)
 
 	installer1, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
@@ -2888,6 +2888,10 @@ func testActivateDeletedInstallerShowsPlaceholder(t *testing.T, ds *Datastore) {
 
 	siuaStmt := `INSERT INTO software_install_upcoming_activities (upcoming_activity_id, software_installer_id, policy_id, software_title_id) VALUES (?, ?, NULL, NULL)`
 	_, err = ds.writer(ctx).ExecContext(ctx, siuaStmt, activityID, installerID)
+	require.NoError(t, err)
+
+	// The FK used to null the reference on delete; it now restricts, so null it first.
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE software_install_upcoming_activities SET software_installer_id = NULL WHERE upcoming_activity_id = ?`, activityID)
 	require.NoError(t, err)
 
 	deleteStmt := `DELETE FROM software_installers WHERE id = ?`

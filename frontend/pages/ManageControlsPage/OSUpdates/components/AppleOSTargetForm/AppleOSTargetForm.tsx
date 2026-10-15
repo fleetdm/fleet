@@ -293,6 +293,7 @@ const AppleOSTargetForm = ({
   return (
     <form className={baseClass} onSubmit={handleSubmit}>
       <DropdownWrapper
+        ariaLabel="OS update target"
         name="target"
         options={TARGET_OPTIONS}
         value={target}

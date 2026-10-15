@@ -947,7 +947,7 @@ func testPoliciesAutomationEnabledSoftware(t *testing.T, ds *Datastore) {
 		if _, err := q.ExecContext(ctx, `INSERT INTO vpp_apps (adam_id, platform, name) VALUES ('12345', 'darwin', 'Numbers')`); err != nil {
 			return err
 		}
-		res, err := q.ExecContext(ctx, `INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id) VALUES ('12345', 'darwin', 0)`)
+		res, err := q.ExecContext(ctx, `INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id, name) VALUES ('12345', 'darwin', 0, 'Default version')`)
 		if err != nil {
 			return err
 		}
@@ -1131,7 +1131,7 @@ func testStatisticsFleetMDMEnrolled(t *testing.T, ds *Datastore) {
 		key := fmt.Sprintf("mdm-stats-%d", i)
 		h := test.NewHost(t, ds, key, "", key, key, time.Now(), test.WithPlatform(c.platform))
 		if c.mdmName != "" {
-			require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, c.isServer, c.enrolled, "https://fleet.example.com", c.installedFromDep, c.mdmName, "", false), c.name)
+			require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, c.isServer, c.enrolled, "https://fleet.example.com", c.installedFromDep, c.mdmName, "", fleet.PersonalEnrollmentTypeNone), c.name)
 		}
 	}
 

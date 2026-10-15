@@ -1260,3 +1260,131 @@ func TestValidateSoftwareSources(t *testing.T) {
 		})
 	}
 }
+
+func TestParseSoftwareTypeFilter(t *testing.T) {
+	const requiresSource = "extension_for requires source. Specify a browser or IDE extension source, like source=chrome_extensions&extension_for=brave."
+	for _, tc := range []struct {
+		name         string
+		source       string
+		extensionFor string
+		want         SoftwareTypeFilter
+		wantArg      string
+		wantReason   string
+	}{
+		{
+			name: "both absent",
+		},
+		{
+			name:   "single source",
+			source: "apps",
+			want:   SoftwareTypeFilter{"apps": nil},
+		},
+		{
+			name:   "dedupes sources",
+			source: "apps,programs,apps",
+			want:   SoftwareTypeFilter{"apps": nil, "programs": nil},
+		},
+		{
+			name:   "nix packages",
+			source: "nix_packages",
+			want:   SoftwareTypeFilter{"nix_packages": nil},
+		},
+		{
+			name:         "trims spaces",
+			source:       "apps, chrome_extensions ",
+			extensionFor: " brave",
+			want:         SoftwareTypeFilter{"apps": nil, "chrome_extensions": {"brave"}},
+		},
+		{
+			name:         "groups extension_for by source",
+			source:       "apps,chrome_extensions,vscode_extensions,jetbrains_plugins",
+			extensionFor: "brave,cursor,edge,brave,intellij_idea",
+			want: SoftwareTypeFilter{
+				"apps":              nil,
+				"chrome_extensions": {"brave", "edge"},
+				"vscode_extensions": {"cursor"},
+				"jetbrains_plugins": {"intellij_idea"},
+			},
+		},
+		{
+			name:       "unknown source",
+			source:     "apps,app",
+			wantArg:    "source",
+			wantReason: `Invalid source: "app" isn't a valid source. See the options: https://fleetdm.com/docs/rest-api/rest-api#list-software`,
+		},
+		{
+			name:       "source is case sensitive",
+			source:     "Apps",
+			wantArg:    "source",
+			wantReason: `Invalid source: "Apps" isn't a valid source. See the options: https://fleetdm.com/docs/rest-api/rest-api#list-software`,
+		},
+		{
+			name:   "empty values in source are ignored",
+			source: ",apps,,",
+			want:   SoftwareTypeFilter{"apps": nil},
+		},
+		{
+			name:   "only separators and spaces",
+			source: " , ,",
+		},
+		{
+			name:         "unknown extension_for",
+			source:       "chrome_extensions",
+			extensionFor: "brav",
+			wantArg:      "extension_for",
+			wantReason:   `Invalid extension_for: "brav" isn't a valid browser or IDE. See the options: https://fleetdm.com/docs/rest-api/rest-api#list-software`,
+		},
+		{
+			// osquery's jetbrains_plugins.product_type is snake_case (kProductTypeToString), not the
+			// CamelCase its table doc string claims.
+			name:         "extension_for is case sensitive",
+			source:       "jetbrains_plugins",
+			extensionFor: "IntelliJIdea",
+			wantArg:      "extension_for",
+			wantReason:   `Invalid extension_for: "IntelliJIdea" isn't a valid browser or IDE. See the options: https://fleetdm.com/docs/rest-api/rest-api#list-software`,
+		},
+		{
+			name:         "empty values in extension_for are ignored",
+			source:       "chrome_extensions",
+			extensionFor: "brave,",
+			want:         SoftwareTypeFilter{"chrome_extensions": {"brave"}},
+		},
+		{
+			name:         "extension_for without source",
+			extensionFor: "brave",
+			wantArg:      "extension_for",
+			wantReason:   requiresSource,
+		},
+		{
+			name:         "extension_for with only separators in source",
+			source:       ",",
+			extensionFor: "brave",
+			wantArg:      "extension_for",
+			wantReason:   requiresSource,
+		},
+		{
+			name:         "only separators in extension_for without source",
+			extensionFor: ",",
+		},
+		{
+			name:         "extension_for whose source is not selected",
+			source:       "apps,chrome_extensions",
+			extensionFor: "cursor",
+			wantArg:      "extension_for",
+			wantReason:   `"cursor" is a "vscode_extensions" value, but source doesn't include "vscode_extensions".`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ParseSoftwareTypeFilter(tc.source, tc.extensionFor)
+			if tc.wantReason == "" {
+				require.NoError(t, err)
+				require.Equal(t, tc.want, got)
+				return
+			}
+			require.Nil(t, got)
+			var argErr *InvalidArgumentError
+			require.ErrorAs(t, err, &argErr)
+			require.Equal(t, []map[string]string{{"name": tc.wantArg, "reason": tc.wantReason}}, argErr.Invalid())
+		})
+	}
+}

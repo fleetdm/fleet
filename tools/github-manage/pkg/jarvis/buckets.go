@@ -29,7 +29,10 @@ func parseTime(s string) time.Time {
 //	issues    — open issues assigned to the user
 //	login     — the user's GitHub login (to tell first-review from re-review)
 //	now       — current time (injected for testability)
-func BuildBoard(repo, login string, myPRs, reviewPRs []ghapi.PullRequest, issues []ghapi.Issue, sessions []Session, notifications []ghapi.Notification, excludeIssues map[int]bool, now time.Time) Board {
+//
+// excludeIssues is keyed by ghapi.IssueRefKey so a Project View issue from
+// another repo can't hide an unrelated same-numbered issue in this repo.
+func BuildBoard(repo, login string, myPRs, reviewPRs []ghapi.PullRequest, issues []ghapi.Issue, sessions []Session, notifications []ghapi.Notification, excludeIssues map[string]bool, now time.Time) Board {
 	b := Board{Buckets: map[Bucket][]Item{}}
 	add := func(it Item) { b.Buckets[it.Bucket] = append(b.Buckets[it.Bucket], it) }
 
@@ -52,7 +55,7 @@ func BuildBoard(repo, login string, myPRs, reviewPRs []ghapi.PullRequest, issues
 	for i := range issues {
 		// Issues surfaced in the Project View are excluded here (and marked present
 		// so a notification doesn't resurface them elsewhere).
-		if excludeIssues[issues[i].Number] {
+		if excludeIssues[ghapi.IssueRefKey(repoOr(issues[i].URL, repo), issues[i].Number)] {
 			present[pkey(repo, KindIssue, issues[i].Number)] = true
 			continue
 		}

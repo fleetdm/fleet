@@ -3,6 +3,7 @@ package mysql
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -51,10 +52,12 @@ func TestScim(t *testing.T) {
 		{"DeleteScimGroup", testDeleteScimGroup},
 		{"ListScimGroups", testListScimGroups},
 		{"ScimLastRequest", testScimLastRequest},
-		{"ScimUsersExist", testScimUsersExist},
+		{"ExistingScimUserIDs", testExistingScimUserIDs},
+		{"ExistingScimGroupIDs", testExistingScimGroupIDs},
 		{"ScimNestedGroups", testScimNestedGroups},
 		{"TriggerResendIdPProfiles", testTriggerResendIdPProfiles},
 		{"TriggerResendIdPProfilesOnTeam", testTriggerResendIdPProfilesOnTeam},
+		{"TriggerResendDigiCertProfiles", testTriggerResendDigiCertProfiles},
 		{"TriggerResendCertTemplatesAndAppConfigs", testTriggerResendCertTemplatesAndAppConfigs},
 		{"SetOrUpdateHostSCIMUserMapping", testSetOrUpdateHostSCIMUserMapping},
 	}
@@ -2738,6 +2741,78 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryVerifying})
 }
 
+func testTriggerResendDigiCertProfiles(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+	otherHost := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now())
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "digicert_team"})
+	require.NoError(t, err)
+
+	newDigiCertCA := func(name, commonName, seatID string, upns *[]string) *fleet.CertificateAuthority {
+		ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+			Type: string(fleet.CATypeDigiCert), Name: &name, URL: new("https://example.com"), APIToken: new("token"), ProfileID: new("profile"),
+			CertificateCommonName: &commonName, CertificateUserPrincipalNames: upns, CertificateSeatID: &seatID,
+		})
+		require.NoError(t, err)
+		return ca
+	}
+	newDigiCertProfile := func(name, caName string, teamID uint) *fleet.MDMAppleConfigProfile {
+		cp := generateAppleCP(name, name, teamID)
+		cp.Mobileconfig = []byte("<data>" + fleet.FleetVarDigiCertDataPrefix.WithPrefix() + caName + "</data>")
+		profile, err := ds.NewMDMAppleConfigProfile(ctx, *cp, []fleet.FleetVarName{fleet.FleetVarName(string(fleet.FleetVarDigiCertDataPrefix) + caName)})
+		require.NoError(t, err)
+		return profile
+	}
+
+	// "ca" is a prefix of "ca_groups", so a resend for "ca" must not match the "ca_groups" profile.
+	newDigiCertCA("ca", fleet.FleetVarHostEndUserIDPUsername.WithPrefix(), fleet.FleetVarHostEndUserEmailIDP.WithBraces(), nil)
+	newDigiCertCA("ca_groups", "cn", "seat", &[]string{fleet.FleetVarHostEndUserIDPGroups.WithPrefix() + "@example.com"})
+	serialCA := newDigiCertCA("ca_serial", fleet.FleetVarHostHardwareSerial.WithPrefix(), "seat", &[]string{"upn"})
+
+	profUsername := newDigiCertProfile("username", "ca", 0)
+	profGroups := newDigiCertProfile("groups", "ca_groups", 0)
+	profSerial := newDigiCertProfile("serial", "ca_serial", 0)
+	profOtherTeam := newDigiCertProfile("other_team", "ca", team.ID) // not the hosts' team, so never resent
+	profNone, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("none", "none", 0), nil)
+	require.NoError(t, err)
+	allProfiles := []*fleet.MDMAppleConfigProfile{profUsername, profGroups, profSerial, profOtherTeam, profNone}
+
+	checkResend := func(affectedVar fleet.FleetVarName, wantPending ...*fleet.MDMAppleConfigProfile) {
+		t.Run(string(affectedVar), func(t *testing.T) {
+			for _, p := range allProfiles {
+				forceSetAppleHostProfileStatus(t, ds, host.UUID, p, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+				forceSetAppleHostProfileStatus(t, ds, otherHost.UUID, p, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+			}
+			ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+				return triggerResendProfilesUsingVariables(ctx, tx, []uint{host.ID}, []fleet.FleetVarName{affectedVar})
+			})
+			var want, wantOther []hostProfileStatus
+			for _, p := range allProfiles {
+				status := fleet.MDMDeliveryVerified
+				if slices.Contains(wantPending, p) {
+					status = fleet.MDMDeliveryPending
+				}
+				want = append(want, hostProfileStatus{p.ProfileUUID, status})
+				wantOther = append(wantOther, hostProfileStatus{p.ProfileUUID, fleet.MDMDeliveryVerified})
+			}
+			assertHostProfileStatus(t, ds, host.UUID, want...)
+			assertHostProfileStatus(t, ds, otherHost.UUID, wantOther...)
+		})
+	}
+
+	checkResend(fleet.FleetVarHostEndUserIDPUsername, profUsername)
+	checkResend(fleet.FleetVarHostEndUserEmailIDP, profUsername)
+	checkResend(fleet.FleetVarHostEndUserIDPGroups, profGroups)
+	checkResend(fleet.FleetVarHostEndUserIDPFullname)
+
+	// The CA is read at resend time, so an edited CA is picked up without touching the profile.
+	require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, serialCA.ID, &fleet.CertificateAuthority{
+		Type: string(fleet.CATypeDigiCert), CertificateCommonName: new(fleet.FleetVarHostEndUserIDPFullname.WithPrefix()),
+	}))
+	checkResend(fleet.FleetVarHostEndUserIDPFullname, profSerial)
+}
+
 // for https://github.com/fleetdm/fleet/issues/28820
 func testTriggerResendIdPProfilesOnTeam(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
@@ -2928,61 +3003,59 @@ func forceSetAppleHostProfileStatus(t *testing.T, ds *Datastore, hostUUID string
 	})
 }
 
-func testScimUsersExist(t *testing.T, ds *Datastore) {
-	// Create test users
+func testExistingScimUserIDs(t *testing.T, ds *Datastore) {
 	users := createTestScimUsers(t, ds)
 	userIDs := make([]uint, len(users))
 	for i, user := range users {
 		userIDs[i] = user.ID
 	}
 
-	// Test 1: Empty slice should return true
-	exist, err := ds.ScimUsersExist(t.Context(), []uint{})
+	found, err := ds.ExistingScimUserIDs(t.Context(), nil)
 	require.NoError(t, err)
-	assert.True(t, exist, "Empty slice should return true")
+	require.Empty(t, found)
 
-	// Test 2: All existing users should return true
-	exist, err = ds.ScimUsersExist(t.Context(), userIDs)
+	found, err = ds.ExistingScimUserIDs(t.Context(), append(slices.Clone(userIDs), 99999, 100000))
 	require.NoError(t, err)
-	assert.True(t, exist, "All existing users should return true")
+	require.Equal(t, idSet(userIDs...), found)
 
-	// Test 3: Mix of existing and non-existing users should return false
-	nonExistentIDs := userIDs
-	nonExistentIDs = append(nonExistentIDs, 99999)
-	exist, err = ds.ScimUsersExist(t.Context(), nonExistentIDs)
+	found, err = ds.ExistingScimUserIDs(t.Context(), []uint{99999, 100000})
 	require.NoError(t, err)
-	assert.False(t, exist, "Mix of existing and non-existing users should return false")
+	require.Empty(t, found)
 
-	// Test 4: Only non-existing users should return false
-	exist, err = ds.ScimUsersExist(t.Context(), []uint{99999, 100000})
+	// Spans several query batches, with existing IDs in the first and last batch.
+	largeIDs := []uint{userIDs[0]}
+	for i := range 24990 {
+		largeIDs = append(largeIDs, uint(1000000)+uint(i)) // nolint:gosec // dismiss G115 integer overflow
+	}
+	largeIDs = append(largeIDs, userIDs[1])
+	found, err = ds.ExistingScimUserIDs(t.Context(), largeIDs)
 	require.NoError(t, err)
-	assert.False(t, exist, "Only non-existing users should return false")
+	require.Equal(t, idSet(userIDs[0], userIDs[1]), found)
+}
 
-	// Test 5: Test with a large number of IDs to verify batching works
-	// First, create a large number of test users
-	largeUserIDs := make([]uint, 0, 25000)
-	largeUserIDs = append(largeUserIDs, userIDs...) // Add existing users
-
-	// Add some non-existent IDs to test batching with mixed results
-	for i := 0; i < 24990; i++ {
-		largeUserIDs = append(largeUserIDs, uint(1000000)+uint(i)) // nolint:gosec // dismiss G115 integer overflow
+func testExistingScimGroupIDs(t *testing.T, ds *Datastore) {
+	var groupIDs []uint
+	for _, name := range []string{"existing-ids-a", "existing-ids-b"} {
+		id, err := ds.CreateScimGroup(t.Context(), &fleet.ScimGroup{DisplayName: name})
+		require.NoError(t, err)
+		groupIDs = append(groupIDs, id)
 	}
 
-	exist, err = ds.ScimUsersExist(t.Context(), largeUserIDs)
+	found, err := ds.ExistingScimGroupIDs(t.Context(), nil)
 	require.NoError(t, err)
-	assert.False(t, exist, "Large batch with non-existing users should return false")
+	require.Empty(t, found)
 
-	// Test 6: Test with a large number of existing IDs
-	// This is a bit tricky to test thoroughly without creating thousands of users,
-	// so we'll just verify the function handles a large slice without errors
-	largeExistingIDs := make([]uint, 0, 25000)
-	for i := 0; i < 25000; i++ {
-		largeExistingIDs = append(largeExistingIDs, userIDs[i%len(userIDs)])
+	found, err = ds.ExistingScimGroupIDs(t.Context(), append(slices.Clone(groupIDs), 99999))
+	require.NoError(t, err)
+	require.Equal(t, idSet(groupIDs...), found)
+}
+
+func idSet(ids ...uint) map[uint]struct{} {
+	set := make(map[uint]struct{}, len(ids))
+	for _, id := range ids {
+		set[id] = struct{}{}
 	}
-
-	exist, err = ds.ScimUsersExist(t.Context(), largeExistingIDs)
-	require.NoError(t, err)
-	assert.True(t, exist, "Large batch with only existing users should return true")
+	return set
 }
 
 func testSetOrUpdateHostSCIMUserMapping(t *testing.T, ds *Datastore) {
@@ -3187,13 +3260,18 @@ func testTriggerResendCertTemplatesAndAppConfigs(t *testing.T, ds *Datastore) {
 		_, err := q.ExecContext(ctx, `INSERT INTO vpp_apps (adam_id, platform) VALUES (?, 'android')`, appID)
 		return err
 	})
+	var appTeamID int64
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id) VALUES (?, 'android', 0)`, appID)
+		res, err := q.ExecContext(ctx, `INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id, name) VALUES (?, 'android', 0, 'Default version')`, appID)
+		if err != nil {
+			return err
+		}
+		appTeamID, err = res.LastInsertId()
 		return err
 	})
 
 	config := []byte(`{"managedConfiguration":{"user":"$FLEET_VAR_HOST_END_USER_IDP_USERNAME"}}`)
-	err = ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), 0, appID, config)
+	err = ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), uint(appTeamID), config) //nolint:gosec // dismiss G115
 	require.NoError(t, err)
 
 	// Assign a SCIM user to the host.
@@ -3274,7 +3352,8 @@ func newScimIdPMappingHost(t *testing.T, ds *Datastore, suffix, acctUsername, ac
 
 	host := newScimIdPMappingHostOnly(t, ds, suffix)
 	acct := insertScimIdPAccount(t, ds, acctUsername, acctEmail)
-	require.NoError(t, ds.AssociateHostMDMIdPAccount(ctx, host.UUID, acct.UUID))
+	_, err := ds.AssociateHostMDMIdPAccount(ctx, host.UUID, acct.UUID)
+	require.NoError(t, err)
 
 	scimUserID, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: scimUserName})
 	require.NoError(t, err)
@@ -3388,7 +3467,8 @@ func testReplaceScimUserRenameUpdatesHostIdPMapping(t *testing.T, ds *Datastore)
 		requireHostIdPDeviceMapping(t, ds, fx.host.ID, newName)
 
 		// simulates the reconcile that runs on MDM authenticate
-		require.NoError(t, ds.AssociateHostMDMIdPAccount(ctx, fx.host.UUID, fx.acct.UUID))
+		_, err = ds.AssociateHostMDMIdPAccount(ctx, fx.host.UUID, fx.acct.UUID)
+		require.NoError(t, err)
 		requireHostIdPDeviceMapping(t, ds, fx.host.ID, newName)
 	})
 
@@ -3438,14 +3518,15 @@ func testReplaceScimUserRenameUpdatesHostIdPMapping(t *testing.T, ds *Datastore)
 		fx := newScimIdPMappingHost(t, ds, "shared1", "jdoe", oldName, oldName)
 
 		host2 := newScimIdPMappingHostOnly(t, ds, "shared2")
-		require.NoError(t, ds.AssociateHostMDMIdPAccount(ctx, host2.UUID, fx.acct.UUID))
+		_, err := ds.AssociateHostMDMIdPAccount(ctx, host2.UUID, fx.acct.UUID)
+		require.NoError(t, err)
 		requireHostIdPDeviceMapping(t, ds, host2.ID, oldName)
 		require.NoError(t, ds.associateHostWithScimUser(ctx, host2.ID, fx.scimUserID))
 
 		const otherName = "frank@example.com"
 		other := newScimIdPMappingHost(t, ds, "shared3", "frank", otherName, otherName)
 
-		_, err := ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: fx.scimUserID, UserName: newName})
+		_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: fx.scimUserID, UserName: newName})
 		require.NoError(t, err)
 
 		requireHostIdPDeviceMapping(t, ds, fx.host.ID, newName)
@@ -3491,7 +3572,8 @@ func testReplaceScimUserRenameUpdatesHostIdPMapping(t *testing.T, ds *Datastore)
 		const bobOld, bobNew = "bob@example.com", "robert@example.com"
 		alice := newScimIdPMappingHost(t, ds, "reassign1", "alice.r", aliceName, aliceName)
 		host2 := newScimIdPMappingHostOnly(t, ds, "reassign2")
-		require.NoError(t, ds.AssociateHostMDMIdPAccount(ctx, host2.UUID, alice.acct.UUID))
+		_, err := ds.AssociateHostMDMIdPAccount(ctx, host2.UUID, alice.acct.UUID)
+		require.NoError(t, err)
 		requireHostIdPDeviceMapping(t, ds, host2.ID, aliceName)
 
 		bobID, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: bobOld})
@@ -3684,7 +3766,8 @@ func testReplaceScimUserRenameResendsEmailIdPProfiles(t *testing.T, ds *Datastor
 	const sharedOld, sharedNew = "mia@example.com", "mia.chen@example.com"
 	shared := newScimIdPMappingHost(t, ds, "resendshared", "mia", sharedOld, sharedOld)
 	unlinked := newScimIdPMappingHostOnly(t, ds, "resendunlinked")
-	require.NoError(t, ds.AssociateHostMDMIdPAccount(ctx, unlinked.UUID, shared.acct.UUID))
+	_, err = ds.AssociateHostMDMIdPAccount(ctx, unlinked.UUID, shared.acct.UUID)
+	require.NoError(t, err)
 	requireHostIdPDeviceMapping(t, ds, unlinked.ID, sharedOld)
 	_, err = ds.ScimUserByHostID(ctx, unlinked.ID)
 	require.True(t, fleet.IsNotFound(err))
@@ -3709,7 +3792,8 @@ func testReplaceScimUserRenameResendsEmailIdPProfiles(t *testing.T, ds *Datastor
 	dual := newScimIdPMappingHost(t, ds, "resenddualold", "opal", dualOld, dualOld)
 	dualNewHost := newScimIdPMappingHostOnly(t, ds, "resenddualnew")
 	dualNewAcct := insertScimIdPAccount(t, ds, "opal.vance", dualNew)
-	require.NoError(t, ds.AssociateHostMDMIdPAccount(ctx, dualNewHost.UUID, dualNewAcct.UUID))
+	_, err = ds.AssociateHostMDMIdPAccount(ctx, dualNewHost.UUID, dualNewAcct.UUID)
+	require.NoError(t, err)
 	requireHostIdPDeviceMapping(t, ds, dualNewHost.ID, dualNew)
 	require.NoError(t, ds.associateHostWithScimUser(ctx, dualNewHost.ID, dual.scimUserID))
 	forceSetAppleHostProfileStatus(t, ds, dual.host.UUID, profEmail, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)

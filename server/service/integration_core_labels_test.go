@@ -377,7 +377,7 @@ func (s *integrationTestSuite) TestLabels() {
 		assert.Empty(t, listHostsResp.Hosts)
 
 		// set MDM information on a host
-		require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), lbl2Hosts[0].ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", false))
+		require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), lbl2Hosts[0].ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", fleet.PersonalEnrollmentTypeNone))
 		var mdmID uint
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(context.Background(), q, &mdmID,
@@ -1152,7 +1152,7 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 	require.NoError(
 		t,
 		s.ds.SetOrUpdateMDMData(
-			context.Background(), host.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", false,
+			context.Background(), host.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", fleet.PersonalEnrollmentTypeNone,
 		),
 	)
 

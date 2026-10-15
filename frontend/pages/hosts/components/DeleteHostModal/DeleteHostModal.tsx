@@ -50,7 +50,8 @@ const DeleteHostModal = ({
   isUpdating,
 }: IDeleteHostModalProps): JSX.Element => {
   const { config } = useContext(AppContext);
-  const useOneTimeEnrollSecrets = !!config?.auth?.use_one_time_enroll_secrets;
+  const useOneTimeEnrollSecrets = !!config?.auth
+    ?.mdm_apple_one_time_enroll_secrets;
 
   const getCount = () => {
     if (!selectedHostIds) {

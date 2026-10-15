@@ -161,7 +161,7 @@ type ssoURLCaptureService struct {
 	capturedOriginalURL string
 }
 
-func (s *ssoURLCaptureService) InitiateMDMSSO(_ context.Context, _, customOriginalURL, _ string) (string, int, string, error) {
+func (s *ssoURLCaptureService) InitiateMDMSSO(_ context.Context, _, customOriginalURL, _ string, _ *fleet.MDMAppleMachineInfo) (string, int, string, error) {
 	s.capturedOriginalURL = customOriginalURL
 	return "session-id", 300, "https://idp.example.com/sso", nil
 }

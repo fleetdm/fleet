@@ -49,7 +49,7 @@ func (s *integrationMDMTestSuite) TestHostNameTemplateSecretScope() {
 	teamObserver := mkUser("hnt-observer", fleet.RoleObserver)
 
 	iosHost, iosDevice := s.createAppleMobileHostThenEnrollMDM("ios")
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, iosHost.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, iosHost.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone))
 	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{iosHost.ID})))
 
 	asUser := func(u fleet.User) { s.token = s.getCachedUserToken(u.Email, test.GoodPassword) }

@@ -13,21 +13,21 @@ quit_application() {
   echo "Quitting application '$bundle_id'..."
 
   # try to quit the application within the timeout period
-  local quit_success=false
+  local quit_success=false still_running
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    if osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1; then
-      if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then
-        echo "Application '$bundle_id' quit successfully."
-        quit_success=true
-        break
-      fi
-    fi
+    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1
     sleep 1
+    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+      echo "Application '$bundle_id' quit successfully."
+      quit_success=true
+      break
+    fi
   done
 
   if [[ "$quit_success" = false ]]; then
     echo "Application '$bundle_id' did not quit."
+    return 1
   fi
 }
 
@@ -51,7 +51,7 @@ CHROME_WAS_RUNNING=false
 CHROME_RUNNING=$(osascript -e "application id \"com.google.Chrome\" is running" 2>/dev/null)
 if [[ "$CHROME_RUNNING" == "true" ]]; then
   CHROME_WAS_RUNNING=true
-  quit_application 'com.google.Chrome' "$CONSOLE_USER"
+  quit_application 'com.google.Chrome' "$CONSOLE_USER" || exit 1
 fi
 
 installer -pkg "$INSTALLER_PATH" -target / || exit $?

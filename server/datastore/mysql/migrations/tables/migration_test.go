@@ -174,12 +174,15 @@ WHERE
 		{"utf8mb4_bin", "in_house_app_install_tokens", "token", "utf8mb4"},
 		{"utf8mb4_bin", "invites", "token", "utf8mb4"},
 		{"utf8mb4_bin", "mdm_apple_bootstrap_packages", "token", "utf8mb4"},
+		{"utf8mb4_bin", "mdm_apple_dep_enrollment_challenges", "challenge", "utf8mb4"},
+		{"utf8mb4_bin", "mdm_apple_enrollment_profiles", "previous_token", "utf8mb4"},
 		{"utf8mb4_bin", "mdm_apple_enrollment_profiles", "token", "utf8mb4"},
 		{"utf8mb4_bin", "mdm_apple_installers", "url_token", "utf8mb4"},
 		{"utf8mb4_bin", "password_reset_requests", "token", "utf8mb4"},
 		{"utf8mb4_bin", "sessions", "key", "utf8mb4"},
 		{"utf8mb4_bin", "teams", "name_bin", "utf8mb4"},
 		{"utf8mb4_bin", "verification_tokens", "token", "utf8mb4"},
+		{"utf8mb4_bin", "mdm_apple_scep_challenges", "challenge", "utf8mb4"},
 	}
 
 	require.ElementsMatch(t, exceptions, nonStandardCollations)

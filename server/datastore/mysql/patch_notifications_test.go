@@ -223,6 +223,14 @@ func testPatchNotificationAddAndListApps(t *testing.T, ds *Datastore) {
 	require.Len(t, apps, 1)
 	require.Equal(t, "Notified App (renamed)", apps[0].DisplayName)
 	require.True(t, apps[0].HasIcon)
+	require.False(t, apps[0].UpdatedInInventory)
+
+	// set the app as updated in inventory, the listed app should report it
+	require.NoError(t, ds.SetPatchNotificationAppsUpdatedInInventory(ctx, notificationUUID, []uint{titleID}))
+	apps, err = ds.ListPatchNotificationApps(ctx, notificationUUID)
+	require.NoError(t, err)
+	require.Len(t, apps, 1)
+	require.True(t, apps[0].UpdatedInInventory)
 
 	// deleting the policy sets patch_notification_apps.policy_id to null, and the app stays listed
 	_, err = ds.DeleteTeamPolicies(ctx, team.ID, []uint{policy.ID})
@@ -369,11 +377,28 @@ func testPatchNotificationInstallAt(t *testing.T, ds *Datastore) {
 	host := test.NewHost(t, ds, "install-at-host", "", "install-at-key", "install-at-uuid", time.Now())
 	notificationUUID := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationDispatched, 1)
 
+	// a notification nobody has seen has no deadline, which is what makes its next toast the 1 hour one
+	read, err := ds.GetPatchNotification(ctx, notificationUUID)
+	require.NoError(t, err)
+	require.NotNil(t, read)
+	require.Nil(t, read.InstallAt)
+
 	// the first displayed_at sets install_at
 	deadline := time.Now().UTC().Add(time.Hour).Truncate(time.Second)
 	stored, err := ds.SetPatchNotificationInstallAt(ctx, notificationUUID, deadline)
 	require.NoError(t, err)
 	require.WithinDuration(t, deadline, stored, time.Second)
+
+	read, err = ds.GetPatchNotification(ctx, notificationUUID)
+	require.NoError(t, err)
+	require.NotNil(t, read)
+	require.NotNil(t, read.InstallAt)
+	require.WithinDuration(t, deadline, *read.InstallAt, time.Second)
+
+	// a uuid with no patch_notifications row reads as nothing rather than an error
+	read, err = ds.GetPatchNotification(ctx, "no-such-notification")
+	require.NoError(t, err)
+	require.Nil(t, read)
 
 	// an earlier install_at is ignored, so a duplicate script result or a retry cannot shorten the
 	// lead time
@@ -430,6 +455,12 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 
 	host := test.NewHost(t, ds, "due-host", "", "due-key", "due-uuid", now)
 
+	// a host last seen an hour ago is past its check-in window, so the batch reports it offline
+	awayHost := test.NewHost(t, ds, "away-host", "", "away-key", "away-uuid", now.Add(-time.Hour))
+	hostAway := newPatchNotification(t, ds, awayHost.ID, notifications_api.EndUserNotificationDispatched, 1)
+	setInstallAt(hostAway, now.Add(-time.Minute))
+	markDisplayed(hostAway)
+
 	// A deadline 6 minutes out is outside the reminder window, one exactly 5 minutes out sits on its
 	// edge and is included, and one already past is due to install.
 	tooEarly := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationDispatched, 1)
@@ -457,7 +488,7 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 		terminal = append(terminal, notificationUUID)
 	}
 
-	// a re-dispatched reminder has a null displayed_at until it is displayed, so it stays out of the
+	// a delayed reminder has a null displayed_at until it is displayed, so it stays out of the
 	// batch either side of install_at
 	notDisplayed := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationPending, 1)
 	setInstallAt(notDisplayed, now.Add(-time.Minute))
@@ -483,6 +514,16 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 	}))
 	require.NoError(t, ds.SetPatchNotificationAppsQueued(ctx, actedHandled, []uint{handledTitleID}))
 
+	// add an acted notification whose only unqueued app the inventory showed as updated, the notification should not be listed
+	actedUpdatedInInventory := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationActed, 1)
+	setInstallAt(actedUpdatedInInventory, now.Add(-time.Minute))
+	markDisplayed(actedUpdatedInInventory)
+	updatedInInventoryTitleID := newTestSoftwareTitle(t, ds, "Updated In Inventory App")
+	require.NoError(t, ds.AddPatchNotificationApp(ctx, actedUpdatedInInventory, fleet.PatchNotificationApp{
+		SoftwareTitleID: updatedInInventoryTitleID,
+	}))
+	require.NoError(t, ds.SetPatchNotificationAppsUpdatedInInventory(ctx, actedUpdatedInInventory, []uint{updatedInInventoryTitleID}))
+
 	due, err := ds.ListPatchNotificationsDue(ctx, now.Add(5*time.Minute), 500)
 	require.NoError(t, err)
 
@@ -490,12 +531,13 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 	for _, notification := range due {
 		byUUID[notification.NotificationUUID] = notification
 	}
-	require.Len(t, byUUID, 3)
+	require.Len(t, byUUID, 4)
 	require.NotContains(t, byUUID, tooEarly)
 	require.NotContains(t, byUUID, noDeadline)
 	require.NotContains(t, byUUID, reminderQueued)
 	require.NotContains(t, byUUID, notDisplayed)
 	require.NotContains(t, byUUID, actedHandled)
+	require.NotContains(t, byUUID, actedUpdatedInInventory)
 	require.Contains(t, byUUID, actedUnhandled)
 	for _, notificationUUID := range terminal {
 		require.NotContains(t, byUUID, notificationUUID)
@@ -508,9 +550,13 @@ func testPatchNotificationListDue(t *testing.T, ds *Datastore) {
 
 	require.Contains(t, byUUID, pastDeadline)
 	require.NotNil(t, byUUID[pastDeadline].DisplayedAt)
+	require.True(t, byUUID[pastDeadline].HostOnline, "a host seen just now is inside its check-in window")
+
+	require.Contains(t, byUUID, hostAway)
+	require.False(t, byUUID[hostAway].HostOnline)
 
 	// the batch is ordered by deadline, so the oldest deadline is handled first
-	require.Len(t, due, 3)
+	require.Len(t, due, 4)
 	require.True(t, due[0].InstallAt.Before(due[len(due)-1].InstallAt))
 
 	// the limit caps the batch
@@ -629,4 +675,19 @@ func testPatchNotificationAppInstallStatuses(t *testing.T, ds *Datastore) {
 	statuses, err = ds.ListPatchNotificationAppInstallStatuses(ctx, notificationUUID)
 	require.NoError(t, err)
 	require.Equal(t, map[uint]fleet.SoftwareInstallerStatus{titleID: "canceled_install"}, statuses)
+
+	// add an install carrying the app open query that ran with the app closed, the app should report installed
+	installedWithAppOpenQueryAt := appJoinedAt.Add(5 * time.Minute)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_software_installs
+				(execution_id, host_id, software_installer_id, pre_install_query_output, install_script_exit_code,
+				override_pre_install_query, created_at, updated_at)
+			VALUES (?, ?, ?, '1', 0, 1, ?, ?)`,
+			uuid.NewString(), host.ID, secondInstallerID, installedWithAppOpenQueryAt, installedWithAppOpenQueryAt)
+		return err
+	})
+	statuses, err = ds.ListPatchNotificationAppInstallStatuses(ctx, notificationUUID)
+	require.NoError(t, err)
+	require.Equal(t, map[uint]fleet.SoftwareInstallerStatus{titleID: fleet.SoftwareInstalled}, statuses)
 }

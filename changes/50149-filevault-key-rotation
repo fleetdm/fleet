@@ -1,0 +1,1 @@
+- Added on-demand FileVault recovery key rotation for macOS hosts via `POST /api/v1/fleet/hosts/:id/encryption_key/rotate` and the Disk encryption key modal.

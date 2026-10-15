@@ -41,6 +41,27 @@ describe("SoftwareUpdateModal", () => {
     expect(onUpdate).toHaveBeenCalledTimes(1); // shouldn't increment from previous
   });
 
+  it("shows 'Close' button and hides Update/Cancel when disableUpdate is true", () => {
+    const mockSoftware = createMockHostSoftware();
+
+    render(
+      <SoftwareUpdateModal
+        hostDisplayName="Test Host"
+        software={mockSoftware}
+        onExit={noop}
+        onUpdate={noop}
+        disableUpdate
+      />
+    );
+    expect(
+      screen.queryByRole("button", { name: "Update" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Cancel" })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+  });
+
   it("shows 'Close' button and not update/cancel when status is pending_install", () => {
     const mockSoftware = createMockHostSoftware({ status: "pending_install" });
 

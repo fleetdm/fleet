@@ -10,7 +10,10 @@ import TooltipWrapper from "components/TooltipWrapper";
 import { IStringCellProps } from "interfaces/datatable_config";
 import { SetupExperiencePlatform } from "interfaces/platform";
 import { ISoftwareTitle, SoftwareSource } from "interfaces/software";
-import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import {
+  getDisplayedSoftwareName,
+  getSoftwareListName,
+} from "pages/SoftwarePage/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 type IInstallSoftwareTableConfig = Column<ISoftwareTitle>;
@@ -70,8 +73,7 @@ const generateTableConfig = (
       id: "name",
       // `disableSortBy` doesn't stop TableContainer's default sort header from
       // ordering this column, so the sort key has to be the rendered string.
-      accessor: (originalRow) =>
-        getDisplayedSoftwareName(originalRow.name, originalRow.display_name),
+      accessor: getSoftwareListName,
       // The search box filters this column, which now holds the display name;
       // keep the raw name matchable so packages stay findable by filename.
       filter: (rows, _columnIds, query) => {
@@ -80,16 +82,17 @@ const generateTableConfig = (
           [
             getDisplayedSoftwareName(original.name, original.display_name),
             original.name,
-          ].some((field) => field.toLowerCase().includes(q))
+            original.software_package?.name,
+          ].some((field) => field?.toLowerCase().includes(q))
         );
       },
       Cell: (cellProps: ITableStringCellProps) => {
-        const { name, display_name, source, icon_url } = cellProps.row.original;
+        const { name, source, icon_url } = cellProps.row.original;
 
         return (
           <SoftwareNameCell
             name={name}
-            display_name={display_name}
+            display_name={getSoftwareListName(cellProps.row.original)}
             source={source}
             iconUrl={icon_url}
           />

@@ -29,6 +29,10 @@ import {
   ISoftwareInstallResult,
   ISoftwareInstallResults,
 } from "interfaces/software";
+import {
+  compareVersions,
+  getInstallerVersion,
+} from "pages/hosts/details/cards/Software/helpers";
 import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import deviceUserAPI from "services/entities/device_user";
@@ -109,10 +113,15 @@ export const StatusMessage = ({
     host_display_name,
     software_package,
     software_title,
+    software_display_name,
     status,
     updated_at,
     created_at,
   } = installResult;
+  const displayedTitle = getDisplayedSoftwareName(
+    software_title,
+    software_display_name
+  );
 
   const formattedHost = host_display_name ? (
     <b>{host_display_name}</b>
@@ -162,7 +171,7 @@ export const StatusMessage = ({
         iconColor="ui-fleet-black-50"
         message={
           <span>
-            Fleet skipped install of <b>{software_title}</b> ({software_package}
+            Fleet skipped install of <b>{displayedTitle}</b> ({software_package}
             ) on {formattedHost}
             {displayTimeStamp}.{" "}
             {isNotifyVariant
@@ -198,7 +207,7 @@ export const StatusMessage = ({
   const renderStatusCopy = () => {
     const prefix = (
       <>
-        Fleet {getInstallDetailsStatusPredicate(status)} <b>{software_title}</b>
+        Fleet {getInstallDetailsStatusPredicate(status)} <b>{displayedTitle}</b>
       </>
     );
 
@@ -409,6 +418,18 @@ export const SoftwareInstallDetailsModal = ({
   // True when host inventory reports at least one installed version for this app.
   const inventoryReportsInstalled = !!hostSoftware?.installed_versions?.length;
 
+  // True when inventory has a version strictly older than the installer version
+  // (i.e. ui_status is `failed_install_update_available`). In that case the row
+  // reads "Failed" and must open to the failure, not an "is installed" override.
+  const installerVersion = hostSoftware
+    ? getInstallerVersion(hostSoftware)
+    : null;
+  const hasAvailableUpdate =
+    !!installerVersion &&
+    !!hostSoftware?.installed_versions?.some(
+      (iv) => compareVersions(iv.version, installerVersion) === -1
+    );
+
   // This modal is opened in three contexts:
   // - Admin Host -> Software: hostSoftware defined, no deviceAuthToken.
   // - End-user My device: hostSoftware defined, deviceAuthToken present.
@@ -416,13 +437,15 @@ export const SoftwareInstallDetailsModal = ({
   const openedFromHostSoftwarePage = !!hostSoftware;
 
   // Used only for overriding failed_install/failed_uninstall -> "is installed."
-  // - Admin Host -> Software: override based on inventory (4.82 #31663).
-  // - My device: never override — the end user just triggered Update and needs
-  //   to see the failure + Details + Retry (#52017).
+  // - Admin Host -> Software: override only when inventory is on the installer
+  //   version. If an update is still available the row says "Failed" and the
+  //   modal must mirror that; otherwise keep the installed override.
+  // - My device: never override. The end user just triggered Update and needs
+  //   to see the failure + Details + Retry.
   // - Activity feed: never override (always show the failure).
   const canOverrideFailureWithInstalled =
     openedFromHostSoftwarePage && !deviceAuthToken
-      ? inventoryReportsInstalled
+      ? inventoryReportsInstalled && !hasAvailableUpdate
       : false;
 
   // Treat failed_install / failed_uninstall with installed versions as installed.

@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -18,8 +17,6 @@ import (
 const (
 	// splunkHECPath is the Splunk HTTP Event Collector endpoint.
 	splunkHECPath = "/services/collector/event"
-	// splunkHealthPath is the HEC health check endpoint.
-	splunkHealthPath = "/services/collector/health"
 	// splunkMaxBatchSize is the default max content length for HEC (1 MB).
 	splunkMaxBatchSize = 1_000_000
 	// splunkMaxSizeOfRecord is the max size of a single HEC event (1 MB).
@@ -51,7 +48,7 @@ type splunkLogWriter struct {
 	logger     *slog.Logger
 }
 
-func NewSplunkLogWriter(url, token, index, source, sourceType string, insecureSkipVerify bool, logger *slog.Logger) (*splunkLogWriter, error) {
+func NewSplunkLogWriter(url, token, index, source, sourceType string, insecureSkipVerify bool, logger *slog.Logger) *splunkLogWriter {
 	clientOpts := []fleethttp.ClientOpt{fleethttp.WithTimeout(30 * time.Second)}
 	if insecureSkipVerify {
 		clientOpts = append(clientOpts, fleethttp.WithTLSClientConfig(&tls.Config{
@@ -59,7 +56,7 @@ func NewSplunkLogWriter(url, token, index, source, sourceType string, insecureSk
 		}))
 	}
 
-	w := &splunkLogWriter{
+	return &splunkLogWriter{
 		url:        url,
 		token:      token,
 		index:      index,
@@ -68,12 +65,6 @@ func NewSplunkLogWriter(url, token, index, source, sourceType string, insecureSk
 		client:     fleethttp.NewClient(clientOpts...),
 		logger:     logger,
 	}
-
-	if err := w.checkHealth(); err != nil {
-		return nil, fmt.Errorf("splunk health check: %w", err)
-	}
-
-	return w, nil
 }
 
 func (w *splunkLogWriter) Write(ctx context.Context, logs []json.RawMessage) error {
@@ -169,27 +160,6 @@ func (w *splunkLogWriter) sendWithRetry(ctx context.Context, payload []byte, try
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
 		return ctxerr.Errorf(ctx, "splunk HEC returned status %d: %s", resp.StatusCode, string(body))
-	}
-
-	return nil
-}
-
-func (w *splunkLogWriter) checkHealth() error {
-	req, err := http.NewRequest(http.MethodGet, w.url+splunkHealthPath, nil)
-	if err != nil {
-		return fmt.Errorf("create health request: %w", err)
-	}
-	req.Header.Set("Authorization", "Splunk "+w.token)
-
-	resp, err := w.client.Do(req)
-	if err != nil {
-		return fmt.Errorf("health request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-		return fmt.Errorf("HEC health check returned status %d: %s", resp.StatusCode, string(body))
 	}
 
 	return nil

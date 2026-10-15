@@ -47,4 +47,8 @@ const (
 	// DefaultMaxOsqueryDistributedWriteSize is the same as
 	// DefaultMaxOsqueryLogWriteSize but for /api/osquery/distributed/write.
 	DefaultMaxOsqueryDistributedWriteSize int64 = 5 * units.MiB
+
+	// MaxWindowsEULARequestSize bounds the Windows EULA upload body: a 512 KB markdown file
+	// (markdown.MaxTermsSize, checked with a clear message) plus multipart overhead.
+	MaxWindowsEULARequestSize int64 = 1 * units.MiB
 )

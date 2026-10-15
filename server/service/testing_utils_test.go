@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -168,6 +169,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		softwareInstallStore   fleet.SoftwareInstallerStore
 		bootstrapPackageStore  fleet.MDMBootstrapPackageStore
 		softwareTitleIconStore fleet.SoftwareTitleIconStore
+		stagedUploadStore      fleet.StagedUploadStore
 		distributedLock        fleet.Lock
 		keyValueStore          fleet.KeyValueStore
 		androidService         android.Service
@@ -236,6 +238,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if opts[0].SoftwareTitleIconStore != nil {
 			softwareTitleIconStore = opts[0].SoftwareTitleIconStore
 		}
+		stagedUploadStore = opts[0].StagedUploadStore
 
 		// allow to explicitly set MDM storage to nil
 		mdmStorage = opts[0].MDMStorage
@@ -363,6 +366,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			softwareInstallStore,
 			bootstrapPackageStore,
 			softwareTitleIconStore,
+			stagedUploadStore,
 			distributedLock,
 			keyValueStore,
 			installAttemptCounter,
@@ -644,7 +648,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 			rootCAPool.AddCert(opts[0].ACMECertCA)
 			acmeOpts = append(acmeOpts, acme_bootstrap.WithTestAppleRootCAs(rootCAPool))
 		}
-		acmeSigner := &acmeCSRSigner{signer: depot.NewSigner(opts[0].SCEPStorage, depot.WithValidityDays(365), depot.WithAllowRenewalDays(14))}
+		acmeSigner := &acmeCSRSigner{signer: depot.NewSigner(opts[0].SCEPStorage, depot.WithValidityDays(365))}
 		acmeSvc, acmeRoutes := acme_bootstrap.New(opts[0].DBConns, redisPool, acmeacl.NewFleetDatastoreAdapter(ds, acmeSigner), logger, acmeOpts...)
 		svc.SetACMEService(acmeSvc)
 		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, acmeRoutes(log.Logged))
@@ -661,7 +665,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 				notificationsSvc = opts[0].NotificationsSvc
 			}
 			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, vppInstaller, opts[0].License.IsPremium(), logger, redis_key_value.New(redisPool), svc.NewActivity,
-				cfg.Activity.FleetInitiatedReleasePerMinute > 0, notificationsSvc)
+				cfg.Activity.FleetInitiatedReleasePerMinute > 0, notificationsSvc, cfg.MDM.AppleCommandCleanupShortRetention)
 			checkInAndCommand.RegisterResultsHandler("InstalledApplicationList", NewInstalledApplicationListResultsHandler(ds, commander, logger, cfg.Server.VPPVerifyTimeout, cfg.Server.VPPVerifyRequestDelay, svc.NewActivity))
 			checkInAndCommand.RegisterResultsHandler(fleet.DeviceLocationCmdName, NewDeviceLocationResultsHandler(ds, commander, logger))
 			checkInAndCommand.RegisterResultsHandler(fleet.SetRecoveryLockCmdName, NewSetRecoveryLockResultsHandler(ds, logger, commander))
@@ -980,6 +984,10 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"GET", "/api/latest/fleet/mdm/apple/setup/eula/0982A979-B1C9-4BDF-B584-5A37D32A1172", false, false},
 		{"DELETE", "/api/latest/fleet/mdm/apple/setup/eula/token", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/setup/eula/metadata", false, false},
+		// POST /setup_experience/windows_eula is absent for the same reason as the other EULA uploads.
+		{"GET", "/api/latest/fleet/setup_experience/windows_eula/0982A979-B1C9-4BDF-B584-5A37D32A1172", false, true},
+		{"DELETE", "/api/latest/fleet/setup_experience/windows_eula/token", false, true},
+		{"GET", "/api/latest/fleet/setup_experience/windows_eula/metadata", false, true},
 		{"GET", "/api/latest/fleet/mdm/apple/enrollment_profile", false, false},
 		{"GET", "/api/latest/fleet/enrollment_profiles/automatic", false, false},
 		{"POST", "/api/latest/fleet/mdm/apple/enrollment_profile", false, false},
@@ -987,6 +995,7 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"DELETE", "/api/latest/fleet/mdm/apple/enrollment_profile", false, false},
 		{"DELETE", "/api/latest/fleet/enrollment_profiles/automatic", false, false},
 		{"POST", "/api/latest/fleet/device/%s/migrate_mdm", true, true},
+		{"POST", "/api/latest/fleet/device/%s/configuration_profiles/wfoo/resend", true, false},
 		{"POST", "/api/latest/fleet/mdm/apple/profiles/preassign", false, true},
 		{"POST", "/api/latest/fleet/mdm/apple/profiles/match", false, true},
 		{"POST", "/api/latest/fleet/mdm/commands/run", false, false},
@@ -1040,6 +1049,9 @@ func windowsMDMConfigurationRequiredEndpoints() []string {
 	return []string{
 		"/api/fleet/orbit/disk_encryption_key",
 		"/api/fleet/orbit/disk_encryption_protection",
+		"/api/latest/fleet/setup_experience/windows_eula/0982A979-B1C9-4BDF-B584-5A37D32A1172",
+		"/api/latest/fleet/setup_experience/windows_eula/token",
+		"/api/latest/fleet/setup_experience/windows_eula/metadata",
 	}
 }
 
@@ -1652,8 +1664,8 @@ type acmeCSRSigner struct {
 	signer *depot.Signer
 }
 
-func (a *acmeCSRSigner) SignCSR(_ context.Context, csr *x509.CertificateRequest) (*x509.Certificate, error) {
-	return a.signer.Signx509CSR(csr)
+func (a *acmeCSRSigner) SignX509CSRWithCallback(csr *x509.CertificateRequest, subject pkix.Name, callback func(*x509.Certificate)) (*x509.Certificate, error) {
+	return a.signer.SignX509CSRWithCallback(csr, subject, callback)
 }
 
 // mockRoundTripper is a custom http.RoundTripper that redirects requests to a mock server.

@@ -270,14 +270,23 @@ func encodeSCEPResponse(ctx context.Context, w http.ResponseWriter, response int
 	return nil
 }
 
+// ResponseStatusError is a SCEP server's HTTP error response. The status is a field rather than a
+// StatusCode method so that the error never sets the status of a Fleet response it reaches.
+type ResponseStatusError struct {
+	Code   int
+	Status string
+	Body   string
+}
+
+func (e ResponseStatusError) Error() string {
+	return fmt.Sprintf("http request failed with status %s, msg: %s", e.Status, e.Body)
+}
+
 // DecodeSCEPResponse decodes a SCEP response
 func DecodeSCEPResponse(ctx context.Context, r *http.Response) (interface{}, error) {
 	if r.StatusCode != http.StatusOK && r.StatusCode >= 400 {
 		body, _ := io.ReadAll(io.LimitReader(r.Body, 4096))
-		return nil, fmt.Errorf("http request failed with status %s, msg: %s",
-			r.Status,
-			string(body),
-		)
+		return nil, ResponseStatusError{Code: r.StatusCode, Status: r.Status, Body: string(body)}
 	}
 	data, err := io.ReadAll(io.LimitReader(r.Body, maxPayloadSize))
 	if err != nil {

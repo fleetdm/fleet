@@ -9,7 +9,7 @@ import (
 type eopts struct {
 	env        [][2]string
 	args       [][2]string
-	stderrPath string //nolint:structcheck,unused
+	stderrPath string //nolint:unused
 	timeout    time.Duration
 	user       string
 }

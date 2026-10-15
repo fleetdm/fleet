@@ -1,3 +1,4 @@
+import { AxiosError } from "axios";
 import React, { useState, useEffect, useRef } from "react";
 import { useQuery } from "react-query";
 
@@ -174,12 +175,20 @@ const RunScriptDetailsModal = ({
     }
   };
 
-  const { data, isLoading, isError } = useQuery<IScriptResultResponse>(
+  const { data, isLoading, isError, error } = useQuery<
+    IScriptResultResponse,
+    AxiosError
+  >(
     ["runScriptDetailsModal", scriptExecutionId],
     () => {
       return scriptsAPI.getScriptResult(scriptExecutionId);
     },
-    { refetchOnWindowFocus: false, enabled: !!scriptExecutionId }
+    {
+      refetchOnWindowFocus: false,
+      enabled: !!scriptExecutionId,
+      // Retention can delete the result, and retrying won't bring it back.
+      retry: (failureCount, err) => err?.status !== 404 && failureCount < 3,
+    }
   );
 
   // For scrollable modal
@@ -194,6 +203,13 @@ const RunScriptDetailsModal = ({
 
     if (isLoading) {
       content = <Spinner />;
+    } else if (isError && error?.status === 404) {
+      content = (
+        <DataError
+          description="These script results are no longer available."
+          excludeIssueLink
+        />
+      );
     } else if (isError) {
       content = <DataError description="Close this modal and try again." />;
     } else if (data) {
@@ -211,7 +227,7 @@ const RunScriptDetailsModal = ({
           <StatusMessage
             hostTimeout={data.host_timeout}
             exitCode={data.exit_code}
-            message={data.output}
+            message={data.message}
           />
           {ranAdHocScript && <ScriptContent content={data.script_contents} />}
           {showOutputText && (
