@@ -168,8 +168,6 @@ To trigger script run, when policy fails, specify:
 
 - `run_script.path` is a path to a script YAML.
 
-> Specifying one package without a list is deprecated as of Fleet 4.73. It is maintained for backwards compatibility. Please use a list instead even if you're only specifying one package.
-
 ##### Resend configuration profile
 
 _Available in Fleet Premium_
