@@ -76,6 +76,7 @@ module.exports = {
     let appleSchemaDescription;
     let applePayloadTypesProvided = [];
     let appleThirdPartyPayloadTypesProvided = [];
+    let thirdPartyEntriesProvided = [];
     if(profileType === 'mobileconfig' || profileType === 'ddm') {
 
       let filename = profileType === 'ddm' ? 'apple-ddm-declarations.json' : 'apple-payload-manifests.json';
@@ -127,6 +128,10 @@ module.exports = {
           if(key.default !== undefined) {
             constraint = `${constraint} d=${key.default}`;
           }
+        } else if(key.required && key.default !== undefined && !key.gloss) {
+          // A required key's default is the value the profile has to set when the request gives none, e.g.,
+          // Firefox's EnterprisePoliciesEnabled.  No Apple key is required, defaulted and unconstrained.
+          constraint = `d=${key.default}`;
         } else {
           constraint = key.gloss;
         }
@@ -412,6 +417,7 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
             return _.any(entry.keywords || [], (keyword)=>{ return new RegExp(`\\b${_.escapeRegExp(keyword)}\\b`).test(lowercaseInstructions); });
           });
         }
+        thirdPartyEntriesProvided = thirdPartyEntriesTheRequestNames;
         appleThirdPartyPayloadTypesProvided = _.pluck(thirdPartyEntriesTheRequestNames, 'name');
 
         if(thirdPartyEntriesTheRequestNames.length > 0) {
@@ -732,8 +738,40 @@ a field that does not appear here does not exist.`,
     // Ahead of the existing rules, which send third-party keys to a ProfileManifests reference the model
     // cannot open, and so leave it recalling them.
     if(appleThirdPartyPayloadTypesProvided.length > 0) {
+      // ProfileManifests marks a key required (pfm_require "always") when the app ignores its domain without
+      // it, e.g., Firefox reads nothing in org.mozilla.firefox unless EnterprisePoliciesEnabled is true.  Each
+      // one is named here because a general rule about the schema's `*` left the model skipping
+      // EnterprisePoliciesEnabled two runs in three whenever the request did not mention it.
+      let requiredKeySentences = [];
+      for (let entry of thirdPartyEntriesProvided) {
+        let keysToSet = [];
+        let keysWithoutAValue = [];
+        for (let key of _.where(entry.keys, {required: true})) {
+          // A string default counts only when it is one of the key's allowed values, since some are examples:
+          // Jamf Connect's AuthServer defaults to yourcompany.okta.com.
+          let defaultIsAValue = key.default !== undefined && (!_.isString(key.default) || _.contains(key.allowedValues || [], key.default));
+          if(defaultIsAValue) {
+            keysToSet.push(`${key.key} to ${key.default}${key.allowedValues ? ' (or another of its values if the request asks for one)' : ''}`);
+          } else {
+            keysWithoutAValue.push(key.key);
+          }
+        }
+        if(keysToSet.length > 0) {
+          requiredKeySentences.push(`Any ${entry.name} dict must also set ${keysToSet.join(' and ')}, whether or not the request mentions it.`);
+        }
+        if(keysWithoutAValue.length > 0) {
+          requiredKeySentences.push(`Any ${entry.name} dict also needs ${keysWithoutAValue.join(' and ')}: use the value the request gives, or else leave it out rather than inventing one and say in "deliveryNotes" that the admin must add it.`);
+        }
+      }
+      let hasNestedRequiredKey = (keys)=>{ return _.any(keys, (key)=>{ return _.any(key.subkeys || [], (subkey)=>{ return subkey.required || hasNestedRequiredKey([subkey]); }); }); };
+      if(_.any(thirdPartyEntriesProvided, (entry)=>{ return hasNestedRequiredKey(entry.keys); })) {
+        requiredKeySentences.push('A key marked `*` inside a dictionary or array element is required in that element whenever you include it.');
+      }
+
       promptConfig.rules = [
-        `For ${appleThirdPartyPayloadTypesProvided.join(', ')}, the keys listed under "Third-party payload types" are authoritative.  Set them in a dict inside PayloadContent whose PayloadType is the domain exactly as listed, and copy every key and value from the list character for character.  Where the list and your own recollection differ, the list is right.`,
+        [
+          `For ${appleThirdPartyPayloadTypesProvided.join(', ')}, the keys listed under "Third-party payload types" are authoritative.  Set them in a dict inside PayloadContent whose PayloadType is the domain exactly as listed, and copy every key and value from the list character for character.  Where the list and your own recollection differ, the list is right.`,
+        ].concat(requiredKeySentences).join('  '),
       ].concat(promptConfig.rules);
     }
 
