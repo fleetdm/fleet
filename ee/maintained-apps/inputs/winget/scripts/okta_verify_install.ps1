@@ -1,5 +1,6 @@
-# Okta Verify ships as a WiX Burn bootstrapper. Silent switches come from the
-# winget installer type convention for Burn bundles.
+# Okta Verify ships as a WiX Burn bootstrapper. Its setup app (7.0+) rejects
+# any argument that isn't key=value except /quiet, /q, and /log, so passing
+# /norestart makes it exit 1.
 
 $exeFilePath = "${env:INSTALLER_PATH}"
 $logPath = Join-Path $env:TEMP "OktaVerifyInstall.log"
@@ -13,7 +14,7 @@ try {
 
     $processOptions = @{
         FilePath     = "$exeFilePath"
-        ArgumentList = "/quiet /norestart /log `"$logPath`""
+        ArgumentList = "/quiet /log `"$logPath`""
         PassThru     = $true
         Wait         = $true
         NoNewWindow  = $true
