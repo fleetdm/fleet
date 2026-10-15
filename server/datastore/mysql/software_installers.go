@@ -3834,23 +3834,22 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 				return ctxerr.Errorf(ctx, "labels have not been validated for installer with name %s", installer.Filename)
 			}
 
-			// Leave an unchanged custom package alone. Rewriting it locks its row and its scripts' rows until the
+			titleID := titleIDByInstaller[installer]
+
+			// Leave an unchanged package alone. Rewriting it locks its row and its scripts' rows until the
 			// apply commits, which holds up every install and script queued against them.
-			if installer.FleetMaintainedAppID == nil {
-				titleID := titleIDByInstaller[installer]
-				unchangedID, err := unchangedCustomInstallerID(ctx, tx, globalOrTeamID, titleID, installer)
-				if err != nil {
-					return ctxerr.Wrapf(ctx, err, "check for unchanged installer with name %q", installer.Filename)
-				}
-				if unchangedID != 0 {
-					if displayNameIDMap[titleID] != installer.DisplayName {
-						if err := updateSoftwareTitleDisplayName(ctx, tx, tmID, titleID, installer.DisplayName); err != nil {
-							return ctxerr.Wrapf(ctx, err, "update software title display name for installer with name %q", installer.Filename)
-						}
+			unchangedID, err := unchangedInstallerID(ctx, tx, globalOrTeamID, titleID, installer)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "check for unchanged installer with name %q", installer.Filename)
+			}
+			if unchangedID != 0 {
+				if displayNameIDMap[titleID] != installer.DisplayName {
+					if err := updateSoftwareTitleDisplayName(ctx, tx, tmID, titleID, installer.DisplayName); err != nil {
+						return ctxerr.Wrapf(ctx, err, "update software title display name for installer with name %q", installer.Filename)
 					}
-					keptInstallerIDs = append(keptInstallerIDs, unchangedID)
-					continue
 				}
+				keptInstallerIDs = append(keptInstallerIDs, unchangedID)
+				continue
 			}
 
 			isRes, err := insertScriptContents(ctx, tx, installer.InstallScript)
@@ -3875,8 +3874,6 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 				insertID, _ := pisRes.LastInsertId()
 				postInstallScriptID = &insertID
 			}
-
-			titleID := titleIDByInstaller[installer]
 
 			// dedup_token is storage_id for a custom package, version for an FMA.
 			dedupToken := installer.StorageID
@@ -4336,9 +4333,14 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 	return modifiedInstallers, nil
 }
 
-// unchangedCustomInstallerID returns the ID of the stored custom package that already matches p in everything
+// unchangedInstallerID returns the ID of the stored package that already matches p in everything
 // BatchSetSoftwareInstallers writes for it, or 0 if there's none.
-func unchangedCustomInstallerID(ctx context.Context, tx sqlx.ExtContext, globalOrTeamID, titleID uint, p *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+func unchangedInstallerID(ctx context.Context, tx sqlx.ExtContext, globalOrTeamID, titleID uint, p *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+	isFMA := p.FleetMaintainedAppID != nil
+	dedupToken := p.StorageID
+	if isFMA {
+		dedupToken = p.Version
+	}
 	// Scripts are compared by checksum, so an unchanged package never upserts script_contents. Text is compared as
 	// BINARY because the columns' collation ignores case, accents, and trailing spaces.
 	const stmt = `
@@ -4347,17 +4349,17 @@ FROM software_installers si
 JOIN script_contents isc ON isc.id = si.install_script_content_id
 JOIN script_contents usc ON usc.id = si.uninstall_script_content_id
 LEFT JOIN script_contents psc ON psc.id = si.post_install_script_content_id
-JOIN users u ON u.id = si.user_id
-WHERE si.global_or_team_id = ? AND si.title_id = ? AND si.dedup_token = ? AND si.fleet_maintained_app_id IS NULL
-	AND si.is_active = 1
+LEFT JOIN users u ON u.id = si.user_id
+WHERE si.global_or_team_id = ? AND si.title_id = ? AND si.dedup_token = ? AND si.fleet_maintained_app_id <=> ?
+	AND si.is_active = 1 AND BINARY si.storage_id = BINARY ?
 	AND isc.md5_checksum = UNHEX(?) AND usc.md5_checksum = UNHEX(?) AND psc.md5_checksum <=> UNHEX(?)
 	AND BINARY si.pre_install_query = BINARY ? AND si.self_service = ? AND BINARY si.patch_query = BINARY ?
 	AND BINARY si.app_open_query = BINARY ? AND si.install_script_edited = ? AND si.uninstall_script_edited = ?
 	AND (? IS NULL OR si.install_during_setup = ?)
-	AND BINARY si.filename = BINARY ? AND BINARY si.extension = BINARY ? AND BINARY si.version = BINARY ?
+	AND (? OR (BINARY si.filename = BINARY ? AND BINARY si.extension = BINARY ? AND BINARY si.version = BINARY ?
 	AND BINARY si.platform = BINARY ? AND BINARY si.upgrade_code = BINARY ? AND BINARY si.url = BINARY ?
 	AND BINARY si.http_etag <=> BINARY ? AND si.user_id = ?
-	AND BINARY si.user_name = BINARY u.name AND BINARY si.user_email = BINARY u.email
+	AND BINARY si.user_name = BINARY u.name AND BINARY si.user_email = BINARY u.email))
 	AND COALESCE((SELECT GROUP_CONCAT(label_id, ':', exclude, ':', require_all ORDER BY label_id)
 		FROM software_installer_labels WHERE software_installer_id = si.id), '') = ?
 	AND COALESCE((SELECT GROUP_CONCAT(software_category_id ORDER BY software_category_id)
@@ -4390,12 +4392,12 @@ FOR SHARE OF si`
 
 	var id uint
 	err := sqlx.GetContext(ctx, tx, &id, stmt,
-		globalOrTeamID, titleID, p.StorageID,
+		globalOrTeamID, titleID, dedupToken, p.FleetMaintainedAppID, p.StorageID,
 		md5ChecksumScriptContent(p.InstallScript), md5ChecksumScriptContent(p.UninstallScript), postInstallMD5,
 		p.PreInstallQuery, p.SelfService, p.PatchQuery,
 		p.AppOpenQuery, p.InstallScriptEdited, p.UninstallScriptEdited,
 		p.InstallDuringSetup, p.InstallDuringSetup,
-		p.Filename, p.Extension, p.Version,
+		isFMA, p.Filename, p.Extension, p.Version,
 		p.Platform, p.UpgradeCode, p.URL,
 		p.HTTPETag, p.UserID,
 		strings.Join(labels, ","), strings.Join(categories, ","),
@@ -4405,6 +4407,31 @@ FOR SHARE OF si`
 	}
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "load unchanged installer")
+	}
+
+	if isFMA {
+		// Nothing for the full path to activate, evict, re-point, re-pin, or clean up.
+		var state struct {
+			Pin      string `db:"pin"`
+			Versions int    `db:"versions"`
+			Others   int    `db:"others"`
+			Policies int    `db:"policies"`
+		}
+		if err := sqlx.GetContext(ctx, tx, &state, `
+SELECT
+	COALESCE((SELECT pinned_version FROM software_title_team_pins WHERE team_id = ? AND title_id = ?), '') pin,
+	(SELECT COUNT(*) FROM software_installers WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL) versions,
+	(SELECT COUNT(*) FROM software_installers WHERE global_or_team_id = ? AND id != ?
+		AND ((title_id = ? AND (is_active = 1 OR fleet_maintained_app_id IS NULL)) OR (fleet_maintained_app_id = ? AND is_active = 1))) others,
+	(SELECT COUNT(*) FROM policies p JOIN software_installers si ON si.id = p.software_installer_id
+		WHERE si.global_or_team_id = ? AND si.title_id = ? AND si.id != ?) policies`,
+			globalOrTeamID, titleID, globalOrTeamID, titleID, globalOrTeamID, id, titleID, *p.FleetMaintainedAppID,
+			globalOrTeamID, titleID, id); err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "load FMA state")
+		}
+		if state.Pin != p.RollbackVersion || state.Versions > maxCachedFMAVersions || state.Others > 0 || state.Policies > 0 {
+			return 0, nil
+		}
 	}
 	return id, nil
 }
