@@ -20,8 +20,8 @@ Fleet SHALL support a certificate authority of type `ejbca` on Fleet Premium, cr
 ### Requirement: Required configuration fields
 An EJBCA CA SHALL require a name, the EJBCA REST base URL, a client certificate PKCS#12 and its password, the EJBCA CA name, the certificate profile name, the end entity profile name, and a username template. The name SHALL contain only letters, numbers, and underscores and SHALL be unique among certificate authorities of the same type.
 
-#### Scenario: Missing field
-- **WHEN** a create or update request omits a required field
+#### Scenario: Missing field on create
+- **WHEN** a create request omits a required field
 - **THEN** the request is rejected with a 422 that names the missing field
 
 #### Scenario: Invalid name
@@ -31,6 +31,25 @@ An EJBCA CA SHALL require a name, the EJBCA REST base URL, a client certificate 
 #### Scenario: Duplicate name
 - **WHEN** an EJBCA CA with the same name already exists
 - **THEN** the request is rejected with a 409 conflict
+
+### Requirement: Partial updates keep stored credentials
+An update SHALL change only the fields it supplies. Omitted fields and secret fields set to the masked placeholder SHALL keep their stored values, and the merged result SHALL be validated as a whole. Supplying a PKCS#12 SHALL require its password and SHALL replace the stored client certificate and key after verification succeeds.
+
+#### Scenario: Edit without credentials
+- **WHEN** an admin changes the certificate profile name and sends no PKCS#12 or password
+- **THEN** the change is saved, the stored client certificate and key are unchanged, and the connection is verified with the stored credential
+
+#### Scenario: Credential rotation
+- **WHEN** an admin supplies a new PKCS#12 and its password
+- **THEN** the new certificate and key replace the stored ones only after verification succeeds
+
+#### Scenario: Invalid replacement credential
+- **WHEN** the supplied PKCS#12 has the wrong password or EJBCA rejects its certificate
+- **THEN** the update is rejected and the stored credential is unchanged
+
+#### Scenario: PKCS#12 without password
+- **WHEN** an update supplies a PKCS#12 but no password
+- **THEN** the update is rejected with a 422 naming the password field
 
 ### Requirement: Optional configuration fields
 An EJBCA CA SHALL accept an optional PEM trust CA bundle used to verify EJBCA's HTTPS certificate, and an optional list of user principal names (UPNs). When no bundle is given, Fleet SHALL verify EJBCA's certificate against the system root store.
@@ -59,11 +78,15 @@ Fleet SHALL accept the client certificate as a PKCS#12 file in either BER or DER
 - **THEN** the PKCS#12 password is not stored anywhere
 
 ### Requirement: Secret masking
-Reads of an EJBCA CA SHALL NOT return the private key or the PKCS#12 password. API and GitOps responses that echo secret fields SHALL return the masked placeholder used by other certificate authority types. Reads SHALL return the client certificate expiry.
+Reads of an EJBCA CA SHALL NOT return the private key or the PKCS#12 password. API and GitOps responses that echo secret fields SHALL return the masked placeholder used by other certificate authority types. Reads SHALL return `client_cert_expires_at`, a read-only RFC 3339 timestamp derived from the stored client certificate's expiry on every read; the field is ignored if supplied.
 
 #### Scenario: List response
 - **WHEN** an admin lists or gets certificate authorities
-- **THEN** no EJBCA secret value appears in the response and the client certificate expiry date is present
+- **THEN** no EJBCA secret value appears in the response and `client_cert_expires_at` equals the stored client certificate's expiry
+
+#### Scenario: Expiry after rotation
+- **WHEN** an admin rotates the client certificate
+- **THEN** subsequent reads return the new certificate's expiry
 
 ### Requirement: Connection verification on save
 On create and update of connection settings, Fleet SHALL perform an authenticated request to EJBCA and reject the save if EJBCA does not accept the client certificate or if the configured EJBCA CA name is not among the CAs the client certificate may access. An unauthenticated status call alone SHALL NOT count as verification.
@@ -159,15 +182,19 @@ Creating, editing, and deleting an EJBCA CA SHALL record `added_ejbca`, `edited_
 - **THEN** the matching activity is recorded with the CA name, including when done through GitOps
 
 ### Requirement: GitOps
-Fleet SHALL accept EJBCA CAs under `org_settings.certificate_authorities.ejbca`, apply them by name through batch apply with the same add, update, and delete semantics as DigiCert, and `fleetctl generate-gitops` SHALL emit them with secret fields as environment variable placeholders.
+Fleet SHALL accept EJBCA CAs under `org_settings.certificate_authorities.ejbca`, apply them by name through batch apply with the same add, update, and delete semantics as DigiCert, and `fleetctl generate-gitops` SHALL emit them with the credential fields as explicit placeholders the admin must fill, since stored credentials cannot be exported.
 
 #### Scenario: Apply
 - **WHEN** a GitOps run adds, changes, or removes an `ejbca` entry
 - **THEN** the CA is created, updated, or deleted and the corresponding activity is recorded
 
+#### Scenario: Apply with credentials
+- **WHEN** a GitOps run applies an `ejbca` entry
+- **THEN** the entry supplies `client_p12` (base64) and `password`, normally as environment variable references, because Fleet cannot reconstruct them from stored material, and the connection is verified on every apply that changes the entry
+
 #### Scenario: Generate
 - **WHEN** an admin runs `fleetctl generate-gitops` on a server with an EJBCA CA
-- **THEN** the output contains the `ejbca` entry without secret values
+- **THEN** the entry is emitted with explicit TODO placeholders for `client_p12` and `password` named `$EJBCA_<CA_NAME>_CLIENT_P12` and `$EJBCA_<CA_NAME>_PASSWORD`, and no secret values
 
 ### Requirement: Host certificate tracking
 Certificates issued through an EJBCA CA SHALL be recorded as managed by Fleet for the host, with the CA type `ejbca`, so the host's certificate list identifies them as Fleet-managed and renewal logic applies as it does for DigiCert.
@@ -175,3 +202,7 @@ Certificates issued through an EJBCA CA SHALL be recorded as managed by Fleet fo
 #### Scenario: Issued certificate recorded
 - **WHEN** a host receives an EJBCA certificate
 - **THEN** a managed certificate record exists for the host and profile with type `ejbca`, serial, and validity dates
+
+#### Scenario: Automatic renewal
+- **WHEN** an EJBCA certificate nears expiry
+- **THEN** Fleet reissues it through the same renewal job that renews DigiCert certificates, with no renewal ID needed in the profile

@@ -2,7 +2,7 @@
 
 ## Why
 
-IT admins who run EJBCA as their certificate authority (CA) cannot deploy per-host certificates to Apple hosts through Fleet for Wi-Fi and VPN (EAP-TLS). Fleet already supports DigiCert, NDES, custom SCEP, Smallstep, Hydrant, and custom EST. A customer moving from AD CS to EJBCA needs the same flow with EJBCA's REST API (customer promise, issue #30986). A proof of concept on `add-ejbca-rest-ca-poc` was verified, and a live EJBCA run (`ai/ejbca/live-poc-findings.md`) found defects and doc errors that this change fixes before production.
+IT admins who run EJBCA as their certificate authority (CA) cannot deploy per-host certificates to Apple hosts through Fleet for Wi-Fi and VPN (EAP-TLS). Fleet already supports DigiCert, NDES, custom SCEP, Smallstep, Hydrant, and custom EST. A customer moving from AD CS to EJBCA needs the same flow with EJBCA's REST API (customer promise, issue #30986). A proof of concept on `add-ejbca-rest-ca-poc` was verified, and a live EJBCA run (`research.md`) found defects and doc errors that this change fixes before production.
 
 ## What Changes
 
