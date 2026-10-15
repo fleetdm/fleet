@@ -3816,11 +3816,9 @@ The number of days the signed SCEP client certificates will be valid.
 
 Whether Fleet accepts its static SCEP challenge when Apple hosts request an MDM identity certificate. Fleet gives each host a one-time challenge tied to that host for automatic (ADE), over-the-air (OTA), and account-driven user enrollments, and for SCEP certificate renewals. The static challenge is only used by the [manual enrollment profile](https://fleetdm.com/docs/rest-api/rest-api#get-manual-enrollment-profile).
 
-Set this to `false` to stop accepting the static challenge. When it's `false`, the manual enrollment profile isn't available, and manual enrollment profiles you downloaded earlier stop working. Hosts that are already enrolled aren't affected.
+Set this to `true` to accept the static challenge and make the manual enrollment profile available. When it's `false` (the default), the manual enrollment profile isn't available, and manual enrollment profiles you downloaded earlier stop working. Hosts that already have MDM turned on aren't affected.
 
-In a future major release, the default will change to `false`.
-
-- Default value: `true`
+- Default value: `false`
 - Environment variable: `FLEET_MDM_APPLE_SCEP_STATIC_CHALLENGE_ENABLED`
 - Config file format:
   ```yaml
