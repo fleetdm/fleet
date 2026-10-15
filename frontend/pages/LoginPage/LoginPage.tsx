@@ -4,6 +4,7 @@ import { InjectedRouter } from "react-router";
 
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 import LoginForm from "components/forms/LoginForm";
+import InfoBanner from "components/InfoBanner";
 import Spinner from "components/Spinner/Spinner";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
@@ -21,7 +22,7 @@ interface ILoginPageProps {
   router: InjectedRouter; // v3
   location: {
     pathname: string;
-    query: { vulnerable?: boolean };
+    query: { vulnerable?: boolean; session_expired?: string };
     search: string;
   };
 }
@@ -64,7 +65,9 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
     Error,
     ISSOSettings
   >(["ssoSettings"], () => sessionsAPI.ssoSettings(), {
-    enabled: !currentUser,
+    // currentUser outlives an SPA logout or expired session, so it alone
+    // would hide the SSO button.
+    enabled: !currentUser || !authToken.get(),
     onError: (err) => {
       console.error(err);
     },
@@ -192,6 +195,9 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
 
   return (
     <AuthenticationFormWrapper header="Welcome to Fleet">
+      {location.query.session_expired && (
+        <InfoBanner>Your session expired. Log in to continue.</InfoBanner>
+      )}
       <LoginForm
         handleSubmit={onSubmit}
         ssoSettings={ssoSettings}
