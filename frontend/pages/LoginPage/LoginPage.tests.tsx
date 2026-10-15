@@ -1,14 +1,19 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import React from "react";
+import { QueryClient, QueryClientProvider } from "react-query";
 
+import { createMockConfig } from "__mocks__/configMock";
 import createMockUser from "__mocks__/userMock";
+import paths from "router/paths";
 import mockServer from "test/mock-server";
 import {
+  baseUrl,
   createCustomRenderer,
   createMockLocation,
   createMockRouter,
 } from "test/test-utils";
+import authToken from "utilities/auth_token";
 
 import LoginPage from "./LoginPage";
 
@@ -42,6 +47,10 @@ describe("LoginPage", () => {
     mockServer.use(ssoEnabledHandler, gravatarHandler);
   });
 
+  afterEach(() => {
+    authToken.remove();
+  });
+
   it("tells the user their session expired", async () => {
     renderLoginPage({ session_expired: "true" });
 
@@ -65,5 +74,47 @@ describe("LoginPage", () => {
     expect(
       await screen.findByRole("button", { name: /sign in with sso/i })
     ).toBeInTheDocument();
+  });
+
+  it("drops the previous user's cached data after logging in", async () => {
+    mockServer.use(
+      http.post(baseUrl("/login"), () =>
+        HttpResponse.json({
+          user: createMockUser({ id: 2, email: "next@example.com" }),
+          available_teams: [],
+          token: "next-user-token",
+        })
+      )
+    );
+    const queryClient = new QueryClient();
+    queryClient.setQueryData([1, 7], { report: "previous user's results" });
+    const router = createMockRouter();
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          config: createMockConfig(),
+          setCurrentUser: jest.fn(),
+          setAvailableTeams: jest.fn(),
+          setCurrentTeam: jest.fn(),
+        },
+      },
+    });
+    const { user } = render(
+      <QueryClientProvider client={queryClient}>
+        <LoginPage
+          router={router}
+          location={createMockLocation({ pathname: "/login" })}
+        />
+      </QueryClientProvider>
+    );
+
+    await user.type(await screen.findByLabelText("Email"), "next@example.com");
+    await user.type(screen.getByLabelText("Password"), "password");
+    await user.click(screen.getByRole("button", { name: "Log in" }));
+
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith(paths.DASHBOARD);
+    });
+    expect(queryClient.getQueryData([1, 7])).toBeUndefined();
   });
 });
