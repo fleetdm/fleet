@@ -383,7 +383,7 @@ func (svc *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (pr
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to parse server URL")
 	}
-	scepURL := parsedServerURL.JoinPath("/api/fleet/conditional_access/scep").String()
+	scepURL := parsedServerURL.JoinPath(fleet.ConditionalAccessSCEPPath).String()
 
 	// Get global enroll secrets
 	secrets, err := svc.ds.GetEnrollSecrets(ctx, nil)

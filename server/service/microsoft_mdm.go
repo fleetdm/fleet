@@ -4290,6 +4290,29 @@ func ReconcileWindowsProfilesForEnrollingHost(ctx context.Context, ds fleet.Data
 	return executeWindowsProfileReconcileBatch(primaryCtx, ds, logger, appConfig, toInstall, toRemove, desiredByHost, currentByHost)
 }
 
+// conditionalAccessSCEPChallengesOncePerRun returns a loader for the global enroll secrets that reads them only when a
+// profile needs them, and at most once per reconcile run.
+func conditionalAccessSCEPChallengesOncePerRun(ds fleet.Datastore) func(ctx context.Context) ([]string, error) {
+	var (
+		loaded     bool
+		challenges []string
+	)
+	return func(ctx context.Context) ([]string, error) {
+		if loaded {
+			return challenges, nil
+		}
+		secrets, err := ds.GetEnrollSecrets(ctx, nil)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting global enroll secrets")
+		}
+		for _, s := range secrets {
+			challenges = append(challenges, s.Secret)
+		}
+		loaded = true
+		return challenges, nil
+	}
+}
+
 // windowsProfileNeedsPerHostProcessing reports whether a Windows profile must be
 // processed per-host at delivery time — i.e. it references any FLEET_VAR_ variable
 // or any $FLEET_HOST_VITAL_<id> custom host vital.
@@ -4971,17 +4994,18 @@ func executeWindowsProfileReconcileBatch(
 	scepConfigSvc := scep.NewSCEPConfigService(logger, nil)
 	managedCertificatePayloads := &[]*fleet.MDMManagedCertificate{}
 	deps := microsoft_mdm.ProfilePreprocessDependencies{
-		Context:                      ctx,
-		Logger:                       logger,
-		DataStore:                    ds,
-		HostIDForUUIDCache:           make(map[string]uint),
-		AppConfig:                    appConfig,
-		CustomSCEPCAs:                groupedCAs.ToCustomSCEPProxyCAMap(),
-		ManagedCertificatePayloads:   managedCertificatePayloads,
-		NDESConfig:                   groupedCAs.NDESSCEP,
-		GetNDESSCEPChallenge:         scepConfigSvc.GetNDESSCEPChallenge,
-		NDESChallengeErrorToDetail:   scep.NDESChallengeErrorToDetail,
-		NDESChallengeErrorIsTerminal: scep.IsTerminalNDESChallengeError,
+		Context:                            ctx,
+		Logger:                             logger,
+		DataStore:                          ds,
+		HostIDForUUIDCache:                 make(map[string]uint),
+		AppConfig:                          appConfig,
+		CustomSCEPCAs:                      groupedCAs.ToCustomSCEPProxyCAMap(),
+		ManagedCertificatePayloads:         managedCertificatePayloads,
+		NDESConfig:                         groupedCAs.NDESSCEP,
+		GetNDESSCEPChallenge:               scepConfigSvc.GetNDESSCEPChallenge,
+		NDESChallengeErrorToDetail:         scep.NDESChallengeErrorToDetail,
+		NDESChallengeErrorIsTerminal:       scep.IsTerminalNDESChallengeError,
+		GetConditionalAccessSCEPChallenges: conditionalAccessSCEPChallengesOncePerRun(ds),
 	}
 
 	// Guard against a race where an admin deletes a profile between the

@@ -175,6 +175,51 @@ func syncMLAddItem(locURI, data string) string {
 	return fmt.Sprintf(`<Add><Item><Target><LocURI>%s</LocURI></Target><Data>%s</Data></Item></Add>`, locURI, data)
 }
 
+// TestValidateWindowsProfileConditionalAccessVariables covers what is specific to the conditional access group on
+// Windows: the variables are accepted, and the shared SCEP placement check runs with this group's names. The
+// required-variable rules are in TestValidateProfileCertificateAuthorityVariables and the placement rules in
+// TestAdditionalNDESValidationForWindowsProfiles.
+func TestValidateWindowsProfileConditionalAccessVariables(t *testing.T) {
+	const scepPrefix = "./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/"
+	challengeItem := syncMLAddItem(scepPrefix+"Challenge", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE")
+	urlItem := syncMLAddItem(scepPrefix+"ServerURL", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL")
+	subjectItem := syncMLAddItem(scepPrefix+"SubjectName", "CN=Fleet conditional access for Okta,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID")
+	sanItem := syncMLAddItem(scepPrefix+"SubjectAlternativeNames", "7+urn:device:fleet:uuid:$FLEET_VAR_HOST_UUID")
+
+	cases := []struct {
+		name        string
+		contents    string
+		errContains string
+	}{
+		{
+			name:     "valid profile",
+			contents: urlItem + challengeItem + subjectItem + sanItem,
+		},
+		{
+			name: "challenge in the ServerURL node",
+			contents: syncMLAddItem(scepPrefix+"ServerURL", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE") +
+				syncMLAddItem(scepPrefix+"Challenge", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL") + subjectItem,
+			errContains: `Variable "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE" must only be in the SCEP certificate's "Challenge" field.`,
+		},
+		{
+			name: "variable in a LocURI",
+			contents: urlItem + subjectItem +
+				syncMLAddItem("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE/Install/Challenge", "x"),
+			errContains: "Conditional access Fleet variables must not appear in LocURI target paths.",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, err := validateWindowsProfileFleetVariables(c.contents, &fleet.LicenseInfo{Tier: fleet.TierPremium}, &fleet.GroupedCertificateAuthorities{})
+			if c.errContains == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, c.errContains)
+		})
+	}
+}
+
 func TestAdditionalNDESValidationForWindowsProfiles(t *testing.T) {
 	ndesVars := &NDESVarsFound{}
 	ndesVars, _ = ndesVars.SetChallenge()

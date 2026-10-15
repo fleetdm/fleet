@@ -6087,6 +6087,12 @@ func testWindowsMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 			caType:               fleet.CAConfigCustomSCEPProxy,
 			challengeRetrievedAt: nil,
 		},
+		{
+			name:                 "Conditional access",
+			caName:               fleet.ConditionalAccessManagedCertificateCAName,
+			caType:               fleet.CAConfigConditionalAccess,
+			challengeRetrievedAt: new(time.Now().Add(-time.Hour).UTC().Round(time.Microsecond)),
+		},
 	}
 
 	for _, tc := range testCases {

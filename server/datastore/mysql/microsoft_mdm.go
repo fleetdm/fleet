@@ -1701,7 +1701,7 @@ ON DUPLICATE KEY UPDATE
 }
 
 // renewalIDManagedCertProfileUUIDsDB returns, among the given profile UUIDs, those that have a managed-certificate row
-// for the host whose CA type carries a renewal-ID marker (custom SCEP proxy, NDES, or Smallstep).
+// for the host whose CA type carries a renewal-ID marker (custom SCEP proxy, NDES, Smallstep, or conditional access).
 func renewalIDManagedCertProfileUUIDsDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string, profileUUIDs []string) (map[string]struct{}, error) {
 	if len(profileUUIDs) == 0 {
 		return nil, nil

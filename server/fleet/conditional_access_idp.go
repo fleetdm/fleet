@@ -22,6 +22,13 @@ const ConditionalAccessOktaProfileIdentifier = "com.fleetdm.conditional-access-o
 // cleanup script matches certificates in the keychain by this CN.
 const ConditionalAccessOktaCertificateCN = "Fleet conditional access for Okta"
 
+// ConditionalAccessSCEPPath is the path of Fleet's conditional access SCEP server.
+const ConditionalAccessSCEPPath = "/api/fleet/conditional_access/scep"
+
+// ConditionalAccessManagedCertificateCAName is the ca_name of the host_mdm_managed_certificates rows for certificates
+// issued by Fleet's conditional access SCEP server.
+const ConditionalAccessManagedCertificateCAName = "Conditional access"
+
 // OktaCACleanupTarget identifies where to run the Okta conditional access
 // keychain-cleanup script after a successful InstallProfile ack for the
 // Okta CA profile.
