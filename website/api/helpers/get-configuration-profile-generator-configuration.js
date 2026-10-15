@@ -56,7 +56,7 @@ module.exports = {
   },
 
 
-  fn: async function ({profileType, naturalLanguageInstructions, useLighterResponseShape, useApplePayloadTypeLookup}) {
+  fn: async function ({profileType, naturalLanguageInstructions, useLighterResponseShape, useApplePayloadTypeLookup, useThirdPartyAppLookup}) {
 
     let path = require('path');
 
@@ -75,6 +75,7 @@ module.exports = {
     let appleSchema;
     let appleSchemaDescription;
     let applePayloadTypesProvided = [];
+    let appleThirdPartyPayloadTypesProvided = [];
     if(profileType === 'mobileconfig' || profileType === 'ddm') {
 
       let filename = profileType === 'ddm' ? 'apple-ddm-declarations.json' : 'apple-payload-manifests.json';
