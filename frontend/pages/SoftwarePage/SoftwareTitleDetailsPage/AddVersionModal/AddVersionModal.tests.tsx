@@ -100,6 +100,26 @@ describe("AddVersionModal", () => {
     expect(screen.queryByText(/Enable auto updates/i)).not.toBeInTheDocument();
   });
 
+  it("surfaces the Configuration editor error when Android JSON is invalid", async () => {
+    const androidApp = createMockAppStoreAppIos({
+      platform: "android",
+      app_store_id: "com.example.app",
+    });
+    const { user } = renderModal({ appStore: androidApp });
+
+    await user.type(screen.getByLabelText(/Name/i), "Production");
+
+    const configInput = screen.getByRole<HTMLTextAreaElement>("textbox", {
+      name: /Cursor at row/,
+    });
+    await user.clear(configInput);
+    await user.type(configInput, "{{ invalid json");
+
+    await user.click(screen.getByRole("button", { name: /^Add$/i }));
+
+    expect(await screen.findByText(/Enter valid JSON/i)).toBeInTheDocument();
+  });
+
   it("pre-fills auto-update from defaultAutoUpdate and submits those values", async () => {
     const addSpy = jest
       .spyOn(softwareAPI, "addAppStoreAppVersion")
