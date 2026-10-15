@@ -30571,7 +30571,7 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "- On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n- On ChromeOS, uptime is calculated from the last Chrome profile startup, which serves as a proxy for the device's last reboot. The startup timestamp persists across extension service worker restarts.\n- On ChromeOS, this table returns no rows until the extension records its first Chrome profile startup after installation.",
+    "notes": "On ChromeOS:\n  - This table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n  - Uptime is calculated from the last Chrome profile startup, which serves as a proxy for the device's last reboot. The startup timestamp persists across extension service worker restarts.\n  - The table returns no rows until the extension records its first Chrome profile startup after installation.",
     "examples": "See how long hosts that have been up for more than a month have been up. This\ncould indicate systems that are not ephemeral as expected, or not being\npatched as frequently as they should be.\n\n```\nSELECT days FROM uptime WHERE days >='31'\n```",
     "columns": [
       {
