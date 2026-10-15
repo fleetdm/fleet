@@ -436,8 +436,9 @@ func matchSoftwareToRHELOSV(software []fleet.Software, artifact *RHELOSVArtifact
 			continue
 		}
 
+		rpmVer := buildRPMVer(sw)
 		for _, vuln := range vulns {
-			if isVulnerableRPM(sw.Version, sw.Release, sw.Epoch, vuln) {
+			if isVulnerableRPM(rpmVer, vuln) {
 				var resolvedIn *string
 				if vuln.Fixed != "" {
 					fixed := vuln.Fixed
@@ -455,31 +456,35 @@ func matchSoftwareToRHELOSV(software []fleet.Software, artifact *RHELOSVArtifact
 	return result
 }
 
-// isVulnerableRPM checks if an RPM software version is vulnerable based on OSV data.
-// Uses Rpmvercmp for RPM epoch:version-release comparison. A nil epoch is compared as epoch 0.
-func isVulnerableRPM(softwareVersion, softwareRelease string, epoch *uint32, vuln OSVVulnerability) bool {
-	// Build current version string: "[epoch:]version-release"
-	current := softwareVersion
-	if softwareRelease != "" {
-		current = softwareVersion + "-" + softwareRelease
+// buildRPMVer returns the "[epoch:]version[-release]" string of an RPM package. A missing epoch is
+// left out, which Rpmvercmp compares as epoch 0.
+func buildRPMVer(sw fleet.Software) string {
+	v := sw.Version
+	if sw.Release != "" {
+		v += "-" + sw.Release
 	}
-	if epoch != nil {
-		current = strconv.FormatUint(uint64(*epoch), 10) + ":" + current
+	if sw.Epoch != nil {
+		v = strconv.FormatUint(uint64(*sw.Epoch), 10) + ":" + v
 	}
+	return v
+}
 
+// isVulnerableRPM checks if an RPM version, as returned by buildRPMVer, is vulnerable based on OSV
+// data, using Rpmvercmp for the epoch:version-release comparison.
+func isVulnerableRPM(rpmVer string, vuln OSVVulnerability) bool {
 	introduced := vuln.Introduced
 	if introduced == "" {
 		introduced = "0"
 	}
 
 	if introduced != "0" {
-		if utils.Rpmvercmp(current, introduced) < 0 {
+		if utils.Rpmvercmp(rpmVer, introduced) < 0 {
 			return false
 		}
 	}
 
 	if vuln.Fixed != "" {
-		return utils.Rpmvercmp(current, vuln.Fixed) < 0
+		return utils.Rpmvercmp(rpmVer, vuln.Fixed) < 0
 	}
 
 	// No fixed version — still vulnerable if introduced
