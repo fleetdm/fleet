@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	scepPath         = "/api/fleet/conditional_access/scep"
+	scepPath         = fleet.ConditionalAccessSCEPPath
 	scepValidityDays = 398 // Apple's maximum allowed certificate validity
 )
 

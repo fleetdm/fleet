@@ -162,6 +162,7 @@ func testWindowsSCEPStatusProbeQueuedOnAck(t *testing.T, ds *Datastore) {
 		{name: "user-scoped custom SCEP", userScoped: true, caType: fleet.CAConfigCustomSCEPProxy, wantStatus: fleet.MDMDeliveryVerifying, wantScope: "./User"},
 		{name: "device-scoped NDES", caType: fleet.CAConfigNDES, wantStatus: fleet.MDMDeliveryVerifying, wantScope: "./Device"},
 		{name: "user-scoped NDES", userScoped: true, caType: fleet.CAConfigNDES, wantStatus: fleet.MDMDeliveryVerifying, wantScope: "./User"},
+		{name: "user-scoped conditional access", userScoped: true, caType: fleet.CAConfigConditionalAccess, wantStatus: fleet.MDMDeliveryVerifying, wantScope: "./User"},
 		{name: "not proxied by Fleet", wantStatus: fleet.MDMDeliveryVerified},
 	}
 	for _, c := range cases {

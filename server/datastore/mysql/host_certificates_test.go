@@ -209,6 +209,7 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 		want   fleet.MDMDeliveryStatus
 	}{
 		{"proxied SCEP moves to verifying", fleet.CAConfigCustomSCEPProxy, fleet.MDMDeliveryVerifying},
+		{"conditional access SCEP moves to verifying", fleet.CAConfigConditionalAccess, fleet.MDMDeliveryVerifying},
 		{"non-certificate profile stays verified", "", fleet.MDMDeliveryVerified},
 		{"DigiCert profile stays verified", fleet.CAConfigDigiCert, fleet.MDMDeliveryVerified},
 	} {
@@ -225,18 +226,32 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 		})
 	}
 
-	t.Run("cert observation flips verifying to verified", func(t *testing.T) {
-		h := mkHost(t, "flip")
-		p := "w-scep-flip"
-		upsertWinProfile(t, h, p, "cmd-flip", fleet.MDMDeliveryVerifying, 0)
-		upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
+	// Every CA type that carries a renewal-ID marker verifies the same way: the matcher records the observed certificate
+	// on the managed-certificate row and the profile flips to verified.
+	for i, caType := range []fleet.CAConfigAssetType{fleet.CAConfigCustomSCEPProxy, fleet.CAConfigConditionalAccess} {
+		t.Run("cert observation flips verifying to verified: "+string(caType), func(t *testing.T) {
+			h := mkHost(t, fmt.Sprintf("flip-%d", i))
+			p := fmt.Sprintf("w-scep-flip-%d", i)
+			upsertWinProfile(t, h, p, "cmd-flip", fleet.MDMDeliveryVerifying, 0)
+			upsertHMMC(t, h, p, caType, nil, nil)
 
-		ingest(t, h, certWithRenewalID(t, h, p, 7001))
+			cert := certWithRenewalID(t, h, p, 7001+int64(i))
+			ingest(t, h, cert)
 
-		status, _, _ := getProfile(t, h, p)
-		require.Equal(t, fleet.MDMDeliveryVerified, status)
-		requireRollupMatchesReconcile(t, h.UUID, fleet.MDMDeliveryVerified)
-	})
+			status, _, _ := getProfile(t, h, p)
+			require.Equal(t, fleet.MDMDeliveryVerified, status)
+			requireRollupMatchesReconcile(t, h.UUID, fleet.MDMDeliveryVerified)
+
+			hmmc, err := ds.GetWindowsHostMDMCertificateProfile(ctx, h.UUID, p, "ca-"+p)
+			require.NoError(t, err)
+			require.NotNil(t, hmmc)
+			require.Equal(t, caType, hmmc.Type)
+			require.NotNil(t, hmmc.Serial)
+			require.Equal(t, fmt.Sprintf("%040s", cert.Serial), *hmmc.Serial)
+			require.NotNil(t, hmmc.NotValidAfter)
+			require.True(t, hmmc.NotValidAfter.Equal(cert.NotValidAfter))
+		})
+	}
 
 	t.Run("cert observation self-heals failed to verified and clears detail", func(t *testing.T) {
 		h := mkHost(t, "heal")
@@ -493,31 +508,37 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 		wantStatus  fleet.MDMDeliveryStatus // "" means pending, i.e. queued for another delivery
 		wantDetail  string
 		wantRetries int
+		caType      fleet.CAConfigAssetType
 	}{
 		{
 			"device-scoped retries past grace when cert absent",
-			false, 2 * time.Hour, fleet.SystemHostCertificate, "", 0, "", "", 1,
+			false, 2 * time.Hour, fleet.SystemHostCertificate, "", 0, "", "", 1, fleet.CAConfigCustomSCEPProxy,
 		},
 		{
 			"device-scoped retries again on its last attempt",
 			false, 2 * time.Hour, fleet.SystemHostCertificate, "", mdm.MaxWindowsProfileRetries - 1, "", "", mdm.MaxWindowsProfileRetries,
+			fleet.CAConfigCustomSCEPProxy,
 		},
 		{
 			"device-scoped fails past grace once the retries are spent",
 			false, 2 * time.Hour, fleet.SystemHostCertificate, "", mdm.MaxWindowsProfileRetries,
-			fleet.MDMDeliveryFailed, windowsSCEPCertNotFoundDetail, mdm.MaxWindowsProfileRetries,
+			fleet.MDMDeliveryFailed, windowsSCEPCertNotFoundDetail, mdm.MaxWindowsProfileRetries, fleet.CAConfigCustomSCEPProxy,
 		},
 		{
 			"device-scoped stays verifying within grace",
-			false, 0, fleet.SystemHostCertificate, "", 0, fleet.MDMDeliveryVerifying, "", 0,
+			false, 0, fleet.SystemHostCertificate, "", 0, fleet.MDMDeliveryVerifying, "", 0, fleet.CAConfigCustomSCEPProxy,
 		},
 		{
 			"user-scoped stays verifying when no user cert observed",
-			true, 2 * time.Hour, fleet.SystemHostCertificate, "", 0, fleet.MDMDeliveryVerifying, "", 0,
+			true, 2 * time.Hour, fleet.SystemHostCertificate, "", 0, fleet.MDMDeliveryVerifying, "", 0, fleet.CAConfigCustomSCEPProxy,
 		},
 		{
 			"user-scoped retries past grace once a user cert is observed",
-			true, 2 * time.Hour, fleet.UserHostCertificate, "alice", 0, "", "", 1,
+			true, 2 * time.Hour, fleet.UserHostCertificate, "alice", 0, "", "", 1, fleet.CAConfigCustomSCEPProxy,
+		},
+		{
+			"user-scoped conditional access retries past grace once a user cert is observed",
+			true, 2 * time.Hour, fleet.UserHostCertificate, "alice", 0, "", "", 1, fleet.CAConfigConditionalAccess,
 		},
 	} {
 		t.Run("backstop: "+tc.name, func(t *testing.T) {
@@ -525,7 +546,7 @@ func testWindowsSCEPProfileVerification(t *testing.T, ds *Datastore) {
 			p := fmt.Sprintf("w-backstop-%d", i)
 			upsertWinProfile(t, h, p, "cmd-backstop", fleet.MDMDeliveryVerifying, tc.retries)
 			insertConfigProfile(t, p, fmt.Sprintf("backstop-%d", i), tc.userScoped)
-			upsertHMMC(t, h, p, fleet.CAConfigCustomSCEPProxy, nil, nil)
+			upsertHMMC(t, h, p, tc.caType, nil, nil)
 			if tc.backdate > 0 {
 				backdateProfile(t, h, p, tc.backdate)
 			}

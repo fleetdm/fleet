@@ -142,6 +142,60 @@ func (n *NDESVarsFound) SetRenewalID() (*NDESVarsFound, bool) {
 	return n, !alreadyPresent
 }
 
+// ConditionalAccessVarsFound tracks the variables that point a SCEP profile at Fleet's conditional access SCEP server.
+type ConditionalAccessVarsFound struct {
+	urlFound       bool
+	challengeFound bool
+	renewalIdFound bool
+}
+
+// Ok makes sure that Challenge, URL, and renewal ID are present.
+func (c *ConditionalAccessVarsFound) Ok() bool {
+	if c == nil {
+		return true
+	}
+	return c.urlFound && c.challengeFound && c.renewalIdFound
+}
+
+func (c *ConditionalAccessVarsFound) Found() bool {
+	return c != nil
+}
+
+func (c *ConditionalAccessVarsFound) RenewalOnly() bool {
+	return c != nil && !c.urlFound && !c.challengeFound && c.renewalIdFound
+}
+
+func (c *ConditionalAccessVarsFound) ErrorMessage() string {
+	return fleet.ConditionalAccessSCEPVariablesMissingErrMsg
+}
+
+func (c *ConditionalAccessVarsFound) SetURL() (*ConditionalAccessVarsFound, bool) {
+	if c == nil {
+		c = &ConditionalAccessVarsFound{}
+	}
+	alreadyPresent := c.urlFound
+	c.urlFound = true
+	return c, !alreadyPresent
+}
+
+func (c *ConditionalAccessVarsFound) SetChallenge() (*ConditionalAccessVarsFound, bool) {
+	if c == nil {
+		c = &ConditionalAccessVarsFound{}
+	}
+	alreadyPresent := c.challengeFound
+	c.challengeFound = true
+	return c, !alreadyPresent
+}
+
+func (c *ConditionalAccessVarsFound) SetRenewalID() (*ConditionalAccessVarsFound, bool) {
+	if c == nil {
+		c = &ConditionalAccessVarsFound{}
+	}
+	alreadyPresent := c.renewalIdFound
+	c.renewalIdFound = true
+	return c, !alreadyPresent
+}
+
 type CustomSCEPVarsFound struct {
 	urlCA          map[string]struct{}
 	challengeCA    map[string]struct{}
@@ -356,6 +410,7 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 	additionalCustomSCEPValidation func(contents string, customSCEPVars *CustomSCEPVarsFound) error,
 	additionalNDESValidation func(contents string, ndesVars *NDESVarsFound) error,
 	additionalSmallstepValidation func(contents string, smallstepVars *SmallstepVarsFound) error,
+	additionalConditionalAccessValidation func(contents string, conditionalAccessVars *ConditionalAccessVarsFound) error,
 ) error {
 	fleetVars := variables.FindKeepDuplicates(profileContents)
 	if len(fleetVars) == 0 {
@@ -368,10 +423,11 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 	}
 
 	var (
-		digiCertVars   *DigiCertVarsFound
-		ndesVars       *NDESVarsFound
-		smallstepVars  *SmallstepVarsFound
-		customSCEPVars *CustomSCEPVarsFound
+		digiCertVars          *DigiCertVarsFound
+		ndesVars              *NDESVarsFound
+		smallstepVars         *SmallstepVarsFound
+		customSCEPVars        *CustomSCEPVarsFound
+		conditionalAccessVars *ConditionalAccessVarsFound
 	)
 	for _, k := range fleetVars {
 		caFound := false
@@ -455,17 +511,26 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 		case k == string(fleet.FleetVarNDESSCEPChallenge):
 			caFound = true
 			ndesVars, ok = ndesVars.SetChallenge()
+		case k == string(fleet.FleetVarConditionalAccessSCEPURL):
+			caFound = true
+			conditionalAccessVars, ok = conditionalAccessVars.SetURL()
+		case k == string(fleet.FleetVarConditionalAccessSCEPChallenge):
+			caFound = true
+			conditionalAccessVars, ok = conditionalAccessVars.SetChallenge()
 		case k == string(fleet.FleetVarSCEPRenewalID), k == string(fleet.FleetVarCertificateRenewalID):
 			caFound = true
-			// Custom SCEP, NDES, and Smallstep all share the renewal-ID
-			// Fleet variable. The legacy SCEP_RENEWAL_ID and the preferred
-			// CERTIFICATE_RENEWAL_ID names are interchangeable here.
+			// Custom SCEP, NDES, Smallstep, and conditional access all share the
+			// renewal-ID Fleet variable. The legacy SCEP_RENEWAL_ID and the
+			// preferred CERTIFICATE_RENEWAL_ID names are interchangeable here.
 
 			customSCEPVars, ok = customSCEPVars.SetRenewalID()
 			if ok {
 				ndesVars, ok = ndesVars.SetRenewalID()
 				if ok {
 					smallstepVars, ok = smallstepVars.SetRenewalID()
+					if ok {
+						conditionalAccessVars, ok = conditionalAccessVars.SetRenewalID()
+					}
 				}
 			}
 		}
@@ -497,10 +562,14 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 		}
 	}
 
-	// Since custom SCEP, NDES, and Smallstep share the renewal ID Fleet variable, we need to figure out which one to validate.
-	if customSCEPVars.Found() || ndesVars.Found() || smallstepVars.Found() {
+	// Since custom SCEP, NDES, Smallstep, and conditional access share the renewal ID Fleet variable, we need to figure out
+	// which one to validate.
+	if customSCEPVars.Found() || ndesVars.Found() || smallstepVars.Found() || conditionalAccessVars.Found() {
 		if ndesVars.RenewalOnly() {
 			ndesVars = nil
+		}
+		if conditionalAccessVars.RenewalOnly() {
+			conditionalAccessVars = nil
 		}
 		if customSCEPVars.RenewalOnly() {
 			customSCEPVars = nil
@@ -520,7 +589,7 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 				break
 			}
 		}
-		if ndesVars == nil && smallstepVars == nil && customSCEPVars == nil && !hasRenewableCertPayload {
+		if ndesVars == nil && smallstepVars == nil && customSCEPVars == nil && conditionalAccessVars == nil && !hasRenewableCertPayload {
 			return &fleet.BadRequestError{Message: fleet.SCEPRenewalIDWithoutURLChallengeErrMsg}
 		}
 	}
@@ -553,6 +622,17 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 		}
 		if additionalSmallstepValidation != nil {
 			err := additionalSmallstepValidation(profileContents, smallstepVars)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	if conditionalAccessVars.Found() {
+		if !conditionalAccessVars.Ok() {
+			return &fleet.BadRequestError{Message: conditionalAccessVars.ErrorMessage()}
+		}
+		if additionalConditionalAccessValidation != nil {
+			err := additionalConditionalAccessValidation(profileContents, conditionalAccessVars)
 			if err != nil {
 				return err
 			}
