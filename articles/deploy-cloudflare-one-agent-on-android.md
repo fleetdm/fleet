@@ -18,7 +18,7 @@ This guide covers fully managed devices. Work profile (BYOD) devices, HTTP filte
 3. Add a [device enrollment permissions](https://developers.cloudflare.com/cloudflare-one/team-and-resources/devices/cloudflare-one-client/deployment/device-enrollment/#set-device-enrollment-permissions) rule with the action **Allow** that includes the users you want to enroll. Select the login method from step 2.
 4. Leave the default [device profile](https://developers.cloudflare.com/cloudflare-one/team-and-resources/devices/cloudflare-one-client/configure/device-profiles/) as is (WARP mode, auto-connect off), or set it to match your policy.
 
-> **Note:** Enrolling devices with a Cloudflare service token, which skips the sign-in prompt, isn't supported yet. Fleet doesn't support secret variables (`$FLEET_SECRET_*`) in Android app configurations. Support is coming soon in [fleetdm/fleet#55512](https://github.com/fleetdm/fleet/issues/55512). Until then, have users sign in with a one-time PIN or your identity provider.
+> **Note:** Enrolling devices with a Cloudflare service token, which skips the sign-in prompt, isn't supported yet. Fleet doesn't support secret variables (`$FLEET_SECRET_*`) in Android app configurations. Support is coming soon in [fleetdm/fleet#55612](https://github.com/fleetdm/fleet/issues/55612). Until then, have users sign in with a one-time PIN or your identity provider.
 
 ## Write the managed configuration
 
