@@ -225,8 +225,7 @@ module.exports = {
       let ALWAYS_PROVIDED_ENTRY_NAMES = ['CommonPayloadKeys', 'TopLevel'];
 
       // Third-party apps' preference domains (com.google.Chrome, com.microsoft.wdav, ...) have no Apple
-      // manifest, so they are generated from ProfileManifests' by
-      // `sails run regenerate-all-apple-third-party-payload-manifests`.
+      // manifest, so they are generated from ProfileManifests' by the `regenerate-apple-third-party-payload-manifests` script.
       let thirdPartySchemaFile;
       // The third-party entries the lookup picked, or undefined when it did not pick them, in which case
       // they are found by keyword below.
@@ -238,7 +237,7 @@ module.exports = {
         } catch (err) {
           throw new Error(
             `Could not read the Apple third-party payload manifests at ${thirdPartySchemaFilePath}.  Run ` +
-            `\`sails run regenerate-all-apple-third-party-payload-manifests\` to build it.  Full error: ${err.message}`
+            `\`sails run regenerate-apple-third-party-payload-manifests\` to build it.  Full error: ${err.message}`
           );
         }
       }
