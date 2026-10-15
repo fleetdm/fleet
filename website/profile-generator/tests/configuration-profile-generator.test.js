@@ -158,7 +158,7 @@ describe('configuration profile generator', function() {
                 items: rawResult.settingsEnforced,
               };
 
-              let checkFailures = checkExpectations(expectations, generatedProfile, profileType);
+              let checkFailures = checkExpectations(expectations, generatedProfile, profileType, testCase.forFleet);
               assert.strictEqual(
                 checkFailures.length, 0,
                 `${testCase.canary ? 'CANARY -- ' : ''}${checkFailures.length} check(s) failed:\n` +
@@ -229,6 +229,7 @@ async function generateOnce(testCase) {
       profileType: testCase.profileType,
       naturalLanguageInstructions: testCase.instructions,
       useApplePayloadTypeLookup: true,
+      forFleet: !!testCase.forFleet,
     });
     let rawResult = await sails.helpers.ai.prompt.with({
       systemPrompt: generatorConfiguration.systemPrompt,

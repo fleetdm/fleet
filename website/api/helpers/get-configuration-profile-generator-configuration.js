@@ -36,6 +36,12 @@ module.exports = {
       defaultsTo: false,
       description: 'Whether or not to send a lookup prompt first that narrows the .mobileconfig schema to the payload types this request needs.',
       extendedDescription: 'Without it, the full .mobileconfig schema is provided, without key descriptions.'
+    },
+
+    forFleet: {
+      type: 'boolean',
+      defaultsTo: false,
+      description: 'Whether the profile is for Fleet, which adds the rules and limits of Fleet\'s own profile checks.'
     }
   },
 
@@ -49,7 +55,7 @@ module.exports = {
   },
 
 
-  fn: async function ({profileType, naturalLanguageInstructions, useLighterResponseShape, useApplePayloadTypeLookup}) {
+  fn: async function ({profileType, naturalLanguageInstructions, useLighterResponseShape, useApplePayloadTypeLookup, forFleet}) {
 
     let path = require('path');
 
@@ -80,6 +86,24 @@ module.exports = {
           `Could not read the Apple ${profileType} schema at ${schemaFilePath}.  Run ` +
           `\`sails run regenerate-apple-profile-schemas\` to build it.  Full error: ${err.message}`
         );
+      }
+
+      // Fleet rejects these declaration types on upload, and cannot deliver the asset declarations the others require.
+      // Filtered in a copy, since `require` hands every caller the same cached object.
+      if(profileType === 'ddm' && forFleet) {
+        const DECLARATION_TYPES_FLEET_REJECTS = [
+          'com.apple.configuration.watch.enrollment',
+          'com.apple.configuration.account.google',
+          'com.apple.management.server-capabilities',
+          'com.apple.configuration.management.status-subscriptions',
+          'com.apple.configuration.package',
+        ];
+        schemaFile = Object.assign({}, schemaFile, {
+          entries: _.reject(schemaFile.entries, (entry)=>{
+            let requiresAnAsset = _.any(entry.keys, (key)=>{ return key.required && /AssetReference$/.test(key.key); });
+            return _.contains(DECLARATION_TYPES_FLEET_REJECTS, entry.name) || requiresAnAsset;
+          }),
+        });
       }
 
       // A nested key renders inside its parent's braces, so no parent can be rendered until every one of
@@ -711,6 +735,10 @@ a field that does not appear here does not exist.`,
         if(_.contains(MANAGEMENT_PLANE_CSPS, node.csp)) {
           return false;
         }
+        // Fleet accepts <Exec> only for its own certificate commands, so a node that can only be executed is unusable there.
+        if(forFleet && /Exec/.test(node.accessType || '') && !/Add|Replace/.test(node.accessType || '')) {
+          return false;
+        }
         if(node.admxTemplate) {
           return _.contains(admxTemplateIdsTheRequestNames, node.admxTemplate) && (requestAsksForADefault || !/_recommended(~|$)/.test(node.area));
         }
@@ -1080,7 +1108,27 @@ to the profile automatically after you return it.`;
     }
 
 
-    let numberedRules = sharedRules.concat(promptConfig.rules, deliveryNotesRules)
+    // Kept off the public page, which generates for any MDM.  Placed after the type's own rules so they win where the two
+    // disagree, e.g. the CSP rules list <Exec> as a valid command.
+    let fleetRules = [];
+    if(forFleet) {
+      fleetRules = [
+        'This profile is for Fleet.  The rules from here on are Fleet\'s, and they override any rule above that they contradict.',
+        'Return the "couldNotGenerateProfile" shape for any request to enroll or install a certificate identity: SCEP, ACME, PKCS12, or a Wi-Fi or VPN network that authenticates with a client certificate (EAP-TLS).  Fleet configures those with its own certificate authority integrations.',
+        'Return the "couldNotGenerateProfile" shape for any Platform SSO request.  Other single sign-on extensions, such as the Kerberos SSO extension, still generate.',
+        'Fleet manages disk encryption (FileVault, BitLocker) in its Disk encryption feature and OS updates in its OS updates feature.  Still generate the profile as asked, and name that Fleet feature in "deliveryNotes".',
+        'Write credentials the admin supplied as literals, and say in "deliveryNotes" to replace them with a Fleet secret variable ($FLEET_SECRET_<NAME>) so the credential is not stored in the profile.',
+      ].concat({
+        csp: [
+          'Never use <Exec>.  Fleet only accepts <Replace>, <Add>, and <Atomic>, so a request to run something on the device -- reboot it, wipe it, install an app -- returns the "couldNotGenerateProfile" shape.',
+        ],
+        ddm: [
+          'Never write a key that ends in AssetReference, since Fleet cannot deliver the asset declaration it points to.  If the setting needs one, return the "couldNotGenerateProfile" shape rather than describing the asset in "deliveryNotes".',
+        ],
+      }[profileType] || []);
+    }
+
+    let numberedRules = sharedRules.concat(promptConfig.rules, fleetRules, deliveryNotesRules)
       .map((rule, idx)=>`${idx + 1}. ${rule}`)
       .join('\n    ');
 
