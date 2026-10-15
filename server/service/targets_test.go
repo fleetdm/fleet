@@ -135,7 +135,7 @@ func TestSearchWithOmit(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestSearchTargetsFiltersMobileHosts(t *testing.T) {
+func TestSearchTargetsIncludesMobileHosts(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
 
@@ -160,7 +160,5 @@ func TestSearchTargetsFiltersMobileHosts(t *testing.T) {
 
 	results, err := svc.SearchTargets(ctx, "local", nil, fleet.HostTargets{})
 	require.NoError(t, err)
-	require.Len(t, results.Hosts, 2)
-	assert.Equal(t, "mac.local", results.Hosts[0].Hostname)
-	assert.Equal(t, "win.local", results.Hosts[1].Hostname)
+	require.Len(t, results.Hosts, 5)
 }

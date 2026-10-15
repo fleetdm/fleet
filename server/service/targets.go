@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"slices"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -90,13 +89,6 @@ func (svc *Service) SearchTargets(ctx context.Context, matchQuery string, queryI
 	if err != nil {
 		return nil, err
 	}
-
-	// Mobile hosts can't run osquery, so exclude them from the live-query
-	// target picker. The datastore method is shared with the label picker,
-	// which needs all platforms, so we filter here instead.
-	hosts = slices.DeleteFunc(hosts, func(h *fleet.Host) bool {
-		return h.Platform == "ios" || h.Platform == "ipados" || h.Platform == "android"
-	})
 
 	results.Hosts = append(results.Hosts, hosts...)
 
