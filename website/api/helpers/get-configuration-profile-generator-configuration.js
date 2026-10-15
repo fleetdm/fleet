@@ -1116,7 +1116,7 @@ to the profile automatically after you return it.`;
         'This profile is for Fleet.  The rules from here on are Fleet\'s, and they override any rule above that they contradict.',
         'Return the "couldNotGenerateProfile" shape for any request to enroll or install a certificate identity: SCEP, ACME, PKCS12, or a Wi-Fi or VPN network that authenticates with a client certificate (EAP-TLS).  Fleet configures those with its own certificate authority integrations.',
         'Return the "couldNotGenerateProfile" shape for any Platform SSO request.  Other single sign-on extensions, such as the Kerberos SSO extension, still generate.',
-        'Fleet manages disk encryption (FileVault, BitLocker) in its Disk encryption feature and OS updates in its OS updates feature.  Still generate the profile as asked, and name that Fleet feature in "deliveryNotes".',
+        'Fleet has its own features for two kinds of settings.  FileVault and BitLocker settings belong to its Disk encryption feature.  OS update settings -- the Policy CSP Update area on Windows, and software update payloads, keys and declarations on Apple -- belong to its OS updates feature.  Still generate the profile as asked, and name the feature in "deliveryNotes", e.g. "Fleet\'s OS updates feature can manage this instead."  For these settings "deliveryNotes" is never empty.',
         'Write credentials the admin supplied as literals, and say in "deliveryNotes" to replace them with a Fleet secret variable ($FLEET_SECRET_<NAME>) so the credential is not stored in the profile.',
       ].concat({
         csp: [
