@@ -15266,7 +15266,7 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | software_title_id | integer | path | **Required**. The ID of the software title. |
-| package_id | integer | path | **Required**. The ID of the package. This is the `installer_id` of the package in the `packages` array returned by [Get software title](#get-software-title). |
+| package_id | integer | path | **Required**. The ID of the package. This is the `id` of the package in the `packages` array returned by [Get software title](#get-software-title). |
 | software        | file    | body | Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, `.py`, and `.ps1`.   |
 | fleet_id         | integer | body | **Required**. The fleet ID. Updates a software package in the specified fleet. |
 | display_name    | string  | body | Optional override for the default `name`. |
@@ -16028,7 +16028,7 @@ Deletes one package from a software title. The software isn't uninstalled from h
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | software_title_id | integer | path | **Required**. The ID of the software title. |
-| package_id | integer | path | **Required**. The ID of the package. This is the `installer_id` of the package in the `packages` array returned by [Get software title](#get-software-title). |
+| package_id | integer | path | **Required**. The ID of the package. This is the `id` of the package in the `packages` array returned by [Get software title](#get-software-title). |
 | fleet_id | integer | query | **Required**. The fleet ID. |
 
 #### Example
