@@ -241,6 +241,62 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         ).not.toBeInTheDocument();
       });
     });
+
+    it("Preserves the certificate's trailing newline on submit (OKTA_CERTIFICATE skipTrim)", async () => {
+      const mockConfig = createEmptyConditionalAccessConfig();
+
+      let capturedBody: {
+        conditional_access?: { okta_certificate?: string };
+      } | null = null;
+      mockServer.use(
+        http.patch(baseUrl("/config"), async ({ request }) => {
+          capturedBody = (await request.json()) as typeof capturedBody;
+          return HttpResponse.json(mockConfig);
+        })
+      );
+
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: { app: { isPremiumTier: true, config: mockConfig } },
+      });
+
+      const { user } = render(<ConditionalAccess />);
+      await user.click(screen.getAllByText("Connect")[0]);
+      await waitFor(() => {
+        expect(screen.getByText("Okta conditional access")).toBeInTheDocument();
+      });
+
+      const textboxes = screen.getAllByRole("textbox");
+      await user.type(textboxes[1], TEST_OKTA_IDP_ID);
+      await user.type(textboxes[2], "https://example.com/acs");
+      await user.type(textboxes[3], "https://example.com");
+
+      // Trailing newline after -----END CERTIFICATE----- is standard PEM output
+      // (e.g. from openssl). skipTrim keeps it intact; without the exemption,
+      // useFormValidation trims it and the backend may reject the blob.
+      const certificateContent = `-----BEGIN CERTIFICATE-----
+MIIDXTCCAkWgAwIBAgIJAKL0UG+mRKm7MA0GCSqGSIb3DQEBCwUAMEUxCzAJBgNV
+BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
+-----END CERTIFICATE-----
+`;
+      const file = new File([certificateContent], "certificate.pem", {
+        type: "application/x-pem-file",
+      });
+      const fileInput = document.querySelector(
+        'input[type="file"]'
+      ) as HTMLInputElement;
+      await user.upload(fileInput, file);
+      await waitFor(() => {
+        expect(screen.getByText("certificate.pem")).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole("button", { name: "Save" }));
+      await waitFor(() => {
+        expect(capturedBody?.conditional_access?.okta_certificate).toBe(
+          certificateContent
+        );
+      });
+    });
   });
 
   describe("Confirming configured", () => {
