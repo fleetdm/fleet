@@ -13,7 +13,6 @@ import SectionHeader from "components/SectionHeader";
 import { notify } from "components/ToastNotification";
 import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
-import useGitOpsMode from "hooks/useGitOpsMode";
 import { IConfig, isOktaConditionalAccessConfigured } from "interfaces/config";
 import SettingsSection from "pages/admin/components/SettingsSection";
 import paths from "router/paths";
@@ -161,7 +160,6 @@ enum EntraPhase {
 const ConditionalAccess = () => {
   // HOOKS
   const { isPremiumTier, setConfig, config } = useContext(AppContext);
-  const { gitOpsModeEnabled } = useGitOpsMode();
 
   const [entraPhase, setEntraPhase] = useState<EntraPhase>(
     EntraPhase.NotConfigured
@@ -544,35 +542,37 @@ const ConditionalAccess = () => {
         <div className={`${baseClass}__end-user-experience`}>
           <SectionHeader title="End user experience" />
           <form onSubmit={handleSaveBypassSettings}>
-            <div
-              className={`form ${
-                gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
-              }`}
-            >
-              <Checkbox
-                onChange={() => setBypassDisabled(!bypassDisabled)}
-                name="bypassDisabled"
-                value={!bypassDisabled}
-                disabled={gitOpsModeEnabled}
-              >
-                <TooltipWrapper
-                  tipContent={
-                    <>
-                      Bypassing is valid for a single login attempt and is
-                      tracked in audit logs. Critical policies can never be
-                      bypassed.
-                      <br />
-                      <i>
-                        (Default: <strong>On</strong>)
-                      </i>
-                    </>
-                  }
-                  showArrow={false}
+            <GitOpsModeTooltipWrapper
+              renderChildren={(disableChildren) => (
+                <Checkbox
+                  onChange={() => setBypassDisabled(!bypassDisabled)}
+                  name="bypassDisabled"
+                  value={!bypassDisabled}
+                  disabled={disableChildren}
                 >
-                  Bypass for non-critical policies
-                </TooltipWrapper>
-              </Checkbox>
-            </div>
+                  {disableChildren ? (
+                    "Bypass for non-critical policies"
+                  ) : (
+                    <TooltipWrapper
+                      tipContent={
+                        <>
+                          Bypassing is valid for a single login attempt and is
+                          tracked in audit logs. Critical policies can never be
+                          bypassed.
+                          <br />
+                          <i>
+                            (Default: <strong>On</strong>)
+                          </i>
+                        </>
+                      }
+                      showArrow={false}
+                    >
+                      Bypass for non-critical policies
+                    </TooltipWrapper>
+                  )}
+                </Checkbox>
+              )}
+            />
             <GitOpsModeTooltipWrapper
               renderChildren={(disableChildren) => (
                 <Button

@@ -1,8 +1,11 @@
-import { screen, waitFor } from "@testing-library/react";
+import { render as rtlRender, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import React from "react";
+import { QueryClient, QueryClientProvider } from "react-query";
 
 import createMockConfig from "__mocks__/configMock";
+import { AppContext, IAppContext, initialState } from "context/app";
 import mockServer from "test/mock-server";
 import { baseUrl, createCustomRenderer } from "test/test-utils";
 
@@ -496,6 +499,68 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
       expect(deleteButtons).toHaveLength(2);
       expect(deleteButtons[0]).toBeDisabled();
       expect(deleteButtons[1]).toBeEnabled();
+    });
+
+    it("Keeps bypass Save disabled when GitOps flips on with a dirty form (isolates the GitOps gate from the unchanged-form check)", async () => {
+      // The previous test's Save assertion is reinforced by the unchanged-form guard
+      // (initial bypassDisabled matches config.bypass_disabled). This one dirties the
+      // form with GitOps off, then rerenders with GitOps on so bypassDisabled survives
+      // via useState — the only remaining reason Save can be disabled is the new gate.
+      const baseConditionalAccess = {
+        microsoft_entra_tenant_id: "",
+        microsoft_entra_connection_configured: false,
+        okta_idp_id: TEST_OKTA_IDP_ID,
+        okta_assertion_consumer_service_url: "https://example.com/acs",
+        okta_audience_uri: "https://example.com",
+        okta_certificate: "cert-data",
+        bypass_disabled: false,
+      };
+      const gitopsOffConfig = createMockConfig({
+        conditional_access: baseConditionalAccess,
+        gitops: {
+          gitops_mode_enabled: false,
+          repository_url: "https://github.com/example/fleet-gitops",
+          exceptions: { labels: false, software: false, secrets: true },
+        },
+      });
+      const gitopsOnConfig = createMockConfig({
+        conditional_access: baseConditionalAccess,
+        gitops: {
+          gitops_mode_enabled: true,
+          repository_url: "https://github.com/example/fleet-gitops",
+          exceptions: { labels: false, software: false, secrets: true },
+        },
+      });
+
+      const client = new QueryClient({
+        defaultOptions: { queries: { retry: false, cacheTime: 0 } },
+      });
+      const Harness = ({ app }: { app: Partial<IAppContext> }) => (
+        <QueryClientProvider client={client}>
+          <AppContext.Provider value={{ ...initialState, ...app }}>
+            <ConditionalAccess />
+          </AppContext.Provider>
+        </QueryClientProvider>
+      );
+
+      const user = userEvent.setup();
+      const { rerender } = rtlRender(
+        <Harness app={{ isPremiumTier: true, config: gitopsOffConfig }} />
+      );
+
+      // Dirty the form: toggle bypassDisabled away from config.bypass_disabled.
+      await user.click(
+        screen.getByRole("checkbox", { name: "bypassDisabled" })
+      );
+      expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+
+      // Flip GitOps on. bypassDisabled state persists via useState across the rerender,
+      // so the unchanged-form guard still evaluates false. Save must disable solely
+      // because of the GitOps gate.
+      rerender(
+        <Harness app={{ isPremiumTier: true, config: gitopsOnConfig }} />
+      );
+      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
     });
 
     it("Leaves Connect buttons enabled under GitOps so users can view the modal", () => {
