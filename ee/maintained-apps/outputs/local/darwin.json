@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "10.1.2",
+      "version": "10.2.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.getflywheel.lightning.local';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.getflywheel.lightning.local' AND version_compare(bundle_short_version, '10.1.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.getflywheel.lightning.local' AND version_compare(bundle_short_version, '10.2.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.getflywheel.lightning.local' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://cdn.localwp.com/releases-stable/10.1.2+7004/local-10.1.2-mac-arm64.dmg",
+      "installer_url": "https://cdn.localwp.com/releases-stable/10.2.0+7022/local-10.2.0-mac-arm64.dmg",
       "install_script_ref": "77b1b0c8",
       "uninstall_script_ref": "4be78fce",
-      "sha256": "9507b0cf27637dedb65b5750f76da20c3a7723ebf91030c779e9211779af001c",
+      "sha256": "845d161115b5d52b9c25fc9c7f0ff0518cf3bb05dd805b9639421283cfb5fb5d",
       "default_categories": [
         "Productivity"
       ]
