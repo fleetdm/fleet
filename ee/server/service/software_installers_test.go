@@ -3987,6 +3987,10 @@ func runFMARecoveryBatch(t *testing.T, opts fmaRecoveryBatchOptions) *fmaRecover
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifest.URL, t)
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", manifest.URL, t)
 	ds := r.ds
+	ds.GetMaintainedAppBySlugFunc = func(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error) {
+		return &fleet.MaintainedApp{ID: 7, Name: "Example", Slug: slug,
+			Platform: opts.platform, UniqueIdentifier: "example", TitleID: new(uint(1))}, nil
+	}
 	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) { return &fleet.TeamLite{ID: id}, nil }
 	ds.GetTeamsWithInstallerByHashFunc = func(context.Context, string, string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
 		return nil, nil
@@ -4021,9 +4025,11 @@ func runFMARecoveryBatch(t *testing.T, opts fmaRecoveryBatchOptions) *fmaRecover
 	svc.softwareInstallStore = r.store
 	kvs, _ := inMemoryKeyValueStore()
 	svc.keyValueStore = kvs
-	p := &fleet.SoftwareInstallerPayload{Slug: new("example/" + opts.platform), RollbackVersion: opts.pin,
-		MaintainedApp: &fleet.MaintainedApp{ID: 7, Name: "Example", Slug: "example/" + opts.platform,
-			Platform: opts.platform, UniqueIdentifier: "example", TitleID: new(uint(1))}}
+	// On this branch slug payloads are hydrated synchronously before the batch
+	// upload (the async-hydrate refactor is not in this release), so mimic the
+	// real request flow by resolving the slug first.
+	p := &fleet.SoftwareInstallerPayload{Slug: new("example/" + opts.platform), RollbackVersion: opts.pin}
+	require.NoError(t, svc.softwareInstallerPayloadFromSlug(t.Context(), p, new(uint(1))))
 	svc.softwareBatchUpload("fma-recovery", new(uint(1)), 1, []*fleet.SoftwareInstallerPayload{p}, opts.dryRun)
 	status, err := kvs.Get(t.Context(), batchSoftwarePrefix+"fma-recovery")
 	require.NoError(t, err)
