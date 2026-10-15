@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-15T16:39:39.260Z",
+  "generatedAt": "2026-10-15T19:18:16.731Z",
   "source": "https://github.com/ProfileManifests/ProfileManifests/tree/master/Manifests/ManagedPreferencesApplications",
   "entries": [
     {
@@ -38924,21 +38924,6 @@
           "required": true,
           "default": true,
           "description": "Enable Enterprise Policies -- Enable policy support on macOS."
-        },
-        {
-          "key": "General_SegmentedControl",
-          "type": "string",
-          "required": true
-        },
-        {
-          "key": "Privacy_SegmentedControl",
-          "type": "string",
-          "required": true
-        },
-        {
-          "key": "Security_SegmentedControl",
-          "type": "string",
-          "required": true
         },
         {
           "key": "BackgroundAppUpdate",

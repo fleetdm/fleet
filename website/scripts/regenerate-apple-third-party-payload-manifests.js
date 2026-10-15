@@ -251,8 +251,9 @@ at the words an admin would use for an app.`,
         for (let pfmKey of pfmKeys) {
           let name = pfmKey.pfm_name;
           // ProfileCreator's own UI controls, e.g., PFC_SegmentedControl_0, which sorts Chrome's keys into tabs,
-          // and the {{key}} editor field above.  They are not preferences.
-          if(_.startsWith(String(name), 'PFC_') || name === '{{key}}') {
+          // and the {{key}} editor field above.  They are not preferences.  Not every tab control is prefixed
+          // PFC_ (Firefox's General_SegmentedControl is not), but every one carries pfm_segments.
+          if(_.startsWith(String(name), 'PFC_') || name === '{{key}}' || pfmKey.pfm_segments !== undefined) {
             continue;
           }
           // Every payload's Payload* keys are already in apple-payload-manifests.json, as CommonPayloadKeys.
