@@ -3439,9 +3439,9 @@ Redirects to the transparency URL.
 
 #### Download device's MDM manual enrollment profile
 
-Returns the URL to open to provide installation instructions and allow a user to download a manual enrollment profile
-for a device. A user may be required to complete SSO authenticaton if configured on the fleet before being presented
-with the download option.
+Returns the URL to open to provide installation instructions and allow a user to download a manual enrollment profile for a device. A user may be required to complete SSO authenticaton if configured on the fleet before being presented with the download option.
+
+This endpoint requires `mdm.apple_scep_static_challenge_enabled` to be set to `true` (it's `false` by default). Otherwise, it returns a `403` error.
 
 `GET /api/v1/fleet/device/{token}/mdm/apple/manual_enrollment_profile`
 
