@@ -15,10 +15,11 @@ import (
 // apiTimeoutOverrideHandler wraps the main API handler with per-route request
 // read/write deadline overrides for endpoints that legitimately run long:
 // synchronous script runs, large software-installer and bootstrap-package
-// uploads, the Android enterprise signup SSE stream, and large MDM profile
-// batch operations. For package-upload routes it also caps the request body and
-// threads the configured max installer size through the request context; their
-// read deadline is lifted by the route's pre-auth, after authentication.
+// uploads, the Android enterprise signup SSE stream, and large MDM profile and
+// app store app batch operations. For package-upload routes it also caps the
+// request body and threads the configured max installer size through the
+// request context; their read deadline is lifted by the route's pre-auth, after
+// authentication.
 //
 // Deadline overrides are best-effort: if the ResponseWriter does not support
 // SetReadDeadline/SetWriteDeadline the error is logged and the request proceeds.
@@ -102,6 +103,21 @@ func apiTimeoutOverrideHandler(apiHandler http.Handler, cfg config.FleetConfig, 
 			if err := rc.SetReadDeadline(time.Now().Add(5 * time.Minute)); err != nil {
 				logger.ErrorContext(req.Context(),
 					"http middleware failed to override endpoint read timeout for MDM profiles batch endpoint",
+					"response_writer_type", fmt.Sprintf("%T", rw),
+					"response_writer", fmt.Sprintf("%+v", rw),
+					"err", err,
+				)
+			}
+		}
+
+		if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/software/app_store_apps/batch") {
+			// Android apps are looked up in Google one at a time, so large batches outlast
+			// the default write timeout. The read deadline stays at the default because this
+			// runs before authentication.
+			rc := http.NewResponseController(rw)
+			if err := rc.SetWriteDeadline(time.Now().Add(5 * time.Minute)); err != nil {
+				logger.ErrorContext(req.Context(),
+					"http middleware failed to override endpoint write timeout for app store apps batch endpoint",
 					"response_writer_type", fmt.Sprintf("%T", rw),
 					"response_writer", fmt.Sprintf("%+v", rw),
 					"err", err,

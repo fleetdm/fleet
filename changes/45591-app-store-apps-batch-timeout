@@ -1,0 +1,1 @@
+- Fixed GitOps timing out or failing with `EOF` when applying a large number of Android apps.

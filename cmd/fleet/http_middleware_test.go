@@ -48,6 +48,12 @@ func TestAPITimeoutOverrideHandler(t *testing.T) {
 			wantInstallerSize: customMax,
 		},
 		{
+			name:              "app store apps batch keeps the default read deadline",
+			method:            http.MethodPost,
+			path:              "/api/latest/fleet/software/app_store_apps/batch",
+			wantInstallerSize: installersize.MaxSoftwareInstallerSize,
+		},
+		{
 			name:              "non-upload request leaves the default max size",
 			method:            http.MethodGet,
 			path:              "/api/latest/fleet/hosts",
@@ -73,6 +79,41 @@ func TestAPITimeoutOverrideHandler(t *testing.T) {
 			assert.True(t, called, "the wrapped API handler must always be invoked")
 			assert.Equal(t, tc.wantInstallerSize, seen)
 			assert.False(t, rec.readDeadlineSet)
+		})
+	}
+}
+
+func TestAPITimeoutOverrideHandlerExtendsWriteDeadline(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+	slow := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		time.Sleep(300 * time.Millisecond)
+		w.WriteHeader(http.StatusOK)
+	})
+
+	srv := httptest.NewUnstartedServer(apiTimeoutOverrideHandler(slow, config.FleetConfig{}, logger))
+	srv.EnableHTTP2 = true
+	srv.Config.WriteTimeout = 100 * time.Millisecond
+	srv.StartTLS()
+	t.Cleanup(srv.Close)
+
+	for _, tc := range []struct {
+		path   string
+		wantOK bool
+	}{
+		{"/api/latest/fleet/software/app_store_apps/batch", true},
+		{"/api/latest/fleet/software/batch", false},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			resp, err := srv.Client().Post(srv.URL+tc.path, "application/json", nil)
+			if !tc.wantOK {
+				assert.ErrorContains(t, err, "INTERNAL_ERROR", "the default write timeout must still apply")
+				return
+			}
+			if assert.NoError(t, err) {
+				defer resp.Body.Close()
+				assert.Equal(t, http.StatusOK, resp.StatusCode)
+				assert.Equal(t, 2, resp.ProtoMajor)
+			}
 		})
 	}
 }
