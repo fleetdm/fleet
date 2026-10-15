@@ -647,6 +647,8 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 
 	current, incoming, noChanges := nothingChanged(currentSoftware, incomingSoftware, ds.minLastOpenedAtDiff)
 	if noChanges {
+		// TODO: This is to backfill existing data ... we should be able to remove this call after a couple of releases?
+		// Benchmark showed no meaningful impact to performance
 		ds.reconcileSoftwareMetadata(ctx, hostID, current, incoming, nil)
 		return r, nil
 	}
@@ -734,7 +736,7 @@ func (ds *Datastore) reconcileSoftwareMetadata(
 ) {
 	reported := make(map[uint]fleet.SoftwareMetadata)
 	for uniqueStr, sw := range incoming {
-		if softwareMetadataIsEmpty(sw.SoftwareMetadata) {
+		if sw.Epoch == nil {
 			continue
 		}
 		if cur, ok := current[uniqueStr]; ok {
@@ -742,7 +744,7 @@ func (ds *Datastore) reconcileSoftwareMetadata(
 		}
 	}
 	for _, sw := range inserted {
-		if !softwareMetadataIsEmpty(sw.SoftwareMetadata) {
+		if sw.Epoch != nil {
 			reported[sw.ID] = sw.SoftwareMetadata
 		}
 	}
@@ -752,16 +754,6 @@ func (ds *Datastore) reconcileSoftwareMetadata(
 	if err := ds.upsertChangedSoftwareMetadata(ctx, reported); err != nil {
 		ds.logger.ErrorContext(ctx, "updating software metadata", "host_id", hostID, "err", err)
 	}
-}
-
-// Not methods on fleet.SoftwareMetadata: it's embedded in fleet.Software, which would then expose
-// an IsZero method that encoding/json's omitzero (and others) would pick up.
-func softwareMetadataIsEmpty(m fleet.SoftwareMetadata) bool {
-	return m.Epoch == nil
-}
-
-func softwareMetadataEqual(a, b fleet.SoftwareMetadata) bool {
-	return ptr.Equal(a.Epoch, b.Epoch)
 }
 
 type softwareMetadataRow struct {
@@ -793,7 +785,7 @@ func (ds *Datastore) upsertChangedSoftwareMetadata(ctx context.Context, reported
 	// Sorted by software ID so that concurrent hosts lock rows in the same order.
 	var changed []softwareMetadataRow
 	for _, id := range ids {
-		if md := reported[id]; !softwareMetadataEqual(md, stored[id]) {
+		if md := reported[id]; !ptr.Equal(md.Epoch, stored[id].Epoch) {
 			changed = append(changed, softwareMetadataRow{SoftwareID: id, SoftwareMetadata: md})
 		}
 	}
@@ -997,7 +989,8 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 			for i, cs := range existingChecksums {
 				existingChecksumsHex[i] = fmt.Sprintf("%x", cs)
 			}
-			ds.logger.DebugContext(ctx, "multiple checksums mapping to same title",
+			ds.logger.DebugContext(
+				ctx, "multiple checksums mapping to same title",
 				"title_str", titleStr,
 				"new_checksum", fmt.Sprintf("%x", checksum),
 				"existing_checksums", fmt.Sprintf("%v", existingChecksumsHex),
@@ -1023,7 +1016,8 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 			strings.Join(valuePlaceholders, ", "),
 		)
 		var existingTitleSummariesForNewSoftwareWithoutBundleIdentifier []fleet.SoftwareTitleSummary
-		if err := sqlx.SelectContext(ctx,
+		if err := sqlx.SelectContext(
+			ctx,
 			ds.reader(ctx),
 			&existingTitleSummariesForNewSoftwareWithoutBundleIdentifier,
 			stmt,
@@ -1707,7 +1701,8 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			// This shouldn't happen in normal operation. And this code is here to catch bugs.
 			if len(missingSoftwareTitles) > 0 && ds.logger != nil {
 				exampleCount := min(len(missingSoftwareTitles), 3)
-				ds.logger.ErrorContext(ctx, "inserting software without title_id",
+				ds.logger.ErrorContext(
+					ctx, "inserting software without title_id",
 					"count", len(missingSoftwareTitles),
 					"examples", strings.Join(missingSoftwareTitles[:exampleCount], "; "),
 				)
@@ -1763,7 +1758,8 @@ func (ds *Datastore) linkSoftwareToHost(
 			insertedSoftware = append(insertedSoftware, sw)
 		} else {
 			// Log missing software but continue
-			ds.logger.WarnContext(ctx, "software not found after pre-insertion",
+			ds.logger.WarnContext(
+				ctx, "software not found after pre-insertion",
 				"checksum", fmt.Sprintf("%x", checksum),
 				"name", sw.Name,
 				"version", sw.Version,
@@ -1855,7 +1851,8 @@ func (ds *Datastore) reconcileExistingTitleEmptyWindowsUpgradeCodes(
 			// Check for conflict: does another title already have this upgrade_code?
 			if conflictingTitle, hasConflict := titlesWithUpgradeCodes[*sw.UpgradeCode]; hasConflict && conflictingTitle.ID != existingTitleSummary.ID {
 				// Redirect mapping to the title that already has this upgrade_code
-				ds.logger.InfoContext(ctx, "redirecting software to existing title with matching upgrade_code",
+				ds.logger.InfoContext(
+					ctx, "redirecting software to existing title with matching upgrade_code",
 					"software_name", sw.Name,
 					"matched_title_id", existingTitleSummary.ID,
 					"matched_title_name", existingTitleSummary.Name,
@@ -1868,7 +1865,8 @@ func (ds *Datastore) reconcileExistingTitleEmptyWindowsUpgradeCodes(
 			}
 			// Log warning only for NULL upgrade_code case (shouldn't happen for programs source)
 			if existingTitleSummary.UpgradeCode == nil {
-				ds.logger.WarnContext(ctx, "Encountered Windows software title with a NULL upgrade_code, which shouldn't be possible. Writing the incoming non-empty upgrade code to the title.",
+				ds.logger.WarnContext(
+					ctx, "Encountered Windows software title with a NULL upgrade_code, which shouldn't be possible. Writing the incoming non-empty upgrade code to the title.",
 					"title_id", existingTitleSummary.ID,
 					"title_name", existingTitleSummary.Name,
 					"source", existingTitleSummary.Source,
@@ -1878,7 +1876,8 @@ func (ds *Datastore) reconcileExistingTitleEmptyWindowsUpgradeCodes(
 			existingTitlesToUpgradeCodePtrsToWrite[existingTitleSummary.ID] = oldAndNewUpgradeCodePtrs{old: existingTitleSummary.UpgradeCode, new: sw.UpgradeCode}
 		case *sw.UpgradeCode != *existingTitleSummary.UpgradeCode:
 			// don't update this title
-			ds.logger.WarnContext(ctx, "Incoming software's upgrade code has changed from the existing title's. The developers of this software may have changed the upgrade code, and this may be worth investigating. Keeping the previous title's upgrade code. This will likely result is some inconsistencies, such as the title's upgrade_code possibly not being returned from the list host software endpoint.",
+			ds.logger.WarnContext(
+				ctx, "Incoming software's upgrade code has changed from the existing title's. The developers of this software may have changed the upgrade code, and this may be worth investigating. Keeping the previous title's upgrade code. This will likely result is some inconsistencies, such as the title's upgrade_code possibly not being returned from the list host software endpoint.",
 				"existing_title_id", existingTitleSummary.ID,
 				"existing_title_name", existingTitleSummary.Name,
 				"existing_title_source", existingTitleSummary.Source,
@@ -1911,7 +1910,8 @@ func (ds *Datastore) reconcileExistingTitleEmptyWindowsUpgradeCodes(
 			}
 
 			if rowsAffected, _ := result.RowsAffected(); rowsAffected > 0 {
-				ds.logger.InfoContext(ctx, "updated software title upgrade_code",
+				ds.logger.InfoContext(
+					ctx, "updated software title upgrade_code",
 					"title_id", titleID,
 					"new_upgrade_code", newUcPtr,
 					"old_upgrade_code", oldUcPtr,
@@ -1967,7 +1967,8 @@ func updateModifiedHostSoftwareDB(
 		// (but only for non-apps sources, as apps sources are managed by osquery)
 		if newSw.LastOpenedAt == nil {
 			if curSw.LastOpenedAt != nil && newSw.Source != "apps" {
-				logger.InfoContext(ctx, "software last_opened_at changed to nil",
+				logger.InfoContext(
+					ctx, "software last_opened_at changed to nil",
 					"host_id", hostID,
 					"software_id", curSw.ID,
 					"software_name", newSw.Name,
@@ -3446,7 +3447,8 @@ func (ds *Datastore) cleanupUnusedSoftware(ctx context.Context) error {
 func (ds *Datastore) CleanupSoftwareTitles(ctx context.Context) error {
 	var n int64
 	defer func(start time.Time) {
-		ds.logger.DebugContext(ctx, "cleanup orphaned software titles",
+		ds.logger.DebugContext(
+			ctx, "cleanup orphaned software titles",
 			"rows_affected", n,
 			"took", time.Since(start),
 		)
@@ -5555,7 +5557,8 @@ func (a *hostSoftwareTitleAssembler) addRecord(
 		case softwareTitleRecord.SoftwarePackage != nil:
 			softwareTitleRecord.SoftwarePackage.AutomaticInstallPolicies = policies
 		default:
-			ds.logger.WarnContext(ctx, "software title record should have an associated VPP application or software package",
+			ds.logger.WarnContext(
+				ctx, "software title record should have an associated VPP application or software package",
 				"team_id", teamID,
 				"host_id", host.ID,
 				"software_title_id", softwareTitleRecord.ID,
@@ -6948,7 +6951,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		matchClause := ""
 		matchArgs := []interface{}{}
 		if opts.ListOptions.MatchQuery != "" {
-			matchClause, matchArgs = searchLike(matchClause, matchArgs, opts.ListOptions.MatchQuery,
+			matchClause, matchArgs = searchLike(
+				matchClause, matchArgs, opts.ListOptions.MatchQuery,
 				"software_titles.name",
 				"software_titles.bundle_identifier",
 				"stdn.display_name",
@@ -7512,7 +7516,8 @@ func (ds *Datastore) hydrateHostSoftwareAutoUpdateFields(
 		titleIDs = append(titleIDs, s.ID)
 	}
 
-	stmt, args, err := sqlx.In(`
+	stmt, args, err := sqlx.In(
+		`
 		SELECT va.title_id, vat.update_schedule_enabled AS enabled, vat.start_time, vat.end_time
 		FROM vpp_apps_teams vat
 		JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
@@ -7575,7 +7580,8 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 	}
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		res, err := tx.ExecContext(ctx, stmt,
+		res, err := tx.ExecContext(
+			ctx, stmt,
 			truncateOutput(result.PreInstallConditionOutput),
 			result.InstallScriptExitCode,
 			truncateOutput(result.InstallScriptOutput),
@@ -7705,7 +7711,8 @@ func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context,
 	}
 
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, insertStmt,
+		_, err := tx.ExecContext(
+			ctx, insertStmt,
 			failedExecID,
 			result.HostID,
 			details.SoftwareInstallerID,

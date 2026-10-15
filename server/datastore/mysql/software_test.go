@@ -14108,8 +14108,6 @@ func testUpdateHostSoftwareMetadata(t *testing.T, ds *Datastore) {
 	httpd := rpm("httpd", "2.4.62", "13.el9_8.6", nil)
 	tomcatWithoutEpoch := rpm("tomcat", "9.0.120", "2.el9_8", nil)
 	tomcat := rpm("tomcat", "9.0.120", "2.el9_8", new(uint32(1)))
-	bindLibsWithoutEpoch := rpm("bind-libs", "9.16.23", "40.el9_8.10", nil)
-	bindLibs := rpm("bind-libs", "9.16.23", "40.el9_8.10", new(uint32(32)))
 
 	// New software stores its epoch; software without one gets no metadata row.
 	h1 := newRHELHost("h1")
@@ -14131,16 +14129,6 @@ func testUpdateHostSoftwareMetadata(t *testing.T, ds *Datastore) {
 	require.Equal(t, idsBefore, hostSoftwareIDs(h1.ID))
 	require.True(t, pastUpdate.Equal(softwareUpdatedAt(h1.ID)))
 
-	// Existing software newly installed on another host is backfilled too.
-	h2 := newRHELHost("h2")
-	_, err = ds.UpdateHostSoftware(ctx, h2.ID, []fleet.Software{bindLibsWithoutEpoch})
-	require.NoError(t, err)
-	h3 := newRHELHost("h3")
-	_, err = ds.UpdateHostSoftware(ctx, h3.ID, []fleet.Software{bindLibs})
-	require.NoError(t, err)
-	require.Equal(t, hostSoftwareIDs(h2.ID)["bind-libs"], hostSoftwareIDs(h3.ID)["bind-libs"])
-	require.Equal(t, map[string]uint32{"mod_ssl": 1, "tomcat": 1, "bind-libs": 32}, storedEpochs())
-
 	// Vulnerability detection gets the epoch.
 	vulnSoftware, err := ds.ListSoftwareForVulnDetectionByOSVersion(ctx, rocky, []string{"rpm_packages"})
 	require.NoError(t, err)
@@ -14149,14 +14137,30 @@ func testUpdateHostSoftwareMetadata(t *testing.T, ds *Datastore) {
 		vulnEpochs[s.Name] = s.Epoch
 	}
 	require.Equal(t, map[string]*uint32{
-		"mod_ssl": new(uint32(1)), "httpd": nil, "tomcat": new(uint32(1)), "bind-libs": new(uint32(32)),
+		"mod_ssl": new(uint32(1)), "httpd": nil, "tomcat": new(uint32(1)),
 	}, vulnEpochs)
+
+	// A host reporting software without an epoch doesn't clear the one stored for it, whether the
+	// software is new to the host or not.
+	h2 := newRHELHost("h2")
+	_, err = ds.UpdateHostSoftware(ctx, h2.ID, []fleet.Software{tomcatWithoutEpoch})
+	require.NoError(t, err)
+	_, err = ds.UpdateHostSoftware(ctx, h1.ID, []fleet.Software{modSSL, httpd, tomcatWithoutEpoch})
+	require.NoError(t, err)
+	require.Equal(t, map[string]uint32{"mod_ssl": 1, "tomcat": 1}, storedEpochs())
+
+	// A different epoch replaces the stored one.
+	modSSLEpoch2 := modSSL
+	modSSLEpoch2.Epoch = new(uint32(2))
+	_, err = ds.UpdateHostSoftware(ctx, h1.ID, []fleet.Software{modSSLEpoch2, httpd, tomcat})
+	require.NoError(t, err)
+	require.Equal(t, map[string]uint32{"mod_ssl": 2, "tomcat": 1}, storedEpochs())
 
 	// Cleaning up software no host has anymore removes its metadata.
 	_, err = ds.UpdateHostSoftware(ctx, h1.ID, []fleet.Software{httpd})
 	require.NoError(t, err)
 	require.NoError(t, ds.cleanupUnusedSoftware(ctx))
-	require.Equal(t, map[string]uint32{"bind-libs": 32}, storedEpochs())
+	require.Equal(t, map[string]uint32{"tomcat": 1}, storedEpochs())
 }
 
 func testListSoftwareVulnerabilitiesBySoftwareIDs(t *testing.T, ds *Datastore) {
