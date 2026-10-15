@@ -8934,18 +8934,34 @@ func testBatchSetSoftwareInstallersUnchangedDoesNotLock(t *testing.T, ds *Datast
 	app, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{Name: "FMA", Slug: "fma/windows", Platform: "windows", UniqueIdentifier: "FMA"})
 	require.NoError(t, err)
 
-	for name, newPayload := range map[string]func() *fleet.UploadSoftwareInstallerPayload{
-		"custom package":       func() *fleet.UploadSoftwareInstallerPayload { return newUnchangedApplyTestPayload(t, user.ID) },
-		"fleet-maintained app": func() *fleet.UploadSoftwareInstallerPayload { return newUnchangedApplyTestFMAPayload(t, user.ID, app.ID) },
+	fmaPayload := func(userID uint) *fleet.UploadSoftwareInstallerPayload {
+		return newUnchangedApplyTestFMAPayload(t, userID, app.ID)
+	}
+	for name, c := range map[string]struct {
+		newPayload     func(userID uint) *fleet.UploadSoftwareInstallerPayload
+		deleteUploader bool
+	}{
+		"custom package": {newPayload: func(userID uint) *fleet.UploadSoftwareInstallerPayload {
+			return newUnchangedApplyTestPayload(t, userID)
+		}},
+		"fleet-maintained app":                   {newPayload: fmaPayload},
+		"fleet-maintained app, uploader deleted": {newPayload: fmaPayload, deleteUploader: true},
 	} {
 		t.Run(name, func(t *testing.T) {
 			tm, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
 			require.NoError(t, err)
-			_, err = ds.BatchSetSoftwareInstallers(ctx, &tm.ID, []*fleet.UploadSoftwareInstallerPayload{newPayload()})
+			uploader := user
+			if c.deleteUploader {
+				uploader = test.NewUser(t, ds, "Bob", "bob@example.com", true)
+			}
+			_, err = ds.BatchSetSoftwareInstallers(ctx, &tm.ID, []*fleet.UploadSoftwareInstallerPayload{c.newPayload(uploader.ID)})
 			require.NoError(t, err)
+			if c.deleteUploader {
+				require.NoError(t, ds.DeleteUser(ctx, uploader.ID))
+			}
 			apply := func(ctx context.Context) error {
 				// A cached FMA version isn't downloaded again, so its payload has no ETag.
-				p := newPayload()
+				p := c.newPayload(user.ID)
 				if p.FleetMaintainedAppID != nil {
 					p.HTTPETag = nil
 				}

@@ -4349,7 +4349,7 @@ FROM software_installers si
 JOIN script_contents isc ON isc.id = si.install_script_content_id
 JOIN script_contents usc ON usc.id = si.uninstall_script_content_id
 LEFT JOIN script_contents psc ON psc.id = si.post_install_script_content_id
-JOIN users u ON u.id = si.user_id
+LEFT JOIN users u ON u.id = si.user_id
 WHERE si.global_or_team_id = ? AND si.title_id = ? AND si.dedup_token = ? AND si.fleet_maintained_app_id <=> ?
 	AND si.is_active = 1 AND BINARY si.storage_id = BINARY ?
 	AND isc.md5_checksum = UNHEX(?) AND usc.md5_checksum = UNHEX(?) AND psc.md5_checksum <=> UNHEX(?)
