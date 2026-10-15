@@ -4171,14 +4171,22 @@ func (ds *Datastore) MDMWindowsUpdateEnrolledDeviceCredentials(ctx context.Conte
 		return nil
 	}
 
-	_, err := ds.writer(ctx).ExecContext(
+	// The IS NULL guard makes the database decide who wins when two rekey requests read the unset hash before either writes.
+	res, err := ds.writer(ctx).ExecContext(
 		ctx, `
 		UPDATE mdm_windows_enrollments
 		SET credentials_hash = ?
-		WHERE mdm_device_id = ?`,
+		WHERE mdm_device_id = ? AND credentials_hash IS NULL`,
 		credentialsHash, deviceId,
 	)
-	return err
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update windows enrollment credentials")
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		conflict := &fleet.ConflictError{Message: "windows enrollment credentials already set"}
+		return ctxerr.Wrap(ctx, conflict, "update windows enrollment credentials")
+	}
+	return nil
 }
 
 func (ds *Datastore) MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx context.Context, deviceId string) error {
