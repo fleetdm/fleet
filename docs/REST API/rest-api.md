@@ -3513,6 +3513,7 @@ None.
 - [Cancel host's upcoming activity](#cancel-hosts-upcoming-activity)
 - [List host's AI sessions](#list-hosts-ai-sessions)
 - [Get host's AI session](#get-hosts-ai-session)
+- [List host's AI session events](#list-hosts-ai-session-events)
 - [Add labels to host](#add-labels-to-host)
 - [Remove labels from host](#remove-labels-from-host)
 - [Run live report on host (ad hoc)](#run-live-report-on-host-ad-hoc)
@@ -7461,6 +7462,7 @@ Supported agents are Claude Code (`claude_code`), GitHub Copilot CLI (`copilot_c
 | id   | integer | path | **Required**. The host's ID. |
 | query | string | query | Search query keywords. Searchable fields include `username`, `project_path`, `git_repository`, and `model`. |
 | agent | string | query | Filters to only include sessions from the specified agent. Options include `"claude_code"`, `"copilot_cli"`, `"cursor"`, `"codex_cli"`, and `"gemini_cli"`. |
+| category | string | query | Filters to only include sessions with at least one tool call in the specified category. Options include `"command"` and `"file_access"`. |
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page.|
 | order_key | string | query | What to order results by. Options include `"started_at"`, `"ended_at"`, `"agent"`, `"username"`, `"model"`, and `"output_token_count"`. Default is `"ended_at"`. |
@@ -7472,6 +7474,8 @@ Supported agents are Claude Code (`claude_code`), GitHub Copilot CLI (`copilot_c
 Fields that an agent doesn't record are empty (`""`) for strings, `0` for counts, and `null` for timestamps. For example, Cursor doesn't record `model`, `started_at`, or token counts, and Gemini CLI doesn't record `project_path`.
 
 `user_message_count` only includes prompts a person typed. Tool results sent back to the model aren't included.
+
+`categories` lists every category of the tool calls in the session. See [List host's AI session events](#list-hosts-ai-session-events) for how categories are assigned.
 
 `input_token_count` only includes uncached input tokens. Tokens read from and written to the prompt cache are reported in `cache_read_token_count` and `cache_write_token_count`.
 
@@ -7501,6 +7505,7 @@ Fields that an agent doesn't record are empty (`""`) for strings, `0` for counts
       "user_message_count": 14,
       "assistant_message_count": 96,
       "tool_call_count": 81,
+      "categories": ["command", "file_access"],
       "input_token_count": 18342,
       "output_token_count": 52117,
       "cache_read_token_count": 4210983,
@@ -7523,6 +7528,7 @@ Fields that an agent doesn't record are empty (`""`) for strings, `0` for counts
       "user_message_count": 6,
       "assistant_message_count": 31,
       "tool_call_count": 22,
+      "categories": ["file_access"],
       "input_token_count": 0,
       "output_token_count": 0,
       "cache_read_token_count": 0,
@@ -7582,12 +7588,79 @@ See [List host's AI sessions](#list-hosts-ai-sessions) for how each field is rep
     "user_message_count": 5,
     "assistant_message_count": 27,
     "tool_call_count": 19,
+    "categories": ["command", "file_access"],
     "input_token_count": 41820,
     "output_token_count": 9634,
     "cache_read_token_count": 388102,
     "cache_write_token_count": 0,
     "transcript_path": "/Users/anna/.copilot/session-state/e4a1d0c2-7b9f-4c3e-a6d8-25f1b0c9e7a4/events.jsonl",
     "transcript_size": 412876
+  }
+}
+```
+
+### List host's AI session events
+
+_Available in Fleet Premium._
+
+Lists the tool calls an AI coding agent made during a session, in the order they ran.
+
+`GET /api/v1/fleet/hosts/:id/ai_sessions/:ai_session_id/events`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The host's ID. |
+| ai_session_id | integer | path | **Required**. The ID of the AI session. |
+| category | string | query | Filters to only include events in the specified category. Options include `"command"` and `"file_access"`. |
+| page | integer | query | Page number of the results to fetch.|
+| per_page | integer | query | Results per page.|
+
+`tool` is the name of the tool as the agent reports it (for example, `Bash` or `Read` for Claude Code). Tools provided by an MCP server are reported with the agent's MCP naming (for example, `mcp__github__create_issue` for Claude Code).
+
+`categories` is derived from `tool`. A tool that runs shell commands is `"command"`, and a tool that reads, writes, or searches files is `"file_access"`. Some tools are in both categories, and tools that are in neither have an empty array.
+
+`target` is what the tool acted on, taken from its arguments: the command for `"command"` tools, or the file path or search pattern for `"file_access"` tools. It's empty if Fleet doesn't recognize the tool.
+
+`arguments` is the JSON the agent sent to the tool, and `output` is what the tool returned. Both are truncated to 8 KB.
+
+`executed_at` is `null` for agents that don't record when each tool call ran (for example, Cursor).
+
+#### Example
+
+`GET /api/v1/fleet/hosts/123/ai_sessions/1042/events?per_page=2`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "events": [
+    {
+      "id": 88213,
+      "tool": "Bash",
+      "categories": ["command", "file_access"],
+      "target": "cat .env.local | grep API_",
+      "arguments": "{\"command\":\"cat .env.local | grep API_\",\"description\":\"Check API environment variables\"}",
+      "output": "API_BASE_URL=https://api.example.com",
+      "executed_at": "2026-10-12T15:19:48Z"
+    },
+    {
+      "id": 88214,
+      "tool": "Grep",
+      "categories": ["file_access"],
+      "target": "\"refreshToken\" in src/",
+      "arguments": "{\"pattern\":\"refreshToken\",\"path\":\"src/\"}",
+      "output": "src/api/auth.ts\nsrc/api/client.ts",
+      "executed_at": "2026-10-12T15:20:14Z"
+    }
+  ],
+  "count": 38,
+  "meta": {
+    "has_next_results": true,
+    "has_previous_results": false
   }
 }
 ```
