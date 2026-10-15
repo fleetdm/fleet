@@ -65,6 +65,55 @@ at the words an admin would use for an app.`,
     ];
     const MAX_KEYWORDS = 3;
 
+    // Product names that are also ordinary words, so on their own they match requests that are not about the
+    // app: "edge of the screen" is not Microsoft Edge, "limit ad tracking" is not NoMAD Login AD, and "admin
+    // privileges" is not SAP Privileges.  They still count inside a longer keyword, e.g., "connect sync", and
+    // KEYWORD_ALIASES gives each app a name that does not collide.
+    const GENERIC_KEYWORDS = [
+      'ad', 'baseline', 'connect', 'cursor', 'drive', 'edge', 'elevate', 'front', 'google', 'logic', 'motion', 'okta',
+      'patch', 'privileges', 'receiver', 'renew', 'super', 'support', 'sync', 'trust', 'verify', 'windows', 'word',
+    ];
+
+    // Keywords added to the generated ones, for names an admin uses that the manifest's title and domain do not
+    // give, e.g., "Microsoft Defender" for com.microsoft.wdav, whose title is "Microsoft Defender for Endpoint".
+    // "microsoft 365 apps" rather than "microsoft 365", which requests about a Microsoft 365 tenant also say.
+    // Keyed by preference domain.
+    const KEYWORD_ALIASES = {
+      'com.alectrona.patch': ['alectrona patch'],
+      'com.alectrona.patch-agent': ['alectrona patch agent'],
+      'com.apple.logic10': ['logic pro'],
+      'com.apple.motionapp': ['apple motion'],
+      'com.citrix.receiver.nomas': ['citrix receiver', 'citrix'],
+      'com.cloudflare.warp': ['cloudflare'],
+      'com.crowdstrike.falcon': ['crowdstrike'],
+      'com.frontapp.Front': ['front app'],
+      'com.google.drivefs.settings': ['google drive', 'drivefs'],
+      'com.google.Keystone': ['google software update'],
+      'com.jamf.connect.login': ['jamf connect', 'jamf connect login'],
+      'com.jamf.connect.shares': ['jamf connect shares'],
+      'com.jamf.connect.sync': ['jamf connect sync'],
+      'com.jamf.connect.verify': ['jamf connect verify'],
+      'com.jamf.trust': ['jamf trust'],
+      'com.jigsaw24.Elevate24': ['jigsaw24 elevate'],
+      'com.macjutsu.super': ['superman', 'macjutsu'],
+      'com.microsoft.autoupdate2': ['microsoft autoupdate', 'mau', 'microsoft 365 apps', 'office updates'],
+      'com.microsoft.Edge': ['microsoft edge'],
+      'com.microsoft.office': ['microsoft office', 'microsoft 365 apps', 'office 365'],
+      'com.microsoft.rdc.macos': ['windows app', 'remote desktop'],
+      'com.microsoft.VSCode': ['vs code'],
+      'com.microsoft.wdav': ['defender'],
+      'com.microsoft.Word': ['microsoft word'],
+      'com.okta.mobile': ['okta verify'],
+      'com.okta.mobile.auth-service-extension': ['okta verify'],
+      'com.secondsonconsulting.baseline': ['second son baseline'],
+      'com.secondsonconsulting.renew': ['second son renew'],
+      'com.todesktop.230313mzl4w4u92': ['cursor ide', 'cursor editor'],
+      'corp.sap.privileges': ['sap privileges'],
+      'menu.nomad.login.ad': ['nomad login'],
+      'nl.root3.support': ['supportapp', 'root3'],
+      'org.mozilla.firefox': ['mozilla'],
+    };
+
     // List every manifest in the folder.  The trees API lists a whole branch in one request, where the contents API would need one per subfolder.
     let treeUrl = `https://api.github.com/repos/${REPO}/git/trees/${BRANCH}?recursive=1`;
     sails.log(`Listing ${FOLDER_PATH} in ${REPO}...`);
@@ -148,7 +197,7 @@ at the words an admin would use for an app.`,
 
     // Pick up to MAX_KEYWORDS lowercase words an admin would use for the app in a request, from the manifest's
     // title and preference domain.  e.g., "Google Chrome" (com.google.Chrome) gives ['chrome'], and
-    // "Microsoft Defender" (com.microsoft.wdav) gives ['defender', 'wdav'].
+    // "Microsoft Defender for Endpoint" (com.microsoft.wdav) gives ['defender for endpoint', 'wdav'].
     let generateKeywords = (manifest)=>{
       let isKeyword = (word)=>{
         return word.length >= 2 && !/^v?\d+$/.test(word) && !_.contains(NON_KEYWORDS, word);
@@ -196,7 +245,8 @@ at the words an admin would use for an app.`,
       if(candidates.length === 0 && vendor && isKeyword(vendor)) {
         candidates.push(vendor);
       }
-      return _.take(_.uniq(candidates), MAX_KEYWORDS);
+      candidates = _.reject(candidates, (candidate)=>{ return _.contains(GENERIC_KEYWORDS, candidate); });
+      return _.uniq(_.take(candidates, MAX_KEYWORDS).concat(KEYWORD_ALIASES[manifest.pfm_domain] || []));
     };
 
     let downloadManifest = async (manifestPath)=>{
