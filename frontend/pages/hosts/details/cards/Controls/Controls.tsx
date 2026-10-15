@@ -288,6 +288,7 @@ const Controls = ({
     <div
       className={classnames(baseClass, className, {
         [`${baseClass}--self-service`]: canManageSelfServiceProfiles,
+        [`${baseClass}--device-user`]: isDeviceUser,
       })}
     >
       <TableContainer
