@@ -151,17 +151,9 @@
       display: block;
     }
 
-    &__row &__row-label,
-    #install-software-row-label {
+    &__row-label {
       display: flex;
       align-items: center;
-      height: auto;
-      min-height: 40px;
-      padding: $pad-xsmall $pad-large;
-
-      .fleet-checkbox {
-        height: auto;
-      }
     }
 
     &__row &__row-trailing,
@@ -172,7 +164,6 @@
       padding: 0 $pad-large $pad-small calc(#{$pad-large} * 2);
       border-top: none;
       max-width: none;
-      text-align: left;
 
       &:empty {
         display: none;
