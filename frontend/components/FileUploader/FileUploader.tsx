@@ -77,6 +77,11 @@ interface IFileUploaderProps {
    * @default "button"
    */
   buttonType?: "button" | "secondary";
+  /** `"small"` lays the graphic, message and button out in a single row so
+   * the uploader is about half the height of the default stacked card.
+   * @default "default"
+   */
+  variant?: "default" | "small";
   /** renders a tooltip for the button. If `gitopsCompatible` is set to `true`
    * this tooltip will not be rendered if gitops mode is enabled. */
   buttonTooltip?: React.ReactNode;
@@ -123,6 +128,7 @@ export const FileUploader = ({
   className,
   buttonMessage = "Upload",
   buttonType = "button",
+  variant = "default",
   buttonTooltip,
   onButtonClick,
   onFileUpload,
@@ -153,6 +159,7 @@ export const FileUploader = ({
     [`${baseClass}__file-preview`]: isFileSelected,
     [`${baseClass}__error`]: !!internalError,
     [`${baseClass}__drag-active`]: isDragActive && canAcceptDrop,
+    [`${baseClass}--small`]: variant === "small",
   });
   const buttonVariant = buttonType === "button" ? "default" : "secondary";
 
@@ -210,6 +217,15 @@ export const FileUploader = ({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
+      e.preventDefault();
+      triggerFileInput();
+    }
+  };
+
+  // The small variant has no separate upload button; the card itself is the
+  // click target, so it also needs to open the picker on Space.
+  const handleCardKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       triggerFileInput();
     }
@@ -315,20 +331,23 @@ export const FileUploader = ({
   };
 
   const renderFileUploader = () => {
-    return (
+    const isCardClickTarget = variant === "small" && !onButtonClick;
+    const content = (
       <div className={`${baseClass}__content-wrapper`}>
         <div className={`${baseClass}__outer`}>
           <div className={`${baseClass}__inner`}>
             <div className={`${baseClass}__graphics`}>{renderGraphics()}</div>
-            {renderTitle()}
-            <p className={`${baseClass}__message`}>{message}</p>
-            {additionalInfo && (
-              <p className={`${baseClass}__additional-info`}>
-                {additionalInfo}
-              </p>
-            )}
+            <div className={`${baseClass}__text`}>
+              {renderTitle()}
+              <p className={`${baseClass}__message`}>{message}</p>
+              {additionalInfo && (
+                <p className={`${baseClass}__additional-info`}>
+                  {additionalInfo}
+                </p>
+              )}
+            </div>
           </div>
-          {renderUploadButton()}
+          {!isCardClickTarget && renderUploadButton()}
           {/* If onButtonClick is provided, we're not actually uploading files here. */}
           {!onButtonClick && (
             <input
@@ -336,6 +355,8 @@ export const FileUploader = ({
               accept={accept}
               id="upload-file"
               type="file"
+              aria-label={buttonMessage}
+              disabled={disabled || isLoading}
               onChange={onFileSelect}
               className="file-input-visually-hidden"
               disabled={disabled}
@@ -344,6 +365,20 @@ export const FileUploader = ({
         </div>
       </div>
     );
+
+    if (isCardClickTarget) {
+      return (
+        <label
+          htmlFor="upload-file"
+          className={`${baseClass}__click-target`}
+          tabIndex={disabled || isLoading ? -1 : 0}
+          onKeyDown={handleCardKeyDown}
+        >
+          {content}
+        </label>
+      );
+    }
+    return content;
   };
 
   return (

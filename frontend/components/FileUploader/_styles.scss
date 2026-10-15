@@ -26,6 +26,13 @@
     }
   }
 
+  &__text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $pad-xxsmall;
+  }
+
   // Cannot hide all input as preview may include dropdown input that needs to be shown
   .file-input-visually-hidden {
     display: none;
@@ -36,8 +43,8 @@
   }
 
   &__drag-active {
-    border-color: $core-vibrant-blue;
-    background-color: $ui-vibrant-blue-10;
+    border-color: $core-fleet-black;
+    background-color: $ui-off-white;
   }
 
   // when the file preview is showing, we want the padding to be
@@ -82,6 +89,64 @@
       &:hover {
         cursor: pointer;
       }
+    }
+  }
+
+  // About half the height of the default: graphic and text sit on a single
+  // row with tighter vertical padding, and the whole card is the click
+  // target — no separate upload button.
+  &--small {
+    align-items: stretch;
+    padding: 0;
+    cursor: pointer;
+    // Matches the border radius of a text input / textarea.
+    border-radius: $border-radius;
+
+    &:hover {
+      border-color: $core-fleet-black;
+    }
+
+    &:active {
+      background-color: $ui-off-white;
+    }
+
+    .file-uploader__click-target {
+      display: block;
+      padding: $pad-medium $pad-large;
+      cursor: pointer;
+    }
+
+    .file-uploader__outer {
+      flex-direction: row;
+      align-items: center;
+      gap: $pad-medium;
+      width: 100%;
+    }
+
+    .file-uploader__inner {
+      flex-direction: row;
+      align-items: center;
+      gap: $pad-medium;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .file-uploader__graphics {
+      flex-shrink: 0;
+
+      svg {
+        width: 28px;
+      }
+    }
+
+    .file-uploader__text {
+      align-items: flex-start;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .file-uploader__message {
+      text-align: left;
     }
   }
 }
