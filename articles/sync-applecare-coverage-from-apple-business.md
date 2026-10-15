@@ -48,15 +48,17 @@ Setting a host's custom host vital value requires the admin or maintainer role. 
 
 ## Step 3: Create an Apple Business API account
 
-The Apple Business API can also assign devices to other device management services and release devices from your organization. Give the API account a custom role that can only view devices.
+The Apple Business API can also assign devices to other device management services and release devices from your organization. Give the API account a custom role with as few permissions as possible.
 
 1. Sign in to [Apple Business](https://business.apple.com) as an Organization Administrator.
 2. Go to **Settings > Roles & Permissions**. Next to **Custom Roles**, click **Add**.
-3. Name the role, for example "Device API read-only," and click **Next**.
-4. Under **Devices**, select only permissions that view devices. Leave off any permission that assigns devices to device management services, releases devices from the organization, or removes Activation Lock. Leave the other groups off, then click **Done**.
+3. Name the role, for example "Device API sync," and click **Next**.
+4. Under **Devices**, select **View device management services, manage default platform assignment, and add devices with Apple Configurator**. Leave every other permission off, then click **Done**. Review any permissions Apple adds automatically, then click **OK**.
 5. Go to **Settings > API** and click **Add API Account**. Name the account, choose the custom role you just created, and click **Next**.
 6. Click **Generate & Download** to download the account's private key (a `.pem` file).
 7. Click **Edit** on the account and copy its **Client ID** (it starts with `BUSINESSAPI.`) and **Key ID**.
+
+> **Note:** Apple's guide to [viewing device information](https://support.apple.com/guide/business/axm02774ff54/web) says that viewing a device's details, including its AppleCare coverage, requires permission to view device management services. That permission isn't strictly read-only, and Fleet hasn't confirmed it's the minimum the API needs. Leave off the permissions that assign devices to device management services, release devices from the organization, or remove Activation Lock. If the sync gets a `403` from `api-business.apple.com`, see [Troubleshooting](#troubleshooting).
 
 Apple's guide to [creating an API account](https://support.apple.com/guide/business/axm33189f66a/web) has more detail.
 
