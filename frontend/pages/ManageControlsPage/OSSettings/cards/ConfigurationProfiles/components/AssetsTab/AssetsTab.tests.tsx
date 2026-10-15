@@ -1,6 +1,7 @@
 import { screen } from "@testing-library/react";
 import React from "react";
 
+import { createMockConfig, createMockMdmConfig } from "__mocks__/configMock";
 import PATHS from "router/paths";
 import mdmAPI from "services/entities/mdm";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
@@ -17,9 +18,9 @@ jest.mock("services/entities/mdm", () => ({
   },
 }));
 
-const mdmEnabledConfig = {
-  mdm: { enabled_and_configured: true },
-} as any;
+const mdmEnabledConfig = createMockConfig({
+  mdm: createMockMdmConfig({ enabled_and_configured: true }),
+});
 
 describe("AssetsTab", () => {
   beforeEach(() => {
@@ -77,7 +78,9 @@ describe("AssetsTab", () => {
           app: {
             isPremiumTier: true,
             ...roleContext,
-            config: { mdm: { enabled_and_configured: false } } as any,
+            config: createMockConfig({
+              mdm: createMockMdmConfig({ enabled_and_configured: false }),
+            }),
           },
         },
       });

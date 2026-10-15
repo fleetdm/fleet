@@ -18,7 +18,12 @@ const actions = {
   RESET_SELECTED_ROWS: "RESET_SELECTED_ROWS",
 };
 
-const reducer = (state: any, action: any) => {
+type Action = {
+  type: typeof actions.RESET_SELECTED_ROWS;
+  resetSelectedRows: boolean;
+};
+
+const reducer = (state: InitialStateType, action: Action) => {
   switch (action.type) {
     case actions.RESET_SELECTED_ROWS:
       return { ...state, resetSelectedRows: action.resetSelectedRows };
