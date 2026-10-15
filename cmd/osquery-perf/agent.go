@@ -231,7 +231,7 @@ func loadSoftwareDBRPM() []softwaredb.UbuntuSoftware {
 // rpmSliceToMaps converts UbuntuSoftware entries at the given indices to
 // osquery result maps. Mirrors softwaredb.DB.UbuntuToMaps but operates on a
 // caller-provided slice (the RPM-only filtered subset).
-func rpmSliceToMaps(pool []softwaredb.UbuntuSoftware, indices []uint32) []map[string]string {
+func rpmSliceToMaps(pool []softwaredb.UbuntuSoftware, indices []uint32, epochPercent int) []map[string]string {
 	results := make([]map[string]string, 0, len(indices))
 	for _, idx := range indices {
 		if int(idx) >= len(pool) {
@@ -252,9 +252,22 @@ func rpmSliceToMaps(pool []softwaredb.UbuntuSoftware, indices []uint32) []map[st
 		if s.Release != nil {
 			m["release"] = *s.Release
 		}
+		if epoch := rpmEpoch(s.Name, epochPercent); epoch != "" {
+			m["epoch"] = epoch
+		}
 		results = append(results, m)
 	}
 	return results
+}
+
+// rpmEpoch returns "1" or "2" for percent of package names, and "" (no epoch) for the rest. It's
+// derived from the name so that all agents agree on a package's epoch, as real hosts do; it's shared
+// software metadata, so disagreeing agents would rewrite it constantly.
+func rpmEpoch(name string, percent int) string {
+	if stablePercentile("epoch", name) >= percent {
+		return ""
+	}
+	return strconv.Itoa(stablePercentile("epoch_value", name)%2 + 1)
 }
 
 // loadRPMKernelList reads a JSON array of objects with name/version/release
@@ -704,6 +717,7 @@ type softwareEntityCount struct {
 	embeddedBundlePaths               bool
 	homebrewKegPercent                int
 	homebrewLargeKegPercent           int
+	rpmEpochPercent                   int
 }
 type softwareExtraEntityCount struct {
 	entityCount
@@ -3060,11 +3074,12 @@ const (
 	maxLargeKegExecutables = 400
 )
 
-// kegBucket maps a formula to a number in [0, 100) that is stable across runs and across hosts,
-// so a formula is a keg, is large, and installs the same executables wherever it appears — as with
-// a real formula, whose contents are a property of the formula, not of the machine.
-func kegBucket(salt, name string) int {
-	sum := sha256.Sum256([]byte(salt + "\x00" + name))
+// stablePercentile maps a software name to a number in [0, 100) that is stable across runs and
+// across hosts, so that a percentage of software gets a property (a formula is a keg, a package has
+// an epoch) consistently wherever it appears, as real software does: such properties belong to the
+// package, not the machine. Each property gets its own independent split.
+func stablePercentile(property, name string) int {
+	sum := sha256.Sum256([]byte(property + "\x00" + name))
 	return (int(sum[0])<<8 | int(sum[1])) % 100
 }
 
@@ -3079,13 +3094,13 @@ func (a *agent) homebrewExecutableHashes(software []map[string]string) []map[str
 		if s["source"] != "homebrew_packages" || kegPath == "" {
 			continue
 		}
-		if kegBucket("keg", name) >= a.softwareCount.homebrewKegPercent {
+		if stablePercentile("keg", name) >= a.softwareCount.homebrewKegPercent {
 			continue
 		}
 
-		count := kegBucket("count", name)%3 + 1
-		if kegBucket("large", name) < a.softwareCount.homebrewLargeKegPercent {
-			count = minLargeKegExecutables + kegBucket("count", name)*(maxLargeKegExecutables-minLargeKegExecutables)/100
+		count := stablePercentile("count", name)%3 + 1
+		if stablePercentile("large", name) < a.softwareCount.homebrewLargeKegPercent {
+			count = minLargeKegExecutables + stablePercentile("count", name)*(maxLargeKegExecutables-minLargeKegExecutables)/100
 		}
 
 		for i := range count {
@@ -4166,7 +4181,7 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 					} else {
 						a.cachedSoftwareIndices = softwaredb.MaybeMutateSoftware(a.cachedSoftwareIndices, len(rpmPool))
 					}
-					results = rpmSliceToMaps(rpmPool, a.cachedSoftwareIndices)
+					results = rpmSliceToMaps(rpmPool, a.cachedSoftwareIndices, a.softwareCount.rpmEpochPercent)
 				}
 
 				// Add pre-selected kernels for this agent
@@ -4646,6 +4661,8 @@ func main() {
 			"Percentage of a macOS host's Homebrew packages that are kegs reporting executable hashes (0-100); the rest report none, as a cask does")
 		homebrewLargeKegPercent = flag.Int("software_homebrew_large_keg_percent", 1,
 			"Percentage of those kegs that install 200 or more executables, standing in for a formula like netpbm or texlive (0-100)")
+		rpmEpochPercent = flag.Int("software_rpm_epoch_percent", 18,
+			"Percentage of RHEL hosts' RPM packages reported with an epoch (0-100); picked by package name, so all hosts agree")
 
 		duplicateBundleIdentifiersPercent = flag.Int("duplicate_bundle_identifiers_percent", 0, "Percentage of software with duplicate bundle identifiers (0-100)")
 		softwareRenaming                  = flag.Bool("software_renaming", false, "Enable software renaming for duplicate bundle identifiers")
@@ -4974,6 +4991,7 @@ func main() {
 				embeddedBundlePaths:               *embeddedBundlePaths,
 				homebrewKegPercent:                *homebrewKegPercent,
 				homebrewLargeKegPercent:           *homebrewLargeKegPercent,
+				rpmEpochPercent:                   *rpmEpochPercent,
 			},
 			softwareExtraEntityCount{
 				entityCount: entityCount{

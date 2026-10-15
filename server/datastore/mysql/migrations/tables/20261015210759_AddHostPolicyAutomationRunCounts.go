@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261015172027, Down_20261015172027)
+	MigrationClient.AddMigration(Up_20261015210759, Down_20261015210759)
 }
 
-func Up_20261015172027(tx *sql.Tx) error {
+func Up_20261015210759(tx *sql.Tx) error {
 	// Drop the table first so a rerun after a failed backfill starts from an empty table.
 	_, err := tx.Exec(`DROP TABLE IF EXISTS host_policy_automation_run_counts`)
 	if err != nil {
@@ -91,6 +91,6 @@ ORDER BY policy_id, host_id`)
 	return nil
 }
 
-func Down_20261015172027(tx *sql.Tx) error {
+func Down_20261015210759(tx *sql.Tx) error {
 	return nil
 }

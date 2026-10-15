@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20261015172027(t *testing.T) {
+func TestUp_20261015210759(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	titleID := execNoErrLastID(t, db, `INSERT INTO software_titles (name, source) VALUES ('demo', 'apps')`)

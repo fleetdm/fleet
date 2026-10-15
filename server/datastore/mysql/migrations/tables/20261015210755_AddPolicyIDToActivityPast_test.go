@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20261015172023(t *testing.T) {
+func TestUp_20261015210755(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	policyActivityID := execNoErrLastID(t, db, `INSERT INTO activity_past (activity_type, details) VALUES ('ran_script', '{"policy_id": 7}')`)
