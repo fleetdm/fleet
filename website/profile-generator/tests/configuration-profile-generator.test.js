@@ -98,7 +98,7 @@ describe('configuration profile generator', function() {
               // Never a rejected promise: a generation that throws resolves to its error instead, since a
               // repeat that blew up before its own test got to await it would otherwise take down the
               // whole run as an unhandled rejection.
-              let {rawResult, unexpectedError, elapsedMs, windowsCspAreasProvided, applePayloadTypesProvided} = await repeats[repeatIdx];
+              let {rawResult, unexpectedError, elapsedMs, windowsCspAreasProvided, applePayloadTypesProvided, appleThirdPartyPayloadTypesProvided} = await repeats[repeatIdx];
 
               // Distinguished from an abstention on purpose: collapsing the two would report a
               // misconfigured anthropicSecret as a model that refused to answer.
@@ -117,6 +117,9 @@ describe('configuration profile generator', function() {
               } else if(profileType === 'mobileconfig') {
                 let payloadTypes = applePayloadTypesProvided || [];
                 whatTheLookupProvided = `\n\nPayload types provided: ${payloadTypes.length > 0 ? payloadTypes.join(', ') : '(none -- generated from the full schema, without key descriptions)'}`;
+                if(appleThirdPartyPayloadTypesProvided && appleThirdPartyPayloadTypesProvided.length > 0) {
+                  whatTheLookupProvided += `\nThird-party payload types provided: ${appleThirdPartyPayloadTypesProvided.join(', ')}`;
+                }
               }
 
               // The profile goes in the failure message rather than to stdout: a failure you cannot see is a
@@ -216,7 +219,7 @@ function withAdmxTemplatesCollapsed(profile) {
  * rejection and take the run with it.
  *
  * @param  {Dictionary} testCase
- * @returns {Dictionary}  {rawResult, elapsedMs, windowsCspAreasProvided, applePayloadTypesProvided} or {unexpectedError, elapsedMs}
+ * @returns {Dictionary}  {rawResult, elapsedMs, windowsCspAreasProvided, applePayloadTypesProvided, appleThirdPartyPayloadTypesProvided} or {unexpectedError, elapsedMs}
  */
 async function generateOnce(testCase) {
   let startedAt = Date.now();
@@ -245,6 +248,7 @@ async function generateOnce(testCase) {
       elapsedMs: Date.now() - startedAt,
       windowsCspAreasProvided: generatorConfiguration.windowsCspAreasProvided,
       applePayloadTypesProvided: generatorConfiguration.applePayloadTypesProvided,
+      appleThirdPartyPayloadTypesProvided: generatorConfiguration.appleThirdPartyPayloadTypesProvided,
     };
   } catch (err) {
     return { unexpectedError: err, elapsedMs: Date.now() - startedAt };
