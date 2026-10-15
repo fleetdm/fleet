@@ -14329,15 +14329,15 @@ func (s *integrationEnterpriseTestSuite) TestPackageUploadPreAuthAndTempFileClea
 	requireNoTempFiles()
 
 	// A writer on another fleet still reaches the per-fleet check after parsing.
-	body.Reset()
-	mw = multipart.NewWriter(&body)
+	var otherFleetBody bytes.Buffer
+	mw = multipart.NewWriter(&otherFleetBody)
 	fw, err = mw.CreateFormFile("software", "a.pkg")
 	require.NoError(t, err)
 	_, err = fw.Write(make([]byte, 2<<20))
 	require.NoError(t, err)
 	require.NoError(t, mw.WriteField("fleet_id", strconv.FormatUint(uint64(team2.ID), 10)))
 	require.NoError(t, mw.Close())
-	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/software/package", body.Bytes(), http.StatusForbidden, map[string]string{
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/software/package", otherFleetBody.Bytes(), http.StatusForbidden, map[string]string{
 		"Content-Type": mw.FormDataContentType(), "Authorization": "Bearer " + users[2].token,
 	})
 	res.Body.Close()

@@ -855,9 +855,9 @@ describe("Device User Page", () => {
 
     it.each([
       {
-        name: "reports a host that has reported vitals as offline",
+        name: "doesn't report a host that has reported vitals as offline",
         detailUpdatedAt: REPORTED,
-        expectedErrors: [[OFFLINE_MESSAGE]],
+        expectedErrors: [],
       },
       {
         name: "doesn't report a host that has never reported vitals as offline",
@@ -878,10 +878,9 @@ describe("Device User Page", () => {
 
     it.each([
       {
-        name:
-          "shows an uncertain 'taking longer than expected' message instead of claiming failure once the poll window is exceeded",
+        name: "shows no timeout message for a host that has reported vitals",
         detailUpdatedAt: REPORTED,
-        expectedErrors: [[TIMEOUT_MESSAGE]],
+        expectedErrors: [],
       },
       {
         name:
@@ -915,28 +914,40 @@ describe("Device User Page", () => {
       10000
     );
 
-    it("reports a host that has never reported vitals as offline when the user asked for the refetch", async () => {
-      const { user } = renderWithHost(
-        mockHost({ status: "online", detail_updated_at: NEVER_REPORTED })
-      );
+    it.each([
+      { status: "offline" as const, elapsed: 0, message: OFFLINE_MESSAGE },
+      { status: "online" as const, elapsed: 200000, message: TIMEOUT_MESSAGE },
+    ])(
+      "shows '$message' for a refetch the user asked for",
+      async ({ status, elapsed, message }) => {
+        const { user } = renderWithHost(
+          mockHost({ status: "online", detail_updated_at: NEVER_REPORTED })
+        );
 
-      await user.click(await screen.findByRole("button", { name: /refetch/i }));
-      await waitFor(() => expect(refetchSpy).toHaveBeenCalled());
-      mockServer.use(
-        customDeviceHandler({
-          host: mockHost({
-            refetch_requested: true,
-            status: "offline",
-            detail_updated_at: NEVER_REPORTED,
-          }),
-        })
-      );
+        await user.click(
+          await screen.findByRole("button", { name: /refetch/i })
+        );
+        await waitFor(() => expect(refetchSpy).toHaveBeenCalled());
+        mockServer.use(
+          customDeviceHandler({
+            host: mockHost({
+              refetch_requested: true,
+              status,
+              detail_updated_at: NEVER_REPORTED,
+            }),
+          })
+        );
+        // The refetch start is stamped once the refetch call resolves, so move the clock only after that.
+        await refetchSpy.mock.results[0].value;
+        mockNow += elapsed;
 
-      await waitFor(
-        () => expect(notify.error).toHaveBeenCalledWith(OFFLINE_MESSAGE),
-        { timeout: 5000 }
-      );
-    }, 10000);
+        await waitFor(
+          () => expect(notify.error).toHaveBeenCalledWith(message),
+          { timeout: 5000 }
+        );
+      },
+      10000
+    );
   });
 });
 

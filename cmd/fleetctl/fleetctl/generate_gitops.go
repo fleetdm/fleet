@@ -80,7 +80,6 @@ type generateGitopsClient interface {
 	GetEULAMetadata() (*fleet.MDMEULA, error)
 	GetEULAContent(token string) ([]byte, error)
 	GetWindowsEULAMetadata() (*fleet.MDMEULA, error)
-	GetWindowsEULAContent(token string) ([]byte, error)
 	GetOrgLogoContent(mode fleet.OrgLogoMode) (body []byte, contentType string, err error)
 	GetTeam(teamID uint) (*fleet.Team, error)
 	ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error)
@@ -1254,7 +1253,7 @@ func (cmd *GenerateGitopsCommand) generateEULA() (string, error) {
 }
 
 func (cmd *GenerateGitopsCommand) generateWindowsEULA() (string, error) {
-	return cmd.writeEULA("Windows EULA", "terms.md", "windows-", cmd.Client.GetWindowsEULAMetadata, cmd.Client.GetWindowsEULAContent)
+	return cmd.writeEULA("Windows EULA", "terms.md", "windows-", cmd.Client.GetWindowsEULAMetadata, cmd.Client.GetEULAContent)
 }
 
 // writeEULA adds an uploaded EULA, macOS or Windows, to lib/eula and returns

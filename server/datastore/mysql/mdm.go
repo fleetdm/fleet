@@ -2214,8 +2214,8 @@ func (ds *Datastore) MDMGetEULAMetadata(ctx context.Context, platform fleet.MDME
 }
 
 func (ds *Datastore) MDMGetEULABytes(ctx context.Context, platform fleet.MDMEULAPlatform, token string) (*fleet.MDMEULA, error) {
-	// Matching the platform too keeps one platform's endpoints from reaching
-	// the other platform's file with a token.
+	// The platform is matched too, so a token found under one platform can't
+	// read the other's file.
 	stmt := "SELECT name, bytes, platform FROM eulas WHERE token = ? AND platform = ?"
 	var eula fleet.MDMEULA
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &eula, stmt, token, platform); err != nil {
@@ -2225,6 +2225,17 @@ func (ds *Datastore) MDMGetEULABytes(ctx context.Context, platform fleet.MDMEULA
 		return nil, ctxerr.Wrap(ctx, err, "get EULA bytes")
 	}
 	return &eula, nil
+}
+
+func (ds *Datastore) MDMGetEULAPlatform(ctx context.Context, token string) (fleet.MDMEULAPlatform, error) {
+	var platform fleet.MDMEULAPlatform
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &platform, "SELECT platform FROM eulas WHERE token = ?", token); err != nil {
+		if err == sql.ErrNoRows {
+			return "", ctxerr.Wrap(ctx, notFound("MDMEULA"))
+		}
+		return "", ctxerr.Wrap(ctx, err, "get EULA platform")
+	}
+	return platform, nil
 }
 
 func (ds *Datastore) MDMInsertEULA(ctx context.Context, eula *fleet.MDMEULA) error {

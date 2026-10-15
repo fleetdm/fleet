@@ -3037,6 +3037,11 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		policyID := failingPolicyWithInstaller.ID
 		_, newlyFailing := newFailingSet[policyID]
 		installerMetadata, err := svc.ds.GetSoftwareInstallerMetadataByID(ctx, failingPolicyWithInstaller.InstallerID)
+		if fleet.IsNotFound(err) {
+			// A GitOps run deleted the installer after the policy was read. Keep going with the host's other policies.
+			svc.logger.DebugContext(ctx, "policy automation installer was deleted", "host_id", hostID, "policy_id", policyID)
+			continue
+		}
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get software installer metadata by id")
 		}
@@ -3147,6 +3152,10 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 				DeferActivation:         svc.deferFleetInitiatedActivation(),
 			},
 		)
+		if fleet.IsNotFound(err) {
+			logger.DebugContext(ctx, "policy automation installer was deleted before the install was queued")
+			continue
+		}
 		if err != nil {
 			return ctxerr.Wrapf(
 				ctx, err,

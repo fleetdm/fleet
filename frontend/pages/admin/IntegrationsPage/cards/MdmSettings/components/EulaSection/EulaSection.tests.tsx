@@ -17,7 +17,6 @@ jest.mock("services/entities/mdm", () => ({
     uploadEULA: jest.fn().mockResolvedValue({}),
     uploadWindowsEULA: jest.fn().mockResolvedValue({}),
     deleteEULA: jest.fn().mockResolvedValue({}),
-    deleteWindowsEULA: jest.fn().mockResolvedValue({}),
   },
 }));
 
@@ -58,9 +57,7 @@ const PLATFORM_CASES = [
     deleteMessage:
       "End users won’t be required to agree to this EULA on macOS hosts that automatically enroll.",
     upload: mdmAPI.uploadEULA,
-    remove: mdmAPI.deleteEULA,
     otherUpload: mdmAPI.uploadWindowsEULA,
-    otherRemove: mdmAPI.deleteWindowsEULA,
   },
   {
     platform: "windows",
@@ -70,9 +67,7 @@ const PLATFORM_CASES = [
     deleteMessage:
       "End users won’t be required to agree to these terms on Windows hosts that enroll through Microsoft Entra. Fleet’s default terms will be shown instead.",
     upload: mdmAPI.uploadWindowsEULA,
-    remove: mdmAPI.deleteWindowsEULA,
     otherUpload: mdmAPI.uploadEULA,
-    otherRemove: mdmAPI.deleteEULA,
   },
 ] as const;
 
@@ -178,7 +173,7 @@ describe("EulaSection", () => {
   });
 
   it.each(PLATFORM_CASES)(
-    "uploads a $tab agreement through its endpoint and refetches",
+    "uploads a $tab agreement with its platform's upload call and refetches",
     async ({ platform, tab, file, upload, otherUpload }) => {
       const onChange = jest.fn();
       const { user } = renderSection({
@@ -201,8 +196,8 @@ describe("EulaSection", () => {
   );
 
   it.each(PLATFORM_CASES)(
-    "deletes the $tab agreement through its endpoint and refetches",
-    async ({ platform, tab, metadata, deleteMessage, remove, otherRemove }) => {
+    "deletes the $tab agreement by its token and refetches",
+    async ({ platform, tab, metadata, deleteMessage }) => {
       const onChange = jest.fn();
       const { user } = renderSection({
         [platform]: { isAvailable: true, metadata, onChange },
@@ -215,17 +210,18 @@ describe("EulaSection", () => {
       await user.click(screen.getByRole("button", { name: "Delete" }));
 
       await waitFor(() => {
-        expect(jest.mocked(remove)).toHaveBeenCalledTimes(1);
+        expect(jest.mocked(mdmAPI.deleteEULA)).toHaveBeenCalledTimes(1);
       });
-      expect(jest.mocked(remove)).toHaveBeenCalledWith(metadata.token);
-      expect(jest.mocked(otherRemove)).not.toHaveBeenCalled();
+      expect(jest.mocked(mdmAPI.deleteEULA)).toHaveBeenCalledWith(
+        metadata.token
+      );
       expect(onChange).toHaveBeenCalledTimes(1);
     }
   );
 
   it("deletes once when Delete is pressed again while deleting", async () => {
     jest
-      .mocked(mdmAPI.deleteWindowsEULA)
+      .mocked(mdmAPI.deleteEULA)
       .mockReturnValueOnce(new Promise(() => undefined));
     const { user } = renderSection({
       windows: {
@@ -240,7 +236,7 @@ describe("EulaSection", () => {
     await user.click(screen.getByRole("button", { name: "Delete" }));
     await user.keyboard("{Enter}");
 
-    expect(jest.mocked(mdmAPI.deleteWindowsEULA)).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(mdmAPI.deleteEULA)).toHaveBeenCalledTimes(1);
   });
 
   it("previews the macOS EULA in a new tab", async () => {
@@ -257,7 +253,7 @@ describe("EulaSection", () => {
 
     expect(open).toHaveBeenCalledTimes(1);
     expect(open).toHaveBeenCalledWith(
-      "/api/latest/fleet/mdm/setup/eula/mac-token",
+      "/api/latest/fleet/setup_experience/eula/mac-token",
       "_blank"
     );
     open.mockRestore();
@@ -366,9 +362,7 @@ describe("EulaSection", () => {
   });
 
   it("reports a failed delete and still refetches", async () => {
-    jest
-      .mocked(mdmAPI.deleteWindowsEULA)
-      .mockRejectedValueOnce({ status: 500 });
+    jest.mocked(mdmAPI.deleteEULA).mockRejectedValueOnce({ status: 500 });
     const onChange = jest.fn();
     const { user } = renderSection({
       windows: {
