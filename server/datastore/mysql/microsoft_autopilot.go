@@ -413,13 +413,8 @@ func ingestWindowsAutopilotDevicesDB(
 			claimed[dev.HostID] = struct{}{}
 			resolved = append(resolved, dev)
 			newHostIDs = append(newHostIDs, dev.HostID)
-			// The model is what makes the display name render as "model (serial)". The serial shown is the one Autopilot
-			// reports, even a placeholder, because that is what the admin sees in Intune.
-			displaySerial := dev.HardwareSerial
-			if displaySerial == "" {
-				displaySerial = dev.AutopilotDeviceID
-			}
-			newHosts = append(newHosts, fleet.Host{ID: dev.HostID, HardwareSerial: displaySerial, HardwareModel: dev.HardwareModel})
+			// The model is what makes the display name render as "model (serial)"
+			newHosts = append(newHosts, fleet.Host{ID: dev.HostID, HardwareSerial: dev.HardwareSerial, HardwareModel: dev.HardwareModel})
 		}
 		if err := upsertWindowsAutopilotHostMDMInfoDB(ctx, tx, ingest.serverURL, ingest.mdmID, newHostIDs); err != nil {
 			return err
@@ -670,8 +665,8 @@ func insertPendingWindowsAutopilotHostsDB(
 }
 
 // insertPendingWindowsAutopilotHostRowsDB inserts the bare host rows. The never-timestamp sentinel on last_enrolled_at and
-// detail_updated_at marks the host as never having checked in. A placeholder serial is stored empty, the same way osquery
-// stores it once the device enrolls.
+// detail_updated_at marks the host as never having checked in. The serial is stored as Autopilot reports it, placeholders
+// included, so the host shows as "model (serial)" before it boots.
 func insertPendingWindowsAutopilotHostRowsDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
@@ -684,11 +679,7 @@ VALUES %s`
 
 	args := make([]any, 0, len(devices)*4)
 	for _, dev := range devices {
-		serial := dev.HardwareSerial
-		if fleet.IsPlaceholderHardwareSerial(serial) {
-			serial = ""
-		}
-		args = append(args, serial, dev.HardwareModel, dev.HardwareVendor, teamID)
+		args = append(args, dev.HardwareSerial, dev.HardwareModel, dev.HardwareVendor, teamID)
 	}
 	values := strings.TrimSuffix(strings.Repeat(
 		"(?, ?, ?, 'windows', '"+server.NeverTimestamp+"', '"+server.NeverTimestamp+"', NULL, 1, ?),", len(devices)), ",")

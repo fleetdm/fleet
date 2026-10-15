@@ -812,32 +812,21 @@ func testIngestPlaceholderSerials(t *testing.T, ds *Datastore) {
 	assert.Len(t, hostIDs, len(devices), "devices sharing a placeholder serial are separate hosts")
 	assert.Equal(t, "Default string", stored["ap-default-1"].HardwareSerial, "the Autopilot record keeps the serial Graph reports")
 
-	// The stored display name is read directly: ds.Host computes one from the host's own (empty) serial instead.
-	type pendingHost struct {
-		HardwareSerial string `db:"hardware_serial"`
-		DisplayName    string `db:"display_name"`
-	}
-	readPendingHost := func(hostID uint) pendingHost {
-		var got pendingHost
-		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &got, `
-SELECT h.hardware_serial, hdn.display_name FROM hosts h JOIN host_display_names hdn ON hdn.host_id = h.id WHERE h.id = ?`, hostID))
-		return got
-	}
+	// The host keeps the serial Autopilot reports, placeholders included, so it is named "model (serial)" like any pending host.
 	for _, tc := range []struct {
 		deviceID    string
-		hostSerial  string
 		displayName string
 	}{
-		{"ap-default-1", "", "Virtual Machine (Default string)"},
-		{"ap-default-2", "", "Virtual Machine (Default string)"},
-		{"ap-empty", "", "Virtual Machine (ap-empty)"},
-		{"ap-zeros", "", "Virtual Machine (0000000000)"},
-		{"ap-real", "REAL-SERIAL", "Virtual Machine (REAL-SERIAL)"},
+		{"ap-default-1", "Virtual Machine (Default string)"},
+		{"ap-default-2", "Virtual Machine (Default string)"},
+		{"ap-zeros", "Virtual Machine (0000000000)"},
+		{"ap-real", "Virtual Machine (REAL-SERIAL)"},
 	} {
 		t.Run(tc.deviceID, func(t *testing.T) {
-			got := readPendingHost(stored[tc.deviceID].HostID)
-			assert.Equal(t, tc.hostSerial, got.HardwareSerial, "a placeholder serial is stored empty, as osquery stores it")
-			assert.Equal(t, tc.displayName, got.DisplayName)
+			host, err := ds.Host(ctx, stored[tc.deviceID].HostID)
+			require.NoError(t, err)
+			assert.Equal(t, stored[tc.deviceID].HardwareSerial, host.HardwareSerial)
+			assert.Equal(t, tc.displayName, host.DisplayName())
 		})
 	}
 }
@@ -878,7 +867,8 @@ func testIngestAdoptsHostsThroughMDMEnrollment(t *testing.T, ds *Datastore) {
 		ztdShared     = "51180000-0000-4000-8000-000000000003"
 	)
 
-	// The NucBox shape: a placeholder serial stored empty, and an Autopilot OOBE enrollment that recorded both IDs.
+	// The NucBox shape: a placeholder serial, stored empty once osquery reported it, and an Autopilot OOBE enrollment that
+	// recorded both IDs.
 	nucBox := enrolledHost(t, "nucbox", "", ztdNucBox, entraNucBox)
 	// A device joined to Entra from Settings: no Autopilot device ID on its enrollment, only the signed Entra device ID.
 	settingsJoined := enrolledHost(t, "settings", "", "", entraSettings)
