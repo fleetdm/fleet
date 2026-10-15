@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -981,8 +982,11 @@ func testBatchSetScriptsUnchangedDoesNotBlockScriptRuns(t *testing.T, ds *Datast
 	require.NoError(t, err)
 	require.Len(t, setA, 12)
 	require.Len(t, setB, 1)
-	scriptA, scriptB := setA[0], setB[0]
-	contentsA, contentsB := "echo "+strings.TrimSuffix(scriptA.Name, ".sh"), "echo b"
+	// setA isn't ordered by name, and a11.sh is edited below.
+	idxA := slices.IndexFunc(setA, func(s fleet.ScriptResponse) bool { return s.Name == "a0.sh" })
+	require.NotEqual(t, -1, idxA)
+	scriptA, scriptB := setA[idxA], setB[0]
+	contentsA, contentsB := "echo a0", "echo b"
 
 	h1 := test.NewHost(t, ds, "h1", "10.0.0.1", "1", "uuid1", time.Now())
 	h2 := test.NewHost(t, ds, "h2", "10.0.0.2", "2", "uuid2", time.Now())
