@@ -15370,7 +15370,7 @@ Only the fields included in the request are updated.
 | software_title_id | integer | path | **Required**. The ID of the software title. |
 | fleet_id     | integer | query | **Required**. The fleet ID. Updates the software title's appearance in the specified fleet. |
 | display_name | string | body | Override for the software title's default `name`. Set to `""` to use the default `name`. |
-| icon        | file    | body | Must be PNG format. It must be square with dimensions between 120x120 px and 1024x1024 px. To remove a custom icon, use [Delete software icon](#delete-software-icon). |
+| icon        | file    | body | Must be PNG format. It must be square with dimensions between 120x120 px and 1024x1024 px. Set to an empty value (`icon=""`) to remove the custom icon and go back to the default icon. |
 | hash_sha256 | string  | body | SHA256 hash of an already-uploaded icon to use. If provided, `filename` is required and `icon` should be omitted. |
 | filename    | string  | body | Filename to record for the icon image, if `hash_sha256` was supplied. |
 
@@ -15437,6 +15437,8 @@ _Available in Fleet Premium._
 Delete a custom icon added via [Update software appearance](#update-software-appearance). This will revert to using the software title's built-in icon.
 
 `DELETE /api/v1/fleet/software/titles/:id/icon`
+
+> This endpoint is deprecated as of Fleet 5.0. It's maintained for backwards compatibility. Please use [Update software appearance](#update-software-appearance) with an empty `icon` instead.
 
 #### Parameters
 
