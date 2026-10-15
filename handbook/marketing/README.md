@@ -181,8 +181,7 @@ Fleet's in-person GitOps workshops give people a hands-on way to try Fleet and e
 
 > DRIs:
 >
-> Allen Houchins ([@allenhouchins](https://github.com/allenhouchins)), Head of IT and Solutions Consulting, is the DRI for the GitOps workshop program.
-> The workshop instructor leads each session.
+> Dave Siederer ([@ds0x](https://github.com/ds0x)), Solutions Consultant, is the DRI for the GitOps workshop program and instructs the workshops.
 
 Rules of engagement:
 
