@@ -177,6 +177,9 @@ You can trigger policy automations right when MDM is turned on, because Fleet re
 
 > If **Allow only Apple Business enrollments** is on, manual enrollment is blocked. End users see a banner explaining that only devices listed in Apple Business can enroll. To allow manual enrollment, turn the setting off in **Organization settings > Advanced options**.
 
+> If `mdm.apple_scep_static_challenge_enabled` is `false` (the default), manual enrollment is unavailable. To allow it, set the setting to `true` in the Fleet server configuration.
+
+
 ### Host is in Apple Business (AB)
 
 #### If a macOS host is listed in AB:
@@ -195,7 +198,8 @@ You can trigger policy automations right when MDM is turned on, because Fleet re
 
 2. Clicking **Turn on MDM** opens a new tab.
    - If [IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication) is enabled, the end user is prompted to sign in with your organization’s identity provider (IdP).
-   - If authentication is successful, or if IdP authentication is disabled, the end user is taken to a page with instructions to download the manual enrollment profile and install it on their macOS host.
+   - If authentication is successful, or if IdP authentication is disabled, the end user is taken to a page with instructions to download the manual enrollment profile and install it on their macOS host. This requires an organization administrator to set `mdm.apple_scep_static_challenge_enabled` to `true` in the Fleet server configuration (it's `false` by default).
+
 
 ## Volume Purchasing Program (VPP)
 
