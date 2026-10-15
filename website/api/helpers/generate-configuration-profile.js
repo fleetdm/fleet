@@ -139,6 +139,7 @@ module.exports = {
       // ask the same question again.
       applePayloadTypes: useApplePayloadTypeLookup && route && route.profileType === 'mobileconfig' ? route.applePayloadTypes : undefined,
       writeProfilesFromSettings,
+      forFleet,
     });
     let configuredAt = Date.now();
 
