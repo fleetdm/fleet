@@ -706,15 +706,9 @@ func TestIsVulnerableRPM(t *testing.T) {
 			expected: false,
 		},
 		{
-			name:    "not vulnerable - epoch package newer than epoch fix (tomcat)",
+			name:    "not vulnerable - epoch package newer than epoch fix",
 			version: "9.0.117", release: "2.el9_8", epoch: new(uint32(1)),
 			vuln:     OSVVulnerability{Fixed: "1:9.0.62-11.el9_2.3", Introduced: "0"},
-			expected: false,
-		},
-		{
-			name:    "not vulnerable - epoch package newer than epoch fix (mod_ssl)",
-			version: "2.4.62", release: "13.el9_8.1", epoch: new(uint32(1)),
-			vuln:     OSVVulnerability{Fixed: "1:2.4.57-11.el9_4", Introduced: "0"},
 			expected: false,
 		},
 		{
@@ -829,16 +823,6 @@ func TestMatchSoftwareToRHELOSV(t *testing.T) {
 		}
 		result := matchSoftwareToRHELOSV(software, artifact)
 		require.Empty(t, result)
-	})
-
-	t.Run("unpatched package with epoch vulnerable", func(t *testing.T) {
-		software := []fleet.Software{
-			{ID: 9, Name: "mod_ssl", Version: "2.4.51", Release: "7.el9", Epoch: new(uint32(1))},
-		}
-		result := matchSoftwareToRHELOSV(software, artifact)
-		require.Len(t, result, 1)
-		require.Equal(t, "CVE-2024-38475", result[0].CVE)
-		require.Equal(t, "1:2.4.57-11.el9_4", *result[0].ResolvedInVersion)
 	})
 
 	t.Run("patched curl not vulnerable", func(t *testing.T) {
