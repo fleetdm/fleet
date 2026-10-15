@@ -94,7 +94,7 @@ csp cases report as not-checked either way.`
 
     let path = require('path');
     let util = require('util');
-    let { TEST_CASES, checkExpectations } = require('../profile-generator/configuration-profile-generator-cases');
+    let { TEST_CASES, checkExpectations, checkDeclineReason } = require('../profile-generator/configuration-profile-generator-cases');
 
     const MAX_ELAPSED_MS = 10000;
 
@@ -294,11 +294,11 @@ csp cases report as not-checked either way.`
         // misconfigured anthropicSecret as a model refusal.
           checkFailures = [`unexpected error: ${unexpectedError.message}`];
         } else if(abstained) {
-          checkFailures = expectations.expectFailure ? [] : [
+          checkFailures = expectations.expectFailure ? checkDeclineReason(rawResult.reasonWhyAProfileCouldNotBeGenerated) : [
             `abstained but a profile was expected -- reason given: ${JSON.stringify(rawResult.reasonWhyAProfileCouldNotBeGenerated || '(none)')}`
           ];
         } else {
-          checkFailures = checkExpectations(expectations, generatedProfile);
+          checkFailures = checkExpectations(expectations, generatedProfile, testCase.profileType);
         }
 
         if(elapsedMs > MAX_ELAPSED_MS) {
