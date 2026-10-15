@@ -3602,8 +3602,6 @@ the `software` table.
 | dep_profile_error | boolean | query | If `true`, the response will only include Apple MDM hosts with DEP profile assignment errors(`mdm.dep_profile_error: true`). |
 | dep_assign_profile_response | string | query | Filters the hosts by DEP profile assignment status. Valid options are 'SUCCESS', 'FAILED', 'THROTTLED' or 'NOT_ACCESSIBLE'. Only Apple hosts which are, or were assigned to Fleet in ABM will be returned. |
 
-> `software_id` is deprecated as of Fleet 4.42. It is maintained for backwards compatibility. Please use the `software_version_id` instead.
-
 If `software_title_id` is specified, an additional top-level key `"software_title"` is returned with the software title object corresponding to the `software_title_id`. See [List software](#list-software) response payload for details about this object.
 
 If `software_version_id` is specified, an additional top-level key `"software"` is returned with the software object corresponding to the `software_version_id`. See [List software versions](#list-software-versions) response payload for details about this object.
@@ -6919,7 +6917,7 @@ If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Se
 
 #### Example
 
-`GET /api/v1/fleet/hosts/report?software_id=123&format=csv&columns=hostname,primary_ip,platform`
+`GET /api/v1/fleet/hosts/report?software_version_id=123&format=csv&columns=hostname,primary_ip,platform`
 
 ##### Default response
 
