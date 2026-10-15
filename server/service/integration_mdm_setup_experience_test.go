@@ -4733,13 +4733,6 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidFailedInstallReporte
 	require.Equal(t, []string{string(fleet.SoftwareInstallFailed), string(fleet.SoftwareInstalled)}, installActivityStatuses(apps[1]))
 
 	reEnroll := func(appReports []*androidmanagement.ApplicationReport) {
-		// Re-enrolling happens well after the previous enrollment's installs were created,
-		// which the host's second-precision enrollment time can't tell apart in a fast test.
-		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(t.Context(),
-				`UPDATE host_vpp_software_installs SET created_at = created_at - INTERVAL 1 MINUTE WHERE host_id = ?`, host.ID)
-			return err
-		})
 		device := androidmanagement.Device{Name: deviceInfo.Name, EnrollmentTokenData: deviceInfo.EnrollmentTokenData}
 		if len(appReports) > 0 {
 			device.AppliedPolicyName = fmt.Sprintf("enterprises/%s/policies/%s", enterpriseID, host.UUID)
@@ -4750,6 +4743,15 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidFailedInstallReporte
 		msg := enrollmentMessageWithEnterpriseSpecificID(t, device, host.UUID)
 		s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &android_service.PubSubPushRequest{PubSubMessage: *msg},
 			http.StatusOK, "token", string(pubSubToken.Value))
+		// Re-enrolling happens well after the previous enrollment's installs were created,
+		// which the host's second-precision enrollment time can't tell apart in a fast test.
+		// Moved back only after the enrollment message, which sees the previous enrollment
+		// time and must leave those installs alone on its own.
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(t.Context(),
+				`UPDATE host_vpp_software_installs SET created_at = created_at - INTERVAL 1 MINUTE WHERE host_id = ?`, host.ID)
+			return err
+		})
 	}
 
 	// After re-enrolling, a failure of the new install is overridden too, and the
