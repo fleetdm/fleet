@@ -34,7 +34,7 @@ func (c *Client) Up(db *sql.DB, dir string) error {
 	}
 
 	for _, m := range migrations {
-		if applied[m.Version] {
+		if _, ok := applied[m.Version]; ok {
 			continue
 		}
 		if m.Version < maxApplied && (c.MinOutOfOrderVersion == 0 || m.Version < c.MinOutOfOrderVersion) {

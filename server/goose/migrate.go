@@ -214,18 +214,18 @@ func (c *Client) GetDBVersion(db *sql.DB) (int64, error) {
 // the DB. As in GetDBVersion, the most recent record for each version decides
 // whether it is applied or was rolled back.
 // Creates and initializes the DB version table if it doesn't exist.
-func (c *Client) AppliedVersions(db *sql.DB) (map[int64]bool, error) {
+func (c *Client) AppliedVersions(db *sql.DB) (map[int64]struct{}, error) {
 	rows, err := c.Dialect.dbVersionQuery(db, c.TableName)
 	if err != nil {
 		if err := c.createVersionTable(db); err != nil {
 			return nil, err
 		}
-		return map[int64]bool{}, nil
+		return map[int64]struct{}{}, nil
 	}
 	defer rows.Close()
 
-	applied := make(map[int64]bool)
-	seen := make(map[int64]bool)
+	applied := make(map[int64]struct{})
+	seen := make(map[int64]struct{})
 	// rows are ordered by id DESC, so the first record found for a version is
 	// the most recent one and decides its state.
 	for rows.Next() {
@@ -233,12 +233,12 @@ func (c *Client) AppliedVersions(db *sql.DB) (map[int64]bool, error) {
 		if err := rows.Scan(&row.VersionId, &row.IsApplied); err != nil {
 			return nil, err
 		}
-		if seen[row.VersionId] {
+		if _, ok := seen[row.VersionId]; ok {
 			continue
 		}
-		seen[row.VersionId] = true
+		seen[row.VersionId] = struct{}{}
 		if row.IsApplied {
-			applied[row.VersionId] = true
+			applied[row.VersionId] = struct{}{}
 		}
 	}
 	return applied, rows.Err()
