@@ -30,9 +30,17 @@ windows mdm enrollment flow. -->
 
       .eula {
         font-size: 18px;
+        /* Centered in a flex column, the box would otherwise grow to fit
+           content that can't wrap, such as a wide table, past the screen's
+           edges. */
+        width: 100%;
+        box-sizing: border-box;
         max-width: 600px;
         height: 400px;
         overflow-y: scroll;
+        /* The enrollment web view (EdgeHTML) defaults to a scrollbar that
+           floats over the text; this one takes its own space. */
+        -ms-overflow-style: scrollbar;
       }
 
       .eula ul {
@@ -73,9 +81,17 @@ windows mdm enrollment flow. -->
         padding-left: 24px;
       }
 
+      /* Long words break instead of overflowing, and a table wider than the
+         box scrolls on its own, the way GitHub shows markdown. */
+      .eula-custom {
+        overflow-wrap: break-word;
+        padding-right: 8px;
+      }
+
       .eula-custom table {
+        display: block;
+        overflow-x: auto;
         border-collapse: collapse;
-        width: 100%;
         margin: 8px 0;
       }
 
