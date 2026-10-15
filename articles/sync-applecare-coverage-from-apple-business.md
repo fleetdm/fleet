@@ -136,6 +136,8 @@ The same script works in any scheduler that can run Python and store secrets, li
 
 Fleet's IT team runs this sync as a daily [Claude Code routine](https://code.claude.com/docs/en/routines). A routine runs a prompt on a schedule in a cloud environment. The environment holds the secrets and limits which hosts the session can reach.
 
+To have Claude Code walk you through these steps and create the routine for you, use the [setup prompt](https://github.com/fleetdm/fleet/blob/main/docs/solutions/claude-routines/sync-applecare-coverage-to-fleet.md) in Fleet's repository.
+
 1. Create a [cloud environment](https://code.claude.com/docs/en/cloud-environments) for the routine:
    - Set **Network access** to **Custom**, and allow only `account.apple.com`, `api-business.apple.com`, and your Fleet server's hostname.
    - Add `FLEET_URL`, `FLEET_API_TOKEN`, and `ABM_CLIENT_ASSERTION` as environment variables, or as API credentials on plans that support them. Anyone who uses an environment can read its environment variables, so keep this environment to yourself.
