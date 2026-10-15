@@ -36,6 +36,13 @@ module.exports = {
       defaultsTo: false,
       description: 'Whether or not to send a lookup prompt first that narrows the .mobileconfig schema to the payload types this request needs.',
       extendedDescription: 'Without it, the full .mobileconfig schema is provided, without key descriptions.'
+    },
+
+    useThirdPartyAppLookup: {
+      type: 'boolean',
+      defaultsTo: false,
+      description: 'Whether or not the .mobileconfig lookup also picks the third-party applications a request needs, instead of matching their keywords.',
+      extendedDescription: 'Only takes effect with useApplePayloadTypeLookup.  If the lookup fails, keywords are matched instead.'
     }
   },
 
@@ -101,7 +108,16 @@ module.exports = {
         // rides along with an allowed-value list or a numeric range but not with a gloss, because a gloss
         // is a sentence of Apple's prose and `d=` tacked onto the end of one reads as part of the sentence.
         let constraint;
-        if(key.allowedValues && key.allowedValues.length > 0) {
+        if(key.allowedValues && key.allowedValues.length > 0 && key.allowedValueTitles) {
+          // Third-party keys carry what each value means, which an integer's value alone does not say:
+          // Chrome's DefaultCookiesSetting is 1, 2 or 4.  A title that only restates its value
+          // (force_installed, "Force Installed") is left off.
+          constraint = `(${_.map(key.allowedValues, (allowedValue, idx)=>{
+            let title = String(key.allowedValueTitles[idx] || '');
+            let restatesTheValue = title.toLowerCase().replace(/[^a-z0-9]/g, '') === String(allowedValue).toLowerCase().replace(/[^a-z0-9]/g, '');
+            return restatesTheValue ? allowedValue : `${allowedValue}=${_.trunc(title, {length: 40})}`;
+          }).join('|')})`;
+        } else if(key.allowedValues && key.allowedValues.length > 0) {
           constraint = `(${key.allowedValues.join('|')})`;
         } else if(key.min !== undefined || key.max !== undefined) {
           constraint = `(${key.min !== undefined ? key.min : ''}-${key.max !== undefined ? key.max : ''})`;
@@ -169,7 +185,7 @@ module.exports = {
       let renderEntries = (entries, {describeKeys})=>{
         let lines = [];
         for (let entry of entries) {
-          lines.push(entry.name);
+          lines.push(entry.displayName ? `${entry.name}  (${entry.displayName})` : entry.name);
 
           let plainKeys = [];
           let keysWithTheirOwnLine = [];
@@ -201,6 +217,26 @@ module.exports = {
       };
 
       let ALWAYS_PROVIDED_ENTRY_NAMES = ['CommonPayloadKeys', 'TopLevel'];
+
+      // Third-party apps' preference domains (com.google.Chrome, com.microsoft.wdav, ...) have no Apple
+      // manifest, so they are generated from ProfileManifests' by
+      // `sails run regenerate-all-apple-third-party-payload-manifests`.
+      let thirdPartySchemaFile;
+      // The third-party entries the lookup picked, or undefined when it did not pick them, in which case
+      // they are found by keyword below.
+      let thirdPartyEntriesPicked;
+      if(profileType === 'mobileconfig') {
+        let thirdPartySchemaFilePath = path.resolve(sails.config.appPath, 'profile-generator/schema/apple-third-party-payload-manifests.json');
+        try {
+          thirdPartySchemaFile = require(thirdPartySchemaFilePath);
+        } catch (err) {
+          throw new Error(
+            `Could not read the Apple third-party payload manifests at ${thirdPartySchemaFilePath}.  Run ` +
+            `\`sails run regenerate-all-apple-third-party-payload-manifests\` to build it.  Full error: ${err.message}`
+          );
+        }
+      }
+
       if(profileType === 'mobileconfig' && useApplePayloadTypeLookup) {
 
         // Key names are in the index, not just titles and descriptions, for the reason the Windows lookup
@@ -214,6 +250,27 @@ module.exports = {
           return `${entry.name} (${about}): ${entry.description || ''} Keys: ${_.pluck(entry.keys, 'key').join(' ')}`;
         }).join('\n');
 
+        // Names and descriptions only: keys would make this the larger index (Chrome alone has 325), and the
+        // app a request is about is nearly always named in it.  Picked here rather than by keyword because a
+        // keyword cannot tell "Okta Verify" from "verify their identity", or know "Microsoft Defender" is wdav.
+        let thirdPartyIndexSection = '';
+        if(useThirdPartyAppLookup) {
+          let thirdPartyIndex = _.map(thirdPartySchemaFile.entries, (entry)=>{
+            return `${entry.name} (${entry.displayName}): ${_.trunc(entry.description || '', {length: 120})}`;
+          }).join('\n');
+          thirdPartyIndexSection = `
+
+Below that is every third-party macOS application whose managed preferences are available: its
+preference domain, its name, and what it covers.  If the request asks for an application's own settings,
+name its domain in "thirdPartyPayloadTypes", one entry per application the request is about.  Name none
+for an application the request does not ask to configure, and none because a word in the request
+happens to match an application's name: "verify their identity" is not Okta Verify.  A request can need
+both lists, e.g., turning off AirDrop and Chrome's password manager.  Every domain must appear verbatim
+below.
+
+Third-party applications:
+${thirdPartyIndex}`;
+        }
         // The small model on purpose: this is a lookup rather than a judgement, and it sits in front of the
         // generation, so every second it takes is a second added to the request.
         let picked = await sails.helpers.ai.prompt.with({
@@ -238,11 +295,11 @@ not invent one.
 Return an empty array when no payload type below could satisfy the request -- a third-party application's
 settings, for one.  An empty array is a real answer here, not a failure.
 
-${payloadTypeIndex}
+${payloadTypeIndex}${thirdPartyIndexSection}
 
 Respond in JSON with this data shape:
 {
-  "payloadTypes": ["TODO"]
+  "payloadTypes": ["TODO"]${useThirdPartyAppLookup ? ',\n  "thirdPartyPayloadTypes": ["TODO"]' : ''}
 }`,
           prompt: `Here are the instructions from an IT admin:
 \`\`\`
@@ -270,6 +327,10 @@ ${naturalLanguageInstructions}
             }
           }
         }
+        if(useThirdPartyAppLookup && picked && _.isArray(picked.thirdPartyPayloadTypes)) {
+          let candidateNames = _.map(picked.thirdPartyPayloadTypes, (candidate)=>{ return String(candidate).split(' (')[0].trim().toLowerCase(); });
+          thirdPartyEntriesPicked = _.filter(thirdPartySchemaFile.entries, (entry)=>{ return _.contains(candidateNames, entry.name.toLowerCase()); });
+        }
 
         // Restrictions is Apple's catch-all -- 210 keys under a title and description that match almost no
         // request -- so the lookup passes it over for payloads whose titles sound closer (Content Caching
@@ -286,7 +347,9 @@ ${naturalLanguageInstructions}
         // sails.log.warn(`[payload-type lookup] instructions: ${JSON.stringify(naturalLanguageInstructions)} | lookup returned: ${JSON.stringify(picked ? picked.payloadTypes : '(lookup failed)')} | provided: ${JSON.stringify(applePayloadTypesProvided)}`);
       }
 
-      if(applePayloadTypesProvided.length > 0) {
+      // A request the lookup found only third-party apps for gets no Apple payload types rather than all of
+      // them, since the full schema is ~13k tokens the model would only be choosing not to use.
+      if(applePayloadTypesProvided.length > 0 || (thirdPartyEntriesPicked && thirdPartyEntriesPicked.length > 0)) {
         // Every entry with a picked name, since six payloads share com.apple.MCX.
         let entriesToRender = _.filter(schemaFile.entries, (entry)=>{
           return _.contains(ALWAYS_PROVIDED_ENTRY_NAMES, entry.name) || _.contains(applePayloadTypesProvided, entry.name);
@@ -334,6 +397,35 @@ and are not listed, and neither are third-party domains, which come from the Pro
 does rule out is a first-party payload type of your own invention.  When a listed payload type covers the setting, use
 it, and fall back to an unlisted preference domain only when nothing listed does.  If you cannot recall the keys of an
 unlisted preference domain, return the "couldNotGenerateProfile" shape rather than guessing.`;
+      }
+
+      if(profileType === 'mobileconfig') {
+        // An app's keys are offered only when the request is about it, as the Windows ADMX templates'
+        // policies are: a request that names no app is asking about Apple's own settings, and Chrome alone
+        // renders to ~80KB.
+        let thirdPartyEntriesTheRequestNames = thirdPartyEntriesPicked;
+        if(thirdPartyEntriesTheRequestNames === undefined) {
+          let lowercaseInstructions = naturalLanguageInstructions.toLowerCase();
+          // Find the apps whose keywords the request mentions, matched as whole words.
+          thirdPartyEntriesTheRequestNames = _.filter(thirdPartySchemaFile.entries, (entry)=>{
+            return _.any(entry.keywords || [], (keyword)=>{ return new RegExp(`\\b${_.escapeRegExp(keyword)}\\b`).test(lowercaseInstructions); });
+          });
+        }
+        appleThirdPartyPayloadTypesProvided = _.pluck(thirdPartyEntriesTheRequestNames, 'name');
+
+        if(thirdPartyEntriesTheRequestNames.length > 0) {
+          appleSchema += `\n\nThird-party payload types:\n${renderEntries(thirdPartyEntriesTheRequestNames, {describeKeys: true})}`;
+          // Appended to either description above, both of which send third-party domains to the
+          // ProfileManifests reference the model cannot open.
+          appleSchemaDescription += `
+
+The payload types under "Third-party payload types" are third-party macOS applications' preference domains,
+taken from the ProfileManifests project rather than from Apple, and each is headed by its domain and the
+application's name.  The format is the same, except that \`(value=meaning|...)\` gives what each value means.
+\`<Name>\` stands for a dictionary key the admin chooses, such as an extension ID.  For these applications this
+is complete in the same way: a key not listed under the domain does not exist in it, so use these rather than
+recalling the application's keys or reaching for an Apple payload type that sounds similar.`;
+        }
       }
     }
 
@@ -635,6 +727,14 @@ a field that does not appear here does not exist.`,
 
 
     let promptConfig = promptConfigByProfileType[profileType];
+
+    // Ahead of the existing rules, which send third-party keys to a ProfileManifests reference the model
+    // cannot open, and so leave it recalling them.
+    if(appleThirdPartyPayloadTypesProvided.length > 0) {
+      promptConfig.rules = [
+        `For ${appleThirdPartyPayloadTypesProvided.join(', ')}, the keys listed under "Third-party payload types" are authoritative.  Set them in a dict inside PayloadContent whose PayloadType is the domain exactly as listed, and copy every key and value from the list character for character.  Where the list and your own recollection differ, the list is right.`,
+      ].concat(promptConfig.rules);
+    }
 
     // Windows is the one profile type whose settings were never provided, only pointed at: the model was
     // given a documentation URL it cannot open and asked to recall node paths, formats and polarities from
@@ -1132,9 +1232,11 @@ ${uuidsToUse}${hexEncodingsToUse}
     // is a lookup problem while the second is a prompt problem.
     // applePayloadTypesProvided for the same reason: empty means the lookup was off, failed, or found
     // nothing, and the full schema went in.
+    // appleThirdPartyPayloadTypesProvided is kept apart from it so that stays true: it is every third-party
+    // domain whose keys the model was shown, whatever the lookup did.
     // admxTemplatesProvided is every third-party template whose policies the model was shown, which is a
     // superset of the ones the profile ends up using.
-    return { systemPrompt, userPrompt, promptConfig, suppliedPayloadUuids, windowsCspAreasProvided, applePayloadTypesProvided, admxTemplatesProvided };
+    return { systemPrompt, userPrompt, promptConfig, suppliedPayloadUuids, windowsCspAreasProvided, applePayloadTypesProvided, appleThirdPartyPayloadTypesProvided, admxTemplatesProvided };
 
   }
 
