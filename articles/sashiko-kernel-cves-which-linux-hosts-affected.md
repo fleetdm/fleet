@@ -1,4 +1,4 @@
-# 463 kernel CVEs cite Google's Sashiko this year. Which of your Linux hosts do they touch?
+# AI-found kernel CVEs are rising. Know which Linux hosts they affect.
 
 *AI tools now find kernel bugs faster than most teams can read the advisories. The question that keeps its value is which of your hosts run the affected code.*
 
@@ -11,19 +11,18 @@
 - **Per-host version data answers the question.** Knowing the kernel and package version on every Linux host turns "are we affected?" from a debate into a lookup.
 - **Run the check before the next batch arrives.** The teams that cope are the ones who can already list their hosts by kernel version.
 
-<a purpose="cta-button" href="https://fleetdm.com/software-catalog">See software inventory in Fleet</a>
+<a purpose="cta-button" href="https://fleetdm.com/guides/vulnerability-processing#linux-coverage">Check Fleet's Linux kernel coverage</a>
 
-In March, Kroah-Hartman [told The Register](https://www.theregister.com/software/2026/03/26/linux-kernel-czar-says-ai-bug-reports-arent-slop-anymore/5226256) that something had changed. Months earlier the kernel team was receiving what it called AI slop. Then, in his words, "the world switched," and the reports started pointing at real problems.
+In March, Kroah-Hartman [told The Register](https://www.theregister.com/software/2026/03/26/linux-kernel-czar-says-ai-bug-reports-arent-slop-anymore/5226256) that the kernel team's experience with AI reports had changed. Months earlier, most AI-generated submissions were low quality and easy to dismiss. Within about a month, that flipped, and the reports started pointing at real problems.
 
 The numbers since then are large. [Phoronix](https://www.phoronix.com/news/Sashiko-Linux-AI-Metrics) reports that Sashiko, a review tool that began at Google and now sits under the Linux Foundation, has completed more than 191,000 patch reviews, and that 463 kernel CVEs assigned this year cite it. Each CVE is a question for anyone who runs Linux: does this one apply to us?
 
 ## What changed in the kernel's workload
 
-Kroah-Hartman said the kernel team can handle the extra volume, because it has a large group of maintainers to share the work. He also said "all open source security teams are hitting this right now," and that smaller projects have far less room to absorb it. The increase, he said, "is real, and it's not slowing down."
+Kroah-Hartman says the kernel team can keep up with the volume. He also says every open source security team is seeing the same rise, and he expects it to keep growing.
 
-He described AI mostly as a reviewer, not an author. Reviews catch many obvious issues but not everything, and he noted that about one-third of one batch of AI findings were wrong, though they still pointed at a relatively real problem. That is useful context. More findings means more CVEs, and not every CVE carries the same weight for your hosts.
+AI is better at finding problems than at fixing them on its own. In one test he described, about two-thirds of AI-written patches were correct. The rest were wrong but still pointed at a real issue, and even the correct ones needed a person to clean them up. More findings means more CVEs, and not every CVE carries the same weight for your hosts.
 
-I could not find a source tying Kroah-Hartman to the 463 figure directly. It comes from Gushchin's conference update as reported by Phoronix, and Phoronix's headline rounds it to "nearly 500." The number counts CVEs that cite Sashiko, not a measure of how many were found by it alone.
 
 ## Where the volume lands on your team
 
@@ -35,13 +34,13 @@ More CVEs does not mean more risk in equal measure. It does mean more triage, an
 
 The useful question is concrete. Which Linux hosts do you run, which kernel and package versions is each on, and which of those versions fall in an affected range for the CVEs you care about?
 
-Fleet's agent collects installed deb and rpm packages on Linux hosts, with name and version, so kernel packages appear in the **Software** tab alongside everything else. The [software inventory reference](https://fleetdm.com/guides/software-inventory-reference) lists what Fleet collects on each platform. For a question the inventory doesn't answer directly, such as the running kernel version on each host, a [report](https://fleetdm.com/guides/queries) can ask the host itself. Test any check on a host where you already know the answer before you trust an empty result.
+Fleet's agent collects installed deb and rpm packages and the kernel version on Linux hosts, so kernel packages appear in the **Software** tab alongside everything else. The [software inventory reference](https://fleetdm.com/guides/software-inventory-reference) lists what Fleet collects on each platform. An installed kernel is not always the running one: a host that took the fixed package but hasn't rebooted is still exposed. A [report](https://fleetdm.com/guides/reports) can read the running kernel from osquery's `kernel_info` table and show which hosts are still on the old build. Test any check on a host where you already know the answer before you trust an empty result.
 
-Fleet also reports known vulnerabilities per host. Coverage differs by distribution and by data source, so confirm how your distributions are handled in the [vulnerability documentation](https://fleetdm.com/guides/vulnerability-processing) instead of assuming every CVE will appear.
+Fleet also matches installed kernels against known vulnerabilities. Coverage differs by distribution: Ubuntu and RHEL kernels are matched against vendor data, Debian kernels against the NVD (which can flag fixes Debian has already backported), and Arch and openSUSE have no kernel coverage. Check [Linux coverage](https://fleetdm.com/guides/vulnerability-processing#linux-coverage) for your distributions instead of assuming every CVE will appear.
 
-## Where this leaves you
+## Looking ahead
 
-Nobody can slow the pace of AI-found bugs, and the kernel team says it isn't slowing. What a team controls is how quickly it can say which hosts run an affected build and which have taken the fix. Build that list now, while the volume is manageable.
+AI-assisted discovery will keep accelerating. What your team controls is how fast it can name the hosts running an affected build. Build that inventory now, while the volume is still manageable.
 
 ## See it live
 
@@ -52,7 +51,7 @@ Nobody can slow the pace of AI-found bugs, and the kernel team says it isn't slo
 
 - The Register, [Linux kernel czar says AI bug reports aren't slop anymore](https://www.theregister.com/software/2026/03/26/linux-kernel-czar-says-ai-bug-reports-arent-slop-anymore/5226256).
 - Phoronix, [Google's Sashiko AI has completed 191k patch reviews, cited on nearly 500 kernel CVEs](https://www.phoronix.com/news/Sashiko-Linux-AI-Metrics).
-<meta name="articleTitle" value="463 kernel CVEs cite Google's Sashiko this year. Which of your Linux hosts do they touch?">
+<meta name="articleTitle" value="AI-found kernel CVEs are rising. Know which Linux hosts they affect.">
 <meta name="authorFullName" value="Aube Paul">
 <meta name="authorGitHubUsername" value="robinedev">
 <meta name="category" value="industry news">
