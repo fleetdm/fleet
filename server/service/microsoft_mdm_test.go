@@ -4084,3 +4084,28 @@ func TestGetPendingMDMCmdsHoldsBackRecentSCEPStatusProbes(t *testing.T) {
 		})
 	}
 }
+
+func TestConditionalAccessSCEPChallengeOncePerRun(t *testing.T) {
+	ds := new(mock.Store)
+	calls := 0
+	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
+		calls++
+		require.Nil(t, teamID)
+		return []*fleet.EnrollSecret{{Secret: "first"}, {Secret: "second"}}, nil
+	}
+
+	load := conditionalAccessSCEPChallengeOncePerRun(ds)
+	for range 3 {
+		challenge, err := load(t.Context())
+		require.NoError(t, err)
+		require.Equal(t, "first", challenge)
+	}
+	require.Equal(t, 1, calls)
+
+	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
+		return nil, nil
+	}
+	challenge, err := conditionalAccessSCEPChallengeOncePerRun(ds)(t.Context())
+	require.NoError(t, err)
+	require.Empty(t, challenge)
+}

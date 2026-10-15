@@ -496,7 +496,7 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 	}
 
 	err := validateProfileCertificateAuthorityVariables(contents, lic, groupedCAs,
-		additionalDigiCertValidation, additionalCustomSCEPValidation, additionalNDESValidation, additionalSmallstepValidation)
+		additionalDigiCertValidation, additionalCustomSCEPValidation, additionalNDESValidation, additionalSmallstepValidation, nil)
 	// We avoid checking for all nil here (due to no variables, as we ran our own variable check above.)
 	if err != nil {
 		return nil, err

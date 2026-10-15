@@ -169,6 +169,71 @@ func TestValidateWindowsProfileFleetVariables(t *testing.T) {
 	}
 }
 
+// TestValidateWindowsProfileConditionalAccessVariables covers what is specific to the conditional access group on
+// Windows: the variables are accepted here and nowhere else, and the shared SCEP placement check runs with this
+// group's names. The required-variable rules are in TestValidateProfileCertificateAuthorityVariables and the
+// placement rules in TestAdditionalNDESValidationForWindowsProfiles.
+func TestValidateWindowsProfileConditionalAccessVariables(t *testing.T) {
+	addItem := func(locURI, data string) string {
+		return fmt.Sprintf(`<Add><Item><Target><LocURI>%s</LocURI></Target><Data>%s</Data></Item></Add>`, locURI, data)
+	}
+	const scepPrefix = "./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/"
+	challengeItem := addItem(scepPrefix+"Challenge", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE")
+	urlItem := addItem(scepPrefix+"ServerURL", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL")
+	subjectItem := addItem(scepPrefix+"SubjectName", "CN=Fleet conditional access for Okta,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID")
+	sanItem := addItem(scepPrefix+"SubjectAlternativeNames", "7+urn:device:fleet:uuid:$FLEET_VAR_HOST_UUID")
+
+	cases := []struct {
+		name        string
+		contents    string
+		errContains string
+	}{
+		{
+			name:     "valid profile",
+			contents: urlItem + challengeItem + subjectItem + sanItem,
+		},
+		{
+			name: "valid profile with braces syntax",
+			contents: addItem(scepPrefix+"ServerURL", "${FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL}") +
+				addItem(scepPrefix+"Challenge", "${FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE}") + subjectItem,
+		},
+		{
+			name: "challenge in the ServerURL node",
+			contents: addItem(scepPrefix+"ServerURL", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE") +
+				addItem(scepPrefix+"Challenge", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL") + subjectItem,
+			errContains: `Variable "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE" must only be in the SCEP certificate's "Challenge" field.`,
+		},
+		{
+			name: "variable in a LocURI",
+			contents: urlItem + subjectItem +
+				addItem("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE/Install/Challenge", "x"),
+			errContains: "Conditional access Fleet variables must not appear in LocURI target paths.",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, err := validateWindowsProfileFleetVariables(c.contents, &fleet.LicenseInfo{Tier: fleet.TierPremium}, &fleet.GroupedCertificateAuthorities{})
+			if c.errContains == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, c.errContains)
+		})
+	}
+
+	t.Run("requires premium", func(t *testing.T) {
+		_, err := validateWindowsProfileFleetVariables(urlItem+challengeItem+subjectItem, &fleet.LicenseInfo{Tier: fleet.TierFree}, &fleet.GroupedCertificateAuthorities{})
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+	})
+
+	t.Run("apple profiles reject the variables", func(t *testing.T) {
+		for _, v := range []fleet.FleetVarName{fleet.FleetVarConditionalAccessSCEPURL, fleet.FleetVarConditionalAccessSCEPChallenge} {
+			_, err := validateConfigProfileFleetVariables("<string>"+v.WithPrefix()+"</string>", &fleet.LicenseInfo{Tier: fleet.TierPremium}, &fleet.GroupedCertificateAuthorities{})
+			require.ErrorContains(t, err, "Fleet variable "+v.WithPrefix()+" is not supported in configuration profiles.")
+		}
+	})
+}
+
 func TestAdditionalNDESValidationForWindowsProfiles(t *testing.T) {
 	ndesVars := &NDESVarsFound{}
 	ndesVars, _ = ndesVars.SetChallenge()

@@ -29,6 +29,7 @@ import (
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -9079,6 +9080,125 @@ func (s *integrationMDMTestSuite) TestWindowsHardcodedSCEPProfile() {
 			require.True(t, found, "%s not found for host", profileName)
 		})
 	}
+}
+
+// TestWindowsConditionalAccessSCEPProfile covers a Windows SCEP profile that enrolls against Fleet's conditional access
+// SCEP server. Fleet fills in the SCEP URL and the current global enroll secret at each delivery, and tracks the
+// certificate the way it tracks a proxied certificate authority's.
+func (s *integrationMDMTestSuite) TestWindowsConditionalAccessSCEPProfile() {
+	t := s.T()
+	ctx := t.Context()
+
+	profile := bytes.ReplaceAll(windowsUserSCEPProfileBytes,
+		[]byte("$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_INTEGRATION"), []byte(fleet.FleetVarConditionalAccessSCEPURL.WithPrefix()))
+	profile = bytes.ReplaceAll(profile,
+		[]byte("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_INTEGRATION"), []byte(fleet.FleetVarConditionalAccessSCEPChallenge.WithPrefix()))
+
+	noChallenge := bytes.ReplaceAll(profile, []byte(fleet.FleetVarConditionalAccessSCEPChallenge.WithPrefix()), []byte("hardcoded"))
+	res := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "ConditionalAccessSCEP", Contents: noChallenge},
+	}}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.ConditionalAccessSCEPVariablesMissingErrMsg)
+
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "ConditionalAccessSCEP", Contents: profile},
+	}}, http.StatusNoContent)
+
+	appConfig, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	scepURL, err := url.JoinPath(appConfig.ServerSettings.ServerURL, "/api/fleet/conditional_access/scep")
+	require.NoError(t, err)
+
+	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: "first+secret="}}))
+	host, mdmDevice := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	hostProfile := func() *fleet.HostMDMWindowsProfile {
+		profiles, err := s.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+		require.NoError(t, err)
+		for _, p := range profiles {
+			if p.Name == "ConditionalAccessSCEP" {
+				return &p
+			}
+		}
+		require.FailNow(t, "ConditionalAccessSCEP not found for host")
+		return nil
+	}
+	rawCommand := func(cmdUUID string) string {
+		var raw string
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &raw, `SELECT raw_command FROM windows_mdm_commands WHERE command_uuid = ?`, cmdUUID)
+		})
+		return raw
+	}
+	ackCommands := func() {
+		cmds, err := mdmDevice.StartManagementSession()
+		require.NoError(t, err)
+		msgID, err := mdmDevice.GetCurrentMsgID()
+		require.NoError(t, err)
+		for _, c := range cmds {
+			if c.Verb == fleet.CmdStatus {
+				continue
+			}
+			cmdID, verb, status := c.Cmd.CmdID.Value, c.Verb, syncml.CmdStatusOK
+			mdmDevice.AppendResponse(fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  &cmdID,
+				Cmd:     &verb,
+				Data:    &status,
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			})
+		}
+		_, err = mdmDevice.SendResponse()
+		require.NoError(t, err)
+	}
+	// Queues the profile for another delivery, the way the renewal job does.
+	queueRedelivery := func(profileUUID string) {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE host_mdm_windows_profiles SET status = NULL WHERE host_uuid = ? AND profile_uuid = ?`,
+				host.UUID, profileUUID)
+			return err
+		})
+	}
+
+	s.awaitTriggerProfileSchedule(t)
+	p := hostProfile()
+	require.NotNil(t, p.Status)
+	require.Equal(t, fleet.MDMDeliveryPending, *p.Status)
+	raw := rawCommand(p.CommandUUID)
+	require.Contains(t, raw, "<Data>"+scepURL+"</Data>")
+	require.Contains(t, raw, "<Data>first+secret=</Data>")
+
+	managedCert, err := s.ds.GetWindowsHostMDMCertificateProfile(ctx, host.UUID, p.ProfileUUID, fleet.ConditionalAccessManagedCertificateCAName)
+	require.NoError(t, err)
+	require.NotNil(t, managedCert)
+	require.Equal(t, fleet.CAConfigConditionalAccess, managedCert.Type)
+	require.NotNil(t, managedCert.ChallengeRetrievedAt)
+
+	// Windows acknowledges the Exec before it contacts the SCEP server, so the ack alone doesn't verify the profile.
+	ackCommands()
+	p = hostProfile()
+	require.NotNil(t, p.Status)
+	require.Equal(t, fleet.MDMDeliveryVerifying, *p.Status)
+
+	// A redelivery after the enroll secret is rotated carries the new secret.
+	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: "second-secret"}}))
+	queueRedelivery(p.ProfileUUID)
+	s.awaitTriggerProfileSchedule(t)
+	p = hostProfile()
+	raw = rawCommand(p.CommandUUID)
+	require.Contains(t, raw, "<Data>second-secret</Data>")
+	require.NotContains(t, raw, "first+secret=")
+	ackCommands()
+
+	// A secret Windows can't send as a SCEP challenge fails the delivery.
+	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: "bad_secret"}}))
+	queueRedelivery(p.ProfileUUID)
+	s.awaitTriggerProfileSchedule(t)
+	p = hostProfile()
+	require.NotNil(t, p.Status)
+	require.Equal(t, fleet.MDMDeliveryFailed, *p.Status)
+	require.Equal(t, microsoft_mdm.ConditionalAccessSCEPChallengeInvalidCharsDetail, p.Detail)
 }
 
 // This test verifies that there is no longer a race condition in apple profile resending

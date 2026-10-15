@@ -111,6 +111,8 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 		// failure, which must surface as a MicrosoftProfileTransientError instead.
 		ndesChallengeErrorIsTerminal func(err error) bool
 		transientError               string // if set, expect a MicrosoftProfileTransientError carrying this message
+		// conditionalAccessSCEPChallenge stands in for the global enroll secret lookup.
+		conditionalAccessSCEPChallenge func(ctx context.Context) (string, error)
 	}{
 		{
 			name:             "no fleet variables",
@@ -449,6 +451,78 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 			transientError: "Fleet couldn't populate $FLEET_VAR_NDES_SCEP_CHALLENGE. ndes server error",
 		},
 		{
+			name:     "conditional access scep url and challenge replaced",
+			hostUUID: "condaccess-host-uuid",
+			conditionalAccessSCEPChallenge: func(context.Context) (string, error) {
+				return "aB3+/= secret", nil
+			},
+			profileContents: `<Add><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/ServerURL</LocURI></Target>` +
+				`<Data>$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL</Data></Item></Add>` +
+				`<Add><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Challenge</LocURI></Target>` +
+				`<Data>$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE</Data></Item></Add>`,
+			expectedContents: `<Add><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/` + profileUUID + `/Install/ServerURL</LocURI></Target>` +
+				`<Data>https://test-fleet.com/api/fleet/conditional_access/scep</Data></Item></Add>` +
+				`<Add><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/` + profileUUID + `/Install/Challenge</LocURI></Target>` +
+				`<Data>aB3+/= secret</Data></Item></Add>`,
+			expect: func(t *testing.T, managedCerts []*fleet.MDMManagedCertificate) {
+				require.Len(t, managedCerts, 1)
+				require.Equal(t, fleet.ConditionalAccessManagedCertificateCAName, managedCerts[0].CAName)
+				require.Equal(t, fleet.CAConfigConditionalAccess, managedCerts[0].Type)
+				require.Equal(t, "condaccess-host-uuid", managedCerts[0].HostUUID)
+				require.Equal(t, profileUUID, managedCerts[0].ProfileUUID)
+				require.NotNil(t, managedCerts[0].ChallengeRetrievedAt)
+				require.Nil(t, managedCerts[0].Serial)
+				require.Nil(t, managedCerts[0].NotValidAfter)
+			},
+		},
+		{
+			name:     "conditional access challenge with characters windows rejects",
+			hostUUID: "condaccess-host-uuid",
+			conditionalAccessSCEPChallenge: func(context.Context) (string, error) {
+				return "bad_secret", nil
+			},
+			profileContents: `<Add><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/ServerURL</LocURI></Target>` +
+				`<Data>$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL</Data></Item></Add>` +
+				`<Add><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Challenge</LocURI></Target>` +
+				`<Data>$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE</Data></Item></Add>`,
+			expectError:     true,
+			processingError: ConditionalAccessSCEPChallengeInvalidCharsDetail,
+			expect: func(t *testing.T, managedCerts []*fleet.MDMManagedCertificate) {
+				require.Empty(t, managedCerts)
+			},
+		},
+		{
+			name:     "conditional access without a global enroll secret",
+			hostUUID: "condaccess-host-uuid",
+			conditionalAccessSCEPChallenge: func(context.Context) (string, error) {
+				return "", nil
+			},
+			profileContents: `<Add><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/ServerURL</LocURI></Target>` +
+				`<Data>$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL</Data></Item></Add>` +
+				`<Add><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Challenge</LocURI></Target>` +
+				`<Data>$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE</Data></Item></Add>`,
+			expectError:     true,
+			processingError: ConditionalAccessSCEPChallengeMissingDetail,
+			expect: func(t *testing.T, managedCerts []*fleet.MDMManagedCertificate) {
+				require.Empty(t, managedCerts)
+			},
+		},
+		{
+			name:     "conditional access enroll secret lookup fails",
+			hostUUID: "condaccess-host-uuid",
+			conditionalAccessSCEPChallenge: func(context.Context) (string, error) {
+				return "", errors.New("db down")
+			},
+			profileContents: `<Add><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/ServerURL</LocURI></Target>` +
+				`<Data>$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL</Data></Item></Add>` +
+				`<Add><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Challenge</LocURI></Target>` +
+				`<Data>$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE</Data></Item></Add>`,
+			expectError:     true,
+			expect: func(t *testing.T, managedCerts []*fleet.MDMManagedCertificate) {
+				require.Empty(t, managedCerts)
+			},
+		},
+		{
 			name:            "ndes not configured",
 			hostUUID:        "ndes-noconfig-host",
 			profileContents: `<Add><Item><Data>$FLEET_VAR_NDES_SCEP_CHALLENGE</Data></Item></Add>`,
@@ -514,6 +588,7 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 					}
 					return true
 				},
+				GetConditionalAccessSCEPChallenge: tt.conditionalAccessSCEPChallenge,
 			}
 
 			result, err := PreprocessWindowsProfileContentsForDeployment(deps, ProfilePreprocessParams{
@@ -533,6 +608,9 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 					require.Equal(t, tt.transientError, transientErr.Error())
 					var processingErr *MicrosoftProfileProcessingError
 					require.NotErrorAs(t, err, &processingErr)
+				}
+				if tt.expect != nil {
+					tt.expect(t, *managedCertificates)
 				}
 				return // do not verify profile contents if an error is expected
 			}
