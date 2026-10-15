@@ -1332,6 +1332,33 @@ const (
 
 const windowsMDMAuthNonceTTL = 5 * time.Minute
 
+// windowsMDMRekeyMaxOffline is how long a host can go without an osquery check-in before its pre-credentials enrollment can no longer
+// be rekeyed.
+const windowsMDMRekeyMaxOffline = 180 * 24 * time.Hour
+
+// isWindowsRekeyAllowed reports whether a pre-credentials enrollment may still be rekeyed. The rekey is unauthenticated, so it is
+// refused when the host cannot be found or has not been seen recently.
+func (svc *Service) isWindowsRekeyAllowed(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice) (bool, error) {
+	if enrolledDevice.HostUUID == "" {
+		return false, nil
+	}
+
+	host, err := svc.ds.WindowsHostLiteByUUID(ctx, enrolledDevice.HostUUID)
+	switch {
+	case fleet.IsNotFound(err):
+		return false, nil
+	case err != nil:
+		return false, ctxerr.Wrap(ctx, err, "get host for windows rekey")
+	}
+
+	if svc.clock.Now().Sub(host.SeenTime) > windowsMDMRekeyMaxOffline {
+		svc.logger.WarnContext(ctx, "refusing Windows MDM rekey for host not seen recently",
+			"device_id", enrolledDevice.MDMDeviceID, "host_id", host.ID, "last_seen", host.SeenTime)
+		return false, nil
+	}
+	return true, nil
+}
+
 // isTrustedRequest checks if the incoming request was sent from an MDM-enrolled
 // device. It returns the matched enrollment (when the device was found), the
 // auth state, and an error only when the request is malformed or otherwise
@@ -1357,6 +1384,14 @@ func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncM
 
 	if !enrolledDevice.CredentialsAcknowledged && enrolledDevice.CredentialsHash == nil {
 		// Device has not gotten new credentials, rekey the device only once
+		allowed, err := svc.isWindowsRekeyAllowed(ctx, enrolledDevice)
+		if err != nil {
+			return nil, RequestAuthStateUntrusted, ctxerr.Wrap(ctx, err, "check windows rekey eligibility")
+		}
+		if !allowed {
+			// Same message as an unknown device so a refused rekey is not distinguishable from a missing enrollment.
+			return nil, RequestAuthStateUntrusted, errors.New("device was not MDM enrolled")
+		}
 		return enrolledDevice, RequestAuthStateRekey, nil
 	}
 
