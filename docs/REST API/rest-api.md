@@ -15218,7 +15218,7 @@ labels_exclude_any="QA"
 
 ```json
 {
-  "software_package": {
+  "package": {
     "team_id": 310,
     "title_id": 2792,
     "name": "Slack-4.50.128-macOS.pkg",
@@ -15313,7 +15313,7 @@ post_install_script="sudo /Applications/Falcon.app/Contents/Resources/falconctl 
 
 ```json
 {
-  "software_package": {
+  "package": {
     "team_id": 310,
     "title_id": 2792,
     "name": "Slack-4.45.64-macOS.pkg",
@@ -15996,7 +15996,7 @@ Deletes software that's available for install. For Android hosts, the software i
 | ----            | ------- | ---- | --------------------------------------------     |
 | software_title_id              | integer | path | **Required**. The ID of the software title to delete software available for install. |
 | fleet_id | integer | query | **Required**. The fleet ID. Deletes a software package added to the specified fleet. |
-| package_id | integer | query | Deletes only the specified package. If omitted, all of the title's packages on the fleet are deleted. |
+| installer_id | integer | query | Deletes only the specified package. If omitted, all of the title's packages on the fleet are deleted. |
 
 #### Example
 
