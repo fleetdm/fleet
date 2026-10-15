@@ -2583,7 +2583,13 @@ func TestRekeyWindowsDevice(t *testing.T) {
 		require.Nil(t, credsHash)
 	}
 
-	enrollmentHostUUID, hostLookupErr, hostSeenAt = "host-uuid-123", nil, time.Now()
+	// Any other lookup failure also refuses the rekey, but surfaces the error instead of posing as an unknown device.
+	enrollmentHostUUID, hostLookupErr = "host-uuid-123", errors.New("boom")
+	_, err = svc.GetMDMWindowsManagementResponse(ctx, req)
+	require.ErrorContains(t, err, "check windows rekey eligibility")
+	require.Nil(t, credsHash)
+
+	hostLookupErr, hostSeenAt = nil, time.Now()
 	res, err := svc.GetMDMWindowsManagementResponse(ctx, req)
 	require.NoError(t, err)
 	require.NotNil(t, res)
