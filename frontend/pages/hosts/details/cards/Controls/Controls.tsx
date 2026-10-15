@@ -229,7 +229,7 @@ const Controls = ({
 
   const tableCustomFilters = (): JSX.Element | null => {
     if (isDeviceUser) {
-      if (!isPremiumTier) {
+      if (!isPremiumTier || !controls.some((control) => control.hidden)) {
         return null;
       }
 
