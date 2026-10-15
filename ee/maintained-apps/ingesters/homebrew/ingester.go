@@ -324,6 +324,15 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.UniqueIdentifier, out.Version,
 		)
 	}
+	if input.Token == "mindmanager" {
+		// MindManager's bundle ID carries the major version (com.mindjet.mindmanager.25,
+		// .26, ...), so hosts still on an older major never match the current ID. Flag
+		// any major's bundle that's older than the cask version.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier GLOB 'com.mindjet.mindmanager.[0-9][0-9]' AND version_compare(bundle_short_version, '%s') < 0);",
+			out.Version,
+		)
+	}
 	if input.Token == "firefox@developer-edition" {
 		// The bundle reports only the base version ("153.0") for cask version
 		// "153.0b13", so compare CFBundleVersion (encodes the build date, resolved

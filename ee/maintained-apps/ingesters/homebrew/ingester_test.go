@@ -87,7 +87,7 @@ func TestIngestValidations(t *testing.T) {
 				Version: "1.0",
 			}
 
-		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "swiftdialog", "teleport-suite", "r-app", "kicad", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
+		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "swiftdialog", "teleport-suite", "r-app", "kicad", "mindmanager", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
 			cask = brewCask{
 				Token:   appToken,
 				Name:    []string{appToken},
@@ -155,6 +155,7 @@ func TestIngestValidations(t *testing.T) {
 		{"", inputApp{Token: "teleport-suite", UniqueIdentifier: "com.gravitational.teleport.tsh", InstallerFormat: "pkg", Name: "Teleport Suite", Slug: "teleport-suite/darwin"}},
 		{"", inputApp{Token: "r-app", UniqueIdentifier: "org.R-project.R", InstallerFormat: "pkg", Name: "R for macOS", Slug: "r/darwin"}},
 		{"", inputApp{Token: "kicad", UniqueIdentifier: "org.kicad.kicad", InstallerFormat: "dmg", Name: "KiCad", Slug: "kicad/darwin"}},
+		{"", inputApp{Token: "mindmanager", UniqueIdentifier: "com.mindjet.mindmanager.26", InstallerFormat: "dmg", Name: "MindManager", Slug: "mindmanager/darwin"}},
 		{"", inputApp{Token: "install_script_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", InstallScriptPath: path.Join(tempDir, "install_script.sh")}},
 		{"", inputApp{Token: "uninstall_script_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", UninstallScriptPath: path.Join(tempDir, "uninstall_script.sh")}},
 		{"", inputApp{Token: "open-query", UniqueIdentifier: "com.example.app", InstallerFormat: "pkg", Name: "Example App"}},
@@ -258,6 +259,14 @@ func TestIngestValidations(t *testing.T) {
 				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'org.R-project.R';", out.Queries.Exists)
 				require.Equal(t,
 					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.R-project.R' AND version_compare(REGEX_MATCH(bundle_short_version, 'R (?:R )?([0-9]+(?:\\.[0-9]+)+) GUI', 1), '1.0') < 0);",
+					out.Queries.Patched,
+				)
+			case "mindmanager":
+				// The bundle ID carries the major version, so the patched query matches
+				// every major while exists stays on the current one.
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mindjet.mindmanager.26';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier GLOB 'com.mindjet.mindmanager.[0-9][0-9]' AND version_compare(bundle_short_version, '1.0') < 0);",
 					out.Queries.Patched,
 				)
 			default:
