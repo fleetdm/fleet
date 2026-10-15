@@ -140,11 +140,11 @@ You can create a patch policy by setting `type` to `patch` and specifying `fleet
 
 A patch policy's `query` automatically updates. Hosts will fail this policy if they're not running the latest version found in [the app's metadata](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `version` is set for `fleet_maintained_apps`, that version is included in the query.
 
-To force patch the app when this policy fails, whether or not the app is open, set `install_software` to `true`.
+To patch the app when this policy fails, set one of these options to `true`. Only one can be `true`. If none are set, Fleet doesn't patch the app automatically.
 
-To silently patch the app when this policy fails and app is not open, set both `install_software` and `patch_when_closed to `true`. 
-
-To notify the end user before the app is patched, set `install_software` and `notify_before_patching` to `true`. Fleet checks if the app is open, and if yes shows a notification listing the apps that will be updated, waits 1 hour, then installs the patch. A reminder is shown 5 minutes before the install. This option is only available on macOS, and requires the Fleet Desktop app (available as a Fleet-maintained app).
+- `force_patch`: Fleet patches the app when this policy fails, whether or not the app is open.
+- `patch_when_closed`: Fleet silently patches the app when this policy fails and the app isn't open.
+- `notify_before_patching`: Fleet checks if the app is open, and if yes shows a notification listing the apps that will be updated, waits 1 hour, then installs the patch. A reminder is shown 5 minutes before the install. This option is only available on macOS, and requires the Fleet Desktop app (available as a Fleet-maintained app).
 
 Fleet adds a read-only pre-install query that checks if the app is open when `patch_when_closed` or `notify_before_patching` is set to `true`. Also, `continuous_automations_enabled` is automatically set to `true` when one of these options is enabled. The Fleet-managed pre-install query is ignored for self-service, host details page, and setup experience installs. Fleet-managed pre-install query is ignored for self-service, host details page, and setup experience installs.
 
@@ -254,7 +254,6 @@ policies:
   type: patch
   fleet_maintained_app_slug: zoom/darwin
   continuous_automations_enabled: true
-  install_software: true
   patch_when_closed: true
 - name: Slack
   description: Outdated software might introduce security vulnerabilities or compatibility issues.
@@ -262,13 +261,12 @@ policies:
   type: patch
   fleet_maintained_app_slug: slack/darwin
   continuous_automations_enabled: true
-  install_software: true
+  force_patch: true
 - name: 1Password up to date
   description: Outdated software might introduce security vulnerabilities or compatibility issues.
   resolution: Install the latest version from self-service.
   type: patch
   fleet_maintained_app_slug: 1password/darwin
-  install_software: true
   notify_before_patching: true
 ```
 
