@@ -4584,11 +4584,10 @@ func (ds *Datastore) GetSoftwareInstallersPendingDeletion(ctx context.Context, t
 		globalOrTeamID = *tmID
 	}
 
-	// An installer survives a batch set iff its title matches an incoming
-	// (unique_identifier, source) key with extension_for = '' — the same
-	// matching BatchSetSoftwareInstallers uses to upsert titles before
-	// deleting installers with title_id NOT IN the upserted set. DISTINCT
-	// collapses multiple installer rows (cached FMA versions) of one title.
+	// Reports the team's installers whose title matches no incoming
+	// (unique_identifier, source) key with extension_for = ''. BatchSetSoftwareInstallers
+	// also keeps a title a payload attaches to by name; the caller drops those.
+	// DISTINCT collapses multiple installer rows (cached FMA versions) of one title.
 	stmt := `
 SELECT DISTINCT
   si.team_id,
