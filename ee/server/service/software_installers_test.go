@@ -3920,7 +3920,7 @@ func TestSoftwareBatchUploadWindowsFMAKeepsManifestUninstallScript(t *testing.T)
 	}
 
 	payload := &fleet.SoftwareInstallerPayload{Slug: new("app/windows")}
-	require.NoError(t, svc.maintainedAppFromSlug(t.Context(), payload, new(uint(1))))
+	require.NoError(t, svc.softwareInstallerPayloadFromSlug(t.Context(), payload, new(uint(1))))
 	svc.softwareBatchUpload("req-uuid", new(uint(1)), 1, []*fleet.SoftwareInstallerPayload{payload}, false)
 
 	status, err := svc.keyValueStore.Get(t.Context(), batchSoftwarePrefix+"req-uuid")
