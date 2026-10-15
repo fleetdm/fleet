@@ -2258,6 +2258,8 @@ type SetLockCommandForLostModeCheckinFunc func(ctx context.Context, hostID uint,
 
 type ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc func(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error)
 
+type ListHostMDMAndroidVPPAppsLatestFailedInstallFunc func(ctx context.Context, hostUUID string) ([]*fleet.HostAndroidVPPSoftwareInstall, error)
+
 type BulkSetVPPInstallsAsVerifiedFunc func(ctx context.Context, hostID uint, commandUUIDs []string) error
 
 type BulkSetVPPInstallsAsFailedFunc func(ctx context.Context, hostID uint, commandUUIDs []string) error
@@ -5945,6 +5947,9 @@ type DataStore struct {
 
 	ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc        ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc
 	ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked bool
+
+	ListHostMDMAndroidVPPAppsLatestFailedInstallFunc        ListHostMDMAndroidVPPAppsLatestFailedInstallFunc
+	ListHostMDMAndroidVPPAppsLatestFailedInstallFuncInvoked bool
 
 	BulkSetVPPInstallsAsVerifiedFunc        BulkSetVPPInstallsAsVerifiedFunc
 	BulkSetVPPInstallsAsVerifiedFuncInvoked bool
@@ -14270,6 +14275,13 @@ func (s *DataStore) ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx conte
 	s.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc(ctx, hostUUID, policyVersion)
+}
+
+func (s *DataStore) ListHostMDMAndroidVPPAppsLatestFailedInstall(ctx context.Context, hostUUID string) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+	s.mu.Lock()
+	s.ListHostMDMAndroidVPPAppsLatestFailedInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostMDMAndroidVPPAppsLatestFailedInstallFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) BulkSetVPPInstallsAsVerified(ctx context.Context, hostID uint, commandUUIDs []string) error {

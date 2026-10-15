@@ -1649,7 +1649,15 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 		svc.logger.ErrorContext(ctx, "error getting pending vpp installs", "err", err)
 		return
 	}
-	if len(pendingInstallApps) == 0 {
+	// A failure is not final: the device can report an app installed after Fleet gave up
+	// on it, e.g. when it was offline past the install timeout or the report listing the
+	// app arrived after the one that failed it.
+	failedInstallApps, err := svc.ds.ListHostMDMAndroidVPPAppsLatestFailedInstall(ctx, hostUUID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "error getting failed vpp installs", "err", err)
+		return
+	}
+	if len(pendingInstallApps) == 0 && len(failedInstallApps) == 0 {
 		return
 	}
 
@@ -1740,6 +1748,18 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 				toVerifyUUIDs = append(toVerifyUUIDs, install.CommandUUID)
 			} else {
 				toFailUUIDs = append(toFailUUIDs, install.CommandUUID)
+			}
+		}
+	}
+	for _, install := range failedInstallApps {
+		if _, ok := pendingByPackageName[install.AdamID]; ok {
+			continue
+		}
+		for _, appReport := range device.ApplicationReports {
+			if appReport.PackageName == install.AdamID && appReport.State == "INSTALLED" {
+				toVerifyUUIDs = append(toVerifyUUIDs, install.CommandUUID)
+				svc.logger.InfoContext(ctx, "Previously failed software reported as installed, marking as verified", "host_uuid", hostUUID, "package_name", install.AdamID)
+				break
 			}
 		}
 	}

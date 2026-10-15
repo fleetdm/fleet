@@ -4633,6 +4633,127 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidCancelOnUnenroll() {
 	require.Equal(t, 0, countOther)
 }
 
+func (s *integrationMDMTestSuite) TestSetupExperienceAndroidFailedInstallReportedInstalled() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	enterpriseID := s.enableAndroidMDM(t)
+
+	apps := []*fleet.VPPApp{
+		{AdamID: "com.reported.first", Platform: fleet.AndroidPlatform, Name: "ReportedFirst"},
+		{AdamID: "com.reported.later", Platform: fleet.AndroidPlatform, Name: "ReportedLater"},
+	}
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		for _, app := range apps {
+			if app.AdamID == packageName {
+				return &androidmanagement.Application{Title: app.Name}, nil
+			}
+		}
+		return nil, &notFoundError{}
+	}
+	var policyVersion int64 // no need for mutex, protected via runWorkerUntilDone
+	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		policyVersion++
+		return &androidmanagement.Policy{Version: policyVersion}, nil
+	}
+
+	var titleIDs []uint
+	for _, app := range apps {
+		var addAppResp addAppStoreAppResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+			AppStoreID: app.AdamID, Platform: fleet.AndroidPlatform,
+		}, http.StatusOK, &addAppResp)
+		titleIDs = append(titleIDs, addAppResp.TitleID)
+	}
+	var putResp putSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", &putSetupExperienceSoftwareRequest{
+		Platform: string(fleet.AndroidPlatform), TeamID: 0, TitleIDs: titleIDs,
+	}, http.StatusOK, &putResp)
+
+	host, deviceInfo, pubSubToken := s.createAndEnrollAndroidDevice(t, "failed-then-installed", nil, false)
+	s.runWorkerUntilDoneWithChecks(true)
+
+	pushStatusReport := func(appReports []*androidmanagement.ApplicationReport, nonCompliance []*androidmanagement.NonComplianceDetail) {
+		msg := statusReportMessageWithEnterpriseSpecificID(t, androidmanagement.Device{
+			Name:                 deviceInfo.Name,
+			EnrollmentTokenData:  deviceInfo.EnrollmentTokenData,
+			AppliedPolicyName:    fmt.Sprintf("enterprises/%s/policies/%s", enterpriseID, host.UUID),
+			AppliedPolicyVersion: policyVersion,
+			ApplicationReports:   appReports,
+			NonComplianceDetails: nonCompliance,
+			LastPolicySyncTime:   time.Now().Format(time.RFC3339Nano),
+		}, host.UUID)
+		s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &android_service.PubSubPushRequest{PubSubMessage: *msg},
+			http.StatusOK, "token", string(pubSubToken.Value))
+	}
+	installed := func(app *fleet.VPPApp) *androidmanagement.ApplicationReport {
+		return &androidmanagement.ApplicationReport{PackageName: app.AdamID, State: "INSTALLED"}
+	}
+	notApproved := func(app *fleet.VPPApp) *androidmanagement.NonComplianceDetail {
+		return &androidmanagement.NonComplianceDetail{PackageName: app.AdamID, NonComplianceReason: "APP_NOT_INSTALLED", InstallationFailureReason: "NOT_APPROVED"}
+	}
+	hostStatuses := func() map[string]fleet.SoftwareInstallerStatus {
+		var resp getHostSoftwareResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &resp, "available_for_install", "true")
+		statuses := make(map[string]fleet.SoftwareInstallerStatus, len(resp.Software))
+		for _, sw := range resp.Software {
+			require.NotNil(t, sw.Status, sw.Name)
+			statuses[sw.Name] = *sw.Status
+		}
+		return statuses
+	}
+	// oldest first
+	installActivityStatuses := func(app *fleet.VPPApp) []string {
+		var resp listActivitiesResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host.ID), nil, http.StatusOK, &resp, "per_page", "100")
+		var statuses []string
+		for _, act := range slices.Backward(resp.Activities) {
+			if act.Type != (fleet.ActivityInstalledAppStoreApp{}).ActivityName() || act.Details == nil {
+				continue
+			}
+			var details fleet.ActivityInstalledAppStoreApp
+			require.NoError(t, json.Unmarshal(*act.Details, &details))
+			if details.AppStoreID == app.AdamID {
+				statuses = append(statuses, details.Status)
+			}
+		}
+		return statuses
+	}
+
+	pushStatusReport([]*androidmanagement.ApplicationReport{installed(apps[0])}, []*androidmanagement.NonComplianceDetail{notApproved(apps[1])})
+	require.Equal(t, map[string]fleet.SoftwareInstallerStatus{
+		apps[0].Name: fleet.SoftwareInstalled, apps[1].Name: fleet.SoftwareInstallFailed,
+	}, hostStatuses())
+
+	// The device later reports the failed app installed, which overrides the failure.
+	pushStatusReport([]*androidmanagement.ApplicationReport{installed(apps[0]), installed(apps[1])}, nil)
+	require.Equal(t, map[string]fleet.SoftwareInstallerStatus{
+		apps[0].Name: fleet.SoftwareInstalled, apps[1].Name: fleet.SoftwareInstalled,
+	}, hostStatuses())
+	require.Equal(t, []string{string(fleet.SoftwareInstalled)}, installActivityStatuses(apps[0]))
+	require.Equal(t, []string{string(fleet.SoftwareInstallFailed), string(fleet.SoftwareInstalled)}, installActivityStatuses(apps[1]))
+
+	// After re-enrolling, a failure of the new install is overridden too, and the
+	// previous enrollment's installs are left alone.
+	msg := enrollmentMessageWithEnterpriseSpecificID(t, androidmanagement.Device{
+		Name: deviceInfo.Name, EnrollmentTokenData: deviceInfo.EnrollmentTokenData,
+	}, host.UUID)
+	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &android_service.PubSubPushRequest{PubSubMessage: *msg},
+		http.StatusOK, "token", string(pubSubToken.Value))
+	s.runWorkerUntilDoneWithChecks(true)
+	require.Equal(t, map[string]fleet.SoftwareInstallerStatus{
+		apps[0].Name: fleet.SoftwareInstallPending, apps[1].Name: fleet.SoftwareInstallPending,
+	}, hostStatuses())
+
+	pushStatusReport([]*androidmanagement.ApplicationReport{installed(apps[0])}, []*androidmanagement.NonComplianceDetail{notApproved(apps[1])})
+	pushStatusReport([]*androidmanagement.ApplicationReport{installed(apps[0]), installed(apps[1])}, nil)
+	require.Equal(t, map[string]fleet.SoftwareInstallerStatus{
+		apps[0].Name: fleet.SoftwareInstalled, apps[1].Name: fleet.SoftwareInstalled,
+	}, hostStatuses())
+	// re-enrolling cleared the host's past activities, so these are only the new enrollment's
+	require.Equal(t, []string{string(fleet.SoftwareInstalled)}, installActivityStatuses(apps[0]))
+	require.Equal(t, []string{string(fleet.SoftwareInstallFailed), string(fleet.SoftwareInstalled)}, installActivityStatuses(apps[1]))
+}
+
 func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	t := s.T()
 	s.setSkipWorkerJobs(t)
