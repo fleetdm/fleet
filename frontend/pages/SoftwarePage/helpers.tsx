@@ -448,9 +448,9 @@ export const buildSelectedLabelsArray = (
 
 /** Routes a submit error from the Add/Edit version modals: the backend's
  * duplicate-version-name conflict goes to the Name field; anything else
- * (including other errors that happen to contain "name", e.g. an unsupported
- * `$FLEET_VAR_..._USERNAME`) stays in the error toast so admins see the real
- * reason. */
+ * surfaces the server's reason in the toast (e.g. an unknown managed-config
+ * key or unsupported `$FLEET_VAR_`), falling back to the generic message
+ * only when the server returned no reason. */
 export const routeVersionNameError = (
   e: unknown,
   setServerErrors: (errs: IFormErrors | null) => void,
@@ -460,7 +460,7 @@ export const routeVersionNameError = (
   if (reason?.toLowerCase().includes("a version named")) {
     setServerErrors({ name: reason });
   } else {
-    notify.error(fallbackMsg, { response: e });
+    notify.error(reason || fallbackMsg, { response: e });
   }
 };
 
