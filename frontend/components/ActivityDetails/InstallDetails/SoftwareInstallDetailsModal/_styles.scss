@@ -7,6 +7,14 @@
     gap: $pad-medium;
   }
 
+  &__premium-feature-message {
+    @include vertical-modal-layout;
+
+    p {
+      margin: 0;
+    }
+  }
+
   .data-set__horizontal {
     flex-direction: row;
   }

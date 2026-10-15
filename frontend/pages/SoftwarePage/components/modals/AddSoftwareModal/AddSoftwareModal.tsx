@@ -34,7 +34,7 @@ const AddSoftwareModal = ({ onExit, isFreeTier }: IAddSoftwareModalProps) => {
     if (isFreeTier) {
       return (
         <>
-          <PremiumFeatureMessage />
+          <PremiumFeatureMessage variant="compact" />
           <div className="modal-cta-wrap">
             <Button onClick={onExit}>Close</Button>
           </div>

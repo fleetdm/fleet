@@ -38,7 +38,7 @@ const UpdateEndUserModal = ({
 
   const renderContent = () => {
     if (!isPremiumTier) {
-      return <PremiumFeatureMessage />;
+      return <PremiumFeatureMessage variant="compact" />;
     }
     return (
       <>

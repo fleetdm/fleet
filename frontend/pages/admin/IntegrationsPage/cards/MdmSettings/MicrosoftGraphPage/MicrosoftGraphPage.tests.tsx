@@ -65,7 +65,7 @@ describe("MicrosoftGraphPage", () => {
     renderPage([], { isPremiumTier: false });
 
     expect(
-      await screen.findByText("This feature is included in Fleet Premium.")
+      await screen.findByText("Included in Fleet Premium")
     ).toBeInTheDocument();
     expect(screen.queryByLabelText("Tenant ID")).not.toBeInTheDocument();
     // The endpoint is premium-only, so Free should not even ask.
