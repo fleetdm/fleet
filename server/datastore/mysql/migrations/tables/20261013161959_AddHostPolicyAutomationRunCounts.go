@@ -16,10 +16,11 @@ func Up_20261013161959(tx *sql.Tx) error {
 		return fmt.Errorf("drop host_policy_automation_run_counts table: %w", err)
 	}
 
+	// Store activity_type as an ENUM, with VARCHAR(255) in the primary key the backfill inserts took twice as long.
 	_, err = tx.Exec(`
 CREATE TABLE host_policy_automation_run_counts (
 	policy_id     INT UNSIGNED NOT NULL,
-	activity_type VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+	activity_type ENUM('installed_app_store_app', 'installed_software', 'ran_script') NOT NULL,
 	host_id       INT UNSIGNED NOT NULL,
 	success_count INT UNSIGNED NOT NULL DEFAULT 0,
 	fail_count    INT UNSIGNED NOT NULL DEFAULT 0,

@@ -1375,7 +1375,7 @@ CREATE TABLE `host_orbit_info` (
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `host_policy_automation_run_counts` (
   `policy_id` int unsigned NOT NULL,
-  `activity_type` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `activity_type` enum('installed_app_store_app','installed_software','ran_script') COLLATE utf8mb4_unicode_ci NOT NULL,
   `host_id` int unsigned NOT NULL,
   `success_count` int unsigned NOT NULL DEFAULT '0',
   `fail_count` int unsigned NOT NULL DEFAULT '0',
