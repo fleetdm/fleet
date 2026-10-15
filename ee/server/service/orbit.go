@@ -9,7 +9,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/google/uuid"
 )
 
 func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool, resetFailedSetupSteps bool) (*fleet.SetupExperienceStatusPayload, error) {
@@ -215,9 +214,8 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 			svc.logger.InfoContext(ctx, "releasing device, all DEP enrollment commands, profiles, software installs and script execution have completed", "host_uuid", host.UUID)
 		}
 
-		// Host will be marked as no longer "awaiting configuration" in the command handler
-		if err := svc.mdmAppleCommander.DeviceConfigured(ctx, host.UUID, uuid.NewString()); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "failed to enqueue DeviceConfigured command")
+		if err := apple_mdm.ReleaseDevice(ctx, svc.ds, svc.mdmAppleCommander, svc.logger, host.UUID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "release device")
 		}
 	}
 

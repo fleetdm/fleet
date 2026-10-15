@@ -562,6 +562,94 @@ const TEST_CASES = [
     }
   },
 
+  // Third-party apps, from the ADMX templates in profile-generator/schema/admx-templates/.  The ADMXInstall
+  // commands are added after generation, so asserting on them checks that the right templates were picked
+  // up from the policies the model chose.
+  {
+    id: 'csp-admx-chrome-homepage',
+    profileType: 'csp',
+    instructions: 'Set the Chrome homepage to https://fleetdm.com.',
+    readByEye: 'The ADMXInstall <Replace> comes first, and the policy is a <Replace>.',
+    expect: {
+      mustContain: [
+        'ConfigOperations/ADMXInstall/GoogleChrome/Policy/GoogleChromeAdmxFile',
+        './Device/Vendor/MSFT/Policy/Config/GoogleChrome~Policy~googlechrome~Startup/HomepageLocation<',
+        '<data id="HomepageLocation" value="https://fleetdm.com"/>',
+        '<enabled/>',
+      ],
+      mustContainElement: [['Format', 'chr']],
+      mustNotContain: ['&lt;enabled/&gt;'],
+      // Outside CDATA, because the embedded chrome.admx defines the _recommended twin too.
+      mustNotContainOutsideCdata: ['<?xml', 'HomepageLocation_recommended'],
+    }
+  },
+  {
+    id: 'csp-admx-chrome-restore-last-session',
+    profileType: 'csp',
+    instructions: 'Make Chrome reopen the last session when it starts.',
+    expect: {
+      mustContain: [
+        'ConfigOperations/ADMXInstall/GoogleChrome/Policy/GoogleChromeAdmxFile',
+        'Policy/Config/GoogleChrome~Policy~googlechrome~Startup/RestoreOnStartup<',
+        // An enum takes the item's value, never the label or the item's position.
+        '<data id="RestoreOnStartup" value="1"/>',
+      ],
+      mustNotContainOutsideCdata: ['RestoreOnStartup_recommended'],
+    }
+  },
+  {
+    id: 'csp-admx-chrome-force-install-extension',
+    profileType: 'csp',
+    instructions: 'Force-install the Chrome extension with ID ddkjiahejlhfcafbddmgiahcphecmpfh on every computer.',
+    readByEye: 'The list value is name/value pairs: 1&#xF000;<extension ID>, optionally followed by ;<update URL>.',
+    expect: {
+      mustContain: [
+        'ConfigOperations/ADMXInstall/GoogleChrome/Policy/GoogleChromeAdmxFile',
+        'Policy/Config/GoogleChrome~Policy~googlechrome~Extensions/ExtensionInstallForcelist<',
+        '<data id="ExtensionInstallForcelistDesc" value="1&#xF000;ddkjiahejlhfcafbddmgiahcphecmpfh',
+      ],
+    }
+  },
+  {
+    id: 'csp-admx-firefox-disable-telemetry',
+    profileType: 'csp',
+    instructions: 'Turn off telemetry in Firefox.',
+    expect: {
+      mustContain: [
+        'ConfigOperations/ADMXInstall/MozillaFirefox/Policy/MozillaFirefoxAdmxFile',
+        'Policy/Config/MozillaFirefox~Policy~firefox/DisableTelemetry<',
+        '<enabled/>',
+      ],
+      mustNotContain: ['System/AllowTelemetry', '<data id='],
+    }
+  },
+  {
+    id: 'csp-admx-google-update-pin-chrome-version',
+    profileType: 'csp',
+    instructions: 'Keep Google Chrome on version 128 and stop it updating past that.',
+    readByEye: 'Pol_UpdatePolicyGoogleChrome may also be set, but not to 0 (updates disabled), which would also stop 128.x security fixes.  Google documents the prefix with a trailing dot (128.), though 128 alone also pins it.',
+    expect: {
+      mustContain: [
+        'ConfigOperations/ADMXInstall/GoogleUpdate/Policy/GoogleUpdateAdmxFile',
+        'Policy/Config/GoogleUpdate~Policy~Cat_GoogleUpdate~Cat_Applications~Cat_GoogleChrome/Pol_TargetVersionPrefixGoogleChrome<',
+        '<data id="Part_TargetVersionPrefix" value="128',
+      ],
+    }
+  },
+  {
+    id: 'csp-admx-mixed-with-windows-setting',
+    profileType: 'csp',
+    instructions: 'Turn off Cortana and set the Chrome homepage to https://fleetdm.com.',
+    expect: {
+      mustContain: [
+        'Policy/Config/Experience/AllowCortana',
+        'ConfigOperations/ADMXInstall/GoogleChrome/Policy/GoogleChromeAdmxFile',
+        'Policy/Config/GoogleChrome~Policy~googlechrome~Startup/HomepageLocation<',
+      ],
+      mustContainElement: [['Format', 'int'], ['Format', 'chr'], ['Data', '0']],
+    }
+  },
+
   //  ╔╦╗╔═╗╔╗ ╦╦  ╔═╗╔═╗╔╗╔╔═╗╦╔═╗
   //  ║║║║ ║╠╩╗║║  ║╣ ║  ║║║╠╣ ║║ ╦
   //  ╩ ╩╚═╝╚═╝╩╩═╝╚═╝╚═╝╝╚╝╚  ╩╚═╝

@@ -543,6 +543,7 @@ This is the complete set.  A declaration type or key that does not appear here d
     // of the model that writes the profile, so the areas this request needs are looked up first and only
     // those go in.  An area averages under 1KB, and the largest (VPNv2) is ~18KB.
     let windowsCspAreasProvided = [];
+    let admxTemplatesProvided = [];
     if(profileType === 'csp') {
 
       // Scraped from Microsoft's published reference by `sails run regenerate-windows-csp-nodes`.
@@ -556,6 +557,35 @@ This is the complete set.  A declaration type or key that does not appear here d
           `\`sails run regenerate-windows-csp-nodes\` to build it.  Full error: ${err.message}`
         );
       }
+      // Third-party apps' policies (Chrome, Firefox, ...) exist as CSP nodes only once their ADMX template is
+      // ingested, so Microsoft's reference has none of them.  They are merged in as Policy areas named the way
+      // Windows names them after ingestion -- GoogleChrome~Policy~googlechrome~Startup -- so the lookup, keyword
+      // search and rendering below treat them like any other area.
+      let admxTemplateFilePath = path.resolve(sails.config.appPath, 'profile-generator/schema/windows-admx-templates.json');
+      let admxTemplateFile;
+      try {
+        admxTemplateFile = require(admxTemplateFilePath);
+      } catch (err) {
+        throw new Error(
+          `Could not read the Windows ADMX template reference at ${admxTemplateFilePath}.  Run ` +
+          `\`sails run regenerate-windows-admx-templates\` to build it.  Full error: ${err.message}`
+        );
+      }
+      // Index the templates by id, so a policy's template can be looked up from its admxTemplate value.
+      let admxTemplatesById = _.indexBy(admxTemplateFile.templates, 'id');
+      // Add the templates' policies to the Windows CSP nodes, in a copy, since `require` hands every caller the same cached object.
+      nodeFile = Object.assign({}, nodeFile, { nodes: nodeFile.nodes.concat(admxTemplateFile.nodes) });
+
+      // A template's policies are offered only when the request names its app.  They share most of their
+      // words with Windows' own (Firefox has a DisableTelemetry beside System/AllowTelemetry), and a request
+      // that names no app is asking about Windows, so offering them there only gives the lookup and the
+      // keyword search a lookalike to pick.  It also leaves every other request's index exactly as it was.
+
+      let lowercaseInstructions = naturalLanguageInstructions.toLowerCase();
+      // Find the templates whose keywords the request mentions, matched as whole words.
+      let admxTemplateIdsTheRequestNames = _.pluck(_.filter(admxTemplateFile.templates, (template)=>{
+        return _.any(template.keywords || [], (keyword)=>{ return new RegExp(`\\b${_.escapeRegExp(keyword)}\\b`).test(lowercaseInstructions); });
+      }), 'id');
       // Policy CSP nodes are grouped by area, since that is how the Policy CSP is organized and how its
       // LocURIs are built.  Every other CSP is one group of its own, suffixed so it cannot collide with a
       // Policy area: DeviceLock, Defender, Update and Wifi are each both, and matching is case-insensitive.
@@ -563,7 +593,18 @@ This is the complete set.  A declaration type or key that does not appear here d
       // A standalone CSP's Get-only nodes are dropped here, since no profile can set them: DevDetail,
       // DeviceStatus and the other inventory CSPs are nothing but, and they are half of the largest CSPs.
       // Every Policy CSP node is settable.
-      let nodesAProfileCanSet = _.filter(nodeFile.nodes, (node)=>{ return node.csp === 'Policy' || /Add|Replace|Exec/.test(node.accessType || ''); });
+      // Chrome publishes each policy twice, once enforced and once under *_recommended as a default the user
+      // can change.  Offered both, the lookup named the recommended twin for "make Chrome reopen the last
+      // session", so it is only offered when the request asks for a default.
+      let requestAsksForADefault = /\b(recommend\w*|default|suggest\w*|user can change|users can change)\b/.test(lowercaseInstructions);
+      // Keep the nodes a profile can set: a template's policies only when the request names its app (leaving out its _recommended policies unless the request asks for a default), and every other node a profile can write to.
+      let nodesAProfileCanSet = _.filter(nodeFile.nodes, (node)=>{
+        if(node.admxTemplate) {
+          return _.contains(admxTemplateIdsTheRequestNames, node.admxTemplate) && (requestAsksForADefault || !/_recommended(~|$)/.test(node.area));
+        }
+        return node.csp === 'Policy' || /Add|Replace|Exec/.test(node.accessType || '');
+      });
+      // Group the nodes by Policy CSP area, or by CSP for every other CSP, e.g., DeviceLock or "WiFi CSP".
       let nodesByArea = _.groupBy(nodesAProfileCanSet, (node)=>{ return node.csp === 'Policy' ? node.area : `${node.csp} CSP`; });
 
       // Node names rather than area names, deliberately.  Picking from an index of area names alone was
@@ -578,10 +619,29 @@ This is the complete set.  A declaration type or key that does not appear here d
       // A standalone CSP's interior nodes are left out, since the leaves under them already spell out the
       // path.  Names are deduplicated because a CSP published in both scopes (WiFi) would otherwise list
       // each one twice.
+      //
+      // A third-party template's group says which app it belongs to, since its area name is built from the
+      // template's own category names (Cat_GoogleUpdate~Cat_Applications) and does not always say.
+
+      // Build the lookup's index: one line per group, naming the group and every node in it.
       let nodeNameIndex = _.map(nodesByArea, (nodesInThisArea, areaName)=>{
         let leafNodes = _.filter(nodesInThisArea, (node)=>{ return node.csp === 'Policy' || node.format !== 'node'; });
-        return `${areaName}: ${_.uniq(_.pluck(leafNodes, 'name')).sort().join(' ')}`;
+        // Find the template this group's policies come from, if any, so the group can be labelled with its app.
+        let admxTemplate = admxTemplatesById[_.first(nodesInThisArea).admxTemplate];
+        return `${areaName}${admxTemplate ? ` (${admxTemplate.displayName} template)` : ''}: ${_.uniq(_.pluck(leafNodes, 'name')).sort().join(' ')}`;
       }).join('\n');
+
+      let thirdPartyTemplateGuidance = '';
+      // Only explain third-party template groups to the lookup when the request names one of their apps.
+      if(admxTemplateIdsTheRequestNames.length > 0) {
+        thirdPartyTemplateGuidance = `
+Groups marked "(<App> template)" hold a third-party application's own policies, from the ADMX template
+that application publishes, rather than anything in Windows.  When the request is about that application's
+behavior, name its groups rather than a Windows area that sounds similar.  Groups with _recommended in
+their name set a default the user can change; name them only when the request asks for a default or a
+recommendation rather than an enforced setting.
+`;
+      }
 
       // The small model on purpose: this is a lookup rather than a judgement.
       let picked = await sails.helpers.ai.prompt.with({
@@ -614,7 +674,7 @@ first; name the Policy area too only if the request also asks to allow or block 
 
 Return an empty array, naming nothing, only when no group below could satisfy the request.  An empty
 array is a real answer here, not a failure.
-
+${thirdPartyTemplateGuidance}
 ${nodeNameIndex}
 
 Respond in JSON with this data shape:
@@ -641,8 +701,11 @@ ${naturalLanguageInstructions}
       // has to abstain over, while an error would cost the whole profile.
       if(picked && _.isArray(picked.areas)) {
         let realAreaNames = Object.keys(nodesByArea);
+        // Loop through the groups the lookup named, and keep each one that really exists.
         for (let candidate of picked.areas) {
-          let matched = _.find(realAreaNames, (areaName)=>{ return areaName.toLowerCase() === String(candidate).toLowerCase(); });
+          // Cut off the "(<App> template)" label the lookup sometimes copies from the index, leaving just the group name.
+          let candidateName = String(candidate).split(' (')[0].trim();
+          let matched = _.find(realAreaNames, (areaName)=>{ return areaName.toLowerCase() === candidateName.toLowerCase(); });
           if(matched && !_.contains(windowsCspAreasProvided, matched)) {
             windowsCspAreasProvided.push(matched);
           }
@@ -684,6 +747,28 @@ ${naturalLanguageInstructions}
         windowsCspAreasProvided = windowsCspAreasProvided.concat(areasAddedBySearch);
       }
 
+      // A request that names an app is about that app, so when neither the lookup nor the search above
+      // provided any of its template's groups, the template's best match is added rather than leaving the
+      // model to recall a third-party path -- which is exactly what it gets wrong.
+      // Loop through the templates the request names.
+      for (let templateId of admxTemplateIdsTheRequestNames) {
+        // Find every group of this template's policies.
+        let areasOfThisTemplate = _.uniq(_.pluck(_.filter(nodesAProfileCanSet, {admxTemplate: templateId}), 'area'));
+        // Skip a template the lookup or the keyword search already provided a group for.
+        if(_.intersection(areasOfThisTemplate, windowsCspAreasProvided).length > 0) {
+          continue;
+        }
+        // Find this template's best-scoring group in the keyword search.
+        let bestAreaOfThisTemplate = _.find(areasBySearch, (areaName)=>{ return _.contains(areasOfThisTemplate, areaName) && bestScoreByArea[areaName] > 0; });
+        // Add that group to the ones provided to the model.
+        if(bestAreaOfThisTemplate) {
+          windowsCspAreasProvided.push(bestAreaOfThisTemplate);
+        }
+      }
+
+      // Record which templates' policies the model is being shown, for the caller.
+      admxTemplatesProvided = _.uniq(_.compact(_.map(windowsCspAreasProvided, (areaName)=>{ return _.first(nodesByArea[areaName]).admxTemplate; })));
+
       if(windowsCspAreasProvided.length > 0) {
 
         // Rendered in area order, off a copy: windowsCspAreasProvided goes back to the caller in the order
@@ -694,12 +779,51 @@ ${naturalLanguageInstructions}
         // the name -- so they are kept, but trimmed to their first clause.  The full sentence is
         // documentation, not a constraint.
         let schemaLines = [];
+
+        // An ingested template's policy takes a fragment of <data> elements rather than a single value, so
+        // its line shows that fragment, with a {placeholder} for each value.  Listing the elements as
+        // id=kind instead left the model writing the bare value as <Data>, the way every Policy CSP node
+        // above it takes one.  Each placeholder carries the element's label, the text beside it in the Group
+        // Policy editor, which is often the only thing saying what an element is for.
+        // Create a helper function that renders a template policy's elements as the fragment that enables it, e.g., <enabled/><data id="HomepageLocation" value="{text: Home page URL}"/>.
+        let renderAdmxFragment = (elements)=>{
+          return '<enabled/>' + _.map(elements, (element)=>{
+            let shape;
+            // Show an enum's choices as value=label pairs, e.g., {5=Open New Tab Page|1=Restore the last session}.
+            if(element.type === 'enum') {
+              shape = _.map(element.items, (item)=>{ return `${item.value}=${_.trunc(String(item.label || '').replace(/\s+/g, ' '), {length: 40})}`; }).join('|');
+            } else if(element.type === 'decimal' || element.type === 'longDecimal') {
+              // Show a number element's allowed range when it has one, e.g., {number 0-100}.
+              shape = (element.min !== undefined || element.max !== undefined) ? `number ${element.min !== undefined ? element.min : ''}-${element.max !== undefined ? element.max : ''}` : 'number';
+            } else if(element.type === 'list') {
+              // Show whether a list takes values alone or name,value pairs.
+              shape = element.explicitValue ? 'list of name,value' : 'list';
+            } else {
+              // Show any other element by its type, e.g., {text} or {boolean}.
+              shape = element.type;
+            }
+            let label = element.label ? `: ${_.trunc(element.label, {length: 60})}` : '';
+            // Return the element as a <data> element with a {placeholder} value, followed by * when the element is required.
+            return `<data id="${element.id}" value="{${shape}${label}}"/>${element.required ? '*' : ''}`;
+          }).join('');
+        };
+
+        // Loop through the groups provided to the model, in alphabetical order, and write each one's heading and one line per node into the schema the model is given.
         for (let areaName of _.clone(windowsCspAreasProvided).sort()) {
           // Six names are both a Policy area and a standalone CSP (Accounts, BitLocker, CloudDesktop, Defender,
           // Update, WiFi).  Given the bare area name, the model built the standalone CSP's path for a Policy node
           // (./Device/Vendor/MSFT/Wifi/AllowAutoConnectToWiFiSenseHotspots), so those areas spell theirs out.
           let sharesItsNameWithACsp = !_.endsWith(areaName, ' CSP') && _.any(Object.keys(nodesByArea), (otherName)=>{ return otherName.toLowerCase() === `${areaName} CSP`.toLowerCase(); });
-          schemaLines.push(sharesItsNameWithACsp ? `${areaName}  (Policy CSP area: ./Device/Vendor/MSFT/Policy/Config/${areaName}/<NodeName>)` : areaName);
+          // Find the template this group's policies come from, if any.
+          let admxTemplateOfThisArea = admxTemplatesById[_.first(nodesByArea[areaName]).admxTemplate];
+          // Head a template's group with its app's name, e.g., "GoogleChrome~Policy~googlechrome~Startup  (Google Chrome template)".
+          if(admxTemplateOfThisArea) {
+            schemaLines.push(`${areaName}  (${admxTemplateOfThisArea.displayName} template)`);
+          } else {
+            // Head any other group with its name, spelling out the Policy CSP path when the name is shared with a standalone CSP.
+            schemaLines.push(sharesItsNameWithACsp ? `${areaName}  (Policy CSP area: ./Device/Vendor/MSFT/Policy/Config/${areaName}/<NodeName>)` : areaName);
+          }
+
           for (let node of _.sortBy(nodesByArea[areaName], (node)=>{ return node.csp === 'Policy' ? node.name : node.locUri; })) {
             // A standalone CSP's paths follow no single pattern, so its nodes are listed by full LocURI,
             // which also carries the scope that @User marks on a Policy node.
@@ -728,6 +852,10 @@ ${naturalLanguageInstructions}
             }
             if(node.dependsOn) {
               parts.push(`needs ${node.dependsOn.locUri.split('/').slice(-2).join('/')}${node.dependsOn.allowedValue !== undefined ? `=${node.dependsOn.allowedValue}` : ''}`);
+            }
+            // Add the fragment that enables a template's policy, since it takes <data> elements rather than a single value.
+            if(node.admxElements) {
+              parts.push(renderAdmxFragment(node.admxElements));
             }
             // What the node does, only where its values do not already say: NotifyMalicious and
             // NotifyPasswordReuse both read "0=Disabled 1=Enabled", and MaxDevicePasswordFailedAttempts has no
@@ -783,6 +911,33 @@ Every group that exists, with its node count, is listed after the detail.  Use i
 a setting you cannot find lives somewhere that was not provided -- the names alone do not tell you what
 is in a group, and a group's name is often not what you would guess.`;
 
+        // Written out here rather than left to the ADMX-backed rule in the CSP rules, because that rule is
+        // about Windows' own ADMX-backed nodes and says nothing about how each element's value is encoded --
+        // which is where a third-party policy goes wrong, since every element type encodes differently.
+        if(admxTemplatesProvided.length > 0) {
+          promptConfig.providedSchemaDescription += `
+
+A group marked "(<App> template)" is a third-party application's policies, from the ADMX template it
+publishes, rather than part of Windows.  Its LocURI follows the Policy CSP pattern with the group name as
+the area, ~ characters included: ./Device/Vendor/MSFT/Policy/Config/GoogleChrome~Policy~googlechrome~Startup/HomepageLocation,
+or under ./User/ for one marked @User.  Each one is DFFormat chr, is set with <Replace>, and never takes a
+bare value: its <Data> is always a CDATA-wrapped policy fragment.  Its line shows the fragment that enables
+it -- copy that into <Data><![CDATA[...]]></Data>, keep a <data> element for each value the request gives
+and drop the rest, and replace each {placeholder}, braces included, with the value.  A <data> element
+followed by * must be kept whenever the policy is enabled.  To turn a policy off, the fragment is <disabled/>
+alone.
+
+Encode each value by the kind its placeholder names: text as given; number as digits within its range;
+boolean as true or false; a choice (a=label|b=label) as the value before the = sign -- never the label,
+and never its position in the list; multiText as its strings joined by &#xF000;; a list as name/value pairs
+joined by &#xF000; -- for a plain list, name the entries 1, 2, 3 (1&#xF000;first&#xF000;2&#xF000;second);
+for a list of name,value, use the names the request gives.  The fragment is parsed as XML, so write & < > "
+inside a value as &amp; &lt; &gt; &quot;.
+
+These nodes exist only once the template is installed on the device.  The command that installs it is added
+to the profile automatically after you return it.`;
+        }
+
         promptConfig.providedSchema = `${schemaLines.join('\n')}\n\nAll groups: ${_.map(Object.keys(nodesByArea).sort(), (areaName)=>{ return `${areaName}(${nodesByArea[areaName].length})`; }).join(' ')}`;
 
         // Ahead of the existing rules on purpose.  Several of those tell the model how to decide a format
@@ -790,7 +945,11 @@ is in a group, and a group's name is often not what you would guess.`;
         // the provided data if it is left to rank itself against them.
         promptConfig.rules = [
           'Every node name, LocURI, format and allowed value in the provided list is authoritative.  Where the list and your own recollection differ, the list is right and you are wrong -- copy the path, the format and the value from it character for character.  The rules below about choosing a format or working out what a value means apply only to a setting the list does not cover.',
-        ].concat(promptConfig.rules);
+        ].concat(admxTemplatesProvided.length > 0 ? [
+          // The template is ~250-450KB of XML, far past what a response can hold, so the model cannot write
+          // the install command -- and what it writes in trying is a truncated or invented template.
+          'Never write a ConfigOperations/ADMXInstall item, and never reproduce any part of a template.  The install command for each third-party template a profile uses is added after you return it.',
+        ] : []).concat(promptConfig.rules);
         // The URL stays useful as somewhere a human can check the work, but it is no longer where the
         // model is being told to get the settings from.
         promptConfig.references = [
@@ -873,7 +1032,9 @@ ${uuidsToUse}${hexEncodingsToUse}
     // is a lookup problem while the second is a prompt problem.
     // applePayloadTypesProvided for the same reason: empty means the lookup was off, failed, or found
     // nothing, and the full schema went in.
-    return { systemPrompt, userPrompt, promptConfig, suppliedPayloadUuids, windowsCspAreasProvided, applePayloadTypesProvided };
+    // admxTemplatesProvided is every third-party template whose policies the model was shown, which is a
+    // superset of the ones the profile ends up using.
+    return { systemPrompt, userPrompt, promptConfig, suppliedPayloadUuids, windowsCspAreasProvided, applePayloadTypesProvided, admxTemplatesProvided };
 
   }
 

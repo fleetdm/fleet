@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"go.step.sm/crypto/jose"
@@ -217,17 +218,31 @@ func (s *Service) FinalizeOrder(ctx context.Context, enrollment *types.Enrollmen
 	// Subject and lets the MDM checkin handler tell a fresh enrollment from a SCEP renewal (see
 	// certIsFromNewEnrollment in server/service/apple_mdm.go).
 	newEnrollment := slices.Contains(parsedCSR.Subject.OrganizationalUnit, apple_mdm.FleetEnrollmentSubjectOU)
-	parsedCSR.Subject.CommonName = "Fleet Identity"
-	parsedCSR.Subject.OrganizationalUnit = []string{"fleet"}
-	if newEnrollment {
-		parsedCSR.Subject.OrganizationalUnit = append(parsedCSR.Subject.OrganizationalUnit, apple_mdm.FleetEnrollmentSubjectOU)
-	}
 
 	signer, err := s.providers.CSRSigner(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting CSR signer")
 	}
-	cert, err := signer.SignCSR(ctx, parsedCSR)
+
+	extension := apple_mdm.AppleMDMCertificateBindingExtension{Purpose: fleet.AppleMDMCertPurpose(enrollment.Purpose)}
+	switch fleet.AppleMDMCertPurpose(enrollment.Purpose) {
+	case fleet.AppleMDMCertPurposeACME:
+		extension.Serial = &enrollment.HostIdentifier
+	case fleet.AppleMDMCertPurposeACMERenewal:
+		extension.EnrollmentID = enrollment.EnrollmentID
+		extension.Serial = &enrollment.HostIdentifier
+	default:
+		return nil, ctxerr.New(ctx, fmt.Sprintf("unsupported ACME purpose: %s", enrollment.Purpose))
+	}
+
+	ext, err := apple_mdm.BuildAppleMDMCertificateBindingExtension(extension)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "failed to build Apple MDM certificate binding extension")
+	}
+
+	cert, err := signer.SignX509CSRWithCallback(parsedCSR, apple_mdm.AppleMDMAcmeCertificateSubject(newEnrollment), func(tmpl *x509.Certificate) {
+		tmpl.ExtraExtensions = append(tmpl.ExtraExtensions, ext)
+	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "signing CSR")
 	}

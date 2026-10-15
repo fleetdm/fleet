@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -248,22 +249,11 @@ type createMDMEULARequest struct {
 }
 
 func (createMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
+	// The route limit bounds the body; operators can raise it per endpoint.
+	eula, dryRun, err := decodeEULAUpload(r, "eula", 0)
 	if err != nil {
-		return nil, &fleet.BadRequestError{
-			Message:     "failed to parse multipart form",
-			InternalErr: err,
-		}
+		return nil, err
 	}
-
-	if r.MultipartForm.File["eula"] == nil {
-		return nil, &fleet.BadRequestError{
-			Message:     "eula multipart field is required",
-			InternalErr: err,
-		}
-	}
-
-	eula := r.MultipartForm.File["eula"][0]
 
 	if eula.Size > fleet.MaxEULASize {
 		return nil, &fleet.BadRequestError{
@@ -271,14 +261,61 @@ func (createMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) 
 		}
 	}
 
-	dryRun := false
-	if v := r.URL.Query().Get("dry_run"); v != "" {
-		dryRun, _ = strconv.ParseBool(v)
-	}
 	return &createMDMEULARequest{
 		EULA:   eula,
 		DryRun: dryRun,
 	}, nil
+}
+
+// decodeEULAUpload parses an EULA upload, macOS or Windows: the file in field
+// and the dry_run flag. A positive maxBody also bounds the body here, on top of
+// the route limit.
+func decodeEULAUpload(r *http.Request, field string, maxBody int64) (*multipart.FileHeader, bool, error) {
+	if maxBody > 0 {
+		r.Body = http.MaxBytesReader(nil, r.Body, maxBody)
+	}
+	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize) //nolint:gosec // G120: bounded by the route limit, and by maxBody when set
+	if err != nil {
+		return nil, false, &fleet.BadRequestError{
+			Message:     "failed to parse multipart form",
+			InternalErr: err,
+		}
+	}
+
+	files := r.MultipartForm.File[field]
+	if len(files) == 0 {
+		return nil, false, &fleet.BadRequestError{
+			Message: field + " multipart field is required",
+		}
+	}
+
+	dryRun := false
+	if v := r.URL.Query().Get("dry_run"); v != "" {
+		// A mistyped dry run must not save.
+		if dryRun, err = strconv.ParseBool(v); err != nil {
+			return nil, false, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode dry_run bool in query: %s", err.Error())}
+		}
+	}
+	return files[0], dryRun, nil
+}
+
+// writeEULAFile writes an EULA download, macOS or Windows. nosniff keeps the
+// browser on contentType, and an attachment is saved rather than rendered.
+func writeEULAFile(ctx context.Context, w http.ResponseWriter, eula *fleet.MDMEULA, contentType string, attachment bool) {
+	w.Header().Set("Content-Length", strconv.Itoa(len(eula.Bytes)))
+	w.Header().Set("Content-Type", contentType)
+	if attachment {
+		w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": eula.Name}))
+	}
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+
+	// OK to just log the error here as writing anything on
+	// `http.ResponseWriter` sets the status code to 200 (and it can't be
+	// changed.) Clients should rely on matching content-length with the
+	// header provided
+	if n, err := w.Write(eula.Bytes); err != nil {
+		logging.WithExtras(ctx, "err", err, "bytes_copied", n)
+	}
 }
 
 type createMDMEULAResponse struct {
@@ -328,17 +365,7 @@ type getMDMEULAResponse struct {
 func (r getMDMEULAResponse) Error() error { return r.Err }
 
 func (r getMDMEULAResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
-	w.Header().Set("Content-Length", strconv.Itoa(len(r.eula.Bytes)))
-	w.Header().Set("Content-Type", "application/pdf")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-
-	// OK to just log the error here as writing anything on
-	// `http.ResponseWriter` sets the status code to 200 (and it can't be
-	// changed.) Clients should rely on matching content-length with the
-	// header provided
-	if n, err := w.Write(r.eula.Bytes); err != nil {
-		logging.WithExtras(ctx, "err", err, "bytes_copied", n)
-	}
+	writeEULAFile(ctx, w, r.eula, "application/pdf", false)
 }
 
 func getMDMEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
@@ -672,18 +699,17 @@ func (svc *Service) enqueueAndroidMDMCommand(ctx context.Context, rawJSON []byte
 
 	host := hosts[0]
 
-	// Wipe is COBO-only on Android, so a custom wipe must clear the same validation as the
-	// dedicated wipe endpoint. AMAPI derives the type from wipeParams when type is omitted, so
-	// any payload carrying wipeParams is a wipe regardless of what its type field says - don't
-	// let a caller-supplied type decide whether the check runs.
+	// A custom wipe must clear the same validation as the dedicated wipe endpoint. AMAPI
+	// derives the type from wipeParams when type is omitted, so any payload carrying
+	// wipeParams is a wipe regardless of what its type field says - don't let a
+	// caller-supplied type decide whether the check runs.
 	if cmdType == string(android.MDMAndroidCommandTypeWipe) || cmdPayload.WipeParams != nil {
-		// read from the primary: a replica lagging behind a recent enrollment would report
-		// the wrong ownership and let the wipe through
+		// hosts came from ListHostsLiteByUUIDs, which selects no MDM columns, so load the full
+		// host from the primary for any host-based rule the shared validator applies. Reusing
+		// the validator rather than re-deriving the rules here is what keeps this refusal
+		// identical to the dedicated endpoint's; the extra queries are noise next to the
+		// AMAPI round trip.
 		ctx = ctxdb.RequirePrimary(ctx, true)
-		// hosts came from ListHostsLiteByUUIDs, which selects no MDM columns, so the
-		// enrollment status has to come from a separate load. Reusing the shared validator
-		// rather than re-deriving the rule here is what keeps this refusal identical to the
-		// dedicated endpoint's; the extra queries are noise next to the AMAPI round trip.
 		hostWithMDM, err := svc.ds.Host(ctx, host.ID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get host")
@@ -828,6 +854,10 @@ func (svc *Service) enqueueMicrosoftMDMCommand(ctx context.Context, rawXMLCmd []
 	// Host-secret placeholders are Fleet's to write, never an admin's
 	if err := fleet.ValidateNoHostSecretVariables(string(rawXMLCmd)); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validate windows mdm command")
+	}
+
+	if err := fleet.ValidateWindowsMDMCommandID(cmdMsg.CmdID.Value); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validate windows mdm command id")
 	}
 
 	if cmdMsg.IsPremium() {
@@ -2728,6 +2758,8 @@ func batchModifyMDMConfigProfilesEndpoint(ctx context.Context, request interface
 			LabelsIncludeAll: p.LabelsIncludeAll,
 			LabelsIncludeAny: p.LabelsIncludeAny,
 			LabelsExcludeAny: p.LabelsExcludeAny,
+			SelfService:      p.SelfService,
+			Hidden:           p.Hidden,
 		}
 	}
 	if err := svc.BatchSetMDMProfiles(ctx, req.TeamID, req.TeamName, profiles, req.DryRun, false, nil, false); err != nil {
@@ -2890,6 +2922,12 @@ func (svc *Service) BatchSetMDMProfiles(
 		labels = append(labels, profiles[i].LabelsExcludeAny...)
 
 		if err := validateProfileDeployFlags(ctx, profiles[i].SelfService, profiles[i].Hidden, isMobileconfigContents(profiles[i].Contents), "Couldn't edit configuration_profiles. "); err != nil {
+			if iaErr, ok := errors.AsType[*fleet.InvalidArgumentError](err); ok {
+				invalid := iaErr.Invalid()
+				if len(invalid) > 0 {
+					return fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", profiles[i].Name), invalid[0]["reason"])
+				}
+			}
 			return ctxerr.Wrap(ctx, err, "validating profile deploy flags")
 		}
 	}

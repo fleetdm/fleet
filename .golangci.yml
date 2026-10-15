@@ -262,13 +262,6 @@ linters:
       - path: server/datastore/mysql/migrations/[^/]+/[^/]+\.go
         linters:
           - depguard
-      # Legacy CLI tools that use slog without context
-      - path: cmd/cpe/generate.go
-        linters:
-          - forbidigo
-      - path: tools/mdm/migration/micromdm/main.go
-        linters:
-          - forbidigo
       # cmd gosec exclusions https://github.com/fleetdm/fleet/issues/4451
       - path: cmd/osquery-perf/agent.go
         linters:

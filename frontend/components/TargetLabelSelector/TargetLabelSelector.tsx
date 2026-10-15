@@ -7,12 +7,14 @@ import DataError from "components/DataError";
 import Checkbox from "components/forms/fields/Checkbox";
 import Radio from "components/forms/fields/Radio";
 import SearchField from "components/forms/fields/SearchField";
-import Icon from "components/Icon";
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
+import Tag from "components/Tag";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { ILabelSummary } from "interfaces/label";
 import { listNamesFromSelectedLabels } from "services/entities/labels";
+import { getGitOpsModeTipContent } from "utilities/helpers";
 
 const baseClass = "target-label-selector";
 
@@ -61,23 +63,29 @@ const SelectedLabelBadges = ({
   onSelectLabel,
   disableOptions,
 }: ISelectedLabelBadgesProps) => {
+  const { gitOpsModeEnabled, repoURL } = useGitOpsMode();
   const selectedNames = listNamesFromSelectedLabels(selectedLabels);
   if (!selectedNames.length) {
     return null;
   }
+  const gitOpsTip =
+    disableOptions && gitOpsModeEnabled && repoURL
+      ? getGitOpsModeTipContent(repoURL)
+      : undefined;
   return (
     <div className={`${baseClass}__selected-badges`}>
       {selectedNames.map((name) => (
-        <button
+        <Tag
           key={name}
-          type="button"
-          className={`${baseClass}__selected-badge`}
+          type="dismissible"
+          size="small"
           disabled={disableOptions}
-          onClick={() => onSelectLabel({ name, value: false })}
+          tooltip={gitOpsTip}
+          dismissLabel={`Remove ${name}`}
+          onDismiss={() => onSelectLabel({ name, value: false })}
         >
-          <span>{name}</span>
-          <Icon name="close" size="small" color="ui-fleet-black-75" />
-        </button>
+          {name}
+        </Tag>
       ))}
     </div>
   );
