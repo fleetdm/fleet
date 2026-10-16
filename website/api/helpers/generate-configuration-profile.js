@@ -229,6 +229,12 @@ module.exports = {
       additionalProfiles: [],
     };
 
+    if(profileType === 'ddm' && forFleet && _.isString(result.generatedProfile.profile)) {
+      let withUserScope = await sails.helpers.addUserPayloadScopeToDeclaration.with({ profile: result.generatedProfile.profile, deliveryNotes: result.generatedProfile.deliveryNotes || '' });
+      result.generatedProfile.profile = withUserScope.profile;
+      result.generatedProfile.deliveryNotes = withUserScope.deliveryNotes;
+    }
+
     if(profileType === 'mobileconfig' || profileType === 'ddm') {
       let wasWrittenFromPayloads = profileType === 'mobileconfig' && writeProfilesFromSettings && _.isArray(rawResult.payloads);
       let lifecycleNotes = sails.helpers.addLifecycleNotesToAppleProfile.with({
