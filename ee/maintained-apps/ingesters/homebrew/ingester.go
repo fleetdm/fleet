@@ -378,6 +378,10 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat(a.path, '/Contents/Applications/%%.app/Contents/MacOS/%%')) WHERE a.bundle_identifier = '%s' AND a.bundle_executable != '');",
 			out.UniqueIdentifier,
 		)
+	case "mindmanager":
+		// Match every major's bundle ID, like the patched query, so a running older major
+		// defers patching too.
+		out.Queries.Open = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier GLOB 'com.mindjet.mindmanager.[0-9][0-9]' AND a.bundle_executable != '');"
 	}
 
 	return out, nil

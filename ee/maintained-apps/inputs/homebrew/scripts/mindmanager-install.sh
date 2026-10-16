@@ -97,18 +97,27 @@ relaunch_application() {
 # extract contents
 MOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)
 yes | hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH" || exit 1
-sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"
+if ! sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"; then
+	hdiutil detach "$MOUNT_POINT" || true
+	exit 1
+fi
 hdiutil detach "$MOUNT_POINT" || true
+# MindManager's bundle ID changes with each major version, so read the new one
+# from the installer, quit an older major that's still installed, and relaunch
+# the new version in its place.
+NEW_BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$TMPDIR/MindManager.app/Contents/Info.plist" 2>/dev/null)
+if [[ ! "$NEW_BUNDLE_ID" =~ ^com\.mindjet\.mindmanager\.[0-9]+$ ]]; then
+	echo "Unexpected MindManager bundle ID '$NEW_BUNDLE_ID'."
+	exit 1
+fi
 # copy to the applications folder
-quit_and_track_application 'com.mindjet.mindmanager.26' || exit 1
-# MindManager's bundle ID changes with each major version, so quit an older
-# major that's still installed and relaunch the new version in its place.
+quit_and_track_application "$NEW_BUNDLE_ID" || exit 1
 OLD_BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APPDIR/MindManager.app/Contents/Info.plist" 2>/dev/null)
-if [[ "$OLD_BUNDLE_ID" =~ ^com\.mindjet\.mindmanager\.[0-9]+$ && "$OLD_BUNDLE_ID" != 'com.mindjet.mindmanager.26' ]]; then
+if [[ "$OLD_BUNDLE_ID" =~ ^com\.mindjet\.mindmanager\.[0-9]+$ && "$OLD_BUNDLE_ID" != "$NEW_BUNDLE_ID" ]]; then
 	quit_and_track_application "$OLD_BUNDLE_ID" || exit 1
 	eval "OLD_WAS_RUNNING=\$APP_WAS_RUNNING_$(echo "$OLD_BUNDLE_ID" | tr '.-' '__')"
 	if [[ "$OLD_WAS_RUNNING" == "1" ]]; then
-		export APP_WAS_RUNNING_com_mindjet_mindmanager_26=1
+		eval "export APP_WAS_RUNNING_$(echo "$NEW_BUNDLE_ID" | tr '.-' '__')=1"
 	fi
 fi
 if [ -d "$APPDIR/MindManager.app" ]; then
@@ -123,4 +132,4 @@ if ! sudo cp -R "$TMPDIR/MindManager.app" "$APPDIR"; then
 	fi
 	exit 1
 fi
-relaunch_application 'com.mindjet.mindmanager.26'
+relaunch_application "$NEW_BUNDLE_ID"

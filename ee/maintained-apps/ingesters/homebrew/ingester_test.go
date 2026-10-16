@@ -289,6 +289,12 @@ func TestIngestValidations(t *testing.T) {
 					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat(a.path, '/Contents/Applications/%.app/Contents/MacOS/%')) WHERE a.bundle_identifier = 'org.kicad.kicad' AND a.bundle_executable != '');",
 					out.Queries.Open,
 				)
+			case "mindmanager":
+				// A running older major must defer patching, same as the current one.
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier GLOB 'com.mindjet.mindmanager.[0-9][0-9]' AND a.bundle_executable != '');",
+					out.Queries.Open,
+				)
 			default:
 				// The managed "is app open" query matches only the app's own executable, so
 				// in-bundle login items and helpers that outlive the app don't count as open.
