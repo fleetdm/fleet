@@ -82,11 +82,9 @@ const AddVersionModal = ({
 
   const {
     formData,
-    setField,
+    getTextFieldProps,
     commitFields,
     getError,
-    clearFieldError,
-    validateField,
     handleSubmit,
     isSubmitting,
   } = useFormValidation<IVersionFormData>({
@@ -180,11 +178,9 @@ const AddVersionModal = ({
         >
           <VersionFormFields
             formData={formData}
-            setField={setField}
+            getTextFieldProps={getTextFieldProps}
             commitFields={commitFields}
             getError={getError}
-            clearFieldError={clearFieldError}
-            validateField={validateField}
             platform={appStore.platform}
             appDisplayName={appStore.display_name || appStore.name}
             labels={labels ?? []}
