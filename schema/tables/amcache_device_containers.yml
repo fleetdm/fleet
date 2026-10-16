@@ -12,13 +12,13 @@ notes: |-
   value as SQL NULL, so filter those columns with IS NULL or IFNULL and never by comparing them to
   an empty string.
 
-  This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
-
   A container groups the Plug and Play device nodes that belong to one physical device, so a USB
   stick or a printer appears here once rather than several times.
 
   Containers persist after the device is removed, so connected and active describe the state when
   the appraiser last wrote the record and not the present moment.
+
+  This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 examples: |-
   List removable drives this host has ever seen, most recently recorded first.
 

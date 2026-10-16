@@ -12,13 +12,13 @@ notes: |-
   value as SQL NULL, so filter those columns with IS NULL or IFNULL and never by comparing them to
   an empty string.
 
-  This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
-
   Only Start Menu shortcuts are recorded here.
 
   On Windows Server 2022 the appraiser writes only the shortcut path, so target_path, aumid and
   program_id are empty on every record observed there. On Windows 10 and Windows 11 all four columns
   carry data.
+
+  This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 examples: |-
   List Start Menu shortcuts whose target sits outside the usual program directories.
 

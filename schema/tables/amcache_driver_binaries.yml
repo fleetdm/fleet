@@ -12,11 +12,11 @@ notes: |-
   value as SQL NULL, so filter those columns with IS NULL or IFNULL and never by comparing them to
   an empty string.
 
-  This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
-
   The signed, inbox and kernel_mode columns are the appraiser's assessment recorded at inventory
   time, not a live signature check. A driver that was signed when it was inventoried still reads as
   signed after its certificate is revoked.
+
+  This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 examples: |-
   List kernel-mode drivers that Windows did not ship and that the appraiser did not assess as
   signed, which is the shape a bring-your-own-vulnerable-driver load leaves behind.

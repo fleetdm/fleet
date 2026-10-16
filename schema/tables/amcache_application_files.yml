@@ -12,8 +12,6 @@ notes: |-
   value as SQL NULL, so filter those columns with IS NULL or IFNULL and never by comparing them to
   an empty string.
 
-  This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
-
   A row means the appraiser saw the file. It is not evidence that the file was executed.
 
   On Windows 11 roughly three quarters of the rows carry only a program id, a hash and a write time,
@@ -27,6 +25,8 @@ notes: |-
   per log line and truncate. Constrain on program_id, sha1 or last_write_time. Those are populated
   on every Windows family, whereas path is empty on most Windows 11 rows and makes a poor filter
   there.
+
+  This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 examples: |-
   Find executables under user-writable directories that no installed application accounts for.
 

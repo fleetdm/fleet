@@ -12,13 +12,13 @@ notes: |-
   value as SQL NULL, so filter those columns with IS NULL or IFNULL and never by comparing them to
   an empty string.
 
-  This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
-
   This table holds only tens of rows, so filtering does not reduce its cost. The size problem here
   is row width rather than row count. One observed row carries thousands of comma-separated hardware
   ids in hwids and is roughly half a megabyte on its own, so two such rows exceed Fleet's 1 MB per
   log line by themselves. Select the columns you need rather than SELECT *, and leave hwids out
   unless you are searching it.
+
+  This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 examples: |-
   List third-party driver packages that were never submitted to the Windows Hardware Quality Labs,
   selecting named columns so the half-megabyte hwids value stays out of the result.

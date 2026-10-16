@@ -12,14 +12,14 @@ notes: |-
   value as SQL NULL, so filter those columns with IS NULL or IFNULL and never by comparing them to
   an empty string.
 
-  This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
-
   Devices stay in this key long after they are removed, which is what makes removable-media history
   queryable here. A row is therefore not evidence that the device is attached now.
 
   A small number of rows on every host observed carry a container_id with no matching row in
   amcache_device_containers, so join the two tables with a LEFT JOIN or those rows disappear from
   the result.
+
+  This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 examples: |-
   List every USB mass storage device this host has seen, with the container that names it.
 
