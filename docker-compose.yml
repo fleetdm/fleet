@@ -123,7 +123,7 @@ services:
       - "127.0.0.1:${FLEET_REDIS_PORT:-6379}:6379"
 
   saml_idp:
-    image: fleetdm/docker-idp:latest
+    image: fleetdm/docker-idp:simplesamlphp-1.19.0
     volumes:
       - ./tools/saml/users.php:/var/www/simplesamlphp/config/authsources.php
       - ./tools/saml/config.php:/var/www/simplesamlphp/metadata/saml20-sp-remote.php
