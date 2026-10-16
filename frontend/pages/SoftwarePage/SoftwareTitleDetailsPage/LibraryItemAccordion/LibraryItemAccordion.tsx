@@ -491,7 +491,12 @@ const LibraryItemAccordion = ({
 
   const getStatusCountTooltip = () => {
     if (isAndroidApp) {
-      return <>Doesn&apos;t include apps installed via self service.</>;
+      return (
+        <>
+          Latest status from setup experience. Doesn&apos;t include apps
+          installed via self service.
+        </>
+      );
     }
 
     if (isTarballPackage) {
