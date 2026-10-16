@@ -90,6 +90,9 @@ func TestSetupNotRearmedByStaleReplica(t *testing.T) {
 
 	srv, starterCalls := newSetupTestServer(t, ds)
 
+	// Sync the replica once before setup, the replica should then miss everything setup writes
+	opts.RunReplication()
+
 	code, admin := postSetup(t, srv, "admin@example.com", "Legit Org", "https://fleet.example.com")
 	require.Equal(t, http.StatusOK, code)
 	require.NotNil(t, admin)
@@ -101,7 +104,7 @@ func TestSetupNotRearmedByStaleReplica(t *testing.T) {
 	// The replica has not caught up with the users insert, so reads from it
 	// still see an empty users table.
 	code, admin = postSetup(t, srv, "attacker@example.com", "Attacker Org", "https://attacker.example.com")
-	assert.NotEqual(t, http.StatusOK, code)
+	require.Equal(t, http.StatusNotFound, code)
 	assert.Nil(t, admin)
 
 	users, err := ds.ListUsers(ctx, fleet.UserListOptions{})
