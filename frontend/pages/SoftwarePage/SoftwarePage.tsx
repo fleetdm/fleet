@@ -273,9 +273,12 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
 
   // Strip the param from the URL as soon as we see it so a race with
   // other URL writers can't leave it stuck, and a refresh doesn't
-  // re-trigger the modal.
+  // re-trigger the modal. Also capture the intent here: SoftwarePage
+  // stays mounted across sibling tabs, so a palette trigger from an
+  // already-mounted Software page never re-runs the useState initializer.
   useEffect(() => {
     if (queryParams?.manage_automations !== "1") return;
+    setPendingDeepLinkAutomations(true);
     const { manage_automations, ...rest } = queryParams;
     router.replace({ pathname: location.pathname, query: rest });
   }, [queryParams, location.pathname, router]);
