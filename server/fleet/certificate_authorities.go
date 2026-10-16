@@ -113,7 +113,7 @@ type CertificateAuthority struct {
 	ClientID     *string `json:"client_id,omitempty" db:"client_id"`
 	ClientSecret *string `json:"client_secret,omitempty" db:"-"`
 
-	// EJBCA. The mTLS client cert and key are never serialized and the key is encrypted at rest. The CSR common name and UPNs use the DigiCert
+	// EJBCA. The mTLS cert and key are never serialized and the key is encrypted at rest. The CSR common name and UPNs use the DigiCert
 	// fields. The username template is optional and defaults to the common name template.
 	MTLSCertPEM                 *string    `json:"-" db:"mtls_cert_pem"`
 	MTLSKeyPEM                  *string    `json:"-" db:"-"`
@@ -122,7 +122,7 @@ type CertificateAuthority struct {
 	EJBCACertificateProfileName *string    `json:"certificate_profile_name,omitempty" db:"ejbca_certificate_profile_name"`
 	EJBCAEndEntityProfileName   *string    `json:"end_entity_profile_name,omitempty" db:"ejbca_end_entity_profile_name"`
 	EJBCAUsernameTemplate       *string    `json:"username_template,omitempty" db:"ejbca_username_template"`
-	ClientCertExpiresAt         *time.Time `json:"client_cert_expires_at,omitempty" db:"-"` // derived from MTLSCertPEM on read
+	MTLSCertExpiresAt           *time.Time `json:"mtls_cert_expires_at,omitempty" db:"-"` // derived from MTLSCertPEM on read
 
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`

@@ -115,11 +115,11 @@ func (ds *Datastore) postprocessRetrievedCertificateAuthority(ctx context.Contex
 			ca.ClientSecret = ptr.String(string(decryptedClientSecret))
 		}
 		if ca.MTLSKeyEncrypted != nil {
-			decryptedClientKey, err := crypto.DecryptAESGCM(ca.MTLSKeyEncrypted, ds.serverPrivateKey)
+			decryptedMTLSKey, err := crypto.DecryptAESGCM(ca.MTLSKeyEncrypted, ds.serverPrivateKey)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, fmt.Sprintf("decrypting client key for certificate authority %d", ca.ID))
+				return ctxerr.Wrap(ctx, err, fmt.Sprintf("decrypting mTLS key for certificate authority %d", ca.ID))
 			}
-			ca.MTLSKeyPEM = new(string(decryptedClientKey))
+			ca.MTLSKeyPEM = new(string(decryptedMTLSKey))
 		}
 	} else {
 		if ca.APITokenEncrypted != nil {
@@ -139,7 +139,7 @@ func (ds *Datastore) postprocessRetrievedCertificateAuthority(ctx context.Contex
 		}
 	}
 	if ca.MTLSCertPEM != nil {
-		ca.ClientCertExpiresAt = ds.clientCertExpiry(ctx, ca.ID, *ca.MTLSCertPEM)
+		ca.MTLSCertExpiresAt = ds.mtlsCertExpiry(ctx, ca.ID, *ca.MTLSCertPEM)
 	}
 	if ca.CertificateUserPrincipalNamesRaw != nil {
 		if err := json.Unmarshal(ca.CertificateUserPrincipalNamesRaw, &ca.CertificateUserPrincipalNames); err != nil {
@@ -149,16 +149,16 @@ func (ds *Datastore) postprocessRetrievedCertificateAuthority(ctx context.Contex
 	return nil
 }
 
-// clientCertExpiry returns the expiry of the first certificate in the PEM, or nil, logged, if it can't be parsed so reads don't break.
-func (ds *Datastore) clientCertExpiry(ctx context.Context, caID uint, certPEM string) *time.Time {
+// mtlsCertExpiry returns the expiry of the first certificate in the PEM, or nil, logged, if it can't be parsed so reads don't break.
+func (ds *Datastore) mtlsCertExpiry(ctx context.Context, caID uint, certPEM string) *time.Time {
 	block, _ := pem.Decode([]byte(certPEM))
 	if block == nil {
-		ds.logger.WarnContext(ctx, "certificate authority client certificate is not PEM encoded", "certificate_authority_id", caID)
+		ds.logger.WarnContext(ctx, "certificate authority mTLS certificate is not PEM encoded", "certificate_authority_id", caID)
 		return nil
 	}
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
-		ds.logger.WarnContext(ctx, "parsing certificate authority client certificate", "certificate_authority_id", caID, "err", err)
+		ds.logger.WarnContext(ctx, "parsing certificate authority mTLS certificate", "certificate_authority_id", caID, "err", err)
 		return nil
 	}
 	return &cert.NotAfter
@@ -312,7 +312,7 @@ func sqlGenerateArgsForInsertCertificateAuthority(ctx context.Context, serverPri
 	var encryptedChallenge []byte
 	var encryptedAPIToken []byte
 	var encryptedClientSecret []byte
-	var encryptedClientKey []byte
+	var encryptedMTLSKey []byte
 	var err error
 
 	if ca.CertificateUserPrincipalNames != nil {
@@ -346,9 +346,9 @@ func sqlGenerateArgsForInsertCertificateAuthority(ctx context.Context, serverPri
 		}
 	}
 	if ca.MTLSKeyPEM != nil {
-		encryptedClientKey, err = crypto.EncryptAESGCM([]byte(*ca.MTLSKeyPEM), serverPrivateKey)
+		encryptedMTLSKey, err = crypto.EncryptAESGCM([]byte(*ca.MTLSKeyPEM), serverPrivateKey)
 		if err != nil {
-			return nil, "", ctxerr.Wrap(ctx, err, "encrypting client key for new certificate authority")
+			return nil, "", ctxerr.Wrap(ctx, err, "encrypting mTLS key for new certificate authority")
 		}
 	}
 
@@ -369,7 +369,7 @@ func sqlGenerateArgsForInsertCertificateAuthority(ctx context.Context, serverPri
 		ca.ClientID,
 		encryptedClientSecret,
 		ca.MTLSCertPEM,
-		encryptedClientKey,
+		encryptedMTLSKey,
 		ca.TrustCABundlePEM,
 		ca.EJBCACAName,
 		ca.EJBCACertificateProfileName,
@@ -817,11 +817,11 @@ func (ds *Datastore) generateUpdateQueryWithArgs(ctx context.Context, ca *fleet.
 		}
 		if ca.MTLSKeyPEM != nil {
 			updates = append(updates, "mtls_key_encrypted = ?")
-			encryptedClientKey, err := crypto.EncryptAESGCM([]byte(*ca.MTLSKeyPEM), ds.serverPrivateKey)
+			encryptedMTLSKey, err := crypto.EncryptAESGCM([]byte(*ca.MTLSKeyPEM), ds.serverPrivateKey)
 			if err != nil {
-				return "", ctxerr.Wrap(ctx, err, "encrypting client key for certificate authority")
+				return "", ctxerr.Wrap(ctx, err, "encrypting mTLS key for certificate authority")
 			}
-			*args = append(*args, encryptedClientKey)
+			*args = append(*args, encryptedMTLSKey)
 		}
 		if ca.CertificateUserPrincipalNames != nil {
 			updates = append(updates, "certificate_user_principal_names = ?")

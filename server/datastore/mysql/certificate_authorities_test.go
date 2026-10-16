@@ -111,11 +111,11 @@ func compareCA(t *testing.T, expected, actual *fleet.CertificateAuthority, expec
 	} {
 		require.Equal(t, field.expected, field.actual)
 	}
-	if expected.ClientCertExpiresAt != nil {
-		require.NotNil(t, actual.ClientCertExpiresAt)
-		require.True(t, expected.ClientCertExpiresAt.Equal(*actual.ClientCertExpiresAt))
+	if expected.MTLSCertExpiresAt != nil {
+		require.NotNil(t, actual.MTLSCertExpiresAt)
+		require.True(t, expected.MTLSCertExpiresAt.Equal(*actual.MTLSCertExpiresAt))
 	} else {
-		require.Nil(t, actual.ClientCertExpiresAt)
+		require.Nil(t, actual.MTLSCertExpiresAt)
 	}
 
 	if expectSecrets {
@@ -287,8 +287,8 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 		Name:                          new("EJBCA CA"),
 		URL:                           new("https://ejbca1.example.com:8443"),
 		Type:                          string(fleet.CATypeEJBCA),
-		MTLSCertPEM:                   new(newClientCertPEM(t, ejbcaNotAfter)),
-		MTLSKeyPEM:                    new("ejbca-client-key"),
+		MTLSCertPEM:                   new(newMTLSCertPEM(t, ejbcaNotAfter)),
+		MTLSKeyPEM:                    new("ejbca-mtls-key"),
 		TrustCABundlePEM:              new("ejbca-trust-bundle"),
 		EJBCACAName:                   new("ManagementCA"),
 		EJBCACertificateProfileName:   new("certificate-profile"),
@@ -296,19 +296,19 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 		EJBCAUsernameTemplate:         new("$FLEET_VAR_HOST_HARDWARE_SERIAL"),
 		CertificateCommonName:         new("$FLEET_VAR_HOST_END_USER_EMAIL_IDP"),
 		CertificateUserPrincipalNames: &[]string{"$FLEET_VAR_HOST_END_USER_EMAIL_IDP"},
-		ClientCertExpiresAt:           &ejbcaNotAfter,
+		MTLSCertExpiresAt:             &ejbcaNotAfter,
 	}
 	ejbcaCA2 := &fleet.CertificateAuthority{
 		Name:                        new("EJBCA CA 2"),
 		URL:                         new("https://ejbca2.example.com:8443"),
 		Type:                        string(fleet.CATypeEJBCA),
-		MTLSCertPEM:                 new(newClientCertPEM(t, ejbcaNotAfter)),
-		MTLSKeyPEM:                  new("ejbca-client-key2"),
+		MTLSCertPEM:                 new(newMTLSCertPEM(t, ejbcaNotAfter)),
+		MTLSKeyPEM:                  new("ejbca-mtls-key2"),
 		EJBCACAName:                 new("ManagementCA"),
 		EJBCACertificateProfileName: new("certificate-profile2"),
 		EJBCAEndEntityProfileName:   new("end-entity-profile2"),
 		CertificateCommonName:       new("$FLEET_VAR_HOST_UUID"), // no username template, so it defaults to the common name
-		ClientCertExpiresAt:         &ejbcaNotAfter,
+		MTLSCertExpiresAt:           &ejbcaNotAfter,
 	}
 
 	casToCreate := []*fleet.CertificateAuthority{
@@ -541,8 +541,8 @@ func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {
 		Name:                        new("EJBCA CA"),
 		URL:                         new("https://ejbca.example.com:8443"),
 		Type:                        string(fleet.CATypeEJBCA),
-		MTLSCertPEM:                 new(newClientCertPEM(t, originalNotAfter)),
-		MTLSKeyPEM:                  new("ejbca-client-key"),
+		MTLSCertPEM:                 new(newMTLSCertPEM(t, originalNotAfter)),
+		MTLSKeyPEM:                  new("ejbca-mtls-key"),
 		EJBCACAName:                 new("ManagementCA"),
 		EJBCACertificateProfileName: new("certificate-profile"),
 		EJBCAEndEntityProfileName:   new("end-entity-profile"),
@@ -686,14 +686,14 @@ func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {
 	t.Run("successfully updates EJBCA CA", func(t *testing.T) {
 		ejbcaCA := caMap[fleet.CATypeEJBCA]
 
-		// Only the fields that are set change, and a replaced client certificate and key are stored and read back.
+		// Only the fields that are set change, and a replaced mTLS certificate and key are stored and read back.
 		newNotAfter := time.Now().Add(365 * 24 * time.Hour).UTC().Truncate(time.Second)
-		newCert := newClientCertPEM(t, newNotAfter)
+		newCert := newMTLSCertPEM(t, newNotAfter)
 		update := &fleet.CertificateAuthority{
 			Type:                  string(fleet.CATypeEJBCA),
 			Name:                  new("Updated EJBCA"),
 			MTLSCertPEM:           &newCert,
-			MTLSKeyPEM:            new("updated-client-key"),
+			MTLSKeyPEM:            new("updated-mtls-key"),
 			TrustCABundlePEM:      new("updated-trust-bundle"),
 			EJBCAUsernameTemplate: new("updated-username"),
 			CertificateCommonName: new("updated-common-name"),
@@ -707,19 +707,19 @@ func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {
 		want.TrustCABundlePEM = update.TrustCABundlePEM
 		want.EJBCAUsernameTemplate = update.EJBCAUsernameTemplate
 		want.CertificateCommonName = update.CertificateCommonName
-		want.ClientCertExpiresAt = &newNotAfter
+		want.MTLSCertExpiresAt = &newNotAfter
 		for _, includeSecrets := range []bool{true, false} {
 			updatedCA, err := ds.GetCertificateAuthorityByID(ctx, ejbcaCA.ID, includeSecrets)
 			require.NoError(t, err)
 			compareCA(t, &want, updatedCA, includeSecrets)
 		}
 
-		// A client certificate that can't be parsed is reported without an expiry, and doesn't fail reads.
+		// An mTLS certificate that can't be parsed is reported without an expiry, and doesn't fail reads.
 		require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, ejbcaCA.ID,
 			&fleet.CertificateAuthority{Type: string(fleet.CATypeEJBCA), MTLSCertPEM: new("not a certificate")}))
 		invalidCertCA, err := ds.GetCertificateAuthorityByID(ctx, ejbcaCA.ID, false)
 		require.NoError(t, err)
-		require.Nil(t, invalidCertCA.ClientCertExpiresAt)
+		require.Nil(t, invalidCertCA.MTLSCertExpiresAt)
 		allCAs, err := ds.GetAllCertificateAuthorities(ctx, false)
 		require.NoError(t, err)
 		require.Len(t, allCAs, len(casToCreate))
@@ -816,7 +816,7 @@ func testEditResendsProfiles(t *testing.T, ds *Datastore) {
 		{name: "EJBCA API edit of the URL", edit: apiEditEJBCA(fleet.CertificateAuthority{URL: new("https://new.example.com")})},
 		{name: "EJBCA API edit of the trust bundle", edit: apiEditEJBCA(fleet.CertificateAuthority{TrustCABundlePEM: new("bundle")})},
 		{
-			name: "EJBCA API rotation of the client certificate and key",
+			name: "EJBCA API rotation of the mTLS certificate and key",
 			edit: apiEditEJBCA(fleet.CertificateAuthority{MTLSCertPEM: new("new-cert"), MTLSKeyPEM: new("new-key")}),
 		},
 		{name: "EJBCA API edit to the same username template", edit: apiEditEJBCA(fleet.CertificateAuthority{EJBCAUsernameTemplate: new("user")})},
@@ -847,7 +847,7 @@ func testEditResendsProfiles(t *testing.T, ds *Datastore) {
 			name: "EJBCA API edit of the UPN", edit: apiEditEJBCA(fleet.CertificateAuthority{CertificateUserPrincipalNames: &[]string{"new-upn"}}),
 			wantEJBCAResend: true,
 		},
-		{name: "EJBCA GitOps edit of the client key", edit: func() error {
+		{name: "EJBCA GitOps edit of the mTLS key", edit: func() error {
 			return gitOpsUpdate(ejbcaCA.ID, func(c *fleet.CertificateAuthority) { c.MTLSKeyPEM = new("new-key") })
 		}},
 		{name: "EJBCA GitOps edit of the end entity profile", edit: func() error {
@@ -903,7 +903,7 @@ func newEJBCACA(t *testing.T, ds *Datastore, name, commonName string, usernameTe
 ) *fleet.CertificateAuthority {
 	ca, err := ds.NewCertificateAuthority(t.Context(), &fleet.CertificateAuthority{
 		Type: string(fleet.CATypeEJBCA), Name: &name, URL: new("https://ejbca.example.com:8443"),
-		MTLSCertPEM: new(newClientCertPEM(t, time.Now().Add(time.Hour))), MTLSKeyPEM: new("key"), EJBCACAName: new("ManagementCA"),
+		MTLSCertPEM: new(newMTLSCertPEM(t, time.Now().Add(time.Hour))), MTLSKeyPEM: new("key"), EJBCACAName: new("ManagementCA"),
 		EJBCACertificateProfileName: new("certificate-profile"), EJBCAEndEntityProfileName: new("end-entity-profile"),
 		CertificateCommonName: &commonName, EJBCAUsernameTemplate: usernameTemplate, CertificateUserPrincipalNames: upns,
 	})
@@ -911,8 +911,8 @@ func newEJBCACA(t *testing.T, ds *Datastore, name, commonName string, usernameTe
 	return ca
 }
 
-// newClientCertPEM returns a self-signed certificate that expires at notAfter.
-func newClientCertPEM(t *testing.T, notAfter time.Time) string {
+// newMTLSCertPEM returns a self-signed certificate that expires at notAfter.
+func newMTLSCertPEM(t *testing.T, notAfter time.Time) string {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 	template := &x509.Certificate{
