@@ -1,7 +1,11 @@
 import { screen } from "@testing-library/react";
 import React from "react";
 
-import { createMockConfig, createMockMdmConfig } from "__mocks__/configMock";
+import {
+  createMockConfig,
+  createMockMdmConfig,
+  DEFAULT_LICENSE_MOCK,
+} from "__mocks__/configMock";
 import { createCustomRenderer } from "test/test-utils";
 
 import MainContent from "./MainContent";
@@ -55,5 +59,66 @@ describe("MainContent app-wide banners", () => {
     expect(
       screen.getByText(/Volume Purchasing Program \(VPP\) content token/i)
     ).toBeInTheDocument();
+  });
+});
+
+describe("MainContent license host limit banner", () => {
+  const renderWithHostCount = ({
+    hostCount,
+    deviceCount = 50,
+    isPremiumTier = true,
+  }: {
+    hostCount?: number;
+    deviceCount?: number;
+    isPremiumTier?: boolean;
+  }) => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isPremiumTier,
+          hostCount,
+          config: createMockConfig({
+            license: {
+              ...DEFAULT_LICENSE_MOCK,
+              // The default mock license is expired, which would show the expiration banner instead.
+              expiration: "2099-01-01T00:00:00Z",
+              device_count: deviceCount,
+            },
+          }),
+        },
+      },
+    });
+    return render(
+      <MainContent>
+        <div>content</div>
+      </MainContent>
+    );
+  };
+
+  it("shows the banner when hosts exceed the licensed count", () => {
+    renderWithHostCount({ hostCount: 51 });
+    expect(
+      screen.getByText(/You're using 51 of 50 Fleet Premium hosts/)
+    ).toBeInTheDocument();
+  });
+
+  it("does not show the banner at or under the licensed count", () => {
+    renderWithHostCount({ hostCount: 50 });
+    expect(screen.queryByText(/Fleet Premium hosts/)).not.toBeInTheDocument();
+  });
+
+  it("does not show the banner when the host count isn't loaded", () => {
+    renderWithHostCount({ hostCount: undefined });
+    expect(screen.queryByText(/Fleet Premium hosts/)).not.toBeInTheDocument();
+  });
+
+  it("does not show the banner when the license has no host limit", () => {
+    renderWithHostCount({ hostCount: 51, deviceCount: 0 });
+    expect(screen.queryByText(/Fleet Premium hosts/)).not.toBeInTheDocument();
+  });
+
+  it("does not show the banner on Fleet Free", () => {
+    renderWithHostCount({ hostCount: 51, isPremiumTier: false });
+    expect(screen.queryByText(/Fleet Premium hosts/)).not.toBeInTheDocument();
   });
 });
