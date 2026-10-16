@@ -76,7 +76,7 @@ FLEET_API_TOKEN=<api-only-user-token>
 
 ## Step 4: Download the scripts
 
-The scripts are in [`docs/solutions/dex-dashboards`](https://github.com/fleetdm/fleet/tree/main/docs/solutions/dex-dashboards) in Fleet's repository. They're Python 3 with no third-party packages. Download only that folder:
+The scripts are in [`docs/solutions/dex-dashboards`](https://github.com/fleetdm/fleet/tree/main/docs/solutions/dex-dashboards) in Fleet's repository. They're Python 3 with no third-party packages. Download a sparse copy of the repository that includes the folder. It also contains a few top-level repository files, but none of Fleet's other code:
 
 ```bash
 git clone --depth 1 --filter=blob:none --sparse https://github.com/fleetdm/fleet.git fleet-dex
@@ -90,7 +90,7 @@ Review the scripts before you run them. The routine runs them every day with you
 
 ## Step 5: Create the dashboards and the routine
 
-Open Claude Code in the `fleet-dex/docs/solutions/dex-dashboards` folder and paste this prompt. Replace the two values in the first lines. If you don't want Slack alerts, delete the Slack line.
+Open Claude Code in `docs/solutions/dex-dashboards` inside `fleet-dex`. If you're still in `fleet-dex` from step 4, run `cd docs/solutions/dex-dashboards` first. Paste this prompt, and fill in the values in its first three lines. If you don't want Slack alerts, delete the Slack line.
 
 ```
 Set up the Fleet DEX dashboards from the files in this folder.
@@ -99,22 +99,26 @@ Set up the Fleet DEX dashboards from the files in this folder.
 - Daily run time: 09:00 in my time zone
 - Slack alerts: send failure DMs to Slack member ID <your Slack member ID>
 
-1. Run `python3 bundle.py --out <your scratchpad directory>/dex`. It prints a sha256 hash. Don't change any files in this folder.
+1. Run `python3 bundle.py --out <dir>`, where <dir> is a new temporary directory outside this folder that you choose. It prints a sha256 hash. Don't change any files in this folder.
 2. Publish three new private artifacts from placeholder-lifecycle.html, placeholder-software.html, and placeholder-patch.html in that output directory. On the Hardware lifecycle artifact, also publish dex-dashboards.json as src/dex-dashboards.json with content type application/json. Note the three artifact URLs.
 3. Read routine-prompt.md. Take the text between "PROMPT START" and "PROMPT END", and fill in {{LIFECYCLE_URL}}, {{SOFTWARE_URL}}, {{PATCH_URL}}, and {{BUNDLE_SHA256}}. Replace {{IF_THE_RUN_FAILS}} with the Slack block (and my member ID) if I asked for Slack alerts above, otherwise with the block for no Slack.
-4. Create a disabled routine named "DEX dashboards (daily rebuild)" with that prompt: the environment above, a daily schedule at the run time above, the Sonnet model, no repository, and the tools Bash, Read, Write, ToolSearch, and Artifact. Attach the Slack connector and allow its slack_send_message tool only if I asked for Slack alerts. Attach no other connectors.
+4. Create a disabled routine named "DEX dashboards (daily rebuild)" with that prompt: the environment above, a daily schedule at the run time above converted to UTC, the Sonnet model, no repository, and the tools Bash, Read, Write, ToolSearch, and Artifact. A new routine gets every connector on my account by default, so remove them all. If I asked for Slack alerts, keep only the Slack connector and allow its slack_send_message tool. If you can't find my Slack connector, create the routine without it and tell me.
 5. Run the routine once. When it finishes, read its run log. If it published all three dashboards, enable the routine and send me the three artifact links. If it didn't, show me the error and leave the routine disabled.
 
 Never ask me for the Fleet API token. It lives only in the cloud environment.
 ```
 
-The first run starts each dashboard's history. From then on, the routine runs once a day.
+Claude may ask you to confirm the schedule, model, or repository before it creates the routine. Confirm the values from the prompt. The first run starts each dashboard's history. From then on, the routine runs once a day.
+
+> **Note:** Routine schedules run in UTC. When daylight saving time starts or ends, the routine runs an hour earlier or later in your local time.
+
+> **Warning:** Check the routine's connectors after setup. A routine with connectors it doesn't need, like mail or file storage, can reach data that has nothing to do with these dashboards.
 
 ## Verify
 
 1. Open the three artifact links. Each shows today's date next to **Updated**.
 2. On Patch velocity, the summary says "Timing starts with the next release." Until a new version ships and Macs pick it up, it shows the share of installs on the newest version instead.
-3. In Claude Code, open the routine at [claude.ai/code/routines](https://claude.ai/code/routines) and check that it's enabled with a daily schedule.
+3. Open the routine at [claude.ai/code/routines](https://claude.ai/code/routines). Check that it's enabled, runs daily, and lists no connectors, or only Slack if you asked for alerts.
 
 ## Troubleshoot
 
