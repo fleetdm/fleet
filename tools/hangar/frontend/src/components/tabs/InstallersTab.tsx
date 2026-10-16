@@ -507,7 +507,11 @@ function TargetCard({
               disabled={!scan}
               style={{ flex: 1, minWidth: 0 }}
             >
-              {!scan && <option value={cfg.team_id == null ? "" : String(cfg.team_id)}>{cfg.team_name || (contextName ? "Unassigned" : "scan to pick a fleet")}</option>}
+              {!scan && (
+                <option value={cfg.team_id == null ? "" : String(cfg.team_id)}>
+                  {cfg.team_name || (contextName ? "click Scan to list fleets" : "no context — enter the secret below")}
+                </option>
+              )}
               {scan && !selectedTeam && <option value={cfg.team_id == null ? "" : String(cfg.team_id)}>{cfg.team_name || "?"} (not found)</option>}
               {scan?.teams.map((t) => (
                 <option key={t.id ?? "none"} value={t.id == null ? "" : String(t.id)} disabled={!t.has_secret}>
@@ -517,7 +521,13 @@ function TargetCard({
               ))}
             </select>
             {/* The label stays in the layout (hidden) under the spinner so the button never changes size. */}
-            <button onClick={runScan} disabled={!contextName || scanning} aria-label={scanning ? "Scanning" : "Scan"} style={{ position: "relative" }}>
+            <button
+              onClick={runScan}
+              disabled={!contextName || scanning}
+              aria-label={scanning ? "Scanning" : "Scan"}
+              title={contextName ? "List this server's fleets via the fleetctl context" : "Scanning needs a fleetctl context — pick one, or enter the URL and secret below"}
+              style={{ position: "relative" }}
+            >
               <span style={{ visibility: scanning ? "hidden" : "visible" }}>Scan</span>
               {scanning && (
                 <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
