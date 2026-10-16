@@ -24488,7 +24488,7 @@ func (s *integrationMDMTestSuite) TestWindowsRekeyFlow() {
 	t := s.T()
 	ctx := t.Context()
 
-	_, mdmHost := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+	host, mdmHost := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
 
 	// Now we remove the credentials_hash and ack to simulate an existing enrollment to force rekeying
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -24510,6 +24510,22 @@ func (s *integrationMDMTestSuite) TestWindowsRekeyFlow() {
 
 	require.NotNil(t, updatedValues.CredentialsHash)
 	require.True(t, updatedValues.CredentialsAcknowledged)
+
+	// A legacy enrollment whose host was last seen more than 180 days ago is not rekeyed.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		if _, err := q.ExecContext(ctx, "UPDATE mdm_windows_enrollments SET credentials_hash = NULL, credentials_acknowledged = FALSE WHERE mdm_device_id = ?",
+			mdmHost.DeviceID); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx, "INSERT INTO host_seen_times (host_id, seen_time) VALUES (?, ?) ON DUPLICATE KEY UPDATE seen_time = VALUES(seen_time)",
+			host.ID, time.Now().Add(-181*24*time.Hour))
+		return err
+	})
+	_, err = mdmHost.StartManagementSession()
+	require.Error(t, err)
+	enrolled, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, mdmHost.DeviceID)
+	require.NoError(t, err)
+	require.Nil(t, enrolled.CredentialsHash)
 }
 
 func (s *integrationMDMTestSuite) TestAndroidEnroll() {

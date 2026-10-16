@@ -154,6 +154,15 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, gotEnrolledDevice, byHardwareID)
 
+	// Only the first credentials write sticks, so two racing rekeys cannot both hand out a password.
+	firstHash := []byte("0123456789abcdef")
+	require.NoError(t, ds.MDMWindowsUpdateEnrolledDeviceCredentials(ctx, enrolledDevice.MDMDeviceID, firstHash))
+	var conflict *fleet.ConflictError
+	require.ErrorAs(t, ds.MDMWindowsUpdateEnrolledDeviceCredentials(ctx, enrolledDevice.MDMDeviceID, []byte("fedcba9876543210")), &conflict)
+	gotEnrolledDevice, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, enrolledDevice.MDMDeviceID)
+	require.NoError(t, err)
+	require.Equal(t, firstHash, *gotEnrolledDevice.CredentialsHash)
+
 	_, err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, enrolledDevice.MDMHardwareID)
 	require.NoError(t, err)
 

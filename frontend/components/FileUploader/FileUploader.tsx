@@ -153,6 +153,7 @@ export const FileUploader = ({
     [`${baseClass}__file-preview`]: isFileSelected,
     [`${baseClass}__error`]: !!internalError,
     [`${baseClass}__drag-active`]: isDragActive && canAcceptDrop,
+    [`${baseClass}--disabled`]: disabled,
   });
   const buttonVariant = buttonType === "button" ? "default" : "secondary";
 
