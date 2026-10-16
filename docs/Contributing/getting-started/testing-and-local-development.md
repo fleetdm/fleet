@@ -1079,6 +1079,16 @@ mkdir -p ./tmp/fleetd-base-dir/stable
 	- Note: This variable is only read when dev mode is enabled (`--dev` flag).
 7. Enroll your Windows device with Autopilot. See the [Windows Autopilot guide](../mdm/windows/windows-autopilot.md#enrolling-the-device) for detailed enrollment steps, including prerequisites like custom domain setup and required licenses. Tip: You can watch ngrok traffic via the inspect web interface url to ensure the two hosted packages are in the correct place and successfully reached by the host.
 
+## AI configuration profile autofill
+
+The autofill configuration profile endpoints call the configuration profile generator on `https://fleetdm.com`. To test against a local or preview website instead, start the server in dev mode with `FLEET_DEV_AI_AUTOFILL_BASE_URL` set to the website's base URL:
+
+```sh
+FLEET_DEV_AI_AUTOFILL_BASE_URL="http://localhost:2024" ./build/fleet serve --dev
+```
+
+The variable is ignored without `--dev`. Pointing it at an unreachable URL exercises the AI service failure path.
+
 ## MDM setup and testing
 
 To run your local server with the MDM features enabled, you need to get certificates and keys.
