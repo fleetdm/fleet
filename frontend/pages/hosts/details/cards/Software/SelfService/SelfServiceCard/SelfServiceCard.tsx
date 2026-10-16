@@ -36,6 +36,7 @@ export interface SelfServiceQueryParams {
   order_direction: "asc" | "desc";
   page: number;
   per_page: number;
+  mobile?: string;
 }
 
 export interface ISelfServiceCardProps {
