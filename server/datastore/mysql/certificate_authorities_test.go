@@ -3,6 +3,13 @@ package mysql
 import (
 	"cmp"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"math/big"
 	"slices"
 	"testing"
 	"time"
@@ -26,7 +33,7 @@ func TestCertificateAuthority(t *testing.T) {
 		{"CreateCertificateAuthority", testCreateCertificateAuthority},
 		{"Delete", testDeleteCertificateAuthority},
 		{"UpdateCertificateAuthorityByID", testUpdateCertificateAuthorityByID},
-		{"DigiCertEditResendsProfiles", testDigiCertEditResendsProfiles},
+		{"EditResendsProfiles", testEditResendsProfiles},
 	}
 
 	for _, c := range cases {
@@ -93,7 +100,31 @@ func compareCA(t *testing.T, expected, actual *fleet.CertificateAuthority, expec
 		require.Nil(t, actual.ClientID)
 	}
 
+	// EJBCA specific non-secret fields
+	for _, field := range []struct{ expected, actual *string }{
+		{expected.ClientCertPEM, actual.ClientCertPEM},
+		{expected.TrustCABundlePEM, actual.TrustCABundlePEM},
+		{expected.EJBCACAName, actual.EJBCACAName},
+		{expected.EJBCACertificateProfileName, actual.EJBCACertificateProfileName},
+		{expected.EJBCAEndEntityProfileName, actual.EJBCAEndEntityProfileName},
+		{expected.EJBCAUsernameTemplate, actual.EJBCAUsernameTemplate},
+	} {
+		require.Equal(t, field.expected, field.actual)
+	}
+	if expected.ClientCertExpiresAt != nil {
+		require.NotNil(t, actual.ClientCertExpiresAt)
+		require.True(t, expected.ClientCertExpiresAt.Equal(*actual.ClientCertExpiresAt))
+	} else {
+		require.Nil(t, actual.ClientCertExpiresAt)
+	}
+
 	if expectSecrets {
+		if expected.ClientKeyPEM != nil {
+			require.NotNil(t, actual.ClientKeyPEM)
+			require.Equal(t, *expected.ClientKeyPEM, *actual.ClientKeyPEM)
+		} else {
+			require.Nil(t, actual.ClientKeyPEM)
+		}
 		if expected.APIToken != nil {
 			require.NotNil(t, actual.APIToken)
 			require.Equal(t, *expected.APIToken, *actual.APIToken)
@@ -119,6 +150,12 @@ func compareCA(t *testing.T, expected, actual *fleet.CertificateAuthority, expec
 			require.Nil(t, actual.ClientSecret)
 		}
 	} else {
+		if expected.ClientKeyPEM != nil {
+			require.NotNil(t, actual.ClientKeyPEM)
+			require.Equal(t, fleet.MaskedPassword, *actual.ClientKeyPEM)
+		} else {
+			require.Nil(t, actual.ClientKeyPEM)
+		}
 		if expected.APIToken != nil {
 			require.NotNil(t, actual.APIToken)
 			require.Equal(t, fleet.MaskedPassword, *actual.APIToken)
@@ -244,6 +281,36 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 		Password:     ptr.String("smallstep-password2"),
 	}
 
+	// EJBCA CAs, one with all the optional fields
+	ejbcaNotAfter := time.Now().Add(365 * 24 * time.Hour).UTC().Truncate(time.Second)
+	ejbcaCA1 := &fleet.CertificateAuthority{
+		Name:                          new("EJBCA CA"),
+		URL:                           new("https://ejbca1.example.com:8443"),
+		Type:                          string(fleet.CATypeEJBCA),
+		ClientCertPEM:                 new(newClientCertPEM(t, ejbcaNotAfter)),
+		ClientKeyPEM:                  new("ejbca-client-key"),
+		TrustCABundlePEM:              new("ejbca-trust-bundle"),
+		EJBCACAName:                   new("ManagementCA"),
+		EJBCACertificateProfileName:   new("certificate-profile"),
+		EJBCAEndEntityProfileName:     new("end-entity-profile"),
+		EJBCAUsernameTemplate:         new("$FLEET_VAR_HOST_HARDWARE_SERIAL"),
+		CertificateCommonName:         new("$FLEET_VAR_HOST_END_USER_EMAIL_IDP"),
+		CertificateUserPrincipalNames: &[]string{"$FLEET_VAR_HOST_END_USER_EMAIL_IDP"},
+		ClientCertExpiresAt:           &ejbcaNotAfter,
+	}
+	ejbcaCA2 := &fleet.CertificateAuthority{
+		Name:                        new("EJBCA CA 2"),
+		URL:                         new("https://ejbca2.example.com:8443"),
+		Type:                        string(fleet.CATypeEJBCA),
+		ClientCertPEM:               new(newClientCertPEM(t, ejbcaNotAfter)),
+		ClientKeyPEM:                new("ejbca-client-key2"),
+		EJBCACAName:                 new("ManagementCA"),
+		EJBCACertificateProfileName: new("certificate-profile2"),
+		EJBCAEndEntityProfileName:   new("end-entity-profile2"),
+		CertificateCommonName:       new("$FLEET_VAR_HOST_UUID"), // no username template, so it defaults to the common name
+		ClientCertExpiresAt:         &ejbcaNotAfter,
+	}
+
 	casToCreate := []*fleet.CertificateAuthority{
 		digicertCA1,
 		digicertCA2,
@@ -256,6 +323,8 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 		ndesCA,
 		smallstepCA1,
 		smallstepCA2,
+		ejbcaCA1,
+		ejbcaCA2,
 	}
 
 	for _, ca := range casToCreate {
@@ -466,6 +535,21 @@ func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {
 		Password:     ptr.String("smallstep-password"),
 	}
 
+	// EJBCA CA
+	originalNotAfter := time.Now().Add(30 * 24 * time.Hour).UTC().Truncate(time.Second)
+	ejbcaCA1 := &fleet.CertificateAuthority{
+		Name:                        new("EJBCA CA"),
+		URL:                         new("https://ejbca.example.com:8443"),
+		Type:                        string(fleet.CATypeEJBCA),
+		ClientCertPEM:               new(newClientCertPEM(t, originalNotAfter)),
+		ClientKeyPEM:                new("ejbca-client-key"),
+		EJBCACAName:                 new("ManagementCA"),
+		EJBCACertificateProfileName: new("certificate-profile"),
+		EJBCAEndEntityProfileName:   new("end-entity-profile"),
+		EJBCAUsernameTemplate:       new("$FLEET_VAR_HOST_HARDWARE_SERIAL"),
+		CertificateCommonName:       new("$FLEET_VAR_HOST_END_USER_EMAIL_IDP"),
+	}
+
 	casToCreate := []*fleet.CertificateAuthority{
 		digicertCA1,
 		hydrantCA1,
@@ -473,6 +557,7 @@ func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {
 		customSCEPCA1,
 		ndesCA1,
 		smallstepCA1,
+		ejbcaCA1,
 	}
 
 	caMap := map[fleet.CAType]*fleet.CertificateAuthority{}
@@ -598,6 +683,48 @@ func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {
 		require.Equal(t, "updated-challenge", *updatedCA.Challenge)
 	})
 
+	t.Run("successfully updates EJBCA CA", func(t *testing.T) {
+		ejbcaCA := caMap[fleet.CATypeEJBCA]
+
+		// Only the fields that are set change, and a replaced client certificate and key are stored and read back.
+		newNotAfter := time.Now().Add(365 * 24 * time.Hour).UTC().Truncate(time.Second)
+		newCert := newClientCertPEM(t, newNotAfter)
+		update := &fleet.CertificateAuthority{
+			Type:                  string(fleet.CATypeEJBCA),
+			Name:                  new("Updated EJBCA"),
+			ClientCertPEM:         &newCert,
+			ClientKeyPEM:          new("updated-client-key"),
+			TrustCABundlePEM:      new("updated-trust-bundle"),
+			EJBCAUsernameTemplate: new("updated-username"),
+			CertificateCommonName: new("updated-common-name"),
+		}
+		require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, ejbcaCA.ID, update))
+
+		want := *ejbcaCA
+		want.Name = update.Name
+		want.ClientCertPEM = update.ClientCertPEM
+		want.ClientKeyPEM = update.ClientKeyPEM
+		want.TrustCABundlePEM = update.TrustCABundlePEM
+		want.EJBCAUsernameTemplate = update.EJBCAUsernameTemplate
+		want.CertificateCommonName = update.CertificateCommonName
+		want.ClientCertExpiresAt = &newNotAfter
+		for _, includeSecrets := range []bool{true, false} {
+			updatedCA, err := ds.GetCertificateAuthorityByID(ctx, ejbcaCA.ID, includeSecrets)
+			require.NoError(t, err)
+			compareCA(t, &want, updatedCA, includeSecrets)
+		}
+
+		// A client certificate that can't be parsed is reported without an expiry, and doesn't fail reads.
+		require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, ejbcaCA.ID,
+			&fleet.CertificateAuthority{Type: string(fleet.CATypeEJBCA), ClientCertPEM: new("not a certificate")}))
+		invalidCertCA, err := ds.GetCertificateAuthorityByID(ctx, ejbcaCA.ID, false)
+		require.NoError(t, err)
+		require.Nil(t, invalidCertCA.ClientCertExpiresAt)
+		allCAs, err := ds.GetAllCertificateAuthorities(ctx, false)
+		require.NoError(t, err)
+		require.Len(t, allCAs, len(casToCreate))
+	})
+
 	t.Run("successfully updates smallstep SCEP proxy CA", func(t *testing.T) {
 		smallstepCA := caMap[fleet.CATypeSmallstep]
 
@@ -621,7 +748,7 @@ func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {
 	})
 }
 
-func testDigiCertEditResendsProfiles(t *testing.T, ds *Datastore) {
+func testEditResendsProfiles(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team"})
@@ -635,11 +762,20 @@ func testDigiCertEditResendsProfiles(t *testing.T, ds *Datastore) {
 	prof := newDigiCertProfile(t, ds, "prof", "ca", 0)
 	teamProf := newDigiCertProfile(t, ds, "team_prof", "ca", team.ID)
 	otherProf := newDigiCertProfile(t, ds, "other_prof", "ca_other", 0)
+	ejbcaCA := newEJBCACA(t, ds, "ejbca_ca", "cn", new("user"), &[]string{"upn"})
+	ejbcaProf := newCAProfile(t, ds, fleet.FleetVarEJBCADataPrefix, "ejbca_prof", "ejbca_ca", 0)
+	ejbcaTeamProf := newCAProfile(t, ds, fleet.FleetVarEJBCADataPrefix, "ejbca_team_prof", "ejbca_ca", team.ID)
 
 	apiEdit := func(update fleet.CertificateAuthority) func() error {
 		return func() error {
 			update.Type = ca.Type
 			return ds.UpdateCertificateAuthorityByID(ctx, ca.ID, &update)
+		}
+	}
+	apiEditEJBCA := func(update fleet.CertificateAuthority) func() error {
+		return func() error {
+			update.Type = ejbcaCA.Type
+			return ds.UpdateCertificateAuthorityByID(ctx, ejbcaCA.ID, &update)
 		}
 	}
 	// gitOpsUpdate sends the full CA, as GitOps does, with mod applied to its current values.
@@ -650,49 +786,138 @@ func testDigiCertEditResendsProfiles(t *testing.T, ds *Datastore) {
 		return ds.BatchApplyCertificateAuthorities(ctx, fleet.CertificateAuthoritiesBatchOperations{Update: []*fleet.CertificateAuthority{current}})
 	}
 	cases := []struct {
-		name       string
-		edit       func() error
-		wantResend bool
+		name string
+		edit func() error
+		// wantResend is whether the DigiCert profiles of ca are resent, wantEJBCAResend the same for the profiles of ejbcaCA.
+		wantResend, wantEJBCAResend bool
 	}{
-		{"API edit of the URL", apiEdit(fleet.CertificateAuthority{URL: new("https://new.example.com")}), false},
-		{"API edit to the same seat ID", apiEdit(fleet.CertificateAuthority{CertificateSeatID: new("seat")}), false},
-		{"API edit to the same profile ID", apiEdit(fleet.CertificateAuthority{ProfileID: new("profile")}), false},
-		{"API edit of the profile ID", apiEdit(fleet.CertificateAuthority{ProfileID: new("new-profile")}), true},
-		{"API edit of the common name", apiEdit(fleet.CertificateAuthority{CertificateCommonName: new("new-cn")}), true},
-		{"API edit of the UPN", apiEdit(fleet.CertificateAuthority{CertificateUserPrincipalNames: &[]string{"new-upn"}}), true},
-		{"GitOps edit of the API token", func() error {
+		{name: "API edit of the URL", edit: apiEdit(fleet.CertificateAuthority{URL: new("https://new.example.com")})},
+		{name: "API edit to the same seat ID", edit: apiEdit(fleet.CertificateAuthority{CertificateSeatID: new("seat")})},
+		{name: "API edit to the same profile ID", edit: apiEdit(fleet.CertificateAuthority{ProfileID: new("profile")})},
+		{name: "API edit of the profile ID", edit: apiEdit(fleet.CertificateAuthority{ProfileID: new("new-profile")}), wantResend: true},
+		{name: "API edit of the common name", edit: apiEdit(fleet.CertificateAuthority{CertificateCommonName: new("new-cn")}), wantResend: true},
+		{
+			name: "API edit of the UPN", edit: apiEdit(fleet.CertificateAuthority{CertificateUserPrincipalNames: &[]string{"new-upn"}}),
+			wantResend: true,
+		},
+		{name: "GitOps edit of the API token", edit: func() error {
 			return gitOpsUpdate(ca.ID, func(c *fleet.CertificateAuthority) { c.APIToken = new("new-token") })
-		}, false},
+		}},
 		// otherCA was stored without UPNs, and GitOps sends an empty list.
-		{"GitOps edit of another CA with an empty UPN list", func() error {
+		{name: "GitOps edit of another CA with an empty UPN list", edit: func() error {
 			return gitOpsUpdate(otherCA.ID, func(c *fleet.CertificateAuthority) {
 				c.APIToken = new("new-token")
 				c.CertificateUserPrincipalNames = &[]string{}
 			})
-		}, false},
-		{"GitOps edit of the seat ID", func() error {
+		}},
+		{name: "GitOps edit of the seat ID", edit: func() error {
 			return gitOpsUpdate(ca.ID, func(c *fleet.CertificateAuthority) { c.CertificateSeatID = new("new-seat") })
-		}, true},
+		}, wantResend: true},
+		{name: "EJBCA API edit of the URL", edit: apiEditEJBCA(fleet.CertificateAuthority{URL: new("https://new.example.com")})},
+		{name: "EJBCA API edit of the trust bundle", edit: apiEditEJBCA(fleet.CertificateAuthority{TrustCABundlePEM: new("bundle")})},
+		{
+			name: "EJBCA API rotation of the client certificate and key",
+			edit: apiEditEJBCA(fleet.CertificateAuthority{ClientCertPEM: new("new-cert"), ClientKeyPEM: new("new-key")}),
+		},
+		{name: "EJBCA API edit to the same username template", edit: apiEditEJBCA(fleet.CertificateAuthority{EJBCAUsernameTemplate: new("user")})},
+		{name: "EJBCA API edit to the same common name", edit: apiEditEJBCA(fleet.CertificateAuthority{CertificateCommonName: new("cn")})},
+		{
+			name: "EJBCA API edit of the common name", edit: apiEditEJBCA(fleet.CertificateAuthority{CertificateCommonName: new("new-cn")}),
+			wantEJBCAResend: true,
+		},
+		{
+			name: "EJBCA API edit of the username template", edit: apiEditEJBCA(fleet.CertificateAuthority{EJBCAUsernameTemplate: new("new-user")}),
+			wantEJBCAResend: true,
+		},
+		{
+			name: "EJBCA API edit of the EJBCA CA name", edit: apiEditEJBCA(fleet.CertificateAuthority{EJBCACAName: new("OtherCA")}),
+			wantEJBCAResend: true,
+		},
+		{
+			name:            "EJBCA API edit of the certificate profile",
+			edit:            apiEditEJBCA(fleet.CertificateAuthority{EJBCACertificateProfileName: new("new-certificate-profile")}),
+			wantEJBCAResend: true,
+		},
+		{
+			name:            "EJBCA API edit of the end entity profile",
+			edit:            apiEditEJBCA(fleet.CertificateAuthority{EJBCAEndEntityProfileName: new("new-end-entity-profile")}),
+			wantEJBCAResend: true,
+		},
+		{
+			name: "EJBCA API edit of the UPN", edit: apiEditEJBCA(fleet.CertificateAuthority{CertificateUserPrincipalNames: &[]string{"new-upn"}}),
+			wantEJBCAResend: true,
+		},
+		{name: "EJBCA GitOps edit of the client key", edit: func() error {
+			return gitOpsUpdate(ejbcaCA.ID, func(c *fleet.CertificateAuthority) { c.ClientKeyPEM = new("new-key") })
+		}},
+		{name: "EJBCA GitOps edit of the end entity profile", edit: func() error {
+			return gitOpsUpdate(ejbcaCA.ID, func(c *fleet.CertificateAuthority) { c.EJBCAEndEntityProfileName = new("gitops-end-entity-profile") })
+		}, wantEJBCAResend: true},
+		{name: "GitOps edit of a DigiCert CA and an EJBCA CA in one batch", edit: func() error {
+			digiCert, err := ds.GetCertificateAuthorityByID(ctx, ca.ID, true)
+			require.NoError(t, err)
+			ejbca, err := ds.GetCertificateAuthorityByID(ctx, ejbcaCA.ID, true)
+			require.NoError(t, err)
+			digiCert.CertificateSeatID = new("batch-seat")
+			ejbca.EJBCAUsernameTemplate = new("batch-user")
+			return ds.BatchApplyCertificateAuthorities(ctx,
+				fleet.CertificateAuthoritiesBatchOperations{Update: []*fleet.CertificateAuthority{digiCert, ejbca}})
+		}, wantResend: true, wantEJBCAResend: true},
+	}
+	pendingIf := func(resend bool) fleet.MDMDeliveryStatus {
+		if resend {
+			return fleet.MDMDeliveryPending
+		}
+		return fleet.MDMDeliveryVerified
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			for _, p := range []*fleet.MDMAppleConfigProfile{prof, otherProf} {
+			for _, p := range []*fleet.MDMAppleConfigProfile{prof, otherProf, ejbcaProf} {
 				forceSetAppleHostProfileStatus(t, ds, host.UUID, p, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
 			}
-			forceSetAppleHostProfileStatus(t, ds, teamHost.UUID, teamProf, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+			for _, p := range []*fleet.MDMAppleConfigProfile{teamProf, ejbcaTeamProf} {
+				forceSetAppleHostProfileStatus(t, ds, teamHost.UUID, p, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+			}
 
 			require.NoError(t, c.edit())
 
-			wantStatus := fleet.MDMDeliveryVerified
-			if c.wantResend {
-				wantStatus = fleet.MDMDeliveryPending
-			}
 			assertHostProfileStatus(t, ds, host.UUID,
-				hostProfileStatus{prof.ProfileUUID, wantStatus},
-				hostProfileStatus{otherProf.ProfileUUID, fleet.MDMDeliveryVerified})
-			assertHostProfileStatus(t, ds, teamHost.UUID, hostProfileStatus{teamProf.ProfileUUID, wantStatus})
+				hostProfileStatus{prof.ProfileUUID, pendingIf(c.wantResend)},
+				hostProfileStatus{otherProf.ProfileUUID, fleet.MDMDeliveryVerified},
+				hostProfileStatus{ejbcaProf.ProfileUUID, pendingIf(c.wantEJBCAResend)})
+			assertHostProfileStatus(t, ds, teamHost.UUID,
+				hostProfileStatus{teamProf.ProfileUUID, pendingIf(c.wantResend)},
+				hostProfileStatus{ejbcaTeamProf.ProfileUUID, pendingIf(c.wantEJBCAResend)})
 		})
 	}
+}
+
+// newEJBCACA creates an EJBCA CA with the given common name template, optional username template and UPNs.
+func newEJBCACA(t *testing.T, ds *Datastore, name, commonName string, usernameTemplate *string, upns *[]string,
+) *fleet.CertificateAuthority {
+	ca, err := ds.NewCertificateAuthority(t.Context(), &fleet.CertificateAuthority{
+		Type: string(fleet.CATypeEJBCA), Name: &name, URL: new("https://ejbca.example.com:8443"),
+		ClientCertPEM: new(newClientCertPEM(t, time.Now().Add(time.Hour))), ClientKeyPEM: new("key"), EJBCACAName: new("ManagementCA"),
+		EJBCACertificateProfileName: new("certificate-profile"), EJBCAEndEntityProfileName: new("end-entity-profile"),
+		CertificateCommonName: &commonName, EJBCAUsernameTemplate: usernameTemplate, CertificateUserPrincipalNames: upns,
+	})
+	require.NoError(t, err)
+	return ca
+}
+
+// newClientCertPEM returns a self-signed certificate that expires at notAfter.
+func newClientCertPEM(t *testing.T, notAfter time.Time) string {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "Fleet"},
+		NotBefore:    notAfter.Add(-time.Hour),
+		NotAfter:     notAfter,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	require.NoError(t, err)
+	return string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}))
 }
 
 // // TODO(hca): refactor old app config test to cover new implementations

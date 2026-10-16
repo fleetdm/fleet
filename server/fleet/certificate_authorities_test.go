@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -9,6 +10,44 @@ import (
 
 func TestValidateCertificateAuthoritiesSpec(t *testing.T) {
 	// TODO(hca): placeholder for additional tests to the extent not otherwise covered by client_test
+}
+
+func TestCATypeRenewalSupport(t *testing.T) {
+	for _, tc := range []struct {
+		caType            CAConfigAssetType
+		supportsRenew     bool
+		supportsRenewalID bool
+	}{
+		// DigiCert and EJBCA are renewed by reissuing the profile, so their profiles carry no renewal ID.
+		{CAConfigDigiCert, true, false},
+		{CAConfigEJBCA, true, false},
+		{CAConfigNDES, true, true},
+		{CAConfigCustomSCEPProxy, true, true},
+		{CAConfigSmallstep, true, true},
+		{CAConfigAssetType("unknown"), false, false},
+	} {
+		t.Run(string(tc.caType), func(t *testing.T) {
+			require.Equal(t, tc.supportsRenew, slices.Contains(ListCATypesWithRenewalSupport(), tc.caType))
+			require.Equal(t, tc.supportsRenewalID, tc.caType.SupportsRenewalID())
+		})
+	}
+}
+
+func TestEffectiveEJBCAUsernameTemplate(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		ca       CertificateAuthority
+		expected string
+	}{
+		{"username template set", CertificateAuthority{EJBCAUsernameTemplate: new("user"), CertificateCommonName: new("cn")}, "user"},
+		{"username template unset", CertificateAuthority{CertificateCommonName: new("cn")}, "cn"},
+		{"username template empty", CertificateAuthority{EJBCAUsernameTemplate: new(""), CertificateCommonName: new("cn")}, "cn"},
+		{"nothing set", CertificateAuthority{}, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.expected, tc.ca.EffectiveEJBCAUsernameTemplate())
+		})
+	}
 }
 
 func TestGroupedCertificateAuthorities(t *testing.T) {

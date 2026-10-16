@@ -18,11 +18,12 @@ const (
 	CAConfigDigiCert        CAConfigAssetType = "digicert"
 	CAConfigCustomSCEPProxy CAConfigAssetType = "custom_scep_proxy"
 	CAConfigSmallstep       CAConfigAssetType = "smallstep"
+	CAConfigEJBCA           CAConfigAssetType = "ejbca"
 )
 
 // ListCATypesWithRenewalSupport returns the CA types that support renewal by Fleet
 func ListCATypesWithRenewalSupport() []CAConfigAssetType {
-	return []CAConfigAssetType{CAConfigDigiCert, CAConfigCustomSCEPProxy, CAConfigNDES, CAConfigSmallstep}
+	return []CAConfigAssetType{CAConfigDigiCert, CAConfigCustomSCEPProxy, CAConfigNDES, CAConfigSmallstep, CAConfigEJBCA}
 }
 
 // ListCATypesWithRenewalIDSupport returns the CA types that support renewal IDs within the profile. Digicert
@@ -70,6 +71,7 @@ const (
 	CATypeHydrant         CAType = "hydrant"
 	CATypeCustomESTProxy  CAType = "custom_est_proxy" // Enrollment over Secure Transport
 	CATypeSmallstep       CAType = "smallstep"
+	CATypeEJBCA           CAType = "ejbca"
 )
 
 type CertificateAuthoritySummary struct {
@@ -111,12 +113,34 @@ type CertificateAuthority struct {
 	ClientID     *string `json:"client_id,omitempty" db:"client_id"`
 	ClientSecret *string `json:"client_secret,omitempty" db:"-"`
 
+	// EJBCA. The client cert and key are never serialized and the key is encrypted at rest. The CSR common name and UPNs use the DigiCert
+	// fields. The username template is optional and defaults to the common name template.
+	ClientCertPEM               *string    `json:"-" db:"client_cert_pem"`
+	ClientKeyPEM                *string    `json:"-" db:"-"`
+	TrustCABundlePEM            *string    `json:"trust_ca_bundle,omitempty" db:"trust_ca_bundle_pem"`
+	EJBCACAName                 *string    `json:"certificate_authority_name,omitempty" db:"ejbca_ca_name"`
+	EJBCACertificateProfileName *string    `json:"certificate_profile_name,omitempty" db:"ejbca_certificate_profile_name"`
+	EJBCAEndEntityProfileName   *string    `json:"end_entity_profile_name,omitempty" db:"ejbca_end_entity_profile_name"`
+	EJBCAUsernameTemplate       *string    `json:"username_template,omitempty" db:"ejbca_username_template"`
+	ClientCertExpiresAt         *time.Time `json:"client_cert_expires_at,omitempty" db:"-"` // derived from ClientCertPEM on read
+
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
 
 func (c *CertificateAuthority) AuthzType() string {
 	return "certificate_authority"
+}
+
+// EffectiveEJBCAUsernameTemplate returns the template for the EJBCA username, which defaults to the common name template when unset.
+func (c *CertificateAuthority) EffectiveEJBCAUsernameTemplate() string {
+	if c.EJBCAUsernameTemplate != nil && *c.EJBCAUsernameTemplate != "" {
+		return *c.EJBCAUsernameTemplate
+	}
+	if c.CertificateCommonName != nil {
+		return *c.CertificateCommonName
+	}
+	return ""
 }
 
 // ESTProxyCA returns the EST connection settings of a Hydrant or custom EST CA, which store
