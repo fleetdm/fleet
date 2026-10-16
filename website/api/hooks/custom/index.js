@@ -319,7 +319,7 @@ will be disabled and/or hidden in the UI.
               let marketingAttributionCookieInformation = {
                 source: req.param('utm_source'),// will be undefined if this is not set
                 medium: req.param('utm_medium'),// will be undefined if this is not set
-                campaign: req.param('utm_campaign'),// will be undefined if this is not set
+                campaign: req.param('utm_campaign') || req.param('gad_campaignid'),// will be undefined if neither is set. (Google Ads auto-tagging sends gad_campaignid instead of utm_campaign)
                 gclid: req.param('gclid'),// will be undefined if this is not set
                 referrer: req.get('referer'),
                 initialUrl: req.url,
