@@ -914,18 +914,18 @@ function OutputShareCard({
         {outputDir.trim() && !running && <button className="link-btn" onClick={() => onOutputDirChange("")}>use default</button>}
       </div>
 
-      {/* Sharing controls on one line. Start/Stop come first, at a fixed width,
-          so the button stays in the same place in both states. */}
+      {/* Sharing controls on one line. Like the SCEP and TUF servers, Start/Stop
+          sit at the right at a fixed width, so the button doesn't move. */}
       {running && status ? (
         <div style={SHARE_ROW}>
-          <button className="danger" onClick={stop} disabled={busy} style={SHARE_BUTTON}>Stop sharing</button>
           <span className="mono" style={{ fontSize: "var(--fs-x-small)", fontWeight: 600, userSelect: "all" }}>{status.url}</span>
           <button onClick={() => copy(status.url, "URL")}>Copy URL</button>
           <button onClick={() => api.openUrl(status.url).catch((e) => flash("err", errText(e)))}>Open in browser</button>
+          <div style={{ flex: 1 }} />
+          <button className="danger" onClick={stop} disabled={busy} style={SHARE_BUTTON}>Stop sharing</button>
         </div>
       ) : (
         <div style={SHARE_ROW}>
-          <button className="primary" onClick={start} disabled={busy || !outputRoot || !portValid} style={SHARE_BUTTON}>Start sharing</button>
           <span>Port</span>
           <input
             inputMode="numeric"
@@ -937,6 +937,8 @@ function OutputShareCard({
             style={{ width: 120, borderColor: portValid ? undefined : "var(--ui-error)" }}
           />
           {!portValid && <span style={{ color: "var(--ui-error)" }}>enter a port from 1 to 65535</span>}
+          <div style={{ flex: 1 }} />
+          <button className="primary" onClick={start} disabled={busy || !outputRoot || !portValid} style={SHARE_BUTTON}>Start sharing</button>
         </div>
       )}
       <span className="dim">
