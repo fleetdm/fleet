@@ -41,6 +41,8 @@ Deploy a SCEP [configuration profile](https://fleetdm.com/guides/custom-os-setti
 
 Deploy a SCEP profile for your CA using `./User/` paths so the certificate lands in the user certificate store. See [Enable Okta Verify on Windows](https://fleetdm.com/guides/enable-okta-verify-on-windows-using-a-scep-configuration-profile) for an example profile. The example sets `SubjectName` to the host's serial number. Change it to `CN=$FLEET_VAR_HOST_UUID,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID` so the CN is the host's UUID and Fleet can renew the certificate.
 
+If the host doesn't already trust your CA, deploy a second profile that installs the CA's root certificate. In its `./Device/Vendor/MSFT/RootCATrustedCertificates/Root/<name>/EncodedCertificate` path, use the certificate's SHA-1 thumbprint (uppercase) as `<name>`. In testing, a made-up name failed with status 500, and the thumbprint worked.
+
 ### Linux
 
 1. Follow the [Hydrant](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#hydrant) or [EST](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#any-est-enrollment-over-secure-transport-ca) steps. In the script, set the CSR's subject to `/CN=$FLEET_VAR_HOST_UUID`.
@@ -102,7 +104,7 @@ Fleet updates a host's policy results each time the host runs its policies, abou
 
 ## Skip the certificate picker
 
-- **Chrome and Edge**: Deploy the `AutoSelectCertificateForUrls` policy. Use the host name and port that ask for the certificate, not the sign-in URL's port. For example: `{"pattern":"https://ping.example.com:9032","filter":{"ISSUER":{"CN":"<your CA's common name>"}}}`. On macOS, deploy it in a configuration profile with the payload type `com.google.Chrome` (`com.microsoft.Edge` for Edge).
+- **Chrome and Edge**: Deploy the `AutoSelectCertificateForUrls` policy. Use the host name and port that ask for the certificate, not the sign-in URL's port. For example: `{"pattern":"https://ping.example.com:9032","filter":{"ISSUER":{"CN":"<your CA's common name>"}}}`. On macOS, deploy it in a configuration profile with the payload type `com.google.Chrome` (`com.microsoft.Edge` for Edge). On Windows, add the same JSON as the value named `1` under the registry key `HKLM\SOFTWARE\Policies\Microsoft\Edge\AutoSelectCertificateForUrls` (`HKLM\SOFTWARE\Policies\Google\Chrome\AutoSelectCertificateForUrls` for Chrome), for example with a Fleet script.
 - **Firefox**: Set `security.default_personal_cert` to `Select Automatically` with an [enterprise policy](https://mozilla.github.io/policy-templates/). Firefox asks every time otherwise.
 - **Safari**: Always asks. There's no policy to skip it.
 

@@ -16,6 +16,7 @@ Unlike [PingFederate](https://fleetdm.com/guides/pingfederate-conditional-access
 
 - A Duo Essentials, Advantage, or Premier plan, and an Owner, Administrator, or Application Manager role in the Duo Admin Panel.
 - For Linux, x86-64 hosts. Duo Desktop doesn't support Linux on ARM.
+- For Windows, Intel hosts. Duo lists Duo Desktop for Windows as Intel only.
 - A computer or CI job that can reach Fleet and Duo, with `curl`, `jq`, Python 3.9 or later, and [`duo-client`](https://pypi.org/project/duo-client/) 4.3.0 or later.
 
 ## Step 1: Create a Fleet API user
