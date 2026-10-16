@@ -466,7 +466,7 @@ function TargetCard({
 
   // Flag non-default agent options so a customized build isn't a surprise.
   const nonStable = [cfg.orbit_channel, cfg.desktop_channel, cfg.osqueryd_channel].some((ch) => ch && ch !== "stable");
-  const customized = cfg.update_source === UPDATE_LOCAL_TUF || nonStable || cfg.debug || !!cfg.extra_flags.trim();
+  const customized = !cfg.fleet_desktop || cfg.update_source === UPDATE_LOCAL_TUF || nonStable || cfg.debug || !!cfg.extra_flags.trim();
 
   return (
     <div className="card" style={{ display: "flex", flexDirection: "column", gap: "var(--pad-smedium)", borderTop: `3px solid ${accent}` }}>
@@ -625,10 +625,6 @@ function TargetCard({
               <JobBadge status={statuses[p.key]} active={building} userStopped={!!proc?.was_user_stopped} />
             </label>
           ))}
-          <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-            <input type="checkbox" checked={cfg.fleet_desktop} onChange={(e) => set("fleet_desktop", e.target.checked)} />
-            Include Fleet Desktop
-          </label>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--pad-small)" }}>
@@ -636,6 +632,10 @@ function TargetCard({
             <span style={{ fontWeight: 600 }}>Agent options</span>
             {customized && <span style={{ color: "var(--ui-warning)" }}>· not the defaults</span>}
           </div>
+          <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <input type="checkbox" checked={cfg.fleet_desktop} onChange={(e) => set("fleet_desktop", e.target.checked)} />
+            Include Fleet Desktop
+          </label>
           <div style={{ display: "flex", gap: "var(--pad-large)", alignItems: "center", flexWrap: "wrap" }}>
             <span style={{ fontWeight: 600 }}>Updates</span>
             <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
