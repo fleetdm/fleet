@@ -8467,8 +8467,6 @@ If one or more assigned labels are deleted the profile is considered broken (`br
 
 ### Get or download configuration profile
 
-> [Download custom macOS setting](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#download-custom-macos-setting-configuration-profile) (`GET /api/v1/fleet/mdm/apple/profiles/:profile_id`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the API endpoint below instead.
-
 `GET /api/v1/fleet/configuration_profiles/:profile_uuid`
 
 #### Parameters
@@ -8964,8 +8962,6 @@ Resends a configuration profile for the specified host. Currently, macOS, iOS, i
 
 
 ### Update disk encryption
-
-> The `PATCH /api/v1/fleet/mdm/apple/settings` API endpoint is deprecated as of Fleet 4.45. It is maintained for backward compatibility. Please use the new API endpoint below. You can view [archived documentation for the deprecated endpoint](https://github.com/iansltx/fleet/blob/d1791518a43c9d290192dbf992bcea290c8158a3/docs/REST%20API/rest-api.md#update-disk-encryption-enforcement).
 
 _Available in Fleet Premium_
 
@@ -10139,8 +10135,6 @@ Example VPP `InstallApplication` command result metadata:
 > Note: If the server has not yet received a result for a command, it will return an empty object (`{}`).
 
 ### List MDM commands
-
-> `GET /api/v1/fleet/mdm/apple/commands` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below.  [Archived documentation](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#list-custom-mdm-commands) is available for the deprecated endpoint.
 
 This endpoint returns the list of custom MDM commands that have been executed.
 
