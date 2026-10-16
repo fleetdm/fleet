@@ -382,6 +382,21 @@ function TargetCard({
     set("platforms", has ? cfg.platforms.filter((p) => p !== key) : [...cfg.platforms, key]);
   };
 
+  // Switching context drops what came from the old one — the fleet, a secret
+  // filled from it, and a Fleet URL filled from its server_url — but keeps
+  // anything typed by hand.
+  const changeContext = (next: string) => {
+    const cur = cfgRef.current;
+    const urlFromScan = !!scan?.server_url && cur.fleet_url.trim() === scan.server_url;
+    update({
+      context: next,
+      team_id: null,
+      team_name: "",
+      ...(cur.team_name ? { enroll_secret: "" } : {}),
+      ...(urlFromScan ? { fleet_url: "" } : {}),
+    });
+  };
+
   // Picking a fleet fills its enroll secret (and the Fleet URL if empty).
   const pickTeam = async (value: string) => {
     const team = scan?.teams.find((t) => (t.id == null ? "" : String(t.id)) === value);
@@ -489,7 +504,7 @@ function TargetCard({
         <Field label={isCustom ? "fleetctl context (optional)" : "fleetctl context"}>
           {/* Preselects the context matching this server's port; only contexts with
               an address can scan, so others aren't offered. */}
-          <select value={contextName} onChange={(e) => set("context", e.target.value)} style={{ width: "100%" }}>
+          <select value={contextName} onChange={(e) => changeContext(e.target.value)} style={{ width: "100%" }}>
             {(isCustom || !contextName) && <option value="">{isCustom ? "none — enter URL and secret below" : "no context matches this server — pick one"}</option>}
             {contextName && !usableContexts.some((c) => c.name === contextName) && <option value={contextName}>{contextName}</option>}
             {usableContexts.map((c) => (
