@@ -37,6 +37,8 @@ import {
 import { serverColorVar } from "../../lib/servers";
 
 const LOG_LEVELS = ["debug", "info", "warn", "error"];
+// Fleet dropdown value shown while the enroll secret was typed by hand.
+const MANUAL_FLEET = "__manual__";
 
 export function InstallersTab({
   settings,
@@ -399,6 +401,7 @@ function TargetCard({
 
   // Picking a fleet fills its enroll secret (and the Fleet URL if empty).
   const pickTeam = async (value: string) => {
+    if (value === MANUAL_FLEET) return;
     const team = scan?.teams.find((t) => (t.id == null ? "" : String(t.id)) === value);
     update({ team_id: team?.id ?? null, team_name: team?.name ?? "" });
     if (!team?.has_secret) return;
@@ -426,6 +429,8 @@ function TargetCard({
     }
   };
 
+  const teamValue = cfg.team_id == null ? "" : String(cfg.team_id);
+  const manualSecret = !!cfg.enroll_secret.trim() && !cfg.team_name;
   const selectedTeam = scan?.teams.find((t) => (t.id ?? null) === (cfg.team_id ?? null));
   const missing: string[] = [];
   if (!info?.fleetctl_exists) missing.push("fleetctl build");
@@ -517,17 +522,20 @@ function TargetCard({
         <Field label="Fleet">
           <div style={{ display: "flex", gap: "var(--pad-small)" }}>
             <select
-              value={cfg.team_id == null ? "" : String(cfg.team_id)}
+              value={manualSecret ? MANUAL_FLEET : teamValue}
               onChange={(e) => pickTeam(e.target.value)}
               disabled={!scan}
               style={{ flex: 1, minWidth: 0 }}
             >
-              {!scan && (
-                <option value={cfg.team_id == null ? "" : String(cfg.team_id)}>
+              {/* A hand-entered secret belongs to no fleet Hangar knows about, so
+                  the dropdown says so instead of showing the last fleet picked. */}
+              {manualSecret && <option value={MANUAL_FLEET}>— secret entered by hand</option>}
+              {!scan && !manualSecret && (
+                <option value={teamValue}>
                   {cfg.team_name || (contextName ? "click Scan to list fleets" : "no context — enter the secret below")}
                 </option>
               )}
-              {scan && !selectedTeam && <option value={cfg.team_id == null ? "" : String(cfg.team_id)}>{cfg.team_name || "?"} (not found)</option>}
+              {scan && !manualSecret && !selectedTeam && <option value={teamValue}>{cfg.team_name || "?"} (not found)</option>}
               {scan?.teams.map((t) => (
                 <option key={t.id ?? "none"} value={t.id == null ? "" : String(t.id)} disabled={!t.has_secret}>
                   {t.name}
@@ -587,7 +595,7 @@ function TargetCard({
               type={showSecret ? "text" : "password"}
               value={cfg.enroll_secret}
               placeholder="scan and pick a fleet, or paste one"
-              onChange={(e) => update({ enroll_secret: e.target.value, team_name: "" })}
+              onChange={(e) => update({ enroll_secret: e.target.value, team_id: null, team_name: "" })}
               autoComplete="off"
               spellCheck={false}
               style={{ flex: 1, minWidth: 0 }}
