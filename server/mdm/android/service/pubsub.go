@@ -952,7 +952,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 		if policy != nil && *policy == host.UUID {
 			svc.verifyDevicePolicy(ctx, host.UUID, device)
 		}
-		svc.verifyDeviceSoftware(ctx, host.Host, device)
+		svc.verifyDeviceSoftware(ctx, host.Host, device, fromEnroll)
 	} else if fromEnroll {
 		// Re-enrollment of a previously-enrolled host: the freshly-enrolled device has not applied any policy yet.
 		// Clear stale data so that the host-specific policy is applied correctly.
@@ -1635,7 +1635,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 	}
 }
 
-func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, device *androidmanagement.Device) {
+func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, device *androidmanagement.Device, fromEnroll bool) {
 	appliedPolicyVersion := device.AppliedPolicyVersion
 	hostUUID := host.UUID
 
@@ -1649,7 +1649,26 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 		svc.logger.ErrorContext(ctx, "error getting pending vpp installs", "err", err)
 		return
 	}
-	if len(pendingInstallApps) == 0 {
+	// A failure is not final: the device can report an app installed after Fleet gave up
+	// on it, e.g. when it was offline past the install timeout or the report listing the
+	// app arrived after the one that failed it. Not on enrollment though, as the host's
+	// enrollment time isn't updated yet, so the installs that re-enrolling just failed would
+	// count as current.
+	installedPackages := make(map[string]bool, len(device.ApplicationReports))
+	for _, appReport := range device.ApplicationReports {
+		if appReport.State == "INSTALLED" {
+			installedPackages[appReport.PackageName] = true
+		}
+	}
+	var failedInstallApps []*fleet.HostAndroidVPPSoftwareInstall
+	if !fromEnroll && len(installedPackages) > 0 {
+		failedInstallApps, err = svc.ds.ListHostMDMAndroidVPPAppsLatestFailedInstall(ctx, hostUUID)
+		if err != nil {
+			svc.logger.ErrorContext(ctx, "error getting failed vpp installs", "err", err)
+			return
+		}
+	}
+	if len(pendingInstallApps) == 0 && len(failedInstallApps) == 0 {
 		return
 	}
 
@@ -1741,6 +1760,12 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 			} else {
 				toFailUUIDs = append(toFailUUIDs, install.CommandUUID)
 			}
+		}
+	}
+	for _, install := range failedInstallApps {
+		if installedPackages[install.AdamID] {
+			toVerifyUUIDs = append(toVerifyUUIDs, install.CommandUUID)
+			svc.logger.InfoContext(ctx, "Previously failed software reported as installed, marking as verified", "host_uuid", hostUUID, "package_name", install.AdamID)
 		}
 	}
 	if err := svc.ds.BulkSetVPPInstallsAsVerified(ctx, host.ID, toVerifyUUIDs); err != nil {
