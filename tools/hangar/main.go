@@ -98,6 +98,7 @@ func main() {
 			application.NewService(services.NewScepService(pm)),
 			application.NewService(&services.MdmAssetsService{}),
 			application.NewService(services.NewTufService(pm)),
+			application.NewService(services.NewInstallersService(pm)),
 			application.NewService(services.NewTrayService(func(s traymenu.State) {
 				if tray != nil {
 					tray.update(s)

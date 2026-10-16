@@ -125,7 +125,7 @@ leaves hosts reporting the old version.
 Two different things live in `~/Library/Logs/com.fleetdm.fleet-hangar/`:
 
 - **`<channel>.log`** — the output of the processes Hangar spawns (`fleet-serve-s1`, `scep-scep1`,
-  `tuf-build`, ...). This is what the Logs tab shows, and its *Reveal in Finder* button opens this
+  `tuf-build`, `installers-s1`, ...). This is what the Logs tab shows, and its *Reveal in Finder* button opens this
   folder. Rotated at 16 MB, one generation kept as `.log.1`.
 - **`hangar.log`** — Hangar's own diagnostics: startup, the macOS sleep/wake and screen-change
   events it saw, which quit path it took, a heartbeat every five minutes, and — because file

@@ -7,6 +7,7 @@ import * as DialogService from "./dialogservice.js";
 import * as FleetctlService from "./fleetctlservice.js";
 import * as GitService from "./gitservice.js";
 import * as GitopsService from "./gitopsservice.js";
+import * as InstallersService from "./installersservice.js";
 import * as MdmAssetsService from "./mdmassetsservice.js";
 import * as PerfConfigService from "./perfconfigservice.js";
 import * as PerfService from "./perfservice.js";
@@ -23,6 +24,7 @@ export {
     FleetctlService,
     GitService,
     GitopsService,
+    InstallersService,
     MdmAssetsService,
     PerfConfigService,
     PerfService,
@@ -33,3 +35,8 @@ export {
     TroubleshootService,
     TufService
 };
+
+export {
+    InstallersLocalTUF,
+    InstallersServerInfo
+} from "./models.js";

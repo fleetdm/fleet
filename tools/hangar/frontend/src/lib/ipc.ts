@@ -23,6 +23,7 @@ import {
   ScepService,
   MdmAssetsService,
   TufService,
+  InstallersService,
 } from "../../bindings/github.com/fleetdm/fleet/tools/hangar/services";
 
 import type * as buildinfoM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/buildinfo/models";
@@ -40,6 +41,8 @@ import type * as troubleshootM from "../../bindings/github.com/fleetdm/fleet/too
 import type * as scepM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/scep/models";
 import type * as mdmassetsM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/mdmassets/models";
 import type * as tufM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/tuf/models";
+import type * as installersM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/installers/models";
+import type * as servicesM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/services/models";
 
 // cast narrows a binding's $CancellablePromise<GeneratedModel> to the alias
 // type. Safe: the underlying value is the same JSON.
@@ -124,6 +127,15 @@ export type MdmAssetsFile = mdmassetsM.AssetFile;
 
 export type TufConfig = settingsM.TufConfig;
 export type TufServerStatus = tufM.ServerStatus;
+
+export type InstallersConfig = settingsM.InstallersConfig;
+export type InstallerServerConfig = settingsM.InstallerServerConfig;
+export type InstallersScanResult = installersM.ScanResult;
+export type InstallersTeam = installersM.Team;
+export type InstallersChannels = installersM.Channels;
+export type InstallersOutputFile = installersM.OutputFile;
+export type InstallersServerInfo = servicesM.InstallersServerInfo;
+export type InstallersLocalTUF = servicesM.InstallersLocalTUF;
 
 export type DepCheck = depsM.DepCheck;
 export type DepReport = depsM.DepReport;
@@ -276,6 +288,24 @@ export const api = {
   tufKillServer: () => cast<KillOutcome[]>(TufService.TufKillServer()),
   tufDeleteAssets: () => TufService.TufDeleteAssets(),
   tufAssetsExist: () => cast<boolean>(TufService.TufAssetsExist()),
+
+  // fleetd installers per server (fleetctl package with the server's fleetctl).
+  installersDefaultOutputDir: () => InstallersService.InstallersDefaultOutputDir(),
+  installersOfficialChannels: () =>
+    cast<InstallersChannels>(InstallersService.InstallersOfficialChannels()),
+  installersLocalTuf: () =>
+    cast<InstallersLocalTUF>(InstallersService.InstallersLocalTUF()),
+  installersServerInfo: (serverId: string, outputDir: string) =>
+    cast<InstallersServerInfo>(InstallersService.InstallersServerInfo(serverId, outputDir)),
+  installersScan: (contextName: string) =>
+    cast<InstallersScanResult>(InstallersService.InstallersScan(contextName)),
+  installersPlannedFiles: (serverId: string, cfg: InstallerServerConfig) =>
+    cast<Record<string, string>>(InstallersService.InstallersPlannedFiles(serverId, cfg as never)),
+  installersStartBuild: (serverId: string, cfg: InstallerServerConfig, outputDir: string) =>
+    InstallersService.InstallersStartBuild(serverId, cfg as never, outputDir),
+  installersStopBuild: (serverId: string) => InstallersService.InstallersStopBuild(serverId),
+  installersListOutputs: (serverId: string, outputDir: string) =>
+    cast<InstallersOutputFile[]>(InstallersService.InstallersListOutputs(serverId, outputDir)),
 
   listProcesses: () => cast<ProcInfo[]>(ProcessService.ListProcesses()),
   startProcess: (args: {
