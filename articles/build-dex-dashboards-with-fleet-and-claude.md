@@ -1,12 +1,12 @@
 # Build DEX dashboards with Fleet and Claude
 
-Fleet already knows what hardware your Macs run, which apps people open, and which versions are installed. This guide shows you how to turn that data into three digital employee experience (DEX) dashboards that rebuild themselves every day: Hardware lifecycle (which Macs to replace, repair, or leave alone), Software usage (which installed apps nobody opens), and Patch velocity (how fast new versions reach every Mac). A daily [Claude Code routine](https://code.claude.com/docs/en/routines) reads the Fleet API and publishes each dashboard as a private Claude artifact. You don't run a server or a database. The dashboards cover macOS hosts only.
+Fleet already knows what hardware your computers run, which apps people open, and which versions are installed. This guide shows you how to turn that data into three digital employee experience (DEX) dashboards that rebuild themselves every day: Hardware lifecycle (which computers to replace, repair, or leave alone), Software usage (which installed apps nobody opens), and Patch velocity (how fast new versions reach every computer). A daily [Claude Code routine](https://code.claude.com/docs/en/routines) reads the Fleet API and publishes each dashboard as a private Claude artifact. You don't run a server or a database. Hardware lifecycle and Software usage cover macOS, Windows, and Linux. Patch velocity covers macOS and Windows. Each dashboard has a toggle to show one platform at a time.
 
 ## How it works
 
 - A cloud environment holds a read-only Fleet API token and can reach only your Fleet server.
 - Once a day, the routine runs a set of Python scripts from Fleet's repository. They read your hosts, their software, and two DEX reports, then build the three pages.
-- Each dashboard stores a small history file next to its page. Every run reads the history back and adds a day. Patch velocity uses it to time how long each new version takes to reach every Mac, and Hardware lifecycle uses it to tell sustained memory strain from a single bad day. Both get more useful over the first few weeks.
+- Each dashboard stores a small history file next to its page. Every run reads the history back and adds a day. Patch velocity uses it to time how long each new version takes to reach every computer, and Hardware lifecycle uses it to tell sustained memory strain on a Mac from a single bad day. Both get more useful over the first few weeks.
 
 ## Prerequisites
 
@@ -17,11 +17,11 @@ Fleet already knows what hardware your Macs run, which apps people open, and whi
 - Optional: the Slack connector in Claude, if you want a Slack message when a run fails.
 - Optional: warranty end dates in a [custom host vital](https://fleetdm.com/guides/custom-host-vitals) (Fleet 4.90.0 or later), formatted `YYYY-MM-DD`. Hardware lifecycle shows a warranty chart when it finds one.
 
-> **Note:** Software usage lists, per Mac, when each app was last opened. Before you share the dashboard, check that your organization's privacy commitments allow showing that to the people you share it with.
+> **Note:** Software usage lists, per computer, when each app was last opened. Before you share the dashboard, check that your organization's privacy commitments allow showing that to the people you share it with.
 
 ## Step 1: Add the DEX reports
 
-Hardware lifecycle reads memory pressure and battery health from the `DEX - Hardware experience - Device health` report. Patch velocity reads macOS build numbers from the `DEX - System experience - OS health` report, so it can leave macOS betas out. Both are in [`dex-reports.yml`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/dex-dashboards/dex-reports.yml).
+Hardware lifecycle reads memory pressure and battery health from the `DEX - Hardware experience - Device health` report. Patch velocity reads macOS build numbers from the `DEX - System experience - OS health` report, so it can leave macOS betas out. Both are in [`dex-reports.yml`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/dex-dashboards/dex-reports.yml). They run on macOS only. On Windows and Linux, the dashboards use Fleet's built-in host and software data.
 
 - **GitOps:** copy `dex-reports.yml` into your GitOps repository, for example to `lib/macos/reports/dex-reports.yml`, and add it under `reports:` in `default.yml` to cover every host, or in each fleet file whose Macs you want on the dashboards:
 
@@ -49,7 +49,7 @@ The scripts only read data. Create an API-only user that can read only what they
 | Endpoint | Why the dashboards need it |
 |:--|:--|
 | [List hosts](https://fleetdm.com/docs/rest-api/rest-api#list-hosts) (`GET /api/v1/fleet/hosts`) | Hardware, OS version, and each host's software with its last-opened time. |
-| [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) (`GET /api/v1/fleet/hosts/:id`) | Battery health and custom host vitals, such as warranty dates. |
+| [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) (`GET /api/v1/fleet/hosts/:id`) | Battery health (macOS and Windows) and custom host vitals, such as warranty dates. |
 | [List fleets](https://fleetdm.com/docs/rest-api/rest-api#list-fleets) (`GET /api/v1/fleet/fleets`) | Finds the DEX reports in each fleet. |
 | [List reports](https://fleetdm.com/docs/rest-api/rest-api#list-reports) (`GET /api/v1/fleet/reports`) | Looks up each DEX report by name. |
 | [Get report data](https://fleetdm.com/docs/rest-api/rest-api#get-report-data) (`GET /api/v1/fleet/reports/:id/report`) | Reads the stored DEX report results. |
@@ -117,7 +117,7 @@ Claude may ask you to confirm the schedule, model, or repository before it creat
 ## Verify
 
 1. Open the three artifact links. Each shows today's date next to **Updated**.
-2. On Patch velocity, the summary says "Timing starts with the next release." Until a new version ships and Macs pick it up, it shows the share of installs on the newest version instead.
+2. On Patch velocity, the summary says "Timing starts with the next release." Until a new version ships and computers pick it up, it shows the share of installs on the newest version instead.
 3. Open the routine at [claude.ai/code/routines](https://claude.ai/code/routines). Check that it's enabled, runs daily, and lists no connectors, or only Slack if you asked for alerts.
 
 ## Troubleshoot
@@ -142,9 +142,13 @@ The code in `src/dex-dashboards.json` doesn't match the hash in the routine's pr
 
 The routine couldn't read a history file, so it stopped instead of starting over. Run it again. If it keeps happening, check that each artifact still has `data/history.json`.
 
-**Hardware lifecycle shows no battery or memory data**
+**Hardware lifecycle shows no battery or memory data for Macs**
 
 The Device health report has no stored results. Check that it's assigned to the fleets your Macs are in, and that Fleet stores report results (step 1).
+
+**Windows apps all show as idle on some computers**
+
+Windows records recently run programs only while its prefetch feature (the SysMain service) is on. Software usage leaves out a Windows computer with no record for any program. If many computers are missing, check whether SysMain is turned off.
 
 ## Update the dashboards
 

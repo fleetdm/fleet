@@ -64,7 +64,14 @@ a:hover { text-decoration: underline; }
 }
 
 /* Top bar: sibling dashboards + freshness + fleet filter */
-.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 12px 20px; margin-bottom: -16px; }
+.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; margin-bottom: -16px; }
+.seg-toggle { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--panel); }
+.seg-toggle button { font: 500 12.5px var(--font-ui); color: var(--ink-2); background: transparent; border: 0; border-radius: 999px; padding: 4px 12px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.seg-toggle button b { font-variant-numeric: tabular-nums; color: var(--ink-3); font-weight: 600; }
+.seg-toggle button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.seg-toggle button[aria-pressed="true"] b { color: var(--bg); }
+.seg-toggle button:disabled { opacity: 0.45; cursor: not-allowed; }
+.plat { font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; color: var(--ink-3); border: 1px solid var(--line-2); border-radius: 4px; padding: 0 4px; margin-left: 6px; white-space: nowrap; }
 .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; color: var(--ink-3); font-size: 12.5px; }
 .meta select {
   font: 500 13px var(--font-ui); color: var(--ink); background: var(--panel);
@@ -118,7 +125,7 @@ h3 { margin: 0 0 10px; font-size: 14px; font-weight: 600; }
 
 /* Horizontal bars */
 .bars { display: flex; flex-direction: column; gap: 9px; }
-.bar-row { display: grid; grid-template-columns: minmax(90px, 150px) minmax(0, 1fr) auto; align-items: center; gap: 10px; font-size: 13px; }
+.bar-row { display: grid; grid-template-columns: minmax(90px, 190px) minmax(0, 1fr) auto; align-items: center; gap: 10px; font-size: 13px; }
 .bar-row .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
 .bar-row .val { font-variant-numeric: tabular-nums; color: var(--ink-2); text-align: right; min-width: 3ch; white-space: nowrap; }
 .track { display: flex; gap: 2px; height: 12px; border-radius: 3px; background: var(--panel-2); overflow: hidden; }

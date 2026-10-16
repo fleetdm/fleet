@@ -25,6 +25,7 @@ import urllib.request
 
 DEVICE_HEALTH_REPORT = "DEX - Hardware experience - Device health"
 OS_HEALTH_REPORT = "DEX - System experience - OS health"
+NOT_COMPUTERS = {"ios", "ipados", "android", "chrome"}
 HOST_FIELDS = [
     "id", "display_name", "computer_name", "hostname", "platform", "os_version",
     "hardware_model", "hardware_serial", "hardware_vendor", "cpu_brand", "memory",
@@ -91,6 +92,7 @@ def compact_software(sw):
             s.get("bundle_identifier") or "",
             s.get("last_opened_at") if s.get("last_opened_at") not in (None,) else None,
             paths[0] if paths else "",
+            s.get("vendor") or "",
         ])
     return out
 
@@ -156,7 +158,7 @@ def main():
         }
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
-        details = dict(pool.map(detail, [h for h in hosts if h["platform"] == "darwin"]))
+        details = dict(pool.map(detail, [h for h in hosts if h["platform"] and h["platform"] not in NOT_COMPUTERS]))
 
     snap = {
         "schema": 1,
@@ -164,7 +166,7 @@ def main():
         "fleet_url": fleet.url,
         "fleets": [{"id": f["id"], "name": f["name"]} for f in fleets],
         "hosts": hosts,
-        "software_columns": ["name", "version", "source", "bundle_identifier", "last_opened_at", "path"],
+        "software_columns": ["name", "version", "source", "bundle_identifier", "last_opened_at", "path", "vendor"],
         "software": software,
         "host_details": details,
         "device_health": report_rows(fleet, fleets, DEVICE_HEALTH_REPORT),

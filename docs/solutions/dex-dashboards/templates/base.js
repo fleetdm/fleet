@@ -78,24 +78,42 @@ function hostLink(id, name) {
   return h("a", { href: hostUrl(id), target: "_blank", rel: "noopener", class: "cell-main", onclick: (e) => e.stopPropagation() }, name);
 }
 
-// Fleet filter, remembered per viewer.
+// Fleet and platform filters, remembered per viewer.
 const store = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
   set(k, v) { try { localStorage.setItem(k, v); } catch { /* storage unavailable */ } },
 };
+const PLATFORMS = [["macos", "macOS"], ["windows", "Windows"], ["linux", "Linux"]];
+const platformLabel = (p) => (PLATFORMS.find(([k]) => k === p) || [p, p])[1];
 let FLEET = "";
-function renderTop(fleets, onChange) {
+let PLATFORM = "";
+// counts: {macos: n, ...}. unsupported: {linux: "why"} greys a platform out.
+function renderTop(fleets, onChange, counts = {}, unsupported = {}) {
   const saved = store.get("dex-fleet");
   FLEET = fleets.includes(saved) ? saved : "";
+  const savedP = store.get("dex-platform") || "";
+  PLATFORM = savedP && counts[savedP] && !unsupported[savedP] ? savedP : "";
+  const toggle = h("div", { class: "seg-toggle", role: "group", "aria-label": "Platform" });
+  const drawToggle = () => toggle.replaceChildren(...[["", "All platforms"], ...PLATFORMS].map(([k, label]) => {
+    const why = unsupported[k];
+    const n = k ? counts[k] || 0 : Object.entries(counts).filter(([pk]) => !unsupported[pk]).reduce((a, [, c]) => a + c, 0);
+    const btn = h("button", { type: "button", "aria-pressed": PLATFORM === k ? "true" : "false", disabled: Boolean(why || (k && !n)),
+      title: why || (k && !n ? `No ${label} hosts` : null) || null,
+      onclick: () => { PLATFORM = k; store.set("dex-platform", k); drawToggle(); onChange(); } },
+      label, why ? "" : h("b", {}, fmt.n(n)));
+    return why ? tip(btn, why) : btn;
+  }));
+  drawToggle();
   const sel = h("select", { id: "fleet-filter", "aria-label": "Filter by fleet", onchange: (e) => {
     FLEET = e.target.value; store.set("dex-fleet", FLEET); onChange();
   } }, h("option", { value: "" }, "All fleets"), fleets.map((f) => h("option", { value: f, selected: f === FLEET }, f)));
   const host = DATA.fleet_url.replace(/^https?:\/\//, "");
-  mount("top",
+  mount("top", toggle,
     h("div", { class: "meta" },
       h("span", {}, `Updated ${fmt.date(DATA.generated_at)}, ${DATA.generated_at.slice(11, 16)} UTC · `, h("a", { href: DATA.fleet_url, target: "_blank", rel: "noopener" }, host)),
       sel));
 }
+const inPlatform = (p) => !PLATFORM || p === PLATFORM;
 const inFleet = (f) => !FLEET || f === FLEET;
 
 // Tooltip shared by every chart.

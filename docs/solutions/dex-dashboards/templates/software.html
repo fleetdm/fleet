@@ -20,7 +20,7 @@
   <div class="title-row">
     <div>
       <h1>Software usage</h1>
-      <p class="subtitle">Who actually opens what's installed, so you can reclaim unused seats at renewal. Covers third-party Mac apps in /Applications, from Fleet's software inventory.</p>
+      <p class="subtitle">Who actually opens what's installed, so you can reclaim unused seats at renewal. Covers third-party apps on macOS, Windows, and Linux, from Fleet's software inventory.</p>
     </div>
   </div>
   <section class="hero" id="hero" aria-label="Summary"></section>
@@ -53,16 +53,19 @@
     <summary>How this is measured</summary>
     <div class="cols">
       <div>
-        <p><strong>Seats:</strong> one per Mac that has the app installed. Only top-level apps in <code>/Applications</code> count. Apple's own apps and apps nested inside other apps are left out.</p>
-        <p><strong>Idle:</strong> not opened in <span id="idle-days"></span> days, or never opened. "Last opened" comes from macOS, through Fleet's software inventory. Apps that only run in the background or start from the command line may show as never opened.</p>
+        <p><strong>Seats:</strong> one per computer that has the app installed. Virtual machines and cloud servers are left out.</p>
+        <p><strong>Idle:</strong> not opened in <span id="idle-days"></span> days, or no open on record. Apps that only run in the background or start from a command line may show no open.</p>
+        <p><strong>Who's counted:</strong> computers that checked in within the last <span id="stale-days"></span> days. One that's been offline longer would make every app on it look idle.</p>
       </div>
       <div>
-        <p><strong>Who's counted:</strong> Macs that checked in within the last <span id="stale-days"></span> days. A Mac that's been offline longer would make every app on it look idle.</p>
-        <p><strong>Groups:</strong> 80% or more idle means remove it or unassign it. 40–79% means right-size at renewal. Under 40% is healthy. Only apps on <span id="min-installs"></span> or more Macs are listed. Totals cover every app.</p>
+        <p><strong>macOS:</strong> top-level apps in <code>/Applications</code>. Apple's own apps and apps nested inside other apps are left out. The last-opened time comes from macOS.</p>
+        <p><strong>Windows:</strong> programs with an install folder, since Fleet matches Windows' record of recently run programs (prefetch) to that folder. Windows keeps a limited number of these records, so a program not run in a long time can show no open. A computer with no record for any program (prefetch turned off) is left out. Windows' own apps and components, and Microsoft apps other than its licensed products (Microsoft 365, Teams, Visio, Project, Visual Studio), are left out.</p>
+        <p><strong>Linux:</strong> most packages are part of the OS, so only common desktop apps count, such as Chrome, Firefox, VS Code, Slack, Zoom, and 1Password. The last-opened time is the last access time of the package's programs, which a <code>noatime</code> mount stops updating.</p>
       </div>
       <div>
-        <p><strong>Not seats:</strong> agents IT deploys everywhere (Fleet Desktop, Nudge, Santa, Okta Verify) helpers, installers, uninstallers, updaters, and web shortcuts (such as Google Drive's Docs and Sheets launchers). They're listed separately and left out of the totals.</p>
-        <p><strong>Vendor:</strong> taken from the app's bundle identifier, such as <code>com.adobe</code> for Adobe.</p>
+        <p><strong>Groups:</strong> 80% or more idle means remove it or unassign it. 40–79% means right-size at renewal. Under 40% is healthy. Only apps on <span id="min-installs"></span> or more computers are listed. Totals cover every app.</p>
+        <p><strong>Not seats:</strong> agents IT deploys everywhere (Fleet Desktop, Nudge, Santa, Okta Verify), helpers, installers, uninstallers, updaters, and web shortcuts (such as Google Drive's Docs and Sheets launchers). They're listed separately and left out of the totals.</p>
+        <p><strong>Vendor:</strong> on macOS, from the app's bundle identifier, such as <code>com.adobe</code> for Adobe. On Windows, from the publisher Windows reports.</p>
       </div>
     </div>
   </details>
@@ -85,16 +88,21 @@ let vendorFilter = "";
 let query = "";
 
 const fleets = [...new Set(Object.values(DATA.hosts).map((x) => x.f))].sort();
+const platformCounts = {};
+for (const x of Object.values(DATA.hosts)) platformCounts[x.p] = (platformCounts[x.p] || 0) + 1;
+const nounWord = (plural) => (PLATFORM === "macos" ? (plural ? "Macs" : "Mac") : (plural ? "computers" : "computer"));
+const noun = (n) => (PLATFORM === "macos" ? fmt.plural(n, "Mac") : fmt.plural(n, "computer"));
 const isIdle = (d) => d == null || d >= DATA.idle_days;
 
 function appStats() {
   return DATA.apps.map((a) => {
+    if (!inPlatform(a.p)) return null;
     const hs = a.h.filter(([hid]) => DATA.hosts[hid] && inFleet(DATA.hosts[hid].f));
     const idle = hs.filter((x) => isIdle(x[2]));
     const opened = hs.map((x) => x[2]).filter((d) => d != null);
     return { ...a, _id: a.key, hosts: hs, installs: hs.length, idle: idle.length, never: hs.filter((x) => x[2] == null).length,
       pct_idle: hs.length ? (100 * idle.length) / hs.length : 0, median: opened.length ? quantile(opened, 0.5) : null };
-  }).filter((a) => a.installs);
+  }).filter((a) => a && a.installs);
 }
 function groupOf(a) {
   if (a.kind !== "app") return "notseat";
@@ -108,7 +116,7 @@ function render() {
   const idle = seats.reduce((s, a) => s + a.idle, 0);
   const never = seats.reduce((s, a) => s + a.never, 0);
   const listed = apps.filter((a) => a.installs >= DATA.min_installs);
-  const activeMacs = Object.values(DATA.hosts).filter((x) => inFleet(x.f)).length;
+  const activeMacs = Object.values(DATA.hosts).filter((x) => inFleet(x.f) && inPlatform(x.p)).length;
   const p = pct(idle, total);
   const top3 = [...seats].sort((a, b) => b.idle - a.idle).slice(0, 4);
   const nGroup = (k) => listed.filter((a) => groupOf(a) === k).length;
@@ -119,16 +127,16 @@ function render() {
     h("div", { class: "hero-mid" },
       h("p", { class: "lede" }, total ? [h("span", { class: p >= 40 ? "hl-bad" : "hl-good" }, `${fmt.pct(p)} of installed app seats`),
         ` haven't been opened in ${DATA.idle_days} days, across ${fmt.plural(seats.filter((a) => a.idle).length, "app")}.`] : "No app usage data in this fleet."),
-      h("p", { class: "support" }, total ? `${fmt.n(never)} of those were never opened at all. ${fmt.plural(nGroup("remove"), "app")} on ${DATA.min_installs}+ Macs ${nGroup("remove") === 1 ? "is" : "are"} idle on 80% or more of the Macs that have ${nGroup("remove") === 1 ? "it" : "them"}.` : "")),
+      h("p", { class: "support" }, total ? `${fmt.n(never)} of those have no open on record at all. ${fmt.plural(nGroup("remove"), "app")} on ${DATA.min_installs}+ ${nounWord(true)} ${nGroup("remove") === 1 ? "is" : "are"} idle on 80% or more of the ${nounWord(true)} that have ${nGroup("remove") === 1 ? "it" : "them"}.` : "")),
     h("div", { class: "rail" }, h("div", { class: "eyebrow" }, "Most idle apps"),
       top3.length ? top3.map((a) => h("div", { class: "rail-row" }, h("span", {}, a.name), h("b", {}, `${fmt.n(a.idle)} of ${fmt.n(a.installs)}`))) : h("span", { class: "support" }, "—")));
 
   const stat = (k, v, s) => h("div", { class: "stat" }, h("span", { class: "k" }, k), h("span", { class: "v" }, v), h("span", { class: "s" }, s));
   mount("stats",
-    stat("Active Macs", fmt.n(activeMacs), `checked in within ${DATA.stale_days} days`),
-    stat("Apps tracked", fmt.n(seats.length), `${fmt.n(listed.filter((a) => a.kind === "app").length)} on ${DATA.min_installs}+ Macs`),
+    stat(`Active ${nounWord(true)}`, fmt.n(activeMacs), `checked in within ${DATA.stale_days} days`),
+    stat("Apps tracked", fmt.n(seats.length), `${fmt.n(listed.filter((a) => a.kind === "app").length)} on ${DATA.min_installs}+ ${nounWord(true)}`),
     stat("Idle seats", fmt.n(idle), `${fmt.pct(p)} of ${fmt.n(total)}`),
-    stat("Never opened", fmt.n(never), `${fmt.pct(pct(never, total))} of seats`),
+    stat("No open recorded", fmt.n(never), `${fmt.pct(pct(never, total))} of seats`),
     stat("Remove or unassign", fmt.n(nGroup("remove")), "apps, 80%+ idle"),
     stat("Right-size", fmt.n(nGroup("rightsize")), "apps, 40–79% idle"));
 
@@ -157,7 +165,7 @@ function render() {
     ["180 days to 1 year", (d) => d != null && d >= 180 && d < 365, "var(--warn)"],
     ["1 to 2 years", (d) => d != null && d >= 365 && d < 730, "var(--bad)"],
     ["2+ years", (d) => d != null && d >= 730, "var(--bad)"],
-    ["Never opened", (d) => d == null, "var(--bad)"],
+    ["No open recorded", (d) => d == null, "var(--bad)"],
   ];
   mount("staleness", idleDays.length ? [barRows(sb.map(([l, f, c]) => {
     const n = idleDays.filter(f).length;
@@ -169,7 +177,7 @@ function render() {
   mount("act-chips", chipDefs.map((g) => h("button", { type: "button", class: "chip", "aria-pressed": shown.has(g.key) ? "true" : "false", style: `--tone:var(--${g.tone})`,
     onclick: () => { shown.has(g.key) ? shown.delete(g.key) : shown.add(g.key); render(); } }, h("i"), g.label, h("b", {}, fmt.n(nGroup(g.key))))),
     vendorFilter ? h("button", { type: "button", class: "chip", "aria-pressed": "true", onclick: () => { vendorFilter = ""; render(); } }, `Vendor: ${vendorFilter} ✕`) : null);
-  document.getElementById("act-hint").textContent = `Apps on ${DATA.min_installs}+ Macs. Click an app to see which Macs leave it idle.`;
+  document.getElementById("act-hint").textContent = `Apps on ${DATA.min_installs}+ ${nounWord(true)}. Click an app to see which ${nounWord(true)} leave it idle.`;
   const q = query.trim().toLowerCase();
   const match = (a) => (!vendorFilter || a.vendor === vendorFilter) && (!q || a.name.toLowerCase().includes(q) || a.vendor.toLowerCase().includes(q));
   const groups = chipDefs.filter((g) => shown.has(g.key)).map((g) => ({
@@ -178,31 +186,33 @@ function render() {
   })).filter((g) => g.rows.length);
   const visible = groups.flatMap((g) => g.rows);
   mount("act-tools", copyButton("Copy as CSV", () => csv([
-    ["app", "vendor", "group", "installs", "idle_90d", "never_opened", "pct_idle"],
-    ...visible.map((a) => [a.name, a.vendor, chipDefs.find((g) => g.key === groupOf(a)).label, a.installs, a.idle, a.never, Math.round(a.pct_idle)]),
+    ["app", "platform", "vendor", "group", "installs", "idle_90d", "no_open_recorded", "pct_idle"],
+    ...visible.map((a) => [a.name, platformLabel(a.p), a.vendor, chipDefs.find((g) => g.key === groupOf(a)).label, a.installs, a.idle, a.never, Math.round(a.pct_idle)]),
   ])));
   const tone = (a) => (a.kind !== "app" ? "neutral" : a.pct_idle >= 80 ? "bad" : a.pct_idle >= 40 ? "warn" : "good");
   const columns = [
-    { key: "name", label: "App", value: (a) => a.name.toLowerCase(), cell: (a) => [h("div", { class: "cell-main" }, a.name), h("div", { class: "cell-sub" }, a.vendor)] },
+    { key: "name", label: "App", value: (a) => a.name.toLowerCase(), cell: (a) => [h("div", { class: "cell-main" }, a.name, PLATFORM ? null : h("span", { class: "plat" }, platformLabel(a.p))), h("div", { class: "cell-sub" }, a.vendor)] },
     { key: "installs", label: "Installs", num: true, value: (a) => a.installs },
     { key: "idle", label: `Idle ${DATA.idle_days}d+`, num: true, value: (a) => a.idle },
-    { key: "never", label: "Never opened", num: true, value: (a) => a.never },
+    { key: "never", label: "No open recorded", num: true, value: (a) => a.never },
     { key: "pct", label: "Share idle", num: true, value: (a) => a.pct_idle, cell: (a) => [mini(a.pct_idle, tone(a)), fmt.pct(a.pct_idle)] },
-    { key: "median", label: "Median last open", num: true, value: (a) => a.median, cell: (a) => (a.median == null ? "never" : fmt.ago(a.median)) },
+    { key: "median", label: "Median last open", num: true, value: (a) => a.median, cell: (a) => (a.median == null ? "no record" : fmt.ago(a.median)) },
   ];
   const detail = (a) => {
     const rows = [...a.hosts].sort((x, y) => (y[2] ?? 1e9) - (x[2] ?? 1e9));
     const idleRows = rows.filter((x) => isIdle(x[2]));
     return [
-      h("div", { class: "detail-head" }, h("span", {}, `${fmt.n(idleRows.length)} of ${fmt.plural(a.installs, "Mac")} idle · versions in use: ${[...new Set(a.hosts.map((x) => x[1]))].length}`),
-        copyButton("Copy idle Macs as CSV", () => csv([["host", "fleet", "version", "days_since_opened", "fleet_url"],
-          ...idleRows.map(([hid, v, d]) => [DATA.hosts[hid].n, DATA.hosts[hid].f, v, d ?? "never", hostUrl(hid)])]))),
+      h("div", { class: "detail-head" }, h("span", {}, `${fmt.n(idleRows.length)} of ${fmt.plural(a.installs, a.p === "macos" ? "Mac" : "computer")} idle · versions in use: ${[...new Set(a.hosts.map((x) => x[1]))].length}`),
+        copyButton("Copy idle hosts as CSV", () => csv([["host", "fleet", "version", "days_since_opened", "fleet_url"],
+          ...idleRows.map(([hid, v, d]) => [DATA.hosts[hid].n, DATA.hosts[hid].f, v, d ?? "no record", hostUrl(hid)])]))),
       h("div", { class: "host-list" }, rows.map(([hid, v, d]) => h("div", {},
         hostLink(hid, DATA.hosts[hid].n),
-        h("span", { class: "cell-sub", style: isIdle(d) ? "color:var(--bad)" : null }, `${d == null ? "never opened" : `opened ${fmt.ago(d)}`} · ${v}`)))),
+        h("span", { class: "cell-sub", style: isIdle(d) ? "color:var(--bad)" : null }, `${d == null ? "no open recorded" : `opened ${fmt.ago(d)}`} · ${v}`)))),
     ];
   };
-  mount("act", groups.length ? sortTable({ columns, groups, sort: ["idle", "desc"], detail, id: "reclaim" }) : empty("No apps match", "Clear the search or vendor filter, or pick another group."));
+  mount("act", groups.length ? sortTable({ columns, groups, sort: ["idle", "desc"], detail, id: "reclaim" })
+    : !listed.length ? empty(`No app is on ${DATA.min_installs} or more ${nounWord(true)} here`, "Apps installed on fewer computers count toward the totals above.")
+    : empty("No apps match", "Clear the search or vendor filter, or pick another group."));
 
   document.getElementById("idle-days").textContent = DATA.idle_days;
   document.getElementById("stale-days").textContent = DATA.stale_days;
@@ -211,6 +221,6 @@ function render() {
 }
 
 document.getElementById("app-search").addEventListener("input", (e) => { query = e.target.value; render(); });
-renderTop(fleets, render);
+renderTop(fleets, render, platformCounts);
 render();
 </script>

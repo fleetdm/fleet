@@ -9,6 +9,7 @@ first-seen dates). Pass a missing or empty path on the first run.
 """
 import argparse
 import datetime as dt
+import html
 import json
 import os
 import re
@@ -20,6 +21,9 @@ WARRANTY_VITAL = os.environ.get("DEX_WARRANTY_VITAL", "AppleCare warranty expira
 PATCH_SLA_DAYS = 14
 IDLE_DAYS = 90
 MIN_INSTALLS = 3
+# Intel and AMD CPUs count as old this many years after their release year.
+OLD_CPU_YEARS = 4
+NOT_COMPUTERS = {"ios", "ipados", "android", "chrome"}
 
 # Apple silicon release years by generation and tier. Intel Macs are
 # treated as older than any Apple silicon.
@@ -31,15 +35,59 @@ CHIP_YEARS = {
     4: {"base": 2024, "pro": 2024, "max": 2024},
     5: {"base": 2025},
 }
+# First release year of each Intel Core generation and AMD Ryzen series.
+# A computer can't be newer than its CPU, so these are lower bounds on age.
+INTEL_CORE_YEARS = {4: 2013, 5: 2015, 6: 2015, 7: 2016, 8: 2017, 9: 2018, 10: 2019,
+                    11: 2020, 12: 2021, 13: 2022, 14: 2023}
+INTEL_ULTRA_YEARS = {1: 2023, 2: 2024}
+RYZEN_YEARS = {1: 2017, 2: 2018, 3: 2019, 4: 2020, 5: 2020, 6: 2022, 7: 2022, 8: 2024, 9: 2024}
+
+VIRTUAL_RE = re.compile(
+    r"qemu|vmware|virtualbox|innotek|parallels|\bxen\b|\bkvm\b|bochs|hyper-v|virtual machine|"
+    r"virtual cpu|\(virtual\)|virtualmac|droplet|digitalocean|amazon ec2|google compute", re.I)
 
 SUPPORT_RE = re.compile(
     r"(uninstall|helper|updater|update assistant|installer|diagnostic|crash ?report|"
     r"pluginservice|launchagent|login item|\bagent\b|\bdaemon\b|\bservice\b)", re.I)
-# Agents IT deploys to every Mac. They are opened by the system, not by people,
+# Agents IT deploys everywhere. They are opened by the system, not by people,
 # so they are never seats to reclaim.
 MANAGED_AGENTS = {
-    "fleet desktop", "nudge", "santa", "okta verify", "falcon", "sentinelone",
-    "jamf connect", "self service", "munki", "managed software center",
+    "fleet desktop", "fleet osquery", "fleet-osquery", "orbit", "nudge", "santa", "okta verify",
+    "falcon", "crowdstrike windows sensor", "sentinelone", "sentinel agent", "jamf connect",
+    "self service", "munki", "managed software center", "company portal",
+}
+# Windows components, runtimes, and drivers. The Windows counterpart of
+# leaving Apple's own apps out on macOS.
+WINDOWS_BUILTIN_RE = re.compile(
+    r"^(microsoft\.|microsoftwindows\.|windows\.|windows |microsoft edge|microsoft store|"
+    r"microsoft onedrive|microsoft update|microsoft visual c\+\+|microsoft \.net|"
+    r"microsoft windows desktop runtime|microsoft gameinput|microsoft teams meeting add-in|"
+    r"[0-9a-f]{8}-[0-9a-f]{4}-)|"
+    r"\.exe$|webview2|redistributable|runtime\b|\bsdk\b|\bdriver|chipset|firmware|realtek|"
+    r"^intel\(r\)|^nvidia|^amd |thunderbolt|bluetooth|health tools|pc health check", re.I)
+# Microsoft publishes Windows' own apps too, so only its licensed products count.
+MICROSOFT_SEATS_RE = re.compile(
+    r"^microsoft (365|office|teams|visio|project|visual studio|power bi|sql server management)|"
+    r"^(ms)?teams$|visual studio code", re.I)
+# Linux packages are mostly the OS itself, so only these desktop apps count
+# as seats. Package name -> (display name, vendor).
+LINUX_DESKTOP_APPS = {
+    "google-chrome-stable": ("Google Chrome", "Google"), "chromium": ("Chromium", "Chromium"),
+    "chromium-browser": ("Chromium", "Chromium"), "firefox": ("Mozilla Firefox", "Mozilla"),
+    "microsoft-edge-stable": ("Microsoft Edge", "Microsoft"), "brave-browser": ("Brave", "Brave"),
+    "code": ("Visual Studio Code", "Microsoft"), "cursor": ("Cursor", "Cursor"),
+    "sublime-text": ("Sublime Text", "Sublime HQ"), "slack-desktop": ("Slack", "Slack"),
+    "slack": ("Slack", "Slack"), "zoom": ("Zoom", "Zoom"), "teams-for-linux": ("Teams for Linux", "Teams for Linux"),
+    "1password": ("1Password", "1Password"), "docker-desktop": ("Docker Desktop", "Docker"),
+    "spotify-client": ("Spotify", "Spotify"), "discord": ("Discord", "Discord"),
+    "signal-desktop": ("Signal", "Signal"), "postman": ("Postman", "Postman"),
+    "dbeaver-ce": ("DBeaver", "DBeaver"), "obsidian": ("Obsidian", "Obsidian"),
+    "insomnia": ("Insomnia", "Kong"), "vlc": ("VLC", "VideoLAN"), "gimp": ("GIMP", "GIMP"),
+    "inkscape": ("Inkscape", "Inkscape"), "libreoffice-core": ("LibreOffice", "The Document Foundation"),
+    "thunderbird": ("Thunderbird", "Mozilla"), "wireshark": ("Wireshark", "Wireshark"),
+    "virtualbox": ("VirtualBox", "Oracle"), "remmina": ("Remmina", "Remmina"),
+    "keepassxc": ("KeePassXC", "KeePassXC"), "github-desktop": ("GitHub Desktop", "GitHub"),
+    "warp-terminal": ("Warp", "Warp"), "claude-desktop": ("Claude", "Anthropic"),
 }
 VENDOR_NAMES = {
     "microsoft": "Microsoft", "adobe": "Adobe", "google": "Google", "jetbrains": "JetBrains",
@@ -57,6 +105,9 @@ VENDOR_NAMES = {
     "digidna": "DigiDNA", "kandji": "Kandji", "jamf": "Jamf", "fleetdm": "Fleet",
     "blackmagic-design": "Blackmagic Design", "winehq": "WineHQ", "macadmins": "Mac Admins",
     "northpolesec": "North Pole Security", "simplemdm": "SimpleMDM",
+    "slacktechnologies": "Slack", "zoomvideocommunications": "Zoom", "zoomcommunications": "Zoom",
+    "googleinc": "Google", "mozillafoundation": "Mozilla", "anthropicpbc": "Anthropic",
+    "adobesystems": "Adobe", "dockerinc": "Docker", "githubinc": "GitHub", "jetbrainss.r.o": "JetBrains", "jetbrainssro": "JetBrains",
 }
 WRAPPER_VENDORS = {"todesktop", "electron", "github.electron", "nativefier"}
 
@@ -78,6 +129,23 @@ def days_between(a, b):
 
 def host_name(h):
     return h.get("display_name") or h.get("computer_name") or h.get("hostname") or f"Host {h['id']}"
+
+
+def platform_of(h):
+    """macos, windows, or linux. None for phones, tablets, and Chromebooks."""
+    p = h.get("platform") or ""
+    if p == "darwin":
+        return "macos"
+    if p == "windows":
+        return "windows"
+    if p in NOT_COMPUTERS or not p:
+        return None
+    return "linux"
+
+
+def is_virtual(h):
+    text = " ".join(str(h.get(k) or "") for k in ("hardware_vendor", "hardware_model", "cpu_brand"))
+    return bool(VIRTUAL_RE.search(text))
 
 
 def vkey(v):
@@ -104,25 +172,73 @@ def quantile(xs, q):
     return xs[lo] + (xs[hi] - xs[lo]) * (i - lo)
 
 
-def parse_chip(brand):
-    b = (brand or "").strip()
-    m = re.search(r"\bApple\s+M(\d+)(?:\s+(Pro|Max|Ultra))?\b", b, re.I)
+def software_rows(snap, hid):
+    """Software rows as (name, version, source, bundle_id, last_opened, path, vendor)."""
+    for r in snap["software"].get(hid, []):
+        yield (*r[:6], r[6] if len(r) > 6 else "")
+
+
+def intel_core_gen(brand):
+    if (m := re.search(r"(\d+)th Gen", brand, re.I)):
+        return int(m.group(1))
+    if not (m := re.search(r"\bi[3579]-(\d{4,5})", brand)):
+        return None
+    digits = m.group(1)
+    # 10th gen and later model numbers start with the generation (i7-1365U, i7-12700).
+    if digits[0] == "1" and 10 <= int(digits[:2]) <= 14:
+        return int(digits[:2])
+    return int(digits[0])
+
+
+def parse_cpu(brand, this_year):
+    """CPU label, family, release year, and whether it's old enough to refresh."""
+    b = re.sub(r"\s+", " ", (brand or "").replace("(R)", "").replace("(TM)", "")).strip()
+    m = re.search(r"\bApple M(\d+)(?: (Pro|Max|Ultra))?\b", b, re.I)
     if m:
         gen, tier = int(m.group(1)), (m.group(2) or "base").lower()
         years = CHIP_YEARS.get(gen, {})
-        return {
-            "vendor": "apple", "gen": gen, "label": f"M{gen}" + ("" if tier == "base" else " " + tier.title()),
-            "family": f"M{gen}", "year": years.get(tier) or years.get("base"),
-            "gens_behind": max(0, CURRENT_APPLE_GEN - gen),
-        }
+        behind = max(0, CURRENT_APPLE_GEN - gen)
+        return {"label": f"M{gen}" + ("" if tier == "base" else " " + tier.title()), "family": f"Apple M{gen}",
+                "year": years.get(tier) or years.get("base"), "gens_behind": behind, "old": behind >= 3}
+    year, family, label = None, None, b or "Unknown"
     if re.search(r"\bintel\b", b, re.I):
-        return {"vendor": "intel", "gen": None, "label": "Intel", "family": "Intel", "year": 2020,
-                "gens_behind": CURRENT_APPLE_GEN + 1}
-    return None
+        if (m := re.search(r"Core Ultra \d+ (\d)\d\d", b, re.I)):
+            series = int(m.group(1))
+            year, family = INTEL_ULTRA_YEARS.get(series), f"Intel Core Ultra {series}00"
+        elif (gen := intel_core_gen(b)):
+            year, family = INTEL_CORE_YEARS.get(gen), f"Intel Core {gen}th gen"
+        elif (m := re.search(r"\bN(\d)(\d)\d\b", b)):
+            year, family = (2025 if m.group(2) == "5" else 2023), "Intel N-series"
+        else:
+            family = "Intel (other)"
+        label = re.sub(r"^\d+th Gen ", "", b)
+    elif re.search(r"\bryzen\b", b, re.I):
+        if re.search(r"Ryzen AI Max", b, re.I):
+            year, family = 2025, "AMD Ryzen AI Max"
+        elif (m := re.search(r"Ryzen AI \d+(?: HX)?(?: PRO)? (\d)\d\d", b, re.I)):
+            year, family = 2024, f"AMD Ryzen AI {m.group(1)}00"
+        elif (m := re.search(r"Ryzen (?:Threadripper )?(?:PRO )?\d+ (?:PRO )?(\d)\d{3}", b, re.I)):
+            series = int(m.group(1))
+            year, family = RYZEN_YEARS.get(series), f"AMD Ryzen {series}000"
+        else:
+            family = "AMD Ryzen (other)"
+        label = re.sub(r" w/ Radeon.*$| with Radeon.*$| \d+-Core Processor$", "", b, flags=re.I)
+    elif re.search(r"snapdragon", b, re.I):
+        year, family = 2024, "Snapdragon X"
+    if family is None:
+        return None
+    return {"label": label, "family": family, "year": year, "gens_behind": None,
+            "old": bool(year and this_year - year >= OLD_CPU_YEARS)}
 
 
 def host_map(hosts, ids):
-    return {hid: {"n": host_name(hosts[hid]), "f": hosts[hid].get("team_name") or "Unassigned"} for hid in ids}
+    return {hid: {"n": host_name(hosts[hid]), "f": hosts[hid].get("team_name") or "Unassigned",
+                  "p": platform_of(hosts[hid])} for hid in ids}
+
+
+def is_active(h, now):
+    seen = parse_ts(h.get("seen_time"))
+    return bool(seen and days_between(seen, now) <= STALE_DAYS)
 
 
 def load_json(path, default):
@@ -149,14 +265,16 @@ def strain_today(swap, uptime_days):
 
 
 def lifecycle_verdict(m):
-    old = m["gens_behind"] is not None and m["gens_behind"] >= 3
+    old = m["old"]
     if m["battery_service"]:
         return "refresh" if old else "battery"
+    if m["windows10"]:
+        return "refresh" if old else "investigate"
     rep, prs = m["days_reporting"], m["days_pressured"]
     sustained = rep >= 5 and prs >= max(3, rep * 0.5)
     if sustained:
         return "refresh" if old else "investigate"
-    if sustained or m["pressured_now"] or m["battery_score"] == "degraded":
+    if m["pressured_now"] or m["battery_score"] == "degraded":
         return "watch"
     return "defer" if old else "healthy"
 
@@ -171,17 +289,18 @@ def build_lifecycle(snap, hist):
     details = snap.get("host_details", {})
     dh_rows = snap.get("device_health", {})
 
-    macs = []
+    devices = []
     for h in snap["hosts"]:
-        if h["platform"] != "darwin":
+        plat = platform_of(h)
+        if not plat:
             continue
         hid = str(h["id"])
-        dh = dh_rows.get(hid) or {}
+        dh = (dh_rows.get(hid) or {}) if plat == "macos" else {}
         det = details.get(hid) or {}
-        chip = parse_chip(h.get("cpu_brand") or dh.get("cpu_brand"))
+        cpu = parse_cpu(h.get("cpu_brand") or dh.get("cpu_brand"), today.year)
         mkt = det.get("hardware_marketing_name") or ""
         ym = re.search(r"\b(20\d\d)\b", mkt)
-        year = int(ym.group(1)) if ym else (chip["year"] if chip else None)
+        year = int(ym.group(1)) if ym else (cpu["year"] if cpu else None)
         seen = parse_ts(h.get("seen_time"))
         seen_days = days_between(seen, now) if seen else None
         uptime_days = (h.get("uptime") or 0) / 1e9 / 86400 if h.get("uptime") else None
@@ -189,31 +308,38 @@ def build_lifecycle(snap, hist):
         dh_fresh = bool(fetched and days_between(fetched, now) <= 1.5)
         pressured, severe = strain_today(dh.get("swap_pressure"), uptime_days) if dh_fresh else (False, False)
 
-        days = strain.setdefault(hid, {})
+        days = strain.setdefault(hid, {}) if plat == "macos" else {}
         if dh_fresh:
             days[today.isoformat()] = [int(pressured), int(severe)]
         cutoff = (today - dt.timedelta(days=30)).isoformat()
         recent = {d: v for d, v in days.items() if d > cutoff}
-        strain[hid] = {d: v for d, v in days.items() if d > (today - dt.timedelta(days=45)).isoformat()}
+        if plat == "macos":
+            strain[hid] = {d: v for d, v in days.items() if d > (today - dt.timedelta(days=45)).isoformat()}
 
         batteries = det.get("batteries") or []
         fleet_batt = batteries[0].get("health") if batteries else None
+        cycles = batteries[0].get("cycle_count") if batteries else None
         score = dh.get("battery_health_score") or None
         battery_service = score == "replace" or (fleet_batt or "").lower().startswith("service")
         mem = h.get("memory") or 0
         ram = round(mem / 2**30) if mem else None
         warranty = (det.get("vitals") or {}).get(WARRANTY_VITAL) or None
+        os_version = h.get("os_version") or ""
+        model = mkt or " ".join(x for x in (h.get("hardware_vendor") if plat != "macos" else "", h.get("hardware_model")) if x)
         m = {
-            "id": h["id"], "name": host_name(h), "fleet": h.get("team_name") or "Unassigned",
-            "model": mkt or h.get("hardware_model") or "", "model_id": h.get("hardware_model") or "",
+            "id": h["id"], "name": host_name(h), "fleet": h.get("team_name") or "Unassigned", "p": plat,
+            "model": model, "model_id": h.get("hardware_model") or "",
             "serial": h.get("hardware_serial") or "",
-            "chip": chip["label"] if chip else (h.get("cpu_brand") or "Unknown"),
-            "chip_family": chip["family"] if chip else "Unknown",
-            "gens_behind": chip["gens_behind"] if chip else None,
+            "chip": cpu["label"] if cpu else ((h.get("cpu_brand") or "").strip() or "Unknown"),
+            "chip_family": cpu["family"] if cpu else "Unknown",
+            "cpu_year": cpu["year"] if cpu else None,
+            "gens_behind": cpu["gens_behind"] if cpu else None,
+            "old": bool(cpu and cpu["old"]),
             "year": year, "age": (today.year - year) if year else None,
-            "ram": ram, "os": h.get("os_version") or "",
+            "ram": ram, "os": os_version,
+            "windows10": plat == "windows" and "Windows 10" in os_version,
             "battery_pct": float(dh["battery_health_pct"]) if dh.get("battery_health_pct") else None,
-            "battery_cycles": int(dh["battery_cycles"]) if (dh.get("battery_cycles") or "").isdigit() else None,
+            "battery_cycles": int(dh["battery_cycles"]) if (dh.get("battery_cycles") or "").isdigit() else cycles,
             "battery_score": score, "battery_fleet": fleet_batt, "battery_service": battery_service,
             "swap": dh.get("swap_pressure") if dh_fresh else None,
             "uptime_days": round(uptime_days, 1) if uptime_days is not None else None,
@@ -227,35 +353,31 @@ def build_lifecycle(snap, hist):
             "seen_days": round(seen_days, 1) if seen_days is not None else None,
             "has_health": dh_fresh,
         }
-        stale = seen_days is None or seen_days > STALE_DAYS
-        m["verdict"] = "stale" if stale else lifecycle_verdict(m)
-        macs.append(m)
+        if is_virtual(h):
+            m["verdict"] = "virtual"
+        elif seen_days is None or seen_days > STALE_DAYS:
+            m["verdict"] = "stale"
+        else:
+            m["verdict"] = lifecycle_verdict(m)
+        devices.append(m)
 
     # Hosts that are gone from Fleet stop accruing history.
-    live = {str(m["id"]) for m in macs}
+    live = {str(m["id"]) for m in devices}
     for hid in list(strain):
         if hid not in live:
             del strain[hid]
 
-    active = [m for m in macs if m["verdict"] != "stale"]
-    counts = {k: sum(1 for m in macs if m["verdict"] == k)
-              for k in ["refresh", "battery", "investigate", "watch", "defer", "healthy", "stale"]}
-    flagged = [m for m in active if m["verdict"] not in ("healthy",)]
-    signals = [
-        {"label": "Chip 3+ generations old", "count": sum(1 for m in active if (m["gens_behind"] or 0) >= 3)},
-        {"label": "Sustained memory strain", "count": sum(1 for m in active if m["days_reporting"] >= 5 and m["days_pressured"] >= max(3, m["days_reporting"] * .5))},
-        {"label": "16 GB of RAM or less", "count": sum(1 for m in active if m["ram"] and m["ram"] <= 16)},
-        {"label": "Battery degraded or needs service", "count": sum(1 for m in active if m["battery_service"] or m["battery_score"] == "degraded")},
-        {"label": "Warranty ends within 90 days", "count": sum(1 for m in active if m["warranty_days"] is not None and 0 <= m["warranty_days"] <= 90)},
-    ]
-    ages = [m["age"] for m in active if m["age"] is not None]
-    summary_hist[today.isoformat()] = {k: counts[k] for k in counts}
+    counts = {}
+    for m in devices:
+        counts[m["verdict"]] = counts.get(m["verdict"], 0) + 1
+    summary_hist[today.isoformat()] = counts
     hist["summary"] = trim_daily(summary_hist, 400, today)
     days_collected = len({d for v in strain.values() for d in v})
     return {
         "generated_at": snap["generated_at"], "fleet_url": snap["fleet_url"],
         "history_since": hist["since"], "history_days": days_collected,
-        "macs": macs, "current_gen": CURRENT_APPLE_GEN, "stale_days": STALE_DAYS, "warranty_vital": WARRANTY_VITAL,
+        "devices": devices, "current_gen": CURRENT_APPLE_GEN, "old_cpu_years": OLD_CPU_YEARS,
+        "stale_days": STALE_DAYS, "warranty_vital": WARRANTY_VITAL,
         "trend": [{"date": d, **v} for d, v in sorted(hist["summary"].items())],
     }
 
@@ -279,18 +401,41 @@ def vendor_of(bid, name):
     return " ".join(w[:1].upper() + w[1:] for w in words if w)
 
 
-def tracked_mac_apps(rows):
-    """Top-level third-party apps in /Applications, one entry per bundle."""
+def clean_vendor(v, name):
+    """'Google LLC' -> 'Google', 'Microsoft Corporation' -> 'Microsoft'."""
+    v = re.sub(r"[,.]?\s*\b(inc|incorporated|llc|ltd|limited|corp|corporation|gmbh|co|s\.a|b\.v|pty|plc|pbc)\b\.?", "", v or "", flags=re.I).strip(" ,.")
+    if not v:
+        return name
+    return VENDOR_NAMES.get(v.lower().replace(" ", ""), v)
+
+
+def tracked_apps(snap, hid, plat):
+    """User-facing apps on one host: {key: (name, version, vendor, last_opened, bundle_id)}."""
     out = {}
-    for name, ver, source, bid, last, path in rows:
-        if source != "apps" or not path.startswith("/Applications/") or path.count(".app") != 1:
-            continue
-        if bid.startswith("com.apple."):
-            continue
-        key = bid or name
+    for name, ver, source, bid, last, path, vendor in software_rows(snap, hid):
+        name = html.unescape(name)
+        if plat == "macos":
+            if source != "apps" or not path.startswith("/Applications/") or path.count(".app") != 1:
+                continue
+            if bid.startswith("com.apple."):
+                continue
+            key, vend = bid or name, vendor_of(bid, name)
+        elif plat == "windows":
+            # Fleet matches Windows prefetch data to a program by its install
+            # folder, so a program without one never gets a last-opened time.
+            if source != "programs" or not path or WINDOWS_BUILTIN_RE.search(name):
+                continue
+            if re.search(r"microsoft", vendor or "", re.I) and not MICROSOFT_SEATS_RE.search(name):
+                continue
+            key, vend = "win:" + name, clean_vendor(vendor, name)
+        else:
+            if source not in ("deb_packages", "rpm_packages") or name not in LINUX_DESKTOP_APPS:
+                continue
+            key = "linux:" + name
+            name, vend = LINUX_DESKTOP_APPS[name]
         prev = out.get(key)
         if prev is None or vcmp(ver, prev[1]) > 0:
-            out[key] = (name, ver, bid, last, path)
+            out[key] = (name, ver, vend, last, bid)
     return out
 
 
@@ -313,16 +458,21 @@ def build_software(snap, hist):
     hist.setdefault("since", today.isoformat())
     summary_hist = hist.setdefault("summary", {})
     hosts = {str(h["id"]): h for h in snap["hosts"]}
-    active = []
-    for hid, h in hosts.items():
-        seen = parse_ts(h.get("seen_time"))
-        if h["platform"] == "darwin" and seen and days_between(seen, now) <= STALE_DAYS:
-            active.append(hid)
+    def has_usage_data(hid, h):
+        # With Windows prefetch (SysMain) turned off, no program ever gets a
+        # last-opened time, and every seat on the computer would look idle.
+        if platform_of(h) != "windows":
+            return True
+        return any(r[2] == "programs" and r[4] for r in snap["software"].get(hid, []))
+
+    active = [hid for hid, h in hosts.items()
+              if platform_of(h) and not is_virtual(h) and is_active(h, now) and has_usage_data(hid, h)]
 
     apps = {}
     for hid in active:
-        for key, (name, ver, bid, last, path) in tracked_mac_apps(snap["software"].get(hid, [])).items():
-            a = apps.setdefault(key, {"key": key, "names": {}, "bid": bid, "hosts": []})
+        plat = platform_of(hosts[hid])
+        for key, (name, ver, vend, last, bid) in tracked_apps(snap, hid, plat).items():
+            a = apps.setdefault(key, {"key": key, "names": {}, "bid": bid, "vendor": vend, "p": plat, "hosts": []})
             a["names"][name] = a["names"].get(name, 0) + 1
             opened = parse_ts(last) if last else None
             ds = round(days_between(opened, now)) if opened else None
@@ -331,35 +481,17 @@ def build_software(snap, hist):
     rows = []
     for a in apps.values():
         name = max(a["names"], key=a["names"].get)
-        hs = a["hosts"]
-        idle = [x for x in hs if x[2] is None or x[2] >= IDLE_DAYS]
-        never = [x for x in hs if x[2] is None]
-        opened_days = [x[2] for x in hs if x[2] is not None]
-        rows.append({
-            "key": a["key"], "name": name, "bid": a["bid"], "vendor": vendor_of(a["bid"], name),
-            "kind": app_kind(name, a["bid"]), "installs": len(hs), "idle": len(idle), "never": len(never),
-            "pct_idle": pct(len(idle), len(hs)),
-            "median_days": statistics.median(opened_days) if opened_days else None,
-            "hosts": sorted(hs, key=lambda x: (x[2] is not None, -(x[2] or 0))),
-        })
+        rows.append({"key": a["key"], "name": name, "vendor": a["vendor"], "p": a["p"],
+                     "kind": app_kind(name, a["bid"]), "h": sorted(a["hosts"], key=lambda x: (x[2] is not None, -(x[2] or 0)))})
     seats = [r for r in rows if r["kind"] == "app"]
-    total = sum(r["installs"] for r in seats)
-    idle = sum(r["idle"] for r in seats)
-    vendors = {}
-    for r in seats:
-        v = vendors.setdefault(r["vendor"], {"vendor": r["vendor"], "apps": 0, "seats": 0, "idle": 0})
-        v["apps"] += 1
-        v["seats"] += r["installs"]
-        v["idle"] += r["idle"]
-    for v in vendors.values():
-        v["pct_idle"] = pct(v["idle"], v["seats"])
+    total = sum(len(r["h"]) for r in seats)
+    idle = sum(1 for r in seats for x in r["h"] if x[2] is None or x[2] >= IDLE_DAYS)
     summary_hist[today.isoformat()] = {"seats": total, "idle": idle}
     hist["summary"] = trim_daily(summary_hist, 400, today)
     return {
         "generated_at": snap["generated_at"], "fleet_url": snap["fleet_url"],
         "hosts": host_map(hosts, active),
-        "apps": [{"key": r["key"], "name": r["name"], "vendor": r["vendor"], "kind": r["kind"], "h": r["hosts"]}
-                 for r in sorted(rows, key=lambda r: -r["idle"])],
+        "apps": sorted(rows, key=lambda r: -len(r["h"])),
         "idle_days": IDLE_DAYS, "min_installs": MIN_INSTALLS, "stale_days": STALE_DAYS,
         "trend": [{"date": d, **v} for d, v in sorted(hist["summary"].items())],
     }
@@ -367,17 +499,31 @@ def build_software(snap, hist):
 
 # ---------------------------------------------------------------- patch velocity
 
+def windows_os(os_version):
+    """('Windows 11 25H2', '10.0.26200.9457'), or None for Insider builds."""
+    if re.search(r"insider|preview", os_version, re.I):
+        return None
+    m = re.search(r"(Windows \d+)\b.*?(\d\dH\d)?\s*(10\.0\.\d+\.\d+)", os_version)
+    if not m:
+        return None
+    return (f"{m.group(1)} {m.group(2)}" if m.group(2) else m.group(1)), m.group(3)
+
+
 def patch_titles(snap, hid, h):
-    """Version per tracked title for one host: macOS apps plus the OS."""
+    """Version per tracked title for one host: apps plus the OS. macOS and Windows only."""
     out = {}
-    if h["platform"] == "darwin":
-        for key, (name, ver, bid, last, path) in tracked_mac_apps(snap["software"].get(hid, [])).items():
-            if app_kind(name, bid) == "support":
-                continue
-            out["app:" + key] = (name, ver)
-        osv = (h.get("os_version") or "").replace("macOS ", "").strip()
-        if osv:
-            out["os:macOS"] = ("macOS", osv)
+    plat = platform_of(h)
+    if plat not in ("macos", "windows"):
+        return out
+    for key, (name, ver, vend, last, bid) in tracked_apps(snap, hid, plat).items():
+        if app_kind(name, bid) == "support":
+            continue
+        out[("app:" + key) if plat == "macos" else key] = (name, ver)
+    osv = h.get("os_version") or ""
+    if plat == "macos" and osv:
+        out["os:macOS"] = ("macOS", osv.replace("macOS ", "").strip())
+    elif plat == "windows" and (w := windows_os(osv)):
+        out["os:" + w[0]] = w
     return out
 
 
@@ -395,7 +541,6 @@ def build_patch(snap, hist):
     now = parse_ts(snap["generated_at"])
     today = now.date()
     D = today.isoformat()
-    first_run = not hist.get("hosts")
     hist.setdefault("schema", 1)
     hist.setdefault("since", D)
     versions = hist.setdefault("versions", {})
@@ -404,12 +549,17 @@ def build_patch(snap, hist):
     events = hist.setdefault("events", [])
     summary_hist = hist.setdefault("summary", {})
     hosts = {str(h["id"]): h for h in snap["hosts"]}
+    # A title the history hasn't seen before starts as a baseline: its versions
+    # weren't released today, so they aren't timed.
+    known_titles = set(versions)
 
     betas = {(r.get("os_version") or "") for r in snap.get("os_health", {}).values()
              if re.search(r"[a-z]$", r.get("os_build") or "")}
 
     current = {}
     for hid, h in hosts.items():
+        if is_virtual(h):
+            continue
         titles = patch_titles(snap, hid, h)
         current[hid] = titles
         prev_host = state.get(hid)
@@ -418,7 +568,7 @@ def build_patch(snap, hist):
             names[key] = name
             vs = versions.setdefault(key, {})
             if ver not in vs:
-                vs[ver] = None if first_run else D
+                vs[ver] = D if key in known_titles else None
             prev = (prev_host or {}).get(key)
             if prev is None:
                 new_host[key] = [ver, D]
@@ -430,15 +580,14 @@ def build_patch(snap, hist):
                 new_host[key] = prev
         state[hid] = new_host
     for hid in list(state):
-        if hid not in hosts:
+        if hid not in current:
             del state[hid]
     cutoff180 = (today - dt.timedelta(days=180)).isoformat()
     hist["events"] = events = [e for e in events if e[5] >= cutoff180]
 
     # Per-title installs on hosts that still check in. The page aggregates these
-    # (per fleet) against the fleet-wide newest release.
-    active = [hid for hid, h in hosts.items()
-              if parse_ts(h.get("seen_time")) and days_between(parse_ts(h["seen_time"]), now) <= STALE_DAYS]
+    # (per fleet and platform) against the fleet-wide newest release.
+    active = [hid for hid in current if is_active(hosts[hid], now)]
     by_title = {}
     for hid in active:
         for key, (name, ver) in current[hid].items():
@@ -448,10 +597,11 @@ def build_patch(snap, hist):
     for key, hv in sorted(by_title.items()):
         if len(hv) < 2:
             continue
+        plat = platform_of(hosts[str(hv[0][0])])
         newest = newest_release([v for _, v in hv], betas)
         index[key] = len(titles)
         titles.append({
-            "key": key, "name": names.get(key, key), "type": "os" if key.startswith("os:") else "app",
+            "key": key, "name": names.get(key, key), "type": "os" if key.startswith("os:") else "app", "p": plat,
             "newest": newest, "newest_seen": versions.get(key, {}).get(newest),
             "i": hv,
             "fresh": sorted([[v, seen] for v, seen in versions.get(key, {}).items()

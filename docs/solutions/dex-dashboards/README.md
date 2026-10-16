@@ -1,6 +1,6 @@
 # DEX dashboards
 
-Scripts that build three dashboards from the Fleet API: Hardware lifecycle, Software usage, and Patch velocity. A daily Claude Code routine runs them and publishes each dashboard as a private claude.ai Artifact. To set them up, follow the guide: [Build DEX dashboards with Fleet and Claude](https://fleetdm.com/guides/build-dex-dashboards-with-fleet-and-claude).
+Scripts that build three dashboards from the Fleet API: Hardware lifecycle and Software usage (macOS, Windows, and Linux), and Patch velocity (macOS and Windows). A daily Claude Code routine runs them and publishes each dashboard as a private claude.ai Artifact. To set them up, follow the guide: [Build DEX dashboards with Fleet and Claude](https://fleetdm.com/guides/build-dex-dashboards-with-fleet-and-claude).
 
 | File | What it does |
 |:--|:--|
@@ -9,7 +9,7 @@ Scripts that build three dashboards from the Fleet API: Hardware lifecycle, Soft
 | `run.py` | Runs `collect.py`, then builds all three pages. The routine calls this. |
 | `bundle.py` | Packages the code above into one file for the routine and prints its sha256. |
 | `templates/` | Page templates. |
-| `dex-reports.yml` | The two DEX reports the dashboards read. |
+| `dex-reports.yml` | The two DEX reports the dashboards read for Macs. |
 | `routine-prompt.md` | The routine's prompt, with placeholders the setup fills in. |
 
 The scripts need Python 3.9 or later and no third-party packages. To try them locally, set `FLEET_URL` and `FLEET_API_TOKEN`, then run:
