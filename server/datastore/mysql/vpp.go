@@ -208,22 +208,20 @@ WHERE
 	return labels, nil
 }
 
-func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, vppAppTeamID uint) (*fleet.VPPAppStatusSummary,
-	error,
-) {
-	var dest fleet.VPPAppStatusSummary
-
-	stmt := `
+// Select the status of an App Store app version on each host, counting at most one installed, one pending and one failed version per host.
+const vppAppVersionHostStatusesQuery = `
 WITH
 
--- select most recent upcoming activity per host (per activity type)
+-- select most recent upcoming activity per host and version
 upcoming AS (
-	SELECT host_id, status FROM (
+	SELECT host_id, vpp_app_team_id, status, created_at FROM (
 		SELECT
 			ua.host_id,
+			vaua.vpp_app_team_id,
 			:software_status_pending AS status,
+			ua.created_at,
 			ROW_NUMBER() OVER (
-				PARTITION BY ua.host_id, ua.activity_type
+				PARTITION BY ua.host_id, vaua.vpp_app_team_id
 				ORDER BY ua.priority ASC, ua.created_at DESC, ua.id DESC
 			) AS rn
 		FROM
@@ -233,17 +231,19 @@ upcoming AS (
 			JOIN hosts h ON ua.host_id = h.id
 		WHERE
 			ua.activity_type = 'vpp_app_install'
-			AND vaua.vpp_app_team_id = :vpp_app_team_id
+			AND vaua.vpp_app_team_id IN (:version_ids)
 			AND COALESCE(h.team_id, 0) = vat.global_or_team_id
 	) ranked
 	WHERE rn = 1
 ),
 
--- select most recent past activities for each host
+-- select most recent past activities for each host and version
 -- NOTE if you change this logic make sure to change vppAppHostStatusNamedQuery accordingly
 past AS (
 	SELECT
 		ranked.host_id,
+		ranked.vpp_app_team_id,
+		ranked.created_at,
 		CASE
 			WHEN ranked.verification_at IS NOT NULL THEN
 				:software_status_installed
@@ -260,63 +260,89 @@ past AS (
 	FROM (
 		SELECT
 			hvsi.host_id,
+			hvsi.vpp_app_team_id,
+			hvsi.created_at,
 			hvsi.command_uuid,
 			hvsi.verification_at,
 			hvsi.verification_failed_at,
 			hvsi.platform,
-			h.uuid AS host_uuid,
-			ROW_NUMBER() OVER (
-				PARTITION BY hvsi.host_id
-				ORDER BY hvsi.created_at DESC, hvsi.id DESC
-			) AS rn
+			h.uuid AS host_uuid
 		FROM
-			host_vpp_software_installs hvsi
+			-- Read only the last index entry per host and version, the ids follow the insert order
+			(
+				SELECT MAX(id) AS id
+				FROM host_vpp_software_installs
+				WHERE vpp_app_team_id IN (:version_ids) AND canceled = 0 AND removed = 0
+				GROUP BY vpp_app_team_id, host_id
+			) latest_install
+			JOIN host_vpp_software_installs hvsi ON hvsi.id = latest_install.id
 			JOIN hosts h ON hvsi.host_id = h.id
 			JOIN vpp_apps_teams vat ON vat.id = hvsi.vpp_app_team_id
 		WHERE
-			hvsi.vpp_app_team_id = :vpp_app_team_id
-			AND COALESCE(h.team_id, 0) = vat.global_or_team_id
-			AND hvsi.removed = 0
-			AND hvsi.canceled = 0
+			COALESCE(h.team_id, 0) = vat.global_or_team_id
 	) ranked
 	LEFT JOIN nano_command_results ncr ON
 		ncr.id = ranked.host_uuid AND
 		ncr.command_uuid = ranked.command_uuid
 	WHERE
-		ranked.rn = 1
 		-- Allow rows with no nano_command_results — Android VPP never produces
 		-- one, and Fleet-side pre-flight failures (e.g. unresolvable
 		-- managed-config Fleet variable on iOS/iPadOS) record only the install
 		-- row with verification_failed_at set, no MDM command. The CASE above
 		-- maps verification_failed_at IS NOT NULL to failed ahead of the ncr
-		-- branches. This check runs after ranking, so a host whose most recent
+		-- branches. This check runs after picking the latest row, so a host whose most recent
 		-- row lacks a command result is dropped rather than falling back to an
 		-- older row.
-		AND (ncr.id IS NOT NULL OR ranked.verification_failed_at IS NOT NULL OR (ranked.platform = 'android' AND ncr.id IS NULL))
-		AND ranked.host_id NOT IN (SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
+		(ncr.id IS NOT NULL OR ranked.verification_at IS NOT NULL OR ranked.verification_failed_at IS NOT NULL OR (ranked.platform = 'android' AND ncr.id IS NULL))
+		AND (ranked.host_id, ranked.vpp_app_team_id) NOT IN (SELECT host_id, vpp_app_team_id FROM upcoming) -- antijoin to exclude host versions with upcoming activities
 )
 
--- count each status
+-- keep the version with the latest activity for each status on each host
+SELECT
+	host_id,
+	status
+FROM (
+	SELECT
+		host_id,
+		vpp_app_team_id,
+		status,
+		ROW_NUMBER() OVER (
+			PARTITION BY host_id, status
+			ORDER BY created_at DESC, vpp_app_team_id DESC
+		) AS rn
+	FROM (
+		SELECT host_id, vpp_app_team_id, status, created_at FROM past
+		UNION ALL
+		SELECT host_id, vpp_app_team_id, status, created_at FROM upcoming
+	) statuses
+) latest
+WHERE
+	rn = 1
+	AND vpp_app_team_id = :vpp_app_team_id`
+
+func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, vppAppTeamID uint) (*fleet.VPPAppStatusSummary,
+	error,
+) {
+	var dest fleet.VPPAppStatusSummary
+
+	versionIDs, err := ds.GetAppStoreAppVersionIDsFromSpecificVersion(ctx, vppAppTeamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get summary host vpp installs: version ids")
+	}
+	if len(versionIDs) == 0 {
+		return &dest, nil
+	}
+
+	stmt := fmt.Sprintf(`
 SELECT
 	COALESCE(SUM( IF(status = :software_status_pending, 1, 0)), 0) AS pending,
 	COALESCE(SUM( IF(status = :software_status_failed, 1, 0)), 0) AS failed,
 	COALESCE(SUM( IF(status = :software_status_installed, 1, 0)), 0) AS installed
-FROM (
-
--- union most recent past and upcoming activities after joining to get statuses for most recent activities
-SELECT
-	past.host_id,
-	past.status
-FROM past
-UNION
-SELECT
-	upcoming.host_id,
-	upcoming.status
-FROM upcoming
-) t`
+FROM (%s) t`, vppAppVersionHostStatusesQuery)
 
 	query, args, err := sqlx.Named(stmt, map[string]interface{}{
 		"vpp_app_team_id":           vppAppTeamID,
+		"version_ids":               versionIDs,
 		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
 		"mdm_status_error":          fleet.MDMAppleStatusError,
 		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
@@ -326,6 +352,10 @@ FROM upcoming
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get summary host vpp installs: named query")
+	}
+	query, args, err = sqlx.In(query, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get summary host vpp installs: in query")
 	}
 
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &dest, query, args...)

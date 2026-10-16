@@ -70,6 +70,7 @@ func TestVPP(t *testing.T) {
 		{"AndroidAppsInScopeHostVitalsExcludeAnyLabel", testAndroidAppsInScopeHostVitalsExcludeAnyLabel},
 		{"VPPInstallLinksAppStoreAppInstance", testVPPInstallLinksAppStoreAppInstance},
 		{"TwoAppStoreAppInstancesInOneFleet", testTwoAppStoreAppInstancesInOneFleet},
+		{"AppStoreAppVersionsStatusCountsOneVersionPerStatus", testAppStoreAppVersionsStatusCountsOneVersionPerStatus},
 		{"AppStoreAppVersionsEditAndDelete", testAppStoreAppVersionsEditAndDelete},
 		{"SetTeamVPPAppVersions", testSetTeamVPPAppVersions},
 		{"ListHostSoftwareAppStoreAppHostVersion", testListHostSoftwareAppStoreAppHostVersion},
@@ -4695,6 +4696,147 @@ func testTwoAppStoreAppInstancesInOneFleet(t *testing.T, ds *Datastore) {
 		secondSummary, err := ds.GetSummaryHostVPPAppInstalls(ctx, secondAppTeamID)
 		require.NoError(t, err)
 		require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1}, secondSummary)
+	}
+}
+
+func testAppStoreAppVersionsStatusCountsOneVersionPerStatus(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "versions-status-team"})
+	require.NoError(t, err)
+
+	const adamID = "77776666"
+	setupTestVPPApp(t, ds, adamID, fleet.IOSPlatform)
+
+	cases := []struct {
+		name       string
+		fleetID    uint
+		hostTeamID *uint
+	}{
+		{name: "no team", fleetID: 0, hostTeamID: nil},
+		{name: "team", fleetID: team.ID, hostTeamID: &team.ID},
+	}
+	for _, c := range cases {
+		t.Log(c.name)
+		fleetID := c.fleetID
+
+		// add the app to the fleet as version A, then add version B
+		var versionA *fleet.VPPApp
+		if c.fleetID == 0 {
+			versionA, err = ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, adamID, fleet.IOSPlatform, nil)
+		} else {
+			versionA, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+				Name:             "VersionsStatusApp",
+				AdamID:           adamID,
+				Platform:         fleet.IOSPlatform,
+				BundleIdentifier: "com.example." + adamID,
+			}, &team.ID, nil)
+		}
+		require.NoError(t, err)
+		require.NotNil(t, versionA)
+		versionB, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+			Name:             "VersionsStatusApp",
+			BundleIdentifier: "com.example." + adamID,
+			AdamID:           adamID,
+			Platform:         fleet.IOSPlatform,
+			VersionName:      "Beta",
+		}, &fleetID, nil)
+		require.NoError(t, err)
+
+		newHost := func(name string) *fleet.Host {
+			host, err := ds.NewHost(ctx, &fleet.Host{
+				Hostname:       name + "-" + c.name,
+				UUID:           name + "-" + c.name,
+				Platform:       string(fleet.IOSPlatform),
+				HardwareSerial: name + "-" + c.name,
+				TeamID:         c.hostTeamID,
+			})
+			require.NoError(t, err)
+			nanoEnroll(t, ds, host, false)
+			return host
+		}
+		hostInstalledAThenB := newHost("installed-a-then-b")
+		hostInstalledAFailedB := newHost("installed-a-failed-b")
+		hostInstalledAPendingB := newHost("installed-a-pending-b")
+		hostFailedAThenInstalledA := newHost("failed-a-then-installed-a")
+
+		// install A on each host, failing it first on one host
+		insertVPPAppInstallWithResult(t, ds, hostFailedAThenInstalledA, versionA, "mdm_error")
+		insertVPPAppInstallWithResult(t, ds, hostInstalledAThenB, versionA, "verified")
+		insertVPPAppInstallWithResult(t, ds, hostInstalledAFailedB, versionA, "verified")
+		insertVPPAppInstallWithResult(t, ds, hostInstalledAPendingB, versionA, "verified")
+		insertVPPAppInstallWithResult(t, ds, hostFailedAThenInstalledA, versionA, "verified")
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET created_at = DATE_SUB(created_at, INTERVAL 1 HOUR) WHERE vpp_app_team_id = ?`, versionA.AppTeamID)
+			return err
+		})
+
+		// install A and B in the same second on another host
+		hostInstalledAAndBSameSecond := newHost("installed-a-and-b-same-second")
+		insertVPPAppInstallWithResult(t, ds, hostInstalledAAndBSameSecond, versionA, "verified")
+		insertVPPAppInstallWithResult(t, ds, hostInstalledAAndBSameSecond, versionB, "verified")
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET created_at = '2026-01-01 00:00:00' WHERE host_id = ?`, hostInstalledAAndBSameSecond.ID)
+			return err
+		})
+
+		// install B successfully on one host, failing on another, and queue it without a result on a third
+		insertVPPAppInstallWithResult(t, ds, hostInstalledAThenB, versionB, "verified")
+		insertVPPAppInstallWithResult(t, ds, hostInstalledAFailedB, versionB, "mdm_error")
+		err = ds.InsertHostVPPSoftwareInstall(ctx, hostInstalledAPendingB.ID, versionB.VPPAppID, uuid.NewString(), "event", fleet.HostSoftwareInstallOptions{VPPAppTeamID: versionB.AppTeamID})
+		require.NoError(t, err)
+
+		// count the statuses of A, only installs should count
+		summaryA, err := ds.GetSummaryHostVPPAppInstalls(ctx, versionA.AppTeamID)
+		require.NoError(t, err)
+		require.Zero(t, summaryA.Failed)
+		require.Zero(t, summaryA.Pending)
+
+		// count the statuses of B, the failed and pending hosts should count once
+		summaryB, err := ds.GetSummaryHostVPPAppInstalls(ctx, versionB.AppTeamID)
+		require.NoError(t, err)
+		require.Equal(t, uint(1), summaryB.Failed)
+		require.Equal(t, uint(1), summaryB.Pending)
+
+		// count the installs of A and B together, each of the five hosts should count once
+		installedCount := summaryA.Installed + summaryB.Installed
+		require.Equal(t, uint(5), installedCount)
+
+		// list the installed hosts of each version, the lists should match the counts and the host with both installs in the same second should be in either list
+		hostFilter := fleet.TeamFilter{User: test.UserAdmin}
+		installed := fleet.SoftwareInstalled
+		failed := fleet.SoftwareFailed
+		pending := fleet.SoftwarePending
+		installedHostsA := listHostsCheckCount(t, ds, hostFilter, fleet.HostListOptions{TeamFilter: &fleetID, SoftwareTitleIDFilter: &versionA.TitleID, AppStoreAppVersionIDFilter: &versionA.AppTeamID, SoftwareStatusFilter: &installed}, int(summaryA.Installed))
+		installedHostsB := listHostsCheckCount(t, ds, hostFilter, fleet.HostListOptions{TeamFilter: &fleetID, SoftwareTitleIDFilter: &versionA.TitleID, AppStoreAppVersionIDFilter: &versionB.AppTeamID, SoftwareStatusFilter: &installed}, int(summaryB.Installed))
+		require.Subset(t, hostIDs(installedHostsA), []uint{hostInstalledAFailedB.ID, hostInstalledAPendingB.ID, hostFailedAThenInstalledA.ID})
+		require.Contains(t, hostIDs(installedHostsB), hostInstalledAThenB.ID)
+		allInstalledHostIDs := append(hostIDs(installedHostsA), hostIDs(installedHostsB)...)
+		require.ElementsMatch(t, []uint{hostInstalledAThenB.ID, hostInstalledAFailedB.ID, hostInstalledAPendingB.ID, hostFailedAThenInstalledA.ID, hostInstalledAAndBSameSecond.ID}, allInstalledHostIDs)
+
+		// list the failed and pending hosts of each version, they should match the counts
+		listHostsCheckCount(t, ds, hostFilter, fleet.HostListOptions{TeamFilter: &fleetID, SoftwareTitleIDFilter: &versionA.TitleID, AppStoreAppVersionIDFilter: &versionA.AppTeamID, SoftwareStatusFilter: &failed}, 0)
+		hosts := listHostsCheckCount(t, ds, hostFilter, fleet.HostListOptions{TeamFilter: &fleetID, SoftwareTitleIDFilter: &versionA.TitleID, AppStoreAppVersionIDFilter: &versionB.AppTeamID, SoftwareStatusFilter: &failed}, 1)
+		require.Equal(t, hostInstalledAFailedB.ID, hosts[0].ID)
+		hosts = listHostsCheckCount(t, ds, hostFilter, fleet.HostListOptions{TeamFilter: &fleetID, SoftwareTitleIDFilter: &versionA.TitleID, AppStoreAppVersionIDFilter: &versionB.AppTeamID, SoftwareStatusFilter: &pending}, 1)
+		require.Equal(t, hostInstalledAPendingB.ID, hosts[0].ID)
+
+		// delete the MDM command results of the host that installed B after A, like the MDM command cleanup does, the host should still count as installed
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE ncr FROM nano_command_results ncr JOIN host_vpp_software_installs hvsi ON hvsi.command_uuid = ncr.command_uuid WHERE hvsi.host_id = ?`, hostInstalledAThenB.ID)
+			return err
+		})
+		summaryBWithoutResults, err := ds.GetSummaryHostVPPAppInstalls(ctx, versionB.AppTeamID)
+		require.NoError(t, err)
+		require.Equal(t, summaryB, summaryBWithoutResults)
+		hosts = listHostsCheckCount(t, ds, hostFilter, fleet.HostListOptions{TeamFilter: &fleetID, SoftwareTitleIDFilter: &versionA.TitleID, AppStoreAppVersionIDFilter: &versionB.AppTeamID, SoftwareStatusFilter: &installed}, int(summaryB.Installed))
+		require.Contains(t, hostIDs(hosts), hostInstalledAThenB.ID)
+
+		// list the installed hosts of the title without a version, the host without MDM command results should be listed
+		titleInstalledHosts, err := ds.ListHosts(ctx, hostFilter, fleet.HostListOptions{TeamFilter: &fleetID, SoftwareTitleIDFilter: &versionA.TitleID, SoftwareStatusFilter: &installed})
+		require.NoError(t, err)
+		require.Contains(t, hostIDs(titleInstalledHosts), hostInstalledAThenB.ID)
 	}
 }
 
