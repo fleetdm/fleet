@@ -37,6 +37,7 @@ Use these variables in a template to give each host a unique name:
 | `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART` | The local part of the IdP username (before `@`). |
 | `$FLEET_VAR_HOST_END_USER_IDP_GROUPS` | The end user's IdP groups, comma-separated. |
 | `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT` | The end user's IdP department. |
+| `$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID` | The end user's immutable IdP user ID (SCIM `externalId`). |
 | `$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME` | The end user's IdP full name. |
 
 Each variable also works in its `${FLEET_VAR_...}` form. For more on built-in variables, see [Built-in variables](https://fleetdm.com/guides/fleet-variables).
