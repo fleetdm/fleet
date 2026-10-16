@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/variables"
@@ -366,13 +367,23 @@ var fleetVarsSupportedInWindowsProfiles = []fleet.FleetVarName{
 	fleet.FleetVarNDESSCEPProxyURL,
 }
 
-// subjectNameHasRenewalIDMarker reports whether a SubjectName data string
-// contains the renewal-ID variable in OU=. The legacy SCEP_RENEWAL_ID name
-// is accepted alongside CERTIFICATE_RENEWAL_ID for back-compat.
+var subjectNameMissingRenewalIDMsg = "SubjectName item must contain the " + fleet.FleetVarCertificateRenewalID.WithPrefix() +
+	" variable in the OU field. In some use cases, it can go in the CN field instead."
+
+// subjectNameHasRenewalIDMarker reports whether a SubjectName data string has the renewal-ID variable in an OU or CN
+// attribute, the two fields host certificate ingestion searches for the marker. OU is the norm, but some CAs (Okta) drop
+// the OU from issued certificates. The legacy SCEP_RENEWAL_ID name is accepted for back-compat.
 func subjectNameHasRenewalIDMarker(data string) bool {
-	for _, v := range []fleet.FleetVarName{fleet.FleetVarCertificateRenewalID, fleet.FleetVarSCEPRenewalID} {
-		if strings.Contains(data, "OU="+v.WithPrefix()) || strings.Contains(data, "OU="+v.WithBraces()) {
-			return true
+	for _, attribute := range microsoft_mdm.SubjectNameAttributes(data) {
+		key, value, ok := strings.Cut(attribute, "=")
+		if !ok {
+			continue
+		}
+		switch strings.ToUpper(strings.TrimSpace(key)) {
+		case "OU", "CN":
+			if fleet.FleetVarRenewalIDRegexp.MatchString(value) {
+				return true
+			}
 		}
 	}
 	return false
@@ -514,7 +525,7 @@ func additionalNDESValidationForWindowsProfiles(contents string, ndesVars *NDESV
 			}
 			if isSubjectName && !subjectNameHasRenewalIDMarker(dataContent) {
 				return &fleet.BadRequestError{
-					Message: fmt.Sprintf("SubjectName item must contain the %s variable in the OU field", fleet.FleetVarCertificateRenewalID.WithPrefix()),
+					Message: subjectNameMissingRenewalIDMsg,
 				}
 			}
 		}
@@ -555,7 +566,7 @@ func additionalCustomSCEPValidationForWindowsProfiles(contents string, customSCE
 				}
 
 				if !subjectNameHasRenewalIDMarker(cmd.Data.Content) {
-					return fmt.Errorf("SubjectName item must contain the %s variable in the OU field", fleet.FleetVarCertificateRenewalID.WithPrefix())
+					return errors.New(subjectNameMissingRenewalIDMsg)
 				}
 			}
 		}

@@ -53,6 +53,21 @@ func mapDNAttributes(dn string, transform func(attribute string) string) string 
 	}
 }
 
+// SubjectNameAttributes returns the "KEY=value" attributes of an XML-decoded SCEP SubjectName, split
+// where Windows splits them. indexDNSeparator reads raw profile text, where every "&" opens a
+// reference, so each "&" is escaped first to keep text like "AT&T;" from hiding a separator.
+func SubjectNameAttributes(decodedDN string) []string {
+	var attributes []string
+	for rest := strings.ReplaceAll(decodedDN, "&", "&amp;"); ; {
+		i, width := indexDNSeparator(rest)
+		if i < 0 {
+			return append(attributes, strings.ReplaceAll(rest, "&amp;", "&"))
+		}
+		attributes = append(attributes, strings.ReplaceAll(rest[:i], "&amp;", "&"))
+		rest = rest[i+width:]
+	}
+}
+
 // quoteAttributeValue is the first pass: it quotes the value of an attribute that has something to
 // substitute into it, unless the admin already quoted it.
 func quoteAttributeValue(attribute string) string {
