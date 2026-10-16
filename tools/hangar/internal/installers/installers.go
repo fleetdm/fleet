@@ -420,17 +420,24 @@ func ValidateConfig(cfg settings.InstallerServerConfig) error {
 	return nil
 }
 
-// OutputFile is one installer found in a server's output folder.
+// OutputFile is one installer found in a server's output folder, with how it
+// was built when manifest.json has an entry for it (nil for files Hangar
+// didn't build).
 type OutputFile struct {
-	Name    string `json:"name"`
-	Path    string `json:"path"`
-	Size    int64  `json:"size"`
-	ModTime int64  `json:"mod_time_ms"`
+	Name    string         `json:"name"`
+	Path    string         `json:"path"`
+	Size    int64          `json:"size"`
+	ModTime int64          `json:"mod_time_ms"`
+	Build   *ManifestEntry `json:"build"`
 }
 
 // ListOutputs lists the installers (pkg/msi/deb/rpm) in dir, newest first.
 // A missing dir is an empty list.
 func ListOutputs(dir string) ([]OutputFile, error) {
+	var m Manifest
+	if b, err := os.ReadFile(filepath.Join(dir, ManifestName)); err == nil {
+		_ = json.Unmarshal(b, &m) // a corrupt manifest just means no build details
+	}
 	entries, err := os.ReadDir(dir)
 	if errors.Is(err, os.ErrNotExist) {
 		return []OutputFile{}, nil
@@ -452,7 +459,11 @@ func ListOutputs(dir string) ([]OutputFile, error) {
 		if err != nil {
 			continue
 		}
-		out = append(out, OutputFile{Name: e.Name(), Path: filepath.Join(dir, e.Name()), Size: info.Size(), ModTime: info.ModTime().UnixMilli()})
+		f := OutputFile{Name: e.Name(), Path: filepath.Join(dir, e.Name()), Size: info.Size(), ModTime: info.ModTime().UnixMilli()}
+		if entry, ok := m.Files[e.Name()]; ok {
+			f.Build = &entry
+		}
+		out = append(out, f)
 	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].ModTime != out[j].ModTime {

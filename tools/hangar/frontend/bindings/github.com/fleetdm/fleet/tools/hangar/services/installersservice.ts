@@ -89,6 +89,43 @@ export function InstallersServerInfo(serverID: string, outputDir: string): $Canc
 }
 
 /**
+ * InstallersShareStart serves the output folder (all servers' subfolders)
+ * over HTTP on port, or on a suggested free port when port is 0.
+ */
+export function InstallersShareStart(outputDir: string, port: number): $CancellablePromise<installers$0.ShareStatus> {
+    return $Call.ByID(614217091, outputDir, port).then(($result: any) => {
+        return $$createType7($result);
+    });
+}
+
+/**
+ * InstallersShareStatus reports whether the folder is being shared, its URL
+ * and recent downloads.
+ */
+export function InstallersShareStatus(): $CancellablePromise<installers$0.ShareStatus> {
+    return $Call.ByID(71445715).then(($result: any) => {
+        return $$createType7($result);
+    });
+}
+
+/**
+ * InstallersShareStop stops sharing.
+ */
+export function InstallersShareStop(): $CancellablePromise<void> {
+    return $Call.ByID(1839447825);
+}
+
+/**
+ * InstallersSharedFiles lists the shared installers with their URLs and
+ * install commands; empty while not sharing.
+ */
+export function InstallersSharedFiles(): $CancellablePromise<installers$0.SharedFile[]> {
+    return $Call.ByID(3683406806).then(($result: any) => {
+        return $$createType9($result);
+    });
+}
+
+/**
  * InstallersStartBuild builds cfg's platforms for serverID into
  * <outputDir>/<server>/. The enroll secret for cfg.TeamID is fetched fresh;
  * files are written by fleetctl and recorded in that folder's manifest.json
@@ -105,6 +142,14 @@ export function InstallersStopBuild(serverID: string): $CancellablePromise<void>
     return $Call.ByID(2900109466, serverID);
 }
 
+/**
+ * InstallersSuggestSharePort is the first free port from 8000 that no
+ * configured Hangar service uses.
+ */
+export function InstallersSuggestSharePort(): $CancellablePromise<number> {
+    return $Call.ByID(548954564);
+}
+
 // Private type creation functions
 const $$createType0 = installers$0.OutputFile.createFrom;
 const $$createType1 = $Create.Array($$createType0);
@@ -113,3 +158,6 @@ const $$createType3 = installers$0.Channels.createFrom;
 const $$createType4 = $Create.Map($Create.Any, $Create.Any);
 const $$createType5 = installers$0.ScanResult.createFrom;
 const $$createType6 = $models.InstallersServerInfo.createFrom;
+const $$createType7 = installers$0.ShareStatus.createFrom;
+const $$createType8 = installers$0.SharedFile.createFrom;
+const $$createType9 = $Create.Array($$createType8);

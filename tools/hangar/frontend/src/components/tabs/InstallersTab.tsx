@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "../../lib/events";
 import { Toast } from "../Toast";
+import { StatusPill } from "../StatusPill";
+import { copyText } from "../../lib/clipboard";
 import { LogBox } from "../LogLines";
 import {
   api,
@@ -8,9 +10,12 @@ import {
   type InstallerServerConfig,
   type InstallersChannels,
   type InstallersLocalTUF,
+  type InstallersManifestEntry,
   type InstallersOutputFile,
   type InstallersScanResult,
   type InstallersServerInfo,
+  type InstallersShareStatus,
+  type InstallersSharedFile,
   type LogEntry,
   type LogLine,
   type ProcInfo,
@@ -109,6 +114,11 @@ export function InstallersTab({
     [persist],
   );
 
+  const setSharePort = useCallback(
+    (port: number) => persist((s) => ({ ...s, installers: { ...s.installers, share_port: port } })),
+    [persist],
+  );
+
   const chooseDir = useCallback(async () => {
     try {
       const dir = await api.pickFolder();
@@ -119,6 +129,8 @@ export function InstallersTab({
   }, [setOutputDir, flash]);
 
   const outputRoot = cfg.output_dir.trim() || defaultDir;
+  // Only servers that can build: enabled, with a worktree to take fleetctl from.
+  const enabledServers = settings.servers.filter((srv) => srv.enabled && !!srv.worktree_path);
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", fontSize: "var(--fs-xx-small)" }}>
@@ -133,46 +145,37 @@ export function InstallersTab({
           gap: "var(--pad-medium)",
         }}
       >
-        <div className="card" style={{ display: "flex", flexDirection: "column", gap: "var(--pad-smedium)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--pad-small)" }}>
-            <div className="section-title" style={{ margin: 0 }}>Output folder</div>
-            <div style={{ flex: 1 }} />
-            <span className="dim">
-              runs <span className="mono">fleetctl package</span> with each server's own fleetctl
-            </span>
-          </div>
-          <div style={{ display: "flex", gap: "var(--pad-small)", alignItems: "center", flexWrap: "wrap" }}>
-            <input
-              value={cfg.output_dir}
-              placeholder={defaultDir}
-              onChange={(e) => setOutputDir(e.target.value)}
-              style={{ flex: 1, minWidth: 260 }}
-            />
-            <button onClick={chooseDir}>Choose…</button>
-            <button onClick={() => outputRoot && api.openPath(outputRoot, false).catch((e) => flash("err", errText(e)))} disabled={!outputRoot}>
-              Open
-            </button>
-            {cfg.output_dir.trim() && <button className="link-btn" onClick={() => setOutputDir("")}>use default</button>}
-          </div>
-          <span className="dim">Each server gets its own subfolder. Rebuilding with the same settings overwrites the same files.</span>
-        </div>
+        <OutputShareCard
+          outputDir={cfg.output_dir}
+          defaultDir={defaultDir}
+          outputRoot={outputRoot}
+          onOutputDirChange={setOutputDir}
+          onChooseDir={chooseDir}
+          port={cfg.share_port}
+          onPortChange={setSharePort}
+          flash={flash}
+        />
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(460px, 1fr))", gap: "var(--pad-medium)", alignItems: "start" }}>
-          {settings.servers.map((srv) => (
-            <ServerCard
-              key={srv.id}
-              server={srv}
-              cfg={cfg.servers[srv.id] ?? defaultInstallerServer()}
-              onChange={(next) => setServerCfg(srv.id, next)}
-              outputDir={cfg.output_dir}
-              contexts={contexts}
-              official={official}
-              localTuf={localTuf}
-              proc={procs.find((p) => p.id === installersProcId(srv.id))}
-              flash={flash}
-            />
-          ))}
-        </div>
+        {enabledServers.length === 0 ? (
+          <div className="card dim">No servers are set up yet — add one (with its worktree) in Settings to build installers for it.</div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(460px, 1fr))", gap: "var(--pad-medium)", alignItems: "start" }}>
+            {enabledServers.map((srv) => (
+              <ServerCard
+                key={srv.id}
+                server={srv}
+                cfg={cfg.servers[srv.id] ?? defaultInstallerServer()}
+                onChange={(next) => setServerCfg(srv.id, next)}
+                outputDir={cfg.output_dir}
+                contexts={contexts}
+                official={official}
+                localTuf={localTuf}
+                proc={procs.find((p) => p.id === installersProcId(srv.id))}
+                flash={flash}
+              />
+            ))}
+          </div>
+        )}
       </div>
       {toast && <Toast kind={toast.kind} msg={toast.msg} />}
     </div>
@@ -208,6 +211,8 @@ function ServerCard({
   const [outputs, setOutputs] = useState<InstallersOutputFile[]>([]);
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [showLog, setShowLog] = useState(false);
+  const [showOptions, setShowOptions] = useState(false);
+  const [showFiles, setShowFiles] = useState(false);
 
   const set = <K extends keyof InstallerServerConfig>(k: K, v: InstallerServerConfig[K]) => onChange({ ...cfg, [k]: v });
 
@@ -364,6 +369,20 @@ function ServerCard({
   const fleetUrl = cfg.fleet_url.trim() || scan?.server_url || "";
   const loopback = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(fleetUrl);
 
+  // One-line summary of the collapsed Options; highlighted when anything
+  // differs from the defaults so a customized build isn't a surprise.
+  const nonStable = [
+    ["orbit", cfg.orbit_channel],
+    ["desktop", cfg.desktop_channel],
+    ["osquery", cfg.osqueryd_channel],
+  ].filter(([, ch]) => ch && ch !== "stable");
+  const summaryParts = [cfg.update_source === UPDATE_LOCAL_TUF ? "local TUF" : "official updates"];
+  summaryParts.push(nonStable.length === 0 ? "stable" : nonStable.map(([c, ch]) => `${c} ${ch}`).join(", "));
+  if (cfg.fleet_url.trim()) summaryParts.push("custom Fleet URL");
+  if (cfg.debug) summaryParts.push("debug");
+  const optionsSummary = summaryParts.join(" · ");
+  const customized = cfg.update_source === UPDATE_LOCAL_TUF || nonStable.length > 0 || !!cfg.fleet_url.trim() || cfg.debug;
+
   return (
     <div className="card" style={{ display: "flex", flexDirection: "column", gap: "var(--pad-smedium)", borderTop: `3px solid ${accent}` }}>
       <div style={{ display: "flex", alignItems: "center", gap: "var(--pad-small)" }}>
@@ -426,9 +445,11 @@ function ServerCard({
         </span>
       )}
 
-      <Field label="Fleet URL baked into the packages" full hint={loopback ? "This is a loopback address — other machines can't reach it. Use the public (e.g. ngrok) URL." : undefined} warn={loopback}>
-        <input value={cfg.fleet_url} placeholder={scan?.server_url || "server_url from the server's settings"} onChange={(e) => set("fleet_url", e.target.value)} style={{ width: "100%" }} />
-      </Field>
+      {loopback && (
+        <span style={{ color: "var(--ui-error)" }}>
+          The Fleet URL is a loopback address — other machines can't reach it. Set the public (e.g. ngrok) URL under Options.
+        </span>
+      )}
 
       {/* Platforms + planned file names + per-build status */}
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -448,56 +469,70 @@ function ServerCard({
             <JobBadge status={statuses[p.key]} active={building} userStopped={!!proc?.was_user_stopped} />
           </label>
         ))}
-      </div>
-
-      <div style={{ display: "flex", gap: "var(--pad-large)", flexWrap: "wrap" }}>
-        <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
           <input type="checkbox" checked={cfg.fleet_desktop} onChange={(e) => set("fleet_desktop", e.target.checked)} />
-          Fleet Desktop
-        </label>
-        <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <input type="checkbox" checked={cfg.debug} onChange={(e) => set("debug", e.target.checked)} />
-          Debug logging
+          Include Fleet Desktop
         </label>
       </div>
 
-      {/* Updates: source + channels */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <div style={{ display: "flex", gap: "var(--pad-large)", alignItems: "center", flexWrap: "wrap" }}>
-          <span style={{ fontWeight: 600 }}>Updates</span>
-          <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <input type="radio" checked={cfg.update_source !== UPDATE_LOCAL_TUF} onChange={() => setUpdateSource(UPDATE_OFFICIAL)} />
-            Official (updates.fleetdm.com)
-          </label>
-          <label style={{ display: "flex", alignItems: "center", gap: 6 }} title={localTuf?.available ? localTuf.url : localTuf?.reason}>
-            <input
-              type="radio"
-              checked={cfg.update_source === UPDATE_LOCAL_TUF}
-              disabled={!localTuf?.available && cfg.update_source !== UPDATE_LOCAL_TUF}
-              onChange={() => setUpdateSource(UPDATE_LOCAL_TUF)}
-            />
-            Local TUF
-          </label>
-        </div>
-        {cfg.update_source === UPDATE_LOCAL_TUF && (
-          <span className={localTuf?.available ? "dim" : undefined} style={{ color: localTuf?.available ? undefined : "var(--ui-error)" }}>
-            {localTuf?.available ? (
-              <>
-                <span className="mono">{localTuf.url}</span> — a TUF tab rebuild rotates its keys, so rebuild these installers after one.
-              </>
-            ) : (
-              localTuf?.reason ?? "checking local TUF…"
+      {/* Options: rarely changed, collapsed behind a one-line summary */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--pad-small)" }}>
+        <button
+          className="link-btn"
+          onClick={() => setShowOptions((v) => !v)}
+          aria-expanded={showOptions}
+          style={{ display: "flex", alignItems: "center", gap: 6, alignSelf: "flex-start", padding: 0 }}
+        >
+          <span style={{ fontWeight: 600, color: "var(--app-text)" }}>{showOptions ? "▾" : "▸"} Options</span>
+          <span style={{ color: customized ? "var(--ui-warning)" : "var(--app-text-dim)" }}>{optionsSummary}</span>
+        </button>
+        {showOptions && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--pad-small)", paddingLeft: 14 }}>
+            <Field label="Fleet URL baked into the packages" full>
+              <input value={cfg.fleet_url} placeholder={scan?.server_url || "server_url from the server's settings"} onChange={(e) => set("fleet_url", e.target.value)} style={{ width: "100%" }} />
+            </Field>
+            <div style={{ display: "flex", gap: "var(--pad-large)", alignItems: "center", flexWrap: "wrap" }}>
+              <span style={{ fontWeight: 600 }}>Updates</span>
+              <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <input type="radio" checked={cfg.update_source !== UPDATE_LOCAL_TUF} onChange={() => setUpdateSource(UPDATE_OFFICIAL)} />
+                Official (updates.fleetdm.com)
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 6 }} title={localTuf?.available ? localTuf.url : localTuf?.reason}>
+                <input
+                  type="radio"
+                  checked={cfg.update_source === UPDATE_LOCAL_TUF}
+                  disabled={!localTuf?.available && cfg.update_source !== UPDATE_LOCAL_TUF}
+                  onChange={() => setUpdateSource(UPDATE_LOCAL_TUF)}
+                />
+                Local TUF
+              </label>
+            </div>
+            {cfg.update_source === UPDATE_LOCAL_TUF && (
+              <span className={localTuf?.available ? "dim" : undefined} style={{ color: localTuf?.available ? undefined : "var(--ui-error)" }}>
+                {localTuf?.available ? (
+                  <>
+                    <span className="mono">{localTuf.url}</span> — a TUF tab rebuild rotates its keys, so rebuild these installers after one.
+                  </>
+                ) : (
+                  localTuf?.reason ?? "checking local TUF…"
+                )}
+              </span>
             )}
-          </span>
+            <div style={{ display: "flex", gap: "var(--pad-medium)", flexWrap: "wrap" }}>
+              <ChannelSelect label="orbit" value={cfg.orbit_channel} options={channels?.orbit} onChange={(v) => set("orbit_channel", v)} />
+              <ChannelSelect label="Fleet Desktop" value={cfg.desktop_channel} options={channels?.desktop} onChange={(v) => set("desktop_channel", v)} />
+              <ChannelSelect label="osquery" value={cfg.osqueryd_channel} options={channels?.osqueryd} onChange={(v) => set("osqueryd_channel", v)} />
+            </div>
+            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <input type="checkbox" checked={cfg.debug} onChange={(e) => set("debug", e.target.checked)} />
+              Debug logging in orbit
+            </label>
+          </div>
         )}
-        <div style={{ display: "flex", gap: "var(--pad-medium)", flexWrap: "wrap" }}>
-          <ChannelSelect label="orbit" value={cfg.orbit_channel} options={channels?.orbit} onChange={(v) => set("orbit_channel", v)} />
-          <ChannelSelect label="Fleet Desktop" value={cfg.desktop_channel} options={channels?.desktop} onChange={(v) => set("desktop_channel", v)} />
-          <ChannelSelect label="osquery" value={cfg.osqueryd_channel} options={channels?.osqueryd} onChange={(v) => set("osqueryd_channel", v)} />
-        </div>
       </div>
 
-      <div style={{ display: "flex", gap: "var(--pad-small)", alignItems: "center", flexWrap: "wrap" }}>
+      {/* Build */}
+      <div style={{ display: "flex", gap: "var(--pad-small)", alignItems: "center", flexWrap: "wrap", borderTop: "1px solid var(--app-border)", paddingTop: "var(--pad-smedium)" }}>
         {building ? (
           <button className="danger" onClick={stop}>Stop</button>
         ) : (
@@ -505,7 +540,7 @@ function ServerCard({
             Generate {cfg.platforms.length} installer{cfg.platforms.length === 1 ? "" : "s"}
           </button>
         )}
-        <BuildStatus proc={proc} building={building} />
+        <BuildStatus proc={proc} building={building} statuses={statuses} />
         {!building && !canBuild && <span className="dim">needs: {missing.join(", ")}</span>}
         <div style={{ flex: 1 }} />
         {entries.length > 0 && (
@@ -514,30 +549,279 @@ function ServerCard({
       </div>
       {showLog && <LogBox entries={entries} maxHeight={260} />}
 
-      {/* What's in this server's folder */}
+      {/* What's in this server's folder, with how each file was built (from manifest.json) */}
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "var(--pad-small)" }}>
-          <span style={{ fontWeight: 600 }}>Files</span>
-          <span className="mono dim" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{info?.output_dir}</span>
+          {outputs.length === 0 ? (
+            <span className="dim">No installers in this server's folder yet</span>
+          ) : (
+            <button
+              className="link-btn"
+              onClick={() => setShowFiles((v) => !v)}
+              aria-expanded={showFiles}
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: 0 }}
+            >
+              <span style={{ fontWeight: 600, color: "var(--app-text)" }}>{showFiles ? "▾" : "▸"} Files</span>
+              <span className="dim">
+                {outputs.length} installer{outputs.length === 1 ? "" : "s"} · newest {new Date(outputs[0].mod_time_ms).toLocaleString()}
+              </span>
+            </button>
+          )}
           <div style={{ flex: 1 }} />
           {info && outputs.length > 0 && (
-            <button className="link-btn" onClick={() => api.openPath(info.output_dir, false).catch((e) => flash("err", errText(e)))}>open folder</button>
+            <button className="link-btn" onClick={() => api.openPath(info.output_dir, false).catch((e) => flash("err", errText(e)))} title={info.output_dir}>
+              open folder
+            </button>
           )}
         </div>
-        {outputs.length === 0 ? (
-          <span className="dim">none yet</span>
-        ) : (
+        {showFiles &&
           outputs.map((f) => (
-            <div key={f.name} style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 8, alignItems: "center" }}>
-              <span className="mono" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={f.path}>{f.name}</span>
-              <span className="dim">{formatBytes(f.size)}</span>
-              <span className="dim">{new Date(f.mod_time_ms).toLocaleString()}</span>
+            <div key={f.name} style={{ display: "flex", flexDirection: "column", paddingLeft: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 8, alignItems: "center" }}>
+                <span className="mono" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={f.path}>{f.name}</span>
+                <span className="dim">{formatBytes(f.size)}</span>
+                <span className="dim">{new Date(f.mod_time_ms).toLocaleString()}</span>
+              </div>
+              <span className="dim">{f.build ? describeBuild(f.build) : "no build details (not built by Hangar, or built before it kept a manifest)"}</span>
             </div>
-          ))
-        )}
+          ))}
       </div>
     </div>
   );
+}
+
+function OutputShareCard({
+  outputDir,
+  defaultDir,
+  outputRoot,
+  onOutputDirChange,
+  onChooseDir,
+  port,
+  onPortChange,
+  flash,
+}: {
+  outputDir: string;
+  defaultDir: string;
+  outputRoot: string;
+  onOutputDirChange: (dir: string) => void;
+  onChooseDir: () => void;
+  port: number;
+  onPortChange: (port: number) => void;
+  flash: (kind: "ok" | "err", msg: string) => void;
+}) {
+  const [status, setStatus] = useState<InstallersShareStatus | null>(null);
+  const [files, setFiles] = useState<InstallersSharedFile[]>([]);
+  const [suggested, setSuggested] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const [portDraft, setPortDraft] = useState(port ? String(port) : "");
+  const [showFiles, setShowFiles] = useState(false);
+  const running = !!status?.running;
+
+  // Every refresh/start/stop takes a sequence number; a response that isn't the
+  // latest is dropped, so a poll begun before Stop can't flip the card back to
+  // "sharing".
+  const seq = useRef(0);
+  const refresh = useCallback(async () => {
+    const id = ++seq.current;
+    try {
+      const st = await api.installersShareStatus();
+      let list: InstallersSharedFile[] = [];
+      if (st.running) list = await api.installersSharedFiles().catch(() => []);
+      if (id !== seq.current) return;
+      setStatus(st);
+      setFiles(list);
+    } catch (e) {
+      console.error("share status", e);
+    }
+  }, []);
+  useEffect(() => {
+    refresh();
+    const poll = window.setInterval(() => {
+      if (!busyRef.current) refresh();
+    }, 3000);
+    return () => window.clearInterval(poll);
+  }, [refresh]);
+
+  // Suggest a free port whenever sharing is known to be off (ports come and go).
+  const suggest = useCallback(() => {
+    api.installersSuggestSharePort().then(setSuggested).catch(() => setSuggested(null));
+  }, []);
+  const knownStopped = status !== null && !status.running;
+  useEffect(() => {
+    if (knownStopped) suggest();
+  }, [knownStopped, suggest]);
+
+  const act = async (fn: () => Promise<void>) => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    seq.current++;
+    try {
+      await fn();
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+      await refresh();
+    }
+  };
+  const start = () =>
+    act(async () => {
+      try {
+        await api.installersShareStart(outputDir, port);
+      } catch (e) {
+        flash("err", errText(e));
+        suggest();
+      }
+    });
+  const stop = () =>
+    act(async () => {
+      try {
+        await api.installersShareStop();
+      } catch (e) {
+        flash("err", errText(e));
+      }
+    });
+
+  // Empty means auto; anything else must be a whole port number before it's saved.
+  const portValid = portDraft === "" || (/^\d+$/.test(portDraft) && Number(portDraft) >= 1 && Number(portDraft) <= 65535);
+  const onPortInput = (v: string) => {
+    setPortDraft(v);
+    if (v === "") onPortChange(0);
+    else if (/^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= 65535) onPortChange(Number(v));
+  };
+  const copy = async (text: string, label: string) => {
+    try {
+      await copyText(text);
+      flash("ok", `Copied ${label}`);
+    } catch {
+      flash("err", "Clipboard unavailable");
+    }
+  };
+
+  return (
+    <div className="card" style={{ display: "flex", flexDirection: "column", gap: "var(--pad-smedium)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--pad-small)" }}>
+        <div className="section-title" style={{ margin: 0 }}>Output &amp; sharing</div>
+        <StatusPill label="HTTP server" up={running} upText="sharing" downText="not sharing" />
+        <div style={{ flex: 1 }} />
+        <span className="dim">
+          builds with each server's own <span className="mono">fleetctl package</span>
+        </span>
+      </div>
+
+      {/* Folder: locked while sharing, since the server keeps serving the folder it started with. */}
+      <div style={{ display: "flex", gap: "var(--pad-small)", alignItems: "center", flexWrap: "wrap" }}>
+        <input
+          value={outputDir}
+          placeholder={defaultDir}
+          onChange={(e) => onOutputDirChange(e.target.value)}
+          disabled={running}
+          title={running ? "Stop sharing to change the folder" : undefined}
+          style={{ flex: 1, minWidth: 260 }}
+        />
+        <button onClick={onChooseDir} disabled={running}>Choose…</button>
+        <button onClick={() => outputRoot && api.openPath(outputRoot, false).catch((e) => flash("err", errText(e)))} disabled={!outputRoot}>
+          Open
+        </button>
+        {outputDir.trim() && !running && <button className="link-btn" onClick={() => onOutputDirChange("")}>use default</button>}
+      </div>
+
+      {/* Sharing controls on one line */}
+      {running && status ? (
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--pad-small)", flexWrap: "wrap" }}>
+          <span className="mono" style={{ fontSize: "var(--fs-x-small)", fontWeight: 600, userSelect: "all" }}>{status.url}</span>
+          <button onClick={() => copy(status.url, "URL")}>Copy URL</button>
+          <button onClick={() => api.openUrl(status.url).catch((e) => flash("err", errText(e)))}>Open in browser</button>
+          <div style={{ flex: 1 }} />
+          <button className="danger" onClick={stop} disabled={busy}>Stop sharing</button>
+        </div>
+      ) : (
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--pad-small)", flexWrap: "wrap" }}>
+          <span>Port</span>
+          <input
+            inputMode="numeric"
+            value={portDraft}
+            placeholder={suggested ? `${suggested} (free)` : "auto"}
+            onChange={(e) => onPortInput(e.target.value.trim())}
+            aria-invalid={!portValid}
+            title={portValid ? "Leave empty to use a free port" : "Enter a port from 1 to 65535"}
+            style={{ width: 120, borderColor: portValid ? undefined : "var(--ui-error)" }}
+          />
+          <button className="primary" onClick={start} disabled={busy || !outputRoot || !portValid}>Start sharing</button>
+          {!portValid && <span style={{ color: "var(--ui-error)" }}>enter a port from 1 to 65535</span>}
+        </div>
+      )}
+      <span className="dim">
+        Sharing serves this folder read-only to your network. Installers contain enroll secrets, so stop sharing when you're done. macOS may ask
+        once to allow incoming connections for Hangar.
+      </span>
+
+      {running && status && (
+        <>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <button
+              className="link-btn"
+              onClick={() => setShowFiles((v) => !v)}
+              aria-expanded={showFiles}
+              style={{ display: "flex", alignItems: "center", gap: 6, alignSelf: "flex-start", padding: 0 }}
+            >
+              <span style={{ fontWeight: 600, color: "var(--app-text)" }}>{showFiles ? "▾" : "▸"} Install commands</span>
+              <span className="dim">
+                {files.length} installer{files.length === 1 ? "" : "s"}
+              </span>
+            </button>
+            {!showFiles ? null : files.length === 0 ? (
+              <span className="dim">no installers in the folder yet</span>
+            ) : (
+              files.map((f) => (
+                <div key={f.path} style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 8, alignItems: "center" }}>
+                  <span className="mono" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={f.url}>{f.path}</span>
+                  <span className="dim">{formatBytes(f.size)}</span>
+                  <button className="link-btn" onClick={() => copy(f.command, "install command")} title={f.command}>
+                    copy {f.shell === "powershell" ? "PowerShell (admin)" : "shell"} command
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+          {status.recent.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <span style={{ fontWeight: 600 }}>Recent downloads</span>
+              {status.recent.map((d, i) => (
+                <span key={`${i}-${d.at_ms}-${d.path}`} className="dim">
+                  {new Date(d.at_ms).toLocaleTimeString()} · <span className="mono">{d.client}</span> · <span className="mono">{d.path}</span>
+                </span>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// describeBuild summarizes a manifest entry: fleet, update server, channels and
+// options, e.g. "💻 Workstations · official updates · stable · Fleet Desktop".
+function describeBuild(b: InstallersManifestEntry): string {
+  const parts = [b.team || "Unassigned"];
+  let host = "";
+  try {
+    host = new URL(b.update_url).host;
+  } catch {
+    host = b.update_url;
+  }
+  parts.push(host === "updates.fleetdm.com" ? "official updates" : `TUF ${host}`);
+  const custom = [
+    ["orbit", b.orbit_channel],
+    ["desktop", b.desktop_channel],
+    ["osquery", b.osqueryd_channel],
+  ].filter(([, ch]) => ch && ch !== "stable");
+  parts.push(custom.length === 0 ? "stable" : custom.map(([c, ch]) => `${c} ${ch}`).join(", "));
+  parts.push(b.fleet_desktop ? "Fleet Desktop" : "no Desktop");
+  if (b.debug) parts.push("debug");
+  if (b.fleet_url) parts.push(b.fleet_url);
+  return parts.join(" · ");
 }
 
 function ChannelSelect({
@@ -583,23 +867,33 @@ function JobBadge({ status, active, userStopped }: { status: JobStatus | undefin
   return <span style={{ color: "var(--ui-error)", fontWeight: 600 }}>✗ failed</span>;
 }
 
-function BuildStatus({ proc, building }: { proc: ProcInfo | undefined; building: boolean }) {
+function BuildStatus({
+  proc,
+  building,
+  statuses,
+}: {
+  proc: ProcInfo | undefined;
+  building: boolean;
+  statuses: Record<string, JobStatus>;
+}) {
+  const values = Object.values(statuses);
+  const ok = values.filter((v) => v === "ok").length;
+  const failed = values.filter((v) => v === "failed" || (v === "building" && !building && !proc?.was_user_stopped)).length;
   if (building) {
     return (
       <span className="dim" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-        <span className="dot run" /> building… (.msi builds use Docker and take a few minutes)
+        <span className="dot run" /> building… {ok > 0 ? `${ok} done` : "(.msi builds use Docker and take a few minutes)"}
       </span>
     );
   }
   if (!proc) return null;
-  if (proc.state === "done") {
-    if (proc.was_user_stopped) return <span className="dim">stopped</span>;
-    return <span style={{ color: "var(--core-fleet-green)", fontWeight: 600 }}>all built</span>;
-  }
-  if (proc.state === "failed") {
-    return <span style={{ color: "var(--ui-error)", fontWeight: 600 }}>some builds failed — see output</span>;
-  }
-  return null;
+  if (proc.was_user_stopped) return <span className="dim">stopped{ok > 0 ? ` · ${ok} built` : ""}</span>;
+  return (
+    <span style={{ display: "inline-flex", gap: 8, fontWeight: 600 }}>
+      {ok > 0 && <span style={{ color: "var(--core-fleet-green)" }}>✓ {ok} built</span>}
+      {failed > 0 && <span style={{ color: "var(--ui-error)" }}>✗ {failed} failed</span>}
+    </span>
+  );
 }
 
 function Field({

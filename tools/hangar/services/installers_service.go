@@ -13,6 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/tools/hangar/internal/fleetctl"
 	"github.com/fleetdm/fleet/tools/hangar/internal/installers"
+	"github.com/fleetdm/fleet/tools/hangar/internal/netinfo"
 	"github.com/fleetdm/fleet/tools/hangar/internal/paths"
 	"github.com/fleetdm/fleet/tools/hangar/internal/processes"
 	"github.com/fleetdm/fleet/tools/hangar/internal/settings"
@@ -29,6 +30,8 @@ type InstallersService struct {
 	// pm.Start (a scan can take seconds), so a double-click can't run two.
 	startingMu sync.Mutex
 	starting   map[string]bool
+
+	share installers.Share
 }
 
 // NewInstallersService wires the service to the shared process manager.
@@ -390,4 +393,80 @@ func loadServer(serverID string) (settings.ServerProfile, error) {
 		}
 	}
 	return settings.ServerProfile{}, fmt.Errorf("server %s not found", serverID)
+}
+
+// Ports the share must not take even when they're momentarily free: the TUF
+// file-server and the dev compose stack's SAML IdP (docker-compose.yml).
+var fixedHangarPorts = []uint16{tuf.DefaultPort, 9080}
+
+// InstallersSuggestSharePort is the first free port from 8000 that no
+// configured Hangar service uses.
+func (s *InstallersService) InstallersSuggestSharePort() (uint16, error) {
+	return installers.FreePort(installers.DefaultSharePort, hangarPorts())
+}
+
+// hangarPorts are the ports Hangar's services bind when started, so the share
+// mustn't take them even while they're stopped.
+func hangarPorts() map[uint16]bool {
+	reserved := map[uint16]bool{}
+	for _, p := range fixedHangarPorts {
+		reserved[p] = true
+	}
+	if cur, err := loadSettings(); err == nil {
+		for _, srv := range cur.Servers {
+			for _, p := range []uint16{srv.Ports.Server, srv.Ports.MySQL, srv.Ports.Redis, srv.Ports.S3, srv.Ports.S3Console} {
+				reserved[p] = true
+			}
+		}
+		for _, sp := range cur.ScepProfiles {
+			reserved[sp.Port] = true
+		}
+		reserved[cur.PythonServer.Port] = true
+	}
+	return reserved
+}
+
+// InstallersShareStart serves the output folder (all servers' subfolders)
+// over HTTP on port, or on a suggested free port when port is 0.
+func (s *InstallersService) InstallersShareStart(outputDir string, port uint16) (installers.ShareStatus, error) {
+	root := resolveOutputRoot(outputDir)
+	if !filepath.IsAbs(root) {
+		return installers.ShareStatus{}, fmt.Errorf("output folder must be an absolute path (got %s)", root)
+	}
+	if port != 0 && hangarPorts()[port] {
+		return installers.ShareStatus{}, fmt.Errorf("port %d is used by one of Hangar's services — pick another", port)
+	}
+	if port == 0 {
+		p, err := s.InstallersSuggestSharePort()
+		if err != nil {
+			return installers.ShareStatus{}, err
+		}
+		port = p
+	}
+	if err := s.share.Start(root, port); err != nil {
+		return installers.ShareStatus{}, err
+	}
+	slog.Info("installers: sharing", "root", root, "port", port)
+	return s.share.Status(netinfo.LanIP()), nil
+}
+
+// InstallersShareStop stops sharing.
+func (s *InstallersService) InstallersShareStop() error {
+	return s.share.Stop()
+}
+
+// InstallersShareStatus reports whether the folder is being shared, its URL
+// and recent downloads.
+func (s *InstallersService) InstallersShareStatus() installers.ShareStatus {
+	return s.share.Status(netinfo.LanIP())
+}
+
+// InstallersSharedFiles lists the shared installers with their URLs and
+// install commands; empty while not sharing.
+func (s *InstallersService) InstallersSharedFiles() ([]installers.SharedFile, error) {
+	st := s.share.Status(netinfo.LanIP())
+	if !st.Running {
+		return []installers.SharedFile{}, nil
+	}
+	return installers.ListShared(st.Root, st.URL)
 }
