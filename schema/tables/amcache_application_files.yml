@@ -12,9 +12,7 @@ notes: |-
   value as SQL NULL, so filter those columns with IS NULL or IFNULL and never by comparing them to
   an empty string.
 
-  This table is from the [amcache osquery extension](https://github.com/karmine05/amcache). It is
-  not a core osquery table and is only available on hosts where that extension is loaded, for
-  example through fleetd's extensions agent option or osquery's extensions.load file.
+  This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 
   A row means the appraiser saw the file. It is not evidence that the file was executed.
 
@@ -22,7 +20,7 @@ notes: |-
   with no path, name, size or version metadata at all, and most of the remaining rows carry a path
   but no hash, so fewer than one row in ten carries both. A query that joins or filters on path and
   reports sha1, or the reverse, therefore reaches a small minority of the table on that family. That
-  is normal appraiser behaviour and not a fault in this extension. Windows 10 and Windows Server 2022
+  is normal appraiser behaviour and not a fault in this table. Windows 10 and Windows Server 2022
   populate both on every record and most other columns on most rows.
 
   This table can hold tens of thousands of rows, so a scheduled SELECT * will exceed Fleet's 1 MB

@@ -12,9 +12,7 @@ notes: |-
   value as SQL NULL, so filter those columns with IS NULL or IFNULL and never by comparing them to
   an empty string.
 
-  This table is from the [amcache osquery extension](https://github.com/karmine05/amcache). It is
-  not a core osquery table and is only available on hosts where that extension is loaded, for
-  example through fleetd's extensions agent option or osquery's extensions.load file.
+  This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 
   The signed, inbox and kernel_mode columns are the appraiser's assessment recorded at inventory
   time, not a live signature check. A driver that was signed when it was inventoried still reads as
@@ -65,8 +63,8 @@ columns:
     type: bigint
     description: Flags word the appraiser records for the driver. The bits confirmed by measurement
       on the reference hives are 0x2 kernel mode, 0x4 user mode, 0x8 signed, 0x10 inbox, 0x20
-    self-signed and 0x40000 AMD64, and the 0x2, 0x8 and 0x10 bits agree with kernel_mode, signed
-    and inbox on every record observed. Further bits are set on real records whose meaning is not established
+      self-signed and 0x40000 AMD64, and the 0x2, 0x8 and 0x10 bits agree with kernel_mode, signed
+      and inbox on every record observed. Further bits are set on real records whose meaning is not established
       here, so treat an unlisted bit as unknown rather than as unset.
     required: false
   - name: driver_version

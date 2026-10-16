@@ -12,9 +12,7 @@ notes: |-
   value as SQL NULL, so filter those columns with IS NULL or IFNULL and never by comparing them to
   an empty string.
 
-  This table is from the [amcache osquery extension](https://github.com/karmine05/amcache). It is
-  not a core osquery table and is only available on hosts where that extension is loaded, for
-  example through fleetd's extensions agent option or osquery's extensions.load file.
+  This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 
   Devices stay in this key long after they are removed, which is what makes removable-media history
   queryable here. A row is therefore not evidence that the device is attached now.
