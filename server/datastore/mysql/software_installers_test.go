@@ -93,6 +93,10 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"BatchSetSoftwareInstallersUnchangedDoesNotBlockInstallEnqueues", testBatchSetSoftwareInstallersUnchangedDoesNotBlockInstallEnqueues},
 		{"BatchSetSoftwareInstallersUnchangedDoesNotLock", testBatchSetSoftwareInstallersUnchangedDoesNotLock},
 		{"BatchSetSoftwareInstallersChangesStillApply", testBatchSetSoftwareInstallersChangesStillApply},
+		{"BatchSetSoftwareInstallersReplaceWaitsForQueuedInstall", testBatchSetSoftwareInstallersReplaceWaitsForQueuedInstall},
+		{"BatchSetSoftwareInstallersRemoveWaitsForQueuedInstall", testBatchSetSoftwareInstallersRemoveWaitsForQueuedInstall},
+		{"BatchSetSoftwareInstallersSwitchToFMAWaitsForQueuedInstall", testBatchSetSoftwareInstallersSwitchToFMAWaitsForQueuedInstall},
+		{"InsertSoftwareInstallRequestLocksTitleAndInstallerFirst", testInsertSoftwareInstallRequestLocksTitleAndInstallerFirst},
 	}
 
 	for _, c := range cases {
@@ -5224,6 +5228,26 @@ func testGetSoftwarePackagesByTeamAndTitleID(t *testing.T, ds *Datastore) {
 	require.Equal(t, lbl.ID, pkgs[0].LabelsIncludeAny[0].LabelID)
 	require.Equal(t, "multi-2.pkg", pkgs[1].Name)
 	require.Empty(t, pkgs[1].LabelsIncludeAny)
+	require.Empty(t, pkgs[0].FleetMaintainedAppSlug)
+
+	// a Fleet-maintained package returns its app slug
+	fma, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Pkg Lister FMA",
+		Slug:             "pkg-lister-fma/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.example.pkglisterfma",
+	})
+	require.NoError(t, err)
+	fmaPayload := mk("fma-1", "fma-1.pkg", &fleet.LabelIdentsWithScope{})
+	fmaPayload.Title = "Pkg Lister FMA"
+	fmaPayload.BundleIdentifier = "com.example.pkglisterfma"
+	fmaPayload.FleetMaintainedAppID = &fma.ID
+	_, fmaTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, fmaPayload)
+	require.NoError(t, err)
+	fmaPkgs, err := ds.GetSoftwarePackagesByTeamAndTitleID(ctx, &team.ID, fmaTitleID)
+	require.NoError(t, err)
+	require.Len(t, fmaPkgs, 1)
+	require.Equal(t, "pkg-lister-fma/darwin", fmaPkgs[0].FleetMaintainedAppSlug)
 
 	// a title with no packages returns none
 	none, err := ds.GetSoftwarePackagesByTeamAndTitleID(ctx, &team.ID, titleID+1000)
@@ -8902,6 +8926,139 @@ func testBatchSetSoftwareInstallersUnchangedDoesNotBlockInstallEnqueues(t *testi
 	require.NoError(t, enqTx.Rollback())
 }
 
+// setupInstallerDeleteRace creates a fleet with one custom package, a policy automation for it, and a host with an
+// install already queued.
+func setupInstallerDeleteRace(t *testing.T, ds *Datastore) (payload func(title string) []*fleet.UploadSoftwareInstallerPayload, tm *fleet.Team, installerID, policyID, hostID uint) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	payload = func(title string) []*fleet.UploadSoftwareInstallerPayload {
+		file, err := fleet.NewTempFileReader(bytes.NewReader([]byte(title)), t.TempDir)
+		require.NoError(t, err)
+		return []*fleet.UploadSoftwareInstallerPayload{{
+			InstallScript: "install", InstallerFile: file, StorageID: title, Filename: title + ".msi", Title: title,
+			Source: "programs", Platform: "windows", Version: "1.0", UserID: user.ID, ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		}}
+	}
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	_, err = ds.BatchSetSoftwareInstallers(ctx, &tm.ID, payload("app"))
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &installerID, `SELECT id FROM software_installers WHERE global_or_team_id = ?`, tm.ID)
+	})
+	p, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1", SoftwareInstallerID: &installerID})
+	require.NoError(t, err)
+	host := test.NewHost(t, ds, "h1", "10.0.0.1", "1", "uuid1", time.Now(), test.WithPlatform("windows"))
+	_, err = ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{PolicyID: &p.ID})
+	require.NoError(t, err)
+	return payload, tm, installerID, p.ID, host.ID
+}
+
+// requireStillBlocked gives the goroutine time to reach its lock wait, then checks it hasn't returned.
+func requireStillBlocked(t *testing.T, done <-chan error) {
+	select {
+	case err := <-done:
+		t.Fatalf("expected a lock wait, returned early: %v", err)
+	case <-time.After(500 * time.Millisecond):
+	}
+}
+
+// requireApplyWaitsForQueuedInstall holds the lock a fixed enqueue takes first, starts an apply that removes the
+// installer, and checks the enqueue finishes its writes instead of deadlocking with the apply.
+func requireApplyWaitsForQueuedInstall(t *testing.T, ds *Datastore, tm *fleet.Team, installerID, policyID, hostID uint, apply []*fleet.UploadSoftwareInstallerPayload) {
+	ctx := t.Context()
+	enqTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	defer func() { _ = enqTx.Rollback() }()
+	_, err = enqTx.ExecContext(ctx, `SELECT 1 FROM software_installers WHERE id = ? FOR SHARE`, installerID)
+	require.NoError(t, err)
+
+	applyErr := make(chan error, 1)
+	go func() {
+		_, err := ds.BatchSetSoftwareInstallers(ctx, &tm.ID, apply)
+		applyErr <- err
+	}()
+	requireStillBlocked(t, applyErr)
+
+	enqCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	res, err := enqTx.ExecContext(enqCtx, `INSERT INTO upcoming_activities (host_id, priority, activity_type, execution_id, payload) VALUES (?, 0, 'software_install', UUID(), JSON_OBJECT())`, hostID)
+	require.NoError(t, err)
+	uaID, _ := res.LastInsertId()
+	_, err = enqTx.ExecContext(enqCtx, `INSERT INTO software_install_upcoming_activities (upcoming_activity_id, software_installer_id, policy_id) VALUES (?, ?, ?)`, uaID, installerID, policyID)
+	require.NoError(t, err)
+	require.NoError(t, enqTx.Commit())
+	require.NoError(t, <-applyErr)
+
+	var left int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &left, `SELECT COUNT(*) FROM software_install_upcoming_activities WHERE software_installer_id = ?`, installerID)
+	})
+	require.Zero(t, left)
+}
+
+func testBatchSetSoftwareInstallersReplaceWaitsForQueuedInstall(t *testing.T, ds *Datastore) {
+	payload, tm, installerID, policyID, hostID := setupInstallerDeleteRace(t, ds)
+	// A new version of the same title replaces the installer.
+	replacement := payload("app")
+	replacement[0].StorageID, replacement[0].Version = "app-v2", "2.0"
+	requireApplyWaitsForQueuedInstall(t, ds, tm, installerID, policyID, hostID, replacement)
+}
+
+func testBatchSetSoftwareInstallersRemoveWaitsForQueuedInstall(t *testing.T, ds *Datastore) {
+	payload, tm, installerID, policyID, hostID := setupInstallerDeleteRace(t, ds)
+	// The title is missing from the list, so the installer is removed.
+	requireApplyWaitsForQueuedInstall(t, ds, tm, installerID, policyID, hostID, payload("other"))
+}
+
+func testBatchSetSoftwareInstallersSwitchToFMAWaitsForQueuedInstall(t *testing.T, ds *Datastore) {
+	payload, tm, installerID, policyID, hostID := setupInstallerDeleteRace(t, ds)
+	app, err := ds.UpsertMaintainedApp(t.Context(), &fleet.MaintainedApp{Name: "app", Slug: "app/windows", Platform: "windows", UniqueIdentifier: "app"})
+	require.NoError(t, err)
+	// A Fleet-maintained app takes over the title, so the custom package is deleted.
+	fma := payload("app")
+	fma[0].StorageID, fma[0].FleetMaintainedAppID, fma[0].FMAName = "app-fma", new(app.ID), app.Name
+	requireApplyWaitsForQueuedInstall(t, ds, tm, installerID, policyID, hostID, fma)
+}
+
+func testInsertSoftwareInstallRequestLocksTitleAndInstallerFirst(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	_, _, installerID, policyID, hostID := setupInstallerDeleteRace(t, ds)
+	var titleID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &titleID, `SELECT title_id FROM software_installers WHERE id = ?`, installerID)
+	})
+
+	// The locks an apply takes before it clears an installer's queued installs: the title, then the installer.
+	delTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	defer func() { _ = delTx.Rollback() }()
+	_, err = delTx.ExecContext(ctx, `SELECT id FROM software_titles WHERE id = ? FOR UPDATE`, titleID)
+	require.NoError(t, err)
+
+	insertErr := make(chan error, 1)
+	go func() {
+		_, err := ds.InsertSoftwareInstallRequest(ctx, hostID, installerID, fleet.HostSoftwareInstallOptions{PolicyID: &policyID})
+		insertErr <- err
+	}()
+	requireStillBlocked(t, insertErr)
+
+	delCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	_, err = delTx.ExecContext(delCtx, `SELECT id FROM software_installers WHERE id = ? FOR UPDATE`, installerID)
+	require.NoError(t, err)
+	_, err = delTx.ExecContext(delCtx, `DELETE FROM upcoming_activities WHERE host_id = ? AND activity_type = 'software_install'`, hostID)
+	require.NoError(t, err)
+	_, err = delTx.ExecContext(delCtx, `UPDATE policies SET software_installer_id = NULL WHERE id = ?`, policyID)
+	require.NoError(t, err)
+	_, err = delTx.ExecContext(delCtx, `DELETE FROM software_installers WHERE id = ?`, installerID)
+	require.NoError(t, err)
+	require.NoError(t, delTx.Commit())
+
+	err = <-insertErr
+	require.True(t, fleet.IsNotFound(err), "got %v", err)
+}
+
 func newUnchangedApplyTestPayload(t *testing.T, userID uint) *fleet.UploadSoftwareInstallerPayload {
 	file, err := fleet.NewTempFileReader(bytes.NewReader([]byte("app")), t.TempDir)
 	require.NoError(t, err)
@@ -8915,42 +9072,82 @@ func newUnchangedApplyTestPayload(t *testing.T, userID uint) *fleet.UploadSoftwa
 	}
 }
 
+func newUnchangedApplyTestFMAPayload(t *testing.T, userID, appID uint) *fleet.UploadSoftwareInstallerPayload {
+	p := newUnchangedApplyTestPayload(t, userID)
+	p.Title, p.StorageID, p.UpgradeCode, p.FleetMaintainedAppID, p.FMAName = "FMA", "fma", "{00000000-0000-0000-0000-0000000000FA}", new(appID), "FMA"
+	return p
+}
+
 func testBatchSetSoftwareInstallersUnchangedDoesNotLock(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
-	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	app, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{Name: "FMA", Slug: "fma/windows", Platform: "windows", UniqueIdentifier: "FMA"})
 	require.NoError(t, err)
-	apply := func(ctx context.Context) error {
-		_, err := ds.BatchSetSoftwareInstallers(ctx, &tm.ID, []*fleet.UploadSoftwareInstallerPayload{newUnchangedApplyTestPayload(t, user.ID)})
-		return err
+
+	fmaPayload := func(userID uint) *fleet.UploadSoftwareInstallerPayload {
+		return newUnchangedApplyTestFMAPayload(t, userID, app.ID)
 	}
-	require.NoError(t, apply(ctx))
-
-	var installerID, titleID uint
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return q.QueryRowxContext(ctx, `SELECT id, title_id FROM software_installers WHERE global_or_team_id = ?`, tm.ID).Scan(&installerID, &titleID)
-	})
-
-	// The rows an install or script queued for this package locks: its installer, its title (shared by every
-	// fleet), and its scripts' contents.
-	for name, hold := range map[string]struct {
-		stmt string
-		arg  any
+	for name, c := range map[string]struct {
+		newPayload     func(userID uint) *fleet.UploadSoftwareInstallerPayload
+		deleteUploader bool
 	}{
-		"installer":       {`SELECT id FROM software_installers WHERE id = ? FOR SHARE`, installerID},
-		"title":           {`SELECT id FROM software_titles WHERE id = ? FOR SHARE`, titleID},
-		"script contents": {`SELECT id FROM script_contents WHERE md5_checksum = UNHEX(?) FOR SHARE`, md5ChecksumScriptContent("install app")},
+		"custom package": {newPayload: func(userID uint) *fleet.UploadSoftwareInstallerPayload {
+			return newUnchangedApplyTestPayload(t, userID)
+		}},
+		"fleet-maintained app":                   {newPayload: fmaPayload},
+		"fleet-maintained app, uploader deleted": {newPayload: fmaPayload, deleteUploader: true},
 	} {
 		t.Run(name, func(t *testing.T) {
-			holdTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+			tm, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
 			require.NoError(t, err)
-			defer func() { _ = holdTx.Rollback() }()
-			_, err = holdTx.ExecContext(ctx, hold.stmt, hold.arg)
+			uploader := user
+			if c.deleteUploader {
+				uploader = test.NewUser(t, ds, "Bob", "bob@example.com", true)
+			}
+			_, err = ds.BatchSetSoftwareInstallers(ctx, &tm.ID, []*fleet.UploadSoftwareInstallerPayload{c.newPayload(uploader.ID)})
+			require.NoError(t, err)
+			if c.deleteUploader {
+				require.NoError(t, ds.DeleteUser(ctx, uploader.ID))
+			}
+			apply := func(ctx context.Context) error {
+				// A cached FMA version isn't downloaded again, so its payload has no ETag.
+				p := c.newPayload(user.ID)
+				if p.FleetMaintainedAppID != nil {
+					p.HTTPETag = nil
+				}
+				_, err := ds.BatchSetSoftwareInstallers(ctx, &tm.ID, []*fleet.UploadSoftwareInstallerPayload{p})
+				return err
+			}
+
+			var installerID, titleID uint
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				return q.QueryRowxContext(ctx, `SELECT id, title_id FROM software_installers WHERE global_or_team_id = ?`, tm.ID).Scan(&installerID, &titleID)
+			})
+			_, err = ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1", SoftwareInstallerID: &installerID})
 			require.NoError(t, err)
 
-			applyCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
-			defer cancel()
-			require.NoError(t, apply(applyCtx))
+			// The rows an install or script queued for this package locks: its installer, its title (shared by every
+			// fleet), and its scripts' contents.
+			for name, hold := range map[string]struct {
+				stmt string
+				arg  any
+			}{
+				"installer":       {`SELECT id FROM software_installers WHERE id = ? FOR SHARE`, installerID},
+				"title":           {`SELECT id FROM software_titles WHERE id = ? FOR SHARE`, titleID},
+				"script contents": {`SELECT id FROM script_contents WHERE md5_checksum = UNHEX(?) FOR SHARE`, md5ChecksumScriptContent("install app")},
+			} {
+				t.Run(name, func(t *testing.T) {
+					holdTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+					require.NoError(t, err)
+					defer func() { _ = holdTx.Rollback() }()
+					_, err = holdTx.ExecContext(ctx, hold.stmt, hold.arg)
+					require.NoError(t, err)
+
+					applyCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+					defer cancel()
+					require.NoError(t, apply(applyCtx))
+				})
+			}
 		})
 	}
 }
@@ -9096,28 +9293,134 @@ func testBatchSetSoftwareInstallersChangesStillApply(t *testing.T, ds *Datastore
 		})
 		assert.Equal(t, "FMA Renamed", got)
 	})
+
+	t.Run("fleet-maintained app", func(t *testing.T) {
+		app, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{Name: "FMA X", Slug: "fma-x/windows", Platform: "windows", UniqueIdentifier: "FMA X"})
+		require.NoError(t, err)
+		appY, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{Name: "FMA Y", Slug: "fma-y/windows", Platform: "windows", UniqueIdentifier: "FMA Y"})
+		require.NoError(t, err)
+		payload := func(mutate func(*fleet.UploadSoftwareInstallerPayload)) *fleet.UploadSoftwareInstallerPayload {
+			p := newUnchangedApplyTestFMAPayload(t, alice.ID, app.ID)
+			if mutate != nil {
+				mutate(p)
+			}
+			return p
+		}
+		apply := func(tmID uint, ps ...*fleet.UploadSoftwareInstallerPayload) {
+			_, err := ds.BatchSetSoftwareInstallers(ctx, &tmID, ps)
+			require.NoError(t, err)
+		}
+		exec := func(stmt string, args ...any) {
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, stmt, args...)
+				return err
+			})
+		}
+		// copyRow adds a row on the title of the row stored as from, for states the full path cleans up.
+		copyRow := func(tmID uint, from, storageID, version string, fmaID *uint, active bool) {
+			exec(`INSERT INTO software_installers (team_id, global_or_team_id, title_id, filename, version, platform,
+				install_script_content_id, uninstall_script_content_id, storage_id, package_ids, patch_query, fleet_maintained_app_id, is_active)
+				SELECT team_id, global_or_team_id, title_id, filename, ?, platform, install_script_content_id, uninstall_script_content_id, ?,
+					package_ids, patch_query, ?, ?
+				FROM software_installers WHERE global_or_team_id = ? AND storage_id = ?`, version, storageID, fmaID, active, tmID, from)
+		}
+		v2 := func(p *fleet.UploadSoftwareInstallerPayload) { p.Version, p.StorageID = "2.0", "fma2" }
+		const activeVersion = `SELECT version FROM software_installers WHERE global_or_team_id = ? AND is_active = 1`
+		const pin = `SELECT COALESCE(MAX(pinned_version), 'none') FROM software_title_team_pins WHERE team_id = ?`
+
+		// Each case applies the base payload, then setup, then after. The state cases reapply the active version
+		// unchanged, so only the state makes the full path run.
+		cases := []struct {
+			name  string
+			setup func(tmID uint)
+			after func(*fleet.UploadSoftwareInstallerPayload)
+			check string
+			want  string
+		}{
+			{"new version", nil, v2, activeVersion, "2.0"},
+			{"rebuilt package", nil, func(p *fleet.UploadSoftwareInstallerPayload) { p.StorageID = "fma-rebuilt" },
+				`SELECT storage_id FROM software_installers WHERE global_or_team_id = ? AND is_active = 1`, "fma-rebuilt"},
+			{"self-service", nil, func(p *fleet.UploadSoftwareInstallerPayload) { p.SelfService = true },
+				`SELECT self_service FROM software_installers WHERE global_or_team_id = ?`, "1"},
+			{"caret pin", nil, func(p *fleet.UploadSoftwareInstallerPayload) { p.RollbackVersion = "^1" }, pin, "^1"},
+			{"pin cleared", func(tmID uint) {
+				apply(tmID, payload(func(p *fleet.UploadSoftwareInstallerPayload) { p.RollbackVersion = "^1" }))
+			}, nil, pin, "none"},
+			{"policy on another version", func(tmID uint) {
+				apply(tmID, payload(v2))
+				var v1 uint
+				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					return sqlx.GetContext(ctx, q, &v1, `SELECT id FROM software_installers WHERE global_or_team_id = ? AND storage_id = 'fma'`, tmID)
+				})
+				_, err := ds.NewTeamPolicy(ctx, tmID, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1", SoftwareInstallerID: &v1})
+				require.NoError(t, err)
+			}, v2, `SELECT si.version FROM policies p JOIN software_installers si ON si.id = p.software_installer_id WHERE p.team_id = ?`, "2.0"},
+			{"eviction due", func(tmID uint) {
+				apply(tmID, payload(v2))
+				copyRow(tmID, "fma", "fma0", "0.9", &app.ID, false)
+			}, v2, `SELECT COUNT(*) FROM software_installers WHERE global_or_team_id = ?`, "2"},
+			{"stale custom row", func(tmID uint) { copyRow(tmID, "fma", "custom", "0.9", nil, false) }, nil,
+				`SELECT COUNT(*) FROM software_installers WHERE global_or_team_id = ? AND fleet_maintained_app_id IS NULL`, "0"},
+			{"second active row", func(tmID uint) {
+				apply(tmID, payload(v2))
+				exec(`UPDATE software_installers SET is_active = 1 WHERE global_or_team_id = ?`, tmID)
+			}, v2, `SELECT COUNT(*) FROM software_installers WHERE global_or_team_id = ? AND is_active = 1`, "1"},
+		}
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				tm, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+				require.NoError(t, err)
+				apply(tm.ID, payload(nil))
+				if c.setup != nil {
+					c.setup(tm.ID)
+				}
+				apply(tm.ID, payload(c.after))
+				var got string
+				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error { return sqlx.GetContext(ctx, q, &got, c.check, tm.ID) })
+				assert.Equal(t, c.want, got)
+			})
+		}
+
+		t.Run("same app active on another title", func(t *testing.T) {
+			tm, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+			require.NoError(t, err)
+			y := func() *fleet.UploadSoftwareInstallerPayload {
+				return payload(func(p *fleet.UploadSoftwareInstallerPayload) {
+					p.Title, p.StorageID, p.UpgradeCode, p.FleetMaintainedAppID, p.FMAName = "FMA Y", "fma-y", "{00000000-0000-0000-0000-0000000000FB}", new(appY.ID), "FMA Y"
+				})
+			}
+			apply(tm.ID, payload(nil), y())
+			copyRow(tm.ID, "fma-y", "stale", "9.9", &app.ID, true)
+			apply(tm.ID, payload(nil), y())
+			var got string
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, q, &got, `SELECT is_active FROM software_installers WHERE global_or_team_id = ? AND storage_id = 'stale'`, tm.ID)
+			})
+			assert.Equal(t, "0", got)
+		})
+	})
 }
 
-// Every payload field must be compared by unchangedCustomInstallerID or never written by BatchSetSoftwareInstallers
-// for an existing custom package, or an apply that changes only that field gets skipped.
-func TestUnchangedCustomInstallerIDCoversPayload(t *testing.T) {
+// Every payload field must be compared by unchangedInstallerID or never written by BatchSetSoftwareInstallers
+// for an existing package, or an apply that changes only that field gets skipped.
+func TestUnchangedInstallerIDCoversPayload(t *testing.T) {
 	handled := []string{
 		// compared
 		"InstallScript", "PreInstallQuery", "PostInstallScript", "StorageID", "Filename",
 		"Version", "Platform", "SelfService", "UserID", "URL", "FleetMaintainedAppID",
 		"UpgradeCode", "UninstallScript", "Extension", "InstallDuringSetup", "ValidatedLabels",
 		"CategoryIDs", "DisplayName", "HTTPETag", "PatchQuery", "AppOpenQuery",
-		"InstallScriptEdited", "UninstallScriptEdited",
+		"InstallScriptEdited", "UninstallScriptEdited", "RollbackVersion",
 		// resolve the title before the skip
 		"Title", "Source", "BundleIdentifier",
-		// not written for an existing custom package
+		// not written for an existing package
 		"TeamID", "TitleID", "InstallerFile", "StagedUploadID", "FMAName",
-		"RollbackVersion", "FMAVersionCached", "PackageIDs", "SetupExperiencePlatforms",
+		"FMAVersionCached", "PackageIDs", "SetupExperiencePlatforms",
 		"LabelsIncludeAny", "LabelsExcludeAny", "LabelsIncludeAll", "AutomaticInstall",
 		"AutomaticInstallQuery", "Categories", "AddedAutomaticInstallPolicy", "AlwaysDownload",
 		"Configuration",
 	}
 	for _, f := range reflect.VisibleFields(reflect.TypeFor[fleet.UploadSoftwareInstallerPayload]()) {
-		assert.Contains(t, handled, f.Name, "add %s to unchangedCustomInstallerID's comparison if BatchSetSoftwareInstallers writes it, then list it here", f.Name)
+		assert.Contains(t, handled, f.Name, "add %s to unchangedInstallerID's comparison if BatchSetSoftwareInstallers writes it, then list it here", f.Name)
 	}
 }

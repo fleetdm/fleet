@@ -79,6 +79,7 @@ const (
 	FleetVarHostEndUserIDPGroups            FleetVarName = "HOST_END_USER_IDP_GROUPS"
 	FleetVarHostEndUserIDPDepartment        FleetVarName = "HOST_END_USER_IDP_DEPARTMENT"
 	FleetVarHostEndUserIDPFullname          FleetVarName = "HOST_END_USER_IDP_FULL_NAME"
+	FleetVarHostEndUserIDPExternalID        FleetVarName = "HOST_END_USER_IDP_EXTERNAL_ID"
 	FleetVarHostUUID                        FleetVarName = "HOST_UUID"
 	FleetVarHostPlatform                    FleetVarName = "HOST_PLATFORM"
 
@@ -156,6 +157,7 @@ var (
 	FleetVarNDESSCEPChallengeRegexp               = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarNDESSCEPChallenge))
 	FleetVarNDESSCEPProxyURLRegexp                = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarNDESSCEPProxyURL))
 	FleetVarHostEndUserIDPFullnameRegexp          = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPFullname))
+	FleetVarHostEndUserIDPExternalIDRegexp        = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPExternalID))
 	FleetVarCertificateRenewalIDRegexp            = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarCertificateRenewalID))
 	// FleetVarRenewalIDRegexp matches either the preferred CERTIFICATE_RENEWAL_ID
 	// or the legacy SCEP_RENEWAL_ID name. Use this for validation checks where
@@ -180,19 +182,16 @@ var (
 		FleetVarHostEndUserIDPGroups,
 		FleetVarHostEndUserIDPDepartment,
 		FleetVarHostEndUserIDPFullname,
+		FleetVarHostEndUserIDPExternalID,
 	}
 	// FleetVarsSupportedInDigiCert lists the variables allowed in a DigiCert CA's common name, seat ID, and UPN.
-	FleetVarsSupportedInDigiCert = []FleetVarName{
+	// The IdP variables come from IDPFleetVariables because that's the list the CA field substitution resolves.
+	FleetVarsSupportedInDigiCert = slices.Concat([]FleetVarName{
 		FleetVarHostEndUserEmailIDP,
 		FleetVarHostHardwareSerial,
 		FleetVarHostPlatform,
 		FleetVarHostUUID,
-		FleetVarHostEndUserIDPUsername,
-		FleetVarHostEndUserIDPUsernameLocalPart,
-		FleetVarHostEndUserIDPGroups,
-		FleetVarHostEndUserIDPDepartment,
-		FleetVarHostEndUserIDPFullname,
-	}
+	}, IDPFleetVariables)
 )
 
 type AppleMDM struct {

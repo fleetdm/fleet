@@ -1058,6 +1058,42 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 				assert.Len(t, targets, 0)
 			},
 		},
+		{
+			desc:           "profile with external ID, user has external ID",
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPExternalID),
+			expectedStatus: fleet.MDMDeliveryPending,
+			setup: func() {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					require.EqualValues(t, 1, hostID)
+					return &fleet.ScimUser{
+						UserName:   "user1@example.com",
+						ExternalID: new("00u1abcd2EFGH3ijk4x7"),
+					}, nil
+				}
+			},
+			assert: func(output string) {
+				assert.Empty(t, updatedPayload.Detail)
+				assert.Len(t, targets, 1)
+				require.Equal(t, "00u1abcd2EFGH3ijk4x7", output)
+			},
+		},
+		{
+			desc:           "profile with external ID, user has no external ID",
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPExternalID),
+			expectedStatus: fleet.MDMDeliveryFailed,
+			setup: func() {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					require.EqualValues(t, 1, hostID)
+					return &fleet.ScimUser{
+						UserName: "user1@example.com",
+					}, nil
+				}
+			},
+			assert: func(output string) {
+				assert.Empty(t, targets)
+				assert.Contains(t, updatedProfile.Detail, "There is no IdP external ID for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID.")
+			},
+		},
 	}
 
 	for _, c := range cases {
