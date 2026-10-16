@@ -454,6 +454,10 @@ func TestDeleteSoftwareTitleIcon(t *testing.T) {
 					LabelsIncludeAny: nil,
 					LabelsExcludeAny: nil,
 					LabelsIncludeAll: nil,
+					// generateEditActivityForSoftwareTitleIcon applies the
+					// DefaultAppStoreAppVersionName fallback when the mock
+					// returns an empty VersionName.
+					VersionName: fleet.DefaultAppStoreAppVersionName,
 				}
 				require.Equal(t, expectedActivity, capturedActivity)
 			},

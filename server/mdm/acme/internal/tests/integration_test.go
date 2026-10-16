@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/internal/types"
 	"github.com/fleetdm/fleet/v4/server/mdm/acme/testhelpers"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -28,6 +29,7 @@ func TestIntegration(t *testing.T) {
 		name string
 		fn   func(t *testing.T, s *integrationTestSuite)
 	}{
+		{"NewACMEEnrollment", testNewACMEEnrollment},
 		{"NewNonce", testNewNonce},
 		{"GetDirectory", testGetDirectory},
 		{"CreateAccount", testCreateAccount},
@@ -1534,6 +1536,45 @@ func testGetAuthorization(t *testing.T, s *integrationTestSuite) {
 	})
 }
 
+func testNewACMEEnrollment(t *testing.T, s *integrationTestSuite) {
+	ctx := t.Context()
+	stored := func(t *testing.T, pathIdentifier string) *types.Enrollment {
+		enroll, err := s.ds.GetACMEEnrollment(ctx, pathIdentifier)
+		require.NoError(t, err)
+		return enroll
+	}
+
+	ident, err := s.svc.NewACMEEnrollment(ctx, "serial-1", fleet.AppleMDMCertPurposeACME, nil)
+	require.NoError(t, err)
+	enroll := stored(t, ident)
+	require.Equal(t, "serial-1", enroll.HostIdentifier)
+	require.Equal(t, "acme", enroll.Purpose)
+	require.Nil(t, enroll.EnrollmentID)
+
+	ident, err = s.svc.NewACMEEnrollment(ctx, "serial-2", fleet.AppleMDMCertPurposeACMERenewal, new("device-channel-id"))
+	require.NoError(t, err)
+	enroll = stored(t, ident)
+	require.Equal(t, "serial-2", enroll.HostIdentifier)
+	require.Equal(t, "acme_renewal", enroll.Purpose)
+	require.Equal(t, new("device-channel-id"), enroll.EnrollmentID)
+
+	for _, c := range []struct {
+		name         string
+		purpose      fleet.AppleMDMCertPurpose
+		enrollmentID *string
+	}{
+		{"acme with an enrollment ID", fleet.AppleMDMCertPurposeACME, new("device-channel-id")},
+		{"acme renewal without an enrollment ID", fleet.AppleMDMCertPurposeACMERenewal, nil},
+		{"acme renewal with an empty enrollment ID", fleet.AppleMDMCertPurposeACMERenewal, new("")},
+		{"a SCEP purpose", fleet.AppleMDMCertPurposeADE, nil},
+	} {
+		t.Run("rejects "+c.name, func(t *testing.T) {
+			_, err := s.svc.NewACMEEnrollment(ctx, "serial-3", c.purpose, c.enrollmentID)
+			require.Error(t, err)
+		})
+	}
+}
+
 func testFinalizeOrder(t *testing.T, s *integrationTestSuite) {
 	// finalizeCrafted finalizes a ready order with a CSR asking for everything Fleet must not copy: extra Subject
 	// attributes, every SAN type and a forged binding extension. It returns the template the service signed.
@@ -1602,20 +1643,31 @@ func testFinalizeOrder(t *testing.T, s *integrationTestSuite) {
 		}, binding)
 	})
 
-	t.Run("unsupported enrollment purpose is not signed", func(t *testing.T) {
-		enroll, privateKey, accountURL, orderResp, nonce := s.createOrderForFinalize(t)
-		_, err := s.DB.ExecContext(t.Context(), `UPDATE acme_enrollments SET purpose = 'ade' WHERE id = ?`, enroll.ID)
-		require.NoError(t, err)
-		deviceKey := s.makeOrderReady(t, orderResp.ID)
-		csrPEM, err := testhelpers.GenerateCSRDERWithKey(deviceKey, enroll.HostIdentifier)
-		require.NoError(t, err)
+	notSigned := []struct {
+		name         string
+		purpose      string
+		enrollmentID *string
+	}{
+		{"unsupported enrollment purpose", "ade", nil},
+		{"acme renewal without an enrollment ID", "acme_renewal", nil},
+		{"acme renewal with an empty enrollment ID", "acme_renewal", new("")},
+	}
+	for _, c := range notSigned {
+		t.Run(c.name+" is not signed", func(t *testing.T) {
+			enroll, privateKey, accountURL, orderResp, nonce := s.createOrderForFinalize(t)
+			_, err := s.DB.ExecContext(t.Context(), `UPDATE acme_enrollments SET purpose = ?, enrollment_id = ? WHERE id = ?`, c.purpose, c.enrollmentID, enroll.ID)
+			require.NoError(t, err)
+			deviceKey := s.makeOrderReady(t, orderResp.ID)
+			csrPEM, err := testhelpers.GenerateCSRDERWithKey(deviceKey, enroll.HostIdentifier)
+			require.NoError(t, err)
 
-		s.signedTemplate = nil
-		finalizeURL := s.finalizeOrderURL(enroll.PathIdentifier, orderResp.ID)
-		_, _, resp := s.finalizeOrder(t, finalizeURL, buildJWS(t, privateKey, nonce, accountURL, finalizeURL, map[string]any{"csr": csrPEM}))
-		require.NotEqual(t, http.StatusOK, resp.StatusCode)
-		require.Nil(t, s.signedTemplate)
-	})
+			s.signedTemplate = nil
+			finalizeURL := s.finalizeOrderURL(enroll.PathIdentifier, orderResp.ID)
+			_, _, resp := s.finalizeOrder(t, finalizeURL, buildJWS(t, privateKey, nonce, accountURL, finalizeURL, map[string]any{"csr": csrPEM}))
+			require.NotEqual(t, http.StatusOK, resp.StatusCode)
+			require.Nil(t, s.signedTemplate)
+		})
+	}
 
 	t.Run("successful finalize", func(t *testing.T) {
 		enroll, privateKey, accountURL, orderResp, nonce := s.createOrderForFinalize(t)

@@ -2389,13 +2389,6 @@
       "description": "DCV Viewer is used for connecting to the NICE DCV remote display protocol."
     },
     {
-      "name": "Debookee",
-      "slug": "debookee/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.iwaxx.Debookee",
-      "description": "Debookee is a network traffic analyser."
-    },
-    {
       "name": "Deckset",
       "slug": "deckset/darwin",
       "platform": "darwin",
@@ -3512,7 +3505,7 @@
       "name": "ForkLift",
       "slug": "forklift/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.binarynights.ForkLift-4",
+      "unique_identifier": "com.binarynights.ForkLift",
       "description": "ForkLift is a finder replacement and FTP, SFTP, WebDAV and Amazon s3 client."
     },
     {
@@ -7499,13 +7492,6 @@
       "description": "RightFont is a font manager that helps preview, install, sync and manage fonts."
     },
     {
-      "name": "RingCentral",
-      "slug": "ringcentral/windows",
-      "platform": "windows",
-      "unique_identifier": "RingCentral",
-      "description": "RingCentral is an app for business phone calls, messaging, and video meetings."
-    },
-    {
       "name": "Rive",
       "slug": "rive/darwin",
       "platform": "darwin",
@@ -9058,13 +9044,6 @@
       "platform": "darwin",
       "unique_identifier": "com.unity3d.unityhub",
       "description": "Unity Hub is a management tool for Unity."
-    },
-    {
-      "name": "UPDF",
-      "slug": "updf/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.superace.updf.mac",
-      "description": "UPDF is a PDF editor."
     },
     {
       "name": "Upscayl",

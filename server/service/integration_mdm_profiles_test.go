@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"database/sql"
 	_ "embed"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -342,10 +343,10 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	assert.Empty(t, removes)
 
 	// Clear the profiles using the new (non-deprecated) endpoint.
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: nil}, http.StatusNoContent, "team_id",
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: backwardsCompatProfilesParam{}}, http.StatusNoContent, "team_id",
 		fmt.Sprint(tm.ID), "dry_run", "true")
 	s.assertConfigProfilesByIdentifier(&tm.ID, "IS1", true)
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: nil}, http.StatusNoContent, "team_id",
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: backwardsCompatProfilesParam{}}, http.StatusNoContent, "team_id",
 		fmt.Sprint(tm.ID), "dry_run", "false")
 	s.assertConfigProfilesByIdentifier(&tm.ID, "IS1", false)
 	s.awaitTriggerProfileSchedule(t)
@@ -5342,7 +5343,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	require.Contains(t, extractServerErrorText(resp.Body), "Validation Failed: new MDMAppleConfigProfile: plist: error parsing XML property list: XML syntax error")
 
 	// apply an empty set to no-team
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: nil}, http.StatusNoContent)
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: backwardsCompatProfilesParam{}}, http.StatusNoContent)
 	// Nothing changed, so no activity items
 	s.lastActivityOfTypeDoesNotMatch(
 		fleet.ActivityTypeEditedMacosProfile{}.ActivityName(),
@@ -5361,11 +5362,11 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	)
 
 	// apply to both team id and name
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: nil},
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: backwardsCompatProfilesParam{}},
 		http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID), "team_name", tm.Name)
 
 	// invalid team name
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: nil},
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: backwardsCompatProfilesParam{}},
 		http.StatusNotFound, "team_name", uuid.New().String())
 
 	// duplicate PayloadDisplayName, with no name to override it
@@ -5655,7 +5656,7 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 	require.Contains(t, extractServerErrorText(resp.Body), "Validation Failed: maximum configuration profile file size is 1 MB")
 
 	// apply an empty set to no-team
-	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: nil}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{}}, http.StatusNoContent)
 	// Nothing changed, so no activity items
 	s.lastActivityOfTypeDoesNotMatch(
 		fleet.ActivityTypeEditedMacosProfile{}.ActivityName(),
@@ -5674,11 +5675,11 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 	)
 
 	// apply to both team id and name
-	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: nil},
+	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{}},
 		http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID), "team_name", tm.Name)
 
 	// invalid team name
-	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: nil},
+	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{}},
 		http.StatusNotFound, "team_name", uuid.New().String())
 
 	// duplicate PayloadDisplayName
@@ -5961,6 +5962,75 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 	s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{}}, http.StatusNoContent)
 }
 
+func (s *integrationMDMTestSuite) TestBatchProfilesEndpointsRequireProfileList() {
+	t := s.T()
+	ctx := t.Context()
+
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	teamID := fmt.Sprint(tm.ID)
+
+	profileB64 := base64.StdEncoding.EncodeToString(mobileconfigForTest("N1", "I1"))
+	assertProfileCount := func(want int) {
+		var resp listMDMConfigProfilesResponse
+		s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", nil, http.StatusOK, &resp, "team_id", teamID)
+		require.Len(t, resp.Profiles, want)
+	}
+
+	cases := []struct {
+		path        string
+		field       string
+		upload      string
+		badBodies   []string
+		emptyBodies []string
+	}{
+		{
+			path:   "/api/latest/fleet/configuration_profiles/batch",
+			field:  "configuration_profiles",
+			upload: `{"configuration_profiles": [{"profile": "` + profileB64 + `"}]}`,
+			badBodies: []string{
+				`{}`,
+				`{"configuration_profiles": null}`,
+				// the body shape of /mdm/profiles/batch
+				`{"profiles": [{"name": "N1", "contents": "` + profileB64 + `"}]}`,
+			},
+			emptyBodies: []string{`{"configuration_profiles": []}`},
+		},
+		{
+			path:   "/api/latest/fleet/mdm/profiles/batch",
+			field:  "profiles",
+			upload: `{"profiles": [{"name": "N1", "contents": "` + profileB64 + `"}]}`,
+			badBodies: []string{
+				`{}`,
+				`{"profiles": null}`,
+				// the body shape of /configuration_profiles/batch
+				`{"configuration_profiles": [{"profile": "` + profileB64 + `"}]}`,
+			},
+			// the deprecated name->contents map format clears with an empty object
+			emptyBodies: []string{`{"profiles": []}`, `{"profiles": {}}`},
+		},
+	}
+	for _, c := range cases {
+		for _, empty := range c.emptyBodies {
+			s.DoRaw("POST", c.path, []byte(c.upload), http.StatusNoContent, "team_id", teamID)
+			assertProfileCount(1)
+
+			for _, body := range c.badBodies {
+				res := s.DoRaw("POST", c.path, []byte(body), http.StatusUnprocessableEntity, "team_id", teamID)
+				require.Contains(t, extractServerErrorText(res.Body), c.field+" is required", body)
+				assertProfileCount(1)
+
+				s.DoRaw("POST", c.path, []byte(body), http.StatusUnprocessableEntity, "team_id", teamID, "dry_run", "true")
+				assertProfileCount(1)
+			}
+
+			// An explicit empty list still clears the fleet.
+			s.DoRaw("POST", c.path, []byte(empty), http.StatusNoContent, "team_id", teamID)
+			assertProfileCount(0)
+		}
+	}
+}
+
 func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 	t := s.T()
 	ctx := context.Background()
@@ -5970,7 +6040,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 	require.NoError(t, err)
 
 	// apply an empty set to no-team
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": nil}, http.StatusNoContent)
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": []any{}}, http.StatusNoContent)
 	// Nothing changed, so no activity
 	s.lastActivityOfTypeDoesNotMatch(
 		fleet.ActivityTypeEditedMacosProfile{}.ActivityName(),
@@ -5984,11 +6054,11 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 	)
 
 	// apply to both team id and name
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": nil},
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": []any{}},
 		http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID), "team_name", tm.Name)
 
 	// invalid team name
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": nil},
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", map[string]any{"profiles": []any{}},
 		http.StatusNotFound, "team_name", uuid.New().String())
 
 	// duplicate PayloadDisplayName
@@ -11187,7 +11257,7 @@ func (s *integrationMDMTestSuite) TestSelfServiceAppleConfigProfileInstallUninst
 		{Name: "SS1", Contents: mobileconfigForTest("SS1", "ISS1")},
 	}}, http.StatusNoContent)
 	t.Cleanup(func() {
-		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{}, http.StatusNoContent)
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: backwardsCompatProfilesParam{}}, http.StatusNoContent)
 	})
 	regularUUID := s.assertConfigProfilesByIdentifier(nil, "I1", true).ProfileUUID
 	ssUUID := s.assertConfigProfilesByIdentifier(nil, "ISS1", true).ProfileUUID
@@ -11381,4 +11451,42 @@ func (s *integrationMDMTestSuite) TestSelfServiceAppleConfigProfileInstallUninst
 	reconcileAndAck()
 	require.Nil(t, hostProfile("ISS1"))
 	requireAvailable()
+}
+
+// The silent migration SCEP challenge variable and the SCEP challenge host secret make Fleet put an MDM enrollment
+// challenge into a profile, so they're rejected in every way configuration profiles are uploaded.
+func (s *integrationMDMTestSuite) TestAppleProfileSCEPChallengeVariablesRejected() {
+	t := s.T()
+
+	for _, c := range []struct {
+		variable string
+		errMsg   string
+	}{
+		{
+			"FLEET_VAR_" + string(fleet.FleetVarSilentMigrationSCEPChallenge),
+			"Fleet variable " + fleet.FleetVarSilentMigrationSCEPChallenge.WithPrefix() + " is not supported in configuration profiles.",
+		},
+		{
+			fleet.HostSecretPrefix + fleet.HostSecretSCEPChallenge,
+			// single upload and batch reject it through different checks, with different messages
+			fleet.HostSecretPrefix + fleet.HostSecretSCEPChallenge,
+		},
+	} {
+		profile := mobileconfigForTest("N-"+c.variable, "I-"+c.variable, c.variable)
+
+		body, headers := generateNewProfileMultipartRequest(t, "scep-challenge.mobileconfig", profile, s.token, nil)
+		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
+		require.Contains(t, extractServerErrorText(res.Body), c.errMsg)
+
+		res = s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
+			ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{{Name: "N-" + c.variable, Profile: profile}},
+		}, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), c.errMsg)
+
+		// the endpoint GitOps applies profiles with
+		res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{
+			Profiles: []fleet.MDMProfileBatchPayload{{Name: "N-" + c.variable, Contents: profile}},
+		}, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body), c.errMsg)
+	}
 }

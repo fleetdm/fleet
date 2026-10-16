@@ -234,6 +234,16 @@ type HostListOptions struct {
 	// SoftwareStatusFilter filters the hosts by the status of the software installer, if any,
 	// managed by Fleet. If specified, the SoftwareTitleIDFilter must also be specified.
 	SoftwareStatusFilter *SoftwareInstallerStatus
+	// SoftwareInstallerIDFilter filters the hosts by the id of a specific
+	// software installer package on a title. Used so per-package status counts
+	// in the Software Library can click through to hosts filtered to that one
+	// installer (vs the whole title via SoftwareTitleIDFilter).
+	SoftwareInstallerIDFilter *uint
+	// AppStoreAppVersionIDFilter filters the hosts by the id of a specific
+	// admin-created App Store app version (`vpp_apps_teams.id`). Used so
+	// per-version status counts can click through to hosts filtered to that
+	// one admin version.
+	AppStoreAppVersionIDFilter *uint
 
 	OSIDFilter        *uint
 	OSNameFilter      *string
@@ -334,6 +344,8 @@ func (h HostListOptions) Empty() bool {
 		h.SoftwareVersionIDFilter == nil &&
 		h.SoftwareTitleIDFilter == nil &&
 		h.SoftwareStatusFilter == nil &&
+		h.SoftwareInstallerIDFilter == nil &&
+		h.AppStoreAppVersionIDFilter == nil &&
 		h.OSIDFilter == nil &&
 		h.OSNameFilter == nil &&
 		h.OSVersionFilter == nil &&
@@ -1240,13 +1252,19 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 	return h.DEPAssignedToFleet != nil && *h.DEPAssignedToFleet
 }
 
-// IsLUKSSupported returns true if the host's platform is Linux and running
-// one of the supported OS versions.
+// LUKSSupportedPlatforms are the Host.Platform values Fleet escrows LUKS keys for. Fedora isn't
+// listed because it reports its platform as "rhel"; IsLUKSSupported matches it on OS version.
+// The datastore builds its disk encryption SQL filters from this list.
+// IMPORTANT: When updating this, also make sure to update LUKS_ESCROW_SUPPORTED_LINUX_PLATFORMS in
+// frontend/interfaces/platform.ts.
+var LUKSSupportedPlatforms = []string{
+	"ubuntu", // also Kubuntu
+	"zorin",
+}
+
+// IsLUKSSupported returns true if the host runs a Linux distribution Fleet escrows LUKS keys for.
 func (h *Host) IsLUKSSupported() bool {
-	return h.Platform == "ubuntu" || h.Platform == "zorin" ||
-		strings.Contains(h.OSVersion, "Fedora") || // fedora h.Platform reports as "rhel"
-		h.Platform == "arch" || h.Platform == "archarm" || h.Platform == "manjaro" || h.Platform == "manjaro-arm" ||
-		h.Platform == "cachyos" || h.Platform == "omarchy"
+	return slices.Contains(LUKSSupportedPlatforms, h.Platform) || strings.Contains(h.OSVersion, "Fedora")
 }
 
 // IsAppleSilicon returns true if the host is a macOS device with an ARM CPU (Apple Silicon).
@@ -1518,6 +1536,7 @@ var HostLinuxOSs = []string{
 	"ubuntu",
 	"zorin",
 	"debian",
+	"parrot",
 	"rhel",
 	"centos",
 	"sles",
@@ -1566,6 +1585,7 @@ var HostDebPackageOSs = map[string]struct{}{
 	"ubuntu":                          {},
 	"zorin":                           {},
 	"debian":                          {},
+	"parrot":                          {},
 	"kali":                            {},
 	"pop":                             {},
 	"linuxmint":                       {},

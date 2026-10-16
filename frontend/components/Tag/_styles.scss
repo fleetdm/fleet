@@ -66,6 +66,12 @@
     &:focus-within {
       border-color: $core-fleet-black;
     }
+
+    &.tag--disabled {
+      border-color: $ui-fleet-black-33;
+      color: $ui-fleet-black-33;
+      cursor: not-allowed;
+    }
   }
 
   &__label {
@@ -87,16 +93,22 @@
     border-radius: 50%;
     cursor: pointer;
 
-    &:hover {
-      background-color: $ui-off-white;
-    }
+    &:not(:disabled) {
+      &:hover {
+        background-color: $ui-off-white;
+      }
 
-    &:active {
-      background-color: $ui-fleet-black-5;
+      &:active {
+        background-color: $ui-fleet-black-5;
+      }
     }
 
     &:focus-visible {
       outline: none;
+    }
+
+    &:disabled {
+      cursor: not-allowed;
     }
   }
 }

@@ -145,6 +145,7 @@ type ServerConfig struct {
 	CleanupDistTargetsAge            time.Duration `yaml:"cleanup_dist_targets_age"`
 	ScriptResultsRetention           time.Duration `yaml:"script_results_retention"`
 	SoftwareInstallResultsRetention  time.Duration `yaml:"software_install_results_retention"`
+	DeletedHostCertificatesRetention time.Duration `yaml:"deleted_host_certificates_retention"`
 	MaxInstallerSizeBytes            int64         `yaml:"max_installer_size"`
 	TrustedProxies                   string        `yaml:"trusted_proxies"`
 	GzipResponses                    bool          `yaml:"gzip_responses"`
@@ -992,13 +993,36 @@ type WebSocketConfig struct {
 	PongTimeout      time.Duration `yaml:"pong_timeout"`
 	CheckInterval    time.Duration `yaml:"check_interval"`
 	CheckBatchSize   int           `yaml:"check_batch_size"`
+	// OrbitConfigEnabled turns on orbit/config nudges: connected agents are
+	// notified when their orbit config changes and poll it every
+	// OrbitConfigPollInterval as a fallback, instead of every 30s.
+	OrbitConfigEnabled      bool          `yaml:"orbit_config_enabled"`
+	OrbitConfigPollInterval time.Duration `yaml:"orbit_config_poll_interval"`
+	// OrbitConfigSpread is the window over which an instance paces the
+	// nudges of a fleet-wide or global change across the agents it holds.
+	OrbitConfigSpread time.Duration `yaml:"orbit_config_spread"`
 }
+
+// minOrbitConfigPollInterval is orbit's default poll interval: a slower
+// fallback is the point of the setting.
+const minOrbitConfigPollInterval = 30 * time.Second
 
 // Validate checks that the WebSocketConfig has valid values. The values feed
 // tickers and batch loops, so zero or negative values would panic or spin.
 func (w WebSocketConfig) Validate(initFatal func(err error, msg string)) {
 	if !w.TransportEnabled {
+		if w.OrbitConfigEnabled {
+			initFatal(errors.New("requires websocket.transport_enabled"), "websocket.orbit_config_enabled")
+		}
 		return
+	}
+	if w.OrbitConfigEnabled {
+		if w.OrbitConfigPollInterval < minOrbitConfigPollInterval {
+			initFatal(fmt.Errorf("must be at least %s", minOrbitConfigPollInterval), "websocket.orbit_config_poll_interval")
+		}
+		if w.OrbitConfigSpread < 0 {
+			initFatal(errors.New("must not be negative"), "websocket.orbit_config_spread")
+		}
 	}
 	for name, ok := range map[string]bool{
 		"websocket.ping_interval":    w.PingInterval > 0,
@@ -1719,6 +1743,7 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("server.cleanup_dist_targets_age", 24*time.Hour, "Specifies the cleanup age for completed live query distributed targets.")
 	man.addConfigDuration("server.script_results_retention", 30*24*time.Hour, "Minimum time since a script run recorded its result before the hourly cleanup deletes it. Runs still waiting on a host, and those a host lock, wipe, unlock, setup experience, software uninstall or batch run depends on, are kept regardless (0 disables the cleanup)")
 	man.addConfigDuration("server.software_install_results_retention", 30*24*time.Hour, "Minimum time since a software install or uninstall finished before the hourly cleanup deletes its record. Records a host is still working on, those setup experience depends on, and the most recent install and uninstall per host and package, are kept regardless (0 disables the cleanup)")
+	man.addConfigDuration("server.deleted_host_certificates_retention", 30*24*time.Hour, "Minimum time since a certificate was removed from a host before the hourly cleanup permanently deletes Fleet's record of it (0 disables the cleanup)")
 	man.addConfigByteSize("server.max_installer_size", installersize.Human(installersize.MaxSoftwareInstallerSize), "Maximum size in bytes for software installer uploads (e.g. 10GiB, 500MB, 1G)")
 	man.addConfigString("server.trusted_proxies", "",
 		"Trusted proxy configuration for client IP extraction: 'none' (RemoteAddr only), a header name (e.g., 'True-Client-IP'), a hop count (e.g., '2'), or comma-separated IP/CIDR ranges")
@@ -2203,6 +2228,12 @@ func (man Manager) addConfigs() {
 		"Interval of the per-instance job that notifies connected agents with due interval work")
 	man.addConfigInt("websocket.check_batch_size", 500,
 		"Number of connected agents checked per batch by the interval notification job")
+	man.addConfigBool("websocket.orbit_config_enabled", false,
+		"Notify connected agents of orbit config changes so they can poll it less often (requires websocket.transport_enabled)")
+	man.addConfigDuration("websocket.orbit_config_poll_interval", 5*time.Minute,
+		"Fallback orbit config poll interval of connected agents with no pending work, when websocket.orbit_config_enabled is set")
+	man.addConfigDuration("websocket.orbit_config_spread", 30*time.Second,
+		"Window over which each instance spreads the orbit config notifications of a fleet-wide or global change")
 }
 
 func (man Manager) hideConfig(name string) {
@@ -2298,6 +2329,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			CleanupDistTargetsAge:            man.getConfigDuration("server.cleanup_dist_targets_age"),
 			ScriptResultsRetention:           man.getConfigDuration("server.script_results_retention"),
 			SoftwareInstallResultsRetention:  man.getConfigDuration("server.software_install_results_retention"),
+			DeletedHostCertificatesRetention: man.getConfigDuration("server.deleted_host_certificates_retention"),
 			MaxInstallerSizeBytes:            man.getConfigByteSize("server.max_installer_size"),
 			TrustedProxies:                   man.getConfigString("server.trusted_proxies"),
 			GzipResponses:                    man.getConfigBool("server.gzip_responses"),
@@ -2581,6 +2613,10 @@ func (man Manager) LoadConfig() FleetConfig {
 			PongTimeout:      man.getConfigDuration("websocket.pong_timeout"),
 			CheckInterval:    man.getConfigDuration("websocket.check_interval"),
 			CheckBatchSize:   man.getConfigInt("websocket.check_batch_size"),
+
+			OrbitConfigEnabled:      man.getConfigBool("websocket.orbit_config_enabled"),
+			OrbitConfigPollInterval: man.getConfigDuration("websocket.orbit_config_poll_interval"),
+			OrbitConfigSpread:       man.getConfigDuration("websocket.orbit_config_spread"),
 		},
 	}
 
@@ -3061,6 +3097,9 @@ func TestConfig() FleetConfig {
 			PongTimeout:      30 * time.Second,
 			CheckInterval:    30 * time.Second,
 			CheckBatchSize:   500,
+
+			OrbitConfigPollInterval: 5 * time.Minute,
+			OrbitConfigSpread:       30 * time.Second,
 		},
 	}
 }
