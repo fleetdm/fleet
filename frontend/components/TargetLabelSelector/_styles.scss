@@ -95,24 +95,6 @@
     gap: $pad-xsmall;
   }
 
-  &__selected-badge {
-    display: flex;
-    align-items: center;
-    gap: $pad-xxsmall;
-    padding: $pad-xxsmall $pad-small;
-    background-color: $ui-fleet-black-5;
-    border: 1px solid $ui-fleet-black-10;
-    border-radius: $border-radius;
-    font-size: $xx-small;
-    cursor: pointer;
-    color: $ui-fleet-black-75;
-
-    &:hover {
-      background-color: $ui-fleet-black-10;
-      border-color: $ui-fleet-black-25;
-    }
-  }
-
   &__empty-state {
     display: flex;
     height: 187px;

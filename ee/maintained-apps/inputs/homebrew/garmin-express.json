@@ -6,5 +6,6 @@
   "slug": "garmin-express/darwin",
   "default_categories": [
     "Productivity"
-  ]
+  ],
+  "frozen": true
 }

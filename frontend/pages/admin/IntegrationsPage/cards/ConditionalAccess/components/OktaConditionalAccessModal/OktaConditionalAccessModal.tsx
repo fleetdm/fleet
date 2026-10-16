@@ -4,13 +4,16 @@ import { useQuery } from "react-query";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
+import Editor from "components/Editor";
 import FileUploader from "components/FileUploader";
 import InputField from "components/forms/fields/InputField";
 import valid_url from "components/forms/validators/valid_url";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
 import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { IConfig } from "interfaces/config";
 import { getErrorReason } from "interfaces/errors";
 import { IInputFieldParseTarget } from "interfaces/form_field";
@@ -101,6 +104,7 @@ const OktaConditionalAccessModal = ({
   onSuccess,
 }: IOktaConditionalAccessModalProps) => {
   const { config } = useContext(AppContext);
+  const { gitOpsModeEnabled } = useGitOpsMode();
 
   const [isUpdating, setIsUpdating] = useState(false);
   const [formData, setFormData] = useState<IFormData>({
@@ -312,12 +316,17 @@ const OktaConditionalAccessModal = ({
         </div>
 
         {/* User Scope Profile */}
-        <InputField
-          enableCopy
+        <Editor
           label="User scope profile"
-          readOnly
+          ariaLabel="user scope profile"
+          name="user-scope-profile"
+          mode="xml"
           value={appleProfile}
-          type="textarea"
+          readOnly
+          enableCopy
+          copyButtonLocation="label"
+          wrapEnabled
+          maxLines={10}
         />
 
         {/* Help text */}
@@ -327,58 +336,72 @@ const OktaConditionalAccessModal = ({
           &gt; <strong>SAML 2.0 IdP</strong>.
         </p>
 
-        <InputField
-          label="IdP ID"
-          onChange={onInputChange}
-          name={OKTA_IDP_ID}
-          value={formData[OKTA_IDP_ID]}
-          parseTarget
-          onBlur={onInputBlur}
-          error={formErrors[OKTA_IDP_ID]}
-        />
-        <InputField
-          label="Assertion consumer service URL"
-          onChange={onInputChange}
-          name={OKTA_ACS_URL}
-          value={formData[OKTA_ACS_URL]}
-          parseTarget
-          onBlur={onInputBlur}
-          error={formErrors[OKTA_ACS_URL]}
-        />
-        <InputField
-          label="Audience URI"
-          onChange={onInputChange}
-          name={OKTA_AUDIENCE_URI}
-          value={formData[OKTA_AUDIENCE_URI]}
-          parseTarget
-          onBlur={onInputBlur}
-          error={formErrors[OKTA_AUDIENCE_URI]}
-        />
-        <FileUploader
-          graphicName="file-pem"
-          title="Okta certificate"
-          message={
-            <>
-              Upload the certificate provided by Okta during the{" "}
-              <strong>Set Up Authenticator</strong> workflow
-            </>
-          }
-          internalError={formErrors[OKTA_CERTIFICATE]}
-          onFileUpload={onSelectFile}
-          buttonType="secondary"
-          buttonMessage="Upload"
-          accept=".pem,.crt,.cer,.cert"
-          fileDetails={certFile ? { name: certFile.name } : undefined}
-          onDeleteFile={onDeleteFile}
-        />
+        <div
+          className={`form ${
+            gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
+          }`}
+        >
+          <InputField
+            label="IdP ID"
+            onChange={onInputChange}
+            name={OKTA_IDP_ID}
+            value={formData[OKTA_IDP_ID]}
+            parseTarget
+            onBlur={onInputBlur}
+            error={formErrors[OKTA_IDP_ID]}
+            disabled={gitOpsModeEnabled}
+          />
+          <InputField
+            label="Assertion consumer service URL"
+            onChange={onInputChange}
+            name={OKTA_ACS_URL}
+            value={formData[OKTA_ACS_URL]}
+            parseTarget
+            onBlur={onInputBlur}
+            error={formErrors[OKTA_ACS_URL]}
+            disabled={gitOpsModeEnabled}
+          />
+          <InputField
+            label="Audience URI"
+            onChange={onInputChange}
+            name={OKTA_AUDIENCE_URI}
+            value={formData[OKTA_AUDIENCE_URI]}
+            parseTarget
+            onBlur={onInputBlur}
+            error={formErrors[OKTA_AUDIENCE_URI]}
+            disabled={gitOpsModeEnabled}
+          />
+          <FileUploader
+            graphicName="file-pem"
+            title="Okta certificate"
+            message={
+              <>
+                Upload the certificate provided by Okta during the{" "}
+                <strong>Set Up Authenticator</strong> workflow
+              </>
+            }
+            internalError={formErrors[OKTA_CERTIFICATE]}
+            onFileUpload={onSelectFile}
+            buttonType="secondary"
+            buttonMessage="Upload"
+            accept=".pem,.crt,.cer,.cert"
+            fileDetails={certFile ? { name: certFile.name } : undefined}
+            onDeleteFile={onDeleteFile}
+            disabled={gitOpsModeEnabled}
+          />
+        </div>
         <div className="modal-cta-wrap">
-          <Button
-            type="submit"
-            disabled={!!size(formErrors)}
-            isLoading={isUpdating}
-          >
-            Save
-          </Button>
+          <GitOpsModeTooltipWrapper
+            renderChildren={(disableChildren) => (
+              <Button
+                type="submit"
+                disabled={disableChildren || !!size(formErrors)}
+                isLoading={isUpdating}
+              >
+                Save
+              </Button>
+            )}
+          />
           <Button onClick={onCancel} variant="secondary">
             Cancel
           </Button>

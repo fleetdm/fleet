@@ -25,6 +25,17 @@ describe("CopyButton component", () => {
     expect(writeText).toHaveBeenCalledWith("hello");
   });
 
+  it("does not copy when disabled", async () => {
+    const writeText = jest
+      .spyOn(navigator.clipboard, "writeText")
+      .mockResolvedValue(undefined);
+    render(<CopyButton copyText="hello" disabled />);
+    const button = screen.getByRole("button");
+    expect(button).toBeDisabled();
+    await userEvent.click(button);
+    expect(writeText).not.toHaveBeenCalled();
+  });
+
   it('shows "Copied!" after a successful copy', async () => {
     render(<CopyButton copyText="hello" />);
     await userEvent.click(screen.getByRole("button"));
