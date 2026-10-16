@@ -11,9 +11,9 @@ import (
 
 var _ fleet.EJBCAService = (*Service)(nil)
 
-type VerifyConnectionFunc func(ctx context.Context, config fleet.EJBCACA) error
+type VerifyConnectionFunc func(ctx context.Context, config fleet.EJBCA) error
 
-type GetCertificateFunc func(ctx context.Context, config fleet.EJBCACA) (*fleet.EJBCACertificate, error)
+type GetCertificateFunc func(ctx context.Context, config fleet.EJBCA) (*fleet.EJBCACertificate, error)
 
 type Service struct {
 	VerifyConnectionFunc        VerifyConnectionFunc
@@ -25,14 +25,14 @@ type Service struct {
 	mu sync.Mutex
 }
 
-func (s *Service) VerifyConnection(ctx context.Context, config fleet.EJBCACA) error {
+func (s *Service) VerifyConnection(ctx context.Context, config fleet.EJBCA) error {
 	s.mu.Lock()
 	s.VerifyConnectionFuncInvoked = true
 	s.mu.Unlock()
 	return s.VerifyConnectionFunc(ctx, config)
 }
 
-func (s *Service) GetCertificate(ctx context.Context, config fleet.EJBCACA) (*fleet.EJBCACertificate, error) {
+func (s *Service) GetCertificate(ctx context.Context, config fleet.EJBCA) (*fleet.EJBCACertificate, error) {
 	s.mu.Lock()
 	s.GetCertificateFuncInvoked = true
 	s.mu.Unlock()

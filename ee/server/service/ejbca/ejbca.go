@@ -124,7 +124,7 @@ func (s *Service) populateOpts(opts []Opt) {
 
 // VerifyConnection checks that EJBCA accepts the client certificate and that the configured CA is one the certificate may use. It also
 // checks the certificate profile, but only when EJBCA's optional V2 protocol can look it up. EJBCA can't look up end entity profiles.
-func (s *Service) VerifyConnection(ctx context.Context, config fleet.EJBCACA) error {
+func (s *Service) VerifyConnection(ctx context.Context, config fleet.EJBCA) error {
 	client, base, err := s.newClient(ctx, config)
 	if err != nil {
 		return err
@@ -182,7 +182,7 @@ func (s *Service) verifyCertificateProfile(ctx context.Context, client *http.Cli
 }
 
 // GetCertificate enrolls a certificate with a key generated here and returns both in a PKCS#12 bundle.
-func (s *Service) GetCertificate(ctx context.Context, config fleet.EJBCACA) (*fleet.EJBCACertificate, error) {
+func (s *Service) GetCertificate(ctx context.Context, config fleet.EJBCA) (*fleet.EJBCACertificate, error) {
 	for field, value := range map[string]string{
 		"certificate authority name": config.CertificateAuthorityName,
 		"certificate profile name":   config.CertificateProfileName,
@@ -280,8 +280,8 @@ func (s *Service) GetCertificate(ctx context.Context, config fleet.EJBCACA) (*fl
 		return nil, ctxerr.Wrap(ctx, err, "creating PKCS12 bundle")
 	}
 
-	// The serial is hex, like EJBCA shows it and like the managed certificate record stores it.
-	serial := strings.ToUpper(cert.SerialNumber.Text(16))
+	// Lowercase hex, like Fleet's host certificate ingestion, so a managed certificate serial matches an ingested one.
+	serial := cert.SerialNumber.Text(16)
 	s.logger.DebugContext(ctx, "EJBCA certificate issued", "serial_number", serial, "not_after", cert.NotAfter)
 	return &fleet.EJBCACertificate{
 		PfxData:        pfxData,
@@ -294,7 +294,7 @@ func (s *Service) GetCertificate(ctx context.Context, config fleet.EJBCACA) (*fl
 
 // newClient returns an HTTP client that presents the client certificate, and EJBCA's REST base URL. It fails without contacting EJBCA
 // when the client certificate has expired, since EJBCA would only reject the handshake.
-func (s *Service) newClient(ctx context.Context, config fleet.EJBCACA) (*http.Client, string, error) {
+func (s *Service) newClient(ctx context.Context, config fleet.EJBCA) (*http.Client, string, error) {
 	base, err := url.Parse(strings.TrimRight(config.URL, "/"))
 	if err != nil || base.Scheme != "https" || base.Host == "" || base.User != nil || base.RawQuery != "" || base.ForceQuery ||
 		base.Fragment != "" {

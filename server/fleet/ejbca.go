@@ -5,9 +5,9 @@ import (
 	"time"
 )
 
-// EJBCACA is what Fleet needs to enroll certificates from an EJBCA instance over its REST API with mutual TLS. Callers expand the Fleet
+// EJBCA is what Fleet needs to enroll certificates from an EJBCA instance over its REST API with mutual TLS. Callers expand the Fleet
 // variables in the common name, username, and UPNs before enrolling.
-type EJBCACA struct {
+type EJBCA struct {
 	ID   uint   `json:"-"`
 	Name string `json:"name"`
 	URL  string `json:"url"`
@@ -39,7 +39,7 @@ type EJBCACertificate struct {
 type EJBCAService interface {
 	// VerifyConnection checks that EJBCA accepts the client certificate, that the CA is one it may use, and, when EJBCA can look it up,
 	// that the certificate profile exists.
-	VerifyConnection(ctx context.Context, config EJBCACA) error
+	VerifyConnection(ctx context.Context, config EJBCA) error
 	// GetCertificate enrolls a certificate and returns it with a newly generated key in a PKCS#12 bundle.
-	GetCertificate(ctx context.Context, config EJBCACA) (*EJBCACertificate, error)
+	GetCertificate(ctx context.Context, config EJBCA) (*EJBCACertificate, error)
 }
