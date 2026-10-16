@@ -4106,6 +4106,8 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 	return modifiedInstallers, nil
 }
 
+var errInstallerReapplied = errors.New("removed installer was re-applied")
+
 // drainRemovedInstaller clears the queued installs of a custom package that BatchSetSoftwareInstallers
 // marked inactive, then deletes it. Queued installs go in chunks, each its own transaction. It stops if the
 // package is re-applied, which marks the row active again. It returns the hosts whose activated install it
@@ -4136,15 +4138,6 @@ func (ds *Datastore) drainRemovedInstaller(ctx context.Context, installerID uint
 			}
 		}
 		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-			// Shared lock, so a re-apply can't reactivate the package until this chunk commits.
-			var ok bool
-			if err := sqlx.GetContext(ctx, tx, &ok, isRemoved+` FOR SHARE`, installerID); errors.Is(err, sql.ErrNoRows) {
-				done = true
-				return nil
-			} else if err != nil {
-				return ctxerr.Wrap(ctx, err, "check removed installer")
-			}
-
 			// Cancel the history of installs already started before removing them from the queue, in the order
 			// recording a result takes, so a clear that stops partway leaves nothing pending.
 			if len(activatedExecIDs) > 0 {
@@ -4180,6 +4173,14 @@ func (ds *Datastore) drainRemovedInstaller(ctx context.Context, installerID uint
 			if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
 				return ctxerr.Wrap(ctx, err, "lock queued installs")
 			}
+			// Last, so a re-apply never waits on this chunk's other locks. Shared, so it can't reactivate the package
+			// until this chunk commits. If it already did, roll the chunk back.
+			var ok bool
+			if err := sqlx.GetContext(ctx, tx, &ok, isRemoved+` FOR SHARE`, installerID); errors.Is(err, sql.ErrNoRows) {
+				return errInstallerReapplied
+			} else if err != nil {
+				return ctxerr.Wrap(ctx, err, "check removed installer")
+			}
 			if len(rows) == 0 {
 				return nil
 			}
@@ -4197,6 +4198,9 @@ func (ds *Datastore) drainRemovedInstaller(ctx context.Context, installerID uint
 			_, err = tx.ExecContext(ctx, stmt, args...)
 			return ctxerr.Wrap(ctx, err, "delete queued installs")
 		})
+		if errors.Is(err, errInstallerReapplied) {
+			break
+		}
 		if err != nil {
 			return affectedHostIDs, err
 		}
