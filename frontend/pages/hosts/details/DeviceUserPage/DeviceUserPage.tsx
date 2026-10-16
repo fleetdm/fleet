@@ -69,7 +69,6 @@ import SelfService from "../cards/Software/SelfService";
 import { parseSelfServiceQueryParams } from "../cards/Software/SelfService/SelfService";
 import UserCard from "../cards/User";
 import VitalsCard from "../cards/Vitals";
-import { hasReportedVitals } from "../HostDetailsPage/helpers";
 import { REFETCH_HOST_DETAILS_POLLING_INTERVAL } from "../HostDetailsPage/HostDetailsPage";
 import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
@@ -339,9 +338,9 @@ const DeviceUserPage = ({
         // Handle spinner and timer for refetch
         if (isRefetching(responseHost)) {
           setShowRefetchSpinner(true);
-          // A host without vitals is still on its enrollment refetch, which nobody asked for, so only a Refetch click gets toasts.
-          const shouldNotify =
-            hasReportedVitals(responseHost) || isUserRequestedRefetch;
+          // Automatic refetches (enrollment, software installs, admin requests) can catch a busy host between osquery check-ins,
+          // and the end user is at the host, so only their own refetch gets toasts. The status card still shows a real outage.
+          const shouldNotify = isUserRequestedRefetch;
 
           // Only set timer if not already running
           if (!refetchStartTime) {
@@ -364,11 +363,6 @@ const DeviceUserPage = ({
               }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
             } else {
               resetHostRefetchStates();
-              if (shouldNotify) {
-                notify.error(
-                  `This host is offline. Please try refetching host vitals later.`
-                );
-              }
             }
           } else {
             const totalElapsedTime = Date.now() - refetchStartTime;
@@ -725,11 +719,7 @@ const DeviceUserPage = ({
   );
 
   const renderDeviceUserPage = () => {
-    // While the toggle's refetch is in flight the cached list is for the other
-    // toggle state, so blank the card instead of showing the wrong rows.
-    const displayedPolicies = isDupDetailsPreviousData
-      ? []
-      : host?.policies || [];
+    const displayedPolicies = host?.policies || [];
     // Counted from the list the tab shows, so it follows the hidden-policies toggle.
     const failingPoliciesCount = displayedPolicies.filter(
       (p) => p.response === "fail"
@@ -1009,6 +999,7 @@ const DeviceUserPage = ({
                     canManageSelfServiceProfiles={
                       isPremiumTier && host.platform === "darwin"
                     }
+                    isPremiumTier={isPremiumTier}
                     installRequest={installProfile}
                     uninstallRequest={uninstallProfile}
                     router={router}

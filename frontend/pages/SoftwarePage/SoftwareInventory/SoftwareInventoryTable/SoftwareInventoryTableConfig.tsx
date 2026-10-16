@@ -13,7 +13,10 @@ import {
   formatSoftwareType,
   isIpadOrIphoneSoftwareSource,
 } from "interfaces/software";
-import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
+import {
+  getAutomaticInstallPoliciesCount,
+  getSoftwareListName,
+} from "pages/SoftwarePage/helpers";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 
@@ -84,7 +87,7 @@ const getSoftwareNameCellData = (
 
   return {
     name: softwareTitle.name,
-    displayName: softwareTitle.display_name,
+    displayName: getSoftwareListName(softwareTitle),
     bundleIdentifier: softwareTitle.bundle_identifier,
     source: softwareTitle.source,
     path: softwareTitleDetailsPath,

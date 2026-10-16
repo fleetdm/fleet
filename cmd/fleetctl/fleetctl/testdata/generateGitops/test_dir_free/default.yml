@@ -16,21 +16,28 @@ controls:
   android_enabled_and_configured: true
   android_settings:
     configuration_profiles:
-    - path: ./lib/profiles/global-android-profile.json
+    - name: Global Android Profile
+      path: ./lib/profiles/global-android-profile.json
   apple_settings:
     configuration_profiles:
     - labels_include_all:
       - Label A
       - Label B
+      name: Global MacOS MobileConfig Profile
       path: ./lib/profiles/global-macos-mobileconfig-profile.mobileconfig
+      self_service: true
     - labels_exclude_any:
       - Label C
+      name: Global MacOS JSON Profile
       path: ./lib/profiles/global-macos-json-profile.json
   windows_enabled_and_configured: true
   windows_settings:
     configuration_profiles:
-    - labels_include_any:
+    - description: Blocks inbound connections
+      hidden: true
+      labels_include_any:
       - Label D
+      name: Global Windows Profile
       path: ./lib/profiles/global-windows-profile.xml
 custom_host_vitals:
 - name: Asset tag

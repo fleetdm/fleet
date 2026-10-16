@@ -397,6 +397,7 @@ type FleetMaintainedApp struct {
 type GitOpsMDM struct {
 	fleet.MDM
 	EndUserLicenseAgreement any `json:"end_user_license_agreement,omitempty"`
+	WindowsEULA             any `json:"windows_eula,omitempty"`
 }
 
 // GitOpsOrgSettings defines the valid keys for the top-level `org_settings:` section.
@@ -844,6 +845,9 @@ func reanchorOrgSettingsPaths(orgSettings map[string]any, orgSettingsDir string)
 	if mdm, ok := orgSettings["mdm"].(map[string]any); ok {
 		if eula, ok := mdm["end_user_license_agreement"].(string); ok && eula != "" {
 			mdm["end_user_license_agreement"] = anchor(eula)
+		}
+		if winEULA, ok := mdm["windows_eula"].(string); ok && winEULA != "" {
+			mdm["windows_eula"] = anchor(winEULA)
 		}
 	}
 }
@@ -1388,6 +1392,19 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 		}
 	}
 
+	for _, c := range []struct {
+		key   string
+		value any
+	}{
+		{"enable_disk_encryption", result.Controls.EnableDiskEncryption},
+		{"enable_recovery_lock_password", result.Controls.EnableRecoveryLockPassword},
+		{"windows_require_bitlocker_pin", result.Controls.RequireBitLockerPIN},
+	} {
+		if _, ok := c.value.(bool); c.value != nil && !ok {
+			multiError = multierror.Append(multiError, fmt.Errorf("'controls.%s' must be a boolean in %s", c.key, controlsFilePath))
+		}
+	}
+
 	// Find Fleet secrets in profiles
 	if result.Controls.MacOSSettings != nil {
 		macOSSettings, err := reparseSettings[fleet.MacOSSettings](result.Controls.MacOSSettings, controlsFilePath, "macos_settings")
@@ -1406,10 +1423,12 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 
 		// Expand globs in profile paths.
 		var errs []error
-		macOSSettings.CustomSettings, errs = expandBaseItems(macOSSettings.CustomSettings, controlsDir, "profile", GlobExpandOptions{
+		macGlobOpts := GlobExpandOptions{
 			AllowedExtensions: map[string]bool{".mobileconfig": true, ".json": true},
 			LogFn:             logFn,
-		})
+		}
+		multiError = multierror.Append(multiError, validateProfileSpecNames(macOSSettings.CustomSettings, controlsDir, "apple_settings", macGlobOpts)...)
+		macOSSettings.CustomSettings, errs = expandBaseItems(macOSSettings.CustomSettings, controlsDir, "profile", macGlobOpts)
 		multiError = multierror.Append(multiError, errs...)
 		// Then resolve the paths to absolute and find Fleet secrets in the profile files.
 		for i := range macOSSettings.CustomSettings {
@@ -1450,11 +1469,12 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 
 		if windowsSettings.CustomSettings.Valid {
 			var errs []error
-			windowsSettings.CustomSettings.Value, errs = expandBaseItems(windowsSettings.CustomSettings.Value, controlsDir, "profile", GlobExpandOptions{
+			winGlobOpts := GlobExpandOptions{
 				AllowedExtensions: map[string]bool{".xml": true},
-
-				LogFn: logFn,
-			})
+				LogFn:             logFn,
+			}
+			multiError = multierror.Append(multiError, validateProfileSpecNames(windowsSettings.CustomSettings.Value, controlsDir, "windows_settings", winGlobOpts)...)
+			windowsSettings.CustomSettings.Value, errs = expandBaseItems(windowsSettings.CustomSettings.Value, controlsDir, "profile", winGlobOpts)
 			multiError = multierror.Append(multiError, errs...)
 
 			for i := range windowsSettings.CustomSettings.Value {
@@ -1484,10 +1504,12 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 
 		if androidSettings.CustomSettings.Valid {
 			var errs []error
-			androidSettings.CustomSettings.Value, errs = expandBaseItems(androidSettings.CustomSettings.Value, controlsDir, "profile", GlobExpandOptions{
+			androidGlobOpts := GlobExpandOptions{
 				AllowedExtensions: map[string]bool{".json": true},
 				LogFn:             logFn,
-			})
+			}
+			multiError = multierror.Append(multiError, validateProfileSpecNames(androidSettings.CustomSettings.Value, controlsDir, "android_settings", androidGlobOpts)...)
+			androidSettings.CustomSettings.Value, errs = expandBaseItems(androidSettings.CustomSettings.Value, controlsDir, "profile", androidGlobOpts)
 			multiError = multierror.Append(multiError, errs...)
 			for i := range androidSettings.CustomSettings.Value {
 				err := resolveAndUpdateProfilePath(&androidSettings.CustomSettings.Value[i], result)
@@ -1679,6 +1701,31 @@ func resolveAndUpdateActivationPath(profile *fleet.MDMProfileSpec, baseDir strin
 		return fmt.Errorf("failed to read activation file %s: %v", resolved, err)
 	}
 	return LookupEnvSecrets(string(fileBytes), result.FleetSecrets)
+}
+
+// validateProfileSpecNames rejects a "name" on a "paths" glob that matches
+// more than one file: the glob expands to one profile per file and names are
+// unique per fleet, so a single name can't cover them. A description can, like
+// labels. Runs before expansion, which is the last point the pattern is known.
+func validateProfileSpecNames(specs []fleet.MDMProfileSpec, baseDir, settingsKey string, opts GlobExpandOptions) []error {
+	// the expansion that follows logs the same skipped files
+	opts.LogFn = func(string, ...any) {}
+	var errs []error
+	for _, spec := range specs {
+		if strings.TrimSpace(spec.Name) == "" || spec.Paths == "" || !containsGlobMeta(spec.Paths) {
+			continue
+		}
+		matches, err := expandGlobPattern(spec.Paths, baseDir, "profile", opts)
+		if err != nil {
+			// reported again, with context, by the expansion that follows
+			continue
+		}
+		if len(matches) > 1 {
+			errs = append(errs, fmt.Errorf(`controls.%s.configuration_profiles[]: "name" can't be used with a "paths" glob that matches more than one file (%q matched %d); use "path" for a single profile`,
+				settingsKey, spec.Paths, len(matches)))
+		}
+	}
+	return errs
 }
 
 func resolveAndUpdateProfilePath(profile *fleet.MDMProfileSpec, result *GitOps) error {
@@ -1962,6 +2009,11 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 				multiError = multierror.Append(multiError, fmt.Errorf("%s", inv["reason"]))
 			}
 		}
+		if err := fleet.ValidateLabelFieldLengths(l.Name, l.Description); err != nil {
+			for _, inv := range err.Invalid() {
+				multiError = multierror.Append(multiError, fmt.Errorf("%s", inv["reason"]))
+			}
+		}
 
 		// Don't use non-ASCII
 		if !isASCII(l.Name) {
@@ -2057,6 +2109,13 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				continue
 			}
 
+			// an explicit name replaces the PayloadDisplayName, as on apply,
+			// where it is stored trimmed
+			if n := strings.TrimSpace(item.Name); n != "" {
+				definedProfileNames[n] = struct{}{}
+				continue
+			}
+
 			// parse the file into XML .mobileconfig struct and lookup `PayloadDisplayName`
 			mc := mobileconfig.Mobileconfig(expanded)
 			parsed, err := mc.ParseConfigProfile()
@@ -2085,7 +2144,12 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				continue
 			}
 
-			// windows profile names come from the file name without the extension
+			// windows profile names come from the file name without the
+			// extension, unless the YAML names the profile
+			if n := strings.TrimSpace(item.Name); n != "" {
+				definedProfileNames[n] = struct{}{}
+				continue
+			}
 			base := filepath.Base(item.Path)
 			definedProfileNames[strings.TrimSuffix(base, filepath.Ext(base))] = struct{}{}
 		}
@@ -2238,7 +2302,7 @@ func parsePolicyRunScript(baseDir string, parentFilePath string, teamName *strin
 		return nil
 	}
 	if policy.RunScript != nil && policy.RunScript.Path != "" && teamName == nil {
-		return errors.New("run_script can only be set on team policies")
+		return errors.New("run_script can only be set on fleet-level policies")
 	}
 
 	if policy.RunScript.Path == "" {
@@ -2273,7 +2337,7 @@ func parsePolicyRunScript(baseDir string, parentFilePath string, teamName *strin
 
 func parsePolicyResendConfigurationProfile(parentFilePath string, teamName *string, policy *Policy, definedProfiles map[string]struct{}) error {
 	if teamName == nil && policy.ResendConfigurationProfile != "" {
-		return errors.New("resend_configuration_profile can only be set on team policies")
+		return errors.New("resend_configuration_profile can only be set on fleet-level policies")
 	}
 
 	name := strings.TrimSpace(policy.ResendConfigurationProfile)
@@ -2308,7 +2372,7 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 	hasHash := installSoftwareObj.HashSHA256 != ""
 
 	if (hasPath || hasAppStore || hasHash || hasFMA) && teamName == nil {
-		return wrapErrs(errors.New("install_software can only be set on team policies"))
+		return wrapErrs(errors.New("install_software can only be set on fleet-level policies"))
 	}
 	if !hasPath && !hasAppStore && !hasHash && !hasFMA {
 		return wrapErrs(errors.New("install_software must include either a package_path, an app_store_id, a hash_sha256 or a fleet_maintained_app_slug"))
@@ -2530,14 +2594,52 @@ func validateAppStoreApp(item fleet.TeamSpecAppStoreApp, resolveDir string) (fle
 		return item, errors.New("software app store id required")
 	}
 
-	var count int
-	for _, set := range [][]string{item.LabelsExcludeAny, item.LabelsIncludeAny, item.LabelsIncludeAll} {
-		if len(set) > 0 {
-			count++
+	if len(item.Versions) > 0 {
+		if item.SelfService || len(item.LabelsIncludeAny) > 0 || len(item.LabelsExcludeAny) > 0 || len(item.LabelsIncludeAll) > 0 ||
+			item.Categories != nil || item.Configuration.Path != "" ||
+			item.AutoUpdateEnabled != nil || item.AutoUpdateStartTime != nil || item.AutoUpdateEndTime != nil {
+			return item, fmt.Errorf("Couldn't add software (%q). self_service, labels, categories, configuration, and auto-update settings can be specified only in each version when the app has versions.", item.AppStoreID)
+		}
+		if len(item.Versions) > fleet.MaxAppStoreAppVersions {
+			return item, fmt.Errorf("Couldn't add software (%q). An app can have at most %d versions.", item.AppStoreID, fleet.MaxAppStoreAppVersions)
+		}
+		if item.Platform == string(fleet.MacOSPlatform) && len(item.Versions) > 1 {
+			return item, fmt.Errorf("Couldn't add software (%q). macOS App Store apps can have only one version.", item.AppStoreID)
 		}
 	}
-	if count > 1 {
-		return item, fmt.Errorf(`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for app store app %q`, item.AppStoreID)
+
+	// Validate the version names of the app
+	var versionNames []string
+	for i, version := range item.Versions {
+		name := strings.TrimSpace(version.Name)
+		if name == "" {
+			return item, fmt.Errorf("Couldn't add software (%q). Version %d is missing a name.", item.AppStoreID, i+1)
+		}
+		if utf8.RuneCountInString(name) > fleet.MaxAppStoreAppVersionNameLength {
+			return item, fmt.Errorf("Couldn't add software (%q). The version name %q can't be longer than %d characters.", item.AppStoreID, name, fleet.MaxAppStoreAppVersionNameLength)
+		}
+		if slices.ContainsFunc(versionNames, func(versionName string) bool {
+			return strings.EqualFold(versionName, name)
+		}) {
+			return item, fmt.Errorf("Couldn't add software (%q). More than one version is named %q.", item.AppStoreID, name)
+		}
+		versionNames = append(versionNames, name)
+	}
+
+	for _, version := range item.ListVersions() {
+		var count int
+		for _, set := range [][]string{version.LabelsExcludeAny, version.LabelsIncludeAny, version.LabelsIncludeAll} {
+			if len(set) > 0 {
+				count++
+			}
+		}
+		if count > 1 {
+			var versionSuffix string
+			if version.Name != "" {
+				versionSuffix = fmt.Sprintf(" version %q", version.Name)
+			}
+			return item, fmt.Errorf(`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for app store app %q%s`, item.AppStoreID, versionSuffix)
+		}
 	}
 
 	// Validate display_name length (matches database VARCHAR(255))

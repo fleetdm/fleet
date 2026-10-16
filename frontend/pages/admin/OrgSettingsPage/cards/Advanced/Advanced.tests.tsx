@@ -128,3 +128,15 @@ describe("Advanced settings — Activity & data retention", () => {
     expect(payload.features.historical_data.uptime).toBe(true);
   });
 });
+
+describe("Advanced settings — Host lifecycle", () => {
+  it("disables the host expiry window until host expiry is enabled", async () => {
+    const { user } = renderAdvanced();
+
+    expect(screen.getByLabelText("Host expiry window")).toBeDisabled();
+
+    await user.click(screen.getByText("Host expiry"));
+
+    expect(screen.getByLabelText("Host expiry window")).toBeEnabled();
+  });
+});

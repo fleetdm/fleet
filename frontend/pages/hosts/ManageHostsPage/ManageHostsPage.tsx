@@ -746,6 +746,8 @@ const ManageHostsPage = ({
         configProfileUUID,
         scriptBatchExecutionStatus,
         scriptBatchExecutionId,
+        depProfileError: strToBool(depProfileError),
+        depAssignProfileResponse,
       },
     ],
     ({ queryKey }) => hostCountAPI.load(queryKey[0]),
@@ -1945,6 +1947,7 @@ const ManageHostsPage = ({
         </div>
         <div className={`${baseClass}__filter-dropdowns`}>
           <DropdownWrapper
+            ariaLabel="Filter by status"
             name="status-filter"
             value={status || mdmEnrollmentStatus || ""}
             className={`${baseClass}__status-filter`}

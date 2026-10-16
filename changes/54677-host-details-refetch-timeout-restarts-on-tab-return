@@ -1,0 +1,1 @@
+- Fixed host details and the Welcome to Fleet card restarting a refetch and repeating the timeout toast when the tab regained focus after a refetch had already timed out.

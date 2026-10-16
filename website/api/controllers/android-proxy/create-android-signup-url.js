@@ -38,7 +38,7 @@ module.exports = {
     if(connectionforThisInstanceExists) {
       // Before throwing conflict, verify the enterprise still exists in Google
       // If it doesn't exist, clean up the stale proxy record and continue with signup
-      let isEnterpriseManagedByFleet = await sails.helpers.androidProxy.getIsEnterpriseManagedByFleet(connectionforThisInstanceExists.androidEnterpriseId)
+      let isEnterpriseManagedByFleet = await sails.helpers.androidProxy.getIsEnterpriseManagedByFleet.with({androidEnterpriseId: connectionforThisInstanceExists.androidEnterpriseId, fleetServerUrl: fleetServerUrl})
       .intercept({status: 429}, ()=>{
         // If the Android management API returns a 429 response, log an additional warning that will trigger a help-p1 alert.
         sails.log.warn(`p1: Android management API rate limit exceeded!`);
@@ -66,6 +66,12 @@ module.exports = {
       let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
       // [?] https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Signupurls.html#create
       sails.androidProxyApiRequestCount++;// Count this Android Management API request toward the per-minute total logged in api/hooks/custom/index.js.
+      let _enterpriseIdPending = 'pending:' + fleetServerUrl;
+      if (!sails.androidProxyApiRequestCountByEnterpriseId[_enterpriseIdPending]) { sails.androidProxyApiRequestCountByEnterpriseId[_enterpriseIdPending] = {count: 0, fleetServerUrl: fleetServerUrl}; }
+      sails.androidProxyApiRequestCountByEnterpriseId[_enterpriseIdPending].count++;
+      let _rtKey = _enterpriseIdPending + ':create_signup_url';
+      if (!sails.androidProxyApiRequestCountByRequestType[_rtKey]) { sails.androidProxyApiRequestCountByRequestType[_rtKey] = {count: 0, enterpriseId: _enterpriseIdPending, fleetServerUrl: fleetServerUrl, requestType: 'create_signup_url'}; }
+      sails.androidProxyApiRequestCountByRequestType[_rtKey].count++;
       let createSignupUrlResponse = await androidManagementConnection.signupUrls.create({
         // The callback URL that the admin will be redirected to after successfully creating an enterprise. Before redirecting there the system will add a query parameter to this URL named enterpriseToken which will contain an opaque token to be used for the create enterprise request. The URL will be parsed then reformatted in order to add the enterpriseToken parameter, so there may be some minor formatting changes.
         callbackUrl: callbackUrl,

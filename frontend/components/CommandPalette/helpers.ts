@@ -65,6 +65,9 @@ export interface ICommandPaletteContext {
    *  page despite passing `canWrite`. Gates every software-add palette
    *  item (FMA, VPP, Android, custom package). */
   canAddSoftware?: boolean;
+  /** Global or current-fleet admin/maintainer. Gates `add-profile`, where
+   *  `isAdminOrMaintainer` would pass a technician who admins another fleet. */
+  canAddConfigurationProfile?: boolean;
   /** Global or any-team admin/maintainer. Gates the admin/maintainer-only
    *  Controls > OS settings sub-items (Certificates, Passwords, Host names),
    *  which technicians can't manage despite passing `canAccessControls`. */

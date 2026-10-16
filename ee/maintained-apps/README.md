@@ -164,6 +164,55 @@ If an app does not pass test criteria:
 - [Freeze the app](#freezing-an-existing-fleet-maintained-app)
 - File a bug for tracking
 
+## Editing an app's pre-install query
+
+With patch when closed on, Fleet runs the app's `open` query before an update and installs only if it returns a result (app is closed). To override the generated query:
+
+### macOS
+
+In `ingesters/homebrew/ingester.go`, add a `case` for the app's `token` to the `switch input.Token` block after `GenerateOpenQuery`. Escape `%` as `%%`.
+
+```go
+case "google-chrome", "microsoft-edge", "brave-browser", "vivaldi", "opera", "arc", "comet":
+	out.Queries.Open = fmt.Sprintf(
+		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat('%%/', a.bundle_identifier, '.code_sign_clone/%%/Contents/MacOS/', a.bundle_executable)) WHERE a.bundle_identifier = '%s' AND a.bundle_executable != '');",
+		out.UniqueIdentifier,
+	)
+```
+
+Add a test in `ingesters/homebrew/ingester_test.go`.
+
+### Windows
+
+The default query checks for a running `<app name>.exe`.
+
+To match other process names, add the app's `name` to `windowsOpenQueryOverrides` in `pkg/patch_policy/patch_policy.go`. The value replaces `<value>` in `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) <value>);`.
+
+```go
+"7-zip": "IN ('7zfm.exe','7zg.exe')",
+```
+
+To replace the whole query, set `out.Queries.Open` in `ingesters/winget/ingester.go` after `GenerateOpenQuery`, in a `switch input.Slug` block (add one if it doesn't exist). Add a test in `ingesters/winget/ingester_test.go`.
+
+```go
+switch input.Slug {
+case "example-app/windows":
+	out.Queries.Open = `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(path) LIKE 'c:\program files\example app\%');`
+}
+```
+
+### Publish
+
+1. Regenerate the output and confirm `open` changed:
+
+   ```bash
+   go run cmd/maintained-apps/main.go --slug="<slug-name>" --debug
+   ```
+
+2. Open a PR. Go changes need [@fleetdm/go](https://github.com/orgs/fleetdm/teams/go) approval.
+
+No Fleet release needed. Fleet servers pick up the new query on the next FMA auto-update, except for apps pinned to a specific version.
+
 ## Freezing an existing Fleet-maintained app
 
 If any app fails validation:

@@ -14,19 +14,20 @@ quit_application() {
   i=0
   while [ "$i" -lt "$timeout_duration" ]; do
     osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1 || true
-    if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then
+    sleep 1
+    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [ "$still_running" = "false" ]; then
       echo "'$bundle_id' quit successfully."
-      return
+      return 0
     fi
     i=$((i+1))
-    sleep 1
   done
   echo "'$bundle_id' did not quit."
+  return 1
 }
 
 [ -n "$INSTALLER_PATH" ] && [ -f "$INSTALLER_PATH" ] || { echo "missing installer"; exit 1; }
 
-quit_application "com.adobe.acc.AdobeCreativeCloud"
+quit_application "com.adobe.acc.AdobeCreativeCloud" || exit 1
 
 # Mount to a known path to avoid space-in-volume issues
 MOUNT_POINT="$(mktemp -d "/tmp/adobe_cc.XXXXXX")"

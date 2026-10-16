@@ -624,6 +624,19 @@ const TableContainer = <T,>({
                   searchQueryColumn={searchQueryColumn}
                   selectedDropdownFilter={selectedDropdownFilter}
                   renderTableHelpText={renderTableHelpText}
+                  renderNoResultsInBody={
+                    // Only fire when there IS data and the client filter
+                    // reduced it to zero — otherwise the overlay flashes on
+                    // the initial empty render before data arrives.
+                    isMultiColumnFilter &&
+                    data.length > 0 &&
+                    clientFilterCount === 0 &&
+                    !isLoading
+                      ? () => (
+                          <h3>No items match the current search criteria</h3>
+                        )
+                      : undefined
+                  }
                   renderPagination={
                     isClientSidePagination
                       ? undefined

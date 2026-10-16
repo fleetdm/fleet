@@ -1,9 +1,10 @@
 package client
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"testing"
 	"time"
@@ -12,30 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func TestGetConfig(t *testing.T) {
-	t.Run(
-		"config cache", func(t *testing.T) {
-			oc := OrbitClient{}
-			oc.configCache.config = &fleet.OrbitConfig{}
-			oc.configCache.lastUpdated = time.Now().Add(1 * time.Second)
-			config, err := oc.GetConfig()
-			require.NoError(t, err)
-			require.Equal(t, oc.configCache.config, config)
-		},
-	)
-	t.Run(
-		"config cache error", func(t *testing.T) {
-			oc := OrbitClient{}
-			oc.configCache.config = nil
-			oc.configCache.err = errors.New("test error")
-			oc.configCache.lastUpdated = time.Now().Add(1 * time.Second)
-			config, err := oc.GetConfig()
-			require.Error(t, err)
-			require.Equal(t, oc.configCache.config, config)
-		},
-	)
-}
 
 func TestNewOrbitClientBypassEndUserAuth(t *testing.T) {
 	newClient := func(bypassEndUserAuth bool) *OrbitClient {
@@ -63,21 +40,34 @@ func TestNewOrbitClientBypassEndUserAuth(t *testing.T) {
 	require.Equal(t, fleet.GetOrbitClientCapabilities(), newClient(false).ClientCapabilities)
 }
 
-func clientWithConfig(cfg *fleet.OrbitConfig) *OrbitClient {
-	ctx, cancel := context.WithCancel(context.Background())
-	oc := &OrbitClient{
-		receiverUpdateContext:    ctx,
-		receiverUpdateCancelFunc: cancel,
-	}
-	oc.configCache.config = cfg
-	oc.configCache.lastUpdated = time.Now().Add(1 * time.Hour)
-	return oc
+func clientWithConfig(t *testing.T, cfg *fleet.OrbitConfig) *OrbitClient {
+	srv := &configServer{}
+	srv.set(*cfg)
+	return newNudgeTestClient(t, srv)
+}
+
+func TestOrbitClientResponseHeaderTimeout(t *testing.T) {
+	orig := responseHeaderTimeout
+	responseHeaderTimeout = 100 * time.Millisecond
+	t.Cleanup(func() { responseHeaderTimeout = orig })
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(300 * time.Millisecond)
+		_, _ = w.Write([]byte("installer"))
+	}))
+	t.Cleanup(srv.Close)
+
+	oc, err := NewOrbitClient(t.TempDir(), srv.URL, "", true, "secret", nil,
+		fleet.OrbitHostInfo{HardwareUUID: "uuid", Hostname: "host"}, nil, nil, "", false)
+	require.NoError(t, err)
+	_, err = oc.DownloadSoftwareInstallerFromURL(srv.URL+"/app.pkg", "app.pkg", t.TempDir(), nil)
+	require.ErrorContains(t, err, "timeout awaiting response headers")
 }
 
 func TestConfigReceiverCalls(t *testing.T) {
 	var called1, called2 bool
 
-	testmsg := json.RawMessage("testing")
+	testmsg := json.RawMessage(`"testing"`)
 
 	rfunc1 := fleet.OrbitConfigReceiverFunc(func(cfg *fleet.OrbitConfig) error {
 		if !reflect.DeepEqual(cfg.Flags, testmsg) {
@@ -94,7 +84,7 @@ func TestConfigReceiverCalls(t *testing.T) {
 		return nil
 	})
 
-	client := clientWithConfig(&fleet.OrbitConfig{Flags: testmsg})
+	client := clientWithConfig(t, &fleet.OrbitConfig{Flags: testmsg})
 	client.RegisterConfigReceiver(rfunc1)
 	client.RegisterConfigReceiver(rfunc2)
 
@@ -129,7 +119,7 @@ func TestConfigReceiverErrors(t *testing.T) {
 		panic("woah")
 	})
 
-	client := clientWithConfig(&fleet.OrbitConfig{})
+	client := clientWithConfig(t, &fleet.OrbitConfig{})
 	client.RegisterConfigReceiver(efunc1)
 	client.RegisterConfigReceiver(rfunc1)
 	client.RegisterConfigReceiver(efunc2)
@@ -145,8 +135,8 @@ func TestConfigReceiverErrors(t *testing.T) {
 }
 
 func TestExecuteConfigReceiversCancel(t *testing.T) {
-	client := clientWithConfig(&fleet.OrbitConfig{})
-	client.ReceiverUpdateInterval = 100 * time.Millisecond
+	client := clientWithConfig(t, &fleet.OrbitConfig{})
+	client.DefaultConfigPollInterval = 100 * time.Millisecond
 
 	var calls1, calls2 int
 	requiredCalls := 4
@@ -175,10 +165,10 @@ func TestExecuteConfigReceiversCancel(t *testing.T) {
 }
 
 func TestExecuteConfigReceiversInterrupt(t *testing.T) {
-	client := clientWithConfig(&fleet.OrbitConfig{})
+	client := clientWithConfig(t, &fleet.OrbitConfig{})
 	defer client.receiverUpdateCancelFunc()
 
-	client.ReceiverUpdateInterval = 100 * time.Millisecond
+	client.DefaultConfigPollInterval = 100 * time.Millisecond
 
 	var called bool
 	rfunc := fleet.OrbitConfigReceiverFunc(func(cfg *fleet.OrbitConfig) error {
@@ -208,8 +198,8 @@ func TestExecuteConfigReceiversInterrupt(t *testing.T) {
 }
 
 func TestExecuteConfigReceiversBackoffOnError(t *testing.T) {
-	client := clientWithConfig(&fleet.OrbitConfig{})
-	client.ReceiverUpdateInterval = 1 * time.Second
+	client := clientWithConfig(t, &fleet.OrbitConfig{})
+	client.DefaultConfigPollInterval = 1 * time.Second
 
 	var callTimes []time.Time
 	callCount := 0
@@ -251,8 +241,8 @@ func TestExecuteConfigReceiversBackoffOnError(t *testing.T) {
 }
 
 func TestExecuteConfigReceiversResetOnSuccess(t *testing.T) {
-	client := clientWithConfig(&fleet.OrbitConfig{})
-	client.ReceiverUpdateInterval = 1 * time.Second
+	client := clientWithConfig(t, &fleet.OrbitConfig{})
+	client.DefaultConfigPollInterval = 1 * time.Second
 
 	callCount := 0
 	var intervalAfterRecovery time.Duration

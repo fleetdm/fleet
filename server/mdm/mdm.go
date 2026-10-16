@@ -21,6 +21,10 @@ import (
 // initial attempt, after which it is marked as failed and no further attempts will be made to install the profile.
 const MaxAppleProfileRetries = 3
 
+// MaxAppleDeviceNameRetries is the maximum number of times Fleet automatically re-sends the host name template
+// to a host (after drift or a failed command) before marking it as failed until a manual resend.
+const MaxAppleDeviceNameRetries = 3
+
 // MaxWindowsProfileRetries is the maximum number of times a Windows install profile command may be retried after the
 // initial attempt, after which it is marked as failed and no further attempts will be made to install the profile.
 const MaxWindowsProfileRetries = 3

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"math/rand/v2"
 	"mime"
 	"net"
 	"net/http"
@@ -16,7 +17,10 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
+	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -25,6 +29,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/luks"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
@@ -53,7 +58,6 @@ type OrbitClient struct {
 	lastRecordedErrMu sync.Mutex
 	lastRecordedErr   error
 
-	configCache                 configCache
 	onGetConfigErrFns           *OnGetConfigErrFuncs
 	lastNetErrOnGetConfigLogged time.Time
 
@@ -65,8 +69,10 @@ type OrbitClient struct {
 
 	// Interfaces that will receive updated configs
 	ConfigReceivers []fleet.OrbitConfigReceiver
-	// How frequently a new config will be fetched
-	ReceiverUpdateInterval time.Duration
+	// DefaultConfigPollInterval is how often the config is fetched unless the server nudges this agent on changes,
+	// which allows slower fallback polling (see nextConfigInterval). It is also the minimum poll interval and the
+	// base of the error backoff.
+	DefaultConfigPollInterval time.Duration
 	// receiverUpdateContext used by ExecuteConfigReceivers to cancel the update loop.
 	receiverUpdateContext context.Context
 	// receiverUpdateCancelFunc is used to cancel receiverUpdateContext.
@@ -98,10 +104,37 @@ type OrbitClient struct {
 
 	// onEnrollRejected, when set, runs each time the server rejects the secret an enroll attempt presented.
 	onEnrollRejected func()
+
+	// refreshCh (size 1) holds a request to fetch the config now instead of at the next tick, see TriggerConfigRefresh.
+	refreshCh chan struct{}
+	// transportConnected, when set, reports whether the WebSocket transport is connected, see SetTransportConnectedFunc.
+	transportConnected func() bool
+	// disconnectedCh (size 1) holds a notification that the WebSocket transport disconnected, see TransportDisconnected.
+	disconnectedCh chan struct{}
+	// connectedCh (size 1) holds a notification that the WebSocket transport connected, see TransportConnected.
+	connectedCh chan struct{}
+
+	// fallbackChangesMu protects fallbackChanges.
+	fallbackChangesMu sync.Mutex
+	// fallbackChanges lists the config fields that a fallback poll found changed, to report to the server on the next
+	// config request (fleet.OrbitConfigFallbackChangesHeader).
+	fallbackChanges string
 }
 
-// time-to-live for config cache
-const configCacheTTL = 3 * time.Second
+// FrequentPoller is implemented by config receivers that hold local work retried on config runs (e.g. a result Fleet
+// has not accepted yet): while NeedsFrequentPolling returns true, the config keeps being fetched at the default
+// interval even when Fleet nudges this agent on changes.
+type FrequentPoller interface {
+	NeedsFrequentPolling() bool
+}
+
+// NotificationQuieter is implemented by config receivers that can tell a notification flag they handle no longer needs the config poll
+// as its retry clock (e.g. retrying at that pace has stopped helping), so the flag doesn't keep the config from being fetched at Fleet's
+// slower fallback interval.
+type NotificationQuieter interface {
+	// QuietNotifications clears from n the flags that don't need frequent polling. n is a copy of the fetched notifications.
+	QuietNotifications(n *fleet.OrbitConfigNotifications)
+}
 
 // ssoWindowReopenInterval is the minimum time between SSO window open attempts.
 // If the user closes the SSO browser window before completing authentication,
@@ -111,13 +144,6 @@ const ssoWindowReopenInterval = 5 * time.Minute
 // unauthenticatedReenrollGracePeriod is how long authenticated requests must keep failing with a 401 before orbit re-enrolls.
 // It is a var (not a const) so tests can shorten it.
 var unauthenticatedReenrollGracePeriod = 45 * time.Second
-
-type configCache struct {
-	mu          sync.Mutex
-	lastUpdated time.Time
-	config      *fleet.OrbitConfig
-	err         error
-}
 
 func (oc *OrbitClient) SetOpenSSOWindowFunc(f func() error) {
 	oc.openSSOWindow = f
@@ -218,14 +244,17 @@ type OnGetConfigErrFuncs struct {
 }
 
 var (
-	netErrInterval                     = 5 * time.Minute
-	configRetryOnNetworkError          = 30 * time.Second
-	defaultOrbitConfigReceiverInterval = 30 * time.Second
-	maxConfigBackoff                   = 5 * time.Minute
+	netErrInterval            = 5 * time.Minute
+	configRetryOnNetworkError = 30 * time.Second
+	defaultConfigPollInterval = 30 * time.Second
+	maxConfigBackoff          = 5 * time.Minute
 	// downloadStallTimeout bounds a software-installer download that makes no
 	// progress (e.g. a network filter dropping packets mid-transfer). It resets
 	// on any received bytes, so slow-but-healthy downloads are unaffected.
 	downloadStallTimeout = 60 * time.Second
+	// responseHeaderTimeout bounds the wait for response headers, which
+	// downloadStallTimeout doesn't cover. Downloads have no request deadline.
+	responseHeaderTimeout = 45 * time.Second
 )
 
 // NewOrbitClient creates a new OrbitClient.
@@ -254,7 +283,8 @@ func NewOrbitClient(
 		// Don't advertise the end-user auth capability so the Fleet server enrolls this host without prompting for EUA.
 		delete(orbitCapabilities, fleet.CapabilityEndUserAuth)
 	}
-	bc, err := NewBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCert, orbitCapabilities, httpSignerWrapper)
+	bc, err := NewBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCert, orbitCapabilities, httpSignerWrapper,
+		fleethttp.WithResponseHeaderTimeout(responseHeaderTimeout))
 	if err != nil {
 		return nil, err
 	}
@@ -270,11 +300,50 @@ func NewOrbitClient(
 		enrolled:                   false,
 		onGetConfigErrFns:          onGetConfigErrFns,
 		lastIdleConnectionsCleanup: time.Now(),
-		ReceiverUpdateInterval:     defaultOrbitConfigReceiverInterval,
+		DefaultConfigPollInterval:  defaultConfigPollInterval,
 		receiverUpdateContext:      ctx,
 		receiverUpdateCancelFunc:   cancelFunc,
 		hostIdentityCertPath:       hostIdentityCertPath,
+		refreshCh:                  make(chan struct{}, 1),
+		disconnectedCh:             make(chan struct{}, 1),
+		connectedCh:                make(chan struct{}, 1),
 	}, nil
+}
+
+// TriggerConfigRefresh asks ExecuteConfigReceivers to fetch the config and run the receivers now, bypassing the config
+// cache. Triggers arriving while a run is in progress are merged into a single follow-up run.
+func (oc *OrbitClient) TriggerConfigRefresh() {
+	select {
+	case oc.refreshCh <- struct{}{}:
+	default:
+	}
+}
+
+// TransportConnected tells ExecuteConfigReceivers that the WebSocket transport connected: changes made between the
+// last fetch and the server registering the connection were not nudged, so the config is fetched now, if the server
+// nudges (its last config had a fallback poll interval) and the last fetch is at least DefaultConfigPollInterval old (a
+// flapping connection must not poll faster than without the transport). Non-blocking.
+func (oc *OrbitClient) TransportConnected() {
+	select {
+	case oc.connectedCh <- struct{}{}:
+	default:
+	}
+}
+
+// TransportDisconnected tells ExecuteConfigReceivers that the WebSocket transport disconnected, so changes are no
+// longer nudged: a slow fallback poll is shortened to DefaultConfigPollInterval. Non-blocking.
+func (oc *OrbitClient) TransportDisconnected() {
+	select {
+	case oc.disconnectedCh <- struct{}{}:
+	default:
+	}
+}
+
+// SetTransportConnectedFunc sets the function reporting whether the WebSocket transport is connected. While it is,
+// and the server sends a fallback poll interval, quiet configs are fetched at that interval instead of
+// DefaultConfigPollInterval, as the server nudges this agent on changes (see TriggerConfigRefresh).
+func (oc *OrbitClient) SetTransportConnectedFunc(f func() bool) {
+	oc.transportConnected = f
 }
 
 // SetEUAToken sets a one-time EUA token to include in the enrollment request.
@@ -330,9 +399,15 @@ func (oc *OrbitClient) closeIdleConnections() {
 }
 
 func (oc *OrbitClient) RunConfigReceivers() error {
+	_, err := oc.runConfigReceivers()
+	return err
+}
+
+// runConfigReceivers fetches the config, runs the receivers with it and returns it.
+func (oc *OrbitClient) runConfigReceivers() (*fleet.OrbitConfig, error) {
 	config, err := oc.GetConfig()
 	if err != nil {
-		return fmt.Errorf("RunConfigReceivers get config: %w", err)
+		return nil, fmt.Errorf("RunConfigReceivers get config: %w", err)
 	}
 
 	var errs []error
@@ -363,10 +438,10 @@ func (oc *OrbitClient) RunConfigReceivers() error {
 	wg.Wait()
 
 	if len(errs) != 0 {
-		return errors.Join(errs...)
+		return config, errors.Join(errs...)
 	}
 
-	return nil
+	return config, nil
 }
 
 func (oc *OrbitClient) RegisterConfigReceiver(cr fleet.OrbitConfigReceiver) {
@@ -374,34 +449,162 @@ func (oc *OrbitClient) RegisterConfigReceiver(cr fleet.OrbitConfigReceiver) {
 }
 
 func (oc *OrbitClient) ExecuteConfigReceivers() error {
-	ticker := time.NewTicker(oc.ReceiverUpdateInterval)
-	defer ticker.Stop()
+	interval := oc.DefaultConfigPollInterval
+	timer := time.NewTimer(interval)
+	defer timer.Stop()
 
 	// Backoff tracker for the config polling loop. See #45553.
-	configBackoff := backoff.New(oc.ReceiverUpdateInterval, maxConfigBackoff)
+	configBackoff := backoff.New(oc.DefaultConfigPollInterval, maxConfigBackoff)
 
+	var lastConfig *fleet.OrbitConfig
+	var lastRun time.Time
+	// lastFetchFailed reports whether the last run failed to fetch the config. Backoff is also entered on receiver errors,
+	// during which the server may be healthy and nudges must still be served.
+	lastFetchFailed := false
 	for {
+		// The timer firing on the slow interval is the fallback poll: a change it finds was not nudged.
+		fallbackPoll := false
 		select {
 		case <-oc.receiverUpdateContext.Done():
 			return nil
-		case <-ticker.C:
-			if err := oc.RunConfigReceivers(); err != nil {
-				configBackoff.RecordFailure()
-				nextRetry := configBackoff.Interval()
-				ticker.Reset(nextRetry)
-				log.Error().Err(err).
-					Str("next_retry", nextRetry.String()).
-					Msg("running config receivers, backing off")
-			} else {
-				if configBackoff.InBackoff() {
-					log.Info().
-						Str("backoff_duration", configBackoff.TimeSinceBackoffStarted().String()).
-						Msg("config receivers succeeded, exiting backoff")
-				}
-				configBackoff.RecordSuccess()
-				ticker.Reset(oc.ReceiverUpdateInterval)
+		case <-timer.C:
+			// interval is only above the default while nudges are trusted. A backoff retry fires on its own delay
+			// but leaves interval at its pre-failure value, so it must not count as a fallback poll.
+			fallbackPoll = !configBackoff.InBackoff() && interval > oc.DefaultConfigPollInterval
+		case <-oc.disconnectedCh:
+			if interval > oc.DefaultConfigPollInterval && !configBackoff.InBackoff() {
+				interval = oc.DefaultConfigPollInterval
+				// Spread out: a server restart disconnects every agent at once.
+				timer.Reset(rand.N(interval)) //nolint:gosec // jitter does not need cryptographic randomness
 			}
+			continue
+		case <-oc.connectedCh:
+			nudged := lastConfig != nil && lastConfig.WebSocketTransport != nil &&
+				lastConfig.WebSocketTransport.OrbitConfigPollInterval != nil
+			if !nudged || lastFetchFailed || time.Since(lastRun) < oc.DefaultConfigPollInterval {
+				continue
+			}
+			timer.Stop()
+		case <-oc.refreshCh:
+			if lastFetchFailed {
+				// Fetching the config is failing; leave the retry to the backoff timer.
+				continue
+			}
+			timer.Stop()
 		}
+
+		lastRun = time.Now()
+		cfg, err := oc.runConfigReceivers()
+		lastFetchFailed = cfg == nil
+		if cfg != nil {
+			if fallbackPoll && lastConfig != nil {
+				oc.recordFallbackChanges(lastConfig, cfg)
+			}
+			lastConfig = cfg
+		}
+		if err != nil {
+			configBackoff.RecordFailure()
+			nextRetry := configBackoff.Interval()
+			timer.Reset(nextRetry)
+			log.Error().Err(err).
+				Str("next_retry", nextRetry.String()).
+				Msg("running config receivers, backing off")
+			continue
+		}
+		if configBackoff.InBackoff() {
+			log.Info().
+				Str("backoff_duration", configBackoff.TimeSinceBackoffStarted().String()).
+				Msg("config receivers succeeded, exiting backoff")
+		}
+		configBackoff.RecordSuccess()
+		if next := oc.nextConfigInterval(cfg); next != interval {
+			log.Debug().Str("interval", next.String()).Msg("orbit config poll interval changed")
+			interval = next
+		}
+		timer.Reset(interval)
+	}
+}
+
+// nextConfigInterval returns how long to wait before polling the config again after a successful run with cfg: the
+// server's fallback interval when the WebSocket transport is connected (so changes are nudged) and nothing is
+// pending, otherwise DefaultConfigPollInterval, as many receivers use the poll as their clock while they have work.
+func (oc *OrbitClient) nextConfigInterval(cfg *fleet.OrbitConfig) time.Duration {
+	if cfg == nil || cfg.WebSocketTransport == nil || cfg.WebSocketTransport.OrbitConfigPollInterval == nil ||
+		oc.transportConnected == nil || !oc.transportConnected() {
+		return oc.DefaultConfigPollInterval
+	}
+	notifs := cfg.Notifications
+	for _, receiver := range oc.ConfigReceivers {
+		if q, ok := receiver.(NotificationQuieter); ok {
+			q.QuietNotifications(&notifs)
+		}
+	}
+	if !notifs.IsQuiet() {
+		return oc.DefaultConfigPollInterval
+	}
+	for _, receiver := range oc.ConfigReceivers {
+		if p, ok := receiver.(FrequentPoller); ok && p.NeedsFrequentPolling() {
+			return oc.DefaultConfigPollInterval
+		}
+	}
+	return max(oc.DefaultConfigPollInterval, time.Duration(*cfg.WebSocketTransport.OrbitConfigPollInterval)*time.Second)
+}
+
+// recordFallbackChanges records the fields that differ between prev and cur, to report on the next config request.
+func (oc *OrbitClient) recordFallbackChanges(prev, cur *fleet.OrbitConfig) {
+	changed := diffJSONFields(prev, cur, "")
+	if prevNotifs, curNotifs := prev.Notifications, cur.Notifications; !reflect.DeepEqual(prevNotifs, curNotifs) {
+		changed = slices.DeleteFunc(changed, func(f string) bool { return f == "notifications" })
+		changed = append(changed, diffJSONFields(prevNotifs, curNotifs, "notifications.")...)
+	}
+	if len(changed) == 0 {
+		return
+	}
+	log.Debug().Strs("fields", changed).Msg("orbit config change found by fallback poll")
+
+	oc.fallbackChangesMu.Lock()
+	defer oc.fallbackChangesMu.Unlock()
+	// Merged with any not yet reported.
+	fields := slices.Concat(strings.Split(oc.fallbackChanges, ","), changed)
+	fields = slices.DeleteFunc(fields, func(f string) bool { return f == "" })
+	slices.Sort(fields)
+	oc.fallbackChanges = strings.Join(slices.Compact(fields), ",")
+}
+
+// diffJSONFields returns the JSON fields (prefixed) whose values differ between a and b.
+func diffJSONFields(a, b any, prefix string) []string {
+	toFields := func(v any) map[string]json.RawMessage {
+		var fields map[string]json.RawMessage
+		if raw, err := json.Marshal(v); err == nil {
+			_ = json.Unmarshal(raw, &fields)
+		}
+		return fields
+	}
+	fa, fb := toFields(a), toFields(b)
+	var changed []string
+	for name := range fa {
+		if _, ok := fb[name]; !ok {
+			changed = append(changed, prefix+name)
+		}
+	}
+	for name, vb := range fb {
+		if va, ok := fa[name]; !ok || !bytes.Equal(va, vb) {
+			changed = append(changed, prefix+name)
+		}
+	}
+	slices.Sort(changed)
+	return changed
+}
+
+// orbitGetConfigRequest adds the fallback changes header to the config request.
+type orbitGetConfigRequest struct {
+	fleet.OrbitGetConfigRequest
+	fallbackChanges string
+}
+
+func (r *orbitGetConfigRequest) setRequestHeaders(req *http.Request) {
+	if r.fallbackChanges != "" {
+		req.Header.Set(fleet.OrbitConfigFallbackChangesHeader, r.fallbackChanges)
 	}
 }
 
@@ -410,49 +613,47 @@ func (oc *OrbitClient) InterruptConfigReceivers(err error) {
 }
 
 // GetConfig returns the Orbit config fetched from Fleet server for this instance of OrbitClient.
-// Since this method is called in multiple places, we use a cache with configCacheTTL time-to-live
-// to reduce traffic to the Fleet server.
 // On network or 5XX errors the request is retried once before returning the error
 // to the caller. The caller (ExecuteConfigReceivers) handles sustained failures
 // with exponential backoff. See #45553.
 func (oc *OrbitClient) GetConfig() (*fleet.OrbitConfig, error) {
-	oc.configCache.mu.Lock()
-	defer oc.configCache.mu.Unlock()
-
-	// If time-to-live passed, we update the config cache
-	now := time.Now()
-	if now.After(oc.configCache.lastUpdated.Add(configCacheTTL)) {
-		verb, path := "POST", "/api/fleet/orbit/config"
+	verb, path := "POST", "/api/fleet/orbit/config"
+	var (
+		resp fleet.OrbitConfig
+		err  error
+	)
+	oc.fallbackChangesMu.Lock()
+	req := &orbitGetConfigRequest{fallbackChanges: oc.fallbackChanges}
+	oc.fallbackChanges = ""
+	oc.fallbackChangesMu.Unlock()
+	// Retry once on transient errors. Sustained failures are handled
+	// by the exponential backoff in ExecuteConfigReceivers.
+	_ = retry.Do(func() error {
+		err = oc.authenticatedRequest(verb, path, req, &resp)
 		var (
-			resp fleet.OrbitConfig
-			err  error
+			netErr        net.Error
+			statusCodeErr *StatusCodeErr
 		)
-		// Retry once on transient errors. Sustained failures are handled
-		// by the exponential backoff in ExecuteConfigReceivers.
-		_ = retry.Do(func() error {
-			err = oc.authenticatedRequest(verb, path, &fleet.OrbitGetConfigRequest{}, &resp)
-			var (
-				netErr        net.Error
-				statusCodeErr *StatusCodeErr
-			)
-			if err != nil && oc.onGetConfigErrFns != nil && oc.onGetConfigErrFns.DebugErrFunc != nil {
-				oc.onGetConfigErrFns.DebugErrFunc(err)
+		if err != nil && oc.onGetConfigErrFns != nil && oc.onGetConfigErrFns.DebugErrFunc != nil {
+			oc.onGetConfigErrFns.DebugErrFunc(err)
+		}
+		if errors.As(err, &netErr) || (errors.As(err, &statusCodeErr) && statusCodeErr.StatusCode() >= 500) {
+			now := time.Now()
+			if oc.onGetConfigErrFns != nil && oc.onGetConfigErrFns.OnNetErrFunc != nil && now.After(oc.lastNetErrOnGetConfigLogged.Add(netErrInterval)) {
+				oc.onGetConfigErrFns.OnNetErrFunc(err)
+				oc.lastNetErrOnGetConfigLogged = now
 			}
-			if errors.As(err, &netErr) || (errors.As(err, &statusCodeErr) && statusCodeErr.StatusCode() >= 500) {
-				now := time.Now()
-				if oc.onGetConfigErrFns != nil && oc.onGetConfigErrFns.OnNetErrFunc != nil && now.After(oc.lastNetErrOnGetConfigLogged.Add(netErrInterval)) {
-					oc.onGetConfigErrFns.OnNetErrFunc(err)
-					oc.lastNetErrOnGetConfigLogged = now
-				}
-				return err // retry on network or server 5XX errors
-			}
-			return nil
-		}, retry.WithInterval(configRetryOnNetworkError), retry.WithMaxAttempts(2))
-		oc.configCache.config = &resp
-		oc.configCache.err = err
-		oc.configCache.lastUpdated = now
+			return err // retry on network or server 5XX errors
+		}
+		return nil
+	}, retry.WithInterval(configRetryOnNetworkError), retry.WithMaxAttempts(2))
+	if err != nil && req.fallbackChanges != "" {
+		// Not reported; retried with the next request.
+		oc.fallbackChangesMu.Lock()
+		oc.fallbackChanges = strings.Trim(oc.fallbackChanges+","+req.fallbackChanges, ",")
+		oc.fallbackChangesMu.Unlock()
 	}
-	return oc.configCache.config, oc.configCache.err
+	return &resp, err
 }
 
 // SetOrUpdateDeviceToken sends a request to the server to set or update the device token.

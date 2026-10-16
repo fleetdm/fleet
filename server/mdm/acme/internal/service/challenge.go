@@ -167,8 +167,6 @@ func (s *Service) validateAppleDeviceAttestationStatement(ctx context.Context, e
 		return types.BadAttestationStatementError(fmt.Sprintf("Failed to verify Apple Root CA is part of certificate chain: %s", err.Error()))
 	}
 
-	// TODO: Should we do any validation on leaf.PublicKey? Apple docs on validation calls out "Retain the public key in the attestation leaf certificate for a later validation."
-	// So unsure if we should persist it, or what the later validation might be.
 	appleData := struct {
 		SerialNumber string
 		Nonce        []byte
@@ -203,6 +201,9 @@ func (s *Service) validateAppleDeviceAttestationStatement(ctx context.Context, e
 		return types.BadAttestationStatementError("No DEP assignments found for serial number in certificate")
 	}
 
+	// The attestation vouches for this key only; FinalizeOrder requires the CSR to carry it, so the
+	// issued certificate is bound to the attested hardware key.
+	challenge.AttestedPublicKey = leaf.RawSubjectPublicKeyInfo
 	challenge.MarkValid()
 	return nil
 }

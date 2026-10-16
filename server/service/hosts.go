@@ -2130,6 +2130,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				for _, p := range profs {
 					if p.Identifier == mobileconfig.FleetFileVaultPayloadIdentifier {
 						p.Status = host.MDM.ProfileStatusFromDiskEncryptionState(p.Status)
+						p.OperationType = host.MDM.ProfileOperationFromDiskEncryptionState(p.OperationType)
 					}
 					p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
 					profiles = append(profiles, p.ToHostMDMProfile(host.Platform))
@@ -4819,6 +4820,12 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 		}
 	}
 
+	typeFilter, err := fleet.ParseSoftwareTypeFilter(opts.Source, opts.ExtensionFor)
+	if err != nil {
+		return nil, nil, err
+	}
+	opts.TypeFilter = typeFilter
+
 	mdmEnrolled, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "checking mdm enrollment status")
@@ -5183,6 +5190,14 @@ func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostI
 // availableSelfServiceAppleProfiles returns the self-service profiles that apply to the host but are not in profs,
 // with a nil status so they read as available to install.
 func (svc *Service) availableSelfServiceAppleProfiles(ctx context.Context, host *fleet.Host, profs []fleet.HostMDMAppleProfile) ([]fleet.HostMDMAppleProfile, error) {
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet MDM")
+	}
+	if !connected {
+		return nil, nil
+	}
+
 	teamProfiles, err := svc.ds.ListAppleProfilesForReconcileByTeam(ctx, host.EffectiveTeamID())
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list apple profiles for team")

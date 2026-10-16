@@ -280,9 +280,11 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 	hostIdentityCert, httpSigPresent := httpsig.FromContext(ctx)
 	if identityCert != nil {
 		if !httpSigPresent {
+			svc.recordEnrollmentRejected(ctx, fleet.EnrollmentRejectedHostIdentityCertRequired, identityCert.HostID, attempt)
 			return "", fleet.NewAuthFailedError("authentication error: missing HTTP signature")
 		}
 		if identityCert.SerialNumber != hostIdentityCert.SerialNumber {
+			svc.recordEnrollmentRejected(ctx, fleet.EnrollmentRejectedHostIdentityCertRequired, identityCert.HostID, attempt)
 			return "", fleet.NewAuthFailedError("authentication error: certificate serial number mismatch")
 		}
 	} else if httpSigPresent { // but we couldn't find the cert in DB
@@ -438,9 +440,12 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 			}
 		}
 		if idpAcctUUID != "" {
-			if err := svc.ds.AssociateHostMDMIdPAccount(ctx, hostInfo.HardwareUUID, idpAcctUUID); err != nil {
+			previousAcctUUID, err := svc.ds.AssociateHostMDMIdPAccount(ctx, hostInfo.HardwareUUID, idpAcctUUID)
+			if err != nil {
 				svc.logger.ErrorContext(ctx, "failed to associate host with mdm idp account post-enrollment",
 					"err", err, "host_uuid", hostInfo.HardwareUUID, "idp_acct_uuid", idpAcctUUID)
+			} else {
+				shared_mdm.LogHostIdPAccountLinkChange(ctx, svc.ds, svc.NewActivity, svc.logger, hostInfo.HardwareUUID, previousAcctUUID, idpAcctUUID)
 			}
 		}
 	}
@@ -470,16 +475,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		case err == nil:
 			// Same trust as the DevDetail path this mirrors: the serial on the unlinked enrollment was asserted by the
 			// device, so it must not claim a host that already belongs to different hardware.
-			conflicted, conflictingHardwareID, cErr := svc.ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, host.UUID, device.MDMHardwareID)
-			switch {
-			case cErr != nil:
-				svc.logger.ErrorContext(ctx, "failed to check for conflicting windows mdm enrollment at orbit enroll",
-					"err", cErr, "host_uuid", host.UUID, "device_id", device.MDMDeviceID)
-			case conflicted:
-				svc.logger.WarnContext(ctx, "refusing to reverse-link windows mdm enrollment to a host already claimed by other hardware",
-					"host_uuid", host.UUID, "device_id", device.MDMDeviceID,
-					"hardware_serial", hostInfo.HardwareSerial, "claimed_by_hardware_id", conflictingHardwareID)
-			default:
+			if !svc.windowsHostClaimedByOtherHardware(ctx, device, host.UUID, "hardware_serial", hostInfo.HardwareSerial) {
 				if _, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, device.MDMDeviceID, true); err != nil {
 					svc.logger.ErrorContext(ctx, "failed to reverse-link windows mdm enrollment at orbit enroll",
 						"err", err, "host_uuid", host.UUID, "device_id", device.MDMDeviceID)
@@ -617,6 +613,14 @@ func resolveOrbitDebugLogging(ctx context.Context, host *fleet.Host, flags json.
 	return merged, &debug, nil
 }
 
+// orbitConfigOnboardingWindow is how long after osquery enrolls a host keeps
+// polling its orbit config at the default interval with orbit config nudges
+// enabled.
+const orbitConfigOnboardingWindow = time.Hour
+
+// GetOrbitConfig returns the host's orbit config. With orbit config nudges enabled, connected agents poll it rarely, so
+// a write changing its output must notify them: per-host writes via mysql's notifyOrbitConfig, fleet-wide and global
+// ones via the orbitconfig_notify datastore decorator. A missed write is only picked up by the slow fallback poll.
 func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
@@ -625,6 +629,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	if !ok {
 		return fleet.OrbitConfig{}, fleet.OrbitError{Message: "internal error: missing host from request context"}
 	}
+	recordOrbitConfigFallbackChanges(ctx, svc.logger, host.ID)
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -848,6 +853,13 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	var wsTransport *fleet.OrbitWebSocketTransportConfig
 	if svc.config.WebSocket.TransportEnabled {
 		wsTransport = &fleet.OrbitWebSocketTransportConfig{Enabled: true}
+		// Onboarding hosts keep the default poll interval: many flags depend
+		// on state ingested from osquery (host_mdm, the Windows MDM enrollment
+		// link), which doesn't notify agents.
+		onboarding := !host.IsOsqueryEnrolled() || svc.clock.Now().Sub(host.LastEnrolledAt) < orbitConfigOnboardingWindow
+		if svc.config.WebSocket.OrbitConfigEnabled && !onboarding {
+			wsTransport.OrbitConfigPollInterval = new(int(svc.config.WebSocket.OrbitConfigPollInterval.Seconds()))
+		}
 	}
 
 	// team ID is not nil, get team specific flags and options
@@ -2629,6 +2641,7 @@ func (svc *Service) retryPolicyAutomationScript(ctx context.Context, host *fleet
 		HostID:          host.ID,
 		ScriptID:        hsr.ScriptID,
 		PolicyID:        hsr.PolicyID,
+		ScriptContentID: hsr.ScriptContentID,
 		ScriptContents:  hsr.ScriptContents,
 		DeferActivation: svc.deferFleetInitiatedActivation(),
 	})

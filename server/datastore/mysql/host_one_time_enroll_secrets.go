@@ -401,8 +401,8 @@ type windowsEnrollmentBoundHost struct {
 }
 
 // windowsOrphanedEnrollmentTeamsDB returns the fleet each orphaned enrollment's host comes back to. That is the fleet
-// the host was in when it was deleted if the fleet still exists, and otherwise the Windows enrollment default fleet, or
-// no fleet when none is configured.
+// the host was in when it was deleted if the fleet still exists, or no fleet if the host had none (recorded as 0). Otherwise
+// it is the Windows enrollment default fleet, or no fleet when none is configured.
 func windowsOrphanedEnrollmentTeamsDB(
 	ctx context.Context, tx sqlx.ExtContext, enrollments []windowsEnrollmentMintRow, boundHosts map[uint]windowsEnrollmentBoundHost,
 ) (map[uint]*uint, error) {
@@ -413,7 +413,7 @@ func windowsOrphanedEnrollmentTeamsDB(
 			continue
 		}
 		orphans = append(orphans, e)
-		if e.DeletedHostTeamID != nil {
+		if e.DeletedHostTeamID != nil && *e.DeletedHostTeamID != 0 {
 			recordedTeamIDs = append(recordedTeamIDs, *e.DeletedHostTeamID)
 		}
 	}
@@ -440,6 +440,10 @@ func windowsOrphanedEnrollmentTeamsDB(
 	var needDefault []uint
 	for _, e := range orphans {
 		if e.DeletedHostTeamID != nil {
+			if *e.DeletedHostTeamID == 0 {
+				teams[e.ID] = nil
+				continue
+			}
 			if _, ok := existing[*e.DeletedHostTeamID]; ok {
 				teams[e.ID] = e.DeletedHostTeamID
 				continue

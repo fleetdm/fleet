@@ -163,16 +163,18 @@ make osqueryd-app-tar-gz osqueryd_path=/path/to/osqueryd out-path=.
 ./tools/tuf/test/push_target.sh macos-app osqueryd osqueryd.app.tar.gz 5.23.0
 ```
 
-E.g. to add a custom `osqueryd` version from an osquery PR for Linux (amd64 and arm64):
+E.g. to add a custom `osqueryd` version from an osquery PR for Linux (amd64 and arm64).
+The `osqueryd` executable is extracted from the PR's deb package (default) or rpm package (`pkg=rpm`).
+This works on macOS and Linux. Extracting from the rpm requires `bsdtar`, or `rpm2cpio` and `cpio`.
 ```sh
-# Grab osqueryd linux amd64 executable from pull request https://github.com/osquery/osquery/pull/8844.
+# Grab osqueryd linux amd64 executable from the deb package of pull request https://github.com/osquery/osquery/pull/8844.
 make osqueryd-linux pr=8844 arch=amd64 out-path=.
 
 # Push the osqueryd amd64 target as a new version.
 ./tools/tuf/test/push_target.sh linux osqueryd osqueryd 5.23.0
 
-# Grab osqueryd linux arm64 executable from pull request https://github.com/osquery/osquery/pull/8844.
-make osqueryd-linux pr=8844 arch=arm64 out-path=.
+# Grab osqueryd linux arm64 executable from the rpm package of pull request https://github.com/osquery/osquery/pull/8844.
+make osqueryd-linux pr=8844 arch=arm64 pkg=rpm out-path=.
 
 # Push the osqueryd arm64 target as a new version.
 ./tools/tuf/test/push_target.sh linux-arm64 osqueryd osqueryd 5.23.0

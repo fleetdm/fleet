@@ -227,7 +227,7 @@ const RunScriptDetailsModal = ({
           <StatusMessage
             hostTimeout={data.host_timeout}
             exitCode={data.exit_code}
-            message={data.output}
+            message={data.message}
           />
           {ranAdHocScript && <ScriptContent content={data.script_contents} />}
           {showOutputText && (

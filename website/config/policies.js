@@ -87,4 +87,5 @@ module.exports.policies = {
   'view-configuration-generator': true,
   'view-arch-linux-management': true,
   'view-omarchy': true,
+  'view-europe': true,
 };

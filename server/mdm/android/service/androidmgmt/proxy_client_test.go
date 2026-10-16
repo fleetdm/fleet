@@ -54,5 +54,37 @@ func TestProxyClientEnterprisesCreateStatusError(t *testing.T) {
 func TestNewRetryClientDefaultDelays(t *testing.T) {
 	client, ok := NewRetryClient(&ProxyClient{}, slog.New(slog.DiscardHandler)).(*retryClient)
 	require.True(t, ok)
-	assert.Equal(t, []time.Duration{60 * time.Second, 120 * time.Second, 240 * time.Second}, client.delays)
+	assert.Equal(t, []time.Duration{60 * time.Second}, client.delays)
+	assert.Equal(t, 75*time.Second, client.budget)
+}
+
+func TestRetryWait(t *testing.T) {
+	tests := []struct {
+		name      string
+		delay     time.Duration
+		remaining time.Duration
+		wantOK    bool
+		wantMax   time.Duration
+	}{
+		{name: "plenty of budget allows 50% jitter", delay: 60 * time.Second, remaining: 10 * time.Minute, wantOK: true, wantMax: 90 * time.Second},
+		{name: "jitter is clamped to the budget", delay: 60 * time.Second, remaining: 70 * time.Second, wantOK: true, wantMax: 70 * time.Second},
+		{name: "delay equal to the budget has no jitter", delay: 60 * time.Second, remaining: 60 * time.Second, wantOK: true, wantMax: 60 * time.Second},
+		{name: "delay past the budget is not retried", delay: 60 * time.Second, remaining: 59 * time.Second, wantOK: false},
+		{name: "exhausted budget is not retried", delay: 60 * time.Second, remaining: -time.Second, wantOK: false},
+		{name: "zero delay", delay: 0, remaining: time.Second, wantOK: true, wantMax: 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for range 1000 {
+				wait, ok := retryWait(tt.delay, tt.remaining)
+				require.Equal(t, tt.wantOK, ok)
+				if !ok {
+					require.Zero(t, wait)
+					continue
+				}
+				require.GreaterOrEqual(t, wait, tt.delay)
+				require.LessOrEqual(t, wait, tt.wantMax)
+			}
+		})
+	}
 }
