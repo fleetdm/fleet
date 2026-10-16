@@ -10,7 +10,6 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json/v2"
 	"encoding/pem"
 	"errors"
@@ -28,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/certissue"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -282,7 +282,7 @@ func (f *fakeEJBCA) enroll(issuer *testCA, r *http.Request) (int, string, error)
 	// Like EJBCA with an end entity profile that allows it, keep the subject and subjectAltName of the CSR.
 	var extensions []pkix.Extension
 	for _, ext := range csr.Extensions {
-		if ext.Id.Equal(oidSubjectAltName) && !f.dropSAN {
+		if ext.Id.Equal(certissue.OIDSubjectAltName) && !f.dropSAN {
 			extensions = append(extensions, ext)
 		}
 	}
@@ -473,7 +473,7 @@ func TestGetCertificate(t *testing.T) {
 	assert.LessOrEqual(t, len(cert.SerialNumber), 40, "the serial has to fit the managed certificate record")
 	assert.True(t, issued.NotBefore.Equal(cert.NotValidBefore))
 	assert.True(t, issued.NotAfter.Equal(cert.NotValidAfter))
-	assert.Equal(t, []string{"alice@example.com", "alice@corp.example.com"}, upnsOf(issued))
+	assert.Equal(t, []string{"alice@example.com", "alice@corp.example.com"}, certissue.UPNs(issued))
 
 	// The enrollment password is not reused, and each certificate gets its own key and password.
 	second, err := s.GetCertificate(t.Context(), config)
@@ -622,25 +622,4 @@ func TestVerifyConnectionCanceled(t *testing.T) {
 		}
 	})
 	require.ErrorContains(t, NewService().VerifyConnection(ctx, f.config(t)), "canceled")
-}
-
-func TestUPNExtension(t *testing.T) {
-	// The encoding OpenSSL produces for these two UPNs, which EJBCA accepts:
-	// openssl req -addext "subjectAltName=otherName:1.3.6.1.4.1.311.20.2.3;UTF8:user@example.com,otherName:1.3.6.1.4.1.311.20.2.3;UTF8:b@c.d"
-	const openSSLEncoding = "3039a020060a2b060104018237140203a0120c1075736572406578616d706c652e636f6da015060a2b060104018237140203a0070c" +
-		"056240632e64"
-
-	ext, ok := upnExtension([]string{"user@example.com", "", "b@c.d"})
-	require.True(t, ok)
-	assert.True(t, ext.Id.Equal(oidSubjectAltName))
-	assert.Equal(t, openSSLEncoding, hex.EncodeToString(ext.Value))
-
-	_, ok = upnExtension([]string{"", " "})
-	assert.False(t, ok)
-
-	// And the UPNs are read back from the encoding OpenSSL produces.
-	der, err := hex.DecodeString(openSSLEncoding)
-	require.NoError(t, err)
-	cert := &x509.Certificate{Extensions: []pkix.Extension{{Id: oidSubjectAltName, Value: der}}}
-	assert.Equal(t, []string{"user@example.com", "b@c.d"}, upnsOf(cert))
 }
