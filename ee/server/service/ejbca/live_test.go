@@ -49,6 +49,6 @@ func TestLiveEJBCA(t *testing.T) {
 		_, issued, err := pkcs12.Decode(cert.PfxData, cert.Password)
 		require.NoError(t, err)
 		require.Equal(t, config.CertificateCommonName, issued.Subject.CommonName)
-		require.Equal(t, config.CertificateUserPrincipalNames, upnsInCertificate(t, issued))
+		require.Equal(t, config.CertificateUserPrincipalNames, upnsOf(issued))
 	}
 }
