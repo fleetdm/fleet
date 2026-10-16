@@ -41,7 +41,10 @@ func (t *Table) generate(
 	queryContext table.QueryContext,
 ) ([]map[string]string, error) {
 
-	cmd := `Get-BitlockerVolume | ForEach-Object {
+	// Get-BitLockerVolume only exists where BitLocker is installed, which is optional on Windows Server. Without it there
+	// are no protectors, and an error would fail every query that references this table, so emit nothing instead.
+	cmd := `if (-not (Get-Command Get-BitLockerVolume -ErrorAction SilentlyContinue)) { exit 0 }
+	Get-BitlockerVolume | ForEach-Object {
 		$vol = $_
 		$vol.KeyProtector | ForEach-Object {
 			[PSCustomObject]@{
