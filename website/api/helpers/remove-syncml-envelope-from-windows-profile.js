@@ -37,9 +37,14 @@ out of a hundred.  MDMs reject that on upload, since the envelope carries sessio
 
     // Only the outermost layers are touched, so a declaration or SyncML inside a CDATA value is left alone.
     let unwrapped = profile.trim().replace(/^<\?xml[^>]*\?>\s*/, '');
-    let syncML = unwrapped.match(/^<SyncML\b[^>]*>([\s\S]*)<\/SyncML>$/);
-    if(syncML) {
-      unwrapped = syncML[1].trim().replace(/^<SyncHdr\b[\s\S]*?<\/SyncHdr>\s*/, '');
+    // Comments ahead of an envelope go with it; ahead of plain commands they stay.
+    let afterComments = unwrapped.replace(/^(?:<!--[\s\S]*?-->\s*)+/, '');
+    if(/^<(SyncML|SyncBody)\b/.test(afterComments)) {
+      unwrapped = afterComments;
+      let syncML = unwrapped.match(/^<SyncML\b[^>]*>([\s\S]*)<\/SyncML>$/);
+      if(syncML) {
+        unwrapped = syncML[1].trim().replace(/^<SyncHdr\b[\s\S]*?<\/SyncHdr>\s*/, '');
+      }
       let syncBody = unwrapped.match(/^<SyncBody\b[^>]*>([\s\S]*)<\/SyncBody>$/);
       if(syncBody) {
         unwrapped = syncBody[1].trim();
