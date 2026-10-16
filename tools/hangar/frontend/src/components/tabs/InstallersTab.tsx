@@ -143,8 +143,16 @@ export function InstallersTab({
   const targetId = targets.some((t) => t.id === cfg.target)
     ? cfg.target
     : (targets.find((t) => t.id === settings.active_server_id) ?? targets[0]).id;
+  // Switching to a Hangar server resets its context to the one matching its
+  // port (an explicit pick from earlier would otherwise win); the custom
+  // target keeps the context chosen for it.
   const setTarget = useCallback(
-    (id: string) => persist((s) => ({ ...s, installers: { ...s.installers, target: id } })),
+    (id: string) =>
+      persist((s) => {
+        const servers = { ...s.installers.servers };
+        if (id !== CUSTOM_TARGET && servers[id]?.context) servers[id] = { ...servers[id], context: "" };
+        return { ...s, installers: { ...s.installers, target: id, servers } };
+      }),
     [persist],
   );
   const buildingIds = new Set(
