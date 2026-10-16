@@ -94,13 +94,13 @@ Open [iMazing Profile Editor](https://imazing.com/profile-editor), create a new 
 **Under SCEP:**
 - **URL:** `$FLEET_VAR_NDES_SCEP_PROXY_URL`
 - **Challenge:** `$FLEET_VAR_NDES_SCEP_CHALLENGE`
-- **Subject:** `CN=managementAttestation %HardwareUUID% $FLEET_VAR_CERTIFICATE_RENEWAL_ID`
+- **Subject:** `CN=managementAttestation %HardwareUUID%`, plus an OU field with value `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`
 - **Key Size:** 2048
 - **Key Usage:** Signing
 - **Key is Extractable:** Unchecked
 - **Allow All Apps Access:** Checked
 
-**Important:** The Subject CN must include `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`. For most certificate authorities, this variable goes in the OU. Okta is different: it keeps only the CN from the certificate request and drops the OU, so the variable must go in the CN. In raw XML, the Subject array should look like this:
+**Important:** The Subject must include both the CN and an OU field with `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`. In raw XML, the Subject array should look like this:
 
 ```xml
 <key>Subject</key>
@@ -108,7 +108,13 @@ Open [iMazing Profile Editor](https://imazing.com/profile-editor), create a new 
     <array>
         <array>
             <string>CN</string>
-            <string>managementAttestation %HardwareUUID% $FLEET_VAR_CERTIFICATE_RENEWAL_ID</string>
+            <string>managementAttestation %HardwareUUID%</string>
+        </array>
+    </array>
+    <array>
+        <array>
+            <string>OU</string>
+            <string>$FLEET_VAR_CERTIFICATE_RENEWAL_ID</string>
         </array>
     </array>
 </array>
@@ -116,7 +122,7 @@ Open [iMazing Profile Editor](https://imazing.com/profile-editor), create a new 
 
 Fleet replaces `$FLEET_VAR_NDES_SCEP_PROXY_URL`, `$FLEET_VAR_NDES_SCEP_CHALLENGE`, and `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` with the appropriate values each time the profile is delivered to a host. Each host receives a unique, short-lived challenge rather than a shared static secret.
 
-> **Important:** Fleet automatically renews this certificate when `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` is in the CN (already included above). Fleet only reads the first 255 characters of the CN, so keep the text before the variable short. Use the osquery policy below to monitor certificate expiry across your fleet.
+> **Important:** Fleet automatically renews this certificate when `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` is in the OU field (already included above). Use the osquery policy below to monitor certificate expiry across your fleet.
 
 ```sql
 -- Returns 1 if all Okta certs are valid for >30 days (PASSING)
