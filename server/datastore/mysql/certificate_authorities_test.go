@@ -371,6 +371,10 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 		require.Equal(t, ca.ID, allCASummaries[i].ID)
 		require.Equal(t, *ca.Name, allCASummaries[i].Name)
 		require.Equal(t, ca.Type, allCASummaries[i].Type)
+
+		// Ensure the full CAs match with and without secrets
+		compareCA(t, ca, allCAsWithSecrets[i], true)
+		compareCA(t, ca, allCAsWithoutSecrets[i], false)
 	}
 }
 
