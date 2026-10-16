@@ -88,19 +88,21 @@ func (svc *Service) windowsEnrollmentAutopilotDeviceID(ctx context.Context, enro
 // fleetd was installed. Linking it now, before orbit fetches its config and runs its one-shot setup-experience init, makes the
 // Windows enrollment default fleet (and therefore the ESP's software and profiles) apply to this host from the start.
 func (svc *Service) reverseLinkWindowsMDMEnrollment(ctx context.Context, host *fleet.Host, hostInfo fleet.OrbitHostInfo) {
-	// Link by the Autopilot device ID only when this host now owns that device's Autopilot record, so presenting another
-	// device's ID cannot pull that device's enrollment onto this host.
+	// Skip the Autopilot device ID when another host owns that device's Autopilot record, so presenting another device's ID
+	// cannot pull that device's enrollment onto this host. With no record yet (the sync has not run, or the server has no
+	// Graph credential), it is used: the same device-asserted trust as the serial lookup below.
 	autopilotDeviceID := hostInfo.AutopilotDeviceID
 	if autopilotDeviceID != "" {
 		ownerHostID, err := svc.ds.HostIDByAutopilotDeviceID(ctx, autopilotDeviceID)
 		switch {
-		case err != nil && !fleet.IsNotFound(err):
+		case fleet.IsNotFound(err):
+		case err != nil:
 			// Not knowing whether this host owns the record, a serial match could link the wrong enrollment. The next MDM
 			// session links it instead.
 			svc.logger.ErrorContext(ctx, "failed to look up autopilot record for reverse link", "err", err, "host_uuid", host.UUID)
 			ctxerr.Handle(ctx, err)
 			return
-		case err != nil || ownerHostID != host.ID:
+		case ownerHostID != host.ID:
 			autopilotDeviceID = ""
 		}
 	}

@@ -414,7 +414,9 @@ func ingestWindowsAutopilotDevicesDB(
 			resolved = append(resolved, dev)
 			newHostIDs = append(newHostIDs, dev.HostID)
 			// The model is what makes the display name render as "model (serial)"
-			newHosts = append(newHosts, fleet.Host{ID: dev.HostID, HardwareSerial: dev.HardwareSerial, HardwareModel: dev.HardwareModel})
+			newHosts = append(newHosts, fleet.Host{
+				ID: dev.HostID, Hostname: pendingAutopilotHostname(dev), HardwareSerial: dev.HardwareSerial, HardwareModel: dev.HardwareModel,
+			})
 		}
 		if err := upsertWindowsAutopilotHostMDMInfoDB(ctx, tx, ingest.serverURL, ingest.mdmID, newHostIDs); err != nil {
 			return err
@@ -564,6 +566,7 @@ WHERE e.host_uuid != '' AND had.host_id IS NULL AND (`+strings.Join(conditions, 
 	for deviceID, hostID := range matched {
 		if devicesByHost[hostID] > 1 {
 			delete(matched, deviceID)
+			contradicted[hostID] = struct{}{}
 		}
 	}
 	return matched, contradicted, nil
@@ -664,6 +667,19 @@ func insertPendingWindowsAutopilotHostsDB(
 	return created, nil
 }
 
+// pendingAutopilotHostname is the hostname a pending host gets when Autopilot reports no serial. The host is named
+// "model (serial)" otherwise, which needs both. osquery replaces it with the real hostname once the device enrolls.
+func pendingAutopilotHostname(dev *fleet.HostAutopilotDevice) string {
+	switch {
+	case dev.HardwareSerial != "":
+		return ""
+	case dev.HardwareModel != "":
+		return dev.HardwareModel
+	default:
+		return dev.AutopilotDeviceID
+	}
+}
+
 // insertPendingWindowsAutopilotHostRowsDB inserts the bare host rows. The never-timestamp sentinel on last_enrolled_at and
 // detail_updated_at marks the host as never having checked in. The serial is stored as Autopilot reports it, placeholders
 // included, so the host shows as "model (serial)" before it boots.
@@ -674,15 +690,15 @@ func insertPendingWindowsAutopilotHostRowsDB(
 	devices []*fleet.HostAutopilotDevice,
 ) (sql.Result, error) {
 	stmt := `
-INSERT INTO hosts (hardware_serial, hardware_model, hardware_vendor, platform, last_enrolled_at, detail_updated_at, osquery_host_id, refetch_requested, team_id)
+INSERT INTO hosts (hostname, hardware_serial, hardware_model, hardware_vendor, platform, last_enrolled_at, detail_updated_at, osquery_host_id, refetch_requested, team_id)
 VALUES %s`
 
-	args := make([]any, 0, len(devices)*4)
+	args := make([]any, 0, len(devices)*5)
 	for _, dev := range devices {
-		args = append(args, dev.HardwareSerial, dev.HardwareModel, dev.HardwareVendor, teamID)
+		args = append(args, pendingAutopilotHostname(dev), dev.HardwareSerial, dev.HardwareModel, dev.HardwareVendor, teamID)
 	}
 	values := strings.TrimSuffix(strings.Repeat(
-		"(?, ?, ?, 'windows', '"+server.NeverTimestamp+"', '"+server.NeverTimestamp+"', NULL, 1, ?),", len(devices)), ",")
+		"(?, ?, ?, ?, 'windows', '"+server.NeverTimestamp+"', '"+server.NeverTimestamp+"', NULL, 1, ?),", len(devices)), ",")
 	res, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, values), args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "insert pending windows autopilot hosts")
@@ -833,6 +849,61 @@ func (ds *Datastore) UpdateMicrosoftGraphCredentialInvalidAggregate(ctx context.
 		return ctxerr.Wrap(ctx, err, "save app config with microsoft graph credential status")
 	}
 	return nil
+}
+
+// MoveWindowsAutopilotRecordToHost handles an Autopilot device that enrolled as a host other than the pending host the sync
+// created for it, typically one that was in Fleet before it was registered, whose enrollment then carried no ID the sync could
+// adopt it by. Nothing ever claims that pending host. Once an enrollment carrying the device's Autopilot device ID is linked to
+// hostID, the record moves there and the pending host is deleted.
+func (ds *Datastore) MoveWindowsAutopilotRecordToHost(ctx context.Context, hostID uint, autopilotDeviceID, entraDeviceID string) (bool, error) {
+	if autopilotDeviceID == "" {
+		return false, nil
+	}
+	var moved bool
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		moved = false
+		var pending []struct {
+			HostID        uint   `db:"host_id"`
+			EntraDeviceID string `db:"entra_device_id"`
+		}
+		// The target join keeps a host that already carries a live record of its own (the table is keyed by host) from taking this one.
+		if err := sqlx.SelectContext(ctx, tx, &pending, `
+SELECT had.host_id, had.entra_device_id
+FROM host_autopilot_devices had
+JOIN hosts h ON h.id = had.host_id
+LEFT JOIN host_autopilot_devices target ON target.host_id = ? AND target.deleted_at IS NULL
+WHERE had.autopilot_device_id = ? AND had.deleted_at IS NULL AND had.host_id != ?
+	AND h.osquery_host_id IS NULL AND h.orbit_node_key IS NULL
+	AND target.host_id IS NULL
+LIMIT 2
+FOR UPDATE`, hostID, autopilotDeviceID, hostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "select pending host carrying autopilot record")
+		}
+		if len(pending) != 1 {
+			return nil
+		}
+		recordEntraID, recordHasEntraID := fleet.ParseNonNilUUID(pending[0].EntraDeviceID)
+		enrollmentEntraID, enrollmentHasEntraID := fleet.ParseNonNilUUID(entraDeviceID)
+		if recordHasEntraID && enrollmentHasEntraID && recordEntraID != enrollmentEntraID {
+			return nil
+		}
+
+		// A tombstone the host carries from an earlier registration has to go first.
+		if _, err := tx.ExecContext(ctx, `DELETE FROM host_autopilot_devices WHERE host_id = ? AND deleted_at IS NOT NULL`, hostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete tombstoned autopilot record")
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE host_autopilot_devices SET host_id = ? WHERE host_id = ?`, hostID, pending[0].HostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "move autopilot record")
+		}
+		if err := deleteHosts(ctx, tx, []uint{pending[0].HostID}); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete pending host replaced by enrolled host")
+		}
+		moved = true
+		ds.logger.InfoContext(ctx, "moved autopilot record from a pending host to the enrolled host it belongs to",
+			"autopilot_device_id", autopilotDeviceID, "pending_host_id", pending[0].HostID, "host_id", hostID)
+		return nil
+	})
+	return moved, err
 }
 
 // HostIDByAutopilotDeviceID resolves a pending Autopilot host from the Autopilot device ID (the ZTDID). The device

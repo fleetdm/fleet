@@ -47,6 +47,7 @@ func TestMicrosoftAutopilot(t *testing.T) {
 		{"IngestSpansChunkedTransactions", testIngestSpansChunkedTransactions},
 		{"IngestPlaceholderSerials", testIngestPlaceholderSerials},
 		{"IngestAdoptsHostsThroughMDMEnrollment", testIngestAdoptsHostsThroughMDMEnrollment},
+		{"MoveWindowsAutopilotRecordToHost", testMoveWindowsAutopilotRecordToHost},
 		{"OrbitEnrollReusesPendingAutopilotHost", testOrbitEnrollReusesPendingAutopilotHost},
 		{"OrbitEnrollMatchesPendingAutopilotHostByDeviceID", testOrbitEnrollMatchesPendingAutopilotHostByDeviceID},
 		{"HostResponsesCarryGroupTag", testHostResponsesCarryGroupTag},
@@ -820,6 +821,7 @@ func testIngestPlaceholderSerials(t *testing.T, ds *Datastore) {
 		{"ap-default-1", "Virtual Machine (Default string)"},
 		{"ap-default-2", "Virtual Machine (Default string)"},
 		{"ap-zeros", "Virtual Machine (0000000000)"},
+		{"ap-empty", "Virtual Machine"},
 		{"ap-real", "Virtual Machine (REAL-SERIAL)"},
 	} {
 		t.Run(tc.deviceID, func(t *testing.T) {
@@ -829,36 +831,128 @@ func testIngestPlaceholderSerials(t *testing.T, ds *Datastore) {
 			assert.Equal(t, tc.displayName, host.DisplayName())
 		})
 	}
+
+	t.Run("a pending host with no serial survives the incoming-host cleanup", func(t *testing.T) {
+		_, err := ds.CleanupIncomingHosts(ctx, time.Now().Add(time.Hour))
+		require.NoError(t, err)
+		_, err = ds.Host(ctx, stored["ap-empty"].HostID)
+		require.NoError(t, err)
+	})
+}
+
+// newEnrolledWindowsHost creates a Windows host enrolled in Fleet MDM. Its enrollment recorded the Autopilot device ID and Entra
+// device ID the device reported, either of which may be empty.
+func newEnrolledWindowsHost(t *testing.T, ds *Datastore, name, serial, ztdRegistrationID, entraDeviceID string) *fleet.Host {
+	t.Helper()
+	host := test.NewHost(t, ds, name, "", "nodekey-"+name, "uuid-"+name, time.Now(),
+		test.WithPlatform("windows"), test.WithHardwareSerial(serial))
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(t.Context(), &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            "device-" + name,
+		MDMHardwareID:          "hardware-" + name,
+		MDMDeviceState:         "enrolled",
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMEnrollType:          "Device",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.26100.1",
+		ZTDRegistrationID:      ztdRegistrationID,
+		EntraDeviceID:          entraDeviceID,
+		HostUUID:               host.UUID,
+	}))
+	return host
+}
+
+func autopilotDeviceWithEntraID(dev *fleet.HostAutopilotDevice, entraDeviceID string) *fleet.HostAutopilotDevice {
+	dev.EntraDeviceID = entraDeviceID
+	return dev
+}
+
+func testMoveWindowsAutopilotRecordToHost(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	seedWindowsBuiltinLabels(t, ds)
+
+	const (
+		entraMoved   = "51180000-0000-4000-8000-000000000011"
+		entraClaimed = "51180000-0000-4000-8000-000000000012"
+		entraRecord  = "51180000-0000-4000-8000-000000000013"
+		entraOther   = "51180000-0000-4000-8000-000000000014"
+	)
+	devices := []*fleet.HostAutopilotDevice{
+		autopilotDeviceWithEntraID(autopilotDeviceWithID("ap-moved", "Default string", "Engineering"), entraMoved),
+		autopilotDeviceWithEntraID(autopilotDeviceWithID("ap-claimed", "Default string", ""), entraClaimed),
+		autopilotDeviceWithEntraID(autopilotDeviceWithID("ap-contradicting", "Default string", ""), entraRecord),
+	}
+	// The devices are already in Fleet, but nothing identifies them yet, so each record gets a pending host.
+	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, devices))
+	pending := autopilotDevicesByDeviceID(t, ds, testTenantA)
+	// One pending host was claimed by its device's fleetd before the device's other host became identifiable.
+	claimedHost, err := ds.EnrollOrbit(ctx,
+		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{HardwareUUID: "uuid-claimed", AutopilotDeviceID: "ap-claimed", Platform: "windows"}),
+		fleet.WithEnrollOrbitNodeKey("orbit-key-claimed"),
+	)
+	require.NoError(t, err)
+	require.Equal(t, pending["ap-claimed"].HostID, claimedHost.ID)
+
+	moved := newEnrolledWindowsHost(t, ds, "moved", "", "", "")
+	ok, err := ds.MoveWindowsAutopilotRecordToHost(ctx, moved.ID, "ap-moved", entraMoved)
+	require.NoError(t, err)
+	assert.True(t, ok)
+	stored := autopilotDevicesByDeviceID(t, ds, testTenantA)
+	assert.Equal(t, moved.ID, stored["ap-moved"].HostID, "the record moves to the host its enrollment was linked to")
+	assert.Equal(t, "Engineering", stored["ap-moved"].GroupTag)
+	_, err = ds.Host(ctx, pending["ap-moved"].HostID)
+	assert.True(t, fleet.IsNotFound(err), "the abandoned pending host is deleted, got %v", err)
+
+	// The next sync resolves the device to its enrolled host and creates nothing.
+	require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, devices))
+	assert.Equal(t, stored, autopilotDevicesByDeviceID(t, ds, testTenantA))
+
+	for _, tc := range []struct {
+		name              string
+		targetHostID      uint
+		autopilotDeviceID string
+		entraDeviceID     string
+	}{
+		{"a pending host fleetd already claimed is kept", 0, "ap-claimed", entraClaimed},
+		{"an enrollment whose Entra device ID contradicts the record does not move it", 0, "ap-contradicting", entraOther},
+		{"a record already on an enrolled host stays there", 0, "ap-moved", entraMoved},
+		{"a host with a live record of its own is not given another", moved.ID, "ap-contradicting", entraRecord},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			targetHostID := tc.targetHostID
+			if targetHostID == 0 {
+				targetHostID = newEnrolledWindowsHost(t, ds, "other-"+tc.autopilotDeviceID, "", "", "").ID
+			}
+			before := autopilotDevicesByDeviceID(t, ds, testTenantA)
+			ok, err := ds.MoveWindowsAutopilotRecordToHost(ctx, targetHostID, tc.autopilotDeviceID, tc.entraDeviceID)
+			require.NoError(t, err)
+			assert.False(t, ok)
+			assert.Equal(t, before, autopilotDevicesByDeviceID(t, ds, testTenantA))
+		})
+	}
+
+	t.Run("a host's tombstone from an earlier registration does not block the move", func(t *testing.T) {
+		require.NoError(t, ds.IngestWindowsAutopilotDevices(ctx, []*fleet.HostAutopilotDevice{
+			autopilotDeviceWithEntraID(autopilotDeviceWithID("ap-reregistered", "Default string", ""), ""),
+		}))
+		reregistered := newEnrolledWindowsHost(t, ds, "reregistered", "", "", "")
+		upsertAutopilotDevices(t, ds, &fleet.HostAutopilotDevice{HostID: reregistered.ID, AutopilotDeviceID: "ap-old", TenantID: testTenantA})
+		require.NoError(t, ds.BatchSoftDeleteHostAutopilotDevices(ctx, []uint{reregistered.ID}))
+
+		ok, err := ds.MoveWindowsAutopilotRecordToHost(ctx, reregistered.ID, "ap-reregistered", "")
+		require.NoError(t, err)
+		assert.True(t, ok)
+		assert.Equal(t, reregistered.ID, autopilotDevicesByDeviceID(t, ds, testTenantA)["ap-reregistered"].HostID)
+	})
 }
 
 func testIngestAdoptsHostsThroughMDMEnrollment(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	seedWindowsBuiltinLabels(t, ds)
 
-	// enrolledHost is a Windows host enrolled in Fleet MDM before its device was registered in Autopilot. Its enrollment
-	// recorded the Autopilot device ID and Entra device ID it reported, either of which may be empty.
 	enrolledHost := func(t *testing.T, name, serial, ztdRegistrationID, entraDeviceID string) *fleet.Host {
-		t.Helper()
-		host := test.NewHost(t, ds, name, "", "nodekey-"+name, "uuid-"+name, time.Now(),
-			test.WithPlatform("windows"), test.WithHardwareSerial(serial))
-		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, &fleet.MDMWindowsEnrolledDevice{
-			MDMDeviceID:            "device-" + name,
-			MDMHardwareID:          "hardware-" + name,
-			MDMDeviceState:         "enrolled",
-			MDMDeviceType:          "CIMClient_Windows",
-			MDMEnrollType:          "Device",
-			MDMEnrollProtoVersion:  "5.0",
-			MDMEnrollClientVersion: "10.0.26100.1",
-			ZTDRegistrationID:      ztdRegistrationID,
-			EntraDeviceID:          entraDeviceID,
-			HostUUID:               host.UUID,
-		}))
-		return host
+		return newEnrolledWindowsHost(t, ds, name, serial, ztdRegistrationID, entraDeviceID)
 	}
-	withEntraID := func(dev *fleet.HostAutopilotDevice, entraDeviceID string) *fleet.HostAutopilotDevice {
-		dev.EntraDeviceID = entraDeviceID
-		return dev
-	}
+	withEntraID := autopilotDeviceWithEntraID
 	const (
 		ztdNucBox     = "ba84259f-378d-4499-8d31-b43a238deda7"
 		entraNucBox   = "6e56ac47-56c5-454b-9d67-633711e122db"

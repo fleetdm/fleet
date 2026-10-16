@@ -587,26 +587,32 @@ func TestEnrollOrbitWindowsReverseLink(t *testing.T) {
 		require.False(t, ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFuncInvoked)
 	})
 
-	t.Run("an Autopilot device ID whose record this host does not own is not used", func(t *testing.T) {
-		for name, owner := range map[string]func(ctx context.Context, id string) (uint, error){
-			"owned by another host": func(ctx context.Context, id string) (uint, error) { return 7, nil },
-			"no record":             func(ctx context.Context, id string) (uint, error) { return 0, newNotFoundError() },
-		} {
-			t.Run(name, func(t *testing.T) {
-				svc, ds, _ := newSvc(t)
-				ds.HostIDByAutopilotDeviceIDFunc = owner
-				ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc = func(ctx context.Context, serial string) (*fleet.MDMWindowsEnrolledDevice, error) {
-					return nil, newNotFoundError()
-				}
+	// Another host owning the record means the ID is another device's. No record yet means nothing contradicts the ID, which then
+	// carries the same device-asserted trust as the serial.
+	for _, tc := range []struct {
+		name        string
+		owner       func(ctx context.Context, id string) (uint, error)
+		triesTheZTD bool
+	}{
+		{"an Autopilot device ID whose record another host owns is not used", func(ctx context.Context, id string) (uint, error) { return 7, nil }, false},
+		{"an Autopilot device ID with no record yet is used", func(ctx context.Context, id string) (uint, error) { return 0, newNotFoundError() }, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, ds, _ := newSvc(t)
+			ds.HostIDByAutopilotDeviceIDFunc = tc.owner
+			ds.MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationIDFunc = func(ctx context.Context, ztdRegistrationID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+				return nil, newNotFoundError()
+			}
+			ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc = func(ctx context.Context, serial string) (*fleet.MDMWindowsEnrolledDevice, error) {
+				return nil, newNotFoundError()
+			}
 
-				_, err := svc.EnrollOrbit(t.Context(), autopilotHostInfo, "secret", "")
-				require.NoError(t, err)
-				require.False(t, ds.MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationIDFuncInvoked,
-					"presenting another device's ID must not pull that device's enrollment onto this host")
-				require.True(t, ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFuncInvoked)
-			})
-		}
-	})
+			_, err := svc.EnrollOrbit(t.Context(), autopilotHostInfo, "secret", "")
+			require.NoError(t, err)
+			require.Equal(t, tc.triesTheZTD, ds.MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationIDFuncInvoked)
+			require.True(t, ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFuncInvoked)
+		})
+	}
 
 	t.Run("an enrollment whose device reported a different serial is not linked", func(t *testing.T) {
 		svc, ds, _ := newSvc(t)

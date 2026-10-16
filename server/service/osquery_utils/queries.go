@@ -3600,6 +3600,14 @@ func LinkWindowsHostMDMEnrollment(
 	if err != nil {
 		return updated, ctxerr.Wrap(ctx, err, "getting windows mdm device after updating host uuid")
 	}
+	// An Autopilot device that enrolled as a host other than its pending one becomes identifiable only now.
+	if device != nil && device.ZTDRegistrationID != "" {
+		if _, err := ds.MoveWindowsAutopilotRecordToHost(ctx, hostID, device.ZTDRegistrationID, device.EntraDeviceID); err != nil {
+			// Best-effort: the duplicate pending host stays until the next link of this enrollment, or until an admin deletes it.
+			logger.ErrorContext(ctx, "failed to move autopilot record to the linked host", "err", err, "host_id", hostID)
+			ctxerr.Handle(ctx, err)
+		}
+	}
 	// Like a changed host_uuid, clearing the deleted host marker makes this bookkeeping run once. It is cleared only after the
 	// bookkeeping succeeds, so a failure is retried on the next link attempt.
 	clearDeletedHostMarker := func() error {
