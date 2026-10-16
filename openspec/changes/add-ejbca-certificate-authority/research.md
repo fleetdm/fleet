@@ -56,3 +56,15 @@ Without the `edit_end_entity` rules the first enrollment for a username succeeds
 - Upload of a P12 exported from RA Web (BER encoding, the openssl subprocess in the PoC). Tested with PEMs extracted from a batch-generated P12.
 - Fleet server CA save path, profile variable substitution, and delivery to a real macOS host through MDM.
 - EJBCA Enterprise behaviors.
+
+## PR 1 (datastore) learnings
+
+- The PoC migration did not insert the `FLEET_VAR_EJBCA_DATA_` and `FLEET_VAR_EJBCA_PASSWORD_` prefix rows into `fleet_variables`. Profile resend after a CA edit finds profiles through `mdm_configuration_profile_variables` joined to that table, so without the rows a CA edit never resends EJBCA profiles.
+- `fleet.HasCAVariables` needs the EJBCA prefixes or EJBCA profiles skip the CA install throttle in `server/mdm/apple/reconcile.go`.
+- The IdP-change resend (`triggerResendCAProfilesUsingVariables` in `server/datastore/mysql/scim.go`) must scan the EJBCA username template and UPNs.
+- Adding `CAConfigEJBCA` to `ListCATypesWithRenewalSupport` adds one more `RenewMDMManagedCertificates` pass per cron run, like every other type.
+- For PR 3 and PR 5: the batch upsert writes NULL for any EJBCA column the caller leaves nil, so GitOps must always send the full CA, and the service must reject a masked key (`********`) as a new key.
+
+## Username and CSR common name are separate (decision)
+
+Live test: EJBCA accepts a username that differs from the CSR common name, and a re-enrollment of the same username replaces the end entity DN with the new CSR subject (the end entity then holds both certificates). So Fleet has two templates: the CSR common name uses `certificate_common_name` (shared with DigiCert) and the EJBCA username uses the optional `ejbca_username_template`, which defaults to the common name template when empty (`CertificateAuthority.EffectiveEJBCAUsernameTemplate`). The OpenSpec spec and design still describe one shared template and need updating.

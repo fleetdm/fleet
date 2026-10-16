@@ -4,10 +4,10 @@ Start from the PoC branch (`origin/add-ejbca-rest-ca-poc`) where it already matc
 
 ## 1. Types, migration, and datastore
 
-- [ ] 1.1 Add `CATypeEJBCA`, the `EJBCACA` type, payload and update-payload types with `Preprocess`, `Equals`, and validation helpers in `server/fleet/certificate_authorities.go`; verify with unit tests in `server/fleet/certificate_authorities_test.go` covering required fields on create, optional pointer fields on update, name rules, masked values, and the derived read-only `client_cert_expires_at`.
-- [ ] 1.2 Add a migration (use `/new-migration`) for the `ejbca` CA type, the EJBCA columns, the `ejbca` asset type, and the `ejbca` managed-certificate type; verify with a migration test asserting enum values and columns, and run `make migration` ordering checks.
+- [ ] 1.1 Add `CATypeEJBCA`, `CAConfigEJBCA`, the `EJBCA_DATA_` and `EJBCA_PASSWORD_` variable prefixes, and the EJBCA fields on `CertificateAuthority` (the common name template and UPNs reuse the DigiCert fields) with `EffectiveEJBCAUsernameTemplate`, which defaults to the common name template, in `server/fleet/`; verify with unit tests for the default and the renewal type lists, and `HasCAVariables` for the new prefixes. The `EJBCACA` payload and update payload types land with the client and service PRs.
+- [ ] 1.2 Add a migration (use `/new-migration`) that extends the CA type enum, adds the EJBCA columns, appends `ejbca` to `host_mdm_managed_certificates.type` with `ALGORITHM=INSTANT`, and inserts the two `fleet_variables` prefix rows; verify with a migration test of the `fleet_variables` rows only, and regenerate `schema.sql`.
 - [ ] 1.3 Implement datastore create, read (masked and unmasked), update, delete, and batch apply for EJBCA in `server/datastore/mysql/certificate_authorities.go`, storing the key encrypted; verify with `MYSQL_TEST=1 go test ./server/datastore/mysql/ -run CertificateAuthorit` covering secrets never returned unmasked by default, updates that keep or replace the stored credential, and expiry derived from the stored certificate.
-- [ ] 1.4 Add the resend-on-change rule for EJBCA certificate-affecting fields (username template, UPNs, CA name, certificate profile, end entity profile) in the same transaction as the update, mirroring the DigiCert helper; verify with datastore tests where changing a certificate field resends and changing URL, client certificate, or trust bundle does not.
+- [ ] 1.4 Add the resend-on-change rule for EJBCA certificate-affecting fields (common name template, username template, UPNs, CA name, certificate profile, end entity profile) in the same transaction as the update, mirroring the DigiCert helper; verify with datastore tests where changing a certificate field resends and changing URL, client certificate, or trust bundle does not.
 - [ ] 1.5 Register the EJBCA asset type in `ListCATypesWithRenewalSupport` (not the renewal-ID list, matching DigiCert) in `server/fleet/certificate_authorities.go`; verify with a datastore test that `RenewMDMManagedCertificates` selects an expiring EJBCA certificate and with the renewal type-list tests.
 
 ## 2. EJBCA client
@@ -28,7 +28,7 @@ Start from the PoC branch (`origin/add-ejbca-rest-ca-poc`) where it already matc
 ## 4. Profile variables and delivery
 
 - [ ] 4.1 Add `EJBCA_DATA_` and `EJBCA_PASSWORD_` variable prefixes and the EJBCA allow-list in `server/fleet/mdm.go` and `server/variables/variables.go`, and the pair, CA-exists, and pkcs12-placement validation in `server/service/mdm_profiles.go` (and Windows rejection in `windows_mdm_profiles.go`); verify with tests for valid profile, missing pair, unknown CA, and wrong payload.
-- [ ] 4.2 Extend `server/mdm/apple/profile_processor.go` to enroll per host, expand username and UPN variables, substitute the data and password variables, write the managed-certificate record, and report failures with the spec messages; verify with profile processor tests including a failed enrollment detail.
+- [ ] 4.2 Extend `server/mdm/apple/profile_processor.go` to enroll per host, expand the common name template, username template (defaulting to the common name template), and UPN variables, substitute the data and password variables, write the managed-certificate record, and report failures with the spec messages; verify with profile processor tests including a failed enrollment detail.
 - [ ] 4.3 Resend EJBCA profiles when a host's IdP values change and the CA fields use them, mirroring #52368; verify with a datastore test for an IdP email change.
 - [ ] 4.4 Add an end-to-end check on a macOS host with a Wi-Fi style pkcs12 profile against the local EJBCA (new host, resend, certificate-field edit, client certificate rotation); verify the certificate appears in the host keychain and in the host's Fleet-managed certificate list.
 
@@ -40,7 +40,7 @@ Start from the PoC branch (`origin/add-ejbca-rest-ca-poc`) where it already matc
 
 ## 6. Frontend
 
-- [ ] 6.1 Add the EJBCA form (PKCS#12 upload with password, URL, trust bundle, EJBCA CA, certificate profile, end entity profile, username template, UPNs) and add and edit modal wiring following the DigiCert form and the Figma in issue #30986; verify with Jest tests for validation and payload mapping (`yarn test`).
+- [ ] 6.1 Add the EJBCA form (PKCS#12 upload with password, URL, trust bundle, EJBCA CA, certificate profile, end entity profile, common name template, optional username template that defaults to the common name template, UPNs) and add and edit modal wiring following the DigiCert form and the Figma in issue #30986; verify with Jest tests for validation and payload mapping (`yarn test`).
 - [ ] 6.2 Add the EJBCA activity feed entries, interfaces, and API service changes in `frontend/interfaces/` and `frontend/services/entities/certificates.ts`; verify with `GlobalActivityItem` tests for all three activities.
 - [ ] 6.3 Show the client certificate expiry on the CA list with a warning style under 30 days and an error style under 7 days; verify with component tests for each threshold.
 - [ ] 6.4 Add EJBCA to the command palette entries only if DigiCert has an equivalent entry; verify with the palette tests or note none exists.

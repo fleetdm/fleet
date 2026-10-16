@@ -9,7 +9,7 @@ IT admins who run EJBCA as their certificate authority (CA) cannot deploy per-ho
 - Add an `ejbca` certificate authority type, configurable in the UI (Settings > Integrations > Certificate authorities), the REST API (`/certificate_authorities`), and GitOps (`org_settings.certificate_authorities.ejbca`).
 - Fleet authenticates to EJBCA over mutual TLS with an admin-supplied client certificate (PKCS#12 plus password) and an optional trust CA bundle, and enrolls certificates with `POST /ejbca/ejbca-rest-api/v1/certificate/pkcs10enroll`.
 - Apple (macOS, iOS, iPadOS) configuration profiles can use `$FLEET_VAR_EJBCA_DATA_<CA_NAME>` and `$FLEET_VAR_EJBCA_PASSWORD_<CA_NAME>` in a `com.apple.security.pkcs12` payload. Fleet generates the keypair and CSR per host, enrolls, and substitutes the resulting PKCS#12.
-- Mirror DigiCert behavior from issue #52368: Fleet variables in the username template and UPNs, resend of matching profiles when certificate-affecting fields change, and reissue when a host's IdP values change.
+- Mirror DigiCert behavior from issue #52368: Fleet variables in the common name template, username template, and UPNs, resend of matching profiles when certificate-affecting fields change, and reissue when a host's IdP values change.
 - Add `added_ejbca`, `edited_ejbca`, and `deleted_ejbca` activities, `fleetctl generate-gitops` output, and secret masking on read.
 - Fleet Premium only. A database migration adds the EJBCA type, its columns, and the managed-certificate type.
 - Fix the defects found against a live EJBCA: malformed UPN SAN encoding, misleading error mapping, a connection probe that does not authenticate, and the runtime `openssl` dependency for BER PKCS#12 files.

@@ -18,7 +18,7 @@ Fleet SHALL support a certificate authority of type `ejbca` on Fleet Premium, cr
 - **THEN** the request is rejected with the same Premium-required error used by other certificate authority types
 
 ### Requirement: Required configuration fields
-An EJBCA CA SHALL require a name, the EJBCA REST base URL, a client certificate PKCS#12 and its password, the EJBCA CA name, the certificate profile name, the end entity profile name, and a username template. The name SHALL contain only letters, numbers, and underscores and SHALL be unique among certificate authorities of the same type.
+An EJBCA CA SHALL require a name, the EJBCA REST base URL, a client certificate PKCS#12 and its password, the EJBCA CA name, the certificate profile name, the end entity profile name, and a common name template. The name SHALL contain only letters, numbers, and underscores and SHALL be unique among certificate authorities of the same type.
 
 #### Scenario: Missing field on create
 - **WHEN** a create request omits a required field
@@ -52,7 +52,7 @@ An update SHALL change only the fields it supplies. Omitted fields and secret fi
 - **THEN** the update is rejected with a 422 naming the password field
 
 ### Requirement: Optional configuration fields
-An EJBCA CA SHALL accept an optional PEM trust CA bundle used to verify EJBCA's HTTPS certificate, and an optional list of user principal names (UPNs). When no bundle is given, Fleet SHALL verify EJBCA's certificate against the system root store.
+An EJBCA CA SHALL accept an optional PEM trust CA bundle used to verify EJBCA's HTTPS certificate, an optional list of user principal names (UPNs), and an optional username template. When no bundle is given, Fleet SHALL verify EJBCA's certificate against the system root store.
 
 #### Scenario: Private TLS certificate
 - **WHEN** EJBCA's HTTPS certificate is issued by a private CA and the trust CA bundle contains that CA
@@ -104,11 +104,11 @@ On create and update of connection settings, Fleet SHALL perform an authenticate
 - **THEN** the save is rejected with a connection error and nothing is stored
 
 ### Requirement: Certificate enrollment
-For each host, Fleet SHALL generate an RSA 2048 key and CSR in memory, set the CSR common name and EJBCA username to the expanded username template, include the expanded UPNs as Microsoft UPN subject alternative name entries when configured, request the certificate from EJBCA's REST API, and return the certificate with its key as a PKCS#12 with a random password.
+For each host, Fleet SHALL generate an RSA 2048 key and CSR in memory, set the CSR common name to the expanded common name template, include the expanded UPNs as Microsoft UPN subject alternative name entries when configured, request the certificate from EJBCA's REST API, and return the certificate with its key as a PKCS#12 with a random password.
 
 #### Scenario: Successful enrollment
 - **WHEN** a host receives a profile that references the EJBCA CA
-- **THEN** EJBCA issues a certificate whose subject common name is the expanded username, and the host receives a PKCS#12 containing it and the generated key
+- **THEN** EJBCA issues a certificate whose subject common name is the expanded common name template, and the host receives a PKCS#12 containing it and the generated key
 
 #### Scenario: UPN included
 - **WHEN** the CA has a UPN configured
@@ -117,6 +117,17 @@ For each host, Fleet SHALL generate an RSA 2048 key and CSR in memory, set the C
 #### Scenario: Repeat enrollment for the same host
 - **WHEN** the same username is enrolled again, for example after a resend
 - **THEN** EJBCA issues a new certificate without requiring a pre-created or reset end entity
+
+### Requirement: EJBCA username
+Fleet SHALL enroll with the expanded username template as the EJBCA username, or with the expanded common name template when no username template is set. The username SHALL be independent of the certificate's common name.
+
+#### Scenario: Username defaults to the common name
+- **WHEN** the CA has a common name template and no username template
+- **THEN** each host enrolls with a username equal to its expanded common name
+
+#### Scenario: Username differs from the common name
+- **WHEN** the username template is `$FLEET_VAR_HOST_HARDWARE_SERIAL` and the common name template is `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`
+- **THEN** each host enrolls under its serial as the username and receives a certificate whose common name is the user's email
 
 ### Requirement: Profile variables
 Apple configuration profiles SHALL support `$FLEET_VAR_EJBCA_DATA_<CA_NAME>` (base64 PKCS#12) and `$FLEET_VAR_EJBCA_PASSWORD_<CA_NAME>` (its password) in a `com.apple.security.pkcs12` payload. Both variables for a CA SHALL be present together, and the CA SHALL exist.
@@ -138,10 +149,10 @@ Apple configuration profiles SHALL support `$FLEET_VAR_EJBCA_DATA_<CA_NAME>` (ba
 - **THEN** both variables are replaced with that host's certificate data and password
 
 ### Requirement: Fleet variables in CA fields
-The username template and UPNs SHALL accept the same Fleet variables DigiCert accepts for its certificate fields: host hardware serial, platform, UUID, end user IdP email, and the IdP variables. Other variables SHALL be rejected.
+The common name template, username template, and UPNs SHALL accept the same Fleet variables DigiCert accepts for its certificate fields: host hardware serial, platform, UUID, end user IdP email, and the IdP variables. Other variables SHALL be rejected.
 
 #### Scenario: Supported variable
-- **WHEN** the username template is `$FLEET_VAR_HOST_HARDWARE_SERIAL`
+- **WHEN** the common name template is `$FLEET_VAR_HOST_HARDWARE_SERIAL`
 - **THEN** each host's certificate common name is that host's serial
 
 #### Scenario: Unsupported variable
@@ -160,7 +171,7 @@ When EJBCA refuses an enrollment, Fleet SHALL mark the host's profile as failed 
 - **THEN** the detail says the Fleet client certificate's EJBCA role lacks access, and does not claim the certificate is expired or revoked
 
 ### Requirement: Reissue on change
-When an update changes the username template, the UPNs, the EJBCA CA name, the certificate profile name, or the end entity profile name, Fleet SHALL resend the matching Apple profiles to hosts that use the CA so new certificates are issued. Updates to other fields SHALL NOT resend profiles. Profiles that use an IdP variable in these fields SHALL be resent when the host's IdP values change.
+When an update changes the common name template, the username template, the UPNs, the EJBCA CA name, the certificate profile name, or the end entity profile name, Fleet SHALL resend the matching Apple profiles to hosts that use the CA so new certificates are issued. Updates to other fields SHALL NOT resend profiles. Profiles that use an IdP variable in these fields SHALL be resent when the host's IdP values change.
 
 #### Scenario: Certificate field changed
 - **WHEN** an admin changes the certificate profile name, through the UI, API, or GitOps
@@ -171,7 +182,7 @@ When an update changes the username template, the UPNs, the EJBCA CA name, the c
 - **THEN** no profile is resent and existing host certificates are unaffected
 
 #### Scenario: IdP value changed
-- **WHEN** a host's IdP email changes and the username template uses it
+- **WHEN** a host's IdP email changes and the common name or username template uses it
 - **THEN** Fleet resends the profile and the host gets a new certificate
 
 ### Requirement: Activities
