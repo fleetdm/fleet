@@ -250,7 +250,6 @@ function TargetCard({
   const [outputs, setOutputs] = useState<InstallersOutputFile[]>([]);
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [showLog, setShowLog] = useState(false);
-  const [showOptions, setShowOptions] = useState(false);
   const [showFiles, setShowFiles] = useState(false);
 
   // Async results (scan, fleet secret) merge into the latest config, not the
@@ -464,21 +463,10 @@ function TargetCard({
   const fleetUrl = cfg.fleet_url.trim();
   const loopback = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(fleetUrl);
   const urlMatchesScan = !!scan?.server_url && fleetUrl.replace(/\/+$/, "") === scan.server_url.replace(/\/+$/, "");
-  const extraCount = cfg.extra_flags.trim() ? cfg.extra_flags.trim().split(/\s+/).filter((t) => t.startsWith("--")).length : 0;
 
-  // One-line summary of the collapsed Options; highlighted when anything
-  // differs from the defaults so a customized build isn't a surprise.
-  const nonStable = [
-    ["orbit", cfg.orbit_channel],
-    ["desktop", cfg.desktop_channel],
-    ["osquery", cfg.osqueryd_channel],
-  ].filter(([, ch]) => ch && ch !== "stable");
-  const summaryParts = [cfg.update_source === UPDATE_LOCAL_TUF ? "local TUF" : "official updates"];
-  summaryParts.push(nonStable.length === 0 ? "stable" : nonStable.map(([c, ch]) => `${c} ${ch}`).join(", "));
-  if (cfg.debug) summaryParts.push("debug");
-  if (extraCount > 0) summaryParts.push(`${extraCount} extra flag${extraCount === 1 ? "" : "s"}`);
-  const optionsSummary = summaryParts.join(" · ");
-  const customized = cfg.update_source === UPDATE_LOCAL_TUF || nonStable.length > 0 || cfg.debug || !!cfg.extra_flags.trim();
+  // Flag non-default agent options so a customized build isn't a surprise.
+  const nonStable = [cfg.orbit_channel, cfg.desktop_channel, cfg.osqueryd_channel].some((ch) => ch && ch !== "stable");
+  const customized = cfg.update_source === UPDATE_LOCAL_TUF || nonStable || cfg.debug || !!cfg.extra_flags.trim();
 
   return (
     <div className="card" style={{ display: "flex", flexDirection: "column", gap: "var(--pad-smedium)", borderTop: `3px solid ${accent}` }}>
@@ -617,96 +605,89 @@ function TargetCard({
         </Field>
       </div>
 
-      {/* Platforms + planned file names + per-build status */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--pad-small)" }}>
-          <span style={{ fontWeight: 600 }}>Platforms</span>
-          <div style={{ flex: 1 }} />
-          <button className="link-btn" onClick={() => set("platforms", INSTALLER_PLATFORMS.map((p) => p.key))}>all</button>
-          <button className="link-btn" onClick={() => set("platforms", [])}>none</button>
-        </div>
-        {INSTALLER_PLATFORMS.map((p) => (
-          <label key={p.key} style={{ display: "grid", gridTemplateColumns: "auto 150px 1fr auto", alignItems: "center", gap: 8 }}>
-            <input type="checkbox" checked={cfg.platforms.includes(p.key)} onChange={() => togglePlatform(p.key)} />
-            <span>{p.label}</span>
-            <span className="mono dim" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={planned[p.key]}>
-              {planned[p.key] ?? ""}
-            </span>
-            <JobBadge status={statuses[p.key]} active={building} userStopped={!!proc?.was_user_stopped} />
-          </label>
-        ))}
-        <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-          <input type="checkbox" checked={cfg.fleet_desktop} onChange={(e) => set("fleet_desktop", e.target.checked)} />
-          Include Fleet Desktop
-        </label>
-      </div>
-
-      {/* Options: rarely changed, collapsed behind a one-line summary */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--pad-small)" }}>
-        <button
-          className="link-btn"
-          onClick={() => setShowOptions((v) => !v)}
-          aria-expanded={showOptions}
-          style={{ display: "flex", alignItems: "center", gap: 6, alignSelf: "flex-start", padding: 0 }}
-        >
-          <span style={{ fontWeight: 600, color: "var(--app-text)" }}>{showOptions ? "▾" : "▸"} Options</span>
-          <span style={{ color: customized ? "var(--ui-warning)" : "var(--app-text-dim)" }}>{optionsSummary}</span>
-        </button>
-        {showOptions && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--pad-small)", paddingLeft: 14 }}>
-            <div style={{ display: "flex", gap: "var(--pad-large)", alignItems: "center", flexWrap: "wrap" }}>
-              <span style={{ fontWeight: 600 }}>Updates</span>
-              <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <input type="radio" checked={cfg.update_source !== UPDATE_LOCAL_TUF} onChange={() => setUpdateSource(UPDATE_OFFICIAL)} />
-                Official (updates.fleetdm.com)
-              </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 6 }} title={localTuf?.available ? localTuf.url : localTuf?.reason}>
-                <input
-                  type="radio"
-                  checked={cfg.update_source === UPDATE_LOCAL_TUF}
-                  disabled={!localTuf?.available && cfg.update_source !== UPDATE_LOCAL_TUF}
-                  onChange={() => setUpdateSource(UPDATE_LOCAL_TUF)}
-                />
-                Local TUF
-              </label>
-            </div>
-            {cfg.update_source === UPDATE_LOCAL_TUF && (
-              <span className={localTuf?.available ? "dim" : undefined} style={{ color: localTuf?.available ? undefined : "var(--ui-error)" }}>
-                {localTuf?.available ? (
-                  <>
-                    <span className="mono">{localTuf.url}</span> — a TUF tab rebuild rotates its keys, so rebuild these installers after one.
-                  </>
-                ) : (
-                  localTuf?.reason ?? "checking local TUF…"
-                )}
-              </span>
-            )}
-            <div style={{ display: "flex", gap: "var(--pad-medium)", flexWrap: "wrap" }}>
-              <ChannelSelect label="orbit" value={cfg.orbit_channel} options={channels?.orbit} onChange={(v) => set("orbit_channel", v)} />
-              <ChannelSelect label="Fleet Desktop" value={cfg.desktop_channel} options={channels?.desktop} onChange={(v) => set("desktop_channel", v)} />
-              <ChannelSelect label="osquery" value={cfg.osqueryd_channel} options={channels?.osqueryd} onChange={(v) => set("osqueryd_channel", v)} />
-            </div>
-            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <input type="checkbox" checked={cfg.debug} onChange={(e) => set("debug", e.target.checked)} />
-              Debug logging in orbit
-            </label>
-            <Field
-              label="Extra fleetctl package flags"
-              full
-              hint={flagsErr || "Added to every build, e.g. --enable-scripts --host-identifier=instance. Quote values with spaces."}
-              warn={!!flagsErr}
-            >
-              <input
-                className="mono"
-                value={cfg.extra_flags}
-                placeholder="--enable-scripts"
-                onChange={(e) => set("extra_flags", e.target.value)}
-                spellCheck={false}
-                style={{ width: "100%" }}
-              />
-            </Field>
+      {/* Platforms on the left, agent options on the right (stacked when narrow) */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: "var(--pad-large)", alignItems: "start" }}>
+        {/* Platforms + planned file names + per-build status */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--pad-small)" }}>
+            <span style={{ fontWeight: 600 }}>Platforms</span>
+            <div style={{ flex: 1 }} />
+            <button className="link-btn" onClick={() => set("platforms", INSTALLER_PLATFORMS.map((p) => p.key))}>all</button>
+            <button className="link-btn" onClick={() => set("platforms", [])}>none</button>
           </div>
-        )}
+          {INSTALLER_PLATFORMS.map((p) => (
+            <label key={p.key} style={{ display: "grid", gridTemplateColumns: "auto 150px 1fr auto", alignItems: "center", gap: 8 }}>
+              <input type="checkbox" checked={cfg.platforms.includes(p.key)} onChange={() => togglePlatform(p.key)} />
+              <span>{p.label}</span>
+              <span className="mono dim" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={planned[p.key]}>
+                {planned[p.key] ?? ""}
+              </span>
+              <JobBadge status={statuses[p.key]} active={building} userStopped={!!proc?.was_user_stopped} />
+            </label>
+          ))}
+          <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+            <input type="checkbox" checked={cfg.fleet_desktop} onChange={(e) => set("fleet_desktop", e.target.checked)} />
+            Include Fleet Desktop
+          </label>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--pad-small)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--pad-small)" }}>
+            <span style={{ fontWeight: 600 }}>Agent options</span>
+            {customized && <span style={{ color: "var(--ui-warning)" }}>· not the defaults</span>}
+          </div>
+          <div style={{ display: "flex", gap: "var(--pad-large)", alignItems: "center", flexWrap: "wrap" }}>
+            <span style={{ fontWeight: 600 }}>Updates</span>
+            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <input type="radio" checked={cfg.update_source !== UPDATE_LOCAL_TUF} onChange={() => setUpdateSource(UPDATE_OFFICIAL)} />
+              Official (updates.fleetdm.com)
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 6 }} title={localTuf?.available ? localTuf.url : localTuf?.reason}>
+              <input
+                type="radio"
+                checked={cfg.update_source === UPDATE_LOCAL_TUF}
+                disabled={!localTuf?.available && cfg.update_source !== UPDATE_LOCAL_TUF}
+                onChange={() => setUpdateSource(UPDATE_LOCAL_TUF)}
+              />
+              Local TUF
+            </label>
+          </div>
+          {cfg.update_source === UPDATE_LOCAL_TUF && (
+            <span className={localTuf?.available ? "dim" : undefined} style={{ color: localTuf?.available ? undefined : "var(--ui-error)" }}>
+              {localTuf?.available ? (
+                <>
+                  <span className="mono">{localTuf.url}</span> — a TUF tab rebuild rotates its keys, so rebuild these installers after one.
+                </>
+              ) : (
+                localTuf?.reason ?? "checking local TUF…"
+              )}
+            </span>
+          )}
+          <div style={{ display: "flex", gap: "var(--pad-medium)", flexWrap: "wrap" }}>
+            <ChannelSelect label="orbit" value={cfg.orbit_channel} options={channels?.orbit} onChange={(v) => set("orbit_channel", v)} />
+            <ChannelSelect label="Fleet Desktop" value={cfg.desktop_channel} options={channels?.desktop} onChange={(v) => set("desktop_channel", v)} />
+            <ChannelSelect label="osquery" value={cfg.osqueryd_channel} options={channels?.osqueryd} onChange={(v) => set("osqueryd_channel", v)} />
+          </div>
+          <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <input type="checkbox" checked={cfg.debug} onChange={(e) => set("debug", e.target.checked)} />
+            Debug logging in orbit
+          </label>
+          <Field
+            label="Extra fleetctl package flags"
+            full
+            hint={flagsErr || "Added to every build, e.g. --enable-scripts --host-identifier=instance. Quote values with spaces."}
+            warn={!!flagsErr}
+          >
+            <input
+              className="mono"
+              value={cfg.extra_flags}
+              placeholder="--enable-scripts"
+              onChange={(e) => set("extra_flags", e.target.value)}
+              spellCheck={false}
+              style={{ width: "100%" }}
+            />
+          </Field>
+        </div>
       </div>
 
       {/* Build */}
