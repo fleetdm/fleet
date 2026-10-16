@@ -118,6 +118,10 @@ parasails.registerPage('login', {
             'value': 1.0,
             'currency': 'USD'
           });
+          // Track a "conversion" in LinkedIn Campaign Manager.
+          if(window.lintrk !== undefined) {
+            window.lintrk('track', { conversion_id: 31914441 });// eslint-disable-line camelcase
+          }
 
         } else {
           // For users with a local Fleet Premium trial.
