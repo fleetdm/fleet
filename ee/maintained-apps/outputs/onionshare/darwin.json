@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.6.5",
+      "version": "2.7",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.onionshare.onionshare';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.onionshare.onionshare' AND version_compare(bundle_short_version, '2.6.5') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.onionshare.onionshare' AND version_compare(bundle_short_version, '2.7') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.onionshare.onionshare' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://onionshare.org/dist/2.6.5/OnionShare-2.6.5.dmg",
+      "installer_url": "https://onionshare.org/dist/2.7/OnionShare-2.7.dmg",
       "install_script_ref": "3cc10185",
       "uninstall_script_ref": "fa11936f",
-      "sha256": "4426a52c9668799b4b1fa3823936e378f93ba01688b7e881bfdcf529e1b5c633",
+      "sha256": "bbfbfb0021524a6531119a986627419c7dbf229cd1ea055222ad344a65fad095",
       "default_categories": [
         "Communication"
       ]
