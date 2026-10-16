@@ -187,7 +187,7 @@ Respond in JSON with this data shape:
     if(profileType === 'mobileconfig') {
       generatedProfile.deliveryNotes = await sails.helpers.addSoftwareUpdateRemovalNote.with({ profile: generatedProfile.profile, deliveryNotes: generatedProfile.deliveryNotes || '' });
     }
-    if(profileType === 'ddm' && forFleet) {
+    if(profileType === 'ddm' && forFleet && _.isString(generatedProfile.profile)) {
       let withUserScope = await sails.helpers.addUserPayloadScopeToDeclaration.with({ profile: generatedProfile.profile, deliveryNotes: generatedProfile.deliveryNotes || '' });
       generatedProfile.profile = withUserScope.profile;
       generatedProfile.deliveryNotes = withUserScope.deliveryNotes;

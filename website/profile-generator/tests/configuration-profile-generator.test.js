@@ -240,7 +240,7 @@ async function generateOnce(testCase) {
     if(testCase.profileType === 'mobileconfig' && rawResult.configurationProfile) {
       rawResult.deliveryNotes = await sails.helpers.addSoftwareUpdateRemovalNote.with({ profile: rawResult.configurationProfile, deliveryNotes: rawResult.deliveryNotes || '' });
     }
-    if(testCase.profileType === 'ddm' && testCase.forFleet && rawResult.configurationProfile) {
+    if(testCase.profileType === 'ddm' && testCase.forFleet && typeof rawResult.configurationProfile === 'string') {
       let withUserScope = await sails.helpers.addUserPayloadScopeToDeclaration.with({ profile: rawResult.configurationProfile, deliveryNotes: rawResult.deliveryNotes || '' });
       rawResult.configurationProfile = withUserScope.profile;
       rawResult.deliveryNotes = withUserScope.deliveryNotes;

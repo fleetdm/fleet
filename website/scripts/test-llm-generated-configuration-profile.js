@@ -245,7 +245,7 @@ csp cases report as not-checked either way.`
           if(testCase.profileType === 'mobileconfig' && rawResult.configurationProfile) {
             rawResult.deliveryNotes = await sails.helpers.addSoftwareUpdateRemovalNote.with({ profile: rawResult.configurationProfile, deliveryNotes: rawResult.deliveryNotes || '' });
           }
-          if(testCase.profileType === 'ddm' && testCase.forFleet && rawResult.configurationProfile) {
+          if(testCase.profileType === 'ddm' && testCase.forFleet && _.isString(rawResult.configurationProfile)) {
             let withUserScope = await sails.helpers.addUserPayloadScopeToDeclaration.with({ profile: rawResult.configurationProfile, deliveryNotes: rawResult.deliveryNotes || '' });
             rawResult.configurationProfile = withUserScope.profile;
             rawResult.deliveryNotes = withUserScope.deliveryNotes;
