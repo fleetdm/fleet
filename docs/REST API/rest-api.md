@@ -8790,7 +8790,7 @@ Returns `400` when AI features are disabled (`server_settings.ai_features_disabl
 
 `Status: 422 Unprocessable entity`
 
-Returned when AI can't turn the instructions into a single profile for the platform, like a setting that doesn't exist on the platform or a profile that needs more than one file. Also returned when the generated profile fails the checks Fleet runs when you add a profile, like settings Fleet manages through disk encryption or OS updates. Retrying with the same instructions usually returns the same error.
+Returned when AI can't turn the instructions into a single profile for the platform, like a setting that doesn't exist on the platform or a profile that needs more than one file. Also returned when the generated profile is one Fleet doesn't allow you to add, like settings Fleet manages through disk encryption or OS updates. Retrying with the same instructions usually returns the same error.
 
 ```json
 {
@@ -8808,7 +8808,7 @@ Returned when AI can't turn the instructions into a single profile for the platf
 
 `Status: 422 Unprocessable entity`
 
-Returned when Fleet can't reach the AI service, or the AI service returns an error or times out. Retrying might succeed.
+Returned when Fleet can't reach the AI service, the AI service returns an error or times out, or the generated profile fails Fleet's profile validation, like a setting Apple or Microsoft doesn't document or a value of the wrong type. Retrying might succeed.
 
 ```json
 {
