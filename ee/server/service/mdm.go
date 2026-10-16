@@ -2523,8 +2523,7 @@ func (svc *Service) clearPasscodeApple(ctx context.Context, host *fleet.Host, ap
 	// The enrollment profile can restrict the Device Lock & Passcode Removal
 	// access right (BYOD manual enrollments); enforce it here rather than
 	// relying on the UI hiding the action, since the API can be called
-	// directly. Missing permissions rows fall back to unrestricted rights,
-	// matching the host details response.
+	// directly.
 	perms, err := svc.ds.GetHostMDMAppleEnrollmentPermissions(ctx, host.UUID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "get host mdm apple enrollment permissions")
