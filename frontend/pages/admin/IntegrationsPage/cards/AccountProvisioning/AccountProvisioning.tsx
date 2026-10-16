@@ -80,11 +80,8 @@ const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
   const {
     formData,
     setField,
-    validateField,
-    getError,
     setFieldError,
-    clearFieldError,
-    clearErrors,
+    getTextFieldProps,
     handleSubmit,
     isSubmitting,
   } = useFormValidation<IFormData>({
@@ -101,20 +98,10 @@ const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
     isSubmitting: isUpdating,
   });
 
-  const onFieldChange = (name: keyof IFormData, value: string) => {
-    setField(name, value);
+  const onTokenUrlChange = (value: string) => {
+    setField("tokenUrl", value);
 
-    // Emptying the last field is how the configuration gets cleared, and an
-    // empty form is valid, so every required-field error stops applying.
-    if (isEmptyFormData({ ...formData, [name]: value })) {
-      clearErrors();
-      return;
-    }
-
-    if (
-      name === "tokenUrl" &&
-      formData.clientSecret === UNCHANGED_PASSWORD_API_RESPONSE
-    ) {
+    if (formData.clientSecret === UNCHANGED_PASSWORD_API_RESPONSE) {
       // The server rejects a token URL change that reuses the stored secret
       // (the secret would be sent to the new, possibly hostile, URL), so clear
       // the masked secret and have the user re-enter it. Same pattern as
@@ -197,36 +184,22 @@ const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
           >
             <InputField
               label="Token URL"
-              name="tokenUrl"
-              value={formData.tokenUrl}
-              onChange={(val) => onFieldChange("tokenUrl", val)}
-              onBlur={() => validateField("tokenUrl")}
-              onFocus={() => clearFieldError("tokenUrl")}
-              error={getError("tokenUrl")}
+              {...getTextFieldProps("tokenUrl")}
+              onChange={onTokenUrlChange}
               disabled={isSubmitting}
               placeholder="https://yourdomain.okta.com/oauth2/v1/token"
               helpText="Your IdP URL for verifying login credentials. For Okta, this is typically https://yourdomain.okta.com/oauth2/v1/token."
             />
             <InputField
               label="Client ID"
-              name="clientId"
-              value={formData.clientId}
-              onChange={(val) => onFieldChange("clientId", val)}
-              onBlur={() => validateField("clientId")}
-              onFocus={() => clearFieldError("clientId")}
-              error={getError("clientId")}
+              {...getTextFieldProps("clientId")}
               helpText="In Okta, this will be in the Client Credentials section."
               disabled={isSubmitting}
             />
             <InputField
               type="password"
               label="Client secret"
-              name="clientSecret"
-              value={formData.clientSecret}
-              onChange={(val) => onFieldChange("clientSecret", val)}
-              onBlur={() => validateField("clientSecret")}
-              onFocus={() => clearFieldError("clientSecret")}
-              error={getError("clientSecret")}
+              {...getTextFieldProps("clientSecret")}
               helpText="In Okta, this will be in the Client Credentials section."
               disabled={isSubmitting}
             />

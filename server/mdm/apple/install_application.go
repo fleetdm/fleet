@@ -120,7 +120,8 @@ func SubstituteFleetVarsInAppConfig(
 			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 			fleet.FleetVarHostEndUserIDPGroups,
 			fleet.FleetVarHostEndUserIDPDepartment,
-			fleet.FleetVarHostEndUserIDPFullname:
+			fleet.FleetVarHostEndUserIDPFullname,
+			fleet.FleetVarHostEndUserIDPExternalID:
 			// onError in the profile processor writes a per-host failure
 			// record; here we just capture the per-variable detail string so
 			// we can surface it through UnresolvableAppConfigVarError.

@@ -310,6 +310,16 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.UniqueIdentifier, out.Version,
 		)
 	}
+	switch input.Token {
+	case "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3":
+		// CFBundleShortVersionString is major.minor only ("26.3" for cask "26.3.5"),
+		// which version_compare sorts below the cask version even for x.y.0 releases;
+		// CFBundleVersion carries the full cask version.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
 	if input.Token == "r-app" {
 		// R.app's bundle_short_version is a descriptive string rather than a bare
 		// version ("R" is duplicated in some builds and not others, e.g.
