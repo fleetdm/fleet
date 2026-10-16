@@ -353,7 +353,7 @@ try {
 
     # The task runs the uninstall script as the signed-in user
     $action = New-ScheduledTaskAction -Execute "PowerShell.exe" `
-        -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$uninstallScriptPath`""
+        -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$uninstallScriptPath`""
     $principal = New-ScheduledTaskPrincipal -UserId $userAccount -LogonType Interactive
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
     $task = New-ScheduledTask -Action $action -Principal $principal -Settings $settings
