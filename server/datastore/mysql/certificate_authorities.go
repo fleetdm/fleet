@@ -3,12 +3,15 @@ package mysql
 import (
 	"cmp"
 	"context"
+	"crypto/x509"
 	"database/sql"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/crypto"
@@ -24,8 +27,19 @@ type certificateAuthorityWithEncryptedSecrets struct {
 	PasswordEncrypted                []byte `db:"password_encrypted"`
 	ChallengeEncrypted               []byte `db:"challenge_encrypted"`
 	ClientSecretEncrypted            []byte `db:"client_secret_encrypted"`
+	MTLSKeyEncrypted                 []byte `db:"mtls_key_encrypted"`
 	CertificateUserPrincipalNamesRaw []byte `db:"certificate_user_principal_names"`
 }
+
+// ejbcaColumns are the EJBCA columns of certificate_authorities, selected after client_secret_encrypted.
+const ejbcaColumns = `
+		mtls_cert_pem,
+		mtls_key_encrypted,
+		trust_ca_bundle_pem,
+		ejbca_ca_name,
+		ejbca_certificate_profile_name,
+		ejbca_end_entity_profile_name,
+		ejbca_username_template,`
 
 func (ds *Datastore) GetCertificateAuthorityByID(ctx context.Context, id uint, includeSecrets bool) (*fleet.CertificateAuthority, error) {
 	stmt := `
@@ -45,7 +59,7 @@ func (ds *Datastore) GetCertificateAuthorityByID(ctx context.Context, id uint, i
 		password_encrypted,
 		challenge_encrypted,
 		client_id,
-		client_secret_encrypted,
+		client_secret_encrypted,` + ejbcaColumns + `
 		created_at,
 		updated_at
 		FROM
@@ -100,6 +114,13 @@ func (ds *Datastore) postprocessRetrievedCertificateAuthority(ctx context.Contex
 			}
 			ca.ClientSecret = ptr.String(string(decryptedClientSecret))
 		}
+		if ca.MTLSKeyEncrypted != nil {
+			decryptedMTLSKey, err := crypto.DecryptAESGCM(ca.MTLSKeyEncrypted, ds.serverPrivateKey)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, fmt.Sprintf("decrypting mTLS key for certificate authority %d", ca.ID))
+			}
+			ca.MTLSKeyPEM = new(string(decryptedMTLSKey))
+		}
 	} else {
 		if ca.APITokenEncrypted != nil {
 			ca.APIToken = ptr.String(fleet.MaskedPassword)
@@ -113,6 +134,12 @@ func (ds *Datastore) postprocessRetrievedCertificateAuthority(ctx context.Contex
 		if ca.ClientSecretEncrypted != nil {
 			ca.ClientSecret = ptr.String(fleet.MaskedPassword)
 		}
+		if ca.MTLSKeyEncrypted != nil {
+			ca.MTLSKeyPEM = new(fleet.MaskedPassword)
+		}
+	}
+	if ca.MTLSCertPEM != nil {
+		ca.MTLSCertExpiresAt = ds.mtlsCertExpiry(ctx, ca.ID, *ca.MTLSCertPEM)
 	}
 	if ca.CertificateUserPrincipalNamesRaw != nil {
 		if err := json.Unmarshal(ca.CertificateUserPrincipalNamesRaw, &ca.CertificateUserPrincipalNames); err != nil {
@@ -120,6 +147,21 @@ func (ds *Datastore) postprocessRetrievedCertificateAuthority(ctx context.Contex
 		}
 	}
 	return nil
+}
+
+// mtlsCertExpiry returns the expiry of the first certificate in the PEM, or nil, logged, if it can't be parsed so reads don't break.
+func (ds *Datastore) mtlsCertExpiry(ctx context.Context, caID uint, certPEM string) *time.Time {
+	block, _ := pem.Decode([]byte(certPEM))
+	if block == nil {
+		ds.logger.WarnContext(ctx, "certificate authority mTLS certificate is not PEM encoded", "certificate_authority_id", caID)
+		return nil
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		ds.logger.WarnContext(ctx, "parsing certificate authority mTLS certificate", "certificate_authority_id", caID, "err", err)
+		return nil
+	}
+	return &cert.NotAfter
 }
 
 func (ds *Datastore) GetAllCertificateAuthorities(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
@@ -140,7 +182,7 @@ func (ds *Datastore) GetAllCertificateAuthorities(ctx context.Context, includeSe
 		challenge_url,
 		challenge_encrypted,
 		client_id,
-		client_secret_encrypted,
+		client_secret_encrypted,` + ejbcaColumns + `
 		created_at,
 		updated_at
 		FROM
@@ -213,7 +255,7 @@ func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.Cert
 	return ca, nil
 }
 
-const argsCountInsertCertificateAuthority = 15
+const argsCountInsertCertificateAuthority = 22
 
 const sqlInsertCertificateAuthority = `INSERT INTO certificate_authorities (
 	type,
@@ -230,7 +272,14 @@ const sqlInsertCertificateAuthority = `INSERT INTO certificate_authorities (
 	password_encrypted,
 	challenge_encrypted,
 	client_id,
-	client_secret_encrypted
+	client_secret_encrypted,
+	mtls_cert_pem,
+	mtls_key_encrypted,
+	trust_ca_bundle_pem,
+	ejbca_ca_name,
+	ejbca_certificate_profile_name,
+	ejbca_end_entity_profile_name,
+	ejbca_username_template
 ) VALUES %s`
 
 const sqlUpsertCertificateAuthority = sqlInsertCertificateAuthority + ` ON DUPLICATE KEY UPDATE
@@ -248,7 +297,14 @@ const sqlUpsertCertificateAuthority = sqlInsertCertificateAuthority + ` ON DUPLI
 	password_encrypted = VALUES(password_encrypted),
 	challenge_encrypted = VALUES(challenge_encrypted),
 	client_id = VALUES(client_id),
-	client_secret_encrypted = VALUES(client_secret_encrypted)`
+	client_secret_encrypted = VALUES(client_secret_encrypted),
+	mtls_cert_pem = VALUES(mtls_cert_pem),
+	mtls_key_encrypted = VALUES(mtls_key_encrypted),
+	trust_ca_bundle_pem = VALUES(trust_ca_bundle_pem),
+	ejbca_ca_name = VALUES(ejbca_ca_name),
+	ejbca_certificate_profile_name = VALUES(ejbca_certificate_profile_name),
+	ejbca_end_entity_profile_name = VALUES(ejbca_end_entity_profile_name),
+	ejbca_username_template = VALUES(ejbca_username_template)`
 
 func sqlGenerateArgsForInsertCertificateAuthority(ctx context.Context, serverPrivateKey string, ca *fleet.CertificateAuthority) ([]interface{}, string, error) {
 	var upns []byte
@@ -256,6 +312,7 @@ func sqlGenerateArgsForInsertCertificateAuthority(ctx context.Context, serverPri
 	var encryptedChallenge []byte
 	var encryptedAPIToken []byte
 	var encryptedClientSecret []byte
+	var encryptedMTLSKey []byte
 	var err error
 
 	if ca.CertificateUserPrincipalNames != nil {
@@ -288,6 +345,12 @@ func sqlGenerateArgsForInsertCertificateAuthority(ctx context.Context, serverPri
 			return nil, "", ctxerr.Wrap(ctx, err, "encrypting client secret for new certificate authority")
 		}
 	}
+	if ca.MTLSKeyPEM != nil {
+		encryptedMTLSKey, err = crypto.EncryptAESGCM([]byte(*ca.MTLSKeyPEM), serverPrivateKey)
+		if err != nil {
+			return nil, "", ctxerr.Wrap(ctx, err, "encrypting mTLS key for new certificate authority")
+		}
+	}
 
 	args := []interface{}{
 		ca.Type,
@@ -305,8 +368,15 @@ func sqlGenerateArgsForInsertCertificateAuthority(ctx context.Context, serverPri
 		encryptedChallenge,
 		ca.ClientID,
 		encryptedClientSecret,
+		ca.MTLSCertPEM,
+		encryptedMTLSKey,
+		ca.TrustCABundlePEM,
+		ca.EJBCACAName,
+		ca.EJBCACertificateProfileName,
+		ca.EJBCAEndEntityProfileName,
+		ca.EJBCAUsernameTemplate,
 	}
-	placeholders := "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+	placeholders := "(" + strings.TrimSuffix(strings.Repeat("?,", len(args)), ",") + ")"
 
 	return args, placeholders, nil
 }
@@ -371,23 +441,26 @@ func (ds *Datastore) BatchApplyCertificateAuthorities(ctx context.Context, ops f
 	upserts = append(upserts, ops.Update...)
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		var digiCertUpdates []*fleet.CertificateAuthority
-		var digiCertNames []string
-		for _, ca := range ops.Update {
-			if ca.Type == string(fleet.CATypeDigiCert) {
-				digiCertUpdates = append(digiCertUpdates, ca)
-				digiCertNames = append(digiCertNames, *ca.Name)
+		resendCANames := make(map[fleet.CAType][]string, len(profileCATypes))
+		for _, t := range profileCATypes {
+			var updates []*fleet.CertificateAuthority
+			var names []string
+			for _, ca := range ops.Update {
+				if ca.Type == string(t.caType) {
+					updates = append(updates, ca)
+					names = append(names, *ca.Name)
+				}
 			}
-		}
-		var resendCANames []string
-		if len(digiCertUpdates) > 0 {
-			oldDigiCertCAs, err := ds.getDigiCertCAsForUpdateDB(ctx, tx, "name IN (?)", digiCertNames)
+			if len(updates) == 0 {
+				continue
+			}
+			oldCAs, err := ds.getCAsForUpdateDB(ctx, tx, t.caType, "name IN (?)", names)
 			if err != nil {
 				return err
 			}
-			for _, ca := range digiCertUpdates {
-				if old, ok := oldDigiCertCAs[*ca.Name]; ok && digiCertCertificateFieldsChanged(old, ca) {
-					resendCANames = append(resendCANames, *ca.Name)
+			for _, ca := range updates {
+				if old, ok := oldCAs[*ca.Name]; ok && certificateFieldsChanged(old, ca, true) {
+					resendCANames[t.caType] = append(resendCANames[t.caType], *ca.Name)
 				}
 			}
 		}
@@ -397,26 +470,42 @@ func (ds *Datastore) BatchApplyCertificateAuthorities(ctx context.Context, ops f
 		if err := batchDeleteCertificateAuthorities(ctx, tx, ops.Delete); err != nil {
 			return err
 		}
-		if len(resendCANames) == 0 {
-			return nil
+		for _, t := range profileCATypes {
+			if names := resendCANames[t.caType]; len(names) > 0 {
+				if err := resendCAProfilesDB(ctx, tx, t.dataVar, names, nil); err != nil {
+					return err
+				}
+			}
 		}
-		return resendDigiCertProfilesDB(ctx, tx, resendCANames, nil)
+		return nil
 	})
 }
 
-// getDigiCertCAsForUpdateDB returns the DigiCert CAs matching where, by name, locked until the transaction ends.
-func (ds *Datastore) getDigiCertCAsForUpdateDB(ctx context.Context, tx sqlx.ExtContext, where string, args ...any) (map[string]*fleet.CertificateAuthority, error) {
+// profileCATypes are the CA types that issue a certificate for each host when a profile that uses their data variable is delivered.
+var profileCATypes = []struct {
+	caType  fleet.CAType
+	dataVar fleet.FleetVarName
+}{
+	{fleet.CATypeDigiCert, fleet.FleetVarDigiCertDataPrefix},
+	{fleet.CATypeEJBCA, fleet.FleetVarEJBCADataPrefix},
+}
+
+// getCAsForUpdateDB locks the CAs of a type matching where, selecting only the fields that certificateFieldsChanged compares.
+func (ds *Datastore) getCAsForUpdateDB(ctx context.Context, tx sqlx.ExtContext, caType fleet.CAType, where string, args ...any,
+) (map[string]*fleet.CertificateAuthority, error) {
 	stmt, args, err := sqlx.In(`
-		SELECT id, type, name, profile_id, certificate_common_name, certificate_user_principal_names, certificate_seat_id
+		SELECT
+			id, type, name, profile_id, certificate_common_name, certificate_user_principal_names, certificate_seat_id, ejbca_ca_name,
+			ejbca_certificate_profile_name, ejbca_end_entity_profile_name, ejbca_username_template
 		FROM certificate_authorities
 		WHERE type = ? AND `+where+`
-		FOR UPDATE`, append([]any{fleet.CATypeDigiCert}, args...)...)
+		FOR UPDATE`, append([]any{caType}, args...)...)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "prepare select DigiCert certificate authorities for update")
+		return nil, ctxerr.Wrapf(ctx, err, "prepare select %s certificate authorities for update", caType)
 	}
 	var rows []certificateAuthorityWithEncryptedSecrets
 	if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "select DigiCert certificate authorities for update")
+		return nil, ctxerr.Wrapf(ctx, err, "select %s certificate authorities for update", caType)
 	}
 	cas := make(map[string]*fleet.CertificateAuthority, len(rows))
 	for _, row := range rows {
@@ -428,14 +517,26 @@ func (ds *Datastore) getDigiCertCAsForUpdateDB(ctx context.Context, tx sqlx.ExtC
 	return cas, nil
 }
 
-// digiCertCertificateFieldsChanged reports whether an update changes what DigiCert puts in issued certificates. Nil fields in the update
-// are left unchanged.
-func digiCertCertificateFieldsChanged(oldCA, ca *fleet.CertificateAuthority) bool {
-	return ca.ProfileID != nil && *ca.ProfileID != ptr.ValOrZero(oldCA.ProfileID) ||
-		ca.CertificateCommonName != nil && *ca.CertificateCommonName != ptr.ValOrZero(oldCA.CertificateCommonName) ||
-		ca.CertificateSeatID != nil && *ca.CertificateSeatID != ptr.ValOrZero(oldCA.CertificateSeatID) ||
-		ca.CertificateUserPrincipalNames != nil &&
-			!slices.Equal(*ca.CertificateUserPrincipalNames, ptr.ValOrZero(oldCA.CertificateUserPrincipalNames))
+// certificateFieldsChanged reports whether an update changes what the CA puts in issued certificates. Nil fields are unchanged in a
+// partial update, but cleared in a full replacement such as a batch apply.
+func certificateFieldsChanged(oldCA, ca *fleet.CertificateAuthority, fullReplacement bool) bool {
+	upnsChanged := (ca.CertificateUserPrincipalNames != nil || fullReplacement) &&
+		!slices.Equal(ptr.ValOrZero(ca.CertificateUserPrincipalNames), ptr.ValOrZero(oldCA.CertificateUserPrincipalNames))
+	changed := func(updated, old *string) bool {
+		return (updated != nil || fullReplacement) && ptr.ValOrZero(updated) != ptr.ValOrZero(old)
+	}
+	switch fleet.CAType(ca.Type) {
+	case fleet.CATypeDigiCert:
+		return changed(ca.ProfileID, oldCA.ProfileID) || changed(ca.CertificateCommonName, oldCA.CertificateCommonName) ||
+			changed(ca.CertificateSeatID, oldCA.CertificateSeatID) || upnsChanged
+	case fleet.CATypeEJBCA:
+		return changed(ca.EJBCACAName, oldCA.EJBCACAName) || changed(ca.EJBCACertificateProfileName, oldCA.EJBCACertificateProfileName) ||
+			changed(ca.EJBCAEndEntityProfileName, oldCA.EJBCAEndEntityProfileName) ||
+			changed(ca.CertificateCommonName, oldCA.CertificateCommonName) ||
+			changed(ca.EJBCAUsernameTemplate, oldCA.EJBCAUsernameTemplate) || upnsChanged
+	default:
+		return false
+	}
 }
 
 func (ds *Datastore) DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) (*fleet.CertificateAuthoritySummary, error) {
@@ -507,13 +608,14 @@ func (ds *Datastore) UpdateCertificateAuthorityByID(ctx context.Context, certifi
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var resendCAName *string
-		if ca.Type == string(fleet.CATypeDigiCert) {
-			oldDigiCertCAs, err := ds.getDigiCertCAsForUpdateDB(ctx, tx, "id = ?", certificateAuthorityID)
+		dataVar, resends := dataVarForCAType(fleet.CAType(ca.Type))
+		if resends {
+			oldCAs, err := ds.getCAsForUpdateDB(ctx, tx, fleet.CAType(ca.Type), "id = ?", certificateAuthorityID)
 			if err != nil {
 				return err
 			}
-			for _, old := range oldDigiCertCAs {
-				if digiCertCertificateFieldsChanged(old, ca) {
+			for _, old := range oldCAs {
+				if certificateFieldsChanged(old, ca, false) {
 					resendCAName = cmp.Or(ca.Name, old.Name)
 				}
 			}
@@ -529,8 +631,18 @@ func (ds *Datastore) UpdateCertificateAuthorityByID(ctx context.Context, certifi
 		if resendCAName == nil {
 			return nil
 		}
-		return resendDigiCertProfilesDB(ctx, tx, []string{*resendCAName}, nil)
+		return resendCAProfilesDB(ctx, tx, dataVar, []string{*resendCAName}, nil)
 	})
+}
+
+// dataVarForCAType returns the prefix of the profile variable that gets a host its certificate from a CA of the type, if it has one.
+func dataVarForCAType(caType fleet.CAType) (fleet.FleetVarName, bool) {
+	for _, t := range profileCATypes {
+		if t.caType == caType {
+			return t.dataVar, true
+		}
+	}
+	return "", false
 }
 
 // generateUpdateQuery generates the SQL update query for a Certificate Authority based on the provided fields
@@ -682,6 +794,42 @@ func (ds *Datastore) generateUpdateQueryWithArgs(ctx context.Context, ca *fleet.
 				return "", ctxerr.Wrap(ctx, err, "encrypting password for new certificate authority")
 			}
 			*args = append(*args, encryptedPassword)
+		}
+	case string(fleet.CATypeEJBCA):
+		for _, f := range []struct {
+			column string
+			value  *string
+		}{
+			{"name", ca.Name},
+			{"url", ca.URL},
+			{"certificate_common_name", ca.CertificateCommonName},
+			{"mtls_cert_pem", ca.MTLSCertPEM},
+			{"trust_ca_bundle_pem", ca.TrustCABundlePEM},
+			{"ejbca_ca_name", ca.EJBCACAName},
+			{"ejbca_certificate_profile_name", ca.EJBCACertificateProfileName},
+			{"ejbca_end_entity_profile_name", ca.EJBCAEndEntityProfileName},
+			{"ejbca_username_template", ca.EJBCAUsernameTemplate},
+		} {
+			if f.value != nil {
+				updates = append(updates, f.column+" = ?")
+				*args = append(*args, *f.value)
+			}
+		}
+		if ca.MTLSKeyPEM != nil {
+			updates = append(updates, "mtls_key_encrypted = ?")
+			encryptedMTLSKey, err := crypto.EncryptAESGCM([]byte(*ca.MTLSKeyPEM), ds.serverPrivateKey)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "encrypting mTLS key for certificate authority")
+			}
+			*args = append(*args, encryptedMTLSKey)
+		}
+		if ca.CertificateUserPrincipalNames != nil {
+			updates = append(updates, "certificate_user_principal_names = ?")
+			upns, err := json.Marshal(*ca.CertificateUserPrincipalNames)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "marshalling certificate user principal names for updating certificate authority")
+			}
+			*args = append(*args, upns)
 		}
 	default:
 		return "", fmt.Errorf("unknown certificate authority type: %s", ca.Type)

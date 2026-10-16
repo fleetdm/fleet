@@ -11165,6 +11165,12 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 			caType:               fleet.CAConfigCustomSCEPProxy,
 			challengeRetrievedAt: nil,
 		},
+		{
+			name:                 "EJBCA",
+			caName:               "ejbca",
+			caType:               fleet.CAConfigEJBCA,
+			challengeRetrievedAt: nil,
+		},
 	}
 
 	for _, tc := range testCases {
