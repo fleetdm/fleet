@@ -4090,7 +4090,8 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 		}
 	}
 	if _, err := ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHostIDs); err != nil {
-		return nil, err
+		// The apply has committed, so don't report it as failed.
+		ds.logger.ErrorContext(ctx, "activate next activity after software apply", "err", err)
 	}
 	return modifiedInstallers, nil
 }
