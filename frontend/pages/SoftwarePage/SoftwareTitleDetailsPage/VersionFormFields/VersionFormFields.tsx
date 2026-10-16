@@ -227,9 +227,9 @@ interface IVersionFormFieldsProps {
    * button (iOS/iPadOS when self-service is on). Opens the title-level
    * self-service preview modal. */
   onClickPreviewEndUserExperience: () => void;
-  /** When true, the Configuration editor is read-only. Native form controls
-   * are disabled by a parent `<fieldset disabled>` in each caller; this
-   * handles the ACE editor, which isn't a form control. */
+  /** When true, every control is disabled and removed from the tab order
+   * (text inputs, Editor via `readOnly`, Slider, Checkbox, radios, label
+   * dropdown, category checkboxes). */
   disabled?: boolean;
 }
 
@@ -297,6 +297,7 @@ const VersionFormFields = ({
         placeholder="e.g. Production"
         autofocus
         inputOptions={{ maxLength: 255 }}
+        disabled={disabled}
       />
 
       <Editor
@@ -353,12 +354,14 @@ const VersionFormFields = ({
                   label="Window start (host local time)"
                   type="time"
                   placeholder="00:00"
+                  disabled={disabled}
                 />
                 <InputField
                   {...getTextFieldProps("autoUpdateWindowEnd")}
                   label="Window end (host local time)"
                   type="time"
                   placeholder="04:00"
+                  disabled={disabled}
                 />
               </div>
             )}

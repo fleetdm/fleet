@@ -166,8 +166,7 @@ const EditVersionModal = ({
           className={`${baseClass}__form`}
           onSubmit={handleSubmit(onValidSubmit)}
         >
-          <fieldset
-            disabled={gitOpsModeEnabled}
+          <div
             className={classnames(`${baseClass}__form-content`, {
               [`${baseClass}__form-content--disabled`]: gitOpsModeEnabled,
             })}
@@ -186,7 +185,7 @@ const EditVersionModal = ({
               }
               disabled={gitOpsModeEnabled}
             />
-          </fieldset>
+          </div>
 
           <div className="modal-cta-wrap">
             <GitOpsModeTooltipWrapper
