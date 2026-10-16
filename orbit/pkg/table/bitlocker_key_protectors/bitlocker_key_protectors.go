@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tablehelpers"
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/rs/zerolog"
@@ -42,7 +43,7 @@ func (t *Table) generate(
 ) ([]map[string]string, error) {
 
 	// Get-BitLockerVolume only exists where BitLocker is installed, which is optional on Windows Server. Without it there
-	// are no protectors, and an error would fail every query that references this table, so emit nothing instead.
+	// are no protectors, so emit nothing instead.
 	cmd := `if (-not (Get-Command Get-BitLockerVolume -ErrorAction SilentlyContinue)) { exit 0 }
 	Get-BitlockerVolume | ForEach-Object {
 		$vol = $_
