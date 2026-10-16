@@ -48,7 +48,8 @@ const (
 
 // User-facing messages. They end up in the UI, so they say what to check.
 const (
-	msgInsecureURL         = "The EJBCA URL must use https, because Fleet authenticates to EJBCA with a TLS client certificate."
+	msgInvalidURL = "The EJBCA URL must be an https URL, such as https://ejbca.example.com:8443, without credentials, " +
+		"a query, or a fragment."
 	msgCertExpired         = "The TLS client certificate Fleet uses for EJBCA expired on %s. Upload a new client certificate."
 	msgServerCertUntrusted = "Couldn't verify EJBCA's server certificate: %s. Add the CA that issued it to the trust CA bundle."
 	msgClientCertRejected  = "EJBCA rejected the TLS client certificate (%s). Check that EJBCA trusts the CA that issued it."
@@ -59,11 +60,15 @@ const (
 		"Protocol Configuration in EJBCA, and restart EJBCA if needed."
 	msgNotAuthorized = "EJBCA didn't authorize the Fleet client certificate: %s. Check that EJBCA trusts the CA that issued it, and that " +
 		"it is a member of an EJBCA role with the access rules Fleet needs."
-	msgNoCAs           = "The Fleet client certificate can't access any CAs in EJBCA. Add the CA to the access rules of its EJBCA role."
-	msgCANotFound      = "EJBCA CA %q was not found. The Fleet client certificate can access: %s."
-	msgProfileNotFound = "EJBCA certificate profile %q was not found."
-	msgEnrollRejected  = "EJBCA rejected the enrollment request: %s. Check the CA, certificate profile, and end entity profile names."
-	msgUnexpected      = "Unexpected response from EJBCA, status %d: %s"
+	msgNoCAs              = "The Fleet client certificate can't access any CAs in EJBCA. Add the CA to the access rules of its EJBCA role."
+	msgCANotFound         = "EJBCA CA %q was not found. The Fleet client certificate can access: %s."
+	msgProfileNotFound    = "EJBCA certificate profile %q was not found."
+	msgEnrollRejected     = "EJBCA rejected the enrollment request: %s. Check the CA, certificate profile, and end entity profile names."
+	msgUnexpected         = "Unexpected response from EJBCA, status %d: %s"
+	msgCommonNameMismatch = "EJBCA issued a certificate with the common name %q, not the requested %q. Check that the end entity profile " +
+		"takes the subject from the request."
+	msgUPNMissing = "EJBCA left the user principal name %q out of the certificate. Check that the end entity and certificate profiles " +
+		"allow it."
 )
 
 var (
@@ -164,6 +169,8 @@ func (s *Service) verifyCertificateProfile(ctx context.Context, client *http.Cli
 	}
 	status, body, err := s.do(ctx, client, base, http.MethodGet, "/v2/certificate/profile/"+url.PathEscape(profileName), nil)
 	switch {
+	case err != nil && ctx.Err() != nil:
+		return err // canceled or out of time, which is not the lookup being unavailable
 	case err != nil:
 		s.logger.DebugContext(ctx, "EJBCA certificate profile lookup unavailable", "err", err)
 	case status == http.StatusBadRequest && strings.Contains(errorMessage(body), unknownProfileText):
@@ -253,6 +260,16 @@ func (s *Service) GetCertificate(ctx context.Context, config fleet.EJBCACA) (*fl
 	if !privateKey.PublicKey.Equal(cert.PublicKey) {
 		return nil, ctxerr.New(ctx, "EJBCA returned a certificate for a different key")
 	}
+	// An end entity profile can change the subject or drop the UPNs, and the host would get a certificate that doesn't identify it.
+	if cert.Subject.CommonName != config.CertificateCommonName {
+		return nil, ctxerr.Errorf(ctx, msgCommonNameMismatch, cert.Subject.CommonName, config.CertificateCommonName)
+	}
+	issuedUPNs := upnsOf(cert)
+	for _, upn := range nonBlank(config.CertificateUserPrincipalNames) {
+		if !slices.Contains(issuedUPNs, upn) {
+			return nil, ctxerr.Errorf(ctx, msgUPNMissing, upn)
+		}
+	}
 
 	pfxPassword, err := server.GenerateRandomText(10)
 	if err != nil {
@@ -279,8 +296,9 @@ func (s *Service) GetCertificate(ctx context.Context, config fleet.EJBCACA) (*fl
 // when the client certificate has expired, since EJBCA would only reject the handshake.
 func (s *Service) newClient(ctx context.Context, config fleet.EJBCACA) (*http.Client, string, error) {
 	base, err := url.Parse(strings.TrimRight(config.URL, "/"))
-	if err != nil || base.Scheme != "https" || base.Host == "" {
-		return nil, "", ctxerr.New(ctx, msgInsecureURL)
+	if err != nil || base.Scheme != "https" || base.Host == "" || base.User != nil || base.RawQuery != "" || base.ForceQuery ||
+		base.Fragment != "" {
+		return nil, "", ctxerr.New(ctx, msgInvalidURL)
 	}
 
 	pair, err := tls.X509KeyPair([]byte(config.MTLSCertPEM), []byte(config.MTLSKeyPEM))
@@ -303,8 +321,9 @@ func (s *Service) newClient(ctx context.Context, config fleet.EJBCACA) (*http.Cl
 		}
 		tlsConfig.RootCAs = pool
 	}
-	client := fleethttp.NewClient(fleethttp.WithTimeout(s.timeout), fleethttp.WithTLSClientConfig(tlsConfig))
-	return client, base.String() + restAPIPrefix, nil
+	// Redirects are not followed, so an EJBCA response can't send Fleet's client certificate or the enrollment request elsewhere.
+	client := fleethttp.NewClient(fleethttp.WithTimeout(s.timeout), fleethttp.WithTLSClientConfig(tlsConfig), fleethttp.WithFollowRedir(false))
+	return client, base.JoinPath(restAPIPrefix).String(), nil
 }
 
 // do sends a request to EJBCA and returns the status and body. Failing to get a response is an error, with a message that says what to
@@ -315,6 +334,8 @@ func (s *Service) do(ctx context.Context, client *http.Client, base, method, pat
 		return 0, nil, ctxerr.Wrap(ctx, err, "creating EJBCA request")
 	}
 	req.Header.Set("Accept", "application/json")
+	// Each operation builds its own client, so don't leave its connection idle until the timeout, which adds up during bulk enrollment.
+	req.Close = true
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -393,12 +414,7 @@ func errorMessage(body []byte) string {
 //
 // where the value is a UTF8String. EJBCA keeps a UPN from the CSR only if the end entity profile allows it.
 func upnExtension(upns []string) (pkix.Extension, bool) {
-	var names []string
-	for _, upn := range upns {
-		if strings.TrimSpace(upn) != "" {
-			names = append(names, upn)
-		}
-	}
+	names := nonBlank(upns)
 	if len(names) == 0 {
 		return pkix.Extension{}, false
 	}
@@ -419,4 +435,34 @@ func upnExtension(upns []string) (pkix.Extension, bool) {
 		return pkix.Extension{}, false
 	}
 	return pkix.Extension{Id: oidSubjectAltName, Value: value}, true
+}
+
+func nonBlank(values []string) []string {
+	return slices.DeleteFunc(slices.Clone(values), func(v string) bool { return strings.TrimSpace(v) == "" })
+}
+
+// upnsOf returns the Microsoft UPNs in the subjectAltName of the certificate.
+func upnsOf(cert *x509.Certificate) []string {
+	otherName := cryptobyteasn1.Tag(0).ContextSpecific().Constructed()
+	var upns []string
+	for _, ext := range cert.Extensions {
+		names := cryptobyte.String(ext.Value)
+		if !ext.Id.Equal(oidSubjectAltName) || !names.ReadASN1(&names, cryptobyteasn1.SEQUENCE) {
+			continue
+		}
+		for !names.Empty() {
+			var name cryptobyte.String
+			var tag cryptobyteasn1.Tag
+			if !names.ReadAnyASN1(&name, &tag) {
+				break
+			}
+			var oid asn1.ObjectIdentifier
+			var value, upn cryptobyte.String
+			if tag == otherName && name.ReadASN1ObjectIdentifier(&oid) && oid.Equal(oidMicrosoftUPN) &&
+				name.ReadASN1(&value, otherName) && value.ReadASN1(&upn, cryptobyteasn1.UTF8String) {
+				upns = append(upns, string(upn))
+			}
+		}
+	}
+	return upns
 }
