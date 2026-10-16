@@ -145,8 +145,7 @@ Fleet's Head of Marketing is directly responsible for the accuracy of event loca
 9. Set a daily budget of $50.
 10. Under "Additional options," select "Manual bidding" and uncheck "Enable bid adjustments for high-value clicks." Ignore LinkedIn's suggested bid, which is usually high. Start at $1 and check the results. For a small, highly targeted workshop audience, go up to $2.
 11. Keep the "Single image" ad format and leave everything else at its defaults, then click "Next."
-12. When creating the ad for the new ad set, select "browse existing content" and find the post under the employee tab.
-13. Launch the ad set once approved.
+12. Finish and launch the ad set by following the ["LinkedIn workshop promotion"](https://docs.google.com/document/d/1Zgs093felMMJHNkYUZafLWoSsePPmg2ofl0zUYljx5Q/edit) steps (private Google doc).
 
 
 ### Settle event strategy
