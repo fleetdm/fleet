@@ -38,7 +38,6 @@ func Up_20261015221610(tx *sql.Tx) error {
 		}
 	}
 
-	// host_mdm_managed_certificates can be huge. INSTANT fails instead of rebuilding it if appending the enum member isn't metadata-only.
 	if _, err := tx.Exec(`
 		ALTER TABLE host_mdm_managed_certificates
 		MODIFY COLUMN type ENUM('digicert','custom_scep_proxy','ndes','smallstep','ejbca')
