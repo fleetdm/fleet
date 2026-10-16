@@ -41,8 +41,7 @@ const (
 
 // User-facing messages. They end up in the UI, so they say what to check.
 const (
-	msgInvalidURL = "The EJBCA URL must be an https URL, such as https://ejbca.example.com:8443, without credentials, " +
-		"a query, or a fragment."
+	msgInvalidURL          = "The EJBCA URL must be an https URL without credentials, such as https://ejbca.example.com:8443."
 	msgCertExpired         = "The TLS client certificate Fleet uses for EJBCA expired on %s. Upload a new client certificate."
 	msgServerCertUntrusted = "Couldn't verify EJBCA's server certificate: %s. Add the CA that issued it to the trust CA bundle."
 	msgClientCertRejected  = "EJBCA rejected the TLS client certificate (%s). Check that EJBCA trusts the CA that issued it."
@@ -271,10 +270,11 @@ func (s *Service) GetCertificate(ctx context.Context, config fleet.EJBCA) (*flee
 // when the client certificate has expired, since EJBCA would only reject the handshake.
 func (s *Service) newClient(ctx context.Context, config fleet.EJBCA) (*http.Client, string, error) {
 	base, err := url.Parse(strings.TrimRight(config.URL, "/"))
-	if err != nil || base.Scheme != "https" || base.Host == "" || base.User != nil || base.RawQuery != "" || base.ForceQuery ||
-		base.Fragment != "" {
+	if err != nil || base.Scheme != "https" || base.Host == "" || base.User != nil {
 		return nil, "", ctxerr.New(ctx, msgInvalidURL)
 	}
+	// EJBCA's REST API takes no query here, and a fragment is never sent.
+	base.RawQuery, base.ForceQuery, base.Fragment = "", false, ""
 
 	pair, err := tls.X509KeyPair([]byte(config.MTLSCertPEM), []byte(config.MTLSKeyPEM))
 	if err != nil {
