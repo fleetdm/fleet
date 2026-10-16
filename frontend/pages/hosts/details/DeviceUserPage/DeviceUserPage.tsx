@@ -1152,11 +1152,17 @@ const DeviceUserPage = ({
   };
 
   const coreWrapperClassnames = classNames("core-wrapper", {
-    "low-width-supported": !shouldShowUnsupportedScreen(location.pathname, isMobile),
+    "low-width-supported": !shouldShowUnsupportedScreen(
+      location.pathname,
+      isMobile
+    ),
   });
 
   const siteNavContainerClassnames = classNames("site-nav-container", {
-    "low-width-supported": !shouldShowUnsupportedScreen(location.pathname, isMobile),
+    "low-width-supported": !shouldShowUnsupportedScreen(
+      location.pathname,
+      isMobile
+    ),
   });
 
   // The SSO branch has to come first: a refused device call is an error to
