@@ -2,6 +2,8 @@ import { render, screen } from "@testing-library/react";
 import { noop } from "lodash";
 import React from "react";
 
+import { HostPlatform } from "interfaces/platform";
+
 import DeviceUserBanners from "./DeviceUserBanners";
 
 describe("Device User Banners", () => {
@@ -150,6 +152,32 @@ describe("Device User Banners", () => {
     ).toBeInTheDocument();
   });
 
+  it.each<HostPlatform>(["arch", "omarchy"])(
+    "does not offer a linux disk encryption key on %s, which Fleet cannot escrow for",
+    (platform) => {
+      render(
+        <DeviceUserBanners
+          hostPlatform={platform}
+          diskEncryptionOSSetting={{ status: "action_required", detail: "" }}
+          diskIsEncrypted
+          diskEncryptionKeyAvailable={false}
+          mdmEnrollmentStatus="On (automatic)"
+          mdmEnabledAndConfigured
+          depAssignedToFleet={false}
+          onlyAllowAppleBusinessEnrollment={false}
+          connectedToFleetMdm
+          macDiskEncryptionStatus={null}
+          diskEncryptionActionRequired={null}
+          onTriggerEscrowLinuxKey={noop}
+          onClickCreatePIN={noop}
+          onClickTurnOnMdm={noop}
+        />
+      );
+      expect(
+        screen.queryByText(createNewLinuxDiskEncryptKeyExpectedText)
+      ).not.toBeInTheDocument();
+    }
+  );
   it("renders the create PIN banner correctly for Windows", () => {
     render(
       <DeviceUserBanners

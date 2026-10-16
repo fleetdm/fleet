@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.1.0",
+      "version": "6.3.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.masscode.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.masscode.app' AND version_compare(bundle_short_version, '6.1.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.masscode.app' AND version_compare(bundle_short_version, '6.3.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'io.masscode.app' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/massCodeIO/massCode/releases/download/v6.1.0/massCode-6.1.0-arm64.dmg",
+      "installer_url": "https://github.com/massCodeIO/massCode/releases/download/v6.3.1/massCode-6.3.1-arm64.dmg",
       "install_script_ref": "2a161e31",
       "uninstall_script_ref": "02f458b9",
-      "sha256": "9ca890c3ffe538b8e51bf42a681f4eaf7733f54df7c2776148cfeb434853d366",
+      "sha256": "450c4aa8de921827e47419937dc05136155bc92bfc23a42d629d2971ae1ddec7",
       "default_categories": [
         "Developer tools"
       ]

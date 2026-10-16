@@ -229,9 +229,12 @@ upcoming AS (
 		FROM
 			upcoming_activities ua
 			JOIN vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
+			JOIN vpp_apps_teams vat ON vat.id = vaua.vpp_app_team_id
+			JOIN hosts h ON ua.host_id = h.id
 		WHERE
 			ua.activity_type = 'vpp_app_install'
 			AND vaua.vpp_app_team_id = :vpp_app_team_id
+			AND COALESCE(h.team_id, 0) = vat.global_or_team_id
 	) ranked
 	WHERE rn = 1
 ),
@@ -269,8 +272,10 @@ past AS (
 		FROM
 			host_vpp_software_installs hvsi
 			JOIN hosts h ON hvsi.host_id = h.id
+			JOIN vpp_apps_teams vat ON vat.id = hvsi.vpp_app_team_id
 		WHERE
 			hvsi.vpp_app_team_id = :vpp_app_team_id
+			AND COALESCE(h.team_id, 0) = vat.global_or_team_id
 			AND hvsi.removed = 0
 			AND hvsi.canceled = 0
 	) ranked

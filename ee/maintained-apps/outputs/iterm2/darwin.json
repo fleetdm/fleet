@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.7.4",
+      "version": "3.7.5",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.googlecode.iterm2';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.googlecode.iterm2' AND version_compare(bundle_short_version, '3.7.4') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.googlecode.iterm2' AND version_compare(bundle_short_version, '3.7.5') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.googlecode.iterm2' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://iterm2.com/downloads/stable/iTerm2-3_7_4.zip",
+      "installer_url": "https://iterm2.com/downloads/stable/iTerm2-3_7_5.zip",
       "install_script_ref": "71a393a2",
       "uninstall_script_ref": "df7c075c",
-      "sha256": "4bf02ae616752600cd195ca504e55392afb21741cda7314199e375ed8a46f90c",
+      "sha256": "404340110c5148d711a613002767160b3a4733477dfeca5168b6b6ab0ff30f45",
       "default_categories": [
         "Developer tools"
       ]

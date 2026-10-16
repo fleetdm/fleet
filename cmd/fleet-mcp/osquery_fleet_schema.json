@@ -498,8 +498,8 @@
     "platforms": [
       "darwin"
     ],
-    "description": "APFS cryptographic users for each APFS container, from the `diskutil apfs listCryptoUsers -plist <device>` command.\nCryptographic users include local user accounts that hold a Secure Token, the personal recovery key, and the MDM bootstrap token.\nThe `volume_owner` column reports whether each cryptographic user is an APFS volume owner. A host where no `LocalOpenDirectory` user is a volume owner has a user who cannot authorize macOS updates.",
-    "examples": "Find hosts where no local user account owns the APFS volume (e.g. a delayed first-login flow left the user without a Secure Token). Scope this as a policy to macOS hosts; hosts that return no rows fail the policy.\n\n```\nSELECT 1 FROM apfs_crypto_users WHERE type = 'LocalOpenDirectory' AND volume_owner = 1;\n```",
+    "description": "APFS cryptographic users for each APFS container, from the `diskutil apfs listCryptoUsers -plist <device>` command.\nCryptographic users include local user accounts that hold a Secure Token, the personal recovery key, and the MDM bootstrap token. Local user accounts without a Secure Token don't appear in this table.\nThe `volume_owner` column reports whether each cryptographic user is an APFS volume owner. A local user who isn't a volume owner can't authorize macOS updates.",
+    "examples": "Check whether a specific local user owns the APFS volume (e.g. to find hosts where a delayed first-login flow left the user without a Secure Token). Replace `<username>` with the account to check, and scope this as a policy to macOS hosts. Hosts that return no rows fail the policy.\n\n```\nSELECT 1 FROM apfs_crypto_users c JOIN users u ON u.uuid = c.crypto_user_uuid WHERE u.username = '<username>' AND c.volume_owner = 1;\n```\n\nCheck whether any local user account owns the APFS volume. This passes when one account (e.g. an admin) owns the volume, even if another local user doesn't. To check a specific user, use the example above.\n\n```\nSELECT 1 FROM apfs_crypto_users WHERE type = 'LocalOpenDirectory' AND volume_owner = 1;\n```",
     "columns": [
       {
         "name": "device_identifier",
@@ -517,7 +517,7 @@
         "name": "crypto_user_uuid",
         "type": "text",
         "required": false,
-        "description": "The UUID of the cryptographic user."
+        "description": "The UUID of the cryptographic user. For `LocalOpenDirectory` rows, this is the user account's GeneratedUID, which can be joined to [users.uuid](https://fleetdm.com/tables/users) to get the username."
       },
       {
         "name": "type",
@@ -30564,13 +30564,14 @@
     "description": "Track time passed since last boot. Some systems track this as calendar time, some as runtime.",
     "url": "https://fleetdm.com/tables/uptime",
     "platforms": [
+      "windows",
       "darwin",
       "linux",
-      "windows"
+      "chrome"
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
+    "notes": "On ChromeOS:\n  - This table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n  - Uptime is calculated from the last Chrome profile startup, which serves as a proxy for the device's last reboot. The startup timestamp persists across extension service worker restarts.\n  - The table returns no rows until the extension records its first Chrome profile startup after installation.",
     "examples": "See how long hosts that have been up for more than a month have been up. This\ncould indicate systems that are not ephemeral as expected, or not being\npatched as frequently as they should be.\n\n```\nSELECT days FROM uptime WHERE days >='31'\n```",
     "columns": [
       {

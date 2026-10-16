@@ -172,6 +172,41 @@ func TestSubstituteFleetVarsAndVitalsInAndroidAppConfig(t *testing.T) {
 		require.True(t, json.Valid(got))
 	})
 
+	t.Run("IDP external ID substituted", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, identifiers []string) ([]uint, error) {
+			return []uint{42}, nil
+		}
+		ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+			return &fleet.ScimUser{UserName: "jdoe@example.com", ExternalID: new("00u1abcd2EFGH3ijk4x7")}, nil
+		}
+		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
+			return nil, nil
+		}
+		cfg := []byte(`{"managedConfiguration": {"id": "$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID"}}`)
+		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, ds, cfg, host)
+		require.NoError(t, err)
+		require.JSONEq(t, `{"managedConfiguration": {"id": "00u1abcd2EFGH3ijk4x7"}}`, string(got))
+	})
+
+	t.Run("IDP external ID missing returns error", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, identifiers []string) ([]uint, error) {
+			return []uint{42}, nil
+		}
+		ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+			return &fleet.ScimUser{UserName: "jdoe@example.com"}, nil
+		}
+		ds.ListHostDeviceMappingFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostDeviceMapping, error) {
+			return nil, nil
+		}
+		cfg := []byte(`{"managedConfiguration": {"id": "$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID"}}`)
+		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, ds, cfg, host)
+		require.ErrorIs(t, err, ErrUnresolvableAndroidAppConfigVar)
+		require.ErrorContains(t, err, "There is no IdP external ID for this host.")
+		require.Nil(t, got)
+	})
+
 	t.Run("unsupported variable returns error", func(t *testing.T) {
 		cfg := []byte(`{"managedConfiguration": {"chal": "$FLEET_VAR_NDES_SCEP_CHALLENGE"}}`)
 		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, emptyDS, cfg, host)
