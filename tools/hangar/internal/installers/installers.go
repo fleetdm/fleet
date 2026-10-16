@@ -36,6 +36,9 @@ const (
 	DefaultDirName = "fleetd-installers"
 )
 
+// CustomTarget is the build target for a Fleet server Hangar doesn't run.
+const CustomTarget = "custom"
+
 // ProcID is the process-engine id of serverID's build.
 func ProcID(serverID string) string { return ProcPrefix + serverID }
 
@@ -197,6 +200,8 @@ type BuildInputs struct {
 	// UpdateURL / UpdateRoots are set only for a local TUF build.
 	UpdateURL   string
 	UpdateRoots string
+	// ExtraFlags are the user's additional flags (see ParseExtraFlags).
+	ExtraFlags []string
 }
 
 // CommonArgs are the fleetctl package flags shared by every job of a build
@@ -225,7 +230,60 @@ func CommonArgs(cfg settings.InstallerServerConfig, in BuildInputs) []string {
 	if cfg.UpdateSource == settings.UpdateSourceLocalTUF {
 		args = append(args, "--update-url="+in.UpdateURL, "--update-roots="+in.UpdateRoots)
 	}
-	return args
+	return append(args, in.ExtraFlags...)
+}
+
+// managedFlags are the fleetctl package flags Hangar sets itself; extra flags
+// may not repeat them.
+var managedFlags = map[string]bool{
+	"--type": true, "--arch": true, "--outfile": true, "--fleet-url": true, "--enroll-secret": true,
+	"--fleet-desktop": true, "--debug": true, "--disable-open-folder": true,
+	"--orbit-channel": true, "--desktop-channel": true, "--osqueryd-channel": true,
+	"--update-url": true, "--update-roots": true,
+}
+
+// ParseExtraFlags splits extra `fleetctl package` flags like a shell would
+// (whitespace-separated, with '…' and "…" quoting) and rejects flags Hangar
+// already sets. Values may be attached (--flag=value) or follow the flag.
+func ParseExtraFlags(s string) ([]string, error) {
+	var out []string
+	var cur strings.Builder
+	inTok := false
+	var quote rune
+	for _, r := range s {
+		switch {
+		case quote != 0:
+			if r == quote {
+				quote = 0
+			} else {
+				cur.WriteRune(r)
+			}
+		case r == '\'' || r == '"':
+			quote, inTok = r, true
+		case r == ' ' || r == '\t' || r == '\n' || r == '\r':
+			if inTok {
+				out = append(out, cur.String())
+				cur.Reset()
+				inTok = false
+			}
+		default:
+			cur.WriteRune(r)
+			inTok = true
+		}
+	}
+	if quote != 0 {
+		return nil, errors.New("extra flags: unclosed quote")
+	}
+	if inTok {
+		out = append(out, cur.String())
+	}
+	for _, a := range out {
+		name, _, _ := strings.Cut(a, "=")
+		if managedFlags[name] {
+			return nil, fmt.Errorf("extra flags: %s is set by Hangar — use the tab's own setting", name)
+		}
+	}
+	return out, nil
 }
 
 // MatchContext picks the fleetctl context for a server listening on port: the
@@ -338,6 +396,7 @@ type ManifestEntry struct {
 	DesktopChannel  string `json:"desktop_channel"`
 	OsquerydChannel string `json:"osqueryd_channel"`
 	FleetctlVersion string `json:"fleetctl_version"`
+	ExtraFlags      string `json:"extra_flags,omitempty"`
 }
 
 // Manifest is a server folder's manifest.json: one entry per file name.

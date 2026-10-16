@@ -17,6 +17,10 @@ export const INSTALLER_PLATFORMS: { key: string; label: string }[] = [
   { key: "rpm-arm64", label: "Linux ARM64 .rpm" },
 ];
 
+// CUSTOM_TARGET is the build target for a Fleet server Hangar doesn't run
+// (internal/installers.CustomTarget).
+export const CUSTOM_TARGET = "custom";
+
 export const UPDATE_OFFICIAL = "official";
 export const UPDATE_LOCAL_TUF = "local-tuf";
 
@@ -24,6 +28,10 @@ export const UPDATE_LOCAL_TUF = "local-tuf";
 // platform, Fleet Desktop on, official updates on stable.
 export function defaultInstallerServer(): InstallerServerConfig {
   return {
+    name: "",
+    fleetctl: "",
+    enroll_secret: "",
+    extra_flags: "",
     context: "",
     platforms: INSTALLER_PLATFORMS.map((p) => p.key),
     fleet_desktop: true,

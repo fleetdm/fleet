@@ -13,7 +13,7 @@ import {
   type InstallersManifestEntry,
   type InstallersOutputFile,
   type InstallersScanResult,
-  type InstallersServerInfo,
+  type InstallersTargetInfo,
   type InstallersShareStatus,
   type InstallersSharedFile,
   type LogEntry,
@@ -23,6 +23,7 @@ import {
   type Settings,
 } from "../../lib/ipc";
 import {
+  CUSTOM_TARGET,
   INSTALLER_PLATFORMS,
   UPDATE_LOCAL_TUF,
   UPDATE_OFFICIAL,
@@ -36,6 +37,12 @@ import {
 import { serverColorVar } from "../../lib/servers";
 
 const LOG_LEVELS = ["debug", "info", "warn", "error"];
+// The share controls row swaps between the port box and the URL + buttons;
+// a fixed minimum height keeps the card from shifting when it does.
+const SHARE_ROW: React.CSSProperties = { display: "flex", alignItems: "center", gap: "var(--pad-small)", flexWrap: "wrap", minHeight: 40 };
+const SHARE_BUTTON: React.CSSProperties = { minWidth: 130 };
+// Fleet dropdown value shown while the enroll secret was typed by hand.
+const MANUAL_FLEET = "__manual__";
 
 export function InstallersTab({
   settings,
@@ -131,6 +138,30 @@ export function InstallersTab({
   const outputRoot = cfg.output_dir.trim() || defaultDir;
   // Only servers that can build: enabled, with a worktree to take fleetctl from.
   const enabledServers = settings.servers.filter((srv) => srv.enabled && !!srv.worktree_path);
+  // Build targets: each Hangar server, plus a custom target for any other Fleet.
+  const targets: Target[] = [
+    ...enabledServers.map((srv) => ({ id: srv.id, label: srv.name, server: srv })),
+    { id: CUSTOM_TARGET, label: "Custom Fleet server" },
+  ];
+  // Until a target is picked here, follow the server selected in Hangar's switcher.
+  const targetId = targets.some((t) => t.id === cfg.target)
+    ? cfg.target
+    : (targets.find((t) => t.id === settings.active_server_id) ?? targets[0]).id;
+  // Switching to a Hangar server resets its context to the one matching its
+  // port (an explicit pick from earlier would otherwise win); the custom
+  // target keeps the context chosen for it.
+  const setTarget = useCallback(
+    (id: string) =>
+      persist((s) => {
+        const servers = { ...s.installers.servers };
+        if (id !== CUSTOM_TARGET && servers[id]?.context) servers[id] = { ...servers[id], context: "" };
+        return { ...s, installers: { ...s.installers, target: id, servers } };
+      }),
+    [persist],
+  );
+  const buildingIds = new Set(
+    procs.filter((p) => p.id.startsWith("installers:") && (p.state === "running" || p.state === "stopping")).map((p) => p.id.slice("installers:".length)),
+  );
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column", fontSize: "var(--fs-xx-small)" }}>
@@ -156,34 +187,36 @@ export function InstallersTab({
           flash={flash}
         />
 
-        {enabledServers.length === 0 ? (
-          <div className="card dim">No servers are set up yet — add one (with its worktree) in Settings to build installers for it.</div>
-        ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(460px, 1fr))", gap: "var(--pad-medium)", alignItems: "start" }}>
-            {enabledServers.map((srv) => (
-              <ServerCard
-                key={srv.id}
-                server={srv}
-                cfg={cfg.servers[srv.id] ?? defaultInstallerServer()}
-                onChange={(next) => setServerCfg(srv.id, next)}
-                outputDir={cfg.output_dir}
-                contexts={contexts}
-                official={official}
-                localTuf={localTuf}
-                proc={procs.find((p) => p.id === installersProcId(srv.id))}
-                flash={flash}
-              />
-            ))}
-          </div>
-        )}
+        <TargetCard
+          key={targetId}
+          targetId={targetId}
+          targets={targets}
+          buildingIds={buildingIds}
+          onTargetChange={setTarget}
+          servers={enabledServers}
+          cfg={cfg.servers[targetId] ?? defaultInstallerServer()}
+          onChange={(next) => setServerCfg(targetId, next)}
+          outputDir={cfg.output_dir}
+          contexts={contexts}
+          official={official}
+          localTuf={localTuf}
+          proc={procs.find((p) => p.id === installersProcId(targetId))}
+          flash={flash}
+        />
       </div>
       {toast && <Toast kind={toast.kind} msg={toast.msg} />}
     </div>
   );
 }
 
-function ServerCard({
-  server,
+type Target = { id: string; label: string; server?: ServerProfile };
+
+function TargetCard({
+  targetId,
+  targets,
+  buildingIds,
+  onTargetChange,
+  servers,
   cfg,
   onChange,
   outputDir,
@@ -193,7 +226,11 @@ function ServerCard({
   proc,
   flash,
 }: {
-  server: ServerProfile;
+  targetId: string;
+  targets: Target[];
+  buildingIds: Set<string>;
+  onTargetChange: (id: string) => void;
+  servers: ServerProfile[];
   cfg: InstallerServerConfig;
   onChange: (next: InstallerServerConfig) => void;
   outputDir: string;
@@ -203,7 +240,9 @@ function ServerCard({
   proc: ProcInfo | undefined;
   flash: (kind: "ok" | "err", msg: string) => void;
 }) {
-  const [info, setInfo] = useState<InstallersServerInfo | null>(null);
+  const [info, setInfo] = useState<InstallersTargetInfo | null>(null);
+  const [showSecret, setShowSecret] = useState(false);
+  const [flagsErr, setFlagsErr] = useState("");
   const [scan, setScan] = useState<InstallersScanResult | null>(null);
   const [scanErr, setScanErr] = useState("");
   const [scanning, setScanning] = useState(false);
@@ -211,23 +250,38 @@ function ServerCard({
   const [outputs, setOutputs] = useState<InstallersOutputFile[]>([]);
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [showLog, setShowLog] = useState(false);
-  const [showOptions, setShowOptions] = useState(false);
   const [showFiles, setShowFiles] = useState(false);
 
-  const set = <K extends keyof InstallerServerConfig>(k: K, v: InstallerServerConfig[K]) => onChange({ ...cfg, [k]: v });
+  // Async results (scan, fleet secret) merge into the latest config, not the
+  // one from the render that started them.
+  const cfgRef = useRef(cfg);
+  cfgRef.current = cfg;
+  const update = (patch: Partial<InstallerServerConfig>) => onChange({ ...cfgRef.current, ...patch });
+  const set = <K extends keyof InstallerServerConfig>(k: K, v: InstallerServerConfig[K]) => update({ [k]: v } as Partial<InstallerServerConfig>);
 
+  const server = targets.find((t) => t.id === targetId)?.server;
+  const isCustom = targetId === CUSTOM_TARGET;
   const building = proc?.state === "running" || proc?.state === "stopping";
   const contextName = cfg.context || info?.matched_context || "";
-  const accent = serverColorVar(server.color);
+  const usableContexts = contexts.filter((c) => !!c.address);
+  const accent = server ? serverColorVar(server.color) : "var(--app-border)";
 
   useEffect(() => {
-    api.installersServerInfo(server.id, outputDir).then(setInfo).catch(() => setInfo(null));
-  }, [server.id, server.name, server.worktree_path, outputDir]);
+    api.installersTargetInfo(targetId, cfg, outputDir).then(setInfo).catch(() => setInfo(null));
+  }, [targetId, cfg.name, cfg.fleetctl, server?.name, server?.worktree_path, outputDir]);
 
   const plannedKey = JSON.stringify(cfg);
   useEffect(() => {
-    api.installersPlannedFiles(server.id, cfg).then(setPlanned).catch(() => setPlanned({}));
-  }, [server.id, server.name, plannedKey]);
+    api.installersPlannedFiles(targetId, cfg).then(setPlanned).catch(() => setPlanned({}));
+  }, [targetId, server?.name, plannedKey]);
+
+  useEffect(() => {
+    if (!cfg.extra_flags.trim()) {
+      setFlagsErr("");
+      return;
+    }
+    api.installersCheckExtraFlags(cfg.extra_flags).then(setFlagsErr).catch(() => setFlagsErr(""));
+  }, [cfg.extra_flags]);
 
   // Only the latest scan may update state, so a slow scan of a previous
   // context can't overwrite the current one.
@@ -241,6 +295,14 @@ function ServerCard({
       if (seq !== scanSeq.current) return;
       setScan(res);
       setScanErr("");
+      // Fill in what's empty; never overwrite what's been typed.
+      const cur = cfgRef.current;
+      if (!cur.fleet_url.trim() && res.server_url) update({ fleet_url: res.server_url });
+      const team = res.teams.find((t) => (t.id ?? null) === (cur.team_id ?? null));
+      if (!cur.enroll_secret.trim() && team?.has_secret) {
+        const secret = await api.installersFleetSecret(contextName, team.id ?? null);
+        if (seq === scanSeq.current) update({ enroll_secret: secret, team_name: team.name });
+      }
     } catch (e) {
       if (seq !== scanSeq.current) return;
       setScan(null);
@@ -259,24 +321,24 @@ function ServerCard({
   }, [contextName, runScan]);
 
   const loadOutputs = useCallback(() => {
-    api.installersListOutputs(server.id, outputDir).then(setOutputs).catch(() => setOutputs([]));
-  }, [server.id, outputDir]);
+    api.installersListOutputs(targetId, cfgRef.current, outputDir).then(setOutputs).catch(() => setOutputs([]));
+  }, [targetId, outputDir]);
   useEffect(() => {
     loadOutputs();
   }, [loadOutputs, proc?.state, info?.output_dir]);
 
-  // Tail this server's build log (statuses come from build.sh's marker lines).
-  const procId = installersProcId(server.id);
+  // Tail this target's build log (statuses come from build.sh's marker lines).
+  const procId = installersProcId(targetId);
   const logSeq = useRef(0);
   const loadLog = useCallback(async () => {
     const seq = ++logSeq.current;
     try {
-      const w = await api.readLogWindow({ source: installersChannel(server.id), since_ms: 0, levels: LOG_LEVELS, max_lines: 5000 });
+      const w = await api.readLogWindow({ source: installersChannel(targetId), since_ms: 0, levels: LOG_LEVELS, max_lines: 5000 });
       if (seq === logSeq.current) setEntries(w.entries);
     } catch (e) {
       console.error("installers readLogWindow", e);
     }
-  }, [server.id]);
+  }, [targetId]);
   useEffect(() => {
     loadLog();
     // Builds stream many lines (docker pulls); reload at most every 300ms.
@@ -320,8 +382,7 @@ function ServerCard({
   const setUpdateSource = (source: string) => {
     const list = source === UPDATE_LOCAL_TUF ? localTuf?.channels : official;
     const keep = (ch: string, options: string[] | undefined) => (options?.includes(ch) ? ch : "stable");
-    onChange({
-      ...cfg,
+    update({
       update_source: source,
       orbit_channel: keep(cfg.orbit_channel, list?.orbit),
       desktop_channel: keep(cfg.desktop_channel, list?.desktop),
@@ -334,76 +395,126 @@ function ServerCard({
     set("platforms", has ? cfg.platforms.filter((p) => p !== key) : [...cfg.platforms, key]);
   };
 
-  const pickTeam = (value: string) => {
+  // Switching context drops what came from the old one — the fleet, a secret
+  // filled from it, and a Fleet URL filled from its server_url — but keeps
+  // anything typed by hand.
+  const changeContext = (next: string) => {
+    const cur = cfgRef.current;
+    const urlFromScan = !!scan?.server_url && cur.fleet_url.trim() === scan.server_url;
+    update({
+      context: next,
+      team_id: null,
+      team_name: "",
+      ...(cur.team_name ? { enroll_secret: "" } : {}),
+      ...(urlFromScan ? { fleet_url: "" } : {}),
+    });
+  };
+
+  // Picking a fleet fills its enroll secret (and the Fleet URL if empty).
+  const pickTeam = async (value: string) => {
+    if (value === MANUAL_FLEET) return;
     const team = scan?.teams.find((t) => (t.id == null ? "" : String(t.id)) === value);
-    onChange({ ...cfg, team_id: team?.id ?? null, team_name: team?.name ?? "" });
+    update({ team_id: team?.id ?? null, team_name: team?.name ?? "" });
+    if (!team?.has_secret) return;
+    try {
+      const secret = await api.installersFleetSecret(contextName, team.id ?? null);
+      update({ enroll_secret: secret, team_name: team.name, fleet_url: cfgRef.current.fleet_url.trim() || scan?.server_url || "" });
+    } catch (e) {
+      flash("err", errText(e));
+    }
   };
 
   const build = async () => {
     try {
       setShowLog(false);
-      await api.installersStartBuild(server.id, cfg, outputDir);
+      await api.installersStartBuild(targetId, cfg, outputDir);
     } catch (e) {
       flash("err", errText(e));
     }
   };
   const stop = async () => {
     try {
-      await api.installersStopBuild(server.id);
+      await api.installersStopBuild(targetId);
     } catch (e) {
       flash("err", errText(e));
     }
   };
 
+  const teamValue = cfg.team_id == null ? "" : String(cfg.team_id);
+  const manualSecret = !!cfg.enroll_secret.trim() && !cfg.team_name;
   const selectedTeam = scan?.teams.find((t) => (t.id ?? null) === (cfg.team_id ?? null));
   const missing: string[] = [];
   if (!info?.fleetctl_exists) missing.push("fleetctl build");
-  if (!contextName) missing.push("fleetctl context");
-  if (!scan) missing.push("a successful scan");
-  else if (!selectedTeam) missing.push("a fleet");
-  else if (!selectedTeam.has_secret) missing.push("an enroll secret for that fleet");
+  if (!cfg.fleet_url.trim()) missing.push("Fleet URL");
+  if (!cfg.enroll_secret.trim()) missing.push("enroll secret");
   if (cfg.platforms.length === 0) missing.push("a platform");
   if (cfg.update_source === UPDATE_LOCAL_TUF && !localTuf?.available) missing.push("local TUF");
+  if (flagsErr) missing.push("valid extra flags");
   const canBuild = missing.length === 0 && !building;
 
-  const fleetUrl = cfg.fleet_url.trim() || scan?.server_url || "";
-  const loopback = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(fleetUrl);
+  // Selected platforms whose file name already exists in the folder: building
+  // replaces them (only on success, but the old file is gone afterwards).
+  const existing = new Map(outputs.map((f) => [f.name, f]));
+  const overwrites = cfg.platforms
+    .map((k) => planned[k])
+    .filter((name): name is string => !!name && existing.has(name))
+    .map((name) => existing.get(name)!);
 
-  // One-line summary of the collapsed Options; highlighted when anything
-  // differs from the defaults so a customized build isn't a surprise.
-  const nonStable = [
-    ["orbit", cfg.orbit_channel],
-    ["desktop", cfg.desktop_channel],
-    ["osquery", cfg.osqueryd_channel],
-  ].filter(([, ch]) => ch && ch !== "stable");
-  const summaryParts = [cfg.update_source === UPDATE_LOCAL_TUF ? "local TUF" : "official updates"];
-  summaryParts.push(nonStable.length === 0 ? "stable" : nonStable.map(([c, ch]) => `${c} ${ch}`).join(", "));
-  if (cfg.fleet_url.trim()) summaryParts.push("custom Fleet URL");
-  if (cfg.debug) summaryParts.push("debug");
-  const optionsSummary = summaryParts.join(" · ");
-  const customized = cfg.update_source === UPDATE_LOCAL_TUF || nonStable.length > 0 || !!cfg.fleet_url.trim() || cfg.debug;
+  const fleetUrl = cfg.fleet_url.trim();
+  const loopback = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(fleetUrl);
+  const urlMatchesScan = !!scan?.server_url && fleetUrl.replace(/\/+$/, "") === scan.server_url.replace(/\/+$/, "");
+
+  // Flag non-default agent options so a customized build isn't a surprise.
+  const nonStable = [cfg.orbit_channel, cfg.desktop_channel, cfg.osqueryd_channel].some((ch) => ch && ch !== "stable");
+  const customized = !cfg.fleet_desktop || cfg.update_source === UPDATE_LOCAL_TUF || nonStable || cfg.debug || !!cfg.extra_flags.trim();
 
   return (
     <div className="card" style={{ display: "flex", flexDirection: "column", gap: "var(--pad-smedium)", borderTop: `3px solid ${accent}` }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "var(--pad-small)" }}>
-        <span className="dot" style={{ background: accent }} />
-        <div className="section-title" style={{ margin: 0 }}>{server.name}</div>
-        <span className="dim mono">:{server.ports.server}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--pad-small)", flexWrap: "wrap" }}>
+        <div className="section-title" style={{ margin: 0 }}>Build for</div>
+        <select value={targetId} onChange={(e) => onTargetChange(e.target.value)} style={{ minWidth: 220 }}>
+          {targets.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.label}
+              {t.server ? ` (:${t.server.ports.server})` : ""}
+              {buildingIds.has(t.id) ? " · building" : ""}
+            </option>
+          ))}
+        </select>
+        {server && <span className="dot" style={{ background: accent }} />}
         <div style={{ flex: 1 }} />
         {info && !info.fleetctl_exists && (
           <span style={{ color: "var(--ui-error)" }} title={info.fleetctl}>fleetctl not built</span>
         )}
       </div>
 
-      {/* Connection: context, scan, fleet */}
+      {isCustom && (
+        <div style={{ display: "flex", gap: "var(--pad-medium)", flexWrap: "wrap" }}>
+          <Field label="Name (used for the folder and file names)">
+            <input value={cfg.name} placeholder="custom" onChange={(e) => set("name", e.target.value)} style={{ width: "100%" }} />
+          </Field>
+          <Field label="Build with fleetctl from">
+            <select value={cfg.fleetctl} onChange={(e) => set("fleetctl", e.target.value)} style={{ width: "100%" }}>
+              <option value="">{servers[0] ? `${servers[0].name} (default)` : "no server with a worktree"}</option>
+              {servers.slice(1).map((srv) => (
+                <option key={srv.id} value={srv.id}>{srv.name}</option>
+              ))}
+            </select>
+          </Field>
+        </div>
+      )}
+
+      {/* Connection: an optional context scan fills the URL and secret below */}
       <div style={{ display: "flex", gap: "var(--pad-medium)", flexWrap: "wrap", alignItems: "flex-end" }}>
-        <Field label="fleetctl context">
-          <select value={cfg.context} onChange={(e) => set("context", e.target.value)} style={{ width: "100%" }}>
-            <option value="">{info?.matched_context ? `auto (${info.matched_context})` : "auto (no match)"}</option>
-            {contexts.map((c) => (
+        <Field label={isCustom ? "fleetctl context (optional)" : "fleetctl context"}>
+          {/* Preselects the context matching this server's port; only contexts with
+              an address can scan, so others aren't offered. */}
+          <select value={contextName} onChange={(e) => changeContext(e.target.value)} style={{ width: "100%" }}>
+            {(isCustom || !contextName) && <option value="">{isCustom ? "none — enter URL and secret below" : "no context matches this server — pick one"}</option>}
+            {contextName && !usableContexts.some((c) => c.name === contextName) && <option value={contextName}>{contextName}</option>}
+            {usableContexts.map((c) => (
               <option key={c.name} value={c.name}>
-                {c.name}
-                {c.address ? ` — ${c.address}` : ""}
+                {c.name} — {c.address}
               </option>
             ))}
           </select>
@@ -411,13 +522,20 @@ function ServerCard({
         <Field label="Fleet">
           <div style={{ display: "flex", gap: "var(--pad-small)" }}>
             <select
-              value={cfg.team_id == null ? "" : String(cfg.team_id)}
+              value={manualSecret ? MANUAL_FLEET : teamValue}
               onChange={(e) => pickTeam(e.target.value)}
               disabled={!scan}
               style={{ flex: 1, minWidth: 0 }}
             >
-              {!scan && <option value={cfg.team_id == null ? "" : String(cfg.team_id)}>{cfg.team_name || "Unassigned"}</option>}
-              {scan && !selectedTeam && <option value={cfg.team_id == null ? "" : String(cfg.team_id)}>{cfg.team_name || "?"} (not found)</option>}
+              {/* A hand-entered secret belongs to no fleet Hangar knows about, so
+                  the dropdown says so instead of showing the last fleet picked. */}
+              {manualSecret && <option value={MANUAL_FLEET}>— secret entered by hand</option>}
+              {!scan && !manualSecret && (
+                <option value={teamValue}>
+                  {cfg.team_name || (contextName ? "click Scan to list fleets" : "no context — enter the secret below")}
+                </option>
+              )}
+              {scan && !manualSecret && !selectedTeam && <option value={teamValue}>{cfg.team_name || "?"} (not found)</option>}
               {scan?.teams.map((t) => (
                 <option key={t.id ?? "none"} value={t.id == null ? "" : String(t.id)} disabled={!t.has_secret}>
                   {t.name}
@@ -426,7 +544,13 @@ function ServerCard({
               ))}
             </select>
             {/* The label stays in the layout (hidden) under the spinner so the button never changes size. */}
-            <button onClick={runScan} disabled={!contextName || scanning} aria-label={scanning ? "Scanning" : "Scan"} style={{ position: "relative" }}>
+            <button
+              onClick={runScan}
+              disabled={!contextName || scanning}
+              aria-label={scanning ? "Scanning" : "Scan"}
+              title={contextName ? "List this server's fleets via the fleetctl context" : "Scanning needs a fleetctl context — pick one, or enter the URL and secret below"}
+              style={{ position: "relative" }}
+            >
               <span style={{ visibility: scanning ? "hidden" : "visible" }}>Scan</span>
               {scanning && (
                 <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -445,90 +569,125 @@ function ServerCard({
         </span>
       )}
 
-      {loopback && (
-        <span style={{ color: "var(--ui-error)" }}>
-          The Fleet URL is a loopback address — other machines can't reach it. Set the public (e.g. ngrok) URL under Options.
-        </span>
-      )}
-
-      {/* Platforms + planned file names + per-build status */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--pad-small)" }}>
-          <span style={{ fontWeight: 600 }}>Platforms</span>
-          <div style={{ flex: 1 }} />
-          <button className="link-btn" onClick={() => set("platforms", INSTALLER_PLATFORMS.map((p) => p.key))}>all</button>
-          <button className="link-btn" onClick={() => set("platforms", [])}>none</button>
-        </div>
-        {INSTALLER_PLATFORMS.map((p) => (
-          <label key={p.key} style={{ display: "grid", gridTemplateColumns: "auto 150px 1fr auto", alignItems: "center", gap: 8 }}>
-            <input type="checkbox" checked={cfg.platforms.includes(p.key)} onChange={() => togglePlatform(p.key)} />
-            <span>{p.label}</span>
-            <span className="mono dim" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={planned[p.key]}>
-              {planned[p.key] ?? ""}
-            </span>
-            <JobBadge status={statuses[p.key]} active={building} userStopped={!!proc?.was_user_stopped} />
-          </label>
-        ))}
-        <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-          <input type="checkbox" checked={cfg.fleet_desktop} onChange={(e) => set("fleet_desktop", e.target.checked)} />
-          Include Fleet Desktop
-        </label>
+      {/* What gets baked into the packages — visible so it's easy to confirm */}
+      <div style={{ display: "flex", gap: "var(--pad-medium)", flexWrap: "wrap" }}>
+        <Field
+          label="Fleet URL"
+          hint={
+            loopback
+              ? "Loopback address — other machines can't reach it. Use the public (e.g. ngrok) URL."
+              : scan?.server_url
+                ? urlMatchesScan
+                  ? "✓ matches the server's server_url"
+                  : `differs from the server's server_url (${scan.server_url})`
+                : undefined
+          }
+          warn={loopback}
+        >
+          <input value={cfg.fleet_url} placeholder="https://fleet.example.com" onChange={(e) => set("fleet_url", e.target.value)} style={{ width: "100%" }} />
+        </Field>
+        <Field
+          label="Enroll secret"
+          hint={cfg.enroll_secret.trim() ? (cfg.team_name ? `from ${cfg.team_name}` : "entered by hand") : undefined}
+        >
+          <div style={{ display: "flex", gap: "var(--pad-small)" }}>
+            <input
+              type={showSecret ? "text" : "password"}
+              value={cfg.enroll_secret}
+              placeholder="scan and pick a fleet, or paste one"
+              onChange={(e) => update({ enroll_secret: e.target.value, team_id: null, team_name: "" })}
+              autoComplete="off"
+              spellCheck={false}
+              style={{ flex: 1, minWidth: 0 }}
+            />
+            <button onClick={() => setShowSecret((v) => !v)} aria-pressed={showSecret}>{showSecret ? "Hide" : "Show"}</button>
+          </div>
+        </Field>
       </div>
 
-      {/* Options: rarely changed, collapsed behind a one-line summary */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--pad-small)" }}>
-        <button
-          className="link-btn"
-          onClick={() => setShowOptions((v) => !v)}
-          aria-expanded={showOptions}
-          style={{ display: "flex", alignItems: "center", gap: 6, alignSelf: "flex-start", padding: 0 }}
-        >
-          <span style={{ fontWeight: 600, color: "var(--app-text)" }}>{showOptions ? "▾" : "▸"} Options</span>
-          <span style={{ color: customized ? "var(--ui-warning)" : "var(--app-text-dim)" }}>{optionsSummary}</span>
-        </button>
-        {showOptions && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "var(--pad-small)", paddingLeft: 14 }}>
-            <Field label="Fleet URL baked into the packages" full>
-              <input value={cfg.fleet_url} placeholder={scan?.server_url || "server_url from the server's settings"} onChange={(e) => set("fleet_url", e.target.value)} style={{ width: "100%" }} />
-            </Field>
-            <div style={{ display: "flex", gap: "var(--pad-large)", alignItems: "center", flexWrap: "wrap" }}>
-              <span style={{ fontWeight: 600 }}>Updates</span>
-              <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <input type="radio" checked={cfg.update_source !== UPDATE_LOCAL_TUF} onChange={() => setUpdateSource(UPDATE_OFFICIAL)} />
-                Official (updates.fleetdm.com)
-              </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 6 }} title={localTuf?.available ? localTuf.url : localTuf?.reason}>
-                <input
-                  type="radio"
-                  checked={cfg.update_source === UPDATE_LOCAL_TUF}
-                  disabled={!localTuf?.available && cfg.update_source !== UPDATE_LOCAL_TUF}
-                  onChange={() => setUpdateSource(UPDATE_LOCAL_TUF)}
-                />
-                Local TUF
-              </label>
-            </div>
-            {cfg.update_source === UPDATE_LOCAL_TUF && (
-              <span className={localTuf?.available ? "dim" : undefined} style={{ color: localTuf?.available ? undefined : "var(--ui-error)" }}>
-                {localTuf?.available ? (
-                  <>
-                    <span className="mono">{localTuf.url}</span> — a TUF tab rebuild rotates its keys, so rebuild these installers after one.
-                  </>
-                ) : (
-                  localTuf?.reason ?? "checking local TUF…"
-                )}
+      {/* Platforms on the left, agent options on the right (stacked when narrow) */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: "var(--pad-large)", alignItems: "start" }}>
+        {/* Platforms + planned file names + per-build status */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--pad-small)" }}>
+            <span style={{ fontWeight: 600 }}>Platforms</span>
+            <div style={{ flex: 1 }} />
+            <button className="link-btn" onClick={() => set("platforms", INSTALLER_PLATFORMS.map((p) => p.key))}>all</button>
+            <button className="link-btn" onClick={() => set("platforms", [])}>none</button>
+          </div>
+          {INSTALLER_PLATFORMS.map((p) => (
+            <label key={p.key} style={{ display: "grid", gridTemplateColumns: "auto 150px 1fr auto", alignItems: "center", gap: 8 }}>
+              <input type="checkbox" checked={cfg.platforms.includes(p.key)} onChange={() => togglePlatform(p.key)} />
+              <span>{p.label}</span>
+              <span className="mono dim" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={planned[p.key]}>
+                {planned[p.key] ?? ""}
               </span>
-            )}
-            <div style={{ display: "flex", gap: "var(--pad-medium)", flexWrap: "wrap" }}>
-              <ChannelSelect label="orbit" value={cfg.orbit_channel} options={channels?.orbit} onChange={(v) => set("orbit_channel", v)} />
-              <ChannelSelect label="Fleet Desktop" value={cfg.desktop_channel} options={channels?.desktop} onChange={(v) => set("desktop_channel", v)} />
-              <ChannelSelect label="osquery" value={cfg.osqueryd_channel} options={channels?.osqueryd} onChange={(v) => set("osqueryd_channel", v)} />
-            </div>
+              <JobBadge status={statuses[p.key]} active={building} userStopped={!!proc?.was_user_stopped} />
+            </label>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--pad-small)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--pad-small)" }}>
+            <span style={{ fontWeight: 600 }}>Agent options</span>
+            {customized && <span style={{ color: "var(--ui-warning)" }}>· not the defaults</span>}
+          </div>
+          <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <input type="checkbox" checked={cfg.fleet_desktop} onChange={(e) => set("fleet_desktop", e.target.checked)} />
+            Include Fleet Desktop
+          </label>
+          <div style={{ display: "flex", gap: "var(--pad-large)", alignItems: "center", flexWrap: "wrap" }}>
+            <span style={{ fontWeight: 600 }}>Updates</span>
             <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <input type="checkbox" checked={cfg.debug} onChange={(e) => set("debug", e.target.checked)} />
-              Debug logging in orbit
+              <input type="radio" checked={cfg.update_source !== UPDATE_LOCAL_TUF} onChange={() => setUpdateSource(UPDATE_OFFICIAL)} />
+              Official (updates.fleetdm.com)
+            </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 6 }} title={localTuf?.available ? localTuf.url : localTuf?.reason}>
+              <input
+                type="radio"
+                checked={cfg.update_source === UPDATE_LOCAL_TUF}
+                disabled={!localTuf?.available && cfg.update_source !== UPDATE_LOCAL_TUF}
+                onChange={() => setUpdateSource(UPDATE_LOCAL_TUF)}
+              />
+              Local TUF
             </label>
           </div>
-        )}
+          {cfg.update_source === UPDATE_LOCAL_TUF && (
+            <span className={localTuf?.available ? "dim" : undefined} style={{ color: localTuf?.available ? undefined : "var(--ui-error)" }}>
+              {localTuf?.available ? (
+                <>
+                  <span className="mono">{localTuf.url}</span> — a TUF tab rebuild rotates its keys, so rebuild these installers after one.
+                </>
+              ) : (
+                localTuf?.reason ?? "checking local TUF…"
+              )}
+            </span>
+          )}
+          <div style={{ display: "flex", gap: "var(--pad-medium)", flexWrap: "wrap" }}>
+            <ChannelSelect label="orbit" value={cfg.orbit_channel} options={channels?.orbit} onChange={(v) => set("orbit_channel", v)} />
+            <ChannelSelect label="Fleet Desktop" value={cfg.desktop_channel} options={channels?.desktop} onChange={(v) => set("desktop_channel", v)} />
+            <ChannelSelect label="osquery" value={cfg.osqueryd_channel} options={channels?.osqueryd} onChange={(v) => set("osqueryd_channel", v)} />
+          </div>
+          <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <input type="checkbox" checked={cfg.debug} onChange={(e) => set("debug", e.target.checked)} />
+            Debug logging in orbit
+          </label>
+          <Field
+            label="Extra fleetctl package flags"
+            full
+            hint={flagsErr || "Added to every build, e.g. --enable-scripts --host-identifier=instance. Quote values with spaces."}
+            warn={!!flagsErr}
+          >
+            <input
+              className="mono"
+              value={cfg.extra_flags}
+              placeholder="--enable-scripts"
+              onChange={(e) => set("extra_flags", e.target.value)}
+              spellCheck={false}
+              style={{ width: "100%" }}
+            />
+          </Field>
+        </div>
       </div>
 
       {/* Build */}
@@ -542,6 +701,15 @@ function ServerCard({
         )}
         <BuildStatus proc={proc} building={building} statuses={statuses} />
         {!building && !canBuild && <span className="dim">needs: {missing.join(", ")}</span>}
+        {!building && overwrites.length > 0 && (
+          <span
+            style={{ color: "var(--ui-warning)" }}
+            title={overwrites.map((f) => `${f.name} (built ${new Date(f.mod_time_ms).toLocaleString()})`).join("\n")}
+          >
+            ⚠ replaces {overwrites.length} existing installer{overwrites.length === 1 ? "" : "s"} (newest built{" "}
+            {new Date(Math.max(...overwrites.map((f) => f.mod_time_ms))).toLocaleString()})
+          </span>
+        )}
         <div style={{ flex: 1 }} />
         {entries.length > 0 && (
           <button className="link-btn" onClick={() => setShowLog((v) => !v)}>{showLog ? "hide output" : "show output"}</button>
@@ -549,11 +717,11 @@ function ServerCard({
       </div>
       {showLog && <LogBox entries={entries} maxHeight={260} />}
 
-      {/* What's in this server's folder, with how each file was built (from manifest.json) */}
+      {/* What's in this target's folder, with how each file was built (from manifest.json) */}
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "var(--pad-small)" }}>
           {outputs.length === 0 ? (
-            <span className="dim">No installers in this server's folder yet</span>
+            <span className="dim">No installers in this target's folder yet</span>
           ) : (
             <button
               className="link-btn"
@@ -626,15 +794,15 @@ function OutputShareCard({
     const id = ++seq.current;
     try {
       const st = await api.installersShareStatus();
-      let list: InstallersSharedFile[] = [];
-      if (st.running) list = await api.installersSharedFiles().catch(() => []);
+      // Listed either way: with install commands while sharing, plain otherwise.
+      const list = await api.installersSharedFiles(outputDir).catch(() => [] as InstallersSharedFile[]);
       if (id !== seq.current) return;
       setStatus(st);
       setFiles(list);
     } catch (e) {
       console.error("share status", e);
     }
-  }, []);
+  }, [outputDir]);
   useEffect(() => {
     refresh();
     const poll = window.setInterval(() => {
@@ -727,17 +895,18 @@ function OutputShareCard({
         {outputDir.trim() && !running && <button className="link-btn" onClick={() => onOutputDirChange("")}>use default</button>}
       </div>
 
-      {/* Sharing controls on one line */}
+      {/* Sharing controls on one line. Like the SCEP and TUF servers, Start/Stop
+          sit at the right at a fixed width, so the button doesn't move. */}
       {running && status ? (
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--pad-small)", flexWrap: "wrap" }}>
+        <div style={SHARE_ROW}>
           <span className="mono" style={{ fontSize: "var(--fs-x-small)", fontWeight: 600, userSelect: "all" }}>{status.url}</span>
           <button onClick={() => copy(status.url, "URL")}>Copy URL</button>
           <button onClick={() => api.openUrl(status.url).catch((e) => flash("err", errText(e)))}>Open in browser</button>
           <div style={{ flex: 1 }} />
-          <button className="danger" onClick={stop} disabled={busy}>Stop sharing</button>
+          <button className="danger" onClick={stop} disabled={busy} style={SHARE_BUTTON}>Stop sharing</button>
         </div>
       ) : (
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--pad-small)", flexWrap: "wrap" }}>
+        <div style={SHARE_ROW}>
           <span>Port</span>
           <input
             inputMode="numeric"
@@ -748,8 +917,9 @@ function OutputShareCard({
             title={portValid ? "Leave empty to use a free port" : "Enter a port from 1 to 65535"}
             style={{ width: 120, borderColor: portValid ? undefined : "var(--ui-error)" }}
           />
-          <button className="primary" onClick={start} disabled={busy || !outputRoot || !portValid}>Start sharing</button>
           {!portValid && <span style={{ color: "var(--ui-error)" }}>enter a port from 1 to 65535</span>}
+          <div style={{ flex: 1 }} />
+          <button className="primary" onClick={start} disabled={busy || !outputRoot || !portValid} style={SHARE_BUTTON}>Start sharing</button>
         </div>
       )}
       <span className="dim">
@@ -757,34 +927,44 @@ function OutputShareCard({
         once to allow incoming connections for Hangar.
       </span>
 
+      {/* The folder's installers: plain while not sharing, with copyable install
+          commands once the server is up (they need its URL). */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <button
+          className="link-btn"
+          onClick={() => setShowFiles((v) => !v)}
+          aria-expanded={showFiles}
+          style={{ display: "flex", alignItems: "center", gap: 6, alignSelf: "flex-start", padding: 0 }}
+        >
+          <span style={{ fontWeight: 600, color: "var(--app-text)" }}>
+            {showFiles ? "▾" : "▸"} {running ? "Install commands" : "Installers"}
+          </span>
+          <span className="dim">
+            {files.length} installer{files.length === 1 ? "" : "s"}
+            {!running && files.length > 0 ? " · start sharing for install commands" : ""}
+          </span>
+        </button>
+        {!showFiles ? null : files.length === 0 ? (
+          <span className="dim">no installers in the folder yet</span>
+        ) : (
+          files.map((f) => (
+            <div key={f.path} style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 8, alignItems: "center" }}>
+              <span className="mono" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={f.url || f.path}>{f.path}</span>
+              <span className="dim">{formatBytes(f.size)}</span>
+              {running && f.command ? (
+                <button className="link-btn" onClick={() => copy(f.command, "install command")} title={f.command}>
+                  copy {f.shell === "powershell" ? "PowerShell (admin)" : "shell"} command
+                </button>
+              ) : (
+                <span />
+              )}
+            </div>
+          ))
+        )}
+      </div>
+
       {running && status && (
         <>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <button
-              className="link-btn"
-              onClick={() => setShowFiles((v) => !v)}
-              aria-expanded={showFiles}
-              style={{ display: "flex", alignItems: "center", gap: 6, alignSelf: "flex-start", padding: 0 }}
-            >
-              <span style={{ fontWeight: 600, color: "var(--app-text)" }}>{showFiles ? "▾" : "▸"} Install commands</span>
-              <span className="dim">
-                {files.length} installer{files.length === 1 ? "" : "s"}
-              </span>
-            </button>
-            {!showFiles ? null : files.length === 0 ? (
-              <span className="dim">no installers in the folder yet</span>
-            ) : (
-              files.map((f) => (
-                <div key={f.path} style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 8, alignItems: "center" }}>
-                  <span className="mono" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={f.url}>{f.path}</span>
-                  <span className="dim">{formatBytes(f.size)}</span>
-                  <button className="link-btn" onClick={() => copy(f.command, "install command")} title={f.command}>
-                    copy {f.shell === "powershell" ? "PowerShell (admin)" : "shell"} command
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
           {status.recent.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               <span style={{ fontWeight: 600 }}>Recent downloads</span>
@@ -820,6 +1000,7 @@ function describeBuild(b: InstallersManifestEntry): string {
   parts.push(custom.length === 0 ? "stable" : custom.map(([c, ch]) => `${c} ${ch}`).join(", "));
   parts.push(b.fleet_desktop ? "Fleet Desktop" : "no Desktop");
   if (b.debug) parts.push("debug");
+  if (b.extra_flags) parts.push(b.extra_flags);
   if (b.fleet_url) parts.push(b.fleet_url);
   return parts.join(" · ");
 }

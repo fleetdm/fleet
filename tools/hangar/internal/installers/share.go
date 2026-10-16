@@ -267,7 +267,8 @@ func FreePort(start uint16, reserved map[uint16]bool) (uint16, error) {
 }
 
 // ListShared lists the installers under root (one level of server folders
-// plus root itself) with download URLs and install commands for baseURL.
+// plus root itself) with download URLs and install commands for baseURL. With
+// no baseURL (not sharing) only paths and sizes are filled in.
 func ListShared(root, baseURL string) ([]SharedFile, error) {
 	out := []SharedFile{}
 	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
@@ -301,10 +302,12 @@ func ListShared(root, baseURL string) ([]SharedFile, error) {
 		if err != nil {
 			return nil
 		}
-		relSlash := filepath.ToSlash(rel)
-		fileURL := baseURL + escapePath(relSlash)
-		cmd, shell := InstallCommand(path.Base(relSlash), fileURL)
-		out = append(out, SharedFile{Path: relSlash, URL: fileURL, Size: info.Size(), Command: cmd, Shell: shell})
+		f := SharedFile{Path: filepath.ToSlash(rel), Size: info.Size()}
+		if baseURL != "" {
+			f.URL = baseURL + escapePath(f.Path)
+			f.Command, f.Shell = InstallCommand(path.Base(f.Path), f.URL)
+		}
+		out = append(out, f)
 		return nil
 	})
 	if errors.Is(err, fs.ErrNotExist) {

@@ -203,22 +203,29 @@ type TufConfig struct {
 }
 
 // InstallersConfig is the saved state of the Installers tab: where generated
-// fleetd packages land, and one build config per server profile (keyed by
-// ServerProfile.ID). A server missing from Servers uses DefaultInstallerServer.
+// fleetd packages land, the selected build target, and one build config per
+// target, keyed by ServerProfile.ID or "custom" (a Fleet server Hangar doesn't
+// run). A target missing from Servers uses DefaultInstallerServer.
 type InstallersConfig struct {
 	// OutputDir is the root folder; each server gets a subfolder named after
 	// it. Empty means the default (~/Documents/fleetd-installers).
 	OutputDir string                           `json:"output_dir"`
+	Target    string                           `json:"target"` // selected target; "" = the first server
 	Servers   map[string]InstallerServerConfig `json:"servers"`
 	// SharePort is the port for sharing the output folder over HTTP; 0 means
 	// pick a free one.
 	SharePort uint16 `json:"share_port"`
 }
 
-// InstallerServerConfig is one server card's build inputs. The enroll secret is
-// deliberately not stored: it's fetched fresh from the server at build time for
-// the selected team, so a rotated secret never ends up baked into a package.
+// InstallerServerConfig is one build target's inputs. The Fleet URL and enroll
+// secret are what gets baked into the packages; a scan through a fleetctl
+// context fills them in, or they're typed by hand (no context needed).
 type InstallerServerConfig struct {
+	// Name names the custom target's folder and files. Unused for servers.
+	Name string `json:"name"`
+	// Fleetctl is the server ID whose fleetctl builds the custom target
+	// ("" = the first server with one). Unused for servers, which use their own.
+	Fleetctl string `json:"fleetctl"`
 	// Context is the fleetctl context used to talk to the server. Empty means
 	// auto-match by the server's port.
 	Context string `json:"context"`
@@ -230,9 +237,11 @@ type InstallerServerConfig struct {
 	// (the global enroll secret). TeamName is display-only.
 	TeamID   *uint  `json:"team_id"`
 	TeamName string `json:"team_name"`
-	// FleetURL overrides the server's server_url baked into the packages.
-	// Empty means use server_url from the server's config at build time.
-	FleetURL string `json:"fleet_url"`
+	// FleetURL and EnrollSecret are baked into the packages.
+	FleetURL     string `json:"fleet_url"`
+	EnrollSecret string `json:"enroll_secret"`
+	// ExtraFlags are additional `fleetctl package` flags, shell-quoted.
+	ExtraFlags string `json:"extra_flags"`
 	// UpdateSource is "official" (updates.fleetdm.com) or "local-tuf"
 	// (Hangar's test_tuf repo, served at Tuf.TufURL).
 	UpdateSource    string `json:"update_source"`
