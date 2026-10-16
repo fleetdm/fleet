@@ -5293,18 +5293,18 @@ func (ds *Datastore) GetHostMDMAppleEnrollmentPermissions(ctx context.Context, h
 	// renewal to reconstruct the original ServerURL). The permissions row may
 	// be missing if a transient write failure during the initial Authenticate
 	// dropped it (the persist is non-fatal); in that case AccessRights falls
-	// back to the unrestricted default, matching pre-feature behavior, while
-	// IsPersonalEnrollment still reflects reality from host_mdm.
+	// back to the narrowed bitmask for a personal enrollment and to the
+	// unrestricted default (pre-feature behavior) otherwise.
 	var p fleet.HostMDMApplePermissions
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &p,
 		`SELECT
 			h.uuid AS host_uuid,
-			COALESCE(p.access_rights, ?) AS access_rights,
+			COALESCE(p.access_rights, IF(COALESCE(hm.is_personal_enrollment, 0) = 1, ?, ?)) AS access_rights,
 			COALESCE(hm.is_personal_enrollment, 0) AS is_personal_enrollment
 		 FROM hosts h
 		 LEFT JOIN host_mdm hm ON hm.host_id = h.id
 		 LEFT JOIN host_mdm_apple_enrollment_permissions p ON p.host_uuid = h.uuid
-		 WHERE h.uuid = ?`, apple_mdm.MDMAccessRightAll, hostUUID)
+		 WHERE h.uuid = ?`, apple_mdm.AppleEnrollmentAccessRights(true), apple_mdm.MDMAccessRightAll, hostUUID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, notFound("HostMDMAppleEnrollmentPermissions").WithName(hostUUID)

@@ -9,10 +9,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261015221610, Down_20261015221610)
+	MigrationClient.AddMigration(Up_20261016181351, Down_20261016181351)
 }
 
-func Up_20261015221610(tx *sql.Tx) error {
+func Up_20261016181351(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
 		ALTER TABLE certificate_authorities
 		MODIFY COLUMN type
@@ -60,6 +60,6 @@ func Up_20261015221610(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20261015221610(tx *sql.Tx) error {
+func Down_20261016181351(tx *sql.Tx) error {
 	return nil
 }

@@ -2964,6 +2964,8 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	savedAppConfig := &fleet.AppConfig{}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		appConfig := savedAppConfig.Copy()
+		// The team file adds App Store apps, which need Apple MDM.
+		appConfig.MDM.EnabledAndConfigured = true
 		return appConfig, nil
 	}
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
@@ -3053,6 +3055,12 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 			return savedTeam.ToTeamLite(), nil
 		}
 		return nil, nil
+	}
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		if tid == team.ID {
+			return savedTeam, nil
+		}
+		return nil, &notFoundError{}
 	}
 
 	ds.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) {
@@ -7767,6 +7775,9 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 		},
 	)
 	setupEmptyGitOpsMocks(ds)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
 
 	tokExpire := time.Now().Add(time.Hour)
 	token, err := test.CreateVPPTokenEncoded(tokExpire, "fleet", "ca")

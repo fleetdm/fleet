@@ -81,11 +81,9 @@ const EditVersionModal = ({
 
   const {
     formData,
-    setField,
+    getTextFieldProps,
     commitFields,
     getError,
-    clearFieldError,
-    validateField,
     handleSubmit,
     isSubmitting,
   } = useFormValidation<IVersionFormData>({
@@ -167,11 +165,9 @@ const EditVersionModal = ({
         >
           <VersionFormFields
             formData={formData}
-            setField={setField}
+            getTextFieldProps={getTextFieldProps}
             commitFields={commitFields}
             getError={getError}
-            clearFieldError={clearFieldError}
-            validateField={validateField}
             platform={version.platform}
             appDisplayName={titleDisplayName}
             labels={labels ?? []}
