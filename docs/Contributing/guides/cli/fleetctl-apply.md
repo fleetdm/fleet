@@ -193,6 +193,7 @@ spec:
         apple_enable_release_device_manually: false
         apple_setup_assistant: ""
         macos_manual_agent_install: false
+        macos_bootstrap_package_manual_enrollment: false
         require_all_software_macos: false
         script: ""
         software: []
