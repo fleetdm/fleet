@@ -2201,6 +2201,14 @@ const (
 	AppleMDMCertPurposeACMERenewal AppleMDMCertPurpose = "acme_renewal"
 )
 
+// AppleSCEPEnrollmentChallengeTTL is how long a challenge handed out in an enrollment profile is valid. Devices
+// use it right after receiving the profile.
+const AppleSCEPEnrollmentChallengeTTL = time.Hour
+
+// AppleSCEPRenewalChallengeTTL is how long a renewal challenge is valid. Devices can defer a renewal command
+// (NotNow), and every re-delivery returns the same challenge until it's consumed or expires.
+const AppleSCEPRenewalChallengeTTL = 30 * 24 * time.Hour
+
 type AppleSCEPChallengeInfo struct {
 	Purpose        AppleMDMCertPurpose `db:"purpose"`
 	UUID           *string             `db:"host_uuid"`

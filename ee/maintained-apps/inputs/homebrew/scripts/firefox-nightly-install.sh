@@ -31,21 +31,21 @@ quit_and_track_application() {
 
   echo "Quitting application '$bundle_id'..."
 
-  local quit_success=false
+  local quit_success=false still_running
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    if osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1; then
-      if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then
-        echo "Application '$bundle_id' quit successfully."
-        quit_success=true
-        break
-      fi
-    fi
+    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1
     sleep 1
+    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+      echo "Application '$bundle_id' quit successfully."
+      quit_success=true
+      break
+    fi
   done
 
   if [[ "$quit_success" = false ]]; then
     echo "Application '$bundle_id' did not quit."
+    return 1
   fi
 }
 
@@ -91,7 +91,7 @@ MOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)
 yes | hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH" || exit 1
 sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"
 hdiutil detach "$MOUNT_POINT" || true
-quit_and_track_application 'org.mozilla.nightly'
+quit_and_track_application 'org.mozilla.nightly' || exit 1
 if [ -d "$APPDIR/Firefox Nightly.app" ]; then
 	sudo mv "$APPDIR/Firefox Nightly.app" "$TMPDIR/Firefox Nightly.app.bkp" || exit $?
 fi

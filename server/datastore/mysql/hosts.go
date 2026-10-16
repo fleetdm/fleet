@@ -1610,17 +1610,6 @@ func (ds *Datastore) applyHostFilters(
 		hostMDMSeenJoin += hostMDMSeenTimeJoin
 	}
 
-	var depStatusFilter string
-	wantFailedDEP := ptr.ValOrZero(opt.DEPProfileErrorFilter)
-	wantDepResp := string(ptr.ValOrZero(opt.DEPAssignProfileResponseFilter))
-	switch {
-	case wantFailedDEP:
-		depStatusFilter = `AND hdep.deleted_at IS NULL AND hdep.assign_profile_response IN ('` + string(fleet.DEPAssignProfileResponseFailed) + `', '` + string(fleet.DEPAssignProfileResponseThrottled) + `')`
-	case wantDepResp != "":
-		depStatusFilter = `AND hdep.deleted_at IS NULL AND hdep.assign_profile_response = ?`
-		whereParams = append(whereParams, wantDepResp)
-	}
-
 	sqlStmt += fmt.Sprintf(
 		`FROM hosts h
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
@@ -1645,7 +1634,7 @@ func (ds *Datastore) applyHostFilters(
 	%s
 	%s
 	%s
-		WHERE TRUE AND %s AND %s AND %s AND %s AND %s %s
+		WHERE TRUE AND %s AND %s AND %s AND %s AND %s
     `,
 
 		// JOINs
@@ -1672,7 +1661,6 @@ func (ds *Datastore) applyHostFilters(
 		munkiFilter,
 		lowDiskSpaceFilter,
 		batchScriptExecutionFilter,
-		depStatusFilter,
 	)
 
 	now := ds.clock.Now()
@@ -1680,6 +1668,7 @@ func (ds *Datastore) applyHostFilters(
 	sqlStmt, whereParams = filterHostsByTeam(sqlStmt, opt, whereParams)
 	sqlStmt, whereParams = filterHostsByPolicy(sqlStmt, opt, whereParams)
 	sqlStmt, whereParams = filterHostsByMDM(sqlStmt, opt, whereParams)
+	sqlStmt, whereParams = filterHostsByDEPAssignProfile(sqlStmt, opt, whereParams)
 	sqlStmt, whereParams = filterHostsByConnectedToFleet(sqlStmt, opt, whereParams)
 	diskEncryptionConfig, err := ds.GetConfigEnableDiskEncryption(ctx, opt.TeamFilter)
 	if err != nil {
@@ -1767,6 +1756,18 @@ func filterHostsByTeam(sql string, opt fleet.HostListOptions, params []interface
 	sql += ` AND h.team_id = ?`
 	params = append(params, *opt.TeamFilter)
 
+	return sql, params
+}
+
+// Requires the hdep join from hostMDMJoin.
+func filterHostsByDEPAssignProfile(sql string, opt fleet.HostListOptions, params []any) (string, []any) {
+	switch {
+	case ptr.ValOrZero(opt.DEPProfileErrorFilter):
+		sql += ` AND hdep.deleted_at IS NULL AND hdep.assign_profile_response IN ('` + string(fleet.DEPAssignProfileResponseFailed) + `', '` + string(fleet.DEPAssignProfileResponseThrottled) + `')`
+	case opt.DEPAssignProfileResponseFilter != nil && *opt.DEPAssignProfileResponseFilter != "":
+		sql += ` AND hdep.deleted_at IS NULL AND hdep.assign_profile_response = ?`
+		params = append(params, string(*opt.DEPAssignProfileResponseFilter))
+	}
 	return sql, params
 }
 
@@ -1990,7 +1991,7 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(ctx context.Context, sql stri
 	// supported linux platforms if disk encryption is enabled.
 	includeLinuxCond := "FALSE"
 	if diskEncryptionConfig.LinuxEscrowEnabled {
-		includeLinuxCond = `(h.platform = 'ubuntu' OR h.platform = 'zorin' OR h.os_version LIKE 'Fedora%%')`
+		includeLinuxCond = sqlLUKSSupportedHostCond
 	}
 
 	sqlFmt := ` AND (
@@ -2112,7 +2113,7 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(ctx context.Con
 		return sql, params
 	}
 
-	sqlFmt := " AND h.platform IN('windows', 'darwin', 'ubuntu', 'zorin', 'rhel')"
+	sqlFmt := " AND h.platform IN('windows', 'darwin', 'rhel', " + sqlLUKSSupportedPlatforms + ")"
 	if opt.TeamFilter == nil {
 		// OS settings filter is not compatible with the "all teams" option so append the "no
 		// team" filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
@@ -2121,7 +2122,7 @@ func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(ctx context.Con
 	sqlFmt += ` AND (
 		(h.platform = 'windows' AND mwe.host_uuid IS NOT NULL AND hmdm.enrolled = 1 AND hmdm.is_server = 0 AND %s) -- windows
 		OR (h.platform = 'darwin' AND ne.id IS NOT NULL AND hmdm.enrolled = 1 AND %s) -- apple
-		OR ((h.platform = 'ubuntu' OR h.platform = 'zorin' OR h.os_version LIKE 'Fedora%%') AND %s) -- linux
+		OR (` + sqlLUKSSupportedHostCond + ` AND %s) -- linux
 	)`
 
 	var subqueryMacOS string
@@ -3107,6 +3108,10 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 			return ctxerr.Wrap(ctx, err, "new host seen time")
 		}
 
+		// Several orbit config flags are only sent once osquery has enrolled,
+		// and orbit usually fetches its config before that.
+		ds.notifyOrbitConfig(ctx, tx, fleet.AgentWSReasonEnroll, hostID)
+
 		// Update the host id for the identity certificate
 		if enrollConfig.IdentityCert != nil {
 			err = updateHostIdentityCertHostIDBySerial(ctx, tx, hostID, enrollConfig.IdentityCert.SerialNumber)
@@ -3590,18 +3595,11 @@ func (ds *Datastore) MarkHostsSeen(ctx context.Context, hostIDs []uint, t time.T
 	return nil
 }
 
-// SearchHosts performs a search on the hosts table using the following criteria:
-//   - Use the provided team filter.
-//   - Search hostname, uuid, hardware_serial, and primary_ip using LIKE (mimics ListHosts behavior)
-//   - An optional list of IDs to omit from the search.
-//
-// Excludes mobile platforms (ios/ipados/android): sole caller is the
-// live-query target picker, and mobile hosts don't run osquery so they can't
-// respond to a live report. Kept in lockstep with CountHostsInTargets and
-// HostIDsInTargets so the picker hides mobile and campaign metrics stay
-// honest. Deliberately does not populate LastMDMCheckedInAt either: no
-// caller reads it here, and skipping the mobile MDM join keeps this query
-// off a hot path it doesn't need.
+// SearchHosts returns hosts matching the query string. Called by the
+// live-query target picker (which filters mobile hosts at the service
+// layer) and the manual-label host picker (which needs all platforms).
+// Deliberately does not populate LastMDMCheckedInAt: no caller reads it
+// here, and skipping the mobile MDM join keeps this query lean.
 func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Host, error) {
 	query := `SELECT
     h.id,
@@ -3656,7 +3654,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
   LEFT JOIN host_updates hu ON (h.id = hu.host_id)
   LEFT JOIN host_disks hd ON hd.host_id = h.id
   ` + hostMDMJoin + `
-  WHERE h.platform NOT IN ('ios','ipados','android') AND `
+  WHERE TRUE AND `
 
 	matchingHostIDs := make([]int, 0)
 	if len(matchQuery) > 0 {
@@ -3664,7 +3662,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 		// to get all the additional data for hosts that match the search criteria by host_id.
 		// Apply the team filter so that LIMIT 10 below only counts hosts the caller can access —
 		// without it, 10 high-ID hosts on inaccessible teams could crowd out all accessible results.
-		matchingHosts := "SELECT h.id FROM hosts h WHERE h.platform NOT IN ('ios','ipados','android') AND " + ds.whereFilterHostsByTeams(filter, "h")
+		matchingHosts := "SELECT h.id FROM hosts h WHERE " + ds.whereFilterHostsByTeams(filter, "h")
 		var args []interface{}
 		// TODO: should search columns include display_name (requires join to host_display_names)?
 		searchHostsQuery, args := hostSearchLike(matchingHosts, args, matchQuery, hostSearchColumns...)
@@ -5295,18 +5293,18 @@ func (ds *Datastore) GetHostMDMAppleEnrollmentPermissions(ctx context.Context, h
 	// renewal to reconstruct the original ServerURL). The permissions row may
 	// be missing if a transient write failure during the initial Authenticate
 	// dropped it (the persist is non-fatal); in that case AccessRights falls
-	// back to the unrestricted default, matching pre-feature behavior, while
-	// IsPersonalEnrollment still reflects reality from host_mdm.
+	// back to the narrowed bitmask for a personal enrollment and to the
+	// unrestricted default (pre-feature behavior) otherwise.
 	var p fleet.HostMDMApplePermissions
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &p,
 		`SELECT
 			h.uuid AS host_uuid,
-			COALESCE(p.access_rights, ?) AS access_rights,
+			COALESCE(p.access_rights, IF(COALESCE(hm.is_personal_enrollment, 0) = 1, ?, ?)) AS access_rights,
 			COALESCE(hm.is_personal_enrollment, 0) AS is_personal_enrollment
 		 FROM hosts h
 		 LEFT JOIN host_mdm hm ON hm.host_id = h.id
 		 LEFT JOIN host_mdm_apple_enrollment_permissions p ON p.host_uuid = h.uuid
-		 WHERE h.uuid = ?`, apple_mdm.MDMAccessRightAll, hostUUID)
+		 WHERE h.uuid = ?`, apple_mdm.AppleEnrollmentAccessRights(true), apple_mdm.MDMAccessRightAll, hostUUID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, notFound("HostMDMAppleEnrollmentPermissions").WithName(hostUUID)
@@ -5604,6 +5602,7 @@ func deleteHostSCIMUserMappingFor(ctx context.Context, exec sqlx.ExtContext, hos
 		fleet.FleetVarHostEndUserIDPGroups,
 		fleet.FleetVarHostEndUserIDPDepartment,
 		fleet.FleetVarHostEndUserIDPFullname,
+		fleet.FleetVarHostEndUserIDPExternalID,
 	}
 	resentCerts, err := selectCertTemplatesToResend(ctx, exec, []uint{hostID}, fleetVarNamesToDBVars(vars))
 	if err != nil {
