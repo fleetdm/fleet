@@ -4103,8 +4103,7 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 func (ds *Datastore) drainRemovedInstaller(ctx context.Context, installerID uint) (affectedHostIDs []uint, err error) {
 	const isRemoved = `SELECT 1 FROM software_installers WHERE id = ? AND is_active = 0 AND fleet_maintained_app_id IS NULL`
 	for done := false; !done; {
-		// Pick the chunk with a plain read and lock it first, so the check below is the transaction's first
-		// consistent read and sees a re-apply that committed while the chunk waited for its locks.
+		// Pick the chunk with a plain read, then lock it in its own transaction.
 		var execIDs []string
 		if err := sqlx.SelectContext(ctx, ds.writer(ctx), &execIDs, `SELECT ua.execution_id FROM software_install_upcoming_activities siua
 			JOIN upcoming_activities ua ON ua.id = siua.upcoming_activity_id
@@ -4133,8 +4132,9 @@ func (ds *Datastore) drainRemovedInstaller(ctx context.Context, installerID uint
 			if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
 				return ctxerr.Wrap(ctx, err, "lock queued installs")
 			}
+			// Shared lock, so a re-apply can't reactivate the package until this chunk commits.
 			var ok bool
-			if err := sqlx.GetContext(ctx, tx, &ok, isRemoved, installerID); errors.Is(err, sql.ErrNoRows) {
+			if err := sqlx.GetContext(ctx, tx, &ok, isRemoved+` FOR SHARE`, installerID); errors.Is(err, sql.ErrNoRows) {
 				done = true
 				return nil
 			} else if err != nil {
