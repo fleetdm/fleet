@@ -1,10 +1,13 @@
+import classnames from "classnames";
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "react-query";
 
 import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { ILabelSummary } from "interfaces/label";
 import { IAppStoreApp } from "interfaces/software";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
@@ -59,6 +62,7 @@ const AddVersionModal = ({
   onSuccess,
 }: IAddVersionModalProps) => {
   const queryClient = useQueryClient();
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
 
   // Submitting an unmodified scaffold is treated as "no configuration".
   const emptyScaffold = getEmptyConfigScaffold(appStore.platform);
@@ -176,28 +180,42 @@ const AddVersionModal = ({
           className={`${baseClass}__form`}
           onSubmit={handleSubmit(onValidSubmit)}
         >
-          <VersionFormFields
-            formData={formData}
-            getTextFieldProps={getTextFieldProps}
-            commitFields={commitFields}
-            getError={getError}
-            platform={appStore.platform}
-            appDisplayName={appStore.display_name || appStore.name}
-            labels={labels ?? []}
-            teamId={teamId}
-            onClickPreviewEndUserExperience={() =>
-              setShowPreviewEndUserExperience(true)
-            }
-          />
+          <div
+            className={classnames(`${baseClass}__form-content`, {
+              [`${baseClass}__form-content--disabled`]: gitOpsModeEnabled,
+            })}
+          >
+            <VersionFormFields
+              formData={formData}
+              getTextFieldProps={getTextFieldProps}
+              commitFields={commitFields}
+              getError={getError}
+              platform={appStore.platform}
+              appDisplayName={appStore.display_name || appStore.name}
+              labels={labels ?? []}
+              teamId={teamId}
+              onClickPreviewEndUserExperience={() =>
+                setShowPreviewEndUserExperience(true)
+              }
+              disabled={gitOpsModeEnabled}
+            />
+          </div>
 
           <div className="modal-cta-wrap">
-            <Button
-              type="submit"
-              isLoading={isSubmitting}
-              disabled={isSubmitting}
-            >
-              Add
-            </Button>
+            <GitOpsModeTooltipWrapper
+              position="top"
+              tipOffset={8}
+              entityType="software"
+              renderChildren={(gitOpsDisabled) => (
+                <Button
+                  type="submit"
+                  isLoading={isSubmitting}
+                  disabled={isSubmitting || !!gitOpsDisabled}
+                >
+                  Add
+                </Button>
+              )}
+            />
             <Button
               onClick={onExit}
               variant="secondary"
