@@ -190,10 +190,10 @@ module.exports = {
       // With describeKeys, which is only affordable once the payload types have been narrowed, every key
       // gets a line and Apple's description of it.  A gloss wins over the description where there is one,
       // since glosses are kept longer precisely because the constraint is in their second sentence.
-      let renderEntries = (entries, {describeKeys})=>{
+      let renderEntries = (entries, {describeKeys, markUserChannelOnly})=>{
         let lines = [];
         for (let entry of entries) {
-          lines.push(entry.name);
+          lines.push(markUserChannelOnly && entry.userChannelOnly ? `${entry.name}  (on ${entry.userChannelOnly.join(', ')}: user channel only)` : entry.name);
 
           let plainKeys = [];
           let keysWithTheirOwnLine = [];
@@ -337,7 +337,7 @@ domain in neither list is an Apple preference domain with no MDM manifest, or a 
 the ProfileManifests reference.  Fall back to one of those only when nothing listed covers the setting,
 and if you cannot recall its keys, return the "couldNotGenerateProfile" shape rather than guessing.`;
       } else {
-        appleSchema = renderEntries(schemaFile.entries, {describeKeys: false});
+        appleSchema = renderEntries(schemaFile.entries, {describeKeys: false, markUserChannelOnly: profileType === 'ddm' && forFleet});
         appleSchemaDescription =
 `Provided context: every payload type Apple publishes a manifest for, and the keys each one accepts, taken
 from Apple's own manifests.  Format is a payload type followed by its keys, where \`*\` marks a required key, \`{}\` is a
@@ -1124,6 +1124,7 @@ to the profile automatically after you return it.`;
         ],
         ddm: [
           'Never write a key that ends in AssetReference, since Fleet cannot deliver the asset declaration it points to.  If the setting needs one, return the "couldNotGenerateProfile" shape rather than describing the asset in "deliveryNotes".',
+          'A declaration type marked "(on macOS: user channel only)" does nothing on a Mac unless Fleet delivers it to the user, so add a top-level "PayloadScope": "User" key beside Type, Identifier and Payload.  Say in "deliveryNotes" that the declaration fails on iPhones and iPads, so it should be scoped to Macs with a label.',
         ],
       }[profileType] || []);
     }

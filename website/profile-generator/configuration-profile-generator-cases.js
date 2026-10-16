@@ -1353,6 +1353,35 @@ const TEST_CASES = [
     expect: { expectFailure: true }
   },
   {
+    id: 'ddm-fleet-safari-new-tab-macos',
+    profileType: 'ddm',
+    forFleet: true,
+    instructions: 'Set my new Safari tabs to open reddit.com on macOS.',
+    // Safari settings only apply on the macOS user channel, and Fleet delivers to the device channel unless scoped.
+    expect: {
+      mustContain: ['com.apple.configuration.safari.settings', '"PayloadScope":"User"'],
+      deliveryNotesMustContain: ['label'],
+    }
+  },
+  {
+    id: 'ddm-fleet-safari-new-tab-any-platform',
+    profileType: 'ddm',
+    forFleet: true,
+    instructions: 'Set new Safari tabs to open reddit.com.',
+    expect: {
+      mustContain: ['com.apple.configuration.safari.settings', '"PayloadScope":"User"'],
+      deliveryNotesMustContain: ['label'],
+    }
+  },
+  {
+    id: 'ddm-public-safari-new-tab-macos',
+    profileType: 'ddm',
+    instructions: 'Set my new Safari tabs to open reddit.com on macOS.',
+    expect: {
+      mustContain: ['com.apple.configuration.safari.settings'],
+    }
+  },
+  {
     id: 'ddm-fleet-google-account',
     profileType: 'ddm',
     forFleet: true,
@@ -2023,6 +2052,10 @@ function checkExpectations(expectations, generatedProfile, profileType, forFleet
   }
   if(profileType === 'ddm' && forFleet && _.contains(String(generatedProfile.profile), 'AssetReference')) {
     failures.push('references an asset declaration, which Fleet cannot deliver');
+  }
+  // PayloadScope is Fleet's own key, so other MDMs would deliver it to the device as-is.
+  if(profileType === 'ddm' && !forFleet && _.contains(String(generatedProfile.profile), 'PayloadScope')) {
+    failures.push('contains PayloadScope, which only Fleet understands');
   }
   if(!forFleet && /FLEET_SECRET/i.test(String(generatedProfile.deliveryNotes || ''))) {
     failures.push(`deliveryNotes name a Fleet secret outside Fleet: ${JSON.stringify(generatedProfile.deliveryNotes)}`);

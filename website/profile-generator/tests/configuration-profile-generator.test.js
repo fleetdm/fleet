@@ -240,6 +240,9 @@ async function generateOnce(testCase) {
     if(testCase.profileType === 'mobileconfig' && rawResult.configurationProfile) {
       rawResult.deliveryNotes = await sails.helpers.addSoftwareUpdateRemovalNote.with({ profile: rawResult.configurationProfile, deliveryNotes: rawResult.deliveryNotes || '' });
     }
+    if(testCase.profileType === 'ddm' && testCase.forFleet && rawResult.configurationProfile) {
+      rawResult.configurationProfile = await sails.helpers.addUserPayloadScopeToDeclaration.with({ profile: rawResult.configurationProfile });
+    }
     // The same step the action runs, so a case asserts on the profile an admin would download.
     if(testCase.profileType === 'csp' && rawResult.configurationProfile) {
       rawResult.configurationProfile = await sails.helpers.removeSyncmlEnvelopeFromWindowsProfile.with({ profile: rawResult.configurationProfile });

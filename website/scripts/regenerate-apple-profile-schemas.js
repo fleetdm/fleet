@@ -79,6 +79,9 @@ Run this when Apple publishes new payloads or declarations, and read the diff be
         },
         minimumPlausibleCount: 40,
         mustInclude: ['com.apple.configuration.migration-assistant.settings/ExcludedPaths', 'com.apple.configuration.passcode.settings/MinimumLength'],
+        // MDMs deliver declarations to the device channel unless told otherwise, so a declaration Apple only
+        // accepts on the user channel does nothing until it is scoped to the user.
+        recordUserChannelOnlyPlatforms: true,
       },
     ];
 
@@ -155,6 +158,7 @@ Run this when Apple publishes new payloads or declarations, and read the diff be
             title: doc.title,
             description: doc.description ? squash(doc.description, 200) : undefined,
             platforms: supportedPlatforms(doc),
+            userChannelOnly: schemaToBuild.recordUserChannelOnlyPlatforms ? userChannelOnlyPlatforms(doc) : undefined,
             keys: extractKeys(doc.payloadkeys, 0, []),
           }, _.isUndefined));
         });
@@ -301,6 +305,22 @@ function supportedPlatforms(doc) {
     ]);
     platforms.push(lifecycle.length > 0 ? `${platformName} (${lifecycle.join(', ')})` : platformName);
   }
+  return platforms.length > 0 ? platforms : undefined;
+}
+
+
+/**
+ * List the platforms where Apple only accepts a payload on the user channel.
+ *
+ * @param  {Dictionary} doc
+ * @returns {Array|undefined}  e.g. ['macOS']
+ */
+function userChannelOnlyPlatforms(doc) {
+  let supportedOS = (doc.payload && doc.payload.supportedOS) || {};
+  let platforms = _.filter(Object.keys(supportedOS), (platformName)=>{
+    let support = supportedOS[platformName] || {};
+    return support.introduced && support.introduced !== 'n/a' && _.isEqual(support['allowed-scopes'], ['user']);
+  });
   return platforms.length > 0 ? platforms : undefined;
 }
 
