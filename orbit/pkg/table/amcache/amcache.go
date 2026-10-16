@@ -1,3 +1,5 @@
+//go:build windows
+
 // Package amcache implements osquery tables over the Windows Amcache hive
 // (C:\Windows\AppCompat\Programs\Amcache.hve): executables the Compatibility Appraiser has
 // inventoried (with SHA-1), installed applications and shortcuts, driver binaries and

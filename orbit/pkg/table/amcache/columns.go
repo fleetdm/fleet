@@ -1,3 +1,5 @@
+//go:build windows
+
 package amcache
 
 import "github.com/osquery/osquery-go/plugin/table"
