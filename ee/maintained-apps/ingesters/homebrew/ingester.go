@@ -164,6 +164,10 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.UniqueIdentifier,
 		)
 	}
+	if pathFilter, ok := qgisPathFilters[input.Token]; ok {
+		// The patch policy generated below inherits this filter.
+		out.Queries.Exists = fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND %s;", out.UniqueIdentifier, pathFilter)
+	}
 	out.Slug = input.Slug
 	out.DefaultCategories = input.DefaultCategories
 
@@ -370,8 +374,22 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.UniqueIdentifier,
 		)
 	}
+	if pathFilter, ok := qgisPathFilters[input.Token]; ok {
+		// Only this channel's copy counts as open; the other channel doesn't block its install.
+		out.Queries.Open = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = '%s' AND a.%s AND a.bundle_executable != '');",
+			out.UniqueIdentifier, pathFilter,
+		)
+	}
 
 	return out, nil
+}
+
+// qgisPathFilters tells QGIS and QGIS LTR apart by where their casks install them:
+// both report the org.qgis.qgis3 bundle identifier.
+var qgisPathFilters = map[string]string{
+	"qgis":     "path LIKE '/Applications/QGIS-final-%.app'",
+	"qgis@ltr": "path = '/Applications/QGIS-LTR.app'",
 }
 
 var firefoxBetaVersionPattern = regexp.MustCompile(`^(\d+(?:\.\d+)*)b\d+$`)
