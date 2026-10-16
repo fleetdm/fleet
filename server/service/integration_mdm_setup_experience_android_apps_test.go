@@ -1090,32 +1090,62 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 }
 
 // A re-enrolled Android host reuses its host-specific policy, so its new fleet's apps must
-// replace the previous fleet's apps in that policy instead of being added to them.
+// replace the previous fleet's apps in that policy instead of being added to them, before the
+// device is moved to that policy.
 func (s *integrationMDMTestSuite) TestSetupExperienceAndroidReenrollIntoOtherFleetReplacesApps() {
 	t := s.T()
 	ctx := t.Context()
 	s.setSkipWorkerJobs(t)
 	enterpriseID := s.enableAndroidMDM(t)
 
-	const appID = "com.reenroll.previousfleet"
+	const (
+		previousFleetApp = "com.reenroll.previousfleet"
+		newFleetApp      = "com.reenroll.newfleet"
+		fleetAgent       = "com.fleetdm.agent"
+	)
 	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
 		return &androidmanagement.Application{IconUrl: "https://example.com/1.jpg", Title: packageName}, nil
 	}
 
-	// the app list each apps-only policy patch sets, by policy name
+	// the AMAPI calls that change a host policy's apps or move a device to a policy, in order
 	var mu sync.Mutex
-	appsSetByPolicy := make(map[string][]string)
+	var calls []string
+	record := func(policyName, call string) {
+		mu.Lock()
+		defer mu.Unlock()
+		calls = append(calls, policyName+": "+call)
+	}
+	callsFor := func(policyName string) []string {
+		mu.Lock()
+		defer mu.Unlock()
+		var policyCalls []string
+		for _, call := range calls {
+			if rest, ok := strings.CutPrefix(call, policyName+": "); ok {
+				policyCalls = append(policyCalls, rest)
+			}
+		}
+		calls = nil
+		return policyCalls
+	}
 	s.androidAPIClient.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
 		if opts.OnlyUpdateApps {
 			packages := make([]string, 0, len(policy.Applications))
 			for _, app := range policy.Applications {
 				packages = append(packages, app.PackageName)
 			}
-			mu.Lock()
-			appsSetByPolicy[policyName] = packages
-			mu.Unlock()
+			record(policyName, "set apps "+strings.Join(packages, ","))
 		}
 		return &androidmanagement.Policy{Version: 1}, nil
+	}
+	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		for _, app := range appPolicies {
+			record(policyName, "add app "+app.PackageName+" "+app.InstallType)
+		}
+		return &androidmanagement.Policy{Version: 1}, nil
+	}
+	s.androidAPIClient.EnterprisesDevicesPatchFunc = func(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+		record(device.PolicyName, "move device")
+		return &androidmanagement.Device{}, nil
 	}
 
 	createFleet := func(name string) (uint, string) {
@@ -1128,58 +1158,78 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidReenrollIntoOtherFle
 		return createTeamResp.Team.ID, secret
 	}
 	previousFleetID, previousFleetSecret := createFleet("-previous")
+	emptyFleetID, emptyFleetSecret := createFleet("-empty")
 	newFleetID, newFleetSecret := createFleet("-new")
 
 	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
-		AppStoreID: appID,
+		AppStoreID: previousFleetApp,
 		Platform:   fleet.AndroidPlatform,
 		TeamID:     &previousFleetID,
 	}, http.StatusOK)
+	var addAppResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: newFleetApp,
+		Platform:   fleet.AndroidPlatform,
+		TeamID:     &newFleetID,
+	}, http.StatusOK, &addAppResp)
+	s.Do("PUT", "/api/latest/fleet/setup_experience/software", &putSetupExperienceSoftwareRequest{
+		Platform: string(fleet.AndroidPlatform),
+		TeamID:   newFleetID,
+		TitleIDs: []uint{addAppResp.TitleID},
+	}, http.StatusOK)
 	s.runWorkerUntilDoneWithChecks(true)
+	callsFor("")
 
 	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAndroidPubSubToken}, nil)
 	require.NoError(t, err)
 	pubsubToken := assets[fleet.MDMAssetAndroidPubSubToken]
 
 	for _, companyOwned := range []bool{false, true} {
-		func() {
-			identifier := strings.ToUpper(uuid.NewString())
-			enroll := func(secret string) *fleet.Host {
-				deviceInfo := androidmanagement.Device{
-					Name:                createAndroidDeviceID(identifier[:8]),
-					EnrollmentTokenData: fmt.Sprintf(`{"EnrollSecret": "%s"}`, secret),
-				}
-				msg := enrollmentMessageWithEnterpriseSpecificID(t, deviceInfo, identifier)
-				if companyOwned {
-					msg = enrollmentMessageWithSerialNumber(t, deviceInfo, identifier)
-				}
-				s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &android_service.PubSubPushRequest{PubSubMessage: *msg},
-					http.StatusOK, "token", string(pubsubToken.Value))
-				s.runWorkerUntilDoneWithChecks(true)
-
-				var hosts listHostsResponse
-				s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hosts, "query", identifier)
-				require.Len(t, hosts.Hosts, 1)
-				return hosts.Hosts[0].Host
+		identifier := strings.ToUpper(uuid.NewString())
+		enroll := func(secret string, fleetID uint) *fleet.Host {
+			deviceInfo := androidmanagement.Device{
+				Name:                createAndroidDeviceID(identifier[:8]),
+				EnrollmentTokenData: fmt.Sprintf(`{"EnrollSecret": "%s"}`, secret),
 			}
+			msg := enrollmentMessageWithEnterpriseSpecificID(t, deviceInfo, identifier)
+			if companyOwned {
+				msg = enrollmentMessageWithSerialNumber(t, deviceInfo, identifier)
+			}
+			s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &android_service.PubSubPushRequest{PubSubMessage: *msg},
+				http.StatusOK, "token", string(pubsubToken.Value))
+			s.runWorkerUntilDoneWithChecks(true)
 
-			host := enroll(previousFleetSecret)
+			var hosts listHostsResponse
+			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hosts, "query", identifier)
+			require.Len(t, hosts.Hosts, 1)
+			host := hosts.Hosts[0].Host
 			require.NotNil(t, host.TeamID)
-			require.Equal(t, previousFleetID, *host.TeamID)
-			policyName := fmt.Sprintf("enterprises/%s/policies/%s", enterpriseID, host.UUID)
-			mu.Lock()
-			require.Equal(t, []string{appID, "com.fleetdm.agent"}, appsSetByPolicy[policyName], "company owned: %t", companyOwned)
-			delete(appsSetByPolicy, policyName)
-			mu.Unlock()
+			require.Equal(t, fleetID, *host.TeamID, "company owned: %t", companyOwned)
+			return host
+		}
 
-			// re-enroll the same device into a fleet without apps, which reuses the host policy
-			reenrolledHost := enroll(newFleetSecret)
-			require.Equal(t, host.ID, reenrolledHost.ID)
-			require.NotNil(t, reenrolledHost.TeamID)
-			require.Equal(t, newFleetID, *reenrolledHost.TeamID)
-			mu.Lock()
-			require.Equal(t, []string{"com.fleetdm.agent"}, appsSetByPolicy[policyName], "company owned: %t", companyOwned)
-			mu.Unlock()
-		}()
+		host := enroll(previousFleetSecret, previousFleetID)
+		policyName := fmt.Sprintf("enterprises/%s/policies/%s", enterpriseID, host.UUID)
+		require.Equal(t, []string{
+			"add app " + fleetAgent + " FORCE_INSTALLED",
+			"set apps " + previousFleetApp + "," + fleetAgent,
+			"move device",
+		}, callsFor(policyName), "company owned: %t", companyOwned)
+
+		// re-enrolling into another fleet reuses the host policy
+		require.Equal(t, host.ID, enroll(emptyFleetSecret, emptyFleetID).ID)
+		require.Equal(t, []string{
+			"add app " + fleetAgent + " FORCE_INSTALLED",
+			"set apps " + fleetAgent,
+			"move device",
+		}, callsFor(policyName), "company owned: %t", companyOwned)
+
+		require.Equal(t, host.ID, enroll(newFleetSecret, newFleetID).ID)
+		require.Equal(t, []string{
+			"add app " + fleetAgent + " FORCE_INSTALLED",
+			"set apps " + newFleetApp + "," + fleetAgent,
+			"move device",
+			"add app " + newFleetApp + " PREINSTALLED",
+		}, callsFor(policyName), "company owned: %t", companyOwned)
 	}
 }
