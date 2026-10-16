@@ -123,6 +123,8 @@ services:
       - "127.0.0.1:${FLEET_REDIS_PORT:-6379}:6379"
 
   saml_idp:
+    # Using simplesamlphp-1.19.0 instead of latest
+    # because it has amd64/arm64 builds.
     image: fleetdm/docker-idp:simplesamlphp-1.19.0
     volumes:
       - ./tools/saml/users.php:/var/www/simplesamlphp/config/authsources.php
