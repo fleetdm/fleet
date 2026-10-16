@@ -165,6 +165,10 @@ const DeviceUserPage = ({
   const deviceAuthToken = device_auth_token;
   const isMobileView = useIsMobileWidth();
   const isMobileDevice = isIPhone(navigator) || isIPad(navigator);
+  // Narrow viewports render the mobile UI only when the viewer is on an actual
+  // mobile device, or has opted in via ?mobile=1 for dev/QA. On a shrunk
+  // desktop browser we fall back to the unsupported-screen overlay instead.
+  const isMobile = isMobileDevice || location.query.mobile === "1";
 
   const [showBypassModal, setShowBypassModal] = useState(false);
   const [showBitLockerPINModal, setShowBitLockerPINModal] = useState(false);
@@ -820,8 +824,7 @@ const DeviceUserPage = ({
 
     // Actual iOS/iPadOS devices (either by Fleet platform or user agent) get the
     // touch-first mobile UI. `?mobile=1` forces it on desktop for dev/QA.
-    const shouldShowMobileUI =
-      isIOSIPadOS || isMobileDevice || location.query.mobile === "1";
+    const shouldShowMobileUI = isIOSIPadOS || isMobile;
 
     if (shouldShowMobileUI) {
       // Force redirect to self-service route for iOS/iPadOS devices
@@ -1152,11 +1155,11 @@ const DeviceUserPage = ({
   };
 
   const coreWrapperClassnames = classNames("core-wrapper", {
-    "low-width-supported": !shouldShowUnsupportedScreen(location.pathname),
+    "low-width-supported": !shouldShowUnsupportedScreen(location.pathname, isMobile),
   });
 
   const siteNavContainerClassnames = classNames("site-nav-container", {
-    "low-width-supported": !shouldShowUnsupportedScreen(location.pathname),
+    "low-width-supported": !shouldShowUnsupportedScreen(location.pathname, isMobile),
   });
 
   // The SSO branch has to come first: a refused device call is an error to
@@ -1192,7 +1195,7 @@ const DeviceUserPage = ({
 
   return (
     <div className="app-wrap">
-      {shouldShowUnsupportedScreen(location.pathname) && (
+      {shouldShowUnsupportedScreen(location.pathname, isMobile) && (
         <UnsupportedScreenSize />
       )}
       <nav className={siteNavContainerClassnames}>

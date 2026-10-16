@@ -1,1 +1,1 @@
-- Fixed an issue where the mobile Self-service UI was rendered on desktop when the browser window was shrunk. The mobile UI now only renders for actual iOS/iPadOS devices.
+- Fixed an issue where the mobile Self-service UI was rendered on desktop when the browser window was shrunk. The mobile UI now only renders for actual iOS/iPadOS devices; a narrow desktop viewport shows the standard unsupported-screen overlay instead.

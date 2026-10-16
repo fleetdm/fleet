@@ -1396,6 +1396,41 @@ describe("Mobile UI gating", () => {
     expect(container.querySelector(".device-user-mobile")).toBeNull();
   });
 
+  it("renders the unsupported-screen overlay on a narrow desktop viewport over a device path", async () => {
+    window.matchMedia = jest.fn().mockImplementation((query) => ({
+      matches: true,
+      media: query,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      onchange: null,
+      dispatchEvent: jest.fn(),
+    })) as typeof window.matchMedia;
+
+    const host = createMockHost() as IHostDevice;
+    host.platform = "darwin";
+    mockServer.use(customDeviceHandler({ host }));
+    mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: "testToken" }}
+        location={{
+          ...mockLocation,
+          pathname: PATHS.DEVICE_USER_DETAILS_SELF_SERVICE("testToken"),
+        }}
+      />
+    );
+
+    expect(
+      await screen.findByText(/This screen size is not supported yet/i)
+    ).toBeInTheDocument();
+  });
+
   it("renders the mobile UI when ?mobile=1 is present (dev override)", async () => {
     const host = createMockHost() as IHostDevice;
     host.platform = "darwin";
