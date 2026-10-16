@@ -1401,6 +1401,33 @@ func TestOsqueryConfigInMemoryCacheDefault(t *testing.T) {
 	require.True(t, man.LoadConfig().Osquery.ConfigInMemoryCache)
 }
 
+func TestOsqueryQueryReportConcurrencyLimits(t *testing.T) {
+	load := func(yaml string) OsqueryConfig {
+		var cmd cobra.Command
+		cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+		man := NewManager(&cmd)
+		man.viper.SetConfigType("yaml")
+		require.NoError(t, man.viper.ReadConfig(strings.NewReader(yaml)))
+		return man.LoadConfig().Osquery
+	}
+
+	testutils.SaveEnv(t)
+	os.Clearenv()
+	cfg := load("")
+	require.Equal(t, 40, cfg.MaxConcurrentQueryReportReads)
+	require.Equal(t, 20, cfg.MaxConcurrentQueryReportWrites)
+
+	cfg = load("osquery:\n  max_concurrent_query_report_reads: 80\n  max_concurrent_query_report_writes: 0\n")
+	require.Equal(t, 80, cfg.MaxConcurrentQueryReportReads)
+	require.Zero(t, cfg.MaxConcurrentQueryReportWrites)
+
+	t.Setenv("FLEET_OSQUERY_MAX_CONCURRENT_QUERY_REPORT_READS", "5")
+	t.Setenv("FLEET_OSQUERY_MAX_CONCURRENT_QUERY_REPORT_WRITES", "7")
+	cfg = load("")
+	require.Equal(t, 5, cfg.MaxConcurrentQueryReportReads)
+	require.Equal(t, 7, cfg.MaxConcurrentQueryReportWrites)
+}
+
 func TestOsqueryConfigValidate(t *testing.T) {
 	t.Parallel()
 

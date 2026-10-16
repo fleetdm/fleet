@@ -1,6 +1,7 @@
 package browserext
 
 import (
+	"cmp"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -141,17 +142,6 @@ func resolveChromiumName(versionDir string, m chromiumManifest) string {
 	return m.Name
 }
 
-// underHome reports whether cand, once cleaned, is contained within the home
-// directory. Used to refuse attacker-controlled absolute paths (Chromium
-// Preferences "path") that would otherwise escape the scanned home.
-func underHome(home, cand string) bool {
-	rel, err := filepath.Rel(filepath.Clean(home), filepath.Clean(cand))
-	if err != nil {
-		return false
-	}
-	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
-}
-
 func msgKey(name string) (string, bool) {
 	if strings.HasPrefix(name, "__MSG_") && strings.HasSuffix(name, "__") {
 		return strings.TrimSuffix(strings.TrimPrefix(name, "__MSG_"), "__"), true
@@ -188,7 +178,7 @@ func collectChromiumProfile(profileDir, browser, profileName string, h homes.Hom
 			byID[id] = &Extension{
 				ID:           id,
 				Name:         resolveChromiumName(filepath.Join(extRoot, id, verDir), m),
-				Version:      firstNonEmpty(m.Version, verDir),
+				Version:      cmp.Or(m.Version, verDir),
 				Path:         manifestPath,
 				ManifestVer:  m.ManifestVer,
 				HostPerms:    m.hostPatterns(),
@@ -210,7 +200,7 @@ func collectChromiumProfile(profileDir, browser, profileName string, h homes.Hom
 			// root scanner cannot be pointed at an arbitrary file to hash (below).
 			mp := ""
 			if pe.Path != "" {
-				if cand := filepath.Join(pe.Path, "manifest.json"); underHome(h.Dir, cand) {
+				if cand := filepath.Join(pe.Path, "manifest.json"); fsutil.PathWithin(h.Dir, cand) {
 					mp = cand
 				}
 			}
@@ -233,8 +223,8 @@ func collectChromiumProfile(profileDir, browser, profileName string, h homes.Hom
 		if len(ext.HostPerms) == 0 {
 			ext.HostPerms = pe.Manifest.hostPatterns()
 		}
-		ext.Name = firstNonEmpty(ext.Name, pe.Manifest.Name)
-		ext.Version = firstNonEmpty(ext.Version, pe.Manifest.Version)
+		ext.Name = cmp.Or(ext.Name, pe.Manifest.Name)
+		ext.Version = cmp.Or(ext.Version, pe.Manifest.Version)
 	}
 
 	// 3. Classify (AI-only), finalize, sort by id for deterministic output.

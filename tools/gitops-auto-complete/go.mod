@@ -1,6 +1,6 @@
 module fleetdm.local/gitops-auto-complete
 
-go 1.27.1
+go 1.27.2
 
 require (
 	github.com/fleetdm/fleet/v4 v4.0.0
@@ -20,6 +20,7 @@ require (
 	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/Azure/go-ntlmssp v0.1.1 // indirect
 	github.com/Masterminds/semver/v3 v3.5.0 // indirect
+	github.com/WatchBeam/clock v0.0.0-20170901150240-b08e6b4da7ea // indirect
 	github.com/agnivade/levenshtein v1.2.1 // indirect
 	github.com/andygrunwald/go-jira v1.16.0 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect

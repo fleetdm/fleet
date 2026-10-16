@@ -1,0 +1,1 @@
+- Hosts in fleets that require IdP authentication must now complete it to enroll through automatic enrollment (ADE). Fleet refuses devices that got their automatic enrollment configuration before their fleet required IdP authentication, and records a "Host enrollment failed" activity so admins can reactivate them.

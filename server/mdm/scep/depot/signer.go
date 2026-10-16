@@ -3,6 +3,7 @@ package depot
 import (
 	"crypto/rand"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
@@ -11,12 +12,11 @@ import (
 
 // Signer signs x509 certificates and stores them in a Depot
 type Signer struct {
-	depot            Depot
-	caPass           string
-	allowRenewalDays int
-	validityDays     int
-	serverAttrs      bool
-	signatureAlgo    x509.SignatureAlgorithm
+	depot         Depot
+	caPass        string
+	validityDays  int
+	serverAttrs   bool
+	signatureAlgo x509.SignatureAlgorithm
 }
 
 // Option customizes Signer
@@ -25,10 +25,9 @@ type Option func(*Signer)
 // NewSigner creates a new Signer
 func NewSigner(depot Depot, opts ...Option) *Signer {
 	s := &Signer{
-		depot:            depot,
-		allowRenewalDays: 14,
-		validityDays:     365,
-		signatureAlgo:    0,
+		depot:         depot,
+		validityDays:  365,
+		signatureAlgo: 0,
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -52,13 +51,6 @@ func WithCAPass(pass string) Option {
 	}
 }
 
-// WithAllowRenewalDays sets the allowable renewal time for existing certs
-func WithAllowRenewalDays(r int) Option {
-	return func(s *Signer) {
-		s.allowRenewalDays = r
-	}
-}
-
 // WithValidityDays sets the validity period new certs will use
 func WithValidityDays(v int) Option {
 	return func(s *Signer) {
@@ -78,6 +70,16 @@ func (s *Signer) SignCSR(m *scep.CSRReqMessage) (*x509.Certificate, error) {
 }
 
 func (s *Signer) Signx509CSR(csr *x509.CertificateRequest) (*x509.Certificate, error) {
+	return s.SignX509CSRWithCallback(csr, csr.Subject, func(tmpl *x509.Certificate) {
+		tmpl.DNSNames = csr.DNSNames
+		tmpl.EmailAddresses = csr.EmailAddresses
+		tmpl.IPAddresses = csr.IPAddresses
+		tmpl.URIs = csr.URIs
+	})
+}
+
+// SignX509CSRWithCallback signs a certificate using Signer's Depot CA with a custom callback to modify the certificate template.
+func (s *Signer) SignX509CSRWithCallback(csr *x509.CertificateRequest, subject pkix.Name, callback func(tmpl *x509.Certificate)) (*x509.Certificate, error) {
 	id, err := cryptoutil.GenerateSubjectKeyID(csr.PublicKey)
 	if err != nil {
 		return nil, err
@@ -94,20 +96,17 @@ func (s *Signer) Signx509CSR(csr *x509.CertificateRequest) (*x509.Certificate, e
 
 	// create cert template
 	tmpl := &x509.Certificate{
-		SerialNumber: serial,
-		Subject:      csr.Subject,
-		NotBefore:    time.Now().Add(time.Second * -600).UTC(),
-		NotAfter:     time.Now().AddDate(0, 0, s.validityDays).UTC(),
-		SubjectKeyId: id,
-		KeyUsage:     x509.KeyUsageDigitalSignature,
-		ExtKeyUsage: []x509.ExtKeyUsage{
-			x509.ExtKeyUsageClientAuth,
-		},
+		SerialNumber:       serial,
+		Subject:            subject,
+		NotBefore:          time.Now().Add(time.Second * -600).UTC(),
+		NotAfter:           time.Now().AddDate(0, 0, s.validityDays).UTC(),
+		SubjectKeyId:       id,
+		KeyUsage:           x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:        []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 		SignatureAlgorithm: signatureAlgo,
-		DNSNames:           csr.DNSNames,
-		EmailAddresses:     csr.EmailAddresses,
-		IPAddresses:        csr.IPAddresses,
-		URIs:               csr.URIs,
+	}
+	if callback != nil {
+		callback(tmpl)
 	}
 
 	if s.serverAttrs {
@@ -131,14 +130,6 @@ func (s *Signer) Signx509CSR(csr *x509.CertificateRequest) (*x509.Certificate, e
 	}
 
 	name := certName(crt)
-
-	// Test if this certificate is already in the CADB, revoke if needed
-	// revocation is done if the validity of the existing certificate is
-	// less than allowRenewalDays
-	_, err = s.depot.HasCN(name, s.allowRenewalDays, crt, false)
-	if err != nil {
-		return nil, err
-	}
 
 	if err := s.depot.Put(name, crt); err != nil {
 		return nil, err
