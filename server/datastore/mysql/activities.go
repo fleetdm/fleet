@@ -1424,7 +1424,13 @@ SELECT
 FROM
 	upcoming_activities
 WHERE
-	host_id = ?
+	host_id = ? AND
+	-- skip a queued install of a custom package a GitOps apply removed; it's deleted after the apply commits
+	(activated_at IS NOT NULL OR NOT EXISTS (
+		SELECT 1 FROM software_install_upcoming_activities siua
+		JOIN software_installers si ON si.id = siua.software_installer_id
+		WHERE siua.upcoming_activity_id = upcoming_activities.id AND si.is_active = 0 AND si.fleet_maintained_app_id IS NULL
+	))
 	%s
 ORDER BY topmost DESC, priority DESC, created_at ASC
 LIMIT ?
