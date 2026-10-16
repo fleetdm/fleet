@@ -40,6 +40,7 @@ const LOG_LEVELS = ["debug", "info", "warn", "error"];
 // The share controls row swaps between the port box and the URL + buttons;
 // a fixed minimum height keeps the card from shifting when it does.
 const SHARE_ROW: React.CSSProperties = { display: "flex", alignItems: "center", gap: "var(--pad-small)", flexWrap: "wrap", minHeight: 40 };
+const SHARE_BUTTON: React.CSSProperties = { minWidth: 130 };
 // Fleet dropdown value shown while the enroll secret was typed by hand.
 const MANUAL_FLEET = "__manual__";
 
@@ -913,17 +914,18 @@ function OutputShareCard({
         {outputDir.trim() && !running && <button className="link-btn" onClick={() => onOutputDirChange("")}>use default</button>}
       </div>
 
-      {/* Sharing controls on one line */}
+      {/* Sharing controls on one line. Start/Stop come first, at a fixed width,
+          so the button stays in the same place in both states. */}
       {running && status ? (
         <div style={SHARE_ROW}>
+          <button className="danger" onClick={stop} disabled={busy} style={SHARE_BUTTON}>Stop sharing</button>
           <span className="mono" style={{ fontSize: "var(--fs-x-small)", fontWeight: 600, userSelect: "all" }}>{status.url}</span>
           <button onClick={() => copy(status.url, "URL")}>Copy URL</button>
           <button onClick={() => api.openUrl(status.url).catch((e) => flash("err", errText(e)))}>Open in browser</button>
-          <div style={{ flex: 1 }} />
-          <button className="danger" onClick={stop} disabled={busy}>Stop sharing</button>
         </div>
       ) : (
         <div style={SHARE_ROW}>
+          <button className="primary" onClick={start} disabled={busy || !outputRoot || !portValid} style={SHARE_BUTTON}>Start sharing</button>
           <span>Port</span>
           <input
             inputMode="numeric"
@@ -934,7 +936,6 @@ function OutputShareCard({
             title={portValid ? "Leave empty to use a free port" : "Enter a port from 1 to 65535"}
             style={{ width: 120, borderColor: portValid ? undefined : "var(--ui-error)" }}
           />
-          <button className="primary" onClick={start} disabled={busy || !outputRoot || !portValid}>Start sharing</button>
           {!portValid && <span style={{ color: "var(--ui-error)" }}>enter a port from 1 to 65535</span>}
         </div>
       )}
