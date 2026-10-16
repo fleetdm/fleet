@@ -300,6 +300,7 @@ past AS (
 -- keep the version with the latest activity for each status on each host
 SELECT
 	host_id,
+	vpp_app_team_id,
 	status
 FROM (
 	SELECT
@@ -317,31 +318,31 @@ FROM (
 	) statuses
 ) latest
 WHERE
-	rn = 1
-	AND vpp_app_team_id = :vpp_app_team_id`
+	rn = 1`
 
-func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, vppAppTeamID uint) (*fleet.VPPAppStatusSummary,
+func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, versions []*fleet.VPPAppStoreApp) (map[uint]*fleet.VPPAppStatusSummary,
 	error,
 ) {
-	var dest fleet.VPPAppStatusSummary
-
-	versionIDs, err := ds.GetAppStoreAppVersionIDsFromSpecificVersion(ctx, vppAppTeamID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get summary host vpp installs: version ids")
+	summaries := make(map[uint]*fleet.VPPAppStatusSummary, len(versions))
+	versionIDs := make([]uint, 0, len(versions))
+	for _, version := range versions {
+		summaries[version.VPPAppsTeamsID] = &fleet.VPPAppStatusSummary{}
+		versionIDs = append(versionIDs, version.VPPAppsTeamsID)
 	}
 	if len(versionIDs) == 0 {
-		return &dest, nil
+		return summaries, nil
 	}
 
 	stmt := fmt.Sprintf(`
 SELECT
+	vpp_app_team_id,
 	COALESCE(SUM( IF(status = :software_status_pending, 1, 0)), 0) AS pending,
 	COALESCE(SUM( IF(status = :software_status_failed, 1, 0)), 0) AS failed,
 	COALESCE(SUM( IF(status = :software_status_installed, 1, 0)), 0) AS installed
-FROM (%s) t`, vppAppVersionHostStatusesQuery)
+FROM (%s) t
+GROUP BY vpp_app_team_id`, vppAppVersionHostStatusesQuery)
 
 	query, args, err := sqlx.Named(stmt, map[string]interface{}{
-		"vpp_app_team_id":           vppAppTeamID,
 		"version_ids":               versionIDs,
 		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
 		"mdm_status_error":          fleet.MDMAppleStatusError,
@@ -358,11 +359,18 @@ FROM (%s) t`, vppAppVersionHostStatusesQuery)
 		return nil, ctxerr.Wrap(ctx, err, "get summary host vpp installs: in query")
 	}
 
-	err = sqlx.GetContext(ctx, ds.reader(ctx), &dest, query, args...)
+	var versionSummaries []struct {
+		VPPAppTeamID uint `db:"vpp_app_team_id"`
+		fleet.VPPAppStatusSummary
+	}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &versionSummaries, query, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get summary host vpp install status")
 	}
-	return &dest, nil
+	for _, versionSummary := range versionSummaries {
+		summaries[versionSummary.VPPAppTeamID] = &versionSummary.VPPAppStatusSummary
+	}
+	return summaries, nil
 }
 
 // hvsiAlias is the table alias to use as prefix for the

@@ -353,15 +353,15 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// for now they all return zeroes
-	summary, err := ds.GetSummaryHostVPPAppInstalls(ctx, va1.AppTeamID)
+	summaries, err := ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: va1.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summary)
-	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, va2.AppTeamID)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summaries[va1.AppTeamID])
+	summaries, err = ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: va2.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summary)
-	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, va3.AppTeamID)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summaries[va2.AppTeamID])
+	summaries, err = ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: va3.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summaries[va3.AppTeamID])
 
 	// create a few enrolled hosts
 	h1, err := ds.NewHost(ctx, &fleet.Host{
@@ -404,16 +404,16 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	// simulate an install request of vpp1 on h1
 	cmd1 := createVPPAppInstallRequest(t, ds, h1, vpp1.AdamID, user)
 
-	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, va1.AppTeamID)
+	summaries, err = ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: va1.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1, Failed: 0, Installed: 0}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1, Failed: 0, Installed: 0}, summaries[va1.AppTeamID])
 
 	// record a failed result
 	createVPPAppInstallResult(t, ds, h1, cmd1, fleet.MDMAppleStatusError)
 
-	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, va1.AppTeamID)
+	summaries, err = ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: va1.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 1, Installed: 0}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 1, Installed: 0}, summaries[va1.AppTeamID])
 
 	// create a new request for h1 that supercedes the failed on, and a request
 	// for h2 with a successful result.
@@ -429,43 +429,43 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.False(t, act.SelfService)
 
 	// both are pending because h2 is not verified yet
-	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, va1.AppTeamID)
+	summaries, err = ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: va1.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 2, Failed: 0, Installed: 0}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 2, Failed: 0, Installed: 0}, summaries[va1.AppTeamID])
 
 	// mark it as verified
 	err = ds.SetVPPInstallAsVerified(ctx, h2.ID, cmd3, uuid.NewString())
 	require.NoError(t, err)
 
 	// h2 is now installed
-	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, va1.AppTeamID)
+	summaries, err = ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: va1.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1, Failed: 0, Installed: 1}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1, Failed: 0, Installed: 1}, summaries[va1.AppTeamID])
 
 	// mark the pending request as successful and verified too
 	createVPPAppInstallResult(t, ds, h1, cmd2, fleet.MDMAppleStatusAcknowledged)
 	err = ds.SetVPPInstallAsVerified(ctx, h1.ID, cmd2, uuid.NewString())
 	require.NoError(t, err)
 
-	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, va1.AppTeamID)
+	summaries, err = ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: va1.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 2}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 2}, summaries[va1.AppTeamID])
 
 	// simulate a successful but unverified request for team app vpp2 on h3
 	cmd4 := createVPPAppInstallRequest(t, ds, h3, vpp2.AdamID, user)
 	createVPPAppInstallResult(t, ds, h3, cmd4, fleet.MDMAppleStatusAcknowledged)
 
-	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, va2.AppTeamID)
+	summaries, err = ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: va2.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1, Failed: 0, Installed: 0}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1, Failed: 0, Installed: 0}, summaries[va2.AppTeamID])
 
 	// verify it as failed
 	err = ds.SetVPPInstallAsFailed(ctx, h3.ID, cmd4, uuid.NewString())
 	require.NoError(t, err)
 
-	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, va2.AppTeamID)
+	summaries, err = ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: va2.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 1, Installed: 0}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 1, Installed: 0}, summaries[va2.AppTeamID])
 
 	// simulate a successful, failed and pending request for app vpp3 on team
 	// (h3) and no team (h1, h2)
@@ -478,48 +478,48 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	createVPPAppInstallRequest(t, ds, h2, vpp3.AdamID, user)
 
 	// for no team, it sees the failed and pending counts
-	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, va3.AppTeamID)
+	summaries, err = ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: va3.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1, Failed: 1, Installed: 0}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1, Failed: 1, Installed: 0}, summaries[va3.AppTeamID])
 
 	// for the team, it sees the successful count
-	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, va3InTeam1.AppTeamID)
+	summaries, err = ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: va3InTeam1.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 1}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 1}, summaries[va3InTeam1.AppTeamID])
 
 	// move h1 and h2 to team1, their no team installs should no longer be counted for the no team apps
 	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{h1.ID, h2.ID}))
 	require.NoError(t, err)
 
-	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, va1.AppTeamID)
+	summaries, err = ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: va1.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summaries[va1.AppTeamID])
 
-	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, va3.AppTeamID)
+	summaries, err = ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: va3.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summaries[va3.AppTeamID])
 
 	// the team1 instance of vpp3 should still only count h3
-	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, va3InTeam1.AppTeamID)
+	summaries, err = ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: va3InTeam1.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 1}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 1}, summaries[va3InTeam1.AppTeamID])
 
 	// move h3 to no team, its team1 installs should no longer be counted for the team1 apps
 	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(nil, []uint{h3.ID}))
 	require.NoError(t, err)
 
-	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, va2.AppTeamID)
+	summaries, err = ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: va2.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summaries[va2.AppTeamID])
 
-	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, va3InTeam1.AppTeamID)
+	summaries, err = ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: va3InTeam1.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summaries[va3InTeam1.AppTeamID])
 
 	// the no team instance of vpp3 should not count h3's team1 install
-	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, va3.AppTeamID)
+	summaries, err = ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: va3.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summaries[va3.AppTeamID])
 
 	// move h1 and h2 back to no team and h3 back to team1, all installs should be counted again
 	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(nil, []uint{h1.ID, h2.ID}))
@@ -527,21 +527,21 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{h3.ID}))
 	require.NoError(t, err)
 
-	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, va1.AppTeamID)
+	summaries, err = ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: va1.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 2}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 2}, summaries[va1.AppTeamID])
 
-	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, va2.AppTeamID)
+	summaries, err = ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: va2.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 1, Installed: 0}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 1, Installed: 0}, summaries[va2.AppTeamID])
 
-	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, va3.AppTeamID)
+	summaries, err = ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: va3.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1, Failed: 1, Installed: 0}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1, Failed: 1, Installed: 0}, summaries[va3.AppTeamID])
 
-	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, va3InTeam1.AppTeamID)
+	summaries, err = ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: va3InTeam1.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 1}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 1}, summaries[va3InTeam1.AppTeamID])
 
 	// simulate a self-service request
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -2585,29 +2585,29 @@ func testAndroidVPPAppStatus(t *testing.T, ds *Datastore) {
 	err = ds.BulkSetVPPInstallsAsVerified(ctx, host1.Host.ID, []string{})
 	require.NoError(t, err)
 
-	summary, err := ds.GetSummaryHostVPPAppInstalls(ctx, va1.AppTeamID)
+	summaries, err := ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: va1.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 2}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 2}, summaries[va1.AppTeamID])
 
-	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, va2.AppTeamID)
+	summaries, err = ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: va2.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1}, summaries[va2.AppTeamID])
 
 	// mark vpp1 as installed on host1
 	err = ds.BulkSetVPPInstallsAsVerified(ctx, host1.Host.ID, []string{cmdVpp1})
 	require.NoError(t, err)
 
-	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, va1.AppTeamID)
+	summaries, err = ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: va1.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1, Installed: 1}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1, Installed: 1}, summaries[va1.AppTeamID])
 
 	// mark vpp2 as failed on host2
 	err = ds.BulkSetVPPInstallsAsFailed(ctx, host2.Host.ID, []string{cmdVpp2})
 	require.NoError(t, err)
 
-	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, va2.AppTeamID)
+	summaries, err = ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: va2.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Failed: 1}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Failed: 1}, summaries[va2.AppTeamID])
 
 	// get vpp command result for an android command returns nothing (but doesn't fail)
 	res, err := ds.GetVPPCommandResults(ctx, cmdVpp1, host1.Host.UUID)
@@ -4377,9 +4377,9 @@ VALUES (?, ?, ?, ?)`, uaID, appID.AdamID, appID.Platform, app.AppTeamID)
 	insert("vppdrop-B", -1, 0)  // lower priority, earlier created_at
 	insert("vppdrop-A", 0, 100) // higher priority, later created_at
 
-	summary, err := ds.GetSummaryHostVPPAppInstalls(ctx, app.AppTeamID)
+	summaries, err := ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: app.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, fleet.VPPAppStatusSummary{Pending: 1}, *summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1}, summaries[app.AppTeamID])
 }
 
 func testAndroidAppsInScopeHostVitalsExcludeAnyLabel(t *testing.T, ds *Datastore) {
@@ -4690,12 +4690,10 @@ func testTwoAppStoreAppInstancesInOneFleet(t *testing.T, ds *Datastore) {
 		nanoEnroll(t, ds, host, false)
 		err = ds.InsertHostVPPSoftwareInstall(ctx, host.ID, firstInstance.VPPAppID, "two-instances-cmd-"+c.name, "evt", fleet.HostSoftwareInstallOptions{VPPAppTeamID: secondAppTeamID})
 		require.NoError(t, err)
-		firstSummary, err := ds.GetSummaryHostVPPAppInstalls(ctx, firstInstance.AppTeamID)
+		summaries, err := ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: firstInstance.AppTeamID}, {VPPAppsTeamsID: secondAppTeamID}})
 		require.NoError(t, err)
-		require.Equal(t, &fleet.VPPAppStatusSummary{}, firstSummary)
-		secondSummary, err := ds.GetSummaryHostVPPAppInstalls(ctx, secondAppTeamID)
-		require.NoError(t, err)
-		require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1}, secondSummary)
+		require.Equal(t, &fleet.VPPAppStatusSummary{}, summaries[firstInstance.AppTeamID])
+		require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1}, summaries[secondAppTeamID])
 	}
 }
 
@@ -4787,15 +4785,18 @@ func testAppStoreAppVersionsStatusCountsOneVersionPerStatus(t *testing.T, ds *Da
 		err = ds.InsertHostVPPSoftwareInstall(ctx, hostInstalledAPendingB.ID, versionB.VPPAppID, uuid.NewString(), "event", fleet.HostSoftwareInstallOptions{VPPAppTeamID: versionB.AppTeamID})
 		require.NoError(t, err)
 
-		// count the statuses of A, only installs should count
-		summaryA, err := ds.GetSummaryHostVPPAppInstalls(ctx, versionA.AppTeamID)
+		// count the statuses of both versions from A, only installs should count for A
+		summaries, err := ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: versionA.AppTeamID}, {VPPAppsTeamsID: versionB.AppTeamID}})
 		require.NoError(t, err)
+		require.Len(t, summaries, 2)
+		summaryA := summaries[versionA.AppTeamID]
+		require.NotNil(t, summaryA)
 		require.Zero(t, summaryA.Failed)
 		require.Zero(t, summaryA.Pending)
 
 		// count the statuses of B, the failed and pending hosts should count once
-		summaryB, err := ds.GetSummaryHostVPPAppInstalls(ctx, versionB.AppTeamID)
-		require.NoError(t, err)
+		summaryB := summaries[versionB.AppTeamID]
+		require.NotNil(t, summaryB)
 		require.Equal(t, uint(1), summaryB.Failed)
 		require.Equal(t, uint(1), summaryB.Pending)
 
@@ -4827,9 +4828,9 @@ func testAppStoreAppVersionsStatusCountsOneVersionPerStatus(t *testing.T, ds *Da
 			_, err := q.ExecContext(ctx, `DELETE ncr FROM nano_command_results ncr JOIN host_vpp_software_installs hvsi ON hvsi.command_uuid = ncr.command_uuid WHERE hvsi.host_id = ?`, hostInstalledAThenB.ID)
 			return err
 		})
-		summaryBWithoutResults, err := ds.GetSummaryHostVPPAppInstalls(ctx, versionB.AppTeamID)
+		summariesWithoutResults, err := ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: versionA.AppTeamID}, {VPPAppsTeamsID: versionB.AppTeamID}})
 		require.NoError(t, err)
-		require.Equal(t, summaryB, summaryBWithoutResults)
+		require.Equal(t, summaryB, summariesWithoutResults[versionB.AppTeamID])
 		hosts = listHostsCheckCount(t, ds, hostFilter, fleet.HostListOptions{TeamFilter: &fleetID, SoftwareTitleIDFilter: &versionA.TitleID, AppStoreAppVersionIDFilter: &versionB.AppTeamID, SoftwareStatusFilter: &installed}, int(summaryB.Installed))
 		require.Contains(t, hostIDs(hosts), hostInstalledAThenB.ID)
 
