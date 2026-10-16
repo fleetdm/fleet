@@ -234,6 +234,9 @@ csp cases report as not-checked either way.`
             baseModel,
             expectJson: true,
           });
+          if(testCase.profileType === 'mobileconfig' && rawResult.configurationProfile) {
+            rawResult.deliveryNotes = await sails.helpers.addSoftwareUpdateRemovalNote.with({ profile: rawResult.configurationProfile, deliveryNotes: rawResult.deliveryNotes || '' });
+          }
           // The same step the action runs, so a case is checked against the profile an admin would download.
           if(testCase.profileType === 'csp' && rawResult.configurationProfile) {
             rawResult.configurationProfile = await sails.helpers.removeSyncmlEnvelopeFromWindowsProfile.with({ profile: rawResult.configurationProfile });
