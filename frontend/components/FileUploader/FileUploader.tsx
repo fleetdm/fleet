@@ -34,9 +34,7 @@ const isFileAccepted = (file: File, accept?: string): boolean => {
 
 const INVALID_DROP_FALLBACK = "File type isn't supported";
 
-// Human-readable "must be .pkg, .msi, or .exe" phrasing for the inline error
-// shown when a drop is rejected. Falls back to a generic message when the
-// accept list contains MIME types we can't easily spell out to a user.
+// Falls back to a generic message when accept contains unspellable MIME types.
 const invalidDropMessage = (accept?: string): string => {
   if (!accept) return INVALID_DROP_FALLBACK;
   const specs = accept
@@ -162,9 +160,7 @@ export const FileUploader = ({
   const [dropError, setDropError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Parent-controlled internalError (e.g. a backend upload failure) wins over
-  // the ephemeral drop-rejection error, so an active server error isn't
-  // overwritten by a stale "wrong type" message.
+  // Server error wins over stale drop-rejection error.
   const errorText = internalError || dropError;
 
   // When onButtonClick is set, the uploader renders no file input (file
@@ -212,8 +208,6 @@ export const FileUploader = ({
     e.preventDefault();
     if (canAcceptDrop && !isDragActive) {
       setIsDragActive(true);
-      // Clear a prior drop-rejection error the moment the user starts a new
-      // drag, so the error disappears as soon as they try again.
       if (dropError) setDropError(null);
     }
   };
