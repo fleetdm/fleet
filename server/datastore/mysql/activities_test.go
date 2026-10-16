@@ -2764,9 +2764,9 @@ func testActivateScriptPackageInstallWithCorruptPayload(t *testing.T, ds *Datast
 			extension, version, platform, install_script_content_id,
 			pre_install_query, post_install_script_content_id, uninstall_script_content_id,
 			self_service, user_id, user_name, user_email, package_ids,
-			fleet_maintained_app_id, url, upgrade_code, patch_query
+			fleet_maintained_app_id, url, upgrade_code, patch_query, is_active
 		)
-		VALUES (NULL, 0, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
+		VALUES (NULL, 0, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, 1)
 	`
 	res, err = ds.writer(ctx).ExecContext(ctx, installerStmt,
 		titleID, "storage-123", "test-script.sh", "sh", "", "linux", scriptContentID,
