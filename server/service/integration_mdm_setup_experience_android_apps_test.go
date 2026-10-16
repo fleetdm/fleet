@@ -13,12 +13,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -73,9 +76,9 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 		return nil, &notFoundError{}
 	}
 
-	// should be called three times:
+	// the host policy's apps should change three times:
 	// 1. Fleet agent added during enrollment (via ensureHostSpecificPolicyIsApplied)
-	// 2. The 2 Android apps made available for self-install
+	// 2. The app list replaced with the 2 Android apps available for self-install, plus the Fleet agent
 	// 3. Setup experience with only the app to install at setup (PREINSTALLED)
 	var patchAppsCallCount int // no need for mutex, protected via runWorkerUntilDone
 	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
@@ -86,22 +89,30 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 			require.Len(t, appPolicies, 1, "first call should add the Fleet agent")
 			require.Equal(t, "FORCE_INSTALLED", appPolicies[0].InstallType)
 			require.Equal(t, "com.fleetdm.agent", appPolicies[0].PackageName)
-		case 2:
-			// second call makes apps available for self-install
-			require.Len(t, appPolicies, 2, "second call to make apps available for self-install should have 2 apps")
-			require.Equal(t, "AVAILABLE", appPolicies[0].InstallType)
-			require.Equal(t, app1.VPPAppID.AdamID, appPolicies[0].PackageName)
-			require.Equal(t, "AVAILABLE", appPolicies[1].InstallType)
-			require.Equal(t, app2.VPPAppID.AdamID, appPolicies[1].PackageName)
 		case 3:
 			// third call for setup experience, should have only app1 with PREINSTALLED
 			require.Len(t, appPolicies, 1, "third call for setup experience should have only 1 app")
 			require.Equal(t, "PREINSTALLED", appPolicies[0].InstallType)
 			require.Equal(t, app1.VPPAppID.AdamID, appPolicies[0].PackageName)
 		default:
-			t.Fatalf("unexpected call count %d to EnterprisesPoliciesModifyPolicyApplications", patchAppsCallCount)
+			t.Fatalf("unexpected call %d to EnterprisesPoliciesModifyPolicyApplications", patchAppsCallCount)
 		}
 
+		return &androidmanagement.Policy{Version: int64(patchAppsCallCount)}, nil
+	}
+	s.androidAPIClient.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		if !opts.OnlyUpdateApps {
+			return &androidmanagement.Policy{}, nil
+		}
+		patchAppsCallCount++
+		require.Equal(t, 2, patchAppsCallCount, "the self-service apps should replace the app list after the Fleet agent is added")
+		appPolicies := policy.Applications
+		require.Len(t, appPolicies, 3, "the self-service apps and the Fleet agent")
+		require.Equal(t, "AVAILABLE", appPolicies[0].InstallType)
+		require.Equal(t, app1.VPPAppID.AdamID, appPolicies[0].PackageName)
+		require.Equal(t, "AVAILABLE", appPolicies[1].InstallType)
+		require.Equal(t, app2.VPPAppID.AdamID, appPolicies[1].PackageName)
+		require.Equal(t, "com.fleetdm.agent", appPolicies[2].PackageName)
 		return &androidmanagement.Policy{Version: int64(patchAppsCallCount)}, nil
 	}
 
@@ -511,6 +522,15 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 
 		return &androidmanagement.Policy{Version: int64(patchAppsCallCount)}, nil
 	}
+	s.androidAPIClient.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		if !opts.OnlyUpdateApps {
+			return &androidmanagement.Policy{}, nil
+		}
+		patchAppsCallCount++
+		patchAppsPolicies = append(patchAppsPolicies, policy.Applications)
+
+		return &androidmanagement.Policy{Version: int64(patchAppsCallCount)}, nil
+	}
 
 	// add Android app 1
 	var addAppResp addAppStoreAppResponse
@@ -562,7 +582,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	// worker should have (in any order due to staggered job queuing):
 	// - made each app available to the included hosts (for self-service), so 2 entries for that (from the PATCH apps to set the config)
 	// - added the Fleet agent to the host's policy (from the host enrollment, via ensureHostSpecificPolicyIsApplied)
-	// - made all apps available to the enrolled host (for self-service), from the host enrollment
+	// - replaced the host's app list with all apps available (for self-service) and the Fleet agent, from the host enrollment
 	// - installed the apps, from the host enrollment
 	require.Len(t, patchAppsPolicies, 5)
 
@@ -585,7 +605,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 			appCalls = append(appCalls, appCall{p.PackageName, p.InstallType, string(p.ManagedConfiguration)})
 		}
 	}
-	require.Equal(t, 1, fleetAgentCount, "fleet agent should be added exactly once")
+	require.Equal(t, 2, fleetAgentCount, "fleet agent should be added at enrollment and kept when the app list is replaced")
 	require.ElementsMatch(t, []appCall{
 		// app1 made available individually (from PATCH config change)
 		{app1.VPPAppID.AdamID, "AVAILABLE", "1"},
@@ -1067,4 +1087,99 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 	require.NotNil(t, getHostSw.Software[1].AppStoreApp)
 	require.Equal(t, app2.AdamID, getHostSw.Software[1].AppStoreApp.AppStoreID)
 	require.Nil(t, getHostSw.Software[1].Status)
+}
+
+// A re-enrolled Android host reuses its host-specific policy, so its new fleet's apps must
+// replace the previous fleet's apps in that policy instead of being added to them.
+func (s *integrationMDMTestSuite) TestSetupExperienceAndroidReenrollIntoOtherFleetReplacesApps() {
+	t := s.T()
+	ctx := t.Context()
+	s.setSkipWorkerJobs(t)
+	enterpriseID := s.enableAndroidMDM(t)
+
+	const appID = "com.reenroll.previousfleet"
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		return &androidmanagement.Application{IconUrl: "https://example.com/1.jpg", Title: packageName}, nil
+	}
+
+	// the app list each apps-only policy patch sets, by policy name
+	var mu sync.Mutex
+	appsSetByPolicy := make(map[string][]string)
+	s.androidAPIClient.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		if opts.OnlyUpdateApps {
+			packages := make([]string, 0, len(policy.Applications))
+			for _, app := range policy.Applications {
+				packages = append(packages, app.PackageName)
+			}
+			mu.Lock()
+			appsSetByPolicy[policyName] = packages
+			mu.Unlock()
+		}
+		return &androidmanagement.Policy{Version: 1}, nil
+	}
+
+	createFleet := func(name string) (uint, string) {
+		var createTeamResp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", createTeamRequest{
+			Name: new(t.Name() + name),
+		}, http.StatusOK, &createTeamResp)
+		secret := uuid.NewString()
+		require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, &createTeamResp.Team.ID, []*fleet.EnrollSecret{{Secret: secret}}))
+		return createTeamResp.Team.ID, secret
+	}
+	previousFleetID, previousFleetSecret := createFleet("-previous")
+	newFleetID, newFleetSecret := createFleet("-new")
+
+	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: appID,
+		Platform:   fleet.AndroidPlatform,
+		TeamID:     &previousFleetID,
+	}, http.StatusOK)
+	s.runWorkerUntilDoneWithChecks(true)
+
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAndroidPubSubToken}, nil)
+	require.NoError(t, err)
+	pubsubToken := assets[fleet.MDMAssetAndroidPubSubToken]
+
+	for _, companyOwned := range []bool{false, true} {
+		func() {
+			identifier := strings.ToUpper(uuid.NewString())
+			enroll := func(secret string) *fleet.Host {
+				deviceInfo := androidmanagement.Device{
+					Name:                createAndroidDeviceID(identifier[:8]),
+					EnrollmentTokenData: fmt.Sprintf(`{"EnrollSecret": "%s"}`, secret),
+				}
+				msg := enrollmentMessageWithEnterpriseSpecificID(t, deviceInfo, identifier)
+				if companyOwned {
+					msg = enrollmentMessageWithSerialNumber(t, deviceInfo, identifier)
+				}
+				s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &android_service.PubSubPushRequest{PubSubMessage: *msg},
+					http.StatusOK, "token", string(pubsubToken.Value))
+				s.runWorkerUntilDoneWithChecks(true)
+
+				var hosts listHostsResponse
+				s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hosts, "query", identifier)
+				require.Len(t, hosts.Hosts, 1)
+				return hosts.Hosts[0].Host
+			}
+
+			host := enroll(previousFleetSecret)
+			require.NotNil(t, host.TeamID)
+			require.Equal(t, previousFleetID, *host.TeamID)
+			policyName := fmt.Sprintf("enterprises/%s/policies/%s", enterpriseID, host.UUID)
+			mu.Lock()
+			require.Equal(t, []string{appID, "com.fleetdm.agent"}, appsSetByPolicy[policyName], "company owned: %t", companyOwned)
+			delete(appsSetByPolicy, policyName)
+			mu.Unlock()
+
+			// re-enroll the same device into a fleet without apps, which reuses the host policy
+			reenrolledHost := enroll(newFleetSecret)
+			require.Equal(t, host.ID, reenrolledHost.ID)
+			require.NotNil(t, reenrolledHost.TeamID)
+			require.Equal(t, newFleetID, *reenrolledHost.TeamID)
+			mu.Lock()
+			require.Equal(t, []string{"com.fleetdm.agent"}, appsSetByPolicy[policyName], "company owned: %t", companyOwned)
+			mu.Unlock()
+		}()
+	}
 }

@@ -416,10 +416,6 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 		return ctxerr.Wrap(ctx, err, "get android apps in scope for host")
 	}
 
-	if len(appsInScope) == 0 {
-		return nil
-	}
-
 	appIDs := make([]string, 0, len(appsInScope))
 	vppAppTeamIDs := make([]uint, 0, len(appsInScope))
 	for _, app := range appsInScope {
@@ -442,9 +438,20 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 		return ctxerr.Wrap(ctx, err, "building application policies with config")
 	}
 
-	_, err = v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appPolicies, map[string]string{hostUUID: hostUUID})
+	// A re-enrolled host reuses its host policy, which still lists the apps of its
+	// previous enrollment, so replace the list instead of adding to it. Fail rather
+	// than continue without the Fleet Agent, as replacing would remove it.
+	fleetAgentPolicy, err := v.AndroidModule.BuildFleetAgentApplicationPolicy(ctx, hostUUID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
+		return ctxerr.Wrapf(ctx, err, "build fleet agent application policy for host %s", hostUUID)
+	}
+	if fleetAgentPolicy != nil {
+		appPolicies = append(appPolicies, fleetAgentPolicy)
+	}
+
+	err = v.AndroidModule.SetAppsForAndroidPolicy(ctx, enterpriseName, appPolicies, map[string]string{hostUUID: hostUUID})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set apps for android policy")
 	}
 
 	return nil

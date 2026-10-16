@@ -795,6 +795,102 @@ func TestRunAndroidSetupExperienceInstallsFirstAddedFlaggedVersion(t *testing.T)
 	require.Equal(t, uint(1), installs[0].VPPAppTeamID)
 }
 
+// A re-enrolled host reuses its host-specific policy, so making its fleet's apps available
+// must replace the policy's app list, dropping the apps of the previous enrollment.
+func TestMakeAndroidAppsAvailableForHostReplacesAppList(t *testing.T) {
+	const (
+		hostUUID       = "host-uuid"
+		enterpriseName = "enterprises/test"
+		agentPackage   = "com.fleetdm.agent"
+	)
+
+	cases := []struct {
+		name         string
+		appsInScope  []fleet.VPPAppTeam
+		buildAgent   func(ctx context.Context, hostUUID string) (*androidmanagement.ApplicationPolicy, error)
+		wantErr      bool
+		wantPackages []string
+	}{
+		{
+			name:         "fleet with apps",
+			appsInScope:  []fleet.VPPAppTeam{{AdamID: "com.example.one", AppTeamID: 1}, {AdamID: "com.example.two", AppTeamID: 2}},
+			wantPackages: []string{"com.example.one", "com.example.two", agentPackage},
+		},
+		{
+			name:         "fleet without apps",
+			wantPackages: []string{agentPackage},
+		},
+		{
+			name:        "fleet agent not configured",
+			appsInScope: []fleet.VPPAppTeam{{AdamID: "com.example.one", AppTeamID: 1}},
+			buildAgent: func(ctx context.Context, hostUUID string) (*androidmanagement.ApplicationPolicy, error) {
+				return nil, nil
+			},
+			wantPackages: []string{"com.example.one"},
+		},
+		{
+			name:        "fleet agent policy fails to build",
+			appsInScope: []fleet.VPPAppTeam{{AdamID: "com.example.one", AppTeamID: 1}},
+			buildAgent: func(ctx context.Context, hostUUID string) (*androidmanagement.ApplicationPolicy, error) {
+				return nil, errors.New("no enroll secret")
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, uuid string) (*fleet.AndroidHost, error) {
+				return &fleet.AndroidHost{Host: &fleet.Host{ID: 1, UUID: uuid}, Device: &android.Device{DeviceID: "device-id"}}, nil
+			}
+			ds.GetAndroidAppsInScopeForHostFunc = func(ctx context.Context, hostID uint) ([]fleet.VPPAppTeam, error) {
+				return c.appsInScope, nil
+			}
+			ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, vppAppTeamIDs []uint) (map[string][]byte, error) {
+				return map[string][]byte{}, nil
+			}
+
+			buildAgent := c.buildAgent
+			if buildAgent == nil {
+				buildAgent = func(ctx context.Context, hostUUID string) (*androidmanagement.ApplicationPolicy, error) {
+					return &androidmanagement.ApplicationPolicy{PackageName: agentPackage, InstallType: "FORCE_INSTALLED"}, nil
+				}
+			}
+			var setCalls int
+			var setPackages []string
+			var setHosts map[string]string
+			androidModule := &mockAndroidModule{
+				buildFleetAgentApplicationPolicyFunc: buildAgent,
+				setAppsForAndroidPolicyFunc: func(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) error {
+					setCalls++
+					setHosts = hostUUIDs
+					for _, p := range appPolicies {
+						setPackages = append(setPackages, p.PackageName)
+					}
+					return nil
+				},
+				addAppsToAndroidPolicyFunc: func(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
+					t.Fatal("apps must replace the host policy's app list, not be added to it")
+					return nil, nil
+				},
+			}
+			w := &SoftwareWorker{Datastore: ds, AndroidModule: androidModule, Log: slog.New(slog.DiscardHandler)}
+
+			err := w.makeAndroidAppsAvailableForHost(t.Context(), hostUUID, 1, enterpriseName, hostUUID)
+			if c.wantErr {
+				require.Error(t, err)
+				require.Zero(t, setCalls)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, 1, setCalls)
+			require.Equal(t, map[string]string{hostUUID: hostUUID}, setHosts)
+			require.Equal(t, c.wantPackages, setPackages)
+		})
+	}
+}
+
 type resendVPPInstaller struct {
 	installErrByHostID map[uint]error
 	// installedAppTeamIDByHostID records the version each successful install used
