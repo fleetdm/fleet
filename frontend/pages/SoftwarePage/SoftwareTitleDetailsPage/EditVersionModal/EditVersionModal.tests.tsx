@@ -28,7 +28,8 @@ const BASE_PROPS = {
 };
 
 const renderModal = (
-  overrides: Partial<React.ComponentProps<typeof EditVersionModal>> = {}
+  overrides: Partial<React.ComponentProps<typeof EditVersionModal>> = {},
+  { gitOpsModeEnabled = false }: { gitOpsModeEnabled?: boolean } = {}
 ) => {
   const render = createCustomRenderer({
     withBackendMock: true,
@@ -36,6 +37,7 @@ const renderModal = (
       app: {
         isPremiumTier: true,
         isGlobalAdmin: true,
+        config: { gitops: { gitops_mode_enabled: gitOpsModeEnabled } },
       },
     },
   });
@@ -119,5 +121,10 @@ describe("EditVersionModal", () => {
     await waitFor(() => expect(editSpy).toHaveBeenCalled());
     const [, , , body] = editSpy.mock.calls[0];
     expect(body.configuration).toEqual({});
+  });
+
+  it("disables Save in GitOps mode", () => {
+    renderModal({}, { gitOpsModeEnabled: true });
+    expect(screen.getByRole("button", { name: /^Save$/i })).toBeDisabled();
   });
 });

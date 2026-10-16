@@ -1,3 +1,4 @@
+import classnames from "classnames";
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "react-query";
 
@@ -6,6 +7,7 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { ILabelSummary } from "interfaces/label";
 import { IAppStoreAppVersion } from "interfaces/software";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
@@ -51,6 +53,7 @@ const EditVersionModal = ({
   onSuccess,
 }: IEditVersionModalProps) => {
   const queryClient = useQueryClient();
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
 
   // Submitting an unmodified scaffold is treated as "no configuration".
   const emptyScaffold = getEmptyConfigScaffold(version.platform);
@@ -160,7 +163,9 @@ const EditVersionModal = ({
         width="large"
       >
         <form
-          className={`${baseClass}__form`}
+          className={classnames(`${baseClass}__form`, {
+            [`${baseClass}__form--disabled`]: gitOpsModeEnabled,
+          })}
           onSubmit={handleSubmit(onValidSubmit)}
         >
           <VersionFormFields

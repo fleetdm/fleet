@@ -1,5 +1,9 @@
 .edit-version-modal {
   &__form {
     @include vertical-modal-layout;
+
+    &--disabled {
+      @include disabled;
+    }
   }
 }

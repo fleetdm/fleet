@@ -17,7 +17,8 @@ const BASE_PROPS = {
 };
 
 const renderModal = (
-  overrides: Partial<React.ComponentProps<typeof AddVersionModal>> = {}
+  overrides: Partial<React.ComponentProps<typeof AddVersionModal>> = {},
+  { gitOpsModeEnabled = false }: { gitOpsModeEnabled?: boolean } = {}
 ) => {
   const render = createCustomRenderer({
     withBackendMock: true,
@@ -25,6 +26,7 @@ const renderModal = (
       app: {
         isPremiumTier: true,
         isGlobalAdmin: true,
+        config: { gitops: { gitops_mode_enabled: gitOpsModeEnabled } },
       },
     },
   });
@@ -152,5 +154,10 @@ describe("AddVersionModal", () => {
       auto_update_window_start: "22:00",
       auto_update_window_end: "02:00",
     });
+  });
+
+  it("disables Add in GitOps mode", () => {
+    renderModal({}, { gitOpsModeEnabled: true });
+    expect(screen.getByRole("button", { name: /^Add$/i })).toBeDisabled();
   });
 });
