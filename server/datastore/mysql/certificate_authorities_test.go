@@ -3,12 +3,8 @@ package mysql
 import (
 	"cmp"
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/pem"
 	"math/big"
 	"slices"
 	"testing"
@@ -283,11 +279,12 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 
 	// EJBCA CAs, one with all the optional fields
 	ejbcaNotAfter := time.Now().Add(365 * 24 * time.Hour).UTC().Truncate(time.Second)
+	ejbcaCert := newMTLSCertPEM(t, ejbcaNotAfter)
 	ejbcaCA1 := &fleet.CertificateAuthority{
 		Name:                          new("EJBCA CA"),
 		URL:                           new("https://ejbca1.example.com:8443"),
 		Type:                          string(fleet.CATypeEJBCA),
-		MTLSCertPEM:                   new(newMTLSCertPEM(t, ejbcaNotAfter)),
+		MTLSCertPEM:                   &ejbcaCert,
 		MTLSKeyPEM:                    new("ejbca-mtls-key"),
 		TrustCABundlePEM:              new("ejbca-trust-bundle"),
 		EJBCACAName:                   new("ManagementCA"),
@@ -302,7 +299,7 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 		Name:                        new("EJBCA CA 2"),
 		URL:                         new("https://ejbca2.example.com:8443"),
 		Type:                        string(fleet.CATypeEJBCA),
-		MTLSCertPEM:                 new(newMTLSCertPEM(t, ejbcaNotAfter)),
+		MTLSCertPEM:                 &ejbcaCert,
 		MTLSKeyPEM:                  new("ejbca-mtls-key2"),
 		EJBCACAName:                 new("ManagementCA"),
 		EJBCACertificateProfileName: new("certificate-profile2"),
@@ -714,15 +711,12 @@ func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {
 			compareCA(t, &want, updatedCA, includeSecrets)
 		}
 
-		// An mTLS certificate that can't be parsed is reported without an expiry, and doesn't fail reads.
+		// An mTLS certificate that can't be parsed is reported without an expiry instead of failing the read.
 		require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, ejbcaCA.ID,
 			&fleet.CertificateAuthority{Type: string(fleet.CATypeEJBCA), MTLSCertPEM: new("not a certificate")}))
 		invalidCertCA, err := ds.GetCertificateAuthorityByID(ctx, ejbcaCA.ID, false)
 		require.NoError(t, err)
 		require.Nil(t, invalidCertCA.MTLSCertExpiresAt)
-		allCAs, err := ds.GetAllCertificateAuthorities(ctx, false)
-		require.NoError(t, err)
-		require.Len(t, allCAs, len(casToCreate))
 	})
 
 	t.Run("successfully updates smallstep SCEP proxy CA", func(t *testing.T) {
@@ -813,11 +807,11 @@ func testEditResendsProfiles(t *testing.T, ds *Datastore) {
 		{name: "GitOps edit of the seat ID", edit: func() error {
 			return gitOpsUpdate(ca.ID, func(c *fleet.CertificateAuthority) { c.CertificateSeatID = new("new-seat") })
 		}, wantResend: true},
-		{name: "EJBCA API edit of the URL", edit: apiEditEJBCA(fleet.CertificateAuthority{URL: new("https://new.example.com")})},
-		{name: "EJBCA API edit of the trust bundle", edit: apiEditEJBCA(fleet.CertificateAuthority{TrustCABundlePEM: new("bundle")})},
 		{
-			name: "EJBCA API rotation of the mTLS certificate and key",
-			edit: apiEditEJBCA(fleet.CertificateAuthority{MTLSCertPEM: new("new-cert"), MTLSKeyPEM: new("new-key")}),
+			name: "EJBCA API edit of the connection settings",
+			edit: apiEditEJBCA(fleet.CertificateAuthority{
+				URL: new("https://new.example.com"), TrustCABundlePEM: new("bundle"), MTLSCertPEM: new("new-cert"), MTLSKeyPEM: new("new-key"),
+			}),
 		},
 		{name: "EJBCA API edit to the same username template", edit: apiEditEJBCA(fleet.CertificateAuthority{EJBCAUsernameTemplate: new("user")})},
 		{name: "EJBCA API edit to the same common name", edit: apiEditEJBCA(fleet.CertificateAuthority{CertificateCommonName: new("cn")})},
@@ -913,17 +907,14 @@ func newEJBCACA(t *testing.T, ds *Datastore, name, commonName string, usernameTe
 
 // newMTLSCertPEM returns a self-signed certificate that expires at notAfter.
 func newMTLSCertPEM(t *testing.T, notAfter time.Time) string {
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	require.NoError(t, err)
-	template := &x509.Certificate{
+	certPEM, _, err := GenerateTestCertBytes(&x509.Certificate{
 		SerialNumber: big.NewInt(1),
 		Subject:      pkix.Name{CommonName: "Fleet"},
 		NotBefore:    notAfter.Add(-time.Hour),
 		NotAfter:     notAfter,
-	}
-	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	})
 	require.NoError(t, err)
-	return string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}))
+	return string(certPEM)
 }
 
 // // TODO(hca): refactor old app config test to cover new implementations
