@@ -18,7 +18,7 @@ You can also manage which Google Play Store apps are available for self-service 
 
 3. Select **Add software > App store**, then select the app you just purchased.
 
-> Fleet sets the app's platforms (macOS, iOS, iPadOS) when the app is added to a fleet, based on what Apple reports at that time. Fleet doesn't update them later. If the developer drops support for a platform (e.g., removes the iPad version), the app still shows that platform on fleets where it was already added, but when you add it to another fleet, only the currently supported platforms are available. To match what Apple currently supports, delete the app from the fleet and add it again. This removes the dropped platform, so hosts on that platform can no longer install the app from Fleet.
+> Fleet sets the app's platforms (macOS, iOS, iPadOS) when the app is added to a fleet, based on what Apple reports at that time. Fleet doesn't update them later. If the developer drops support for a platform (e.g., removes the iPad version), the app still shows that platform on fleets where it was already added, but when you add it to another fleet, only the currently supported platforms are available. If you install the app from a fleet where the dropped platform is still listed (e.g., iPadOS), Apple installs the current version of the app. On iPads, that's the iPhone-only version, which runs in compatibility mode (the iPhone layout scaled up for iPad). To match what Apple currently supports, delete the app from the fleet and add it again. This removes the dropped platform, so hosts on that platform can no longer install the app from Fleet.
 
 ### Google Play (Android)
 
