@@ -15,8 +15,7 @@ Unlike [PingFederate](https://fleetdm.com/guides/pingfederate-conditional-access
 ## Prerequisites
 
 - A Duo Essentials, Advantage, or Premier plan, and an Owner, Administrator, or Application Manager role in the Duo Admin Panel.
-- For Linux, x86-64 hosts. Duo doesn't support Duo Desktop on Linux on ARM. In testing, it ran on an Arm VM under x86 emulation and Duo trusted the host, but that setup isn't supported.
-- For Windows, Intel hosts. Duo lists Duo Desktop for Windows as Intel only. In testing, it ran on a Windows 11 Arm VM under x64 emulation and Duo trusted the host, but that setup isn't supported.
+- For Linux, x86-64 hosts. For Windows, Intel hosts. Duo doesn't support Duo Desktop on ARM, but it ran on Arm VMs under emulation in our testing.
 - A computer or CI job that can reach Fleet and Duo, with `curl`, `jq`, Python 3.9 or later, and [`duo-client`](https://pypi.org/project/duo-client/) 4.3.0 or later.
 
 ## Step 1: Create a Fleet API user
@@ -58,7 +57,7 @@ SELECT data AS machine_guid FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTW
 3. Upload each file with the matching integration's sync script, for example `python device_cache_sync.py --infile macos.csv`. Duo's script refuses a file with no device IDs, so skip an operating system that has no hosts. Add `--dry_run` the first time to check the file without changing what Duo holds.
 4. Schedule these steps to run every 5 minutes. The best practice is a [GitHub Actions](https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#schedule) workflow. It can live in any repository. It doesn't need to be your GitOps repository.
 
-> **Note:** GitHub runs scheduled workflows on a best-effort basis. A run can start late or be skipped when GitHub is busy. In testing, a 5-minute schedule started a run only twice in 11 hours. For a steady 5-minute sync, run the same steps from a server with cron or a systemd timer. A run every 5 minutes also uses about 8,600 minutes a month, more than the 2,000 free minutes of a private repository.
+> **Note:** GitHub runs scheduled workflows on a best-effort basis, so a run can start late or be skipped. In testing, a 5-minute schedule started 2 runs in 11 hours. For a steady sync, run the steps from a server with cron or a systemd timer. A run every 5 minutes also uses about 8,600 Actions minutes a month. A private repository gets 2,000 free minutes.
 
 Duo's script has the integration's keys written into it, so don't commit it as is. Edit it to read the keys from environment variables instead. Replace the `MKEY_CREDENTIALS = {...}` block near the top with this:
 
@@ -154,7 +153,7 @@ Each sync replaces the previous list, so a newly enrolled host can sign in after
 ## Troubleshooting
 
 - **Sign-in denied for a managed host**: Check that Duo Desktop is installed and running, and that the last sync included the host.
-- **macOS asks for local network access**: Duo Desktop talks to the browser over the local network. When Duo shows "Duo Desktop needs permission to access your local network", allow the browser's prompt. If you select **Skip for now**, Duo can't read the device ID and blocks the host. In **System Settings > Privacy & Security > Local Network**, make sure the browser is on.
+- **macOS asks for local network access**: Duo shows "Duo Desktop needs permission to access your local network". Allow the browser's prompt. If you select **Skip for now**, Duo can't read the device ID and blocks the host. To check, go to **System Settings > Privacy & Security > Local Network** and turn on the browser.
 - **Windows host missing from `windows.csv`**: Check that the Step 3 report has results for the host.
 
 <meta name="articleTitle" value="Conditional access: Duo">

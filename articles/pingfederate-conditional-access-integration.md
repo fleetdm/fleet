@@ -35,18 +35,26 @@ For every platform, set the certificate's CN to `$FLEET_VAR_HOST_UUID`. The cert
 
 ### macOS
 
-Deploy a SCEP [configuration profile](https://fleetdm.com/guides/custom-os-settings) for your CA. Set `PayloadScope` to `User` so the certificate lands in the login keychain, where browsers can use it. In the SCEP payload, set `AllowAllAppsAccess` to `true` and `KeyIsExtractable` to `false`. Even then, macOS asks the end user for their login keychain password the first time Safari, Chrome or Firefox uses the certificate. They select **Always Allow** once for each browser. See the [custom SCEP example](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate) for a profile.
+Deploy a SCEP [configuration profile](https://fleetdm.com/guides/custom-os-settings) for your CA. Set `PayloadScope` to `User` so the certificate lands in the login keychain, where browsers can use it. In the SCEP payload, set `AllowAllAppsAccess` to `true` and `KeyIsExtractable` to `false`.
+
+The first time Safari, Chrome, or Firefox uses the certificate, macOS asks the end user for their login keychain password. They select **Always Allow** once for each browser.
+
+See the [custom SCEP example](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate) for a profile.
 
 ### Windows
 
-Deploy a SCEP profile for your CA using `./User/` paths so the certificate lands in the user certificate store. See [Enable Okta Verify on Windows](https://fleetdm.com/guides/enable-okta-verify-on-windows-using-a-scep-configuration-profile) for an example profile. The example sets `SubjectName` to the host's serial number. Change it to `CN=$FLEET_VAR_HOST_UUID,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID` so the CN is the host's UUID and Fleet can renew the certificate.
+Deploy a SCEP profile for your CA using `./User/` paths so the certificate lands in the user certificate store. See [Enable Okta Verify on Windows](https://fleetdm.com/guides/enable-okta-verify-on-windows-using-a-scep-configuration-profile) for an example profile.
 
-If the host doesn't already trust your CA, deploy a second profile that installs the CA's root certificate. In its `./Device/Vendor/MSFT/RootCATrustedCertificates/Root/<name>/EncodedCertificate` path, use the certificate's SHA-1 thumbprint (uppercase) as `<name>`. In testing, a made-up name failed with status 500, and the thumbprint worked.
+The example sets `SubjectName` to the host's serial number. Change it to `CN=$FLEET_VAR_HOST_UUID,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID`. This sets the CN to the host's UUID and lets Fleet renew the certificate.
+
+If the host doesn't trust your CA yet, deploy a second profile that installs the CA's root certificate. In the `./Device/Vendor/MSFT/RootCATrustedCertificates/Root/<name>/EncodedCertificate` path, set `<name>` to the certificate's SHA-1 thumbprint in uppercase. A custom name fails with status 500.
 
 ### Linux
 
 1. Follow the [Hydrant](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#hydrant) or [EST](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#any-est-enrollment-over-secure-transport-ca) steps. In the script, set the CSR's subject to `/CN=$FLEET_VAR_HOST_UUID`.
-2. Linux browsers don't read certificates from the filesystem. Append [`import-certificate-to-browsers.sh`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/linux/scripts/import-certificate-to-browsers.sh) to your script, updating the paths. It imports the certificate into each user's Chrome and Firefox stores, including snap installs. Hosts need `libnss3-tools` (Debian/Ubuntu) or `nss-tools` (RHEL). The script only imports into browser stores that exist. Run it again after a user first opens Firefox, and for users added later.
+2. Linux browsers don't read certificates from the filesystem. Append [`import-certificate-to-browsers.sh`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/linux/scripts/import-certificate-to-browsers.sh) to your script and update the paths. It imports the certificate into each user's Chrome and Firefox stores, including snap installs.
+   - Hosts need `libnss3-tools` (Debian/Ubuntu) or `nss-tools` (RHEL).
+   - The script only imports into browser stores that exist. Run it again after a user first opens Firefox and for users added later.
 
 ## Step 4: Configure the X.509 adapter
 
@@ -97,14 +105,18 @@ Fleet updates a host's policy results each time the host runs its policies, abou
 ## Troubleshooting
 
 - **Browser doesn't prompt for a certificate**: Check that the certificate is in the user store (macOS login keychain, Windows `Cert:\CurrentUser\My`, or Linux NSS). On Linux, run `certutil -L -d sql:$HOME/.pki/nssdb`.
-- **Browser asks for the login keychain password (macOS)**: Expected the first time Safari, Chrome or Firefox uses the certificate. The end user enters the password and selects **Always Allow**. If the prompt is refused, the browser sends no certificate and sign-in fails with "Authentication failed", the same as when there's no certificate. For Firefox, quit and reopen it before trying again, because it remembers the answer for the session. If you changed `AllowAllAppsAccess` after the certificate was issued, Fleet doesn't resend the profile to a host that already has a certificate. Resend it from the host's **Host details** page, the end user's **My device** page, or the [API](https://fleetdm.com/docs/rest-api/rest-api#resend-configuration-profile). Or wait for the certificate to renew.
+- **Browser asks for the login keychain password (macOS)**: This is expected the first time Safari, Chrome, or Firefox uses the certificate. The end user enters the password and selects **Always Allow**.
+  - If the user refuses the prompt, the browser sends no certificate and sign-in fails with "Authentication failed". Firefox remembers the answer for the session, so quit and reopen it before trying again.
+  - If you changed `AllowAllAppsAccess` after the certificate was issued, Fleet doesn't resend the profile to a host that already has a certificate. [Resend the profile](https://fleetdm.com/docs/rest-api/rest-api#resend-configuration-profile) with the API, or wait for the certificate to renew.
 - **Sign-in denied for a managed host**: Check that the certificate's CN matches the host's UUID in Fleet.
 - **Sign-in still denied after fixing a policy**: Select **Refetch** on the **My device** page, wait for the policy results to update, then sign in again.
 - **Data store errors**: Check the API token and that PingFederate can reach your Fleet server.
 
 ## Skip the certificate picker
 
-- **Chrome and Edge**: Deploy the `AutoSelectCertificateForUrls` policy. Use the host name and port that ask for the certificate, not the sign-in URL's port. For example: `{"pattern":"https://ping.example.com:9032","filter":{"ISSUER":{"CN":"<your CA's common name>"}}}`. On macOS, deploy it in a configuration profile with the payload type `com.google.Chrome` (`com.microsoft.Edge` for Edge). On Windows, add the same JSON as the value named `1` under the registry key `HKLM\SOFTWARE\Policies\Microsoft\Edge\AutoSelectCertificateForUrls` (`HKLM\SOFTWARE\Policies\Google\Chrome\AutoSelectCertificateForUrls` for Chrome), for example with a Fleet script.
+- **Chrome and Edge**: Deploy the `AutoSelectCertificateForUrls` policy. Use the host name and port that ask for the certificate, not the sign-in URL's port. For example: `{"pattern":"https://ping.example.com:9032","filter":{"ISSUER":{"CN":"<your CA's common name>"}}}`.
+  - **macOS**: Deploy it in a configuration profile with the payload type `com.google.Chrome` (`com.microsoft.Edge` for Edge).
+  - **Windows**: Add the same JSON as a value named `1` under the registry key `HKLM\SOFTWARE\Policies\Microsoft\Edge\AutoSelectCertificateForUrls` (`HKLM\SOFTWARE\Policies\Google\Chrome\AutoSelectCertificateForUrls` for Chrome). You can use a Fleet script.
 - **Firefox**: Set `security.default_personal_cert` to `Select Automatically` with an [enterprise policy](https://mozilla.github.io/policy-templates/). Firefox asks every time otherwise.
 - **Safari**: Always asks. There's no policy to skip it.
 
