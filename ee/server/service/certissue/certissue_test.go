@@ -62,7 +62,7 @@ func TestNewCSR(t *testing.T) {
 }
 
 func TestEncodePKCS12(t *testing.T) {
-	key, _, err := NewCSR(t.Context(), "host-1", nil)
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
 	cert := selfSigned(t, key)
 

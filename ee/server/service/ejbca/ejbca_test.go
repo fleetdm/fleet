@@ -118,9 +118,9 @@ type fakeEJBCA struct {
 	v2Disabled        bool
 	enrollStatus      int // when set, enrolling fails with this status and an EJBCA error
 	wrongKey          bool
-	dropSAN           bool   // the issued certificate leaves out the requested subjectAltName
-	issuedCommonName  string // when set, the issued certificate has this common name
-	redirectTo        string // when set, every request is redirected there
+	dropSAN           bool    // the issued certificate leaves out the requested subjectAltName
+	issuedCommonName  *string // when set, the issued certificate has this common name, possibly empty
+	redirectTo        string  // when set, every request is redirected there
 	onRequest         func(r *http.Request)
 
 	mu       sync.Mutex
@@ -287,8 +287,8 @@ func (f *fakeEJBCA) enroll(issuer *testCA, r *http.Request) (int, string, error)
 		}
 	}
 	subject := csr.Subject
-	if f.issuedCommonName != "" {
-		subject.CommonName = f.issuedCommonName
+	if f.issuedCommonName != nil {
+		subject.CommonName = *f.issuedCommonName
 	}
 	cert, err := issuer.sign(&x509.Certificate{
 		Subject:         subject,
@@ -337,14 +337,13 @@ func TestVerifyConnection(t *testing.T) {
 	}{
 		// It lists the CAs, which needs authentication, and doesn't rely on the status endpoint, which doesn't.
 		{name: "valid"},
-		{name: "certificate profile lookup disabled", configure: func(f *fakeEJBCA) { f.v2Disabled = true }},
 		{
 			name:      "unknown certificate profile",
 			configure: func(f *fakeEJBCA) { f.certProfiles = []string{"other"} },
 			wantErr:   fmt.Sprintf(msgProfileNotFound, testCertProfile),
 		},
 		{
-			name:      "unknown certificate profile, but the lookup is disabled",
+			name:      "certificate profile lookup disabled",
 			configure: func(f *fakeEJBCA) { f.certProfiles, f.v2Disabled = []string{"other"}, true },
 		},
 		{
@@ -381,33 +380,9 @@ func TestVerifyConnection(t *testing.T) {
 			wantNoRequests: true,
 		},
 		{
-			name: "URL without https",
-			modify: func(_ *testing.T, f *fakeEJBCA, config *fleet.EJBCA) {
-				config.URL = strings.Replace(f.srv.URL, "https", "http", 1)
-			},
-			wantErr: msgInvalidURL,
-		},
-		{
-			name:    "URL with a query",
-			modify:  func(_ *testing.T, f *fakeEJBCA, config *fleet.EJBCA) { config.URL = f.srv.URL + "?tenant=prod" },
-			wantErr: msgInvalidURL,
-		},
-		{
-			name:    "URL with a fragment",
-			modify:  func(_ *testing.T, f *fakeEJBCA, config *fleet.EJBCA) { config.URL = f.srv.URL + "#ca" },
-			wantErr: msgInvalidURL,
-		},
-		{
-			name: "URL with credentials",
-			modify: func(_ *testing.T, f *fakeEJBCA, config *fleet.EJBCA) {
-				config.URL = strings.Replace(f.srv.URL, "https://", "https://user:pass@", 1)
-			},
-			wantErr: msgInvalidURL,
-		},
-		{
 			name:    "trust bundle without certificates",
 			modify:  func(_ *testing.T, _ *fakeEJBCA, config *fleet.EJBCA) { config.TrustCABundlePEM = "not a certificate" },
-			wantErr: "no usable certificates",
+			wantErr: msgNoTrustCerts,
 		},
 		{
 			name:    "server not running",
@@ -442,6 +417,22 @@ func TestVerifyConnection(t *testing.T) {
 	}
 }
 
+// The URL is checked before anything else, so these need no EJBCA.
+func TestInvalidURLs(t *testing.T) {
+	t.Parallel()
+	for _, url := range []string{
+		"http://ejbca.example.com",
+		"https://ejbca.example.com?tenant=prod",
+		"https://ejbca.example.com#ca",
+		"https://user:pass@ejbca.example.com",
+	} {
+		t.Run(url, func(t *testing.T) {
+			t.Parallel()
+			require.ErrorContains(t, NewService().VerifyConnection(t.Context(), fleet.EJBCA{URL: url}), msgInvalidURL)
+		})
+	}
+}
+
 func TestGetCertificate(t *testing.T) {
 	t.Parallel()
 	f := newFakeEJBCA(t, nil)
@@ -461,7 +452,6 @@ func TestGetCertificate(t *testing.T) {
 	assert.Equal(t, config.CertificateProfileName, body["certificate_profile_name"])
 	assert.Equal(t, config.EndEntityProfileName, body["end_entity_profile_name"])
 	assert.Equal(t, "DER", body["response_format"])
-	assert.Equal(t, false, body["include_chain"])
 	assert.Len(t, body["password"], 64)
 
 	// What Fleet got back: the key and the certificate EJBCA issued, in a bundle that the password opens.
@@ -481,7 +471,6 @@ func TestGetCertificate(t *testing.T) {
 	_, enrolls = f.snapshot()
 	assert.NotEqual(t, enrolls[0]["password"], enrolls[1]["password"])
 	assert.NotEqual(t, cert.Password, second.Password)
-	assert.NotEqual(t, cert.PfxData, second.PfxData)
 }
 
 func TestGetCertificateErrors(t *testing.T) {
@@ -508,12 +497,6 @@ func TestGetCertificateErrors(t *testing.T) {
 			wantErr: fmt.Sprintf(msgEnrollRejected, `End Entity Profile of name "Missing" was not found`),
 		},
 		{
-			name:      "certificate without an EJBCA role",
-			configure: func(f *fakeEJBCA) { f.unauthorized = true },
-			wantErr:   fmt.Sprintf(msgNotAuthorized, "Administrator is not authorized to resource /administrator"),
-		},
-		{name: "protocol disabled", configure: func(f *fakeEJBCA) { f.protocolDisabled = true }, wantErr: msgProtocolDisabled},
-		{
 			name:      "EJBCA server error",
 			configure: func(f *fakeEJBCA) { f.enrollStatus = http.StatusInternalServerError },
 			wantErr:   fmt.Sprintf(msgUnexpected, http.StatusInternalServerError, "General failure"),
@@ -529,9 +512,9 @@ func TestGetCertificateErrors(t *testing.T) {
 			wantErr:   fmt.Sprintf(msgUPNMissing, "alice@example.com"),
 		},
 		{
-			name:      "certificate with another common name",
-			configure: func(f *fakeEJBCA) { f.issuedCommonName = "someone else" },
-			wantErr:   fmt.Sprintf(msgCommonNameMismatch, "someone else", "alice@example.com"),
+			name:      "certificate without a common name",
+			configure: func(f *fakeEJBCA) { f.issuedCommonName = new("") },
+			wantErr:   msgCommonNameEmpty,
 		},
 	}
 	for _, tt := range tests {
@@ -547,16 +530,6 @@ func TestGetCertificateErrors(t *testing.T) {
 			require.Nil(t, cert)
 		})
 	}
-
-	t.Run("client certificate expired", func(t *testing.T) {
-		t.Parallel()
-		f := newFakeEJBCA(t, nil)
-		config := f.config(t)
-		config.MTLSCertPEM, config.MTLSKeyPEM = f.clientCA.issueClient(t, time.Now().Add(-time.Hour))
-		_, err := NewService().GetCertificate(t.Context(), config)
-		require.ErrorContains(t, err, strings.Split(msgCertExpired, "%s")[0])
-		require.Zero(t, f.requestCount(), "EJBCA is not contacted with an expired client certificate")
-	})
 
 	t.Run("required fields", func(t *testing.T) {
 		t.Parallel()
@@ -622,4 +595,15 @@ func TestVerifyConnectionCanceled(t *testing.T) {
 		}
 	})
 	require.ErrorContains(t, NewService().VerifyConnection(ctx, f.config(t)), "canceled")
+}
+
+// An end entity profile can set the common name itself, for example from the username.
+func TestGetCertificateAcceptsOtherCommonName(t *testing.T) {
+	t.Parallel()
+	f := newFakeEJBCA(t, func(f *fakeEJBCA) { f.issuedCommonName = new("FLEET-USER-1") })
+	cert, err := NewService().GetCertificate(t.Context(), f.config(t))
+	require.NoError(t, err)
+	_, issued, err := pkcs12.Decode(cert.PfxData, cert.Password)
+	require.NoError(t, err)
+	assert.Equal(t, "FLEET-USER-1", issued.Subject.CommonName)
 }

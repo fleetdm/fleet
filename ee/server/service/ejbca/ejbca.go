@@ -51,15 +51,16 @@ const (
 	msgUnreachable      = "Couldn't connect to EJBCA at %s: %s"
 	msgProtocolDisabled = "EJBCA's REST Certificate Management protocol is disabled. Enable it under System Configuration > " +
 		"Protocol Configuration in EJBCA, and restart EJBCA if needed."
+	msgNoTrustCerts  = "The EJBCA trust CA bundle has no usable certificates."
 	msgNotAuthorized = "EJBCA didn't authorize the Fleet client certificate: %s. Check that EJBCA trusts the CA that issued it, and that " +
 		"it is a member of an EJBCA role with the access rules Fleet needs."
-	msgNoCAs              = "The Fleet client certificate can't access any CAs in EJBCA. Add the CA to the access rules of its EJBCA role."
-	msgCANotFound         = "EJBCA CA %q was not found. The Fleet client certificate can access: %s."
-	msgProfileNotFound    = "EJBCA certificate profile %q was not found."
-	msgEnrollRejected     = "EJBCA rejected the enrollment request: %s. Check the CA, certificate profile, and end entity profile names."
-	msgUnexpected         = "Unexpected response from EJBCA, status %d: %s"
-	msgCommonNameMismatch = "EJBCA issued a certificate with the common name %q, not the requested %q. Check that the end entity profile " +
-		"takes the subject from the request."
+	msgNoCAs           = "The Fleet client certificate can't access any CAs in EJBCA. Add the CA to the access rules of its EJBCA role."
+	msgCANotFound      = "EJBCA CA %q was not found. The Fleet client certificate can access: %s."
+	msgProfileNotFound = "EJBCA certificate profile %q was not found."
+	msgEnrollRejected  = "EJBCA rejected the enrollment request: %s. Check the CA, certificate profile, and end entity profile names."
+	msgUnexpected      = "Unexpected response from EJBCA, status %d: %s"
+	msgCommonNameEmpty = "EJBCA issued a certificate without a common name. Check that the end entity profile takes the subject from " +
+		"the request or fills in a common name."
 	msgUPNMissing = "EJBCA left the user principal name %q out of the certificate. Check that the end entity and certificate profiles " +
 		"allow it."
 )
@@ -116,7 +117,6 @@ func (s *Service) VerifyConnection(ctx context.Context, config fleet.EJBCA) erro
 		return err
 	}
 
-	// /ca/status needs no authentication, so it would prove nothing. Listing the CAs does.
 	status, body, err := s.do(ctx, client, base, http.MethodGet, "/v1/ca", nil)
 	if err != nil {
 		return err
@@ -238,9 +238,10 @@ func (s *Service) GetCertificate(ctx context.Context, config fleet.EJBCA) (*flee
 	if !privateKey.PublicKey.Equal(cert.PublicKey) {
 		return nil, ctxerr.New(ctx, "EJBCA returned a certificate for a different key")
 	}
-	// An end entity profile can change the subject or drop the UPNs, and the host would get a certificate that doesn't identify it.
-	if cert.Subject.CommonName != config.CertificateCommonName {
-		return nil, ctxerr.Errorf(ctx, msgCommonNameMismatch, cert.Subject.CommonName, config.CertificateCommonName)
+	// An end entity profile can drop the common name or the UPNs, and the host would get a certificate that doesn't identify it. A
+	// different common name can be deliberate, for example one built from the username, so it is accepted.
+	if cert.Subject.CommonName == "" {
+		return nil, ctxerr.New(ctx, msgCommonNameEmpty)
 	}
 	issuedUPNs := certissue.UPNs(cert)
 	for _, upn := range certissue.NonBlank(config.CertificateUserPrincipalNames) {
@@ -291,7 +292,7 @@ func (s *Service) newClient(ctx context.Context, config fleet.EJBCA) (*http.Clie
 	if config.TrustCABundlePEM != "" {
 		pool := x509.NewCertPool()
 		if !pool.AppendCertsFromPEM([]byte(config.TrustCABundlePEM)) {
-			return nil, "", ctxerr.New(ctx, "the EJBCA trust CA bundle has no usable certificates")
+			return nil, "", ctxerr.New(ctx, msgNoTrustCerts)
 		}
 		tlsConfig.RootCAs = pool
 	}
