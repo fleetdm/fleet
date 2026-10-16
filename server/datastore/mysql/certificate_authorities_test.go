@@ -853,6 +853,12 @@ func testEditResendsProfiles(t *testing.T, ds *Datastore) {
 		{name: "EJBCA GitOps edit of the end entity profile", edit: func() error {
 			return gitOpsUpdate(ejbcaCA.ID, func(c *fleet.CertificateAuthority) { c.EJBCAEndEntityProfileName = new("gitops-end-entity-profile") })
 		}, wantEJBCAResend: true},
+		{name: "EJBCA GitOps removal of the username template", edit: func() error {
+			return gitOpsUpdate(ejbcaCA.ID, func(c *fleet.CertificateAuthority) { c.EJBCAUsernameTemplate = nil })
+		}, wantEJBCAResend: true},
+		{name: "EJBCA GitOps removal of the UPNs", edit: func() error {
+			return gitOpsUpdate(ejbcaCA.ID, func(c *fleet.CertificateAuthority) { c.CertificateUserPrincipalNames = nil })
+		}, wantEJBCAResend: true},
 		{name: "GitOps edit of a DigiCert CA and an EJBCA CA in one batch", edit: func() error {
 			digiCert, err := ds.GetCertificateAuthorityByID(ctx, ca.ID, true)
 			require.NoError(t, err)

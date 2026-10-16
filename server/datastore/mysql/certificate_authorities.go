@@ -459,7 +459,7 @@ func (ds *Datastore) BatchApplyCertificateAuthorities(ctx context.Context, ops f
 				return err
 			}
 			for _, ca := range updates {
-				if old, ok := oldCAs[*ca.Name]; ok && certificateFieldsChanged(old, ca) {
+				if old, ok := oldCAs[*ca.Name]; ok && certificateFieldsChanged(old, ca, true) {
 					resendCANames[t.caType] = append(resendCANames[t.caType], *ca.Name)
 				}
 			}
@@ -517,11 +517,14 @@ func (ds *Datastore) getCAsForUpdateDB(ctx context.Context, tx sqlx.ExtContext, 
 	return cas, nil
 }
 
-// certificateFieldsChanged reports whether an update changes what the CA puts in issued certificates. Nil update fields are unchanged.
-func certificateFieldsChanged(oldCA, ca *fleet.CertificateAuthority) bool {
-	upnsChanged := ca.CertificateUserPrincipalNames != nil &&
-		!slices.Equal(*ca.CertificateUserPrincipalNames, ptr.ValOrZero(oldCA.CertificateUserPrincipalNames))
-	changed := func(updated, old *string) bool { return updated != nil && *updated != ptr.ValOrZero(old) }
+// certificateFieldsChanged reports whether an update changes what the CA puts in issued certificates. Nil fields are unchanged in a
+// partial update, but cleared in a full replacement such as a batch apply.
+func certificateFieldsChanged(oldCA, ca *fleet.CertificateAuthority, fullReplacement bool) bool {
+	upnsChanged := (ca.CertificateUserPrincipalNames != nil || fullReplacement) &&
+		!slices.Equal(ptr.ValOrZero(ca.CertificateUserPrincipalNames), ptr.ValOrZero(oldCA.CertificateUserPrincipalNames))
+	changed := func(updated, old *string) bool {
+		return (updated != nil || fullReplacement) && ptr.ValOrZero(updated) != ptr.ValOrZero(old)
+	}
 	switch fleet.CAType(ca.Type) {
 	case fleet.CATypeDigiCert:
 		return changed(ca.ProfileID, oldCA.ProfileID) || changed(ca.CertificateCommonName, oldCA.CertificateCommonName) ||
@@ -612,7 +615,7 @@ func (ds *Datastore) UpdateCertificateAuthorityByID(ctx context.Context, certifi
 				return err
 			}
 			for _, old := range oldCAs {
-				if certificateFieldsChanged(old, ca) {
+				if certificateFieldsChanged(old, ca, false) {
 					resendCAName = cmp.Or(ca.Name, old.Name)
 				}
 			}
