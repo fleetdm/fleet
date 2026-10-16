@@ -37,6 +37,9 @@ import {
 import { serverColorVar } from "../../lib/servers";
 
 const LOG_LEVELS = ["debug", "info", "warn", "error"];
+// The share controls row swaps between the port box and the URL + buttons;
+// a fixed minimum height keeps the card from shifting when it does.
+const SHARE_ROW: React.CSSProperties = { display: "flex", alignItems: "center", gap: "var(--pad-small)", flexWrap: "wrap", minHeight: 40 };
 // Fleet dropdown value shown while the enroll secret was typed by hand.
 const MANUAL_FLEET = "__manual__";
 
@@ -912,7 +915,7 @@ function OutputShareCard({
 
       {/* Sharing controls on one line */}
       {running && status ? (
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--pad-small)", flexWrap: "wrap" }}>
+        <div style={SHARE_ROW}>
           <span className="mono" style={{ fontSize: "var(--fs-x-small)", fontWeight: 600, userSelect: "all" }}>{status.url}</span>
           <button onClick={() => copy(status.url, "URL")}>Copy URL</button>
           <button onClick={() => api.openUrl(status.url).catch((e) => flash("err", errText(e)))}>Open in browser</button>
@@ -920,7 +923,7 @@ function OutputShareCard({
           <button className="danger" onClick={stop} disabled={busy}>Stop sharing</button>
         </div>
       ) : (
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--pad-small)", flexWrap: "wrap" }}>
+        <div style={SHARE_ROW}>
           <span>Port</span>
           <input
             inputMode="numeric"
