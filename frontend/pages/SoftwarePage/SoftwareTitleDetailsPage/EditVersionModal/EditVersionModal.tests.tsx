@@ -123,8 +123,10 @@ describe("EditVersionModal", () => {
     expect(body.configuration).toEqual({});
   });
 
-  it("disables Save in GitOps mode", () => {
+  it("disables form fields and Save but leaves Cancel enabled in GitOps mode", () => {
     renderModal({}, { gitOpsModeEnabled: true });
+    expect(screen.getByLabelText(/Name/i)).toBeDisabled();
     expect(screen.getByRole("button", { name: /^Save$/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^Cancel$/i })).toBeEnabled();
   });
 });

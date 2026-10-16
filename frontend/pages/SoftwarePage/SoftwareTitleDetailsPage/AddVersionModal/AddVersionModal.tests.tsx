@@ -156,8 +156,17 @@ describe("AddVersionModal", () => {
     });
   });
 
-  it("disables Add in GitOps mode", () => {
+  it("disables form fields and Add but leaves Cancel enabled in GitOps mode", () => {
     renderModal({}, { gitOpsModeEnabled: true });
+    expect(screen.getByLabelText(/Name/i)).toBeDisabled();
+    // Self-service slider renders as a <button role="switch">; disabled
+    // removes it from the keyboard tab order.
+    expect(screen.getByRole("switch")).toBeDisabled();
+    // Target radio is a native <input type="radio">; fieldset[disabled]
+    // covers it, but asserted here so a future refactor can't silently
+    // leave it keyboard-reachable.
+    expect(screen.getByLabelText("All hosts")).toBeDisabled();
     expect(screen.getByRole("button", { name: /^Add$/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^Cancel$/i })).toBeEnabled();
   });
 });

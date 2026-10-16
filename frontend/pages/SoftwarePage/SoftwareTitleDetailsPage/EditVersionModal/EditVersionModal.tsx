@@ -163,24 +163,30 @@ const EditVersionModal = ({
         width="large"
       >
         <form
-          className={classnames(`${baseClass}__form`, {
-            [`${baseClass}__form--disabled`]: gitOpsModeEnabled,
-          })}
+          className={`${baseClass}__form`}
           onSubmit={handleSubmit(onValidSubmit)}
         >
-          <VersionFormFields
-            formData={formData}
-            getTextFieldProps={getTextFieldProps}
-            commitFields={commitFields}
-            getError={getError}
-            platform={version.platform}
-            appDisplayName={titleDisplayName}
-            labels={labels ?? []}
-            teamId={teamId}
-            onClickPreviewEndUserExperience={() =>
-              setShowPreviewEndUserExperience(true)
-            }
-          />
+          <fieldset
+            disabled={gitOpsModeEnabled}
+            className={classnames(`${baseClass}__form-content`, {
+              [`${baseClass}__form-content--disabled`]: gitOpsModeEnabled,
+            })}
+          >
+            <VersionFormFields
+              formData={formData}
+              getTextFieldProps={getTextFieldProps}
+              commitFields={commitFields}
+              getError={getError}
+              platform={version.platform}
+              appDisplayName={titleDisplayName}
+              labels={labels ?? []}
+              teamId={teamId}
+              onClickPreviewEndUserExperience={() =>
+                setShowPreviewEndUserExperience(true)
+              }
+              disabled={gitOpsModeEnabled}
+            />
+          </fieldset>
 
           <div className="modal-cta-wrap">
             <GitOpsModeTooltipWrapper
