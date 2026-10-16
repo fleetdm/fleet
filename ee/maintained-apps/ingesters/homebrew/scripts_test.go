@@ -216,6 +216,8 @@ func TestCustomInstallScriptsStopWhenAppWontQuit(t *testing.T) {
 		"logitune-install.sh":       "the pkg's preinstall force-kills the app",
 	}
 	quitCall := regexp.MustCompile(`^\s*(quit_application|quit_and_track_application)\s`)
+	// kicad-install.sh's abort_install relaunches the apps and exits 1.
+	stopsOnFailure := regexp.MustCompile(`\|\|\s*(exit(\s+[1-9][0-9]*)?|abort_install)\s*$`)
 
 	paths, err := filepath.Glob("../../inputs/homebrew/scripts/*.sh")
 	require.NoError(t, err)
@@ -229,7 +231,7 @@ func TestCustomInstallScriptsStopWhenAppWontQuit(t *testing.T) {
 		require.NoError(t, err)
 		for line := range strings.SplitSeq(string(b), "\n") {
 			require.NotContains(t, line, `pgrep -f "$bundle_id"`, "%s confirms the quit with pgrep", name)
-			if !quitCall.MatchString(line) || strings.Contains(line, "||") {
+			if !quitCall.MatchString(line) || stopsOnFailure.MatchString(line) {
 				continue
 			}
 			_, ok := continuesAnyway[name]
