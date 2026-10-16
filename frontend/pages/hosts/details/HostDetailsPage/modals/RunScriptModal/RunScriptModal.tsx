@@ -1,4 +1,5 @@
 import React, { useCallback, useContext, useMemo } from "react";
+import { browserHistory } from "react-router";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
@@ -10,6 +11,7 @@ import TableContainer, {
   ITableQueryData,
 } from "components/TableContainer/TableContainer";
 import { AppContext } from "context/app";
+import { isLinuxLike } from "interfaces/platform";
 import { IHostScript } from "interfaces/script";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import { IUser } from "interfaces/user";
@@ -22,12 +24,17 @@ import { generateTableColumnConfigs } from "./ScriptsTableConfig";
 
 const baseClass = "run-script-modal";
 
+export const RUN_SCRIPT_PAGE_SIZE = 20;
+
 interface IRunScriptModalProps {
   currentUser: IUser | null;
   hostTeamId: number | null;
+  hostPlatform?: string;
   onClose: () => void;
   page: number;
   setPage: React.Dispatch<React.SetStateAction<number>>;
+  sortDirection: "asc" | "desc";
+  setSortDirection: React.Dispatch<React.SetStateAction<"asc" | "desc">>;
   hostScriptResponse?: IHostScriptsResponse;
   isFetchingHostScripts: boolean;
   isLoadingHostScripts: boolean;
@@ -41,12 +48,25 @@ interface IRunScriptModalProps {
 
 const EmptyComponent = () => <></>;
 
+// Mirrors the extension filter applied server-side when listing a host's scripts.
+const getCompatibleScriptTypes = (platform?: string) => {
+  if (!platform) return undefined;
+  if (platform === "windows") return "PowerShell (.ps1)";
+  if (platform === "darwin" || isLinuxLike(platform)) {
+    return "shell (.sh) and Python (.py)";
+  }
+  return undefined;
+};
+
 const RunScriptModal = ({
   currentUser,
   hostTeamId,
+  hostPlatform,
   onClose,
   page,
   setPage,
+  sortDirection,
+  setSortDirection,
   hostScriptResponse,
   isFetchingHostScripts,
   isLoadingHostScripts,
@@ -77,9 +97,18 @@ const RunScriptModal = ({
     [onClickRun, onClickRunDetails]
   );
 
-  const onQueryChange = useCallback(({ pageIndex }: ITableQueryData) => {
-    setPage(pageIndex);
-  }, []);
+  const onQueryChange = useCallback(
+    ({ pageIndex, sortDirection: newSortDirection }: ITableQueryData) => {
+      const direction = newSortDirection === "desc" ? "desc" : "asc";
+      if (direction !== sortDirection) {
+        setSortDirection(direction);
+        setPage(0);
+        return;
+      }
+      setPage(pageIndex);
+    },
+    [sortDirection, setSortDirection, setPage]
+  );
 
   const scriptColumnConfigs = useMemo(
     () =>
@@ -114,6 +143,30 @@ const RunScriptModal = ({
       permissions.isTeamAdmin(currentUser, hostTeamId) ||
       permissions.isTeamMaintainer(currentUser, hostTeamId));
 
+  const addScriptUrl = getPathWithQueryParams(
+    PATHS.CONTROLS_SCRIPTS,
+    isPremiumTier
+      ? { fleet_id: hostTeamId ?? APP_CONTEXT_NO_TEAM_ID }
+      : undefined
+  );
+
+  const compatibleScriptTypes = getCompatibleScriptTypes(hostPlatform);
+
+  const renderEmptyStateInfo = () => {
+    const addScriptLink = canAddScript ? (
+      <>
+        <CustomLink url={addScriptUrl} text="Add a script" />.
+      </>
+    ) : undefined;
+    if (!compatibleScriptTypes) return addScriptLink;
+    return (
+      <>
+        This host can only run {compatibleScriptTypes} scripts.
+        {addScriptLink && <> {addScriptLink}</>}
+      </>
+    );
+  };
+
   return (
     <Modal
       title="Run script"
@@ -131,50 +184,52 @@ const RunScriptModal = ({
           (!tableData || tableData.length === 0) && (
             <EmptyState
               variant="header-list"
-              header="No scripts available"
-              info={
-                canAddScript ? (
-                  <>
-                    <CustomLink
-                      url={getPathWithQueryParams(
-                        PATHS.CONTROLS_SCRIPTS,
-                        isPremiumTier
-                          ? { fleet_id: hostTeamId ?? APP_CONTEXT_NO_TEAM_ID }
-                          : undefined
-                      )}
-                      text="Add a script"
-                    />{" "}
-                    available to this host.
-                  </>
-                ) : (
-                  "Ask your admin to add a script for this host."
-                )
+              header={
+                compatibleScriptTypes
+                  ? "No compatible scripts"
+                  : "No scripts available"
               }
+              info={renderEmptyStateInfo()}
             />
           )}
         {!isLoadingHostScripts &&
           !isError &&
           tableData &&
           tableData.length > 0 && (
-            <TableContainer
-              resultsTitle=""
-              emptyComponent={EmptyComponent}
-              showMarkAllPages={false}
-              isAllPagesSelected={false}
-              columnConfigs={scriptColumnConfigs}
-              data={tableData}
-              isLoading={isRunningScript || isFetchingHostScripts}
-              onQueryChange={onQueryChange}
-              disableNextPage={!hostScriptResponse?.meta.has_next_results}
-              pageIndex={page}
-              pageSize={10}
-              disableCount
-              disableTableHeader
-            />
+            <div className={`${baseClass}__table`}>
+              <div className={`${baseClass}__table-header`}>
+                <span className={`${baseClass}__table-title`}>Scripts</span>
+                {canAddScript && (
+                  <Button
+                    variant="secondary"
+                    size="small"
+                    icon="plus"
+                    onClick={() => browserHistory.push(addScriptUrl)}
+                  >
+                    Add script
+                  </Button>
+                )}
+              </div>
+              <TableContainer
+                resultsTitle=""
+                emptyComponent={EmptyComponent}
+                showMarkAllPages={false}
+                isAllPagesSelected={false}
+                columnConfigs={scriptColumnConfigs}
+                data={tableData}
+                isLoading={isRunningScript || isFetchingHostScripts}
+                onQueryChange={onQueryChange}
+                disableNextPage={!hostScriptResponse?.meta.has_next_results}
+                pageIndex={page}
+                pageSize={RUN_SCRIPT_PAGE_SIZE}
+                manualSortBy
+                defaultSortHeader="name"
+                defaultSortDirection={sortDirection}
+                disableCount
+                disableTableHeader
+              />
+            </div>
           )}
-      </div>
-      <div className="modal-cta-wrap">
-        <Button onClick={onClose}>Close</Button>
       </div>
     </Modal>
   );

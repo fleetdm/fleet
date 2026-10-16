@@ -16,6 +16,7 @@ import scriptsAPI, {
 
 import ConfirmRunScriptModal from "../ConfirmRunScriptModal";
 import RunScriptModal from "../RunScriptModal";
+import { RUN_SCRIPT_PAGE_SIZE } from "../RunScriptModal/RunScriptModal";
 
 interface IScriptsProps {
   currentUser: IUser | null;
@@ -46,6 +47,9 @@ const ScriptModalGroup = ({
     ModalGroupOption.Run
   );
   const [runScriptTablePage, setRunScriptTablePage] = useState(0);
+  const [runScriptSortDirection, setRunScriptSortDirection] = useState<
+    "asc" | "desc"
+  >("asc");
   const [selectedExecutionId, setSelectedExecutionId] = useState<
     string | undefined
   >(undefined);
@@ -74,7 +78,9 @@ const ScriptModalGroup = ({
         scope: "host_scripts",
         host_id: host.id,
         page: runScriptTablePage,
-        per_page: 10,
+        per_page: RUN_SCRIPT_PAGE_SIZE,
+        order_key: "name",
+        order_direction: runScriptSortDirection,
       },
     ],
     ({ queryKey }) => scriptsAPI.getHostScripts(queryKey[0]),
@@ -167,12 +173,15 @@ const ScriptModalGroup = ({
       <RunScriptModal
         currentUser={currentUser}
         hostTeamId={host.team_id}
+        hostPlatform={host.platform}
         onClickRun={onClikRunBeforeConfirmation}
         onClose={onCloseScriptModalGroup}
         onClickViewScript={onClickViewScript}
         onClickRunDetails={onClickRunDetails}
         page={runScriptTablePage}
         setPage={setRunScriptTablePage}
+        sortDirection={runScriptSortDirection}
+        setSortDirection={setRunScriptSortDirection}
         hostScriptResponse={runScriptTableResponse}
         isRunningScript={isRunningScript}
         isFetchingHostScripts={isFetchingHostScripts}

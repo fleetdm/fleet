@@ -3,6 +3,7 @@ import React from "react";
 import ActionsDropdown from "components/ActionsDropdown";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import { IDropdownOption } from "interfaces/dropdownOption";
@@ -29,6 +30,13 @@ interface IRowProps {
 interface ICellProps extends IRowProps {
   cell: {
     value: string;
+  };
+}
+
+interface IHeaderProps {
+  column: {
+    title: string;
+    isSortedDesc: boolean;
   };
 }
 
@@ -93,8 +101,12 @@ export const generateTableColumnConfigs = (
   return [
     {
       title: "Name",
-      Header: "Name",
-      disableSortBy: true,
+      Header: (headerProps: IHeaderProps) => (
+        <HeaderCell
+          value={headerProps.column.title}
+          isSortedDesc={headerProps.column.isSortedDesc}
+        />
+      ),
       accessor: "name",
       Cell: (cellProps: ICellProps) => {
         const onClickScriptName = (e: React.MouseEvent) => {
