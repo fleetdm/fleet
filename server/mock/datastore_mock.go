@@ -70,6 +70,8 @@ type CleanupCarvesFunc func(ctx context.Context, now time.Time) (expired int, er
 
 type NewUserFunc func(ctx context.Context, user *fleet.User) (*fleet.User, error)
 
+type NewInitialUserFunc func(ctx context.Context, user *fleet.User) (*fleet.User, error)
+
 type HasUsersFunc func(ctx context.Context) (bool, error)
 
 type ListUsersFunc func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error)
@@ -1366,13 +1368,15 @@ type CleanupUnusedBootstrapPackagesFunc func(ctx context.Context, pkgStore fleet
 
 type GetHostMDMMacOSSetupFunc func(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error)
 
-type MDMGetEULAMetadataFunc func(ctx context.Context) (*fleet.MDMEULA, error)
+type MDMGetEULAMetadataFunc func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error)
 
-type MDMGetEULABytesFunc func(ctx context.Context, token string) (*fleet.MDMEULA, error)
+type MDMGetEULABytesFunc func(ctx context.Context, platform fleet.MDMEULAPlatform, token string) (*fleet.MDMEULA, error)
+
+type MDMGetEULAPlatformFunc func(ctx context.Context, token string) (fleet.MDMEULAPlatform, error)
 
 type MDMInsertEULAFunc func(ctx context.Context, eula *fleet.MDMEULA) error
 
-type MDMDeleteEULAFunc func(ctx context.Context, token string) error
+type MDMDeleteEULAFunc func(ctx context.Context, platform fleet.MDMEULAPlatform, token string) error
 
 type SetOrUpdateMDMAppleSetupAssistantFunc func(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error)
 
@@ -2234,7 +2238,9 @@ type GetMDMAndroidCommandByOperationNameFunc func(ctx context.Context, operation
 
 type UpdateMDMAndroidCommandStatusFunc func(ctx context.Context, commandUUID string, status string, errorCode *string, errorMessage *string, rawResult *string) error
 
-type ListPendingMDMAndroidCommandsFunc func(ctx context.Context, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error)
+type ListPendingMDMAndroidCommandsFunc func(ctx context.Context, operationNamePrefix string, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error)
+
+type FailPendingMDMAndroidCommandsOutsidePrefixFunc func(ctx context.Context, operationNamePrefix string, createdBefore time.Time, errorMessage string, limit int) (int64, error)
 
 type LockHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error
 
@@ -2582,6 +2588,8 @@ type QueueHostMDMAppleProfileInstallFunc func(ctx context.Context, hostUUID stri
 
 type QueueHostMDMAppleProfileRemovalFunc func(ctx context.Context, hostUUID string, profileUUID string) error
 
+type NewAppleSCEPChallengeFunc func(ctx context.Context, info fleet.AppleSCEPChallengeInfo, ttl time.Duration) (string, error)
+
 type ConsumeAppleSCEPChallengeFunc func(ctx context.Context, challenge string) (*fleet.AppleSCEPChallengeInfo, error)
 
 type SetAppleSCEPChallengeIssuedCertFunc func(ctx context.Context, challenge string, certSerial int64) error
@@ -2657,6 +2665,9 @@ type DataStore struct {
 
 	NewUserFunc        NewUserFunc
 	NewUserFuncInvoked bool
+
+	NewInitialUserFunc        NewInitialUserFunc
+	NewInitialUserFuncInvoked bool
 
 	HasUsersFunc        HasUsersFunc
 	HasUsersFuncInvoked bool
@@ -4608,6 +4619,9 @@ type DataStore struct {
 	MDMGetEULABytesFunc        MDMGetEULABytesFunc
 	MDMGetEULABytesFuncInvoked bool
 
+	MDMGetEULAPlatformFunc        MDMGetEULAPlatformFunc
+	MDMGetEULAPlatformFuncInvoked bool
+
 	MDMInsertEULAFunc        MDMInsertEULAFunc
 	MDMInsertEULAFuncInvoked bool
 
@@ -5907,6 +5921,9 @@ type DataStore struct {
 	ListPendingMDMAndroidCommandsFunc        ListPendingMDMAndroidCommandsFunc
 	ListPendingMDMAndroidCommandsFuncInvoked bool
 
+	FailPendingMDMAndroidCommandsOutsidePrefixFunc        FailPendingMDMAndroidCommandsOutsidePrefixFunc
+	FailPendingMDMAndroidCommandsOutsidePrefixFuncInvoked bool
+
 	LockHostViaAndroidMDMFunc        LockHostViaAndroidMDMFunc
 	LockHostViaAndroidMDMFuncInvoked bool
 
@@ -6426,6 +6443,9 @@ type DataStore struct {
 	QueueHostMDMAppleProfileRemovalFunc        QueueHostMDMAppleProfileRemovalFunc
 	QueueHostMDMAppleProfileRemovalFuncInvoked bool
 
+	NewAppleSCEPChallengeFunc        NewAppleSCEPChallengeFunc
+	NewAppleSCEPChallengeFuncInvoked bool
+
 	ConsumeAppleSCEPChallengeFunc        ConsumeAppleSCEPChallengeFunc
 	ConsumeAppleSCEPChallengeFuncInvoked bool
 
@@ -6597,6 +6617,13 @@ func (s *DataStore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User,
 	s.NewUserFuncInvoked = true
 	s.mu.Unlock()
 	return s.NewUserFunc(ctx, user)
+}
+
+func (s *DataStore) NewInitialUser(ctx context.Context, user *fleet.User) (*fleet.User, error) {
+	s.mu.Lock()
+	s.NewInitialUserFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewInitialUserFunc(ctx, user)
 }
 
 func (s *DataStore) HasUsers(ctx context.Context) (bool, error) {
@@ -11135,18 +11162,25 @@ func (s *DataStore) GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*fle
 	return s.GetHostMDMMacOSSetupFunc(ctx, hostID)
 }
 
-func (s *DataStore) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, error) {
+func (s *DataStore) MDMGetEULAMetadata(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 	s.mu.Lock()
 	s.MDMGetEULAMetadataFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMGetEULAMetadataFunc(ctx)
+	return s.MDMGetEULAMetadataFunc(ctx, platform)
 }
 
-func (s *DataStore) MDMGetEULABytes(ctx context.Context, token string) (*fleet.MDMEULA, error) {
+func (s *DataStore) MDMGetEULABytes(ctx context.Context, platform fleet.MDMEULAPlatform, token string) (*fleet.MDMEULA, error) {
 	s.mu.Lock()
 	s.MDMGetEULABytesFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMGetEULABytesFunc(ctx, token)
+	return s.MDMGetEULABytesFunc(ctx, platform, token)
+}
+
+func (s *DataStore) MDMGetEULAPlatform(ctx context.Context, token string) (fleet.MDMEULAPlatform, error) {
+	s.mu.Lock()
+	s.MDMGetEULAPlatformFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMGetEULAPlatformFunc(ctx, token)
 }
 
 func (s *DataStore) MDMInsertEULA(ctx context.Context, eula *fleet.MDMEULA) error {
@@ -11156,11 +11190,11 @@ func (s *DataStore) MDMInsertEULA(ctx context.Context, eula *fleet.MDMEULA) erro
 	return s.MDMInsertEULAFunc(ctx, eula)
 }
 
-func (s *DataStore) MDMDeleteEULA(ctx context.Context, token string) error {
+func (s *DataStore) MDMDeleteEULA(ctx context.Context, platform fleet.MDMEULAPlatform, token string) error {
 	s.mu.Lock()
 	s.MDMDeleteEULAFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMDeleteEULAFunc(ctx, token)
+	return s.MDMDeleteEULAFunc(ctx, platform, token)
 }
 
 func (s *DataStore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
@@ -14173,11 +14207,18 @@ func (s *DataStore) UpdateMDMAndroidCommandStatus(ctx context.Context, commandUU
 	return s.UpdateMDMAndroidCommandStatusFunc(ctx, commandUUID, status, errorCode, errorMessage, rawResult)
 }
 
-func (s *DataStore) ListPendingMDMAndroidCommands(ctx context.Context, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error) {
+func (s *DataStore) ListPendingMDMAndroidCommands(ctx context.Context, operationNamePrefix string, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error) {
 	s.mu.Lock()
 	s.ListPendingMDMAndroidCommandsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListPendingMDMAndroidCommandsFunc(ctx, createdBefore, limit)
+	return s.ListPendingMDMAndroidCommandsFunc(ctx, operationNamePrefix, createdBefore, limit)
+}
+
+func (s *DataStore) FailPendingMDMAndroidCommandsOutsidePrefix(ctx context.Context, operationNamePrefix string, createdBefore time.Time, errorMessage string, limit int) (int64, error) {
+	s.mu.Lock()
+	s.FailPendingMDMAndroidCommandsOutsidePrefixFuncInvoked = true
+	s.mu.Unlock()
+	return s.FailPendingMDMAndroidCommandsOutsidePrefixFunc(ctx, operationNamePrefix, createdBefore, errorMessage, limit)
 }
 
 func (s *DataStore) LockHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {
@@ -15389,6 +15430,13 @@ func (s *DataStore) QueueHostMDMAppleProfileRemoval(ctx context.Context, hostUUI
 	s.QueueHostMDMAppleProfileRemovalFuncInvoked = true
 	s.mu.Unlock()
 	return s.QueueHostMDMAppleProfileRemovalFunc(ctx, hostUUID, profileUUID)
+}
+
+func (s *DataStore) NewAppleSCEPChallenge(ctx context.Context, info fleet.AppleSCEPChallengeInfo, ttl time.Duration) (string, error) {
+	s.mu.Lock()
+	s.NewAppleSCEPChallengeFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewAppleSCEPChallengeFunc(ctx, info, ttl)
 }
 
 func (s *DataStore) ConsumeAppleSCEPChallenge(ctx context.Context, challenge string) (*fleet.AppleSCEPChallengeInfo, error) {

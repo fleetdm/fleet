@@ -262,27 +262,39 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     !isFetchingSoftwareConfig && !softwareConfigError && !!softwareConfig;
 
   // Open manage automations modal via deep-link (e.g. from the command
-  // palette). Mirror the in-page action's gate: software automations
-  // are global-admin only, and only available on All fleets (or the
-  // single fleet in Primo). Wait for config to load before deciding,
-  // then always strip the param so a team-scoped or unauthorized load
-  // doesn't leave it stuck in the URL.
+  // palette). Capture the intent synchronously on mount: the inventory
+  // table's own URL rewrite runs on its first render and drops params it
+  // doesn't recognize, so by the time softwareConfig finishes loading
+  // the flag is already gone from the URL. Mirror the in-page action's
+  // gate: global-admin only, All fleets (or the single fleet in Primo).
+  const [pendingDeepLinkAutomations, setPendingDeepLinkAutomations] = useState(
+    () => queryParams?.manage_automations === "1"
+  );
+
+  // Strip the param from the URL as soon as we see it so a race with
+  // other URL writers can't leave it stuck, and a refresh doesn't
+  // re-trigger the modal. Also catches palette triggers after first mount
+  // (the initializer only runs once; SoftwarePage persists across tabs).
   useEffect(() => {
     if (queryParams?.manage_automations !== "1") return;
+    setPendingDeepLinkAutomations(true);
+    const { manage_automations, ...rest } = queryParams;
+    router.replace({ pathname: location.pathname, query: rest });
+  }, [queryParams, location.pathname, router]);
+
+  useEffect(() => {
+    if (!pendingDeepLinkAutomations) return;
     if (!isSoftwareConfigLoaded) return;
     if (isGlobalAdmin && (isAllTeamsSelected || isPrimoMode)) {
       setShowManageAutomationsModal(true);
     }
-    const { manage_automations, ...rest } = queryParams;
-    router.replace({ pathname: location.pathname, query: rest });
+    setPendingDeepLinkAutomations(false);
   }, [
-    queryParams,
+    pendingDeepLinkAutomations,
     isSoftwareConfigLoaded,
     isAllTeamsSelected,
     isPrimoMode,
     isGlobalAdmin,
-    location.pathname,
-    router,
   ]);
 
   const toggleManageAutomationsModal = useCallback(() => {

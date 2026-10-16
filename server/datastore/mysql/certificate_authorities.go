@@ -1,11 +1,13 @@
 package mysql
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -369,14 +371,71 @@ func (ds *Datastore) BatchApplyCertificateAuthorities(ctx context.Context, ops f
 	upserts = append(upserts, ops.Update...)
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var digiCertUpdates []*fleet.CertificateAuthority
+		var digiCertNames []string
+		for _, ca := range ops.Update {
+			if ca.Type == string(fleet.CATypeDigiCert) {
+				digiCertUpdates = append(digiCertUpdates, ca)
+				digiCertNames = append(digiCertNames, *ca.Name)
+			}
+		}
+		var resendCANames []string
+		if len(digiCertUpdates) > 0 {
+			oldDigiCertCAs, err := ds.getDigiCertCAsForUpdateDB(ctx, tx, "name IN (?)", digiCertNames)
+			if err != nil {
+				return err
+			}
+			for _, ca := range digiCertUpdates {
+				if old, ok := oldDigiCertCAs[*ca.Name]; ok && digiCertCertificateFieldsChanged(old, ca) {
+					resendCANames = append(resendCANames, *ca.Name)
+				}
+			}
+		}
 		if err := batchUpsertCertificateAuthorities(ctx, tx, ds.serverPrivateKey, upserts); err != nil {
 			return err
 		}
 		if err := batchDeleteCertificateAuthorities(ctx, tx, ops.Delete); err != nil {
 			return err
 		}
-		return nil
+		if len(resendCANames) == 0 {
+			return nil
+		}
+		return resendDigiCertProfilesDB(ctx, tx, resendCANames, nil)
 	})
+}
+
+// getDigiCertCAsForUpdateDB returns the DigiCert CAs matching where, by name, locked until the transaction ends.
+func (ds *Datastore) getDigiCertCAsForUpdateDB(ctx context.Context, tx sqlx.ExtContext, where string, args ...any) (map[string]*fleet.CertificateAuthority, error) {
+	stmt, args, err := sqlx.In(`
+		SELECT id, type, name, profile_id, certificate_common_name, certificate_user_principal_names, certificate_seat_id
+		FROM certificate_authorities
+		WHERE type = ? AND `+where+`
+		FOR UPDATE`, append([]any{fleet.CATypeDigiCert}, args...)...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "prepare select DigiCert certificate authorities for update")
+	}
+	var rows []certificateAuthorityWithEncryptedSecrets
+	if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select DigiCert certificate authorities for update")
+	}
+	cas := make(map[string]*fleet.CertificateAuthority, len(rows))
+	for _, row := range rows {
+		if err := ds.postprocessRetrievedCertificateAuthority(ctx, &row, false); err != nil {
+			return nil, err
+		}
+		cas[*row.Name] = &row.CertificateAuthority
+	}
+	return cas, nil
+}
+
+// digiCertCertificateFieldsChanged reports whether an update changes what DigiCert puts in issued certificates. Nil fields in the update
+// are left unchanged.
+func digiCertCertificateFieldsChanged(oldCA, ca *fleet.CertificateAuthority) bool {
+	return ca.ProfileID != nil && *ca.ProfileID != ptr.ValOrZero(oldCA.ProfileID) ||
+		ca.CertificateCommonName != nil && *ca.CertificateCommonName != ptr.ValOrZero(oldCA.CertificateCommonName) ||
+		ca.CertificateSeatID != nil && *ca.CertificateSeatID != ptr.ValOrZero(oldCA.CertificateSeatID) ||
+		ca.CertificateUserPrincipalNames != nil &&
+			!slices.Equal(*ca.CertificateUserPrincipalNames, ptr.ValOrZero(oldCA.CertificateUserPrincipalNames))
 }
 
 func (ds *Datastore) DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) (*fleet.CertificateAuthoritySummary, error) {
@@ -446,15 +505,32 @@ func (ds *Datastore) UpdateCertificateAuthorityByID(ctx context.Context, certifi
 	WHERE id = ?
 	`, setStmt)
 
-	_, err = ds.writer(ctx).ExecContext(ctx, stmt, updateArgs...)
-	if err != nil {
-		if strings.Contains(err.Error(), "idx_ca_type_name") {
-			return fleet.ConflictError{Message: "a certificate authority with this name already exists"}
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var resendCAName *string
+		if ca.Type == string(fleet.CATypeDigiCert) {
+			oldDigiCertCAs, err := ds.getDigiCertCAsForUpdateDB(ctx, tx, "id = ?", certificateAuthorityID)
+			if err != nil {
+				return err
+			}
+			for _, old := range oldDigiCertCAs {
+				if digiCertCertificateFieldsChanged(old, ca) {
+					resendCAName = cmp.Or(ca.Name, old.Name)
+				}
+			}
 		}
-		return ctxerr.Wrapf(ctx, err, "updating certificate authority with id %d", certificateAuthorityID)
-	}
 
-	return nil
+		if _, err := tx.ExecContext(ctx, stmt, updateArgs...); err != nil {
+			if strings.Contains(err.Error(), "idx_ca_type_name") {
+				return fleet.ConflictError{Message: "a certificate authority with this name already exists"}
+			}
+			return ctxerr.Wrapf(ctx, err, "updating certificate authority with id %d", certificateAuthorityID)
+		}
+
+		if resendCAName == nil {
+			return nil
+		}
+		return resendDigiCertProfilesDB(ctx, tx, []string{*resendCAName}, nil)
+	})
 }
 
 // generateUpdateQuery generates the SQL update query for a Certificate Authority based on the provided fields

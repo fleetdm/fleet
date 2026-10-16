@@ -40,7 +40,7 @@ parasails.registerPage('configuration-generator', {
       ddm: { filename: 'ddm-command.json', mimeType: 'application/json' },
       mobileconfig: { filename: 'configuration-profile.mobileconfig', mimeType: 'application/x-apple-aspen-config' },
       csp: { filename: 'configuration-profile.xml', mimeType: 'application/xml' },
-      // android: { filename: 'android-policy.json', mimeType: 'application/json' },
+      android: { filename: 'android-policy.json', mimeType: 'application/json' },
     },
   },
 

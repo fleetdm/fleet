@@ -7,7 +7,7 @@
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.install4j.1106-5897-7327-6550.5' AND version_compare(bundle_short_version, '18.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.install4j.1106-5897-7327-6550.5' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://eu8.dl.visual-paradigm.com/visual-paradigm/vp18.1/20260914/Visual_Paradigm_18_1_20260914_OSX_AArch64.dmg",
+      "installer_url": "https://www.visual-paradigm.com/downloads/vp18.1/20260914/Visual_Paradigm_18_1_20260914_OSX_AArch64.dmg",
       "install_script_ref": "288b2c98",
       "uninstall_script_ref": "f2a153c1",
       "sha256": "069b0e7a7b53942c4f4022ac42044080a8fd582c6a613fa34999573d7b0d20ea",

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.2.1",
+      "version": "5.2.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.xk72.Charles';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.xk72.Charles' AND version_compare(bundle_short_version, '5.2.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.xk72.Charles' AND version_compare(bundle_short_version, '5.2.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.xk72.Charles' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://www.charlesproxy.com/assets/release/5.2.1/charles-proxy-5.2.1.dmg",
+      "installer_url": "https://www.charlesproxy.com/assets/release/5.2.2/charles-proxy-5.2.2.dmg",
       "install_script_ref": "8a360a4d",
       "uninstall_script_ref": "c1d6223c",
-      "sha256": "d233395a7fbb487f0fe20ddff16e02a65990add20d5aa9ce1e87a8f9ff0fe0d5",
+      "sha256": "560e10c31bb2e680b9b9dadf0fb66450289bd22b4a68bcac5a13a8cce52d9f05",
       "default_categories": [
         "Developer tools"
       ]

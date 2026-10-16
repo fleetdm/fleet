@@ -27,7 +27,7 @@ interface IRunQueryPageProps {
   params: Params;
   location: {
     pathname: string;
-    query: { host_id: string; fleet_id?: string };
+    query: { host_id?: string; fleet_id?: string; from?: string };
     search: string;
   };
 }
@@ -41,7 +41,7 @@ const RunQueryPage = ({
 }: IRunQueryPageProps): JSX.Element => {
   const queryId = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
 
-  const { currentTeamId } = useTeamIdParam({
+  const { teamIdForApi } = useTeamIdParam({
     location,
     router,
     includeAllTeams: true,
@@ -88,7 +88,7 @@ const RunQueryPage = ({
 
     router.push(
       getPathWithQueryParams(path, {
-        fleet_id: currentTeamId,
+        fleet_id: teamIdForApi,
       })
     );
   }
@@ -135,7 +135,12 @@ const RunQueryPage = ({
         if (!queryParamHostsAdded) {
           setQueryParamHostsAdded(true);
         }
-        router.replace(location.pathname);
+        router.replace(
+          getPathWithQueryParams(location.pathname, {
+            ...location.query,
+            host_id: undefined,
+          })
+        );
       },
     }
   );
@@ -159,10 +164,16 @@ const RunQueryPage = ({
   }, [location.pathname, storedQuery?.name]);
 
   const goToQueryEditor = useCallback(() => {
-    const path = queryId ? PATHS.EDIT_REPORT(queryId) : PATHS.NEW_REPORT;
+    let path = PATHS.NEW_REPORT;
+    if (queryId) {
+      path =
+        location.query.from === "edit"
+          ? PATHS.EDIT_REPORT(queryId)
+          : PATHS.REPORT_DETAILS(queryId);
+    }
 
-    router.push(getPathWithQueryParams(path, { fleet_id: currentTeamId }));
-  }, []);
+    router.push(getPathWithQueryParams(path, { fleet_id: teamIdForApi }));
+  }, [queryId, location.query.from, router, teamIdForApi]);
 
   const renderScreen = () => {
     const step1Props = {
