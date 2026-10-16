@@ -309,10 +309,10 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	assert.Empty(t, removes)
 
 	// Clear the profiles using the new (non-deprecated) endpoint.
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: nil}, http.StatusNoContent, "team_id",
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: backwardsCompatProfilesParam{}}, http.StatusNoContent, "team_id",
 		fmt.Sprint(tm.ID), "dry_run", "true")
 	s.assertConfigProfilesByIdentifier(&tm.ID, "IS1", true)
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: nil}, http.StatusNoContent, "team_id",
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: backwardsCompatProfilesParam{}}, http.StatusNoContent, "team_id",
 		fmt.Sprint(tm.ID), "dry_run", "false")
 	s.assertConfigProfilesByIdentifier(&tm.ID, "IS1", false)
 	s.awaitTriggerProfileSchedule(t)
@@ -3107,7 +3107,7 @@ func (s *integrationMDMTestSuite) TestSelfServiceAppleConfigProfileInstallUninst
 		{Name: "SS1", Contents: mobileconfigForTest("SS1", "ISS1")},
 	}}, http.StatusNoContent)
 	t.Cleanup(func() {
-		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{}, http.StatusNoContent)
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: backwardsCompatProfilesParam{}}, http.StatusNoContent)
 	})
 	regularUUID := s.assertConfigProfilesByIdentifier(nil, "I1", true).ProfileUUID
 	ssUUID := s.assertConfigProfilesByIdentifier(nil, "ISS1", true).ProfileUUID

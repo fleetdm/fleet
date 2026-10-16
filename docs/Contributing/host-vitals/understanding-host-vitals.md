@@ -1397,7 +1397,7 @@ select * from system_info limit 1
 
 ## uptime
 
-- Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin, windows
+- Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin, windows, chrome
 
 - Query:
 ```sql
