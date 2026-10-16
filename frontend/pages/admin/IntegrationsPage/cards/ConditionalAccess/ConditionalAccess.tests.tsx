@@ -1,8 +1,11 @@
-import { screen, waitFor } from "@testing-library/react";
+import { render as rtlRender, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import React from "react";
+import { QueryClient, QueryClientProvider } from "react-query";
 
 import createMockConfig from "__mocks__/configMock";
+import { AppContext, IAppContext, initialState } from "context/app";
 import mockServer from "test/mock-server";
 import { baseUrl, createCustomRenderer } from "test/test-utils";
 
@@ -201,8 +204,7 @@ describe("Conditional access", () => {
         expect(screen.getByText("Okta conditional access")).toBeInTheDocument();
       });
 
-      // Fill in text fields
-      // Note: First textarea is the read-only User scope profile
+      // Fill in text fields. textboxes[0] is the read-only User scope profile.
       const textboxes = screen.getAllByRole("textbox");
       await user.type(textboxes[1], TEST_OKTA_IDP_ID); // IdP ID
       await user.type(textboxes[2], "https://example.com/acs"); // ACS URL
@@ -450,6 +452,236 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
       expect(
         screen.getByRole("button", { name: "Cancel" })
       ).toBeInTheDocument();
+    });
+  });
+
+  describe("GitOps mode", () => {
+    it("Disables bypass toggle, Save, and Okta Delete under GitOps; leaves Entra Delete enabled (Entra setup is DB-backed, not YAML)", async () => {
+      const mockConfig = createMockConfig({
+        conditional_access: {
+          microsoft_entra_tenant_id: TEST_TENANT_ID,
+          microsoft_entra_connection_configured: true,
+          okta_idp_id: TEST_OKTA_IDP_ID,
+          okta_assertion_consumer_service_url: "https://example.com/acs",
+          okta_audience_uri: "https://example.com",
+          okta_certificate: "cert-data",
+          bypass_disabled: false,
+        },
+        gitops: {
+          gitops_mode_enabled: true,
+          repository_url: "https://github.com/example/fleet-gitops",
+          exceptions: { labels: false, software: false, secrets: true },
+        },
+      });
+
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            isPremiumTier: true,
+            config: mockConfig,
+          },
+        },
+      });
+
+      render(<ConditionalAccess />);
+
+      // Checkbox exposes aria-label from `name`; disabled lives on aria-disabled.
+      const bypassCheckbox = screen.getByRole("checkbox", {
+        name: "bypassDisabled",
+      });
+      expect(bypassCheckbox).toHaveAttribute("aria-disabled", "true");
+
+      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+
+      // Okta renders first, Entra second.
+      const deleteButtons = screen.getAllByRole("button", { name: "Delete" });
+      expect(deleteButtons).toHaveLength(2);
+      expect(deleteButtons[0]).toBeDisabled();
+      expect(deleteButtons[1]).toBeEnabled();
+    });
+
+    it("Keeps bypass Save disabled when GitOps flips on with a dirty form (isolates the GitOps gate from the unchanged-form check)", async () => {
+      // The previous test's Save assertion is reinforced by the unchanged-form guard
+      // (initial bypassDisabled matches config.bypass_disabled). This one dirties the
+      // form with GitOps off, then rerenders with GitOps on so bypassDisabled survives
+      // via useState — the only remaining reason Save can be disabled is the new gate.
+      const baseConditionalAccess = {
+        microsoft_entra_tenant_id: "",
+        microsoft_entra_connection_configured: false,
+        okta_idp_id: TEST_OKTA_IDP_ID,
+        okta_assertion_consumer_service_url: "https://example.com/acs",
+        okta_audience_uri: "https://example.com",
+        okta_certificate: "cert-data",
+        bypass_disabled: false,
+      };
+      const gitopsOffConfig = createMockConfig({
+        conditional_access: baseConditionalAccess,
+        gitops: {
+          gitops_mode_enabled: false,
+          repository_url: "https://github.com/example/fleet-gitops",
+          exceptions: { labels: false, software: false, secrets: true },
+        },
+      });
+      const gitopsOnConfig = createMockConfig({
+        conditional_access: baseConditionalAccess,
+        gitops: {
+          gitops_mode_enabled: true,
+          repository_url: "https://github.com/example/fleet-gitops",
+          exceptions: { labels: false, software: false, secrets: true },
+        },
+      });
+
+      const client = new QueryClient({
+        defaultOptions: { queries: { retry: false, cacheTime: 0 } },
+      });
+      const Harness = ({ app }: { app: Partial<IAppContext> }) => (
+        <QueryClientProvider client={client}>
+          <AppContext.Provider value={{ ...initialState, ...app }}>
+            <ConditionalAccess />
+          </AppContext.Provider>
+        </QueryClientProvider>
+      );
+
+      const user = userEvent.setup();
+      const { rerender } = rtlRender(
+        <Harness app={{ isPremiumTier: true, config: gitopsOffConfig }} />
+      );
+
+      // Dirty the form: toggle bypassDisabled away from config.bypass_disabled.
+      await user.click(
+        screen.getByRole("checkbox", { name: "bypassDisabled" })
+      );
+      expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+
+      // Flip GitOps on. bypassDisabled state persists via useState across the rerender,
+      // so the unchanged-form guard still evaluates false. Save must disable solely
+      // because of the GitOps gate.
+      rerender(
+        <Harness app={{ isPremiumTier: true, config: gitopsOnConfig }} />
+      );
+      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    });
+
+    it("Leaves Connect buttons enabled under GitOps so users can view the modal", () => {
+      const mockConfig = createMockConfig({
+        conditional_access: {
+          microsoft_entra_tenant_id: "",
+          microsoft_entra_connection_configured: false,
+          okta_idp_id: "",
+          okta_assertion_consumer_service_url: "",
+          okta_audience_uri: "",
+          okta_certificate: "",
+          bypass_disabled: false,
+        },
+        gitops: {
+          gitops_mode_enabled: true,
+          repository_url: "https://github.com/example/fleet-gitops",
+          exceptions: { labels: false, software: false, secrets: true },
+        },
+      });
+
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            isPremiumTier: true,
+            config: mockConfig,
+          },
+        },
+      });
+
+      render(<ConditionalAccess />);
+
+      const connectButtons = screen.getAllByRole("button", { name: "Connect" });
+      expect(connectButtons).toHaveLength(2);
+      connectButtons.forEach((btn) => expect(btn).toBeEnabled());
+    });
+
+    it("Disables the Okta modal inputs and Save button under GitOps", async () => {
+      const mockConfig = createMockConfig({
+        conditional_access: {
+          microsoft_entra_tenant_id: "",
+          microsoft_entra_connection_configured: false,
+          okta_idp_id: "",
+          okta_assertion_consumer_service_url: "",
+          okta_audience_uri: "",
+          okta_certificate: "",
+          bypass_disabled: false,
+        },
+        gitops: {
+          gitops_mode_enabled: true,
+          repository_url: "https://github.com/example/fleet-gitops",
+          exceptions: { labels: false, software: false, secrets: true },
+        },
+      });
+
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            isPremiumTier: true,
+            config: mockConfig,
+          },
+        },
+      });
+
+      const { user } = render(<ConditionalAccess />);
+
+      const connectButtons = screen.getAllByRole("button", { name: "Connect" });
+      await user.click(connectButtons[0]);
+
+      await waitFor(() => {
+        expect(screen.getByText("Okta conditional access")).toBeInTheDocument();
+      });
+
+      expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    });
+
+    it("Leaves the Entra modal fully functional under GitOps (OAuth is the only path, YAML can't set the tenant)", async () => {
+      const mockConfig = createMockConfig({
+        conditional_access: {
+          microsoft_entra_tenant_id: "",
+          microsoft_entra_connection_configured: false,
+          okta_idp_id: "",
+          okta_assertion_consumer_service_url: "",
+          okta_audience_uri: "",
+          okta_certificate: "",
+          bypass_disabled: false,
+        },
+        gitops: {
+          gitops_mode_enabled: true,
+          repository_url: "https://github.com/example/fleet-gitops",
+          exceptions: { labels: false, software: false, secrets: true },
+        },
+      });
+
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            isPremiumTier: true,
+            config: mockConfig,
+          },
+        },
+      });
+
+      const { user } = render(<ConditionalAccess />);
+
+      const connectButtons = screen.getAllByRole("button", { name: "Connect" });
+      await user.click(connectButtons[1]);
+
+      await waitFor(() => {
+        expect(
+          screen.getByText("Microsoft Entra conditional access")
+        ).toBeInTheDocument();
+      });
+
+      expect(screen.getByRole("textbox")).toBeEnabled();
+      // Validation also disables Save when the field is empty, so type first to
+      // isolate the GitOps gating assertion.
+      await user.type(screen.getByRole("textbox"), "test-tenant-id");
+      expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
     });
   });
 

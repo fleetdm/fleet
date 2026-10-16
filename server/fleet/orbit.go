@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"encoding/json"
+	"reflect"
 
 	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 )
@@ -74,6 +75,27 @@ type OrbitConfigNotifications struct {
 	RunDiskEncryptionEscrow bool `json:"run_disk_encryption_escrow,omitempty"`
 }
 
+// OrbitConfigFallbackChangesHeader is the request header in which orbit
+// reports the orbit config fields that its fallback poll found changed, i.e.
+// that changed without the server nudging it: a comma-separated list of JSON
+// field names, notifications fields prefixed with "notifications.".
+const OrbitConfigFallbackChangesHeader = "X-Fleet-Orbit-Config-Fallback-Changes"
+
+// IsQuiet reports whether the notifications ask orbit for nothing: no flag is
+// set and no script or software installer is pending. Orbit receivers use the
+// config poll as their clock while a flag is set, so only a quiet config lets
+// a connected agent slow its polling down.
+func (n OrbitConfigNotifications) IsQuiet() bool {
+	if len(n.PendingScriptExecutionIDs) > 0 || len(n.PendingSoftwareInstallerIDs) > 0 {
+		return false
+	}
+	n.PendingScriptExecutionIDs, n.PendingSoftwareInstallerIDs = nil, nil
+	// Data accompanying NeedsProgrammaticWindowsMDMEnrollment, not a request.
+	n.WindowsMDMDiscoveryEndpoint = ""
+	// Compared reflectively so a new field counts as a request by default.
+	return reflect.DeepEqual(n, OrbitConfigNotifications{})
+}
+
 type OrbitConfig struct {
 	ScriptExeTimeout int                      `json:"script_execution_timeout,omitempty"`
 	Flags            json.RawMessage          `json:"command_line_startup_flags,omitempty"`
@@ -97,6 +119,13 @@ type OrbitConfig struct {
 // (ping interval, backoff tuning) can ride along without breaking old agents.
 type OrbitWebSocketTransportConfig struct {
 	Enabled bool `json:"enabled"`
+	// OrbitConfigPollInterval, in seconds, is how often a connected agent
+	// whose last config was quiet (see OrbitConfigNotifications.IsQuiet)
+	// polls for its orbit config: the server nudges it on changes
+	// (AgentWSMessageTypeOrbitConfig), so the poll is only a fallback. Unset
+	// means the server doesn't send orbit/config nudges; agents keep their
+	// default poll interval.
+	OrbitConfigPollInterval *int `json:"orbit_config_poll_interval,omitempty"`
 }
 
 type OrbitConfigReceiver interface {

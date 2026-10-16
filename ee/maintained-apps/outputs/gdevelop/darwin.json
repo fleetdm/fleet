@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.6.283",
+      "version": "5.6.284",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.gdevelop-app.ide';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.gdevelop-app.ide' AND version_compare(bundle_short_version, '5.6.283') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.gdevelop-app.ide' AND version_compare(bundle_short_version, '5.6.284') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.gdevelop-app.ide' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/4ian/GDevelop/releases/download/v5.6.283/GDevelop-5-5.6.283-universal.dmg",
+      "installer_url": "https://github.com/4ian/GDevelop/releases/download/v5.6.284/GDevelop-5-5.6.284-universal.dmg",
       "install_script_ref": "328ac84f",
       "uninstall_script_ref": "c1bae326",
-      "sha256": "6101964a28f926328780ca82fd93ee34e050de1327da6258f914963134b5ee26",
+      "sha256": "fea86f0f56eb32da43c0398c259e4d9162352bdaed7385337a82a1ad27d427f3",
       "default_categories": [
         "Productivity"
       ]
