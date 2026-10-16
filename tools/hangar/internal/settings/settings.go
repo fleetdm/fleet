@@ -210,6 +210,9 @@ type InstallersConfig struct {
 	// it. Empty means the default (~/Documents/fleetd-installers).
 	OutputDir string                           `json:"output_dir"`
 	Servers   map[string]InstallerServerConfig `json:"servers"`
+	// SharePort is the port for sharing the output folder over HTTP; 0 means
+	// pick a free one.
+	SharePort uint16 `json:"share_port"`
 }
 
 // InstallerServerConfig is one server card's build inputs. The enroll secret is

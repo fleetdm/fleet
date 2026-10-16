@@ -3,7 +3,11 @@
 
 export {
     Channels,
+    Download,
+    ManifestEntry,
     OutputFile,
     ScanResult,
+    ShareStatus,
+    SharedFile,
     Team
 } from "./models.js";

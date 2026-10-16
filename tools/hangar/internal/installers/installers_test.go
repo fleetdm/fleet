@@ -241,12 +241,27 @@ func TestListOutputs(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	if err := os.WriteFile(filepath.Join(dir, ManifestName), []byte(`{"files":{"a.pkg":{"platform":"macos","team":"Workstations"}}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	got, err := ListOutputs(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(got) != 2 {
 		t.Fatalf("ListOutputs = %+v", got)
+	}
+	for _, f := range got {
+		switch f.Name {
+		case "a.pkg":
+			if f.Build == nil || f.Build.Team != "Workstations" {
+				t.Errorf("a.pkg build = %+v", f.Build)
+			}
+		case "b.deb":
+			if f.Build != nil {
+				t.Errorf("b.deb has no manifest entry, got %+v", f.Build)
+			}
+		}
 	}
 	if missing, err := ListOutputs(filepath.Join(dir, "nope")); err != nil || len(missing) != 0 {
 		t.Errorf("missing dir: %v %v", missing, err)

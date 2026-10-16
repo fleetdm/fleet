@@ -134,8 +134,11 @@ export type InstallersScanResult = installersM.ScanResult;
 export type InstallersTeam = installersM.Team;
 export type InstallersChannels = installersM.Channels;
 export type InstallersOutputFile = installersM.OutputFile;
+export type InstallersManifestEntry = installersM.ManifestEntry;
 export type InstallersServerInfo = servicesM.InstallersServerInfo;
 export type InstallersLocalTUF = servicesM.InstallersLocalTUF;
+export type InstallersShareStatus = installersM.ShareStatus;
+export type InstallersSharedFile = installersM.SharedFile;
 
 export type DepCheck = depsM.DepCheck;
 export type DepReport = depsM.DepReport;
@@ -306,6 +309,12 @@ export const api = {
   installersStopBuild: (serverId: string) => InstallersService.InstallersStopBuild(serverId),
   installersListOutputs: (serverId: string, outputDir: string) =>
     cast<InstallersOutputFile[]>(InstallersService.InstallersListOutputs(serverId, outputDir)),
+  installersSuggestSharePort: () => cast<number>(InstallersService.InstallersSuggestSharePort()),
+  installersShareStart: (outputDir: string, port: number) =>
+    cast<InstallersShareStatus>(InstallersService.InstallersShareStart(outputDir, port)),
+  installersShareStop: () => InstallersService.InstallersShareStop(),
+  installersShareStatus: () => cast<InstallersShareStatus>(InstallersService.InstallersShareStatus()),
+  installersSharedFiles: () => cast<InstallersSharedFile[]>(InstallersService.InstallersSharedFiles()),
 
   listProcesses: () => cast<ProcInfo[]>(ProcessService.ListProcesses()),
   startProcess: (args: {

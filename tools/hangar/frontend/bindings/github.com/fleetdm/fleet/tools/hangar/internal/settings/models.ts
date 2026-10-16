@@ -212,6 +212,12 @@ export class InstallersConfig {
     "output_dir": string;
     "servers": { [_ in string]?: InstallerServerConfig };
 
+    /**
+     * SharePort is the port for sharing the output folder over HTTP; 0 means
+     * pick a free one.
+     */
+    "share_port": number;
+
     /** Creates a new InstallersConfig instance. */
     constructor($$source: Partial<InstallersConfig> = {}) {
         if (!("output_dir" in $$source)) {
@@ -219,6 +225,9 @@ export class InstallersConfig {
         }
         if (!("servers" in $$source)) {
             this["servers"] = {};
+        }
+        if (!("share_port" in $$source)) {
+            this["share_port"] = 0;
         }
 
         Object.assign(this, $$source);

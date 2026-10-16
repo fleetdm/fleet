@@ -50,13 +50,112 @@ export class Channels {
 }
 
 /**
- * OutputFile is one installer found in a server's output folder.
+ * Download is one file served to a client.
+ */
+export class Download {
+    "path": string;
+    "client": string;
+    "at_ms": number;
+
+    /** Creates a new Download instance. */
+    constructor($$source: Partial<Download> = {}) {
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("client" in $$source)) {
+            this["client"] = "";
+        }
+        if (!("at_ms" in $$source)) {
+            this["at_ms"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Download instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Download {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Download($$parsedSource as Partial<Download>);
+    }
+}
+
+/**
+ * ManifestEntry records how one installer was built.
+ */
+export class ManifestEntry {
+    "platform": string;
+    "built_at": string;
+    "fleet_url": string;
+    "team": string;
+    "fleet_desktop": boolean;
+    "debug": boolean;
+    "update_url": string;
+    "orbit_channel": string;
+    "desktop_channel": string;
+    "osqueryd_channel": string;
+    "fleetctl_version": string;
+
+    /** Creates a new ManifestEntry instance. */
+    constructor($$source: Partial<ManifestEntry> = {}) {
+        if (!("platform" in $$source)) {
+            this["platform"] = "";
+        }
+        if (!("built_at" in $$source)) {
+            this["built_at"] = "";
+        }
+        if (!("fleet_url" in $$source)) {
+            this["fleet_url"] = "";
+        }
+        if (!("team" in $$source)) {
+            this["team"] = "";
+        }
+        if (!("fleet_desktop" in $$source)) {
+            this["fleet_desktop"] = false;
+        }
+        if (!("debug" in $$source)) {
+            this["debug"] = false;
+        }
+        if (!("update_url" in $$source)) {
+            this["update_url"] = "";
+        }
+        if (!("orbit_channel" in $$source)) {
+            this["orbit_channel"] = "";
+        }
+        if (!("desktop_channel" in $$source)) {
+            this["desktop_channel"] = "";
+        }
+        if (!("osqueryd_channel" in $$source)) {
+            this["osqueryd_channel"] = "";
+        }
+        if (!("fleetctl_version" in $$source)) {
+            this["fleetctl_version"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ManifestEntry instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ManifestEntry {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ManifestEntry($$parsedSource as Partial<ManifestEntry>);
+    }
+}
+
+/**
+ * OutputFile is one installer found in a server's output folder, with how it
+ * was built when manifest.json has an entry for it (nil for files Hangar
+ * didn't build).
  */
 export class OutputFile {
     "name": string;
     "path": string;
     "size": number;
     "mod_time_ms": number;
+    "build": ManifestEntry | null;
 
     /** Creates a new OutputFile instance. */
     constructor($$source: Partial<OutputFile> = {}) {
@@ -72,6 +171,9 @@ export class OutputFile {
         if (!("mod_time_ms" in $$source)) {
             this["mod_time_ms"] = 0;
         }
+        if (!("build" in $$source)) {
+            this["build"] = null;
+        }
 
         Object.assign(this, $$source);
     }
@@ -80,7 +182,11 @@ export class OutputFile {
      * Creates a new OutputFile instance from a string or object.
      */
     static createFrom($$source: any = {}): OutputFile {
+        const $$createField4_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("build" in $$parsedSource) {
+            $$parsedSource["build"] = $$createField4_0($$parsedSource["build"]);
+        }
         return new OutputFile($$parsedSource as Partial<OutputFile>);
     }
 }
@@ -120,12 +226,116 @@ export class ScanResult {
      * Creates a new ScanResult instance from a string or object.
      */
     static createFrom($$source: any = {}): ScanResult {
-        const $$createField4_0 = $$createType2;
+        const $$createField4_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("teams" in $$parsedSource) {
             $$parsedSource["teams"] = $$createField4_0($$parsedSource["teams"]);
         }
         return new ScanResult($$parsedSource as Partial<ScanResult>);
+    }
+}
+
+/**
+ * ShareStatus is the share server's state for the tab.
+ */
+export class ShareStatus {
+    "running": boolean;
+    "port": number;
+    "root": string;
+
+    /**
+     * http://<lan-ip>:<port>/, "" when stopped
+     */
+    "url": string;
+    "started_at_ms": number;
+
+    /**
+     * newest first
+     */
+    "recent": Download[];
+
+    /** Creates a new ShareStatus instance. */
+    constructor($$source: Partial<ShareStatus> = {}) {
+        if (!("running" in $$source)) {
+            this["running"] = false;
+        }
+        if (!("port" in $$source)) {
+            this["port"] = 0;
+        }
+        if (!("root" in $$source)) {
+            this["root"] = "";
+        }
+        if (!("url" in $$source)) {
+            this["url"] = "";
+        }
+        if (!("started_at_ms" in $$source)) {
+            this["started_at_ms"] = 0;
+        }
+        if (!("recent" in $$source)) {
+            this["recent"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ShareStatus instance from a string or object.
+     */
+    static createFrom($$source: any = {}): ShareStatus {
+        const $$createField5_0 = $$createType6;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("recent" in $$parsedSource) {
+            $$parsedSource["recent"] = $$createField5_0($$parsedSource["recent"]);
+        }
+        return new ShareStatus($$parsedSource as Partial<ShareStatus>);
+    }
+}
+
+/**
+ * SharedFile is one installer under the share root, with ready-to-paste
+ * commands for the machine that will install it.
+ */
+export class SharedFile {
+    /**
+     * relative to the root, slash-separated
+     */
+    "path": string;
+    "url": string;
+    "size": number;
+    "command": string;
+
+    /**
+     * what the command runs in: "sh" or "powershell"
+     */
+    "shell": string;
+
+    /** Creates a new SharedFile instance. */
+    constructor($$source: Partial<SharedFile> = {}) {
+        if (!("path" in $$source)) {
+            this["path"] = "";
+        }
+        if (!("url" in $$source)) {
+            this["url"] = "";
+        }
+        if (!("size" in $$source)) {
+            this["size"] = 0;
+        }
+        if (!("command" in $$source)) {
+            this["command"] = "";
+        }
+        if (!("shell" in $$source)) {
+            this["shell"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SharedFile instance from a string or object.
+     */
+    static createFrom($$source: any = {}): SharedFile {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SharedFile($$parsedSource as Partial<SharedFile>);
     }
 }
 
@@ -173,5 +383,9 @@ export class Team {
 
 // Private type creation functions
 const $$createType0 = $Create.Array($Create.Any);
-const $$createType1 = Team.createFrom;
-const $$createType2 = $Create.Array($$createType1);
+const $$createType1 = ManifestEntry.createFrom;
+const $$createType2 = $Create.Nullable($$createType1);
+const $$createType3 = Team.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = Download.createFrom;
+const $$createType6 = $Create.Array($$createType5);
