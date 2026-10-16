@@ -1162,7 +1162,8 @@ const DeviceUserPage = ({
     !!enrollUrlError;
 
   const showUnsupportedScreen =
-    !hasDeviceUserError && shouldShowUnsupportedScreen(location.pathname, isMobile);
+    !hasDeviceUserError &&
+    shouldShowUnsupportedScreen(location.pathname, isMobile);
 
   const coreWrapperClassnames = classNames("core-wrapper", {
     "low-width-supported": !showUnsupportedScreen,
