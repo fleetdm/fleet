@@ -21,12 +21,12 @@ func Up_20261015221610(tx *sql.Tx) error {
 		return fmt.Errorf("adding ejbca to certificate_authorities.type enum: %w", err)
 	}
 
-	if !columnExists(tx, "certificate_authorities", "client_cert_pem") {
+	if !columnExists(tx, "certificate_authorities", "mtls_cert_pem") {
 		if _, err := tx.Exec(`
 			ALTER TABLE certificate_authorities
-			ADD COLUMN client_cert_pem TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL AFTER client_secret_encrypted,
-			ADD COLUMN client_key_encrypted BLOB NULL AFTER client_cert_pem,
-			ADD COLUMN trust_ca_bundle_pem TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL AFTER client_key_encrypted,
+			ADD COLUMN mtls_cert_pem TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL AFTER client_secret_encrypted,
+			ADD COLUMN mtls_key_encrypted BLOB NULL AFTER mtls_cert_pem,
+			ADD COLUMN trust_ca_bundle_pem TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL AFTER mtls_key_encrypted,
 			ADD COLUMN ejbca_ca_name VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL AFTER trust_ca_bundle_pem,
 			ADD COLUMN ejbca_certificate_profile_name VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL
 				AFTER ejbca_ca_name,

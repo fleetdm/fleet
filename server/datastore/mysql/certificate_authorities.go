@@ -27,14 +27,14 @@ type certificateAuthorityWithEncryptedSecrets struct {
 	PasswordEncrypted                []byte `db:"password_encrypted"`
 	ChallengeEncrypted               []byte `db:"challenge_encrypted"`
 	ClientSecretEncrypted            []byte `db:"client_secret_encrypted"`
-	ClientKeyEncrypted               []byte `db:"client_key_encrypted"`
+	MTLSKeyEncrypted                 []byte `db:"mtls_key_encrypted"`
 	CertificateUserPrincipalNamesRaw []byte `db:"certificate_user_principal_names"`
 }
 
 // ejbcaColumns are the EJBCA columns of certificate_authorities, selected after client_secret_encrypted.
 const ejbcaColumns = `
-		client_cert_pem,
-		client_key_encrypted,
+		mtls_cert_pem,
+		mtls_key_encrypted,
 		trust_ca_bundle_pem,
 		ejbca_ca_name,
 		ejbca_certificate_profile_name,
@@ -114,12 +114,12 @@ func (ds *Datastore) postprocessRetrievedCertificateAuthority(ctx context.Contex
 			}
 			ca.ClientSecret = ptr.String(string(decryptedClientSecret))
 		}
-		if ca.ClientKeyEncrypted != nil {
-			decryptedClientKey, err := crypto.DecryptAESGCM(ca.ClientKeyEncrypted, ds.serverPrivateKey)
+		if ca.MTLSKeyEncrypted != nil {
+			decryptedClientKey, err := crypto.DecryptAESGCM(ca.MTLSKeyEncrypted, ds.serverPrivateKey)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, fmt.Sprintf("decrypting client key for certificate authority %d", ca.ID))
 			}
-			ca.ClientKeyPEM = new(string(decryptedClientKey))
+			ca.MTLSKeyPEM = new(string(decryptedClientKey))
 		}
 	} else {
 		if ca.APITokenEncrypted != nil {
@@ -134,12 +134,12 @@ func (ds *Datastore) postprocessRetrievedCertificateAuthority(ctx context.Contex
 		if ca.ClientSecretEncrypted != nil {
 			ca.ClientSecret = ptr.String(fleet.MaskedPassword)
 		}
-		if ca.ClientKeyEncrypted != nil {
-			ca.ClientKeyPEM = new(fleet.MaskedPassword)
+		if ca.MTLSKeyEncrypted != nil {
+			ca.MTLSKeyPEM = new(fleet.MaskedPassword)
 		}
 	}
-	if ca.ClientCertPEM != nil {
-		ca.ClientCertExpiresAt = ds.clientCertExpiry(ctx, ca.ID, *ca.ClientCertPEM)
+	if ca.MTLSCertPEM != nil {
+		ca.ClientCertExpiresAt = ds.clientCertExpiry(ctx, ca.ID, *ca.MTLSCertPEM)
 	}
 	if ca.CertificateUserPrincipalNamesRaw != nil {
 		if err := json.Unmarshal(ca.CertificateUserPrincipalNamesRaw, &ca.CertificateUserPrincipalNames); err != nil {
@@ -273,8 +273,8 @@ const sqlInsertCertificateAuthority = `INSERT INTO certificate_authorities (
 	challenge_encrypted,
 	client_id,
 	client_secret_encrypted,
-	client_cert_pem,
-	client_key_encrypted,
+	mtls_cert_pem,
+	mtls_key_encrypted,
 	trust_ca_bundle_pem,
 	ejbca_ca_name,
 	ejbca_certificate_profile_name,
@@ -298,8 +298,8 @@ const sqlUpsertCertificateAuthority = sqlInsertCertificateAuthority + ` ON DUPLI
 	challenge_encrypted = VALUES(challenge_encrypted),
 	client_id = VALUES(client_id),
 	client_secret_encrypted = VALUES(client_secret_encrypted),
-	client_cert_pem = VALUES(client_cert_pem),
-	client_key_encrypted = VALUES(client_key_encrypted),
+	mtls_cert_pem = VALUES(mtls_cert_pem),
+	mtls_key_encrypted = VALUES(mtls_key_encrypted),
 	trust_ca_bundle_pem = VALUES(trust_ca_bundle_pem),
 	ejbca_ca_name = VALUES(ejbca_ca_name),
 	ejbca_certificate_profile_name = VALUES(ejbca_certificate_profile_name),
@@ -345,8 +345,8 @@ func sqlGenerateArgsForInsertCertificateAuthority(ctx context.Context, serverPri
 			return nil, "", ctxerr.Wrap(ctx, err, "encrypting client secret for new certificate authority")
 		}
 	}
-	if ca.ClientKeyPEM != nil {
-		encryptedClientKey, err = crypto.EncryptAESGCM([]byte(*ca.ClientKeyPEM), serverPrivateKey)
+	if ca.MTLSKeyPEM != nil {
+		encryptedClientKey, err = crypto.EncryptAESGCM([]byte(*ca.MTLSKeyPEM), serverPrivateKey)
 		if err != nil {
 			return nil, "", ctxerr.Wrap(ctx, err, "encrypting client key for new certificate authority")
 		}
@@ -368,7 +368,7 @@ func sqlGenerateArgsForInsertCertificateAuthority(ctx context.Context, serverPri
 		encryptedChallenge,
 		ca.ClientID,
 		encryptedClientSecret,
-		ca.ClientCertPEM,
+		ca.MTLSCertPEM,
 		encryptedClientKey,
 		ca.TrustCABundlePEM,
 		ca.EJBCACAName,
@@ -803,7 +803,7 @@ func (ds *Datastore) generateUpdateQueryWithArgs(ctx context.Context, ca *fleet.
 			{"name", ca.Name},
 			{"url", ca.URL},
 			{"certificate_common_name", ca.CertificateCommonName},
-			{"client_cert_pem", ca.ClientCertPEM},
+			{"mtls_cert_pem", ca.MTLSCertPEM},
 			{"trust_ca_bundle_pem", ca.TrustCABundlePEM},
 			{"ejbca_ca_name", ca.EJBCACAName},
 			{"ejbca_certificate_profile_name", ca.EJBCACertificateProfileName},
@@ -815,9 +815,9 @@ func (ds *Datastore) generateUpdateQueryWithArgs(ctx context.Context, ca *fleet.
 				*args = append(*args, *f.value)
 			}
 		}
-		if ca.ClientKeyPEM != nil {
-			updates = append(updates, "client_key_encrypted = ?")
-			encryptedClientKey, err := crypto.EncryptAESGCM([]byte(*ca.ClientKeyPEM), ds.serverPrivateKey)
+		if ca.MTLSKeyPEM != nil {
+			updates = append(updates, "mtls_key_encrypted = ?")
+			encryptedClientKey, err := crypto.EncryptAESGCM([]byte(*ca.MTLSKeyPEM), ds.serverPrivateKey)
 			if err != nil {
 				return "", ctxerr.Wrap(ctx, err, "encrypting client key for certificate authority")
 			}
