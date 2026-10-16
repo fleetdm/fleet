@@ -392,7 +392,6 @@ func TestVerifyConnection(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
 			f := newFakeEJBCA(t, tt.configure)
 			config := f.config(t)
 			if tt.modify != nil {
@@ -422,15 +421,30 @@ func TestInvalidURLs(t *testing.T) {
 	t.Parallel()
 	for _, url := range []string{
 		"http://ejbca.example.com",
-		"https://ejbca.example.com?tenant=prod",
-		"https://ejbca.example.com#ca",
 		"https://user:pass@ejbca.example.com",
 	} {
 		t.Run(url, func(t *testing.T) {
-			t.Parallel()
 			require.ErrorContains(t, NewService().VerifyConnection(t.Context(), fleet.EJBCA{URL: url}), msgInvalidURL)
 		})
 	}
+}
+
+// A query or fragment pasted with the URL is dropped, not sent on to EJBCA.
+func TestURLQueryAndFragmentDropped(t *testing.T) {
+	t.Parallel()
+	var queries atomic.Int32
+	f := newFakeEJBCA(t, func(f *fakeEJBCA) {
+		f.onRequest = func(r *http.Request) {
+			if r.URL.RawQuery != "" {
+				queries.Add(1)
+			}
+		}
+	})
+	config := f.config(t)
+	config.URL += "?tenant=prod#ca"
+	require.NoError(t, NewService().VerifyConnection(t.Context(), config))
+	require.NotZero(t, f.requestCount())
+	require.Zero(t, queries.Load())
 }
 
 func TestGetCertificate(t *testing.T) {
@@ -519,7 +533,6 @@ func TestGetCertificateErrors(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
 			f := newFakeEJBCA(t, tt.configure)
 			config := f.config(t)
 			if tt.modify != nil {
@@ -532,7 +545,6 @@ func TestGetCertificateErrors(t *testing.T) {
 	}
 
 	t.Run("required fields", func(t *testing.T) {
-		t.Parallel()
 		f := newFakeEJBCA(t, nil)
 		for field, clear := range map[string]func(*fleet.EJBCA){
 			"certificate authority name": func(c *fleet.EJBCA) { c.CertificateAuthorityName = "" },
