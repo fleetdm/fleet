@@ -241,7 +241,9 @@ async function generateOnce(testCase) {
       rawResult.deliveryNotes = await sails.helpers.addSoftwareUpdateRemovalNote.with({ profile: rawResult.configurationProfile, deliveryNotes: rawResult.deliveryNotes || '' });
     }
     if(testCase.profileType === 'ddm' && testCase.forFleet && rawResult.configurationProfile) {
-      rawResult.configurationProfile = await sails.helpers.addUserPayloadScopeToDeclaration.with({ profile: rawResult.configurationProfile });
+      let withUserScope = await sails.helpers.addUserPayloadScopeToDeclaration.with({ profile: rawResult.configurationProfile, deliveryNotes: rawResult.deliveryNotes || '' });
+      rawResult.configurationProfile = withUserScope.profile;
+      rawResult.deliveryNotes = withUserScope.deliveryNotes;
     }
     // The same step the action runs, so a case asserts on the profile an admin would download.
     if(testCase.profileType === 'csp' && rawResult.configurationProfile) {

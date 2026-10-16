@@ -188,7 +188,9 @@ Respond in JSON with this data shape:
       generatedProfile.deliveryNotes = await sails.helpers.addSoftwareUpdateRemovalNote.with({ profile: generatedProfile.profile, deliveryNotes: generatedProfile.deliveryNotes || '' });
     }
     if(profileType === 'ddm' && forFleet) {
-      generatedProfile.profile = await sails.helpers.addUserPayloadScopeToDeclaration.with({ profile: generatedProfile.profile });
+      let withUserScope = await sails.helpers.addUserPayloadScopeToDeclaration.with({ profile: generatedProfile.profile, deliveryNotes: generatedProfile.deliveryNotes || '' });
+      generatedProfile.profile = withUserScope.profile;
+      generatedProfile.deliveryNotes = withUserScope.deliveryNotes;
     }
 
     // Strip any SyncML envelope and add ADMX install commands before returning a Windows profile to the user.
