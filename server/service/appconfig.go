@@ -3372,5 +3372,5 @@ func (svc *Service) MaxInstallerSizeBytes() int64 {
 }
 
 func (svc *Service) StagedUploadAvailable(ctx context.Context) bool {
-	return svc.config.S3.SoftwareInstallersSignedURL && svc.config.S3.SoftwareInstallersBucket != "" && license.IsPremium(ctx)
+	return svc.config.StagedUploadAvailable() && license.IsPremium(ctx)
 }
