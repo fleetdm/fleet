@@ -195,7 +195,8 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
           />
         </div>
         <h1>Windows MDM</h1>
-        <form>
+        {/* No submit button, so Enter in the default fleet dropdown would navigate. */}
+        <form onSubmit={(evt) => evt.preventDefault()}>
           <Slider
             value={mdmOn}
             activeText="Windows MDM on"

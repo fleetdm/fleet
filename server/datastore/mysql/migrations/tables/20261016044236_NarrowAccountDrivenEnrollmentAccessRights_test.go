@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20261013045312(t *testing.T) {
+func TestUp_20261016044236(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	deliveredAt := time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC)

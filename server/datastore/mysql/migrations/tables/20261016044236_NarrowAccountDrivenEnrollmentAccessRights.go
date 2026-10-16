@@ -8,13 +8,13 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261013045312, Down_20261013045312)
+	MigrationClient.AddMigration(Up_20261016044236, Down_20261016044236)
 }
 
 // Account-driven user enrollments were stored with full access rights (8191)
 // because the personal check only looked for byod=1 in the ServerURL. Apple
 // never grants lock (4) or erase (8) on a user enrollment, so clear those bits.
-func Up_20261013045312(tx *sql.Tx) error {
+func Up_20261016044236(tx *sql.Tx) error {
 	// Bounding every index column keeps this a range read of the (small)
 	// account-driven slice instead of a scan of host_mdm. Personal
 	// enrollments are never written with installed_from_dep = 1.
@@ -59,6 +59,6 @@ func Up_20261013045312(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20261013045312(tx *sql.Tx) error {
+func Down_20261016044236(tx *sql.Tx) error {
 	return nil
 }

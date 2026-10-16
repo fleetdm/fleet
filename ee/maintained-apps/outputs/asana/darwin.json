@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.9.1",
+      "version": "2.10.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.asana';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.asana' AND version_compare(bundle_short_version, '2.9.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.asana' AND version_compare(bundle_short_version, '2.10.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.electron.asana' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://desktop-downloads.asana.com/darwin_arm64/prod/v2.9.1/Asana-darwin-arm64-2.9.1.zip",
+      "installer_url": "https://desktop-downloads.asana.com/darwin_arm64/prod/v2.10.2/Asana-darwin-arm64-2.10.2.zip",
       "install_script_ref": "275ca155",
       "uninstall_script_ref": "f219467b",
-      "sha256": "9da0ac8b0fb382ed1813fe877d0070b12b61a0534b2850d5493d375eaba93631",
+      "sha256": "dfe261883980651c90f7ad350af93039fa30d87f75eda8553fc0a687913d5338",
       "default_categories": [
         "Productivity"
       ]

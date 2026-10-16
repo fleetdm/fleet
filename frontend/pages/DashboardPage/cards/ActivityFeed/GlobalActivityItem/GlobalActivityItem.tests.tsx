@@ -3442,6 +3442,66 @@ describe("Activity Feed", () => {
         "failed to notify end user 1 hour before patching 1Password on Josh's MacBook Pro."
       );
     });
+
+    it("prefers `software` override over the legacy `software_titles` fallback", () => {
+      const activity = createMockActivity({
+        type: ActivityType.NotifiedEndUserBeforePatching,
+        fleet_initiated: true,
+        details: {
+          host_display_name: "John's MacBook Pro",
+          // Legacy flat list — would be used only if `software` were absent.
+          // A regression that swapped the field-selection order would render
+          // "1Password" instead of the override "1Password 8".
+          software_titles: ["1Password"],
+          software: [
+            { title: "1Password", title_id: 42, display_name: "1Password 8" },
+          ],
+          status: "success",
+          time_before: 3600,
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+
+      expect(container.textContent).toContain(
+        "notified end user 1 hour before patching 1Password 8 on John's MacBook Pro."
+      );
+      expect(container.textContent).not.toMatch(/patching 1Password on/);
+      const bolds = Array.from(container.querySelectorAll("strong")).map(
+        (el) => el.textContent
+      );
+      expect(bolds).toContain("1Password 8");
+      expect(bolds).not.toContain("1Password");
+    });
+
+    it("renders a mix of overridden and raw titles when truncating overflow", () => {
+      const activity = createMockActivity({
+        type: ActivityType.NotifiedEndUserBeforePatching,
+        fleet_initiated: true,
+        details: {
+          host_display_name: "John's MacBook Pro",
+          software: [
+            { title: "1Password", title_id: 1, display_name: "1Password 8" },
+            { title: "Slack", title_id: 2 },
+            { title: "Docker Desktop", title_id: 3 },
+            { title: "Zoom", title_id: 4 },
+            { title: "Chrome", title_id: 5 },
+          ],
+          status: "success",
+          time_before: 3600,
+        },
+      });
+      const { container } = render(
+        <GlobalActivityItem activity={activity} isPremiumTier />
+      );
+
+      // First inline slot renders the override, not the raw title.
+      expect(container.textContent).toContain(
+        "1Password 8, Slack, Docker Desktop, and 2 more apps"
+      );
+      expect(container.textContent).not.toMatch(/1Password,/);
+    });
   });
 
   it("renders a canceled_mdm_command activity", () => {

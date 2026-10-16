@@ -335,6 +335,14 @@ export type IHostUpcomingActivity = Omit<
  * Distinct from the automation-runs wrapper's `"error" | "success"` union. */
 export type INotifyActivityStatus = "success" | "failed";
 
+/** One app's identity on a notify-before-patching activity. `display_name` is
+ * only set when an admin picked a per-team override. */
+export interface INotifySoftwareTitle {
+  title: string;
+  display_name?: string;
+  title_id?: number;
+}
+
 export interface IActivityDetails {
   /** Useful for passing this data into an activity details modal */
   created_at?: string;
@@ -413,8 +421,12 @@ export interface IActivityDetails {
   version_name?: string;
   /** Managed app configuration on App Store app activities. XML for iOS/iPadOS, JSON for Android. */
   configuration?: string | Record<string, unknown>;
-  /** Titles covered by a single notify-before-patching notification. */
+  /** Titles covered by a single notify-before-patching notification. Legacy
+   * shape; new activities also set `softwares` with per-title display names. */
   software_titles?: string[];
+  /** Rich form of `software_titles` with per-team display name overrides. The
+   * renderer prefers this when present and falls back to `software_titles`. */
+  software?: INotifySoftwareTitle[];
   software_titles_count?: number;
   /** Custom name set per team by admin */
   software_display_name?: string;
