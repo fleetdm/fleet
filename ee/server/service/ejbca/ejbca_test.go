@@ -301,16 +301,16 @@ func (f *fakeEJBCA) enroll(issuer *testCA, r *http.Request) (int, string, error)
 	}
 	resp, err := json.Marshal(map[string]any{
 		"certificate":     base64.StdEncoding.EncodeToString(cert.Raw),
-		"serial_number":   strings.ToUpper(cert.SerialNumber.Text(16)),
+		"serial_number":   cert.SerialNumber.Text(16),
 		"response_format": "DER",
 	})
 	return http.StatusCreated, string(resp), err
 }
 
 // config is a configuration for the fake EJBCA with a valid client certificate.
-func (f *fakeEJBCA) config(t *testing.T) fleet.EJBCACA {
+func (f *fakeEJBCA) config(t *testing.T) fleet.EJBCA {
 	certPEM, keyPEM := f.clientCA.issueClient(t, time.Now().Add(24*time.Hour))
-	return fleet.EJBCACA{
+	return fleet.EJBCA{
 		Name:                          "EJBCA",
 		URL:                           f.srv.URL,
 		MTLSCertPEM:                   certPEM,
@@ -330,7 +330,7 @@ func TestVerifyConnection(t *testing.T) {
 	tests := []struct {
 		name      string
 		configure func(*fakeEJBCA)
-		modify    func(t *testing.T, f *fakeEJBCA, config *fleet.EJBCACA)
+		modify    func(t *testing.T, f *fakeEJBCA, config *fleet.EJBCA)
 		wantErr   string
 		// wantNoRequests is for failures that must not contact EJBCA.
 		wantNoRequests bool
@@ -361,19 +361,19 @@ func TestVerifyConnection(t *testing.T) {
 		{name: "protocol disabled", configure: func(f *fakeEJBCA) { f.protocolDisabled = true }, wantErr: msgProtocolDisabled},
 		{
 			name:    "server certificate not trusted",
-			modify:  func(_ *testing.T, _ *fakeEJBCA, config *fleet.EJBCACA) { config.TrustCABundlePEM = "" },
+			modify:  func(_ *testing.T, _ *fakeEJBCA, config *fleet.EJBCA) { config.TrustCABundlePEM = "" },
 			wantErr: strings.Split(msgServerCertUntrusted, "%s")[0],
 		},
 		{
 			name: "client certificate from a CA EJBCA doesn't trust",
-			modify: func(t *testing.T, _ *fakeEJBCA, config *fleet.EJBCACA) {
+			modify: func(t *testing.T, _ *fakeEJBCA, config *fleet.EJBCA) {
 				config.MTLSCertPEM, config.MTLSKeyPEM = newTestCA(t, "Other CA").issueClient(t, time.Now().Add(time.Hour))
 			},
 			wantErr: strings.Split(msgClientCertRejected, "%s")[0],
 		},
 		{
 			name: "client certificate expired",
-			modify: func(t *testing.T, f *fakeEJBCA, config *fleet.EJBCACA) {
+			modify: func(t *testing.T, f *fakeEJBCA, config *fleet.EJBCA) {
 				notAfter := time.Now().Add(-time.Hour)
 				config.MTLSCertPEM, config.MTLSKeyPEM = f.clientCA.issueClient(t, notAfter)
 			},
@@ -382,36 +382,36 @@ func TestVerifyConnection(t *testing.T) {
 		},
 		{
 			name: "URL without https",
-			modify: func(_ *testing.T, f *fakeEJBCA, config *fleet.EJBCACA) {
+			modify: func(_ *testing.T, f *fakeEJBCA, config *fleet.EJBCA) {
 				config.URL = strings.Replace(f.srv.URL, "https", "http", 1)
 			},
 			wantErr: msgInvalidURL,
 		},
 		{
 			name:    "URL with a query",
-			modify:  func(_ *testing.T, f *fakeEJBCA, config *fleet.EJBCACA) { config.URL = f.srv.URL + "?tenant=prod" },
+			modify:  func(_ *testing.T, f *fakeEJBCA, config *fleet.EJBCA) { config.URL = f.srv.URL + "?tenant=prod" },
 			wantErr: msgInvalidURL,
 		},
 		{
 			name:    "URL with a fragment",
-			modify:  func(_ *testing.T, f *fakeEJBCA, config *fleet.EJBCACA) { config.URL = f.srv.URL + "#ca" },
+			modify:  func(_ *testing.T, f *fakeEJBCA, config *fleet.EJBCA) { config.URL = f.srv.URL + "#ca" },
 			wantErr: msgInvalidURL,
 		},
 		{
 			name: "URL with credentials",
-			modify: func(_ *testing.T, f *fakeEJBCA, config *fleet.EJBCACA) {
+			modify: func(_ *testing.T, f *fakeEJBCA, config *fleet.EJBCA) {
 				config.URL = strings.Replace(f.srv.URL, "https://", "https://user:pass@", 1)
 			},
 			wantErr: msgInvalidURL,
 		},
 		{
 			name:    "trust bundle without certificates",
-			modify:  func(_ *testing.T, _ *fakeEJBCA, config *fleet.EJBCACA) { config.TrustCABundlePEM = "not a certificate" },
+			modify:  func(_ *testing.T, _ *fakeEJBCA, config *fleet.EJBCA) { config.TrustCABundlePEM = "not a certificate" },
 			wantErr: "no usable certificates",
 		},
 		{
 			name:    "server not running",
-			modify:  func(_ *testing.T, f *fakeEJBCA, _ *fleet.EJBCACA) { f.srv.Close() },
+			modify:  func(_ *testing.T, f *fakeEJBCA, _ *fleet.EJBCA) { f.srv.Close() },
 			wantErr: strings.Split(msgUnreachable, "%s")[0],
 		},
 	}
@@ -469,7 +469,7 @@ func TestGetCertificate(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "alice@example.com", issued.Subject.CommonName)
 	assert.True(t, key.(*rsa.PrivateKey).PublicKey.Equal(issued.PublicKey))
-	assert.Equal(t, strings.ToUpper(issued.SerialNumber.Text(16)), cert.SerialNumber)
+	assert.Equal(t, issued.SerialNumber.Text(16), cert.SerialNumber)
 	assert.LessOrEqual(t, len(cert.SerialNumber), 40, "the serial has to fit the managed certificate record")
 	assert.True(t, issued.NotBefore.Equal(cert.NotValidBefore))
 	assert.True(t, issued.NotAfter.Equal(cert.NotValidAfter))
@@ -489,22 +489,22 @@ func TestGetCertificateErrors(t *testing.T) {
 	tests := []struct {
 		name      string
 		configure func(*fakeEJBCA)
-		modify    func(t *testing.T, f *fakeEJBCA, config *fleet.EJBCACA)
+		modify    func(t *testing.T, f *fakeEJBCA, config *fleet.EJBCA)
 		wantErr   string
 	}{
 		{
 			name:    "unknown CA",
-			modify:  func(_ *testing.T, _ *fakeEJBCA, config *fleet.EJBCACA) { config.CertificateAuthorityName = "Missing" },
+			modify:  func(_ *testing.T, _ *fakeEJBCA, config *fleet.EJBCA) { config.CertificateAuthorityName = "Missing" },
 			wantErr: fmt.Sprintf(msgEnrollRejected, `CA with name "Missing" doesn't exist`),
 		},
 		{
 			name:    "unknown certificate profile",
-			modify:  func(_ *testing.T, _ *fakeEJBCA, config *fleet.EJBCACA) { config.CertificateProfileName = "Missing" },
+			modify:  func(_ *testing.T, _ *fakeEJBCA, config *fleet.EJBCA) { config.CertificateProfileName = "Missing" },
 			wantErr: fmt.Sprintf(msgEnrollRejected, `Certificate profile with name "Missing" doesn't exist`),
 		},
 		{
 			name:    "unknown end entity profile",
-			modify:  func(_ *testing.T, _ *fakeEJBCA, config *fleet.EJBCACA) { config.EndEntityProfileName = "Missing" },
+			modify:  func(_ *testing.T, _ *fakeEJBCA, config *fleet.EJBCA) { config.EndEntityProfileName = "Missing" },
 			wantErr: fmt.Sprintf(msgEnrollRejected, `End Entity Profile of name "Missing" was not found`),
 		},
 		{
@@ -561,12 +561,12 @@ func TestGetCertificateErrors(t *testing.T) {
 	t.Run("required fields", func(t *testing.T) {
 		t.Parallel()
 		f := newFakeEJBCA(t, nil)
-		for field, clear := range map[string]func(*fleet.EJBCACA){
-			"certificate authority name": func(c *fleet.EJBCACA) { c.CertificateAuthorityName = "" },
-			"certificate profile name":   func(c *fleet.EJBCACA) { c.CertificateProfileName = "" },
-			"end entity profile name":    func(c *fleet.EJBCACA) { c.EndEntityProfileName = "" },
-			"common name":                func(c *fleet.EJBCACA) { c.CertificateCommonName = "" },
-			"username":                   func(c *fleet.EJBCACA) { c.UsernameTemplate = "" },
+		for field, clear := range map[string]func(*fleet.EJBCA){
+			"certificate authority name": func(c *fleet.EJBCA) { c.CertificateAuthorityName = "" },
+			"certificate profile name":   func(c *fleet.EJBCA) { c.CertificateProfileName = "" },
+			"end entity profile name":    func(c *fleet.EJBCA) { c.EndEntityProfileName = "" },
+			"common name":                func(c *fleet.EJBCA) { c.CertificateCommonName = "" },
+			"username":                   func(c *fleet.EJBCA) { c.UsernameTemplate = "" },
 		} {
 			config := f.config(t)
 			clear(&config)

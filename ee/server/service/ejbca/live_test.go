@@ -27,7 +27,7 @@ func TestLiveEJBCA(t *testing.T) {
 		return string(data)
 	}
 
-	config := fleet.EJBCACA{
+	config := fleet.EJBCA{
 		URL:                           url,
 		MTLSCertPEM:                   read("EJBCA_LIVE_CERT"),
 		MTLSKeyPEM:                    read("EJBCA_LIVE_KEY"),
