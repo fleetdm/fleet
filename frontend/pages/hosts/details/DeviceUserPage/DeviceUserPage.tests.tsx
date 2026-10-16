@@ -1356,3 +1356,68 @@ describe("BitLocker PIN deep link", () => {
     await expectParamDropped(router);
   });
 });
+
+describe("Mobile UI gating", () => {
+  const originalMatchMedia = window.matchMedia;
+
+  afterEach(() => {
+    window.matchMedia = originalMatchMedia;
+  });
+
+  it("does not render the mobile UI on a non-iOS host when the viewport is narrow", async () => {
+    // Simulate a shrunk desktop browser: matchMedia reports the mobile breakpoint matches.
+    window.matchMedia = jest.fn().mockImplementation((query) => ({
+      matches: true,
+      media: query,
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      onchange: null,
+      dispatchEvent: jest.fn(),
+    })) as typeof window.matchMedia;
+
+    const host = createMockHost() as IHostDevice;
+    host.platform = "darwin";
+    mockServer.use(customDeviceHandler({ host }));
+    mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    const { container } = render(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: "testToken" }}
+        location={mockLocation}
+      />
+    );
+
+    await screen.findByText(/Details/);
+    expect(container.querySelector(".device-user-mobile")).toBeNull();
+  });
+
+  it("renders the mobile UI when ?mobile=1 is present (dev override)", async () => {
+    const host = createMockHost() as IHostDevice;
+    host.platform = "darwin";
+    mockServer.use(customDeviceHandler({ host }));
+    mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    const { container } = render(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: "testToken" }}
+        location={{
+          ...mockLocation,
+          pathname: PATHS.DEVICE_USER_DETAILS_SELF_SERVICE("testToken"),
+          query: { ...mockLocation.query, mobile: "1" },
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector(".device-user-mobile")).not.toBeNull();
+    });
+  });
+});

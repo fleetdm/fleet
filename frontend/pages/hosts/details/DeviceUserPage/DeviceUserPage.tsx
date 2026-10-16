@@ -149,6 +149,7 @@ interface IDeviceUserPageProps {
       setup_only?: string;
       sso_error?: string;
       create_pin?: string;
+      mobile?: string;
     };
     search?: string;
   };
@@ -817,8 +818,10 @@ const DeviceUserPage = ({
       );
     }
 
-    // iOS/iPadOS devices or narrow screens should show mobile UI
-    const shouldShowMobileUI = isIOSIPadOS || isMobileView;
+    // Actual iOS/iPadOS devices (either by Fleet platform or user agent) get the
+    // touch-first mobile UI. `?mobile=1` forces it on desktop for dev/QA.
+    const shouldShowMobileUI =
+      isIOSIPadOS || isMobileDevice || location.query.mobile === "1";
 
     if (shouldShowMobileUI) {
       // Force redirect to self-service route for iOS/iPadOS devices
