@@ -158,7 +158,17 @@ type Software struct {
 	// UpgradeCode is a GUID representing a related set of Windows software products. See https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 
+	SoftwareMetadata
+
 	DisplayName string `json:"display_name"`
+}
+
+// SoftwareMetadata holds per-software data, stored in the software_metadata table, that is the same
+// on every host with that software but is not part of its identity (not in ToUniqueStr or the
+// checksum), so that collecting a new field doesn't create new software rows.
+type SoftwareMetadata struct {
+	// Epoch is the RPM package epoch, only set when greater than 0.
+	Epoch *uint32 `json:"-" db:"epoch"`
 }
 
 func (Software) AuthzType() string {
@@ -395,8 +405,9 @@ type SoftwareAutoUpdateConfig struct {
 }
 
 type SoftwareAutoUpdateSchedule struct {
-	TitleID uint `json:"title_id" db:"title_id"`
-	TeamID  uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TitleID      uint `json:"title_id" db:"title_id"`
+	TeamID       uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	VPPAppTeamID uint `json:"-" db:"vpp_app_team_id"`
 	SoftwareAutoUpdateConfig
 }
 
@@ -510,8 +521,10 @@ type SoftwareTitle struct {
 	SoftwarePackage *SoftwareInstaller `json:"software_package" db:"-"`
 	// Packages holds every package, first-added first; nil (marshals to null) when none.
 	Packages []SoftwareInstaller `json:"packages" db:"-"`
-	// AppStoreApp is the VPP app information for this title.
+	// AppStoreApp holds the first-added App Store app version for backwards compatibility, nil when there is none.
 	AppStoreApp *VPPAppStoreApp `json:"app_store_app" db:"-"`
+	// AppStoreApps holds every App Store app version, first-added first, nil when there is none.
+	AppStoreApps []AppStoreAppVersion `json:"app_store_apps" db:"-"`
 	// BundleIdentifier is used by Apple installers to uniquely identify
 	// the software installed. It's surfaced in software_titles to match
 	// with existing software entries.
@@ -970,7 +983,7 @@ func ParseSoftwareLastOpenedAtRowValue(value string) (time.Time, error) {
 // The vendor field is currently trimmed by removing the extra characters and adding `...` at the end.
 func SoftwareFromOsqueryRow(
 	name, version, source, vendor, installedPath, release, arch,
-	bundleIdentifier, extensionId, extensionFor, lastOpenedAt, upgradeCode string,
+	bundleIdentifier, extensionId, extensionFor, lastOpenedAt, upgradeCode, epoch string,
 ) (*Software, error) {
 	if name == "" {
 		return nil, errors.New("host reported software with empty name")
@@ -1026,12 +1039,19 @@ func SoftwareFromOsqueryRow(
 	if !lastOpenedAtTime.IsZero() {
 		software.LastOpenedAt = &lastOpenedAtTime
 	}
+	if truncatedSource == "rpm_packages" {
+		// osquery reports a missing epoch as empty; epoch 0 is equivalent for RPM comparisons.
+		if e, err := strconv.ParseUint(epoch, 10, 32); err == nil && e > 0 {
+			software.Epoch = new(uint32(e))
+		}
+	}
 
 	return &software, nil
 }
 
 type VPPBatchPayload struct {
 	AppStoreID         string   `json:"app_store_id"`
+	VersionName        string   `json:"name"`
 	SelfService        bool     `json:"self_service"`
 	InstallDuringSetup *bool    `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
 	LabelsExcludeAny   []string `json:"labels_exclude_any"`
@@ -1059,6 +1079,7 @@ func (v VPPBatchPayload) GetAppStoreID() string {
 
 type VPPBatchPayloadWithPlatform struct {
 	AppStoreID         string                    `json:"app_store_id"`
+	VersionName        string                    `json:"name"`
 	SelfService        bool                      `json:"self_service"`
 	Platform           InstallableDevicePlatform `json:"platform"`
 	InstallDuringSetup *bool                     `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated

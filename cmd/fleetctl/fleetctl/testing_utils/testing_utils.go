@@ -185,6 +185,9 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
 		return []fleet.VPPAppResponse{}, nil
 	}
+	ds.GetDuplicateStringGroupsUnderCollationFunc = func(ctx context.Context, values []string) ([]fleet.DuplicateStringGroup, error) {
+		return nil, nil
+	}
 	ds.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
 		return nil, nil
 	}
@@ -665,8 +668,17 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
 		return document, nil, nil
 	}
-	ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+	ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 		return nil, &notFoundError{} // No existing EULA
+	}
+	// A token's platform is whichever EULA the test's metadata mock gives that token, so tests only mock the metadata.
+	ds.MDMGetEULAPlatformFunc = func(ctx context.Context, token string) (fleet.MDMEULAPlatform, error) {
+		for _, platform := range []fleet.MDMEULAPlatform{fleet.MDMEULAPlatformDarwin, fleet.MDMEULAPlatformWindows} {
+			if eula, err := ds.MDMGetEULAMetadataFunc(ctx, platform); err == nil && eula != nil && eula.Token == token {
+				return platform, nil
+			}
+		}
+		return "", &notFoundError{}
 	}
 	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {
 		return nil

@@ -1074,6 +1074,27 @@ func TestDetailQueriesOSVersionChrome(t *testing.T) {
 	assert.Equal(t, "chromeos 1.3.3.7", host.OSVersion)
 }
 
+func TestDetailQueriesUptimeChrome(t *testing.T) {
+	query := GetDetailQueries(t.Context(), config.FleetConfig{}, nil, nil, Integrations{}, nil)["uptime"]
+	assert.Contains(t, query.Platforms, "chrome")
+
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, nil))
+	host := fleet.Host{Platform: "chrome"}
+
+	require.NoError(t, query.IngestFunc(t.Context(), logger, &host, nil))
+	assert.Zero(t, host.Uptime)
+	assert.True(t, host.LastRestartedAt.IsZero())
+	assert.Empty(t, logs.String())
+
+	before := time.Now()
+	require.NoError(t, query.IngestFunc(t.Context(), logger, &host, []map[string]string{{"total_seconds": "3600"}}))
+	after := time.Now()
+	assert.Equal(t, time.Hour, host.Uptime)
+	assert.False(t, host.LastRestartedAt.Before(before.Add(-time.Hour)))
+	assert.False(t, host.LastRestartedAt.After(after.Add(-time.Hour)))
+}
+
 func TestDirectIngestMDMMac(t *testing.T) {
 	ds := new(mock.Store)
 	var host fleet.Host
@@ -2385,6 +2406,29 @@ func TestDirectIngestSoftware(t *testing.T) {
 
 		ds.UpdateHostSoftwareFuncInvoked = false
 	})
+
+	t.Run("rpm epoch", func(t *testing.T) {
+		data := []map[string]string{
+			{"name": "mod_ssl", "version": "2.4.62", "release": "13.el9_8.6", "arch": "x86_64", "source": "rpm_packages", "epoch": "1"},
+			{"name": "httpd", "version": "2.4.62", "release": "13.el9_8.6", "arch": "x86_64", "source": "rpm_packages", "epoch": ""},
+		}
+
+		var got []fleet.Software
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+			got = software
+			return nil, nil
+		}
+		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
+			return nil
+		}
+
+		require.NoError(t, directIngestSoftware(ctx, logger, &host, ds, data))
+		epochs := map[string]*uint32{}
+		for _, sw := range got {
+			epochs[sw.Name] = sw.Epoch
+		}
+		require.Equal(t, map[string]*uint32{"mod_ssl": new(uint32(1)), "httpd": nil}, epochs)
+	})
 }
 
 func TestDirectIngestUsersManagedLocalAccount(t *testing.T) {
@@ -3171,6 +3215,7 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 	host := &fleet.Host{ID: 1, UUID: "mdm-windows-hw-uuid"}
 
 	returnEnrollmentsUpdated := true
+	ds.MDMWindowsClearDeletedHostTeamFunc = func(ctx context.Context, mdmDeviceID string) error { return nil }
 	ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID string, deviceID string) (bool, error) {
 		require.NotEmpty(t, deviceID)
 		require.Equal(t, host.UUID, hostUUID)
@@ -5468,6 +5513,7 @@ func (e *notFoundErrorForTest) IsNotFound() bool { return true }
 // newLinkWindowsHostMDMEnrollmentStore mocks the first link of an enrollment to a host.
 func newLinkWindowsHostMDMEnrollmentStore(device *fleet.MDMWindowsEnrolledDevice) *mock.Store {
 	ds := new(mock.Store)
+	ds.MDMWindowsClearDeletedHostTeamFunc = func(ctx context.Context, mdmDeviceID string) error { return nil }
 	ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID, mdmDeviceID string) (bool, error) {
 		return true, nil
 	}
@@ -5520,6 +5566,38 @@ func TestLinkWindowsHostMDMEnrollmentKeepsAutopilotPendingMarker(t *testing.T) {
 			require.NoError(t, err)
 			require.True(t, updated)
 			assert.Equal(t, tc.wantDEPCleared, depCleared)
+		})
+	}
+}
+
+func TestLinkWindowsHostMDMEnrollmentDeletedHostReturns(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name       string
+		enrollUser string
+		replaceErr error
+		wantClear  bool
+	}{
+		{name: "user-driven enrollment", enrollUser: "user@example.com", wantClear: true},
+		{name: "failed bookkeeping keeps the marker for a retry", enrollUser: "user@example.com", replaceErr: errors.New("replace failed")},
+		{name: "programmatic enrollment", enrollUser: "host-uuid", wantClear: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := newLinkWindowsHostMDMEnrollmentStore(&fleet.MDMWindowsEnrolledDevice{MDMEnrollUserID: tc.enrollUser, DeletedHostTeamID: new(uint(0))})
+			ds.ReplaceHostDeviceMappingFunc = func(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping, source string) error {
+				return tc.replaceErr
+			}
+
+			_, err := LinkWindowsHostMDMEnrollment(t.Context(), slog.New(slog.DiscardHandler), ds, 1, "host-uuid", "device-1", false)
+			if tc.replaceErr != nil {
+				require.ErrorIs(t, err, tc.replaceErr)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tc.wantClear, ds.MDMWindowsClearDeletedHostTeamFuncInvoked)
+			// The returning host keeps the fleet its enroll secret put it in, so the default fleet is not even looked up.
+			require.False(t, ds.GetWindowsEnrollmentDefaultFleetFuncInvoked)
 		})
 	}
 }

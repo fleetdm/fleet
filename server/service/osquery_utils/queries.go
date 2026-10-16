@@ -426,6 +426,10 @@ var hostDetailQueries = map[string]DetailQuery{
 	"uptime": {
 		Query: "select * from uptime limit 1",
 		IngestFunc: func(ctx context.Context, logger *slog.Logger, host *fleet.Host, rows []map[string]string) error {
+			// fleetd-chrome returns no rows until it records its first startup.
+			if len(rows) == 0 && host.Platform == "chrome" {
+				return nil
+			}
 			if len(rows) != 1 {
 				logger.ErrorContext(ctx, fmt.Sprintf("detail_query_uptime expected single result got %d", len(rows)),
 					"component", "service", "method", "IngestFunc")
@@ -443,7 +447,7 @@ var hostDetailQueries = map[string]DetailQuery{
 
 			return nil
 		},
-		Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
+		Platforms: append(fleet.HostLinuxOSs, "darwin", "windows", "chrome"),
 	},
 	"disk_space_unix": {
 		// GROUP BY device collapses bind mounts so a filesystem mounted at multiple paths is counted once.
@@ -1364,6 +1368,7 @@ SELECT
   '' AS release,
   '' AS vendor,
   '' AS arch,
+  '' AS epoch,
   '' AS installed_path
 FROM deb_packages
 WHERE status LIKE '%% ok installed'
@@ -1377,6 +1382,7 @@ SELECT
   '' AS release,
   '' AS vendor,
   '' AS arch,
+  '' AS epoch,
   '' AS installed_path
 FROM portage_packages
 UNION
@@ -1389,6 +1395,7 @@ SELECT
   release AS release,
   vendor AS vendor,
   arch AS arch,
+  epoch AS epoch,
   '' AS installed_path
 FROM rpm_packages
 UNION
@@ -1401,6 +1408,7 @@ SELECT
   '' AS release,
   '' AS vendor,
   '' AS arch,
+  '' AS epoch,
   path AS installed_path
 FROM npm_packages
 UNION
@@ -1413,6 +1421,7 @@ SELECT
   '' AS release,
   '' AS vendor,
   '' AS arch,
+  '' AS epoch,
   path AS installed_path
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
@@ -1425,6 +1434,7 @@ SELECT
   '' AS release,
   '' AS vendor,
   '' AS arch,
+  '' AS epoch,
   path AS installed_path
 FROM cached_users CROSS JOIN firefox_addons USING (uid);
 `),
@@ -2533,6 +2543,7 @@ func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.
 			row["extension_for"],
 			row["last_opened_at"],
 			row["upgrade_code"],
+			row["epoch"],
 		)
 		if err != nil {
 			logger.DebugContext(ctx, "failed to parse software row",
@@ -3577,14 +3588,14 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger *slog.Logger, ho
 }
 
 // LinkWindowsHostMDMEnrollment associates the Windows MDM enrollment for mdmDeviceID with the host identified by
-// (hostID, hostUUID). On the first time the linkage is established (i.e. mdm_windows_enrollments.host_uuid changes), it
-// also reconciles the host's IDP device mapping, SCIM user attribution, and DEP flag for Azure (Entra) enrollments,
-// matching the post-link bookkeeping that osquery's directIngestMDMDeviceIDWindows has historically performed.
+// (hostID, hostUUID). On the first time the linkage is established (i.e. mdm_windows_enrollments.host_uuid changes, or
+// the enrollment's host was deleted and this host came back), it also reconciles the host's IDP device mapping, SCIM
+// user attribution, and DEP flag for Azure (Entra) enrollments.
 //
-// Returns true when UpdateMDMWindowsEnrollmentsHostUUID actually changed the row, false when it did not. The "no
-// change" case covers two scenarios callers must not conflate with an error: (a) the enrollment was already linked to
-// this same hostUUID, so the `WHERE host_uuid <> ?` guard short-circuited; (b) no row matched mdmDeviceID at all (e.g.
-// the enrollment was deleted concurrently). Callers that depend on linkage being applied should re-read the enrollment
+// Returns true when UpdateMDMWindowsEnrollmentsHostUUID reported a new link, false when it did not. The "no change"
+// case covers two scenarios callers must not conflate with an error: (a) the enrollment was already linked to this
+// same hostUUID and its host was not deleted since; (b) no row matched mdmDeviceID at all (e.g. the enrollment was
+// deleted concurrently). Callers that depend on linkage being applied should re-read the enrollment
 // rather than infer it from the boolean alone.
 func LinkWindowsHostMDMEnrollment(
 	ctx context.Context, logger *slog.Logger, ds fleet.Datastore, hostID uint, hostUUID, mdmDeviceID string, fleetdOnDevice bool,
@@ -3600,8 +3611,16 @@ func LinkWindowsHostMDMEnrollment(
 	if err != nil {
 		return updated, ctxerr.Wrap(ctx, err, "getting windows mdm device after updating host uuid")
 	}
+	// Like a changed host_uuid, clearing the deleted host marker makes this bookkeeping run once. It is cleared only after the
+	// bookkeeping succeeds, so a failure is retried on the next link attempt.
+	clearDeletedHostMarker := func() error {
+		if err := ds.MDMWindowsClearDeletedHostTeam(ctx, mdmDeviceID); err != nil {
+			return ctxerr.Wrap(ctx, err, "clearing deleted host team of windows mdm device")
+		}
+		return nil
+	}
 	if device == nil || !microsoft_mdm.IsValidUPN(device.MDMEnrollUserID) {
-		return updated, nil
+		return updated, clearDeletedHostMarker()
 	}
 	device.HostUUID = hostUUID // in case the read was stale due to replication lag
 	// fleetd reporting this enrollment from the device means it enrolled without the secret minted for Fleet's fleetd install, which
@@ -3658,15 +3677,19 @@ func LinkWindowsHostMDMEnrollment(
 			logger.DebugContext(ctx, "failed to delete SCIM user mapping", "err", err)
 		}
 	}
-	return updated, nil
+	return updated, clearDeletedHostMarker()
 }
 
 // maybeAssignWindowsEnrollmentDefaultFleet moves a host to the configured Windows enrollment default fleet iff all of: the linked
 // enrollment is user-driven, a default fleet is configured, the host has no fleet, and the host record was created at or after
 // the enrollment row (MDM-first ordering, as in Autopilot, where Fleet installs fleetd after MDM enrollment). Hosts that enrolled
 // fleetd first keep the fleet their enroll secret chose. Pre-existing hosts are never moved, including hosts deliberately parked
-// in Unassigned, matching macOS ABM re-enrollment behavior.
+// in Unassigned, matching macOS ABM re-enrollment behavior. A deleted host that came back keeps the fleet its enroll secret put it
+// in: a shared secret's fleet, or for a one-time secret, the fleet the host was in when deleted.
 func maybeAssignWindowsEnrollmentDefaultFleet(ctx context.Context, logger *slog.Logger, ds fleet.Datastore, hostID uint, device *fleet.MDMWindowsEnrolledDevice) error {
+	if device.DeletedHostTeamID != nil {
+		return nil
+	}
 	teamID, teamName, err := ds.GetWindowsEnrollmentDefaultFleet(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get windows enrollment default fleet")
