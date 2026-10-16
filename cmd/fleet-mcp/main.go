@@ -41,6 +41,26 @@ func healthzHandler(w http.ResponseWriter, _ *http.Request) {
 	_, _ = w.Write([]byte("ok\n"))
 }
 
+func newHTTPHandler(mcpServer *server.MCPServer, authToken string) http.Handler {
+	transports := http.NewServeMux()
+	transports.Handle("/mcp", server.NewStreamableHTTPServer(mcpServer,
+		server.WithStateLess(true),
+		server.WithDisableStreaming(true),
+		server.WithLogger(logrus.StandardLogger()),
+	))
+	transports.Handle("/", server.NewSSEServer(mcpServer))
+
+	var handler http.Handler = transports
+	handler = bearerAuthMiddleware(authToken, handler)
+	handler = mcpRouteGuard(handler)
+	handler = limitBodyMiddleware(handler)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", healthzHandler)
+	mux.Handle("/", handler)
+	return mux
+}
+
 // requireAPIOnlyUser REFUSES to start unless FLEET_API_KEY belongs to an API-only
 // Fleet user. API-only users have no UI session, carry their own audit identity,
 // and — via Fleet's per-user role/team scoping — can be locked down to exactly
@@ -66,9 +86,14 @@ func requireAPIOnlyUser(ctx context.Context, fleetClient *FleetClient) {
 }
 
 func main() {
-	transport := flag.String("transport", "sse", "Transport protocol: 'sse' or 'stdio'")
+	transport := flag.String("transport", "http", "Transport protocol: 'http' (Streamable HTTP at /mcp plus legacy SSE at /sse) or 'stdio'. 'sse' is accepted as an alias of 'http'.")
 	seed := flag.Bool("seed", false, "Seed Fleet with standard saved queries and exit")
 	flag.Parse()
+	switch *transport {
+	case "http", "sse", "stdio":
+	default:
+		logrus.Fatalf("unknown -transport %q: use 'http' or 'stdio'", *transport)
+	}
 
 	// Root context cancelled on SIGINT/SIGTERM, so the startup checks and the
 	// serving loop shut down gracefully (e.g. on a Render redeploy's SIGTERM)
@@ -117,19 +142,8 @@ func main() {
 		return
 	}
 
-	logrus.Infof("transport: SSE — listening on :%s", config.Port)
-	sseServer := server.NewSSEServer(mcpServer)
-	var handler http.Handler = sseServer
+	logrus.Infof("transport: HTTP — listening on :%s (Streamable HTTP at /mcp, SSE at /sse)", config.Port)
 	logrus.Info("authentication enabled")
-	handler = bearerAuthMiddleware(config.MCPAuthToken, handler)
-	handler = mcpRouteGuard(handler)
-	handler = limitBodyMiddleware(handler)
-
-	// /healthz is an unauthenticated liveness probe (see healthzHandler);
-	// everything else goes through the middleware chain above.
-	mux := http.NewServeMux()
-	mux.HandleFunc("/healthz", healthzHandler)
-	mux.Handle("/", handler)
 
 	// Explicit timeouts defeat Slowloris-style header/body starvation attacks
 	// that pin connections to the server. ReadHeaderTimeout is the most
@@ -139,11 +153,13 @@ func main() {
 	// the request body once the headers are in.
 	httpServer := &http.Server{
 		Addr:              ":" + config.Port,
-		Handler:           mux,
+		Handler:           newHTTPHandler(mcpServer, config.MCPAuthToken),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
-		WriteTimeout:      0, // SSE streams are long-lived; rely on idle/read timeouts
-		IdleTimeout:       120 * time.Second,
+		// SSE streams are long-lived, and a /mcp run_live_query POST is held
+		// open for up to FLEET_LIVE_QUERY_REST_PERIOD; rely on idle/read timeouts.
+		WriteTimeout: 0,
+		IdleTimeout:  120 * time.Second,
 	}
 	go func() {
 		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
