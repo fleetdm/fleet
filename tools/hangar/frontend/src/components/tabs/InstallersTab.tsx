@@ -417,6 +417,14 @@ function TargetCard({
   if (flagsErr) missing.push("valid extra flags");
   const canBuild = missing.length === 0 && !building;
 
+  // Selected platforms whose file name already exists in the folder: building
+  // replaces them (only on success, but the old file is gone afterwards).
+  const existing = new Map(outputs.map((f) => [f.name, f]));
+  const overwrites = cfg.platforms
+    .map((k) => planned[k])
+    .filter((name): name is string => !!name && existing.has(name))
+    .map((name) => existing.get(name)!);
+
   const fleetUrl = cfg.fleet_url.trim();
   const loopback = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(fleetUrl);
   const urlMatchesScan = !!scan?.server_url && fleetUrl.replace(/\/+$/, "") === scan.server_url.replace(/\/+$/, "");
@@ -661,6 +669,15 @@ function TargetCard({
         )}
         <BuildStatus proc={proc} building={building} statuses={statuses} />
         {!building && !canBuild && <span className="dim">needs: {missing.join(", ")}</span>}
+        {!building && overwrites.length > 0 && (
+          <span
+            style={{ color: "var(--ui-warning)" }}
+            title={overwrites.map((f) => `${f.name} (built ${new Date(f.mod_time_ms).toLocaleString()})`).join("\n")}
+          >
+            ⚠ replaces {overwrites.length} existing installer{overwrites.length === 1 ? "" : "s"} (newest built{" "}
+            {new Date(Math.max(...overwrites.map((f) => f.mod_time_ms))).toLocaleString()})
+          </span>
+        )}
         <div style={{ flex: 1 }} />
         {entries.length > 0 && (
           <button className="link-btn" onClick={() => setShowLog((v) => !v)}>{showLog ? "hide output" : "show output"}</button>
