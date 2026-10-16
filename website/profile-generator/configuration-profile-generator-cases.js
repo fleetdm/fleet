@@ -649,6 +649,37 @@ const TEST_CASES = [
       mustContainElement: [['Format', 'int'], ['Format', 'chr'], ['Data', '0']],
     }
   },
+  // Exec runs a one-time command rather than setting a value, so a profile cannot satisfy these.  Defender/Scan
+  // and Reboot/RebootNow are real Exec nodes, which is what makes generating one tempting.
+  {
+    id: 'negative-csp-defender-quick-scan',
+    profileType: 'csp',
+    instructions: 'Run a Microsoft Defender quick scan on every computer.',
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'negative-csp-restart-now',
+    profileType: 'csp',
+    instructions: 'Restart these computers now.',
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'negative-csp-defender-signature-update-now',
+    profileType: 'csp',
+    instructions: 'Update Microsoft Defender security intelligence right now.',
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'csp-defender-daily-quick-scan-time',
+    profileType: 'csp',
+    instructions: 'Schedule a daily Microsoft Defender quick scan at 2:00 AM.',
+    // Minutes after midnight.
+    expect: {
+      mustContain: ['./Device/Vendor/MSFT/Policy/Config/Defender/ScheduleQuickScanTime'],
+      mustContainElement: [['Data', '120']],
+      mustNotContain: ['<Exec>', 'MSFT/Defender/Scan<'],
+    }
+  },
 
   //  ╔╦╗╔═╗╔╗ ╦╦  ╔═╗╔═╗╔╗╔╔═╗╦╔═╗
   //  ║║║║ ║╠╩╗║║  ║╣ ║  ║║║╠╣ ║║ ╦
