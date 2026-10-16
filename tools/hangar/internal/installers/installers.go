@@ -404,6 +404,19 @@ func WriteFileAtomic(path string, b []byte, perm os.FileMode) error {
 	return os.Rename(tmp.Name(), path)
 }
 
+// ValidateArgs rejects resolved fleetctl arguments that build.sh would split:
+// it reads them newline-separated, and values like the enroll secret or the
+// scanned server_url come from the server rather than the user.
+func ValidateArgs(args []string) error {
+	for _, a := range args {
+		if strings.ContainsAny(a, "\r\n") {
+			flag, _, _ := strings.Cut(a, "=")
+			return fmt.Errorf("%s value contains a line break", flag)
+		}
+	}
+	return nil
+}
+
 // ValidateConfig rejects values that can't be passed through build.sh safely:
 // args travel newline-separated, so a newline would inject an extra flag.
 func ValidateConfig(cfg settings.InstallerServerConfig) error {

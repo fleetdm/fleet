@@ -1,7 +1,9 @@
 package services
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -251,8 +253,17 @@ func (s *InstallersService) InstallersStartBuild(serverID string, cfg settings.I
 		if roots.ExitCode == nil || *roots.ExitCode != 0 {
 			return fmt.Errorf("read local TUF root keys: %s", strings.TrimSpace(roots.Stderr))
 		}
+		// Compact in case fleetctl ever pretty-prints: args must be single-line.
+		var compact bytes.Buffer
+		if err := json.Compact(&compact, []byte(strings.TrimSpace(roots.Stdout))); err != nil {
+			return fmt.Errorf("read local TUF root keys: %w", err)
+		}
 		in.UpdateURL = local.URL
-		in.UpdateRoots = strings.TrimSpace(roots.Stdout)
+		in.UpdateRoots = compact.String()
+	}
+	args := installers.CommonArgs(cfg, in)
+	if err := installers.ValidateArgs(args); err != nil {
+		return err
 	}
 
 	if err := os.MkdirAll(info.OutputDir, 0o755); err != nil {
@@ -299,7 +310,7 @@ func (s *InstallersService) InstallersStartBuild(serverID string, cfg settings.I
 		Env: []processes.EnvPair{
 			{Key: "HANGAR_FLEETCTL", Value: info.Fleetctl},
 			{Key: "HANGAR_JOBS", Value: installers.EncodeJobs(jobs)},
-			{Key: "HANGAR_COMMON_ARGS", Value: strings.Join(installers.CommonArgs(cfg, in), "\n")},
+			{Key: "HANGAR_COMMON_ARGS", Value: strings.Join(args, "\n")},
 		},
 		LogChannel: channel,
 	}); err != nil {

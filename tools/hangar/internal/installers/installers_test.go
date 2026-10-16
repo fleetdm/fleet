@@ -129,6 +129,18 @@ func TestValidateConfig(t *testing.T) {
 	}
 }
 
+func TestValidateArgs(t *testing.T) {
+	ok := CommonArgs(settings.DefaultInstallerServer(), BuildInputs{FleetURL: "https://f", EnrollSecret: "s"})
+	if err := ValidateArgs(ok); err != nil {
+		t.Errorf("valid args: %v", err)
+	}
+	// A server-supplied value with a line break is caught, not split into flags.
+	bad := CommonArgs(settings.DefaultInstallerServer(), BuildInputs{FleetURL: "https://f", EnrollSecret: "s\n--insecure"})
+	if err := ValidateArgs(bad); err == nil || !strings.Contains(err.Error(), "--enroll-secret") {
+		t.Errorf("secret with newline: %v", err)
+	}
+}
+
 func TestMatchContext(t *testing.T) {
 	ctxs := map[string]string{
 		"default": "",
