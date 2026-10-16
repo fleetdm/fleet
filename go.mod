@@ -46,7 +46,7 @@ require (
 	github.com/containerd/containerd v1.7.36
 	github.com/crewjam/saml v0.5.1
 	github.com/danieljoos/wincred v1.2.1
-	github.com/davecgh/go-spew v1.1.1
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/dgraph-io/badger/v2 v2.2007.4
 	github.com/digitalocean/go-smbios v0.0.0-20180907143718-390a4f403a8e
 	github.com/docker/go-units v0.5.0
@@ -190,6 +190,8 @@ require (
 	howett.net/plist v1.0.1
 	pgregory.net/rapid v1.2.0
 	software.sslmate.com/src/go-pkcs12 v0.7.2
+	www.velocidex.com/golang/go-ntfs v0.2.1
+	www.velocidex.com/golang/regparser v0.0.0-20250203141505-31e704a67ef7
 )
 
 require (
@@ -210,6 +212,9 @@ require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/Microsoft/hcsshim v0.11.7 // indirect
 	github.com/ProtonMail/go-crypto v1.4.1 // indirect
+	github.com/Velocidex/json v0.0.0-20220224052537-92f3c0326e5a // indirect
+	github.com/Velocidex/ordereddict v0.0.0-20230909174157-2aa49cc5d11d // indirect
+	github.com/Velocidex/yaml/v2 v2.2.8 // indirect
 	github.com/akavel/rsrc v0.10.2 // indirect
 	github.com/antchfx/xpath v1.3.6 // indirect
 	github.com/antithesishq/antithesis-sdk-go v0.6.0-default-no-op // indirect
