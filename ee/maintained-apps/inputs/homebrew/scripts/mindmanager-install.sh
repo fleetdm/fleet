@@ -117,7 +117,11 @@ if [[ ! "$OLD_BUNDLE_ID" =~ ^com\.mindjet\.mindmanager\.[0-9]+$ ]]; then
 	OLD_BUNDLE_ID=""
 fi
 if [[ -n "$OLD_BUNDLE_ID" && "$OLD_BUNDLE_ID" != "$NEW_BUNDLE_ID" ]]; then
-	quit_and_track_application "$OLD_BUNDLE_ID" || exit 1
+	if ! quit_and_track_application "$OLD_BUNDLE_ID"; then
+		# reopen the new version if it was running from elsewhere and quit above
+		relaunch_application "$NEW_BUNDLE_ID"
+		exit 1
+	fi
 	OLD_WAS_RUNNING_VAR="APP_WAS_RUNNING_$(echo "$OLD_BUNDLE_ID" | tr '.-' '__')"
 	if [[ "${!OLD_WAS_RUNNING_VAR}" == "1" ]]; then
 		export "APP_WAS_RUNNING_$(echo "$NEW_BUNDLE_ID" | tr '.-' '__')=1"
