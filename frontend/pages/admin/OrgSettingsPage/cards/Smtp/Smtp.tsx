@@ -96,7 +96,7 @@ const Smtp = ({
     getError,
     clearFieldError,
     validateField,
-    getFieldProps,
+    getTextFieldProps,
     handleSubmit: onSubmit,
     isSubmitting,
   } = useFormValidation<ISmtpConfigFormData>({
@@ -142,7 +142,7 @@ const Smtp = ({
       <>
         <InputField
           label="SMTP username"
-          {...getFieldProps("smtpUsername")}
+          {...getTextFieldProps("smtpUsername")}
           blockAutoComplete
           ignore1password={false}
           disabled={isSubmitting}
@@ -150,7 +150,7 @@ const Smtp = ({
         <InputField
           label="SMTP password"
           type="password"
-          {...getFieldProps("smtpPassword")}
+          {...getTextFieldProps("smtpPassword")}
           blockAutoComplete
           ignore1password={false}
           disabled={isSubmitting}
@@ -209,14 +209,14 @@ const Smtp = ({
           </Checkbox>
           <InputField
             label="Sender address"
-            {...getFieldProps("smtpSenderAddress")}
+            {...getTextFieldProps("smtpSenderAddress")}
             tooltip="The sender address for emails from Fleet."
             disabled={isSubmitting}
           />
           <div className="smtp-server-inputs">
             <InputField
               label="SMTP server"
-              {...getFieldProps("smtpServer")}
+              {...getTextFieldProps("smtpServer")}
               tooltip="The hostname / private IP address and corresponding port of your organization's SMTP server."
               disabled={isSubmitting}
             />

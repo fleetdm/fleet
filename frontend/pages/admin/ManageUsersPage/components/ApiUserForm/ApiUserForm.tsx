@@ -56,7 +56,7 @@ const ApiUserForm = ({
     formData,
     commitFields,
     getError,
-    getFieldProps,
+    getTextFieldProps,
     handleSubmit,
     isSubmitting,
   } = useFormValidation<ApiUserFormState>({
@@ -172,7 +172,7 @@ const ApiUserForm = ({
     <div>
       <form autoComplete="off" onSubmit={handleSubmit(onValidSubmit)}>
         <InputField
-          {...getFieldProps("name")}
+          {...getTextFieldProps("name")}
           label="Name"
           disabled={isSubmitting}
           autofocus

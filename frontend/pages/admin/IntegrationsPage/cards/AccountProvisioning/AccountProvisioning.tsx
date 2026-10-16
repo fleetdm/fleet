@@ -81,7 +81,7 @@ const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
     formData,
     setField,
     setFieldError,
-    getFieldProps,
+    getTextFieldProps,
     handleSubmit,
     isSubmitting,
   } = useFormValidation<IFormData>({
@@ -184,7 +184,7 @@ const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
           >
             <InputField
               label="Token URL"
-              {...getFieldProps("tokenUrl")}
+              {...getTextFieldProps("tokenUrl")}
               onChange={onTokenUrlChange}
               disabled={isSubmitting}
               placeholder="https://yourdomain.okta.com/oauth2/v1/token"
@@ -192,14 +192,14 @@ const AccountProvisioning = ({ appConfig }: IAppConfigFormProps) => {
             />
             <InputField
               label="Client ID"
-              {...getFieldProps("clientId")}
+              {...getTextFieldProps("clientId")}
               helpText="In Okta, this will be in the Client Credentials section."
               disabled={isSubmitting}
             />
             <InputField
               type="password"
               label="Client secret"
-              {...getFieldProps("clientSecret")}
+              {...getTextFieldProps("clientSecret")}
               helpText="In Okta, this will be in the Client Credentials section."
               disabled={isSubmitting}
             />

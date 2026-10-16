@@ -393,13 +393,13 @@ describe("useFormValidation", () => {
     });
   });
 
-  describe("getFieldProps", () => {
+  describe("getTextFieldProps", () => {
     it("wires name, value and error for the field", () => {
       const { result } = setup();
 
       act(() => result.current.setField("email", "nope"));
       act(() => result.current.validateField("email"));
-      const props = result.current.getFieldProps("email");
+      const props = result.current.getTextFieldProps("email");
 
       expect(props.name).toBe("email");
       expect(props.value).toBe("nope");
@@ -409,14 +409,14 @@ describe("useFormValidation", () => {
     it("behaves like setField, clearFieldError and validateField on change, focus and blur", () => {
       const { result } = setup();
 
-      act(() => result.current.getFieldProps("email").onChange("nope"));
+      act(() => result.current.getTextFieldProps("email").onChange("nope"));
       expect(result.current.formData.email).toBe("nope");
       expect(result.current.getError("email")).toBeUndefined();
 
-      act(() => result.current.getFieldProps("email").onBlur());
+      act(() => result.current.getTextFieldProps("email").onBlur());
       expect(result.current.getError("email")).toBe("Enter a valid email");
 
-      act(() => result.current.getFieldProps("email").onFocus());
+      act(() => result.current.getTextFieldProps("email").onFocus());
       expect(result.current.getError("email")).toBeUndefined();
     });
   });

@@ -37,7 +37,7 @@ const Sso = ({
     formData,
     commitFields,
     reset,
-    getFieldProps,
+    getTextFieldProps,
     handleSubmit: onFormSubmit,
     isSubmitting,
   } = useFormValidation<ISsoFormData>({
@@ -128,20 +128,20 @@ const Sso = ({
           </Checkbox>
           <InputField
             label="Identity provider name"
-            {...getFieldProps("idpName")}
+            {...getTextFieldProps("idpName")}
             disabled={isSubmitting || gitOpsModeEnabled}
             tooltip="A required human friendly name for the identity provider that will provide single sign-on authentication."
           />
           <InputField
             label="Entity ID"
             helpText="The URI you provide here must exactly match the Entity ID field used in the identity provider configuration."
-            {...getFieldProps("entityId")}
+            {...getTextFieldProps("entityId")}
             disabled={isSubmitting || gitOpsModeEnabled}
             tooltip="The Entity ID is a required URI that you use to identify Fleet when configuring the identity provider. Okta calls this Audience Restriction."
           />
           <InputField
             label="IdP image URL"
-            {...getFieldProps("idpImageUrl")}
+            {...getTextFieldProps("idpImageUrl")}
             disabled={isSubmitting || gitOpsModeEnabled}
             tooltip={`An optional link to an image such
             as a logo for the identity provider.`}
@@ -149,7 +149,7 @@ const Sso = ({
           <InputField
             label="Metadata"
             type="textarea"
-            {...getFieldProps("metadata")}
+            {...getTextFieldProps("metadata")}
             disabled={isSubmitting || gitOpsModeEnabled}
             tooltip="Metadata XML provided by the identity provider."
           />
@@ -161,7 +161,7 @@ const Sso = ({
                 <b>Metadata URL</b> will be used.
               </>
             }
-            {...getFieldProps("metadataUrl")}
+            {...getTextFieldProps("metadataUrl")}
             disabled={isSubmitting || gitOpsModeEnabled}
             tooltip="Metadata URL provided by the identity provider."
           />

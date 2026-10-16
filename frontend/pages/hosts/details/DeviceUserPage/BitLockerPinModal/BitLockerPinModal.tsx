@@ -101,7 +101,7 @@ const BitLockerPinModal = ({
   }, [isWaiting]);
 
   const {
-    getFieldProps,
+    getTextFieldProps,
     handleSubmit,
     isSubmitting,
   } = useFormValidation<IBitLockerPinFormData>({
@@ -171,7 +171,7 @@ const BitLockerPinModal = ({
         </p>
         <InputField
           label="BitLocker PIN"
-          {...getFieldProps("pin")}
+          {...getTextFieldProps("pin")}
           type="password"
           disabled={isDisabled}
           enableShowSecret
@@ -181,7 +181,7 @@ const BitLockerPinModal = ({
         />
         <InputField
           label="Confirm PIN"
-          {...getFieldProps("confirmPin")}
+          {...getTextFieldProps("confirmPin")}
           type="password"
           disabled={isDisabled}
           enableShowSecret

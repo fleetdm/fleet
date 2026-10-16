@@ -357,7 +357,7 @@ The output of `validate` is used by the calling handler to update a `formErrors`
 
 The `useFormValidation` hook in `frontend/hooks/useFormValidation.ts` implements every rule below — dirty tracking, clear-on-focus, blur-validates-one-field, submit-as-checkpoint, server errors, trimming, in-flight state. Pass it `initialFormData` and a `validate` function and wire the handlers it returns; don't hand-roll the state management. `UserForm` and `ApiUserForm` (`frontend/pages/admin/ManageUsersPage/components/`) are the reference migrations. The hook deliberately exposes no `isValid` — see [Submit button state](#submit-button-state).
 
-Spread `getFieldProps("fieldName")` onto text inputs (`InputField`, `InputFieldWithIcon`) instead of wiring `name`, `value`, `error`, `onChange`, `onFocus` and `onBlur` by hand. A field that needs extra work on change passes its own `onChange` after the spread and calls `setField` from it. Checkboxes, radios, dropdowns and other controls that commit on change call `commitFields` directly.
+Spread `getTextFieldProps("fieldName")` onto text inputs (`InputField`, `InputFieldWithIcon`) instead of wiring `name`, `value`, `error`, `onChange`, `onFocus` and `onBlur` by hand. A field that needs extra work on change passes its own `onChange` after the spread and calls `setField` from it. Checkboxes, radios, dropdowns and other controls that commit on change call `commitFields` directly.
 
 #### When errors appear
 

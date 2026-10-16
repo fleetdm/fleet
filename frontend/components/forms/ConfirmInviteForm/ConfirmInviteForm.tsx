@@ -45,7 +45,7 @@ const ConfirmInviteForm = ({
   handleSubmit,
 }: IConfirmInviteFormProps) => {
   const {
-    getFieldProps,
+    getTextFieldProps,
     handleSubmit: onSubmit,
     isSubmitting,
   } = useFormValidation<IConfirmInviteFormData>({
@@ -67,7 +67,7 @@ const ConfirmInviteForm = ({
       <InputField
         label="Full name"
         autofocus
-        {...getFieldProps("name")}
+        {...getTextFieldProps("name")}
         inputOptions={{ maxLength: 80 }}
         ignore1password={false}
         disabled={isSubmitting}
@@ -77,7 +77,7 @@ const ConfirmInviteForm = ({
         type="password"
         placeholder="Password"
         helpText="Must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)"
-        {...getFieldProps("password")}
+        {...getTextFieldProps("password")}
         ignore1password={false}
         disabled={isSubmitting}
       />
@@ -85,7 +85,7 @@ const ConfirmInviteForm = ({
         label="Confirm password"
         type="password"
         placeholder="Confirm password"
-        {...getFieldProps("password_confirmation")}
+        {...getTextFieldProps("password_confirmation")}
         ignore1password={false}
         disabled={isSubmitting}
       />

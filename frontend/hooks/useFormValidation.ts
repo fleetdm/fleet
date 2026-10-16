@@ -86,7 +86,7 @@ interface IUseFormValidationReturn<TFormData> {
    * Props written after the spread win, so a field that needs extra work on
    * change can still pass its own `onChange` (and must call `setField`).
    */
-  getFieldProps: (name: TextFieldName<TFormData>) => ITextFieldProps;
+  getTextFieldProps: (name: TextFieldName<TFormData>) => ITextFieldProps;
   /** Wire to a field's `onFocus`. Clears that field's error, client or server. */
   clearFieldError: (name: string) => void;
   setFieldError: (name: string, message: string) => void;
@@ -170,14 +170,14 @@ const pruneErrors = (
  *   return errors;
  * };
  *
- * const { getFieldProps, handleSubmit, isSubmitting } = useFormValidation({
+ * const { getTextFieldProps, handleSubmit, isSubmitting } = useFormValidation({
  *   initialFormData: { name: "" },
  *   validate,
  * });
  *
  * return (
  *   <form onSubmit={handleSubmit(onSave)}>
- *     <InputField {...getFieldProps("name")} disabled={isSubmitting} />
+ *     <InputField {...getTextFieldProps("name")} disabled={isSubmitting} />
  *     <Button type="submit" isLoading={isSubmitting} disabled={isSubmitting}>
  *       Save
  *     </Button>
@@ -398,7 +398,9 @@ const useFormValidation = <TFormData extends object>({
     []
   );
 
-  const getFieldProps = (name: TextFieldName<TFormData>): ITextFieldProps => ({
+  const getTextFieldProps = (
+    name: TextFieldName<TFormData>
+  ): ITextFieldProps => ({
     name,
     value: (formData[name] as string | undefined) ?? "",
     error: errors[name],
@@ -415,7 +417,7 @@ const useFormValidation = <TFormData extends object>({
     reset,
     errors,
     getError,
-    getFieldProps,
+    getTextFieldProps,
     clearFieldError,
     setFieldError,
     validateField,

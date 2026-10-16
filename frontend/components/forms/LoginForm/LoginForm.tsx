@@ -55,7 +55,7 @@ const LoginForm = ({
 
   const {
     formData,
-    getFieldProps,
+    getTextFieldProps,
     handleSubmit: onSubmit,
     isSubmitting,
   } = useFormValidation<ILoginUserData>({
@@ -136,7 +136,7 @@ const LoginForm = ({
     >
       <div className={`${baseClass}__form`}>
         <InputFieldWithIcon
-          {...getFieldProps("email")}
+          {...getTextFieldProps("email")}
           autofocus
           type="email"
           label="Email"
@@ -145,7 +145,7 @@ const LoginForm = ({
           disabled={isSubmitting}
         />
         <InputFieldWithIcon
-          {...getFieldProps("password")}
+          {...getTextFieldProps("password")}
           label="Password"
           placeholder="Password"
           type="password"

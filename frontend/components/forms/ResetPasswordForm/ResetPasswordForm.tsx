@@ -57,7 +57,7 @@ const ResetPasswordForm = ({
   handleSubmit,
 }: IResetPasswordFormProps): JSX.Element => {
   const {
-    getFieldProps,
+    getTextFieldProps,
     handleSubmit: onSubmit,
     isSubmitting,
   } = useFormValidation<IResetPasswordForm>({
@@ -72,7 +72,7 @@ const ResetPasswordForm = ({
   return (
     <form className={baseClass} onSubmit={onSubmit(handleSubmit)}>
       <InputFieldWithIcon
-        {...getFieldProps("new_password")}
+        {...getTextFieldProps("new_password")}
         autofocus
         label="New password"
         placeholder="New password"
@@ -83,7 +83,7 @@ const ResetPasswordForm = ({
         disabled={isSubmitting}
       />
       <InputFieldWithIcon
-        {...getFieldProps("new_password_confirmation")}
+        {...getTextFieldProps("new_password_confirmation")}
         label="Confirm password"
         placeholder="Confirm password"
         className={`${baseClass}__input`}

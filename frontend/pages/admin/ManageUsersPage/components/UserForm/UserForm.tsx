@@ -132,7 +132,7 @@ const UserForm = ({
     formData,
     commitFields,
     getError,
-    getFieldProps,
+    getTextFieldProps,
     handleSubmit,
     isSubmitting,
   } = useFormValidation<UserFormState>({
@@ -396,7 +396,7 @@ const UserForm = ({
       <InputField
         label="Full name"
         autofocus
-        {...getFieldProps("name")}
+        {...getTextFieldProps("name")}
         placeholder="Full name"
         disabled={isSubmitting}
         inputOptions={{
@@ -405,7 +405,7 @@ const UserForm = ({
       />
       <InputField
         label="Email"
-        {...getFieldProps("email")}
+        {...getTextFieldProps("email")}
         type="email"
         placeholder="Email"
         disabled={isSubmitting}
@@ -471,7 +471,7 @@ const UserForm = ({
     <div className={`${baseClass}__${isNewUser ? "" : "edit-"}password`}>
       <InputField
         label="Password"
-        {...getFieldProps("password")}
+        {...getTextFieldProps("password")}
         placeholder={isNewUser ? "Password" : "••••••••"}
         type="password"
         disabled={isSubmitting}

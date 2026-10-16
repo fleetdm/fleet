@@ -48,7 +48,7 @@ const EndUserAuthSection = ({
   const {
     formData,
     reset,
-    getFieldProps,
+    getTextFieldProps,
     handleSubmit,
     isSubmitting,
   } = useFormValidation<IFormDataIdp>({
@@ -124,13 +124,13 @@ const EndUserAuthSection = ({
         >
           <InputField
             label="Identity provider name"
-            {...getFieldProps("idp_name")}
+            {...getTextFieldProps("idp_name")}
             disabled={isSubmitting || gitOpsModeEnabled}
             tooltip="A required human friendly name for the identity provider that will provide single sign-on authentication."
           />
           <InputField
             label="Entity ID"
-            {...getFieldProps("entity_id")}
+            {...getTextFieldProps("entity_id")}
             disabled={isSubmitting || gitOpsModeEnabled}
             tooltip="The Entity ID is a required URI that you use to identify Fleet when configuring the identity provider. Okta calls this Audience Restriction."
           />
@@ -142,14 +142,14 @@ const EndUserAuthSection = ({
                 <b>Metadata URL</b> will be used.
               </>
             }
-            {...getFieldProps("metadata_url")}
+            {...getTextFieldProps("metadata_url")}
             disabled={isSubmitting || gitOpsModeEnabled}
             tooltip="Metadata URL provided by the identity provider."
           />
           <InputField
             label="Metadata"
             type="textarea"
-            {...getFieldProps("metadata")}
+            {...getTextFieldProps("metadata")}
             disabled={isSubmitting || gitOpsModeEnabled}
             tooltip="Metadata XML provided by the identity provider."
           />

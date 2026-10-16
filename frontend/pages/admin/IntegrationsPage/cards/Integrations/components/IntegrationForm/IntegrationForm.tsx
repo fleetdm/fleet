@@ -108,7 +108,7 @@ const IntegrationForm = ({
     getError,
     clearFieldError,
     validateField,
-    getFieldProps,
+    getTextFieldProps,
     handleSubmit,
     isSubmitting,
   } = useFormValidation<IIntegrationFormData>({
@@ -223,7 +223,7 @@ const IntegrationForm = ({
     >
       <InputField
         autofocus
-        {...getFieldProps("url")}
+        {...getTextFieldProps("url")}
         label="URL"
         placeholder={
           integrationDestination === "jira"
@@ -234,14 +234,14 @@ const IntegrationForm = ({
       />
       {integrationDestination === "jira" ? (
         <InputField
-          {...getFieldProps("username")}
+          {...getTextFieldProps("username")}
           label="Username"
           placeholder="name@example.com"
           disabled={gitOpsModeEnabled || isSubmitting}
         />
       ) : (
         <InputField
-          {...getFieldProps("email")}
+          {...getTextFieldProps("email")}
           label="Email"
           placeholder="name@example.com"
           type="email"
@@ -249,13 +249,13 @@ const IntegrationForm = ({
         />
       )}
       <InputField
-        {...getFieldProps("apiToken")}
+        {...getTextFieldProps("apiToken")}
         label="API token"
         disabled={gitOpsModeEnabled || isSubmitting}
       />
       {integrationDestination === "jira" ? (
         <InputField
-          {...getFieldProps("projectKey")}
+          {...getTextFieldProps("projectKey")}
           label="Project key"
           placeholder="JRAEXAMPLE"
           disabled={gitOpsModeEnabled || isSubmitting}
