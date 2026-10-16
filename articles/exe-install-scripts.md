@@ -162,14 +162,18 @@ try {
 
 # Find the signed-in user. Include the domain: on Entra ID (Azure AD) joined
 # hosts, the user name alone does not resolve to the user's account.
-$owner = Get-CimInstance Win32_Process -Filter 'name = "explorer.exe"' |
+$userAccounts = @(Get-CimInstance Win32_Process -Filter 'name = "explorer.exe"' |
     Invoke-CimMethod -MethodName GetOwner |
     Where-Object { $_.User } |
-    Select-Object -First 1
-if (-not $owner) {
+    ForEach-Object { "$($_.Domain)\$($_.User)" } |
+    Sort-Object -Unique)
+if ($userAccounts.Count -eq 0) {
     Throw "No user is signed in to this host. Sign in and try again."
 }
-$userAccount = "$($owner.Domain)\$($owner.User)"
+if ($userAccounts.Count -gt 1) {
+    Throw "More than one user is signed in to this host ($($userAccounts -join ', ')). Sign out the other users and try again."
+}
+$userAccount = $userAccounts[0]
 Write-Host "Installing for $userAccount."
 
 # Copy the installer to a public folder so that the user can access it
@@ -206,6 +210,8 @@ Write-Host "Install exit code: $exitCode"
     Write-Host "Error: $_"
     $exitCode = 1
 } finally {
+    # Unregistering a task does not stop it, so stop it first in case the wait timed out
+    Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
     Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
     if ($stagedInstaller) {
         Remove-Item -Path $stagedInstaller -Force -ErrorAction SilentlyContinue
@@ -217,7 +223,7 @@ if ($exitCode -gt [int]::MaxValue) { $exitCode = 1 }
 Exit $exitCode
 ```
 
-The install script creates a scheduled task that runs the installer as the signed-in user. A user must be signed in to the host, or the script fails. The script identifies the user by domain and user name (for example, `AzureAD\JaneDoe`). The EXE installer is copied to a public directory so that even non-administrator users can run it. After the task finishes, the script reports the installer's exit code and deletes the installer and the task.
+The install script creates a scheduled task that runs the installer as the signed-in user. Exactly one user must be signed in to the host, or the script fails. The script identifies the user by domain and user name (for example, `AzureAD\JaneDoe`). The EXE installer is copied to a public directory so that even non-administrator users can run it. After the task finishes, the script reports the installer's exit code and deletes the installer and the task.
 
 The use of scheduled tasks allows the installer to run with user-level permissions, which is especially useful when installing software for non-admin users without requiring administrator credentials at the time of execution.
 
@@ -329,14 +335,18 @@ $taskName = "fleet-uninstall-$softwareName"
 try {
     # Find the signed-in user. Include the domain: on Entra ID (Azure AD) joined
     # hosts, the user name alone does not resolve to the user's account.
-    $owner = Get-CimInstance Win32_Process -Filter 'name = "explorer.exe"' |
+    $userAccounts = @(Get-CimInstance Win32_Process -Filter 'name = "explorer.exe"' |
         Invoke-CimMethod -MethodName GetOwner |
         Where-Object { $_.User } |
-        Select-Object -First 1
-    if (-not $owner) {
+        ForEach-Object { "$($_.Domain)\$($_.User)" } |
+        Sort-Object -Unique)
+    if ($userAccounts.Count -eq 0) {
         Throw "No user is signed in to this host. Sign in and try again."
     }
-    $userAccount = "$($owner.Domain)\$($owner.User)"
+    if ($userAccounts.Count -gt 1) {
+        Throw "More than one user is signed in to this host ($($userAccounts -join ', ')). Sign out the other users and try again."
+    }
+    $userAccount = $userAccounts[0]
     Write-Host "Uninstalling for $userAccount."
 
     Set-Content -Path $uninstallScriptPath -Value $userScript -Force -ErrorAction Stop
@@ -372,6 +382,8 @@ try {
     Write-Host "Error: $_"
     $exitCode = 1
 } finally {
+    # Unregistering a task does not stop it, so stop it first in case the wait timed out
+    Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
     Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
     Remove-Item -Path $uninstallScriptPath -Force -ErrorAction SilentlyContinue
 }
@@ -381,7 +393,7 @@ if ($exitCode -gt [int]::MaxValue) { $exitCode = 1 }
 Exit $exitCode
 ```
 
-The uninstall script writes a separate PowerShell script to a public directory and creates a scheduled task that runs it as the signed-in user. Like the install script, it needs a signed-in user. After the task finishes, the script reports the uninstall exit code and deletes the user script and the task.
+The uninstall script writes a separate PowerShell script to a public directory and creates a scheduled task that runs it as the signed-in user. Like the install script, it needs exactly one signed-in user. After the task finishes, the script reports the uninstall exit code and deletes the user script and the task.
 
 Since the uninstall script is run by the signed-in user, it does not output its messages to the console. If you need to see the output, you can modify the main script to redirect it to a file and append it to the output.
 
