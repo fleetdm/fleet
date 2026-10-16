@@ -809,15 +809,15 @@ function OutputShareCard({
     const id = ++seq.current;
     try {
       const st = await api.installersShareStatus();
-      let list: InstallersSharedFile[] = [];
-      if (st.running) list = await api.installersSharedFiles().catch(() => []);
+      // Listed either way: with install commands while sharing, plain otherwise.
+      const list = await api.installersSharedFiles(outputDir).catch(() => [] as InstallersSharedFile[]);
       if (id !== seq.current) return;
       setStatus(st);
       setFiles(list);
     } catch (e) {
       console.error("share status", e);
     }
-  }, []);
+  }, [outputDir]);
   useEffect(() => {
     refresh();
     const poll = window.setInterval(() => {
@@ -940,34 +940,44 @@ function OutputShareCard({
         once to allow incoming connections for Hangar.
       </span>
 
+      {/* The folder's installers: plain while not sharing, with copyable install
+          commands once the server is up (they need its URL). */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <button
+          className="link-btn"
+          onClick={() => setShowFiles((v) => !v)}
+          aria-expanded={showFiles}
+          style={{ display: "flex", alignItems: "center", gap: 6, alignSelf: "flex-start", padding: 0 }}
+        >
+          <span style={{ fontWeight: 600, color: "var(--app-text)" }}>
+            {showFiles ? "▾" : "▸"} {running ? "Install commands" : "Installers"}
+          </span>
+          <span className="dim">
+            {files.length} installer{files.length === 1 ? "" : "s"}
+            {!running && files.length > 0 ? " · start sharing for install commands" : ""}
+          </span>
+        </button>
+        {!showFiles ? null : files.length === 0 ? (
+          <span className="dim">no installers in the folder yet</span>
+        ) : (
+          files.map((f) => (
+            <div key={f.path} style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 8, alignItems: "center" }}>
+              <span className="mono" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={f.url || f.path}>{f.path}</span>
+              <span className="dim">{formatBytes(f.size)}</span>
+              {running && f.command ? (
+                <button className="link-btn" onClick={() => copy(f.command, "install command")} title={f.command}>
+                  copy {f.shell === "powershell" ? "PowerShell (admin)" : "shell"} command
+                </button>
+              ) : (
+                <span />
+              )}
+            </div>
+          ))
+        )}
+      </div>
+
       {running && status && (
         <>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <button
-              className="link-btn"
-              onClick={() => setShowFiles((v) => !v)}
-              aria-expanded={showFiles}
-              style={{ display: "flex", alignItems: "center", gap: 6, alignSelf: "flex-start", padding: 0 }}
-            >
-              <span style={{ fontWeight: 600, color: "var(--app-text)" }}>{showFiles ? "▾" : "▸"} Install commands</span>
-              <span className="dim">
-                {files.length} installer{files.length === 1 ? "" : "s"}
-              </span>
-            </button>
-            {!showFiles ? null : files.length === 0 ? (
-              <span className="dim">no installers in the folder yet</span>
-            ) : (
-              files.map((f) => (
-                <div key={f.path} style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 8, alignItems: "center" }}>
-                  <span className="mono" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={f.url}>{f.path}</span>
-                  <span className="dim">{formatBytes(f.size)}</span>
-                  <button className="link-btn" onClick={() => copy(f.command, "install command")} title={f.command}>
-                    copy {f.shell === "powershell" ? "PowerShell (admin)" : "shell"} command
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
           {status.recent.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               <span style={{ fontWeight: 600 }}>Recent downloads</span>

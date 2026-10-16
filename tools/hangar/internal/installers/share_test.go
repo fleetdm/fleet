@@ -165,6 +165,11 @@ func TestListShared(t *testing.T) {
 	if msi := files[3]; msi.Shell != "powershell" || !strings.Contains(msi.Command, "msiexec.exe") || !strings.Contains(msi.Command, "'http://10.0.0.5:8000/rc/fleetd-rc-windows-arm64.msi'") {
 		t.Errorf("msi command = %q", msi.Command)
 	}
+	// Not sharing: same files, no URLs or commands.
+	bare, err := ListShared(root, "")
+	if err != nil || len(bare) != len(files) || bare[2].URL != "" || bare[2].Command != "" || bare[2].Size == 0 {
+		t.Errorf("unshared listing = %+v, %v", bare, err)
+	}
 	if missing, err := ListShared(filepath.Join(root, "nope"), "http://x/"); err != nil || len(missing) != 0 {
 		t.Errorf("missing root: %v %v", missing, err)
 	}

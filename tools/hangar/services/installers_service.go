@@ -499,12 +499,13 @@ func (s *InstallersService) InstallersShareStatus() installers.ShareStatus {
 	return s.share.Status(netinfo.LanIP())
 }
 
-// InstallersSharedFiles lists the shared installers with their URLs and
-// install commands; empty while not sharing.
-func (s *InstallersService) InstallersSharedFiles() ([]installers.SharedFile, error) {
+// InstallersSharedFiles lists the installers in the output folder. While
+// sharing they come with URLs and install commands (for the folder being
+// served); otherwise just paths and sizes for outputDir.
+func (s *InstallersService) InstallersSharedFiles(outputDir string) ([]installers.SharedFile, error) {
 	st := s.share.Status(netinfo.LanIP())
-	if !st.Running {
-		return []installers.SharedFile{}, nil
+	if st.Running {
+		return installers.ListShared(st.Root, st.URL)
 	}
-	return installers.ListShared(st.Root, st.URL)
+	return installers.ListShared(resolveOutputRoot(outputDir), "")
 }

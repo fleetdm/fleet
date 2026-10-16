@@ -317,7 +317,8 @@ export const api = {
     cast<InstallersShareStatus>(InstallersService.InstallersShareStart(outputDir, port)),
   installersShareStop: () => InstallersService.InstallersShareStop(),
   installersShareStatus: () => cast<InstallersShareStatus>(InstallersService.InstallersShareStatus()),
-  installersSharedFiles: () => cast<InstallersSharedFile[]>(InstallersService.InstallersSharedFiles()),
+  installersSharedFiles: (outputDir: string) =>
+    cast<InstallersSharedFile[]>(InstallersService.InstallersSharedFiles(outputDir)),
 
   listProcesses: () => cast<ProcInfo[]>(ProcessService.ListProcesses()),
   startProcess: (args: {

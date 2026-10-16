@@ -122,11 +122,12 @@ export function InstallersShareStop(): $CancellablePromise<void> {
 }
 
 /**
- * InstallersSharedFiles lists the shared installers with their URLs and
- * install commands; empty while not sharing.
+ * InstallersSharedFiles lists the installers in the output folder. While
+ * sharing they come with URLs and install commands (for the folder being
+ * served); otherwise just paths and sizes for outputDir.
  */
-export function InstallersSharedFiles(): $CancellablePromise<installers$0.SharedFile[]> {
-    return $Call.ByID(3683406806).then(($result: any) => {
+export function InstallersSharedFiles(outputDir: string): $CancellablePromise<installers$0.SharedFile[]> {
+    return $Call.ByID(3683406806, outputDir).then(($result: any) => {
         return $$createType8($result);
     });
 }
