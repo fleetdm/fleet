@@ -102,6 +102,8 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"BatchSetSoftwareInstallersNextApplyFinishesFailedClear", testBatchSetSoftwareInstallersNextApplyFinishesFailedClear},
 		{"RemovedInstallerHiddenFromApplyReads", testRemovedInstallerHiddenFromApplyReads},
 		{"ActivationSkipsRemovedInstaller", testActivationSkipsRemovedInstaller},
+		{"ReleaseAndUnblockSkipRemovedInstaller", testReleaseAndUnblockSkipRemovedInstaller},
+		{"BatchSetSoftwareInstallersRemoveFMAClearsQueueAfterCommit", testBatchSetSoftwareInstallersRemoveFMAClearsQueueAfterCommit},
 		{"InsertSoftwareInstallRequestRejectsRemovedInstaller", testInsertSoftwareInstallRequestRejectsRemovedInstaller},
 		{"InsertSoftwareUninstallRequestRejectsRemovedInstaller", testInsertSoftwareUninstallRequestRejectsRemovedInstaller},
 	}
@@ -9110,6 +9112,11 @@ func testBatchSetSoftwareInstallersNextApplyFinishesFailedClear(t *testing.T, ds
 	})
 	require.NoError(t, holdTx.Rollback())
 	require.NoError(t, <-applyErr, "a failed clear doesn't fail the apply")
+	var pending int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &pending, `SELECT COUNT(*) FROM host_software_installs WHERE software_installer_id = ? AND status = 'pending_install'`, installerID)
+	})
+	require.Zero(t, pending, "the started install is canceled even though the clear failed")
 
 	got, err := ds.GetSoftwareInstallers(ctx, tm.ID)
 	require.NoError(t, err)
@@ -9179,6 +9186,52 @@ func testActivationSkipsRemovedInstaller(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, ds.ActivateNextUpcomingActivityForHost(ctx, hostID, running[0]))
 	require.Equal(t, []string{script.ExecutionID}, activated())
+}
+
+func testReleaseAndUnblockSkipRemovedInstaller(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	_, _, installerID, policyID, _ := setupInstallerDeleteRace(t, ds)
+	host := test.NewHost(t, ds, "h2", "10.0.0.2", "2", "uuid2", time.Now(), test.WithPlatform("windows"))
+	// A host whose only queued activity is a fleet-initiated install of a removed package.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		queueInstallInTx(t, ctx, q, host.ID, installerID, policyID)
+		if _, err := q.ExecContext(ctx, `UPDATE upcoming_activities SET fleet_initiated = 1 WHERE host_id = ?`, host.ID); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx, `UPDATE software_installers SET is_active = 0 WHERE id = ?`, installerID)
+		return err
+	})
+
+	released, err := ds.ReleaseFleetInitiatedUpcomingActivities(ctx, 10)
+	require.NoError(t, err)
+	require.Zero(t, released)
+	unblocked, err := ds.UnblockHostsUpcomingActivityQueue(ctx, 10, false)
+	require.NoError(t, err)
+	require.Zero(t, unblocked)
+}
+
+func testBatchSetSoftwareInstallersRemoveFMAClearsQueueAfterCommit(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	payload, tm, _, policyID, hostID := setupInstallerDeleteRace(t, ds)
+	app, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{Name: "app", Slug: "app/windows", Platform: "windows", UniqueIdentifier: "app"})
+	require.NoError(t, err)
+	fma := payload("app")
+	fma[0].StorageID, fma[0].FleetMaintainedAppID, fma[0].FMAName = "app-fma", new(app.ID), app.Name
+	_, err = ds.BatchSetSoftwareInstallers(ctx, &tm.ID, fma)
+	require.NoError(t, err)
+
+	// Queue an install of the Fleet-maintained app, without the canceled custom install the switch left behind.
+	var fmaID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		if _, err := q.ExecContext(ctx, `DELETE FROM host_software_installs WHERE host_id = ?`, hostID); err != nil {
+			return err
+		}
+		return sqlx.GetContext(ctx, q, &fmaID, `SELECT id FROM software_installers WHERE global_or_team_id = ? AND fleet_maintained_app_id IS NOT NULL`, tm.ID)
+	})
+	_, err = ds.InsertSoftwareInstallRequest(ctx, hostID, fmaID, fleet.HostSoftwareInstallOptions{PolicyID: &policyID})
+	require.NoError(t, err)
+
+	requireApplyClearsQueueAfterCommit(t, ds, tm, fmaID, policyID, hostID, payload("other"), false)
 }
 
 // requireEnqueueRejectsRemovedInstaller holds the locks an apply takes on a title it updates, checks

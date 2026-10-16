@@ -4068,6 +4068,16 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 			}
 
 			for _, id := range fmaIDs {
+				// Unlinking the app makes the row a removed custom package, cleared after commit like the others. That
+				// fails if another row of the title has the same file, since the file becomes the row's dedup key.
+				_, err := tx.ExecContext(ctx, `UPDATE software_installers SET is_active = 0, fleet_maintained_app_id = NULL WHERE id = ?`, id)
+				if err == nil {
+					tombstonedIDs = append(tombstonedIDs, id)
+					continue
+				}
+				if !IsDuplicate(err) {
+					return ctxerr.Wrap(ctx, err, "unlink removed Fleet-maintained app installer")
+				}
 				affectedHostIDs, err := ds.deleteInstallerInBatch(ctx, tx, id)
 				if err != nil {
 					return err
@@ -4097,24 +4107,62 @@ WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
 }
 
 // drainRemovedInstaller clears the queued installs of a custom package that BatchSetSoftwareInstallers
-// marked inactive, then deletes it. Queued installs go in chunks, each its own transaction with no lock on
-// the installer row. It stops if the package is re-applied, which marks the row active again. It returns
-// the hosts whose activated install it removed.
+// marked inactive, then deletes it. Queued installs go in chunks, each its own transaction. It stops if the
+// package is re-applied, which marks the row active again. It returns the hosts whose activated install it
+// removed.
 func (ds *Datastore) drainRemovedInstaller(ctx context.Context, installerID uint) (affectedHostIDs []uint, err error) {
 	const isRemoved = `SELECT 1 FROM software_installers WHERE id = ? AND is_active = 0 AND fleet_maintained_app_id IS NULL`
 	for done := false; !done; {
 		// Pick the chunk with a plain read, then lock it in its own transaction.
-		var execIDs []string
-		if err := sqlx.SelectContext(ctx, ds.writer(ctx), &execIDs, `SELECT ua.execution_id FROM software_install_upcoming_activities siua
+		var chunk []struct {
+			ExecutionID string `db:"execution_id"`
+			Activated   bool   `db:"activated"`
+		}
+		if err := sqlx.SelectContext(ctx, ds.writer(ctx), &chunk, `SELECT ua.execution_id, ua.activated_at IS NOT NULL AS activated
+			FROM software_install_upcoming_activities siua
 			JOIN upcoming_activities ua ON ua.id = siua.upcoming_activity_id
 			WHERE siua.software_installer_id = ? LIMIT 500`, installerID); err != nil {
 			return affectedHostIDs, ctxerr.Wrap(ctx, err, "load queued installs")
 		}
-		done = len(execIDs) < 500
-		if len(execIDs) == 0 {
+		done = len(chunk) < 500
+		if len(chunk) == 0 {
 			break
 		}
+		var execIDs, activatedExecIDs []string
+		for _, c := range chunk {
+			execIDs = append(execIDs, c.ExecutionID)
+			if c.Activated {
+				activatedExecIDs = append(activatedExecIDs, c.ExecutionID)
+			}
+		}
 		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			// Shared lock, so a re-apply can't reactivate the package until this chunk commits.
+			var ok bool
+			if err := sqlx.GetContext(ctx, tx, &ok, isRemoved+` FOR SHARE`, installerID); errors.Is(err, sql.ErrNoRows) {
+				done = true
+				return nil
+			} else if err != nil {
+				return ctxerr.Wrap(ctx, err, "check removed installer")
+			}
+
+			// Cancel the history of installs already started before removing them from the queue, in the order
+			// recording a result takes, so a clear that stops partway leaves nothing pending.
+			if len(activatedExecIDs) > 0 {
+				for _, q := range []string{
+					`DELETE FROM host_script_results WHERE execution_id IN (
+						SELECT execution_id FROM host_software_installs WHERE execution_id IN (?) AND status = 'pending_uninstall')`,
+					`UPDATE host_software_installs SET canceled = 1 WHERE execution_id IN (?) AND status IN ('pending_install', 'pending_uninstall')`,
+				} {
+					stmt, args, err := sqlx.In(q, activatedExecIDs)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "build statement to cancel started installs")
+					}
+					if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+						return ctxerr.Wrap(ctx, err, "cancel started installs")
+					}
+				}
+			}
+
 			var rows []struct {
 				ID        uint `db:"id"`
 				HostID    uint `db:"host_id"`
@@ -4131,14 +4179,6 @@ func (ds *Datastore) drainRemovedInstaller(ctx context.Context, installerID uint
 			}
 			if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
 				return ctxerr.Wrap(ctx, err, "lock queued installs")
-			}
-			// Shared lock, so a re-apply can't reactivate the package until this chunk commits.
-			var ok bool
-			if err := sqlx.GetContext(ctx, tx, &ok, isRemoved+` FOR SHARE`, installerID); errors.Is(err, sql.ErrNoRows) {
-				done = true
-				return nil
-			} else if err != nil {
-				return ctxerr.Wrap(ctx, err, "check removed installer")
 			}
 			if len(rows) == 0 {
 				return nil

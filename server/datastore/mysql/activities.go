@@ -1018,7 +1018,13 @@ func (ds *Datastore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxH
 				active_ua.activated_at IS NOT NULL
 		WHERE
 			active_ua.host_id IS NULL AND
-			inactive_ua.activated_at IS NULL
+			inactive_ua.activated_at IS NULL AND
+			-- activation skips installs of a custom package a GitOps apply removed
+			NOT EXISTS (
+				SELECT 1 FROM software_install_upcoming_activities siua
+				JOIN software_installers si ON si.id = siua.software_installer_id
+				WHERE siua.upcoming_activity_id = inactive_ua.id AND si.is_active = 0 AND si.fleet_maintained_app_id IS NULL
+			)
 		%s
 		LIMIT ?`
 
@@ -1056,7 +1062,13 @@ func (ds *Datastore) ReleaseFleetInitiatedUpcomingActivities(ctx context.Context
 		WHERE
 			active_ua.host_id IS NULL AND
 			gated_ua.activated_at IS NULL AND
-			gated_ua.fleet_initiated = 1
+			gated_ua.fleet_initiated = 1 AND
+			-- activation skips installs of a custom package a GitOps apply removed
+			NOT EXISTS (
+				SELECT 1 FROM software_install_upcoming_activities siua
+				JOIN software_installers si ON si.id = siua.software_installer_id
+				WHERE siua.upcoming_activity_id = gated_ua.id AND si.is_active = 0 AND si.fleet_maintained_app_id IS NULL
+			)
 		GROUP BY
 			gated_ua.host_id
 		ORDER BY
