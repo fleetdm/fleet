@@ -338,14 +338,18 @@ func TestClearPasscode(t *testing.T) {
 	}
 	pusher := nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushFactory, stdlogfmt.New())
 	commander := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
-	svc := Service{ds: ds, authz: authorizer, mdmAppleCommander: commander, Service: &mocksvc.Service{
+	baseSvc := &mocksvc.Service{
 		NewActivityFunc: func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 			return nil
 		},
-	}}
+	}
+	svc := Service{ds: ds, authz: authorizer, mdmAppleCommander: commander, Service: baseSvc}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return true, nil
 	}
 	ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
 		return &fleet.HostMDMApplePermissions{HostUUID: hostUUID, AccessRights: apple_mdm.MDMAccessRightAll}, nil
@@ -505,6 +509,35 @@ func TestClearPasscode(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
 		mdmStorage.EnqueueCommandFuncInvoked = false
+	})
+
+	t.Run("MDM turned off for host", func(t *testing.T) {
+		ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: hostID, UUID: "host-uuid-off", Platform: "ios"}, nil
+		}
+		// The unlock token survives unenrollment, so it must not be what gates the command.
+		ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+			return &fleet.NanoMDMEnrollmentDetails{UnlockToken: new("fake-token")}, nil
+		}
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+			return false, nil
+		}
+		t.Cleanup(func() {
+			ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+				return true, nil
+			}
+		})
+		mdmStorage.EnqueueCommandFuncInvoked = false
+		baseSvc.NewActivityFuncInvoked = false
+
+		ctx := test.UserContext(t.Context(), test.UserAdmin)
+		_, err := svc.ClearPasscode(ctx, 1)
+		require.Error(t, err)
+		var badReq *fleet.BadRequestError
+		require.ErrorAs(t, err, &badReq)
+		require.Contains(t, badReq.Message, "doesn't have MDM turned on")
+		require.False(t, mdmStorage.EnqueueCommandFuncInvoked)
+		require.False(t, baseSvc.NewActivityFuncInvoked)
 	})
 
 	t.Run("non-apple platform", func(t *testing.T) {
