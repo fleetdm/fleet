@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261015175850, Down_20261015175850)
+	MigrationClient.AddMigration(Up_20261016152655, Down_20261016152655)
 }
 
-func Up_20261015175850(tx *sql.Tx) error {
+func Up_20261016152655(tx *sql.Tx) error {
 	// The Autopilot sync matches registry devices to enrolled hosts through the IDs on their Windows MDM enrollment, and orbit
 	// enrollment looks up the unlinked enrollment carrying the Autopilot device ID it reports.
 	for _, index := range []struct{ name, column string }{
@@ -26,6 +26,6 @@ func Up_20261015175850(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20261015175850(tx *sql.Tx) error {
+func Down_20261016152655(tx *sql.Tx) error {
 	return nil
 }
