@@ -70,6 +70,13 @@ type Service interface {
 	// Returns fleet.IsNotFound error if enterprise was deleted, nil if no enterprise exists or verification passed.
 	VerifyExistingEnterpriseIfAny(ctx context.Context) error
 
+	// IsEnterpriseAlive checks whether the DB-persisted enterprise is still visible to
+	// Google's AMAPI without performing any cleanup. Returns (true, nil) if present,
+	// (false, nil) if the enterprise is confirmed missing from Google's list or no
+	// DB enterprise exists, and (false, err) if the probe itself failed (auth, network).
+	// Callers that want to tear down a dead binding should use VerifyExistingEnterpriseIfAny.
+	IsEnterpriseAlive(ctx context.Context) (bool, error)
+
 	// CreateAndroidWebApp creates a new web app for the given enterprise.
 	CreateAndroidWebApp(ctx context.Context, enterpriseName string, app *androidmanagement.WebApp) (*androidmanagement.WebApp, error)
 
