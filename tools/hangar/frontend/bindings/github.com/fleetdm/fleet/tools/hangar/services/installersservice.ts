@@ -24,6 +24,14 @@ import * as settings$0 from "../internal/settings/models.js";
 import * as $models from "./models.js";
 
 /**
+ * InstallersCheckExtraFlags validates extra fleetctl flags as typed: "" when
+ * they're usable, otherwise why not.
+ */
+export function InstallersCheckExtraFlags(flags: string): $CancellablePromise<string> {
+    return $Call.ByID(2915664667, flags);
+}
+
+/**
  * InstallersDefaultOutputDir is ~/Documents/fleetd-installers.
  */
 export function InstallersDefaultOutputDir(): $CancellablePromise<string> {
@@ -31,10 +39,18 @@ export function InstallersDefaultOutputDir(): $CancellablePromise<string> {
 }
 
 /**
- * InstallersListOutputs lists the installers in serverID's output folder.
+ * InstallersFleetSecret returns the enroll secret of fleet teamID (nil =
+ * Unassigned) through a fleetctl context, to fill the card's secret field.
  */
-export function InstallersListOutputs(serverID: string, outputDir: string): $CancellablePromise<installers$0.OutputFile[]> {
-    return $Call.ByID(1688085732, serverID, outputDir).then(($result: any) => {
+export function InstallersFleetSecret(contextName: string, teamID: number | null): $CancellablePromise<string> {
+    return $Call.ByID(837163422, contextName, teamID);
+}
+
+/**
+ * InstallersListOutputs lists the installers in a target's output folder.
+ */
+export function InstallersListOutputs(serverID: string, cfg: settings$0.InstallerServerConfig, outputDir: string): $CancellablePromise<installers$0.OutputFile[]> {
+    return $Call.ByID(1688085732, serverID, cfg, outputDir).then(($result: any) => {
         return $$createType1($result);
     });
 }
@@ -79,22 +95,12 @@ export function InstallersScan(contextName: string): $CancellablePromise<install
 }
 
 /**
- * InstallersServerInfo resolves a server's slug, fleetctl binary, output
- * folder and the fleetctl context matching its port.
- */
-export function InstallersServerInfo(serverID: string, outputDir: string): $CancellablePromise<$models.InstallersServerInfo> {
-    return $Call.ByID(1469751453, serverID, outputDir).then(($result: any) => {
-        return $$createType6($result);
-    });
-}
-
-/**
  * InstallersShareStart serves the output folder (all servers' subfolders)
  * over HTTP on port, or on a suggested free port when port is 0.
  */
 export function InstallersShareStart(outputDir: string, port: number): $CancellablePromise<installers$0.ShareStatus> {
     return $Call.ByID(614217091, outputDir, port).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType6($result);
     });
 }
 
@@ -104,7 +110,7 @@ export function InstallersShareStart(outputDir: string, port: number): $Cancella
  */
 export function InstallersShareStatus(): $CancellablePromise<installers$0.ShareStatus> {
     return $Call.ByID(71445715).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType6($result);
     });
 }
 
@@ -121,15 +127,15 @@ export function InstallersShareStop(): $CancellablePromise<void> {
  */
 export function InstallersSharedFiles(): $CancellablePromise<installers$0.SharedFile[]> {
     return $Call.ByID(3683406806).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType8($result);
     });
 }
 
 /**
- * InstallersStartBuild builds cfg's platforms for serverID into
- * <outputDir>/<server>/. The enroll secret for cfg.TeamID is fetched fresh;
- * files are written by fleetctl and recorded in that folder's manifest.json
- * once the build ends.
+ * InstallersStartBuild builds cfg's platforms for a target into
+ * <outputDir>/<target>/, with exactly the Fleet URL and enroll secret on the
+ * card. Files are written by fleetctl and recorded in that folder's
+ * manifest.json once the build ends.
  */
 export function InstallersStartBuild(serverID: string, cfg: settings$0.InstallerServerConfig, outputDir: string): $CancellablePromise<void> {
     return $Call.ByID(2554588826, serverID, cfg, outputDir);
@@ -150,6 +156,18 @@ export function InstallersSuggestSharePort(): $CancellablePromise<number> {
     return $Call.ByID(548954564);
 }
 
+/**
+ * InstallersTargetInfo resolves a target's slug, fleetctl binary, output
+ * folder and matching fleetctl context. A Hangar server builds with its own
+ * fleetctl; the custom target borrows the fleetctl of the server cfg.Fleetctl
+ * names (or the first server that has one) and has no matched context.
+ */
+export function InstallersTargetInfo(targetID: string, cfg: settings$0.InstallerServerConfig, outputDir: string): $CancellablePromise<$models.InstallersTargetInfo> {
+    return $Call.ByID(249212671, targetID, cfg, outputDir).then(($result: any) => {
+        return $$createType9($result);
+    });
+}
+
 // Private type creation functions
 const $$createType0 = installers$0.OutputFile.createFrom;
 const $$createType1 = $Create.Array($$createType0);
@@ -157,7 +175,7 @@ const $$createType2 = $models.InstallersLocalTUF.createFrom;
 const $$createType3 = installers$0.Channels.createFrom;
 const $$createType4 = $Create.Map($Create.Any, $Create.Any);
 const $$createType5 = installers$0.ScanResult.createFrom;
-const $$createType6 = $models.InstallersServerInfo.createFrom;
-const $$createType7 = installers$0.ShareStatus.createFrom;
-const $$createType8 = installers$0.SharedFile.createFrom;
-const $$createType9 = $Create.Array($$createType8);
+const $$createType6 = installers$0.ShareStatus.createFrom;
+const $$createType7 = installers$0.SharedFile.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = $models.InstallersTargetInfo.createFrom;

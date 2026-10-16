@@ -51,20 +51,22 @@ export class InstallersLocalTUF {
 }
 
 /**
- * InstallersServerInfo is what a server card needs before any scan.
+ * InstallersTargetInfo is what the build card needs for a target before any
+ * scan: where its files go, which fleetctl builds it, and (for a Hangar server)
+ * the fleetctl context matching its port.
  */
-export class InstallersServerInfo {
-    "server_id": string;
+export class InstallersTargetInfo {
+    "target_id": string;
     "slug": string;
     "matched_context": string;
     "fleetctl": string;
     "fleetctl_exists": boolean;
     "output_dir": string;
 
-    /** Creates a new InstallersServerInfo instance. */
-    constructor($$source: Partial<InstallersServerInfo> = {}) {
-        if (!("server_id" in $$source)) {
-            this["server_id"] = "";
+    /** Creates a new InstallersTargetInfo instance. */
+    constructor($$source: Partial<InstallersTargetInfo> = {}) {
+        if (!("target_id" in $$source)) {
+            this["target_id"] = "";
         }
         if (!("slug" in $$source)) {
             this["slug"] = "";
@@ -86,11 +88,11 @@ export class InstallersServerInfo {
     }
 
     /**
-     * Creates a new InstallersServerInfo instance from a string or object.
+     * Creates a new InstallersTargetInfo instance from a string or object.
      */
-    static createFrom($$source: any = {}): InstallersServerInfo {
+    static createFrom($$source: any = {}): InstallersTargetInfo {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new InstallersServerInfo($$parsedSource as Partial<InstallersServerInfo>);
+        return new InstallersTargetInfo($$parsedSource as Partial<InstallersTargetInfo>);
     }
 }
 

@@ -135,7 +135,7 @@ export type InstallersTeam = installersM.Team;
 export type InstallersChannels = installersM.Channels;
 export type InstallersOutputFile = installersM.OutputFile;
 export type InstallersManifestEntry = installersM.ManifestEntry;
-export type InstallersServerInfo = servicesM.InstallersServerInfo;
+export type InstallersTargetInfo = servicesM.InstallersTargetInfo;
 export type InstallersLocalTUF = servicesM.InstallersLocalTUF;
 export type InstallersShareStatus = installersM.ShareStatus;
 export type InstallersSharedFile = installersM.SharedFile;
@@ -292,14 +292,17 @@ export const api = {
   tufDeleteAssets: () => TufService.TufDeleteAssets(),
   tufAssetsExist: () => cast<boolean>(TufService.TufAssetsExist()),
 
-  // fleetd installers per server (fleetctl package with the server's fleetctl).
+  // fleetd installers per build target (a Hangar server, or "custom").
   installersDefaultOutputDir: () => InstallersService.InstallersDefaultOutputDir(),
   installersOfficialChannels: () =>
     cast<InstallersChannels>(InstallersService.InstallersOfficialChannels()),
   installersLocalTuf: () =>
     cast<InstallersLocalTUF>(InstallersService.InstallersLocalTUF()),
-  installersServerInfo: (serverId: string, outputDir: string) =>
-    cast<InstallersServerInfo>(InstallersService.InstallersServerInfo(serverId, outputDir)),
+  installersTargetInfo: (targetId: string, cfg: InstallerServerConfig, outputDir: string) =>
+    cast<InstallersTargetInfo>(InstallersService.InstallersTargetInfo(targetId, cfg as never, outputDir)),
+  installersFleetSecret: (contextName: string, teamId: number | null) =>
+    InstallersService.InstallersFleetSecret(contextName, teamId),
+  installersCheckExtraFlags: (flags: string) => InstallersService.InstallersCheckExtraFlags(flags),
   installersScan: (contextName: string) =>
     cast<InstallersScanResult>(InstallersService.InstallersScan(contextName)),
   installersPlannedFiles: (serverId: string, cfg: InstallerServerConfig) =>
@@ -307,8 +310,8 @@ export const api = {
   installersStartBuild: (serverId: string, cfg: InstallerServerConfig, outputDir: string) =>
     InstallersService.InstallersStartBuild(serverId, cfg as never, outputDir),
   installersStopBuild: (serverId: string) => InstallersService.InstallersStopBuild(serverId),
-  installersListOutputs: (serverId: string, outputDir: string) =>
-    cast<InstallersOutputFile[]>(InstallersService.InstallersListOutputs(serverId, outputDir)),
+  installersListOutputs: (targetId: string, cfg: InstallerServerConfig, outputDir: string) =>
+    cast<InstallersOutputFile[]>(InstallersService.InstallersListOutputs(targetId, cfg as never, outputDir)),
   installersSuggestSharePort: () => cast<number>(InstallersService.InstallersSuggestSharePort()),
   installersShareStart: (outputDir: string, port: number) =>
     cast<InstallersShareStatus>(InstallersService.InstallersShareStart(outputDir, port)),

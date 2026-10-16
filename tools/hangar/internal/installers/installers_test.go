@@ -141,6 +141,30 @@ func TestValidateArgs(t *testing.T) {
 	}
 }
 
+func TestParseExtraFlags(t *testing.T) {
+	got, err := ParseExtraFlags(`--enable-scripts --host-identifier=instance  --osquery-flagfile "/tmp/my flags.txt" --end-user-email='a b@x.io'`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"--enable-scripts", "--host-identifier=instance", "--osquery-flagfile", "/tmp/my flags.txt", "--end-user-email=a b@x.io"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("ParseExtraFlags\n got %q\nwant %q", got, want)
+	}
+	if got, err := ParseExtraFlags("   "); err != nil || len(got) != 0 {
+		t.Errorf("blank: %q %v", got, err)
+	}
+	for _, bad := range []string{`--fleet-url=https://x`, `--outfile x.pkg`, `--enable-scripts "unclosed`} {
+		if _, err := ParseExtraFlags(bad); err == nil {
+			t.Errorf("%q should be rejected", bad)
+		}
+	}
+	// Extra flags go last on the fleetctl command line.
+	args := CommonArgs(settings.DefaultInstallerServer(), BuildInputs{FleetURL: "https://f", EnrollSecret: "s", ExtraFlags: want[:2]})
+	if args[len(args)-2] != "--enable-scripts" || args[len(args)-1] != "--host-identifier=instance" {
+		t.Errorf("args = %q", args)
+	}
+}
+
 func TestMatchContext(t *testing.T) {
 	ctxs := map[string]string{
 		"default": "",

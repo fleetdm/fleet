@@ -41,9 +41,11 @@ func NewInstallersService(pm *processes.Manager) *InstallersService {
 	return &InstallersService{pm: pm, starting: map[string]bool{}}
 }
 
-// InstallersServerInfo is what a server card needs before any scan.
-type InstallersServerInfo struct {
-	ServerID       string `json:"server_id"`
+// InstallersTargetInfo is what the build card needs for a target before any
+// scan: where its files go, which fleetctl builds it, and (for a Hangar server)
+// the fleetctl context matching its port.
+type InstallersTargetInfo struct {
+	TargetID       string `json:"target_id"`
 	Slug           string `json:"slug"`
 	MatchedContext string `json:"matched_context"`
 	Fleetctl       string `json:"fleetctl"`
@@ -85,34 +87,58 @@ func (s *InstallersService) InstallersOfficialChannels() installers.Channels {
 	return installers.OfficialChannels()
 }
 
-// InstallersServerInfo resolves a server's slug, fleetctl binary, output
-// folder and the fleetctl context matching its port.
-func (s *InstallersService) InstallersServerInfo(serverID, outputDir string) (InstallersServerInfo, error) {
-	srv, err := loadServer(serverID)
+// InstallersTargetInfo resolves a target's slug, fleetctl binary, output
+// folder and matching fleetctl context. A Hangar server builds with its own
+// fleetctl; the custom target borrows the fleetctl of the server cfg.Fleetctl
+// names (or the first server that has one) and has no matched context.
+func (s *InstallersService) InstallersTargetInfo(targetID string, cfg settings.InstallerServerConfig, outputDir string) (InstallersTargetInfo, error) {
+	cur, err := loadSettings()
 	if err != nil {
-		return InstallersServerInfo{}, err
+		return InstallersTargetInfo{}, err
 	}
-	slug := installers.ServerSlug(srv)
-	info := InstallersServerInfo{
-		ServerID:  srv.ID,
-		Slug:      slug,
-		OutputDir: filepath.Join(resolveOutputRoot(outputDir), slug),
+	info := InstallersTargetInfo{TargetID: targetID}
+	var builder *settings.ServerProfile
+	if targetID == installers.CustomTarget {
+		info.Slug = installers.Slug(cfg.Name)
+		if info.Slug == "" {
+			info.Slug = installers.CustomTarget
+		}
+		for i := range cur.Servers {
+			srv := &cur.Servers[i]
+			if srv.WorktreePath == nil || *srv.WorktreePath == "" {
+				continue
+			}
+			if srv.ID == cfg.Fleetctl || (cfg.Fleetctl == "" && builder == nil) {
+				builder = srv
+			}
+		}
+	} else {
+		for i := range cur.Servers {
+			if cur.Servers[i].ID == targetID {
+				builder = &cur.Servers[i]
+			}
+		}
+		if builder == nil {
+			return InstallersTargetInfo{}, fmt.Errorf("server %s not found", targetID)
+		}
+		info.Slug = installers.ServerSlug(*builder)
+		if ctxInfo, err := fleetctl.ReadContext(fleetctl.DefaultConfigPath()); err == nil {
+			addrs := map[string]string{}
+			var order []string
+			for _, c := range ctxInfo.Contexts {
+				if c.Address != nil {
+					addrs[c.Name] = *c.Address
+				}
+				order = append(order, c.Name)
+			}
+			info.MatchedContext = installers.MatchContext(addrs, order, builder.Ports.Server)
+		}
 	}
-	if srv.WorktreePath != nil && *srv.WorktreePath != "" {
-		info.Fleetctl = filepath.Join(*srv.WorktreePath, "build", "fleetctl")
+	info.OutputDir = filepath.Join(resolveOutputRoot(outputDir), info.Slug)
+	if builder != nil && builder.WorktreePath != nil && *builder.WorktreePath != "" {
+		info.Fleetctl = filepath.Join(*builder.WorktreePath, "build", "fleetctl")
 		_, statErr := os.Stat(info.Fleetctl)
 		info.FleetctlExists = statErr == nil
-	}
-	if ctxInfo, err := fleetctl.ReadContext(fleetctl.DefaultConfigPath()); err == nil {
-		addrs := map[string]string{}
-		var order []string
-		for _, c := range ctxInfo.Contexts {
-			if c.Address != nil {
-				addrs[c.Name] = *c.Address
-			}
-			order = append(order, c.Name)
-		}
-		info.MatchedContext = installers.MatchContext(addrs, order, srv.Ports.Server)
 	}
 	return info, nil
 }
@@ -183,10 +209,32 @@ func scanContext(ctx context.Context, contextName string) (installers.ScanResult
 	return res, nil
 }
 
-// InstallersStartBuild builds cfg's platforms for serverID into
-// <outputDir>/<server>/. The enroll secret for cfg.TeamID is fetched fresh;
-// files are written by fleetctl and recorded in that folder's manifest.json
-// once the build ends.
+// InstallersFleetSecret returns the enroll secret of fleet teamID (nil =
+// Unassigned) through a fleetctl context, to fill the card's secret field.
+func (s *InstallersService) InstallersFleetSecret(contextName string, teamID *uint) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	scan, err := scanContext(ctx, contextName)
+	if err != nil {
+		return "", err
+	}
+	secret, _, err := installers.SecretFor(scan, teamID)
+	return secret, err
+}
+
+// InstallersCheckExtraFlags validates extra fleetctl flags as typed: "" when
+// they're usable, otherwise why not.
+func (s *InstallersService) InstallersCheckExtraFlags(flags string) string {
+	if _, err := installers.ParseExtraFlags(flags); err != nil {
+		return err.Error()
+	}
+	return ""
+}
+
+// InstallersStartBuild builds cfg's platforms for a target into
+// <outputDir>/<target>/, with exactly the Fleet URL and enroll secret on the
+// card. Files are written by fleetctl and recorded in that folder's
+// manifest.json once the build ends.
 func (s *InstallersService) InstallersStartBuild(serverID string, cfg settings.InstallerServerConfig, outputDir string) error {
 	if len(cfg.Platforms) == 0 {
 		return errors.New("select at least one platform")
@@ -198,7 +246,7 @@ func (s *InstallersService) InstallersStartBuild(serverID string, cfg settings.I
 	s.startingMu.Lock()
 	if s.starting[serverID] || s.isProcRunning(procID) {
 		s.startingMu.Unlock()
-		return errors.New("a build is already running for this server")
+		return errors.New("a build is already running for this target")
 	}
 	s.starting[serverID] = true
 	s.startingMu.Unlock()
@@ -208,7 +256,7 @@ func (s *InstallersService) InstallersStartBuild(serverID string, cfg settings.I
 		s.startingMu.Unlock()
 	}()
 
-	info, err := s.InstallersServerInfo(serverID, outputDir)
+	info, err := s.InstallersTargetInfo(serverID, cfg, outputDir)
 	if err != nil {
 		return err
 	}
@@ -216,29 +264,21 @@ func (s *InstallersService) InstallersStartBuild(serverID string, cfg settings.I
 		return fmt.Errorf("output folder must be an absolute path (got %s)", info.OutputDir)
 	}
 	if !info.FleetctlExists {
-		return fmt.Errorf("fleetctl not built for this server (%s) — build it from the Server tab", info.Fleetctl)
+		return fmt.Errorf("fleetctl not built (%s) — build it from the Server tab", info.Fleetctl)
 	}
-	contextName := cfg.Context
-	if contextName == "" {
-		contextName = info.MatchedContext
+	in := installers.BuildInputs{FleetURL: strings.TrimSpace(cfg.FleetURL), EnrollSecret: strings.TrimSpace(cfg.EnrollSecret)}
+	if in.FleetURL == "" {
+		return errors.New("enter a Fleet URL (or scan to fill it in)")
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	scan, err := scanContext(ctx, contextName)
-	if err != nil {
+	if in.EnrollSecret == "" {
+		return errors.New("enter an enroll secret (or scan and pick a fleet to fill it in)")
+	}
+	if in.ExtraFlags, err = installers.ParseExtraFlags(cfg.ExtraFlags); err != nil {
 		return err
 	}
-	secret, teamName, err := installers.SecretFor(scan, cfg.TeamID)
-	if err != nil {
-		return err
-	}
-	in := installers.BuildInputs{FleetURL: strings.TrimSpace(cfg.FleetURL), EnrollSecret: secret}
-	if in.FleetURL == "" {
-		in.FleetURL = scan.ServerURL
-	}
-	if in.FleetURL == "" {
-		return errors.New("the server has no server_url set — enter a Fleet URL")
+	teamName := cfg.TeamName
+	if teamName == "" {
+		teamName = "manual enroll secret"
 	}
 	if cfg.UpdateSource == settings.UpdateSourceLocalTUF {
 		local := s.InstallersLocalTUF()
@@ -295,6 +335,7 @@ func (s *InstallersService) InstallersStartBuild(serverID string, cfg settings.I
 		DesktopChannel:  channelOrStable(cfg.DesktopChannel),
 		OsquerydChannel: channelOrStable(cfg.OsquerydChannel),
 		FleetctlVersion: fleetctlVersion(info.Fleetctl),
+		ExtraFlags:      strings.Join(in.ExtraFlags, " "),
 	}
 	if entry.UpdateURL == "" {
 		entry.UpdateURL = "https://updates.fleetdm.com"
@@ -332,14 +373,13 @@ func (s *InstallersService) InstallersStartBuild(serverID string, cfg settings.I
 // InstallersPlannedFiles maps each platform key to the file name cfg would
 // produce for serverID, so the tab shows names without re-implementing them.
 func (s *InstallersService) InstallersPlannedFiles(serverID string, cfg settings.InstallerServerConfig) (map[string]string, error) {
-	srv, err := loadServer(serverID)
+	info, err := s.InstallersTargetInfo(serverID, cfg, "")
 	if err != nil {
 		return nil, err
 	}
-	slug := installers.ServerSlug(srv)
 	out := make(map[string]string, len(installers.Platforms))
 	for _, p := range installers.Platforms {
-		out[p.Key] = installers.FileName(slug, p, cfg)
+		out[p.Key] = installers.FileName(info.Slug, p, cfg)
 	}
 	return out, nil
 }
@@ -349,9 +389,9 @@ func (s *InstallersService) InstallersStopBuild(serverID string) error {
 	return s.pm.Stop(installers.ProcID(serverID))
 }
 
-// InstallersListOutputs lists the installers in serverID's output folder.
-func (s *InstallersService) InstallersListOutputs(serverID, outputDir string) ([]installers.OutputFile, error) {
-	info, err := s.InstallersServerInfo(serverID, outputDir)
+// InstallersListOutputs lists the installers in a target's output folder.
+func (s *InstallersService) InstallersListOutputs(serverID string, cfg settings.InstallerServerConfig, outputDir string) ([]installers.OutputFile, error) {
+	info, err := s.InstallersTargetInfo(serverID, cfg, outputDir)
 	if err != nil {
 		return nil, err
 	}
@@ -391,19 +431,6 @@ func loadSettings() (settings.Settings, error) {
 		return settings.Settings{}, err
 	}
 	return settings.Load(dir)
-}
-
-func loadServer(serverID string) (settings.ServerProfile, error) {
-	cur, err := loadSettings()
-	if err != nil {
-		return settings.ServerProfile{}, err
-	}
-	for _, srv := range cur.Servers {
-		if srv.ID == serverID {
-			return srv, nil
-		}
-	}
-	return settings.ServerProfile{}, fmt.Errorf("server %s not found", serverID)
 }
 
 // Ports the share must not take even when they're momentarily free: the TUF

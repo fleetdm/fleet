@@ -107,11 +107,22 @@ export class FleetServeConfig {
 }
 
 /**
- * InstallerServerConfig is one server card's build inputs. The enroll secret is
- * deliberately not stored: it's fetched fresh from the server at build time for
- * the selected team, so a rotated secret never ends up baked into a package.
+ * InstallerServerConfig is one build target's inputs. The Fleet URL and enroll
+ * secret are what gets baked into the packages; a scan through a fleetctl
+ * context fills them in, or they're typed by hand (no context needed).
  */
 export class InstallerServerConfig {
+    /**
+     * Name names the custom target's folder and files. Unused for servers.
+     */
+    "name": string;
+
+    /**
+     * Fleetctl is the server ID whose fleetctl builds the custom target
+     * ("" = the first server with one). Unused for servers, which use their own.
+     */
+    "fleetctl": string;
+
     /**
      * Context is the fleetctl context used to talk to the server. Empty means
      * auto-match by the server's port.
@@ -133,10 +144,15 @@ export class InstallerServerConfig {
     "team_name": string;
 
     /**
-     * FleetURL overrides the server's server_url baked into the packages.
-     * Empty means use server_url from the server's config at build time.
+     * FleetURL and EnrollSecret are baked into the packages.
      */
     "fleet_url": string;
+    "enroll_secret": string;
+
+    /**
+     * ExtraFlags are additional `fleetctl package` flags, shell-quoted.
+     */
+    "extra_flags": string;
 
     /**
      * UpdateSource is "official" (updates.fleetdm.com) or "local-tuf"
@@ -149,6 +165,12 @@ export class InstallerServerConfig {
 
     /** Creates a new InstallerServerConfig instance. */
     constructor($$source: Partial<InstallerServerConfig> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("fleetctl" in $$source)) {
+            this["fleetctl"] = "";
+        }
         if (!("context" in $$source)) {
             this["context"] = "";
         }
@@ -170,6 +192,12 @@ export class InstallerServerConfig {
         if (!("fleet_url" in $$source)) {
             this["fleet_url"] = "";
         }
+        if (!("enroll_secret" in $$source)) {
+            this["enroll_secret"] = "";
+        }
+        if (!("extra_flags" in $$source)) {
+            this["extra_flags"] = "";
+        }
         if (!("update_source" in $$source)) {
             this["update_source"] = "";
         }
@@ -190,10 +218,10 @@ export class InstallerServerConfig {
      * Creates a new InstallerServerConfig instance from a string or object.
      */
     static createFrom($$source: any = {}): InstallerServerConfig {
-        const $$createField1_0 = $$createType2;
+        const $$createField3_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("platforms" in $$parsedSource) {
-            $$parsedSource["platforms"] = $$createField1_0($$parsedSource["platforms"]);
+            $$parsedSource["platforms"] = $$createField3_0($$parsedSource["platforms"]);
         }
         return new InstallerServerConfig($$parsedSource as Partial<InstallerServerConfig>);
     }
@@ -201,8 +229,9 @@ export class InstallerServerConfig {
 
 /**
  * InstallersConfig is the saved state of the Installers tab: where generated
- * fleetd packages land, and one build config per server profile (keyed by
- * ServerProfile.ID). A server missing from Servers uses DefaultInstallerServer.
+ * fleetd packages land, the selected build target, and one build config per
+ * target, keyed by ServerProfile.ID or "custom" (a Fleet server Hangar doesn't
+ * run). A target missing from Servers uses DefaultInstallerServer.
  */
 export class InstallersConfig {
     /**
@@ -210,6 +239,11 @@ export class InstallersConfig {
      * it. Empty means the default (~/Documents/fleetd-installers).
      */
     "output_dir": string;
+
+    /**
+     * selected target; "" = the first server
+     */
+    "target": string;
     "servers": { [_ in string]?: InstallerServerConfig };
 
     /**
@@ -222,6 +256,9 @@ export class InstallersConfig {
     constructor($$source: Partial<InstallersConfig> = {}) {
         if (!("output_dir" in $$source)) {
             this["output_dir"] = "";
+        }
+        if (!("target" in $$source)) {
+            this["target"] = "";
         }
         if (!("servers" in $$source)) {
             this["servers"] = {};
@@ -237,10 +274,10 @@ export class InstallersConfig {
      * Creates a new InstallersConfig instance from a string or object.
      */
     static createFrom($$source: any = {}): InstallersConfig {
-        const $$createField1_0 = $$createType4;
+        const $$createField2_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("servers" in $$parsedSource) {
-            $$parsedSource["servers"] = $$createField1_0($$parsedSource["servers"]);
+            $$parsedSource["servers"] = $$createField2_0($$parsedSource["servers"]);
         }
         return new InstallersConfig($$parsedSource as Partial<InstallersConfig>);
     }

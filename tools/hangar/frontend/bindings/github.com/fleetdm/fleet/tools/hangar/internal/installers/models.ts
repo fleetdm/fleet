@@ -96,6 +96,7 @@ export class ManifestEntry {
     "desktop_channel": string;
     "osqueryd_channel": string;
     "fleetctl_version": string;
+    "extra_flags"?: string;
 
     /** Creates a new ManifestEntry instance. */
     constructor($$source: Partial<ManifestEntry> = {}) {
