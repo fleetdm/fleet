@@ -24559,6 +24559,86 @@ func (s *integrationMDMTestSuite) TestAndroidEnroll() {
 	require.Equal(t, fleet.MDMEnrollmentStatusPersonal, *host4.MDM.EnrollmentStatus)
 }
 
+func (s *integrationMDMTestSuite) TestAndroidReenrollKeepsDiskSpace() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+
+	s.enableAndroidMDM(t)
+
+	// The enrollment helper's payload carries MEASURED memory events: 35 GB free of 128 GB.
+	host, deviceInfo, pubSubToken := s.createAndEnrollAndroidDevice(t, "android-disk-reenroll", nil, false)
+
+	// AMAPI omits memory events from enrollment payloads and from status reports sent before
+	// the device has measured storage, but still reports the 64 GB internal total.
+	withoutMemoryEvents := func(msg *android.PubSubMessage) *android.PubSubMessage {
+		data, err := base64.StdEncoding.DecodeString(msg.Data)
+		require.NoError(t, err)
+		var device androidmanagement.Device
+		require.NoError(t, json.Unmarshal(data, &device))
+		device.MemoryEvents = nil
+		data, err = json.Marshal(device)
+		require.NoError(t, err)
+		msg.Data = base64.StdEncoding.EncodeToString(data)
+		return msg
+	}
+	push := func(msg *android.PubSubMessage) {
+		req := android_service.PubSubPushRequest{PubSubMessage: *msg}
+		s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubSubToken.Value))
+	}
+	requireDisk := func(hostID uint, available, percent, total float64) {
+		var hostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
+		assert.InDelta(t, available, hostResp.Host.GigsDiskSpaceAvailable, 0.01)
+		assert.InDelta(t, percent, hostResp.Host.PercentDiskSpaceAvailable, 0.01)
+		assert.InDelta(t, total, hostResp.Host.GigsTotalDiskSpace, 0.01)
+	}
+
+	// Moves the host's enrollment and stored measurement an hour into the past, so their order
+	// relative to later writes doesn't depend on last_enrolled_at's second precision.
+	age := func(hostID uint) {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(t.Context(), `UPDATE hosts SET last_enrolled_at = last_enrolled_at - INTERVAL 1 HOUR WHERE id = ?`, hostID); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(t.Context(), `UPDATE host_disks SET updated_at = updated_at - INTERVAL 1 HOUR WHERE host_id = ?`, hostID)
+			return err
+		})
+	}
+
+	requireDisk(host.ID, 35, 27.34, 128)
+	age(host.ID)
+
+	// Re-enroll, then a status report, neither carrying a measurement.
+	push(withoutMemoryEvents(enrollmentMessageWithEnterpriseSpecificID(t, deviceInfo, host.UUID)))
+	requireDisk(host.ID, 35, 27.34, 128)
+	push(withoutMemoryEvents(statusReportMessageWithEnterpriseSpecificID(t, deviceInfo, host.UUID)))
+	requireDisk(host.ID, 35, 27.34, 128)
+
+	// A host that has measured since it enrolled reports what it sends: a status report without
+	// a measurement reads as not supported.
+	measuredHost, measuredDeviceInfo, _ := s.createAndEnrollAndroidDevice(t, "android-disk-measured", nil, false)
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(), `UPDATE hosts SET last_enrolled_at = last_enrolled_at - INTERVAL 1 HOUR WHERE id = ?`, measuredHost.ID)
+		return err
+	})
+	push(withoutMemoryEvents(statusReportMessageWithEnterpriseSpecificID(t, measuredDeviceInfo, measuredHost.UUID)))
+	requireDisk(measuredHost.ID, -1, -1, 64)
+
+	// A device new to Fleet that has never measured storage still reads as not supported.
+	newDeviceID := strings.ToUpper(uuid.New().String())
+	push(withoutMemoryEvents(enrollmentMessageWithEnterpriseSpecificID(t, androidmanagement.Device{
+		Name:                createAndroidDeviceID("android-disk-unmeasured"),
+		EnrollmentTokenData: deviceInfo.EnrollmentTokenData,
+	}, newDeviceID)))
+	var hosts listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hosts, "query", newDeviceID)
+	require.Len(t, hosts.Hosts, 1)
+	requireDisk(hosts.Hosts[0].ID, -1, -1, 64)
+
+	// The first host is unaffected by the other host's write.
+	requireDisk(host.ID, 35, 27.34, 128)
+}
+
 // TestTechnicianPermissions tests the permissions listed in ../../docs/Using\ Fleet/manage-access.md
 func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	t := s.T()

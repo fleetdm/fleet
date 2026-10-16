@@ -348,8 +348,35 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 		}
 
 		// update storage data in host_disks table for API consumption
-		// Check != 0 to allow -1 sentinel value for "not supported" to be stored
-		if host.Host.GigsTotalDiskSpace != 0 || host.Host.GigsDiskSpaceAvailable != 0 {
+		switch {
+		case host.Host.GigsDiskSpaceAvailable < 0:
+			// AMAPI omits storage measurements from enrollment payloads and from the status
+			// reports a re-enrolled device sends before it measures again. Until then, keep the
+			// measurement from before the enrollment (with its total, so the three values agree)
+			// instead of writing -1 over it. Once a measurement has been recorded since the
+			// enrollment, a report without one is written as reported.
+			//
+			// last_enrolled_at has second precision. A measurement received since the enrollment
+			// moves updated_at past that second (see below), so one inside it predates the enrollment.
+			//
+			// Decided in one statement on the writer so a lagging replica can't make it drop a
+			// known value. The condition only reads columns that stay unchanged whenever it holds,
+			// so assignment order doesn't matter.
+			const keepMeasurement = `gigs_disk_space_available >= 0 AND gigs_total_disk_space > 0 AND
+				updated_at < (SELECT last_enrolled_at FROM hosts WHERE id = VALUES(host_id)) + INTERVAL 1 SECOND`
+			if _, err := tx.ExecContext(ctx, `
+				INSERT INTO host_disks (host_id, gigs_disk_space_available, percent_disk_space_available, gigs_total_disk_space, gigs_all_disk_space)
+				VALUES (?, ?, ?, ?, NULL)
+				ON DUPLICATE KEY UPDATE
+					percent_disk_space_available = IF(`+keepMeasurement+`, percent_disk_space_available, VALUES(percent_disk_space_available)),
+					gigs_disk_space_available = IF(`+keepMeasurement+`, gigs_disk_space_available, VALUES(gigs_disk_space_available)),
+					gigs_total_disk_space = IF(`+keepMeasurement+`, gigs_total_disk_space, VALUES(gigs_total_disk_space)),
+					gigs_all_disk_space = NULL`,
+				host.Host.ID, host.Host.GigsDiskSpaceAvailable, host.Host.PercentDiskSpaceAvailable, host.Host.GigsTotalDiskSpace,
+			); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating Android host disk space without a measurement")
+			}
+		case host.Host.GigsTotalDiskSpace != 0 || host.Host.GigsDiskSpaceAvailable != 0:
 			err = ds.SetOrUpdateHostDisksSpace(ctx, host.Host.ID,
 				host.Host.GigsDiskSpaceAvailable,
 				host.Host.PercentDiskSpaceAvailable,
@@ -357,6 +384,21 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 				nil)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "updating Android host disk space")
+			}
+			// Record that a measurement was received since the enrollment. SetOrUpdateHostDisksSpace
+			// skips the write when it equals the stored one, and a write within the enrollment's
+			// second would still read as before it, so move updated_at to at least the end of that
+			// second. That can put it up to a second in the future, which nothing else reads for
+			// Android. This runs after SetOrUpdateHostDisksSpace because that writes on its own
+			// connection and would wait on this transaction's row lock.
+			if _, err := tx.ExecContext(ctx, `
+				UPDATE host_disks
+				JOIN hosts ON hosts.id = host_disks.host_id
+				SET host_disks.updated_at = GREATEST(CURRENT_TIMESTAMP(6), hosts.last_enrolled_at + INTERVAL 1 SECOND)
+				WHERE host_disks.host_id = ? AND host_disks.updated_at < hosts.last_enrolled_at + INTERVAL 1 SECOND`,
+				host.Host.ID,
+			); err != nil {
+				return ctxerr.Wrap(ctx, err, "recording Android host disk measurement since enrollment")
 			}
 		}
 
@@ -372,11 +414,11 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 //
 // Note that it deliberately does not clear the host's vitals (host_disks,
 // host_operating_system) the way appleHostRefsForMDMReset does. The enrollment
-// overwrites both unconditionally, so deleting them buys nothing, and it is unsafe
-// with a read replica: SetOrUpdateHostDisksSpace and UpdateHostOperatingSystem both
-// read the current row from the replica and skip the write when the values are
-// unchanged, so a lagging replica makes the enrollment skip a write that the delete
-// was counting on and leaves the host with no vitals row at all.
+// overwrites both (keeping a disk measurement it doesn't carry), so deleting them
+// buys nothing, and it is unsafe with a read replica: SetOrUpdateHostDisksSpace and
+// UpdateHostOperatingSystem both read the current row from the replica and skip the
+// write when the values are unchanged, so a lagging replica makes the enrollment skip
+// a write that the delete was counting on and leaves the host with no vitals row at all.
 //
 // Pending installs are failed rather than deleted, so it returns the users and
 // activities the caller must emit, the same contract as

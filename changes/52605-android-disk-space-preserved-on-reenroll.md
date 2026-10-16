@@ -1,1 +1,1 @@
-- Fixed an Android host's disk space changing to "Not supported" after the device re-enrolls. Enrollment payloads carry no storage measurement, so Fleet now keeps the last known value until the next status report reports one.
+- Fixed an Android host's disk space changing to "Not supported" (or disappearing from host vitals) after the device re-enrolls. Enrollment payloads and the status reports sent before the device measures storage again carry no measurement, so Fleet now keeps the value from before the re-enrollment until the device reports a new one.
