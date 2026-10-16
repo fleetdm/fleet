@@ -165,8 +165,10 @@ const DeviceUserPage = ({
   const deviceAuthToken = device_auth_token;
   const isMobileView = useIsMobileWidth();
   const isMobileDevice = isIPhone(navigator) || isIPad(navigator);
-  // Actual mobile device, or ?mobile=1 dev override.
-  const isMobile = isMobileDevice || location.query.mobile === "1";
+  // ?mobile=1 dev override: latch at mount so SelfService navigations
+  // (which drop the param from the URL) don't flip us back to desktop.
+  const [mobileOverride] = useState(() => location.query.mobile === "1");
+  const isMobile = isMobileDevice || mobileOverride;
 
   const [showBypassModal, setShowBypassModal] = useState(false);
   const [showBitLockerPINModal, setShowBitLockerPINModal] = useState(false);

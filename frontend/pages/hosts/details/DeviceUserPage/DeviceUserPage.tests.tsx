@@ -1455,4 +1455,43 @@ describe("Mobile UI gating", () => {
       expect(container.querySelector(".device-user-mobile")).not.toBeNull();
     });
   });
+
+  it("keeps the mobile UI when a SelfService navigation drops ?mobile=1 from the URL", async () => {
+    const host = createMockHost() as IHostDevice;
+    host.platform = "darwin";
+    mockServer.use(customDeviceHandler({ host }));
+    mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    const { container, rerender } = render(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: "testToken" }}
+        location={{
+          ...mockLocation,
+          pathname: PATHS.DEVICE_USER_DETAILS_SELF_SERVICE("testToken"),
+          query: { ...mockLocation.query, mobile: "1" },
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector(".device-user-mobile")).not.toBeNull();
+    });
+
+    rerender(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: "testToken" }}
+        location={{
+          ...mockLocation,
+          pathname: PATHS.DEVICE_USER_DETAILS_SELF_SERVICE("testToken"),
+          query: { ...mockLocation.query, query: "chrome" },
+        }}
+      />
+    );
+
+    expect(container.querySelector(".device-user-mobile")).not.toBeNull();
+  });
 });
