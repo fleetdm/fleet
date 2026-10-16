@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "10.0.6",
+      "version": "10.0.7",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.kicad.kicad';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.kicad.kicad' AND version_compare(bundle_short_version, '10.0.6') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.kicad.kicad' AND version_compare(bundle_short_version, '10.0.7') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat(a.path, '/Contents/Applications/%.app/Contents/MacOS/%')) WHERE a.bundle_identifier = 'org.kicad.kicad' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/KiCad/kicad-source-mirror/releases/download/10.0.6/kicad-unified-universal-10.0.6.dmg",
+      "installer_url": "https://github.com/KiCad/kicad-source-mirror/releases/download/10.0.7/kicad-unified-universal-10.0.7.dmg",
       "install_script_ref": "58b99af3",
       "uninstall_script_ref": "7b94115f",
-      "sha256": "ef4dcd4278c46d3efcd28c8db273d5957d68efda028f6bf79b4811fc5302dc68",
+      "sha256": "fbc27419b841a9a2a8b143b5875a87b8bd943ffcf487d53c78a8fb6d24c59e27",
       "default_categories": [
         "Developer tools"
       ]
