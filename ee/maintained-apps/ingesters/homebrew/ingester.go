@@ -310,6 +310,14 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.UniqueIdentifier, out.Version,
 		)
 	}
+	if input.Token == "wezterm" {
+		// WezTerm.app ships a placeholder CFBundleShortVersionString ("0.1.0") and
+		// CFBundleVersion ("1") in every release, so no version comparison can work.
+		// The input is frozen, so identify the release by its code-directory hashes
+		// (arm64, x86_64) for 20240203-110809-5046fc22 instead; any other build
+		// counts as outdated.
+		out.Queries.Patched = "SELECT 1 FROM signature WHERE path = '/Applications/WezTerm.app' AND cdhash IN ('7e667fe9270e8f3dad1f069eb2516e0c1909ed29', '08b4bb671055310999a7ad18df389cdcffda5c3a');"
+	}
 	if input.Token == "r-app" {
 		// R.app's bundle_short_version is a descriptive string rather than a bare
 		// version ("R" is duplicated in some builds and not others, e.g.
