@@ -1,0 +1,131 @@
+# Reports the DEX dashboards read. Keep the names exactly as written: the
+# collector finds each report by name, in any fleet or in All fleets.
+- name: DEX - Hardware experience - Device health
+  description: CPU class, RAM tier, swap/compression pressure, and battery condition in a single row. This is the physical-layer health signal — answers whether the hardware can keep up with what the user is asking it to do.
+  query: |
+    SELECT
+      si.hardware_model,
+      si.hardware_serial,
+      si.cpu_brand,
+
+      CASE
+        WHEN ci.model LIKE '%Apple M6%'               THEN 'apple_m6'
+        WHEN ci.model LIKE '%Apple M5%'               THEN 'apple_m5'
+        WHEN ci.model LIKE '%Apple M4%'               THEN 'apple_m4'
+        WHEN ci.model LIKE '%Apple M3%'               THEN 'apple_m3'
+        WHEN ci.model LIKE '%Apple M2%'               THEN 'apple_m2'
+        WHEN ci.model LIKE '%Apple M1%'               THEN 'apple_m1'
+        WHEN ci.model LIKE '%Intel%Core i9%'          THEN 'intel_i9'
+        WHEN ci.model LIKE '%Intel%Core i7%'          THEN 'intel_i7'
+        WHEN ci.model LIKE '%Intel%Core i5%'          THEN 'intel_i5'
+        WHEN ci.model LIKE '%Intel%'                  THEN 'intel_other'
+        ELSE 'unknown'
+      END                                               AS cpu_class,
+
+      ci.number_of_cores                                AS cpu_cores,
+      ci.logical_processors,
+
+      ROUND(CAST(si.physical_memory AS REAL) / 1073741824, 0)
+                                                        AS ram_gb,
+      CASE
+        WHEN si.physical_memory >= 34359738368        THEN '32gb_plus'
+        WHEN si.physical_memory >= 17179869184        THEN '16gb'
+        WHEN si.physical_memory >= 8589934592         THEN '8gb'
+        ELSE 'under_8gb'
+      END                                               AS ram_tier,
+
+      -- Swap/compression from virtual_memory_info (macOS only)
+      (SELECT CASE
+        WHEN swap_ins > 100000                         THEN 'severe'
+        WHEN swap_ins > 10000                          THEN 'elevated'
+        WHEN swap_ins > 0                              THEN 'light'
+        ELSE 'none'
+       END FROM virtual_memory_info
+      )                                                 AS swap_pressure,
+
+      (SELECT CASE
+        WHEN compressed > (free + active) * 0.5       THEN 'high'
+        WHEN compressed > free * 0.25                 THEN 'moderate'
+        ELSE 'low'
+       END FROM virtual_memory_info
+      )                                                 AS compression_pressure,
+
+      -- Battery
+      (SELECT percent_remaining FROM battery)           AS battery_percent,
+      (SELECT cycle_count FROM battery)                 AS battery_cycles,
+      (SELECT state FROM battery)                       AS battery_state,
+      (SELECT charging FROM battery)                    AS battery_charging,
+      (SELECT CASE
+        WHEN minutes_until_empty > 0                  THEN minutes_until_empty
+        ELSE NULL
+       END FROM battery
+      )                                                 AS battery_minutes_remaining,
+      (SELECT CASE
+        WHEN max_capacity > 0 AND designed_capacity > 0
+        THEN ROUND(CAST(max_capacity AS REAL) / designed_capacity * 100, 0)
+        ELSE NULL
+       END FROM battery
+      )                                                 AS battery_health_pct,
+      (SELECT CASE
+        WHEN max_capacity <= 0 OR designed_capacity <= 0  THEN NULL
+        WHEN CAST(max_capacity AS REAL) / designed_capacity >= 0.80 THEN 'good'
+        WHEN CAST(max_capacity AS REAL) / designed_capacity >= 0.60 THEN 'degraded'
+        ELSE 'replace'
+       END FROM battery
+      )                                                 AS battery_health_score
+
+    FROM system_info si
+    CROSS JOIN cpu_info ci;
+  platform: darwin
+  automations_enabled: false
+  logging: snapshot
+  interval: 3600
+- name: DEX - System experience - OS health
+  description: OS version currency (macOS 26 = current), uptime risk, and recent kernel panic / crash count. A device on a current OS with fresh uptime and zero crashes is healthy; stale uptime + legacy OS + panics is actionable.
+  query: |
+    SELECT
+      ov.name                                           AS os_name,
+      ov.version                                        AS os_version,
+      ov.build                                          AS os_build,
+
+      -- macOS 26 = Tahoe, 15 = Sequoia, 14 = Sonoma
+      CASE
+        WHEN ov.major >= 26                             THEN 'current'
+        WHEN ov.major = 15                              THEN 'n_minus_1'
+        WHEN ov.major = 14                              THEN 'n_minus_2'
+        ELSE 'legacy'
+      END                                               AS os_currency,
+
+      u.total_seconds                                   AS uptime_seconds,
+      ROUND(CAST(u.total_seconds AS REAL) / 86400, 1)  AS uptime_days,
+
+      CASE
+        WHEN u.total_seconds < 300                      THEN 'just_rebooted'
+        WHEN u.total_seconds <= 172800                  THEN 'fresh'
+        WHEN u.total_seconds <= 604800                  THEN 'normal'
+        WHEN u.total_seconds <= 1209600                 THEN 'stale_7d'
+        ELSE                                                 'stale_14d'
+      END                                               AS uptime_risk,
+
+      -- Crash frequency: kernel panics in diagnostic reports (last 30 days)
+      (SELECT COUNT(*) FROM file
+       WHERE (path LIKE '/Library/Logs/DiagnosticReports/%.panic'
+              OR path LIKE '/Library/Logs/DiagnosticReports/%.crash')
+         AND ctime > (strftime('%s', 'now') - 2592000)
+      )                                                 AS crashes_30d,
+
+      -- Composite
+      CASE
+        WHEN ov.major >= 26
+             AND u.total_seconds < 604800               THEN 'healthy'
+        WHEN ov.major >= 15
+             AND u.total_seconds < 1209600              THEN 'acceptable'
+        ELSE                                                 'degraded'
+      END                                               AS dex_os_health
+
+    FROM os_version ov
+    CROSS JOIN uptime u;
+  platform: darwin
+  automations_enabled: false
+  logging: snapshot
+  interval: 14400
