@@ -104,7 +104,7 @@ func TestSetupNotRearmedByStaleReplica(t *testing.T) {
 	// The replica has not caught up with the users insert, so reads from it
 	// still see an empty users table.
 	code, admin = postSetup(t, srv, "attacker@example.com", "Attacker Org", "https://attacker.example.com")
-	require.Equal(t, http.StatusNotFound, code)
+	assert.Equal(t, http.StatusNotFound, code)
 	assert.Nil(t, admin)
 
 	users, err := ds.ListUsers(ctx, fleet.UserListOptions{})
