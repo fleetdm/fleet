@@ -35,13 +35,13 @@ cd "$W" && python3 -I -c 'import hashlib,json,os,sys; b=json.load(open(sys.argv[
 
    cd "$W" && python3 -I dex/run.py --work "$W/work" --history lifecycle="$W/lifecycle-history.json" --history software="$W/software-history.json" --history patch="$W/patch-history.json"
 
-   It ends with "OK macs=<n> generated_at=<time>". A non-zero exit is a failure. Report its FATAL line or the last lines of the error. Don't work around a failure (for example by changing environment variables or network settings). Report it.
+   It ends with "OK computers=<n> generated_at=<time>". A non-zero exit is a failure. Report its FATAL line or the last lines of the error. Don't work around a failure (for example by changing environment variables or network settings). Report it.
 
-5. Sanity check. Don't publish, and treat it as a failure, if macs is 0.
+5. Sanity check. Don't publish, and treat it as a failure, if computers is 0.
 
 6. Publish. For each page (lifecycle, software, patch), call Artifact action "publish" with that artifact's url, file_path "$W/work/out/<page>.html", and files {"data/history.json": {"from": "$W/work/out/<page>-history.json", "contentType": "application/json"}}, using real absolute paths. Don't pass icon, contract or force, and don't send or remove src/dex-dashboards.json. If a publish is refused because the artifact changed, re-read it once as the refusal says and publish the same new page again. Never use force. If a page still doesn't publish, that's a failure, but still publish the others.
 
-7. Report in a few lines: macs, generated_at, and the version each artifact is now on, or the exact reason you stopped.
+7. Report in a few lines: computers, generated_at, and the version each artifact is now on, or the exact reason you stopped.
 
 {{IF_THE_RUN_FAILS}}
 

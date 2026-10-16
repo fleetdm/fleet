@@ -35,9 +35,10 @@ def main():
     subprocess.run([sys.executable, "-I", os.path.join(HERE, "collect.py"), "--out", snap], check=True)
     with open(snap) as f:
         data = json.load(f)
-    macs = sum(1 for h in data["hosts"] if h["platform"] == "darwin")
-    if macs == 0:
-        sys.exit("FATAL: Fleet returned no Macs. Not rebuilding.")
+    not_computers = {"ios", "ipados", "android", "chrome"}
+    computers = sum(1 for h in data["hosts"] if h["platform"] and h["platform"] not in not_computers)
+    if computers == 0:
+        sys.exit("FATAL: Fleet returned no macOS, Windows, or Linux hosts. Not rebuilding.")
 
     for page in PAGES:
         out = os.path.join(args.work, "out", page)
@@ -47,7 +48,7 @@ def main():
         if hist.get(page) and os.path.exists(hist[page]):
             cmd += ["--history", hist[page]]
         subprocess.run(cmd, check=True)
-    print(f"OK macs={macs} generated_at={data['generated_at']}")
+    print(f"OK computers={computers} generated_at={data['generated_at']}")
 
 
 if __name__ == "__main__":
