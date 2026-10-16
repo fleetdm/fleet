@@ -67,4 +67,4 @@ A kill switch is a good last resort. It works best when you already know what it
 <meta name="authorGitHubUsername" value="robinedev">
 <meta name="category" value="industry news">
 <meta name="publishedOn" value="2026-10-16">
-<meta name="description" value="ServiceNow's AI Passport scopes agents at runtime. Inventory the AI tools and MCP servers on your devices first, and compare them with what's declared.">
+<meta name="description" value="AI Passport scopes agents at runtime. Inventory the AI tools and MCP servers on your devices first, then compare them with what's declared.">
