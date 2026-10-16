@@ -137,7 +137,10 @@ export function InstallersTab({
     ...enabledServers.map((srv) => ({ id: srv.id, label: srv.name, server: srv })),
     { id: CUSTOM_TARGET, label: "Custom Fleet server" },
   ];
-  const targetId = targets.some((t) => t.id === cfg.target) ? cfg.target : targets[0].id;
+  // Until a target is picked here, follow the server selected in Hangar's switcher.
+  const targetId = targets.some((t) => t.id === cfg.target)
+    ? cfg.target
+    : (targets.find((t) => t.id === settings.active_server_id) ?? targets[0]).id;
   const setTarget = useCallback(
     (id: string) => persist((s) => ({ ...s, installers: { ...s.installers, target: id } })),
     [persist],
@@ -247,6 +250,7 @@ function TargetCard({
   const isCustom = targetId === CUSTOM_TARGET;
   const building = proc?.state === "running" || proc?.state === "stopping";
   const contextName = cfg.context || info?.matched_context || "";
+  const usableContexts = contexts.filter((c) => !!c.address);
   const accent = server ? serverColorVar(server.color) : "var(--app-border)";
 
   useEffect(() => {
@@ -483,12 +487,14 @@ function TargetCard({
       {/* Connection: an optional context scan fills the URL and secret below */}
       <div style={{ display: "flex", gap: "var(--pad-medium)", flexWrap: "wrap", alignItems: "flex-end" }}>
         <Field label={isCustom ? "fleetctl context (optional)" : "fleetctl context"}>
-          <select value={cfg.context} onChange={(e) => set("context", e.target.value)} style={{ width: "100%" }}>
-            <option value="">{isCustom ? "none — enter URL and secret below" : info?.matched_context ? `auto (${info.matched_context})` : "auto (no match)"}</option>
-            {contexts.map((c) => (
+          {/* Preselects the context matching this server's port; only contexts with
+              an address can scan, so others aren't offered. */}
+          <select value={contextName} onChange={(e) => set("context", e.target.value)} style={{ width: "100%" }}>
+            {(isCustom || !contextName) && <option value="">{isCustom ? "none — enter URL and secret below" : "no context matches this server — pick one"}</option>}
+            {contextName && !usableContexts.some((c) => c.name === contextName) && <option value={contextName}>{contextName}</option>}
+            {usableContexts.map((c) => (
               <option key={c.name} value={c.name}>
-                {c.name}
-                {c.address ? ` — ${c.address}` : ""}
+                {c.name} — {c.address}
               </option>
             ))}
           </select>
