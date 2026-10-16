@@ -113,11 +113,14 @@ fi
 # copy to the applications folder
 quit_and_track_application "$NEW_BUNDLE_ID" || exit 1
 OLD_BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APPDIR/MindManager.app/Contents/Info.plist" 2>/dev/null)
-if [[ "$OLD_BUNDLE_ID" =~ ^com\.mindjet\.mindmanager\.[0-9]+$ && "$OLD_BUNDLE_ID" != "$NEW_BUNDLE_ID" ]]; then
+if [[ ! "$OLD_BUNDLE_ID" =~ ^com\.mindjet\.mindmanager\.[0-9]+$ ]]; then
+	OLD_BUNDLE_ID=""
+fi
+if [[ -n "$OLD_BUNDLE_ID" && "$OLD_BUNDLE_ID" != "$NEW_BUNDLE_ID" ]]; then
 	quit_and_track_application "$OLD_BUNDLE_ID" || exit 1
-	eval "OLD_WAS_RUNNING=\$APP_WAS_RUNNING_$(echo "$OLD_BUNDLE_ID" | tr '.-' '__')"
-	if [[ "$OLD_WAS_RUNNING" == "1" ]]; then
-		eval "export APP_WAS_RUNNING_$(echo "$NEW_BUNDLE_ID" | tr '.-' '__')=1"
+	OLD_WAS_RUNNING_VAR="APP_WAS_RUNNING_$(echo "$OLD_BUNDLE_ID" | tr '.-' '__')"
+	if [[ "${!OLD_WAS_RUNNING_VAR}" == "1" ]]; then
+		export "APP_WAS_RUNNING_$(echo "$NEW_BUNDLE_ID" | tr '.-' '__')=1"
 	fi
 fi
 if [ -d "$APPDIR/MindManager.app" ]; then
@@ -125,10 +128,11 @@ if [ -d "$APPDIR/MindManager.app" ]; then
 fi
 if ! sudo cp -R "$TMPDIR/MindManager.app" "$APPDIR"; then
 	# remove the partial copy so a failed install isn't inventoried as the new
-	# version, then restore the previous version if there was one
+	# version, then restore the previous version if there was one and reopen it
+	# if it was quit for the update
 	sudo rm -rf "$APPDIR/MindManager.app"
-	if [ -d "$TMPDIR/MindManager.app.bkp" ]; then
-		sudo mv "$TMPDIR/MindManager.app.bkp" "$APPDIR/MindManager.app"
+	if [ -d "$TMPDIR/MindManager.app.bkp" ] && sudo mv "$TMPDIR/MindManager.app.bkp" "$APPDIR/MindManager.app" && [[ -n "$OLD_BUNDLE_ID" ]]; then
+		relaunch_application "$OLD_BUNDLE_ID"
 	fi
 	exit 1
 fi
