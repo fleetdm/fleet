@@ -280,7 +280,7 @@ func TestAdditionalNDESValidationForWindowsProfiles(t *testing.T) {
 				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
 				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName", "CN=test"),
 			wantErr:     true,
-			errContains: "SubjectName item must contain the $FLEET_VAR_CERTIFICATE_RENEWAL_ID variable in the OU field",
+			errContains: "SubjectName item must contain the $FLEET_VAR_CERTIFICATE_RENEWAL_ID variable in the OU field. In some use cases, it can go in the CN field instead.",
 		},
 		{
 			name: "valid NDES profile with preferred CERTIFICATE_RENEWAL_ID",
@@ -295,6 +295,28 @@ func TestAdditionalNDESValidationForWindowsProfiles(t *testing.T) {
 				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName", "CN=test,OU=${FLEET_VAR_CERTIFICATE_RENEWAL_ID}"),
 		},
 		{
+			name: "valid NDES profile with renewal ID in CN",
+			contents: addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
+				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
+				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName",
+					"CN=$FLEET_VAR_HOST_HARDWARE_SERIAL $FLEET_VAR_CERTIFICATE_RENEWAL_ID managementAttestation"),
+		},
+		{
+			name: "valid NDES profile with renewal ID in CDATA",
+			contents: addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
+				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
+				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName",
+					"<![CDATA[OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID,CN=test]]>"),
+		},
+		{
+			name: "subject name with renewal ID in a field other than CN or OU",
+			contents: addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
+				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
+				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName", "CN=test,O=$FLEET_VAR_CERTIFICATE_RENEWAL_ID"),
+			wantErr:     true,
+			errContains: "SubjectName item must contain the $FLEET_VAR_CERTIFICATE_RENEWAL_ID variable in the OU field. In some use cases, it can go in the CN field instead.",
+		},
+		{
 			name:     "nil ndes vars returns nil",
 			contents: validProfile,
 		},
@@ -304,7 +326,7 @@ func TestAdditionalNDESValidationForWindowsProfiles(t *testing.T) {
 				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
 				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName ", "CN=test"),
 			wantErr:     true,
-			errContains: "SubjectName item must contain the $FLEET_VAR_CERTIFICATE_RENEWAL_ID variable in the OU field",
+			errContains: "SubjectName item must contain the $FLEET_VAR_CERTIFICATE_RENEWAL_ID variable in the OU field. In some use cases, it can go in the CN field instead.",
 		},
 		{
 			name: "challenge with trailing whitespace in LocURI still validates correctly",
@@ -370,13 +392,27 @@ func TestAdditionalCustomSCEPValidationForWindowsProfiles(t *testing.T) {
 			),
 		},
 		{
+			name: "valid custom SCEP profile with renewal ID in an entity-quoted CN",
+			contents: addItem(
+				"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName",
+				"CN=&quot;Doe, Jane $FLEET_VAR_CERTIFICATE_RENEWAL_ID&quot;",
+			),
+		},
+		{
+			name: "valid custom SCEP profile with renewal ID in CN",
+			contents: addItem(
+				"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName",
+				"CN=$FLEET_VAR_HOST_HARDWARE_SERIAL $FLEET_VAR_CERTIFICATE_RENEWAL_ID managementAttestation",
+			),
+		},
+		{
 			name: "subject name missing renewal id",
 			contents: addItem(
 				"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName",
 				"CN=test",
 			),
 			wantErr:     true,
-			errContains: "SubjectName item must contain the $FLEET_VAR_CERTIFICATE_RENEWAL_ID variable in the OU field",
+			errContains: "SubjectName item must contain the $FLEET_VAR_CERTIFICATE_RENEWAL_ID variable in the OU field. In some use cases, it can go in the CN field instead.",
 		},
 		{
 			name: "subject name with trailing whitespace in LocURI is still validated for renewal id",
@@ -385,7 +421,7 @@ func TestAdditionalCustomSCEPValidationForWindowsProfiles(t *testing.T) {
 				"CN=test",
 			),
 			wantErr:     true,
-			errContains: "SubjectName item must contain the $FLEET_VAR_CERTIFICATE_RENEWAL_ID variable in the OU field",
+			errContains: "SubjectName item must contain the $FLEET_VAR_CERTIFICATE_RENEWAL_ID variable in the OU field. In some use cases, it can go in the CN field instead.",
 		},
 	}
 
@@ -398,6 +434,97 @@ func TestAdditionalCustomSCEPValidationForWindowsProfiles(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
+		})
+	}
+}
+
+func TestValidateWindowsProfileFleetVariablesRenewalIDPlacement(t *testing.T) {
+	t.Parallel()
+
+	addItem := func(locURI, data string) string {
+		return fmt.Sprintf(`<Add><Item><Target><LocURI>%s</LocURI></Target><Data>%s</Data></Item></Add>`, locURI, data)
+	}
+	ndesProfile := func(subjectName string) string {
+		return addItem("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
+			addItem("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
+			addItem("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName", subjectName)
+	}
+	premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	groupedCAs := &fleet.GroupedCertificateAuthorities{NDESSCEP: &fleet.NDESSCEPProxyCA{}}
+
+	tests := []struct {
+		name        string
+		subjectName string
+		errContains string
+	}{
+		{name: "OU", subjectName: "CN=$FLEET_VAR_HOST_HARDWARE_SERIAL managementAttestation,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID"},
+		{name: "CN", subjectName: "CN=$FLEET_VAR_HOST_HARDWARE_SERIAL $FLEET_VAR_CERTIFICATE_RENEWAL_ID managementAttestation"},
+		{
+			name:        "both CN and OU",
+			subjectName: "CN=$FLEET_VAR_CERTIFICATE_RENEWAL_ID managementAttestation,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID",
+			errContains: "Variable $FLEET_VAR_CERTIFICATE_RENEWAL_ID can only be used once in a profile.",
+		},
+		{
+			name:        "in a field other than CN or OU",
+			subjectName: "CN=$FLEET_VAR_HOST_HARDWARE_SERIAL managementAttestation,O=$FLEET_VAR_CERTIFICATE_RENEWAL_ID",
+			errContains: "SubjectName item must contain the $FLEET_VAR_CERTIFICATE_RENEWAL_ID variable in the OU field.",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := validateWindowsProfileFleetVariables(ndesProfile(tt.subjectName), premiumLic, groupedCAs)
+			if tt.errContains == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, tt.errContains)
+		})
+	}
+}
+
+func TestSubjectNameHasRenewalIDMarker(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		subjectName string
+		want        bool
+	}{
+		{name: "OU", subjectName: "CN=test,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: true},
+		{name: "OU braces syntax", subjectName: "CN=test,OU=${FLEET_VAR_CERTIFICATE_RENEWAL_ID}", want: true},
+		{name: "OU legacy SCEP_RENEWAL_ID", subjectName: "CN=test,OU=$FLEET_VAR_SCEP_RENEWAL_ID", want: true},
+		{name: "OU among other values", subjectName: "CN=test,OU=team $FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: true},
+		{name: "CN alone", subjectName: "CN=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: true},
+		{
+			name:        "CN among other values",
+			subjectName: "CN=$FLEET_VAR_HOST_HARDWARE_SERIAL $FLEET_VAR_CERTIFICATE_RENEWAL_ID managementAttestation",
+			want:        true,
+		},
+		{name: "CN quoted", subjectName: `CN="$FLEET_VAR_CERTIFICATE_RENEWAL_ID, device",O=Fleet`, want: true},
+		{name: "CN legacy SCEP_RENEWAL_ID braces syntax", subjectName: "CN=${FLEET_VAR_SCEP_RENEWAL_ID}", want: true},
+		{name: "lowercase keys", subjectName: "cn=test,ou=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: true},
+		{name: "space after separator", subjectName: "CN=test, OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: true},
+		{name: "semicolon separator", subjectName: "CN=test;OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: true},
+		{name: "plus separator", subjectName: "CN=test+OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: true},
+		{name: "no renewal ID", subjectName: "CN=test,OU=team", want: false},
+		{name: "renewal ID in O", subjectName: "CN=test,O=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: false},
+		{name: "renewal ID in O after a quoted comma", subjectName: `CN="a,b",O=$FLEET_VAR_CERTIFICATE_RENEWAL_ID`, want: false},
+		{name: "renewal ID in O after an ampersand", subjectName: "CN=AT&amp;T;O=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: false},
+		{name: "OU in CDATA", subjectName: "<![CDATA[OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID,CN=test]]>", want: true},
+		{name: "CN in CDATA with an ampersand", subjectName: "<![CDATA[CN=AT&T $FLEET_VAR_CERTIFICATE_RENEWAL_ID]]>", want: true},
+		{name: "CN quoted with entities", subjectName: "CN=&quot;a, $FLEET_VAR_CERTIFICATE_RENEWAL_ID&quot;,O=Fleet", want: true},
+		{name: "OU after an encoded separator", subjectName: "CN=test&#44;OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: true},
+		{name: "OU text inside an entity-quoted O value", subjectName: "CN=test,O=&quot;OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID&quot;", want: false},
+		{name: "malformed XML", subjectName: "CN=AT&T $FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: false},
+		{name: "OU text inside a quoted O value", subjectName: `CN=test,O="OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID"`, want: false},
+		{name: "different variable", subjectName: "CN=$FLEET_VAR_HOST_UUID,OU=$FLEET_VAR_HOST_HARDWARE_SERIAL", want: false},
+		{name: "empty", subjectName: "", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, subjectNameHasRenewalIDMarker(tt.subjectName))
 		})
 	}
 }

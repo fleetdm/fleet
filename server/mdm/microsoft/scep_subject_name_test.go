@@ -371,3 +371,25 @@ func TestIndexDNSeparator(t *testing.T) {
 		})
 	}
 }
+
+func TestSubjectNameAttributes(t *testing.T) {
+	tests := []struct {
+		name string
+		dn   string
+		want []string
+	}{
+		{name: "single attribute", dn: `CN=a`, want: []string{`CN=a`}},
+		{name: "every separator", dn: `CN=a,OU=b+O=c;C=US`, want: []string{`CN=a`, `OU=b`, `O=c`, `C=US`}},
+		{name: "space after separator is kept", dn: `CN=a, OU=b`, want: []string{`CN=a`, ` OU=b`}},
+		{name: "separators inside quotes stay in the value", dn: `CN="Doe, Jane+X;Y",OU=b`, want: []string{`CN="Doe, Jane+X;Y"`, `OU=b`}},
+		{name: "ampersand is text", dn: `CN=AT&T;OU=b`, want: []string{`CN=AT&T`, `OU=b`}},
+		{name: "decoded reference is text up to its semicolon", dn: `CN=a&#44;OU=b`, want: []string{`CN=a&#44`, `OU=b`}},
+		{name: "empty", dn: ``, want: []string{``}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, SubjectNameAttributes(tt.dn))
+		})
+	}
+}
