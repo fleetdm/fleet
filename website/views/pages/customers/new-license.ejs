@@ -107,5 +107,6 @@
     <p>From here you can access your license key, change your details and update your payment method.</p>
     <ajax-button style="height: 40px; font-size: 14px; line-height: 24px; width: 200px" type="submit" purpose="submit-button" :syncing="syncing" spinner="true" class="btn btn-block btn-lg btn-primary mx-auto" @click="clickGoToDashboard()">Contine to dashboard</ajax-button>
   </div>
+  <demo-request-form></demo-request-form>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
