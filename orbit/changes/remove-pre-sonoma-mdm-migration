@@ -1,0 +1,1 @@
+* Removed the pre-Sonoma (macOS 13 and earlier) MDM migration flow from Fleet Desktop. macOS 13 and earlier is no longer supported.
