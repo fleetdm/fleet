@@ -143,7 +143,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 **Areas of expertise**:
 - Windows MDM protocol & configuration
 - Windows device onboarding (Autopilot)
-- Windows setup experience
+- Windows & Linux setup experience
 - Certificate Authorities (CAs)
 - Certificate delivery & renewal (except Apple)
 - Windows configuration profiles
