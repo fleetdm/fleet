@@ -1,0 +1,31 @@
+- name: No compromised Laravel-Lang Composer packages installed
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM file WHERE
+        path LIKE '/Users/%/vendor/laravel-lang/%/composer.json'
+        OR path LIKE '/Users/%/%/vendor/laravel-lang/%/composer.json'
+        OR path LIKE '/Users/%/%/%/vendor/laravel-lang/%/composer.json'
+        OR path LIKE '/Users/%/%/%/%/vendor/laravel-lang/%/composer.json'
+        OR path LIKE '/home/%/vendor/laravel-lang/%/composer.json'
+        OR path LIKE '/home/%/%/vendor/laravel-lang/%/composer.json'
+        OR path LIKE '/home/%/%/%/vendor/laravel-lang/%/composer.json'
+        OR path LIKE '/home/%/%/%/%/vendor/laravel-lang/%/composer.json'
+        OR path LIKE '/var/www/%/vendor/laravel-lang/%/composer.json'
+        OR path LIKE '/var/www/%/%/vendor/laravel-lang/%/composer.json'
+        OR path LIKE '/var/www/%/%/%/vendor/laravel-lang/%/composer.json'
+        OR path LIKE '/opt/%/vendor/laravel-lang/%/composer.json'
+        OR path LIKE '/opt/%/%/vendor/laravel-lang/%/composer.json'
+        OR path LIKE '/srv/%/vendor/laravel-lang/%/composer.json'
+        OR path LIKE '/srv/%/%/vendor/laravel-lang/%/composer.json'
+        OR path LIKE 'C:\Users\%\vendor\laravel-lang\%\composer.json'
+        OR path LIKE 'C:\Users\%\%\vendor\laravel-lang\%\composer.json'
+        OR path LIKE 'C:\Users\%\%\%\vendor\laravel-lang\%\composer.json'
+        OR path LIKE 'C:\Users\%\%\%\%\vendor\laravel-lang\%\composer.json'
+    );
+  critical: true
+  description: >-
+    Flags hosts that contain a `vendor/laravel-lang/*` directory anywhere under common project paths (user home directories, /var/www, /opt, /srv). On May 22, 2026, Socket and Aikido disclosed a supply chain attack that backdoored 233 versions across the Laravel-Lang Composer package ecosystem with credential-stealing malware loaded via Composer's autoloader. Affected packages include laravel-lang/lang, laravel-lang/attributes, laravel-lang/http-statuses, and laravel-lang/actions. Any host where this policy fails has a project that pulled in one of these packages and should be investigated.
+  resolution: >-
+    If you are failing this policy, drop a note in #help-it. Then identify the affected project, remove the `vendor/laravel-lang/*` directories, pin a known-good package version in composer.json and composer.lock, and reinstall from a clean Composer cache. Rotate any credentials that may have been exposed on the host: cloud provider keys, Kubernetes service account tokens, Vault tokens, CI/CD secrets, GitHub/GitLab tokens, SSH keys, database credentials, and the Laravel APP_KEY. Rebuild any containers, hosts, and CI runners that touched the compromised package from known-good images.
+  platform: darwin,linux,windows
+  calendar_events_enabled: false
