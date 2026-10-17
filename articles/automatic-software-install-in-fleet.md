@@ -4,7 +4,9 @@ In Fleet, you can automatically and remotely install and patch software on hosts
 
 1. Add software. Learn how in the [deploy software](https://fleetdm.com/guides/deploy-software-packages) guide.
 
-> Currently, script-only  packages (`.sh` and `.ps1` files) can't be automatically installed. Instead, add a script and [automatically run it](https://fleetdm.com/guides/policy-automation-run-script).
+> You can select a [script-only package](https://fleetdm.com/guides/deploy-software-packages#script-only-packages) (`.sh`, `.py`, or `.ps1` file) in a policy's install software automation in the Fleet UI or API. Fleet runs `.sh` and `.py` packages on failing Linux hosts and `.ps1` packages on failing Windows hosts. A policy automation doesn't run `.sh` or `.py` packages on macOS hosts. To run a script on macOS when a policy fails, add a script and [automatically run it](https://fleetdm.com/guides/policy-automation-run-script) instead.
+>
+> Script-only packages don't support two other automatic install options. You can't turn on **Deploy** (`automatic_install` in the API) when you add one, because Fleet can't generate a policy that detects a script. Write your own policy instead. In GitOps, a policy's `install_software` can't reference a script-only package.
 
 2. In Fleet, add a [policy](https://fleetdm.com/securing/what-are-fleet-policies). When a host fails the policy check, Fleet automatically triggers the software install.
 

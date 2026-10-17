@@ -57,7 +57,9 @@ Script-only packages are useful for:
 - Deploying configuration changes that don't require a traditional installer
 
 
-Script packages do not support `install_script` (the file contents are the install script) or automatic install. They do support `uninstall_script`, `post_install_script`, and `pre_install_query`.
+Script packages don't support `install_script`, because the file contents are the install script. They do support `uninstall_script`, `post_install_script`, and `pre_install_query`.
+
+You can't turn on **Deploy** (`automatic_install` in the API) when you add a script package, because Fleet can't generate a policy that detects a script. Instead, write your own policy and select the package in its [install software automation](https://fleetdm.com/guides/automatic-software-install-in-fleet). Policy automations run `.sh` and `.py` packages on Linux hosts, not macOS hosts, and `.ps1` packages on Windows hosts. In GitOps, a policy's `install_software` can't reference a script-only package.
 
 If an `install_script` is provided when uploading a script package, it will be ignored.
 
