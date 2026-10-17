@@ -107,13 +107,28 @@ ORDER BY vat.id`
 		}
 	}
 
+	versionIDs := make([]uint, 0, len(versions))
 	for _, app := range versions {
-		labels, err := ds.getVPPAppLabels(ctx, app.VPPAppsTeamsID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "get vpp app labels")
-		}
+		versionIDs = append(versionIDs, app.VPPAppsTeamsID)
+	}
+	labelsByVersionID, err := ds.getVPPAppLabels(ctx, versionIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get vpp app labels")
+	}
+	categoriesByVersionID, err := ds.getCategoriesForVPPApps(ctx, versionIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Select configuration separately because we can't scan NULL into json.RawMessage
+	configurationByVersionID, err := ds.BulkGetVPPAppConfigurations(ctx, versionIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get configuration for app store app")
+	}
+
+	for _, app := range versions {
 		var exclAny, inclAny, inclAll []fleet.SoftwareScopeLabel
-		for _, l := range labels {
+		for _, l := range labelsByVersionID[app.VPPAppsTeamsID] {
 			switch {
 			case l.Exclude && !l.RequireAll:
 				exclAny = append(exclAny, l)
@@ -139,22 +154,11 @@ ORDER BY vat.id`
 		app.LabelsIncludeAny = inclAny
 		app.LabelsIncludeAll = inclAll
 
-		categories, err := ds.getCategoriesForVPPApp(ctx, app.VPPAppsTeamsID)
-		if err != nil {
-			return nil, err
-		}
-		app.Categories = categories
+		app.Categories = categoriesByVersionID[app.VPPAppsTeamsID]
 
 		app.DisplayName = displayName
 
-		// Select configuration separately because we can't scan NULL into json.RawMessage
-		var configuration []byte
-		err = sqlx.GetContext(ctx, ds.reader(ctx), &configuration,
-			`SELECT configuration FROM vpp_apps_teams WHERE id = ? AND global_or_team_id = ?`, app.VPPAppsTeamsID, tmID)
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return nil, ctxerr.Wrap(ctx, err, "get configuration for app store app")
-		}
-		if configuration != nil {
+		if configuration, ok := configurationByVersionID[app.VPPAppsTeamsID]; ok {
 			app.Configuration = configuration
 		}
 
@@ -167,25 +171,37 @@ ORDER BY vat.id`
 	return versions, nil
 }
 
-func (ds *Datastore) getCategoriesForVPPApp(ctx context.Context, vppAppsTeamID uint) ([]string, error) {
-	stmt := `
+func (ds *Datastore) getCategoriesForVPPApps(ctx context.Context, vppAppsTeamIDs []uint) (map[uint][]string, error) {
+	stmt, args, err := sqlx.In(`
 SELECT
+	vatsc.vpp_app_team_id,
 	sc.name
 FROM software_categories sc
 JOIN vpp_app_team_software_categories vatsc ON sc.id = vatsc.software_category_id
-WHERE vatsc.vpp_app_team_id = ?`
-
-	var categories []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &categories, stmt, vppAppsTeamID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get categories for vpp app")
+WHERE vatsc.vpp_app_team_id IN (?)`, vppAppsTeamIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build get categories for vpp apps query")
 	}
 
-	return categories, nil
+	var categories []struct {
+		VPPAppsTeamsID uint   `db:"vpp_app_team_id"`
+		Name           string `db:"name"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &categories, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get categories for vpp apps")
+	}
+
+	categoriesByVersionID := make(map[uint][]string, len(vppAppsTeamIDs))
+	for _, category := range categories {
+		categoriesByVersionID[category.VPPAppsTeamsID] = append(categoriesByVersionID[category.VPPAppsTeamsID], category.Name)
+	}
+	return categoriesByVersionID, nil
 }
 
-func (ds *Datastore) getVPPAppLabels(ctx context.Context, vppAppsTeamsID uint) ([]fleet.SoftwareScopeLabel, error) {
-	query := `
+func (ds *Datastore) getVPPAppLabels(ctx context.Context, vppAppsTeamsIDs []uint) (map[uint][]fleet.SoftwareScopeLabel, error) {
+	query, args, err := sqlx.In(`
 SELECT
+	vatl.vpp_app_team_id,
 	label_id,
 	exclude,
 	l.name AS label_name,
@@ -197,15 +213,25 @@ FROM
 	JOIN vpp_apps va ON va.adam_id = vat.adam_id
 	JOIN labels l ON l.id = vatl.label_id
 WHERE
-	vatl.vpp_app_team_id = ? AND va.platform = vat.platform
-`
+	vatl.vpp_app_team_id IN (?) AND va.platform = vat.platform
+`, vppAppsTeamsIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build get vpp app labels query")
+	}
 
-	var labels []fleet.SoftwareScopeLabel
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, query, vppAppsTeamsID); err != nil {
+	var labels []struct {
+		VPPAppsTeamsID uint `db:"vpp_app_team_id"`
+		fleet.SoftwareScopeLabel
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, query, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get vpp app labels")
 	}
 
-	return labels, nil
+	labelsByVersionID := make(map[uint][]fleet.SoftwareScopeLabel, len(vppAppsTeamsIDs))
+	for _, label := range labels {
+		labelsByVersionID[label.VPPAppsTeamsID] = append(labelsByVersionID[label.VPPAppsTeamsID], label.SoftwareScopeLabel)
+	}
+	return labelsByVersionID, nil
 }
 
 // Select the status of an App Store app version on each host, counting at most one installed, one pending and one failed version per host.
@@ -425,14 +451,14 @@ func (ds *Datastore) BatchInsertVPPApps(ctx context.Context, apps []*fleet.VPPAp
 }
 
 func (ds *Datastore) getExistingLabels(ctx context.Context, vppAppTeamID uint) (*fleet.LabelIdentsWithScope, error) {
-	existingLabels, err := ds.getVPPAppLabels(ctx, vppAppTeamID)
+	existingLabels, err := ds.getVPPAppLabels(ctx, []uint{vppAppTeamID})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting existing labels")
 	}
 
 	var labels fleet.LabelIdentsWithScope
 	var exclAny, inclAny, inclAll []fleet.SoftwareScopeLabel
-	for _, l := range existingLabels {
+	for _, l := range existingLabels[vppAppTeamID] {
 		switch {
 		case l.Exclude && !l.RequireAll:
 			exclAny = append(exclAny, l)
