@@ -6,7 +6,7 @@ Edge extensions can read page content, cookies, and browsing history. Use Fleet 
 
 - Hosts enrolled in Fleet.
 - The ID of each extension. Find it at the end of the extension's URL on the Microsoft Edge Add-ons website, or on `edge://extensions` with **Developer mode** turned on. IDs are 32 lowercase letters, like `abcdefghijklmnopabcdefghijklmnop`.
-- Windows only: the Edge ADMX file (`msedge.admx`) deployed to your hosts. See [Deploy the Edge ADMX file](#deploy-the-edge-admx-file).
+- Windows only: the Edge ADMX file (`msedge.admx`), which you add to the Windows profile. See [Windows](#windows).
 
 Edge offers three extension policies:
 
@@ -86,42 +86,24 @@ To force-install an extension, add it to `ExtensionInstallForcelist` as `<extens
 
 ## Windows
 
-Edge policies on Windows are ADMX-backed, so deploy the Edge ADMX file before you set any extension policy.
-
-### Deploy the Edge ADMX file
+Edge policies on Windows are ADMX-backed. Put the Edge ADMX file and the extension policy in the same configuration profile. If you split policies across multiple profiles, include the ADMX in each one.
 
 1. Download the Edge policy templates from the [Microsoft Edge Enterprise landing page](https://aka.ms/EdgeEnterprise) and extract `msedge.admx`.
-2. Save the following as `edge-admx.xml`. Paste the full contents of `msedge.admx` in place of the comment.
+2. Save the following as `edge-extension-blocklist.xml`. Replace `PASTE_EDGE_ADMX_HERE` with the full contents of `msedge.admx`, and replace the extension IDs with your own.
 
 ```xml
-<Add>
+<Replace>
   <Item>
     <Meta>
       <Format xmlns="syncml:metinf">chr</Format>
-      <Type>text/plain</Type>
     </Meta>
     <Target>
       <LocURI>./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/Edge/Policy/EdgeAdmx</LocURI>
     </Target>
-    <Data><![CDATA[
-      <!-- Paste the full contents of msedge.admx here. Don't modify the file. -->
-    ]]></Data>
+    <Data><![CDATA[PASTE_EDGE_ADMX_HERE]]></Data>
   </Item>
-</Add>
-```
+</Replace>
 
-3. In Fleet, go to **Controls > OS settings > Configuration profiles** and select **Add profile**.
-4. Choose `edge-admx.xml` and select **Add profile** to upload it.
-
-> **Note:** The `Edge` in the `LocURI` above must match the `Edge` in the extension policy `LocURI` below. To learn more about ADMX ingestion, see [Creating Windows CSPs](https://fleetdm.com/guides/creating-windows-csps#ingesting-custom-admx-templates-admxinstall).
-
-### Block extensions
-
-Wait for the ADMX profile to show **Verified** before you add the extension profile.
-
-1. Save the following as `edge-extension-blocklist.xml`. Replace the extension IDs with your own.
-
-```xml
 <Replace>
   <Item>
     <Target>
@@ -133,8 +115,10 @@ Wait for the ADMX profile to show **Verified** before you add the extension prof
 </Replace>
 ```
 
-2. In Fleet, go to **Controls > OS settings > Configuration profiles** and select **Add profile**.
-3. Choose the `.xml` file and select **Add profile** to upload it.
+3. In Fleet, go to **Controls > OS settings > Configuration profiles** and select **Add profile**.
+4. Choose the `.xml` file and select **Add profile** to upload it.
+
+> **Note:** `<?xml ...?>` at the start of the ADMX file must stay on the same line as `<![CDATA[`, with no line break or spaces in between. Otherwise the profile fails with `status 500`. To learn more about ADMX ingestion, see [Creating Windows CSPs](https://fleetdm.com/guides/creating-windows-csps#ingesting-custom-admx-templates-admxinstall).
 
 > **Note:** The `value` is a list of numbered entries separated by the `&#xF000;` character: `1&#xF000;first-id&#xF000;2&#xF000;second-id`.
 
@@ -196,7 +180,6 @@ controls:
       - path: ../lib/macos/profiles/edge-extension-blocklist.mobileconfig
   windows_settings:
     configuration_profiles:
-      - path: ../lib/windows/profiles/edge-admx.xml
       - path: ../lib/windows/profiles/edge-extension-blocklist.xml
   scripts:
     - path: ../lib/linux/scripts/edge-extension-blocklist.sh
@@ -242,7 +225,7 @@ WHERE chrome_extensions.browser_type IN ('edge', 'edge_beta');
 
 **Policies don't appear on `edge://policy`**
 
-Restart Edge and select **Reload policies**. On Windows, confirm the ADMX profile shows **Verified** in Fleet and the name in the `LocURI` (`Edge`) matches in both profiles.
+Restart Edge and select **Reload policies**. On Windows, confirm the profile shows **Verified** in Fleet and the name in the `LocURI` (`Edge`) matches in the ADMX and policy blocks.
 
 **The extension is still installed after you block it**
 
