@@ -1,0 +1,5 @@
+- Added the `server_private_network_allow_list` configuration option, which accepts a list of DNS
+  names, DNS wildcards, IP addresses, and/or CIDR networks to exempt from SSRF protection.
+- The `server_allow_private_network_integrations` configuration setting is now deprecated and will
+  be removed in Fleet v5.0. Administrators should instead list individual networks and hostnames in
+  the `server_private_network_allow_list` setting.
