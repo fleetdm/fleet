@@ -6,44 +6,35 @@ import (
 )
 
 type StatisticsPayload struct {
-	AnonymousIdentifier            string `json:"anonymousIdentifier"`
-	FleetVersion                   string `json:"fleetVersion"`
-	LicenseTier                    string `json:"licenseTier"`
-	Organization                   string `json:"organization"`
-	NumHostsEnrolled               int    `json:"numHostsEnrolled"`
-	NumHostsABMPending             int    `json:"numHostsABMPending"`
-	NumUsers                       int    `json:"numUsers"`
-	NumSoftwareVersions            int    `json:"numSoftwareVersions"`
-	NumHostSoftwares               int    `json:"numHostSoftwares"`
-	NumSoftwareTitles              int    `json:"numSoftwareTitles"`
-	NumHostSoftwareInstalledPaths  int    `json:"numHostSoftwareInstalledPaths"`
-	NumSoftwareCPEs                int    `json:"numSoftwareCPEs"`
-	NumSoftwareCVEs                int    `json:"numSoftwareCVEs"`
-	NumTeams                       int    `json:"numTeams"` //nolint:apiparamcheck // don't want to break analytics ingestion
-	NumPolicies                    int    `json:"numPolicies"`
-	NumQueries                     int    `json:"numQueries"` //nolint:apiparamcheck // don't want to break analytics ingestion
-	NumLabels                      int    `json:"numLabels"`
-	SoftwareInventoryEnabled       bool   `json:"softwareInventoryEnabled"`
-	VulnDetectionEnabled           bool   `json:"vulnDetectionEnabled"`
-	SystemUsersEnabled             bool   `json:"systemUsersEnabled"`
-	HostsStatusWebHookEnabled      bool   `json:"hostsStatusWebHookEnabled"`
-	MDMMacOsEnabled                bool   `json:"mdmMacOsEnabled"`
-	HostExpiryEnabled              bool   `json:"hostExpiryEnabled"`
-	MDMWindowsEnabled              bool   `json:"mdmWindowsEnabled"`
-	MDMAndroidEnabled              bool   `json:"mdmAndroidEnabled"`
-	MDMRecoveryLockPasswordEnabled bool   `json:"mdmRecoveryLockPasswordEnabled"`
-	LiveQueryDisabled              bool   `json:"liveQueryDisabled"` //nolint:apiparamcheck // osquery live-query feature
-	NumWeeklyActiveUsers           int    `json:"numWeeklyActiveUsers"`
-	// NumWeeklyPolicyViolationDaysActual is an aggregate count of actual policy violation days. One
-	// policy violation day is added for each policy that a host is failing as of the time the count
-	// is incremented. The count increments once per 24-hour interval and resets each week.
-	NumWeeklyPolicyViolationDaysActual int `json:"numWeeklyPolicyViolationDaysActual"`
-	// NumWeeklyPolicyViolationDaysActual is an aggregate count of possible policy violation
-	// days. The count is incremented by the organization's total number of policies
-	// multiplied by the total number of hosts as of the time the count is incremented. The count
-	// increments once per 24-hour interval and resets each week.
-	NumWeeklyPolicyViolationDaysPossible int                                `json:"numWeeklyPolicyViolationDaysPossible"`
-	HostsEnrolledByOperatingSystem       map[string][]HostsCountByOSVersion `json:"hostsEnrolledByOperatingSystem"`
+	AnonymousIdentifier            string                             `json:"anonymousIdentifier"`
+	FleetVersion                   string                             `json:"fleetVersion"`
+	LicenseTier                    string                             `json:"licenseTier"`
+	Organization                   string                             `json:"organization"`
+	NumHostsEnrolled               int                                `json:"numHostsEnrolled"`
+	NumHostsABMPending             int                                `json:"numHostsABMPending"`
+	NumUsers                       int                                `json:"numUsers"`
+	NumSoftwareVersions            int                                `json:"numSoftwareVersions"`
+	NumHostSoftwares               int                                `json:"numHostSoftwares"`
+	NumSoftwareTitles              int                                `json:"numSoftwareTitles"`
+	NumHostSoftwareInstalledPaths  int                                `json:"numHostSoftwareInstalledPaths"`
+	NumSoftwareCPEs                int                                `json:"numSoftwareCPEs"`
+	NumSoftwareCVEs                int                                `json:"numSoftwareCVEs"`
+	NumTeams                       int                                `json:"numTeams"` //nolint:apiparamcheck // don't want to break analytics ingestion
+	NumPolicies                    int                                `json:"numPolicies"`
+	NumQueries                     int                                `json:"numQueries"` //nolint:apiparamcheck // don't want to break analytics ingestion
+	NumLabels                      int                                `json:"numLabels"`
+	SoftwareInventoryEnabled       bool                               `json:"softwareInventoryEnabled"`
+	VulnDetectionEnabled           bool                               `json:"vulnDetectionEnabled"`
+	SystemUsersEnabled             bool                               `json:"systemUsersEnabled"`
+	HostsStatusWebHookEnabled      bool                               `json:"hostsStatusWebHookEnabled"`
+	MDMMacOsEnabled                bool                               `json:"mdmMacOsEnabled"`
+	HostExpiryEnabled              bool                               `json:"hostExpiryEnabled"`
+	MDMWindowsEnabled              bool                               `json:"mdmWindowsEnabled"`
+	MDMAndroidEnabled              bool                               `json:"mdmAndroidEnabled"`
+	MDMRecoveryLockPasswordEnabled bool                               `json:"mdmRecoveryLockPasswordEnabled"`
+	LiveQueryDisabled              bool                               `json:"liveQueryDisabled"` //nolint:apiparamcheck // osquery live-query feature
+	NumWeeklyActiveUsers           int                                `json:"numWeeklyActiveUsers"`
+	HostsEnrolledByOperatingSystem map[string][]HostsCountByOSVersion `json:"hostsEnrolledByOperatingSystem"`
 	// HostsEnrolledByOrbitVersion is a count of hosts enrolled to Fleet grouped by orbit version
 	HostsEnrolledByOrbitVersion []HostsCountByOrbitVersion `json:"hostsEnrolledByOrbitVersion"`
 	// HostsEnrolledByOsqueryVersion is a count of hosts enrolled to Fleet grouped by osquery version

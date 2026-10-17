@@ -736,8 +736,6 @@ type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration,
 
 type RecordStatisticsSentFunc func(ctx context.Context) error
 
-type CleanupStatisticsFunc func(ctx context.Context) error
-
 type GetTableRowCountsFunc func(ctx context.Context) (map[string]uint, error)
 
 type ApplyPolicySpecsFunc func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error
@@ -865,10 +863,6 @@ type CountHostSoftwareInstallAttemptsFunc func(ctx context.Context, hostID uint,
 type ResetNonPolicyInstallAttemptsFunc func(ctx context.Context, hostID uint, softwareInstallerID uint) error
 
 type CountHostScriptAttemptsFunc func(ctx context.Context, hostID uint, scriptID uint, policyID uint) (int, error)
-
-type IncrementPolicyViolationDaysFunc func(ctx context.Context) error
-
-type InitializePolicyViolationDaysFunc func(ctx context.Context) error
 
 type LockFunc func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error)
 
@@ -3669,9 +3663,6 @@ type DataStore struct {
 	RecordStatisticsSentFunc        RecordStatisticsSentFunc
 	RecordStatisticsSentFuncInvoked bool
 
-	CleanupStatisticsFunc        CleanupStatisticsFunc
-	CleanupStatisticsFuncInvoked bool
-
 	GetTableRowCountsFunc        GetTableRowCountsFunc
 	GetTableRowCountsFuncInvoked bool
 
@@ -3863,12 +3854,6 @@ type DataStore struct {
 
 	CountHostScriptAttemptsFunc        CountHostScriptAttemptsFunc
 	CountHostScriptAttemptsFuncInvoked bool
-
-	IncrementPolicyViolationDaysFunc        IncrementPolicyViolationDaysFunc
-	IncrementPolicyViolationDaysFuncInvoked bool
-
-	InitializePolicyViolationDaysFunc        InitializePolicyViolationDaysFunc
-	InitializePolicyViolationDaysFuncInvoked bool
 
 	LockFunc        LockFunc
 	LockFuncInvoked bool
@@ -8960,13 +8945,6 @@ func (s *DataStore) RecordStatisticsSent(ctx context.Context) error {
 	return s.RecordStatisticsSentFunc(ctx)
 }
 
-func (s *DataStore) CleanupStatistics(ctx context.Context) error {
-	s.mu.Lock()
-	s.CleanupStatisticsFuncInvoked = true
-	s.mu.Unlock()
-	return s.CleanupStatisticsFunc(ctx)
-}
-
 func (s *DataStore) GetTableRowCounts(ctx context.Context) (map[string]uint, error) {
 	s.mu.Lock()
 	s.GetTableRowCountsFuncInvoked = true
@@ -9413,20 +9391,6 @@ func (s *DataStore) CountHostScriptAttempts(ctx context.Context, hostID uint, sc
 	s.CountHostScriptAttemptsFuncInvoked = true
 	s.mu.Unlock()
 	return s.CountHostScriptAttemptsFunc(ctx, hostID, scriptID, policyID)
-}
-
-func (s *DataStore) IncrementPolicyViolationDays(ctx context.Context) error {
-	s.mu.Lock()
-	s.IncrementPolicyViolationDaysFuncInvoked = true
-	s.mu.Unlock()
-	return s.IncrementPolicyViolationDaysFunc(ctx)
-}
-
-func (s *DataStore) InitializePolicyViolationDays(ctx context.Context) error {
-	s.mu.Lock()
-	s.InitializePolicyViolationDaysFuncInvoked = true
-	s.mu.Unlock()
-	return s.InitializePolicyViolationDaysFunc(ctx)
 }
 
 func (s *DataStore) Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
