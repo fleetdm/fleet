@@ -18,6 +18,7 @@ import { GitopsTab } from "./components/tabs/GitopsTab";
 import { ScepTab } from "./components/tabs/ScepTab";
 import { MdmAssetsTab } from "./components/tabs/MdmAssetsTab";
 import { TufTab } from "./components/tabs/TufTab";
+import { InstallersTab } from "./components/tabs/InstallersTab";
 import {
   api,
   type BranchStatus,
@@ -385,6 +386,13 @@ export default function App() {
         {active === "mdm-assets" && <MdmAssetsTab />}
         {active === "tuf" && (
           <TufTab
+            settings={settings}
+            onSettingsChange={setSettings}
+            procs={procs}
+          />
+        )}
+        {active === "installers" && (
+          <InstallersTab
             settings={settings}
             onSettingsChange={setSettings}
             procs={procs}

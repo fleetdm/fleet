@@ -144,6 +144,18 @@ func (m *Manager) procDone(id string) context.Context {
 	return nil
 }
 
+// Done returns a channel that's closed once id has fully terminated (final
+// state recorded). Call it right after Start; for an id that isn't running the
+// channel is already closed.
+func (m *Manager) Done(id string) <-chan struct{} {
+	if ctx := m.procDone(id); ctx != nil {
+		return ctx.Done()
+	}
+	ch := make(chan struct{})
+	close(ch)
+	return ch
+}
+
 // finishLifecycle cancels and removes id's termination context, signaling
 // any Stop/Restart waiters that the process is gone. Idempotent.
 func (m *Manager) finishLifecycle(id string) {

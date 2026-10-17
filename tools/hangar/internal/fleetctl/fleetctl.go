@@ -115,6 +115,40 @@ func parseContexts(raw []byte) ([]ContextSummary, error) {
 	return out, nil
 }
 
+// Credentials is what's needed to call a context's Fleet API directly. It
+// carries the API token, so it's never returned to the frontend.
+type Credentials struct {
+	Address       string
+	Token         string
+	RootCA        string
+	TLSSkipVerify bool
+}
+
+// ReadCredentials returns the named context's address, token and TLS options
+// from the fleetctl config at configPath.
+func ReadCredentials(configPath, name string) (Credentials, error) {
+	b, err := os.ReadFile(configPath)
+	if err != nil {
+		return Credentials{}, err
+	}
+	var doc struct {
+		Contexts map[string]struct {
+			Address       string `yaml:"address"`
+			Token         string `yaml:"token"`
+			RootCA        string `yaml:"rootca"`
+			TLSSkipVerify bool   `yaml:"tls-skip-verify"`
+		} `yaml:"contexts"`
+	}
+	if err := yaml.Unmarshal(b, &doc); err != nil {
+		return Credentials{}, fmt.Errorf("parse %s: %w", configPath, err)
+	}
+	c, ok := doc.Contexts[name]
+	if !ok {
+		return Credentials{}, fmt.Errorf("fleetctl context %q not found in %s", name, configPath)
+	}
+	return Credentials{Address: c.Address, Token: c.Token, RootCA: c.RootCA, TLSSkipVerify: c.TLSSkipVerify}, nil
+}
+
 // ReadConfigRaw returns the raw fleetctl config contents (empty if absent).
 func ReadConfigRaw(configPath string) (RawConfig, error) {
 	b, err := os.ReadFile(configPath)
