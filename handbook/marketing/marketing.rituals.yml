@@ -137,7 +137,7 @@
   dri: "irenareedy"
   autoIssue:  
     labels: [ ":help-marketing",":mktg-ritual" ]  
-    repo: "confidential"	
+    repo: "confidential"
 - 
   task: "Check LinkedIn comments"
   startedOn: "2026-03-26"
@@ -199,3 +199,31 @@
   description: "The CEO and Content Specialist will meet at the beginning of each quarter to go through the brand front spreadsheet and determine whether our current messaging aligns with our horizons. If the brand front messaging needs changing, it will be updated in the spreadsheet, and then the Content Specialist will make the adjustments to the websites."
   moreInfoUrl: "https://docs.google.com/spreadsheets/d/1c15vwMZytpCLHUdGvXxi0d6WGgPcQU1UBMniC1F9oKk/edit?gid=0#gid=0"
   dri: "irenareedy"
+-
+  task: "Review GitOps workshop registrants"
+  startedOn: "2026-10-19"
+  frequency: "Weekly"
+  description: "Review the registrant list for each upcoming GitOps workshop, introduce yourself, and ask registrants for a social post. Raise the event's capacity when it is near full."
+  moreInfoUrl: "https://fleetdm.com/handbook/marketing#gitops-workshops"
+  dri: "ds0x"
+-
+  task: "Follow up after GitOps workshops"
+  startedOn: "2026-10-19"
+  frequency: "Weekly"
+  description: "For each workshop held this week, send every attendee's certification, create their NFR environment, and encourage them to post about it. Publish the results to the workshop dashboard."
+  moreInfoUrl: "https://fleetdm.com/handbook/marketing#gitops-workshops"
+  dri: "ds0x"
+-
+  task: "Check GitOps workshop spend and campaigns"
+  startedOn: "2026-10-19"
+  frequency: "Monthly"
+  description: "Compare spend with the per-event budget, review ad promotion for upcoming workshops, and clean up ended campaigns. Decide any exception requests for events outside the annual list."
+  moreInfoUrl: "https://fleetdm.com/handbook/marketing#gitops-workshops"
+  dri: "ds0x"
+-
+  task: "Review the GitOps workshop program"
+  startedOn: "2026-10-19"
+  frequency: "Quarterly"
+  description: "Review attendance, influenced opportunities, and cost per event. Refresh the annual list of cities and locations, and review the curriculum."
+  moreInfoUrl: "https://fleetdm.com/handbook/marketing#gitops-workshops"
+  dri: "ds0x"
