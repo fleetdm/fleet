@@ -302,6 +302,13 @@ func TestAdditionalNDESValidationForWindowsProfiles(t *testing.T) {
 					"CN=$FLEET_VAR_HOST_HARDWARE_SERIAL $FLEET_VAR_CERTIFICATE_RENEWAL_ID managementAttestation"),
 		},
 		{
+			name: "valid NDES profile with renewal ID in CDATA",
+			contents: addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
+				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
+				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName",
+					"<![CDATA[OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID,CN=test]]>"),
+		},
+		{
 			name: "subject name with renewal ID in a field other than CN or OU",
 			contents: addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
 				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
@@ -382,6 +389,13 @@ func TestAdditionalCustomSCEPValidationForWindowsProfiles(t *testing.T) {
 			contents: addItem(
 				"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName",
 				"CN=test,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID",
+			),
+		},
+		{
+			name: "valid custom SCEP profile with renewal ID in an entity-quoted CN",
+			contents: addItem(
+				"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName",
+				"CN=&quot;Doe, Jane $FLEET_VAR_CERTIFICATE_RENEWAL_ID&quot;",
 			),
 		},
 		{
@@ -496,7 +510,13 @@ func TestSubjectNameHasRenewalIDMarker(t *testing.T) {
 		{name: "no renewal ID", subjectName: "CN=test,OU=team", want: false},
 		{name: "renewal ID in O", subjectName: "CN=test,O=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: false},
 		{name: "renewal ID in O after a quoted comma", subjectName: `CN="a,b",O=$FLEET_VAR_CERTIFICATE_RENEWAL_ID`, want: false},
-		{name: "renewal ID in O after an ampersand", subjectName: "CN=AT&T;O=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: false},
+		{name: "renewal ID in O after an ampersand", subjectName: "CN=AT&amp;T;O=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: false},
+		{name: "OU in CDATA", subjectName: "<![CDATA[OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID,CN=test]]>", want: true},
+		{name: "CN in CDATA with an ampersand", subjectName: "<![CDATA[CN=AT&T $FLEET_VAR_CERTIFICATE_RENEWAL_ID]]>", want: true},
+		{name: "CN quoted with entities", subjectName: "CN=&quot;a, $FLEET_VAR_CERTIFICATE_RENEWAL_ID&quot;,O=Fleet", want: true},
+		{name: "OU after an encoded separator", subjectName: "CN=test&#44;OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: true},
+		{name: "OU text inside an entity-quoted O value", subjectName: "CN=test,O=&quot;OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID&quot;", want: false},
+		{name: "malformed XML", subjectName: "CN=AT&T $FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: false},
 		{name: "OU text inside a quoted O value", subjectName: `CN=test,O="OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID"`, want: false},
 		{name: "different variable", subjectName: "CN=$FLEET_VAR_HOST_UUID,OU=$FLEET_VAR_HOST_HARDWARE_SERIAL", want: false},
 		{name: "empty", subjectName: "", want: false},

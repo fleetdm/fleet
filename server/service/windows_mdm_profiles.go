@@ -370,11 +370,29 @@ var fleetVarsSupportedInWindowsProfiles = []fleet.FleetVarName{
 var subjectNameMissingRenewalIDMsg = "SubjectName item must contain the " + fleet.FleetVarCertificateRenewalID.WithPrefix() +
 	" variable in the OU field. In some use cases, it can go in the CN field instead."
 
-// subjectNameHasRenewalIDMarker reports whether a SubjectName data string has the renewal-ID variable in an OU or CN
+// subjectNameHasRenewalIDMarker reports whether a SubjectName <Data> has the renewal-ID variable in an OU or CN
 // attribute, the two fields host certificate ingestion searches for the marker. OU is the norm, but some CAs (Okta) drop
 // the OU from issued certificates. The legacy SCEP_RENEWAL_ID name is accepted for back-compat.
-func subjectNameHasRenewalIDMarker(data string) bool {
-	for _, attribute := range microsoft_mdm.SubjectNameAttributes(data) {
+//
+// rawData is the element's inner XML, so it is decoded first: Windows parses the DN after resolving entities and CDATA.
+func subjectNameHasRenewalIDMarker(rawData string) bool {
+	var data strings.Builder
+	// Only character data is read, from a profile the validators above already parsed; encoding/xml resolves no external
+	// entities.
+	dec := xml.NewDecoder(strings.NewReader(rawData)) //nolint:gosec // G709: see above
+	for {
+		token, err := dec.Token()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return false
+		}
+		if text, ok := token.(xml.CharData); ok {
+			data.Write(text)
+		}
+	}
+	for _, attribute := range microsoft_mdm.SubjectNameAttributes(data.String()) {
 		key, value, ok := strings.Cut(attribute, "=")
 		if !ok {
 			continue
