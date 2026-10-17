@@ -145,6 +145,7 @@ const DeviceUserBanners = ({
               <CustomLink
                 url="https://fleetdm.com/learn-more-about/encrypt-linux-device"
                 text="Guide"
+                newTab
                 variant="banner-link"
               />
             }
