@@ -6,7 +6,7 @@ Firefox extensions can read page content, cookies, and browsing history. Use Fle
 
 - Hosts enrolled in Fleet.
 - The ID of each extension. On a host with the extension installed, open `about:support` and find the extension under **Extensions**. IDs look like `uBlock0@raymondhill.net`. Some IDs are a UUID in braces, like `{446900e4-71c2-419f-a6a7-df9c091e268b}`.
-- Windows only: the Firefox ADMX file (`firefox.admx`) deployed to your hosts. See [Deploy the Firefox ADMX file](#deploy-the-firefox-admx-file).
+- Windows only: the Firefox ADMX file (`firefox.admx`), which you add to the Windows profile. See [Windows](#windows).
 
 Unlike Chrome and Edge, Firefox has one policy for all of this: `ExtensionSettings`. It maps each extension ID to an `installation_mode`:
 
@@ -111,42 +111,24 @@ To force-install an extension, set `installation_mode` to `force_installed` and 
 
 ## Windows
 
-Firefox policies on Windows are ADMX-backed, so deploy the Firefox ADMX file before you set any extension policy.
-
-### Deploy the Firefox ADMX file
+Firefox policies on Windows are ADMX-backed. Put the Firefox ADMX file and the extension policy in the same configuration profile. If you split policies across multiple profiles, include the ADMX in each one.
 
 1. Download `firefox.admx` from the [Mozilla policy-templates repository](https://github.com/mozilla/policy-templates/tree/master/windows).
-2. Save the following as `firefox-admx.xml`. Paste the full contents of `firefox.admx` in place of the comment.
+2. Save the following as `firefox-extension-blocklist.xml`. Replace `PASTE_FIREFOX_ADMX_HERE` with the full contents of `firefox.admx`, and replace the extension IDs with your own.
 
 ```xml
-<Add>
+<Replace>
   <Item>
     <Meta>
       <Format xmlns="syncml:metinf">chr</Format>
-      <Type>text/plain</Type>
     </Meta>
     <Target>
       <LocURI>./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/Firefox/Policy/FirefoxAdmx</LocURI>
     </Target>
-    <Data><![CDATA[
-      <!-- Paste the full contents of firefox.admx here. Don't modify the file. -->
-    ]]></Data>
+    <Data><![CDATA[PASTE_FIREFOX_ADMX_HERE]]></Data>
   </Item>
-</Add>
-```
+</Replace>
 
-3. In Fleet, go to **Controls > OS settings > Configuration profiles** and select **Add profile**.
-4. Choose `firefox-admx.xml` and select **Add profile** to upload it.
-
-> **Note:** The `Firefox` in the `LocURI` above must match the `Firefox` in the extension policy `LocURI` below. To learn more about ADMX ingestion, see [Creating Windows CSPs](https://fleetdm.com/guides/creating-windows-csps#ingesting-custom-admx-templates-admxinstall).
-
-### Block extensions
-
-Wait for the ADMX profile to show **Verified** before you add the extension profile.
-
-1. Save the following as `firefox-extension-blocklist.xml`. Replace the extension IDs with your own.
-
-```xml
 <Replace>
   <Item>
     <Target>
@@ -158,8 +140,10 @@ Wait for the ADMX profile to show **Verified** before you add the extension prof
 </Replace>
 ```
 
-2. In Fleet, go to **Controls > OS settings > Configuration profiles** and select **Add profile**.
-3. Choose the `.xml` file and select **Add profile** to upload it.
+3. In Fleet, go to **Controls > OS settings > Configuration profiles** and select **Add profile**.
+4. Choose the `.xml` file and select **Add profile** to upload it.
+
+> **Note:** `<?xml ...?>` at the start of the ADMX file must stay on the same line as `<![CDATA[`, with no line break or spaces in between. Otherwise the profile fails with `status 500`. To learn more about ADMX ingestion, see [Creating Windows CSPs](https://fleetdm.com/guides/creating-windows-csps#ingesting-custom-admx-templates-admxinstall).
 
 > **Note:** The JSON goes on one line, inside single quotes, and is limited to 16,384 characters. Avoid apostrophes in the JSON, because they end the value early.
 
@@ -238,7 +222,6 @@ controls:
       - path: ../lib/macos/profiles/firefox-extension-blocklist.mobileconfig
   windows_settings:
     configuration_profiles:
-      - path: ../lib/windows/profiles/firefox-admx.xml
       - path: ../lib/windows/profiles/firefox-extension-blocklist.xml
   scripts:
     - path: ../lib/linux/scripts/firefox-extension-blocklist.sh
@@ -286,7 +269,7 @@ On macOS, confirm the profile includes `EnterprisePoliciesEnabled` set to `true`
 
 **`ExtensionSettings` doesn't appear on Windows**
 
-Confirm the ADMX profile shows **Verified** in Fleet and the name in the `LocURI` (`Firefox`) matches in both profiles. Confirm the JSON is on one line and inside single quotes.
+Confirm the profile shows **Verified** in Fleet and the name in the `LocURI` (`Firefox`) matches in the ADMX and policy blocks. Confirm the JSON is on one line and inside single quotes.
 
 **The extension is still blocked after you allow it**
 
