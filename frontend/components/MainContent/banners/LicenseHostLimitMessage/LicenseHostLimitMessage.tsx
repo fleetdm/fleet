@@ -23,16 +23,16 @@ const LicenseHostLimitMessage = ({
       color="yellow"
       cta={
         <CustomLink
-          url="https://fleetdm.com/support"
-          text="Contact Fleet"
+          url="https://fleetdm.com/learn-more-about/add-hosts-to-license"
+          text="Learn how"
           newTab
           variant="banner-link"
         />
       }
     >
-      You have {hostCount.toLocaleString()} hosts enrolled but are licensed 
-      for only{" "}{licensedHostCount.toLocaleString()}. Remove inactive
-      hosts or add more to your license.
+      You have {hostCount.toLocaleString()} hosts enrolled but are licensed for
+      only {licensedHostCount.toLocaleString()}. Remove inactive hosts or add
+      more to your license.
     </InfoBanner>
   );
 };

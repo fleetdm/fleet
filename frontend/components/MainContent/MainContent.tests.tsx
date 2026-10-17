@@ -98,27 +98,37 @@ describe("MainContent license host limit banner", () => {
   it("shows the banner when hosts exceed the licensed count", () => {
     renderWithHostCount({ hostCount: 51 });
     expect(
-      screen.getByText(/You're using 51 of 50 Fleet Premium hosts/)
+      screen.getByText(
+        /You have 51 hosts enrolled but are licensed for only 50/
+      )
     ).toBeInTheDocument();
   });
 
   it("does not show the banner at or under the licensed count", () => {
     renderWithHostCount({ hostCount: 50 });
-    expect(screen.queryByText(/Fleet Premium hosts/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/hosts enrolled but are licensed/)
+    ).not.toBeInTheDocument();
   });
 
   it("does not show the banner when the host count isn't loaded", () => {
     renderWithHostCount({ hostCount: undefined });
-    expect(screen.queryByText(/Fleet Premium hosts/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/hosts enrolled but are licensed/)
+    ).not.toBeInTheDocument();
   });
 
   it("does not show the banner when the license has no host limit", () => {
     renderWithHostCount({ hostCount: 51, deviceCount: 0 });
-    expect(screen.queryByText(/Fleet Premium hosts/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/hosts enrolled but are licensed/)
+    ).not.toBeInTheDocument();
   });
 
   it("does not show the banner on Fleet Free", () => {
     renderWithHostCount({ hostCount: 51, isPremiumTier: false });
-    expect(screen.queryByText(/Fleet Premium hosts/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/hosts enrolled but are licensed/)
+    ).not.toBeInTheDocument();
   });
 });
