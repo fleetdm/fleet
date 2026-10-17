@@ -1,9 +1,0 @@
-[Unit]
-Description=Runs ansible
-Wants=network-online.target
-After=network-online.target
-
-[Service]
-Type=oneshot
-ExecStart=/usr/local/bin/run-ansible
-User=ansible
