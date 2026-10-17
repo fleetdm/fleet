@@ -499,6 +499,7 @@ Even if you never show these decks on a screenshare, use them to keep the conver
 - [Fleet for digital workplace leaders](https://drive.google.com/file/d/1JlIV1PY5lECQQmq2H_eR35haeKefHXIf/view?usp=sharing)
 - [Fleet for partners](https://docs.google.com/presentation/d/1iNvn5EYnkklKxguYzrOh6ZNvZee53OqAlF3rc_Da_Us/edit?slide=id.g3871afd58d8_0_0#slide=id.g3871afd58d8_0_0)
 - [Meraki goes EoL](https://docs.google.com/presentation/d/19_aV9Xx94RClPdO34YBWdDo1FGBP_75MlttV8IcE4TM/edit?slide=id.g3f521d67c72_1_0#slide=id.g3f521d67c72_1_0)
+- [Device management for Europe](https://docs.google.com/presentation/d/1_3Vyn32r9sfpKSfqelZq68u4ayXqE-opXZoJab6hhBU/edit?slide=id.g3d4265576de_4_433#slide=id.g3d4265576de_4_433)
 
 <!--
 - [Fleet for digital workplace leaders](https://docs.google.com/presentation/d/1G8BtuhYRX92He3AifA5TAW4YlZO3jlcj8OeCqcSHmOM/edit?slide=id.g3d28ee536a1_2_37#slide=id.g3d28ee536a1_2_37)
