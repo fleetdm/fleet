@@ -1,0 +1,259 @@
+<title>Hardware lifecycle</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Code+Pro:wght@400;500&display=swap">
+<style>
+/*__BASE_CSS__*/
+.act-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.sig { display: flex; flex-direction: column; gap: 2px; font-size: 12.5px; color: var(--ink-2); }
+</style>
+
+<div class="wrap">
+  <header class="top" id="top"></header>
+  <div class="title-row">
+    <div>
+      <h1>Hardware lifecycle</h1>
+      <p class="subtitle">Which computers to replace, repair, or leave alone, based on CPU age, battery health, memory pressure, OS support, and warranty dates in Fleet. Covers macOS, Windows, and Linux.</p>
+    </div>
+  </div>
+  <section class="hero" id="hero" aria-label="Summary"></section>
+  <div class="stats" id="stats"></div>
+
+  <section class="sec" aria-labelledby="who-h">
+    <div class="sec-head">
+      <h2 id="who-h">Where the older computers sit</h2>
+      <span class="hint" id="who-hint"></span>
+    </div>
+    <div class="grid">
+      <div class="panel"><h3>Computers by age</h3><div id="age"></div></div>
+      <div class="panel"><h3>Processor</h3><div id="chips"></div></div>
+      <div class="panel"><h3>Warranty runway</h3><div id="warranty"></div></div>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="act-h">
+    <div class="sec-head">
+      <h2 id="act-h">Shortlist</h2>
+      <span class="hint">Grouped by what to do next. Click a column to sort.</span>
+    </div>
+    <div class="act-bar"><div class="chips" id="act-chips"></div><div id="act-tools"></div></div>
+    <div id="act"></div>
+  </section>
+
+  <details class="method">
+    <summary>How this is measured</summary>
+    <div class="cols">
+      <div>
+        <p><strong>Who's counted:</strong> computers that checked in to Fleet in the last 30 days. Ones that haven't are listed under "Not checking in" and aren't scored, since their data is stale. Virtual machines and cloud servers are listed separately and aren't scored either.</p>
+        <p><strong>Age:</strong> on a Mac, the model year in its marketing name (for example "MacBook Pro (16-inch, 2021)"). Otherwise, the CPU's release year. A computer can't be newer than its CPU, so this is the youngest it could be.</p>
+        <p><strong>Old CPU:</strong> <span id="gen-note"></span></p>
+      </div>
+      <div>
+        <p><strong>Memory strain (macOS only):</strong> from the <code>DEX - Hardware experience - Device health</code> report. Its swap tier counts swap-ins since the last restart, so a long uptime alone pushes it to "severe." A day counts as strained only when swap is severe within 7 days of a restart, or elevated within 2 days. Strain is sustained when at least 5 days were recorded and half of them, and at least 3, were strained.</p>
+        <p><strong>Battery (macOS and Windows):</strong> needs service when Fleet reports "Service recommended," or on a Mac when capacity is under 60% of design. Degraded (60–80%, Macs only) is a watch signal.</p>
+      </div>
+      <div>
+        <p><strong>Verdicts:</strong> an old CPU plus a battery that needs service, sustained strain, or Windows 10 makes a refresh candidate. Battery service on a newer CPU is a repair. Sustained strain or Windows 10 on a newer CPU means investigate. A signal that isn't sustained yet is "Watch." An old CPU with no signals is "Defer OK."</p>
+        <p><strong>Warranty:</strong> the <code id="vital-name"></code> custom host vital, when it's set.</p>
+      </div>
+    </div>
+  </details>
+  <p class="foot" id="foot"></p>
+</div>
+
+<script>window.__DATA__=/*__DATA__*/null;</script>
+<script>
+/*__BASE_JS__*/
+</script>
+<script>
+const V = {
+  refresh: { label: "Refresh candidate", group: "Refresh candidates", tone: "bad", hint: "Old CPU plus a failing battery, sustained memory strain, or Windows 10. Replacing it is the fix." },
+  battery: { label: "Battery service", group: "Battery service", tone: "serious", hint: "The battery needs service on a newer CPU. Book a repair, not a replacement." },
+  investigate: { label: "Investigate", group: "Investigate", tone: "warn", hint: "Newer CPU with sustained memory strain or Windows 10. Fix the workload, the RAM, or the OS, not the age." },
+  watch: { label: "Watch", group: "Watch", tone: "info", hint: "A signal showed up but isn't sustained. Check again next cycle." },
+  defer: { label: "Defer OK", group: "Defer OK", tone: "good", hint: "Older CPU that's holding up. No action needed yet." },
+  stale: { label: "Not checking in", group: "Not checking in", tone: "ink-3", hint: "No check-in for 30+ days. Find it, or retire it in Fleet." },
+  healthy: { label: "Healthy", group: "Healthy", tone: "neutral", hint: "Newer CPU and no signals." },
+  virtual: { label: "Virtual or server", group: "Virtual machines and servers", tone: "line-2", hint: "Not physical hardware anyone refreshes, so not scored." },
+};
+const ORDER = ["refresh", "battery", "investigate", "watch", "defer", "stale", "healthy", "virtual"];
+const SCORED = (m) => m.verdict !== "stale" && m.verdict !== "virtual";
+const color = (k) => `var(--${V[k].tone})`;
+let shown = new Set(["refresh", "battery", "investigate", "watch", "defer", "stale"]);
+
+DATA.devices.forEach((m) => (m._id = m.id));
+const fleets = [...new Set(DATA.devices.map((m) => m.fleet))].sort();
+const platformCounts = {};
+for (const m of DATA.devices) platformCounts[m.p] = (platformCounts[m.p] || 0) + 1;
+const noun = (n) => (PLATFORM === "macos" ? fmt.plural(n, "Mac") : fmt.plural(n, "computer"));
+const nounWord = (plural) => (PLATFORM === "macos" ? (plural ? "Macs" : "Mac") : (plural ? "computers" : "computer"));
+
+function cpuAge(m) {
+  if (m.gens_behind != null) return m.gens_behind === 0 ? "current" : `${m.gens_behind} behind`;
+  return m.cpu_year ? String(m.cpu_year) : "";
+}
+function signals(m) {
+  const out = [];
+  if (m.battery_service) {
+    const cap = m.battery_pct != null ? ` (${Math.round(m.battery_pct)}% capacity)` : "";
+    out.push(m.battery_score === "replace" ? `Battery under 60%${cap}` : `${platformLabel(m.p)} recommends battery service${cap}`);
+  } else if (m.battery_score === "degraded") out.push(`Battery degraded (${Math.round(m.battery_pct)}%)`);
+  if (m.windows10) out.push("Windows 10, out of support");
+  const enough = m.days_reporting >= 5;
+  if (enough && m.days_pressured >= Math.max(3, m.days_reporting / 2)) out.push(`Memory strain ${m.days_pressured} of ${m.days_reporting} days`);
+  else if (m.pressured_now) out.push(`Heavy swap ${m.uptime_days} days after restart`);
+  if (m.old) out.push(m.gens_behind != null ? `Chip ${m.gens_behind} generations old` : `CPU from ${m.cpu_year}`);
+  if (m.ram && m.ram <= 8) out.push(`${m.ram} GB RAM`);
+  if (m.disk_free_pct != null && m.disk_free_pct < 10 && SCORED(m)) out.push(`${Math.round(m.disk_free_pct)}% disk free`);
+  return out;
+}
+function warrantyText(m) {
+  if (m.warranty_days == null) return { main: "—", sub: "" };
+  const d = m.warranty_days;
+  const sub = d < 0 ? `ended ${fmt.ago(-d)}` : d === 0 ? "ends today" : `${fmt.plural(d, "day")} left`;
+  return { main: fmt.date(m.warranty), sub, tone: d < 0 ? "bad" : d <= 90 ? "warn" : null };
+}
+
+function render() {
+  const devs = DATA.devices.filter((m) => inFleet(m.fleet) && inPlatform(m.p));
+  const active = devs.filter(SCORED);
+  const count = (k) => devs.filter((m) => m.verdict === k).length;
+  const old = active.filter((m) => m.old);
+  const withW = active.filter((m) => m.warranty_days != null);
+  const expired = withW.filter((m) => m.warranty_days < 0).length;
+  const soon = withW.filter((m) => m.warranty_days >= 0 && m.warranty_days <= 90).length;
+  const refresh = devs.filter((m) => m.verdict === "refresh");
+  const win10 = active.filter((m) => m.windows10).length;
+
+  // Summary band
+  let lede;
+  if (refresh.length) {
+    const why = [];
+    if (refresh.some((m) => m.battery_service)) why.push("batteries that need service");
+    if (refresh.some((m) => m.windows10)) why.push("Windows 10");
+    if (refresh.some((m) => !m.battery_service && !m.windows10)) why.push("sustained memory strain");
+    lede = `${noun(refresh.length)} should be replaced: old CPUs with ${why.join(" or ")}.`;
+  } else if (old.length) {
+    lede = `${noun(old.length)} ${old.length === 1 ? "has an old CPU" : "have old CPUs"}, and none needs replacing yet.`;
+  } else lede = `No ${nounWord(false)} needs replacing right now.`;
+  const support = [];
+  const parts = [["battery", "need battery service"], ["investigate", "need a closer look"], ["watch", "to watch"]]
+    .map(([k, t]) => [count(k), t]).filter(([n]) => n).map(([n, t]) => `${fmt.n(n)} ${t}`);
+  if (parts.length) support.push(parts.join(", ") + ".");
+  if (withW.length) support.push(`Warranty has ended on ${noun(expired)}${soon ? `, and ${fmt.n(soon)} more end within 90 days` : ""}.`);
+  if (count("stale")) support.push(`${noun(count("stale"))} ${count("stale") === 1 ? "hasn't" : "haven't"} checked in for 30+ days.`);
+  const macs = active.filter((m) => m.p === "macos").length;
+  const hist = macs && DATA.history_days < 5
+    ? `Memory strain (macOS) needs 5 days of readings before it counts toward a verdict. Collecting since ${fmt.date(DATA.history_since)} (${fmt.plural(DATA.history_days, "day")} so far).`
+    : null;
+  const sigs = [
+    ["Old CPU", old.length],
+    ["16 GB of RAM or less", active.filter((m) => m.ram && m.ram <= 16).length],
+    ["Battery degraded or needs service", active.filter((m) => m.battery_service || m.battery_score === "degraded").length],
+    ["Sustained memory strain", active.filter((m) => m.days_reporting >= 5 && m.days_pressured >= Math.max(3, m.days_reporting / 2)).length],
+    ["Windows 10", win10],
+    ["Warranty ends within 90 days", soon],
+  ].filter(([, n]) => n).sort((a, b) => b[1] - a[1]).slice(0, 4);
+  mount("hero",
+    h("div", {}, h("div", { class: "eyebrow" }, "Refresh candidates"),
+      h("div", { class: "big" }, h("b", { class: refresh.length ? "hl-bad" : null }, fmt.n(refresh.length)), h("span", {}, `of ${fmt.n(active.length)} active`))),
+    h("div", { class: "hero-mid" }, h("p", { class: "lede" }, lede), h("p", { class: "support" }, support.join(" ")), hist && h("p", { class: "support" }, hist)),
+    h("div", { class: "rail" }, h("div", { class: "eyebrow" }, "Top signals"),
+      sigs.length ? sigs.map(([l, n]) => h("div", { class: "rail-row" }, h("span", {}, l), h("b", {}, fmt.n(n)))) : h("span", { class: "support" }, "No signals here.")));
+
+  const ages = active.map((m) => m.age).filter((a) => a != null);
+  const stat = (k, v, s) => h("div", { class: "stat" }, h("span", { class: "k" }, k), h("span", { class: "v" }, v), h("span", { class: "s" }, s));
+  mount("stats",
+    stat(`Active ${nounWord(true)}`, fmt.n(active.length), `${fmt.n(devs.length)} in Fleet`),
+    stat("Median age", ages.length ? `${quantile(ages, 0.5)} yr` : "—", `oldest ${ages.length ? Math.max(...ages) : "—"} yr`),
+    stat("Old CPUs", fmt.n(old.length), `${fmt.pct(pct(old.length, active.length))} of active`),
+    stat("16 GB or less", fmt.n(active.filter((m) => m.ram && m.ram <= 16).length), `${fmt.n(active.filter((m) => m.ram && m.ram <= 8).length)} at 8 GB or less`),
+    stat("Warranty ended", withW.length ? fmt.n(expired) : "—", withW.length ? `${fmt.n(soon)} end in 90 days` : "no warranty data"),
+    stat("Not checking in", fmt.n(count("stale")), `${DATA.stale_days}+ days silent`));
+
+  document.getElementById("who-hint").textContent = `${fmt.n(active.length)} active, colored by verdict`;
+  const present = ORDER.filter((k) => active.some((m) => m.verdict === k));
+  const stack = (rows) => present.map((k) => {
+    const n = rows.filter((m) => m.verdict === k).length;
+    return { value: n, color: color(k), tip: `${V[k].label}: ${noun(n)}` };
+  });
+  const buckets = [["Under 2 years", 0, 1], ["2 years", 2, 2], ["3 years", 3, 3], ["4 years", 4, 4], ["5+ years", 5, 99]];
+  const ageItems = buckets.map(([l, lo, hi]) => ({ label: l, segs: stack(active.filter((m) => m.age != null && m.age >= lo && m.age <= hi)) }));
+  const unknownAge = active.filter((m) => m.age == null);
+  if (unknownAge.length) ageItems.push({ label: "Unknown", segs: stack(unknownAge) });
+  mount("age", active.length ? [barRows(ageItems), legend(present.map((k) => [V[k].label, color(k)]))] : empty(`No active ${nounWord(true)}`, "Nothing to chart here."));
+
+  const fams = {};
+  for (const m of active) (fams[m.chip_family] ||= []).push(m);
+  const famOrder = Object.keys(fams).sort((a, b) => (fams[b][0].cpu_year || 0) - (fams[a][0].cpu_year || 0) || a.localeCompare(b));
+  mount("chips", active.length ? [barRows(famOrder.map((f) => {
+    const m0 = fams[f][0];
+    const isOld = fams[f].some((m) => m.old);
+    const age = cpuAge(m0);
+    return { label: age ? `${f} · ${age}` : f,
+      segs: [{ value: fams[f].length, color: isOld ? "var(--warn)" : "var(--info)", tip: `${f}: ${noun(fams[f].length)}` }] };
+  })), legend([["Newer CPU", "var(--info)"], ["Old CPU", "var(--warn)"]])] : empty(`No active ${nounWord(true)}`, ""));
+
+  if (withW.length) {
+    const wb = [["Ended", -1e9, -1, "var(--bad)"], ["Within 90 days", 0, 90, "var(--warn)"], ["91 days to 1 year", 91, 365, "var(--info)"], ["1 to 2 years", 366, 730, "var(--good)"], ["2+ years", 731, 1e9, "var(--good)"]];
+    const items = wb.map(([l, lo, hi, c]) => {
+      const n = withW.filter((m) => m.warranty_days >= lo && m.warranty_days <= hi).length;
+      return { label: l, segs: [{ value: n, color: c, tip: `${l}: ${noun(n)}` }] };
+    });
+    const none = active.length - withW.length;
+    if (none) items.push({ label: "No date", segs: [{ value: none, color: "var(--neutral)", tip: `No warranty date: ${noun(none)}` }] });
+    mount("warranty", barRows(items), h("p", { class: "panel-note" }, `From the "${DATA.warranty_vital}" custom host vital.`));
+  } else {
+    mount("warranty", empty("No warranty dates", `Add a "${DATA.warranty_vital}" custom host vital to see coverage here.`));
+  }
+
+  // Shortlist
+  mount("act-chips", ORDER.map((k) => {
+    const n = count(k);
+    if (!n && (k === "virtual" || k === "battery" || k === "investigate")) return null;
+    return h("button", { type: "button", class: "chip", "aria-pressed": shown.has(k) ? "true" : "false", style: `--tone:${color(k)}`,
+      onclick: () => { shown.has(k) ? shown.delete(k) : shown.add(k); render(); } }, h("i"), V[k].group, h("b", {}, fmt.n(n)));
+  }));
+  const groups = ORDER.filter((k) => shown.has(k)).map((k) => ({
+    label: V[k].group, hint: V[k].hint, pill: h("span", { class: "pill", style: `--tone:${color(k)}` }, fmt.n(count(k))),
+    rows: devs.filter((m) => m.verdict === k),
+  })).filter((g) => g.rows.length);
+  const visible = groups.flatMap((g) => g.rows);
+  mount("act-tools", copyButton("Copy as CSV", () => csv([
+    ["verdict", "host", "platform", "fleet", "serial", "model", "cpu", "age_years", "ram_gb", "battery", "signals", "warranty_end", "last_seen_days", "fleet_url"],
+    ...visible.map((m) => [V[m.verdict].label, m.name, platformLabel(m.p), m.fleet, m.serial, m.model, m.chip, m.age, m.ram,
+      m.battery_pct != null ? `${Math.round(m.battery_pct)}%` : m.battery_fleet, signals(m).join("; "), m.warranty, m.seen_days, hostUrl(m.id)]),
+  ])));
+  const columns = [
+    { key: "name", label: nounWord(false), value: (m) => m.name.toLowerCase(), cell: (m) => [hostLink(m.id, m.name),
+      h("div", { class: "cell-sub" }, PLATFORM ? m.fleet : `${platformLabel(m.p)} · ${m.fleet}`)] },
+    { key: "model", label: "Model and CPU", value: (m) => m.model, cell: (m) => [h("div", {}, m.model || "—"),
+      h("div", { class: "cell-sub" }, [m.chip, cpuAge(m)].filter(Boolean).join(" · "))] },
+    { key: "age", label: "Age", num: true, value: (m) => m.age, cell: (m) => (m.age == null ? "—" : `${m.age} yr`) },
+    { key: "ram", label: "RAM", num: true, value: (m) => m.ram, cell: (m) => (m.ram ? `${m.ram} GB` : "—") },
+    { key: "battery", label: "Battery", num: true, value: (m) => m.battery_pct ?? (m.battery_fleet ? (m.battery_service ? 0 : 100) : null), cell: (m) => {
+      if (m.battery_pct == null && !m.battery_fleet) return "—";
+      return [h("div", {}, m.battery_pct != null ? `${Math.round(m.battery_pct)}%` : m.battery_fleet),
+        h("div", { class: "cell-sub" }, m.battery_cycles != null ? `${fmt.n(m.battery_cycles)} cycles` : "")];
+    } },
+    { key: "signals", label: "Signals", value: (m) => signals(m).length, cell: (m) => {
+      const s = signals(m);
+      return s.length ? h("div", { class: "sig" }, s.map((t) => h("span", {}, t))) : h("span", { class: "muted" }, "None");
+    } },
+    { key: "warranty", label: "Warranty", num: true, value: (m) => m.warranty_days, cell: (m) => {
+      const w = warrantyText(m);
+      return [h("div", {}, w.main), h("div", { class: "cell-sub", style: w.tone ? `color:var(--${w.tone})` : null }, w.sub)];
+    } },
+    { key: "seen", label: "Last seen", num: true, value: (m) => m.seen_days, cell: (m) => fmt.ago(m.seen_days) },
+  ];
+  mount("act", groups.length ? sortTable({ columns, groups, sort: ["age", "desc"], id: "shortlist" }) : empty("Nothing selected", "Pick a group above to list its computers."));
+
+  document.getElementById("gen-note").textContent = `Apple silicon is old when it's 3+ generations behind M${DATA.current_gen}, so M${DATA.current_gen - 3} and older. Intel and AMD CPUs are old ${DATA.old_cpu_years}+ years after their release year. Intel Macs are always old.`;
+  document.getElementById("vital-name").textContent = DATA.warranty_vital;
+  document.getElementById("foot").textContent = `Data from ${DATA.fleet_url.replace(/^https?:\/\//, "")} via the Fleet API: List hosts, Get host, and the Device health report. Rebuilt daily.`;
+}
+
+renderTop(fleets, render, platformCounts);
+render();
+</script>
