@@ -30,9 +30,9 @@ const LicenseHostLimitMessage = ({
         />
       }
     >
-      You&apos;re using {hostCount.toLocaleString()} of{" "}
-      {licensedHostCount.toLocaleString()} Fleet Premium hosts. Remove inactive
-      hosts or add more hosts to your license.
+      You have {hostCount.toLocaleString()} hosts enrolled but are licensed 
+      for only{" "}{licensedHostCount.toLocaleString()}. Remove inactive
+      hosts or add more to your license.
     </InfoBanner>
   );
 };
