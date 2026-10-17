@@ -132,6 +132,12 @@ go run cmd/maintained-apps/main.go --slug="box-drive/windows" --debug
 - Install fails silently: confirm your `installer_type`, `installer_arch`, and `installer_scope` match the selected winget installer; run your PowerShell script manually on a test host
 - Uninstall doesn’t remove the app: prefer explicit uninstall scripts; otherwise, ensure the winget manifest exposes `ProductCode` or `UpgradeCode`
 - Hash mismatch errors: if the upstream manifest is in flux, you can set `ignore_hash: true` in the input JSON (use sparingly)
+- GitHub API rate limits, or `api.github.com` blocked for `microsoft/winget-pkgs`: the generator can read manifests from a local clone instead. Set `WINGET_PKGS_REPO` to the clone's path. A partial clone is small and fast, and manifests are read from its `HEAD`, so re-clone or fetch to pick up new versions:
+
+  ```
+  git clone --depth 1 --filter=tree:0 --no-checkout https://github.com/microsoft/winget-pkgs.git /tmp/winget-pkgs
+  WINGET_PKGS_REPO=/tmp/winget-pkgs go run cmd/maintained-apps/main.go --slug="<app-name>/windows" --debug
+  ```
 
 #### Can I do this on macOS?
 

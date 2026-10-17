@@ -37,16 +37,19 @@ func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath string, slu
 	var manifestApps []*maintained_apps.FMAManifestApp
 	var skippedApps int
 
-	githubHTTPClient := fleethttp.NewGithubClient()
-	githubClient := github.NewClient(githubHTTPClient)
-	opts := &github.RepositoryContentGetOptions{
-		Ref: "master",
-	}
-
-	i := &wingetIngester{
-		githubClient: githubClient,
-		ghClientOpts: opts,
-		logger:       logger,
+	i := &wingetIngester{logger: logger}
+	if repoDir := os.Getenv(wingetPkgsRepoEnv); repoDir != "" {
+		local, err := newLocalRepo(ctx, repoDir)
+		if err != nil {
+			return nil, err
+		}
+		i.local = local
+		logger.InfoContext(ctx, "reading winget manifests from a local winget-pkgs clone", "dir", repoDir)
+	} else {
+		i.githubClient = github.NewClient(fleethttp.NewGithubClient())
+		i.ghClientOpts = &github.RepositoryContentGetOptions{
+			Ref: "master",
+		}
 	}
 
 	for _, f := range files {
@@ -128,32 +131,37 @@ func isTransientGitHubError(err error) bool {
 }
 
 type wingetIngester struct {
+	// githubClient and ghClientOpts read manifests through the GitHub API. They are unset
+	// when local is, which reads them from a local clone of winget-pkgs instead.
 	githubClient *github.Client
 	ghClientOpts *github.RepositoryContentGetOptions
+	local        *localRepo
 	logger       *slog.Logger
 }
 
-// wingetVersionManifestDirs keeps only subdirectory entries whose names look like winget
-// package version folders (semver-style). The upstream repo may add other top-level
-// folders (e.g. "Portable") that sort after numeric versions but are not manifest roots.
+// isWingetVersionDirName reports whether a directory name looks like a winget package
+// version folder (semver-style). The upstream repo may add other top-level folders
+// (e.g. "Portable") that sort after numeric versions but are not manifest roots.
 // It also skips single-segment "year" folders such as "2010"/"2013"/"2019" that some
 // packages (e.g. Microsoft.Office) keep alongside their current multi-segment versions;
 // those legacy folders would otherwise outrank a real version like "16.0.19929.20062"
 // because a bare 2010 is numerically greater than 16.
+func isWingetVersionDirName(name string) bool {
+	if len(name) == 0 {
+		return false
+	}
+	if name[0] < '0' || name[0] > '9' {
+		return false
+	}
+	return strings.Contains(name, ".")
+}
+
+// wingetVersionManifestDirs keeps only subdirectory entries whose names look like winget
+// package version folders. See isWingetVersionDirName.
 func wingetVersionManifestDirs(contents []*github.RepositoryContent) []*github.RepositoryContent {
 	var out []*github.RepositoryContent
 	for _, c := range contents {
-		if c.GetType() != "dir" {
-			continue
-		}
-		name := c.GetName()
-		if len(name) == 0 {
-			continue
-		}
-		if name[0] < '0' || name[0] > '9' {
-			continue
-		}
-		if !strings.Contains(name, ".") {
+		if c.GetType() != "dir" || !isWingetVersionDirName(c.GetName()) {
 			continue
 		}
 		out = append(out, c)
@@ -161,13 +169,21 @@ func wingetVersionManifestDirs(contents []*github.RepositoryContent) []*github.R
 	return out
 }
 
-func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*maintained_apps.FMAManifestApp, error) {
-	// this is the path within the winget GitHub repo where the manifests are located
-	dirPath := path.Join(
-		"manifests",
-		strings.ToLower(input.PackageIdentifier[:1]),
-		strings.ReplaceAll(input.PackageIdentifier, ".", "/"),
-	)
+// listVersionDirs returns the names of the version folders under dirPath in winget-pkgs.
+func (i *wingetIngester) listVersionDirs(ctx context.Context, dirPath string) ([]string, error) {
+	var names []string
+	if i.local != nil {
+		dirs, err := i.local.listDirs(ctx, dirPath)
+		if err != nil {
+			return nil, err
+		}
+		for _, name := range dirs {
+			if isWingetVersionDirName(name) {
+				names = append(names, name)
+			}
+		}
+		return names, nil
+	}
 
 	_, repoContents, _, err := i.githubClient.Repositories.GetContents(ctx,
 		"microsoft",
@@ -178,8 +194,56 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	if err != nil {
 		return nil, fmt.Errorf("get data from winget repo: %w", err)
 	}
+	for _, dir := range wingetVersionManifestDirs(repoContents) {
+		names = append(names, dir.GetName())
+	}
+	return names, nil
+}
 
-	versionDirs := wingetVersionManifestDirs(repoContents)
+// readManifest returns the contents of a file in winget-pkgs. It returns an error
+// wrapping errManifestNotFound only when the file genuinely doesn't exist, so callers
+// can tell that apart from transient failures.
+func (i *wingetIngester) readManifest(ctx context.Context, filePath string) (string, error) {
+	if i.local != nil {
+		return i.local.readFile(ctx, filePath)
+	}
+
+	fileContents, _, _, err := i.githubClient.Repositories.GetContents(ctx,
+		"microsoft",
+		"winget-pkgs",
+		filePath,
+		i.ghClientOpts,
+	)
+	if err != nil {
+		if ghErr, ok := errors.AsType[*github.ErrorResponse](err); ok &&
+			ghErr.Response != nil && ghErr.Response.StatusCode == http.StatusNotFound {
+			return "", ctxerr.Wrapf(ctx, errManifestNotFound, "%s: %s", filePath, err)
+		}
+		return "", err
+	}
+	if fileContents == nil {
+		return "", ctxerr.Errorf(ctx, "%s is not a file", filePath)
+	}
+
+	contents, err := fileContents.GetContent()
+	if err != nil {
+		return "", ctxerr.Wrapf(ctx, err, "extracting contents of %s", filePath)
+	}
+	return contents, nil
+}
+
+func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*maintained_apps.FMAManifestApp, error) {
+	// this is the path within the winget GitHub repo where the manifests are located
+	dirPath := path.Join(
+		"manifests",
+		strings.ToLower(input.PackageIdentifier[:1]),
+		strings.ReplaceAll(input.PackageIdentifier, ".", "/"),
+	)
+
+	versionDirs, err := i.listVersionDirs(ctx, dirPath)
+	if err != nil {
+		return nil, err
+	}
 	if len(versionDirs) == 0 {
 		return nil, ctxerr.NewWithData(ctx, "no version manifest directories found under package path", map[string]any{
 			"path": dirPath,
@@ -187,7 +251,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	}
 
 	// sort the list of directories in descending order
-	slices.SortFunc(versionDirs, func(a, b *github.RepositoryContent) int { return feednvd.SmartVerCmp(b.GetName(), a.GetName()) })
+	slices.SortFunc(versionDirs, func(a, b string) int { return feednvd.SmartVerCmp(b, a) })
 
 	// Try version directories in descending order. Some packages have nested
 	// grouping directories (e.g. "2020/20.001.30002") that look like version
@@ -196,8 +260,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	var m installerManifest
 	var l localeManifest
 	var versionFound bool
-	for _, versionDir := range versionDirs {
-		vName := versionDir.GetName()
+	for _, vName := range versionDirs {
 		if vName == "" {
 			continue
 		}
@@ -208,25 +271,14 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			fmt.Sprintf("%s.installer.yaml", input.PackageIdentifier),
 		)
 
-		fileContents, _, _, err := i.githubClient.Repositories.GetContents(ctx,
-			"microsoft",
-			"winget-pkgs",
-			installerManifestPath,
-			i.ghClientOpts,
-		)
+		contents, err := i.readManifest(ctx, installerManifestPath)
 		if err != nil {
-			// only a genuine 404 may fall through to an older version dir
-			if ghErr, ok := errors.AsType[*github.ErrorResponse](err); ok &&
-				ghErr.Response != nil && ghErr.Response.StatusCode == http.StatusNotFound {
+			// only a genuine not-found may fall through to an older version dir
+			if errors.Is(err, errManifestNotFound) {
 				i.logger.DebugContext(ctx, "installer manifest not found, trying next version", "version", vName, "err", err)
 				continue
 			}
 			return nil, ctxerr.Wrap(ctx, err, "getting winget installer manifest file contents")
-		}
-
-		contents, err := fileContents.GetContent()
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "extracting installer manifest file contents")
 		}
 
 		if err := yaml.Unmarshal([]byte(contents), &m); err != nil {
@@ -234,19 +286,9 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		}
 
 		localeManifestPath := path.Join(dirPath, vName, fmt.Sprintf("%s.locale.en-US.yaml", input.PackageIdentifier))
-		fileContents, _, _, err = i.githubClient.Repositories.GetContents(ctx,
-			"microsoft",
-			"winget-pkgs",
-			localeManifestPath,
-			i.ghClientOpts,
-		)
+		contents, err = i.readManifest(ctx, localeManifestPath)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting winget manifest locale file contents")
-		}
-
-		contents, err = fileContents.GetContent()
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting locale manifest contents")
 		}
 
 		if err := yaml.Unmarshal([]byte(contents), &l); err != nil {
