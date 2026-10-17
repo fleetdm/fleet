@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
@@ -261,10 +262,7 @@ func validateDigicertCACN(cn string, errPrefix string) error {
 	}
 	fleetVars := variables.Find(cn)
 	for _, fleetVar := range fleetVars {
-		switch fleetVar {
-		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial), string(fleet.FleetVarHostPlatform):
-			// ok
-		default:
+		if !slices.Contains(fleet.FleetVarsSupportedInDigiCert, fleet.FleetVarName(fleetVar)) {
 			return fleet.NewInvalidArgumentError("certificate_common_name", fmt.Sprintf("%sFLEET_VAR_%s is not allowed in CA Common Name (CN)", errPrefix, fleetVar))
 		}
 	}
@@ -283,10 +281,7 @@ func validateDigicertSeatID(seatID string, errPrefix string) error {
 	}
 	fleetVars := variables.Find(seatID)
 	for _, fleetVar := range fleetVars {
-		switch fleetVar {
-		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial), string(fleet.FleetVarHostPlatform):
-			// ok
-		default:
+		if !slices.Contains(fleet.FleetVarsSupportedInDigiCert, fleet.FleetVarName(fleetVar)) {
 			return fleet.NewInvalidArgumentError("certificate_seat_id", fmt.Sprintf("%sFLEET_VAR_%s is not allowed in DigiCert Seat ID", errPrefix, fleetVar))
 		}
 	}
@@ -307,10 +302,7 @@ func validateDigicertUserPrincipalNames(userPrincipalNames []string, errPrefix s
 	}
 	fleetVars := variables.Find(userPrincipalNames[0])
 	for _, fleetVar := range fleetVars {
-		switch fleetVar {
-		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial), string(fleet.FleetVarHostPlatform):
-			// ok
-		default:
+		if !slices.Contains(fleet.FleetVarsSupportedInDigiCert, fleet.FleetVarName(fleetVar)) {
 			return fleet.NewInvalidArgumentError("certificate_user_principal_names",
 				fmt.Sprintf("%sFLEET_VAR_%s is not allowed in CA User Principal Name", errPrefix, fleetVar))
 		}

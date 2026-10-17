@@ -7,7 +7,6 @@ import { useQuery, useQueryClient } from "react-query";
 import { RouteComponentProps } from "react-router";
 
 import Button from "components/buttons/Button";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import MainContent from "components/MainContent";
 import AndroidLatestVersionWithTooltip from "components/MDM/AndroidLatestVersionWithTooltip";
 import PageDescription from "components/PageDescription";
@@ -384,7 +383,9 @@ const SoftwareTitleDetailsPage = ({
         <LibraryItemAccordion
           filename={appStore.name}
           version={appStore.latest_version}
-          addedAt={appStore.created_at}
+          // Apple App Store apps' version updates automatically, so the time the
+          // app was added to Fleet reads as the time this version was added.
+          addedAt={isAndroidPlayStoreApp ? appStore.created_at : undefined}
           installerType="app-store"
           androidPlayStoreId={
             isAndroidPlayStoreApp ? appStore.app_store_id : undefined
@@ -611,29 +612,22 @@ const SoftwareTitleDetailsPage = ({
     );
 
     // "Add version" lives on multi-version-eligible App Store app titles
-    // (iOS/iPadOS/Android). The 10-version limit mirrors the backend cap. The
-    // button also disables in GitOps mode, where mutations should flow
-    // through YAML — handled inside `GitOpsModeTooltipWrapper` which wraps
-    // the button when the current title is subject to the lock.
+    // (iOS/iPadOS/Android). The 10-version limit mirrors the backend cap. In
+    // GitOps mode the button stays clickable so admins can open the modal in
+    // its disabled state; the lock is enforced inside the modal.
     const showAddVersionAction = canActivateMultipleVersions && canEditSoftware;
     const versionCount = title.app_store_apps?.length ?? (appStore ? 1 : 0);
     const atVersionLimit = versionCount >= MAX_APP_STORE_APP_VERSIONS_PER_TITLE;
     const addVersionButton = showAddVersionAction && (
-      <GitOpsModeTooltipWrapper
-        entityType="software"
-        position="left"
-        renderChildren={(disableChildren) => (
-          <Button
-            variant="secondary"
-            size="small"
-            onClick={() => setShowAddVersionModal(true)}
-            disabled={disableChildren || atVersionLimit}
-            icon="plus"
-          >
-            Add version
-          </Button>
-        )}
-      />
+      <Button
+        variant="secondary"
+        size="small"
+        onClick={() => setShowAddVersionModal(true)}
+        disabled={atVersionLimit}
+        icon="plus"
+      >
+        Add version
+      </Button>
     );
 
     const getHeaderAction = (): React.ReactNode => {

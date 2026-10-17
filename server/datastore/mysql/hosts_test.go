@@ -391,12 +391,12 @@ func testHostMDMAppleEnrollmentPermissions(t *testing.T, ds *Datastore) {
 	require.Equal(t, apple_mdm.MDMAccessRightAll, perms.AccessRights)
 	require.False(t, perms.IsPersonalEnrollment)
 
-	// Record a personal (BYOD) enrollment in host_mdm; access rights still default
-	// until a permissions row is written.
+	// Record a personal (BYOD) enrollment in host_mdm; with no permissions row
+	// the access rights default to the narrowed personal bitmask.
 	require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://example.com?byod=1", false, "Fleet", "", fleet.PersonalEnrollmentTypeManualProfile))
 	perms, err = ds.GetHostMDMAppleEnrollmentPermissions(ctx, host.UUID)
 	require.NoError(t, err)
-	require.Equal(t, apple_mdm.MDMAccessRightAll, perms.AccessRights)
+	require.Equal(t, apple_mdm.AppleEnrollmentAccessRights(true), perms.AccessRights)
 	require.True(t, perms.IsPersonalEnrollment)
 
 	// Persist the narrowed BYOD bitmask and confirm it is read back together with
@@ -3390,32 +3390,28 @@ func testHostsMobileOnlineOffline(t *testing.T, ds *Datastore) {
 		assert.Equal(t, fleet.StatusOffline, h.Status(now), "Host.Status for %s", h.Hostname)
 	}
 
-	// Live-query target flow against the same host set: mobile hosts must be
-	// excluded from all three paths so the picker hides them (SearchHosts),
-	// the metrics don't lie about counting them (CountHostsInTargets), and
-	// the campaign never fires against phones that can't answer
-	// (HostIDsInTargets). If any of the three regresses, a mobile-only or
-	// mobile-inclusive target either shows a phantom row in the picker,
-	// reports counts that don't match the campaign, or launches a dead run.
+	// Mobile hosts are included in CountHostsInTargets and HostIDsInTargets
+	// (pre-#52518 behavior restored so the picker and campaign stay consistent).
 	targetIDs := append(append([]uint{}, expectedOnline...), expectedOffline...)
 	metrics, err := ds.CountHostsInTargets(ctx, filter, fleet.HostTargets{HostIDs: targetIDs}, now)
 	require.NoError(t, err)
-	assert.Equal(t, uint(0), metrics.OnlineHosts, "mobile hosts must not contribute to target metrics online")
-	assert.Equal(t, uint(0), metrics.OfflineHosts, "mobile hosts must not contribute to target metrics offline")
-	assert.Equal(t, uint(0), metrics.TotalHosts, "mobile hosts must not contribute to target metrics total")
+	assert.Equal(t, uint(len(targetIDs)), metrics.TotalHosts, "all mobile hosts contribute to target metrics")
 
 	ids, err := ds.HostIDsInTargets(ctx, filter, fleet.HostTargets{HostIDs: targetIDs})
 	require.NoError(t, err)
-	assert.Empty(t, ids, "mobile hosts must not flow into liveQueryStore.RunQuery")
+	assert.ElementsMatch(t, targetIDs, ids, "mobile hosts included in HostIDsInTargets")
 
-	// SearchHosts by name should skip mobile hosts even when they match — the
-	// picker calls this and would otherwise let a user pick a phone.
+	// SearchHosts returns all platforms including mobile. The live-query
+	// target picker filters mobile hosts at the service layer so that the
+	// manual-label host picker can still find them.
 	for _, h := range []*fleet.Host{iosOnline, ipadosOnline, androidOnline} {
 		found, err := ds.SearchHosts(ctx, filter, h.Hostname)
 		require.NoError(t, err)
+		var foundIDs []uint
 		for _, r := range found {
-			assert.NotEqual(t, h.ID, r.ID, "SearchHosts must not surface mobile host %q to the target picker", h.Hostname)
+			foundIDs = append(foundIDs, r.ID)
 		}
+		assert.Contains(t, foundIDs, h.ID, "SearchHosts must surface mobile host %q for the label picker", h.Hostname)
 	}
 }
 

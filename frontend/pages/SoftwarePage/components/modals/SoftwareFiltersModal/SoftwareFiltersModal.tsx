@@ -140,14 +140,16 @@ const SoftwareFiltersModal = ({
     });
   };
 
-  // Implicit submission clicks the form's first submit-type button, which is
-  // the Vulnerable software Slider (its <button> has no type), so Enter is
-  // handled here instead: ignored in the type search, Apply in score fields.
+  // Only the score fields apply on Enter; the type search must not.
   const onFormKeyDown = (evt: React.KeyboardEvent<HTMLFormElement>) => {
     const target = evt.target as HTMLInputElement;
-    if (evt.key !== "Enter" || target.tagName !== "INPUT") return;
-    evt.preventDefault();
-    if (target.type === "number") evt.currentTarget.requestSubmit();
+    if (
+      evt.key === "Enter" &&
+      target.tagName === "INPUT" &&
+      target.type !== "number"
+    ) {
+      evt.preventDefault();
+    }
   };
 
   const renderModalContent = () => {
