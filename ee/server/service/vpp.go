@@ -354,6 +354,9 @@ func (svc *Service) dryRunValidateVPPAssetsForNewTeam(ctx context.Context, paylo
 	if len(wanted) == 0 {
 		return nil
 	}
+	if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+		return ctxerr.Wrap(ctx, err, "check Apple MDM enabled for VPP apps")
+	}
 
 	tokens, err := svc.ds.ListVPPTokens(ctx)
 	if err != nil {
@@ -534,6 +537,16 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			AutoUpdateEndTime:   payload.AutoUpdateEndTime,
 		})
 
+	}
+
+	// Checked before anything is written, so a rejected batch doesn't leave new categories behind.
+	for _, payload := range payloadsWithPlatform {
+		if payload.Platform == "" || payload.Platform.IsApplePlatform() {
+			if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "check Apple MDM enabled for VPP apps")
+			}
+			break
+		}
 	}
 
 	// since we actually add categories here, it's possible they can stay orphaned until the next run if the run fails
@@ -900,6 +913,9 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
+	if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "check Apple MDM enabled for VPP apps")
+	}
 
 	tokenInfo, err := svc.getVPPTokenInfo(ctx, teamID)
 	if err != nil {
@@ -990,6 +1006,11 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	if !appID.Platform.SupportsAppStoreApps() {
 		return nil, fleet.NewInvalidArgumentError("platform",
 			fmt.Sprintf("platform must be one of '%s', '%s', '%s', or '%s'", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform, fleet.AndroidPlatform))
+	}
+	if appID.Platform.IsApplePlatform() {
+		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "check Apple MDM enabled for VPP app")
+		}
 	}
 
 	// Auto-update is iOS/iPadOS only. Validate here and clear on other platforms; the datastore stores whatever strings arrive, and gitops/API bypass the FE validator.

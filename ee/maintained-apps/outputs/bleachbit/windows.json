@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "6.0.4",
+      "version": "6.0.4.310",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'BleachBit' AND publisher = 'BleachBit';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'BleachBit' AND publisher = 'BleachBit' AND version_compare(version, '6.0.4') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'BleachBit' AND publisher = 'BleachBit' AND version_compare(version, '6.0.4.310') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'bleachbit.exe');"
       },
       "installer_url": "https://download.bleachbit.org/BleachBit-6.0.4-setup.exe",

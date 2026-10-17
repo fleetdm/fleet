@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.4.0",
+      "version": "3.5.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.github.edrlab.thorium';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.github.edrlab.thorium' AND version_compare(bundle_short_version, '3.4.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.github.edrlab.thorium' AND version_compare(bundle_short_version, '3.5.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'io.github.edrlab.thorium' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/edrlab/thorium-reader/releases/download/v3.4.0/Thorium-3.4.0-arm64.dmg",
+      "installer_url": "https://github.com/edrlab/thorium-reader/releases/download/v3.5.1/Thorium-3.5.1-arm64.dmg",
       "install_script_ref": "ab2d1794",
       "uninstall_script_ref": "2e25a391",
-      "sha256": "2f19dcaf4b717330626ebce7148653da399945467699bef7f0843d7b5f512030",
+      "sha256": "23b7d9ab62eaae7a7ef67cbbef579a655c556dce5877278be8c28e96d1fca3a5",
       "default_categories": [
         "Productivity"
       ]
