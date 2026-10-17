@@ -30,9 +30,9 @@ const LicenseHostLimitMessage = ({
         />
       }
     >
-      You have {hostCount.toLocaleString()} hosts enrolled but are licensed for
-      only {licensedHostCount.toLocaleString()}. Remove inactive hosts or add
-      more to your license.
+      Your license covers {licensedHostCount.toLocaleString()} hosts, but you
+      have {hostCount.toLocaleString()} enrolled. Remove inactive hosts or add
+      hosts to your license.
     </InfoBanner>
   );
 };
