@@ -156,6 +156,6 @@ Extensions without an entry stay under the user's control. Add a `*` entry set t
 <meta name="articleTitle" value="Block Safari extensions on macOS">
 <meta name="authorFullName" value="Kitzy">
 <meta name="authorGitHubUsername" value="kitzy">
-<meta name="publishedOn" value="2026-09-29">
+<meta name="publishedOn" value="2026-10-19">
 <meta name="category" value="guides">
 <meta name="description" value="Turn off, allow only specific, or restrict Safari extensions on macOS with a custom DDM declaration in Fleet.">
