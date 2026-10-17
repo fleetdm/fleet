@@ -1,0 +1,44 @@
+- name: CIS - Windows Defender Firewall Public Profile configured (Level 2)
+  query: |-
+    SELECT 1 WHERE (
+      SELECT COUNT(*) FROM registry
+      WHERE
+        (key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PublicProfile' AND name = 'EnableFirewall' AND data = '1')
+      OR
+        (key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PublicProfile' AND name = 'DefaultInboundAction' AND data = '1')
+      OR
+        (key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PublicProfile' AND name = 'DefaultOutboundAction' AND data = '0')
+      OR
+        (key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PublicProfile' AND name = 'DisableNotifications' AND data = '1')
+      OR
+        (key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PublicProfile' AND name = 'AllowLocalPolicyMerge' AND data = '0')
+      OR
+        (key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PublicProfile' AND name = 'AllowLocalIPsecPolicyMerge' AND data = '0')
+      OR
+        (key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PublicProfile\Logging' AND name = 'LogFilePath' AND data = '%SystemRoot%\System32\logfiles\firewall\publicfw.log')
+      OR
+        (key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PublicProfile\Logging' AND name = 'LogFileSize' AND CAST(data AS INTEGER) >= 16384)
+      OR
+        (key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PublicProfile\Logging' AND name = 'LogDroppedPackets' AND data = '1')
+      OR
+        (key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PublicProfile\Logging' AND name = 'LogSuccessfulConnections' AND data = '1')
+    ) = 10;
+  critical: false
+  description: |-
+    CIS Microsoft Windows 11 Enterprise Benchmark (Level 2) - Windows Defender Firewall, Public Profile.
+    Verifies via Group Policy registry values that:
+    - 9.3.1: Firewall state is On (recommended).
+    - 9.3.2: Inbound connections is Block (default).
+    - 9.3.3: Outbound connections is Allow (default).
+    - 9.3.4: Display a notification is No.
+    - 9.3.5: Apply local firewall rules is No (AllowLocalPolicyMerge = 0).
+    - 9.3.6: Apply local connection security rules is No (AllowLocalIPsecPolicyMerge = 0).
+    - 9.3.7: Logging name is %SystemRoot%\System32\logfiles\firewall\publicfw.log.
+    - 9.3.8: Logging size limit is 16,384 KB or greater.
+    - 9.3.9: Log dropped packets is Yes.
+    - 9.3.10: Log successful connections is Yes.
+  resolution: |-
+    Configure these settings in Group Policy (or an MDM policy) under Computer Configuration > Windows Settings > Security Settings > Windows Defender Firewall with Advanced Security > Windows Defender Firewall Properties > Public Profile (CIS section 9.3).
+
+    If you need an exception or this is failing unexpectedly, please reach out in #help-it.
+  platform: windows

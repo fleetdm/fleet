@@ -1,0 +1,38 @@
+- name: CIS - Windows Defender Firewall Private Profile configured (Level 2)
+  query: |-
+    SELECT 1 WHERE (
+      SELECT COUNT(*) FROM registry
+      WHERE
+        (key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PrivateProfile' AND name = 'EnableFirewall' AND data = '1')
+      OR
+        (key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PrivateProfile' AND name = 'DefaultInboundAction' AND data = '1')
+      OR
+        (key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PrivateProfile' AND name = 'DefaultOutboundAction' AND data = '0')
+      OR
+        (key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PrivateProfile' AND name = 'DisableNotifications' AND data = '1')
+      OR
+        (key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PrivateProfile\Logging' AND name = 'LogFilePath' AND data = '%SystemRoot%\System32\logfiles\firewall\privatefw.log')
+      OR
+        (key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PrivateProfile\Logging' AND name = 'LogFileSize' AND CAST(data AS INTEGER) >= 16384)
+      OR
+        (key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PrivateProfile\Logging' AND name = 'LogDroppedPackets' AND data = '1')
+      OR
+        (key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\WindowsFirewall\PrivateProfile\Logging' AND name = 'LogSuccessfulConnections' AND data = '1')
+    ) = 8;
+  critical: false
+  description: |-
+    CIS Microsoft Windows 11 Enterprise Benchmark (Level 2) - Windows Defender Firewall, Private Profile.
+    Verifies via Group Policy registry values that:
+    - 9.2.1: Firewall state is On (recommended).
+    - 9.2.2: Inbound connections is Block (default).
+    - 9.2.3: Outbound connections is Allow (default).
+    - 9.2.4: Display a notification is No.
+    - 9.2.5: Logging name is %SystemRoot%\System32\logfiles\firewall\privatefw.log.
+    - 9.2.6: Logging size limit is 16,384 KB or greater.
+    - 9.2.7: Log dropped packets is Yes.
+    - 9.2.8: Log successful connections is Yes.
+  resolution: |-
+    Configure these settings in Group Policy (or an MDM policy) under Computer Configuration > Windows Settings > Security Settings > Windows Defender Firewall with Advanced Security > Windows Defender Firewall Properties > Private Profile (CIS section 9.2).
+
+    If you need an exception or this is failing unexpectedly, please reach out in #help-it.
+  platform: windows
