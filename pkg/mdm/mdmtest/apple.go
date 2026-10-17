@@ -1901,11 +1901,21 @@ func RandSerialNumber() string {
 	return randStr(12)
 }
 
+// RandSerialNumberFrom is RandSerialNumber drawing from r, so callers can
+// reproduce the same serial from a seed.
+func RandSerialNumberFrom(r *mrand.Rand) string {
+	return randStrFrom(r.Intn, 12)
+}
+
 func randStr(n int) string {
+	//nolint:gosec // not used for crypto, only to generate random serial for testing
+	return randStrFrom(mrand.Intn, n)
+}
+
+func randStrFrom(intn func(int) int, n int) string {
 	b := make([]byte, n)
 	for i := range b {
-		//nolint:gosec // not used for crypto, only to generate random serial for testing
-		b[i] = serialLetters[mrand.Intn(len(serialLetters))]
+		b[i] = serialLetters[intn(len(serialLetters))]
 	}
 	return string(b)
 }
@@ -1913,6 +1923,12 @@ func randStr(n int) string {
 // RandUDID returns a fake random iOS/iPadOS 17+ UDID.
 func RandUDID() string {
 	return fmt.Sprintf("%s-%s", randStr(8), randStr(16))
+}
+
+// RandUDIDFrom is RandUDID drawing from r, so callers can reproduce the same
+// UDID from a seed.
+func RandUDIDFrom(r *mrand.Rand) string {
+	return fmt.Sprintf("%s-%s", randStrFrom(r.Intn, 8), randStrFrom(r.Intn, 16))
 }
 
 // EncodeDeviceInfo is a helper function to provide mock device info for the x-aspen-deviceinfo
