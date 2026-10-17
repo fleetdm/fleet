@@ -1490,13 +1490,14 @@ func (svc *Service) createTransferredHostsActivity(ctx context.Context, teamID *
 		// that actually exist, preserving the requested order. IDs that don't
 		// resolve to a host (e.g. non-existent IDs in the request, or a host
 		// deleted right after the transfer) are excluded so they can't be
-		// injected into the audit trail.
+		// injected into the audit trail. Repeated IDs are recorded once.
 		existingIDs := make([]uint, 0, len(hostIDs))
 		hostNames = make([]string, 0, len(hostIDs))
 		for _, hid := range hostIDs {
 			if h, ok := hostsByID[hid]; ok {
 				existingIDs = append(existingIDs, hid)
 				hostNames = append(hostNames, h.DisplayName())
+				delete(hostsByID, hid)
 			}
 		}
 		hostIDs = existingIDs
