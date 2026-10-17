@@ -10,6 +10,7 @@ import ApplePNCertRenewalMessage from "components/MDM/ApplePNCertRenewalMessage"
 import { AppContext } from "context/app";
 import { hasLicenseExpired } from "utilities/helpers";
 
+import LicenseHostLimitMessage from "./banners/LicenseHostLimitMessage";
 import MicrosoftGraphCredentialInvalidMessage from "./banners/MicrosoftGraphCredentialInvalidMessage";
 import VppRenewalMessage from "./banners/VppRenewalMessage";
 
@@ -38,6 +39,7 @@ const MainContent = ({
   const classes = classnames(baseClass, className);
   const {
     config,
+    hostCount,
     isPremiumTier,
     isAndroidEnterpriseDeleted,
     isApplePnsExpired,
@@ -55,6 +57,8 @@ const MainContent = ({
     const isFleetLicenseExpired = hasLicenseExpired(
       config?.license.expiration || ""
     );
+
+    const licensedHostCount = config?.license.device_count;
 
     let banner: JSX.Element | null = null;
 
@@ -81,6 +85,17 @@ const MainContent = ({
         banner = <MicrosoftGraphCredentialInvalidMessage />;
       } else if (isFleetLicenseExpired) {
         banner = <LicenseExpirationBanner />;
+      } else if (
+        licensedHostCount &&
+        hostCount !== undefined &&
+        hostCount > licensedHostCount
+      ) {
+        banner = (
+          <LicenseHostLimitMessage
+            hostCount={hostCount}
+            licensedHostCount={licensedHostCount}
+          />
+        );
       }
     }
 

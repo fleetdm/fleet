@@ -1325,6 +1325,7 @@ module.exports.routes = {
   'GET /learn-more-about/domain-wide-delegation': 'https://admin.google.com/ac/owl/domainwidedelegation',
   'GET /learn-more-about/enabling-calendar-api': 'https://console.cloud.google.com/apis/library/calendar-json.googleapis.com',
   'GET /learn-more-about/downgrading': '/docs/using-fleet/downgrading-fleet',
+  'GET /learn-more-about/add-hosts-to-license': '/guides/add-hosts-to-your-fleet-premium-license',
   'GET /learn-more-about/fleetd': '/docs/get-started/anatomy#fleetd',
   'GET /learn-more-about/rotating-enroll-secrets': 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/cli/fleetctl-apply.md#rotating-enroll-secrets',
   'GET /learn-more-about/audit-logs': '/docs/using-fleet/audit-logs',
