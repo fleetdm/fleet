@@ -1,0 +1,1 @@
+- Fleet now collects uptime and last restarted time from ChromeOS hosts running a fleetd Chrome extension version that includes the `uptime` table.

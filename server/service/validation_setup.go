@@ -10,21 +10,21 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-func (mw validationMiddleware) NewAppConfig(ctx context.Context, payload fleet.AppConfig) (*fleet.AppConfig, error) {
+func validateSetupServerURL(ctx context.Context, serverURL string) error {
 	invalid := &fleet.InvalidArgumentError{}
 	var serverURLString string
-	if payload.ServerSettings.ServerURL == "" {
+	if serverURL == "" {
 		invalid.Append("server_url", "missing required argument")
 	} else {
-		serverURLString = cleanupURL(payload.ServerSettings.ServerURL)
+		serverURLString = cleanupURL(serverURL)
 	}
 	if err := ValidateServerURL(serverURLString); err != nil {
 		invalid.Append("server_url", err.Error())
 	}
 	if invalid.HasErrors() {
-		return nil, ctxerr.Wrap(ctx, invalid)
+		return ctxerr.Wrap(ctx, invalid)
 	}
-	return mw.Service.NewAppConfig(ctx, payload)
+	return nil
 }
 
 func ValidateServerURL(urlString string) error {

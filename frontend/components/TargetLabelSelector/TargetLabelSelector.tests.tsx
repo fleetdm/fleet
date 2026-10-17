@@ -1,8 +1,9 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { noop } from "lodash";
 import React from "react";
 
 import { ILabelSummary } from "interfaces/label";
+import { createCustomRenderer } from "test/test-utils";
 
 import TargetLabelSelector, { ILabelConfig } from "./TargetLabelSelector";
 
@@ -111,5 +112,44 @@ describe("TargetLabelSelector (tabbed) component", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Add label" }));
     expect(onAddLabel).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the GitOps tooltip on a selected label tag when disabled by GitOps mode", async () => {
+    const renderWithContext = createCustomRenderer({
+      context: {
+        app: {
+          config: {
+            gitops: {
+              gitops_mode_enabled: true,
+              repository_url: "a.b.cc",
+            },
+          },
+        },
+      },
+    });
+
+    const { user } = renderWithContext(
+      <TargetLabelSelector
+        selectedTargetType="Custom"
+        onSelectTargetType={noop}
+        labels={LABELS}
+        includeConfig={makeTab({ selectedLabels: { "label 1": true } })}
+        excludeConfig={makeTab()}
+        emptyStateDescription="Add a label to target a group of hosts."
+        onAddLabel={noop}
+        disableOptions
+      />
+    );
+
+    const dismissButton = screen.getByRole("button", {
+      name: "Remove label 1",
+    });
+    expect(dismissButton).toBeDisabled();
+
+    // Hover the tag itself, not the checkbox that has the same text
+    await user.hover(dismissButton.parentElement as HTMLElement);
+    await waitFor(() => {
+      expect(screen.getByText(/Manage in/)).toBeInTheDocument();
+    });
   });
 });

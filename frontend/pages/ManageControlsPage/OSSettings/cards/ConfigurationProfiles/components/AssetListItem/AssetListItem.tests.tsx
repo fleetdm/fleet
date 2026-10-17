@@ -25,6 +25,7 @@ describe("AssetListItem", () => {
     );
 
     expect(screen.getByText("com.example.asset1")).toBeInTheDocument();
+    expect(screen.getByText("Asset")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Copy com.example.asset1" })
     ).toBeInTheDocument();

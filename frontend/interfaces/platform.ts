@@ -98,6 +98,7 @@ export const HOST_LINUX_PLATFORMS = [
   "ubuntu", // covers Kubuntu
   "zorin", // Zorin OS (Ubuntu-based)
   "debian",
+  "parrot", // Parrot OS (Debian-based)
   "rhel", // covers Fedora
   "centos",
   "sles",

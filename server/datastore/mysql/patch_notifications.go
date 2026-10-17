@@ -255,6 +255,7 @@ SELECT
 	pna.created_at,
 	COALESCE(st.name, '') AS name,
 	COALESCE(NULLIF(stdn.display_name, ''), st.name, '') AS display_name,
+	NULLIF(stdn.display_name, '') AS display_name_override,
 	COALESCE(si.version, '') AS installer_version,
 	sti.software_title_id IS NOT NULL AS has_icon
 FROM patch_notification_apps pna
