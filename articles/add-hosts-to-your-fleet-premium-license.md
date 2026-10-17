@@ -1,14 +1,8 @@
 # Add hosts to your Fleet Premium license
 
-If you bought Fleet Premium on fleetdm.com (self-service), you add hosts to your license in Stripe, through your customer dashboard. If you bought your license through Fleet's sales team, or Fleet hosts your Fleet server, [contact support](https://fleetdm.com/support) to add hosts instead.
+If you bought Fleet Premium on fleetdm.com (self-service), follow this guide to add hosts to your license in Stripe, through your customer dashboard. 
 
-Your license covers a set number of hosts. If you enroll more hosts than your license allows, Fleet shows a banner with your current count and your licensed count. This guide shows self-service customers how to add hosts and apply the new license key to your Fleet server.
-
-## Prerequisites
-
-- A self-service Fleet Premium license, bought on fleetdm.com.
-- The email and password for your fleetdm.com account.
-- Access to your Fleet server's configuration, so you can update the `FLEET_LICENSE_KEY` environment variable or the `license.key` setting in your config file.
+If you bought your license through Fleet's [sales team](https://fleetdm.com/handbook/sales#team), [contact support](https://fleetdm.com/support) to add hosts instead.
 
 ## Change your number of hosts
 
@@ -28,19 +22,12 @@ After Stripe processes the change, fleetdm.com generates a new license key for t
 4. Replace your existing license key with the new one, either in the `FLEET_LICENSE_KEY` environment variable or in the `license.key` setting in your [Fleet server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key).
 5. Restart your Fleet server so it loads the new key.
 
-> **Warning:** Your old license key still works until it expires, but it keeps your old host count. If you skip this step, Fleet keeps showing the banner.
-
 ## Verify
 
 1. Log in to Fleet and reload the page.
 2. Confirm that the banner about your host count is gone.
 
 If you still have more hosts enrolled than your new license allows, the banner stays. You can raise your host count again, or delete hosts that are no longer in use from the **Hosts** page.
-
-## Further reading
-
-- [Fleet server configuration: license key](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key)
-- [Fleet pricing](https://fleetdm.com/pricing)
 
 <meta name="articleTitle" value="Add hosts to your Fleet Premium license">
 <meta name="authorFullName" value="Noah Talerman">
