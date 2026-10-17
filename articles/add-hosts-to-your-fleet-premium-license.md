@@ -1,10 +1,12 @@
 # Add hosts to your Fleet Premium license
 
-Your Fleet Premium license covers a set number of hosts. If you enroll more hosts than your license allows, Fleet shows a banner with your current count and your licensed count. This guide shows you how to add hosts to your license and apply the new license key to your Fleet server.
+If you bought Fleet Premium on fleetdm.com (self-service), you add hosts to your license in Stripe, through your customer dashboard. If you bought your license through Fleet's sales team, or Fleet hosts your Fleet server, [contact support](https://fleetdm.com/support) to add hosts instead.
+
+Your license covers a set number of hosts. If you enroll more hosts than your license allows, Fleet shows a banner with your current count and your licensed count. This guide shows self-service customers how to add hosts and apply the new license key to your Fleet server.
 
 ## Prerequisites
 
-- A Fleet Premium license you bought on fleetdm.com. If you bought your license through Fleet's sales team, or Fleet hosts your Fleet server, [contact us](https://fleetdm.com/contact) to add hosts instead.
+- A self-service Fleet Premium license, bought on fleetdm.com.
 - The email and password for your fleetdm.com account.
 - Access to your Fleet server's configuration, so you can update the `FLEET_LICENSE_KEY` environment variable or the `license.key` setting in your config file.
 
