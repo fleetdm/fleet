@@ -795,6 +795,109 @@ func TestRunAndroidSetupExperienceInstallsFirstAddedFlaggedVersion(t *testing.T)
 	require.Equal(t, uint(1), installs[0].VPPAppTeamID)
 }
 
+// A re-enrolled host reuses its host-specific policy, so making its fleet's apps available
+// must replace the policy's app list, dropping the apps of the previous enrollment.
+func TestMakeAndroidAppsAvailableForHostReplacesAppList(t *testing.T) {
+	const (
+		hostUUID       = "host-uuid"
+		enterpriseName = "enterprises/test"
+		agentPackage   = "com.fleetdm.agent"
+	)
+
+	cases := []struct {
+		name         string
+		appsInScope  []fleet.VPPAppTeam
+		buildAgent   func(ctx context.Context, hostUUID string) (*androidmanagement.ApplicationPolicy, error)
+		wantErr      bool
+		wantPackages []string
+	}{
+		{
+			name:         "fleet with apps",
+			appsInScope:  []fleet.VPPAppTeam{{AdamID: "com.example.one", AppTeamID: 1}, {AdamID: "com.example.two", AppTeamID: 2}},
+			wantPackages: []string{"com.example.one", "com.example.two", agentPackage},
+		},
+		{
+			name:         "fleet without apps",
+			wantPackages: []string{agentPackage},
+		},
+		{
+			name:        "fleet agent not configured",
+			appsInScope: []fleet.VPPAppTeam{{AdamID: "com.example.one", AppTeamID: 1}},
+			buildAgent: func(ctx context.Context, hostUUID string) (*androidmanagement.ApplicationPolicy, error) {
+				return nil, nil
+			},
+			wantPackages: []string{"com.example.one"},
+		},
+		{
+			name: "fleet without apps and fleet agent not configured",
+			buildAgent: func(ctx context.Context, hostUUID string) (*androidmanagement.ApplicationPolicy, error) {
+				return nil, nil
+			},
+			wantPackages: nil,
+		},
+		{
+			name:        "fleet agent policy fails to build",
+			appsInScope: []fleet.VPPAppTeam{{AdamID: "com.example.one", AppTeamID: 1}},
+			buildAgent: func(ctx context.Context, hostUUID string) (*androidmanagement.ApplicationPolicy, error) {
+				return nil, errors.New("no enroll secret")
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, uuid string) (*fleet.AndroidHost, error) {
+				return &fleet.AndroidHost{Host: &fleet.Host{ID: 1, UUID: uuid}, Device: &android.Device{DeviceID: "device-id"}}, nil
+			}
+			ds.GetAndroidAppsInScopeForHostFunc = func(ctx context.Context, hostID uint) ([]fleet.VPPAppTeam, error) {
+				return c.appsInScope, nil
+			}
+			ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, vppAppTeamIDs []uint) (map[string][]byte, error) {
+				return map[string][]byte{}, nil
+			}
+
+			buildAgent := c.buildAgent
+			if buildAgent == nil {
+				buildAgent = func(ctx context.Context, hostUUID string) (*androidmanagement.ApplicationPolicy, error) {
+					return &androidmanagement.ApplicationPolicy{PackageName: agentPackage, InstallType: "FORCE_INSTALLED"}, nil
+				}
+			}
+			var setCalls int
+			var setPackages []string
+			var setHosts map[string]string
+			androidModule := &mockAndroidModule{
+				buildFleetAgentApplicationPolicyFunc: buildAgent,
+				setAppsForAndroidPolicyFunc: func(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) error {
+					setCalls++
+					setHosts = hostUUIDs
+					for _, p := range appPolicies {
+						setPackages = append(setPackages, p.PackageName)
+					}
+					return nil
+				},
+				addAppsToAndroidPolicyFunc: func(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
+					t.Fatal("apps must replace the host policy's app list, not be added to it")
+					return nil, nil
+				},
+			}
+			w := &SoftwareWorker{Datastore: ds, AndroidModule: androidModule, Log: slog.New(slog.DiscardHandler)}
+
+			err := w.makeAndroidAppsAvailableForHost(t.Context(), hostUUID, 1, enterpriseName, hostUUID)
+			if c.wantErr {
+				require.Error(t, err)
+				require.Zero(t, setCalls)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, 1, setCalls)
+			require.Equal(t, map[string]string{hostUUID: hostUUID}, setHosts)
+			require.Equal(t, c.wantPackages, setPackages)
+		})
+	}
+}
+
 type resendVPPInstaller struct {
 	installErrByHostID map[uint]error
 	// installedAppTeamIDByHostID records the version each successful install used
@@ -1005,8 +1108,9 @@ func TestResendVPPAppConfiguration(t *testing.T) {
 
 // Moving a host off the default policy replaces every setting of its host-specific policy,
 // which a re-enrolled host reuses and the reconciler may already have filled, so the host's
-// profiles must be queued for redelivery after the patch.
-func TestEnsureHostSpecificPolicyIsAppliedQueuesProfileRedelivery(t *testing.T) {
+// profiles must be queued for redelivery after the patch. The device must only be moved to
+// that policy once its app list was replaced, so it never sees a previous enrollment's apps.
+func TestMakeAndroidAppsAvailableForHostPolicyOrder(t *testing.T) {
 	const (
 		hostUUID       = "host-uuid"
 		enterpriseName = "enterprises/test"
@@ -1015,11 +1119,15 @@ func TestEnsureHostSpecificPolicyIsAppliedQueuesProfileRedelivery(t *testing.T) 
 	defaultPolicyID := fmt.Sprint(android.DefaultAndroidPolicyID)
 
 	var calls []string
-	var patchPolicyErr error
+	var patchPolicyErr, setAppsErr error
 	androidModule := &mockAndroidModule{
 		patchPolicyFunc: func(ctx context.Context, policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (bool, error) {
 			calls = append(calls, "patch policy "+policyName)
 			return false, patchPolicyErr
+		},
+		setAppsForAndroidPolicyFunc: func(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) error {
+			calls = append(calls, "set apps "+hostUUIDs[hostUUID])
+			return setAppsErr
 		},
 		patchDeviceFunc: func(ctx context.Context, policyID, deviceName string, device *androidmanagement.Device) (bool, error) {
 			calls = append(calls, "patch device "+deviceName+" to "+device.PolicyName)
@@ -1034,27 +1142,44 @@ func TestEnsureHostSpecificPolicyIsAppliedQueuesProfileRedelivery(t *testing.T) 
 		calls = append(calls, "reset profiles "+uuid)
 		return nil
 	}
+	ds.GetAndroidAppsInScopeForHostFunc = func(ctx context.Context, hostID uint) ([]fleet.VPPAppTeam, error) {
+		return nil, nil
+	}
+	ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, vppAppTeamIDs []uint) (map[string][]byte, error) {
+		return map[string][]byte{}, nil
+	}
 	w := &SoftwareWorker{Datastore: ds, AndroidModule: androidModule, Log: slog.New(slog.DiscardHandler)}
 
 	t.Run("default policy", func(t *testing.T) {
-		calls, patchPolicyErr = nil, nil
-		require.NoError(t, w.ensureHostSpecificPolicyIsApplied(t.Context(), hostUUID, enterpriseName, defaultPolicyID))
+		calls, patchPolicyErr, setAppsErr = nil, nil, nil
+		require.NoError(t, w.makeAndroidAppsAvailableForHost(t.Context(), hostUUID, 1, enterpriseName, defaultPolicyID))
 		assert.Equal(t, []string{
 			"patch policy " + hostPolicyName,
 			"reset profiles " + hostUUID,
+			"set apps " + hostUUID,
 			"patch device " + enterpriseName + "/devices/device-id to " + hostPolicyName,
 		}, calls)
 	})
 
 	t.Run("policy patch fails", func(t *testing.T) {
-		calls, patchPolicyErr = nil, errors.New("nope")
-		require.Error(t, w.ensureHostSpecificPolicyIsApplied(t.Context(), hostUUID, enterpriseName, defaultPolicyID))
+		calls, patchPolicyErr, setAppsErr = nil, errors.New("nope"), nil
+		require.Error(t, w.makeAndroidAppsAvailableForHost(t.Context(), hostUUID, 1, enterpriseName, defaultPolicyID))
 		assert.Equal(t, []string{"patch policy " + hostPolicyName}, calls)
 	})
 
+	t.Run("app list replace fails", func(t *testing.T) {
+		calls, patchPolicyErr, setAppsErr = nil, nil, errors.New("nope")
+		require.Error(t, w.makeAndroidAppsAvailableForHost(t.Context(), hostUUID, 1, enterpriseName, defaultPolicyID))
+		assert.Equal(t, []string{
+			"patch policy " + hostPolicyName,
+			"reset profiles " + hostUUID,
+			"set apps " + hostUUID,
+		}, calls, "the device must stay off the host policy")
+	})
+
 	t.Run("host policy already applied", func(t *testing.T) {
-		calls, patchPolicyErr = nil, nil
-		require.NoError(t, w.ensureHostSpecificPolicyIsApplied(t.Context(), hostUUID, enterpriseName, hostUUID))
-		assert.Empty(t, calls)
+		calls, patchPolicyErr, setAppsErr = nil, nil, nil
+		require.NoError(t, w.makeAndroidAppsAvailableForHost(t.Context(), hostUUID, 1, enterpriseName, hostUUID))
+		assert.Equal(t, []string{"set apps " + hostUUID}, calls)
 	})
 }
