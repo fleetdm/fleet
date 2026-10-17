@@ -146,7 +146,11 @@ To silently patch the app when this policy fails and app is not open, set both `
 
 To notify the end user before the app is patched, set `install_software` and `notify_before_patching` to `true`. Fleet checks if the app is open, and if yes shows a notification listing the apps that will be updated, waits 1 hour, then installs the patch. A reminder is shown 5 minutes before the install. This option is only available on macOS, and requires the Fleet Desktop app (available as a Fleet-maintained app).
 
-Fleet adds a read-only pre-install query that checks if the app is open when `patch_when_closed` or `notify_before_patching` is set to `true`. Also, `continuous_automations_enabled` is automatically set to `true` when one of these options is enabled. The Fleet-managed pre-install query is ignored for self-service, host details page, and setup experience installs. Fleet-managed pre-install query is ignored for self-service, host details page, and setup experience installs.
+To patch the app at a scheduled time, set `install_software` and `patch_deadline` to `true`. If the app isn't open, Fleet patches it right away. If the app is open, Fleet waits for the next deadline in the fleet's [`patch_deadline_settings`](#patch-deadline-settings). 1 hour before the deadline, Fleet shows the end user a notification listing the apps that will close and update. A reminder is shown 5 minutes before the install. If the notification can't be shown (for example, the host is offline or the screen is locked), Fleet shows it as soon as it can and installs 1 hour later. This option is only available on macOS, and requires the Fleet Desktop app (available as a Fleet-maintained app).
+
+Only one of `patch_when_closed`, `notify_before_patching`, or `patch_deadline` can be set to `true`.
+
+Fleet adds a read-only pre-install query that checks if the app is open when `patch_when_closed`, `notify_before_patching`, or `patch_deadline` is set to `true`. Also, `continuous_automations_enabled` is automatically set to `true` when one of these options is enabled. The Fleet-managed pre-install query is ignored for self-service, host details page, and setup experience installs. Fleet-managed pre-install query is ignored for self-service, host details page, and setup experience installs.
 
 #### Automations
 
@@ -270,6 +274,13 @@ policies:
   fleet_maintained_app_slug: 1password/darwin
   install_software: true
   notify_before_patching: true
+- name: Google Chrome up to date
+  description: Outdated software might introduce security vulnerabilities or compatibility issues.
+  resolution: Install the latest version from self-service.
+  type: patch
+  fleet_maintained_app_slug: google-chrome/darwin
+  install_software: true
+  patch_deadline: true
 ```
 
 `default.yml` (for policies that neither install software nor run scripts), `fleets/fleet-name.yml`, or `fleet/unassigned.yml`
@@ -658,6 +669,7 @@ The `software` section allows you to configure packages, store apps (Apple App S
 - `packages` is a list of paths to custom packages (.pkg, .ipa, .msi, .exe, .deb, .rpm, .tar.gz, .sh, .py, or .ps1).
 - `app_store_apps` is a list of Apple App Store or Android Play Store apps.
 - `fleet_maintained_apps` is a list of Fleet-maintained apps.
+- `patch_deadline_settings` sets when Fleet patches apps that have `patch_deadline` enabled. See [patch_deadline_settings](#patch-deadline-settings).
 
 Currently, you can specify `install_software` in the [`policies` YAML](#policies) to automatically install software when a host fails a policy.
 
@@ -673,6 +685,12 @@ Script-only packages (.sh, .ps1, .py) also support $FLEET_SECRET_* variables. Fl
 
 ```yaml
 software:
+  patch_deadline_settings:
+    days:
+      - monday
+      - wednesday
+      - friday
+    time: "11:00"
   packages:
     - path: ../lib/software-name.package.yml
       categories:
@@ -758,6 +776,17 @@ software:
   - `app_store_apps`: the App Store or Google Play app name is used.
 
 In all cases, once Fleet collects software inventory, the inventory name is used instead.
+
+### patch_deadline_settings
+
+_Available in Fleet Premium_
+
+`patch_deadline_settings` sets when Fleet patches Fleet-maintained apps that have a [patch policy](#patch-policy) with `patch_deadline` set to `true`. Fleet shows the end user a notification 1 hour before the deadline.
+
+- `days` is a list of days of the week when the deadline applies. Options are `monday`, `tuesday`, `wednesday`, `thursday`, `friday`, `saturday`, and `sunday`. Required.
+- `time` is the deadline, formatted as `HH:MM` in the host's local time (e.g. `"11:00"`). Fleet doesn't patch a host until it has collected the host's timezone. Must be wrapped in quotes so it is processed as a string. Required.
+
+If `patch_deadline_settings` is omitted, Fleet uses the default: Tuesday at `"17:00"`.
 
 ### packages
 
@@ -960,7 +989,7 @@ By default, Fleet-maintained apps will be updated to the latest version publishe
 The fields below are all optional.
 
 - `self_service` specifies whether end users can install from **Fleet Desktop > Self-service**.
-- `pre_install_query.path` is the SQL query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).  If a [patch policy](#patch-policy) has `patch_when_closed` or `notify_before_patching` set to `true`, Fleet manages this query and rejects this field.
+- `pre_install_query.path` is the SQL query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).  If a [patch policy](#patch-policy) has `patch_when_closed`, `notify_before_patching`, or `patch_deadline` set to `true`, Fleet manages this query and rejects this field.
 - `post_install_script.path` is the script that, if supplied, Fleet will run on hosts after the software installs.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and fleet where they are added.
 - `⁠version` specifies the app version. Available versions are listed in the Fleet UI under **Actions > Versions**. If omitted, Fleet automatically downloads the latest version found in [Fleet's catalog](https://fleetdm.com/software-catalog). The `version` must be wrapped in quotes (e.g. "147.0.1") so that it is processed as a string.
