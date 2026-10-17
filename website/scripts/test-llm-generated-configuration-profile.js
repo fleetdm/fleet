@@ -57,7 +57,7 @@ only sometimes.  Ids are unique and carry their profile type as a prefix, so --p
 
     parallelTests: {
       type: 'number',
-      defaultsTo: 1,
+      defaultsTo: 3,
       description: 'Run each case this many times, to see how often it passes rather than whether it passed once.',
       extendedDescription: `Works with any of --naturalLanguageInstructions, --caseId, or a whole run.  The repeats of one case
 go out together and the cases stay sequential, so at most this many requests are ever in flight -- launching every case
@@ -83,7 +83,7 @@ csp cases report as not-checked either way.`
 
     lookupAppleSchemaKeys: {
       type: 'boolean',
-      defaultsTo: false,
+      defaultsTo: true,
       description: 'Whether or not to use the configuration helper\'s lookup functionality.'
     }
 
