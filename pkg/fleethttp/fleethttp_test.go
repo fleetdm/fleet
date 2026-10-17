@@ -1,6 +1,7 @@
 package fleethttp
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -132,8 +133,8 @@ func TestIpInCIDRs(t *testing.T) {
 	}
 }
 
-func TestAlwaysBlockedIPs(t *testing.T) {
-	// These IPs are always blocked, even with --allow_private_network_integrations.
+func TestPrivateNetworkBlockedIPs(t *testing.T) {
+	// These IPs are blocked unless allow-listed in --server_private_network_allow_list.
 	cases := []struct {
 		ip      string
 		blocked bool
@@ -143,19 +144,27 @@ func TestAlwaysBlockedIPs(t *testing.T) {
 		{"127.0.0.2", true},
 		{"169.254.169.254", true}, // AWS IMDS
 		{"169.254.0.1", true},
-		{"::", true},           // IPv6 unspecified; connects to loopback
-		{"::127.0.0.1", true},  // deprecated IPv4-compatible form
-		{"::1", true},          // IPv6 loopback
-		{"fe80::1", true},      // IPv6 link-local
-		{"8.8.8.8", false},     // public
-		{"10.0.0.1", false},    // RFC 1918 -- not in always-blocked
-		{"192.168.1.1", false}, // RFC 1918 -- not in always-blocked
+		{"::", true},          // IPv6 unspecified; connects to loopback
+		{"::127.0.0.1", true}, // deprecated IPv4-compatible form
+		{"::1", true},         // IPv6 loopback
+		{"fe80::1", true},     // IPv6 link-local
+		{"8.8.8.8", false},    // public
+		{"10.0.0.1", true},    // RFC 1918
+		{"192.168.1.1", true}, // RFC 1918 -- not in always-blocked
+		{"10.255.255.255", true},
+		{"172.16.0.1", true},
+		{"172.31.255.255", true},
+		{"192.168.1.1", true},
+		{"fc00::1", true},     // IPv6 unique local
+		{"8.8.8.8", false},    // public
+		{"1.1.1.1", false},    // public
+		{"172.32.0.1", false}, // just outside 172.16.0.0/12
 	}
 	for _, c := range cases {
 		t.Run(c.ip, func(t *testing.T) {
 			ip := net.ParseIP(c.ip)
 			require.NotNil(t, ip)
-			assert.Equal(t, c.blocked, ipInCIDRs(ip, alwaysBlockedCIDRs))
+			assert.Equal(t, c.blocked, ipInCIDRs(ip, privateNetworkCIDRs))
 		})
 	}
 }
@@ -194,14 +203,6 @@ func TestNAT64EmbeddedIPv4(t *testing.T) {
 		_, err := NewClient(WithTimeout(3 * time.Second)).Get(target)
 		return err
 	}
-	t.Run("embedded internal address is blocked", func(t *testing.T) {
-		for _, ip := range []string{"64:ff9b::7f00:1", "64:ff9b::a9fe:a9fe"} {
-			err := blocked(t, "http://["+ip+"]:80/", BlockingPrivateAllowed)
-			require.ErrorIs(t, err, ErrPrivateNetworkBlocked, ip)
-		}
-		err := blocked(t, "http://[64:ff9b::a00:1]:80/", BlockingFull)
-		require.ErrorIs(t, err, ErrPrivateNetworkBlocked)
-	})
 	t.Run("embedded public address is not blocked", func(t *testing.T) {
 		// Reaching it may fail for unrelated reasons; it must not be the guard.
 		err := blocked(t, "http://[64:ff9b::808:808]:80/", BlockingFull)
@@ -211,36 +212,196 @@ func TestNAT64EmbeddedIPv4(t *testing.T) {
 	})
 }
 
-func TestPrivateNetworkCIDRs(t *testing.T) {
-	// These IPs are blocked when private network blocking is enabled.
-	cases := []struct {
-		ip      string
-		private bool
-	}{
-		{"10.0.0.1", true},
-		{"10.255.255.255", true},
-		{"172.16.0.1", true},
-		{"172.31.255.255", true},
-		{"192.168.1.1", true},
-		{"fc00::1", true},     // IPv6 unique local
-		{"0.0.0.0", false},    // always-blocked instead, so not listed here
-		{"8.8.8.8", false},    // public
-		{"1.1.1.1", false},    // public
-		{"172.32.0.1", false}, // just outside 172.16.0.0/12
-	}
-	for _, c := range cases {
-		t.Run(c.ip, func(t *testing.T) {
-			ip := net.ParseIP(c.ip)
-			require.NotNil(t, ip)
-			assert.Equal(t, c.private, ipInCIDRs(ip, privateNetworkCIDRs))
-		})
-	}
-}
-
 func setBlockingMode(t *testing.T, mode NetworkBlockingMode) {
 	t.Helper()
 	SetNetworkBlockingMode(mode)
 	t.Cleanup(func() { SetNetworkBlockingMode(BlockingDisabled) })
+}
+
+func setAllowList(t *testing.T, input string) {
+	t.Helper()
+	al, err := ParseNetworkAllowList(input)
+	require.NoError(t, err)
+	SetNetworkAllowList(al)
+	t.Cleanup(func() { SetNetworkAllowList(nil) })
+}
+
+func TestPrivateNetworkBlockingWithAllowList(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	tsURL, err := url.Parse(ts.URL)
+	require.NoError(t, err)
+	tsPort := tsURL.Port()
+
+	t.Run("CIDR allow-list bypasses loopback blocking", func(t *testing.T) {
+		setBlockingMode(t, BlockingFull)
+		setAllowList(t, "127.0.0.0/8")
+
+		resp, err := NewClient(WithTimeout(5 * time.Second)).Get(ts.URL)
+		require.NoError(t, err)
+		resp.Body.Close()
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+	})
+
+	t.Run("exact IP allow-list bypasses loopback blocking", func(t *testing.T) {
+		setBlockingMode(t, BlockingFull)
+		setAllowList(t, "127.0.0.1")
+
+		resp, err := NewClient(WithTimeout(5 * time.Second)).Get(ts.URL)
+		require.NoError(t, err)
+		resp.Body.Close()
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+	})
+
+	t.Run("hostname allow-list bypasses blocking", func(t *testing.T) {
+		setBlockingMode(t, BlockingFull)
+		setAllowList(t, "localhost")
+
+		resp, err := NewClient(WithTimeout(5 * time.Second)).Get("http://localhost:" + tsPort)
+		require.NoError(t, err)
+		resp.Body.Close()
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+	})
+
+	t.Run("non-matching allow-list still blocks", func(t *testing.T) {
+		setBlockingMode(t, BlockingFull)
+		setAllowList(t, "192.168.1.0/24")
+
+		_, err := NewClient(WithTimeout(5 * time.Second)).Get(ts.URL)
+		require.ErrorIs(t, err, ErrPrivateNetworkBlocked)
+	})
+
+	t.Run("IP allow-list with matching port bypasses blocking", func(t *testing.T) {
+		setBlockingMode(t, BlockingFull)
+		setAllowList(t, "127.0.0.1:"+tsPort)
+
+		resp, err := NewClient(WithTimeout(5 * time.Second)).Get(ts.URL)
+		require.NoError(t, err)
+		resp.Body.Close()
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+	})
+
+	t.Run("IP allow-list with wrong port still blocks", func(t *testing.T) {
+		setBlockingMode(t, BlockingFull)
+		setAllowList(t, "127.0.0.1:1")
+
+		_, err := NewClient(WithTimeout(5 * time.Second)).Get(ts.URL)
+		require.ErrorIs(t, err, ErrPrivateNetworkBlocked)
+	})
+
+	t.Run("nil allow-list does not affect blocking", func(t *testing.T) {
+		setBlockingMode(t, BlockingFull)
+		SetNetworkAllowList(nil)
+		t.Cleanup(func() { SetNetworkAllowList(nil) })
+
+		_, err := NewClient(WithTimeout(5 * time.Second)).Get(ts.URL)
+		require.ErrorIs(t, err, ErrPrivateNetworkBlocked)
+	})
+
+	t.Run("IP allow-list via DNS covers both v4 and v6 loopback", func(t *testing.T) {
+		setBlockingMode(t, BlockingFull)
+		// localhost may resolve to 127.0.0.1, ::1, or both.
+		setAllowList(t, "127.0.0.0/8, ::1")
+
+		resp, err := NewClient(WithTimeout(5 * time.Second)).Get("http://localhost:" + tsPort)
+		require.NoError(t, err)
+		resp.Body.Close()
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+	})
+}
+
+func TestCheckIPAllowed(t *testing.T) {
+	cases := []struct {
+		name      string
+		ip        string
+		port      int
+		mode      NetworkBlockingMode
+		allowList string // parsed via ParseNetworkAllowList; "" = nil
+		wantErr   bool
+	}{
+		// Tier 1: always blocked.
+		{"loopback blocked", "127.0.0.1", 80, BlockingFull, "", true},
+		{"IMDS blocked", "169.254.169.254", 80, BlockingFull, "", true},
+		{"IPv6 loopback blocked", "::1", 80, BlockingFull, "", true},
+
+		// Tier 2: private networks, only in BlockingFull.
+		{"RFC1918 blocked in full mode", "10.0.0.1", 80, BlockingFull, "", true},
+
+		// Public IPs pass.
+		{"public IPv4", "8.8.8.8", 80, BlockingFull, "", false},
+		{"public IPv6", "2001:4860:4860::8888", 80, BlockingFull, "", false},
+
+		// Allow-list overrides tier 1.
+		{"loopback allow-listed by CIDR", "127.0.0.1", 80, BlockingFull, "127.0.0.0/8", false},
+		{"loopback allow-listed by exact IP", "127.0.0.1", 80, BlockingFull, "127.0.0.1", false},
+		{"IMDS allow-listed", "169.254.169.254", 80, BlockingFull, "169.254.169.254", false},
+
+		// Allow-list overrides tier 2.
+		{"RFC1918 allow-listed", "10.0.0.1", 80, BlockingFull, "10.0.0.0/8", false},
+
+		// Allow-list with port: matching vs non-matching.
+		{"allow-listed IP correct port", "127.0.0.1", 8080, BlockingFull, "127.0.0.1:8080", false},
+		{"allow-listed IP wrong port", "127.0.0.1", 443, BlockingFull, "127.0.0.1:8080", true},
+
+		// NAT64: embedded IPv4 is allow-listed.
+		{"NAT64 embedded loopback allow-listed", "64:ff9b::7f00:1", 80, BlockingFull, "127.0.0.0/8", false},
+		{"NAT64 embedded loopback not allow-listed", "64:ff9b::7f00:1", 80, BlockingFull, "", true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ip := net.ParseIP(c.ip)
+			require.NotNil(t, ip, "bad test IP")
+
+			var al *NetworkAllowList
+			if c.allowList != "" {
+				var err error
+				al, err = ParseNetworkAllowList(c.allowList)
+				require.NoError(t, err)
+			}
+
+			err := checkIPAllowed(net.IPAddr{IP: ip}, c.port, c.mode, al)
+			if c.wantErr {
+				assert.ErrorIs(t, err, ErrPrivateNetworkBlocked)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestBlockedIPSkippedAllowedIPConnected(t *testing.T) {
+	// Verify the per-IP skip semantic: when a hostname resolves to
+	// multiple IPs and some are blocked, the dialer skips blocked
+	// addresses and connects via an allowed one.
+	const marker = "reached-good-ip"
+
+	// Listen only on 127.0.0.1.
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	t.Cleanup(func() { ln.Close() })
+	port := ln.Addr().(*net.TCPAddr).Port
+
+	go http.Serve(ln, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { //nolint:errcheck // closed by cleanup
+		io.WriteString(w, marker) //nolint:errcheck
+	}))
+
+	setBlockingMode(t, BlockingFull)
+	// Allow-list only 127.0.0.1, not ::1.  When localhost resolves to
+	// both [::1, 127.0.0.1], ::1 is blocked (tier-1, not allow-listed)
+	// and skipped; 127.0.0.1 is allow-listed and dialled.
+	setAllowList(t, "127.0.0.1")
+
+	resp, err := NewClient(WithTimeout(5 * time.Second)).Get(
+		fmt.Sprintf("http://localhost:%d/", port),
+	)
+	require.NoError(t, err)
+	body, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	require.NoError(t, err)
+	assert.Equal(t, marker, string(body))
 }
 
 func TestPrivateNetworkBlockingDialContext(t *testing.T) {
@@ -256,14 +417,6 @@ func TestPrivateNetworkBlockingDialContext(t *testing.T) {
 		_, err := client.Get(ts.URL)
 		require.ErrorIs(t, err, ErrPrivateNetworkBlocked)
 		assert.Contains(t, err.Error(), "127.0.0.1")
-	})
-
-	t.Run("loopback blocked even with allow_private_network flag", func(t *testing.T) {
-		// Tier 1 (always-blocked) cannot be overridden by the flag.
-		setBlockingMode(t, BlockingPrivateAllowed)
-		client := NewClient(WithTimeout(5 * time.Second))
-		_, err := client.Get(ts.URL)
-		require.ErrorIs(t, err, ErrPrivateNetworkBlocked)
 	})
 
 	t.Run("unspecified address cannot reach a loopback-only service", func(t *testing.T) {
@@ -299,11 +452,9 @@ func TestPrivateNetworkBlockingDialContext(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, marker, string(body))
 
-			for _, mode := range []NetworkBlockingMode{BlockingFull, BlockingPrivateAllowed} {
-				setBlockingMode(t, mode)
-				_, err := NewClient(WithTimeout(5 * time.Second)).Get(url)
-				require.ErrorIs(t, err, ErrPrivateNetworkBlocked, "%s in mode %v", url, mode)
-			}
+			setBlockingMode(t, BlockingFull)
+			_, err = NewClient(WithTimeout(5 * time.Second)).Get(url)
+			require.ErrorIs(t, err, ErrPrivateNetworkBlocked, "%s in mode %v", url, BlockingFull)
 		}
 	})
 
@@ -358,6 +509,72 @@ func TestPrivateNetworkBlockingDialContext(t *testing.T) {
 		_, err := dialFn(t.Context(), "tcp", "localhost:9999")
 		require.ErrorIs(t, err, ErrPrivateNetworkBlocked)
 		assert.Contains(t, err.Error(), "localhost resolves to")
+	})
+}
+
+func TestDialFallbackToNextIP(t *testing.T) {
+	// Listen on a real port so we have one reachable address.
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	t.Cleanup(func() { ln.Close() })
+	goodPort := ln.Addr().(*net.TCPAddr).Port
+
+	go http.Serve(ln, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { //nolint:errcheck // closed by cleanup
+		io.WriteString(w, "ok") //nolint:errcheck
+	}))
+
+	// Pick a port that nothing is listening on (connection refused).
+	badLn, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	badPort := badLn.Addr().(*net.TCPAddr).Port
+	badLn.Close() // close immediately so the port is free but refused
+
+	dialFn := privateNetworkBlockingDialContext(&net.Dialer{
+		Timeout:   5 * time.Second,
+		KeepAlive: 5 * time.Second,
+	})
+
+	t.Run("falls back to second IP on connection refused", func(t *testing.T) {
+		// Simulate the dialer seeing two IPs — first is dead, second is good.
+		// We do this by calling the dialer directly with the dead address,
+		// showing it fails, then calling with the good one, showing it
+		// succeeds. The real multi-IP path runs inside the dialer, so we
+		// test that end-to-end by listening on two addresses.
+
+		// Dead address should fail quickly.
+		_, err := dialFn(t.Context(), "tcp", fmt.Sprintf("127.0.0.1:%d", badPort))
+		require.Error(t, err)
+		assert.NotErrorIs(t, err, ErrPrivateNetworkBlocked)
+
+		// Good address should succeed.
+		conn, err := dialFn(t.Context(), "tcp", fmt.Sprintf("127.0.0.1:%d", goodPort))
+		require.NoError(t, err)
+		conn.Close()
+	})
+
+	t.Run("multi-address fallback via dual-stack localhost", func(t *testing.T) {
+		// Listen on 127.0.0.1 only. When blocking is off, "localhost"
+		// typically resolves to both ::1 and 127.0.0.1. If ::1 is tried
+		// first and nothing is listening there on this port, the dialer
+		// should fall back to 127.0.0.1 where we ARE listening.
+		setBlockingMode(t, BlockingDisabled)
+
+		resp, err := NewClient(WithTimeout(5 * time.Second)).Get(
+			fmt.Sprintf("http://localhost:%d/", goodPort),
+		)
+		require.NoError(t, err)
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		require.NoError(t, err)
+		assert.Equal(t, "ok", string(body))
+	})
+
+	t.Run("context cancellation stops fallback", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel() // already cancelled
+
+		_, err := dialFn(ctx, "tcp", fmt.Sprintf("127.0.0.1:%d", goodPort))
+		require.Error(t, err)
 	})
 }
 
@@ -453,11 +670,9 @@ func TestSizeLimitedClientBlocksPrivateNetworks(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, marker, string(body))
 
-			for _, mode := range []NetworkBlockingMode{BlockingFull, BlockingPrivateAllowed} {
-				setBlockingMode(t, mode)
-				_, err := newClient(maxSize).Get(ts.URL)
-				require.ErrorIs(t, err, ErrPrivateNetworkBlocked, "mode %v", mode)
-			}
+			setBlockingMode(t, BlockingFull)
+			_, err = newClient(maxSize).Get(ts.URL)
+			require.ErrorIs(t, err, ErrPrivateNetworkBlocked, "mode %v", BlockingFull)
 		})
 	}
 }
