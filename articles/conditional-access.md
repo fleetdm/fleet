@@ -1,10 +1,19 @@
 # Conditional access
 
-Fleet's conditional access feature lets IT and security teams enforce access controls on macOS and Windows hosts based on policy status. When a host fails a particular policy in Fleet, access to third-party apps can be blocked until the issue is resolved.
+Fleet's conditional access feature lets IT and security teams block access to third-party apps from hosts that don't meet your requirements. You can require that hosts:
 
-Fleet currently has built-in conditional access integrations with Okta (macOS only) and Entra (macOS and Windows):
-- [Okta setup guide](https://fleetdm.com/guides/okta-conditional-access-integration)
-- [Entra setup guide](https://fleetdm.com/guides/entra-conditional-access-integration)
+- Are managed by Fleet
+- Are passing specific Fleet policies. When a host fails one of these policies, access is blocked until the issue is resolved.
+
+Fleet has built-in conditional access integrations that check policies:
+- [Okta](https://fleetdm.com/guides/okta-conditional-access-integration) (macOS)
+- [Entra](https://fleetdm.com/guides/entra-conditional-access-integration) (macOS and Windows)
+
+You can also use Fleet's API for conditional access with:
+- [PingFederate](https://fleetdm.com/guides/pingfederate-conditional-access-integration) (macOS, Windows, and Linux): require managed hosts that are passing critical policies
+- [Duo](https://fleetdm.com/guides/duo-conditional-access-integration) (macOS, Windows, and Linux): require managed hosts
+
+To require managed Windows hosts in Okta, see [Enable Okta Verify on Windows](https://fleetdm.com/guides/enable-okta-verify-on-windows-using-a-scep-configuration-profile).
 
 You can also use Fleet's API for conditional access with:
 - [Google](https://fleetdm.com/guides/google-conditional-access-integration) (iOS and iPadOS): require managed hosts
