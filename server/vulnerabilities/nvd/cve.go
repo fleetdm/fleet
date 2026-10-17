@@ -52,6 +52,10 @@ func GenerateCVEFeeds(ctx context.Context, vulnPath string, debug bool, logger *
 		return fmt.Errorf("download nvd cve feed: %w", err)
 	}
 
+	if err := cveSyncer.ApplyOverrides(ctx); err != nil {
+		return fmt.Errorf("apply cve overrides: %w", err)
+	}
+
 	return nil
 }
 
