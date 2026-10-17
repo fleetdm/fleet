@@ -168,8 +168,6 @@ To trigger script run, when policy fails, specify:
 
 - `run_script.path` is a path to a script YAML.
 
-> Specifying one package without a list is deprecated as of Fleet 4.73. It is maintained for backwards compatibility. Please use a list instead even if you're only specifying one package.
-
 ##### Resend configuration profile
 
 _Available in Fleet Premium_
@@ -1135,7 +1133,6 @@ org_settings:
 - `live_reporting_disabled` disables the ability to run live reports (ad hoc reports executed via the UI or fleetctl). (default: `false`)
 - `discard_reports_data` disables storing results for all reports and deletes existing stored data. If set to `true`, data is still sent to the configured log destination if `automations_enabled`. (default: `false`)
 - `report_cap` sets the maximum number of results to store per report before the report is clipped. If the number of hosts is higher than this cap, Fleet uses the number of hosts instead, so a report that returns one result per host is never clipped. If increasing this cap, we recommend enabling reports for one query at a time and monitoring your infrastructure. (default: `1000`)
-- `scripts_disabled` blocks access to run scripts. Scripts may still be added in the UI and CLI. (default: `false`)
 - `server_url` is the base URL of the Fleet instance. If this URL changes and Apple (macOS, iOS, iPadOS) hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features. (default: provided during Fleet setup)
 
 
@@ -1150,7 +1147,6 @@ org_settings:
     enable_analytics: true
     live_reporting_disabled: false
     discard_reports_data: false
-    scripts_disabled: false
     server_url: https://instance.fleet.com
 ```
 

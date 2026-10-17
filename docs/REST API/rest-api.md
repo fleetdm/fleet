@@ -3611,8 +3611,6 @@ the `software` table.
 | dep_profile_error | boolean | query | If `true`, the response will only include Apple MDM hosts with DEP profile assignment errors(`mdm.dep_profile_error: true`). |
 | dep_assign_profile_response | string | query | Filters the hosts by DEP profile assignment status. Valid options are 'SUCCESS', 'FAILED', 'THROTTLED' or 'NOT_ACCESSIBLE'. Only Apple hosts which are, or were assigned to Fleet in ABM will be returned. |
 
-> `software_id` is deprecated as of Fleet 4.42. It is maintained for backwards compatibility. Please use the `software_version_id` instead.
-
 If `software_title_id` is specified, an additional top-level key `"software_title"` is returned with the software title object corresponding to the `software_title_id`. See [List software](#list-software) response payload for details about this object.
 
 If `software_version_id` is specified, an additional top-level key `"software"` is returned with the software object corresponding to the `software_version_id`. See [List software versions](#list-software-versions) response payload for details about this object.
@@ -5724,7 +5722,7 @@ If `hostname` is specified when there is more than one host with the same hostna
 
 Returns a subset of information about the host specified by `token`. To get all information about a host, use the ["Get host"](#get-host) endpoint.
 
-`GET /api/v1/fleet/device/:token`
+`GET /api/v1/fleet/desktop/:token`
 
 > If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
 
@@ -5749,7 +5747,7 @@ For iOS/iPadOS hosts, Fleet omits identifying details from the response: `uuid`,
 
 ##### Example
 
-`GET /api/v1/fleet/device/abcdef012456789`
+`GET /api/v1/fleet/desktop/abcdef012456789`
 
 ##### Default response
 
@@ -6009,7 +6007,7 @@ Android hosts can't be refetched on demand because they sync data automatically 
 
 Same as [Refetch host](#refetch-host) except with the Fleet Desktop token instead the host ID.
 
-`POST /api/v1/fleet/device/:token/refetch`
+`POST /api/v1/fleet/desktop/:token/refetch`
 
 #### Parameters
 
@@ -6019,7 +6017,7 @@ Same as [Refetch host](#refetch-host) except with the Fleet Desktop token instea
 
 #### Example
 
-`POST /api/v1/fleet/device/6d3e95ca-6783-4d0d-93b8-a5ffdb207867/refetch`
+`POST /api/v1/fleet/desktop/6d3e95ca-6783-4d0d-93b8-a5ffdb207867/refetch`
 
 ##### Default response
 
@@ -6311,7 +6309,7 @@ This report includes a subset of host vitals, and simplified policy and vulnerab
 
 Retrieves the end user url for the host's **My device** page.
 
-`GET /api/v1/fleet/hosts/:id/device_url`
+`GET /api/v1/fleet/hosts/:id/desktop_url`
 
 #### Parameters
 
@@ -6321,7 +6319,7 @@ Retrieves the end user url for the host's **My device** page.
 
 #### Example
 
-`GET /api/v1/fleet/hosts/1/device_url`
+`GET /api/v1/fleet/hosts/1/desktop_url`
 
 ##### Default response
 
@@ -6330,7 +6328,8 @@ Retrieves the end user url for the host's **My device** page.
 ```json
 {
   "host_id": 1,
-  "device_url": "example.com/device/device_id"
+  "device_url": "example.com/device/device_id",
+  "desktop_url": "example.com/device/device_id"
 }
 ```
 
@@ -6892,7 +6891,7 @@ requested by a web browser.
 
 Some cell values are escaped so that spreadsheet applications treat them as text. Numbers are not modified.
 
-`GET /api/v1/fleet/hosts/report`
+`GET /api/v1/fleet/hosts/csv`
 
 #### Parameters
 
@@ -6927,7 +6926,7 @@ If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Se
 
 #### Example
 
-`GET /api/v1/fleet/hosts/report?software_id=123&format=csv&columns=hostname,primary_ip,platform`
+`GET /api/v1/fleet/hosts/report?software_version_id=123&format=csv&columns=hostname,primary_ip,platform`
 
 ##### Default response
 
@@ -7614,7 +7613,7 @@ Note that if the host is online and the query times out, this endpoint will retu
 
 Grant a blocked host access for a single login. Requires Okta conditional access configured with bypass enabled.
 
-`POST /api/v1/fleet/device/:token/bypass_conditional_access`
+`POST /api/v1/fleet/desktop/:token/bypass_conditional_access`
 
 #### Parameters
 
@@ -7625,7 +7624,7 @@ Grant a blocked host access for a single login. Requires Okta conditional access
 
 #### Example 
 
-`POST /api/v1/fleet/device/abcdef012456789/bypass_conditional_access`
+`POST /api/v1/fleet/desktop/abcdef012456789/bypass_conditional_access`
 
 ##### Default response 
 
@@ -8918,7 +8917,7 @@ Deletes an Apple asset declaration.
 
 Resends a configuration profile for the specified host. Currently, macOS, iOS, iPadOS configuration profiles (.mobileconfig) are supported, as well as Windows (.xml) configuration profiles.
 
-`POST /api/v1/fleet/device/:token/configuration_profiles/:profile_uuid/resend`
+`POST /api/v1/fleet/desktop/:token/configuration_profiles/:profile_uuid/resend`
 
 #### Parameters
 
@@ -8929,7 +8928,7 @@ Resends a configuration profile for the specified host. Currently, macOS, iOS, i
 
 #### Example
 
-`POST /api/v1/fleet/device/abcdef012456789/configuration_profiles/fc14a20-84a2-42d8-9257-a425f62bb54d/resend`
+`POST /api/v1/fleet/desktop/abcdef012456789/configuration_profiles/fc14a20-84a2-42d8-9257-a425f62bb54d/resend`
 
 ##### Default response
 
@@ -12011,8 +12010,7 @@ The semantics for creating a fleet policy are the same as for global policies, s
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
 | software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. If `software_title_id` is specified and the software has `labels_include_any` or `labels_exclude_any` defined, the policy will inherit this target in addition to specified `platform`.                                                                     |
-| software_package_id | integer | body | _Available in Fleet Premium_. ID of the specific package to install when the software title has multiple packages. |
-| software_installer_id | integer | body | _Available in Fleet Premium_. ID of a specific package of `software_title_id` to install on failure. If omitted, defaults to the title's first-added package. |                                                                    |
+| software_package_id | integer | body | _Available in Fleet Premium_. ID of the specific package to install when the software title has multiple packages. If omitted, defaults to the title's first-added package. |
 | script_id         | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails.                                                                 |
 | profile_uuid      | string  | body | _Available in Fleet Premium_. UUID of the configuration profile to resend if the policy fails. The profile must belong to the same fleet. |
 | continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. If the install software automation does not resolve the policy after 10 attempts, Fleet will wait 24 hours before retrying. |
@@ -12250,8 +12248,7 @@ _Available in Fleet Premium_
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
 | software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to `null` to remove the automation.                              |
-| software_package_id     | integer | body | _Available in Fleet Premium_. ID of the specific package to install when the software title has multiple packages. Set to `null` to clear the pinned package. |
-| software_installer_id   | integer | body | _Available in Fleet Premium_. ID of a specific package of `software_title_id` to install on failure. If omitted, defaults to the title's first-added package.                              |
+| software_package_id     | integer | body | _Available in Fleet Premium_. ID of the specific package to install when the software title has multiple packages. If omitted, defaults to the title's first-added package. Set to `null` to clear the pinned package. |
 | script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `null` to remove the automation.                                          |
 | profile_uuid            | string  | body | _Available in Fleet Premium_. UUID of the configuration profile to resend if the policy fails. Set to `null` to remove the automation. The profile must belong to the same fleet. |
 | continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. If the install software automation does not resolve the policy after 10 attempts, Fleet will wait 24 hours before retrying. |
@@ -14826,7 +14823,7 @@ Returns information about the specified software. By default, `versions` are sor
             "version": "4.50.128",
             "platform": "darwin",
             "uploaded_at": "2026-06-04T17:29:09.155424Z",
-            "installer_id": 36817,
+            "id": 36817,
             "install_script": "#!/bin/sh\n\ninstaller -pkg \"$INSTALLER_PATH\" -target /\n",
             "pre_install_query": "",
             "post_install_script": "",
@@ -14859,7 +14856,7 @@ Returns information about the specified software. By default, `versions` are sor
             "version": "4.51.133",
             "platform": "darwin",
             "uploaded_at": "2026-06-10T09:14:51.482217Z",
-            "installer_id": 36901,
+            "id": 36901,
             "install_script": "#!/bin/sh\n\ninstaller -pkg \"$INSTALLER_PATH\" -target /\n",
             "pre_install_query": "",
             "post_install_script": "",
@@ -14935,6 +14932,8 @@ Returns information about the specified software. By default, `versions` are sor
 Each entry in `versions` includes `release` when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions.
 
 A software title can have more than one package. The `packages` array lists all packages added for the title, including per-package `self_service`, `categories`, and labels (`labels_include_any`, `labels_exclude_any`, `labels_include_all`). `software_package` is kept for backwards compatibility and contains the oldest (first added) package.
+
+> `installer_id` is deprecated as of Fleet 5.0. It's maintained for backwards compatibility. Please use `id` instead.
 
 > Install, pending, and failed counts in `packages.status` are combined across policy automations, setup experience, and manual installs.
 
@@ -15226,7 +15225,7 @@ labels_exclude_any="QA"
 
 ```json
 {
-  "software_package": {
+  "package": {
     "team_id": 310,
     "title_id": 2792,
     "name": "Slack-4.50.128-macOS.pkg",
@@ -15234,7 +15233,7 @@ labels_exclude_any="QA"
     "version": "4.50.128",
     "platform": "darwin",
     "uploaded_at": "2026-06-04T17:43:46.125681Z",
-    "installer_id": 36818,
+    "id": 36818,
     "install_script": "#!/bin/sh\n\ninstaller -pkg \"$INSTALLER_PATH\" -target /\n",
     "pre_install_query": "",
     "post_install_script": "",
@@ -15321,7 +15320,7 @@ post_install_script="sudo /Applications/Falcon.app/Contents/Resources/falconctl 
 
 ```json
 {
-  "software_installer": {
+  "package": {
     "team_id": 310,
     "title_id": 2792,
     "name": "Slack-4.45.64-macOS.pkg",
@@ -15329,7 +15328,7 @@ post_install_script="sudo /Applications/Falcon.app/Contents/Resources/falconctl 
     "version": "4.45.64",
     "platform": "darwin",
     "uploaded_at": "2026-06-04T17:47:23Z",
-    "installer_id": 36818,
+    "id": 36818,
     "install_script": "#!/bin/sh\n\ninstaller -pkg \"$INSTALLER_PATH\" -target /\n",
     "pre_install_query": "",
     "post_install_script": "",
@@ -15933,7 +15932,7 @@ Uninstalls software from a host.
 
 Install self-service software on a macOS, Windows, or Linux host. The software must have a `self_service` flag `true` to be installed.
 
-`POST /api/v1/fleet/device/:token/software/install/:software_title_id`
+`POST /api/v1/fleet/desktop/:token/software/:software_title_id/install`
 
 #### Parameters
 
@@ -15944,7 +15943,7 @@ Install self-service software on a macOS, Windows, or Linux host. The software m
 
 #### Example
 
-`POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/install/123`
+`POST /api/v1/fleet/desktop/22aada07-dc73-41f2-8452-c0987543fd29/software/123/install`
 
 ##### Default response
 
