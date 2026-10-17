@@ -305,6 +305,6 @@ Confirm the `install_url` is reachable from the host and points to the extension
 <meta name="articleTitle" value="Block Firefox extensions on macOS, Windows, and Linux">
 <meta name="authorFullName" value="Kitzy">
 <meta name="authorGitHubUsername" value="kitzy">
-<meta name="publishedOn" value="2026-09-29">
+<meta name="publishedOn" value="2026-10-19">
 <meta name="category" value="guides">
 <meta name="description" value="Block, allow, or force-install Firefox extensions on macOS, Windows, and Linux hosts with Fleet using configuration profiles and scripts.">
