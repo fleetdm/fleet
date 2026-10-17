@@ -9214,34 +9214,38 @@ func testReleaseAndUnblockSkipRemovedInstaller(t *testing.T, ds *Datastore) {
 func testReleaseDoesNotHoldInstallerAcrossHosts(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	_, _, installerID, policyID, _ := setupInstallerDeleteRace(t, ds)
-	hostA := test.NewHost(t, ds, "h2", "10.0.0.2", "2", "uuid2", time.Now(), test.WithPlatform("windows"))
-	hostB := test.NewHost(t, ds, "h3", "10.0.0.3", "3", "uuid3", time.Now(), test.WithPlatform("windows"))
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		queueInstallInTx(t, ctx, q, hostA.ID, installerID, policyID)
-		queueInstallInTx(t, ctx, q, hostB.ID, installerID, policyID)
-		_, err := q.ExecContext(ctx, `UPDATE upcoming_activities SET fleet_initiated = 1 WHERE host_id IN (?, ?)`, hostA.ID, hostB.ID)
-		return err
-	})
+	// Activation commits at least every 10 hosts, so host B, the 11th, is in a later transaction than host A.
+	hostIDs := make([]uint, 0, 11)
+	for i := range 11 {
+		h := test.NewHost(t, ds, fmt.Sprintf("r%d", i), "", fmt.Sprintf("r%d", i), fmt.Sprintf("r%d", i), time.Now(), test.WithPlatform("windows"))
+		hostIDs = append(hostIDs, h.ID)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			queueInstallInTx(t, ctx, q, h.ID, installerID, policyID)
+			_, err := q.ExecContext(ctx, `UPDATE upcoming_activities SET fleet_initiated = 1 WHERE host_id = ?`, h.ID)
+			return err
+		})
+	}
+	hostA, hostB := hostIDs[0], hostIDs[len(hostIDs)-1]
 	activated := func(hostID uint) bool {
 		var n int
 		err := sqlx.GetContext(ctx, ds.writer(ctx), &n, `SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ? AND activated_at IS NOT NULL`, hostID)
 		return err == nil && n == 1
 	}
 
-	// Hold host B's queued install so the release stops on it after activating host A.
+	// Hold host B's queued install so the release stops on it after activating host A's transaction.
 	holdTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
 	require.NoError(t, err)
 	defer func() { _ = holdTx.Rollback() }()
-	_, err = holdTx.ExecContext(ctx, `SELECT id FROM upcoming_activities WHERE host_id = ? FOR UPDATE`, hostB.ID)
+	_, err = holdTx.ExecContext(ctx, `SELECT id FROM upcoming_activities WHERE host_id = ? FOR UPDATE`, hostB)
 	require.NoError(t, err)
 	released := make(chan error, 1)
 	go func() {
-		_, err := ds.ReleaseFleetInitiatedUpcomingActivities(ctx, 10)
+		_, err := ds.ReleaseFleetInitiatedUpcomingActivities(ctx, len(hostIDs))
 		released <- err
 	}()
 
 	// Host A's activation committed, so the installer can be locked while host B waits.
-	require.Eventually(t, func() bool { return activated(hostA.ID) }, 5*time.Second, 50*time.Millisecond)
+	require.Eventually(t, func() bool { return activated(hostA) }, 5*time.Second, 50*time.Millisecond)
 	requireStillBlocked(t, released)
 	lockTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
 	require.NoError(t, err)
@@ -9251,7 +9255,7 @@ func testReleaseDoesNotHoldInstallerAcrossHosts(t *testing.T, ds *Datastore) {
 
 	require.NoError(t, holdTx.Rollback())
 	require.NoError(t, <-released)
-	require.True(t, activated(hostB.ID))
+	require.True(t, activated(hostB))
 }
 
 func testBatchSetSoftwareInstallersRemoveFMAClearsQueueAfterCommit(t *testing.T, ds *Datastore) {
