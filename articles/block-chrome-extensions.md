@@ -6,7 +6,7 @@ Chrome extensions can read page content, cookies, and browsing history. Use Flee
 
 - Hosts enrolled in Fleet.
 - The ID of each extension. Find it in the Chrome Web Store URL, or on `chrome://extensions` with **Developer mode** turned on. IDs are 32 lowercase letters, like `abcdefghijklmnopabcdefghijklmnop`.
-- Windows only: the Chrome ADMX file deployed to your hosts. See [Managing Google Chrome on Windows with Fleet](https://fleetdm.com/guides/managing-chrome-with-fleet).
+- Windows only: the Chrome ADMX file (`chrome.admx`), which you add to the Windows profile. See [Windows](#windows).
 
 Chrome offers three extension policies:
 
@@ -84,9 +84,24 @@ To force-install an extension, add it to `ExtensionInstallForcelist` as `<extens
 
 ## Windows
 
-1. Save the following as `chrome-extension-blocklist.xml`. Replace the extension IDs with your own.
+Chrome policies on Windows are ADMX-backed. Put the Chrome ADMX file and the extension policy in the same configuration profile. If you split policies across multiple profiles, include the ADMX in each one.
+
+1. Download the Chrome policy templates from [Chrome Enterprise](https://chromeenterprise.google/download/#chrome-browser-policies) and extract `chrome.admx` from the `windows\admx` folder.
+2. Save the following as `chrome-extension-blocklist.xml`. Replace `PASTE_CHROME_ADMX_HERE` with the full contents of `chrome.admx`, and replace the extension IDs with your own.
 
 ```xml
+<Replace>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/Chrome/Policy/ChromeAdmxFile</LocURI>
+    </Target>
+    <Data><![CDATA[PASTE_CHROME_ADMX_HERE]]></Data>
+  </Item>
+</Replace>
+
 <Replace>
   <Item>
     <Target>
@@ -98,8 +113,10 @@ To force-install an extension, add it to `ExtensionInstallForcelist` as `<extens
 </Replace>
 ```
 
-2. In Fleet, go to **Controls > OS settings > Configuration profiles** and select **Add profile**.
-3. Choose the `.xml` file and select **Add profile** to upload it.
+3. In Fleet, go to **Controls > OS settings > Configuration profiles** and select **Add profile**.
+4. Choose the `.xml` file and select **Add profile** to upload it.
+
+> **Note:** `<?xml ...?>` at the start of the ADMX file must stay on the same line as `<![CDATA[`, with no line break or spaces in between. Otherwise the profile fails with `status 500`. To learn more about ADMX ingestion, see [Creating Windows CSPs](https://fleetdm.com/guides/creating-windows-csps#ingesting-custom-admx-templates-admxinstall).
 
 > **Note:** The `value` is a list of numbered entries separated by the `&#xF000;` character: `1&#xF000;first-id&#xF000;2&#xF000;second-id`.
 
@@ -163,13 +180,10 @@ controls:
       - path: ../lib/macos/profiles/chrome-extension-blocklist.mobileconfig
   windows_settings:
     configuration_profiles:
-      - path: ../lib/windows/profiles/chrome-admx.xml
       - path: ../lib/windows/profiles/chrome-extension-blocklist.xml
   scripts:
     - path: ../lib/linux/scripts/chrome-extension-blocklist.sh
 ```
-
-The `chrome-admx.xml` profile is the Chrome ADMX profile from [Managing Google Chrome on Windows with Fleet](https://fleetdm.com/guides/managing-chrome-with-fleet).
 
 To run the Linux script automatically, add a policy that runs it when a host fails the check. This requires Fleet Premium.
 
@@ -208,7 +222,7 @@ CROSS JOIN chrome_extensions USING (uid);
 
 **Policies don't appear on `chrome://policy`**
 
-Restart Chrome and select **Reload policies**. On Windows, confirm the Chrome ADMX file is deployed and the profile shows **Verified** in Fleet.
+Restart Chrome and select **Reload policies**. On Windows, confirm the profile shows **Verified** in Fleet and includes the Chrome ADMX block before the policy block.
 
 **The extension is still installed after you block it**
 
