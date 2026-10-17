@@ -1,0 +1,55 @@
+name: apple_accounts
+platforms:
+  - darwin
+description: The Apple Account (Apple ID / iCloud) each local user is signed in to in System Settings. Returns one row for each Apple Account a user is signed in to. Users who aren't signed in have no row.
+columns:
+  - name: uid
+    description: UID of the local user. Join to the `users` table on this column.
+    type: bigint
+    required: false
+  - name: username
+    description: Short name of the local user.
+    type: text
+    required: false
+  - name: apple_account
+    description: Apple Account the user is signed in to, usually an email address.
+    type: text
+    required: false
+  - name: active
+    description: 1 if macOS marks the account active, 0 if not.
+    type: integer
+    required: false
+  - name: authenticated
+    description: 1 if macOS considers the account's credentials valid, 0 if not. A 0 usually means the user needs to sign in again.
+    type: integer
+    required: false
+  - name: path
+    description: Path to the `Accounts4.sqlite` database the row was read from.
+    type: text
+    required: false
+notes: |-
+  - This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
+  - This table requires that Fleet's agent (fleetd) has Full Disk Access. If a user's accounts database exists but can't be read, the query fails instead of returning no rows, so a host without Full Disk Access never looks like a host where nobody is signed in. The query also fails if a database isn't owned by its user, is a symlink outside the user's home directory, or doesn't have the expected tables. When the query fails, Fleet records no result for policies that use it, and conditional access treats a host with no result as compliant.
+  - The table reads each user's `~/Library/Accounts/Accounts4.sqlite`. Starting with macOS 27, `~/Library/Preferences/MobileMeAccounts.plist` no longer lists the signed-in account. The table doesn't check the macOS version, so it isn't limited to macOS 27: it reads `Accounts4.sqlite` wherever the file exists. `Accounts4.sqlite` is not a documented Apple interface. If a future macOS release changes its schema, the query fails with an error instead of returning wrong rows.
+  - The database is written by each user's own account. A user who can modify their own `Accounts4.sqlite` can change what this table reports for them, so treat the results as reported by the host, not as tamper-proof.
+  - Only the System Settings (iCloud) account is reported. A user can sign in to the App Store and Media with a different Apple Account, which this table doesn't cover.
+  - If your agent options define an `apple_accounts` table with `auto_table_construction`, remove it before hosts update to a fleetd version that includes this table. osquery doesn't allow two tables with the same name, and the conflict can stop all fleetd tables from loading. Queries written against that ATC table keep working, because the `apple_account`, `active`, `authenticated`, and `path` columns match.
+evented: false
+examples: |-
+  List every signed-in Apple Account.
+
+  ```
+  SELECT username, apple_account, active, authenticated FROM apple_accounts;
+  ```
+
+  List every local user, with their Apple Account if they have one.
+
+  ```
+  SELECT u.username, a.apple_account, a.authenticated FROM users u LEFT JOIN apple_accounts a USING (uid) WHERE u.uid >= 500 AND u.directory LIKE '/Users/%';
+  ```
+
+  Policy that passes if no user is signed in to an Apple Account outside the company domain. Replace `example.com` with your domain.
+
+  ```
+  SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apple_accounts WHERE apple_account NOT LIKE '%@example.com');
+  ```
