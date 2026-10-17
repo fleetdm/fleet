@@ -470,6 +470,7 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
       'When a platform requires a companion artifact the profile cannot contain -- a DDM activation declaration, a referenced asset declaration -- generate the configuration itself and describe the companion in "deliveryNotes".',
       'If a setting is commonly managed by an MDM directly rather than by a custom profile, such as disk encryption, still generate the profile as asked and note in "deliveryNotes" that some MDMs manage this natively and may reject or conflict with a custom profile.',
       'Escape newlines inside "configurationProfile" as \\n so the surrounding JSON stays valid.  Do not emit raw line breaks inside the string, and do not collapse the profile onto one line.',
+      'Never put a URL or a link in "reasonWhyAProfileCouldNotBeGenerated".  Name the setting and say why it could not be generated, in plain words.',
     ];
 
     // "deliveryNotes" defaults to noise unless it is aggressively constrained.  An empty string is a weaker affordance than an empty array, so these rules carry more of the load.
@@ -496,6 +497,8 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
           'If you use <Atomic>, it must wrap every command in the profile.  Never mix an <Atomic> element with sibling top-level commands, and never nest one <Atomic> inside another.',
           // Node identity.
           'Emit only LocURI paths that exist in a published CSP.  Never construct, guess, or extrapolate a path, and name the CSP you used in "schemaReference".',
+          'Never write to the DMClient, DMAcc, or EnrollmentStatusTracking CSPs.  The MDM uses them to manage the device, and a profile that changes them can cut the device off from it.  If the request needs one of them, such as changing how often the device checks in, return the "couldNotGenerateProfile" shape.',
+          'Microsoft Edge has no CSP nodes of its own.  The Policy CSP\'s Browser area configures Edge Legacy, which current Windows no longer has, so a profile that uses it does nothing.  For any request about Microsoft Edge, return the "couldNotGenerateProfile" shape.',
           'Percent-encode any character in a LocURI path segment that is not URI-legal.  An SSID named "Cool Network" is Cool%20Network in the LocURI, while the value inside the payload keeps its literal spaces.',
           // Type integrity.  The largest source of silent failure.
           'In the Policy CSP, settings that read as boolean are almost always DFFormat int with allowed values 0 and 1, not bool.  Default to <Format>int</Format> with numeric <Data>.  Use bool only when the node genuinely declares it, and say so in "caveats".',
@@ -513,6 +516,7 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
           'Record the minimum OS build and the Windows editions each node applies to in "caveats".  A valid setting aimed at the wrong SKU is a silent no-op, not an error.',
           // Embedded values.
           'When a node\'s value is embedded XML -- WiFi/Profile/*/WlanXml, ADMXInstall, and similar -- wrap it in <![CDATA[ ... ]]> rather than escaping it as entities, and emit that value as a single line with no line breaks or indentation between its elements.  This applies only to the embedded value; the surrounding SyncML keeps its normal indentation.',
+          'Outside a CDATA section, write & < > in any text value as &amp; &lt; &gt;.  An unescaped one makes the whole profile unparseable.',
           'Be consistent within a profile about optional <Meta> children.  If you emit <Type> for one item, emit it for all of them, and namespace every <Meta> child as xmlns="syncml:metinf".',
           'For WiFi profiles, emit <hex> and then <name> inside <SSID> -- the WLAN_profile schema enforces element order, and an <SSID> with <name> first is rejected.  Take <hex> from the encodings supplied with the instructions.  Never work a hex encoding out yourself: Windows and some MDMs treat the hex form as authoritative when both are present, so one wrong byte connects to nothing.  If no encoding was supplied for the SSID, emit <name> alone.',
           'The WLAN_profile schema is not in the provided list, and it enforces element order and closed value lists, so build WlanXml from these facts rather than from memory.  Security settings sit at WLANProfile > MSM > security, with authEncryption (authentication, encryption, useOneX) first.  A personal network (WPA2PSK, WPA3SAE) follows it with sharedKey (keyType, protected, keyMaterial); an enterprise network (useOneX true) has no sharedKey and carries a OneX element instead.  <encryption> accepts only none, WEP, TKIP, AES, or GCMP256 -- WPA2 and WPA3SAE networks use AES, never CCMP, which is the 802.11 name for the same cipher.',
@@ -534,12 +538,15 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
           // Third-party payloads.
           'If this is an attempt to change a third-party application\'s settings, use that application\'s preference domain -- com.google.Chrome, us.zoom.config and its keys must come from the ProfileManifests reference.',
           // Document shape.
+          'Start the profile with the XML declaration <?xml version="1.0" encoding="UTF-8"?>, before the DOCTYPE.  MDMs treat a profile that does not start with it as a signed profile, and reject it.',
           'Emit valid property list XML: the plist DOCTYPE, plist version="1.0", and correctly typed values.',
+          'Write & < > inside a <string> value as &amp; &lt; &gt;.  An unescaped one makes the whole profile unparseable.',
           'Include PayloadIdentifier, PayloadType, PayloadUUID, PayloadVersion, and PayloadDisplayName on the root dict and on every dict inside PayloadContent.  The root PayloadType is "Configuration" and PayloadVersion is 1.',
           'Keep the plist indented and readable across multiple lines.  Do not collapse it onto one line.',
           // Key fidelity.
           'Apple payload keys are not consistently cased, and the inconsistency is inside a single dict.  The passcode payload uses forcePIN, minLength, and allowSimple -- lowercase first letter -- beside PascalCase PayloadIdentifier and PayloadType.  Reproduce every key exactly as documented for its payload type.  Never normalize casing in either direction.',
           'Use only keys documented for the payload type you chose.  An invented key is written into the profile and nothing downstream rejects it, so the profile looks right and does nothing.',
+          'Apple removed the com.apple.SoftwareUpdate payload, and the update deferral keys in com.apple.applicationaccess (forceDelayed*SoftwareUpdates and enforcedSoftwareUpdate*Delay), in macOS 27, in favor of the com.apple.configuration.softwareupdate.settings declaration.  Still use them when the request needs them, and say in "deliveryNotes" that they stop working in macOS 27 and that the software update settings declaration replaces them.  For these keys "deliveryNotes" is never empty.',
           'Choose the payload type by finding the key, not by the payload type\'s name.  Locate the key that does what was asked in the provided list, then use the payload type it is listed under -- even when another payload type\'s name sounds closer to the request.  App Store app updates are AutomaticallyInstallAppUpdates in com.apple.SoftwareUpdate, not anything in com.apple.appstore.  Before returning, confirm every key in each PayloadContent dict is listed under that dict\'s PayloadType.',
           'When more than one key in a payload could plausibly satisfy the request, choose by documented meaning, say what the chosen value actually does in valueMeaning, and return couldNotGenerateProfile rather than guessing between them.',
           'When the payload type you need appears in the provided list, copy it and its keys character for character, casing included, and use no key the list does not give it.  A key you remember differently than the list spells it is the list\'s spelling, not yours.',
@@ -697,8 +704,13 @@ a field that does not appear here does not exist.`,
       // can change.  Offered both, the lookup named the recommended twin for "make Chrome reopen the last
       // session", so it is only offered when the request asks for a default.
       let requestAsksForADefault = /\b(recommend\w*|default|suggest\w*|user can change|users can change)\b/.test(lowercaseInstructions);
+      // The MDM uses these CSPs to manage the device itself, so a profile that writes to them can cut the device off from its MDM.
+      const MANAGEMENT_PLANE_CSPS = ['DMClient', 'DMAcc', 'EnrollmentStatusTracking'];
       // Keep the nodes a profile can set: a template's policies only when the request names its app (leaving out its _recommended policies unless the request asks for a default), and every other node a profile can write to.
       let nodesAProfileCanSet = _.filter(nodeFile.nodes, (node)=>{
+        if(_.contains(MANAGEMENT_PLANE_CSPS, node.csp)) {
+          return false;
+        }
         if(node.admxTemplate) {
           return _.contains(admxTemplateIdsTheRequestNames, node.admxTemplate) && (requestAsksForADefault || !/_recommended(~|$)/.test(node.area));
         }

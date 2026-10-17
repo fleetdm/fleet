@@ -24,7 +24,7 @@
 const assert = require('assert');
 const util = require('util');
 
-const { TEST_CASES, checkExpectations } = require('../configuration-profile-generator-cases');
+const { TEST_CASES, checkExpectations, checkDeclineReason } = require('../configuration-profile-generator-cases');
 
 
 // Overridable because the interesting question is usually whether a cheaper model can still pass
@@ -144,6 +144,8 @@ describe('configuration profile generator', function() {
                   whatTheLookupProvided +
                   generationForFailureMessage
                 );
+                let declineFailures = checkDeclineReason(rawResult.reasonWhyAProfileCouldNotBeGenerated);
+                assert.strictEqual(declineFailures.length, 0, declineFailures.join('\n'));
                 return;
               }
 
@@ -156,7 +158,7 @@ describe('configuration profile generator', function() {
                 items: rawResult.settingsEnforced,
               };
 
-              let checkFailures = checkExpectations(expectations, generatedProfile);
+              let checkFailures = checkExpectations(expectations, generatedProfile, profileType);
               assert.strictEqual(
                 checkFailures.length, 0,
                 `${testCase.canary ? 'CANARY -- ' : ''}${checkFailures.length} check(s) failed:\n` +
@@ -234,8 +236,12 @@ async function generateOnce(testCase) {
       baseModel: BASE_MODEL,
       expectJson: true,
     });
+    if(testCase.profileType === 'mobileconfig' && rawResult.configurationProfile) {
+      rawResult.deliveryNotes = await sails.helpers.addSoftwareUpdateRemovalNote.with({ profile: rawResult.configurationProfile, deliveryNotes: rawResult.deliveryNotes || '' });
+    }
     // The same step the action runs, so a case asserts on the profile an admin would download.
     if(testCase.profileType === 'csp' && rawResult.configurationProfile) {
+      rawResult.configurationProfile = await sails.helpers.removeSyncmlEnvelopeFromWindowsProfile.with({ profile: rawResult.configurationProfile });
       let withAdmxInstalls = await sails.helpers.addAdmxInstallCommandsToWindowsProfile.with({ profile: rawResult.configurationProfile });
       rawResult.configurationProfile = withAdmxInstalls.profile;
       rawResult.deliveryNotes = [rawResult.deliveryNotes].concat(withAdmxInstalls.deliveryNotes).filter(Boolean).join(' ');

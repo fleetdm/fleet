@@ -94,7 +94,7 @@ csp cases report as not-checked either way.`
 
     let path = require('path');
     let util = require('util');
-    let { TEST_CASES, checkExpectations } = require('../profile-generator/configuration-profile-generator-cases');
+    let { TEST_CASES, checkExpectations, checkDeclineReason } = require('../profile-generator/configuration-profile-generator-cases');
 
     const MAX_ELAPSED_MS = 10000;
 
@@ -234,8 +234,12 @@ csp cases report as not-checked either way.`
             baseModel,
             expectJson: true,
           });
+          if(testCase.profileType === 'mobileconfig' && rawResult.configurationProfile) {
+            rawResult.deliveryNotes = await sails.helpers.addSoftwareUpdateRemovalNote.with({ profile: rawResult.configurationProfile, deliveryNotes: rawResult.deliveryNotes || '' });
+          }
           // The same step the action runs, so a case is checked against the profile an admin would download.
           if(testCase.profileType === 'csp' && rawResult.configurationProfile) {
+            rawResult.configurationProfile = await sails.helpers.removeSyncmlEnvelopeFromWindowsProfile.with({ profile: rawResult.configurationProfile });
             let withAdmxInstalls = await sails.helpers.addAdmxInstallCommandsToWindowsProfile.with({ profile: rawResult.configurationProfile });
             rawResult.configurationProfile = withAdmxInstalls.profile;
             rawResult.deliveryNotes = _.compact([rawResult.deliveryNotes].concat(withAdmxInstalls.deliveryNotes)).join(' ');
@@ -294,11 +298,11 @@ csp cases report as not-checked either way.`
         // misconfigured anthropicSecret as a model refusal.
           checkFailures = [`unexpected error: ${unexpectedError.message}`];
         } else if(abstained) {
-          checkFailures = expectations.expectFailure ? [] : [
+          checkFailures = expectations.expectFailure ? checkDeclineReason(rawResult.reasonWhyAProfileCouldNotBeGenerated) : [
             `abstained but a profile was expected -- reason given: ${JSON.stringify(rawResult.reasonWhyAProfileCouldNotBeGenerated || '(none)')}`
           ];
         } else {
-          checkFailures = checkExpectations(expectations, generatedProfile);
+          checkFailures = checkExpectations(expectations, generatedProfile, testCase.profileType);
         }
 
         if(elapsedMs > MAX_ELAPSED_MS) {

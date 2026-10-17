@@ -178,8 +178,13 @@ Respond in JSON with this data shape:
       additionalProfiles: [],
     };
 
-    // Run the profile through the addAdmxInstallCommandsToWindowsProfile helper before returning it to the user.
+    if(profileType === 'mobileconfig') {
+      generatedProfile.deliveryNotes = await sails.helpers.addSoftwareUpdateRemovalNote.with({ profile: generatedProfile.profile, deliveryNotes: generatedProfile.deliveryNotes || '' });
+    }
+
+    // Strip any SyncML envelope and add ADMX install commands before returning a Windows profile to the user.
     if(profileType === 'csp') {
+      generatedProfile.profile = await sails.helpers.removeSyncmlEnvelopeFromWindowsProfile.with({ profile: generatedProfile.profile });
       let withAdmxInstalls = await sails.helpers.addAdmxInstallCommandsToWindowsProfile.with({ profile: generatedProfile.profile });
       generatedProfile.profile = withAdmxInstalls.profile;
       generatedProfile.additionalProfiles = withAdmxInstalls.admxInstallProfiles || [];

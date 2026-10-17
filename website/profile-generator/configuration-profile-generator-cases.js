@@ -26,6 +26,9 @@
 // are about the profile rather than about a document the profile transports.  A CSP profile must not
 // carry an XML declaration; the WLANProfile inside its CDATA may.
 //
+// `deliveryNotesMustContain` / `deliveryNotesMustNotContain` are compared case-insensitively against
+// "deliveryNotes" rather than the profile.
+//
 // Assertions are substring-only by design.  Anything cleverer would be a validator, and the design
 // decision for this generator was that there isn't one -- the CANARY cases are written as exact
 // substrings so this can stay dumb.  Properties that genuinely can't be checked this way (one dict
@@ -649,6 +652,30 @@ const TEST_CASES = [
       mustContainElement: [['Format', 'int'], ['Format', 'chr'], ['Data', '0']],
     }
   },
+  {
+    id: 'csp-xml-escaping-in-value',
+    profileType: 'csp',
+    instructions: 'Show "Research & Development <internal use only>" as the title of the message on the sign-in screen.',
+    // A CDATA-wrapped value is as valid as an entity-escaped one, so only the raw characters outside CDATA are forbidden.
+    expect: {
+      mustContain: ['LocalPoliciesSecurityOptions/InteractiveLogon_MessageTitleForUsersAttemptingToLogOn'],
+      mustNotContainOutsideCdata: ['Research & Development', '<internal use only>'],
+    }
+  },
+  {
+    id: 'csp-edge-homepage',
+    profileType: 'csp',
+    instructions: 'Set the Microsoft Edge homepage to intranet.acme.example.',
+    // The Browser area is Edge Legacy, so a profile written from it installs and does nothing.
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'csp-mdm-check-in-interval',
+    profileType: 'csp',
+    instructions: 'Make Windows devices check in with the MDM server every 5 minutes.',
+    // Check-in timing lives in DMClient, which the MDM itself manages.
+    expect: { expectFailure: true }
+  },
 
   //  ╔╦╗╔═╗╔╗ ╦╦  ╔═╗╔═╗╔╗╔╔═╗╦╔═╗
   //  ║║║║ ║╠╩╗║║  ║╣ ║  ║║║╠╣ ║║ ╦
@@ -819,6 +846,7 @@ const TEST_CASES = [
     profileType: 'mobileconfig',
     instructions: 'Automatically install App Store app updates.',
     expect: {
+      deliveryNotesMustContain: ['macOS 27'],
       mustContain: ['com.apple.SoftwareUpdate', '<key>AutomaticallyInstallAppUpdates</key><true/>'],
       mustNotContain: ['AutomaticallyInstallMacOSUpdates']
     }
@@ -851,6 +879,7 @@ const TEST_CASES = [
     profileType: 'mobileconfig',
     instructions: 'Download macOS updates automatically as soon as they are available.',
     expect: {
+      deliveryNotesMustContain: ['macOS 27'],
       mustContain: ['com.apple.SoftwareUpdate', '<key>AutomaticDownload</key><true/>'],
       mustNotContain: ['AutomaticallyInstallMacOSUpdates'],
       mustNotContainElement: [['string', 'true']],
@@ -861,6 +890,7 @@ const TEST_CASES = [
     profileType: 'mobileconfig',
     instructions: 'Install macOS updates automatically.',
     expect: {
+      deliveryNotesMustContain: ['macOS 27'],
       mustContain: ['com.apple.SoftwareUpdate', '<key>AutomaticallyInstallMacOSUpdates</key><true/>'],
       mustNotContain: ['AutomaticallyInstallMacOSupdates', 'AutomaticallyInstallAppUpdates'],
       mustNotContainElement: [['string', 'true']],
@@ -872,6 +902,7 @@ const TEST_CASES = [
     instructions: 'Install security responses and system data files automatically.',
     readByEye: 'Both keys must sit in ONE com.apple.SoftwareUpdate dict.',
     expect: {
+      deliveryNotesMustContain: ['macOS 27'],
       mustContain: ['com.apple.SoftwareUpdate', '<key>ConfigDataInstall</key><true/>', '<key>CriticalUpdateInstall</key><true/>'],
       mustNotContainElement: [['string', 'true']],
     }
@@ -885,6 +916,7 @@ const TEST_CASES = [
     // com.apple.SoftwareUpdate.  Apple removes them in macOS 27 in favour of DDM.
     readByEye: 'If a delay key (enforcedSoftwareUpdateDelay or enforcedSoftwareUpdateMinorOSDeferredInstallDelay) is present, its value must be 30.',
     expect: {
+      deliveryNotesMustContain: ['macOS 27'],
       mustContain: ['com.apple.applicationaccess', '<key>forceDelayedSoftwareUpdates</key><true/>'],
       mustNotContain: ['EnforcedSoftwareUpdateDelay', 'ForceDelayedSoftwareUpdates', 'com.apple.SoftwareUpdate', 'com.apple.configuration.softwareupdate'],
       mustNotContainElement: [['string', 'true'], ['string', '30']],
@@ -1106,8 +1138,8 @@ const TEST_CASES = [
     // The delay key only sets the length; forceDelayedMajorSoftwareUpdates is what turns it on.  Both
     // live in com.apple.applicationaccess.  The observed failure was the delay key alone, inside a
     // com.apple.SoftwareUpdate dict.
-    readByEye: 'Apple deprecated both keys in macOS 26 and removed them in macOS 27, so "deliveryNotes" should say so and point to the DDM softwareupdate.settings Deferrals.',
     expect: {
+      deliveryNotesMustContain: ['macOS 27'],
       mustContain: [
         'com.apple.applicationaccess', '<key>forceDelayedMajorSoftwareUpdates</key><true/>',
         '<key>enforcedSoftwareUpdateMajorOSDeferredInstallDelay</key><integer>73</integer>'
@@ -1208,6 +1240,15 @@ const TEST_CASES = [
     instructions: 'Defer minor updates by 30 days.',
     expect: {
       mustContain: ['softwareupdate.settings', 'Deferrals', '"MinorPeriodInDays":30']
+    }
+  },
+  {
+    id: 'ddm-defer-major-updates',
+    profileType: 'ddm',
+    instructions: 'Defer macOS major updates by 90 days.',
+    expect: {
+      mustContain: ['softwareupdate.settings', 'Deferrals', '"MajorPeriodInDays":90'],
+      mustNotContain: ['forceDelayedMajorSoftwareUpdates', 'enforcedSoftwareUpdateMajorOSDeferredInstallDelay'],
     }
   },
   {
@@ -1835,17 +1876,50 @@ const TEST_CASES = [
 ];
 
 /**
- * Compare a generated profile against a case's `expect` block.
+ * Compare a generated profile against a case's `expect` block, and against the rules every profile of
+ * its type must follow.
  *
  * @param  {Dictionary} expectations
  * @param  {Dictionary} generatedProfile
+ * @param  {String} profileType
  * @returns {Array} human-readable descriptions of what failed
  */
-function checkExpectations(expectations, generatedProfile) {
+function checkExpectations(expectations, generatedProfile, profileType) {
   let failures = [];
 
   if(expectations.expectFailure) {
     return ['expected this request to be refused, but a profile was generated'];
+  }
+
+  // MDMs treat a .mobileconfig without an XML declaration as signed, and reject it.
+  if(profileType === 'mobileconfig' && !_.startsWith(_.trim(generatedProfile.profile), '<?xml')) {
+    failures.push('does not start with an XML declaration');
+  }
+  if(profileType === 'csp') {
+    let outsideCdata = String(generatedProfile.profile).replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, '<![CDATA[]]>');
+    if(_.contains(outsideCdata, '<?xml')) {
+      failures.push('contains an XML declaration outside CDATA');
+    }
+    if(/<SyncML|<SyncBody/.test(outsideCdata)) {
+      failures.push('contains a SyncML envelope');
+    }
+    let managementPlaneNode = String(generatedProfile.profile).match(/\/MSFT\/(DMClient|DMAcc|EnrollmentStatusTracking)\b/i);
+    if(managementPlaneNode) {
+      failures.push(`writes to the ${managementPlaneNode[1]} CSP, which the MDM uses to manage the device`);
+    }
+  }
+
+  // Case-insensitive, since these are prose.
+  let deliveryNotes = String(generatedProfile.deliveryNotes || '').toLowerCase();
+  for (let needle of expectations.deliveryNotesMustContain || []) {
+    if(!_.contains(deliveryNotes, needle.toLowerCase())) {
+      failures.push(`deliveryNotes missing expected text: ${JSON.stringify(needle)} -- deliveryNotes were ${JSON.stringify(generatedProfile.deliveryNotes || '')}`);
+    }
+  }
+  for (let needle of expectations.deliveryNotesMustNotContain || []) {
+    if(_.contains(deliveryNotes, needle.toLowerCase())) {
+      failures.push(`deliveryNotes contain forbidden text: ${JSON.stringify(needle)} -- deliveryNotes were ${JSON.stringify(generatedProfile.deliveryNotes)}`);
+    }
   }
 
   // Whitespace is stripped from both sides so an assertion doesn't fail on JSON indentation.
@@ -1913,8 +1987,23 @@ function checkExpectations(expectations, generatedProfile) {
   return failures;
 }
 
+/**
+ * Check the reason given for a refusal the case expected.
+ *
+ * @param  {String} reason
+ * @returns {Array} human-readable descriptions of what failed
+ */
+function checkDeclineReason(reason) {
+  // The UI already links every refusal to the OS settings page, so a reason links nowhere else.
+  if(/https?:\/\/|www\./i.test(String(reason || ''))) {
+    return [`reason contains a link: ${JSON.stringify(reason)}`];
+  }
+  return [];
+}
+
 
 module.exports = {
   TEST_CASES,
   checkExpectations,
+  checkDeclineReason,
 };
