@@ -29,6 +29,8 @@
 // `deliveryNotesMustContain` / `deliveryNotesMustNotContain` are compared case-insensitively against
 // "deliveryNotes" rather than the profile.
 //
+// `forFleet: true` on a case generates it the way a Fleet server asks, with Fleet's own rules on.
+//
 // Assertions are substring-only by design.  Anything cleverer would be a validator, and the design
 // decision for this generator was that there isn't one -- the CANARY cases are written as exact
 // substrings so this can stay dumb.  Properties that genuinely can't be checked this way (one dict
@@ -676,6 +678,52 @@ const TEST_CASES = [
     // Check-in timing lives in DMClient, which the MDM itself manages.
     expect: { expectFailure: true }
   },
+  {
+    id: 'csp-fleet-reboot',
+    profileType: 'csp',
+    forFleet: true,
+    instructions: 'Reboot the device.',
+    // Reboot/Schedule is Replace-able, so it is still offered: the refusal rests on the no-commands rule, not the filter.
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'csp-fleet-install-office',
+    profileType: 'csp',
+    forFleet: true,
+    instructions: 'Install Microsoft Office.',
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'csp-fleet-defer-feature-updates',
+    profileType: 'csp',
+    forFleet: true,
+    instructions: 'Defer Windows feature updates by 90 days.',
+    expect: {
+      mustContain: ['Policy/Config/Update/DeferFeatureUpdatesPeriodInDays'],
+      mustContainElement: [['Format', 'int'], ['Data', '90']],
+      deliveryNotesMustContain: ['OS updates'],
+    }
+  },
+  {
+    id: 'csp-fleet-bitlocker',
+    profileType: 'csp',
+    forFleet: true,
+    instructions: 'Require BitLocker encryption on Windows devices.',
+    expect: {
+      mustContain: ['RequireDeviceEncryption'],
+      deliveryNotesMustContain: ['Disk encryption'],
+    }
+  },
+  {
+    id: 'csp-public-reboot',
+    profileType: 'csp',
+    instructions: 'Reboot the device.',
+    // Off the Fleet path the request generates as it always has.
+    expect: {
+      mustContain: ['Reboot/RebootNow'],
+      deliveryNotesMustNotContain: ['Fleet'],
+    }
+  },
 
   //  ╔╦╗╔═╗╔╗ ╦╦  ╔═╗╔═╗╔╗╔╔═╗╦╔═╗
   //  ║║║║ ║╠╩╗║║  ║╣ ║  ║║║╠╣ ║║ ╦
@@ -1148,58 +1196,103 @@ const TEST_CASES = [
       mustNotContainElement: [['string', 'true'], ['string', '73']],
     }
   },
-  // 2026-10-02: JordanMontgomery: I commented out the two Platform SSO cases below because they fail every run: the model does not know the vendor-specific extension values and URLs.
-  // FUTURE: uncomment these cases once the prompt carries step-by-step Platform SSO instructions, the way it does for WLAN XML.
-  // {
-  //   id: 'mobileconfig-psso-entra-setup-assistant',
-  //   profileType: 'mobileconfig',
-  //   instructions: 'Set up Microsoft Entra Platform SSO with password authentication, and let users register during Setup Assistant.',
-  //   // Values from Microsoft's Platform SSO guide, which it says apply to any MDM.  The observed failure
-  //   // listed only login.microsoftonline.com and left out UseSharedDeviceKeys.  The four sovereign-cloud
-  //   // URLs are only needed in those clouds, so they are neither required nor forbidden.
-  //   readByEye: 'AuthenticationMethod, UseSharedDeviceKeys and EnableRegistrationDuringSetup must sit INSIDE the PlatformSSO dict, not at the top level of the payload.',
-  //   expect: {
-  //     mustContain: [
-  //       'com.apple.extensiblesso',
-  //       '<key>ExtensionIdentifier</key><string>com.microsoft.CompanyPortalMac.ssoextension</string>',
-  //       '<key>TeamIdentifier</key><string>UBF8T346G9</string>',
-  //       '<key>Type</key><string>Redirect</string>',
-  //       '<key>PlatformSSO</key><dict>', '<key>AuthenticationMethod</key><string>Password</string>',
-  //       '<key>UseSharedDeviceKeys</key><true/>', '<key>EnableRegistrationDuringSetup</key><true/>',
-  //       '<string>https://login.microsoftonline.com</string>', '<string>https://login.microsoft.com</string>',
-  //       '<string>https://sts.windows.net</string>'
-  //     ],
-  //     mustNotContain: ['<key>Type</key><string>Credential</string>'],
-  //     mustNotContainElement: [['string', 'true']],
-  //   }
-  // },
-  // {
-  //   id: 'mobileconfig-psso-okta-password',
-  //   profileType: 'mobileconfig',
-  //   instructions: 'Set up Okta Platform SSO with password authentication for our Okta org at acme.okta.com, including the associated domains Okta Verify needs.',
-  //   // Values from Okta's generic-MDM Platform SSO guide.  The observed failure was Okta's older
-  //   // non-Platform SSO extension: com.okta.mobile.sso with Type Credential and no PlatformSSO dict,
-  //   // which installs and does no Platform SSO.  The org is supplied so the model has no reason to
-  //   // fall back to placeholders.
-  //   readByEye: 'The associated domains belong in their own com.apple.associated-domains dict, with one Configuration entry per ApplicationIdentifier.',
-  //   expect: {
-  //     mustContain: [
-  //       'com.apple.extensiblesso', 'com.apple.associated-domains',
-  //       '<key>ExtensionIdentifier</key><string>com.okta.mobile.auth-service-extension</string>',
-  //       '<key>TeamIdentifier</key><string>B7F62B65BN</string>',
-  //       '<key>Type</key><string>Redirect</string>',
-  //       '<key>PlatformSSO</key><dict>', '<key>AuthenticationMethod</key><string>Password</string>',
-  //       '<key>UseSharedDeviceKeys</key><true/>',
-  //       '<string>https://acme.okta.com/device-access/api/v1/nonce</string>',
-  //       '<string>https://acme.okta.com/oauth2/v1/token</string>',
-  //       '<string>https://acme.okta.com/v1/auth/device-sign</string>',
-  //       '<string>B7F62B65BN.com.okta.mobile</string>', '<string>B7F62B65BN.com.okta.mobile.auth-service-extension</string>',
-  //       '<string>authsrv:acme.okta.com</string>'
-  //     ],
-  //     mustNotContain: ['com.okta.mobile.sso', '<key>Type</key><string>Credential</string>', 'OKTA_'],
-  //     mustNotContainElement: [['string', 'true']],
-  //   }
-  // },
+  // Platform SSO declines for Fleet: the model does not know the vendors' extension values and URLs.  The generating
+  // versions of these two cases, with Microsoft's and Okta's expected values, are in this file's git history.
+  {
+    id: 'mobileconfig-psso-entra-setup-assistant',
+    profileType: 'mobileconfig',
+    forFleet: true,
+    instructions: 'Set up Microsoft Entra Platform SSO with password authentication, and let users register during Setup Assistant.',
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'mobileconfig-psso-okta-password',
+    profileType: 'mobileconfig',
+    forFleet: true,
+    instructions: 'Set up Okta Platform SSO with password authentication for our Okta org at acme.okta.com, including the associated domains Okta Verify needs.',
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'mobileconfig-fleet-psso-entra-password',
+    profileType: 'mobileconfig',
+    forFleet: true,
+    instructions: 'Set up Platform SSO with Microsoft Entra ID using password authentication.',
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'mobileconfig-fleet-kerberos-sso',
+    profileType: 'mobileconfig',
+    forFleet: true,
+    instructions: 'Set up the Kerberos SSO extension for the ACME.EXAMPLE realm.',
+    expect: {
+      mustContain: ['com.apple.extensiblesso', 'com.apple.AppSSOKerberos.KerberosExtension', 'ACME.EXAMPLE'],
+    }
+  },
+  {
+    id: 'mobileconfig-fleet-scep',
+    profileType: 'mobileconfig',
+    forFleet: true,
+    instructions: 'Request a certificate from our SCEP server.',
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'mobileconfig-fleet-filevault',
+    profileType: 'mobileconfig',
+    forFleet: true,
+    instructions: 'Turn on FileVault and escrow the recovery key.',
+    expect: {
+      mustContain: ['com.apple.MCX.FileVault2'],
+      deliveryNotesMustContain: ['Disk encryption'],
+    }
+  },
+  {
+    id: 'mobileconfig-fleet-wifi-password',
+    profileType: 'mobileconfig',
+    forFleet: true,
+    instructions: 'Connect to the WPA2 Wi-Fi network "CorpNet" with the password "Sup3r-Secret!".',
+    expect: {
+      mustContain: ['com.apple.wifi.managed', '<key>SSID_STR</key><string>CorpNet</string>', '<key>Password</key><string>Sup3r-Secret!</string>'],
+      deliveryNotesMustContain: ['FLEET_SECRET'],
+    }
+  },
+  // The same requests off the Fleet path behave as they always have: no Fleet-only refusals, and no Fleet in the notes.
+  {
+    id: 'mobileconfig-public-psso-entra-password',
+    profileType: 'mobileconfig',
+    instructions: 'Set up Platform SSO with Microsoft Entra ID using password authentication.',
+    expect: {
+      mustContain: ['com.apple.extensiblesso'],
+      deliveryNotesMustNotContain: ['Fleet'],
+    }
+  },
+  {
+    id: 'mobileconfig-public-scep',
+    profileType: 'mobileconfig',
+    instructions: 'Request a certificate from our SCEP server at scep.acme.example with the challenge "abc123".',
+    expect: {
+      mustContain: ['com.apple.security.scep'],
+      deliveryNotesMustNotContain: ['Fleet'],
+    }
+  },
+  {
+    id: 'mobileconfig-public-filevault',
+    profileType: 'mobileconfig',
+    // Shorter than the Fleet case: with key escrow the request runs over the 10-second budget, and this case is about the notes.
+    instructions: 'Turn on FileVault.',
+    expect: {
+      mustContain: ['com.apple.MCX.FileVault2'],
+      deliveryNotesMustNotContain: ['Fleet'],
+    }
+  },
+  {
+    id: 'mobileconfig-public-wifi-password',
+    profileType: 'mobileconfig',
+    instructions: 'Connect to the WPA2 Wi-Fi network "CorpNet" with the password "Sup3r-Secret!".',
+    expect: {
+      mustContain: ['com.apple.wifi.managed', '<key>Password</key><string>Sup3r-Secret!</string>'],
+      deliveryNotesMustNotContain: ['Fleet'],
+    }
+  },
 
   //  ╔╦╗╔╦╗╔╦╗
   //   ║║ ║║║║║
@@ -1250,6 +1343,51 @@ const TEST_CASES = [
       mustContain: ['softwareupdate.settings', 'Deferrals', '"MajorPeriodInDays":90'],
       mustNotContain: ['forceDelayedMajorSoftwareUpdates', 'enforcedSoftwareUpdateMajorOSDeferredInstallDelay'],
     }
+  },
+  {
+    id: 'ddm-fleet-root-ca',
+    profileType: 'ddm',
+    forFleet: true,
+    instructions: 'Install our root CA certificate.',
+    // The certificate declaration needs an asset, which Fleet cannot deliver.
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'ddm-fleet-safari-new-tab-macos',
+    profileType: 'ddm',
+    forFleet: true,
+    instructions: 'Set my new Safari tabs to open reddit.com on macOS.',
+    // Safari settings only apply on the macOS user channel, and Fleet delivers to the device channel unless scoped.
+    expect: {
+      mustContain: ['com.apple.configuration.safari.settings', '"PayloadScope":"User"'],
+      deliveryNotesMustContain: ['label'],
+    }
+  },
+  {
+    id: 'ddm-fleet-safari-new-tab-any-platform',
+    profileType: 'ddm',
+    forFleet: true,
+    instructions: 'Set new Safari tabs to open reddit.com.',
+    expect: {
+      mustContain: ['com.apple.configuration.safari.settings', '"PayloadScope":"User"'],
+      deliveryNotesMustContain: ['label'],
+    }
+  },
+  {
+    id: 'ddm-public-safari-new-tab-macos',
+    profileType: 'ddm',
+    instructions: 'Set my new Safari tabs to open reddit.com on macOS.',
+    expect: {
+      mustContain: ['com.apple.configuration.safari.settings'],
+    }
+  },
+  {
+    id: 'ddm-fleet-google-account',
+    profileType: 'ddm',
+    forFleet: true,
+    instructions: 'Add a Google account for jane@acme.example.',
+    // com.apple.configuration.account.google is a type Fleet rejects.
+    expect: { expectFailure: true }
   },
   {
     id: 'ddm-auto-install-security-updates',
@@ -1882,9 +2020,10 @@ const TEST_CASES = [
  * @param  {Dictionary} expectations
  * @param  {Dictionary} generatedProfile
  * @param  {String} profileType
+ * @param  {Boolean} forFleet
  * @returns {Array} human-readable descriptions of what failed
  */
-function checkExpectations(expectations, generatedProfile, profileType) {
+function checkExpectations(expectations, generatedProfile, profileType, forFleet) {
   let failures = [];
 
   if(expectations.expectFailure) {
@@ -1907,6 +2046,19 @@ function checkExpectations(expectations, generatedProfile, profileType) {
     if(managementPlaneNode) {
       failures.push(`writes to the ${managementPlaneNode[1]} CSP, which the MDM uses to manage the device`);
     }
+    if(forFleet && /<Exec\b/.test(outsideCdata)) {
+      failures.push('contains an <Exec> command, which Fleet rejects');
+    }
+  }
+  if(profileType === 'ddm' && forFleet && _.contains(String(generatedProfile.profile), 'AssetReference')) {
+    failures.push('references an asset declaration, which Fleet cannot deliver');
+  }
+  // PayloadScope is Fleet's own key, so other MDMs would deliver it to the device as-is.
+  if(profileType === 'ddm' && !forFleet && _.contains(String(generatedProfile.profile), 'PayloadScope')) {
+    failures.push('contains PayloadScope, which only Fleet understands');
+  }
+  if(!forFleet && /FLEET_SECRET/i.test(String(generatedProfile.deliveryNotes || ''))) {
+    failures.push(`deliveryNotes name a Fleet secret outside Fleet: ${JSON.stringify(generatedProfile.deliveryNotes)}`);
   }
 
   // Case-insensitive, since these are prose.

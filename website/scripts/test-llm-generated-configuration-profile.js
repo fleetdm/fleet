@@ -85,12 +85,18 @@ csp cases report as not-checked either way.`
       type: 'boolean',
       defaultsTo: false,
       description: 'Whether or not to use the configuration helper\'s lookup functionality.'
+    },
+
+    forFleet: {
+      type: 'boolean',
+      defaultsTo: false,
+      description: 'Generate --naturalLanguageInstructions the way a Fleet server asks, with Fleet\'s own rules on.  Cases carry their own.'
     }
 
   },
 
 
-  fn: async function ({profileType, naturalLanguageInstructions, baseModel, verbose, validateWithContour, parallelTests, caseId, testLighterResponse, lookupAppleSchemaKeys}) {
+  fn: async function ({profileType, naturalLanguageInstructions, baseModel, verbose, validateWithContour, parallelTests, caseId, testLighterResponse, lookupAppleSchemaKeys, forFleet}) {
 
     let path = require('path');
     let util = require('util');
@@ -193,6 +199,7 @@ csp cases report as not-checked either way.`
       (parallelTests > 1 ? `parallelTests: ${parallelTests}\n` : '') +
       `Using smaller response shape: ${testLighterResponse}\n` +
       `Looking up apple payloads for mobileconfig profiles: ${lookupAppleSchemaKeys}\n` +
+      (forFleet ? 'forFleet: true\n' : '') +
       `verbose: ${verbose}\n` +
       '----------'
     );
@@ -208,7 +215,7 @@ csp cases report as not-checked either way.`
     } else {
       // A named case from the cases module -- which brings its own expect block, so repeats are scored --
       // or a one-off from --naturalLanguageInstructions, which is not.
-      cases = [chosenCase || { id: 'ad-hoc', profileType, instructions: naturalLanguageInstructions }];
+      cases = [chosenCase || { id: 'ad-hoc', profileType, instructions: naturalLanguageInstructions, forFleet }];
     }
 
     let results = [];
@@ -227,6 +234,7 @@ csp cases report as not-checked either way.`
             naturalLanguageInstructions: testCase.instructions,
             useLighterResponseShape: testLighterResponse,
             useApplePayloadTypeLookup: lookupAppleSchemaKeys,
+            forFleet: !!testCase.forFleet,
           });
           let rawResult = await sails.helpers.ai.prompt.with({
             systemPrompt: generatorConfiguration.systemPrompt,
@@ -236,6 +244,11 @@ csp cases report as not-checked either way.`
           });
           if(testCase.profileType === 'mobileconfig' && rawResult.configurationProfile) {
             rawResult.deliveryNotes = await sails.helpers.addSoftwareUpdateRemovalNote.with({ profile: rawResult.configurationProfile, deliveryNotes: rawResult.deliveryNotes || '' });
+          }
+          if(testCase.profileType === 'ddm' && testCase.forFleet && _.isString(rawResult.configurationProfile)) {
+            let withUserScope = await sails.helpers.addUserPayloadScopeToDeclaration.with({ profile: rawResult.configurationProfile, deliveryNotes: rawResult.deliveryNotes || '' });
+            rawResult.configurationProfile = withUserScope.profile;
+            rawResult.deliveryNotes = withUserScope.deliveryNotes;
           }
           // The same step the action runs, so a case is checked against the profile an admin would download.
           if(testCase.profileType === 'csp' && rawResult.configurationProfile) {
@@ -302,7 +315,7 @@ csp cases report as not-checked either way.`
             `abstained but a profile was expected -- reason given: ${JSON.stringify(rawResult.reasonWhyAProfileCouldNotBeGenerated || '(none)')}`
           ];
         } else {
-          checkFailures = checkExpectations(expectations, generatedProfile, testCase.profileType);
+          checkFailures = checkExpectations(expectations, generatedProfile, testCase.profileType, testCase.forFleet);
         }
 
         if(elapsedMs > MAX_ELAPSED_MS) {

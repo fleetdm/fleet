@@ -21,6 +21,11 @@ module.exports = {
     naturalLanguageInstructions: {
       type: 'string',
       required: true
+    },
+    forFleet: {
+      type: 'boolean',
+      defaultsTo: false,
+      description: 'Whether the request comes from a Fleet server, which turns on Fleet\'s own rules.'
     }
   },
 
@@ -36,7 +41,7 @@ module.exports = {
   },
 
 
-  fn: async function ({profileType, naturalLanguageInstructions}) {
+  fn: async function ({profileType, naturalLanguageInstructions, forFleet}) {
 
     // Generate a random room name.
     let roomId = await sails.helpers.strings.random();
@@ -111,6 +116,7 @@ Respond in JSON with this data shape:
       naturalLanguageInstructions,
       useLighterResponseShape: true,
       useApplePayloadTypeLookup: true,
+      forFleet,
     });
 
     // Generate the configuration profile with Haiku, the model the profile generator's test suite measures these prompts against.
@@ -180,6 +186,11 @@ Respond in JSON with this data shape:
 
     if(profileType === 'mobileconfig') {
       generatedProfile.deliveryNotes = await sails.helpers.addSoftwareUpdateRemovalNote.with({ profile: generatedProfile.profile, deliveryNotes: generatedProfile.deliveryNotes || '' });
+    }
+    if(profileType === 'ddm' && forFleet && _.isString(generatedProfile.profile)) {
+      let withUserScope = await sails.helpers.addUserPayloadScopeToDeclaration.with({ profile: generatedProfile.profile, deliveryNotes: generatedProfile.deliveryNotes || '' });
+      generatedProfile.profile = withUserScope.profile;
+      generatedProfile.deliveryNotes = withUserScope.deliveryNotes;
     }
 
     // Strip any SyncML envelope and add ADMX install commands before returning a Windows profile to the user.

@@ -158,7 +158,7 @@ describe('configuration profile generator', function() {
                 items: rawResult.settingsEnforced,
               };
 
-              let checkFailures = checkExpectations(expectations, generatedProfile, profileType);
+              let checkFailures = checkExpectations(expectations, generatedProfile, profileType, testCase.forFleet);
               assert.strictEqual(
                 checkFailures.length, 0,
                 `${testCase.canary ? 'CANARY -- ' : ''}${checkFailures.length} check(s) failed:\n` +
@@ -229,6 +229,7 @@ async function generateOnce(testCase) {
       profileType: testCase.profileType,
       naturalLanguageInstructions: testCase.instructions,
       useApplePayloadTypeLookup: true,
+      forFleet: !!testCase.forFleet,
     });
     let rawResult = await sails.helpers.ai.prompt.with({
       systemPrompt: generatorConfiguration.systemPrompt,
@@ -238,6 +239,11 @@ async function generateOnce(testCase) {
     });
     if(testCase.profileType === 'mobileconfig' && rawResult.configurationProfile) {
       rawResult.deliveryNotes = await sails.helpers.addSoftwareUpdateRemovalNote.with({ profile: rawResult.configurationProfile, deliveryNotes: rawResult.deliveryNotes || '' });
+    }
+    if(testCase.profileType === 'ddm' && testCase.forFleet && typeof rawResult.configurationProfile === 'string') {
+      let withUserScope = await sails.helpers.addUserPayloadScopeToDeclaration.with({ profile: rawResult.configurationProfile, deliveryNotes: rawResult.deliveryNotes || '' });
+      rawResult.configurationProfile = withUserScope.profile;
+      rawResult.deliveryNotes = withUserScope.deliveryNotes;
     }
     // The same step the action runs, so a case asserts on the profile an admin would download.
     if(testCase.profileType === 'csp' && rawResult.configurationProfile) {

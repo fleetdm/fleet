@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-30T18:47:16.683Z",
+  "generatedAt": "2026-10-16T06:01:36.819Z",
   "source": "https://github.com/apple/device-management/tree/release/declarative/declarations/configurations",
   "entries": [
     {
@@ -37,6 +37,9 @@
         "iOS",
         "macOS",
         "visionOS"
+      ],
+      "userChannelOnly": [
+        "macOS"
       ],
       "keys": [
         {
@@ -77,6 +80,9 @@
         "macOS",
         "visionOS"
       ],
+      "userChannelOnly": [
+        "macOS"
+      ],
       "keys": [
         {
           "key": "VisibleName",
@@ -115,6 +121,9 @@
         "iOS",
         "macOS",
         "visionOS"
+      ],
+      "userChannelOnly": [
+        "macOS"
       ],
       "keys": [
         {
@@ -353,6 +362,9 @@
         "macOS",
         "visionOS"
       ],
+      "userChannelOnly": [
+        "macOS"
+      ],
       "keys": [
         {
           "key": "VisibleName",
@@ -376,6 +388,9 @@
         "iOS",
         "macOS",
         "visionOS"
+      ],
+      "userChannelOnly": [
+        "macOS"
       ],
       "keys": [
         {
@@ -447,6 +462,9 @@
         "iOS",
         "macOS",
         "visionOS"
+      ],
+      "userChannelOnly": [
+        "macOS"
       ],
       "keys": [
         {
@@ -634,6 +652,9 @@
         "iOS",
         "macOS",
         "visionOS"
+      ],
+      "userChannelOnly": [
+        "macOS"
       ],
       "keys": [
         {
@@ -2295,6 +2316,9 @@
       "description": "The declaration to configure the math and calculator apps.",
       "platforms": [
         "iOS",
+        "macOS"
+      ],
+      "userChannelOnly": [
         "macOS"
       ],
       "keys": [
@@ -4576,6 +4600,9 @@
         "macOS",
         "visionOS"
       ],
+      "userChannelOnly": [
+        "macOS"
+      ],
       "keys": [
         {
           "key": "ManagedBookmarks",
@@ -4630,6 +4657,9 @@
         "iOS",
         "macOS",
         "visionOS"
+      ],
+      "userChannelOnly": [
+        "macOS"
       ],
       "keys": [
         {
@@ -4701,6 +4731,9 @@
         "iOS",
         "macOS",
         "visionOS"
+      ],
+      "userChannelOnly": [
+        "macOS"
       ],
       "keys": [
         {
@@ -5023,6 +5056,9 @@
       "description": "The declaration to configure the device to allow WebAuthn enterprise attestation for certain passkeys.",
       "platforms": [
         "iOS",
+        "macOS"
+      ],
+      "userChannelOnly": [
         "macOS"
       ],
       "keys": [
