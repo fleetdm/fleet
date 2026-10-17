@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.0.1",
+      "version": "2.1.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.stonerl.Thaw';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.stonerl.Thaw' AND version_compare(bundle_short_version, '2.0.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.stonerl.Thaw' AND version_compare(bundle_short_version, '2.1.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.stonerl.Thaw' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/thaw-app/Thaw/releases/download/2.0.1/Thaw_2.0.1.zip",
+      "installer_url": "https://github.com/thaw-app/Thaw/releases/download/2.1.0/Thaw_2.1.0.zip",
       "install_script_ref": "05228a2f",
       "uninstall_script_ref": "30761830",
-      "sha256": "aafefc186a96b2e0b7868b0966df4cbe3bf6737ced3f9b25a22d6c07dc6f8fba",
+      "sha256": "23fe850dd6b6e3f822af00a2da76c6d46135c2fa8a0deef8e8fa09d1efd3eec1",
       "default_categories": [
         "Utilities"
       ]

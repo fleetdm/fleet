@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "react-query";
 import {
   createMockHostAppStoreApp,
   createMockHostSoftware,
+  DEFAULT_INSTALLED_VERSION,
 } from "__mocks__/hostMock";
 import mockServer from "test/mock-server";
 import {
@@ -843,6 +844,62 @@ describe("VPP Install Details Modal", () => {
     expect(
       screen.getByRole("button", { name: /Details/i })
     ).toBeInTheDocument();
+  });
+
+  // A failed_install with an available update reads "Failed" in the cell, so
+  // the admin modal must surface the failure instead of overriding to "is installed."
+  it("on admin, does not override a failed install to 'is installed' when the host reports an older installed version with an update available", async () => {
+    mockServer.use(
+      http.get(baseUrl("/commands/results"), ({ request }) => {
+        const url = new URL(request.url);
+        const commandUuid = url.searchParams.get("command_uuid");
+        return HttpResponse.json({
+          results: [
+            {
+              host_uuid: "11111111-2222-3333-4444-555555555555",
+              command_uuid: commandUuid,
+              status: "Error",
+              updated_at: "2025-08-10T12:05:00Z",
+              request_type: "InstallApplication",
+              hostname: "Marko's MacBook Pro",
+              payload: btoa("<Command />"),
+              result: btoa("<Result />"),
+              results_metadata: { software_installed: false },
+            },
+          ],
+        });
+      })
+    );
+
+    renderWithBackend(
+      <VppInstallDetailsModal
+        details={{
+          fleetInstallStatus: "failed_install",
+          hostDisplayName: "Marko's MacBook Pro",
+          appName: "Logic Pro",
+          commandUuid: "failed-update-uuid",
+          platform: "darwin",
+        }}
+        hostSoftware={createMockHostSoftware({
+          id: 99,
+          name: "Logic Pro",
+          source: "apps",
+          software_package: null,
+          app_store_app: createMockHostAppStoreApp({ version: "2.0.0" }),
+          installed_versions: [
+            { ...DEFAULT_INSTALLED_VERSION, version: "1.0.0" },
+          ],
+        })}
+        onCancel={jest.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/The MDM command to install/i)
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/is installed\./i)).not.toBeInTheDocument();
   });
 
   it("does not retry the command results request when the API returns 404", async () => {

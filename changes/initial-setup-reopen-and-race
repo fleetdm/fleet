@@ -1,0 +1,1 @@
+* Fixed the initial setup endpoint so it can no longer be reopened after setup by a lagging read replica or emptied users table, and concurrent setup requests can no longer create multiple admins or overwrite app config and enroll secrets.

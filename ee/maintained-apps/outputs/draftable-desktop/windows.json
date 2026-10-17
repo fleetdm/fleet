@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "26.6.200",
+      "version": "26.10.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Draftable Desktop' AND publisher = 'Draftable';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Draftable Desktop' AND publisher = 'Draftable' AND version_compare(version, '26.6.200') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Draftable Desktop' AND publisher = 'Draftable' AND version_compare(version, '26.10.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'draftable desktop.exe');"
       },
-      "installer_url": "https://dl.draftable.com/desktop/DraftableDesktopSystem-26.6.200.msi",
+      "installer_url": "https://dl.draftable.com/desktop/DraftableDesktopSystem-26.10.0.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "e009b3d6",
-      "sha256": "8307b675706bde2b49dd07303fe5fde282d655d3633b31f43bbf694e1c9a3ade",
+      "sha256": "56371c3c5dbbda2c5002e617ff1762491c82b01f46719c47fd447409875857b3",
       "default_categories": [
         "Productivity"
       ],

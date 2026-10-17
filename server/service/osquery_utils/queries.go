@@ -426,6 +426,10 @@ var hostDetailQueries = map[string]DetailQuery{
 	"uptime": {
 		Query: "select * from uptime limit 1",
 		IngestFunc: func(ctx context.Context, logger *slog.Logger, host *fleet.Host, rows []map[string]string) error {
+			// fleetd-chrome returns no rows until it records its first startup.
+			if len(rows) == 0 && host.Platform == "chrome" {
+				return nil
+			}
 			if len(rows) != 1 {
 				logger.ErrorContext(ctx, fmt.Sprintf("detail_query_uptime expected single result got %d", len(rows)),
 					"component", "service", "method", "IngestFunc")
@@ -443,7 +447,7 @@ var hostDetailQueries = map[string]DetailQuery{
 
 			return nil
 		},
-		Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
+		Platforms: append(fleet.HostLinuxOSs, "darwin", "windows", "chrome"),
 	},
 	"disk_space_unix": {
 		// GROUP BY device collapses bind mounts so a filesystem mounted at multiple paths is counted once.
@@ -1364,6 +1368,7 @@ SELECT
   '' AS release,
   '' AS vendor,
   '' AS arch,
+  '' AS epoch,
   '' AS installed_path
 FROM deb_packages
 WHERE status LIKE '%% ok installed'
@@ -1377,6 +1382,7 @@ SELECT
   '' AS release,
   '' AS vendor,
   '' AS arch,
+  '' AS epoch,
   '' AS installed_path
 FROM portage_packages
 UNION
@@ -1389,6 +1395,7 @@ SELECT
   release AS release,
   vendor AS vendor,
   arch AS arch,
+  epoch AS epoch,
   '' AS installed_path
 FROM rpm_packages
 UNION
@@ -1401,6 +1408,7 @@ SELECT
   '' AS release,
   '' AS vendor,
   '' AS arch,
+  '' AS epoch,
   path AS installed_path
 FROM npm_packages
 UNION
@@ -1413,6 +1421,7 @@ SELECT
   '' AS release,
   '' AS vendor,
   '' AS arch,
+  '' AS epoch,
   path AS installed_path
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
@@ -1425,6 +1434,7 @@ SELECT
   '' AS release,
   '' AS vendor,
   '' AS arch,
+  '' AS epoch,
   path AS installed_path
 FROM cached_users CROSS JOIN firefox_addons USING (uid);
 `),
@@ -2533,6 +2543,7 @@ func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.
 			row["extension_for"],
 			row["last_opened_at"],
 			row["upgrade_code"],
+			row["epoch"],
 		)
 		if err != nil {
 			logger.DebugContext(ctx, "failed to parse software row",
@@ -3599,6 +3610,14 @@ func LinkWindowsHostMDMEnrollment(
 	device, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, mdmDeviceID)
 	if err != nil {
 		return updated, ctxerr.Wrap(ctx, err, "getting windows mdm device after updating host uuid")
+	}
+	// An Autopilot device that enrolled as a host other than its pending one becomes identifiable only now.
+	if device != nil && device.ZTDRegistrationID != "" {
+		if _, err := ds.MoveWindowsAutopilotRecordToHost(ctx, hostID, device.ZTDRegistrationID, device.EntraDeviceID); err != nil {
+			// Best-effort: the duplicate pending host stays until the next link of this enrollment, or until an admin deletes it.
+			logger.ErrorContext(ctx, "failed to move autopilot record to the linked host", "err", err, "host_id", hostID)
+			ctxerr.Handle(ctx, err)
+		}
 	}
 	// Like a changed host_uuid, clearing the deleted host marker makes this bookkeeping run once. It is cleared only after the
 	// bookkeeping succeeds, so a failure is retried on the next link attempt.
