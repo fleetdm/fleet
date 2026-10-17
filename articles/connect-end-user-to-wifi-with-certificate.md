@@ -55,7 +55,7 @@ The steps below are for generating a certificate with a dynamic SCEP challenge. 
     - 1024 (default), 2048, 4096
 - For the `CN` key / value, what's added depends on what the certificate will be used for.
   - Using variables means that the certificates can be unique per host (see example below and Apple's [Use payload variables](https://support.apple.com/guide/profile-manager/use-payload-variables-mdm53kqu8903/mac) and Fleet's [Built-in variables](https://fleetdm.com/guides/fleet-variables) documentation).
-- For the `OU` key / value, use `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`.
+  - Add `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` to the `CN` value. Okta drops the `OU` from the certificates it issues, so the variable must go in the `CN` for [automatic renewal](#renewal) to work. Don't add an `OU` with the variable.
 - For the `URL` key / value, use `$FLEET_VAR_NDES_SCEP_PROXY_URL`.
 
 #### Example configuration profile
@@ -83,13 +83,7 @@ The steps below are for generating a certificate with a dynamic SCEP challenge. 
                     <array>
                         <array>
                             <string>CN</string>
-                            <string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME %HardwareUUID%</string>
-                        </array>
-                    </array>
-                    <array>
-                        <array>
-                            <string>OU</string>
-                            <string>$FLEET_VAR_CERTIFICATE_RENEWAL_ID</string>
+                            <string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME $FLEET_VAR_CERTIFICATE_RENEWAL_ID %HardwareUUID%</string>
                         </array>
                     </array>
                 </array>
@@ -1007,11 +1001,11 @@ If an end user is on vacation (offline for more than 30 days), their certificate
 
 Fleet automatically retries each failed macOS, iOS, iPadOS, and Android certificate up to 3 times per host and each failed Windows certificate once per host (retries [coming soon](https://github.com/fleetdm/fleet/issues/42981)), checking every 30 seconds for certificates to resend. Learn more in the [4.38.0 release article](https://fleetdm.com/releases/fleet-4-38-0#failed-profile-redelivery). Note that manually resending a profile does not reset the automatic retry counter.
 
-> Currently, for NDES, Smallstep, ACME, and SCEP CAs, Fleet requires that the ⁠`$FLEET_VAR_CERTIFICATE_RENEWAL_ID` variable is in the certificate's OU (Organizational Unit) for automatic renewal to work for Apple and Windows hosts. For some CAs, including [NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/active-directory-domain-services-maximum-limits?utm_source=chatgpt.com#:~:text=OU%20names%20can%20only%20be%2064%20characters%20long.), the OU has a maximum length of 64 characters so any characters beyond this limit get truncated, causing the renewal to fail.
+> Currently, for NDES, Smallstep, ACME, and SCEP CAs, Fleet requires that the ⁠`$FLEET_VAR_CERTIFICATE_RENEWAL_ID` variable is in the certificate's OU (Organizational Unit) or CN (Common Name) for automatic renewal to work for Apple and Windows hosts. Use the variable only once per profile. For some CAs, including [NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/plan/active-directory-domain-services-maximum-limits?utm_source=chatgpt.com#:~:text=OU%20names%20can%20only%20be%2064%20characters%20long.), the OU has a maximum length of 64 characters so any characters beyond this limit get truncated, causing the renewal to fail.
 >
-> The `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` is a 36 character UUID. Please make sure that any additional variables or content combined with it do not exceed the remaining 28 characters.
+> Fleet replaces `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` with `fleet-` followed by the profile's ID, which is 43 characters in total. If you put it in the OU, make sure that any additional variables or content combined with it do not exceed the remaining 21 characters.
 >
-> Please confirm your CA supports the OU value in the certificate it issues.
+> Please confirm your CA keeps the OU or CN value in the certificates it issues. Some CAs, including [Okta](#okta), drop the OU, so put the variable in the CN for those CAs.
 >
 > Fleet ignores vendor-specific renewal keys in a profile (e.g. `RedeployProfileBeforeCertificateExpiresInDays`) and always uses the renewal timing described above.
 >
@@ -1148,13 +1142,13 @@ When Fleet proxies SCEP certificate issuance for a Windows host (Custom SCEP pro
 
 - **Pending**: the profile is queued for delivery to the host. A profile that is being retried also shows **Pending**, with no error in **Details**.
 - **Verifying**: the host acknowledged the profile and the SCEP exchange is in progress. Fleet has not yet observed the issued certificate on the host.
-- **Verified**: Fleet observed the issued certificate on the host. Fleet matches the certificate to the profile using the `$FLEET_VAR_SCEP_RENEWAL_ID` value in the certificate's OU.
+- **Verified**: Fleet observed the issued certificate on the host. Fleet matches the certificate to the profile using the `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` value in the certificate's OU or CN.
 - **Failed**: the profile ran out of retries. **Details** shows the last error Fleet saw, either an error the SCEP proxy observed from the upstream CA (for example, `SCEP PKIOperation failed: HTTP 500`) or a certificate that never arrived (`Fleet did not detect the SCEP certificate on the host after profile was delivered.`).
 
 To verify Windows SCEP certificates, Fleet requires:
 
 - Fleet's agent (fleetd) with **osquery 5.23.1 or later** on the host, so Fleet can read the host's installed certificates.
-- The `$FLEET_VAR_SCEP_RENEWAL_ID` variable in the profile's `SubjectName` OU (also required for [renewal](#renewal)), so Fleet can match the issued certificate to the profile.
+- The `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` variable in the profile's `SubjectName` OU or CN (also required for [renewal](#renewal)), so Fleet can match the issued certificate to the profile.
 
 For [user-scoped certificates](#user-scoped-certificates), Fleet can only observe the certificate while the target user is signed in, so the profile stays **Verifying** until the user logs in. Fleet assumes a single primary user per Windows host.
 
