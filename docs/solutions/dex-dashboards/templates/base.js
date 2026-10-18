@@ -11,7 +11,7 @@ function h(tag, attrs, ...kids) {
     else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
     else el.setAttribute(k, v === true ? "" : v);
   }
-  for (const kid of kids.flat()) {
+  for (const kid of kids.flat(Infinity)) {
     if (kid == null || kid === false) continue;
     el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
   }
@@ -20,7 +20,7 @@ function h(tag, attrs, ...kids) {
 function svg(tag, attrs, ...kids) {
   const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
   for (const [k, v] of Object.entries(attrs || {})) if (v != null) el.setAttribute(k, v);
-  for (const kid of kids.flat()) if (kid != null) el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
+  for (const kid of kids.flat(Infinity)) if (kid != null) el.append(kid instanceof Node ? kid : document.createTextNode(String(kid)));
   return el;
 }
 function mount(id, ...kids) {
@@ -136,20 +136,170 @@ const inFleet = (f) => !FLEET || f === FLEET;
 // Tooltip shared by every chart.
 const tipEl = h("div", { class: "tip", role: "tooltip", hidden: true });
 document.body.append(tipEl);
+function showTip(text, x, y) {
+  tipEl.textContent = text;
+  tipEl.hidden = false;
+  const r = tipEl.getBoundingClientRect();
+  tipEl.style.left = `${Math.min(Math.max(8, x + 12), innerWidth - r.width - 8)}px`;
+  tipEl.style.top = `${Math.max(8, y - r.height - 12)}px`;
+}
+const hideTip = () => (tipEl.hidden = true);
 function tip(el, text) {
-  const show = (x, y) => {
-    tipEl.textContent = typeof text === "function" ? text() : text;
-    tipEl.hidden = false;
-    const r = tipEl.getBoundingClientRect();
-    tipEl.style.left = `${Math.min(Math.max(8, x + 12), innerWidth - r.width - 8)}px`;
-    tipEl.style.top = `${Math.max(8, y - r.height - 12)}px`;
-  };
+  const show = (x, y) => showTip(typeof text === "function" ? text() : text, x, y);
   el.addEventListener("mousemove", (e) => show(e.clientX, e.clientY));
-  el.addEventListener("mouseleave", () => (tipEl.hidden = true));
+  el.addEventListener("mouseleave", hideTip);
   el.addEventListener("focus", () => { const r = el.getBoundingClientRect(); show(r.left + r.width / 2, r.top); });
-  el.addEventListener("blur", () => (tipEl.hidden = true));
+  el.addEventListener("blur", hideTip);
   if (!el.hasAttribute("tabindex")) el.setAttribute("tabindex", "0");
   return el;
+}
+
+// Daily trends. DATA.trend is [[date, {"<fleet>|<platform>": {field: n}}], ...],
+// so each field can be summed over the fleets and platforms the filters select.
+const RANGES = [[30, "30 days"], [90, "90 days"], [366, "1 year"]];
+let RANGE = Number(store.get("dex-range")) || 90;
+if (!RANGES.some(([d]) => d === RANGE)) RANGE = 90;
+function trendRows(fields) {
+  const cutoff = new Date(Date.parse(DATA.generated_at) - RANGE * 864e5).toISOString().slice(0, 10);
+  return (DATA.trend || []).filter(([date]) => date > cutoff).map(([date, byKey]) => {
+    const row = { date };
+    for (const f of fields) row[f] = 0;
+    for (const [k, counts] of Object.entries(byKey)) {
+      const i = k.lastIndexOf("|");
+      if (!inFleet(k.slice(0, i)) || !inPlatform(k.slice(i + 1))) continue;
+      for (const f of fields) row[f] += counts[f] || 0;
+    }
+    return row;
+  });
+}
+
+// Charts draw at their container's width, so they redraw on resize. Detached
+// charts from earlier renders are dropped once they've drawn.
+const trendCharts = new Set();
+const trendRO = new ResizeObserver((entries) => entries.forEach((e) => e.target._draw()));
+const shortDate = (t) => new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+
+// One y-axis, so every series shares a unit. series: [{label, color, value(row)}].
+// kind "bar" draws the first series as one bar per day.
+function trendChart({ rows, series, kind = "line", yFmt = fmt.n, yMax, label }) {
+  const el = h("div", { class: "trend" });
+  const vals = rows.flatMap((r) => series.map((s) => s.value(r))).filter(Number.isFinite);
+  const max = Math.max(0, ...vals);
+  const step = yMax ? yMax / 4 : max <= 4 ? 1 : (() => {
+    const raw = max / 4, mag = 10 ** Math.floor(Math.log10(raw));
+    return [1, 2, 2.5, 5, 10].map((m) => m * mag).find((x) => x >= raw);
+  })();
+  const top = yMax || Math.max(step, Math.ceil(max / step) * step);
+  const day = (d) => Date.parse(d + "T00:00:00Z");
+  const t0 = day(rows[0].date), days = Math.max(1, Math.round((day(rows[rows.length - 1].date) - t0) / 864e5));
+  const last = rows[rows.length - 1];
+  const summary = `${label}. ${fmt.date(last.date)}: ${series.map((s) => `${s.label} ${yFmt(s.value(last))}`).join(", ")}.`;
+
+  el._draw = () => {
+    const W = Math.max(260, el.clientWidth), H = 200;
+    const direct = kind === "line" && series.length > 1 && W >= 560;
+    const L = 40, T = 8, B = 24, R = direct ? 20 + 7 * Math.max(...series.map((s) => s.label.length)) : 12;
+    const pw = W - L - R, ph = H - T - B;
+    const slot = kind === "bar" ? pw / (days + 1) : 0;
+    const x = (d) => L + slot / 2 + ((day(d) - t0) / 864e5) * (kind === "bar" ? slot : pw / days);
+    const y = (v) => T + (1 - v / top) * ph;
+    const yTicks = [];
+    for (let v = 0; v <= top + 1e-9; v += step) yTicks.push(v);
+    const every = [1, 2, 7, 14, 30, 61, 91, 183].find((n) => days / n <= Math.max(2, Math.floor(pw / 80))) || 183;
+    const xTicks = [];
+    for (let i = 0; i <= days; i += every) xTicks.push(t0 + i * 864e5);
+
+    const marks = [];
+    if (kind === "bar") {
+      const s = series[0], w = Math.max(1, slot - 2);
+      for (const r of rows) {
+        const v = s.value(r);
+        if (!(v > 0)) continue;
+        const bx = x(r.date) - w / 2, y0 = y(0), y1 = y(v), rad = Math.min(4, w / 2, y0 - y1);
+        marks.push(svg("path", { style: `fill:${s.color}`, d: `M${bx},${y0}V${y1 + rad}Q${bx},${y1} ${bx + rad},${y1}H${bx + w - rad}Q${bx + w},${y1} ${bx + w},${y1 + rad}V${y0}Z` }));
+      }
+    } else {
+      const ends = [];
+      for (const s of series) {
+        let d = "", pen = "M", end = null;
+        for (const r of rows) {
+          const v = s.value(r);
+          if (!Number.isFinite(v)) { pen = "M"; continue; }
+          d += `${pen}${x(r.date).toFixed(1)},${y(v).toFixed(1)}`;
+          pen = "L";
+          end = [r.date, v];
+        }
+        if (!end) continue;
+        marks.push(svg("path", { class: "halo", d }), svg("path", { class: "series", style: `stroke:${s.color}`, d }));
+        marks.push(svg("circle", { class: "marker", cx: x(end[0]), cy: y(end[1]), r: 4, style: `fill:${s.color}` }));
+        ends.push({ s, y: y(end[1]) });
+      }
+      // Direct labels at the line ends, nudged apart so close values don't overlap.
+      if (direct) {
+        ends.sort((a, b) => a.y - b.y);
+        for (let i = 1; i < ends.length; i++) ends[i].y = Math.max(ends[i].y, ends[i - 1].y + 14);
+        const over = ends.length ? ends[ends.length - 1].y - (H - B) : 0;
+        for (const e of ends) {
+          marks.push(svg("text", { x: W - R + 10, y: e.y - Math.max(0, over) + 4 }, e.s.label));
+        }
+      }
+    }
+
+    const cross = svg("line", { class: "cross", y1: T, y2: H - B, visibility: "hidden" });
+    const dots = svg("g", { visibility: "hidden" });
+    let at = -1;
+    const point = (i, clientX, clientY) => {
+      at = Math.max(0, Math.min(rows.length - 1, i));
+      const r = rows[at], cx = x(r.date);
+      cross.setAttribute("x1", cx); cross.setAttribute("x2", cx);
+      cross.setAttribute("visibility", "visible"); dots.setAttribute("visibility", "visible");
+      dots.replaceChildren(...(kind === "line" ? series.map((s) => {
+        const v = s.value(r);
+        return Number.isFinite(v) ? svg("circle", { class: "marker", cx, cy: y(v), r: 4, style: `fill:${s.color}` }) : null;
+      }) : []));
+      const box = g.getBoundingClientRect();
+      showTip([fmt.date(r.date), ...series.map((s) => `${s.label}: ${yFmt(s.value(r))}`)].join("\n"),
+        clientX ?? box.left + cx, clientY ?? box.top + T);
+    };
+    const clear = () => { cross.setAttribute("visibility", "hidden"); dots.setAttribute("visibility", "hidden"); hideTip(); };
+    const nearest = (px) => rows.reduce((best, r, i) => (Math.abs(x(r.date) - px) < Math.abs(x(rows[best].date) - px) ? i : best), 0);
+    const hit = svg("rect", { class: "hit", x: L, y: T, width: pw, height: ph, tabindex: "0", "aria-label": `${summary} Use the arrow keys to read each day.` });
+    hit.addEventListener("mousemove", (e) => point(nearest(e.clientX - g.getBoundingClientRect().left), e.clientX, e.clientY));
+    hit.addEventListener("mouseleave", clear);
+    hit.addEventListener("blur", clear);
+    hit.addEventListener("focus", () => point(at < 0 ? rows.length - 1 : at));
+    hit.addEventListener("keydown", (e) => {
+      const move = { ArrowLeft: -1, ArrowRight: 1, Home: -rows.length, End: rows.length }[e.key];
+      if (move) { e.preventDefault(); point(at + move); }
+    });
+
+    const g = svg("svg", { width: "100%", height: H, viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": summary },
+      yTicks.map((v) => [svg("line", { class: v ? "grid-line" : "axis", x1: L, x2: W - R, y1: y(v), y2: y(v) }),
+        svg("text", { x: L - 8, y: y(v) + 4, "text-anchor": "end" }, yFmt(v))]),
+      xTicks.map((t) => svg("text", { x: x(new Date(t).toISOString().slice(0, 10)), y: H - 6, "text-anchor": "middle" }, shortDate(t))),
+      marks, cross, dots, hit);
+    el.replaceChildren(...[g, series.length > 1 ? legend(series.map((s) => [s.label, s.color])) : null].filter(Boolean));
+    el._drawn = true;
+  };
+  for (const c of trendCharts) if (c._drawn && !c.isConnected) { trendRO.unobserve(c); trendCharts.delete(c); }
+  trendCharts.add(el);
+  trendRO.observe(el);
+  return el;
+}
+
+// Fills #trend with one panel per chart and #trend-tools with the range switch.
+// panels: [{title, series, kind, yFmt, yMax, note}]; fields: the trend fields they read.
+function renderTrend(fields, panels) {
+  const rows = trendRows(fields);
+  const range = h("div", { class: "seg-toggle small", role: "group", "aria-label": "Trend range" },
+    RANGES.map(([d, label]) => h("button", { type: "button", "aria-pressed": RANGE === d ? "true" : "false",
+      onclick: () => { RANGE = d; store.set("dex-range", String(d)); renderTrend(fields, panels); } }, label)));
+  mount("trend-tools", rows.length ? copyButton("Copy as CSV", () => csv([["date", ...fields], ...rows.map((r) => [r.date, ...fields.map((f) => r[f])])])) : null, range);
+  const since = DATA.trend && DATA.trend.length ? DATA.trend[0][0] : null;
+  mount("trend", panels.map((p) => h("div", { class: "panel" }, h("h3", {}, p.title),
+    rows.length >= 2 ? trendChart({ ...p, rows, label: p.title })
+      : empty("Not enough history yet", `${since ? `Daily history starts ${fmt.date(since)}. ` : ""}A trend appears once two days are recorded in the selected range.`),
+    p.note ? h("p", { class: "panel-note" }, p.note) : null)));
 }
 
 // One row per item; each row is a track of colored segments.

@@ -21,6 +21,7 @@ WARRANTY_VITAL = os.environ.get("DEX_WARRANTY_VITAL", "AppleCare warranty expira
 PATCH_SLA_DAYS = 14
 IDLE_DAYS = 90
 MIN_INSTALLS = 3
+TREND_DAYS = 366
 # Intel and AMD CPUs count as old this many years after their release year.
 OLD_CPU_YEARS = 4
 NOT_COMPUTERS = {"ios", "ipados", "android", "chrome"}
@@ -159,10 +160,6 @@ def vcmp(a, b):
     return (ka > kb) - (ka < kb)
 
 
-def pct(n, d):
-    return round(100 * n / d) if d else None
-
-
 def quantile(xs, q):
     xs = sorted(xs)
     if not xs:
@@ -253,6 +250,21 @@ def trim_daily(daily, keep_days, today):
     return {k: v for k, v in daily.items() if k >= cutoff}
 
 
+def count_into(day, fleet, plat, **counts):
+    """Daily trend counts are kept per fleet and platform, so the page's filters can sum them."""
+    row = day.setdefault(f"{fleet}|{plat}", {})
+    for k, v in counts.items():
+        if v:
+            row[k] = row.get(k, 0) + v
+
+
+def save_trend(hist, today, day):
+    """Store today's counts and return the trend as [[date, counts], ...]."""
+    trend = trim_daily({**hist.get("trend", {}), today.isoformat(): day}, TREND_DAYS, today)
+    hist["trend"] = trend
+    return [[d, trend[d]] for d in sorted(trend)]
+
+
 # ---------------------------------------------------------------- lifecycle
 
 def strain_today(swap, uptime_days):
@@ -285,7 +297,6 @@ def build_lifecycle(snap, hist):
     hist.setdefault("schema", 1)
     hist.setdefault("since", today.isoformat())
     strain = hist.setdefault("strain", {})
-    summary_hist = hist.setdefault("summary", {})
     details = snap.get("host_details", {})
     dh_rows = snap.get("device_health", {})
 
@@ -367,18 +378,17 @@ def build_lifecycle(snap, hist):
         if hid not in live:
             del strain[hid]
 
-    counts = {}
+    day = {}
     for m in devices:
-        counts[m["verdict"]] = counts.get(m["verdict"], 0) + 1
-    summary_hist[today.isoformat()] = counts
-    hist["summary"] = trim_daily(summary_hist, 400, today)
+        scored = m["verdict"] not in ("stale", "virtual")
+        count_into(day, m["fleet"], m["p"], **{m["verdict"]: 1}, scored=int(scored), old=int(scored and m["old"]))
     days_collected = len({d for v in strain.values() for d in v})
     return {
         "generated_at": snap["generated_at"], "fleet_url": snap["fleet_url"],
         "history_since": hist["since"], "history_days": days_collected,
         "devices": devices, "current_gen": CURRENT_APPLE_GEN, "old_cpu_years": OLD_CPU_YEARS,
         "stale_days": STALE_DAYS, "warranty_vital": WARRANTY_VITAL,
-        "trend": [{"date": d, **v} for d, v in sorted(hist["summary"].items())],
+        "trend": save_trend(hist, today, day),
     }
 
 
@@ -456,7 +466,6 @@ def build_software(snap, hist):
     today = now.date()
     hist.setdefault("schema", 1)
     hist.setdefault("since", today.isoformat())
-    summary_hist = hist.setdefault("summary", {})
     hosts = {str(h["id"]): h for h in snap["hosts"]}
     def has_usage_data(hid, h):
         # With Windows prefetch (SysMain) turned off, no program ever gets a
@@ -483,17 +492,19 @@ def build_software(snap, hist):
         name = max(a["names"], key=a["names"].get)
         rows.append({"key": a["key"], "name": name, "vendor": a["vendor"], "p": a["p"],
                      "kind": app_kind(name, a["bid"]), "h": sorted(a["hosts"], key=lambda x: (x[2] is not None, -(x[2] or 0)))})
-    seats = [r for r in rows if r["kind"] == "app"]
-    total = sum(len(r["h"]) for r in seats)
-    idle = sum(1 for r in seats for x in r["h"] if x[2] is None or x[2] >= IDLE_DAYS)
-    summary_hist[today.isoformat()] = {"seats": total, "idle": idle}
-    hist["summary"] = trim_daily(summary_hist, 400, today)
+    day = {}
+    for r in rows:
+        if r["kind"] != "app":
+            continue
+        for hid, _, ds in r["h"]:
+            h = hosts[str(hid)]
+            count_into(day, h.get("team_name") or "Unassigned", r["p"], seats=1, idle=int(ds is None or ds >= IDLE_DAYS))
     return {
         "generated_at": snap["generated_at"], "fleet_url": snap["fleet_url"],
         "hosts": host_map(hosts, active),
         "apps": sorted(rows, key=lambda r: -len(r["h"])),
         "idle_days": IDLE_DAYS, "min_installs": MIN_INSTALLS, "stale_days": STALE_DAYS,
-        "trend": [{"date": d, **v} for d, v in sorted(hist["summary"].items())],
+        "trend": save_trend(hist, today, day),
     }
 
 
@@ -547,7 +558,6 @@ def build_patch(snap, hist):
     names = hist.setdefault("names", {})
     state = hist.setdefault("hosts", {})
     events = hist.setdefault("events", [])
-    summary_hist = hist.setdefault("summary", {})
     hosts = {str(h["id"]): h for h in snap["hosts"]}
     # A title the history hasn't seen before starts as a baseline: its versions
     # weren't released today, so they aren't timed.
@@ -617,19 +627,28 @@ def build_patch(snap, hist):
         lag = (dt.date.fromisoformat(applied) - dt.date.fromisoformat(first_seen)).days
         measured.append([index[key], hid, frm, to, first_seen, applied, lag])
 
-    installs = on_newest = 0
+    def fleet_of(hid):
+        return hosts[str(hid)].get("team_name") or "Unassigned"
+
+    day = {}
     for t in titles:
-        if t["type"] == "app" and len(t["i"]) >= MIN_INSTALLS:
-            installs += len(t["i"])
-            on_newest += sum(1 for _, v in t["i"] if vcmp(v, t["newest"]) >= 0)
-    summary_hist[D] = {"pct_current": pct(on_newest, installs), "events": len(events)}
-    hist["summary"] = trim_daily(summary_hist, 400, today)
+        if len(t["i"]) < MIN_INSTALLS:
+            continue
+        for hid, v in t["i"]:
+            current = int(vcmp(v, t["newest"]) >= 0)
+            if t["type"] == "app":
+                count_into(day, fleet_of(hid), t["p"], app_installs=1, app_current=current)
+            else:
+                count_into(day, fleet_of(hid), t["p"], os_installs=1, os_current=current)
+    for _, _, _, hid, _, applied in events:
+        if applied == D and str(hid) in hosts:
+            count_into(day, fleet_of(hid), platform_of(hosts[str(hid)]), updates=1)
     return {
         "generated_at": snap["generated_at"], "fleet_url": snap["fleet_url"],
         "history_since": hist["since"], "sla_days": PATCH_SLA_DAYS, "stale_days": STALE_DAYS,
         "min_installs": MIN_INSTALLS, "hosts": host_map(hosts, active),
         "titles": titles, "events": measured, "betas": sorted(betas),
-        "trend": [{"date": d, **v} for d, v in sorted(hist["summary"].items())],
+        "trend": save_trend(hist, today, day),
     }
 
 

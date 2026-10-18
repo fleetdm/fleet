@@ -26,6 +26,14 @@
   <section class="hero" id="hero" aria-label="Summary"></section>
   <div class="stats" id="stats"></div>
 
+  <section class="sec" aria-labelledby="trend-h">
+    <div class="sec-head">
+      <h2 id="trend-h">Over time</h2>
+      <div class="trend-tools" id="trend-tools"></div>
+    </div>
+    <div class="grid" id="trend"></div>
+  </section>
+
   <section class="sec" aria-labelledby="where-h">
     <div class="sec-head">
       <h2 id="where-h">Where the idle seats are</h2>
@@ -140,6 +148,12 @@ function render() {
     stat("Remove or unassign", fmt.n(nGroup("remove")), "apps, 80%+ idle"),
     stat("Right-size", fmt.n(nGroup("rightsize")), "apps, 40–79% idle"));
 
+  renderTrend(["seats", "idle"], [
+    { title: "Share of seats idle", series: [{ label: "Idle", color: "var(--warn)", value: (r) => pct(r.idle, r.seats) }], yFmt: fmt.pct, yMax: 100,
+      note: "Follows the fleet and platform filters. The vendor filter and search apply only to the list below." },
+    { title: "Seats", series: [{ label: "Installed", color: "var(--info)", value: (r) => r.seats }, { label: "Idle", color: "var(--warn)", value: (r) => r.idle }] },
+  ]);
+
   // Vendors
   const vend = {};
   for (const a of seats) {
@@ -195,7 +209,7 @@ function render() {
     { key: "installs", label: "Installs", num: true, value: (a) => a.installs },
     { key: "idle", label: `Idle ${DATA.idle_days}d+`, num: true, value: (a) => a.idle },
     { key: "never", label: "No open recorded", num: true, value: (a) => a.never },
-    { key: "pct", label: "Share idle", num: true, value: (a) => a.pct_idle, cell: (a) => [mini(a.pct_idle, tone(a)), fmt.pct(a.pct_idle)] },
+    { key: "pct", label: "Share idle", num: true, value: (a) => a.pct_idle, cell: (a) => [fmt.pct(a.pct_idle), mini(a.pct_idle, tone(a))] },
     { key: "median", label: "Median last open", num: true, value: (a) => a.median, cell: (a) => (a.median == null ? "no record" : fmt.ago(a.median)) },
   ];
   const detail = (a) => {
@@ -205,9 +219,10 @@ function render() {
       h("div", { class: "detail-head" }, h("span", {}, `${fmt.n(idleRows.length)} of ${fmt.plural(a.installs, a.p === "macos" ? "Mac" : "computer")} idle · versions in use: ${[...new Set(a.hosts.map((x) => x[1]))].length}`),
         copyButton("Copy idle hosts as CSV", () => csv([["host", "fleet", "version", "days_since_opened", "fleet_url"],
           ...idleRows.map(([hid, v, d]) => [DATA.hosts[hid].n, DATA.hosts[hid].f, v, d ?? "no record", hostUrl(hid)])]))),
-      h("div", { class: "host-list" }, rows.map(([hid, v, d]) => h("div", {},
-        hostLink(hid, DATA.hosts[hid].n),
-        h("span", { class: "cell-sub", style: isIdle(d) ? "color:var(--bad)" : null }, `${d == null ? "no open recorded" : `opened ${fmt.ago(d)}`} · ${v}`)))),
+      h("div", { class: "host-list" }, rows.map(([hid, v, d]) => {
+        const t = `${d == null ? "no open recorded" : `opened ${fmt.ago(d)}`} · ${v}`;
+        return h("div", {}, hostLink(hid, DATA.hosts[hid].n), h("span", { class: "cell-sub" }, isIdle(d) ? pill(t, "bad") : t));
+      })),
     ];
   };
   mount("act", groups.length ? sortTable({ columns, groups, sort: ["idle", "desc"], detail, id: "reclaim" })

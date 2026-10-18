@@ -16,9 +16,9 @@
   --tooltip-ink: #ffffff;
   /* Chart and status marks: Fleet's status colors, with the warning amber
      darkened so all five stay distinct for color-blind readers. */
-  --bad: #d66c7b;
+  --bad: #c94f63;
   --serious: #ae6ddf;
-  --warn: #c08a12;
+  --warn: #b5810c;
   --info: #6a67fe;
   --good: #3db67b;
   --neutral: #c5c7d1;
@@ -196,7 +196,7 @@ table.tbl { width: 100%; border-collapse: collapse; color: var(--ink-2); }
 .tbl tr.detail td { background: var(--panel-2); padding: 16px 24px; }
 .cell-main { font-weight: 600; color: var(--ink); }
 .cell-sub { color: var(--ink-2); font-size: 12px; }
-.mini { display: inline-block; vertical-align: middle; width: 64px; height: 8px; border-radius: 4px; background: var(--ui-fleet-black-5); overflow: hidden; margin-right: 8px; }
+.mini { display: inline-block; vertical-align: middle; width: 64px; height: 8px; border-radius: 4px; background: var(--ui-fleet-black-5); overflow: hidden; margin-left: 8px; }
 .mini > span { display: block; height: 100%; background: var(--tone, var(--ink-2)); }
 .plat, .tag { font-size: 12px; color: var(--ink-2); border: 1px solid var(--line-2); border-radius: 4px; padding: 0 4px; margin-left: 6px; white-space: nowrap; font-weight: 400; }
 
@@ -208,9 +208,20 @@ details.method .term { font-weight: 600; color: var(--ink); }
 details.method code { font-family: var(--font-mono); font-size: 12px; background: var(--ui-fleet-black-5); padding: 1px 4px; border-radius: 4px; }
 .foot { color: var(--ink-2); font-size: 12px; }
 
-.tip { position: fixed; z-index: 10; pointer-events: none; background: var(--tooltip-bg); color: var(--tooltip-ink); font-size: 12px; line-height: 1.5; padding: 8px 12px; border-radius: 4px; max-width: 280px; }
+.tip { position: fixed; z-index: 10; pointer-events: none; background: var(--tooltip-bg); color: var(--tooltip-ink); font-size: 12px; line-height: 1.5; padding: 8px 12px; border-radius: 4px; max-width: 280px; white-space: pre-line; }
 
 svg text { fill: var(--ink-2); font: 12px var(--font-ui); }
+
+.trend-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.trend svg { display: block; overflow: visible; }
+.trend .grid-line { stroke: var(--line); stroke-width: 1; }
+.trend .axis { stroke: var(--line-2); stroke-width: 1; }
+.trend .series, .trend .halo { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.trend .halo { stroke: var(--panel); stroke-width: 6; }
+.trend .marker { stroke: var(--panel); stroke-width: 2; }
+.trend .cross { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 3 3; }
+.trend .hit { fill: transparent; cursor: crosshair; outline: none; }
+.trend .hit:focus-visible { stroke: var(--ink); stroke-width: 1; }
 
 @media (max-width: 860px) {
   .hero { grid-template-columns: 1fr; gap: 16px; }

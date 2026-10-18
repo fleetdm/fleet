@@ -34,6 +34,14 @@
   <section class="hero" id="hero" aria-label="Summary"></section>
   <div class="stats" id="stats"></div>
 
+  <section class="sec" aria-labelledby="trend-h">
+    <div class="sec-head">
+      <h2 id="trend-h">Over time</h2>
+      <div class="trend-tools" id="trend-tools"></div>
+    </div>
+    <div class="grid" id="trend"></div>
+  </section>
+
   <section class="sec" aria-labelledby="cov-h">
     <div class="sec-head">
       <h2 id="cov-h">Coverage after a new version ships</h2>
@@ -178,6 +186,15 @@ function render() {
     stat(`Median ${Noun(false).toLowerCase()}`, hostMeans.length ? fmt.days(quantile(hostMeans, 0.5)) : "---", "each one counted once"),
     stat("Versions in use", fmt.n(titles.reduce((s, t) => s + t.versions, 0)), `across ${fmt.plural(titles.length, "title")}`));
 
+  renderTrend(["app_installs", "app_current", "os_installs", "os_current", "updates"], [
+    { title: "Installs on the newest version", yFmt: fmt.pct, yMax: 100, series: [
+      { label: "Apps", color: "var(--info)", value: (r) => pct(r.app_current, r.app_installs) },
+      { label: "OS", color: "var(--warn)", value: (r) => pct(r.os_current, r.os_installs) }],
+      note: `Apps and OS versions on ${DATA.min_installs} or more computers, measured against the newest version on that day.` },
+    { title: "Updates applied per day", kind: "bar", series: [{ label: "Updates", color: "var(--good)", value: (r) => r.updates }],
+      note: "Computers seen moving to a newer version, counted on the day Fleet first reports it." },
+  ]);
+
   // Coverage curve
   document.getElementById("cov-hint").textContent = lags.length ? `Share of ${fmt.plural(lags.length, "timed update")} installed by each day after release` : "";
   if (lags.length >= 5) {
@@ -205,7 +222,7 @@ function render() {
   const appRows = Object.values(byApp).filter((r) => new Set(events.filter((e) => e.t.key === r.t.key).map((e) => e.hid)).size >= 3)
     .map((r) => ({ name: r.t.name, mean: mean(r.lags), n: r.lags.length })).sort((a, b) => a.mean - b.mean);
   if (appRows.length >= 2) {
-    const line = (r) => h("div", { class: "app-line" }, h("span", {}, r.name), h("span", { class: "num", style: `color:var(--${lagTone(r.mean)})` }, `${fmt.days(r.mean)} · ${noun(r.n)}`));
+    const line = (r) => h("div", { class: "app-line" }, h("span", {}, r.name), h("span", { class: "num" }, pill(`${fmt.days(r.mean)} · ${noun(r.n)}`, lagTone(r.mean))));
     mount("app-lag", h("h3", {}, `Average days to update, apps with 3+ timed ${Noun(true).toLowerCase()}`),
       appRows.length > 5
         ? h("div", { class: "split" }, h("div", {}, h("h4", {}, "Fastest"), appRows.slice(0, 5).map(line)), h("div", {}, h("h4", {}, "Slowest"), appRows.slice(-5).reverse().map(line)))
@@ -226,7 +243,7 @@ function render() {
     { key: "name", label: "App", value: (t) => t.name.toLowerCase(), cell: (t) => [h("span", { class: "cell-main" }, t.name), t.type === "os" ? h("span", { class: "tag" }, "OS") : "", PLATFORM ? "" : h("span", { class: "plat" }, platformLabel(t.p))] },
     { key: "installs", label: "Installs", num: true, value: (t) => t.installs },
     { key: "newest", label: "Newest", value: (t) => t.newest, cell: (t) => h("span", { class: "ver" }, t.newest) },
-    { key: "pct", label: "On newest", num: true, value: (t) => t.pct, cell: (t) => [mini(t.pct, covTone(t.pct)), `${fmt.n(t.on)} of ${fmt.n(t.installs)}`] },
+    { key: "pct", label: "On newest", num: true, value: (t) => t.pct, cell: (t) => [`${fmt.n(t.on)} of ${fmt.n(t.installs)}`, mini(t.pct, covTone(t.pct))] },
     { key: "versions", label: "Versions in use", num: true, value: (t) => t.versions },
     { key: "seen", label: "Newest first seen", num: true, value: (t) => t.newest_seen, cell: (t) => (t.newest_seen ? fmt.date(t.newest_seen) : h("span", { class: "muted" }, `before ${fmt.date(DATA.history_since)}`)) },
   ];
@@ -253,7 +270,7 @@ function render() {
     { key: "ver", label: "Version", value: (r) => r.ver, cell: (r) => h("span", { class: "ver" }, r.ver) },
     { key: "seen", label: "First seen", num: true, value: (r) => r.seen, cell: (r) => fmt.date(r.seen) },
     { key: "age", label: "Days out", num: true, value: (r) => r.age },
-    { key: "pct", label: "Reached", num: true, value: (r) => r.pct, cell: (r) => [mini(r.pct, r.age > SLA && r.pct < 90 ? "bad" : covTone(r.pct)), `${fmt.n(r.reached)} of ${fmt.n(r.installs)}`] },
+    { key: "pct", label: "Reached", num: true, value: (r) => r.pct, cell: (r) => [`${fmt.n(r.reached)} of ${fmt.n(r.installs)}`, mini(r.pct, r.age > SLA && r.pct < 90 ? "bad" : covTone(r.pct))] },
   ] }) : empty("No new versions yet", `Versions that first appear after ${fmt.date(DATA.history_since)} show here as computers pick them up.`));
 
   // Tail

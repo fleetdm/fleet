@@ -20,6 +20,14 @@
   <section class="hero" id="hero" aria-label="Summary"></section>
   <div class="stats" id="stats"></div>
 
+  <section class="sec" aria-labelledby="trend-h">
+    <div class="sec-head">
+      <h2 id="trend-h">Over time</h2>
+      <div class="trend-tools" id="trend-tools"></div>
+    </div>
+    <div class="grid" id="trend"></div>
+  </section>
+
   <section class="sec" aria-labelledby="who-h">
     <div class="sec-head">
       <h2 id="who-h">Where the older computers sit</h2>
@@ -171,6 +179,13 @@ function render() {
     stat("16 GB or less", fmt.n(active.filter((m) => m.ram && m.ram <= 16).length), `${fmt.n(active.filter((m) => m.ram && m.ram <= 8).length)} at 8 GB or less`),
     stat("Warranty ended", withW.length ? fmt.n(expired) : "---", withW.length ? `${fmt.n(soon)} end in 90 days` : "no warranty data"),
     stat("Not checking in", fmt.n(count("stale")), `${DATA.stale_days}+ days silent`));
+
+  renderTrend(["refresh", "battery", "investigate", "old", "scored"], [
+    { title: "Computers that need action", series: [["refresh", "Refresh"], ["battery", "Battery service"], ["investigate", "Investigate"]]
+      .map(([k, label]) => ({ label, color: color(k), value: (r) => r[k] })) },
+    { title: "Share with an old CPU", series: [{ label: "Old CPU", color: "var(--ink-2)", value: (r) => pct(r.old, r.scored) }], yFmt: fmt.pct, yMax: 100,
+      note: "Out of computers that check in, not counting virtual machines." },
+  ]);
 
   document.getElementById("who-hint").textContent = `${fmt.n(active.length)} active, colored by verdict`;
   const present = ORDER.filter((k) => active.some((m) => m.verdict === k));

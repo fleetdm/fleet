@@ -6,7 +6,7 @@ Fleet already knows what hardware your computers run, which apps people open, an
 
 - A cloud environment holds a read-only Fleet API token and can reach only your Fleet server.
 - Once a day, the routine runs a set of Python scripts from Fleet's repository. They read your hosts, their software, and two DEX reports, then build the three pages.
-- Each dashboard stores a small history file next to its page. Every run reads the history back and adds a day. Patch velocity uses it to time how long each new version takes to reach every computer, and Hardware lifecycle uses it to tell sustained memory strain on a Mac from a single bad day. Both get more useful over the first few weeks.
+- Each dashboard stores a small history file next to its page. Every run reads the history back and adds a day. Patch velocity uses it to time how long each new version takes to reach every computer, and Hardware lifecycle uses it to tell sustained memory strain on a Mac from a single bad day. Each page also charts its key numbers over time, for up to a year. All of this gets more useful over the first few weeks.
 
 ## Prerequisites
 
@@ -118,7 +118,8 @@ Claude may ask you to confirm the schedule, model, or repository before it creat
 
 1. Open the three artifact links. Each shows today's date next to **Updated**.
 2. On Patch velocity, the summary says "Timing starts with the next release." Until a new version ships and computers pick it up, it shows the share of installs on the newest version instead.
-3. Open the routine at [claude.ai/code/routines](https://claude.ai/code/routines). Check that it's enabled, runs daily, and lists no connectors, or only Slack if you asked for alerts.
+3. Under **Over time**, each chart says "Not enough history yet." The charts fill in after the second daily run.
+4. Open the routine at [claude.ai/code/routines](https://claude.ai/code/routines). Check that it's enabled, runs daily, and lists no connectors, or only Slack if you asked for alerts.
 
 ## Troubleshoot
 
