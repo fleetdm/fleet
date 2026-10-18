@@ -29,7 +29,7 @@ This is our normal process. Pick whichever tool you're comfortable with; all thr
 4. Add a short note on what went wrong, get it approved, and merge it.
 5. Watch the Actions tab and confirm the apply workflow for the revert succeeds.
 
-![Revert in PR](../website/assets/images/articles/revert-pr.png)
+![Revert in PR](../website/assets/images/articles/revert-pr-755x64@2x.png)
 
 ### Option B: GitHub Desktop
 
@@ -38,7 +38,7 @@ This is our normal process. Pick whichever tool you're comfortable with; all thr
 3. Open the **History** tab, right-click the bad commit, and choose **Revert changes in commit**.
 4. **Publish branch**, then **Create Pull Request**. Review, approve and merge as usual.
 
-![Revert in GH Desktop](../website/assets/images/articles/revert-changes-in-commit.png)
+![Revert in GH Desktop](../website/assets/images/articles/revert-changes-in-commit-327x298@2x.png)
 
 ### Option C: VS Code (or integrated terminal)
 
@@ -107,3 +107,10 @@ A revert restores the YAML in the repo. It doesn't always restore the exact stat
 After any revert, spot-check the affected settings and note any cleanup you had to do by hand in the revert PR.
 
 **Don't** run `git reset --hard` followed by `git push --force` on `main`. It erases other people's commits, breaks everyone's local copy, and removes the audit trail.
+
+<meta name="articleTitle" value="How to revert a bad config change in GitOps">
+<meta name="authorFullName" value="Harrison Ravazzolo">
+<meta name="authorGitHubUsername" value="harrisonravazzolo">
+<meta name="category" value="guides">
+<meta name="publishedOn" value="2026-10-18">
+<meta name="description" value="Undo a bad GitOps change in Fleet with a revert commit instead of a reset and force-push.">
