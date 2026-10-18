@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Daily run: collect one Fleet snapshot, then rebuild all three pages.
+"""Daily run: collect one Fleet snapshot, then rebuild every page.
 
-  run.py --work DIR --history lifecycle=PATH --history software=PATH --history patch=PATH
+  run.py --work DIR --history lifecycle=PATH --history software=PATH --history patch=PATH --history ai=PATH
 
 Writes DIR/out/<page>.html and DIR/out/<page>-history.json. Exits non-zero
 without writing pages when the data looks wrong, so nothing bad is published.
@@ -13,7 +13,7 @@ import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PAGES = ("lifecycle", "software", "patch")
+PAGES = ("lifecycle", "software", "patch", "ai")
 
 
 def main():

@@ -25,6 +25,12 @@ import urllib.request
 
 DEVICE_HEALTH_REPORT = "DEX - Hardware experience - Device health"
 OS_HEALTH_REPORT = "DEX - System experience - OS health"
+AI_TOOLS_REPORT = "DEX - AI governance - AI tools per host"
+# An earlier report that returns one row per tool. Fleet keeps at most 1,000
+# rows per report, so it only covers part of a larger fleet.
+AI_TOOLS_ROWS_REPORT = "DEX - AI Tools - Surfaces AI tools on the host"
+AI_ROWS_COLUMNS = {"tool_type": "type", "tool_name": "name", "origin": "source", "target_endpoint": "endpoint",
+                   "risk_indicators": "risk_flags"}
 NOT_COMPUTERS = {"ios", "ipados", "android", "chrome"}
 HOST_FIELDS = [
     "id", "display_name", "computer_name", "hostname", "platform", "os_version",
@@ -116,6 +122,34 @@ def report_rows(fleet, fleets, name):
     return rows
 
 
+def ai_tools(fleet, fleets):
+    """Each host's ai_tools rows, from the one-row-per-host report when it exists."""
+    hosts = {}
+    for hid, r in report_rows(fleet, fleets, AI_TOOLS_REPORT).items():
+        try:
+            tools = json.loads(r.get("tools") or "[]")
+        except ValueError:
+            tools = []
+        hosts[str(hid)] = {"last_fetched": r.get("last_fetched"), "tools": tools}
+    if hosts:
+        return {"report": AI_TOOLS_REPORT, "clipped": False, "hosts": hosts}
+
+    clipped, seen = False, set()
+    for scope in [{}] + [{"fleet_id": f["id"]} for f in fleets]:
+        d = fleet.get("/api/v1/fleet/reports", {**scope, "per_page": 500, "query": AI_TOOLS_ROWS_REPORT}) or {}
+        for r in d.get("reports") or d.get("queries") or []:
+            if r.get("name") != AI_TOOLS_ROWS_REPORT or r["id"] in seen:
+                continue
+            seen.add(r["id"])
+            rep = fleet.get(f"/api/v1/fleet/reports/{r['id']}/report")
+            clipped = clipped or bool(rep.get("report_clipped"))
+            for row in rep.get("results") or []:
+                h = hosts.setdefault(str(row.get("host_id")), {"last_fetched": row.get("last_fetched"), "tools": []})
+                h["last_fetched"] = max(h["last_fetched"] or "", row.get("last_fetched") or "")
+                h["tools"].append({AI_ROWS_COLUMNS.get(k, k): v for k, v in (row.get("columns") or {}).items()})
+    return {"report": AI_TOOLS_ROWS_REPORT if hosts else None, "clipped": clipped, "hosts": hosts}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
@@ -171,12 +205,14 @@ def main():
         "host_details": details,
         "device_health": report_rows(fleet, fleets, DEVICE_HEALTH_REPORT),
         "os_health": report_rows(fleet, fleets, OS_HEALTH_REPORT),
+        "ai_tools": ai_tools(fleet, fleets),
     }
     with open(args.out, "w") as f:
         json.dump(snap, f, separators=(",", ":"))
     n_sw = sum(len(v) for v in software.values())
     print(f"hosts={len(hosts)} software_rows={n_sw} device_health={len(snap['device_health'])} "
-          f"os_health={len(snap['os_health'])} bytes={os.path.getsize(args.out)}")
+          f"os_health={len(snap['os_health'])} ai_tools={len(snap['ai_tools']['hosts'])} "
+          f"bytes={os.path.getsize(args.out)}")
 
 
 if __name__ == "__main__":

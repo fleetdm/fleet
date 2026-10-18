@@ -675,9 +675,338 @@ def build_patch(snap, hist):
     }
 
 
+# ---------------------------------------------------------------- AI governance
+
+AI_WINDOWS = (7, 14, 30)
+AI_APPS = {
+    "claude-desktop": "Claude", "chatgpt": "ChatGPT", "ollama": "Ollama", "lm-studio": "LM Studio",
+    "lm-studio-cli": "LM Studio", "jan": "Jan", "gpt4all": "GPT4All", "msty": "Msty", "anythingllm": "AnythingLLM",
+    "comet": "Comet", "dia": "Dia", "perplexity": "Perplexity", "cursor": "Cursor", "windsurf": "Windsurf",
+    "antigravity": "Antigravity", "trae": "Trae",
+}
+AI_AGENTS = {
+    "claude-code": "Claude Code", "gemini-cli": "Gemini CLI", "codex": "Codex", "aider": "Aider", "goose": "Goose",
+    "opencode": "OpenCode", "cline": "Cline", "continue-cli": "Continue", "cursor-agent": "Cursor",
+    "amazon-q": "Amazon Q", "grok": "Grok",
+}
+AI_PLUGINS = [
+    ("github.copilot", "GitHub Copilot"), ("anthropic.claude-code", "Claude Code"), ("openai.chatgpt", "Codex"),
+    ("saoudrizwan.claude-dev", "Cline"), ("rooveterinaryinc.roo-cline", "Roo Code"), ("kilocode.", "Kilo Code"),
+    ("google.geminicodeassist", "Gemini Code Assist"), ("sourcegraph.cody", "Cody"), ("codeium.", "Windsurf"),
+    ("tabnine.", "Tabnine"), ("supermaven.", "Supermaven"), ("amazonwebservices.amazon-q", "Amazon Q"),
+    ("visualstudioexptteam.vscodeintellicode", "IntelliCode"), ("augment.", "Augment"), ("continue.", "Continue"),
+]
+AI_EXTENSIONS = {"Claude": "Claude", "Gemini in Chrome": "Gemini in Chrome", "ChatGPT": "ChatGPT",
+                 "ChatGPT search": "ChatGPT", "Edge Copilot Bridge": "Microsoft Copilot"}
+# Plugin display names that vary by editor (JetBrains vs VS Code) or edition.
+AI_PLUGIN_NAMES = [
+    (re.compile(r"^GitHub Copilot(?! for Azure)"), "GitHub Copilot"), (re.compile(r"^Claude Code"), "Claude Code"),
+    (re.compile(r"^Codex\b"), "Codex"), (re.compile(r"\bMCP\b"), "MCP server extensions"),
+]
+# Live sockets name the process, not the product. Claude Code's native binary
+# is named after its version (~/.local/share/claude/versions/2.1.300).
+AI_SOCKETS = [
+    (re.compile(r"claude/versions/|(^|[/\\])claude(\.exe)?$", re.I), "Claude Code"),
+    (re.compile(r"Claude\.app|[/\\]Claude[/\\]|claude-desktop|^Claude( Helper.*)?$", re.I), "Claude"),
+    (re.compile(r"copilot-language-server", re.I), "GitHub Copilot"),
+    (re.compile(r"ollama", re.I), "Ollama"),
+    (re.compile(r"lm.?studio|(^|[/\\])lms$", re.I), "LM Studio"),
+    (re.compile(r"perplexity", re.I), "Perplexity"),
+    (re.compile(r"(^|[/\\])codex(\.exe)?$|Codex\.app", re.I), "Codex"),
+    (re.compile(r"Cursor\.app|(^|[/\\])cursor(-agent)?$|^Cursor( Helper.*)?$", re.I), "Cursor"),
+    (re.compile(r"ChatGPT", re.I), "ChatGPT"),
+    (re.compile(r"windsurf", re.I), "Windsurf"),
+    (re.compile(r"gemini", re.I), "Gemini CLI"),
+]
+AI_SERVICES = {"ollama": "Ollama", "lm-studio": "LM Studio", "jan": "Jan"}
+# Software inventory names whose last-opened time counts as using the product.
+AI_INVENTORY_APPS = {
+    "Claude": "Claude", "ChatGPT": "ChatGPT", "ChatGPT Atlas": "ChatGPT", "ChatGPT Classic": "ChatGPT",
+    "Cursor": "Cursor", "Windsurf": "Windsurf", "LM Studio": "LM Studio", "Ollama": "Ollama",
+    "Perplexity": "Perplexity", "Comet": "Comet", "Antigravity": "Antigravity", "Jan": "Jan", "Msty": "Msty",
+    "GPT4All": "GPT4All", "AnythingLLM": "AnythingLLM", "Dia": "Dia", "Trae": "Trae",
+}
+AI_EDITORS = {"vscode": "VS Code", "vscode-insiders": "VS Code", "vscode-server": "VS Code", "code-server": "VS Code",
+              "vscodium": "VSCodium", "cursor": "Cursor", "windsurf": "Windsurf", "trae": "Trae",
+              "antigravity": "Antigravity", "antigravity-ide": "Antigravity", "zed": "Zed", "sublime": "Sublime Text",
+              "neovim": "Neovim", "vim": "Vim", "emacs": "Emacs"}
+AI_BROWSERS = {"chrome": "Chrome", "chrome-beta": "Chrome", "edge": "Edge", "brave": "Brave", "arc": "Arc",
+               "opera": "Opera", "vivaldi": "Vivaldi", "chromium": "Chromium", "comet": "Comet", "dia": "Dia",
+               "firefox": "Firefox", "zen": "Zen", "librewolf": "LibreWolf", "waterfox": "Waterfox"}
+AI_MCP_CLIENTS = {"claude-desktop": "Claude", "claude-code": "Claude Code", "cursor": "Cursor", "windsurf": "Windsurf",
+                  "vscode": "VS Code", "zed": "Zed", "cline": "Cline", "roo": "Roo Code", "continue": "Continue",
+                  "jan": "Jan", "gemini": "Gemini CLI", "hermes": "Hermes", "openclaw": "OpenClaw", "grok": "Grok",
+                  "codex": "Codex", "process": "Running, no config"}
+AI_INSTRUCTION_TOOLS = {"claude": "CLAUDE.md", "codex": "AGENTS.md", "gemini": "GEMINI.md", "opencode": "OpenCode rules",
+                        "cursor": "Cursor rules", "windsurf": "Windsurf rules", "cline": "Cline rules", "roo": "Roo rules",
+                        "copilot": "Copilot instructions"}
+# Row types that mean a product is installed, as opposed to configured or seen.
+AI_INSTALL_TYPES = {"apps", "agents", "ide_plugins", "browser_extension"}
+HOME_RE = re.compile(r"^(/Users/[^/]+|/home/[^/]+|/root|[A-Za-z]:\\Users\\[^\\]+)", re.I)
+
+
+def ai_slug(name):
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
+def short_path(p):
+    """Home-relative path, so usernames in paths aren't published."""
+    return HOME_RE.sub("~", p or "")
+
+
+def ai_detail(t):
+    try:
+        d = json.loads(t.get("detail") or "{}")
+        return d if isinstance(d, dict) else {}
+    except ValueError:
+        return {}
+
+
+def ai_product(t):
+    typ, ident, name = t.get("type"), t.get("identifier") or "", t.get("name") or ""
+    if typ == "apps":
+        return AI_APPS.get(ident) or name or None
+    if typ == "agents":
+        return AI_AGENTS.get(name) or AI_AGENTS.get(ident) or None
+    if typ == "ide_plugins":
+        low = ident.lower()
+        for prefix, product in AI_PLUGINS:
+            if low.startswith(prefix):
+                return product
+        for rx, product in AI_PLUGIN_NAMES:
+            if rx.search(name):
+                return product
+        return name if name and not name.startswith("%") else ident or None
+    if typ == "browser_extension":
+        return AI_EXTENSIONS.get(name, name) or None
+    if typ == "sockets":
+        if ident in AI_SERVICES:
+            return AI_SERVICES[ident]
+        for rx, product in AI_SOCKETS:
+            if rx.search(t.get("path") or "") or rx.search(name):
+                return product
+    return None
+
+
+def ai_surface(t, det):
+    typ = t.get("type")
+    if typ == "apps":
+        return "Desktop app"
+    if typ == "agents":
+        return "Terminal"
+    if typ == "ide_plugins":
+        src = t.get("source") or ""
+        return AI_EDITORS.get(src) or ("JetBrains IDEs" if det.get("editor_family") == "jetbrains" else src.title() or "Editor")
+    if typ == "browser_extension":
+        return AI_BROWSERS.get(t.get("source") or "", (t.get("source") or "Browser").title()) + " extension"
+    return None
+
+
+def mcp_name(t, det):
+    name = (t.get("name") or t.get("identifier") or "").strip()
+    if not name or len(name) > 60 or not re.fullmatch(r"[\w .@/:+=~-]+", name):
+        cmd = os.path.basename((det.get("command") or "").replace("\\", "/")) or "unnamed"
+        return f"{cmd} (inline script)"
+    return name
+
+
+def build_ai(snap, hist):
+    now = parse_ts(snap["generated_at"])
+    today = now.date()
+    D = today.isoformat()
+    hist.setdefault("schema", 1)
+    hist.setdefault("since", D)
+    live = hist.setdefault("live", {})
+    first_seen = hist.setdefault("first_seen", {})
+    # A tool that appears on the first run is the baseline, not a new tool.
+    baseline = not first_seen
+    ai = snap.get("ai_tools") or {}
+    reports = ai.get("hosts") or {}
+    hosts = {str(h["id"]): h for h in snap["hosts"]}
+    ids = [hid for hid, h in hosts.items() if platform_of(h) and is_active(h, now)]
+
+    products, mcp, instructions, findings, matchers = {}, {}, {}, [], {}
+
+    def product_host(name, hid):
+        p = products.setdefault(name, {"name": name, "h": {}})
+        return p["h"].setdefault(hid, {"s": set(), "v": "", "live": False, "opened": None})
+
+    for hid in ids:
+        h = hosts[hid]
+        plat = platform_of(h)
+        # Last-opened times from Fleet's software inventory (apps only).
+        for sname, ver, source, bid, last, path, vendor in software_rows(snap, hid):
+            prod = AI_INVENTORY_APPS.get(html.unescape(sname)) if source in ("apps", "programs") else None
+            if prod and last and (opened := parse_ts(last)):
+                e = product_host(prod, hid)
+                d = days_between(opened, now)
+                e["opened"] = d if e["opened"] is None else min(e["opened"], d)
+
+        rep = reports.get(hid)
+        if not rep:
+            continue
+        fetched = parse_ts(rep.get("last_fetched"))
+        fresh = bool(fetched and days_between(fetched, now) <= 1.5)
+        for t in rep.get("tools") or []:
+            typ = t.get("type")
+            det = ai_detail(t)
+            flags = [f for f in (t.get("risk_flags") or "").split(",") if f]
+            prod = ai_product(t)
+            running = str(t.get("running") or "") == "1" or typ == "sockets"
+            if prod:
+                e = product_host(prod, hid)
+                if (surface := ai_surface(t, det)):
+                    e["s"].add(surface)
+                if typ in AI_INSTALL_TYPES and t.get("version") and not e["v"]:
+                    e["v"] = t["version"]
+                if running and fresh:
+                    e["live"] = True
+                if typ in AI_INSTALL_TYPES:
+                    field = "name" if typ == "agents" else "identifier"
+                    if t.get(field):
+                        matchers.setdefault(prod, set()).add((typ, field, t[field]))
+            item = prod or ""
+            if typ == "mcp_server":
+                name = mcp_name(t, det)
+                item = name
+                m = mcp.setdefault(name, {"name": name, "transports": set(), "remote": set(), "commands": set(),
+                                          "caps": set(), "h": {}})
+                m["transports"].add(det.get("transport") or ("http" if t.get("location") == "remote" else "stdio"))
+                if t.get("endpoint"):
+                    from urllib.parse import urlparse
+                    host = urlparse(t["endpoint"]).hostname
+                    if host:
+                        m["remote"].add(host)
+                if det.get("command"):
+                    m["commands"].add(os.path.basename(det["command"].replace("\\", "/")))
+                m["caps"].update(c for c in (det.get("capabilities") or "").split(",") if c)
+                client = AI_MCP_CLIENTS.get(t.get("source") or "", t.get("source") or "")
+                eh = m["h"].setdefault(hid, {"clients": set(), "running": False, "flags": set()})
+                eh["clients"].add(client)
+                eh["running"] = eh["running"] or (det.get("source_type") in ("process", "both") and fresh)
+                eh["flags"].update(flags)
+            elif typ == "agent_instruction":
+                tool = AI_INSTRUCTION_TOOLS.get(t.get("source") or "", t.get("source") or "Other")
+                instructions.setdefault(tool, {}).setdefault(hid, 0)
+                instructions[tool][hid] += 1
+                item = short_path(t.get("path")) or t.get("name") or ""
+            elif typ == "sockets":
+                item = prod or t.get("name") or ""
+            for flag in flags:
+                where = short_path(t.get("path")) if typ == "mcp_server" else ""
+                findings.append([int(hid), flag, typ, item, where])
+
+    # Live signals carry over day to day, so "active in the last 30 days" holds.
+    cutoff = (today - dt.timedelta(days=35)).isoformat()
+    for hid in list(live):
+        if hid not in hosts:
+            del live[hid]
+    for name, p in products.items():
+        for hid, e in p["h"].items():
+            if e["live"]:
+                live.setdefault(hid, {})[name] = D
+    for hid in list(live):
+        live[hid] = {k: v for k, v in live[hid].items() if v >= cutoff}
+        if not live[hid]:
+            del live[hid]
+
+    def days_ago(name, hid, e):
+        last = (live.get(hid) or {}).get(name)
+        d_live = (today - dt.date.fromisoformat(last)).days if last else None
+        opts = [x for x in (d_live, e["opened"]) if x is not None]
+        return round(min(opts), 1) if opts else None
+
+    out_products = []
+    for name, p in sorted(products.items(), key=lambda kv: -len(kv[1]["h"])):
+        key = "p:" + ai_slug(name)
+        if key not in first_seen:
+            first_seen[key] = None if baseline else D
+        rows = []
+        for hid, e in p["h"].items():
+            rows.append([int(hid), sorted(e["s"]), days_ago(name, hid, e), e["v"]])
+        out_products.append({"k": ai_slug(name), "name": name, "h": rows, "new": first_seen[key],
+                             "m": sorted(matchers.get(name, set()))[:40]})
+
+    out_mcp = []
+    for name, m in sorted(mcp.items(), key=lambda kv: -len(kv[1]["h"])):
+        key = "m:" + name
+        if key not in first_seen:
+            first_seen[key] = None if baseline else D
+        out_mcp.append({"name": name, "transports": sorted(m["transports"]), "remote": sorted(m["remote"])[:5],
+                        "commands": sorted(m["commands"])[:5], "caps": sorted(m["caps"]), "new": first_seen[key],
+                        "h": [[int(hid), sorted(e["clients"]), int(e["running"]), sorted(e["flags"])]
+                              for hid, e in m["h"].items()]})
+
+    reported = {hid for hid in ids if hid in reports}
+    day = {}
+    sev = {"high": 0, "medium": 0}
+    flag_sev = {f: s for f, (s, _, _) in AI_RISKS.items()}
+    by_host_sev = {}
+    for hid, flag, *_ in findings:
+        s = flag_sev.get(flag, "low")
+        by_host_sev.setdefault(str(hid), {"high": 0, "medium": 0, "low": 0})[s] += 1
+    for hid in ids:
+        h = hosts[hid]
+        f, plat = h.get("team_name") or "Unassigned", platform_of(h)
+        mine = [(p, p["h"][hid]) for p in products.values() if hid in p["h"]]
+        active_today = [p for p, e in mine if (d := days_ago(p["name"], hid, e)) is not None and d < 1]
+        hs = by_host_sev.get(hid, {})
+        count_into(day, f, plat, reported=int(hid in reported), ai=int(bool(mine)), act=int(bool(active_today)),
+                   high=hs.get("high", 0), med=hs.get("medium", 0),
+                   **{"a:" + ai_slug(p["name"]): 1 for p in active_today},
+                   **{"i:" + ai_slug(p["name"]): 1 for p, _ in mine})
+
+    trimmed = dict(sorted(first_seen.items()))
+    hist["first_seen"] = trimmed
+    return {
+        "generated_at": snap["generated_at"], "fleet_url": snap["fleet_url"], "history_since": hist["since"],
+        "windows": AI_WINDOWS, "stale_days": STALE_DAYS,
+        "source": {"report": ai.get("report"), "clipped": bool(ai.get("clipped")), "reported": len(reported)},
+        "hosts": {hid: {**host_map(hosts, [hid])[hid], "r": int(hid in reported)} for hid in ids},
+        "products": out_products, "mcp": out_mcp, "findings": findings,
+        "instructions": [{"tool": tool, "h": [[int(hid), n] for hid, n in hs.items()]}
+                         for tool, hs in sorted(instructions.items(), key=lambda kv: -len(kv[1]))],
+        "risks": {f: {"sev": s, "label": label, "about": about} for f, (s, label, about) in AI_RISKS.items()},
+        "trend": save_trend(hist, today, day),
+    }
+
+
+AI_RISKS = {
+    "skip_permissions_runtime": ("high", "Agent running with permission checks off",
+                                 "An AI agent is running with a flag that approves every action on its own, such as --dangerously-skip-permissions, --yolo, or --full-auto. It can run commands and change files without asking."),
+    "bypass_permissions": ("high", "Claude Code set to bypass permissions",
+                           "Claude Code's settings make bypassPermissions the default, so every session skips approval prompts."),
+    "plaintext_secret": ("high", "Credential stored in an MCP config",
+                         "An MCP server's config sets an environment variable or header named like a credential (token, API key, password, authorization). Its value sits in the config file in plain text."),
+    "injection_markers": ("high", "Instruction file with injection phrases",
+                          "An agent instruction file contains phrases common in prompt-injection attacks, such as \"ignore previous instructions\", piping a download to a shell, or reading SSH keys."),
+    "hidden_unicode": ("high", "Instruction file with hidden characters",
+                       "An agent instruction file contains invisible Unicode characters, which can hide instructions from the people who review it."),
+    "mcp_shell_exec": ("high", "MCP server that runs shell commands",
+                       "The MCP server's name or launch command matches a server that can run shell commands on the computer."),
+    "remote_fetch_exec": ("medium", "MCP server downloaded at every launch",
+                          "The MCP server starts through a runner such as npx or uvx, which downloads code from a package registry and runs it each time."),
+    "unpinned_dependency": ("medium", "MCP server package not pinned",
+                            "The MCP server's package has no fixed version, or uses latest, so each new release runs without review."),
+    "cleartext_endpoint": ("medium", "Remote MCP server over plain HTTP",
+                           "The MCP server is reached over http://, so its traffic, including any credentials, isn't encrypted."),
+    "auto_accept_edits": ("medium", "Claude Code set to accept edits",
+                          "Claude Code's settings make acceptEdits the default, so its file changes apply without review."),
+    "mcp_fs_write": ("medium", "MCP server that writes files",
+                     "The MCP server's name or launch command matches a server that can write files on the computer."),
+    "world_writable": ("medium", "Instruction file anyone can edit",
+                       "Other user accounts on the computer can change this agent instruction file, and with it what the agent is told to do."),
+    "sideloaded_unverified": ("medium", "Browser extension from outside the store",
+                              "The extension wasn't installed from the browser's store, or isn't signed, so no store review covers it."),
+    "broad_host_permissions": ("medium", "Browser extension that can read every site",
+                               "The extension asks for access to all websites, so it can read and change pages you visit."),
+    "world_readable_config": ("low", "MCP config other users can read",
+                              "Other user accounts on the computer can read this MCP config file, including any credentials in it."),
+}
+
 # ---------------------------------------------------------------- render
 
-BUILDERS = {"lifecycle": build_lifecycle, "software": build_software, "patch": build_patch}
+BUILDERS = {"lifecycle": build_lifecycle, "software": build_software, "patch": build_patch, "ai": build_ai}
 
 
 def render(templates, page, data):

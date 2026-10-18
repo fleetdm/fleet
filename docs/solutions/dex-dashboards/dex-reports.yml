@@ -129,3 +129,18 @@
   automations_enabled: false
   logging: snapshot
   interval: 14400
+- name: DEX - AI governance - AI tools per host
+  description: Every AI tool fleetd's ai_tools table finds on the host (desktop apps, agent CLIs, IDE plugins, browser extensions, MCP servers, live AI connections, and agent instruction files), packed into one row per host so Fleet's 1,000-row report limit doesn't cut hosts off. Needs fleetd 1.59.0 or later.
+  query: |
+    SELECT
+      COUNT(*) AS tool_count,
+      json_group_array(json_object(
+        'type', type, 'category', category, 'name', name, 'identifier', identifier,
+        'version', version, 'source', source, 'location', location, 'endpoint', endpoint,
+        'path', path, 'risk_flags', risk_flags, 'running', running, 'detail', detail
+      )) AS tools
+    FROM ai_tools;
+  platform: darwin,linux,windows
+  automations_enabled: false
+  logging: snapshot
+  interval: 3600

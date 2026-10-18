@@ -18,9 +18,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 FILES = [
     "run.py", "collect.py", "build.py",
     "templates/base.css", "templates/base.js",
-    "templates/lifecycle.html", "templates/software.html", "templates/patch.html",
+    "templates/lifecycle.html", "templates/software.html", "templates/patch.html", "templates/ai.html",
 ]
-TITLES = {"lifecycle": "Hardware lifecycle", "software": "Software usage", "patch": "Patch velocity"}
+TITLES = {"lifecycle": "Hardware lifecycle", "software": "Software usage", "patch": "Patch velocity", "ai": "AI governance"}
 PLACEHOLDER = """<title>{title}</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>

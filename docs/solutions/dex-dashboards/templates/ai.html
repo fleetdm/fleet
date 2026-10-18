@@ -1,0 +1,575 @@
+<title>AI governance</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Code+Pro:wght@400;500&display=swap">
+<style>
+/*__BASE_CSS__*/
+.title-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.notice { border: 1px solid var(--line-2); border-radius: 8px; padding: 12px 16px; background: var(--panel-2); color: var(--ink-2); display: flex; gap: 12px; align-items: baseline; }
+.notice b { color: var(--ink); }
+.act-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.new { font-size: 12px; font-weight: 600; color: var(--ink); border: 1px solid var(--line-2); border-radius: 4px; padding: 0 4px; margin-left: 6px; white-space: nowrap; }
+.detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px 32px; margin-top: 16px; }
+.detail-grid h4, .policy h4 { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--ink); }
+.mini-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.mini-stats .stat { background: var(--panel); }
+.host-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px 24px; margin-top: 16px; font-size: 12px; }
+.host-list > div { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--line); padding-bottom: 4px; min-width: 0; }
+.host-list a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 16px; font-size: 12px; }
+.kv dt { color: var(--ink-2); }
+.kv dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+.policy { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+.policy p { margin: 8px 0 0; color: var(--ink-2); max-width: 70ch; }
+.decision { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.decision:last-child { border-bottom: 0; }
+.decision .cell-sub { display: block; }
+.seg-toggle.decide button[aria-pressed="true"][data-v="sanctioned"] { box-shadow: inset 0 -2px 0 var(--good); }
+.seg-toggle.decide button[aria-pressed="true"][data-v="restricted"] { box-shadow: inset 0 -2px 0 var(--bad); }
+.log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.log li { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--line); color: var(--ink-2); }
+.log li:last-child { border-bottom: 0; }
+.log li b { color: var(--ink); }
+pre.yaml { font-family: var(--font-mono); font-size: 12px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 12px; overflow-x: auto; max-height: 260px; margin: 12px 0 0; color: var(--ink); }
+.flash { color: var(--ink-2); font-size: 12px; }
+</style>
+
+<div class="wrap">
+  <header class="top" id="top"></header>
+  <div class="title-row">
+    <div>
+      <h1>AI governance</h1>
+      <p class="subtitle">Which AI tools run on your computers, how they're set up, and which settings put code, credentials, or data at risk. From fleetd's AI tool inventory on macOS, Windows, and Linux.</p>
+    </div>
+    <div class="title-tools" id="title-tools"></div>
+  </div>
+  <div id="notice"></div>
+  <section class="hero" id="hero" aria-label="Summary"></section>
+  <div class="stats" id="stats"></div>
+
+  <section class="sec" aria-labelledby="trend-h">
+    <div class="sec-head">
+      <h2 id="trend-h">Over time</h2>
+      <div class="trend-tools" id="trend-tools"></div>
+    </div>
+    <div class="grid" id="trend"></div>
+  </section>
+
+  <section class="sec" aria-labelledby="use-h">
+    <div class="sec-head">
+      <h2 id="use-h">What's in use</h2>
+      <span class="hint" id="use-hint"></span>
+    </div>
+    <div class="grid">
+      <div class="panel"><h3>Active computers by product</h3><div id="share"></div></div>
+      <div class="panel"><h3>How AI tools run</h3><div id="surfaces"></div></div>
+      <div class="panel"><h3>Agent instruction files</h3><div id="instructions"></div></div>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="prod-h">
+    <div class="sec-head">
+      <h2 id="prod-h">Products</h2>
+      <span class="hint" id="prod-hint"></span>
+    </div>
+    <div class="act-bar"><div class="chips" id="prod-chips"></div><input class="search" id="prod-search" type="search" placeholder="Search products" aria-label="Search products"></div>
+    <div id="products"></div>
+  </section>
+
+  <section class="sec" aria-labelledby="mcp-h">
+    <div class="sec-head">
+      <h2 id="mcp-h">MCP servers</h2>
+      <span class="hint">Servers that AI tools connect to for data and actions, from each tool's config and from running processes</span>
+    </div>
+    <div id="mcp"></div>
+  </section>
+
+  <section class="sec" aria-labelledby="risk-h">
+    <div class="sec-head">
+      <h2 id="risk-h">Risk findings</h2>
+      <span class="hint" id="risk-hint"></span>
+    </div>
+    <div class="act-bar"><div class="chips" id="risk-chips"></div><span id="risk-tools"></span></div>
+    <div id="risks"></div>
+  </section>
+
+  <section class="sec" aria-labelledby="policy-h">
+    <div class="sec-head">
+      <h2 id="policy-h">AI policy</h2>
+      <span class="hint" id="policy-hint"></span>
+    </div>
+    <div class="policy">
+      <div class="panel"><h3>Posture</h3><div id="posture"></div></div>
+      <div class="panel"><h3>Enforce it in Fleet</h3><div id="enforce"></div></div>
+    </div>
+    <div class="policy">
+      <div class="panel"><h3>Decisions by product</h3><div id="decisions"></div></div>
+      <div class="panel"><h3>Change log</h3><div id="log"></div></div>
+    </div>
+  </section>
+
+  <details class="method">
+    <summary>How this is measured</summary>
+    <div class="cols">
+      <div>
+        <p><span class="term">Source:</span> fleetd's <code>ai_tools</code> table, read by the <code id="report-name"></code> report every hour. It finds AI desktop apps, command-line agents, editor plugins, browser extensions, MCP servers, live connections to AI services, and agent instruction files. It needs fleetd 1.59.0 or later. Computers that haven't checked in for <span id="stale-days"></span> days are left out.</p>
+        <p><span class="term">Active:</span> a product counts as active on a computer when the report saw it running or connected to an AI service, or when Fleet's software inventory shows its app was opened. The report runs hourly, so a tool used briefly between runs can be missed. Activity history starts <span id="since"></span>.</p>
+      </div>
+      <div>
+        <p><span class="term">Products:</span> a desktop app, command-line agent, editor plugin, or browser extension from the same product counts once per computer. "How it runs" lists each way it's installed. MCP servers and instruction files are counted on their own.</p>
+        <p><span class="term">Risk findings:</span> the table's own risk flags, such as an agent started with an auto-approve flag or a credential in an MCP config. Severity is this dashboard's judgment of how much each one exposes.</p>
+      </div>
+      <div>
+        <p><span class="term">Policy:</span> decisions and the posture are saved with this dashboard and every change is logged with who made it and when. Only people who can edit the dashboard can change them. Fleet enforces them through the policies you copy from "Enforce it in Fleet."</p>
+        <p><span class="term">Privacy:</span> the dashboard never shows command lines, launch arguments, environment values, or usernames. File paths start at <code>~</code>, so they don't include a username.</p>
+      </div>
+    </div>
+  </details>
+  <p class="foot" id="foot"></p>
+</div>
+
+<script>window.__DATA__=/*__DATA__*/null;</script>
+<script>
+/*__BASE_JS__*/
+</script>
+<script>
+const SEV = { high: { label: "High", tone: "bad" }, medium: { label: "Medium", tone: "warn" }, low: { label: "Low", tone: "neutral" } };
+const STATUS = { sanctioned: { label: "Sanctioned", tone: "good" }, unreviewed: { label: "Unreviewed", tone: "neutral" }, restricted: { label: "Restricted", tone: "bad" } };
+const POSTURES = [
+  ["visibility", "Visibility first", "Nothing is out of policy yet. Track which tools people use and fix risky settings as you find them."],
+  ["sanctioned", "Sanctioned tools", "Restricted tools, and agents running with permission checks off, are out of policy. Unreviewed tools stay allowed while you review them."],
+  ["strict", "Strict", "Only sanctioned tools are allowed. Unreviewed and restricted tools, agents running with permission checks off, and every high-risk finding are out of policy."],
+];
+const BYPASS = new Set(["skip_permissions_runtime", "bypass_permissions"]);
+const TYPE_LABEL = { mcp_server: "MCP server", agents: "Agent", agent_instruction: "Instruction file", browser_extension: "Browser extension", ide_plugins: "Editor plugin", apps: "Desktop app", sockets: "Connection" };
+let WINDOW = Number(store.get("dex-ai-window")) || 7;
+if (!DATA.windows.includes(WINDOW)) WINDOW = 7;
+let POLICY = { posture: "sanctioned", tools: {} };
+let LOG = null;
+let EDIT = false, DB = null, USER = null, DOWNLOADS = null, POLICY_ERROR = "";
+let prodFilter = "all", prodQuery = "", riskSev = new Set(["high", "medium", "low"]), allDecisions = false;
+
+DATA.products.forEach((p) => (p._id = p.k));
+DATA.mcp.forEach((m) => (m._id = m.name));
+const fleets = [...new Set(Object.values(DATA.hosts).map((x) => x.f))].sort();
+const platformCounts = {};
+for (const x of Object.values(DATA.hosts)) platformCounts[x.p] = (platformCounts[x.p] || 0) + 1;
+const noun = (n) => (PLATFORM === "macos" ? fmt.plural(n, "Mac") : fmt.plural(n, "computer"));
+const nounWord = (plural) => (PLATFORM === "macos" ? (plural ? "Macs" : "Mac") : (plural ? "computers" : "computer"));
+const inView = (hid) => { const x = DATA.hosts[hid]; return Boolean(x && inFleet(x.f) && inPlatform(x.p)); };
+const statusOf = (k) => (POLICY.tools[k] && POLICY.tools[k].status) || "unreviewed";
+const isNew = (d) => d && (Date.parse(DATA.generated_at) - Date.parse(d + "T00:00:00Z")) / 864e5 < 30;
+const daysText = (d) => (d == null ? "not seen running" : d < 1 ? "active today" : `active ${fmt.ago(d)}`);
+const PRODUCT_COLORS = ["var(--info)", "var(--warn)", "var(--good)"];
+
+function compute() {
+  const hostsInView = Object.keys(DATA.hosts).filter(inView);
+  const reported = hostsInView.filter((hid) => DATA.hosts[hid].r);
+  const findings = DATA.findings.filter((f) => inView(f[0]));
+  const products = DATA.products.map((p) => {
+    const rows = p.h.filter((r) => inView(r[0]));
+    const activeRows = rows.filter((r) => r[2] != null && r[2] < WINDOW);
+    const surfaces = {};
+    for (const r of rows) for (const s of r[1]) surfaces[s] = (surfaces[s] || 0) + 1;
+    const fs = findings.filter((f) => f[3] === p.name);
+    return { ...p, rows, installs: rows.length, active: activeRows.length, activeIds: new Set(activeRows.map((r) => r[0])),
+      surfaces, findings: fs, status: statusOf(p.k) };
+  }).filter((p) => p.installs);
+  const mcp = DATA.mcp.map((m) => ({ ...m, rows: m.h.filter((r) => inView(r[0])) })).filter((m) => m.rows.length);
+  const withAI = new Set(products.flatMap((p) => p.rows.map((r) => r[0])));
+  const activeAny = new Set(products.flatMap((p) => [...p.activeIds]));
+  return { hostsInView, reported, findings, products, mcp, withAI, activeAny };
+}
+
+function outOfPolicy(c) {
+  const out = new Map();
+  const add = (hid, why) => { const k = String(hid); if (!out.has(k)) out.set(k, new Set()); out.get(k).add(why); };
+  if (POLICY.posture === "visibility") return out;
+  for (const p of c.products) {
+    if (p.status === "restricted" || (POLICY.posture === "strict" && p.status === "unreviewed")) {
+      for (const r of p.rows) add(r[0], `${p.name} (${STATUS[p.status].label.toLowerCase()})`);
+    }
+  }
+  for (const f of c.findings) {
+    const r = DATA.risks[f[1]];
+    if (BYPASS.has(f[1]) || (POLICY.posture === "strict" && r && r.sev === "high")) add(f[0], r ? r.label : f[1]);
+  }
+  return out;
+}
+
+// Daily averages read the trend over the selected window.
+function windowRows(fields) {
+  const saved = RANGE;
+  RANGE = WINDOW;
+  const rows = trendRows(fields);
+  RANGE = saved;
+  return rows;
+}
+const avgOf = (rows, f) => (rows.length ? rows.reduce((s, r) => s + r[f], 0) / rows.length : null);
+
+function render() {
+  const c = compute();
+  const oop = outOfPolicy(c);
+  const byActive = [...c.products].sort((a, b) => b.active - a.active || b.installs - a.installs);
+  const top = byActive[0];
+  const highHosts = new Set(c.findings.filter((f) => DATA.risks[f[1]]?.sev === "high").map((f) => f[0]));
+  const bypassHosts = new Set(c.findings.filter((f) => BYPASS.has(f[1])).map((f) => f[0]));
+  const nHigh = c.findings.filter((f) => DATA.risks[f[1]]?.sev === "high").length;
+  const actRows = windowRows(["act"]);
+  const avgActive = avgOf(actRows, "act");
+  const newProducts = c.products.filter((p) => isNew(p.new));
+  const newMcp = c.mcp.filter((m) => isNew(m.new));
+  const unreviewed = c.products.filter((p) => p.status === "unreviewed");
+  const postureLabel = POSTURES.find(([k]) => k === POLICY.posture)[1];
+
+  // Notice
+  const src = DATA.source;
+  mount("notice", !src.report ? h("div", { class: "notice" }, h("b", {}, "No AI tool inventory yet."),
+      h("span", {}, "Add the DEX - AI governance - AI tools per host report to Fleet. It needs fleetd 1.59.0 or later on each computer."))
+    : src.clipped ? h("div", { class: "notice" }, h("b", {}, `Fleet kept only part of the AI tools report: ${fmt.n(c.reported.length)} of ${noun(c.hostsInView.length)} reported.`),
+      h("span", {}, "Fleet stores up to 1,000 rows per report. Add the DEX - AI governance - AI tools per host report, which sends one row per computer, so every computer counts."))
+    : null);
+
+  // Summary
+  const lede = !top ? `No AI tools found on the ${nounWord(true)} that reported.`
+    : top.active ? `${top.name} is the most used AI tool, active on ${noun(top.active)} in the last ${WINDOW} days.`
+    : `${top.name} is on the most ${nounWord(true)}: ${fmt.n(top.installs)}.`;
+  const support = [];
+  if (highHosts.size) {
+    const topHigh = Object.entries(c.findings.filter((f) => DATA.risks[f[1]]?.sev === "high").reduce((a, f) => ((a[f[1]] = (a[f[1]] || 0) + 1), a), {})).sort((a, b) => b[1] - a[1])[0];
+    support.push(`${noun(highHosts.size)} ${highHosts.size === 1 ? "has" : "have"} a high-risk finding. The most common: ${DATA.risks[topHigh[0]].label.toLowerCase()}.`);
+  }
+  if (POLICY.posture !== "visibility") support.push(`${noun(oop.size)} ${oop.size === 1 ? "is" : "are"} out of policy under the ${postureLabel.toLowerCase()} posture.`);
+  else support.push(`The posture is visibility first, so nothing is out of policy yet. ${fmt.plural(unreviewed.length, "product")} ${unreviewed.length === 1 ? "is" : "are"} waiting for a decision.`);
+  mount("hero",
+    h("div", {}, h("div", { class: "eyebrow" }, "Computers with AI tools"),
+      h("div", { class: "big" }, h("b", {}, fmt.n(c.withAI.size)), h("span", {}, `of ${noun(c.hostsInView.length)}`))),
+    h("div", { class: "hero-mid" }, h("p", { class: "lede" }, lede), h("p", { class: "support" }, support.join(" "))),
+    h("div", { class: "rail" }, h("div", { class: "eyebrow" }, "Right now"),
+      h("div", { class: "rail-row" }, h("span", {}, "Agents with permission checks off"), h("b", { class: bypassHosts.size ? "hl-bad" : null }, fmt.n(bypassHosts.size))),
+      h("div", { class: "rail-row" }, h("span", {}, "MCP servers in use"), h("b", {}, fmt.n(c.mcp.length))),
+      h("div", { class: "rail-row" }, h("span", {}, "Products not reviewed"), h("b", {}, fmt.n(unreviewed.length))),
+      h("div", { class: "rail-row" }, h("span", {}, "New in the last 30 days"), h("b", {}, fmt.n(newProducts.length + newMcp.length)))));
+
+  const stat = (k, v, s) => h("div", { class: "stat" }, h("span", { class: "k" }, k), h("span", { class: "v" }, v), h("span", { class: "s" }, s));
+  mount("stats",
+    stat("Computers with AI tools", fmt.n(c.withAI.size), `${fmt.pct(pct(c.withAI.size, c.hostsInView.length))} of ${noun(c.hostsInView.length)}`),
+    stat(`Active, last ${WINDOW} days`, fmt.n(c.activeAny.size), avgActive == null ? "daily average after day 2" : `${fmt.n(Math.round(avgActive))} a day on average`),
+    stat("Top product", top ? top.name : "---", top && c.activeAny.size ? `${fmt.pct(pct(top.active, c.activeAny.size))} of active ${nounWord(true)}` : "by computers"),
+    stat("Risk findings", fmt.n(c.findings.length), `${fmt.n(nHigh)} high, on ${noun(highHosts.size)}`),
+    stat("MCP servers", fmt.n(c.mcp.length), `on ${noun(new Set(c.mcp.flatMap((m) => m.rows.map((r) => r[0]))).size)}`),
+    stat("Out of policy", POLICY.posture === "visibility" ? "---" : fmt.n(oop.size), POLICY.posture === "visibility" ? "visibility first" : `${postureLabel.toLowerCase()} posture`));
+
+  // Trend
+  const trendTop = byActive.filter((p) => p.active).slice(0, 3);
+  renderTrend(["act", "high", "med", ...trendTop.map((p) => "a:" + p.k)], [
+    { title: "Computers using AI each day", series: [
+      { label: "Any AI tool", color: "var(--ink-2)", value: (r) => r.act },
+      ...trendTop.map((p, i) => ({ label: p.name, color: PRODUCT_COLORS[i], value: (r) => r["a:" + p.k] }))] },
+    { title: "Risk findings", series: [
+      { label: "High", color: "var(--bad)", value: (r) => r.high },
+      { label: "Medium", color: "var(--warn)", value: (r) => r.med }],
+      note: "Low-severity findings are left out of this chart." },
+  ]);
+
+  // What's in use
+  document.getElementById("use-hint").textContent = `Active means seen running, connected, or opened in the last ${WINDOW} days`;
+  const shareRows = byActive.slice(0, 10);
+  const shareMax = Math.max(1, ...shareRows.map((p) => p.installs));
+  mount("share", shareRows.length ? [barRows(shareRows.map((p) => ({ label: p.name, valueText: `${fmt.n(p.active)} of ${fmt.n(p.installs)}`, segs: [
+      { value: p.active, color: "var(--info)", tip: `${p.name}: active on ${noun(p.active)} in the last ${WINDOW} days (${fmt.pct(pct(p.active, c.activeAny.size))} of active ${nounWord(true)})` },
+      { value: p.installs - p.active, color: "var(--neutral)", tip: `${p.name}: on ${noun(p.installs - p.active)} with no activity in the last ${WINDOW} days` }] })), shareMax),
+    legend([[`Active, last ${WINDOW} days`, "var(--info)"], ["Installed, no activity", "var(--neutral)"]])] : empty("No AI tools found", ""));
+
+  const surf = {};
+  for (const p of c.products) for (const r of p.rows) for (const s of r[1]) (surf[s] ||= new Set()).add(r[0]);
+  const mcpHosts = new Set(c.mcp.flatMap((m) => m.rows.map((r) => r[0])));
+  const instr = DATA.instructions.map((i) => ({ tool: i.tool, rows: i.h.filter((r) => inView(r[0])) })).filter((i) => i.rows.length);
+  const instrHosts = new Set(instr.flatMap((i) => i.rows.map((r) => r[0])));
+  const surfRows = [...Object.entries(surf).map(([s, set]) => [s, set.size]), ["MCP server configs", mcpHosts.size], ["Agent instruction files", instrHosts.size]]
+    .filter(([, n]) => n).sort((a, b) => b[1] - a[1]);
+  mount("surfaces", surfRows.length ? [barRows(surfRows.map(([s, n]) => ({ label: s, segs: [{ value: n, color: "var(--info)", tip: `${s}: ${noun(n)}` }] }))),
+    h("p", { class: "panel-note" }, "Computers with at least one AI tool installed or configured this way.")] : empty("Nothing found", ""));
+  mount("instructions", instr.length ? [barRows(instr.map((i) => ({ label: i.tool, valueText: fmt.n(i.rows.length), segs: [
+      { value: i.rows.length, color: "var(--info)", tip: `${i.tool}: ${fmt.plural(i.rows.reduce((s, r) => s + r[1], 0), "file")} on ${noun(i.rows.length)}` }] }))),
+    h("p", { class: "panel-note" }, "Files such as CLAUDE.md and AGENTS.md tell coding agents how to work in a project, so they show where people use agents.")]
+    : empty("No instruction files found", ""));
+
+  renderProducts(c);
+  renderMcp(c);
+  renderRisks(c);
+  renderPolicy(c, oop);
+  renderTools(c, oop);
+
+  document.getElementById("report-name").textContent = src.report || "DEX - AI governance - AI tools per host";
+  document.getElementById("stale-days").textContent = DATA.stale_days;
+  document.getElementById("since").textContent = fmt.date(DATA.history_since);
+  document.getElementById("foot").textContent = `Data from ${DATA.fleet_url.replace(/^https?:\/\//, "")} via the Fleet API (List hosts with software, Get report data). Rebuilt daily.`;
+}
+
+function renderProducts(c) {
+  const chipDefs = [["all", "All", c.products.length], ["active", "Active", c.products.filter((p) => p.active).length],
+    ["unreviewed", "Unreviewed", c.products.filter((p) => p.status === "unreviewed").length],
+    ["restricted", "Restricted", c.products.filter((p) => p.status === "restricted").length],
+    ["new", "New", c.products.filter((p) => isNew(p.new)).length]];
+  mount("prod-chips", chipDefs.map(([k, label, n]) => h("button", { type: "button", class: "chip", "aria-pressed": prodFilter === k ? "true" : "false",
+    onclick: () => { prodFilter = k; render(); } }, label, h("b", {}, fmt.n(n)))));
+  document.getElementById("prod-hint").textContent = `Click a product to see where it runs and what it connects to`;
+  const q = prodQuery.trim().toLowerCase();
+  const rows = c.products.filter((p) => (prodFilter === "all" || (prodFilter === "active" && p.active) || (prodFilter === "new" && isNew(p.new)) || p.status === prodFilter)
+    && (!q || p.name.toLowerCase().includes(q)));
+  const columns = [
+    { key: "name", label: "Product", value: (p) => p.name.toLowerCase(), cell: (p) => h("span", { class: "cell-main" }, p.name, isNew(p.new) ? h("span", { class: "new" }, "New") : null) },
+    { key: "status", label: "Decision", value: (p) => ["restricted", "unreviewed", "sanctioned"].indexOf(p.status), cell: (p) => pill(STATUS[p.status].label, STATUS[p.status].tone) },
+    { key: "installs", label: "Computers", num: true, value: (p) => p.installs },
+    { key: "active", label: `Active ${WINDOW}d`, num: true, value: (p) => p.active, cell: (p) => [fmt.n(p.active), mini(pct(p.active, p.installs), "info")] },
+    { key: "how", label: "How it runs", value: (p) => Object.keys(p.surfaces).length, cell: (p) => h("span", { class: "cell-sub" },
+      Object.entries(p.surfaces).sort((a, b) => b[1] - a[1]).map(([s]) => s).slice(0, 3).join(", ") || "Seen running only") },
+    { key: "findings", label: "Findings", num: true, value: (p) => p.findings.length, cell: (p) => (p.findings.length ? fmt.n(p.findings.length) : "---") },
+  ];
+  const detail = (p) => {
+    const avg = avgOf(windowRows(["a:" + p.k]), "a:" + p.k);
+    const clientOf = new Set([p.name]);
+    const servers = c.mcp.map((m) => ({ m, n: m.rows.filter((r) => r[1].some((cl) => clientOf.has(cl))).length })).filter((x) => x.n).sort((a, b) => b.n - a.n);
+    const fsBy = {};
+    for (const f of p.findings) (fsBy[f[1]] ||= new Set()).add(f[0]);
+    const versions = {};
+    for (const r of p.rows) if (r[3]) versions[r[3]] = (versions[r[3]] || 0) + 1;
+    const stat = (k, v, s) => h("div", { class: "stat" }, h("span", { class: "k" }, k), h("span", { class: "v" }, v), h("span", { class: "s" }, s));
+    return [
+      h("div", { class: "mini-stats" },
+        stat(nounWord(true)[0].toUpperCase() + nounWord(true).slice(1), fmt.n(p.installs), "with it installed or running"),
+        stat(`Active, last ${WINDOW} days`, fmt.n(p.active), fmt.pct(pct(p.active, p.installs)) + " of them"),
+        stat("Daily average", avg == null ? "---" : fmt.n(Math.round(avg)), avg == null ? "after day 2" : "active computers a day"),
+        stat("Risk findings", fmt.n(p.findings.length), `on ${noun(new Set(p.findings.map((f) => f[0])).size)}`)),
+      h("div", { class: "detail-grid" },
+        h("div", {}, h("h4", {}, "How it runs"), Object.keys(p.surfaces).length
+          ? barRows(Object.entries(p.surfaces).sort((a, b) => b[1] - a[1]).map(([s, n]) => ({ label: s, segs: [{ value: n, color: "var(--info)", tip: `${s}: ${noun(n)}` }] })))
+          : h("p", { class: "cell-sub" }, "Seen running, but no install found.")),
+        h("div", {}, h("h4", {}, "MCP servers it uses"), servers.length
+          ? barRows(servers.slice(0, 6).map(({ m, n }) => ({ label: m.name, segs: [{ value: n, color: "var(--info)", tip: `${m.name}: configured in ${p.name} on ${noun(n)}` }] })))
+          : h("p", { class: "cell-sub" }, "None configured in this product.")),
+        h("div", {}, h("h4", {}, "Risk findings"), Object.keys(fsBy).length
+          ? barRows(Object.entries(fsBy).map(([f, set]) => ({ label: DATA.risks[f]?.label || f, segs: [{ value: set.size, color: `var(--${SEV[DATA.risks[f]?.sev || "low"].tone})`, tip: `${noun(set.size)}` }] })))
+          : h("p", { class: "cell-sub" }, "None.")),
+        h("div", {}, h("h4", {}, "Versions"), Object.keys(versions).length
+          ? h("dl", { class: "kv" }, Object.entries(versions).sort((a, b) => vcmp(b[0], a[0])).slice(0, 6).flatMap(([v, n]) => [h("dt", { class: "mono" }, v), h("dd", {}, noun(n))]))
+          : h("p", { class: "cell-sub" }, "Not reported."))),
+      h("div", { class: "host-list" }, [...p.rows].sort((a, b) => (a[2] ?? 1e9) - (b[2] ?? 1e9)).map(([hid, surfaces, d, v]) =>
+        h("div", {}, hostLink(hid, DATA.hosts[hid].n), h("span", { class: "cell-sub" }, [daysText(d), v].filter(Boolean).join(" · "))))),
+    ];
+  };
+  mount("products", rows.length ? sortTable({ columns, groups: [{ rows }], sort: ["active", "desc"], detail, id: "product-table" })
+    : empty("No products match", "Pick another filter or clear the search."));
+}
+
+function renderMcp(c) {
+  const sevRank = (flags) => Math.min(...flags.map((f) => ["high", "medium", "low"].indexOf(DATA.risks[f]?.sev || "low")), 3);
+  const rows = c.mcp.map((m) => {
+    const flags = [...new Set(m.rows.flatMap((r) => r[3]))];
+    return { ...m, computers: m.rows.length, running: m.rows.filter((r) => r[2]).length, flags, clients: [...new Set(m.rows.flatMap((r) => r[1]))] };
+  });
+  const columns = [
+    { key: "name", label: "Server", value: (m) => m.name.toLowerCase(), cell: (m) => h("span", { class: "cell-main" }, m.name, isNew(m.new) ? h("span", { class: "new" }, "New") : null) },
+    { key: "transport", label: "Transport", value: (m) => m.transports.join(","), cell: (m) => h("span", { class: "cell-sub" }, m.transports.join(", ") + (m.remote.length ? ` · ${m.remote.join(", ")}` : "")) },
+    { key: "clients", label: "Used by", value: (m) => m.clients.join(","), cell: (m) => h("span", { class: "cell-sub" }, m.clients.join(", ")) },
+    { key: "computers", label: "Computers", num: true, value: (m) => m.computers },
+    { key: "running", label: "Running", num: true, value: (m) => m.running, cell: (m) => (m.running ? fmt.n(m.running) : "---") },
+    { key: "flags", label: "Findings", value: (m) => 3 - sevRank(m.flags), cell: (m) => (m.flags.length
+      ? pill(fmt.plural(m.flags.length, "finding"), SEV[["high", "medium", "low"][sevRank(m.flags)] || "low"].tone) : "---") },
+  ];
+  const detail = (m) => [
+    h("dl", { class: "kv" },
+      m.commands.length ? [h("dt", {}, "Launched with"), h("dd", { class: "mono" }, m.commands.join(", "))] : null,
+      m.remote.length ? [h("dt", {}, "Remote host"), h("dd", { class: "mono" }, m.remote.join(", "))] : null,
+      m.caps.length ? [h("dt", {}, "Can"), h("dd", {}, m.caps.join(", "))] : null,
+      m.flags.length ? [h("dt", {}, "Findings"), h("dd", {}, m.flags.map((f) => DATA.risks[f]?.label || f).join("; "))] : null),
+    h("div", { class: "host-list" }, m.rows.map(([hid, clients, running, flags]) => h("div", {}, hostLink(hid, DATA.hosts[hid].n),
+      h("span", { class: "cell-sub" }, [clients.join(", "), running ? "running" : null, flags.length ? fmt.plural(flags.length, "finding") : null].filter(Boolean).join(" · "))))),
+  ];
+  mount("mcp", rows.length ? sortTable({ columns, groups: [{ rows }], sort: ["computers", "desc"], detail, id: "mcp-table" })
+    : empty("No MCP servers found", "None of the AI tools on these computers has an MCP server configured."));
+}
+
+function renderRisks(c) {
+  const byFlag = {};
+  for (const f of c.findings) (byFlag[f[1]] ||= []).push(f);
+  const items = Object.entries(byFlag).map(([flag, fs]) => ({ _id: flag, flag, fs, sev: DATA.risks[flag]?.sev || "low",
+    label: DATA.risks[flag]?.label || flag, computers: new Set(fs.map((f) => f[0])).size }));
+  const counts = { high: 0, medium: 0, low: 0 };
+  for (const i of items) counts[i.sev] += i.fs.length;
+  mount("risk-chips", ["high", "medium", "low"].map((s) => h("button", { type: "button", class: "chip", style: `--tone:var(--${SEV[s].tone})`, "aria-pressed": riskSev.has(s) ? "true" : "false",
+    onclick: () => { riskSev.has(s) ? riskSev.delete(s) : riskSev.add(s); render(); } }, h("i"), SEV[s].label, h("b", {}, fmt.n(counts[s])))));
+  document.getElementById("risk-hint").textContent = "Grouped by severity. Click a finding to see the computers and items.";
+  mount("risk-tools", c.findings.length ? copyButton("Copy as CSV", () => csv([["severity", "finding", "host", "fleet", "type", "item", "location", "fleet_url"],
+    ...c.findings.map(([hid, flag, typ, item, where]) => [DATA.risks[flag]?.sev || "low", DATA.risks[flag]?.label || flag, DATA.hosts[hid].n, DATA.hosts[hid].f, TYPE_LABEL[typ] || typ, item, where, hostUrl(hid)])])) : null);
+  const groups = ["high", "medium", "low"].filter((s) => riskSev.has(s)).map((s) => ({ label: `${SEV[s].label} severity`, pill: pill(fmt.n(counts[s]), SEV[s].tone),
+    rows: items.filter((i) => i.sev === s) })).filter((g) => g.rows.length);
+  const columns = [
+    { key: "label", label: "Finding", value: (i) => i.label.toLowerCase(), cell: (i) => h("span", { class: "cell-main" }, i.label) },
+    { key: "type", label: "Found in", value: (i) => TYPE_LABEL[i.fs[0][2]] || "", cell: (i) => h("span", { class: "cell-sub" }, [...new Set(i.fs.map((f) => TYPE_LABEL[f[2]] || f[2]))].join(", ")) },
+    { key: "computers", label: "Computers", num: true, value: (i) => i.computers },
+    { key: "items", label: "Items", num: true, value: (i) => i.fs.length },
+  ];
+  const detail = (i) => [h("p", { style: "margin:0 0 8px;max-width:75ch" }, DATA.risks[i.flag]?.about || ""),
+    h("div", { class: "host-list" }, i.fs.slice(0, 200).map(([hid, , typ, item, where]) => h("div", {}, hostLink(hid, DATA.hosts[hid].n),
+      h("span", { class: "cell-sub", title: where || item }, item || TYPE_LABEL[typ]))))];
+  mount("risks", groups.length ? sortTable({ columns, groups, sort: ["computers", "desc"], detail, id: "risk-table" })
+    : empty(c.findings.length ? "No findings at the selected severity" : "No risk findings", c.findings.length ? "Pick another severity." : "None of the AI tools on these computers has a flagged setting."));
+}
+
+// ---- Policy: decisions live in the artifact's shared store.
+const sqlStr = (v) => "'" + String(v).replace(/'/g, "''") + "'";
+function policyYaml() {
+  const restricted = DATA.products.filter((p) => statusOf(p.k) === "restricted" && p.m.length);
+  const items = [];
+  if (restricted.length) {
+    const conds = restricted.flatMap((p) => p.m.map(([t, f, v]) => `(type = ${sqlStr(t)} AND ${f} = ${sqlStr(v)})`));
+    items.push({ name: "No restricted AI tools", description: `Fails when ${restricted.map((p) => p.name).join(", ")} is installed. Restricted on the AI governance dashboard.`,
+      query: `SELECT 1 WHERE NOT EXISTS (\n  SELECT 1 FROM ai_tools WHERE\n    ${conds.join("\n    OR ")}\n);`,
+      resolution: "Remove the restricted AI tool, or ask IT to review it." });
+  }
+  items.push({ name: "No AI agents running with permission checks off",
+    description: "Fails when an AI agent runs with an auto-approve flag such as --dangerously-skip-permissions or --yolo, or when Claude Code's default mode is bypassPermissions.",
+    query: "SELECT 1 WHERE NOT EXISTS (\n  SELECT 1 FROM ai_tools WHERE type = 'agents'\n    AND (risk_flags LIKE '%skip_permissions_runtime%' OR risk_flags LIKE '%bypass_permissions%')\n);",
+    resolution: "Restart the agent without the auto-approve flag. In Claude Code, set permissions.defaultMode back to default." });
+  return items.map((i) => `- name: ${JSON.stringify(i.name)}\n  description: ${JSON.stringify(i.description)}\n  query: |\n${i.query.split("\n").map((l) => "    " + l).join("\n")}\n  platform: darwin,windows,linux\n  critical: false\n  resolution: ${JSON.stringify(i.resolution)}`).join("\n");
+}
+
+let writing = Promise.resolve();
+function savePolicy(change) {
+  if (!DB || !EDIT) return;
+  const at = new Date().toISOString();
+  const next = { posture: POLICY.posture, tools: { ...POLICY.tools } };
+  writing = writing.then(async () => {
+    const by = USER ? await USER.id() : null;
+    if (change.posture_to) next.posture = change.posture_to;
+    if (change.product) next.tools[change.product] = { status: change.to, by, at };
+    POLICY = next;
+    render();
+    try {
+      await DB.doc("governance/policy").set({ ...next, updated_at: at, updated_by: by });
+      await DB.collection("governance-log").add({ at, by, ...change });
+      POLICY_ERROR = "";
+    } catch (e) {
+      POLICY_ERROR = e && e.code === "quota_exceeded" ? "The change log is full. Ask the dashboard's owner to clear old entries." : "That change wasn't saved. You may not have edit access to this dashboard.";
+      render();
+    }
+  });
+}
+
+function renderPolicy(c, oop) {
+  const editable = Boolean(DB && EDIT);
+  document.getElementById("policy-hint").textContent = editable ? "Your changes are saved for everyone and logged"
+    : DB ? "Only people who can edit this dashboard can change the policy" : "Policy decisions work in the published dashboard";
+  const seg = h("div", { class: "seg-toggle", role: "group", "aria-label": "Posture" }, POSTURES.map(([k, label]) => h("button", { type: "button",
+    "aria-pressed": POLICY.posture === k ? "true" : "false", disabled: !editable && POLICY.posture !== k,
+    onclick: () => { if (editable && POLICY.posture !== k) savePolicy({ posture_from: POLICY.posture, posture_to: k }); } }, label)));
+  const desc = POSTURES.find(([k]) => k === POLICY.posture)[2];
+  const out = [...oop.entries()].sort((a, b) => b[1].size - a[1].size);
+  mount("posture", seg, h("p", {}, desc),
+    POLICY.posture === "visibility" ? null : h("div", {}, h("h4", { style: "margin-top:16px" }, `Out of policy: ${noun(out.length)}`),
+      out.length ? h("div", { class: "host-list", style: "margin-top:8px" }, out.slice(0, 12).map(([hid, why]) => h("div", {}, hostLink(hid, DATA.hosts[hid].n),
+        h("span", { class: "cell-sub" }, [...why].join("; "))))) : h("p", {}, "Every computer meets the policy.")),
+    POLICY_ERROR ? h("p", { class: "flash" }, POLICY_ERROR) : null);
+
+  const yaml = policyYaml();
+  const restrictedN = DATA.products.filter((p) => statusOf(p.k) === "restricted").length;
+  mount("enforce", h("p", { style: "margin-top:0" }, restrictedN
+      ? `Two Fleet policies: one fails on computers with a restricted tool (${fmt.plural(restrictedN, "product")}), and one fails when an agent runs with permission checks off. Add them to your GitOps policies file, then automate a script or ticket on failure.`
+      : "One Fleet policy that fails when an agent runs with permission checks off. Restrict a product below and this adds a second policy that fails on computers that have it."),
+    h("div", { class: "title-tools", style: "margin-top:12px" }, copyButton("Copy policies as YAML", () => yaml)),
+    h("pre", { class: "yaml" }, yaml));
+
+  const sorted = [...c.products].sort((a, b) => b.installs - a.installs);
+  const list = allDecisions ? sorted : sorted.slice(0, 12);
+  const more = sorted.length > list.length ? h("button", { type: "button", class: "btn", style: "margin-top:12px",
+    onclick: () => { allDecisions = true; render(); } }, `Show all ${fmt.plural(sorted.length, "product")}`) : null;
+  mount("decisions", list.length ? [...list.map((p) => h("div", { class: "decision" },
+    h("div", {}, h("span", { class: "cell-main" }, p.name), h("span", { class: "cell-sub" }, `${noun(p.installs)} · ${fmt.n(p.active)} active`
+      + (POLICY.tools[p.k] && POLICY.tools[p.k].at ? ` · decided ${fmt.date(POLICY.tools[p.k].at)}` : ""))),
+    h("div", { class: "seg-toggle small decide", role: "group", "aria-label": `Decision for ${p.name}` }, ["sanctioned", "unreviewed", "restricted"].map((k) =>
+      h("button", { type: "button", "data-v": k, "aria-pressed": p.status === k ? "true" : "false", disabled: !editable && p.status !== k,
+        onclick: () => { if (editable && p.status !== k) savePolicy({ product: p.k, name: p.name, from: p.status, to: k }); } }, STATUS[k].label))))), more]
+    : empty("No products to decide on", ""));
+  renderLog();
+}
+
+async function renderLog() {
+  if (!DB) { mount("log", empty("No change log here", "The change log works in the published dashboard.")); return; }
+  if (LOG === null) { mount("log", h("p", { class: "cell-sub" }, "Loading...")); return; }
+  if (!LOG.length) { mount("log", empty("No changes yet", "Set a posture or a decision and it's logged here with who changed it and when.")); return; }
+  const ids = [...new Set(LOG.map((e) => e.by).filter(Boolean))];
+  const ps = USER && ids.length ? await USER.profiles(ids) : {};
+  const who = (id) => (id && ps[id] && ps[id].name) || "Someone";
+  const label = (s) => (STATUS[s] ? STATUS[s].label.toLowerCase() : s);
+  const posture = (k) => (POSTURES.find(([p]) => p === k) || [k, k])[1].toLowerCase();
+  mount("log", h("ul", { class: "log" }, LOG.map((e) => h("li", {},
+    h("span", {}, h("b", {}, who(e.by)), e.product ? ` marked ${e.name || e.product} ${label(e.to)}, was ${label(e.from)}` : ` set the posture to ${posture(e.posture_to)}, was ${posture(e.posture_from)}`),
+    h("span", { class: "cell-sub" }, `${fmt.date(e.at)}, ${String(e.at).slice(11, 16)} UTC`)))));
+}
+
+function renderTools(c, oop) {
+  const seg = h("div", { class: "seg-toggle small", role: "group", "aria-label": "Activity window" }, DATA.windows.map((d) => h("button", { type: "button",
+    "aria-pressed": WINDOW === d ? "true" : "false", onclick: () => { WINDOW = d; store.set("dex-ai-window", String(d)); render(); } }, `${d} days`)));
+  mount("title-tools", seg, DOWNLOADS ? h("button", { type: "button", class: "btn", onclick: () => downloadReport(c, oop) }, "Download report") : null);
+}
+
+// Evidence for an audit: a self-contained HTML snapshot of what the page shows.
+async function downloadReport(c, oop) {
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
+  const ids = [...new Set((LOG || []).map((e) => e.by).filter(Boolean))];
+  const ps = USER && ids.length ? await USER.profiles(ids) : {};
+  const scope = [FLEET || "All fleets", PLATFORM ? platformLabel(PLATFORM) : "All platforms"].join(" · ");
+  const row = (cells) => `<tr>${cells.map((x) => `<td>${esc(x)}</td>`).join("")}</tr>`;
+  const byFlag = {};
+  for (const f of c.findings) (byFlag[f[1]] ||= new Set()).add(f[0]);
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>AI governance report</title><style>
+body{font:14px/1.5 system-ui,sans-serif;color:#192147;margin:32px;max-width:960px}h1{font-size:24px;margin:0}h2{font-size:16px;margin:28px 0 8px}
+table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #e2e4ea;padding:6px 8px;text-align:left;font-size:13px}th{background:#f9fafc}.m{color:#515774}
+</style></head><body><h1>AI governance report</h1><p class="m">${esc(DATA.fleet_url)} · ${esc(scope)} · data from ${esc(DATA.generated_at)} · activity window ${WINDOW} days</p>
+<h2>Summary</h2><table>${[["Computers reporting", c.reported.length], ["Computers with AI tools", c.withAI.size], [`Active, last ${WINDOW} days`, c.activeAny.size],
+    ["Risk findings", c.findings.length], ["MCP servers", c.mcp.length], ["Posture", POSTURES.find(([k]) => k === POLICY.posture)[1]],
+    ["Out of policy", POLICY.posture === "visibility" ? "n/a" : oop.size]].map(row).join("")}</table>
+<h2>Products</h2><table><tr><th>Product</th><th>Decision</th><th>Computers</th><th>Active</th><th>How it runs</th></tr>${[...c.products].sort((a, b) => b.installs - a.installs)
+    .map((p) => row([p.name, STATUS[p.status].label, p.installs, p.active, Object.keys(p.surfaces).join(", ")])).join("")}</table>
+<h2>Risk findings</h2><table><tr><th>Severity</th><th>Finding</th><th>Computers</th></tr>${Object.entries(byFlag).sort((a, b) => b[1].size - a[1].size)
+    .map(([f, set]) => row([SEV[DATA.risks[f]?.sev || "low"].label, DATA.risks[f]?.label || f, set.size])).join("")}</table>
+<h2>MCP servers</h2><table><tr><th>Server</th><th>Transport</th><th>Computers</th></tr>${c.mcp.slice(0, 50).map((m) => row([m.name, m.transports.join(", "), m.rows.length])).join("")}</table>
+<h2>Out of policy</h2><table>${[...oop.entries()].map(([hid, why]) => row([DATA.hosts[hid].n, [...why].join("; ")])).join("") || row(["None"])}</table>
+<h2>Policy change log</h2><table>${(LOG || []).map((e) => row([e.at, (e.by && ps[e.by] && ps[e.by].name) || "Someone",
+    e.product ? `${e.name || e.product}: ${e.from} to ${e.to}` : `Posture: ${e.posture_from} to ${e.posture_to}`])).join("") || row(["No changes recorded"])}</table>
+</body></html>`;
+  try {
+    await DOWNLOADS.save({ filename: `ai-governance-report-${DATA.generated_at.slice(0, 10)}.html`, data: html });
+  } catch (e) {
+    /* declined or unavailable: nothing to do */
+  }
+}
+
+async function initPolicy() {
+  const cl = window.claude;
+  if (!cl || !cl.use) return;
+  const [db, user, downloads] = await Promise.all([cl.use("db"), cl.use("user"), cl.use("downloads")]);
+  DB = db; USER = user; DOWNLOADS = downloads;
+  EDIT = user ? await user.canEdit() : false;
+  if (db) {
+    db.doc("governance/policy").onSnapshot((s) => {
+      const d = s.exists ? s.data() : null;
+      POLICY = { posture: (d && d.posture) || "sanctioned", tools: (d && d.tools) || {} };
+      render();
+    }, () => {});
+    db.collection("governance-log").orderBy("at", "desc").limit(30).onSnapshot((s) => {
+      LOG = s.docs.map((d) => d.data());
+      renderLog();
+    }, () => { LOG = []; renderLog(); });
+  }
+  render();
+}
+
+document.getElementById("prod-search").addEventListener("input", (e) => { prodQuery = e.target.value; render(); });
+renderTop(fleets, render, platformCounts);
+render();
+initPolicy();
+</script>
