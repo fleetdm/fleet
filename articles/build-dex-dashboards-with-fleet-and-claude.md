@@ -1,11 +1,11 @@
 # Build DEX dashboards with Fleet and Claude
 
-Fleet already knows what hardware your computers run, which apps people open, and which versions are installed. This guide shows you how to turn that data into three digital employee experience (DEX) dashboards that rebuild themselves every day: Hardware lifecycle (which computers to replace, repair, or leave alone), Software usage (which installed apps nobody opens), and Patch velocity (how fast new versions reach every computer). A daily [Claude Code routine](https://code.claude.com/docs/en/routines) reads the Fleet API and publishes each dashboard as a private Claude artifact. You don't run a server or a database. All three dashboards cover macOS, Windows, and Linux. Each dashboard has a toggle to show one platform at a time, and a light or dark theme that follows your system setting.
+Fleet already knows what hardware your computers run, which apps people open, and which versions are installed. This guide shows you how to turn that data into four digital employee experience (DEX) dashboards that rebuild themselves every day: Hardware lifecycle (which computers to replace, repair, or leave alone), Software usage (which installed apps nobody opens), Patch velocity (how fast new versions reach every computer), and AI governance (which AI tools people use, how they're set up, and which settings put data at risk). A daily [Claude Code routine](https://code.claude.com/docs/en/routines) reads the Fleet API and publishes each dashboard as a private Claude artifact. You don't run a server or a database. All four dashboards cover macOS, Windows, and Linux. Each dashboard has a toggle to show one platform at a time, and a light or dark theme that follows your system setting.
 
 ## How it works
 
 - A cloud environment holds a read-only Fleet API token and can reach only your Fleet server.
-- Once a day, the routine runs a set of Python scripts from Fleet's repository. They read your hosts, their software, and two DEX reports, then build the three pages.
+- Once a day, the routine runs a set of Python scripts from Fleet's repository. They read your hosts, their software, and three DEX reports, then build the four pages.
 - Each dashboard stores a small history file next to its page. Every run reads the history back and adds a day. Patch velocity uses it to time how long each new version takes to reach every computer, and Hardware lifecycle uses it to tell sustained memory strain on a Mac from a single bad day. Each page also charts its key numbers over time, for up to a year. All of this gets more useful over the first few weeks.
 
 ## Prerequisites
@@ -14,25 +14,26 @@ Fleet already knows what hardware your computers run, which apps people open, an
 - A global admin account in Fleet, to add the reports and create the API-only user.
 - A Claude account that can use Claude Code [routines](https://code.claude.com/docs/en/routines), [cloud environments](https://code.claude.com/docs/en/cloud-environments), and artifacts.
 - Claude Code on your computer, for the one-time setup.
+- fleetd 1.59.0 or later on your computers, for the AI governance dashboard. It reads fleetd's `ai_tools` table.
 - Optional: the Slack connector in Claude, if you want a Slack message when a run fails.
 - Optional: warranty end dates in a [custom host vital](https://fleetdm.com/guides/custom-host-vitals) (Fleet 4.90.0 or later), formatted `YYYY-MM-DD`. Hardware lifecycle shows a warranty chart when it finds one.
 
-> **Note:** Software usage lists, per computer, when each app was last opened. Before you share the dashboard, check that your organization's privacy commitments allow showing that to the people you share it with.
+> **Note:** Software usage lists, per computer, when each app was last opened, and AI governance lists the AI tools, MCP servers, and agent instruction files on each computer. Before you share them, check that your organization's privacy commitments allow showing that to the people you share them with. AI governance never shows command lines, launch arguments, environment values, or usernames.
 
 ## Step 1: Add the DEX reports
 
-Hardware lifecycle reads memory pressure and battery health from the `DEX - Hardware experience - Device health` report. Patch velocity reads macOS build numbers from the `DEX - System experience - OS health` report, so it can leave macOS betas out. Both are in [`dex-reports.yml`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/dex-dashboards/dex-reports.yml). They run on macOS only. On Windows and Linux, the dashboards use Fleet's built-in host and software data.
+Hardware lifecycle reads memory pressure and battery health from the `DEX - Hardware experience - Device health` report. Patch velocity reads macOS build numbers from the `DEX - System experience - OS health` report, so it can leave macOS betas out. AI governance reads the `DEX - AI governance - AI tools per host` report, which lists every AI tool fleetd finds on macOS, Windows, and Linux, packed into one row per computer so Fleet's 1,000-row report limit doesn't cut computers off. All three are in [`dex-reports.yml`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/dex-dashboards/dex-reports.yml). The first two run on macOS only. On Windows and Linux, the other dashboards use Fleet's built-in host and software data.
 
-- **GitOps:** copy `dex-reports.yml` into your GitOps repository, for example to `lib/macos/reports/dex-reports.yml`, and add it under `reports:` in `default.yml` to cover every host, or in each fleet file whose Macs you want on the dashboards:
+- **GitOps:** copy `dex-reports.yml` into your GitOps repository, for example to `lib/all/reports/dex-reports.yml`, and add it under `reports:` in `default.yml` to cover every host, or in each fleet file whose computers you want on the dashboards:
 
 ```yaml
 reports:
-  - path: ../lib/macos/reports/dex-reports.yml
+  - path: ../lib/all/reports/dex-reports.yml
 ```
 
-The path is relative to the file it's in. This example is for a file in `fleets/`. In `default.yml`, use `./lib/macos/reports/dex-reports.yml`.
+The path is relative to the file it's in. This example is for a file in `fleets/`. In `default.yml`, use `./lib/all/reports/dex-reports.yml`.
 
-- **UI:** create both reports from `dex-reports.yml` in the Fleet UI, with the same names, SQL, and macOS as the platform.
+- **UI:** create the three reports from `dex-reports.yml` in the Fleet UI, with the same names, SQL, and platforms.
 
 Keep the report names exactly as written. The scripts find each report by name, in any fleet or in **All fleets**.
 
@@ -100,10 +101,10 @@ Set up the Fleet DEX dashboards from the files in this folder.
 - Slack alerts: send failure DMs to Slack member ID <your Slack member ID>
 
 1. Run `python3 bundle.py --out <dir>`, where <dir> is a new temporary directory outside this folder that you choose. It prints a sha256 hash. Don't change any files in this folder.
-2. Publish three new private artifacts from placeholder-lifecycle.html, placeholder-software.html, and placeholder-patch.html in that output directory. On the Hardware lifecycle artifact, also publish dex-dashboards.json as src/dex-dashboards.json with content type application/json. Note the three artifact URLs.
-3. Read routine-prompt.md. Take the text between "PROMPT START" and "PROMPT END", and fill in {{LIFECYCLE_URL}}, {{SOFTWARE_URL}}, {{PATCH_URL}}, and {{BUNDLE_SHA256}}. Replace {{IF_THE_RUN_FAILS}} with the Slack block (and my member ID) if I asked for Slack alerts above, otherwise with the block for no Slack.
+2. Publish four new private artifacts from placeholder-lifecycle.html, placeholder-software.html, placeholder-patch.html, and placeholder-ai.html in that output directory. On the Hardware lifecycle artifact, also publish dex-dashboards.json as src/dex-dashboards.json with content type application/json. Publish the AI governance artifact with these capabilities, so its policy decisions are saved and only editors can change them: {"db": {"rules": [{"path": "governance", "read": "view", "write": "admin"}, {"path": "governance-log", "read": "view", "write": "admin"}]}, "user": {"scopes": ["profile"]}, "downloads": true}. Note the four artifact URLs.
+3. Read routine-prompt.md. Take the text between "PROMPT START" and "PROMPT END", and fill in {{LIFECYCLE_URL}}, {{SOFTWARE_URL}}, {{PATCH_URL}}, {{AI_URL}}, and {{BUNDLE_SHA256}}. Replace {{IF_THE_RUN_FAILS}} with the Slack block (and my member ID) if I asked for Slack alerts above, otherwise with the block for no Slack.
 4. Create a disabled routine named "DEX dashboards (daily rebuild)" with that prompt: the environment above, a daily schedule at the run time above converted to UTC, the Sonnet model, no repository, and the tools Bash, Read, Write, ToolSearch, and Artifact. A new routine gets every connector on my account by default, so remove them all. If I asked for Slack alerts, keep only the Slack connector and allow its slack_send_message tool. If you can't find my Slack connector, create the routine without it and tell me.
-5. Run the routine once. When it finishes, read its run log. If it published all three dashboards, enable the routine and send me the three artifact links. If it didn't, show me the error and leave the routine disabled.
+5. Run the routine once. When it finishes, read its run log. If it published all four dashboards, enable the routine and send me the four artifact links. If it didn't, show me the error and leave the routine disabled.
 
 Never ask me for the Fleet API token. It lives only in the cloud environment.
 ```
@@ -116,10 +117,11 @@ Claude may ask you to confirm the schedule, model, or repository before it creat
 
 ## Verify
 
-1. Open the three artifact links. Each shows today's date next to **Updated**.
+1. Open the four artifact links. Each shows today's date next to **Updated**.
 2. On Patch velocity, the summary says "Timing starts with the next release." Until a new version ships and computers pick it up, it shows the share of installs on the newest version instead.
 3. Under **Over time**, each chart says "Not enough history yet." The charts fill in after the second daily run.
-4. Open the routine at [claude.ai/code/routines](https://claude.ai/code/routines). Check that it's enabled, runs daily, and lists no connectors, or only Slack if you asked for alerts.
+4. On AI governance, pick a posture under **AI policy**. The change log shows your name and the time. People who can only view the dashboard see the policy but can't change it.
+5. Open the routine at [claude.ai/code/routines](https://claude.ai/code/routines). Check that it's enabled, runs daily, and lists no connectors, or only Slack if you asked for alerts.
 
 ## Troubleshoot
 
@@ -142,6 +144,10 @@ The code in `src/dex-dashboards.json` doesn't match the hash in the routine's pr
 **"history for lifecycle is missing"**
 
 The routine couldn't read a history file, so it stopped instead of starting over. Run it again. If it keeps happening, check that each artifact still has `data/history.json`.
+
+**AI governance says "No AI tool inventory yet"**
+
+The AI tools report has no stored results. Check that it's assigned to your fleets and that your computers run fleetd 1.59.0 or later. The report runs hourly.
 
 **Hardware lifecycle shows no battery or memory data for Macs**
 
@@ -172,4 +178,4 @@ The history files stay where they are, so the dashboards keep their history.
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="publishedOn" value="2026-10-16">
 <meta name="category" value="guides">
-<meta name="description" value="Build daily Hardware lifecycle, Software usage, and Patch velocity dashboards from Fleet data with a Claude Code routine.">
+<meta name="description" value="Build daily hardware lifecycle, software usage, patch velocity, and AI governance dashboards from Fleet data with a Claude Code routine.">
