@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "0.27.3",
+      "version": "0.15.15",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mowglii.ItsycalApp';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mowglii.ItsycalApp' AND version_compare(bundle_short_version, '0.27.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mowglii.ItsycalApp' AND version_compare(bundle_short_version, '0.15.15') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.mowglii.ItsycalApp' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://itsycal.s3.amazonaws.com/Itsycal-0.27.3.zip",
+      "installer_url": "https://itsycal.s3.amazonaws.com/Itsycal-0.15.15.zip",
       "install_script_ref": "1aeebe47",
       "uninstall_script_ref": "567f0d9b",
-      "sha256": "4b13c059298c8c7744557eb8389a64b31be1fac6221b807574fb15c15d64f30b",
+      "sha256": "35116fb8a6afe79ca6177554774be9a4c961f1bf47371c7a8f0f39a8b0c7d331",
       "default_categories": [
         "Utilities"
       ]
