@@ -1278,20 +1278,22 @@ func (ds *Datastore) ActivateNextUpcomingActivityForHost(ctx context.Context, ho
 	return err
 }
 
+// maxHostIDsPerActivationTx is small because activating an install locks its installer until commit, and a GitOps apply
+// removing that installer, with every install queued behind the apply, waits for the whole transaction.
+const maxHostIDsPerActivationTx = 10
+
 // activateNextUpcomingActivityForBatchOfHosts activates the next upcoming
 // activity of each host, chunked into batch transactions. It returns the
 // number of hosts whose activation committed, along with any per-host
 // activation errors joined together (partial success returns both a non-zero
 // count and a non-nil error).
 func (ds *Datastore) activateNextUpcomingActivityForBatchOfHosts(ctx context.Context, hostIDs []uint) (int, error) {
-	const maxHostIDsPerBatch = 500
-
 	slices.Sort(hostIDs)              // sorting can help avoid deadlocks
 	hostIDs = slices.Compact(hostIDs) // dedupe IDs (must be sorted first)
 
 	var activated int
 	var errs []error
-	for batch := range slices.Chunk(hostIDs, maxHostIDsPerBatch) {
+	for batch := range slices.Chunk(hostIDs, maxHostIDsPerActivationTx) {
 		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 			for _, hostID := range batch {
 				if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
