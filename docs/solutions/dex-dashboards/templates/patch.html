@@ -166,7 +166,12 @@ function render() {
     ? `${fmt.pct(pCur)} of app installs run the newest version today. Timing covers ${fmt.plural(lags.length, "update")} on ${noun(new Set(events.map((e) => e.hid)).size)} in the last 90 days.`
     : `Timing starts with the next release. Since ${fmt.date(DATA.history_since)}, every new version Fleet sees is timed until each computer reports it. ${lags.length ? `${fmt.plural(lags.length, "update")} timed so far.` : `No new versions timed yet (${fmt.plural(daysSince, "day")} of history).`}`;
   const osTs = titles.filter((t) => t.type === "os").sort((a, b) => b.installs - a.installs);
-  mount("hero", left,
+  if (!titles.length) {
+    const where = `${DATA.min_installs} or more ${Noun(true).toLowerCase()}`;
+    mount("hero", h("div", {}, h("div", { class: "eyebrow" }, "Apps and OS versions tracked"), h("div", { class: "big" }, h("b", {}, "0"))),
+      h("div", { class: "hero-mid" }, h("p", { class: "lede" }, `No app or OS version is on ${where} here yet.`),
+        h("p", { class: "support" }, `Patch velocity compares versions across computers, so a title needs ${DATA.min_installs} installs in the selected fleet and platform to count.${PLATFORM === "linux" ? " On Linux, that's the OS point release and apps whose vendors ship their own packages." : ""}`)));
+  } else mount("hero", left,
     h("div", { class: "hero-mid" }, h("p", { class: "lede" }, lede), h("p", { class: "support" }, support)),
     h("div", { class: "rail" }, h("div", { class: "eyebrow" }, "Right now"),
       h("div", { class: "rail-row" }, h("span", {}, "App installs on newest"), h("b", {}, fmt.pct(pCur))),
