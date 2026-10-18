@@ -30,15 +30,15 @@ function mount(id, ...kids) {
 }
 
 const fmt = {
-  n: (x) => (x == null || Number.isNaN(x) ? "—" : Number(x).toLocaleString("en-US")),
-  pct: (x) => (x == null || Number.isNaN(x) ? "—" : `${Math.round(x)}%`),
+  n: (x) => (x == null || Number.isNaN(x) ? "---" : Number(x).toLocaleString("en-US")),
+  pct: (x) => (x == null || Number.isNaN(x) ? "---" : `${Math.round(x)}%`),
   days: (d) => {
-    if (d == null || Number.isNaN(d)) return "—";
+    if (d == null || Number.isNaN(d)) return "---";
     if (d < 1) return "same day";
     return `${d < 10 ? (Math.round(d * 10) / 10).toString() : Math.round(d)} ${Math.round(d) === 1 ? "day" : "days"}`;
   },
   date: (iso) => {
-    if (!iso) return "—";
+    if (!iso) return "---";
     const d = new Date(iso.length === 10 ? iso + "T00:00:00Z" : iso);
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
   },
@@ -111,9 +111,26 @@ function renderTop(fleets, onChange, counts = {}, unsupported = {}) {
   mount("top", toggle,
     h("div", { class: "meta" },
       h("span", {}, `Updated ${fmt.date(DATA.generated_at)}, ${DATA.generated_at.slice(11, 16)} UTC · `, h("a", { href: DATA.fleet_url, target: "_blank", rel: "noopener" }, host)),
-      sel));
+      sel, themeToggle()));
 }
 const inPlatform = (p) => !PLATFORM || p === PLATFORM;
+
+// Light, dark, or the viewer's system setting. "System" leaves the theme to
+// prefers-color-scheme and the viewer's own setting.
+const THEMES = [["light", "Light"], ["dark", "Dark"], ["", "System"]];
+function applyTheme(t) {
+  if (t) document.documentElement.setAttribute("data-theme", t);
+  else document.documentElement.removeAttribute("data-theme");
+}
+function themeToggle() {
+  let theme = store.get("dex-theme") || "";
+  if (theme) applyTheme(theme);
+  const el = h("div", { class: "seg-toggle small", role: "group", "aria-label": "Theme" });
+  const draw = () => el.replaceChildren(...THEMES.map(([k, label]) => h("button", { type: "button", "aria-pressed": theme === k ? "true" : "false",
+    onclick: () => { theme = k; store.set("dex-theme", k); applyTheme(k); draw(); } }, label)));
+  draw();
+  return el;
+}
 const inFleet = (f) => !FLEET || f === FLEET;
 
 // Tooltip shared by every chart.
@@ -180,7 +197,7 @@ function sortTable({ columns, groups, sort, onRow, detail, id }) {
       if (g.label) body.append(h("tr", { class: "group" }, h("td", { colspan: columns.length }, g.pill || "", " ", g.label, g.hint ? h("span", { class: "hint" }, g.hint) : "")));
       for (const row of [...g.rows].sort(cmp)) {
         const rid = row._id;
-        const tr = h("tr", { class: onRow || detail ? "click" : null }, columns.map((c) => h("td", { class: c.num ? "r" : null }, c.cell ? c.cell(row) : c.value(row) ?? "—")));
+        const tr = h("tr", { class: onRow || detail ? "click" : null }, columns.map((c) => h("td", { class: c.num ? "r" : null }, c.cell ? c.cell(row) : c.value(row) ?? "---")));
         if (detail) {
           tr.setAttribute("tabindex", "0");
           tr.setAttribute("aria-expanded", open === rid ? "true" : "false");

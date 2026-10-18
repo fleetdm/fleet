@@ -14,14 +14,13 @@
 .lever { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 20px; padding: 12px 0; border-bottom: 1px solid var(--line); }
 .lever:last-child { border-bottom: 0; }
 .lever .t { font-weight: 600; }
-.lever .e { color: var(--ink-2); font-size: 13px; grid-column: 1; }
-.lever .x { grid-column: 2; grid-row: 1 / span 2; text-align: right; align-self: center; font-weight: 650; font-variant-numeric: tabular-nums; }
+.lever .e { color: var(--ink-2); grid-column: 1; }
+.lever .x { grid-column: 2; grid-row: 1 / span 2; text-align: right; align-self: center; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
 .lever .x span { display: block; font-weight: 400; color: var(--ink-3); font-size: 12px; }
 .ver { font-family: var(--font-mono); font-size: 12px; }
-.tag { font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-3); border: 1px solid var(--line-2); border-radius: 4px; padding: 0 4px; margin-left: 6px; }
 .split { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 6px 24px; }
-.split h4 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); }
-.app-line { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; padding: 3px 0; border-bottom: 1px solid var(--line); }
+.split h4 { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--ink); }
+.app-line { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; border-bottom: 1px solid var(--line); }
 </style>
 
 <div class="wrap">
@@ -84,16 +83,16 @@
     <summary>How this is measured</summary>
     <div class="cols">
       <div>
-        <p><strong>Clock starts</strong> the first day Fleet sees a new version on any computer. <strong>Clock stops</strong> the day each computer reports it. Days are wall-clock days, read once a day.</p>
-        <p><strong>Who's counted:</strong> only computers seen completing an update. One still on the old version isn't in the timing numbers yet, so the real picture is slower than shown, never faster. Fresh installs and downgrades aren't updates. Virtual machines are left out.</p>
+        <p><span class="term">Clock starts</span> the first day Fleet sees a new version on any computer. <span class="term">Clock stops</span> the day each computer reports it. Days are wall-clock days, read once a day.</p>
+        <p><span class="term">Who's counted:</span> only computers seen completing an update. One still on the old version isn't in the timing numbers yet, so the real picture is slower than shown, never faster. Fresh installs and downgrades aren't updates. Virtual machines are left out.</p>
       </div>
       <div>
-        <p><strong>History:</strong> Fleet keeps current versions only, so this page records a daily snapshot and times new versions from <span id="since"></span>. Versions already installed the first day an app or OS appears in the history aren't timed.</p>
-        <p><strong>Newest version:</strong> the highest version that at least two computers run, so a lone test build doesn't count. macOS betas (builds ending in a letter) and Windows Insider builds are left out, and computers running one count as current.</p>
+        <p><span class="term">History:</span> Fleet keeps current versions only, so this page records a daily snapshot and times new versions from <span id="since"></span>. Versions already installed the first day an app or OS appears in the history aren't timed.</p>
+        <p><span class="term">Newest version:</span> the highest version that at least two computers run, so a lone test build doesn't count. macOS betas (builds ending in a letter) and Windows Insider builds are left out, and computers running one count as current.</p>
       </div>
       <div>
-        <p><strong>Scope:</strong> on macOS, the OS plus third-party apps in <code>/Applications</code>. On Windows, the OS build within each release (for example 25H2) plus third-party programs. Apple's and Microsoft's own apps and components update on their own schedule and are left out, as are helpers and installers. Linux isn't covered yet. Computers that haven't checked in for <span id="stale-days"></span> days are left out of the version counts.</p>
-        <p><strong>Target:</strong> <span id="sla"></span> days from release to install. Medians are used because patch times have a long tail.</p>
+        <p><span class="term">Scope:</span> on macOS, the OS plus third-party apps in <code>/Applications</code>. On Windows, the OS build within each release (for example 25H2) plus third-party programs. Apple's and Microsoft's own apps and components update on their own schedule and are left out, as are helpers and installers. Linux isn't covered yet. Computers that haven't checked in for <span id="stale-days"></span> days are left out of the version counts.</p>
+        <p><span class="term">Target:</span> <span id="sla"></span> days from release to install. Medians are used because patch times have a long tail.</p>
       </div>
     </div>
   </details>
@@ -175,8 +174,8 @@ function render() {
     stat("Updates timed", fmt.n(lags.length), "last 90 days"),
     stat(`${Noun(true)} patched`, fmt.n(Object.keys(byHost).length), "at least one timed update"),
     stat("Apps updated", fmt.n(new Set(events.map((e) => e.t.key)).size), "with a timed update"),
-    stat("Within target", lags.length ? fmt.pct(pct(lags.filter((x) => x <= SLA).length, lags.length)) : "—", `${SLA} days or less`),
-    stat(`Median ${Noun(false).toLowerCase()}`, hostMeans.length ? fmt.days(quantile(hostMeans, 0.5)) : "—", "each one counted once"),
+    stat("Within target", lags.length ? fmt.pct(pct(lags.filter((x) => x <= SLA).length, lags.length)) : "---", `${SLA} days or less`),
+    stat(`Median ${Noun(false).toLowerCase()}`, hostMeans.length ? fmt.days(quantile(hostMeans, 0.5)) : "---", "each one counted once"),
     stat("Versions in use", fmt.n(titles.reduce((s, t) => s + t.versions, 0)), `across ${fmt.plural(titles.length, "title")}`));
 
   // Coverage curve

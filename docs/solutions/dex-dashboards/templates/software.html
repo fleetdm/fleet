@@ -9,9 +9,9 @@
 .tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .vendor-row { cursor: pointer; border-radius: 6px; padding: 2px 4px; margin: -2px -4px; }
 .vendor-row:hover, .vendor-row[aria-pressed="true"] { background: var(--panel-2); }
-.host-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px 18px; margin-top: 10px; font-size: 12.5px; }
+.host-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px 24px; margin-top: 12px; font-size: 12px; }
 .host-list > div { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--line); padding-bottom: 4px; min-width: 0; }
-.host-list a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.host-list a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 .detail-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: center; color: var(--ink-2); }
 </style>
 
@@ -20,7 +20,7 @@
   <div class="title-row">
     <div>
       <h1>Software usage</h1>
-      <p class="subtitle">Who actually opens what's installed, so you can reclaim unused seats at renewal. Covers third-party apps on macOS, Windows, and Linux, from Fleet's software inventory.</p>
+      <p class="subtitle">See which installed apps people open, so you can reclaim unused seats at renewal. Covers third-party apps on macOS, Windows, and Linux, from Fleet's software inventory.</p>
     </div>
   </div>
   <section class="hero" id="hero" aria-label="Summary"></section>
@@ -53,19 +53,19 @@
     <summary>How this is measured</summary>
     <div class="cols">
       <div>
-        <p><strong>Seats:</strong> one per computer that has the app installed. Virtual machines and cloud servers are left out.</p>
-        <p><strong>Idle:</strong> not opened in <span id="idle-days"></span> days, or no open on record. Apps that only run in the background or start from a command line may show no open.</p>
-        <p><strong>Who's counted:</strong> computers that checked in within the last <span id="stale-days"></span> days. One that's been offline longer would make every app on it look idle.</p>
+        <p><span class="term">Seats:</span> one per computer that has the app installed. Virtual machines and cloud servers are left out.</p>
+        <p><span class="term">Idle:</span> not opened in <span id="idle-days"></span> days, or no open on record. Apps that only run in the background or start from a command line may show no open.</p>
+        <p><span class="term">Who's counted:</span> computers that checked in within the last <span id="stale-days"></span> days. One that's been offline longer would make every app on it look idle.</p>
       </div>
       <div>
-        <p><strong>macOS:</strong> top-level apps in <code>/Applications</code>. Apple's own apps and apps nested inside other apps are left out. The last-opened time comes from macOS.</p>
-        <p><strong>Windows:</strong> programs with an install folder, since Fleet matches Windows' record of recently run programs (prefetch) to that folder. Windows keeps a limited number of these records, so a program not run in a long time can show no open. A computer with no record for any program (prefetch turned off) is left out. Windows' own apps and components, and Microsoft apps other than its licensed products (Microsoft 365, Teams, Visio, Project, Visual Studio), are left out.</p>
-        <p><strong>Linux:</strong> most packages are part of the OS, so only common desktop apps count, such as Chrome, Firefox, VS Code, Slack, Zoom, and 1Password. The last-opened time is the last access time of the package's programs, which a <code>noatime</code> mount stops updating.</p>
+        <p><span class="term">macOS:</span> top-level apps in <code>/Applications</code>. Apple's own apps and apps nested inside other apps are left out. The last-opened time comes from macOS.</p>
+        <p><span class="term">Windows:</span> programs with an install folder, since Fleet matches Windows' record of recently run programs (prefetch) to that folder. Windows keeps a limited number of these records, so a program not run in a long time can show no open. A computer with no record for any program (prefetch turned off) is left out. Windows' own apps and components, and Microsoft apps other than its licensed products (Microsoft 365, Teams, Visio, Project, Visual Studio), are left out.</p>
+        <p><span class="term">Linux:</span> most packages are part of the OS, so only common desktop apps count, such as Chrome, Firefox, VS Code, Slack, Zoom, and 1Password. The last-opened time is the last access time of the package's programs, which a <code>noatime</code> mount stops updating.</p>
       </div>
       <div>
-        <p><strong>Groups:</strong> 80% or more idle means remove it or unassign it. 40–79% means right-size at renewal. Under 40% is healthy. Only apps on <span id="min-installs"></span> or more computers are listed. Totals cover every app.</p>
-        <p><strong>Not seats:</strong> agents IT deploys everywhere (Fleet Desktop, Nudge, Santa, Okta Verify), helpers, installers, uninstallers, updaters, and web shortcuts (such as Google Drive's Docs and Sheets launchers). They're listed separately and left out of the totals.</p>
-        <p><strong>Vendor:</strong> on macOS, from the app's bundle identifier, such as <code>com.adobe</code> for Adobe. On Windows, from the publisher Windows reports.</p>
+        <p><span class="term">Groups:</span> 80% or more idle means remove it or unassign it. 40–79% means right-size at renewal. Under 40% is healthy. Only apps on <span id="min-installs"></span> or more computers are listed. Totals cover every app.</p>
+        <p><span class="term">Not seats:</span> tools IT deploys everywhere (Fleet Desktop, Nudge, Santa, Okta Verify), helpers, installers, uninstallers, updaters, and web shortcuts (such as Google Drive's Docs and Sheets launchers). They're listed separately and left out of the totals.</p>
+        <p><span class="term">Vendor:</span> on macOS, from the app's bundle identifier, such as <code>com.adobe</code> for Adobe. On Windows, from the publisher Windows reports.</p>
       </div>
     </div>
   </details>
@@ -82,7 +82,7 @@ const G = [
   { key: "rightsize", label: "Right-size at renewal", tone: "warn", min: 40, hint: "40–79% idle. Some people use it. Reclaim the idle seats and keep the rest." },
   { key: "healthy", label: "Healthy adoption", tone: "good", min: 0, hint: "Under 40% idle. Listed for the idle tail only." },
 ];
-const NOT_SEATS = { key: "notseat", label: "Agents, helpers, and shortcuts", tone: "neutral", hint: "Opened by the system, not by people. Not counted as seats." };
+const NOT_SEATS = { key: "notseat", label: "IT tools, helpers, and shortcuts", tone: "neutral", hint: "Opened by the system, not by people. Not counted as seats." };
 let shown = new Set(["remove", "rightsize", "healthy"]);
 let vendorFilter = "";
 let query = "";
@@ -125,11 +125,11 @@ function render() {
     h("div", {}, h("div", { class: "eyebrow" }, `Seats unused ${DATA.idle_days}+ days`),
       h("div", { class: "big" }, h("b", {}, fmt.n(idle)), h("span", {}, `of ${fmt.n(total)} installed`))),
     h("div", { class: "hero-mid" },
-      h("p", { class: "lede" }, total ? [h("span", { class: p >= 40 ? "hl-bad" : "hl-good" }, `${fmt.pct(p)} of installed app seats`),
+      h("p", { class: "lede" }, total ? [h("span", {}, `${fmt.pct(p)} of installed app seats`),
         ` haven't been opened in ${DATA.idle_days} days, across ${fmt.plural(seats.filter((a) => a.idle).length, "app")}.`] : "No app usage data in this fleet."),
       h("p", { class: "support" }, total ? `${fmt.n(never)} of those have no open on record at all. ${fmt.plural(nGroup("remove"), "app")} on ${DATA.min_installs}+ ${nounWord(true)} ${nGroup("remove") === 1 ? "is" : "are"} idle on 80% or more of the ${nounWord(true)} that have ${nGroup("remove") === 1 ? "it" : "them"}.` : "")),
     h("div", { class: "rail" }, h("div", { class: "eyebrow" }, "Most idle apps"),
-      top3.length ? top3.map((a) => h("div", { class: "rail-row" }, h("span", {}, a.name), h("b", {}, `${fmt.n(a.idle)} of ${fmt.n(a.installs)}`))) : h("span", { class: "support" }, "—")));
+      top3.length ? top3.map((a) => h("div", { class: "rail-row" }, h("span", {}, a.name), h("b", {}, `${fmt.n(a.idle)} of ${fmt.n(a.installs)}`))) : h("span", { class: "support" }, "---")));
 
   const stat = (k, v, s) => h("div", { class: "stat" }, h("span", { class: "k" }, k), h("span", { class: "v" }, v), h("span", { class: "s" }, s));
   mount("stats",

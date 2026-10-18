@@ -6,7 +6,7 @@
 <style>
 /*__BASE_CSS__*/
 .act-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
-.sig { display: flex; flex-direction: column; gap: 2px; font-size: 12.5px; color: var(--ink-2); }
+.sig { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--ink-2); }
 </style>
 
 <div class="wrap">
@@ -45,17 +45,17 @@
     <summary>How this is measured</summary>
     <div class="cols">
       <div>
-        <p><strong>Who's counted:</strong> computers that checked in to Fleet in the last 30 days. Ones that haven't are listed under "Not checking in" and aren't scored, since their data is stale. Virtual machines and cloud servers are listed separately and aren't scored either.</p>
-        <p><strong>Age:</strong> on a Mac, the model year in its marketing name (for example "MacBook Pro (16-inch, 2021)"). Otherwise, the CPU's release year. A computer can't be newer than its CPU, so this is the youngest it could be.</p>
-        <p><strong>Old CPU:</strong> <span id="gen-note"></span></p>
+        <p><span class="term">Who's counted:</span> computers that checked in to Fleet in the last 30 days. Ones that haven't are listed under "Not checking in" and aren't scored, since their data is stale. Virtual machines and cloud servers are listed separately and aren't scored either.</p>
+        <p><span class="term">Age:</span> on a Mac, the model year in its marketing name (for example "MacBook Pro (16-inch, 2021)"). Otherwise, the CPU's release year. A computer can't be newer than its CPU, so this is the youngest it could be.</p>
+        <p><span class="term">Old CPU:</span> <span id="gen-note"></span></p>
       </div>
       <div>
-        <p><strong>Memory strain (macOS only):</strong> from the <code>DEX - Hardware experience - Device health</code> report. Its swap tier counts swap-ins since the last restart, so a long uptime alone pushes it to "severe." A day counts as strained only when swap is severe within 7 days of a restart, or elevated within 2 days. Strain is sustained when at least 5 days were recorded and half of them, and at least 3, were strained.</p>
-        <p><strong>Battery (macOS and Windows):</strong> needs service when Fleet reports "Service recommended," or on a Mac when capacity is under 60% of design. Degraded (60–80%, Macs only) is a watch signal.</p>
+        <p><span class="term">Memory strain (macOS only):</span> from the <code>DEX - Hardware experience - Device health</code> report. Its swap tier counts swap-ins since the last restart, so a long uptime alone pushes it to "severe." A day counts as strained only when swap is severe within 7 days of a restart, or elevated within 2 days. Strain is sustained when at least 5 days were recorded and half of them, and at least 3, were strained.</p>
+        <p><span class="term">Battery (macOS and Windows):</span> needs service when Fleet reports "Service recommended," or on a Mac when capacity is under 60% of design. Degraded (60–80%, Macs only) is a watch signal.</p>
       </div>
       <div>
-        <p><strong>Verdicts:</strong> an old CPU plus a battery that needs service, sustained strain, or Windows 10 makes a refresh candidate. Battery service on a newer CPU is a repair. Sustained strain or Windows 10 on a newer CPU means investigate. A signal that isn't sustained yet is "Watch." An old CPU with no signals is "Defer OK."</p>
-        <p><strong>Warranty:</strong> the <code id="vital-name"></code> custom host vital, when it's set.</p>
+        <p><span class="term">Verdicts:</span> an old CPU plus a battery that needs service, sustained strain, or Windows 10 makes a refresh candidate. Battery service on a newer CPU is a repair. Sustained strain or Windows 10 on a newer CPU means investigate. A signal that isn't sustained yet is "Watch." An old CPU with no signals is "Defer OK."</p>
+        <p><span class="term">Warranty:</span> the <code id="vital-name"></code> custom host vital, when it's set.</p>
       </div>
     </div>
   </details>
@@ -109,7 +109,7 @@ function signals(m) {
   return out;
 }
 function warrantyText(m) {
-  if (m.warranty_days == null) return { main: "—", sub: "" };
+  if (m.warranty_days == null) return { main: "---", sub: "" };
   const d = m.warranty_days;
   const sub = d < 0 ? `ended ${fmt.ago(-d)}` : d === 0 ? "ends today" : `${fmt.plural(d, "day")} left`;
   return { main: fmt.date(m.warranty), sub, tone: d < 0 ? "bad" : d <= 90 ? "warn" : null };
@@ -166,10 +166,10 @@ function render() {
   const stat = (k, v, s) => h("div", { class: "stat" }, h("span", { class: "k" }, k), h("span", { class: "v" }, v), h("span", { class: "s" }, s));
   mount("stats",
     stat(`Active ${nounWord(true)}`, fmt.n(active.length), `${fmt.n(devs.length)} in Fleet`),
-    stat("Median age", ages.length ? `${quantile(ages, 0.5)} yr` : "—", `oldest ${ages.length ? Math.max(...ages) : "—"} yr`),
+    stat("Median age", ages.length ? `${quantile(ages, 0.5)} yr` : "---", `oldest ${ages.length ? Math.max(...ages) : "---"} yr`),
     stat("Old CPUs", fmt.n(old.length), `${fmt.pct(pct(old.length, active.length))} of active`),
     stat("16 GB or less", fmt.n(active.filter((m) => m.ram && m.ram <= 16).length), `${fmt.n(active.filter((m) => m.ram && m.ram <= 8).length)} at 8 GB or less`),
-    stat("Warranty ended", withW.length ? fmt.n(expired) : "—", withW.length ? `${fmt.n(soon)} end in 90 days` : "no warranty data"),
+    stat("Warranty ended", withW.length ? fmt.n(expired) : "---", withW.length ? `${fmt.n(soon)} end in 90 days` : "no warranty data"),
     stat("Not checking in", fmt.n(count("stale")), `${DATA.stale_days}+ days silent`));
 
   document.getElementById("who-hint").textContent = `${fmt.n(active.length)} active, colored by verdict`;
@@ -226,14 +226,14 @@ function render() {
       m.battery_pct != null ? `${Math.round(m.battery_pct)}%` : m.battery_fleet, signals(m).join("; "), m.warranty, m.seen_days, hostUrl(m.id)]),
   ])));
   const columns = [
-    { key: "name", label: nounWord(false), value: (m) => m.name.toLowerCase(), cell: (m) => [hostLink(m.id, m.name),
+    { key: "name", label: PLATFORM === "macos" ? "Mac" : "Computer", value: (m) => m.name.toLowerCase(), cell: (m) => [hostLink(m.id, m.name),
       h("div", { class: "cell-sub" }, PLATFORM ? m.fleet : `${platformLabel(m.p)} · ${m.fleet}`)] },
-    { key: "model", label: "Model and CPU", value: (m) => m.model, cell: (m) => [h("div", {}, m.model || "—"),
+    { key: "model", label: "Model and CPU", value: (m) => m.model, cell: (m) => [h("div", {}, m.model || "---"),
       h("div", { class: "cell-sub" }, [m.chip, cpuAge(m)].filter(Boolean).join(" · "))] },
-    { key: "age", label: "Age", num: true, value: (m) => m.age, cell: (m) => (m.age == null ? "—" : `${m.age} yr`) },
-    { key: "ram", label: "RAM", num: true, value: (m) => m.ram, cell: (m) => (m.ram ? `${m.ram} GB` : "—") },
+    { key: "age", label: "Age", num: true, value: (m) => m.age, cell: (m) => (m.age == null ? "---" : `${m.age} yr`) },
+    { key: "ram", label: "RAM", num: true, value: (m) => m.ram, cell: (m) => (m.ram ? `${m.ram} GB` : "---") },
     { key: "battery", label: "Battery", num: true, value: (m) => m.battery_pct ?? (m.battery_fleet ? (m.battery_service ? 0 : 100) : null), cell: (m) => {
-      if (m.battery_pct == null && !m.battery_fleet) return "—";
+      if (m.battery_pct == null && !m.battery_fleet) return "---";
       return [h("div", {}, m.battery_pct != null ? `${Math.round(m.battery_pct)}%` : m.battery_fleet),
         h("div", { class: "cell-sub" }, m.battery_cycles != null ? `${fmt.n(m.battery_cycles)} cycles` : "")];
     } },
