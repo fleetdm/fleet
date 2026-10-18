@@ -14,8 +14,8 @@
   --ui-off-white: #f9fafc;
   --tooltip-bg: #3e4771;
   --tooltip-ink: #ffffff;
-  /* Chart and status marks: Fleet's status colors, with the warning amber
-     darkened so all five stay distinct for color-blind readers. */
+  /* Chart and status marks: Fleet's status colors, with the red and amber
+     deepened so every pair stays distinct for color-blind readers. */
   --bad: #c94f63;
   --serious: #ae6ddf;
   --warn: #b5810c;
