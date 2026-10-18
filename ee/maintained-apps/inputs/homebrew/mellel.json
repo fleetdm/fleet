@@ -1,10 +1,14 @@
 {
   "name": "Mellel",
-  "unique_identifier": "com.redlex.mellel6",
+  "unique_identifier": "com.redlex.mellel.mac",
   "token": "mellel",
   "installer_format": "dmg",
   "slug": "mellel/darwin",
   "default_categories": [
     "Productivity"
+  ],
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/mellel-install.sh",
+  "pre_uninstall_scripts": [
+    "quit_application 'com.redlex.mellel6'"
   ]
 }
