@@ -28,7 +28,7 @@
   <div class="title-row">
     <div>
       <h1>Patch velocity</h1>
-      <p class="subtitle">How fast new versions reach every computer, and which apps and computers fall behind. Covers OS updates and third-party apps on macOS and Windows, from Fleet's software inventory. Linux isn't covered yet.</p>
+      <p class="subtitle">How fast new versions reach every computer, and which apps and computers fall behind. Covers OS updates and third-party apps on macOS, Windows, and Linux, from Fleet's software inventory.</p>
     </div>
   </div>
   <section class="hero" id="hero" aria-label="Summary"></section>
@@ -99,7 +99,7 @@
         <p><span class="term">Newest version:</span> the highest version that at least two computers run, so a lone test build doesn't count. macOS betas (builds ending in a letter) and Windows Insider builds are left out, and computers running one count as current.</p>
       </div>
       <div>
-        <p><span class="term">Scope:</span> on macOS, the OS plus third-party apps in <code>/Applications</code>. On Windows, the OS build within each release (for example 25H2) plus third-party programs. Apple's and Microsoft's own apps and components update on their own schedule and are left out, as are helpers and installers. Linux isn't covered yet. Computers that haven't checked in for <span id="stale-days"></span> days are left out of the version counts.</p>
+        <p><span class="term">Scope:</span> on macOS, the OS plus third-party apps in <code>/Applications</code>. On Windows, the OS build within each release (for example 25H2) plus third-party programs. On Linux, the point release within each distribution release (for example Ubuntu 24.04.5 within 24.04) plus apps whose vendors ship their own Linux packages, such as Chrome, VS Code, Slack, and Zoom. Apps the distribution builds, such as LibreOffice and Ubuntu's Firefox, update with the OS and aren't timed on their own. Kernels aren't timed either, since a new kernel only runs after a restart. Apple's and Microsoft's own apps and components update on their own schedule and are left out, as are helpers and installers. Computers that haven't checked in for <span id="stale-days"></span> days are left out of the version counts.</p>
         <p><span class="term">Target:</span> <span id="sla"></span> days from release to install. Medians are used because patch times have a long tail.</p>
       </div>
     </div>
@@ -301,8 +301,13 @@ function render() {
     levers.push({ t: `Get the ${noun(heavy.length)} behind on 10+ apps up to date`, e: `${heavy.length === 1 ? "It holds" : "Together they hold"} ${fmt.pct(share)} of all outdated installs. A restart and an update pass usually clears most of it.`, x: fmt.pct(share), s: "of outdated installs" });
   }
   for (const t of osTs.filter((t) => t.pct < 90).slice(0, 2)) {
+    const behind = `${fmt.n(t.installs - t.on)} of ${noun(t.installs)} run an older`;
+    if (t.p === "linux") {
+      levers.push({ t: `Bring ${t.name} up to ${t.newest}`, e: `${behind} point release. Fleet can't set OS update deadlines on Linux, but a policy that runs an update script on computers that fall behind does the same job.`, x: fmt.pct(t.pct), s: "on the newest release" });
+      continue;
+    }
     const label = t.name === "macOS" ? `macOS ${t.newest}` : `${t.name} build ${t.newest}`;
-    levers.push({ t: `Set a deadline for ${label}`, e: `${fmt.n(t.installs - t.on)} of ${noun(t.installs)} run an older build. A deadline in Fleet's OS updates settings makes the update mandatory.`, x: fmt.pct(t.pct), s: "on the newest build" });
+    levers.push({ t: `Set a deadline for ${label}`, e: `${behind} build. A deadline in Fleet's OS updates settings makes the update mandatory.`, x: fmt.pct(t.pct), s: "on the newest build" });
   }
   mount("levers", levers.length ? levers.map((l) => h("div", { class: "lever" }, h("span", { class: "t" }, l.t), h("span", { class: "e" }, l.e), h("span", { class: "x" }, l.x, h("span", {}, l.s))))
     : empty("Nothing stands out", "Every app and computer is close to current."));
@@ -314,6 +319,6 @@ function render() {
 }
 
 document.getElementById("app-search").addEventListener("input", (e) => { query = e.target.value; render(); });
-renderTop(fleets, render, platformCounts, { linux: "Linux isn't covered yet" });
+renderTop(fleets, render, platformCounts);
 render();
 </script>

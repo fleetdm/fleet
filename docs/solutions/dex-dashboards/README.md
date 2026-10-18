@@ -1,6 +1,6 @@
 # DEX dashboards
 
-Scripts that build three dashboards from the Fleet API: Hardware lifecycle and Software usage (macOS, Windows, and Linux), and Patch velocity (macOS and Windows). A daily Claude Code routine runs them and publishes each dashboard as a private claude.ai Artifact. To set them up, follow the guide: [Build DEX dashboards with Fleet and Claude](https://fleetdm.com/guides/build-dex-dashboards-with-fleet-and-claude).
+Scripts that build three dashboards from the Fleet API for macOS, Windows, and Linux: Hardware lifecycle, Software usage, and Patch velocity. A daily Claude Code routine runs them and publishes each dashboard as a private claude.ai Artifact. To set them up, follow the guide: [Build DEX dashboards with Fleet and Claude](https://fleetdm.com/guides/build-dex-dashboards-with-fleet-and-claude).
 
 | File | What it does |
 |:--|:--|

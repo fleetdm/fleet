@@ -90,6 +90,14 @@ LINUX_DESKTOP_APPS = {
     "keepassxc": ("KeePassXC", "KeePassXC"), "github-desktop": ("GitHub Desktop", "GitHub"),
     "warp-terminal": ("Warp", "Warp"), "claude-desktop": ("Claude", "Anthropic"),
 }
+# Linux apps whose vendors ship their own packages, so a version means the same
+# thing on every distribution. The distribution's own builds (LibreOffice, VLC,
+# Ubuntu's Firefox snap wrapper) update with the OS, so Patch velocity skips them.
+LINUX_VENDOR_PACKAGES = {
+    "google-chrome-stable", "microsoft-edge-stable", "brave-browser", "code", "cursor", "sublime-text",
+    "slack-desktop", "zoom", "teams-for-linux", "1password", "docker-desktop", "spotify-client", "discord",
+    "signal-desktop", "dbeaver-ce", "obsidian", "insomnia", "warp-terminal", "github-desktop", "claude-desktop",
+}
 VENDOR_NAMES = {
     "microsoft": "Microsoft", "adobe": "Adobe", "google": "Google", "jetbrains": "JetBrains",
     "docker": "Docker", "tinyspeck": "Slack", "zoom": "Zoom", "agilebits": "1Password",
@@ -520,14 +528,27 @@ def windows_os(os_version):
     return (f"{m.group(1)} {m.group(2)}" if m.group(2) else m.group(1)), m.group(3)
 
 
+def linux_os(os_version):
+    """('Ubuntu 24.04', '24.04.5'): the point release within a distribution release."""
+    m = re.match(r"(.+?)\s+(\d+(?:\.\d+)*)", os_version)
+    if not m:
+        return None
+    name, ver = m.group(1), m.group(2)
+    # Ubuntu-style versions are YY.MM, so the release is the first two parts.
+    parts = ver.split(".")[:2] if re.search(r"ubuntu|pop|nixos", name, re.I) else ver.split(".")[:1]
+    return f"{name} {'.'.join(parts)}", ver
+
+
 def patch_titles(snap, hid, h):
-    """Version per tracked title for one host: apps plus the OS. macOS and Windows only."""
+    """Version per tracked title for one host: apps plus the OS."""
     out = {}
     plat = platform_of(h)
-    if plat not in ("macos", "windows"):
+    if not plat:
         return out
     for key, (name, ver, vend, last, bid) in tracked_apps(snap, hid, plat).items():
         if app_kind(name, bid) == "support":
+            continue
+        if plat == "linux" and key.removeprefix("linux:") not in LINUX_VENDOR_PACKAGES:
             continue
         out[("app:" + key) if plat == "macos" else key] = (name, ver)
     osv = h.get("os_version") or ""
@@ -535,6 +556,8 @@ def patch_titles(snap, hid, h):
         out["os:macOS"] = ("macOS", osv.replace("macOS ", "").strip())
     elif plat == "windows" and (w := windows_os(osv)):
         out["os:" + w[0]] = w
+    elif plat == "linux" and (lx := linux_os(osv)):
+        out["os:" + lx[0]] = lx
     return out
 
 
