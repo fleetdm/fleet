@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.2.64",
+      "version": "2.2.65",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.sync.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.sync.desktop' AND version_compare(bundle_short_version, '2.2.64') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.sync.desktop' AND version_compare(bundle_short_version, '2.2.65') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.sync.desktop' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://www10.sync.com/download/apple/Sync-2.2.64.dmg",
+      "installer_url": "https://www10.sync.com/download/apple/Sync-2.2.65.dmg",
       "install_script_ref": "d5fae86b",
       "uninstall_script_ref": "9e03f5af",
-      "sha256": "64def80e4fc8ff46bf6359010d5bf88685d11ff0542052bc3e94f83a3497a072",
+      "sha256": "a6b40a453eb3417b9d362a6c705900933b9ef849e6c3ba50ccf83a9ad67ebad7",
       "default_categories": [
         "Productivity"
       ]
