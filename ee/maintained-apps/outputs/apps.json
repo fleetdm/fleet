@@ -8388,6 +8388,13 @@
       "description": "SuperCollider is a server, language, and IDE for sound synthesis and algorithmic composition."
     },
     {
+      "name": "Superhuman Docs",
+      "slug": "superhuman-docs/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.superhuman.CodaApp.Desktop",
+      "description": "Superhuman Docs is a desktop client for team documents."
+    },
+    {
       "name": "Superhuman",
       "slug": "superhuman/darwin",
       "platform": "darwin",
