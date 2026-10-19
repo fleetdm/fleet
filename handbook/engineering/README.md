@@ -151,7 +151,7 @@ Because of this shift, the review effort for any change is the same regardless o
 
 The goal is to not go more than one business day without responding to the contributor and routing the PR to the right team. This applies to PRs from Fleeties, open source contributors, members of the Customer Success team, etc.
 
-1. **On-call triage**: All community PRs are first reviewed by the on-call engineer, who routes the PR to the appropriate product group's EM. Internal Fleeties who already know the owning team can go directly to the EM.
+1. **On-call triage**: All community PRs are first reviewed by the on-call engineer, who assigns the PR to the owning product group's EM or Product Designer (PD). The on-call engineer decides who to assign. An assigned PR has been triaged, and an unassigned PR is still waiting for triage. Internal Fleeties who already know the owning team can assign the EM or PD directly.
 
 2. **Classification** (EM): The Engineering Manager (EM) of the owning product group determines what type of change this is: bug fix, reliability improvement, product change, or something else.
 
