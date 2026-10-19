@@ -1,0 +1,8 @@
+{
+  "name": "Homebrew",
+  "unique_identifier": "sh.brew.app",
+  "token": "homebrew-app",
+  "installer_format": "zip",
+  "slug": "homebrew-app/darwin",
+  "default_categories": ["Developer tools"]
+}

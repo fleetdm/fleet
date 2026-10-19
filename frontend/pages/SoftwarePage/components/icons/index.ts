@@ -24,6 +24,7 @@ import Extension from "./Extension";
 import Falcon from "./Falcon";
 import Figma from "./Figma";
 import GoBinary from "./GoBinary";
+import Homebrew from "./png/Homebrew.png";
 import IntuneCompanyPortal from "./IntuneCompanyPortal";
 import iOS from "./iOS";
 import iPadOS from "./iPadOS";
@@ -1665,6 +1666,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   highlight: HighlightAi,
   hive: HiveApp,
   "home assistant": HomeAssistant,
+  homebrew: Homebrew,
   homerow: Homerow,
   hot: Hot,
   houdahspot: Houdahspot,
