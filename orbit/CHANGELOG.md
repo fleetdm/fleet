@@ -4,45 +4,43 @@
 
 * Updated Go to 1.27.1.
 
-* Fixed fleetd silently removing the BitLocker startup PIN or USB startup key requirement from a Windows host when it rotated the host's recovery key. Rotation added a TPM-only protector even when the volume already had a TPM and PIN protector, or an external startup key, and the added protector unlocked the volume at startup without the PIN or the USB key. fleetd now adds a TPM protector only when the volume has no protector that can already unlock it at startup.
-* Fixed fleetd ignoring a paused BitLocker encryption or decryption on a Windows host. fleetd now resumes a paused encryption, and reports a paused decryption to Fleet so the reason appears in the host's disk encryption details.
-* Fixed fleetd ignoring a Windows volume whose BitLocker startup protectors had been deleted while protection stayed on. fleetd now adds a protector that can unlock the disk at startup.
+* Added the following fixes and improvements to the BitLocker functionality:
+  * Added support for Windows end users without local admin rights to create the BitLocker startup PIN their fleet requires. fleetd applies the PIN submitted on the My device page, replaces the volume's TPM-only protector with a TPM and PIN protector, and reports the result to Fleet. Fleet Desktop shows a Windows notification with a Create PIN button when a PIN is needed.
+  * Fixed fleetd silently removing the BitLocker startup PIN or USB startup key requirement from a Windows host when it rotated the host's recovery key. Rotation added a TPM-only protector even when the volume already had a TPM and PIN protector, or an external startup key, and the added protector unlocked the volume at startup without the PIN or the USB key. Fleetd now adds a TPM protector only when the volume has no protector that can already unlock it at startup.
+  * Fixed fleetd ignoring a paused BitLocker encryption or decryption on a Windows host. Fleetd now resumes a paused encryption, and reports a paused decryption to Fleet so the reason appears in the host's disk encryption details.
+  * Fixed fleetd ignoring a Windows volume whose BitLocker startup protectors had been deleted while protection stayed on. Fleetd now adds a protector that can unlock the disk at startup.
+  * Fixed a Windows host taking up to an hour to report its disk encryption as verified after Fleet escrowed its BitLocker recovery key, which most often affected hosts migrating from another MDM. fleetd waited an hour after each successful encryption, key rotation, or escrow before it would act again, so a host whose state changed shortly afterwards sat at "Enforcing" until the wait elapsed or the host restarted. The wait is now five minutes, and fleetd logs when it is waiting.
 
 * Extended the `executable_hashes` table to hash Mach-O executable files, not only app bundles. A new `path_type` column reports `bundle` or `file`, a new `hash_state` column reports `hashed`, `deferred` or `unavailable`, `executable_path` resolves symlinks for files, and files that are not Mach-O executables return no row. Hashes are cached per file on inode, size and change time, symlinks and hard links to one file are hashed once, the bytes hashed per run are capped (queries within ten minutes share one cap) so a large tree is hashed over several runs while app bundles are always hashed, a file the cap deferred still returns a row with `hash_state` `deferred` and an empty hash so the rows for a path are the complete set of Mach-O files it holds, and an unreadable file no longer fails the whole query: a Mach-O file that cannot be read returns no row, and an app bundle whose executable cannot be read still returns its row with an empty hash.
 
-* Fixed orbit on Windows not switching back to a previously downloaded version when the `orbit` update channel is changed back to it (e.g. `stable` -> `1.52.1` -> `stable`). The symlink is now updated even when the binary for the channel is already cached locally.
+* Fixed orbit on Windows not switching back to a previously downloaded version when the `orbit` update channel was changed back to it (e.g. `stable` -> `1.52.1` -> `stable`). The symlink is now updated even when the binary for the channel is already cached locally.
 
 * Fixed fleetd crashing on Windows ARM64 hosts when the `windows_updates` or `windows_update_history` tables were queried. The go-ole dependency converted OLE dates with a syscall whose ARM64 calling convention was wrong, so any pending update with a date caused an access violation that killed orbit and osqueryd. Dates are now converted in pure Go.
 
-* Fixed the `santa_status` table running `/usr/local/bin/santactl` as root, which let a user who can write to `/usr/local/bin` run code as root. The table now runs the binary inside `/Applications/Santa.app`.
-
-* Added support for Windows end users without local admin rights to create the BitLocker startup PIN their fleet requires. fleetd applies the PIN submitted on the My device page, replaces the volume's TPM-only protector with a TPM and PIN protector, and reports the result to Fleet. Fleet Desktop shows a Windows notification with a Create PIN button when a PIN is needed.
-
-* Added `apfs_crypto_users` table (macOS) to report APFS cryptographic users, including Secure Token / volume-owner status, so admins can find hosts where no local user owns the volume.
-
-* Updated github.com/apache/thrift from 0.23.0 to 0.24.0.
+* Fixed the `santa_status` table to run the binary inside `/Applications/Santa.app`.
 
 * Added a `sentinelone` table to fleetd, reporting the local SentinelOne agent's version, operational state, protection status, daemon health, and management console connection from `sentinelctl status` on macOS, Windows, and Linux. Hosts without SentinelOne installed return no rows.
 
+* Added the `apfs_crypto_users` table (macOS) to report APFS cryptographic users, including Secure Token / volume-owner status, so admins can find hosts where no local user owns the volume.
+
+* Updated github.com/apache/thrift from 0.23.0 to 0.24.0.
+
 * Added a `netskope` table to fleetd, reporting the local Netskope client's version, client and tunnel status, steering configuration, and tenant from `nsdiag -f` on macOS, Windows, and Linux. The table always returns one row: hosts without the client report `client_installed` as 0, and hosts where the client is installed but its state could not be read report why in the `error` column.
 
-* Fixed a Windows host taking up to an hour to report its disk encryption as verified after Fleet escrowed its BitLocker recovery key, which most often affected hosts migrating from another MDM. fleetd waited an hour after each successful encryption, key rotation, or escrow before it would act again, so a host whose state changed shortly afterwards sat at "Enforcing" until the wait elapsed or the host restarted. The wait is now five minutes, and fleetd logs when it is waiting.
+* Fixed Orbit to always save a downloaded software installer using only the base name of the server-supplied filename.
 
-* Fixed Orbit so a downloaded software installer is always saved using only the base of the server-supplied filename.
+* Added the following fixes and improvements to the `ai_tools` table:
+  * Reduced the cost of the `ai_tools` table so it can run hourly on every host: network connections are enumerated only when a socket or a process-derived MCP server needs them (no `lsof` on macOS for inventory queries), per-process fields are read on first use, and agent binary hashes are cached while the binary is unchanged.
+  * Changed the table to walk each user's home once for MCP configs, instruction files, frameworks and workspaces, reading each directory's listing instead of probing files one by one.
+  * Changed the per-value calls osquery makes for an `ai_tools` query with a `type IN (...)` list to share one home enumeration, process snapshot and walk.
+  * Updated agent rows to report the version of Claude Code and Cursor Agent installed by their native installers, and to report the installed binary instead of the bin-directory link in `path` (the link stays in `detail.binary_path`).
+  * Fixed the table reporting Claude Code's `~/.claude` folder as a second `claude-code` agent once it contained skills.
+  * Fixed framework detection missing Python dependencies written with a version specifier, extras or environment marker, and added `requirements.txt` as a source.
+  * Fixed the table reporting project instruction files, MCP configs and agent candidates twice on case-insensitive filesystems (once under `~/Projects` and once under `~/projects`).
 
-* Reduced the cost of the `ai_tools` table so it can run hourly on every host: network connections are enumerated only when a socket or a process-derived MCP server needs them (no `lsof` on macOS for inventory queries), per-process fields are read on first use, and agent binary hashes are cached while the binary is unchanged.
-* `ai_tools` now walks each user's home once for MCP configs, instruction files, frameworks and workspaces, reading each directory's listing instead of probing files one by one.
-* The per-value calls osquery makes for an `ai_tools` query with a `type IN (...)` list now share one home enumeration, process snapshot and walk.
-* `ai_tools` agent rows now report the version of Claude Code and Cursor Agent installed by their native installers, report the installed binary instead of the bin-directory link in `path` (the link stays in `detail.binary_path`).
-* Fixed `ai_tools` reporting Claude Code's `~/.claude` folder as a second `claude-code` agent once it contained skills.
-* Fixed `ai_tools` framework detection missing Python dependencies written with a version specifier, extras or environment marker, and added `requirements.txt` as a source.
-* Fixed `ai_tools` reporting project instruction files, MCP configs and agent candidates twice on case-insensitive filesystems (once under `~/Projects` and once under `~/projects`).
+* Changed Fleet Desktop for Linux (amd64) to build as a pure Go static binary (`CGO_ENABLED=0`) instead of a musl/cgo build inside a Docker image. The arm64 build was already pure Go, so it is unchanged. The binary still has no libc dependency and runs on Ubuntu 20.04 and newer; the only runtime difference is that name resolution uses Go's built-in resolver rather than musl's.
 
-* Fleet Desktop for Linux (amd64) is now built as a pure Go static binary (`CGO_ENABLED=0`) instead of a musl/cgo build inside a Docker image. The arm64 build was already pure Go, so it is unchanged. The binary still has no libc dependency and runs on Ubuntu 20.04 and newer; the only runtime difference is that name resolution uses Go's built-in resolver rather than musl's.
-
-* Updated Go to 1.26.8.
-
-* fleetd now tells Fleet servers that support it when the Linux disk encryption passphrase prompt is dismissed or times out, so the end user can select "Create key" again right away instead of waiting out the retry window. It also keeps the request marked as in progress through passphrase retries and key creation, and reports failures that happen before the prompt (missing cryptsetup, no dialog tool, root disk not found) so they show up in Fleet instead of leaving the request hanging.
+* Updated fleetd to tell Fleet servers that support it when the Linux disk encryption passphrase prompt is dismissed or times out, so the end user can select "Create key" again right away instead of waiting out the retry window. Also updated fleetd to keep the request marked as in progress through passphrase retries and key creation, and to report failures that happen before the prompt (missing cryptsetup, no dialog tool, root disk not found) so they show up in Fleet instead of leaving the request hanging.
 
 ## 1.61.0 (Sep 14, 2026)
 
