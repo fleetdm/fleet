@@ -961,7 +961,8 @@ def build_ai(snap, hist):
     return {
         "generated_at": snap["generated_at"], "fleet_url": snap["fleet_url"], "history_since": hist["since"],
         "windows": AI_WINDOWS, "stale_days": STALE_DAYS,
-        "source": {"report": ai.get("report"), "clipped": bool(ai.get("clipped")), "reported": len(reported)},
+        "source": {"report": ai.get("report"), "clipped": bool(ai.get("clipped")), "reported": len(reported),
+                   "per_host": ai.get("per_host", 0)},
         "hosts": {hid: {**host_map(hosts, [hid])[hid], "r": int(hid in reported)} for hid in ids},
         "products": out_products, "mcp": out_mcp, "findings": findings,
         "instructions": [{"tool": tool, "h": [[int(hid), n] for hid, n in hs.items()]}

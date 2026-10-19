@@ -123,7 +123,7 @@ def report_rows(fleet, fleets, name):
 
 
 def ai_tools(fleet, fleets):
-    """Each host's ai_tools rows, from the one-row-per-host report when it exists."""
+    """Each host's ai_tools rows, from the one-row-per-host report where it has a row."""
     hosts = {}
     for hid, r in report_rows(fleet, fleets, AI_TOOLS_REPORT).items():
         try:
@@ -131,9 +131,10 @@ def ai_tools(fleet, fleets):
         except ValueError:
             tools = []
         hosts[str(hid)] = {"last_fetched": r.get("last_fetched"), "tools": tools}
-    if hosts:
-        return {"report": AI_TOOLS_REPORT, "clipped": False, "hosts": hosts}
+    per_host = set(hosts)
 
+    # The per-tool report fills in hosts the per-host report hasn't heard from,
+    # such as while a newly added per-host report is still collecting.
     clipped, seen = False, set()
     for scope in [{}] + [{"fleet_id": f["id"]} for f in fleets]:
         d = fleet.get("/api/v1/fleet/reports", {**scope, "per_page": 500, "query": AI_TOOLS_ROWS_REPORT}) or {}
@@ -144,10 +145,14 @@ def ai_tools(fleet, fleets):
             rep = fleet.get(f"/api/v1/fleet/reports/{r['id']}/report")
             clipped = clipped or bool(rep.get("report_clipped"))
             for row in rep.get("results") or []:
-                h = hosts.setdefault(str(row.get("host_id")), {"last_fetched": row.get("last_fetched"), "tools": []})
+                hid = str(row.get("host_id"))
+                if hid in per_host:
+                    continue
+                h = hosts.setdefault(hid, {"last_fetched": row.get("last_fetched"), "tools": []})
                 h["last_fetched"] = max(h["last_fetched"] or "", row.get("last_fetched") or "")
                 h["tools"].append({AI_ROWS_COLUMNS.get(k, k): v for k, v in (row.get("columns") or {}).items()})
-    return {"report": AI_TOOLS_ROWS_REPORT if hosts else None, "clipped": clipped, "hosts": hosts}
+    report = AI_TOOLS_REPORT if per_host else AI_TOOLS_ROWS_REPORT if hosts else None
+    return {"report": report, "clipped": clipped and not per_host, "per_host": len(per_host), "hosts": hosts}
 
 
 def main():

@@ -229,6 +229,8 @@ function render() {
       h("span", {}, "Add the DEX - AI governance - AI tools per host report to Fleet. It needs fleetd 1.59.0 or later on each computer."))
     : src.clipped ? h("div", { class: "notice" }, h("b", {}, `Fleet kept only part of the AI tools report: ${fmt.n(c.reported.length)} of ${noun(c.hostsInView.length)} reported.`),
       h("span", {}, "Fleet stores up to 1,000 rows per report. Add the DEX - AI governance - AI tools per host report, which sends one row per computer, so every computer counts."))
+    : src.per_host && src.per_host < src.reported ? h("div", { class: "notice" }, h("b", {}, `The per-host AI report has reached ${fmt.n(src.per_host)} of ${fmt.n(src.reported)} computers so far.`),
+      h("span", {}, "The rest come from the older per-tool report until the per-host report runs on them. It runs hourly on computers that are awake."))
     : null);
 
   // Summary
