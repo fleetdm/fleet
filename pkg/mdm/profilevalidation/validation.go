@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -15,8 +16,25 @@ import (
 //go:embed outputs/profile_schema.json
 var profileValidationSchemaRaw []byte
 
-// ProfileValidation holds the parsed profile validation schema. It is populated by calling ParseProfileValidationSchema().
-var ProfileValidation *ProfileValidationSchema
+// current holds the schema in use. It starts as the embedded copy (see ParseProfileValidationSchema)
+// and can be swapped for a newer one with Replace without touching callers.
+var current atomic.Pointer[ProfileValidationSchema]
+
+// Current returns the schema in use, or nil before ParseProfileValidationSchema has run. A schema is
+// never modified after Parse returns it, so callers may hold on to it across a Replace.
+func Current() *ProfileValidationSchema {
+	return current.Load()
+}
+
+// Replace swaps in a schema obtained from Parse. New Current calls see it; schemas already handed out
+// are unchanged.
+func Replace(s *ProfileValidationSchema) error {
+	if s == nil {
+		return errors.New("replace profile validation schema: nil schema")
+	}
+	current.Store(s)
+	return nil
+}
 
 type ProfileValidationSchema struct {
 	FormatVersion     int                          `json:"format_version"`
@@ -56,16 +74,14 @@ func ParseProfileValidationSchema() error {
 	if len(profileValidationSchemaRaw) == 0 {
 		return errors.New("no embedded profile validation schema found")
 	}
-	if ProfileValidation != nil {
-		// error on multiple calls to see issues, this should only be called, changes should be swapped in place for the parsed schema struct.
-		return errors.New("profile validation schema already parsed")
-	}
-
 	schema, err := Parse(profileValidationSchemaRaw)
 	if err != nil {
 		return fmt.Errorf("parse embedded profile validation schema: %w", err)
 	}
-	ProfileValidation = schema
+	// Error on a second call to surface wiring mistakes; later updates go through Replace.
+	if !current.CompareAndSwap(nil, schema) {
+		return errors.New("profile validation schema already parsed")
+	}
 	return nil
 }
 
@@ -127,4 +143,14 @@ func (s *ProfileValidationSchema) check() error {
 		}
 	}
 	return nil
+}
+
+// AppleProfile returns the .mobileconfig payload type, or nil if the schema doesn't know it.
+func (s *ProfileValidationSchema) AppleProfile(payloadType string) *ApplePayloadType {
+	return s.AppleProfiles[payloadType]
+}
+
+// AppleDeclaration returns the DDM declaration type, or nil if the schema doesn't know it.
+func (s *ProfileValidationSchema) AppleDeclaration(declarationType string) *ApplePayloadType {
+	return s.AppleDeclarations[declarationType]
 }
