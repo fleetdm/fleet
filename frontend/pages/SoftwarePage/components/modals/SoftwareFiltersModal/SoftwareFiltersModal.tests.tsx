@@ -98,7 +98,9 @@ describe("SoftwareFiltersModal component", () => {
     const { user } = setUpModal({
       filters: { ...filtersDefault, minCvssScore: 2 },
     });
-    await user.click(screen.getByRole("switch"));
+    await user.click(
+      screen.getByRole("switch", { name: "Vulnerable software" })
+    );
     expect(screen.getByRole("combobox", { name: "Severity" })).toBeEnabled();
     expect(screen.getByLabelText(/Min score/i)).toBeEnabled();
     expect(screen.getByLabelText(/Max score/i)).toBeEnabled();
@@ -118,7 +120,9 @@ describe("SoftwareFiltersModal component", () => {
 
     const setUpCustom = async () => {
       const rendered = setUpModal();
-      await rendered.user.click(screen.getByRole("switch"));
+      await rendered.user.click(
+        screen.getByRole("switch", { name: "Vulnerable software" })
+      );
       await openAdvanced(rendered.user);
       await selectSeverity(rendered.user, "Custom severity");
       return rendered;
@@ -193,7 +197,9 @@ describe("SoftwareFiltersModal component", () => {
       const onSubmitSpy = jest.fn();
       const rendered = setUpModal({ onSubmit: onSubmitSpy });
       const { user } = rendered;
-      await user.click(screen.getByRole("switch"));
+      await user.click(
+        screen.getByRole("switch", { name: "Vulnerable software" })
+      );
       await openAdvanced(user);
       await selectSeverity(user, "Custom severity");
 
@@ -214,7 +220,9 @@ describe("SoftwareFiltersModal component", () => {
 
       // Disabled fields are never in an error state, and the scores are not
       // submitted while the filter is off.
-      await user.click(screen.getByRole("switch"));
+      await user.click(
+        screen.getByRole("switch", { name: "Vulnerable software" })
+      );
       expect(
         screen.queryByText(SEVERITY_SCORE_RANGE_ERROR)
       ).not.toBeInTheDocument();
@@ -239,7 +247,9 @@ describe("SoftwareFiltersModal component", () => {
   it("calls onSubmit with the correct values when form is valid", async () => {
     const onSubmitSpy = jest.fn();
     const { user } = setUpModal({ onSubmit: onSubmitSpy });
-    await user.click(screen.getByRole("switch"));
+    await user.click(
+      screen.getByRole("switch", { name: "Vulnerable software" })
+    );
     await openAdvanced(user);
     await selectSeverity(user, "Custom severity");
 
@@ -267,7 +277,9 @@ describe("SoftwareFiltersModal component", () => {
   it("submits the bounds of the selected preset", async () => {
     const onSubmitSpy = jest.fn();
     const { user } = setUpModal({ onSubmit: onSubmitSpy });
-    await user.click(screen.getByRole("switch"));
+    await user.click(
+      screen.getByRole("switch", { name: "Vulnerable software" })
+    );
     await openAdvanced(user);
     await selectSeverity(user, "High severity");
 
@@ -292,7 +304,9 @@ describe("SoftwareFiltersModal component", () => {
         maxCvssScore: 8.9,
       },
     });
-    await user.click(screen.getByRole("switch"));
+    await user.click(
+      screen.getByRole("switch", { name: "Vulnerable software" })
+    );
     await selectSeverity(user, "Any severity");
 
     await user.click(screen.getByRole("button", { name: /Apply/i }));
@@ -309,7 +323,9 @@ describe("SoftwareFiltersModal component", () => {
   it("submits a lone 0 minimum rather than clearing the filter", async () => {
     const onSubmitSpy = jest.fn();
     const { user } = setUpModal({ onSubmit: onSubmitSpy });
-    await user.click(screen.getByRole("switch"));
+    await user.click(
+      screen.getByRole("switch", { name: "Vulnerable software" })
+    );
     await openAdvanced(user);
     await selectSeverity(user, "Custom severity");
 
@@ -340,17 +356,18 @@ describe("SoftwareFiltersModal component", () => {
         "chrome{Enter}"
       );
 
-      expect(screen.getByRole("switch")).toHaveAttribute(
-        "aria-checked",
-        "false"
-      );
+      expect(
+        screen.getByRole("switch", { name: "Vulnerable software" })
+      ).toHaveAttribute("aria-checked", "false");
       expect(onSubmitSpy).not.toHaveBeenCalled();
     });
 
     it("applies the filters from a score field without toggling Vulnerable software", async () => {
       const onSubmitSpy = jest.fn();
       const { user } = setUpModal({ onSubmit: onSubmitSpy });
-      await user.click(screen.getByRole("switch"));
+      await user.click(
+        screen.getByRole("switch", { name: "Vulnerable software" })
+      );
       await openAdvanced(user);
       await selectSeverity(user, "Custom severity");
 
@@ -364,17 +381,18 @@ describe("SoftwareFiltersModal component", () => {
     it("keeps validating when a score field submits", async () => {
       const onSubmitSpy = jest.fn();
       const { user } = setUpModal({ onSubmit: onSubmitSpy });
-      await user.click(screen.getByRole("switch"));
+      await user.click(
+        screen.getByRole("switch", { name: "Vulnerable software" })
+      );
       await openAdvanced(user);
       await selectSeverity(user, "Custom severity");
 
       await user.type(screen.getByLabelText(/Min score/i), "11{Enter}");
 
       expect(onSubmitSpy).not.toHaveBeenCalled();
-      expect(screen.getByRole("switch")).toHaveAttribute(
-        "aria-checked",
-        "true"
-      );
+      expect(
+        screen.getByRole("switch", { name: "Vulnerable software" })
+      ).toHaveAttribute("aria-checked", "true");
     });
   });
 
@@ -421,7 +439,9 @@ describe("SoftwareFiltersModal component", () => {
       screen.queryByRole("combobox", { name: "Severity" })
     ).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("switch"));
+    await user.click(
+      screen.getByRole("switch", { name: "Vulnerable software" })
+    );
 
     expect(
       screen.getByRole("combobox", { name: "Severity" })
@@ -431,7 +451,9 @@ describe("SoftwareFiltersModal component", () => {
   it("keeps Advanced collapsed when turning on Vulnerable software with Any severity", async () => {
     const { user } = setUpModal();
 
-    await user.click(screen.getByRole("switch"));
+    await user.click(
+      screen.getByRole("switch", { name: "Vulnerable software" })
+    );
 
     expect(
       screen.queryByRole("combobox", { name: "Severity" })
@@ -443,7 +465,7 @@ describe("SoftwareFiltersModal component", () => {
       screen.queryByRole("switch", { name: "AI tools" });
 
     it("renders above Vulnerable software, off by default", () => {
-      renderModal({ showAiToolFilter: true });
+      renderModal();
 
       const switches = screen.getAllByRole("switch");
       expect(switches).toHaveLength(2);
@@ -453,7 +475,6 @@ describe("SoftwareFiltersModal component", () => {
 
     it("starts on when the filter is applied", () => {
       renderModal({
-        showAiToolFilter: true,
         filters: { ...filtersDefault, aiTool: true },
       });
 
@@ -461,22 +482,15 @@ describe("SoftwareFiltersModal component", () => {
     });
 
     it("is hidden on Fleet Free", () => {
-      renderModal({ showAiToolFilter: true, isPremiumTier: false });
+      renderModal({ isPremiumTier: false });
 
       expect(aiToolsSwitch()).not.toBeInTheDocument();
       expect(screen.getByText(/Vulnerable software/i)).toBeInTheDocument();
     });
 
-    it("is hidden unless the page asks for it", () => {
-      renderModal();
-
-      expect(aiToolsSwitch()).not.toBeInTheDocument();
-    });
-
     it("submits the AI tools filter without Vulnerable software", async () => {
       const onSubmitSpy = jest.fn();
       const { user } = setUpModal({
-        showAiToolFilter: true,
         onSubmit: onSubmitSpy,
       });
 
@@ -491,7 +505,6 @@ describe("SoftwareFiltersModal component", () => {
     it("submits no AI tools filter when switched off", async () => {
       const onSubmitSpy = jest.fn();
       const { user } = setUpModal({
-        showAiToolFilter: true,
         filters: { ...filtersDefault, aiTool: true },
         onSubmit: onSubmitSpy,
       });
