@@ -626,11 +626,19 @@ func (ds *Datastore) MarkWindowsDiskEncryptionKeysUndecryptable(ctx context.Cont
 	for _, k := range keys {
 		args = append(args, k.HostID, k.Base64Encrypted)
 	}
-	_, err := ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(`
+	if _, err := ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(`
 UPDATE host_disk_encryption_keys
 SET decryptable = 0, updated_at = updated_at
-WHERE (host_id, base64_encrypted) IN (%s)`, placeholders), args...)
-	return ctxerr.Wrap(ctx, err, "mark Windows disk encryption keys undecryptable")
+WHERE (host_id, base64_encrypted) IN (%s)`, placeholders), args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "mark Windows disk encryption keys undecryptable")
+	}
+	// Connected agents are asked to refetch their config, so the re-escrow does not wait for the next poll.
+	hostIDs := make([]uint, 0, len(keys))
+	for _, k := range keys {
+		hostIDs = append(hostIDs, k.HostID)
+	}
+	ds.notifyOrbitConfig(ctx, ds.writer(ctx), fleet.AgentWSReasonDiskEncryption, hostIDs...)
+	return nil
 }
 
 func (ds *Datastore) CleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error {

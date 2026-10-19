@@ -106,6 +106,13 @@ func ReencryptWSTEPDiskEncryptionKeys(ctx context.Context, logger *slog.Logger, 
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "re-encrypt disk encryption key")
 			}
+			// The archive holds the same ciphertext for this key, marked by the migration or, for a copy an older
+			// instance wrote during a rolling upgrade, unmarked. It goes first: if the run dies in between, the live row
+			// is still listed next time and both updates are redone, whereas an unmarked copy left behind would never be
+			// found again.
+			if err := ds.ReplaceArchivedDiskEncryptionKeyCopies(ctx, key.HostID, key.Base64Encrypted, enc); err != nil {
+				return ctxerr.Wrap(ctx, err, "replace archived copies of a re-encrypted disk encryption key")
+			}
 			replaced, err := ds.ReplaceWSTEPEncryptedDiskEncryptionKey(ctx, key.HostID, key.Base64Encrypted, enc)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "replace WSTEP encrypted disk encryption key")
@@ -116,11 +123,6 @@ func ReencryptWSTEPDiskEncryptionKeys(ctx context.Context, logger *slog.Logger, 
 				continue
 			}
 			reencrypted++
-			// The archive holds the same ciphertext for this key, marked by the migration or, for a copy an older
-			// instance wrote during a rolling upgrade, unmarked. Either way it follows the live row.
-			if err := ds.ReplaceArchivedDiskEncryptionKeyCopies(ctx, key.HostID, key.Base64Encrypted, enc); err != nil {
-				return ctxerr.Wrap(ctx, err, "replace archived copies of a re-encrypted disk encryption key")
-			}
 		}
 		if err := ds.MarkWindowsDiskEncryptionKeysUndecryptable(ctx, unreadable); err != nil {
 			return ctxerr.Wrap(ctx, err, "mark Windows disk encryption keys undecryptable")
