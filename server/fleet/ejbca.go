@@ -26,6 +26,47 @@ type EJBCA struct {
 	CertificateCommonName         string   `json:"certificate_common_name"`
 	UsernameTemplate              string   `json:"username_template"`
 	CertificateUserPrincipalNames []string `json:"certificate_user_principal_names"`
+
+	// ClientP12 is the base64 PKCS#12 with the client certificate and key, and Password opens it. They only come in requests: the service
+	// reads the certificate and key out of them, and doesn't keep the password.
+	ClientP12 string `json:"client_p12"`
+	Password  string `json:"password"`
+}
+
+func (e *EJBCA) Preprocess() {
+	e.Name = Preprocess(e.Name)
+	e.URL = Preprocess(e.URL)
+	e.CertificateAuthorityName = Preprocess(e.CertificateAuthorityName)
+	e.CertificateProfileName = Preprocess(e.CertificateProfileName)
+	e.EndEntityProfileName = Preprocess(e.EndEntityProfileName)
+}
+
+// EJBCAUpdatePayload changes the fields it sets and leaves the others as they are.
+type EJBCAUpdatePayload struct {
+	Name                          *string   `json:"name"`
+	URL                           *string   `json:"url"`
+	ClientP12                     *string   `json:"client_p12"`
+	Password                      *string   `json:"password"`
+	TrustCABundle                 *string   `json:"trust_ca_bundle"`
+	CertificateAuthorityName      *string   `json:"certificate_authority_name"`
+	CertificateProfileName        *string   `json:"certificate_profile_name"`
+	EndEntityProfileName          *string   `json:"end_entity_profile_name"`
+	CertificateCommonName         *string   `json:"certificate_common_name"`
+	UsernameTemplate              *string   `json:"username_template"`
+	CertificateUserPrincipalNames *[]string `json:"certificate_user_principal_names"`
+}
+
+// IsEmpty checks if the struct only has all empty values
+func (p EJBCAUpdatePayload) IsEmpty() bool {
+	return p == EJBCAUpdatePayload{}
+}
+
+func (p *EJBCAUpdatePayload) Preprocess() {
+	for _, field := range []*string{p.Name, p.URL, p.CertificateAuthorityName, p.CertificateProfileName, p.EndEntityProfileName} {
+		if field != nil {
+			*field = Preprocess(*field)
+		}
+	}
 }
 
 type EJBCACertificate struct {

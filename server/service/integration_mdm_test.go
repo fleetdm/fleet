@@ -65,6 +65,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
+	ejbca_mock "github.com/fleetdm/fleet/v4/server/mock/ejbca"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
@@ -113,6 +114,8 @@ type integrationMDMTestSuite struct {
 	mdmCommander   *apple_mdm.MDMAppleCommander
 	logger         *slog.Logger
 	scepChallenge  string
+	// ejbcaService stands in for EJBCA, which tests that create EJBCA CAs program.
+	ejbcaService *ejbca_mock.Service
 
 	acmeCertCA  *x509.Certificate
 	acmeCertKey *ecdsa.PrivateKey
@@ -331,10 +334,12 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	keyValueStore := redis_key_value.New(s.redisPool)
 
+	s.ejbcaService = &ejbca_mock.Service{}
 	serverConfig := TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
 		},
+		EJBCAService:           s.ejbcaService,
 		DBConns:                s.dbConns,
 		Logger:                 serverLogger,
 		FleetConfig:            &fleetCfg,

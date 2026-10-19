@@ -2,8 +2,10 @@ package certificate
 
 import (
 	"crypto/tls"
+	"encoding/pem"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -200,6 +202,42 @@ func TestLoadClientCertificateFromFiles(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			crt, err := LoadClientCertificateFromFiles(tc.crtPath, tc.keyPath)
 			require.True(t, tc.checkReturnFn(crt, err))
+		})
+	}
+}
+
+func TestFirstCertificateFromPEM(t *testing.T) {
+	certPEM, err := os.ReadFile("testdata/test.crt")
+	require.NoError(t, err)
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: []byte("key")})
+
+	tests := []struct {
+		name    string
+		pemData []byte
+		wantNil bool
+		wantErr bool
+	}{
+		{name: "certificate", pemData: certPEM},
+		{name: "key before the certificate", pemData: append(slices.Clone(keyPEM), certPEM...)},
+		{name: "key only", pemData: keyPEM, wantNil: true},
+		{name: "not PEM", pemData: []byte("not a certificate"), wantNil: true},
+		{name: "unparsable certificate", pemData: pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: []byte("bad")}), wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cert, err := FirstCertificateFromPEM(tt.pemData)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			if tt.wantNil {
+				require.Nil(t, cert)
+				return
+			}
+			require.NotNil(t, cert)
+			block, _ := pem.Decode(certPEM)
+			require.Equal(t, block.Bytes, cert.Raw)
 		})
 	}
 }

@@ -372,6 +372,14 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 		require.Equal(t, ca.ID, allCASummaries[i].ID)
 		require.Equal(t, *ca.Name, allCASummaries[i].Name)
 		require.Equal(t, ca.Type, allCASummaries[i].Type)
+		// Only EJBCA entries carry the client certificate expiry, so the list needs no request per CA.
+		if ca.Type == string(fleet.CATypeEJBCA) {
+			require.NotNil(t, allCASummaries[i].MTLSCertExpiresAt)
+			require.True(t, ca.MTLSCertExpiresAt.Equal(*allCASummaries[i].MTLSCertExpiresAt))
+		} else {
+			require.Nil(t, allCASummaries[i].MTLSCertExpiresAt)
+		}
+		require.Nil(t, allCASummaries[i].MTLSCertPEM)
 
 		// Ensure the full CAs match with and without secrets
 		compareCA(t, ca, allCAsWithSecrets[i], true)

@@ -95,6 +95,7 @@ type TestServerOpts struct {
 	FeatureRoutes                   []endpointer.HandlerRoutesFunc
 	SCEPConfigService               fleet.SCEPConfigService
 	DigiCertService                 fleet.DigiCertService
+	EJBCAService                    fleet.EJBCAService
 	EnableSCIM                      bool
 	ConditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
 	HostIdentity                    *HostIdentity

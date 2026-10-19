@@ -2,10 +2,17 @@ package service
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -13,6 +20,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep/sceptest"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
@@ -30,6 +38,7 @@ import (
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"software.sslmate.com/src/go-pkcs12"
 )
 
 func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
@@ -2515,4 +2524,148 @@ func generateTestProfileSmallstepSCEP(challenge, ou, url string) string {
     <integer>1</integer>
 </dict>
 </plist>`, challenge, ou, url)
+}
+
+// ejbcaClientP12 returns a base64 PKCS#12 of a self-signed client certificate that expires at notAfter.
+func ejbcaClientP12(t *testing.T, password string, notAfter time.Time) string {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "Fleet"}, NotBefore: time.Now().Add(-time.Hour), NotAfter: notAfter,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	require.NoError(t, err)
+	cert, err := x509.ParseCertificate(der)
+	require.NoError(t, err)
+	p12, err := pkcs12.Modern.Encode(key, cert, nil, password)
+	require.NoError(t, err)
+	return base64.StdEncoding.EncodeToString(p12)
+}
+
+func (s *integrationMDMTestSuite) TestEJBCACertificateAuthorities() {
+	t := s.T()
+	ctx := context.Background()
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM certificate_authorities")
+		return err
+	})
+	t.Cleanup(func() {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, "DELETE FROM certificate_authorities")
+			return err
+		})
+	})
+
+	var verified []fleet.EJBCA
+	var verifyErr error
+	s.ejbcaService.VerifyConnectionFunc = func(_ context.Context, config fleet.EJBCA) error {
+		verified = append(verified, config)
+		return verifyErr
+	}
+
+	const p12Password = "p12-password"
+	expiry := time.Now().Add(90 * 24 * time.Hour).UTC().Truncate(time.Second)
+	createReq := func(name string) map[string]any {
+		return map[string]any{"ejbca": map[string]any{
+			"name":                             name,
+			"url":                              "https://ejbca.example.com:8443",
+			"client_p12":                       ejbcaClientP12(t, p12Password, expiry),
+			"password":                         p12Password,
+			"trust_ca_bundle":                  "bundle",
+			"certificate_authority_name":       "ManagementCA",
+			"certificate_profile_name":         "fleetCertProfile",
+			"end_entity_profile_name":          "fleetEEProfile",
+			"certificate_common_name":          "$FLEET_VAR_HOST_END_USER_EMAIL_IDP",
+			"username_template":                "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+			"certificate_user_principal_names": []string{"$FLEET_VAR_HOST_END_USER_EMAIL_IDP"},
+		}}
+	}
+
+	// Create.
+	var createResp createCertificateAuthorityResponse
+	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", createReq("EJBCA_WIFI"), http.StatusOK, &createResp)
+	require.NotZero(t, createResp.ID)
+	require.Equal(t, fleet.CATypeEJBCA, createResp.Type)
+	s.lastActivityMatches(fleet.ActivityAddedEJBCA{}.ActivityName(), `{"name":"EJBCA_WIFI"}`, 0)
+	require.Len(t, verified, 1)
+	require.Contains(t, verified[0].MTLSKeyPEM, "PRIVATE KEY")
+
+	// The same name is already used.
+	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", createReq("EJBCA_WIFI"), http.StatusBadRequest, &createCertificateAuthorityResponse{})
+
+	// A CA EJBCA doesn't accept is not stored.
+	verifyErr = errors.New("EJBCA rejected the TLS client certificate")
+	res := s.Do("POST", "/api/latest/fleet/certificate_authorities", createReq("EJBCA_REJECTED"), http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "EJBCA rejected the TLS client certificate")
+	verifyErr = nil
+
+	// The list has the client certificate expiry, and no secret.
+	var listResp listCertificateAuthoritiesResponse
+	listRes := s.DoRaw("GET", "/api/latest/fleet/certificate_authorities", nil, http.StatusOK)
+	body, err := io.ReadAll(listRes.Body)
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(body, &listResp))
+	require.Len(t, listResp.CertificateAuthorities, 1)
+	require.NotNil(t, listResp.CertificateAuthorities[0].MTLSCertExpiresAt)
+	require.True(t, expiry.Equal(*listResp.CertificateAuthorities[0].MTLSCertExpiresAt))
+	for _, secret := range []string{"PRIVATE KEY", "client_p12", p12Password} {
+		require.NotContains(t, string(body), secret)
+	}
+
+	// A get has the settings and the expiry, and no secret.
+	var getResp getCertificateAuthorityResponse
+	getRes := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", createResp.ID), nil, http.StatusOK)
+	body, err = io.ReadAll(getRes.Body)
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(body, &getResp))
+	require.Equal(t, "fleetCertProfile", *getResp.EJBCACertificateProfileName)
+	require.Equal(t, "$FLEET_VAR_HOST_HARDWARE_SERIAL", *getResp.EJBCAUsernameTemplate)
+	require.True(t, expiry.Equal(*getResp.MTLSCertExpiresAt))
+	for _, secret := range []string{"PRIVATE KEY", "client_p12", p12Password} {
+		require.NotContains(t, string(body), secret)
+	}
+
+	// Editing a template doesn't need EJBCA and keeps the stored credential.
+	verified = nil
+	editURL := fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", createResp.ID)
+	s.Do("PATCH", editURL, map[string]any{"ejbca": map[string]any{"certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL"}}, http.StatusOK)
+	s.lastActivityMatches(fleet.ActivityEditedEJBCA{}.ActivityName(), `{"name":"EJBCA_WIFI"}`, 0)
+	require.Empty(t, verified)
+	stored, err := s.ds.GetCertificateAuthorityByID(ctx, createResp.ID, true)
+	require.NoError(t, err)
+	require.Equal(t, "$FLEET_VAR_HOST_HARDWARE_SERIAL", *stored.CertificateCommonName)
+	require.Contains(t, *stored.MTLSKeyPEM, "PRIVATE KEY")
+
+	// Editing the certificate profile verifies the connection with the stored credential.
+	s.Do("PATCH", editURL, map[string]any{"ejbca": map[string]any{"certificate_profile_name": "otherProfile"}}, http.StatusOK)
+	require.Len(t, verified, 1)
+	require.Equal(t, "otherProfile", verified[0].CertificateProfileName)
+	require.Equal(t, *stored.MTLSKeyPEM, verified[0].MTLSKeyPEM)
+
+	// A replacement credential EJBCA rejects leaves the stored one in place.
+	newExpiry := time.Now().Add(365 * 24 * time.Hour).UTC().Truncate(time.Second)
+	rotate := map[string]any{"ejbca": map[string]any{"client_p12": ejbcaClientP12(t, p12Password, newExpiry), "password": p12Password}}
+	verifyErr = errors.New("EJBCA rejected the TLS client certificate")
+	s.Do("PATCH", editURL, rotate, http.StatusBadRequest)
+	verifyErr = nil
+	got, err := s.ds.GetCertificateAuthorityByID(ctx, createResp.ID, false)
+	require.NoError(t, err)
+	require.True(t, expiry.Equal(*got.MTLSCertExpiresAt))
+
+	// A replacement credential that EJBCA accepts replaces it.
+	s.Do("PATCH", editURL, rotate, http.StatusOK)
+	got, err = s.ds.GetCertificateAuthorityByID(ctx, createResp.ID, false)
+	require.NoError(t, err)
+	require.True(t, newExpiry.Equal(*got.MTLSCertExpiresAt))
+
+	// A PKCS#12 needs its password.
+	s.Do("PATCH", editURL, map[string]any{"ejbca": map[string]any{"client_p12": rotate["ejbca"].(map[string]any)["client_p12"]}},
+		http.StatusUnprocessableEntity)
+
+	// Delete.
+	s.Do("DELETE", editURL, nil, http.StatusNoContent)
+	s.lastActivityMatches(fleet.ActivityDeletedEJBCA{}.ActivityName(), `{"name":"EJBCA_WIFI"}`, 0)
+	_, err = s.ds.GetCertificateAuthorityByID(ctx, createResp.ID, false)
+	require.Error(t, err)
 }
