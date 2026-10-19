@@ -668,6 +668,8 @@ func TestGetDetailQueries(t *testing.T) {
 		"network_interface_unix",
 		"network_interface_windows",
 		"network_interface_chrome",
+		"timezone_unix",
+		"timezone_windows",
 		"os_version",
 		"os_version_windows",
 		"osquery_flags",
@@ -6082,4 +6084,87 @@ func TestMacOSHomebrewExecutableSHA256Query(t *testing.T) {
 		{"/usr/local/Cellar/jq", "1.7.1", "/usr/local/Cellar/jq/1.7.1/bin/jq-deferred", "", "deferred"},
 		{"/opt/homebrew/Cellar/node_exporter", "1.2", "/opt/homebrew/Cellar/node_exporter/1.2/bin/node_exporter", "ffff", "hashed"},
 	}, got)
+}
+
+func TestTimezoneQueryPlatforms(t *testing.T) {
+	unix := hostDetailQueries["timezone_unix"]
+	win := hostDetailQueries["timezone_windows"]
+	for _, p := range []string{"darwin", "ubuntu", "rhel", "linux"} {
+		assert.True(t, unix.RunsForPlatform(p), p)
+		assert.False(t, win.RunsForPlatform(p), p)
+	}
+	for _, p := range []string{"ios", "ipados", "chrome", "android"} {
+		assert.False(t, unix.RunsForPlatform(p), p)
+		assert.False(t, win.RunsForPlatform(p), p)
+	}
+	assert.False(t, unix.RunsForPlatform("windows"))
+	assert.True(t, win.RunsForPlatform("windows"))
+}
+
+func TestIngestTimezone(t *testing.T) {
+	row := func(k, v string) []map[string]string { return []map[string]string{{k: v}} }
+	const key, wkey = "symlink_target_path", "data"
+
+	cases := []struct {
+		name   string
+		ingest func(context.Context, *slog.Logger, *fleet.Host, []map[string]string) error
+		rows   []map[string]string
+		want   string // "" means unchanged
+	}{
+		{"unix macOS", ingestTimezoneUnix, row(key, "/var/db/timezone/zoneinfo/America/New_York"), "America/New_York"},
+		{"unix linux", ingestTimezoneUnix, row(key, "/usr/share/zoneinfo/Europe/Sarajevo"), "Europe/Sarajevo"},
+		{"unix relative", ingestTimezoneUnix, row(key, "../usr/share/zoneinfo/Asia/Tokyo"), "Asia/Tokyo"},
+		{"unix posix", ingestTimezoneUnix, row(key, "/usr/share/zoneinfo/posix/America/Chicago"), "America/Chicago"},
+		{"unix right", ingestTimezoneUnix, row(key, "/usr/share/zoneinfo/right/UTC"), "UTC"},
+		{"unix invalid name", ingestTimezoneUnix, row(key, "/usr/share/zoneinfo/Not/AZone"), ""},
+		{"unix Local", ingestTimezoneUnix, row(key, "/usr/share/zoneinfo/Local"), ""},
+		{"unix Factory", ingestTimezoneUnix, row(key, "/usr/share/zoneinfo/Factory"), ""},
+		{"unix garbage", ingestTimezoneUnix, row(key, "garbage"), ""},
+		{"unix empty", ingestTimezoneUnix, row(key, ""), ""},
+		{"unix missing key", ingestTimezoneUnix, row("other", "/usr/share/zoneinfo/Asia/Tokyo"), ""},
+		{"unix zero rows", ingestTimezoneUnix, nil, ""},
+		{"unix two rows", ingestTimezoneUnix, []map[string]string{{key: "/usr/share/zoneinfo/Asia/Tokyo"}, {key: "/usr/share/zoneinfo/Asia/Tokyo"}}, ""},
+		{"windows known", ingestTimezoneWindows, row(wkey, "Eastern Standard Time"), "America/New_York"},
+		{"windows padded", ingestTimezoneWindows, row(wkey, " Pacific Standard Time\n"), "America/Los_Angeles"},
+		{"windows unknown", ingestTimezoneWindows, row(wkey, "Mars Standard Time"), ""},
+		{"windows empty", ingestTimezoneWindows, row(wkey, ""), ""},
+		{"windows missing key", ingestTimezoneWindows, row("other", "Eastern Standard Time"), ""},
+		{"windows zero rows", ingestTimezoneWindows, nil, ""},
+		{"windows two rows", ingestTimezoneWindows, []map[string]string{{wkey: "Eastern Standard Time"}, {wkey: "Eastern Standard Time"}}, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			host := &fleet.Host{TimeZone: new("Europe/Berlin")}
+			require.NoError(t, c.ingest(t.Context(), slog.New(slog.DiscardHandler), host, c.rows))
+			want := c.want
+			if want == "" {
+				want = "Europe/Berlin"
+			}
+			require.NotNil(t, host.TimeZone)
+			assert.Equal(t, want, *host.TimeZone)
+
+			// An unknown stored value stays unknown on invalid input and is set on valid input.
+			for _, initial := range []*string{nil, new("")} {
+				host := &fleet.Host{TimeZone: initial}
+				require.NoError(t, c.ingest(t.Context(), slog.New(slog.DiscardHandler), host, c.rows))
+				if c.want == "" {
+					assert.Equal(t, initial, host.TimeZone)
+				} else {
+					require.NotNil(t, host.TimeZone)
+					assert.Equal(t, c.want, *host.TimeZone)
+				}
+			}
+		})
+	}
+}
+
+func TestWindowsTimezonesMap(t *testing.T) {
+	require.Len(t, windowsTimezones, 142)
+	for k, v := range windowsTimezones {
+		_, err := time.LoadLocation(v)
+		require.NoError(t, err, k)
+		assert.NotEmpty(t, v, k)
+		assert.NotEqual(t, "Local", v, k)
+		assert.NotEqual(t, "Factory", v, k)
+	}
 }
