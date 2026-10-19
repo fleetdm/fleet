@@ -2662,6 +2662,7 @@ func useFakePendingInstalls(t *testing.T, mockDS *AndroidMockDS, installs ...*fl
 		return res, nil
 	}
 	mockDS.ListHostMDMAndroidVPPAppsLatestFailedInstallFunc = func(ctx context.Context, hostUUID string) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+		require.True(t, ctxdb.IsPrimaryRequired(ctx), "failed installs must be read from the primary")
 		return slices.Collect(maps.Values(f.failedInstalls)), nil
 	}
 	t.Cleanup(func() {
@@ -3045,6 +3046,20 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 		pushStatusReport(t, nil, nil)
 		require.Empty(t, installs.failed)
 		require.Contains(t, installs.pending, "a")
+	})
+
+	t.Run("failed installs lookup error still verifies pending installs", func(t *testing.T) {
+		createdAt := clk.Now()
+		installs := useFakePendingInstalls(t, mockDS, &fleet.HostAndroidVPPSoftwareInstall{
+			AdamID: "com.example.app", CommandUUID: "a", AssociatedEventID: "2", CreatedAt: &createdAt,
+		})
+		mockDS.ListHostMDMAndroidVPPAppsLatestFailedInstallFunc = func(ctx context.Context, hostUUID string) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+			return nil, errors.New("lookup failed")
+		}
+
+		pushStatusReport(t, []*androidmanagement.ApplicationReport{{PackageName: "com.example.app", State: "INSTALLED"}}, nil)
+		require.True(t, mockDS.ListHostMDMAndroidVPPAppsLatestFailedInstallFuncInvoked)
+		require.Equal(t, []string{"a"}, installs.verified)
 	})
 
 	t.Run("failed app is verified once a later report has it installed", func(t *testing.T) {

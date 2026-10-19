@@ -1662,10 +1662,15 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 	}
 	var failedInstallApps []*fleet.HostAndroidVPPSoftwareInstall
 	if !fromEnroll && len(installedPackages) > 0 {
-		failedInstallApps, err = svc.ds.ListHostMDMAndroidVPPAppsLatestFailedInstall(ctx, hostUUID)
+		// From the primary: reports for a host arrive seconds apart, and a lagging replica
+		// would still list an install the previous report already verified, so it would be
+		// verified again with a second "installed" activity.
+		failedInstallApps, err = svc.ds.ListHostMDMAndroidVPPAppsLatestFailedInstall(ctxdb.RequirePrimary(ctx, true), hostUUID)
 		if err != nil {
+			// Still verify this report's pending installs; the failed ones can be recovered
+			// by a later report.
 			svc.logger.ErrorContext(ctx, "error getting failed vpp installs", "err", err)
-			return
+			failedInstallApps = nil
 		}
 	}
 	if len(pendingInstallApps) == 0 && len(failedInstallApps) == 0 {
