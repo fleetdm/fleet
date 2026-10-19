@@ -96,7 +96,6 @@ func TestGenerateDarwinStatus(t *testing.T) {
 		"launchd_sentineld_helper":         "valid",
 		"launchd_sentineld_shell":          "valid",
 		"management_server":                "https://euce1-109.sentinelone.net",
-		"management_site_key":              "site-key-abc-123",
 		"management_last_seen":             localEpoch(t, "6/1/26, 1:14:28 PM"),
 		"management_connected":             "yes",
 		// Windows-only columns stay empty on macOS.
@@ -113,6 +112,7 @@ func TestGenerateDarwinStatus(t *testing.T) {
 	for _, col := range columnOrder {
 		assert.Contains(t, row, col)
 	}
+	assert.NotContains(t, row, "management_site_key")
 }
 
 func TestGenerateWindowsStatus(t *testing.T) {
