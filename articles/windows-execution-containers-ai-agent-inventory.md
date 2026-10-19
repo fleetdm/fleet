@@ -1,13 +1,17 @@
-# Execution Containers give Windows 11 two isolation modes for AI agents, but IT still has to find the agents first
+# Microsoft Execution Containers are generally available on Windows 11: find your AI agents before you contain them
+
 
 *Microsoft's new containment layer lets policy limit what an AI agent can touch on a Windows PC. Policy only helps on devices where you know an agent is running.*
 
 ## Key takeaways
 
-- **Microsoft now has a containment layer for agents.** Microsoft Execution Containers (MXC) lets a developer or administrator declare what an agent can reach, and Windows enforces those limits at runtime.
-- **There are two isolation modes, and they're different bets.** Process isolation restricts an agent inside the user's session, and session isolation separates it from the desktop, clipboard, and input devices. Which one applies decides how much a compromised agent can do.
+- **Microsoft now has a containment layer for agents.** Microsoft Execution Containers (MXC) lets a developer or administrator declare what an agent can reach, and Windows enforces those limits at runtime. It became generally available on Windows 11 on October 7, 2026.
+
+- **The isolation options are different bets.** A process container restricts an agent inside the user's environment, and a session container moves it into a separate Windows account and session. Which one applies decides how much a compromised agent can do.
+
 - **Policy is only as good as your list of agents.** Containment rules apply to the agents someone has configured. An agent installed outside that path never meets the rule.
-- **Intune is part of the story, but sources differ on timing.** Microsoft describes Intune as a way to manage agent permissions, while coverage disagrees on what is shipping now and what is preview. Plan on verifying before you depend on it.
+- **Intune management isn't here yet.** Microsoft says Intune policy for MXC process containers on Windows 11 is coming soon, without a date. Plan on verifying before you depend on it.
+
 - **Fleet's agent can report what's installed on each Windows device.** That gives you a per-host view of the software that could host an agent, whatever tool ends up enforcing the policy.
 - **A report or policy turns that view into a standing check.** Define what an approved agent looks like once, and flag every PC that doesn't match.
 
@@ -19,12 +23,14 @@ The announcement answers how to limit an agent. IT also has to answer a prior qu
 
 ## What Execution Containers do
 
-According to [Petri's coverage](https://petri.com/microsoft-execution-containers-boundaries-ai-agents/), a developer or administrator declares what an agent can access, such as files, network, and apps, and Windows enforces those rules at runtime. Microsoft also gives each agent an identity, either local or Entra-backed, so its activity can be attributed. In the words of Pavan Davuluri, Microsoft's executive vice president for Windows and devices, "every agent activity must be attributable and governed."
+According to [Microsoft's Windows Developer Blog](https://blogs.windows.com/windowsdeveloper/2026/10/07/microsoft-execution-containers-policy-driven-containment-for-ai-agents/), a developer or administrator declares what an agent can access, such as files and network, and Windows enforces those rules at runtime. Microsoft also ties agent activity to an identity, so IT can tell what an agent did from what the person using the device did. In his [Build 2026 post](https://blogs.windows.com/windowsdeveloper/2026/06/02/build-2026-furthering-windows-as-the-trusted-platform-for-development/), Pavan Davuluri, Microsoft's executive vice president for Windows and Devices, wrote that "every agent activity must be attributable and governed." Microsoft says Entra support for separating agent activity from user activity is coming soon.
 
-The two isolation modes sit at different points on the risk scale:
+
+On Windows 11, the two main isolation options sit at different points on the risk scale:
 
 - **Process isolation** runs the agent in the same user session with its access restricted by policy, and suits low-risk work such as simple tool execution.
 - **Session isolation** separates the agent from the user's desktop, UI, clipboard, and input devices, which is meant to limit UI spoofing, input injection, and cross-session data leakage.
+Microsoft also lists a WSL container for Linux toolchains and an experimental MicroVM backend for higher-risk workloads.
 
 ## Where Intune fits
 
@@ -41,6 +47,7 @@ The first useful question is an inventory question: which Windows devices have s
 ## Seeing agent software across Windows hosts
 
 Fleet's agent reports installed software and versions for each enrolled Windows device, so you can search for the tools you care about by name and see which hosts have them. Fleet also manages Windows endpoints, so the same data sits next to the rest of the device record.
+Inventory has blind spots, and agent tooling tends to land in them. On Windows, Fleet doesn't collect global npm packages, Scoop packages, or portable executables yet, so a command-line agent installed that way won't appear in software inventory. The [software inventory reference](https://fleetdm.com/guides/software-inventory-reference#limitations) lists what is and isn't collected.
 
 This is inventory, not enforcement. Fleet's agent doesn't read what an Execution Container allows, and I'd treat anything that claims it does with caution. What it can do is tell you where agent software lives, so Intune or any other control is applied to a known list instead of a guess.
 
@@ -55,7 +62,7 @@ Containment is a strong idea, and Microsoft is putting it where the agents run. 
 - **Get a demo** to see installed software reported across your own Windows devices: [fleetdm.com/contact](https://fleetdm.com/contact)
 - **Read how Fleet handles Windows device management:** [fleetdm.com/guides/windows-mdm-setup](https://fleetdm.com/guides/windows-mdm-setup)
 
-<meta name="articleTitle" value="Execution Containers give Windows 11 two isolation modes for AI agents, but IT still has to find the agents first">
+<meta name="articleTitle" value="Microsoft Execution Containers are generally available on Windows 11: find your AI agents before you contain them">
 <meta name="authorFullName" value="Aube Paul">
 <meta name="authorGitHubUsername" value="robinedev">
 <meta name="category" value="industry news">
