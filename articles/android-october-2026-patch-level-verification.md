@@ -56,4 +56,4 @@ The bulletin will be old news in a month, and November's will arrive with the sa
 <meta name="authorGitHubUsername" value="robinedev">
 <meta name="category" value="industry news">
 <meta name="publishedOn" value="2026-10-07">
-<meta name="description" value="Android's October bulletin fixes a critical privilege escalation needing no user interaction. Confirm which managed phones reached patch level 2026-10-01.">
+<meta name="description" value="Android's October bulletin fixes a critical no-interaction privilege escalation. Confirm which managed phones reached patch level 2026-10-01.">
