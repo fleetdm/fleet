@@ -5,6 +5,7 @@ import CopyButton from "components/buttons/CopyButton";
 import Icon from "components/Icon";
 import Modal from "components/Modal";
 import Textarea from "components/Textarea";
+import { WIN_DISK_ENC_SYNTHETIC_PROFILE_UUID } from "pages/hosts/details/helpers";
 
 import { getDetailGuidance, getDetailText } from "../detailFormatting";
 import OSSettingsActionsCell from "../OSSettingsActionsCell";
@@ -74,9 +75,10 @@ const ControlDetailsModal = ({
   // Windows disk encryption on "Enforcing" works the same way: the server only
   // sends a detail when it is asking the host for a new recovery key because
   // the stored one cannot be read, and the generic copy about receiving an MDM
-  // command would describe the wrong thing.
+  // command would describe the wrong thing. Matched on the synthetic row's
+  // UUID, since a real profile may carry the same name.
   const isWindowsDiskEncryption =
-    isDiskEncryptionProfile(control.name) && control.platform === "windows";
+    control.profile_uuid === WIN_DISK_ENC_SYNTHETIC_PROFILE_UUID;
   const detailReplacesMessage =
     !!detailText &&
     (displayOption?.statusText === "Verified" ||

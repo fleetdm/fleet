@@ -398,6 +398,25 @@ describe("ControlDetailsModal", () => {
       expect(screen.queryByText(/will receive the MDM command/)).toBeNull();
       expect(screen.queryByText("Details:")).toBeNull();
     });
+
+    it("leaves a real windows profile that happens to be named Disk encryption alone", () => {
+      renderModal({
+        control: createMockHostMdmProfile({
+          name: "Disk encryption",
+          platform: "windows",
+          operation_type: "install",
+          status: "pending",
+          detail:
+            "./Device/Vendor/MSFT/BitLocker/RequireDeviceEncryption: status 500",
+        }),
+      });
+
+      // The detail stays in the copyable block below the status message.
+      expect(screen.getByText("Details:")).toBeInTheDocument();
+      expect(
+        screen.queryByText(/RequireDeviceEncryption/, { selector: "span" })
+      ).toBeNull();
+    });
   });
 
   describe("non-failed controls carrying a detail", () => {
