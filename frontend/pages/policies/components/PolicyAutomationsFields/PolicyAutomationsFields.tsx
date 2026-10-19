@@ -133,11 +133,6 @@ const PolicyAutomationsFields = forwardRef<
     ref
   ) => {
     const { gitOpsModeEnabled } = useGitOpsMode();
-    // Install-software controls honor the `exceptions.software` gitops setting.
-    // Scripts, profiles, calendar, webhooks have no per-entity exception.
-    const { gitOpsModeEnabled: softwareGitOpsModeEnabled } = useGitOpsMode(
-      "software"
-    );
     const { currentUser, isGlobalAdmin } = useContext(AppContext);
 
     const {
@@ -559,7 +554,7 @@ const PolicyAutomationsFields = forwardRef<
                   name="software-title"
                   isSearchable
                   className={`${baseClass}__row-picker`}
-                  isDisabled={softwareGitOpsModeEnabled}
+                  isDisabled={gitOpsModeEnabled}
                   value={
                     softwareOptions.find(
                       (o) => o.value === String(softwareTitleId ?? "")
@@ -577,7 +572,7 @@ const PolicyAutomationsFields = forwardRef<
                   <DropdownWrapper
                     name="software-package"
                     className={`${baseClass}__row-picker`}
-                    isDisabled={softwareGitOpsModeEnabled}
+                    isDisabled={gitOpsModeEnabled}
                     value={
                       packageOptions.find(
                         (o) => o.value === String(softwarePackageId ?? "")
@@ -722,9 +717,6 @@ const PolicyAutomationsFields = forwardRef<
                     className={`${baseClass}__row-label`}
                   >
                     <GitOpsModeTooltipWrapper
-                      entityType={
-                        row.key === "install_software" ? "software" : undefined
-                      }
                       renderChildren={(disableChildren) => (
                         <Checkbox
                           name={row.key}
@@ -774,7 +766,6 @@ const PolicyAutomationsFields = forwardRef<
         {!isGlobalPolicy && patchOption !== "manual" && (
           <div className={`${baseClass}__section`}>
             <GitOpsModeTooltipWrapper
-              entityType="software"
               renderChildren={(disableChildren) => (
                 <Checkbox
                   name="continuous-automations-enabled"
