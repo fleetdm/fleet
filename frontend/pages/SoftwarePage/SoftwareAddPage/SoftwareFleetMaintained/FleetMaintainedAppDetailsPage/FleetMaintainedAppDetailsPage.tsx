@@ -16,6 +16,7 @@ import SidePanelPage from "components/SidePanelPage";
 import Spinner from "components/Spinner";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
+import { getErrorReason, hasStatusKey } from "interfaces/errors";
 import { Platform, PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import { getPatchPolicyFlags } from "pages/SoftwarePage/components/forms/SoftwareDeploySelector";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
@@ -141,6 +142,7 @@ const FleetMaintainedAppDetailsPage = ({
     data: fleetApp,
     isLoading: isLoadingFleetApp,
     isError: isErrorFleetApp,
+    error: errorFleetApp,
   } = useQuery(
     ["fleet-maintained-app", appId],
     () => softwareAPI.getFleetMaintainedApp(appId, teamId),
@@ -149,7 +151,13 @@ const FleetMaintainedAppDetailsPage = ({
       enabled: isPremiumTier,
       retry: false,
       select: (res) => res.fleet_maintained_app,
-      onError: (error) => handlePageError(error),
+      onError: (error) => {
+        // Show the server's message on the page when Fleet can't reach the Fleet-maintained apps manifest
+        if (hasStatusKey(error) && error.status === 502) {
+          return;
+        }
+        handlePageError(error);
+      },
     }
   );
 
@@ -254,7 +262,13 @@ const FleetMaintainedAppDetailsPage = ({
     }
 
     if (isErrorFleetApp) {
-      return <DataError verticalPaddingSize="pad-xxxlarge" />;
+      return (
+        <DataError
+          verticalPaddingSize="pad-xxxlarge"
+          description={getErrorReason(errorFleetApp) || undefined}
+          excludeIssueLink
+        />
+      );
     }
 
     if (fleetApp) {

@@ -1,0 +1,1 @@
+- Fixed the host details API reporting wipe, lock, and clear passcode as allowed for hosts enrolled with a Managed Apple Account (account-driven user enrollment).

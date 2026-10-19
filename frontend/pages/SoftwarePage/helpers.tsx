@@ -416,6 +416,18 @@ export const mergePolicies = ({
   return Array.from(byId.values());
 };
 
+export const GITOPS_ID_TOOLTIP = (
+  <>
+    Used to manage apps in GitOps.{" "}
+    <CustomLink
+      newTab
+      url={`${LEARN_MORE_ABOUT_BASE_LINK}/gitops`}
+      text="Learn more"
+      variant="tooltip-link"
+    />
+  </>
+);
+
 export const HHMM_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const MINUTES_IN_DAY = 24 * 60;
 

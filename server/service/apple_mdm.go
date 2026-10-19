@@ -5498,7 +5498,10 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 	// byod=1, so isPersonal would be false here and we'd widen the stored
 	// bitmask back to MDMAccessRightAll, breaking the next renewal.
 	if !scepRenewalInProgress {
-		accessRights := apple_mdm.AppleEnrollmentAccessRights(isPersonal)
+		// Account-driven user enrollments don't carry byod=1, but Apple never
+		// grants lock or erase on a user enrollment.
+		personalRights := isPersonal || r.Type == mdm.UserEnrollmentDevice
+		accessRights := apple_mdm.AppleEnrollmentAccessRights(personalRights)
 		if err := svc.ds.SetHostMDMAppleEnrollmentPermissions(r.Context, r.ID, accessRights); err != nil {
 			svc.logger.ErrorContext(r.Context, "failed to persist enrollment permissions", "host_uuid", r.ID, "err", err)
 			// Non-fatal: worst-case the next SCEP renewal uses MDMAccessRightAll (the pre-feature default).
@@ -8236,10 +8239,10 @@ func RenewSCEPCertificates(
 //
 // The personal flag is sourced from host_mdm.is_personal_enrollment (set
 // during the initial Authenticate by the host upsert, which is fatal on
-// failure). The access rights default to MDMAccessRightAll unless a stored
-// row in host_mdm_apple_enrollment_permissions narrows them. As a safety
-// net for the rare case where the rights persist failed during the initial
-// Authenticate (it is logged but non-fatal), a personal device whose stored
+// failure). The access rights come from host_mdm_apple_enrollment_permissions,
+// which already defaults a missing row to the narrowed bitmask for a personal
+// host. As a further safety net for a stale row written before that default
+// (or before ADUE hosts were narrowed), a personal device whose stored
 // rights came back unrestricted is renarrowed here.
 //
 // Pre-feature devices have is_personal_enrollment=0 (column default) and no
