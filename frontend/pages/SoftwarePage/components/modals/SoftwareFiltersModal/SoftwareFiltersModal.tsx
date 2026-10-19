@@ -44,6 +44,9 @@ const SoftwareFiltersModal = ({
   availableTypes,
 }: ISoftwareFiltersModalProps) => {
   const [selectedTypes, setSelectedTypes] = useState(filters.types ?? []);
+  const [aiToolFilterEnabled, setAiToolFilterEnabled] = useState(
+    filters.aiTool || false
+  );
   const [vulnSoftwareFilterEnabled, setVulnSoftwareFilterEnabled] = useState(
     filters.vulnerable || false
   );
@@ -137,6 +140,7 @@ const SoftwareFiltersModal = ({
       minCvssScore: min,
       maxCvssScore: max,
       types: selectedTypes,
+      aiTool: aiToolFilterEnabled || undefined,
     });
   };
 
@@ -164,11 +168,21 @@ const SoftwareFiltersModal = ({
             onChange={setSelectedTypes}
           />
         )}
+        {isPremiumTier && (
+          <Slider
+            value={aiToolFilterEnabled}
+            onChange={() => setAiToolFilterEnabled(!aiToolFilterEnabled)}
+            inactiveText="AI tools"
+            activeText="AI tools"
+            ariaLabel="AI tools"
+          />
+        )}
         <Slider
           value={vulnSoftwareFilterEnabled}
           onChange={onToggleVulnSoftware}
           inactiveText="Vulnerable software"
           activeText="Vulnerable software"
+          ariaLabel="Vulnerable software"
         />
         {isPremiumTier && (
           <>

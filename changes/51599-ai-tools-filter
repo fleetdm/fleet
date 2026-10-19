@@ -1,1 +1,2 @@
 - Fleet Premium: added the `ai_tool` filter to `GET /software/titles`, `GET /software/versions`, `GET /hosts/:id/software` and `GET /device/:token/software`, and an `ai_tool` field on software titles, versions and host software. The field is omitted on Fleet Free.
+- Fleet Premium: added an "AI tools" filter and the "AI CLI tool", "AI skill" and "MCP server" types to the **Software** page's filters. MCP servers and AI skills show why their version and vulnerabilities are empty on the **Software** page, host details and **My device**.
