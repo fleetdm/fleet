@@ -104,7 +104,7 @@ A newly enrolled host has no policy results until it runs its policies for the f
 | Managed, failing a critical policy | Sign-in denied |
 | No certificate | Sign-in denied |
 
-We haven't tested this guide with SAML or OIDC apps (we used an OAuth client), with certificates from an enterprise CA, with Chrome on Windows, or with certificate renewal on Windows.
+We tested this guide on macOS, Ubuntu, and Windows 11, with certificates from Smallstep's step-ca. We haven't tested it with SAML or OIDC apps. We used an OAuth client.
 
 ## Troubleshooting
 

@@ -150,6 +150,8 @@ Each sync replaces the previous list, so a newly enrolled host can sign in after
 | In Fleet | Sign-in succeeds |
 | Not in Fleet | Sign-in denied |
 
+We tested this guide on macOS, Ubuntu, and Windows 11. Ubuntu and Windows ran on Arm VMs, with Duo Desktop under x86-64 emulation, not on Intel hosts. We haven't tested it with more Windows hosts than the Step 3 report keeps. Fleet stores up to 1,000 results per report by default (`report_cap`).
+
 ## Troubleshooting
 
 - **Sign-in denied for a managed host**: Check that Duo Desktop is installed and running, and that the last sync included the host.
