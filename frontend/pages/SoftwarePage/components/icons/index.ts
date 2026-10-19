@@ -497,6 +497,7 @@ import Hidock from "./png/Hidock.png";
 import HighlightAi from "./png/HighlightAi.png";
 import HiveApp from "./png/HiveApp.png";
 import HomeAssistant from "./png/HomeAssistant.png";
+import Homebrew from "./png/Homebrew.png";
 import Homerow from "./png/Homerow.png";
 import Hot from "./png/Hot.png";
 import Houdahspot from "./png/Houdahspot.png";
@@ -1665,6 +1666,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   highlight: HighlightAi,
   hive: HiveApp,
   "home assistant": HomeAssistant,
+  homebrew: Homebrew,
   homerow: Homerow,
   hot: Hot,
   houdahspot: Houdahspot,

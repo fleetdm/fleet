@@ -4181,6 +4181,13 @@
       "description": "Home Assistant is a companion app for Home Assistant home automation software."
     },
     {
+      "name": "Homebrew",
+      "slug": "homebrew-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "sh.brew.app",
+      "description": "Homebrew is the official graphical app for managing Homebrew packages."
+    },
+    {
       "name": "Homerow",
       "slug": "homerow/darwin",
       "platform": "darwin",
