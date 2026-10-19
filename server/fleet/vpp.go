@@ -392,6 +392,8 @@ type VPPInstallReleaseInfo struct {
 	AdamID                string
 	AssociatedEventID     string
 	HasOtherActiveInstall bool
+	// VPPTokenID is the token that assigned the license. Nil when unknown.
+	VPPTokenID *uint
 }
 
 type DuplicateStringGroup struct {

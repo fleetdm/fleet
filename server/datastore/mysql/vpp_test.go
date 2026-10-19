@@ -2,8 +2,10 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -69,6 +71,7 @@ func TestVPP(t *testing.T) {
 		{"SummaryUpcomingPerHostNoDropout", testVPPSummaryUpcomingPerHostNoDropout},
 		{"AndroidAppsInScopeHostVitalsExcludeAnyLabel", testAndroidAppsInScopeHostVitalsExcludeAnyLabel},
 		{"VPPInstallLinksAppStoreAppInstance", testVPPInstallLinksAppStoreAppInstance},
+		{"VPPInstallRecordsToken", testVPPInstallRecordsToken},
 		{"TwoAppStoreAppInstancesInOneFleet", testTwoAppStoreAppInstancesInOneFleet},
 		{"AppStoreAppVersionsEditAndDelete", testAppStoreAppVersionsEditAndDelete},
 		{"SetTeamVPPAppVersions", testSetTeamVPPAppVersions},
@@ -4705,6 +4708,148 @@ func testVPPInstallLinksAppStoreAppInstance(t *testing.T, ds *Datastore) {
 	})
 	require.NotNil(t, linkedAppTeamID)
 	require.Equal(t, teamApp.AppTeamID, *linkedAppTeamID)
+}
+
+func testVPPInstallRecordsToken(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	tok := test.CreateInsertGlobalVPPToken(t, ds)
+	require.NotNil(t, tok)
+
+	const adamID1, adamID2 = "55550001", "55550002"
+	setupTestVPPApp(t, ds, adamID1, fleet.IOSPlatform)
+	setupTestVPPApp(t, ds, adamID2, fleet.IOSPlatform)
+	app1, err := ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, adamID1, fleet.IOSPlatform, nil)
+	require.NoError(t, err)
+	app2, err := ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, adamID2, fleet.IOSPlatform, nil)
+	require.NoError(t, err)
+
+	host, err := ds.NewHost(ctx, &fleet.Host{Hostname: "token-host", UUID: "vpp-record-token", Platform: string(fleet.IOSPlatform), HardwareSerial: "SERIAL-TOKEN"})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host, false)
+
+	selectToken := func(query, cmd string) *uint {
+		var id *uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			err := sqlx.GetContext(ctx, q, &id, query, cmd)
+			if errors.Is(err, sql.ErrNoRows) {
+				return nil
+			}
+			return err
+		})
+		return id
+	}
+	const (
+		selectQueued  = `SELECT vaua.vpp_token_id FROM vpp_app_upcoming_activities vaua JOIN upcoming_activities ua ON ua.id = vaua.upcoming_activity_id WHERE ua.execution_id = ?`
+		selectInstall = `SELECT vpp_token_id FROM host_vpp_software_installs WHERE command_uuid = ?`
+	)
+
+	// the first install activates right away, the token follows it from the queue row to the install row
+	require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, host.ID, app1.VPPAppID, "token-cmd-1", "evt-1",
+		fleet.HostSoftwareInstallOptions{VPPAppTeamID: app1.AppTeamID, VPPTokenID: tok.ID}))
+	require.Equal(t, &tok.ID, selectToken(selectQueued, "token-cmd-1"))
+	require.Equal(t, &tok.ID, selectToken(selectInstall, "token-cmd-1"))
+
+	info, err := ds.GetVPPInstallReleaseInfoForCancel(ctx, host.ID, "token-cmd-1")
+	require.NoError(t, err)
+	require.Equal(t, &tok.ID, info.VPPTokenID)
+
+	// the second install stays queued behind the first
+	require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, host.ID, app2.VPPAppID, "token-cmd-2", "evt-2",
+		fleet.HostSoftwareInstallOptions{VPPAppTeamID: app2.AppTeamID, VPPTokenID: tok.ID}))
+	require.Equal(t, &tok.ID, selectToken(selectQueued, "token-cmd-2"))
+	require.Nil(t, selectToken(selectInstall, "token-cmd-2"))
+	info, err = ds.GetVPPInstallReleaseInfoForCancel(ctx, host.ID, "token-cmd-2")
+	require.NoError(t, err)
+	require.Equal(t, &tok.ID, info.VPPTokenID)
+
+	// a queued install without a recorded token falls back to the app's token
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE vpp_app_upcoming_activities vaua JOIN upcoming_activities ua ON ua.id = vaua.upcoming_activity_id
+			SET vaua.vpp_token_id = NULL WHERE ua.execution_id = 'token-cmd-2'`)
+		return err
+	})
+	info, err = ds.GetVPPInstallReleaseInfoForCancel(ctx, host.ID, "token-cmd-2")
+	require.NoError(t, err)
+	require.Equal(t, &tok.ID, info.VPPTokenID)
+
+	// an activated install without a recorded token falls back to the app's token too
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET vpp_token_id = NULL WHERE command_uuid = 'token-cmd-1'`)
+		return err
+	})
+	info, err = ds.GetVPPInstallReleaseInfoForCancel(ctx, host.ID, "token-cmd-1")
+	require.NoError(t, err)
+	require.Equal(t, &tok.ID, info.VPPTokenID)
+
+	// neither the install nor the app row knows the token
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		if _, err := q.ExecContext(ctx, `UPDATE vpp_apps_teams SET vpp_token_id = NULL WHERE id IN (?, ?)`, app1.AppTeamID, app2.AppTeamID); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx, `UPDATE vpp_app_upcoming_activities vaua JOIN upcoming_activities ua ON ua.id = vaua.upcoming_activity_id
+			SET vaua.vpp_token_id = NULL WHERE ua.execution_id = 'token-cmd-2'`)
+		return err
+	})
+	for _, cmd := range []string{"token-cmd-1", "token-cmd-2"} {
+		info, err = ds.GetVPPInstallReleaseInfoForCancel(ctx, host.ID, cmd)
+		require.NoError(t, err)
+		require.Nil(t, info.VPPTokenID, cmd)
+	}
+
+	// a failed install records the token, and none when unknown
+	_, _, err = ds.RecordFailedVPPAppInstall(ctx, host.ID, app1.VPPAppID, "token-failed-cmd", "failed",
+		fleet.HostSoftwareInstallOptions{VPPAppTeamID: app1.AppTeamID, VPPTokenID: tok.ID})
+	require.NoError(t, err)
+	require.Equal(t, &tok.ID, selectToken(selectInstall, "token-failed-cmd"))
+	_, _, err = ds.RecordFailedVPPAppInstall(ctx, host.ID, app1.VPPAppID, "token-failed-cmd-2", "failed",
+		fleet.HostSoftwareInstallOptions{VPPAppTeamID: app1.AppTeamID})
+	require.NoError(t, err)
+	require.Nil(t, selectToken(selectInstall, "token-failed-cmd-2"))
+
+	// the recorded token wins over the app row's token, for queued and activated installs,
+	// and survives the app row being deleted
+	otherData, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Diddy Kong", "Treehouse")
+	require.NoError(t, err)
+	otherTok, err := ds.InsertVPPToken(ctx, otherData)
+	require.NoError(t, err)
+
+	const adamID3, adamID4 = "55550003", "55550004"
+	setupTestVPPApp(t, ds, adamID3, fleet.IOSPlatform)
+	setupTestVPPApp(t, ds, adamID4, fleet.IOSPlatform)
+	app3, err := ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, adamID3, fleet.IOSPlatform, nil)
+	require.NoError(t, err)
+	app4, err := ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, adamID4, fleet.IOSPlatform, nil)
+	require.NoError(t, err)
+	host2, err := ds.NewHost(ctx, &fleet.Host{Hostname: "token-host-2", UUID: "vpp-record-token-2", Platform: string(fleet.IOSPlatform), HardwareSerial: "SERIAL-TOKEN-2"})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host2, false)
+
+	// activated install and queued install, both recording otherTok while the app rows hold tok
+	require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, host2.ID, app3.VPPAppID, "token-cmd-3", "evt-3",
+		fleet.HostSoftwareInstallOptions{VPPAppTeamID: app3.AppTeamID, VPPTokenID: otherTok.ID}))
+	require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, host2.ID, app4.VPPAppID, "token-cmd-4", "evt-4",
+		fleet.HostSoftwareInstallOptions{VPPAppTeamID: app4.AppTeamID, VPPTokenID: otherTok.ID}))
+	require.NotNil(t, selectToken(selectInstall, "token-cmd-3"))
+	require.Nil(t, selectToken(selectInstall, "token-cmd-4"))
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE vpp_apps_teams SET vpp_token_id = ? WHERE id IN (?, ?)`, tok.ID, app3.AppTeamID, app4.AppTeamID)
+		return err
+	})
+	for _, cmd := range []string{"token-cmd-3", "token-cmd-4"} {
+		info, err = ds.GetVPPInstallReleaseInfoForCancel(ctx, host2.ID, cmd)
+		require.NoError(t, err)
+		require.Equal(t, &otherTok.ID, info.VPPTokenID, cmd)
+	}
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM vpp_apps_teams WHERE id IN (?, ?)`, app3.AppTeamID, app4.AppTeamID)
+		return err
+	})
+	for _, cmd := range []string{"token-cmd-3", "token-cmd-4"} {
+		info, err = ds.GetVPPInstallReleaseInfoForCancel(ctx, host2.ID, cmd)
+		require.NoError(t, err)
+		require.Equal(t, &otherTok.ID, info.VPPTokenID, cmd)
+	}
 }
 
 func testTwoAppStoreAppInstancesInOneFleet(t *testing.T, ds *Datastore) {

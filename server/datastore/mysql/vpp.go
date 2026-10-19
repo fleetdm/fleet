@@ -1324,9 +1324,9 @@ VALUES
 
 		insertVAUAStmt = `
 INSERT INTO vpp_app_upcoming_activities
-	(upcoming_activity_id, adam_id, platform, policy_id, vpp_app_team_id)
+	(upcoming_activity_id, adam_id, platform, policy_id, vpp_app_team_id, vpp_token_id)
 VALUES
-	(?, ?, ?, ?, ?)`
+	(?, ?, ?, ?, ?, ?)`
 
 		hostExistsStmt = `SELECT 1 FROM hosts WHERE id = ?`
 	)
@@ -1371,6 +1371,7 @@ VALUES
 			appID.Platform,
 			opts.PolicyID,
 			ptr.UintOrNilIfZero(opts.VPPAppTeamID),
+			ptr.UintOrNilIfZero(opts.VPPTokenID),
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert vpp install request join table")
@@ -1656,9 +1657,9 @@ func (ds *Datastore) RecordFailedVPPAppInstall(ctx context.Context, hostID uint,
 
 	const insStmt = `
 INSERT INTO host_vpp_software_installs
-	(host_id, adam_id, platform, command_uuid, user_id, self_service, policy_id, verification_failed_at, vpp_app_team_id)
+	(host_id, adam_id, platform, command_uuid, user_id, self_service, policy_id, verification_failed_at, vpp_app_team_id, vpp_token_id)
 VALUES
-	(?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP(6), ?)`
+	(?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP(6), ?, ?)`
 
 	var (
 		user *fleet.User
@@ -1667,7 +1668,7 @@ VALUES
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		if _, err := tx.ExecContext(ctx, insStmt,
 			hostID, appID.AdamID, appID.Platform, commandUUID, userID, opts.SelfService, opts.PolicyID,
-			ptr.UintOrNilIfZero(opts.VPPAppTeamID),
+			ptr.UintOrNilIfZero(opts.VPPAppTeamID), ptr.UintOrNilIfZero(opts.VPPTokenID),
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert failed vpp install")
 		}
@@ -1716,6 +1717,7 @@ func (ds *Datastore) GetVPPInstallReleaseInfoForCancel(ctx context.Context, host
 SELECT
 	hvsi.adam_id,
 	COALESCE(hvsi.associated_event_id, '') AS associated_event_id,
+	COALESCE(hvsi.vpp_token_id, vat.vpp_token_id) AS vpp_token_id,
 	(EXISTS(
 		SELECT 1 FROM host_vpp_software_installs other
 		WHERE other.host_id = hvsi.host_id
@@ -1734,12 +1736,14 @@ SELECT
 		  AND ua.execution_id != hvsi.command_uuid
 	)) AS has_other_active_install
 FROM host_vpp_software_installs hvsi
+LEFT JOIN vpp_apps_teams vat ON vat.id = hvsi.vpp_app_team_id
 WHERE hvsi.host_id = ? AND hvsi.command_uuid = ?`
 
 	var row struct {
 		AdamID                string `db:"adam_id"`
 		AssociatedEventID     string `db:"associated_event_id"`
 		HasOtherActiveInstall bool   `db:"has_other_active_install"`
+		VPPTokenID            *uint  `db:"vpp_token_id"`
 	}
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &row, activatedStmt, hostID, executionID)
 	if err == nil {
@@ -1747,6 +1751,7 @@ WHERE hvsi.host_id = ? AND hvsi.command_uuid = ?`
 			AdamID:                row.AdamID,
 			AssociatedEventID:     row.AssociatedEventID,
 			HasOtherActiveInstall: row.HasOtherActiveInstall,
+			VPPTokenID:            row.VPPTokenID,
 		}, nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
@@ -1758,6 +1763,7 @@ WHERE hvsi.host_id = ? AND hvsi.command_uuid = ?`
 SELECT
 	vaua.adam_id,
 	COALESCE(JSON_UNQUOTE(JSON_EXTRACT(ua.payload, '$.associated_event_id')), '') AS associated_event_id,
+	COALESCE(vaua.vpp_token_id, vat.vpp_token_id) AS vpp_token_id,
 	(EXISTS(
 		SELECT 1 FROM host_vpp_software_installs hvsi
 		WHERE hvsi.host_id = ua.host_id
@@ -1774,6 +1780,7 @@ SELECT
 	)) AS has_other_active_install
 FROM upcoming_activities ua
 JOIN vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
+LEFT JOIN vpp_apps_teams vat ON vat.id = vaua.vpp_app_team_id
 WHERE ua.host_id = ? AND ua.execution_id = ? AND ua.activity_type = 'vpp_app_install'`
 
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, upcomingStmt, hostID, executionID); err != nil {
@@ -1786,6 +1793,7 @@ WHERE ua.host_id = ? AND ua.execution_id = ? AND ua.activity_type = 'vpp_app_ins
 		AdamID:                row.AdamID,
 		AssociatedEventID:     row.AssociatedEventID,
 		HasOtherActiveInstall: row.HasOtherActiveInstall,
+		VPPTokenID:            row.VPPTokenID,
 	}, nil
 }
 
