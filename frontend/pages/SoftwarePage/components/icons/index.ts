@@ -985,6 +985,7 @@ import SublimeMerge from "./png/SublimeMerge.png";
 import SublimeText from "./png/SublimeText.png";
 import Supercollider from "./png/Supercollider.png";
 import Superhuman from "./png/Superhuman.png";
+import SuperhumanDocs from "./png/SuperhumanDocs.png";
 import Superkey from "./png/Superkey.png";
 import SuperProductivity from "./png/SuperProductivity.png";
 import Superwhisper from "./png/Superwhisper.png";
@@ -2174,6 +2175,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "super productivity": SuperProductivity,
   supercollider: Supercollider,
   superhuman: Superhuman,
+  "superhuman docs": SuperhumanDocs,
   superkey: Superkey,
   superwhisper: Superwhisper,
   "support companion": Supportcompanion,
