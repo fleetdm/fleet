@@ -14,7 +14,7 @@
 #   make call TOOL=get_total_system_count
 #   make call TOOL=get_endpoints ARGS='{"per_page":"5"}'
 #   make call TOOL=run_live_query ARGS='{"sql":"SELECT version FROM os_version","host_ids":"2"}'
-#   make sse PORT=8137                           # run the SSE server (foreground)
+#   make serve PORT=8137                         # run the HTTP server: Streamable HTTP at /mcp, SSE at /sse (foreground)
 #
 # Tool output is pretty-printed when `jq` is installed; otherwise raw JSON-RPC.
 # No language runtime required beyond a POSIX shell + the built binary.
@@ -28,7 +28,7 @@ PORT ?= 8080
 INIT   := {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"make","version":"1"}}}
 INITED := {"jsonrpc":"2.0","method":"notifications/initialized"}
 
-.PHONY: help build call tools posture sse
+.PHONY: help build call tools posture serve sse
 
 help:
 	@grep -E '^#' Makefile | sed -e 's/^# \{0,1\}//'
@@ -65,6 +65,6 @@ tools: build
 posture: build
 	@$(BIN) -transport stdio </dev/null
 
-# Run the SSE server in the foreground (Ctrl-C to stop).
-sse: build
+# Run the HTTP server in the foreground (Ctrl-C to stop). `sse` is kept as an alias.
+serve sse: build
 	PORT=$(PORT) $(BIN)
