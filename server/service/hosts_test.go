@@ -2,7 +2,10 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -10,6 +13,7 @@ import (
 	"fmt"
 	"iter"
 	"log/slog"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -4765,13 +4769,14 @@ func TestHostEncryptionKey(t *testing.T) {
 	})
 
 	t.Run("host platform mdm enabled", func(t *testing.T) {
+		// A Windows key depends on the server private key only, so it is readable whether or not Windows MDM is on.
 		cases := []struct {
 			hostPlatform  string
 			macMDMEnabled bool
 			winMDMEnabled bool
 			shouldFail    bool
 		}{
-			{"windows", true, false, true},
+			{"windows", true, false, false},
 			{"windows", false, true, false},
 			{"windows", true, true, false},
 			{"darwin", true, false, false},
@@ -4795,6 +4800,7 @@ func TestHostEncryptionKey(t *testing.T) {
 					return &fleet.HostDiskEncryptionKey{
 						Base64Encrypted: key,
 						Decryptable:     new(true),
+						WSTEPEncrypted:  c.hostPlatform == "windows",
 					}, nil
 				}
 				ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host, _ bool) (*fleet.HostArchivedDiskEncryptionKey, error) {
@@ -4816,15 +4822,84 @@ func TestHostEncryptionKey(t *testing.T) {
 				ctx = test.UserContext(ctx, test.UserAdmin)
 				_, err := svc.HostEncryptionKey(ctx, 1, false)
 				if c.shouldFail {
-					require.Error(t, err)
-					if c.macMDMEnabled && !c.winMDMEnabled && c.hostPlatform == "windows" {
-						require.ErrorContains(t, err, fleet.ErrWindowsMDMNotConfigured.Error())
-					} else {
-						require.ErrorContains(t, err, fleet.ErrMDMNotConfigured.Error())
-					}
+					require.ErrorContains(t, err, fleet.ErrMDMNotConfigured.Error())
 				} else {
 					require.NoError(t, err)
 				}
+			})
+		}
+	})
+
+	t.Run("Windows keys", func(t *testing.T) {
+		aesKey, err := mdm.EncryptAndEncode(recoveryKey, fleetCfg.Server.PrivateKey)
+		require.NoError(t, err)
+		// A key escrowed by an older release names the WSTEP certificate of that time. The configured one here has the same key
+		// and a different serial, which is what a renewal looks like.
+		renewed := selfSignedCertForKey(t, wstep.PrivateKey.(*rsa.PrivateKey), 42)
+		legacyKey, err := pkcs7.Encrypt([]byte(recoveryKey), []*x509.Certificate{renewed})
+		require.NoError(t, err)
+		legacyB64 := base64.StdEncoding.EncodeToString(legacyKey)
+		// Encrypted to a certificate whose key the server never had, as after replacing the WSTEP pair.
+		otherKey, err := rsa.GenerateKey(rand.Reader, 2048)
+		require.NoError(t, err)
+		deadKey, err := pkcs7.Encrypt([]byte(recoveryKey), []*x509.Certificate{selfSignedCertForKey(t, otherKey, 43)})
+		require.NoError(t, err)
+		deadB64 := base64.StdEncoding.EncodeToString(deadKey)
+
+		cases := []struct {
+			name     string
+			current  *fleet.HostDiskEncryptionKey
+			archived *fleet.HostArchivedDiskEncryptionKey
+			want     string
+			wantErr  string
+		}{
+			{"server private key", &fleet.HostDiskEncryptionKey{Base64Encrypted: aesKey, Decryptable: new(true)}, nil, recoveryKey, ""},
+			{"legacy key with a renewed certificate", &fleet.HostDiskEncryptionKey{Base64Encrypted: legacyB64, WSTEPEncrypted: true, Decryptable: new(true)}, nil, recoveryKey, ""},
+			{"legacy key on an unmarked row, as escrowed by an older instance mid-upgrade", &fleet.HostDiskEncryptionKey{Base64Encrypted: legacyB64, Decryptable: new(true)}, nil, recoveryKey, ""},
+			{"server-key blob on a marked row", &fleet.HostDiskEncryptionKey{Base64Encrypted: aesKey, WSTEPEncrypted: true, Decryptable: new(true)}, nil, recoveryKey, ""},
+			{"unreadable key on an unmarked row", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, Decryptable: new(true)}, nil, "", "Couldn't decrypt the disk encryption key."},
+			{"legacy key after the pair was replaced, before the job marked it", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true, Decryptable: new(true)}, nil, "", "Couldn't decrypt the disk encryption key."},
+			{"legacy key after the pair was replaced, marked by the job", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true, Decryptable: new(false)}, nil, "", "The host will escrow a new one"},
+			{"archived legacy key when the current one is unreadable",
+				&fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true},
+				&fleet.HostArchivedDiskEncryptionKey{Base64Encrypted: legacyB64, WSTEPEncrypted: true}, recoveryKey, ""},
+			{"archived key on the server private key",
+				&fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true},
+				&fleet.HostArchivedDiskEncryptionKey{Base64Encrypted: aesKey}, recoveryKey, ""},
+		}
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				ds := new(mock.Store)
+				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+					return &fleet.AppConfig{}, nil
+				}
+				ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+					return &fleet.Host{ID: 1, Platform: "windows"}, nil
+				}
+				ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+					return c.current, nil
+				}
+				ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host, _ bool) (*fleet.HostArchivedDiskEncryptionKey, error) {
+					if c.archived == nil {
+						return nil, newNotFoundError()
+					}
+					return c.archived, nil
+				}
+				svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
+				ctx = test.UserContext(ctx, test.UserAdmin)
+				key, err := svc.HostEncryptionKey(ctx, 1, false)
+				if c.wantErr != "" {
+					var ume *fleet.UserMessageError
+					require.ErrorAs(t, err, &ume)
+					require.ErrorContains(t, err, c.wantErr)
+					require.NotContains(t, err.Error(), "MDM has been turned off")
+					if c.current.Decryptable != nil && *c.current.Decryptable {
+						require.NotContains(t, err.Error(), "escrow a new one", "a key still believed readable is not being replaced")
+					}
+					return
+				}
+				require.NoError(t, err)
+				require.Equal(t, c.want, key.DecryptedValue)
 			})
 		}
 	})
@@ -7730,4 +7805,21 @@ func TestReorderCSVColumnAfter(t *testing.T) {
 			require.Equal(t, c.want, c.recs)
 		})
 	}
+}
+
+// selfSignedCertForKey issues a certificate for key with the given serial, so two certificates can share one key.
+func selfSignedCertForKey(t *testing.T, key *rsa.PrivateKey, serial int64) *x509.Certificate {
+	t.Helper()
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(serial),
+		Subject:      pkix.Name{CommonName: "Fleet WSTEP test"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	require.NoError(t, err)
+	cert, err := x509.ParseCertificate(der)
+	require.NoError(t, err)
+	return cert
 }
