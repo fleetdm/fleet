@@ -76,6 +76,12 @@
     }
   }
 
+  // The label sits outside the Card (where --disabled lives), so grey it from
+  // the wrapper's disabled modifier instead.
+  &__wrapper--disabled .file-uploader__label {
+    color: $ui-fleet-black-50;
+  }
+
   &__upload-button {
     // we handle the padding in the label so the entire button is clickable
     padding: 0;
