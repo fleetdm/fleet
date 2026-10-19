@@ -272,6 +272,7 @@ const SoftwareVppForm = ({
                 onClickPreviewEndUserExperience(isAppleMobile)
               }
               teamId={teamId}
+              disableOptions={gitOpsModeEnabled}
             />
             <DropdownTargetLabelSelector
               selectedTargetType={formData.targetType}
@@ -291,6 +292,7 @@ const SoftwareVppForm = ({
                   ? "Changing this will also apply to targets for auto-updates."
                   : ""
               }
+              disableOptions={gitOpsModeEnabled}
             />
           </div>
         </div>

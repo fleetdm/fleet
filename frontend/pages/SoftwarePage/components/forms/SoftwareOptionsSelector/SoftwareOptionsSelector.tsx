@@ -251,6 +251,7 @@ const SoftwareOptionsSelector = ({
             selectedCategories={formData.categories}
             onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
             teamId={teamId}
+            disabled={disableOptions}
           />
         )}
       </div>
