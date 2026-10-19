@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -36,6 +35,10 @@ func ReencryptWSTEPDiskEncryptionKeys(ctx context.Context, logger *slog.Logger, 
 		return nil
 	}
 
+	serverKeyReads := func(b64 string) bool {
+		_, err := mdm.DecodeAndDecrypt(b64, cfg.Server.PrivateKey)
+		return err == nil
+	}
 	decrypt := func(b64 string) ([]byte, error) {
 		plain, err := mdm.DecryptBase64CMSWithKey(b64, cert.PrivateKey)
 		if err != nil {
@@ -49,21 +52,21 @@ func ReencryptWSTEPDiskEncryptionKeys(ctx context.Context, logger *slog.Logger, 
 	encrypt := func(plain []byte) (string, error) {
 		enc, err := mdm.EncryptAndEncode(string(plain), cfg.Server.PrivateKey)
 		if err != nil {
-			return "", fmt.Errorf("encrypt with the server private key: %w", err)
+			return "", ctxerr.Wrap(ctx, err, "encrypt with the server private key")
 		}
 		// Decrypted once before it replaces the only copy of the key.
 		back, err := mdm.DecodeAndDecrypt(enc, cfg.Server.PrivateKey)
 		if err != nil {
-			return "", fmt.Errorf("verify the re-encrypted key: %w", err)
+			return "", ctxerr.Wrap(ctx, err, "verify the re-encrypted key")
 		}
 		if back != string(plain) {
-			return "", errors.New("verify the re-encrypted key: mismatch")
+			return "", ctxerr.New(ctx, "verify the re-encrypted key: mismatch")
 		}
 		return enc, nil
 	}
 
 	var reencrypted, marked, raced, alreadyCurrent, unreadableUnmarked int
-	var archivedReencrypted, archivedAlreadyCurrent, archivedUnreadable, archivedUnreadableUnmarked int
+	var archivedReencrypted, archivedAlreadyCurrent, archivedUnreadable int
 	var afterHostID uint
 	for {
 		keys, err := ds.ListWSTEPEncryptedDiskEncryptionKeys(ctx, afterHostID, wstepKeyBatchSize)
@@ -76,12 +79,16 @@ func ReencryptWSTEPDiskEncryptionKeys(ctx context.Context, logger *slog.Logger, 
 		var unreadable []fleet.HostDiskEncryptionKey
 		for _, key := range keys {
 			afterHostID = key.HostID
-			// An unmarked row is listed by its shape alone; one that the server key reads is current and left alone.
-			if !key.WSTEPEncrypted {
-				if _, err := mdm.DecodeAndDecrypt(key.Base64Encrypted, cfg.Server.PrivateKey); err == nil {
-					alreadyCurrent++
-					continue
+			// A row the server key reads is current. An unmarked one was listed by its shape alone and is left as it
+			// is; a marked one only needs its marker cleared, which the same compare-and-swap does.
+			if serverKeyReads(key.Base64Encrypted) {
+				alreadyCurrent++
+				if key.WSTEPEncrypted {
+					if _, err := ds.ReplaceWSTEPEncryptedDiskEncryptionKey(ctx, key.HostID, key.Base64Encrypted, key.Base64Encrypted); err != nil {
+						return ctxerr.Wrap(ctx, err, "clear marker on a current disk encryption key")
+					}
 				}
+				continue
 			}
 			plain, err := decrypt(key.Base64Encrypted)
 			if err != nil {
@@ -103,11 +110,16 @@ func ReencryptWSTEPDiskEncryptionKeys(ctx context.Context, logger *slog.Logger, 
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "replace WSTEP encrypted disk encryption key")
 			}
-			if replaced {
-				reencrypted++
-			} else {
+			if !replaced {
 				// The host escrowed a new key between the read and the write; that key is already on the server key.
 				raced++
+				continue
+			}
+			reencrypted++
+			// The archive holds the same ciphertext for this key, marked by the migration or, for a copy an older
+			// instance wrote during a rolling upgrade, unmarked. Either way it follows the live row.
+			if err := ds.ReplaceArchivedDiskEncryptionKeyCopies(ctx, key.HostID, key.Base64Encrypted, enc); err != nil {
+				return ctxerr.Wrap(ctx, err, "replace archived copies of a re-encrypted disk encryption key")
 			}
 		}
 		if err := ds.MarkWindowsDiskEncryptionKeysUndecryptable(ctx, unreadable); err != nil {
@@ -119,8 +131,8 @@ func ReencryptWSTEPDiskEncryptionKeys(ctx context.Context, logger *slog.Logger, 
 		}
 	}
 
-	// Archived keys never trigger a host, so there is nothing to mark. A marked one that cannot be read is taken out of
-	// the queue instead of being retried every hour; an unmarked one is left alone, like its live counterpart.
+	// Archived keys never trigger a host, so there is nothing to mark. One that cannot be read is taken out of the
+	// queue instead of being retried every hour.
 	var afterID uint
 	for {
 		keys, err := ds.ListWSTEPEncryptedArchivedDiskEncryptionKeys(ctx, afterID, wstepKeyBatchSize)
@@ -132,18 +144,15 @@ func ReencryptWSTEPDiskEncryptionKeys(ctx context.Context, logger *slog.Logger, 
 		}
 		for _, key := range keys {
 			afterID = key.ID
-			if !key.WSTEPEncrypted {
-				if _, err := mdm.DecodeAndDecrypt(key.Base64Encrypted, cfg.Server.PrivateKey); err == nil {
-					archivedAlreadyCurrent++
-					continue
+			if serverKeyReads(key.Base64Encrypted) {
+				archivedAlreadyCurrent++
+				if _, err := ds.ReplaceWSTEPEncryptedArchivedDiskEncryptionKey(ctx, key.ID, key.Base64Encrypted, key.Base64Encrypted); err != nil {
+					return ctxerr.Wrap(ctx, err, "clear marker on a current archived disk encryption key")
 				}
+				continue
 			}
 			plain, err := decrypt(key.Base64Encrypted)
 			if err != nil {
-				if !key.WSTEPEncrypted {
-					archivedUnreadableUnmarked++
-					continue
-				}
 				if err := ds.ClearWSTEPEncryptedArchivedDiskEncryptionKeyMarker(ctx, key.ID, key.Base64Encrypted); err != nil {
 					return ctxerr.Wrap(ctx, err, "clear WSTEP encrypted archived disk encryption key marker")
 				}
@@ -167,7 +176,7 @@ func ReencryptWSTEPDiskEncryptionKeys(ctx context.Context, logger *slog.Logger, 
 		}
 	}
 
-	if reencrypted+marked+raced+unreadableUnmarked+archivedReencrypted+archivedUnreadable+archivedUnreadableUnmarked == 0 {
+	if reencrypted+marked+raced+unreadableUnmarked+archivedReencrypted+archivedUnreadable == 0 {
 		return nil
 	}
 	logger.InfoContext(ctx, "re-encrypted legacy Windows disk encryption keys with the server private key",
@@ -179,7 +188,6 @@ func ReencryptWSTEPDiskEncryptionKeys(ctx context.Context, logger *slog.Logger, 
 		"archived_reencrypted", archivedReencrypted,
 		"archived_already_current", archivedAlreadyCurrent,
 		"archived_unreadable", archivedUnreadable,
-		"archived_unreadable_unmarked_left_alone", archivedUnreadableUnmarked,
 	)
 	return nil
 }

@@ -787,43 +787,17 @@ func testWSTEPEncryptedDiskEncryptionKeys(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, keys, 1)
 	require.Equal(t, looksLegacy.ID, keys[0].HostID)
-	// Archived copies written by an older instance mid-upgrade are unmarked and found by shape, for Windows hosts and
-	// for hosts that no longer exist; macOS copies and server-key copies are not.
-	var archivedLooksLegacy, archivedOrphan uint
+	// Only marked archive rows are listed; copies written mid-upgrade are unmarked and follow their live row instead.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		for _, row := range []struct {
-			hostID uint
-			blob   string
-			dest   *uint
-		}{
-			{looksLegacy.ID, "MIIarchived-looks-legacy", &archivedLooksLegacy},
-			{9999, "MIIarchived-orphan", &archivedOrphan},
-			{mac.ID, "MIIarchived-mac", nil},
-			{current.ID, "aes-archived", nil},
-		} {
-			res, err := q.ExecContext(ctx, `INSERT INTO host_disk_encryption_keys_archive (host_id, base64_encrypted) VALUES (?, ?)`, row.hostID, row.blob)
-			if err != nil {
-				return err
-			}
-			if row.dest != nil {
-				id, _ := res.LastInsertId()
-				*row.dest = uint(id) //nolint:gosec // test ids are small
-			}
-		}
-		return nil
+		_, err := q.ExecContext(ctx, `INSERT INTO host_disk_encryption_keys_archive (host_id, base64_encrypted) VALUES (?, ?)`, looksLegacy.ID, "MIIarchived-looks-legacy")
+		return err
 	})
-	// The upsert above also archived the looksLegacy host's own CMS-shaped key, which is listed the same way.
 	archivedKeys, err := ds.ListWSTEPEncryptedArchivedDiskEncryptionKeys(ctx, 0, 10)
 	require.NoError(t, err)
-	require.Len(t, archivedKeys, 4)
+	require.Len(t, archivedKeys, 1)
 	require.Equal(t, archived.ID, archivedKeys[0].ID)
 	require.True(t, archivedKeys[0].WSTEPEncrypted)
-	require.Equal(t, "MIIlooks-like-cms", archivedKeys[1].Base64Encrypted)
-	require.False(t, archivedKeys[1].WSTEPEncrypted)
-	archivedLooksLegacyLive := archivedKeys[1].ID
-	require.Equal(t, archivedLooksLegacy, archivedKeys[2].ID)
-	require.Equal(t, archivedOrphan, archivedKeys[3].ID)
-	archivedKeys, err = ds.ListWSTEPEncryptedArchivedDiskEncryptionKeys(ctx, archivedOrphan, 10)
+	archivedKeys, err = ds.ListWSTEPEncryptedArchivedDiskEncryptionKeys(ctx, archived.ID, 10)
 	require.NoError(t, err)
 	require.Empty(t, archivedKeys)
 
@@ -856,10 +830,10 @@ func testWSTEPEncryptedDiskEncryptionKeys(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.False(t, key.WSTEPEncrypted)
 	require.Equal(t, new(true), key.Decryptable)
-	// The archived copy of the new key is neither marked nor CMS-shaped, so the list is unchanged.
+	// The archived copy of the new key is not marked either.
 	archivedKeys, err = ds.ListWSTEPEncryptedArchivedDiskEncryptionKeys(ctx, 0, 10)
 	require.NoError(t, err)
-	require.Len(t, archivedKeys, 4)
+	require.Len(t, archivedKeys, 1)
 	require.Equal(t, "wstep-blob", archivedKeys[0].Base64Encrypted)
 
 	// Replacing is a compare-and-swap on the stored blob, marked or not, and keeps updated_at and decryptable.
@@ -887,19 +861,26 @@ func testWSTEPEncryptedDiskEncryptionKeys(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, keys)
 
-	// The archive: replace is a compare-and-swap on the stored blob, marked or not; clearing the marker takes an
-	// unreadable marked row out of the list without touching its blob.
+	// The archived copies of a re-encrypted live key follow it, matched on the blob the live row had: here the copy the
+	// upsert made of the looksLegacy key, marked or not. The unrelated row with another blob is untouched.
+	require.NoError(t, ds.ReplaceArchivedDiskEncryptionKeyCopies(ctx, looksLegacy.ID, "MIIlooks-like-cms", "aes-blob-4"))
+	var copies []string
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &copies, `SELECT base64_encrypted FROM host_disk_encryption_keys_archive WHERE host_id = ? ORDER BY id`, looksLegacy.ID))
+	require.Equal(t, []string{"aes-blob-4", "MIIarchived-looks-legacy"}, copies)
+
+	// The archive: replace is a compare-and-swap on the stored blob; clearing the marker takes an unreadable row out of
+	// the list without touching its blob.
 	replaced, err = ds.ReplaceWSTEPEncryptedArchivedDiskEncryptionKey(ctx, archived.ID, "stale-blob", "aes-blob-5")
 	require.NoError(t, err)
 	require.False(t, replaced)
 	require.NoError(t, ds.ClearWSTEPEncryptedArchivedDiskEncryptionKeyMarker(ctx, archived.ID, "stale-blob"))
 	archivedKeys, err = ds.ListWSTEPEncryptedArchivedDiskEncryptionKeys(ctx, 0, 10)
 	require.NoError(t, err)
-	require.Len(t, archivedKeys, 4)
+	require.Len(t, archivedKeys, 1)
 	require.NoError(t, ds.ClearWSTEPEncryptedArchivedDiskEncryptionKeyMarker(ctx, archived.ID, "wstep-blob"))
 	archivedKeys, err = ds.ListWSTEPEncryptedArchivedDiskEncryptionKeys(ctx, 0, 10)
 	require.NoError(t, err)
-	require.Len(t, archivedKeys, 3, "the cleared row is gone, the unmarked copies remain")
+	require.Empty(t, archivedKeys)
 	archivedAfter, err := ds.GetHostArchivedDiskEncryptionKey(ctx, legacy, false)
 	require.NoError(t, err)
 	require.False(t, archivedAfter.WSTEPEncrypted)
@@ -908,15 +889,6 @@ func testWSTEPEncryptedDiskEncryptionKeys(t *testing.T, ds *Datastore) {
 		return err
 	})
 	replaced, err = ds.ReplaceWSTEPEncryptedArchivedDiskEncryptionKey(ctx, archived.ID, "wstep-blob", "aes-blob-5")
-	require.NoError(t, err)
-	require.True(t, replaced)
-	replaced, err = ds.ReplaceWSTEPEncryptedArchivedDiskEncryptionKey(ctx, archivedLooksLegacy, "MIIarchived-looks-legacy", "aes-blob-6")
-	require.NoError(t, err)
-	require.True(t, replaced, "an unmarked copy is replaced on its blob alone")
-	replaced, err = ds.ReplaceWSTEPEncryptedArchivedDiskEncryptionKey(ctx, archivedOrphan, "MIIarchived-orphan", "aes-blob-7")
-	require.NoError(t, err)
-	require.True(t, replaced)
-	replaced, err = ds.ReplaceWSTEPEncryptedArchivedDiskEncryptionKey(ctx, archivedLooksLegacyLive, "MIIlooks-like-cms", "aes-blob-8")
 	require.NoError(t, err)
 	require.True(t, replaced)
 	archivedKeys, err = ds.ListWSTEPEncryptedArchivedDiskEncryptionKeys(ctx, 0, 10)

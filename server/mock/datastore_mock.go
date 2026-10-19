@@ -996,6 +996,8 @@ type ReplaceWSTEPEncryptedDiskEncryptionKeyFunc func(ctx context.Context, hostID
 
 type ReplaceWSTEPEncryptedArchivedDiskEncryptionKeyFunc func(ctx context.Context, id uint, currentBase64Encrypted string, newBase64Encrypted string) (bool, error)
 
+type ReplaceArchivedDiskEncryptionKeyCopiesFunc func(ctx context.Context, hostID uint, currentBase64Encrypted string, newBase64Encrypted string) error
+
 type ClearWSTEPEncryptedArchivedDiskEncryptionKeyMarkerFunc func(ctx context.Context, id uint, currentBase64Encrypted string) error
 
 type MarkWindowsDiskEncryptionKeysUndecryptableFunc func(ctx context.Context, keys []fleet.HostDiskEncryptionKey) error
@@ -4070,6 +4072,9 @@ type DataStore struct {
 
 	ReplaceWSTEPEncryptedArchivedDiskEncryptionKeyFunc        ReplaceWSTEPEncryptedArchivedDiskEncryptionKeyFunc
 	ReplaceWSTEPEncryptedArchivedDiskEncryptionKeyFuncInvoked bool
+
+	ReplaceArchivedDiskEncryptionKeyCopiesFunc        ReplaceArchivedDiskEncryptionKeyCopiesFunc
+	ReplaceArchivedDiskEncryptionKeyCopiesFuncInvoked bool
 
 	ClearWSTEPEncryptedArchivedDiskEncryptionKeyMarkerFunc        ClearWSTEPEncryptedArchivedDiskEncryptionKeyMarkerFunc
 	ClearWSTEPEncryptedArchivedDiskEncryptionKeyMarkerFuncInvoked bool
@@ -9898,6 +9903,13 @@ func (s *DataStore) ReplaceWSTEPEncryptedArchivedDiskEncryptionKey(ctx context.C
 	s.ReplaceWSTEPEncryptedArchivedDiskEncryptionKeyFuncInvoked = true
 	s.mu.Unlock()
 	return s.ReplaceWSTEPEncryptedArchivedDiskEncryptionKeyFunc(ctx, id, currentBase64Encrypted, newBase64Encrypted)
+}
+
+func (s *DataStore) ReplaceArchivedDiskEncryptionKeyCopies(ctx context.Context, hostID uint, currentBase64Encrypted string, newBase64Encrypted string) error {
+	s.mu.Lock()
+	s.ReplaceArchivedDiskEncryptionKeyCopiesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReplaceArchivedDiskEncryptionKeyCopiesFunc(ctx, hostID, currentBase64Encrypted, newBase64Encrypted)
 }
 
 func (s *DataStore) ClearWSTEPEncryptedArchivedDiskEncryptionKeyMarker(ctx context.Context, id uint, currentBase64Encrypted string) error {

@@ -20,7 +20,7 @@ import (
 )
 
 func TestReencryptWSTEPDiskEncryptionKeys(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	logger := slog.New(slog.DiscardHandler)
 
 	appleCert, appleKey, err := apple_mdm.NewSCEPCACertKey()
@@ -56,12 +56,13 @@ func TestReencryptWSTEPDiskEncryptionKeys(t *testing.T) {
 	type recorder struct {
 		replaced         map[uint]string
 		archivedReplaced map[uint]string
+		archivedCopies   map[uint]string
 		archivedCleared  []uint
 		marked           []fleet.HostDiskEncryptionKey
 	}
 	newStore := func(t *testing.T, keys []fleet.HostDiskEncryptionKey, archived []fleet.HostArchivedDiskEncryptionKey) (*mock.Store, *recorder) {
 		ds := new(mock.Store)
-		rec := &recorder{replaced: map[uint]string{}, archivedReplaced: map[uint]string{}}
+		rec := &recorder{replaced: map[uint]string{}, archivedReplaced: map[uint]string{}, archivedCopies: map[uint]string{}}
 		blobOf := map[uint]string{}
 		for _, k := range keys {
 			blobOf[k.HostID] = k.Base64Encrypted
@@ -92,6 +93,11 @@ func TestReencryptWSTEPDiskEncryptionKeys(t *testing.T) {
 		ds.ReplaceWSTEPEncryptedArchivedDiskEncryptionKeyFunc = func(ctx context.Context, id uint, current, updated string) (bool, error) {
 			rec.archivedReplaced[id] = updated
 			return true, nil
+		}
+		ds.ReplaceArchivedDiskEncryptionKeyCopiesFunc = func(ctx context.Context, hostID uint, current, updated string) error {
+			require.Equal(t, blobOf[hostID], current, "copies are matched on the blob the live row had")
+			rec.archivedCopies[hostID] = updated
+			return nil
 		}
 		ds.ClearWSTEPEncryptedArchivedDiskEncryptionKeyMarkerFunc = func(ctx context.Context, id uint, current string) error {
 			rec.archivedCleared = append(rec.archivedCleared, id)
@@ -134,26 +140,30 @@ func TestReencryptWSTEPDiskEncryptionKeys(t *testing.T) {
 				{HostID: 7, Base64Encrypted: dead},
 				// Shorter than an AES-GCM nonce: a malformed blob must not stop the run.
 				{HostID: 8, Base64Encrypted: "MIIA", WSTEPEncrypted: true},
+				// Marked but already on the server key: only the marker goes.
+				{HostID: 9, Base64Encrypted: current, WSTEPEncrypted: true},
 			},
 			[]fleet.HostArchivedDiskEncryptionKey{
 				{ID: 10, HostID: 1, Base64Encrypted: archivedReadable, WSTEPEncrypted: true},
 				{ID: 11, HostID: 3, Base64Encrypted: archivedDead, WSTEPEncrypted: true},
-				// Unmarked archive copies: current ones skipped, legacy ones re-encrypted, unreadable ones left alone.
-				{ID: 12, HostID: 5, Base64Encrypted: current},
-				{ID: 13, HostID: 6, Base64Encrypted: archivedReadable},
-				{ID: 14, HostID: 7, Base64Encrypted: archivedDead},
+				{ID: 12, HostID: 9, Base64Encrypted: current, WSTEPEncrypted: true},
 			})
 		require.NoError(t, ReencryptWSTEPDiskEncryptionKeys(ctx, logger, ds, &cfg))
 
-		require.Len(t, rec.replaced, 3)
+		require.Len(t, rec.replaced, 4)
 		require.Equal(t, "key-1", decrypted(t, rec.replaced[1]))
 		require.Equal(t, "key-2", decrypted(t, rec.replaced[2]))
 		require.Equal(t, "key-1", decrypted(t, rec.replaced[6]))
+		require.Equal(t, current, rec.replaced[9], "a current blob is written back unchanged to clear the marker")
 		require.Equal(t, []uint{3, 4, 8}, markedHosts(rec))
+		// Each re-encrypted live key drags its archived copies along, with the same new ciphertext.
+		require.Len(t, rec.archivedCopies, 3)
+		require.Equal(t, rec.replaced[1], rec.archivedCopies[1])
+		require.Equal(t, rec.replaced[6], rec.archivedCopies[6])
 		require.Len(t, rec.archivedReplaced, 2)
 		require.Equal(t, "archived-1", decrypted(t, rec.archivedReplaced[10]))
-		require.Equal(t, "archived-1", decrypted(t, rec.archivedReplaced[13]))
-		require.Equal(t, []uint{11}, rec.archivedCleared, "only a marked row is cleared")
+		require.Equal(t, current, rec.archivedReplaced[12])
+		require.Equal(t, []uint{11}, rec.archivedCleared)
 	})
 
 	// A replaced certificate leaves every key unreadable; one run walks all batches and marks them all.

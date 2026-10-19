@@ -550,18 +550,26 @@ LIMIT ?`, afterHostID, limit)
 
 func (ds *Datastore) ListWSTEPEncryptedArchivedDiskEncryptionKeys(ctx context.Context, afterID uint, limit int) ([]fleet.HostArchivedDiskEncryptionKey, error) {
 	var keys []fleet.HostArchivedDiskEncryptionKey
-	// Same shape rule as the live rows, for archive copies an older instance wrote during a rolling upgrade. Archived
-	// keys outlive their host and are still served by hardware serial, so rows without a host are included by shape.
+	// Marked rows only, served by the (wstep_encrypted, id) index. Copies an older instance archived during a rolling
+	// upgrade are unmarked and are re-encrypted together with their live row instead, see
+	// ReplaceArchivedDiskEncryptionKeyCopies.
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &keys, `
-SELECT a.id, a.host_id, a.base64_encrypted, a.created_at, a.wstep_encrypted
-FROM host_disk_encryption_keys_archive a
-LEFT JOIN hosts h ON h.id = a.host_id
-WHERE a.base64_encrypted != ''
-  AND (a.wstep_encrypted = 1 OR (a.base64_encrypted LIKE 'MII%' AND (h.platform = 'windows' OR h.id IS NULL)))
-  AND a.id > ?
-ORDER BY a.id
+SELECT id, host_id, base64_encrypted, created_at, wstep_encrypted
+FROM host_disk_encryption_keys_archive
+WHERE wstep_encrypted = 1 AND base64_encrypted != '' AND id > ?
+ORDER BY id
 LIMIT ?`, afterID, limit)
 	return keys, ctxerr.Wrap(ctx, err, "list WSTEP encrypted archived disk encryption keys")
+}
+
+func (ds *Datastore) ReplaceArchivedDiskEncryptionKeyCopies(ctx context.Context, hostID uint, currentBase64Encrypted, newBase64Encrypted string) error {
+	// The archive stores the exact ciphertext the live row had at escrow time, so the copies of a live key that was just
+	// re-encrypted are the host's archive rows holding that same blob, marked or not.
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+UPDATE host_disk_encryption_keys_archive
+SET base64_encrypted = ?, wstep_encrypted = 0
+WHERE host_id = ? AND base64_encrypted = ?`, newBase64Encrypted, hostID, currentBase64Encrypted)
+	return ctxerr.Wrap(ctx, err, "replace archived disk encryption key copies")
 }
 
 func (ds *Datastore) ReplaceWSTEPEncryptedDiskEncryptionKey(ctx context.Context, hostID uint, currentBase64Encrypted, newBase64Encrypted string) (bool, error) {

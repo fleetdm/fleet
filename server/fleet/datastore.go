@@ -1523,8 +1523,8 @@ type Datastore interface {
 	// encrypted to the WSTEP certificate by an older release and are not yet marked undecryptable, ordered by host ID
 	// after afterHostID. WSTEPEncrypted tells the two apart.
 	ListWSTEPEncryptedDiskEncryptionKeys(ctx context.Context, afterHostID uint, limit int) ([]HostDiskEncryptionKey, error)
-	// ListWSTEPEncryptedArchivedDiskEncryptionKeys is the archive counterpart, ordered by row ID after afterID. Rows
-	// without a host are included by shape, since archived keys are still served by hardware serial.
+	// ListWSTEPEncryptedArchivedDiskEncryptionKeys returns up to limit marked archived keys, ordered by row ID after
+	// afterID.
 	ListWSTEPEncryptedArchivedDiskEncryptionKeys(ctx context.Context, afterID uint, limit int) ([]HostArchivedDiskEncryptionKey, error)
 	// ReplaceWSTEPEncryptedDiskEncryptionKey swaps a legacy key for its server private key encryption and clears the
 	// marker, only if the stored ciphertext is still currentBase64Encrypted. It leaves decryptable and updated_at
@@ -1532,6 +1532,9 @@ type Datastore interface {
 	ReplaceWSTEPEncryptedDiskEncryptionKey(ctx context.Context, hostID uint, currentBase64Encrypted, newBase64Encrypted string) (bool, error)
 	// ReplaceWSTEPEncryptedArchivedDiskEncryptionKey is the archive counterpart, matched by row ID and stored ciphertext.
 	ReplaceWSTEPEncryptedArchivedDiskEncryptionKey(ctx context.Context, id uint, currentBase64Encrypted, newBase64Encrypted string) (bool, error)
+	// ReplaceArchivedDiskEncryptionKeyCopies re-encrypts the host's archived copies of a live key that was just
+	// re-encrypted, matched by the stored ciphertext, marked or not.
+	ReplaceArchivedDiskEncryptionKeyCopies(ctx context.Context, hostID uint, currentBase64Encrypted, newBase64Encrypted string) error
 	// ClearWSTEPEncryptedArchivedDiskEncryptionKeyMarker takes an archived key the certificate cannot read out of the
 	// job's queue, only if the stored ciphertext is still currentBase64Encrypted.
 	ClearWSTEPEncryptedArchivedDiskEncryptionKeyMarker(ctx context.Context, id uint, currentBase64Encrypted string) error
