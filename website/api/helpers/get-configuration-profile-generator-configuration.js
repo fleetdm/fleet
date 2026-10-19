@@ -36,7 +36,14 @@ module.exports = {
       defaultsTo: false,
       description: 'Whether or not to send a lookup prompt first that narrows the .mobileconfig schema to the payload types this request needs.',
       extendedDescription: 'Without it, the full .mobileconfig schema is provided, without key descriptions.'
-    }
+    },
+
+    writeProfilesFromSettings: {
+      type: 'boolean',
+      defaultsTo: false,
+      description: 'Whether to ask for a .mobileconfig\'s payloads, or a Windows profile\'s commands, and their values, rather than the document itself.',
+      extendedDescription: 'Only .mobileconfig and Windows profiles are written from settings; every other profile type ignores this.',
+    },
   },
 
 
@@ -49,9 +56,10 @@ module.exports = {
   },
 
 
-  fn: async function ({profileType, naturalLanguageInstructions, useLighterResponseShape, useApplePayloadTypeLookup}) {
+  fn: async function ({profileType, naturalLanguageInstructions, useLighterResponseShape, useApplePayloadTypeLookup, writeProfilesFromSettings}) {
 
     let path = require('path');
+    let isWrittenFromSettings = writeProfilesFromSettings && (profileType === 'mobileconfig' || profileType === 'csp');
 
     // Both Apple schemas are generated from apple/device-management by
     // `sails run regenerate-apple-profile-schemas` rather than maintained here by hand.  The
@@ -303,7 +311,7 @@ the default -- and Apple's description of the key.  \`*\` marks a required key, 
 an array, \`Parent{child, child}\` gives a dictionary's contents, and \`Parent[]{child, child}\` an array whose
 elements are dictionaries with those keys.  CommonPayloadKeys and TopLevel are not payload types: the
 first gives the keys every dict inside PayloadContent may carry, and the second the keys that belong on
-the root dict and nowhere else.
+the root dict and nowhere else${isWrittenFromSettings ? ', which go in "profileSettings"' : ''}.
 
 Choose keys by their descriptions, not their names.  Apple's description decides what a key does and what
 its values mean -- SHOWFULLNAME reads as though true shows a list of users, and Apple's text says the
@@ -324,7 +332,7 @@ dictionary, \`[]\` is an array, \`Parent{child, child}\` gives a dictionary's co
 array whose elements are dictionaries with those keys.  An array of plain values is just \`Name[]\`, with what
 constrains its entries after a colon where there is anything to say: \`Name[]:(a|b)\`.  CommonPayloadKeys and
 TopLevel are not payload types: the first gives the keys every dict inside PayloadContent may carry, and the second
-the keys that belong on the root dict and nowhere else.
+the keys that belong on the root dict and nowhere else${isWrittenFromSettings ? ', which go in "profileSettings"' : ''}.
 
 Most keys are listed by name alone, which settles their spelling and casing.  A key appears on its own line when it
 carries something its name does not: \`(a|b|c)\` are the values it accepts, \`(min-max)\` the range, \`d=\` the default,
@@ -405,9 +413,80 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
       androidSchema = lines.join('\n');
     }
 
+    let COULD_NOT_GENERATE_SHAPE = `
+      If a configuration profile cannot be generated from the provided instructions, respond with this shape instead:
+      {
+        "couldNotGenerateProfile": true,
+        // Explain why a profile could not be generated, naming the specific setting, node, or key that could not be confirmed. The tone should be informational and brief.
+        "reasonWhyAProfileCouldNotBeGenerated": TODO
+      }
+      `;
+
     // The tail of the system prompt.
     let RESPONSE_SHAPE;
-    if(!useLighterResponseShape) {
+    if(isWrittenFromSettings && profileType === 'mobileconfig') {
+      RESPONSE_SHAPE = `Respond in JSON with this data shape:
+      {
+        "profileFilename": "TODO",
+        // The root PayloadDisplayName and PayloadDescription.
+        "profileDisplayName": "TODO",
+        "profileDescription": "TODO",
+        // TopLevel keys the request sets on the root dict, such as PayloadRemovalDisallowed.  Usually empty.
+        "profileSettings": {},
+        // Things the admin must do or decide that are not visible in the profile itself.
+        // Empty string when there is nothing exceptional, which is the common case.
+        "deliveryNotes": "",
+        "payloads": [// One for each dict inside PayloadContent.
+          {
+            "payloadType": "TODO",
+            // Every key this payload sets, with its value.  Nested dictionaries are objects and arrays are arrays.
+            "settings": {"TODO": "TODO"}
+          },
+          {...}
+        ]
+      }
+${COULD_NOT_GENERATE_SHAPE}`;
+    } else if(isWrittenFromSettings && profileType === 'csp') {
+      RESPONSE_SHAPE = `Respond in JSON with this data shape:
+      {
+        "profileFilename": "TODO",
+        // Things the admin must do or decide that are not visible in the profile itself.
+        // Empty string when there is nothing exceptional, which is the common case.
+        "deliveryNotes": "",
+        // true only when the instructions ask for every command to be applied together, all or nothing.
+        "atomic": false,
+        "commands": [
+          {
+            // Replace, Add, or Exec.
+            "verb": "Replace",
+            "locURI": "TODO",
+            // The node's value as the node takes it: a number for int, true or false for bool, text for chr.
+            "data": "TODO"
+          },
+          {
+            // A Wi-Fi network, in place of "locURI" and "data".  Its WlanXml node and WLAN profile are written from these fields.
+            "verb": "Add",
+            "wifi": {
+              "ssid": "TODO",
+              // WPA2Personal, WPA3Personal, WPA3PersonalTransition, WPA2Enterprise, WPA3Enterprise, WPA3Enterprise192, or Open.
+              "security": "TODO",
+              // Personal networks only.  Leave it out to have the user prompted for the password.
+              "passphrase": "TODO",
+              // Enterprise networks only.  "method" is PEAP (MSCHAPv2 inside), TLS, or TTLS (MSCHAPv2 inside).
+              // "serverNames" lists the RADIUS servers to trust and "trustedRootCAThumbprints" the SHA-1 thumbprints
+              // of their root CAs, each only when the instructions give them.
+              "eap": {"method": "TODO", "serverNames": [], "trustedRootCAThumbprints": []},
+              "hidden": false,
+              "connectAutomatically": true,
+              // Device, or User for a network only the signed-in user gets.
+              "scope": "Device"
+            }
+          },
+          {...}
+        ]
+      }
+${COULD_NOT_GENERATE_SHAPE}`;
+    } else if(!useLighterResponseShape) {
 
       RESPONSE_SHAPE = `Respond in JSON with this data shape:
       {
@@ -472,8 +551,9 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
       'Write credentials the admin supplied as literals, since the profile is unusable without them.  Do not invent a placeholder.  Note in "deliveryNotes" that the file contains a cleartext credential.',
       'When a platform requires a companion artifact the profile cannot contain -- a DDM activation declaration, a referenced asset declaration -- generate the configuration itself and describe the companion in "deliveryNotes".',
       'If a setting is commonly managed by an MDM directly rather than by a custom profile, such as disk encryption, still generate the profile as asked and note in "deliveryNotes" that some MDMs manage this natively and may reject or conflict with a custom profile.',
+    ].concat(isWrittenFromSettings ? [] : [
       'Escape newlines inside "configurationProfile" as \\n so the surrounding JSON stays valid.  Do not emit raw line breaks inside the string, and do not collapse the profile onto one line.',
-    ];
+    ]);
 
     // "deliveryNotes" defaults to noise unless it is aggressively constrained.  An empty string is a weaker affordance than an empty array, so these rules carry more of the load.
     let deliveryNotesRules = [
@@ -486,42 +566,65 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
     let promptConfigByProfileType = {
 
       'csp': {
-        description: 'CSP XML profile that enforces OS settings on Windows devices',
+        description: `CSP ${isWrittenFromSettings ? '' : 'XML '}profile that enforces OS settings on Windows devices`,
         references: [
           'Windows CSP nodes, formats, and allowed values: https://learn.microsoft.com/en-us/windows/client-management/mdm/',
         ],
         rules: [
           // Document shape.  Wrong here and Fleet rejects the file on upload.
-          'A Windows profile is a sequence of OMA-DM command elements, not a SyncML document.  The top level must be one or more <Add>, <Replace>, <Exec>, or <Atomic> elements and nothing else.  Never wrap them in <SyncML>, <SyncBody>, <Final/>, or an invented container such as <WindowsCSP>, and never emit an XML declaration -- the SyncML envelope carries session state (SyncHdr, SessionID, MsgID) that only the MDM server can populate at delivery time.',
-          'If you use <Atomic>, it must wrap every command in the profile.  Never mix an <Atomic> element with sibling top-level commands, and never nest one <Atomic> inside another.',
+          ...(isWrittenFromSettings ? [
+            'Return the commands and their values, not the XML.  The profile is written from "commands" after you return it: each command\'s Format is taken from the node\'s DFFormat in the provided list, and its Item, Meta, Target, and CDATA are added for you.  Never write SyncML, OMA-DM elements, or any other XML yourself -- the only markup you write is an ADMX-backed node\'s policy fragment.',
+            '"atomic" wraps every command in one <Atomic>.  Set it only when the instructions ask for the settings to be applied together, all or nothing.',
+          ] : [
+            'A Windows profile is a sequence of OMA-DM command elements, not a SyncML document.  The top level must be one or more <Add>, <Replace>, <Exec>, or <Atomic> elements and nothing else.  Never wrap them in <SyncML>, <SyncBody>, <Final/>, or an invented container such as <WindowsCSP>, and never emit an XML declaration -- the SyncML envelope carries session state (SyncHdr, SessionID, MsgID) that only the MDM server can populate at delivery time.',
+            'If you use <Atomic>, it must wrap every command in the profile.  Never mix an <Atomic> element with sibling top-level commands, and never nest one <Atomic> inside another.',
+          ]),
           // Node identity.
           'Emit only LocURI paths that exist in a published CSP.  Never construct, guess, or extrapolate a path, and name the CSP you used in "schemaReference".',
           'Percent-encode any character in a LocURI path segment that is not URI-legal.  An SSID named "Cool Network" is Cool%20Network in the LocURI, while the value inside the payload keeps its literal spaces.',
           // Type integrity.  The largest source of silent failure.
-          'In the Policy CSP, settings that read as boolean are almost always DFFormat int with allowed values 0 and 1, not bool.  Default to <Format>int</Format> with numeric <Data>.  Use bool only when the node genuinely declares it, and say so in "caveats".',
-          'Before returning, re-read every Item and confirm <Data> is legal for the <Format> you declared: int accepts digits only, bool accepts literally true or false, chr accepts text.  If you have written 0 or 1 as the data, the format is int, not bool.',
+          ...(isWrittenFromSettings ? [
+            '"data" is the value exactly as the node takes it: a number for an int node, true or false for a bool node, and text for a chr node.  In the Policy CSP, settings that read as boolean are almost always int nodes taking 0 or 1, not bool nodes.',
+          ] : [
+            'In the Policy CSP, settings that read as boolean are almost always DFFormat int with allowed values 0 and 1, not bool.  Default to <Format>int</Format> with numeric <Data>.  Use bool only when the node genuinely declares it, and say so in "caveats".',
+            'Before returning, re-read every Item and confirm <Data> is legal for the <Format> you declared: int accepts digits only, bool accepts literally true or false, chr accepts text.  If you have written 0 or 1 as the data, the format is int, not bool.',
+          ]),
           'Never infer a boolean value from the node name.  DeviceLock/DevicePasswordEnabled takes 0 for enabled and 1 for disabled.  Always state what the value you chose actually does in "valueMeaning".',
-          'State the node\'s declared DFFormat verbatim in "allowedValues", next to the format you emitted, so a reviewer can compare the two side by side.',
-          'If you cannot recall a node\'s documented DFFormat with confidence, do not guess -- return the "couldNotGenerateProfile" shape and name the node you were unsure about.',
-          'ADMX-backed Policy CSP nodes are never int.  They declare DFFormat chr and take a policy fragment as their value: <Format>chr</Format> with <Data><![CDATA[<enabled/>]]></Data> or <![CDATA[<disabled/>]]>, plus a nested <data id="..." value="..."/> element for each sub-option the admin actually asked for and none for the ones they did not.  Writing 1 or 0 to one of these nodes deploys cleanly and enforces nothing.',
+          ...(isWrittenFromSettings ? [
+            'For a node that is not in the provided list, also give its DFFormat as "format".  If you cannot recall it with confidence, do not guess -- return the "couldNotGenerateProfile" shape and name the node you were unsure about.',
+            'ADMX-backed Policy CSP nodes are never int.  Their "data" is a policy fragment: "<enabled/>" or "<disabled/>", plus a nested <data id="..." value="..."/> element for each sub-option the admin actually asked for and none for the ones they did not.  Writing 1 or 0 to one of these nodes deploys cleanly and enforces nothing.',
+          ] : [
+            'State the node\'s declared DFFormat verbatim in "allowedValues", next to the format you emitted, so a reviewer can compare the two side by side.',
+            'If you cannot recall a node\'s documented DFFormat with confidence, do not guess -- return the "couldNotGenerateProfile" shape and name the node you were unsure about.',
+            'ADMX-backed Policy CSP nodes are never int.  They declare DFFormat chr and take a policy fragment as their value: <Format>chr</Format> with <Data><![CDATA[<enabled/>]]></Data> or <![CDATA[<disabled/>]]>, plus a nested <data id="..." value="..."/> element for each sub-option the admin actually asked for and none for the ones they did not.  Writing 1 or 0 to one of these nodes deploys cleanly and enforces nothing.',
+          ]),
           'Never derive the area segment of a Policy CSP LocURI from the name of the .admx file that backs it.  Most ADMX-backed areas are named ADMX_<AdmxFileName>, but plenty are not: PowerShell script block logging lives under WindowsPowerShell, not ADMX_PowerShellExecutionPolicy or ADMX_PowerShell, even though PowerShellExecutionPolicy.admx is the backing file.  Use the area exactly as the published node lists it, and if you cannot recall it, return the "couldNotGenerateProfile" shape rather than constructing one that looks right.',
           // Verb and dependencies.
-          'Use Replace for Policy CSP leaf nodes that hold a value.  Reserve Add for nodes that do not exist until you create them, such as ADMXInstall, certificate installs, and WiFi or VPN profile instances.  A WiFi profile instance is created by the Add of its WlanXml leaf -- never Add the WiFi/Profile/{SSID} node on its own.  When a node\'s AccessType permits both, choose Replace, because the profile may reach a host where the value is already set and Add can fail there.',
+          ...(isWrittenFromSettings ? [
+            'Use Replace for Policy CSP leaf nodes that hold a value.  Reserve Add for nodes that do not exist until you create them, such as certificate installs and VPN profile instances.  When a node\'s AccessType permits both, choose Replace, because the profile may reach a host where the value is already set and Add can fail there.',
+            'Add a Wi-Fi network with one "wifi" command, never with WiFi/Profile/{SSID} or WlanXml commands of your own: the WlanXml node, the SSID\'s encodings, and the WLAN profile are all written from its fields.  A command that sets another node of the network, such as WiFi/Profile/{SSID}/Proxy, still uses its LocURI.',
+          ] : [
+            'Use Replace for Policy CSP leaf nodes that hold a value.  Reserve Add for nodes that do not exist until you create them, such as ADMXInstall, certificate installs, and WiFi or VPN profile instances.  A WiFi profile instance is created by the Add of its WlanXml leaf -- never Add the WiFi/Profile/{SSID} node on its own.  When a node\'s AccessType permits both, choose Replace, because the profile may reach a host where the value is already set and Add can fail there.',
+          ]),
           'Only use an Add or Replace verb on a node whose AccessType permits it.  Roughly 500 leaf nodes accept only Get, and a Replace against one is accepted, deploys, and then fails on the device.',
           'Include the nodes the requested setting depends on.  DeviceLock/MinDevicePasswordLength has no effect unless DeviceLock/DevicePasswordEnabled is also set.',
           'Beyond the nodes the request names and the nodes those depend on, a node\'s presence in the provided list is not a reason to set it.  A WiFi profile never needs ProfileSource, for one: it defaults to Enterprise.',
           'When one node already does everything the request asks, set that node alone.  Do not add narrower nodes that each cover part of what it already covers: they change nothing, and each one is another setting for a different profile to conflict with.',
           'Record the minimum OS build and the Windows editions each node applies to in "caveats".  A valid setting aimed at the wrong SKU is a silent no-op, not an error.',
           // Embedded values.
-          'When a node\'s value is embedded XML -- WiFi/Profile/*/WlanXml, ADMXInstall, and similar -- wrap it in <![CDATA[ ... ]]> rather than escaping it as entities, and emit that value as a single line with no line breaks or indentation between its elements.  This applies only to the embedded value; the surrounding SyncML keeps its normal indentation.',
-          'Be consistent within a profile about optional <Meta> children.  If you emit <Type> for one item, emit it for all of them, and namespace every <Meta> child as xmlns="syncml:metinf".',
-          'For WiFi profiles, emit <hex> and then <name> inside <SSID> -- the WLAN_profile schema enforces element order, and an <SSID> with <name> first is rejected.  Take <hex> from the encodings supplied with the instructions.  Never work a hex encoding out yourself: Windows and some MDMs treat the hex form as authoritative when both are present, so one wrong byte connects to nothing.  If no encoding was supplied for the SSID, emit <name> alone.',
-          'The WLAN_profile schema is not in the provided list, and it enforces element order and closed value lists, so build WlanXml from these facts rather than from memory.  Security settings sit at WLANProfile > MSM > security, with authEncryption (authentication, encryption, useOneX) first.  A personal network (WPA2PSK, WPA3SAE) follows it with sharedKey (keyType, protected, keyMaterial); an enterprise network (useOneX true) has no sharedKey and carries a OneX element instead.  <encryption> accepts only none, WEP, TKIP, AES, or GCMP256 -- WPA2 and WPA3SAE networks use AES, never CCMP, which is the 802.11 name for the same cipher.',
+          ...(isWrittenFromSettings ? [
+            'A "wifi" network given only a password is WPA2Personal.  One that names 802.1X, RADIUS, or an EAP method without a WPA version is WPA2Enterprise.  An enterprise network needs its EAP method: when the instructions do not name one, return the "couldNotGenerateProfile" shape and say which are available (PEAP, TLS, TTLS).  No other method can be written here, so for EAP-FAST, EAP-SIM, TTLS with PAP and the like, return the "couldNotGenerateProfile" shape naming the method.  When the instructions give no RADIUS server names or root CA, a note asking for them is added to "deliveryNotes" for you, so do not write one.',
+          ] : [
+            'When a node\'s value is embedded XML -- WiFi/Profile/*/WlanXml, ADMXInstall, and similar -- wrap it in <![CDATA[ ... ]]> rather than escaping it as entities, and emit that value as a single line with no line breaks or indentation between its elements.  This applies only to the embedded value; the surrounding SyncML keeps its normal indentation.',
+            'Be consistent within a profile about optional <Meta> children.  If you emit <Type> for one item, emit it for all of them, and namespace every <Meta> child as xmlns="syncml:metinf".',
+            'For WiFi profiles, emit <hex> and then <name> inside <SSID> -- the WLAN_profile schema enforces element order, and an <SSID> with <name> first is rejected.  Take <hex> from the encodings supplied with the instructions.  Never work a hex encoding out yourself: Windows and some MDMs treat the hex form as authoritative when both are present, so one wrong byte connects to nothing.  If no encoding was supplied for the SSID, emit <name> alone.',
+            'The WLAN_profile schema is not in the provided list, and it enforces element order and closed value lists, so build WlanXml from these facts rather than from memory.  Security settings sit at WLANProfile > MSM > security, with authEncryption (authentication, encryption, useOneX) first.  A personal network (WPA2PSK, WPA3SAE) follows it with sharedKey (keyType, protected, keyMaterial); an enterprise network (useOneX true) has no sharedKey and carries a OneX element instead.  <encryption> accepts only none, WEP, TKIP, AES, or GCMP256 -- WPA2 and WPA3SAE networks use AES, never CCMP, which is the 802.11 name for the same cipher.',
+          ]),
         ],
       },
 
       'mobileconfig': {
-        description: 'XML .mobileconfig profile that enforces OS settings on macOS/iOS/ipadOS devices',
+        description: `${isWrittenFromSettings ? '' : 'XML '}.mobileconfig profile that enforces OS settings on macOS/iOS/ipadOS devices`,
         providedSchema: appleSchema,
         providedSchemaDescription: appleSchemaDescription,
         references: [
@@ -534,9 +637,13 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
           // Third-party payloads.
           'If this is an attempt to change a third-party application\'s settings, use that application\'s preference domain -- com.google.Chrome, us.zoom.config and its keys must come from the ProfileManifests reference.',
           // Document shape.
-          'Emit valid property list XML: the plist DOCTYPE, plist version="1.0", and correctly typed values.',
-          'Include PayloadIdentifier, PayloadType, PayloadUUID, PayloadVersion, and PayloadDisplayName on the root dict and on every dict inside PayloadContent.  The root PayloadType is "Configuration" and PayloadVersion is 1.',
-          'Keep the plist indented and readable across multiple lines.  Do not collapse it onto one line.',
+          ...(isWrittenFromSettings ? [
+            'Return the payloads and the settings each one sets, not the property list.  The .mobileconfig is written from "payloads" and "profileSettings" after you return it, with PayloadType, PayloadUUID, PayloadIdentifier, PayloadVersion, and PayloadDisplayName added to every dict, so never write XML and never set those keys yourself.',
+          ] : [
+            'Emit valid property list XML: the plist DOCTYPE, plist version="1.0", and correctly typed values.',
+            'Include PayloadIdentifier, PayloadType, PayloadUUID, PayloadVersion, and PayloadDisplayName on the root dict and on every dict inside PayloadContent.  The root PayloadType is "Configuration" and PayloadVersion is 1.',
+            'Keep the plist indented and readable across multiple lines.  Do not collapse it onto one line.',
+          ]),
           // Key fidelity.
           'Apple payload keys are not consistently cased, and the inconsistency is inside a single dict.  The passcode payload uses forcePIN, minLength, and allowSimple -- lowercase first letter -- beside PascalCase PayloadIdentifier and PayloadType.  Reproduce every key exactly as documented for its payload type.  Never normalize casing in either direction.',
           'Use only keys documented for the payload type you chose.  An invented key is written into the profile and nothing downstream rejects it, so the profile looks right and does nothing.',
@@ -546,16 +653,25 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
           'Where the provided list describes what a key\'s values mean, that description decides the value and your own reading of the key name does not.  Several of these keys are named in a way that implies the opposite of what they do.',
           'The provided list does not cover preference domains that have no payload manifest.  If you cannot recall the keys of an unlisted preference domain, do not guess and do not adapt a key from a DDM declaration -- return the "couldNotGenerateProfile" shape and name the payload type you were unsure about.',
           // Value typing.
-          'Type every value as plist: <true/> or <false/> for booleans, never <string>true</string>; <integer> for whole numbers; <real> for decimals; <data> with base64 for binary; <date> with an ISO 8601 timestamp.',
+          isWrittenFromSettings ?
+            'Give every value its JSON type: true or false for booleans, never "true"; a number for integers and decimals; a string for strings; base64 in a string for data; an ISO 8601 timestamp in a string for dates.  Each value\'s property list type is taken from the provided list.' :
+            'Type every value as plist: <true/> or <false/> for booleans, never <string>true</string>; <integer> for whole numbers; <real> for decimals; <data> with base64 for binary; <date> with an ISO 8601 timestamp.',
           // Dependencies
           'Include the keys the requested setting depends on. minLength and allowSimple enforce nothing unless forcePIN is also set.',
           'Beyond the keys the request names and the keys those depend on, a key\'s presence in the provided list is not a reason to set it.',
           // Identifiers.
-          'Take every PayloadUUID from the list of UUIDs provided with the instructions, in the order given, and never invent one.  Two dicts sharing a UUID is a profile that installs unpredictably, so use each one exactly once.',
-          'PayloadIdentifier is reverse-DNS.  Each payload dict\'s identifier is the root identifier plus a distinguishing suffix, and no two identifiers in the profile are the same.',
-          'PayloadDisplayName on the root is what an end user sees in System Settings, and some MDMs use it as the profile name.  Make it human-readable and specific to what the profile actually enforces, which is not always what was asked for: a profile that only sets allowBluetoothModification is "Bluetooth Settings Locked", not "Disable Bluetooth".  PayloadDescription follows the same rule.',
+          ...(isWrittenFromSettings ? [
+            'Where one payload references another (PayloadCertificateUUID, PayloadCertificateAnchorUUID, VPNUUID and similar), give the referenced payload a "payloadUUID" beside its "payloadType", taken from the UUIDs supplied with the instructions, and use that same UUID as the reference.  Every other payload is given its PayloadUUID for you.',
+            '"profileDisplayName" is the root PayloadDisplayName, which an end user sees in System Settings, and some MDMs use it as the profile name.  Make it human-readable and specific to what the profile actually enforces, which is not always what was asked for: a profile that only sets allowBluetoothModification is "Bluetooth Settings Locked", not "Disable Bluetooth".  "profileDescription" follows the same rule.',
+          ] : [
+            'Take every PayloadUUID from the list of UUIDs provided with the instructions, in the order given, and never invent one.  Two dicts sharing a UUID is a profile that installs unpredictably, so use each one exactly once.',
+            'PayloadIdentifier is reverse-DNS.  Each payload dict\'s identifier is the root identifier plus a distinguishing suffix, and no two identifiers in the profile are the same.',
+            'PayloadDisplayName on the root is what an end user sees in System Settings, and some MDMs use it as the profile name.  Make it human-readable and specific to what the profile actually enforces, which is not always what was asked for: a profile that only sets allowBluetoothModification is "Bluetooth Settings Locked", not "Disable Bluetooth".  PayloadDescription follows the same rule.',
+          ]),
           // Structure.
-          'Put every key for one payload domain in a single dict inside PayloadContent.  Do not emit several dicts with the same PayloadType.',
+          isWrittenFromSettings ?
+            'Put every key for one payload domain in a single entry of "payloads".  Do not return several entries with the same payloadType.' :
+            'Put every key for one payload domain in a single dict inside PayloadContent.  Do not emit several dicts with the same PayloadType.',
 
 
         ],
@@ -1011,15 +1127,15 @@ writing it under ./Device/ deploys cleanly and enforces nothing.  \`atomic\` mar
 documents as requiring an <Atomic> wrapper.  \`deprecated\` marks a node Microsoft has retired; prefer
 another node that does the same thing.  \`range=[a-b]\` is the node's allowed numeric range.  \`needs X=Y\`
 is a node the setting depends on, which belongs in the profile alongside it.  The format on each line is
-the node's declared DFFormat (\`node\` is an interior node that holds children, not a value): emit it
-verbatim and make <Data> legal for it, rather than reasoning about the value's type from its name.
+the node's declared DFFormat (\`node\` is an interior node that holds children, not a value): ${isWrittenFromSettings ?
+  'give a value legal for it' : 'emit it\nverbatim and make <Data> legal for it'}, rather than reasoning about the value's type from its name.
 
 A node in an \`ADMX_\` area is always ADMX-backed, whatever its description says.  Any other Policy CSP node
 listed as \`chr\` with no values is either a text setting or an ADMX-backed policy, and it is ADMX-backed when
 its description says it turns something on or off -- it enables, disables, prevents, allows, or turns off a
-feature.  An ADMX-backed node's <Data> is <![CDATA[<enabled/>]]> to apply what the description says and
-<![CDATA[<disabled/>]]> to stop applying it, never 1 or 0.  Otherwise the node's <Data> is the text the
-request calls for.
+feature.  ${isWrittenFromSettings ?
+  'An ADMX-backed node\'s "data" is <enabled/> to apply what the description says and\n<disabled/> to stop applying it, never 1 or 0.  Otherwise the node\'s "data" is the text the\nrequest calls for.' :
+  'An ADMX-backed node\'s <Data> is <![CDATA[<enabled/>]]> to apply what the description says and\n<![CDATA[<disabled/>]]> to stop applying it, never 1 or 0.  Otherwise the node\'s <Data> is the text the\nrequest calls for.'}
 
 This is authoritative for the groups below and settles their node names, paths, formats and values.  It
 is not the whole CSP reference, and what is missing decides between two different answers.  If no node here
@@ -1045,8 +1161,9 @@ A group marked "(<App> template)" is a third-party application's policies, from 
 publishes, rather than part of Windows.  Its LocURI follows the Policy CSP pattern with the group name as
 the area, ~ characters included: ./Device/Vendor/MSFT/Policy/Config/GoogleChrome~Policy~googlechrome~Startup/HomepageLocation,
 or under ./User/ for one marked @User.  Each one is DFFormat chr, is set with <Replace>, and never takes a
-bare value: its <Data> is always a CDATA-wrapped policy fragment.  Its line shows the fragment that enables
-it -- copy that into <Data><![CDATA[...]]></Data>, keep a <data> element for each value the request gives
+bare value: ${isWrittenFromSettings ?
+  'its "data" is always a policy fragment.  Its line shows the fragment that enables\nit -- copy that into "data", keep a <data> element for each value the request gives' :
+  'its <Data> is always a CDATA-wrapped policy fragment.  Its line shows the fragment that enables\nit -- copy that into <Data><![CDATA[...]]></Data>, keep a <data> element for each value the request gives'}
 and drop the rest, and replace each {placeholder}, braces included, with the value.  A <data> element
 followed by * must be kept whenever the policy is enabled.  To turn a policy off, the fragment is <disabled/>
 alone.
@@ -1084,9 +1201,11 @@ to the profile automatically after you return it.`;
 
     // Generated list of UUIDs this profile can use.
     // Note: This is generated here and sent to the LLM to prevent it from adding invalid/placeholder UUIDs
+    // Written from settings, every PayloadUUID is added after generation, and these are only for a payload another
+    // payload references, which a profile rarely needs more than a few of.
     let suppliedPayloadUuids = [];
     if(profileType === 'mobileconfig') {
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < (isWrittenFromSettings ? 4 : 10); i++) {
         suppliedPayloadUuids.push((await sails.helpers.strings.uuid()).toUpperCase());
       }
     }
@@ -1119,7 +1238,12 @@ ${numberedRules}
 ${RESPONSE_SHAPE}`;
 
     let uuidsToUse = '';
-    if(suppliedPayloadUuids.length > 0) {
+    if(suppliedPayloadUuids.length > 0 && isWrittenFromSettings) {
+      uuidsToUse = `
+    UUIDs for a payload that another payload references, to give it as "payloadUUID" and repeat as the reference:
+    ${suppliedPayloadUuids.map((uuid)=>`- ${uuid}`).join('\n    ')}
+`;
+    } else if(suppliedPayloadUuids.length > 0) {
       uuidsToUse = `
     Use these UUIDs for PayloadUUID, in the order listed: the first on the root dict, then one per dict inside
     PayloadContent.  Never invent a UUID and never use one twice.  Where one payload references another payload
@@ -1133,7 +1257,7 @@ ${RESPONSE_SHAPE}`;
     // Only quoted strings, since that is how an SSID arrives in the instructions, and double quotes only, so an
     // apostrophe does not open one.
     let hexEncodingsToUse = '';
-    if(profileType === 'csp') {
+    if(profileType === 'csp' && !isWrittenFromSettings) {
       let quotedStrings = _.uniq(_.map(naturalLanguageInstructions.match(/["“”][^"“”]+["“”]/g) || [], (quoted)=>{ return quoted.slice(1, -1); }));
       if(quotedStrings.length > 0) {
         hexEncodingsToUse = `
