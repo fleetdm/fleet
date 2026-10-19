@@ -88,6 +88,11 @@
       color: $ui-fleet-black-50;
     }
 
+    .radio__input input + .radio__control-button::before {
+      background-color: $ui-fleet-black-50;
+      box-shadow: inset 1em 1em $ui-fleet-black-50;
+    }
+
     .radio__input,
     .radio__label {
       &:hover {
