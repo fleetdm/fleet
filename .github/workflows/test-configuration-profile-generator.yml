@@ -8,11 +8,13 @@ on:
       - ".github/workflows/test-configuration-profile-generator.yml"
       - "website/profile-generator/**"
       - "website/api/helpers/get-configuration-profile-generator-configuration.js"
+      - "website/api/helpers/validate-configuration-profile-with-contour.js"
   pull_request:
     paths:
       - ".github/workflows/test-configuration-profile-generator.yml"
       - "website/profile-generator/**"
       - "website/api/helpers/get-configuration-profile-generator-configuration.js"
+      - "website/api/helpers/validate-configuration-profile-with-contour.js"
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
