@@ -4,4 +4,8 @@
     flex-direction: column;
     gap: $pad-large;
   }
+
+  &__multiple-copies {
+    margin: 0;
+  }
 }

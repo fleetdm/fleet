@@ -1,1 +1,1 @@
-- The "Update details" modal now explains when an older copy of a macOS app at another path (for example, `/Applications/Google Chrome 2.app`) is why an update is still available, and tells the user to delete it.
+- The "Update details" modal now explains that a macOS app installed in multiple places may keep showing an update, since updating only replaces the copy in the Applications folder.

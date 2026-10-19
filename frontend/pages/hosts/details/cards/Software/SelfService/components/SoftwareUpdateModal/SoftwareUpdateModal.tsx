@@ -9,68 +9,26 @@ import {
   IHostSoftware,
   SoftwareInstallUninstallStatus,
 } from "interfaces/software";
-import { compareVersions } from "pages/hosts/details/cards/Software/helpers";
 import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 const baseClass = "software-update-modal";
 
-const DEFAULT_MACOS_APP_PATH_REGEX = /^\/Applications\/[^/]+\.app$/;
+// Installers only replace the copy in /Applications, so other copies keep the
+// update showing.
+const hasMultipleMacAppCopies = (software: IHostSoftware) =>
+  software.source === "apps" &&
+  new Set(
+    flatMap(software.installed_versions || [], (iv) => iv.installed_paths)
+  ).size > 1;
 
-/** Paths of outdated macOS app copies that updating likely won't replace,
- * because the installer writes to a different path. */
-const getStalePaths = (
-  software: IHostSoftware,
-  installerVersion?: string
-): string[] => {
-  if (software.source !== "apps" || !installerVersion) return [];
-
-  const versions = software.installed_versions || [];
-  const isOutdated = (version: string) =>
-    compareVersions(version, installerVersion) === -1;
-  const outdated = versions.filter((iv) => isOutdated(iv.version));
-  const current = versions.filter((iv) => !isOutdated(iv.version));
-  const currentPaths = new Set(flatMap(current, (iv) => iv.installed_paths));
-
-  const outdatedPaths = Array.from(
-    new Set(flatMap(outdated, (iv) => iv.installed_paths))
-  ).filter((path) => !currentPaths.has(path));
-
-  // With no up-to-date copy, a lone outdated copy at the default location is
-  // a regular update, so only flag copies elsewhere.
-  if (current.length === 0) {
-    return outdatedPaths.filter(
-      (path) => !DEFAULT_MACOS_APP_PATH_REGEX.test(path)
-    );
-  }
-  return outdatedPaths;
-};
-
-const renderPathList = (paths: string[]) =>
-  paths.map((path, i) => {
-    const isLast = i === paths.length - 1;
-    let separator = "";
-    if (i > 0 && !isLast) separator = ", ";
-    else if (i > 0) separator = paths.length > 2 ? ", and " : " and ";
-    return (
-      <React.Fragment key={path}>
-        {separator}
-        <b>{path}</b>
-      </React.Fragment>
-    );
-  });
-
-const StalePathsMessage = ({ paths }: { paths: string[] }) => {
-  const isPlural = paths.length > 1;
-  return (
-    <>
-      {isPlural ? "Older versions are" : "An older version is"} installed at{" "}
-      {renderPathList(paths)}. Updating may not replace{" "}
-      {isPlural ? "them" : "it"}. To clear this update, delete the older{" "}
-      {isPlural ? "versions" : "version"}.
-    </>
-  );
-};
+const MultipleCopiesMessage = ({ softwareName }: { softwareName: string }) => (
+  <p className={`${baseClass}__multiple-copies`}>
+    Multiple copies of <b>{softwareName}</b> are installed. Updating only
+    replaces the copy in the Applications folder, so this update may keep
+    showing. To clear it, delete the other copies.
+  </p>
+);
 
 // Status message render helper
 interface IStatusMessageProps {
@@ -80,7 +38,6 @@ interface IStatusMessageProps {
   softwareName: string;
   installerName: string;
   installerVersion?: string;
-  stalePaths: string[];
 }
 const StatusMessage = ({
   hostDisplayName,
@@ -89,7 +46,6 @@ const StatusMessage = ({
   softwareName,
   installerName,
   installerVersion,
-  stalePaths,
 }: IStatusMessageProps) => {
   const renderMessage = () => {
     if (softwareStatus === "pending_install") {
@@ -126,17 +82,7 @@ const StatusMessage = ({
           : "error-outline"
       }
       iconColor="ui-fleet-black-50"
-      message={
-        <span>
-          {renderMessage()}
-          {softwareStatus !== "pending_install" && stalePaths.length > 0 && (
-            <>
-              {" "}
-              <StalePathsMessage paths={stalePaths} />
-            </>
-          )}
-        </span>
-      }
+      message={<span>{renderMessage()}</span>}
     />
   );
 };
@@ -193,8 +139,10 @@ const SoftwareUpdateModal = ({
           softwareName={softwareDisplayName}
           installerName={installerName}
           installerVersion={installerVersion}
-          stalePaths={getStalePaths(software, installerVersion)}
         />
+        {status !== "pending_install" && hasMultipleMacAppCopies(software) && (
+          <MultipleCopiesMessage softwareName={softwareDisplayName} />
+        )}
         {showCurrentVersions && <InventoryVersions hostSoftware={software} />}
       </div>
       <ModalFooter

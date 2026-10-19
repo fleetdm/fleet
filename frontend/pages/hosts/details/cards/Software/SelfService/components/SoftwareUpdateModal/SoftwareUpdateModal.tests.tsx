@@ -224,10 +224,10 @@ describe("SoftwareUpdateModal", () => {
     expect(screen.queryByText(/Current versions:/i)).not.toBeInTheDocument();
   });
 
-  describe("older versions at other paths", () => {
+  describe("multiple copies of a macOS app", () => {
     const makeVersion = (version: string, path: string) => ({
       version,
-      bundle_identifier: "com.google.Chrome",
+      bundle_identifier: "com.tinyspeck.slackmacgap",
       last_opened_at: "2024-06-01T00:00:00Z",
       vulnerabilities: [],
       installed_paths: [path],
@@ -239,6 +239,7 @@ describe("SoftwareUpdateModal", () => {
         <SoftwareUpdateModal
           hostDisplayName="Test Host"
           software={createMockHostSoftware({
+            display_name: "Slack",
             software_package: createMockHostSoftwarePackage({
               version: "2.0.0",
             }),
@@ -249,79 +250,61 @@ describe("SoftwareUpdateModal", () => {
           isDeviceUser
         />
       );
-    const STALE_COPY = /To clear this update, delete the older/;
+    const MULTIPLE_COPIES = /are installed\. Updating only replaces the copy in the Applications folder/;
 
-    it("explains an outdated copy next to an up-to-date one", () => {
+    it("explains that only the copy in Applications is updated", () => {
       renderModal({
         installed_versions: [
-          makeVersion("2.0.0", "/Applications/Google Chrome.app"),
-          makeVersion("1.0.0", "/Applications/Google Chrome 2.app"),
+          makeVersion("1.0.0", "/Applications/Slack.app"),
+          makeVersion("2.0.0", "/Applications/Slack 2.app"),
         ],
       });
-      expect(screen.getByText(STALE_COPY)).toBeInTheDocument();
-      expect(
-        screen.getByText(/An older version is installed at/)
-      ).toBeVisible();
-      // Path is also listed in the versions card
-      expect(
-        screen.getAllByText("/Applications/Google Chrome 2.app").length
-      ).toBeGreaterThan(1);
+      expect(screen.getByText(MULTIPLE_COPIES)).toBeInTheDocument();
+      expect(screen.getByText(/delete the other copies/)).toBeInTheDocument();
     });
 
-    it("explains an outdated copy outside the default location", () => {
+    it("counts copies of the same version at different paths", () => {
       renderModal({
         installed_versions: [
-          makeVersion("1.0.0", "/Users/test/Downloads/Google Chrome.app"),
+          {
+            ...makeVersion("1.0.0", "/Applications/Slack.app"),
+            installed_paths: [
+              "/Applications/Slack.app",
+              "/Users/test/Downloads/Slack.app",
+            ],
+          },
         ],
       });
-      expect(screen.getByText(STALE_COPY)).toBeInTheDocument();
+      expect(screen.getByText(MULTIPLE_COPIES)).toBeInTheDocument();
     });
 
-    it("pluralizes multiple outdated copies", () => {
+    it("does not show the note for a single copy", () => {
       renderModal({
-        installed_versions: [
-          makeVersion("2.0.0", "/Applications/Google Chrome.app"),
-          makeVersion("1.0.0", "/Applications/Google Chrome 2.app"),
-          makeVersion("1.5.0", "/Users/test/Applications/Google Chrome.app"),
-        ],
+        installed_versions: [makeVersion("1.0.0", "/Applications/Slack.app")],
       });
-      expect(
-        screen.getByText(/Older versions are installed at/)
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText(/delete the older versions\./)
-      ).toBeInTheDocument();
+      expect(screen.queryByText(MULTIPLE_COPIES)).not.toBeInTheDocument();
     });
 
-    it("does not explain a single outdated copy at the default location", () => {
-      renderModal({
-        installed_versions: [
-          makeVersion("1.0.0", "/Applications/Google Chrome.app"),
-        ],
-      });
-      expect(screen.queryByText(STALE_COPY)).not.toBeInTheDocument();
-    });
-
-    it("does not explain outdated copies for non-macOS software", () => {
+    it("does not show the note for non-macOS software", () => {
       renderModal({
         source: "programs",
         installed_versions: [
-          makeVersion("2.0.0", "C:\\Program Files\\Chrome"),
-          makeVersion("1.0.0", "C:\\Users\\test\\Chrome"),
+          makeVersion("2.0.0", "C:\\Program Files\\Slack"),
+          makeVersion("1.0.0", "C:\\Users\\test\\Slack"),
         ],
       });
-      expect(screen.queryByText(STALE_COPY)).not.toBeInTheDocument();
+      expect(screen.queryByText(MULTIPLE_COPIES)).not.toBeInTheDocument();
     });
 
-    it("does not explain outdated copies while the update is pending", () => {
+    it("does not show the note while the update is pending", () => {
       renderModal({
         status: "pending_install",
         installed_versions: [
-          makeVersion("2.0.0", "/Applications/Google Chrome.app"),
-          makeVersion("1.0.0", "/Applications/Google Chrome 2.app"),
+          makeVersion("1.0.0", "/Applications/Slack.app"),
+          makeVersion("2.0.0", "/Applications/Slack 2.app"),
         ],
       });
-      expect(screen.queryByText(STALE_COPY)).not.toBeInTheDocument();
+      expect(screen.queryByText(MULTIPLE_COPIES)).not.toBeInTheDocument();
     });
   });
 });
