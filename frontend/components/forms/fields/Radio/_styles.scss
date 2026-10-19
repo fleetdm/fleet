@@ -88,10 +88,16 @@
       color: $ui-fleet-black-50;
     }
 
-    // Match Slider's disabled treatment (opacity + grayscale on the green)
-    // so a disabled Radio and a disabled Slider read as the same shade.
+    // Match Slider's disabled treatment: both end up at
+    // $ui-fleet-black-50 × opacity 0.5 × grayscale 0.5. Keeping the dot green
+    // would greyscale from a different base and land on a different shade.
     .radio__control-button {
       @include disabled;
+
+      &::before {
+        background-color: $ui-fleet-black-50;
+        box-shadow: inset 1em 1em $ui-fleet-black-50;
+      }
     }
 
     .radio__input,
