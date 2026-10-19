@@ -27273,16 +27273,6 @@
         ]
       },
       {
-        "name": "management_site_key",
-        "description": "Site key the agent enrolled with.",
-        "type": "text",
-        "required": false,
-        "platforms": [
-          "darwin",
-          "linux"
-        ]
-      },
-      {
         "name": "management_last_seen",
         "description": "Unix timestamp of the agent's last successful check-in with the management console. Empty when the reported date can't be read.",
         "type": "text",
