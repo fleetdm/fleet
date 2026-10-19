@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -28,10 +29,11 @@ type SCEPCommand struct {
 	EnrollCmdID string // CmdID of the <Exec> on /Install/Enroll
 	AddCmdIDs   []string
 
-	ServerURL   string
-	Challenge   string
-	SubjectName string
-	KeyLength   int
+	ServerURL               string
+	Challenge               string
+	SubjectName             string
+	SubjectAlternativeNames string
+	KeyLength               int
 }
 
 // SCEPResult is emitted on the channel returned by AppendSCEPInstallResponses once the async
@@ -81,6 +83,8 @@ func (c *TestWindowsMDMClient) ExtractSCEPCommands(cmds map[string]fleet.ProtoCm
 			sc.Challenge = val
 		case "SubjectName":
 			sc.SubjectName = val
+		case "SubjectAlternativeNames":
+			sc.SubjectAlternativeNames = val
 		case "KeyLength":
 			if n, err := strconv.Atoi(val); err == nil && n > 0 {
 				sc.KeyLength = n
@@ -279,11 +283,18 @@ func (c *TestWindowsMDMClient) RunSCEP(ctx context.Context, sc SCEPCommand, logg
 	if err != nil {
 		return nil, fmt.Errorf("scep parse subject: %w", err)
 	}
+	sans, err := parseSCEPSubjectAltNames(sc.SubjectAlternativeNames)
+	if err != nil {
+		return nil, fmt.Errorf("scep parse subject alternative names: %w", err)
+	}
 	cert, _, err := performSCEPExchange(ctx, scepExchangeRequest{
-		URL:       sc.ServerURL,
-		Subject:   subject,
-		Challenge: sc.Challenge,
-		KeyBits:   sc.KeyLength,
+		URL:            sc.ServerURL,
+		Subject:        subject,
+		DNSNames:       sans.DNSNames,
+		EmailAddresses: sans.EmailAddresses,
+		URIs:           sans.URIs,
+		Challenge:      sc.Challenge,
+		KeyBits:        sc.KeyLength,
 	}, logger)
 	return cert, err
 }
@@ -300,7 +311,8 @@ func newStatusCmd(msgID, cmdRef, cmd, status string) fleet.SyncMLCmd {
 }
 
 // parseSCEPSubject parses a SubjectName CSP value of the form CN=foo,OU=bar into a pkix.Name.
-// Only CN and OU are recognized. Escaped commas in values are not supported.
+// Only CN and OU are recognized. Quoted values are unquoted the way Windows does, but escaped or
+// quoted commas in values are not supported.
 func parseSCEPSubject(s string) (pkix.Name, error) {
 	n := pkix.Name{}
 	if strings.TrimSpace(s) == "" {
@@ -313,6 +325,9 @@ func parseSCEPSubject(s string) (pkix.Name, error) {
 			continue
 		}
 		val := strings.TrimSpace(right)
+		if len(val) >= 2 && strings.HasPrefix(val, `"`) && strings.HasSuffix(val, `"`) {
+			val = strings.ReplaceAll(val[1:len(val)-1], `""`, `"`)
+		}
 		switch strings.ToUpper(strings.TrimSpace(left)) {
 		case "CN":
 			n.CommonName = val
@@ -326,4 +341,40 @@ func parseSCEPSubject(s string) (pkix.Name, error) {
 		return n, fmt.Errorf("subject %q has no recognized RDN (expected CN or OU)", s)
 	}
 	return n, nil
+}
+
+type scepSubjectAltNames struct {
+	DNSNames       []string
+	EmailAddresses []string
+	URIs           []*url.URL
+}
+
+// parseSCEPSubjectAltNames parses a SubjectAlternativeNames CSP value: entries of the form
+// <name type>+<value> separated by semicolons. Only email (1), DNS (2) and URL (7) go into the CSR;
+// other name types are skipped so profiles carrying them (for example a UPN) still enroll.
+func parseSCEPSubjectAltNames(s string) (scepSubjectAltNames, error) {
+	var sans scepSubjectAltNames
+	for entry := range strings.SplitSeq(s, ";") {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+		nameType, value, ok := strings.Cut(entry, "+")
+		if !ok {
+			return sans, fmt.Errorf("subject alternative name %q has no name type", entry)
+		}
+		switch nameType {
+		case "1":
+			sans.EmailAddresses = append(sans.EmailAddresses, value)
+		case "2":
+			sans.DNSNames = append(sans.DNSNames, value)
+		case "7":
+			u, err := url.Parse(value)
+			if err != nil {
+				return sans, fmt.Errorf("subject alternative name %q: %w", entry, err)
+			}
+			sans.URIs = append(sans.URIs, u)
+		}
+	}
+	return sans, nil
 }

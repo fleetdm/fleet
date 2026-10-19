@@ -330,12 +330,18 @@ func conditionalAccessGetIdPAppleProfileEndpoint(ctx context.Context, _ interfac
 	}, nil
 }
 
-func (svc *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (profileData []byte, err error) {
-	// Check user is authorized to read conditional access Apple profile
-	if err := svc.authz.Authorize(ctx, &fleet.ConditionalAccessIDPAssets{}, fleet.ActionRead); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "failed to authorize")
-	}
+// conditionalAccessProfileInputs are the values every conditional access profile is rendered from.
+type conditionalAccessProfileInputs struct {
+	caCert    *x509.Certificate
+	serverURL string
+	scepURL   string
+	challenge string
+	mtlsURL   string
+}
 
+// loadConditionalAccessProfileInputs checks the preconditions shared by the Apple and Windows profiles and loads their
+// inputs, so the platforms can't drift on either.
+func (svc *Service) loadConditionalAccessProfileInputs(ctx context.Context) (*conditionalAccessProfileInputs, error) {
 	// Check that server private key is configured
 	if len(svc.config.Server.PrivateKey) == 0 {
 		return nil, &fleet.BadRequestError{Message: "Fleet server private key is not configured. Learn more: https://fleetdm.com/learn-more-about/fleet-server-private-key"}
@@ -361,13 +367,10 @@ func (svc *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (pr
 	}
 
 	// Parse DER certificate
-	_, err = x509.ParseCertificate(block.Bytes)
+	caCert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to parse CA certificate")
 	}
-
-	// Base64 encode the DER certificate for the profile
-	caCertBase64 := base64.StdEncoding.EncodeToString(block.Bytes)
 
 	// Get app config for server URL
 	appConfig, err := svc.ds.AppConfig(ctx)
@@ -394,17 +397,35 @@ func (svc *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (pr
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: "global enroll secret is not configured"})
 	}
 
-	// Use the first global enroll secret as the challenge
-	challenge := secrets[0].Secret
-
 	// Get mTLS URL using ConditionalAccessIdPSSOURL
 	mtlsURL, err := appConfig.ConditionalAccessIdPSSOURL(dev_mode.Env)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to get mTLS URL")
 	}
 
+	return &conditionalAccessProfileInputs{
+		caCert:    caCert,
+		serverURL: appConfig.ServerSettings.ServerURL,
+		scepURL:   scepURL,
+		// Use the first global enroll secret as the challenge
+		challenge: secrets[0].Secret,
+		mtlsURL:   mtlsURL,
+	}, nil
+}
+
+func (svc *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (profileData []byte, err error) {
+	// Check user is authorized to read conditional access Apple profile
+	if err := svc.authz.Authorize(ctx, &fleet.ConditionalAccessIDPAssets{}, fleet.ActionRead); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "failed to authorize")
+	}
+
+	in, err := svc.loadConditionalAccessProfileInputs(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	// Generate deterministic UUIDs based on server URL
-	serverURL := appConfig.ServerSettings.ServerURL
+	serverURL := in.serverURL
 	caCertUUID := generateDeterministicUUID(serverURL, "conditional-access-ca-cert")
 	scepPayloadUUID := generateDeterministicUUID(serverURL, "conditional-access-scep")
 	identityPrefUUID := generateDeterministicUUID(serverURL, "conditional-access-identity-pref")
@@ -414,11 +435,12 @@ func (svc *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (pr
 	// Execute template
 	var buf bytes.Buffer
 	if err := conditionalAccessAppleProfileTemplateParsed.Execute(&buf, appleProfileTemplateData{
-		CACertBase64:     caCertBase64,
-		SCEPURL:          scepURL,
-		Challenge:        challenge,
+		// Base64 encode the DER certificate for the profile
+		CACertBase64:     base64.StdEncoding.EncodeToString(in.caCert.Raw),
+		SCEPURL:          in.scepURL,
+		Challenge:        in.challenge,
 		CertificateCN:    fleet.ConditionalAccessOktaCertificateCN,
-		MTLSURL:          mtlsURL,
+		MTLSURL:          in.mtlsURL,
 		CACertUUID:       caCertUUID,
 		SCEPPayloadUUID:  scepPayloadUUID,
 		IdentityPrefUUID: identityPrefUUID,

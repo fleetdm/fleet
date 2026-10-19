@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"time"
 
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
@@ -20,10 +21,13 @@ import (
 // scepExchangeRequest describes a single SCEP enrollment exchange driven by a test MDM client.
 // Used internally by performSCEPExchange to unify the Apple and Windows test paths.
 type scepExchangeRequest struct {
-	URL       string
-	Subject   pkix.Name
-	Challenge string
-	KeyBits   int // defaults to 2048 if 0
+	URL            string
+	Subject        pkix.Name
+	DNSNames       []string
+	EmailAddresses []string
+	URIs           []*url.URL
+	Challenge      string
+	KeyBits        int // defaults to 2048 if 0
 }
 
 // performSCEPExchange runs the full SCEP CSR-then-cert exchange against the SCEP server at
@@ -71,6 +75,9 @@ func performSCEPExchange(
 	csrTpl := x509util.CertificateRequest{
 		CertificateRequest: x509.CertificateRequest{
 			Subject:            req.Subject,
+			DNSNames:           req.DNSNames,
+			EmailAddresses:     req.EmailAddresses,
+			URIs:               req.URIs,
 			SignatureAlgorithm: x509.SHA256WithRSA,
 		},
 		ChallengePassword: req.Challenge,

@@ -87,3 +87,35 @@ func buildAtomicSCEPCmd(t *testing.T, locPrefix, uniqueID, serverURL, challenge,
 		}},
 	}
 }
+
+// Windows CertEnroll accepts quoted RDN values, and Fleet quotes values it substitutes into SubjectName.
+func TestParseSCEPSubjectQuotedValues(t *testing.T) {
+	n, err := parseSCEPSubject(`CN=Fleet conditional access for Okta,OU="fleet-abc"`)
+	require.NoError(t, err)
+	assert.Equal(t, "Fleet conditional access for Okta", n.CommonName)
+	assert.Equal(t, []string{"fleet-abc"}, n.OrganizationalUnit)
+
+	n, err = parseSCEPSubject(`CN="say ""hi"""`)
+	require.NoError(t, err)
+	assert.Equal(t, `say "hi"`, n.CommonName)
+}
+
+func TestParseSCEPSubjectAltNames(t *testing.T) {
+	sans, err := parseSCEPSubjectAltNames("7+urn:device:fleet:uuid:ABC;2+host.example.com;1+user@example.com")
+	require.NoError(t, err)
+	require.Len(t, sans.URIs, 1)
+	assert.Equal(t, "urn:device:fleet:uuid:ABC", sans.URIs[0].String())
+	assert.Equal(t, []string{"host.example.com"}, sans.DNSNames)
+	assert.Equal(t, []string{"user@example.com"}, sans.EmailAddresses)
+
+	sans, err = parseSCEPSubjectAltNames("")
+	require.NoError(t, err)
+	assert.Empty(t, sans.URIs)
+
+	sans, err = parseSCEPSubjectAltNames("11+user@example.com")
+	require.NoError(t, err)
+	assert.Empty(t, sans.URIs)
+
+	_, err = parseSCEPSubjectAltNames("no-name-type")
+	require.Error(t, err)
+}

@@ -1,0 +1,1 @@
+- Added `GET /api/v1/fleet/conditional_access/idp/windows/profiles`, which returns the Windows profiles for Okta conditional access: one that enrolls the certificate into the signed-in user's store and one that makes Chrome and Edge select it automatically. Fleet's conditional access SCEP server now also accepts certificates whose SAN URI is `urn:device:fleet:uuid:<host UUID>`.

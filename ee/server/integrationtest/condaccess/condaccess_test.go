@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -22,6 +23,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/enrollment"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/smallstep/scep"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -41,11 +44,13 @@ func TestConditionalAccessSCEP(t *testing.T) {
 		{"GetCACaps", testGetCACaps},
 		{"GetCACert", testGetCACert},
 		{"SCEPEnrollment", testSCEPEnrollment},
+		{"WindowsSCEPEnrollment", testWindowsSCEPEnrollment},
 		{"InvalidChallenge", testInvalidChallenge},
 		{"MissingUUID", testMissingUUID},
 		{"NonExistentHost", testNonExistentHost},
 		{"CertificateRotation", testCertificateRotation},
 		{"GetIDPSigningCert", testGetIDPSigningCert},
+		{"GetWindowsProfiles", testGetWindowsProfiles},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -150,6 +155,35 @@ func testSCEPEnrollment(t *testing.T, s *Suite) {
 	actualDuration := cert.NotAfter.Sub(cert.NotBefore)
 	assert.True(t, actualDuration >= expectedMinDuration && actualDuration <= expectedMaxDuration,
 		"Certificate should be valid for approximately 398 days")
+}
+
+// testWindowsSCEPEnrollment covers the platform-neutral SAN URI prefix the Windows profile uses.
+func testWindowsSCEPEnrollment(t *testing.T, s *Suite) {
+	ctx := t.Context()
+
+	err := s.DS.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: testEnrollmentSecret}})
+	require.NoError(t, err)
+
+	host, err := s.DS.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   new("test-host-scep-windows"),
+		NodeKey:         new("test-node-key-scep-windows"),
+		UUID:            "test-uuid-scep-windows",
+		Hostname:        "test-hostname-scep-windows",
+		Platform:        "windows",
+		DetailUpdatedAt: time.Now(),
+	})
+	require.NoError(t, err)
+
+	deviceURI, err := url.Parse("urn:device:fleet:uuid:" + host.UUID)
+	require.NoError(t, err)
+	cert, err := requestSCEPCertificateWithOptions(t, s, []*url.URL{deviceURI}, testEnrollmentSecret)
+	require.NoError(t, err)
+	require.Len(t, cert.URIs, 1)
+	assert.Equal(t, deviceURI.String(), cert.URIs[0].String())
+
+	hostID, err := s.DS.GetConditionalAccessCertHostIDBySerialNumber(ctx, uint64(cert.SerialNumber.Int64())) //nolint:gosec // G115
+	require.NoError(t, err)
+	assert.Equal(t, host.ID, hostID)
 }
 
 func testInvalidChallenge(t *testing.T, s *Suite) {
@@ -375,4 +409,34 @@ func testGetIDPSigningCert(t *testing.T, s *Suite) {
 
 	// Verify certificate subject contains IdP
 	require.Contains(t, cert.Subject.CommonName, "IdP", "certificate should be for IdP")
+}
+
+func testGetWindowsProfiles(t *testing.T, s *Suite) {
+	ctx := t.Context()
+
+	getProfiles := func(token string) *http.Response {
+		req, err := http.NewRequestWithContext(ctx, "GET", s.Server.URL+"/api/latest/fleet/conditional_access/idp/windows/profiles", nil)
+		require.NoError(t, err)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		t.Cleanup(func() { resp.Body.Close() })
+		return resp
+	}
+
+	// Windows can't send "_" in a SCEP challenge.
+	require.NoError(t, s.DS.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: testEnrollmentSecret}}))
+	resp := getProfiles(s.Token)
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+
+	require.NoError(t, s.DS.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: "test-secret"}}))
+	resp = getProfiles(s.Token)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	var profiles fleet.ConditionalAccessWindowsProfiles
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&profiles))
+	require.Contains(t, profiles.SCEPProfile, "./User/Vendor/MSFT/ClientCertificateInstall/SCEP/")
+	require.Contains(t, profiles.BrowserProfile, "AutoSelectCertificate")
+
+	resp = getProfiles(s.GetTestToken(t, service.TestObserverUserEmail, test.GoodPassword))
+	require.Equal(t, http.StatusForbidden, resp.StatusCode)
 }
