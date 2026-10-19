@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -13,7 +12,6 @@ import (
 	"fmt"
 	"iter"
 	"log/slog"
-	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -7816,16 +7814,7 @@ func TestReorderCSVColumnAfter(t *testing.T) {
 // selfSignedCertForKey issues a certificate for key with the given serial, so two certificates can share one key.
 func selfSignedCertForKey(t *testing.T, key *rsa.PrivateKey, serial int64) *x509.Certificate {
 	t.Helper()
-	tmpl := &x509.Certificate{
-		SerialNumber: big.NewInt(serial),
-		Subject:      pkix.Name{CommonName: "Fleet WSTEP test"},
-		NotBefore:    time.Now().Add(-time.Hour),
-		NotAfter:     time.Now().Add(time.Hour),
-		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-	}
-	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
-	require.NoError(t, err)
-	cert, err := x509.ParseCertificate(der)
+	cert, err := tokenpki.SelfSignedCertForKey(key, "Fleet WSTEP test", serial)
 	require.NoError(t, err)
 	return cert
 }

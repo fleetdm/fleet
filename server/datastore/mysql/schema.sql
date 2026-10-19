@@ -800,7 +800,8 @@ CREATE TABLE `host_disk_encryption_keys` (
   `wstep_encrypted` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`host_id`),
   KEY `idx_host_disk_encryption_keys_decryptable` (`decryptable`),
-  KEY `idx_hdek_rotation_command_uuid` (`rotation_command_uuid`)
+  KEY `idx_hdek_rotation_command_uuid` (`rotation_command_uuid`),
+  KEY `idx_host_disk_encryption_keys_wstep_encrypted` (`wstep_encrypted`,`host_id`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

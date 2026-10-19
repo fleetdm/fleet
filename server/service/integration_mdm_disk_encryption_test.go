@@ -2794,8 +2794,10 @@ func (s *integrationMDMTestSuite) TestRotateFileVaultKey() {
 	t.Run("stored key changes before delivery", func(t *testing.T) {
 		host, mdmClient := newEscrowedHost(t, "AAA-111-222")
 		s.Do("POST", rotateURL(host.ID), nil, http.StatusOK)
-		require.NoError(t, s.ds.ReplaceHostDiskEncryptionKeyBlob(ctx, host.ID, storedKey(host.ID).Base64Encrypted,
-			base64.StdEncoding.EncodeToString([]byte("not cms"))))
+		replaced, err := s.ds.ReplaceHostDiskEncryptionKeyBlob(ctx, host.ID, storedKey(host.ID).Base64Encrypted,
+			base64.StdEncoding.EncodeToString([]byte("not cms")))
+		require.NoError(t, err)
+		require.True(t, replaced)
 
 		require.Nil(t, nextRotateCommand(t, mdmClient), "a command that can't be expanded is not delivered")
 		key := storedKey(host.ID)

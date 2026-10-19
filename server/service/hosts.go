@@ -4213,31 +4213,27 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint, allowArchive
 }
 
 func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Host, allowArchivedSerialLookup bool) (*fleet.HostDiskEncryptionKey, error) {
-	// First, determine the decryption function based on the host platform and configuration. wstepEncrypted is only
-	// meaningful for Windows rows.
-	var decryptFn func(b64 string, wstepEncrypted bool) (string, error)
+	// First, determine the decryption function based on the host platform and configuration.
+	var decryptFn func(b64 string) (string, error)
 	switch {
 	case host.IsLUKSSupported():
 		if svc.config.Server.PrivateKey == "" {
 			return nil, errors.New("private key is unavailable")
 		}
-		decryptFn = func(b64 string, _ bool) (string, error) {
+		decryptFn = func(b64 string) (string, error) {
 			return mdm.DecodeAndDecrypt(b64, svc.config.Server.PrivateKey)
 		}
 	case host.FleetPlatform() == "windows":
-		// Legacy keys are encrypted to the WSTEP certificate until the hourly job re-encrypts them. The certificate is
-		// only loaded for those rows, so Windows MDM does not need to be on to read a key. The marker picks the scheme
-		// to try first; the other is tried on failure, because an older server instance can escrow a legacy key into an
-		// unmarked row during a rolling upgrade.
-		withServerKey := func(b64 string) (string, error) {
-			if svc.config.Server.PrivateKey == "" {
-				return "", errors.New("private key is unavailable")
-			}
-			return mdm.DecodeAndDecrypt(b64, svc.config.Server.PrivateKey)
+		// The server private key is tried first: it reads every key escrowed by this release and is cheap to try. Keys
+		// escrowed by older releases are encrypted to the WSTEP certificate until the hourly job re-encrypts them, so
+		// the certificate is the fallback, loaded only then. Windows MDM does not need to be on to read a key.
+		if svc.config.Server.PrivateKey == "" {
+			return nil, errors.New("private key is unavailable")
 		}
-		withWSTEPKey := func(b64 string) (string, error) {
-			if !svc.config.MDM.IsMicrosoftWSTEPSet() {
-				return "", errors.New("Microsoft WSTEP certificate is unavailable")
+		decryptFn = func(b64 string) (string, error) {
+			plain, err := mdm.DecodeAndDecrypt(b64, svc.config.Server.PrivateKey)
+			if err == nil || !svc.config.MDM.IsMicrosoftWSTEPSet() {
+				return plain, err
 			}
 			cert, _, _, err := svc.config.MDM.MicrosoftWSTEP()
 			if err != nil {
@@ -4245,20 +4241,6 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 			}
 			b, err := mdm.DecryptBase64CMSWithKey(b64, cert.PrivateKey)
 			return string(b), err
-		}
-		decryptFn = func(b64 string, wstepEncrypted bool) (string, error) {
-			first, second := withServerKey, withWSTEPKey
-			if wstepEncrypted {
-				first, second = withWSTEPKey, withServerKey
-			}
-			plain, err := first(b64)
-			if err == nil {
-				return plain, nil
-			}
-			if plain, err2 := second(b64); err2 == nil {
-				return plain, nil
-			}
-			return "", err
 		}
 	default:
 		// Fallback to using Apple MDM CA assets for decryption.
@@ -4271,7 +4253,7 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "loading existing assets from the database")
 		}
-		decryptFn = func(b64 string, _ bool) (string, error) {
+		decryptFn = func(b64 string) (string, error) {
 			b, err := mdm.DecryptBase64CMSWithCerts(b64, key, certs)
 			return string(b), err
 		}
@@ -4331,7 +4313,7 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 		key.DecryptedValue = ""
 
 		// Try to decrypt the current key.
-		decrypted, err = decryptFn(key.Base64Encrypted, key.WSTEPEncrypted)
+		decrypted, err = decryptFn(key.Base64Encrypted)
 		switch {
 		case err != nil:
 			decryptErrs = append(decryptErrs, fmt.Errorf("decrypting host disk encryption key: %w", err))
@@ -4349,7 +4331,7 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 
 	// If we have an archived key, try to decrypt it.
 	if archivedKey != nil && archivedKey.Base64Encrypted != "" {
-		decrypted, err = decryptFn(archivedKey.Base64Encrypted, archivedKey.WSTEPEncrypted)
+		decrypted, err = decryptFn(archivedKey.Base64Encrypted)
 		switch {
 		case err != nil:
 			decryptErrs = append(decryptErrs, fmt.Errorf("decrypting archived disk encryption key: %w", err))

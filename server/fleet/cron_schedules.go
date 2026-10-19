@@ -62,7 +62,7 @@ const (
 	CronMigrateToPerHostPolicy CronScheduleName = "migrate_to_per_host_policy"
 	// CronReencryptWindowsDiskEncryptionKeys re-encrypts legacy Windows BitLocker recovery keys, stored by older
 	// releases under the WSTEP certificate, with the server private key, and marks the ones it cannot read so the
-	// host escrows a new key. First run is seconds after startup, then hourly.
+	// host escrows a new key. First run is ten minutes after startup, then hourly.
 	CronReencryptWindowsDiskEncryptionKeys CronScheduleName = "reencrypt_windows_disk_encryption_keys"
 	// CronQueryResultsCleanup deletes excess query result rows that exceed the maximum allowed per query.
 	// Runs every 1 minute.

@@ -913,8 +913,10 @@ func testExpandHostSecretsFileVaultKey(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, `<dict><key>Password</key><string>ABCD-&lt;&amp;&gt;-EFGH</string></dict>`, expanded)
 
-	require.NoError(t, ds.ReplaceHostDiskEncryptionKeyBlob(ctx, host.ID, base64.StdEncoding.EncodeToString(encrypted),
-		base64.StdEncoding.EncodeToString([]byte("not cms"))))
+	replaced, err := ds.ReplaceHostDiskEncryptionKeyBlob(ctx, host.ID, base64.StdEncoding.EncodeToString(encrypted),
+		base64.StdEncoding.EncodeToString([]byte("not cms")))
+	require.NoError(t, err)
+	require.True(t, replaced)
 	_, err = ds.ExpandHostSecrets(ctx, doc, host.UUID)
 	require.ErrorContains(t, err, "decrypting disk encryption key")
 }

@@ -986,19 +986,13 @@ type FailHostDiskEncryptionKeyRotationFunc func(ctx context.Context, hostID uint
 
 type GetHostByDiskEncryptionKeyRotationCommandFunc func(ctx context.Context, cmdUUID string) (*fleet.Host, error)
 
-type ReplaceHostDiskEncryptionKeyBlobFunc func(ctx context.Context, hostID uint, currentBase64Encrypted string, newBase64Encrypted string) error
+type ReplaceHostDiskEncryptionKeyBlobFunc func(ctx context.Context, hostID uint, currentBase64Encrypted string, newBase64Encrypted string) (bool, error)
 
 type ListWSTEPEncryptedDiskEncryptionKeysFunc func(ctx context.Context, afterHostID uint, limit int) ([]fleet.HostDiskEncryptionKey, error)
 
 type ListWSTEPEncryptedArchivedDiskEncryptionKeysFunc func(ctx context.Context, afterID uint, limit int) ([]fleet.HostArchivedDiskEncryptionKey, error)
 
-type ReplaceWSTEPEncryptedDiskEncryptionKeyFunc func(ctx context.Context, hostID uint, currentBase64Encrypted string, newBase64Encrypted string) (bool, error)
-
 type ReplaceWSTEPEncryptedArchivedDiskEncryptionKeyFunc func(ctx context.Context, id uint, currentBase64Encrypted string, newBase64Encrypted string) (bool, error)
-
-type ReplaceArchivedDiskEncryptionKeyCopiesFunc func(ctx context.Context, hostID uint, currentBase64Encrypted string, newBase64Encrypted string) error
-
-type ClearWSTEPEncryptedArchivedDiskEncryptionKeyMarkerFunc func(ctx context.Context, id uint, currentBase64Encrypted string) error
 
 type MarkWindowsDiskEncryptionKeysUndecryptableFunc func(ctx context.Context, keys []fleet.HostDiskEncryptionKey) error
 
@@ -4067,17 +4061,8 @@ type DataStore struct {
 	ListWSTEPEncryptedArchivedDiskEncryptionKeysFunc        ListWSTEPEncryptedArchivedDiskEncryptionKeysFunc
 	ListWSTEPEncryptedArchivedDiskEncryptionKeysFuncInvoked bool
 
-	ReplaceWSTEPEncryptedDiskEncryptionKeyFunc        ReplaceWSTEPEncryptedDiskEncryptionKeyFunc
-	ReplaceWSTEPEncryptedDiskEncryptionKeyFuncInvoked bool
-
 	ReplaceWSTEPEncryptedArchivedDiskEncryptionKeyFunc        ReplaceWSTEPEncryptedArchivedDiskEncryptionKeyFunc
 	ReplaceWSTEPEncryptedArchivedDiskEncryptionKeyFuncInvoked bool
-
-	ReplaceArchivedDiskEncryptionKeyCopiesFunc        ReplaceArchivedDiskEncryptionKeyCopiesFunc
-	ReplaceArchivedDiskEncryptionKeyCopiesFuncInvoked bool
-
-	ClearWSTEPEncryptedArchivedDiskEncryptionKeyMarkerFunc        ClearWSTEPEncryptedArchivedDiskEncryptionKeyMarkerFunc
-	ClearWSTEPEncryptedArchivedDiskEncryptionKeyMarkerFuncInvoked bool
 
 	MarkWindowsDiskEncryptionKeysUndecryptableFunc        MarkWindowsDiskEncryptionKeysUndecryptableFunc
 	MarkWindowsDiskEncryptionKeysUndecryptableFuncInvoked bool
@@ -9870,7 +9855,7 @@ func (s *DataStore) GetHostByDiskEncryptionKeyRotationCommand(ctx context.Contex
 	return s.GetHostByDiskEncryptionKeyRotationCommandFunc(ctx, cmdUUID)
 }
 
-func (s *DataStore) ReplaceHostDiskEncryptionKeyBlob(ctx context.Context, hostID uint, currentBase64Encrypted string, newBase64Encrypted string) error {
+func (s *DataStore) ReplaceHostDiskEncryptionKeyBlob(ctx context.Context, hostID uint, currentBase64Encrypted string, newBase64Encrypted string) (bool, error) {
 	s.mu.Lock()
 	s.ReplaceHostDiskEncryptionKeyBlobFuncInvoked = true
 	s.mu.Unlock()
@@ -9891,32 +9876,11 @@ func (s *DataStore) ListWSTEPEncryptedArchivedDiskEncryptionKeys(ctx context.Con
 	return s.ListWSTEPEncryptedArchivedDiskEncryptionKeysFunc(ctx, afterID, limit)
 }
 
-func (s *DataStore) ReplaceWSTEPEncryptedDiskEncryptionKey(ctx context.Context, hostID uint, currentBase64Encrypted string, newBase64Encrypted string) (bool, error) {
-	s.mu.Lock()
-	s.ReplaceWSTEPEncryptedDiskEncryptionKeyFuncInvoked = true
-	s.mu.Unlock()
-	return s.ReplaceWSTEPEncryptedDiskEncryptionKeyFunc(ctx, hostID, currentBase64Encrypted, newBase64Encrypted)
-}
-
 func (s *DataStore) ReplaceWSTEPEncryptedArchivedDiskEncryptionKey(ctx context.Context, id uint, currentBase64Encrypted string, newBase64Encrypted string) (bool, error) {
 	s.mu.Lock()
 	s.ReplaceWSTEPEncryptedArchivedDiskEncryptionKeyFuncInvoked = true
 	s.mu.Unlock()
 	return s.ReplaceWSTEPEncryptedArchivedDiskEncryptionKeyFunc(ctx, id, currentBase64Encrypted, newBase64Encrypted)
-}
-
-func (s *DataStore) ReplaceArchivedDiskEncryptionKeyCopies(ctx context.Context, hostID uint, currentBase64Encrypted string, newBase64Encrypted string) error {
-	s.mu.Lock()
-	s.ReplaceArchivedDiskEncryptionKeyCopiesFuncInvoked = true
-	s.mu.Unlock()
-	return s.ReplaceArchivedDiskEncryptionKeyCopiesFunc(ctx, hostID, currentBase64Encrypted, newBase64Encrypted)
-}
-
-func (s *DataStore) ClearWSTEPEncryptedArchivedDiskEncryptionKeyMarker(ctx context.Context, id uint, currentBase64Encrypted string) error {
-	s.mu.Lock()
-	s.ClearWSTEPEncryptedArchivedDiskEncryptionKeyMarkerFuncInvoked = true
-	s.mu.Unlock()
-	return s.ClearWSTEPEncryptedArchivedDiskEncryptionKeyMarkerFunc(ctx, id, currentBase64Encrypted)
 }
 
 func (s *DataStore) MarkWindowsDiskEncryptionKeysUndecryptable(ctx context.Context, keys []fleet.HostDiskEncryptionKey) error {

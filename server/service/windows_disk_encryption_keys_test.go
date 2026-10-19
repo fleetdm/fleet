@@ -56,13 +56,11 @@ func TestReencryptWSTEPDiskEncryptionKeys(t *testing.T) {
 	type recorder struct {
 		replaced         map[uint]string
 		archivedReplaced map[uint]string
-		archivedCopies   map[uint]string
-		archivedCleared  []uint
 		marked           []fleet.HostDiskEncryptionKey
 	}
 	newStore := func(t *testing.T, keys []fleet.HostDiskEncryptionKey, archived []fleet.HostArchivedDiskEncryptionKey) (*mock.Store, *recorder) {
 		ds := new(mock.Store)
-		rec := &recorder{replaced: map[uint]string{}, archivedReplaced: map[uint]string{}, archivedCopies: map[uint]string{}}
+		rec := &recorder{replaced: map[uint]string{}, archivedReplaced: map[uint]string{}}
 		blobOf := map[uint]string{}
 		for _, k := range keys {
 			blobOf[k.HostID] = k.Base64Encrypted
@@ -85,7 +83,7 @@ func TestReencryptWSTEPDiskEncryptionKeys(t *testing.T) {
 			}
 			return page, nil
 		}
-		ds.ReplaceWSTEPEncryptedDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint, current, updated string) (bool, error) {
+		ds.ReplaceHostDiskEncryptionKeyBlobFunc = func(ctx context.Context, hostID uint, current, updated string) (bool, error) {
 			require.Equal(t, blobOf[hostID], current, "compare-and-swap must use the blob that was read")
 			rec.replaced[hostID] = updated
 			return true, nil
@@ -93,15 +91,6 @@ func TestReencryptWSTEPDiskEncryptionKeys(t *testing.T) {
 		ds.ReplaceWSTEPEncryptedArchivedDiskEncryptionKeyFunc = func(ctx context.Context, id uint, current, updated string) (bool, error) {
 			rec.archivedReplaced[id] = updated
 			return true, nil
-		}
-		ds.ReplaceArchivedDiskEncryptionKeyCopiesFunc = func(ctx context.Context, hostID uint, current, updated string) error {
-			require.Equal(t, blobOf[hostID], current, "copies are matched on the blob the live row had")
-			rec.archivedCopies[hostID] = updated
-			return nil
-		}
-		ds.ClearWSTEPEncryptedArchivedDiskEncryptionKeyMarkerFunc = func(ctx context.Context, id uint, current string) error {
-			rec.archivedCleared = append(rec.archivedCleared, id)
-			return nil
 		}
 		ds.MarkWindowsDiskEncryptionKeysUndecryptableFunc = func(ctx context.Context, keys []fleet.HostDiskEncryptionKey) error {
 			for _, k := range keys {
@@ -132,12 +121,6 @@ func TestReencryptWSTEPDiskEncryptionKeys(t *testing.T) {
 				{HostID: 2, Base64Encrypted: renewed, WSTEPEncrypted: true},
 				{HostID: 3, Base64Encrypted: dead, WSTEPEncrypted: true},
 				{HostID: 4, Base64Encrypted: "not even base64", WSTEPEncrypted: true},
-				// Unmarked rows listed by their shape: a current key is left alone, a legacy one escrowed by an older
-				// instance after the migration is re-encrypted, and one neither key reads is left alone rather than
-				// marked, since only the migration's marker says a row is a legacy key.
-				{HostID: 5, Base64Encrypted: current},
-				{HostID: 6, Base64Encrypted: readable},
-				{HostID: 7, Base64Encrypted: dead},
 				// Shorter than an AES-GCM nonce: a malformed blob must not stop the run.
 				{HostID: 8, Base64Encrypted: "MIIA", WSTEPEncrypted: true},
 				// Marked but already on the server key: only the marker goes.
@@ -150,20 +133,16 @@ func TestReencryptWSTEPDiskEncryptionKeys(t *testing.T) {
 			})
 		require.NoError(t, ReencryptWSTEPDiskEncryptionKeys(ctx, logger, ds, &cfg))
 
-		require.Len(t, rec.replaced, 4)
+		require.Len(t, rec.replaced, 3)
 		require.Equal(t, "key-1", decrypted(t, rec.replaced[1]))
 		require.Equal(t, "key-2", decrypted(t, rec.replaced[2]))
-		require.Equal(t, "key-1", decrypted(t, rec.replaced[6]))
 		require.Equal(t, current, rec.replaced[9], "a current blob is written back unchanged to clear the marker")
 		require.Equal(t, []uint{3, 4, 8}, markedHosts(rec))
-		// Each re-encrypted live key drags its archived copies along, with the same new ciphertext.
-		require.Len(t, rec.archivedCopies, 3)
-		require.Equal(t, rec.replaced[1], rec.archivedCopies[1])
-		require.Equal(t, rec.replaced[6], rec.archivedCopies[6])
-		require.Len(t, rec.archivedReplaced, 2)
+		// Every marked archive row leaves the queue: re-encrypted, written back unchanged, or unreadable.
+		require.Len(t, rec.archivedReplaced, 3)
 		require.Equal(t, "archived-1", decrypted(t, rec.archivedReplaced[10]))
+		require.Equal(t, archivedDead, rec.archivedReplaced[11], "an unreadable archived key keeps its blob")
 		require.Equal(t, current, rec.archivedReplaced[12])
-		require.Equal(t, []uint{11}, rec.archivedCleared)
 	})
 
 	// A replaced certificate leaves every key unreadable; one run walks all batches and marks them all.

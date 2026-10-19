@@ -47,13 +47,17 @@ func Up_20261019151819(tx *sql.Tx) error {
 			}
 		}
 	}
-	// The archive holds many rows per host and the hourly job looks for marked ones long after the last is gone.
-	if !indexExistsTx(tx, "host_disk_encryption_keys_archive", "idx_host_disk_encryption_keys_archive_wstep_encrypted") {
-		if _, err := tx.Exec(`
-			ALTER TABLE host_disk_encryption_keys_archive
-			ADD INDEX idx_host_disk_encryption_keys_archive_wstep_encrypted (wstep_encrypted, id)
-		`); err != nil {
-			return fmt.Errorf("adding wstep_encrypted index to host_disk_encryption_keys_archive: %w", err)
+	// The hourly job keeps looking for marked rows long after the last one is gone, so the lookup must cost an index
+	// probe, not a scan.
+	for _, idx := range []struct{ table, name, columns string }{
+		{"host_disk_encryption_keys", "idx_host_disk_encryption_keys_wstep_encrypted", "wstep_encrypted, host_id"},
+		{"host_disk_encryption_keys_archive", "idx_host_disk_encryption_keys_archive_wstep_encrypted", "wstep_encrypted, id"},
+	} {
+		if indexExistsTx(tx, idx.table, idx.name) {
+			continue
+		}
+		if _, err := tx.Exec(fmt.Sprintf(`ALTER TABLE %s ADD INDEX %s (%s)`, idx.table, idx.name, idx.columns)); err != nil {
+			return fmt.Errorf("adding %s to %s: %w", idx.name, idx.table, err)
 		}
 	}
 	return nil
