@@ -3740,6 +3740,13 @@
       "description": "GitFinder is a git client with Finder integration."
     },
     {
+      "name": "GitHub Copilot",
+      "slug": "github-copilot-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.github.githubapp",
+      "description": "GitHub Copilot is a native desktop app for working with the GitHub Copilot AI coding agent."
+    },
+    {
       "name": "GitHub Copilot for Xcode",
       "slug": "github-copilot-for-xcode/darwin",
       "platform": "darwin",

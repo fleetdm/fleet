@@ -448,6 +448,7 @@ import Gimp from "./png/Gimp.png";
 import Git from "./png/Git.png";
 import GitExtensions from "./png/GitExtensions.png";
 import Gitfinder from "./png/Gitfinder.png";
+import GitHubCopilot from "./png/GitHubCopilot.png";
 import GithubCopilotForXcode from "./png/GithubCopilotForXcode.png";
 import GitHubDesktop from "./png/GitHubDesktop.png";
 import Gitify from "./png/Gitify.png";
@@ -1613,6 +1614,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   git: Git,
   "git extensions": GitExtensions,
   gitfinder: Gitfinder,
+  "github copilot": GitHubCopilot,
   "github copilot for xcode": GithubCopilotForXcode,
   "github desktop": GitHubDesktop,
   gitify: Gitify,
