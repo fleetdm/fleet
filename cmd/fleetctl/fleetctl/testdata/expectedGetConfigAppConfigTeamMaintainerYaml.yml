@@ -155,6 +155,7 @@ spec:
     server_url: ""
     scripts_disabled: false
     ai_features_disabled: false
+    mcp_enabled: false
   vulnerability_settings:
     databases_path: /some/path
   webhook_settings:

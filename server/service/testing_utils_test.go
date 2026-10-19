@@ -727,6 +727,8 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	}
 	var extra []ExtraHandlerOption
 	extra = append(extra, WithLoginRateLimit(throttled.PerMin(1000)))
+	mcpConn := NewMCPConn()
+	extra = append(extra, WithMCPConn(mcpConn))
 
 	if len(opts) > 0 && opts[0].HostIdentity != nil {
 		require.NoError(t, hostidentity.RegisterSCEP(rootMux, opts[0].HostIdentity.SCEPStorage, ds, logger, &cfg))
@@ -779,8 +781,10 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		server.Config.Handler = rootMux
 	}
 	server.Start()
+	mcpConn.Start(ctx, rootMux)
 	t.Cleanup(func() {
 		server.Close()
+		_ = mcpConn.Shutdown(context.Background())
 	})
 	return users, server
 }

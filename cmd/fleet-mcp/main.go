@@ -90,7 +90,9 @@ func main() {
 
 	logger.InfoContext(ctx, "starting Fleet MCP server")
 
-	fleetClient, err := fleetmcp.NewFleetClient(ctx, config.FleetBaseURL, config.FleetAPIKey, config.TLSSkipVerify, config.TLSCAFile, logger)
+	campaignWait, singleHostBlock := liveQueryWaits(ctx, logger, os.Getenv("FLEET_LIVE_QUERY_REST_PERIOD"))
+	fleetClient, err := fleetmcp.NewFleetClient(ctx, config.FleetBaseURL, config.FleetAPIKey, config.TLSSkipVerify, config.TLSCAFile, logger,
+		fleetmcp.WithLiveQueryWaits(campaignWait, singleHostBlock))
 	if err != nil {
 		fatal(ctx, logger, "invalid Fleet connection settings", "err", err)
 	}

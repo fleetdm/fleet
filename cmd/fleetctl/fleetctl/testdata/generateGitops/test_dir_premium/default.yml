@@ -172,6 +172,7 @@ org_settings:
     discard_reports_data: false
     enable_analytics: true
     live_reporting_disabled: false
+    mcp_enabled: true
     report_cap: 1
     scripts_disabled: false
     server_url: https://dogfood.fleetdm.com
