@@ -14,12 +14,15 @@ notes: |-
 
   A row means the appraiser saw the file. It is not evidence that the file was executed.
 
-  On Windows 11 roughly three quarters of the rows carry only a program id, a hash and a write time,
-  with no path, name, size or version metadata at all, and most of the remaining rows carry a path
-  but no hash, so fewer than one row in ten carries both. A query that joins or filters on path and
-  reports sha1, or the reverse, therefore reaches a small minority of the table on that family. That
-  is normal appraiser behaviour and not a fault in this table. Windows 10 and Windows Server 2022
-  populate both on every record and most other columns on most rows.
+  On Windows 11 many rows carry only a program id, a hash and a write time, with no path, name, size
+  or version metadata at all, and many of the remaining rows carry a path but no hash. The share
+  varies by build: on the hosts measured, between half and three quarters of the rows were
+  hash-only, and between fewer than one row in ten and about one in five carried both a path and a
+  hash.
+  A query that joins or filters on path and reports sha1, or the reverse, therefore reaches a
+  minority of the table on that family. That is normal appraiser behaviour and not a fault in this
+  table. Windows 10 and Windows Server 2022 populate both on every record and most other columns on
+  most rows.
 
   This table can hold tens of thousands of rows, so a scheduled SELECT * will exceed Fleet's 1 MB
   per log line and truncate. Constrain on program_id, sha1 or last_write_time. Those are populated
@@ -40,8 +43,9 @@ columns:
   - name: path
     type: text
     description: Full path of the file, lowercased, as the appraiser recorded it. On Windows 11
-      roughly three quarters of the rows in this table carry no path at all, only a program id, a
-      hash and a write time, so a filter on path silently skips most of the table on that family.
+      more than half of the rows in this table (up to three quarters on some builds) carry no path
+      at all, only a program id, a hash and a write time, so a filter on path silently skips most of
+      the table on that family.
     required: false
   - name: name
     type: text
@@ -55,7 +59,7 @@ columns:
       and never from its ProgramId. Windows hashes only the first 31,457,280 bytes of a file, so
       this differs from a whole-file SHA-1 for anything larger. SQLite compares strings case
       sensitively, so an uppercase literal in an IOC sweep returns no rows on a host where the file
-      exists.
+      exists. Lowercase IOC hashes, for example with LOWER(), before comparing.
     required: false
   - name: program_id
     type: text

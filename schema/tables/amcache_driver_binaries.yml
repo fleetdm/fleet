@@ -42,7 +42,7 @@ columns:
       DriverId value and never from a program id. Windows hashes only the first 31,457,280 bytes of
       a file, so this differs from a whole-file SHA-1 for anything larger. SQLite compares strings
       case sensitively, so an uppercase literal in an IOC sweep returns no rows on a host where the
-      file exists.
+      file exists. Lowercase IOC hashes, for example with LOWER(), before comparing.
     required: false
   - name: signed
     type: integer

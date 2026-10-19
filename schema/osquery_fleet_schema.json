@@ -500,13 +500,13 @@
       "windows"
     ],
     "evented": false,
-    "notes": "Only the Windows 10 1809+, Windows 11 and Windows Server 2022+ hive format is parsed.\n\nA value that is absent from the record or that cannot be decoded leaves the column empty. On a\ntext column that is the empty string. On an integer or bigint column osquery renders an empty\nvalue as SQL NULL, so filter those columns with IS NULL or IFNULL and never by comparing them to\nan empty string.\n\nA row means the appraiser saw the file. It is not evidence that the file was executed.\n\nOn Windows 11 roughly three quarters of the rows carry only a program id, a hash and a write time,\nwith no path, name, size or version metadata at all, and most of the remaining rows carry a path\nbut no hash, so fewer than one row in ten carries both. A query that joins or filters on path and\nreports sha1, or the reverse, therefore reaches a small minority of the table on that family. That\nis normal appraiser behaviour and not a fault in this table. Windows 10 and Windows Server 2022\npopulate both on every record and most other columns on most rows.\n\nThis table can hold tens of thousands of rows, so a scheduled SELECT * will exceed Fleet's 1 MB\nper log line and truncate. Constrain on program_id, sha1 or last_write_time. Those are populated\non every Windows family, whereas path is empty on most Windows 11 rows and makes a poor filter\nthere.\n\nThis table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "notes": "Only the Windows 10 1809+, Windows 11 and Windows Server 2022+ hive format is parsed.\n\nA value that is absent from the record or that cannot be decoded leaves the column empty. On a\ntext column that is the empty string. On an integer or bigint column osquery renders an empty\nvalue as SQL NULL, so filter those columns with IS NULL or IFNULL and never by comparing them to\nan empty string.\n\nA row means the appraiser saw the file. It is not evidence that the file was executed.\n\nOn Windows 11 many rows carry only a program id, a hash and a write time, with no path, name, size\nor version metadata at all, and many of the remaining rows carry a path but no hash. The share\nvaries by build: on the hosts measured, between half and three quarters of the rows were\nhash-only, and between fewer than one row in ten and about one in five carried both a path and a\nhash.\nA query that joins or filters on path and reports sha1, or the reverse, therefore reaches a\nminority of the table on that family. That is normal appraiser behaviour and not a fault in this\ntable. Windows 10 and Windows Server 2022 populate both on every record and most other columns on\nmost rows.\n\nThis table can hold tens of thousands of rows, so a scheduled SELECT * will exceed Fleet's 1 MB\nper log line and truncate. Constrain on program_id, sha1 or last_write_time. Those are populated\non every Windows family, whereas path is empty on most Windows 11 rows and makes a poor filter\nthere.\n\nThis table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
     "examples": "Find executables under user-writable directories that no installed application accounts for.\n\n```\nSELECT path, name, sha1, last_write_time\nFROM amcache_application_files\nWHERE path LIKE 'c:\\users\\%'\n  AND program_id NOT IN (SELECT program_id FROM amcache_applications);\n```",
     "columns": [
       {
         "name": "path",
         "type": "text",
-        "description": "Full path of the file, lowercased, as the appraiser recorded it. On Windows 11 roughly three quarters of the rows in this table carry no path at all, only a program id, a hash and a write time, so a filter on path silently skips most of the table on that family.",
+        "description": "Full path of the file, lowercased, as the appraiser recorded it. On Windows 11 more than half of the rows in this table (up to three quarters on some builds) carry no path at all, only a program id, a hash and a write time, so a filter on path silently skips most of the table on that family.",
         "required": false
       },
       {
@@ -518,7 +518,7 @@
       {
         "name": "sha1",
         "type": "text",
-        "description": "SHA-1 of the file as lowercase hexadecimal, taken from the record's FileId value and never from its ProgramId. Windows hashes only the first 31,457,280 bytes of a file, so this differs from a whole-file SHA-1 for anything larger. SQLite compares strings case sensitively, so an uppercase literal in an IOC sweep returns no rows on a host where the file exists.",
+        "description": "SHA-1 of the file as lowercase hexadecimal, taken from the record's FileId value and never from its ProgramId. Windows hashes only the first 31,457,280 bytes of a file, so this differs from a whole-file SHA-1 for anything larger. SQLite compares strings case sensitively, so an uppercase literal in an IOC sweep returns no rows on a host where the file exists. Lowercase IOC hashes, for example with LOWER(), before comparing.",
         "required": false
       },
       {
@@ -658,7 +658,7 @@
       {
         "name": "program_id",
         "type": "text",
-        "description": "Identifier of the application the shortcut points at. Joins amcache_applications.program_id. Absent from every Windows Server 2022 record observed, where the appraiser writes the shortcut path and nothing else.",
+        "description": "Identifier of the application the shortcut points at. Joins amcache_applications.program_id, but on the Windows 11 25H2 host measured, every shortcut that carried one had the same identifier, shared by Windows components, with no matching row in amcache_applications, so that join returned nothing there. Absent from every Windows Server 2022 record observed, where the appraiser writes the shortcut path and nothing else.",
         "required": false
       },
       {
@@ -1012,7 +1012,7 @@
       {
         "name": "sha1",
         "type": "text",
-        "description": "SHA-1 of the driver serving the device, as lowercase hexadecimal, taken from the record's DriverId value. Joins amcache_driver_binaries.sha1.",
+        "description": "SHA-1 of the driver serving the device, as lowercase hexadecimal, taken from the record's DriverId value. Joins amcache_driver_binaries.sha1. SQLite compares strings case sensitively, so an uppercase literal returns no rows. Lowercase IOC hashes, for example with LOWER(), before comparing.",
         "required": false
       },
       {
@@ -1146,7 +1146,7 @@
       {
         "name": "sha1",
         "type": "text",
-        "description": "SHA-1 of the driver binary as lowercase hexadecimal, taken from the record's DriverId value and never from a program id. Windows hashes only the first 31,457,280 bytes of a file, so this differs from a whole-file SHA-1 for anything larger. SQLite compares strings case sensitively, so an uppercase literal in an IOC sweep returns no rows on a host where the file exists.",
+        "description": "SHA-1 of the driver binary as lowercase hexadecimal, taken from the record's DriverId value and never from a program id. Windows hashes only the first 31,457,280 bytes of a file, so this differs from a whole-file SHA-1 for anything larger. SQLite compares strings case sensitively, so an uppercase literal in an IOC sweep returns no rows on a host where the file exists. Lowercase IOC hashes, for example with LOWER(), before comparing.",
         "required": false
       },
       {

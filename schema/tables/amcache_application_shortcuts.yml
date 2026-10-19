@@ -47,8 +47,10 @@ columns:
   - name: program_id
     type: text
     description: Identifier of the application the shortcut points at. Joins
-      amcache_applications.program_id. Absent from every Windows Server 2022 record observed, where
-      the appraiser writes the shortcut path and nothing else.
+      amcache_applications.program_id, but on the Windows 11 25H2 host measured, every shortcut that
+      carried one had the same identifier, shared by Windows components, with no matching row in
+      amcache_applications, so that join returned nothing there. Absent from every Windows Server
+      2022 record observed, where the appraiser writes the shortcut path and nothing else.
     required: false
   - name: last_write_time
     type: bigint

@@ -86,7 +86,9 @@ columns:
   - name: sha1
     type: text
     description: SHA-1 of the driver serving the device, as lowercase hexadecimal, taken from the
-      record's DriverId value. Joins amcache_driver_binaries.sha1.
+      record's DriverId value. Joins amcache_driver_binaries.sha1. SQLite compares strings case
+      sensitively, so an uppercase literal returns no rows. Lowercase IOC hashes, for example with
+      LOWER(), before comparing.
     required: false
   - name: driver_ver_version
     type: text
