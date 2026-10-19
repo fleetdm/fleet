@@ -3095,6 +3095,36 @@ func cronMigrateToPerHostPolicy(
 	return s, nil
 }
 
+// newReencryptWindowsDiskEncryptionKeysSchedule moves legacy Windows recovery keys, encrypted to the WSTEP certificate
+// by older releases, onto the server private key. It is an online migration: the first run starts seconds after
+// startup so an upgrade re-encrypts every readable key before the certificate can change, and later runs pick up
+// keys escrowed by older instances during a rolling upgrade and the hosts still to be asked for a new key. It is
+// not run-once because customers upgrade from any version, so legacy rows can appear at any upgrade.
+func newReencryptWindowsDiskEncryptionKeysSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	config *config.FleetConfig,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronReencryptWindowsDiskEncryptionKeys)
+		defaultInterval = 1 * time.Hour
+		priorJobDiff    = -(defaultInterval - 30*time.Second)
+	)
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		// ensures it runs a few seconds after Fleet is started
+		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
+		schedule.WithJob(name, func(ctx context.Context) error {
+			return service.ReencryptWSTEPDiskEncryptionKeys(ctx, logger, ds, config)
+		}),
+	)
+	return s, nil
+}
+
 func newRecoveryLockPasswordSchedule(
 	ctx context.Context,
 	instanceID string,
