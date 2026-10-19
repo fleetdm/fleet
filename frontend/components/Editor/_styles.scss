@@ -2,7 +2,9 @@
   position: relative; // needed for copy button
 
   &--disabled {
-    @include disabled;
+    // Keep pointer events so help links, text selection, and scrolling still
+    // work in long readonly configs; `readOnly` on the Ace editor blocks edits.
+    @include disabled($allow-pointer-events: true);
   }
 
   &__label {
