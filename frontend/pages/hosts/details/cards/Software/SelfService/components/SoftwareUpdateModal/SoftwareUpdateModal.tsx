@@ -25,9 +25,9 @@ const hasMultipleMacAppCopies = (software: IHostSoftware) =>
 
 const MultipleCopiesMessage = () => (
   <InfoBanner color="yellow" icon="warning">
-    Multiple versions of this app are installed. Updating only replaces the
-    original version in the Applications folder, so this update may keep
-    showing. To clear it, delete the other versions.
+    Multiple versions of this app are installed, and updating only replaces the
+    original version in the Applications folder. If this update keeps showing,
+    delete the other versions.
   </InfoBanner>
 );
 

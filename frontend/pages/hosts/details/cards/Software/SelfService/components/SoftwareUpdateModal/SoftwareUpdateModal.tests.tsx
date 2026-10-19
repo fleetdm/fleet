@@ -250,7 +250,7 @@ describe("SoftwareUpdateModal", () => {
           isDeviceUser
         />
       );
-    const MULTIPLE_COPIES = /are installed\. Updating only replaces the original version in the Applications folder/;
+    const MULTIPLE_COPIES = /are installed, and updating only replaces the original version in the Applications folder/;
 
     it("explains that only the version in Applications is updated", () => {
       renderModal({
@@ -260,7 +260,11 @@ describe("SoftwareUpdateModal", () => {
         ],
       });
       expect(screen.getByText(MULTIPLE_COPIES)).toBeInTheDocument();
-      expect(screen.getByText(/delete the other versions/)).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /If this update keeps showing, delete the other versions/
+        )
+      ).toBeInTheDocument();
     });
 
     it("counts copies of the same version at different paths", () => {
