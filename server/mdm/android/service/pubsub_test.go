@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -1093,6 +1094,70 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 		statusReport = createStatusReportMessage(t, androidDevice.UUID, "test", hostPolicyName, policyVersion, nil)
 		require.NoError(t, svc.ProcessPubSubPush(context.Background(), "value", &statusReport))
 		require.True(t, mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked)
+	})
+
+	t.Run("non-compliance with no pending profiles skips profile verification", func(t *testing.T) {
+		mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFuncInvoked = false
+		mockDS.GetAndroidPolicyRequestByUUIDFuncInvoked = false
+		mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked = false
+		mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked = false
+		mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+			return nil, nil
+		}
+		mockDS.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+			return nil, nil
+		}
+		mockDS.BulkDeleteMDMAndroidHostProfilesFunc = func(ctx context.Context, hostUUID string, policyVersionID int64) error {
+			return nil
+		}
+
+		var logBuf bytes.Buffer
+		androidSvc := svc.(*Service)
+		origLogger := androidSvc.logger
+		androidSvc.logger = slog.New(slog.NewTextHandler(&logBuf, nil))
+		t.Cleanup(func() { androidSvc.logger = origLogger })
+
+		// e.g. certificate delivery bumped the policy version without any profile in it
+		statusReport := createStatusReportMessage(t, androidDevice.UUID, "test", hostPolicyName, new(2), []*androidmanagement.NonComplianceDetail{
+			{
+				SettingName:         "applications",
+				NonComplianceReason: "APP_NOT_INSTALLED",
+				PackageName:         "com.fleetdm.agent",
+			},
+		})
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), "value", &statusReport))
+
+		require.True(t, mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFuncInvoked)
+		require.False(t, mockDS.GetAndroidPolicyRequestByUUIDFuncInvoked)
+		require.False(t, mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked)
+		// pending removals are still cleaned up
+		require.True(t, mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked)
+		require.NotContains(t, logBuf.String(), "no matching policy request UUID found")
+		require.NotContains(t, logBuf.String(), "level=ERROR")
+	})
+
+	t.Run("non-compliance with no profile matching a policy request skips the lookup", func(t *testing.T) {
+		mockDS.GetAndroidPolicyRequestByUUIDFuncInvoked = false
+		mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked = false
+		mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked = false
+		mockDS.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+			return []*fleet.MDMAndroidProfilePayload{{
+				ProfileUUID:   uuid.NewString(),
+				ProfileName:   "a",
+				HostUUID:      androidDevice.UUID,
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeInstall,
+			}}, nil
+		}
+
+		statusReport := createStatusReportMessage(t, androidDevice.UUID, "test", hostPolicyName, new(2), []*androidmanagement.NonComplianceDetail{
+			{SettingName: "cameraDisabled", NonComplianceReason: "INVALID_VALUE"},
+		})
+		require.NoError(t, svc.ProcessPubSubPush(t.Context(), "value", &statusReport))
+
+		require.False(t, mockDS.GetAndroidPolicyRequestByUUIDFuncInvoked)
+		require.False(t, mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked)
+		require.True(t, mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked)
 	})
 
 	// A device still on another policy (e.g. the default one it enrolled with) has none of

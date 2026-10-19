@@ -167,6 +167,19 @@ func (s *integrationMDMTestSuite) createEnrolledAndroidHost(t *testing.T, ctx co
 	return host, orbitNodeKey
 }
 
+// applyHostSpecificPolicy simulates the device reporting that it applied its host-specific
+// policy, which the setup experience assigns. Until then, the profile cron leaves certificate
+// delivery to the setup experience.
+func (s *integrationMDMTestSuite) applyHostSpecificPolicy(t *testing.T, hostUUID string) {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(), `
+			UPDATE android_devices ad JOIN hosts h ON h.id = ad.host_id
+			SET ad.applied_policy_id = h.uuid
+			WHERE h.uuid = ?`, hostUUID)
+		return err
+	})
+}
+
 // TestCertificateTemplateLifecycle tests the full Android certificate template lifecycle.
 func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 	t := s.T()
@@ -210,7 +223,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateLifecycle() {
 		Device: &android.Device{
 			DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""), // Remove dashes to fit in VARCHAR(37)
 			EnterpriseSpecificID: ptr.String(enterpriseID),
-			AppliedPolicyID:      ptr.String("1"),
+			AppliedPolicyID:      new(hostUUID),
 		},
 	}
 	androidHostInput.SetNodeKey(enterpriseID)
@@ -455,6 +468,14 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateSpecEndpointAndAMAPIFai
 	// Step: Verify AMAPI was called once (during worker) and status reverted to 'pending' after failure
 	require.Equal(t, 1, amapiCallCount, "AMAPI should have been called once by worker")
 	s.verifyCertificateStatusWithSubject(t, host, orbitNodeKey, certificateTemplateID, certTemplateName, caID, fleet.CertificateTemplatePending, "", expectedSubjectName)
+
+	// Step: Until the device reports its host-specific policy, the cron leaves the certificate pending
+	s.awaitTriggerAndroidProfileSchedule(t)
+	require.Equal(t, 1, amapiCallCount, "AMAPI should not be called before the device applies its host policy")
+	s.verifyCertificateStatusWithSubject(t, host, orbitNodeKey, certificateTemplateID, certTemplateName, caID, fleet.CertificateTemplatePending, "", expectedSubjectName)
+
+	// Step: The worker assigned the host-specific policy, which the device reports applying
+	s.applyHostSpecificPolicy(t, host.UUID)
 
 	// Step: Trigger reconciliation again (second attempt - should succeed)
 	s.awaitTriggerAndroidProfileSchedule(t)
@@ -1255,6 +1276,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateRenewal() {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create an enrolled Android host for this test case
 			host, orbitNodeKey := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamID, fmt.Sprintf("renewal-%d", i))
+			s.applyHostSpecificPolicy(t, host.UUID)
 
 			// Create a certificate template
 			certTemplateName := strings.ReplaceAll(t.Name(), "/", "_") + "_CertTemplate"
@@ -1553,6 +1575,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateResend() {
 
 	// Create an enrolled Android host in the team
 	host, orbitNodeKey := s.createEnrolledAndroidHost(t, ctx, enterpriseID, &teamID, "1")
+	s.applyHostSpecificPolicy(t, host.UUID)
 
 	// Create a certificate template for the team
 	certTemplateName := strings.ReplaceAll(t.Name(), "/", "-") + "-CertTemplate"
@@ -1968,6 +1991,7 @@ func (s *integrationMDMTestSuite) TestONCProfileWithheldUntilCertReady() {
 	// Enroll the Android host through the real PubSub enrollment path.
 	// This exercises CreatePendingCertificateTemplatesForNewHost automatically.
 	host, _, _ := s.createAndEnrollAndroidDevice(t, "onc-test", &team.ID, true)
+	s.applyHostSpecificPolicy(t, host.UUID)
 
 	// Set orbit_node_key so the host can authenticate to the cert status API.
 	// In production, Orbit enrollment sets this; PubSub enrollment only sets node_key.

@@ -1496,8 +1496,12 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 	svc.logger.DebugContext(ctx, "pending install profiles for verification", "host_uuid", hostUUID,
 		"pending_count", len(pendingInstallProfiles), "applied_policy_version", appliedPolicyVersion)
 
-	// First case, if nonComplianceDetails is empty, verify all profiles that are pending or failed install, and remove the pending remove ones.
-	if len(device.NonComplianceDetails) == 0 {
+	switch {
+	case len(pendingInstallProfiles) == 0:
+		// Nothing to verify. Non-compliance can still be reported for settings that are not
+		// profiles, such as apps added by certificate delivery or app installs.
+	case len(device.NonComplianceDetails) == 0:
+		// If nonComplianceDetails is empty, verify all profiles that are pending or failed install, and remove the pending remove ones.
 		var verifiedProfiles []*fleet.MDMAndroidProfilePayload
 		for _, profile := range pendingInstallProfiles {
 			verifiedProfiles = append(verifiedProfiles, &fleet.MDMAndroidProfilePayload{
@@ -1522,7 +1526,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 			svc.logger.ErrorContext(ctx, "error verifying pending install profiles", "err", err)
 		}
 
-	} else {
+	default:
 		// Find the policy request UUID from the most recent profile PATCH
 		// that the device has applied. We use <= instead of == because
 		// non-profile PATCHes (e.g. cert delivery, app installs) can bump
@@ -1554,6 +1558,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 				"pending_profiles", len(pendingInstallProfiles),
 				"nil_policy_request_uuid", nilPolicyReqCount, "nil_included_in_policy_version", nilVersionCount,
 				"non_compliance_count", len(device.NonComplianceDetails))
+			break
 		}
 
 		// Iterate over all policy request uuids, fetch them and unmarshal the payload into the type.
