@@ -956,6 +956,20 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 		HostID:     globalHost.ID,
 		ScriptName: "no_team_exit_0.sh",
 	}, http.StatusAccepted, &rsr)
+	// Attempt to run an ad hoc script on a host, should fail.
+	rsr = fleet.RunScriptResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{
+		HostID:         globalHost.ID,
+		ScriptContents: "echo hello",
+	}, http.StatusForbidden, &rsr)
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{
+		HostID:         team1Host.ID,
+		ScriptContents: "echo hello",
+	}, http.StatusForbidden, &rsr)
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{
+		HostID:         globalHost.ID,
+		ScriptContents: "echo hello",
+	}, http.StatusForbidden, &rsr)
 	// Attempt to run script on batch of hosts, should fail.
 	var batchRes fleet.BatchScriptRunResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", fleet.BatchScriptRunRequest{
@@ -1331,6 +1345,16 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 		ScriptName: "exit_0.sh",
 		TeamID:     t1.ID,
 	}, http.StatusAccepted, &rsr)
+	// Attempt to run an ad hoc script on a host, should fail.
+	rsr = fleet.RunScriptResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{
+		HostID:         team1Host.ID,
+		ScriptContents: "echo hello",
+	}, http.StatusForbidden, &rsr)
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{
+		HostID:         team1Host.ID,
+		ScriptContents: "echo hello",
+	}, http.StatusForbidden, &rsr)
 	// Attempt to run script on a host in "No team", should fail.
 	rsr = fleet.RunScriptResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{

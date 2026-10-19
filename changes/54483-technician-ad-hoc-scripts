@@ -1,0 +1,1 @@
+- Fixed users with the Technician role being able to run ad hoc scripts (`script_contents`) through the API and `fleetctl run-script`. Technicians can now only run saved scripts.
