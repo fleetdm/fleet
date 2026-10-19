@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.56.1",
+      "version": "3.57.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.setapp.DesktopClient.SetappAgent';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.setapp.DesktopClient.SetappAgent' AND version_compare(bundle_short_version, '3.56.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.setapp.DesktopClient.SetappAgent' AND version_compare(bundle_short_version, '3.57.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.setapp.DesktopClient.SetappAgent' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://dl.devmate.com/com.setapp.DesktopClient/159/1789997229/Setapp-159.zip",
+      "installer_url": "https://dl.devmate.com/com.setapp.DesktopClient/160/1791889728/Setapp-160.zip",
       "install_script_ref": "1f0942ac",
       "uninstall_script_ref": "9ef05eb6",
-      "sha256": "1bde8e5037f1fbe108876cb90300e7958f984a62e837dc03d764a8f72f5f38db",
+      "sha256": "3d584d75865ba45df9bdda87d231f3b22aa26cf62d2f1a6526959bb1eab56139",
       "default_categories": [
         "Productivity"
       ]

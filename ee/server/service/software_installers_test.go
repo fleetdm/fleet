@@ -109,6 +109,14 @@ quotes and braces for (
 	payload.UpgradeCode = "foo"
 	require.NoError(t, preProcessUninstallScript(&payload))
 	assert.Equal(t, `'foo'`, payload.UninstallScript)
+
+	payload = fleet.UploadSoftwareInstallerPayload{
+		Extension:       "msi",
+		UninstallScript: "$PACKAGE_ID $UPGRADE_CODE",
+		UpgradeCode:     "foo",
+	}
+	require.NoError(t, preProcessUninstallScript(&payload))
+	assert.Equal(t, `$PACKAGE_ID 'foo'`, payload.UninstallScript)
 }
 
 func TestPreProcessUninstallScriptMaliciousInput(t *testing.T) {
@@ -849,6 +857,7 @@ func TestGetInHouseAppManifest(t *testing.T) {
 	require.ErrorAs(t, err, &permErr)
 
 	signer, _ := rsa.GenerateKey(rand.Reader, 2048)
+	svc.config.S3.SoftwareInstallersBucket = "test-bucket"
 	svc.config.S3.SoftwareInstallersCloudFrontSigner = signer
 	signerURL := "https://example.cloudfront.net"
 
@@ -1009,9 +1018,10 @@ func newTestService(t *testing.T, ds fleet.Datastore) *Service {
 	require.NoError(t, err)
 	defaultMockCustomHostVitalsValidation(ds)
 	svc := &Service{
-		authz:  authorizer,
-		ds:     ds,
-		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Service: &svcmock.Service{VerifyMDMAppleConfiguredFunc: func(context.Context) error { return nil }},
+		authz:   authorizer,
+		ds:      ds,
+		logger:  slog.New(slog.NewTextHandler(io.Discard, nil)),
 	}
 	return svc
 }
@@ -3066,7 +3076,6 @@ func TestSoftwareBatchUploadFMAVersionCache(t *testing.T) {
 	const (
 		teamID         = uint(1)
 		cachedHash     = "1111111111111111111111111111111111111111111111111111111111111111"
-		otherHash      = "2222222222222222222222222222222222222222222222222222222222222222"
 		installerBytes = "installer bytes"
 	)
 	downloadedHash := fmt.Sprintf("%x", sha256.Sum256([]byte(installerBytes)))
@@ -3121,18 +3130,27 @@ func TestSoftwareBatchUploadFMAVersionCache(t *testing.T) {
 		},
 		{
 			name:          "hashed manifest reuses the cached version",
+			bytesInStore:  true,
 			manifestHash:  cachedHash,
 			versionExists: true,
 			cachedHash:    cachedHash,
 			wantStorageID: cachedHash,
 		},
 		{
+			name:          "hashed manifest downloads when the cached bytes are gone",
+			manifestHash:  downloadedHash,
+			versionExists: true,
+			cachedHash:    downloadedHash,
+			wantDownload:  true,
+			wantStorageID: downloadedHash,
+		},
+		{
 			name:          "hashed manifest downloads a rebuilt version",
-			manifestHash:  otherHash,
+			manifestHash:  downloadedHash,
 			versionExists: true,
 			cachedHash:    cachedHash,
 			wantDownload:  true,
-			wantStorageID: otherHash,
+			wantStorageID: downloadedHash,
 		},
 	}
 
@@ -3195,12 +3213,14 @@ func TestSoftwareBatchUploadFMAVersionCache(t *testing.T) {
 			svc := newTestService(t, ds)
 			kvs, _ := inMemoryKeyValueStore()
 			svc.keyValueStore = kvs
-			svc.softwareInstallStore = &mocksoftware.SoftwareInstallerStore{
+			store := &mocksoftware.SoftwareInstallerStore{
 				ExistsFunc: func(ctx context.Context, id string) (bool, error) {
 					return id == c.cachedHash && c.bytesInStore, nil
 				},
 				PutFunc: func(context.Context, string, io.ReadSeeker) error { return nil },
 			}
+
+			svc.softwareInstallStore = store
 
 			payload := &fleet.SoftwareInstallerPayload{
 				Slug: new("zoom/darwin"),
@@ -3219,6 +3239,7 @@ func TestSoftwareBatchUploadFMAVersionCache(t *testing.T) {
 			require.Len(t, applied, 1)
 			require.Equal(t, c.wantStorageID, applied[0].StorageID)
 			require.Equal(t, !c.wantDownload, applied[0].FMAVersionCached)
+			require.Equal(t, c.wantDownload, store.PutFuncInvoked)
 		})
 	}
 }
@@ -3835,4 +3856,332 @@ func TestDownloadInstallerURLBlocksPrivateNetworks(t *testing.T) {
 			require.Equal(t, tt.wantReach, hits.Load() > before)
 		})
 	}
+}
+
+func TestFillSoftwareInstallerPayloadFromExistingUpgradeCode(t *testing.T) {
+	cases := []struct {
+		name, code, bundle, source, wantIdentity string
+	}{
+		{name: "coded msi", code: "code", source: "programs", wantIdentity: "code"},
+		{name: "no code", source: "programs", wantIdentity: "title"},
+		{name: "bundle wins", code: "code", bundle: "bundle", source: "programs", wantIdentity: "bundle"},
+		{name: "code ignored outside programs", code: "code", source: "apps", wantIdentity: "title"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			svc := newTestService(t, new(mock.Store))
+			existing := &fleet.ExistingSoftwareInstaller{Title: "title", Source: c.source, UpgradeCode: c.code, PackageIDs: []string{"product"}}
+			if c.bundle != "" {
+				existing.BundleIdentifier = &c.bundle
+			}
+			payload := &fleet.UploadSoftwareInstallerPayload{UninstallScript: "custom script"}
+			require.NoError(t, svc.fillSoftwareInstallerPayloadFromExisting(t.Context(), payload, existing, "hash"))
+			require.Equal(t, c.code, payload.UpgradeCode)
+			require.Equal(t, c.wantIdentity, payload.UniqueIdentifier())
+			require.Equal(t, "custom script", payload.UninstallScript)
+		})
+	}
+}
+
+func TestSoftwareBatchUploadMSIReuseUninstallScript(t *testing.T) {
+	const code = "{B681CB20-107E-428A-9B14-2D3C1AFED244}"
+	productDefault := file.GetUninstallScript("msi")
+	cases := []struct {
+		name, code, script, wantRaw string
+	}{
+		{name: "omitted with code", code: code, wantRaw: file.UninstallMsiWithUpgradeCodeScript},
+		{name: "omitted without code", wantRaw: productDefault},
+		{name: "custom script with upgrade code variable", code: code, script: "Write-Output $UPGRADE_CODE", wantRaw: "Write-Output $UPGRADE_CODE"},
+		// Fresh parsing normalizes this to the upgrade code script; reuse keeps explicit scripts as written.
+		{name: "explicit product code default", code: code, script: productDefault, wantRaw: productDefault},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.TeamLiteFunc = func(ctx context.Context, tmID uint) (*fleet.TeamLite, error) {
+				return &fleet.TeamLite{ID: tmID}, nil
+			}
+			ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+				return map[uint][]*fleet.ExistingSoftwareInstaller{1: {{
+					Title: "MSI", Extension: "msi", Filename: "test.msi", Platform: "windows", Source: "programs",
+					UpgradeCode: c.code, PackageIDs: []string{"product-id"},
+				}}}, nil
+			}
+			ds.GetSoftwareInstallersPendingDeletionFunc = func(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+				return nil, nil
+			}
+			var applied []*fleet.UploadSoftwareInstallerPayload
+			ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
+				applied = installers
+				return nil, nil
+			}
+			ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+				return nil
+			}
+			ds.ReconcileWindowsMaintainedAppSoftwareTitlesFunc = func(ctx context.Context) error { return nil }
+
+			svc := newTestService(t, ds)
+			svc.keyValueStore, _ = inMemoryKeyValueStore()
+			svc.softwareInstallStore = &mocksoftware.SoftwareInstallerStore{
+				ExistsFunc: func(ctx context.Context, id string) (bool, error) { return true, nil },
+			}
+
+			svc.softwareBatchUpload("req-uuid", new(uint(1)), 1, []*fleet.SoftwareInstallerPayload{{SHA256: "hash", UninstallScript: c.script}}, false)
+
+			status, err := svc.keyValueStore.Get(t.Context(), batchSoftwarePrefix+"req-uuid")
+			require.NoError(t, err)
+			require.NotNil(t, status)
+			require.Equal(t, batchSetCompleted, *status)
+			require.Len(t, applied, 1)
+			require.Equal(t, c.code, applied[0].UpgradeCode)
+			want := &fleet.UploadSoftwareInstallerPayload{Extension: "msi", UpgradeCode: c.code, PackageIDs: []string{"product-id"}, UninstallScript: c.wantRaw}
+			require.NoError(t, preProcessUninstallScript(want))
+			require.Equal(t, want.UninstallScript, applied[0].UninstallScript)
+		})
+	}
+}
+
+func TestSoftwareBatchUploadWindowsFMAKeepsManifestUninstallScript(t *testing.T) {
+	const (
+		code       = "{B681CB20-107E-428A-9B14-2D3C1AFED244}"
+		cachedHash = "1111111111111111111111111111111111111111111111111111111111111111"
+		uninstall  = "msiexec /x '{B681CB20-107E-428A-9B14-2D3C1AFED244}' /qn"
+	)
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.NoError(t, json.NewEncoder(w).Encode(ma.FMAManifestFile{
+			Versions: []*ma.FMAManifestApp{{
+				Version:            "1.0",
+				InstallerURL:       "https://example.com/app.msi",
+				SHA256:             cachedHash,
+				UpgradeCode:        code,
+				InstallScriptRef:   "install",
+				UninstallScriptRef: "uninstall",
+			}},
+			Refs: map[string]string{"install": "msiexec /i app.msi", "uninstall": uninstall},
+		}))
+	}))
+	t.Cleanup(manifestServer.Close)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
+
+	ds := new(mock.Store)
+	ds.GetMaintainedAppBySlugFunc = func(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error) {
+		return &fleet.MaintainedApp{ID: 1, Name: "App", Platform: "windows", Slug: slug}, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, tmID uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: tmID}, nil
+	}
+	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+		return nil, nil
+	}
+	ds.HasFMAInstallerVersionFunc = func(ctx context.Context, tmID *uint, fmaID uint, version string) (bool, string, error) {
+		return true, cachedHash, nil
+	}
+	ds.GetSoftwareInstallersPendingDeletionFunc = func(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+		return nil, nil
+	}
+	var applied []*fleet.UploadSoftwareInstallerPayload
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
+		applied = installers
+		return nil, nil
+	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		return nil
+	}
+	ds.ReconcileWindowsMaintainedAppSoftwareTitlesFunc = func(ctx context.Context) error { return nil }
+
+	svc := newTestService(t, ds)
+	svc.keyValueStore, _ = inMemoryKeyValueStore()
+	svc.softwareInstallStore = &mocksoftware.SoftwareInstallerStore{
+		ExistsFunc: func(ctx context.Context, id string) (bool, error) { return id == cachedHash, nil },
+	}
+
+	payload := &fleet.SoftwareInstallerPayload{Slug: new("app/windows")}
+	require.NoError(t, svc.maintainedAppFromSlug(t.Context(), payload, new(uint(1))))
+	svc.softwareBatchUpload("req-uuid", new(uint(1)), 1, []*fleet.SoftwareInstallerPayload{payload}, false)
+
+	status, err := svc.keyValueStore.Get(t.Context(), batchSoftwarePrefix+"req-uuid")
+	require.NoError(t, err)
+	require.NotNil(t, status)
+	require.Equal(t, batchSetCompleted, *status)
+	require.Len(t, applied, 1)
+	require.Empty(t, applied[0].PackageIDs)
+	require.Equal(t, code, applied[0].UpgradeCode)
+	require.Equal(t, uninstall, applied[0].UninstallScript)
+}
+
+type fmaRecoveryBatchOptions struct {
+	pin, hash, version, platform string
+	body                         []byte
+	dryRun, present, cached      bool
+	existsErr                    error
+}
+
+type fmaRecoveryBatchResult struct {
+	status    string
+	downloads int32
+	stored    []byte
+	applied   []*fleet.UploadSoftwareInstallerPayload
+	ds        *mock.Store
+	store     *mocksoftware.SoftwareInstallerStore
+}
+
+func runFMARecoveryBatch(t *testing.T, opts fmaRecoveryBatchOptions) *fmaRecoveryBatchResult {
+	t.Helper()
+	if opts.body == nil {
+		opts.body = []byte("installer bytes")
+	}
+	if opts.hash == "" {
+		opts.hash = fmt.Sprintf("%x", sha256.Sum256(opts.body))
+	}
+	if opts.version == "" {
+		opts.version = "1.0"
+	}
+	if opts.platform == "" {
+		opts.platform = "windows"
+	}
+	r := &fmaRecoveryBatchResult{ds: new(mock.Store)}
+	var downloads atomic.Int32
+	installer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		downloads.Add(1)
+		_, _ = w.Write(opts.body)
+	}))
+	t.Cleanup(installer.Close)
+	filename := "app.exe"
+	if opts.platform == "darwin" {
+		filename = "app.pkg"
+	}
+	url := installer.URL + "/" + filename
+	manifest := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		_ = json.NewEncoder(w).Encode(ma.FMAManifestFile{
+			Versions: []*ma.FMAManifestApp{{Version: opts.version, SHA256: opts.hash,
+				InstallerURL: url, InstallScriptRef: "i", UninstallScriptRef: "u",
+				Queries: ma.FMAQueries{Exists: "SELECT 1"}}},
+			Refs: map[string]string{"i": "echo install", "u": "echo uninstall"},
+		})
+	}))
+	t.Cleanup(manifest.Close)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifest.URL, t)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", manifest.URL, t)
+	ds := r.ds
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) { return &fleet.TeamLite{ID: id}, nil }
+	ds.GetTeamsWithInstallerByHashFunc = func(context.Context, string, string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+		return nil, nil
+	}
+	ds.GetInstallerByTeamAndURLFunc = func(context.Context, *uint, string) (*fleet.ExistingSoftwareInstaller, error) { return nil, nil }
+	ds.HasFMAInstallerVersionFunc = func(context.Context, *uint, uint, string) (bool, string, error) { return opts.cached, opts.hash, nil }
+	ds.GetCachedFMAInstallerMetadataFunc = func(context.Context, *uint, uint, string) (*fleet.MaintainedApp, error) {
+		return &fleet.MaintainedApp{Version: "1.0", SHA256: opts.hash, InstallerURL: url,
+			Platform: opts.platform, InstallScript: "echo install", UninstallScript: "echo uninstall"}, nil
+	}
+	ds.GetFleetMaintainedVersionsByTitleIDFunc = func(context.Context, *uint, uint) ([]fleet.FleetMaintainedVersion, error) {
+		return []fleet.FleetMaintainedVersion{{ID: 9, Version: "1.0"}}, nil
+	}
+	ds.GetSoftwareInstallersPendingDeletionFunc = func(context.Context, *uint, []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+		return nil, nil
+	}
+	ds.BatchSetSoftwareInstallersFunc = func(_ context.Context, _ *uint, p []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
+		r.applied = p
+		return nil, nil
+	}
+	ds.BatchSetInHouseAppsInstallersFunc = func(context.Context, *uint, []*fleet.UploadSoftwareInstallerPayload) error { return nil }
+	ds.ReconcileWindowsMaintainedAppSoftwareTitlesFunc = func(context.Context) error { return nil }
+	r.store = &mocksoftware.SoftwareInstallerStore{
+		ExistsFunc: func(context.Context, string) (bool, error) { return opts.present, opts.existsErr },
+		PutFunc: func(_ context.Context, id string, content io.ReadSeeker) error {
+			var err error
+			r.stored, err = io.ReadAll(content)
+			return err
+		},
+	}
+	svc := newTestService(t, ds)
+	svc.softwareInstallStore = r.store
+	kvs, _ := inMemoryKeyValueStore()
+	svc.keyValueStore = kvs
+	p := &fleet.SoftwareInstallerPayload{Slug: new("example/" + opts.platform), RollbackVersion: opts.pin,
+		MaintainedApp: &fleet.MaintainedApp{ID: 7, Name: "Example", Slug: "example/" + opts.platform,
+			Platform: opts.platform, UniqueIdentifier: "example", TitleID: new(uint(1))}}
+	svc.softwareBatchUpload("fma-recovery", new(uint(1)), 1, []*fleet.SoftwareInstallerPayload{p}, opts.dryRun)
+	status, err := kvs.Get(t.Context(), batchSoftwarePrefix+"fma-recovery")
+	require.NoError(t, err)
+	require.NotNil(t, status)
+	r.status, r.downloads = *status, downloads.Load()
+	return r
+}
+
+func TestSoftwareBatchUploadFMAMissingBytes(t *testing.T) {
+	for _, tc := range []struct{ name, pin, platform, version string }{
+		{name: "darwin", platform: "darwin"}, {name: "windows", platform: "windows"},
+		{name: "literal pin", pin: "1.0"}, {name: "caret fallback", pin: "^1", version: "2.0"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := runFMARecoveryBatch(t, fmaRecoveryBatchOptions{cached: true, pin: tc.pin, platform: tc.platform, version: tc.version})
+			require.Equal(t, batchSetCompleted, r.status)
+			require.EqualValues(t, 1, r.downloads)
+			require.Equal(t, []byte("installer bytes"), r.stored, "hashing must rewind before Put")
+			require.Len(t, r.applied, 1)
+			require.False(t, r.applied[0].FMAVersionCached)
+			require.Equal(t, "1.0", r.applied[0].Version)
+		})
+	}
+}
+
+func TestSoftwareBatchUploadFMAHashMismatch(t *testing.T) {
+	for _, tc := range []struct {
+		name, pin string
+		cached    bool
+	}{
+		{name: "uncached"}, {name: "cached", cached: true},
+		{name: "literal pin", pin: "1.0", cached: true},
+		{name: "caret fallback", pin: "^1", cached: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			version := "1.0"
+			if tc.pin == "^1" {
+				version = "2.0"
+			}
+			r := runFMARecoveryBatch(t, fmaRecoveryBatchOptions{cached: tc.cached, pin: tc.pin, version: version, hash: strings.Repeat("a", 64)})
+			require.Contains(t, r.status, batchSetFailedPrefix)
+			require.Contains(t, r.status, "mismatch in maintained app SHA256 hash")
+			require.False(t, r.store.PutFuncInvoked)
+			require.False(t, r.ds.BatchSetSoftwareInstallersFuncInvoked)
+			require.False(t, r.ds.BatchSetInHouseAppsInstallersFuncInvoked)
+		})
+	}
+}
+
+func TestSoftwareBatchUploadFMADryRunMissingBytes(t *testing.T) {
+	r := runFMARecoveryBatch(t, fmaRecoveryBatchOptions{cached: true, dryRun: true})
+	require.Equal(t, batchSetCompleted, r.status)
+	require.EqualValues(t, 1, r.downloads)
+	require.False(t, r.store.PutFuncInvoked)
+	require.False(t, r.ds.BatchSetSoftwareInstallersFuncInvoked)
+}
+
+func TestSoftwareBatchUploadFMAExistsError(t *testing.T) {
+	r := runFMARecoveryBatch(t, fmaRecoveryBatchOptions{cached: true, existsErr: errors.New("AccessDenied")})
+	require.Contains(t, r.status, "AccessDenied")
+	require.Zero(t, r.downloads)
+	require.False(t, r.store.PutFuncInvoked)
+	require.False(t, r.ds.BatchSetSoftwareInstallersFuncInvoked)
+}
+
+func TestSoftwareBatchUploadFMALatestHashRewinds(t *testing.T) {
+	body, err := os.ReadFile("testdata/dummy_installer.pkg")
+	require.NoError(t, err)
+	r := runFMARecoveryBatch(t, fmaRecoveryBatchOptions{body: body, version: "latest", platform: "darwin"})
+	require.Equal(t, batchSetCompleted, r.status)
+	require.Equal(t, body, r.stored)
+	require.Len(t, r.applied, 1)
+	require.Equal(t, "1.0.0", r.applied[0].Version)
+}
+
+func TestSoftwareBatchUploadFMANoCheckLatestRewinds(t *testing.T) {
+	body, err := os.ReadFile("testdata/dummy_installer.pkg")
+	require.NoError(t, err)
+	r := runFMARecoveryBatch(t, fmaRecoveryBatchOptions{body: body, hash: noCheckHash, version: "latest", platform: "darwin"})
+	require.Equal(t, batchSetCompleted, r.status)
+	require.Equal(t, body, r.stored)
+	require.Len(t, r.applied, 1)
+	require.Equal(t, "1.0.0", r.applied[0].Version)
+	require.Equal(t, fmt.Sprintf("%x", sha256.Sum256(body)), r.applied[0].StorageID)
 }

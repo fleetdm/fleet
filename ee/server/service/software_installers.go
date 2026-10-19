@@ -316,7 +316,7 @@ func ValidateSoftwareLabels(ctx context.Context, svc fleet.Service, teamID *uint
 }
 
 func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) error {
-	if len(payload.PackageIDs) == 0 {
+	if len(payload.PackageIDs) == 0 && payload.UpgradeCode == "" {
 		// do nothing, this could be a FMA which won't include the installer when editing the scripts
 		return nil
 	}
@@ -328,7 +328,7 @@ func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) er
 	}
 
 	// Only validate and substitute $PACKAGE_ID if it appears in the script
-	if file.PackageIDRegex.MatchString(payload.UninstallScript) {
+	if len(payload.PackageIDs) > 0 && file.PackageIDRegex.MatchString(payload.UninstallScript) {
 		if err := file.ValidatePackageIdentifiers(payload.PackageIDs, ""); err != nil {
 			return err
 		}
@@ -1598,8 +1598,8 @@ func (svc *Service) GetSoftwareInstallDetails(ctx context.Context, installUUID s
 		return nil, err
 	}
 
-	// Sign the download URL when CloudFront signing (premium-only) or GCS presigning is configured.
-	if svc.config.S3.SoftwareInstallersCloudFrontSigner != nil || svc.config.S3.SoftwareInstallersSignedURL {
+	// Sign the download URL when CloudFront signing (premium-only), GCS presigning or Azure SAS signing is configured.
+	if svc.config.SoftwareInstallersSignedURLEnabled() {
 		// Sign the URL for the installer
 		installerURL, err := svc.getSoftwareInstallURL(ctx, details.InstallerID)
 		if err != nil {
@@ -3660,7 +3660,12 @@ func (svc *Service) softwareBatchUpload(
 				}
 				switch {
 				case p.MaintainedApp.SHA256 != noCheckHash:
-					fmaVersionCached = versionExists && cachedHash == p.MaintainedApp.SHA256
+					if versionExists && cachedHash == p.MaintainedApp.SHA256 {
+						fmaVersionCached, err = svc.softwareInstallStore.Exists(ctx, cachedHash)
+						if err != nil {
+							return ctxerr.Wrap(ctx, err, "check cached FMA installer in store")
+						}
+					}
 				case versionExists && cachedHash != "" && cachedHash != noCheckHash:
 					// A manifest without a hash has nothing to compare, so the cached
 					// bytes identify the version. Their digest replaces the sentinel
@@ -3864,6 +3869,14 @@ func (svc *Service) softwareBatchUpload(
 					if err != nil {
 						return fmt.Errorf("maintained app %s error generating hash: %w", p.MaintainedApp.UniqueIdentifier, err)
 					}
+				} else if !fmaVersionCached && installer.InstallerFile != nil {
+					gotHash, err := file.SHA256FromTempFileReader(installer.InstallerFile)
+					if err != nil {
+						return fmt.Errorf("maintained app %s error generating hash: %w", p.MaintainedApp.UniqueIdentifier, err)
+					}
+					if gotHash != p.MaintainedApp.SHA256 {
+						return fmt.Errorf("maintained app %s: mismatch in maintained app SHA256 hash", p.MaintainedApp.UniqueIdentifier)
+					}
 				}
 				extension := extensionFromFilename(installer.Filename)
 				installer.Title = appName
@@ -3936,6 +3949,9 @@ func (svc *Service) softwareBatchUpload(
 
 				if installer.UninstallScript == "" {
 					installer.UninstallScript = file.GetUninstallScript(installer.Extension)
+					if installer.UpgradeCode != "" {
+						installer.UninstallScript = file.UninstallMsiWithUpgradeCodeScript
+					}
 				}
 
 			case installer.Extension == "ipa":
@@ -4255,6 +4271,7 @@ func (svc *Service) fillSoftwareInstallerPayloadFromExisting(ctx context.Context
 	payload.Title = existing.Title
 	payload.StorageID = sha256Hash
 	payload.PackageIDs = existing.PackageIDs
+	payload.UpgradeCode = existing.UpgradeCode
 
 	if fleet.IsScriptPackage(existing.Extension) {
 		contents, err := svc.ds.GetAnyScriptContents(ctx, existing.InstallScriptContentID)
