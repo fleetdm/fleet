@@ -100,6 +100,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestWindowsHostLiteByHardwareSerial", testWindowsHostLiteByHardwareSerial},
 		{"TestWindowsHostLiteByUUID", testWindowsHostLiteByUUID},
 		{"TestMDMWindowsUnlinkedEnrollmentHardwareSerial", testMDMWindowsUnlinkedEnrollmentHardwareSerial},
+		{"TestMDMWindowsUnlinkedEnrollmentZTDRegistrationID", testMDMWindowsUnlinkedEnrollmentZTDRegistrationID},
 		{"TestMDMWindowsClaimEnrolledActivity", testMDMWindowsClaimEnrolledActivity},
 		{"TestMDMWindowsSetEnrollmentFleetdPresent", testMDMWindowsSetEnrollmentFleetdPresent},
 		{"TestWindowsEnrollmentDefaultFleet", testWindowsEnrollmentDefaultFleet},
@@ -9396,6 +9397,37 @@ func testMDMWindowsClaimEnrolledActivity(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.False(t, claimed, "a racing duplicate enrollment request must not re-announce the enrollment")
 	})
+}
+
+// The lookup shares its implementation with the serial one, which testMDMWindowsUnlinkedEnrollmentHardwareSerial covers in
+// full, so this only checks that the Autopilot device ID column is the one matched.
+func testMDMWindowsUnlinkedEnrollmentZTDRegistrationID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newEnrollment := func(hostUUID, ztdRegistrationID string) *fleet.MDMWindowsEnrolledDevice {
+		d := &fleet.MDMWindowsEnrolledDevice{
+			MDMDeviceID:            uuid.New().String(),
+			MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+			MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+			MDMDeviceType:          "CIMClient_Windows",
+			MDMEnrollType:          "AzureADJoin",
+			MDMEnrollProtoVersion:  "5.0",
+			MDMEnrollClientVersion: "10.0.26100.1",
+			ZTDRegistrationID:      ztdRegistrationID,
+			HostUUID:               hostUUID,
+		}
+		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, d))
+		return d
+	}
+
+	unlinked := newEnrollment("", "ztd-1")
+	got, err := ds.MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationID(ctx, "ztd-1")
+	require.NoError(t, err)
+	require.Equal(t, unlinked.MDMDeviceID, got.MDMDeviceID)
+
+	newEnrollment("11111111-1111-1111-1111-111111111111", "ztd-2")
+	_, err = ds.MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationID(ctx, "ztd-2")
+	require.True(t, fleet.IsNotFound(err), "a linked enrollment is not returned, got %v", err)
 }
 
 func testMDMWindowsUnlinkedEnrollmentHardwareSerial(t *testing.T, ds *Datastore) {

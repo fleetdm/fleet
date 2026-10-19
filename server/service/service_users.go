@@ -20,7 +20,7 @@ func (svc *Service) CreateInitialUser(ctx context.Context, p fleet.UserPayload) 
 		return nil, err
 	}
 	if !setupRequired {
-		return nil, ctxerr.New(ctx, "a user already exists")
+		return nil, ctxerr.Wrap(ctx, &fleet.ConflictError{Message: "a user already exists"})
 	}
 
 	// Initial user should be global admin with no explicit teams

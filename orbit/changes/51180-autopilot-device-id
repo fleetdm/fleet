@@ -1,0 +1,1 @@
+- On Windows, fleetd now reports the device's Autopilot device ID when it enrolls, so Fleet can match the device to its pending Autopilot host without relying on the hardware serial.
