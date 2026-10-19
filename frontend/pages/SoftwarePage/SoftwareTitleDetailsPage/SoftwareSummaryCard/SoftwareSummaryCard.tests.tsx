@@ -478,6 +478,44 @@ describe("Software Summary Card", () => {
       expect(options).toContain("Versions");
     });
 
+    it("keeps Edit software clickable in GitOps mode for Apple VPP titles so admins can open the modal in its disabled state", async () => {
+      const gitopsRender = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            config: {
+              gitops: {
+                gitops_mode_enabled: true,
+                repository_url: "https://example.com/repo",
+              },
+            },
+          },
+        },
+      });
+
+      const { user } = gitopsRender(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            source: "apps",
+            app_store_app: createMockAppStoreApp({ platform: "darwin" }),
+            software_package: null,
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+      const editSoftware = screen
+        .getAllByTestId("dropdown-option")
+        .find((opt) => opt.textContent === "Edit software");
+      expect(editSoftware).toBeDefined();
+      expect(editSoftware).not.toHaveAttribute("aria-disabled", "true");
+    });
+
     it("hides the Actions dropdown on 'All fleets' for a VPP title", () => {
       // `teamId` is undefined when viewing "All fleets" — none of the per-fleet
       // Actions items can act (no team scope), and leaving the dropdown open

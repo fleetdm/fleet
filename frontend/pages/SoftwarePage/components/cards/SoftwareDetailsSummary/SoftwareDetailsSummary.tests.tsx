@@ -59,8 +59,6 @@ describe("buildActionOptions", () => {
     expect(editSoftware).toEqual({
       label: "Edit software",
       value: ACTION_EDIT_SOFTWARE,
-      disabled: false,
-      tooltipContent: undefined,
     });
   });
 
@@ -87,11 +85,10 @@ describe("buildActionOptions", () => {
     });
   });
 
-  it("applies gitops tooltip to Edit appearance and Edit software (Apple VPP), but leaves Edit configuration clickable", () => {
+  it("applies gitops tooltip to Edit appearance; leaves Edit software and Edit configuration clickable (modals disable fields and Save themselves)", () => {
     const result = buildActionOptions({
       gitOpsModeEnabled: true,
       repoURL: "https://repo.git",
-      isAppleVpp: true,
       canEditSoftware: true,
       canEditConfiguration: true,
       canDeploySoftware: false,
@@ -120,10 +117,9 @@ describe("buildActionOptions", () => {
       value: ACTION_EDIT_CONFIGURATION,
     });
 
-    // For Apple VPP, Edit software also gets the gitops tooltip if present.
-    expect(editSoftware).toMatchObject({
-      disabled: true,
-      tooltipContent: expect.anything(),
+    expect(editSoftware).toEqual({
+      label: "Edit software",
+      value: ACTION_EDIT_SOFTWARE,
     });
   });
 
