@@ -227,6 +227,10 @@ interface IVersionFormFieldsProps {
    * button (iOS/iPadOS when self-service is on). Opens the title-level
    * self-service preview modal. */
   onClickPreviewEndUserExperience: () => void;
+  /** When true, every control is disabled and removed from the tab order
+   * (text inputs, Editor via `readOnly`, Slider, Checkbox, radios, label
+   * dropdown, category checkboxes). */
+  disabled?: boolean;
 }
 
 const VersionFormFields = ({
@@ -239,6 +243,7 @@ const VersionFormFields = ({
   labels,
   teamId,
   onClickPreviewEndUserExperience,
+  disabled = false,
 }: IVersionFormFieldsProps) => {
   const isIosOrIpados = platform === "ios" || platform === "ipados";
   const editorMode = isIosOrIpados ? "xml" : "json";
@@ -292,6 +297,7 @@ const VersionFormFields = ({
         placeholder="e.g. Production"
         autofocus
         inputOptions={{ maxLength: 255 }}
+        disabled={disabled}
       />
 
       <Editor
@@ -299,6 +305,7 @@ const VersionFormFields = ({
         label="Configuration"
         mode={editorMode}
         helpText={configHelpText}
+        readOnly={disabled}
       />
 
       {isIosOrIpados && (
@@ -307,6 +314,7 @@ const VersionFormFields = ({
           onChange={() => commitFields({ selfService: !formData.selfService })}
           activeText="Self-service"
           inactiveText="Self-service"
+          disabled={disabled}
         />
       )}
 
@@ -318,6 +326,7 @@ const VersionFormFields = ({
           teamId={teamId}
           label="Category"
           previewButtonLabel="View end user experience"
+          disabled={disabled}
         />
       )}
 
@@ -330,6 +339,7 @@ const VersionFormFields = ({
             </p>
             <Checkbox
               value={formData.autoUpdateEnabled}
+              disabled={disabled}
               onChange={(next: boolean) =>
                 commitFields({ autoUpdateEnabled: next })
               }
@@ -344,12 +354,14 @@ const VersionFormFields = ({
                   label="Window start (host local time)"
                   type="time"
                   placeholder="00:00"
+                  disabled={disabled}
                 />
                 <InputField
                   {...getTextFieldProps("autoUpdateWindowEnd")}
                   label="Window end (host local time)"
                   type="time"
                   placeholder="04:00"
+                  disabled={disabled}
                 />
               </div>
             )}
@@ -368,6 +380,7 @@ const VersionFormFields = ({
         labels={labels}
         dropdownHelpText={generateHelpText(false, formData.customTarget)}
         error={getError("labelTargets")}
+        disableOptions={disabled}
         labelInfoBanner={
           <InfoBanner icon="info-outline">
             If multiple versions target the same host, Fleet will deploy the one

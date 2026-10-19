@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "7.7.0",
+      "version": "7.8.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.monotype.monotype-fonts';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.monotype.monotype-fonts' AND version_compare(bundle_short_version, '7.7.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.monotype.monotype-fonts' AND version_compare(bundle_short_version, '7.8.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.monotype.monotype-fonts' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://monotypeapp.monotype.com/release/770/mac/arm/MTFInstallerMacOsArm.zip",
+      "installer_url": "https://monotypeapp.monotype.com/release/780/mac/arm/MTFInstallerMacOsArm.zip",
       "install_script_ref": "62120a0e",
       "uninstall_script_ref": "824d6c50",
-      "sha256": "9c462812d2440afff4cbd3673b9f1d9865f7f6e70dc41d001cdc22623a15dc1e",
+      "sha256": "868587a5eb100a8e6ce9f7fe2096fb1cfcb684ed1b5824038e4ee4f12df3d29d",
       "default_categories": [
         "Productivity"
       ]
