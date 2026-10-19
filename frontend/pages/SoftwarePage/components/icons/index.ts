@@ -32,6 +32,7 @@ import MacOS from "./MacOS";
 import { TMatchedIcon } from "./MatchedIcon";
 import OnePassword from "./OnePassword";
 import Package from "./Package";
+import SuperhumanDocs from "./png/SuperhumanDocs.png";
 import ZeroOneZeroEditor from "./png/010Editor.png";
 import ThreeDfZephyrFree from "./png/3DfZephyrFree.png";
 import SevenZip from "./png/7Zip.png";
@@ -2174,6 +2175,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "super productivity": SuperProductivity,
   supercollider: Supercollider,
   superhuman: Superhuman,
+  "superhuman docs": SuperhumanDocs,
   superkey: Superkey,
   superwhisper: Superwhisper,
   "support companion": Supportcompanion,
