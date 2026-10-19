@@ -28,7 +28,7 @@ export interface IGetVppTokensResponse {
 }
 
 export interface IUploadVppTokenResponse {
-  vpp_token: IMdmVppToken;
+  token: IMdmVppToken;
 }
 
 export type IRenewVppTokenResponse = IUploadVppTokenResponse;

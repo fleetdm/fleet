@@ -1,0 +1,58 @@
+.vpp-fleets-field {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-medium;
+
+  &__modes {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+    margin-top: -$pad-small;
+  }
+
+  &__custom {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  &__selected {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $pad-small;
+  }
+
+  &__list-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    // Shows about 5.5 rows so the half-visible last row hints there is more to scroll to
+    max-height: 212px;
+    overflow-y: auto;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius;
+  }
+
+  &__list-item {
+    display: flex;
+    align-items: center;
+    padding: $pad-small $pad-medium;
+
+    &:not(:last-child) {
+      border-bottom: 1px solid $ui-fleet-black-10;
+    }
+
+    .form-field--checkbox {
+      width: auto;
+    }
+  }
+
+  &__help-text {
+    margin: 0;
+  }
+}

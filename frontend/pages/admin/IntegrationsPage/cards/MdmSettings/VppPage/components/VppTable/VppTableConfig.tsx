@@ -7,6 +7,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { IMdmVppToken } from "interfaces/mdm";
+import { getCountryDisplay } from "utilities/country";
 import { getGitOpsModeTipContent } from "utilities/helpers";
 
 import RenewDateCell from "../../../components/RenewDateCell";
@@ -98,13 +99,7 @@ export const generateTableConfig = (
       Header: "Country",
       disableSortBy: true,
       Cell: (cellProps: ITableStringCellProps) => (
-        <TextCell
-          value={
-            cellProps.cell.value
-              ? cellProps.cell.value.toUpperCase()
-              : undefined
-          }
-        />
+        <TextCell value={getCountryDisplay(cellProps.cell.value)} />
       ),
     },
     {

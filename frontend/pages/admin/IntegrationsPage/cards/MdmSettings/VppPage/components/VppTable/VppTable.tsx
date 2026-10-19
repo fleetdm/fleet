@@ -50,7 +50,9 @@ const VppTable = ({
   return (
     <TableContainer<IMdmVppToken>
       columnConfigs={tableConfig}
-      defaultSortHeader="org_name"
+      // Token IDs increase as tokens are added, so this lists them first added to last
+      defaultSortHeader="id"
+      defaultSortDirection="asc"
       disableTableHeader
       disablePagination
       showMarkAllPages={false}
