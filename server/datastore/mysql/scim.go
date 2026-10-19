@@ -2167,11 +2167,19 @@ func triggerResendCAProfilesUsingVariables(ctx context.Context, tx sqlx.ExtConte
 		Fields string       `db:"fields"`
 	}
 	// The UPNs column is a JSON array of strings, and variables.Find works on its raw text. CONCAT_WS skips the columns a type doesn't use.
-	if err := sqlx.SelectContext(ctx, tx, &cas, `
+	caTypes := make([]fleet.CAType, 0, len(profileCATypes))
+	for _, t := range profileCATypes {
+		caTypes = append(caTypes, t.caType)
+	}
+	stmt, args, err := sqlx.In(`
 		SELECT type, name, CONCAT_WS(' ', certificate_common_name, certificate_seat_id, ejbca_username_template,
 			certificate_user_principal_names) AS fields
 		FROM certificate_authorities
-		WHERE type IN (?, ?)`, fleet.CATypeDigiCert, fleet.CATypeEJBCA); err != nil {
+		WHERE type IN (?)`, caTypes)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build select CAs for resend")
+	}
+	if err := sqlx.SelectContext(ctx, tx, &cas, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "select CAs for resend")
 	}
 	caNames := make(map[fleet.CAType][]string, len(profileCATypes))

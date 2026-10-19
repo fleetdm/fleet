@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/pem"
 	"math/big"
 	"slices"
 	"testing"
@@ -721,6 +722,15 @@ func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {
 		invalidCertCA, err := ds.GetCertificateAuthorityByID(ctx, ejbcaCA.ID, false)
 		require.NoError(t, err)
 		require.Nil(t, invalidCertCA.MTLSCertExpiresAt)
+
+		// The expiry is of the first certificate, even when the key comes first, like the TLS client reads it.
+		keyFirst := string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: []byte("key")})) + newCert
+		require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, ejbcaCA.ID,
+			&fleet.CertificateAuthority{Type: string(fleet.CATypeEJBCA), MTLSCertPEM: &keyFirst}))
+		keyFirstCA, err := ds.GetCertificateAuthorityByID(ctx, ejbcaCA.ID, false)
+		require.NoError(t, err)
+		require.NotNil(t, keyFirstCA.MTLSCertExpiresAt)
+		require.True(t, newNotAfter.Equal(*keyFirstCA.MTLSCertExpiresAt))
 	})
 
 	t.Run("successfully updates smallstep SCEP proxy CA", func(t *testing.T) {
