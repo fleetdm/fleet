@@ -17,6 +17,28 @@ A daily [Claude Code routine](https://code.claude.com/docs/en/routines) reads th
 - Once a day, the routine runs a set of Python scripts from Fleet's repository. They read your hosts, their software, and nine DEX reports, then build the six pages.
 - Each dashboard stores a small history file next to its page. Every run reads the history back and adds a day. Patch velocity uses it to time how long each new version takes to reach every computer, and Hardware lifecycle uses it to tell sustained memory strain on a Mac from a single bad day. Each page also charts its key numbers over time, for up to a year. All of this gets more useful over the first few weeks.
 
+## Tradeoffs
+
+These dashboards replace a business intelligence (BI) tool with a scheduled Claude session and a few scripts. Weigh what that gets you against what it doesn't before you set them up.
+
+### Strengths
+
+- There's nothing to host. You don't run or patch a server, database, or BI tool. Each dashboard keeps its own history in a file next to its page.
+- The scripts compute every number. Claude reads the artifacts, checks the code's hash, runs the scripts, and publishes the pages. It doesn't calculate, summarize, or write anything that appears on a dashboard.
+- Access is read-only. The API-only user can call five read endpoints and nothing else. The token stays in the cloud environment, which can reach only your Fleet server.
+- The dashboards are easy to change. The scripts are plain Python and HTML with no dependencies. Ask Claude Code to add a chart or a whole dashboard, review the change, then ship it by updating the hash.
+- Nothing new runs on your computers. The dashboards use data Fleet already collects, plus the reports in step 1.
+
+### Limitations
+
+- The data is a daily snapshot, not live. Each dashboard is only as fresh as its last run. The Fleet API returns current state, not history, so trend charts and Patch velocity's timing start on the day you set this up.
+- Fleet data passes through Claude. The routine reads each page, host names included, and the pages are stored as Claude artifacts. Check that this fits your organization's data-handling commitments.
+- Viewers see every fleet. Anyone who can open a dashboard sees all the computers the API-only user can read. The fleet filter changes the view, not who can see what.
+- Size has limits. Each run downloads every computer's software inventory and embeds the results in the pages. For 114 computers, that's about 12 MB from Fleet and an 80-second run. Larger fleets mean longer runs and bigger pages, and a Claude artifact can't be larger than 16 MB. Fleet also stores at most 1,000 rows per report.
+- Runs depend on Claude. Routines, cloud environments, and artifacts are Claude features, and each run uses Claude usage on your plan. The prompt tells the routine to stop and report a failure instead of working around it. You find out from the Slack alert or the routine's run log.
+- You maintain it. The dashboards aren't part of Fleet. When the scripts change, you review the update and change the routine's hash yourself (see "Update the dashboards").
+- Some signals are estimates. For example, a computer's age comes from its model or CPU release year, Windows app usage from prefetch records, and Linux app usage from file access times. Each page's **How this is measured** section explains its rules.
+
 ## Prerequisites
 
 - Fleet Premium 4.85.0 or later, which can limit an API-only user to specific endpoints.
