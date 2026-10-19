@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.0.7",
+      "version": "5.0.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.utmapp.UTM';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.utmapp.UTM' AND version_compare(bundle_short_version, '5.0.7') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.utmapp.UTM' AND version_compare(bundle_short_version, '5.0.8') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.utmapp.UTM' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/utmapp/UTM/releases/download/v5.0.7/UTM.dmg",
+      "installer_url": "https://github.com/utmapp/UTM/releases/download/v5.0.8/UTM.dmg",
       "install_script_ref": "5632c038",
       "uninstall_script_ref": "1a4a9bd8",
-      "sha256": "80c2161cae4c1711ae364ed99de8a0e92396287abf85eb583426c7627d039ad9",
+      "sha256": "7b2d7b2e2a02b3de1757ef19a8f36573e6d9cceae8c8cca0abcbcaa4a852019a",
       "default_categories": [
         "Productivity"
       ]

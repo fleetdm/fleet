@@ -2840,9 +2840,14 @@ func newDigiCertCA(t *testing.T, ds *Datastore, name, commonName, seatID string,
 
 // newDigiCertProfile creates an Apple profile that gets its certificate from the named DigiCert CA.
 func newDigiCertProfile(t *testing.T, ds *Datastore, name, caName string, teamID uint) *fleet.MDMAppleConfigProfile {
+	return newCAProfile(t, ds, fleet.FleetVarDigiCertDataPrefix, name, caName, teamID)
+}
+
+// newCAProfile creates an Apple profile that gets its certificate from the named CA, through its dataVar prefix variable.
+func newCAProfile(t *testing.T, ds *Datastore, dataVar fleet.FleetVarName, name, caName string, teamID uint) *fleet.MDMAppleConfigProfile {
 	cp := generateAppleCP(name, name, teamID)
-	cp.Mobileconfig = []byte("<data>" + fleet.FleetVarDigiCertDataPrefix.WithPrefix() + caName + "</data>")
-	profile, err := ds.NewMDMAppleConfigProfile(t.Context(), *cp, []fleet.FleetVarName{fleet.FleetVarName(string(fleet.FleetVarDigiCertDataPrefix) + caName)})
+	cp.Mobileconfig = []byte("<data>" + dataVar.WithPrefix() + caName + "</data>")
+	profile, err := ds.NewMDMAppleConfigProfile(t.Context(), *cp, []fleet.FleetVarName{fleet.FleetVarName(string(dataVar) + caName)})
 	require.NoError(t, err)
 	return profile
 }
@@ -2866,7 +2871,13 @@ func testTriggerResendDigiCertProfiles(t *testing.T, ds *Datastore) {
 	profOtherTeam := newDigiCertProfile(t, ds, "other_team", "ca", team.ID) // not the hosts' team, so never resent
 	profNone, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("none", "none", 0), nil)
 	require.NoError(t, err)
-	allProfiles := []*fleet.MDMAppleConfigProfile{profUsername, profGroups, profSerial, profOtherTeam, profNone}
+	newEJBCACA(t, ds, "ejbca_ca", fleet.FleetVarHostEndUserIDPDepartment.WithPrefix(), nil, nil)
+	newEJBCACA(t, ds, "ejbca_ca_username", "cn", new(fleet.FleetVarHostEndUserIDPExternalID.WithPrefix()), nil)
+	profEJBCA := newCAProfile(t, ds, fleet.FleetVarEJBCADataPrefix, "ejbca", "ejbca_ca", 0)
+	profEJBCAUsername := newCAProfile(t, ds, fleet.FleetVarEJBCADataPrefix, "ejbca_username", "ejbca_ca_username", 0)
+	allProfiles := []*fleet.MDMAppleConfigProfile{
+		profUsername, profGroups, profSerial, profOtherTeam, profNone, profEJBCA, profEJBCAUsername,
+	}
 
 	checkResend := func(affectedVar fleet.FleetVarName, wantPending ...*fleet.MDMAppleConfigProfile) {
 		t.Run(string(affectedVar), func(t *testing.T) {
@@ -2895,6 +2906,8 @@ func testTriggerResendDigiCertProfiles(t *testing.T, ds *Datastore) {
 	checkResend(fleet.FleetVarHostEndUserEmailIDP, profUsername)
 	checkResend(fleet.FleetVarHostEndUserIDPGroups, profGroups)
 	checkResend(fleet.FleetVarHostEndUserIDPFullname)
+	checkResend(fleet.FleetVarHostEndUserIDPDepartment, profEJBCA)
+	checkResend(fleet.FleetVarHostEndUserIDPExternalID, profEJBCAUsername)
 
 	// The CA is read at resend time, so an edited CA is picked up without touching the profile.
 	require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, serialCA.ID, &fleet.CertificateAuthority{
