@@ -47,8 +47,8 @@ type EnterpriseOverrides struct {
 	MDMWindowsDisableOSUpdates        func(ctx context.Context, teamID *uint) error
 	MDMAppleEditedAppleOSUpdates      func(ctx context.Context, teamID *uint, appleDevice AppleDevice, updates AppleOSUpdateSettings) error
 	SetupExperienceNextStep           func(ctx context.Context, host *Host) (bool, error)
-	GetVPPTokenIfCanInstallVPPApps    func(ctx context.Context, appleDevice bool, host *Host) (string, error)
-	InstallVPPAppPostValidation       func(ctx context.Context, host *Host, vppApp *VPPApp, token string, opts HostSoftwareInstallOptions) (string, error)
+	CheckCanInstallVPPApps            func(ctx context.Context, appleDevice bool, host *Host) error
+	InstallVPPAppPostValidation       func(ctx context.Context, host *Host, vppApp *VPPApp, opts HostSoftwareInstallOptions) (string, error)
 	// VerifyAppleAccountProvisioning checks Apple account provisioning IdP
 	// settings with the IdP before they're saved.
 	VerifyAppleAccountProvisioning func(ctx context.Context, settings AppleAccountProvisioning, clientSecret string) error
@@ -870,11 +870,12 @@ type Service interface {
 	// InstallSoftwareTitle installs a software title in the given host.
 	InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error
 
-	// GetVPPTokenIfCanInstallVPPApps returns the host team's VPP token if the host can be a target for VPP apps
-	GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *Host) (string, error)
+	// CheckCanInstallVPPApps returns an error if the host can't be a target for VPP apps
+	CheckCanInstallVPPApps(ctx context.Context, appleDevice bool, host *Host) error
 
-	// InstallVPPAppPostValidation installs a VPP app, assuming that GetVPPTokenIfCanInstallVPPApps has passed and provided a VPP token
-	InstallVPPAppPostValidation(ctx context.Context, host *Host, vppApp *VPPApp, token string, opts HostSoftwareInstallOptions) (string, error)
+	// InstallVPPAppPostValidation installs a VPP app using the token the app is bound to, assuming that
+	// CheckCanInstallVPPApps has passed.
+	InstallVPPAppPostValidation(ctx context.Context, host *Host, vppApp *VPPApp, opts HostSoftwareInstallOptions) (string, error)
 
 	// InstallInHouseAppForSetupExperience validates the in-house app's managed configuration for the
 	// host and enqueues its InstallApplication command during setup experience, returning the command UUID.

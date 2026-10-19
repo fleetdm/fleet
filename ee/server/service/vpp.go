@@ -146,31 +146,35 @@ func ensureVPPTokenCountry(ctx context.Context, ds fleet.Datastore, token *fleet
 	return nil
 }
 
-// getVPPToken returns the base64 encoded VPP token, ready for use in requests
-// to Apple's VPP API. Returns an error if the token is missing or expired.
-// Does NOT touch country_code: install-time callers only need the secret, and
-// any synchronous Apple call here would block installs whenever Apple is
-// unreachable. Country lookup happens in getVPPTokenInfo.
-func (svc *Service) getVPPToken(ctx context.Context, teamID *uint) (string, error) {
-	token, err := svc.ds.GetVPPTokenByTeamID(ctx, teamID)
+// getVPPTokenByID returns the VPP token an App Store app is bound to, ready for
+// use in requests to Apple's VPP API. Returns an error if the token is missing
+// or expired. Does NOT touch country_code: install-time callers only need the
+// secret, and any synchronous Apple call here would block installs whenever
+// Apple is unreachable. Country lookup happens in getVPPTokenInfo.
+func (svc *Service) getVPPTokenByID(ctx context.Context, id *uint) (*fleet.VPPTokenDB, error) {
+	noToken := fleet.NewUserMessageError(errors.New("No available VPP Token"), http.StatusUnprocessableEntity)
+	if id == nil {
+		return nil, noToken
+	}
+	token, err := svc.ds.GetVPPToken(ctx, *id)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return "", fleet.NewUserMessageError(errors.New("No available VPP Token"), http.StatusUnprocessableEntity)
+		if fleet.IsNotFound(err) {
+			return nil, noToken
 		}
-		return "", ctxerr.Wrap(ctx, err, "fetching vpp token")
+		return nil, ctxerr.Wrap(ctx, err, "fetching vpp token")
 	}
 
 	if time.Now().After(token.RenewDate) {
-		return "", fleet.NewUserMessageError(errors.New("Couldn't install. VPP token expired."), http.StatusUnprocessableEntity)
+		return nil, fleet.NewUserMessageError(errors.New("Couldn't install. VPP token expired."), http.StatusUnprocessableEntity)
 	}
 
-	return token.Token, nil
+	return token, nil
 }
 
 // getVPPTokenInfo returns both the secret and the storefront country for the
 // VPP token associated with teamID. It lazy-backfills country_code if the
 // row was uploaded before the column existed. Use this from add/refresh code
-// paths that actually need the country; install paths should use getVPPToken.
+// paths that actually need the country; install paths should use getVPPTokenByID.
 func (svc *Service) getVPPTokenInfo(ctx context.Context, teamID *uint) (vppTokenInfo, error) {
 	token, err := svc.ds.GetVPPTokenByTeamID(ctx, teamID)
 	if err != nil {

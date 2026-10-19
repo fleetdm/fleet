@@ -54,15 +54,12 @@ type mockVPPInstaller struct {
 	ds                  *mysql.Datastore
 	installedApps       []*fleet.VPPApp
 	appInstallResponses map[string]installAppResponse
-	getTokenErr         error
+	checkErr            error
 }
 
-func (m *mockVPPInstaller) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
+func (m *mockVPPInstaller) CheckCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) error {
 	require.True(m.t, appleDevice)
-	if m.getTokenErr != nil {
-		return "", m.getTokenErr
-	}
-	return "valid-token", nil
+	return m.checkErr
 }
 
 type mockInHouseInstall struct {
@@ -85,7 +82,7 @@ func (m *mockInHouseAppInstaller) InstallInHouseAppForSetupExperience(ctx contex
 	return m.cmdUUID, nil
 }
 
-func (m *mockVPPInstaller) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
+func (m *mockVPPInstaller) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, opts fleet.HostSoftwareInstallOptions) (string, error) {
 	require.True(m.t, opts.ForSetupExperience)
 	resp, ok := m.appInstallResponses[vppApp.AdamID]
 	require.True(m.t, ok)
