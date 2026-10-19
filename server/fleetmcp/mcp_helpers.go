@@ -1,8 +1,9 @@
-package main
+package fleetmcp
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -157,7 +158,7 @@ var cveIDPattern = regexp.MustCompile(`^CVE-\d{4}-\d{4,}$`)
 func validateCVEID(cveID string) error {
 	cveID = strings.TrimSpace(cveID)
 	if cveID == "" {
-		return fmt.Errorf("cve_id is required (expected shape CVE-YYYY-NNNN, e.g. CVE-2025-12345)")
+		return errors.New("cve_id is required (expected shape CVE-YYYY-NNNN, e.g. CVE-2025-12345)")
 	}
 	if !cveIDPattern.MatchString(cveID) {
 		return fmt.Errorf("cve_id %q is not a valid CVE identifier (expected shape CVE-YYYY-NNNN, e.g. CVE-2025-12345)", cveID)
@@ -218,7 +219,7 @@ func buildLiveQuerySpecFromRequest(req mcp.CallToolRequest) (LiveQueryTargetSpec
 	policyResp := getOptionalString(req, "policy_response")
 	policyID := getOptionalString(req, "policy_id")
 	if policyResp != "" && policyID == "" {
-		return LiveQueryTargetSpec{}, fmt.Errorf("policy_response is only valid when policy_id is also set")
+		return LiveQueryTargetSpec{}, errors.New("policy_response is only valid when policy_id is also set")
 	}
 	if policyResp != "" && policyResp != "passing" && policyResp != "failing" {
 		return LiveQueryTargetSpec{}, fmt.Errorf("policy_response must be 'passing' or 'failing', got %q", policyResp)

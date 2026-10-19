@@ -1,11 +1,12 @@
-package main
+package fleetmcp
 
 import (
-	_ "embed"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"regexp"
@@ -15,7 +16,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/schema"
 )
 
 // SchemaTable is the source-of-truth representation of an osquery/Fleet table.
@@ -67,17 +69,9 @@ const (
 	fetchTimeout           = 15 * time.Second
 )
 
-// The vendored copy next to this file is what //go:embed pulls into the
-// binary as the offline fallback. It's written alongside the canonical schema
-// by `cd website && ./node_modules/sails/bin/sails.js run generate-merged-schema`.
-
-//go:embed osquery_fleet_schema.json
-var embeddedSchemaJSON []byte
-
 var (
-	schemaMu     sync.RWMutex
-	schemaTables []SchemaTable
-	schemaIndex  map[string]SchemaTable // lowercase table name → table
+	schemaMu    sync.RWMutex
+	schemaIndex map[string]SchemaTable // lowercase table name → table
 
 	// schemaInfo is set atomically so concurrent readers don't need to take
 	// schemaMu for the cheap "where did this come from?" lookup.
@@ -112,7 +106,7 @@ func init() {
 	// Always load the embedded snapshot synchronously so the rest of the
 	// binary can serve schema lookups immediately, even if the live fetch
 	// later fails or the process runs offline.
-	tables, err := parseSchemaJSON(embeddedSchemaJSON)
+	tables, err := parseSchemaJSON(schema.OsqueryFleetSchemaJSON)
 	if err != nil {
 		panic(fmt.Sprintf("fleet-mcp: failed to parse embedded osquery schema: %v", err))
 	}
@@ -125,9 +119,9 @@ func init() {
 // If interval is zero, defaultRefreshInterval is used. If the env var
 // FLEET_MCP_SCHEMA_REFRESH_DISABLE is set, the function returns without
 // spawning anything (useful for offline / air-gapped deployments).
-func StartSchemaRefresh(interval time.Duration) {
+func StartSchemaRefresh(ctx context.Context, logger *slog.Logger, interval time.Duration) {
 	if os.Getenv("FLEET_MCP_SCHEMA_REFRESH_DISABLE") != "" {
-		logrus.Info("Schema refresh disabled via FLEET_MCP_SCHEMA_REFRESH_DISABLE; using embedded snapshot only.")
+		logger.InfoContext(ctx, "schema refresh disabled via FLEET_MCP_SCHEMA_REFRESH_DISABLE; using embedded snapshot only")
 		return
 	}
 	if interval <= 0 {
@@ -142,15 +136,24 @@ func StartSchemaRefresh(interval time.Duration) {
 		go func() {
 			// Initial fetch happens shortly after startup so it doesn't block
 			// the MCP server from becoming responsive on launch.
-			time.Sleep(2 * time.Second)
-			if err := RefreshSchemaNow(); err != nil {
-				logrus.Warnf("Initial schema refresh failed (using embedded fallback): %v", err)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(2 * time.Second):
+			}
+			if err := RefreshSchemaNow(ctx, logger); err != nil {
+				logger.WarnContext(ctx, "initial schema refresh failed, using embedded fallback", "err", err)
 			}
 			ticker := time.NewTicker(interval)
 			defer ticker.Stop()
-			for range ticker.C {
-				if err := RefreshSchemaNow(); err != nil {
-					logrus.Warnf("Periodic schema refresh failed (keeping previous data): %v", err)
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					if err := RefreshSchemaNow(ctx, logger); err != nil {
+						logger.WarnContext(ctx, "periodic schema refresh failed, keeping previous data", "err", err)
+					}
 				}
 			}
 		}()
@@ -161,8 +164,8 @@ func StartSchemaRefresh(interval time.Duration) {
 // replaces the in-memory schema on success. The previous schema is retained on
 // failure — never returns the binary into a no-schema state. Exposed both for
 // the background loop and for the MCP `refresh_osquery_schema` tool.
-func RefreshSchemaNow() error {
-	body, err := fetchCanonicalSchema(canonicalSchemaURL)
+func RefreshSchemaNow(ctx context.Context, logger *slog.Logger) error {
+	body, err := fetchCanonicalSchema(ctx, canonicalSchemaURL)
 	if err != nil {
 		return err
 	}
@@ -176,29 +179,27 @@ func RefreshSchemaNow() error {
 		URL:       canonicalSchemaURL,
 		FetchedAt: &now,
 	})
-	logrus.Infof("Refreshed osquery schema from %s (%d tables)", canonicalSchemaURL, len(tables))
+	logger.InfoContext(ctx, "refreshed osquery schema", "url", canonicalSchemaURL, "tables", len(tables))
 	return nil
 }
 
-func fetchCanonicalSchema(url string) ([]byte, error) {
-	client := &http.Client{
-		Timeout: fetchTimeout,
-		// Refuse cross-host redirects: the canonical URL is a fixed
-		// githubusercontent.com path, so any redirect to a different host is
-		// unexpected and could be bent toward an internal/metadata endpoint.
-		// raw.githubusercontent.com serves 200 directly, so this
-		// does not break the normal fetch.
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			if len(via) > 0 && req.URL.Host != via[0].URL.Host {
-				return fmt.Errorf("refusing cross-host redirect to %q", req.URL.Host)
-			}
-			if len(via) >= 5 {
-				return errors.New("too many redirects")
-			}
-			return nil
-		},
+func fetchCanonicalSchema(ctx context.Context, url string) ([]byte, error) {
+	client := fleethttp.NewClient(fleethttp.WithTimeout(fetchTimeout))
+	// Refuse cross-host redirects: the canonical URL is a fixed
+	// githubusercontent.com path, so any redirect to a different host is
+	// unexpected and could be bent toward an internal/metadata endpoint.
+	// raw.githubusercontent.com serves 200 directly, so this
+	// does not break the normal fetch.
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if len(via) > 0 && req.URL.Host != via[0].URL.Host {
+			return fmt.Errorf("refusing cross-host redirect to %q", req.URL.Host)
+		}
+		if len(via) >= 5 {
+			return errors.New("too many redirects")
+		}
+		return nil
 	}
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
 	}
@@ -235,7 +236,6 @@ func storeSchema(tables []SchemaTable, src schemaSource) {
 		idx[strings.ToLower(t.Name)] = t
 	}
 	schemaMu.Lock()
-	schemaTables = tables
 	schemaIndex = idx
 	schemaMu.Unlock()
 	srcCopy := src
@@ -256,7 +256,7 @@ func SchemaSource() schemaSource {
 // platform. Use GetOsquerySchemaForTables for full coverage of specific tables.
 // Platform values: "darwin"/"macos", "windows", "linux", "chrome"/"chromeos",
 // "all" (returns the curated set unfiltered).
-func GetOsquerySchema(platform string) ([]SchemaTable, error) {
+func GetOsquerySchema(ctx context.Context, logger *slog.Logger, platform string) ([]SchemaTable, error) {
 	p := normalizePlatform(platform)
 
 	schemaMu.RLock()
@@ -284,7 +284,7 @@ func GetOsquerySchema(platform string) ([]SchemaTable, error) {
 	if len(missing) > 0 {
 		// Not fatal — the canonical schema may have renamed/dropped a table the
 		// curated list still references. Log so we notice.
-		logrus.Debugf("Curated tables missing from canonical schema: %v", missing)
+		logger.DebugContext(ctx, "curated tables missing from canonical schema", "tables", missing)
 	}
 	return out, nil
 }

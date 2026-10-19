@@ -376,6 +376,7 @@ FAST_PKGS_TO_TEST := \
 	./orbit/pkg/cryptoinfo \
 	./orbit/pkg/dataflatten \
 	./orbit/pkg/keystore \
+	./server/fleetmcp \
 	./server/goose \
 	./server/mdm/apple/appmanifest \
 	./server/mdm/lifecycle \
@@ -1163,7 +1164,6 @@ UPDATE_GO_MODS := \
 	./tools/qacheck/go.mod \
 	./tools/screencap/go.mod \
 	./tools/hangar/go.mod \
-	./cmd/fleet-mcp/go.mod \
 	./tools/dibble/go.mod \
 	./tools/gitops-auto-complete/go.mod \
 	./tools/upgrade/go.mod

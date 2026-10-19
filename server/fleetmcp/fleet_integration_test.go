@@ -1,9 +1,10 @@
-package main
+package fleetmcp
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -21,6 +22,7 @@ func newTestClient(serverURL string) *FleetClient {
 		baseURL:    serverURL,
 		apiKey:     "test",
 		httpClient: http.DefaultClient,
+		logger:     slog.New(slog.DiscardHandler),
 	}
 }
 
@@ -1239,7 +1241,11 @@ func TestLinuxPlatformNormalization(t *testing.T) {
 
 func TestNewFleetClientLiveQueryTimeout(t *testing.T) {
 	t.Setenv("FLEET_LIVE_QUERY_REST_PERIOD", "45s")
-	fc := NewFleetClient("https://fleet.example.com", "key", false, "")
+	logger := slog.New(slog.DiscardHandler)
+	fc, err := NewFleetClient(t.Context(), "https://fleet.example.com", "key", false, "", logger)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if got := fc.httpClient.Timeout; got != 30*time.Second {
 		t.Fatalf("default client timeout = %v, want 30s", got)
@@ -1253,18 +1259,24 @@ func TestNewFleetClientLiveQueryTimeout(t *testing.T) {
 
 	// A non-positive period would make Timeout <= 0, which net/http treats as no timeout.
 	t.Setenv("FLEET_LIVE_QUERY_REST_PERIOD", "-45s")
-	fc = NewFleetClient("https://fleet.example.com", "key", false, "")
+	fc, err = NewFleetClient(t.Context(), "https://fleet.example.com", "key", false, "", logger)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if got, want := fc.liveQueryClient.Timeout, 25*time.Second+liveQueryTimeoutMargin; got != want {
 		t.Fatalf("live query client timeout with negative period = %v, want %v", got, want)
 	}
 
 	// The campaign wait budget can be minutes; the single-host client must not inherit that.
 	t.Setenv("FLEET_LIVE_QUERY_REST_PERIOD", "900s")
-	fc = NewFleetClient("https://fleet.example.com", "key", false, "")
+	fc, err = NewFleetClient(t.Context(), "https://fleet.example.com", "key", false, "", logger)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if got, want := fc.liveQueryClient.Timeout, maxSingleHostBlock+liveQueryTimeoutMargin; got != want {
 		t.Fatalf("live query client timeout with 900s period = %v, want %v", got, want)
 	}
-	if got := liveQueryDeadline(); got != 900*time.Second {
+	if got := liveQueryDeadline(t.Context(), logger); got != 900*time.Second {
 		t.Fatalf("liveQueryDeadline() = %v, want 900s (campaign path must stay uncapped)", got)
 	}
 }

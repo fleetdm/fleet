@@ -1,4 +1,4 @@
-package main
+package fleetmcp
 
 import "strings"
 
