@@ -16,97 +16,31 @@ import (
 	"www.velocidex.com/golang/go-ntfs/parser"
 )
 
-// readHive reads the Amcache hive and replays its transaction logs in memory if it's dirty.
-// Data returned with a nil error is always clean: a torn hive parses into rows that look as
-// authoritative as correct ones.
+// readHive reads the Amcache hive, falling back to a raw NTFS read when the Compatibility
+// Appraiser holds it locked.
 func readHive(ctx context.Context) (hiveResult, error) {
-	s, err := acquireHive(ctx)
-	if err != nil {
-		return hiveResult{}, err
-	}
-	res := hiveResult{data: s.data, raw: s.raw}
-
-	dirty, err := hiveDirty(res.data)
-	if err != nil {
-		return hiveResult{}, err
-	}
-	if !dirty {
-		return res, nil
-	}
-	res.replayed = true
-
-	if err := ctx.Err(); err != nil {
-		return hiveResult{}, err
-	}
-	// One unreadable log isn't fatal because the other may hold the whole chain. Ending up with
-	// a hive the logs didn't clean is.
-	var logs [][]byte
-	var logErrs []error
-	for _, suffix := range []string{".LOG1", ".LOG2"} {
-		b, err := s.readLog(ctx, suffix)
-		if err != nil {
-			logErrs = append(logErrs, fmt.Errorf("amcache: %s%s: %w", s.path, suffix, err))
-			continue
-		}
-		logs = append(logs, b)
-	}
-	out, err := replayLogs(res.data, logs...)
-	if err != nil {
-		return hiveResult{}, err
-	}
-	stillDirty, err := hiveDirty(out)
-	if err != nil {
-		return hiveResult{}, err
-	}
-	if stillDirty {
-		return hiveResult{}, errors.Join(append(logErrs,
-			fmt.Errorf("amcache: %s is dirty and the transaction logs did not recover it", s.path))...)
-	}
-	res.data = out
-	return res, nil
-}
-
-type hiveSource struct {
-	drive string
-	path  string
-	data  []byte
-	raw   bool
-}
-
-func acquireHive(ctx context.Context) (hiveSource, error) {
 	dir, path, err := hivePath()
 	if err != nil {
-		return hiveSource{}, err
+		return hiveResult{}, err
 	}
-	s := hiveSource{drive: dir[:2], path: path}
 
 	data, err := readPlain(ctx, path, maxHiveBytes)
 	switch {
 	case err == nil:
-		s.data = data
-		return s, nil
+		return hiveResult{data: data}, nil
 	case errors.Is(err, fs.ErrNotExist):
-		return hiveSource{}, errHiveNotFound
+		return hiveResult{}, errHiveNotFound
 	case errors.Is(err, windows.ERROR_SHARING_VIOLATION), errors.Is(err, windows.ERROR_LOCK_VIOLATION):
-		// The appraiser has the hive open. A raw volume handle is privileged and EDR products
-		// flag it, so it's only opened for this one failure.
-		raw, err := readRaw(ctx, s.drive, path, maxHiveBytes)
+		// A raw volume handle is privileged and EDR products flag it, so it's only opened for
+		// this one failure.
+		raw, err := readRaw(ctx, dir[:2], path, maxHiveBytes)
 		if err != nil {
-			return hiveSource{}, err
+			return hiveResult{}, err
 		}
-		s.data, s.raw = raw, true
-		return s, nil
+		return hiveResult{data: raw, raw: true}, nil
 	default:
-		return hiveSource{}, err
+		return hiveResult{}, err
 	}
-}
-
-// readLog reads a transaction log through the same route that produced the hive.
-func (s hiveSource) readLog(ctx context.Context, suffix string) ([]byte, error) {
-	if s.raw {
-		return readRaw(ctx, s.drive, s.path+suffix, maxLogBytes)
-	}
-	return readPlain(ctx, s.path+suffix, maxLogBytes)
 }
 
 // readChunk is the unit between context checks, so a slow disk (or an AV scanner) can't keep a

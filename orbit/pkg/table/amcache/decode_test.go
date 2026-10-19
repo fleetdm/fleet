@@ -67,13 +67,3 @@ func TestDecodeMulti(t *testing.T) {
 	assert.Equal(t, "a,b,c", decodeMulti(" a , b ,, c "))
 	assert.Empty(t, decodeMulti(" , "))
 }
-
-func TestBaseBlockChecksum(t *testing.T) {
-	buf := make([]byte, 0x200)
-	assert.EqualValues(t, 1, baseBlockChecksum(buf), "0 is reserved")
-	buf[0] = 0xff
-	buf[1] = 0xff
-	buf[2] = 0xff
-	buf[3] = 0xff
-	assert.EqualValues(t, 0xFFFFFFFE, baseBlockChecksum(buf), "0xFFFFFFFF is reserved")
-}

@@ -304,59 +304,30 @@ func TestSubkeyIndexCycle(t *testing.T) {
 	assert.Len(t, generate(t, tt, "amcache_applications", table.QueryContext{}), 1)
 }
 
-func TestReplayLogs(t *testing.T) {
-	appHive := func(name string) []byte {
-		return buildHive(tkey{name: keyApplication, subkeys: []tkey{{name: programID, values: []tval{szv("Name", name)}}}})
-	}
-	oldHive, newHive := appHive("old!"), appHive("new!")
-	require.Len(t, newHive, len(oldHive))
-	binSize := len(newHive) - 0x1000
+// A dirty hive (Windows mid-write) is refused rather than parsed, and the next query after the
+// write finishes (new mtime/size) loads the clean hive.
+func TestDirtyHive(t *testing.T) {
+	clean := buildHive(tkey{name: keyApplication, subkeys: []tkey{{name: programID}}})
+	dirty := append([]byte(nil), clean...)
+	binary.LittleEndian.PutUint32(dirty[4:], 2) // Sequence1 bumped, Sequence2 not yet
 
-	// The primary file is dirty: Sequence1 was bumped but the flush never completed.
-	dirty := append([]byte(nil), oldHive...)
-	binary.LittleEndian.PutUint32(dirty[4:], 2)
-	isDirty, err := hiveDirty(dirty)
+	var size atomic.Int64
+	size.Store(1)
+	tt := newTables(zerolog.Nop(), func(context.Context) (hiveResult, error) {
+		if size.Load() == 1 {
+			return hiveResult{data: dirty}, nil
+		}
+		return hiveResult{data: clean}, nil
+	}, func() (time.Time, int64, error) { return time.Unix(1, 0), size.Load(), nil })
+	gen := tt.generator(specFor(t, "amcache_applications"))
+
+	_, err := gen(t.Context(), table.QueryContext{})
+	require.ErrorIs(t, err, errHiveDirty)
+
+	size.Store(2)
+	rows, err := gen(t.Context(), table.QueryContext{})
 	require.NoError(t, err)
-	require.True(t, isDirty)
-
-	buildLog := func(entrySeq uint32) []byte {
-		log := make([]byte, 0x200)
-		copy(log, "regf")
-		binary.LittleEndian.PutUint32(log[4:], 1)  // Sequence1
-		binary.LittleEndian.PutUint32(log[28:], 6) // Type: new-format log
-		entrySize := (40 + 8 + binSize + 511) &^ 511
-		e := make([]byte, entrySize)
-		copy(e, "HvLE")
-		binary.LittleEndian.PutUint32(e[4:], uint32(entrySize)) // #nosec G115
-		binary.LittleEndian.PutUint32(e[12:], entrySeq)
-		binary.LittleEndian.PutUint32(e[16:], uint32(binSize)) // #nosec G115
-		binary.LittleEndian.PutUint32(e[20:], 1)               // dirty page count
-		binary.LittleEndian.PutUint32(e[44:], uint32(binSize)) // #nosec G115 -- page ref: offset 0, size binSize
-		copy(e[48:], newHive[0x1000:])
-		return append(log, e...)
-	}
-
-	out, err := replayLogs(dirty, buildLog(1))
-	require.NoError(t, err)
-	isDirty, err = hiveDirty(out)
-	require.NoError(t, err)
-	assert.False(t, isDirty)
-
-	tt, _ := newTestTables(out)
-	rows := generate(t, tt, "amcache_applications", table.QueryContext{})
-	require.Len(t, rows, 1)
-	assert.Equal(t, "new!", rows[0]["name"])
-
-	// An entry out of sequence isn't applied, so the hive stays dirty.
-	out, err = replayLogs(dirty, buildLog(5))
-	require.NoError(t, err)
-	isDirty, err = hiveDirty(out)
-	require.NoError(t, err)
-	assert.True(t, isDirty)
-	assert.Equal(t, dirty, out)
-
-	_, err = replayLogs(dirty[:100])
-	require.Error(t, err)
+	assert.Len(t, rows, 1)
 }
 
 func TestPanicIsRecoveredAndCached(t *testing.T) {

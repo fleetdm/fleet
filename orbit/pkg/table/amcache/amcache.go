@@ -55,7 +55,7 @@ type tables struct {
 	timeout time.Duration
 
 	// A one-slot channel rather than a mutex so a waiter can give up when its context ends;
-	// the holder may be doing a raw volume read and log replay, which takes seconds.
+	// the holder may be doing a raw volume read and full parse, which takes seconds.
 	sem chan struct{}
 
 	// Guarded by sem.
@@ -164,11 +164,18 @@ func (t *tables) parse(ctx context.Context) (snap *snapshot, err error) {
 	if err != nil {
 		return nil, err
 	}
+	dirty, err := hiveDirty(res.data)
+	if err != nil {
+		return nil, err
+	}
+	if dirty {
+		return nil, errHiveDirty
+	}
 	inv, err := parseInventory(ctx, t.logger, res.data)
 	if err != nil {
 		return nil, err
 	}
-	t.logger.Debug().Bool("raw_volume_read", res.raw).Bool("logs_replayed", res.replayed).Msg("amcache: hive parsed")
+	t.logger.Debug().Bool("raw_volume_read", res.raw).Msg("amcache: hive parsed")
 	return &snapshot{inv: inv, idx: buildIndex(inv)}, nil
 }
 

@@ -148,7 +148,6 @@ func (w *hiveWriter) hive(rootCell uint32, seq1, seq2 uint32) []byte {
 	binary.LittleEndian.PutUint32(out[36:], rootCell)
 	binary.LittleEndian.PutUint32(out[40:], uint32(binSize)) // #nosec G115
 	binary.LittleEndian.PutUint32(out[44:], 1)
-	binary.LittleEndian.PutUint32(out[0x1fc:], baseBlockChecksum(out))
 
 	bin := out[0x1000:]
 	copy(bin, w.bins)
