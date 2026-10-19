@@ -2527,6 +2527,7 @@ func (ds *Datastore) vppAppJoin(ctx context.Context, appID fleet.VPPAppID, vppAp
 		case fleet.SoftwareFailed:
 			status = fleet.SoftwareInstallFailed
 		}
+
 		versionIDs, err := ds.GetAppStoreAppVersionIDsFromSpecificVersion(ctx, *vppAppTeamID)
 		if err != nil {
 			return "", nil, ctxerr.Wrap(ctx, err, "vpp app join: version ids")
@@ -2535,6 +2536,7 @@ func (ds *Datastore) vppAppJoin(ctx context.Context, appID fleet.VPPAppID, vppAp
 		if len(versionIDs) == 0 {
 			versionIDs = []uint{*vppAppTeamID}
 		}
+
 		stmt := fmt.Sprintf(`JOIN (%s) hss ON hss.host_id = h.id AND hss.vpp_app_team_id = :vpp_app_team_id AND hss.status = :status`, vppAppVersionHostStatusesQuery)
 		query, args, err := sqlx.Named(stmt, map[string]any{
 			"status":                    status,

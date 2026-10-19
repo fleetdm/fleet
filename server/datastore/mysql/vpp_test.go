@@ -4823,11 +4823,18 @@ func testAppStoreAppVersionsStatusCountsOneVersionPerStatus(t *testing.T, ds *Da
 		hosts = listHostsCheckCount(t, ds, hostFilter, fleet.HostListOptions{TeamFilter: &fleetID, SoftwareTitleIDFilter: &versionA.TitleID, AppStoreAppVersionIDFilter: &versionB.AppTeamID, SoftwareStatusFilter: &pending}, 1)
 		require.Equal(t, hostInstalledAPendingB.ID, hosts[0].ID)
 
-		// delete the MDM command results of the host that installed B after A, like the MDM command cleanup does, the host should still count as installed
+		// age the MDM command results of the host that installed B after A past the retention and run the MDM command cleanup, the results should be deleted and the host should still count as installed
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `DELETE ncr FROM nano_command_results ncr JOIN host_vpp_software_installs hvsi ON hvsi.command_uuid = ncr.command_uuid WHERE hvsi.host_id = ?`, hostInstalledAThenB.ID)
+			_, err := q.ExecContext(ctx, `UPDATE nano_command_results ncr JOIN host_vpp_software_installs hvsi ON hvsi.command_uuid = ncr.command_uuid SET ncr.updated_at = NOW(6) - INTERVAL 31 DAY WHERE hvsi.host_id = ?`, hostInstalledAThenB.ID)
 			return err
 		})
+		_, _, err = ds.CleanupNanoCommands(ctx, fleet.MDMAppleCommandCleanupOptions{StandardRetention: 30 * 24 * time.Hour, MaxRowDeletions: 1000, MaxCmdDeletions: 1000}, nil)
+		require.NoError(t, err)
+		var remainingResults int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &remainingResults, `SELECT COUNT(*) FROM nano_command_results ncr JOIN host_vpp_software_installs hvsi ON hvsi.command_uuid = ncr.command_uuid WHERE hvsi.host_id = ?`, hostInstalledAThenB.ID)
+		})
+		require.Zero(t, remainingResults)
 		summariesWithoutResults, err := ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: versionA.AppTeamID}, {VPPAppsTeamsID: versionB.AppTeamID}})
 		require.NoError(t, err)
 		require.Equal(t, summaryB, summariesWithoutResults[versionB.AppTeamID])
