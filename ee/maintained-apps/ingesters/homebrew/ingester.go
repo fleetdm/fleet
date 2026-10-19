@@ -310,15 +310,6 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.UniqueIdentifier, out.Version,
 		)
 	}
-	if input.Token == "mellel" {
-		// Mellel 6.8.0 changed its bundle identifier from com.redlex.mellel6 to
-		// com.redlex.mellel.mac, keeping the same app name and path. Treat the legacy
-		// identifier as outdated so hosts still on 6.7.x fail the patch policy.
-		out.Queries.Patched = fmt.Sprintf(
-			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.redlex.mellel6' OR (bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0));",
-			out.UniqueIdentifier, out.Version,
-		)
-	}
 	switch input.Token {
 	case "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3":
 		// CFBundleShortVersionString is major.minor only ("26.3" for cask "26.3.5"),
@@ -386,12 +377,6 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		// KiCad's editors (PCB Editor, Schematic Editor, ...) can also run as their own apps nested in KiCad.app/Contents/Applications.
 		out.Queries.Open = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat(a.path, '/Contents/Applications/%%.app/Contents/MacOS/%%')) WHERE a.bundle_identifier = '%s' AND a.bundle_executable != '');",
-			out.UniqueIdentifier,
-		)
-	case "mellel":
-		// A running 6.7.x still has the legacy bundle identifier (see the patched query above).
-		out.Queries.Open = fmt.Sprintf(
-			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier IN ('%s', 'com.redlex.mellel6') AND a.bundle_executable != '');",
 			out.UniqueIdentifier,
 		)
 	}

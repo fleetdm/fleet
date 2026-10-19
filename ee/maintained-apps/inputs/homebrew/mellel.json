@@ -6,9 +6,5 @@
   "slug": "mellel/darwin",
   "default_categories": [
     "Productivity"
-  ],
-  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/mellel-install.sh",
-  "pre_uninstall_scripts": [
-    "quit_application 'com.redlex.mellel6'"
   ]
 }
