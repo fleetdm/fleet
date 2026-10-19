@@ -1509,12 +1509,59 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team2.ID, 0})
 	require.NoError(t, err)
 
-	_, err = ds.InsertVPPToken(ctx, dataToken5)
+	tokExtra, err := ds.InsertVPPToken(ctx, dataToken5)
 	assert.NoError(t, err)
 
 	toks, err = ds.ListVPPTokens(ctx)
 	assert.NoError(t, err)
 	assert.Len(t, toks, 5)
+
+	// Fleets, Unassigned and All fleets can each hold several tokens, and GetVPPTokenByTeamID
+	// returns the lowest token id among the matches. tokAll < tokTeam < tokTeams < tokExtra.
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokExtra.ID, []uint{team.ID, 0})
+	require.NoError(t, err)
+	tokByTeam, err := ds.GetVPPTokenByTeamID(ctx, &team.ID)
+	require.NoError(t, err)
+	assert.Equal(t, tokTeam.ID, tokByTeam.ID)
+	tokByTeam, err = ds.GetVPPTokenByTeamID(ctx, nil)
+	require.NoError(t, err)
+	assert.Equal(t, tokTeams.ID, tokByTeam.ID)
+	tokByTeam, err = ds.GetVPPTokenByTeamID(ctx, new(uint(0)))
+	require.NoError(t, err)
+	assert.Equal(t, tokTeams.ID, tokByTeam.ID)
+
+	// All fleets with the highest id loses to the fleet token, with the lowest id it wins
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokExtra.ID, []uint{})
+	require.NoError(t, err)
+	tokByTeam, err = ds.GetVPPTokenByTeamID(ctx, &team.ID)
+	require.NoError(t, err)
+	assert.Equal(t, tokTeam.ID, tokByTeam.ID)
+	tokByTeam, err = ds.GetVPPTokenByTeamID(ctx, nil)
+	require.NoError(t, err)
+	assert.Equal(t, tokTeams.ID, tokByTeam.ID)
+
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokAll.ID, []uint{})
+	require.NoError(t, err)
+	for _, tid := range []*uint{nil, &team.ID, &team2.ID} {
+		tokByTeam, err = ds.GetVPPTokenByTeamID(ctx, tid)
+		require.NoError(t, err)
+		assert.Equal(t, tokAll.ID, tokByTeam.ID)
+	}
+
+	// Unassigned with only All fleets tokens next to it
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team2.ID})
+	require.NoError(t, err)
+	tokByTeam, err = ds.GetVPPTokenByTeamID(ctx, nil)
+	require.NoError(t, err)
+	assert.Equal(t, tokAll.ID, tokByTeam.ID)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team2.ID, 0})
+	require.NoError(t, err)
+
+	// restore the assignments the checks below expect
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokAll.ID, nil)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokExtra.ID, nil)
+	require.NoError(t, err)
 
 	///
 	tokNil, err := ds.GetVPPTokenByTeamID(ctx, nil)
@@ -2036,6 +2083,44 @@ func testVPPTokenTeamAssignment(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	// team1 should no longer have its apps, since the token was removed
 	assigned, err = ds.GetAssignedVPPApps(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.Empty(t, assigned)
+
+	// a second token on team2 leaves the first token's apps alone, in both directions
+	dataToken2, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "vpp_org2"+t.Name(), "vpp location2"+t.Name())
+	require.NoError(t, err)
+	tok2, err := ds.InsertVPPToken(ctx, dataToken2)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok2.ID, []uint{team2.ID})
+	require.NoError(t, err)
+
+	// the app binds to the first-added token on team2
+	_, err = ds.SetTeamVPPApps(ctx, &team2.ID, []fleet.VPPAppTeam{{VPPAppID: app3.VPPAppID}}, nil)
+	require.NoError(t, err)
+	var boundTokenID uint
+	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &boundTokenID,
+		`SELECT vpp_token_id FROM vpp_apps_teams WHERE team_id = ? AND adam_id = ?`, team2.ID, app3.AdamID))
+	require.Equal(t, tok1.ID, boundTokenID)
+
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok2.ID, nil)
+	require.NoError(t, err)
+	assigned, err = ds.GetAssignedVPPApps(ctx, &team2.ID)
+	require.NoError(t, err)
+	require.Contains(t, assigned, app3.VPPAppID)
+
+	// removing the second token from a fleet it holds with the first token keeps the first token's apps
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok2.ID, []uint{team2.ID})
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok2.ID, []uint{team1.ID})
+	require.NoError(t, err)
+	assigned, err = ds.GetAssignedVPPApps(ctx, &team2.ID)
+	require.NoError(t, err)
+	require.Contains(t, assigned, app3.VPPAppID)
+
+	// removing the first token from the fleet deletes the apps bound to it
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{team1.ID})
+	require.NoError(t, err)
+	assigned, err = ds.GetAssignedVPPApps(ctx, &team2.ID)
 	require.NoError(t, err)
 	require.Empty(t, assigned)
 }

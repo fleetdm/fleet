@@ -2411,7 +2411,7 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, er
 }
 
 func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
-	stmtTeam := `
+	const stmt = `
 	SELECT
 		v.id,
 		v.organization_name,
@@ -2425,7 +2425,9 @@ func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fl
 		vpp_tokens v
 	ON vt.vpp_token_id = v.id
 	WHERE
-		vt.team_id = ?
+		vt.team_id = ? OR vt.null_team_type IN (?, ?)
+	ORDER BY v.id
+	LIMIT 1
 `
 	stmtTeamNames := `
 	SELECT
@@ -2440,24 +2442,6 @@ func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fl
 	WHERE
 		vt.vpp_token_id = ?
 `
-	stmtNullTeam := `
-	SELECT
-		v.id,
-		v.organization_name,
-		v.location,
-		v.renew_at,
-		v.token,
-		COALESCE(v.country_code, '') AS country_code
-	FROM
-		vpp_tokens v
-	INNER JOIN
-		vpp_token_teams vt
-	ON v.id = vt.vpp_token_id
-	WHERE
-		vt.team_id IS NULL
-	AND
-		vt.null_team_type = ?
-`
 
 	var tokEnc fleet.VPPTokenDB
 
@@ -2467,23 +2451,20 @@ func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fl
 		Name     string             `db:"name"`
 	}
 
-	var err error
+	// team_id = NULL never matches, so Unassigned reads only the null-type rows.
+	var tmID *uint
+	nullTeam := fleet.NullTeamAllTeams
 	if teamID != nil && *teamID != 0 {
-		err = sqlx.GetContext(ctx, ds.reader(ctx), &tokEnc, stmtTeam, teamID)
+		tmID = teamID
 	} else {
-		err = sqlx.GetContext(ctx, ds.reader(ctx), &tokEnc, stmtNullTeam, fleet.NullTeamNoTeam)
+		nullTeam = fleet.NullTeamNoTeam
 	}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &tokEnc, stmt, tmID, nullTeam, fleet.NullTeamAllTeams)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			if err := sqlx.GetContext(ctx, ds.reader(ctx), &tokEnc, stmtNullTeam, fleet.NullTeamAllTeams); err != nil {
-				if errors.Is(err, sql.ErrNoRows) {
-					return nil, ctxerr.Wrap(ctx, notFound("VPPToken"), "retrieving vpp token by team")
-				}
-				return nil, ctxerr.Wrap(ctx, err, "retrieving vpp token by team")
-			}
-		} else {
-			return nil, ctxerr.Wrap(ctx, err, "retrieving vpp token by team")
+			return nil, ctxerr.Wrap(ctx, notFound("VPPToken"), "retrieving vpp token by team")
 		}
+		return nil, ctxerr.Wrap(ctx, err, "retrieving vpp token by team")
 	}
 
 	tokDec, err := decrypt([]byte(tokEnc.Token), ds.serverPrivateKey)
