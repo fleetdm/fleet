@@ -1617,7 +1617,7 @@ CREATE TABLE `host_vpp_software_installs` (
   KEY `fk_host_vpp_software_installs_policy_id` (`policy_id`),
   KEY `idx_host_vpp_software_installs_host_adam_platform_created` (`host_id`,`adam_id`,`platform`,`created_at`),
   KEY `idx_hvsi_verification_command_uuid` (`verification_command_uuid`),
-  KEY `idx_host_vpp_software_installs_version_host_id` (`vpp_app_team_id`,`host_id`,`canceled`,`removed`,`id`),
+  KEY `idx_host_vpp_software_installs_version_host_id` (`vpp_app_team_id`,`host_id`,`canceled`,`removed`,`id`,`verification_at`,`verification_failed_at`),
   KEY `idx_host_vpp_software_installs_verification` ((((`verification_at` is null) and (`verification_failed_at` is null)))),
   CONSTRAINT `fk_host_vpp_software_installs_vpp_app_team_id` FOREIGN KEY (`vpp_app_team_id`) REFERENCES `vpp_apps_teams` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_host_vpp_software_installs_vpp_token_id` FOREIGN KEY (`vpp_token_id`) REFERENCES `vpp_tokens` (`id`) ON DELETE SET NULL,

@@ -4845,6 +4845,21 @@ func testAppStoreAppVersionsStatusCountsOneVersionPerStatus(t *testing.T, ds *Da
 		titleInstalledHosts, err := ds.ListHosts(ctx, hostFilter, fleet.HostListOptions{TeamFilter: &fleetID, SoftwareTitleIDFilter: &versionA.TitleID, SoftwareStatusFilter: &installed})
 		require.NoError(t, err)
 		require.Contains(t, hostIDs(titleInstalledHosts), hostInstalledAThenB.ID)
+
+		// install A on a new host, then fail to install A again, the host should count as installed and failed for A
+		hostInstalledAThenFailedA := newHost("installed-a-then-failed-a")
+		insertVPPAppInstallWithResult(t, ds, hostInstalledAThenFailedA, versionA, "verified")
+		insertVPPAppInstallWithResult(t, ds, hostInstalledAThenFailedA, versionA, "mdm_error")
+		summariesAfterFailedReinstall, err := ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: versionA.AppTeamID}, {VPPAppsTeamsID: versionB.AppTeamID}})
+		require.NoError(t, err)
+		summaryAAfterFailedReinstall := summariesAfterFailedReinstall[versionA.AppTeamID]
+		require.NotNil(t, summaryAAfterFailedReinstall)
+		require.Equal(t, uint(1), summaryAAfterFailedReinstall.Failed)
+		require.Equal(t, summaryA.Installed+1, summaryAAfterFailedReinstall.Installed)
+		hosts = listHostsCheckCount(t, ds, hostFilter, fleet.HostListOptions{TeamFilter: &fleetID, SoftwareTitleIDFilter: &versionA.TitleID, AppStoreAppVersionIDFilter: &versionA.AppTeamID, SoftwareStatusFilter: &failed}, 1)
+		require.Equal(t, hostInstalledAThenFailedA.ID, hosts[0].ID)
+		hosts = listHostsCheckCount(t, ds, hostFilter, fleet.HostListOptions{TeamFilter: &fleetID, SoftwareTitleIDFilter: &versionA.TitleID, AppStoreAppVersionIDFilter: &versionA.AppTeamID, SoftwareStatusFilter: &installed}, int(summaryAAfterFailedReinstall.Installed))
+		require.Contains(t, hostIDs(hosts), hostInstalledAThenFailedA.ID)
 	}
 }
 

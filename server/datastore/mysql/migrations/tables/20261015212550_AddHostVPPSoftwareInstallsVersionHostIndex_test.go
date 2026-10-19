@@ -22,7 +22,7 @@ func TestUp_20261015212550(t *testing.T) {
 	applyNext(t, db)
 
 	// read the indexes, the new index should be added and the single-column index should be dropped
-	require.Equal(t, []string{"vpp_app_team_id", "host_id", "canceled", "removed", "id"},
+	require.Equal(t, []string{"vpp_app_team_id", "host_id", "canceled", "removed", "id", "verification_at", "verification_failed_at"},
 		indexColumns(t, db, "host_vpp_software_installs", "idx_host_vpp_software_installs_version_host_id"))
 	require.Empty(t, indexColumns(t, db, "host_vpp_software_installs", "fk_host_vpp_software_installs_vpp_app_team_id"))
 
@@ -40,7 +40,7 @@ func TestUp_20261015212550(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, Up_20261015212550(tx))
 	require.NoError(t, tx.Commit())
-	require.Equal(t, []string{"vpp_app_team_id", "host_id", "canceled", "removed", "id"},
+	require.Equal(t, []string{"vpp_app_team_id", "host_id", "canceled", "removed", "id", "verification_at", "verification_failed_at"},
 		indexColumns(t, db, "host_vpp_software_installs", "idx_host_vpp_software_installs_version_host_id"))
 	require.Empty(t, indexColumns(t, db, "host_vpp_software_installs", "fk_host_vpp_software_installs_vpp_app_team_id"))
 

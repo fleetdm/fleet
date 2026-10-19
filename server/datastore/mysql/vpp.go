@@ -235,17 +235,16 @@ WHERE
 }
 
 // Select the status of an App Store app version on each host, counting at most one installed, one pending and one failed version per host.
+// The installed version is the latest successful install, failed and pending installs count only when they are newer than it.
 const vppAppVersionHostStatusesQuery = `
 WITH
 
 -- select most recent upcoming activity per host and version
 upcoming AS (
-	SELECT host_id, vpp_app_team_id, status, created_at FROM (
+	SELECT host_id, vpp_app_team_id FROM (
 		SELECT
 			ua.host_id,
 			vaua.vpp_app_team_id,
-			:software_status_pending AS status,
-			ua.created_at,
 			ROW_NUMBER() OVER (
 				PARTITION BY ua.host_id, vaua.vpp_app_team_id
 				ORDER BY ua.priority ASC, ua.created_at DESC, ua.id DESC
@@ -263,88 +262,66 @@ upcoming AS (
 	WHERE rn = 1
 ),
 
--- select most recent past activities for each host and version
--- NOTE if you change this logic make sure to change vppAppHostStatusNamedQuery accordingly
-past AS (
+-- select the latest successful, failed and unfinished install of each host and version, reading only the index
+latest_installs AS (
 	SELECT
-		ranked.host_id,
-		ranked.vpp_app_team_id,
-		ranked.created_at,
-		CASE
-			WHEN ranked.verification_at IS NOT NULL THEN
-				:software_status_installed
-			WHEN ranked.verification_failed_at IS NOT NULL THEN
-				:software_status_failed
-			WHEN ncr.status = :mdm_status_error OR ncr.status = :mdm_status_format_error THEN
-				:software_status_failed
-			WHEN ncr.id IS NULL OR ncr.status = :mdm_status_acknowledged THEN
-				-- if ncr join is null this is an android vpp app
-				:software_status_pending
-			ELSE
-				NULL -- either pending or not installed via VPP App
-		END AS status
-	FROM (
-		SELECT
-			hvsi.host_id,
-			hvsi.vpp_app_team_id,
-			hvsi.created_at,
-			hvsi.command_uuid,
-			hvsi.verification_at,
-			hvsi.verification_failed_at,
-			hvsi.platform,
-			h.uuid AS host_uuid
-		FROM
-			-- Read only the last index entry per host and version, the ids follow the insert order
-			(
-				SELECT MAX(id) AS id
-				FROM host_vpp_software_installs
-				WHERE vpp_app_team_id IN (:version_ids) AND canceled = 0 AND removed = 0
-				GROUP BY vpp_app_team_id, host_id
-			) latest_install
-			JOIN host_vpp_software_installs hvsi ON hvsi.id = latest_install.id
-			JOIN hosts h ON hvsi.host_id = h.id
-			JOIN vpp_apps_teams vat ON vat.id = hvsi.vpp_app_team_id
-		WHERE
-			COALESCE(h.team_id, 0) = vat.global_or_team_id
-	) ranked
-	LEFT JOIN nano_command_results ncr ON
-		ncr.id = ranked.host_uuid AND
-		ncr.command_uuid = ranked.command_uuid
-	WHERE
-		-- Allow rows with no nano_command_results — Android VPP never produces
-		-- one, and Fleet-side pre-flight failures (e.g. unresolvable
-		-- managed-config Fleet variable on iOS/iPadOS) record only the install
-		-- row with verification_failed_at set, no MDM command. The CASE above
-		-- maps verification_failed_at IS NOT NULL to failed ahead of the ncr
-		-- branches. This check runs after picking the latest row, so a host whose most recent
-		-- row lacks a command result is dropped rather than falling back to an
-		-- older row.
-		(ncr.id IS NOT NULL OR ranked.verification_at IS NOT NULL OR ranked.verification_failed_at IS NOT NULL OR (ranked.platform = 'android' AND ncr.id IS NULL))
-		AND (ranked.host_id, ranked.vpp_app_team_id) NOT IN (SELECT host_id, vpp_app_team_id FROM upcoming) -- antijoin to exclude host versions with upcoming activities
-)
+		host_id,
+		vpp_app_team_id,
+		MAX(IF(verification_at IS NOT NULL, id, NULL)) AS installed_id,
+		MAX(IF(verification_at IS NULL AND verification_failed_at IS NOT NULL, id, NULL)) AS failed_id,
+		MAX(IF(verification_at IS NULL AND verification_failed_at IS NULL, id, NULL)) AS unfinished_id
+	FROM host_vpp_software_installs
+	WHERE vpp_app_team_id IN (:version_ids) AND canceled = 0 AND removed = 0
+	GROUP BY vpp_app_team_id, host_id
+),
 
--- keep the version with the latest activity for each status on each host
-SELECT
-	host_id,
-	vpp_app_team_id,
-	status
-FROM (
+-- read the MDM result of the latest unfinished install of each host and version in the version's fleet, it decides whether the install failed or is pending
+-- NOTE if you change this logic make sure to change vppAppHostStatusNamedQuery accordingly
+attempts AS (
+	SELECT
+		li.host_id,
+		li.vpp_app_team_id,
+		li.installed_id,
+		GREATEST(COALESCE(li.failed_id, 0), IF(ncr.status IN (:mdm_status_error, :mdm_status_format_error), li.unfinished_id, 0)) AS failed_id,
+		-- Android installs never produce nano_command_results
+		IF(ncr.status = :mdm_status_acknowledged OR (unfinished.platform = 'android' AND ncr.id IS NULL), li.unfinished_id, NULL) AS pending_id
+	FROM latest_installs li
+	JOIN hosts h ON h.id = li.host_id
+	JOIN vpp_apps_teams vat ON vat.id = li.vpp_app_team_id
+	LEFT JOIN host_vpp_software_installs unfinished ON unfinished.id = li.unfinished_id
+	LEFT JOIN nano_command_results ncr ON ncr.id = h.uuid AND ncr.command_uuid = unfinished.command_uuid
+	WHERE COALESCE(h.team_id, 0) = vat.global_or_team_id
+),
+
+-- keep the version with the latest install of each status on each host, upcoming activities are newer than any install
+latest AS (
 	SELECT
 		host_id,
 		vpp_app_team_id,
 		status,
-		ROW_NUMBER() OVER (
-			PARTITION BY host_id, status
-			ORDER BY created_at DESC, vpp_app_team_id DESC
-		) AS rn
+		install_id,
+		ROW_NUMBER() OVER (PARTITION BY host_id, status ORDER BY install_id DESC) AS rn
 	FROM (
-		SELECT host_id, vpp_app_team_id, status, created_at FROM past
+		SELECT host_id, vpp_app_team_id, :software_status_installed AS status, installed_id AS install_id FROM attempts WHERE installed_id IS NOT NULL
 		UNION ALL
-		SELECT host_id, vpp_app_team_id, status, created_at FROM upcoming
+		SELECT host_id, vpp_app_team_id, :software_status_failed, failed_id FROM attempts WHERE failed_id > 0
+		UNION ALL
+		SELECT host_id, vpp_app_team_id, :software_status_pending, pending_id FROM attempts WHERE pending_id IS NOT NULL
+		UNION ALL
+		SELECT host_id, vpp_app_team_id, :software_status_pending, 18446744073709551615 FROM upcoming
 	) statuses
-) latest
+)
+
+-- Drop failed and pending installs that are older than the host's latest successful install
+SELECT
+	l.host_id,
+	l.vpp_app_team_id,
+	l.status
+FROM latest l
+LEFT JOIN latest i ON i.host_id = l.host_id AND i.status = :software_status_installed AND i.rn = 1
 WHERE
-	rn = 1`
+	l.rn = 1
+	AND (l.status = :software_status_installed OR i.host_id IS NULL OR l.install_id > i.install_id)`
 
 func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, versions []*fleet.VPPAppStoreApp) (map[uint]*fleet.VPPAppStatusSummary,
 	error,
