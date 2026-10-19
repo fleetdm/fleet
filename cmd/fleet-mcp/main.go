@@ -43,12 +43,18 @@ func healthzHandler(w http.ResponseWriter, _ *http.Request) {
 
 func newHTTPHandler(mcpServer *server.MCPServer, authToken string) http.Handler {
 	transports := http.NewServeMux()
+	// No tool sends server-initiated messages, so neither sessions nor the
+	// optional GET stream (405, allowed by the spec) buy anything. mcp-go only
+	// frees a session on an explicit client DELETE, and stateless requests can be
+	// served by any replica.
 	transports.Handle("/mcp", server.NewStreamableHTTPServer(mcpServer,
 		server.WithStateLess(true),
 		server.WithDisableStreaming(true),
 		server.WithLogger(logrus.StandardLogger()),
 	))
-	transports.Handle("/", server.NewSSEServer(mcpServer))
+	sseServer := server.NewSSEServer(mcpServer)
+	transports.Handle("/sse", sseServer)
+	transports.Handle("/message", sseServer)
 
 	var handler http.Handler = transports
 	handler = bearerAuthMiddleware(authToken, handler)
