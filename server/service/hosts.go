@@ -4241,7 +4241,7 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 			}
 			cert, _, _, err := svc.config.MDM.MicrosoftWSTEP()
 			if err != nil {
-				return "", fmt.Errorf("getting Microsoft WSTEP certificate to decrypt key: %w", err)
+				return "", ctxerr.Wrap(ctx, err, "getting Microsoft WSTEP certificate to decrypt key")
 			}
 			b, err := mdm.DecryptBase64CMSWithKey(b64, cert.PrivateKey)
 			return string(b), err
