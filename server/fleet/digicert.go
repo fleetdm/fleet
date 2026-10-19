@@ -2,16 +2,10 @@ package fleet
 
 import (
 	"context"
-	"time"
 )
 
-type DigiCertCertificate struct {
-	PfxData        []byte
-	Password       string
-	NotValidBefore time.Time
-	NotValidAfter  time.Time
-	SerialNumber   string
-}
+// DigiCertCertificate is the certificate DigiCert issued for a host.
+type DigiCertCertificate = IssuedCertificate
 
 type DigiCertService interface {
 	VerifyProfileID(ctx context.Context, config DigiCertCA) error

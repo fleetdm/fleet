@@ -74,6 +74,15 @@ const (
 	CATypeEJBCA           CAType = "ejbca"
 )
 
+// IssuedCertificate is a certificate a CA issued for a host, with the key Fleet generated for it, in a PKCS#12 bundle that Password opens.
+type IssuedCertificate struct {
+	PfxData        []byte
+	Password       string
+	NotValidBefore time.Time
+	NotValidAfter  time.Time
+	SerialNumber   string
+}
+
 type CertificateAuthoritySummary struct {
 	ID   uint   `json:"id"`
 	Name string `json:"name"`

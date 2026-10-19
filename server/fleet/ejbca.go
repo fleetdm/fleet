@@ -2,7 +2,6 @@ package fleet
 
 import (
 	"context"
-	"time"
 )
 
 // EJBCA is what Fleet needs to enroll certificates from an EJBCA instance over its REST API with mutual TLS. Callers expand the Fleet
@@ -69,13 +68,8 @@ func (p *EJBCAUpdatePayload) Preprocess() {
 	}
 }
 
-type EJBCACertificate struct {
-	PfxData        []byte
-	Password       string
-	NotValidBefore time.Time
-	NotValidAfter  time.Time
-	SerialNumber   string
-}
+// EJBCACertificate is the certificate EJBCA issued for a host.
+type EJBCACertificate = IssuedCertificate
 
 type EJBCAService interface {
 	// VerifyConnection checks that EJBCA accepts the client certificate, that the CA is one it may use, and, when EJBCA can look it up,

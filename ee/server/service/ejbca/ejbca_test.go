@@ -61,9 +61,11 @@ func newTestCA(t *testing.T, name string) *testCA {
 
 // sign signs a certificate for the public key.
 func (ca *testCA) sign(template *x509.Certificate, pub any) (*x509.Certificate, error) {
-	var err error
-	if template.SerialNumber, err = rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 159)); err != nil {
-		return nil, err
+	if template.SerialNumber == nil {
+		var err error
+		if template.SerialNumber, err = rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 159)); err != nil {
+			return nil, err
+		}
 	}
 	der, err := x509.CreateCertificate(rand.Reader, template, ca.cert, pub, ca.key)
 	if err != nil {
@@ -118,9 +120,10 @@ type fakeEJBCA struct {
 	v2Disabled        bool
 	enrollStatus      int // when set, enrolling fails with this status and an EJBCA error
 	wrongKey          bool
-	dropSAN           bool    // the issued certificate leaves out the requested subjectAltName
-	issuedCommonName  *string // when set, the issued certificate has this common name, possibly empty
-	redirectTo        string  // when set, every request is redirected there
+	dropSAN           bool     // the issued certificate leaves out the requested subjectAltName
+	issuedCommonName  *string  // when set, the issued certificate has this common name, possibly empty
+	serial            *big.Int // when set, the issued certificate has this serial number
+	redirectTo        string   // when set, every request is redirected there
 	onRequest         func(r *http.Request)
 
 	mu       sync.Mutex
@@ -291,6 +294,7 @@ func (f *fakeEJBCA) enroll(issuer *testCA, r *http.Request) (int, string, error)
 		subject.CommonName = *f.issuedCommonName
 	}
 	cert, err := issuer.sign(&x509.Certificate{
+		SerialNumber:    f.serial,
 		Subject:         subject,
 		NotBefore:       time.Now().Add(-time.Minute),
 		NotAfter:        time.Now().Add(365 * 24 * time.Hour),
@@ -358,6 +362,11 @@ func TestVerifyConnection(t *testing.T) {
 			wantErr:   fmt.Sprintf(msgNotAuthorized, "Administrator is not authorized to resource /administrator"),
 		},
 		{name: "protocol disabled", configure: func(f *fakeEJBCA) { f.protocolDisabled = true }, wantErr: msgProtocolDisabled},
+		{
+			name:    "URL with the /ejbca path of the admin UI",
+			modify:  func(_ *testing.T, f *fakeEJBCA, config *fleet.EJBCA) { config.URL = f.srv.URL + "/ejbca/" },
+			wantErr: msgNotFound,
+		},
 		{
 			name:    "server certificate not trusted",
 			modify:  func(_ *testing.T, _ *fakeEJBCA, config *fleet.EJBCA) { config.TrustCABundlePEM = "" },
@@ -473,8 +482,8 @@ func TestGetCertificate(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "alice@example.com", issued.Subject.CommonName)
 	assert.True(t, key.(*rsa.PrivateKey).PublicKey.Equal(issued.PublicKey))
-	assert.Equal(t, issued.SerialNumber.Text(16), cert.SerialNumber)
-	assert.LessOrEqual(t, len(cert.SerialNumber), 40, "the serial has to fit the managed certificate record")
+	assert.Equal(t, fmt.Sprintf("%040s", issued.SerialNumber.Text(16)), cert.SerialNumber)
+	assert.Len(t, cert.SerialNumber, 40, "the serial is padded like ingestion pads it, and fits the managed certificate record")
 	assert.True(t, issued.NotBefore.Equal(cert.NotValidBefore))
 	assert.True(t, issued.NotAfter.Equal(cert.NotValidAfter))
 	assert.Equal(t, []string{"alice@example.com", "alice@corp.example.com"}, certissue.UPNs(issued))
@@ -509,6 +518,16 @@ func TestGetCertificateErrors(t *testing.T) {
 			name:    "unknown end entity profile",
 			modify:  func(_ *testing.T, _ *fakeEJBCA, config *fleet.EJBCA) { config.EndEntityProfileName = "Missing" },
 			wantErr: fmt.Sprintf(msgEnrollRejected, `End Entity Profile of name "Missing" was not found`),
+		},
+		{
+			name:    "URL with the /ejbca path of the admin UI",
+			modify:  func(_ *testing.T, f *fakeEJBCA, config *fleet.EJBCA) { config.URL = f.srv.URL + "/ejbca" },
+			wantErr: msgNotFound,
+		},
+		{
+			name:      "certificate with a serial number that doesn't fit",
+			configure: func(f *fakeEJBCA) { f.serial = new(big.Int).Lsh(big.NewInt(1), 167) },
+			wantErr:   strings.Split(msgSerialTooLong, "%d")[0],
 		},
 		{
 			name:      "EJBCA server error",
@@ -607,6 +626,15 @@ func TestVerifyConnectionCanceled(t *testing.T) {
 		}
 	})
 	require.ErrorContains(t, NewService().VerifyConnection(ctx, f.config(t)), "canceled")
+}
+
+// A short serial number is padded to the length ingestion pads to, so the managed certificate doesn't update on first ingest.
+func TestGetCertificatePadsSerial(t *testing.T) {
+	t.Parallel()
+	f := newFakeEJBCA(t, func(f *fakeEJBCA) { f.serial = big.NewInt(0xABC) })
+	cert, err := NewService().GetCertificate(t.Context(), f.config(t))
+	require.NoError(t, err)
+	assert.Equal(t, strings.Repeat("0", 37)+"abc", cert.SerialNumber)
 }
 
 // An end entity profile can set the common name itself, for example from the username.

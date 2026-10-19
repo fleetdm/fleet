@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"encoding/json/v2"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -37,6 +38,8 @@ const (
 	serviceDisabledText = "This service has been disabled"
 	// unknownProfileText is in EJBCA's 400 for a certificate profile name it doesn't have.
 	unknownProfileText = "unknown certificate profile"
+	// maxSerialLength is the size of the managed certificate serial column.
+	maxSerialLength = 40
 )
 
 // User-facing messages. They end up in the UI, so they say what to check.
@@ -58,6 +61,9 @@ const (
 	msgProfileNotFound = "EJBCA certificate profile %q was not found."
 	msgEnrollRejected  = "EJBCA rejected the enrollment request: %s. Check the CA, certificate profile, and end entity profile names."
 	msgUnexpected      = "Unexpected response from EJBCA, status %d: %s"
+	msgNotFound        = "EJBCA answered not found. Check the EJBCA URL: it should be EJBCA's base URL, such as https://ejbca.example.com:8443, " +
+		"without a path such as /ejbca."
+	msgSerialTooLong   = "EJBCA issued a certificate with a serial number longer than %d characters: %s"
 	msgCommonNameEmpty = "EJBCA issued a certificate without a common name. Check that the end entity profile takes the subject from " +
 		"the request or fills in a common name."
 	msgUPNMissing = "EJBCA left the user principal name %q out of the certificate. Check that the end entity and certificate profiles " +
@@ -254,8 +260,12 @@ func (s *Service) GetCertificate(ctx context.Context, config fleet.EJBCA) (*flee
 		return nil, err
 	}
 
-	// Lowercase hex, like Fleet's host certificate ingestion, so a managed certificate serial matches an ingested one.
-	serial := cert.SerialNumber.Text(16)
+	// Lowercase hex padded to 40 characters, like Fleet's host certificate ingestion, so the managed certificate serial matches an ingested
+	// one and doesn't update on first ingest. It has to fit the 40 character column.
+	serial := fmt.Sprintf("%040s", cert.SerialNumber.Text(16))
+	if len(serial) > maxSerialLength {
+		return nil, ctxerr.Errorf(ctx, msgSerialTooLong, maxSerialLength, serial)
+	}
 	s.logger.DebugContext(ctx, "EJBCA certificate issued", "serial_number", serial, "not_after", cert.NotAfter)
 	return &fleet.EJBCACertificate{
 		PfxData:        pfxData,
@@ -280,12 +290,8 @@ func (s *Service) newClient(ctx context.Context, config fleet.EJBCA) (*http.Clie
 	if err != nil {
 		return nil, "", ctxerr.Wrap(ctx, err, "loading EJBCA client certificate and key")
 	}
-	leaf, err := x509.ParseCertificate(pair.Certificate[0])
-	if err != nil {
-		return nil, "", ctxerr.Wrap(ctx, err, "parsing EJBCA client certificate")
-	}
-	if time.Now().After(leaf.NotAfter) {
-		return nil, "", ctxerr.Errorf(ctx, msgCertExpired, leaf.NotAfter.UTC().Format(time.DateOnly))
+	if time.Now().After(pair.Leaf.NotAfter) {
+		return nil, "", ctxerr.Errorf(ctx, msgCertExpired, pair.Leaf.NotAfter.UTC().Format(time.DateOnly))
 	}
 
 	tlsConfig := &tls.Config{Certificates: []tls.Certificate{pair}, MinVersion: tls.VersionTLS12}
@@ -360,6 +366,8 @@ func statusError(ctx context.Context, status int, body []byte, enrolling bool) e
 		return ctxerr.New(ctx, msgProtocolDisabled)
 	case status == http.StatusUnauthorized || status == http.StatusForbidden:
 		return ctxerr.Errorf(ctx, msgNotAuthorized, message)
+	case status == http.StatusNotFound:
+		return ctxerr.New(ctx, msgNotFound)
 	case status == http.StatusBadRequest && enrolling:
 		return ctxerr.Errorf(ctx, msgEnrollRejected, message)
 	default:
