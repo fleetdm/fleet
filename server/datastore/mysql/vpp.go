@@ -21,7 +21,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
@@ -2122,7 +2121,6 @@ TEAMLOOP:
 }
 
 func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error) {
-	stmtTeamName := `SELECT name FROM teams WHERE id = ?`
 	stmtRemove := `DELETE FROM vpp_token_teams WHERE vpp_token_id = ?`
 	stmtInsert := `
 	INSERT INTO
@@ -2138,6 +2136,11 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 		SET vpp_apps_teams_id = NULL`
 	stmtDeleteApps := `DELETE vat FROM vpp_apps_teams vat WHERE vat.vpp_token_id = ? %s`
 
+	// Duplicate IDs would hit the unique key, or insert "No fleet" twice since team_id is NULL for it.
+	teams = slices.Clone(teams) // keeps nil (unassigned) distinct from [] (All fleets)
+	slices.Sort(teams)
+	teams = slices.Compact(teams)
+
 	var teamsFilter string
 	if len(teams) > 0 {
 		teamsFilter = "AND vat.global_or_team_id NOT IN (?)"
@@ -2148,9 +2151,6 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 
 	var values string
 	var args []any
-	// No DB constraint for null_team_type, if no team or all teams
-	// comes up we have to check it in go
-	var nullTeamCheck fleet.NullTeamType
 
 	if len(teams) > 0 {
 		for _, team := range teams {
@@ -2168,7 +2168,6 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 			} else {
 				// NoTeam team
 				nullTeam = fleet.NullTeamNoTeam
-				nullTeamCheck = fleet.NullTeamNoTeam
 			}
 			args = append(args, id, teamptr, nullTeam)
 		}
@@ -2176,19 +2175,11 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 		// Empty but not nil, All Teams!
 		values = stmtValues
 		args = append(args, id, nil, fleet.NullTeamAllTeams)
-		nullTeamCheck = fleet.NullTeamAllTeams
 	}
 
 	stmtInsertFull := stmtInsert + values
 
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// NOTE This is not optimal, and has the potential to
-		// introduce race conditions. Ideally we would insert and
-		// check the constraints in a single query.
-		if err := checkVPPNullTeam(ctx, tx, &id, nullTeamCheck); err != nil {
-			return ctxerr.Wrap(ctx, err, "vpp token null team check")
-		}
-
 		// Skip deleting apps when the token moves to all fleets, every fleet still has access to them
 		if teams == nil || len(teams) > 0 {
 			// Expand into local copies so a retried transaction expands the original statements again
@@ -2233,17 +2224,6 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 		return nil
 	})
 	if err != nil {
-		var mysqlErr *mysql.MySQLError
-		// https://dev.mysql.com/doc/mysql-errors/8.4/en/server-error-reference.html#error_er_dup_entry
-		if errors.As(err, &mysqlErr) && IsDuplicate(err) {
-			var dupeTeamID uint
-			var dupeTeamName string
-			_, _ = fmt.Sscanf(mysqlErr.Message, "Duplicate entry '%d' for", &dupeTeamID)
-			if err := sqlx.GetContext(ctx, ds.reader(ctx), &dupeTeamName, stmtTeamName, dupeTeamID); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "getting team name for vpp token conflict error")
-			}
-			return nil, ctxerr.Wrap(ctx, fleet.ErrVPPTokenTeamConstraint{Name: dupeTeamName, ID: &dupeTeamID})
-		}
 		return nil, ctxerr.Wrap(ctx, err, "modifying vpp token team associations")
 	}
 
@@ -2555,53 +2535,6 @@ TEAMLOOP:
 	}
 
 	return tok, nil
-}
-
-func checkVPPNullTeam(ctx context.Context, tx sqlx.ExtContext, currentID *uint, nullTeam fleet.NullTeamType) error {
-	nullTeamStmt := `SELECT vpp_token_id FROM vpp_token_teams WHERE null_team_type = ?`
-	anyTeamStmt := `SELECT vpp_token_id FROM vpp_token_teams WHERE (null_team_type = 'allteams' OR null_team_type = 'noteam' OR team_id IS NOT NULL) AND vpp_token_id != ?`
-
-	if nullTeam == fleet.NullTeamAllTeams {
-		var ids []uint
-		if err := sqlx.SelectContext(ctx, tx, &ids, anyTeamStmt, *currentID); err != nil {
-			return ctxerr.Wrap(ctx, err, "scanning row in check vpp token null team")
-		}
-
-		// Only blocks assignment if another token is already assigned to one or more teams.
-		// Allows the current token to switch from teams to "all teams" freely
-		if len(ids) > 0 {
-			return ctxerr.Wrap(ctx, errors.New("Cannot assign token to All teams, other teams have tokens"))
-		}
-	}
-
-	var id uint
-	allTeamsFound := true
-	if err := sqlx.GetContext(ctx, tx, &id, nullTeamStmt, fleet.NullTeamAllTeams); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			allTeamsFound = false
-		} else {
-			return ctxerr.Wrap(ctx, err, "scanning row in check vpp token null team")
-		}
-	}
-
-	if allTeamsFound && currentID != nil && *currentID != id {
-		return ctxerr.Wrap(ctx, fleet.ErrVPPTokenTeamConstraint{Name: fleet.ReservedNameAllTeams})
-	}
-
-	if nullTeam != fleet.NullTeamNone {
-		var id uint
-		if err := sqlx.GetContext(ctx, tx, &id, nullTeamStmt, nullTeam); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return nil
-			}
-			return ctxerr.Wrap(ctx, err, "scanning row in check vpp token null team")
-		}
-		if currentID == nil || *currentID != id {
-			return ctxerr.Wrap(ctx, fleet.ErrVPPTokenTeamConstraint{Name: nullTeam.PrettyName()})
-		}
-	}
-
-	return nil
 }
 
 func (ds *Datastore) GetIncludedHostIDMapForVPPApp(ctx context.Context, vppAppTeamID uint) (map[uint]struct{}, error) {

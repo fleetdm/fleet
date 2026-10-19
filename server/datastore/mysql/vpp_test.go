@@ -1393,21 +1393,26 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeam.ID, []uint{team.ID})
 	assert.NoError(t, err)
-	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeam.ID, []uint{team.ID, team.ID})
-	assert.Error(t, err)
+	// duplicate IDs are stored once
+	upTok, err = ds.UpdateVPPTokenTeams(ctx, tokTeam.ID, []uint{team.ID, team.ID})
+	require.NoError(t, err)
+	require.Equal(t, []fleet.TeamTuple{{ID: team.ID, Name: team.Name}}, upTok.Teams)
 
-	// Cannot move tokAll to all teams now
+	// All fleets stacks with fleet and Unassigned tokens
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokAll.ID, []uint{})
-	assert.Error(t, err)
+	require.NoError(t, err)
 
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeam.ID, []uint{0})
 	assert.NoError(t, err)
 
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokAll.ID, []uint{})
-	assert.Error(t, err)
+	require.NoError(t, err)
 
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeam.ID, []uint{team.ID})
 	assert.NoError(t, err)
+
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokAll.ID, nil)
+	require.NoError(t, err)
 
 	///
 
@@ -1418,8 +1423,9 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	tokTeams, err := ds.InsertVPPToken(ctx, dataToken4)
 	assert.NoError(t, err)
 
+	// a fleet can hold several tokens
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team.ID, team2.ID})
-	assert.Error(t, err)
+	require.NoError(t, err)
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team2.ID})
 	assert.NoError(t, err)
 
@@ -1439,16 +1445,14 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	// adding a fleet to the token keeps the automation on the fleet it stays on
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team.ID, team2.ID})
-	assert.Error(t, err)
+	require.NoError(t, err)
 
-	// errored update shouldn't have cleared anything
 	t2Policy, err = ds.Policy(ctx, t2Policy.ID)
 	assert.NoError(t, err)
 	assert.Equal(t, t2meta.VPPAppsTeamsID, *t2Policy.VPPAppsTeamsID)
 
-	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team.ID, 0})
-	assert.Error(t, err)
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team2.ID, 0})
 	assert.NoError(t, err)
 
@@ -1505,16 +1509,8 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team2.ID, 0})
 	require.NoError(t, err)
 
-	tokBadConstraint, err := ds.InsertVPPToken(ctx, dataToken5)
+	_, err = ds.InsertVPPToken(ctx, dataToken5)
 	assert.NoError(t, err)
-	_, err = ds.UpdateVPPTokenTeams(ctx, tokBadConstraint.ID, []uint{})
-	assert.Error(t, err)
-	_, err = ds.UpdateVPPTokenTeams(ctx, tokBadConstraint.ID, []uint{team.ID})
-	assert.Error(t, err)
-	assert.ErrorContains(t, err, "\"Kritters\" team already has a VPP token.")
-	_, err = ds.UpdateVPPTokenTeams(ctx, tokBadConstraint.ID, []uint{0})
-	assert.Error(t, err)
-	assert.ErrorContains(t, err, "\"No team\" team already has a VPP token.")
 
 	toks, err = ds.ListVPPTokens(ctx)
 	assert.NoError(t, err)
@@ -1608,6 +1604,19 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.NoError(t, err)
 
 	////
+	// duplicate IDs are stored once, including repeated "No fleet"
+	upTok, err = ds.UpdateVPPTokenTeams(ctx, tokNone.ID, []uint{team.ID, team.ID, 0, 0})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []fleet.TeamTuple{{ID: team.ID, Name: team.Name}, {ID: 0, Name: fleet.TeamNameNoTeam}}, upTok.Teams)
+	var rows int
+	require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &rows, `SELECT COUNT(*) FROM vpp_token_teams WHERE vpp_token_id = ?`, tokNone.ID))
+	assert.Equal(t, 2, rows)
+
+	// a fleet that doesn't exist is still rejected
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokNone.ID, []uint{team.ID, 99999})
+	require.Error(t, err)
+	require.True(t, fleet.IsForeignKey(err), "got %v", err)
+
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokNone.ID, []uint{0, team.ID, team2.ID})
 	assert.NoError(t, err)
 
@@ -1698,17 +1707,17 @@ func testVPPTokenAppTeamAssociations(t *testing.T, ds *Datastore) {
 	assert.Len(t, apps, 1)
 	assert.Contains(t, apps, app1.VPPAppID)
 
-	/// Try to move team 1 token to team 2
+	/// Move team 1 token to team 2, which already has a token
 
 	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{team2.ID})
-	assert.Error(t, err)
+	require.NoError(t, err)
 
-	// team1: token 1, app1, app2
-	// team2: token 2, app 1
+	// team1: no token, no apps
+	// team2: token 1, token 2, app 1 (token 2's)
 
 	apps, err = ds.GetAssignedVPPApps(ctx, &team1.ID)
 	assert.NoError(t, err)
-	assert.Len(t, apps, 2)
+	assert.Empty(t, apps)
 
 	apps, err = ds.GetAssignedVPPApps(ctx, &team2.ID)
 	assert.NoError(t, err)
@@ -1790,6 +1799,18 @@ func testVPPTokenReassignTeamsToAllTeams(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, upTok.Teams, 1)
 	require.Equal(t, team1.ID, upTok.Teams[0].ID)
+
+	// A second token on team1 doesn't block moving the first one to All fleets
+	tokenData2, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Second Org For Reassign", "Second Loc For Reassign")
+	require.NoError(t, err)
+	tok2, err := ds.InsertVPPToken(ctx, tokenData2)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok2.ID, []uint{team1.ID})
+	require.NoError(t, err)
+	upTok, err = ds.UpdateVPPTokenTeams(ctx, tokenID, []uint{})
+	require.NoError(t, err)
+	require.NotNil(t, upTok.Teams)
+	require.Empty(t, upTok.Teams)
 }
 
 func testGetOrInsertSoftwareTitleForVPPApp(t *testing.T, ds *Datastore) {

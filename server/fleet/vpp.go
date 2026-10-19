@@ -215,15 +215,6 @@ type VPPAppStatusSummary struct {
 	Failed uint `json:"failed" db:"failed"`
 }
 
-type ErrVPPTokenTeamConstraint struct {
-	Name string
-	ID   *uint
-}
-
-func (e ErrVPPTokenTeamConstraint) Error() string {
-	return fmt.Sprintf("Error: %q team already has a VPP token. Each team can only have one VPP token.", e.Name)
-}
-
 // HostVPPSoftwareInstall represents a VPP software install attempt on a host.
 type HostVPPSoftwareInstall struct {
 	InstallCommandUUID   string     `db:"command_uuid"`
