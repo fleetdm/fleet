@@ -24,7 +24,7 @@ are real, not that it enforces what the admin asked for.`,
     profileType: {
       type: 'string',
       required: true,
-      isIn: ['mobileconfig', 'ddm', 'csp'],
+      isIn: ['mobileconfig', 'ddm', 'csp', 'android'],
     },
 
     profile: {
