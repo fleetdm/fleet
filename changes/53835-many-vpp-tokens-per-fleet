@@ -1,0 +1,1 @@
+- A fleet can now be assigned to more than one VPP token, and a VPP token assigned to "All fleets" is available alongside other VPP tokens. Each App Store app uses the VPP token it was added from to assign and release licenses.

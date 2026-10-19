@@ -881,16 +881,20 @@ func (svc *Service) rewriteAppConfigTeamNames(
 		}
 	}
 
-	vppToken, err := svc.ds.GetVPPTokenByTeamID(ctx, &teamID)
-	if err != nil && !fleet.IsNotFound(err) {
-		return ctxerr.Wrap(ctx, err, "get VPP token by team ID")
+	vppTokens, err := svc.ds.ListVPPTokens(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list VPP tokens")
 	}
-	if vppToken != nil {
-		for i := range appCfg.MDM.VolumePurchasingProgram.Value {
-			programInfo := &appCfg.MDM.VolumePurchasingProgram.Value[i]
-			if programInfo.Location == vppToken.Location && vpp(programInfo) {
-				updated = true
-			}
+	vppLocations := make(map[string]struct{})
+	for _, tok := range vppTokens {
+		if slices.ContainsFunc(tok.Teams, func(t fleet.TeamTuple) bool { return t.ID == teamID }) {
+			vppLocations[tok.Location] = struct{}{}
+		}
+	}
+	for i := range appCfg.MDM.VolumePurchasingProgram.Value {
+		programInfo := &appCfg.MDM.VolumePurchasingProgram.Value[i]
+		if _, ok := vppLocations[programInfo.Location]; ok && vpp(programInfo) {
+			updated = true
 		}
 	}
 

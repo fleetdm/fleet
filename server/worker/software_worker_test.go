@@ -801,11 +801,11 @@ type resendVPPInstaller struct {
 	installedAppTeamIDByHostID map[uint]uint
 }
 
-func (i *resendVPPInstaller) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
-	return "vpp-token", nil
+func (i *resendVPPInstaller) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host, vppApp *fleet.VPPApp) (*fleet.VPPTokenDB, error) {
+	return &fleet.VPPTokenDB{Token: "vpp-token"}, nil
 }
 
-func (i *resendVPPInstaller) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
+func (i *resendVPPInstaller) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token *fleet.VPPTokenDB, opts fleet.HostSoftwareInstallOptions) (string, error) {
 	err := i.installErrByHostID[host.ID]
 	if err != nil {
 		return "", err

@@ -918,3 +918,25 @@ func TestAppStoreAppsRequireAppleMDM(t *testing.T) {
 		require.False(t, baseSvc.VerifyMDMAppleConfiguredFuncInvoked)
 	})
 }
+
+func TestGetVPPTokenForApp(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds}
+	teamID := new(uint(1))
+
+	usToken := &fleet.VPPTokenDB{ID: 1, Location: "Acme US", Token: "us", RenewDate: time.Now().Add(24 * time.Hour)}
+	jpToken := &fleet.VPPTokenDB{ID: 2, Location: "Acme Japan", Token: "jp", RenewDate: time.Now().Add(-time.Hour)}
+	tokenByAppTeamID := map[uint]*fleet.VPPTokenDB{10: usToken, 20: jpToken}
+	ds.GetVPPTokenForVPPAppTeamFunc = func(_ context.Context, vppAppTeamID uint, tid *uint) (*fleet.VPPTokenDB, error) {
+		require.Equal(t, teamID, tid)
+		return tokenByAppTeamID[vppAppTeamID], nil
+	}
+
+	tok, err := svc.getVPPTokenForApp(t.Context(), &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{AppTeamID: 10}}, teamID)
+	require.NoError(t, err)
+	require.Equal(t, usToken, tok)
+
+	// An expired token only blocks the apps added from it.
+	_, err = svc.getVPPTokenForApp(t.Context(), &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{AppTeamID: 20}}, teamID)
+	require.ErrorContains(t, err, "VPP token expired")
+}

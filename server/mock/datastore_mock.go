@@ -1460,6 +1460,8 @@ type GetVPPTokenFunc func(ctx context.Context, tokenID uint) (*fleet.VPPTokenDB,
 
 type GetVPPTokenByTeamIDFunc func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error)
 
+type GetVPPTokenForVPPAppTeamFunc func(ctx context.Context, vppAppTeamID uint, teamID *uint) (*fleet.VPPTokenDB, error)
+
 type UpdateVPPTokenTeamsFunc func(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error)
 
 type UpdateVPPTokenFunc func(ctx context.Context, id uint, tok *fleet.VPPTokenData) (*fleet.VPPTokenDB, error)
@@ -4754,6 +4756,9 @@ type DataStore struct {
 
 	GetVPPTokenByTeamIDFunc        GetVPPTokenByTeamIDFunc
 	GetVPPTokenByTeamIDFuncInvoked bool
+
+	GetVPPTokenForVPPAppTeamFunc        GetVPPTokenForVPPAppTeamFunc
+	GetVPPTokenForVPPAppTeamFuncInvoked bool
 
 	UpdateVPPTokenTeamsFunc        UpdateVPPTokenTeamsFunc
 	UpdateVPPTokenTeamsFuncInvoked bool
@@ -11492,6 +11497,13 @@ func (s *DataStore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fle
 	s.GetVPPTokenByTeamIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetVPPTokenByTeamIDFunc(ctx, teamID)
+}
+
+func (s *DataStore) GetVPPTokenForVPPAppTeam(ctx context.Context, vppAppTeamID uint, teamID *uint) (*fleet.VPPTokenDB, error) {
+	s.mu.Lock()
+	s.GetVPPTokenForVPPAppTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetVPPTokenForVPPAppTeamFunc(ctx, vppAppTeamID, teamID)
 }
 
 func (s *DataStore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error) {

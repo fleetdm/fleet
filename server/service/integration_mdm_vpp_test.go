@@ -2287,3 +2287,84 @@ func (s *integrationMDMTestSuite) TestRefreshVPPAppVersionsForAllPlatforms() {
 	err = vpp.RefreshVersions(t.Context(), s.ds, stubbedConfig)
 	require.NoError(t, err)
 }
+
+func (s *integrationMDMTestSuite) TestVPPInstallsUseAppToken() {
+	t := s.T()
+	ctx := t.Context()
+	s.setSkipWorkerJobs(t)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL, t)
+
+	origLocation := s.appleVPPConfigSrvConfig.Location
+	t.Cleanup(func() { s.appleVPPConfigSrvConfig.Location = origLocation })
+	uploadToken := func(location string) *fleet.VPPTokenDB {
+		s.appleVPPConfigSrvConfig.Location = location
+		tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"Acme"}`,
+			time.Now().Add(200*time.Hour).UTC().Format(fleet.VPPTimeFormat), uuid.NewString())
+		var resp uploadVPPTokenResponse
+		s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken",
+			[]byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &resp)
+		tok, err := s.ds.GetVPPToken(ctx, resp.Token.ID)
+		require.NoError(t, err)
+		return tok
+	}
+	usToken, jpToken := uploadToken("Acme US"), uploadToken("Acme Japan")
+
+	var newTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new(t.Name())}, http.StatusOK, &newTeamResp)
+	team := newTeamResp.Team
+
+	host, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setOrbitEnrollment(t, host, s.ds)
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, host.HardwareSerial)
+	s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{host.ID}, TeamID: &team.ID}, http.StatusOK)
+
+	// Only the JP token is assigned when app 1 is added, so it binds to it. Once the US token is also assigned, it's the
+	// fleet's first-added token, so app 2 binds to it.
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", jpToken.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK)
+	addApp := func(adamID string) uint {
+		var resp addAppStoreAppResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
+			&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: adamID, Platform: fleet.MacOSPlatform}, http.StatusOK, &resp)
+		return resp.TitleID
+	}
+	jpTitleID := addApp("1")
+	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", usToken.ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK)
+	usTitleID := addApp("2")
+
+	var listResp getVPPTokensResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", nil, http.StatusOK, &listResp)
+	for _, tok := range listResp.Tokens {
+		require.Equal(t, []fleet.TeamTuple{{ID: team.ID, Name: team.Name}}, tok.Teams)
+	}
+
+	s.appleVPPConfigSrvConfig.AssociateAuthorizations = nil
+	s.appleVPPConfigSrvConfig.DisassociateAuthorizations = nil
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, jpTitleID), &installSoftwareRequest{}, http.StatusAccepted)
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, usTitleID), &installSoftwareRequest{}, http.StatusAccepted)
+	require.Equal(t, []string{"Bearer " + jpToken.Token, "Bearer " + usToken.Token}, s.appleVPPConfigSrvConfig.AssociateAuthorizations)
+
+	var installTokenIDs []uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &installTokenIDs, `
+			SELECT vaua.vpp_token_id FROM upcoming_activities ua
+			JOIN vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
+			WHERE ua.host_id = ? ORDER BY ua.id`, host.ID)
+	})
+	require.Equal(t, []uint{jpToken.ID, usToken.ID}, installTokenIDs)
+
+	// Canceling the pending US install releases the seat from the US token
+	var activitiesResp listHostUpcomingActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID), nil, http.StatusOK, &activitiesResp)
+	require.Len(t, activitiesResp.Activities, 2)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", host.ID, activitiesResp.Activities[1].UUID), nil, http.StatusNoContent)
+	require.Equal(t, []string{"Bearer " + usToken.Token}, s.appleVPPConfigSrvConfig.DisassociateAuthorizations)
+
+	// An expired token only blocks installs of its own apps
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE vpp_tokens SET renew_at = ? WHERE id = ?`, time.Now().Add(-time.Hour), jpToken.ID)
+		return err
+	})
+	res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, jpTitleID), &installSoftwareRequest{}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "VPP token expired")
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, usTitleID), &installSoftwareRequest{}, http.StatusAccepted)
+}

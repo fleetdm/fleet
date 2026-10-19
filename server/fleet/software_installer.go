@@ -1487,6 +1487,8 @@ type HostSoftwareInstallOptions struct {
 	DeferActivation bool
 	// VPPAppTeamID is the vpp_apps_teams row an App Store app install is for.
 	VPPAppTeamID uint
+	// VPPTokenID is the VPP token an App Store app install assigns the license from.
+	VPPTokenID uint
 	// ForConfigurationResend means the install request re-sends an iOS/iPadOS App Store app configuration, which means it was Fleet-initiated.
 	ForConfigurationResend bool
 }

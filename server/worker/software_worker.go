@@ -1091,7 +1091,7 @@ func (v *SoftwareWorker) resendVPPAppConfigurationBatch(ctx context.Context, arg
 
 	var retryHostIDs []uint
 	var host *fleet.Host
-	var token string
+	var token *fleet.VPPTokenDB
 	for _, hostID := range args.HostIDs {
 		_, installUnactivated := hostIDsWithUnactivatedInstall[hostID]
 		if installUnactivated {
@@ -1109,7 +1109,7 @@ func (v *SoftwareWorker) resendVPPAppConfigurationBatch(ctx context.Context, arg
 			continue
 		}
 
-		token, err = v.VPPInstaller.GetVPPTokenIfCanInstallVPPApps(ctx, true, host)
+		token, err = v.VPPInstaller.GetVPPTokenIfCanInstallVPPApps(ctx, true, host, vppApp)
 		if err == nil {
 			_, err = v.VPPInstaller.InstallVPPAppPostValidation(ctx, host, vppApp, token, fleet.HostSoftwareInstallOptions{
 				ForConfigurationResend: true,

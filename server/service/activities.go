@@ -244,7 +244,14 @@ func (svc *Service) releaseVPPSeat(ctx context.Context, host *fleet.Host, info *
 		return nil
 	}
 
-	tokenDB, err := svc.ds.GetVPPTokenByTeamID(ctx, host.TeamID)
+	// Release the seat from the token that assigned it, which isn't always the fleet's first-added token.
+	var tokenDB *fleet.VPPTokenDB
+	var err error
+	if info.VPPTokenID != nil {
+		tokenDB, err = svc.ds.GetVPPToken(ctx, *info.VPPTokenID)
+	} else {
+		tokenDB, err = svc.ds.GetVPPTokenByTeamID(ctx, host.TeamID)
+	}
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return nil

@@ -6660,9 +6660,8 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		return nil
 	}
 
-	// Get VPP token, fail early if we cannot get it
-	// (e.g. not configured, or not configured for the host's team).
-	vppToken, err := svc.ds.GetVPPTokenByTeamID(ctx, host.TeamID)
+	// Fail early if the host's team has no VPP token (e.g. not configured, or not configured for the host's team).
+	_, err := svc.ds.GetVPPTokenByTeamID(ctx, host.TeamID)
 	switch {
 	case err == nil:
 		// OK
@@ -7015,7 +7014,16 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			continue
 		}
 
-		commandUUID, err := svc.vppInstaller.InstallVPPAppPostValidation(ctx, host, vppApp, vppToken.Token, fleet.HostSoftwareInstallOptions{
+		vppToken, err := svc.ds.GetVPPTokenForVPPAppTeam(ctx, vppApp.AppTeamID, host.TeamID)
+		if err != nil {
+			logger.ErrorContext(
+				ctx, "get VPP token for app",
+				"err", err,
+			)
+			continue
+		}
+
+		commandUUID, err := svc.vppInstaller.InstallVPPAppPostValidation(ctx, host, vppApp, vppToken, fleet.HostSoftwareInstallOptions{
 			ForScheduledUpdates: true,
 			// scheduled updates fan out to many hosts at once, like policy
 			// automations, so they respect the same release budget

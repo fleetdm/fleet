@@ -513,9 +513,9 @@ type SoftwareTitleNameForHostFilterFunc func(ctx context.Context, id uint, teamI
 
 type InstallSoftwareTitleFunc func(ctx context.Context, hostID uint, softwareTitleID uint) error
 
-type GetVPPTokenIfCanInstallVPPAppsFunc func(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error)
+type GetVPPTokenIfCanInstallVPPAppsFunc func(ctx context.Context, appleDevice bool, host *fleet.Host, vppApp *fleet.VPPApp) (*fleet.VPPTokenDB, error)
 
-type InstallVPPAppPostValidationFunc func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error)
+type InstallVPPAppPostValidationFunc func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token *fleet.VPPTokenDB, opts fleet.HostSoftwareInstallOptions) (string, error)
 
 type InstallInHouseAppForSetupExperienceFunc func(ctx context.Context, host *fleet.Host, inHouseAppID uint, softwareTitleID uint) (string, error)
 
@@ -4302,14 +4302,14 @@ func (s *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softwar
 	return s.InstallSoftwareTitleFunc(ctx, hostID, softwareTitleID)
 }
 
-func (s *Service) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
+func (s *Service) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host, vppApp *fleet.VPPApp) (*fleet.VPPTokenDB, error) {
 	s.mu.Lock()
 	s.GetVPPTokenIfCanInstallVPPAppsFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetVPPTokenIfCanInstallVPPAppsFunc(ctx, appleDevice, host)
+	return s.GetVPPTokenIfCanInstallVPPAppsFunc(ctx, appleDevice, host, vppApp)
 }
 
-func (s *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
+func (s *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token *fleet.VPPTokenDB, opts fleet.HostSoftwareInstallOptions) (string, error) {
 	s.mu.Lock()
 	s.InstallVPPAppPostValidationFuncInvoked = true
 	s.mu.Unlock()

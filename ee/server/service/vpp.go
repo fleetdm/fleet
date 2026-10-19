@@ -146,25 +146,25 @@ func ensureVPPTokenCountry(ctx context.Context, ds fleet.Datastore, token *fleet
 	return nil
 }
 
-// getVPPToken returns the base64 encoded VPP token, ready for use in requests
-// to Apple's VPP API. Returns an error if the token is missing or expired.
+// getVPPTokenForApp returns the VPP token the app was added from, ready for use in
+// requests to Apple's VPP API. Returns an error if the token is missing or expired.
 // Does NOT touch country_code: install-time callers only need the secret, and
 // any synchronous Apple call here would block installs whenever Apple is
 // unreachable. Country lookup happens in getVPPTokenInfo.
-func (svc *Service) getVPPToken(ctx context.Context, teamID *uint) (string, error) {
-	token, err := svc.ds.GetVPPTokenByTeamID(ctx, teamID)
+func (svc *Service) getVPPTokenForApp(ctx context.Context, vppApp *fleet.VPPApp, teamID *uint) (*fleet.VPPTokenDB, error) {
+	token, err := svc.ds.GetVPPTokenForVPPAppTeam(ctx, vppApp.AppTeamID, teamID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", fleet.NewUserMessageError(errors.New("No available VPP Token"), http.StatusUnprocessableEntity)
+			return nil, fleet.NewUserMessageError(errors.New("No available VPP Token"), http.StatusUnprocessableEntity)
 		}
-		return "", ctxerr.Wrap(ctx, err, "fetching vpp token")
+		return nil, ctxerr.Wrap(ctx, err, "fetching vpp token")
 	}
 
 	if time.Now().After(token.RenewDate) {
-		return "", fleet.NewUserMessageError(errors.New("Couldn't install. VPP token expired."), http.StatusUnprocessableEntity)
+		return nil, fleet.NewUserMessageError(errors.New("Couldn't install. VPP token expired."), http.StatusUnprocessableEntity)
 	}
 
-	return token.Token, nil
+	return token, nil
 }
 
 // getVPPTokenInfo returns both the secret and the storefront country for the
@@ -1911,10 +1911,6 @@ func (svc *Service) UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamI
 
 	tok, err := svc.ds.UpdateVPPTokenTeams(ctx, tokenID, teamIDs)
 	if err != nil {
-		var errTokConstraint fleet.ErrVPPTokenTeamConstraint
-		if errors.As(err, &errTokConstraint) {
-			return nil, ctxerr.Wrap(ctx, fleet.NewUserMessageError(errTokConstraint, http.StatusConflict))
-		}
 		return nil, ctxerr.Wrap(ctx, err, "updating vpp token team")
 	}
 

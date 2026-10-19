@@ -1897,7 +1897,7 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 }
 
 func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, appleDevice bool, opts fleet.HostSoftwareInstallOptions) (string, error) {
-	token, err := svc.GetVPPTokenIfCanInstallVPPApps(ctx, appleDevice, host)
+	token, err := svc.GetVPPTokenIfCanInstallVPPApps(ctx, appleDevice, host, vppApp)
 	if err != nil {
 		return "", err
 	}
@@ -1905,9 +1905,9 @@ func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host
 	return svc.InstallVPPAppPostValidation(ctx, host, vppApp, token, opts)
 }
 
-func (svc *Service) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
+func (svc *Service) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host, vppApp *fleet.VPPApp) (*fleet.VPPTokenDB, error) {
 	if !appleDevice {
-		return "", &fleet.BadRequestError{
+		return nil, &fleet.BadRequestError{
 			Message: "VPP apps can only be installed only on Apple hosts.",
 			InternalErr: ctxerr.NewWithData(
 				ctx, "invalid host platform for requested installer",
@@ -1918,20 +1918,20 @@ func (svc *Service) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDev
 
 	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "fetching config to check MDM status")
+		return nil, ctxerr.Wrap(ctx, err, "fetching config to check MDM status")
 	}
 
 	if !config.MDM.EnabledAndConfigured {
-		return "", fleet.NewUserMessageError(errors.New("Couldn't install. MDM is turned off. Please make sure that MDM is turned on to install App Store apps."), http.StatusUnprocessableEntity)
+		return nil, fleet.NewUserMessageError(errors.New("Couldn't install. MDM is turned off. Please make sure that MDM is turned on to install App Store apps."), http.StatusUnprocessableEntity)
 	}
 
 	mdmConnected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
 	if err != nil {
-		return "", ctxerr.Wrapf(ctx, err, "checking MDM status for host %d", host.ID)
+		return nil, ctxerr.Wrapf(ctx, err, "checking MDM status for host %d", host.ID)
 	}
 
 	if !mdmConnected {
-		return "", &fleet.BadRequestError{
+		return nil, &fleet.BadRequestError{
 			Message: "Error: Couldn't install. To install App Store app, turn on MDM for this host.",
 			InternalErr: ctxerr.NewWithData(
 				ctx, "VPP install attempted on non-MDM host",
@@ -1940,9 +1940,9 @@ func (svc *Service) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDev
 		}
 	}
 
-	token, err := svc.getVPPToken(ctx, host.TeamID)
+	token, err := svc.getVPPTokenForApp(ctx, vppApp, host.TeamID)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "getting VPP token")
+		return nil, ctxerr.Wrap(ctx, err, "getting VPP token")
 	}
 
 	return token, nil
@@ -2064,8 +2064,9 @@ func (svc *Service) InstallInHouseAppForSetupExperience(ctx context.Context, hos
 	return cmdUUID, nil
 }
 
-func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
+func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token *fleet.VPPTokenDB, opts fleet.HostSoftwareInstallOptions) (string, error) {
 	opts.VPPAppTeamID = vppApp.AppTeamID
+	opts.VPPTokenID = token.ID
 	if opts.ForConfigurationResend {
 		opts.DeferActivation = svc.config.Activity.FleetInitiatedReleasePerMinute > 0
 	}
@@ -2133,15 +2134,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 
 	var clientUserID string
 	if isUserEnrollment {
-		// Token-selection policy (per #44009): use the team's default token —
-		// `GetVPPTokenByTeamID` already returns the first token for the team
-		// (existing behavior). Multi-location support is deferred unless a
-		// customer hits the edge case.
-		personalTokenDB, err := svc.ds.GetVPPTokenByTeamID(ctx, host.TeamID)
-		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "fetching VPP token DB row for user-enrolled install")
-		}
-		clientUserID, err = svc.ensureVPPClientUser(ctx, host, personalTokenDB)
+		clientUserID, err = svc.ensureVPPClientUser(ctx, host, token)
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "ensure VPP client user")
 		}
@@ -2153,7 +2146,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 	} else {
 		assignmentFilter.SerialNumber = host.HardwareSerial
 	}
-	assignments, err := vpp.GetAssignments(ctx, token, assignmentFilter)
+	assignments, err := vpp.GetAssignments(ctx, token.Token, assignmentFilter)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "getting assignments from VPP API")
 	}
@@ -2167,7 +2160,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 	// this app is not assigned to this device (or this user, for BYOD), check
 	// if we have licenses left and assign it.
 	if len(assignments) == 0 {
-		assets, err := vpp.GetAssets(ctx, token, &vpp.AssetFilter{AdamID: vppApp.AdamID})
+		assets, err := vpp.GetAssets(ctx, token.Token, &vpp.AssetFilter{AdamID: vppApp.AdamID})
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "getting assets from VPP API")
 		}
@@ -2210,7 +2203,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 			req.SerialNumbers = []string{host.HardwareSerial}
 		}
 
-		eventID, err = vpp.AssociateAssets(ctx, token, req)
+		eventID, err = vpp.AssociateAssets(ctx, token.Token, req)
 		if err == nil {
 			// We reserved a seat; remember the request so we can release it if a
 			// later step fails.
@@ -2249,7 +2242,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 		// must release it — otherwise the seat leaks (no install will ever use
 		// it). Best-effort: log and continue returning the original error.
 		if assocReq != nil {
-			if _, dErr := vpp.DisassociateAssets(token, assocReq); dErr != nil {
+			if _, dErr := vpp.DisassociateAssets(token.Token, assocReq); dErr != nil {
 				svc.logger.ErrorContext(ctx, "failed to release reserved VPP license after install insert failure",
 					"err", dErr, "host_id", host.ID, "adam_id", vppApp.AdamID)
 			}

@@ -6562,10 +6562,10 @@ func TestProcessVPPForNewlyFailingPoliciesContinuousCooldown(t *testing.T) {
 
 	var installCalled bool
 	svcImpl.SetEnterpriseOverrides(fleet.EnterpriseOverrides{
-		GetVPPTokenIfCanInstallVPPApps: func(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
-			return "vpp-token", nil
+		GetVPPTokenIfCanInstallVPPApps: func(ctx context.Context, appleDevice bool, host *fleet.Host, vppApp *fleet.VPPApp) (*fleet.VPPTokenDB, error) {
+			return &fleet.VPPTokenDB{Token: "vpp-token"}, nil
 		},
-		InstallVPPAppPostValidation: func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
+		InstallVPPAppPostValidation: func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token *fleet.VPPTokenDB, opts fleet.HostSoftwareInstallOptions) (string, error) {
 			installCalled = true
 			return "command-uuid", nil
 		},
@@ -6654,10 +6654,10 @@ func TestProcessVPPForNewlyFailingPoliciesSkipsQueuedInstalls(t *testing.T) {
 		installPolicyIDs []uint
 	)
 	svcImpl.SetEnterpriseOverrides(fleet.EnterpriseOverrides{
-		GetVPPTokenIfCanInstallVPPApps: func(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
-			return "vpp-token", nil
+		GetVPPTokenIfCanInstallVPPApps: func(ctx context.Context, appleDevice bool, host *fleet.Host, vppApp *fleet.VPPApp) (*fleet.VPPTokenDB, error) {
+			return &fleet.VPPTokenDB{Token: "vpp-token"}, nil
 		},
-		InstallVPPAppPostValidation: func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
+		InstallVPPAppPostValidation: func(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token *fleet.VPPTokenDB, opts fleet.HostSoftwareInstallOptions) (string, error) {
 			installs = append(installs, vppApp.AdamID)
 			if opts.PolicyID != nil {
 				installPolicyIDs = append(installPolicyIDs, *opts.PolicyID)

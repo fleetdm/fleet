@@ -3240,11 +3240,6 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "failed to get host details")
 	}
-	vppToken, err := svc.EnterpriseOverrides.GetVPPTokenIfCanInstallVPPApps(ctx, true, host)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "host is not able to install VPP apps")
-	}
-
 	pendingAppInstalls, err := svc.ds.MapAdamIDsPendingInstall(ctx, hostID)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "failed to check pending VPP installs")
@@ -3334,6 +3329,16 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 		if err != nil {
 			logger.ErrorContext(
 				ctx, "failed to get the host's VPP app version",
+				"err", err,
+			)
+			continue
+		}
+
+		// Each app uses the VPP token it was added from, so an expired token only blocks its own apps.
+		vppToken, err := svc.EnterpriseOverrides.GetVPPTokenIfCanInstallVPPApps(ctx, true, host, vppApp)
+		if err != nil {
+			logger.ErrorContext(
+				ctx, "host is not able to install VPP app",
 				"err", err,
 			)
 			continue

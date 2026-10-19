@@ -2501,7 +2501,11 @@ type Datastore interface {
 	InsertVPPToken(ctx context.Context, tok *VPPTokenData) (*VPPTokenDB, error)
 	ListVPPTokens(ctx context.Context) ([]*VPPTokenDB, error)
 	GetVPPToken(ctx context.Context, tokenID uint) (*VPPTokenDB, error)
+	// GetVPPTokenByTeamID returns the team's first-added VPP token, including tokens assigned to all teams.
 	GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*VPPTokenDB, error)
+	// GetVPPTokenForVPPAppTeam returns the VPP token the app was added from, falling back to the team's
+	// first-added VPP token for apps that aren't bound to a token.
+	GetVPPTokenForVPPAppTeam(ctx context.Context, vppAppTeamID uint, teamID *uint) (*VPPTokenDB, error)
 	// UpdateVPPTokenTeams sets the teams associated with this token.
 	// Note that updating the token's associations removes all
 	// apps-team associations using this token

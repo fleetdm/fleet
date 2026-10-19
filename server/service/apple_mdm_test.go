@@ -11814,11 +11814,11 @@ type scheduledUpdatesVPPInstaller struct {
 	installs []string
 }
 
-func (i *scheduledUpdatesVPPInstaller) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
-	return "vpp-token", nil
+func (i *scheduledUpdatesVPPInstaller) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host, vppApp *fleet.VPPApp) (*fleet.VPPTokenDB, error) {
+	return &fleet.VPPTokenDB{Token: "vpp-token"}, nil
 }
 
-func (i *scheduledUpdatesVPPInstaller) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
+func (i *scheduledUpdatesVPPInstaller) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token *fleet.VPPTokenDB, opts fleet.HostSoftwareInstallOptions) (string, error) {
 	i.installs = append(i.installs, vppApp.AdamID)
 	return "command-uuid", nil
 }
@@ -11845,6 +11845,9 @@ func TestHandleScheduledUpdatesSkipsQueuedInstalls(t *testing.T) {
 		}
 
 		ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
+			return &fleet.VPPTokenDB{Token: "vpp-token"}, nil
+		}
+		ds.GetVPPTokenForVPPAppTeamFunc = func(ctx context.Context, vppAppTeamID uint, teamID *uint) (*fleet.VPPTokenDB, error) {
 			return &fleet.VPPTokenDB{Token: "vpp-token"}, nil
 		}
 		ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, id string) (*fleet.NanoEnrollment, error) {

@@ -143,6 +143,10 @@ type appleVPPConfigSrvConf struct {
 	// server received, in order. Used by tests that assert Fleet released a
 	// previously-reserved VPP seat (e.g. on install failure or cancel).
 	Disassociations []vpp.DisassociateAssetsRequest
+	// AssociateAuthorizations and DisassociateAuthorizations record the Authorization header of every
+	// /assets/associate and /assets/disassociate request, so tests can assert which VPP token was used.
+	AssociateAuthorizations    []string
+	DisassociateAuthorizations []string
 }
 
 var defaultVPPAssetList = []vpp.Asset{
@@ -634,6 +638,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 				return
 			}
 			s.appleVPPConfigSrvConfig.Disassociations = append(s.appleVPPConfigSrvConfig.Disassociations, req)
+			s.appleVPPConfigSrvConfig.DisassociateAuthorizations = append(s.appleVPPConfigSrvConfig.DisassociateAuthorizations, r.Header.Get("Authorization"))
 			_, _ = w.Write([]byte(`{"eventId": "disassociate-evt"}`))
 			return
 		}
@@ -648,6 +653,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 			}
 
 			fmt.Printf("Mock VPP Server: Trying to associate %v with %v\n", associations.SerialNumbers, associations.Assets)
+			s.appleVPPConfigSrvConfig.AssociateAuthorizations = append(s.appleVPPConfigSrvConfig.AssociateAuthorizations, r.Header.Get("Authorization"))
 
 			if len(associations.Assets) == 0 {
 				w.Header().Set("Content-Type", "application/json")
