@@ -197,11 +197,8 @@ const HostSoftware = ({
     isMacOS(platform) && selectedTypes.length === 0 && !isCleared
       ? [MACOS_APP_SOFTWARE_TYPE]
       : selectedTypes;
-  // AI tools are only reported on desktop platforms, the same ones offered the
-  // Premium-only AI types, so this is false on Free too (which rejects ai_tool).
-  // A copied URL can still carry ai_tool; it's dropped like a foreign type.
-  const isAiToolFilterAvailable = availableTypes.some((t) => t.premiumOnly);
-  const aiTool = (isAiToolFilterAvailable && queryParams.ai_tool) || undefined;
+  // Free rejects ai_tool, which a URL copied from a Premium server can carry.
+  const aiTool = (isPremiumTier && queryParams.ai_tool) || undefined;
   const isNormalizingUrl =
     !isEqual(queryParams.types ?? [], normalizedTypes) ||
     queryParams.ai_tool !== !!aiTool;
@@ -412,7 +409,9 @@ const HostSoftware = ({
             filters={filters}
             isPremiumTier={isPremiumTier || false}
             availableTypes={availableTypes}
-            showAiToolFilter={isAiToolFilterAvailable}
+            // AI tools are only reported on desktop platforms, the same ones
+            // offered the Premium-only AI types.
+            showAiToolFilter={availableTypes.some((t) => t.premiumOnly)}
           />
         )}
       </>
