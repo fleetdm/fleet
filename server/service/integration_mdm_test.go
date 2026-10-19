@@ -143,6 +143,15 @@ type appleVPPConfigSrvConf struct {
 	// server received, in order. Used by tests that assert Fleet released a
 	// previously-reserved VPP seat (e.g. on install failure or cancel).
 	Disassociations []vpp.DisassociateAssetsRequest
+	// AuthCalls records the path and Authorization header of every
+	// /assets/associate and /assets/disassociate request, in order. Used by
+	// tests that assert which VPP token an operation used.
+	AuthCalls []appleVPPAuthCall
+}
+
+type appleVPPAuthCall struct {
+	Path          string
+	Authorization string
 }
 
 var defaultVPPAssetList = []vpp.Asset{
@@ -627,6 +636,9 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		// catch-all below (HasSuffix prevents the substring "associate" from
 		// swallowing this case). Records every call so tests can assert Fleet
 		// released a reserved seat.
+		if strings.HasSuffix(r.URL.Path, "/disassociate") || strings.HasSuffix(r.URL.Path, "/associate") {
+			s.appleVPPConfigSrvConfig.AuthCalls = append(s.appleVPPConfigSrvConfig.AuthCalls, appleVPPAuthCall{Path: r.URL.Path, Authorization: r.Header.Get("Authorization")})
+		}
 		if strings.HasSuffix(r.URL.Path, "/disassociate") {
 			var req vpp.DisassociateAssetsRequest
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

@@ -3195,3 +3195,137 @@ func (s *integrationMDMTestSuite) TestVPPInstallRefetchManagedAppsOnlyForBYODiDe
 		})
 	}
 }
+
+func (s *integrationMDMTestSuite) TestVPPInstallUsesAppToken() {
+	t := s.T()
+	ctx := t.Context()
+	s.setSkipWorkerJobs(t)
+
+	var newTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{Name: new("Two tokens fleet")}, http.StatusOK, &newTeamResp)
+	team := newTeamResp.Team
+
+	origLocation := s.appleVPPConfigSrvConfig.Location
+	t.Cleanup(func() { s.appleVPPConfigSrvConfig.Location = origLocation })
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL, t)
+
+	// vpp_tokens.location is unique, so each upload needs its own location.
+	// The bearer Fleet sends to Apple is the uploaded file's base64 content.
+	uploadToken := func(secret, location string) (id uint, bearer string) {
+		s.appleVPPConfigSrvConfig.Location = location
+		expDate := time.Now().Add(200 * time.Hour).UTC().Round(time.Second).Format(fleet.VPPTimeFormat)
+		tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"Fleet Device Management Inc."}`, expDate, secret)
+		var res uploadVPPTokenResponse
+		bearer = base64.StdEncoding.EncodeToString([]byte(tokenJSON))
+		s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(bearer), http.StatusAccepted, "", &res)
+		return res.Token.ID, bearer
+	}
+	tokenAID, bearerA := uploadToken("token-a-secret", "Location A")
+	tokenBID, bearerB := uploadToken("token-b-secret", "Location B")
+
+	// Both tokens go to the same fleet.
+	var resPatchVPP patchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokenAID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokenBID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
+
+	// App 2 is an iOS app and app 3 an iPadOS app. Both bind to the fleet's first-added token (A) on add.
+	const adamX, adamY = "2", "3"
+	platformByAdamID := map[string]fleet.InstallableDevicePlatform{adamX: fleet.IOSPlatform, adamY: fleet.IPadOSPlatform}
+	for adamID, platform := range platformByAdamID {
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: adamID, Platform: platform}, http.StatusOK, &addAppStoreAppResponse{})
+	}
+	var listSw listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID), "available_for_install", "true")
+	titleIDByAdamID := make(map[string]uint)
+	for _, sw := range listSw.SoftwareTitles {
+		require.NotNil(t, sw.AppStoreApp)
+		titleIDByAdamID[sw.AppStoreApp.AppStoreID] = sw.ID
+	}
+	require.Len(t, titleIDByAdamID, 2)
+
+	// The API can't pick a token yet, so bind app Y to token B directly.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var rows []struct {
+			ID      uint `db:"id"`
+			TokenID uint `db:"vpp_token_id"`
+		}
+		if err := sqlx.SelectContext(ctx, q, &rows, `SELECT id, vpp_token_id FROM vpp_apps_teams WHERE team_id = ? AND adam_id = ?`, team.ID, adamY); err != nil {
+			return err
+		}
+		require.Len(t, rows, 1)
+		require.Equal(t, tokenAID, rows[0].TokenID, "apps bind to the first-added token on add")
+		_, err := q.ExecContext(ctx, `UPDATE vpp_apps_teams SET vpp_token_id = ? WHERE id = ?`, tokenBID, rows[0].ID)
+		return err
+	})
+
+	// A host with an install in flight queues later installs behind it, so each step uses its own host.
+	newHost := func(platform fleet.InstallableDevicePlatform) *fleet.Host {
+		host, device := s.createAppleMobileHostThenEnrollMDM(string(platform))
+		s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, device.SerialNumber)
+		s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{host.ID}, TeamID: &team.ID}, http.StatusOK)
+		return host
+	}
+	installApp := func(host *fleet.Host, adamID string, wantStatus int) []byte {
+		r := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleIDByAdamID[adamID]), &installSoftwareRequest{}, wantStatus)
+		defer r.Body.Close()
+		b, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		return b
+	}
+	snapshot := func() int { return len(s.appleVPPConfigSrvConfig.AuthCalls) }
+	// requireNewAuthCall asserts the one call the mock server received since the
+	// snapshot used the given token.
+	requireNewAuthCall := func(since int, suffix, bearer string) {
+		t.Helper()
+		calls := s.appleVPPConfigSrvConfig.AuthCalls[since:]
+		require.Len(t, calls, 1)
+		require.True(t, strings.HasSuffix(calls[0].Path, suffix), calls[0].Path)
+		require.Equal(t, "Bearer "+bearer, calls[0].Authorization)
+	}
+	installRowToken := func(host *fleet.Host, adamID string) (cmdUUID string, tokenID *uint) {
+		var row struct {
+			CommandUUID string `db:"command_uuid"`
+			TokenID     *uint  `db:"vpp_token_id"`
+		}
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row, `SELECT command_uuid, vpp_token_id FROM host_vpp_software_installs WHERE host_id = ? AND adam_id = ?`, host.ID, adamID)
+		})
+		return row.CommandUUID, row.TokenID
+	}
+
+	// Installing each app associates a seat with its own token, and the install row records it.
+	hostX := newHost(fleet.IOSPlatform)
+	before := snapshot()
+	installApp(hostX, adamX, http.StatusAccepted)
+	requireNewAuthCall(before, "/associate", bearerA)
+	_, gotTokenID := installRowToken(hostX, adamX)
+	require.NotNil(t, gotTokenID)
+	require.Equal(t, tokenAID, *gotTokenID)
+
+	hostY := newHost(fleet.IPadOSPlatform)
+	before = snapshot()
+	installApp(hostY, adamY, http.StatusAccepted)
+	requireNewAuthCall(before, "/associate", bearerB)
+	cmdUUIDY, gotTokenID := installRowToken(hostY, adamY)
+	require.NotNil(t, gotTokenID)
+	require.Equal(t, tokenBID, *gotTokenID)
+
+	// Canceling the Y install releases its seat on token B, not on the fleet's first token.
+	before = snapshot()
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", hostY.ID, cmdUUIDY), nil, http.StatusNoContent)
+	requireNewAuthCall(before, "/disassociate", bearerB)
+
+	// An expired token only blocks the apps bound to it.
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE vpp_tokens SET renew_at = ? WHERE id = ?`, time.Now().Add(-time.Hour), tokenBID)
+		return err
+	})
+	before = snapshot()
+	body := installApp(newHost(fleet.IPadOSPlatform), adamY, http.StatusUnprocessableEntity)
+	require.Contains(t, string(body), "Couldn't install. VPP token expired.")
+	require.Equal(t, before, snapshot(), "no Apple call may happen for an expired token")
+
+	before = snapshot()
+	installApp(newHost(fleet.IOSPlatform), adamX, http.StatusAccepted)
+	requireNewAuthCall(before, "/associate", bearerA)
+}
