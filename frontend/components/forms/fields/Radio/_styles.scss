@@ -88,9 +88,10 @@
       color: $ui-fleet-black-50;
     }
 
-    .radio__input input + .radio__control-button::before {
-      background-color: $ui-fleet-black-50;
-      box-shadow: inset 1em 1em $ui-fleet-black-50;
+    // Match Slider's disabled treatment (opacity + grayscale on the green)
+    // so a disabled Radio and a disabled Slider read as the same shade.
+    .radio__control-button {
+      @include disabled;
     }
 
     .radio__input,
