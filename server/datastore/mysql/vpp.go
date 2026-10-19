@@ -239,27 +239,22 @@ WHERE
 const vppAppVersionHostStatusesQuery = `
 WITH
 
--- select most recent upcoming activity per host and version
+-- select the latest upcoming activity of each host and version
 upcoming AS (
-	SELECT host_id, vpp_app_team_id FROM (
-		SELECT
-			ua.host_id,
-			vaua.vpp_app_team_id,
-			ROW_NUMBER() OVER (
-				PARTITION BY ua.host_id, vaua.vpp_app_team_id
-				ORDER BY ua.priority ASC, ua.created_at DESC, ua.id DESC
-			) AS rn
-		FROM
-			upcoming_activities ua
-			JOIN vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
-			JOIN vpp_apps_teams vat ON vat.id = vaua.vpp_app_team_id
-			JOIN hosts h ON ua.host_id = h.id
-		WHERE
-			ua.activity_type = 'vpp_app_install'
-			AND vaua.vpp_app_team_id IN (:version_ids)
-			AND COALESCE(h.team_id, 0) = vat.global_or_team_id
-	) ranked
-	WHERE rn = 1
+	SELECT
+		ua.host_id,
+		vaua.vpp_app_team_id,
+		MAX(ua.id) AS id
+	FROM
+		upcoming_activities ua
+		JOIN vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
+		JOIN vpp_apps_teams vat ON vat.id = vaua.vpp_app_team_id
+		JOIN hosts h ON ua.host_id = h.id
+	WHERE
+		ua.activity_type = 'vpp_app_install'
+		AND vaua.vpp_app_team_id IN (:version_ids)
+		AND COALESCE(h.team_id, 0) = vat.global_or_team_id
+	GROUP BY ua.host_id, vaua.vpp_app_team_id
 ),
 
 -- select the latest successful, failed and unfinished install of each host and version, reading only the index
@@ -282,7 +277,12 @@ attempts AS (
 		li.host_id,
 		li.vpp_app_team_id,
 		li.installed_id,
-		GREATEST(COALESCE(li.failed_id, 0), IF(ncr.status IN (:mdm_status_error, :mdm_status_format_error), li.unfinished_id, 0)) AS failed_id,
+		CASE
+			WHEN ncr.status IN (:mdm_status_error, :mdm_status_format_error) AND (li.failed_id IS NULL OR li.unfinished_id > li.failed_id) THEN
+				li.unfinished_id
+			ELSE
+				li.failed_id
+		END AS failed_id,
 		-- Android installs never produce nano_command_results
 		IF(ncr.status = :mdm_status_acknowledged OR (unfinished.platform = 'android' AND ncr.id IS NULL), li.unfinished_id, NULL) AS pending_id
 	FROM latest_installs li
@@ -299,16 +299,18 @@ latest AS (
 		host_id,
 		vpp_app_team_id,
 		status,
+		is_upcoming,
 		install_id,
-		ROW_NUMBER() OVER (PARTITION BY host_id, status ORDER BY install_id DESC) AS rn
+		ROW_NUMBER() OVER (PARTITION BY host_id, status ORDER BY is_upcoming DESC, install_id DESC) AS rn
 	FROM (
-		SELECT host_id, vpp_app_team_id, :software_status_installed AS status, installed_id AS install_id FROM attempts WHERE installed_id IS NOT NULL
+		SELECT host_id, vpp_app_team_id, :software_status_installed AS status, FALSE AS is_upcoming, installed_id AS install_id FROM attempts WHERE installed_id IS NOT NULL
 		UNION ALL
-		SELECT host_id, vpp_app_team_id, :software_status_failed, failed_id FROM attempts WHERE failed_id > 0
+		SELECT host_id, vpp_app_team_id, :software_status_failed, FALSE, failed_id FROM attempts WHERE failed_id IS NOT NULL
 		UNION ALL
-		SELECT host_id, vpp_app_team_id, :software_status_pending, pending_id FROM attempts WHERE pending_id IS NOT NULL
+		SELECT host_id, vpp_app_team_id, :software_status_pending, FALSE, pending_id FROM attempts WHERE pending_id IS NOT NULL
 		UNION ALL
-		SELECT host_id, vpp_app_team_id, :software_status_pending, 18446744073709551615 FROM upcoming
+		-- Use the upcoming activity id as the install id, it only orders upcoming activities among themselves
+		SELECT host_id, vpp_app_team_id, :software_status_pending, TRUE, id FROM upcoming
 	) statuses
 )
 
@@ -321,7 +323,7 @@ FROM latest l
 LEFT JOIN latest i ON i.host_id = l.host_id AND i.status = :software_status_installed AND i.rn = 1
 WHERE
 	l.rn = 1
-	AND (l.status = :software_status_installed OR i.host_id IS NULL OR l.install_id > i.install_id)`
+	AND (l.status = :software_status_installed OR i.host_id IS NULL OR l.is_upcoming OR l.install_id > i.install_id)`
 
 func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, versions []*fleet.VPPAppStoreApp) (map[uint]*fleet.VPPAppStatusSummary,
 	error,

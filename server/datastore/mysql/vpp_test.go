@@ -4860,6 +4860,30 @@ func testAppStoreAppVersionsStatusCountsOneVersionPerStatus(t *testing.T, ds *Da
 		require.Equal(t, hostInstalledAThenFailedA.ID, hosts[0].ID)
 		hosts = listHostsCheckCount(t, ds, hostFilter, fleet.HostListOptions{TeamFilter: &fleetID, SoftwareTitleIDFilter: &versionA.TitleID, AppStoreAppVersionIDFilter: &versionA.AppTeamID, SoftwareStatusFilter: &installed}, int(summaryAAfterFailedReinstall.Installed))
 		require.Contains(t, hostIDs(hosts), hostInstalledAThenFailedA.ID)
+
+		// queue an install of A and then of B on a new host, the host should count as pending for B only
+		hostQueuedAThenB := newHost("queued-a-then-b")
+		err = ds.InsertHostVPPSoftwareInstall(ctx, hostQueuedAThenB.ID, versionA.VPPAppID, uuid.NewString(), "event", fleet.HostSoftwareInstallOptions{VPPAppTeamID: versionA.AppTeamID})
+		require.NoError(t, err)
+		err = ds.InsertHostVPPSoftwareInstall(ctx, hostQueuedAThenB.ID, versionB.VPPAppID, uuid.NewString(), "event", fleet.HostSoftwareInstallOptions{VPPAppTeamID: versionB.AppTeamID})
+		require.NoError(t, err)
+		hosts = listHostsCheckCount(t, ds, hostFilter, fleet.HostListOptions{TeamFilter: &fleetID, SoftwareTitleIDFilter: &versionA.TitleID, AppStoreAppVersionIDFilter: &versionB.AppTeamID, SoftwareStatusFilter: &pending}, 2)
+		require.ElementsMatch(t, []uint{hostInstalledAPendingB.ID, hostQueuedAThenB.ID}, hostIDs(hosts))
+		listHostsCheckCount(t, ds, hostFilter, fleet.HostListOptions{TeamFilter: &fleetID, SoftwareTitleIDFilter: &versionA.TitleID, AppStoreAppVersionIDFilter: &versionA.AppTeamID, SoftwareStatusFilter: &pending}, 0)
+
+		// install another app on a new host and list the hosts of A's title with the other app's version, the version should be rejected
+		otherApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+			Name:             "OtherVersionsStatusApp",
+			BundleIdentifier: "com.example.other." + adamID,
+			AdamID:           adamID + "1",
+			Platform:         fleet.IOSPlatform,
+		}, &fleetID, nil)
+		require.NoError(t, err)
+		hostInstalledOtherApp := newHost("installed-other-app")
+		insertVPPAppInstallWithResult(t, ds, hostInstalledOtherApp, otherApp, "verified")
+		_, err = ds.ListHosts(ctx, hostFilter, fleet.HostListOptions{TeamFilter: &fleetID, SoftwareTitleIDFilter: &versionA.TitleID, AppStoreAppVersionIDFilter: &otherApp.AppTeamID, SoftwareStatusFilter: &installed})
+		var badRequestErr *fleet.BadRequestError
+		require.ErrorAs(t, err, &badRequestErr)
 	}
 }
 
