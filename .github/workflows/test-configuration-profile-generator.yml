@@ -12,7 +12,12 @@ on:
       - "website/api/helpers/build-windows-profile-from-commands.js"
       - "website/api/helpers/build-wlan-profile-xml.js"
       - "website/api/helpers/ai/prompt.js"
+      - "website/api/helpers/route-apple-configuration-profile-request.js"
+      - "website/api/helpers/add-lifecycle-notes-to-apple-profile.js"
+      - "website/api/helpers/get-apple-schema-lifecycle.js"
+      - "website/api/helpers/get-apple-platforms-named.js"
       - "website/api/controllers/get-llm-generated-configuration-profile.js"
+      - "website/api/controllers/get-llm-generated-configuration-profile-name-and-description.js"
       - "website/.mocharc.json"
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -34,12 +39,15 @@ env:
 
 jobs:
   build:
-    name: Test profile generator
+    name: Test profile generator (${{ matrix.suite }} requests)
     runs-on: ubuntu-latest
 
     strategy:
+      # Requests as the profile generator page makes them, and as Fleet makes them, run side by side.
+      fail-fast: false
       matrix:
         node-version: [20.x]
+        suite: [page, fleet]
 
     steps:
       - name: Harden Runner
@@ -75,3 +83,4 @@ jobs:
       - run: cd website/ && npm run test-profile-generator
         env:
           sails_custom__anthropicSecret: ${{ secrets.ANTHROPIC_TOKEN_FOR_PROFILE_GENERATOR_TESTS }}
+          SUITE: ${{ matrix.suite }}

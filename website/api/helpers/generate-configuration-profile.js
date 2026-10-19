@@ -14,8 +14,21 @@ module.exports = {
 
     profileType: {
       type: 'string',
-      required: true,
       isIn: ['mobileconfig', 'ddm', 'csp', 'android'],
+      description: 'The kind of profile to generate.  Pass this or a platform, not both.',
+    },
+
+    platform: {
+      type: 'string',
+      isIn: ['apple', 'windows'],
+      description: 'The platform to generate a profile for, leaving the kind of profile to be decided.  Pass this or a profileType, not both.',
+      extendedDescription: 'A Windows profile is always a CSP profile.  An Apple one is a declaration or a .mobileconfig, whichever Apple publishes the settings in.',
+    },
+
+    forFleet: {
+      type: 'boolean',
+      defaultsTo: false,
+      description: 'Whether Fleet is asking, rather than someone using the profile generator page.',
     },
 
     naturalLanguageInstructions: {
@@ -65,13 +78,37 @@ module.exports = {
 
     success: {
       outputFriendlyName: 'Generation result',
-      outputDescription: '{profileType, couldNotGenerateProfile, reasonWhyAProfileCouldNotBeGenerated?, contentDidNotMatchProfileType, generatedProfile?: {profile, profileFilename, deliveryNotes, items, additionalProfiles}, rawResult, generatedWith: {baseModel, effort, disableThinking}, windowsCspAreasProvided, applePayloadTypesProvided, admxTemplatesProvided, timings: {configurationMs, generationMs}}',
+      outputDescription: '{profileType, couldNotGenerateProfile, reasonWhyAProfileCouldNotBeGenerated?, contentDidNotMatchProfileType, generatedProfile?: {profile, profileFilename, deliveryNotes, items, additionalProfiles}, rawResult, generatedWith: {baseModel, effort, disableThinking}, windowsCspAreasProvided, applePayloadTypesProvided, admxTemplatesProvided, route?, timings: {routingMs, configurationMs, generationMs}}',
     },
 
   },
 
 
-  fn: async function ({profileType, naturalLanguageInstructions, baseModel, effort, disableThinking, useLighterResponseShape, useApplePayloadTypeLookup, writeProfilesFromSettings}) {
+  fn: async function ({profileType, platform, forFleet, naturalLanguageInstructions, baseModel, effort, disableThinking, useLighterResponseShape, useApplePayloadTypeLookup, writeProfilesFromSettings}) {
+
+    if(!profileType === !platform) {
+      throw new Error('Pass either a profileType or a platform to generate a configuration profile for, not both.');
+    }
+
+    let startedAt = Date.now();
+    let route;
+    if(platform === 'windows') {
+      profileType = 'csp';
+    } else if(platform === 'apple') {
+      route = await sails.helpers.routeAppleConfigurationProfileRequest.with({ naturalLanguageInstructions, forFleet });
+      if(route.couldNotGenerateProfile) {
+        return {
+          profileType: undefined,
+          couldNotGenerateProfile: true,
+          reasonWhyAProfileCouldNotBeGenerated: route.reasonWhyAProfileCouldNotBeGenerated,
+          contentDidNotMatchProfileType: false,
+          route,
+          timings: { routingMs: Date.now() - startedAt, configurationMs: 0, generationMs: 0 },
+        };
+      }
+      profileType = route.profileType;
+    }
+    let routedAt = Date.now();
 
     // Each profile type is generated with the cheapest configuration measured to clear the test suite's 95% bar
     // and its latency budget.  Sonnet 5.5 at low effort was the only model to clear both for every type when
@@ -93,12 +130,14 @@ module.exports = {
       disableThinking: disableThinking !== undefined ? disableThinking : productionSettings.disableThinking,
     };
 
-    let startedAt = Date.now();
     let generatorConfiguration = await sails.helpers.getConfigurationProfileGeneratorConfiguration.with({
       profileType,
       naturalLanguageInstructions,
       useLighterResponseShape,
       useApplePayloadTypeLookup,
+      // The router already worked out which payload types a .mobileconfig needs, so the lookup would only
+      // ask the same question again.
+      applePayloadTypes: route && route.profileType === 'mobileconfig' ? route.applePayloadTypes : undefined,
       writeProfilesFromSettings,
     });
     let configuredAt = Date.now();
@@ -145,9 +184,10 @@ module.exports = {
       windowsCspAreasProvided: generatorConfiguration.windowsCspAreasProvided,
       applePayloadTypesProvided: generatorConfiguration.applePayloadTypesProvided,
       admxTemplatesProvided: generatorConfiguration.admxTemplatesProvided,
-      // The configuration step's time is its lookups' time, so this splits a slow generation into a slow
-      // lookup or a slow generation.
-      timings: { configurationMs: configuredAt - startedAt, generationMs: generatedAt - configuredAt },
+      route,
+      // The configuration step's time is its lookups' time, so this splits a slow generation into slow
+      // routing, a slow lookup, or a slow generation.
+      timings: { routingMs: routedAt - startedAt, configurationMs: configuredAt - routedAt, generationMs: generatedAt - configuredAt },
     };
 
     // What the model returned, with the document written from its settings where it returned settings, so
@@ -186,6 +226,16 @@ module.exports = {
       items: response.settingsEnforced,
       additionalProfiles: [],
     };
+
+    if(profileType === 'mobileconfig' || profileType === 'ddm') {
+      let lifecycleNotes = sails.helpers.addLifecycleNotesToAppleProfile.with({
+        profileType,
+        profile: result.generatedProfile.profile,
+        platformsNamed: route ? route.platformsNamed : sails.helpers.getApplePlatformsNamed.with({ naturalLanguageInstructions }),
+        mobileconfigAlternative: route ? route.mobileconfigAlternative : [],
+      });
+      result.generatedProfile.deliveryNotes = _.compact([result.generatedProfile.deliveryNotes].concat(lifecycleNotes)).join(' ');
+    }
 
     if(profileType === 'csp') {
       let withAdmxInstalls = await sails.helpers.addAdmxInstallCommandsToWindowsProfile.with({ profile: result.generatedProfile.profile });
