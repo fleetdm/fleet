@@ -158,6 +158,14 @@
 ]
 {{- end }}
 
+{{ define "fleet_detail_query_timezone_unix" -}}
+[
+  {
+    "symlink_target_path":"/usr/share/zoneinfo/Etc/UTC"
+  }
+]
+{{- end }}
+
 {{/* all hosts */}}
 {{ define "fleet_label_query_6" -}}
 [
