@@ -5634,6 +5634,40 @@ func TestLinkWindowsHostMDMEnrollmentReleasesUnusedInstallSecret(t *testing.T) {
 	}
 }
 
+// An Autopilot device that enrolled as a host other than its pending one becomes identifiable when its enrollment is linked, which
+// is when its Autopilot record moves to that host.
+func TestLinkWindowsHostMDMEnrollmentMovesAutopilotRecord(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		ztdID    string
+		moveErr  error
+		wantMove bool
+	}{
+		{name: "an enrollment carrying an Autopilot device ID", ztdID: "ap-1", wantMove: true},
+		{name: "a move failure does not fail the link", ztdID: "ap-1", moveErr: errors.New("db unavailable"), wantMove: true},
+		{name: "an enrollment without an Autopilot device ID", ztdID: ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// A self-deploying enrollment has no UPN, which must not skip the move.
+			ds := newLinkWindowsHostMDMEnrollmentStore(&fleet.MDMWindowsEnrolledDevice{
+				ZTDRegistrationID: tc.ztdID, EntraDeviceID: "entra-1",
+			})
+			ds.MoveWindowsAutopilotRecordToHostFunc = func(ctx context.Context, hostID uint, autopilotDeviceID, entraDeviceID string) (bool, error) {
+				assert.EqualValues(t, 1, hostID)
+				assert.Equal(t, tc.ztdID, autopilotDeviceID)
+				assert.Equal(t, "entra-1", entraDeviceID)
+				return tc.moveErr == nil, tc.moveErr
+			}
+
+			_, err := LinkWindowsHostMDMEnrollment(t.Context(), slog.New(slog.DiscardHandler), ds, 1, "host-uuid", "device-1", false)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantMove, ds.MoveWindowsAutopilotRecordToHostFuncInvoked)
+		})
+	}
+}
+
 // osquery detail ingest runs on every refetch and derives installed_from_dep from the enrollment's OOBE flag. An
 // already-provisioned Autopilot device re-enrolls out of OOBE, so without an exception the next refetch would clear
 // the marker and demote the host to manual.

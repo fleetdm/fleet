@@ -1,5 +1,5 @@
 import classnames from "classnames";
-import React, { ReactNode } from "react";
+import React, { ReactNode, useEffect, useState } from "react";
 import AceEditor from "react-ace";
 
 import "ace-builds/src-noconflict/mode-sh";
@@ -125,10 +125,26 @@ const Editor = ({
     [`${baseClass}__error`]: !!error,
   });
 
+  // Track the editor's displayed content so copy works for uncontrolled
+  // editors (defaultValue + edits) as well as controlled ones.
+  const [displayedValue, setDisplayedValue] = useState(
+    value ?? defaultValue ?? ""
+  );
+  useEffect(() => {
+    if (value !== undefined) {
+      setDisplayedValue(value);
+    }
+  }, [value]);
+
+  const handleChange = (newValue: string, event?: Ace.Delta) => {
+    setDisplayedValue(newValue);
+    onChange?.(newValue, event);
+  };
+
   const renderCopyButton = () => {
     return (
       <div className={`${baseClass}__copy-wrapper`}>
-        <CopyButton copyText={value ?? ""} variant="subdued" />
+        <CopyButton copyText={displayedValue} variant="subdued" />
       </div>
     );
   };
@@ -136,10 +152,10 @@ const Editor = ({
   const renderLabelCopyButton = () => {
     return (
       <CopyButton
-        copyText={value ?? ""}
+        copyText={displayedValue}
         variant="secondary"
         ariaLabel={ariaLabel ? `Copy ${ariaLabel}` : "Copy"}
-        disabled={!value}
+        disabled={!displayedValue}
       />
     );
   };
@@ -228,7 +244,7 @@ const Editor = ({
         defaultValue={defaultValue}
         tabSize={2}
         focus={focus}
-        onChange={onChange}
+        onChange={handleChange}
         onBlur={onBlur}
         onFocus={onFocus}
         onLoad={onLoadHandler}
