@@ -248,7 +248,7 @@ func fakeFleetResponse(route Route, params map[string]string, query url.Values) 
 func TestPathSegment(t *testing.T) {
 	for _, bad := range []string{"", ".", "..", "../123/recovery_lock_password", "a/b", `a\b`, "123/encryption_key"} {
 		_, err := pathSegment("host identifier", bad)
-		assert.Error(t, err, bad)
+		require.Error(t, err, bad)
 	}
 	for in, want := range map[string]string{
 		"host-1.local":                         "host-1.local",

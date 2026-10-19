@@ -3466,7 +3466,7 @@ func TestModifyAppConfigGitOpsHistoricalDataDefaults(t *testing.T) {
 // payload that predates mcp_enabled keeps the server's value (on by default)
 // instead of turning the embedded MCP off.
 func TestModifyAppConfigGitOpsMCPEnabled(t *testing.T) {
-	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
 
 	testCases := []struct {
 		name     string

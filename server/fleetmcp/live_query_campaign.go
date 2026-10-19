@@ -127,7 +127,7 @@ func (fc *FleetClient) streamCampaignResults(ctx context.Context, campaignID uin
 	// Authenticate with the same token used for REST calls, then subscribe to
 	// the campaign. WriteJSON marshals an arbitrary value, matching the server's
 	// JSONMessage{Type, Data} envelope.
-	if err := conn.WriteJSON(map[string]interface{}{"type": "auth", "data": map[string]string{"token": fc.token(ctx)}}); err != nil {
+	if err := conn.WriteJSON(map[string]any{"type": "auth", "data": map[string]string{"token": fc.token(ctx)}}); err != nil {
 		return nil, fmt.Errorf("failed to authenticate results websocket: %w", err)
 	}
 	if err := conn.WriteJSON(map[string]interface{}{"type": "select_campaign", "data": map[string]interface{}{"campaign_id": campaignID}}); err != nil {
