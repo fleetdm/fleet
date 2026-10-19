@@ -46,6 +46,9 @@ interface ICategoriesSelector {
   /** Override the preview button copy. Defaults to "Preview end user
    * experience". */
   previewButtonLabel?: string;
+  /** When true, each category checkbox is disabled and removed from the
+   * tab order. */
+  disabled?: boolean;
 }
 
 export const AndroidOptionsDescription = () => (
@@ -68,6 +71,7 @@ export const CategoriesSelector = ({
   teamId,
   label = "Categories",
   previewButtonLabel = "Preview end user experience",
+  disabled = false,
 }: ICategoriesSelector) => {
   const isDynamic = teamId !== undefined;
 
@@ -145,6 +149,7 @@ export const CategoriesSelector = ({
               value={selectedCategories.includes(cat.value)}
               onChange={onSelectCategory}
               parseTarget
+              disabled={disabled}
             >
               <div className={`${baseClass}__label-name`}>{cat.label}</div>
             </Checkbox>
