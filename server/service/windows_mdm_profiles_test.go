@@ -280,7 +280,7 @@ func TestAdditionalNDESValidationForWindowsProfiles(t *testing.T) {
 				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
 				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName", "CN=test"),
 			wantErr:     true,
-			errContains: "SubjectName item must contain the $FLEET_VAR_CERTIFICATE_RENEWAL_ID variable in the OU field. In some use cases, it can go in the CN field instead.",
+			errContains: subjectNameMissingRenewalIDMsg,
 		},
 		{
 			name: "valid NDES profile with preferred CERTIFICATE_RENEWAL_ID",
@@ -314,7 +314,7 @@ func TestAdditionalNDESValidationForWindowsProfiles(t *testing.T) {
 				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
 				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName", "CN=test,O=$FLEET_VAR_CERTIFICATE_RENEWAL_ID"),
 			wantErr:     true,
-			errContains: "SubjectName item must contain the $FLEET_VAR_CERTIFICATE_RENEWAL_ID variable in the OU field. In some use cases, it can go in the CN field instead.",
+			errContains: subjectNameMissingRenewalIDMsg,
 		},
 		{
 			name:     "nil ndes vars returns nil",
@@ -326,7 +326,7 @@ func TestAdditionalNDESValidationForWindowsProfiles(t *testing.T) {
 				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
 				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName ", "CN=test"),
 			wantErr:     true,
-			errContains: "SubjectName item must contain the $FLEET_VAR_CERTIFICATE_RENEWAL_ID variable in the OU field. In some use cases, it can go in the CN field instead.",
+			errContains: subjectNameMissingRenewalIDMsg,
 		},
 		{
 			name: "challenge with trailing whitespace in LocURI still validates correctly",
@@ -412,7 +412,7 @@ func TestAdditionalCustomSCEPValidationForWindowsProfiles(t *testing.T) {
 				"CN=test",
 			),
 			wantErr:     true,
-			errContains: "SubjectName item must contain the $FLEET_VAR_CERTIFICATE_RENEWAL_ID variable in the OU field. In some use cases, it can go in the CN field instead.",
+			errContains: subjectNameMissingRenewalIDMsg,
 		},
 		{
 			name: "subject name with trailing whitespace in LocURI is still validated for renewal id",
@@ -421,7 +421,7 @@ func TestAdditionalCustomSCEPValidationForWindowsProfiles(t *testing.T) {
 				"CN=test",
 			),
 			wantErr:     true,
-			errContains: "SubjectName item must contain the $FLEET_VAR_CERTIFICATE_RENEWAL_ID variable in the OU field. In some use cases, it can go in the CN field instead.",
+			errContains: subjectNameMissingRenewalIDMsg,
 		},
 	}
 
@@ -462,12 +462,12 @@ func TestValidateWindowsProfileFleetVariablesRenewalIDPlacement(t *testing.T) {
 		{
 			name:        "both CN and OU",
 			subjectName: "CN=$FLEET_VAR_CERTIFICATE_RENEWAL_ID managementAttestation,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID",
-			errContains: "Variable $FLEET_VAR_CERTIFICATE_RENEWAL_ID can only be used once in a profile.",
+			errContains: renewalIDDuplicateMsg,
 		},
 		{
 			name:        "in a field other than CN or OU",
 			subjectName: "CN=$FLEET_VAR_HOST_HARDWARE_SERIAL managementAttestation,O=$FLEET_VAR_CERTIFICATE_RENEWAL_ID",
-			errContains: "SubjectName item must contain the $FLEET_VAR_CERTIFICATE_RENEWAL_ID variable in the OU field.",
+			errContains: subjectNameMissingRenewalIDMsg,
 		},
 	}
 

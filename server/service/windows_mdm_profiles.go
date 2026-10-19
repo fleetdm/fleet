@@ -373,12 +373,9 @@ var subjectNameMissingRenewalIDMsg = "SubjectName item must contain the " + flee
 // subjectNameHasRenewalIDMarker reports whether a SubjectName <Data> has the renewal-ID variable in an OU or CN
 // attribute, the two fields host certificate ingestion searches for the marker. OU is the norm, but some CAs (Okta) drop
 // the OU from issued certificates. The legacy SCEP_RENEWAL_ID name is accepted for back-compat.
-//
-// rawData is the element's inner XML, so it is decoded first: Windows parses the DN after resolving entities and CDATA.
 func subjectNameHasRenewalIDMarker(rawData string) bool {
 	var data strings.Builder
-	// Only character data is read, from a profile the validators above already parsed; encoding/xml resolves no external
-	// entities.
+	// Only character data is read, from a profile the validators above already parsed; encoding/xml resolves no external entities.
 	dec := xml.NewDecoder(strings.NewReader(rawData)) //nolint:gosec // G709: see above
 	for {
 		token, err := dec.Token()
