@@ -153,7 +153,7 @@ The goal is to not go more than one business day without responding to the contr
 
 1. **On-call triage**: All community PRs are first reviewed by the on-call engineer, who assigns the PR to the owning product group's Engineering Manager (EM). Fleeties who already know the owning team can assign the EM directly.
 
-2. **Classification** (EM): The Engineering Manager (EM) of the owning product group determines what type of change this is: bug fix, reliability improvement, product change, or something else. The EM either keeps the PR or assigns it to the Product Designer (PD).
+2. **Classification** (EM): The Engineering Manager (EM) of the owning product group determines what type of change this is: bug fix, reliability improvement, product change, or something else. If it's a product change, the EM assigns the PR to the Product Designer (PD). Otherwise, the EM keeps it.
 
 3. **Decision gate**: Based on the type, the right person decides whether this is something we want to pursue:
    - Product changes (UI, user-facing behavior, API responses or endpoints, configuration options, CLI commands, or significant documentation changes that alter the product definition or meaning): the Product Designer (PD) decides.
