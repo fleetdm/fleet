@@ -247,7 +247,7 @@ func (svc *Service) updateEJBCA(
 		EJBCAUsernameTemplate:         u.UsernameTemplate,
 		CertificateUserPrincipalNames: u.CertificateUserPrincipalNames,
 	}
-	if u.ClientP12 != nil {
+	if u.ClientP12 != nil && u.Password != nil { // the checks above leave both set or neither
 		creds, err := readEJBCAClientP12(ctx, *u.ClientP12, *u.Password, errPrefix)
 		if err != nil {
 			return nil, err
