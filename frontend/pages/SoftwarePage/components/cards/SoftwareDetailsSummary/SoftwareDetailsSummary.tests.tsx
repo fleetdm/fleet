@@ -20,8 +20,6 @@ jest.mock("../../icons/SoftwareIcon", () => ({
 describe("buildActionOptions", () => {
   it("returns only Edit appearance when user cannot edit software or configuration and cannot patch or configure auto updates", () => {
     const result = buildActionOptions({
-      gitOpsModeEnabled: false,
-      repoURL: undefined,
       canEditSoftware: false,
       canEditConfiguration: false,
       canDeploySoftware: false,
@@ -33,16 +31,12 @@ describe("buildActionOptions", () => {
       {
         label: "Edit appearance",
         value: ACTION_EDIT_APPEARANCE,
-        disabled: false,
-        tooltipContent: undefined,
       },
     ]);
   });
 
   it("adds Edit software when canEditSoftware", () => {
     const result = buildActionOptions({
-      gitOpsModeEnabled: false,
-      repoURL: undefined,
       canEditSoftware: true,
       canEditConfiguration: false,
       canDeploySoftware: false,
@@ -64,8 +58,6 @@ describe("buildActionOptions", () => {
 
   it("adds Edit configuration when canEditConfiguration", () => {
     const result = buildActionOptions({
-      gitOpsModeEnabled: false,
-      repoURL: undefined,
       canEditSoftware: false,
       canEditConfiguration: true,
       canDeploySoftware: false,
@@ -85,10 +77,8 @@ describe("buildActionOptions", () => {
     });
   });
 
-  it("applies gitops tooltip to Edit appearance; leaves Edit software and Edit configuration clickable (modals disable fields and Save themselves)", () => {
+  it("leaves Edit appearance, Edit software, and Edit configuration all clickable in gitops mode (modals disable fields and Save themselves)", () => {
     const result = buildActionOptions({
-      gitOpsModeEnabled: true,
-      repoURL: "https://repo.git",
       canEditSoftware: true,
       canEditConfiguration: true,
       canDeploySoftware: false,
@@ -106,9 +96,9 @@ describe("buildActionOptions", () => {
       (opt) => opt.value === ACTION_EDIT_SOFTWARE
     );
 
-    expect(editAppearance).toMatchObject({
-      disabled: true,
-      tooltipContent: expect.anything(),
+    expect(editAppearance).toEqual({
+      label: "Edit appearance",
+      value: ACTION_EDIT_APPEARANCE,
     });
 
     // Edit configuration stays clickable in gitops mode; the modal gates Save.
@@ -125,8 +115,6 @@ describe("buildActionOptions", () => {
 
   it("adds Deploy when software can be deployed", () => {
     const result = buildActionOptions({
-      gitOpsModeEnabled: false,
-      repoURL: undefined,
       canEditSoftware: false,
       canEditConfiguration: false,
       canDeploySoftware: true,
@@ -144,8 +132,6 @@ describe("buildActionOptions", () => {
 
   it("adds Versions option after Deploy when canManageVersions", () => {
     const result = buildActionOptions({
-      gitOpsModeEnabled: false,
-      repoURL: undefined,
       canEditSoftware: true,
       canEditConfiguration: false,
       canDeploySoftware: true,
@@ -170,8 +156,6 @@ describe("buildActionOptions", () => {
 
   it("does not add Versions option when canManageVersions is false", () => {
     const result = buildActionOptions({
-      gitOpsModeEnabled: false,
-      repoURL: undefined,
       canEditSoftware: false,
       canEditConfiguration: false,
       canDeploySoftware: false,
@@ -184,8 +168,6 @@ describe("buildActionOptions", () => {
 
   it("keeps Versions option enabled in GitOps mode (modal disables Save itself)", () => {
     const result = buildActionOptions({
-      gitOpsModeEnabled: true,
-      repoURL: "https://repo.git",
       canEditSoftware: false,
       canEditConfiguration: false,
       canDeploySoftware: false,
@@ -202,8 +184,6 @@ describe("buildActionOptions", () => {
 
   it("adds Schedule auto updates option when canConfigureAutoUpdate", () => {
     const result = buildActionOptions({
-      gitOpsModeEnabled: false,
-      repoURL: undefined,
       canEditSoftware: false,
       canEditConfiguration: false,
       canDeploySoftware: false,

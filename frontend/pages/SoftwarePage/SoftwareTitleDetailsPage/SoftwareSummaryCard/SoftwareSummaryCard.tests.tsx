@@ -478,7 +478,7 @@ describe("Software Summary Card", () => {
       expect(options).toContain("Versions");
     });
 
-    it("keeps Edit software clickable in GitOps mode for Apple VPP titles so admins can open the modal in its disabled state", async () => {
+    it("keeps Edit appearance and Edit software clickable in GitOps mode for Apple VPP titles so admins can open the modals in their disabled state", async () => {
       const gitopsRender = createCustomRenderer({
         context: {
           app: {
@@ -509,9 +509,17 @@ describe("Software Summary Card", () => {
       );
 
       await user.click(screen.getByText("Actions"));
-      const editSoftware = screen
-        .getAllByTestId("dropdown-option")
-        .find((opt) => opt.textContent === "Edit software");
+      const options = screen.getAllByTestId("dropdown-option");
+
+      const editAppearance = options.find(
+        (opt) => opt.textContent === "Edit appearance"
+      );
+      expect(editAppearance).toBeDefined();
+      expect(editAppearance).not.toHaveAttribute("aria-disabled", "true");
+
+      const editSoftware = options.find(
+        (opt) => opt.textContent === "Edit software"
+      );
       expect(editSoftware).toBeDefined();
       expect(editSoftware).not.toHaveAttribute("aria-disabled", "true");
     });

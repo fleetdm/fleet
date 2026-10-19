@@ -11,13 +11,11 @@ import ActionsDropdown from "components/ActionsDropdown";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import DataSet from "components/DataSet";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import LastUpdatedHostCount from "components/LastUpdatedHostCount";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import TooltipWrapper from "components/TooltipWrapper";
 import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
-import useGitOpsMode from "hooks/useGitOpsMode";
-import { IDropdownOption, TooltipContent } from "interfaces/dropdownOption";
+import { IDropdownOption } from "interfaces/dropdownOption";
 import {
   NO_VERSION_OR_HOST_DATA_SOURCES,
   ROLLING_ARCH_LINUX_VERSIONS,
@@ -27,7 +25,6 @@ import {
   isSafeImagePreviewUrl,
 } from "pages/SoftwarePage/helpers";
 import paths from "router/paths";
-import { getGitOpsModeTipContent } from "utilities/helpers";
 import { getPathWithQueryParams, QueryParams } from "utilities/url";
 
 import OSIcon from "../../icons/OSIcon";
@@ -42,8 +39,6 @@ export const ACTION_EDIT_AUTO_UPDATE_CONFIGURATION =
   "edit_auto_update_configuration";
 
 export interface BuildActionOptionsArgs {
-  gitOpsModeEnabled?: boolean;
-  repoURL?: string;
   canEditSoftware: boolean;
   canEditConfiguration: boolean;
   canDeploySoftware: boolean;
@@ -51,34 +46,21 @@ export interface BuildActionOptionsArgs {
   canConfigureAutoUpdate: boolean;
 }
 
+// Every option that applies to GitOps-managed entities (Edit appearance, Edit
+// software, Edit configuration, Versions) stays clickable in gitops mode; each
+// target modal disables its own fields and gates Save with the gitops tooltip,
+// so admins can open them to view the applied settings.
 export const buildActionOptions = ({
-  gitOpsModeEnabled,
-  repoURL,
   canEditSoftware,
   canEditConfiguration,
   canDeploySoftware,
   canManageVersions,
   canConfigureAutoUpdate,
 }: BuildActionOptionsArgs): IDropdownOption[] => {
-  let disableEditAppearanceTooltipContent: TooltipContent | undefined;
-
-  // Disable state is keyed off `gitOpsModeEnabled` directly (see each option
-  // below); the tooltip is only populated when `repoURL` is also available,
-  // since the copy depends on it. Without that split, an empty `repoURL`
-  // would leave the options clickable in gitops mode.
-  if (gitOpsModeEnabled) {
-    const gitOpsModeTooltipContent =
-      repoURL && getGitOpsModeTipContent(repoURL);
-
-    disableEditAppearanceTooltipContent = gitOpsModeTooltipContent;
-  }
-
   const options: IDropdownOption[] = [
     {
       label: "Edit appearance",
       value: ACTION_EDIT_APPEARANCE,
-      disabled: gitOpsModeEnabled,
-      tooltipContent: disableEditAppearanceTooltipContent,
     },
   ];
 
@@ -209,7 +191,6 @@ const SoftwareDetailsSummary = ({
 }: ISoftwareDetailsSummaryProps) => {
   const hostCountPath = getPathWithQueryParams(paths.MANAGE_HOSTS, queryParams);
 
-  const { gitOpsModeEnabled, repoURL } = useGitOpsMode("software");
   const isRollingArch = ROLLING_ARCH_LINUX_VERSIONS.includes(displayName);
 
   const onSelectSoftwareAction = (value: string) => {
@@ -279,8 +260,6 @@ const SoftwareDetailsSummary = ({
     );
 
   const actionOptions = buildActionOptions({
-    gitOpsModeEnabled,
-    repoURL,
     canEditSoftware: !!onClickEditSoftware,
     canEditConfiguration: !!onClickEditConfiguration,
     canDeploySoftware: !!onClickDeploy,
@@ -320,24 +299,18 @@ const SoftwareDetailsSummary = ({
           {canManageSoftware && (
             <div className={`${baseClass}__actions-wrapper`}>
               {useSingleEditAppearanceButton ? (
-                // GitOps mode wraps the button so hover surfaces the
-                // "Managed by GitOps" tooltip + repo link, mirroring how the
-                // Actions dropdown's items are disabled with the same tip.
-                <GitOpsModeTooltipWrapper
-                  entityType="software"
-                  position="top"
-                  renderChildren={(disableChildren) => (
-                    <Button
-                      variant="secondary"
-                      size="small"
-                      onClick={onClickEditAppearance}
-                      disabled={disableChildren || !onClickEditAppearance}
-                      icon="pencil"
-                    >
-                      Edit
-                    </Button>
-                  )}
-                />
+                // Clickable in gitops mode so admins can open the modal to
+                // view the applied icon and display name; the modal disables
+                // its own fields and Save button.
+                <Button
+                  variant="secondary"
+                  size="small"
+                  onClick={onClickEditAppearance}
+                  disabled={!onClickEditAppearance}
+                  icon="pencil"
+                >
+                  Edit
+                </Button>
               ) : (
                 <ActionsDropdown
                   className={`${baseClass}__actions-dropdown`}

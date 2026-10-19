@@ -1,6 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import React from "react";
 
+import createMockConfig from "__mocks__/configMock";
 import {
   createMockSoftwarePackage,
   createMockSoftwareTitle,
@@ -34,6 +35,52 @@ const MOCK_PROPS = {
 };
 
 describe("EditIconModal", () => {
+  it("disables fields and gates Save behind the GitOps tooltip when GitOps mode is on", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPremiumTier: true,
+          isGlobalAdmin: true,
+          config: createMockConfig({
+            gitops: {
+              gitops_mode_enabled: true,
+              repository_url: "https://example.com/repo",
+            },
+          }),
+        },
+      },
+    });
+    render(<EditIconModal {...MOCK_PROPS} />);
+
+    expect(screen.getByLabelText("Display name")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Choose file" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+  });
+
+  it("leaves fields and Save enabled when the software exception is on", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPremiumTier: true,
+          isGlobalAdmin: true,
+          config: createMockConfig({
+            gitops: {
+              gitops_mode_enabled: true,
+              exceptions: { software: true },
+              repository_url: "https://example.com/repo",
+            },
+          }),
+        },
+      },
+    });
+    render(<EditIconModal {...MOCK_PROPS} />);
+
+    expect(screen.getByLabelText("Display name")).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Choose file" })).toBeEnabled();
+  });
+
   it("renders with the correct modal title for software, FileUploader, Preview tabs, save button", () => {
     const render = createCustomRenderer({ withBackendMock: true });
     render(<EditIconModal {...MOCK_PROPS} />);
