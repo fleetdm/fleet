@@ -75,6 +75,10 @@ locals {
 
       # Skip backfilling S3 config with dev values for load testing
       FLEET_DEV_SKIP_S3_CONFIG = "1"
+
+      # Trust osquery-perf's load-test key instead of Microsoft's, so simulated user-driven (Entra) Windows MDM
+      # enrollments (--mdm_windows_user_driven_prob) are accepted. Real Entra devices can't enroll while this is set.
+      FLEET_DEV_AZURE_JWT_JWKS_URI = "https://raw.githubusercontent.com/fleetdm/fleet/qa-494-osquery-perf-win-user-mdm/cmd/osquery-perf/windows_entra_loadtest_jwks.json"
     },
     local.otel_environment_variables,
     local.mdm_apple_environment_variables
