@@ -338,14 +338,18 @@ func TestClearPasscode(t *testing.T) {
 	}
 	pusher := nanomdm_pushsvc.New(mdmStorage, mdmStorage, pushFactory, stdlogfmt.New())
 	commander := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
-	svc := Service{ds: ds, authz: authorizer, mdmAppleCommander: commander, Service: &mocksvc.Service{
+	baseSvc := &mocksvc.Service{
 		NewActivityFunc: func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 			return nil
 		},
-	}}
+	}
+	svc := Service{ds: ds, authz: authorizer, mdmAppleCommander: commander, Service: baseSvc}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return true, nil
 	}
 	ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
 		return &fleet.HostMDMApplePermissions{HostUUID: hostUUID, AccessRights: apple_mdm.MDMAccessRightAll}, nil
@@ -505,6 +509,35 @@ func TestClearPasscode(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
 		mdmStorage.EnqueueCommandFuncInvoked = false
+	})
+
+	t.Run("MDM turned off for host", func(t *testing.T) {
+		ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+			return &fleet.Host{ID: hostID, UUID: "host-uuid-off", Platform: "ios"}, nil
+		}
+		// The unlock token survives unenrollment, so it must not be what gates the command.
+		ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+			return &fleet.NanoMDMEnrollmentDetails{UnlockToken: new("fake-token")}, nil
+		}
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+			return false, nil
+		}
+		t.Cleanup(func() {
+			ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+				return true, nil
+			}
+		})
+		mdmStorage.EnqueueCommandFuncInvoked = false
+		baseSvc.NewActivityFuncInvoked = false
+
+		ctx := test.UserContext(t.Context(), test.UserAdmin)
+		_, err := svc.ClearPasscode(ctx, 1)
+		require.Error(t, err)
+		var badReq *fleet.BadRequestError
+		require.ErrorAs(t, err, &badReq)
+		require.Contains(t, badReq.Message, "doesn't have MDM turned on")
+		require.False(t, mdmStorage.EnqueueCommandFuncInvoked)
+		require.False(t, baseSvc.NewActivityFuncInvoked)
 	})
 
 	t.Run("non-apple platform", func(t *testing.T) {
@@ -1433,9 +1466,9 @@ func TestValidateMarkdownEULA(t *testing.T) {
 func TestEULAMetadataBypassesCache(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
-	authorizer, err := authz.NewAuthorizer()
-	require.NoError(t, err)
-	svc := &Service{ds: ds, authz: authorizer}
+	svc, baseSvc := newTestServiceWithMock(t, ds)
+	baseSvc.VerifyMDMAppleConfiguredFunc = func(ctx context.Context) error { return nil }
+	baseSvc.VerifyMDMWindowsConfiguredFunc = func(ctx context.Context) error { return nil }
 	ctx := test.UserContext(t.Context(), test.UserAdmin)
 
 	var platforms []fleet.MDMEULAPlatform
@@ -1444,9 +1477,60 @@ func TestEULAMetadataBypassesCache(t *testing.T) {
 		platforms = append(platforms, platform)
 		return &fleet.MDMEULA{}, nil
 	}
-	_, err = svc.MDMGetEULAMetadata(ctx)
-	require.NoError(t, err)
-	_, err = svc.MDMGetWindowsEULAMetadata(ctx)
-	require.NoError(t, err)
+	for _, platform := range []fleet.MDMEULAPlatform{"", fleet.MDMEULAPlatformWindows} {
+		_, err := svc.MDMGetEULAMetadata(ctx, platform)
+		require.NoError(t, err)
+	}
 	require.Equal(t, []fleet.MDMEULAPlatform{fleet.MDMEULAPlatformDarwin, fleet.MDMEULAPlatformWindows}, platforms)
+}
+
+func TestEULAPlatformChecks(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc, baseSvc := newTestServiceWithMock(t, ds)
+	ctx := test.UserContext(t.Context(), test.UserAdmin)
+	appleOff, windowsOff := errors.New("apple off"), errors.New("windows off")
+	baseSvc.VerifyMDMAppleConfiguredFunc = func(ctx context.Context) error { return appleOff }
+	baseSvc.VerifyMDMWindowsConfiguredFunc = func(ctx context.Context) error { return windowsOff }
+
+	// an unknown platform is refused before any MDM check, and empty means darwin
+	_, err := fleet.ValidateEULAPlatform(ctx, svc, "linux")
+	var invalid *fleet.InvalidArgumentError
+	require.ErrorAs(t, err, &invalid)
+	_, err = fleet.ValidateEULAPlatform(ctx, svc, "")
+	require.ErrorIs(t, err, appleOff)
+	_, err = fleet.ValidateEULAPlatform(ctx, svc, fleet.MDMEULAPlatformWindows)
+	require.ErrorIs(t, err, windowsOff)
+
+	// a token's platform comes from the database and needs the same MDM
+	dbDown := errors.New("db down")
+	ds.MDMGetEULAPlatformFunc = func(ctx context.Context, token string) (fleet.MDMEULAPlatform, error) {
+		switch token {
+		case "mac":
+			return fleet.MDMEULAPlatformDarwin, nil
+		case "win":
+			return fleet.MDMEULAPlatformWindows, nil
+		case "odd":
+			return "linux", nil
+		}
+		return "", dbDown
+	}
+	_, err = svc.eulaPlatformForToken(ctx, "mac")
+	require.ErrorIs(t, err, appleOff)
+	_, err = svc.eulaPlatformForToken(ctx, "win")
+	require.ErrorIs(t, err, windowsOff)
+	_, err = svc.eulaPlatformForToken(ctx, "gone")
+	require.ErrorIs(t, err, dbDown)
+
+	baseSvc.VerifyMDMAppleConfiguredFunc = func(ctx context.Context) error { return nil }
+	baseSvc.VerifyMDMWindowsConfiguredFunc = func(ctx context.Context) error { return nil }
+	platform, err := svc.eulaPlatformForToken(ctx, "mac")
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMEULAPlatformDarwin, platform)
+	platform, err = svc.eulaPlatformForToken(ctx, "win")
+	require.NoError(t, err)
+	require.Equal(t, fleet.MDMEULAPlatformWindows, platform)
+	// a row with a platform the code doesn't know fails closed
+	_, err = svc.eulaPlatformForToken(ctx, "odd")
+	require.ErrorAs(t, err, &invalid)
 }

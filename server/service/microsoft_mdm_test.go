@@ -2469,11 +2469,12 @@ func TestRekeyWindowsDevice(t *testing.T) {
 	// Captured before the local `syncml` string variable below shadows the syncml package.
 	pollScheduleLocURI := syncml.DMClientPollIntervalLocURI
 	invalidCredentialsStatus := syncml.CmdStatusInvalidCredentials
+	enrollmentHostUUID := "host-uuid-123"
 	ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
 		return &fleet.MDMWindowsEnrolledDevice{
 			ID:              testEnrollmentID,
 			MDMDeviceID:     "device",
-			HostUUID:        "host-uuid-123",
+			HostUUID:        enrollmentHostUUID,
 			CredentialsHash: credsHash,
 			// Loaded as 1 so the per-session refresh fires when the pending fetch returns empty (asserted at the end of
 			// the test); a device loaded with the flag at 0 skips the refresh entirely.
@@ -2481,6 +2482,12 @@ func TestRekeyWindowsDevice(t *testing.T) {
 			// Already announced, so the deferred mdm_enrolled path short-circuits: this test is about rekeying.
 			EnrolledActivityAt: new(time.Now()),
 		}, nil
+	}
+
+	hostSeenAt := time.Now()
+	var hostLookupErr error
+	ds.WindowsHostLiteByUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.HostLite, error) {
+		return &fleet.HostLite{ID: 1, UUID: hostUUID, SeenTime: hostSeenAt}, hostLookupErr
 	}
 
 	ds.MDMWindowsUpdateEnrolledDeviceCredentialsFunc = func(ctx context.Context, deviceId string, credentialsHash []byte) error {
@@ -2560,6 +2567,29 @@ func TestRekeyWindowsDevice(t *testing.T) {
 	err := xml.Unmarshal([]byte(syncml), &req)
 	require.NoError(t, err)
 
+	// A legacy enrollment is not rekeyed when it has no linked host, its host is missing, or the host was not seen past the cutoff.
+	for _, tc := range []struct {
+		hostUUID  string
+		lookupErr error
+		seenAt    time.Time
+	}{
+		{hostUUID: "", seenAt: time.Now()},
+		{hostUUID: "host-uuid-123", lookupErr: &notFoundError{}},
+		{hostUUID: "host-uuid-123", seenAt: time.Now().Add(-windowsMDMRekeyMaxOffline - time.Hour)},
+	} {
+		enrollmentHostUUID, hostLookupErr, hostSeenAt = tc.hostUUID, tc.lookupErr, tc.seenAt
+		_, err = svc.GetMDMWindowsManagementResponse(ctx, req)
+		require.ErrorContains(t, err, "device was not MDM enrolled")
+		require.Nil(t, credsHash)
+	}
+
+	// Any other lookup failure also refuses the rekey, but surfaces the error instead of posing as an unknown device.
+	enrollmentHostUUID, hostLookupErr = "host-uuid-123", errors.New("boom")
+	_, err = svc.GetMDMWindowsManagementResponse(ctx, req)
+	require.ErrorContains(t, err, "check windows rekey eligibility")
+	require.Nil(t, credsHash)
+
+	hostLookupErr, hostSeenAt = nil, time.Now()
 	res, err := svc.GetMDMWindowsManagementResponse(ctx, req)
 	require.NoError(t, err)
 	require.NotNil(t, res)

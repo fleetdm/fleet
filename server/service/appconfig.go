@@ -562,6 +562,43 @@ func (svc *Service) appleAccountProvisioningSecret(ctx context.Context) (string,
 	return string(assets[fleet.MDMAssetAppleAccountProvisioningIdPClientSecret].Value), nil
 }
 
+// verifyChangedAppleAccountProvisioning checks Apple account provisioning
+// settings with the IdP, but only when the token URL, client ID, or secret
+// changed: GitOps resends the same secret on every run and must not contact
+// the IdP each time. A stored secret is never sent to a new token URL because
+// ModifyAppConfig already requires a new secret when the URL changes.
+func (svc *Service) verifyChangedAppleAccountProvisioning(ctx context.Context, old, merged fleet.AppleAccountProvisioning, newSecretProvided bool, newSecret string) error {
+	if !merged.Configured() || svc.EnterpriseOverrides == nil || svc.EnterpriseOverrides.VerifyAppleAccountProvisioning == nil {
+		return nil
+	}
+	changed := merged.OAuthIdPTokenURL.Value != old.OAuthIdPTokenURL.Value ||
+		merged.OAuthIdPClientID.Value != old.OAuthIdPClientID.Value
+	if !changed && !newSecretProvided {
+		return nil
+	}
+
+	stored, err := svc.appleAccountProvisioningSecret(ctx)
+	if err != nil {
+		return err
+	}
+	secret := stored
+	if newSecretProvided {
+		changed = changed || newSecret != stored
+		secret = newSecret
+	}
+	if !changed {
+		return nil
+	}
+
+	if err := svc.EnterpriseOverrides.VerifyAppleAccountProvisioning(ctx, merged, secret); err != nil {
+		if invalid, ok := errors.AsType[*fleet.InvalidArgumentError](err); ok {
+			return ctxerr.Wrap(ctx, invalid)
+		}
+		return ctxerr.Wrap(ctx, err, "verify apple account provisioning settings")
+	}
+	return nil
+}
+
 func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fleet.ApplySpecOptions) (*fleet.AppConfig, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
 		return nil, err
@@ -1148,6 +1185,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
+	}
+
+	if err := svc.verifyChangedAppleAccountProvisioning(ctx, oldAAP, mergedAAP, newAAPSecretProvided, newAAPSecret); err != nil {
+		return nil, err
 	}
 
 	// Normalize the stored JSON to the canonical fleet name, or to "" when the default was cleared.
@@ -3331,5 +3372,5 @@ func (svc *Service) MaxInstallerSizeBytes() int64 {
 }
 
 func (svc *Service) StagedUploadAvailable(ctx context.Context) bool {
-	return svc.config.S3.SoftwareInstallersSignedURL && svc.config.S3.SoftwareInstallersBucket != "" && license.IsPremium(ctx)
+	return svc.config.StagedUploadAvailable() && license.IsPremium(ctx)
 }

@@ -533,75 +533,88 @@ func (ec *eulaContent) Handle(res *http.Response) error {
 	return err
 }
 
-// eulaEndpoints is what differs between the macOS and Windows EULA APIs; the
-// client logic for both is the same.
-type eulaEndpoints struct {
-	path  string // base path of the endpoints
-	field string // multipart field of the upload
-	label string // names the EULA in error messages
+const eulaAPIPath = "/api/latest/fleet/setup_experience/eula"
+
+// eulaTarget is what differs between the macOS and Windows EULA requests; the
+// client logic for both is the same. Requests by token don't need the
+// platform: the token belongs to one EULA.
+type eulaTarget struct {
+	platform fleet.MDMEULAPlatform // sent for Windows only, so macOS requests stay as they always were
+	label    string                // names the EULA in error messages
 }
 
 var (
-	macOSEULAEndpoints   = eulaEndpoints{path: "/api/latest/fleet/setup_experience/eula", field: "eula", label: "eula"}
-	windowsEULAEndpoints = eulaEndpoints{path: "/api/latest/fleet/setup_experience/windows_eula", field: "windows_eula", label: "Windows EULA"}
+	macOSEULATarget   = eulaTarget{label: "eula"}
+	windowsEULATarget = eulaTarget{platform: fleet.MDMEULAPlatformWindows, label: "Windows EULA"}
 )
 
+// metadataQuery is the platform parameter for the metadata request; uploads
+// send it as a form field instead.
+func (e eulaTarget) metadataQuery() string {
+	if e.platform == "" {
+		return ""
+	}
+	return "platform=" + string(e.platform)
+}
+
 func (c *Client) GetEULAContent(token string) ([]byte, error) {
-	return c.getEULAContent(macOSEULAEndpoints, token)
+	return c.getEULAContent(token)
 }
 
 func (c *Client) GetEULAMetadata() (*fleet.MDMEULA, error) {
-	return c.getEULAMetadata(macOSEULAEndpoints)
+	return c.getEULAMetadata(macOSEULATarget)
 }
 
 func (c *Client) DeleteEULAIfNeeded(dryRun bool) error {
-	return c.deleteEULAIfNeeded(macOSEULAEndpoints, dryRun)
+	return c.deleteEULAIfNeeded(macOSEULATarget, dryRun)
 }
 
 func (c *Client) DeleteEULA(token string, dryRun bool) error {
-	return c.deleteEULA(macOSEULAEndpoints, token, dryRun)
+	return c.deleteEULA(token, dryRun)
 }
 
 func (c *Client) UploadEULAIfNeeded(eulaPath string, dryRun bool) error {
-	return c.uploadEULAIfNeeded(macOSEULAEndpoints, eulaPath, dryRun)
+	return c.uploadEULAIfNeeded(macOSEULATarget, eulaPath, dryRun)
 }
 
 func (c *Client) UploadEULA(eulaPath string, dryRun bool) error {
-	return c.uploadEULA(macOSEULAEndpoints, eulaPath, dryRun)
-}
-
-func (c *Client) GetWindowsEULAContent(token string) ([]byte, error) {
-	return c.getEULAContent(windowsEULAEndpoints, token)
+	return c.uploadEULA(macOSEULATarget, eulaPath, dryRun)
 }
 
 func (c *Client) GetWindowsEULAMetadata() (*fleet.MDMEULA, error) {
-	return c.getEULAMetadata(windowsEULAEndpoints)
+	return c.getEULAMetadata(windowsEULATarget)
 }
 
 func (c *Client) DeleteWindowsEULAIfNeeded(dryRun bool) error {
-	return c.deleteEULAIfNeeded(windowsEULAEndpoints, dryRun)
+	return c.deleteEULAIfNeeded(windowsEULATarget, dryRun)
 }
 
 func (c *Client) UploadWindowsEULAIfNeeded(eulaPath string, dryRun bool) error {
-	return c.uploadEULAIfNeeded(windowsEULAEndpoints, eulaPath, dryRun)
+	return c.uploadEULAIfNeeded(windowsEULATarget, eulaPath, dryRun)
 }
 
-func (c *Client) getEULAContent(e eulaEndpoints, token string) ([]byte, error) {
-	verb, path := "GET", e.path+"/"+token
+func (c *Client) getEULAContent(token string) ([]byte, error) {
+	verb, path := "GET", eulaAPIPath+"/"+token
 	var responseBody eulaContent
 	err := c.authenticatedRequest(nil, verb, path, &responseBody)
 	return responseBody.Bytes, err
 }
 
-func (c *Client) getEULAMetadata(e eulaEndpoints) (*fleet.MDMEULA, error) {
-	verb, path := "GET", e.path+"/metadata"
-	// Both platforms return the same body, so the macOS response type serves both.
+func (c *Client) getEULAMetadata(e eulaTarget) (*fleet.MDMEULA, error) {
+	verb, path := "GET", eulaAPIPath+"/metadata"
 	var responseBody getMDMEULAMetadataResponse
-	err := c.authenticatedRequest(nil, verb, path, &responseBody)
-	return responseBody.MDMEULA, err
+	if err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, e.metadataQuery()); err != nil {
+		return nil, err
+	}
+	// A server older than fleetctl ignores the platform and answers for macOS;
+	// deleting or replacing that EULA by mistake is worse than failing.
+	if e.platform != "" && responseBody.Platform != e.platform {
+		return nil, fmt.Errorf("the server didn't return the %s; it may be older than fleetctl", e.label)
+	}
+	return responseBody.MDMEULA, nil
 }
 
-func (c *Client) deleteEULAIfNeeded(e eulaEndpoints, dryRun bool) error {
+func (c *Client) deleteEULAIfNeeded(e eulaTarget, dryRun bool) error {
 	eula, err := c.getEULAMetadata(e)
 	switch {
 	case isNotFoundErr(err):
@@ -611,21 +624,21 @@ func (c *Client) deleteEULAIfNeeded(e eulaEndpoints, dryRun bool) error {
 		return fmt.Errorf("getting %s metadata: %w", e.label, err)
 	}
 
-	err = c.deleteEULA(e, eula.Token, dryRun)
+	err = c.deleteEULA(eula.Token, dryRun)
 	if err != nil {
 		return fmt.Errorf("deleting %s: %w", e.label, err)
 	}
 	return nil
 }
 
-func (c *Client) deleteEULA(e eulaEndpoints, token string, dryRun bool) error {
-	verb, path := "DELETE", e.path+"/"+token
+func (c *Client) deleteEULA(token string, dryRun bool) error {
+	verb, path := "DELETE", eulaAPIPath+"/"+token
 	var responseBody deleteMDMEULAResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, fmt.Sprintf("dry_run=%t", dryRun))
 	return err
 }
 
-func (c *Client) uploadEULAIfNeeded(e eulaEndpoints, eulaPath string, dryRun bool) error {
+func (c *Client) uploadEULAIfNeeded(e eulaTarget, eulaPath string, dryRun bool) error {
 	oldMeta, err := c.getEULAMetadata(e)
 	// not found is OK, it means this is our first time uploading a eula
 	if err != nil && !isNotFoundErr(err) {
@@ -656,7 +669,7 @@ func (c *Client) uploadEULAIfNeeded(e eulaEndpoints, eulaPath string, dryRun boo
 				return err
 			}
 		}
-		err = c.deleteEULA(e, oldMeta.Token, dryRun)
+		err = c.deleteEULA(oldMeta.Token, dryRun)
 		if err != nil {
 			return fmt.Errorf("deleting old %s: %w", e.label, err)
 		}
@@ -665,14 +678,20 @@ func (c *Client) uploadEULAIfNeeded(e eulaEndpoints, eulaPath string, dryRun boo
 	return c.uploadEULA(e, eulaPath, dryRun)
 }
 
-func (c *Client) uploadEULA(e eulaEndpoints, eulaPath string, dryRun bool) error {
-	verb, path := "POST", e.path
+func (c *Client) uploadEULA(e eulaTarget, eulaPath string, dryRun bool) error {
+	verb, path := "POST", eulaAPIPath
 
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 
+	if e.platform != "" {
+		if err := w.WriteField("platform", string(e.platform)); err != nil {
+			return err
+		}
+	}
+
 	// add the eula field
-	fw, err := w.CreateFormFile(e.field, filepath.Base(eulaPath))
+	fw, err := w.CreateFormFile("eula", filepath.Base(eulaPath))
 	if err != nil {
 		return err
 	}

@@ -69,6 +69,9 @@ type Datastore struct {
 	clock  clock.Clock
 	config config.MysqlConfig
 	pusher nano_push.Pusher
+	// orbitConfigNotifier is nil unless orbit config nudges are enabled (see
+	// WithOrbitConfigNotifier).
+	orbitConfigNotifier fleet.AgentCheckInNotifier
 	android.Datastore
 
 	// nil if no read replica

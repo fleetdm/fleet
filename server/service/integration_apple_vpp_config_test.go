@@ -1712,3 +1712,52 @@ func getFirstAddedVPPAppConfigurationForTest(t *testing.T, ds *mysql.Datastore, 
 	})
 	return ds.GetVPPAppConfiguration(ctxdb.RequirePrimary(t.Context(), true), vppAppTeamID)
 }
+
+func (s *integrationMDMTestSuite) TestAppStoreAppsRequireAppleMDM() {
+	t := s.T()
+	ctx := t.Context()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "vpp-requires-apple-mdm"})
+	require.NoError(t, err)
+
+	orgName := "Fleet Device Management Inc."
+	token := "vpprequiresapplemdmtoken" //nolint:gosec // G101: test value, not a real credential
+	expDate := time.Now().Add(200 * time.Hour).UTC().Round(time.Second).Format(fleet.VPPTimeFormat)
+	tokenJSON := fmt.Sprintf(`{"expDate":%q,"token":%q,"orgName":%q}`, expDate, token, orgName)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL, t)
+
+	var uploadResp uploadVPPTokenResponse
+	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken",
+		[]byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &uploadResp)
+	var patchResp patchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", uploadResp.Token.ID),
+		patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &patchResp)
+
+	var appsResp getAppStoreAppsResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", nil, http.StatusOK, &appsResp, "fleet_id", fmt.Sprint(team.ID))
+	require.NotEmpty(t, appsResp.AppStoreApps)
+
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appCfg.MDM.EnabledAndConfigured = false
+	require.NoError(t, s.ds.SaveAppConfig(ctx, appCfg))
+	t.Cleanup(func() {
+		appCfg.MDM.EnabledAndConfigured = true
+		require.NoError(t, s.ds.SaveAppConfig(context.Background(), appCfg))
+	})
+
+	res := s.Do("GET", "/api/latest/fleet/software/app_store_apps", nil, http.StatusBadRequest, "fleet_id", fmt.Sprint(team.ID))
+	require.Contains(t, extractServerErrorText(res.Body), fleet.MDMNotConfiguredMessage)
+
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		TeamID:     &team.ID,
+		AppStoreID: "1",
+		Platform:   fleet.MacOSPlatform,
+	}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.MDMNotConfiguredMessage)
+
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsRequest{
+		Apps: []fleet.VPPBatchPayload{{AppStoreID: "1", Platform: fleet.MacOSPlatform}},
+	}, http.StatusBadRequest, "team_name", team.Name)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.MDMNotConfiguredMessage)
+}

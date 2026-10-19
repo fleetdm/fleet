@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.4.1",
+      "version": "4.4.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.devon-technologies.think';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.devon-technologies.think' AND version_compare(bundle_short_version, '4.4.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.devon-technologies.think' AND version_compare(bundle_short_version, '4.4.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.devon-technologies.think' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.devontechnologies.com/download/devonthink/4.4.1/DEVONthink.app.zip",
+      "installer_url": "https://download.devontechnologies.com/download/devonthink/4.4.2/DEVONthink.app.zip",
       "install_script_ref": "2c5ca521",
       "uninstall_script_ref": "26b33428",
-      "sha256": "00babf3e3a32eeeeb8440c0f4cb2c1189433ddaddf1ee2243ce8c60436f367c3",
+      "sha256": "986cf1b1caf2b1bd1052da18891e6b44eb91bceb5346f3d907e5560c11dca88d",
       "default_categories": [
         "Productivity"
       ]

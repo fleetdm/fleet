@@ -57,6 +57,7 @@ func TestScim(t *testing.T) {
 		{"ScimNestedGroups", testScimNestedGroups},
 		{"TriggerResendIdPProfiles", testTriggerResendIdPProfiles},
 		{"TriggerResendIdPProfilesOnTeam", testTriggerResendIdPProfilesOnTeam},
+		{"TriggerResendIdPProfilesOnlyForChangedAttributes", testTriggerResendIdPProfilesOnlyForChangedAttributes},
 		{"TriggerResendDigiCertProfiles", testTriggerResendDigiCertProfiles},
 		{"TriggerResendCertTemplatesAndAppConfigs", testTriggerResendCertTemplatesAndAppConfigs},
 		{"SetOrUpdateHostSCIMUserMapping", testSetOrUpdateHostSCIMUserMapping},
@@ -2408,7 +2409,7 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 	// user1, does not trigger anything
 	group2, err := ds.CreateScimGroup(ctx, &fleet.ScimGroup{DisplayName: "g2"})
 	require.NoError(t, err)
-	_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser1, UserName: "A@example.com", ExternalID: new("A")})
+	_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser1, UserName: "A@example.com", Active: new(true)})
 	require.NoError(t, err)
 
 	assertHostProfileStatus(t, ds, host1.UUID,
@@ -2741,6 +2742,116 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 		hostProfileStatus{profWAll.ProfileUUID, fleet.MDMDeliveryVerifying})
 }
 
+func testTriggerResendIdPProfilesOnlyForChangedAttributes(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
+	hostW := test.NewHost(t, ds, "hostW1", "2", "hostW1key", "hostW1uuid", time.Now(), test.WithPlatform("windows"))
+
+	profExternalID, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("a", "a", 0), nil)
+	require.NoError(t, err)
+	profNone, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("b", "b", 0), nil)
+	require.NoError(t, err)
+	profUsername, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("c", "c", 0), nil)
+	require.NoError(t, err)
+	profWExternalID, err := ds.NewMDMWindowsConfigProfile(ctx, *generateWindowsCP("w", "w", 0), nil)
+	require.NoError(t, err)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO mdm_configuration_profile_variables (apple_profile_uuid, fleet_variable_id)
+			SELECT ?, id FROM fleet_variables WHERE name = ?`, profExternalID.ProfileUUID, "FLEET_VAR_"+string(fleet.FleetVarHostEndUserIDPExternalID))
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx, `INSERT INTO mdm_configuration_profile_variables (apple_profile_uuid, fleet_variable_id)
+			SELECT ?, id FROM fleet_variables WHERE name = ?`, profUsername.ProfileUUID, "FLEET_VAR_"+string(fleet.FleetVarHostEndUserIDPUsername))
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx, `INSERT INTO mdm_configuration_profile_variables (windows_profile_uuid, fleet_variable_id)
+			SELECT ?, id FROM fleet_variables WHERE name = ?`, profWExternalID.ProfileUUID, "FLEET_VAR_"+string(fleet.FleetVarHostEndUserIDPExternalID))
+		return err
+	})
+
+	scimUser, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "a@example.com", ExternalID: new("ext-1")})
+	require.NoError(t, err)
+	require.NoError(t, ds.associateHostWithScimUser(ctx, host.ID, scimUser))
+	require.NoError(t, ds.associateHostWithScimUser(ctx, hostW.ID, scimUser))
+
+	setAllVerifying := func() {
+		forceSetAppleHostProfileStatus(t, ds, host.UUID, profExternalID, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+		forceSetAppleHostProfileStatus(t, ds, host.UUID, profNone, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+		forceSetAppleHostProfileStatus(t, ds, host.UUID, profUsername, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+		forceSetWindowsHostProfileStatus(t, ds, hostW.UUID, profWExternalID, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	}
+	setAllVerifying()
+
+	// same external ID, nothing to resend
+	_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser, UserName: "a@example.com", ExternalID: new("ext-1")})
+	require.NoError(t, err)
+	assertHostProfileStatus(t, ds, host.UUID,
+		hostProfileStatus{profExternalID.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, hostW.UUID,
+		hostProfileStatus{profWExternalID.ProfileUUID, fleet.MDMDeliveryVerifying})
+
+	for _, newExternalID := range []*string{new("ext-2"), nil} {
+		_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser, UserName: "a@example.com", ExternalID: newExternalID})
+		require.NoError(t, err)
+		assertHostProfileStatus(t, ds, host.UUID,
+			hostProfileStatus{profExternalID.ProfileUUID, fleet.MDMDeliveryPending},
+			hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+			hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryVerifying})
+		assertHostProfileStatus(t, ds, hostW.UUID,
+			hostProfileStatus{profWExternalID.ProfileUUID, fleet.MDMDeliveryPending})
+		setAllVerifying()
+	}
+
+	// neither profile uses the department
+	_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser, UserName: "a@example.com", Department: new("Eng")})
+	require.NoError(t, err)
+	assertHostProfileStatus(t, ds, host.UUID,
+		hostProfileStatus{profExternalID.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryVerifying})
+	assertHostProfileStatus(t, ds, hostW.UUID,
+		hostProfileStatus{profWExternalID.ProfileUUID, fleet.MDMDeliveryVerifying})
+
+	_, err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser, UserName: "b@example.com", Department: new("Eng")})
+	require.NoError(t, err)
+	assertHostProfileStatus(t, ds, host.UUID,
+		hostProfileStatus{profExternalID.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profNone.ProfileUUID, fleet.MDMDeliveryVerifying},
+		hostProfileStatus{profUsername.ProfileUUID, fleet.MDMDeliveryPending})
+	assertHostProfileStatus(t, ds, hostW.UUID,
+		hostProfileStatus{profWExternalID.ProfileUUID, fleet.MDMDeliveryVerifying})
+}
+
+// newDigiCertCA creates a DigiCert CA with the given certificate fields.
+func newDigiCertCA(t *testing.T, ds *Datastore, name, commonName, seatID string, upns *[]string) *fleet.CertificateAuthority {
+	ca, err := ds.NewCertificateAuthority(t.Context(), &fleet.CertificateAuthority{
+		Type: string(fleet.CATypeDigiCert), Name: &name, URL: new("https://example.com"), APIToken: new("token"), ProfileID: new("profile"),
+		CertificateCommonName: &commonName, CertificateUserPrincipalNames: upns, CertificateSeatID: &seatID,
+	})
+	require.NoError(t, err)
+	return ca
+}
+
+// newDigiCertProfile creates an Apple profile that gets its certificate from the named DigiCert CA.
+func newDigiCertProfile(t *testing.T, ds *Datastore, name, caName string, teamID uint) *fleet.MDMAppleConfigProfile {
+	return newCAProfile(t, ds, fleet.FleetVarDigiCertDataPrefix, name, caName, teamID)
+}
+
+// newCAProfile creates an Apple profile that gets its certificate from the named CA, through its dataVar prefix variable.
+func newCAProfile(t *testing.T, ds *Datastore, dataVar fleet.FleetVarName, name, caName string, teamID uint) *fleet.MDMAppleConfigProfile {
+	cp := generateAppleCP(name, name, teamID)
+	cp.Mobileconfig = []byte("<data>" + dataVar.WithPrefix() + caName + "</data>")
+	profile, err := ds.NewMDMAppleConfigProfile(t.Context(), *cp, []fleet.FleetVarName{fleet.FleetVarName(string(dataVar) + caName)})
+	require.NoError(t, err)
+	return profile
+}
+
 func testTriggerResendDigiCertProfiles(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -2749,34 +2860,24 @@ func testTriggerResendDigiCertProfiles(t *testing.T, ds *Datastore) {
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "digicert_team"})
 	require.NoError(t, err)
 
-	newDigiCertCA := func(name, commonName, seatID string, upns *[]string) *fleet.CertificateAuthority {
-		ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
-			Type: string(fleet.CATypeDigiCert), Name: &name, URL: new("https://example.com"), APIToken: new("token"), ProfileID: new("profile"),
-			CertificateCommonName: &commonName, CertificateUserPrincipalNames: upns, CertificateSeatID: &seatID,
-		})
-		require.NoError(t, err)
-		return ca
-	}
-	newDigiCertProfile := func(name, caName string, teamID uint) *fleet.MDMAppleConfigProfile {
-		cp := generateAppleCP(name, name, teamID)
-		cp.Mobileconfig = []byte("<data>" + fleet.FleetVarDigiCertDataPrefix.WithPrefix() + caName + "</data>")
-		profile, err := ds.NewMDMAppleConfigProfile(ctx, *cp, []fleet.FleetVarName{fleet.FleetVarName(string(fleet.FleetVarDigiCertDataPrefix) + caName)})
-		require.NoError(t, err)
-		return profile
-	}
-
 	// "ca" is a prefix of "ca_groups", so a resend for "ca" must not match the "ca_groups" profile.
-	newDigiCertCA("ca", fleet.FleetVarHostEndUserIDPUsername.WithPrefix(), fleet.FleetVarHostEndUserEmailIDP.WithBraces(), nil)
-	newDigiCertCA("ca_groups", "cn", "seat", &[]string{fleet.FleetVarHostEndUserIDPGroups.WithPrefix() + "@example.com"})
-	serialCA := newDigiCertCA("ca_serial", fleet.FleetVarHostHardwareSerial.WithPrefix(), "seat", &[]string{"upn"})
+	newDigiCertCA(t, ds, "ca", fleet.FleetVarHostEndUserIDPUsername.WithPrefix(), fleet.FleetVarHostEndUserEmailIDP.WithBraces(), nil)
+	newDigiCertCA(t, ds, "ca_groups", "cn", "seat", &[]string{fleet.FleetVarHostEndUserIDPGroups.WithPrefix() + "@example.com"})
+	serialCA := newDigiCertCA(t, ds, "ca_serial", fleet.FleetVarHostHardwareSerial.WithPrefix(), "seat", &[]string{"upn"})
 
-	profUsername := newDigiCertProfile("username", "ca", 0)
-	profGroups := newDigiCertProfile("groups", "ca_groups", 0)
-	profSerial := newDigiCertProfile("serial", "ca_serial", 0)
-	profOtherTeam := newDigiCertProfile("other_team", "ca", team.ID) // not the hosts' team, so never resent
+	profUsername := newDigiCertProfile(t, ds, "username", "ca", 0)
+	profGroups := newDigiCertProfile(t, ds, "groups", "ca_groups", 0)
+	profSerial := newDigiCertProfile(t, ds, "serial", "ca_serial", 0)
+	profOtherTeam := newDigiCertProfile(t, ds, "other_team", "ca", team.ID) // not the hosts' team, so never resent
 	profNone, err := ds.NewMDMAppleConfigProfile(ctx, *generateAppleCP("none", "none", 0), nil)
 	require.NoError(t, err)
-	allProfiles := []*fleet.MDMAppleConfigProfile{profUsername, profGroups, profSerial, profOtherTeam, profNone}
+	newEJBCACA(t, ds, "ejbca_ca", fleet.FleetVarHostEndUserIDPDepartment.WithPrefix(), nil, nil)
+	newEJBCACA(t, ds, "ejbca_ca_username", "cn", new(fleet.FleetVarHostEndUserIDPExternalID.WithPrefix()), nil)
+	profEJBCA := newCAProfile(t, ds, fleet.FleetVarEJBCADataPrefix, "ejbca", "ejbca_ca", 0)
+	profEJBCAUsername := newCAProfile(t, ds, fleet.FleetVarEJBCADataPrefix, "ejbca_username", "ejbca_ca_username", 0)
+	allProfiles := []*fleet.MDMAppleConfigProfile{
+		profUsername, profGroups, profSerial, profOtherTeam, profNone, profEJBCA, profEJBCAUsername,
+	}
 
 	checkResend := func(affectedVar fleet.FleetVarName, wantPending ...*fleet.MDMAppleConfigProfile) {
 		t.Run(string(affectedVar), func(t *testing.T) {
@@ -2805,6 +2906,8 @@ func testTriggerResendDigiCertProfiles(t *testing.T, ds *Datastore) {
 	checkResend(fleet.FleetVarHostEndUserEmailIDP, profUsername)
 	checkResend(fleet.FleetVarHostEndUserIDPGroups, profGroups)
 	checkResend(fleet.FleetVarHostEndUserIDPFullname)
+	checkResend(fleet.FleetVarHostEndUserIDPDepartment, profEJBCA)
+	checkResend(fleet.FleetVarHostEndUserIDPExternalID, profEJBCAUsername)
 
 	// The CA is read at resend time, so an edited CA is picked up without touching the profile.
 	require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, serialCA.ID, &fleet.CertificateAuthority{
