@@ -336,6 +336,7 @@ const InstallSoftwareForm = ({
         )}
         <GitOpsModeTooltipWrapper
           tipOffset={6}
+          entityType="software"
           renderChildren={(disableChildren) => (
             <TooltipWrapper
               className={"select-software-table__manual-install-tooltip"}
