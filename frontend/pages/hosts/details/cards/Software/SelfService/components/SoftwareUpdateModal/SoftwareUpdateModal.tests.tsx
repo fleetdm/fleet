@@ -250,9 +250,9 @@ describe("SoftwareUpdateModal", () => {
           isDeviceUser
         />
       );
-    const MULTIPLE_COPIES = /are installed\. Updating only replaces the copy in the Applications folder/;
+    const MULTIPLE_COPIES = /are installed\. Updating only replaces the version in the Applications folder/;
 
-    it("explains that only the copy in Applications is updated", () => {
+    it("explains that only the version in Applications is updated", () => {
       renderModal({
         installed_versions: [
           makeVersion("1.0.0", "/Applications/Slack.app"),
@@ -260,7 +260,7 @@ describe("SoftwareUpdateModal", () => {
         ],
       });
       expect(screen.getByText(MULTIPLE_COPIES)).toBeInTheDocument();
-      expect(screen.getByText(/delete the other copies/)).toBeInTheDocument();
+      expect(screen.getByText(/delete the other versions/)).toBeInTheDocument();
     });
 
     it("counts copies of the same version at different paths", () => {

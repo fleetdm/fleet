@@ -24,9 +24,9 @@ const hasMultipleMacAppCopies = (software: IHostSoftware) =>
 
 const MultipleCopiesMessage = ({ softwareName }: { softwareName: string }) => (
   <p className={`${baseClass}__multiple-copies`}>
-    Multiple copies of <b>{softwareName}</b> are installed. Updating only
-    replaces the copy in the Applications folder, so this update may keep
-    showing. To clear it, delete the other copies.
+    Multiple versions of <b>{softwareName}</b> are installed. Updating only
+    replaces the version in the Applications folder, so this update may keep
+    showing. To clear it, delete the other versions.
   </p>
 );
 
