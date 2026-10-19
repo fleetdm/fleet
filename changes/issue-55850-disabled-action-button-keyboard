@@ -1,1 +1,1 @@
-- Fixed disabled bulk-action buttons on the Hosts page, such as **Run script**, still opening with the keyboard (Tab + Enter). Previously, a disabled **Run script** with "Select all matching hosts" and an unsupported filter could run the script on every host in the fleet instead of only the hosts shown in the modal.
+- Fixed disabled bulk-action buttons on the Hosts page, such as **Run script**, still receiving keyboard focus and opening with Enter.
