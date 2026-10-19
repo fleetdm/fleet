@@ -229,7 +229,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 
 		aiGeneratedProfiles, err := aiGeneratedProfileCountsDB(ctx, ds.reader(ctx))
 		if err != nil {
-			return err
+			return ctxerr.Wrap(ctx, err, "AI generated profile counts")
 		}
 		stats.NumAppleAiGeneratedProfiles = aiGeneratedProfiles.Apple
 		stats.NumWindowsAiGeneratedProfiles = aiGeneratedProfiles.Windows
@@ -495,8 +495,11 @@ func (ds *Datastore) IncrementAIGeneratedProfileCount(ctx context.Context, platf
 		ON DUPLICATE KEY UPDATE
 			json_value = JSON_SET(json_value, ?, COALESCE(CAST(JSON_EXTRACT(json_value, ?) AS UNSIGNED), 0) + 1)`
 	path := "$." + platform
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, aggregatedStatsTypeAIGeneratedProfiles, platform, path, path)
-	return ctxerr.Wrap(ctx, err, "increment AI generated profile count")
+	// Every generation updates this one row, so retry the lock errors the retry helper covers rather than lose a count.
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, stmt, aggregatedStatsTypeAIGeneratedProfiles, platform, path, path)
+		return ctxerr.Wrap(ctx, err, "increment AI generated profile count")
+	})
 }
 
 func aiGeneratedProfileCountsDB(ctx context.Context, db sqlx.QueryerContext) (aiGeneratedProfileCounts, error) {
