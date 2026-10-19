@@ -409,6 +409,66 @@ describe("ManageHostsPage", () => {
     }
   });
 
+  it("sends the App Store app version filter from the URL with the host list and count requests", async () => {
+    let listedVersionId: string | null = null;
+    let countedVersionId: string | null = null;
+    setupHandlers(0);
+    mockServer.use(
+      http.get(baseUrl("/fleets"), () => {
+        return HttpResponse.json({
+          teams: [{ id: 1, name: "Team 1", description: "" }],
+        });
+      }),
+      http.get(baseUrl("/fleets/1/secrets"), () => {
+        return HttpResponse.json({ secrets: [] });
+      }),
+      http.get(baseUrl("/hosts"), ({ request }) => {
+        listedVersionId = new URL(request.url).searchParams.get(
+          "app_store_app_version_id"
+        );
+        return HttpResponse.json({ hosts: [] });
+      }),
+      http.get(baseUrl("/hosts/count"), ({ request }) => {
+        countedVersionId = new URL(request.url).searchParams.get(
+          "app_store_app_version_id"
+        );
+        return HttpResponse.json({ count: 0 });
+      })
+    );
+
+    const premiumAdminContext = {
+      ...mockAppContext,
+      isPremiumTier: true,
+      isFreeTier: false,
+      availableTeams: [createMockTeamSummary({ id: 1, name: "Team 1" })],
+      setCurrentTeam: jest.fn(),
+    };
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: premiumAdminContext },
+    });
+
+    const props = createMockProps({
+      location: {
+        pathname: "/hosts/manage",
+        search:
+          "?fleet_id=1&software_title_id=12&software_status=failed&app_store_app_version_id=5",
+        hash: "",
+        query: {
+          fleet_id: "1",
+          software_title_id: "12",
+          software_status: "failed",
+          app_store_app_version_id: "5",
+        },
+      },
+    });
+    render(<ManageHostsPage {...(props as any)} />);
+
+    // open the hosts page filtered by an App Store app version, both requests should filter by that version
+    await waitFor(() => expect(listedVersionId).toBe("5"));
+    await waitFor(() => expect(countedVersionId).toBe("5"));
+  });
+
   it("renders filtered empty state with enabled controls", async () => {
     setupHandlers(0);
     const render = createCustomRenderer({

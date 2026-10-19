@@ -135,6 +135,7 @@ export interface ILoadHostsOptions {
   softwareTitleId?: number;
   softwareVersionId?: number;
   softwareStatus?: SoftwareAggregateStatus;
+  appStoreAppVersionId?: number;
   status?: HostStatus;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
@@ -172,6 +173,7 @@ export interface IExportHostsOptions {
   softwareTitleId?: number;
   softwareVersionId?: number;
   softwareStatus?: SoftwareAggregateStatus;
+  appStoreAppVersionId?: number;
   status?: HostStatus;
   mdmId?: number;
   munkiIssueId?: number;
@@ -406,6 +408,7 @@ export default {
     const softwareTitleId = options?.softwareTitleId;
     const softwareVersionId = options?.softwareVersionId;
     const softwareStatus = options?.softwareStatus;
+    const appStoreAppVersionId = options?.appStoreAppVersionId;
     const macSettingsStatus = options?.macSettingsStatus;
     const osName = options?.osName;
     const osVersionId = options?.osVersionId;
@@ -453,6 +456,7 @@ export default {
         softwareTitleId,
         softwareVersionId,
         softwareStatus,
+        appStoreAppVersionId,
         osName,
         osVersionId,
         osVersion,
@@ -493,6 +497,7 @@ export default {
     softwareTitleId,
     softwareVersionId,
     softwareStatus,
+    appStoreAppVersionId,
     status,
     mdmId,
     mdmEnrollmentStatus,
@@ -544,6 +549,7 @@ export default {
         softwareTitleId,
         softwareVersionId,
         softwareStatus,
+        appStoreAppVersionId,
         lowDiskSpaceHosts,
         osVersionId,
         osName,
