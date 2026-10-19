@@ -260,9 +260,6 @@ describe("SoftwareUpdateModal", () => {
         ],
       });
       expect(screen.getByText(MULTIPLE_COPIES)).toBeInTheDocument();
-      expect(
-        screen.getByText(/not duplicates like "Slack 2"/)
-      ).toBeInTheDocument();
       expect(screen.getByText(/delete the other versions/)).toBeInTheDocument();
     });
 

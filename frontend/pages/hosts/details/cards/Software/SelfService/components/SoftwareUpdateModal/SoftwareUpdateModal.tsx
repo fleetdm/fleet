@@ -23,12 +23,11 @@ const hasMultipleMacAppCopies = (software: IHostSoftware) =>
     flatMap(software.installed_versions || [], (iv) => iv.installed_paths)
   ).size > 1;
 
-const MultipleCopiesMessage = ({ softwareName }: { softwareName: string }) => (
+const MultipleCopiesMessage = () => (
   <InfoBanner color="yellow" icon="warning">
-    Multiple versions of <b>{softwareName}</b> are installed. Updating only
-    replaces the original version in the Applications folder, not duplicates
-    like {`"${softwareName} 2"`}, so this update may keep showing. To clear it,
-    delete the other versions.
+    Multiple versions of this app are installed. Updating only replaces the
+    original version in the Applications folder, so this update may keep
+    showing. To clear it, delete the other versions.
   </InfoBanner>
 );
 
@@ -143,7 +142,7 @@ const SoftwareUpdateModal = ({
           installerVersion={installerVersion}
         />
         {status !== "pending_install" && hasMultipleMacAppCopies(software) && (
-          <MultipleCopiesMessage softwareName={softwareDisplayName} />
+          <MultipleCopiesMessage />
         )}
         {showCurrentVersions && <InventoryVersions hostSoftware={software} />}
       </div>
