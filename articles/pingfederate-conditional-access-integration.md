@@ -93,6 +93,8 @@ PingFederate looks up the host in Fleet in two calls. The first finds the host b
 
 Fleet updates a host's policy results each time the host runs its policies, about once an hour. So a user who fixes a failing policy is still blocked until the host rechecks. If they select **Refetch** on their **My device** page, results usually update within a few minutes, and their next sign-in works right away.
 
+A newly enrolled host has no policy results until it runs its policies for the first time. Until then, it isn't failing any critical policies, so it can sign in.
+
 ## Step 7: Test
 
 | Host | Expected result |
@@ -101,6 +103,8 @@ Fleet updates a host's policy results each time the host runs its policies, abou
 | Managed, failing a non-critical policy | Sign-in succeeds |
 | Managed, failing a critical policy | Sign-in denied |
 | No certificate | Sign-in denied |
+
+We haven't tested this guide with SAML or OIDC apps (we used an OAuth client), with certificates from an enterprise CA, with Chrome on Windows, or with certificate renewal on Windows.
 
 ## Troubleshooting
 
