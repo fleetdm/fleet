@@ -52,7 +52,7 @@ trash() {
   fi
 }
 
-sudo rm -rf "$APPDIR/Homebrew.app"
+sudo rm -rf "$APPDIR/Homebrew.app" || exit $?
 
 # Skip per-user cleanup when nobody is logged in to the GUI.
 if [[ -n "$LOGGED_IN_USER" && "$LOGGED_IN_USER" != "root" && "$LOGGED_IN_USER" != "loginwindow" ]]; then

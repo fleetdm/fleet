@@ -100,7 +100,7 @@ if [[ "$(sw_vers -productVersion | cut -d. -f1)" -lt 26 ]]; then
 fi
 
 # extract contents
-unzip "$INSTALLER_PATH" -d "$TMPDIR"
+unzip -o -q "$INSTALLER_PATH" -d "$TMPDIR"
 # copy to the applications folder
 quit_and_track_application 'sh.brew.app' || exit 1
 if [ -d "$APPDIR/Homebrew.app" ]; then
