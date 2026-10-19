@@ -2394,7 +2394,7 @@ Adds the supplied labels to Fleet. Each label requires the `name`, and `label_me
 
 If the `label_membership_type` is set to `dynamic`, the `query` property must also be specified with the value set to a query in SQL syntax.
 
-If the `label_membership_type` is set to `manual`, the `hosts` property must also be specified with the value set to a list of hostnames.
+If the `label_membership_type` is set to `manual`, the `hosts` property must also be specified with the value set to a list of host identifiers (`hardware_serial`, `uuid`, or `id`).
 
 `POST /api/v1/fleet/spec/labels`
 
@@ -2427,7 +2427,7 @@ The purpose of `names_to_move` is to allow a GitOps run to move a Fleet instance
       "name": "local_machine",
       "description": "Includes only my local machine",
       "label_membership_type": "manual",
-      "hosts": ["snacbook-pro.local"]
+      "hosts": ["C02XK1Z2JG5J"]
     }
   ],
   "names_to_move": ["local_machine"]

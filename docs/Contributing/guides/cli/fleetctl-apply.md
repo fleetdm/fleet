@@ -81,7 +81,7 @@ spec:
 ```
 
 Labels can also be manually managed. When defining a manual label, reference hosts
-by hostname:
+by `hardware_serial`, `uuid`, or `id`:
 
 ```yaml
 apiVersion: v1
@@ -90,9 +90,9 @@ spec:
   name: Manually Managed Example
   label_membership_type: manual
   hosts:
-    - hostname1
-    - hostname2
-    - hostname3
+    - "C02XK1Z2JG5J"
+    - "12345678-90ab-cdef-1234-567890abcdef"
+    - "42"
 ```
 
 ## Enroll secrets
