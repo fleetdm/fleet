@@ -1519,6 +1519,25 @@ type Datastore interface {
 	// the stored ciphertext is still currentBase64Encrypted. It leaves decryptable and updated_at unchanged and does
 	// not archive the blob.
 	ReplaceHostDiskEncryptionKeyBlob(ctx context.Context, hostID uint, currentBase64Encrypted, newBase64Encrypted string) error
+	// ListWSTEPEncryptedDiskEncryptionKeys returns up to limit Windows keys that are, or look like they are, still
+	// encrypted to the WSTEP certificate by an older release and are not yet marked undecryptable, ordered by host ID
+	// after afterHostID. WSTEPEncrypted tells the two apart.
+	ListWSTEPEncryptedDiskEncryptionKeys(ctx context.Context, afterHostID uint, limit int) ([]HostDiskEncryptionKey, error)
+	// ListWSTEPEncryptedArchivedDiskEncryptionKeys returns up to limit marked archived keys, ordered by row ID after
+	// afterID.
+	ListWSTEPEncryptedArchivedDiskEncryptionKeys(ctx context.Context, afterID uint, limit int) ([]HostArchivedDiskEncryptionKey, error)
+	// ReplaceWSTEPEncryptedDiskEncryptionKey swaps a legacy key for its server private key encryption and clears the
+	// marker, only if the stored ciphertext is still currentBase64Encrypted. It leaves decryptable and updated_at
+	// unchanged and returns false when nothing matched.
+	ReplaceWSTEPEncryptedDiskEncryptionKey(ctx context.Context, hostID uint, currentBase64Encrypted, newBase64Encrypted string) (bool, error)
+	// ReplaceWSTEPEncryptedArchivedDiskEncryptionKey is the archive counterpart, matched by row ID and marker.
+	ReplaceWSTEPEncryptedArchivedDiskEncryptionKey(ctx context.Context, id uint, currentBase64Encrypted, newBase64Encrypted string) (bool, error)
+	// ClearWSTEPEncryptedArchivedDiskEncryptionKeyMarker takes an archived key the certificate cannot read out of the
+	// job's queue, only if the stored ciphertext is still currentBase64Encrypted.
+	ClearWSTEPEncryptedArchivedDiskEncryptionKeyMarker(ctx context.Context, id uint, currentBase64Encrypted string) error
+	// MarkWindowsDiskEncryptionKeysUndecryptable sets decryptable to false on the given keys, matched by host and
+	// stored ciphertext, which makes the server ask those hosts to escrow a new key. updated_at is unchanged.
+	MarkWindowsDiskEncryptionKeysUndecryptable(ctx context.Context, keys []HostDiskEncryptionKey) error
 	// IsHostDiskEncryptionKeyRotationInProgress reports whether the host's pending FileVault key rotation cmdUUID
 	// is still queued with no terminal result, or was requested less than staleAfter ago.
 	IsHostDiskEncryptionKeyRotationInProgress(ctx context.Context, hostID uint, hostUUID, cmdUUID string, staleAfter time.Duration) (bool, error)
