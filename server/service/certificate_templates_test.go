@@ -289,6 +289,7 @@ func TestCreateCertificateTemplateSubjectAlternativeName(t *testing.T) {
 			"URI=$FLEET_VAR_HOST_END_USER_IDP_GROUPS, " +
 			"DNS=$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT, " +
 			"EMAIL=$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME, " +
+			"URI=$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID, " +
 			"DNS=$FLEET_VAR_HOST_PLATFORM, " +
 			"DNS=$FLEET_VAR_HOST_HARDWARE_SERIAL"
 		resp, err := svc.CreateCertificateTemplate(ctx, "all-vars", TeamID, ValidCATypeID, "CN=$FLEET_VAR_HOST_UUID", san)
@@ -596,6 +597,7 @@ func TestReplaceCertificateVariables(t *testing.T) {
 			GivenName:  &givenName,
 			FamilyName: &familyName,
 			Department: &dept,
+			ExternalID: new("00u1abcd2EFGH3ijk4x7"),
 			Groups: []fleet.ScimUserGroup{
 				{DisplayName: "admins"},
 				{DisplayName: "devs"},
@@ -663,6 +665,12 @@ func TestReplaceCertificateVariables(t *testing.T) {
 		require.Equal(t, "CN=Jane Doe", result)
 	})
 
+	t.Run("HOST_END_USER_IDP_EXTERNAL_ID", func(t *testing.T) {
+		result, err := svc.replaceCertificateVariables(t.Context(), "UID=$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID", host, nil)
+		require.NoError(t, err)
+		require.Equal(t, "UID=00u1abcd2EFGH3ijk4x7", result)
+	})
+
 	t.Run("multiple variables in one string", func(t *testing.T) {
 		input := "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME,O=$FLEET_VAR_HOST_PLATFORM,OU=$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT"
 		result, err := svc.replaceCertificateVariables(t.Context(), input, host, nil)
@@ -720,6 +728,15 @@ func TestReplaceCertificateVariables(t *testing.T) {
 		require.Contains(t, err.Error(), "does not have an IDP full name")
 	})
 
+	t.Run("missing external ID returns error", func(t *testing.T) {
+		ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+			return &fleet.ScimUser{UserName: "jane@example.com"}, nil
+		}
+		_, err := svc.replaceCertificateVariables(t.Context(), "UID=$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID", host, nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "does not have an IDP external ID")
+	})
+
 	t.Run("no variables returns input unchanged", func(t *testing.T) {
 		result, err := svc.replaceCertificateVariables(t.Context(), "CN=static-value", host, nil)
 		require.NoError(t, err)
@@ -730,6 +747,20 @@ func TestReplaceCertificateVariables(t *testing.T) {
 		_, err := svc.replaceCertificateVariables(t.Context(), "CN=$FLEET_VAR_NDES_SCEP_CHALLENGE", host, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unsupported Fleet variable")
+	})
+
+	t.Run("dollar signs in values are substituted literally", func(t *testing.T) {
+		ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+			return &fleet.ScimUser{
+				UserName:   "jane@example.com",
+				Department: new("R$1D"),
+				ExternalID: new("tenant$1"),
+			}, nil
+		}
+		result, err := svc.replaceCertificateVariables(t.Context(),
+			"UID=$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID,OU=$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT", host, nil)
+		require.NoError(t, err)
+		require.Equal(t, "UID=tenant$1,OU=R$1D", result)
 	})
 
 	t.Run("special characters are RFC 4514 escaped", func(t *testing.T) {

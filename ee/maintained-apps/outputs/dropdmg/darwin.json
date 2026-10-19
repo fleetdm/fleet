@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.7.1",
+      "version": "3.7.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.c-command.DropDMG';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.c-command.DropDMG' AND version_compare(bundle_short_version, '3.7.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.c-command.DropDMG' AND version_compare(bundle_short_version, '3.7.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.c-command.DropDMG' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://c-command.com/downloads/DropDMG-3.7.1.dmg",
+      "installer_url": "https://c-command.com/downloads/DropDMG-3.7.2.dmg",
       "install_script_ref": "28088ebc",
       "uninstall_script_ref": "cf50e627",
-      "sha256": "de2f4a0ea35a9efe054c810fa1326308a5ed93599f0a51d8e6a830c351ab5e8b",
+      "sha256": "909dd48743423465505038ddfe631f0c1216afc4c5ba021e74d9ff9fc91ddddb",
       "default_categories": [
         "Productivity"
       ]

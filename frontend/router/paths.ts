@@ -19,7 +19,6 @@ export default {
   CONTROLS_CUSTOM_SETTINGS_NEW: `${URL_PREFIX}/controls/os-settings/configuration-profiles/new`,
   CONTROLS_CUSTOM_SETTINGS_EDIT: (profileUUID: string) =>
     `${URL_PREFIX}/controls/os-settings/configuration-profiles/${profileUUID}`,
-  CONTROLS_ASSETS: `${URL_PREFIX}/controls/os-settings/assets`,
   CONTROLS_CERTIFICATES: `${URL_PREFIX}/controls/os-settings/certificates`,
   CONTROLS_DISK_ENCRYPTION: `${URL_PREFIX}/controls/os-settings/disk-encryption`,
   CONTROLS_DISK_ENCRYPTION_PLATFORM: (

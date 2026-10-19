@@ -1452,16 +1452,28 @@ func (a ActivityTypeInstalledSoftware) ActivateNextUpcomingActivityArgs() (uint,
 	return a.HostID, a.CommandUUID
 }
 
+// NotifySoftwareTitle carries one app's identity in a notify-before-patching
+// activity. DisplayName is nil unless an admin set a per-team override, so the
+// renderer can distinguish "no override" from "override equals the raw name".
+type NotifySoftwareTitle struct {
+	Title       string  `json:"title"`
+	DisplayName *string `json:"display_name,omitempty"`
+	TitleID     uint    `json:"title_id,omitempty"`
+}
+
 type ActivityTypeNotifiedEndUserBeforePatching struct {
-	HostID                uint       `json:"host_id"`
-	HostDisplayName       string     `json:"host_display_name"`
-	PatchNotificationUUID string     `json:"patch_notification_uuid"`
-	SoftwareTitles        []string   `json:"software_titles"`
-	PolicyIDs             []uint     `json:"policy_ids"`
-	TimeBefore            int        `json:"time_before"`
-	InstallAt             *time.Time `json:"install_at"`
-	Status                string     `json:"status"`
-	ScriptExecutionID     string     `json:"script_execution_id,omitempty"`
+	HostID                uint   `json:"host_id"`
+	HostDisplayName       string `json:"host_display_name"`
+	PatchNotificationUUID string `json:"patch_notification_uuid"`
+	// SoftwareTitles is the legacy flat list, kept so pre-override activity rows
+	// still render. New activities also populate Software, which the UI prefers.
+	SoftwareTitles    []string              `json:"software_titles"`
+	Software          []NotifySoftwareTitle `json:"software,omitempty"`
+	PolicyIDs         []uint                `json:"policy_ids"`
+	TimeBefore        int                   `json:"time_before"`
+	InstallAt         *time.Time            `json:"install_at"`
+	Status            string                `json:"status"`
+	ScriptExecutionID string                `json:"script_execution_id,omitempty"`
 	// Notification script exit code. Lets the activities table render the failure
 	// reason (e.g. screen locked) without a per-row fetch of the script result.
 	ExitCode *int64 `json:"exit_code,omitempty"`
