@@ -1598,8 +1598,8 @@ func (svc *Service) GetSoftwareInstallDetails(ctx context.Context, installUUID s
 		return nil, err
 	}
 
-	// Sign the download URL when CloudFront signing (premium-only) or GCS presigning is configured.
-	if svc.config.S3.SoftwareInstallersCloudFrontSigner != nil || svc.config.S3.SoftwareInstallersSignedURL {
+	// Sign the download URL when CloudFront signing (premium-only), GCS presigning or Azure SAS signing is configured.
+	if svc.config.SoftwareInstallersSignedURLEnabled() {
 		// Sign the URL for the installer
 		installerURL, err := svc.getSoftwareInstallURL(ctx, details.InstallerID)
 		if err != nil {
