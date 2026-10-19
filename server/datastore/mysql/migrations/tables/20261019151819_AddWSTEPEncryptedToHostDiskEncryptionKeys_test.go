@@ -42,6 +42,8 @@ func TestUp_20261019151819(t *testing.T) {
 	windowsArchivedNoLiveRow := insertArchived(windowsNoKeyRow, "legacy-windows-blob-gone")
 	darwinArchived := insertArchived(darwinWithKey, "filevault-blob")
 	orphanArchived := insertArchived(deletedHost, "orphan-blob")
+	// A key escrowed by a Windows host that was later deleted: still served to a host re-enrolling with the same serial.
+	orphanArchivedCMS := insertArchived(deletedHost, "MIICorphan-cms-blob")
 
 	applyNext(t, db)
 
@@ -63,12 +65,14 @@ func TestUp_20261019151819(t *testing.T) {
 	require.NoError(t, db.QueryRow(`SELECT updated_at = ? FROM host_disk_encryption_keys WHERE host_id = ?`, backdated, windowsWithKey).Scan(&updatedAtUnchanged))
 	require.True(t, updatedAtUnchanged, "marking a row must not count as a key change")
 
-	// Every archived Windows key is marked, whether or not the host still has a live row.
+	// Every archived Windows key is marked, whether or not the host still has a live row. Archived keys whose host is
+	// gone are marked by shape, since the platform is unknown.
 	require.True(t, marked("host_disk_encryption_keys_archive", "id", windowsArchivedOld))
 	require.True(t, marked("host_disk_encryption_keys_archive", "id", windowsArchivedCurrent))
 	require.True(t, marked("host_disk_encryption_keys_archive", "id", windowsArchivedNoLiveRow))
 	require.False(t, marked("host_disk_encryption_keys_archive", "id", darwinArchived))
 	require.False(t, marked("host_disk_encryption_keys_archive", "id", orphanArchived))
+	require.True(t, marked("host_disk_encryption_keys_archive", "id", orphanArchivedCMS))
 
 	// Rerunning the backfill on an already migrated schema changes nothing.
 	tx, err := db.Begin()

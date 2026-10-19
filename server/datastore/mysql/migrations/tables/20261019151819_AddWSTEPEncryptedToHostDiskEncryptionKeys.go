@@ -11,14 +11,16 @@ func init() {
 
 func Up_20261019151819(tx *sql.Tx) error {
 	// host_disk_encryption_keys.updated_at auto-updates and drives the host's disk encryption status, so the backfill
-	// pins it; the archive has no updated_at.
-	for _, t := range []struct{ table, keepUpdatedAt string }{
-		{"host_disk_encryption_keys", ", k.updated_at = k.updated_at"},
-		{"host_disk_encryption_keys_archive", ""},
+	// pins it; the archive has no updated_at. An archived key outlives its host and can still be served to a host that
+	// re-enrolls with the same hardware serial, so archive rows without a host are marked by shape: DER from
+	// pkcs7.Encrypt starts with a two-byte-length SEQUENCE, whose base64 starts with "MII". A live row without a host is
+	// never read and keeps the default.
+	for _, t := range []struct{ table, keepUpdatedAt, where string }{
+		{"host_disk_encryption_keys", ", k.updated_at = k.updated_at", "h.platform = 'windows'"},
+		{"host_disk_encryption_keys_archive", "", "(h.platform = 'windows' OR (h.id IS NULL AND k.base64_encrypted LIKE 'MII%'))"},
 	} {
 		// 1 marks a legacy Windows recovery key, encrypted to the WSTEP identity certificate by an older release. Keys
-		// written from now on use the server private key and get the default. Rows of hosts that no longer exist stay
-		// at the default because nothing reads them.
+		// written from now on use the server private key and get the default.
 		if !columnExists(tx, t.table, "wstep_encrypted") {
 			if _, err := tx.Exec(fmt.Sprintf(`
 				ALTER TABLE %s
@@ -30,10 +32,10 @@ func Up_20261019151819(tx *sql.Tx) error {
 		// Runs on every attempt so a retry after a partial failure still marks the rows; it is idempotent.
 		if _, err := tx.Exec(fmt.Sprintf(`
 			UPDATE %s k
-			JOIN hosts h ON h.id = k.host_id
+			LEFT JOIN hosts h ON h.id = k.host_id
 			SET k.wstep_encrypted = 1%s
-			WHERE h.platform = 'windows' AND k.base64_encrypted != ''
-		`, t.table, t.keepUpdatedAt)); err != nil {
+			WHERE %s AND k.base64_encrypted != ''
+		`, t.table, t.keepUpdatedAt, t.where)); err != nil {
 			return fmt.Errorf("marking Windows rows in %s: %w", t.table, err)
 		}
 	}

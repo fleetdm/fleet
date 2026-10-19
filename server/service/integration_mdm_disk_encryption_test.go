@@ -963,12 +963,24 @@ func (s *integrationMDMTestSuite) TestWindowsMDMGetEncryptionKey() {
 	require.NoError(t, err)
 	require.Equal(t, new(false), stored.Decryptable)
 	require.True(t, stored.WSTEPEncrypted)
+	// The host is only told a new key is coming while its fleet enforces Windows disk encryption.
 	errResp := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusUnprocessableEntity)
 	errBody, err := io.ReadAll(errResp.Body)
 	require.NoError(t, err)
 	errResp.Body.Close()
-	require.Contains(t, string(errBody), "The host will escrow a new one when it comes online.")
+	require.Contains(t, string(errBody), "Couldn't decrypt the disk encryption key.")
+	require.NotContains(t, string(errBody), "The host will escrow a new one")
 	require.NotContains(t, string(errBody), "MDM has been turned off")
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "windows_settings": { "enable_disk_encryption": true } } }`), http.StatusOK, &acResp)
+	t.Cleanup(func() {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "windows_settings": { "enable_disk_encryption": false } } }`), http.StatusOK, &appConfigResponse{})
+	})
+	errResp = s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusUnprocessableEntity)
+	errBody, err = io.ReadAll(errResp.Body)
+	require.NoError(t, err)
+	errResp.Body.Close()
+	require.Contains(t, string(errBody), "The host will escrow a new one when it comes online.")
 
 	// The host escrows a new key, stored the way the orbit endpoint stores it (TestHostDiskEncryptionKey covers the
 	// endpoint itself), which clears the marker and makes the key readable again.

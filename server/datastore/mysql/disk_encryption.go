@@ -550,11 +550,16 @@ LIMIT ?`, afterHostID, limit)
 
 func (ds *Datastore) ListWSTEPEncryptedArchivedDiskEncryptionKeys(ctx context.Context, afterID uint, limit int) ([]fleet.HostArchivedDiskEncryptionKey, error) {
 	var keys []fleet.HostArchivedDiskEncryptionKey
+	// Same shape rule as the live rows, for archive copies an older instance wrote during a rolling upgrade. Archived
+	// keys outlive their host and are still served by hardware serial, so rows without a host are included by shape.
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &keys, `
-SELECT id, host_id, base64_encrypted, created_at
-FROM host_disk_encryption_keys_archive
-WHERE wstep_encrypted = 1 AND base64_encrypted != '' AND id > ?
-ORDER BY id
+SELECT a.id, a.host_id, a.base64_encrypted, a.created_at, a.wstep_encrypted
+FROM host_disk_encryption_keys_archive a
+LEFT JOIN hosts h ON h.id = a.host_id
+WHERE a.base64_encrypted != ''
+  AND (a.wstep_encrypted = 1 OR (a.base64_encrypted LIKE 'MII%' AND (h.platform = 'windows' OR h.id IS NULL)))
+  AND a.id > ?
+ORDER BY a.id
 LIMIT ?`, afterID, limit)
 	return keys, ctxerr.Wrap(ctx, err, "list WSTEP encrypted archived disk encryption keys")
 }
@@ -580,7 +585,7 @@ func (ds *Datastore) ReplaceWSTEPEncryptedArchivedDiskEncryptionKey(ctx context.
 	res, err := ds.writer(ctx).ExecContext(ctx, `
 UPDATE host_disk_encryption_keys_archive
 SET base64_encrypted = ?, wstep_encrypted = 0
-WHERE id = ? AND base64_encrypted = ? AND wstep_encrypted = 1`, newBase64Encrypted, id, currentBase64Encrypted)
+WHERE id = ? AND base64_encrypted = ?`, newBase64Encrypted, id, currentBase64Encrypted)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "replace WSTEP encrypted archived disk encryption key")
 	}

@@ -136,8 +136,12 @@ func TestReencryptWSTEPDiskEncryptionKeys(t *testing.T) {
 				{HostID: 8, Base64Encrypted: "MIIA", WSTEPEncrypted: true},
 			},
 			[]fleet.HostArchivedDiskEncryptionKey{
-				{ID: 10, HostID: 1, Base64Encrypted: archivedReadable},
-				{ID: 11, HostID: 3, Base64Encrypted: archivedDead},
+				{ID: 10, HostID: 1, Base64Encrypted: archivedReadable, WSTEPEncrypted: true},
+				{ID: 11, HostID: 3, Base64Encrypted: archivedDead, WSTEPEncrypted: true},
+				// Unmarked archive copies: current ones skipped, legacy ones re-encrypted, unreadable ones left alone.
+				{ID: 12, HostID: 5, Base64Encrypted: current},
+				{ID: 13, HostID: 6, Base64Encrypted: archivedReadable},
+				{ID: 14, HostID: 7, Base64Encrypted: archivedDead},
 			})
 		require.NoError(t, ReencryptWSTEPDiskEncryptionKeys(ctx, logger, ds, &cfg))
 
@@ -146,9 +150,10 @@ func TestReencryptWSTEPDiskEncryptionKeys(t *testing.T) {
 		require.Equal(t, "key-2", decrypted(t, rec.replaced[2]))
 		require.Equal(t, "key-1", decrypted(t, rec.replaced[6]))
 		require.Equal(t, []uint{3, 4, 8}, markedHosts(rec))
-		require.Len(t, rec.archivedReplaced, 1)
+		require.Len(t, rec.archivedReplaced, 2)
 		require.Equal(t, "archived-1", decrypted(t, rec.archivedReplaced[10]))
-		require.Equal(t, []uint{11}, rec.archivedCleared)
+		require.Equal(t, "archived-1", decrypted(t, rec.archivedReplaced[13]))
+		require.Equal(t, []uint{11}, rec.archivedCleared, "only a marked row is cleared")
 	})
 
 	// A replaced certificate leaves every key unreadable; one run walks all batches and marks them all.

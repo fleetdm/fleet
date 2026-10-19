@@ -62,7 +62,8 @@ func ReencryptWSTEPDiskEncryptionKeys(ctx context.Context, logger *slog.Logger, 
 		return enc, nil
 	}
 
-	var reencrypted, marked, raced, alreadyCurrent, unreadableUnmarked, archivedReencrypted, archivedUnreadable int
+	var reencrypted, marked, raced, alreadyCurrent, unreadableUnmarked int
+	var archivedReencrypted, archivedAlreadyCurrent, archivedUnreadable, archivedUnreadableUnmarked int
 	var afterHostID uint
 	for {
 		keys, err := ds.ListWSTEPEncryptedDiskEncryptionKeys(ctx, afterHostID, wstepKeyBatchSize)
@@ -118,8 +119,8 @@ func ReencryptWSTEPDiskEncryptionKeys(ctx context.Context, logger *slog.Logger, 
 		}
 	}
 
-	// Archived keys never trigger a host, so there is nothing to mark and no cap. An unreadable one is taken out of the
-	// queue instead of being retried every hour.
+	// Archived keys never trigger a host, so there is nothing to mark. A marked one that cannot be read is taken out of
+	// the queue instead of being retried every hour; an unmarked one is left alone, like its live counterpart.
 	var afterID uint
 	for {
 		keys, err := ds.ListWSTEPEncryptedArchivedDiskEncryptionKeys(ctx, afterID, wstepKeyBatchSize)
@@ -131,8 +132,18 @@ func ReencryptWSTEPDiskEncryptionKeys(ctx context.Context, logger *slog.Logger, 
 		}
 		for _, key := range keys {
 			afterID = key.ID
+			if !key.WSTEPEncrypted {
+				if _, err := mdm.DecodeAndDecrypt(key.Base64Encrypted, cfg.Server.PrivateKey); err == nil {
+					archivedAlreadyCurrent++
+					continue
+				}
+			}
 			plain, err := decrypt(key.Base64Encrypted)
 			if err != nil {
+				if !key.WSTEPEncrypted {
+					archivedUnreadableUnmarked++
+					continue
+				}
 				if err := ds.ClearWSTEPEncryptedArchivedDiskEncryptionKeyMarker(ctx, key.ID, key.Base64Encrypted); err != nil {
 					return ctxerr.Wrap(ctx, err, "clear WSTEP encrypted archived disk encryption key marker")
 				}
@@ -156,7 +167,7 @@ func ReencryptWSTEPDiskEncryptionKeys(ctx context.Context, logger *slog.Logger, 
 		}
 	}
 
-	if reencrypted+marked+raced+unreadableUnmarked+archivedReencrypted+archivedUnreadable == 0 {
+	if reencrypted+marked+raced+unreadableUnmarked+archivedReencrypted+archivedUnreadable+archivedUnreadableUnmarked == 0 {
 		return nil
 	}
 	logger.InfoContext(ctx, "re-encrypted legacy Windows disk encryption keys with the server private key",
@@ -166,7 +177,9 @@ func ReencryptWSTEPDiskEncryptionKeys(ctx context.Context, logger *slog.Logger, 
 		"already_current", alreadyCurrent,
 		"unreadable_unmarked_left_alone", unreadableUnmarked,
 		"archived_reencrypted", archivedReencrypted,
+		"archived_already_current", archivedAlreadyCurrent,
 		"archived_unreadable", archivedUnreadable,
+		"archived_unreadable_unmarked_left_alone", archivedUnreadableUnmarked,
 	)
 	return nil
 }

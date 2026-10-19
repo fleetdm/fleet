@@ -4282,9 +4282,16 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
 	}
-	// Captured before the decrypt attempt below overwrites it: a Windows host is asked to escrow a new key whenever the
-	// stored one is not known to be decryptable.
+	// Captured before the decrypt attempt below overwrites it: a Windows host is asked to escrow a new key when the
+	// stored one is not known to be decryptable, and only while its fleet enforces disk encryption.
 	reescrowRequested := key != nil && (key.Decryptable == nil || !*key.Decryptable)
+	if reescrowRequested && host.FleetPlatform() == "windows" {
+		diskEncryption, err := svc.ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get disk encryption config")
+		}
+		reescrowRequested = diskEncryption.WindowsEnabled
+	}
 	// Same rule the rotate endpoint uses, so a marker it would replace isn't
 	// reported as pending.
 	var rotationPending bool

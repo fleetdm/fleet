@@ -4847,25 +4847,28 @@ func TestHostEncryptionKey(t *testing.T) {
 		deadB64 := base64.StdEncoding.EncodeToString(deadKey)
 
 		cases := []struct {
-			name     string
-			current  *fleet.HostDiskEncryptionKey
-			archived *fleet.HostArchivedDiskEncryptionKey
-			want     string
-			wantErr  string
+			name       string
+			current    *fleet.HostDiskEncryptionKey
+			archived   *fleet.HostArchivedDiskEncryptionKey
+			want       string
+			wantErr    string
+			windowsOff bool
 		}{
-			{"server private key", &fleet.HostDiskEncryptionKey{Base64Encrypted: aesKey, Decryptable: new(true)}, nil, recoveryKey, ""},
-			{"legacy key with a renewed certificate", &fleet.HostDiskEncryptionKey{Base64Encrypted: legacyB64, WSTEPEncrypted: true, Decryptable: new(true)}, nil, recoveryKey, ""},
-			{"legacy key on an unmarked row, as escrowed by an older instance mid-upgrade", &fleet.HostDiskEncryptionKey{Base64Encrypted: legacyB64, Decryptable: new(true)}, nil, recoveryKey, ""},
-			{"server-key blob on a marked row", &fleet.HostDiskEncryptionKey{Base64Encrypted: aesKey, WSTEPEncrypted: true, Decryptable: new(true)}, nil, recoveryKey, ""},
-			{"unreadable key on an unmarked row", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, Decryptable: new(true)}, nil, "", "Couldn't decrypt the disk encryption key."},
-			{"legacy key after the pair was replaced, before the job marked it", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true, Decryptable: new(true)}, nil, "", "Couldn't decrypt the disk encryption key."},
-			{"legacy key after the pair was replaced, marked by the job", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true, Decryptable: new(false)}, nil, "", "The host will escrow a new one"},
+			{"server private key", &fleet.HostDiskEncryptionKey{Base64Encrypted: aesKey, Decryptable: new(true)}, nil, recoveryKey, "", false},
+			{"legacy key with a renewed certificate", &fleet.HostDiskEncryptionKey{Base64Encrypted: legacyB64, WSTEPEncrypted: true, Decryptable: new(true)}, nil, recoveryKey, "", false},
+			{"legacy key on an unmarked row, as escrowed by an older instance mid-upgrade", &fleet.HostDiskEncryptionKey{Base64Encrypted: legacyB64, Decryptable: new(true)}, nil, recoveryKey, "", false},
+			{"server-key blob on a marked row", &fleet.HostDiskEncryptionKey{Base64Encrypted: aesKey, WSTEPEncrypted: true, Decryptable: new(true)}, nil, recoveryKey, "", false},
+			{"unreadable key on an unmarked row", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, Decryptable: new(true)}, nil, "", "Couldn't decrypt the disk encryption key.", false},
+			{"legacy key after the pair was replaced, before the job marked it", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true, Decryptable: new(true)}, nil, "", "Couldn't decrypt the disk encryption key.", false},
+			{"legacy key after the pair was replaced, marked by the job", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true, Decryptable: new(false)}, nil, "", "The host will escrow a new one", false},
+			// Marked, but the fleet no longer enforces disk encryption, so nothing asks the host for a new key.
+			{"marked key in a fleet without Windows disk encryption", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true, Decryptable: new(false)}, nil, "", "Couldn't decrypt the disk encryption key.", true},
 			{"archived legacy key when the current one is unreadable",
 				&fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true},
-				&fleet.HostArchivedDiskEncryptionKey{Base64Encrypted: legacyB64, WSTEPEncrypted: true}, recoveryKey, ""},
+				&fleet.HostArchivedDiskEncryptionKey{Base64Encrypted: legacyB64, WSTEPEncrypted: true}, recoveryKey, "", false},
 			{"archived key on the server private key",
 				&fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true},
-				&fleet.HostArchivedDiskEncryptionKey{Base64Encrypted: aesKey}, recoveryKey, ""},
+				&fleet.HostArchivedDiskEncryptionKey{Base64Encrypted: aesKey}, recoveryKey, "", false},
 		}
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
@@ -4885,6 +4888,9 @@ func TestHostEncryptionKey(t *testing.T) {
 					}
 					return c.archived, nil
 				}
+				ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+					return fleet.DiskEncryptionConfig{WindowsEnabled: !c.windowsOff}, nil
+				}
 				svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
 				ctx = test.UserContext(ctx, test.UserAdmin)
 				key, err := svc.HostEncryptionKey(ctx, 1, false)
@@ -4893,8 +4899,8 @@ func TestHostEncryptionKey(t *testing.T) {
 					require.ErrorAs(t, err, &ume)
 					require.ErrorContains(t, err, c.wantErr)
 					require.NotContains(t, err.Error(), "MDM has been turned off")
-					if c.current.Decryptable != nil && *c.current.Decryptable {
-						require.NotContains(t, err.Error(), "escrow a new one", "a key still believed readable is not being replaced")
+					if (c.current.Decryptable != nil && *c.current.Decryptable) || c.windowsOff {
+						require.NotContains(t, err.Error(), "escrow a new one", "no re-escrow is coming for this host")
 					}
 					return
 				}
