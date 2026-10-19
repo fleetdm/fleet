@@ -1,0 +1,1 @@
+- Added "Windows profile" and "Windows browser profile" fields to the Okta conditional access modal, so admins can copy the Windows SCEP profile and the Chrome/Edge certificate selection profile and deploy them as custom Windows OS settings.

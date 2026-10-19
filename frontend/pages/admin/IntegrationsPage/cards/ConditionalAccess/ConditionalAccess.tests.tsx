@@ -3,10 +3,20 @@ import { http, HttpResponse } from "msw";
 import React from "react";
 
 import createMockConfig from "__mocks__/configMock";
+import { notify } from "components/ToastNotification";
 import mockServer from "test/mock-server";
 import { baseUrl, createCustomRenderer } from "test/test-utils";
 
 import ConditionalAccess from "./ConditionalAccess";
+
+jest.mock("components/ToastNotification", () => ({
+  notify: {
+    success: jest.fn(),
+    error: jest.fn(),
+    batch: jest.fn(),
+    dismiss: jest.fn(),
+  },
+}));
 
 const triggerConditionalAccessHandler = http.post(
   baseUrl("/conditional-access/microsoft"),
@@ -35,6 +45,24 @@ const updateConfigHandler = http.patch(baseUrl("/config"), () => {
     })
   );
 });
+
+const TEST_APPLE_PROFILE = "<plist>apple</plist>";
+const TEST_WINDOWS_SCEP_PROFILE = "<Replace>windows scep</Replace>";
+const TEST_WINDOWS_BROWSER_PROFILE = "<Replace>windows browser</Replace>";
+
+const appleProfileHandler = http.get(
+  baseUrl("/conditional_access/idp/apple/profile"),
+  () => HttpResponse.text(TEST_APPLE_PROFILE)
+);
+
+const windowsProfilesHandler = http.get(
+  baseUrl("/conditional_access/idp/windows/profiles"),
+  () =>
+    HttpResponse.json({
+      scep_profile: TEST_WINDOWS_SCEP_PROFILE,
+      browser_profile: TEST_WINDOWS_BROWSER_PROFILE,
+    })
+);
 
 // Helper to create a config with empty conditional access settings
 const createEmptyConditionalAccessConfig = () =>
@@ -166,6 +194,8 @@ describe("Conditional access", () => {
         screen.getByText("Identity provider (IdP) signature certificate")
       ).toBeInTheDocument();
       expect(screen.getByText("User scope profile")).toBeInTheDocument();
+      expect(screen.getByText("Windows profile")).toBeInTheDocument();
+      expect(screen.getByText("Windows browser profile")).toBeInTheDocument();
       // Check for input fields
       expect(screen.getByText("IdP ID")).toBeInTheDocument();
       expect(
@@ -202,11 +232,11 @@ describe("Conditional access", () => {
       });
 
       // Fill in text fields
-      // Note: First textarea is the read-only User scope profile
+      // Note: First three textareas are the read-only profiles
       const textboxes = screen.getAllByRole("textbox");
-      await user.type(textboxes[1], TEST_OKTA_IDP_ID); // IdP ID
-      await user.type(textboxes[2], "https://example.com/acs"); // ACS URL
-      await user.type(textboxes[3], "https://example.com"); // Audience URI
+      await user.type(textboxes[3], TEST_OKTA_IDP_ID); // IdP ID
+      await user.type(textboxes[4], "https://example.com/acs"); // ACS URL
+      await user.type(textboxes[5], "https://example.com"); // Audience URI
 
       // Upload certificate file
       const certificateContent = `-----BEGIN CERTIFICATE-----
@@ -237,6 +267,126 @@ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
         expect(
           screen.queryByText("Okta conditional access")
         ).not.toBeInTheDocument();
+      });
+    });
+  });
+
+  describe("Okta modal profiles", () => {
+    const openOktaModal = async () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            isPremiumTier: true,
+            config: createEmptyConditionalAccessConfig(),
+          },
+        },
+      });
+      const { user } = render(<ConditionalAccess />);
+      await user.click(screen.getAllByText("Connect")[0]);
+      return user;
+    };
+
+    // The read-only profile textareas come first, in this order.
+    const getProfileFields = () => {
+      const [apple, windowsScep, windowsBrowser] = screen.getAllByRole(
+        "textbox"
+      );
+      return { apple, windowsScep, windowsBrowser };
+    };
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it("shows the macOS and Windows profiles and copies each one", async () => {
+      mockServer.use(appleProfileHandler, windowsProfilesHandler);
+
+      const user = await openOktaModal();
+
+      await waitFor(() => {
+        const { apple, windowsScep, windowsBrowser } = getProfileFields();
+        expect(apple).toHaveValue(TEST_APPLE_PROFILE);
+        expect(windowsScep).toHaveValue(TEST_WINDOWS_SCEP_PROFILE);
+        expect(windowsBrowser).toHaveValue(TEST_WINDOWS_BROWSER_PROFILE);
+      });
+
+      const copyButtons = screen.getAllByRole("button", {
+        name: "Copy to clipboard",
+      });
+      // Spy after render: user-event's setup() replaces navigator.clipboard
+      const writeTextSpy = jest.spyOn(navigator.clipboard, "writeText");
+      await user.click(copyButtons[0]);
+      await user.click(copyButtons[1]);
+      await user.click(copyButtons[2]);
+      expect(writeTextSpy.mock.calls).toEqual([
+        [TEST_APPLE_PROFILE],
+        [TEST_WINDOWS_SCEP_PROFILE],
+        [TEST_WINDOWS_BROWSER_PROFILE],
+      ]);
+    });
+
+    it("shows the Windows error reason and keeps the macOS profile when the Windows request fails", async () => {
+      mockServer.use(
+        appleProfileHandler,
+        http.get(baseUrl("/conditional_access/idp/windows/profiles"), () =>
+          HttpResponse.json(
+            {
+              message: "Bad request",
+              errors: [
+                {
+                  name: "base",
+                  reason: "global enroll secret is not configured",
+                },
+              ],
+            },
+            { status: 400 }
+          )
+        )
+      );
+
+      await openOktaModal();
+
+      await waitFor(() => {
+        expect(notify.error).toHaveBeenCalledWith(
+          "Failed to load Windows profiles: global enroll secret is not configured",
+          expect.anything()
+        );
+      });
+      await waitFor(() => {
+        expect(getProfileFields().apple).toHaveValue(TEST_APPLE_PROFILE);
+      });
+      const { windowsScep, windowsBrowser } = getProfileFields();
+      expect(windowsScep).toHaveValue("");
+      expect(windowsBrowser).toHaveValue("");
+    });
+
+    it("keeps the macOS profile error toast unchanged", async () => {
+      mockServer.use(
+        windowsProfilesHandler,
+        http.get(baseUrl("/conditional_access/idp/apple/profile"), () =>
+          HttpResponse.json(
+            {
+              message: "Bad request",
+              errors: [{ name: "base", reason: "missing private key" }],
+            },
+            { status: 400 }
+          )
+        )
+      );
+
+      await openOktaModal();
+
+      await waitFor(() => {
+        expect(notify.error).toHaveBeenCalledWith(
+          "Failed to load Apple profile: missing private key",
+          expect.anything()
+        );
+      });
+      await waitFor(() => {
+        expect(getProfileFields().windowsScep).toHaveValue(
+          TEST_WINDOWS_SCEP_PROFILE
+        );
       });
     });
   });
