@@ -70,11 +70,19 @@ const ControlDetailsModal = ({
   // protector, the TPM is not ready, a restart is staged) and sends the actual
   // reason in the detail. Preferring the detail keeps the reason in one place,
   // server-side, instead of asserting a PIN that may not be required at all.
+  //
+  // Windows disk encryption on "Enforcing" works the same way: the server only
+  // sends a detail when it is asking the host for a new recovery key because
+  // the stored one cannot be read, and the generic copy about receiving an MDM
+  // command would describe the wrong thing.
+  const isWindowsDiskEncryption =
+    isDiskEncryptionProfile(control.name) && control.platform === "windows";
   const detailReplacesMessage =
     !!detailText &&
     (displayOption?.statusText === "Verified" ||
       (displayOption?.statusText === "Action required" &&
-        isDiskEncryptionProfile(control.name)));
+        isDiskEncryptionProfile(control.name)) ||
+      (displayOption?.statusText === "Enforcing" && isWindowsDiskEncryption));
 
   const renderMessage = () => {
     if (detailReplacesMessage) {
