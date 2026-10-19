@@ -1401,6 +1401,11 @@ select * from system_info limit 1
 
 - Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin
 
+- Discovery query:
+```sql
+SELECT 1 FROM pragma_table_info('file') WHERE name = 'symlink_target_path'
+```
+
 - Query:
 ```sql
 SELECT symlink_target_path FROM file WHERE path = '/etc/localtime'

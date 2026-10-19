@@ -205,6 +205,7 @@ var hostDetailQueries = map[string]DetailQuery{
 	"timezone_unix": {
 		Description: "Reads the target of the `/etc/localtime` symlink, which requires osquery 5.17.0 or later. Hosts where `/etc/localtime` is a copied file report no timezone.",
 		Query:       `SELECT symlink_target_path FROM file WHERE path = '/etc/localtime'`,
+		Discovery:   `SELECT 1 FROM pragma_table_info('file') WHERE name = 'symlink_target_path'`,
 		Platforms:   append(fleet.HostLinuxOSs, "darwin"),
 		IngestFunc:  ingestTimezoneUnix,
 	},
