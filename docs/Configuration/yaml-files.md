@@ -661,7 +661,8 @@ The `software` section allows you to configure packages, store apps (Apple App S
 
 Currently, you can specify `install_software` in the [`policies` YAML](#policies) to automatically install software when a host fails a policy.
 
-Currently, Fleet only allows one package, Apple App Store app, or Fleet-maintained app for a specific software. This means, if you specify a Google Chrome for macOS twice in `packages` or once in `packages` and once in `fleet_maintained_apps`, only one of them will be added to Fleet.
+Currently, Fleet only allows one Apple App Store app or Fleet-maintained app for a specific software. The same custom package at different versions can upload side by side.
+This means, if you specify a Google Chrome at the same version for macOS twice in `packages` or once in `packages` and once in `fleet_maintained_apps`, only one of them will be added to Fleet. Google Chrome at two different versions (i.e. Google Chrome v1.0 and v2.0) will upload together and both will be available in Fleet.
 
 Currently, when a `.ipa` file is added in `packages`, Fleet adds software for both iOS and iPadOS, along with all specified settings (e.g. `self_service`). If software for one platform is deleted in the UI, it will come back when GitOps is re-run.
 
@@ -832,9 +833,9 @@ If your server doesn't support ETags reliably, you can disable this behavior wit
 
 ##### Script-only
 
-Script-only packages (`.sh`, `.py`, and `.ps1` files) are referenced directly inline in the fleet's YAML file. The file contents become the install script, so script packages don't support `install_script`. Script packages also don't support automatic install, because a policy's `install_software` can't reference them.
+Script-only packages (`.sh`, `.py`, and `.ps1` files) are referenced directly inline in the fleet's YAML file. The file contents become the install script. Script packages do not support `install_script` or automatic install (`install_software` in policies).
 
-`self_service`, `categories`, `labels`, `icon`, `uninstall_script`, `post_install_script`, and `pre_install_query` are specified inline in the fleet's YAML file.
+`self_service`, `categories`, `labels`, `icon`, `pre_install_query`, `post_install_script`, and `uninstall_script` are specified inline in the fleet's YAML file. There's no default uninstall script for script packages.
 
 ```yaml
 software:
@@ -843,25 +844,25 @@ software:
       display_name: VPN setup
       icon:
          path: ../lib/icons/vpn-setup.png
-      pre_install_query:
-        path: ../lib/linux/queries/vpn-not-installed.yml
-      uninstall_script:
-        path: ../lib/linux/scripts/vpn-uninstall.sh
-      post_install_script:
-        path: ../lib/linux/scripts/vpn-verify.sh
       self_service: true
       categories:
         - "🛟 Support"
       labels_include_any:
       - Engineering
       - Customer Support
+      pre_install_query:
+        path: ../lib/linux/queries/vpn-not-installed.yml
+      post_install_script:
+        path: ../lib/linux/scripts/vpn-post-install.sh
+      uninstall_script:
+        path: ../lib/linux/scripts/vpn-uninstall.sh
 ```
 
 ### app_store_apps
 
 App Store apps support `path:` (single file) and `paths:` (glob pattern) references, so you can define an app once in a separate file and reference it from multiple fleets. See [`path:` vs `paths:`](#path-vs-paths-glob-patterns) for details. Filenames must not contain `*`, `?`, `[`, or `{` when using `path:`.
 
-- `app_store_id` is the ID of the Apple App Store or Android Play Store app. You can find this ID at the end of the app's URL. For example, "Bear - Markdown Notes" URL is "https://apps.apple.com/us/app/bear-markdown-notes/id1016366447" making the `app_store_id` is "1016366447". Similarly, the URL for "Google Chrome" on Android is "https://play.google.com/store/apps/details?id=com.android.chrome," so the `app_store_id` is "com.android.chrome."
+- `app_store_id` is the ID of the Apple App Store or Android Play Store app. You can find this ID at the end of the app's URL. For example, "Bear - Markdown Notes" URL is [https://apps.apple.com/us/app/bear-markdown-notes/id1016366447](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) making the `app_store_id` is "1016366447". Similarly, the URL for "Google Chrome" on Android is [https://play.google.com/store/apps/details?id=com.android.chrome](https://play.google.com/store/apps/details?id=com.android.chrome), so the `app_store_id` is "com.android.chrome."
   + For Apple App Store apps, make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
 - `platform` is the platform of the app (`darwin`, `ios`, `ipados`, or `android`). If not specified, and `app_store_id` is Apple App Store ID, one app for each of the Apple App Store app's supported platforms is added. For example, adding [Bear](https://apps.apple.com/us/app/bear-markdown-notes/id1016366447) (supported on iOS and iPadOS) adds both the iOS and iPadOS apps to your software that's available to install in Fleet.
 - `icon.path` is a relative path to the PNG icon that will be displayed in Fleet and on **Fleet Desktop > Self-service** instead of the default icon the icon sourced from Apple. It must be a square PNG with dimensions between 120x120 px and 1024x1024 px. Custom icons will only override the icon for the software title and fleet where they are added.

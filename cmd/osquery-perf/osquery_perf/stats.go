@@ -80,6 +80,12 @@ type Stats struct {
 	websocketConnects              int
 	websocketNotifications         int
 	websocketErrors                int
+	// orbit config fetches by cause (nudge, connect, fallback, fast), and the
+	// latency from an orbit/config nudge to its fetch completing
+	orbitConfigFetches       map[string]int
+	orbitConfigNudgeLatency  time.Duration
+	orbitConfigNudgeLatMax   time.Duration
+	orbitConfigNudgeLatCount int
 
 	// ETag / conditional config stats
 	configFullResponses       int64
@@ -591,6 +597,26 @@ func (s *Stats) IncrementWebSocketErrors() {
 	s.websocketErrors++
 }
 
+// IncrementOrbitConfigFetches counts an orbit config fetch by cause.
+func (s *Stats) IncrementOrbitConfigFetches(cause string) {
+	s.l.Lock()
+	defer s.l.Unlock()
+	if s.orbitConfigFetches == nil {
+		s.orbitConfigFetches = make(map[string]int)
+	}
+	s.orbitConfigFetches[cause]++
+}
+
+// RecordOrbitConfigNudgeLatency records the time from an orbit/config nudge to
+// its fetch completing.
+func (s *Stats) RecordOrbitConfigNudgeLatency(d time.Duration) {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.orbitConfigNudgeLatency += d
+	s.orbitConfigNudgeLatMax = max(s.orbitConfigNudgeLatMax, d)
+	s.orbitConfigNudgeLatCount++
+}
+
 func (s *Stats) Log() {
 	s.l.Lock()
 	defer s.l.Unlock()
@@ -625,6 +651,13 @@ func (s *Stats) Log() {
 		s.distributedReads, s.distributedWrites, s.distributedReadErrors, s.distributedWriteErrors)
 	fmt.Fprintf(&b, "    websocket:           connected=%d connects=%d notifications=%d (errs: %d)\n",
 		s.websocketConnected, s.websocketConnects, s.websocketNotifications, s.websocketErrors)
+	var avgNudgeLatency time.Duration
+	if s.orbitConfigNudgeLatCount > 0 {
+		avgNudgeLatency = s.orbitConfigNudgeLatency / time.Duration(s.orbitConfigNudgeLatCount)
+	}
+	fmt.Fprintf(&b, "    orbit config:        nudge=%d connect=%d fallback=%d fast=%d (nudge->fetch avg=%s max=%s)\n",
+		s.orbitConfigFetches["nudge"], s.orbitConfigFetches["connect"], s.orbitConfigFetches["fallback"], s.orbitConfigFetches["fast"],
+		avgNudgeLatency.Round(time.Millisecond), s.orbitConfigNudgeLatMax.Round(time.Millisecond))
 	fmt.Fprintf(&b, "    config requests:     %d (errs: %d)\n", s.configRequests, s.configErrors)
 	fmt.Fprintf(&b, "    config etags:        full=%d not_modified=%d conditional=%d drift=%d\n",
 		s.configFullResponses, s.configNotModified, s.configConditionalRequests, s.configETagDrift)

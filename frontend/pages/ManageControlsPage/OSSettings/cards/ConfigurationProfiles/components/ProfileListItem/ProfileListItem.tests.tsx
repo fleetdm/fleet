@@ -2,10 +2,17 @@ import { screen, waitFor } from "@testing-library/react";
 import { noop } from "lodash";
 import React from "react";
 
+import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 import { IMdmProfile } from "interfaces/mdm";
 import { createCustomRenderer } from "test/test-utils";
 
 import ProfileListItem from "./ProfileListItem";
+
+// jsdom has no layout, so control whether the name renders truncated.
+jest.mock("hooks/useCheckTruncatedElement", () => ({
+  useCheckTruncatedElement: jest.fn(),
+}));
+const mockedUseCheckTruncatedElement = jest.mocked(useCheckTruncatedElement);
 
 const render = createCustomRenderer();
 
@@ -34,19 +41,23 @@ const renderItem = (profile: IMdmProfile) =>
   );
 
 describe("ProfileListItem", () => {
+  beforeEach(() => {
+    mockedUseCheckTruncatedElement.mockReturnValue(false);
+  });
+
   it("shows the user-scope indicator for user-scoped profiles", () => {
     renderItem({ ...baseProfile, scope: "User" });
-    expect(screen.getByTestId("user-icon")).toBeInTheDocument();
+    expect(screen.getByText("User-scoped")).toBeInTheDocument();
   });
 
   it("does not show the indicator for system-scoped profiles", () => {
     renderItem({ ...baseProfile, scope: "System" });
-    expect(screen.queryByTestId("user-icon")).not.toBeInTheDocument();
+    expect(screen.queryByText("User-scoped")).not.toBeInTheDocument();
   });
 
   it("does not show the indicator for iOS/iPadOS profiles (no user channel)", () => {
     renderItem({ ...baseProfile, platform: "ios", scope: "User" });
-    expect(screen.queryByTestId("user-icon")).not.toBeInTheDocument();
+    expect(screen.queryByText("User-scoped")).not.toBeInTheDocument();
   });
 
   it("shows a renamed mobileconfig's PayloadDisplayName and UUID on hover", async () => {
@@ -65,7 +76,7 @@ describe("ProfileListItem", () => {
     expect(screen.getByText("d123")).toBeInTheDocument();
   });
 
-  it("shows only the UUID on hover when there's no PayloadDisplayName", async () => {
+  it("shows only the UUID on hover when there's no PayloadDisplayName and the name fits", async () => {
     const { user } = renderItem(baseProfile);
 
     await user.hover(screen.getByText("My DDM profile"));
@@ -74,5 +85,19 @@ describe("ProfileListItem", () => {
       expect(screen.getByText("d123")).toBeInTheDocument();
     });
     expect(screen.queryByText(/PayloadDisplayName:/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Name:/)).not.toBeInTheDocument();
+  });
+
+  it("shows the full name on hover when the name is truncated", async () => {
+    mockedUseCheckTruncatedElement.mockReturnValue(true);
+    const { user } = renderItem(baseProfile);
+
+    await user.hover(screen.getByText("My DDM profile"));
+
+    await waitFor(() => {
+      expect(screen.getByText("d123")).toBeInTheDocument();
+    });
+    expect(screen.getByText(/^Name:/)).toBeInTheDocument();
+    expect(screen.getAllByText("My DDM profile")).toHaveLength(2);
   });
 });

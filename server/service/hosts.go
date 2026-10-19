@@ -1369,6 +1369,8 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		return err
 	}
 
+	hostIDs = server.RemoveDuplicatesFromSlice(hostIDs)
+
 	// Authorize transfer access to the source teams of the hosts being transferred.
 	// Read from the primary so a host enrolled moments ago isn't reported as
 	// missing by a lagging replica, and so authorization sees the same state
@@ -1480,26 +1482,16 @@ func (svc *Service) createTransferredHostsActivity(ctx context.Context, teamID *
 			return ctxerr.Wrap(ctx, err, "list hosts by ids")
 		}
 
-		// index the hosts by ids to get the names in the same order as hostIDs
-		hostsByID := make(map[uint]*fleet.Host, len(hosts))
-		for _, h := range hosts {
-			hostsByID[h.ID] = h
-		}
-
 		// Derive the activity's host IDs and names exclusively from the hosts
-		// that actually exist, preserving the requested order. IDs that don't
-		// resolve to a host (e.g. non-existent IDs in the request, or a host
+		// that actually exist. IDs that don't resolve to a host (e.g. a host
 		// deleted right after the transfer) are excluded so they can't be
 		// injected into the audit trail.
-		existingIDs := make([]uint, 0, len(hostIDs))
-		hostNames = make([]string, 0, len(hostIDs))
-		for _, hid := range hostIDs {
-			if h, ok := hostsByID[hid]; ok {
-				existingIDs = append(existingIDs, hid)
-				hostNames = append(hostNames, h.DisplayName())
-			}
+		hostIDs = make([]uint, 0, len(hosts))
+		hostNames = make([]string, 0, len(hosts))
+		for _, h := range hosts {
+			hostIDs = append(hostIDs, h.ID)
+			hostNames = append(hostNames, h.DisplayName())
 		}
-		hostIDs = existingIDs
 
 		// If none of the requested hosts exist, there's nothing to record.
 		if len(hostIDs) == 0 {
