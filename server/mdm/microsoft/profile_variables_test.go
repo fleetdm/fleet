@@ -517,7 +517,7 @@ func TestPreprocessWindowsProfileContentsForDeployment(t *testing.T) {
 				`<Data>$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL</Data></Item></Add>` +
 				`<Add><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Challenge</LocURI></Target>` +
 				`<Data>$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE</Data></Item></Add>`,
-			expectError:     true,
+			expectError: true,
 			expect: func(t *testing.T, managedCerts []*fleet.MDMManagedCertificate) {
 				require.Empty(t, managedCerts)
 			},
