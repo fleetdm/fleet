@@ -144,3 +144,170 @@
   automations_enabled: false
   logging: snapshot
   interval: 3600
+- name: DEX - Network experience - Wi-Fi signal quality
+  description: Wi-Fi connection signal strength and quality metrics. Poor Wi-Fi directly impacts cloud application performance and user experience.
+  query: |
+    SELECT
+      interface,
+      security_type,
+      rssi,
+      noise,
+      (rssi - noise)                                    AS snr_db,
+      channel,
+      channel_width,
+      channel_band,
+      transmit_rate,
+      CASE channel_band
+        WHEN 1 THEN '2.4GHz'
+        WHEN 5 THEN '5GHz'
+        WHEN 6 THEN '6GHz'
+        ELSE 'unknown'
+      END                                               AS wifi_band,
+      CASE
+        WHEN rssi >= -50                               THEN 'excellent'
+        WHEN rssi >= -65                               THEN 'good'
+        WHEN rssi >= -75                               THEN 'fair'
+        WHEN rssi >= -85                               THEN 'poor'
+        ELSE 'unusable'
+      END                                               AS signal_quality,
+      CASE
+        WHEN (rssi - noise) >= 25                      THEN 'good'
+        WHEN (rssi - noise) >= 15                      THEN 'marginal'
+        ELSE 'degraded'
+      END                                               AS snr_quality,
+      CASE WHEN channel_band = 1 THEN 1 ELSE 0
+      END                                               AS stuck_on_2_4ghz,
+      CASE
+        WHEN channel_band IN (5, 6)
+             AND rssi >= -65
+             AND (rssi - noise) >= 20
+             AND channel_width >= 40
+        THEN 'good'
+        WHEN channel_band = 1
+             OR rssi < -75
+             OR (rssi - noise) < 15
+        THEN 'degraded'
+        ELSE 'acceptable'
+      END                                               AS dex_wifi_score
+    FROM wifi_status
+    WHERE interface IS NOT NULL
+      AND interface != '';
+  platform: darwin
+  automations_enabled: false
+  logging: snapshot
+  interval: 600
+- name: DEX - Network experience - VPN gate
+  description: Network context as a confidence gate — not a score. Detects VPN tunnel presence and activity to determine whether the device is on a managed network path. When no VPN is active, other DEX signals (especially app latency, update status) lose confidence. This query provides the boolean gate, not a quality number.
+  query: |
+    SELECT
+      -- Count active VPN tunnels (utun/tun/ipsec/ppp with traffic)
+      (SELECT COUNT(*) FROM interface_details
+       WHERE (interface LIKE 'utun%' OR interface LIKE 'tun%'
+              OR interface LIKE 'ipsec%' OR interface LIKE 'ppp%')
+         AND ipackets > 0
+      )                                                 AS vpn_tunnels_active,
+      -- Is any VPN tunnel present (even without traffic)?
+      (SELECT COUNT(*) FROM interface_details
+       WHERE interface LIKE 'utun%' OR interface LIKE 'tun%'
+          OR interface LIKE 'ipsec%' OR interface LIKE 'ppp%'
+      )                                                 AS vpn_tunnels_total,
+      -- Is default route going through a tunnel (strongest VPN signal)
+      (SELECT COUNT(*) FROM routes
+       WHERE (interface LIKE 'utun%' OR interface LIKE 'tun%'
+              OR interface LIKE 'ipsec%')
+         AND destination = '0.0.0.0'
+      )                                                 AS vpn_default_route,
+      -- Primary interface (en0 = wifi typically)
+      (SELECT interface FROM interface_details
+       WHERE interface = 'en0' AND (flags & 1) = 1
+       LIMIT 1
+      )                                                 AS primary_interface,
+      -- Is primary interface up and carrying traffic?
+      (SELECT CASE
+        WHEN ipackets > 0 AND opackets > 0 THEN 1 ELSE 0
+       END FROM interface_details
+       WHERE interface = 'en0'
+       LIMIT 1
+      )                                                 AS primary_active,
+      -- Network path decision
+      CASE
+        WHEN (SELECT COUNT(*) FROM routes
+              WHERE (interface LIKE 'utun%' OR interface LIKE 'tun%'
+                     OR interface LIKE 'ipsec%')
+                AND destination = '0.0.0.0') > 0
+        THEN 'tunnel_active'
+        WHEN (SELECT COUNT(*) FROM interface_details
+              WHERE interface = 'en0' AND (flags & 1) = 1
+                AND ipackets > 0) > 0
+        THEN 'direct_connected'
+        ELSE 'disconnected'
+      END                                               AS network_confidence,
+      strftime('%s', 'now')                             AS checked_at_epoch,
+      datetime('now')                                   AS checked_at_display
+    FROM interface_details
+    LIMIT 1;
+  platform: darwin
+  automations_enabled: false
+  logging: snapshot
+  interval: 600
+- name: DEX - System experience - Security posture
+  description: Verifying the following components are enabled on the host - filevault, sip, gatekeeper, firewall
+  query: |
+    SELECT
+      (SELECT 1 FROM filevault_status WHERE status LIKE '%on%')   AS filevault,
+      (SELECT 1 FROM alf WHERE global_state >= 1)                 AS firewall,
+      (SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1)    AS gatekeeper,
+      (SELECT 1 FROM sip_config WHERE config_flag = 'sip')        AS sip;
+  platform: darwin
+  automations_enabled: false
+  logging: snapshot
+  interval: 3600
+- name: DEX - Security compliance - Windows firewall status
+  description: Windows firewall and security center status.
+  query: |
+    SELECT
+      firewall,
+      autoupdate,
+      antivirus,
+      antispyware,
+      windows_security_center_service,
+      user_account_control
+    FROM windows_security_center;
+  interval: 900
+  platform: windows
+  automations_enabled: false
+  logging: snapshot
+- name: DEX - Security compliance - Secure Boot status (Windows)
+  description: Windows Secure Boot status for hardware security compliance.
+  query: |
+    SELECT
+      secure_boot AS secure_boot_enabled,
+      CASE secure_boot
+        WHEN 1 THEN 'enabled'
+        ELSE 'disabled'
+      END AS secure_boot_status
+    FROM secureboot;
+  interval: 900
+  platform: windows
+  automations_enabled: false
+  logging: snapshot
+- name: DEX - Security compliance - TPM status (Windows)
+  description: Trusted Platform Module status for hardware security compliance.
+  query: |
+    SELECT
+      activated,
+      enabled,
+      owned,
+      manufacturer_name,
+      manufacturer_version,
+      spec_version,
+      CASE
+        WHEN activated = 1 AND enabled = 1 THEN 'active'
+        WHEN enabled = 1 THEN 'enabled_not_activated'
+        ELSE 'disabled'
+      END AS tpm_status
+    FROM tpm_info;
+  interval: 900
+  platform: windows
+  automations_enabled: false
+  logging: snapshot

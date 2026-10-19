@@ -29,6 +29,15 @@ AI_TOOLS_REPORT = "DEX - AI governance - AI tools per host"
 # An earlier report that returns one row per tool. Fleet keeps at most 1,000
 # rows per report, so it only covers part of a larger fleet.
 AI_TOOLS_ROWS_REPORT = "DEX - AI Tools - Surfaces AI tools on the host"
+# One row per host each. Connectivity and Analytics read these.
+DEX_REPORTS = {
+    "wifi": "DEX - Network experience - Wi-Fi signal quality",
+    "vpn": "DEX - Network experience - VPN gate",
+    "mac_posture": "DEX - System experience - Security posture",
+    "win_security": "DEX - Security compliance - Windows firewall status",
+    "win_secure_boot": "DEX - Security compliance - Secure Boot status (Windows)",
+    "win_tpm": "DEX - Security compliance - TPM status (Windows)",
+}
 AI_ROWS_COLUMNS = {"tool_type": "type", "tool_name": "name", "origin": "source", "target_endpoint": "endpoint",
                    "risk_indicators": "risk_flags"}
 NOT_COMPUTERS = {"ios", "ipados", "android", "chrome"}
@@ -37,7 +46,8 @@ HOST_FIELDS = [
     "hardware_model", "hardware_serial", "hardware_vendor", "cpu_brand", "memory",
     "team_id", "team_name", "status", "seen_time", "uptime", "last_restarted_at",
     "last_enrolled_at", "created_at", "gigs_disk_space_available",
-    "percent_disk_space_available", "software_updated_at",
+    "percent_disk_space_available", "software_updated_at", "detail_updated_at", "policy_updated_at",
+    "disk_encryption_enabled", "orbit_version", "osquery_version", "fleet_desktop_version",
 ]
 
 
@@ -103,9 +113,14 @@ def compact_software(sw):
     return out
 
 
-def report_rows(fleet, fleets, name):
-    """Latest row per host from every copy of a report: global and per fleet."""
+def report_rows(fleet, fleets, name, info=None):
+    """Latest row per host from every copy of a report: global and per fleet.
+
+    Pass a dict as info to learn whether the report exists and whether Fleet clipped it.
+    """
     rows, seen = {}, set()
+    info = {} if info is None else info
+    info.update(found=False, clipped=False)
     scopes = [{}] + [{"fleet_id": f["id"]} for f in fleets]
     for scope in scopes:
         d = fleet.get("/api/v1/fleet/reports", {**scope, "per_page": 500, "query": name}) or {}
@@ -113,7 +128,9 @@ def report_rows(fleet, fleets, name):
             if r.get("name") != name or r["id"] in seen:
                 continue
             seen.add(r["id"])
+            info["found"] = True
             rep = fleet.get(f"/api/v1/fleet/reports/{r['id']}/report")
+            info["clipped"] = info["clipped"] or bool(rep.get("report_clipped"))
             for row in rep.get("results") or []:
                 hid = row.get("host_id")
                 prev = rows.get(hid)
@@ -179,7 +196,10 @@ def main():
         })
         batch = d.get("hosts") or []
         for h in batch:
-            hosts.append({k: h.get(k) for k in HOST_FIELDS})
+            row = {k: h.get(k) for k in HOST_FIELDS}
+            row["failing_policies"] = (h.get("issues") or {}).get("failing_policies_count")
+            row["mdm_status"] = (h.get("mdm") or {}).get("enrollment_status")
+            hosts.append(row)
             software[str(h["id"])] = compact_software(h.get("software"))
         if len(batch) < args.per_page:
             break
@@ -199,6 +219,12 @@ def main():
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
         details = dict(pool.map(detail, [h for h in hosts if h["platform"] and h["platform"] not in NOT_COMPUTERS]))
 
+    report_info = {}
+
+    def rows(key, name):
+        report_info[key] = {}
+        return report_rows(fleet, fleets, name, report_info[key])
+
     snap = {
         "schema": 1,
         "generated_at": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -208,15 +234,18 @@ def main():
         "software_columns": ["name", "version", "source", "bundle_identifier", "last_opened_at", "path", "vendor"],
         "software": software,
         "host_details": details,
-        "device_health": report_rows(fleet, fleets, DEVICE_HEALTH_REPORT),
-        "os_health": report_rows(fleet, fleets, OS_HEALTH_REPORT),
+        "device_health": rows("device_health", DEVICE_HEALTH_REPORT),
+        "os_health": rows("os_health", OS_HEALTH_REPORT),
         "ai_tools": ai_tools(fleet, fleets),
+        "dex": {key: rows(key, name) for key, name in DEX_REPORTS.items()},
+        "report_info": report_info,
     }
     with open(args.out, "w") as f:
         json.dump(snap, f, separators=(",", ":"))
     n_sw = sum(len(v) for v in software.values())
     print(f"hosts={len(hosts)} software_rows={n_sw} device_health={len(snap['device_health'])} "
           f"os_health={len(snap['os_health'])} ai_tools={len(snap['ai_tools']['hosts'])} "
+          f"dex_reports={sum(1 for v in snap['report_info'].values() if v['found'])} "
           f"bytes={os.path.getsize(args.out)}")
 
 

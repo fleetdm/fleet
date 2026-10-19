@@ -1005,9 +1005,195 @@ AI_RISKS = {
                               "Other user accounts on the computer can read this MCP config file, including any credentials in it."),
 }
 
+# ---------------------------------------------------------------- connectivity
+
+WIFI_WEAK = {"fair", "poor", "unusable"}
+WEAK_DAYS = 3
+
+
+def num(v):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def fresh_row(row, now, days=1.5):
+    t = parse_ts((row or {}).get("last_fetched"))
+    return bool(t and days_between(t, now) <= days)
+
+
+def build_connectivity(snap, hist):
+    now = parse_ts(snap["generated_at"])
+    today = now.date()
+    D = today.isoformat()
+    hist.setdefault("schema", 1)
+    hist.setdefault("since", D)
+    wifi_hist = hist.setdefault("wifi", {})
+    dex = snap.get("dex") or {}
+    wifi, vpn = dex.get("wifi") or {}, dex.get("vpn") or {}
+    info = snap.get("report_info") or {}
+    hosts = {str(h["id"]): h for h in snap["hosts"]}
+    week_ago = (today - dt.timedelta(days=7)).isoformat()
+
+    rows, day = [], {}
+    for hid, h in hosts.items():
+        plat = platform_of(h)
+        if not plat:
+            continue
+        seen = parse_ts(h.get("seen_time"))
+        age = days_between(seen, now) if seen else None
+        w = wifi.get(hid) if plat == "macos" else None
+        v = vpn.get(hid) if plat == "macos" else None
+        rssi = num((w or {}).get("rssi"))
+        # macOS reports 0 dBm when location access for Wi-Fi details is withheld.
+        on_wifi = bool(w and fresh_row(w, now) and rssi not in (None, 0))
+        quality = w.get("signal_quality") if on_wifi else None
+        if on_wifi:
+            wifi_hist.setdefault(hid, {})[D] = quality
+        recent = {d: q for d, q in (wifi_hist.get(hid) or {}).items() if d > week_ago}
+        path = v.get("network_confidence") if v and fresh_row(v, now) else None
+        r = {
+            "id": int(hid), "n": host_name(h), "f": h.get("team_name") or "Unassigned", "p": plat,
+            "virtual": is_virtual(h), "age": round(age, 3) if age is not None else None,
+            "rssi": rssi if on_wifi else None, "snr": num(w.get("snr_db")) if on_wifi else None,
+            "rate": num(w.get("transmit_rate")) if on_wifi else None,
+            "band": w.get("wifi_band") if on_wifi else None, "quality": quality,
+            "score": w.get("dex_wifi_score") if on_wifi else None,
+            "weak_days": sum(1 for q in recent.values() if q in WIFI_WEAK), "wifi_days": len(recent),
+            "path": path, "tunnels": int(num(v.get("vpn_tunnels_active")) or 0) if path else None,
+        }
+        rows.append(r)
+        count_into(day, r["f"], plat, computers=1, fresh1h=int(age is not None and age <= 1 / 24),
+                   fresh24=int(age is not None and age <= 1), stale7=int(age is None or age > 7),
+                   wifi=int(on_wifi), weak=int(quality in WIFI_WEAK), persistent=int(r["weak_days"] >= WEAK_DAYS),
+                   tunnel=int(path == "tunnel_active"), direct=int(path == "direct_connected"),
+                   offline=int(path == "disconnected"))
+
+    cutoff = (today - dt.timedelta(days=30)).isoformat()
+    for hid in list(wifi_hist):
+        kept = {d: q for d, q in wifi_hist[hid].items() if d >= cutoff}
+        if hid in hosts and kept:
+            wifi_hist[hid] = kept
+        else:
+            del wifi_hist[hid]
+    return {
+        "generated_at": snap["generated_at"], "fleet_url": snap["fleet_url"], "history_since": hist["since"],
+        "stale_days": STALE_DAYS, "weak_days": WEAK_DAYS, "rows": rows,
+        "reports": {k: bool((info.get(k) or {}).get("found")) for k in ("wifi", "vpn")},
+        "trend": save_trend(hist, today, day),
+    }
+
+
+# ---------------------------------------------------------------- analytics
+
+# (key, label, domain, platforms). Platforms None means every computer.
+ANALYTICS_SOURCES = [
+    ("checkin", "Fleet check-in", "Fleet agent", None),
+    ("details", "Host details", "Hardware and health", None),
+    ("software", "Software inventory", "Software", None),
+    ("policies", "Policies", "Security", None),
+    ("device_health", "Device health report", "Hardware and health", {"macos"}),
+    ("os_health", "OS health report", "Hardware and health", {"macos"}),
+    ("ai_tools", "AI tools report", "Software", None),
+    ("wifi", "Wi-Fi report", "Network", {"macos"}),
+    ("vpn", "VPN gate report", "Network", {"macos"}),
+    ("mac_posture", "macOS security posture report", "Security", {"macos"}),
+    ("win_security", "Windows Security Center report", "Security", {"windows"}),
+    ("win_secure_boot", "Secure Boot report", "Security", {"windows"}),
+    ("win_tpm", "TPM report", "Security", {"windows"}),
+]
+HOST_TIMESTAMPS = {"checkin": "seen_time", "details": "detail_updated_at", "software": "software_updated_at",
+                   "policies": "policy_updated_at"}
+FRESH_DAYS = 7
+UPTIME_OVERDUE_DAYS = 30
+
+
+def posture(plat, h, dex, hid):
+    """Security controls for one computer: True, False, or None when nothing reported."""
+    def flag(v):
+        return None if v is None else str(v).strip() not in ("", "0", "None")
+    c = {"disk": h.get("disk_encryption_enabled")}
+    if plat == "macos":
+        r = (dex.get("mac_posture") or {}).get(hid)
+        for k in ("firewall", "gatekeeper", "sip"):
+            # The report selects 1 or nothing, so a reported row with no value means off.
+            c[k] = (flag(r.get(k)) or False) if r else None
+    elif plat == "windows":
+        sc = (dex.get("win_security") or {}).get(hid)
+        sb = (dex.get("win_secure_boot") or {}).get(hid)
+        tpm = (dex.get("win_tpm") or {}).get(hid)
+        c["firewall"] = (sc.get("firewall") == "Good") if sc else None
+        c["antivirus"] = (sc.get("antivirus") == "Good") if sc else None
+        c["secure_boot"] = flag(sb.get("secure_boot_enabled")) if sb else None
+        c["tpm"] = (tpm.get("tpm_status") == "active") if tpm else None
+    return {k: (None if v is None else int(bool(v))) for k, v in c.items()}
+
+
+def build_analytics(snap, hist):
+    now = parse_ts(snap["generated_at"])
+    today = now.date()
+    hist.setdefault("schema", 1)
+    hist.setdefault("since", today.isoformat())
+    dex = dict(snap.get("dex") or {})
+    dex["device_health"], dex["os_health"] = snap.get("device_health") or {}, snap.get("os_health") or {}
+    ai = (snap.get("ai_tools") or {}).get("hosts") or {}
+    info = dict(snap.get("report_info") or {})
+    info["ai_tools"] = {"found": bool((snap.get("ai_tools") or {}).get("report")),
+                        "clipped": bool((snap.get("ai_tools") or {}).get("clipped"))}
+    hosts = {str(h["id"]): h for h in snap["hosts"]}
+    ids = [hid for hid, h in hosts.items() if platform_of(h) and is_active(h, now)]
+
+    def found(key):
+        """Fleet's own timestamps always exist; a report counts only once someone adds it."""
+        return key in HOST_TIMESTAMPS or bool((info.get(key) or {}).get("found"))
+
+    vers = {"orbit": [], "osquery": [], "desktop": []}
+    for hid in ids:
+        h = hosts[hid]
+        for k, field in (("orbit", "orbit_version"), ("osquery", "osquery_version"), ("desktop", "fleet_desktop_version")):
+            if h.get(field):
+                vers[k].append(h[field])
+    newest = {k: newest_release(v, set()) if v else None for k, v in vers.items()}
+
+    out, day = {}, {}
+    for hid in ids:
+        h = hosts[hid]
+        plat = platform_of(h)
+        ages = {}
+        for key, _, _, plats in ANALYTICS_SOURCES:
+            if plats and plat not in plats:
+                continue
+            if key in HOST_TIMESTAMPS:
+                t = parse_ts(h.get(HOST_TIMESTAMPS[key]))
+            elif key == "ai_tools":
+                t = parse_ts((ai.get(hid) or {}).get("last_fetched"))
+            else:
+                t = parse_ts(((dex.get(key) or {}).get(hid) or {}).get("last_fetched"))
+            ages[key] = round(days_between(t, now), 2) if t else None
+        controls = posture(plat, h, dex, hid)
+        v = [h.get("orbit_version") or "", h.get("osquery_version") or "", h.get("fleet_desktop_version") or ""]
+        current = bool(newest["orbit"] and v[0] and vcmp(v[0], newest["orbit"]) >= 0)
+        up = round((h.get("uptime") or 0) / 1e9 / 86400, 1) if h.get("uptime") else None
+        out[hid] = {"n": host_name(h), "f": h.get("team_name") or "Unassigned", "p": plat, "virtual": is_virtual(h),
+                    "s": ages, "c": controls, "v": v, "up": up, "fp": h.get("failing_policies"), "mdm": h.get("mdm_status")}
+        all_fresh = all(a is not None and a <= FRESH_DAYS for k, a in ages.items() if found(k))
+        count_into(day, out[hid]["f"], plat, computers=1, all_fresh=int(all_fresh),
+                   disk_known=int(controls["disk"] is not None), disk_on=int(controls["disk"] == 1),
+                   agent_current=int(current), failing=int((h.get("failing_policies") or 0) > 0))
+    return {
+        "generated_at": snap["generated_at"], "fleet_url": snap["fleet_url"], "history_since": hist["since"],
+        "stale_days": STALE_DAYS, "fresh_days": FRESH_DAYS, "uptime_overdue": UPTIME_OVERDUE_DAYS,
+        "sources": [{"key": k, "label": label, "domain": domain, "platforms": sorted(plats) if plats else None,
+                     "found": found(k), "clipped": bool((info.get(k) or {}).get("clipped"))}
+                    for k, label, domain, plats in ANALYTICS_SOURCES],
+        "hosts": out, "newest": newest, "trend": save_trend(hist, today, day),
+    }
+
 # ---------------------------------------------------------------- render
 
-BUILDERS = {"lifecycle": build_lifecycle, "software": build_software, "patch": build_patch, "ai": build_ai}
+BUILDERS = {"lifecycle": build_lifecycle, "software": build_software, "patch": build_patch, "ai": build_ai,
+            "connectivity": build_connectivity, "analytics": build_analytics}
 
 
 def render(templates, page, data):

@@ -19,8 +19,10 @@ FILES = [
     "run.py", "collect.py", "build.py",
     "templates/base.css", "templates/base.js",
     "templates/lifecycle.html", "templates/software.html", "templates/patch.html", "templates/ai.html",
+    "templates/connectivity.html", "templates/analytics.html",
 ]
-TITLES = {"lifecycle": "Hardware lifecycle", "software": "Software usage", "patch": "Patch velocity", "ai": "AI governance"}
+TITLES = {"lifecycle": "Hardware lifecycle", "software": "Software usage", "patch": "Patch velocity", "ai": "AI governance",
+          "connectivity": "Connectivity", "analytics": "Analytics"}
 PLACEHOLDER = """<title>{title}</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>

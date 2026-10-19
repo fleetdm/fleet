@@ -1,0 +1,200 @@
+<title>Connectivity</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Code+Pro:wght@400;500&display=swap">
+<style>
+/*__BASE_CSS__*/
+.act-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.notice { border: 1px solid var(--line-2); border-radius: 8px; padding: 12px 16px; background: var(--panel-2); color: var(--ink-2); }
+.notice b { color: var(--ink); }
+</style>
+
+<div class="wrap">
+  <header class="top" id="top"></header>
+  <div class="title-row">
+    <div>
+      <h1>Connectivity</h1>
+      <p class="subtitle">Is every computer reporting to Fleet, and how good is the network under it? Check-ins cover macOS, Windows, and Linux. Wi-Fi and network path come from DEX reports on macOS.</p>
+    </div>
+  </div>
+  <div id="notice"></div>
+  <section class="hero" id="hero" aria-label="Summary"></section>
+  <div class="stats" id="stats"></div>
+
+  <section class="sec" aria-labelledby="trend-h">
+    <div class="sec-head">
+      <h2 id="trend-h">Over time</h2>
+      <div class="trend-tools" id="trend-tools"></div>
+    </div>
+    <div class="grid" id="trend"></div>
+  </section>
+
+  <section class="sec" aria-labelledby="where-h">
+    <div class="sec-head">
+      <h2 id="where-h">Where things stand</h2>
+      <span class="hint" id="where-hint"></span>
+    </div>
+    <div class="grid">
+      <div class="panel"><h3>Last check-in</h3><div id="checkin"></div></div>
+      <div class="panel"><h3>Wi-Fi signal</h3><div id="wifi"></div></div>
+      <div class="panel"><h3>Network path</h3><div id="path"></div></div>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="act-h">
+    <div class="sec-head">
+      <h2 id="act-h">Computers to look at</h2>
+      <span class="hint">Grouped by what's wrong. A computer shows in the first group that fits.</span>
+    </div>
+    <div class="act-bar"><div class="chips" id="act-chips"></div><span id="act-tools"></span></div>
+    <div id="act"></div>
+  </section>
+
+  <details class="method">
+    <summary>How this is measured</summary>
+    <div class="cols">
+      <div>
+        <p><span class="term">Check-in:</span> the last time each computer's agent talked to Fleet. This covers every computer, including ones that stopped checking in long ago, so you can find and retire them.</p>
+        <p><span class="term">Network path (macOS):</span> from the <code>DEX - Network experience - VPN gate</code> report. "VPN tunnel" means the default route goes through a tunnel interface. "Direct" means the primary interface is up and carrying traffic. "Disconnected" means neither.</p>
+      </div>
+      <div>
+        <p><span class="term">Wi-Fi (macOS):</span> from the <code>DEX - Network experience - Wi-Fi signal quality</code> report, which runs every 10 minutes. Signal strength (RSSI) is excellent at -50 dBm or better, good to -65, fair to -75, poor to -85, and unusable below that. Macs on Ethernet, and Macs that withhold Wi-Fi details from location services, don't count as on Wi-Fi.</p>
+        <p><span class="term">Weak:</span> a fair, poor, or unusable signal. It's "most days" when it was weak on <span id="weak-days"></span> or more of the last 7 days with a reading.</p>
+      </div>
+      <div>
+        <p><span class="term">Signal-to-noise:</span> signal strength minus background noise. 25 dB or more is good, and under 15 dB is degraded even when the signal looks strong.</p>
+        <p><span class="term">Band:</span> 2.4 GHz is slower and more crowded than 5 or 6 GHz. Recent macOS versions hide the band from apps without location access, so it can read "unknown."</p>
+      </div>
+    </div>
+  </details>
+  <p class="foot" id="foot"></p>
+</div>
+
+<script>window.__DATA__=/*__DATA__*/null;</script>
+<script>
+/*__BASE_JS__*/
+</script>
+<script>
+const QUALITY = [["excellent", "Excellent", "good"], ["good", "Good", "info"], ["fair", "Fair", "warn"], ["poor", "Poor", "bad"], ["unusable", "Unusable", "bad"]];
+const WEAK = new Set(["fair", "poor", "unusable"]);
+const PATHS = [["tunnel_active", "VPN tunnel", "info"], ["direct_connected", "Direct", "good"], ["disconnected", "Disconnected", "warn"]];
+const BUCKETS = [["Within an hour", (a) => a != null && a <= 1 / 24, "good"], ["Within 24 hours", (a) => a != null && a > 1 / 24 && a <= 1, "info"],
+  ["1 to 7 days", (a) => a != null && a > 1 && a <= 7, "warn"], ["7 to 30 days", (a) => a != null && a > 7 && a <= 30, "bad"], ["Over 30 days", (a) => a == null || a > 30, "bad"]];
+const G = [
+  { key: "silent", label: "Not checking in", tone: "bad", hint: "No check-in for 7+ days. Find it, or remove it from Fleet.", test: (r) => r.age == null || r.age > 7 },
+  { key: "persistent", label: "Weak Wi-Fi most days", tone: "bad", hint: "Weak signal on most days this week. Worth a visit or a better access point.", test: (r) => r.weak_days >= DATA.weak_days },
+  { key: "weak", label: "Weak Wi-Fi now", tone: "warn", hint: "Fair or worse right now. Check again tomorrow before acting.", test: (r) => WEAK.has(r.quality) },
+  { key: "offline", label: "No network path", tone: "warn", hint: "Checking in, but the primary interface wasn't carrying traffic at the last reading.", test: (r) => r.path === "disconnected" },
+];
+let shown = new Set(G.map((g) => g.key));
+
+DATA.rows.forEach((r) => (r._id = r.id));
+const fleets = [...new Set(DATA.rows.map((r) => r.f))].sort();
+const platformCounts = {};
+for (const r of DATA.rows) platformCounts[r.p] = (platformCounts[r.p] || 0) + 1;
+const noun = (n) => (PLATFORM === "macos" ? fmt.plural(n, "Mac") : fmt.plural(n, "computer"));
+const nounWord = (plural) => (PLATFORM === "macos" ? (plural ? "Macs" : "Mac") : (plural ? "computers" : "computer"));
+const groupOf = (r) => G.find((g) => g.test(r));
+const qualityTone = (q) => (QUALITY.find(([k]) => k === q) || [, , "neutral"])[2];
+const qualityLabel = (q) => (QUALITY.find(([k]) => k === q) || [, q])[1];
+const pathLabel = (p) => (PATHS.find(([k]) => k === p) || [, "---"])[1];
+
+function render() {
+  const rows = DATA.rows.filter((r) => inFleet(r.f) && inPlatform(r.p));
+  const macs = rows.filter((r) => r.p === "macos");
+  const onWifi = macs.filter((r) => r.rssi != null);
+  const weak = onWifi.filter((r) => WEAK.has(r.quality));
+  const persistent = rows.filter((r) => r.weak_days >= DATA.weak_days);
+  const withPath = macs.filter((r) => r.path);
+  const tunnel = withPath.filter((r) => r.path === "tunnel_active");
+  const in1h = rows.filter((r) => r.age != null && r.age <= 1 / 24).length;
+  const in24 = rows.filter((r) => r.age != null && r.age <= 1).length;
+  const silent = rows.filter((r) => r.age == null || r.age > 7);
+  const medRssi = quantile(onWifi.map((r) => r.rssi), 0.5);
+  const medSnr = quantile(onWifi.map((r) => r.snr), 0.5);
+  const medRate = quantile(onWifi.map((r) => r.rate), 0.5);
+
+  mount("notice", !DATA.reports.wifi || !DATA.reports.vpn ? h("div", { class: "notice" }, h("b", {}, "Some network data isn't set up. "),
+    `Add the ${[!DATA.reports.wifi && "Wi-Fi signal quality", !DATA.reports.vpn && "VPN gate"].filter(Boolean).join(" and ")} report from dex-reports.yml to see ${!DATA.reports.wifi ? "Wi-Fi" : "network path"} for Macs.`) : null);
+
+  const lede = silent.length ? `${noun(silent.length)} ${silent.length === 1 ? "hasn't" : "haven't"} checked in for more than 7 days.`
+    : `Every ${nounWord(false)} checked in within the last week.`;
+  const support = [];
+  const historyDays = Math.round((Date.parse(DATA.generated_at) - Date.parse(DATA.history_since + "T00:00:00Z")) / 864e5) + 1;
+  if (onWifi.length) support.push(`Of ${fmt.plural(onWifi.length, "Mac")} on Wi-Fi, ${fmt.n(weak.length)} ${weak.length === 1 ? "has" : "have"} a fair or worse signal now`
+    + (historyDays >= DATA.weak_days ? `, and ${fmt.n(persistent.length)} had one on most days this week.` : `. Tracking weak signal over several days starts after ${DATA.weak_days} days of readings.`));
+  if (withPath.length) support.push(`${fmt.n(tunnel.length)} of ${fmt.plural(withPath.length, "Mac")} reporting a network path ${tunnel.length === 1 ? "is" : "are"} on a VPN tunnel.`);
+  if (!onWifi.length && !withPath.length && PLATFORM && PLATFORM !== "macos") support.push("Wi-Fi and network path come from macOS reports, so only check-ins show here.");
+  mount("hero",
+    h("div", {}, h("div", { class: "eyebrow" }, "Reporting in the last 24 hours"),
+      h("div", { class: "big" }, h("b", {}, fmt.n(in24)), h("span", {}, `of ${noun(rows.length)}`))),
+    h("div", { class: "hero-mid" }, h("p", { class: "lede" }, lede), h("p", { class: "support" }, support.join(" "))),
+    h("div", { class: "rail" }, h("div", { class: "eyebrow" }, "Right now"),
+      h("div", { class: "rail-row" }, h("span", {}, "Reporting within an hour"), h("b", {}, fmt.n(in1h))),
+      h("div", { class: "rail-row" }, h("span", {}, "Not seen for 7+ days"), h("b", { class: silent.length ? "hl-bad" : null }, fmt.n(silent.length))),
+      h("div", { class: "rail-row" }, h("span", {}, "Weak Wi-Fi now"), h("b", {}, fmt.n(weak.length))),
+      h("div", { class: "rail-row" }, h("span", {}, "On a VPN tunnel"), h("b", {}, fmt.n(tunnel.length)))));
+
+  const stat = (k, v, s) => h("div", { class: "stat" }, h("span", { class: "k" }, k), h("span", { class: "v" }, v), h("span", { class: "s" }, s));
+  mount("stats",
+    stat("Reporting within an hour", fmt.n(in1h), `${fmt.pct(pct(in1h, rows.length))} of ${noun(rows.length)}`),
+    stat("Not seen for 7+ days", fmt.n(silent.length), `${fmt.pct(pct(silent.length, rows.length))} of ${noun(rows.length)}`),
+    stat("Macs on Wi-Fi", fmt.n(onWifi.length), `of ${fmt.plural(macs.length, "Mac")}`),
+    stat("Median signal", medRssi == null ? "---" : `${Math.round(medRssi)} dBm`, medRssi == null ? "no Wi-Fi readings" : `${qualityLabel(medRssi >= -50 ? "excellent" : medRssi >= -65 ? "good" : medRssi >= -75 ? "fair" : medRssi >= -85 ? "poor" : "unusable").toLowerCase()} signal`),
+    stat("Median signal-to-noise", medSnr == null ? "---" : `${Math.round(medSnr)} dB`, medRate == null ? "" : `link rate ${fmt.n(Math.round(medRate))} Mbps`),
+    stat("Weak Wi-Fi most days", fmt.n(persistent.length), `weak on ${DATA.weak_days}+ of the last 7 days`));
+
+  renderTrend(["computers", "fresh24", "wifi", "weak", "persistent"], [
+    { title: "Reporting within 24 hours", series: [{ label: "Reporting", color: "var(--info)", value: (r) => pct(r.fresh24, r.computers) }], yFmt: fmt.pct, yMax: 100 },
+    { title: "Macs with weak Wi-Fi", series: [{ label: "Weak now", color: "var(--warn)", value: (r) => r.weak }, { label: "Most days", color: "var(--bad)", value: (r) => r.persistent }] },
+  ]);
+
+  document.getElementById("where-hint").textContent = PLATFORM && PLATFORM !== "macos" ? "Wi-Fi and network path cover Macs only" : "";
+  mount("checkin", rows.length ? [barRows(BUCKETS.map(([label, test, tone]) => {
+    const n = rows.filter((r) => test(r.age)).length;
+    return { label, segs: [{ value: n, color: `var(--${tone})`, tip: `${label}: ${noun(n)}` }] };
+  })), h("p", { class: "panel-note" }, "Computers that stopped checking in long ago still count here, until you remove them from Fleet.")] : empty("No computers", ""));
+
+  const bands = {};
+  for (const r of onWifi) bands[r.band || "unknown"] = (bands[r.band || "unknown"] || 0) + 1;
+  mount("wifi", onWifi.length ? [barRows(QUALITY.map(([k, label, tone]) => {
+    const n = onWifi.filter((r) => r.quality === k).length;
+    return { label, segs: [{ value: n, color: `var(--${tone})`, tip: `${label}: ${fmt.plural(n, "Mac")}` }] };
+  })), h("p", { class: "panel-note" }, `Band: ${Object.entries(bands).sort((a, b) => b[1] - a[1]).map(([b, n]) => `${b} ${fmt.n(n)}`).join(", ")}.`)]
+    : empty(DATA.reports.wifi ? "No Wi-Fi readings" : "Wi-Fi report not set up", DATA.reports.wifi ? "No Mac in this view reported a Wi-Fi signal." : "Add the Wi-Fi signal quality report from dex-reports.yml."));
+
+  mount("path", withPath.length ? [barRows(PATHS.map(([k, label, tone]) => {
+    const n = withPath.filter((r) => r.path === k).length;
+    return { label, segs: [{ value: n, color: `var(--${tone})`, tip: `${label}: ${fmt.plural(n, "Mac")}` }] };
+  })), h("p", { class: "panel-note" }, `${fmt.plural(Math.round(mean(withPath.map((r) => r.tunnels || 0)) * 10) / 10, "active tunnel interface")} per Mac on average, including ones the system creates.`)]
+    : empty(DATA.reports.vpn ? "No network path readings" : "VPN gate report not set up", DATA.reports.vpn ? "No Mac in this view reported a network path." : "Add the VPN gate report from dex-reports.yml."));
+
+  // Computers to look at
+  const grouped = G.map((g) => ({ ...g, rows: rows.filter((r) => groupOf(r) === g) }));
+  mount("act-chips", grouped.map((g) => h("button", { type: "button", class: "chip", style: `--tone:var(--${g.tone})`, "aria-pressed": shown.has(g.key) ? "true" : "false",
+    onclick: () => { shown.has(g.key) ? shown.delete(g.key) : shown.add(g.key); render(); } }, h("i"), g.label, h("b", {}, fmt.n(g.rows.length)))));
+  const groups = grouped.filter((g) => shown.has(g.key) && g.rows.length).map((g) => ({ label: g.label, hint: g.hint, pill: pill(fmt.n(g.rows.length), g.tone), rows: g.rows }));
+  const visible = groups.flatMap((g) => g.rows);
+  mount("act-tools", visible.length ? copyButton("Copy as CSV", () => csv([["host", "fleet", "platform", "group", "last_seen_days", "rssi_dbm", "snr_db", "link_mbps", "band", "network_path", "weak_days", "fleet_url"],
+    ...visible.map((r) => [r.n, r.f, platformLabel(r.p), groupOf(r).label, r.age == null ? "" : Math.round(r.age * 10) / 10, r.rssi ?? "", r.snr ?? "", r.rate ?? "", r.band || "", pathLabel(r.path), r.weak_days, hostUrl(r.id)])])) : null);
+  const columns = [
+    { key: "name", label: nounWord(false)[0].toUpperCase() + nounWord(false).slice(1), value: (r) => r.n.toLowerCase(), cell: (r) => [hostLink(r.id, r.n), PLATFORM ? null : h("span", { class: "plat" }, platformLabel(r.p))] },
+    { key: "fleet", label: "Fleet", value: (r) => r.f.toLowerCase(), cell: (r) => h("span", { class: "cell-sub" }, r.f) },
+    { key: "seen", label: "Last check-in", value: (r) => r.age ?? 1e9, cell: (r) => (r.age == null ? "never" : fmt.ago(r.age)) },
+    { key: "signal", label: "Wi-Fi signal", num: true, value: (r) => r.rssi ?? -999, cell: (r) => (r.rssi == null ? "---" : [`${Math.round(r.rssi)} dBm `, pill(qualityLabel(r.quality), qualityTone(r.quality))]) },
+    { key: "snr", label: "Signal-to-noise", num: true, value: (r) => r.snr ?? -999, cell: (r) => (r.snr == null ? "---" : `${Math.round(r.snr)} dB`) },
+    { key: "rate", label: "Link rate", num: true, value: (r) => r.rate ?? -1, cell: (r) => (r.rate == null ? "---" : `${fmt.n(Math.round(r.rate))} Mbps`) },
+    { key: "path", label: "Network path", value: (r) => r.path || "", cell: (r) => h("span", { class: "cell-sub" }, pathLabel(r.path)) },
+    { key: "weak", label: "Weak days", num: true, value: (r) => r.weak_days, cell: (r) => (r.wifi_days ? `${r.weak_days} of ${r.wifi_days}` : "---") },
+  ];
+  mount("act", groups.length ? sortTable({ columns, groups, sort: ["seen", "asc"], id: "conn-table" })
+    : empty("Nothing to look at", `Every ${nounWord(false)} here is checking in and has a usable network.`));
+
+  document.getElementById("weak-days").textContent = DATA.weak_days;
+  document.getElementById("foot").textContent = `Data from ${DATA.fleet_url.replace(/^https?:\/\//, "")} via the Fleet API (List hosts, Get report data). Rebuilt daily.`;
+}
+
+renderTop(fleets, render, platformCounts);
+render();
+</script>
