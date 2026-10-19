@@ -1,4 +1,4 @@
-package main
+package fleetmcp
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
-	"github.com/sirupsen/logrus"
 )
 
 func registerHostTools(s *server.MCPServer, fleetClient *FleetClient) {
@@ -35,7 +34,7 @@ func registerGetEndpoints(s *server.MCPServer, fleetClient *FleetClient) {
 		mcp.WithIdempotentHintAnnotation(true),
 	)
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		logrus.Info("Tool invoked: get_endpoints")
+		fleetClient.logger.InfoContext(ctx, "tool invoked", "tool", "get_endpoints")
 
 		fleet := getOptionalString(request, "fleet")
 		platform := getOptionalString(request, "platform")
@@ -103,7 +102,7 @@ func registerGetHost(s *server.MCPServer, fleetClient *FleetClient) {
 		mcp.WithIdempotentHintAnnotation(true),
 	)
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		logrus.Info("Tool invoked: get_host")
+		fleetClient.logger.InfoContext(ctx, "tool invoked", "tool", "get_host")
 
 		hostIDArg := getOptionalString(request, "host_id")
 		identifier := getOptionalString(request, "identifier")
@@ -167,7 +166,7 @@ func registerGetTotalSystemCount(s *server.MCPServer, fleetClient *FleetClient) 
 		mcp.WithIdempotentHintAnnotation(true),
 	)
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		logrus.Info("Tool invoked: get_total_system_count")
+		fleetClient.logger.InfoContext(ctx, "tool invoked", "tool", "get_total_system_count")
 		count, err := fleetClient.GetHostCount(ctx)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to get total count: %v", err)), nil
@@ -184,7 +183,7 @@ func registerGetAggregatePlatforms(s *server.MCPServer, fleetClient *FleetClient
 		mcp.WithIdempotentHintAnnotation(true),
 	)
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		logrus.Info("Tool invoked: get_aggregate_platforms")
+		fleetClient.logger.InfoContext(ctx, "tool invoked", "tool", "get_aggregate_platforms")
 		aggregate, err := fleetClient.GetEndpointsWithAggregations(ctx)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to get aggregate platforms: %v", err)), nil
@@ -212,7 +211,7 @@ func registerGetFleets(s *server.MCPServer, fleetClient *FleetClient) {
 		mcp.WithIdempotentHintAnnotation(true),
 	)
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		logrus.Info("Tool invoked: get_fleets")
+		fleetClient.logger.InfoContext(ctx, "tool invoked", "tool", "get_fleets")
 		fleets, err := fleetClient.GetTeams(ctx)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to get fleets: %v", err)), nil
@@ -229,7 +228,7 @@ func registerGetLabels(s *server.MCPServer, fleetClient *FleetClient) {
 		mcp.WithIdempotentHintAnnotation(true),
 	)
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		logrus.Info("Tool invoked: get_labels")
+		fleetClient.logger.InfoContext(ctx, "tool invoked", "tool", "get_labels")
 		labels, err := fleetClient.GetLabels(ctx)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to get labels: %v", err)), nil
@@ -249,7 +248,7 @@ func registerGetHostPolicies(s *server.MCPServer, fleetClient *FleetClient) {
 		mcp.WithIdempotentHintAnnotation(true),
 	)
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		logrus.Info("Tool invoked: get_host_policies")
+		fleetClient.logger.InfoContext(ctx, "tool invoked", "tool", "get_host_policies")
 
 		hostIDArg := getOptionalString(request, "host_id")
 		identifier := getOptionalString(request, "identifier")

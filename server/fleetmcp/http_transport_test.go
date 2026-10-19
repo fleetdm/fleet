@@ -1,7 +1,8 @@
-package main
+package fleetmcp
 
 import (
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -15,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const testMCPAuthToken = "test-mcp-auth-token-0123456789abcdef"
+const testMCPAuthToken = "test-mcp-auth-token-0123456789abcdef" //nolint:gosec // dummy token for tests
 
 const initializeBody = `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1"}}}`
 
@@ -24,8 +25,10 @@ func newTestHTTPServer(t *testing.T) *httptest.Server {
 	t.Setenv("FLEET_MCP_SCHEMA_REFRESH_DISABLE", "1")
 	// The tools these tests call are served from the in-memory schema, so the
 	// Fleet client is never dialed.
-	fleetClient := NewFleetClient("http://127.0.0.1:1", "unused", false, "")
-	srv := httptest.NewServer(newHTTPHandler(SetupMCPServer(&Config{}, fleetClient), testMCPAuthToken))
+	logger := slog.New(slog.DiscardHandler)
+	fleetClient, err := NewFleetClient(t.Context(), "http://127.0.0.1:1", "unused", false, "", logger)
+	require.NoError(t, err)
+	srv := httptest.NewServer(NewHTTPHandler(SetupMCPServer(t.Context(), fleetClient), testMCPAuthToken, logger))
 	t.Cleanup(srv.Close)
 	return srv
 }

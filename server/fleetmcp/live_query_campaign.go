@@ -1,4 +1,4 @@
-package main
+package fleetmcp
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
@@ -15,7 +16,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/sirupsen/logrus"
 )
 
 // createCampaignRequest is the body for POST /api/v1/fleet/reports/run. Selected
@@ -95,10 +95,10 @@ func (fc *FleetClient) runMultiHostCampaign(ctx context.Context, hostIDs []uint,
 		return nil, fmt.Errorf("failed to decode campaign response: %w", err)
 	}
 	if camp.Campaign.ID == 0 {
-		return nil, fmt.Errorf("live query campaign creation returned no campaign id")
+		return nil, errors.New("live query campaign creation returned no campaign id")
 	}
 
-	logrus.Infof("Created live query campaign ID=%d, streaming results for %d hosts", camp.Campaign.ID, len(hostIDs))
+	fc.logger.InfoContext(ctx, "created live query campaign, streaming results", "campaign_id", camp.Campaign.ID, "hosts", len(hostIDs))
 	return fc.streamCampaignResults(ctx, camp.Campaign.ID, hostIDs, endpointByID)
 }
 
@@ -134,7 +134,7 @@ func (fc *FleetClient) streamCampaignResults(ctx context.Context, campaignID uin
 
 	// Bound the read loop by the same deadline the synchronous REST endpoints
 	// use, so a wedged or offline-heavy fleet can't pin us indefinitely.
-	deadline := time.Now().Add(liveQueryDeadline())
+	deadline := time.Now().Add(liveQueryDeadline(ctx, fc.logger))
 	_ = conn.SetReadDeadline(deadline)
 
 	// Closing the connection unblocks the blocking ReadJSON below, so a caller
@@ -184,19 +184,19 @@ func (fc *FleetClient) streamCampaignResults(ctx context.Context, campaignID uin
 		case "result":
 			var r wsDistributedResult
 			if err := json.Unmarshal(msg.Data, &r); err != nil {
-				logrus.Warnf("live query campaign %d: failed to decode result frame: %v", campaignID, err)
+				fc.logger.WarnContext(ctx, "live query campaign: failed to decode result frame", "campaign_id", campaignID, "err", err)
 				continue
 			}
 			results = append(results, fc.campaignResultRow(r, endpointByID))
 		case "totals":
 			if err := json.Unmarshal(msg.Data, &totals); err != nil {
-				logrus.Warnf("live query campaign %d: failed to decode totals frame: %v", campaignID, err)
+				fc.logger.WarnContext(ctx, "live query campaign: failed to decode totals frame", "campaign_id", campaignID, "err", err)
 				continue
 			}
 			gotTotals = true
 		case "status":
 			if err := json.Unmarshal(msg.Data, &status); err != nil {
-				logrus.Warnf("live query campaign %d: failed to decode status frame: %v", campaignID, err)
+				fc.logger.WarnContext(ctx, "live query campaign: failed to decode status frame", "campaign_id", campaignID, "err", err)
 				continue
 			}
 			gotStatus = true
@@ -317,25 +317,21 @@ func (fc *FleetClient) campaignWebsocketURL() (string, error) {
 
 // tlsClientConfig returns the TLS settings configured on the REST HTTP client
 // (skip-verify / custom CA) so the websocket dialer trusts the same way. Returns
-// nil when the transport isn't a *http.Transport (e.g. test clients), in which
-// case the dialer uses its defaults.
+// nil for test clients, in which case the dialer uses its defaults.
 func (fc *FleetClient) tlsClientConfig() *tls.Config {
-	if tr, ok := fc.httpClient.Transport.(*http.Transport); ok {
-		return tr.TLSClientConfig
-	}
-	return nil
+	return fc.tlsConfig
 }
 
 // liveQueryDeadline is how long to wait for hosts to report. It mirrors the
 // synchronous REST endpoints' FLEET_LIVE_QUERY_REST_PERIOD (default 25s).
-func liveQueryDeadline() time.Duration {
+func liveQueryDeadline(ctx context.Context, logger *slog.Logger) time.Duration {
 	period := os.Getenv("FLEET_LIVE_QUERY_REST_PERIOD")
 	if period == "" {
 		return 25 * time.Second
 	}
 	d, err := time.ParseDuration(period)
 	if err != nil || d <= 0 {
-		logrus.Warnf("invalid FLEET_LIVE_QUERY_REST_PERIOD %q, defaulting to 25s", period)
+		logger.WarnContext(ctx, "invalid FLEET_LIVE_QUERY_REST_PERIOD, defaulting to 25s", "value", period)
 		return 25 * time.Second
 	}
 	return d

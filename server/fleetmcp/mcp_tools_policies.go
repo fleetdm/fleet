@@ -1,4 +1,4 @@
-package main
+package fleetmcp
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
-	"github.com/sirupsen/logrus"
 )
 
 func registerPolicyTools(s *server.MCPServer, fleetClient *FleetClient) {
@@ -25,7 +24,7 @@ func registerGetPolicies(s *server.MCPServer, fleetClient *FleetClient) {
 		mcp.WithIdempotentHintAnnotation(true),
 	)
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		logrus.Info("Tool invoked: get_policies")
+		fleetClient.logger.InfoContext(ctx, "tool invoked", "tool", "get_policies")
 		policies, err := fleetClient.GetPolicies(ctx)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to get policies: %v", err)), nil
@@ -44,7 +43,7 @@ func registerGetPolicyCompliance(s *server.MCPServer, fleetClient *FleetClient) 
 		mcp.WithIdempotentHintAnnotation(true),
 	)
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		logrus.Info("Tool invoked: get_policy_compliance")
+		fleetClient.logger.InfoContext(ctx, "tool invoked", "tool", "get_policy_compliance")
 		policyID, err := request.RequireString("policy_id")
 		if err != nil || policyID == "" {
 			return mcp.NewToolResultError("policy_id is required (use get_policies to list available policy IDs)"), nil
@@ -80,7 +79,7 @@ func registerGetVulnerabilityImpact(s *server.MCPServer, fleetClient *FleetClien
 		mcp.WithIdempotentHintAnnotation(true),
 	)
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		logrus.Info("Tool invoked: get_vulnerability_impact")
+		fleetClient.logger.InfoContext(ctx, "tool invoked", "tool", "get_vulnerability_impact")
 		cveID, err := request.RequireString("cve_id")
 		if err != nil || cveID == "" {
 			return mcp.NewToolResultError("cve_id is required (expected shape CVE-YYYY-NNNN, e.g. CVE-2025-12345)"), nil
@@ -113,7 +112,7 @@ func registerGetPolicyHosts(s *server.MCPServer, fleetClient *FleetClient) {
 		mcp.WithIdempotentHintAnnotation(true),
 	)
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		logrus.Info("Tool invoked: get_policy_hosts")
+		fleetClient.logger.InfoContext(ctx, "tool invoked", "tool", "get_policy_hosts")
 		policyID, err := request.RequireString("policy_id")
 		if err != nil || policyID == "" {
 			return mcp.NewToolResultError("policy_id is required (use get_policies to list available policy IDs)"), nil
@@ -169,7 +168,7 @@ func registerGetVulnerabilityHosts(s *server.MCPServer, fleetClient *FleetClient
 		mcp.WithIdempotentHintAnnotation(true),
 	)
 	s.AddTool(tool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		logrus.Info("Tool invoked: get_vulnerability_hosts")
+		fleetClient.logger.InfoContext(ctx, "tool invoked", "tool", "get_vulnerability_hosts")
 		cveID, err := request.RequireString("cve_id")
 		if err != nil || cveID == "" {
 			return mcp.NewToolResultError("cve_id is required (expected shape CVE-YYYY-NNNN, e.g. CVE-2025-12345)"), nil

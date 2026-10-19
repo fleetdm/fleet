@@ -90,7 +90,7 @@ If your AI agent gets a candidate list back, it should pick the right `id` and r
 
 ## Configuration
 
-Configure the server using environment variables or a `.env` file (in the same directory as the binary).
+Configure the server using environment variables. For local development, the `Makefile` targets that run the binary (`serve`, `call`, `tools`, `posture`) load a `.env` file from this directory, overriding the calling shell; when running the binary directly, export the variables first (e.g. `set -a; . ./.env; set +a`).
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -125,9 +125,10 @@ cp .env.example .env
 ```bash
 git clone https://github.com/fleetdm/fleet
 cd fleet/cmd/fleet-mcp
-go mod tidy
 go build -o fleet-mcp .
 ```
+
+fleet-mcp is part of Fleet's root Go module: the standalone binary lives in `cmd/fleet-mcp`, and the MCP server itself lives in `server/fleetmcp`.
 
 ### Generate an MCP auth token
 
@@ -284,7 +285,7 @@ This means Claude Desktop will surface a confirmation prompt before it fires —
 The MCP holds the operator's `FLEET_API_KEY` and acts with exactly that token's Fleet role — with a role that can run live queries (observer-plus or higher), compromise of the MCP gives an attacker full host inventory access plus arbitrary osquery against every enrolled device. Defenses:
 
 - **Terminate TLS in front (the listener is plain HTTP).** The server speaks HTTP on `PORT`, so the `MCP_AUTH_TOKEN` bearer and all traffic are **cleartext on the wire**. For any non-loopback deployment, run it behind a TLS-terminating layer: **Render's edge already does this**; for a self-hosted / private-network deployment, put a reverse proxy (nginx / Caddy / Cloudflare) in front and only expose the HTTPS endpoint. The `stdio` transport is unaffected (no network hop).
-- **TLS skip-verify hard-gated to localhost.** `FLEET_TLS_SKIP_VERIFY=true` paired with a non-loopback `FLEET_BASE_URL` makes the binary refuse to start (`logrus.Fatalf`) — copying a dev `.env` to a remote deploy can no longer expose the Fleet token to an on-path attacker.
+- **TLS skip-verify hard-gated to localhost.** `FLEET_TLS_SKIP_VERIFY=true` paired with a non-loopback `FLEET_BASE_URL` makes the binary refuse to start — copying a dev `.env` to a remote deploy can no longer expose the Fleet token to an on-path attacker.
 - **Strong `MCP_AUTH_TOKEN` enforced.** The server refuses to start if `MCP_AUTH_TOKEN` is shorter than 32 characters — a high-entropy token is the real defense against bearer brute force (`openssl rand -hex 32` satisfies it).
 - **Rate limiting / DoS protection belongs upstream.** The MCP runs no limiter of its own — Fleet typically runs behind a reverse proxy / edge that terminates TLS (above) and throttles requests, which is where per-client rate limiting belongs (Render's edge; or a reverse proxy / WAF such as nginx / Caddy / Cloudflare). The strong `MCP_AUTH_TOKEN` is the brute-force defense, and failed-auth requests are rejected by the MCP before they ever reach Fleet.
 - **API-only token required.** At startup the MCP calls `GET /api/v1/fleet/me` and **refuses to start unless `FLEET_API_KEY` belongs to an API-only Fleet user**. An API-only user has no UI session, its own audit identity, and — via Fleet's per-user role/team scoping — can be locked down to exactly the endpoints (and teams/fleets) the MCP needs, adding a Fleet-side authorization boundary on top of the MCP's bearer auth. Fails closed: if `/me` can't confirm the principal (Fleet unreachable or token invalid) the MCP won't start. To create one with the right access, see Fleet's docs: [Create an API-only user](https://fleetdm.com/docs/rest-api/rest-api#create-api-only-user), [the endpoints an API-only user can reach](https://fleetdm.com/docs/rest-api/rest-api#list-api-endpoints-for-api-only-user-permissions), and [Using `fleetctl` with an API-only user](https://fleetdm.com/guides/fleetctl#using-fleetctl-with-an-api-only-user).
@@ -318,8 +319,10 @@ The MCP holds the operator's `FLEET_API_KEY` and acts with exactly that token's 
 
 ```
 cmd/fleet-mcp/
-  main.go                  # entrypoint, flag parsing, transport selection, http.Server timeouts, body-size cap
+  main.go                  # standalone entrypoint: flag parsing, startup checks, transport selection, http.Server timeouts
   config.go                # env-var loading
+server/fleetmcp/
+  http_handler.go          # HTTP handler: Streamable HTTP + SSE transports, /healthz, body-size cap
   auth.go                  # bearer-auth middleware (Streamable HTTP and SSE)
   route_guard.go           # MCP route allow-list (/mcp, /sse, /message)
   fleet_integration.go     # FleetClient — wraps Fleet REST API. Every method takes ctx context.Context as first param.
@@ -329,8 +332,7 @@ cmd/fleet-mcp/
   mcp_tools_queries.go     # query-domain MCP tools
   mcp_tools_policies.go    # policy/vuln MCP tools
   mcp_tools_inventory.go   # inventory MCP tools
-  schema.go                # canonical osquery schema (embedded fallback + live HTTP refresh from raw.githubusercontent.com/fleetdm/fleet/main/schema/osquery_fleet_schema.json) and ValidateSQLForPlatforms (table-vs-platform + TEXT-column type sniff)
-  osquery_fleet_schema.json # vendored canonical snapshot (//go:embed source-of-truth fallback). Written by `generate-merged-schema` in `website/`.
+  schema.go                # canonical osquery schema (embedded fallback from /schema + live HTTP refresh from raw.githubusercontent.com/fleetdm/fleet/main/schema/osquery_fleet_schema.json) and ValidateSQLForPlatforms (table-vs-platform + TEXT-column type sniff)
   vetted_queries.go        # vetted CIS-8.1 query library
   seed_fleet.go            # -seed mode
 ```

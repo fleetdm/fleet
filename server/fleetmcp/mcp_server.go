@@ -1,6 +1,8 @@
-package main
+package fleetmcp
 
 import (
+	"context"
+
 	"github.com/mark3labs/mcp-go/server"
 )
 
@@ -36,7 +38,7 @@ Skipping step 1 produces queries that parse and run but return wrong or empty re
 
 // SetupMCPServer creates and configures the MCP server with all available tools.
 // Tool registrations are split by domain across mcp_tools_*.go files.
-func SetupMCPServer(config *Config, fleetClient *FleetClient) *server.MCPServer {
+func SetupMCPServer(ctx context.Context, fleetClient *FleetClient) *server.MCPServer {
 	s := server.NewMCPServer(
 		"fleet-mcp", "1.0.0",
 		server.WithLogging(),
@@ -46,7 +48,7 @@ func SetupMCPServer(config *Config, fleetClient *FleetClient) *server.MCPServer 
 	// Kick off background refresh of the osquery schema from the canonical
 	// fleetdm/fleet source. Reads the embedded snapshot synchronously at
 	// init() so this is purely best-effort freshness.
-	StartSchemaRefresh(0)
+	StartSchemaRefresh(ctx, fleetClient.logger, 0)
 
 	registerHostTools(s, fleetClient)
 	registerQueryTools(s, fleetClient)
