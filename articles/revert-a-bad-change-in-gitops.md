@@ -2,8 +2,6 @@
 
 When a bad change lands on `main`, add a new commit that undoes it. That new commit is called a revert. It goes through `main` like any other change, the apply workflow runs again, and the previous settings come back into Fleet. Never delete the bad commit.
 
-<!-- TODO Harry - Add context on why? How this differentiates gitops vs clickops workflows? -->
-
 A revert is better than a reset and force-push because:
 
 - It's safe for everyone. History isn't rewritten, so nobody's local branch breaks.
