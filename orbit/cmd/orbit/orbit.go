@@ -35,6 +35,7 @@ import (
 	httpsigproxy "github.com/fleetdm/fleet/v4/ee/orbit/pkg/httpsigproxy"
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/securehw"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/augeas"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/autopilot"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/bitlocker"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -1022,6 +1023,12 @@ func orbitAction(c *cli.Context) error {
 		ComputerName:   osqueryHostInfo.ComputerName,
 		HardwareModel:  osqueryHostInfo.HardwareModel,
 	}
+	// Lets Fleet match the device to its pending Autopilot host exactly, which the serial cannot do reliably.
+	if autopilotDeviceID, err := autopilot.RegistrationID(); err != nil {
+		log.Debug().Err(err).Msg("read autopilot device id")
+	} else {
+		orbitHostInfo.AutopilotDeviceID = autopilotDeviceID
+	}
 
 	if runtime.GOOS == "darwin" {
 		// Get the hardware UUID. We use a temporary osquery DB location in order to guarantee that
@@ -1761,7 +1768,11 @@ func orbitAction(c *cli.Context) error {
 			NodeKeyFunc:        orbitClient.GetNodeKey,
 			Client:             orbitClient,
 			Cache:              wstransport.NewQueryCache(),
+			OnOrbitConfig:      orbitClient.TriggerConfigRefresh,
+			OnConnect:          orbitClient.TransportConnected,
+			OnDisconnect:       orbitClient.TransportDisconnected,
 		})
+		orbitClient.SetTransportConnectedFunc(wsManager.Connected)
 		addSubsystem(&g, "websocket transport", wsManager)
 		extensionOpts = append(extensionOpts, table.WithPlugin(wstransport.NewDistributedPlugin(wsManager, orbitClient)))
 	}

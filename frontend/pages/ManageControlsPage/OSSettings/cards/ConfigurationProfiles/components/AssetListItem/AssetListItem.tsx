@@ -6,6 +6,7 @@ import Button from "components/buttons/Button";
 import CopyButton from "components/buttons/CopyButton";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import ListItem from "components/ListItem";
+import Tag from "components/Tag";
 import { notify } from "components/ToastNotification";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -90,14 +91,17 @@ const AssetListItem = ({
       className={baseClass}
       graphic="file-json"
       title={
-        <TooltipWrapper
-          tipContent={`UUID: ${asset.asset_uuid}`}
-          underline={false}
-          position="top"
-          showArrow
-        >
-          <TooltipTruncatedText value={asset.name} />
-        </TooltipWrapper>
+        <div className={`${baseClass}__title-row`}>
+          <TooltipWrapper
+            tipContent={`UUID: ${asset.asset_uuid}`}
+            underline={false}
+            position="top"
+            showArrow
+          >
+            <TooltipTruncatedText value={asset.name} />
+          </TooltipWrapper>
+          <Tag size="xsmall">Asset</Tag>
+        </div>
       }
       details={<AssetDetails asset={asset} />}
       actions={actions}

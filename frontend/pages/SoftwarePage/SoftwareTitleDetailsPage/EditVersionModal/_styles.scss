@@ -1,0 +1,16 @@
+.edit-version-modal {
+  &__form {
+    @include vertical-modal-layout;
+  }
+
+  &__form-content {
+    border: 0;
+    padding: 0;
+    margin: 0;
+    min-width: 0;
+
+    &--disabled {
+      @include disabled;
+    }
+  }
+}

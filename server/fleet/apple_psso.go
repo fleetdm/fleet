@@ -61,6 +61,10 @@ type PSSOClaims struct {
 // providers).
 type PSSOIdPClient interface {
 	ValidatePasswordAndGetClaims(ctx context.Context, username, password string) (*PSSOClaims, error)
+	// VerifyConfig checks the client settings with the IdP without a real
+	// user's credentials, returning an *InvalidArgumentError that says what to
+	// fix when the IdP rejects them.
+	VerifyConfig(ctx context.Context) error
 }
 
 // PSSONonceStore is a short-lived store for the nonces issued by the PSSO

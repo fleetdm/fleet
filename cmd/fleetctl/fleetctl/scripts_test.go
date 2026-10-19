@@ -2,6 +2,7 @@ package fleetctl
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -29,6 +30,8 @@ func TestRunScriptCommand(t *testing.T) {
 			HTTPServerConfig: &http.Server{WriteTimeout: 90 * time.Second}, // nolint:gosec
 		},
 	)
+	adminUserByID := ds.UserByIDFunc
+	technician := &fleet.User{GlobalRole: new(fleet.RoleTechnician)}
 
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 		return nil
@@ -87,6 +90,7 @@ hello world
 
 	type testCase struct {
 		name                string
+		user                *fleet.User
 		scriptPath          func() string
 		scriptName          string
 		teamID              *uint
@@ -323,9 +327,38 @@ Fleet records the last 10,000 characters to prevent downtime.
 		//	expectErrMsg: fleet.RunScriptHostTimeoutErrMsg,
 		// },
 		{name: "disabled scripts globally", scriptPath: generateValidPath, expectErrMsg: fleet.RunScriptScriptsDisabledGloballyErrMsg},
+		{
+			name:         "technician cannot run script from path",
+			user:         technician,
+			scriptPath:   generateValidPath,
+			expectErrMsg: fleet.RunScriptForbiddenErrMsg,
+		},
+		{
+			name:         "technician cannot run script from path async",
+			user:         technician,
+			scriptPath:   generateValidPath,
+			async:        true,
+			expectErrMsg: fleet.RunScriptForbiddenErrMsg,
+		},
+		{
+			name:       "technician can run saved script",
+			user:       technician,
+			scriptName: "foo",
+			scriptResult: &fleet.HostScriptResult{
+				ExitCode: new(int64(0)),
+				Output:   "hello world",
+			},
+			expectOutput: expectedOutputSuccess,
+		},
 	}
 
 	setupDS := func(t *testing.T, c testCase) {
+		ds.UserByIDFunc = adminUserByID
+		if c.user != nil {
+			ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+				return c.user, nil
+			}
+		}
 		ds.HostByIdentifierFunc = func(ctx context.Context, ident string) (*fleet.Host, error) {
 			if ident != "host1" || c.expectNotFound {
 				return nil, &notFoundError{}
@@ -360,6 +393,10 @@ Fleet records the last 10,000 characters to prevent downtime.
 		}
 		ds.NewHostScriptExecutionRequestFunc = func(ctx context.Context, req *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 			require.Equal(t, uint(42), req.HostID)
+			// Otherwise a wrongly queued script makes fleetctl poll forever for a result.
+			if c.expectErrMsg != "" {
+				return nil, errors.New("unexpected script execution request")
+			}
 			return &fleet.HostScriptResult{
 				Hostname:       "host1",
 				HostID:         req.HostID,

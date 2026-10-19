@@ -3105,7 +3105,7 @@ func testUpdateLabelMembershipByHostCriteria(t *testing.T, ds *Datastore) {
 		for _, teamID := range []*uint{nil, &team1.ID, &team2.ID} {
 			result, err := q.ExecContext(context.Background(),
 				"INSERT INTO labels (name, description, platform, label_type, label_membership_type, query, team_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
-				fmt.Sprintf("test host vitals label %d", teamID), "test", "", fleet.LabelTypeRegular, fleet.LabelMembershipTypeHostVitals, "", teamID)
+				fmt.Sprintf("test host vitals label %d", ptr.ValOrZero(teamID)), "test", "", fleet.LabelTypeRegular, fleet.LabelMembershipTypeHostVitals, "", teamID)
 			if err != nil {
 				return err
 			}
@@ -3143,7 +3143,7 @@ func testUpdateLabelMembershipByHostCriteria(t *testing.T, ds *Datastore) {
 			Label: fleet.Label{
 				ID:                  id,
 				TeamID:              teamID,
-				Name:                fmt.Sprintf("Test Host Vitals Label %d", teamID),
+				Name:                fmt.Sprintf("Test Host Vitals Label %d", ptr.ValOrZero(teamID)),
 				LabelType:           fleet.LabelTypeRegular,
 				LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
 				HostVitalsCriteria:  ptr.RawMessage(criteria),

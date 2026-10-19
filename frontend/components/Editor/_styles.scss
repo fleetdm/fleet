@@ -9,6 +9,12 @@
     }
   }
 
+  &__label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
   // Ace styles its placeholder in Arial; match the form's other placeholders.
   .ace_placeholder {
     font-family: "Inter", sans-serif;
