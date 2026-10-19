@@ -2,7 +2,10 @@ import { render, screen } from "@testing-library/react";
 import { noop } from "lodash";
 import React from "react";
 
-import { createMockHostSoftware } from "__mocks__/hostMock";
+import {
+  createMockHostSoftware,
+  createMockHostSoftwarePackage,
+} from "__mocks__/hostMock";
 import { renderWithSetup } from "test/test-utils";
 
 import SoftwareUpdateModal from "./SoftwareUpdateModal";
@@ -219,5 +222,106 @@ describe("SoftwareUpdateModal", () => {
     );
     expect(screen.queryByText(/Current version:/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Current versions:/i)).not.toBeInTheDocument();
+  });
+
+  describe("older versions at other paths", () => {
+    const makeVersion = (version: string, path: string) => ({
+      version,
+      bundle_identifier: "com.google.Chrome",
+      last_opened_at: "2024-06-01T00:00:00Z",
+      vulnerabilities: [],
+      installed_paths: [path],
+    });
+    const renderModal = (
+      overrides: Parameters<typeof createMockHostSoftware>[0]
+    ) =>
+      render(
+        <SoftwareUpdateModal
+          hostDisplayName="Test Host"
+          software={createMockHostSoftware({
+            software_package: createMockHostSoftwarePackage({
+              version: "2.0.0",
+            }),
+            ...overrides,
+          })}
+          onExit={noop}
+          onUpdate={noop}
+          isDeviceUser
+        />
+      );
+    const STALE_COPY = /To clear this update, delete the older/;
+
+    it("explains an outdated copy next to an up-to-date one", () => {
+      renderModal({
+        installed_versions: [
+          makeVersion("2.0.0", "/Applications/Google Chrome.app"),
+          makeVersion("1.0.0", "/Applications/Google Chrome 2.app"),
+        ],
+      });
+      expect(screen.getByText(STALE_COPY)).toBeInTheDocument();
+      expect(
+        screen.getByText(/An older version is installed at/)
+      ).toBeVisible();
+      // Path is also listed in the versions card
+      expect(
+        screen.getAllByText("/Applications/Google Chrome 2.app").length
+      ).toBeGreaterThan(1);
+    });
+
+    it("explains an outdated copy outside the default location", () => {
+      renderModal({
+        installed_versions: [
+          makeVersion("1.0.0", "/Users/test/Downloads/Google Chrome.app"),
+        ],
+      });
+      expect(screen.getByText(STALE_COPY)).toBeInTheDocument();
+    });
+
+    it("pluralizes multiple outdated copies", () => {
+      renderModal({
+        installed_versions: [
+          makeVersion("2.0.0", "/Applications/Google Chrome.app"),
+          makeVersion("1.0.0", "/Applications/Google Chrome 2.app"),
+          makeVersion("1.5.0", "/Users/test/Applications/Google Chrome.app"),
+        ],
+      });
+      expect(
+        screen.getByText(/Older versions are installed at/)
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/delete the older versions\./)
+      ).toBeInTheDocument();
+    });
+
+    it("does not explain a single outdated copy at the default location", () => {
+      renderModal({
+        installed_versions: [
+          makeVersion("1.0.0", "/Applications/Google Chrome.app"),
+        ],
+      });
+      expect(screen.queryByText(STALE_COPY)).not.toBeInTheDocument();
+    });
+
+    it("does not explain outdated copies for non-macOS software", () => {
+      renderModal({
+        source: "programs",
+        installed_versions: [
+          makeVersion("2.0.0", "C:\\Program Files\\Chrome"),
+          makeVersion("1.0.0", "C:\\Users\\test\\Chrome"),
+        ],
+      });
+      expect(screen.queryByText(STALE_COPY)).not.toBeInTheDocument();
+    });
+
+    it("does not explain outdated copies while the update is pending", () => {
+      renderModal({
+        status: "pending_install",
+        installed_versions: [
+          makeVersion("2.0.0", "/Applications/Google Chrome.app"),
+          makeVersion("1.0.0", "/Applications/Google Chrome 2.app"),
+        ],
+      });
+      expect(screen.queryByText(STALE_COPY)).not.toBeInTheDocument();
+    });
   });
 });
