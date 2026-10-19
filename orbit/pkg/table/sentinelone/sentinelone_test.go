@@ -112,6 +112,7 @@ func TestGenerateDarwinStatus(t *testing.T) {
 	for _, col := range columnOrder {
 		assert.Contains(t, row, col)
 	}
+	// The site key is a management secret, and observers shouldn't be able to read it via reports.
 	assert.NotContains(t, row, "management_site_key")
 }
 
