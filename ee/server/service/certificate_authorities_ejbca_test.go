@@ -456,6 +456,14 @@ func TestUpdateEJBCACertificateAuthority(t *testing.T) {
 			wantNotUpdated: true,
 		},
 		{
+			name: "only masked credentials",
+			update: func(*testing.T) fleet.EJBCAUpdatePayload {
+				return fleet.EJBCAUpdatePayload{ClientP12: new(fleet.MaskedPassword), Password: new(fleet.MaskedPassword)}
+			},
+			wantErr:        "EJBCA CA update payload is empty",
+			wantNotUpdated: true,
+		},
+		{
 			name:           "empty update",
 			update:         func(*testing.T) fleet.EJBCAUpdatePayload { return fleet.EJBCAUpdatePayload{} },
 			wantErr:        "EJBCA CA update payload is empty",

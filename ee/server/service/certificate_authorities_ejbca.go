@@ -171,6 +171,9 @@ func (svc *Service) updateEJBCA(
 	if u.Password != nil && *u.Password == fleet.MaskedPassword {
 		u.Password = nil
 	}
+	if u.IsEmpty() {
+		return nil, &fleet.BadRequestError{Message: fmt.Sprintf("%sEJBCA CA update payload is empty", errPrefix)}
+	}
 	if u.ClientP12 != nil && u.Password == nil {
 		return nil, fleet.NewInvalidArgumentError("password", fmt.Sprintf("%sThe PKCS#12 password must be set with client_p12.", errPrefix))
 	}
