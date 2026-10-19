@@ -93,14 +93,17 @@ relaunch_application() {
   fi
 }
 
-# Homebrew requires macOS 26 or later.
-if [[ "$(sw_vers -productVersion | cut -d. -f1)" -lt 26 ]]; then
-  echo "Homebrew requires macOS 26 or later."
+# extract contents
+unzip -o -q "$INSTALLER_PATH" -d "$TMPDIR"
+
+# Homebrew.app won't launch below its LSMinimumSystemVersion.
+min_os=$(/usr/libexec/PlistBuddy -c "Print :LSMinimumSystemVersion" "$TMPDIR/Homebrew.app/Contents/Info.plist" 2>/dev/null)
+os=$(sw_vers -productVersion)
+if [[ -n "$min_os" && "$(printf '%s\n' "$min_os" "$os" | sort -V | head -n1)" != "$min_os" ]]; then
+  echo "Homebrew requires macOS $min_os or later (this host runs $os)."
   exit 1
 fi
 
-# extract contents
-unzip -o -q "$INSTALLER_PATH" -d "$TMPDIR"
 # copy to the applications folder
 quit_and_track_application 'sh.brew.app' || exit 1
 if [ -d "$APPDIR/Homebrew.app" ]; then
