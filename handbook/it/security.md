@@ -817,7 +817,7 @@ Please also see [privacy](https://fleetdm.com/legal/privacy)
 
 | Question | Answer |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Do your systems or staff use artificial intelligence, machine learning, or automated decision making  (ChatGPT, Google Bard, etc.) to provide the in-scope services? | Yes. All AI functionality is opt-in. Fleet only uses AI in one place to help create descriptions of queries. |
+| Do your systems or staff use artificial intelligence, machine learning, or automated decision making  (ChatGPT, Google Bard, etc.) to provide the in-scope services? | Yes. Fleet uses AI in one place: when a user clicks **Autofill** while creating a policy, Fleet sends the policy's SQL to Anthropic to generate a description and resolution. Nothing is sent unless a user clicks **Autofill**, and admins can turn the feature off with `ai_features_disabled`. |
 
 | Question | Answer |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1307,6 +1307,7 @@ Encryption and key management for local disk encryption of end-user devices foll
 | Sub-processor Name | Purpose | Location |
 | ------------------ | ------- | -------- |
 | Amazon Web Services, Inc. and sub-processors located at https://aws.amazon.com/compliance/sub-processors/ | Database hosting platform | USA |
+| Anthropic, PBC | AI model provider for policy autofill, which generates policy descriptions and resolutions from a policy's SQL when a user clicks **Autofill**. Admins can turn this off with `ai_features_disabled`. | USA |
 
 
 ### Human resources security policy
