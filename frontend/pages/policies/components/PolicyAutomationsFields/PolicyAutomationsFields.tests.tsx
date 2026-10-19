@@ -22,9 +22,17 @@ import PolicyAutomationsFields, {
 jest.mock("./hooks/useSoftwareTitles");
 jest.mock("./hooks/useScripts");
 jest.mock("./hooks/useProfiles");
+const mockGitOpsState = {
+  enabled: false,
+  exceptions: {} as Record<string, boolean>,
+};
 jest.mock("hooks/useGitOpsMode", () => ({
   __esModule: true,
-  default: () => ({ gitOpsModeEnabled: false }),
+  default: (entity?: string) => ({
+    gitOpsModeEnabled:
+      mockGitOpsState.enabled &&
+      !(entity && mockGitOpsState.exceptions[entity]),
+  }),
 }));
 
 const mockedUseSoftwareTitles = useSoftwareTitles as jest.MockedFunction<
@@ -65,6 +73,8 @@ const emptyProfilesResponse = ({
 // itself, so re-seed the default (empty) response before each test.
 beforeEach(() => {
   mockedUseProfiles.mockReturnValue(emptyProfilesResponse);
+  mockGitOpsState.enabled = false;
+  mockGitOpsState.exceptions = {};
 });
 
 const createMockPolicy = (overrides?: Partial<IPolicy>): IPolicy => ({
@@ -296,6 +306,53 @@ describe("PolicyAutomationsFields — Install software row", () => {
     // Auto-select is set by a useEffect (async post-commit); wait for the
     // preselected label to appear rather than reading state synchronously.
     expect(await screen.findByText("duo-app-1.0.0.pkg")).toBeInTheDocument();
+  });
+});
+
+describe("PolicyAutomationsFields — gitops mode", () => {
+  beforeEach(() => {
+    mockedUseScripts.mockReturnValue(({
+      data: {
+        count: 1,
+        scripts: [createMockScript({ id: 7, name: "resolve.sh" })],
+        meta: { has_next_results: false, has_previous_results: false },
+      },
+    } as unknown) as ReturnType<typeof useScripts>);
+    setSoftwareTitles([singlePackageTitle]);
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  // react-select applies the --is-disabled class to its control and strips
+  // the combobox role when disabled; count disabled controls to assert state.
+  const countDisabledPickers = () =>
+    document.querySelectorAll(".react-select__control--is-disabled").length;
+
+  it("disables both install-software and script pickers when gitops is on with no exceptions", () => {
+    mockGitOpsState.enabled = true;
+    renderWithHandle({
+      install_software: { name: "Single App", software_title_id: 10 },
+      run_script: { id: 7, name: "resolve.sh" },
+    });
+
+    expect(countDisabledPickers()).toBe(2);
+  });
+
+  it("re-enables install-software picker under the software exception while scripts stay locked", () => {
+    mockGitOpsState.enabled = true;
+    mockGitOpsState.exceptions = { software: true };
+    renderWithHandle({
+      install_software: { name: "Single App", software_title_id: 10 },
+      run_script: { id: 7, name: "resolve.sh" },
+    });
+
+    // Script picker still disabled (no exception); software picker is enabled.
+    expect(countDisabledPickers()).toBe(1);
+    expect(
+      screen.getByRole("combobox", { name: /Select software/i })
+    ).toBeInTheDocument();
   });
 });
 

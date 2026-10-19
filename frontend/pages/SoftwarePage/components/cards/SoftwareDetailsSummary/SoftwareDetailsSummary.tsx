@@ -70,7 +70,6 @@ export const buildActionOptions = ({
 }: BuildActionOptionsArgs): IDropdownOption[] => {
   let disableEditAppearanceTooltipContent: TooltipContent | undefined;
   let disableEditSoftwareTooltipContent: TooltipContent | undefined;
-  let disabledEditConfigurationTooltipContent: TooltipContent | undefined;
 
   // Disable state is keyed off `gitOpsModeEnabled` directly (see each option
   // below); the tooltip is only populated when `repoURL` is also available,
@@ -81,7 +80,6 @@ export const buildActionOptions = ({
       repoURL && getGitOpsModeTipContent(repoURL);
 
     disableEditAppearanceTooltipContent = gitOpsModeTooltipContent;
-    disabledEditConfigurationTooltipContent = gitOpsModeTooltipContent;
 
     if (isAppleVpp) {
       disableEditSoftwareTooltipContent = gitOpsModeTooltipContent;
@@ -107,13 +105,13 @@ export const buildActionOptions = ({
     });
   }
 
-  // Show edit configuration option for Android installers (not web apps) and iOS/iPadOS apps
+  // Show edit configuration option for Android installers (not web apps) and
+  // iOS/iPadOS apps. Stays clickable in gitops mode — the modal itself
+  // disables Save with the gitops tooltip, matching the Versions option.
   if (canEditConfiguration) {
     options.push({
       label: "Edit configuration",
       value: ACTION_EDIT_CONFIGURATION,
-      disabled: gitOpsModeEnabled,
-      tooltipContent: disabledEditConfigurationTooltipContent,
     });
   }
 

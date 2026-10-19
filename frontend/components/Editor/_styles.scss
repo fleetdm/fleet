@@ -1,6 +1,10 @@
 .editor {
   position: relative; // needed for copy button
 
+  &--disabled {
+    @include disabled;
+  }
+
   &__label {
     @include form-label;
 
