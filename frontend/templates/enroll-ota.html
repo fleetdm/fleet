@@ -794,6 +794,18 @@
             // baseHref came from the DOM; if it can't be parsed as a URL, leave
             // the server-rendered href untouched rather than reinterpreting it.
           }
+          // The QR opens this page on a mobile device, which picks its default
+          // tab from the byod param, so keep it in step with the selection.
+          const qrCode = document.querySelector(".qr-code");
+          if (qrCode) {
+            const pageUrl = new URL(window.location.href);
+            if (selection === "personal") {
+              pageUrl.searchParams.set("byod", "true");
+            } else {
+              pageUrl.searchParams.delete("byod");
+            }
+            renderQRCode(pageUrl.toString(), qrCode);
+          }
         };
 
         tabs.forEach((tab) => {

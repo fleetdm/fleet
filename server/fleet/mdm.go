@@ -7,11 +7,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/url"
 	"regexp"
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
@@ -77,6 +79,7 @@ const (
 	FleetVarHostEndUserIDPGroups            FleetVarName = "HOST_END_USER_IDP_GROUPS"
 	FleetVarHostEndUserIDPDepartment        FleetVarName = "HOST_END_USER_IDP_DEPARTMENT"
 	FleetVarHostEndUserIDPFullname          FleetVarName = "HOST_END_USER_IDP_FULL_NAME"
+	FleetVarHostEndUserIDPExternalID        FleetVarName = "HOST_END_USER_IDP_EXTERNAL_ID"
 	FleetVarHostUUID                        FleetVarName = "HOST_UUID"
 	FleetVarHostPlatform                    FleetVarName = "HOST_PLATFORM"
 
@@ -101,6 +104,11 @@ const (
 	// at command-fetch time (so the token is never stored and never visible on
 	// the /mdm/commands endpoint).
 	FleetVarPSSODeviceRegistrationToken FleetVarName = "PSSO_DEVICE_REGISTRATION_TOKEN" // nolint:gosec // G101: variable name, not a credential
+
+	// FleetVarSilentMigrationSCEPChallenge marks the SCEP challenge in the FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE
+	// env profile. It's replaced with the SCEP challenge host secret when renewals are sent, and is deliberately
+	// absent from the variables allowed in configuration profiles, so uploads can't get an enrollment challenge.
+	FleetVarSilentMigrationSCEPChallenge FleetVarName = "SILENT_MIGRATION_SCEP_CHALLENGE" // nolint:gosec // G101: variable name, not a credential
 
 	// Certificate authority variables
 	FleetVarNDESSCEPChallenge            FleetVarName = "NDES_SCEP_CHALLENGE"
@@ -149,6 +157,7 @@ var (
 	FleetVarNDESSCEPChallengeRegexp               = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarNDESSCEPChallenge))
 	FleetVarNDESSCEPProxyURLRegexp                = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarNDESSCEPProxyURL))
 	FleetVarHostEndUserIDPFullnameRegexp          = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPFullname))
+	FleetVarHostEndUserIDPExternalIDRegexp        = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPExternalID))
 	FleetVarCertificateRenewalIDRegexp            = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarCertificateRenewalID))
 	// FleetVarRenewalIDRegexp matches either the preferred CERTIFICATE_RENEWAL_ID
 	// or the legacy SCEP_RENEWAL_ID name. Use this for validation checks where
@@ -173,7 +182,16 @@ var (
 		FleetVarHostEndUserIDPGroups,
 		FleetVarHostEndUserIDPDepartment,
 		FleetVarHostEndUserIDPFullname,
+		FleetVarHostEndUserIDPExternalID,
 	}
+	// FleetVarsSupportedInDigiCert lists the variables allowed in a DigiCert CA's common name, seat ID, and UPN.
+	// The IdP variables come from IDPFleetVariables because that's the list the CA field substitution resolves.
+	FleetVarsSupportedInDigiCert = slices.Concat([]FleetVarName{
+		FleetVarHostEndUserEmailIDP,
+		FleetVarHostHardwareSerial,
+		FleetVarHostPlatform,
+		FleetVarHostUUID,
+	}, IDPFleetVariables)
 )
 
 type AppleMDM struct {
@@ -288,6 +306,8 @@ type MDMAppleBootstrapPackage struct {
 	Token     string    `json:"token"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"-" db:"updated_at"`
+	// PackageFile, when set, is stored in the object store in place of Bytes.
+	PackageFile io.ReadSeeker `json:"-" db:"-"`
 }
 
 func (bp MDMAppleBootstrapPackage) AuthzType() string {
@@ -304,6 +324,46 @@ func (bp *MDMAppleBootstrapPackage) URL(host string) (string, error) {
 	return pkgURL.String(), nil
 }
 
+// MDMEULAPlatform is a platform that can have its own EULA.
+type MDMEULAPlatform string
+
+const (
+	MDMEULAPlatformDarwin  MDMEULAPlatform = "darwin"
+	MDMEULAPlatformWindows MDMEULAPlatform = "windows"
+)
+
+// Validated returns the platform an EULA request acts on. Empty means darwin,
+// so clients from before Windows EULAs keep working.
+func (p MDMEULAPlatform) Validated() (MDMEULAPlatform, error) {
+	switch p {
+	case "":
+		return MDMEULAPlatformDarwin, nil
+	case MDMEULAPlatformDarwin, MDMEULAPlatformWindows:
+		return p, nil
+	default:
+		return "", NewInvalidArgumentError("platform", `must be "darwin" or "windows"`)
+	}
+}
+
+// ValidateEULAPlatform returns the platform an EULA request acts on, once
+// that platform's MDM is turned on. The EULA routes serve both platforms, so
+// route middleware can't check the MDM; the free and Premium builds share this.
+func ValidateEULAPlatform(ctx context.Context, svc Service, platform MDMEULAPlatform) (MDMEULAPlatform, error) {
+	platform, err := platform.Validated()
+	if err != nil {
+		return "", err
+	}
+	if platform == MDMEULAPlatformWindows {
+		err = svc.VerifyMDMWindowsConfigured(ctx)
+	} else {
+		err = svc.VerifyMDMAppleConfigured(ctx) // Validated leaves only darwin
+	}
+	if err != nil {
+		return "", err
+	}
+	return platform, nil
+}
+
 // MDMEULA represents an EULA (End User License Agreement) file.
 type MDMEULA struct {
 	Name      string    `json:"name"`
@@ -311,10 +371,58 @@ type MDMEULA struct {
 	Sha256    []byte    `json:"sha256" db:"sha256"`
 	Token     string    `json:"token"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	// Platform is reported in metadata, since the endpoints serve both.
+	Platform MDMEULAPlatform `json:"platform,omitempty" db:"platform"`
 }
 
+// MDMEULAMetadataLookup is the cached result of looking up a platform's EULA
+// metadata. A nil EULA records that none is uploaded: that is the usual answer,
+// and caching it is what keeps the Windows terms page off the database.
+type MDMEULAMetadataLookup struct {
+	EULA *MDMEULA
+}
+
+// Clone implements Cloner.
+func (l *MDMEULAMetadataLookup) Clone() (Cloner, error) {
+	clone := &MDMEULAMetadataLookup{}
+	if l.EULA != nil {
+		eula := *l.EULA
+		eula.Bytes = bytes.Clone(l.EULA.Bytes)
+		eula.Sha256 = bytes.Clone(l.EULA.Sha256)
+		clone.EULA = &eula
+	}
+	return clone, nil
+}
+
+// MaxEULAFileNameLength matches the eulas.name column, varchar(255).
+const MaxEULAFileNameLength = 255
+
+// MDMEULADefaultDarwinFileName names a macOS EULA whose uploaded name has nothing usable left after sanitizing. The
+// content is always a PDF, so the extension holds.
+const MDMEULADefaultDarwinFileName = "eula.pdf"
+
+// AuthzType is the same for every platform: their EULAs have the same access.
 func (e MDMEULA) AuthzType() string {
-	return "mdm_apple_eula"
+	return "mdm_eula"
+}
+
+// SanitizeEULAFileName returns the last element of an uploaded EULA file name,
+// splitting on both "/" and "\", without control or format characters (such as
+// a right-to-left override that disguises the extension). fleetctl
+// generate-gitops writes the stored name to disk on any OS, so it must not
+// carry a path. It returns "" when nothing usable is left.
+func SanitizeEULAFileName(name string) string {
+	name = name[strings.LastIndexAny(name, `/\`)+1:]
+	name = strings.TrimSpace(strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
+			return -1
+		}
+		return r
+	}, name))
+	if name == "." || name == ".." {
+		return ""
+	}
+	return name
 }
 
 // ExpectedMDMProfile represents an MDM profile that is expected to be installed on a host.
@@ -711,6 +819,9 @@ type MDMConfigProfilePayload struct {
 	// Base64-encoded activation for declaration (DDM) profiles, null for any
 	// other profile type and for declarations without a custom activation.
 	Activation []byte `json:"activation" db:"-"`
+	// SelfService is only supported for .mobileconfig profiles.
+	SelfService bool `json:"self_service" db:"self_service"`
+	Hidden      bool `json:"hidden" db:"hidden"`
 }
 
 // BatchModifyMDMConfigProfilePayload represents the payload for a config profile when
@@ -724,6 +835,8 @@ type BatchModifyMDMConfigProfilePayload struct {
 	LabelsIncludeAll []string `json:"labels_include_all,omitempty"`
 	LabelsIncludeAny []string `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []string `json:"labels_exclude_any,omitempty"`
+	SelfService      bool     `json:"self_service,omitempty"`
+	Hidden           bool     `json:"hidden,omitempty"`
 }
 
 // MDMProfileBatchPayload represents the payload to batch-set the profiles for
@@ -746,6 +859,10 @@ type MDMProfileBatchPayload struct {
 
 	// Base64-encoded custom activation, only valid for Apple declarations.
 	Activation []byte `json:"activation,omitempty"`
+
+	// SelfService is only valid for .mobileconfig profiles.
+	SelfService bool `json:"self_service,omitempty"`
+	Hidden      bool `json:"hidden,omitempty"`
 }
 
 func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConfigProfilePayload {
@@ -759,6 +876,7 @@ func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConf
 		Name:             cp.Name,
 		Description:      cp.Description,
 		Platform:         "windows",
+		Hidden:           cp.Hidden,
 		CreatedAt:        cp.CreatedAt,
 		UploadedAt:       cp.UploadedAt,
 		LabelsIncludeAll: cp.LabelsIncludeAll,
@@ -784,6 +902,8 @@ func NewMDMConfigProfilePayloadFromApple(cp *MDMAppleConfigProfile) *MDMConfigPr
 		CreatedAt:          cp.CreatedAt,
 		UploadedAt:         cp.UploadedAt,
 		Scope:              string(cp.Scope),
+		SelfService:        cp.SelfService,
+		Hidden:             cp.Hidden,
 		LabelsIncludeAll:   cp.LabelsIncludeAll,
 		LabelsIncludeAny:   cp.LabelsIncludeAny,
 		LabelsExcludeAny:   cp.LabelsExcludeAny,
@@ -803,6 +923,7 @@ func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfi
 		Identifier:       decl.Identifier,
 		Platform:         "darwin",
 		Checksum:         []byte(decl.Token),
+		Hidden:           decl.Hidden,
 		CreatedAt:        decl.CreatedAt,
 		UploadedAt:       decl.UploadedAt,
 		LabelsIncludeAll: decl.LabelsIncludeAll,
@@ -826,6 +947,7 @@ func NewMDMConfigProfilePayloadFromAndroid(cp *MDMAndroidConfigProfile) *MDMConf
 		Name:             cp.Name,
 		Description:      cp.Description,
 		Platform:         "android",
+		Hidden:           cp.Hidden,
 		CreatedAt:        cp.CreatedAt,
 		UploadedAt:       cp.UploadedAt,
 		LabelsIncludeAll: cp.LabelsIncludeAll,
@@ -849,6 +971,10 @@ type MDMProfileSpec struct {
 	// Activation is a path to a custom activation JSON file, only valid
 	// alongside an Apple declaration.
 	Activation string `json:"activation,omitempty"`
+
+	// SelfService is only valid for .mobileconfig profiles.
+	SelfService bool `json:"self_service,omitempty"`
+	Hidden      bool `json:"hidden,omitempty"`
 
 	// Deprecated: the Labels field is now deprecated, it is superseded by
 	// LabelsIncludeAll, so any value set via this field will be transferred to
@@ -981,7 +1107,25 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 		return false
 	}
 
+	type profileMetadata struct {
+		Name        string
+		Description string
+		Hidden      bool
+		SelfService bool
+	}
+	metadata := func(v MDMProfileSpec) profileMetadata {
+		return profileMetadata{
+			Name:        strings.TrimSpace(v.Name),
+			Description: strings.TrimSpace(v.Description),
+			Hidden:      v.Hidden,
+			SelfService: v.SelfService,
+		}
+	}
+
+	pathMetadata := make(map[string]profileMetadata, len(a))
 	pathLabelIncludeCounts := make(map[string]map[string]int)
+	pathLabelsIncludeAnyCounts := make(map[string]map[string]int)
+	pathLabelExcludeCounts := make(map[string]map[string]int)
 	for _, v := range a {
 		// the deprecated Labels field is only relevant if LabelsIncludeAll is
 		// empty.
@@ -990,23 +1134,9 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 		} else {
 			pathLabelIncludeCounts[v.Path] = labelCountMap(v.Labels)
 		}
-	}
-	pathLabelsIncludeAnyCounts := make(map[string]map[string]int)
-	for _, v := range a {
 		pathLabelsIncludeAnyCounts[v.Path] = labelCountMap(v.LabelsIncludeAny)
-	}
-	pathLabelExcludeCounts := make(map[string]map[string]int)
-	for _, v := range a {
 		pathLabelExcludeCounts[v.Path] = labelCountMap(v.LabelsExcludeAny)
-	}
-	// name and description are admin-set metadata, so a change to either is
-	// a change to the spec even when the file and labels are the same;
-	// compared trimmed, as they are stored
-	metadata := func(v MDMProfileSpec) [2]string {
-		return [2]string{strings.TrimSpace(v.Name), strings.TrimSpace(v.Description)}
-	}
-	pathMetadata := make(map[string][2]string, len(a))
-	for _, v := range a {
+
 		pathMetadata[v.Path] = metadata(v)
 	}
 

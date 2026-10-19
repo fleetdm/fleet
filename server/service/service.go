@@ -114,6 +114,15 @@ type Service struct {
 	// Avoids redundant DB queries and JSON marshaling for identical pack configs.
 	// Nil when osquery.config_in_memory_cache is disabled.
 	packConfigCache *gocache.Cache
+
+	// queryReportReadSem bounds concurrent query report reads on this server (see
+	// saveResultLogsToQueryReports). Nil when osquery.max_concurrent_query_report_reads <= 0.
+	queryReportReadSem chan struct{}
+	// queryReportWriteLimit bounds concurrent query report writes across all Fleet servers, with
+	// slots held in Redis (see acquireQueryReportWriteSlot). No limit when <= 0.
+	queryReportWriteLimit int
+	// queryReportWriteFallbackSem bounds this server's writes when Redis can't be reached.
+	queryReportWriteFallbackSem chan struct{}
 }
 
 // ConditionalAccessMicrosoftProxy is the interface of the Microsoft compliance proxy.
@@ -204,6 +213,11 @@ func NewService(
 		packConfigCache = gocache.New(PackConfigCacheTTL, 30*time.Second)
 	}
 
+	var queryReportReadSem chan struct{}
+	if n := config.Osquery.MaxConcurrentQueryReportReads; n > 0 {
+		queryReportReadSem = make(chan struct{}, n)
+	}
+
 	svc := &Service{
 		ds:                ds,
 		task:              task,
@@ -242,6 +256,9 @@ func NewService(
 		androidSvc:                      androidSvc,
 		orgLogoStore:                    orgLogoStore,
 		packConfigCache:                 packConfigCache,
+		queryReportReadSem:              queryReportReadSem,
+		queryReportWriteLimit:           config.Osquery.MaxConcurrentQueryReportWrites,
+		queryReportWriteFallbackSem:     make(chan struct{}, queryReportWriteFallbackLimit),
 	}
 	return validationMiddleware{svc, ds, sso}, nil
 }

@@ -9,4 +9,19 @@
     // the reveal button isn't wider than it needs to be.
     align-self: flex-start;
   }
+
+  &__settings-card {
+    box-sizing: border-box;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: $pad-large;
+
+    // .form-field is styled globally at width: 100%, which forces the
+    // checkbox to consume the whole row, leaving no room for Save.
+    .form-field {
+      width: auto;
+    }
+  }
 }

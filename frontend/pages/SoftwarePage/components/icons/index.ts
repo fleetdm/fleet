@@ -38,7 +38,6 @@ import SevenZip from "./png/7Zip.png";
 import EightXEightWork from "./png/8X8Work.png";
 import ABetterFinderRename from "./png/ABetterFinderRename.png";
 import AbletonLive12Suite from "./png/AbletonLive12Suite.png";
-import Abstract from "./png/Abstract.png";
 import Acorn from "./png/Acorn.png";
 import Activedock from "./png/Activedock.png";
 import Activitywatch from "./png/Activitywatch.png";
@@ -287,7 +286,6 @@ import DBeaverLite from "./png/DBeaverLite.png";
 import DBeaverUltimate from "./png/DBeaverUltimate.png";
 import Dbgate from "./png/Dbgate.png";
 import Dbvisualizer from "./png/Dbvisualizer.png";
-import Debookee from "./png/Debookee.png";
 import Deckset from "./png/Deckset.png";
 import DeepL from "./png/DeepL.png";
 import Deezer from "./png/Deezer.png";
@@ -505,7 +503,6 @@ import Houdahspot from "./png/Houdahspot.png";
 import HpEasyAdmin from "./png/HpEasyAdmin.png";
 import HpPrimeVirtualCalculator from "./png/HpPrimeVirtualCalculator.png";
 import Hubstaff from "./png/Hubstaff.png";
-import Huly from "./png/Huly.png";
 import Hwmonitor from "./png/Hwmonitor.png";
 import Hyper from "./png/Hyper.png";
 import Hyperkey from "./png/Hyperkey.png";
@@ -571,6 +568,7 @@ import KeyboardMaestro from "./png/KeyboardMaestro.png";
 import Keycastr from "./png/Keycastr.png";
 import Keyclu from "./png/Keyclu.png";
 import KeystoreExplorer from "./png/KeystoreExplorer.png";
+import KiCad from "./png/KiCad.png";
 import Kiro from "./png/Kiro.png";
 import KiroCli from "./png/KiroCli.png";
 import Kitty from "./png/Kitty.png";
@@ -606,7 +604,6 @@ import Lookaway from "./png/Lookaway.png";
 import Loom from "./png/Loom.png";
 import Loop from "./png/Loop.png";
 import Loopback from "./png/Loopback.png";
-import LoRain from "./png/LoRain.png";
 import Losslesscut from "./png/Losslesscut.png";
 import LowProfile from "./png/LowProfile.png";
 import LuLu from "./png/LuLu.png";
@@ -720,7 +717,6 @@ import Nordlayer from "./png/Nordlayer.png";
 import Nordpass from "./png/Nordpass.png";
 import NordVpn from "./png/NordVpn.png";
 import NosqlWorkbench from "./png/NosqlWorkbench.png";
-import Notchnook from "./png/Notchnook.png";
 import Notepadexe from "./png/Notepadexe.png";
 import Notepad from "./png/NotepadPlusPlus.png";
 import Notesnook from "./png/Notesnook.png";
@@ -770,6 +766,7 @@ import OptimusPlayer from "./png/OptimusPlayer.png";
 import OrbStack from "./png/OrbStack.png";
 import OrigamiStudio from "./png/OrigamiStudio.png";
 import Orion from "./png/Orion.png";
+import Outset from "./png/Outset.png";
 import P4V from "./png/P4V.png";
 import Pacifist from "./png/Pacifist.png";
 import PaintDotNet from "./png/PaintDotNet.png";
@@ -882,7 +879,6 @@ import Retrobatch from "./png/Retrobatch.png";
 import Rewritebar from "./png/Rewritebar.png";
 import Rider from "./png/Rider.png";
 import Rightfont from "./png/Rightfont.png";
-import Ringcentral from "./png/Ringcentral.png";
 import Rive from "./png/Rive.png";
 import Rize from "./png/Rize.png";
 import Robofont from "./png/Robofont.png";
@@ -1062,7 +1058,6 @@ import UltimakerCura from "./png/UltimakerCura.png";
 import Unclutter from "./png/Unclutter.png";
 import Unicodechecker from "./png/Unicodechecker.png";
 import UnityHub from "./png/UnityHub.png";
-import Updf from "./png/Updf.png";
 import Upscayl from "./png/Upscayl.png";
 import UsageApp from "./png/UsageApp.png";
 import Utm from "./png/Utm.png";
@@ -1107,6 +1102,7 @@ import Whatroute from "./png/Whatroute.png";
 import Whisky from "./png/Whisky.png";
 import Whispering from "./png/Whispering.png";
 import Wifiman from "./png/Wifiman.png";
+import WillowVoice from "./png/WillowVoice.png";
 import Windirstat from "./png/Windirstat.png";
 import Windowkeys from "./png/Windowkeys.png";
 import WindowsApp from "./png/WindowsApp.png";
@@ -1183,7 +1179,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "8x8 work": EightXEightWork,
   "a better finder rename": ABetterFinderRename,
   "ableton live suite": AbletonLive12Suite,
-  abstract: Abstract,
   acorn: Acorn,
   activedock: Activedock,
   activitywatch: Activitywatch,
@@ -1452,7 +1447,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   dbeaverultimate: DBeaverUltimate,
   dbgate: Dbgate,
   dbvisualizer: Dbvisualizer,
-  debookee: Debookee,
   deckset: Deckset,
   deepl: DeepL,
   deezer: Deezer,
@@ -1676,7 +1670,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "hp easy admin": HpEasyAdmin,
   "hp prime virtual calculator": HpPrimeVirtualCalculator,
   hubstaff: Hubstaff,
-  huly: Huly,
   hwmonitor: Hwmonitor,
   hyper: Hyper,
   hyperkey: Hyperkey,
@@ -1744,6 +1737,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   keycastr: Keycastr,
   keyclu: Keyclu,
   "keystore explorer": KeystoreExplorer,
+  kicad: KiCad,
   kiro: Kiro,
   "kiro cli": KiroCli,
   kitty: Kitty,
@@ -1768,7 +1762,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   linearmouse: Linearmouse,
   "lingon x": LingonX,
   "little snitch": LittleSnitch,
-  "lo-rain": LoRain,
   local: Local,
   localsend: Localsend,
   locationsimulator: Locationsimulator,
@@ -1905,7 +1898,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   nordvpn: NordVpn,
   "nosql workbench": NosqlWorkbench,
   "nota gyazo gif": Gyazo,
-  notchnook: Notchnook,
   "notepad++": Notepad,
   "notepad.exe": Notepadexe,
   notesnook: Notesnook,
@@ -1956,6 +1948,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   orbstack: OrbStack,
   "origami studio": OrigamiStudio,
   orion: Orion,
+  outset: Outset,
   p4v: P4V,
   pacifist: Pacifist,
   package: Package,
@@ -2071,7 +2064,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   rewritebar: Rewritebar,
   rider: Rider,
   rightfont: Rightfont,
-  ringcentral: Ringcentral,
   rive: Rive,
   rize: Rize,
   robofont: Robofont,
@@ -2257,7 +2249,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   unclutter: Unclutter,
   unicodechecker: Unicodechecker,
   "unity hub": UnityHub,
-  updf: Updf,
   upscayl: Upscayl,
   usage: UsageApp,
   utm: Utm,
@@ -2308,6 +2299,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   whisky: Whisky,
   whispering: Whispering,
   "wifiman desktop": Wifiman,
+  "willow voice": WillowVoice,
   windirstat: Windirstat,
   windowkeys: Windowkeys,
   "windows app": WindowsApp,

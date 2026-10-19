@@ -2,10 +2,10 @@
 services:
   # To test with MariaDB, set FLEET_MYSQL_IMAGE to mariadb:10.6 or the like (note MariaDB is not
   # officially supported).
-  # To run in macOS M1, set FLEET_MYSQL_PLATFORM=linux/arm64/v8
+  # MySQL runs on the host's native architecture; set FLEET_MYSQL_PLATFORM (e.g. linux/amd64) to override.
   mysql:
     image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.44}
-    platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
+    platform: ${FLEET_MYSQL_PLATFORM:-}
     volumes:
       - mysql-persistent-volume:/tmp
     command: [
@@ -32,7 +32,7 @@ services:
 
   mysql_test:
     image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.44}
-    platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
+    platform: ${FLEET_MYSQL_PLATFORM:-}
     # innodb-file-per-table=OFF gives ~20% speedup for test runs.
     command: [
         "mysqld",
@@ -60,7 +60,7 @@ services:
 
   mysql_replica_test:
     image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.44}
-    platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
+    platform: ${FLEET_MYSQL_PLATFORM:-}
     # innodb-file-per-table=OFF gives ~20% speedup for test runs.
     command: [
         "mysqld",
@@ -87,9 +87,10 @@ services:
       - /var/lib/mysql:rw,noexec,nosuid
       - /tmpfs
 
-  # Unauthenticated SMTP server.
+  # Unauthenticated SMTP server. Kept the "mailhog" service name to avoid churn in CI and env vars.
+  # Using "axllent/mailpit" because it has amd64/arm64 builds.
   mailhog:
-    image: mailhog/mailhog:latest
+    image: axllent/mailpit:latest
     ports:
       - "127.0.0.1:${FLEET_MAILHOG_WEB_PORT:-8025}:8025"
       - "127.0.0.1:${FLEET_MAILHOG_SMTP_PORT:-1025}:1025"
@@ -123,7 +124,9 @@ services:
       - "127.0.0.1:${FLEET_REDIS_PORT:-6379}:6379"
 
   saml_idp:
-    image: fleetdm/docker-idp:latest
+    # Using simplesamlphp-1.19.0 instead of latest
+    # because it has amd64/arm64 builds.
+    image: fleetdm/docker-idp:simplesamlphp-1.19.0
     volumes:
       - ./tools/saml/users.php:/var/www/simplesamlphp/config/authsources.php
       - ./tools/saml/config.php:/var/www/simplesamlphp/metadata/saml20-sp-remote.php
@@ -156,6 +159,16 @@ services:
     volumes:
       - data-s3:/data:rw
 
+  # Azurite emulator for Azure Blob Storage (software installers/bootstrap packages/icons/org logos)
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:3.35.0
+    command: ["azurite-blob", "--blobHost", "0.0.0.0", "--blobPort", "10000", "--skipApiVersionCheck"]
+    ports:
+      - "127.0.0.1:${FLEET_AZURITE_PORT:-10000}:10000"
+    volumes:
+      - data-azurite:/data:rw
+
 volumes:
   mysql-persistent-volume:
   data-s3:
+  data-azurite:

@@ -625,7 +625,8 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestCAIntegrations() {
 
 	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	_, err = globalFile.WriteString(fmt.Sprintf(`
+	_, err = globalFile.WriteString(fmt.Sprintf(
+		`
 agent_options:
 controls:
   apple_settings:
@@ -695,7 +696,8 @@ reports:
 	assert.Len(t, profiles, 1)
 
 	// now modify the stored config and confirm that external digicert service is called
-	_, err = globalFile.WriteString(fmt.Sprintf(`
+	_, err = globalFile.WriteString(fmt.Sprintf(
+		`
 agent_options:
 controls:
   apple_settings:
@@ -1048,6 +1050,131 @@ settings:
 	require.NoError(t, err)
 	require.Len(t, profs, 1)
 	require.Len(t, profs[0].LabelsIncludeAll, 0)
+}
+
+func (s *enterpriseIntegrationGitopsTestSuite) TestConfigurationProfileSelfServiceHidden() {
+	t := s.T()
+	ctx := t.Context()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	dir := t.TempDir()
+	ssPath := filepath.Join(dir, "ss.mobileconfig")
+	require.NoError(t, os.WriteFile(ssPath, []byte(test.GenerateMDMAppleProfile("com.example.ss", "SelfService", uuid.NewString())), 0o644))
+	hiddenPath := filepath.Join(dir, "hidden.mobileconfig")
+	require.NoError(t, os.WriteFile(hiddenPath, []byte(test.GenerateMDMAppleProfile("com.example.hidden", "Hidden", uuid.NewString())), 0o644))
+
+	const teamTemplate = `
+controls:
+  apple_settings:
+    configuration_profiles:
+      - path: %s
+        self_service: true
+      - path: %s
+%s
+software:
+reports:
+policies:
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"%s"}]
+`
+	teamName := uuid.NewString()
+	teamFile := filepath.Join(dir, "team.yml")
+	writeTeam := func(secondFlags string) {
+		require.NoError(t, os.WriteFile(teamFile, fmt.Appendf(nil, teamTemplate, ssPath, hiddenPath, secondFlags, teamName, uuid.NewString()), 0o644))
+	}
+
+	var (
+		mu     sync.Mutex
+		edited int
+	)
+	prev := s.activityMock.NewActivityFunc
+	s.activityMock.NewActivityFunc = func(ctx context.Context, u *activity_api.User, a activity_api.ActivityDetails) error {
+		if _, ok := a.(*fleet.ActivityTypeEditedMacosProfile); ok {
+			mu.Lock()
+			edited++
+			mu.Unlock()
+		}
+		if prev != nil {
+			return prev(ctx, u, a)
+		}
+		return nil
+	}
+	t.Cleanup(func() { s.activityMock.NewActivityFunc = prev })
+	takeEdited := func() int {
+		mu.Lock()
+		defer mu.Unlock()
+		n := edited
+		edited = 0
+		return n
+	}
+
+	flags := func(teamID uint) map[string][2]bool {
+		profs, _, err := s.DS.ListMDMConfigProfiles(ctx, &teamID, fleet.ListOptions{})
+		require.NoError(t, err)
+		got := make(map[string][2]bool, len(profs))
+		for _, p := range profs {
+			got[p.Name] = [2]bool{p.SelfService, p.Hidden}
+		}
+		return got
+	}
+
+	writeTeam("        hidden: true")
+	s.assertDryRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", teamFile, "--dry-run"}))
+	_, err := s.DS.TeamByName(ctx, teamName)
+	require.True(t, fleet.IsNotFound(err), "dry run must not write")
+
+	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", teamFile}))
+	team, err := s.DS.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+	require.Equal(t, map[string][2]bool{"SelfService": {true, false}, "Hidden": {false, true}}, flags(team.ID))
+	takeEdited()
+
+	// A host has the hidden profile installed, so flipping it to self-service seeds its opt-in.
+	hostUUID := uuid.NewString()
+	profs, _, err := s.DS.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	var hiddenUUID string
+	for _, p := range profs {
+		if p.Name == "Hidden" {
+			hiddenUUID = p.ProfileUUID
+		}
+	}
+	require.NotEmpty(t, hiddenUUID)
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_profiles
+			(host_uuid, profile_uuid, profile_identifier, profile_name, checksum, command_uuid, status, operation_type)
+			VALUES (?, ?, 'com.example.hidden', 'Hidden', UNHEX(MD5('x')), ?, ?, ?)`,
+			hostUUID, hiddenUUID, uuid.NewString(), fleet.MDMDeliveryVerified, fleet.MDMOperationTypeInstall)
+		return err
+	})
+	optedIn := func() bool {
+		var n int
+		mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n, `SELECT COUNT(*) FROM host_mdm_profile_opt_ins WHERE host_uuid = ? AND profile_uuid = ?`, hostUUID, hiddenUUID)
+		})
+		return n == 1
+	}
+
+	// Re-applying the same config is a no-op.
+	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", teamFile}))
+	require.Zero(t, takeEdited())
+
+	// hidden and self_service together are rejected before anything is written.
+	writeTeam("        hidden: true\n        self_service: true")
+	_, err = fleetctltest.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", teamFile, "--dry-run"})
+	require.ErrorContains(t, err, "hidden requires self_service to be false")
+
+	// Changing only self_service is a change and seeds opt-ins for installed hosts.
+	writeTeam("        self_service: true")
+	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", teamFile}))
+	require.Equal(t, map[string][2]bool{"SelfService": {true, false}, "Hidden": {true, false}}, flags(team.ID))
+	require.Equal(t, 1, takeEdited())
+	require.True(t, optedIn())
 }
 
 // TestUnsetSoftwareInstallerLabels tests the removal of labels associated with a
@@ -4299,7 +4426,7 @@ reports:
 	writeLib("dup2.yml", "- app_store_id: \"1\"\n  platform: darwin\n  self_service: false\n")
 
 	teamFile := filepath.Join(baseDir, "team.yml")
-	apply := func(softwareBody string) {
+	writeTeamFile := func(softwareBody string) {
 		cfg := fmt.Sprintf(`
 controls:
 software:
@@ -4313,10 +4440,20 @@ settings:
 reports:
 `, softwareBody, teamName)
 		require.NoError(t, os.WriteFile(teamFile, []byte(cfg), 0o644))
+	}
+	apply := func(softwareBody string) {
+		writeTeamFile(softwareBody)
 		// assertRealRunOutput rejects the re-apply line the VPP flow emits.
 		require.Contains(t, fleetctltest.RunAppForTest(t, []string{
 			"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
 		}), "gitops succeeded")
+	}
+	applyWithError := func(softwareBody string) error {
+		writeTeamFile(softwareBody)
+		_, err := fleetctltest.RunAppNoChecks([]string{
+			"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
+		})
+		return err
 	}
 
 	type applied struct {
@@ -4349,14 +4486,13 @@ reports:
 	// inline. Each run starts from empty so the comparison isn't reading stale state.
 	apply("")
 	require.Empty(t, assigned(team.ID))
-	apply("    - path: lib/dup1.yml\n    - path: lib/dup2.yml")
-	viaReferences := assigned(team.ID)
-
-	apply("")
+	err = applyWithError("    - path: lib/dup1.yml\n    - path: lib/dup2.yml")
+	require.ErrorContains(t, err, `More than one version is named "Default version"`)
 	require.Empty(t, assigned(team.ID))
-	apply("    - app_store_id: \"1\"\n      platform: darwin\n      self_service: true\n    - app_store_id: \"1\"\n      platform: darwin\n      self_service: false")
-	require.Equal(t, assigned(team.ID), viaReferences, "referenced duplicates must match inline duplicates")
-	require.Len(t, viaReferences, 1)
+
+	err = applyWithError("    - app_store_id: \"1\"\n      platform: darwin\n      self_service: true\n    - app_store_id: \"1\"\n      platform: darwin\n      self_service: false")
+	require.ErrorContains(t, err, `More than one version is named "Default version"`)
+	require.Empty(t, assigned(team.ID))
 }
 
 // TestGitOpsVPPAppAutoUpdate tests that auto-update settings for VPP apps (iOS/iPadOS)
@@ -4461,10 +4597,11 @@ settings:
 	var schedules []autoUpdateSchedule
 	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &schedules,
-			`SELECT title_id, team_id, enabled, start_time, end_time
-			FROM software_update_schedules
-			WHERE team_id = ?
-			ORDER BY title_id`, team.ID)
+			`SELECT va.title_id, vat.global_or_team_id AS team_id, vat.update_schedule_enabled AS enabled, vat.start_time, vat.end_time
+			FROM vpp_apps_teams vat
+			JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
+			WHERE vat.global_or_team_id = ?
+			ORDER BY va.title_id`, team.ID)
 	})
 
 	require.Len(t, schedules, 2)
@@ -4532,10 +4669,11 @@ settings:
 	var updatedSchedules []autoUpdateSchedule
 	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &updatedSchedules,
-			`SELECT title_id, team_id, enabled, start_time, end_time
-			FROM software_update_schedules
-			WHERE team_id = ?
-			ORDER BY title_id`, team.ID)
+			`SELECT va.title_id, vat.global_or_team_id AS team_id, vat.update_schedule_enabled AS enabled, vat.start_time, vat.end_time
+			FROM vpp_apps_teams vat
+			JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
+			WHERE vat.global_or_team_id = ?
+			ORDER BY va.title_id`, team.ID)
 	})
 
 	require.Len(t, updatedSchedules, 2)

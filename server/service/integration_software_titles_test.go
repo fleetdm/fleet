@@ -319,6 +319,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	// Activity has display name
 	activityData = fmt.Sprintf(`
 	{
+		"version_name": "Default version",
 		"app_store_id": "%s",
 		"software_title": "%s",
 		"software_icon_url": "%s",

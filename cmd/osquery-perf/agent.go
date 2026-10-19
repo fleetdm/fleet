@@ -231,7 +231,7 @@ func loadSoftwareDBRPM() []softwaredb.UbuntuSoftware {
 // rpmSliceToMaps converts UbuntuSoftware entries at the given indices to
 // osquery result maps. Mirrors softwaredb.DB.UbuntuToMaps but operates on a
 // caller-provided slice (the RPM-only filtered subset).
-func rpmSliceToMaps(pool []softwaredb.UbuntuSoftware, indices []uint32) []map[string]string {
+func rpmSliceToMaps(pool []softwaredb.UbuntuSoftware, indices []uint32, epochPercent int) []map[string]string {
 	results := make([]map[string]string, 0, len(indices))
 	for _, idx := range indices {
 		if int(idx) >= len(pool) {
@@ -252,9 +252,22 @@ func rpmSliceToMaps(pool []softwaredb.UbuntuSoftware, indices []uint32) []map[st
 		if s.Release != nil {
 			m["release"] = *s.Release
 		}
+		if epoch := rpmEpoch(s.Name, epochPercent); epoch != "" {
+			m["epoch"] = epoch
+		}
 		results = append(results, m)
 	}
 	return results
+}
+
+// rpmEpoch returns "1" or "2" for percent of package names, and "" (no epoch) for the rest. It's
+// derived from the name so that all agents agree on a package's epoch, as real hosts do; it's shared
+// software metadata, so disagreeing agents would rewrite it constantly.
+func rpmEpoch(name string, percent int) string {
+	if stablePercentile("epoch", name) >= percent {
+		return ""
+	}
+	return strconv.Itoa(stablePercentile("epoch_value", name)%2 + 1)
 }
 
 // loadRPMKernelList reads a JSON array of objects with name/version/release
@@ -520,6 +533,15 @@ type agent struct {
 	wsMu        sync.Mutex
 	ws          *wsTransport
 	wsSupported bool
+	// Like orbit, each WebSocket event has its own channel (size 1, merging
+	// events arriving before it is served), so a pending connect can't
+	// swallow a nudge. orbitConfigNudge carries when the first pending
+	// orbit/config nudge arrived; orbitConfigConnected reports a connect;
+	// orbitConfigDisconnected reports a dropped WebSocket, ending a slow
+	// fallback interval (see runOrbitLoop).
+	orbitConfigNudge        chan time.Time
+	orbitConfigConnected    chan struct{}
+	orbitConfigDisconnected chan struct{}
 
 	// isEnrolledToMDM is true when the mdmDevice has enrolled.
 	isEnrolledToMDM bool
@@ -695,6 +717,7 @@ type softwareEntityCount struct {
 	embeddedBundlePaths               bool
 	homebrewKegPercent                int
 	homebrewLargeKegPercent           int
+	rpmEpochPercent                   int
 }
 type softwareExtraEntityCount struct {
 	entityCount
@@ -872,6 +895,10 @@ func newAgent(
 		wsSupported:    rand.Float64() < websocketProb, // nolint:gosec // ignore weak randomizer
 		mdmAPNSPushURL: mdmAPNSPushURL,
 		ddmDeclTokens:  make(map[string]string),
+
+		orbitConfigNudge:        make(chan time.Time, 1),
+		orbitConfigConnected:    make(chan struct{}, 1),
+		orbitConfigDisconnected: make(chan struct{}, 1),
 
 		disableScriptExec:        disableScriptExec,
 		disableFleetDesktop:      disableFleetDesktop,
@@ -1281,8 +1308,12 @@ func (a *agent) runOrbitLoop() {
 	}
 
 	// orbit makes a call to check the config and update the CLI flags every 30
-	// seconds
-	orbitConfigTicker := time.Tick(30 * time.Second)
+	// seconds, or at the server's slower fallback interval while it is
+	// nudged on changes over the WebSocket (see nextOrbitConfigInterval)
+	orbitConfigInterval := orbitConfigDefaultInterval
+	orbitConfigTimer := time.NewTimer(orbitConfigInterval)
+	defer orbitConfigTimer.Stop()
+	var lastOrbitConfigFetch time.Time
 	// orbit makes a call every 5 minutes to check the validity of the device
 	// token on the server
 	orbitTokenRemoteCheckTicker := time.Tick(5 * time.Minute)
@@ -1296,51 +1327,64 @@ func (a *agent) runOrbitLoop() {
 	// fleet desktop pings every 10s for connectivity check.
 	fleetDesktopConnectivityCheck := time.Tick(10 * time.Second)
 
-	const windowsMDMEnrollmentAttemptFrequency = time.Hour
 	var lastEnrollAttempt time.Time
+
+	// fetchOrbitConfig serves a nudge or connect; nudgedAt is when the nudge
+	// arrived (zero for a connect), for the nudge→fetch latency.
+	fetchOrbitConfig := func(cause string, nudgedAt time.Time) {
+		orbitConfigTimer.Stop()
+		cfg, err := orbitClient.GetConfig()
+		lastOrbitConfigFetch = time.Now()
+		a.stats.IncrementOrbitConfigFetches(cause)
+		if !nudgedAt.IsZero() {
+			a.stats.RecordOrbitConfigNudgeLatency(time.Since(nudgedAt))
+		}
+		if err != nil {
+			a.stats.IncrementOrbitErrors()
+			orbitConfigInterval = orbitConfigDefaultInterval
+			orbitConfigTimer.Reset(orbitConfigInterval)
+			return
+		}
+		orbitConfigInterval = a.nextOrbitConfigInterval(cfg)
+		orbitConfigTimer.Reset(orbitConfigInterval)
+		a.handleOrbitConfig(cfg, orbitClient, &lastEnrollAttempt)
+	}
 
 	for {
 		select {
-		case <-orbitConfigTicker:
-			cfg, err := orbitClient.GetConfig()
-			if err != nil {
-				a.stats.IncrementOrbitErrors()
+		case <-a.orbitConfigDisconnected:
+			if orbitConfigInterval > orbitConfigDefaultInterval {
+				orbitConfigInterval = orbitConfigDefaultInterval
+				orbitConfigTimer.Reset(time.Duration(rand.Int63n(int64(orbitConfigInterval)))) // nolint:gosec // ignore weak randomizer
+			}
+			continue
+		case <-a.orbitConfigConnected:
+			// Like orbit, a connect fetches only when the server nudges, at most
+			// once per default interval.
+			if orbitConfigInterval <= orbitConfigDefaultInterval ||
+				time.Since(lastOrbitConfigFetch) < orbitConfigDefaultInterval {
 				continue
 			}
-			// Follow the server's WebSocket transport directive, like fleetd.
-			a.syncWSTransport(cfg.WebSocketTransport)
-			if len(cfg.Notifications.PendingScriptExecutionIDs) > 0 {
-				// there are pending scripts to execute on this host, start a goroutine
-				// that will simulate executing them.
-				go a.execScripts(cfg.Notifications.PendingScriptExecutionIDs, orbitClient)
+			fetchOrbitConfig("connect", time.Time{})
+		case at := <-a.orbitConfigNudge:
+			fetchOrbitConfig("nudge", at)
+		case <-orbitConfigTimer.C:
+			cfg, err := orbitClient.GetConfig()
+			lastOrbitConfigFetch = time.Now()
+			if orbitConfigInterval > orbitConfigDefaultInterval {
+				a.stats.IncrementOrbitConfigFetches("fallback")
+			} else {
+				a.stats.IncrementOrbitConfigFetches("fast")
 			}
-			if len(cfg.Notifications.PendingSoftwareInstallerIDs) > 0 {
-				// there are pending software installations on this host, start a
-				// goroutine that will download the software
-				go a.installSoftware(cfg.Notifications.PendingSoftwareInstallerIDs, orbitClient)
+			if err != nil {
+				a.stats.IncrementOrbitErrors()
+				orbitConfigInterval = orbitConfigDefaultInterval
+				orbitConfigTimer.Reset(orbitConfigInterval)
+				continue
 			}
-			if cfg.Notifications.NeedsProgrammaticWindowsMDMEnrollment &&
-				!a.mdmEnrolled() &&
-				a.winMDMClient != nil &&
-				time.Since(lastEnrollAttempt) > windowsMDMEnrollmentAttemptFrequency {
-				lastEnrollAttempt = time.Now()
-				if err := a.winMDMClient.Enroll(); err != nil {
-					log.Printf("Windows MDM enroll failed: %s", err)
-					a.stats.IncrementMDMErrors()
-				} else {
-					a.setMDMEnrolled()
-					a.stats.IncrementMDMEnrollments()
-					go a.runWindowsMDMLoop()
-				}
-			}
-			if cfg.Notifications.WindowsMDMSyncRequest && a.mdmEnrolled() && a.winMDMWake != nil {
-				// The server has queued Windows MDM commands and asked this (relaxed-poll) host to start an OMA-DM
-				// session now.
-				select {
-				case a.winMDMWake <- struct{}{}:
-				default:
-				}
-			}
+			orbitConfigInterval = a.nextOrbitConfigInterval(cfg)
+			orbitConfigTimer.Reset(orbitConfigInterval)
+			a.handleOrbitConfig(cfg, orbitClient, &lastEnrollAttempt)
 		case <-orbitTokenRemoteCheckTicker:
 			if !a.disableFleetDesktop && tokenRotationEnabled {
 				if err := deviceClient.CheckToken(*a.deviceAuthToken); err != nil {
@@ -1382,6 +1426,46 @@ func (a *agent) runOrbitLoop() {
 					continue
 				}
 			}
+		}
+	}
+}
+
+// handleOrbitConfig acts on a fetched orbit config, like fleetd's config
+// receivers.
+func (a *agent) handleOrbitConfig(cfg *fleet.OrbitConfig, orbitClient *fleetclient.OrbitClient, lastEnrollAttempt *time.Time) {
+	const windowsMDMEnrollmentAttemptFrequency = time.Hour
+	// Follow the server's WebSocket transport directive, like fleetd.
+	a.syncWSTransport(cfg.WebSocketTransport)
+	if len(cfg.Notifications.PendingScriptExecutionIDs) > 0 {
+		// there are pending scripts to execute on this host, start a goroutine
+		// that will simulate executing them.
+		go a.execScripts(cfg.Notifications.PendingScriptExecutionIDs, orbitClient)
+	}
+	if len(cfg.Notifications.PendingSoftwareInstallerIDs) > 0 {
+		// there are pending software installations on this host, start a
+		// goroutine that will download the software
+		go a.installSoftware(cfg.Notifications.PendingSoftwareInstallerIDs, orbitClient)
+	}
+	if cfg.Notifications.NeedsProgrammaticWindowsMDMEnrollment &&
+		!a.mdmEnrolled() &&
+		a.winMDMClient != nil &&
+		time.Since(*lastEnrollAttempt) > windowsMDMEnrollmentAttemptFrequency {
+		*lastEnrollAttempt = time.Now()
+		if err := a.winMDMClient.Enroll(); err != nil {
+			log.Printf("Windows MDM enroll failed: %s", err)
+			a.stats.IncrementMDMErrors()
+		} else {
+			a.setMDMEnrolled()
+			a.stats.IncrementMDMEnrollments()
+			go a.runWindowsMDMLoop()
+		}
+	}
+	if cfg.Notifications.WindowsMDMSyncRequest && a.mdmEnrolled() && a.winMDMWake != nil {
+		// The server has queued Windows MDM commands and asked this (relaxed-poll) host to start an OMA-DM
+		// session now.
+		select {
+		case a.winMDMWake <- struct{}{}:
+		default:
 		}
 	}
 }
@@ -2990,11 +3074,12 @@ const (
 	maxLargeKegExecutables = 400
 )
 
-// kegBucket maps a formula to a number in [0, 100) that is stable across runs and across hosts,
-// so a formula is a keg, is large, and installs the same executables wherever it appears — as with
-// a real formula, whose contents are a property of the formula, not of the machine.
-func kegBucket(salt, name string) int {
-	sum := sha256.Sum256([]byte(salt + "\x00" + name))
+// stablePercentile maps a software name to a number in [0, 100) that is stable across runs and
+// across hosts, so that a percentage of software gets a property (a formula is a keg, a package has
+// an epoch) consistently wherever it appears, as real software does: such properties belong to the
+// package, not the machine. Each property gets its own independent split.
+func stablePercentile(property, name string) int {
+	sum := sha256.Sum256([]byte(property + "\x00" + name))
 	return (int(sum[0])<<8 | int(sum[1])) % 100
 }
 
@@ -3009,13 +3094,13 @@ func (a *agent) homebrewExecutableHashes(software []map[string]string) []map[str
 		if s["source"] != "homebrew_packages" || kegPath == "" {
 			continue
 		}
-		if kegBucket("keg", name) >= a.softwareCount.homebrewKegPercent {
+		if stablePercentile("keg", name) >= a.softwareCount.homebrewKegPercent {
 			continue
 		}
 
-		count := kegBucket("count", name)%3 + 1
-		if kegBucket("large", name) < a.softwareCount.homebrewLargeKegPercent {
-			count = minLargeKegExecutables + kegBucket("count", name)*(maxLargeKegExecutables-minLargeKegExecutables)/100
+		count := stablePercentile("count", name)%3 + 1
+		if stablePercentile("large", name) < a.softwareCount.homebrewLargeKegPercent {
+			count = minLargeKegExecutables + stablePercentile("count", name)*(maxLargeKegExecutables-minLargeKegExecutables)/100
 		}
 
 		for i := range count {
@@ -4096,7 +4181,7 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 					} else {
 						a.cachedSoftwareIndices = softwaredb.MaybeMutateSoftware(a.cachedSoftwareIndices, len(rpmPool))
 					}
-					results = rpmSliceToMaps(rpmPool, a.cachedSoftwareIndices)
+					results = rpmSliceToMaps(rpmPool, a.cachedSoftwareIndices, a.softwareCount.rpmEpochPercent)
 				}
 
 				// Add pre-selected kernels for this agent
@@ -4576,6 +4661,8 @@ func main() {
 			"Percentage of a macOS host's Homebrew packages that are kegs reporting executable hashes (0-100); the rest report none, as a cask does")
 		homebrewLargeKegPercent = flag.Int("software_homebrew_large_keg_percent", 1,
 			"Percentage of those kegs that install 200 or more executables, standing in for a formula like netpbm or texlive (0-100)")
+		rpmEpochPercent = flag.Int("software_rpm_epoch_percent", 18,
+			"Percentage of RHEL hosts' RPM packages reported with an epoch (0-100); picked by package name, so all hosts agree")
 
 		duplicateBundleIdentifiersPercent = flag.Int("duplicate_bundle_identifiers_percent", 0, "Percentage of software with duplicate bundle identifiers (0-100)")
 		softwareRenaming                  = flag.Bool("software_renaming", false, "Enable software renaming for duplicate bundle identifiers")
@@ -4904,6 +4991,7 @@ func main() {
 				embeddedBundlePaths:               *embeddedBundlePaths,
 				homebrewKegPercent:                *homebrewKegPercent,
 				homebrewLargeKegPercent:           *homebrewLargeKegPercent,
+				rpmEpochPercent:                   *rpmEpochPercent,
 			},
 			softwareExtraEntityCount{
 				entityCount: entityCount{

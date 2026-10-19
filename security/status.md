@@ -380,6 +380,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-06-01 10:34:06
 
+### [CVE-2026-78669](https://nvd.nist.gov/vuln/detail/CVE-2026-78669)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** CVE-2026-78669 (GO-2026-6611) is excessive CPU consumption in golang.org/x/net/http2 when a malicious HTTP/2 peer opens many streams and then sends many small SETTINGS frames with SETTINGS_INITIAL_WINDOW_SIZE values. govulncheck on cmd/fleetctl (GOOS=linux) shows only client-side paths are reachable (net/http and gRPC HTTP/2 transports); fleetctl runs no HTTP/2 server. The peers fleetctl connects to are operator-controlled (the configured Fleet server URL and URLs the operator provides, e.g. in GitOps configuration), so an adversary would need to control one of those servers. The worst case is high CPU usage in a short-lived CLI process, which the operator can terminate, so practical impact is negligible.
+- **Products:** `fleetctl`,`pkg:golang/golang.org/x/net`
+- **Justification:** `vulnerable_code_cannot_be_controlled_by_adversary`
+- **Timestamp:** 2026-10-13 08:44:22
+
 ### [CVE-2026-7598](https://nvd.nist.gov/vuln/detail/CVE-2026-7598)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -388,6 +396,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-05-19 10:35:00
 
+### [CVE-2026-75140](https://nvd.nist.gov/vuln/detail/CVE-2026-75140)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Only affects Java/JVM applications that parse attacker-controlled XML with jsoup's XmlTreeBuilder (deeply nested, uniquely-namespaced elements cause heap exhaustion). jsoup is bundled by Apple Transporter (itms), a local CLI upload tool included for macOS package notarization (fleetctl notarizes with rcodesign), which never parses untrusted XML.
+- **Products:** `fleetctl`,`pkg:maven/org.jsoup/jsoup`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-10-08 12:41:48
+
 ### [CVE-2026-68497](https://nvd.nist.gov/vuln/detail/CVE-2026-68497)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
@@ -395,6 +411,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Products:** `fleetctl`,`pkg:maven/com.fasterxml.jackson.core/jackson-databind`
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2026-10-02 15:31:09
+
+### [CVE-2026-68494](https://nvd.nist.gov/vuln/detail/CVE-2026-68494)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Incomplete fix for GHSA-72hv-8253-57qq; only affects Java/JVM services that feed attacker-controlled chunked input to Jackson's asynchronous (non-blocking) JSON parser. jackson-core is bundled by Apple Transporter (itms), a local CLI upload tool included for macOS package notarization (fleetctl notarizes with rcodesign), which never parses untrusted streamed JSON.
+- **Products:** `fleetctl`,`pkg:maven/com.fasterxml.jackson.core/jackson-core`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2026-10-05 12:15:28
 
 ### [CVE-2026-6653](https://nvd.nist.gov/vuln/detail/CVE-2026-6653)
 - **Author:** @lucasmrod

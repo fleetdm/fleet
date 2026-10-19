@@ -1369,6 +1369,8 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		return err
 	}
 
+	hostIDs = server.RemoveDuplicatesFromSlice(hostIDs)
+
 	// Authorize transfer access to the source teams of the hosts being transferred.
 	// Read from the primary so a host enrolled moments ago isn't reported as
 	// missing by a lagging replica, and so authorization sees the same state
@@ -1480,26 +1482,16 @@ func (svc *Service) createTransferredHostsActivity(ctx context.Context, teamID *
 			return ctxerr.Wrap(ctx, err, "list hosts by ids")
 		}
 
-		// index the hosts by ids to get the names in the same order as hostIDs
-		hostsByID := make(map[uint]*fleet.Host, len(hosts))
-		for _, h := range hosts {
-			hostsByID[h.ID] = h
-		}
-
 		// Derive the activity's host IDs and names exclusively from the hosts
-		// that actually exist, preserving the requested order. IDs that don't
-		// resolve to a host (e.g. non-existent IDs in the request, or a host
+		// that actually exist. IDs that don't resolve to a host (e.g. a host
 		// deleted right after the transfer) are excluded so they can't be
 		// injected into the audit trail.
-		existingIDs := make([]uint, 0, len(hostIDs))
-		hostNames = make([]string, 0, len(hostIDs))
-		for _, hid := range hostIDs {
-			if h, ok := hostsByID[hid]; ok {
-				existingIDs = append(existingIDs, hid)
-				hostNames = append(hostNames, h.DisplayName())
-			}
+		hostIDs = make([]uint, 0, len(hosts))
+		hostNames = make([]string, 0, len(hosts))
+		for _, h := range hosts {
+			hostIDs = append(hostIDs, h.ID)
+			hostNames = append(hostNames, h.DisplayName())
 		}
-		hostIDs = existingIDs
 
 		// If none of the requested hosts exist, there's nothing to record.
 		if len(hostIDs) == 0 {
@@ -2130,6 +2122,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				for _, p := range profs {
 					if p.Identifier == mobileconfig.FleetFileVaultPayloadIdentifier {
 						p.Status = host.MDM.ProfileStatusFromDiskEncryptionState(p.Status)
+						p.OperationType = host.MDM.ProfileOperationFromDiskEncryptionState(p.OperationType)
 					}
 					p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
 					profiles = append(profiles, p.ToHostMDMProfile(host.Platform))
@@ -4819,6 +4812,12 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 		}
 	}
 
+	typeFilter, err := fleet.ParseSoftwareTypeFilter(opts.Source, opts.ExtensionFor)
+	if err != nil {
+		return nil, nil, err
+	}
+	opts.TypeFilter = typeFilter
+
 	mdmEnrolled, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "checking mdm enrollment status")
@@ -5183,6 +5182,14 @@ func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostI
 // availableSelfServiceAppleProfiles returns the self-service profiles that apply to the host but are not in profs,
 // with a nil status so they read as available to install.
 func (svc *Service) availableSelfServiceAppleProfiles(ctx context.Context, host *fleet.Host, profs []fleet.HostMDMAppleProfile) ([]fleet.HostMDMAppleProfile, error) {
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet MDM")
+	}
+	if !connected {
+		return nil, nil
+	}
+
 	teamProfiles, err := svc.ds.ListAppleProfilesForReconcileByTeam(ctx, host.EffectiveTeamID())
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list apple profiles for team")

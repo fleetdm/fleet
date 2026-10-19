@@ -342,6 +342,35 @@ func TestAzureDataFromClaims(t *testing.T) {
 		require.Equal(t, "upn-user@example.com", data.UPN)
 	})
 
+	t.Run("deviceid claim", func(t *testing.T) {
+		for _, tc := range []struct {
+			name     string
+			deviceID any // nil means the claim is absent
+			want     string
+			wantErr  string
+		}{
+			{name: "present", deviceID: "261b8f91-f3fb-4f3d-bc31-de657b7f002b", want: "261b8f91-f3fb-4f3d-bc31-de657b7f002b"},
+			{name: "uppercase is normalized", deviceID: "261B8F91-F3FB-4F3D-BC31-DE657B7F002B", want: "261b8f91-f3fb-4f3d-bc31-de657b7f002b"},
+			{name: "absent"},
+			{name: "not a GUID", deviceID: "not-a-device-id", wantErr: "invalid deviceid claim format"},
+			{name: "not a string", deviceID: 42},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				c := validClaims()
+				if tc.deviceID != nil {
+					c["deviceid"] = tc.deviceID
+				}
+				data, err := azureDataFromClaims(ctx, c)
+				if tc.wantErr != "" {
+					require.ErrorContains(t, err, tc.wantErr)
+					return
+				}
+				require.NoError(t, err)
+				require.Equal(t, tc.want, data.DeviceID)
+			})
+		}
+	})
+
 	t.Run("falls back to preferred_username when upn is absent (v2 token)", func(t *testing.T) {
 		c := validClaims()
 		c["iss"] = "https://login.microsoftonline.com/" + tid + "/v2.0" // v2 issuer form

@@ -1,4 +1,4 @@
-import { flatMap } from "lodash";
+import { flatMap, isEqual } from "lodash";
 import { Row } from "react-table";
 
 import { IconNames } from "components/icons";
@@ -7,20 +7,82 @@ import {
   isBYODManualEnrollment,
   MdmEnrollmentStatus,
 } from "interfaces/mdm";
-import { HostPlatform, isIPadOrIPhone } from "interfaces/platform";
+import { HostPlatform, isIPadOrIPhone, isMacOS } from "interfaces/platform";
 import {
   IHostSoftware,
   IHostSoftwareUiStatus,
   IHostSoftwareWithUiStatus,
+  MACOS_APP_SOFTWARE_TYPE,
   NO_VERSION_OR_HOST_DATA_SOURCES,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
+import {
+  buildSoftwareFiltersQueryParams,
+  ISoftwareFilters,
+} from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
+import { getNextLocationPath } from "utilities/helpers";
 import { QueryParams } from "utilities/url";
 
 import {
   getLastInstall,
   getLastUninstall,
 } from "../HostSoftwareLibrary/helpers";
+
+/** Written as `types` on a macOS host when nothing is selected, since an absent
+ * `types` re-applies the "macOS app" default. parseSoftwareTypesParam drops it
+ * as an unknown key, leaving an empty selection. */
+export const CLEARED_SOFTWARE_TYPES_PARAM = "none";
+
+interface IHostSoftwareLocationParams {
+  pathname: string;
+  platform: string;
+  query: string;
+  orderKey: string;
+  orderDirection: string;
+  page: number;
+  fleetId?: number;
+  macosApplications?: boolean;
+  filters: ISoftwareFilters;
+}
+
+/** Host software Inventory URL. Every change to the table, filters or Show
+ * helpers goes through here so none of them drops another's params. */
+export const getHostSoftwareLocationPath = ({
+  pathname,
+  platform,
+  query,
+  orderKey,
+  orderDirection,
+  page,
+  fleetId,
+  macosApplications,
+  filters,
+}: IHostSoftwareLocationParams) =>
+  getNextLocationPath({
+    pathPrefix: pathname,
+    routeTemplate: "",
+    queryParams: {
+      query,
+      order_direction: orderDirection,
+      order_key: orderKey,
+      page,
+      fleet_id: fleetId,
+      macos_applications: macosApplications,
+      ...buildSoftwareFiltersQueryParams(filters),
+      ...(isMacOS(platform) &&
+        !filters.types?.length && { types: CLEARED_SOFTWARE_TYPES_PARAM }),
+    },
+  });
+
+/** The macOS default selection narrows nothing the user asked for, so a zero
+ * count under it still means the host reported no software. */
+export const isDefaultTypeSelection = (
+  platform: string,
+  filters: ISoftwareFilters
+) =>
+  isMacOS(platform) &&
+  !filters.vulnerable &&
+  isEqual(filters.types, [MACOS_APP_SOFTWARE_TYPE]);
 
 // available_for_install string > boolean conversion in parseHostSoftwareQueryParams
 export const getHostSoftwareFilterFromQueryParams = (

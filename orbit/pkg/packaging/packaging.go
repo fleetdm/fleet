@@ -68,7 +68,8 @@ type Options struct {
 	// DisableSetupExperience disables setup experience for Linux hosts
 	DisableSetupExperience bool
 	// BypassEndUserAuth configures fleetd to skip end-user authentication during enrollment by not
-	// advertising the end-user auth capability to the Fleet server.
+	// advertising the end-user auth capability to the Fleet server. On Windows it sets the default of the
+	// BYPASS_END_USER_AUTH MSI property, which can be overridden at install time.
 	BypassEndUserAuth bool
 	// OrbitChannel is the update channel to use for Orbit.
 	OrbitChannel string

@@ -1,0 +1,1 @@
+- Added a "Types" filter to the Software page, Host details, and My device software tables (`source` and `extension_for` query parameters on the list software titles, list software versions, get host's software, and get device's software endpoints), renamed software type labels, and replaced the macOS Applications / Full inventory dropdown with a "Show helpers" toggle.

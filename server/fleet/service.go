@@ -49,6 +49,9 @@ type EnterpriseOverrides struct {
 	SetupExperienceNextStep           func(ctx context.Context, host *Host) (bool, error)
 	GetVPPTokenIfCanInstallVPPApps    func(ctx context.Context, appleDevice bool, host *Host) (string, error)
 	InstallVPPAppPostValidation       func(ctx context.Context, host *Host, vppApp *VPPApp, token string, opts HostSoftwareInstallOptions) (string, error)
+	// VerifyAppleAccountProvisioning checks Apple account provisioning IdP
+	// settings with the IdP before they're saved.
+	VerifyAppleAccountProvisioning func(ctx context.Context, settings AppleAccountProvisioning, clientSecret string) error
 }
 
 type OsqueryService interface {
@@ -269,8 +272,10 @@ type Service interface {
 	// configuration and only supports a subset of the features (eg: we
 	// don't want to allow IdP initiated authentications)
 	// When initiated from Orbit, the hostUUID is used to link the SSO
-	// session to a specific host.
-	InitiateMDMSSO(ctx context.Context, initiator, customOriginalURL string, hostUUID string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
+	// session to a specific host. deviceInfo is the parsed deviceinfo of the
+	// device that started automatic enrollment, and is required for the
+	// mdm_sso initiator.
+	InitiateMDMSSO(ctx context.Context, initiator, customOriginalURL string, hostUUID string, deviceInfo *MDMAppleMachineInfo) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
 
 	// InitSSOCallback handles the IdP SAMLResponse and ensures the credentials are valid.
 	// The sessionID is used to identify the SSO session and samlResponse is the raw SAMLResponse.
@@ -603,6 +608,8 @@ type Service interface {
 	SandboxEnabled() bool
 	// MaxInstallerSizeBytes returns the configured maximum size for software installer uploads.
 	MaxInstallerSizeBytes() int64
+	// StagedUploadAvailable reports whether clients can upload packages straight to object storage.
+	StagedUploadAvailable(ctx context.Context) bool
 	AppConfigUrls(ctx context.Context) (urls *AppConfigUrls, err error)
 
 	// ApplyEnrollSecretSpec adds and updates the enroll secrets specified in the spec.
@@ -763,9 +770,9 @@ type Service interface {
 	// service creation when the transport is enabled.
 	SetAgentCheckInNotifier(notifier AgentCheckInNotifier)
 
-	// NewACMEEnrollment creates a new ACME enrollment using the ACME service module. It returns the
-	// ACME identifier for the new enrollment, which is used to track the enrollment process and link it to a host.
-	NewACMEEnrollment(ctx context.Context, hostIdentifier string) (string, error)
+	// NewACMEEnrollment forwards to the ACME service module (see ACMEWriteService). Production wires the module into
+	// the renewal cron directly; integration tests reach it through the Fleet service.
+	NewACMEEnrollment(ctx context.Context, hostIdentifier string, purpose AppleMDMCertPurpose, enrollmentID *string) (string, error)
 
 	// NewActivity creates the given activity on the datastore.
 	//
@@ -863,9 +870,6 @@ type Service interface {
 	// InstallSoftwareTitle installs a software title in the given host.
 	InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error
 
-	// UpdateSoftwareTitleAutoUpdateConfig updates the auto-update configuration for a software title.
-	UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID *uint, config SoftwareAutoUpdateConfig) error
-
 	// GetVPPTokenIfCanInstallVPPApps returns the host team's VPP token if the host can be a target for VPP apps
 	GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *Host) (string, error)
 
@@ -903,8 +907,8 @@ type Service interface {
 
 	GetAppStoreApps(ctx context.Context, teamID *uint) ([]*VPPApp, error)
 
-	// AddAppStoreApp persists a VPP app onto a team and returns the resulting title ID and app name
-	AddAppStoreApp(ctx context.Context, teamID *uint, appTeam VPPAppTeam) (uint, string, error)
+	// AddAppStoreApp persists a VPP app version onto a team and returns the added app with its title ID and version ID set
+	AddAppStoreApp(ctx context.Context, teamID *uint, appTeam VPPAppTeam) (*VPPApp, error)
 	UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, payload AppStoreAppUpdatePayload) (*VPPAppStoreApp, *ActivityEditedAppStoreApp, error)
 
 	// GetInHouseAppManifest returns a manifest XML file that points at the
@@ -1017,11 +1021,12 @@ type Service interface {
 	GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*HostDEPAssignment, *godep.DeviceDetails, DEPDeviceErrorType, error)
 
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
-	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, name string, description string) (*MDMAppleConfigProfile, error)
+	// selfService makes the profile opt-in; hidden hides it from end users. Both are premium.
+	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, name string, description string, selfService, hidden bool) (*MDMAppleConfigProfile, error)
 	// NewMDMAppleConfigProfileWithPayload creates a new declaration for the specified team.
 	// activation is an optional custom activation declaration to attach to the
 	// declaration; nil or empty means Fleet generates the activation.
-	NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labelsInclude []string, name string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, activation []byte, description string) (*MDMAppleDeclaration, error)
+	NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labelsInclude []string, name string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, activation []byte, description string, selfService, hidden bool) (*MDMAppleDeclaration, error)
 
 	// GetMDMAppleConfigProfileByDeprecatedID retrieves the specified Apple
 	// configuration profile via its numeric ID. This method is deprecated and
@@ -1058,11 +1063,15 @@ type Service interface {
 	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
 
 	// AuthenticateMDMAppleDEPEnrollment validates an automatic (DEP) enrollment
-	// request: the token must match the automatic enrollment profile and the
-	// device's serial must currently be DEP-assigned to Fleet.
-	AuthenticateMDMAppleDEPEnrollment(ctx context.Context, enrollmentToken string, machineInfo *MDMAppleMachineInfo) error
+	// request: the token must be either the automatic enrollment profile's token,
+	// or an unused one-time challenge issued to this device after end user
+	// authentication, which it consumes. The device's serial must currently be
+	// DEP-assigned to Fleet. It returns the MDM IdP account the challenge was
+	// issued for, or an empty string for the automatic enrollment profile's token.
+	AuthenticateMDMAppleDEPEnrollment(ctx context.Context, enrollmentToken string, machineInfo *MDMAppleMachineInfo) (idpAccountUUID string, err error)
 
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple enrollment from its secret token.
+	// The request must have been authenticated with AuthenticateMDMAppleDEPEnrollment first.
 	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string, machineInfo *MDMAppleMachineInfo) (profile []byte, err error)
 
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple account-driven user enrollment profile for a given enrollment reference.
@@ -1204,7 +1213,8 @@ type Service interface {
 	// skipped so the error can be raised to the user.
 	VerifyAnyMDMConfigured(ctx context.Context) error
 
-	MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, teamID uint, dryRun bool) error
+	// MDMAppleUploadBootstrapPackage stores pkg, or the staged upload when stagedUploadID is set.
+	MDMAppleUploadBootstrapPackage(ctx context.Context, name string, pkg io.Reader, stagedUploadID string, teamID uint, dryRun bool) error
 
 	GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*MDMAppleBootstrapPackage, error)
 
@@ -1214,18 +1224,19 @@ type Service interface {
 
 	GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID *uint) (*MDMAppleBootstrapPackageSummary, error)
 
-	// MDMGetEULABytes returns the contents of the EULA that matches
-	// the given token.
+	// MDMGetEULABytes returns the contents of the EULA, macOS or Windows,
+	// that matches the given token.
 	//
 	// A token is required as the means of authentication for this resource
 	// since it can be publicly accessed with anyone with a valid token.
 	MDMGetEULABytes(ctx context.Context, token string) (*MDMEULA, error)
-	// MDMGetEULAMetadata returns metadata about the EULA file that can
-	// be used by clients to display information.
-	MDMGetEULAMetadata(ctx context.Context) (*MDMEULA, error)
-	// MDMCreateEULA adds a new EULA file.
-	MDMCreateEULA(ctx context.Context, name string, file io.ReadSeeker, dryRun bool) error
-	// MDMAppleDelete EULA removes an EULA entry.
+	// MDMGetEULAMetadata returns metadata about the platform's EULA; an empty
+	// platform means darwin.
+	MDMGetEULAMetadata(ctx context.Context, platform MDMEULAPlatform) (*MDMEULA, error)
+	// MDMCreateEULA adds a new EULA file: a PDF for darwin, or the markdown
+	// terms shown during Windows Entra enrollment; an empty platform means darwin.
+	MDMCreateEULA(ctx context.Context, platform MDMEULAPlatform, name string, file io.ReadSeeker, dryRun bool) error
+	// MDMDeleteEULA removes the EULA, macOS or Windows, that matches the token.
 	MDMDeleteEULA(ctx context.Context, token string, dryRun bool) error
 
 	// Create or update the MDM Apple Setup Assistant for a team or no team.
@@ -1236,6 +1247,12 @@ type Service interface {
 	GetDefaultMDMAppleSetupAssistantProfile(ctx context.Context) (profile godep.Profile, updatedAt *time.Time, err error)
 	// Delete the MDM Apple Setup Assistant for the provided team or no team.
 	DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error
+	// RotateMDMAppleAutomaticEnrollmentToken replaces the automatic enrollment token and
+	// re-registers every fleet's automatic enrollment profile with Apple. The previous token keeps
+	// working for gracePeriodHours (DefaultAutomaticEnrollmentTokenGracePeriodHours if nil), or
+	// stops working immediately if it's 0. It returns when the previous token stops working, or
+	// nil if it already has.
+	RotateMDMAppleAutomaticEnrollmentToken(ctx context.Context, gracePeriodHours *int) (previousTokenExpiresAt *time.Time, err error)
 
 	// HasCustomSetupAssistantConfigurationWebURL checks if the team/global
 	// config has a custom setup assistant defined, and if the JSON content
@@ -1305,7 +1322,7 @@ type Service interface {
 	SignMDMMicrosoftClientCSR(ctx context.Context, subject string, csr *x509.CertificateRequest) ([]byte, string, error)
 
 	// GetMDMWindowsManagementResponse returns a valid SyncML response message
-	GetMDMWindowsManagementResponse(ctx context.Context, reqSyncML *SyncML, reqCerts []*x509.Certificate) (*SyncML, error)
+	GetMDMWindowsManagementResponse(ctx context.Context, reqSyncML *SyncML) (*SyncML, error)
 
 	// GetMDMWindowsTOSContent returns TOS content
 	GetMDMWindowsTOSContent(ctx context.Context, redirectUri string, reqID string) (string, error)
@@ -1346,7 +1363,7 @@ type Service interface {
 
 	// NewMDMWindowsConfigProfile creates a new Windows configuration profile for
 	// the specified team.
-	NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, description string) (*MDMWindowsConfigProfile, error)
+	NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, description string, selfService, hidden bool) (*MDMWindowsConfigProfile, error)
 
 	// NewMDMUnsupportedConfigProfile is called when a profile with an
 	// unsupported extension is uploaded.
@@ -1369,7 +1386,11 @@ type Service interface {
 	// profileName is the uploaded file's name without its extension, empty when
 	// the request carried no file. Unused by Apple .mobileconfig, which is named
 	// by the PayloadDisplayName in its content.
-	UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profileName string, profile []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte], description *string) error
+	//
+	// A nil selfService or hidden keeps the stored value. selfService is only
+	// valid for .mobileconfig; flipping it on opts in every host that already
+	// has the profile.
+	UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profileName string, profile []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte], description *string, selfService, hidden *bool) error
 
 	// ListMDMConfigProfiles returns a list of paginated configuration profiles.
 	ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt ListOptions) ([]*MDMConfigProfilePayload, *PaginationMetadata, error)
@@ -1397,7 +1418,7 @@ type Service interface {
 	// Android MDM
 
 	// NewMDMAndroidConfigProfile creates a new Android configuration profile
-	NewMDMAndroidConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, description string) (*MDMAndroidConfigProfile, error)
+	NewMDMAndroidConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labelsInclude []string, labelsMembershipMode MDMLabelsMode, labelsExcludeAny []string, description string, selfService, hidden bool) (*MDMAndroidConfigProfile, error)
 
 	// DeleteMDMAndroidConfigProfile deletes the specified Android profile.
 	DeleteMDMAndroidConfigProfile(ctx context.Context, profileUUID string) error
@@ -1535,8 +1556,11 @@ type Service interface {
 	// Software installers
 
 	UploadSoftwareInstaller(ctx context.Context, payload *UploadSoftwareInstallerPayload) (*SoftwareInstaller, error)
+	// CreateStagedUpload returns a presigned URL a client uploads a package of the given size to, for
+	// registering it later with the target's add or edit endpoint.
+	CreateStagedUpload(ctx context.Context, target StagedUploadTarget, teamID uint, size int64) (*StagedUpload, error)
 	UpdateSoftwareInstaller(ctx context.Context, payload *UpdateSoftwareInstallerPayload) (*SoftwareInstaller, error)
-	DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint, installerID *uint) error
+	DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint, installerID *uint, appStoreAppVersionID *uint) error
 	GenerateSoftwareInstallerToken(ctx context.Context, alt string, titleID uint, teamID *uint, installerID *uint) (string, error)
 	GetSoftwareInstallerTokenMetadata(ctx context.Context, token string, titleID uint) (*SoftwareInstallerTokenMetadata, error)
 	GetSoftwareInstallerMetadata(ctx context.Context, skipAuthz bool, titleID uint, teamID *uint) (*SoftwareInstaller, error)

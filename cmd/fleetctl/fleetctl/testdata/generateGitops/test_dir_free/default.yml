@@ -25,6 +25,7 @@ controls:
       - Label B
       name: Global MacOS MobileConfig Profile
       path: ./lib/profiles/global-macos-mobileconfig-profile.mobileconfig
+      self_service: true
     - labels_exclude_any:
       - Label C
       name: Global MacOS JSON Profile
@@ -33,6 +34,7 @@ controls:
   windows_settings:
     configuration_profiles:
     - description: Blocks inbound connections
+      hidden: true
       labels_include_any:
       - Label D
       name: Global Windows Profile
