@@ -14,7 +14,9 @@ import { AppContext } from "context/app";
 import { IConfig } from "interfaces/config";
 import { getErrorReason } from "interfaces/errors";
 import { IInputFieldParseTarget } from "interfaces/form_field";
-import conditionalAccessAPI from "services/entities/conditional_access";
+import conditionalAccessAPI, {
+  IConditionalAccessWindowsProfilesResponse,
+} from "services/entities/conditional_access";
 import configAPI from "services/entities/config";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
@@ -140,6 +142,23 @@ const OktaConditionalAccessModal = ({
       },
     }
   );
+
+  // Fetched independently of the Apple profile so one failing leaves the other populated
+  const { data: windowsProfiles } = useQuery<
+    IConditionalAccessWindowsProfilesResponse,
+    Error
+  >(["windowsProfiles"], conditionalAccessAPI.getIdpWindowsProfiles, {
+    ...DEFAULT_USE_QUERY_OPTIONS,
+    onError: (e: unknown) => {
+      const reason = getErrorReason(e);
+      notify.error(
+        reason
+          ? `Failed to load Windows profiles: ${reason}`
+          : "Failed to load Windows profiles.",
+        { response: e }
+      );
+    },
+  });
 
   const [isDownloadingCert, setIsDownloadingCert] = useState(false);
 
@@ -317,6 +336,20 @@ const OktaConditionalAccessModal = ({
           label="User scope profile"
           readOnly
           value={appleProfile}
+          type="textarea"
+        />
+        <InputField
+          enableCopy
+          label="Windows profile"
+          readOnly
+          value={windowsProfiles?.scep_profile ?? ""}
+          type="textarea"
+        />
+        <InputField
+          enableCopy
+          label="Windows browser profile"
+          readOnly
+          value={windowsProfiles?.browser_profile ?? ""}
           type="textarea"
         />
 
