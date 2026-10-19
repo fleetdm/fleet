@@ -3,6 +3,7 @@ import React from "react";
 
 import Button from "components/buttons/Button";
 import IconStatusMessage from "components/IconStatusMessage";
+import InfoBanner from "components/InfoBanner";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import {
@@ -23,12 +24,12 @@ const hasMultipleMacAppCopies = (software: IHostSoftware) =>
   ).size > 1;
 
 const MultipleCopiesMessage = ({ softwareName }: { softwareName: string }) => (
-  <p className={`${baseClass}__multiple-copies`}>
+  <InfoBanner icon="info-outline" iconColor="ui-fleet-black-50">
     Multiple versions of <b>{softwareName}</b> are installed. Updating only
     replaces the original version in the Applications folder, not duplicates
     like {`"${softwareName} 2"`}, so this update may keep showing. To clear it,
     delete the other versions.
-  </p>
+  </InfoBanner>
 );
 
 // Status message render helper
