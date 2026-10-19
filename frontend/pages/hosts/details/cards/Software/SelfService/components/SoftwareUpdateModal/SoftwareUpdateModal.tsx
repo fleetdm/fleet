@@ -24,7 +24,7 @@ const hasMultipleMacAppCopies = (software: IHostSoftware) =>
   ).size > 1;
 
 const MultipleCopiesMessage = ({ softwareName }: { softwareName: string }) => (
-  <InfoBanner icon="info-outline" iconColor="ui-fleet-black-50">
+  <InfoBanner color="yellow" icon="warning">
     Multiple versions of <b>{softwareName}</b> are installed. Updating only
     replaces the original version in the Applications folder, not duplicates
     like {`"${softwareName} 2"`}, so this update may keep showing. To clear it,
