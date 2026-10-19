@@ -416,35 +416,44 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 		return ctxerr.Wrap(ctx, err, "get android apps in scope for host")
 	}
 
-	if len(appsInScope) == 0 {
-		return nil
+	var appPolicies []*androidmanagement.ApplicationPolicy
+	if len(appsInScope) > 0 {
+		appIDs := make([]string, 0, len(appsInScope))
+		vppAppTeamIDs := make([]uint, 0, len(appsInScope))
+		for _, app := range appsInScope {
+			appIDs = append(appIDs, app.AdamID)
+			vppAppTeamIDs = append(vppAppTeamIDs, app.AppTeamID)
+		}
+
+		configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, vppAppTeamIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
+		}
+
+		configsByAppID, err = v.substituteFleetVarsInConfigs(ctx, configsByAppID, androidHostToSubstitutionHost(androidHost))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "substitute fleet vars in app configs")
+		}
+
+		appPolicies, err = buildApplicationPolicyWithConfig(ctx, appIDs, configsByAppID, "AVAILABLE")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building application policies with config")
+		}
 	}
 
-	appIDs := make([]string, 0, len(appsInScope))
-	vppAppTeamIDs := make([]uint, 0, len(appsInScope))
-	for _, app := range appsInScope {
-		appIDs = append(appIDs, app.AdamID)
-		vppAppTeamIDs = append(vppAppTeamIDs, app.AppTeamID)
-	}
-
-	configsByAppID, err := v.Datastore.BulkGetAndroidAppConfigurations(ctx, vppAppTeamIDs)
+	// Replace the host policy's apps rather than adding to them: a re-enrolled host reuses
+	// its policy, which still lists the apps of the fleet it was in before. The Fleet agent
+	// must be part of the replacement, or this would remove it.
+	fleetAgentPolicy, err := v.AndroidModule.BuildFleetAgentApplicationPolicy(ctx, hostUUID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
+		return ctxerr.Wrapf(ctx, err, "build Fleet agent policy for host %s", hostUUID)
+	}
+	if fleetAgentPolicy != nil {
+		appPolicies = append(appPolicies, fleetAgentPolicy)
 	}
 
-	configsByAppID, err = v.substituteFleetVarsInConfigs(ctx, configsByAppID, androidHostToSubstitutionHost(androidHost))
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "substitute fleet vars in app configs")
-	}
-
-	appPolicies, err := buildApplicationPolicyWithConfig(ctx, appIDs, configsByAppID, "AVAILABLE")
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building application policies with config")
-	}
-
-	_, err = v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appPolicies, map[string]string{hostUUID: hostUUID})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
+	if err := v.AndroidModule.SetAppsForAndroidPolicy(ctx, enterpriseName, appPolicies, map[string]string{hostUUID: hostUUID}); err != nil {
+		return ctxerr.Wrap(ctx, err, "make android apps available for host")
 	}
 
 	return nil

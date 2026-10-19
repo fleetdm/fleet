@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -74,10 +75,24 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 		return nil, &notFoundError{}
 	}
 
-	// should be called three times:
+	// The apps available for self-install replace the host policy's application list, so
+	// they're sent with a policy patch rather than added with modifyPolicyApplications.
+	var selfServiceApps [][]string // no need for mutex, protected via runWorkerUntilDone
+	s.androidAPIClient.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		require.Contains(t, policyName, enterpriseID)
+		if opts.OnlyUpdateApps {
+			var apps []string
+			for _, app := range policy.Applications {
+				apps = append(apps, app.PackageName+":"+app.InstallType)
+			}
+			selfServiceApps = append(selfServiceApps, apps)
+		}
+		return &androidmanagement.Policy{}, nil
+	}
+
+	// should be called twice:
 	// 1. Fleet agent added during enrollment (via ensureHostSpecificPolicyIsApplied)
-	// 2. The 2 Android apps made available for self-install
-	// 3. Setup experience with only the app to install at setup (PREINSTALLED)
+	// 2. Setup experience with only the app to install at setup (PREINSTALLED)
 	var patchAppsCallCount int // no need for mutex, protected via runWorkerUntilDone
 	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
 		patchAppsCallCount++
@@ -88,15 +103,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 			require.Equal(t, "FORCE_INSTALLED", appPolicies[0].InstallType)
 			require.Equal(t, "com.fleetdm.agent", appPolicies[0].PackageName)
 		case 2:
-			// second call makes apps available for self-install
-			require.Len(t, appPolicies, 2, "second call to make apps available for self-install should have 2 apps")
-			require.Equal(t, "AVAILABLE", appPolicies[0].InstallType)
-			require.Equal(t, app1.VPPAppID.AdamID, appPolicies[0].PackageName)
-			require.Equal(t, "AVAILABLE", appPolicies[1].InstallType)
-			require.Equal(t, app2.VPPAppID.AdamID, appPolicies[1].PackageName)
-		case 3:
-			// third call for setup experience, should have only app1 with PREINSTALLED
-			require.Len(t, appPolicies, 1, "third call for setup experience should have only 1 app")
+			// second call for setup experience, should have only app1 with PREINSTALLED
+			require.Len(t, appPolicies, 1, "second call for setup experience should have only 1 app")
 			require.Equal(t, "PREINSTALLED", appPolicies[0].InstallType)
 			require.Equal(t, app1.VPPAppID.AdamID, appPolicies[0].PackageName)
 		default:
@@ -159,6 +167,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	s.runWorkerUntilDoneWithChecks(true)
 	// should have hit the android API endpoint
 	require.True(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+	wantSelfServiceApps := [][]string{{app1.AdamID + ":AVAILABLE", app2.AdamID + ":AVAILABLE", "com.fleetdm.agent:FORCE_INSTALLED"}}
+	require.Equal(t, wantSelfServiceApps, selfServiceApps)
 
 	var count int
 	mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
@@ -195,7 +205,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 			Name:                 deviceInfo.Name,
 			EnrollmentTokenData:  deviceInfo.EnrollmentTokenData,
 			AppliedPolicyName:    policyName,
-			AppliedPolicyVersion: 3, // policy version 3 is after Fleet agent (1), self-service apps (2), and setup experience (3)
+			AppliedPolicyVersion: 2, // policy version 2 is after Fleet agent (1) and setup experience (2)
 			ApplicationReports: []*androidmanagement.ApplicationReport{
 				{PackageName: app1.AdamID, State: "INSTALLED"},
 			},
@@ -247,6 +257,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	host2, _, _ := s.createAndEnrollAndroidDevice(t, "test-android-2", nil, false)
 
 	patchAppsCallCount = 0
+	selfServiceApps = nil
 	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
 		patchAppsCallCount++
 		switch patchAppsCallCount {
@@ -256,15 +267,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 			require.Equal(t, "FORCE_INSTALLED", appPolicies[0].InstallType)
 			require.Equal(t, "com.fleetdm.agent", appPolicies[0].PackageName)
 		case 2:
-			// second call to make apps available for self-install
-			require.Len(t, appPolicies, 2, "second call to make apps available for self-install should have 2 apps")
-			require.Equal(t, "AVAILABLE", appPolicies[0].InstallType)
-			require.Equal(t, app1.VPPAppID.AdamID, appPolicies[0].PackageName)
-			require.Equal(t, "AVAILABLE", appPolicies[1].InstallType)
-			require.Equal(t, app2.VPPAppID.AdamID, appPolicies[1].PackageName)
-		case 3:
-			// third call for setup experience, should have both apps
-			require.Len(t, appPolicies, 2, "third call for setup experience should have 2 apps")
+			// second call for setup experience, should have both apps
+			require.Len(t, appPolicies, 2, "second call for setup experience should have 2 apps")
 			require.Equal(t, "PREINSTALLED", appPolicies[0].InstallType)
 			require.Equal(t, app1.VPPAppID.AdamID, appPolicies[0].PackageName)
 			require.Equal(t, "PREINSTALLED", appPolicies[1].InstallType)
@@ -276,6 +280,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 		return &androidmanagement.Policy{Version: int64(patchAppsCallCount)}, nil
 	}
 	s.runWorkerUntilDoneWithChecks(true)
+	require.Equal(t, wantSelfServiceApps, selfServiceApps)
 
 	// the pending installs should show up in the host software
 	getHostSw = getHostSoftwareResponse{}
@@ -626,6 +631,100 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidFailedInstallReporte
 	require.Equal(t, []string{string(fleet.SoftwareInstallFailed), string(fleet.SoftwareInstalled)}, installActivityStatuses(apps[1]))
 }
 
+func (s *integrationMDMTestSuite) TestAndroidReenrollIntoOtherFleetReplacesApps() {
+	t := s.T()
+	ctx := t.Context()
+	s.setSkipWorkerJobs(t)
+	enterpriseID := s.enableAndroidMDM(t)
+
+	oldFleetApp := &fleet.VPPApp{AdamID: "com.oldfleet.app", Platform: fleet.AndroidPlatform, Name: "OldFleetApp"}
+	newFleetApp := &fleet.VPPApp{AdamID: "com.newfleet.app", Platform: fleet.AndroidPlatform, Name: "NewFleetApp"}
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		for _, app := range []*fleet.VPPApp{oldFleetApp, newFleetApp} {
+			if app.AdamID == packageName {
+				return &androidmanagement.Application{Title: app.Name}, nil
+			}
+		}
+		return nil, &notFoundError{}
+	}
+
+	// Keep each policy's application list the way AMAPI does, so the test sees what the
+	// device would be offered. No need for a mutex, the calls are sequential.
+	policyApps := map[string]map[string]string{}
+	var policyVersion int64
+	appsOf := func(policyName string) map[string]string {
+		if policyApps[policyName] == nil {
+			policyApps[policyName] = map[string]string{}
+		}
+		return policyApps[policyName]
+	}
+	replaceApps := func(policyName string, appPolicies []*androidmanagement.ApplicationPolicy) {
+		policyApps[policyName] = map[string]string{}
+		for _, app := range appPolicies {
+			appsOf(policyName)[app.PackageName] = app.InstallType
+		}
+	}
+	s.androidAPIClient.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		if !opts.ExcludeApps {
+			replaceApps(policyName, policy.Applications)
+		}
+		policyVersion++
+		return &androidmanagement.Policy{Version: policyVersion}, nil
+	}
+	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		for _, app := range appPolicies {
+			appsOf(policyName)[app.PackageName] = app.InstallType
+		}
+		policyVersion++
+		return &androidmanagement.Policy{Version: policyVersion}, nil
+	}
+	s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFunc = func(ctx context.Context, policyName string, packageNames []string) (*androidmanagement.Policy, error) {
+		for _, pkg := range packageNames {
+			delete(appsOf(policyName), pkg)
+		}
+		policyVersion++
+		return &androidmanagement.Policy{Version: policyVersion}, nil
+	}
+
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name(), Secrets: []*fleet.EnrollSecret{{Secret: uuid.NewString()}}})
+	require.NoError(t, err)
+	for _, add := range []struct {
+		app    *fleet.VPPApp
+		teamID *uint
+	}{{oldFleetApp, &tm.ID}, {newFleetApp, nil}} {
+		var resp addAppStoreAppResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+			TeamID: add.teamID, AppStoreID: add.app.AdamID, Platform: fleet.AndroidPlatform, SelfService: true,
+		}, http.StatusOK, &resp)
+	}
+	s.runWorkerUntilDoneWithChecks(true)
+
+	host, deviceInfo, pubSubToken := s.createAndEnrollAndroidDevice(t, "reenroll-other-fleet", &tm.ID, false)
+	s.runWorkerUntilDoneWithChecks(true)
+	hostPolicy := fmt.Sprintf("enterprises/%s/policies/%s", enterpriseID, host.UUID)
+	require.Contains(t, policyApps[hostPolicy], oldFleetApp.AdamID)
+	require.NotContains(t, policyApps[hostPolicy], newFleetApp.AdamID)
+
+	// Re-enroll the same device into Unassigned. It keeps its host policy, which must end
+	// up offering only Unassigned's apps.
+	unassignedSecrets, err := s.ds.GetEnrollSecrets(ctx, nil)
+	require.NoError(t, err)
+	require.NotEmpty(t, unassignedSecrets)
+	msg := enrollmentMessageWithEnterpriseSpecificID(t, androidmanagement.Device{
+		Name:                deviceInfo.Name,
+		EnrollmentTokenData: fmt.Sprintf(`{"EnrollSecret": "%s"}`, unassignedSecrets[0].Secret),
+	}, host.UUID)
+	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &android_service.PubSubPushRequest{PubSubMessage: *msg},
+		http.StatusOK, "token", string(pubSubToken.Value))
+	s.runWorkerUntilDoneWithChecks(true)
+
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+	require.Nil(t, hostResp.Host.TeamID)
+	require.Contains(t, policyApps[hostPolicy], newFleetApp.AdamID)
+	require.NotContains(t, policyApps[hostPolicy], oldFleetApp.AdamID)
+}
+
 func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	t := s.T()
 	s.setSkipWorkerJobs(t)
@@ -670,12 +769,20 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 		// records the appPolicies received in the ModifyPolicyApplications calls
 		patchAppsPolicies  [][]*androidmanagement.ApplicationPolicy
 		patchAppsCallCount int
+		// records the application lists that replaced a policy's apps
+		replacedAppsPolicies [][]*androidmanagement.ApplicationPolicy
 	)
 	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
 		patchAppsCallCount++
 		patchAppsPolicies = append(patchAppsPolicies, appPolicies)
 
 		return &androidmanagement.Policy{Version: int64(patchAppsCallCount)}, nil
+	}
+	s.androidAPIClient.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		if opts.OnlyUpdateApps {
+			replacedAppsPolicies = append(replacedAppsPolicies, policy.Applications)
+		}
+		return &androidmanagement.Policy{}, nil
 	}
 
 	// add Android app 1
@@ -728,9 +835,8 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 	// worker should have (in any order due to staggered job queuing):
 	// - made each app available to the included hosts (for self-service), so 2 entries for that (from the PATCH apps to set the config)
 	// - added the Fleet agent to the host's policy (from the host enrollment, via ensureHostSpecificPolicyIsApplied)
-	// - made all apps available to the enrolled host (for self-service), from the host enrollment
 	// - installed the apps, from the host enrollment
-	require.Len(t, patchAppsPolicies, 5)
+	require.Len(t, patchAppsPolicies, 4)
 
 	type appCall struct {
 		PackageName          string
@@ -757,15 +863,31 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 		{app1.VPPAppID.AdamID, "AVAILABLE", "1"},
 		// app2 made available individually (from PATCH config change)
 		{app2.VPPAppID.AdamID, "AVAILABLE", "2"},
-		// app1+app2 made available during enrollment (self-service)
-		{app1.VPPAppID.AdamID, "AVAILABLE", "1"},
-		{app2.VPPAppID.AdamID, "AVAILABLE", "2"},
 		// app1+app2 installed during enrollment (setup experience)
 		{app1.VPPAppID.AdamID, "PREINSTALLED", "1"},
 		{app2.VPPAppID.AdamID, "PREINSTALLED", "2"},
 	}, appCalls)
 
+	// the enrollment replaced the host policy's apps with app1+app2 (self-service) and the Fleet agent
+	require.Len(t, replacedAppsPolicies, 1)
+	var replacedApps []appCall
+	for _, p := range replacedAppsPolicies[0] {
+		if p.PackageName == "com.fleetdm.agent" {
+			require.Equal(t, "FORCE_INSTALLED", p.InstallType)
+			require.Contains(t, string(p.ManagedConfiguration), "host_uuid")
+			replacedApps = append(replacedApps, appCall{p.PackageName, p.InstallType, ""})
+			continue
+		}
+		replacedApps = append(replacedApps, appCall{p.PackageName, p.InstallType, string(p.ManagedConfiguration)})
+	}
+	require.ElementsMatch(t, []appCall{
+		{app1.VPPAppID.AdamID, "AVAILABLE", "1"},
+		{app2.VPPAppID.AdamID, "AVAILABLE", "2"},
+		{"com.fleetdm.agent", "FORCE_INSTALLED", ""},
+	}, replacedApps)
+
 	patchAppsPolicies = nil
+	replacedAppsPolicies = nil
 
 	// add app3 to Fleet
 	addAppResp = addAppStoreAppResponse{}

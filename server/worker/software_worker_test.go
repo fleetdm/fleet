@@ -749,6 +749,99 @@ func TestMakeAndroidAppAvailableSendsEachHostItsVersionConfiguration(t *testing.
 	require.JSONEq(t, configB, string(policiesByHost["host-in-b"][0].ManagedConfiguration))
 }
 
+func TestMakeAndroidAppsAvailableForHostReplacesApps(t *testing.T) {
+	const hostUUID = "reenrolled-host-uuid"
+	agentPolicy := &androidmanagement.ApplicationPolicy{PackageName: "com.fleetdm.agent", InstallType: "FORCE_INSTALLED"}
+
+	cases := []struct {
+		name         string
+		appsInScope  []fleet.VPPAppTeam
+		agentPolicy  *androidmanagement.ApplicationPolicy
+		wantPackages []string
+	}{
+		{
+			name:         "apps of the new fleet and the agent",
+			appsInScope:  []fleet.VPPAppTeam{{AdamID: "com.example.newfleet", AppTeamID: 1}},
+			agentPolicy:  agentPolicy,
+			wantPackages: []string{"com.example.newfleet", "com.fleetdm.agent"},
+		},
+		{
+			name:         "only the agent when the new fleet has no apps",
+			agentPolicy:  agentPolicy,
+			wantPackages: []string{"com.fleetdm.agent"},
+		},
+		{
+			name:         "nothing when no app is in scope and the agent isn't configured",
+			wantPackages: nil,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, uuid string) (*fleet.AndroidHost, error) {
+				return &fleet.AndroidHost{Host: &fleet.Host{ID: 1, UUID: hostUUID}}, nil
+			}
+			ds.GetAndroidAppsInScopeForHostFunc = func(ctx context.Context, hostID uint) ([]fleet.VPPAppTeam, error) {
+				return c.appsInScope, nil
+			}
+			ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, vppAppTeamIDs []uint) (map[string][]byte, error) {
+				return map[string][]byte{}, nil
+			}
+
+			var setCalls int
+			var gotPackages []string
+			var gotHosts map[string]string
+			androidModule := &mockAndroidModule{
+				buildFleetAgentApplicationPolicyFunc: func(ctx context.Context, hostUUID string) (*androidmanagement.ApplicationPolicy, error) {
+					return c.agentPolicy, nil
+				},
+				setAppsForAndroidPolicyFunc: func(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) error {
+					setCalls++
+					for _, p := range appPolicies {
+						gotPackages = append(gotPackages, p.PackageName)
+					}
+					gotHosts = hostUUIDs
+					return nil
+				},
+				addAppsToAndroidPolicyFunc: func(ctx context.Context, enterpriseName string, policies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
+					t.Fatal("available apps must replace the host policy's apps, not be added to them")
+					return nil, nil
+				},
+			}
+			w := &SoftwareWorker{Datastore: ds, AndroidModule: androidModule, Log: slog.New(slog.DiscardHandler)}
+
+			require.NoError(t, w.makeAndroidAppsAvailableForHost(t.Context(), hostUUID, 1, "enterprises/test", hostUUID))
+			require.Equal(t, 1, setCalls)
+			require.Equal(t, map[string]string{hostUUID: hostUUID}, gotHosts)
+			require.ElementsMatch(t, c.wantPackages, gotPackages)
+		})
+	}
+
+	t.Run("agent policy error fails instead of removing the agent", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, uuid string) (*fleet.AndroidHost, error) {
+			return &fleet.AndroidHost{Host: &fleet.Host{ID: 1, UUID: hostUUID}}, nil
+		}
+		ds.GetAndroidAppsInScopeForHostFunc = func(ctx context.Context, hostID uint) ([]fleet.VPPAppTeam, error) {
+			return nil, nil
+		}
+		var setCalled bool
+		androidModule := &mockAndroidModule{
+			buildFleetAgentApplicationPolicyFunc: func(ctx context.Context, hostUUID string) (*androidmanagement.ApplicationPolicy, error) {
+				return nil, errors.New("no enroll secrets")
+			},
+			setAppsForAndroidPolicyFunc: func(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) error {
+				setCalled = true
+				return nil
+			},
+		}
+		w := &SoftwareWorker{Datastore: ds, AndroidModule: androidModule, Log: slog.New(slog.DiscardHandler)}
+
+		require.ErrorContains(t, w.makeAndroidAppsAvailableForHost(t.Context(), hostUUID, 1, "enterprises/test", hostUUID), "no enroll secrets")
+		require.False(t, setCalled)
+	})
+}
+
 func TestRunAndroidSetupExperienceInstallsFirstAddedFlaggedVersion(t *testing.T) {
 	const hostUUID = "setup-host-uuid"
 
