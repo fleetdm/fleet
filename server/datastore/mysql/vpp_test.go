@@ -2699,8 +2699,8 @@ func testAndroidVPPLatestFailedInstall(t *testing.T, ds *Datastore) {
 		}))
 		return cmdUUID
 	}
-	listFailed := func(hostUUID string) []string {
-		installs, err := ds.ListHostMDMAndroidVPPAppsLatestFailedInstall(ctx, hostUUID)
+	listFailed := func(hostID uint) []string {
+		installs, err := ds.ListHostMDMAndroidVPPAppsLatestFailedInstall(ctx, hostID)
 		require.NoError(t, err)
 		var cmdUUIDs []string
 		for _, install := range installs {
@@ -2737,9 +2737,9 @@ func testAndroidVPPLatestFailedInstall(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	require.ElementsMatch(t, []string{failedCmd, canceledFailedCmd, removedFailedCmd}, listFailed(host.Host.UUID))
-	require.Equal(t, []string{otherHostFailedCmd}, listFailed(otherHost.Host.UUID))
-	require.Empty(t, listFailed("no-such-uuid"))
+	require.ElementsMatch(t, []string{failedCmd, canceledFailedCmd, removedFailedCmd}, listFailed(host.Host.ID))
+	require.Equal(t, []string{otherHostFailedCmd}, listFailed(otherHost.Host.ID))
+	require.Empty(t, listFailed(otherHost.Host.ID+1000))
 
 	hostStatus := func(app *fleet.VPPApp) fleet.SoftwareInstallerStatus {
 		titles, _, err := ds.ListHostSoftware(ctx, host.Host, fleet.HostSoftwareTitleListOptions{IncludeAvailableForInstall: true})
@@ -2758,8 +2758,8 @@ func testAndroidVPPLatestFailedInstall(t *testing.T, ds *Datastore) {
 	// Verifying a failed install clears the failure, so the host shows it installed.
 	require.NoError(t, ds.BulkSetVPPInstallsAsVerified(ctx, host.Host.ID, []string{failedCmd}))
 	require.Equal(t, fleet.SoftwareInstalled, hostStatus(failed))
-	require.ElementsMatch(t, []string{canceledFailedCmd, removedFailedCmd}, listFailed(host.Host.UUID))
-	require.Equal(t, []string{otherHostFailedCmd}, listFailed(otherHost.Host.UUID))
+	require.ElementsMatch(t, []string{canceledFailedCmd, removedFailedCmd}, listFailed(host.Host.ID))
+	require.Equal(t, []string{otherHostFailedCmd}, listFailed(otherHost.Host.ID))
 
 	summary, err := ds.GetSummaryHostVPPAppInstalls(ctx, failed.AppTeamID)
 	require.NoError(t, err)

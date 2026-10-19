@@ -4657,7 +4657,7 @@ type AndroidDatastore interface {
 
 	// ListHostMDMAndroidVPPAppsLatestFailedInstall lists the Android VPP apps
 	// whose most recent install on the host failed.
-	ListHostMDMAndroidVPPAppsLatestFailedInstall(ctx context.Context, hostUUID string) ([]*HostAndroidVPPSoftwareInstall, error)
+	ListHostMDMAndroidVPPAppsLatestFailedInstall(ctx context.Context, hostID uint) ([]*HostAndroidVPPSoftwareInstall, error)
 
 	// BulkSetVPPInstallsAsVerified marks all VPP apps identified by the command UUIDs
 	// as verified, clearing any earlier failure. This is for Android hosts, where the

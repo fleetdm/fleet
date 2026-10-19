@@ -2677,7 +2677,7 @@ WHERE
 	return pendingInstalls, nil
 }
 
-func (ds *Datastore) ListHostMDMAndroidVPPAppsLatestFailedInstall(ctx context.Context, hostUUID string) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+func (ds *Datastore) ListHostMDMAndroidVPPAppsLatestFailedInstall(ctx context.Context, hostID uint) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
 	// Only the latest install per app counts, so a failure that a later install replaced
 	// is never revisited. Installs from before the current enrollment are left out too:
 	// re-enrolling fails them, and until the setup experience creates the new installs
@@ -2706,7 +2706,7 @@ FROM (
 		host_vpp_software_installs hvsi
 		INNER JOIN hosts h ON hvsi.host_id = h.id
 	WHERE
-		h.uuid = ? AND
+		hvsi.host_id = ? AND
 		hvsi.platform = ? AND
 		hvsi.removed = 0 AND
 		hvsi.canceled = 0
@@ -2718,7 +2718,7 @@ WHERE
 `
 
 	var failedInstalls []*fleet.HostAndroidVPPSoftwareInstall
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &failedInstalls, stmt, hostUUID, fleet.AndroidPlatform)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &failedInstalls, stmt, hostID, fleet.AndroidPlatform)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing host mdm android vpp apps latest failed install")
 	}

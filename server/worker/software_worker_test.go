@@ -817,15 +817,19 @@ func TestMakeAndroidAppsAvailableForHostReplacesApps(t *testing.T) {
 		})
 	}
 
-	t.Run("agent policy error fails instead of removing the agent", func(t *testing.T) {
+	t.Run("agent policy error adds the apps instead of removing the agent", func(t *testing.T) {
 		ds := new(mock.Store)
 		ds.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, uuid string) (*fleet.AndroidHost, error) {
 			return &fleet.AndroidHost{Host: &fleet.Host{ID: 1, UUID: hostUUID}}, nil
 		}
 		ds.GetAndroidAppsInScopeForHostFunc = func(ctx context.Context, hostID uint) ([]fleet.VPPAppTeam, error) {
-			return nil, nil
+			return []fleet.VPPAppTeam{{AdamID: "com.example.newfleet", AppTeamID: 1}}, nil
+		}
+		ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, vppAppTeamIDs []uint) (map[string][]byte, error) {
+			return map[string][]byte{}, nil
 		}
 		var setCalled bool
+		var addedPackages []string
 		androidModule := &mockAndroidModule{
 			buildFleetAgentApplicationPolicyFunc: func(ctx context.Context, hostUUID string) (*androidmanagement.ApplicationPolicy, error) {
 				return nil, errors.New("no enroll secrets")
@@ -834,11 +838,18 @@ func TestMakeAndroidAppsAvailableForHostReplacesApps(t *testing.T) {
 				setCalled = true
 				return nil
 			},
+			addAppsToAndroidPolicyFunc: func(ctx context.Context, enterpriseName string, policies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
+				for _, p := range policies {
+					addedPackages = append(addedPackages, p.PackageName)
+				}
+				return nil, nil
+			},
 		}
 		w := &SoftwareWorker{Datastore: ds, AndroidModule: androidModule, Log: slog.New(slog.DiscardHandler)}
 
-		require.ErrorContains(t, w.makeAndroidAppsAvailableForHost(t.Context(), hostUUID, 1, "enterprises/test", hostUUID), "no enroll secrets")
+		require.NoError(t, w.makeAndroidAppsAvailableForHost(t.Context(), hostUUID, 1, "enterprises/test", hostUUID))
 		require.False(t, setCalled)
+		require.Equal(t, []string{"com.example.newfleet"}, addedPackages)
 	})
 }
 

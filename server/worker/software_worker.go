@@ -446,7 +446,16 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 	// must be part of the replacement, or this would remove it.
 	fleetAgentPolicy, err := v.AndroidModule.BuildFleetAgentApplicationPolicy(ctx, hostUUID)
 	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "build Fleet agent policy for host %s", hostUUID)
+		// Add the apps instead, which keeps the agent and doesn't hold up the setup
+		// experience, at the cost of leaving apps from a previous fleet in the policy.
+		v.Log.ErrorContext(ctx, "failed to build Fleet agent policy, adding apps without replacing the host's apps", "host_uuid", hostUUID, "err", err)
+		if len(appPolicies) == 0 {
+			return nil
+		}
+		if _, err := v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appPolicies, map[string]string{hostUUID: hostUUID}); err != nil {
+			return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
+		}
+		return nil
 	}
 	if fleetAgentPolicy != nil {
 		appPolicies = append(appPolicies, fleetAgentPolicy)

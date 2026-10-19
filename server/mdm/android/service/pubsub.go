@@ -8,6 +8,7 @@ import (
 	"encoding/json/v2"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -1662,10 +1663,7 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 	}
 	var failedInstallApps []*fleet.HostAndroidVPPSoftwareInstall
 	if !fromEnroll && len(installedPackages) > 0 {
-		// From the primary: reports for a host arrive seconds apart, and a lagging replica
-		// would still list an install the previous report already verified, so it would be
-		// verified again with a second "installed" activity.
-		failedInstallApps, err = svc.ds.ListHostMDMAndroidVPPAppsLatestFailedInstall(ctxdb.RequirePrimary(ctx, true), hostUUID)
+		failedInstallApps, err = svc.listFailedInstallsReportedInstalled(ctx, host.ID, installedPackages)
 		if err != nil {
 			// Still verify this report's pending installs; the failed ones can be recovered
 			// by a later report.
@@ -1768,10 +1766,15 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 		}
 	}
 	for _, install := range failedInstallApps {
-		if installedPackages[install.AdamID] {
-			toVerifyUUIDs = append(toVerifyUUIDs, install.CommandUUID)
-			svc.logger.InfoContext(ctx, "Previously failed software reported as installed, marking as verified", "host_uuid", hostUUID, "package_name", install.AdamID)
+		// The pending installs come from the replica, which can still list an install the
+		// primary already failed; that install was handled above.
+		if slices.ContainsFunc(pendingInstallApps, func(pending *fleet.HostAndroidVPPSoftwareInstall) bool {
+			return pending.CommandUUID == install.CommandUUID
+		}) {
+			continue
 		}
+		toVerifyUUIDs = append(toVerifyUUIDs, install.CommandUUID)
+		svc.logger.InfoContext(ctx, "Previously failed software reported as installed, marking as verified", "host_uuid", hostUUID, "package_name", install.AdamID)
 	}
 	if err := svc.ds.BulkSetVPPInstallsAsVerified(ctx, host.ID, toVerifyUUIDs); err != nil {
 		svc.logger.ErrorContext(ctx, "error marking vpp installs as verified", "err", err, "host_uuid", hostUUID)
@@ -1817,6 +1820,35 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 			return
 		}
 	}
+}
+
+// listFailedInstallsReportedInstalled returns the host's failed installs whose app the
+// status report lists as installed. Nearly every report lists installed apps, so the
+// replica is checked first. A match is confirmed on the primary, because reports for a
+// host arrive seconds apart and a lagging replica would still list an install the previous
+// report already verified, which would then be verified again with a second "installed"
+// activity. A failure the replica hasn't caught up with yet is recovered by a later report.
+func (svc *Service) listFailedInstallsReportedInstalled(ctx context.Context, hostID uint, installedPackages map[string]bool,
+) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+	reportedInstalled := func(installs []*fleet.HostAndroidVPPSoftwareInstall) []*fleet.HostAndroidVPPSoftwareInstall {
+		return slices.DeleteFunc(installs, func(install *fleet.HostAndroidVPPSoftwareInstall) bool {
+			return !installedPackages[install.AdamID]
+		})
+	}
+
+	candidates, err := svc.ds.ListHostMDMAndroidVPPAppsLatestFailedInstall(ctx, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list failed installs")
+	}
+	if len(reportedInstalled(candidates)) == 0 {
+		return nil, nil
+	}
+
+	confirmed, err := svc.ds.ListHostMDMAndroidVPPAppsLatestFailedInstall(ctxdb.RequirePrimary(ctx, true), hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list failed installs from primary")
+	}
+	return reportedInstalled(confirmed), nil
 }
 
 func buildNonComplianceErrorMessage(nonCompliance []*androidmanagement.NonComplianceDetail) string {

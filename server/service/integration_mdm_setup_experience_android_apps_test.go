@@ -723,6 +723,7 @@ func (s *integrationMDMTestSuite) TestAndroidReenrollIntoOtherFleetReplacesApps(
 	require.Nil(t, hostResp.Host.TeamID)
 	require.Contains(t, policyApps[hostPolicy], newFleetApp.AdamID)
 	require.NotContains(t, policyApps[hostPolicy], oldFleetApp.AdamID)
+	require.Equal(t, "FORCE_INSTALLED", policyApps[hostPolicy]["com.fleetdm.agent"], "the Fleet agent must survive the replacement")
 }
 
 func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
