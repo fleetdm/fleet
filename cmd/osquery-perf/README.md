@@ -144,6 +144,10 @@ go run agent.go --os_templates ipad_13.18,iphone_14.6 --host_count 10 --mdm_scep
 
 `mdm_apns_url` sets the mock APNs server URL for the simulated Apple MDM devices. It is required when using iPhone/iPad templates and required when using macOS templates with a non-zero `mdm_prob`.
 
+`mdm_windows_user_driven_prob` determines the probability that a Windows MDM host enrolls user-driven, the way an Entra-joined or Autopilot device does (an Entra token carrying the user's UPN), instead of programmatically through fleetd. It stacks with `mdm_prob`, and the default is 0. These hosts still wait for Fleet's Windows MDM enrollment notification, and answer Fleet's SMBIOS serial request so their enrollment links to the host. Because the tokens are signed with osquery-perf's load-test key (`windows_entra_loadtest_key.pem`) rather than by Microsoft, the Fleet server must:
+- run with `--dev` and `FLEET_DEV_AZURE_JWT_JWKS_URI` pointing at a copy of `windows_entra_loadtest_jwks.json`;
+- list `mdm_windows_entra_tenant_id` (default `6f1d4a3e-5b2c-4e8a-9f0d-0c7b2a1e9d55`) in `mdm.windows_entra_tenant_ids`.
+
 `mdm_cancelable_command_ack_delay` makes simulated Apple devices log when they fetch a cancelable MDM command (lock, wipe, clear passcode, enable lost mode) and wait the given duration before acknowledging it. This opens a window to cancel an already-delivered command (`DELETE /api/v1/fleet/hosts/:id/commands/:command_uuid`) and observe the server restoring the host's lock/wipe state when the acknowledgment arrives anyway. The default is 0 (acknowledge immediately, no behavior change).
 
 ### Apple Platform SSO (PSSO)

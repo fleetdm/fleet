@@ -516,6 +516,11 @@ type agent struct {
 	macMDMClient *mdmtest.TestAppleMDMClient
 	winMDMClient *mdmtest.TestWindowsMDMClient
 
+	// winMDMUserDriven marks a Windows MDM agent that enrolls the way an Entra-joined or Autopilot device does, with an
+	// Entra token carrying the user's UPN, instead of through fleetd's programmatic enrollment.
+	winMDMUserDriven bool
+	winEntra         windowsEntraParams
+
 	mdmUserProb float64
 
 	mdmAPNSPushURL string
@@ -795,6 +800,7 @@ func newAgent(
 	httpMessageSignatureP384Prob float64,
 	configTLSETag bool,
 	psso pssoParams,
+	winEntra windowsEntraParams,
 	mdmAPNSPushURL string,
 	websocketProb float64,
 ) *agent {
@@ -818,8 +824,9 @@ func newAgent(
 	agentOS, osVariant, _ := strings.Cut(templateBase, "_")
 
 	var (
-		macMDMClient *mdmtest.TestAppleMDMClient
-		winMDMClient *mdmtest.TestWindowsMDMClient
+		macMDMClient     *mdmtest.TestAppleMDMClient
+		winMDMClient     *mdmtest.TestWindowsMDMClient
+		winMDMUserDriven bool
 	)
 	if rand.Float64() < mdmProb {
 		switch agentOS {
@@ -844,6 +851,13 @@ func newAgent(
 			// after orbit enrollment, and after receiving the enrollment
 			// notification.
 			winMDMClient = new(mdmtest.TestWindowsMDMClient)
+			if rand.Float64() < winEntra.userDrivenProb {
+				winMDMUserDriven = true
+				// Fleet links a user-driven enrollment to its host by the SMBIOS serial the device reports over MDM.
+				if serialNumber == "" {
+					serialNumber = mdmtest.RandSerialNumber()
+				}
+			}
 		}
 	}
 
@@ -889,12 +903,14 @@ func newAgent(
 		linuxUniqueSoftwareVersion: linuxUniqueSoftwareVersion,
 		linuxUniqueSoftwareTitle:   linuxUniqueSoftwareTitle,
 
-		macMDMClient:   macMDMClient,
-		winMDMClient:   winMDMClient,
-		mdmUserProb:    mdmUserProb,
-		wsSupported:    rand.Float64() < websocketProb, // nolint:gosec // ignore weak randomizer
-		mdmAPNSPushURL: mdmAPNSPushURL,
-		ddmDeclTokens:  make(map[string]string),
+		macMDMClient:     macMDMClient,
+		winMDMClient:     winMDMClient,
+		winMDMUserDriven: winMDMUserDriven,
+		winEntra:         winEntra,
+		mdmUserProb:      mdmUserProb,
+		wsSupported:      rand.Float64() < websocketProb, // nolint:gosec // ignore weak randomizer
+		mdmAPNSPushURL:   mdmAPNSPushURL,
+		ddmDeclTokens:    make(map[string]string),
 
 		orbitConfigNudge:        make(chan time.Time, 1),
 		orbitConfigConnected:    make(chan struct{}, 1),
@@ -1007,7 +1023,13 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 			return
 		}
 		if a.winMDMClient != nil {
-			a.winMDMClient = mdmtest.NewTestMDMClientWindowsProgramatic(a.serverAddress, *a.orbitNodeKey)
+			if a.winMDMUserDriven {
+				a.winMDMClient = mdmtest.NewTestMDMClientWindowsAutomatic(a.serverAddress, a.entraIDUserPrincipalName,
+					mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(a.winEntra.signingKey, windowsEntraKeyID, a.winEntra.tenantID))
+				a.winMDMClient.EntraDeviceID = a.entraIDDeviceID
+			} else {
+				a.winMDMClient = mdmtest.NewTestMDMClientWindowsProgramatic(a.serverAddress, *a.orbitNodeKey)
+			}
 		}
 	}
 
@@ -1031,7 +1053,8 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 	}
 
 	// NOTE: the windows MDM client enrollment is only done after receiving a
-	// notification via the config in the runOrbitLoop.
+	// notification via the config in the runOrbitLoop. User-driven agents use
+	// that notification too, as the signal that Windows MDM is on.
 	if a.macMDMClient != nil {
 		mdmEnrollWithRetry("macOS", a.stats.IncrementMDMErrors, a.macMDMClient.Enroll)
 		a.setMDMEnrolled()
@@ -2207,6 +2230,20 @@ func (a *agent) doWindowsMDMCheckIn(onDemand bool) (newPollInterval time.Duratio
 			Items:   nil,
 			CmdID:   fleet.CmdID{Value: uuid.NewString()},
 		})
+		// Fleet asks an unlinked enrollment for its SMBIOS serial to find its host, so answer it like a real device.
+		if c.Verb == fleet.CmdGet && status == syncml.CmdStatusOK && a.SerialNumber != "" &&
+			c.Cmd.GetTargetURI() == windowsDevDetailSerialURI {
+			a.winMDMClient.AppendResponse(fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdResults},
+				MsgRef:  &msgID,
+				CmdRef:  &c.Cmd.CmdID.Value,
+				Items: []fleet.CmdItem{{
+					Source: ptr.String(windowsDevDetailSerialURI),
+					Data:   &fleet.RawXmlData{Content: a.SerialNumber},
+				}},
+				CmdID: fleet.CmdID{Value: uuid.NewString()},
+			})
+		}
 	}
 	if _, err := a.winMDMClient.SendResponse(); err != nil {
 		log.Printf("MDM send response request failed: %s", err)
@@ -3792,48 +3829,48 @@ func (a *agent) runLiveYaraQuery(query string) (results []map[string]string, sta
 	// Return a response indicating that the file is clean.
 	ss := fleet.OsqueryStatus(0)
 	return []map[string]string{
-		{
-			"count":     "0",
-			"matches":   "",
-			"strings":   "",
-			"tags":      "",
-			"sig_group": "",
-			"sigfile":   "",
-			"sigrule":   "",
-			"sigurl":    url,
-			// Could pull this from the query, but not necessary for load testing.
-			"path": "/some/path",
-		},
-	}, &ss, nil, &fleet.Stats{
-		WallTimeMs: uint64(rand.Intn(1000) * 1000), //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
-		UserTime:   uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
-		SystemTime: uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
-		Memory:     uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
-	}
+			{
+				"count":     "0",
+				"matches":   "",
+				"strings":   "",
+				"tags":      "",
+				"sig_group": "",
+				"sigfile":   "",
+				"sigrule":   "",
+				"sigurl":    url,
+				// Could pull this from the query, but not necessary for load testing.
+				"path": "/some/path",
+			},
+		}, &ss, nil, &fleet.Stats{
+			WallTimeMs: uint64(rand.Intn(1000) * 1000), //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+			UserTime:   uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+			SystemTime: uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+			Memory:     uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+		}
 }
 
 func (a *agent) runLiveMockQuery(query string) (results []map[string]string, status *fleet.OsqueryStatus, message *string, stats *fleet.Stats) {
 	ss := fleet.OsqueryStatus(0)
 	return []map[string]string{
-		{
-			"admindir":   "/var/lib/dpkg",
-			"arch":       "amd64",
-			"maintainer": "foobar",
-			"name":       "netconf",
-			"priority":   "optional",
-			"revision":   "",
-			"section":    "default",
-			"size":       "112594",
-			"source":     "",
-			"status":     "install ok installed",
-			"version":    "20230224000000",
-		},
-	}, &ss, nil, &fleet.Stats{
-		WallTimeMs: uint64(rand.Intn(1000) * 1000), //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
-		UserTime:   uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
-		SystemTime: uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
-		Memory:     uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
-	}
+			{
+				"admindir":   "/var/lib/dpkg",
+				"arch":       "amd64",
+				"maintainer": "foobar",
+				"name":       "netconf",
+				"priority":   "optional",
+				"revision":   "",
+				"section":    "default",
+				"size":       "112594",
+				"source":     "",
+				"status":     "install ok installed",
+				"version":    "20230224000000",
+			},
+		}, &ss, nil, &fleet.Stats{
+			WallTimeMs: uint64(rand.Intn(1000) * 1000), //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+			UserTime:   uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+			SystemTime: uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+			Memory:     uint64(rand.Intn(1000)),        //nolint:gosec // G115: rand.Intn(1000) is bounded, so this cannot overflow.
+		}
 }
 
 func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
@@ -4699,6 +4736,8 @@ func main() {
 
 		mdmProb                      = flag.Float64("mdm_prob", 0.0, "Probability of a host enrolling via Fleet MDM (applies for macOS and Windows hosts, implies orbit enrollment on Windows) [0, 1]")
 		mdmUserProb                  = flag.Float64("mdm_user_prob", 0.0, "Probability of a host having an MDM user enrollment (compounds on mdm_prob) [0, 1]")
+		mdmWindowsUserDrivenProb     = flag.Float64("mdm_windows_user_driven_prob", 0.0, "Probability of a Windows MDM host enrolling user-driven, as an Entra-joined or Autopilot device does, instead of programmatically through fleetd (compounds on mdm_prob) [0, 1]. Fleet must run in dev mode with FLEET_DEV_AZURE_JWT_JWKS_URI serving windows_entra_loadtest_jwks.json, and list mdm_windows_entra_tenant_id in windows_entra_tenant_ids")
+		mdmWindowsEntraTenantID      = flag.String("mdm_windows_entra_tenant_id", "6f1d4a3e-5b2c-4e8a-9f0d-0c7b2a1e9d55", "Entra tenant ID of user-driven Windows MDM enrollments; must be in Fleet's windows_entra_tenant_ids")
 		mdmAPNSURL                   = flag.String("mdm_apns_url", "", "APNS URL to check for MDM push notifications (e.g., http://localhost:8378) - required for Apple (macOS/iOS/iPadOS) MDM enrollments.")
 		mdmSCEPChallenge             = flag.String("mdm_scep_challenge", "", "SCEP challenge to use when running macOS MDM enroll")
 		mdmProfileFailureProb        = flag.Float64("mdm_profile_failure_prob", 0.0, "Probability of an MDM profile to fail install [0, 1]")
@@ -4814,6 +4853,21 @@ func main() {
 		strings.Contains(*osTemplates, "macos") &&
 		*mdmAPNSURL == "" {
 		log.Fatalf("Argument mdm_apns_url must be specified when mdm_prob is greater than 0")
+	}
+
+	if *mdmWindowsUserDrivenProb < 0 || *mdmWindowsUserDrivenProb > 1 {
+		log.Fatalf("Argument mdm_windows_user_driven_prob must be between 0 and 1, got %f", *mdmWindowsUserDrivenProb)
+	}
+	winEntra := windowsEntraParams{userDrivenProb: *mdmWindowsUserDrivenProb, tenantID: *mdmWindowsEntraTenantID}
+	if winEntra.userDrivenProb > 0 {
+		if _, err := uuid.Parse(winEntra.tenantID); err != nil {
+			log.Fatalf("Argument mdm_windows_entra_tenant_id must be a UUID: %s", err)
+		}
+		key, err := windowsEntraSigningKey()
+		if err != nil {
+			log.Fatal(err)
+		}
+		winEntra.signingKey = key
 	}
 
 	tmplsm := make(map[*template.Template]int)
@@ -5052,6 +5106,7 @@ func main() {
 				loginProb: *mdmPSSOLoginProb,
 				keyProb:   *mdmPSSOKeyProb,
 			},
+			winEntra,
 			*mdmAPNSURL,
 			*websocketProb,
 		)
