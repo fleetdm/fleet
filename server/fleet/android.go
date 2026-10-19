@@ -335,6 +335,7 @@ var FleetVarsSupportedInAndroidAppConfig = []FleetVarName{
 	FleetVarHostEndUserIDPGroups,
 	FleetVarHostEndUserIDPDepartment,
 	FleetVarHostEndUserIDPFullname,
+	FleetVarHostEndUserIDPExternalID,
 }
 
 var validAndroidWorkProfileWidgets = map[string]struct{}{

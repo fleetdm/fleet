@@ -275,6 +275,24 @@ describe("AccountProvisioning", () => {
       ).not.toBeInTheDocument();
     });
 
+    it("drops the re-entry error once every field is emptied", async () => {
+      const { user } = render(<AccountProvisioning {...savedConfigProps} />);
+      await user.clear(screen.getByLabelText(/token url/i));
+      expect(
+        screen.getByText(/client secret must be re-entered/i)
+      ).toBeInTheDocument();
+
+      await user.clear(screen.getByLabelText(/client id/i));
+      // Not `tab()`: that would focus the client secret, and focus clears its
+      // error on its own.
+      await user.click(document.body);
+
+      expect(
+        screen.queryByText(/client secret must be re-entered/i)
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText(/is required/i)).not.toBeInTheDocument();
+    });
+
     it("keeps the masked client secret when only the client ID is edited", async () => {
       const { user } = render(<AccountProvisioning {...savedConfigProps} />);
       await user.type(screen.getByLabelText(/client id/i), "x");

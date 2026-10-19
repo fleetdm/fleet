@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.5.0",
+      "version": "4.5.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.criminalbird.typeface.standalone';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.criminalbird.typeface.standalone' AND version_compare(bundle_short_version, '4.5.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.criminalbird.typeface.standalone' AND version_compare(bundle_short_version, '4.5.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.criminalbird.typeface.standalone' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://dcdn.typefaceapp.com/Typeface-4.5.0-5255/Typeface-4.5.0-5255.dmg",
+      "installer_url": "https://dcdn.typefaceapp.com/Typeface-4.5.1-5310/Typeface-4.5.1-5310.dmg",
       "install_script_ref": "df6b32ee",
       "uninstall_script_ref": "707f4675",
-      "sha256": "8a539cf69714c61d38b5f955fe464c724515f9313261eeaa9cfb1e7786a9adfc",
+      "sha256": "96ae266130063f4507d95fe9d3adc2804b4418a12fe5e56adffa996fe50d1319",
       "default_categories": [
         "Productivity"
       ]
