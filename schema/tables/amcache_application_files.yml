@@ -29,6 +29,9 @@ notes: |-
   on every Windows family, whereas path is empty on most Windows 11 rows and makes a poor filter
   there.
 
+  While Windows is writing to the Amcache hive, a query returns an error instead of possibly
+  inconsistent rows. Run it again shortly.
+
   This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 examples: |-
   Find executables under user-writable directories that no installed application accounts for.

@@ -16,6 +16,9 @@ notes: |-
   time, not a live signature check. A driver that was signed when it was inventoried still reads as
   signed after its certificate is revoked.
 
+  While Windows is writing to the Amcache hive, a query returns an error instead of possibly
+  inconsistent rows. Run it again shortly.
+
   This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 examples: |-
   List kernel-mode drivers that Windows did not ship and that the appraiser did not assess as

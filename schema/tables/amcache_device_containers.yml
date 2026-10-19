@@ -18,6 +18,9 @@ notes: |-
   Containers persist after the device is removed, so connected and active describe the state when
   the appraiser last wrote the record and not the present moment.
 
+  While Windows is writing to the Amcache hive, a query returns an error instead of possibly
+  inconsistent rows. Run it again shortly.
+
   This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 examples: |-
   List removable drives this host has ever seen, most recently recorded first.

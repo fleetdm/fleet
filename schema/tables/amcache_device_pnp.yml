@@ -19,6 +19,9 @@ notes: |-
   amcache_device_containers, so join the two tables with a LEFT JOIN or those rows disappear from
   the result.
 
+  While Windows is writing to the Amcache hive, a query returns an error instead of possibly
+  inconsistent rows. Run it again shortly.
+
   This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 examples: |-
   List every USB mass storage device this host has seen, with the container that names it.

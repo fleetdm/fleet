@@ -16,6 +16,9 @@ notes: |-
   amcache_application_files. That is what makes a search for files whose program_id has no row here
   a useful way to find executables that were installed and then removed.
 
+  While Windows is writing to the Amcache hive, a query returns an error instead of possibly
+  inconsistent rows. Run it again shortly.
+
   This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 examples: |-
   List applications that did not arrive through Windows Installer or the Microsoft Store and that

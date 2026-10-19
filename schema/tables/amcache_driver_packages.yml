@@ -18,6 +18,9 @@ notes: |-
   log line by themselves. Select the columns you need rather than SELECT *, and leave hwids out
   unless you are searching it.
 
+  While Windows is writing to the Amcache hive, a query returns an error instead of possibly
+  inconsistent rows. Run it again shortly.
+
   This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 examples: |-
   List third-party driver packages that were never submitted to the Windows Hardware Quality Labs,
