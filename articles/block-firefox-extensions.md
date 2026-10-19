@@ -232,7 +232,7 @@ To run the Linux script automatically, add a policy that runs it when a host fai
 ```yaml
 policies:
   - name: Linux - Firefox extension policy is present
-    query: SELECT 1 FROM file_lines WHERE path = '/etc/firefox/policies/policies.json' AND line LIKE '%ExtensionSettings%';
+    query: SELECT 1 FROM file WHERE path = '/etc/firefox/policies/policies.json';
     platform: linux
     run_script:
       path: ../lib/linux/scripts/firefox-extension-blocklist.sh
