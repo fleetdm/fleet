@@ -27,6 +27,8 @@ type VPPAppTeam struct {
 
 	AppTeamID   uint `db:"id" json:"-"`
 	SelfService bool `db:"self_service" json:"self_service"`
+	// VPPTokenID is the VPP token the app was added from on this fleet. Nil for Google Play apps.
+	VPPTokenID *uint `db:"vpp_token_id" json:"-"`
 	// VersionName is the name of this version of the app on the fleet. Empty means DefaultAppStoreAppVersionName.
 	VersionName string `db:"version_name" json:"-"`
 

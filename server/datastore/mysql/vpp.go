@@ -1279,6 +1279,7 @@ SELECT
   va.created_at,
   va.updated_at,
   vat.self_service,
+  vat.vpp_token_id,
   vat.name version_name,
   vat.created_at added_at
 FROM vpp_apps va
