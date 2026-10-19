@@ -477,9 +477,10 @@ func (ts *withServer) LoginSSOUser(username, password string) string {
 	return string(body)
 }
 
-// LoginMDMSSOUser initiates the MDM SSO flow, as Apple DEP enrollment would.
-func (ts *withServer) LoginMDMSSOUser(username, password string) *http.Response {
-	body, err := json.Marshal(initiateMDMSSORequest{Initiator: fleet.SSOInitiatorAppleMDMSSO})
+// LoginMDMSSOUser initiates the MDM SSO flow, as Apple DEP enrollment would,
+// for the device that presented deviceInfo (a base64 x-apple-aspen-deviceinfo).
+func (ts *withServer) LoginMDMSSOUser(username, password, deviceInfo string) *http.Response {
+	body, err := json.Marshal(initiateMDMSSORequest{Initiator: fleet.SSOInitiatorAppleMDMSSO, DeviceInfo: deviceInfo})
 	require.NoError(ts.s.T(), err)
 	res := ts.loginSSOUserWithBody(username, password, "/api/v1/fleet/mdm/sso", http.StatusSeeOther, body)
 	return res
@@ -931,7 +932,7 @@ func (ts *withServer) uploadSoftwareInstallerWithErrorNameReason(
 
 	// Determine which file to use: either provided by test or opened from testdata
 	var installerFile io.Reader
-	if payload.InstallerFile == nil {
+	if payload.InstallerFile == nil && payload.StagedUploadID == "" {
 		// Open file from testdata and close it when done
 		tfr, err := fleet.NewKeepFileReader(filepath.Join("testdata", "software-installers", payload.Filename))
 		// Try the test installers in the pkg/file testdata (to reduce clutter/copies).
@@ -953,12 +954,17 @@ func (ts *withServer) uploadSoftwareInstallerWithErrorNameReason(
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 
-	// add the software field
-	fw, err := w.CreateFormFile("software", payload.Filename)
-	require.NoError(t, err)
-	n, err := io.Copy(fw, installerFile)
-	require.NoError(t, err)
-	require.NotZero(t, n)
+	if payload.StagedUploadID != "" {
+		require.NoError(t, w.WriteField("upload_id", payload.StagedUploadID))
+		require.NoError(t, w.WriteField("filename", payload.Filename))
+	} else {
+		// add the software field
+		fw, err := w.CreateFormFile("software", payload.Filename)
+		require.NoError(t, err)
+		n, err := io.Copy(fw, installerFile)
+		require.NoError(t, err)
+		require.NotZero(t, n)
+	}
 
 	// add the team_id field
 	if payload.TeamID != nil {
@@ -1037,6 +1043,10 @@ func (ts *withServer) updateSoftwareInstaller(
 		n, err := io.Copy(fw, payload.InstallerFile)
 		require.NoError(t, err)
 		require.NotZero(t, n)
+	}
+	if payload.StagedUploadID != "" {
+		require.NoError(t, w.WriteField("upload_id", payload.StagedUploadID))
+		require.NoError(t, w.WriteField("filename", payload.Filename))
 	}
 
 	// add the team_id field

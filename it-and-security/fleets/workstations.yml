@@ -74,7 +74,8 @@ agent_options:
     # --- Windows process auditing via ETW ---
     enable_process_etw_events: true
   update_channels:
-    osqueryd: stable
+    # Temporarily use edge for testing 5.24.0. Bring back to stable once 5.24.0 is released.
+    osqueryd: edge
     orbit: stable
     desktop: stable
 controls:
@@ -164,6 +165,7 @@ controls:
     - path: ../lib/linux/scripts/install-readonly-removable-storage.sh
     - path: ../lib/linux/scripts/update-claude-desktop.sh
     - path: ../lib/linux/scripts/configure-okta-verify-org-url.sh
+    - path: ../lib/linux/scripts/update-linux-os.sh
     - path: ../lib/all/scripts/configure-npmrc-min-release-age.sh
     - path: ../lib/all/scripts/configure-npmrc-min-release-age.ps1
 policies:
@@ -225,7 +227,7 @@ software:
     - path: ../lib/macos/software/fleet-keynote-theme.yml # Fleet Keynote theme for macOS
       self_service: true
       labels_include_any:
-        - "Keynote 14 installed"
+        - "Keynote installed"
       categories:
         - Productivity
     - path: ../lib/macos/software/nudge-assets.yml # Nudge assets for macOS

@@ -223,46 +223,68 @@ describe("ManageHostsPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("hides the no enroll secrets banner but keeps Add hosts when one-time enroll secrets are on", async () => {
-    setupHandlers(0);
-    mockServer.use(
-      http.get(baseUrl("/spec/enroll_secret"), () => {
-        return HttpResponse.json({ spec: { secrets: [] } });
-      }),
-      http.get(baseUrl("/config/certificate"), () => {
-        return HttpResponse.json({ certificate_chain: "" });
-      })
-    );
-    const render = createCustomRenderer({
-      withBackendMock: true,
-      context: {
-        app: {
-          ...mockAppContext,
-          config: createMockConfig({
-            auth: { mdm_apple_one_time_enroll_secrets: true },
-          }),
-        },
+  it.each([
+    {
+      name: "Apple",
+      auth: { mdm_apple_one_time_enroll_secrets: true },
+      modalText: /only apple hosts that automatically enroll/i,
+    },
+    {
+      name: "Windows",
+      auth: { mdm_windows_one_time_enroll_secrets: true },
+      modalText: /only windows hosts that automatically enroll/i,
+    },
+    {
+      name: "Apple and Windows",
+      auth: {
+        mdm_apple_one_time_enroll_secrets: true,
+        mdm_windows_one_time_enroll_secrets: true,
       },
-    });
+      modalText: /only hosts that automatically enroll via apple's automated device enrollment \(ADE\), microsoft entra ID, or autopilot/i,
+    },
+  ])(
+    "hides the no enroll secrets banner but keeps Add hosts when $name one-time enroll secrets are on",
+    async ({ auth, modalText }) => {
+      setupHandlers(0);
+      mockServer.use(
+        http.get(baseUrl("/spec/enroll_secret"), () => {
+          return HttpResponse.json({ spec: { secrets: [] } });
+        }),
+        http.get(baseUrl("/config/certificate"), () => {
+          return HttpResponse.json({ certificate_chain: "" });
+        })
+      );
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            ...mockAppContext,
+            config: createMockConfig({ auth }),
+          },
+        },
+      });
 
-    const { user } = render(
-      <ManageHostsPage {...(createMockProps() as any)} />
-    );
+      const { user } = render(
+        <ManageHostsPage {...(createMockProps() as any)} />
+      );
 
-    expect(await screen.findByText("No hosts")).toBeInTheDocument();
-    expect(
-      screen.queryByText(/you have no enroll secrets\./i)
-    ).not.toBeInTheDocument();
+      expect(await screen.findByText("No hosts")).toBeInTheDocument();
 
-    const headerWrap = screen
-      .getByRole("button", { name: "Hosts page settings" })
-      .closest(".manage-hosts__button-wrap");
-    await user.click(within(headerWrap as HTMLElement).getByText("Add hosts"));
+      const headerWrap = screen
+        .getByRole("button", { name: "Hosts page settings" })
+        .closest(".manage-hosts__button-wrap");
+      await user.click(
+        within(headerWrap as HTMLElement).getByText("Add hosts")
+      );
 
-    expect(
-      await screen.findByText(/only apple hosts that automatically enroll/i)
-    ).toBeInTheDocument();
-  });
+      expect(await screen.findByText(modalText)).toBeInTheDocument();
+      // The modal's no-secret state proves the secrets request finished, so
+      // the only "no enroll secrets" message left is the modal's, not the banner's.
+      expect(screen.getAllByText(/you have no enroll secrets\./i)).toHaveLength(
+        1
+      );
+    }
+  );
 
   it("renders the settings gear menu with its options", async () => {
     setupHandlers(0);

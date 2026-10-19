@@ -90,6 +90,7 @@ func TestWindowsWixTemplateServiceEnvironment(t *testing.T) {
 			"ORBIT_ORBIT_CHANNEL=stable",
 			"ORBIT_OSQUERYD_CHANNEL=stable",
 			"ORBIT_ENABLE_SCRIPTS=[ENABLE_SCRIPTS]",
+			"ORBIT_BYPASS_END_USER_AUTH=[BYPASS_END_USER_AUTH]",
 		}, entries)
 	})
 
@@ -123,7 +124,7 @@ func TestWindowsWixTemplateServiceEnvironment(t *testing.T) {
 			"ORBIT_EUA_TOKEN=[EUA_TOKEN]",
 			`ORBIT_OSQUERY_DB=C:\osquery.db`,
 			"ORBIT_DISABLE_SETUP_EXPERIENCE=true",
-			"ORBIT_BYPASS_END_USER_AUTH=true",
+			"ORBIT_BYPASS_END_USER_AUTH=[BYPASS_END_USER_AUTH]",
 		} {
 			assert.Contains(t, entries, want)
 		}

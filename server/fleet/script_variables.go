@@ -16,9 +16,11 @@ var FleetVarsSupportedInScripts = []FleetVarName{
 	FleetVarHostEndUserIDPFullname,
 	FleetVarHostEndUserIDPGroups,
 	FleetVarHostEndUserIDPDepartment,
+	FleetVarHostEndUserIDPExternalID,
 	FleetVarHostHardwareSerial,
 	FleetVarHostUUID,
 	FleetVarHostPlatform,
+	FleetVarNDESSCEPChallenge,
 }
 
 // FindUnsupportedScriptFleetVar returns the name of a $FLEET_VAR_* reference,

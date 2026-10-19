@@ -310,6 +310,16 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.UniqueIdentifier, out.Version,
 		)
 	}
+	switch input.Token {
+	case "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3":
+		// CFBundleShortVersionString is major.minor only ("26.3" for cask "26.3.5"),
+		// which version_compare sorts below the cask version even for x.y.0 releases;
+		// CFBundleVersion carries the full cask version.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
 	if input.Token == "r-app" {
 		// R.app's bundle_short_version is a descriptive string rather than a bare
 		// version ("R" is duplicated in some builds and not others, e.g.
@@ -361,6 +371,12 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		// Also match the executable in the browser's code sign clone, macOS reports a running Chromium browser there after the browser updates itself while open.
 		out.Queries.Open = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat('%%/', a.bundle_identifier, '.code_sign_clone/%%/Contents/MacOS/', a.bundle_executable)) WHERE a.bundle_identifier = '%s' AND a.bundle_executable != '');",
+			out.UniqueIdentifier,
+		)
+	case "kicad":
+		// KiCad's editors (PCB Editor, Schematic Editor, ...) can also run as their own apps nested in KiCad.app/Contents/Applications.
+		out.Queries.Open = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat(a.path, '/Contents/Applications/%%.app/Contents/MacOS/%%')) WHERE a.bundle_identifier = '%s' AND a.bundle_executable != '');",
 			out.UniqueIdentifier,
 		)
 	}

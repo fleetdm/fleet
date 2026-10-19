@@ -13,6 +13,7 @@ import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import {
   IEnrollSecret,
@@ -101,6 +102,11 @@ const TeamDetailsWrapper = ({
     setCurrentUser,
     config,
   } = useContext(AppContext);
+
+  const { gitOpsModeEnabled } = useGitOpsMode();
+  const { gitOpsModeEnabled: secretsGitOpsModeEnabled } = useGitOpsMode(
+    "secrets"
+  );
 
   const {
     currentTeamId,
@@ -430,6 +436,7 @@ const TeamDetailsWrapper = ({
                 buttonVariant: "secondary",
                 onClick: toggleManageEnrollSecretsModal,
                 gitOpsModeCompatible: true,
+                disabled: secretsGitOpsModeEnabled,
               },
               {
                 type: "secondary",
@@ -437,6 +444,7 @@ const TeamDetailsWrapper = ({
                 buttonVariant: "secondary",
                 onClick: toggleRenameFleetModal,
                 gitOpsModeCompatible: true,
+                disabled: gitOpsModeEnabled,
               },
               {
                 type: "secondary",
@@ -445,6 +453,7 @@ const TeamDetailsWrapper = ({
                 hideAction: !isGlobalAdmin,
                 onClick: toggleDeleteFleetModal,
                 gitOpsModeCompatible: true,
+                disabled: gitOpsModeEnabled,
               },
             ]}
           />

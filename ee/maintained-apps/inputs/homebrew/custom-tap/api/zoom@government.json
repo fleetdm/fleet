@@ -1,0 +1,110 @@
+{
+  "token": "zoom@government",
+  "old_tokens": [],
+  "name": [
+    "Zoom for Government"
+  ],
+  "desc": "Video communication and virtual meeting platform for government agencies",
+  "homepage": "https://www.zoomgov.com/",
+  "url": "https://www.zoomgov.com/client/7.2.2.88465/ZoomInstallerIT.pkg",
+  "url_specs": {},
+  "version": "7.2.2.88465",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "sha256": "422f801771ef0c3db68bdf1a47a9c44e18b6f822b2f5d751adc3242270dc6417",
+  "artifacts": [
+    {
+      "uninstall": [
+        {
+          "launchctl": "us.zoom.ZoomDaemon",
+          "signal": [
+            "KILL",
+            "us.zoom.xos"
+          ],
+          "pkgutil": "us.zoom.pkg.videomeeting",
+          "delete": [
+            "/Applications/zoom.us.app",
+            "/Library/Audio/Plug-Ins/HAL/ZoomAudioDevice.driver",
+            "/Library/Internet Plug-Ins/ZoomUsPlugIn.plugin",
+            "/Library/Logs/DiagnosticReports/zoom.us*",
+            "/Library/PrivilegedHelperTools/us.zoom.ZoomDaemon"
+          ]
+        }
+      ]
+    },
+    {
+      "pkg": [
+        "ZoomInstallerIT.pkg"
+      ]
+    },
+    {
+      "zap": [
+        {
+          "trash": [
+            "/Library/Preferences/us.zoom.config.plist",
+            "~/.zoomus",
+            "~/Desktop/Zoom",
+            "~/Documents/Zoom",
+            "~/Library/Application Scripts/*.ZoomClient3rd",
+            "~/Library/Application Support/CloudDocs/session/containers/iCloud.us.zoom.videomeetings",
+            "~/Library/Application Support/CloudDocs/session/containers/iCloud.us.zoom.videomeetings.plist",
+            "~/Library/Application Support/CrashReporter/zoom.us*",
+            "~/Library/Application Support/zoom.us",
+            "~/Library/Caches/us.zoom.xos",
+            "~/Library/Cookies/us.zoom.xos.binarycookies",
+            "~/Library/Group Containers/*.ZoomClient3rd",
+            "~/Library/HTTPStorages/us.zoom.xos",
+            "~/Library/HTTPStorages/us.zoom.xos.binarycookies",
+            "~/Library/Internet Plug-Ins/ZoomUsPlugIn.plugin",
+            "~/Library/Logs/zoom.us",
+            "~/Library/Logs/zoominstall.log",
+            "~/Library/Logs/ZoomPhone",
+            "~/Library/Mobile Documents/iCloud~us~zoom~videomeetings",
+            "~/Library/Preferences/us.zoom.airhost.plist",
+            "~/Library/Preferences/us.zoom.caphost.plist",
+            "~/Library/Preferences/us.zoom.Transcode.plist",
+            "~/Library/Preferences/us.zoom.xos.Hotkey.plist",
+            "~/Library/Preferences/us.zoom.xos.plist",
+            "~/Library/Preferences/us.zoom.ZoomAutoUpdater.plist",
+            "~/Library/Preferences/ZoomChat.plist",
+            "~/Library/Safari/PerSiteZoomPreferences.plist",
+            "~/Library/SafariTechnologyPreview/PerSiteZoomPreferences.plist",
+            "~/Library/Saved Application State/us.zoom.xos.savedState",
+            "~/Library/WebKit/us.zoom.xos"
+          ]
+        }
+      ]
+    }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+    "macos": {}
+  },
+  "conflicts_with": null,
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "languages": [],
+  "ruby_source_path": "Casks/zoom@government.rb",
+  "ruby_source_checksum": {
+    "sha256": "99018adaa9b2c395ac0f3ef25a6c9718255496f29f35d1f93f60667babc4adc6"
+  }
+}

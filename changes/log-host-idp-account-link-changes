@@ -1,0 +1,1 @@
+- Added the `unbound_host_from_idp_account` activity, and Fleet now logs `bound_host_to_idp_account` and `unbound_host_from_idp_account` whenever enrollment links, replaces, or removes a host's IdP account.

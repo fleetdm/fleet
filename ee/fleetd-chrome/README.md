@@ -73,16 +73,11 @@ npm run test
 4. At `ee/fleetd-chrome`, run `npm version X.X.X` to update the version in `package.json` and `package-lock.json`
 5. Commit the changes and tag the commit with `fleetd-chrome-vX.X.X-beta`. This will trigger the beta release workflow.
 6. Test your beta release:
-   1. Open the Google admin console (https://admin.google.com)
-   2. Go to Devices > Chrome > Apps & Extensions > Users & browsers
-   3. Under Organizational Units, select the group that your ChromeOS device is in, or the top-level Fleet Device Management OU to test the beta on all ChromeOS devices (yours may not be in a specific OU).
-   4. Select the production extension (fleeedmmihkfkeemmipgmhhjemlljidg), change its installation policy to "Block", and save your changes. This will remove the production extension from the selected devices so that you can test the beta.
-       > Note: some Fleet employees may see a "This extension is not allowed" warning pop up in their browsers after this step. This is normal.
-   5. Select the beta extension (bfleegjcoffelppfmadimianphbcdjkb), change its installation policy to "Force install" and save your change. This will push the beta extension out to the selected devices.
-   6. Verify that the beta extension has installed on a device using the Chrome extension manager, and test your changes!
+   1. In Google Groups (https://groups.google.com), switch to "All groups" and remove yourself from the "Chromebooks" group. You can only be in one of "Chromebooks" or "ChromeOS testers" at a time.
+   2. Add yourself to the "ChromeOS testers" group. Members of this group get the beta extension (bfleegjcoffelppfmadimianphbcdjkb).
+   3. Verify that the beta extension has installed on your device using the Chrome extension manager, and test your changes!
 7. Once the beta release is tested, make a PR with the updates to the version and changelog and tag the commit with `fleetd-chrome-vX.X.X`. This will trigger the release workflow. 
-8. In the Google admin console, set the beta extension installation policy to "Block" and the production extension to "Force install".
-    > Note: some Fleet employees may see a "This extension is not allowed" warning pop up in their browsers after this step. This is normal.
+8. Remove yourself from the "ChromeOS testers" group. To go back to the production extension (fleeedmmihkfkeemmipgmhhjemlljidg), add yourself to the "Chromebooks" group.
 9. Announce the release in the #help-releases and #help-engineering channels in Slack.
 
 Using GitHub Actions, the build is automatically uploaded to R2 and properly configured clients should be able to update immediately when the job completes. Note that automatic updates seem to only happen about once a day in Chrome -- Hit the "Update" button in `chrome://extensions` to trigger the update manually.

@@ -336,6 +336,7 @@ module.exports.custom = {
     'mdm_profiles': ['lukeheath'],//« for dogfood.fleetdm.com, this is the required OS settings applied to contributor Macs
     'vpn': ['rfairburn', 'lukeheath'],// « for managing VPN rules for accessing customer and Fleet Sandbox infrastructure
     '.github/workflows': ['lukeheath'],//« CI/CD workflows
+    '.claude': ['lukeheath'],//« Claude Code skills and settings
 
     // Issue templates
     '.github/ISSUE_TEMPLATE/3-sale.md': ['sampfluger88'],
@@ -490,6 +491,11 @@ module.exports.custom = {
   // Metrics:
   // engMetricsGcpServiceAccountKey: '…',
   // datadogApiKey: '…',
+
+  // Usage statistics Google sheet:
+  // usageStatisticsServiceAccountEmailAddress: '…',
+  // usageStatisticsServiceAccountPrivateKey: '…',
+  // usageStatisticsSpreadsheetId: '…',
 
   // For receive-from-customer-fleet-instance webhook.
   // customerWorkspaceOneBaseUrl: '…',

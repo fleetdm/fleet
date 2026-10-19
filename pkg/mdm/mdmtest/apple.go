@@ -56,12 +56,6 @@ type TestAppleMDMClient struct {
 	// EnrollInfo holds the information necessary to enroll to an MDM server.
 	EnrollInfo AppleEnrollInfo
 
-	// SimulateSCEPRenewal, when true, makes the device omit the new-enrollment Subject OU from its SCEP
-	// CSR even if the fetched profile carries one. Real SCEP renewals re-key from a pushed renewal
-	// profile (which never carries the marker), so tests set this to exercise renewal (rather than
-	// fresh-enrollment) checkin behavior while still replaying the full re-enroll flow.
-	SimulateSCEPRenewal bool
-
 	// UserUUID is a random fake unique ID of a simulated user. Only filled in if a user enrollment
 	// is done
 	UserUUID string
@@ -423,6 +417,40 @@ func (c *TestAppleMDMClient) enrollDevice(awaitingConfiguration bool) error {
 // Re-enroll runs the MDM enroll protocol on the simulated device, but TokenUpdate is not set as AwaitingConfiguration
 func (c *TestAppleMDMClient) Reenroll() error {
 	return c.enrollDevice(false)
+}
+
+// Renew installs a renewal enrollment profile the device received in the InstallProfile command cmdUUID (signed or
+// not): it re-keys with the profile's SCEP challenge or ACME directory, checks in again without fetching a new
+// profile, and then acknowledges the command with its new identity, like a real device. It returns the server's
+// response to that acknowledgment.
+func (c *TestAppleMDMClient) Renew(cmdUUID string, profile []byte) (*mdm.Command, error) {
+	if p7, err := pkcs7.Parse(profile); err == nil {
+		profile = p7.Content
+	}
+	enrollInfo, err := ParseEnrollmentProfile(profile)
+	if err != nil {
+		return nil, fmt.Errorf("parse renewal profile: %w", err)
+	}
+	enrollInfo.RawProfile = profile
+	c.EnrollInfo = *enrollInfo
+
+	if enrollInfo.ACMEURL != "" {
+		if err := c.UseACMEDirectory(enrollInfo.ACMEURL); err != nil {
+			return nil, err
+		}
+		if err := c.ACMEEnroll(); err != nil {
+			return nil, fmt.Errorf("ACME enroll: %w", err)
+		}
+	} else if err := c.SCEPEnroll(); err != nil {
+		return nil, fmt.Errorf("scep enroll: %w", err)
+	}
+	if err := c.Authenticate(); err != nil {
+		return nil, fmt.Errorf("authenticate: %w", err)
+	}
+	if err := c.TokenUpdate(false); err != nil {
+		return nil, fmt.Errorf("token update: %w", err)
+	}
+	return c.Acknowledge(cmdUUID)
 }
 
 func (c *TestAppleMDMClient) UserEnroll() error {
@@ -813,26 +841,25 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfile(path string, body []byte) (e
 	c.EnrollInfo = *enrollInfo
 
 	if enrollInfo.ACMEURL != "" {
-		if c.acmeCertCA == nil || c.acmeCertCAKey == nil {
-			return errors.New("ACME enrollment requested but no cert/key provided")
-		}
-		c.acmeClient = &acme.Client{
-			Key:          c.acmeCertCAKey,
-			DirectoryURL: enrollInfo.ACMEURL,
-			HTTPClient:   fleethttp.NewClient(fleethttp.WithNoTimeout()),
-		}
+		return c.UseACMEDirectory(enrollInfo.ACMEURL)
 	}
 
 	return nil
 }
 
-// enrollmentSubjectOUs returns the Subject OUs to place in the device's CSR (SCEP or ACME). It honors
-// SimulateSCEPRenewal by omitting them, since a renewal profile carries no new-enrollment marker OU.
-func (c *TestAppleMDMClient) enrollmentSubjectOUs() []string {
-	if c.SimulateSCEPRenewal {
-		return nil
+// UseACMEDirectory points the device's next ACMEEnroll at directoryURL, as installing a profile with that ACME
+// payload would.
+func (c *TestAppleMDMClient) UseACMEDirectory(directoryURL string) error {
+	if c.acmeCertCA == nil || c.acmeCertCAKey == nil {
+		return errors.New("ACME enrollment requested but no cert/key provided")
 	}
-	return c.EnrollInfo.SCEPSubjectOUs
+	c.EnrollInfo.ACMEURL = directoryURL
+	c.acmeClient = &acme.Client{
+		Key:          c.acmeCertCAKey,
+		DirectoryURL: directoryURL,
+		HTTPClient:   fleethttp.NewClient(fleethttp.WithNoTimeout()),
+	}
+	return nil
 }
 
 func (c *TestAppleMDMClient) doSCEP(url, challenge string) (*x509.Certificate, *rsa.PrivateKey, error) {
@@ -848,7 +875,7 @@ func (c *TestAppleMDMClient) doSCEP(url, challenge string) (*x509.Certificate, *
 		Subject: pkix.Name{
 			CommonName:         cn,
 			Organization:       []string{"fleet-organization"},
-			OrganizationalUnit: c.enrollmentSubjectOUs(),
+			OrganizationalUnit: c.EnrollInfo.SCEPSubjectOUs,
 		},
 		Challenge: challenge,
 	}, logger)
@@ -911,8 +938,14 @@ func (c *TestAppleMDMClient) ACMEEnroll() error {
 		return fmt.Errorf("expected challenge type device-attest-01, got %s", authz.Challenges[0].Type)
 	}
 
+	// Like a real device's hardware key: attested, then used for the CSR.
+	acmeKey, err := testhelpers.GenerateTestKey()
+	if err != nil {
+		return fmt.Errorf("generate ACME key: %w", err)
+	}
+
 	challenge := authz.Challenges[0]
-	leafCert, err := testhelpers.BuildAttestationLeafCert(c.acmeCertCA, c.acmeCertCAKey, c.SerialNumber, challenge.Token)
+	leafCert, err := testhelpers.BuildAttestationLeafCertForKey(c.acmeCertCA, c.acmeCertCAKey, &acmeKey.PublicKey, c.SerialNumber, challenge.Token)
 	if err != nil {
 		return fmt.Errorf("build attestation leaf cert: %w", err)
 	}
@@ -934,7 +967,7 @@ func (c *TestAppleMDMClient) ACMEEnroll() error {
 		return fmt.Errorf("challenge not valid after acceptance, status: %s", challenge.Status)
 	}
 
-	encoded, acmeKey, err := testhelpers.GenerateCSRDER(c.SerialNumber, c.enrollmentSubjectOUs()...)
+	encoded, err := testhelpers.GenerateCSRDERWithKey(acmeKey, c.SerialNumber, c.EnrollInfo.SCEPSubjectOUs...)
 	if err != nil {
 		return fmt.Errorf("generate CSR DER: %w", err)
 	}
@@ -1171,6 +1204,24 @@ func (c *TestAppleMDMClient) AcknowledgeVerifyRecoveryLock(cmdUUID string, passw
 		"EnrollmentID":     "testenrollmentid-" + c.Identifier(),
 		"CommandUUID":      cmdUUID,
 		"PasswordVerified": passwordVerified,
+	}
+	if c.UUID != "" {
+		payload["UDID"] = c.UUID
+	}
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
+// AcknowledgeRotateFileVaultKey acknowledges a RotateFileVaultKey command with
+// the new recovery key encrypted to the command's ReplyEncryptionCertificate.
+func (c *TestAppleMDMClient) AcknowledgeRotateFileVaultKey(cmdUUID string, encryptedNewRecoveryKey []byte) (*mdm.Command, error) {
+	payload := map[string]any{
+		"Status":       "Acknowledged",
+		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
+		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
+		"CommandUUID":  cmdUUID,
+		"RotateResult": map[string]any{
+			"EncryptedNewRecoveryKey": encryptedNewRecoveryKey,
+		},
 	}
 	if c.UUID != "" {
 		payload["UDID"] = c.UUID

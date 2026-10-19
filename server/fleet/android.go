@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"reflect"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -28,8 +31,10 @@ type MDMAndroidConfigProfile struct {
 	ProfileUUID      string                      `db:"profile_uuid" json:"profile_uuid"`
 	TeamID           *uint                       `db:"team_id" json:"team_id" renameto:"fleet_id"`
 	Name             string                      `db:"name" json:"name"`
+	Description      string                      `db:"description" json:"description"`
 	RawJSON          []byte                      `db:"raw_json" json:"-"`
 	AutoIncrement    int64                       `db:"auto_increment" json:"auto_increment"`
+	Hidden           bool                        `db:"hidden" json:"hidden"`
 	LabelsIncludeAll []ConfigurationProfileLabel `db:"-" json:"labels_include_all,omitempty"`
 	LabelsIncludeAny []ConfigurationProfileLabel `db:"-" json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`
@@ -64,6 +69,9 @@ var AndroidPremiumOnlyJSONKeys = map[string]string{
 func (m *MDMAndroidConfigProfile) ValidateUserProvided(isPremium bool) error {
 	if len(bytes.TrimSpace(m.RawJSON)) == 0 {
 		return errors.New("The file should include valid JSON.")
+	}
+	if strings.TrimSpace(m.Name) == "" {
+		return errors.New("Profile name can't be empty.")
 	}
 	fleetNames := mdm.FleetReservedProfileNames()
 	if _, ok := fleetNames[m.Name]; ok {
@@ -245,6 +253,7 @@ type HostMDMAndroidProfile struct {
 	Status        *MDMDeliveryStatus `db:"status" json:"status"`
 	OperationType MDMOperationType   `db:"operation_type" json:"operation_type"`
 	Detail        string             `db:"detail" json:"detail"`
+	Hidden        bool               `db:"hidden" json:"hidden"`
 }
 
 func (p HostMDMAndroidProfile) ToHostMDMProfile() HostMDMProfile {
@@ -257,6 +266,8 @@ func (p HostMDMAndroidProfile) ToHostMDMProfile() HostMDMProfile {
 		OperationType: p.OperationType,
 		Detail:        p.Detail,
 		Platform:      "android",
+		Hidden:        p.Hidden,
+		SelfService:   false,
 	}
 }
 
@@ -324,6 +335,7 @@ var FleetVarsSupportedInAndroidAppConfig = []FleetVarName{
 	FleetVarHostEndUserIDPGroups,
 	FleetVarHostEndUserIDPDepartment,
 	FleetVarHostEndUserIDPFullname,
+	FleetVarHostEndUserIDPExternalID,
 }
 
 var validAndroidWorkProfileWidgets = map[string]struct{}{
@@ -337,9 +349,35 @@ var validAndroidCredentialProviderPolicies = map[string]struct{}{
 	"CREDENTIAL_PROVIDER_ALLOWED":            {},
 }
 
+// androidAppConfigDeniedKeys are ApplicationPolicy fields Fleet sets itself: packageName is the
+// software title's identity and installType is how Fleet drives self-service vs. setup experience.
+// Keys are lowercased because encoding/json, which the worker uses to read stored configs, matches
+// field names case-insensitively.
+var androidAppConfigDeniedKeys = map[string]struct{}{
+	"packagename": {},
+	"installtype": {},
+}
+
+// androidApplicationPolicyFields returns the lowercased JSON names of
+// androidmanagement.ApplicationPolicy's fields. Allowed keys follow the vendored
+// google.golang.org/api version, so a field Google adds later is rejected until that dependency is
+// bumped.
+var androidApplicationPolicyFields = sync.OnceValue(func() map[string]struct{} {
+	fields := make(map[string]struct{})
+	for field := range reflect.TypeFor[androidmanagement.ApplicationPolicy]().Fields() {
+		name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
+		if name != "" && name != "-" {
+			fields[strings.ToLower(name)] = struct{}{}
+		}
+	}
+	return fields
+})
+
+var unknownJSONFieldRegexp = regexp.MustCompile(`unknown field ("(?:[^"\\]|\\.)*")`)
+
 // ValidateAndroidAppConfiguration validates Android app configuration JSON.
-// Configuration must be valid JSON with only "managedConfiguration",
-// "workProfileWidgets" and/or "credentialProviderPolicy" as top-level keys.
+// Configuration must be a valid JSON object whose top-level keys are
+// ApplicationPolicy fields, other than "packageName" and "installType".
 // Empty configuration is not allowed.
 func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 	if len(config) == 0 {
@@ -348,20 +386,39 @@ func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 		}
 	}
 
-	type androidAppConfig struct {
-		ManagedConfiguration     json.RawMessage `json:"managedConfiguration"`
-		WorkProfileWidgets       string          `json:"workProfileWidgets"`
-		CredentialProviderPolicy string          `json:"credentialProviderPolicy"`
+	var topLevel map[string]json.RawMessage
+	if err := json.Unmarshal(config, &topLevel); err != nil || topLevel == nil {
+		return &BadRequestError{
+			Message: "Couldn't update configuration. Invalid JSON.",
+		}
 	}
 
-	var cfg androidAppConfig
-	if err := JSONStrictDecode(bytes.NewReader(config), &cfg); err != nil {
-		if strings.Contains(err.Error(), "unknown field") {
+	keys := slices.Sorted(maps.Keys(topLevel))
+	for _, key := range keys {
+		if _, denied := androidAppConfigDeniedKeys[strings.ToLower(key)]; denied {
 			return &BadRequestError{
-				Message: `Couldn't update configuration. Only "managedConfiguration", "workProfileWidgets", and "credentialProviderPolicy" are supported as top-level keys.`,
+				Message: `Couldn't update configuration. "packageName" and "installType" are not supported as top-level keys.`,
 			}
 		}
+	}
+	allowedFields := androidApplicationPolicyFields()
+	for _, key := range keys {
+		if _, ok := allowedFields[strings.ToLower(key)]; !ok {
+			return &BadRequestError{Message: fmt.Sprintf("Couldn't update configuration. Unknown top-level key %q.", key)}
+		}
+	}
 
+	// managedConfiguration is a RawMessage, so the strict decode leaves app-defined keys alone.
+	var cfg androidmanagement.ApplicationPolicy
+	if err := JSONStrictDecode(bytes.NewReader(config), &cfg); err != nil {
+		if fieldPath := jsondecode.FieldPath(err); jsondecode.IsTypeError(err) && fieldPath != "" {
+			return &BadRequestError{Message: fmt.Sprintf("Couldn't update configuration. %q format is wrong.", fieldPath)}
+		}
+		if m := unknownJSONFieldRegexp.FindStringSubmatch(err.Error()); m != nil {
+			if name, uerr := strconv.Unquote(m[1]); uerr == nil {
+				return &BadRequestError{Message: fmt.Sprintf("Couldn't update configuration. Unknown key %q.", name)}
+			}
+		}
 		return &BadRequestError{
 			Message: "Couldn't update configuration. Invalid JSON.",
 		}

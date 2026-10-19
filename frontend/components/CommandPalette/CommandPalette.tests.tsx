@@ -618,6 +618,63 @@ describe("CommandPalette", () => {
       expect(screen.queryByText("OS updates")).not.toBeInTheDocument();
     });
 
+    describe("Add profile for an admin of one fleet and technician of another", () => {
+      const mixedRoleRender = (currentFleetRoles: {
+        isTeamAdmin: boolean;
+        isTeamTechnician: boolean;
+      }) =>
+        createCustomRenderer({
+          withBackendMock: true,
+          context: {
+            app: {
+              currentUser: {
+                id: 3,
+                name: "Mixed roles",
+                email: "mixed@fleet.co",
+                global_role: null,
+              },
+              config: createMockConfig(),
+              isGlobalAdmin: false,
+              isGlobalMaintainer: false,
+              isAnyTeamAdmin: true,
+              isAnyTeamMaintainer: false,
+              isGlobalTechnician: false,
+              isAnyTeamTechnician: true,
+              isTeamMaintainer: false,
+              ...currentFleetRoles,
+              isPremiumTier: true,
+              isNoAccess: false,
+              isOnlyObserver: false,
+              availableTeams: [
+                { id: 1, name: "Engineering" },
+                { id: 2, name: "Sales" },
+              ],
+              currentTeam: { id: 2, name: "Sales" },
+            },
+          },
+        })(<CommandPalette />);
+
+      it("shows it on the fleet they admin", async () => {
+        const { user } = mixedRoleRender({
+          isTeamAdmin: true,
+          isTeamTechnician: false,
+        });
+        await openPalette(user);
+
+        expect(screen.getByText("Add profile")).toBeInTheDocument();
+      });
+
+      it("hides it on the fleet where they're a technician", async () => {
+        const { user } = mixedRoleRender({
+          isTeamAdmin: false,
+          isTeamTechnician: true,
+        });
+        await openPalette(user);
+
+        expect(screen.queryByText("Add profile")).not.toBeInTheDocument();
+      });
+    });
+
     it("hides Settings group for non-admins", async () => {
       const { user } = observerRender(<CommandPalette />);
       await openPalette(user);

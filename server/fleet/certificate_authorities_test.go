@@ -11,6 +11,23 @@ func TestValidateCertificateAuthoritiesSpec(t *testing.T) {
 	// TODO(hca): placeholder for additional tests to the extent not otherwise covered by client_test
 }
 
+func TestEffectiveEJBCAUsernameTemplate(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		ca       CertificateAuthority
+		expected string
+	}{
+		{"username template set", CertificateAuthority{EJBCAUsernameTemplate: new("user"), CertificateCommonName: new("cn")}, "user"},
+		{"username template unset", CertificateAuthority{CertificateCommonName: new("cn")}, "cn"},
+		{"username template empty", CertificateAuthority{EJBCAUsernameTemplate: new(""), CertificateCommonName: new("cn")}, "cn"},
+		{"nothing set", CertificateAuthority{}, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.expected, tc.ca.EffectiveEJBCAUsernameTemplate())
+		})
+	}
+}
+
 func TestGroupedCertificateAuthorities(t *testing.T) {
 	grouped := GroupedCertificateAuthorities{
 		NDESSCEP: &NDESSCEPProxyCA{ // should not be included
@@ -183,5 +200,66 @@ func TestRequestCertificatePayloadIdPCredentialsProvided(t *testing.T) {
 		require.ErrorContains(t, err, "all must be provided")
 		var bre *BadRequestError
 		require.ErrorAs(t, err, &bre)
+	}
+}
+
+func TestCertificateAuthorityESTProxyCA(t *testing.T) {
+	for name, tc := range map[string]struct {
+		ca      CertificateAuthority
+		want    ESTProxyCA
+		wantErr string
+	}{
+		"hydrant uses the client ID and secret": {
+			ca: CertificateAuthority{
+				ID: 1, Type: string(CATypeHydrant), Name: new("Hydrant"), URL: new("https://hydrant.example.com"),
+				ClientID: new("client-id"), ClientSecret: new("client-secret"),
+			},
+			want: ESTProxyCA{ID: 1, Name: "Hydrant", URL: "https://hydrant.example.com", Username: "client-id", Password: "client-secret"},
+		},
+		"custom EST uses the username and password": {
+			ca: CertificateAuthority{
+				ID: 2, Type: string(CATypeCustomESTProxy), Name: new("EST"), URL: new("https://est.example.com"),
+				Username: new("user"), Password: new("pass"),
+			},
+			want: ESTProxyCA{ID: 2, Name: "EST", URL: "https://est.example.com", Username: "user", Password: "pass"},
+		},
+		"hydrant without a client ID": {
+			ca:      CertificateAuthority{Type: string(CATypeHydrant), Name: new("Hydrant"), URL: new("u"), ClientSecret: new("s")},
+			wantErr: "Certificate authority does not have a client ID configured.",
+		},
+		"hydrant without a client secret": {
+			ca:      CertificateAuthority{Type: string(CATypeHydrant), Name: new("Hydrant"), URL: new("u"), ClientID: new("c")},
+			wantErr: "Certificate authority does not have a client secret configured.",
+		},
+		"custom EST without a username": {
+			ca:      CertificateAuthority{Type: string(CATypeCustomESTProxy), Name: new("EST"), URL: new("u"), Password: new("p")},
+			wantErr: "Certificate authority does not have a username configured.",
+		},
+		"custom EST without a password": {
+			ca:      CertificateAuthority{Type: string(CATypeCustomESTProxy), Name: new("EST"), URL: new("u"), Username: new("u")},
+			wantErr: "Certificate authority does not have a password configured.",
+		},
+		"without a URL": {
+			ca:      CertificateAuthority{Type: string(CATypeCustomESTProxy), Name: new("EST"), Username: new("u"), Password: new("p")},
+			wantErr: "Certificate authority does not have a URL configured.",
+		},
+		"without a name": {
+			ca:   CertificateAuthority{Type: string(CATypeCustomESTProxy), URL: new("https://est.example.com"), Username: new("u"), Password: new("p")},
+			want: ESTProxyCA{URL: "https://est.example.com", Username: "u", Password: "p"},
+		},
+		"another type is not an EST CA": {
+			ca:      CertificateAuthority{Type: string(CATypeNDESSCEPProxy), Name: new("NDES"), URL: new("u")},
+			wantErr: "Certificate authority of type ndes_scep_proxy is not an EST certificate authority.",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			got, err := tc.ca.ESTProxyCA()
+			if tc.wantErr != "" {
+				require.EqualError(t, err, tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
 	}
 }

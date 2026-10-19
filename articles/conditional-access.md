@@ -15,6 +15,9 @@ You can also use Fleet's API for conditional access with:
 
 To require managed Windows hosts in Okta, see [Enable Okta Verify on Windows](https://fleetdm.com/guides/enable-okta-verify-on-windows-using-a-scep-configuration-profile).
 
+You can also use Fleet's API for conditional access with:
+- [Google](https://fleetdm.com/guides/google-conditional-access-integration) (iOS and iPadOS): require managed hosts
+
 ## How it works
 
 1. IT enables the conditional access automation for the policies which determine access.

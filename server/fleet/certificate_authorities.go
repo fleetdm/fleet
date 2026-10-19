@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,11 +18,12 @@ const (
 	CAConfigDigiCert        CAConfigAssetType = "digicert"
 	CAConfigCustomSCEPProxy CAConfigAssetType = "custom_scep_proxy"
 	CAConfigSmallstep       CAConfigAssetType = "smallstep"
+	CAConfigEJBCA           CAConfigAssetType = "ejbca"
 )
 
 // ListCATypesWithRenewalSupport returns the CA types that support renewal by Fleet
 func ListCATypesWithRenewalSupport() []CAConfigAssetType {
-	return []CAConfigAssetType{CAConfigDigiCert, CAConfigCustomSCEPProxy, CAConfigNDES, CAConfigSmallstep}
+	return []CAConfigAssetType{CAConfigDigiCert, CAConfigCustomSCEPProxy, CAConfigNDES, CAConfigSmallstep, CAConfigEJBCA}
 }
 
 // ListCATypesWithRenewalIDSupport returns the CA types that support renewal IDs within the profile. Digicert
@@ -69,6 +71,7 @@ const (
 	CATypeHydrant         CAType = "hydrant"
 	CATypeCustomESTProxy  CAType = "custom_est_proxy" // Enrollment over Secure Transport
 	CATypeSmallstep       CAType = "smallstep"
+	CATypeEJBCA           CAType = "ejbca"
 )
 
 type CertificateAuthoritySummary struct {
@@ -110,12 +113,74 @@ type CertificateAuthority struct {
 	ClientID     *string `json:"client_id,omitempty" db:"client_id"`
 	ClientSecret *string `json:"client_secret,omitempty" db:"-"`
 
+	// EJBCA. The mTLS cert and key are never serialized and the key is encrypted at rest. The CSR common name and UPNs use the DigiCert
+	// fields. The username template is optional and defaults to the common name template.
+	MTLSCertPEM                 *string    `json:"-" db:"mtls_cert_pem"`
+	MTLSKeyPEM                  *string    `json:"-" db:"-"`
+	TrustCABundlePEM            *string    `json:"trust_ca_bundle,omitempty" db:"trust_ca_bundle_pem"`
+	EJBCACAName                 *string    `json:"certificate_authority_name,omitempty" db:"ejbca_ca_name"`
+	EJBCACertificateProfileName *string    `json:"certificate_profile_name,omitempty" db:"ejbca_certificate_profile_name"`
+	EJBCAEndEntityProfileName   *string    `json:"end_entity_profile_name,omitempty" db:"ejbca_end_entity_profile_name"`
+	EJBCAUsernameTemplate       *string    `json:"username_template,omitempty" db:"ejbca_username_template"`
+	MTLSCertExpiresAt           *time.Time `json:"mtls_cert_expires_at,omitempty" db:"-"` // derived from MTLSCertPEM on read
+
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
 
 func (c *CertificateAuthority) AuthzType() string {
 	return "certificate_authority"
+}
+
+// EffectiveEJBCAUsernameTemplate returns the template for the EJBCA username, which defaults to the common name template when unset.
+func (c *CertificateAuthority) EffectiveEJBCAUsernameTemplate() string {
+	if c.EJBCAUsernameTemplate != nil && *c.EJBCAUsernameTemplate != "" {
+		return *c.EJBCAUsernameTemplate
+	}
+	if c.CertificateCommonName != nil {
+		return *c.CertificateCommonName
+	}
+	return ""
+}
+
+// ESTProxyCA returns the EST connection settings of a Hydrant or custom EST CA, which store
+// their credentials in different fields.
+func (c *CertificateAuthority) ESTProxyCA() (ESTProxyCA, error) {
+	var username, password *string
+	switch CAType(c.Type) {
+	case CATypeHydrant:
+		if c.ClientID == nil {
+			return ESTProxyCA{}, errors.New("Certificate authority does not have a client ID configured.")
+		}
+		if c.ClientSecret == nil {
+			return ESTProxyCA{}, errors.New("Certificate authority does not have a client secret configured.")
+		}
+		username, password = c.ClientID, c.ClientSecret
+	case CATypeCustomESTProxy:
+		if c.Username == nil {
+			return ESTProxyCA{}, errors.New("Certificate authority does not have a username configured.")
+		}
+		if c.Password == nil {
+			return ESTProxyCA{}, errors.New("Certificate authority does not have a password configured.")
+		}
+		username, password = c.Username, c.Password
+	default:
+		return ESTProxyCA{}, fmt.Errorf("Certificate authority of type %s is not an EST certificate authority.", c.Type)
+	}
+	if c.URL == nil {
+		return ESTProxyCA{}, errors.New("Certificate authority does not have a URL configured.")
+	}
+	var name string
+	if c.Name != nil {
+		name = *c.Name
+	}
+	return ESTProxyCA{
+		ID:       c.ID,
+		Name:     name,
+		URL:      *c.URL,
+		Username: *username,
+		Password: *password,
+	}, nil
 }
 
 type CertificateAuthorityPayload struct {
@@ -232,6 +297,15 @@ type SCEPConfigService interface {
 	ValidateSCEPURL(ctx context.Context, url string) error
 	ValidateSmallstepChallengeURL(ctx context.Context, ca SmallstepSCEPProxyCA) error
 	GetSmallstepSCEPChallenge(ctx context.Context, ca SmallstepSCEPProxyCA) (string, error)
+}
+
+// SCEPEnrollmentClient enrolls caller-supplied CSRs with an external SCEP CA on the caller's
+// behalf.
+type SCEPEnrollmentClient interface {
+	// GetCertificate enrolls csr, which must already carry any challenge the CA requires, against
+	// the SCEP server at url and returns the issued certificate. A failure expected to clear on its
+	// own is a CertificateAuthorityTransientError.
+	GetCertificate(ctx context.Context, url string, csr *x509.CertificateRequest) (*x509.Certificate, error)
 }
 
 type CustomSCEPProxyCA struct {

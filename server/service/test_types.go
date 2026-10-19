@@ -88,6 +88,7 @@ type TestServerOpts struct {
 	SoftwareInstallStore            fleet.SoftwareInstallerStore
 	BootstrapPackageStore           fleet.MDMBootstrapPackageStore
 	SoftwareTitleIconStore          fleet.SoftwareTitleIconStore
+	StagedUploadStore               fleet.StagedUploadStore
 	KeyValueStore                   fleet.KeyValueStore
 	EnableSCEPProxy                 bool
 	WithDEPWebview                  bool

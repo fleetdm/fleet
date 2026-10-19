@@ -43,6 +43,15 @@ const (
 	// requesting host the first time the profile is delivered and re-delivered
 	// unchanged until it is consumed by enrollment.
 	HostSecretEnrollSecret = "ENROLL_SECRET" // nolint:gosec // G101: this is a constant identifier, not a credential
+
+	// HostSecretFileVaultKey is the host secret type for the current FileVault personal recovery key, stored
+	// CMS-encrypted in host_disk_encryption_keys and injected as the unlock credential of RotateFileVaultKey.
+	HostSecretFileVaultKey = "FILEVAULT_KEY" // nolint:gosec // G101: this is a constant identifier, not a credential
+
+	// HostSecretSCEPChallenge is the host secret type for the Apple MDM SCEP challenge in renewal profiles. It's
+	// created for the enrollment the first time the profile is delivered and re-delivered unchanged until it's
+	// consumed or expires.
+	HostSecretSCEPChallenge = "SCEP_CHALLENGE" // nolint:gosec // G101: this is a constant identifier, not a credential
 )
 
 // HostSecretPlaceholder returns the placeholder string for a host secret type,

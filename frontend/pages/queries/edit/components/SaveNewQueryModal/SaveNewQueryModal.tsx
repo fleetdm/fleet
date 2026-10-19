@@ -217,10 +217,23 @@ const SaveNewQueryModal = ({
     }
   };
 
+  // Saving is a deliberate Save click; Enter in a field must not submit.
+  const onFormKeyDown = (evt: React.KeyboardEvent<HTMLFormElement>) => {
+    if (
+      evt.key === "Enter" &&
+      (evt.target as HTMLElement).tagName === "INPUT"
+    ) {
+      evt.preventDefault();
+    }
+  };
+
   return (
     <Modal title="Save report" onExit={toggleSaveNewQueryModal}>
+      {/* Only intercepts Enter bubbling from the form's own inputs. */}
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <form
         onSubmit={onClickSaveQuery}
+        onKeyDown={onFormKeyDown}
         className={baseClass}
         autoComplete="off"
       >
@@ -258,8 +271,8 @@ const SaveNewQueryModal = ({
           wrapperClassName={`${baseClass}__form-field form-field--frequency`}
           helpText={
             <>
-              Hosts report at fixed times (e.g., on the hour for a 1-hour
-              interval).{" "}
+              Counts time the host is awake. Hosts that sleep will report after
+              longer intervals of calendar time.{" "}
               <CustomLink
                 url="https://fleetdm.com/guides/reports#schedule-a-report"
                 text="Learn more"

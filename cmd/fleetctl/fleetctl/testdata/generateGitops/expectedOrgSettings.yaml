@@ -113,6 +113,7 @@ mdm:
         - "\U0001F4F1\U0001F510 Personal mobile devices"
   windows_automatic_enrollment:
     default_fleet: "\U0001F4BB Workstations"
+  windows_eula: ./lib/eula/terms.md
 org_info:
   contact_url: https://fleetdm.com/company/contact
   org_logo_url_dark_mode: http://some-org-logo-url.com

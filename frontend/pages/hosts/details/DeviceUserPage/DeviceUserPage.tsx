@@ -69,7 +69,6 @@ import SelfService from "../cards/Software/SelfService";
 import { parseSelfServiceQueryParams } from "../cards/Software/SelfService/SelfService";
 import UserCard from "../cards/User";
 import VitalsCard from "../cards/Vitals";
-import { hasReportedVitals } from "../HostDetailsPage/helpers";
 import { REFETCH_HOST_DETAILS_POLLING_INTERVAL } from "../HostDetailsPage/HostDetailsPage";
 import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
@@ -150,6 +149,7 @@ interface IDeviceUserPageProps {
       setup_only?: string;
       sso_error?: string;
       create_pin?: string;
+      mobile?: string;
     };
     search?: string;
   };
@@ -165,6 +165,10 @@ const DeviceUserPage = ({
   const deviceAuthToken = device_auth_token;
   const isMobileView = useIsMobileWidth();
   const isMobileDevice = isIPhone(navigator) || isIPad(navigator);
+  // ?mobile=1 dev override: latch at mount so SelfService navigations
+  // (which drop the param from the URL) don't flip us back to desktop.
+  const [mobileOverride] = useState(() => location.query.mobile === "1");
+  const isMobile = isMobileDevice || mobileOverride;
 
   const [showBypassModal, setShowBypassModal] = useState(false);
   const [showBitLockerPINModal, setShowBitLockerPINModal] = useState(false);
@@ -339,9 +343,9 @@ const DeviceUserPage = ({
         // Handle spinner and timer for refetch
         if (isRefetching(responseHost)) {
           setShowRefetchSpinner(true);
-          // A host without vitals is still on its enrollment refetch, which nobody asked for, so only a Refetch click gets toasts.
-          const shouldNotify =
-            hasReportedVitals(responseHost) || isUserRequestedRefetch;
+          // Automatic refetches (enrollment, software installs, admin requests) can catch a busy host between osquery check-ins,
+          // and the end user is at the host, so only their own refetch gets toasts. The status card still shows a real outage.
+          const shouldNotify = isUserRequestedRefetch;
 
           // Only set timer if not already running
           if (!refetchStartTime) {
@@ -364,11 +368,6 @@ const DeviceUserPage = ({
               }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
             } else {
               resetHostRefetchStates();
-              if (shouldNotify) {
-                notify.error(
-                  `This host is offline. Please try refetching host vitals later.`
-                );
-              }
             }
           } else {
             const totalElapsedTime = Date.now() - refetchStartTime;
@@ -712,12 +711,20 @@ const DeviceUserPage = ({
     [deviceAuthToken]
   );
 
+  const installProfile = useCallback(
+    (profileUUID: string): Promise<void> =>
+      deviceUserAPI.installProfile(deviceAuthToken, profileUUID),
+    [deviceAuthToken]
+  );
+
+  const uninstallProfile = useCallback(
+    (profileUUID: string): Promise<void> =>
+      deviceUserAPI.uninstallProfile(deviceAuthToken, profileUUID),
+    [deviceAuthToken]
+  );
+
   const renderDeviceUserPage = () => {
-    // While the toggle's refetch is in flight the cached list is for the other
-    // toggle state, so blank the card instead of showing the wrong rows.
-    const displayedPolicies = isDupDetailsPreviousData
-      ? []
-      : host?.policies || [];
+    const displayedPolicies = host?.policies || [];
     // Counted from the list the tab shows, so it follows the hidden-policies toggle.
     const failingPoliciesCount = displayedPolicies.filter(
       (p) => p.response === "fail"
@@ -815,8 +822,8 @@ const DeviceUserPage = ({
       );
     }
 
-    // iOS/iPadOS devices or narrow screens should show mobile UI
-    const shouldShowMobileUI = isIOSIPadOS || isMobileView;
+    // isIOSIPadOS: Fleet platform. isMobile: user agent or ?mobile=1.
+    const shouldShowMobileUI = isIOSIPadOS || isMobile;
 
     if (shouldShowMobileUI) {
       // Force redirect to self-service route for iOS/iPadOS devices
@@ -993,6 +1000,13 @@ const DeviceUserPage = ({
                     canResendProfiles={isAppleHost || isWindows(host.platform)}
                     resendRequest={resendProfile}
                     onProfileResent={refetchDupDetails}
+                    isMacOSHost={host.platform === "darwin"}
+                    canManageSelfServiceProfiles={
+                      isPremiumTier && host.platform === "darwin"
+                    }
+                    isPremiumTier={isPremiumTier}
+                    installRequest={installProfile}
+                    uninstallRequest={uninstallProfile}
                     router={router}
                   />
                 </TabPanel>
@@ -1021,6 +1035,7 @@ const DeviceUserPage = ({
                     isLoading={isDupDetailsPreviousData}
                     deviceUser
                     showHiddenPolicies={showHiddenPolicies}
+                    hasHiddenPolicies={!!host?.issues?.hidden_policies_count}
                     onToggleShowHiddenPolicies={() =>
                       setShowHiddenPolicies((current) => !current)
                     }
@@ -1138,12 +1153,24 @@ const DeviceUserPage = ({
     );
   };
 
+  // Auth errors (expired token, SSO required, bad enroll URL) are actionable;
+  // the "enlarge your browser" overlay is not. Let the error page win.
+  const hasDeviceUserError =
+    isSSORequired ||
+    (dupDetailsError && !dupDetails) ||
+    isAuthenticationError ||
+    !!enrollUrlError;
+
+  const showUnsupportedScreen =
+    !hasDeviceUserError &&
+    shouldShowUnsupportedScreen(location.pathname, isMobile);
+
   const coreWrapperClassnames = classNames("core-wrapper", {
-    "low-width-supported": !shouldShowUnsupportedScreen(location.pathname),
+    "low-width-supported": !showUnsupportedScreen,
   });
 
   const siteNavContainerClassnames = classNames("site-nav-container", {
-    "low-width-supported": !shouldShowUnsupportedScreen(location.pathname),
+    "low-width-supported": !showUnsupportedScreen,
   });
 
   // The SSO branch has to come first: a refused device call is an error to
@@ -1179,9 +1206,7 @@ const DeviceUserPage = ({
 
   return (
     <div className="app-wrap">
-      {shouldShowUnsupportedScreen(location.pathname) && (
-        <UnsupportedScreenSize />
-      )}
+      {showUnsupportedScreen && <UnsupportedScreenSize />}
       <nav className={siteNavContainerClassnames}>
         <div className="site-nav-content">
           <ul className="site-nav-left">

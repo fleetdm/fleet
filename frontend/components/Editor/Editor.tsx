@@ -1,5 +1,5 @@
 import classnames from "classnames";
-import React, { ReactNode } from "react";
+import React, { ReactNode, useEffect, useState } from "react";
 import AceEditor from "react-ace";
 
 import "ace-builds/src-noconflict/mode-sh";
@@ -29,6 +29,8 @@ export type EditorMode =
 export interface IEditorProps {
   focus?: boolean;
   label?: string;
+  /** Accessible name for the text input. Defaults to `label`. */
+  ariaLabel?: string;
   labelTooltip?: string | JSX.Element;
   error?: string | null;
   readOnly?: boolean;
@@ -46,6 +48,15 @@ export interface IEditorProps {
    * @default false
    */
   enableCopy?: boolean;
+  /** Where the copy button sits when `enableCopy` is on.
+   * - `"overlay"` (default): subdued copy icon absolute-positioned over the
+   *   top-right of the editor, matching InputField's `enableCopy`.
+   * - `"label"`: outlined copy button in the label row, aligned opposite the
+   *   label text. For readonly display-and-copy blocks where overlaying the
+   *   content isn't desired.
+   * @default "overlay"
+   */
+  copyButtonLocation?: "overlay" | "label";
   /** Enabled wrapping lines.
    * @default false
    */
@@ -62,9 +73,16 @@ export interface IEditorProps {
    */
   isFormField?: boolean;
   maxLines?: number;
+  /** @default 2 */
+  minLines?: number;
+  /** @default true */
+  showPrintMargin?: boolean;
+  /** Shown while the editor is empty. */
+  placeholder?: string;
   className?: string;
   onChange?: (value: string, event?: Ace.Delta) => void;
   onBlur?: () => void;
+  onFocus?: () => void;
   /** Called after the Ace editor mounts with the editor instance. */
   onLoad?: (editor: Ace.Editor) => void;
 }
@@ -79,6 +97,7 @@ export interface IEditorProps {
 const Editor = ({
   helpText,
   label,
+  ariaLabel,
   labelTooltip,
   error,
   focus,
@@ -86,14 +105,19 @@ const Editor = ({
   defaultValue,
   readOnly = false,
   enableCopy = false,
+  copyButtonLocation = "overlay",
   wrapEnabled = false,
   name = "editor",
   mode = "text",
   isFormField = true,
   maxLines = 20,
+  minLines = 2,
+  showPrintMargin = true,
+  placeholder,
   className,
   onChange,
   onBlur,
+  onFocus,
   onLoad: onLoadProp,
 }: IEditorProps) => {
   const classNames = classnames(baseClass, className, {
@@ -101,11 +125,38 @@ const Editor = ({
     [`${baseClass}__error`]: !!error,
   });
 
+  // Track the editor's displayed content so copy works for uncontrolled
+  // editors (defaultValue + edits) as well as controlled ones.
+  const [displayedValue, setDisplayedValue] = useState(
+    value ?? defaultValue ?? ""
+  );
+  useEffect(() => {
+    if (value !== undefined) {
+      setDisplayedValue(value);
+    }
+  }, [value]);
+
+  const handleChange = (newValue: string, event?: Ace.Delta) => {
+    setDisplayedValue(newValue);
+    onChange?.(newValue, event);
+  };
+
   const renderCopyButton = () => {
     return (
       <div className={`${baseClass}__copy-wrapper`}>
-        <CopyButton copyText={value ?? ""} variant="subdued" />
+        <CopyButton copyText={displayedValue} variant="subdued" />
       </div>
+    );
+  };
+
+  const renderLabelCopyButton = () => {
+    return (
+      <CopyButton
+        copyText={displayedValue}
+        variant="secondary"
+        ariaLabel={ariaLabel ? `Copy ${ariaLabel}` : "Copy"}
+        disabled={!displayedValue}
+      />
     );
   };
 
@@ -132,24 +183,35 @@ const Editor = ({
     const labelClassName = classnames(`${baseClass}__label`, {
       [`${baseClass}__label--error`]: !!error,
     });
+    const showInlineCopyButton =
+      enableCopy && copyButtonLocation === "label" && !error;
 
-    if (!labelText) {
+    if (!labelText && !showInlineCopyButton) {
       return null;
     }
 
-    if (labelTooltip) {
-      return (
-        <TooltipWrapper
-          className={labelClassName}
-          tipContent={labelTooltip}
-          position="top-start"
-        >
-          {labelText}
-        </TooltipWrapper>
-      );
+    const labelNode = labelTooltip ? (
+      <TooltipWrapper
+        className={labelClassName}
+        tipContent={labelTooltip}
+        position="top-start"
+      >
+        {labelText as string}
+      </TooltipWrapper>
+    ) : (
+      <div className={labelClassName}>{labelText}</div>
+    );
+
+    if (!showInlineCopyButton) {
+      return labelNode;
     }
 
-    return <div className={labelClassName}>{labelText}</div>;
+    return (
+      <div className={`${baseClass}__label-row`}>
+        {labelNode}
+        {renderLabelCopyButton()}
+      </div>
+    );
   };
 
   const renderHelpText = () => {
@@ -162,7 +224,7 @@ const Editor = ({
   return (
     <div className={classNames}>
       {renderLabel()}
-      {enableCopy && renderCopyButton()}
+      {enableCopy && copyButtonLocation === "overlay" && renderCopyButton()}
       <AceEditor
         mode={mode}
         wrapEnabled={wrapEnabled}
@@ -172,15 +234,19 @@ const Editor = ({
         theme="fleet"
         width="100%"
         readOnly={readOnly}
-        minLines={2}
+        minLines={minLines}
         maxLines={maxLines}
+        showPrintMargin={showPrintMargin}
+        placeholder={placeholder}
         editorProps={{ $blockScrolling: Infinity }}
+        setOptions={{ textInputAriaLabel: ariaLabel ?? label }}
         value={value}
         defaultValue={defaultValue}
         tabSize={2}
         focus={focus}
-        onChange={onChange}
+        onChange={handleChange}
         onBlur={onBlur}
+        onFocus={onFocus}
         onLoad={onLoadHandler}
       />
       {renderHelpText()}

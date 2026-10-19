@@ -35,6 +35,11 @@
     border-color: $core-vibrant-red;
   }
 
+  &__drag-active {
+    border-color: $core-vibrant-blue;
+    background-color: $ui-vibrant-blue-10;
+  }
+
   // when the file preview is showing, we want the padding to be
   // slightly smaller on the top and bottom.
   &__file-preview {
@@ -60,6 +65,15 @@
   &__additional-info {
     margin: 0;
     color: $ui-fleet-black-50;
+  }
+
+  // Doubled class so per-consumer __title/__message overrides lose to --disabled.
+  &.file-uploader--disabled {
+    .file-uploader__title,
+    .file-uploader__message,
+    .file-uploader__additional-info {
+      color: $ui-fleet-black-50;
+    }
   }
 
   &__upload-button {

@@ -47,11 +47,11 @@ const UpcomingActivityFeed = ({
   if (activitiesList === null || activitiesList.length === 0) {
     return (
       <EmptyFeed
-        title="No pending activity "
+        title="No pending activity"
         message={
           isPremiumTier
-            ? "Pending actions will appear here (scripts, software, lock, and wipe)."
-            : "Pending script runs will appear here."
+            ? "Pending commands (e.g. lock, wipe) will appear here."
+            : "Pending commands will appear here."
         }
         className={`${baseClass}__empty-feed`}
       />

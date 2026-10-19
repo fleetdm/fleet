@@ -43,8 +43,13 @@ type PatchNotificationAppDetail struct {
 	SoftwareInstallerID *uint  `db:"software_installer_id"`
 	Name                string `db:"name"`
 	DisplayName         string `db:"display_name"`
-	HasIcon             bool   `db:"has_icon"`
-	InstallQueued       bool   `db:"install_queued"`
+	// DisplayNameOverride is the raw per-team override, nil when no admin picked
+	// one. Distinct from DisplayName, which COALESCEs to Name and so loses the
+	// no-override signal when an override happens to equal the raw title.
+	DisplayNameOverride *string `db:"display_name_override"`
+	HasIcon             bool    `db:"has_icon"`
+	InstallQueued       bool    `db:"install_queued"`
+	UpdatedInInventory  bool    `db:"updated_in_inventory"`
 	// CreatedAt is when the app was added to the notification
 	CreatedAt time.Time `db:"created_at"`
 }

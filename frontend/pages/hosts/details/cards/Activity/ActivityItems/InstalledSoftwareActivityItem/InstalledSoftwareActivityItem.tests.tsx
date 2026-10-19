@@ -3,7 +3,7 @@ import { noop } from "lodash";
 import React from "react";
 
 import { createMockHostPastActivity } from "__mocks__/activityMock";
-import { ActivityType } from "interfaces/activity";
+import { ActivityType, IHostPastActivity } from "interfaces/activity";
 
 import InstalledSoftwareActivityItem from "./InstalledSoftwareActivityItem";
 
@@ -92,5 +92,123 @@ describe("InstalledSoftwareActivityItem", () => {
     expect(
       screen.queryByRole("button", { name: /show info/i })
     ).not.toBeInTheDocument();
+  });
+
+  describe("version suffix", () => {
+    const createVppActivity = (
+      detailsOverrides: Partial<
+        IHostPastActivity["details"] & Record<string, unknown>
+      >
+    ) =>
+      createMockHostPastActivity({
+        type: ActivityType.InstalledAppStoreApp,
+        actor_full_name: "Some Admin",
+        fleet_initiated: false,
+        details: {
+          software_title: "Google Meet",
+          host_display_name: "iPad",
+          source: "ipados_apps",
+          status: "installed",
+          command_uuid: "cmd-1",
+          ...detailsOverrides,
+        },
+      });
+
+    it("appends the mobile version suffix in the normal branch", () => {
+      render(
+        <InstalledSoftwareActivityItem
+          activity={createVppActivity({
+            host_platform: "ipados",
+            version_name: "Default version",
+          })}
+          tab="past"
+          onShowDetails={noop}
+        />
+      );
+
+      expect(screen.getByText("Google Meet")).toBeInTheDocument();
+      expect(screen.getByText(/\(Default version\)/)).toBeInTheDocument();
+    });
+
+    it("appends the mobile version suffix in the skipped branch", () => {
+      render(
+        <InstalledSoftwareActivityItem
+          activity={createVppActivity({
+            status: "failed_install",
+            skipped_install: true,
+            host_platform: "ios",
+            version_name: "Default version",
+          })}
+          tab="past"
+          onShowDetails={noop}
+        />
+      );
+
+      expect(screen.getByText("Google Meet")).toBeInTheDocument();
+      expect(screen.getByText(/\(Default version\)/)).toBeInTheDocument();
+    });
+
+    it("appends the mobile version suffix in the self-service branch", () => {
+      render(
+        <InstalledSoftwareActivityItem
+          activity={createVppActivity({
+            self_service: true,
+            host_platform: "android",
+            version_name: "Default version",
+          })}
+          tab="past"
+          onShowDetails={noop}
+        />
+      );
+
+      expect(screen.getByText("Google Meet")).toBeInTheDocument();
+      expect(screen.getByText(/\(Default version\)/)).toBeInTheDocument();
+      expect(screen.getByText(/\(self service\)/)).toBeInTheDocument();
+    });
+
+    it("omits the version suffix on macOS even when version_name is set", () => {
+      render(
+        <InstalledSoftwareActivityItem
+          activity={createVppActivity({
+            source: "apps",
+            host_platform: "darwin",
+            version_name: "Default version",
+          })}
+          tab="past"
+          onShowDetails={noop}
+        />
+      );
+
+      expect(screen.getByText("Google Meet")).toBeInTheDocument();
+      expect(screen.queryByText(/\(Default version\)/)).not.toBeInTheDocument();
+    });
+  });
+
+  it("shows the software_display_name override instead of the raw software_title", () => {
+    const activity = createMockHostPastActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_full_name: "Fleet",
+      fleet_initiated: true,
+      details: {
+        software_title: "Firefox",
+        software_display_name: "Mozilla Firefox (managed)",
+        software_package: "Firefox.pkg",
+        host_display_name: "Test Host",
+        source: "apps",
+        status: "installed",
+        install_uuid: "uuid-123",
+      },
+    });
+
+    render(
+      <InstalledSoftwareActivityItem
+        activity={activity}
+        tab="past"
+        onShowDetails={noop}
+      />
+    );
+
+    expect(screen.getByText("Mozilla Firefox (managed)")).toBeInTheDocument();
+    expect(screen.queryByText("Firefox")).not.toBeInTheDocument();
   });
 });
