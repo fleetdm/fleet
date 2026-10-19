@@ -52,7 +52,7 @@ $softwareName = $PACKAGE_ID
 
 # It is recommended to use exact software name here if possible to avoid
 # uninstalling unintended software.
-$softwareNameLike = "*$softwareName*"
+$softwareNameLike = "*$([WildcardPattern]::Escape($softwareName))*"
 
 # Some uninstallers require a flag to run silently.
 # Each uninstaller might use different argument (usually it's "/S" or "/s")
@@ -152,9 +152,9 @@ $installArgs = "/S"
 
 $exeFilePath = "${env:INSTALLER_PATH}"
 $exeFilename = Split-Path $exeFilePath -Leaf
-$taskName = "fleet-install-$exeFilename"
+# Replace characters that task names and paths would treat as wildcards
+$taskName = "fleet-install-$($exeFilename -replace '[^\w.-]', '_')"
 $taskRunning = 267009  # SCHED_S_TASK_RUNNING
-$taskHasNotRun = 267011  # SCHED_S_TASK_HAS_NOT_RUN
 $exitCode = 0
 $stagedInstaller = $null
 
@@ -178,30 +178,33 @@ Write-Host "Installing for $userAccount."
 
 # Copy the installer to a public folder so that the user can access it
 $stagedInstaller = "${env:PUBLIC}\$exeFilename"
-Copy-Item -Path $exeFilePath -Destination $stagedInstaller -Force -ErrorAction Stop
+Copy-Item -LiteralPath $exeFilePath -Destination $stagedInstaller -Force -ErrorAction Stop
 
 # The task runs the installer as the signed-in user
 $action = New-ScheduledTaskAction -Execute $stagedInstaller -Argument $installArgs
 $principal = New-ScheduledTaskPrincipal -UserId $userAccount -LogonType Interactive
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
 $task = New-ScheduledTask -Action $action -Principal $principal -Settings $settings
-Register-ScheduledTask -TaskName $taskName -InputObject $task -Force -ErrorAction Stop | Out-Null
+# Remove a task left by an earlier, interrupted run.
+Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+Register-ScheduledTask -TaskName $taskName -InputObject $task -ErrorAction Stop | Out-Null
 
-$startDate = Get-Date
+$startDate = Get-Date -Millisecond 0
 Start-ScheduledTask -TaskName $taskName -ErrorAction Stop
 
-# Wait for the task's result rather than for the "Running" state, which a fast
-# installer can enter and leave between checks.
+# Wait until this run has finished. Waiting for the "Running" state instead
+# would miss a fast installer that starts and exits between checks.
 while ($true) {
     Start-Sleep -Seconds 5
     $state = (Get-ScheduledTask -TaskName $taskName).State
-    $lastResult = (Get-ScheduledTaskInfo -TaskName $taskName).LastTaskResult
-    if ($state -ne "Running" -and $lastResult -ne $taskRunning -and $lastResult -ne $taskHasNotRun) {
-        $exitCode = $lastResult
+    $info = Get-ScheduledTaskInfo -TaskName $taskName
+    if ($state -eq "Ready" -and $info.LastRunTime -ge $startDate -and $info.LastTaskResult -ne $taskRunning) {
+        $exitCode = $info.LastTaskResult
         break
     }
     if ((New-TimeSpan -Start $startDate).TotalSeconds -gt 900) {
-        Throw "Timed out waiting for the install task. State: $state, last result: 0x$('{0:X}' -f $lastResult)"
+        Throw "Timed out waiting for the install task. State: $state, last result: 0x$('{0:X}' -f $info.LastTaskResult)"
     }
 }
 Write-Host "Install exit code: $exitCode"
@@ -214,7 +217,7 @@ Write-Host "Install exit code: $exitCode"
     Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
     Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
     if ($stagedInstaller) {
-        Remove-Item -Path $stagedInstaller -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $stagedInstaller -Force -ErrorAction SilentlyContinue
     }
 }
 
@@ -242,7 +245,7 @@ $softwareName = $PACKAGE_ID
 
 # Using the exact software name here is recommended to avoid
 # uninstalling unintended software.
-$softwareNameLike = "*$softwareName*"
+$softwareNameLike = "*$([WildcardPattern]::Escape($softwareName))*"
 
 # Some uninstallers require additional flags to run silently.
 # Each uninstaller might use a different argument (usually it's "/S" or "/s")
@@ -326,12 +329,14 @@ Exit $exitCode
 '@
 
 $taskRunning = 267009  # SCHED_S_TASK_RUNNING
-$taskHasNotRun = 267011  # SCHED_S_TASK_HAS_NOT_RUN
 $exitCode = 0
 
+# Replace characters that task names and paths would treat as wildcards
+$safeName = $softwareName -replace '[^\w.-]', '_'
+
 # Create a script in a public folder so that it can be accessed by all users.
-$uninstallScriptPath = "${env:PUBLIC}\uninstall-$softwareName.ps1"
-$taskName = "fleet-uninstall-$softwareName"
+$uninstallScriptPath = "${env:PUBLIC}\fleet-uninstall-$safeName.ps1"
+$taskName = "fleet-uninstall-$safeName"
 try {
     # Find the signed-in user. Include the domain: on Entra ID (Azure AD) joined
     # hosts, the user name alone does not resolve to the user's account.
@@ -349,7 +354,7 @@ try {
     $userAccount = $userAccounts[0]
     Write-Host "Uninstalling for $userAccount."
 
-    Set-Content -Path $uninstallScriptPath -Value $userScript -Force -ErrorAction Stop
+    Set-Content -LiteralPath $uninstallScriptPath -Value $userScript -Force -ErrorAction Stop
 
     # The task runs the uninstall script as the signed-in user
     $action = New-ScheduledTaskAction -Execute "PowerShell.exe" `
@@ -357,23 +362,26 @@ try {
     $principal = New-ScheduledTaskPrincipal -UserId $userAccount -LogonType Interactive
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
     $task = New-ScheduledTask -Action $action -Principal $principal -Settings $settings
-    Register-ScheduledTask -TaskName $taskName -InputObject $task -Force -ErrorAction Stop | Out-Null
+    # Remove a task left by an earlier, interrupted run.
+    Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+    Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+    Register-ScheduledTask -TaskName $taskName -InputObject $task -ErrorAction Stop | Out-Null
 
-    $startDate = Get-Date
+    $startDate = Get-Date -Millisecond 0
     Start-ScheduledTask -TaskName $taskName -ErrorAction Stop
 
-    # Wait for the task's result rather than for the "Running" state, which a
-    # fast uninstaller can enter and leave between checks.
+    # Wait until this run has finished. Waiting for the "Running" state instead
+    # would miss a fast uninstaller that starts and exits between checks.
     while ($true) {
         Start-Sleep -Seconds 5
         $state = (Get-ScheduledTask -TaskName $taskName).State
-        $lastResult = (Get-ScheduledTaskInfo -TaskName $taskName).LastTaskResult
-        if ($state -ne "Running" -and $lastResult -ne $taskRunning -and $lastResult -ne $taskHasNotRun) {
-            $exitCode = $lastResult
+        $info = Get-ScheduledTaskInfo -TaskName $taskName
+        if ($state -eq "Ready" -and $info.LastRunTime -ge $startDate -and $info.LastTaskResult -ne $taskRunning) {
+            $exitCode = $info.LastTaskResult
             break
         }
         if ((New-TimeSpan -Start $startDate).TotalSeconds -gt 900) {
-            Throw "Timed out waiting for the uninstall task. State: $state, last result: 0x$('{0:X}' -f $lastResult)"
+            Throw "Timed out waiting for the uninstall task. State: $state, last result: 0x$('{0:X}' -f $info.LastTaskResult)"
         }
     }
     Write-Host "Uninstall exit code: $exitCode"
@@ -385,7 +393,7 @@ try {
     # Unregistering a task does not stop it, so stop it first in case the wait timed out
     Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
     Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
-    Remove-Item -Path $uninstallScriptPath -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $uninstallScriptPath -Force -ErrorAction SilentlyContinue
 }
 
 # Exit codes above Int32.MaxValue, such as an HRESULT from the task, become 0
