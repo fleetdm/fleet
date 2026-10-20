@@ -42,6 +42,8 @@ type ProfileValidationSchema struct {
 	AppleEnvelope     AppleEnvelope                `json:"apple_envelope"`
 	AppleProfiles     map[string]*ApplePayloadType `json:"apple_profiles"`
 	AppleDeclarations map[string]*ApplePayloadType `json:"apple_declarations"`
+	// AppleDeclarationEnvelope holds the keys every DDM declaration shares (Type, Identifier, ...).
+	AppleDeclarationEnvelope *ApplePayloadType `json:"apple_declaration_envelope"`
 	// Windows sections are filled by a later change; kept raw until their shape is defined.
 	Windows     json.RawMessage `json:"windows"`
 	WindowsXSDs json.RawMessage `json:"windows_xsds"`
@@ -113,6 +115,9 @@ func Parse(data []byte) (*ProfileValidationSchema, error) {
 func (s *ProfileValidationSchema) check() error {
 	if s.AppleEnvelope.TopLevel == nil || s.AppleEnvelope.CommonPayloadKeys == nil {
 		return errors.New("apple_envelope is missing TopLevel or CommonPayloadKeys")
+	}
+	if s.AppleDeclarationEnvelope == nil {
+		return errors.New("apple_declaration_envelope is missing")
 	}
 	if n := len(s.AppleProfiles); n < minAppleProfileTypes {
 		return fmt.Errorf("apple_profiles has %d payload types, want at least %d", n, minAppleProfileTypes)

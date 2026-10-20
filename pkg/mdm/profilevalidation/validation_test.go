@@ -30,10 +30,11 @@ func minimalDoc() map[string]any {
 			"TopLevel":          map[string]any{"keys": map[string]any{}},
 			"CommonPayloadKeys": map[string]any{"keys": map[string]any{}},
 		},
-		"apple_profiles":     profiles,
-		"apple_declarations": declarations,
-		"windows":            map[string]any{},
-		"windows_xsds":       map[string]any{},
+		"apple_declaration_envelope": map[string]any{"keys": map[string]any{}},
+		"apple_profiles":             profiles,
+		"apple_declarations":         declarations,
+		"windows":                    map[string]any{},
+		"windows_xsds":               map[string]any{},
 	}
 }
 
@@ -67,6 +68,7 @@ func TestParse(t *testing.T) {
 		{name: "format_version missing", mutate: func(doc map[string]any) { delete(doc, "format_version") }, wantErr: "unsupported profile validation schema format version: 0"},
 		{name: "missing TopLevel", mutate: func(doc map[string]any) { delete(section(doc, "apple_envelope"), "TopLevel") }, wantErr: "apple_envelope is missing"},
 		{name: "missing CommonPayloadKeys", mutate: func(doc map[string]any) { delete(section(doc, "apple_envelope"), "CommonPayloadKeys") }, wantErr: "apple_envelope is missing"},
+		{name: "missing declaration envelope", mutate: func(doc map[string]any) { delete(doc, "apple_declaration_envelope") }, wantErr: "apple_declaration_envelope is missing"},
 		{name: "profiles below floor", mutate: func(doc map[string]any) {
 			removeOne(doc, "apple_profiles", "com.apple.applicationaccess")
 		}, wantErr: "apple_profiles has 99 payload types, want at least 100"},

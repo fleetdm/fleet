@@ -27,6 +27,9 @@ func TestContractExampleDecodes(t *testing.T) {
 	assert.True(t, s.AppleEnvelope.TopLevel.Keys["PayloadVersion"].Required)
 	assert.Equal(t, AppleTypes{AppleTypeString}, s.AppleEnvelope.CommonPayloadKeys.Keys["PayloadUUID"].Type)
 	assert.NotContains(t, s.AppleProfiles, "TopLevel")
+	require.NotNil(t, s.AppleDeclarationEnvelope)
+	assert.True(t, s.AppleDeclarationEnvelope.Keys["Identifier"].Required)
+	assert.Equal(t, "16.0", s.AppleDeclarationEnvelope.Platforms[AppleOStvOS].Introduced)
 
 	access := s.AppleProfiles["com.apple.applicationaccess"]
 	require.NotNil(t, access)

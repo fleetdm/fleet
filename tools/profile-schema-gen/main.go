@@ -71,7 +71,12 @@ func run(ctx context.Context, logger *slog.Logger, out string, update bool) erro
 	if pinned != nil && pinned.Apple.Commit != "" {
 		pinnedApple = &pinned.Apple
 	}
-	if _, err := runApple(ctx, logger.With("platform", "apple"), client, filepath.Join(workDir, "apple"), pinnedApple, update); err != nil {
+	appleLogger := logger.With("platform", "apple")
+	appleDir := filepath.Join(workDir, "apple")
+	if _, err := runApple(ctx, appleLogger, client, appleDir, pinnedApple, update); err != nil {
+		return err
+	}
+	if _, err := loadApple(ctx, appleLogger, appleDir); err != nil {
 		return err
 	}
 	return runWindows(ctx, logger.With("platform", "windows"))

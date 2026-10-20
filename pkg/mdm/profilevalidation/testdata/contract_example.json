@@ -10,6 +10,16 @@
     "TopLevel": {"keys": {"PayloadVersion": {"type": "integer", "required": true}}},
     "CommonPayloadKeys": {"keys": {"PayloadUUID": {"type": "string", "required": true}}}
   },
+  "apple_declaration_envelope": {
+    "platforms": {"iOS": {"introduced": "15.0"}, "macOS": {"introduced": "13.0"}, "tvOS": {"introduced": "16.0"},
+                  "visionOS": {"introduced": "1.1"}, "watchOS": {"introduced": "10.0"}},
+    "source": "apple",
+    "keys": {
+      "Type": {"type": "string", "required": true},
+      "Identifier": {"type": "string", "required": true},
+      "Payload": {"type": "dictionary", "required": true, "open": true}
+    }
+  },
   "apple_profiles": {
     "com.apple.applicationaccess": {
       "platforms": {"iOS": {"introduced": "4.0"}, "macOS": {"introduced": "10.7"}, "tvOS": {"introduced": "9.0"},
