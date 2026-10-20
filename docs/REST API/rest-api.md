@@ -9620,9 +9620,7 @@ Retrieves an unsigned manual enrollment profile for macOS hosts. Install this pr
 
 To add [human-device mapping](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts), [add the end user's email to the enrollment profile](https://fleetdm.com/guides/config-less-fleetd-agent-deployment#using-human-device-mapping).
 
-The manual enrollment profile uses Fleet's static SCEP challenge. By default, [`mdm.apple_scep_static_challenge_enabled`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-scep-static-challenge-enabled) is `false` and this endpoint returns a `403` error. Set the setting to `true` to make the manual enrollment profile available.
-
-If the `mdm.apple_scep_static_challenge_enabled` setting is `false` (the default), this endpoint returns a `403` error.
+The manual enrollment profile uses Fleet's static SCEP challenge. If [`mdm.apple_scep_static_challenge_enabled`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-scep-static-challenge-enabled) is `false` (the default), this endpoint returns a `400` error with the message: "Manual enrollment profile is not available because the static SCEP challenge is disabled for this Fleet server."
 
 If the `only_allow_apple_business_enrollment` setting is enabled, this endpoint returns a `400` error with the message: "Manual enrollment is not available because only Apple Business enrollment is allowed for this organization."
 
