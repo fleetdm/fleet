@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -842,4 +843,70 @@ func TestSetupExperienceNextStepRunningScriptResult(t *testing.T) {
 			assert.Equal(t, c.wantUpdate, updatedTo)
 		})
 	}
+}
+
+func TestSetupExperienceNextStepVPPInstallFailureActivityToken(t *testing.T) {
+	ctx := context.Background()
+	host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "ios"}
+
+	setup := func(t *testing.T, tokenID *uint, getToken func(context.Context, uint) (*fleet.VPPTokenDB, error)) *fleet.ActivityInstalledAppStoreApp {
+		ds := new(mock.Store)
+		svc, baseSvc := newTestServiceWithMock(t, ds)
+		svc.logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+		ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+		}
+		// A host that isn't connected to Fleet MDM fails the install before anything is queued.
+		ds.IsHostConnectedToFleetMDMFunc = func(context.Context, *fleet.Host) (bool, error) { return false, nil }
+		ds.ListSetupExperienceResultsByHostUUIDFunc = func(context.Context, string, uint) ([]*fleet.SetupExperienceStatusResult, error) {
+			return []*fleet.SetupExperienceStatusResult{{
+				HostUUID:         host.UUID,
+				Name:             "Canva",
+				Status:           fleet.SetupExperienceStatusPending,
+				VPPAppTeamID:     new(uint(1)),
+				VPPAppAdamID:     new("100"),
+				VPPAppPlatform:   new(string(fleet.IOSPlatform)),
+				VPPAppVPPTokenID: tokenID,
+				SoftwareTitleID:  new(uint(9)),
+			}}, nil
+		}
+		ds.UpdateSetupExperienceStatusResultFunc = func(context.Context, *fleet.SetupExperienceStatusResult) error { return nil }
+		ds.GetSoftwareTitleDisplayNameFunc = func(context.Context, *uint, uint) (*string, error) { return nil, nil }
+		ds.GetVPPTokenFunc = getToken
+		baseSvc.IsAllSetupExperienceSoftwareRequiredFunc = func(context.Context, *fleet.Host) (bool, error) { return false, nil }
+		var got *fleet.ActivityInstalledAppStoreApp
+		baseSvc.NewActivityFunc = func(_ context.Context, _ *fleet.User, a fleet.ActivityDetails) error {
+			act, ok := a.(fleet.ActivityInstalledAppStoreApp)
+			require.True(t, ok)
+			got = &act
+			return nil
+		}
+
+		_, err := svc.SetupExperienceNextStep(ctx, host)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		require.Equal(t, string(fleet.SoftwareInstallFailed), got.Status)
+		return got
+	}
+
+	t.Run("carries the app's token", func(t *testing.T) {
+		act := setup(t, new(uint(7)), func(_ context.Context, id uint) (*fleet.VPPTokenDB, error) {
+			return &fleet.VPPTokenDB{ID: id, Location: "Acme Japan", CountryCode: "jp"}, nil
+		})
+		require.Equal(t, &fleet.ActivityVPPToken{ID: 7, Location: "Acme Japan", CountryCode: "jp"}, act.VPPToken)
+	})
+
+	t.Run("a deleted token gives null", func(t *testing.T) {
+		act := setup(t, new(uint(7)), func(context.Context, uint) (*fleet.VPPTokenDB, error) {
+			return nil, &notFoundError{}
+		})
+		require.Nil(t, act.VPPToken)
+	})
+
+	t.Run("a lookup error still emits the activity", func(t *testing.T) {
+		act := setup(t, new(uint(7)), func(context.Context, uint) (*fleet.VPPTokenDB, error) {
+			return nil, errors.New("db down")
+		})
+		require.Nil(t, act.VPPToken)
+	})
 }

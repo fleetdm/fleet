@@ -1342,3 +1342,51 @@ func TestUpdateVPPTokenTeamsValidation(t *testing.T) {
 	})
 }
 
+func TestUpdateAppStoreAppActivityToken(t *testing.T) {
+	t.Parallel()
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	setup := func(t *testing.T, tokenID *uint, getToken func(context.Context, uint) (*fleet.VPPTokenDB, error)) *fleet.ActivityEditedAppStoreApp {
+		ds := new(mock.Store)
+		svc := newTestService(t, ds)
+		ds.GetAppStoreAppVersionsByTeamAndTitleIDFunc = func(context.Context, uint, uint) ([]*fleet.VPPAppStoreApp, error) {
+			return []*fleet.VPPAppStoreApp{{
+				AdamID:         "100",
+				Platform:       fleet.IOSPlatform,
+				Name:           "Canva",
+				VPPAppsTeamsID: 1,
+				VPPTokenID:     tokenID,
+			}}, nil
+		}
+		ds.InsertVPPAppWithTeamFunc = func(_ context.Context, app *fleet.VPPApp, _ *uint, _ *uint) (*fleet.VPPApp, error) {
+			return &fleet.VPPApp{AppTeamID: 1}, nil
+		}
+		ds.GetVPPTokenFunc = getToken
+
+		_, act, err := svc.UpdateAppStoreApp(ctx, 5, nil, fleet.AppStoreAppUpdatePayload{SelfService: new(true)})
+		require.NoError(t, err)
+		return act
+	}
+
+	t.Run("carries the app's token", func(t *testing.T) {
+		act := setup(t, new(uint(2)), func(_ context.Context, id uint) (*fleet.VPPTokenDB, error) {
+			return &fleet.VPPTokenDB{ID: id, Location: "Acme Japan", CountryCode: "jp"}, nil
+		})
+		require.Equal(t, &fleet.ActivityVPPToken{ID: 2, Location: "Acme Japan", CountryCode: "jp"}, act.VPPToken)
+	})
+
+	t.Run("app without a token", func(t *testing.T) {
+		act := setup(t, nil, func(context.Context, uint) (*fleet.VPPTokenDB, error) {
+			t.Fatal("no token to look up")
+			return nil, nil
+		})
+		require.Nil(t, act.VPPToken)
+	})
+
+	t.Run("deleted token", func(t *testing.T) {
+		act := setup(t, new(uint(2)), func(context.Context, uint) (*fleet.VPPTokenDB, error) {
+			return nil, common_mysql.NotFound("VPPToken")
+		})
+		require.Nil(t, act.VPPToken)
+	})
+}

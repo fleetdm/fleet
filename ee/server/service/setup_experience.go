@@ -397,7 +397,12 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Hos
 					}
 					softwareDisplayName = dn
 				}
+				vppToken, tokErr := fleet.ActivityVPPTokenByID(ctx, svc.ds, sw.VPPAppVPPTokenID)
+				if tokErr != nil {
+					svc.logger.WarnContext(ctx, "failed to look up VPP token for VPP install failure activity", "err", tokErr)
+				}
 				failActivity := fleet.ActivityInstalledAppStoreApp{
+					VPPToken:            vppToken,
 					HostID:              host.ID,
 					HostDisplayName:     host.DisplayName(),
 					SoftwareTitle:       sw.Name,
