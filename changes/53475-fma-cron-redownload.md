@@ -1,1 +1,0 @@
-- Fixed the Fleet-maintained app auto-update job re-downloading apps without a published hash every hour for every fleet.
