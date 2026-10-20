@@ -796,6 +796,7 @@ func TestRequestFieldName(t *testing.T) {
 		NoJSONTag string
 		OtherTags string `url:"other_tags"`
 		QueryTag  string `query:"param_tag,optional"`
+		DryRun    string `json:"-" query:"dry_run,optional"`
 	}
 
 	ty := reflect.TypeFor[tagged]()
@@ -807,6 +808,7 @@ func TestRequestFieldName(t *testing.T) {
 		{field: "Plain", want: "plain"},
 		{field: "WithOpts", want: "with_opts"},
 		{field: "QueryTag", want: "param_tag"},
+		{field: "DryRun", want: "dry_run"},
 		// The rest have no name a client could have sent, so the Go field name
 		// is all that's left to report.
 		{field: "Skipped", want: "Skipped"},
