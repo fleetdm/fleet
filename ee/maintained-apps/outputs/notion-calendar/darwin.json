@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.140.0",
+      "version": "1.141.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.cron.electron';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.cron.electron' AND version_compare(bundle_short_version, '1.140.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.cron.electron' AND version_compare(bundle_short_version, '1.141.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.cron.electron' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://calendar-desktop-release.notion-static.com/Notion%20Calendar-darwin-arm64-1.140.0.zip",
+      "installer_url": "https://calendar-desktop-release.notion-static.com/Notion%20Calendar-darwin-arm64-1.141.0.zip",
       "install_script_ref": "80bdbf9b",
       "uninstall_script_ref": "e01ed013",
-      "sha256": "5392d3543bf2bf2798d37fcda71f8817b35e27d6c51fd4e8233e7d00778334be",
+      "sha256": "6a4b6f20b109341dbda053bfc75ffa8a9021282f95b517d2d6b81194186e6054",
       "default_categories": [
         "Productivity"
       ]
