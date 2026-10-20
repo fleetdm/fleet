@@ -21,6 +21,7 @@ func TestValidatePatchDeadlineSettings(t *testing.T) {
 		{name: "days Mon", days: []any{"Mon"}, time: "17:00", wantErr: prefix + `"days" includes an invalid value "Mon".` + invalidDay},
 		{name: "days Monday", days: []any{"Monday"}, time: "17:00", wantErr: prefix + `"days" includes an invalid value "Monday".` + invalidDay},
 		{name: "days number", days: []any{float64(1)}, time: "17:00", wantErr: prefix + `"days" includes an invalid value "1".` + invalidDay},
+		{name: "days null entry", days: []any{"monday", nil}, time: "17:00", wantErr: prefix + `"days" includes an invalid value "null".` + invalidDay},
 		{name: "days repeated", days: []any{"monday", "monday"}, time: "17:00", wantErr: prefix + `"days" includes "monday" more than once.`},
 		{name: "days string", days: "monday", time: "17:00", wantErr: prefix + `"days" must be a list of days, for example ["monday", "wednesday"].`},
 		{name: "days empty", days: []any{}, time: "17:00", wantErr: prefix + `"days" must include at least one day.`},

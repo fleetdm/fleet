@@ -45,6 +45,9 @@ func ValidatePatchDeadlineSettings(days, tm any) ([]string, string, error) {
 	for _, v := range list {
 		day, _ := v.(string)
 		if !slices.Contains(patchDeadlineDays, day) {
+			if v == nil {
+				v = "null" // %v would print <nil>
+			}
 			return badRequest(fmt.Sprintf(`"days" includes an invalid value "%v". Options are "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", and "sunday".`, v))
 		}
 		if seen[day] {
