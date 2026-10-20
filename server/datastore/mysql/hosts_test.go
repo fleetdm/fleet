@@ -5321,6 +5321,41 @@ func testHostsListByInstallerAndVPPVersion(t *testing.T, ds *Datastore) {
 	}, 1)
 	require.Equal(t, host2.ID, hosts[0].ID)
 	require.NotContains(t, hostIDs(hosts), host3.ID)
+
+	// list the hosts of the title with a version of another app, with and without a status, the version should be rejected
+	var otherAppVersion uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO vpp_apps (adam_id, platform, name, latest_version) VALUES ('ivv-other-adam', 'darwin', 'ivv-other', '1.0')`)
+		if err != nil {
+			return err
+		}
+		res, err := q.ExecContext(ctx, `INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id, name) VALUES ('ivv-other-adam', 'darwin', 0, 'Other')`)
+		if err != nil {
+			return err
+		}
+		lid, _ := res.LastInsertId()
+		otherAppVersion = uint(lid) //nolint:gosec // bounded by test fixture
+		return nil
+	})
+	failed := fleet.SoftwareFailed
+	var badRequestErr *fleet.BadRequestError
+	_, err := ds.ListHosts(ctx, filter, fleet.HostListOptions{SoftwareTitleIDFilter: &vppTitleID, AppStoreAppVersionIDFilter: &otherAppVersion})
+	require.ErrorAs(t, err, &badRequestErr)
+	_, err = ds.ListHosts(ctx, filter, fleet.HostListOptions{SoftwareTitleIDFilter: &vppTitleID, AppStoreAppVersionIDFilter: &otherAppVersion, SoftwareStatusFilter: &failed})
+	require.ErrorAs(t, err, &badRequestErr)
+
+	// fail both version installs and list the failed hosts of version1 in a label with both hosts, only host1 should be listed
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET verification_failed_at = NOW(6) WHERE adam_id = 'ivv-adam'`)
+		return err
+	})
+	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "ivv-label", Query: "select 1", LabelMembershipType: fleet.LabelMembershipTypeManual})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddLabelsToHost(ctx, host1.ID, []uint{label.ID}))
+	require.NoError(t, ds.AddLabelsToHost(ctx, host2.ID, []uint{label.ID}))
+	labelHosts, err := ds.ListHostsInLabel(ctx, filter, label.ID, fleet.HostListOptions{SoftwareTitleIDFilter: &vppTitleID, AppStoreAppVersionIDFilter: &version1, SoftwareStatusFilter: &failed})
+	require.NoError(t, err)
+	require.Equal(t, []uint{host1.ID}, hostIDs(labelHosts))
 }
 
 func testHostsListBySoftwareChangedAt(t *testing.T, ds *Datastore) {
