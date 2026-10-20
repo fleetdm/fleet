@@ -28,6 +28,8 @@ func convertYAMLWithPlatforms(t *testing.T, src string, parent map[profilevalida
 	if err != nil {
 		return "", err
 	}
+	trimPlatforms(keys, parent)
+	trimKeyPlatforms(values, parent)
 	out, err := json.Marshal(map[string]any{"keys": keys, "open": open, "values": values})
 	require.NoError(t, err)
 	return string(out), nil

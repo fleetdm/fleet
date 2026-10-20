@@ -84,6 +84,25 @@ func platformsDiff(resolved, parent map[profilevalidation.AppleOS]profilevalidat
 	return diff
 }
 
+// trimPlatforms replaces each key's resolved platforms with only those that differ from its
+// parent's, recursively. Run it after merging, so differences are relative to the merged parent.
+func trimPlatforms(keys map[string]*profilevalidation.AppleKey, parent map[profilevalidation.AppleOS]profilevalidation.ApplePlatform) {
+	for _, k := range keys {
+		trimKeyPlatforms(k, parent)
+	}
+}
+
+func trimKeyPlatforms(k *profilevalidation.AppleKey, parent map[profilevalidation.AppleOS]profilevalidation.ApplePlatform) {
+	if k == nil {
+		return
+	}
+	resolved := k.Platforms
+	trimPlatforms(k.Keys, resolved)
+	trimKeyPlatforms(k.Items, resolved)
+	trimKeyPlatforms(k.Values, resolved)
+	k.Platforms = platformsDiff(resolved, parent)
+}
+
 type appleRange struct {
 	Min *float64 `yaml:"min"`
 	Max *float64 `yaml:"max"`
@@ -133,7 +152,8 @@ func (c *appleConverter) convertKeys(nodes []*yaml.Node, parentPath string, pare
 }
 
 // convertKey converts one key definition; path is its dotted key path, with "[]" for array items.
-// The key records only the platforms that differ from parentPlatforms.
+// The key holds its fully resolved platforms; trimPlatforms reduces them to differences once files
+// sharing a type have been merged.
 func (c *appleConverter) convertKey(def *yaml.Node, raw *appleRawKey, path string, parentPlatforms map[profilevalidation.AppleOS]profilevalidation.ApplePlatform) (*profilevalidation.AppleKey, error) {
 	if seenAt, ok := c.visiting[def]; ok {
 		return nil, fmt.Errorf("%s: %s contains its own definition from %s", c.file, path, seenAt)
@@ -156,9 +176,7 @@ func (c *appleConverter) convertKey(def *yaml.Node, raw *appleRawKey, path strin
 		key.ValueType = profilevalidation.AppleValueType(raw.SubType)
 	}
 	platforms := raw.SupportedOS.resolve(parentPlatforms)
-	if key.Platforms = platformsDiff(platforms, parentPlatforms); key.Platforms != nil {
-		c.logger.DebugContext(c.ctx, "platforms differ from parent", "path", path, "platforms", key.Platforms)
-	}
+	key.Platforms = platforms
 	if !knownAppleType(typ) {
 		c.logger.WarnContext(c.ctx, "unrecognized type; carried as declared", "path", path, "type", raw.Type)
 	}
