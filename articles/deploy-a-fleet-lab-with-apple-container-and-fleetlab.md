@@ -115,11 +115,7 @@ To enroll a host, install fleetd on it. Because `fleetlab` uses a self-signed ce
 
    Run the command from your `~/fleet-lab` directory. With `--fleet-certificate`, fleetd trusts your certificate without changes to the host's certificate store. Learn more in [Certificates in fleetd](https://fleetdm.com/guides/certificates-in-fleetd).
 
-3. Copy the package to your host and install it. On macOS, double-click the `.pkg` file, or run:
-
-   ```sh
-   sudo installer -pkg fleet-osquery.pkg -target /
-   ```
+3. Copy the package to your host and install it. On macOS, double-click the `.pkg` file
 
 4. Open the **Hosts** page. The host appears within a few minutes.
 
@@ -199,7 +195,7 @@ Fleet's data lives in five named volumes, which are kept when you stop or remove
 
 All Fleet settings live in `.env`, and work the same as in the [Docker Compose guide](https://fleetdm.com/guides/deploy-fleet-on-docker-compose). After changing a Fleet setting, recreate the Fleet container with `./fleetlab.sh update`.
 
-These additional settings control `fleetlab` itself. Add them to `.env`:
+These additional settings control `fleetlab` itself. Add them to `.env` if needed:
 
 | Setting | Default | Description |
 | --- | --- | --- |
