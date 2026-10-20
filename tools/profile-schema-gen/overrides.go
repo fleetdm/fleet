@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"maps"
 	"os"
 	"slices"
 	"strings"
@@ -293,24 +294,23 @@ func withRoot(pt *profilevalidation.ApplePayloadType, fn func(root *profilevalid
 }
 
 func (a *overrideApplier) allow(e overrideEntry) error {
-	if existing := a.schema.AppleProfiles[e.PayloadType]; existing != nil {
-		// Apple now ships this type: keep it and add ours loosest, so nothing gets stricter.
-		a.logger.WarnContext(a.ctx, "allow targets a type Apple now defines; merging, consider removing the entry", "payload_type", e.PayloadType)
-		existing.Override = e.Reason
-		return withRoot(existing, func(root *profilevalidation.AppleKey) error {
-			for name, k := range e.Keys {
-				a.addKey(root, name, k, e.Reason, e.PayloadType)
-			}
-			return nil
-		})
-	}
-	a.schema.AppleProfiles[e.PayloadType] = &profilevalidation.ApplePayloadType{
+	pt := &profilevalidation.ApplePayloadType{
 		Source:   "override",
 		Override: e.Reason,
 		Keys:     e.Keys,
 		// Vendors add settings all the time; allow says the type is legitimate, not that its keys are complete.
 		Open: true,
 	}
+	if existing := a.schema.AppleProfiles[e.PayloadType]; existing != nil {
+		// Apple now ships this type. Merging would apply Apple's closed key set and typed keys to
+		// profiles the allow entry accepted, so the allow definition replaces Apple's. It still
+		// counts as Apple's toward the schema floor.
+		pt.Source = existing.Source
+		a.logger.WarnContext(a.ctx, "allow targets a type Apple now defines; keeping the allow definition so no profile gets stricter, "+
+			"replace it with add/loosen entries to adopt Apple's schema",
+			"payload_type", e.PayloadType, "replaced_apple_keys", slices.Sorted(maps.Keys(existing.Keys)), "apple_open", existing.Open)
+	}
+	a.schema.AppleProfiles[e.PayloadType] = pt
 	return nil
 }
 

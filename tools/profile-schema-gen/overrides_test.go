@@ -175,10 +175,21 @@ allow:
 	assert.JSONEq(t, `{"source": "override", "open": true, "override": "vendor"}`, jsonOf(t, s.AppleProfiles["com.google.Chrome"]))
 	assert.JSONEq(t, `{"source": "override", "open": true, "override": "vendor with keys", "keys": {"ZAutoSSOLogin": {"type": "boolean"}}}`,
 		jsonOf(t, s.AppleProfiles["us.zoom.config"]))
-	// An allow for a type Apple now ships keeps Apple's definition and merges ours in loosest.
-	assert.JSONEq(t, `{"source": "apple", "override": "Apple shipped it", "keys": {
-		"ShowFullURL": {"type": ["boolean", "integer"], "override": "Apple shipped it"},
-		"NewKey": {"type": "string", "override": "Apple shipped it"}}}`, jsonOf(t, s.AppleProfiles["com.apple.Safari"]))
+	// An allow for a type Apple now ships replaces Apple's definition, so nothing gets stricter.
+	assert.JSONEq(t, `{"source": "apple", "open": true, "override": "Apple shipped it", "keys": {
+		"ShowFullURL": {"type": "integer"}, "NewKey": {"type": "string"}}}`, jsonOf(t, s.AppleProfiles["com.apple.Safari"]))
+}
+
+func TestApplyOverridesAllowWithoutKeysWhenAppleCaughtUp(t *testing.T) {
+	s := overrideSchema(t)
+	s.AppleProfiles["com.apple.Safari"].Keys["ShowFullURL"].Required = true
+	require.NoError(t, applyYAML(t, s, `
+allow:
+  - {kind: apple_profile, payload_type: com.apple.Safari, reason: was outside Apple's schema}
+`))
+	// Apple's closed schema and typed, required key are gone: any key with any value still passes.
+	assert.JSONEq(t, `{"source": "apple", "open": true, "override": "was outside Apple's schema"}`,
+		jsonOf(t, s.AppleProfiles["com.apple.Safari"]))
 }
 
 func TestApplyOverridesWindowsIsNoOp(t *testing.T) {
