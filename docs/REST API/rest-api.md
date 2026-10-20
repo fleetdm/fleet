@@ -85,10 +85,8 @@ Each successful request creates a new session with its own token. The `token_exp
     "api_only": false,
     "last_login_at": "2026-10-16T01:18:38Z",
     "last_activity_at": "2026-10-16T01:19:18Z",
-    "teams": [],
     "fleets": []
   },
-  "available_teams": [],
   "token": "{your token}",
   "token_expires_at": "2026-10-16T01:21:24.714672055Z",
   "available_fleets": []
@@ -319,17 +317,9 @@ Retrieves the user data for the authenticated user.
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
-    "teams": [],
     "fleets": []
   },
-  "available_teams" : [
-    {
-      "id": 1,
-      "name": "Workstations",
-      "description": "Employee workstations"
-    }
-  ],
-    "available_fleets" : [
+  "available_fleets": [
     {
       "id": 1,
       "name": "Workstations",
@@ -376,7 +366,6 @@ Resets the password of the authenticated user. Requires that `force_password_res
     "gravatar_url": "",
     "sso_enabled": false,
     "global_role": "admin",
-    "teams": [],
     "fleets": []
   }
 }
@@ -562,13 +551,10 @@ Returns a list of the activities that have been performed in Fleet. For a compre
       "actor_id": 1,
       "actor_gravatar": "",
       "actor_email": "name@example.com",
-      "type": "created_team",
       "type": "created_fleet",
       "fleet_initiated": false,
       "details": {
-        "team_id": 2,
         "fleet_id": 2,
-        "team_name": "Apples",
         "fleet_name": "Apples"
       }
     },
@@ -937,7 +923,6 @@ Add a certificate template to deploy a certificate to all hosts on the fleet. Fl
 ```json
 {
   "name": "wifi-certificate",
-  "team_id": 1,
   "fleet_id": 1,
   "certificate_authority_id": 1,
   "subject_name": "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
@@ -3406,7 +3391,6 @@ None.
     {
       "created_at": "2021-06-16T22:05:49Z",
       "secret": "aFtH2Nq09hrvi73ErlWNQfa7M53D3rPR",
-      "team_id": 1,
       "fleet_id": 1
     }
   ]
@@ -3723,9 +3707,7 @@ To filter Windows hosts using `os_name` and `os_version`, set `os_name` to the f
       "logger_tls_period": 8,
       "status": "offline",
       "display_text": "Annas-MacBook-Pro.local",
-      "team_id": null,
       "fleet_id": null,
-      "team_name": null,
       "fleet_name": null,
       "gigs_disk_space_available": 174.98,
       "percent_disk_space_available": 71,
@@ -4012,7 +3994,6 @@ For iOS, iPadOS, and Android hosts, which don't run osquery, `online`/`offline` 
 
 ```json
 {
-  "team_id": 1,
   "fleet_id": 1,
   "totals_hosts_count": 2408,
   "online_count": 2267,
@@ -4203,10 +4184,8 @@ Returns the information of the specified host.
     "distributed_interval": 10,
     "config_tls_refresh": 10,
     "logger_tls_period": 10,
-    "team_id": null,
     "fleet_id": null,
     "pack_stats": null,
-    "team_name": null,
     "fleet_name": null,
     "gigs_disk_space_available": 174.98,
     "percent_disk_space_available": 71,
@@ -4493,10 +4472,8 @@ Returns the information of the specified host.
     "distributed_interval": 10,
     "config_tls_refresh": 10,
     "logger_tls_period": 10,
-    "team_id": null,
     "fleet_id": null,
     "pack_stats": null,
-    "team_name": null,
     "fleet_name": null,
     "gigs_disk_space_available": 54.3,
     "percent_disk_space_available": 43,
@@ -4827,10 +4804,8 @@ Returns the information of the specified host.
     "distributed_interval": 0,
     "config_tls_refresh": 0,
     "logger_tls_period": 0,
-    "team_id": null,
     "fleet_id": null,
     "pack_stats": null,
-    "team_name": null,
     "fleet_name": null,
     "gigs_disk_space_available": 92.4,
     "percent_disk_space_available": 72,
@@ -5086,9 +5061,7 @@ If `hostname` is specified when there is more than one host with the same hostna
     "distributed_interval": 10,
     "config_tls_refresh": 60,
     "logger_tls_period": 10,
-    "team_id": 2,
     "fleet_id": 2,
-    "team_name": null,
     "fleet_name": null,
     "gigs_disk_space_available": 19.29,
     "percent_disk_space_available": 74,
@@ -5163,9 +5136,7 @@ If `hostname` is specified when there is more than one host with the same hostna
         "label_ids": null,
         "hosts": null,
         "host_ids": null,
-        "teams": null,
-        "fleet": null,
-        "team_ids": null,
+        "fleets": null,
         "fleet_ids": null
       }
     ],
@@ -5178,7 +5149,6 @@ If `hostname` is specified when there is more than one host with the same hostna
         "author_id": 31,
         "author_name": "",
         "author_email": "",
-        "team_id": null,
         "fleet_id": null,
         "resolution": "To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.",
         "platform": "darwin,linux",
@@ -5298,9 +5268,7 @@ If `hostname` is specified when there is more than one host with the same hostna
     "distributed_interval": 10,
     "config_tls_refresh": 60,
     "logger_tls_period": 10,
-    "team_id": 2,
     "fleet_id": 2,
-    "team_name": null,
     "fleet_name": null,
     "gigs_disk_space_available": 54.3,
     "percent_disk_space_available": 43,
@@ -5445,9 +5413,7 @@ If `hostname` is specified when there is more than one host with the same hostna
         "label_ids": null,
         "hosts": null,
         "host_ids": null,
-        "teams": null,
-        "fleet": null,
-        "team_ids": null,
+        "fleets": null,
         "fleet_ids": null
       }
     ],
@@ -5460,7 +5426,6 @@ If `hostname` is specified when there is more than one host with the same hostna
         "author_id": 31,
         "author_name": "",
         "author_email": "",
-        "team_id": null,
         "fleet_id": null,
         "resolution": "To enable a passcode, on the failing device, go to Settings > Face ID & Passcode > Turn Passcode On.",
         "platform": "ios",
@@ -5585,10 +5550,8 @@ If `hostname` is specified when there is more than one host with the same hostna
     "distributed_interval": 0,
     "config_tls_refresh": 0,
     "logger_tls_period": 0,
-    "team_id": null,
     "fleet_id": null,
     "pack_stats": null,
-    "team_name": null,
     "fleet_name": null,
     "gigs_disk_space_available": 92.4,
     "percent_disk_space_available": 72,
@@ -5763,7 +5726,7 @@ On a Windows host whose fleet requires a BitLocker startup PIN, `mdm.os_settings
 
 This endpoint doesn't require API token authentication. Authentication on macOS, Windows, and Linux is enforced by generating a [random UUID that rotates hourly](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). For iOS/iPadOS, this is the host's hardware UUID.
 
-For iOS/iPadOS hosts, Fleet omits identifying details from the response: `uuid`, `hardware_serial`, `primary_mac`, `hostname`, `computer_name`, `display_name`, `display_text`, `team_name`, `labels`, and MDM profile data all come back empty, and the `license` object's `organization` and `device_count` are stripped.
+For iOS/iPadOS hosts, Fleet omits identifying details from the response: `uuid`, `hardware_serial`, `primary_mac`, `hostname`, `computer_name`, `display_name`, `display_text`, `fleet_name`, `labels`, and MDM profile data all come back empty, and the `license` object's `organization` and `device_count` are stripped.
 
 
 ##### Parameters
@@ -5826,10 +5789,8 @@ For iOS/iPadOS hosts, Fleet omits identifying details from the response: `uuid`,
     "distributed_interval": 10,
     "config_tls_refresh": 10,
     "logger_tls_period": 10,
-    "team_id": null,
     "fleet_id": null,
     "pack_stats": null,
-    "team_name": null,
     "fleet_name": null,
     "additional": {},
     "gigs_disk_space_available": 174.98,
@@ -6072,7 +6033,6 @@ _Available in Fleet Premium_
 
 ```json
 {
-  "team_id": 1,
   "fleet_id": 1,
   "hosts": [3, 2, 4, 6, 1, 5, 7]
 }
@@ -6117,12 +6077,10 @@ _Available in Fleet Premium_
 
 ```json
 {
-  "team_id": 1,
   "fleet_id": 1,
   "filters": {
     "status": "online",
-    "team_id": 2,
-    "fleet_id": 2,
+    "fleet_id": 2
   }
 }
 ```
@@ -6195,7 +6153,6 @@ Request (using `filters`):
   "filters": {
     "status": "online",
     "label_id": 1,
-    "team_id": 1,
     "fleet_id": 1,
     "query": "abc"
   }
@@ -6219,7 +6176,6 @@ Request (`filters` is specified and empty, to delete all hosts):
 {
   "filters": {
     "status": "online",
-    "team_id": 1,
     "fleet_id": 1
   }
 }
@@ -6961,7 +6917,7 @@ If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Se
 `Status: 200`
 
 ```csv
-created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,last_enrolled_at,seen_time,refetch_requested,hostname,uuid,platform,osquery_version,os_version,build,platform_like,code_name,uptime,memory,cpu_type,cpu_subtype,cpu_brand,cpu_physical_cores,cpu_logical_cores,hardware_vendor,hardware_model,hardware_marketing_name,hardware_version,hardware_serial,computer_name,primary_ip_id,primary_ip,primary_mac,distributed_interval,config_tls_refresh,logger_tls_period,team_name,fleet_name,gigs_disk_space_available,percent_disk_space_available,gigs_total_disk_space,issues,device_mapping,status,display_text
+created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,last_enrolled_at,seen_time,refetch_requested,hostname,uuid,platform,osquery_version,os_version,build,platform_like,code_name,uptime,memory,cpu_type,cpu_subtype,cpu_brand,cpu_physical_cores,cpu_logical_cores,hardware_vendor,hardware_model,hardware_marketing_name,hardware_version,hardware_serial,computer_name,primary_ip_id,primary_ip,primary_mac,distributed_interval,config_tls_refresh,logger_tls_period,fleet_name,gigs_disk_space_available,percent_disk_space_available,gigs_total_disk_space,issues,device_mapping,status,display_text
 2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,1,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,false,foo.local0,a4fc55a1-b5de-409c-a2f4-441f564680d3,debian,,,,,,0s,0,,,,0,0,,,,,,,,,,0,0,0,,,0,0,0,0,,,,
 2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:22:56Z,false,foo.local1,689539e5-72f0-4bf7-9cc5-1530d3814660,rhel,,,,,,0s,0,,,,0,0,,,,,,,,,,0,0,0,,,0,0,0,0,,,,
 2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,3,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:21:56Z,false,foo.local2,48ebe4b0-39c3-4a74-a67f-308f7b5dd171,linux,,,,,,0s,0,,,,0,0,,,,,,,,,,0,0,0,,,0,0,0,0,,,,
@@ -7150,7 +7106,6 @@ Retrieves a list of the configuration profiles assigned to a host.
   "profiles": [
     {
       "profile_uuid": "bc84dae7-396c-4e10-9d45-5768bce8b8bd",
-      "team_id": 0,
       "fleet_id": 0,
       "name": "Example profile",
       "identifier": "com.example.profile",
@@ -7874,7 +7829,6 @@ If `query`, `criteria`, and `hosts` aren't specified, a manual label with no hos
     "count": 0,
     "host_ids": null,
     "author_id": 1,
-    "team_id": null,
     "fleet_id": null
   }
 }
@@ -7930,9 +7884,7 @@ Updates the specified label. Note: Label queries, platforms, and fleets are immu
     "count": 2,
     "host_ids": [42, 43],
     "author_id": 1,
-    "team_id": null,
     "fleet_id": null,
-    "team_name": null,
     "fleet_name": null
   }
 }
@@ -7973,9 +7925,7 @@ Returns the specified label.
     "count": 0,
     "host_ids": null,
     "author_id": 1,
-    "team_id": null,
     "fleet_id": null,
-    "team_name": null,
     "fleet_name": null
   }
 }
@@ -8009,7 +7959,6 @@ Returns a list of labels in Fleet, including basic information on each label.
       "name": "All Hosts",
       "description": "All hosts which have enrolled in Fleet",
       "label_type": "builtin",
-      "team_id": null,
       "fleet_id": null
     },
     {
@@ -8017,7 +7966,6 @@ Returns a list of labels in Fleet, including basic information on each label.
       "name": "macOS",
       "description": "All macOS hosts",
       "label_type": "builtin",
-      "team_id": null,
       "fleet_id": null
     },
     {
@@ -8025,7 +7973,6 @@ Returns a list of labels in Fleet, including basic information on each label.
       "name": "Ubuntu Linux",
       "description": "All Ubuntu hosts",
       "label_type": "builtin",
-      "team_id": null,
       "fleet_id": null
     },
     {
@@ -8033,7 +7980,6 @@ Returns a list of labels in Fleet, including basic information on each label.
       "name": "CentOS Linux",
       "description": "All CentOS hosts",
       "label_type": "builtin",
-      "team_id": null,
       "fleet_id": null
     },
     {
@@ -8041,7 +7987,6 @@ Returns a list of labels in Fleet, including basic information on each label.
       "name": "MS Windows",
       "description": "All Windows hosts",
       "label_type": "builtin",
-      "team_id": null,
       "fleet_id": null
     },
     {
@@ -8049,7 +7994,6 @@ Returns a list of labels in Fleet, including basic information on each label.
       "name": "My fleet-specific label",
       "description": "This one goes to eleven, but only on one fleet",
       "label_type": "regular",
-      "team_id": 1,
       "fleet_id": 1
     }
   ]
@@ -8099,7 +8043,6 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "count": 7,
       "host_ids": null,
       "author_id": 1,
-      "team_id": null,
       "fleet_id": null
     },
     {
@@ -8117,7 +8060,6 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "count": 1,
       "host_ids": null,
       "author_id": 1,
-      "team_id": null,
       "fleet_id": null
     },
     {
@@ -8135,7 +8077,6 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "count": 3,
       "host_ids": null,
       "author_id": 1,
-      "team_id": null,
       "fleet_id": null
     },
     {
@@ -8152,7 +8093,6 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "count": 3,
       "host_ids": null,
       "author_id": 1,
-      "team_id": null,
       "fleet_id": null
     },
     {
@@ -8169,24 +8109,22 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
       "count": 0,
       "host_ids": null,
       "author_id": 1,
-      "team_id": null,
       "fleet_id": null
     },
     {
       "created_at": "2025-11-13T06:14:20Z",
       "updated_at": "2025-11-13T06:14:20Z",
       "id": 4663,
-      "name": "Team: g-software",
+      "name": "Fleet: g-software",
       "description": "Workstations used by g-software",
       "query": "",
       "platform": "",
       "label_type": "regular",
       "label_membership_type": "manual",
-      "display_text": "Team: g-software",
+      "display_text": "Fleet: g-software",
       "count": 0,
       "host_ids": null,
       "author_id": 1,
-      "team_id": 2,
       "fleet_id": null
     }
   ]
@@ -8274,10 +8212,8 @@ If `mdm_id`, `mdm_name`, `mdm_enrollment_status`, `os_settings`, or `os_settings
       "distributed_interval": 10,
       "config_tls_refresh": 10,
       "logger_tls_period": 10,
-      "team_id": null,
       "fleet_id": null,
       "pack_stats": null,
-      "team_name": null,
       "fleet_name": null,
       "status": "offline",
       "display_text": "e2e7f8d8983d",
@@ -8456,7 +8392,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
   "profiles": [
     {
       "profile_uuid": "39f6cbbc-fe7b-4adc-b7a9-542d1af89c63",
-      "team_id": 0,
+      "fleet_id": 0,
       "name": "Example macOS profile",
       "platform": "darwin",
       "identifier": "com.example.profile",
@@ -8473,7 +8409,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
     },
     {
       "profile_uuid": "f5ad01cc-f416-4b5f-88f3-a26da3b56a19",
-      "team_id": 0,
+      "fleet_id": 0,
       "name": "Example Windows profile",
       "platform": "windows",
       "created_at": "2023-04-31T00:00:00Z",
@@ -8524,7 +8460,7 @@ If one or more assigned labels are deleted the profile is considered broken (`br
 ```json
 {
   "profile_uuid": "f663713f-04ee-40f0-a95a-7af428c351a9",
-  "team_id": 0,
+  "fleet_id": 0,
   "name": "Example profile",
   "platform": "darwin",
   "identifier": "com.example.profile",
@@ -9429,7 +9365,6 @@ Sets the custom MDM setup enrollment profile for a fleet or "Unassigned".
 
 ```json
 {
-  "team_id": 123,
   "fleet_id": 123,
   "name": "dep_profile.json",
   "uploaded_at": "2023-04-04:00:00Z",
@@ -9466,7 +9401,6 @@ Gets the custom MDM setup enrollment profile for a fleet or "Unassigned".
 
 ```json
 {
-  "team_id": 123,
   "fleet_id": 123,
   "name": "dep_profile.json",
   "uploaded_at": "2023-04-04:00:00Z",
@@ -9704,7 +9638,6 @@ Get information about a bootstrap package that was uploaded to Fleet.
 ```json
 {
   "name": "bootstrap-package.pkg",
-  "team_id": 0,
   "fleet_id": 0,
   "sha256": "6bebb4433322fd52837de9e4787de534b4089ac645b0692dfb74d000438da4a3",
   "token": "AA598E2A-7952-46E3-B89D-526D45F7E233",
@@ -9832,7 +9765,6 @@ _Available in Fleet Premium_
 
 ```json
 {
-  "team_id": 1,
   "fleet_id": 1,
   "enable_end_user_authentication": true,
   "enable_release_device_manually": true
@@ -10127,7 +10059,6 @@ Get a script that will automatically run during macOS setup.
 ```json
 {
   "id": 1,
-  "team_id": 3,
   "fleet_id": 3,
   "name": "setup-experience-script.sh",
   "created_at": "2023-07-30T13:41:07Z",
@@ -10534,33 +10465,17 @@ None.
       "default": true,
       "terms_expired": false,
       "token_invalid": false,
-      "macos_team": {
-        "name": "💻 Workstations",
-        "id": 1
-      },
       "macos_fleet": {
         "name": "💻 Workstations",
         "id": 1
-      },
-      "ios_team": {
-        "name": "📱🏢 Company-owned iPhones",
-        "id": 2
       },
       "ios_fleet": {
         "name": "📱🏢 Company-owned iPhones",
         "id": 2
       },
-      "ipados_team": {
-        "name": "🔳🏢 Company-owned iPads",
-        "id": 3
-      },
       "ipados_fleet": {
         "name": "🔳🏢 Company-owned iPads",
         "id": 3
-      },
-      "byod_team": {
-        "name": "📱 BYOD iPhones",
-        "id": 4
       },
       "byod_fleet": {
         "name": "📱 BYOD iPhones",
@@ -10620,7 +10535,6 @@ Content-Type: application/octet-stream
     "country_code": "us",
     "renew_date": "2027-10-20T00:00:00Z",
     "created_at": "2026-10-20T14:02:11Z",
-    "teams": null,
     "fleets": null
   }
 }
@@ -10654,24 +10568,6 @@ None.
       "country_code": "us",
       "renew_date": "2023-11-29T00:00:00Z",
       "created_at": "2022-11-29T14:02:11Z",
-      "teams": [
-        {
-          "name": "💻 Workstations",
-          "team_id": 1
-        },
-        {
-          "name": "💻🐣 Workstations (canary)",
-          "team_id": 2
-        },
-        {
-          "name": "📱🏢 Company-owned iPhones",
-          "team_id": 3
-        },
-        {
-          "name": "🔳🏢 Company-owned iPads",
-          "team_id": 4
-        }
-      ],
       "fleets": [
         {
           "name": "💻 Workstations",
@@ -10739,16 +10635,6 @@ When a VPP token is removed from a fleet, App Store apps that were added to that
     "country_code": "us",
     "renew_date": "2027-10-20T00:00:00Z",
     "created_at": "2026-10-20T14:02:11Z",
-    "teams": [
-      {
-        "name": "💻 Workstations",
-        "team_id": 1
-      },
-      {
-        "name": "📱🏢 Company-owned iPhones",
-        "team_id": 2
-      }
-    ],
     "fleets": [
       {
         "name": "💻 Workstations",
@@ -11789,7 +11675,7 @@ For example, a policy might ask "Is Gatekeeper enabled on macOS devices?" This p
 | ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
 | per_page                | integer | query | Results per page. |
-| order_key               | string  | query | What to order results by. Allowed fields are `id`, `name`, `team_id`, `created_at`, `updated_at`, `failing_host_count`, and `passing_host_count`. |
+| order_key               | string  | query | What to order results by. Allowed fields are `id`, `name`, `fleet_id`, `created_at`, `updated_at`, `failing_host_count`, and `passing_host_count`. |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after                   | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 | platform                | string  | query | Filters policies by targeted platform. Accepts `"darwin"`, `"windows"`, `"linux"`, or `"chrome"`. Policies that target all platforms (empty `platform` field) are always included. |
@@ -11814,7 +11700,7 @@ For example, a policy might ask "Is Gatekeeper enabled on macOS devices?" This p
       "author_id": 42,
       "author_name": "John",
       "author_email": "john@example.com",
-      "team_id": null,
+      "fleet_id": null,
       "resolution": "Resolution steps",
       "platform": "darwin",
       "created_at": "2021-12-15T15:23:57Z",
@@ -11833,7 +11719,7 @@ For example, a policy might ask "Is Gatekeeper enabled on macOS devices?" This p
       "author_id": 43,
       "author_name": "Alice",
       "author_email": "alice@example.com",
-      "team_id": null,
+      "fleet_id": null,
       "resolution": "Resolution steps",
       "platform": "windows",
       "created_at": "2021-12-31T14:52:27Z",
@@ -11864,7 +11750,7 @@ _Available in Fleet Premium_
 | query                 | string | query | Search query keywords. Searchable fields include `name`. |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
 | per_page                | integer | query | Results per page. |
-| order_key               | string  | query | What to order results by. Allowed fields are `id`, `name`, `team_id`, `created_at`, `updated_at`, `failing_host_count`, and `passing_host_count`. |
+| order_key               | string  | query | What to order results by. Allowed fields are `id`, `name`, `fleet_id`, `created_at`, `updated_at`, `failing_host_count`, and `passing_host_count`. |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 | after                   | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 | automation_type         | string  | query | Filters by automation type. Supported values are "software", "scripts", "calendar", "conditional_access", and "other". |
@@ -11892,7 +11778,7 @@ _Available in Fleet Premium_
       "author_id": 42,
       "author_name": "John",
       "author_email": "john@example.com",
-      "team_id": 1,
+      "fleet_id": 1,
       "resolution": "Resolution steps",
       "platform": "darwin",
       "created_at": "2021-12-16T14:37:37Z",
@@ -11914,7 +11800,7 @@ _Available in Fleet Premium_
       "author_id": 43,
       "author_name": "Alice",
       "author_email": "alice@example.com",
-      "team_id": 1,
+      "fleet_id": 1,
       "resolution": "Resolution steps",
       "platform": "windows",
       "created_at": "2021-12-16T14:37:37Z",
@@ -11940,7 +11826,7 @@ _Available in Fleet Premium_
       "author_id": 43,
       "author_name": "Alice",
       "author_email": "alice@example.com",
-      "team_id": 1,
+      "fleet_id": 1,
       "resolution": "Resolution steps",
       "platform": "darwin",
       "created_at": "2021-12-16T14:37:37Z",
@@ -11967,7 +11853,7 @@ _Available in Fleet Premium_
       "author_id": 77,
       "author_name": "Test Admin",
       "author_email": "test@admin.com",
-      "team_id": null,
+      "fleet_id": null,
       "resolution": "To make it pass, change \"1=0\" to \"1=1\". To make it fail, change \"1=1\" to \"1=0\".",
       "platform": "darwin,windows,linux",
       "created_at": "2022-08-04T19:30:18Z",
@@ -12000,7 +11886,7 @@ _Available in Fleet Premium_
       "author_id": 42,
       "author_name": "John",
       "author_email": "john@example.com",
-      "team_id": 1,
+      "fleet_id": 1,
       "resolution": "Resolution steps",
       "platform": "darwin",
       "created_at": "2021-12-16T14:37:37Z",
@@ -12022,7 +11908,7 @@ _Available in Fleet Premium_
       "author_id": 43,
       "author_name": "Alice",
       "author_email": "alice@example.com",
-      "team_id": 1,
+      "fleet_id": 1,
       "resolution": "Resolution steps",
       "platform": "windows",
       "created_at": "2021-12-16T14:37:37Z",
@@ -12043,7 +11929,7 @@ _Available in Fleet Premium_
       "author_id": 77,
       "author_name": "Test Admin",
       "author_email": "test@admin.com",
-      "team_id": null,
+      "fleet_id": null,
       "resolution": "To make it pass, change \"1=0\" to \"1=1\". To make it fail, change \"1=1\" to \"1=0\".",
       "platform": "darwin,windows,linux",
       "created_at": "2022-08-04T19:30:18Z",
@@ -12146,7 +12032,7 @@ _Available in Fleet Premium_
     "author_id": 42,
     "author_name": "John",
     "author_email": "john@example.com",
-    "team_id": null,
+    "fleet_id": null,
     "resolution": "Resolution steps",
     "platform": "darwin",
     "created_at": "2021-12-15T15:23:57Z",
@@ -12193,7 +12079,7 @@ _Available in Fleet Premium_
     "author_id": 42,
     "author_name": "John",
     "author_email": "john@example.com",
-    "team_id": 1,
+    "fleet_id": 1,
     "resolution": "Resolution steps",
     "platform": "darwin",
     "created_at": "2021-12-16T14:37:37Z",
@@ -12283,7 +12169,7 @@ Only one set of label targets (`labels_include_any`/`labels_include_all`) and on
     "author_id": 42,
     "author_name": "John",
     "author_email": "john@example.com",
-    "team_id": null,
+    "fleet_id": null,
     "resolution": "Resolution steps",
     "platform": "darwin",
     "created_at": "2022-03-17T20:15:55Z",
@@ -12371,7 +12257,6 @@ Only one set of label targets (`labels_include_any`/`labels_include_all`) and on
     "author_id": 42,
     "author_name": "John",
     "author_email": "john@example.com",
-    "team_id": 1,
     "fleet_id": 1,
     "resolution": "Resolution steps",
     "platform": "darwin",
@@ -12527,7 +12412,7 @@ Only one set of label targets (`labels_include_any`/`labels_include_all`) and on
     "author_id": 43,
     "author_name": "John",
     "author_email": "john@example.com",
-    "team_id": null,
+    "fleet_id": null,
     "resolution": "Resolution steps",
     "platform": "darwin",
     "created_at": "2022-03-17T20:15:55Z",
@@ -12614,7 +12499,7 @@ Setting `patch_when_closed` or `notify_before_patching` to `false` after it was 
     "author_email": "john@example.com",
     "resolution": "Resolution steps",
     "platform": "darwin",
-    "team_id": 2,
+    "fleet_id": 2,
     "created_at": "2021-12-16T14:37:37Z",
     "updated_at": "2021-12-16T16:39:00Z",
     "passing_host_count": 0,
@@ -12664,7 +12549,6 @@ Resets [webhook and ticket policy automations](https://fleetdm.com/docs/using-fl
 
 ```json
 {
-    "team_ids": [1],
     "fleet_ids": [1],
     "policy_ids": [1, 2, 3]
 }
@@ -12761,7 +12645,7 @@ Returns a list of reports. To see each report's data, use the [get report data](
       "name": "report1",
       "description": "report",
       "query": "SELECT * FROM osquery_info",
-      "team_id": null,
+      "fleet_id": null,
       "interval": 3600,
       "platform": "darwin,windows,linux",
       "min_osquery_version": "",
@@ -12802,7 +12686,7 @@ Returns a list of reports. To see each report's data, use the [get report data](
       "name": "report1",
       "description": "report",
       "query": "SELECT * FROM osquery_info",
-      "team_id": null,
+      "fleet_id": null,
       "interval": 3600,
       "platform": "darwin,windows,linux",
       "min_osquery_version": "",
@@ -12841,7 +12725,7 @@ Returns a list of reports. To see each report's data, use the [get report data](
       "name": "osquery_schedule",
       "description": "Report performance stats for each file in the query schedule.",
       "query": "select name, interval, executions, output_size, wall_time, (user_time/executions) as avg_user_time, (system_time/executions) as avg_system_time, average_memory, last_executed from osquery_schedule;",
-      "team_id": null,
+      "fleet_id": null,
       "interval": 3600,
       "platform": "",
       "version": "",
@@ -12994,7 +12878,7 @@ Returns the report specified by ID.
     "name": "centos_hosts",
     "description": "",
     "query": "select 1 from os_version where platform = \"centos\";",
-    "team_id": null,
+    "fleet_id": null,
     "interval": 3600,
     "platform": "",
     "min_osquery_version": "",
@@ -13266,7 +13150,7 @@ Only one of  `labels_include_any` or `labels_include_all` can be specified. If n
     "name": "new_query",
     "query": "SELECT * FROM osquery_info",
     "description": "This is a new query.",
-    "team_id": null,
+    "fleet_id": null,
     "interval": 3600,
     "platform": "darwin,windows,linux",
     "min_osquery_version": "",
@@ -13290,7 +13174,7 @@ Only one of  `labels_include_any` or `labels_include_all` can be specified. If n
     "name": "new_query",
     "query": "SELECT * FROM osquery_info",
     "description": "This is a new query.",
-    "team_id": null,
+    "fleet_id": null,
     "interval": 3600,
     "platform": "darwin,windows,linux",
     "min_osquery_version": "",
@@ -13376,7 +13260,7 @@ Only one of  `labels_include_any` or `labels_include_all` can be specified. If n
     "name": "new_title_for_my_query",
     "description": "This is a new query.",
     "query": "SELECT * FROM osquery_info",
-    "team_id": null,
+    "fleet_id": null,
     "interval": 3600,
     "platform": "",
     "min_osquery_version": "",
@@ -13400,7 +13284,7 @@ Only one of  `labels_include_any` or `labels_include_all` can be specified. If n
     "name": "new_title_for_my_query",
     "description": "This is a new query.",
     "query": "SELECT * FROM osquery_info",
-    "team_id": null,
+    "fleet_id": null,
     "interval": 3600,
     "platform": "",
     "min_osquery_version": "",
@@ -14280,7 +14164,6 @@ Returns a list of batch script executions.
 
 ```json
 {
-  "team_id": 123,
   "fleet_id": 123,
   "status": "completed"
 }
@@ -14297,7 +14180,6 @@ Returns a list of batch script executions.
       "script_id": 555,
       "script_name": "my-script.sh",
       "batch_execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-      "team_id": 123,
       "fleet_id": 123,
       "not_before": "2025-07-01T15:00:00Z",
       "finished_at": "2025-07-06T15:00:00Z",
@@ -14351,7 +14233,6 @@ Returns a summary of a batch-run script, including host counts and current statu
 {
   "script_id": 555,
   "script_name": "my-script.sh",
-  "team_id": 123,
   "fleet_id": 123,
   "not_before": "2025-07-01T15:00:00Z",
   "finished_at": "2025-07-06T15:00:00Z",
@@ -14502,7 +14383,7 @@ script="myscript.sh"
 ```json
 {
   "id": 1,
-  "team_id": null,
+  "fleet_id": null,
   "name": "script_1.sh",
   "created_at": "2023-07-30T13:41:07Z",
   "updated_at": "2023-07-30T13:41:07Z"
@@ -14557,14 +14438,14 @@ Deletes an existing script.
   "scripts": [
     {
       "id": 1,
-      "team_id": null,
+      "fleet_id": null,
       "name": "script_1.sh",
       "created_at": "2023-07-30T13:41:07Z",
       "updated_at": "2023-07-30T13:41:07Z"
     },
     {
       "id": 2,
-      "team_id": null,
+      "fleet_id": null,
       "name": "script_2.sh",
       "created_at": "2023-08-30T13:41:07Z",
       "updated_at": "2023-08-30T13:41:07Z"
@@ -14661,7 +14542,7 @@ Deletes an existing script.
 ```json
 {
   "id": 123,
-  "team_id": null,
+  "fleet_id": null,
   "name": "script_1.sh",
   "created_at": "2023-07-30T13:41:07Z",
   "updated_at": "2023-07-30T13:41:07Z"
@@ -15157,7 +15038,6 @@ Returns information about the specified software. By default, `versions` are sor
     "counts_updated_at": "2026-06-04T17:23:45Z",
     "packages": [
         {
-            "team_id": 310,
             "title_id": 2792,
             "name": "Slack-4.50.128-macOS.pkg",
             "icon_url": null,
@@ -15190,7 +15070,6 @@ Returns information about the specified software. By default, `versions` are sor
             "fleet_id": 310
         },
         {
-            "team_id": 310,
             "title_id": 2792,
             "name": "Slack-4.51.133-macOS.pkg",
             "icon_url": null,
@@ -15219,7 +15098,7 @@ Returns information about the specified software. By default, `versions` are sor
             "labels_include_all": [
                 {
                     "id": 12,
-                    "name": "IT test team"
+                    "name": "IT test fleet"
                 }
             ],
             "categories": null,
@@ -15229,7 +15108,6 @@ Returns information about the specified software. By default, `versions` are sor
         }
     ],
     "software_package": {
-        "team_id": 310,
         "title_id": 2792,
         "name": "Slack-4.50.128-macOS.pkg",
         "icon_url": null,
@@ -15655,7 +15533,6 @@ labels_exclude_any="QA"
 ```json
 {
   "package": {
-    "team_id": 310,
     "title_id": 2792,
     "name": "Slack-4.50.128-macOS.pkg",
     "icon_url": null,
@@ -15753,7 +15630,6 @@ post_install_script="sudo /Applications/Falcon.app/Contents/Resources/falconctl 
 ```json
 {
   "package": {
-    "team_id": 310,
     "title_id": 2792,
     "name": "Slack-4.45.64-macOS.pkg",
     "icon_url": null,
@@ -15792,7 +15668,7 @@ post_install_script="sudo /Applications/Falcon.app/Contents/Resources/falconctl 
 
 _Available in Fleet Premium._
 
-Icon will be displayed in Fleet and on **Fleet Desktop > Self-service**. In the UI for the specified team, overriding the default icon built into Fleet, as well as the Apple-sourced icon if the software has an associated VPP app.
+Icon will be displayed in Fleet and on **Fleet Desktop > Self-service**. In the UI for the specified fleet, overriding the default icon built into Fleet, as well as the Apple-sourced icon if the software has an associated VPP app.
 
 > You need to send a request of type `multipart/form-data`.
 
@@ -15843,7 +15719,7 @@ Download the icon added via [Update software icon](#update-software-icon) or ico
 | id              | integer | path | ID of the software title to get icon for. |
 | fleet_id         | integer | query | **Required**. The fleet ID. |
 
-This endpoint will redirect (302) to the Apple-hosted URL of an icon if an icon override isn't set and a VPP app is added for the title on the host's team.
+This endpoint will redirect (302) to the Apple-hosted URL of an icon if an icon override isn't set and a VPP app is added for the title on the host's fleet.
 
 #### Example
 
@@ -15994,7 +15870,7 @@ To add more than one version of the same app, call this endpoint once per versio
 ```json
 {
   "app_store_id": "546505307",
-  "team_id": 2,
+  "fleet_id": 2,
   "platform": "ios",
   "name": "Test",
   "labels_include_any": ["Test"],
@@ -16086,7 +15962,7 @@ If a host is in scope for more than one version, Fleet installs the one that was
 
 ```json
 {
-  "team_id": 2,
+  "fleet_id": 2,
   "version_id": 42,
   "name": "Test",
   "labels_include_any": ["Test"],
@@ -17066,7 +16942,7 @@ _Available in Fleet Premium_
         {
           "secret": "",
           "created_at": "2021-07-28T15:58:21Z",
-          "team_id": 10
+          "fleet_id": 10
         }
       ]
     },
@@ -17103,7 +16979,7 @@ _Available in Fleet Premium_
           {
             "secret": "+ncixtnZB+IE0OrbrkCLeul3U8LMVITd",
             "created_at": "2021-08-05T21:41:42Z",
-            "team_id": 15
+            "fleet_id": 15
           }
         ]
       }
@@ -17138,7 +17014,7 @@ _Available in Fleet Premium_
 
 ```json
 {
-  "team": {
+  "fleet": {
     "name": "Workstations",
     "id": 1,
     "user_count": 4,
@@ -17316,7 +17192,7 @@ Returned when the requested name only differs from an existing fleet's name by l
 
 ```json
 {
-  "team": {
+  "fleet": {
     "name": "workstations",
     "id": 1,
     "user_count": 0,
@@ -17412,7 +17288,7 @@ Returned when the requested name only differs from another fleet's name by lette
 
 ```json
 {
-  "team": {
+  "fleet": {
     "name": "Workstations",
     "id": 1,
     "user_count": 4,
@@ -17908,7 +17784,7 @@ This also applies to `DELETE /api/v1/fleet/fleets/:id/users` (remove users from 
 
 ```json
 {
-  "team": {
+  "fleet": {
     "name": "Workstations",
     "id": 1,
     "user_count": 2,
@@ -18028,7 +17904,7 @@ This also applies to `DELETE /api/v1/fleet/fleets/:id/users` (remove users from 
         "sso_enabled": false,
         "global_role": null,
         "api_only": false,
-        "teams": null,
+        "fleets": null,
         "role": "admin"
       },
       {
@@ -18042,7 +17918,7 @@ This also applies to `DELETE /api/v1/fleet/fleets/:id/users` (remove users from 
         "sso_enabled": false,
         "global_role": null,
         "api_only": false,
-        "teams": null,
+        "fleets": null,
         "role": "observer"
       }
     ]
@@ -18103,7 +17979,7 @@ _Available in Fleet Premium_
 
 ```json
 {
-  "team": {
+  "fleet": {
     "name": "Workstations",
     "id": 1,
     "user_count": 4,
@@ -18201,9 +18077,9 @@ Transforms a host name into a host id. For example, the Fleet UI uses this endpo
       }
     },
     {
-      "type": "team",
+      "type": "fleet",
       "payload": {
-        "identifier": "team1"
+        "identifier": "fleet1"
       }
     },
     {
@@ -18238,9 +18114,9 @@ Transforms a host name into a host id. For example, the Fleet UI uses this endpo
       }
     },
     {
-      "type": "team",
+      "type": "fleet",
       "payload": {
-        "identifier": "team1",
+        "identifier": "fleet1",
         "id": 22
       }
     },
@@ -19809,4 +19685,4 @@ Response:
 
 <meta name="description" value="Documentation for Fleet's REST API. See example requests and responses for each API endpoint.">
 <meta name="pageOrderInSection" value="30">
-<meta name="keywordsForDocsearch" value="api reference, api authentication, hosts api, policies api, reports api, scripts api, software api, vulnerabilities api, sessions api, users api, teams api, fleets api, mdm commands api, certificates api, labels api, activities api">
+<meta name="keywordsForDocsearch" value="api reference, api authentication, hosts api, policies api, reports api, scripts api, software api, vulnerabilities api, sessions api, users api, fleets api, mdm commands api, certificates api, labels api, activities api">
