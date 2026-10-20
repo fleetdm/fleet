@@ -15,7 +15,10 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/mdm/profilevalidation"
 )
 
-const appleNotSupported = "n/a"
+const (
+	appleNotSupported   = "n/a"
+	appleServerTokenKey = "ServerToken"
+)
 
 // convertApple fills the Apple sections of schema from the loaded sources.
 func convertApple(ctx context.Context, logger *slog.Logger, src *appleSources, schema *profilevalidation.ProfileValidationSchema) error {
@@ -28,6 +31,12 @@ func convertApple(ctx context.Context, logger *slog.Logger, src *appleSources, s
 	}
 	if schema.AppleDeclarationEnvelope, err = convertAppleGroup(ctx, logger, src.DeclarationBase); err != nil {
 		return err
+	}
+	// Fleet's server sets ServerToken when it serves a declaration, so uploads must never be
+	// validated for it.
+	if _, ok := schema.AppleDeclarationEnvelope.Keys[appleServerTokenKey]; ok {
+		delete(schema.AppleDeclarationEnvelope.Keys, appleServerTokenKey)
+		logger.InfoContext(ctx, "dropped server-managed key from the declaration envelope", "key", appleServerTokenKey)
 	}
 	if schema.AppleProfiles, err = convertAppleGroups(ctx, logger, src.Profiles); err != nil {
 		return err

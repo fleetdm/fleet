@@ -5,7 +5,7 @@
       "release": "Release-v27.0",
       "commit": "09f249a06e7e3289930bf6d05f38fb562f748ebf"
     },
-    "generated_at": "2026-10-20T07:22:46Z"
+    "generated_at": "2026-10-20T09:02:22Z"
   },
   "apple_envelope": {
     "TopLevel": {
@@ -66,6 +66,10 @@
         },
         "PayloadDisplayName": {
           "type": "string"
+        },
+        "PayloadEnabled": {
+          "type": "boolean",
+          "override": "Written by Profile Manager and many vendors; used in several it-and-security profiles."
         },
         "PayloadExpirationDate": {
           "type": "date",
@@ -191,6 +195,10 @@
         "PayloadDisplayName": {
           "type": "string"
         },
+        "PayloadEnabled": {
+          "type": "boolean",
+          "override": "Written by Profile Manager and many vendors; used in several it-and-security profiles."
+        },
         "PayloadIdentifier": {
           "type": "string",
           "required": true
@@ -244,6 +252,11 @@
           "type": "real"
         }
       }
+    },
+    "com.1password.1password": {
+      "source": "override",
+      "open": true,
+      "override": "Vendor preference domain used by Fleet's profiles."
     },
     "com.apple.ADCertificate.managed": {
       "platforms": {
@@ -393,6 +406,16 @@
           "type": "string"
         }
       }
+    },
+    "com.apple.Accessibility": {
+      "source": "override",
+      "open": true,
+      "override": "Apple preference domain outside Apple's MDM schema; used by Fleet's profiles."
+    },
+    "com.apple.AdLib": {
+      "source": "override",
+      "open": true,
+      "override": "Apple preference domain outside Apple's MDM schema; used by Fleet's profiles."
     },
     "com.apple.AssetCache.managed": {
       "platforms": {
@@ -1142,6 +1165,10 @@
         "dontAllowFDEEnable": {
           "type": "boolean"
         },
+        "forceInternetSharingOff": {
+          "type": "boolean",
+          "override": "CIS benchmark setting; used in it-and-security disable-internet-sharing profile."
+        },
         "timeServer": {
           "type": "string",
           "platforms": {
@@ -1409,6 +1436,11 @@
           }
         }
       }
+    },
+    "com.apple.Safari": {
+      "source": "override",
+      "open": true,
+      "override": "Apple preference domain outside Apple's MDM schema; used by Fleet's profiles."
     },
     "com.apple.SetupAssistant.managed": {
       "platforms": {
@@ -1737,6 +1769,11 @@
           }
         }
       }
+    },
+    "com.apple.SubmitDiagInfo": {
+      "source": "override",
+      "open": true,
+      "override": "Apple preference domain outside Apple's MDM schema; used by Fleet's profiles."
     },
     "com.apple.SystemConfiguration": {
       "platforms": {
@@ -3375,6 +3412,16 @@
         }
       }
     },
+    "com.apple.Terminal": {
+      "source": "override",
+      "open": true,
+      "override": "Apple preference domain outside Apple's MDM schema; used by Fleet's profiles."
+    },
+    "com.apple.TimeMachine": {
+      "source": "override",
+      "open": true,
+      "override": "Apple preference domain outside Apple's MDM schema; used by Fleet's profiles."
+    },
     "com.apple.airplay": {
       "platforms": {
         "iOS": {
@@ -4621,6 +4668,10 @@
             }
           }
         },
+        "allowCloudBTMM": {
+          "type": "boolean",
+          "override": "Legacy Back to My Mac restriction; used in it-and-security misc profile."
+        },
         "allowCloudBackup": {
           "type": "boolean",
           "platforms": {
@@ -4722,6 +4773,10 @@
               "introduced": "n/a"
             }
           }
+        },
+        "allowCloudFMM": {
+          "type": "boolean",
+          "override": "Legacy Find My Mac restriction; used in it-and-security misc profile."
         },
         "allowCloudFreeform": {
           "type": "boolean",
@@ -8657,6 +8712,11 @@
         }
       }
     },
+    "com.apple.assistant.support": {
+      "source": "override",
+      "open": true,
+      "override": "Apple preference domain outside Apple's MDM schema; used by Fleet's profiles."
+    },
     "com.apple.associated-domains": {
       "platforms": {
         "iOS": {
@@ -9168,6 +9228,11 @@
           }
         }
       }
+    },
+    "com.apple.controlcenter": {
+      "source": "override",
+      "open": true,
+      "override": "Apple preference domain outside Apple's MDM schema; used by Fleet's profiles."
     },
     "com.apple.dashboard": {
       "platforms": {
@@ -12374,6 +12439,16 @@
         }
       }
     },
+    "com.apple.locationd": {
+      "source": "override",
+      "open": true,
+      "override": "Apple preference domain outside Apple's MDM schema; used by Fleet's profiles."
+    },
+    "com.apple.locationmenu": {
+      "source": "override",
+      "open": true,
+      "override": "Apple preference domain outside Apple's MDM schema; used by Fleet's profiles."
+    },
     "com.apple.loginitems.managed": {
       "platforms": {
         "iOS": {
@@ -12559,6 +12634,10 @@
         "SleepDisabled": {
           "type": "boolean"
         },
+        "com.apple.login.mcx.DisableAutoLoginClient": {
+          "type": "boolean",
+          "override": "CIS benchmark setting; used in it-and-security prevent-autologon profile."
+        },
         "showInputMenu": {
           "type": "boolean",
           "platforms": {
@@ -12608,6 +12687,11 @@
           "type": "string"
         }
       }
+    },
+    "com.apple.mDNSResponder": {
+      "source": "override",
+      "open": true,
+      "override": "Apple preference domain outside Apple's MDM schema; used by Fleet's profiles."
     },
     "com.apple.mail.managed": {
       "platforms": {
@@ -13834,6 +13918,11 @@
         }
       }
     },
+    "com.apple.preferences.sharing.SharingPrefsExtension": {
+      "source": "override",
+      "open": true,
+      "override": "Apple preference domain outside Apple's MDM schema; used by Fleet's profiles."
+    },
     "com.apple.profileRemovalPassword": {
       "platforms": {
         "iOS": {
@@ -14594,8 +14683,16 @@
           "type": "boolean",
           "required": true
         },
+        "EnableLogging": {
+          "type": "boolean",
+          "override": "CIS benchmark setting; used in it-and-security enable-firewall-logging profile."
+        },
         "EnableStealthMode": {
           "type": "boolean"
+        },
+        "LoggingOption": {
+          "type": "string",
+          "override": "CIS benchmark setting; used in it-and-security enable-firewall-logging profile."
         }
       }
     },
@@ -14826,6 +14923,13 @@
             "Challenge": {
               "type": "string"
             },
+            "ExtendedKeyUsage": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "override": "Extended key usage OIDs for the SCEP certificate; used in it-and-security's fleet-okta-conditional-access profile."
+            },
             "Key Type": {
               "type": "string"
             },
@@ -14901,7 +15005,11 @@
                   "type": "string"
                 },
                 "uniformResourceIdentifier": {
-                  "type": "string"
+                  "type": [
+                    "string",
+                    "array"
+                  ],
+                  "override": "Apple's schema says string, but it-and-security's fleet-okta-conditional-access profile sends a list of URIs and is deployed."
                 }
               }
             },
@@ -16393,6 +16501,11 @@
           "type": "boolean"
         }
       }
+    },
+    "com.apple.universalcontrol": {
+      "source": "override",
+      "open": true,
+      "override": "Apple preference domain outside Apple's MDM schema; used by Fleet's profiles."
     },
     "com.apple.vpn.managed": {
       "platforms": {
@@ -19559,6 +19672,31 @@
         }
       }
     },
+    "com.github.macadmins.Nudge": {
+      "source": "override",
+      "open": true,
+      "override": "Vendor preference domain used by Fleet's profiles."
+    },
+    "com.google.Chrome": {
+      "source": "override",
+      "open": true,
+      "override": "Vendor preference domain used by Fleet's profiles and written by the AI profile generator."
+    },
+    "com.microsoft.autoupdate2": {
+      "source": "override",
+      "open": true,
+      "override": "Vendor preference domain used by Fleet's profiles."
+    },
+    "com.okta.mobile": {
+      "source": "override",
+      "open": true,
+      "override": "Vendor preference domain used by Fleet's profiles."
+    },
+    "com.okta.mobile.auth-service-extension": {
+      "source": "override",
+      "open": true,
+      "override": "Vendor preference domain used by Fleet's profiles."
+    },
     "loginwindow": {
       "platforms": {
         "iOS": {
@@ -19588,6 +19726,11 @@
           }
         }
       }
+    },
+    "us.zoom.config": {
+      "source": "override",
+      "open": true,
+      "override": "Vendor preference domain named by the AI profile generator's prompt."
     }
   },
   "apple_declarations": {
@@ -25748,9 +25891,13 @@
         "required": true,
         "open": true
       },
-      "ServerToken": {
+      "PayloadScope": {
         "type": "string",
-        "required": true
+        "rangelist": [
+          "System",
+          "User"
+        ],
+        "override": "Fleet extension; sets the declaration's channel and is stripped before delivery."
       },
       "Type": {
         "type": "string",

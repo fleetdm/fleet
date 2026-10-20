@@ -26,6 +26,8 @@ type ApplePayloadType struct {
 	// Open and Values work as on AppleKey, for payload types whose top level accepts any key.
 	Open   bool      `json:"open,omitempty"`
 	Values *AppleKey `json:"values,omitempty"`
+	// Override is the reason from the Fleet override that added or changed this entry, if any.
+	Override string `json:"override,omitempty"`
 }
 
 // AppleKey describes a payload key. Constraints are recorded even when no validator enforces them yet.
@@ -48,6 +50,8 @@ type AppleKey struct {
 	Values *AppleKey            `json:"values,omitempty"`
 	// Platforms is set only where it differs from the enclosing payload type's.
 	Platforms map[AppleOS]ApplePlatform `json:"platforms,omitempty"`
+	// Override is the reason from the Fleet override that added or changed this key, if any.
+	Override string `json:"override,omitempty"`
 }
 
 // AppleRange is used for both range and repetition. Pointers keep a 0 bound distinct from no bound.

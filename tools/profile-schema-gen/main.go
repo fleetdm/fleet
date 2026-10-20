@@ -34,6 +34,7 @@ const commitMarker = ".commit"
 func main() {
 	out := flag.String("out", "pkg/mdm/profilevalidation/outputs/profile_schema.json", "path of the generated schema; its version block is the pin for runs without -update")
 	update := flag.Bool("update", false, "fetch the latest upstream commit and regenerate from it")
+	overrides := flag.String("overrides", "pkg/mdm/profilevalidation/inputs/overrides.yml", `overrides file applied to the generated schema; skipped if missing, "" to skip`)
 	verbose := flag.Bool("v", false, "log every file and decision (debug level)")
 	flag.Parse()
 
@@ -44,13 +45,16 @@ func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level}))
 
 	ctx := context.Background()
-	if err := run(ctx, logger, *out, *update); err != nil {
-		logger.ErrorContext(ctx, "generation failed", "err", err)
+	if err := run(ctx, logger, *out, *overrides, *update); err != nil {
+		// Override problems are reported together, one per line; log them as separate lines.
+		for line := range strings.SplitSeq(err.Error(), "\n") {
+			logger.ErrorContext(ctx, "generation failed", "err", line)
+		}
 		os.Exit(1)
 	}
 }
 
-func run(ctx context.Context, logger *slog.Logger, out string, update bool) error {
+func run(ctx context.Context, logger *slog.Logger, out, overrides string, update bool) error {
 	// Paths are relative to the repo root; fail clearly instead of writing somewhere unexpected.
 	if _, err := os.Stat(workDir); err != nil {
 		return errors.New("run from the repository root: " + workDir + " not found")
@@ -87,6 +91,9 @@ func run(ctx context.Context, logger *slog.Logger, out string, update bool) erro
 		return err
 	}
 	if err := runWindows(ctx, logger.With("platform", "windows"), &schema); err != nil {
+		return err
+	}
+	if err := applyOverrides(ctx, logger.With("step", "overrides"), overrides, &schema); err != nil {
 		return err
 	}
 	return writeOutput(ctx, logger, out, &schema, existing, time.Now())
