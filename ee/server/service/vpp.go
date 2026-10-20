@@ -195,6 +195,75 @@ func (svc *Service) getVPPTokenInfo(ctx context.Context, teamID *uint) (vppToken
 	return vppTokenInfo{Secret: token.Token, Country: token.CountryCode}, nil
 }
 
+// canReadVPPToken applies the visibility rule of GetVPPTokens to one token.
+func (svc *Service) canReadVPPToken(ctx context.Context, tok *fleet.VPPTokenDB) bool {
+	if svc.authz.Authorize(ctx, &fleet.VPPApp{}, fleet.ActionRead) == nil {
+		return true
+	}
+	for _, tt := range tok.Teams {
+		if svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: &tt.ID}, fleet.ActionRead) == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// resolveAppStoreAppToken returns the requested token, or the fleet's only
+// token when none is requested. errPrefix is "Couldn't list apps." or
+// "Couldn't add software.".
+func (svc *Service) resolveAppStoreAppToken(ctx context.Context, teamID, vppTokenID *uint, errPrefix string) (*fleet.VPPTokenDB, error) {
+	tokens, err := svc.ds.ListVPPTokens(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing vpp tokens")
+	}
+	tmID := ptr.ValOrZero(teamID)
+
+	var tok *fleet.VPPTokenDB
+	if vppTokenID != nil {
+		for _, t := range tokens {
+			if t.ID == *vppTokenID {
+				tok = t
+				break
+			}
+		}
+		// A token the caller can't see is reported as missing so its location and
+		// existence don't leak.
+		if tok == nil || (!tok.AvailableToTeam(tmID) && !svc.canReadVPPToken(ctx, tok)) {
+			return nil, fleet.NewInvalidArgumentError("vpp_token_id",
+				fmt.Sprintf("%s VPP token with ID %d doesn't exist.", errPrefix, *vppTokenID)).WithStatus(http.StatusNotFound)
+		}
+		if !tok.AvailableToTeam(tmID) {
+			return nil, fleet.NewInvalidArgumentError("vpp_token_id",
+				fmt.Sprintf("%s VPP token %q isn't assigned to this fleet.", errPrefix, tok.Location))
+		}
+	} else {
+		var teamTokens []*fleet.VPPTokenDB
+		for _, t := range tokens {
+			if t.AvailableToTeam(tmID) {
+				teamTokens = append(teamTokens, t)
+			}
+		}
+		switch len(teamTokens) {
+		case 0:
+			return nil, fleet.NewUserMessageError(errors.New("No available VPP Token"), http.StatusUnprocessableEntity)
+		case 1:
+			tok = teamTokens[0]
+		default:
+			return nil, fleet.NewInvalidArgumentError("vpp_token_id",
+				errPrefix+" This fleet has more than one VPP token. Please specify vpp_token_id.")
+		}
+	}
+
+	if time.Now().After(tok.RenewDate) {
+		return nil, fleet.NewInvalidArgumentError("vpp_token_id",
+			fmt.Sprintf("%s VPP token %q is expired. Please renew it and try again.", errPrefix, tok.Location))
+	}
+	if err := ensureVPPTokenCountry(ctx, svc.ds, tok); err != nil {
+		return nil, err
+	}
+	return tok, nil
+}
+
 var isAdamID = regexp.MustCompile(`^[0-9]+$`)
 
 // The payload checks below need no team context, so BatchAssociateVPPApps and
@@ -913,7 +982,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	return addedApps, categories, nil
 }
 
-func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet.VPPApp, error) {
+func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint, vppTokenID *uint) ([]*fleet.VPPApp, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
@@ -921,11 +990,11 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 		return nil, ctxerr.Wrap(ctx, err, "check Apple MDM enabled for VPP apps")
 	}
 
-	tokenInfo, err := svc.getVPPTokenInfo(ctx, teamID)
+	tok, err := svc.resolveAppStoreAppToken(ctx, teamID, vppTokenID, "Couldn't list apps.")
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "retrieving VPP token")
 	}
-	vppToken := tokenInfo.Secret
+	vppToken := tok.Token
 
 	assets, err := vpp.GetAssets(ctx, vppToken, nil)
 	if err != nil {
@@ -943,7 +1012,7 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 
 	// The picker UI shows apps the team's token can add, so it's correct to
 	// fetch metadata from the team's storefront.
-	metadata, err := apple_apps.GetMetadata(adamIDs, tokenInfo.Country, vppToken, svc.getVPPConfig(ctx))
+	metadata, err := apple_apps.GetMetadata(adamIDs, tok.CountryCode, vppToken, svc.getVPPConfig(ctx))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "fetching VPP asset metadata")
 	}
@@ -1010,6 +1079,9 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	if !appID.Platform.SupportsAppStoreApps() {
 		return nil, fleet.NewInvalidArgumentError("platform",
 			fmt.Sprintf("platform must be one of '%s', '%s', '%s', or '%s'", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform, fleet.AndroidPlatform))
+	}
+	if appID.Platform == fleet.AndroidPlatform && appID.VPPTokenID != nil {
+		return nil, fleet.NewInvalidArgumentError("vpp_token_id", "Couldn't add software. vpp_token_id isn't supported for Android apps.")
 	}
 	if appID.Platform.IsApplePlatform() {
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
@@ -1093,11 +1165,33 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		}, "adding app store app version")
 	}
 
+	// Every version of an app on a fleet shares the token of the first one added.
+	if existingVersionCount > 0 && appID.Platform.IsApplePlatform() {
+		existing, err := svc.ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, appID.AdamID, appID.Platform, teamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting first added app store app version")
+		}
+		switch {
+		case existing.VPPTokenID == nil:
+		case appID.VPPTokenID == nil:
+			appID.VPPTokenID = existing.VPPTokenID
+		case *appID.VPPTokenID != *existing.VPPTokenID:
+			existingTok, err := svc.ds.GetVPPToken(ctx, *existing.VPPTokenID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "getting vpp token of first added app store app version")
+			}
+			return nil, fleet.ConflictError{Message: fmt.Sprintf(
+				"Couldn't add software. %s (%s) is already added to this fleet from the %q VPP token.",
+				existing.Name, appID.Platform.DisplayName(), existingTok.Location)}
+		}
+	}
+
 	isAndroidAppID := androidApplicationID.MatchString(appID.AdamID)
 
 	var app *fleet.VPPApp
 	var androidEnterpriseName string
 	var anchor vppAddAnchor
+	var vppTok *fleet.VPPTokenDB
 
 	// Different flows based on platform
 	switch appID.Platform {
@@ -1171,20 +1265,20 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 			)
 		}
 
-		teamTokenInfo, err := svc.getVPPTokenInfo(ctx, teamID)
+		vppTok, err = svc.resolveAppStoreAppToken(ctx, teamID, appID.VPPTokenID, "Couldn't add software.")
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "retrieving VPP token")
 		}
-		vppToken := teamTokenInfo.Secret
+		teamTokenInfo := vppTokenInfo{Secret: vppTok.Token, Country: vppTok.CountryCode}
 
-		assets, err := vpp.GetAssets(ctx, vppToken, &vpp.AssetFilter{AdamID: appID.AdamID})
+		assets, err := vpp.GetAssets(ctx, vppTok.Token, &vpp.AssetFilter{AdamID: appID.AdamID})
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "retrieving VPP asset")
 		}
 
 		if len(assets) == 0 {
 			return nil, fleet.NewInvalidArgumentError("app_store_id",
-				fmt.Sprintf("Error: Couldn't add software. %q isn't available in Apple Business. Please purchase license in Apple Business and try again.", appID.AdamID))
+				fmt.Sprintf("Couldn't add software. %q isn't available in the %q VPP token. Please purchase a license in Apple Business and try again.", appID.AdamID, vppTok.Location))
 		}
 
 		asset := assets[0]
@@ -1249,6 +1343,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		}
 		appID.Categories = categories
 		appID.CategoryIDs = catIDs
+		appID.VPPTokenID = &vppTok.ID
 		app = &appFromApple
 		app.VPPAppTeam = appID
 		// Always set the anchored country on the app payload. For first-adds
@@ -1314,6 +1409,9 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		LabelsIncludeAll: actLabelsInclAll,
 		Configuration:    json.RawMessage(appID.Configuration),
 		VersionName:      addedApp.VersionName,
+	}
+	if vppTok != nil {
+		act.VPPToken = &fleet.ActivityVPPToken{ID: vppTok.ID, Location: vppTok.Location, CountryCode: vppTok.CountryCode}
 	}
 	if appID.AutoUpdateEnabled != nil {
 		act.AutoUpdateEnabled = appID.AutoUpdateEnabled

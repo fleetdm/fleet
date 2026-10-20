@@ -324,14 +324,15 @@ func TestGetAppStoreAppsDoesNotWriteMetadata(t *testing.T) {
 
 	teamID := uint(1)
 	ds := new(mock.Store)
-	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, _ *uint) (*fleet.VPPTokenDB, error) {
-		return &fleet.VPPTokenDB{
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{{
 			ID:          1,
 			OrgName:     "de-org",
 			Token:       "de-secret",
 			RenewDate:   time.Now().Add(24 * time.Hour),
 			CountryCode: "de",
-		}, nil
+			Teams:       []fleet.TeamTuple{{ID: teamID}},
+		}}, nil
 	}
 	// Existing row anchored to "us" while the team's current token is "de".
 	ds.GetAssignedVPPAppsFunc = func(ctx context.Context, _ *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
@@ -358,7 +359,7 @@ func TestGetAppStoreAppsDoesNotWriteMetadata(t *testing.T) {
 	}
 	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
-	apps, err := svc.GetAppStoreApps(ctx, &teamID)
+	apps, err := svc.GetAppStoreApps(ctx, &teamID, nil)
 	require.NoError(t, err)
 	require.Empty(t, apps, "already-assigned apps must be filtered out of the picker list")
 	require.False(t, batchInsertCalled, "picker must not write metadata back")
@@ -863,6 +864,9 @@ func TestAppStoreAppsRequireAppleMDM(t *testing.T) {
 		ds.GetVPPTokenByTeamIDFunc = func(context.Context, *uint) (*fleet.VPPTokenDB, error) {
 			return &fleet.VPPTokenDB{ID: 1}, nil
 		}
+		ds.ListVPPTokensFunc = func(context.Context) ([]*fleet.VPPTokenDB, error) {
+			return []*fleet.VPPTokenDB{{ID: 1, Teams: []fleet.TeamTuple{}}}, nil
+		}
 		ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
 		ds.TeamByNameFunc = func(context.Context, string) (*fleet.Team, error) {
 			return nil, common_mysql.NotFound("Team")
@@ -875,9 +879,9 @@ func TestAppStoreAppsRequireAppleMDM(t *testing.T) {
 
 	t.Run("listing VPP apps", func(t *testing.T) {
 		svc, ds, _ := setup(t)
-		_, err := svc.GetAppStoreApps(ctx, nil)
+		_, err := svc.GetAppStoreApps(ctx, nil, nil)
 		require.ErrorIs(t, err, fleet.ErrMDMNotConfigured)
-		require.False(t, ds.GetVPPTokenByTeamIDFuncInvoked, "the VPP token must not be used")
+		require.False(t, ds.ListVPPTokensFuncInvoked, "the VPP token must not be used")
 	})
 
 	t.Run("adding an Apple app", func(t *testing.T) {
@@ -918,3 +922,360 @@ func TestAppStoreAppsRequireAppleMDM(t *testing.T) {
 		require.False(t, baseSvc.VerifyMDMAppleConfiguredFuncInvoked)
 	})
 }
+
+func vppErrStatus(err error) int {
+	var withStatus interface{ Status() int }
+	if errors.As(err, &withStatus) {
+		return withStatus.Status()
+	}
+	if withCode, ok := errors.AsType[fleet.ErrWithStatusCode](err); ok {
+		return withCode.StatusCode()
+	}
+	if _, ok := errors.AsType[*fleet.InvalidArgumentError](err); ok {
+		return http.StatusUnprocessableEntity
+	}
+	return 0
+}
+
+func TestResolveAppStoreAppToken(t *testing.T) {
+	t.Parallel()
+
+	valid := time.Now().Add(24 * time.Hour)
+	us := &fleet.VPPTokenDB{ID: 1, Location: "Acme US", Token: "us-secret", RenewDate: valid, CountryCode: "us", Teams: []fleet.TeamTuple{{ID: 1}}}
+	jp := &fleet.VPPTokenDB{ID: 2, Location: "Acme Japan", Token: "jp-secret", RenewDate: valid, CountryCode: "jp", Teams: []fleet.TeamTuple{{ID: 1}}}
+	jpExpired := &fleet.VPPTokenDB{ID: 2, Location: "Acme Japan", Token: "jp-secret", RenewDate: time.Now().Add(-time.Hour), CountryCode: "jp", Teams: []fleet.TeamTuple{{ID: 1}}}
+	unassigned := &fleet.VPPTokenDB{ID: 3, Location: "Unassigned", Token: "x", RenewDate: valid, CountryCode: "us"}
+	otherFleet := &fleet.VPPTokenDB{ID: 4, Location: "Other fleet", Token: "x", RenewDate: valid, CountryCode: "us", Teams: []fleet.TeamTuple{{ID: 2}}}
+	allFleets := &fleet.VPPTokenDB{ID: 5, Location: "All fleets", Token: "all-secret", RenewDate: valid, CountryCode: "us", Teams: []fleet.TeamTuple{}}
+	noFleet := &fleet.VPPTokenDB{ID: 6, Location: "No fleet", Token: "no-secret", RenewDate: valid, CountryCode: "us", Teams: []fleet.TeamTuple{{ID: 0}}}
+
+	tokenID := func(id uint) *uint { return &id }
+	fleetID := func(id uint) *uint { return &id }
+
+	maintainerOf := func(ids ...uint) *fleet.User {
+		u := &fleet.User{}
+		for _, id := range ids {
+			u.Teams = append(u.Teams, fleet.UserTeam{ID: id, Role: fleet.RoleMaintainer})
+		}
+		return u
+	}
+
+	tests := []struct {
+		name       string
+		user       *fleet.User // global admin when nil
+		tokens     []*fleet.VPPTokenDB
+		teamID     *uint
+		vppTokenID *uint
+		wantID     uint
+		wantErr    string
+		wantStatus int
+	}{
+		{name: "single token without id", tokens: []*fleet.VPPTokenDB{us, otherFleet}, teamID: fleetID(1), wantID: 1},
+		{name: "single token with its id", tokens: []*fleet.VPPTokenDB{us, otherFleet}, teamID: fleetID(1), vppTokenID: tokenID(1), wantID: 1},
+		{name: "requested token of two", tokens: []*fleet.VPPTokenDB{us, jp}, teamID: fleetID(1), vppTokenID: tokenID(2), wantID: 2},
+		{name: "all fleets token by id", tokens: []*fleet.VPPTokenDB{allFleets}, teamID: fleetID(7), vppTokenID: tokenID(5), wantID: 5},
+		{name: "nil fleet is no fleet", tokens: []*fleet.VPPTokenDB{noFleet, us}, wantID: 6},
+		{
+			name: "missing token", tokens: []*fleet.VPPTokenDB{us}, teamID: fleetID(1), vppTokenID: tokenID(99),
+			wantErr: "Couldn't list apps. VPP token with ID 99 doesn't exist.", wantStatus: http.StatusNotFound,
+		},
+		{
+			name: "unassigned token", tokens: []*fleet.VPPTokenDB{us, unassigned}, teamID: fleetID(1), vppTokenID: tokenID(3),
+			wantErr: `Couldn't list apps. VPP token "Unassigned" isn't assigned to this fleet.`, wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "token assigned to another fleet", tokens: []*fleet.VPPTokenDB{us, otherFleet}, teamID: fleetID(1), vppTokenID: tokenID(4),
+			wantErr: `Couldn't list apps. VPP token "Other fleet" isn't assigned to this fleet.`, wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "token of another fleet hidden from fleet maintainer", user: maintainerOf(1), tokens: []*fleet.VPPTokenDB{us, otherFleet}, teamID: fleetID(1), vppTokenID: tokenID(4),
+			wantErr: "Couldn't list apps. VPP token with ID 4 doesn't exist.", wantStatus: http.StatusNotFound,
+		},
+		{
+			name: "token of another fleet visible to maintainer of both", user: maintainerOf(1, 2), tokens: []*fleet.VPPTokenDB{us, otherFleet}, teamID: fleetID(1), vppTokenID: tokenID(4),
+			wantErr: `Couldn't list apps. VPP token "Other fleet" isn't assigned to this fleet.`, wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "unassigned token hidden from fleet maintainer", user: maintainerOf(1), tokens: []*fleet.VPPTokenDB{us, unassigned}, teamID: fleetID(1), vppTokenID: tokenID(3),
+			wantErr: "Couldn't list apps. VPP token with ID 3 doesn't exist.", wantStatus: http.StatusNotFound,
+		},
+		{
+			name: "expired requested token", tokens: []*fleet.VPPTokenDB{us, jpExpired}, teamID: fleetID(1), vppTokenID: tokenID(2),
+			wantErr: `Couldn't list apps. VPP token "Acme Japan" is expired. Please renew it and try again.`, wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "expired only token", tokens: []*fleet.VPPTokenDB{jpExpired}, teamID: fleetID(1),
+			wantErr: `Couldn't list apps. VPP token "Acme Japan" is expired. Please renew it and try again.`, wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "two tokens without id", tokens: []*fleet.VPPTokenDB{us, jp}, teamID: fleetID(1),
+			wantErr:    "Couldn't list apps. This fleet has more than one VPP token. Please specify vpp_token_id.",
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "all fleets plus fleet token", tokens: []*fleet.VPPTokenDB{us, allFleets}, teamID: fleetID(1),
+			wantErr:    "Couldn't list apps. This fleet has more than one VPP token. Please specify vpp_token_id.",
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "all fleets plus no fleet token", tokens: []*fleet.VPPTokenDB{noFleet, allFleets}, teamID: fleetID(0),
+			wantErr:    "Couldn't list apps. This fleet has more than one VPP token. Please specify vpp_token_id.",
+			wantStatus: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "no token for the fleet", tokens: []*fleet.VPPTokenDB{otherFleet, unassigned}, teamID: fleetID(1),
+			wantErr: "No available VPP Token", wantStatus: http.StatusUnprocessableEntity,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.ListVPPTokensFunc = func(context.Context) ([]*fleet.VPPTokenDB, error) { return tt.tokens, nil }
+			svc := newTestService(t, ds)
+
+			user := tt.user
+			if user == nil {
+				user = &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+			}
+			ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: user})
+
+			tok, err := svc.resolveAppStoreAppToken(ctx, tt.teamID, tt.vppTokenID, "Couldn't list apps.")
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+				require.Equal(t, tt.wantStatus, vppErrStatus(err))
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.wantID, tok.ID)
+		})
+	}
+
+	t.Run("add copy", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.ListVPPTokensFunc = func(context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{us, jp}, nil }
+		svc := newTestService(t, ds)
+		ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+		_, err := svc.resolveAppStoreAppToken(ctx, fleetID(1), nil, "Couldn't add software.")
+		require.ErrorContains(t, err, "Couldn't add software. This fleet has more than one VPP token. Please specify vpp_token_id.")
+		_, err = svc.resolveAppStoreAppToken(ctx, fleetID(1), tokenID(99), "Couldn't add software.")
+		require.ErrorContains(t, err, "Couldn't add software. VPP token with ID 99 doesn't exist.")
+	})
+}
+
+func TestGetAppStoreAppsUsesRequestedToken(t *testing.T) {
+	// dev_mode.SetOverride uses t.Setenv, incompatible with t.Parallel.
+	var seenAuth []string
+	vppSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seenAuth = append(seenAuth, r.Header.Get("Authorization"))
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"assets":[]}`))
+	}))
+	t.Cleanup(vppSrv.Close)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", vppSrv.URL, t)
+
+	valid := time.Now().Add(24 * time.Hour)
+	ds := new(mock.Store)
+	ds.ListVPPTokensFunc = func(context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{
+			{ID: 1, Location: "Acme US", Token: "us-secret", RenewDate: valid, CountryCode: "us", Teams: []fleet.TeamTuple{{ID: 1}}},
+			{ID: 2, Location: "Acme Japan", Token: "jp-secret", RenewDate: valid, CountryCode: "jp", Teams: []fleet.TeamTuple{{ID: 1}}},
+		}, nil
+	}
+	svc := newTestService(t, ds)
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	teamID := uint(1)
+	_, err := svc.GetAppStoreApps(ctx, &teamID, nil)
+	require.ErrorContains(t, err, "Couldn't list apps. This fleet has more than one VPP token. Please specify vpp_token_id.")
+	require.Empty(t, seenAuth, "Apple must not be called without a token choice")
+
+	_, err = svc.GetAppStoreApps(ctx, &teamID, new(uint(2)))
+	require.NoError(t, err)
+	require.Equal(t, []string{"Bearer jp-secret"}, seenAuth)
+}
+
+type addAppStoreAppFixture struct {
+	svc        *Service
+	ds         *mock.Store
+	ctx        context.Context
+	assets     string
+	seenAuth   []string
+	inserted   *fleet.VPPApp
+	activities []fleet.ActivityDetails
+}
+
+// newAddAppStoreAppFixture wires AddAppStoreApp for an iOS app (adam ID "100")
+// on the No fleet team, with fake Apple VPP and metadata servers.
+func newAddAppStoreAppFixture(t *testing.T, tokens ...*fleet.VPPTokenDB) *addAppStoreAppFixture {
+	t.Helper()
+	fx := &addAppStoreAppFixture{assets: `{"assets":[{"adamId":"100","pricingParam":"STDQ"}]}`}
+
+	vppSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fx.seenAuth = append(fx.seenAuth, r.Header.Get("Authorization"))
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(fx.assets))
+	}))
+	t.Cleanup(vppSrv.Close)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", vppSrv.URL, t)
+
+	metaSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"data":[{"id":"100","attributes":{"name":"Canva","deviceFamilies":["iphone"],` +
+			`"platformAttributes":{"ios":{"bundleId":"com.example.canva","artwork":{"url":"https://example.test/icon.png"},` +
+			`"latestVersionInfo":{"versionDisplay":"1.0"}}}}}]}`))
+	}))
+	t.Cleanup(metaSrv.Close)
+	dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", metaSrv.URL, t)
+
+	ds := new(mock.Store)
+	svc, baseSvc := newTestServiceWithMock(t, ds)
+	svc.config = config.FleetConfig{MDM: config.MDMConfig{AppleConnectJWT: "test-jwt"}}
+	baseSvc.VerifyMDMAppleConfiguredFunc = func(context.Context) error { return nil }
+	baseSvc.NewActivityFunc = func(_ context.Context, _ *fleet.User, a fleet.ActivityDetails) error {
+		fx.activities = append(fx.activities, a)
+		return nil
+	}
+
+	ds.ListVPPTokensFunc = func(context.Context) ([]*fleet.VPPTokenDB, error) { return tokens, nil }
+	ds.GetVPPTokenFunc = func(_ context.Context, id uint) (*fleet.VPPTokenDB, error) {
+		for _, tok := range tokens {
+			if tok.ID == id {
+				return tok, nil
+			}
+		}
+		return nil, common_mysql.NotFound("VPPToken")
+	}
+	ds.GetAppStoreAppVersionCountFunc = func(context.Context, *uint, fleet.VPPAppID, string) (uint, bool, error) {
+		return 0, false, nil
+	}
+	ds.GetVPPAppByAdamIDPlatformFunc = func(context.Context, string, fleet.InstallableDevicePlatform) (*fleet.VPPApp, error) {
+		return nil, common_mysql.NotFound("VPPApp")
+	}
+	ds.CheckConflictingInHouseAppExistsFunc = func(context.Context, *uint, string, string) (bool, error) { return false, nil }
+	ds.InsertVPPAppWithTeamFunc = func(_ context.Context, app *fleet.VPPApp, _ *uint, _ *uint) (*fleet.VPPApp, error) {
+		fx.inserted = app
+		added := *app
+		added.TitleID = 5
+		added.VersionName = fleet.DefaultAppStoreAppVersionName
+		return &added, nil
+	}
+
+	fx.svc = svc
+	fx.ds = ds
+	ctx := authz_ctx.NewContext(t.Context(), &authz_ctx.AuthorizationContext{})
+	fx.ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+	return fx
+}
+
+func TestAddAppStoreAppToken(t *testing.T) {
+	// dev_mode.SetOverride uses t.Setenv, incompatible with t.Parallel.
+	valid := time.Now().Add(24 * time.Hour)
+	// Tokens on the No fleet team (nil teamID).
+	us := func() *fleet.VPPTokenDB {
+		return &fleet.VPPTokenDB{ID: 1, Location: "Acme US", Token: "us-secret", RenewDate: valid, CountryCode: "us", Teams: []fleet.TeamTuple{{ID: 0}}}
+	}
+	jp := func() *fleet.VPPTokenDB {
+		return &fleet.VPPTokenDB{ID: 2, Location: "Acme Japan", Token: "jp-secret", RenewDate: valid, CountryCode: "jp", Teams: []fleet.TeamTuple{{ID: 0}}}
+	}
+	iosApp := func(tokenID *uint) fleet.VPPAppTeam {
+		return fleet.VPPAppTeam{AdamID: "100", Platform: fleet.IOSPlatform, VPPTokenID: tokenID}
+	}
+
+	t.Run("binds the requested token and records it on the activity", func(t *testing.T) {
+		fx := newAddAppStoreAppFixture(t, us(), jp())
+		_, err := fx.svc.AddAppStoreApp(fx.ctx, nil, iosApp(new(uint(2))))
+		require.NoError(t, err)
+		require.Equal(t, []string{"Bearer jp-secret"}, fx.seenAuth)
+		require.NotNil(t, fx.inserted.VPPTokenID)
+		require.Equal(t, uint(2), *fx.inserted.VPPTokenID)
+		require.Equal(t, "jp", fx.inserted.CountryCode)
+
+		require.Len(t, fx.activities, 1)
+		act, ok := fx.activities[0].(fleet.ActivityAddedAppStoreApp)
+		require.True(t, ok)
+		require.Equal(t, &fleet.ActivityVPPToken{ID: 2, Location: "Acme Japan", CountryCode: "jp"}, act.VPPToken)
+	})
+
+	t.Run("single token binds without a token id", func(t *testing.T) {
+		fx := newAddAppStoreAppFixture(t, us())
+		_, err := fx.svc.AddAppStoreApp(fx.ctx, nil, iosApp(nil))
+		require.NoError(t, err)
+		require.Equal(t, uint(1), *fx.inserted.VPPTokenID)
+		require.Equal(t, uint(1), fx.activities[0].(fleet.ActivityAddedAppStoreApp).VPPToken.ID)
+	})
+
+	t.Run("two tokens without a token id", func(t *testing.T) {
+		fx := newAddAppStoreAppFixture(t, us(), jp())
+		_, err := fx.svc.AddAppStoreApp(fx.ctx, nil, iosApp(nil))
+		require.ErrorContains(t, err, "Couldn't add software. This fleet has more than one VPP token. Please specify vpp_token_id.")
+		require.Equal(t, http.StatusUnprocessableEntity, vppErrStatus(err))
+		require.False(t, fx.ds.InsertVPPAppWithTeamFuncInvoked)
+	})
+
+	t.Run("app missing from the token", func(t *testing.T) {
+		fx := newAddAppStoreAppFixture(t, us(), jp())
+		fx.assets = `{"assets":[]}`
+		_, err := fx.svc.AddAppStoreApp(fx.ctx, nil, iosApp(new(uint(2))))
+		require.ErrorContains(t, err, `Couldn't add software. "100" isn't available in the "Acme Japan" VPP token. Please purchase a license in Apple Business and try again.`)
+		require.Equal(t, http.StatusUnprocessableEntity, vppErrStatus(err))
+		require.False(t, fx.ds.InsertVPPAppWithTeamFuncInvoked)
+	})
+
+	t.Run("Android rejects a token id", func(t *testing.T) {
+		fx := newAddAppStoreAppFixture(t, us(), jp())
+		_, err := fx.svc.AddAppStoreApp(fx.ctx, nil, fleet.VPPAppTeam{
+			AdamID:     "com.example.app",
+			Platform:   fleet.AndroidPlatform,
+			VPPTokenID: new(uint(1)),
+		})
+		require.ErrorContains(t, err, "Couldn't add software. vpp_token_id isn't supported for Android apps.")
+		require.Equal(t, http.StatusUnprocessableEntity, vppErrStatus(err))
+		require.False(t, fx.ds.InsertVPPAppWithTeamFuncInvoked)
+	})
+
+	t.Run("second version", func(t *testing.T) {
+		withExisting := func(t *testing.T, existingTokenID *uint) *addAppStoreAppFixture {
+			fx := newAddAppStoreAppFixture(t, us(), jp())
+			fx.ds.GetAppStoreAppVersionCountFunc = func(context.Context, *uint, fleet.VPPAppID, string) (uint, bool, error) {
+				return 1, false, nil
+			}
+			fx.ds.GetVPPAppMetadataByAdamIDPlatformTeamIDFunc = func(context.Context, string, fleet.InstallableDevicePlatform, *uint) (*fleet.VPPApp, error) {
+				return &fleet.VPPApp{Name: "Canva", VPPTokenID: existingTokenID}, nil
+			}
+			return fx
+		}
+
+		t.Run("inherits the first version's token", func(t *testing.T) {
+			fx := withExisting(t, new(uint(2)))
+			_, err := fx.svc.AddAppStoreApp(fx.ctx, nil, iosApp(nil))
+			require.NoError(t, err)
+			require.Equal(t, []string{"Bearer jp-secret"}, fx.seenAuth)
+			require.Equal(t, uint(2), *fx.inserted.VPPTokenID)
+		})
+
+		t.Run("same token is accepted", func(t *testing.T) {
+			fx := withExisting(t, new(uint(2)))
+			_, err := fx.svc.AddAppStoreApp(fx.ctx, nil, iosApp(new(uint(2))))
+			require.NoError(t, err)
+			require.Equal(t, uint(2), *fx.inserted.VPPTokenID)
+		})
+
+		t.Run("another token conflicts", func(t *testing.T) {
+			fx := withExisting(t, new(uint(2)))
+			_, err := fx.svc.AddAppStoreApp(fx.ctx, nil, iosApp(new(uint(1))))
+			require.ErrorContains(t, err, `Couldn't add software. Canva (iOS) is already added to this fleet from the "Acme Japan" VPP token.`)
+			require.Equal(t, http.StatusConflict, vppErrStatus(err))
+			require.Empty(t, fx.seenAuth)
+			require.False(t, fx.ds.InsertVPPAppWithTeamFuncInvoked)
+		})
+
+		t.Run("a first version without a token falls through to resolution", func(t *testing.T) {
+			fx := withExisting(t, nil)
+			_, err := fx.svc.AddAppStoreApp(fx.ctx, nil, iosApp(new(uint(1))))
+			require.NoError(t, err)
+			require.Equal(t, uint(1), *fx.inserted.VPPTokenID)
+		})
+	})
+}
+
