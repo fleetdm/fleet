@@ -56,6 +56,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android/tests"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/golang-jwt/jwt/v4"
@@ -9965,7 +9966,8 @@ func (s *integrationMDMTestSuite) TestValidGetTOC() {
 	}()
 	_, _ = bindata.Asset("check if assets are build")
 
-	resp := s.DoRaw("GET", microsoft_mdm.MDE2TOSPath+"?api-version=1.0&redirect_uri=ms-appx-web%3a%2f%2fMicrosoft.AAD.BrokerPlugin&client-request-id=f2cf3127-1e80-4d73-965d-42a3b84bdb40", nil, http.StatusOK)
+	tosPath := microsoft_mdm.MDE2TOSPath + "?api-version=1.0&redirect_uri=ms-appx-web%3a%2f%2fMicrosoft.AAD.BrokerPlugin&client-request-id=f2cf3127-1e80-4d73-965d-42a3b84bdb40"
+	resp := s.DoRaw("GET", tosPath, nil, http.StatusOK)
 
 	resBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
@@ -9973,15 +9975,25 @@ func (s *integrationMDMTestSuite) TestValidGetTOC() {
 	require.Contains(t, resp.Header["Content-Type"], syncml.WebContainerContentType)
 
 	resTOCcontent := string(resBytes)
-	require.Contains(t, resTOCcontent, "Microsoft.AAD.BrokerPlugin")
-	require.Contains(t, resTOCcontent, "IsAccepted=true")
-	require.Contains(t, resTOCcontent, "OpaqueBlob=")
+	require.Contains(t, resTOCcontent,
+		`href="ms-appx-web://Microsoft.AAD.BrokerPlugin?IsAccepted=true&amp;OpaqueBlob=f2cf3127-1e80-4d73-965d-42a3b84bdb40"`)
+	// CSP blocks inline scripts and event handlers, so accepting must not rely on them.
+	require.NotContains(t, resTOCcontent, "<script")
+	require.NotContains(t, strings.ToLower(resTOCcontent), "onclick")
+
+	// With CSP enabled, the inline <style> must carry the nonce the response's CSP header allows.
+	rec := httptest.NewRecorder()
+	endpointer.BrowserSecurityHeadersHandler(true, s.server.Config.Handler).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, tosPath, nil))
+	require.Equal(t, http.StatusOK, rec.Code)
+	nonce := regexp.MustCompile(`style-src 'self' 'nonce-([^']+)'`).FindStringSubmatch(rec.Header().Get("Content-Security-Policy"))
+	require.Len(t, nonce, 2)
+	require.Contains(t, rec.Body.String(), `<style nonce="`+nonce[1]+`">`)
 }
 
 func (s *integrationMDMTestSuite) TestGetTOCRejectsUnsafeRedirectURI() {
 	t := s.T()
 
-	// The TOS page reflects redirect_uri into a window.location assignment, so a javascript:/data:/vbscript:
+	// The TOS page reflects redirect_uri into its accept link, so a javascript:/data:/vbscript:
 	// redirect_uri must be rejected rather than rendered, otherwise it enables reflected XSS (issue #16880).
 	unsafeRedirectURIs := map[string]string{
 		"javascript": "javascript:console.log(424281957)//",

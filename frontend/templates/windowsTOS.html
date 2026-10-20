@@ -3,7 +3,7 @@ windows mdm enrollment flow. -->
 <!DOCTYPE html>
 <html>
   <head>
-    <style>
+    <style nonce="{{.CSPNonce}}">
       body {
         margin: 0;
       }
@@ -51,25 +51,23 @@ windows mdm enrollment flow. -->
         margin-bottom: 42px;
       }
 
-      button {
-        border: none;
+      .agree-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
         border-radius: 4px;
-        cursor: pointer;
         color: white;
         background-color: #192147;
+        text-decoration: none;
         margin-top: 16px;
         padding: 8px 16px;
+        font-family: system-ui, "Segoe UI", sans-serif;
         font-size: 18px;
         width: 341px;
         height: 78px;
       }
     </style>
-    <script type="text/javascript">
-      const agreeToTerms = () => {
-        window.location =
-          "{{.RedirectURL}}" + "?IsAccepted=true&OpaqueBlob={{.ClientData}}";
-      };
-    </script>
   </head>
   <body>
     <div class="main-content">
@@ -250,7 +248,13 @@ windows mdm enrollment flow. -->
               </li>
             </ol>
           </div>
-          <button onClick="agreeToTerms()">Agree and continue</button>
+          <!-- A link rather than a scripted button so it works when CSP blocks inline scripts. -->
+          <a
+            class="agree-button"
+            href="{{.RedirectURL}}?IsAccepted=true&amp;OpaqueBlob={{.ClientData}}"
+          >
+            Agree and continue
+          </a>
         </div>
       </div>
     </div>
