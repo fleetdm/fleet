@@ -134,7 +134,7 @@
     }
   }
   .header-hidden { // For scrolling the sidebars with the sticky header
-    transform: translateY(-81px);
+    transform: translateY(~'calc(-81px - var(--announcement-banner-height, 0px))');
   }
   [purpose='platform-filters'] {
     &.detected-windows {
@@ -144,7 +144,7 @@
     border-bottom: 1px solid #E2E4EA;
     margin-bottom: 48px;
     position: sticky;
-    top: 81px;
+    top: ~'calc(81px + var(--announcement-banner-height, 0px))';
     background: #FFF;
     z-index: 4;
     transition-property: all;
