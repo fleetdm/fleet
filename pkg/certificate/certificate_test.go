@@ -207,6 +207,7 @@ func TestLoadClientCertificateFromFiles(t *testing.T) {
 }
 
 func TestFirstCertificateFromPEM(t *testing.T) {
+	t.Parallel()
 	certPEM, err := os.ReadFile("testdata/test.crt")
 	require.NoError(t, err)
 	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: []byte("key")})

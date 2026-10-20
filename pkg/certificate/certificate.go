@@ -249,8 +249,7 @@ func EncodeCertPEM(cert *x509.Certificate) []byte {
 	return pem.EncodeToMemory(&block)
 }
 
-// FirstCertificateFromPEM returns the first CERTIFICATE block of the PEM data, skipping other blocks such as a private key, like
-// tls.X509KeyPair does. It returns nil if there is no CERTIFICATE block.
+// FirstCertificateFromPEM returns the first CERTIFICATE block of the PEM data. It returns nil if there is no CERTIFICATE block.
 func FirstCertificateFromPEM(pemData []byte) (*x509.Certificate, error) {
 	for {
 		var block *pem.Block
