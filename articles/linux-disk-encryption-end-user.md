@@ -76,14 +76,15 @@ fi
 
 url="$fleet_url/api/v1/fleet/device/$token/mdm/linux/trigger_escrow"
 response="$(mktemp)"
-trap 'rm -f "$response"' EXIT
+headers="$(mktemp)"
+trap 'rm -f "$response" "$headers"' EXIT
 
 # Ubuntu Desktop doesn't include curl by default, so fall back to wget.
 if command -v curl > /dev/null; then
-  status="$(curl -s -o "$response" -w '%{http_code}' --connect-timeout 5 --max-time 20 -X POST "$url")"
+  status="$(curl -s -o "$response" -D "$headers" -w '%{http_code}' --connect-timeout 5 --max-time 20 -X POST "$url")"
 elif command -v wget > /dev/null; then
-  status="$(wget -O "$response" --content-on-error --timeout=20 --tries=1 --method=POST -S "$url" 2>&1 \
-    | awk '/^  HTTP\//{code=$2} END{print code}')"
+  wget -O "$response" --content-on-error --timeout=20 --tries=1 --method=POST -S "$url" 2> "$headers"
+  status="$(awk '/^  HTTP\//{code=$2} END{print code}' "$headers")"
 else
   echo "Neither curl nor wget is installed." >&2
   exit 1
@@ -95,7 +96,8 @@ case "$status" in
     exit 0
     ;;
   409)
-    echo "Escrow is already in progress on this host. Try again later."
+    retry_after="$(awk 'tolower($1) == "retry-after:" {v = $2} END {gsub(/\r/, "", v); print v}' "$headers")"
+    echo "Escrow is already in progress on this host. Try again in ${retry_after:-300} seconds."
     exit 0
     ;;
 esac
@@ -113,7 +115,7 @@ The script uses `curl`, or `wget` if `curl` isn't installed (Ubuntu Desktop does
 
 > The escrow prompt will pop up on the host without warning. Let end users know ahead of time so it isn't unexpected. Someone has to be logged in to the desktop to enter the passphrase.
 
-> The prompt closes after 60 seconds if the end user doesn't respond. On GNOME desktops (Ubuntu, Fedora) it can open behind other windows. If it times out or the end user closes it, run the script again. If Fleet answers with `409`, it's still waiting to hear back from fleetd about the last prompt. Wait the number of seconds in the response's `Retry-After` header (at most 5 minutes) and try again.
+> The prompt closes after 60 seconds if the end user doesn't respond. On GNOME desktops (Ubuntu, Fedora) it can open behind other windows. If it times out or the end user closes it, run the script again. If the script reports that escrow is already in progress, Fleet is still waiting to hear back from fleetd about the last prompt. Wait the number of seconds the script prints (at most 5 minutes) and run it again.
 >
 > After the end user enters their passphrase, it can take a few minutes for the key to show up in Fleet, especially on VMs. Don't run the script again while escrow is in progress.
 

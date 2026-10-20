@@ -9068,7 +9068,7 @@ _Available in Fleet Premium_
 
 Signals the Fleet server to queue up the LUKS disk encryption escrow process (LUKS passphrase and slot key). If validation succeeds (disk encryption must be enforced for the fleet, the host's platform must be supported, the host's disk must already be encrypted, and the host's Orbit version must be new enough), this adds a notification flag for Orbit that triggers escrow from the Orbit side.
 
-Returns `400` if a key is already escrowed for the host or validation fails, and `409` if fleetd is already handling an earlier request for the host (the end user has a passphrase prompt open, or dismissed the one they were given).
+Returns `400` if a key is already escrowed for the host or validation fails, and `409` if fleetd is already handling an earlier request for the host (for example, the end user has a passphrase prompt open). Fleet accepts a new request as soon as fleetd reports that the prompt was cancelled or timed out. Older fleetd versions don't report this, so Fleet waits up to 5 minutes.
 
 `POST /api/v1/fleet/device/:token/mdm/linux/trigger_escrow`
 
