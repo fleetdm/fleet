@@ -1696,6 +1696,14 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for script execution request")
 			}
+
+			if hsr.PolicyID != nil {
+				scriptSucceeded := hsr.ExitCode != nil && *hsr.ExitCode == 0
+				err = svc.ds.IncrementHostPolicyAutomationRunCount(ctx, *hsr.PolicyID, host.ID, fleet.ActivityTypeRanScript{}, scriptSucceeded)
+				if err != nil {
+					svc.logger.ErrorContext(ctx, "increment host policy automation run count for script", "host_id", host.ID, "execution_id", hsr.ExecutionID, "err", err)
+				}
+			}
 		}
 	}
 
@@ -2545,6 +2553,14 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			},
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for software installation")
+		}
+
+		if hsi.PolicyID != nil {
+			installSucceeded := status == fleet.SoftwareInstalled
+			err = svc.ds.IncrementHostPolicyAutomationRunCount(ctx, *hsi.PolicyID, host.ID, fleet.ActivityTypeInstalledSoftware{}, installSucceeded)
+			if err != nil {
+				svc.logger.ErrorContext(ctx, "increment host policy automation run count for software install", "host_id", host.ID, "install_uuid", result.InstallUUID, "err", err)
+			}
 		}
 
 		// The install result and its activity are already recorded, so a failure
