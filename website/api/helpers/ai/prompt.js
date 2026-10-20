@@ -116,8 +116,9 @@ Please do not add any text outside of the JSON or wrap it in a code fence.  Neve
       requestData.system = _.compact([systemPrompt, uncachedSystemPromptSuffix]).join('\n\n');
     }
     if (effort) {
-      // Claude Haiku 4.5 does not accept output_config.effort, and attaching it would cause a 4xx from Anthropic.
-      if (baseModel === 'claude-haiku-4-5') {
+      // Claude Haiku 4.5, under its dated model IDs too, does not accept output_config.effort, and attaching it
+      // would cause a 4xx from Anthropic.
+      if (_.startsWith(baseModel, 'claude-haiku-4-5')) {
         sails.log.warn(`The prompt helper received an "effort" input, but the specified baseModel (${baseModel}) does not support output_config.effort. This input will be ignored in this LLM generation.`);
       } else {
         requestData.output_config = { effort };// eslint-disable-line camelcase
@@ -127,7 +128,7 @@ Please do not add any text outside of the JSON or wrap it in a code fence.  Neve
     // 4.5 only thinks when asked to, so there is nothing to turn off.
     if (disableThinking && baseModel === 'claude-sonnet-5-5') {
       requestData.thinking = { type: 'between_tools' };
-    } else if (disableThinking && baseModel !== 'claude-haiku-4-5') {
+    } else if (disableThinking && !_.startsWith(baseModel, 'claude-haiku-4-5')) {
       requestData.thinking = { type: 'disabled' };
     }
 
@@ -180,7 +181,12 @@ Please do not add any text outside of the JSON or wrap it in a code fence.  Neve
       try {
         parsedPromptResponse = JSON.parse(jsonResponse);
       } catch (err) {
-        throw new Error('Expecting JSON result from LLM, but when attemting to JSON.parse(…) it, an error occurred: '+err.stack+'\n P.S. Here is what the LLM returned (and what we were *trying* to parse as valid JSON):'+rawPromptResponse);
+        // A model sometimes writes a note, or a corrected second answer, after its JSON.  The last complete
+        // object is the answer it means.
+        parsedPromptResponse = lastJsonObjectIn(jsonResponse);
+        if (parsedPromptResponse === undefined) {
+          throw new Error('Expecting JSON result from LLM, but when attemting to JSON.parse(…) it, an error occurred: '+err.stack+'\n P.S. Here is what the LLM returned (and what we were *trying* to parse as valid JSON):'+rawPromptResponse);
+        }
       }
     } else {
       parsedPromptResponse = rawPromptResponse;
@@ -193,3 +199,48 @@ Please do not add any text outside of the JSON or wrap it in a code fence.  Neve
 
 };
 
+
+/**
+ * The last complete JSON object in some text, or undefined when there is none.
+ *
+ * @param  {String} text
+ * @returns {Dictionary|undefined}
+ */
+function lastJsonObjectIn(text) {
+  let objects = [];
+  let depth = 0;
+  let start;
+  let inString = false;
+  for (let i = 0; i < text.length; i++) {
+    let character = text[i];
+    if (inString) {
+      if (character === '\\') {
+        i++;
+      } else if (character === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (character === '"') {
+      inString = true;
+    } else if (character === '{') {
+      if (depth === 0) {
+        start = i;
+      }
+      depth++;
+    } else if (character === '}' && depth > 0) {
+      depth--;
+      if (depth === 0) {
+        objects.push(text.slice(start, i + 1));
+      }
+    }
+  }
+  for (let candidate of objects.reverse()) {
+    try {
+      return JSON.parse(candidate);
+    } catch (unusedErr) {
+      // Not JSON after all; try the one before it.
+    }
+  }
+  return undefined;
+}

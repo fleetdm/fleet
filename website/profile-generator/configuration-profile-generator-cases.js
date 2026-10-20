@@ -1305,7 +1305,9 @@ const TEST_CASES = [
   {
     id: 'ddm-rapid-security-response',
     profileType: 'ddm',
-    instructions: 'Automatically download updates, always install security updates, let users choose when to install OS updates, and turn on Rapid Security Responses.',
+    instructions: 'Automatically download updates, always install security updates, let users turn automatic installation of OS updates on or off themselves, and turn on Rapid Security Responses.',
+    // Worded so that only Allowed fits: "let users choose when to install OS updates" also reads as AlwaysOff, with
+    // automatic installation off so that users install when they choose.
     // The sub-key is "Enable", not "Enabled" -- the latter is an easy slip and is silently ignored.
     expect: {
       mustContain: [

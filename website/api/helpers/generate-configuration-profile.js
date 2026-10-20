@@ -113,10 +113,12 @@ module.exports = {
       });
     };
     // A rate limit or an overloaded API usually clears within a second, and one retry fits in the latency
-    // budget where a second would not.
+    // budget where a second would not.  Only early on, though: one that starts after about 4 seconds, with a
+    // generation taking up to 5, would finish after Fleet has stopped waiting.
     let rawResult = await generate()
     .catch(async (err)=>{
-      if(err.statusCode !== 429 && !(err.statusCode >= 500)) {
+      let isWorthRetrying = err.statusCode === 429 || err.statusCode >= 500;
+      if(!isWorthRetrying || Date.now() - startedAt > 4000) {
         throw err;
       }
       sails.log.warn(`Generating a ${profileType} profile failed with a ${err.statusCode} from the LLM API, so it is being retried once.`);
@@ -241,8 +243,9 @@ function doesContentMatchProfileType(content, profileType) {
   switch (profileType) {
     case 'mobileconfig': return isAPropertyList;
     case 'ddm': return _.isObject(parsedAsJson) && !_.isArray(parsedAsJson) && _.isString(parsedAsJson.Type);
-    case 'android': return _.isObject(parsedAsJson) && !_.isArray(parsedAsJson);
-    case 'csp': return !isAPropertyList && parsedAsJson === undefined;
+    // A declaration is a JSON object too.
+    case 'android': return _.isPlainObject(parsedAsJson) && !(_.isString(parsedAsJson.Type) && _.startsWith(parsedAsJson.Type, 'com.apple.'));
+    case 'csp': return /^\s*<(?:Add|Replace|Exec|Atomic|Delete)[\s>]/.test(content);
     default: return false;
   }
 }

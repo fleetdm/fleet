@@ -782,6 +782,9 @@ first; name the Policy area too only if the request also asks to allow or block 
 Microsoft Defender's settings are split between the Policy CSP's Defender area and the Defender CSP, and
 many of the newer ones exist only in the Defender CSP.  For a request about Defender, name both.
 
+What the sign-in screen shows -- a message or title before sign-in, the last signed-in user's name -- is set
+by interactive logon security options, which are in LocalPoliciesSecurityOptions.
+
 Return an empty array, naming nothing, only when no group below could satisfy the request.  An empty
 array is a real answer here, not a failure.
 
@@ -1011,10 +1014,11 @@ is a node the setting depends on, which belongs in the profile alongside it.  Th
 the node's declared DFFormat (\`node\` is an interior node that holds children, not a value): emit it
 verbatim and make <Data> legal for it, rather than reasoning about the value's type from its name.
 
-A Policy CSP node listed as \`chr\` with no values is either a text setting or an ADMX-backed policy.  When
-its description says it turns something on or off -- it enables, disables, prevents, allows, or turns off
-a feature -- it is ADMX-backed: its <Data> is <![CDATA[<enabled/>]]> to apply what the description says
-and <![CDATA[<disabled/>]]> to stop applying it, never 1 or 0.  Otherwise its <Data> is the text the
+A node in an \`ADMX_\` area is always ADMX-backed, whatever its description says.  Any other Policy CSP node
+listed as \`chr\` with no values is either a text setting or an ADMX-backed policy, and it is ADMX-backed when
+its description says it turns something on or off -- it enables, disables, prevents, allows, or turns off a
+feature.  An ADMX-backed node's <Data> is <![CDATA[<enabled/>]]> to apply what the description says and
+<![CDATA[<disabled/>]]> to stop applying it, never 1 or 0.  Otherwise the node's <Data> is the text the
 request calls for.
 
 This is authoritative for the groups below and settles their node names, paths, formats and values.  It
