@@ -1,5 +1,5 @@
 import classnames from "classnames";
-import React, { ReactNode } from "react";
+import React, { ReactNode, useEffect, useState } from "react";
 import AceEditor from "react-ace";
 
 import "ace-builds/src-noconflict/mode-sh";
@@ -34,6 +34,10 @@ export interface IEditorProps {
   labelTooltip?: string | JSX.Element;
   error?: string | null;
   readOnly?: boolean;
+  /** Visually and functionally disables the editor: forces `readOnly` and
+   * applies the shared greyed-out treatment (opacity + grayscale). Use for
+   * form-field-style disabled states (e.g. gitops mode). */
+  disabled?: boolean;
   /**
    * Help text to display below the editor.
    */
@@ -104,6 +108,7 @@ const Editor = ({
   value,
   defaultValue,
   readOnly = false,
+  disabled = false,
   enableCopy = false,
   copyButtonLocation = "overlay",
   wrapEnabled = false,
@@ -123,12 +128,29 @@ const Editor = ({
   const classNames = classnames(baseClass, className, {
     "form-field": isFormField,
     [`${baseClass}__error`]: !!error,
+    [`${baseClass}--disabled`]: disabled,
   });
+
+  // Track the editor's displayed content so copy works for uncontrolled
+  // editors (defaultValue + edits) as well as controlled ones.
+  const [displayedValue, setDisplayedValue] = useState(
+    value ?? defaultValue ?? ""
+  );
+  useEffect(() => {
+    if (value !== undefined) {
+      setDisplayedValue(value);
+    }
+  }, [value]);
+
+  const handleChange = (newValue: string, event?: Ace.Delta) => {
+    setDisplayedValue(newValue);
+    onChange?.(newValue, event);
+  };
 
   const renderCopyButton = () => {
     return (
       <div className={`${baseClass}__copy-wrapper`}>
-        <CopyButton copyText={value ?? ""} variant="subdued" />
+        <CopyButton copyText={displayedValue} variant="subdued" />
       </div>
     );
   };
@@ -136,10 +158,10 @@ const Editor = ({
   const renderLabelCopyButton = () => {
     return (
       <CopyButton
-        copyText={value ?? ""}
+        copyText={displayedValue}
         variant="secondary"
         ariaLabel={ariaLabel ? `Copy ${ariaLabel}` : "Copy"}
-        disabled={!value}
+        disabled={!displayedValue}
       />
     );
   };
@@ -217,7 +239,7 @@ const Editor = ({
         fontSize={14}
         theme="fleet"
         width="100%"
-        readOnly={readOnly}
+        readOnly={readOnly || disabled}
         minLines={minLines}
         maxLines={maxLines}
         showPrintMargin={showPrintMargin}
@@ -228,7 +250,7 @@ const Editor = ({
         defaultValue={defaultValue}
         tabSize={2}
         focus={focus}
-        onChange={onChange}
+        onChange={handleChange}
         onBlur={onBlur}
         onFocus={onFocus}
         onLoad={onLoadHandler}

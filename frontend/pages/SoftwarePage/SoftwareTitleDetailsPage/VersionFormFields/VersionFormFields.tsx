@@ -8,6 +8,7 @@ import Slider from "components/forms/fields/Slider";
 import FormField from "components/forms/FormField";
 import InfoBanner from "components/InfoBanner";
 import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
+import { ITextFieldProps, TextFieldName } from "hooks/useFormValidation";
 import { ILabelSummary } from "interfaces/label";
 import { IAppStoreAppVersion, SoftwareCategory } from "interfaces/software";
 import { CategoriesSelector } from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector/SoftwareOptionsSelector";
@@ -205,17 +206,12 @@ export const versionToFormData = (
 interface IVersionFormFieldsProps {
   formData: IVersionFormData;
   /** From `useFormValidation`. Text inputs (Name, Configuration, times). */
-  setField: <K extends keyof IVersionFormData & string>(
-    name: K,
-    value: IVersionFormData[K]
-  ) => void;
+  getTextFieldProps: (name: TextFieldName<IVersionFormData>) => ITextFieldProps;
   /** From `useFormValidation`. Compound / toggle-complete controls
    * (Checkbox, Slider, category multi-select, Target radio/dropdown, label
    * selector merges). */
   commitFields: (changes: Partial<IVersionFormData>) => void;
   getError: (name: string) => string | undefined;
-  clearFieldError: (name: string) => void;
-  validateField: (name: string) => void;
   /** Platform of the title's App Store app. Drives configuration mode
    * (XML for iOS/iPadOS, JSON for Android) and gates the auto-update
    * and self-service sections (iOS/iPadOS only). */
@@ -231,20 +227,23 @@ interface IVersionFormFieldsProps {
    * button (iOS/iPadOS when self-service is on). Opens the title-level
    * self-service preview modal. */
   onClickPreviewEndUserExperience: () => void;
+  /** When true, every control is disabled and removed from the tab order
+   * (text inputs, Editor via `readOnly`, Slider, Checkbox, radios, label
+   * dropdown, category checkboxes). */
+  disabled?: boolean;
 }
 
 const VersionFormFields = ({
   formData,
-  setField,
+  getTextFieldProps,
   commitFields,
   getError,
-  clearFieldError,
-  validateField,
   platform,
   appDisplayName,
   labels,
   teamId,
   onClickPreviewEndUserExperience,
+  disabled = false,
 }: IVersionFormFieldsProps) => {
   const isIosOrIpados = platform === "ios" || platform === "ipados";
   const editorMode = isIosOrIpados ? "xml" : "json";
@@ -293,28 +292,20 @@ const VersionFormFields = ({
   return (
     <div className={baseClass}>
       <InputField
+        {...getTextFieldProps("name")}
         label="Name"
-        name="name"
-        value={formData.name}
-        onChange={(next: string) => setField("name", next)}
-        onFocus={() => clearFieldError("name")}
-        onBlur={() => validateField("name")}
-        error={getError("name")}
         placeholder="e.g. Production"
         autofocus
         inputOptions={{ maxLength: 255 }}
+        disabled={disabled}
       />
 
       <Editor
+        {...getTextFieldProps("configuration")}
         label="Configuration"
-        name="configuration"
         mode={editorMode}
-        value={formData.configuration}
-        onChange={(next: string) => setField("configuration", next)}
-        onFocus={() => clearFieldError("configuration")}
-        onBlur={() => validateField("configuration")}
-        error={getError("configuration")}
         helpText={configHelpText}
+        readOnly={disabled}
       />
 
       {isIosOrIpados && (
@@ -323,6 +314,7 @@ const VersionFormFields = ({
           onChange={() => commitFields({ selfService: !formData.selfService })}
           activeText="Self-service"
           inactiveText="Self-service"
+          disabled={disabled}
         />
       )}
 
@@ -334,6 +326,7 @@ const VersionFormFields = ({
           teamId={teamId}
           label="Category"
           previewButtonLabel="View end user experience"
+          disabled={disabled}
         />
       )}
 
@@ -346,6 +339,7 @@ const VersionFormFields = ({
             </p>
             <Checkbox
               value={formData.autoUpdateEnabled}
+              disabled={disabled}
               onChange={(next: boolean) =>
                 commitFields({ autoUpdateEnabled: next })
               }
@@ -356,30 +350,18 @@ const VersionFormFields = ({
             {formData.autoUpdateEnabled && (
               <div className={`${baseClass}__auto-update-window`}>
                 <InputField
+                  {...getTextFieldProps("autoUpdateWindowStart")}
                   label="Window start (host local time)"
-                  name="auto-update-window-start"
                   type="time"
-                  value={formData.autoUpdateWindowStart}
-                  onChange={(next: string) =>
-                    setField("autoUpdateWindowStart", next)
-                  }
-                  onFocus={() => clearFieldError("autoUpdateWindowStart")}
-                  onBlur={() => validateField("autoUpdateWindowStart")}
-                  error={getError("autoUpdateWindowStart")}
                   placeholder="00:00"
+                  disabled={disabled}
                 />
                 <InputField
+                  {...getTextFieldProps("autoUpdateWindowEnd")}
                   label="Window end (host local time)"
-                  name="auto-update-window-end"
                   type="time"
-                  value={formData.autoUpdateWindowEnd}
-                  onChange={(next: string) =>
-                    setField("autoUpdateWindowEnd", next)
-                  }
-                  onFocus={() => clearFieldError("autoUpdateWindowEnd")}
-                  onBlur={() => validateField("autoUpdateWindowEnd")}
-                  error={getError("autoUpdateWindowEnd")}
                   placeholder="04:00"
+                  disabled={disabled}
                 />
               </div>
             )}
@@ -398,6 +380,7 @@ const VersionFormFields = ({
         labels={labels}
         dropdownHelpText={generateHelpText(false, formData.customTarget)}
         error={getError("labelTargets")}
+        disableOptions={disabled}
         labelInfoBanner={
           <InfoBanner icon="info-outline">
             If multiple versions target the same host, Fleet will deploy the one

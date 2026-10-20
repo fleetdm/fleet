@@ -84,12 +84,10 @@ describe("buildActionOptions", () => {
     expect(editConfig).toEqual({
       label: "Edit configuration",
       value: ACTION_EDIT_CONFIGURATION,
-      disabled: false,
-      tooltipContent: undefined,
     });
   });
 
-  it("applies gitops tooltip to Edit appearance and Edit configuration, and to Edit software for Apple VPP", () => {
+  it("applies gitops tooltip to Edit appearance and Edit software (Apple VPP), but leaves Edit configuration clickable", () => {
     const result = buildActionOptions({
       gitOpsModeEnabled: true,
       repoURL: "https://repo.git",
@@ -116,9 +114,10 @@ describe("buildActionOptions", () => {
       tooltipContent: expect.anything(),
     });
 
-    expect(editConfig).toMatchObject({
-      disabled: true,
-      tooltipContent: expect.anything(),
+    // Edit configuration stays clickable in gitops mode; the modal gates Save.
+    expect(editConfig).toEqual({
+      label: "Edit configuration",
+      value: ACTION_EDIT_CONFIGURATION,
     });
 
     // For Apple VPP, Edit software also gets the gitops tooltip if present.

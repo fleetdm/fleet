@@ -13,6 +13,7 @@ import SectionHeader from "components/SectionHeader";
 import { notify } from "components/ToastNotification";
 import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { IConfig, isOktaConditionalAccessConfigured } from "interfaces/config";
 import SettingsSection from "pages/admin/components/SettingsSection";
 import paths from "router/paths";
@@ -46,11 +47,21 @@ const DeleteConditionalAccessModal = ({
   config,
 }: IDeleteConditionalAccessModal) => {
   const [isDeleting, setIsDeleting] = useState(false);
+  const { gitOpsModeEnabled } = useGitOpsMode();
 
   const providerName =
     provider === "microsoft-entra" ? "Microsoft Entra" : "Okta";
 
+  // Okta deletion writes to AppConfig (GitOps-managed). If GitOps flips on
+  // while this confirmation is open, block the write here so a stale open
+  // modal can't bypass the card-level gate. Entra deletion hits a separate
+  // table, not AppConfig, so leave it alone.
+  const oktaBlockedByGitOps = provider === "okta" && gitOpsModeEnabled;
+
   const handleDelete = async () => {
+    if (oktaBlockedByGitOps) {
+      return;
+    }
     setIsDeleting(true);
     try {
       let updatedConfig;
@@ -132,7 +143,7 @@ const DeleteConditionalAccessModal = ({
           variant="alert"
           onClick={handleDelete}
           isLoading={isDeleting}
-          disabled={isDeleting}
+          disabled={isDeleting || oktaBlockedByGitOps}
         >
           Delete
         </Button>
