@@ -1629,6 +1629,40 @@ allow {
 }
 
 ##
+# Patch deadline settings
+##
+
+# Global admins, maintainers, technicians, gitops, observer_plus and observers can read patch deadline settings.
+allow {
+  object.type == "patch_deadline_settings"
+  subject.global_role == [admin, maintainer, gitops, technician, observer_plus, observer][_]
+  action == read
+}
+
+# Team admins, maintainers, technicians, gitops, observer_plus and observers can read patch deadline settings on their fleet.
+allow {
+  object.type == "patch_deadline_settings"
+  object.fleet_id != 0
+  team_role(subject, object.fleet_id) == [admin, maintainer, gitops, technician, observer_plus, observer][_]
+  action == read
+}
+
+# Global admins, maintainers, and gitops can write patch deadline settings.
+allow {
+  object.type == "patch_deadline_settings"
+  subject.global_role == [admin, maintainer, gitops][_]
+  action == write
+}
+
+# Team admins, maintainers, and gitops can write patch deadline settings on their fleet.
+allow {
+  object.type == "patch_deadline_settings"
+  object.fleet_id != 0
+  team_role(subject, object.fleet_id) == [admin, maintainer, gitops][_]
+  action == write
+}
+
+##
 # API Endpoints
 ##
 
