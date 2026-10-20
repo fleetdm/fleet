@@ -13,7 +13,7 @@ Check these before you start:
 - For iOS: Volume Purchasing (VPP) connected in Fleet so you can add Okta Verify. See [install App Store apps](https://fleetdm.com/guides/install-app-store-apps).
 - Your Fleet enrollment URL and enroll secret.
 
-> **Note:** The secret key is generated per platform, and on Android it can vary between device types. Create a separate app hint in Okta for iOS and for Android.
+> **Note:** The secret key is generated per platform. Create a separate app hint in Okta for iOS and for Android.
 
 ## Configure iOS devices
 
@@ -44,7 +44,7 @@ Okta Verify uses managed app configuration to pass the secret key that marks the
   <key>OktaVerify.UDID</key>
   <string>$FLEET_VAR_HOST_UUID</string>
   <key>managementHint</key>
-  <string>{Your-Okta-Secret-Key}</string>
+  <string>your-okta-secret-key</string>
   <key>OktaVerify.OrgUrl</key>
   <string>your-okta-url</string>
 </dict>
@@ -52,7 +52,7 @@ Okta Verify uses managed app configuration to pass the secret key that marks the
 
 > **Note:** Fleet recommends storing the secret key as a `$FLEET_SECRET_*` variable instead of pasting it in plain text. See [secrets in scripts and configuration profiles](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles).
 
-Other keys are available depending on your enrollment type. See Okta's [managed app configurations for iOS](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/managed-app-configs-ios.htm).
+Other keys for configuring Okta Verify are available depending on your enrollment type. See Okta's [managed app configurations for iOS](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/managed-app-configs-ios.htm).
 
 ### Configure iOS with GitOps
 
@@ -77,7 +77,7 @@ In Fleet, use the following configuration payload for Okta Verify:
 {
   "managedConfiguration": {
     "domainName": "your-okta-url",
-    "managementHint": "Your-Okta-Secret-Key",
+    "managementHint": "your-okta-secret-key",
     "OktaVerify.SerialNumber": "$FLEET_VAR_HOST_HARDWARE_SERIAL"
   }
 }
@@ -85,7 +85,10 @@ In Fleet, use the following configuration payload for Okta Verify:
 
 Other keys are available for the Android payload. See Okta's [managed app configurations for Android](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/managed-app-configs-android.htm) and Fleet's [Fleet variables](https://fleetdm.com/guides/fleet-variables).
 
-> **Note:** ADUR supports only one app, and the device shows as managed across the whole device, not just the work partition.
+## Considerations when deploying to iOS
+
+- On iOS, Account-driven User Enrollment supports only one instance of an app bundle on a device at a time. Apple does not allow MDM to take over management of an already-installed app. Users will need to delete and reinstall to receive the management payload.
+- The whole device will be marked as managed in Okta, not only the work partition. This will allow users to access applications outside of the work profile. Consult with your SaaS vendors regarding specific controls per app. This limitation does not exist on Android.
 
 ## Further reading
 
