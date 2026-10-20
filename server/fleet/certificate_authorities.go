@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"slices"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 // TODO HCA these types can/should be removed once appconfig CA support is removed
@@ -622,6 +624,7 @@ type GroupedCertificateAuthorities struct {
 	NDESSCEP        *NDESSCEPProxyCA       `json:"ndes_scep_proxy"`
 	CustomScepProxy []CustomSCEPProxyCA    `json:"custom_scep_proxy"`
 	Smallstep       []SmallstepSCEPProxyCA `json:"smallstep"`
+	EJBCA           []EJBCA                `json:"ejbca,omitempty"` // omitted when empty so generated GitOps files stay the same until GitOps supports EJBCA
 }
 
 // IsEmpty returns true if no certificate authorities of any type are configured.
@@ -631,7 +634,8 @@ func (g *GroupedCertificateAuthorities) IsEmpty() bool {
 		len(g.DigiCert) == 0 &&
 		g.NDESSCEP == nil &&
 		len(g.CustomScepProxy) == 0 &&
-		len(g.Smallstep) == 0
+		len(g.Smallstep) == 0 &&
+		len(g.EJBCA) == 0
 }
 
 // ToCustomSCEPProxyCAMap converts the CustomScepProxy slice to a map keyed by CA name
@@ -651,6 +655,7 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 		CustomScepProxy: []CustomSCEPProxyCA{},
 		NDESSCEP:        nil,
 		Smallstep:       []SmallstepSCEPProxyCA{},
+		EJBCA:           []EJBCA{},
 	}
 
 	for _, ca := range cas {
@@ -702,6 +707,26 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 				URL:       *ca.URL,
 				Challenge: *ca.Challenge,
 			})
+		case string(CATypeEJBCA):
+			ejbca := EJBCA{
+				ID:                       ca.ID,
+				Name:                     *ca.Name,
+				URL:                      *ca.URL,
+				MTLSCertPEM:              ptr.ValOrZero(ca.MTLSCertPEM),
+				TrustCABundlePEM:         ptr.ValOrZero(ca.TrustCABundlePEM),
+				CertificateAuthorityName: ptr.ValOrZero(ca.EJBCACAName),
+				CertificateProfileName:   ptr.ValOrZero(ca.EJBCACertificateProfileName),
+				EndEntityProfileName:     ptr.ValOrZero(ca.EJBCAEndEntityProfileName),
+				CertificateCommonName:    ptr.ValOrZero(ca.CertificateCommonName),
+				UsernameTemplate:         ptr.ValOrZero(ca.EJBCAUsernameTemplate),
+			}
+			if ca.MTLSKeyPEM != nil {
+				ejbca.MTLSKeyPEM = *ca.MTLSKeyPEM
+			}
+			if ca.CertificateUserPrincipalNames != nil {
+				ejbca.CertificateUserPrincipalNames = *ca.CertificateUserPrincipalNames
+			}
+			grouped.EJBCA = append(grouped.EJBCA, ejbca)
 		case string(CATypeSmallstep):
 			grouped.Smallstep = append(grouped.Smallstep, SmallstepSCEPProxyCA{
 				ID:           ca.ID,

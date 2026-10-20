@@ -86,6 +86,82 @@ func (d *DigiCertVarsFound) SetPassword(value string) (*DigiCertVarsFound, bool)
 	return d, !alreadyPresent
 }
 
+// EJBCAVarsFound is the same as DigiCertVarsFound for EJBCA.
+type EJBCAVarsFound struct {
+	dataCA     map[string]struct{}
+	passwordCA map[string]struct{}
+}
+
+// Ok makes sure that both DATA and PASSWORD variables are present in an EJBCA profile.
+func (e *EJBCAVarsFound) Ok() bool {
+	if e == nil {
+		return true
+	}
+	if len(e.dataCA) != len(e.passwordCA) {
+		return false
+	}
+	for ca := range e.dataCA {
+		if _, ok := e.passwordCA[ca]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func (e *EJBCAVarsFound) Found() bool {
+	return e != nil
+}
+
+func (e *EJBCAVarsFound) CAs() []string {
+	if e == nil {
+		return nil
+	}
+	keys := make([]string, 0, len(e.dataCA))
+	for key := range e.dataCA {
+		keys = append(keys, key)
+	}
+	return keys
+}
+
+func (e *EJBCAVarsFound) ErrorMessage() string {
+	for ca := range e.passwordCA {
+		if _, ok := e.dataCA[ca]; !ok {
+			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", fleet.FleetVarEJBCADataPrefix, ca)
+		}
+	}
+	for ca := range e.dataCA {
+		if _, ok := e.passwordCA[ca]; !ok {
+			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", fleet.FleetVarEJBCAPasswordPrefix, ca)
+		}
+	}
+	return fmt.Sprintf("CA name mismatch between $FLEET_VAR_%s<ca_name> and $FLEET_VAR_%s<ca_name> in the profile.",
+		fleet.FleetVarEJBCADataPrefix, fleet.FleetVarEJBCAPasswordPrefix)
+}
+
+func (e *EJBCAVarsFound) SetData(value string) (*EJBCAVarsFound, bool) {
+	if e == nil {
+		e = &EJBCAVarsFound{}
+	}
+	if e.dataCA == nil {
+		e.dataCA = make(map[string]struct{})
+	}
+	_, alreadyPresent := e.dataCA[value]
+	e.dataCA[value] = struct{}{}
+	return e, !alreadyPresent
+}
+
+func (e *EJBCAVarsFound) SetPassword(value string) (*EJBCAVarsFound, bool) {
+	if e == nil {
+		e = &EJBCAVarsFound{}
+	}
+	if e.passwordCA == nil {
+		e.passwordCA = make(map[string]struct{})
+	}
+	_, alreadyPresent := e.passwordCA[value]
+	e.passwordCA[value] = struct{}{}
+	return e, !alreadyPresent
+}
+
 type NDESVarsFound struct {
 	urlFound       bool
 	challengeFound bool
@@ -377,6 +453,7 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 
 	var (
 		digiCertVars   *DigiCertVarsFound
+		ejbcaVars      *EJBCAVarsFound
 		ndesVars       *NDESVarsFound
 		smallstepVars  *SmallstepVarsFound
 		customSCEPVars *CustomSCEPVarsFound
@@ -403,6 +480,30 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 				if ca.Name == caName {
 					caFound = true
 					digiCertVars, ok = digiCertVars.SetPassword(caName)
+					break
+				}
+			}
+			if !caFound {
+				ok = false
+			}
+		case strings.HasPrefix(k, string(fleet.FleetVarEJBCADataPrefix)):
+			caName := strings.TrimPrefix(k, string(fleet.FleetVarEJBCADataPrefix))
+			for _, ca := range groupedCAs.EJBCA {
+				if ca.Name == caName {
+					caFound = true
+					ejbcaVars, ok = ejbcaVars.SetData(caName)
+					break
+				}
+			}
+			if !caFound {
+				ok = false
+			}
+		case strings.HasPrefix(k, string(fleet.FleetVarEJBCAPasswordPrefix)):
+			caName := strings.TrimPrefix(k, string(fleet.FleetVarEJBCAPasswordPrefix))
+			for _, ca := range groupedCAs.EJBCA {
+				if ca.Name == caName {
+					caFound = true
+					ejbcaVars, ok = ejbcaVars.SetPassword(caName)
 					break
 				}
 			}
@@ -502,6 +603,16 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 			if err != nil {
 				return err
 			}
+		}
+	}
+
+	if ejbcaVars.Found() {
+		if !ejbcaVars.Ok() {
+			return &fleet.BadRequestError{Message: ejbcaVars.ErrorMessage()}
+		}
+		// The Windows profile validation rejects these variables before it gets here, so there is no per-platform validator to inject.
+		if err := additionalEJBCAValidation(profileContents, ejbcaVars); err != nil {
+			return err
 		}
 	}
 

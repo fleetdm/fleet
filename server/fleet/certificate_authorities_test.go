@@ -56,6 +56,42 @@ func TestGroupedCertificateAuthorities(t *testing.T) {
 	require.Equal(t, "another-custom-scep-proxy-challenge", mapped["another-custom-scep-proxy-name"].Challenge)
 }
 
+func TestGroupCertificateAuthoritiesByTypeEJBCA(t *testing.T) {
+	grouped, err := GroupCertificateAuthoritiesByType([]*CertificateAuthority{
+		{
+			ID:                            1,
+			Type:                          string(CATypeEJBCA),
+			Name:                          ptr.String("full"),
+			URL:                           ptr.String("https://ejbca.example.com"),
+			MTLSCertPEM:                   ptr.String("cert"),
+			MTLSKeyPEM:                    ptr.String("key"),
+			TrustCABundlePEM:              ptr.String("bundle"),
+			EJBCACAName:                   ptr.String("ManagementCA"),
+			EJBCACertificateProfileName:   ptr.String("certProfile"),
+			EJBCAEndEntityProfileName:     ptr.String("eeProfile"),
+			CertificateCommonName:         ptr.String("cn"),
+			EJBCAUsernameTemplate:         ptr.String("username"),
+			CertificateUserPrincipalNames: &[]string{"upn"},
+		},
+		// The optional fields are not set.
+		{ID: 2, Type: string(CATypeEJBCA), Name: ptr.String("minimal"), URL: ptr.String("https://ejbca.example.com")},
+	})
+	require.NoError(t, err)
+	require.False(t, grouped.IsEmpty())
+	require.Equal(t, []EJBCA{
+		{
+			ID: 1, Name: "full", URL: "https://ejbca.example.com", MTLSCertPEM: "cert", MTLSKeyPEM: "key", TrustCABundlePEM: "bundle",
+			CertificateAuthorityName: "ManagementCA", CertificateProfileName: "certProfile", EndEntityProfileName: "eeProfile",
+			CertificateCommonName: "cn", UsernameTemplate: "username", CertificateUserPrincipalNames: []string{"upn"},
+		},
+		{ID: 2, Name: "minimal", URL: "https://ejbca.example.com"},
+	}, grouped.EJBCA)
+
+	empty, err := GroupCertificateAuthoritiesByType(nil)
+	require.NoError(t, err)
+	require.True(t, empty.IsEmpty())
+}
+
 func TestPreprocessCAFields(t *testing.T) {
 	t.Run("DigiCert CA fields are trimmed and normalized", func(t *testing.T) {
 		digiCertCA := &DigiCertCA{
