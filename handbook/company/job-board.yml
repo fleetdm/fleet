@@ -3,6 +3,10 @@
 # To post a role, add an entry below and open a pull request.
 # Remove your entry when the role is filled.
 #
+# Prefer to stay anonymous? Use your customer codename as the "company" (the
+# name used in your "customer-" GitHub label, e.g. "customer-leo" → "Leo").
+# More about codenames: https://fleetdm.com/handbook/customer-success#assign-a-customer-codename
+#
 # Example entry:
 # - jobTitle: Client Platform Engineer
 #   company: Acme Inc.
