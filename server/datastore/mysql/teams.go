@@ -201,6 +201,7 @@ var teamRefs = []string{
 	"software_title_display_names",
 	"software_title_team_pins",
 	"software_categories",
+	"patch_deadline_settings",
 }
 
 // teamLabelsRefs are the tables that could be referenced by team labels that
