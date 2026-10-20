@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import React from "react";
 
+import createMockConfig from "__mocks__/configMock";
 import { createMockTeamSummary } from "__mocks__/teamMock";
 import createMockUser from "__mocks__/userMock";
 import { notify } from "components/ToastNotification";
@@ -54,6 +55,19 @@ const premiumAdminContext = {
     currentUser: createMockUser({ global_role: "admin" }),
     availableTeams: [mockTeam],
     setCurrentTeam: jest.fn(),
+  },
+};
+
+const premiumAdminGitOpsContext = {
+  app: {
+    ...premiumAdminContext.app,
+    config: createMockConfig({
+      gitops: {
+        gitops_mode_enabled: true,
+        repository_url: "https://github.com/example/fleet-gitops",
+        exceptions: { labels: false, software: false, secrets: true },
+      },
+    }),
   },
 };
 
@@ -477,6 +491,40 @@ describe("SelfServiceCategoriesPage", () => {
     });
   });
 
+  it("disables Add category in the empty state under GitOps mode", async () => {
+    mockServer.use(emptySelfServiceCategoriesHandler);
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: premiumAdminGitOpsContext,
+    });
+
+    render(<SelfServiceCategoriesPage {...baseProps} />);
+
+    await screen.findByText("No self-service categories");
+    expect(screen.getByRole("button", { name: "Add category" })).toBeDisabled();
+  });
+
+  it("disables Add/Edit/Delete triggers under GitOps mode", async () => {
+    mockServer.use(
+      listSelfServiceCategoriesHandler([{ id: 1, name: "🌎 Browsers" }])
+    );
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: premiumAdminGitOpsContext,
+    });
+
+    render(<SelfServiceCategoriesPage {...baseProps} />);
+
+    await screen.findByText("🌎 Browsers");
+    expect(screen.getByRole("button", { name: /Add category/ })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Edit 🌎 Browsers" })
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Delete 🌎 Browsers" })
+    ).toBeDisabled();
+  });
+
   it("deletes a category on confirm", async () => {
     mockServer.use(
       listSelfServiceCategoriesHandler([{ id: 1, name: "🛠️ Utilities" }]),
@@ -580,6 +628,26 @@ describe("SelfServiceCategoriesPage ?add_category=1 deep-link", () => {
     // Round 2: palette pushes the deep-link again (new location object).
     rerender(<SelfServiceCategoriesPage {...deepLinkProps(router)} />);
     await getOpenModal();
+  });
+
+  it("does not open the modal under GitOps mode but still strips the param", async () => {
+    mockServer.use(emptySelfServiceCategoriesHandler);
+    const router = createMockRouter();
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: premiumAdminGitOpsContext,
+    });
+
+    render(<SelfServiceCategoriesPage {...deepLinkProps(router)} />);
+
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith({
+        pathname: "/software/library/categories",
+        query: { fleet_id: "1" },
+      });
+    });
+
+    expect(queryOpenModal()).toBeNull();
   });
 
   it("does not open the modal for non-managers but still strips the param", async () => {

@@ -289,6 +289,41 @@ func TestGetMaintainedAppAuth(t *testing.T) {
 	}
 }
 
+func TestGetFleetMaintainedAppManifestUnreachable(t *testing.T) {
+	ds := new(mock.Store)
+	ds.GetMaintainedAppByIDFunc = func(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error) {
+		return &fleet.MaintainedApp{ID: appID, Name: "Rectangle", Slug: "rectangle/darwin"}, nil
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	t.Cleanup(srv.Close)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", srv.URL, t)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_FALLBACK_BASE_URL", srv.URL, t)
+
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	svc := &Service{authz: authorizer, ds: ds}
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	expectedMessage := "Fleet couldn't fetch the manifest for Rectangle. Please try again."
+
+	// get the app for a fleet while the manifest returns errors, a 502 with the message should be returned
+	_, err = svc.GetFleetMaintainedApp(ctx, 1, new(uint(1)))
+	var gatewayErr *fleet.GatewayError
+	require.ErrorAs(t, err, &gatewayErr)
+	require.Equal(t, http.StatusBadGateway, gatewayErr.StatusCode())
+	require.Equal(t, expectedMessage, gatewayErr.Error())
+
+	// get the app for Unassigned while the manifest returns errors, a 502 with the message should be returned
+	_, err = svc.GetFleetMaintainedApp(ctx, 1, new(uint(0)))
+	gatewayErr = nil
+	require.ErrorAs(t, err, &gatewayErr)
+	require.Equal(t, http.StatusBadGateway, gatewayErr.StatusCode())
+	require.Equal(t, expectedMessage, gatewayErr.Error())
+}
+
 func TestAddFleetMaintainedApp(t *testing.T) {
 	installerBytes := []byte("abc")
 

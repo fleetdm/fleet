@@ -32,6 +32,27 @@ const isFileAccepted = (file: File, accept?: string): boolean => {
   });
 };
 
+const INVALID_DROP_FALLBACK = "File type isn't supported";
+
+// Falls back to a generic message when accept contains unspellable MIME types.
+const invalidDropMessage = (accept?: string): string => {
+  if (!accept) return INVALID_DROP_FALLBACK;
+  const specs = accept
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (specs.length === 0 || specs.some((s) => !s.startsWith("."))) {
+    return INVALID_DROP_FALLBACK;
+  }
+  if (specs.length === 1) return `File type must be ${specs[0]}`;
+  if (specs.length === 2) {
+    return `File type must be ${specs[0]} or ${specs[1]}`;
+  }
+  return `File type must be ${specs.slice(0, -1).join(", ")}, or ${
+    specs[specs.length - 1]
+  }`;
+};
+
 export type ISupportedGraphicNames = Extract<
   GraphicNames,
   | "file-configuration-profile"
@@ -136,7 +157,11 @@ export const FileUploader = ({
 }: IFileUploaderProps) => {
   const [isFileSelected, setIsFileSelected] = useState(!!fileDetails);
   const [isDragActive, setIsDragActive] = useState(false);
+  const [dropError, setDropError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Server error wins over stale drop-rejection error.
+  const errorText = internalError || dropError;
 
   // When onButtonClick is set, the uploader renders no file input (file
   // selection happens elsewhere, e.g. in a modal), so drops have nowhere
@@ -151,8 +176,9 @@ export const FileUploader = ({
 
   const classes = classnames(baseClass, className, {
     [`${baseClass}__file-preview`]: isFileSelected,
-    [`${baseClass}__error`]: !!internalError,
+    [`${baseClass}__error`]: !!errorText,
     [`${baseClass}__drag-active`]: isDragActive && canAcceptDrop,
+    [`${baseClass}--disabled`]: disabled,
   });
   const buttonVariant = buttonType === "button" ? "default" : "secondary";
 
@@ -167,6 +193,7 @@ export const FileUploader = ({
       const files = target.files;
       onFileUpload(files);
       setIsFileSelected(true);
+      setDropError(null);
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -179,7 +206,10 @@ export const FileUploader = ({
   // the Card's padding or a FileDetails preview.
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    if (canAcceptDrop && !isDragActive) setIsDragActive(true);
+    if (canAcceptDrop && !isDragActive) {
+      setIsDragActive(true);
+      if (dropError) setDropError(null);
+    }
   };
 
   const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
@@ -203,7 +233,11 @@ export const FileUploader = ({
     const hasInvalid = Array.from(files).some(
       (file) => !isFileAccepted(file, accept)
     );
-    if (hasInvalid) return;
+    if (hasInvalid) {
+      setDropError(invalidDropMessage(accept));
+      return;
+    }
+    setDropError(null);
     onFileUpload(files);
     setIsFileSelected(true);
   };
@@ -303,10 +337,8 @@ export const FileUploader = ({
   };
 
   const renderTitle = () => {
-    if (internalError) {
-      return (
-        <div className={`${baseClass}__internal-error`}>{internalError}</div>
-      );
+    if (errorText) {
+      return <div className={`${baseClass}__internal-error`}>{errorText}</div>;
     }
     if (title) {
       return <div className={`${baseClass}__title`}>{title}</div>;
@@ -348,7 +380,9 @@ export const FileUploader = ({
 
   return (
     <div
-      className={`${baseClass}__wrapper form-field`}
+      className={classnames(`${baseClass}__wrapper form-field`, {
+        [`${baseClass}__wrapper--disabled`]: disabled,
+      })}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
