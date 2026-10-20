@@ -116,7 +116,7 @@ func TestRunAppleWithoutUpdate(t *testing.T) {
 	pinned := &profilevalidation.AppleVersion{Release: "Release-v27.0", Commit: testSHA}
 	// A nil client panics on use, proving these paths never touch the network.
 	run := func(dir string, pin *profilevalidation.AppleVersion) (profilevalidation.AppleVersion, error) {
-		return runApple(t.Context(), slog.New(slog.DiscardHandler), nil, dir, pin, false)
+		return runApple(t.Context(), slog.New(slog.DiscardHandler), nil, "", "", dir, pin, false)
 	}
 	withMarker := func(commit string) string {
 		dir := t.TempDir()
@@ -158,7 +158,7 @@ func TestRunAppleUpdate(t *testing.T) {
 	require.NoError(t, os.MkdirAll(dir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "stale.yaml"), []byte("old"), 0o644))
 
-	got, err := runAppleFrom(t.Context(), slog.New(slog.DiscardHandler), fleethttp.NewClient(), srv.URL, srv.URL, dir,
+	got, err := runApple(t.Context(), slog.New(slog.DiscardHandler), fleethttp.NewClient(), srv.URL, srv.URL, dir,
 		&profilevalidation.AppleVersion{Release: "Release-v26.4", Commit: "1111111111111111111111111111111111111111"}, true)
 	require.NoError(t, err)
 	assert.Equal(t, profilevalidation.AppleVersion{Release: "Release-v27.0", Commit: testSHA}, got)

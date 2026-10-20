@@ -24,13 +24,13 @@ func convertYAMLWithPlatforms(t *testing.T, src string, parent map[profilevalida
 	require.NoError(t, yaml.Unmarshal([]byte(src), &doc))
 	require.Equal(t, yaml.SequenceNode, doc.Content[0].Kind)
 
-	keys, open, values, err := newAppleConverter(t.Context(), slog.New(slog.DiscardHandler), "test.yaml").convertKeys(doc.Content[0].Content, "", parent)
-	if err != nil {
+	// The same root-dictionary flow convertAppleGroup uses for a payload.
+	root := &profilevalidation.AppleKey{Type: profilevalidation.AppleTypes{profilevalidation.AppleTypeDictionary}, Platforms: parent}
+	if err := newAppleConverter(t.Context(), slog.New(slog.DiscardHandler), "test.yaml").convertKeys(doc.Content[0].Content, "", root); err != nil {
 		return "", err
 	}
-	trimPlatforms(keys, parent)
-	trimKeyPlatforms(values, parent)
-	out, err := json.Marshal(map[string]any{"keys": keys, "open": open, "values": values})
+	trimPlatforms(root, nil)
+	out, err := json.Marshal(map[string]any{"keys": root.Keys, "open": root.Open, "values": root.Values})
 	require.NoError(t, err)
 	return string(out), nil
 }

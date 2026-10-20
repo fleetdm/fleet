@@ -56,26 +56,27 @@ func run(ctx context.Context, logger *slog.Logger, out string, update bool) erro
 		return errors.New("run from the repository root: " + workDir + " not found")
 	}
 
-	pinned, err := readOutputVersion(out)
+	existing, err := readOutput(out)
 	if err != nil {
 		return err
 	}
-	if pinned == nil {
+	var pinnedApple *profilevalidation.AppleVersion
+	if existing == nil {
 		logger.InfoContext(ctx, "no existing output", "out", out)
 	} else {
-		logger.InfoContext(ctx, "existing output", "out", out, "apple_release", pinned.Apple.Release,
-			"apple_commit", pinned.Apple.Commit, "generated_at", pinned.GeneratedAt)
+		v := existing.Version
+		logger.InfoContext(ctx, "existing output", "out", out, "apple_release", v.Apple.Release,
+			"apple_commit", v.Apple.Commit, "generated_at", v.GeneratedAt)
+		if v.Apple.Commit != "" {
+			pinnedApple = &v.Apple
+		}
 	}
 
 	client := fleethttp.NewClient(fleethttp.WithTimeout(2 * time.Minute))
-	var pinnedApple *profilevalidation.AppleVersion
-	if pinned != nil && pinned.Apple.Commit != "" {
-		pinnedApple = &pinned.Apple
-	}
 	appleLogger := logger.With("platform", "apple")
 	appleDir := filepath.Join(workDir, "apple")
 	var schema profilevalidation.ProfileValidationSchema
-	if schema.Version.Apple, err = runApple(ctx, appleLogger, client, appleDir, pinnedApple, update); err != nil {
+	if schema.Version.Apple, err = runApple(ctx, appleLogger, client, githubAPIURL, codeloadURL, appleDir, pinnedApple, update); err != nil {
 		return err
 	}
 	src, err := loadApple(ctx, appleLogger, appleDir)
@@ -88,16 +89,12 @@ func run(ctx context.Context, logger *slog.Logger, out string, update bool) erro
 	if err := runWindows(ctx, logger.With("platform", "windows"), &schema); err != nil {
 		return err
 	}
-	return writeOutput(ctx, logger, out, &schema, pinned, time.Now())
+	return writeOutput(ctx, logger, out, &schema, existing, time.Now())
 }
 
 // runApple returns the Apple version to generate and leaves its sources in dir. Without update it
 // uses the pinned commit's existing download and makes no network calls.
-func runApple(ctx context.Context, logger *slog.Logger, client *http.Client, dir string, pinned *profilevalidation.AppleVersion, update bool) (profilevalidation.AppleVersion, error) {
-	return runAppleFrom(ctx, logger, client, githubAPIURL, codeloadURL, dir, pinned, update)
-}
-
-func runAppleFrom(ctx context.Context, logger *slog.Logger, client *http.Client, apiURL, tarballURL, dir string, pinned *profilevalidation.AppleVersion, update bool) (profilevalidation.AppleVersion, error) {
+func runApple(ctx context.Context, logger *slog.Logger, client *http.Client, apiURL, tarballURL, dir string, pinned *profilevalidation.AppleVersion, update bool) (profilevalidation.AppleVersion, error) {
 	if !update {
 		if pinned == nil {
 			return profilevalidation.AppleVersion{}, errors.New("no Apple commit pinned in the output; run with -update to fetch the latest")

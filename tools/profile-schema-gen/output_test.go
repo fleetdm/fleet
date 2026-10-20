@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestReadOutputVersion(t *testing.T) {
+func TestReadOutput(t *testing.T) {
 	dir := t.TempDir()
 	write := func(name, content string) string {
 		p := filepath.Join(dir, name)
@@ -23,24 +23,28 @@ func TestReadOutputVersion(t *testing.T) {
 		return p
 	}
 
-	got, err := readOutputVersion(filepath.Join(dir, "missing.json"))
+	got, err := readOutput(filepath.Join(dir, "missing.json"))
 	require.NoError(t, err)
 	assert.Nil(t, got)
 
-	got, err = readOutputVersion(write("empty.json", ""))
+	got, err = readOutput(write("empty.json", ""))
 	require.NoError(t, err)
 	assert.Nil(t, got)
 
 	// Only the header matters; the rest of the document isn't decoded.
-	got, err = readOutputVersion(write("valid.json", `{"format_version": 1, "version": {"apple": {"release": "Release-v27.0", "commit": "`+testSHA+`"},
-		"generated_at": "2026-10-15T00:00:00Z"}, "apple_profiles": "not checked here"}`))
+	valid := `{"format_version": 1, "version": {"apple": {"release": "Release-v27.0", "commit": "` + testSHA + `"},
+		"generated_at": "2026-10-15T00:00:00Z"}, "apple_profiles": "not checked here"}`
+	got, err = readOutput(write("valid.json", valid))
 	require.NoError(t, err)
-	assert.Equal(t, &profilevalidation.Version{
-		Apple:       profilevalidation.AppleVersion{Release: "Release-v27.0", Commit: testSHA},
-		GeneratedAt: time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC),
+	assert.Equal(t, &existingOutput{
+		Version: profilevalidation.Version{
+			Apple:       profilevalidation.AppleVersion{Release: "Release-v27.0", Commit: testSHA},
+			GeneratedAt: time.Date(2026, 10, 15, 0, 0, 0, 0, time.UTC),
+		},
+		Data: []byte(valid),
 	}, got)
 
-	_, err = readOutputVersion(write("bad.json", "not json"))
+	_, err = readOutput(write("bad.json", "not json"))
 	require.ErrorContains(t, err, "read version from")
 }
 
@@ -96,7 +100,7 @@ func TestWriteOutput(t *testing.T) {
 	assert.Equal(t, byte('\n'), written[len(written)-1])
 
 	// Same content again, later: byte-identical, generated_at kept.
-	previous, err := readOutputVersion(out)
+	previous, err := readOutput(out)
 	require.NoError(t, err)
 	require.NoError(t, writeOutput(t.Context(), logger, out, validSchema(), previous, later))
 	again, err := os.ReadFile(out)
@@ -107,10 +111,10 @@ func TestWriteOutput(t *testing.T) {
 	changed := validSchema()
 	changed.Version.Apple = profilevalidation.AppleVersion{Release: "Release-v28.0", Commit: "1111111111111111111111111111111111111111"}
 	require.NoError(t, writeOutput(t.Context(), logger, out, changed, previous, later))
-	got, err := readOutputVersion(out)
+	got, err := readOutput(out)
 	require.NoError(t, err)
-	assert.Equal(t, later.Truncate(time.Second), got.GeneratedAt)
-	assert.Equal(t, "Release-v28.0", got.Apple.Release)
+	assert.Equal(t, later.Truncate(time.Second), got.Version.GeneratedAt)
+	assert.Equal(t, "Release-v28.0", got.Version.Apple.Release)
 
 	assertNoTempFiles(t, dir)
 }
@@ -142,7 +146,7 @@ func TestWriteOutputRejectsShrunkenSchema(t *testing.T) {
 		require.NoError(t, writeOutput(t.Context(), logger, out, validSchema(), nil, now))
 		before, err := os.ReadFile(out)
 		require.NoError(t, err)
-		previous, err := readOutputVersion(out)
+		previous, err := readOutput(out)
 		require.NoError(t, err)
 
 		err = writeOutput(t.Context(), logger, out, shrunk, previous, now.Add(time.Hour))

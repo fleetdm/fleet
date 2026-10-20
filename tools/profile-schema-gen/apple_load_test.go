@@ -87,7 +87,7 @@ func TestLoadAppleGrouping(t *testing.T) {
 		"mdm/profiles/com.apple.MCX(EnergySaver).yaml",
 		"mdm/profiles/com.apple.MCX(WiFi).yaml",
 	}, fileNames(src.Profiles["com.apple.MCX"]))
-	assert.Equal(t, "Shared", keyName(src.Profiles["com.apple.MCX"].Files[1].PayloadKeys[0]))
+	assert.Equal(t, "Shared", keyName(src.Profiles["com.apple.MCX"].Files[1].PayloadKeys.Content[0]))
 
 	assert.ElementsMatch(t, []string{"com.apple.configuration.passcode.settings", "com.apple.asset.data"}, slices.Collect(maps.Keys(src.Declarations)))
 }
@@ -99,8 +99,8 @@ func TestLoadAppleKeyNameThroughAlias(t *testing.T) {
 
 	src, err := loadApple(t.Context(), slog.New(slog.DiscardHandler), writeAppleFixture(t, files))
 	require.NoError(t, err)
-	assert.Equal(t, "Reused", keyName(src.Profiles["com.example"].Files[0].PayloadKeys[0]))
-	assert.Equal(t, "ViaAlias", keyName(src.Profiles["com.example2"].Files[0].PayloadKeys[0]))
+	assert.Equal(t, "Reused", keyName(src.Profiles["com.example"].Files[0].PayloadKeys.Content[0]))
+	assert.Equal(t, "ViaAlias", keyName(src.Profiles["com.example2"].Files[0].PayloadKeys.Content[0]))
 }
 
 func TestLoadAppleErrors(t *testing.T) {

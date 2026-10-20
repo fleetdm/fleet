@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"maps"
 	"reflect"
 	"slices"
 	"strconv"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/profilevalidation"
 )
 
@@ -55,26 +57,42 @@ func convertAppleGroups(ctx context.Context, logger *slog.Logger, groups map[str
 // what the general file allows.
 func convertAppleGroup(ctx context.Context, logger *slog.Logger, g *appleGroup) (*profilevalidation.ApplePayloadType, error) {
 	m := &appleMerger{ctx: ctx, logger: logger.With("type", g.Name)}
-	var out *profilevalidation.ApplePayloadType
+	var merged *profilevalidation.AppleKey
 	for _, f := range g.Files {
-		platforms := f.Payload.SupportedOS.resolve(nil)
-		keys, open, values, err := newAppleConverter(ctx, logger, f.Path).convertKeys(f.PayloadKeys, "", platforms)
+		root, err := newAppleConverter(ctx, logger, f.Path).convertPayload(&f.PayloadKeys, f.Payload.SupportedOS)
 		if err != nil {
 			return nil, err
 		}
-		pt := &profilevalidation.ApplePayloadType{Platforms: platforms, Source: "apple", Keys: keys, Open: open, Values: values}
-		if out == nil {
-			out = pt
+		if merged == nil {
+			merged = root
 			continue
 		}
 		m.logger.DebugContext(ctx, "merging file into type", "file", f.Path)
-		out.Platforms = m.mergePlatforms("(payload)", out.Platforms, pt.Platforms)
-		out.Keys = m.mergeKeyMaps("", out.Keys, pt.Keys)
-		out.Open, out.Values = m.mergeOpen("(payload)", out.Open, out.Values, pt.Open, pt.Values)
+		merged = m.mergeKey("", merged, root)
 	}
-	trimPlatforms(out.Keys, out.Platforms)
-	trimKeyPlatforms(out.Values, out.Platforms)
-	return out, nil
+	trimPlatforms(merged, nil)
+	return &profilevalidation.ApplePayloadType{
+		Platforms: merged.Platforms,
+		Source:    "apple",
+		Keys:      merged.Keys,
+		Open:      merged.Open,
+		Values:    merged.Values,
+	}, nil
+}
+
+// trimPlatforms replaces k's resolved platforms, and its descendants', with only those that differ
+// from the parent's. It runs after merging, so differences are relative to the merged parent.
+func trimPlatforms(k *profilevalidation.AppleKey, parent map[profilevalidation.AppleOS]profilevalidation.ApplePlatform) {
+	if k == nil {
+		return
+	}
+	resolved := k.Platforms
+	for _, child := range k.Keys {
+		trimPlatforms(child, resolved)
+	}
+	trimPlatforms(k.Items, resolved)
+	trimPlatforms(k.Values, resolved)
+	k.Platforms = platformsDiff(resolved, parent)
 }
 
 type appleMerger struct {
@@ -86,6 +104,9 @@ type appleMerger struct {
 func (m *appleMerger) changed(path, field string, a, b, merged any) {
 	if reflect.DeepEqual(a, b) {
 		return
+	}
+	if path == "" {
+		path = "(payload)"
 	}
 	m.logger.InfoContext(m.ctx, "merged key to loosest definition", "path", path, "field", field,
 		"a", logJSON(a), "b", logJSON(b), "merged", logJSON(merged))
@@ -127,7 +148,7 @@ func (m *appleMerger) mergeKey(path string, a, b *profilevalidation.AppleKey) *p
 		Keys:       m.mergeKeyMaps(path, a.Keys, b.Keys),
 		Platforms:  m.mergePlatforms(path, a.Platforms, b.Platforms),
 	}
-	out.Open, out.Values = m.mergeOpen(path, a.Open, a.Values, b.Open, b.Values)
+	out.Open, out.Values = m.mergeOpen(path, a, b)
 	// An array without an item definition accepts any items.
 	if a.Items != nil && b.Items != nil {
 		out.Items = m.mergeKey(path+"[]", a.Items, b.Items)
@@ -151,16 +172,16 @@ func (m *appleMerger) mergeKey(path string, a, b *profilevalidation.AppleKey) *p
 }
 
 // mergeOpen merges the open/values pair. An open side without values accepts anything, so it wins.
-func (m *appleMerger) mergeOpen(path string, aOpen bool, aValues *profilevalidation.AppleKey, bOpen bool, bValues *profilevalidation.AppleKey) (bool, *profilevalidation.AppleKey) {
+func (m *appleMerger) mergeOpen(path string, a, b *profilevalidation.AppleKey) (bool, *profilevalidation.AppleKey) {
 	switch {
-	case aOpen && aValues == nil, bOpen && bValues == nil:
-		return aOpen || bOpen, nil
-	case aOpen && bOpen:
-		return true, m.mergeKey(path+".ANY", aValues, bValues)
-	case aOpen:
-		return true, aValues
-	case bOpen:
-		return true, bValues
+	case a.Open && a.Values == nil, b.Open && b.Values == nil:
+		return a.Open || b.Open, nil
+	case a.Open && b.Open:
+		return true, m.mergeKey(joinKeyPath(path, appleAnyKey), a.Values, b.Values)
+	case a.Open:
+		return true, a.Values
+	case b.Open:
+		return true, b.Values
 	}
 	return false, nil
 }
@@ -169,10 +190,7 @@ func (m *appleMerger) mergePlatforms(path string, a, b map[profilevalidation.App
 	if a == nil {
 		return b
 	}
-	out := make(map[profilevalidation.AppleOS]profilevalidation.ApplePlatform, len(a))
-	for os, pa := range a {
-		out[os] = pa
-	}
+	out := maps.Clone(a)
 	for os, pb := range b {
 		pa, ok := out[os]
 		if !ok {
@@ -187,7 +205,9 @@ func (m *appleMerger) mergePlatforms(path string, a, b map[profilevalidation.App
 }
 
 // mergePlatform keeps the widest support: the earliest introduction, and deprecation, removal and
-// supervision only when both sides have them. "n/a" means unsupported, so the other side wins.
+// supervision only when both sides have them. "n/a" means unsupported, so the other side wins. An
+// empty introduced also loses: it happens when a key's supportedOS sets only other fields for a
+// platform its parent doesn't list.
 func mergePlatform(a, b profilevalidation.ApplePlatform) profilevalidation.ApplePlatform {
 	if a.Introduced == appleNotSupported || a.Introduced == "" {
 		return b
@@ -283,33 +303,13 @@ func laterVersionIfBoth(a, b string) string {
 	return b
 }
 
-// compareVersions compares dotted versions numerically ("10.10" > "10.9"); missing parts are 0.
-// Non-numeric versions fall back to string order.
+// compareVersions compares dotted versions numerically ("10.10" > "10.9"), falling back to string
+// order for anything that isn't a version.
 func compareVersions(a, b string) int {
-	as, bs := strings.Split(a, "."), strings.Split(b, ".")
-	for i := range max(len(as), len(bs)) {
-		var ap, bp string
-		if i < len(as) {
-			ap = as[i]
-		}
-		if i < len(bs) {
-			bp = bs[i]
-		}
-		an, aerr := strconv.Atoi(cmpZero(ap))
-		bn, berr := strconv.Atoi(cmpZero(bp))
-		if aerr != nil || berr != nil {
-			return strings.Compare(a, b)
-		}
-		if an != bn {
-			return an - bn
-		}
+	va, errA := semver.NewVersion(a)
+	vb, errB := semver.NewVersion(b)
+	if errA != nil || errB != nil {
+		return strings.Compare(a, b)
 	}
-	return 0
-}
-
-func cmpZero(s string) string {
-	if s == "" {
-		return "0"
-	}
-	return s
+	return va.Compare(vb)
 }

@@ -203,6 +203,12 @@ payloadkeys:
 			convert(t, src.Profiles["com.apple.applicationaccess"]))
 	})
 
+	t.Run("payload without payloadkeys is not open", func(t *testing.T) {
+		// Unlike a nested dictionary without subkeys, which accepts anything.
+		src := load(t, map[string]string{"mdm/profiles/com.example.empty.yaml": "payload:\n  payloadtype: com.example.empty\n"})
+		assert.JSONEq(t, `{"source": "apple"}`, convert(t, src.Profiles["com.example.empty"]))
+	})
+
 	t.Run("conversion error names the file", func(t *testing.T) {
 		src := load(t, map[string]string{
 			"mdm/profiles/bad.yaml": "payload:\n  payloadtype: com.example.bad\npayloadkeys:\n- {key: L, type: <array>, subkeys: [{key: A, type: <string>}, {key: B, type: <string>}]}\n",

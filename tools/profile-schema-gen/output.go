@@ -15,9 +15,16 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/mdm/profilevalidation"
 )
 
-// readOutputVersion returns the version block of an existing output file, or nil if the file is
-// missing or empty. Only the header is decoded, so an output from an older generator still pins.
-func readOutputVersion(path string) (*profilevalidation.Version, error) {
+// existingOutput is a previously generated output file. Its version block is the pin for runs
+// without -update.
+type existingOutput struct {
+	Version profilevalidation.Version
+	Data    []byte
+}
+
+// readOutput returns the output at path, or nil if it's missing or empty. Only the version block is
+// decoded, so an output from an older generator still pins.
+func readOutput(path string) (*existingOutput, error) {
 	data, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) || (err == nil && len(data) == 0) {
 		return nil, nil
@@ -31,31 +38,27 @@ func readOutputVersion(path string) (*profilevalidation.Version, error) {
 	if err := json.Unmarshal(data, &header); err != nil {
 		return nil, fmt.Errorf("read version from %s: %w", path, err)
 	}
-	return &header.Version, nil
+	return &existingOutput{Version: header.Version, Data: data}, nil
 }
 
 // writeOutput writes schema to path. generated_at moves only when the content does, so rerunning
 // against the same pins is byte-identical. The document must pass profilevalidation.Parse first, so a
 // reorganized upstream fails generation instead of shipping a shrunken schema; on any failure the
 // existing file is left untouched.
-func writeOutput(ctx context.Context, logger *slog.Logger, path string, schema *profilevalidation.ProfileValidationSchema, previous *profilevalidation.Version, now time.Time) error {
+func writeOutput(ctx context.Context, logger *slog.Logger, path string, schema *profilevalidation.ProfileValidationSchema, existing *existingOutput, now time.Time) error {
 	schema.FormatVersion = profilevalidation.FormatVersion
 
-	if previous != nil {
-		schema.Version.GeneratedAt = previous.GeneratedAt
+	if existing != nil {
+		schema.Version.GeneratedAt = existing.Version.GeneratedAt
 		data, err := encodeSchema(schema)
 		if err != nil {
 			return err
 		}
-		existing, err := os.ReadFile(path)
-		if err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return err
-		}
-		if bytes.Equal(data, existing) {
+		if bytes.Equal(data, existing.Data) {
 			if _, err := profilevalidation.Parse(data); err != nil {
 				return fmt.Errorf("existing output fails the schema checks: %w", err)
 			}
-			logger.InfoContext(ctx, "output unchanged; keeping generated_at", "out", path, "generated_at", previous.GeneratedAt)
+			logger.InfoContext(ctx, "output unchanged; keeping generated_at", "out", path, "generated_at", existing.Version.GeneratedAt)
 			return nil
 		}
 		logger.InfoContext(ctx, "output content changed", "out", path)
