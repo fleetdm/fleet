@@ -2011,6 +2011,27 @@ func (svc *Service) UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamI
 		return nil, err
 	}
 
+	if _, err := svc.ds.GetVPPToken(ctx, tokenID); err != nil {
+		if fleet.IsNotFound(err) {
+			return nil, fleet.NewInvalidArgumentError("id",
+				fmt.Sprintf("Couldn't edit. VPP token with ID %d doesn't exist.", tokenID)).WithStatus(http.StatusNotFound)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get vpp token")
+	}
+
+	if slices.ContainsFunc(teamIDs, func(id uint) bool { return id != 0 }) {
+		teams, err := svc.ds.TeamsSummary(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get fleets summary")
+		}
+		for _, id := range teamIDs {
+			if id != 0 && !slices.ContainsFunc(teams, func(t *fleet.TeamSummary) bool { return t.ID == id }) {
+				return nil, fleet.NewInvalidArgumentError("fleets",
+					fmt.Sprintf("Couldn't edit. Fleet with ID %d doesn't exist.", id)).WithStatus(http.StatusNotFound)
+			}
+		}
+	}
+
 	tok, err := svc.ds.UpdateVPPTokenTeams(ctx, tokenID, teamIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "updating vpp token team")

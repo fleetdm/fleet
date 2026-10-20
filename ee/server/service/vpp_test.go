@@ -1279,3 +1279,66 @@ func TestAddAppStoreAppToken(t *testing.T) {
 	})
 }
 
+func TestUpdateVPPTokenTeamsValidation(t *testing.T) {
+	t.Parallel()
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	setup := func(t *testing.T) (*Service, *mock.Store) {
+		ds := new(mock.Store)
+		ds.GetVPPTokenFunc = func(_ context.Context, id uint) (*fleet.VPPTokenDB, error) {
+			if id != 1 {
+				return nil, common_mysql.NotFound("VPPToken")
+			}
+			return &fleet.VPPTokenDB{ID: 1}, nil
+		}
+		ds.TeamsSummaryFunc = func(context.Context) ([]*fleet.TeamSummary, error) {
+			return []*fleet.TeamSummary{{ID: 1}, {ID: 2}}, nil
+		}
+		ds.UpdateVPPTokenTeamsFunc = func(_ context.Context, id uint, _ []uint) (*fleet.VPPTokenDB, error) {
+			return &fleet.VPPTokenDB{ID: id}, nil
+		}
+		return newTestService(t, ds), ds
+	}
+
+	t.Run("missing token with fleets", func(t *testing.T) {
+		svc, ds := setup(t)
+		_, err := svc.UpdateVPPTokenTeams(ctx, 99, []uint{1})
+		require.ErrorContains(t, err, "Couldn't edit. VPP token with ID 99 doesn't exist.")
+		require.Equal(t, http.StatusNotFound, vppErrStatus(err))
+		require.False(t, ds.UpdateVPPTokenTeamsFuncInvoked)
+	})
+
+	t.Run("missing token with null fleets", func(t *testing.T) {
+		svc, ds := setup(t)
+		_, err := svc.UpdateVPPTokenTeams(ctx, 99, nil)
+		require.ErrorContains(t, err, "Couldn't edit. VPP token with ID 99 doesn't exist.")
+		require.Equal(t, http.StatusNotFound, vppErrStatus(err))
+		require.False(t, ds.UpdateVPPTokenTeamsFuncInvoked)
+	})
+
+	t.Run("missing fleet", func(t *testing.T) {
+		svc, ds := setup(t)
+		_, err := svc.UpdateVPPTokenTeams(ctx, 1, []uint{1, 7})
+		require.ErrorContains(t, err, "Couldn't edit. Fleet with ID 7 doesn't exist.")
+		require.Equal(t, http.StatusNotFound, vppErrStatus(err))
+		require.False(t, ds.UpdateVPPTokenTeamsFuncInvoked)
+	})
+
+	t.Run("no fleet is always valid", func(t *testing.T) {
+		svc, ds := setup(t)
+		tok, err := svc.UpdateVPPTokenTeams(ctx, 1, []uint{0})
+		require.NoError(t, err)
+		require.Equal(t, uint(1), tok.ID)
+		require.True(t, ds.UpdateVPPTokenTeamsFuncInvoked)
+		require.False(t, ds.TeamsSummaryFuncInvoked, "fleets are only loaded to check non-zero ids")
+	})
+
+	t.Run("existing fleets and all fleets", func(t *testing.T) {
+		svc, _ := setup(t)
+		_, err := svc.UpdateVPPTokenTeams(ctx, 1, []uint{1, 2})
+		require.NoError(t, err)
+		_, err = svc.UpdateVPPTokenTeams(ctx, 1, []uint{})
+		require.NoError(t, err)
+	})
+}
+
