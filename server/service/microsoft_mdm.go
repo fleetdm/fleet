@@ -1308,8 +1308,11 @@ func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri str
 		return "", ctxerr.Wrap(ctx, err, "issue generating TOS content")
 	}
 
+	data := windowsTOSTemplateData{RedirectURL: redirectUri, ClientData: reqID}
+	data.Content = svc.customWindowsTOSContent(ctx)
+
 	var htmlBuf bytes.Buffer
-	err = tmpl.Execute(&htmlBuf, map[string]string{"RedirectURL": redirectUri, "ClientData": reqID})
+	err = tmpl.Execute(&htmlBuf, data)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "executing TOS template content")
 	}
@@ -1328,6 +1331,33 @@ const (
 )
 
 const windowsMDMAuthNonceTTL = 5 * time.Minute
+
+// windowsMDMRekeyMaxOffline is how long a host can go without an osquery check-in before its pre-credentials enrollment can no longer
+// be rekeyed.
+const windowsMDMRekeyMaxOffline = 180 * 24 * time.Hour
+
+// isWindowsRekeyAllowed reports whether a pre-credentials enrollment may still be rekeyed. The rekey is unauthenticated, so it is
+// refused when the host cannot be found or has not been seen recently.
+func (svc *Service) isWindowsRekeyAllowed(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice) (bool, error) {
+	if enrolledDevice.HostUUID == "" {
+		return false, nil
+	}
+
+	host, err := svc.ds.WindowsHostLiteByUUID(ctx, enrolledDevice.HostUUID)
+	switch {
+	case fleet.IsNotFound(err):
+		return false, nil
+	case err != nil:
+		return false, ctxerr.Wrap(ctx, err, "get host for windows rekey")
+	}
+
+	if svc.clock.Now().Sub(host.SeenTime) > windowsMDMRekeyMaxOffline {
+		svc.logger.WarnContext(ctx, "refusing Windows MDM rekey for host not seen recently",
+			"device_id", enrolledDevice.MDMDeviceID, "host_id", host.ID, "last_seen", host.SeenTime)
+		return false, nil
+	}
+	return true, nil
+}
 
 // isTrustedRequest checks if the incoming request was sent from an MDM-enrolled
 // device. It returns the matched enrollment (when the device was found), the
@@ -1354,6 +1384,14 @@ func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncM
 
 	if !enrolledDevice.CredentialsAcknowledged && enrolledDevice.CredentialsHash == nil {
 		// Device has not gotten new credentials, rekey the device only once
+		allowed, err := svc.isWindowsRekeyAllowed(ctx, enrolledDevice)
+		if err != nil {
+			return nil, RequestAuthStateUntrusted, ctxerr.Wrap(ctx, err, "check windows rekey eligibility")
+		}
+		if !allowed {
+			// Same message as an unknown device so a refused rekey is not distinguishable from a missing enrollment.
+			return nil, RequestAuthStateUntrusted, errors.New("device was not MDM enrolled")
+		}
 		return enrolledDevice, RequestAuthStateRekey, nil
 	}
 
@@ -2191,6 +2229,10 @@ func handleResendingAlreadyExistsCommands(ctx context.Context, svc *Service, alr
 
 // getPendingMDMCmds returns the list of pending MDM commands for the given enrollment, plus onlyPollCmdsPending: true
 // when everything still pending (if anything) is an internal poll-schedule Replace.
+//
+// A SCEP status probe is held back until it has been queued for fleet.WindowsSCEPStatusProbeDelay, so it goes out on the
+// next MDM session after ACK. Held back, a probe still counts as pending, which keeps has_pending_commands set and has
+// fleetd wake the device again.
 func (svc *Service) getPendingMDMCmds(ctx context.Context, enrollmentID uint) ([]*mdm_types.SyncMLCmd, bool, error) {
 	pendingCmds, err := svc.ds.MDMWindowsGetPendingCommands(ctx, enrollmentID)
 	if err != nil {
@@ -2204,6 +2246,10 @@ func (svc *Service) getPendingMDMCmds(ctx context.Context, enrollmentID uint) ([
 		isPollCmd := pendingCmd.TargetLocURI == syncml.DMClientPollIntervalLocURI
 		if !isPollCmd {
 			onlyPollCmdsPending = false
+		}
+		if fleet.IsWindowsSCEPStatusProbeCmdUUID(pendingCmd.CommandUUID) &&
+			svc.clock.Now().Sub(pendingCmd.CreatedAt) < fleet.WindowsSCEPStatusProbeDelay {
+			continue
 		}
 		// The raw MDM command may contain a $FLEET_SECRET_XXX, the value of which should never be exposed or stored unencrypted.
 		rawCommandWithSecret, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(pendingCmd.RawCommand))
@@ -3005,9 +3051,7 @@ func espUserReleaseLocURI(provID string) string {
 	return fmt.Sprintf("./User/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID)
 }
 
-// espReleaseAttemptCmdIDPrefix marks the CmdID of every user-scope ESP release attempt Fleet sends (the initial
-// finalize's Replace and each retry).
-const espReleaseAttemptCmdIDPrefix = "esp-release-"
+const espReleaseAttemptCmdIDPrefix = fleet.WindowsESPReleaseCmdIDPrefix
 
 // isOMADMSessionStart reports whether reqMsg opens an OMA-DM session: device MsgID 1 (auth) or 2 (trusted request). The
 // device acks message N's commands in message N+1, so a command re-sent on every message keeps the session open.

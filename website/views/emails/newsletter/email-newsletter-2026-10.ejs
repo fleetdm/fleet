@@ -1,0 +1,119 @@
+<h1 style="color: #192147; font-weight: 800; font-size: 32px; line-height: 150%; margin-bottom: 32px;">
+Fleet news: October 2026
+</h1>
+<p style="font-size: 16px; line-height: 24px; font-weight: 400; margin-bottom: 16px;">
+Leaves are starting to fall in the US, but Windows hosts aren&#39;t falling into &quot;Unassigned&quot; anymore. September brought Fleet 4.91.0 and 4.92.0, a customer story from Abridge, and a guide to binary allow lists on macOS 27. Two more releases are planned for October, so let&#39;s dive right in!
+</p>
+<h2 style="color: #192147; font-weight: 700; font-size: 24px; line-height: 150%; margin-bottom: 24px; margin-top: 32px;">
+🚀 What shipped last month
+</h2>
+<ul style="padding-left: 16px; margin-bottom: 32px;">
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<strong style="display: inline; font-weight: 700; color: #192147">Windows Autopilot hosts land in the right fleet.</strong> Choose a default fleet for Autopilot-enrolled hosts, so new Windows hosts skip &quot;Unassigned.&quot; With Fleet Premium, Autopilot hosts also show up as pending hosts, with their group tag, before they enroll, so you can move them to the right fleet ahead of time.
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<strong style="display: inline; font-weight: 700; color: #192147">Run any Android command.</strong> Send any Android Management API command with <code style="display: inline; background: #F1F0FF; color: #192147; padding: 4px 8px; font-size: 13px; line-height: 16px; font-family: Courier New;">fleetctl mdm run-command</code> or Fleet&#39;s API, then see the results on <strong style="display: inline; font-weight: 700; color: #192147">Host details</strong>, the same way you already can for Apple and Windows hosts.
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<strong style="display: inline; font-weight: 700; color: #192147">OS updates that follow the latest version.</strong> Set macOS, iOS, and iPadOS updates to always target the latest OS version, with a deadline counted in days after each release. Fleet moves the target as Apple ships updates, so you no longer bump the minimum version by hand.
+</span></li>
+</ul>
+<p style="font-size: 16px; line-height: 24px; font-weight: 400; margin-bottom: 16px;">
+Also shipped in September: a hidden local admin account with an escrowed password on every Windows host, policy automations that resend a configuration profile when a host fails, and SSO in front of Fleet Desktop self-service. <a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://fleetdm.com/releases" target="_blank">See every release</a>.
+</p>
+<h2 style="color: #192147; font-weight: 700; font-size: 24px; line-height: 150%; margin-bottom: 24px; margin-top: 32px;">
+🗺️ What we plan to ship this month
+</h2>
+<p style="font-size: 16px; line-height: 24px; font-weight: 400; margin-bottom: 16px;">
+Fleet 4.93.0 and 4.94.0 are both planned for October. These are planned, not promised, and scope changes as each release comes together.
+</p>
+<ul style="padding-left: 16px; margin-bottom: 32px;">
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<strong style="display: inline; font-weight: 700; color: #192147">Prompt end users before app updates on macOS.</strong> Patch policies that ask end users before updating an app, instead of updating it mid-task.
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<strong style="display: inline; font-weight: 700; color: #192147">Zero-touch enrollment for company-owned Android.</strong> Enroll company-owned Android devices in Fleet without anyone touching them first.
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<strong style="display: inline; font-weight: 700; color: #192147">Windows: force standard account.</strong> Keep end users off local administrator accounts on Windows hosts.
+</span></li>
+</ul>
+<p style="font-size: 16px; line-height: 24px; font-weight: 400; margin-bottom: 16px;">
+Also on deck: ACME certificates for iOS and iPadOS hosts enrolled through Apple Business, an option to allow only automated enrollment for Apple devices, on-demand FileVault key rotation, and opt-in configuration profiles in macOS self-service.
+</p>
+<p style="font-size: 16px; line-height: 24px; font-weight: 400; margin-bottom: 16px;">
+Want to see how these are coming along? We plan everything in the open. Bookmark our <a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://github.com/orgs/fleetdm/projects/87/views/10" target="_blank">release planning board</a> to keep an eye on the queue and join the discussion.
+</p>
+<h2 style="color: #192147; font-weight: 700; font-size: 24px; line-height: 150%; margin-bottom: 24px; margin-top: 32px;">
+🎓 Upcoming workshops
+</h2>
+<p style="font-size: 16px; line-height: 24px; font-weight: 400; margin-bottom: 16px;">
+Fleet workshops are free, run about four hours, and set you on course to becoming a Fleet-certified expert. Seats are limited, so register early.
+</p>
+<ul style="padding-left: 16px; margin-bottom: 32px;">
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<strong style="display: inline; font-weight: 700; color: #192147">GitOps, Richmond.</strong> October 13, 1pm to 5pm EDT. <a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://www.eventbrite.com/e/gitops-richmond-tickets-1993052268988" target="_blank">Register</a>
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<strong style="display: inline; font-weight: 700; color: #192147">Apple administrator, Denver.</strong> October 20, 1pm to 5pm MDT. <a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://www.eventbrite.com/e/apple-administrator-workshop-denver-tickets-2002264951369" target="_blank">Register</a>
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<strong style="display: inline; font-weight: 700; color: #192147">Apple administrator, Houston.</strong> October 22, 1pm to 5pm CDT. <a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://www.eventbrite.com/e/apple-administrator-workshop-houston-tickets-2002265456881" target="_blank">Register</a>
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<strong style="display: inline; font-weight: 700; color: #192147">Apple administrator, New York City.</strong> October 27, 1pm to 5pm EDT. <a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://www.eventbrite.com/e/apple-administrator-workshop-nyc-tickets-2002265545145" target="_blank">Register</a>
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<strong style="display: inline; font-weight: 700; color: #192147">GitOps, Philadelphia.</strong> October 29, 1pm to 5pm EDT. <a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://www.eventbrite.com/e/gitops-philadelphia-tickets-2002266067708" target="_blank">Register</a>
+</span></li>
+</ul>
+<p style="font-size: 16px; line-height: 24px; font-weight: 400; margin-bottom: 16px;">
+Don&#39;t see your city? <a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://fleetdm.com/contact#gitops" target="_blank">Request a workshop</a> to get hands-on experience and earn your certification.
+</p>
+<h2 style="color: #192147; font-weight: 700; font-size: 24px; line-height: 150%; margin-bottom: 24px; margin-top: 32px;">
+📖 Worth reading
+</h2>
+<h3 style="color: #192147; font-weight: 700; font-size: 20px; line-height: 150%; margin-bottom: 24px;">
+Customer stories
+</h3>
+<ul style="padding-left: 16px; margin-bottom: 32px;">
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://fleetdm.com/articles/abridge" target="_blank">How Abridge gets new hires productive in 10 minutes with Fleet</a>. The healthcare AI company uses GitOps and real-time visibility to onboard new hires fast and answer security questions in minutes.
+</span></li>
+</ul>
+<h3 style="color: #192147; font-weight: 700; font-size: 20px; line-height: 150%; margin-bottom: 24px;">
+Articles
+</h3>
+<ul style="padding-left: 16px; margin-bottom: 32px;">
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://fleetdm.com/articles/autopilot-without-autopilot" target="_blank">Autopilot without Autopilot: zero-touch Windows deployment with Fleet</a>. Ship Windows laptops straight to end users, enrolled from the first boot, without a per-user Entra ID P1 license.
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://fleetdm.com/articles/the-power-of-collaboration" target="_blank">The power of collaboration: an admin-rights audit trail for every Mac</a>. How three open-source projects shipped a queryable record of every admin grant on macOS in about a week.
+</span></li>
+</ul>
+<h3 style="color: #192147; font-weight: 700; font-size: 20px; line-height: 150%; margin-bottom: 24px;">
+Guides
+</h3>
+<ul style="padding-left: 16px; margin-bottom: 32px;">
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://fleetdm.com/guides/binary-authorization-on-macos-27" target="_blank">Binary authorization on macOS 27</a>. Use the new native allow and deny lists to control which apps and command-line tools can run on your Macs.
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://fleetdm.com/guides/enroll-linux-hosts-on-first-boot-with-cloud-init" target="_blank">Enroll Linux hosts on first boot with cloud-init</a>. New Linux VMs and Ubuntu installs enroll in Fleet automatically, with nobody touching them.
+</span></li>
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://fleetdm.com/guides/deploy-socket-firewall-free-with-fleet" target="_blank">Deploy Socket Firewall Free with Fleet</a>. Block known-malicious npm, pip, and cargo packages on developer machines, and reinstall the firewall automatically when it goes missing.
+</span></li>
+</ul>
+<h2 style="color: #192147; font-weight: 700; font-size: 24px; line-height: 150%; margin-bottom: 24px; margin-top: 32px;">
+💬 From the community
+</h2>
+<ul style="padding-left: 16px; margin-bottom: 32px;">
+<li style="margin-bottom: 16px; color: #009A7D;"><span style="color: #515774;">
+<a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://www.linkedin.com/company/fleetdm/" target="_blank">Fleet</a> <a style="display: inline; color: #515774; cursor: pointer; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: #C5C7D1; font-size: 16px; word-break: break-word;" href="https://www.linkedin.com/feed/update/urn:li:activity:7506085598974312448/" target="_blank">announced it has joined Anthropic&#39;s Project Glasswing</a> to research how frontier AI can strengthen the security of device management systems and MDM protocols, and to share what we learn in the open.
+</span></li>
+</ul>
+<p style="font-size: 16px; line-height: 24px; font-weight: 400; margin-bottom: 16px;">
+Thank you to everyone who contributes to Fleet and uses it every day.
+</p>

@@ -118,6 +118,10 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 		}
 	}
 
+	if !host.SupportsOsquery() {
+		return nil, false, newOsqueryErrorWithInvalidNode("authentication error: invalid node key")
+	}
+
 	// Update the "seen" time used to calculate online status. These updates are
 	// batched for MySQL performance reasons. Because this is done
 	// asynchronously, it is possible for the server to shut down before
@@ -3033,6 +3037,11 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 		policyID := failingPolicyWithInstaller.ID
 		_, newlyFailing := newFailingSet[policyID]
 		installerMetadata, err := svc.ds.GetSoftwareInstallerMetadataByID(ctx, failingPolicyWithInstaller.InstallerID)
+		if fleet.IsNotFound(err) {
+			// A GitOps run deleted the installer after the policy was read. Keep going with the host's other policies.
+			svc.logger.DebugContext(ctx, "policy automation installer was deleted", "host_id", hostID, "policy_id", policyID)
+			continue
+		}
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get software installer metadata by id")
 		}
@@ -3143,6 +3152,10 @@ func (svc *Service) processSoftwareForNewlyFailingPolicies(
 				DeferActivation:         svc.deferFleetInitiatedActivation(),
 			},
 		)
+		if fleet.IsNotFound(err) {
+			logger.DebugContext(ctx, "policy automation installer was deleted before the install was queued")
+			continue
+		}
 		if err != nil {
 			return ctxerr.Wrapf(
 				ctx, err,
@@ -3251,6 +3264,11 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 		return ctxerr.Wrapf(ctx, err, "failed to check recent VPP installs")
 	}
 
+	hostVersionByTitleID, err := svc.ds.ListHostAppStoreAppVersions(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to get the host's App Store app versions")
+	}
+
 	// When two policies are bound to one app only the first queues an install, so sort to make that
 	// choice stable. Sorted here rather than in GetPoliciesWithAssociatedVPP so it stays verifiable
 	// without a live database.
@@ -3279,12 +3297,8 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 			continue
 		}
 
-		scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppMetadata.VPPAppTeam.AppTeamID, hostID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "checking if vpp app is label scoped to host")
-		}
-
-		if !scoped {
+		hostVersion, ok := hostVersionByTitleID[vppMetadata.TitleID]
+		if !ok || !hostVersion.InScope {
 			// NOTE: we update the policy status here to stop it from showing up as "failed" in the
 			// host details.
 			incomingPolicyResults[failingPolicyWithVPP.ID] = nil
@@ -3316,7 +3330,16 @@ func (svc *Service) processVPPForNewlyFailingPolicies(
 			continue
 		}
 
-		commandUUID, err := svc.EnterpriseOverrides.InstallVPPAppPostValidation(ctx, host, vppMetadata, vppToken, fleet.HostSoftwareInstallOptions{
+		vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, vppMetadata.TitleID, hostVersion.VPPAppTeamID)
+		if err != nil {
+			logger.ErrorContext(
+				ctx, "failed to get the host's VPP app version",
+				"err", err,
+			)
+			continue
+		}
+
+		commandUUID, err := svc.EnterpriseOverrides.InstallVPPAppPostValidation(ctx, host, vppApp, vppToken, fleet.HostSoftwareInstallOptions{
 			SelfService:     false,
 			PolicyID:        &policyID,
 			DeferActivation: svc.deferFleetInitiatedActivation(),

@@ -114,7 +114,9 @@ labels:
   - path: ./lib/all/labels/x86-based-windows-hosts.yml
   - path: ./lib/all/labels/x86-based-linux-hosts.yml
   - path: ./lib/all/labels/apple-silicon-macos-hosts.yml
-  - path: ./lib/all/labels/keynote-14-installed.yml
+  - path: ./lib/all/labels/macos-15-and-older-hosts.yml
+  - path: ./lib/all/labels/macs-not-enrolled-through-ade.yml
+  - path: ./lib/all/labels/keynote-installed.yml
   - path: ./lib/all/labels/macos-compatibility-extension-installed.yml
   - path: ./lib/all/labels/macos-screen-lock-exclusions.yml
   - path: ./lib/all/labels/windows-screen-lock-exclusions.yml
@@ -135,3 +137,5 @@ labels:
 custom_host_vitals:
   # Set daily from Retriever's warehouse API by a scheduled routine.
   - name: Warehouse status
+  # Set daily from the Apple Business API by a scheduled routine.
+  - name: AppleCare warranty expiration

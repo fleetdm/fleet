@@ -6,10 +6,10 @@ import { IconNames } from "components/icons";
 import TooltipWrapper from "components/TooltipWrapper";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import {
+  getAutoUpdateTooltip,
   getSelfServiceTooltip,
   getDisplayedSoftwareName,
 } from "pages/SoftwarePage/helpers";
-import { internationalTimeOnlyFormat } from "utilities/helpers";
 
 import LinkCell from "../LinkCell";
 import TooltipTruncatedTextCell from "../TooltipTruncatedTextCell";
@@ -44,11 +44,6 @@ const getPolicyTooltip = (count = 0) =>
   count === 1
     ? "A policy triggers install."
     : `${count} policies trigger install.`;
-
-const getAutoUpdateTooltip = (start: string, end: string) =>
-  `Auto updates between ${internationalTimeOnlyFormat(
-    start
-  )} and ${internationalTimeOnlyFormat(end)} (host local time).`;
 
 // Auto-updates are iOS/iPadOS VPP only; macOS VPP or in-house .ipa
 // schedule rows must not promote the icon.
@@ -253,6 +248,42 @@ export const InstallIconWithTooltip = ({
   );
 };
 
+interface IConfigurationIconWithTooltipProps {
+  versionName: string;
+}
+
+// Host-side marker: which admin version this host received.
+// The badge sits inside the parent LinkCell anchor; `role="img"` +
+// aria-label expose the version name to screen readers when the link is
+// focused, so keyboard users get the info without a nested focusable element.
+const ConfigurationIconWithTooltip = ({
+  versionName,
+}: IConfigurationIconWithTooltipProps) => (
+  <div
+    className={`${baseClass}__configuration-icon-with-tooltip`}
+    role="img"
+    aria-label={`Managed configuration delivered: ${versionName}`}
+  >
+    <TooltipWrapper
+      tipContent={versionName}
+      showArrow
+      underline={false}
+      position="top"
+      tipOffset={12}
+      fixedPositionStrategy
+    >
+      {/* aria-hidden: outer role=img already names this. */}
+      <span aria-hidden="true">
+        <Icon
+          name="settings"
+          className={`${baseClass}__configuration-icon`}
+          color="ui-fleet-black-50"
+        />
+      </span>
+    </TooltipWrapper>
+  </div>
+);
+
 interface ISoftwareNameCellProps {
   /** Used to key default software icon and name displayed if no display_name */
   name: string;
@@ -276,6 +307,8 @@ interface ISoftwareNameCellProps {
   autoUpdateEnabled?: boolean;
   autoUpdateWindowStart?: string;
   autoUpdateWindowEnd?: string;
+  /** Admin version delivered to this host; renders the configuration icon + name tooltip. */
+  deliveredVersionName?: string | null;
   /** Only used on Edit icon modal to render a preview of the chosen unsaved icon */
   previewIcon?: JSX.Element;
 }
@@ -298,6 +331,7 @@ const SoftwareNameCell = ({
   autoUpdateEnabled = false,
   autoUpdateWindowStart,
   autoUpdateWindowEnd,
+  deliveredVersionName,
   previewIcon,
 }: ISoftwareNameCellProps) => {
   const softwareDisplayName = getDisplayedSoftwareName(
@@ -343,18 +377,27 @@ const SoftwareNameCell = ({
       prefix={icon}
       value={softwareDisplayName}
       suffix={
-        hasInstaller ? (
-          <InstallIconWithTooltip
-            isSelfService={isSelfService}
-            automaticInstallPoliciesCount={automaticInstallPoliciesCount}
-            pageContext={pageContext}
-            isIosOrIpadosApp={isIosOrIpadosApp}
-            isAndroidPlayStoreApp={isAndroidPlayStoreApp}
-            isAppStoreApp={isAppStoreApp}
-            autoUpdateEnabled={autoUpdateEnabled}
-            autoUpdateWindowStart={autoUpdateWindowStart}
-            autoUpdateWindowEnd={autoUpdateWindowEnd}
-          />
+        hasInstaller || deliveredVersionName ? (
+          <>
+            {hasInstaller && (
+              <InstallIconWithTooltip
+                isSelfService={isSelfService}
+                automaticInstallPoliciesCount={automaticInstallPoliciesCount}
+                pageContext={pageContext}
+                isIosOrIpadosApp={isIosOrIpadosApp}
+                isAndroidPlayStoreApp={isAndroidPlayStoreApp}
+                isAppStoreApp={isAppStoreApp}
+                autoUpdateEnabled={autoUpdateEnabled}
+                autoUpdateWindowStart={autoUpdateWindowStart}
+                autoUpdateWindowEnd={autoUpdateWindowEnd}
+              />
+            )}
+            {deliveredVersionName && (
+              <ConfigurationIconWithTooltip
+                versionName={deliveredVersionName}
+              />
+            )}
+          </>
         ) : undefined
       }
     />

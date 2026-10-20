@@ -1160,6 +1160,34 @@ func IsFleetInternalCmdID(cmdID string) bool {
 	return strings.HasPrefix(cmdID, FleetInternalCmdIDPrefix)
 }
 
+// WindowsSCEPStatusProbeCmdUUIDPrefix marks the queued <Get> commands that read a proxied SCEP profile's
+// ClientCertificateInstall status after the host ACKs the install.
+const WindowsSCEPStatusProbeCmdUUIDPrefix = "scep-status-"
+
+// WindowsSCEPStatusProbeDelay is how long a SCEP status probe stays queued before it is sent, which gives the device's
+// SCEP enrollment time to finish and spaces consecutive probes.
+const WindowsSCEPStatusProbeDelay = 30 * time.Second
+
+// IsWindowsSCEPStatusProbeCmdUUID reports whether a Windows MDM command is a SCEP status probe.
+func IsWindowsSCEPStatusProbeCmdUUID(cmdUUID string) bool {
+	return strings.HasPrefix(cmdUUID, WindowsSCEPStatusProbeCmdUUIDPrefix)
+}
+
+// WindowsESPReleaseCmdIDPrefix marks the CmdID of every user-scope ESP release attempt Fleet sends (the initial finalize's
+// Replace and each retry).
+const WindowsESPReleaseCmdIDPrefix = "esp-release-"
+
+// ValidateWindowsMDMCommandID rejects a CmdID that starts with a prefix Fleet reserves for the commands it sends itself.
+// Fleet recognizes those commands by their CmdID, and a command an admin runs keeps the CmdID it was given.
+func ValidateWindowsMDMCommandID(cmdID string) error {
+	for _, prefix := range []string{FleetInternalCmdIDPrefix, WindowsSCEPStatusProbeCmdUUIDPrefix, WindowsESPReleaseCmdIDPrefix} {
+		if strings.HasPrefix(cmdID, prefix) {
+			return NewInvalidArgumentError("command", fmt.Sprintf("CmdID can't start with %q. This prefix is reserved for commands Fleet sends.", prefix))
+		}
+	}
+	return nil
+}
+
 // ProtoCmdOperation is the abstraction to represent a SyncML Protocol Command
 type ProtoCmdOperation struct {
 	Verb string    `db:"verb"`

@@ -1071,6 +1071,56 @@ func TestAuthenticateHostContextCanceled(t *testing.T) {
 	require.False(t, errors.As(err, &osqueryErr), "context.Canceled should not be wrapped in OsqueryError")
 }
 
+func TestAuthenticateHostRejectsNonOsqueryPlatforms(t *testing.T) {
+	ds := new(mock.Store)
+	task := async.NewTask(ds, nil, clock.C, nil)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{Task: task})
+
+	ds.MarkHostsSeenFunc = func(ctx context.Context, hostIDs []uint, t time.Time) error {
+		return nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	for _, platform := range []string{"android", "ios", "ipados"} {
+		t.Run(platform, func(t *testing.T) {
+			ds.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+				return &fleet.Host{
+					ID:                  1,
+					Hostname:            "test-host",
+					Platform:            platform,
+					HasHostIdentityCert: new(false),
+				}, nil
+			}
+
+			_, _, err := svc.AuthenticateHost(ctx, "node-key-"+platform)
+			require.Error(t, err)
+			var osqueryErr *OsqueryError
+			require.ErrorAs(t, err, &osqueryErr)
+			assert.True(t, osqueryErr.NodeInvalid(), "expected invalid node error for platform %s", platform)
+		})
+	}
+
+	// Verify that osquery-supported platforms still authenticate successfully.
+	for _, platform := range []string{"darwin", "windows", "ubuntu", "linux"} {
+		t.Run(platform, func(t *testing.T) {
+			ds.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+				return &fleet.Host{
+					ID:                  2,
+					Hostname:            "test-host",
+					Platform:            platform,
+					HasHostIdentityCert: new(false),
+				}, nil
+			}
+
+			host, _, err := svc.AuthenticateHost(ctx, "node-key-"+platform)
+			require.NoError(t, err)
+			assert.Equal(t, uint(2), host.ID)
+		})
+	}
+}
+
 func TestSubmitDistributedQueryResultsDecodeBodyDeadlineExceeded(t *testing.T) {
 	deadlineErr := &net.OpError{
 		Op:  "read",
@@ -6503,8 +6553,11 @@ func TestProcessVPPForNewlyFailingPoliciesContinuousCooldown(t *testing.T) {
 	ds.GetVPPAppMetadataByAdamIDPlatformTeamIDFunc = func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, teamID *uint) (*fleet.VPPApp, error) {
 		return &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{AppTeamID: 1, VPPAppID: fleet.VPPAppID{AdamID: adamID, Platform: platform}}}, nil
 	}
-	ds.IsVPPAppLabelScopedFunc = func(ctx context.Context, vppAppTeamID, hostID uint) (bool, error) {
-		return true, nil
+	ds.ListHostAppStoreAppVersionsFunc = func(ctx context.Context, host *fleet.Host) (map[uint]*fleet.HostAppStoreAppVersion, error) {
+		return map[uint]*fleet.HostAppStoreAppVersion{0: {VPPAppTeamID: 1, AdamID: adamID, InScope: true}}, nil
+	}
+	ds.GetVPPAppByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, vppAppTeamID uint) (*fleet.VPPApp, error) {
+		return &fleet.VPPApp{AppTeamID: 1, AdamID: adamID, Platform: fleet.MacOSPlatform}, nil
 	}
 
 	var installCalled bool
@@ -6589,8 +6642,11 @@ func TestProcessVPPForNewlyFailingPoliciesSkipsQueuedInstalls(t *testing.T) {
 	ds.GetVPPAppMetadataByAdamIDPlatformTeamIDFunc = func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, teamID *uint) (*fleet.VPPApp, error) {
 		return &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{AppTeamID: 1, VPPAppID: fleet.VPPAppID{AdamID: adamID, Platform: platform}}}, nil
 	}
-	ds.IsVPPAppLabelScopedFunc = func(ctx context.Context, vppAppTeamID, hostID uint) (bool, error) {
-		return true, nil
+	ds.ListHostAppStoreAppVersionsFunc = func(ctx context.Context, host *fleet.Host) (map[uint]*fleet.HostAppStoreAppVersion, error) {
+		return map[uint]*fleet.HostAppStoreAppVersion{0: {VPPAppTeamID: 1, AdamID: adamID, InScope: true}}, nil
+	}
+	ds.GetVPPAppByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, vppAppTeamID uint) (*fleet.VPPApp, error) {
+		return &fleet.VPPApp{AppTeamID: 1, AdamID: adamID, Platform: fleet.MacOSPlatform}, nil
 	}
 
 	var (
@@ -6672,8 +6728,8 @@ func TestProcessVPPForNewlyFailingPoliciesSkipsQueuedInstalls(t *testing.T) {
 			{ID: policyID, AdamID: adamID, Platform: fleet.MacOSPlatform, ContinuousAutomationsEnabled: true},
 		}, nil
 	}
-	ds.IsVPPAppLabelScopedFunc = func(ctx context.Context, vppAppTeamID, hostID uint) (bool, error) {
-		return false, nil
+	ds.ListHostAppStoreAppVersionsFunc = func(ctx context.Context, host *fleet.Host) (map[uint]*fleet.HostAppStoreAppVersion, error) {
+		return map[uint]*fleet.HostAppStoreAppVersion{0: {VPPAppTeamID: 1, AdamID: adamID, InScope: false}}, nil
 	}
 	installs = nil
 	outOfScope := newFailingMap()
@@ -7530,6 +7586,51 @@ func TestSubmitDistributedQueryResultsReportsDeviceNameAfterSave(t *testing.T) {
 			case <-time.After(5 * time.Second):
 				t.Fatal("device name was never reported after the host save")
 			}
+		})
+	}
+}
+
+func TestPolicyAutomationSkipsDeletedInstaller(t *testing.T) {
+	const hostID = uint(42)
+	titleID := uint(7)
+
+	// A GitOps run deleted installer 100 while the host's other policy, with installer 200, still needs its install.
+	for name, failure := range map[string]struct{ metadataErr, insertErr error }{
+		"metadata lookup": {metadataErr: newNotFoundError()},
+		"install insert":  {insertErr: newNotFoundError()},
+	} {
+		t.Run(name, func(t *testing.T) {
+			ds := new(mock.Store)
+			svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{})
+			svcImpl := svc.(validationMiddleware).Service.(*Service)
+			ds.GetPoliciesWithAssociatedInstallerFunc = func(ctx context.Context, teamID uint, policyIDs []uint) ([]fleet.PolicySoftwareInstallerData, error) {
+				return []fleet.PolicySoftwareInstallerData{{ID: 1, InstallerID: 100}, {ID: 2, InstallerID: 200}}, nil
+			}
+			ds.GetSoftwareInstallerMetadataByIDFunc = func(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
+				if id == 100 && failure.metadataErr != nil {
+					return nil, failure.metadataErr
+				}
+				return &fleet.SoftwareInstaller{InstallerID: id, TitleID: &titleID, Platform: "windows"}, nil
+			}
+			ds.IsSoftwareInstallerLabelScopedFunc = func(ctx context.Context, installerID, hostID uint) (bool, error) { return true, nil }
+			ds.GetHostLastInstallDataFunc = func(ctx context.Context, hostID, installerID uint) (*fleet.HostLastInstallData, error) {
+				return nil, nil
+			}
+			var queued []uint
+			ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID, swInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
+				if swInstallerID == 100 && failure.insertErr != nil {
+					return "", failure.insertErr
+				}
+				queued = append(queued, swInstallerID)
+				return "exec-uuid", nil
+			}
+
+			orbitKey := "orbit-key"
+			policyFailed := false
+			failing := map[uint]*bool{1: &policyFailed, 2: &policyFailed}
+			newlyFailing := map[uint]struct{}{1: {}, 2: {}}
+			require.NoError(t, svcImpl.processSoftwareForNewlyFailingPolicies(ctx, hostID, nil, "windows", &orbitKey, "", failing, newlyFailing))
+			require.Equal(t, []uint{200}, queued)
 		})
 	}
 }

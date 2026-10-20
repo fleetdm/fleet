@@ -55,10 +55,7 @@ const LoginForm = ({
 
   const {
     formData,
-    setField,
-    getError,
-    clearFieldError,
-    validateField,
+    getTextFieldProps,
     handleSubmit: onSubmit,
     isSubmitting,
   } = useFormValidation<ILoginUserData>({
@@ -139,29 +136,19 @@ const LoginForm = ({
     >
       <div className={`${baseClass}__form`}>
         <InputFieldWithIcon
-          error={getError("email")}
+          {...getTextFieldProps("email")}
           autofocus
-          name="email"
           type="email"
           label="Email"
           placeholder="Email"
-          value={formData.email}
-          onChange={(value) => setField("email", value)}
-          onFocus={() => clearFieldError("email")}
-          onBlur={() => validateField("email")}
           ignore1Password={false}
           disabled={isSubmitting}
         />
         <InputFieldWithIcon
-          error={getError("password")}
-          name="password"
+          {...getTextFieldProps("password")}
           label="Password"
           placeholder="Password"
           type="password"
-          value={formData.password}
-          onChange={(value) => setField("password", value)}
-          onFocus={() => clearFieldError("password")}
-          onBlur={() => validateField("password")}
           ignore1Password={false}
           disabled={isSubmitting}
         />
