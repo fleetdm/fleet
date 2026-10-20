@@ -10,6 +10,7 @@
   var hideFooter;// Hides the footer.
   var showAdminLinks;// Shows links to admin pages to admin users.
   var showConfigurationProfileLayout;
+  var announcementBanner;// Set by the custom hook from config/announcement-banner.js.
   var disableChatbotAndIndexing;// Disables the chatbot and adds a noindex meta tag. Used on pages linked to from Fleet.
   // Applies personalization for who people come from ads, so that the website makes more sense for them:
   var primaryBuyingSituation;
@@ -787,6 +788,18 @@
       </div>
       <% } %>
 
+      <%// Announcement banner (configured in config/announcement-banner.js) %>
+      <% if (announcementBanner && !hideHeaderLinks && !showConfigurationProfileLayout) { %>
+      <a purpose="announcement-banner" href="<%= announcementBanner.href %>" no-underline data-nosnippet>
+        <span purpose="banner-flutes" aria-hidden="true"></span>
+        <span purpose="banner-text"><%= announcementBanner.text %></span>
+        <svg purpose="banner-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+          <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
+          <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+      <% } %>
+
       <%- body %>
       <% if(!hideFooter) {%>
       <% if(!showConfigurationProfileLayout) {%>
@@ -1190,6 +1203,119 @@
           }
         }
       });
+    </script>
+    <script>
+      // Announcement banner: lights the flutes of reeded glass.  (Styled in layout.less.)
+      (function(){
+        var banner = document.querySelector('[purpose="announcement-banner"]');
+        if (!banner) { return; }
+        var flutesContainer = banner.querySelector('[purpose="banner-flutes"]');
+        var bannerText = banner.querySelector('[purpose="banner-text"]');
+        var flutes = [];
+        var BASE_OPACITY = 0.12;
+        var isReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        // The light is a soft pool (center, width, brightness) that springs toward its target, so it glides between flutes.
+        // At rest it sits broad and to the right, like a mirrored version of the shine on our buttons.
+        var restingLight = function(){ return { center: banner.offsetWidth * 0.78, width: banner.offsetWidth * 0.3, brightness: 0.55 }; };
+        var light = restingLight();
+        var lightTarget = restingLight();
+        var lightVelocity = { center: 0, width: 0, brightness: 0 };
+        var glint;// « { startedAt, duration } while a glint is crossing
+        var frameRequest;
+        var lastFrameAt;
+
+        var buildFlutes = function() {
+          flutesContainer.innerHTML = '';
+          // Flutes narrow from left to right: broad ones at the left, fine reeds at the right.
+          var totalWidth = banner.offsetWidth + 48;
+          for (var x = 0; x < totalWidth;) {
+            var fluteWidth = 6 + 46 * Math.pow(1 - x / totalWidth, 1.4);
+            var flute = flutesContainer.appendChild(document.createElement('span'));
+            flute.setAttribute('purpose', 'banner-flute');
+            flute.style.flexBasis = fluteWidth.toFixed(1) + 'px';
+            x += fluteWidth + 2;
+          }
+          flutes = Array.prototype.slice.call(flutesContainer.children);
+        };
+
+        var render = function(now) {
+          frameRequest = undefined;
+          var isSettling = false;
+          var secondsElapsed = Math.min(0.05, (now - (lastFrameAt || now)) / 1000);
+          lastFrameAt = now;
+          // A critically damped spring, so the light eases in as it sets off and eases out as it arrives, without overshooting.
+          var SPRING_FREQUENCY = 10;
+          ['center', 'width', 'brightness'].forEach(function(key){
+            var delta = lightTarget[key] - light[key];
+            var threshold = key === 'brightness' ? 0.005 : 0.5;
+            if (isReducedMotion) { light[key] = lightTarget[key]; lightVelocity[key] = 0; return; }
+            lightVelocity[key] += (SPRING_FREQUENCY * SPRING_FREQUENCY * delta - 2 * SPRING_FREQUENCY * lightVelocity[key]) * secondsElapsed;
+            light[key] += lightVelocity[key] * secondsElapsed;
+            if (Math.abs(delta) > threshold || Math.abs(lightVelocity[key]) > threshold) { isSettling = true; }
+          });
+          if (!isSettling && !glint) { lastFrameAt = undefined; }
+          var glintCenter;
+          if (glint) {
+            var progress = (now - glint.startedAt) / glint.duration;
+            if (progress >= 1) { glint = undefined; } else { glintCenter = banner.offsetWidth + 60 - (banner.offsetWidth + 120) * progress * progress; }
+          }
+          var bannerLeft = flutesContainer.offsetLeft;
+          var bannerBounds = banner.getBoundingClientRect();
+          var textBounds = bannerText.getBoundingClientRect();
+          var textLeft = textBounds.left - bannerBounds.left;
+          var textRight = textBounds.right - bannerBounds.left + 20;// « includes the arrow
+          flutes.forEach(function(flute){
+            var fluteCenter = bannerLeft + flute.offsetLeft + flute.offsetWidth / 2;
+            var lit = light.brightness * Math.exp(-Math.pow((fluteCenter - light.center) / light.width, 2));
+            if (glintCenter !== undefined) {
+              lit = Math.max(lit, 0.9 * Math.exp(-Math.pow((fluteCenter - glintCenter) / 22, 2)));
+            }
+            // Hold the light back behind the words, so white text never washes out against a white shine.
+            var distanceFromText = Math.max(0, textLeft - fluteCenter, fluteCenter - textRight);
+            var textShielding = 0.3 + 0.7 * Math.min(1, distanceFromText / 40);
+            flute.style.opacity = Math.min(1, BASE_OPACITY + lit * textShielding).toFixed(3);
+          });
+          if (isSettling || glint) { frameRequest = window.requestAnimationFrame(render); }
+        };
+        var requestRender = function() {
+          if (!frameRequest) { frameRequest = window.requestAnimationFrame(render); }
+        };
+
+        buildFlutes();
+        banner.classList.add('fluted');
+        requestRender();
+
+        var resizeTimeout;
+        window.addEventListener('resize', function() {
+          clearTimeout(resizeTimeout);
+          resizeTimeout = setTimeout(function(){
+            buildFlutes();
+            if (!banner.matches(':hover')) { light = restingLight(); lightTarget = restingLight(); }
+            requestRender();
+          }, 150);
+        });
+        banner.addEventListener('pointermove', function(event) {
+          lightTarget = { center: event.clientX - banner.getBoundingClientRect().left, width: 70, brightness: 0.7 };
+          requestRender();
+        });
+        banner.addEventListener('pointerleave', function() {
+          lightTarget = restingLight();
+          requestRender();
+        });
+
+        if (isReducedMotion) { return; }
+        (function scheduleNextGlint(){
+          // Irregular on purpose: 6–30s apart, each at a slightly different speed.
+          setTimeout(function(){
+            if (!document.hidden && !banner.matches(':hover')) {
+              glint = { startedAt: performance.now(), duration: 700 + Math.random() * 700 };
+              requestRender();
+            }
+            scheduleNextGlint();
+          }, 6000 + Math.random() * 24000);
+        })();
+      })();
     </script>
     <script>
       // Sends search queries to a scoped Google search. (Searches from the handbook are scoped to /handbook.)

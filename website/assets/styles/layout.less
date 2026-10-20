@@ -59,27 +59,92 @@ html, body {
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 500ms;
 }
-[purpose='announcement-banner'] {
-  br {
-    display: none;
-    @media (max-width: 375px) {
-      display: block;
-    }
-  }
+// The announcement banner (configured in config/announcement-banner.js): reeded glass.
+// Each flute carries the same shine as our green CTA buttons (see .cta-button() in buttons.less), mirrored.  Script in layout.ejs lights the
+// flutes: a broad shine at rest, a light that follows the cursor on hover, and the occasional glint.
+a[purpose='announcement-banner'] {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
   display: flex;
   width: 100%;
   padding: 12px 16px;
   justify-content: center;
   align-items: center;
-  background: #527CDB;
-  color: #FFF;
+  background-color: #527CDB;
   font-family: Inter;
   font-size: 14px;
   font-style: normal;
   font-weight: 700;
   line-height: normal;
-  [parasails-component='animated-arrow-button'] {
-    padding: 0;
+  text-decoration: none;
+  // A link, but it keeps the plain arrow cursor so the light under the pointer is the thing you see.
+  cursor: default;
+  // Without script, fall back to the button's resting shine (mirrored).
+  &::before {
+    content: ' ';
+    position: absolute;
+    top: 0;
+    right: -5px;
+    width: 50%;
+    height: 100%;
+    z-index: -1;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
+    transform: skew(10deg);
+  }
+  &.fluted::before {
+    display: none;
+  }
+  [purpose='banner-flutes'] {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -24px;
+    right: -24px;
+    z-index: -1;
+    display: flex;
+    gap: 2px;
+    pointer-events: none;
+  }
+  [purpose='banner-flute'] {
+    flex: 0 0 auto;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0) 100%);
+    transform: skew(10deg);
+    opacity: 0.12;
+  }
+  [purpose='banner-text'] {
+    color: #FFF;
+    // A soft halo of the banner's own blue keeps the words crisp when light passes behind them.
+    text-shadow: 0 0 6px #527CDB, 0 0 2px #527CDB;
+  }
+  [purpose='banner-arrow'] {
+    margin-left: 8px;
+    min-height: 12px;
+    min-width: 12px;
+    fill: none;
+    stroke: #FFF;
+  }
+  [purpose='arrow-line'] {
+    opacity: 0;
+    transition: opacity 10ms ease-out;
+  }
+  [purpose='chevron'] {
+    transition: transform 200ms ease-out;
+  }
+  &:hover, &:focus-visible {
+    text-decoration: none;
+    [purpose='arrow-line'] {
+      opacity: 1;
+      transition: opacity 300ms ease-out;
+    }
+    [purpose='chevron'] {
+      transform: translateX(5px);
+    }
+  }
+  &:focus-visible {
+    outline: 2px solid #FFF;
+    outline-offset: -4px;
   }
 }
 
@@ -820,7 +885,7 @@ body.detected-mobile {
       margin-bottom: 32px;
     }
   }
-  [purpose='announcement-banner'] {
+  a[purpose='announcement-banner'] {
     padding: 12px 32px;
   }
   [purpose='continue-banner'] {
@@ -966,7 +1031,7 @@ body.detected-mobile {
       }
     }
   }
-  [purpose='announcement-banner'] {
+  a[purpose='announcement-banner'] {
     padding: 12px 16px;
   }
   [purpose='page-wrap'].reduced-footer-links {
