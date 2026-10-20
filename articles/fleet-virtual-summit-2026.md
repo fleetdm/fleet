@@ -1,6 +1,6 @@
 # Join the Fleet Virtual Summit 2026
 
-Fleet is hosting its first virtual summit on Tuesday, November 10, 2026, at 11 AM ET / 8 AM PT / 4 PM GMT. Four panels of IT and security practitioners will talk about how GitOps, open source, and AI agents get device management to 2030. It streams free on LinkedIn Live.
+Fleet is hosting its first virtual summit on Tuesday, November 10, 2026, at 11 AM ET / 8 AM PT / 4 PM GMT. Four panels of IT and security practitioners will talk about how GitOps, open source, and AI agents get device management to 2027 and beyond. It streams free on LinkedIn Live.
 
 ## What to expect
 
@@ -97,9 +97,9 @@ AI agents are showing up on employee devices faster than IT can inventory them. 
 <a purpose="cta-button" no-icon href="https://calendly.com/fleetdm/fleet-virtual-summit-ai-agents-as-a-device-management-problem">Reserve a spot in this session</a>
 
 
-### Device management 2030
+### Device management 2027
 
-The devices IT manages, the tools it uses, and the skills the job requires will look different four years from now. Practitioners who are already placing bets on that future talk about where IT teams, tools, and the definition of an endpoint are headed.
+The devices IT manages, the tools it uses, and the skills the job requires will look different next year and in the years to come. Practitioners who are already placing bets on that future talk about where IT teams, tools, and the definition of an endpoint are headed.
 - **Date:** Tuesday, November 10, 2026
 - **Time:** 12:30 PM ET / 9:30 AM PT / 5:30 PM GMT
 
