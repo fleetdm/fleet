@@ -4,7 +4,6 @@ import (
 	"context"
 )
 
-// DigiCertCertificate is the certificate DigiCert issued for a host.
 type DigiCertCertificate = IssuedCertificate
 
 type DigiCertService interface {

@@ -26,8 +26,7 @@ type EJBCA struct {
 	UsernameTemplate              string   `json:"username_template"`
 	CertificateUserPrincipalNames []string `json:"certificate_user_principal_names"`
 
-	// ClientP12 is the base64 PKCS#12 with the client certificate and key, and Password opens it. They only come in requests: the service
-	// reads the certificate and key out of them, and doesn't keep the password.
+	// ClientP12 is the base64 PKCS#12 with the client certificate and key, and Password opens it.
 	ClientP12 string `json:"client_p12"`
 	Password  string `json:"password"`
 }

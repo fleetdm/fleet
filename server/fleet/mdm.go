@@ -195,8 +195,7 @@ var (
 		FleetVarHostPlatform,
 		FleetVarHostUUID,
 	}, IDPFleetVariables)
-	// FleetVarsSupportedInEJBCA lists the variables allowed in an EJBCA CA's common name, username template, and UPN, which are the ones
-	// DigiCert allows in its certificate fields.
+	// FleetVarsSupportedInEJBCA lists the variables allowed in an EJBCA CA's common name, username template, and UPN.
 	FleetVarsSupportedInEJBCA = FleetVarsSupportedInDigiCert
 )
 
