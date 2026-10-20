@@ -249,24 +249,6 @@ func TestConvertAppleKeysErrors(t *testing.T) {
 			yaml:    "\n- just a string",
 			wantErr: "test.yaml: decode key",
 		},
-		{
-			// Until refs are emitted, a definition that contains itself must stop, not loop.
-			name: "definition containing itself",
-			yaml: `
-- key: Dock
-  type: <array>
-  subkeys: &icons
-  - key: Icon
-    type: <dictionary>
-    subkeys:
-    - key: Pages
-      type: <array>
-      subkeys:
-      - key: Page
-        type: <array>
-        subkeys: *icons`,
-			wantErr: "test.yaml: Dock[].Pages[][] contains its own definition from Dock[]",
-		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

@@ -76,7 +76,12 @@ func run(ctx context.Context, logger *slog.Logger, out string, update bool) erro
 	if _, err := runApple(ctx, appleLogger, client, appleDir, pinnedApple, update); err != nil {
 		return err
 	}
-	if _, err := loadApple(ctx, appleLogger, appleDir); err != nil {
+	src, err := loadApple(ctx, appleLogger, appleDir)
+	if err != nil {
+		return err
+	}
+	var schema profilevalidation.ProfileValidationSchema
+	if err := convertApple(ctx, appleLogger, src, &schema); err != nil {
 		return err
 	}
 	return runWindows(ctx, logger.With("platform", "windows"))

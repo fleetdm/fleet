@@ -113,7 +113,8 @@ type appleConverter struct {
 	ctx    context.Context
 	logger *slog.Logger
 	file   string
-	// visiting holds the definitions on the current path, to detect self-containing definitions.
+	// visiting maps each definition on the current path to the key path it was entered at, so a
+	// definition that contains itself becomes a ref instead of an endless expansion.
 	visiting map[*yaml.Node]string
 }
 
@@ -155,13 +156,20 @@ func (c *appleConverter) convertKeys(nodes []*yaml.Node, parentPath string, pare
 // The key holds its fully resolved platforms; trimPlatforms reduces them to differences once files
 // sharing a type have been merged.
 func (c *appleConverter) convertKey(def *yaml.Node, raw *appleRawKey, path string, parentPlatforms map[profilevalidation.AppleOS]profilevalidation.ApplePlatform) (*profilevalidation.AppleKey, error) {
-	if seenAt, ok := c.visiting[def]; ok {
-		return nil, fmt.Errorf("%s: %s contains its own definition from %s", c.file, path, seenAt)
+	typ := profilevalidation.AppleType(strings.TrimSuffix(strings.TrimPrefix(raw.Type, "<"), ">"))
+	if enclosing, ok := c.visiting[def]; ok {
+		// Only the first occurrence of a reused definition on a path is written out; this inner one
+		// points back at it. Reuse that isn't nested in itself is still expanded in full.
+		c.logger.DebugContext(c.ctx, "definition contains itself; emitting ref", "path", path, "ref", enclosing)
+		return &profilevalidation.AppleKey{
+			Type:      profilevalidation.AppleTypes{typ},
+			Ref:       enclosing,
+			Platforms: raw.SupportedOS.resolve(parentPlatforms),
+		}, nil
 	}
 	c.visiting[def] = path
 	defer delete(c.visiting, def)
 
-	typ := profilevalidation.AppleType(strings.TrimSuffix(strings.TrimPrefix(raw.Type, "<"), ">"))
 	key := &profilevalidation.AppleKey{
 		Type:       profilevalidation.AppleTypes{typ},
 		Required:   raw.Presence == "required",

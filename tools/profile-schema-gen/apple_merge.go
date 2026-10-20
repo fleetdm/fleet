@@ -15,6 +15,40 @@ import (
 
 const appleNotSupported = "n/a"
 
+// convertApple fills the Apple sections of schema from the loaded sources.
+func convertApple(ctx context.Context, logger *slog.Logger, src *appleSources, schema *profilevalidation.ProfileValidationSchema) error {
+	var err error
+	if schema.AppleEnvelope.TopLevel, err = convertAppleGroup(ctx, logger, src.TopLevel); err != nil {
+		return err
+	}
+	if schema.AppleEnvelope.CommonPayloadKeys, err = convertAppleGroup(ctx, logger, src.CommonPayloadKeys); err != nil {
+		return err
+	}
+	if schema.AppleDeclarationEnvelope, err = convertAppleGroup(ctx, logger, src.DeclarationBase); err != nil {
+		return err
+	}
+	if schema.AppleProfiles, err = convertAppleGroups(ctx, logger, src.Profiles); err != nil {
+		return err
+	}
+	if schema.AppleDeclarations, err = convertAppleGroups(ctx, logger, src.Declarations); err != nil {
+		return err
+	}
+	logger.InfoContext(ctx, "converted Apple sources", "payload_types", len(schema.AppleProfiles), "declaration_types", len(schema.AppleDeclarations))
+	return nil
+}
+
+func convertAppleGroups(ctx context.Context, logger *slog.Logger, groups map[string]*appleGroup) (map[string]*profilevalidation.ApplePayloadType, error) {
+	out := make(map[string]*profilevalidation.ApplePayloadType, len(groups))
+	for name, g := range groups {
+		pt, err := convertAppleGroup(ctx, logger, g)
+		if err != nil {
+			return nil, err
+		}
+		out[name] = pt
+	}
+	return out, nil
+}
+
 // convertAppleGroup converts every file of a type and merges them into one payload type. Where
 // files define the same key differently, the loosest definition wins: newer data must never make a
 // validator stricter, and a stricter variant file (e.g. extensiblesso(kerberos)) mustn't reject
