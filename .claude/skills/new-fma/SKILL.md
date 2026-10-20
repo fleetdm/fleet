@@ -144,7 +144,7 @@ A green run means the installer downloaded, installed, and something with a simi
 | `fuzzy_match_name` (winget) | `true` → `name LIKE '<unique_identifier> %'`, for versioned DisplayNames. A string → `name LIKE '<string>'` verbatim (`"Mozilla Firefox % ESR %"`). Wrong in both directions: see [queries.md](references/queries.md). |
 | `exists_query` (winget) | Replaces the generated exists query; the patched query is derived from it. |
 | `use_display_version_for_patch` (winget) | Compare against the manifest's `DisplayVersion` instead of `PackageVersion` (python.org registers `3.14.5150.0` for `3.14.5`). |
-| `installer_scope` (winget) | Must match a `Scope` in the manifest. It selects the manifest entry; it doesn't make the installer honor that scope. |
+| `installer_scope` (winget) | Must match a `Scope` in the manifest; an entry with no `Scope` matches any value, but an exact match wins. It selects the manifest entry; it doesn't make the installer honor that scope. |
 | `ignore_hash` (winget) | SHA becomes `no_check`, for rolling URLs. It doesn't fix version drift ([validator-failures.md](references/validator-failures.md#rolling-latest-urls)). |
 | `frozen` | Output is never rewritten; upstream is still fetched. |
 | `patch_policy_path` | Dead code. Shape `exists_query` or add an ingester branch instead. |

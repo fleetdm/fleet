@@ -265,6 +265,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 
 	var out maintained_apps.FMAManifestApp
 	var selectedInstaller *installer
+	var selectedRank int
 	var installScript, uninstallScript string
 	productCode := m.ProductCode
 
@@ -333,24 +334,30 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			installer.InstallerLocale = ""
 		}
 
+		// Submitters flip between declaring and omitting Scope across versions of the same
+		// package, so a scope-silent installer matches any requested scope.
+		exactScope := scope == input.InstallerScope
+
 		// Check if this installer matches our criteria
 		matches := installer.Architecture == input.InstallerArch &&
-			scope == input.InstallerScope &&
+			(exactScope || scope == "") &&
 			installer.InstallerLocale == input.InstallerLocale &&
 			installerType == input.InstallerType
 
 		if matches {
-			// Prefer installers where the URL extension matches the desired installer type
-			// This ensures we select the actual MSI installer over burn (EXE) installers
-			urlExt := strings.Trim(filepath.Ext(installer.InstallerURL), ".")
-			if urlExt == input.InstallerType {
-				// Perfect match - URL extension matches desired type
-				selectedInstaller = &installer
-				break
+			// Prefer an explicit scope match, then installers where the URL extension matches
+			// the desired installer type. The latter ensures we select the actual MSI installer
+			// over burn (EXE) installers.
+			rank := 1
+			if exactScope {
+				rank += 2
 			}
-			// Keep as fallback candidate if we haven't found a perfect match yet
-			if selectedInstaller == nil {
+			if strings.Trim(filepath.Ext(installer.InstallerURL), ".") == input.InstallerType {
+				rank++
+			}
+			if rank > selectedRank {
 				selectedInstaller = &installer
+				selectedRank = rank
 			}
 		}
 
