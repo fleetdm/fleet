@@ -14757,7 +14757,6 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Update package](#update-package)
 - [Update software appearance](#update-software-appearance)
 - [Download software icon](#download-software-icon)
-- [Delete software icon](#delete-software-icon)
 - [List Apple App Store apps](#list-apple-app-store-apps)
 - [Add app store app](#add-app-store-app)
 - [Update app store app](#update-app-store-app)
@@ -15705,7 +15704,6 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | package_id | integer | path | **Required**. The ID of the package. This is the `id` of the package in the `packages` array returned by [Get software title](#get-software-title). |
 | software        | file    | body | Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, `.py`, and `.ps1`.   |
 | fleet_id         | integer | body | **Required**. The fleet ID. Updates a software package in the specified fleet. |
-| display_name    | string  | body | Deprecated. Use [Update software appearance](#update-software-appearance) instead. Optional override for the default `name`. |
 | categories        | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**. |
 | install_script  | string | body | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. Not supported for `.sh`, `.py`, and `.ps1`. |
 | uninstall_script  | string | body | Script that Fleet runs to uninstall software. If set to an empty string, Fleet runs the [default uninstall script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). |
@@ -15800,8 +15798,6 @@ Only the fields included in the request are updated.
 
 `PATCH /api/v1/fleet/software/titles/:software_title_id/appearance`
 
-> `PUT /api/v1/fleet/software/titles/:id/icon` is deprecated as of Fleet 5.0. It's maintained for backwards compatibility. Please use `PATCH /api/v1/fleet/software/titles/:software_title_id/appearance` instead.
-
 #### Parameters
 
 | Name        | Type    | In   | Description                                      |
@@ -15868,31 +15864,6 @@ Content-Length: 124567
 
 <BINARY_IMAGE_DATA>
 ```
-
-### Delete software icon
-
-_Available in Fleet Premium._
-
-Delete a custom icon added via [Update software appearance](#update-software-appearance). This will revert to using the software title's built-in icon.
-
-`DELETE /api/v1/fleet/software/titles/:id/icon`
-
-> This endpoint is deprecated as of Fleet 5.0. It's maintained for backwards compatibility. Please use [Update software appearance](#update-software-appearance) with an empty `icon` instead.
-
-#### Parameters
-
-| Name            | Type    | In   | Description                                      |
-| ----            | ------- | ---- | --------------------------------------------     |
-| id              | integer | path | ID of the software title being updated. |
-| fleet_id         | integer | query | **Required**. The fleet ID. Deletes the software icon in the specified fleet. |
-
-#### Example
-
-`DELETE /api/v1/fleet/software/titles/33/icon?fleet_id=2`
-
-##### Default response
-
-`Status: 204`
 
 ### List Apple App Store apps
 
@@ -16054,7 +16025,6 @@ A software title can have more than one version of the same App Store app on a f
 | fleet_id       | integer | body | **Required**. The fleet ID. Edits Apple App Store or Android Play store app from the specified fleet.  |
 | version_id | integer | body | ID of the version of the app to update. **Required when the title has more than one version** on the fleet. |
 | name | string | body | The version's name (e.g. `"Production"`). Must be unique for the software title on the fleet. |
-| display_name    | string  | body | Deprecated. Use [Update software appearance](#update-software-appearance) instead. Optional override for the default `name`. |
 | self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
 | categories | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**. |
 | auto_update_enabled | boolean | body | Whether to enable automatic updates for iOS/iPadOS App Store (VPP) apps. |
