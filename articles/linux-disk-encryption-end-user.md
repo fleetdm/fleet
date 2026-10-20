@@ -95,7 +95,7 @@ case "$status" in
     exit 0
     ;;
   409)
-    echo "An escrow prompt is already in progress on this host."
+    echo "Escrow is already in progress on this host, or the end user just dismissed the prompt. Try again in a few minutes."
     exit 0
     ;;
 esac
@@ -109,11 +109,11 @@ echo "Failed to trigger escrow (HTTP $status): $(cat "$response")" >&2
 exit 1
 ```
 
-The script uses `curl`, or `wget` if `curl` isn't installed (Ubuntu Desktop doesn't include `curl` by default). It exits `0` when the prompt was triggered, when a prompt is already showing, or when Fleet already has a key for the host, so it's safe to run more than once. It exits `1` when Fleet rejects the request (for example, the disk isn't encrypted, disk encryption isn't turned on for the host's fleet, or fleetd is too old), and prints Fleet's reason.
+The script uses `curl`, or `wget` if `curl` isn't installed (Ubuntu Desktop doesn't include `curl` by default). It exits `0` when the prompt was triggered, when escrow is already in progress, or when Fleet already has a key for the host, so it's safe to run more than once. It exits `1` when Fleet rejects the request (for example, the disk isn't encrypted, disk encryption isn't turned on for the host's fleet, or fleetd is too old), and prints Fleet's reason.
 
 > The escrow prompt will pop up on the host without warning. Let end users know ahead of time so it isn't unexpected. Someone has to be logged in to the desktop to enter the passphrase.
 
-> The prompt closes after 60 seconds if the end user doesn't respond. On GNOME desktops (Ubuntu, Fedora) it can open behind other windows. If it times out, run the script again.
+> The prompt closes after 60 seconds if the end user doesn't respond. On GNOME desktops (Ubuntu, Fedora) it can open behind other windows. If it times out or the end user closes it, wait about 5 minutes and run the script again. Until then, Fleet answers with `409` and doesn't send a new prompt.
 >
 > After the end user enters their passphrase, it can take a few minutes for the key to show up in Fleet, especially on VMs. Don't run the script again while escrow is in progress.
 

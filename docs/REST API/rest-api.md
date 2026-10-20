@@ -9068,7 +9068,7 @@ _Available in Fleet Premium_
 
 Signals the Fleet server to queue up the LUKS disk encryption escrow process (LUKS passphrase and slot key). If validation succeeds (disk encryption must be enforced for the fleet, the host's platform must be supported, the host's disk must already be encrypted, and the host's Orbit version must be new enough), this adds a notification flag for Orbit that triggers escrow from the Orbit side.
 
-Returns `400` if a key is already escrowed for the host or validation fails, and `409` if the host is already showing the escrow prompt.
+Returns `400` if a key is already escrowed for the host or validation fails, and `409` if fleetd is already handling an earlier request for the host (the end user has a passphrase prompt open, or dismissed the one they were given).
 
 `POST /api/v1/fleet/device/:token/mdm/linux/trigger_escrow`
 
@@ -9085,6 +9085,26 @@ Returns `400` if a key is already escrowed for the host or validation fails, and
 ##### Default response
 
 `Status: 204`
+
+##### Escrow already in progress
+
+Nothing was queued. The `Retry-After` header carries the number of seconds until a new request is accepted if fleetd reports nothing further.
+
+`Status: 409`
+
+`Retry-After: 287`
+
+```json
+{
+  "message": "A disk encryption key is already being created for this host.",
+  "errors": [
+    {
+      "name": "base",
+      "reason": "A disk encryption key is already being created for this host."
+    }
+  ]
+}
+```
 
 ### Update host name template
 
