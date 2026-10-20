@@ -102,7 +102,7 @@ fi`, appPath)
 	return sb.String(), nil
 }
 
-func uninstallScriptForApp(cask *brewCask) string {
+func uninstallScriptForApp(app inputApp, cask *brewCask) string {
 	sb := newScriptBuilder()
 
 	for _, artifact := range cask.Artifacts {
@@ -145,7 +145,7 @@ func uninstallScriptForApp(cask *brewCask) string {
 				sb.Write(strings.Join(cask.PreUninstallScripts, "\n"))
 			}
 			for _, u := range artifact.Uninstall {
-				processUninstallArtifact(u, sb)
+				processUninstallArtifact(u, sb, app.UniqueIdentifier)
 			}
 			if len(cask.PostUninstallScripts) > 0 {
 				sb.Write(strings.Join(cask.PostUninstallScripts, "\n"))
@@ -153,7 +153,7 @@ func uninstallScriptForApp(cask *brewCask) string {
 		case len(artifact.Zap) > 0:
 			sortUninstall(artifact.Zap)
 			for _, z := range artifact.Zap {
-				processUninstallArtifact(z, sb)
+				processUninstallArtifact(z, sb, app.UniqueIdentifier)
 			}
 		}
 	}
@@ -378,7 +378,7 @@ func processScript(script optjson.StringOr[map[string]any], sb *scriptBuilder, a
 	}
 }
 
-func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
+func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID string) {
 	process := func(target optjson.StringOr[[]string], f func(path string)) {
 		if target.IsOther {
 			for _, path := range target.Other {
@@ -398,7 +398,18 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 		sb.Writef("remove_launchctl_service %s", shellSingleQuote(lc))
 	})
 
+	quitIDs := map[string]struct{}{}
 	process(u.Quit, func(appName string) {
+		// Some casks list app names (e.g. "DeskTime") instead of bundle IDs.
+		// osascript's application id can't resolve a name, so the quit would
+		// silently do nothing; quit the app being uninstalled instead.
+		if !strings.Contains(appName, ".") {
+			appName = bundleID
+		}
+		if _, ok := quitIDs[appName]; ok {
+			return
+		}
+		quitIDs[appName] = struct{}{}
 		sb.AddFunction("quit_application", quitApplicationFunc)
 		// osascript can't resolve a wildcard application id, so the pattern is
 		// expanded against the running applications first. As in Homebrew, only
