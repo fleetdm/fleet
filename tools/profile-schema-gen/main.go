@@ -9,6 +9,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -73,18 +74,21 @@ func run(ctx context.Context, logger *slog.Logger, out string, update bool) erro
 	}
 	appleLogger := logger.With("platform", "apple")
 	appleDir := filepath.Join(workDir, "apple")
-	if _, err := runApple(ctx, appleLogger, client, appleDir, pinnedApple, update); err != nil {
+	var schema profilevalidation.ProfileValidationSchema
+	if schema.Version.Apple, err = runApple(ctx, appleLogger, client, appleDir, pinnedApple, update); err != nil {
 		return err
 	}
 	src, err := loadApple(ctx, appleLogger, appleDir)
 	if err != nil {
 		return err
 	}
-	var schema profilevalidation.ProfileValidationSchema
 	if err := convertApple(ctx, appleLogger, src, &schema); err != nil {
 		return err
 	}
-	return runWindows(ctx, logger.With("platform", "windows"))
+	if err := runWindows(ctx, logger.With("platform", "windows"), &schema); err != nil {
+		return err
+	}
+	return writeOutput(ctx, logger, out, &schema, pinned, time.Now())
 }
 
 // runApple returns the Apple version to generate and leaves its sources in dir. Without update it
@@ -142,7 +146,9 @@ func runAppleFrom(ctx context.Context, logger *slog.Logger, client *http.Client,
 	return version, nil
 }
 
-func runWindows(ctx context.Context, logger *slog.Logger) error {
-	logger.InfoContext(ctx, "skipping: Windows sections are not generated yet")
+func runWindows(ctx context.Context, logger *slog.Logger, schema *profilevalidation.ProfileValidationSchema) error {
+	logger.InfoContext(ctx, "skipping: Windows sections are not generated yet; writing them empty")
+	schema.Windows = json.RawMessage("{}")
+	schema.WindowsXSDs = json.RawMessage("{}")
 	return nil
 }

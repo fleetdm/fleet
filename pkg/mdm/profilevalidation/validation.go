@@ -56,8 +56,11 @@ type Version struct {
 
 // Floors and must-haves catch a reorganized upstream that would otherwise silently shrink the
 // schema. Old servers apply them to every later download, so keep them well below today's counts.
+// FormatVersion is the schema document format this package reads and the generator writes. A
+// change in what an existing field means requires a new version; new optional fields don't.
+const FormatVersion = 1
+
 const (
-	supportedFormatVersion           = 1
 	minAppleProfileTypes             = 100
 	minAppleConfigurationDeclaration = 40
 	appleConfigurationPrefix         = "com.apple.configuration."
@@ -98,7 +101,7 @@ func Parse(data []byte) (*ProfileValidationSchema, error) {
 	if err := json.Unmarshal(data, &formatVersion); err != nil {
 		return nil, fmt.Errorf("decode format version: %w", err)
 	}
-	if formatVersion.FormatVersion != supportedFormatVersion {
+	if formatVersion.FormatVersion != FormatVersion {
 		return nil, fmt.Errorf("unsupported profile validation schema format version: %d", formatVersion.FormatVersion)
 	}
 

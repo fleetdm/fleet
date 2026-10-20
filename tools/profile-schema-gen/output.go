@@ -1,11 +1,16 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/profilevalidation"
 )
@@ -27,4 +32,78 @@ func readOutputVersion(path string) (*profilevalidation.Version, error) {
 		return nil, fmt.Errorf("read version from %s: %w", path, err)
 	}
 	return &header.Version, nil
+}
+
+// writeOutput writes schema to path. generated_at moves only when the content does, so rerunning
+// against the same pins is byte-identical. The document must pass profilevalidation.Parse first, so a
+// reorganized upstream fails generation instead of shipping a shrunken schema; on any failure the
+// existing file is left untouched.
+func writeOutput(ctx context.Context, logger *slog.Logger, path string, schema *profilevalidation.ProfileValidationSchema, previous *profilevalidation.Version, now time.Time) error {
+	schema.FormatVersion = profilevalidation.FormatVersion
+
+	if previous != nil {
+		schema.Version.GeneratedAt = previous.GeneratedAt
+		data, err := encodeSchema(schema)
+		if err != nil {
+			return err
+		}
+		existing, err := os.ReadFile(path)
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return err
+		}
+		if bytes.Equal(data, existing) {
+			if _, err := profilevalidation.Parse(data); err != nil {
+				return fmt.Errorf("existing output fails the schema checks: %w", err)
+			}
+			logger.InfoContext(ctx, "output unchanged; keeping generated_at", "out", path, "generated_at", previous.GeneratedAt)
+			return nil
+		}
+		logger.InfoContext(ctx, "output content changed", "out", path)
+	}
+
+	schema.Version.GeneratedAt = now.UTC().Truncate(time.Second)
+	data, err := encodeSchema(schema)
+	if err != nil {
+		return err
+	}
+	if _, err := profilevalidation.Parse(data); err != nil {
+		return fmt.Errorf("generated schema fails its own checks, not writing %s: %w", path, err)
+	}
+	if err := writeFileAtomic(path, data); err != nil {
+		return err
+	}
+	logger.InfoContext(ctx, "wrote output", "out", path, "bytes", len(data), "apple_release", schema.Version.Apple.Release,
+		"apple_commit", schema.Version.Apple.Commit, "generated_at", schema.Version.GeneratedAt)
+	return nil
+}
+
+// encodeSchema returns indented JSON with sorted map keys. HTML escaping is off so format regexes
+// stay readable ("<" rather than "\u003c").
+func encodeSchema(schema *profilevalidation.ProfileValidationSchema) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(schema); err != nil {
+		return nil, fmt.Errorf("encode schema: %w", err)
+	}
+	return buf.Bytes(), nil
+}
+
+// writeFileAtomic writes via a temp file in the same directory and a rename, so readers and a
+// failed run never see a partial file.
+func writeFileAtomic(path string, data []byte) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name()) // no-op once renamed
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return fmt.Errorf("write %s: %w", tmp.Name(), err)
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmp.Name(), path)
 }
