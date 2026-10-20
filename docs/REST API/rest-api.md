@@ -10003,7 +10003,7 @@ List software that can be automatically installed during setup. If `install_duri
           "install_during_setup": true
         }
       ],
-      "app_store_app": null,
+      "app_store_apps": null,
       "versions_count": 3,
       "source": "apps",
       "hosts_count": 48,
@@ -14853,7 +14853,6 @@ Get a list of all software.
               "package_url": ""
           }
       ],
-      "app_store_app": null,
       "bundle_identifier": "com.tinyspeck.slackmacgap",
       "hash_sha256": "f7e4cba7676dacb03ac4cdbe5a99cc1d80ef751c484a13c6a7cf6a93de4a494e",
       "display_name": ""
@@ -14876,7 +14875,6 @@ Get a list of all software.
           }
       ],
       "packages": null,
-      "app_store_app": null,
       "display_name": ""
     },
     {
@@ -14896,7 +14894,6 @@ Get a list of all software.
           }
       ],
       "packages": null,
-      "app_store_app": null,
       "bundle_identifier": "com.raycast.macos",
       "display_name": ""
     }
@@ -15218,7 +15215,6 @@ Returns information about the specified software. By default, `versions` are sor
             "fleet_id": 310
         }
     ],
-    "app_store_app": null,
     "bundle_identifier": "com.tinyspeck.slackmacgap",
     "display_name": ""
   }
@@ -15270,8 +15266,6 @@ For Apple App Store and Google Play apps, `packages` is `null` and `app_store_ap
 
 A software title can have more than one app store apps on the same fleet for iOS, iPadOS, and Android. Each one is a *version* of the app, and the `app_store_apps` array lists all of them. Fleet always installs the latest version available in the Apple App Store or Google Play, so versions don't differ by the app version that's installed. Instead, each version carries its own settings: `name`, `self_service`, `categories`, labels (`labels_include_any`, `labels_exclude_any`, `labels_include_all`), automatic update settings, and managed app configuration.
 
-`app_store_app` is kept for backwards compatibility and contains the first-added version.
-
 For iOS, iPadOS, and Android apps, each version includes `configuration`, the version's managed app configuration. It's in XML format for iOS and iPadOS apps, and JSON format for Android apps.
 
 If a host is in scope for more than one version, Fleet installs the one that was added first (the earliest `created_at`).
@@ -15312,7 +15306,13 @@ For example:
         "🔐 Security"
       ],
       "display_name": "Cloudflare One Agent",
-      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Production config -->"
+      "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Production config -->",
+      "vpp_token": {
+        "id": 1,
+        "org_name": "Fleet Device Management Inc.",
+        "organization_unit": "Fleet Device Management Inc.",
+        "country_code": "us"
+      }
     },
     {
       "id": 42,
@@ -15343,44 +15343,11 @@ For example:
       "display_name": "Cloudflare One Agent",
       "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Test config -->"
     }
-  ],
-  "app_store_app": {
-    "app_store_id": "6443476492",
-    "platform": "ios",
-    "name": "Cloudflare One Agent",
-    "latest_version": "2.6.0",
-    "status": {
-      "installed": 13,
-      "pending": 0,
-      "failed": 2
-    },
-    "self_service": true,
-    "automatic_install_policies": null,
-    "labels_include_any": null,
-    "labels_exclude_any": [
-      {
-        "name": "IT team",
-        "id": 12
-      }
-    ],
-    "labels_include_all": null,
-    "created_at": "2026-01-28T21:49:04.145909Z",
-    "categories": [
-      "🔐 Security"
-    ],
-    "display_name": "Cloudflare One Agent",
-    "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>...<!-- Production config -->",
-    "vpp_token": {
-      "id": 1,
-      "org_name": "Fleet Device Management Inc.",
-      "location": "Fleet Device Management Inc.",
-      "country_code": "us"
-    }
-  }
+  ]
 }
 ```
 
-For Apple App Store apps, `vpp_token` is the VPP token the app was added from in the specified fleet. Fleet uses this VPP token for all requests to Apple related to the app in that fleet. For Google Play apps, or if `fleet_id` isn't specified, `vpp_token` is `null`.
+For Apple App Store apps, each version in `app_store_apps` includes `vpp_token`: the VPP token the app was added from in the specified fleet. Fleet uses this VPP token for all requests to Apple related to the app in that fleet. For Google Play apps, or if `fleet_id` isn't specified, `vpp_token` is `null`.
 
 ### Get software version
 
