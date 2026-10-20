@@ -290,11 +290,17 @@ const storeHashLen = 32
 
 // knownOutputs are the derivation output names that Nix appends to a multi-output
 // package's store path (e.g. openssl-3.0.14-bin).
-var knownOutputs = []string{"bin", "dev", "lib", "out", "man", "doc", "devdoc", "info", "debug", "static", "dist", "modules", "python"}
+// "env" isn't a real output but the suffix of withPackages environments
+// (e.g. perl-5.42.3-env), which are the same package.
+var knownOutputs = []string{"bin", "dev", "lib", "out", "man", "doc", "devdoc", "info", "debug", "static", "dist", "modules", "python", "data", "env"}
 
 // nonPackageSuffixes are store paths for files rather than packages, which would
 // otherwise parse with the file extension as part of the version.
-var nonPackageSuffixes = []string{".drv", ".patch", ".diff", ".tar.gz", ".tar.xz", ".tar.bz2", ".tar.zst", ".tgz", ".zip"}
+var nonPackageSuffixes = []string{".drv", ".patch", ".diff", ".tar.gz", ".tar.xz", ".tar.bz2", ".tar.zst", ".tgz", ".zip", ".conf"}
+
+// nonPackageNames are generated config whose names parse as a versioned package,
+// e.g. NixOS's /etc/dbus-1 would otherwise be dbus version 1.
+var nonPackageNames = []string{"dbus-1"}
 
 // parseStorePath splits a store path into package name, version and output. It
 // returns false for paths without a version, which in a NixOS closure are mostly
@@ -305,6 +311,9 @@ func parseStorePath(storePath string) (name, version, output string, ok bool) {
 		return "", "", "", false
 	}
 	drvName := base[storeHashLen+1:]
+	if slices.Contains(nonPackageNames, drvName) {
+		return "", "", "", false
+	}
 	for _, suffix := range nonPackageSuffixes {
 		if strings.HasSuffix(drvName, suffix) {
 			return "", "", "", false
