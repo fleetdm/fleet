@@ -1,6 +1,6 @@
 import React from "react";
 
-import { validateQuery } from "components/forms/validators/validate_query";
+import { validateQuery } from "components/forms/validators";
 import { listNamesFromSelectedLabels } from "services/entities/labels";
 import { getExtensionFromFileName } from "utilities/file/fileUtils";
 import { getGitOpsModeTipContent } from "utilities/helpers";

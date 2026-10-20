@@ -1,4 +1,4 @@
-import { validateQuery } from "components/forms/validators/validate_query";
+import { validateQuery } from "components/forms/validators";
 
 import {
   IFleetMaintainedAppFormData,
@@ -31,8 +31,8 @@ const FORM_VALIDATION_CONFIG: Record<
             return true;
           }
 
-          const { valid } = validateQuery(query);
-          return valid;
+          const { isValid } = validateQuery(query);
+          return isValid;
         },
         message: (formData) => {
           const query = formData.preInstallQuery ?? "";

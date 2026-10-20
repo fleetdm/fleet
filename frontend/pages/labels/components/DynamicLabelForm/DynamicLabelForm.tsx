@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 
 import Button from "components/buttons/Button";
-import { validateQuery } from "components/forms/validators/validate_query";
+import { validateQuery } from "components/forms/validators";
 import SQLEditor from "components/SQLEditor";
 import { LabelPlatform } from "interfaces/label";
 

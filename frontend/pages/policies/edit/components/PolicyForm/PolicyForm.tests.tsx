@@ -7,7 +7,7 @@ import createMockConfig from "__mocks__/configMock";
 import createMockPolicy from "__mocks__/policyMock";
 import createMockTeam, { createMockTeamSummary } from "__mocks__/teamMock";
 import createMockUser from "__mocks__/userMock";
-import { expectedSelectErr } from "components/forms/validators/validate_query";
+import { expectedSelectErr } from "components/forms/validators";
 import { ILabelSummary } from "interfaces/label";
 import teamPoliciesAPI from "services/entities/team_policies";
 import teamsAPI from "services/entities/teams";

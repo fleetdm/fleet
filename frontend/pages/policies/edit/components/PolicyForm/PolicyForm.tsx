@@ -13,10 +13,7 @@ import CustomLink from "components/CustomLink";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import {
-  validateQuery,
-  EMPTY_QUERY_ERR,
-} from "components/forms/validators/validate_query";
+import { validateQuery, EMPTY_QUERY_ERR } from "components/forms/validators";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Icon from "components/Icon/Icon";
 import Spinner from "components/Spinner";
@@ -100,7 +97,7 @@ interface IPolicyFormProps {
 
 const validateQuerySQL = (query: string) => {
   const errors: { [key: string]: any } = {};
-  const { error: queryError, valid: queryValid } = validateQuery(query);
+  const { error: queryError, isValid: queryValid } = validateQuery(query);
 
   if (!queryValid) {
     errors.query = queryError;
