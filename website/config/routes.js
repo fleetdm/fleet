@@ -498,6 +498,16 @@ module.exports.routes = {
     }
   },
 
+  'GET /software-inventory': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'more',
+      markdownPageUrl: '/guides/software-inventory-reference',
+      docsNavSection: 'software-inventory',
+    }
+  },
+
   'GET /software-catalog/:appIdentifier': {
     action: 'docs/view-app-details',// Meta title and description set in view action
   },
@@ -824,6 +834,7 @@ module.exports.routes = {
   'GET /use-cases/import-and-export-queries-and-packs-in-fleet': '/guides/import-and-export-queries-and-packs-in-fleet',
   'GET /guides/import-and-export-queries-and-packs-in-fleet': '/guides/import-and-export-queries-in-fleet',
   'GET /guides/deploy-security-agents': '/guides/deploy-software-packages',
+  'GET /guides/software-inventory-reference': '/software-inventory',
   'GET /guides/manage-boostrap-package-with-gitops': '/guides/manage-bootstrap-package-with-gitops',
   'GET /use-cases/locate-assets-with-osquery': '/guides/locate-assets-with-osquery',
   'GET /use-cases/osquery-a-tool-to-easily-ask-questions-about-operating-systems': '/guides/osquery-a-tool-to-easily-ask-questions-about-operating-systems',

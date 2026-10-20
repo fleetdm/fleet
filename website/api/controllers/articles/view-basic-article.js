@@ -34,7 +34,12 @@ module.exports = {
     }
 
     // Serve appropriate page content.
-    let thisPage = _.find(sails.config.builtStaticContent.markdownPages, { url: this.req.path });
+    // Some routes (e.g. /software-inventory) serve an article at a URL outside its category, via `markdownPageUrl` in the route's locals.
+    let markdownPageUrl = (this.req.options.locals || {}).markdownPageUrl;
+    let thisPage = _.find(sails.config.builtStaticContent.markdownPages, { url: markdownPageUrl || this.req.path });
+    if (!thisPage && markdownPageUrl) {
+      throw 'notFound';
+    }
     if (!thisPage) {// If there's no EXACTLY matching content page, try a revised version of the URL suffix that's lowercase, with all slashes deduped, and any leading or trailing slash removed (leading slashes are only possible if this is a regex, rather than "/*" route)
       let revisedPageUrlSuffix = pageUrlSuffix.toLowerCase().replace(/\/+/g, '/').replace(/^\/+/,'').replace(/\/+$/,'');
       thisPage = _.find(sails.config.builtStaticContent.markdownPages, (page)=>{return _.endsWith(page.url, revisedPageUrlSuffix); });
@@ -95,6 +100,7 @@ module.exports = {
       pageImageForMeta: thisPage.meta.articleImageUrl || undefined,
       articleCategorySlug,
       categoryFriendlyName,
+      docsNavSection: (this.req.options.locals || {}).docsNavSection,
       currentSection: 'more',
       algoliaPublicKey: sails.config.custom.algoliaPublicKey,
     };
