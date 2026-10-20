@@ -1,6 +1,7 @@
-# Join the Fleet Virtual Summit 2026
-
 ![Fleet virtual summit, November 10th, 11 AM ET / 8 AM PT / 4 PM GMT](../website/assets/images/articles/fleet-virtual-summit-2026-1200x627@2x.png)
+
+
+# Join the Fleet Virtual Summit 2026
 
 Fleet is hosting its first virtual summit on Tuesday, November 10, 2026, at 11 AM ET / 8 AM PT / 4 PM GMT. Four panels of IT and security practitioners will talk about how GitOps, open source, and AI agents get device management to 2027 and beyond. It streams free on LinkedIn Live.
 
