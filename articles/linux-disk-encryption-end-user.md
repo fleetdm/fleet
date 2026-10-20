@@ -95,7 +95,7 @@ case "$status" in
     exit 0
     ;;
   409)
-    echo "Escrow is already in progress on this host, or the end user just dismissed the prompt. Try again in a few minutes."
+    echo "Escrow is already in progress on this host. Try again later."
     exit 0
     ;;
 esac
@@ -113,7 +113,7 @@ The script uses `curl`, or `wget` if `curl` isn't installed (Ubuntu Desktop does
 
 > The escrow prompt will pop up on the host without warning. Let end users know ahead of time so it isn't unexpected. Someone has to be logged in to the desktop to enter the passphrase.
 
-> The prompt closes after 60 seconds if the end user doesn't respond. On GNOME desktops (Ubuntu, Fedora) it can open behind other windows. If it times out or the end user closes it, wait about 5 minutes and run the script again. Until then, Fleet answers with `409` and doesn't send a new prompt.
+> The prompt closes after 60 seconds if the end user doesn't respond. On GNOME desktops (Ubuntu, Fedora) it can open behind other windows. If it times out or the end user closes it, run the script again. If Fleet answers with `409`, it's still waiting to hear back from fleetd about the last prompt. Wait the number of seconds in the response's `Retry-After` header (at most 5 minutes) and try again.
 >
 > After the end user enters their passphrase, it can take a few minutes for the key to show up in Fleet, especially on VMs. Don't run the script again while escrow is in progress.
 
@@ -137,9 +137,11 @@ To roll escrow out to every Linux host in a fleet, pair a policy that finds host
 
     The policy fails on hosts where an encrypted disk has only one LUKS passphrase: the end user's. After escrow, Fleet's passphrase lives in a second key slot and the host passes. Hosts without disk encryption also pass, so the script isn't sent to hosts that can't escrow yet.
 
-3. **Turn on the automation**: On the **Policies** page, click **Manage automations** > **Run script**, check the new policy, select the script, and click **Save**.
+    > The policy checks every LUKS-encrypted volume on the host, but Fleet only escrows the key for the root volume. A host with a second encrypted volume (for example, a separate data disk) that has only one passphrase will keep failing the policy after the root key is escrowed. This recipe assumes one encrypted volume per host.
 
-Fleet runs the script the first time a host fails the policy. If the end user closes the prompt without entering their passphrase, the host keeps failing, but Fleet won't run the script again. To keep prompting until the key is escrowed, set `continuous_automations_enabled: true` on the policy (Fleet Premium). Fleet then runs the script each time the host reports a failing result, which is hourly by default.
+3. **Turn on the automation**: On the **Policies** page, click the new policy's **Automations** cell to open **Manage automations**. Turn on **Run script**, select the script, and click **Save**.
+
+Fleet runs the script the first time a host fails the policy. If the end user closes the prompt without entering their passphrase, the host keeps failing, but Fleet won't run the script again. To keep prompting until the key is escrowed, also check **Continuous software & script automations** in **Manage automations** (Fleet Premium). Fleet then runs the script each time the host reports a failing result, which is hourly by default.
 
 Track progress under **Controls** > **OS settings** > **Disk encryption**. Hosts move from "Action required" to "Verified" as keys are escrowed.
 
