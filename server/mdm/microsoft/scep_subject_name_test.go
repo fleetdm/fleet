@@ -393,3 +393,28 @@ func TestSubjectNameAttributes(t *testing.T) {
 		})
 	}
 }
+
+func TestHasEntityQuotedSubstitution(t *testing.T) {
+	tests := []struct {
+		name    string
+		rawData string
+		want    bool
+	}{
+		{name: "named quote reference", rawData: `CN=&quot;Jane $FLEET_VAR_CERTIFICATE_RENEWAL_ID&quot;`, want: true},
+		{name: "decimal quote reference", rawData: `CN=&#34;Jane $FLEET_VAR_HOST_HARDWARE_SERIAL&#34;`, want: true},
+		// Delivery splits this value at the comma, so neither part gets quoted again.
+		{name: "quoted value with a comma", rawData: `CN=&quot;Doe, Jane $FLEET_VAR_CERTIFICATE_RENEWAL_ID&quot;`, want: false},
+		{name: "quote reference inside the value", rawData: `CN=Jane &quot;J&quot; $FLEET_VAR_HOST_UUID`, want: true},
+		{name: "in a later attribute", rawData: `OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID,CN=&quot;$FLEET_VAR_HOST_UUID&quot;`, want: true},
+		{name: "literal quotes", rawData: `CN="Doe, Jane $FLEET_VAR_CERTIFICATE_RENEWAL_ID"`, want: false},
+		{name: "no variable in the quoted value", rawData: `O=&quot;Fleet, Inc.&quot;,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID`, want: false},
+		{name: "other references", rawData: `CN=AT&amp;T &#65;B $FLEET_VAR_HOST_UUID`, want: false},
+		{name: "CDATA", rawData: `<![CDATA[CN=&quot;Jane $FLEET_VAR_HOST_UUID&quot;]]>`, want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, HasEntityQuotedSubstitution(tt.rawData))
+		})
+	}
+}

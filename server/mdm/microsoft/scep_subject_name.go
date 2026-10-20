@@ -57,14 +57,45 @@ func mapDNAttributes(dn string, transform func(attribute string) string) string 
 func SubjectNameAttributes(decodedDN string) []string {
 	var attributes []string
 	// keep text like "AT&T;" from hiding a separator
-	for rest := strings.ReplaceAll(decodedDN, "&", "&amp;"); ; {
-		i, width := indexDNSeparator(rest)
-		if i < 0 {
-			return append(attributes, strings.ReplaceAll(rest, "&amp;", "&"))
-		}
-		attributes = append(attributes, strings.ReplaceAll(rest[:i], "&amp;", "&"))
-		rest = rest[i+width:]
+	mapDNAttributes(strings.ReplaceAll(decodedDN, "&", "&amp;"), func(attribute string) string {
+		attributes = append(attributes, strings.ReplaceAll(attribute, "&amp;", "&"))
+		return attribute
+	})
+	return attributes
+}
+
+// HasEntityQuotedSubstitution reports whether a raw SCEP SubjectName <Data> has a character reference for a quote, such
+// as "&quot;", in a value Fleet substitutes into.
+func HasEntityQuotedSubstitution(rawData string) bool {
+	if lead, _, _ := unwrapCDATA(rawData); lead != "" {
+		// Inside CDATA a reference is literal text, so no special handling needed.
+		return false
 	}
+	found := false
+	mapDNAttributes(rawData, func(attribute string) string {
+		if _, value, ok := strings.Cut(attribute, "="); ok && carriesSubstitution(value) && hasQuoteReference(value) {
+			found = true
+		}
+		return attribute
+	})
+	return found
+}
+
+func hasQuoteReference(s string) bool {
+	for i := strings.IndexByte(s, '&'); i >= 0; i = strings.IndexByte(s, '&') {
+		s = s[i:]
+		n := xmlRefLen(s)
+		if n == 0 {
+			s = s[1:]
+			continue
+		}
+		// xmlRefASCII leaves out the named form, which it has no need to read.
+		if ref := s[:n]; ref == "&quot;" || xmlRefASCII(ref) == '"' {
+			return true
+		}
+		s = s[n:]
+	}
+	return false
 }
 
 // quoteAttributeValue is the first pass: it quotes the value of an attribute that has something to

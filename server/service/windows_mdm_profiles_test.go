@@ -1,6 +1,7 @@
 package service
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -443,13 +444,14 @@ func TestValidateWindowsProfileFleetVariablesRenewalIDPlacement(t *testing.T) {
 	}
 }
 
-func TestSubjectNameHasRenewalIDMarker(t *testing.T) {
+func TestValidateSubjectNameRenewalID(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name        string
 		subjectName string
 		want        bool
+		errMsg      string // when want is false; defaults to subjectNameMissingRenewalIDMsg
 	}{
 		{name: "OU", subjectName: "CN=test,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: true},
 		{name: "OU legacy SCEP_RENEWAL_ID", subjectName: "CN=test,OU=$FLEET_VAR_SCEP_RENEWAL_ID", want: true},
@@ -468,7 +470,13 @@ func TestSubjectNameHasRenewalIDMarker(t *testing.T) {
 		{name: "CN in CDATA with an ampersand", subjectName: "<![CDATA[CN=AT&T $FLEET_VAR_CERTIFICATE_RENEWAL_ID]]>", want: true},
 		{name: "CN quoted with entities", subjectName: "CN=&quot;a, $FLEET_VAR_CERTIFICATE_RENEWAL_ID&quot;,O=Fleet", want: true},
 		{name: "OU after an encoded separator", subjectName: "CN=test&#44;OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: true},
-		{name: "OU text inside an entity-quoted O value", subjectName: "CN=test,O=&quot;OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID&quot;", want: false},
+		{
+			name:        "OU text inside an entity-quoted O value",
+			subjectName: "CN=test,O=&quot;OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID&quot;",
+			errMsg:      subjectNameEntityQuotedVariableMsg,
+		},
+		{name: "OU with several CNs", subjectName: "CN=a,CN=b,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: true},
+		{name: "second CN", subjectName: "CN=a,CN=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", errMsg: subjectNameRenewalIDInOneOfManyCNsMsg},
 		{name: "malformed XML", subjectName: "CN=AT&T $FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: false},
 		{name: "OU text inside a quoted O value", subjectName: `CN=test,O="OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID"`, want: false},
 		{name: "different variable", subjectName: "CN=$FLEET_VAR_HOST_UUID,OU=$FLEET_VAR_HOST_HARDWARE_SERIAL", want: false},
@@ -477,7 +485,12 @@ func TestSubjectNameHasRenewalIDMarker(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			require.Equal(t, tt.want, subjectNameHasRenewalIDMarker(tt.subjectName))
+			err := validateSubjectNameRenewalID(tt.subjectName)
+			if tt.want {
+				require.NoError(t, err)
+				return
+			}
+			require.EqualError(t, err, cmp.Or(tt.errMsg, subjectNameMissingRenewalIDMsg))
 		})
 	}
 }

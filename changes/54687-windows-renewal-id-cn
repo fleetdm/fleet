@@ -1,2 +1,3 @@
 - Allowed `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` in the common name (CN) of Windows SCEP profiles, so certificates from certificate authorities that drop the organizational unit (OU), like Okta, are verified and renewed.
 - Updated the error messages for a missing or repeated `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` in SCEP profiles to say it goes in the OU, or in some use cases the CN.
+- Windows SCEP profiles that quote a value containing a Fleet variable with `&quot;` are now rejected at upload, instead of failing on the host. Use a literal `"` instead.
