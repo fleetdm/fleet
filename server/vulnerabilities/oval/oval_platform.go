@@ -24,7 +24,6 @@ var SupportedSoftwareSources = []string{"deb_packages", "rpm_packages"}
 var SupportedGovalPlatforms = []string{
 	"amzn_01",
 	"amzn_02",
-	"amzn_2022",
 	"amzn_2023",
 	"rhel_07",
 	"rhel_08",

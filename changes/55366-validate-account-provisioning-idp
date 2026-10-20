@@ -1,0 +1,1 @@
+- Fleet now checks the Apple account provisioning token URL, client ID, and client secret with your identity provider when they change, and rejects settings the IdP doesn't accept.

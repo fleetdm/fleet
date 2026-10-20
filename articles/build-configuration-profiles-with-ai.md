@@ -127,7 +127,7 @@ Fleet maintains a [`fleet-gitops` skill](https://github.com/fleetdm/fleet/blob/m
 
 ProfileManifests is the same community manifest repo that powers ProfileCreator and iMazing Profile Editor, and the DDF files are what Intune's settings catalog is built from. Pointing your agent at both gives you the setting coverage those GUIs have, from the same source they use.
 
-For Claude Code, copy the skill to `.claude/skills/fleet-gitops/SKILL.md` in your repo and invoke it with `/fleet-gitops`. Otherwise, paste the table into your instructions file.
+Copy the whole `.claude/skills/fleet-gitops/` folder (`SKILL.md`, its `references/`, and the `scripts/validate.py` checker it runs) into your repo as `.agents/skills/fleet-gitops/`, the location Codex, Cursor, GitHub Copilot, Gemini CLI, and Kilo Code read; for Claude Code, add a `.claude/skills/fleet-gitops/SKILL.md` with the same frontmatter that tells it to read the `.agents` copy, or copy the folder there instead. A repo created with `fleetctl new` already includes both. Otherwise, paste the table into your instructions file.
 
 > **Note:** If you're coming from Group Policy, you can search the DDF files by the Group Policy name you already know. Roughly 900 nodes carry a `MSFT:GpMapping` with a `GpEnglishName` attribute, so "find the CSP node for Allow enhanced PINs for startup" is a question the agent can answer against the schema.
 
