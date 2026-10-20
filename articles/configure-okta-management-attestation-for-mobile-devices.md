@@ -59,7 +59,7 @@ Other keys for configuring Okta Verify are available depending on your enrollmen
 Create the configuration file, then reference its path from your app's YAML:
 
 ```yaml
-- app_store_id: "546505307"
+- app_store_id: "490179405"
   platform: ios
   setup_experience: true
   auto_update_enabled: true
