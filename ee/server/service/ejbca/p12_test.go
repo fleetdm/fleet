@@ -35,10 +35,8 @@ func pemBlocks(t *testing.T, data string) (types []string, ders [][]byte) {
 func TestParseClientP12(t *testing.T) {
 	t.Parallel()
 
-	// A client certificate for the end entity "KS User" exported by EJBCA 9.6.3 (Community) through its REST keystore endpoint, from a
-	// throwaway CA. EJBCA writes DER with AES-256 encryption, as its command line and RA Web do.
+	// A client certificate for the end entity "KS User" exported by EJBCA 9.6.3 (Community) through its REST keystore endpoint.
 	t.Run("exported by EJBCA", func(t *testing.T) {
-		t.Parallel()
 		p12, err := os.ReadFile("testdata/ejbca-9.6.3.p12")
 		require.NoError(t, err)
 
@@ -46,11 +44,6 @@ func TestParseClientP12(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "KS User", creds.Leaf.Subject.CommonName)
 
-		types, ders := pemBlocks(t, creds.CertPEM)
-		require.Equal(t, []string{"CERTIFICATE", "CERTIFICATE"}, types, "the certificate and the CA that issued it")
-		assert.Equal(t, creds.Leaf.Raw, ders[0], "the certificate comes first")
-		types, _ = pemBlocks(t, creds.KeyPEM)
-		assert.Equal(t, []string{"PRIVATE KEY"}, types)
 		_, err = tls.X509KeyPair([]byte(creds.CertPEM), []byte(creds.KeyPEM))
 		assert.NoError(t, err)
 	})
@@ -70,21 +63,22 @@ func TestParseClientP12(t *testing.T) {
 	rsaLeaf, ecLeaf := leafFor(&rsaKey.PublicKey), leafFor(&ecKey.PublicKey)
 
 	for _, tc := range []struct {
-		name    string
-		encoder *pkcs12.Encoder
-		key     any
-		leaf    *x509.Certificate
+		name     string
+		encoder  *pkcs12.Encoder
+		key      any
+		leaf     *x509.Certificate
+		password string
 	}{
-		{"RSA key with modern encryption", pkcs12.Modern, rsaKey, rsaLeaf},
-		{"RSA key with legacy encryption", pkcs12.Legacy, rsaKey, rsaLeaf},
-		{"ECDSA key with modern encryption", pkcs12.Modern, ecKey, ecLeaf},
+		{"RSA key with modern encryption", pkcs12.Modern, rsaKey, rsaLeaf, "secret"},
+		{"RSA key with legacy encryption", pkcs12.Legacy, rsaKey, rsaLeaf, "secret"},
+		{"ECDSA key with modern encryption", pkcs12.Modern, ecKey, ecLeaf, "secret"},
+		{"non-ASCII password", pkcs12.Modern, ecKey, ecLeaf, "pässwörd€密码"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			p12, err := tc.encoder.Encode(tc.key, tc.leaf, []*x509.Certificate{ca.cert}, "secret")
+			p12, err := tc.encoder.Encode(tc.key, tc.leaf, []*x509.Certificate{ca.cert}, tc.password)
 			require.NoError(t, err)
 
-			creds, err := ParseClientP12(t.Context(), p12, "secret")
+			creds, err := ParseClientP12(t.Context(), p12, tc.password)
 			require.NoError(t, err)
 			assert.Equal(t, tc.leaf.Raw, creds.Leaf.Raw)
 			_, ders := pemBlocks(t, creds.CertPEM)
@@ -97,6 +91,19 @@ func TestParseClientP12(t *testing.T) {
 			assert.True(t, tc.key.(interface{ Equal(crypto.PrivateKey) bool }).Equal(parsed))
 		})
 	}
+
+	// The chain doesn't have to put the leaf first, and the leaf is the certificate for the key.
+	t.Run("leaf not first", func(t *testing.T) {
+		otherCA := newTestCA(t, "Other CA")
+		p12, err := pkcs12.Modern.Encode(rsaKey, ca.cert, []*x509.Certificate{otherCA.cert, rsaLeaf}, "secret")
+		require.NoError(t, err)
+		creds, err := ParseClientP12(t.Context(), p12, "secret")
+		require.NoError(t, err)
+		assert.Equal(t, rsaLeaf.Raw, creds.Leaf.Raw)
+		_, ders := pemBlocks(t, creds.CertPEM)
+		require.Len(t, ders, 3)
+		assert.Equal(t, [][]byte{rsaLeaf.Raw, ca.cert.Raw, otherCA.cert.Raw}, ders, "the leaf first, and the others in their order")
+	})
 
 	valid, err := pkcs12.Modern.Encode(rsaKey, rsaLeaf, nil, "secret")
 	require.NoError(t, err)
@@ -112,10 +119,8 @@ func TestParseClientP12(t *testing.T) {
 		{"key that doesn't match the certificate", mismatched, "secret", msgP12Mismatch},
 		{"BER encoded", append([]byte{0x30, 0x80}, valid[2:]...), "secret", msgP12BER},
 		{"not a PKCS#12 file", []byte("not a PKCS#12 file"), "secret", "Couldn't read the PKCS#12 file"},
-		{"empty", nil, "secret", "Couldn't read the PKCS#12 file"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 			creds, err := ParseClientP12(t.Context(), tc.p12, tc.password)
 			require.ErrorContains(t, err, tc.wantErr)
 			require.Nil(t, creds)

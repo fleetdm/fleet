@@ -152,7 +152,7 @@ func readEJBCAClientP12(ctx context.Context, p12Base64, password, errPrefix stri
 // verifyEJBCA checks that EJBCA accepts the client certificate and knows the CA and certificate profile.
 func (svc *Service) verifyEJBCA(ctx context.Context, ca fleet.EJBCA, errPrefix string) error {
 	if err := svc.ejbcaService.VerifyConnection(ctx, ca); err != nil {
-		svc.logger.ErrorContext(ctx, "Failed to verify the EJBCA connection", "err", err)
+		svc.logger.InfoContext(ctx, "Failed to verify the EJBCA connection", "err", err)
 		return &fleet.BadRequestError{Message: errPrefix + err.Error()}
 	}
 	return nil
