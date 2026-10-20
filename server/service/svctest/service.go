@@ -176,9 +176,6 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	if len(opts) > 0 && opts[0].DigiCertService != nil {
 		digiCertService = opts[0].DigiCertService
 	}
-	if len(opts) > 0 && opts[0].EJBCAService != nil {
-		ejbcaService = opts[0].EJBCAService
-	}
 	if len(opts) > 0 && opts[0].ConditionalAccessMicrosoftProxy != nil {
 		conditionalAccessMicrosoftProxy = opts[0].ConditionalAccessMicrosoftProxy
 		// The Conditional Access feature is gated on Fleet Premium; callers that

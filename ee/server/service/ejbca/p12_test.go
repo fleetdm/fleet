@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/ejbca/ejbcatest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"software.sslmate.com/src/go-pkcs12"
@@ -48,13 +49,13 @@ func TestParseClientP12(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	ca := newTestCA(t, "CA")
+	ca := ejbcatest.NewCA(t, "CA")
 	rsaKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
 	ecKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 	leafFor := func(pub any) *x509.Certificate {
-		return ca.issue(t, &x509.Certificate{
+		return ca.Issue(t, &x509.Certificate{
 			Subject:   pkix.Name{CommonName: "Fleet"},
 			NotBefore: time.Now().Add(-time.Hour),
 			NotAfter:  time.Now().Add(time.Hour),
@@ -75,7 +76,7 @@ func TestParseClientP12(t *testing.T) {
 		{"non-ASCII password", pkcs12.Modern, ecKey, ecLeaf, "pässwörd€密码"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			p12, err := tc.encoder.Encode(tc.key, tc.leaf, []*x509.Certificate{ca.cert}, tc.password)
+			p12, err := tc.encoder.Encode(tc.key, tc.leaf, []*x509.Certificate{ca.Cert}, tc.password)
 			require.NoError(t, err)
 
 			creds, err := ParseClientP12(t.Context(), p12, tc.password)
@@ -84,7 +85,7 @@ func TestParseClientP12(t *testing.T) {
 			_, ders := pemBlocks(t, creds.CertPEM)
 			require.Len(t, ders, 2)
 			assert.Equal(t, tc.leaf.Raw, ders[0])
-			assert.Equal(t, ca.cert.Raw, ders[1])
+			assert.Equal(t, ca.Cert.Raw, ders[1])
 			_, keyDERs := pemBlocks(t, creds.KeyPEM)
 			parsed, err := x509.ParsePKCS8PrivateKey(keyDERs[0])
 			require.NoError(t, err)
@@ -94,15 +95,15 @@ func TestParseClientP12(t *testing.T) {
 
 	// The chain doesn't have to put the leaf first, and the leaf is the certificate for the key.
 	t.Run("leaf not first", func(t *testing.T) {
-		otherCA := newTestCA(t, "Other CA")
-		p12, err := pkcs12.Modern.Encode(rsaKey, ca.cert, []*x509.Certificate{otherCA.cert, rsaLeaf}, "secret")
+		otherCA := ejbcatest.NewCA(t, "Other CA")
+		p12, err := pkcs12.Modern.Encode(rsaKey, ca.Cert, []*x509.Certificate{otherCA.Cert, rsaLeaf}, "secret")
 		require.NoError(t, err)
 		creds, err := ParseClientP12(t.Context(), p12, "secret")
 		require.NoError(t, err)
 		assert.Equal(t, rsaLeaf.Raw, creds.Leaf.Raw)
 		_, ders := pemBlocks(t, creds.CertPEM)
 		require.Len(t, ders, 3)
-		assert.Equal(t, [][]byte{rsaLeaf.Raw, ca.cert.Raw, otherCA.cert.Raw}, ders, "the leaf first, and the others in their order")
+		assert.Equal(t, [][]byte{rsaLeaf.Raw, ca.Cert.Raw, otherCA.Cert.Raw}, ders, "the leaf first, and the others in their order")
 	})
 
 	valid, err := pkcs12.Modern.Encode(rsaKey, rsaLeaf, nil, "secret")
