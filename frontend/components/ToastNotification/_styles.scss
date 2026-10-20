@@ -20,7 +20,9 @@ $toast-notification-shadow: 0px 2px 6px 0px rgba(25, 33, 71, 0.1);
     align-items: stretch;
     width: 100%;
     min-width: var(--width);
-    padding: $pad-smedium $pad-medium;
+    // Per design system: 10px all around, except 16px on the left to give the
+    // status icon more breathing room from the card edge.
+    padding: 10px 10px 10px $pad-medium;
     // Faint accent wash over white, fading out by the midpoint.
     background: linear-gradient(
         145deg,
@@ -88,11 +90,13 @@ $toast-notification-shadow: 0px 2px 6px 0px rgba(25, 33, 71, 0.1);
 
   &__icon-message {
     display: flex;
-    // Top-align so the icon tracks the first line when the message wraps; the
-    // one-line-tall icon box below keeps a single-line message centered.
+    // Top-align so the icon tracks the first line when the message wraps.
     align-items: flex-start;
     gap: $pad-small;
     min-width: 0; // allow the message to shrink / wrap
+    // Nudge the icon down so it optically centers on the first line of text
+    // (icon glyph is 16px, text line is ~21px tall).
+    padding-top: 3.5px;
   }
 
   &__icon {
@@ -127,12 +131,10 @@ $toast-notification-shadow: 0px 2px 6px 0px rgba(25, 33, 71, 0.1);
     align-items: center;
     gap: $pad-small;
     flex-shrink: 0;
-    // Match __icon's one-line-tall box so the action buttons visually
-    // track the first line of text when the message wraps. The subdued
-    // Button children are 36px tall and intentionally overflow this
-    // ~21px band — the mismatch is what centers each button on the
-    // first text line without dragging the whole header down.
-    height: calc(#{$x-small} * #{$line-height});
+    // Fixed-height band matching the subdued size="small" Button children,
+    // so when the message wraps the actions row stays pinned to the top of
+    // the card instead of stretching with icon-message.
+    height: 28px;
   }
 
   &__chevron svg {
