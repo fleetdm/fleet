@@ -1,0 +1,138 @@
+// Command profile-schema-gen generates pkg/mdm/profilevalidation/outputs/profile_schema.json from
+// Apple's apple/device-management repo.
+//
+// Run it from the repository root:
+//
+//	go run ./tools/profile-schema-gen -update   # fetch the latest release-branch commit and regenerate
+//	go run ./tools/profile-schema-gen           # regenerate from the already downloaded pinned commit, offline
+package main
+
+import (
+	"context"
+	"errors"
+	"flag"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/mdm/profilevalidation"
+)
+
+// workDir holds downloaded upstream sources, ignored by git. Runs without -update read only from
+// here, so they make no network calls.
+const workDir = "tools/profile-schema-gen/downloads"
+
+// commitMarker records which upstream commit a download directory holds.
+const commitMarker = ".commit"
+
+func main() {
+	out := flag.String("out", "pkg/mdm/profilevalidation/outputs/profile_schema.json", "path of the generated schema; its version block is the pin for runs without -update")
+	update := flag.Bool("update", false, "fetch the latest upstream commit and regenerate from it")
+	verbose := flag.Bool("v", false, "log every file and decision (debug level)")
+	flag.Parse()
+
+	level := slog.LevelInfo
+	if *verbose {
+		level = slog.LevelDebug
+	}
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level}))
+
+	ctx := context.Background()
+	if err := run(ctx, logger, *out, *update); err != nil {
+		logger.ErrorContext(ctx, "generation failed", "err", err)
+		os.Exit(1)
+	}
+}
+
+func run(ctx context.Context, logger *slog.Logger, out string, update bool) error {
+	// Paths are relative to the repo root; fail clearly instead of writing somewhere unexpected.
+	if _, err := os.Stat(workDir); err != nil {
+		return errors.New("run from the repository root: " + workDir + " not found")
+	}
+
+	pinned, err := readOutputVersion(out)
+	if err != nil {
+		return err
+	}
+	if pinned == nil {
+		logger.InfoContext(ctx, "no existing output", "out", out)
+	} else {
+		logger.InfoContext(ctx, "existing output", "out", out, "apple_release", pinned.Apple.Release,
+			"apple_commit", pinned.Apple.Commit, "generated_at", pinned.GeneratedAt)
+	}
+
+	client := fleethttp.NewClient(fleethttp.WithTimeout(2 * time.Minute))
+	var pinnedApple *profilevalidation.AppleVersion
+	if pinned != nil && pinned.Apple.Commit != "" {
+		pinnedApple = &pinned.Apple
+	}
+	if _, err := runApple(ctx, logger.With("platform", "apple"), client, filepath.Join(workDir, "apple"), pinnedApple, update); err != nil {
+		return err
+	}
+	return runWindows(ctx, logger.With("platform", "windows"))
+}
+
+// runApple returns the Apple version to generate and leaves its sources in dir. Without update it
+// uses the pinned commit's existing download and makes no network calls.
+func runApple(ctx context.Context, logger *slog.Logger, client *http.Client, dir string, pinned *profilevalidation.AppleVersion, update bool) (profilevalidation.AppleVersion, error) {
+	return runAppleFrom(ctx, logger, client, githubAPIURL, codeloadURL, dir, pinned, update)
+}
+
+func runAppleFrom(ctx context.Context, logger *slog.Logger, client *http.Client, apiURL, tarballURL, dir string, pinned *profilevalidation.AppleVersion, update bool) (profilevalidation.AppleVersion, error) {
+	if !update {
+		if pinned == nil {
+			return profilevalidation.AppleVersion{}, errors.New("no Apple commit pinned in the output; run with -update to fetch the latest")
+		}
+		downloaded, err := os.ReadFile(filepath.Join(dir, commitMarker))
+		if err != nil {
+			return profilevalidation.AppleVersion{}, fmt.Errorf("no Apple download in %s for pinned commit %s; run with -update to fetch the latest", dir, pinned.Commit)
+		}
+		if got := strings.TrimSpace(string(downloaded)); got != pinned.Commit {
+			return profilevalidation.AppleVersion{}, fmt.Errorf("%s holds Apple commit %s but the output pins %s; run with -update to fetch the latest", dir, got, pinned.Commit)
+		}
+		logger.InfoContext(ctx, "using existing download for pinned commit", "dir", dir, "release", pinned.Release, "commit", pinned.Commit)
+		return *pinned, nil
+	}
+
+	commit, err := resolveCommit(ctx, logger, client, apiURL, appleRepo, appleBranch)
+	if err != nil {
+		return profilevalidation.AppleVersion{}, err
+	}
+	// Every commit on Apple's release branch is titled with the release name, e.g. "Release-v27.0".
+	version := profilevalidation.AppleVersion{Release: commit.Subject, Commit: commit.SHA}
+	if version.Release == "" {
+		return profilevalidation.AppleVersion{}, fmt.Errorf("commit %s on %s@%s has an empty message; can't name the release", commit.SHA, appleRepo, appleBranch)
+	}
+	switch {
+	case pinned == nil:
+		logger.InfoContext(ctx, "no Apple pin; using latest", "release", version.Release, "commit", version.Commit)
+	case pinned.Commit == version.Commit:
+		logger.InfoContext(ctx, "latest Apple commit matches pin; regenerating anyway", "release", version.Release, "commit", version.Commit)
+	default:
+		logger.InfoContext(ctx, "moving Apple pin to latest", "from_release", pinned.Release, "from_commit", pinned.Commit,
+			"to_release", version.Release, "to_commit", version.Commit)
+	}
+
+	logger.DebugContext(ctx, "clearing previous download", "dir", dir)
+	if err := os.RemoveAll(dir); err != nil {
+		return profilevalidation.AppleVersion{}, err
+	}
+	if err := downloadAppleTarball(ctx, logger, client, tarballURL, version.Commit, dir); err != nil {
+		return profilevalidation.AppleVersion{}, err
+	}
+	// Written last, so an interrupted download never looks complete.
+	if err := os.WriteFile(filepath.Join(dir, commitMarker), []byte(version.Commit+"\n"), 0o644); err != nil {
+		return profilevalidation.AppleVersion{}, err
+	}
+	return version, nil
+}
+
+func runWindows(ctx context.Context, logger *slog.Logger) error {
+	logger.InfoContext(ctx, "skipping: Windows sections are not generated yet")
+	return nil
+}
