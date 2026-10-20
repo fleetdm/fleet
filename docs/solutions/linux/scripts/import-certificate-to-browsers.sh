@@ -39,8 +39,9 @@ for home in /home/*; do
   [ "$user" = "UNKNOWN" ] || [ "$user" = "root" ] && continue
 
   dir=$(mktemp -d)
-  openssl pkcs12 -export -in "$CERT_PATH" -inkey "$KEY_PATH" -passin "pass:$KEY_PASSWORD" \
-    -name "$NICKNAME" -out "$dir/new.p12" -passout pass:
+  # Pass the key password on a file descriptor. Other users can read process arguments in /proc.
+  openssl pkcs12 -export -in "$CERT_PATH" -inkey "$KEY_PATH" -passin fd:3 \
+    -name "$NICKNAME" -out "$dir/new.p12" -passout pass: 3<<<"$KEY_PASSWORD"
   chown -R "$user" "$dir"
 
   # Chrome/Chromium, Firefox (deb, snap, and Mozilla's apt package), and snap Chromium keep separate stores.
