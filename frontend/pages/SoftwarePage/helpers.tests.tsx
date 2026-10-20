@@ -420,6 +420,59 @@ describe("routeVersionNameError", () => {
 
     expect(setServerErrors).not.toHaveBeenCalled();
     expect(notifyError).toHaveBeenCalledWith(
+      "Unsupported variable $FLEET_VAR_HOST_END_USER_EMAIL_IDP_USERNAME",
+      {
+        response: err,
+      }
+    );
+  });
+
+  // Regression guard: when the backend refuses a configuration (e.g. unknown
+  // top-level key in an Android managed config), the toast must name the
+  // reason instead of the generic "Please try again."
+  it("surfaces the server reason in the toast when present", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "base",
+              reason:
+                'Couldn\'t update configuration. Unknown top-level key "pwUnsupportedKey".',
+            },
+          ],
+        },
+      },
+    };
+
+    routeVersionNameError(
+      err,
+      setServerErrors,
+      "Couldn't update. Please try again."
+    );
+
+    expect(setServerErrors).not.toHaveBeenCalled();
+    expect(
+      notifyError
+    ).toHaveBeenCalledWith(
+      'Couldn\'t update configuration. Unknown top-level key "pwUnsupportedKey".',
+      { response: err }
+    );
+  });
+
+  // Falls back to the generic message when the server returned no reason
+  // (e.g. a network error with no error body).
+  it("falls back to the generic message when no reason is returned", () => {
+    const err = { response: undefined };
+
+    routeVersionNameError(
+      err,
+      setServerErrors,
+      "Couldn't update. Please try again."
+    );
+
+    expect(setServerErrors).not.toHaveBeenCalled();
+    expect(notifyError).toHaveBeenCalledWith(
       "Couldn't update. Please try again.",
       {
         response: err,

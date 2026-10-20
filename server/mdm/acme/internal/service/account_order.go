@@ -229,6 +229,10 @@ func (s *Service) FinalizeOrder(ctx context.Context, enrollment *types.Enrollmen
 	case fleet.AppleMDMCertPurposeACME:
 		extension.Serial = &enrollment.HostIdentifier
 	case fleet.AppleMDMCertPurposeACMERenewal:
+		// Authenticate would reject the certificate anyway; fail here so the error points at the enrollment
+		if enrollment.EnrollmentID == nil || *enrollment.EnrollmentID == "" {
+			return nil, ctxerr.New(ctx, "acme_renewal enrollment has no enrollment ID")
+		}
 		extension.EnrollmentID = enrollment.EnrollmentID
 		extension.Serial = &enrollment.HostIdentifier
 	default:
