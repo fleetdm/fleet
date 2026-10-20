@@ -170,8 +170,8 @@ add:
   - {kind: apple_profile, payload_type: com.apple.system-extension-policy, key_path: Rules.ANY, name: Extra, key: {type: boolean}, reason: into ANY}
 `))
 	pt := notNil(t, s.AppleProfiles["com.apple.system-extension-policy"])
-	assert.JSONEq(t, `{"type": ["string", "integer"], "override": "through ANY"}`, jsonOf(t, pt.Keys["AllowedSystemExtensions"].Values.Items))
-	assert.JSONEq(t, `{"type": "boolean", "override": "into ANY"}`, jsonOf(t, pt.Keys["Rules"].Values.Keys["Extra"]))
+	assert.JSONEq(t, `{"type": ["string", "integer"], "override": "through ANY"}`, jsonOf(t, notNil(t, notNil(t, pt.Keys["AllowedSystemExtensions"]).Values).Items))
+	assert.JSONEq(t, `{"type": "boolean", "override": "into ANY"}`, jsonOf(t, notNil(t, notNil(t, pt.Keys["Rules"]).Values).Keys["Extra"]))
 
 	// ANY only matches a whole path step, and only where Apple defined one.
 	err := applyYAML(t, s, `
@@ -210,7 +210,7 @@ allow:
 
 func TestApplyOverridesAllowWithoutKeysWhenAppleCaughtUp(t *testing.T) {
 	s := overrideSchema(t)
-	s.AppleProfiles["com.apple.Safari"].Keys["ShowFullURL"].Required = true
+	notNil(t, notNil(t, s.AppleProfiles["com.apple.Safari"]).Keys["ShowFullURL"]).Required = true
 	require.NoError(t, applyYAML(t, s, `
 allow:
   - {kind: apple_profile, payload_type: com.apple.Safari, reason: was outside Apple's schema}
