@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "7.2.20",
+      "version": "7.2.22",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.virtualbox.app.VirtualBox';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.virtualbox.app.VirtualBox' AND version_compare(bundle_short_version, '7.2.20') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.virtualbox.app.VirtualBox' AND version_compare(bundle_short_version, '7.2.22') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.virtualbox.app.VirtualBox' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.virtualbox.org/virtualbox/7.2.20/VirtualBox-7.2.20-175154-macOSArm64.dmg",
+      "installer_url": "https://download.virtualbox.org/virtualbox/7.2.22/VirtualBox-7.2.22-175245-macOSArm64.dmg",
       "install_script_ref": "e5e175f8",
       "uninstall_script_ref": "e04a5c15",
-      "sha256": "186eb4734234bcf20bc71c577060045507aa0769912e7664735ad18cd7458d8d",
+      "sha256": "8a5b76de792340071dd7660d3bdec9d71e2d259a843d286c98b4763469513a2d",
       "default_categories": [
         "Productivity"
       ]

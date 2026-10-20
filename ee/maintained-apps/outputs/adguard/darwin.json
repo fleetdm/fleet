@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.20.0.2626",
+      "version": "2.20.1.2627",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.adguard.mac.adguard';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.adguard.mac.adguard' AND version_compare(bundle_short_version, '2.20.0.2626') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.adguard.mac.adguard' AND version_compare(bundle_short_version, '2.20.1.2627') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.adguard.mac.adguard' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://static.adguard.com/mac/release/AdGuard-2.20.0.2626.dmg",
+      "installer_url": "https://static.adguard.com/mac/release/AdGuard-2.20.1.2627.dmg",
       "install_script_ref": "97e137ce",
       "uninstall_script_ref": "f17d341e",
-      "sha256": "c161bd16bf78d595cf7eab2e347a6a77354160f614d85c407b93cc58900e1f14",
+      "sha256": "abc68aa832f65088acd2a3ff4a4086aadbbfd234d497d08594dded8e06c74e92",
       "default_categories": [
         "Productivity"
       ]
