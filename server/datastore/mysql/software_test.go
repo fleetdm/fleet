@@ -6470,6 +6470,8 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 	// make vpp1 install a success, while vpp2 has its initial request as failed
 	// and a subsequent request as pending.
 	createVPPAppInstallResult(t, ds, host, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
+	err = ds.SetVPPInstallAsVerified(ctx, host.ID, vpp1CmdUUID, uuid.NewString())
+	require.NoError(t, err)
 	createVPPAppInstallResult(t, ds, host, vpp2CmdUUID, fleet.MDMAppleStatusError)
 	time.Sleep(time.Second) // ensure a different created_at timestamp
 	vpp2bCmdUUID := createVPPAppInstallRequest(t, ds, host, vpp2, user)
@@ -7879,6 +7881,8 @@ func testListHostSoftwareInstallThenDeleteInstallers(t *testing.T, ds *Datastore
 	// install it on the host
 	vpp1CmdUUID := createVPPAppInstallRequest(t, ds, host, vppTm1.AdamID, user)
 	createVPPAppInstallResult(t, ds, host, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
+	err = ds.SetVPPInstallAsVerified(ctx, host.ID, vpp1CmdUUID, uuid.NewString())
+	require.NoError(t, err)
 
 	// add the successful VPP app to the reported installed software
 	software = []fleet.Software{

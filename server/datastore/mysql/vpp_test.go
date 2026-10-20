@@ -415,7 +415,7 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 1, Installed: 0}, summaries[va1.AppTeamID])
 
-	// create a new request for h1 that supercedes the failed on, and a request
+	// create a new request for h1 after the failed one, and a request
 	// for h2 with a successful result.
 	cmd2 := createVPPAppInstallRequest(t, ds, h1, vpp1.AdamID, user)
 	cmd3 := createVPPAppInstallRequest(t, ds, h2, vpp1.AdamID, user)
@@ -428,10 +428,10 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, cmd3, act.CommandUUID)
 	require.False(t, act.SelfService)
 
-	// both are pending because h2 is not verified yet
+	// both are pending because h2 is not verified yet, and h1's failure still counts until an install on h1 succeeds
 	summaries, err = ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: va1.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 2, Failed: 0, Installed: 0}, summaries[va1.AppTeamID])
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 2, Failed: 1, Installed: 0}, summaries[va1.AppTeamID])
 
 	// mark it as verified
 	err = ds.SetVPPInstallAsVerified(ctx, h2.ID, cmd3, uuid.NewString())
@@ -440,7 +440,7 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	// h2 is now installed
 	summaries, err = ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: va1.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1, Failed: 0, Installed: 1}, summaries[va1.AppTeamID])
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1, Failed: 1, Installed: 1}, summaries[va1.AppTeamID])
 
 	// mark the pending request as successful and verified too
 	createVPPAppInstallResult(t, ds, h1, cmd2, fleet.MDMAppleStatusAcknowledged)
@@ -639,6 +639,15 @@ func createVPPAppInstallResult(t *testing.T, ds *Datastore, host *fleet.Host, cm
 		Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?>`),
 	}
 	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
+	require.NoError(t, err)
+
+	// If the attempt was successful, don't create an activity until the install is verified
+	if status != fleet.MDMAppleStatusError && status != fleet.MDMAppleStatusCommandFormatError {
+		return
+	}
+
+	// Fail the install like the MDM result handler does for MDM errors
+	err = ds.SetVPPInstallAsFailed(ctx, host.ID, cmdUUID, "")
 	require.NoError(t, err)
 
 	// inserting the activity is what marks the upcoming activity as completed
@@ -2259,13 +2268,17 @@ func testGetUnverifiedVPPInstallsForHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	nanoEnroll(t, ds, h1, false)
 
+	// queue a script run before, to make the vpp installs get activated together
+	script, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h1.ID, ScriptContents: "echo"})
+	require.NoError(t, err)
 	cmdUUID1 := createVPPAppInstallRequest(t, ds, h1, vpp1.AdamID, nil)
-	createVPPAppInstallResult(t, ds, h1, cmdUUID1, "Acknowledged")
-
 	cmdUUID2 := createVPPAppInstallRequest(t, ds, h1, vpp2.AdamID, nil)
-	createVPPAppInstallResult(t, ds, h1, cmdUUID2, "Acknowledged")
-
 	cmdUUID3 := createVPPAppInstallRequest(t, ds, h1, vpp3.AdamID, nil)
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{HostID: h1.ID, ExecutionID: script.ExecutionID}, nil)
+	require.NoError(t, err)
+
+	createVPPAppInstallResult(t, ds, h1, cmdUUID1, "Acknowledged")
+	createVPPAppInstallResult(t, ds, h1, cmdUUID2, "Acknowledged")
 	createVPPAppInstallResult(t, ds, h1, cmdUUID3, "Acknowledged")
 
 	for _, step := range []struct {
@@ -3355,6 +3368,8 @@ func testMapAdamIDsQueuedInstalls(t *testing.T, ds *Datastore) {
 
 	// Completing the install removes its queue row.
 	createVPPAppInstallResult(t, ds, host, headCmdUUID, fleet.MDMAppleStatusAcknowledged)
+	err = ds.SetVPPInstallAsVerified(ctx, host.ID, headCmdUUID, uuid.NewString())
+	require.NoError(t, err)
 	adamIDs, err = ds.MapAdamIDsQueuedInstalls(ctx, host.ID)
 	require.NoError(t, err)
 	require.Len(t, adamIDs, 1)
@@ -5385,8 +5400,10 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Empty(t, installedVersionByHostID)
 
-		// acknowledge the first version, then fail the MDM command for the other version, the host should be returned with the first version
+		// verify the first version, then fail the MDM command for the other version, the host should be returned with the first version
 		createVPPAppInstallResult(t, ds, hostWithActivatedInstall, activatedCmdUUID, fleet.MDMAppleStatusAcknowledged)
+		err = ds.SetVPPInstallAsVerified(ctx, hostWithActivatedInstall.ID, activatedCmdUUID, uuid.NewString())
+		require.NoError(t, err)
 		insertVPPAppInstallWithResult(t, ds, hostWithActivatedInstall, otherVersion, "mdm_error")
 		installedVersionByHostID, err = ds.ListHostAppStoreAppInstallVersions(ctx, app.VPPAppID, fleetID, nil)
 		require.NoError(t, err)
