@@ -1,1 +1,0 @@
-* Fixed uninstall scripts for Fleet-maintained apps whose Homebrew cask lists the app to quit by name instead of bundle ID (DeskTime, DisplayLink USB Graphics Software, and NotesOllama): the script now quits the app by its bundle ID before removing it, instead of skipping the quit.
