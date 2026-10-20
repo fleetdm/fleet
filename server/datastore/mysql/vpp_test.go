@@ -1543,6 +1543,15 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, tokTeams.ID, tokByTeam.ID)
 
+	// Unassigned with only an All fleets token next to it, which has the highest id
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team2.ID})
+	require.NoError(t, err)
+	tokByTeam, err = ds.GetVPPTokenByTeamID(ctx, nil)
+	require.NoError(t, err)
+	assert.Equal(t, tokExtra.ID, tokByTeam.ID)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team2.ID, 0})
+	require.NoError(t, err)
+
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokAll.ID, []uint{})
 	require.NoError(t, err)
 	for _, tid := range []*uint{nil, &team.ID, &team2.ID} {
@@ -1550,15 +1559,6 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		assert.Equal(t, tokAll.ID, tokByTeam.ID)
 	}
-
-	// Unassigned with only All fleets tokens next to it
-	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team2.ID})
-	require.NoError(t, err)
-	tokByTeam, err = ds.GetVPPTokenByTeamID(ctx, nil)
-	require.NoError(t, err)
-	assert.Equal(t, tokAll.ID, tokByTeam.ID)
-	_, err = ds.UpdateVPPTokenTeams(ctx, tokTeams.ID, []uint{team2.ID, 0})
-	require.NoError(t, err)
 
 	// restore the assignments the checks below expect
 	_, err = ds.UpdateVPPTokenTeams(ctx, tokAll.ID, nil)
