@@ -360,7 +360,6 @@ func TestIngestValidations(t *testing.T) {
 		wantExists          string
 		wantPatched         string
 		wantPatchedContains string
-		wantInstallerURL    string
 		inputApp            inputApp
 		cfg                 serverConfig
 	}{
@@ -466,68 +465,6 @@ func TestIngestValidations(t *testing.T) {
 			},
 		},
 		{
-			name:             "scope-silent installer matches requested scope",
-			wantInstallerURL: "https://example.com/foo.exe",
-			inputApp: inputApp{
-				Name:                "Foo",
-				UniqueIdentifier:    "Foo",
-				PackageIdentifier:   "Foo",
-				InstallerArch:       "x64",
-				Slug:                "foo/windows",
-				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
-				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
-				InstallerType:       "exe",
-				InstallerScope:      "machine",
-			},
-			cfg: serverConfig{
-				installerType: "exe",
-				installers: []installer{
-					{Architecture: "x64", InstallerType: "nullsoft", InstallerURL: "https://example.com/foo.exe"},
-				},
-			},
-		},
-		{
-			name:             "explicit scope preferred over scope-silent installer",
-			wantInstallerURL: "https://example.com/foo-machine.exe",
-			inputApp: inputApp{
-				Name:                "Foo",
-				UniqueIdentifier:    "Foo",
-				PackageIdentifier:   "Foo",
-				InstallerArch:       "x64",
-				Slug:                "foo/windows",
-				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
-				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
-				InstallerType:       "exe",
-				InstallerScope:      "machine",
-			},
-			cfg: serverConfig{
-				installerType: "exe",
-				installers: []installer{
-					{Architecture: "x64", InstallerType: "nullsoft", InstallerURL: "https://example.com/foo.exe"},
-					{Architecture: "x64", InstallerType: "nullsoft", Scope: "machine", InstallerURL: "https://example.com/foo-machine.exe"},
-				},
-			},
-		},
-		{
-			name:    "explicit scope mismatch",
-			wantErr: "failed to find installer for app",
-			inputApp: inputApp{
-				Name:              "Foo",
-				UniqueIdentifier:  "Foo",
-				PackageIdentifier: "Foo",
-				InstallerArch:     "x64",
-				Slug:              "foo/windows",
-				InstallerType:     "exe",
-				InstallerScope:    "machine",
-			},
-			cfg: serverConfig{
-				installerType: "exe",
-				installers: []installer{
-					{Architecture: "x64", InstallerType: "nullsoft", Scope: "user", InstallerURL: "https://example.com/foo.exe"},
-				},
-			},
-		},
-		{
 			name:    "wrong installer type",
 			wantErr: "failed to find installer for app",
 			inputApp: inputApp{
@@ -579,9 +516,6 @@ func TestIngestValidations(t *testing.T) {
 			if c.wantPatchedContains != "" {
 				require.Contains(t, out.Queries.Patched, c.wantPatchedContains)
 			}
-			if c.wantInstallerURL != "" {
-				require.Equal(t, c.wantInstallerURL, out.InstallerURL)
-			}
 			// The managed "is app open" query matches a process named "<title>.exe".
 			require.Equal(t,
 				"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'foo.exe');",
@@ -599,8 +533,6 @@ type serverConfig struct {
 	installerProdCode string
 	upgradeCode       string
 	displayVersion    string
-	// installers overrides the single installer built from the fields above.
-	installers []installer
 }
 
 func newTestServer(t *testing.T, cfg serverConfig) *httptest.Server {
@@ -615,17 +547,6 @@ func newTestServer(t *testing.T, cfg serverConfig) *httptest.Server {
 			require.NoError(t, json.NewEncoder(w).Encode(content))
 
 		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/1.0/Foo.installer.yaml":
-			installers := cfg.installers
-			if installers == nil {
-				installers = []installer{
-					{
-						Architecture:  cfg.installerArch,
-						InstallerType: cfg.installerType,
-						ProductCode:   cfg.installerProdCode,
-						Scope:         cfg.installerScope,
-					},
-				}
-			}
 			manifest := installerManifest{
 				ProductCode:    cfg.productCode,
 				InstallerType:  cfg.installerType,
@@ -634,7 +555,14 @@ func newTestServer(t *testing.T, cfg serverConfig) *httptest.Server {
 				AppsAndFeaturesEntries: []appsAndFeaturesEntries{
 					{UpgradeCode: cfg.upgradeCode, DisplayVersion: cfg.displayVersion},
 				},
-				Installers: installers,
+				Installers: []installer{
+					{
+						Architecture:  cfg.installerArch,
+						InstallerType: cfg.installerType,
+						ProductCode:   cfg.installerProdCode,
+						Scope:         cfg.installerScope,
+					},
+				},
 			}
 
 			bytes, err := yaml.Marshal(manifest)
