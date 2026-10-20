@@ -1,10 +1,20 @@
 package cryptoutil
 
 import (
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
+	"math/big"
 	"testing"
+	"time"
 
 	"github.com/smallstep/pkcs7"
+	"github.com/stretchr/testify/require"
 )
 
 const mdmSignatureHeader1 = "MIAGCSqGSIb3DQEHAqCAMIACAQExCzAJBgUrDgMCGgUAMIAGCSqGSIb3DQEHAQAAoIIDIzCCAx8wggIHoAMCAQICAQQwDQYJKoZIhvcNAQELBQAwPTETMBEGCgmSJomT8ixkARkWA2NvbTEVMBMGCgmSJomT8ixkARkWBUd1c3RvMQ8wDQYDVQQDDAZNRE0gQ0EwHhcNMjEwOTE4MTg0NTA1WhcNMjIwOTE4MTg0NTA1WjAAMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA8Weag+4AQFkLrgm2/lZCdjGj5KC2rbIKdBdfExxaFWmvTtNCdXWyd5eROboRuEG/D1Zun0WKaKc1/emikBhnXP4qzEnNobx1OOfzeR1ZiazwftgAKrDZK6e4IJo15x8juRZvbjfKAQV+fw6TIGe4COUKpBtJo1idxJzI6OO2pQ6tvfzxhvbeD8VtYoHFgTXmBDHqUjmixdM+RIDUqReemaTeK5ybWTw3ZrydR7lM+I92Y9x/sRSxTODjgcczmprMVFl7a/d7biuqJtxg/RRVA85LWE3Gl+3BaVi9TC8xzaVioC++RmbXe3Z5qHmm+fkhfIzHksBW0Yn0DmWZRoWpgwIDAQABo2cwZTAOBgNVHQ8BAf8EBAMCB4AwEwYDVR0lBAwwCgYIKwYBBQUHAwIwHQYDVR0OBBYEFCxqnx50ZpbKaED6AAsxSScMguy6MB8GA1UdIwQYMBaAFBoyVn803d9H43znmXRJGmE066VrMA0GCSqGSIb3DQEBCwUAA4IBAQAU0jY/wjNth2fJsp49hbhEUFFPJIvM9lS5cWmSX2Xg7cK1pzDZJktA5MAZaLxbYCqpM9HegE3WhpyzaFRcIpBWV6T4R70gWbKcwn7WzAII0TBbDD4nZz2tO0kdLXA4LPyPjm/tJxzNvLfYmVNF61oImU2KXT/zp7rXOLU3KhkA4cWN9TApClTIZqlzr64T07HUA94S2ee9ia8/U2ITOswtYrGNYmky1PA9/GlcGaxm5LkthmIq4qh5/e8J8rfSXvz7GVuVqoZOBPVTQkBChG6ANCtTr8nniRIv+3L3042XjclVFj5mcLsXO5EN/v0i11ICcLs2SRJAF058CPLS7azgMYIBaTCCAWUCAQEwQjA9MRMwEQYKCZImiZPyLGQBGRYDY29tMRUwEwYKCZImiZPyLGQBGRYFR3VzdG8xDzANBgNVBAMMBk1ETSBDQQIBBDAJBgUrDgMCGgUAMA0GCSqGSIb3DQEBBQUABIIBAABiveq4A69qvK2FjCMdhm6o9aBPfTw8WiJU9I6UppTbvw1+o2OBVLAOCXw46v1SIbj7Lhq5EDm3qXLD2xkF9zd5W43PvNZFleL735De+I1IeyXOvkmElOioipDNwrRpsET6vL2zwYlE0JZuGVhr2EU8ra3czy4eAbJwvV2xHLjpvqQJZh0LNvBc10sp7Q/99qpVdCXagUPJTh68Pcua51JiUWn0tDn0eaj083Yyx+I1XNR9opYuBEVz/LwFSsUGiB9zV7KbsLikajD2+Jmues5vS2jOrmCpV+yMN3uMa4lmOlgrQoi4l62edTo45zgnEZOUle0zT2pInMgML8KiWt8AAAAAAAA="
@@ -31,4 +41,73 @@ func TestVerifyMdmSignature(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestVerifyMdmSignatureIgnoringExpiry(t *testing.T) {
+	// SCEP enrollments use RSA 2048 device keys, ACME enrollments use EC P-384.
+	signerKeys := map[string]func(t *testing.T) crypto.Signer{
+		"rsa": func(t *testing.T) crypto.Signer {
+			key, err := rsa.GenerateKey(rand.Reader, 2048)
+			require.NoError(t, err)
+			return key
+		},
+		"p384": func(t *testing.T) crypto.Signer {
+			key, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+			require.NoError(t, err)
+			return key
+		},
+	}
+	for name, newKey := range signerKeys {
+		t.Run(name, func(t *testing.T) {
+			body := []byte("<plist>checkin</plist>")
+			now := time.Now()
+
+			expiredCert, expiredHeader := signMdmBody(t, newKey(t), body, now.Add(-24*time.Hour), now.Add(-time.Hour))
+			_, validHeader := signMdmBody(t, newKey(t), body, now.Add(-time.Hour), now.Add(24*time.Hour))
+			_, notYetValidHeader := signMdmBody(t, newKey(t), body, now.Add(time.Hour), now.Add(24*time.Hour))
+
+			_, err := VerifyMdmSignature(expiredHeader, body)
+			var signingTimeErr *pkcs7.SigningTimeNotValidError
+			require.ErrorAs(t, err, &signingTimeErr)
+
+			cert, err := VerifyMdmSignatureIgnoringExpiry(expiredHeader, body)
+			require.NoError(t, err)
+			require.Equal(t, expiredCert.Raw, cert.Raw)
+			require.Equal(t, expiredCert.NotAfter, cert.NotAfter, "returned cert must keep its real validity period")
+
+			_, err = VerifyMdmSignatureIgnoringExpiry(notYetValidHeader, body)
+			require.NoError(t, err)
+
+			_, err = VerifyMdmSignatureIgnoringExpiry(validHeader, body)
+			require.NoError(t, err)
+
+			_, err = VerifyMdmSignatureIgnoringExpiry(expiredHeader, []byte("<plist>tampered</plist>"))
+			var digestErr *pkcs7.MessageDigestMismatchError
+			require.ErrorAs(t, err, &digestErr)
+		})
+	}
+}
+
+func signMdmBody(t *testing.T, key crypto.Signer, body []byte, notBefore, notAfter time.Time) (*x509.Certificate, string) {
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "device"},
+		NotBefore:    notBefore,
+		NotAfter:     notAfter,
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, key.Public(), key)
+	require.NoError(t, err)
+	cert, err := x509.ParseCertificate(der)
+	require.NoError(t, err)
+
+	sd, err := pkcs7.NewSignedData(body)
+	require.NoError(t, err)
+	require.NoError(t, sd.AddSigner(cert, key, pkcs7.SignerInfoConfig{}))
+	sd.Detach()
+	sig, err := sd.Finish()
+	require.NoError(t, err)
+
+	return cert, base64.StdEncoding.EncodeToString(sig)
 }

@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
@@ -14,13 +15,28 @@ import (
 var _ mdm.CertVerifier = (*SCEPVerifier)(nil)
 
 type SCEPVerifier struct {
-	ds fleet.MDMAssetRetriever
+	ds           fleet.MDMAssetRetriever
+	ignoreExpiry bool
 }
 
-func NewSCEPVerifier(ds fleet.MDMAssetRetriever) *SCEPVerifier {
-	return &SCEPVerifier{
+type SCEPVerifierOption func(*SCEPVerifier)
+
+// WithIgnoreExpiry makes the verifier accept certificates that have expired
+// but are otherwise valid (issued by the CA, correct key usages).
+func WithIgnoreExpiry() SCEPVerifierOption {
+	return func(s *SCEPVerifier) {
+		s.ignoreExpiry = true
+	}
+}
+
+func NewSCEPVerifier(ds fleet.MDMAssetRetriever, opts ...SCEPVerifierOption) *SCEPVerifier {
+	s := &SCEPVerifier{
 		ds: ds,
 	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 func (s *SCEPVerifier) Verify(ctx context.Context, cert *x509.Certificate) error {
@@ -48,6 +64,12 @@ func (s *SCEPVerifier) Verify(ctx context.Context, cert *x509.Certificate) error
 	// that would cause a failure.
 	if hasOtherKeyUsages(rootCert, x509.ExtKeyUsageClientAuth) {
 		opts.KeyUsages = []x509.ExtKeyUsage{x509.ExtKeyUsageAny}
+	}
+
+	// Verifying at the moment the certificate expired still requires the rest
+	// of the chain to have been valid at that time.
+	if s.ignoreExpiry && time.Now().After(cert.NotAfter) {
+		opts.CurrentTime = cert.NotAfter
 	}
 
 	if _, err := cert.Verify(opts); err != nil {
