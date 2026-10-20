@@ -1327,7 +1327,7 @@
           // Irregular on purpose: 6–30s apart, each at a slightly different speed.
           setTimeout(function(){
             if (!document.hidden && !banner.matches(':hover')) {
-              glint = { startedAt: performance.now(), duration: 700 + Math.random() * 700 };
+              glint = { startedAt: performance.now(), duration: 400 + Math.random() * 350 };
               requestRender();
             }
             scheduleNextGlint();
