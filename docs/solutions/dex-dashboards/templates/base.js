@@ -116,19 +116,42 @@ function renderTop(fleets, onChange, counts = {}, unsupported = {}) {
 const inPlatform = (p) => !PLATFORM || p === PLATFORM;
 
 // Light, dark, or the viewer's system setting. "System" leaves the theme to
-// prefers-color-scheme and the viewer's own setting.
+// prefers-color-scheme and the viewer's own setting. The artifact viewer can
+// block or clear browser storage, so the choice is also kept in the viewer's
+// private record in the artifact's store (db + user capabilities; Viewers
+// can't write it and fall back to browser storage).
 const THEMES = [["light", "Light"], ["dark", "Dark"], ["", "System"]];
 function applyTheme(t) {
   if (t) document.documentElement.setAttribute("data-theme", t);
   else document.documentElement.removeAttribute("data-theme");
 }
+async function themeDoc() {
+  const cl = window.claude;
+  if (!cl || !cl.use) return null;
+  const [db, user] = await Promise.all([cl.use("db"), cl.use("user")]);
+  const id = db && user ? await user.id() : null;
+  return id ? db.doc(`data/users/${id}/prefs`) : null;
+}
 function themeToggle() {
   let theme = store.get("dex-theme") || "";
+  let picked = false;
   if (theme) applyTheme(theme);
+  const doc = themeDoc().catch(() => null);
+  let saving = Promise.resolve();
+  const set = (k) => { theme = k; store.set("dex-theme", k); applyTheme(k); draw(); };
   const el = h("div", { class: "seg-toggle small", role: "group", "aria-label": "Theme" });
   const draw = () => el.replaceChildren(...THEMES.map(([k, label]) => h("button", { type: "button", "aria-pressed": theme === k ? "true" : "false",
-    onclick: () => { theme = k; store.set("dex-theme", k); applyTheme(k); draw(); } }, label)));
+    onclick: () => {
+      if (k === theme) return;
+      picked = true;
+      set(k);
+      saving = saving.then(() => doc).then((d) => d && d.set({ theme: k })).catch(() => { /* read-only viewer: browser storage only */ });
+    } }, label)));
   draw();
+  doc.then((d) => d && d.get()).then((s) => {
+    const t = s && s.exists ? s.data().theme : null;
+    if (!picked && t !== theme && THEMES.some(([k]) => k === t)) set(t);
+  }).catch(() => {});
   return el;
 }
 const inFleet = (f) => !FLEET || f === FLEET;
