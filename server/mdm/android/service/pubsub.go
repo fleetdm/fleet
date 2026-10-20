@@ -979,7 +979,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	host.Host.Memory = device.MemoryInfo.TotalRam
 
 	// A payload without a measurement calculates as "not supported" (-1). UpdateAndroidHost
-	// keeps a measurement from before the host's last enrollment instead of writing that over it.
+	// keeps the host's last real measurement instead of writing that over it.
 	host.Host.GigsTotalDiskSpace, host.Host.GigsDiskSpaceAvailable, host.Host.PercentDiskSpaceAvailable = svc.calculateAndroidStorageMetrics(ctx, device, true)
 
 	host.Host.HardwareSerial = device.HardwareInfo.SerialNumber

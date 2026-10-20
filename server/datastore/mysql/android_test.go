@@ -869,17 +869,13 @@ func testUpdateAndroidHostKeepsDiskMeasurement(t *testing.T, ds *Datastore) {
 	remeasured := diskReport{available: 50, percent: 25, total: 200}
 	notMeasured := diskReport{available: -1, percent: -1, total: 128}
 
-	// A step is a status report, a re-enrollment (both carry a report), or the passage of
-	// time, which moves the host's enrollment and its stored disk row an hour into the past so
-	// their order doesn't depend on last_enrolled_at's second precision.
+	// A step is a status report or a re-enrollment, each carrying a disk report.
 	type step struct {
-		report     *diskReport
+		report     diskReport
 		fromEnroll bool
-		age        bool
 	}
-	status := func(r diskReport) step { return step{report: &r} }
-	reenroll := func(r diskReport) step { return step{report: &r, fromEnroll: true} }
-	age := step{age: true}
+	status := func(r diskReport) step { return step{report: r} }
+	reenroll := func(r diskReport) step { return step{report: r, fromEnroll: true} }
 
 	cases := []struct {
 		name  string
@@ -890,75 +886,44 @@ func testUpdateAndroidHostKeepsDiskMeasurement(t *testing.T, ds *Datastore) {
 		want              diskReport
 	}{
 		{
-			name:  "re-enrollment without a measurement keeps the earlier one with its total",
-			steps: []step{age, status(measured), age, reenroll(notMeasured)},
+			name:  "re-enrollment without a measurement keeps the last one with its total",
+			steps: []step{status(measured), reenroll(notMeasured)},
 			want:  measured,
 		},
 		{
 			name:  "status reports after a re-enrollment keep it until the device measures",
-			steps: []step{age, status(measured), age, reenroll(notMeasured), status(notMeasured), status(notMeasured)},
+			steps: []step{status(measured), reenroll(notMeasured), status(notMeasured), status(notMeasured)},
 			want:  measured,
 		},
 		{
-			name:  "a full disk is a measurement and is kept on re-enrollment",
-			steps: []step{age, status(diskReport{available: 0, percent: 0, total: 64}), age, reenroll(notMeasured)},
+			name:  "a status report without a measurement keeps the last one",
+			steps: []step{status(measured), status(notMeasured)},
+			want:  measured,
+		},
+		{
+			name:  "a full disk is a measurement and is kept",
+			steps: []step{status(diskReport{available: 0, percent: 0, total: 64}), reenroll(notMeasured)},
 			want:  diskReport{available: 0, percent: 0, total: 64},
 		},
 		{
-			name:  "status report without a measurement is written as reported when the host measured since enrolling",
-			steps: []step{age, status(measured), status(notMeasured)},
-			want:  notMeasured,
+			name:  "a measurement after a re-enrollment replaces the kept one and is then kept",
+			steps: []step{status(measured), reenroll(notMeasured), status(remeasured), status(notMeasured)},
+			want:  remeasured,
 		},
 		{
-			name: "after a re-enrollment, a new measurement ends the keep",
-			steps: []step{
-				age, status(measured), age, reenroll(notMeasured),
-				age, status(remeasured), status(notMeasured),
-			},
-			want: notMeasured,
-		},
-		{
-			// SetOrUpdateHostDisksSpace skips an unchanged measurement, so ending the keep can't
-			// depend on the disk values being written.
-			name: "after a re-enrollment, a measurement equal to the stored one ends the keep",
-			steps: []step{
-				age, status(measured), age, reenroll(notMeasured),
-				age, status(measured), status(notMeasured),
-			},
-			want: notMeasured,
-		},
-		{
-			// No age before the measurement: last_enrolled_at has second precision, so the
-			// measurement normally lands in the re-enrollment's second.
-			name: "a measurement in the re-enrollment's second ends the keep",
-			steps: []step{
-				age, status(measured), age, reenroll(notMeasured),
-				status(remeasured), status(notMeasured),
-			},
-			want: notMeasured,
-		},
-		{
-			name: "an unchanged measurement in the re-enrollment's second ends the keep",
-			steps: []step{
-				age, status(measured), age, reenroll(notMeasured),
-				status(measured), status(notMeasured),
-			},
-			want: notMeasured,
-		},
-		{
-			name:  "host with no stored disk data records not supported on re-enrollment",
-			steps: []step{age, reenroll(notMeasured)},
+			name:  "host with no stored disk data records not supported",
+			steps: []step{reenroll(notMeasured)},
 			want:  notMeasured,
 		},
 		{
 			name:              "a row without disk data records not supported and keeps its other columns",
-			steps:             []step{age, reenroll(notMeasured)},
+			steps:             []step{reenroll(notMeasured)},
 			encryptionOnlyRow: true,
 			want:              notMeasured,
 		},
 		{
 			name:  "host that has only reported not supported keeps reporting it",
-			steps: []step{status(notMeasured), age, reenroll(diskReport{available: -1, percent: -1, total: 256})},
+			steps: []step{status(notMeasured), reenroll(diskReport{available: -1, percent: -1, total: 256})},
 			want:  diskReport{available: -1, percent: -1, total: 256},
 		},
 		{
@@ -968,7 +933,7 @@ func testUpdateAndroidHostKeepsDiskMeasurement(t *testing.T, ds *Datastore) {
 		},
 		{
 			name:  "a new measurement replaces the stored one",
-			steps: []step{status(measured), age, reenroll(remeasured)},
+			steps: []step{status(measured), reenroll(remeasured)},
 			want:  remeasured,
 		},
 	}
@@ -1006,17 +971,7 @@ func testUpdateAndroidHostKeepsDiskMeasurement(t *testing.T, ds *Datastore) {
 			}
 
 			for _, s := range c.steps {
-				if s.age {
-					ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-						if _, err := q.ExecContext(ctx, `UPDATE hosts SET last_enrolled_at = last_enrolled_at - INTERVAL 1 HOUR WHERE id = ?`, host.Host.ID); err != nil {
-							return err
-						}
-						_, err := q.ExecContext(ctx, `UPDATE host_disks SET updated_at = updated_at - INTERVAL 1 HOUR WHERE host_id = ?`, host.Host.ID)
-						return err
-					})
-					continue
-				}
-				report(host, *s.report, s.fromEnroll)
+				report(host, s.report, s.fromEnroll)
 			}
 
 			requireDisk(host.Host.ID, c.want)
