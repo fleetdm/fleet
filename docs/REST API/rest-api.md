@@ -15274,8 +15274,6 @@ Each entry in `versions` includes `release` when set. For `rpm_packages`, it's t
 
 A software title can have more than one package. The `packages` array lists all packages added for the title, including per-package `self_service`, `categories`, and labels (`labels_include_any`, `labels_exclude_any`, `labels_include_all`). `software_package` is kept for backwards compatibility and contains the oldest (first added) package.
 
-> `installer_id` is deprecated as of Fleet 5.0. It's maintained for backwards compatibility. Please use `id` instead.
-
 > Install, pending, and failed counts in `packages.status` are combined across policy automations, setup experience, and manual installs.
 
 For Fleet-maintained apps, software package objects include two additional fields:
