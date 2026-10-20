@@ -144,14 +144,16 @@ GEANT's eduroam configuration tool writes it rather than as the schema's Trusted
       '</authEncryption>';
     if(!isEnterprise && passphrase) {
       // Windows refuses to install a profile whose key is anything other than a passphrase of 8 to 63 printable ASCII
-      // characters, or a 64-digit hex key.
+      // characters, or, for WPA2 only, a 64-digit hex key: WPA3's SAE authenticates with a passphrase.
       let keyType;
-      if(/^[0-9a-fA-F]{64}$/.test(passphrase)) {
+      if(security === 'WPA2Personal' && /^[0-9a-fA-F]{64}$/.test(passphrase)) {
         keyType = 'networkKey';
       } else if(/^[\x20-\x7E]{8,63}$/.test(passphrase)) {
         keyType = 'passPhrase';
       } else {
-        throw new Error('A Wi-Fi password must be 8 to 63 printable ASCII characters, or a 64-digit hex key.');
+        throw new Error(security === 'WPA2Personal' ?
+          'A Wi-Fi password must be 8 to 63 printable ASCII characters, or a 64-digit hex key.' :
+          'A WPA3 Wi-Fi password must be 8 to 63 printable ASCII characters.');
       }
       securityXml += `<sharedKey><keyType>${keyType}</keyType><protected>false</protected><keyMaterial>${escapeXml(passphrase)}</keyMaterial></sharedKey>`;
     }

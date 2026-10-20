@@ -186,7 +186,7 @@ describe('profile builders', function() {
         { verb: 'Replace', locURI: './Device/Vendor/MSFT/Example/Unlisted/Name', data: 'x', format: 'string' },
       ]);
       assert.deepStrictEqual(built.unusableCommands, []);
-      let formats = _.map(built.profile.match(/<Format xmlns="syncml:metinf">[^<]*<\/Format>/g), (format)=>{ return format.replace(/<[^>]+>/g, ''); });
+      let formats = Array.from(built.profile.matchAll(/<Format xmlns="syncml:metinf">([^<]*)<\/Format>/g), (match)=>{ return match[1]; });
       assert.deepStrictEqual(formats, ['int', 'bool', 'chr']);
     });
 
@@ -306,9 +306,12 @@ describe('profile builders', function() {
       assert.throws(()=>{ wlan({ ssid: 'Lobby', security: 'Open', passphrase: 'x' }); }, /An open network has no password/);
     });
 
-    it('takes a passphrase Windows accepts, writes a 64-digit hex key as a network key, and rejects anything else', function() {
+    it('takes a passphrase Windows accepts, writes a 64-digit hex key as a WPA2 network key, and rejects anything else', function() {
       assert.strictEqual(element(wlan({ ssid: 'Home', security: 'WPA2Personal', passphrase: 'a'.repeat(63) }), 'keyType'), 'passPhrase');
       assert.strictEqual(element(wlan({ ssid: 'Home', security: 'WPA2Personal', passphrase: 'ab'.repeat(32) }), 'keyType'), 'networkKey');
+      for (let security of ['WPA3Personal', 'WPA3PersonalTransition']) {
+        assert.throws(()=>{ wlan({ ssid: 'Home', security, passphrase: 'ab'.repeat(32) }); }, /A WPA3 Wi-Fi password must be 8 to 63/, security);
+      }
       for (let passphrase of ['wifi', 'z'.repeat(64), 'pässwört-123']) {
         assert.throws(()=>{ wlan({ ssid: 'Home', security: 'WPA2Personal', passphrase }); }, /8 to 63 printable ASCII characters/, passphrase);
       }
