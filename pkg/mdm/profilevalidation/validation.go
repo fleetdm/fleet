@@ -32,6 +32,12 @@ func Replace(s *ProfileValidationSchema) error {
 	if s == nil {
 		return errors.New("replace profile validation schema: nil schema")
 	}
+	if s.FormatVersion != FormatVersion {
+		return fmt.Errorf("replace profile validation schema: unexpected format version %d", s.FormatVersion)
+	}
+	if err := s.check(); err != nil {
+		return fmt.Errorf("replace profile validation schema: %w", err)
+	}
 	current.Store(s)
 	return nil
 }
@@ -122,8 +128,14 @@ func (s *ProfileValidationSchema) check() error {
 	if s.AppleDeclarationEnvelope == nil {
 		return errors.New("apple_declaration_envelope is missing")
 	}
-	if n := len(s.AppleProfiles); n < minAppleProfileTypes {
-		return fmt.Errorf("apple_profiles has %d payload types, want at least %d", n, minAppleProfileTypes)
+	n := 0
+	for _, p := range s.AppleProfiles {
+		if p != nil && p.Source != "override" {
+			n++
+		}
+	}
+	if n < minAppleProfileTypes {
+		return fmt.Errorf("apple_profiles has %d payload types, want at least %d non-overridden", n, minAppleProfileTypes)
 	}
 	var configurations int
 	for name := range s.AppleDeclarations {

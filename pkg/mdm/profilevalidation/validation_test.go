@@ -91,6 +91,10 @@ func TestParse(t *testing.T) {
 			delete(section(doc, "apple_declarations"), "com.apple.configuration.passcode.settings")
 			section(doc, "apple_declarations")[appleConfigurationPrefix+"filler"] = map[string]any{}
 		}, wantErr: "apple_declarations is missing com.apple.configuration.passcode.settings"},
+		{name: "override profiles don't count toward floor", mutate: func(doc map[string]any) {
+			removeOne(doc, "apple_profiles", "com.apple.applicationaccess")
+			section(doc, "apple_profiles")["com.example.filler"] = map[string]any{"source": "override"}
+		}, wantErr: "apple_profiles has 99 payload types, want at least 100 non-overridden"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

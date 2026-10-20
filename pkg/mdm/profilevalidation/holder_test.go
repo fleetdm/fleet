@@ -81,6 +81,9 @@ func TestReplace(t *testing.T) {
 
 	require.Error(t, Replace(nil))
 	assert.Same(t, newSchema, Current())
+
+	require.ErrorContains(t, Replace(&ProfileValidationSchema{FormatVersion: 2}), "unexpected format version 2")
+	require.ErrorContains(t, Replace(&ProfileValidationSchema{FormatVersion: FormatVersion}), "missing TopLevel or CommonPayloadKeys")
 }
 
 func TestReplaceConcurrentReads(t *testing.T) {
