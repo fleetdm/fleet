@@ -111,6 +111,49 @@ describe("FileUploader", () => {
     expect(onFileUpload).not.toHaveBeenCalled();
   });
 
+  it("surfaces an inline error when a drop is rejected by the accept filter", () => {
+    const { container } = render(
+      <FileUploader
+        graphicName="file-pkg"
+        message="drop a package"
+        accept=".pkg,.msi,.exe"
+        onFileUpload={noop}
+      />
+    );
+
+    fireEvent.drop(findDropZone(container), {
+      dataTransfer: { files: [makeFile("thing.txt")] },
+    });
+
+    expect(
+      screen.getByText("File type must be .pkg, .msi, or .exe")
+    ).toBeInTheDocument();
+  });
+
+  it("clears the drop-rejection error on the next drag over", () => {
+    const { container } = render(
+      <FileUploader
+        graphicName="file-pem"
+        message="drop a cert"
+        accept=".pem"
+        onFileUpload={noop}
+      />
+    );
+
+    fireEvent.drop(findDropZone(container), {
+      dataTransfer: { files: [makeFile("nope.txt")] },
+    });
+    expect(screen.getByText("File type must be .pem")).toBeInTheDocument();
+
+    fireEvent.dragOver(findDropZone(container), {
+      dataTransfer: { files: [makeFile("cert.pem")] },
+    });
+
+    expect(
+      screen.queryByText("File type must be .pem")
+    ).not.toBeInTheDocument();
+  });
+
   it("accepts a drop whose file matches the accept filter", () => {
     const onFileUpload = jest.fn();
     const { container } = render(

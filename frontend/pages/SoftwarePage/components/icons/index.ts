@@ -387,6 +387,7 @@ import Far2L from "./png/Far2L.png";
 import Farrago from "./png/Farrago.png";
 import Fastmail from "./png/Fastmail.png";
 import Fastscripts from "./png/Fastscripts.png";
+import Fathom from "./png/Fathom.png";
 import Fellow from "./png/Fellow.png";
 import Ferdium from "./png/Ferdium.png";
 import FetchApp from "./png/FetchApp.png";
@@ -448,6 +449,7 @@ import Gimp from "./png/Gimp.png";
 import Git from "./png/Git.png";
 import GitExtensions from "./png/GitExtensions.png";
 import Gitfinder from "./png/Gitfinder.png";
+import GitHubCopilot from "./png/GitHubCopilot.png";
 import GithubCopilotForXcode from "./png/GithubCopilotForXcode.png";
 import GitHubDesktop from "./png/GitHubDesktop.png";
 import Gitify from "./png/Gitify.png";
@@ -497,6 +499,7 @@ import Hidock from "./png/Hidock.png";
 import HighlightAi from "./png/HighlightAi.png";
 import HiveApp from "./png/HiveApp.png";
 import HomeAssistant from "./png/HomeAssistant.png";
+import Homebrew from "./png/Homebrew.png";
 import Homerow from "./png/Homerow.png";
 import Hot from "./png/Hot.png";
 import Houdahspot from "./png/Houdahspot.png";
@@ -985,6 +988,7 @@ import SublimeMerge from "./png/SublimeMerge.png";
 import SublimeText from "./png/SublimeText.png";
 import Supercollider from "./png/Supercollider.png";
 import Superhuman from "./png/Superhuman.png";
+import SuperhumanDocs from "./png/SuperhumanDocs.png";
 import Superkey from "./png/Superkey.png";
 import SuperProductivity from "./png/SuperProductivity.png";
 import Superwhisper from "./png/Superwhisper.png";
@@ -1555,6 +1559,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   farrago: Farrago,
   fastmail: Fastmail,
   fastscripts: Fastscripts,
+  fathom: Fathom,
   fellow: Fellow,
   ferdium: Ferdium,
   fetch: FetchApp,
@@ -1611,6 +1616,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   git: Git,
   "git extensions": GitExtensions,
   gitfinder: Gitfinder,
+  "github copilot": GitHubCopilot,
   "github copilot for xcode": GithubCopilotForXcode,
   "github desktop": GitHubDesktop,
   gitify: Gitify,
@@ -1664,6 +1670,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   highlight: HighlightAi,
   hive: HiveApp,
   "home assistant": HomeAssistant,
+  homebrew: Homebrew,
   homerow: Homerow,
   hot: Hot,
   houdahspot: Houdahspot,
@@ -2174,6 +2181,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "super productivity": SuperProductivity,
   supercollider: Supercollider,
   superhuman: Superhuman,
+  "superhuman docs": SuperhumanDocs,
   superkey: Superkey,
   superwhisper: Superwhisper,
   "support companion": Supportcompanion,

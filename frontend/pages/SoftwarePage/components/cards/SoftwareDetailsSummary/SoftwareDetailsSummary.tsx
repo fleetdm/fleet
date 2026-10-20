@@ -22,7 +22,10 @@ import {
   NO_VERSION_OR_HOST_DATA_SOURCES,
   ROLLING_ARCH_LINUX_VERSIONS,
 } from "interfaces/software";
-import { isSafeImagePreviewUrl } from "pages/SoftwarePage/helpers";
+import {
+  GITOPS_ID_TOOLTIP,
+  isSafeImagePreviewUrl,
+} from "pages/SoftwarePage/helpers";
 import paths from "router/paths";
 import { getGitOpsModeTipContent } from "utilities/helpers";
 import { getPathWithQueryParams, QueryParams } from "utilities/url";
@@ -67,7 +70,6 @@ export const buildActionOptions = ({
 }: BuildActionOptionsArgs): IDropdownOption[] => {
   let disableEditAppearanceTooltipContent: TooltipContent | undefined;
   let disableEditSoftwareTooltipContent: TooltipContent | undefined;
-  let disabledEditConfigurationTooltipContent: TooltipContent | undefined;
 
   // Disable state is keyed off `gitOpsModeEnabled` directly (see each option
   // below); the tooltip is only populated when `repoURL` is also available,
@@ -78,7 +80,6 @@ export const buildActionOptions = ({
       repoURL && getGitOpsModeTipContent(repoURL);
 
     disableEditAppearanceTooltipContent = gitOpsModeTooltipContent;
-    disabledEditConfigurationTooltipContent = gitOpsModeTooltipContent;
 
     if (isAppleVpp) {
       disableEditSoftwareTooltipContent = gitOpsModeTooltipContent;
@@ -104,13 +105,13 @@ export const buildActionOptions = ({
     });
   }
 
-  // Show edit configuration option for Android installers (not web apps) and iOS/iPadOS apps
+  // Show edit configuration option for Android installers (not web apps) and
+  // iOS/iPadOS apps. Stays clickable in gitops mode — the modal itself
+  // disables Save with the gitops tooltip, matching the Versions option.
   if (canEditConfiguration) {
     options.push({
       label: "Edit configuration",
       value: ACTION_EDIT_CONFIGURATION,
-      disabled: gitOpsModeEnabled,
-      tooltipContent: disabledEditConfigurationTooltipContent,
     });
   }
 
@@ -191,6 +192,9 @@ interface ISoftwareDetailsSummaryProps {
    * pencil-icon "Edit" button that opens the Edit Appearance modal directly.
    * Per-installer Edit lives on the Library accordion row. */
   useSingleEditAppearanceButton?: boolean;
+  fleetMaintainedAppSlug?: string;
+  appStoreId?: string;
+  googlePlayId?: string;
 }
 
 const SoftwareDetailsSummary = ({
@@ -216,6 +220,9 @@ const SoftwareDetailsSummary = ({
   headerPills,
   isAppleVpp = false,
   useSingleEditAppearanceButton = false,
+  fleetMaintainedAppSlug,
+  appStoreId,
+  googlePlayId,
 }: ISoftwareDetailsSummaryProps) => {
   const hostCountPath = getPathWithQueryParams(paths.MANAGE_HOSTS, queryParams);
 
@@ -275,6 +282,18 @@ const SoftwareDetailsSummary = ({
       />
     );
   };
+
+  const renderGitOpsIdDataSet = (title: string, value?: string) =>
+    !!value && (
+      <DataSet
+        title={
+          <TooltipWrapper tipContent={GITOPS_ID_TOOLTIP}>
+            {title}
+          </TooltipWrapper>
+        }
+        value={value}
+      />
+    );
 
   const actionOptions = buildActionOptions({
     gitOpsModeEnabled,
@@ -371,6 +390,12 @@ const SoftwareDetailsSummary = ({
                 }
               />
             )}
+            {renderGitOpsIdDataSet(
+              "Fleet-maintained app slug",
+              fleetMaintainedAppSlug
+            )}
+            {renderGitOpsIdDataSet("App Store ID", appStoreId)}
+            {renderGitOpsIdDataSet("Google Play ID", googlePlayId)}
           </dl>
           {headerPills && (
             <div className={`${baseClass}__header-pills`}>{headerPills}</div>

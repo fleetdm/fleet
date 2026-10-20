@@ -84,12 +84,10 @@ describe("buildActionOptions", () => {
     expect(editConfig).toEqual({
       label: "Edit configuration",
       value: ACTION_EDIT_CONFIGURATION,
-      disabled: false,
-      tooltipContent: undefined,
     });
   });
 
-  it("applies gitops tooltip to Edit appearance and Edit configuration, and to Edit software for Apple VPP", () => {
+  it("applies gitops tooltip to Edit appearance and Edit software (Apple VPP), but leaves Edit configuration clickable", () => {
     const result = buildActionOptions({
       gitOpsModeEnabled: true,
       repoURL: "https://repo.git",
@@ -116,9 +114,10 @@ describe("buildActionOptions", () => {
       tooltipContent: expect.anything(),
     });
 
-    expect(editConfig).toMatchObject({
-      disabled: true,
-      tooltipContent: expect.anything(),
+    // Edit configuration stays clickable in gitops mode; the modal gates Save.
+    expect(editConfig).toEqual({
+      label: "Edit configuration",
+      value: ACTION_EDIT_CONFIGURATION,
     });
 
     // For Apple VPP, Edit software also gets the gitops tooltip if present.
@@ -247,5 +246,35 @@ describe("SoftwareDetailsSummary headerPills slot", () => {
     expect(
       container.querySelector(".software-details-summary__header-pills")
     ).toBeNull();
+  });
+});
+
+describe("SoftwareDetailsSummary IDs", () => {
+  it("renders GitOps IDs when provided", () => {
+    render(
+      <SoftwareDetailsSummary
+        displayName="My software"
+        fleetMaintainedAppSlug="zoom/darwin"
+        appStoreId="1016366447"
+        googlePlayId="com.android.chrome"
+      />
+    );
+
+    expect(screen.getByText("Fleet-maintained app slug")).toBeInTheDocument();
+    expect(screen.getByText("zoom/darwin")).toBeInTheDocument();
+    expect(screen.getByText("App Store ID")).toBeInTheDocument();
+    expect(screen.getByText("1016366447")).toBeInTheDocument();
+    expect(screen.getByText("Google Play ID")).toBeInTheDocument();
+    expect(screen.getByText("com.android.chrome")).toBeInTheDocument();
+  });
+
+  it("does not render IDs that aren't provided", () => {
+    render(<SoftwareDetailsSummary displayName="My software" />);
+
+    expect(
+      screen.queryByText("Fleet-maintained app slug")
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("App Store ID")).not.toBeInTheDocument();
+    expect(screen.queryByText("Google Play ID")).not.toBeInTheDocument();
   });
 });
