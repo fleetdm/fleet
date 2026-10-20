@@ -9123,6 +9123,13 @@
       "description": "Unity Hub is a management tool for Unity."
     },
     {
+      "name": "UnnaturalScrollWheels",
+      "slug": "unnaturalscrollwheels/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.theron.UnnaturalScrollWheels",
+      "description": "UnnaturalScrollWheels is a utility that inverts the scroll direction of physical scroll wheels independently of the trackpad."
+    },
+    {
       "name": "Upscayl",
       "slug": "upscayl/darwin",
       "platform": "darwin",
