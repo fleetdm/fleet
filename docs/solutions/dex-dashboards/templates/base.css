@@ -1,7 +1,10 @@
 /* Layout: one 1120px column in Fleet's product style. A summary card states the
    verdict, then sections of bordered cards and Fleet-style tables. Color tokens
    use Fleet's UI names and values (frontend/styles/var/colors.scss), light on
-   :root and Fleet's dark-mode palette under the dark blocks. */
+   :root and Fleet's dark-mode palette under the dark blocks. The viewer stamps
+   data-theme with its own theme setting, so the page's Light / Dark / System
+   choice uses data-dex-theme and wins over it; System follows data-theme, then
+   the OS. */
 :root {
   --core-fleet-black: #192147;
   --core-fleet-white: #ffffff;
@@ -26,7 +29,7 @@
   --font-mono: "Source Code Pro", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  :root:not([data-theme="light"]):not([data-dex-theme="light"]) {
     --core-fleet-black: #e2e4ea; --core-fleet-white: #1a1c21; --core-fleet-green: #00c28b;
     --ui-fleet-black-75: #bebebf; --ui-fleet-black-50: #87888b; --ui-fleet-black-25: #42464f;
     --ui-fleet-black-10: #32363e; --ui-fleet-black-5: #25272d; --ui-off-white: #1e2128;
@@ -35,7 +38,7 @@
     color-scheme: dark;
   }
 }
-:root[data-theme="dark"] {
+:root[data-theme="dark"]:not([data-dex-theme="light"]), :root[data-dex-theme="dark"] {
   --core-fleet-black: #e2e4ea; --core-fleet-white: #1a1c21; --core-fleet-green: #00c28b;
   --ui-fleet-black-75: #bebebf; --ui-fleet-black-50: #87888b; --ui-fleet-black-25: #42464f;
   --ui-fleet-black-10: #32363e; --ui-fleet-black-5: #25272d; --ui-off-white: #1e2128;
@@ -43,7 +46,7 @@
   --bad: #c95e72; --serious: #9c6cd4; --warn: #b8892a; --info: #6d6bea; --good: #2f9c6b; --neutral: #4a4f5a;
   color-scheme: dark;
 }
-:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="light"]:not([data-dex-theme="dark"]), :root[data-dex-theme="light"] { color-scheme: light; }
 
 /* Short aliases the pages use. */
 :root {

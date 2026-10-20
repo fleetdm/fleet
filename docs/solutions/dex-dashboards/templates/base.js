@@ -116,14 +116,15 @@ function renderTop(fleets, onChange, counts = {}, unsupported = {}) {
 const inPlatform = (p) => !PLATFORM || p === PLATFORM;
 
 // Light, dark, or the viewer's system setting. "System" leaves the theme to
-// prefers-color-scheme and the viewer's own setting. The artifact viewer can
-// block or clear browser storage, so the choice is also kept in the viewer's
-// private record in the artifact's store (db + user capabilities; Viewers
-// can't write it and fall back to browser storage).
+// the viewer's own setting and prefers-color-scheme. The viewer owns
+// data-theme and re-stamps it, so the choice goes on data-dex-theme. The
+// viewer can also block or clear browser storage, so the choice is also kept
+// in the viewer's private record in the artifact's store (db + user
+// capabilities; Viewers can't write it and fall back to browser storage).
 const THEMES = [["light", "Light"], ["dark", "Dark"], ["", "System"]];
 function applyTheme(t) {
-  if (t) document.documentElement.setAttribute("data-theme", t);
-  else document.documentElement.removeAttribute("data-theme");
+  if (t) document.documentElement.setAttribute("data-dex-theme", t);
+  else document.documentElement.removeAttribute("data-dex-theme");
 }
 async function themeDoc() {
   const cl = window.claude;
