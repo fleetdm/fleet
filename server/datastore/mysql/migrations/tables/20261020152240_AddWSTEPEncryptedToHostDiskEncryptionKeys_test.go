@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20261019151819(t *testing.T) {
+func TestUp_20261020152240(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	newHost := func(name, platform string) int64 {
@@ -77,7 +77,7 @@ func TestUp_20261019151819(t *testing.T) {
 	// Rerunning the backfill on an already migrated schema changes nothing.
 	tx, err := db.Begin()
 	require.NoError(t, err)
-	require.NoError(t, Up_20261019151819(tx))
+	require.NoError(t, Up_20261020152240(tx))
 	require.NoError(t, tx.Commit())
 	require.True(t, marked("host_disk_encryption_keys", "host_id", windowsWithKey))
 	require.False(t, marked("host_disk_encryption_keys", "host_id", darwinWithKey))

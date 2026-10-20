@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261019151819, Down_20261019151819)
+	MigrationClient.AddMigration(Up_20261020152240, Down_20261020152240)
 }
 
-func Up_20261019151819(tx *sql.Tx) error {
+func Up_20261020152240(tx *sql.Tx) error {
 	// host_disk_encryption_keys.updated_at auto-updates and drives the host's disk encryption status, so the backfill
 	// pins it; the archive has no updated_at. An archived key outlives its host and can still be served to a host that
 	// re-enrolls with the same hardware serial, so archive rows without a host are marked by shape: DER from
@@ -63,6 +63,6 @@ func Up_20261019151819(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20261019151819(tx *sql.Tx) error {
+func Down_20261020152240(tx *sql.Tx) error {
 	return nil
 }
