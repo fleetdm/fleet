@@ -109,7 +109,7 @@ Use [`sync_applecare_coverage_to_fleet.py`](https://github.com/fleetdm/fleet/blo
 - `VITAL_NAME` (optional): the vital's name, if it isn't **AppleCare warranty expiration**
 - `DRY_RUN` (optional): set to `1` to print changes without writing them
 
-The script's header lists every setting. It never clears a value, so a device that's released from Apple Business keeps the last date the script wrote. It retries `429` and `5xx` responses twice, and stops on the first `401` or `403` from either API, because a missing permission fails every device the same way. If one device fails for another reason, it prints the error, moves on, and exits with an error when it's done. It doesn't follow redirects, so set `FLEET_URL` to your Fleet server's final `https://` address.
+The script's header lists every setting. It never clears a value, so a device that's released from Apple Business keeps the last date the script wrote. It retries `429` and `5xx` responses twice, and gets a new Apple token and retries once after a `401` from Apple. It stops on any other `401` or `403` from either API, because a missing permission fails every device the same way. If one device fails for another reason, it prints the error, moves on, and exits with an error when it's done. It doesn't follow redirects, so set `FLEET_URL` to your Fleet server's final `https://` address.
 
 > **Note:** Run a copy of the script that you've reviewed, not one that's fetched from GitHub at run time. The script handles both credentials, so treat changes to it like any other code change.
 

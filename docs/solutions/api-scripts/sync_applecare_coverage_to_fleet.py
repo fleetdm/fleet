@@ -112,40 +112,56 @@ class Apple:
         self.client_id, self.assertion = client_id, assertion
         self.token, self.fetched = None, 0
 
+    def refresh(self):
+        # Apple documents these parameters in the query string, not the body.
+        query = urllib.parse.urlencode({
+            "grant_type": "client_credentials",
+            "client_id": self.client_id,
+            "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+            "client_assertion": self.assertion,
+            "scope": "business.api",
+        })
+        try:
+            self.token = call("POST", f"{APPLE_TOKEN_URL}?{query}")["access_token"]
+        except (SyncError, KeyError) as e:
+            raise FatalError(f"Apple Business token request failed. If the API account's key was revoked, sign a new assertion. {e}")
+        self.fetched = time.time()
+
     def get(self, url):
         if not self.token or time.time() - self.fetched > TOKEN_MAX_AGE:
-            # Apple documents these parameters in the query string, not the body.
-            query = urllib.parse.urlencode({
-                "grant_type": "client_credentials",
-                "client_id": self.client_id,
-                "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
-                "client_assertion": self.assertion,
-                "scope": "business.api",
-            })
-            try:
-                self.token = call("POST", f"{APPLE_TOKEN_URL}?{query}")["access_token"]
-            except (SyncError, KeyError) as e:
-                raise FatalError(f"Apple Business token request failed. If the API account's key was revoked, sign a new assertion. {e}")
-            self.fetched = time.time()
-        return call("GET", url, self.token)
+            self.refresh()
+        try:
+            return call("GET", url, self.token)
+        except SyncError as e:
+            # Apple can reject a token before it expires and asks clients to get a new one on any 401.
+            if e.code != 401:
+                raise
+            self.refresh()
+            return call("GET", url, self.token)
+
+    def pages(self, url, what):
+        """Yields each page of a list, following links.next."""
+        for _ in range(MAX_PAGES):
+            page = self.get(url)
+            yield page
+            url = (page.get("links") or {}).get("next")
+            if not url:
+                return
+            if not url.startswith(APPLE_API_URL + "/"):
+                raise FatalError(f"Unexpected pagination URL, not sending the token there: {url}")
+        raise FatalError(f"Apple Business returned more than {MAX_PAGES} pages of {what}")
 
 
 def apple_devices(apple):
     """Returns {SERIAL: device ID} for devices that are still in the organization."""
-    devices, url = {}, f"{APPLE_API_URL}/orgDevices"
-    for _ in range(MAX_PAGES):
-        page = apple.get(url)
+    devices = {}
+    for page in apple.pages(f"{APPLE_API_URL}/orgDevices", "devices"):
         for d in page.get("data") or []:
             attrs = d.get("attributes") or {}
             serial = (attrs.get("serialNumber") or d.get("id") or "").strip().upper()
             if serial and d.get("id") and not attrs.get("releasedFromOrgDateTime"):
                 devices[serial] = d["id"]
-        url = (page.get("links") or {}).get("next")
-        if not url:
-            return devices
-        if not url.startswith(APPLE_API_URL + "/"):
-            raise FatalError(f"Unexpected pagination URL, not sending the token there: {url}")
-    raise FatalError(f"Apple Business returned more than {MAX_PAGES} pages of devices")
+    return devices
 
 
 def fleet_hosts_by_serial(fleet_url, token):
@@ -167,10 +183,11 @@ def coverage_end(apple, device_id):
     """Returns the latest end date (YYYY-MM-DD) across the device's non-canceled coverage, or None."""
     url = f"{APPLE_API_URL}/orgDevices/{urllib.parse.quote(device_id, safe='')}/appleCareCoverage"
     ends = []
-    for c in apple.get(url).get("data") or []:
-        attrs = c.get("attributes") or {}
-        if not attrs.get("isCanceled") and attrs.get("endDateTime"):
-            ends.append(attrs["endDateTime"][:10])
+    for page in apple.pages(url, "coverage"):
+        for c in page.get("data") or []:
+            attrs = c.get("attributes") or {}
+            if not attrs.get("isCanceled") and attrs.get("endDateTime"):
+                ends.append(attrs["endDateTime"][:10])
     return max(ends) if ends else None
 
 
@@ -211,7 +228,7 @@ def main():
                 print(f"{serial}: no dated coverage, skipped")
                 continue
             for host_id in hosts_by_serial[serial]:
-                host = call("GET", f"{fleet_url}/api/v1/fleet/hosts/{host_id}", fleet_token)["host"]
+                host = call("GET", f"{fleet_url}/api/v1/fleet/hosts/{host_id}?exclude_software=true", fleet_token)["host"]
                 vital = next((v for v in host.get("custom_host_vitals") or [] if v.get("name") == vital_name), None)
                 if vital is None:
                     raise FatalError(f"Custom host vital {vital_name!r} doesn't exist in Fleet")
