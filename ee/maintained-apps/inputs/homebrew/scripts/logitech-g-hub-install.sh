@@ -94,7 +94,7 @@ relaunch_application() {
 
 # The installer app downloads LGHUB from Logitech, so the host needs internet
 # access during installation.
-unzip -q "$INSTALLER_PATH" -d "$TMPDIR" || exit 1
+unzip -q -o "$INSTALLER_PATH" -d "$TMPDIR" || exit 1
 
 INSTALLER_BIN="$TMPDIR/lghub_installer.app/Contents/MacOS/lghub_installer"
 if [ ! -x "$INSTALLER_BIN" ]; then
