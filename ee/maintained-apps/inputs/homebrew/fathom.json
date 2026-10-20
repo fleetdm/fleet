@@ -1,0 +1,10 @@
+{
+  "name": "Fathom",
+  "unique_identifier": "video.fathom.electron",
+  "token": "fathom",
+  "installer_format": "dmg",
+  "slug": "fathom/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}
