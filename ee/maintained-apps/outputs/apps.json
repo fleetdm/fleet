@@ -1493,6 +1493,13 @@
       "description": "Canva is a popular online graphic design tool."
     },
     {
+      "name": "Cap",
+      "slug": "cap/darwin",
+      "platform": "darwin",
+      "unique_identifier": "so.cap.desktop",
+      "description": "Cap is screen recording software."
+    },
+    {
       "name": "CapCut",
       "slug": "capcut/darwin",
       "platform": "darwin",
