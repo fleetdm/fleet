@@ -200,7 +200,7 @@ const WelcomeHost = ({
             <Icon name="disable" color="status-error" />
             Your device is not communicating with Fleet.
           </p>
-          <p>Join the #fleet Slack channel for help troubleshooting.</p>
+          <p>Contact Fleet support for help troubleshooting.</p>
           <CustomLink url={SUPPORT_LINK} text="Get help" newTab />
         </div>
       </div>
@@ -215,7 +215,7 @@ const WelcomeHost = ({
             <Icon name="disable" color="status-error" />
             No policies apply to your device.
           </p>
-          <p>Join the #fleet Slack channel for help troubleshooting.</p>
+          <p>Contact Fleet support for help troubleshooting.</p>
           <CustomLink url={SUPPORT_LINK} text="Get help" newTab />
         </div>
       </div>
