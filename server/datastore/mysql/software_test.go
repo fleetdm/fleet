@@ -3479,21 +3479,59 @@ func testAllSoftwareIterator(t *testing.T, ds *Datastore) {
 		},
 	}
 
-	for _, tC := range testCases {
-		t.Run(tC.name, func(t *testing.T) {
-			var actual []fleet.Software
+	// A page size of 2 splits most cases across several pages, including ones that end on a full page.
+	for _, pageSize := range []int{softwareIteratorPageSize, 2} {
+		t.Run(fmt.Sprintf("page size %d", pageSize), func(t *testing.T) {
+			orig := softwareIteratorPageSize
+			softwareIteratorPageSize = pageSize
+			t.Cleanup(func() { softwareIteratorPageSize = orig })
 
-			iter, err := ds.AllSoftwareIterator(context.Background(), tC.q)
-			require.NoError(t, err)
-			for iter.Next() {
-				software, err := iter.Value()
-				require.NoError(t, err)
-				actual = append(actual, *software)
+			for _, tC := range testCases {
+				t.Run(tC.name, func(t *testing.T) {
+					var actual []fleet.Software
+
+					iter, err := ds.AllSoftwareIterator(t.Context(), tC.q)
+					require.NoError(t, err)
+					for iter.Next() {
+						software, err := iter.Value()
+						require.NoError(t, err)
+						actual = append(actual, *software)
+					}
+					require.NoError(t, iter.Err())
+					require.NoError(t, iter.Close())
+					test.ElementsMatchSkipID(t, tC.expected, actual)
+				})
 			}
-			iter.Close()
-			test.ElementsMatchSkipID(t, tC.expected, actual)
 		})
 	}
+
+	t.Run("software deleted after ids are loaded", func(t *testing.T) {
+		orig := softwareIteratorPageSize
+		softwareIteratorPageSize = 2
+		t.Cleanup(func() { softwareIteratorPageSize = orig })
+
+		iter, err := ds.AllSoftwareIterator(t.Context(), fleet.SoftwareIterQueryOptions{IncludedSources: []string{"chrome_extensions"}})
+		require.NoError(t, err)
+
+		// Empties the first page, so iteration must move past it to reach the rest.
+		var remainingIDs []uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(t.Context(), `DELETE FROM software WHERE source = 'chrome_extensions' ORDER BY id LIMIT 2`); err != nil {
+				return err
+			}
+			return sqlx.SelectContext(t.Context(), q, &remainingIDs, `SELECT id FROM software WHERE source = 'chrome_extensions'`)
+		})
+		require.Len(t, remainingIDs, 2)
+
+		var actualIDs []uint
+		for iter.Next() {
+			software, err := iter.Value()
+			require.NoError(t, err)
+			actualIDs = append(actualIDs, software.ID)
+		}
+		require.NoError(t, iter.Err())
+		require.ElementsMatch(t, remainingIDs, actualIDs)
+	})
 }
 
 func testSoftwareIteratorForLinuxKernelCustomImages(t *testing.T, ds *Datastore) {
