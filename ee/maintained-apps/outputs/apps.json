@@ -4104,6 +4104,13 @@
       "description": "HandBrake is an open-source video transcoder."
     },
     {
+      "name": "Handy",
+      "slug": "handy/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.pais.handy",
+      "description": "Handy is a speech to text application."
+    },
+    {
       "name": "Harmony SASE",
       "slug": "harmony-sase/darwin",
       "platform": "darwin",

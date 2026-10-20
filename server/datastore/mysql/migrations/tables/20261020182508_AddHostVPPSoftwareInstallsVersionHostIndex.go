@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261020163148, Down_20261020163148)
+	MigrationClient.AddMigration(Up_20261020182508, Down_20261020182508)
 }
 
-func Up_20261020163148(tx *sql.Tx) error {
+func Up_20261020182508(tx *sql.Tx) error {
 	if indexExistsTx(tx, "host_vpp_software_installs", "idx_host_vpp_software_installs_version_host_id") {
 		return nil
 	}
@@ -24,6 +24,6 @@ func Up_20261020163148(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20261020163148(tx *sql.Tx) error {
+func Down_20261020182508(tx *sql.Tx) error {
 	return nil
 }

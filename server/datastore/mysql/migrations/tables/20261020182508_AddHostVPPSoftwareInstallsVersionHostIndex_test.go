@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20261020163148(t *testing.T) {
+func TestUp_20261020182508(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	hostID := execNoErrLastID(t, db, `INSERT INTO hosts (osquery_host_id, node_key, hostname, uuid) VALUES ('host-1', 'host-1', 'host-1', 'host-1')`)
@@ -38,7 +38,7 @@ func TestUp_20261020163148(t *testing.T) {
 	// run the migration again, the indexes should be unchanged
 	tx, err := db.Begin()
 	require.NoError(t, err)
-	require.NoError(t, Up_20261020163148(tx))
+	require.NoError(t, Up_20261020182508(tx))
 	require.NoError(t, tx.Commit())
 	require.Equal(t, []string{"vpp_app_team_id", "host_id", "canceled", "removed", "id", "verification_at", "verification_failed_at"},
 		indexColumns(t, db, "host_vpp_software_installs", "idx_host_vpp_software_installs_version_host_id"))
