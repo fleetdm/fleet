@@ -59,10 +59,11 @@ const renderAccordion = (overrides: Partial<ILibraryItemAccordionProps> = {}) =>
 
 describe("LibraryItemAccordion", () => {
   describe("collapsed header", () => {
-    it("renders the filename and version", () => {
+    it("renders the filename, version, and added timestamp", () => {
       renderAccordion();
       expect(screen.getByText("GoogleChrome.pkg")).toBeVisible();
       expect(screen.getByText(/149\.0\.7827\.54/)).toBeVisible();
+      expect(screen.getByText(/^Added /)).toBeVisible();
     });
 
     it("does not render the expanded panel by default", () => {
@@ -761,11 +762,10 @@ describe("LibraryItemAccordion", () => {
         /configuration failed to apply/i
       );
 
-      // Info-outline tooltip collapses to a Play Store one-liner on Android.
       await expectInfoTooltip(
         user,
         container,
-        /latest status from the Google Play Store/i
+        /latest status from setup experience\. doesn't include apps installed via self service\./i
       );
     });
   });

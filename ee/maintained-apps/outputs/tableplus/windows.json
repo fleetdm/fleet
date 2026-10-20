@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "26.10.16",
+      "version": "27.1.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'TablePlus%' AND publisher = 'TablePlus, Inc';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'TablePlus%' AND publisher = 'TablePlus, Inc' AND version_compare(version, '26.10.16') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'TablePlus%' AND publisher = 'TablePlus, Inc' AND version_compare(version, '27.1.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'tableplus.exe');"
       },
-      "installer_url": "https://files.tableplus.com/windows/26.10.16/TablePlusSetup.exe",
+      "installer_url": "https://files.tableplus.com/windows/27.1.0/TablePlusSetup.exe",
       "install_script_ref": "052dc935",
       "uninstall_script_ref": "8bfcecd6",
-      "sha256": "4710c8d93ff7ff2431b6d990941eddbe3dd601e3210cf357cf4216c835616b7e",
+      "sha256": "2cc7e0baa742ffe61d73080a79f1c78db6b73004078febca7c70ed5cb158d1af",
       "default_categories": [
         "Developer tools"
       ]

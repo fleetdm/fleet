@@ -286,7 +286,6 @@ import DBeaverLite from "./png/DBeaverLite.png";
 import DBeaverUltimate from "./png/DBeaverUltimate.png";
 import Dbgate from "./png/Dbgate.png";
 import Dbvisualizer from "./png/Dbvisualizer.png";
-import Debookee from "./png/Debookee.png";
 import Deckset from "./png/Deckset.png";
 import DeepL from "./png/DeepL.png";
 import Deezer from "./png/Deezer.png";
@@ -388,6 +387,7 @@ import Far2L from "./png/Far2L.png";
 import Farrago from "./png/Farrago.png";
 import Fastmail from "./png/Fastmail.png";
 import Fastscripts from "./png/Fastscripts.png";
+import Fathom from "./png/Fathom.png";
 import Fellow from "./png/Fellow.png";
 import Ferdium from "./png/Ferdium.png";
 import FetchApp from "./png/FetchApp.png";
@@ -449,6 +449,7 @@ import Gimp from "./png/Gimp.png";
 import Git from "./png/Git.png";
 import GitExtensions from "./png/GitExtensions.png";
 import Gitfinder from "./png/Gitfinder.png";
+import GitHubCopilot from "./png/GitHubCopilot.png";
 import GithubCopilotForXcode from "./png/GithubCopilotForXcode.png";
 import GitHubDesktop from "./png/GitHubDesktop.png";
 import Gitify from "./png/Gitify.png";
@@ -485,6 +486,7 @@ import GrooveOmniDialer from "./png/GrooveOmniDialer.png";
 import Gyazo from "./png/Gyazo.png";
 import Hammerspoon from "./png/Hammerspoon.png";
 import HandbrakeApp from "./png/HandbrakeApp.png";
+import Handy from "./png/Handy.png";
 import HarmonySase from "./png/HarmonySase.png";
 import Hazel from "./png/Hazel.png";
 import Hazeover from "./png/Hazeover.png";
@@ -498,6 +500,7 @@ import Hidock from "./png/Hidock.png";
 import HighlightAi from "./png/HighlightAi.png";
 import HiveApp from "./png/HiveApp.png";
 import HomeAssistant from "./png/HomeAssistant.png";
+import Homebrew from "./png/Homebrew.png";
 import Homerow from "./png/Homerow.png";
 import Hot from "./png/Hot.png";
 import Houdahspot from "./png/Houdahspot.png";
@@ -880,7 +883,6 @@ import Retrobatch from "./png/Retrobatch.png";
 import Rewritebar from "./png/Rewritebar.png";
 import Rider from "./png/Rider.png";
 import Rightfont from "./png/Rightfont.png";
-import Ringcentral from "./png/Ringcentral.png";
 import Rive from "./png/Rive.png";
 import Rize from "./png/Rize.png";
 import Robofont from "./png/Robofont.png";
@@ -987,6 +989,7 @@ import SublimeMerge from "./png/SublimeMerge.png";
 import SublimeText from "./png/SublimeText.png";
 import Supercollider from "./png/Supercollider.png";
 import Superhuman from "./png/Superhuman.png";
+import SuperhumanDocs from "./png/SuperhumanDocs.png";
 import Superkey from "./png/Superkey.png";
 import SuperProductivity from "./png/SuperProductivity.png";
 import Superwhisper from "./png/Superwhisper.png";
@@ -1449,7 +1452,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   dbeaverultimate: DBeaverUltimate,
   dbgate: Dbgate,
   dbvisualizer: Dbvisualizer,
-  debookee: Debookee,
   deckset: Deckset,
   deepl: DeepL,
   deezer: Deezer,
@@ -1558,6 +1560,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   farrago: Farrago,
   fastmail: Fastmail,
   fastscripts: Fastscripts,
+  fathom: Fathom,
   fellow: Fellow,
   ferdium: Ferdium,
   fetch: FetchApp,
@@ -1614,6 +1617,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   git: Git,
   "git extensions": GitExtensions,
   gitfinder: Gitfinder,
+  "github copilot": GitHubCopilot,
   "github copilot for xcode": GithubCopilotForXcode,
   "github desktop": GitHubDesktop,
   gitify: Gitify,
@@ -1654,6 +1658,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "groove omnidialer": GrooveOmniDialer,
   hammerspoon: Hammerspoon,
   handbrake: HandbrakeApp,
+  handy: Handy,
   "harmony sase": HarmonySase,
   hazel: Hazel,
   hazeover: Hazeover,
@@ -1667,6 +1672,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   highlight: HighlightAi,
   hive: HiveApp,
   "home assistant": HomeAssistant,
+  homebrew: Homebrew,
   homerow: Homerow,
   hot: Hot,
   houdahspot: Houdahspot,
@@ -2067,7 +2073,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   rewritebar: Rewritebar,
   rider: Rider,
   rightfont: Rightfont,
-  ringcentral: Ringcentral,
   rive: Rive,
   rize: Rize,
   robofont: Robofont,
@@ -2178,6 +2183,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "super productivity": SuperProductivity,
   supercollider: Supercollider,
   superhuman: Superhuman,
+  "superhuman docs": SuperhumanDocs,
   superkey: Superkey,
   superwhisper: Superwhisper,
   "support companion": Supportcompanion,

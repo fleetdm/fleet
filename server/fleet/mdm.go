@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
@@ -78,6 +79,7 @@ const (
 	FleetVarHostEndUserIDPGroups            FleetVarName = "HOST_END_USER_IDP_GROUPS"
 	FleetVarHostEndUserIDPDepartment        FleetVarName = "HOST_END_USER_IDP_DEPARTMENT"
 	FleetVarHostEndUserIDPFullname          FleetVarName = "HOST_END_USER_IDP_FULL_NAME"
+	FleetVarHostEndUserIDPExternalID        FleetVarName = "HOST_END_USER_IDP_EXTERNAL_ID"
 	FleetVarHostUUID                        FleetVarName = "HOST_UUID"
 	FleetVarHostPlatform                    FleetVarName = "HOST_PLATFORM"
 
@@ -103,6 +105,11 @@ const (
 	// the /mdm/commands endpoint).
 	FleetVarPSSODeviceRegistrationToken FleetVarName = "PSSO_DEVICE_REGISTRATION_TOKEN" // nolint:gosec // G101: variable name, not a credential
 
+	// FleetVarSilentMigrationSCEPChallenge marks the SCEP challenge in the FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE
+	// env profile. It's replaced with the SCEP challenge host secret when renewals are sent, and is deliberately
+	// absent from the variables allowed in configuration profiles, so uploads can't get an enrollment challenge.
+	FleetVarSilentMigrationSCEPChallenge FleetVarName = "SILENT_MIGRATION_SCEP_CHALLENGE" // nolint:gosec // G101: variable name, not a credential
+
 	// Certificate authority variables
 	FleetVarNDESSCEPChallenge            FleetVarName = "NDES_SCEP_CHALLENGE"
 	FleetVarNDESSCEPProxyURL             FleetVarName = "NDES_SCEP_PROXY_URL"
@@ -110,6 +117,8 @@ const (
 	FleetVarCertificateRenewalID         FleetVarName = "CERTIFICATE_RENEWAL_ID"
 	FleetVarDigiCertDataPrefix           FleetVarName = "DIGICERT_DATA_"
 	FleetVarDigiCertPasswordPrefix       FleetVarName = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
+	FleetVarEJBCADataPrefix              FleetVarName = "EJBCA_DATA_"
+	FleetVarEJBCAPasswordPrefix          FleetVarName = "EJBCA_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
 	FleetVarCustomSCEPChallengePrefix    FleetVarName = "CUSTOM_SCEP_CHALLENGE_"
 	FleetVarCustomSCEPProxyURLPrefix     FleetVarName = "CUSTOM_SCEP_PROXY_URL_"
 	FleetVarSmallstepSCEPChallengePrefix FleetVarName = "SMALLSTEP_SCEP_CHALLENGE_"
@@ -132,6 +141,7 @@ func HasCAVariables(fleetVars []string) bool {
 		if v == string(FleetVarNDESSCEPChallenge) || v == string(FleetVarNDESSCEPProxyURL) ||
 			v == string(FleetVarSCEPRenewalID) || v == string(FleetVarCertificateRenewalID) || v == string(FleetVarSCEPWindowsCertificateID) ||
 			strings.HasPrefix(v, string(FleetVarDigiCertDataPrefix)) || strings.HasPrefix(v, string(FleetVarDigiCertPasswordPrefix)) ||
+			strings.HasPrefix(v, string(FleetVarEJBCADataPrefix)) || strings.HasPrefix(v, string(FleetVarEJBCAPasswordPrefix)) ||
 			strings.HasPrefix(v, string(FleetVarCustomSCEPChallengePrefix)) || strings.HasPrefix(v, string(FleetVarCustomSCEPProxyURLPrefix)) ||
 			strings.HasPrefix(v, string(FleetVarSmallstepSCEPChallengePrefix)) || strings.HasPrefix(v, string(FleetVarSmallstepSCEPProxyURLPrefix)) {
 			return true
@@ -150,6 +160,7 @@ var (
 	FleetVarNDESSCEPChallengeRegexp               = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarNDESSCEPChallenge))
 	FleetVarNDESSCEPProxyURLRegexp                = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarNDESSCEPProxyURL))
 	FleetVarHostEndUserIDPFullnameRegexp          = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPFullname))
+	FleetVarHostEndUserIDPExternalIDRegexp        = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPExternalID))
 	FleetVarCertificateRenewalIDRegexp            = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarCertificateRenewalID))
 	// FleetVarRenewalIDRegexp matches either the preferred CERTIFICATE_RENEWAL_ID
 	// or the legacy SCEP_RENEWAL_ID name. Use this for validation checks where
@@ -174,7 +185,16 @@ var (
 		FleetVarHostEndUserIDPGroups,
 		FleetVarHostEndUserIDPDepartment,
 		FleetVarHostEndUserIDPFullname,
+		FleetVarHostEndUserIDPExternalID,
 	}
+	// FleetVarsSupportedInDigiCert lists the variables allowed in a DigiCert CA's common name, seat ID, and UPN.
+	// The IdP variables come from IDPFleetVariables because that's the list the CA field substitution resolves.
+	FleetVarsSupportedInDigiCert = slices.Concat([]FleetVarName{
+		FleetVarHostEndUserEmailIDP,
+		FleetVarHostHardwareSerial,
+		FleetVarHostPlatform,
+		FleetVarHostUUID,
+	}, IDPFleetVariables)
 )
 
 type AppleMDM struct {
@@ -307,6 +327,46 @@ func (bp *MDMAppleBootstrapPackage) URL(host string) (string, error) {
 	return pkgURL.String(), nil
 }
 
+// MDMEULAPlatform is a platform that can have its own EULA.
+type MDMEULAPlatform string
+
+const (
+	MDMEULAPlatformDarwin  MDMEULAPlatform = "darwin"
+	MDMEULAPlatformWindows MDMEULAPlatform = "windows"
+)
+
+// Validated returns the platform an EULA request acts on. Empty means darwin,
+// so clients from before Windows EULAs keep working.
+func (p MDMEULAPlatform) Validated() (MDMEULAPlatform, error) {
+	switch p {
+	case "":
+		return MDMEULAPlatformDarwin, nil
+	case MDMEULAPlatformDarwin, MDMEULAPlatformWindows:
+		return p, nil
+	default:
+		return "", NewInvalidArgumentError("platform", `must be "darwin" or "windows"`)
+	}
+}
+
+// ValidateEULAPlatform returns the platform an EULA request acts on, once
+// that platform's MDM is turned on. The EULA routes serve both platforms, so
+// route middleware can't check the MDM; the free and Premium builds share this.
+func ValidateEULAPlatform(ctx context.Context, svc Service, platform MDMEULAPlatform) (MDMEULAPlatform, error) {
+	platform, err := platform.Validated()
+	if err != nil {
+		return "", err
+	}
+	if platform == MDMEULAPlatformWindows {
+		err = svc.VerifyMDMWindowsConfigured(ctx)
+	} else {
+		err = svc.VerifyMDMAppleConfigured(ctx) // Validated leaves only darwin
+	}
+	if err != nil {
+		return "", err
+	}
+	return platform, nil
+}
+
 // MDMEULA represents an EULA (End User License Agreement) file.
 type MDMEULA struct {
 	Name      string    `json:"name"`
@@ -314,10 +374,58 @@ type MDMEULA struct {
 	Sha256    []byte    `json:"sha256" db:"sha256"`
 	Token     string    `json:"token"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	// Platform is reported in metadata, since the endpoints serve both.
+	Platform MDMEULAPlatform `json:"platform,omitempty" db:"platform"`
 }
 
+// MDMEULAMetadataLookup is the cached result of looking up a platform's EULA
+// metadata. A nil EULA records that none is uploaded: that is the usual answer,
+// and caching it is what keeps the Windows terms page off the database.
+type MDMEULAMetadataLookup struct {
+	EULA *MDMEULA
+}
+
+// Clone implements Cloner.
+func (l *MDMEULAMetadataLookup) Clone() (Cloner, error) {
+	clone := &MDMEULAMetadataLookup{}
+	if l.EULA != nil {
+		eula := *l.EULA
+		eula.Bytes = bytes.Clone(l.EULA.Bytes)
+		eula.Sha256 = bytes.Clone(l.EULA.Sha256)
+		clone.EULA = &eula
+	}
+	return clone, nil
+}
+
+// MaxEULAFileNameLength matches the eulas.name column, varchar(255).
+const MaxEULAFileNameLength = 255
+
+// MDMEULADefaultDarwinFileName names a macOS EULA whose uploaded name has nothing usable left after sanitizing. The
+// content is always a PDF, so the extension holds.
+const MDMEULADefaultDarwinFileName = "eula.pdf"
+
+// AuthzType is the same for every platform: their EULAs have the same access.
 func (e MDMEULA) AuthzType() string {
-	return "mdm_apple_eula"
+	return "mdm_eula"
+}
+
+// SanitizeEULAFileName returns the last element of an uploaded EULA file name,
+// splitting on both "/" and "\", without control or format characters (such as
+// a right-to-left override that disguises the extension). fleetctl
+// generate-gitops writes the stored name to disk on any OS, so it must not
+// carry a path. It returns "" when nothing usable is left.
+func SanitizeEULAFileName(name string) string {
+	name = name[strings.LastIndexAny(name, `/\`)+1:]
+	name = strings.TrimSpace(strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
+			return -1
+		}
+		return r
+	}, name))
+	if name == "." || name == ".." {
+		return ""
+	}
+	return name
 }
 
 // ExpectedMDMProfile represents an MDM profile that is expected to be installed on a host.

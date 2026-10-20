@@ -1074,6 +1074,27 @@ func TestDetailQueriesOSVersionChrome(t *testing.T) {
 	assert.Equal(t, "chromeos 1.3.3.7", host.OSVersion)
 }
 
+func TestDetailQueriesUptimeChrome(t *testing.T) {
+	query := GetDetailQueries(t.Context(), config.FleetConfig{}, nil, nil, Integrations{}, nil)["uptime"]
+	assert.Contains(t, query.Platforms, "chrome")
+
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, nil))
+	host := fleet.Host{Platform: "chrome"}
+
+	require.NoError(t, query.IngestFunc(t.Context(), logger, &host, nil))
+	assert.Zero(t, host.Uptime)
+	assert.True(t, host.LastRestartedAt.IsZero())
+	assert.Empty(t, logs.String())
+
+	before := time.Now()
+	require.NoError(t, query.IngestFunc(t.Context(), logger, &host, []map[string]string{{"total_seconds": "3600"}}))
+	after := time.Now()
+	assert.Equal(t, time.Hour, host.Uptime)
+	assert.False(t, host.LastRestartedAt.Before(before.Add(-time.Hour)))
+	assert.False(t, host.LastRestartedAt.After(after.Add(-time.Hour)))
+}
+
 func TestDirectIngestMDMMac(t *testing.T) {
 	ds := new(mock.Store)
 	var host fleet.Host
@@ -2385,6 +2406,29 @@ func TestDirectIngestSoftware(t *testing.T) {
 
 		ds.UpdateHostSoftwareFuncInvoked = false
 	})
+
+	t.Run("rpm epoch", func(t *testing.T) {
+		data := []map[string]string{
+			{"name": "mod_ssl", "version": "2.4.62", "release": "13.el9_8.6", "arch": "x86_64", "source": "rpm_packages", "epoch": "1"},
+			{"name": "httpd", "version": "2.4.62", "release": "13.el9_8.6", "arch": "x86_64", "source": "rpm_packages", "epoch": ""},
+		}
+
+		var got []fleet.Software
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+			got = software
+			return nil, nil
+		}
+		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
+			return nil
+		}
+
+		require.NoError(t, directIngestSoftware(ctx, logger, &host, ds, data))
+		epochs := map[string]*uint32{}
+		for _, sw := range got {
+			epochs[sw.Name] = sw.Epoch
+		}
+		require.Equal(t, map[string]*uint32{"mod_ssl": new(uint32(1)), "httpd": nil}, epochs)
+	})
 }
 
 func TestDirectIngestUsersManagedLocalAccount(t *testing.T) {
@@ -2764,8 +2808,8 @@ func TestDirectIngestDiskEncryptionKeyDarwinSameKeyNewEnvelope(t *testing.T) {
 		ds.GetAllMDMConfigAssetsByNameIncludingDeletedFunc = func(ctx context.Context, _ []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error) {
 			return []fleet.MDMConfigAsset{{Name: fleet.MDMAssetCACert, Value: caCertPEM}}, nil
 		}
-		ds.ReplaceHostDiskEncryptionKeyBlobFunc = func(ctx context.Context, hostID uint, currentBase64Encrypted, newBase64Encrypted string) error {
-			return nil
+		ds.ReplaceHostDiskEncryptionKeyBlobFunc = func(ctx context.Context, hostID uint, currentBase64Encrypted, newBase64Encrypted string) (bool, error) {
+			return true, nil
 		}
 		ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, h *fleet.Host, key, clientError string, decryptable *bool) (bool, error) {
 			return true, nil
@@ -2794,10 +2838,10 @@ func TestDirectIngestDiskEncryptionKeyDarwinSameKeyNewEnvelope(t *testing.T) {
 				ds := newDS(&fleet.HostDiskEncryptionKey{Base64Encrypted: storedBlob, Decryptable: new(true)})
 				incoming := encrypt("AAAA-BBBB")
 				var replaced string
-				ds.ReplaceHostDiskEncryptionKeyBlobFunc = func(ctx context.Context, hostID uint, currentBase64Encrypted, newBase64Encrypted string) error {
+				ds.ReplaceHostDiskEncryptionKeyBlobFunc = func(ctx context.Context, hostID uint, currentBase64Encrypted, newBase64Encrypted string) (bool, error) {
 					require.Equal(t, storedBlob, currentBase64Encrypted, "the swap is conditional on the compared blob")
 					replaced = newBase64Encrypted
-					return nil
+					return true, nil
 				}
 				h := newHost()
 				require.NoError(t, tc.ingest(ctx, logger, h, ds, tc.rows(incoming)))
@@ -5586,6 +5630,40 @@ func TestLinkWindowsHostMDMEnrollmentReleasesUnusedInstallSecret(t *testing.T) {
 			_, err := LinkWindowsHostMDMEnrollment(t.Context(), slog.New(slog.DiscardHandler), ds, 1, "host-uuid", "device-1", tc.fleetdOnDevice)
 			require.NoError(t, err)
 			require.Equal(t, tc.wantDeleted, ds.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFuncInvoked)
+		})
+	}
+}
+
+// An Autopilot device that enrolled as a host other than its pending one becomes identifiable when its enrollment is linked, which
+// is when its Autopilot record moves to that host.
+func TestLinkWindowsHostMDMEnrollmentMovesAutopilotRecord(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		ztdID    string
+		moveErr  error
+		wantMove bool
+	}{
+		{name: "an enrollment carrying an Autopilot device ID", ztdID: "ap-1", wantMove: true},
+		{name: "a move failure does not fail the link", ztdID: "ap-1", moveErr: errors.New("db unavailable"), wantMove: true},
+		{name: "an enrollment without an Autopilot device ID", ztdID: ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// A self-deploying enrollment has no UPN, which must not skip the move.
+			ds := newLinkWindowsHostMDMEnrollmentStore(&fleet.MDMWindowsEnrolledDevice{
+				ZTDRegistrationID: tc.ztdID, EntraDeviceID: "entra-1",
+			})
+			ds.MoveWindowsAutopilotRecordToHostFunc = func(ctx context.Context, hostID uint, autopilotDeviceID, entraDeviceID string) (bool, error) {
+				assert.EqualValues(t, 1, hostID)
+				assert.Equal(t, tc.ztdID, autopilotDeviceID)
+				assert.Equal(t, "entra-1", entraDeviceID)
+				return tc.moveErr == nil, tc.moveErr
+			}
+
+			_, err := LinkWindowsHostMDMEnrollment(t.Context(), slog.New(slog.DiscardHandler), ds, 1, "host-uuid", "device-1", false)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantMove, ds.MoveWindowsAutopilotRecordToHostFuncInvoked)
 		})
 	}
 }

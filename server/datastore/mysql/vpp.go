@@ -229,9 +229,12 @@ upcoming AS (
 		FROM
 			upcoming_activities ua
 			JOIN vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
+			JOIN vpp_apps_teams vat ON vat.id = vaua.vpp_app_team_id
+			JOIN hosts h ON ua.host_id = h.id
 		WHERE
 			ua.activity_type = 'vpp_app_install'
 			AND vaua.vpp_app_team_id = :vpp_app_team_id
+			AND COALESCE(h.team_id, 0) = vat.global_or_team_id
 	) ranked
 	WHERE rn = 1
 ),
@@ -269,8 +272,10 @@ past AS (
 		FROM
 			host_vpp_software_installs hvsi
 			JOIN hosts h ON hvsi.host_id = h.id
+			JOIN vpp_apps_teams vat ON vat.id = hvsi.vpp_app_team_id
 		WHERE
 			hvsi.vpp_app_team_id = :vpp_app_team_id
+			AND COALESCE(h.team_id, 0) = vat.global_or_team_id
 			AND hvsi.removed = 0
 			AND hvsi.canceled = 0
 	) ranked
@@ -2728,7 +2733,8 @@ SELECT
 	ncr.status AS install_command_status,
 	va.bundle_identifier AS bundle_identifier,
 	va.latest_version AS expected_version,
-	hvsi.retry_count AS retry_count
+	hvsi.retry_count AS retry_count,
+	hvsi.policy_id AS policy_id
 FROM nano_command_results ncr
 JOIN host_vpp_software_installs hvsi ON hvsi.command_uuid = ncr.command_uuid
 JOIN vpp_apps va ON va.adam_id = hvsi.adam_id AND va.platform = hvsi.platform
@@ -2878,6 +2884,7 @@ JOIN
 WHERE ua.activity_type = ? AND hihs.verification_failed_at IS NULL AND hihs.verification_at IS NULL
 `
 
+	// Skip host_policy_automation_run_counts for these installs, no activity is written for them so the automation runs list doesn't show them either.
 	installVPPFailStmt := `
 UPDATE host_vpp_software_installs
 SET verification_failed_at = CURRENT_TIMESTAMP(6)
@@ -2927,6 +2934,7 @@ func (ds *Datastore) MarkAllPendingAndroidVPPInstallsAsFailed(ctx context.Contex
 	// platforms. Currently, only VPP installs in host_vpp_software_installs
 	// can be Android.
 
+	// Skip host_policy_automation_run_counts for these installs, no activity is written for them so the automation runs list doesn't show them either.
 	installVPPFailStmt := `
 UPDATE host_vpp_software_installs
 SET verification_failed_at = CURRENT_TIMESTAMP(6)
@@ -3036,6 +3044,12 @@ WHERE
 			}
 			users = append(users, user)
 			activities = append(activities, actAppStore)
+			if actAppStore.PolicyID != nil {
+				err = incrementHostPolicyAutomationRunCountDB(ctx, tx, *actAppStore.PolicyID, actAppStore.HostID, actAppStore, false)
+				if err != nil {
+					return nil, nil, err
+				}
+			}
 		} else if actInHouse != nil {
 			users = append(users, user)
 			activities = append(activities, actInHouse)

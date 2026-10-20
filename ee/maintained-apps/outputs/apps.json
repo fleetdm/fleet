@@ -61,7 +61,7 @@
       "name": "4K Video Downloader",
       "slug": "4k-video-downloader/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.4kdownload.ApplicationDirectories",
+      "unique_identifier": "com.openmedia.4kvideodownloader",
       "description": "4K Video Downloader is a free video downloader."
     },
     {
@@ -76,7 +76,7 @@
       "slug": "4k-youtube-to-mp3/darwin",
       "platform": "darwin",
       "unique_identifier": "com.openmedia.4kyoutubetomp3",
-      "description": "4K YouTube to MP3 is a turn YouTube links into MP3 files."
+      "description": "4K YouTube to MP3 is a tool to turn YouTube links into MP3 files."
     },
     {
       "name": "7-zip",
@@ -2389,13 +2389,6 @@
       "description": "DCV Viewer is used for connecting to the NICE DCV remote display protocol."
     },
     {
-      "name": "Debookee",
-      "slug": "debookee/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.iwaxx.Debookee",
-      "description": "Debookee is a network traffic analyser."
-    },
-    {
       "name": "Deckset",
       "slug": "deckset/darwin",
       "platform": "darwin",
@@ -3243,6 +3236,13 @@
       "description": "FastScripts is a tool for running time-saving scripts."
     },
     {
+      "name": "Fathom",
+      "slug": "fathom/darwin",
+      "platform": "darwin",
+      "unique_identifier": "video.fathom.electron",
+      "description": "Fathom is a tool for recording and transcribing video conferences."
+    },
+    {
       "name": "Fellow",
       "slug": "fellow/darwin",
       "platform": "darwin",
@@ -3512,7 +3512,7 @@
       "name": "ForkLift",
       "slug": "forklift/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.binarynights.ForkLift-4",
+      "unique_identifier": "com.binarynights.ForkLift",
       "description": "ForkLift is a finder replacement and FTP, SFTP, WebDAV and Amazon s3 client."
     },
     {
@@ -3745,6 +3745,13 @@
       "platform": "darwin",
       "unique_identifier": "ag.zigz.GitFinder",
       "description": "GitFinder is a git client with Finder integration."
+    },
+    {
+      "name": "GitHub Copilot",
+      "slug": "github-copilot-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.github.githubapp",
+      "description": "GitHub Copilot is a native desktop app for working with the GitHub Copilot AI coding agent."
     },
     {
       "name": "GitHub Copilot for Xcode",
@@ -4097,6 +4104,13 @@
       "description": "HandBrake is an open-source video transcoder."
     },
     {
+      "name": "Handy",
+      "slug": "handy/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.pais.handy",
+      "description": "Handy is a speech to text application."
+    },
+    {
       "name": "Harmony SASE",
       "slug": "harmony-sase/darwin",
       "platform": "darwin",
@@ -4186,6 +4200,13 @@
       "platform": "darwin",
       "unique_identifier": "io.robbie.HomeAssistant",
       "description": "Home Assistant is a companion app for Home Assistant home automation software."
+    },
+    {
+      "name": "Homebrew",
+      "slug": "homebrew-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "sh.brew.app",
+      "description": "Homebrew is the official graphical app for managing Homebrew packages."
     },
     {
       "name": "Homerow",
@@ -5381,7 +5402,7 @@
       "name": "Mellel",
       "slug": "mellel/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.redlex.mellel6",
+      "unique_identifier": "com.redlex.mellel.mac",
       "description": "Mellel is an advanced word processor built for long and complex documents."
     },
     {
@@ -7499,13 +7520,6 @@
       "description": "RightFont is a font manager that helps preview, install, sync and manage fonts."
     },
     {
-      "name": "RingCentral",
-      "slug": "ringcentral/windows",
-      "platform": "windows",
-      "unique_identifier": "RingCentral",
-      "description": "RingCentral is an app for business phone calls, messaging, and video meetings."
-    },
-    {
       "name": "Rive",
       "slug": "rive/darwin",
       "platform": "darwin",
@@ -8400,6 +8414,13 @@
       "platform": "windows",
       "unique_identifier": "SuperCollider",
       "description": "SuperCollider is a server, language, and IDE for sound synthesis and algorithmic composition."
+    },
+    {
+      "name": "Superhuman Docs",
+      "slug": "superhuman-docs/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.superhuman.CodaApp.Desktop",
+      "description": "Superhuman Docs is a desktop client for team documents."
     },
     {
       "name": "Superhuman",
