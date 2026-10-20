@@ -397,6 +397,9 @@ func preprocessProfileContents(
 
 			hostContents := contentsStr
 			failed := false
+			// The EJBCA certificates issued for this host are only recorded if the whole profile is sent, so a later failure doesn't
+			// replace the record of the certificate the host still has.
+			var ejbcaManagedCertificates []*fleet.MDMManagedCertificate
 
 		fleetVarLoop:
 			for _, fleetVar := range fleetVars {
@@ -658,7 +661,7 @@ func preprocessProfileContents(
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "replacing Fleet variable for EJBCA password")
 					}
-					managedCertificatePayloads = append(managedCertificatePayloads, &fleet.MDMManagedCertificate{
+					ejbcaManagedCertificates = append(ejbcaManagedCertificates, &fleet.MDMManagedCertificate{
 						HostUUID:       hostUUID,
 						ProfileUUID:    profUUID,
 						NotValidBefore: &cert.NotValidBefore,
@@ -793,6 +796,7 @@ func preprocessProfileContents(
 			}
 
 			if !failed {
+				managedCertificatePayloads = append(managedCertificatePayloads, ejbcaManagedCertificates...)
 				addedTargets[tempProfUUID] = &fleet.CmdTarget{
 					CmdUUID:           tempCmdUUID,
 					ProfileIdentifier: target.ProfileIdentifier,

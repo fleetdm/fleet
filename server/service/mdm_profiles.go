@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -601,6 +602,13 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 	if ejbcaVars.Found() {
 		if !ejbcaVars.Ok() {
 			return &fleet.BadRequestError{Message: ejbcaVars.ErrorMessage()}
+		}
+		// The certificates of a host are tracked by profile and CA name, so a DigiCert and an EJBCA CA with the same name would share a record.
+		for _, name := range ejbcaVars.CAs() {
+			if slices.Contains(digiCertVars.CAs(), name) {
+				return &fleet.BadRequestError{Message: fmt.Sprintf(
+					"A DigiCert and an EJBCA certificate authority are both named %q. Use certificate authorities with different names in the same profile.", name)}
+			}
 		}
 		// The Windows profile validation rejects these variables before it gets here, so there is no per-platform validator to inject.
 		if err := additionalEJBCAValidation(profileContents, ejbcaVars); err != nil {

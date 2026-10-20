@@ -624,7 +624,7 @@ type GroupedCertificateAuthorities struct {
 	NDESSCEP        *NDESSCEPProxyCA       `json:"ndes_scep_proxy"`
 	CustomScepProxy []CustomSCEPProxyCA    `json:"custom_scep_proxy"`
 	Smallstep       []SmallstepSCEPProxyCA `json:"smallstep"`
-	EJBCA           []EJBCA                `json:"ejbca,omitempty"` // omitted when empty so generated GitOps files stay the same until GitOps supports EJBCA
+	EJBCA           []EJBCA                `json:"-"` // not exported or applied by GitOps yet, so it is kept out of the spec until it can be
 }
 
 // IsEmpty returns true if no certificate authorities of any type are configured.
