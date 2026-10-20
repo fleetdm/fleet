@@ -120,10 +120,13 @@ ORDER BY vat.id`
 		return nil, err
 	}
 
-	// Select configuration separately because we can't scan NULL into json.RawMessage
-	configurationByVersionID, err := ds.BulkGetVPPAppConfigurations(ctx, versionIDs)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get configuration for app store app")
+	// Select configuration separately because we can't scan NULL into json.RawMessage, if this is for a fleet
+	var configurationByVersionID map[uint][]byte
+	if teamID != nil {
+		configurationByVersionID, err = ds.BulkGetVPPAppConfigurations(ctx, versionIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get configuration for app store app")
+		}
 	}
 
 	for _, app := range versions {

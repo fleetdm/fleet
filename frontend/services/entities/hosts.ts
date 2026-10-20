@@ -98,6 +98,7 @@ export const HOSTS_QUERY_PARAMS = {
   OS_SETTINGS: "os_settings",
   DISK_ENCRYPTION: "os_settings_disk_encryption",
   SOFTWARE_STATUS: "software_status",
+  APP_STORE_APP_VERSION_ID: "app_store_app_version_id",
   SCRIPT_BATCH_EXECUTION_STATUS: "script_batch_execution_status",
   SCRIPT_BATCH_EXECUTION_ID: "script_batch_execution_id",
 } as const;

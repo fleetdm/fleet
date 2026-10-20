@@ -181,7 +181,7 @@ const ManageHostsPage = ({
 
   const { setResetSelectedRows } = useContext(TableContext);
 
-  const shouldStripScriptBatchExecParamOnTeamChange = (
+  const shouldStripParamOnTeamChange = (
     newTeamId?: number,
     curTeamId?: number
   ) => newTeamId !== curTeamId;
@@ -207,8 +207,10 @@ const ManageHostsPage = ({
     overrideParamsOnTeamChange: {
       ...STRIP_FLEET_SCOPED_FILTERS_ON_ALL_FLEETS,
       // remove batch script summary results filters on team change
-      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID]: shouldStripScriptBatchExecParamOnTeamChange,
-      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS]: shouldStripScriptBatchExecParamOnTeamChange,
+      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID]: shouldStripParamOnTeamChange,
+      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS]: shouldStripParamOnTeamChange,
+      // remove the App Store app version filter on team change, versions belong to one fleet
+      [HOSTS_QUERY_PARAMS.APP_STORE_APP_VERSION_ID]: shouldStripParamOnTeamChange,
     },
   });
 
