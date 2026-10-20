@@ -484,6 +484,7 @@ import GrooveOmniDialer from "./png/GrooveOmniDialer.png";
 import Gyazo from "./png/Gyazo.png";
 import Hammerspoon from "./png/Hammerspoon.png";
 import HandbrakeApp from "./png/HandbrakeApp.png";
+import Handy from "./png/Handy.png";
 import HarmonySase from "./png/HarmonySase.png";
 import Hazel from "./png/Hazel.png";
 import Hazeover from "./png/Hazeover.png";
@@ -1653,6 +1654,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "groove omnidialer": GrooveOmniDialer,
   hammerspoon: Hammerspoon,
   handbrake: HandbrakeApp,
+  handy: Handy,
   "harmony sase": HarmonySase,
   hazel: Hazel,
   hazeover: Hazeover,
