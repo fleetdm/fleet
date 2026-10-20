@@ -5282,13 +5282,15 @@ func testPastActivityVPPInstallDisplayNameHonorsPlatform(t *testing.T, ds *Datas
 	// on an unqualified join — the fix must prefer the platform-matching row.
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.IOSPlatform}, DisplayName: new("QA51285 VPP iPhone Name")}, //nolint:modernize
+		AdamID: "adam_vpp_1", Platform: fleet.IOSPlatform,
+		DisplayName: new("QA51285 VPP iPhone Name"),
 	}, &tm.ID, nil)
 	require.NoError(t, err)
 
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.IPadOSPlatform}, DisplayName: new("QA51285 VPP iPad Name")}, //nolint:modernize
+		AdamID: "adam_vpp_1", Platform: fleet.IPadOSPlatform,
+		DisplayName: new("QA51285 VPP iPad Name"),
 	}, &tm.ID, nil)
 	require.NoError(t, err)
 
