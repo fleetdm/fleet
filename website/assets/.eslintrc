@@ -67,6 +67,8 @@
     "AdCampaign": false,
     "MicrosoftComplianceTenant": false,
     "AndroidEnterprise": false,
+    "JobPosting": false,
+    "JobSeeker": false,
     // ...and any other backend globals (e.g. `"Organization": false`)
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   }

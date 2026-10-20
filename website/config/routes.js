@@ -419,6 +419,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /admin/hire': {
+    action: 'admin/view-hire',
+    locals: {
+      hideFooterLinks: true,
+      showAdminLinks: true,
+    }
+  },
+
 
   'GET /connect-vanta': {
     action: 'view-connect-vanta',
@@ -566,6 +574,14 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Fleet Fast-track',
       pageDescriptionForMeta: 'Fast-track helps your team enroll devices, set up workflows, and validate configurations with Fleet experts, to get Fleet ready for production.'
+    }
+  },
+
+  'GET /hire': {
+    action: 'view-hire',
+    locals: {
+      pageTitleForMeta: 'Hire from the Fleet community',
+      pageDescriptionForMeta: 'A job board for IT and security engineers who use Fleet: customers, teams in a proof of value, and Fleet-certified workshop graduates.',
     }
   },
 
@@ -1547,6 +1563,11 @@ module.exports.routes = {
   'POST /api/v1/create-or-update-one-newsletter-subscription': { action: 'create-or-update-one-newsletter-subscription' },
   '/api/v1/unsubscribe-from-all-newsletters': { action: 'unsubscribe-from-all-newsletters' },
   'POST /api/v1/admin/build-license-key': { action: 'admin/build-license-key' },
+  'POST /api/v1/admin/create-job-posting': { action: 'admin/create-job-posting' },
+  'POST /api/v1/admin/update-job-posting': { action: 'admin/update-job-posting' },
+  'POST /api/v1/admin/update-job-seeker-verification-status': { action: 'admin/update-job-seeker-verification-status' },
+  'GET /api/v1/admin/search-salesforce-accounts': { action: 'admin/search-salesforce-accounts' },
+  'POST /api/v1/hire/update-my-job-seeker-profile': { action: 'hire/update-my-job-seeker-profile' },
   'POST /api/v1/create-vanta-authorization-request': { action: 'create-vanta-authorization-request' },
   'POST /api/v1/create-external-vanta-authorization-request': { action: 'create-vanta-authorization-request', csrf: false },
   'GET /redirect-vanta-authorization-request': { action: 'redirect-vanta-authorization-request' },

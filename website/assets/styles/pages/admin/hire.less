@@ -1,0 +1,81 @@
+#admin-hire {
+
+  [purpose='page-container'] {
+    max-width: 1200px;
+    margin: auto;
+    padding: 64px 32px;
+  }
+  h1 {
+    font-size: 28px;
+    line-height: 38px;
+  }
+  h2 {
+    font-size: 20px;
+    margin-bottom: 16px;
+  }
+  a {
+    cursor: pointer;
+  }
+  [purpose='section'] {
+    margin-top: 48px;
+  }
+
+  [purpose='form'] {
+    max-width: 560px;
+    border-radius: 6px;
+    label {
+      font-weight: 400;
+      margin-bottom: 4px;
+    }
+    .form-control {
+      border-radius: 6px;
+    }
+  }
+  [purpose='company-autocomplete'] {
+    position: relative;
+  }
+  [purpose='autocomplete-results'] {
+    position: absolute;
+    z-index: 10;
+    left: 0;
+    right: 0;
+    background-color: #FFF;
+    border: 1px solid @core-fleet-black-10;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    max-height: 320px;
+    overflow-y: auto;
+  }
+  [purpose='autocomplete-result'] {
+    display: block;
+    padding: 8px 12px;
+    color: @core-fleet-black;
+    text-decoration: none;
+    &:hover {
+      background-color: @core-fleet-black-5;
+    }
+  }
+  [purpose='company-hint'] {
+    color: @core-fleet-black-50;
+  }
+
+  [purpose='table-container'] {
+    overflow-x: auto;
+    td {
+      vertical-align: top;
+    }
+    thead td {
+      font-weight: 600;
+    }
+    tr.closed {
+      opacity: 0.5;
+    }
+    small {
+      color: @core-fleet-black-75;
+    }
+  }
+  [purpose='notes'] {
+    white-space: pre-line;
+  }
+
+}

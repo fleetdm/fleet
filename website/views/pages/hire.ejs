@@ -1,0 +1,130 @@
+<div id="hire" v-cloak>
+  <div purpose="page-container">
+    <div purpose="page-content">
+
+      <div purpose="page-hero">
+        <div purpose="hero-heading">
+          <h4>Job board</h4>
+          <h1>Hire from the Fleet community</h1>
+        </div>
+        <p>Fleet customers are hiring. If you're a Fleet customer, evaluating Fleet Premium, or Fleet-certified, tell us what you're looking for. We'll introduce you to teams that need your skills.</p>
+        <div purpose="button-row">
+          <a purpose="cta-button" href="#looking">Join the list</a>
+          <animated-arrow-button href="#hiring">Post a job</animated-arrow-button>
+        </div>
+      </div>
+
+      <div purpose="section">
+        <h2>Open roles</h2>
+        <div purpose="job-postings" v-if="openJobPostings.length > 0">
+          <div purpose="job-posting" v-for="jobPosting in openJobPostings" :key="jobPosting.id">
+            <div purpose="job-posting-header">
+              <div>
+                <h3>{{jobPosting.title}}</h3>
+                <p purpose="job-posting-company">{{jobPosting.companyName}}<span v-if="jobPosting.location"> · {{jobPosting.location}}</span></p>
+              </div>
+              <span purpose="role-tag">{{jobPosting.role}}</span>
+            </div>
+            <p purpose="job-posting-description" v-if="jobPosting.description">{{jobPosting.description}}</p>
+            <a purpose="interest-link" :href="me ? '#looking' : '/login#hire'" @click="clickExpressInterest($event, jobPosting.id)">
+              <span v-if="me && formData.interestedInJobPostingIds.includes(jobPosting.id)">Interested ✓</span>
+              <span v-else>I'm interested</span>
+            </a>
+          </div>
+        </div>
+        <p v-else>No open roles right now. Add yourself to the list below, and we'll reach out when a role that fits opens up.</p>
+      </div>
+
+      <div purpose="section" id="looking">
+        <h2>Looking for work?</h2>
+        <p>The list is open to:</p>
+        <ul purpose="eligibility-list">
+          <li>Fleet customers or former customers</li>
+          <li>Currently evaluating Fleet Premium with an active PoV (proof of value)</li>
+          <li>Fleet-certified through one of Fleet's <a href="/workshops">workshops</a></li>
+        </ul>
+        <p>Your fleetdm.com account is your proof of identity. Fleet verifies each claim before introducing you to anyone. Only the Fleet team sees what you submit.</p>
+
+        <div purpose="button-row" v-if="!me">
+          <a purpose="cta-button" href="/login#hire">Log in to join</a>
+          <animated-arrow-button href="/register#hire">Create an account</animated-arrow-button>
+        </div>
+
+        <div purpose="job-seeker-form" v-else>
+          <div purpose="profile-status" v-if="myJobSeekerProfile && myJobSeekerProfile.isLooking">
+            <span v-if="myJobSeekerProfile.verificationStatus === 'Verified'">You're on the list, and your eligibility is verified.</span>
+            <span v-else-if="myJobSeekerProfile.verificationStatus === 'Not eligible'">We couldn't verify your eligibility. If you think that's a mistake, update your details below or <a href="/contact">send us a message</a>.</span>
+            <span v-else>You're on the list. Fleet will verify your eligibility soon.</span>
+          </div>
+          <div purpose="profile-status" v-else-if="myJobSeekerProfile && !myJobSeekerProfile.isLooking">
+            <span>You're not on the list right now. Save this form to rejoin.</span>
+          </div>
+
+          <ajax-form :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" :handle-submitting="handleSubmittingJobSeekerForm" @submitted="submittedJobSeekerForm($event)">
+
+            <div class="form-group">
+              <label>What roles are you looking for?</label>
+              <div class="form-check" v-for="role in jobBoardRoles" :key="role">
+                <input class="form-check-input" type="checkbox" :id="'role-'+role" :value="role" v-model="formData.rolesSought" @change="typeClearOneFormError('rolesSought')">
+                <label class="form-check-label" :for="'role-'+role">{{role}}</label>
+              </div>
+              <div purpose="form-error" v-if="formErrors.rolesSought">Choose at least one role.</div>
+            </div>
+
+            <div class="form-group">
+              <label>How do you qualify?</label>
+              <div class="form-check" v-for="reason in eligibilityReasons" :key="reason">
+                <input class="form-check-input" type="radio" :id="'reason-'+reason" :value="reason" v-model="formData.eligibilityReason" @change="typeClearOneFormError('eligibilityReason')">
+                <label class="form-check-label" :for="'reason-'+reason">{{reason}}</label>
+              </div>
+              <div purpose="form-error" v-if="formErrors.eligibilityReason">Choose how you qualify.</div>
+            </div>
+
+            <div class="form-group" v-if="formData.eligibilityReason">
+              <label for="eligibilityDetails">{{eligibilityDetailsLabel}}</label>
+              <input class="form-control" id="eligibilityDetails" type="text" :class="[formErrors.eligibilityDetails ? 'is-invalid' : '']" v-model.trim="formData.eligibilityDetails" @input="typeClearOneFormError('eligibilityDetails')">
+              <div class="invalid-feedback" v-if="formErrors.eligibilityDetails">Please add details so we can verify your eligibility.</div>
+            </div>
+
+            <div class="form-group">
+              <label for="linkedinUrl">LinkedIn profile URL</label>
+              <input class="form-control" id="linkedinUrl" type="text" placeholder="https://www.linkedin.com/in/…" :class="[formErrors.linkedinUrl ? 'is-invalid' : '']" v-model.trim="formData.linkedinUrl" @input="typeClearOneFormError('linkedinUrl')">
+              <div class="invalid-feedback" v-if="formErrors.linkedinUrl">Please enter your LinkedIn profile URL.</div>
+            </div>
+
+            <div class="form-group" v-if="openJobPostings.length > 0">
+              <label>Open roles you're interested in (optional)</label>
+              <div class="form-check" v-for="jobPosting in openJobPostings" :key="'interest-'+jobPosting.id">
+                <input class="form-check-input" type="checkbox" :id="'interest-'+jobPosting.id" :value="jobPosting.id" v-model="formData.interestedInJobPostingIds">
+                <label class="form-check-label" :for="'interest-'+jobPosting.id">{{jobPosting.title}} at {{jobPosting.companyName}}</label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="notes">Anything else we should know? (optional)</label>
+              <textarea class="form-control" id="notes" rows="3" placeholder="Location, seniority, remote or on-site, when you can start" v-model.trim="formData.notes"></textarea>
+            </div>
+
+            <cloud-error purpose="cloud-error" v-if="cloudError === 'invalidLinkedinUrl'">Please enter a linkedin.com profile URL.</cloud-error>
+            <cloud-error purpose="cloud-error" v-else-if="cloudError"></cloud-error>
+            <p purpose="saved-message" v-if="showSavedMessage">Saved.</p>
+            <ajax-button purpose="submit-button" spinner="true" :syncing="syncing" class="btn btn-primary">{{myJobSeekerProfile && myJobSeekerProfile.isLooking ? 'Save' : 'Join the list'}}</ajax-button>
+          </ajax-form>
+
+          <button type="button" purpose="stop-looking-link" v-if="myJobSeekerProfile && myJobSeekerProfile.isLooking" :disabled="syncing" @click="clickStopLooking()">I'm no longer looking</button>
+        </div>
+      </div>
+
+      <div purpose="section" id="hiring">
+        <h2>Hiring?</h2>
+        <p>If your team uses Fleet and has an open role, send us the details or ask your Fleet contact. We'll post it here.</p>
+        <div purpose="button-row">
+          <a purpose="cta-button" href="/contact?sendMessage">Send us a message</a>
+          <animated-arrow-button href="/admin/hire" v-if="me && me.isSuperAdmin">Post a role (Fleet team)</animated-arrow-button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
