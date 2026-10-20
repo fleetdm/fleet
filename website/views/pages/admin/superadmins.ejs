@@ -35,7 +35,7 @@
           <tr v-for="user in superAdmins" :key="user.id">
             <td>{{user.firstName}} {{user.lastName}}<span purpose="you-badge" v-if="user.id === currentUserId"> (you)</span></td>
             <td>{{user.emailAddress}}</td>
-            <td><js-timestamp v-if="user.lastSeenAt" format="calendar" :at="user.lastSeenAt"></js-timestamp><span v-else>Never</span></td>
+            <td><span v-if="user.lastSeenAt">{{formatIsoDate(user.lastSeenAt)}}</span><span v-else>Never</span></td>
             <td><ajax-button purpose="revoke-button" :syncing="syncingRevoke" class="btn btn-sm btn-danger ml-auto" v-if="user.id !== currentUserId" @click="clickRevokeSuperadmin(user)">Revoke</ajax-button></td>
           </tr>
         </tbody>

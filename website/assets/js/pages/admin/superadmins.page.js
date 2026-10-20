@@ -30,6 +30,9 @@ parasails.registerPage('superadmins', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
+    formatIsoDate: function(timestamp) {
+      return moment(timestamp).format('YYYY-MM-DD');
+    },
     submittedGrantForm: async function(newSuperAdmin) {
       this.syncingGrant = false;
       this.superAdmins = _.sortBy(this.superAdmins.concat([newSuperAdmin]), 'emailAddress');
