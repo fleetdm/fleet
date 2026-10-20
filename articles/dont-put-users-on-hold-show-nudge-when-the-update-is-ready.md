@@ -27,11 +27,11 @@ It's a fair point. Nudge exists to get people to act, and it works. But when the
 
 Nudge can download updates ahead of time, but as Wes found, that only works on Intel Macs. On Apple silicon, installing an update needs a volume owner's credentials, so Nudge can't stage the update for the user.
 
-Wes considered writing an authorization plugin to handle those credentials, then decided against it. Talking it through with other Mac admins pointed him to a better answer: declarative device management can download and prepare the update for you.
+Declarative device management (DDM) doesn't have that problem. With DDM, macOS downloads and prepares the update itself, in the background, with nothing for the user to do. The Mac also reports the update's progress back to your MDM, so you can tell when it's ready to install. That makes DDM the right tool for the slow part of an update.
 
 ## Let each tool do what it's good at
 
-DDM's software update enforcement can download and prepare an update in the background. On its own, though, it's polite. Its reminders are easy to ignore, while Nudge is persistent by design. That's what gets people to restart.
+Where DDM falls short is getting people to restart. Its reminders are polite and easy to ignore, while Nudge is persistent by design.
 
 So Wes blended the two:
 
