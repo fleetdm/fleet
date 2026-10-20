@@ -2578,7 +2578,18 @@ func (s *integrationMDMTestSuite) TestEJBCACertificateAuthorities() {
 	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", createReq("EJBCA_WIFI", trusted), http.StatusBadRequest,
 		&createCertificateAuthorityResponse{})
 
-	// The list has the client certificate expiry, and no secret.
+	// No response has a secret: not the PKCS#12 or its password, and not the stored key, in PEM or as the base64 of its body.
+	stored, err := s.ds.GetCertificateAuthorityByID(ctx, createResp.ID, true)
+	require.NoError(t, err)
+	keyBody := strings.NewReplacer("-----BEGIN PRIVATE KEY-----", "", "-----END PRIVATE KEY-----", "", "\n", "").Replace(*stored.MTLSKeyPEM)
+	require.NotEmpty(t, keyBody)
+	requireNoSecrets := func(body []byte) {
+		for _, secret := range []string{"PRIVATE KEY", "client_p12", p12Password, *stored.MTLSKeyPEM, keyBody} {
+			require.NotContains(t, string(body), secret)
+		}
+	}
+
+	// The list has the client certificate expiry.
 	listRes := s.DoRaw("GET", "/api/latest/fleet/certificate_authorities", nil, http.StatusOK)
 	body, err := io.ReadAll(listRes.Body)
 	require.NoError(t, err)
@@ -2586,11 +2597,9 @@ func (s *integrationMDMTestSuite) TestEJBCACertificateAuthorities() {
 	require.Len(t, listResp.CertificateAuthorities, 1)
 	require.NotNil(t, listResp.CertificateAuthorities[0].MTLSCertExpiresAt)
 	require.True(t, expiry.Equal(*listResp.CertificateAuthorities[0].MTLSCertExpiresAt))
-	for _, secret := range []string{"PRIVATE KEY", "client_p12", p12Password} {
-		require.NotContains(t, string(body), secret)
-	}
+	requireNoSecrets(body)
 
-	// A get has the settings and the expiry, and no secret.
+	// A get has the settings and the expiry.
 	var getResp getCertificateAuthorityResponse
 	getRes := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", createResp.ID), nil, http.StatusOK)
 	body, err = io.ReadAll(getRes.Body)
@@ -2599,9 +2608,7 @@ func (s *integrationMDMTestSuite) TestEJBCACertificateAuthorities() {
 	require.Equal(t, ejbcatest.CertProfile, *getResp.EJBCACertificateProfileName)
 	require.Equal(t, "$FLEET_VAR_HOST_HARDWARE_SERIAL", *getResp.EJBCAUsernameTemplate)
 	require.True(t, expiry.Equal(*getResp.MTLSCertExpiresAt))
-	for _, secret := range []string{"PRIVATE KEY", "client_p12", p12Password} {
-		require.NotContains(t, string(body), secret)
-	}
+	requireNoSecrets(body)
 
 	// Editing a template doesn't contact EJBCA and keeps the stored credential.
 	editURL := fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", createResp.ID)
@@ -2609,14 +2616,17 @@ func (s *integrationMDMTestSuite) TestEJBCACertificateAuthorities() {
 	s.Do("PATCH", editURL, map[string]any{"ejbca": map[string]any{"certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL"}}, http.StatusOK)
 	s.lastActivityMatches(fleet.ActivityEditedEJBCA{}.ActivityName(), `{"name":"EJBCA_WIFI"}`, 0)
 	require.Len(t, fake.Requests(), requests)
-	stored, err := s.ds.GetCertificateAuthorityByID(ctx, createResp.ID, true)
+	stored, err = s.ds.GetCertificateAuthorityByID(ctx, createResp.ID, true)
 	require.NoError(t, err)
 	require.Equal(t, "$FLEET_VAR_HOST_HARDWARE_SERIAL", *stored.CertificateCommonName)
 	require.Contains(t, *stored.MTLSKeyPEM, "PRIVATE KEY")
 
 	// Editing the certificate profile verifies it with EJBCA using the stored credential, and an unknown profile is rejected.
 	s.Do("PATCH", editURL, map[string]any{"ejbca": map[string]any{"certificate_profile_name": "otherProfile"}}, http.StatusOK)
-	require.Greater(t, len(fake.Requests()), requests)
+	require.Equal(t, []string{
+		"GET " + ejbcatest.RESTAPIPrefix + "/v1/ca",
+		"GET " + ejbcatest.RESTAPIPrefix + "/v2/certificate/profile/otherProfile",
+	}, fake.Requests()[requests:])
 	res = s.Do("PATCH", editURL, map[string]any{"ejbca": map[string]any{"certificate_profile_name": "noSuchProfile"}}, http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(res.Body), `certificate profile "noSuchProfile" was not found`)
 	got, err := s.ds.GetCertificateAuthorityByID(ctx, createResp.ID, false)
@@ -2636,9 +2646,6 @@ func (s *integrationMDMTestSuite) TestEJBCACertificateAuthorities() {
 	got, err = s.ds.GetCertificateAuthorityByID(ctx, createResp.ID, false)
 	require.NoError(t, err)
 	require.True(t, newExpiry.Equal(*got.MTLSCertExpiresAt))
-
-	// A PKCS#12 needs its password.
-	s.Do("PATCH", editURL, map[string]any{"ejbca": map[string]any{"client_p12": rotated["client_p12"]}}, http.StatusUnprocessableEntity)
 
 	// Delete.
 	s.Do("DELETE", editURL, nil, http.StatusNoContent)

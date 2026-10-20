@@ -160,7 +160,6 @@ func TestValidateEJBCAFields(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
 			p := validEJBCA("")
 			if tt.modify != nil {
 				tt.modify(&p)
@@ -210,7 +209,6 @@ func TestReadEJBCAClientP12(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
 			creds, err := readEJBCAClientP12(t.Context(), tt.p12, tt.password, "")
 			if tt.wantErr != "" {
 				require.ErrorContains(t, err, tt.wantErr)
@@ -227,7 +225,6 @@ func TestNewEJBCACertificateAuthority(t *testing.T) {
 	p12s := newEJBCAP12s(t)
 
 	t.Run("creates the CA from the PKCS#12 and verifies the connection", func(t *testing.T) {
-		t.Parallel()
 		env := newEJBCATestEnv(t, nil)
 		payload := validEJBCA(p12s.valid)
 
@@ -262,7 +259,6 @@ func TestNewEJBCACertificateAuthority(t *testing.T) {
 	})
 
 	t.Run("optional fields are left unset", func(t *testing.T) {
-		t.Parallel()
 		env := newEJBCATestEnv(t, nil)
 		payload := validEJBCA(p12s.valid)
 		payload.TrustCABundlePEM, payload.UsernameTemplate, payload.CertificateUserPrincipalNames = "", "", nil
@@ -292,7 +288,6 @@ func TestNewEJBCACertificateAuthority(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
 			env := newEJBCATestEnv(t, nil)
 			payload := validEJBCA(p12s.valid)
 			tt.modify(&payload)
@@ -306,7 +301,6 @@ func TestNewEJBCACertificateAuthority(t *testing.T) {
 	}
 
 	t.Run("EJBCA rejects the connection", func(t *testing.T) {
-		t.Parallel()
 		env := newEJBCATestEnv(t, nil)
 		env.ejbca.VerifyConnectionFunc = func(context.Context, fleet.EJBCA) error {
 			return errors.New(`EJBCA CA "ManagementCA" was not found.`)
@@ -321,7 +315,6 @@ func TestNewEJBCACertificateAuthority(t *testing.T) {
 	})
 
 	t.Run("only one CA can be created at a time", func(t *testing.T) {
-		t.Parallel()
 		env := newEJBCATestEnv(t, nil)
 		payload := validEJBCA(p12s.valid)
 		_, err := env.svc.NewCertificateAuthority(env.ctx, fleet.CertificateAuthorityPayload{EJBCA: &payload, DigiCert: &fleet.DigiCertCA{}})
@@ -479,7 +472,6 @@ func TestUpdateEJBCACertificateAuthority(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
 			env := newEJBCATestEnv(t, stored())
 			env.ejbca.VerifyConnectionFunc = func(_ context.Context, config fleet.EJBCA) error {
 				env.verified = append(env.verified, config)
@@ -511,7 +503,6 @@ func TestUpdateEJBCACertificateAuthority(t *testing.T) {
 	}
 
 	t.Run("a CA of another type", func(t *testing.T) {
-		t.Parallel()
 		digicert := &fleet.CertificateAuthority{ID: 7, Type: string(fleet.CATypeDigiCert), Name: new("DigiCert")}
 		env := newEJBCATestEnv(t, digicert)
 		err := env.svc.UpdateCertificateAuthority(env.ctx, 7, fleet.CertificateAuthorityUpdatePayload{
