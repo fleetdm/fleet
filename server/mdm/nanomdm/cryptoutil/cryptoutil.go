@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/smallstep/pkcs7"
 )
@@ -48,6 +49,18 @@ const maxMdmSignatureBytes = 10 * 1024
 // See https://developer.apple.com/documentation/devicemanagement/implementing_device_management/managing_certificates_for_mdm_servers_and_devices
 // section "Pass an Identity Certificate Through a Proxy."
 func VerifyMdmSignature(header string, body []byte) (*x509.Certificate, error) {
+	return verifyMdmSignature(header, body, false)
+}
+
+// VerifyMdmSignatureIgnoringExpiry is like VerifyMdmSignature but accepts
+// signatures whose signing time falls outside the signer certificate's
+// validity period, so that devices with expired identity certificates can
+// still check in and receive a renewal.
+func VerifyMdmSignatureIgnoringExpiry(header string, body []byte) (*x509.Certificate, error) {
+	return verifyMdmSignature(header, body, true)
+}
+
+func verifyMdmSignature(header string, body []byte, ignoreExpiry bool) (*x509.Certificate, error) {
 	sig, err := base64.StdEncoding.DecodeString(header)
 	if err != nil {
 		return nil, err
@@ -64,6 +77,10 @@ func VerifyMdmSignature(header string, body []byte) (*x509.Certificate, error) {
 	}
 	p7.Content = body
 	err = p7.Verify()
+	var signingTimeErr *pkcs7.SigningTimeNotValidError
+	if ignoreExpiry && errors.As(err, &signingTimeErr) {
+		err = verifyIgnoringValidityPeriod(p7)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -72,6 +89,25 @@ func VerifyMdmSignature(header string, body []byte) (*x509.Certificate, error) {
 		return nil, errors.New("invalid or missing signer")
 	}
 	return cert, nil
+}
+
+// verifyIgnoringValidityPeriod verifies p7 against copies of its certificates
+// with an unbounded validity period. pkcs7 offers no option to skip the
+// signing-time check, and mutating the originals would leak the fake dates to
+// callers of GetOnlySigner.
+func verifyIgnoringValidityPeriod(p7 *pkcs7.PKCS7) error {
+	originals := p7.Certificates
+	defer func() { p7.Certificates = originals }()
+
+	widened := make([]*x509.Certificate, len(originals))
+	for i, c := range originals {
+		cp := *c
+		cp.NotBefore = time.Time{}
+		cp.NotAfter = time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)
+		widened[i] = &cp
+	}
+	p7.Certificates = widened
+	return p7.Verify()
 }
 
 // PEMCertificate returns derBytes encoded as a PEM block
