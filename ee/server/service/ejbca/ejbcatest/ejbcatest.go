@@ -78,14 +78,10 @@ func (ca *CA) Issue(t *testing.T, template *x509.Certificate, pub any) *x509.Cer
 	return cert
 }
 
-// clientCert issues a client certificate that expires at notAfter and is valid since an hour ago, or since an hour before it expires.
-func (ca *CA) clientCert(t *testing.T, notAfter time.Time) (*x509.Certificate, *ecdsa.PrivateKey) {
+// clientCert issues a client certificate valid between the times.
+func (ca *CA) clientCert(t *testing.T, notBefore, notAfter time.Time) (*x509.Certificate, *ecdsa.PrivateKey) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
-	notBefore := time.Now().Add(-time.Hour)
-	if !notBefore.Before(notAfter) {
-		notBefore = notAfter.Add(-time.Hour)
-	}
 	cert := ca.Issue(t, &x509.Certificate{
 		Subject:     pkix.Name{CommonName: "Fleet"},
 		NotBefore:   notBefore,
@@ -95,9 +91,17 @@ func (ca *CA) clientCert(t *testing.T, notAfter time.Time) (*x509.Certificate, *
 	return cert, key
 }
 
+// validSince is when a certificate that expires at notAfter becomes valid: an hour ago, or an hour before it expires.
+func validSince(notAfter time.Time) time.Time {
+	if notBefore := time.Now().Add(-time.Hour); notBefore.Before(notAfter) {
+		return notBefore
+	}
+	return notAfter.Add(-time.Hour)
+}
+
 // IssueClient returns a client certificate and key, in PEM, that expire at notAfter.
 func (ca *CA) IssueClient(t *testing.T, notAfter time.Time) (certPEM, keyPEM string) {
-	cert, key := ca.clientCert(t, notAfter)
+	cert, key := ca.clientCert(t, validSince(notAfter), notAfter)
 	keyDER, err := x509.MarshalPKCS8PrivateKey(key)
 	require.NoError(t, err)
 	return string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})),
@@ -352,10 +356,16 @@ func (f *Server) ClientP12(t *testing.T, notAfter time.Time, password string) st
 	return ClientP12(t, f.ClientCA, notAfter, password)
 }
 
-// ClientP12 returns a base64 PKCS#12 of a client certificate issued by the CA.
+// ClientP12 returns a base64 PKCS#12 of a client certificate issued by the CA, valid since an hour ago until notAfter.
 func ClientP12(t *testing.T, ca *CA, notAfter time.Time, password string) string {
 	t.Helper()
-	cert, key := ca.clientCert(t, notAfter)
+	return ClientP12Between(t, ca, validSince(notAfter), notAfter, password)
+}
+
+// ClientP12Between returns a base64 PKCS#12 of a client certificate issued by the CA, valid between the times.
+func ClientP12Between(t *testing.T, ca *CA, notBefore, notAfter time.Time, password string) string {
+	t.Helper()
+	cert, key := ca.clientCert(t, notBefore, notAfter)
 	p12, err := pkcs12.Modern.Encode(key, cert, []*x509.Certificate{ca.Cert}, password)
 	require.NoError(t, err)
 	return base64.StdEncoding.EncodeToString(p12)

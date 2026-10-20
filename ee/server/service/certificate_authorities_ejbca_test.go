@@ -2,20 +2,15 @@ package service
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
-	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/base64"
 	"errors"
 	"io"
 	"log/slog"
-	"math/big"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/ejbca/ejbcatest"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -24,7 +19,6 @@ import (
 	ejbca_mock "github.com/fleetdm/fleet/v4/server/mock/ejbca"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"software.sslmate.com/src/go-pkcs12"
 )
 
 // errStopBeforeActivity makes the datastore mock end a create or update before it records an activity, which the unit tests can't.
@@ -32,30 +26,27 @@ var errStopBeforeActivity = errors.New("mock error to avoid NewActivity panic")
 
 const ejbcaP12Password = "p12-password"
 
-// ejbcaClientP12 returns a base64 PKCS#12 of a self-signed client certificate valid between the times.
-func ejbcaClientP12(t *testing.T, notBefore, notAfter time.Time) string {
-	t.Helper()
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	require.NoError(t, err)
-	template := &x509.Certificate{SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "Fleet"}, NotBefore: notBefore, NotAfter: notAfter}
-	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
-	require.NoError(t, err)
-	cert, err := x509.ParseCertificate(der)
-	require.NoError(t, err)
-	p12, err := pkcs12.Modern.Encode(key, cert, nil, ejbcaP12Password)
-	require.NoError(t, err)
-	return base64.StdEncoding.EncodeToString(p12)
+// ejbcaP12s are client certificates in base64 PKCS#12 files, built once because encrypting them is slow.
+type ejbcaP12s struct {
+	valid, expired, notYetValid string
+	expiredAt, validFrom        time.Time
 }
 
-func validEJBCAClientP12(t *testing.T) string {
-	return ejbcaClientP12(t, time.Now().Add(-time.Hour), time.Now().Add(24*time.Hour))
+func newEJBCAP12s(t *testing.T) ejbcaP12s {
+	t.Helper()
+	ca := ejbcatest.NewCA(t, "CA")
+	now := time.Now()
+	f := ejbcaP12s{expiredAt: now.Add(-time.Hour), validFrom: now.Add(48 * time.Hour)}
+	f.valid = ejbcatest.ClientP12Between(t, ca, now.Add(-time.Hour), now.Add(24*time.Hour), ejbcaP12Password)
+	f.expired = ejbcatest.ClientP12Between(t, ca, now.Add(-48*time.Hour), f.expiredAt, ejbcaP12Password)
+	f.notYetValid = ejbcatest.ClientP12Between(t, ca, f.validFrom, now.Add(72*time.Hour), ejbcaP12Password)
+	return f
 }
 
 type ejbcaTestEnv struct {
 	svc      *Service
 	ctx      context.Context
 	ejbca    *ejbca_mock.Service
-	ds       *mock.Store
 	created  *fleet.CertificateAuthority // what was sent to the datastore to create
 	updated  *fleet.CertificateAuthority // what was sent to the datastore to update
 	verified []fleet.EJBCA               // what EJBCA was asked to verify
@@ -63,20 +54,21 @@ type ejbcaTestEnv struct {
 
 func newEJBCATestEnv(t *testing.T, stored *fleet.CertificateAuthority) *ejbcaTestEnv {
 	t.Helper()
-	env := &ejbcaTestEnv{ds: new(mock.Store), ejbca: new(ejbca_mock.Service)}
+	ds := new(mock.Store)
+	env := &ejbcaTestEnv{ejbca: new(ejbca_mock.Service)}
 	env.ejbca.VerifyConnectionFunc = func(_ context.Context, config fleet.EJBCA) error {
 		env.verified = append(env.verified, config)
 		return nil
 	}
-	env.ds.NewCertificateAuthorityFunc = func(_ context.Context, ca *fleet.CertificateAuthority) (*fleet.CertificateAuthority, error) {
+	ds.NewCertificateAuthorityFunc = func(_ context.Context, ca *fleet.CertificateAuthority) (*fleet.CertificateAuthority, error) {
 		env.created = ca
 		return nil, errStopBeforeActivity
 	}
-	env.ds.GetCertificateAuthorityByIDFunc = func(_ context.Context, id uint, includeSecrets bool) (*fleet.CertificateAuthority, error) {
+	ds.GetCertificateAuthorityByIDFunc = func(_ context.Context, id uint, includeSecrets bool) (*fleet.CertificateAuthority, error) {
 		require.True(t, includeSecrets, "an update merges with the stored credential")
 		return stored, nil
 	}
-	env.ds.UpdateCertificateAuthorityByIDFunc = func(_ context.Context, _ uint, ca *fleet.CertificateAuthority) error {
+	ds.UpdateCertificateAuthorityByIDFunc = func(_ context.Context, _ uint, ca *fleet.CertificateAuthority) error {
 		env.updated = ca
 		return errStopBeforeActivity
 	}
@@ -85,7 +77,7 @@ func newEJBCATestEnv(t *testing.T, stored *fleet.CertificateAuthority) *ejbcaTes
 	require.NoError(t, err)
 	env.svc = &Service{
 		logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
-		ds:           env.ds,
+		ds:           ds,
 		authz:        authorizer,
 		ejbcaService: env.ejbca,
 	}
@@ -94,11 +86,11 @@ func newEJBCATestEnv(t *testing.T, stored *fleet.CertificateAuthority) *ejbcaTes
 	return env
 }
 
-func validEJBCA(t *testing.T) fleet.EJBCA {
+func validEJBCA(p12 string) fleet.EJBCA {
 	return fleet.EJBCA{
 		Name:                          "EJBCA_WIFI",
 		URL:                           "https://ejbca.example.com:8443",
-		ClientP12:                     validEJBCAClientP12(t),
+		ClientP12:                     p12,
 		Password:                      ejbcaP12Password,
 		CertificateAuthorityName:      "ManagementCA",
 		CertificateProfileName:        "fleetCertProfile",
@@ -110,13 +102,134 @@ func validEJBCA(t *testing.T) fleet.EJBCA {
 	}
 }
 
+func TestValidateEJBCAFields(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		modify  func(p *fleet.EJBCA)
+		wantErr string
+	}{
+		{name: "valid, with variables"},
+		{name: "no CA name", modify: func(p *fleet.EJBCA) { p.CertificateAuthorityName = "" }, wantErr: "EJBCA CA name cannot be empty"},
+		{
+			name:    "no certificate profile name",
+			modify:  func(p *fleet.EJBCA) { p.CertificateProfileName = " " },
+			wantErr: "certificate profile name cannot be empty",
+		},
+		{
+			name:    "no end entity profile name",
+			modify:  func(p *fleet.EJBCA) { p.EndEntityProfileName = "" },
+			wantErr: "end entity profile name cannot be empty",
+		},
+		{name: "no common name", modify: func(p *fleet.EJBCA) { p.CertificateCommonName = "" }, wantErr: "common name cannot be empty"},
+		{
+			name:    "name too long",
+			modify:  func(p *fleet.EJBCA) { p.CertificateProfileName = strings.Repeat("a", 256) },
+			wantErr: "certificate profile name cannot be longer than 255 characters",
+		},
+		{
+			name:    "unsupported variable in the common name",
+			modify:  func(p *fleet.EJBCA) { p.CertificateCommonName = "$FLEET_VAR_HOST_END_USER_IDP_USERNAME_X" },
+			wantErr: "FLEET_VAR_HOST_END_USER_IDP_USERNAME_X is not allowed in the common name",
+		},
+		{
+			name:    "unsupported variable in the username template",
+			modify:  func(p *fleet.EJBCA) { p.UsernameTemplate = "$FLEET_VAR_DIGICERT_DATA_X" },
+			wantErr: "FLEET_VAR_DIGICERT_DATA_X is not allowed in the username template",
+		},
+		{
+			name:    "more than one UPN",
+			modify:  func(p *fleet.EJBCA) { p.CertificateUserPrincipalNames = []string{"a@example.com", "b@example.com"} },
+			wantErr: "only one item can be added to certificate_user_principal_names",
+		},
+		{
+			name:    "blank UPN",
+			modify:  func(p *fleet.EJBCA) { p.CertificateUserPrincipalNames = []string{" "} },
+			wantErr: "user principal name cannot be empty",
+		},
+		{
+			name:    "UPN too long",
+			modify:  func(p *fleet.EJBCA) { p.CertificateUserPrincipalNames = []string{strings.Repeat("a", 256)} },
+			wantErr: "user principal name cannot be longer than 255 characters",
+		},
+		{
+			name:    "unsupported variable in the UPN",
+			modify:  func(p *fleet.EJBCA) { p.CertificateUserPrincipalNames = []string{"$FLEET_VAR_NDES_SCEP_CHALLENGE"} },
+			wantErr: "FLEET_VAR_NDES_SCEP_CHALLENGE is not allowed in the user principal name",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			p := validEJBCA("")
+			if tt.modify != nil {
+				tt.modify(&p)
+			}
+			err := validateEJBCAFields(&p, "")
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+}
+
+func TestReadEJBCAClientP12(t *testing.T) {
+	t.Parallel()
+	p12s := newEJBCAP12s(t)
+	tests := []struct {
+		name     string
+		p12      string
+		password string
+		wantErr  string
+	}{
+		{name: "valid", p12: p12s.valid, password: ejbcaP12Password},
+		{name: "no PKCS#12", password: ejbcaP12Password, wantErr: "client certificate PKCS#12 cannot be empty"},
+		{name: "no password", p12: p12s.valid, wantErr: "PKCS#12 password cannot be empty"},
+		{name: "not base64", p12: "%%%", password: ejbcaP12Password, wantErr: "must be base64 encoded"},
+		{
+			name:     "not a PKCS#12",
+			p12:      base64.StdEncoding.EncodeToString([]byte("not a p12")),
+			password: ejbcaP12Password,
+			wantErr:  "Couldn't read the PKCS#12 file",
+		},
+		{name: "wrong password", p12: p12s.valid, password: "wrong", wantErr: "PKCS#12 password is incorrect"},
+		{
+			name:     "expired",
+			p12:      p12s.expired,
+			password: ejbcaP12Password,
+			wantErr:  "The client certificate expired on " + p12s.expiredAt.UTC().Format(time.DateOnly),
+		},
+		{
+			name:     "not valid yet",
+			p12:      p12s.notYetValid,
+			password: ejbcaP12Password,
+			wantErr:  "The client certificate isn't valid until " + p12s.validFrom.UTC().Format(time.DateOnly),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			creds, err := readEJBCAClientP12(t.Context(), tt.p12, tt.password, "")
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			assert.Contains(t, creds.KeyPEM, "PRIVATE KEY")
+		})
+	}
+}
+
 func TestNewEJBCACertificateAuthority(t *testing.T) {
 	t.Parallel()
+	p12s := newEJBCAP12s(t)
 
 	t.Run("creates the CA from the PKCS#12 and verifies the connection", func(t *testing.T) {
 		t.Parallel()
 		env := newEJBCATestEnv(t, nil)
-		payload := validEJBCA(t)
+		payload := validEJBCA(p12s.valid)
 
 		_, err := env.svc.NewCertificateAuthority(env.ctx, fleet.CertificateAuthorityPayload{EJBCA: &payload})
 		require.ErrorIs(t, err, errStopBeforeActivity)
@@ -133,9 +246,8 @@ func TestNewEJBCACertificateAuthority(t *testing.T) {
 		assert.Equal(t, payload.CertificateCommonName, *ca.CertificateCommonName)
 		assert.Equal(t, payload.UsernameTemplate, *ca.EJBCAUsernameTemplate)
 		assert.Equal(t, payload.CertificateUserPrincipalNames, *ca.CertificateUserPrincipalNames)
-		assert.Nil(t, ca.Password, "the PKCS#12 password is not stored")
 
-		// The certificate and the key come out of the PKCS#12, and the password is not among the fields that are stored.
+		// The certificate and the key come out of the PKCS#12.
 		require.NotNil(t, ca.MTLSCertPEM)
 		require.NotNil(t, ca.MTLSKeyPEM)
 		leaf, err := certificate.FirstCertificateFromPEM([]byte(*ca.MTLSCertPEM))
@@ -152,7 +264,7 @@ func TestNewEJBCACertificateAuthority(t *testing.T) {
 	t.Run("optional fields are left unset", func(t *testing.T) {
 		t.Parallel()
 		env := newEJBCATestEnv(t, nil)
-		payload := validEJBCA(t)
+		payload := validEJBCA(p12s.valid)
 		payload.TrustCABundlePEM, payload.UsernameTemplate, payload.CertificateUserPrincipalNames = "", "", nil
 
 		_, err := env.svc.NewCertificateAuthority(env.ctx, fleet.CertificateAuthorityPayload{EJBCA: &payload})
@@ -160,101 +272,30 @@ func TestNewEJBCACertificateAuthority(t *testing.T) {
 		assert.Nil(t, env.created.TrustCABundlePEM)
 		assert.Nil(t, env.created.EJBCAUsernameTemplate)
 		assert.Nil(t, env.created.CertificateUserPrincipalNames)
-		assert.Equal(t, payload.CertificateCommonName, env.created.EffectiveEJBCAUsernameTemplate())
 	})
 
+	// The validators have their own tests, so these only show that a failure stops the create before EJBCA is contacted.
 	tests := []struct {
 		name    string
-		modify  func(t *testing.T, p *fleet.EJBCA)
+		modify  func(p *fleet.EJBCA)
 		wantErr string
 	}{
-		{name: "invalid name", modify: func(_ *testing.T, p *fleet.EJBCA) { p.Name = "bad name" }, wantErr: "Invalid characters in the \"name\" field"},
-		{name: "invalid URL", modify: func(_ *testing.T, p *fleet.EJBCA) { p.URL = "not a url" }, wantErr: "Invalid EJBCA URL"},
-		{name: "no CA name", modify: func(_ *testing.T, p *fleet.EJBCA) { p.CertificateAuthorityName = "" }, wantErr: "EJBCA CA name cannot be empty"},
-		{
-			name:    "no certificate profile name",
-			modify:  func(_ *testing.T, p *fleet.EJBCA) { p.CertificateProfileName = " " },
-			wantErr: "certificate profile name cannot be empty",
-		},
-		{
-			name:    "no end entity profile name",
-			modify:  func(_ *testing.T, p *fleet.EJBCA) { p.EndEntityProfileName = "" },
-			wantErr: "end entity profile name cannot be empty",
-		},
-		{name: "no common name", modify: func(_ *testing.T, p *fleet.EJBCA) { p.CertificateCommonName = "" }, wantErr: "common name cannot be empty"},
-		{
-			name:    "name too long",
-			modify:  func(_ *testing.T, p *fleet.EJBCA) { p.CertificateProfileName = strings.Repeat("a", 256) },
-			wantErr: "certificate profile name cannot be longer than 255 characters",
-		},
-		{
-			name: "unsupported variable in the common name",
-			modify: func(_ *testing.T, p *fleet.EJBCA) {
-				p.CertificateCommonName = "$FLEET_VAR_HOST_END_USER_IDP_USERNAME_X"
-			},
-			wantErr: "FLEET_VAR_HOST_END_USER_IDP_USERNAME_X is not allowed in the common name",
-		},
-		{
-			name:    "unsupported variable in the username template",
-			modify:  func(_ *testing.T, p *fleet.EJBCA) { p.UsernameTemplate = "$FLEET_VAR_DIGICERT_DATA_X" },
-			wantErr: "FLEET_VAR_DIGICERT_DATA_X is not allowed in the username template",
-		},
-		{
-			name: "more than one UPN",
-			modify: func(_ *testing.T, p *fleet.EJBCA) {
-				p.CertificateUserPrincipalNames = []string{"a@example.com", "b@example.com"}
-			},
-			wantErr: "only one item can be added to certificate_user_principal_names",
-		},
-		{
-			name:    "blank UPN",
-			modify:  func(_ *testing.T, p *fleet.EJBCA) { p.CertificateUserPrincipalNames = []string{" "} },
-			wantErr: "user principal name cannot be empty",
-		},
-		{
-			name: "unsupported variable in the UPN",
-			modify: func(_ *testing.T, p *fleet.EJBCA) {
-				p.CertificateUserPrincipalNames = []string{"$FLEET_VAR_NDES_SCEP_CHALLENGE"}
-			},
-			wantErr: "FLEET_VAR_NDES_SCEP_CHALLENGE is not allowed in the user principal name",
-		},
+		{name: "invalid name", modify: func(p *fleet.EJBCA) { p.Name = "bad name" }, wantErr: "Invalid characters in the \"name\" field"},
+		{name: "invalid URL", modify: func(p *fleet.EJBCA) { p.URL = "not a url" }, wantErr: "Invalid EJBCA URL"},
+		{name: "invalid fields", modify: func(p *fleet.EJBCA) { p.CertificateAuthorityName = "" }, wantErr: "EJBCA CA name cannot be empty"},
 		{
 			name:    "trust bundle too large",
-			modify:  func(_ *testing.T, p *fleet.EJBCA) { p.TrustCABundlePEM = strings.Repeat("a", ejbcaMaxPEMLength+1) },
+			modify:  func(p *fleet.EJBCA) { p.TrustCABundlePEM = strings.Repeat("a", ejbcaMaxPEMLength+1) },
 			wantErr: "trust CA bundle is too large",
 		},
-		{name: "no PKCS#12", modify: func(_ *testing.T, p *fleet.EJBCA) { p.ClientP12 = "" }, wantErr: "client certificate PKCS#12 cannot be empty"},
-		{name: "no PKCS#12 password", modify: func(_ *testing.T, p *fleet.EJBCA) { p.Password = "" }, wantErr: "PKCS#12 password cannot be empty"},
-		{name: "PKCS#12 not base64", modify: func(_ *testing.T, p *fleet.EJBCA) { p.ClientP12 = "%%%" }, wantErr: "must be base64 encoded"},
-		{
-			name: "not a PKCS#12",
-			modify: func(_ *testing.T, p *fleet.EJBCA) {
-				p.ClientP12 = base64.StdEncoding.EncodeToString([]byte("not a p12"))
-			},
-			wantErr: "Couldn't read the PKCS#12 file",
-		},
-		{name: "wrong PKCS#12 password", modify: func(_ *testing.T, p *fleet.EJBCA) { p.Password = "wrong" }, wantErr: "PKCS#12 password is incorrect"},
-		{
-			name: "expired client certificate",
-			modify: func(t *testing.T, p *fleet.EJBCA) {
-				p.ClientP12 = ejbcaClientP12(t, time.Now().Add(-48*time.Hour), time.Now().Add(-time.Hour))
-			},
-			wantErr: "The client certificate expired on " + time.Now().Add(-time.Hour).UTC().Format(time.DateOnly),
-		},
-		{
-			name: "client certificate not valid yet",
-			modify: func(t *testing.T, p *fleet.EJBCA) {
-				p.ClientP12 = ejbcaClientP12(t, time.Now().Add(48*time.Hour), time.Now().Add(72*time.Hour))
-			},
-			wantErr: "The client certificate isn't valid until " + time.Now().Add(48*time.Hour).UTC().Format(time.DateOnly),
-		},
+		{name: "invalid PKCS#12", modify: func(p *fleet.EJBCA) { p.Password = "wrong" }, wantErr: "PKCS#12 password is incorrect"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			env := newEJBCATestEnv(t, nil)
-			payload := validEJBCA(t)
-			tt.modify(t, &payload)
+			payload := validEJBCA(p12s.valid)
+			tt.modify(&payload)
 
 			_, err := env.svc.NewCertificateAuthority(env.ctx, fleet.CertificateAuthorityPayload{EJBCA: &payload})
 			require.ErrorContains(t, err, tt.wantErr)
@@ -270,7 +311,7 @@ func TestNewEJBCACertificateAuthority(t *testing.T) {
 		env.ejbca.VerifyConnectionFunc = func(context.Context, fleet.EJBCA) error {
 			return errors.New(`EJBCA CA "ManagementCA" was not found.`)
 		}
-		payload := validEJBCA(t)
+		payload := validEJBCA(p12s.valid)
 
 		_, err := env.svc.NewCertificateAuthority(env.ctx, fleet.CertificateAuthorityPayload{EJBCA: &payload})
 		require.EqualError(t, err, `Couldn't add certificate authority. EJBCA CA "ManagementCA" was not found.`)
@@ -282,7 +323,7 @@ func TestNewEJBCACertificateAuthority(t *testing.T) {
 	t.Run("only one CA can be created at a time", func(t *testing.T) {
 		t.Parallel()
 		env := newEJBCATestEnv(t, nil)
-		payload := validEJBCA(t)
+		payload := validEJBCA(p12s.valid)
 		_, err := env.svc.NewCertificateAuthority(env.ctx, fleet.CertificateAuthorityPayload{EJBCA: &payload, DigiCert: &fleet.DigiCertCA{}})
 		require.ErrorContains(t, err, "Only one certificate authority can be created at a time")
 	})
@@ -290,6 +331,7 @@ func TestNewEJBCACertificateAuthority(t *testing.T) {
 
 func TestUpdateEJBCACertificateAuthority(t *testing.T) {
 	t.Parallel()
+	p12s := newEJBCAP12s(t)
 
 	storedCertPEM, storedKeyPEM := "stored-cert", "stored-key"
 	stored := func() *fleet.CertificateAuthority {
@@ -311,7 +353,7 @@ func TestUpdateEJBCACertificateAuthority(t *testing.T) {
 
 	tests := []struct {
 		name   string
-		update func(t *testing.T) fleet.EJBCAUpdatePayload
+		update fleet.EJBCAUpdatePayload
 		// wantVerified is the connection check that is expected, with the stored credential unless the update replaces it.
 		wantVerified   bool
 		checkVerified  func(t *testing.T, config fleet.EJBCA)
@@ -322,13 +364,11 @@ func TestUpdateEJBCACertificateAuthority(t *testing.T) {
 	}{
 		{
 			name: "templates only don't need the connection",
-			update: func(*testing.T) fleet.EJBCAUpdatePayload {
-				return fleet.EJBCAUpdatePayload{
-					CertificateCommonName:         new("$FLEET_VAR_HOST_END_USER_EMAIL_IDP"),
-					UsernameTemplate:              new("$FLEET_VAR_HOST_UUID"),
-					CertificateUserPrincipalNames: &[]string{"$FLEET_VAR_HOST_END_USER_EMAIL_IDP"},
-					EndEntityProfileName:          new("otherEEProfile"),
-				}
+			update: fleet.EJBCAUpdatePayload{
+				CertificateCommonName:         new("$FLEET_VAR_HOST_END_USER_EMAIL_IDP"),
+				UsernameTemplate:              new("$FLEET_VAR_HOST_UUID"),
+				CertificateUserPrincipalNames: &[]string{"$FLEET_VAR_HOST_END_USER_EMAIL_IDP"},
+				EndEntityProfileName:          new("otherEEProfile"),
 			},
 			checkUpdated: func(t *testing.T, ca *fleet.CertificateAuthority) {
 				assert.Equal(t, "$FLEET_VAR_HOST_END_USER_EMAIL_IDP", *ca.CertificateCommonName)
@@ -340,10 +380,8 @@ func TestUpdateEJBCACertificateAuthority(t *testing.T) {
 			},
 		},
 		{
-			name: "certificate profile change verifies with the stored credential",
-			update: func(*testing.T) fleet.EJBCAUpdatePayload {
-				return fleet.EJBCAUpdatePayload{CertificateProfileName: new("newProfile")}
-			},
+			name:         "certificate profile change verifies with the stored credential",
+			update:       fleet.EJBCAUpdatePayload{CertificateProfileName: new("newProfile")},
 			wantVerified: true,
 			checkVerified: func(t *testing.T, config fleet.EJBCA) {
 				assert.Equal(t, "newProfile", config.CertificateProfileName)
@@ -360,10 +398,8 @@ func TestUpdateEJBCACertificateAuthority(t *testing.T) {
 		},
 		{
 			name: "masked credentials keep the stored ones",
-			update: func(*testing.T) fleet.EJBCAUpdatePayload {
-				return fleet.EJBCAUpdatePayload{
-					ClientP12: new(fleet.MaskedPassword), Password: new(fleet.MaskedPassword), URL: new("https://new.example.com"),
-				}
+			update: fleet.EJBCAUpdatePayload{
+				ClientP12: new(fleet.MaskedPassword), Password: new(fleet.MaskedPassword), URL: new("https://new.example.com"),
 			},
 			wantVerified: true,
 			checkVerified: func(t *testing.T, config fleet.EJBCA) {
@@ -376,10 +412,8 @@ func TestUpdateEJBCACertificateAuthority(t *testing.T) {
 			},
 		},
 		{
-			name: "rotation replaces the credential once it verifies",
-			update: func(t *testing.T) fleet.EJBCAUpdatePayload {
-				return fleet.EJBCAUpdatePayload{ClientP12: new(validEJBCAClientP12(t)), Password: new(ejbcaP12Password)}
-			},
+			name:         "rotation replaces the credential once it verifies",
+			update:       fleet.EJBCAUpdatePayload{ClientP12: &p12s.valid, Password: new(ejbcaP12Password)},
 			wantVerified: true,
 			checkVerified: func(t *testing.T, config fleet.EJBCA) {
 				assert.NotEqual(t, storedCertPEM, config.MTLSCertPEM)
@@ -393,79 +427,52 @@ func TestUpdateEJBCACertificateAuthority(t *testing.T) {
 			},
 		},
 		{
-			name: "a replacement credential EJBCA rejects is not stored",
-			update: func(t *testing.T) fleet.EJBCAUpdatePayload {
-				return fleet.EJBCAUpdatePayload{ClientP12: new(validEJBCAClientP12(t)), Password: new(ejbcaP12Password)}
-			},
+			name:           "a replacement credential EJBCA rejects is not stored",
+			update:         fleet.EJBCAUpdatePayload{ClientP12: &p12s.valid, Password: new(ejbcaP12Password)},
 			wantVerified:   true,
 			verifyErr:      errors.New("EJBCA rejected the TLS client certificate"),
 			wantErr:        "Couldn't edit certificate authority. EJBCA rejected the TLS client certificate",
 			wantNotUpdated: true,
 		},
 		{
-			name: "PKCS#12 without password",
-			update: func(t *testing.T) fleet.EJBCAUpdatePayload {
-				return fleet.EJBCAUpdatePayload{ClientP12: new(validEJBCAClientP12(t))}
-			},
+			name:           "expired replacement credential",
+			update:         fleet.EJBCAUpdatePayload{ClientP12: &p12s.expired, Password: new(ejbcaP12Password)},
+			wantErr:        "The client certificate expired on",
+			wantNotUpdated: true,
+		},
+		{
+			name:           "PKCS#12 without password",
+			update:         fleet.EJBCAUpdatePayload{ClientP12: &p12s.valid},
 			wantErr:        "The PKCS#12 password must be set with client_p12",
 			wantNotUpdated: true,
 		},
 		{
 			name:           "password without PKCS#12",
-			update:         func(*testing.T) fleet.EJBCAUpdatePayload { return fleet.EJBCAUpdatePayload{Password: new("x")} },
+			update:         fleet.EJBCAUpdatePayload{Password: new("x")},
 			wantErr:        "The password can only be set with client_p12",
 			wantNotUpdated: true,
 		},
 		{
-			name: "wrong password for the new PKCS#12",
-			update: func(t *testing.T) fleet.EJBCAUpdatePayload {
-				return fleet.EJBCAUpdatePayload{ClientP12: new(validEJBCAClientP12(t)), Password: new("wrong")}
-			},
-			wantErr:        "PKCS#12 password is incorrect",
-			wantNotUpdated: true,
-		},
-		{
-			name: "expired replacement credential",
-			update: func(t *testing.T) fleet.EJBCAUpdatePayload {
-				p12 := ejbcaClientP12(t, time.Now().Add(-48*time.Hour), time.Now().Add(-time.Hour))
-				return fleet.EJBCAUpdatePayload{ClientP12: &p12, Password: new(ejbcaP12Password)}
-			},
-			wantErr:        "The client certificate expired on",
-			wantNotUpdated: true,
-		},
-		{
-			name: "required field cleared",
-			update: func(*testing.T) fleet.EJBCAUpdatePayload {
-				return fleet.EJBCAUpdatePayload{CertificateProfileName: new(" ")}
-			},
+			name:           "required field cleared",
+			update:         fleet.EJBCAUpdatePayload{CertificateProfileName: new(" ")},
 			wantErr:        "certificate profile name cannot be empty",
 			wantNotUpdated: true,
 		},
 		{
-			name: "second UPN",
-			update: func(*testing.T) fleet.EJBCAUpdatePayload {
-				return fleet.EJBCAUpdatePayload{CertificateUserPrincipalNames: &[]string{"a@example.com", "b@example.com"}}
-			},
-			wantErr:        "only one item can be added to certificate_user_principal_names",
-			wantNotUpdated: true,
-		},
-		{
 			name:           "invalid name",
-			update:         func(*testing.T) fleet.EJBCAUpdatePayload { return fleet.EJBCAUpdatePayload{Name: new("bad name")} },
+			update:         fleet.EJBCAUpdatePayload{Name: new("bad name")},
 			wantErr:        "Invalid characters in the \"name\" field",
 			wantNotUpdated: true,
 		},
 		{
-			name: "only masked credentials",
-			update: func(*testing.T) fleet.EJBCAUpdatePayload {
-				return fleet.EJBCAUpdatePayload{ClientP12: new(fleet.MaskedPassword), Password: new(fleet.MaskedPassword)}
-			},
+			name:           "only masked credentials",
+			update:         fleet.EJBCAUpdatePayload{ClientP12: new(fleet.MaskedPassword), Password: new(fleet.MaskedPassword)},
 			wantErr:        "EJBCA CA update payload is empty",
 			wantNotUpdated: true,
 		},
 		{
 			name:           "empty update",
-			update:         func(*testing.T) fleet.EJBCAUpdatePayload { return fleet.EJBCAUpdatePayload{} },
+			update:         fleet.EJBCAUpdatePayload{},
 			wantErr:        "EJBCA CA update payload is empty",
 			wantNotUpdated: true,
 		},
@@ -478,9 +485,8 @@ func TestUpdateEJBCACertificateAuthority(t *testing.T) {
 				env.verified = append(env.verified, config)
 				return tt.verifyErr
 			}
-			update := tt.update(t)
 
-			err := env.svc.UpdateCertificateAuthority(env.ctx, 7, fleet.CertificateAuthorityUpdatePayload{EJBCAUpdatePayload: &update})
+			err := env.svc.UpdateCertificateAuthority(env.ctx, 7, fleet.CertificateAuthorityUpdatePayload{EJBCAUpdatePayload: &tt.update})
 			if tt.wantErr != "" {
 				require.ErrorContains(t, err, tt.wantErr)
 			} else {
