@@ -9,8 +9,14 @@ import { IAdvancedSectionProps } from "../../Advanced";
 const FeaturesSection = ({
   formData,
   onInputChange,
+  isPremiumTier = false,
 }: IAdvancedSectionProps) => {
-  const { disableLiveQuery, disableScripts, disableAIFeatures } = formData;
+  const {
+    disableLiveQuery,
+    disableScripts,
+    disableAIFeatures,
+    enableMCP,
+  } = formData;
 
   return (
     <SettingsSection title="Features">
@@ -106,6 +112,36 @@ const FeaturesSection = ({
           </Checkbox>
         )}
       />
+      {isPremiumTier && (
+        <GitOpsModeTooltipWrapper
+          position="left"
+          renderChildren={(disableChildren) => (
+            <Checkbox
+              disabled={disableChildren}
+              onChange={() =>
+                onInputChange({ name: "enableMCP", value: !enableMCP })
+              }
+              name="enableMCP"
+              value={enableMCP}
+              labelTooltipContent={
+                !disableChildren && (
+                  <>
+                    When disabled, AI assistants (e.g. Claude) can&apos;t
+                    connect to Fleet&apos;s MCP server.
+                    <br />
+                    <i>
+                      (Default: <strong>On</strong>)
+                    </i>
+                  </>
+                )
+              }
+              helpText="Only API-only users can connect. They can do anything their role allows, including running live reports."
+            >
+              MCP server
+            </Checkbox>
+          )}
+        />
+      )}
     </SettingsSection>
   );
 };

@@ -10,12 +10,18 @@ const renderAdvanced = (
   overrides: {
     historicalData?: { uptime: boolean; vulnerabilities: boolean };
     handleSubmit?: jest.Mock;
+    tier?: string;
+    mcpEnabled?: boolean;
   } = {}
 ) => {
   const baseConfig = createMockConfig();
   const config = {
     ...baseConfig,
-    license: { ...baseConfig.license, tier: "premium" },
+    license: { ...baseConfig.license, tier: overrides.tier ?? "premium" },
+    server_settings: {
+      ...baseConfig.server_settings,
+      mcp_enabled: overrides.mcpEnabled ?? true,
+    },
     features: {
       ...baseConfig.features,
       historical_data:
@@ -138,5 +144,31 @@ describe("Advanced settings — Host lifecycle", () => {
     await user.click(screen.getByText("Host expiry"));
 
     expect(screen.getByLabelText("Host expiry window")).toBeEnabled();
+  });
+});
+
+describe("Advanced settings — MCP server", () => {
+  it("shows the MCP server checkbox checked by default on Premium", () => {
+    renderAdvanced();
+    expect(screen.getByLabelText(/MCP server/)).toBeChecked();
+  });
+
+  it("sends mcp_enabled false after unchecking it", async () => {
+    const { user, handleSubmit } = renderAdvanced();
+    await user.click(screen.getByRole("checkbox", { name: "enableMCP" }));
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+    expect(handleSubmit.mock.calls[0][0].server_settings.mcp_enabled).toBe(
+      false
+    );
+  });
+
+  it("starts unchecked when the MCP server is disabled in config", () => {
+    renderAdvanced({ mcpEnabled: false });
+    expect(screen.getByLabelText(/MCP server/)).not.toBeChecked();
+  });
+
+  it("hides the MCP server checkbox on Fleet Free", () => {
+    renderAdvanced({ tier: "free" });
+    expect(screen.queryByLabelText(/MCP server/)).not.toBeInTheDocument();
   });
 });
