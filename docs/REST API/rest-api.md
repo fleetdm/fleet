@@ -1808,6 +1808,7 @@ None.
     "okta_assertion_consumer_service_url": "https://example.okta.com/sso/saml2/0ogmbinlfy9hvGs7cx492",
     "okta_audience_uri": "https://www.okta.com/saml2/service-provider/asdhjlksoewpoasn",
     "okta_certificate": "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----",
+    "google_api_key_json": "********",
     "bypass_disabled": false
   },
   "host_expiry_settings": {
@@ -2207,6 +2208,7 @@ Modifies the Fleet's configuration with the supplied information.
     "okta_assertion_consumer_service_url": "https://example.okta.com/sso/saml2/0ogmbinlfy9hvGs7cx492",
     "okta_audience_uri": "https://www.okta.com/saml2/service-provider/asdhjlksoewpoasn",
     "okta_certificate": "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----",
+    "google_api_key_json": "********",
     "bypass_disabled": false
   },
   "host_expiry_settings": {
@@ -2900,9 +2902,10 @@ _Available in Fleet Premium._
 | okta_assertion_consumer_service_url | string  | The assertion consumer service URL found in Okta after creating an IdP in **Security** > **Identity Providers** > **SAML 2.0 IdP**      |
 | okta_audience_uri                   | string  | The audience URI found in Okta after creating an IdP in **Security** > **Identity Providers** > **SAML 2.0 IdP**      |
 | okta_certificate                    | string  | The certificate provided by Okta during the **Set Up Authenticator** workflow      |
+| google_api_key_json                 | object  | The service account JSON key used to mark iOS, iPadOS, and Android hosts as managed in Google. The service account must have domain-wide delegation enabled. Only global admins can set this. Returned as `"********"` in responses. To remove it, set to `null`. |
 | bypass_disabled                    | boolean  | Disables the per-policy setting to allow bypassing Okta conditional access. (Default: `false`.) |
 
-When updating conditional access config, all `conditional_access` fields must either be empty or included in the request.
+When updating Okta conditional access config, all `okta_*` fields must either be empty or included in the request.
 
 ##### Example request body
 
@@ -2913,6 +2916,19 @@ When updating conditional access config, all `conditional_access` fields must ei
     "okta_assertion_consumer_service_url": "https://example.okta.com/sso/saml2/0ogmbinlfy9hvGs7cx492",
     "okta_audience_uri": "https://www.okta.com/saml2/service-provider/asdhjlksoewpoasn",
     "okta_certificate": "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----",
+    "google_api_key_json": {
+      "type": "service_account",
+      "project_id": "fleet-conditional-access",
+      "private_key_id": "<private key id>",
+      "private_key": "-----BEGIN PRIVATE KEY-----\n<private key>\n-----END PRIVATE KEY-----\n",
+      "client_email": "fleet-conditional-access@fleet-conditional-access.iam.gserviceaccount.com",
+      "client_id": "<client id>",
+      "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+      "token_uri": "https://oauth2.googleapis.com/token",
+      "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+      "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/fleet-conditional-access%40fleet-conditional-access.iam.gserviceaccount.com",
+      "universe_domain": "googleapis.com"
+    },
     "bypass_disabled": false
   }
 }
@@ -4136,6 +4152,8 @@ Returns the information of the specified host.
 
 `GET /api/v1/fleet/hosts/:id`
 
+For iOS, iPadOS, and Android hosts, `google_device_id` is the host's device ID in Google. It's `""` until Google conditional access is configured and the end user signs in to Google from the host.
+
 > If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
 
 
@@ -4486,6 +4504,7 @@ Returns the information of the specified host.
     "hardware_model": "iPhone15,2",
     "hardware_version": "iPhone 15 Pro",
     "hardware_serial": "F2LXX1XXXXXX",
+    "google_device_id": "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12",
     "computer_name": "Anna's iPhone",
     "timezone": null,
     "display_name": "Anna's iPhone",
@@ -4820,6 +4839,7 @@ Returns the information of the specified host.
     "hardware_model": "Google Pixel 9",
     "hardware_version": "",
     "hardware_serial": "3B241102E5",
+    "google_device_id": "8f2e6b1c-4d3a-4c9e-b7a5-1e0f9d2c3b4a",
     "computer_name": "Anna Chao's Google Pixel 9",
     "timezone": null,
     "display_name": "Anna Chao's Google Pixel 9",
@@ -5292,6 +5312,7 @@ If `hostname` is specified when there is more than one host with the same hostna
     "hardware_model": "iPhone15,2",
     "hardware_version": "iPhone 15 Pro",
     "hardware_serial": "F2LXX1XXXXXX",
+    "google_device_id": "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12",
     "computer_name": "John's iPhone",
     "timezone": null,
     "public_ip": "",
@@ -5578,6 +5599,7 @@ If `hostname` is specified when there is more than one host with the same hostna
     "hardware_model": "Google Pixel 9",
     "hardware_version": "",
     "hardware_serial": "3B241102E5",
+    "google_device_id": "8f2e6b1c-4d3a-4c9e-b7a5-1e0f9d2c3b4a",
     "computer_name": "Anna Chao's Google Pixel 9",
     "timezone": null,
     "display_name": "Anna Chao's Google Pixel 9",

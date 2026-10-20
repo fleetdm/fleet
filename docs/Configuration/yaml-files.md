@@ -1263,6 +1263,8 @@ Can be configured for "All fleets" (`org_settings`) and specific fleets (`settin
 org_settings:
   integrations:
     conditional_access_enabled: true
+    conditional_access:
+      google_api_key_json: $GOOGLE_CONDITIONAL_ACCESS_API_KEY_JSON
     google_calendar:
       - api_key_json: $GOOGLE_CALENDAR_API_KEY_JSON
         domain: fleetdm.com
@@ -1295,6 +1297,14 @@ At the fleet level, there is the additional option to enable conditional access,
 integrations:
   conditional_access_enabled: true
 ```
+
+#### conditional_access
+
+_Available in Fleet Premium._
+
+- `google_api_key_json` is the contents of the JSON file downloaded when you create your Google service account API key. Fleet uses it to mark iOS, iPadOS, and Android hosts as managed in Google. The service account must have domain-wide delegation enabled (default: `""`).
+
+Can only be configured for "All fleets" (`org_settings`). If set, `fleetctl generate-gitops` replaces it with a TODO, the same as other secrets.
 
 #### google_calendar
 

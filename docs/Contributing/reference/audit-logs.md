@@ -2963,6 +2963,18 @@ Generated when Okta conditional access configuration is removed.
 
 This activity does not contain any detail fields.
 
+## added_conditional_access_google
+
+Generated when the Google service account API key for conditional access is added or edited.
+
+This activity does not contain any detail fields.
+
+## deleted_conditional_access_google
+
+Generated when the Google service account API key for conditional access is removed.
+
+This activity does not contain any detail fields.
+
 ## added_google_workspace_integration
 
 Generated when a Google Workspace integration is configured to sync IdP host vitals.
