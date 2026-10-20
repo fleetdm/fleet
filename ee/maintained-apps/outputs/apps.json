@@ -5084,6 +5084,13 @@
       "description": "Logi Options+ is software for managing Logitech devices."
     },
     {
+      "name": "Logitech G HUB",
+      "slug": "logitech-g-hub/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.logi.ghub",
+      "description": "Logitech G HUB is software for customizing Logitech G gaming gear."
+    },
+    {
       "name": "Logitech Unifying Software",
       "slug": "logitech-unifying-software/windows",
       "platform": "windows",
