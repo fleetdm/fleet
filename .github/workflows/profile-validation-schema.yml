@@ -22,6 +22,9 @@ permissions:
 jobs:
   check:
     if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write  # Required to comment generator warnings on the PR
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -42,7 +45,22 @@ jobs:
 
       - name: Regenerate at the pinned Apple commit
         # -fetch-pinned downloads the commit the committed schema pins, from codeload; no API call.
-        run: go run ./tools/profile-schema-gen -fetch-pinned
+        shell: bash  # explicit bash adds -o pipefail, so tee doesn't hide the generator's exit code
+        run: go run ./tools/profile-schema-gen -fetch-pinned 2>&1 | tee "$RUNNER_TEMP/generate.log"
+
+      - name: Comment generator warnings and errors on the PR
+        # Fork PRs get a read-only token, so they can't comment.
+        if: always() && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          log="$RUNNER_TEMP/generate.log"
+          [ -f "$log" ] || exit 0
+          grep -E 'level=(WARN|ERROR)' "$log" | while IFS= read -r line; do
+            printf 'Profile schema generator:\n```\n%s\n```\n' "$line" |
+              gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file -
+          done
 
       - name: Fail if the committed schema is out of date
         run: |
