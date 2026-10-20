@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"log/slog"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -22,6 +23,8 @@ import (
 func TestReencryptWSTEPDiskEncryptionKeys(t *testing.T) {
 	ctx := t.Context()
 	logger := slog.New(slog.DiscardHandler)
+	wstepKeyBatchPause = 0
+	t.Cleanup(func() { wstepKeyBatchPause = time.Second })
 
 	appleCert, appleKey, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(t, err)

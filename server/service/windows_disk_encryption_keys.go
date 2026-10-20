@@ -12,14 +12,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 )
 
-const (
-	// wstepKeyBatchSize is how many legacy rows one query returns. Re-encryption happens on the server and costs one RSA
-	// decryption per row, so a run walks every row in batches of this size.
-	wstepKeyBatchSize = 500
+// wstepKeyBatchSize is how many legacy rows one query returns. Re-encryption happens on the server and costs one RSA
+// decryption per row, so a run walks every row in batches of this size.
+const wstepKeyBatchSize = 500
 
-	// wstepKeyBatchPause keeps the run from hammering the database: each batch is a read plus up to one write per row.
-	wstepKeyBatchPause = time.Second
-)
+// wstepKeyBatchPause keeps the run from hammering the database: each batch is a read plus up to one write per row. A
+// variable so tests can skip it.
+var wstepKeyBatchPause = time.Second
 
 // ReencryptWSTEPDiskEncryptionKeys re-encrypts legacy Windows recovery keys, which older releases encrypted to the WSTEP
 // identity certificate, so they are protected by the server private key like every other key. Keys the certificate
@@ -151,14 +150,15 @@ func ReencryptWSTEPDiskEncryptionKeys(ctx context.Context, logger *slog.Logger, 
 				archivedAlreadyCurrent++
 			} else if plain, err := decrypt(key.Base64Encrypted); err != nil {
 				archivedUnreadable++
-			} else {
-				if newBlob, err = encrypt(plain); err != nil {
-					return ctxerr.Wrap(ctx, err, "re-encrypt archived disk encryption key")
-				}
-				archivedReencrypted++
+			} else if newBlob, err = encrypt(plain); err != nil {
+				return ctxerr.Wrap(ctx, err, "re-encrypt archived disk encryption key")
 			}
-			if _, err := ds.ReplaceWSTEPEncryptedArchivedDiskEncryptionKey(ctx, key.ID, key.Base64Encrypted, newBlob); err != nil {
+			replaced, err := ds.ReplaceWSTEPEncryptedArchivedDiskEncryptionKey(ctx, key.ID, key.Base64Encrypted, newBlob)
+			if err != nil {
 				return ctxerr.Wrap(ctx, err, "replace WSTEP encrypted archived disk encryption key")
+			}
+			if replaced && newBlob != key.Base64Encrypted {
+				archivedReencrypted++
 			}
 		}
 		if len(keys) < wstepKeyBatchSize {

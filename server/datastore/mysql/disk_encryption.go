@@ -580,8 +580,8 @@ func (ds *Datastore) MarkWindowsDiskEncryptionKeysUndecryptable(ctx context.Cont
 		return nil
 	}
 	// Matched on the blob as well as the host, so a key the host escrowed meanwhile is never marked. The legacy marker
-	// stays so the key is still read with the WSTEP certificate, which makes it readable again if the previous pair is
-	// restored. The host is asked to re-escrow either way.
+	// stays: the row is still a legacy blob, and restoring the previous pair makes it readable again. The host is asked
+	// to re-escrow either way.
 	placeholders := strings.TrimSuffix(strings.Repeat("(?, ?), ", len(keys)), ", ")
 	args := make([]any, 0, 2*len(keys))
 	for _, k := range keys {
