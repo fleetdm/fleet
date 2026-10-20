@@ -2162,6 +2162,7 @@ func (s *integrationMDMTestSuite) TestEJBCAIntegration() {
 		{Name: "N1", Contents: ejbcaForTest("N1", "I1", "badName")},
 	}}, http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(rawRes.Body), "_badName does not exist")
+	s.assertConfigProfilesByIdentifier(nil, "I1", false)
 
 	// The host gets a certificate, with the common name and UPN of the CA filled in, and under the username of the CA.
 	profile := ejbcaForTest("N2", "I2", "ejbca_CA")
