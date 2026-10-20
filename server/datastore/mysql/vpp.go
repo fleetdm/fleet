@@ -1551,7 +1551,7 @@ FROM
 	LEFT OUTER JOIN users u ON hvsi.user_id = u.id
 	LEFT OUTER JOIN hosts h ON h.id = hvsi.host_id
 	LEFT OUTER JOIN host_display_names hdn ON hdn.host_id = hvsi.host_id
-	LEFT OUTER JOIN vpp_apps vpa ON hvsi.adam_id = vpa.adam_id
+	LEFT OUTER JOIN vpp_apps vpa ON hvsi.adam_id = vpa.adam_id AND hvsi.platform = vpa.platform
 	LEFT OUTER JOIN software_titles st ON st.id = vpa.title_id
 	LEFT OUTER JOIN software_title_display_names stdn
 		ON stdn.software_title_id = vpa.title_id
