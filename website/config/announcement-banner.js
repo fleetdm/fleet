@@ -13,6 +13,8 @@ module.exports.announcementBanner = {
   enabled: true,
 
   text: 'Join the Fleet Virtual Summit on November 10',
+  // Optional shorter text for phones, so the label leaves room for the glass around it.
+  textForSmallScreens: 'Virtual Summit · Nov 10',
   href: '/announcements/fleet-virtual-summit-2026',
 
   // Shown instead to visitors in Europe (based on Cloudflare's cf-ipcountry header).

@@ -364,7 +364,7 @@
       color: @core-fleet-black;
       width: 200px;
       position: sticky;
-      top: 104px;
+      top: ~'calc(104px + var(--announcement-banner-height, 0px))';
       a {
         text-decoration: none;
         color: @core-fleet-black;
@@ -991,7 +991,7 @@
         }
         min-width: 220px;
         position: sticky;
-        top: 104px;
+        top: ~'calc(104px + var(--announcement-banner-height, 0px))';
         margin-left: 24px;
         height: fit-content;
         overflow-y: auto;

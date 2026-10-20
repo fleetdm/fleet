@@ -785,20 +785,23 @@
             </div>
           <%} %>
         </div>
+        <%// Announcement banner (configured in config/announcement-banner.js).  Inside the header so it sticks with it. %>
+        <% if (announcementBanner && !hideHeaderLinks && !showConfigurationProfileLayout) { %>
+        <a purpose="announcement-banner" href="<%= announcementBanner.href %>" no-underline data-nosnippet>
+          <span purpose="banner-flutes" aria-hidden="true"></span>
+          <span purpose="banner-label">
+            <span purpose="banner-text" class="<%= announcementBanner.textForSmallScreens ? 'has-short-text' : '' %>"><%= announcementBanner.text %></span>
+            <% if (announcementBanner.textForSmallScreens) { %><span purpose="banner-short-text"><%= announcementBanner.textForSmallScreens %></span><% } %>
+            <svg purpose="banner-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+              <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
+              <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+        </a>
+        <% } %>
       </div>
       <% } %>
 
-      <%// Announcement banner (configured in config/announcement-banner.js) %>
-      <% if (announcementBanner && !hideHeaderLinks && !showConfigurationProfileLayout) { %>
-      <a purpose="announcement-banner" href="<%= announcementBanner.href %>" no-underline data-nosnippet>
-        <span purpose="banner-flutes" aria-hidden="true"></span>
-        <span purpose="banner-text"><%= announcementBanner.text %></span>
-        <svg purpose="banner-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-          <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
-          <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </a>
-      <% } %>
 
       <%- body %>
       <% if(!hideFooter) {%>
@@ -1210,33 +1213,46 @@
         var banner = document.querySelector('[purpose="announcement-banner"]');
         if (!banner) { return; }
         var flutesContainer = banner.querySelector('[purpose="banner-flutes"]');
-        var bannerText = banner.querySelector('[purpose="banner-text"]');
         var flutes = [];
-        var BASE_OPACITY = 0.12;
+        var RESTING_LIT = 0.15;
+        // On hover, the glass near the cursor reflects a stretch of the cloud city.  The art repeats as needed, every other copy
+        // mirrored so the seams don't show, and each reed shows its own slightly shifted slice.
+        var REFLECTION_WIDTH = 1200;
         var isReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
         // The light is a soft pool (center, width, brightness) that springs toward its target, so it glides between flutes.
-        // At rest it sits broad and to the right, like a mirrored version of the shine on our buttons.
-        var restingLight = function(){ return { center: banner.offsetWidth * 0.78, width: banner.offsetWidth * 0.3, brightness: 0.55 }; };
+        // At rest it sits broad and to the left, like the shine on our buttons.  `reveal` is how much of the reflection shows around it.
+        var restingLight = function(){ return { center: banner.offsetWidth * 0.22, width: banner.offsetWidth * 0.3, brightness: 0.45, reveal: 0 }; };
         var light = restingLight();
         var lightTarget = restingLight();
-        var lightVelocity = { center: 0, width: 0, brightness: 0 };
+        var lightVelocity = { center: 0, width: 0, brightness: 0, reveal: 0 };
+        var revealCenter = 0;// « follows the light while hovered, then stays put as the reflection fades
         var glint;// « { startedAt, duration } while a glint is crossing
         var frameRequest;
         var lastFrameAt;
 
         var buildFlutes = function() {
           flutesContainer.innerHTML = '';
-          // Flutes narrow from left to right: broad ones at the left, fine reeds at the right.
+          // Flutes widen from left to right: fine reeds at the left, broad ones at the right.
           var totalWidth = banner.offsetWidth + 48;
           for (var x = 0; x < totalWidth;) {
-            var fluteWidth = 6 + 46 * Math.pow(1 - x / totalWidth, 1.4);
+            var fluteWidth = 6 + 46 * Math.pow(x / totalWidth, 1.4);
             var flute = flutesContainer.appendChild(document.createElement('span'));
             flute.setAttribute('purpose', 'banner-flute');
             flute.style.flexBasis = fluteWidth.toFixed(1) + 'px';
             x += fluteWidth + 2;
           }
           flutes = Array.prototype.slice.call(flutesContainer.children);
+          var bannerLeft = flutesContainer.offsetLeft;
+          flutes.forEach(function(flute, i){
+            var fluteLeft = bannerLeft + flute.offsetLeft;
+            var refraction = Math.sin(i * 2.3) * Math.min(6, flute.offsetWidth * 0.25);
+            var html = '';
+            for (var tile = Math.floor((fluteLeft - 8) / REFLECTION_WIDTH); tile * REFLECTION_WIDTH < fluteLeft + flute.offsetWidth + 8; tile++) {
+              html += '<img purpose="reflected-city" alt="" src="/images/banner-reflected-cloud-city-1200x110.svg"' + (Math.abs(tile) % 2 === 1 ? ' class="mirrored"' : '') + ' style="left: ' + (tile * REFLECTION_WIDTH - fluteLeft + refraction).toFixed(1) + 'px">';
+            }
+            flute.innerHTML = html;
+          });
         };
 
         var render = function(now) {
@@ -1245,36 +1261,31 @@
           var secondsElapsed = Math.min(0.05, (now - (lastFrameAt || now)) / 1000);
           lastFrameAt = now;
           // A critically damped spring, so the light eases in as it sets off and eases out as it arrives, without overshooting.
-          var SPRING_FREQUENCY = 10;
-          ['center', 'width', 'brightness'].forEach(function(key){
+          var SPRING_FREQUENCY = 13;
+          ['center', 'width', 'brightness', 'reveal'].forEach(function(key){
             var delta = lightTarget[key] - light[key];
-            var threshold = key === 'brightness' ? 0.005 : 0.5;
+            var threshold = key === 'brightness' || key === 'reveal' ? 0.005 : 0.5;
             if (isReducedMotion) { light[key] = lightTarget[key]; lightVelocity[key] = 0; return; }
             lightVelocity[key] += (SPRING_FREQUENCY * SPRING_FREQUENCY * delta - 2 * SPRING_FREQUENCY * lightVelocity[key]) * secondsElapsed;
             light[key] += lightVelocity[key] * secondsElapsed;
             if (Math.abs(delta) > threshold || Math.abs(lightVelocity[key]) > threshold) { isSettling = true; }
           });
-          if (!isSettling && !glint) { lastFrameAt = undefined; }
           var glintCenter;
           if (glint) {
             var progress = (now - glint.startedAt) / glint.duration;
-            if (progress >= 1) { glint = undefined; } else { glintCenter = banner.offsetWidth + 60 - (banner.offsetWidth + 120) * progress * progress; }
+            if (progress >= 1) { glint = undefined; } else { glintCenter = -60 + (banner.offsetWidth + 120) * progress * progress; }
           }
+          if (!isSettling && !glint) { lastFrameAt = undefined; }
+          if (lightTarget.reveal > 0) { revealCenter = light.center; }
           var bannerLeft = flutesContainer.offsetLeft;
-          var bannerBounds = banner.getBoundingClientRect();
-          var textBounds = bannerText.getBoundingClientRect();
-          var textLeft = textBounds.left - bannerBounds.left;
-          var textRight = textBounds.right - bannerBounds.left + 20;// « includes the arrow
           flutes.forEach(function(flute){
             var fluteCenter = bannerLeft + flute.offsetLeft + flute.offsetWidth / 2;
             var lit = light.brightness * Math.exp(-Math.pow((fluteCenter - light.center) / light.width, 2));
             if (glintCenter !== undefined) {
               lit = Math.max(lit, 0.9 * Math.exp(-Math.pow((fluteCenter - glintCenter) / 22, 2)));
             }
-            // Hold the light back behind the words, so white text never washes out against a white shine.
-            var distanceFromText = Math.max(0, textLeft - fluteCenter, fluteCenter - textRight);
-            var textShielding = 0.3 + 0.7 * Math.min(1, distanceFromText / 40);
-            flute.style.opacity = Math.min(1, BASE_OPACITY + lit * textShielding).toFixed(3);
+            flute.style.setProperty('--lit', Math.min(1, RESTING_LIT + lit).toFixed(3));
+            flute.style.setProperty('--reveal', (Math.max(0, light.reveal) * Math.exp(-Math.pow((fluteCenter - revealCenter) / 125, 2))).toFixed(3));
           });
           if (isSettling || glint) { frameRequest = window.requestAnimationFrame(render); }
         };
@@ -1282,21 +1293,28 @@
           if (!frameRequest) { frameRequest = window.requestAnimationFrame(render); }
         };
 
+        // Pages whose sticky elements sit just below the header offset them by this.  (See e.g. basic-documentation.less.)
+        var publishBannerHeight = function() {
+          document.documentElement.style.setProperty('--announcement-banner-height', banner.offsetHeight + 'px');
+        };
+        publishBannerHeight();
         buildFlutes();
         banner.classList.add('fluted');
         requestRender();
 
-        var resizeTimeout;
+        // Rebuild right away (not debounced), so a sudden jump in width, like going fullscreen, never shows the glass half-built.
+        var builtForWidth = banner.offsetWidth;
         window.addEventListener('resize', function() {
-          clearTimeout(resizeTimeout);
-          resizeTimeout = setTimeout(function(){
-            buildFlutes();
-            if (!banner.matches(':hover')) { light = restingLight(); lightTarget = restingLight(); }
-            requestRender();
-          }, 150);
+          if (banner.offsetWidth === builtForWidth) { return; }
+          builtForWidth = banner.offsetWidth;
+          publishBannerHeight();
+          buildFlutes();
+          if (!banner.matches(':hover')) { light = restingLight(); lightTarget = restingLight(); }
+          if (frameRequest) { window.cancelAnimationFrame(frameRequest); }
+          render(performance.now());
         });
         banner.addEventListener('pointermove', function(event) {
-          lightTarget = { center: event.clientX - banner.getBoundingClientRect().left, width: 70, brightness: 0.7 };
+          lightTarget = { center: event.clientX - banner.getBoundingClientRect().left, width: 70, brightness: 0.8, reveal: 1 };
           requestRender();
         });
         banner.addEventListener('pointerleave', function() {
