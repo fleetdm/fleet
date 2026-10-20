@@ -5,6 +5,7 @@
 //
 //	go run ./tools/profile-schema-gen -update   # fetch the latest release-branch commit and regenerate
 //	go run ./tools/profile-schema-gen           # regenerate from the already downloaded pinned commit, offline
+//	go run ./tools/profile-schema-gen -fetch-pinned  # same, downloading the pinned commit if needed (CI)
 package main
 
 import (
@@ -34,6 +35,7 @@ const commitMarker = ".commit"
 func main() {
 	out := flag.String("out", "pkg/mdm/profilevalidation/outputs/profile_schema.json", "path of the generated schema; its version block is the pin for runs without -update")
 	update := flag.Bool("update", false, "fetch the latest upstream commit and regenerate from it")
+	fetchPinned := flag.Bool("fetch-pinned", false, "without -update, download the pinned commit if it isn't already downloaded (for CI)")
 	overrides := flag.String("overrides", "pkg/mdm/profilevalidation/inputs/overrides.yml", `overrides file applied to the generated schema; skipped if missing, "" to skip`)
 	verbose := flag.Bool("v", false, "log every file and decision (debug level)")
 	flag.Parse()
@@ -45,7 +47,7 @@ func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level}))
 
 	ctx := context.Background()
-	if err := run(ctx, logger, *out, *overrides, *update); err != nil {
+	if err := run(ctx, logger, *out, *overrides, *update, *fetchPinned); err != nil {
 		// Override problems are reported together, one per line; log them as separate lines.
 		for line := range strings.SplitSeq(err.Error(), "\n") {
 			logger.ErrorContext(ctx, "generation failed", "err", line)
@@ -54,7 +56,7 @@ func main() {
 	}
 }
 
-func run(ctx context.Context, logger *slog.Logger, out, overrides string, update bool) error {
+func run(ctx context.Context, logger *slog.Logger, out, overrides string, update, fetchPinned bool) error {
 	// Paths are relative to the repo root; fail clearly instead of writing somewhere unexpected.
 	if _, err := os.Stat(workDir); err != nil {
 		return errors.New("run from the repository root: " + workDir + " not found")
@@ -80,7 +82,11 @@ func run(ctx context.Context, logger *slog.Logger, out, overrides string, update
 	appleLogger := logger.With("platform", "apple")
 	appleDir := filepath.Join(workDir, "apple")
 	var schema profilevalidation.ProfileValidationSchema
-	if schema.Version.Apple, err = runApple(ctx, appleLogger, client, githubAPIURL, codeloadURL, appleDir, pinnedApple, update); err != nil {
+	schema.Version.Apple, err = runApple(ctx, appleLogger, client, appleRunOptions{
+		APIURL: githubAPIURL, TarballURL: codeloadURL, Dir: appleDir,
+		Pinned: pinnedApple, Update: update, FetchPinned: fetchPinned,
+	})
+	if err != nil {
 		return err
 	}
 	src, err := loadApple(ctx, appleLogger, appleDir)
@@ -99,25 +105,40 @@ func run(ctx context.Context, logger *slog.Logger, out, overrides string, update
 	return writeOutput(ctx, logger, out, &schema, existing, time.Now())
 }
 
-// runApple returns the Apple version to generate and leaves its sources in dir. Without update it
-// uses the pinned commit's existing download and makes no network calls.
-func runApple(ctx context.Context, logger *slog.Logger, client *http.Client, apiURL, tarballURL, dir string, pinned *profilevalidation.AppleVersion, update bool) (profilevalidation.AppleVersion, error) {
-	if !update {
-		if pinned == nil {
+type appleRunOptions struct {
+	APIURL, TarballURL string
+	Dir                string // where Apple's sources are downloaded
+	Pinned             *profilevalidation.AppleVersion
+	Update             bool // move to the latest release-branch commit
+	FetchPinned        bool // without Update, download the pinned commit if dir doesn't hold it
+}
+
+// runApple returns the Apple version to generate and leaves its sources in o.Dir. Without
+// o.Update it uses the pinned commit, and only touches the network to download it when
+// o.FetchPinned is set (from codeload, which isn't API rate limited).
+func runApple(ctx context.Context, logger *slog.Logger, client *http.Client, o appleRunOptions) (profilevalidation.AppleVersion, error) {
+	if !o.Update {
+		if o.Pinned == nil {
 			return profilevalidation.AppleVersion{}, errors.New("no Apple commit pinned in the output; run with -update to fetch the latest")
 		}
-		downloaded, err := os.ReadFile(filepath.Join(dir, commitMarker))
-		if err != nil {
-			return profilevalidation.AppleVersion{}, fmt.Errorf("no Apple download in %s for pinned commit %s; run with -update to fetch the latest", dir, pinned.Commit)
+		pin := *o.Pinned
+		downloaded, err := os.ReadFile(filepath.Join(o.Dir, commitMarker))
+		got := strings.TrimSpace(string(downloaded))
+		if err == nil && got == pin.Commit {
+			logger.InfoContext(ctx, "using existing download for pinned commit", "dir", o.Dir, "release", pin.Release, "commit", pin.Commit)
+			return pin, nil
 		}
-		if got := strings.TrimSpace(string(downloaded)); got != pinned.Commit {
-			return profilevalidation.AppleVersion{}, fmt.Errorf("%s holds Apple commit %s but the output pins %s; run with -update to fetch the latest", dir, got, pinned.Commit)
+		if !o.FetchPinned {
+			if err != nil {
+				return profilevalidation.AppleVersion{}, fmt.Errorf("no Apple download in %s for pinned commit %s; run with -fetch-pinned to download it, or -update to move to the latest", o.Dir, pin.Commit)
+			}
+			return profilevalidation.AppleVersion{}, fmt.Errorf("%s holds Apple commit %s but the output pins %s; run with -fetch-pinned to download it, or -update to move to the latest", o.Dir, got, pin.Commit)
 		}
-		logger.InfoContext(ctx, "using existing download for pinned commit", "dir", dir, "release", pinned.Release, "commit", pinned.Commit)
-		return *pinned, nil
+		logger.InfoContext(ctx, "downloading pinned commit", "release", pin.Release, "commit", pin.Commit)
+		return pin, downloadApple(ctx, logger, client, o.TarballURL, o.Dir, pin.Commit)
 	}
 
-	commit, err := resolveCommit(ctx, logger, client, apiURL, appleRepo, appleBranch)
+	commit, err := resolveCommit(ctx, logger, client, o.APIURL, appleRepo, appleBranch)
 	if err != nil {
 		return profilevalidation.AppleVersion{}, err
 	}
@@ -127,27 +148,28 @@ func runApple(ctx context.Context, logger *slog.Logger, client *http.Client, api
 		return profilevalidation.AppleVersion{}, fmt.Errorf("commit %s on %s@%s has an empty message; can't name the release", commit.SHA, appleRepo, appleBranch)
 	}
 	switch {
-	case pinned == nil:
+	case o.Pinned == nil:
 		logger.InfoContext(ctx, "no Apple pin; using latest", "release", version.Release, "commit", version.Commit)
-	case pinned.Commit == version.Commit:
+	case o.Pinned.Commit == version.Commit:
 		logger.InfoContext(ctx, "latest Apple commit matches pin; regenerating anyway", "release", version.Release, "commit", version.Commit)
 	default:
-		logger.InfoContext(ctx, "moving Apple pin to latest", "from_release", pinned.Release, "from_commit", pinned.Commit,
+		logger.InfoContext(ctx, "moving Apple pin to latest", "from_release", o.Pinned.Release, "from_commit", o.Pinned.Commit,
 			"to_release", version.Release, "to_commit", version.Commit)
 	}
+	return version, downloadApple(ctx, logger, client, o.TarballURL, o.Dir, version.Commit)
+}
 
+// downloadApple replaces dir with Apple's sources at sha and marks which commit it holds.
+func downloadApple(ctx context.Context, logger *slog.Logger, client *http.Client, tarballURL, dir, sha string) error {
 	logger.DebugContext(ctx, "clearing previous download", "dir", dir)
 	if err := os.RemoveAll(dir); err != nil {
-		return profilevalidation.AppleVersion{}, err
+		return err
 	}
-	if err := downloadAppleTarball(ctx, logger, client, tarballURL, version.Commit, dir); err != nil {
-		return profilevalidation.AppleVersion{}, err
+	if err := downloadAppleTarball(ctx, logger, client, tarballURL, sha, dir); err != nil {
+		return err
 	}
 	// Written last, so an interrupted download never looks complete.
-	if err := os.WriteFile(filepath.Join(dir, commitMarker), []byte(version.Commit+"\n"), 0o644); err != nil {
-		return profilevalidation.AppleVersion{}, err
-	}
-	return version, nil
+	return os.WriteFile(filepath.Join(dir, commitMarker), []byte(sha+"\n"), 0o644)
 }
 
 func runWindows(ctx context.Context, logger *slog.Logger, schema *profilevalidation.ProfileValidationSchema) error {

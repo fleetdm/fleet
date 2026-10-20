@@ -24,8 +24,12 @@ go run ./tools/profile-schema-gen           # regenerate at the pinned commit, o
 ```
 
 - **`-update`** makes one `api.github.com` call to find the head of `release`. That's 60 per hour unauthenticated. It then downloads that commit's tarball from `codeload.github.com`, which isn't API rate limited, into `tools/profile-schema-gen/downloads/` (ignored by git).
-- **Without `-update`** the tool makes no network calls. It needs `downloads/` to hold the commit the output pins, and otherwise asks you to run with `-update`.
+- **Without `-update`** the tool makes no network calls. It needs `downloads/` to hold the commit the output pins. Add `-fetch-pinned` to download that commit when it's missing; this uses codeload only, with no API call.
 - **Other flags:** `-overrides <path>` picks the overrides file (default `inputs/overrides.yml`; `""` skips overrides). `-out <path>` writes somewhere else. `-v` logs every file and decision.
+
+CI, in `.github/workflows/profile-validation-schema.yml`:
+- **On PRs** that touch this package or the generator, it runs `-fetch-pinned` and fails if the committed schema differs.
+- **Daily**, it runs `-update` and opens or updates a PR when Apple's release changes the schema.
 
 Every run is checked:
 - **Self-check before writing:** the generator parses its own output with this package's `Parse`. If the floors or must-haves below fail, nothing is written. A reorganized upstream therefore fails generation instead of shrinking the schema.

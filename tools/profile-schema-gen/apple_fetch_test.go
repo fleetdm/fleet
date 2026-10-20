@@ -116,7 +116,7 @@ func TestRunAppleWithoutUpdate(t *testing.T) {
 	pinned := &profilevalidation.AppleVersion{Release: "Release-v27.0", Commit: testSHA}
 	// A nil client panics on use, proving these paths never touch the network.
 	run := func(dir string, pin *profilevalidation.AppleVersion) (profilevalidation.AppleVersion, error) {
-		return runApple(t.Context(), slog.New(slog.DiscardHandler), nil, "", "", dir, pin, false)
+		return runApple(t.Context(), slog.New(slog.DiscardHandler), nil, appleRunOptions{Dir: dir, Pinned: pin})
 	}
 	withMarker := func(commit string) string {
 		dir := t.TempDir()
@@ -129,6 +129,7 @@ func TestRunAppleWithoutUpdate(t *testing.T) {
 
 	_, err = run(t.TempDir(), pinned)
 	require.ErrorContains(t, err, "no Apple download in")
+	require.ErrorContains(t, err, "run with -fetch-pinned")
 
 	_, err = run(withMarker("1111111111111111111111111111111111111111"), pinned)
 	require.ErrorContains(t, err, "holds Apple commit 1111111111111111111111111111111111111111 but the output pins "+testSHA)
@@ -158,12 +159,64 @@ func TestRunAppleUpdate(t *testing.T) {
 	require.NoError(t, os.MkdirAll(dir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "stale.yaml"), []byte("old"), 0o644))
 
-	got, err := runApple(t.Context(), slog.New(slog.DiscardHandler), fleethttp.NewClient(), srv.URL, srv.URL, dir,
-		&profilevalidation.AppleVersion{Release: "Release-v26.4", Commit: "1111111111111111111111111111111111111111"}, true)
+	got, err := runApple(t.Context(), slog.New(slog.DiscardHandler), fleethttp.NewClient(), appleRunOptions{
+		APIURL: srv.URL, TarballURL: srv.URL, Dir: dir, Update: true,
+		Pinned: &profilevalidation.AppleVersion{Release: "Release-v26.4", Commit: "1111111111111111111111111111111111111111"},
+	})
 	require.NoError(t, err)
 	assert.Equal(t, profilevalidation.AppleVersion{Release: "Release-v27.0", Commit: testSHA}, got)
 	assert.ElementsMatch(t, []string{commitMarker, "mdm/profiles/a.yaml"}, listFiles(t, dir), "previous download is cleared")
 	marker, err := os.ReadFile(filepath.Join(dir, commitMarker))
 	require.NoError(t, err)
 	assert.Equal(t, testSHA+"\n", string(marker))
+}
+
+func TestRunAppleFetchPinned(t *testing.T) {
+	// Downloads the pinned commit, never the latest, and makes no API call.
+	const pinnedSHA = "2222222222222222222222222222222222222222"
+	var paths []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		if r.URL.Path != "/apple/device-management/tar.gz/"+pinnedSHA {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write(makeTarball(t, map[string]string{"mdm/profiles/a.yaml": "x"}))
+	}))
+	defer srv.Close()
+	pinned := &profilevalidation.AppleVersion{Release: "Release-v26.4", Commit: pinnedSHA}
+	opts := func(dir string) appleRunOptions {
+		return appleRunOptions{APIURL: srv.URL, TarballURL: srv.URL, Dir: dir, Pinned: pinned, FetchPinned: true}
+	}
+
+	t.Run("missing download", func(t *testing.T) {
+		paths = nil
+		dir := filepath.Join(t.TempDir(), "apple")
+		got, err := runApple(t.Context(), slog.New(slog.DiscardHandler), fleethttp.NewClient(), opts(dir))
+		require.NoError(t, err)
+		assert.Equal(t, *pinned, got)
+		assert.Equal(t, []string{"/apple/device-management/tar.gz/" + pinnedSHA}, paths, "no API call")
+		marker, err := os.ReadFile(filepath.Join(dir, commitMarker))
+		require.NoError(t, err)
+		assert.Equal(t, pinnedSHA+"\n", string(marker))
+	})
+
+	t.Run("download of another commit is replaced", func(t *testing.T) {
+		paths = nil
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, commitMarker), []byte(testSHA+"\n"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "stale.yaml"), []byte("old"), 0o644))
+		_, err := runApple(t.Context(), slog.New(slog.DiscardHandler), fleethttp.NewClient(), opts(dir))
+		require.NoError(t, err)
+		assert.ElementsMatch(t, []string{commitMarker, "mdm/profiles/a.yaml"}, listFiles(t, dir))
+	})
+
+	t.Run("matching download is reused", func(t *testing.T) {
+		paths = nil
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, commitMarker), []byte(pinnedSHA+"\n"), 0o644))
+		_, err := runApple(t.Context(), slog.New(slog.DiscardHandler), fleethttp.NewClient(), opts(dir))
+		require.NoError(t, err)
+		assert.Empty(t, paths)
+	})
 }
