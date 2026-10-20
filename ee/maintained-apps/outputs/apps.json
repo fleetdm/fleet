@@ -3236,6 +3236,13 @@
       "description": "FastScripts is a tool for running time-saving scripts."
     },
     {
+      "name": "Fathom",
+      "slug": "fathom/darwin",
+      "platform": "darwin",
+      "unique_identifier": "video.fathom.electron",
+      "description": "Fathom is a tool for recording and transcribing video conferences."
+    },
+    {
       "name": "Fellow",
       "slug": "fellow/darwin",
       "platform": "darwin",
@@ -3740,6 +3747,13 @@
       "description": "GitFinder is a git client with Finder integration."
     },
     {
+      "name": "GitHub Copilot",
+      "slug": "github-copilot-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.github.githubapp",
+      "description": "GitHub Copilot is a native desktop app for working with the GitHub Copilot AI coding agent."
+    },
+    {
       "name": "GitHub Copilot for Xcode",
       "slug": "github-copilot-for-xcode/darwin",
       "platform": "darwin",
@@ -4179,6 +4193,13 @@
       "platform": "darwin",
       "unique_identifier": "io.robbie.HomeAssistant",
       "description": "Home Assistant is a companion app for Home Assistant home automation software."
+    },
+    {
+      "name": "Homebrew",
+      "slug": "homebrew-app/darwin",
+      "platform": "darwin",
+      "unique_identifier": "sh.brew.app",
+      "description": "Homebrew is the official graphical app for managing Homebrew packages."
     },
     {
       "name": "Homerow",
@@ -5374,7 +5395,7 @@
       "name": "Mellel",
       "slug": "mellel/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.redlex.mellel6",
+      "unique_identifier": "com.redlex.mellel.mac",
       "description": "Mellel is an advanced word processor built for long and complex documents."
     },
     {
@@ -8386,6 +8407,13 @@
       "platform": "windows",
       "unique_identifier": "SuperCollider",
       "description": "SuperCollider is a server, language, and IDE for sound synthesis and algorithmic composition."
+    },
+    {
+      "name": "Superhuman Docs",
+      "slug": "superhuman-docs/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.superhuman.CodaApp.Desktop",
+      "description": "Superhuman Docs is a desktop client for team documents."
     },
     {
       "name": "Superhuman",
