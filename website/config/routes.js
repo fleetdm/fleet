@@ -420,7 +420,7 @@ module.exports.routes = {
   },
 
   'GET /admin/superadmins': {
-    action: 'admin/get-superadmins',
+    action: 'admin/view-superadmins',
     locals: {
       hideFooterLinks: true,
       showAdminLinks: true,
