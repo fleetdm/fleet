@@ -1,6 +1,6 @@
 ---
 title: "How Fleet eliminated 99.7% of infrastructure polling with WebSockets"
-author: "Fleet Device Management"
+author: "Sharon Katz, Lucas Emanuel Rodriguez"
 date: "2026-10-20"
 status: "DRAFT"
 category: "articles"
