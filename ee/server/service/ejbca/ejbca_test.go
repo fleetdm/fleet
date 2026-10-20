@@ -483,7 +483,7 @@ func TestGetCertificate(t *testing.T) {
 	assert.Equal(t, "alice@example.com", issued.Subject.CommonName)
 	assert.True(t, key.(*rsa.PrivateKey).PublicKey.Equal(issued.PublicKey))
 	assert.Equal(t, fmt.Sprintf("%040s", issued.SerialNumber.Text(16)), cert.SerialNumber)
-	assert.Len(t, cert.SerialNumber, 40, "the serial is padded like ingestion pads it, and fits the managed certificate record")
+	assert.Len(t, cert.SerialNumber, 40, "the serial is padded to the length of the serial column")
 	assert.True(t, issued.NotBefore.Equal(cert.NotValidBefore))
 	assert.True(t, issued.NotAfter.Equal(cert.NotValidAfter))
 	assert.Equal(t, []string{"alice@example.com", "alice@corp.example.com"}, certissue.UPNs(issued))
@@ -628,7 +628,7 @@ func TestVerifyConnectionCanceled(t *testing.T) {
 	require.ErrorContains(t, NewService().VerifyConnection(ctx, f.config(t)), "canceled")
 }
 
-// A short serial number is padded to the length ingestion pads to, so the managed certificate doesn't update on first ingest.
+// A short serial number is padded to the length of the serial column.
 func TestGetCertificatePadsSerial(t *testing.T) {
 	t.Parallel()
 	f := newFakeEJBCA(t, func(f *fakeEJBCA) { f.serial = big.NewInt(0xABC) })

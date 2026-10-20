@@ -260,8 +260,7 @@ func (s *Service) GetCertificate(ctx context.Context, config fleet.EJBCA) (*flee
 		return nil, err
 	}
 
-	// Lowercase hex padded to 40 characters, like Fleet's host certificate ingestion, so the managed certificate serial matches an ingested
-	// one and doesn't update on first ingest. It has to fit the 40 character column.
+	// Lowercase hex padded to 40 characters, the format of Fleet's host certificate list, and it has to fit the serial column.
 	serial := fmt.Sprintf("%040s", cert.SerialNumber.Text(16))
 	if len(serial) > maxSerialLength {
 		return nil, ctxerr.Errorf(ctx, msgSerialTooLong, maxSerialLength, serial)
