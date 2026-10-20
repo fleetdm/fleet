@@ -74,13 +74,13 @@
     scroll-margin-top: 100px;
   }
 
-  [purpose='job-postings'] {
+  [purpose='jobs'] {
     display: flex;
     flex-direction: column;
     gap: @inner-gap-xs;
     margin-top: @inner-gap-s;
   }
-  [purpose='job-posting'] {
+  [purpose='job'] {
     border-radius: 16px;
     background: #F8F8F8;
     padding: @inner-gap-m;
@@ -88,7 +88,7 @@
       margin-bottom: 12px;
     }
   }
-  [purpose='job-posting-header'] {
+  [purpose='job-header'] {
     display: flex;
     flex-direction: row;
     justify-content: space-between;
@@ -96,10 +96,10 @@
     gap: @inner-gap-xs;
     margin-bottom: 12px;
   }
-  [purpose='job-posting-company'] {
+  [purpose='job-company'] {
     font-weight: 700;
   }
-  [purpose='job-posting-description'] {
+  [purpose='job-description'] {
     white-space: pre-line;
   }
   [purpose='role-tag'] {
@@ -111,7 +111,7 @@
     border: 1px solid @core-fleet-black-10;
     color: @core-fleet-black-75;
   }
-  [purpose='interest-link'] {
+  [purpose='job-link'] {
     font-weight: 700;
   }
 
@@ -145,14 +145,6 @@
       border-radius: 6px;
     }
   }
-  [purpose='profile-status'] {
-    background-color: #FFF;
-    border: 1px solid @core-fleet-black-10;
-    border-radius: 8px;
-    padding: 12px 16px;
-    margin-bottom: @inner-gap-s;
-    color: @core-fleet-black;
-  }
   [purpose='form-error'] {
     color: #dc3545;
     font-size: 80%;
@@ -165,19 +157,6 @@
     font-weight: 700;
     line-height: 150%;
     border-radius: 8px;
-  }
-  [purpose='saved-message'] {
-    color: @core-vibrant-green;
-  }
-  [purpose='stop-looking-link'] {
-    .body-m();
-    display: inline-block;
-    margin-top: @inner-gap-xs;
-    background: none;
-    border: none;
-    padding: 0;
-    text-decoration: underline;
-    color: @core-fleet-black-75;
   }
 
   @media (max-width: 991px) {
@@ -192,11 +171,11 @@
     [purpose='page-container'] {
       padding: 32px 24px 64px 24px;
     }
-    [purpose='job-posting-header'] {
+    [purpose='job-header'] {
       flex-direction: column;
       gap: @inner-gap-xxs;
     }
-    [purpose='job-posting'], [purpose='job-seeker-form'] {
+    [purpose='job'], [purpose='job-seeker-form'] {
       padding: @inner-gap-s;
     }
   }

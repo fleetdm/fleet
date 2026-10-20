@@ -1170,6 +1170,33 @@ module.exports = {
         builtStaticContent.pricingTable = pricingTableFeatures;
       },
       async()=>{
+        // Validate the job board yaml and add it to builtStaticContent.jobBoard.
+        let RELATIVE_PATH_TO_JOB_BOARD_YML_IN_FLEET_REPO = 'handbook/company/job-board.yml';
+        let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_JOB_BOARD_YML_IN_FLEET_REPO))
+        .intercept('doesNotExist', (err) => new Error(`Could not find job board YAML file at "${RELATIVE_PATH_TO_JOB_BOARD_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
+        // If the file has no entries, the YAML parser returns null.
+        let jobs = YAML.parse(yaml, {prettyErrors: true}) || [];
+        for(let job of jobs){
+          for(let key of _.keys(job)) {
+            if(!_.contains(['jobTitle', 'company', 'role', 'location', 'description'], key)) {
+              throw new Error(`Could not build job board from job-board.yml. A job has an unrecognized "${key}" property. Please remove it and try running this script again. Job: ${util.inspect(job)}`);
+            }
+            if(typeof job[key] !== 'string'){
+              throw new Error(`Could not build job board from job-board.yml. A job contains a ${key} with a non-string value. Please make sure all values in job-board.yml are strings, and try running this script again. Invalid (${typeof job[key]}) ${key} value: ${job[key]}`);
+            }
+          }
+          for(let requiredKey of ['jobTitle', 'company', 'role']) {
+            if(!job[requiredKey]) {
+              throw new Error(`Could not build job board from job-board.yml. A job is missing a "${requiredKey}". To resolve, add a "${requiredKey}" to this job and try running this script again. Job: ${util.inspect(job)}`);
+            }
+          }
+          if(!_.contains(sails.config.custom.jobBoardRoles, job.role)) {
+            throw new Error(`Could not build job board from job-board.yml. A job has an invalid "role" (${job.role}). Please change it to one of: ${sails.config.custom.jobBoardRoles.join(', ')}`);
+          }
+        }
+        builtStaticContent.jobBoard = jobs;
+      },
+      async()=>{
         // Validate the pricing table yaml and add it to builtStaticContent.pricingTable.
         let RELATIVE_PATH_TO_TESTIMONIALS_YML_IN_FLEET_REPO = 'handbook/company/testimonials.yml';
         let VALID_PRODUCT_CATEGORIES = ['Observability', 'Device management', 'Software management'];

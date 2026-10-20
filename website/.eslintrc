@@ -51,8 +51,6 @@
     "CertificateSigningRequest": true,
     "Platform": true,
     "AdCampaign": true,
-    "JobPosting": true,
-    "JobSeeker": true,
     "MicrosoftComplianceTenant": true,
     "AndroidEnterprise": true,
     "RenderProofOfValue": true,

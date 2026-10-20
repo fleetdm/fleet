@@ -5,7 +5,6 @@ parasails.registerPage('hire', {
   data: {
     // Server-provided, but absent for logged-out visitors.
     me: undefined,
-    myJobSeekerProfile: undefined,
     eligibilityReasons: [
       'Fleet customer or former customer',
       'Evaluating Fleet Premium (active PoV)',
@@ -17,7 +16,7 @@ parasails.registerPage('hire', {
       eligibilityDetails: '',
       linkedinUrl: '',
       notes: '',
-      interestedInJobPostingIds: [],
+      interestedInJobs: [],
     },
     formErrors: {},
     formRules: {
@@ -28,24 +27,14 @@ parasails.registerPage('hire', {
     },
     syncing: false,
     cloudError: '',
-    showSavedMessage: false,
+    submitted: false,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-    if(this.myJobSeekerProfile) {
-      let openJobPostingIds = _.pluck(this.openJobPostings, 'id');
-      this.formData = {
-        rolesSought: _.intersection(this.myJobSeekerProfile.rolesSought || [], this.jobBoardRoles),
-        eligibilityReason: this.myJobSeekerProfile.eligibilityReason,
-        eligibilityDetails: this.myJobSeekerProfile.eligibilityDetails || '',
-        linkedinUrl: this.myJobSeekerProfile.linkedinUrl || '',
-        notes: this.myJobSeekerProfile.notes || '',
-        interestedInJobPostingIds: _.intersection(_.pluck(this.myJobSeekerProfile.interestedInJobPostings, 'id'), openJobPostingIds),
-      };
-    }
+    //…
   },
   mounted: async function() {
     if(window.location.hash === '#looking') {
@@ -57,11 +46,15 @@ parasails.registerPage('hire', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   computed: {
+    // Fleet's own roles are applied for on their own pages, so only these go in the form.
+    jobsAtCustomers: function() {
+      return this.jobs.filter((job) => !job.url);
+    },
     eligibilityDetailsLabel: function() {
       if(this.formData.eligibilityReason === 'Fleet customer or former customer') {
         return 'Which company uses (or used) Fleet?';
       } else if(this.formData.eligibilityReason === 'Evaluating Fleet Premium (active PoV)') {
-        return 'Which company is running the proof of value?';
+        return 'Which company is evaluating Fleet Premium?';
       } else {
         return 'Which workshop? Include the city and date.';
       }
@@ -70,14 +63,15 @@ parasails.registerPage('hire', {
 
   methods: {
 
-    clickExpressInterest: function(event, jobPostingId) {
+    clickExpressInterest: function(event, job) {
       // Logged-out visitors follow the link to log in.
       if(!this.me) {
         return;
       }
       event.preventDefault();
-      if(!this.formData.interestedInJobPostingIds.includes(jobPostingId)) {
-        this.formData.interestedInJobPostingIds.push(jobPostingId);
+      let jobLabel = job.jobTitle+' at '+job.company;
+      if(!this.formData.interestedInJobs.includes(jobLabel)) {
+        this.formData.interestedInJobs.push(jobLabel);
       }
       document.getElementById('looking').scrollIntoView({behavior: 'smooth'});
     },
@@ -88,33 +82,10 @@ parasails.registerPage('hire', {
       }
     },
 
-    handleSubmittingJobSeekerForm: async function(argins) {
-      this.showSavedMessage = false;
-      return await Cloud.updateMyJobSeekerProfile.with({...argins, isLooking: true});
-    },
-
-    submittedJobSeekerForm: function(savedProfile) {
-      this.myJobSeekerProfile = savedProfile;
-      this.syncing = false;
-      this.showSavedMessage = true;
-    },
-
-    clickStopLooking: async function() {
-      this.syncing = true;
-      this.cloudError = '';
-      // Send the saved profile, not unsaved (possibly invalid) edits in the form.
-      let savedProfile = await Cloud.updateMyJobSeekerProfile.with({
-        ..._.pick(this.myJobSeekerProfile, ['rolesSought', 'eligibilityReason', 'eligibilityDetails', 'linkedinUrl', 'notes']),
-        isLooking: false,
-      })
-      .tolerate((err)=>{
-        this.cloudError = err.exit || 'error';
-      });
-      if(savedProfile) {
-        this.myJobSeekerProfile = savedProfile;
-        this.formData.interestedInJobPostingIds = [];
-      }
-      this.syncing = false;
+    submittedJobSeekerForm: async function() {
+      this.submitted = true;
+      await this.forceRender();
+      document.getElementById('looking').scrollIntoView({behavior: 'smooth'});
     },
 
   }

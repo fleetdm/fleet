@@ -1,0 +1,13 @@
+# Open roles at Fleet customers, listed on https://fleetdm.com/hire
+#
+# To post a role, add an entry below and open a pull request.
+# Remove your entry when the role is filled.
+#
+# Example entry:
+# - jobTitle: Client Platform Engineer
+#   company: Acme Inc.
+#   role: IT Engineer / Client Platform Engineer   # "IT Engineer / Client Platform Engineer" or "Security Engineer"
+#   location: Remote (US)   # (Optional)
+#   description: |   # (Optional)
+#     Own the macOS and Windows fleet end to end.
+################################################
