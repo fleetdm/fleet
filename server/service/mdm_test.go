@@ -2888,6 +2888,18 @@ func TestBackwardsCompatProfilesParamUnmarshalJSON(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:        "null",
+			input:       []byte("null"),
+			expect:      nil,
+			expectError: false,
+		},
+		{
+			name:        "empty old format",
+			input:       []byte(`{}`),
+			expect:      backwardsCompatProfilesParam{},
+			expectError: false,
+		},
+		{
 			name:  "new format",
 			input: []byte(`[{"name": "profile1", "contents": "Zm9vCg=="}, {"name": "profile2", "contents": "YmFyCg=="}]`),
 			expect: backwardsCompatProfilesParam{
@@ -2930,6 +2942,7 @@ func TestBackwardsCompatProfilesParamUnmarshalJSON(t *testing.T) {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
+				require.Equal(t, tc.expect == nil, bcp == nil)
 				require.ElementsMatch(t, tc.expect, bcp)
 			}
 		})

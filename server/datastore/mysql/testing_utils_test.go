@@ -119,23 +119,18 @@ func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *testi
 	// that call returns, the replication is guaranteed to be done. This supports
 	// simulating all kinds of replica lag.
 	ch := make(chan replicationRun)
-	go func() {
-		// if it exits because of a panic/failed replication, cancel the context
-		// immediately so that RunReplication is unblocked too.
-		defer cancel()
+	primary := ds.primary
+	replica := ds.replica.(*sqlx.DB)
+	replicaDB := testName + testing_utils.TestReplicaDatabaseSuffix
+	last := time.Now().Add(-time.Minute)
 
-		primary := ds.primary
-		replica := ds.replica.(*sqlx.DB)
-		replicaDB := testName + testing_utils.TestReplicaDatabaseSuffix
-		last := time.Now().Add(-time.Minute)
-
-		// drop all foreign keys in the replica, as that causes issues even with
-		// FOREIGN_KEY_CHECKS=0
-		var fks []struct {
-			TableName      string `db:"TABLE_NAME"`
-			ConstraintName string `db:"CONSTRAINT_NAME"`
-		}
-		err := primary.SelectContext(ctx, &fks, `
+	// drop all foreign keys in the replica, as that causes issues even with
+	// FOREIGN_KEY_CHECKS=0, before the test starts so a test that never replicates can't end first
+	var fks []struct {
+		TableName      string `db:"TABLE_NAME"`
+		ConstraintName string `db:"CONSTRAINT_NAME"`
+	}
+	err := primary.SelectContext(ctx, &fks, `
           SELECT
             TABLE_NAME, CONSTRAINT_NAME
           FROM
@@ -143,17 +138,22 @@ func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *testi
           WHERE
             TABLE_SCHEMA = ? AND
             REFERENCED_TABLE_NAME IS NOT NULL`, testName)
-		require.NoError(t, err)
-		for _, fk := range fks {
-			stmt := fmt.Sprintf(`ALTER TABLE %s.%s DROP FOREIGN KEY %s`, replicaDB, fk.TableName, fk.ConstraintName)
-			_, err := replica.ExecContext(ctx, stmt)
-			// If the FK was already removed do nothing
-			if err != nil && strings.Contains(err.Error(), "check that column/key exists") {
-				continue
-			}
-
-			require.NoError(t, err)
+	require.NoError(t, err)
+	for _, fk := range fks {
+		stmt := fmt.Sprintf(`ALTER TABLE %s.%s DROP FOREIGN KEY %s`, replicaDB, fk.TableName, fk.ConstraintName)
+		_, err := replica.ExecContext(ctx, stmt)
+		// If the FK was already removed do nothing
+		if err != nil && strings.Contains(err.Error(), "check that column/key exists") {
+			continue
 		}
+
+		require.NoError(t, err)
+	}
+
+	go func() {
+		// if it exits because of a panic/failed replication, cancel the context
+		// immediately so that RunReplication is unblocked too.
+		defer cancel()
 
 		for {
 			select {

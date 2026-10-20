@@ -1115,7 +1115,9 @@ The size of the session key.
 
 ### session_duration
 
-This is the amount of time that a session should last. Whenever a user logs in, the time is reset to the specified, or default, duration.
+How long a session can be idle before it expires. Every authenticated request resets the clock, so a session that's in use doesn't expire. There's no separate limit on total session length.
+
+In the Fleet UI, the browser cookie is set at login to expire after this duration and isn't refreshed. UI users are logged out when the cookie expires, even if they're active.
 
 Valid time units are `s`, `m`, `h`.
 
