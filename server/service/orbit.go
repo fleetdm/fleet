@@ -1858,15 +1858,13 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 
 	// only set the encryption key if there was no client error
 	if clientError == "" && encryptionKey != "" {
-		wstepCert, _, _, err := svc.config.MDM.MicrosoftWSTEP()
-		if err != nil {
-			// should never return an error because the WSTEP is first parsed and
-			// cached at the start of the fleet serve process.
-			return ctxerr.Wrap(ctx, err, "get WSTEP certificate")
+		// Disk encryption cannot be turned on without the server private key, so a missing one is a deployment error.
+		if svc.config.Server.PrivateKey == "" {
+			return ctxerr.New(ctx, "server private key is required to store the disk encryption key")
 		}
-		enc, err := microsoft_mdm.Encrypt(encryptionKey, wstepCert.Leaf)
+		enc, err := mdm.EncryptAndEncode(encryptionKey, svc.config.Server.PrivateKey)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "encrypt the key with WSTEP certificate")
+			return ctxerr.Wrap(ctx, err, "encrypt the key with the server private key")
 		}
 		encryptedEncryptionKey = enc
 		decryptable = ptr.Bool(true)
