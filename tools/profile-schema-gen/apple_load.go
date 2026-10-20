@@ -25,16 +25,17 @@ const (
 	appleDeclarationBase = "any"
 )
 
-// appleFile is one upstream YAML file. Keys stay as yaml.Nodes so anchors and aliases are still
-// visible when converting them.
+// appleFile is one upstream YAML file. PayloadKeys point into the parsed document rather than
+// being decoded: yaml.v3 copies nodes on decode, and node identity is how a definition that
+// contains itself (through an alias) is recognized.
 type appleFile struct {
 	Path    string // relative to the download dir, for logs and errors
 	Payload struct {
 		PayloadType     string    `yaml:"payloadtype"`
 		DeclarationType string    `yaml:"declarationtype"`
 		SupportedOS     yaml.Node `yaml:"supportedOS"`
-	} `yaml:"payload"`
-	PayloadKeys []yaml.Node `yaml:"payloadkeys"`
+	}
+	PayloadKeys []*yaml.Node
 }
 
 // appleGroup is every file that declares the same payload or declaration type, in path order.
@@ -143,8 +144,20 @@ func loadAppleFiles(ctx context.Context, logger *slog.Logger, dir, sub string) (
 			return nil, err
 		}
 		f := &appleFile{Path: filepath.ToSlash(rel)}
-		if err := yaml.Unmarshal(data, f); err != nil {
+		var doc yaml.Node
+		if err := yaml.Unmarshal(data, &doc); err != nil {
 			return nil, fmt.Errorf("parse %s: %w", f.Path, err)
+		}
+		if len(doc.Content) == 0 || doc.Content[0].Kind != yaml.MappingNode {
+			return nil, fmt.Errorf("parse %s: not a YAML mapping", f.Path)
+		}
+		if payload := mappingValue(doc.Content[0], "payload"); payload != nil {
+			if err := payload.Decode(&f.Payload); err != nil {
+				return nil, fmt.Errorf("parse %s: payload: %w", f.Path, err)
+			}
+		}
+		if keys := mappingValue(doc.Content[0], "payloadkeys"); keys != nil {
+			f.PayloadKeys = keys.Content
 		}
 		files = append(files, f)
 	}
@@ -171,7 +184,7 @@ func logSharedType(ctx context.Context, logger *slog.Logger, g *appleGroup) {
 	for _, f := range g.Files {
 		paths = append(paths, f.Path)
 		for _, k := range f.PayloadKeys {
-			name := keyName(&k)
+			name := keyName(k)
 			if _, ok := definedIn[name]; !ok {
 				order = append(order, name)
 			}
@@ -189,13 +202,29 @@ func logSharedType(ctx context.Context, logger *slog.Logger, g *appleGroup) {
 
 // keyName returns the "key" field of a payload key mapping node.
 func keyName(n *yaml.Node) string {
+	if v := mappingValue(n, "key"); v != nil {
+		return v.Value
+	}
+	return ""
+}
+
+// mappingValue returns the value node for key in a mapping node, or nil. Aliases are followed on
+// both sides: Apple anchors whole subkeys lists ("subkeys: *id001"), not just single keys.
+func mappingValue(n *yaml.Node, key string) *yaml.Node {
 	if n.Kind == yaml.AliasNode {
 		n = n.Alias
 	}
+	if n.Kind != yaml.MappingNode {
+		return nil
+	}
 	for i := 0; i+1 < len(n.Content); i += 2 {
-		if n.Content[i].Value == "key" {
-			return n.Content[i+1].Value
+		if n.Content[i].Value == key {
+			v := n.Content[i+1]
+			if v.Kind == yaml.AliasNode {
+				v = v.Alias
+			}
+			return v
 		}
 	}
-	return ""
+	return nil
 }

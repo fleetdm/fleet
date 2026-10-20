@@ -23,6 +23,9 @@ type ApplePayloadType struct {
 	// Source is "apple" for upstream entries and "override" for allow entries.
 	Source string               `json:"source,omitempty"`
 	Keys   map[string]*AppleKey `json:"keys,omitempty"`
+	// Open and Values work as on AppleKey, for payload types whose top level accepts any key.
+	Open   bool      `json:"open,omitempty"`
+	Values *AppleKey `json:"values,omitempty"`
 }
 
 // AppleKey describes a payload key. Constraints are recorded even when no validator enforces them yet.
@@ -34,12 +37,15 @@ type AppleKey struct {
 	Format     string         `json:"format,omitempty"`
 	Repetition *AppleRange    `json:"repetition,omitempty"`
 	ValueType  AppleValueType `json:"valuetype,omitempty"`
-	Open       bool           `json:"open,omitempty"`
+	// Open means keys not listed in Keys are accepted. Values, when set, is what their values must
+	// look like (Apple's "ANY" subkey).
+	Open bool `json:"open,omitempty"`
 	// Ref is the key path of an enclosing definition that this key repeats, with "[]" for array items.
 	Ref string `json:"ref,omitempty"`
 	// Items describes array elements; Keys describes dictionary subkeys.
-	Items *AppleKey            `json:"items,omitempty"`
-	Keys  map[string]*AppleKey `json:"keys,omitempty"`
+	Items  *AppleKey            `json:"items,omitempty"`
+	Keys   map[string]*AppleKey `json:"keys,omitempty"`
+	Values *AppleKey            `json:"values,omitempty"`
 	// Platforms is set only where it differs from the enclosing payload type's.
 	Platforms map[AppleOS]ApplePlatform `json:"platforms,omitempty"`
 }
