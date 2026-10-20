@@ -46,10 +46,8 @@ export interface BuildActionOptionsArgs {
   canConfigureAutoUpdate: boolean;
 }
 
-// Every option that applies to GitOps-managed entities (Edit appearance, Edit
-// software, Edit configuration, Versions) stays clickable in gitops mode; each
-// target modal disables its own fields and gates Save with the gitops tooltip,
-// so admins can open them to view the applied settings.
+// Edit options stay clickable in gitops mode; each modal self-disables and
+// gates Save.
 export const buildActionOptions = ({
   canEditSoftware,
   canEditConfiguration,
