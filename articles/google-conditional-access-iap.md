@@ -514,11 +514,11 @@ after its next policy sync. The admin token here is yours; it is used once.
 
 ## 6. Turn on blocking
 
-Switch the access level from 3.5 to **Active** for a the organizational unit. Gmail keeps working on registered devices and is blocked on devices that were never registered.
+Switch the access level from 3.5 to **Active** for the organizational unit. Gmail keeps working on registered devices and is blocked on devices that were never registered.
 
 <meta name="articleTitle" value="Conditional access: Google with Identity-Aware Proxy">
 <meta name="authorFullName" value="Juan Fernandez">
 <meta name="authorGitHubUsername" value="juan-fdz-hawa">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-10-20">
-<meta name="description" value="Block sign-in to Google Workspace from iPhones, iPads and Android devices that aren't managed by Fleet, using a registration page behind Identity-Aware Proxy.">
+<meta name="description" value="Block sign-in to Google Workspace from iPhones, iPads and Android devices that Fleet doesn't manage, with a page behind Identity-Aware Proxy.">
