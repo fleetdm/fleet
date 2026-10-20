@@ -795,6 +795,7 @@ func TestRequestFieldName(t *testing.T) {
 		EmptyTag  string `json:""`
 		NoJSONTag string
 		OtherTags string `url:"other_tags"`
+		QueryTag  string `query:"param_tag,optional"`
 	}
 
 	ty := reflect.TypeFor[tagged]()
@@ -805,6 +806,7 @@ func TestRequestFieldName(t *testing.T) {
 	}{
 		{field: "Plain", want: "plain"},
 		{field: "WithOpts", want: "with_opts"},
+		{field: "QueryTag", want: "param_tag"},
 		// The rest have no name a client could have sent, so the Go field name
 		// is all that's left to report.
 		{field: "Skipped", want: "Skipped"},
@@ -864,6 +866,22 @@ func TestMakeDecoderPremiumErrorNamesTheJSONField(t *testing.T) {
 	t.Run("a field that is not premium gated still decodes", func(t *testing.T) {
 		require.NoError(t, decodeBody(t, `{"free":"ok"}`))
 	})
+}
+
+type premiumGatedQueryRequest struct {
+	IncludeHidden bool `query:"include_hidden,optional" premium:"true"`
+}
+
+func TestMakeDecoderPremiumErrorNamesTheQueryParam(t *testing.T) {
+	decode := MakeDecoder(premiumGatedQueryRequest{}, defaultJSONUnmarshal, nil, nil, nil, nil, -1)
+
+	r := httptest.NewRequest("GET", "/?include_hidden=true", nil)
+	_, err := decode(t.Context(), r)
+	require.ErrorContains(t, err, "option include_hidden requires a premium license")
+
+	r = httptest.NewRequest("GET", "/?include_hidden=false", nil)
+	_, err = decode(t.Context(), r)
+	require.NoError(t, err)
 }
 
 type renamedPremiumRequest struct {
