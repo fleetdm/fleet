@@ -1,5 +1,5 @@
 ---
-title: "How Fleet eliminated 99.7% of infrastructure polling with WebSockets"
+title: "How Fleet cut infrastructure costs by more than half with WebSockets"
 author: "Sharon Katz, Lucas Emanuel Rodriguez"
 date: "2026-10-20"
 status: "DRAFT"
@@ -7,7 +7,7 @@ category: "articles"
 description: "Fleet cut managed cloud infrastructure costs by replacing agent polling with WebSocket push notifications, deployed across 170+ customer instances without downtime."
 ---
 
-# How Fleet eliminated 99.7% of infrastructure polling with WebSockets
+# How Fleet cut infrastructure costs by more than half with WebSockets
 
 ## Executive summary
 
