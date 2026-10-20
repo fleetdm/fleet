@@ -137,6 +137,9 @@ are real, not that it enforces what the admin asked for.`,
 
     // `profile validate` returns one object, `profile ddm validate` an array of them.
     let contourResults = _.isArray(parsedOutput) ? parsedOutput : [parsedOutput];
+    if(contourResults.length === 0) {
+      return { ran: false, skippedBecause: 'contour returned no validation results for the profile', errors: [], warnings: [] };
+    }
     let asText = (finding)=>{
       if(_.isString(finding)) { return finding; }
       if(finding && finding.message) { return finding.field ? `${finding.field}: ${finding.message}` : finding.message; }
