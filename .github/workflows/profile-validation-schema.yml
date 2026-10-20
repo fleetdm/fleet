@@ -57,10 +57,10 @@ jobs:
         run: |
           log="$RUNNER_TEMP/generate.log"
           [ -f "$log" ] || exit 0
-          grep -E 'level=(WARN|ERROR)' "$log" | while IFS= read -r line; do
-            printf 'Profile schema generator:\n```\n%s\n```\n' "$line" |
-              gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file -
-          done
+          lines="$(grep -E 'level=(WARN|ERROR)' "$log" || true)"
+          [ -n "$lines" ] || exit 0
+          printf 'Profile schema generator warnings and errors:\n```\n%s\n```\n' "$lines" |
+            gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file -
 
       - name: Fail if the committed schema is out of date
         run: |
