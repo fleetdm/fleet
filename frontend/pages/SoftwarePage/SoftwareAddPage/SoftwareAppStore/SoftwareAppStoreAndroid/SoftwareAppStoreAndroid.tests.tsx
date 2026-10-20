@@ -1,15 +1,24 @@
 import { screen } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import React from "react";
 
+import mockServer from "test/mock-server";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import SoftwareAppStoreAndroid from "./SoftwareAppStoreAndroid";
 
+const baseUrl = (path: string) => `/api/latest/fleet${path}`;
+
 const router = createMockRouter();
 
 describe("SoftwareAppStoreAndroid", () => {
+  afterEach(() => {
+    mockServer.resetHandlers();
+  });
+
   it("shows enable button for admins when Android MDM is not configured", () => {
     const render = createCustomRenderer({
+      withBackendMock: true,
       context: {
         app: {
           isPremiumTier: true,
@@ -32,6 +41,7 @@ describe("SoftwareAppStoreAndroid", () => {
 
   it("shows ask your admin copy for non-admins when Android MDM is not configured", () => {
     const render = createCustomRenderer({
+      withBackendMock: true,
       context: {
         app: {
           isPremiumTier: true,
@@ -54,8 +64,56 @@ describe("SoftwareAppStoreAndroid", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows the Android form when Android MDM is enabled", () => {
+  it("shows the Android form with the fleet's custom labels as targets when Android MDM is enabled", async () => {
+    let requestedFleetId: string | null = null;
+    mockServer.use(
+      http.get(baseUrl("/labels/summary"), ({ request }) => {
+        requestedFleetId = new URL(request.url).searchParams.get("fleet_id");
+        return HttpResponse.json({
+          labels: [
+            { id: 1, name: "All Hosts", label_type: "builtin" },
+            { id: 2, name: "Android pilot", label_type: "regular" },
+          ],
+        });
+      })
+    );
     const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPremiumTier: true,
+          isGlobalAdmin: true,
+          isAndroidMdmEnabledAndConfigured: true,
+        },
+      },
+    });
+
+    const { user } = render(
+      <SoftwareAppStoreAndroid currentTeamId={1} router={router} />
+    );
+
+    await user.click(await screen.findByRole("radio", { name: "Custom" }));
+
+    expect(
+      screen.getByRole("checkbox", { name: "Android pilot" })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("checkbox", { name: "All Hosts" })
+    ).not.toBeInTheDocument();
+    expect(requestedFleetId).toBe("1");
+    expect(
+      screen.queryByText("Android MDM isn't enabled")
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows an error when custom labels fail to load", async () => {
+    mockServer.use(
+      http.get(baseUrl("/labels/summary"), () =>
+        HttpResponse.json({}, { status: 404 })
+      )
+    );
+    const render = createCustomRenderer({
+      withBackendMock: true,
       context: {
         app: {
           isPremiumTier: true,
@@ -68,7 +126,10 @@ describe("SoftwareAppStoreAndroid", () => {
     render(<SoftwareAppStoreAndroid currentTeamId={1} router={router} />);
 
     expect(
-      screen.queryByText("Android MDM isn't enabled")
+      await screen.findByText(/Something's gone wrong/)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Add software" })
     ).not.toBeInTheDocument();
   });
 });

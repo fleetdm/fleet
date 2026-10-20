@@ -1,0 +1,1 @@
+- Added a target option to Add software > App store > Android so Google Play apps can be scoped to hosts with specific labels when they are added.

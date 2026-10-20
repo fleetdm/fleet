@@ -10,8 +10,15 @@ const generateFormValidation = (formData: ISoftwareAndroidFormData) => {
     isValid: true,
   };
 
-  // Single requirement: applicationID must be present
   if (!formData.applicationID) {
+    formValidation.isValid = false;
+  }
+
+  // A custom target needs at least one label selected
+  if (
+    formData.targetType === "Custom" &&
+    !Object.values(formData.labelTargets).some(Boolean)
+  ) {
     formValidation.isValid = false;
   }
 

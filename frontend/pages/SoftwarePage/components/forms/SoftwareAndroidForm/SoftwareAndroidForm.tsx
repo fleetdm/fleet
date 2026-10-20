@@ -6,10 +6,14 @@ import CustomLink from "components/CustomLink";
 import InputField from "components/forms/fields/InputField";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import InfoBanner from "components/InfoBanner/InfoBanner";
+import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { IInputFieldParseTarget } from "interfaces/form_field";
+import { ILabelSummary } from "interfaces/label";
 import { IAppStoreApp } from "interfaces/software";
 import {
+  CUSTOM_TARGET_OPTIONS,
+  generateHelpText,
   generateSelectedLabels,
   getCustomTarget,
   getTargetType,
@@ -39,6 +43,7 @@ export interface IFormValidation {
 }
 
 interface ISoftwareAndroidFormProps {
+  labels: ILabelSummary[] | null;
   softwareAndroidForEdit?: IAppStoreApp; // 4.77 Currently no edit Android functionality
   onSubmit: (formData: ISoftwareAndroidFormData) => void;
   isLoading?: boolean;
@@ -46,6 +51,7 @@ interface ISoftwareAndroidFormProps {
 }
 
 const SoftwareAndroidForm = ({
+  labels,
   softwareAndroidForEdit,
   onSubmit,
   isLoading = false,
@@ -90,6 +96,27 @@ const SoftwareAndroidForm = ({
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
     setFormValidation(generateFormValidation(newFormData));
+  };
+
+  const onSelectTargetType = (value: string) => {
+    const newData = { ...formData, targetType: value };
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
+  };
+
+  const onSelectCustomTargetOption = (value: string) => {
+    const newData = { ...formData, customTarget: value };
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
+  };
+
+  const onSelectLabel = ({ name, value }: { name: string; value: boolean }) => {
+    const newData = {
+      ...formData,
+      labelTargets: { ...formData.labelTargets, [name]: value },
+    };
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
   };
 
   const isSubmitDisabled = !formValidation.isValid;
@@ -145,6 +172,21 @@ const SoftwareAndroidForm = ({
         <div>
           <AndroidOptionsDescription />
         </div>
+        <DropdownTargetLabelSelector
+          selectedTargetType={formData.targetType}
+          selectedCustomTarget={formData.customTarget}
+          selectedLabels={formData.labelTargets}
+          customTargetOptions={CUSTOM_TARGET_OPTIONS}
+          className={`${baseClass}__target`}
+          onSelectTargetType={onSelectTargetType}
+          onSelectCustomTarget={onSelectCustomTargetOption}
+          onSelectLabel={onSelectLabel}
+          labels={labels || []}
+          dropdownHelpText={
+            generateHelpText(false, formData.customTarget) // maps to !automaticInstall help text
+          }
+          disableOptions={gitOpsModeEnabled}
+        />
       </>
     );
   };
