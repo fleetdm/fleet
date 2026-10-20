@@ -6,14 +6,15 @@ const assert = require('assert');
 
 
 /**
- * Whether a document's tags nest and close properly.  CDATA sections, comments, and processing instructions are
- * skipped, and a bare & outside them must start an entity.
+ * Whether a document's tags nest and close properly.  CDATA sections, processing instructions, and the DOCTYPE are
+ * skipped, and a bare & outside them must start an entity.  The builders write no comments, so one counts as stray
+ * markup.
  *
  * @param  {String} xml
  * @returns {String|undefined}  What is wrong, or undefined for a well-formed document.
  */
 function whyNotWellFormed(xml) {
-  let text = xml.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, '').replace(/<!--[\s\S]*?-->/g, '').replace(/<\?[\s\S]*?\?>/g, '').replace(/<!DOCTYPE[^>]*>/g, '');
+  let text = xml.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, '').replace(/<\?[\s\S]*?\?>/g, '').replace(/<!DOCTYPE[^>]*>/g, '');
   let openTags = [];
   let tagPattern = /<(\/?)([A-Za-z_][\w.:-]*)((?:\s+[\w:.-]+\s*=\s*(?:"[^"<]*"|'[^'<]*'))*)\s*(\/?)>/g;
   let lastIndex = 0;
