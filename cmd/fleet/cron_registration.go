@@ -304,6 +304,10 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 		return cronMigrateToPerHostPolicy(ctx, deps.instanceID, deps.ds, deps.logger, deps.androidSvc)
 	})
 
+	deps.register("failed to register reencrypt_windows_disk_encryption_keys cron", func() (fleet.CronSchedule, error) {
+		return newReencryptWindowsDiskEncryptionKeysSchedule(ctx, deps.instanceID, deps.ds, deps.config, deps.logger)
+	})
+
 	// The APNs sweep replaces the legacy per-minute pending-commands pusher;
 	// the env var runs the legacy cron instead, as a rollback lever. Not
 	// both: the legacy cron's pushes keep last_seen_at fresh, which would

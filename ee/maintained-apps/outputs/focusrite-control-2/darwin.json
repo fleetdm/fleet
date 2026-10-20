@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.1139.0.0",
+      "version": "1.1210.0.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.focusrite.control';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.focusrite.control' AND version_compare(bundle_short_version, '1.1139.0.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.focusrite.control' AND version_compare(bundle_short_version, '1.1210.0.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.focusrite.control' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://releases.focusrite.com/com.focusrite.focusrite-control/release/Focusrite-Control-2-1.1139.0.0.dmg",
+      "installer_url": "https://releases.focusrite.com/com.focusrite.focusrite-control/release/Focusrite-Control-2-1.1210.0.0.dmg",
       "install_script_ref": "9d3690bb",
       "uninstall_script_ref": "680b9bf4",
-      "sha256": "37e1fc8e24b3a091036113babf69f897ebc237bdb78f159bccfb65339d922f66",
+      "sha256": "5b1fbb6e4b71a087f27b302ad36fe5e3707d90c1c5876f0e3604ecb8eb06dd1b",
       "default_categories": [
         "Productivity"
       ]

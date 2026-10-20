@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.7.6",
+      "version": "4.7.7",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.binarynights.ForkLift';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.binarynights.ForkLift' AND version_compare(bundle_short_version, '4.7.6') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.binarynights.ForkLift' AND version_compare(bundle_short_version, '4.7.7') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.binarynights.ForkLift' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.binarynights.com/ForkLift/ForkLift4.7.6.zip",
+      "installer_url": "https://download.binarynights.com/ForkLift/ForkLift4.7.7.zip",
       "install_script_ref": "340166dc",
       "uninstall_script_ref": "d400bd6b",
-      "sha256": "1c1f4dfddd0660816a38fa4b495415cbdbc858dbf2785b11715bea6d8126a602",
+      "sha256": "d2811c3a21d3e8597f5909e6d25ca8e1cefcc40aba7116f745a22adf7317583f",
       "default_categories": [
         "Productivity"
       ]
