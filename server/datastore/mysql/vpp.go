@@ -258,6 +258,7 @@ upcoming AS (
 ),
 
 -- select the latest successful, failed and unfinished install of each host and version, reading only the index
+-- NOTE if you change this logic make sure to change vppAppHostStatusNamedQuery accordingly
 latest_installs AS (
 	SELECT
 		host_id,
@@ -270,51 +271,44 @@ latest_installs AS (
 	GROUP BY vpp_app_team_id, host_id
 ),
 
--- read the MDM result of the latest unfinished install of each host and version in the version's fleet, it decides whether the install failed or is pending
--- NOTE if you change this logic make sure to change vppAppHostStatusNamedQuery accordingly
+-- select the installs of each host and version in the version's fleet, counting unfinished Android installs as pending because Android installs bypass upcoming activities
 attempts AS (
 	SELECT
 		li.host_id,
 		li.vpp_app_team_id,
 		li.installed_id,
-		CASE
-			WHEN ncr.status IN (:mdm_status_error, :mdm_status_format_error) AND (li.failed_id IS NULL OR li.unfinished_id > li.failed_id) THEN
-				li.unfinished_id
-			ELSE
-				li.failed_id
-		END AS failed_id,
-		-- Android installs never produce nano_command_results
-		IF(ncr.status = :mdm_status_acknowledged OR (unfinished.platform = 'android' AND ncr.id IS NULL), li.unfinished_id, NULL) AS pending_id
+		li.failed_id,
+		IF(vat.platform = 'android', li.unfinished_id, NULL) AS pending_id
 	FROM latest_installs li
 	JOIN hosts h ON h.id = li.host_id
 	JOIN vpp_apps_teams vat ON vat.id = li.vpp_app_team_id
-	LEFT JOIN host_vpp_software_installs unfinished ON unfinished.id = li.unfinished_id
-	LEFT JOIN nano_command_results ncr ON ncr.id = h.uuid AND ncr.command_uuid = unfinished.command_uuid
 	WHERE COALESCE(h.team_id, 0) = vat.global_or_team_id
 ),
 
--- keep the version with the latest install of each status on each host, upcoming activities are newer than any install
+-- keep the version with the latest install of each status on each host
 latest AS (
 	SELECT
 		host_id,
 		vpp_app_team_id,
 		status,
-		is_upcoming,
 		install_id,
-		ROW_NUMBER() OVER (PARTITION BY host_id, status ORDER BY is_upcoming DESC, install_id DESC) AS rn
+		ROW_NUMBER() OVER (
+			PARTITION BY host_id, status
+			ORDER BY install_id DESC
+		) AS rn
 	FROM (
-		SELECT host_id, vpp_app_team_id, :software_status_installed AS status, FALSE AS is_upcoming, installed_id AS install_id FROM attempts WHERE installed_id IS NOT NULL
+		SELECT host_id, vpp_app_team_id, :software_status_installed AS status, installed_id AS install_id FROM attempts WHERE installed_id IS NOT NULL
 		UNION ALL
-		SELECT host_id, vpp_app_team_id, :software_status_failed, FALSE, failed_id FROM attempts WHERE failed_id IS NOT NULL
+		SELECT host_id, vpp_app_team_id, :software_status_failed, failed_id FROM attempts WHERE failed_id IS NOT NULL
 		UNION ALL
-		SELECT host_id, vpp_app_team_id, :software_status_pending, FALSE, pending_id FROM attempts WHERE pending_id IS NOT NULL
+		SELECT host_id, vpp_app_team_id, :software_status_pending, pending_id FROM attempts WHERE pending_id IS NOT NULL
 		UNION ALL
-		-- Use the upcoming activity id as the install id, it only orders upcoming activities among themselves
-		SELECT host_id, vpp_app_team_id, :software_status_pending, TRUE, id FROM upcoming
+		-- Use the upcoming activity id as the install id, it's only compared with other upcoming activities because Android installs bypass them and a title's versions are all on one platform
+		SELECT host_id, vpp_app_team_id, :software_status_pending, id FROM upcoming
 	) statuses
 )
 
--- Drop failed and pending installs that are older than the host's latest successful install
+-- Drop failed installs that are older than the host's latest successful install
 SELECT
 	l.host_id,
 	l.vpp_app_team_id,
@@ -323,7 +317,7 @@ FROM latest l
 LEFT JOIN latest i ON i.host_id = l.host_id AND i.status = :software_status_installed AND i.rn = 1
 WHERE
 	l.rn = 1
-	AND (l.status = :software_status_installed OR i.host_id IS NULL OR l.is_upcoming OR l.install_id > i.install_id)`
+	AND (l.status != :software_status_failed OR i.host_id IS NULL OR l.install_id > i.install_id)`
 
 func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, versions []*fleet.VPPAppStoreApp) (map[uint]*fleet.VPPAppStatusSummary,
 	error,
@@ -349,9 +343,6 @@ GROUP BY vpp_app_team_id`, vppAppVersionHostStatusesQuery)
 
 	query, args, err := sqlx.Named(stmt, map[string]interface{}{
 		"version_ids":               versionIDs,
-		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
-		"mdm_status_error":          fleet.MDMAppleStatusError,
-		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
 		"software_status_pending":   fleet.SoftwareInstallPending,
 		"software_status_failed":    fleet.SoftwareInstallFailed,
 		"software_status_installed": fleet.SoftwareInstalled,
