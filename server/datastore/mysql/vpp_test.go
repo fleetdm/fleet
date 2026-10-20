@@ -5281,22 +5281,14 @@ func testPastActivityVPPInstallDisplayNameHonorsPlatform(t *testing.T, ds *Datas
 	// name. Insert iOS first so MySQL would naturally return the iOS row first
 	// on an unqualified join — the fix must prefer the platform-matching row.
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
-		VPPAppTeam: {
-			VPPAppID:    {AdamID: "adam_vpp_1", Platform: fleet.IOSPlatform},
-			DisplayName: new("QA51285 VPP iPhone Name"),
-		},
-		Name:             "vpp1",
-		BundleIdentifier: "com.app.vpp1",
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.IOSPlatform}, DisplayName: new("QA51285 VPP iPhone Name")}, //nolint:modernize
 	}, &tm.ID, nil)
 	require.NoError(t, err)
 
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
-		VPPAppTeam: {
-			VPPAppID:    {AdamID: "adam_vpp_1", Platform: fleet.IPadOSPlatform},
-			DisplayName: new("QA51285 VPP iPad Name"),
-		},
-		Name:             "vpp1",
-		BundleIdentifier: "com.app.vpp1",
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.IPadOSPlatform}, DisplayName: new("QA51285 VPP iPad Name")}, //nolint:modernize
 	}, &tm.ID, nil)
 	require.NoError(t, err)
 
