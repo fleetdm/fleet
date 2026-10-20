@@ -33,7 +33,10 @@ func overrideSchema(t *testing.T) *profilevalidation.ProfileValidationSchema {
 			"com.apple.MCX": {"source": "apple", "keys": {
 				"com.apple.EnergySaver.portable": {"type": "dictionary", "keys": {"BatteryPower": {"type": "integer"}}},
 				"com.apple.EnergySaver.portable.BatteryPower": {"type": "dictionary", "keys": {"Sleep": {"type": "integer"}}}}},
-			"com.apple.Safari": {"source": "apple", "keys": {"ShowFullURL": {"type": "boolean"}}}
+			"com.apple.Safari": {"source": "apple", "keys": {"ShowFullURL": {"type": "boolean"}}},
+			"com.apple.constrained": {"source": "apple", "keys": {"Mode": {"type": "string", "required": true,
+				"rangelist": ["A", "B"], "format": "^[AB]$", "valuetype": "regex", "repetition": {"min": 1},
+				"keys": {"Nested": {"type": "integer", "range": {"min": 0}}}}}}
 		},
 		"apple_declarations": {
 			"com.apple.configuration.passcode.settings": {"source": "apple", "keys": {"MinimumLength": {"type": "integer"}}}
@@ -98,6 +101,11 @@ loosen:
     action: types
     types: [string]
     reason: declarations too
+  - kind: apple_profile
+    payload_type: com.apple.constrained
+    key_path: Mode
+    action: any
+    reason: any value means no value constraints
 `))
 	scep := notNil(t, s.AppleProfiles["com.apple.security.scep"])
 	// Types are unioned, never replaced; listing the existing type again doesn't duplicate it.
@@ -107,6 +115,11 @@ loosen:
 	assert.JSONEq(t, `{"type": ["string", "integer"], "override": "through an array"}`, jsonOf(t, notNil(t, scep.Keys["Dock"]).Items.Keys["Type"]))
 	assert.JSONEq(t, `{"type": ["integer", "string"], "override": "declarations too"}`,
 		jsonOf(t, notNil(t, s.AppleDeclarations["com.apple.configuration.passcode.settings"]).Keys["MinimumLength"]))
+	// "any" drops value constraints but keeps required and nested definitions; nested keys keep
+	// their own constraints.
+	assert.JSONEq(t, `{"type": "any", "open": true, "required": true, "override": "any value means no value constraints",
+		"keys": {"Nested": {"type": "integer", "range": {"min": 0}}}}`,
+		jsonOf(t, notNil(t, s.AppleProfiles["com.apple.constrained"]).Keys["Mode"]))
 	// The payload type itself isn't marked; only what was changed.
 	assert.Empty(t, scep.Override)
 }

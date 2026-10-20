@@ -22,16 +22,18 @@ func TestEmbeddedSchema(t *testing.T) {
 	assert.JSONEq(t, `{}`, string(s.Windows))
 	assert.JSONEq(t, `{}`, string(s.WindowsXSDs))
 
-	var apple, override int
+	var apple, allowed int
 	for _, pt := range s.AppleProfiles {
-		switch pt.Source {
-		case "apple":
+		if pt.Source == "apple" {
 			apple++
-		case "override":
-			override++
+		}
+		// Counted by reason, not source: once Apple ships an allowed type, the entry becomes
+		// Apple's but keeps the allow entry's reason.
+		if pt.Override != "" {
+			allowed++
 		}
 	}
-	assert.Equal(t, 20, override, "seeded allow entries")
+	assert.Equal(t, 20, allowed, "seeded allow entries")
 	// The ticket's counts are for Release-v27.0. Later releases are covered by Parse's floors, so the
 	// daily update PR doesn't fail just because Apple added a type.
 	if s.Version.Apple.Release == "Release-v27.0" {

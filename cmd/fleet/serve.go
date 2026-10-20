@@ -273,9 +273,12 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	config.Server.ValidatePrivateKeyLength(initFatal)
 
 	// The embedded schema is checked by the generator and tests, so a failure here means a broken
-	// build; refuse to start rather than validate profiles against nothing.
-	if err := profilevalidation.ParseProfileValidationSchema(); err != nil {
-		initFatal(err, "loading profile validation schema")
+	// build; refuse to start rather than validate profiles against nothing. Tests start serve more
+	// than once per process, so only parse if nothing is loaded yet.
+	if profilevalidation.Current() == nil {
+		if err := profilevalidation.ParseProfileValidationSchema(); err != nil {
+			initFatal(err, "loading profile validation schema")
+		}
 	}
 
 	if len(config.Server.PrivateKey) > 0 {

@@ -357,6 +357,9 @@ func (a *overrideApplier) loosen(e overrideEntry) error {
 		}
 		if e.Action == "any" {
 			k.Type, k.Open = profilevalidation.AppleTypes{profilevalidation.AppleTypeAny}, true
+			// "Any value" must not stay narrowed by value constraints. Required, Items, Keys, and
+			// Values stay: any value isn't optional, and nested keys may come from an earlier add.
+			k.RangeList, k.Range, k.Format, k.ValueType, k.Repetition = nil, nil, "", "", nil
 		} else {
 			// Unioned, never replaced: an override can only widen.
 			k.Type = mergeTypes(k.Type, e.Types)

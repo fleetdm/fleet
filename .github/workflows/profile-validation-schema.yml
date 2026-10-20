@@ -62,6 +62,11 @@ jobs:
           printf 'Profile schema generator warnings and errors:\n```\n%s\n```\n' "$lines" |
             gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file -
 
+      # test-go.yaml only triggers on .go and testdata changes, so a PR that changes only the
+      # schema or the overrides file would otherwise run none of these tests.
+      - name: Test the schema package and generator
+        run: go test ./pkg/mdm/profilevalidation/... ./tools/profile-schema-gen/...
+
       - name: Fail if the committed schema is out of date
         run: |
           if [ -n "$(git status --porcelain -- pkg/mdm/profilevalidation/outputs)" ]; then
@@ -96,6 +101,11 @@ jobs:
 
       - name: Regenerate from Apple's latest release
         run: go run ./tools/profile-schema-gen -update
+
+      # test-go.yaml only triggers on .go and testdata changes, so the schema-only PR this
+      # job opens would otherwise run none of these tests. Test before opening it.
+      - name: Test the schema package and generator
+        run: go test ./pkg/mdm/profilevalidation/... ./tools/profile-schema-gen/...
 
       - name: Read the new pin
         id: pin
