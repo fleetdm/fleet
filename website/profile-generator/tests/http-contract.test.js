@@ -1,19 +1,16 @@
 /**
  * What Fleet's server can rely on from the profile generator's endpoints over HTTP, checked without calling a
- * model: the generation and the model are stubbed, so what is tested is how the actions report each outcome.
- * Sails turns a thrown exit, e.g. {invalidInput: ...}, into that exit's response, and anything else into a 500.
+ * model: the generation and the model are stubbed, and each request goes through the registered route as a
+ * Sails virtual request, so routing, input validation, status codes and response bodies are all the real ones.
  */
 const assert = require('assert');
-const path = require('path');
 
 
 describe('profile generator endpoints over HTTP', function() {
 
-  let profileAction;
-  let nameAndDescriptionAction;
   let originalGenerationHelper;
   let originalPromptHelper;
-  // What the stubbed generation or model call does: a result, or a function that throws.
+  // What the stubbed generation or model call does: a result, a function that throws, or a promise that never settles.
   let stubbedOutcome;
   let stubCalls;
 
@@ -38,8 +35,6 @@ describe('profile generator endpoints over HTTP', function() {
   };
 
   before(function() {
-    profileAction = require(path.resolve(sails.config.appPath, 'api/controllers/get-llm-generated-configuration-profile.js'));
-    nameAndDescriptionAction = require(path.resolve(sails.config.appPath, 'api/controllers/get-llm-generated-configuration-profile-name-and-description.js'));
     originalGenerationHelper = sails.helpers.generateConfigurationProfile;
     originalPromptHelper = sails.helpers.ai.prompt;
     sails.helpers.generateConfigurationProfile = stubbedHelper();
@@ -56,84 +51,119 @@ describe('profile generator endpoints over HTTP', function() {
     stubbedOutcome = undefined;
   });
 
-  // The action's own fn, as Sails calls it for a plain HTTP request, with the inputs' defaults applied.
-  let requestProfile = (inputs)=>{
-    return profileAction.fn.call({ req: { isSocket: false } }, _.extend({ forFleet: true }, inputs));
+  // A request with no marketingAttribution cookie makes the custom hook set one, which a virtual response
+  // cannot do, so every request carries one.
+  let post = (url, data)=>{
+    return new Promise((resolve)=>{
+      sails.request({ method: 'POST', url, data, headers: { cookie: 'marketingAttribution=%7B%7D' } }, (err, res, body)=>{
+        resolve(err ? { status: err.status, body: err.body } : { status: res.statusCode, body });
+      });
+    });
   };
-  let requestNameAndDescription = (inputs)=>{
-    return nameAndDescriptionAction.fn.call({ req: { isSocket: false } }, inputs);
-  };
-  let thrownBy = async (promise)=>{
-    try {
-      await promise;
-    } catch (thrown) {
-      return thrown;
-    }
-    assert.fail('expected the request to fail');
-  };
+  let requestProfile = (data)=>{ return post('/api/v1/get-llm-generated-configuration-profile', _.extend({ forFleet: true }, data)); };
+  let requestNameAndDescription = (data)=>{ return post('/api/v1/get-llm-generated-configuration-profile-name-and-description', data); };
   let generatedResult = { profileType: 'ddm', couldNotGenerateProfile: false, generatedProfile: { profile: '{}', profileFilename: 'x.json', deliveryNotes: '', items: [], additionalProfiles: [] } };
 
   it('is a 400 when neither or both of profileType and platform are given', async function() {
-    for (let inputs of [{}, { profileType: 'ddm', platform: 'apple' }]) {
-      let thrown = await thrownBy(requestProfile(_.extend({ naturalLanguageInstructions: 'Turn off AirDrop' }, inputs)));
-      assert.strictEqual(thrown.invalidInput.error, 'invalidInput');
+    for (let data of [{}, { profileType: 'ddm', platform: 'apple' }]) {
+      let response = await requestProfile(_.extend({ naturalLanguageInstructions: 'Turn off AirDrop' }, data));
+      assert.strictEqual(response.status, 400);
+      assert.strictEqual(response.body.error, 'invalidInput');
     }
+    assert.strictEqual(stubCalls.length, 0);
+  });
+
+  it('is a 400 for a platform it does not know', async function() {
+    let response = await requestProfile({ platform: 'linux', naturalLanguageInstructions: 'Turn off the camera' });
+    assert.strictEqual(response.status, 400);
     assert.strictEqual(stubCalls.length, 0);
   });
 
   it('counts instructions in code points: 2,000 are accepted and 2,001 are a 400', async function() {
     stubbedOutcome = generatedResult;
     let accepted = await requestProfile({ platform: 'apple', naturalLanguageInstructions: '😀'.repeat(2000) });
-    assert.strictEqual(accepted.profileType, 'ddm');
-    let thrown = await thrownBy(requestProfile({ platform: 'apple', naturalLanguageInstructions: '😀'.repeat(2001) }));
-    assert.strictEqual(thrown.invalidInput.error, 'invalidInput');
+    assert.strictEqual(accepted.status, 200);
+    assert.strictEqual(accepted.body.profileType, 'ddm');
+    let rejected = await requestProfile({ platform: 'apple', naturalLanguageInstructions: '😀'.repeat(2001) });
+    assert.strictEqual(rejected.status, 400);
+    assert.strictEqual(rejected.body.error, 'invalidInput');
     assert.strictEqual(stubCalls.length, 1);
   });
 
   it('names the profile type first in a generated profile', async function() {
     stubbedOutcome = generatedResult;
     let response = await requestProfile({ platform: 'apple', naturalLanguageInstructions: 'Require a passcode' });
-    assert.strictEqual(Object.keys(response)[0], 'profileType');
-    assert.strictEqual(response.profileFilename, 'x.json');
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(Object.keys(response.body)[0], 'profileType');
+    assert.strictEqual(response.body.profileFilename, 'x.json');
   });
 
   it('is a 400 with the reason when the model declines', async function() {
     stubbedOutcome = { couldNotGenerateProfile: true, reasonWhyAProfileCouldNotBeGenerated: 'This request needs two profiles.' };
-    let thrown = await thrownBy(requestProfile({ platform: 'apple', naturalLanguageInstructions: 'Turn off AirDrop' }));
-    assert.deepStrictEqual(thrown.couldNotGenerateProfile, { error: 'couldNotGenerateProfile', reason: 'This request needs two profiles.' });
+    let response = await requestProfile({ platform: 'apple', naturalLanguageInstructions: 'Turn off AirDrop' });
+    assert.strictEqual(response.status, 400);
+    assert.deepStrictEqual(response.body, { error: 'couldNotGenerateProfile', reason: 'This request needs two profiles.' });
 
     stubbedOutcome = { couldNotGenerateProfile: true };
-    thrown = await thrownBy(requestProfile({ platform: 'apple', naturalLanguageInstructions: 'Turn off AirDrop' }));
-    assert.ok(thrown.couldNotGenerateProfile.reason, 'a decline with no reason from the model still gets one');
+    response = await requestProfile({ platform: 'apple', naturalLanguageInstructions: 'Turn off AirDrop' });
+    assert.strictEqual(response.status, 400);
+    assert.ok(response.body.reason, 'a decline with no reason from the model still gets one');
   });
 
   it('is a 500, not a decline, when generation fails or produces the wrong kind of profile', async function() {
     stubbedOutcome = ()=>{ throw new Error('overloaded'); };
-    let thrown = await thrownBy(requestProfile({ platform: 'windows', naturalLanguageInstructions: 'Block removable storage' }));
-    assert.ok(_.isError(thrown) && !thrown.couldNotGenerateProfile, `threw ${require('util').inspect(thrown)}`);
+    let response = await requestProfile({ platform: 'windows', naturalLanguageInstructions: 'Block removable storage' });
+    assert.strictEqual(response.status, 500);
 
     stubbedOutcome = { profileType: 'mobileconfig', couldNotGenerateProfile: true, contentDidNotMatchProfileType: true };
-    thrown = await thrownBy(requestProfile({ platform: 'apple', naturalLanguageInstructions: 'Turn off AirDrop' }));
-    assert.ok(_.isError(thrown) && !thrown.couldNotGenerateProfile, `threw ${require('util').inspect(thrown)}`);
+    response = await requestProfile({ platform: 'apple', naturalLanguageInstructions: 'Turn off AirDrop' });
+    assert.strictEqual(response.status, 500);
+  });
+
+  it('names and describes a profile, ignoring the forFleet that Fleet also sends', async function() {
+    stubbedOutcome = { name: 'Disable AirDrop', description: 'Turns AirDrop off.' };
+    let response = await requestNameAndDescription({ platform: 'apple', forFleet: true, naturalLanguageInstructions: 'Turn off AirDrop' });
+    assert.strictEqual(response.status, 200);
+    assert.deepStrictEqual(response.body, { name: 'Disable AirDrop', description: 'Turns AirDrop off.' });
   });
 
   it('is a 400 decline when the model refuses to name and describe a profile', async function() {
     stubbedOutcome = ()=>{ throw { exit: 'refused' }; };
-    let thrown = await thrownBy(requestNameAndDescription({ platform: 'apple', naturalLanguageInstructions: 'Turn off AirDrop' }));
-    assert.strictEqual(thrown.couldNotNameProfile.error, 'couldNotNameProfile');
-    assert.ok(thrown.couldNotNameProfile.reason);
+    let response = await requestNameAndDescription({ platform: 'apple', naturalLanguageInstructions: 'Turn off AirDrop' });
+    assert.strictEqual(response.status, 400);
+    assert.strictEqual(response.body.error, 'couldNotNameProfile');
+    assert.ok(response.body.reason);
+  });
+
+  it('is a 500 when the name or description comes back blank', async function() {
+    for (let blank of [{ name: 'Disable AirDrop', description: '   ' }, { name: ' ', description: 'Turns AirDrop off.' }]) {
+      stubbedOutcome = blank;
+      let response = await requestNameAndDescription({ platform: 'apple', naturalLanguageInstructions: 'Turn off AirDrop' });
+      assert.strictEqual(response.status, 500);
+    }
+  });
+
+  it('is a 500 when naming and describing takes too long', async function() {
+    this.timeout(15000);
+    stubbedOutcome = new Promise(()=>{});
+    let startedAt = Date.now();
+    let response = await requestNameAndDescription({ platform: 'apple', naturalLanguageInstructions: 'Turn off AirDrop' });
+    assert.strictEqual(response.status, 500);
+    assert.ok(Date.now() - startedAt < 9000, `answered after ${Date.now() - startedAt}ms`);
   });
 
   it('cuts a name and description to Fleet\'s limits, counted in code points', async function() {
     stubbedOutcome = { name: '😀'.repeat(300), description: '😀'.repeat(1100) };
     let response = await requestNameAndDescription({ platform: 'windows', naturalLanguageInstructions: 'Block removable storage' });
-    assert.strictEqual(Array.from(response.name).length, 255);
-    assert.strictEqual(Array.from(response.description).length, 1023);
+    assert.strictEqual(response.status, 200);
+    assert.strictEqual(Array.from(response.body.name).length, 255);
+    assert.strictEqual(Array.from(response.body.description).length, 1023);
   });
 
   it('is a 400 when instructions for a name and description are too long', async function() {
-    let thrown = await thrownBy(requestNameAndDescription({ platform: 'apple', naturalLanguageInstructions: 'a'.repeat(2001) }));
-    assert.strictEqual(thrown.invalidInput.error, 'invalidInput');
+    let response = await requestNameAndDescription({ platform: 'apple', naturalLanguageInstructions: 'a'.repeat(2001) });
+    assert.strictEqual(response.status, 400);
+    assert.strictEqual(response.body.error, 'invalidInput');
     assert.strictEqual(stubCalls.length, 0);
   });
 

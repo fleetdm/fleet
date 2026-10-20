@@ -228,11 +228,14 @@ module.exports = {
     };
 
     if(profileType === 'mobileconfig' || profileType === 'ddm') {
+      let wasWrittenFromPayloads = profileType === 'mobileconfig' && writeProfilesFromSettings && _.isArray(rawResult.payloads);
       let lifecycleNotes = sails.helpers.addLifecycleNotesToAppleProfile.with({
         profileType,
         profile: result.generatedProfile.profile,
         platformsNamed: route ? route.platformsNamed : sails.helpers.getApplePlatformsNamed.with({ naturalLanguageInstructions }),
         mobileconfigAlternative: route ? route.mobileconfigAlternative : [],
+        payloads: wasWrittenFromPayloads ? rawResult.payloads : undefined,
+        profileSettings: wasWrittenFromPayloads && _.isPlainObject(rawResult.profileSettings) ? rawResult.profileSettings : undefined,
       });
       result.generatedProfile.deliveryNotes = _.compact([result.generatedProfile.deliveryNotes].concat(lifecycleNotes)).join(' ');
     }

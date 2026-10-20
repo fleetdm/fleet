@@ -11,6 +11,8 @@ const AIRDROP = { setting: 'AirDrop', declaration: null, payload: 'com.apple.app
 const INSTALL_MACOS_UPDATES = { setting: 'install macOS updates automatically', declaration: 'com.apple.configuration.softwareupdate.settings/AutomaticActions.InstallOSUpdates', payload: 'com.apple.SoftwareUpdate/AutomaticallyInstallMacOSUpdates' };
 const CALCULATOR_SCIENTIFIC_MODE = { setting: 'calculator scientific mode', declaration: 'com.apple.configuration.math.settings/Calculator.ScientificMode', payload: null };
 const INSTALL_PROFILE_FROM_URL = { setting: 'install a profile from a URL', declaration: 'com.apple.configuration.legacy/ProfileURL', payload: null };
+const AUTO_LOGOUT_DELAY = { setting: 'log out after inactivity', declaration: null, payload: '.GlobalPreferences/com.apple.autologout.AutoLogOutDelay' };
+const CONFIGURATION_FILE_SERVICE = { setting: 'configure a system service', declaration: 'com.apple.configuration.services.configuration-files/ServiceType', payload: null };
 
 
 describe('Apple request routing', function() {
@@ -66,6 +68,30 @@ describe('Apple request routing', function() {
     assert.ok(/^This request needs three profiles\./.test(reason), reason);
     assert.ok(_.contains(reason, '"calculator scientific mode" needs the com.apple.configuration.math.settings declaration.'), reason);
     assert.ok(!/"calculator scientific mode"[^.]*\.mobileconfig/.test(reason), reason);
+  });
+
+  it('declines rather than dropping a setting only a declaration can enforce from a .mobileconfig', async function() {
+    let route = await routeWith('Turn off AirDrop and allow the calculator\'s scientific mode', replyMapping([AIRDROP, CALCULATOR_SCIENTIFIC_MODE]));
+    let reason = route.reasonWhyAProfileCouldNotBeGenerated;
+    assert.strictEqual(route.couldNotGenerateProfile, true);
+    assert.ok(/^This request needs two profiles\./.test(reason), reason);
+    assert.ok(_.contains(reason, '"calculator scientific mode" needs the com.apple.configuration.math.settings declaration.'), reason);
+    assert.ok(_.contains(reason, '"AirDrop" needs a .mobileconfig.'), reason);
+  });
+
+  it('keeps a key whose name has dots in it, rather than reading the dots as nesting', async function() {
+    let lifecycle = sails.helpers.getAppleSchemaLifecycle.with({ profileType: 'mobileconfig', name: '.GlobalPreferences', keyPath: 'com.apple.autologout.AutoLogOutDelay' });
+    assert.strictEqual(lifecycle.found, true);
+    assert.strictEqual(lifecycle.keyPath, 'com.apple.autologout.AutoLogOutDelay');
+    let route = await routeWith('Log people out after 10 minutes of inactivity', replyMapping([AUTO_LOGOUT_DELAY]));
+    assert.strictEqual(route.profileType, 'mobileconfig');
+    assert.ok(route.settings[0].payload, 'the mapping was dropped');
+    assert.ok(_.contains(route.applePayloadTypes, '.GlobalPreferences'));
+  });
+
+  it('does not use a declaration type on its own when it requires an asset, even for a key that is not the asset', async function() {
+    let route = await routeWith('Configure the SSH service', replyMapping([CONFIGURATION_FILE_SERVICE]));
+    assert.notStrictEqual(route.profileType, 'ddm');
   });
 
   for (let [description, reply] of [
@@ -143,6 +169,21 @@ describe('Apple lifecycle notes', function() {
   it('says when a payload type stops working, without repeating it for each of its keys', function() {
     let notes = notesFor({ profileType: 'mobileconfig', profile: mobileconfigWith('com.apple.SoftwareUpdate', ['AutomaticallyInstallMacOSUpdates']) });
     assert.deepStrictEqual(notes, ['com.apple.SoftwareUpdate stops working in macOS 27.0.']);
+  });
+
+  it('looks a key up under its own payload type by its full path when the profile was written from settings', function() {
+    let profile = mobileconfigWith('com.apple.extensiblesso', ['PlatformSSO', 'AuthenticationMethod']);
+    // Nested under PlatformSSO, it is not the deprecated top-level AuthenticationMethod of the same name.
+    let nested = notesFor({ profileType: 'mobileconfig', profile, payloads: [{ payloadType: 'com.apple.extensiblesso', settings: { PlatformSSO: { AuthenticationMethod: 'Password' } } }] });
+    assert.deepStrictEqual(nested, []);
+    let topLevel = notesFor({ profileType: 'mobileconfig', profile, payloads: [{ payloadType: 'com.apple.extensiblesso', settings: { AuthenticationMethod: 'Password' } }] });
+    assert.deepStrictEqual(topLevel, ['Apple deprecated AuthenticationMethod in macOS 14.0; it still works for now.']);
+    // A key is only looked up in the payload that sets it.
+    let elsewhere = notesFor({ profileType: 'mobileconfig', profile, payloads: [
+      { payloadType: 'com.apple.extensiblesso', settings: { PlatformSSO: { AuthenticationMethod: 'Password' } } },
+      { payloadType: 'com.apple.applicationaccess', settings: { allowCamera: false } },
+    ] });
+    assert.deepStrictEqual(elsewhere, []);
   });
 
   it('gives a declaration a minimum OS only where the .mobileconfig it was chosen over worked on an older one', function() {

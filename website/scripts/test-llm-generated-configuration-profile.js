@@ -157,6 +157,9 @@ csp cases report as not-checked either way.`
         throw new Error(`--profileType is "${profileType}" but the case "${caseId}" is a ${chosenCase.profileType} case.  Leave --profileType off; the id already implies it.`);
       }
       profileType = chosenCase.profileType;
+      if(asFleet && !fleetRequestFor(chosenCase)) {
+        throw new Error(`The case "${caseId}" does not run as a Fleet request (Fleet asks by platform only for Apple cases, and a case can opt out with \`fleet: false\`), so --asFleet would check nothing.  Leave --asFleet off, or pick an Apple case.`);
+      }
     }
 
     // Checked once, up front, rather than per case: a missing binary is a setup mistake, and finding out

@@ -40,6 +40,17 @@ which keys Apple has retired, and wrote nothing about a removed software update 
       description: 'For a declaration, the .mobileconfig keys that could have done the same, as payloadType/key, e.g. com.apple.mobiledevice.passwordpolicy/minLength.',
     },
 
+    payloads: {
+      type: [{}],
+      description: 'For a .mobileconfig written from settings, the payloads it was written from: [{payloadType, settings}].',
+      extendedDescription: 'Each key is then looked up under its own payload type by its full path.  Without them, every key in the property list is looked up by name in every payload type, which can match a key of the same name elsewhere.',
+    },
+
+    profileSettings: {
+      type: {},
+      description: 'For a .mobileconfig written from settings, the keys it sets on the root dict.',
+    },
+
   },
 
 
@@ -53,10 +64,24 @@ which keys Apple has retired, and wrote nothing about a removed software update 
   },
 
 
-  fn: function ({profileType, profile, platformsNamed, mobileconfigAlternative}) {
+  fn: function ({profileType, profile, platformsNamed, mobileconfigAlternative, payloads, profileSettings}) {
 
+    // Keys are known by their full paths for a declaration and for a .mobileconfig written from settings; only a
+    // property list the model wrote itself has to be read for bare key names.
+    let keysAreFullPaths = profileType === 'ddm' || !!payloads;
     let lifecycleOf = (name, keyPath)=>{
-      return sails.helpers.getAppleSchemaLifecycle.with({ profileType, name, keyPath });
+      return sails.helpers.getAppleSchemaLifecycle.with({ profileType, name, keyPath, isPathFromTheTop: keysAreFullPaths });
+    };
+    // Every key in some settings, as a dotted path from the top.  Arrays are not followed: their items are not
+    // named in the schema the way a dictionary's keys are.
+    let keyPathsIn = (value, pathSoFar)=>{
+      if(!_.isPlainObject(value)) {
+        return [];
+      }
+      return _.flatten(_.map(Object.keys(value), (keyName)=>{
+        let keyPath = pathSoFar.concat([keyName]);
+        return [keyPath.join('.')].concat(keyPathsIn(value[keyName], keyPath));
+      }));
     };
     let platformsToReportOn = (supportedOS)=>{
       let platformsAvailableOn = _.filter(Object.keys(supportedOS || {}), (platformName)=>{
@@ -67,7 +92,16 @@ which keys Apple has retired, and wrote nothing about a removed software update 
 
     // What the profile uses, by the payload type or declaration type it is in.
     let keyNamesByTypeName = {};
-    if(profileType === 'mobileconfig') {
+    if(profileType === 'mobileconfig' && payloads) {
+      for (let payload of payloads) {
+        if(_.isString(payload.payloadType)) {
+          keyNamesByTypeName[payload.payloadType] = _.uniq((keyNamesByTypeName[payload.payloadType] || []).concat(keyPathsIn(payload.settings, [])));
+        }
+      }
+      if(_.isPlainObject(profileSettings) && !_.isEmpty(profileSettings)) {
+        keyNamesByTypeName.TopLevel = keyPathsIn(profileSettings, []);
+      }
+    } else if(profileType === 'mobileconfig') {
       let typeNames = _.without(_.uniq(_.map(profile.match(/<key>\s*PayloadType\s*<\/key>\s*<string>[^<]+<\/string>/g) || [], (match)=>{
         return match.replace(/^[\s\S]*<string>\s*|\s*<\/string>$/g, '');
       })), 'Configuration');
@@ -82,18 +116,7 @@ which keys Apple has retired, and wrote nothing about a removed software update 
       } catch (unusedErr) {
         return [];
       }
-      let keyPaths = [];
-      let collectKeyPaths = (value, pathSoFar)=>{
-        if(!_.isObject(value) || _.isArray(value)) {
-          return;
-        }
-        for (let keyName of Object.keys(value)) {
-          keyPaths.push(pathSoFar.concat([keyName]).join('.'));
-          collectKeyPaths(value[keyName], pathSoFar.concat([keyName]));
-        }
-      };
-      collectKeyPaths(declaration.Payload, []);
-      keyNamesByTypeName[declaration.Type] = keyPaths;
+      keyNamesByTypeName[declaration.Type] = keyPathsIn(declaration.Payload, []);
     }
 
     // Everything deprecated or removed on a platform being reported on.  A key is only reported where its

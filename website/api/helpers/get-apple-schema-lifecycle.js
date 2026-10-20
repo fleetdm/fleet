@@ -30,7 +30,13 @@ module.exports = {
     keyPath: {
       type: 'string',
       description: 'A key, as a dotted path from the top of the payload (Deferrals.MajorPeriodInDays), or as a bare name found wherever it is in the payload.',
-      extendedDescription: 'Leave out to look up the payload type or declaration type itself.  Matched case-insensitively, since a model writing a path may not keep Apple\'s casing.',
+      extendedDescription: 'Leave out to look up the payload type or declaration type itself.  Matched case-insensitively, since a model writing a path may not keep Apple\'s casing.  Some of Apple\'s key names contain dots (com.apple.autologout.AutoLogOutDelay), so the whole path is tried as one key name before it is read as a nested path.',
+    },
+
+    isPathFromTheTop: {
+      type: 'boolean',
+      defaultsTo: false,
+      description: 'Whether keyPath is a key\'s full path from the top of the payload, so a bare name only matches a top-level key rather than the shallowest key with that name.',
     },
 
   },
@@ -46,7 +52,7 @@ module.exports = {
   },
 
 
-  fn: function ({profileType, name, keyPath}) {
+  fn: function ({profileType, name, keyPath, isPathFromTheTop}) {
 
     let path = require('path');
     let filename = profileType === 'ddm' ? 'apple-ddm-declarations.json' : 'apple-payload-manifests.json';
@@ -58,23 +64,36 @@ module.exports = {
       return entries.length > 0 ? { found: true, supportedOS: entries[0].supportedOS } : { found: false };
     }
 
-    let segments = _.map(keyPath.split('.'), (segment)=>{ return segment.toLowerCase(); });
-    for (let entry of entries) {
-      // Breadth-first, so a bare name finds the shallowest key with it, and each key carries the lifecycle it
-      // inherits.
-      let queue = _.map(entry.keys, (key)=>{ return { key, keyNames: [key.key], inheritedSupportedOS: entry.supportedOS }; });
-      while(queue.length > 0) {
-        let {key, keyNames, inheritedSupportedOS} = queue.shift();
-        let supportedOS = key.supportedOS || inheritedSupportedOS;
-        let lowercaseKeyNames = _.map(keyNames, (keyName)=>{ return keyName.toLowerCase(); });
-        let isAMatch = segments.length === 1 ? _.last(lowercaseKeyNames) === segments[0] : _.isEqual(lowercaseKeyNames, segments);
-        if(isAMatch) {
-          return { found: true, supportedOS, keyPath: segments.length === 1 ? _.last(keyNames) : keyNames.join('.') };
-        }
-        for (let subkey of key.subkeys || []) {
-          queue.push({ key: subkey, keyNames: keyNames.concat([subkey.key]), inheritedSupportedOS: supportedOS });
+    let wholePath = keyPath.toLowerCase();
+    // Breadth-first, so a bare name finds the shallowest key with it, and each key carries the lifecycle it
+    // inherits.  Every key name is tried as the whole path before any path is tried as nested keys.
+    let findKey = (isAMatch)=>{
+      for (let entry of entries) {
+        let queue = _.map(entry.keys, (key)=>{ return { key, keyNames: [key.key], inheritedSupportedOS: entry.supportedOS }; });
+        while(queue.length > 0) {
+          let {key, keyNames, inheritedSupportedOS} = queue.shift();
+          let supportedOS = key.supportedOS || inheritedSupportedOS;
+          if(isAMatch(keyNames)) {
+            return { keyNames, supportedOS };
+          }
+          for (let subkey of key.subkeys || []) {
+            queue.push({ key: subkey, keyNames: keyNames.concat([subkey.key]), inheritedSupportedOS: supportedOS });
+          }
         }
       }
+      return undefined;
+    };
+    let matchedByName = findKey((keyNames)=>{
+      return (!isPathFromTheTop || keyNames.length === 1) && _.last(keyNames).toLowerCase() === wholePath;
+    });
+    if(matchedByName) {
+      return { found: true, supportedOS: matchedByName.supportedOS, keyPath: _.last(matchedByName.keyNames) };
+    }
+    let matchedByPath = _.contains(keyPath, '.') ? findKey((keyNames)=>{
+      return keyNames.length > 1 && _.map(keyNames, (keyName)=>{ return keyName.toLowerCase(); }).join('.') === wholePath;
+    }) : undefined;
+    if(matchedByPath) {
+      return { found: true, supportedOS: matchedByPath.supportedOS, keyPath: matchedByPath.keyNames.join('.') };
     }
     return { found: false };
 

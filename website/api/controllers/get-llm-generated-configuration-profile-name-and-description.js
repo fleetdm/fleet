@@ -59,7 +59,7 @@ a declaration or a .mobileconfig is decided elsewhere, after you answer.`,
 \`./Device/Vendor/MSFT/Policy/Config/Storage/RemovableDiskDenyWriteAccess\`.`,
     }[platform];
 
-    let result = await sails.helpers.ai.prompt.with({
+    let naming = sails.helpers.ai.prompt.with({
       systemPrompt: `Return ONLY a raw JSON object.  Do not include \`\`\`json, \`\`\`, or any markdown formatting.  Do not include any explanation or text before or after the JSON.  Your entire response must be valid JSON.
 
 An IT admin has asked for ${whatToDescribe}
@@ -87,12 +87,26 @@ ${naturalLanguageInstructions}
       return undefined;
     });
 
+    // Fleet waits 10 seconds for this, so a slower answer is given up on and reported as a failure rather than
+    // arriving after Fleet has stopped waiting.
+    const TIMEOUT_MS = 8000;
+    let timeout;
+    let result;
+    try {
+      result = await Promise.race([naming, new Promise((resolve)=>{ timeout = setTimeout(()=>{ resolve('timedOut'); }, TIMEOUT_MS); })]);
+    } finally {
+      clearTimeout(timeout);
+    }
+    if(result === 'timedOut') {
+      throw new Error(`Naming and describing a configuration profile took over ${TIMEOUT_MS}ms.`);
+    }
+
     // A refusal is a decline, reported the way the profile endpoint reports one, rather than a failure.
     if(result === undefined) {
       throw {couldNotNameProfile: {error: 'couldNotNameProfile', reason: 'These instructions could not be named and described as a configuration profile.'}};
     }
 
-    if(!_.isObject(result) || !_.isString(result.name) || !_.isString(result.description) || !result.name.trim()) {
+    if(!_.isObject(result) || !_.isString(result.name) || !_.isString(result.description) || !result.name.trim() || !result.description.trim()) {
       throw new Error(`The model's name and description were not usable: ${require('util').inspect(result, {depth: 2})}`);
     }
     // Cut to Fleet's limits as a backstop, counted in code points like the instructions are.

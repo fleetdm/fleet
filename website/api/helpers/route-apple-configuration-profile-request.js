@@ -10,8 +10,8 @@ module.exports = {
   extendedDescription: `Sonnet 5.5 maps each setting the request asks for to the declaration key and the .mobileconfig key
 that do it, from an index of both.  The format is then chosen from that mapping in code, from Apple's own
 lifecycle data rather than the model's memory: a declaration when one declaration type covers everything, a
-.mobileconfig otherwise, and a decline only when a setting a declaration could enforce would have to use a
-.mobileconfig key Apple has removed.`,
+.mobileconfig otherwise, and a decline when some setting only a declaration can enforce -- it has no
+.mobileconfig key, or Apple has removed the one it had -- would otherwise have to go in that .mobileconfig.`,
 
 
   inputs: {
@@ -235,6 +235,12 @@ ${naturalLanguageInstructions}
       return _.extend(route, { profileType: 'mobileconfig', applePayloadTypes: [], decidedBecause: 'nothing mapped to a known key' });
     }
 
+    // Only top-level keys: a required key inside an optional dictionary is only required once that dictionary is used.
+    let requiresAnAsset = (typeName)=>{
+      return _.any(_.filter(declarationSchema.entries, { name: typeName }), (entry)=>{
+        return _.any(entry.keys, (key)=>{ return key.required && /AssetReferences?$/.test(key.key); });
+      });
+    };
     let isADeclarationTypeThatCanBeUsed = (declaration)=>{
       if(DECLARATION_TYPES_THAT_ARE_NOT_SETTINGS[declaration.typeName] !== undefined && !/(https?:\/\/|\.mobileconfig\b)/i.test(naturalLanguageInstructions)) {
         return false;
@@ -243,8 +249,9 @@ ${naturalLanguageInstructions}
         return false;
       }
       // Fleet resolves an asset reference to an asset already uploaded to it, and a generated profile has no
-      // asset to point at, so a declaration that needs one cannot be delivered from a single file.
-      if(/AssetReferences?$/.test(declaration.keyPath)) {
+      // asset to point at, so a declaration that needs one cannot be delivered from a single file -- whether the
+      // setting is the reference itself or the declaration type requires one alongside it.
+      if(/AssetReferences?$/.test(declaration.keyPath) || requiresAnAsset(declaration.typeName)) {
         return false;
       }
       return isAvailableOnEveryPlatformNamed(declaration.supportedOS);
@@ -255,28 +262,27 @@ ${naturalLanguageInstructions}
       return _.extend(route, { profileType: 'ddm', decidedBecause: `one declaration type covers every setting: ${declarationTypeNames[0]}` });
     }
 
-    // From here on the profile is a .mobileconfig.  A setting a declaration could enforce, whose only
-    // .mobileconfig key Apple has removed, cannot go in it: that setting needs a declaration of its own.
-    let settingsThatNeedTheirOwnDeclaration = _.filter(settingsMapped, (setting)=>{
-      return setting.declaration && isADeclarationTypeThatCanBeUsed(setting.declaration) && setting.payload && isRemovedOnAPlatformThatMatters(setting.payload.supportedOS);
+    // From here on the profile is a .mobileconfig, which cannot hold a setting only a declaration can enforce:
+    // one with no .mobileconfig key, or whose only key Apple has removed.  Such a setting needs a declaration of
+    // its own, so the request is more than one profile.
+    let settingsOnlyADeclarationCanEnforce = _.filter(settingsMapped, (setting)=>{
+      return setting.declaration && isADeclarationTypeThatCanBeUsed(setting.declaration) && (!setting.payload || isRemovedOnAPlatformThatMatters(setting.payload.supportedOS));
     });
-    if(settingsThatNeedTheirOwnDeclaration.length > 0) {
-      // Every other setting goes where it can: a declaration-only setting in its declaration, and anything with a
-      // .mobileconfig key, or with no known key at all, in the .mobileconfig.
-      let [settingsForADeclaration, settingsForTheMobileconfig] = _.partition(_.difference(settingsMapped, settingsThatNeedTheirOwnDeclaration), (setting)=>{
-        return setting.declaration && !setting.payload;
-      });
-      let settingsByDeclarationTypeName = _.groupBy(settingsForADeclaration, (setting)=>{ return setting.declaration.typeName; });
-      let numberOfProfiles = _.union(_.map(settingsThatNeedTheirOwnDeclaration, (setting)=>{ return setting.declaration.typeName; }), Object.keys(settingsByDeclarationTypeName)).length + (settingsForTheMobileconfig.length > 0 ? 1 : 0);
+    if(settingsOnlyADeclarationCanEnforce.length > 0) {
+      let [settingsWhoseKeyWasRemoved, settingsWithNoKey] = _.partition(settingsOnlyADeclarationCanEnforce, 'payload');
+      // Anything else, with a .mobileconfig key or with no known key at all, goes in the .mobileconfig.
+      let settingsForTheMobileconfig = _.difference(settingsMapped, settingsOnlyADeclarationCanEnforce);
+      let settingsWithNoKeyByDeclarationTypeName = _.groupBy(settingsWithNoKey, (setting)=>{ return setting.declaration.typeName; });
+      let numberOfProfiles = _.uniq(_.map(settingsOnlyADeclarationCanEnforce, (setting)=>{ return setting.declaration.typeName; })).length + (settingsForTheMobileconfig.length > 0 ? 1 : 0);
       let quoted = (settings)=>{ return listed(_.map(settings, (setting)=>{ return `"${setting.setting}"`; })); };
       const NUMBER_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six'];
       return _.extend(route, {
         couldNotGenerateProfile: true,
-        decidedBecause: 'a setting a declaration covers would need a removed .mobileconfig key',
+        decidedBecause: settingsWhoseKeyWasRemoved.length > 0 ? 'a setting a declaration covers would need a removed .mobileconfig key' : 'a setting only a declaration can enforce cannot go in the profile the rest need',
         reasonWhyAProfileCouldNotBeGenerated: _.compact([
           `This request needs ${NUMBER_WORDS[numberOfProfiles] || numberOfProfiles} ${numberOfProfiles === 1 ? 'profile' : 'profiles'}.`,
-          _.map(settingsThatNeedTheirOwnDeclaration, (setting)=>{ return `"${setting.setting}" is only enforced on current OS versions by the ${setting.declaration.typeName} declaration, since Apple removed the .mobileconfig key for it (${setting.payload.keyPath}).`; }).join('  '),
-          _.map(Object.keys(settingsByDeclarationTypeName), (typeName)=>{ return `${quoted(settingsByDeclarationTypeName[typeName])} ${settingsByDeclarationTypeName[typeName].length === 1 ? 'needs' : 'need'} the ${typeName} declaration.`; }).join('  '),
+          _.map(settingsWhoseKeyWasRemoved, (setting)=>{ return `"${setting.setting}" is only enforced on current OS versions by the ${setting.declaration.typeName} declaration, since Apple removed the .mobileconfig key for it (${setting.payload.keyPath}).`; }).join('  '),
+          _.map(Object.keys(settingsWithNoKeyByDeclarationTypeName), (typeName)=>{ return `${quoted(settingsWithNoKeyByDeclarationTypeName[typeName])} ${settingsWithNoKeyByDeclarationTypeName[typeName].length === 1 ? 'needs' : 'need'} the ${typeName} declaration.`; }).join('  '),
           settingsForTheMobileconfig.length > 0 ? `${quoted(settingsForTheMobileconfig)} ${settingsForTheMobileconfig.length === 1 ? 'needs' : 'need'} a .mobileconfig.` : '',
           'Ask for each separately.',
         ]).join('  '),

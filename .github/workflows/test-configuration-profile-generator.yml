@@ -43,8 +43,10 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
-      # Requests as the profile generator page makes them, and as Fleet makes them, run side by side.
+      # Page requests and Fleet requests run one at a time: run together on one API key, they slowed each other
+      # past the latency budget.
       fail-fast: false
+      max-parallel: 1
       matrix:
         node-version: [20.x]
         suite: [page, fleet]
