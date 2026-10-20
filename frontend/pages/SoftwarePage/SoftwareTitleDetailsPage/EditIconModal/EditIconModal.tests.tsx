@@ -46,6 +46,7 @@ describe("EditIconModal", () => {
             gitops: {
               gitops_mode_enabled: true,
               repository_url: "https://example.com/repo",
+              exceptions: { labels: false, software: false, secrets: false },
             },
           }),
         },
@@ -68,7 +69,7 @@ describe("EditIconModal", () => {
           config: createMockConfig({
             gitops: {
               gitops_mode_enabled: true,
-              exceptions: { software: true },
+              exceptions: { labels: false, software: true, secrets: false },
               repository_url: "https://example.com/repo",
             },
           }),

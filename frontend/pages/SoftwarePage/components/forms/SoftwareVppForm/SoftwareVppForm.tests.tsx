@@ -40,6 +40,7 @@ describe("SoftwareVppForm", () => {
             gitops: {
               gitops_mode_enabled: true,
               repository_url: "https://example.com/repo",
+              exceptions: { labels: false, software: false, secrets: false },
             },
           }),
         },

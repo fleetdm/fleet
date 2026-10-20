@@ -505,6 +505,7 @@ describe("Software Summary Card", () => {
           teamId={1}
           router={router}
           refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
         />
       );
 
