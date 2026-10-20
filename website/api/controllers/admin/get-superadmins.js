@@ -1,7 +1,7 @@
 module.exports = {
 
 
-  friendlyName: 'View superadmins',
+  friendlyName: 'Get superadmins',
 
 
   description: 'Display "Superadmins" page, an admin tool for viewing and managing which users have superadmin access to the Fleet website.',
