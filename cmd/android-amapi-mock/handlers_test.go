@@ -406,7 +406,7 @@ func TestRegisterRestoresPolicyState(t *testing.T) {
 
 		d := store.getByESID(testESID)
 		require.NotNil(t, d)
-		assert.Equal(t, "enterprises/LC01/policies/default", d.PolicyName)
+		assert.Equal(t, "enterprises/LC01/policies/1", d.PolicyName)
 		assert.Zero(t, d.PolicyVersion)
 	})
 
@@ -424,7 +424,7 @@ func TestRegisterRestoresPolicyState(t *testing.T) {
 			d := store.getByESID(testESID)
 			require.NotNil(t, d)
 			assert.Zero(t, d.PolicyVersion, "the bogus version must not be kept on the device")
-			assert.Equal(t, "enterprises/LC01/policies/default", d.PolicyName,
+			assert.Equal(t, "enterprises/LC01/policies/1", d.PolicyName,
 				"the device falls back to a fresh registration")
 
 			// And it must not be reported to Fleet either.

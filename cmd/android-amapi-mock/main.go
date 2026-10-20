@@ -260,7 +260,10 @@ func (ds *deviceStore) register(d *fakeDevice) bool {
 	}
 
 	if d.PolicyName == "" && d.EnterpriseID != "" {
-		d.PolicyName = fmt.Sprintf("enterprises/%s/policies/default", d.EnterpriseID)
+		// A real device enrolls on the policy Fleet's enrollment token names, its default
+		// policy. Fleet only moves devices off that policy by ID, so any other name strands
+		// them there.
+		d.PolicyName = fmt.Sprintf("enterprises/%s/policies/%d", d.EnterpriseID, android.DefaultAndroidPolicyID)
 		d.PolicyVersion = 0
 	}
 	ds.byESID[d.EnterpriseSpecificID] = d
