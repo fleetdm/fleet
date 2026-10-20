@@ -9632,6 +9632,7 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			newMockDigicertCA("https://example.com", "caName"),
 			newMockDigicertCA("https://example.com", "caName2"),
 		},
+		EJBCA: []fleet.EJBCA{{Name: "ejbcaName"}, {Name: "ejbcaName2"}},
 		CustomScepProxy: []fleet.CustomSCEPProxyCA{
 			newMockCustomSCEPProxyCA("https://example.com", "scepName"),
 			newMockCustomSCEPProxyCA("https://example.com", "scepName2"),
@@ -9648,6 +9649,36 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 		errMsg  string
 		vars    []string
 	}{
+		{
+			name: "EJBCA profile is not pkcs12",
+			profile: pkcs12ForValidation("$FLEET_VAR_EJBCA_PASSWORD_ejbcaName", "$FLEET_VAR_EJBCA_DATA_ejbcaName", "Name",
+				"com.apple.security.pkcs13"),
+			errMsg: "Variables $FLEET_VAR_EJBCA_PASSWORD_ejbcaName and $FLEET_VAR_EJBCA_DATA_ejbcaName can only be included in the 'com.apple.security.pkcs12' payload",
+		},
+		{
+			name: "EJBCA password is not a fleet variable",
+			profile: pkcs12ForValidation("x$FLEET_VAR_EJBCA_PASSWORD_ejbcaName", "${FLEET_VAR_EJBCA_DATA_ejbcaName}", "Name",
+				"com.apple.security.pkcs12"),
+			errMsg: "included in the 'com.apple.security.pkcs12' payload under Password and PayloadContent, respectively",
+		},
+		{
+			name: "EJBCA data is not a fleet variable",
+			profile: pkcs12ForValidation("${FLEET_VAR_EJBCA_PASSWORD_ejbcaName}", "x${FLEET_VAR_EJBCA_DATA_ejbcaName}", "Name",
+				"com.apple.security.pkcs12"),
+			errMsg: "Failed to parse PKCS12 payload with Fleet variables",
+		},
+		{
+			name: "EJBCA happy path",
+			profile: pkcs12ForValidation("${FLEET_VAR_EJBCA_PASSWORD_ejbcaName}", "${FLEET_VAR_EJBCA_DATA_ejbcaName}", "Name",
+				"com.apple.security.pkcs12"),
+			vars: []string{"EJBCA_PASSWORD_ejbcaName", "EJBCA_DATA_ejbcaName"},
+		},
+		{
+			name: "EJBCA and DigiCert in the same profile",
+			profile: digiCertForValidation2("${FLEET_VAR_EJBCA_PASSWORD_ejbcaName}", "${FLEET_VAR_EJBCA_DATA_ejbcaName}",
+				"$FLEET_VAR_DIGICERT_PASSWORD_caName", "$FLEET_VAR_DIGICERT_DATA_caName"),
+			vars: []string{"EJBCA_PASSWORD_ejbcaName", "EJBCA_DATA_ejbcaName", "DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName"},
+		},
 		{
 			name: "DigiCert profile is not pkcs12",
 			profile: digiCertForValidation("$FLEET_VAR_DIGICERT_PASSWORD_caName", "$FLEET_VAR_DIGICERT_DATA_caName", "Name",
@@ -10141,6 +10172,11 @@ func TestValidateDeclarationFleetVariables(t *testing.T) {
 		require.ErrorContains(t, err, "Fleet variable $FLEET_VAR_NDES_SCEP_CHALLENGE is not supported in DDM profiles")
 	})
 
+	t.Run("EJBCA variable", func(t *testing.T) {
+		_, err := validateDeclarationFleetVariables(makeDecl("$FLEET_VAR_EJBCA_DATA_myCA"), premiumLic)
+		require.ErrorContains(t, err, "Fleet variable $FLEET_VAR_EJBCA_DATA_myCA is not supported in DDM profiles")
+	})
+
 	t.Run("supported and unsupported variables", func(t *testing.T) {
 		_, err := validateDeclarationFleetVariables(
 			makeDecl(`["$FLEET_VAR_HOST_UUID", "$FLEET_VAR_DIGICERT_DATA_myCA"]`), premiumLic,
@@ -10204,6 +10240,11 @@ var digiCertValidationMobileconfig string
 
 func digiCertForValidation(password, data, name, payloadType string) string {
 	return fmt.Sprintf(digiCertValidationMobileconfig, password, data, name, payloadType)
+}
+
+// pkcs12ForValidation is the same profile for the EJBCA variables, which are placed in a PKCS#12 payload like DigiCert's.
+func pkcs12ForValidation(password, data, name, payloadType string) string {
+	return digiCertForValidation(password, data, name, payloadType)
 }
 
 //go:embed testdata/profiles/digicert-validation2.mobileconfig

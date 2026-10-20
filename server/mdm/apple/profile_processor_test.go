@@ -2,6 +2,7 @@ package apple_mdm
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -18,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	digicert_mock "github.com/fleetdm/fleet/v4/server/mock/digicert"
+	ejbca_mock "github.com/fleetdm/fleet/v4/server/mock/ejbca"
 	scep_mock "github.com/fleetdm/fleet/v4/server/mock/scep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
@@ -36,7 +38,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	// No-op
 	svc := scep.NewSCEPConfigService(logger, nil)
 	digiCertService := digicert.NewService(digicert.WithLogger(logger))
-	err := preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, nil, nil, nil, nil, nil)
+	err := preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, nil, logger, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	hostUUID := "host-1"
@@ -79,7 +81,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	// Can't use NDES SCEP proxy with free tier
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierFree})
-	err = preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, nil)
+	err = preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, nil, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, nil)
 	require.NoError(t, err)
 	require.NotNil(t, updatedPayload)
 	assert.Contains(t, updatedPayload.Detail, "Premium license")
@@ -89,7 +91,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	updatedPayload = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, &fleet.GroupedCertificateAuthorities{})
+	err = preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, nil, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, &fleet.GroupedCertificateAuthorities{})
 	require.NoError(t, err)
 	require.NotNil(t, updatedPayload)
 	assert.Contains(t, updatedPayload.Detail, "not configured")
@@ -102,7 +104,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	updatedPayload = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, nil)
+	err = preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, nil, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, nil)
 	require.NoError(t, err)
 	require.NotNil(t, updatedPayload)
 	assert.Contains(t, updatedPayload.Detail, "FLEET_VAR_BOZO")
@@ -160,7 +162,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 		assert.Empty(t, payload) // no profiles to update since FLEET VAR could not be populated
 		return nil
 	}
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, nil, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	require.NotNil(t, updatedProfile)
 	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarNDESSCEPChallenge)
@@ -175,7 +177,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	updatedProfile = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, nil, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	require.NotNil(t, updatedProfile)
 	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarNDESSCEPChallenge)
@@ -190,7 +192,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	updatedProfile = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, nil, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	require.NotNil(t, updatedProfile)
 	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarNDESSCEPChallenge)
@@ -205,7 +207,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	updatedProfile = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, nil, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	assert.Nil(t, updatedProfile, "a self-clearing NDES failure must not be reported against the host")
 	assert.Empty(t, targets, "the profile must not be sent without a challenge")
@@ -229,7 +231,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 		assert.NotNil(t, payload[0].ChallengeRetrievedAt)
 		return nil
 	}
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, nil, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	assert.Nil(t, updatedProfile)
 	require.NotEmpty(t, targets)
@@ -252,7 +254,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 		assert.Empty(t, payload)
 		return nil
 	}
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, nil, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	assert.Nil(t, updatedProfile)
 	require.NotEmpty(t, targets)
@@ -273,7 +275,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	updatedProfile = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, nil, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	require.NotNil(t, updatedProfile)
 	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarHostEndUserEmailIDP)
@@ -287,7 +289,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	updatedProfile = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, nil, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	assert.Nil(t, updatedProfile)
 	require.NotEmpty(t, targets)
@@ -311,7 +313,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	updatedProfile = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, nil, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	assert.Nil(t, updatedProfile)
 	require.NotEmpty(t, targets)
@@ -330,7 +332,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	updatedProfile = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, nil, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	require.NotNil(t, updatedProfile)
 	assert.Contains(t, updatedProfile.Detail, "Unexpected number of hosts (0) for UUID")
@@ -393,7 +395,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 		}
 		return nil
 	}
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, nil, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	require.NotEmpty(t, targets)
 	assert.Len(t, targets, 3)
@@ -547,7 +549,7 @@ func TestPreprocessProfileContentsDigiCertUPNIsUniqueForMultipleHosts(t *testing
 		return nil
 	}
 
-	err := preprocessProfileContents(ctx, appCfg, ds, svc, mockDigiCert, logger, targets, profileContents, hostProfilesToInstallMap, make(map[string]string), groupedCAs)
+	err := preprocessProfileContents(ctx, appCfg, ds, svc, mockDigiCert, nil, logger, targets, profileContents, hostProfilesToInstallMap, make(map[string]string), groupedCAs)
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{host1UUID: "cn-user1@example.com", host2UUID: "cn-user2@example.com"}, cnByHostUUID)
 
@@ -602,14 +604,14 @@ func TestReplaceFleetVarInDigiCertItem(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.item, func(t *testing.T) {
 			item := "prefix-" + tt.item + "-suffix"
-			ok, err := replaceFleetVarInDigiCertItem(t.Context(), ds, &fleet.CmdTarget{CmdUUID: "command"}, fleet.Host{UUID: "host"}, make(map[string]string), &item, make(map[string]uint), nil, func(int) error { return nil })
+			ok, err := replaceFleetVarInCAItem(t.Context(), ds, &fleet.CmdTarget{CmdUUID: "command"}, fleet.Host{UUID: "host"}, make(map[string]string), &item, make(map[string]uint), nil, func(int) error { return nil }, digiCertVarHint)
 			require.NoError(t, err)
 			require.True(t, ok)
 			assert.Equal(t, "prefix-"+tt.expected+"-suffix", item)
 		})
 	}
 
-	// Failures mention the DigiCert CA, since the variable lives in its fields and not in the profile.
+	// Failures mention the CA, since the variable lives in its fields and not in the profile.
 	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 		return &fleet.ScimUser{UserName: "user@example.com"}, nil
 	}
@@ -628,16 +630,18 @@ func TestReplaceFleetVarInDigiCertItem(t *testing.T) {
 		{fleet.FleetVarHostEndUserIDPDepartment, "Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT."},
 		{fleet.FleetVarHostEndUserEmailIDP, "Fleet couldn't populate $FLEET_VAR_HOST_END_USER_EMAIL_IDP."},
 	}
-	for _, tt := range failures {
-		t.Run("failure "+string(tt.fleetVar), func(t *testing.T) {
-			failureDetail = ""
-			item := tt.fleetVar.WithBraces()
-			ok, err := replaceFleetVarInDigiCertItem(t.Context(), ds, &fleet.CmdTarget{CmdUUID: "command"}, fleet.Host{UUID: "host"}, make(map[string]string), &item, make(map[string]uint), nil, func(int) error { return nil })
-			require.NoError(t, err)
-			require.False(t, ok)
-			assert.Contains(t, failureDetail, tt.detail)
-			assert.Contains(t, failureDetail, "DigiCert certificate authority")
-		})
+	for _, ca := range []struct{ name, hint string }{{"DigiCert", digiCertVarHint}, {"EJBCA", ejbcaVarHint}} {
+		for _, tt := range failures {
+			t.Run(ca.name+" failure "+string(tt.fleetVar), func(t *testing.T) {
+				failureDetail = ""
+				item := tt.fleetVar.WithBraces()
+				ok, err := replaceFleetVarInCAItem(t.Context(), ds, &fleet.CmdTarget{CmdUUID: "command"}, fleet.Host{UUID: "host"}, make(map[string]string), &item, make(map[string]uint), nil, func(int) error { return nil }, ca.hint)
+				require.NoError(t, err)
+				require.False(t, ok)
+				assert.Contains(t, failureDetail, tt.detail)
+				assert.Contains(t, failureDetail, ca.name+" certificate authority")
+			})
+		}
 	}
 }
 
@@ -1108,7 +1112,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			updatedPayload = nil
 			updatedProfile = nil
 
-			err := preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, nil)
+			err := preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, nil, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, nil)
 			require.NoError(t, err)
 			var output string
 			if expectedStatus == fleet.MDMDeliveryFailed {
@@ -1167,7 +1171,7 @@ func TestPreprocessProfileContentsPSSORegistrationToken(t *testing.T) {
 			"p1": []byte("<string>" + fleet.FleetVarPSSODeviceRegistrationToken.WithPrefix() + "</string>"),
 		}
 
-		err := preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, targets, profileContents, newHostProfilesMap(), make(map[string]string), &fleet.GroupedCertificateAuthorities{})
+		err := preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, nil, logger, targets, profileContents, newHostProfilesMap(), make(map[string]string), &fleet.GroupedCertificateAuthorities{})
 		require.NoError(t, err)
 
 		// The original target is preserved (no per-host fan-out, no new temp UUIDs).
@@ -1213,7 +1217,7 @@ func TestPreprocessProfileContentsPSSORegistrationToken(t *testing.T) {
 			}
 		}
 
-		err := preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, targets, profileContents, multiHostProfilesMap, make(map[string]string), &fleet.GroupedCertificateAuthorities{})
+		err := preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, nil, logger, targets, profileContents, multiHostProfilesMap, make(map[string]string), &fleet.GroupedCertificateAuthorities{})
 		require.NoError(t, err)
 
 		// Still one target — no per-host fan-out regardless of host count.
@@ -1242,7 +1246,7 @@ func TestPreprocessProfileContentsPSSORegistrationToken(t *testing.T) {
 			"p1": []byte("<string>" + fleet.FleetVarPSSODeviceRegistrationToken.WithPrefix() + "</string><string>" + fleet.FleetVarHostUUID.WithPrefix() + "</string>"),
 		}
 
-		err := preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, targets, profileContents, newHostProfilesMap(), make(map[string]string), &fleet.GroupedCertificateAuthorities{})
+		err := preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, nil, logger, targets, profileContents, newHostProfilesMap(), make(map[string]string), &fleet.GroupedCertificateAuthorities{})
 		require.NoError(t, err)
 
 		// The original target is replaced by a per-host target.
@@ -1256,5 +1260,210 @@ func TestPreprocessProfileContentsPSSORegistrationToken(t *testing.T) {
 		require.Contains(t, hostContents, placeholder)
 		require.Contains(t, hostContents, hostUUID)
 		require.NotContains(t, hostContents, "FLEET_VAR_")
+	})
+}
+
+func TestPreprocessProfileContentsEJBCA(t *testing.T) {
+	t.Parallel()
+	const (
+		caName      = "myCA"
+		profileXML  = "<string>$FLEET_VAR_EJBCA_PASSWORD_myCA</string><data>${FLEET_VAR_EJBCA_DATA_myCA}</data>"
+		serialHost1 = "SERIAL-AAA"
+		serialHost2 = "SERIAL-BBB"
+	)
+	hostsByUUID := map[string]*fleet.Host{
+		"host-1": {ID: 1, UUID: "host-1", HardwareSerial: serialHost1, Platform: "darwin"},
+		"host-2": {ID: 2, UUID: "host-2", HardwareSerial: serialHost2, Platform: "darwin"},
+	}
+	baseCA := func() fleet.EJBCA {
+		return fleet.EJBCA{
+			Name:                          caName,
+			URL:                           "https://ejbca.example.com",
+			CertificateAuthorityName:      "ManagementCA",
+			CertificateProfileName:        "certProfile",
+			EndEntityProfileName:          "eeProfile",
+			CertificateCommonName:         "cn-" + fleet.FleetVarHostEndUserIDPUsername.WithPrefix(),
+			CertificateUserPrincipalNames: []string{fleet.FleetVarHostHardwareSerial.WithPrefix() + "@example.com"},
+		}
+	}
+	// configs are what the EJBCA service was asked to enroll, by the hardware serial of the host.
+	type result struct {
+		contents map[string]string // the profile each host gets, by host UUID
+		managed  []*fleet.MDMManagedCertificate
+		profiles map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload
+		failures map[string]string // the failure detail, by host UUID
+		configs  map[string]fleet.EJBCA
+		enrolled int
+	}
+	run := func(t *testing.T, ctx context.Context, ca fleet.EJBCA, includeCA bool, enroll func(config fleet.EJBCA) error, noIdPEmail bool) result {
+		logger := slog.New(slog.DiscardHandler)
+		appCfg := &fleet.AppConfig{}
+		appCfg.MDM.EnabledAndConfigured = true
+		res := result{contents: map[string]string{}, failures: map[string]string{}, configs: map[string]fleet.EJBCA{}}
+
+		ds := new(mock.Store)
+		ds.ListHostsLiteByUUIDsFunc = func(_ context.Context, _ fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
+			var hosts []*fleet.Host
+			for _, uuid := range uuids {
+				if h, ok := hostsByUUID[uuid]; ok {
+					hosts = append(hosts, h)
+				}
+			}
+			return hosts, nil
+		}
+		ds.HostIDsByIdentifierFunc = func(_ context.Context, _ fleet.TeamFilter, identifiers []string) ([]uint, error) {
+			return []uint{hostsByUUID[identifiers[0]].ID}, nil
+		}
+		ds.ScimUserByHostIDFunc = func(_ context.Context, hostID uint) (*fleet.ScimUser, error) {
+			return &fleet.ScimUser{UserName: fmt.Sprintf("user%d@example.com", hostID)}, nil
+		}
+		ds.ListHostDeviceMappingFunc = func(context.Context, uint) ([]*fleet.HostDeviceMapping, error) { return nil, nil }
+		ds.GetHostEmailsFunc = func(context.Context, string, string) ([]string, error) {
+			if noIdPEmail {
+				return nil, nil
+			}
+			return []string{"idp@example.com"}, nil
+		}
+		ds.BulkUpsertMDMAppleHostProfilesFunc = func(_ context.Context, _ []*fleet.MDMAppleBulkUpsertHostProfilePayload) error { return nil }
+		ds.BulkUpsertMDMManagedCertificatesFunc = func(_ context.Context, payload []*fleet.MDMManagedCertificate) error {
+			res.managed = append(res.managed, payload...)
+			return nil
+		}
+		ds.UpdateOrDeleteHostMDMAppleProfileFunc = func(_ context.Context, p *fleet.HostMDMAppleProfile) error {
+			res.failures[p.HostUUID] = p.Detail
+			return nil
+		}
+
+		ejbcaMock := &ejbca_mock.Service{}
+		ejbcaMock.GetCertificateFunc = func(_ context.Context, config fleet.EJBCA) (*fleet.EJBCACertificate, error) {
+			res.enrolled++
+			serial := strings.TrimSuffix(config.CertificateUserPrincipalNames[0], "@example.com")
+			res.configs[serial] = config
+			if enroll != nil {
+				if err := enroll(config); err != nil {
+					return nil, err
+				}
+			}
+			now := time.Now()
+			return &fleet.EJBCACertificate{
+				PfxData: []byte("pfx-" + serial), Password: "password-" + serial, NotValidBefore: now, NotValidAfter: now.Add(time.Hour), SerialNumber: "abc",
+			}, nil
+		}
+
+		pending := fleet.MDMDeliveryPending
+		res.profiles = map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload{}
+		for uuid := range hostsByUUID {
+			res.profiles[fleet.HostProfileUUID{HostUUID: uuid, ProfileUUID: "p1"}] = &fleet.MDMAppleBulkUpsertHostProfilePayload{
+				ProfileUUID: "p1", ProfileIdentifier: "com.apple.security.pkcs12", HostUUID: uuid, OperationType: fleet.MDMOperationTypeInstall,
+				Status: &pending, CommandUUID: "cmd-1", Scope: fleet.PayloadScopeSystem,
+			}
+		}
+		targets := map[string]*fleet.CmdTarget{"p1": {CmdUUID: "cmd-1", ProfileIdentifier: "com.apple.security.pkcs12", EnrollmentIDs: []string{"host-1", "host-2"}}}
+		profileContents := map[string]mobileconfig.Mobileconfig{"p1": mobileconfig.Mobileconfig(profileXML)}
+		groupedCAs := &fleet.GroupedCertificateAuthorities{}
+		if includeCA {
+			groupedCAs.EJBCA = []fleet.EJBCA{ca}
+		}
+
+		err := preprocessProfileContents(ctx, appCfg, ds, scep.NewSCEPConfigService(logger, nil), nil, ejbcaMock, logger, targets, profileContents,
+			res.profiles, map[string]string{}, groupedCAs)
+		require.NoError(t, err)
+		for profUUID, target := range targets {
+			if profUUID != "p1" {
+				res.contents[target.EnrollmentIDs[0]] = string(profileContents[profUUID])
+			}
+		}
+		return res
+	}
+	premium := func() context.Context {
+		return license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	}
+
+	t.Run("expands the CA fields for each host and records the certificates", func(t *testing.T) {
+		t.Parallel()
+		res := run(t, premium(), baseCA(), true, nil, false)
+		require.Len(t, res.configs, 2)
+		// Each host gets its own values, the username defaults to the common name, and nothing is left from the first host.
+		assert.Equal(t, "cn-user1@example.com", res.configs[serialHost1].CertificateCommonName)
+		assert.Equal(t, "cn-user1@example.com", res.configs[serialHost1].UsernameTemplate)
+		assert.Equal(t, "cn-user2@example.com", res.configs[serialHost2].CertificateCommonName)
+		assert.Equal(t, "cn-user2@example.com", res.configs[serialHost2].UsernameTemplate)
+		assert.Equal(t, []string{serialHost2 + "@example.com"}, res.configs[serialHost2].CertificateUserPrincipalNames)
+
+		// The profile of each host has its own certificate and password.
+		require.Len(t, res.contents, 2)
+		for _, serial := range []string{serialHost1, serialHost2} {
+			var contents string
+			for host, c := range res.contents {
+				if hostsByUUID[host].HardwareSerial == serial {
+					contents = c
+				}
+			}
+			assert.Contains(t, contents, base64.StdEncoding.EncodeToString([]byte("pfx-"+serial)))
+			assert.Contains(t, contents, "password-"+serial)
+			assert.NotContains(t, contents, "FLEET_VAR_")
+		}
+
+		require.Len(t, res.managed, 2)
+		for _, m := range res.managed {
+			assert.Equal(t, fleet.CAConfigEJBCA, m.Type)
+			assert.Equal(t, caName, m.CAName)
+			assert.Equal(t, "p1", m.ProfileUUID)
+			assert.Equal(t, "abc", *m.Serial)
+		}
+		assert.Empty(t, res.failures)
+	})
+
+	t.Run("an explicit username template is expanded separately from the common name", func(t *testing.T) {
+		t.Parallel()
+		ca := baseCA()
+		ca.UsernameTemplate = fleet.FleetVarHostHardwareSerial.WithPrefix()
+		res := run(t, premium(), ca, true, nil, false)
+		assert.Equal(t, serialHost1, res.configs[serialHost1].UsernameTemplate)
+		assert.Equal(t, "cn-user1@example.com", res.configs[serialHost1].CertificateCommonName)
+	})
+
+	t.Run("a failed enrollment fails the profile of that host with the reason", func(t *testing.T) {
+		t.Parallel()
+		res := run(t, premium(), baseCA(), true, func(fleet.EJBCA) error { return errors.New("boom") }, false)
+		assert.Equal(t, map[string]string{
+			"host-1": "Couldn't get certificate from EJBCA for myCA. boom",
+			"host-2": "Couldn't get certificate from EJBCA for myCA. boom",
+		}, res.failures)
+		assert.Empty(t, res.managed)
+		assert.Empty(t, res.contents)
+	})
+
+	t.Run("a variable that can't be filled in says it is in the CA", func(t *testing.T) {
+		t.Parallel()
+		ca := baseCA()
+		ca.CertificateCommonName = fleet.FleetVarHostEndUserEmailIDP.WithPrefix()
+		res := run(t, premium(), ca, true, nil, true)
+		assert.Zero(t, res.enrolled)
+		for _, detail := range res.failures {
+			assert.Contains(t, detail, "There is no IdP email for this host")
+			assert.Contains(t, detail, "EJBCA certificate authority")
+		}
+		assert.Len(t, res.failures, 2)
+	})
+
+	t.Run("a CA that doesn't exist fails the profile", func(t *testing.T) {
+		t.Parallel()
+		res := run(t, premium(), baseCA(), false, nil, false)
+		assert.Zero(t, res.enrolled)
+		for _, p := range res.profiles {
+			assert.Equal(t, fleet.MDMDeliveryFailed, *p.Status)
+			assert.Equal(t, "Fleet couldn't populate $FLEET_VAR_EJBCA_PASSWORD_myCA because myCA certificate authority doesn't exist.", p.Detail)
+		}
+	})
+
+	t.Run("EJBCA needs Fleet Premium", func(t *testing.T) {
+		t.Parallel()
+		res := run(t, license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree}), baseCA(), true, nil, false)
+		assert.Zero(t, res.enrolled)
+		for _, p := range res.profiles {
+			assert.Equal(t, fleet.MDMDeliveryFailed, *p.Status)
+			assert.Equal(t, "EJBCA integration requires a Fleet Premium license.", p.Detail)
+		}
 	})
 }
