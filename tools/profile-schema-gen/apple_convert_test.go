@@ -15,11 +15,16 @@ import (
 // against the output contract.
 func convertYAML(t *testing.T, src string) (string, error) {
 	t.Helper()
+	return convertYAMLWithPlatforms(t, src, nil)
+}
+
+func convertYAMLWithPlatforms(t *testing.T, src string, parent map[profilevalidation.AppleOS]profilevalidation.ApplePlatform) (string, error) {
+	t.Helper()
 	var doc yaml.Node
 	require.NoError(t, yaml.Unmarshal([]byte(src), &doc))
 	require.Equal(t, yaml.SequenceNode, doc.Content[0].Kind)
 
-	keys, open, values, err := newAppleConverter(t.Context(), slog.New(slog.DiscardHandler), "test.yaml").convertKeys(doc.Content[0].Content, "")
+	keys, open, values, err := newAppleConverter(t.Context(), slog.New(slog.DiscardHandler), "test.yaml").convertKeys(doc.Content[0].Content, "", parent)
 	if err != nil {
 		return "", err
 	}

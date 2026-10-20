@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/profilevalidation"
@@ -25,8 +26,62 @@ type appleRawKey struct {
 	Repetition *appleRange `yaml:"repetition"`
 	ValueType  string      `yaml:"valuetype"`
 	SubType    string      `yaml:"subtype"` // deprecated upstream in favor of valuetype
+	// SupportedOS updates the parent's platforms field by field (Apple's docs/schema.md).
+	SupportedOS appleRawPlatforms `yaml:"supportedOS"`
 	// SubKeys points into the parsed document (see appleFile) and is filled by decode.
 	SubKeys []*yaml.Node `yaml:"-"`
+}
+
+// appleRawPlatforms is a supportedOS object. Only lifecycle and supervised are kept; pointers tell
+// "not set here, inherit" apart from a set value.
+type appleRawPlatforms map[string]struct {
+	Introduced *string `yaml:"introduced"`
+	Deprecated *string `yaml:"deprecated"`
+	Removed    *string `yaml:"removed"`
+	Supervised *bool   `yaml:"supervised"`
+}
+
+// resolve applies p on top of parent and returns the result; parent isn't modified.
+func (p appleRawPlatforms) resolve(parent map[profilevalidation.AppleOS]profilevalidation.ApplePlatform) map[profilevalidation.AppleOS]profilevalidation.ApplePlatform {
+	if len(p) == 0 {
+		return parent
+	}
+	out := maps.Clone(parent)
+	if out == nil {
+		out = map[profilevalidation.AppleOS]profilevalidation.ApplePlatform{}
+	}
+	for os, raw := range p {
+		plat := out[profilevalidation.AppleOS(os)]
+		if raw.Introduced != nil {
+			plat.Introduced = *raw.Introduced
+		}
+		if raw.Deprecated != nil {
+			plat.Deprecated = *raw.Deprecated
+		}
+		if raw.Removed != nil {
+			plat.Removed = *raw.Removed
+		}
+		if raw.Supervised != nil {
+			plat.Supervised = *raw.Supervised
+		}
+		out[profilevalidation.AppleOS(os)] = plat
+	}
+	return out
+}
+
+// platformsDiff returns the entries of resolved that differ from parent, or nil if none do.
+func platformsDiff(resolved, parent map[profilevalidation.AppleOS]profilevalidation.ApplePlatform) map[profilevalidation.AppleOS]profilevalidation.ApplePlatform {
+	var diff map[profilevalidation.AppleOS]profilevalidation.ApplePlatform
+	for os, plat := range resolved {
+		if prev, ok := parent[os]; ok && prev == plat {
+			continue
+		}
+		if diff == nil {
+			diff = map[profilevalidation.AppleOS]profilevalidation.ApplePlatform{}
+		}
+		diff[os] = plat
+	}
+	return diff
 }
 
 type appleRange struct {
@@ -48,15 +103,16 @@ func newAppleConverter(ctx context.Context, logger *slog.Logger, file string) *a
 }
 
 // convertKeys converts a payloadkeys or dictionary subkeys list. An ANY entry makes the container
-// open, with its definition as the values every other key must match.
-func (c *appleConverter) convertKeys(nodes []*yaml.Node, parentPath string) (keys map[string]*profilevalidation.AppleKey, open bool, values *profilevalidation.AppleKey, err error) {
+// open, with its definition as the values every other key must match. parentPlatforms are the
+// container's resolved platforms, which each key inherits.
+func (c *appleConverter) convertKeys(nodes []*yaml.Node, parentPath string, parentPlatforms map[profilevalidation.AppleOS]profilevalidation.ApplePlatform) (keys map[string]*profilevalidation.AppleKey, open bool, values *profilevalidation.AppleKey, err error) {
 	for _, n := range nodes {
 		raw, def, err := c.decode(n, parentPath)
 		if err != nil {
 			return nil, false, nil, err
 		}
 		path := joinKeyPath(parentPath, raw.Key)
-		key, err := c.convertKey(def, raw, path)
+		key, err := c.convertKey(def, raw, path, parentPlatforms)
 		if err != nil {
 			return nil, false, nil, err
 		}
@@ -77,7 +133,8 @@ func (c *appleConverter) convertKeys(nodes []*yaml.Node, parentPath string) (key
 }
 
 // convertKey converts one key definition; path is its dotted key path, with "[]" for array items.
-func (c *appleConverter) convertKey(def *yaml.Node, raw *appleRawKey, path string) (*profilevalidation.AppleKey, error) {
+// The key records only the platforms that differ from parentPlatforms.
+func (c *appleConverter) convertKey(def *yaml.Node, raw *appleRawKey, path string, parentPlatforms map[profilevalidation.AppleOS]profilevalidation.ApplePlatform) (*profilevalidation.AppleKey, error) {
 	if seenAt, ok := c.visiting[def]; ok {
 		return nil, fmt.Errorf("%s: %s contains its own definition from %s", c.file, path, seenAt)
 	}
@@ -98,6 +155,10 @@ func (c *appleConverter) convertKey(def *yaml.Node, raw *appleRawKey, path strin
 		c.logger.DebugContext(c.ctx, "using deprecated subtype as valuetype", "path", path, "subtype", raw.SubType)
 		key.ValueType = profilevalidation.AppleValueType(raw.SubType)
 	}
+	platforms := raw.SupportedOS.resolve(parentPlatforms)
+	if key.Platforms = platformsDiff(platforms, parentPlatforms); key.Platforms != nil {
+		c.logger.DebugContext(c.ctx, "platforms differ from parent", "path", path, "platforms", key.Platforms)
+	}
 	if !knownAppleType(typ) {
 		c.logger.WarnContext(c.ctx, "unrecognized type; carried as declared", "path", path, "type", raw.Type)
 	}
@@ -114,7 +175,7 @@ func (c *appleConverter) convertKey(def *yaml.Node, raw *appleRawKey, path strin
 			if err != nil {
 				return nil, err
 			}
-			if key.Items, err = c.convertKey(itemDef, itemRaw, path+"[]"); err != nil {
+			if key.Items, err = c.convertKey(itemDef, itemRaw, path+"[]", platforms); err != nil {
 				return nil, err
 			}
 		default:
@@ -128,7 +189,7 @@ func (c *appleConverter) convertKey(def *yaml.Node, raw *appleRawKey, path strin
 			break
 		}
 		var err error
-		if key.Keys, key.Open, key.Values, err = c.convertKeys(raw.SubKeys, path); err != nil {
+		if key.Keys, key.Open, key.Values, err = c.convertKeys(raw.SubKeys, path, platforms); err != nil {
 			return nil, err
 		}
 	default:

@@ -31,9 +31,9 @@ const (
 type appleFile struct {
 	Path    string // relative to the download dir, for logs and errors
 	Payload struct {
-		PayloadType     string    `yaml:"payloadtype"`
-		DeclarationType string    `yaml:"declarationtype"`
-		SupportedOS     yaml.Node `yaml:"supportedOS"`
+		PayloadType     string            `yaml:"payloadtype"`
+		DeclarationType string            `yaml:"declarationtype"`
+		SupportedOS     appleRawPlatforms `yaml:"supportedOS"`
 	}
 	PayloadKeys []*yaml.Node
 }
