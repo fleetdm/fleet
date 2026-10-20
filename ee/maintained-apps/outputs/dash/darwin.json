@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "8.1.1",
+      "version": "8.2.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.kapeli.dashdoc';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.kapeli.dashdoc' AND version_compare(bundle_short_version, '8.1.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.kapeli.dashdoc' AND version_compare(bundle_short_version, '8.2.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.kapeli.dashdoc' AND a.bundle_executable != '');"
       },
       "installer_url": "https://kapeli.com/downloads/v8/Dash.zip",
       "install_script_ref": "26f31212",
       "uninstall_script_ref": "522c2673",
-      "sha256": "bf66b0fa12fa8b800e5233c06aa41373f6444d3c8cf9635aca1eb6a528a01513",
+      "sha256": "cbf3043980c21de346bbcb5d3e5a50956330525a175aaba76b11c49196f933db",
       "default_categories": [
         "Developer tools"
       ]

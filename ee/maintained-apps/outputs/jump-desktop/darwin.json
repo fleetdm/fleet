@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "9.1.9",
+      "version": "10.15.46",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.p5sys.jump.mac.viewer.web';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.p5sys.jump.mac.viewer.web' AND version_compare(bundle_short_version, '9.1.9') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.p5sys.jump.mac.viewer.web' AND version_compare(bundle_short_version, '10.15.46') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.p5sys.jump.mac.viewer.web' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://mirror.jumpdesktop.com/downloads/jdm/JumpDesktopMac-90109.zip",
+      "installer_url": "https://mirror.jumpdesktop.com/downloads/viewer/JumpDesktopMac-10.15.46.zip",
       "install_script_ref": "5804cd89",
       "uninstall_script_ref": "2d3bf2db",
-      "sha256": "9ed0cf53d0e2a61ca741c2ba999f91e0ca13473b4ca59692a59c67d05c8cc199",
+      "sha256": "6e4db1e0ae5bb2f8a6f2829273a5947be1502d3fea651e7c317614b6e1a173c0",
       "default_categories": [
         "Productivity"
       ]
