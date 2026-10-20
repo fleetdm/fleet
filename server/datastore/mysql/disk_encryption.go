@@ -538,8 +538,8 @@ WHERE host_id = ? AND base64_encrypted = ?`, newBase64Encrypted, hostID, current
 func (ds *Datastore) ListWSTEPEncryptedDiskEncryptionKeys(ctx context.Context, afterHostID uint, limit int) ([]fleet.HostDiskEncryptionKey, error) {
 	var keys []fleet.HostDiskEncryptionKey
 	// The marked rows are the migration's work queue, served by the (wstep_encrypted, host_id) index so a run that
-	// finds the queue empty costs one probe. Rows already marked undecryptable are left to the host, which re-escrows
-	// and clears the marker with the new key.
+	// finds the queue empty costs one probe. Marking a row undecryptable takes it out of the queue; the decryptable
+	// filter only guards rows marked by an older version of this job.
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &keys, `
 SELECT host_id, base64_encrypted, updated_at, wstep_encrypted
 FROM host_disk_encryption_keys
@@ -580,8 +580,9 @@ func (ds *Datastore) MarkWindowsDiskEncryptionKeysUndecryptable(ctx context.Cont
 		return nil
 	}
 	// Matched on the blob as well as the host, so a key the host escrowed meanwhile is never marked. The legacy marker
-	// stays: the row is still a legacy blob, and restoring the previous pair makes it readable again. The host is asked
-	// to re-escrow either way.
+	// is cleared with it: the job never retries an undecryptable row, and a leftover marker on a host that never comes
+	// back would keep the queue's index range non-empty, which makes MySQL scan the whole table every hour. Reads still
+	// try the WSTEP pair, so restoring a previous pair still makes the key readable.
 	placeholders := strings.TrimSuffix(strings.Repeat("(?, ?), ", len(keys)), ", ")
 	args := make([]any, 0, 2*len(keys))
 	for _, k := range keys {
@@ -589,7 +590,7 @@ func (ds *Datastore) MarkWindowsDiskEncryptionKeysUndecryptable(ctx context.Cont
 	}
 	if _, err := ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(`
 UPDATE host_disk_encryption_keys
-SET decryptable = 0, updated_at = updated_at
+SET decryptable = 0, wstep_encrypted = 0, updated_at = updated_at
 WHERE (host_id, base64_encrypted) IN (%s)`, placeholders), args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "mark Windows disk encryption keys undecryptable")
 	}

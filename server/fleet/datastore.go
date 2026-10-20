@@ -1529,7 +1529,8 @@ type Datastore interface {
 	// clears the marker alone. It returns false when nothing matched.
 	ReplaceWSTEPEncryptedArchivedDiskEncryptionKey(ctx context.Context, id uint, currentBase64Encrypted, newBase64Encrypted string) (bool, error)
 	// MarkWindowsDiskEncryptionKeysUndecryptable sets decryptable to false on the given keys, matched by host and
-	// stored ciphertext, which makes the server ask those hosts to escrow a new key. updated_at is unchanged.
+	// stored ciphertext, which makes the server ask those hosts to escrow a new key. It also takes them out of the
+	// legacy queue. updated_at is unchanged.
 	MarkWindowsDiskEncryptionKeysUndecryptable(ctx context.Context, keys []HostDiskEncryptionKey) error
 	// IsHostDiskEncryptionKeyRotationInProgress reports whether the host's pending FileVault key rotation cmdUUID
 	// is still queued with no terminal result, or was requested less than staleAfter ago.

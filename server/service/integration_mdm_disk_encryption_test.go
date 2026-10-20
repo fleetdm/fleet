@@ -962,7 +962,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDMGetEncryptionKey() {
 	stored, err = s.ds.GetHostDiskEncryptionKey(ctx, host.ID)
 	require.NoError(t, err)
 	require.Equal(t, new(false), stored.Decryptable)
-	require.True(t, stored.WSTEPEncrypted)
+	require.False(t, stored.WSTEPEncrypted, "an undecryptable key leaves the queue")
 	// The host is only told a new key is coming while its fleet enforces Windows disk encryption.
 	errResp := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusUnprocessableEntity)
 	errBody, err := io.ReadAll(errResp.Body)

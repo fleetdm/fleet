@@ -784,7 +784,7 @@ func testWSTEPEncryptedDiskEncryptionKeys(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, archivedKeys)
 
-	// Marking matches the stored blob, keeps the marker and updated_at, and takes the row out of the list.
+	// Marking matches the stored blob, clears the marker, keeps updated_at, and takes the row out of the list.
 	require.NoError(t, ds.MarkWindowsDiskEncryptionKeysUndecryptable(ctx, nil))
 	require.NoError(t, ds.MarkWindowsDiskEncryptionKeysUndecryptable(ctx, []fleet.HostDiskEncryptionKey{
 		{HostID: legacy.ID, Base64Encrypted: "wstep-blob"},
@@ -793,7 +793,7 @@ func testWSTEPEncryptedDiskEncryptionKeys(t *testing.T, ds *Datastore) {
 	key, err = ds.GetHostDiskEncryptionKey(ctx, legacy.ID)
 	require.NoError(t, err)
 	require.Equal(t, new(false), key.Decryptable)
-	require.True(t, key.WSTEPEncrypted)
+	require.False(t, key.WSTEPEncrypted)
 	require.True(t, backdate.Equal(key.UpdatedAt), "updated_at moved to %s", key.UpdatedAt)
 	key, err = ds.GetHostDiskEncryptionKey(ctx, current.ID)
 	require.NoError(t, err)
@@ -803,6 +803,10 @@ func testWSTEPEncryptedDiskEncryptionKeys(t *testing.T, ds *Datastore) {
 	require.Empty(t, keys)
 
 	// A re-escrow from the host replaces the key and clears the marker; an error report alone does not.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_disk_encryption_keys SET wstep_encrypted = 1 WHERE host_id = ?`, legacy.ID)
+		return err
+	})
 	setKey(legacy, "", "bitlocker error", nil)
 	key, err = ds.GetHostDiskEncryptionKey(ctx, legacy.ID)
 	require.NoError(t, err)
