@@ -460,7 +460,8 @@ ${COULD_NOT_GENERATE_SHAPE}`;
             // Replace, Add, or Exec.
             "verb": "Replace",
             "locURI": "TODO",
-            // The node's value as the node takes it: a number for int, true or false for bool, text for chr.
+            // The node's value as the node takes it: a number for int, true or false for bool, text for chr, and for a
+            // node whose value is an XML document, that document on one line.
             "data": "TODO"
           },
           {
@@ -573,7 +574,8 @@ ${COULD_NOT_GENERATE_SHAPE}`;
         rules: [
           // Document shape.  Wrong here and Fleet rejects the file on upload.
           ...(isWrittenFromSettings ? [
-            'Return the commands and their values, not the XML.  The profile is written from "commands" after you return it: each command\'s Format is taken from the node\'s DFFormat in the provided list, and its Item, Meta, Target, and CDATA are added for you.  Never write SyncML, OMA-DM elements, or any other XML yourself -- the only markup you write is an ADMX-backed node\'s policy fragment.',
+            'Return the commands and their values, not the SyncML.  The profile is written from "commands" after you return it: each command\'s Format is taken from the node\'s DFFormat in the provided list, and its Item, Meta, Target, and CDATA are added for you.  Never write SyncML or OMA-DM command elements yourself -- no Add, Replace, Exec, Atomic, Item, Meta, Target, Data, or Format.',
+            'A node whose value is itself an XML document -- VPNv2 ProfileXML, an AppLocker policy, an AssignedAccess configuration -- takes that document as its "data", written on one line; it is wrapped in CDATA for you.  An ADMX-backed node\'s "data" is its policy fragment.',
             '"atomic" wraps every command in one <Atomic>.  Set it only when the instructions ask for the settings to be applied together, all or nothing.',
           ] : [
             'A Windows profile is a sequence of OMA-DM command elements, not a SyncML document.  The top level must be one or more <Add>, <Replace>, <Exec>, or <Atomic> elements and nothing else.  Never wrap them in <SyncML>, <SyncBody>, <Final/>, or an invented container such as <WindowsCSP>, and never emit an XML declaration -- the SyncML envelope carries session state (SyncHdr, SessionID, MsgID) that only the MDM server can populate at delivery time.',

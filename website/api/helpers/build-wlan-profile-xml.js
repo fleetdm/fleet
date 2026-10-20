@@ -81,29 +81,31 @@ GEANT's eduroam configuration tool writes it rather than as the schema's Trusted
 
     const EAP_CONFIG_BUILDERS_BY_METHOD = {
 
+      // Server certificate validation stays on for every method.  Without server names or a root CA to trust, the
+      // user is asked to confirm the server instead, rather than validation being switched off.
+
       // PEAP with EAP-MSCHAPv2 inside, from the WPA2-Enterprise with PEAP-MSCHAPv2 sample.
       PEAP: (serverValidation)=>{
-        let validatesServer = hasServerValidation(serverValidation);
         return eapHostConfig(25, 0, '<Eap xmlns="http://www.microsoft.com/provisioning/BaseEapConnectionPropertiesV1"><Type>25</Type>' +
           '<EapType xmlns="http://www.microsoft.com/provisioning/MsPeapConnectionPropertiesV1">' +
-          `<ServerValidation><DisableUserPromptForServerValidation>${validatesServer}</DisableUserPromptForServerValidation><ServerNames>${escapeXml(serverValidation.serverNames)}</ServerNames>${trustedRootCaElements(serverValidation, 'TrustedRootCA')}</ServerValidation>` +
+          `<ServerValidation><DisableUserPromptForServerValidation>${hasServerValidation(serverValidation)}</DisableUserPromptForServerValidation><ServerNames>${escapeXml(serverValidation.serverNames)}</ServerNames>${trustedRootCaElements(serverValidation, 'TrustedRootCA')}</ServerValidation>` +
           '<FastReconnect>true</FastReconnect><InnerEapOptional>false</InnerEapOptional>' +
           mschapv2Eap() +
           '<EnableQuarantineChecks>false</EnableQuarantineChecks><RequireCryptoBinding>false</RequireCryptoBinding>' +
-          (validatesServer ? '<PeapExtensions><PerformServerValidation xmlns="http://www.microsoft.com/provisioning/MsPeapConnectionPropertiesV2">true</PerformServerValidation><AcceptServerName xmlns="http://www.microsoft.com/provisioning/MsPeapConnectionPropertiesV2">true</AcceptServerName></PeapExtensions>' : '<PeapExtensions/>') +
+          '<PeapExtensions><PerformServerValidation xmlns="http://www.microsoft.com/provisioning/MsPeapConnectionPropertiesV2">true</PerformServerValidation>' +
+          `<AcceptServerName xmlns="http://www.microsoft.com/provisioning/MsPeapConnectionPropertiesV2">${serverValidation.serverNames !== ''}</AcceptServerName></PeapExtensions>` +
           '</EapType></Eap>');
       },
 
       // EAP-TLS with a certificate from the device's store, from the EAP configuration sample.
       TLS: (serverValidation)=>{
-        let validatesServer = hasServerValidation(serverValidation);
         return eapHostConfig(13, 0, '<Eap xmlns="http://www.microsoft.com/provisioning/BaseEapConnectionPropertiesV1"><Type>13</Type>' +
           '<EapType xmlns="http://www.microsoft.com/provisioning/EapTlsConnectionPropertiesV1">' +
           '<CredentialsSource><CertificateStore><SimpleCertSelection>true</SimpleCertSelection></CertificateStore></CredentialsSource>' +
-          `<ServerValidation><DisableUserPromptForServerValidation>${validatesServer}</DisableUserPromptForServerValidation><ServerNames>${escapeXml(serverValidation.serverNames)}</ServerNames>${trustedRootCaElements(serverValidation, 'TrustedRootCA')}</ServerValidation>` +
+          `<ServerValidation><DisableUserPromptForServerValidation>${hasServerValidation(serverValidation)}</DisableUserPromptForServerValidation><ServerNames>${escapeXml(serverValidation.serverNames)}</ServerNames>${trustedRootCaElements(serverValidation, 'TrustedRootCA')}</ServerValidation>` +
           '<DifferentUsername>false</DifferentUsername>' +
-          `<PerformServerValidation xmlns="http://www.microsoft.com/provisioning/EapTlsConnectionPropertiesV2">${validatesServer}</PerformServerValidation>` +
-          `<AcceptServerName xmlns="http://www.microsoft.com/provisioning/EapTlsConnectionPropertiesV2">${validatesServer}</AcceptServerName>` +
+          '<PerformServerValidation xmlns="http://www.microsoft.com/provisioning/EapTlsConnectionPropertiesV2">true</PerformServerValidation>' +
+          `<AcceptServerName xmlns="http://www.microsoft.com/provisioning/EapTlsConnectionPropertiesV2">${serverValidation.serverNames !== ''}</AcceptServerName>` +
           '</EapType></Eap>');
       },
 
@@ -216,7 +218,7 @@ function mschapv2Eap() {
 
 /**
  * @param  {Dictionary} serverValidation  From serverValidationFrom.
- * @returns {Boolean}  Whether the network says which RADIUS servers or root CAs to trust, so validation can be enforced.
+ * @returns {Boolean}  Whether the network says which RADIUS servers or root CAs to trust, so the user need not confirm the server.
  */
 function hasServerValidation(serverValidation) {
   return serverValidation.serverNames !== '' || serverValidation.thumbprints.length > 0;

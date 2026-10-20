@@ -101,10 +101,10 @@ than anything else, and a value that does not fit its node's Format makes the co
         // The instance is created by the Add of its WlanXml leaf, so it is always an Add.
         items.push({ verb: 'Add', locUri: `./${scope}/Vendor/MSFT/WiFi/Profile/${encodeURIComponent(wifi.ssid)}/WlanXml`, format: 'chr', data: wlanProfileXml });
         settingsEnforced.push({ name: `WiFi/Profile/${wifi.ssid}`, value: wifi.security });
-        // The EAP configuration is written here, so the model never sees that it trusts any server.
+        // The EAP configuration is written here, so the model never sees that it names no server to trust.
         let validatesTheServer = /<ServerNames>[^<]|<TrustedRootCA/.test(wlanProfileXml);
         if(/Enterprise/.test(wifi.security) && !validatesTheServer) {
-          deliveryNotes.push(`Add the RADIUS server names and root CA thumbprint for ${wifi.ssid} before deploying it, or devices will accept any server's certificate.`);
+          deliveryNotes.push(`Add the RADIUS server names and root CA thumbprint for ${wifi.ssid} before deploying it, or users will be asked to trust the server's certificate when they first connect.`);
         }
         continue;
       }

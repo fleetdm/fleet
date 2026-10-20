@@ -134,6 +134,7 @@ bookkeeping -- tags, PayloadUUIDs, identifiers -- and writing it out was most of
     let lines = renderValue(rootDict, { type: 'dictionary', subkeys: rootKeySchemas }, 0, '', unusableValues, {
       // Each payload dict is typed from its own payload type's keys, which the root's schema cannot express.
       keySchemasForPayloadAt: (idx)=>{ return payloadDicts[idx].keySchemas; },
+      pathForPayloadAt: (idx)=>{ return `${payloads[idx].payloadType}/`; },
     });
 
     let settingsEnforced = _.map(_.flatten(_.map(payloadDicts, 'dict').concat(_.omit(rootDict, 'PayloadContent')).map((dict)=>{
@@ -158,19 +159,55 @@ bookkeeping -- tags, PayloadUUIDs, identifiers -- and writing it out was most of
 };
 
 
+// How a reason names what a key takes.
+const WHAT_EACH_SCHEMA_TYPE_TAKES = {
+  boolean: 'true or false',
+  integer: 'a whole number',
+  real: 'a number',
+  string: 'text',
+  data: 'base64 data',
+  date: 'a date',
+  array: 'a list',
+  dictionary: 'a dictionary',
+};
+
+
+/**
+ * @param  {String} keyPath
+ * @param  {String} schemaType
+ * @param  {*} value
+ * @returns {String}  Why the value cannot be written for that key.
+ */
+function whyValueDoesNotFit(keyPath, schemaType, value) {
+  return `${keyPath} takes ${WHAT_EACH_SCHEMA_TYPE_TAKES[schemaType]}, not ${_.trunc(JSON.stringify(value), {length: 60})}.`;
+}
+
+
+/**
+ * @param  {String} keyPath  Where the parent sits; a payload's own path ends in "/".
+ * @param  {String} key
+ * @returns {String}  Where the child sits, e.g. com.apple.applicationaccess/allowCamera or Services.Camera[0].
+ */
+function childPath(keyPath, key) {
+  return !keyPath || _.endsWith(keyPath, '/') ? `${keyPath}${key}` : `${keyPath}.${key}`;
+}
+
+
 /**
  * The property list lines for one value, typed by the schema key it was set on.
  *
  * JSON cannot tell a real from an integer that happens to be whole, or a date or base64 data from a
- * string, so the schema's type decides wherever there is one.  A key the schema does not list, like
- * any key of a third-party preference domain, is typed the way JSON typed it.
+ * string, so the schema's type decides wherever there is one, and a value that does not fit it is unusable
+ * rather than written as whatever JSON made it: a boolean key set to "disabled" deploys and does nothing.
+ * A key the schema does not list, like any key of a third-party preference domain, is typed the way JSON
+ * typed it.
  *
  * @param  {*} value
  * @param  {Dictionary} keySchema  The schema entry for the key this value was set on, if there is one.
  * @param  {Number} depth
  * @param  {String} keyPath  Where the value sits, for the reason a value cannot be written.
  * @param  {Array} unusableValues  Collects why a value cannot be written.
- * @param  {Dictionary} root  {keySchemasForPayloadAt}, only while rendering the root dict.
+ * @param  {Dictionary} root  {keySchemasForPayloadAt, pathForPayloadAt}, only while rendering the root dict.
  * @returns {Array}  Lines, indented for their depth.
  */
 function renderValue(value, keySchema, depth, keyPath, unusableValues, root) {
@@ -179,15 +216,21 @@ function renderValue(value, keySchema, depth, keyPath, unusableValues, root) {
   let subkeys = keySchema && keySchema.subkeys ? keySchema.subkeys : [];
 
   if(_.isArray(value)) {
+    if(WHAT_EACH_SCHEMA_TYPE_TAKES[schemaType] && schemaType !== 'array') {
+      unusableValues.push(whyValueDoesNotFit(keyPath, schemaType, value));
+    }
     let lines = [`${indent}<array>`];
     _.each(value, (item, idx)=>{
       let itemSchema = root ? { type: 'dictionary', subkeys: root.keySchemasForPayloadAt(idx) } : subkeys[0];
-      lines = lines.concat(renderValue(item, itemSchema, depth + 1, `${keyPath}[${idx}]`, unusableValues));
+      lines = lines.concat(renderValue(item, itemSchema, depth + 1, root ? root.pathForPayloadAt(idx) : `${keyPath}[${idx}]`, unusableValues));
     });
     return lines.concat(`${indent}</array>`);
   }
 
   if(_.isPlainObject(value)) {
+    if(WHAT_EACH_SCHEMA_TYPE_TAKES[schemaType] && schemaType !== 'dictionary') {
+      unusableValues.push(whyValueDoesNotFit(keyPath, schemaType, value));
+    }
     let lines = [`${indent}<dict>`];
     for (let key of Object.keys(value)) {
       if(value[key] === undefined || value[key] === null) {
@@ -199,12 +242,17 @@ function renderValue(value, keySchema, depth, keyPath, unusableValues, root) {
         _.find(subkeys, (subkey)=>{ return subkey.key.toLowerCase() === key.toLowerCase(); }) ||
         _.find(subkeys, {key: 'ANY'});
       lines.push(`${indent}\t<key>${escapeXml(key)}</key>`);
-      lines = lines.concat(renderValue(value[key], childSchema, depth + 1, keyPath ? `${keyPath}.${key}` : key, unusableValues, key === 'PayloadContent' ? root : undefined));
+      lines = lines.concat(renderValue(value[key], childSchema, depth + 1, childPath(keyPath, key), unusableValues, key === 'PayloadContent' ? root : undefined));
     }
     return lines.concat(`${indent}</dict>`);
   }
 
-  switch (plistTypeFor(value, schemaType)) {
+  let plistType = plistTypeFor(value, schemaType);
+  if(!plistType) {
+    unusableValues.push(whyValueDoesNotFit(keyPath, schemaType, value));
+    plistType = plistTypeFor(value, undefined);
+  }
+  switch (plistType) {
     case 'boolean': return [`${indent}<${value === true || value === 1 || /^(true|1)$/i.test(String(value)) ? 'true' : 'false'}/>`];
     case 'integer': return [`${indent}<integer>${Math.trunc(Number(value))}</integer>`];
     case 'real': return [`${indent}<real>${Number(value)}</real>`];
@@ -212,7 +260,7 @@ function renderValue(value, keySchema, depth, keyPath, unusableValues, root) {
     case 'date': {
       let date = new Date(value);
       if(isNaN(date.getTime())) {
-        unusableValues.push(`${keyPath} takes a date, and ${JSON.stringify(value)} is not one.`);
+        unusableValues.push(whyValueDoesNotFit(keyPath, 'date', value));
         return [`${indent}<date></date>`];
       }
       // The only form a property list date takes: no fractional seconds, always UTC.
@@ -228,7 +276,8 @@ function renderValue(value, keySchema, depth, keyPath, unusableValues, root) {
  *
  * @param  {*} value
  * @param  {String} schemaType
- * @returns {String}  boolean, integer, real, data, date, or string
+ * @returns {String|undefined}  boolean, integer, real, data, date, or string; undefined when the schema
+ *   gives a type the value does not fit.
  */
 function plistTypeFor(value, schemaType) {
   let isNumeric = (_.isNumber(value) || (_.isString(value) && value.trim() !== '')) && _.isFinite(Number(value));
@@ -249,7 +298,10 @@ function plistTypeFor(value, schemaType) {
       if(_.isString(value)) { return schemaType; }
       break;
   }
-  // No schema type, or a value that does not fit the one there is.
+  if(WHAT_EACH_SCHEMA_TYPE_TAKES[schemaType]) {
+    return undefined;
+  }
+  // No schema type, or one like "any" that accepts whatever JSON gave.
   if(_.isBoolean(value)) { return 'boolean'; }
   if(_.isNumber(value)) { return Number.isInteger(value) ? 'integer' : 'real'; }
   return 'string';
