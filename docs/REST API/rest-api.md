@@ -15310,7 +15310,7 @@ For example:
       "vpp_token": {
         "id": 1,
         "org_name": "Fleet Device Management Inc.",
-        "location": "Fleet Device Management Inc.",
+        "organization_unit": "Fleet Device Management Inc.",
         "country_code": "us"
       }
     },
