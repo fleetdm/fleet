@@ -1,0 +1,1 @@
+- Fixed Windows hosts without BitLocker (for example, Windows Server with the BitLocker feature turned off) that stopped returning vitals, policy, label, and live report results when their fleet enforced disk encryption.
