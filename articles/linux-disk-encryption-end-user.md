@@ -113,7 +113,7 @@ exit 1
 
 The script uses `curl`, or `wget` if `curl` isn't installed (Ubuntu Desktop doesn't include `curl` by default). It exits `0` when the prompt was triggered, when escrow is already in progress, or when Fleet already has a key for the host, so it's safe to run more than once. It exits `1` when Fleet rejects the request (for example, the disk isn't encrypted, disk encryption isn't turned on for the host's fleet, or fleetd is too old), and prints Fleet's reason.
 
-> The escrow prompt will pop up on the host without warning. Let end users know ahead of time so it isn't unexpected. Someone has to be logged in to the desktop to enter the passphrase.
+> The escrow prompt will pop up on the host without warning. Let end users know before running the script. Someone has to be logged in to the desktop to enter the passphrase.
 
 > The prompt closes after 60 seconds if the end user doesn't respond. On GNOME desktops (Ubuntu, Fedora) it can open behind other windows. If it times out or the end user closes it, run the script again. If the script reports that escrow is already in progress, Fleet is still waiting to hear back from fleetd about the last prompt. Wait the number of seconds the script prints (at most 5 minutes) and run it again.
 >
@@ -121,7 +121,7 @@ The script uses `curl`, or `wget` if `curl` isn't installed (Ubuntu Desktop does
 
 ## Trigger the prompt on all hosts in a fleet
 
-To roll escrow out to every Linux host in a fleet, pair a policy that finds hosts without an escrowed key with a [policy automation](https://fleetdm.com/guides/policy-automation-run-script) that runs the script above.
+To roll escrow out to every Linux host in a fleet, use the policy below with a [policy automation](https://fleetdm.com/guides/policy-automation-run-script) to run the script above on hosts with only one LUKS key slot.
 
 1. **Add the script**: Go to **Controls** > **Scripts**, select the fleet, and upload the script above (with `fleet_url` set).
 2. **Add the policy**: Go to **Policies**, select the fleet, and click **Add policy** > **Custom policy**. Use the query below, set the target to Linux, and save it.
