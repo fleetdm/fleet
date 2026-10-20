@@ -74,8 +74,6 @@ add:
     reason: Fleet extension; sets the declaration's channel and is stripped before delivery.
 
 # allow: payload types outside Apple's schema that strict mode must accept. apple_profile only.
-# Seeded with the types Fleet's own profiles use outside Apple's schema, plus us.zoom.config, which
-# the AI profile generator's prompt names.
 allow:
   - {kind: apple_profile, payload_type: com.1password.1password, reason: Vendor preference domain used by Fleet's profiles.}
   - {kind: apple_profile, payload_type: com.apple.Accessibility, reason: Apple preference domain outside Apple's MDM schema; used by Fleet's profiles.}
