@@ -1,0 +1,1 @@
+- Windows SCEP profiles (NDES and custom SCEP) now accept `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` in the SubjectName CN as well as the OU, matching macOS. This lets certificates from CAs that drop the OU from issued certificates, such as Okta, verify and renew automatically.
