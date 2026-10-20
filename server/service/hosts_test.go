@@ -4854,7 +4854,7 @@ func TestHostEncryptionKey(t *testing.T) {
 		}{
 			{"server private key", &fleet.HostDiskEncryptionKey{Base64Encrypted: aesKey, Decryptable: new(true)}, nil, recoveryKey, "", false},
 			{"legacy key with a renewed certificate", &fleet.HostDiskEncryptionKey{Base64Encrypted: legacyB64, WSTEPEncrypted: true, Decryptable: new(true)}, nil, recoveryKey, "", false},
-			{"legacy key on an unmarked row, as escrowed by an older instance mid-upgrade", &fleet.HostDiskEncryptionKey{Base64Encrypted: legacyB64, Decryptable: new(true)}, nil, recoveryKey, "", false},
+			{"legacy key on an unmarked row, since reads do not depend on the marker", &fleet.HostDiskEncryptionKey{Base64Encrypted: legacyB64, Decryptable: new(true)}, nil, recoveryKey, "", false},
 			{"server-key blob on a marked row", &fleet.HostDiskEncryptionKey{Base64Encrypted: aesKey, WSTEPEncrypted: true, Decryptable: new(true)}, nil, recoveryKey, "", false},
 			{"unreadable key on an unmarked row", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, Decryptable: new(true)}, nil, "", "Couldn't decrypt the disk encryption key.", false},
 			{"legacy key after the pair was replaced, before the job marked it", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true, Decryptable: new(true)}, nil, "", "Couldn't decrypt the disk encryption key.", false},
@@ -4900,6 +4900,53 @@ func TestHostEncryptionKey(t *testing.T) {
 					if (c.current.Decryptable != nil && *c.current.Decryptable) || c.windowsOff {
 						require.NotContains(t, err.Error(), "escrow a new one", "no re-escrow is coming for this host")
 					}
+					return
+				}
+				require.NoError(t, err)
+				require.Equal(t, c.want, key.DecryptedValue)
+			})
+		}
+	})
+
+	// Older releases encrypted Windows keys to the WSTEP certificate only, so a deployment without a server private key
+	// must still read the keys it already has.
+	t.Run("Windows keys without a server private key", func(t *testing.T) {
+		legacyKey, err := pkcs7.Encrypt([]byte(recoveryKey), []*x509.Certificate{wstep.Leaf})
+		require.NoError(t, err)
+		legacyB64 := base64.StdEncoding.EncodeToString(legacyKey)
+		withWSTEP := fleetCfg
+		withWSTEP.Server.PrivateKey = ""
+		neither := config.TestConfig()
+		neither.Server.PrivateKey = ""
+
+		for _, c := range []struct {
+			name    string
+			cfg     config.FleetConfig
+			want    string
+			wantErr string
+		}{
+			{"legacy key reads with the WSTEP pair", withWSTEP, recoveryKey, ""},
+			{"no private key and no WSTEP pair", neither, "", "private key is unavailable"},
+		} {
+			t.Run(c.name, func(t *testing.T) {
+				ds := new(mock.Store)
+				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+					return &fleet.AppConfig{}, nil
+				}
+				ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+					return &fleet.Host{ID: 1, Platform: "windows"}, nil
+				}
+				ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+					return &fleet.HostDiskEncryptionKey{Base64Encrypted: legacyB64, WSTEPEncrypted: true, Decryptable: new(true)}, nil
+				}
+				ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host, _ bool) (*fleet.HostArchivedDiskEncryptionKey, error) {
+					return nil, newNotFoundError()
+				}
+				svc, ctx := newTestServiceWithConfig(t, ds, c.cfg, nil, nil)
+				ctx = test.UserContext(ctx, test.UserAdmin)
+				key, err := svc.HostEncryptionKey(ctx, 1, false)
+				if c.wantErr != "" {
+					require.ErrorContains(t, err, c.wantErr)
 					return
 				}
 				require.NoError(t, err)

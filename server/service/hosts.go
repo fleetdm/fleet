@@ -4226,12 +4226,16 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 	case host.FleetPlatform() == "windows":
 		// The server private key is tried first: it reads every key escrowed by this release and is cheap to try. Keys
 		// escrowed by older releases are encrypted to the WSTEP certificate until the hourly job re-encrypts them, so
-		// the certificate is the fallback, loaded only then. Windows MDM does not need to be on to read a key.
-		if svc.config.Server.PrivateKey == "" {
+		// the certificate is the fallback, loaded only then. Older releases needed no private key, so a deployment
+		// without one still reads its legacy keys. Windows MDM does not need to be on to read a key.
+		if svc.config.Server.PrivateKey == "" && !svc.config.MDM.IsMicrosoftWSTEPSet() {
 			return nil, errors.New("private key is unavailable")
 		}
 		decryptFn = func(b64 string) (string, error) {
-			plain, err := mdm.DecodeAndDecrypt(b64, svc.config.Server.PrivateKey)
+			plain, err := "", errors.New("private key is unavailable")
+			if svc.config.Server.PrivateKey != "" {
+				plain, err = mdm.DecodeAndDecrypt(b64, svc.config.Server.PrivateKey)
+			}
 			if err == nil || !svc.config.MDM.IsMicrosoftWSTEPSet() {
 				return plain, err
 			}
