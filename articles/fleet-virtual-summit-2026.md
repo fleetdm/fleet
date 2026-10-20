@@ -97,7 +97,7 @@ AI agents are showing up on employee devices faster than IT can inventory them. 
 <a purpose="cta-button" no-icon href="https://calendly.com/fleetdm/fleet-virtual-summit-ai-agents-as-a-device-management-problem">Reserve a spot in this session</a>
 
 
-### Device management 2030
+### Device management 2027
 
 The devices IT manages, the tools it uses, and the skills the job requires will look different four years from now. Practitioners who are already placing bets on that future talk about where IT teams, tools, and the definition of an endpoint are headed.
 - **Date:** Tuesday, November 10, 2026
