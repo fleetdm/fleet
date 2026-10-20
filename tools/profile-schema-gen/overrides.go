@@ -386,10 +386,11 @@ func resolveKeyPath(root *profilevalidation.AppleKey, path string) (*profilevali
 				best = name
 			}
 		}
-		if best == "" {
+		next := cur.Keys[best]
+		if best == "" || next == nil {
 			return cur, rest
 		}
-		cur, rest = cur.Keys[best], strings.TrimPrefix(rest[len(best):], ".")
+		cur, rest = next, strings.TrimPrefix(rest[len(best):], ".")
 	}
 	return cur, ""
 }

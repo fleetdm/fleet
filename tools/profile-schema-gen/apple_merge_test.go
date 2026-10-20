@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"log/slog"
+	"maps"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/profilevalidation"
@@ -121,9 +122,7 @@ func TestCompareVersions(t *testing.T) {
 func TestConvertAppleGroup(t *testing.T) {
 	load := func(t *testing.T, files map[string]string) *appleSources {
 		all := baseFixture()
-		for k, v := range files {
-			all[k] = v
-		}
+		maps.Copy(all, files)
 		src, err := loadApple(t.Context(), slog.New(slog.DiscardHandler), writeAppleFixture(t, all))
 		require.NoError(t, err)
 		return src

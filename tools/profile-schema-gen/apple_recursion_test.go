@@ -129,8 +129,8 @@ func TestConvertAppleRecursionMerged(t *testing.T) {
 
 	pt, err := convertAppleGroup(t.Context(), slog.New(slog.DiscardHandler), src.Profiles["com.example.tree"])
 	require.NoError(t, err)
-	assert.Equal(t, "Dock[]", pt.Keys["Dock"].Items.Keys["Pages"].Items.Items.Ref)
-	assert.Equal(t, "Pages[]", pt.Keys["Pages"].Items.Items.Keys["Pages"].Items.Ref)
+	assert.Equal(t, "Dock[]", notNil(t, notNil(t, pt.Keys["Dock"]).Items.Keys["Pages"]).Items.Items.Ref)
+	assert.Equal(t, "Pages[]", notNil(t, notNil(t, pt.Keys["Pages"]).Items.Items.Keys["Pages"]).Items.Ref)
 }
 
 func TestConvertApple(t *testing.T) {
@@ -155,13 +155,13 @@ func TestConvertApple(t *testing.T) {
 	assert.ElementsMatch(t, []string{"com.apple.applicationaccess", "com.apple.homescreenlayout"}, slices.Collect(maps.Keys(s.AppleProfiles)))
 	assert.ElementsMatch(t, []string{"com.apple.configuration.passcode.settings", "com.apple.management.properties"}, slices.Collect(maps.Keys(s.AppleDeclarations)))
 
-	home := s.AppleProfiles["com.apple.homescreenlayout"]
+	home := notNil(t, s.AppleProfiles["com.apple.homescreenlayout"])
 	assert.Equal(t, platforms{profilevalidation.AppleOSiOS: {Introduced: "9.3", Supervised: true}}, home.Platforms)
-	assert.Equal(t, "Dock[]", home.Keys["Dock"].Items.Keys["Pages"].Items.Items.Ref)
+	assert.Equal(t, "Dock[]", notNil(t, notNil(t, home.Keys["Dock"]).Items.Keys["Pages"]).Items.Items.Ref)
 	// Keys inherit the payload platforms, so none record their own.
-	assert.Nil(t, home.Keys["Dock"].Platforms)
+	assert.Nil(t, notNil(t, home.Keys["Dock"]).Platforms)
 
-	props := s.AppleDeclarations["com.apple.management.properties"]
+	props := notNil(t, s.AppleDeclarations["com.apple.management.properties"])
 	assert.True(t, props.Open)
 	assert.Nil(t, props.Keys)
 

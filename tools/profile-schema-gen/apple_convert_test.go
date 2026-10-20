@@ -264,3 +264,11 @@ func TestKnownAppleType(t *testing.T) {
 	}
 	assert.False(t, knownAppleType("uuid"))
 }
+
+// notNil fails the test if v is nil and returns it, so a missing schema entry fails cleanly
+// instead of panicking (and nilaway can see the lookup is guarded).
+func notNil[T any](t *testing.T, v *T) *T {
+	t.Helper()
+	require.NotNil(t, v)
+	return v
+}

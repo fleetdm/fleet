@@ -113,6 +113,7 @@ func TestWriteOutput(t *testing.T) {
 	require.NoError(t, writeOutput(t.Context(), logger, out, changed, previous, later))
 	got, err := readOutput(out)
 	require.NoError(t, err)
+	require.NotNil(t, got)
 	assert.Equal(t, later.Truncate(time.Second), got.Version.GeneratedAt)
 	assert.Equal(t, "Release-v28.0", got.Version.Apple.Release)
 
@@ -163,7 +164,7 @@ func TestWriteOutputRejectsShrunkenSchema(t *testing.T) {
 		out := filepath.Join(dir, "profile_schema.json")
 		require.Error(t, writeOutput(t.Context(), logger, out, shrunk, nil, now))
 		_, err := os.Stat(out)
-		assert.ErrorIs(t, err, fs.ErrNotExist)
+		require.ErrorIs(t, err, fs.ErrNotExist)
 		assertNoTempFiles(t, dir)
 	})
 }

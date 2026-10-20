@@ -157,7 +157,7 @@ func takeGroup(groups map[string]*appleGroup, name string) *appleGroup {
 // logSharedType logs types built from several files and every key more than one of them defines.
 // Those keys are merged to their loosest definition after conversion.
 func logSharedType(ctx context.Context, logger *slog.Logger, g *appleGroup) {
-	if len(g.Files) < 2 {
+	if g == nil || len(g.Files) < 2 {
 		return
 	}
 	paths := make([]string, 0, len(g.Files))

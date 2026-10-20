@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -65,6 +66,9 @@ func convertAppleGroups(ctx context.Context, logger *slog.Logger, groups map[str
 // validator stricter, and a stricter variant file (e.g. extensiblesso(kerberos)) mustn't reject
 // what the general file allows.
 func convertAppleGroup(ctx context.Context, logger *slog.Logger, g *appleGroup) (*profilevalidation.ApplePayloadType, error) {
+	if g == nil {
+		return nil, errors.New("convert Apple group: no group")
+	}
 	m := &appleMerger{ctx: ctx, logger: logger.With("type", g.Name)}
 	var merged *profilevalidation.AppleKey
 	for _, f := range g.Files {
@@ -78,6 +82,9 @@ func convertAppleGroup(ctx context.Context, logger *slog.Logger, g *appleGroup) 
 		}
 		m.logger.DebugContext(ctx, "merging file into type", "file", f.Path)
 		merged = m.mergeKey("", merged, root)
+	}
+	if merged == nil {
+		return nil, fmt.Errorf("convert %s: no files", g.Name)
 	}
 	trimPlatforms(merged, nil)
 	return &profilevalidation.ApplePayloadType{

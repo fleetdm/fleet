@@ -24,39 +24,37 @@ func TestContractExampleDecodes(t *testing.T) {
 
 	require.NotNil(t, s.AppleEnvelope.TopLevel)
 	require.NotNil(t, s.AppleEnvelope.CommonPayloadKeys)
-	assert.True(t, s.AppleEnvelope.TopLevel.Keys["PayloadVersion"].Required)
-	assert.Equal(t, AppleTypes{AppleTypeString}, s.AppleEnvelope.CommonPayloadKeys.Keys["PayloadUUID"].Type)
+	assert.True(t, notNil(t, s.AppleEnvelope.TopLevel.Keys["PayloadVersion"]).Required)
+	assert.Equal(t, AppleTypes{AppleTypeString}, notNil(t, s.AppleEnvelope.CommonPayloadKeys.Keys["PayloadUUID"]).Type)
 	assert.NotContains(t, s.AppleProfiles, "TopLevel")
 	require.NotNil(t, s.AppleDeclarationEnvelope)
-	assert.True(t, s.AppleDeclarationEnvelope.Keys["Identifier"].Required)
+	assert.True(t, notNil(t, s.AppleDeclarationEnvelope.Keys["Identifier"]).Required)
 	assert.Equal(t, "16.0", s.AppleDeclarationEnvelope.Platforms[AppleOStvOS].Introduced)
 
-	access := s.AppleProfiles["com.apple.applicationaccess"]
-	require.NotNil(t, access)
+	access := notNil(t, s.AppleProfiles["com.apple.applicationaccess"])
 	assert.Equal(t, "apple", access.Source)
 	assert.Equal(t, "10.7", access.Platforms[AppleOSmacOS].Introduced)
-	assert.Equal(t, ApplePlatform{Introduced: "11.0", Supervised: true}, access.Keys["allowAirPrint"].Platforms[AppleOSiOS])
-	assert.Equal(t, "n/a", access.Keys["allowAirPrint"].Platforms[AppleOSmacOS].Introduced)
-	assert.Nil(t, access.Keys["allowCamera"].Platforms)
-	assert.Equal(t, AppleTypes{AppleTypeString}, access.Keys["autonomousSingleAppModePermittedAppIDs"].Items.Type)
-	delay := access.Keys["enforcedSoftwareUpdateDelay"]
+	assert.Equal(t, ApplePlatform{Introduced: "11.0", Supervised: true}, notNil(t, access.Keys["allowAirPrint"]).Platforms[AppleOSiOS])
+	assert.Equal(t, "n/a", notNil(t, access.Keys["allowAirPrint"]).Platforms[AppleOSmacOS].Introduced)
+	assert.Nil(t, notNil(t, access.Keys["allowCamera"]).Platforms)
+	assert.Equal(t, AppleTypes{AppleTypeString}, notNil(t, access.Keys["autonomousSingleAppModePermittedAppIDs"]).Items.Type)
+	delay := notNil(t, access.Keys["enforcedSoftwareUpdateDelay"])
 	assert.Equal(t, &AppleRange{Min: new(1.0), Max: new(90.0)}, delay.Range)
 	assert.Equal(t, ApplePlatform{Introduced: "10.13.4", Deprecated: "26.0", Removed: "27.0"}, delay.Platforms[AppleOSmacOS])
 
-	assert.Equal(t, AppleTypes{AppleTypeInteger, AppleTypeString}, s.AppleProfiles["com.apple.example.override"].Keys["SomeKey"].Type)
-	assert.NotEmpty(t, s.AppleProfiles["com.apple.eas.account"].Keys["PayloadCertificateUUID"].Format)
-	assert.True(t, s.AppleProfiles["com.apple.ManagedClient.preferences"].Keys["PayloadContent"].Open)
+	assert.Equal(t, AppleTypes{AppleTypeInteger, AppleTypeString}, notNil(t, notNil(t, s.AppleProfiles["com.apple.example.override"]).Keys["SomeKey"]).Type)
+	assert.NotEmpty(t, notNil(t, notNil(t, s.AppleProfiles["com.apple.eas.account"]).Keys["PayloadCertificateUUID"]).Format)
+	assert.True(t, notNil(t, notNil(t, s.AppleProfiles["com.apple.ManagedClient.preferences"]).Keys["PayloadContent"]).Open)
 
-	dock := s.AppleProfiles["com.apple.homescreenlayout"].Keys["Dock"]
-	assert.Equal(t, []any{"Application", "Folder", "WebClip"}, dock.Items.Keys["Type"].RangeList)
-	assert.Equal(t, "Dock[]", dock.Items.Keys["Pages"].Items.Items.Ref)
+	dock := notNil(t, notNil(t, s.AppleProfiles["com.apple.homescreenlayout"]).Keys["Dock"])
+	assert.Equal(t, []any{"Application", "Folder", "WebClip"}, notNil(t, dock.Items.Keys["Type"]).RangeList)
+	assert.Equal(t, "Dock[]", notNil(t, dock.Items.Keys["Pages"]).Items.Items.Ref)
 
-	passcode := s.AppleDeclarations["com.apple.configuration.passcode.settings"]
-	require.NotNil(t, passcode)
+	passcode := notNil(t, s.AppleDeclarations["com.apple.configuration.passcode.settings"])
 	// A 0 bound must survive, not be confused with "no bound".
-	require.NotNil(t, passcode.Keys["MinimumLength"].Range.Min)
-	assert.Zero(t, *passcode.Keys["MinimumLength"].Range.Min)
-	assert.True(t, passcode.Keys["CustomRegex"].Keys["Regex"].Required)
+	require.NotNil(t, notNil(t, passcode.Keys["MinimumLength"]).Range.Min)
+	assert.Zero(t, *notNil(t, passcode.Keys["MinimumLength"]).Range.Min)
+	assert.True(t, notNil(t, notNil(t, passcode.Keys["CustomRegex"]).Keys["Regex"]).Required)
 
 	assert.JSONEq(t, `{}`, string(s.Windows))
 	assert.JSONEq(t, `{}`, string(s.WindowsXSDs))
@@ -112,4 +110,12 @@ func TestUnknownFieldsIgnored(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(`{"type": "string", "valuetype": "<future>", "someNewField": {"x": 1}}`), &k))
 	assert.Equal(t, AppleTypes{AppleTypeString}, k.Type)
 	assert.Equal(t, AppleValueType("<future>"), k.ValueType)
+}
+
+// notNil fails the test if v is nil and returns it, so a missing schema entry fails cleanly
+// instead of panicking (and nilaway can see the lookup is guarded).
+func notNil[T any](t *testing.T, v *T) *T {
+	t.Helper()
+	require.NotNil(t, v)
+	return v
 }

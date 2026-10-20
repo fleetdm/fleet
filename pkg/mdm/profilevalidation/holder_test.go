@@ -111,7 +111,7 @@ func TestLookups(t *testing.T) {
 
 	p := s.AppleProfile("com.apple.applicationaccess")
 	require.NotNil(t, p)
-	assert.Equal(t, AppleTypes{AppleTypeBoolean}, p.Keys["allowCamera"].Type)
+	assert.Equal(t, AppleTypes{AppleTypeBoolean}, notNil(t, p.Keys["allowCamera"]).Type)
 	assert.NotNil(t, s.AppleDeclaration("com.apple.configuration.passcode.settings"))
 
 	assert.Nil(t, s.AppleProfile("com.example.unknown"))

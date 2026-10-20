@@ -99,14 +99,14 @@ loosen:
     types: [string]
     reason: declarations too
 `))
-	scep := s.AppleProfiles["com.apple.security.scep"]
+	scep := notNil(t, s.AppleProfiles["com.apple.security.scep"])
 	// Types are unioned, never replaced; listing the existing type again doesn't duplicate it.
 	assert.JSONEq(t, `{"type": ["string", "array"], "override": "devices accept a list"}`,
-		jsonOf(t, scep.Keys["PayloadContent"].Keys["SubjectAltName"].Keys["uniformResourceIdentifier"]))
+		jsonOf(t, notNil(t, notNil(t, scep.Keys["PayloadContent"]).Keys["SubjectAltName"]).Keys["uniformResourceIdentifier"]))
 	assert.JSONEq(t, `{"type": "any", "open": true, "override": "anything goes"}`, jsonOf(t, scep.Keys["Key Type"]))
-	assert.JSONEq(t, `{"type": ["string", "integer"], "override": "through an array"}`, jsonOf(t, scep.Keys["Dock"].Items.Keys["Type"]))
+	assert.JSONEq(t, `{"type": ["string", "integer"], "override": "through an array"}`, jsonOf(t, notNil(t, scep.Keys["Dock"]).Items.Keys["Type"]))
 	assert.JSONEq(t, `{"type": ["integer", "string"], "override": "declarations too"}`,
-		jsonOf(t, s.AppleDeclarations["com.apple.configuration.passcode.settings"].Keys["MinimumLength"]))
+		jsonOf(t, notNil(t, s.AppleDeclarations["com.apple.configuration.passcode.settings"]).Keys["MinimumLength"]))
 	// The payload type itself isn't marked; only what was changed.
 	assert.Empty(t, scep.Override)
 }
@@ -136,10 +136,10 @@ add:
 	assert.JSONEq(t, `{"type": "boolean", "override": "common"}`, jsonOf(t, s.AppleEnvelope.CommonPayloadKeys.Keys["PayloadEnabled"]))
 	assert.JSONEq(t, `{"type": "string", "rangelist": ["System", "User"], "override": "fleet"}`,
 		jsonOf(t, s.AppleDeclarationEnvelope.Keys["PayloadScope"]))
-	assert.JSONEq(t, `{"type": "boolean", "override": "dotted name"}`, jsonOf(t, s.AppleProfiles["com.apple.MCX"].Keys["com.apple.login.mcx.Dotted"]))
-	scep := s.AppleProfiles["com.apple.security.scep"]
-	assert.JSONEq(t, `{"type": "array", "items": {"type": "string"}, "override": "nested"}`, jsonOf(t, scep.Keys["PayloadContent"].Keys["ExtendedKeyUsage"]))
-	assert.JSONEq(t, `{"type": "string", "override": "into array items"}`, jsonOf(t, scep.Keys["Dock"].Items.Keys["Label"]))
+	assert.JSONEq(t, `{"type": "boolean", "override": "dotted name"}`, jsonOf(t, notNil(t, s.AppleProfiles["com.apple.MCX"]).Keys["com.apple.login.mcx.Dotted"]))
+	scep := notNil(t, s.AppleProfiles["com.apple.security.scep"])
+	assert.JSONEq(t, `{"type": "array", "items": {"type": "string"}, "override": "nested"}`, jsonOf(t, notNil(t, scep.Keys["PayloadContent"]).Keys["ExtendedKeyUsage"]))
+	assert.JSONEq(t, `{"type": "string", "override": "into array items"}`, jsonOf(t, notNil(t, scep.Keys["Dock"]).Items.Keys["Label"]))
 	// Existing keys are untouched.
 	assert.JSONEq(t, `{"type": "integer"}`, jsonOf(t, s.AppleEnvelope.TopLevel.Keys["PayloadVersion"]))
 }
@@ -152,7 +152,7 @@ add:
   - {kind: apple_profile, payload_type: com.apple.Safari, name: ShowFullURL, key: {type: string}, reason: was missing upstream}
 `))
 	assert.JSONEq(t, `{"type": ["boolean", "string"], "override": "was missing upstream"}`,
-		jsonOf(t, s.AppleProfiles["com.apple.Safari"].Keys["ShowFullURL"]))
+		jsonOf(t, notNil(t, s.AppleProfiles["com.apple.Safari"]).Keys["ShowFullURL"]))
 }
 
 func TestApplyOverridesAllow(t *testing.T) {
@@ -287,8 +287,8 @@ add:
 
 func TestResolveKeyPath(t *testing.T) {
 	s := overrideSchema(t)
-	scep := &profilevalidation.AppleKey{Keys: s.AppleProfiles["com.apple.security.scep"].Keys}
-	mcx := &profilevalidation.AppleKey{Keys: s.AppleProfiles["com.apple.MCX"].Keys}
+	scep := &profilevalidation.AppleKey{Keys: notNil(t, s.AppleProfiles["com.apple.security.scep"]).Keys}
+	mcx := &profilevalidation.AppleKey{Keys: notNil(t, s.AppleProfiles["com.apple.MCX"]).Keys}
 
 	cases := []struct {
 		name     string
@@ -298,10 +298,10 @@ func TestResolveKeyPath(t *testing.T) {
 		wantRest string
 	}{
 		{name: "empty path is the root", root: scep, path: "", want: scep},
-		{name: "nested", root: scep, path: "PayloadContent.SubjectAltName", want: scep.Keys["PayloadContent"].Keys["SubjectAltName"]},
+		{name: "nested", root: scep, path: "PayloadContent.SubjectAltName", want: notNil(t, scep.Keys["PayloadContent"]).Keys["SubjectAltName"]},
 		{name: "name with a space", root: scep, path: "Key Type", want: scep.Keys["Key Type"]},
-		{name: "array items", root: scep, path: "Dock[].Type", want: scep.Keys["Dock"].Items.Keys["Type"]},
-		{name: "array itself", root: scep, path: "Dock[]", want: scep.Keys["Dock"].Items},
+		{name: "array items", root: scep, path: "Dock[].Type", want: notNil(t, scep.Keys["Dock"]).Items.Keys["Type"]},
+		{name: "array itself", root: scep, path: "Dock[]", want: notNil(t, scep.Keys["Dock"]).Items},
 		{name: "partial match reports the rest", root: scep, path: "PayloadContent.Nope.Deeper", want: scep.Keys["PayloadContent"], wantRest: "Nope.Deeper"},
 		{name: "items on a non-array", root: scep, path: "Key Type[]", want: scep.Keys["Key Type"], wantRest: "[]"},
 		{name: "prefix of a key name isn't a match", root: scep, path: "Key", want: scep, wantRest: "Key"},
@@ -309,7 +309,7 @@ func TestResolveKeyPath(t *testing.T) {
 		// the longest name that fits wins.
 		{
 			name: "longest dotted name wins", root: mcx, path: "com.apple.EnergySaver.portable.BatteryPower.Sleep",
-			want: mcx.Keys["com.apple.EnergySaver.portable.BatteryPower"].Keys["Sleep"],
+			want: notNil(t, mcx.Keys["com.apple.EnergySaver.portable.BatteryPower"]).Keys["Sleep"],
 		},
 	}
 	for _, c := range cases {

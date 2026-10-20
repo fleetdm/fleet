@@ -2,7 +2,6 @@ package profilevalidation
 
 import (
 	"encoding/json"
-	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -76,7 +75,7 @@ func TestEmbeddedSchema(t *testing.T) {
 	t.Run("constraints where upstream has them", func(t *testing.T) {
 		format := s.AppleProfile("com.apple.eas.account").Keys["PayloadCertificateUUID"].Format
 		require.NotEmpty(t, format)
-		assert.Regexp(t, regexp.MustCompile(format), "AB12CD34-AB12-AB12-AB12-AB12CD34EF56")
+		assert.Regexp(t, format, "AB12CD34-AB12-AB12-AB12-AB12CD34EF56")
 		assert.Equal(t, []any{"Application", "Folder", "WebClip"}, s.AppleProfile("com.apple.homescreenlayout").Keys["Dock"].Items.Keys["Type"].RangeList)
 		airPrint := s.AppleProfile("com.apple.applicationaccess").Keys["allowAirPrint"]
 		assert.True(t, airPrint.Platforms[AppleOSiOS].Supervised)
