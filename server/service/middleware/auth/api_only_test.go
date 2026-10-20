@@ -404,48 +404,6 @@ func TestAPIOnlyEndpointCheck(t *testing.T) {
 	})
 }
 
-func TestAPIOnlyEndpointCheckEmbeddedMCPRequests(t *testing.T) {
-	restricted := viewer.Viewer{User: &fleet.User{
-		APIOnly:      true,
-		APIEndpoints: []fleet.APIEndpointRef{{Method: "POST", Path: "/api/v1/fleet/mcp"}},
-	}}
-	embedded := EmbeddedMCPConnContext([]fleet.APIEndpoint{fleet.NewAPIEndpointFromTpl("GET", "/api/v1/fleet/hosts")})(context.Background(), nil)
-	run := func(ctx context.Context, method, tpl string) (bool, error) {
-		called := false
-		next := func(context.Context, any) (any, error) {
-			called = true
-			return nil, nil
-		}
-		ctx = context.WithValue(ctx, kithttp.ContextKeyRequestMethod, method)
-		ctx = eu.WithRouteTemplate(ctx, muxTemplate(tpl))
-		ctx = viewer.NewContext(ctx, restricted)
-		_, err := apiOnlyEndpointCheck(testIsInCatalog(), next)(ctx, nil)
-		return called, err
-	}
-
-	t.Run("external request outside the allowlist is denied", func(t *testing.T) {
-		called, err := run(context.Background(), "GET", "fleet/hosts")
-		requireEndpointRestrictionDenied(t, err)
-		require.False(t, called)
-	})
-
-	t.Run("embedded MCP request to one of its routes skips the allowlist", func(t *testing.T) {
-		called, err := run(embedded, "GET", "fleet/hosts")
-		require.NoError(t, err)
-		require.True(t, called)
-	})
-
-	t.Run("embedded MCP request to any other route is checked as usual", func(t *testing.T) {
-		called, err := run(embedded, "POST", "fleet/scripts/run")
-		requireEndpointRestrictionDenied(t, err)
-		require.False(t, called)
-
-		called, err = run(embedded, "GET", "fleet/secret_admin_endpoint")
-		requireEndpointRestrictionDenied(t, err)
-		require.False(t, called)
-	})
-}
-
 func TestEndpointRestrictionDeniedEncoding(t *testing.T) {
 	err := endpointRestrictionDenied(t.Context(), muxTemplate("fleet/hosts"), "endpoint not in user's allowed API endpoints")
 

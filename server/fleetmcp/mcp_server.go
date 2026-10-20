@@ -50,20 +50,23 @@ func SetupMCPServer(ctx context.Context, fleetClient *FleetClient) *server.MCPSe
 }
 
 // NewEmbeddedMCPServer creates the MCP server that runs inside the Fleet
-// server, whose embedded schema already matches its own version.
+// server, whose embedded schema already matches its own version. Each request
+// sees the tools its ContextWithRouteFilter allows.
 func NewEmbeddedMCPServer(fleetClient *FleetClient) *server.MCPServer {
-	return newMCPServer(fleetClient, false)
+	return newMCPServer(fleetClient, false, routeFilterOptions(fleetClient)...)
 }
 
-func newMCPServer(fleetClient *FleetClient, schemaRefresh bool) *server.MCPServer {
+func newMCPServer(fleetClient *FleetClient, schemaRefresh bool, opts ...server.ServerOption) *server.MCPServer {
 	instructions := fleetMCPInstructions + fleetMCPInstructionsTail
 	if schemaRefresh {
 		instructions = fleetMCPInstructions + schemaRefreshInstructions + fleetMCPInstructionsTail
 	}
 	s := server.NewMCPServer(
 		"fleet-mcp", "1.0.0",
-		server.WithLogging(),
-		server.WithInstructions(instructions),
+		append([]server.ServerOption{
+			server.WithLogging(),
+			server.WithInstructions(instructions),
+		}, opts...)...,
 	)
 
 	registerHostTools(s, fleetClient)
