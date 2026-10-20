@@ -3236,6 +3236,13 @@
       "description": "FastScripts is a tool for running time-saving scripts."
     },
     {
+      "name": "Fathom",
+      "slug": "fathom/darwin",
+      "platform": "darwin",
+      "unique_identifier": "video.fathom.electron",
+      "description": "Fathom is a tool for recording and transcribing video conferences."
+    },
+    {
       "name": "Fellow",
       "slug": "fellow/darwin",
       "platform": "darwin",

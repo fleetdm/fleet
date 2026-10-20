@@ -387,6 +387,7 @@ import Far2L from "./png/Far2L.png";
 import Farrago from "./png/Farrago.png";
 import Fastmail from "./png/Fastmail.png";
 import Fastscripts from "./png/Fastscripts.png";
+import Fathom from "./png/Fathom.png";
 import Fellow from "./png/Fellow.png";
 import Ferdium from "./png/Ferdium.png";
 import FetchApp from "./png/FetchApp.png";
@@ -1557,6 +1558,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   farrago: Farrago,
   fastmail: Fastmail,
   fastscripts: Fastscripts,
+  fathom: Fathom,
   fellow: Fellow,
   ferdium: Ferdium,
   fetch: FetchApp,
