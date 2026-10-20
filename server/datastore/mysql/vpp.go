@@ -1310,6 +1310,19 @@ WHERE vat.global_or_team_id = ? AND va.title_id = ? AND vat.id = ?
 	return &dest, nil
 }
 
+func (ds *Datastore) checkAppStoreAppVersionFilterForTitle(ctx context.Context, teamID *uint, titleID uint, vppAppTeamID uint) error {
+	_, err := ds.GetVPPAppByTeamAndTitleID(ctx, teamID, titleID, vppAppTeamID)
+	switch {
+	case fleet.IsNotFound(err):
+		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: "app_store_app_version_id does not apply to this software_title_id (not a version of the title in this fleet)",
+		}, "mismatched child id for title")
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "get app store app version for title")
+	}
+	return nil
+}
+
 func (ds *Datastore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, appID fleet.VPPAppID,
 	commandUUID, associatedEventID string, opts fleet.HostSoftwareInstallOptions,
 ) error {
