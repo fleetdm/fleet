@@ -155,6 +155,34 @@ add:
 		jsonOf(t, notNil(t, s.AppleProfiles["com.apple.Safari"]).Keys["ShowFullURL"]))
 }
 
+func TestApplyOverridesThroughAnyValues(t *testing.T) {
+	s := overrideSchema(t)
+	var policy profilevalidation.ApplePayloadType
+	require.NoError(t, json.Unmarshal([]byte(`{"source": "apple", "keys": {
+		"AllowedSystemExtensions": {"type": "dictionary", "open": true, "values": {"type": "array", "items": {"type": "string"}}},
+		"Rules": {"type": "dictionary", "open": true, "values": {"type": "dictionary", "keys": {"Kind": {"type": "string"}}}}}}`),
+		&policy))
+	s.AppleProfiles["com.apple.system-extension-policy"] = &policy
+	require.NoError(t, applyYAML(t, s, `
+loosen:
+  - {kind: apple_profile, payload_type: com.apple.system-extension-policy, key_path: "AllowedSystemExtensions.ANY[]", action: types, types: [integer], reason: through ANY}
+add:
+  - {kind: apple_profile, payload_type: com.apple.system-extension-policy, key_path: Rules.ANY, name: Extra, key: {type: boolean}, reason: into ANY}
+`))
+	pt := notNil(t, s.AppleProfiles["com.apple.system-extension-policy"])
+	assert.JSONEq(t, `{"type": ["string", "integer"], "override": "through ANY"}`, jsonOf(t, pt.Keys["AllowedSystemExtensions"].Values.Items))
+	assert.JSONEq(t, `{"type": "boolean", "override": "into ANY"}`, jsonOf(t, pt.Keys["Rules"].Values.Keys["Extra"]))
+
+	// ANY only matches a whole path step, and only where Apple defined one.
+	err := applyYAML(t, s, `
+loosen:
+  - {kind: apple_profile, payload_type: com.apple.system-extension-policy, key_path: AllowedSystemExtensions.ANYTHING, action: any, reason: x}
+  - {kind: apple_profile, payload_type: com.apple.Safari, key_path: ANY, action: any, reason: x}
+`)
+	require.ErrorContains(t, err, `no key matches "ANYTHING"`)
+	require.ErrorContains(t, err, `no key matches "ANY"`)
+}
+
 func TestApplyOverridesAllow(t *testing.T) {
 	s := overrideSchema(t)
 	require.NoError(t, applyYAML(t, s, `

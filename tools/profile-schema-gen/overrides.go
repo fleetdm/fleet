@@ -388,7 +388,12 @@ func resolveKeyPath(root *profilevalidation.AppleKey, path string) (*profilevali
 		}
 		next := cur.Keys[best]
 		if best == "" || next == nil {
-			return cur, rest
+			// Apple's ANY subkey lives in Values, never in Keys, so it can't shadow a literal name.
+			after, ok := strings.CutPrefix(rest, appleAnyKey)
+			if !ok || cur.Values == nil || (after != "" && after[0] != '.' && after[0] != '[') {
+				return cur, rest
+			}
+			best, next = appleAnyKey, cur.Values
 		}
 		cur, rest = next, strings.TrimPrefix(rest[len(best):], ".")
 	}

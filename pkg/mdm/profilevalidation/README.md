@@ -123,7 +123,7 @@ This doesn't need the network as long as `tools/profile-schema-gen/downloads/` h
 - **Mistakes fail generation**, and nothing is written until they're fixed. The generator checks in two passes:
   - First the file itself: unknown or misspelled fields, a misspelled kind, a missing reason, and two entries for the same target. Every problem in the file is reported together.
   - Then each entry against the schema, for example a target that doesn't exist.
-- **Key paths** use dots between dictionary keys and `[]` for an array's items, e.g. `PayloadContent.SubjectAltName.uniformResourceIdentifier` or `Dock[].Type`. Apple key names can contain dots or spaces (`com.apple.login.mcx.DisableAutoLoginClient`, `Key Type`), so each step matches the longest key name that exists.
+- **Key paths** use dots between dictionary keys and `[]` for an array's items, e.g. `PayloadContent.SubjectAltName.uniformResourceIdentifier` or `Dock[].Type`. Apple key names can contain dots or spaces (`com.apple.login.mcx.DisableAutoLoginClient`, `Key Type`), so each step matches the longest key name that exists. `ANY` steps into Apple's `ANY` subkey (the `values` of an `open` dictionary) when no key by that name exists, e.g. `AllowedSystemExtensions.ANY[]`.
 
 ### `loosen`: a key type is too strict
 
