@@ -1785,6 +1785,11 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		}
 	}
 
+	actVPPToken, err := fleet.ActivityVPPTokenByID(ctx, svc.ds, meta.VPPTokenID)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "getting vpp token for edited activity")
+	}
+
 	// Update the app
 	insertedApp, err := svc.ds.InsertVPPAppWithTeam(ctx, appToWrite, teamID, &meta.VPPAppsTeamsID)
 	if err != nil {
@@ -1855,11 +1860,6 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	}
 
 	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromValidatedLabels(validatedLabels)
-
-	actVPPToken, err := fleet.ActivityVPPTokenByID(ctx, svc.ds, meta.VPPTokenID)
-	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "getting vpp token for edited activity")
-	}
 
 	act := fleet.ActivityEditedAppStoreApp{
 		VPPToken:            actVPPToken,

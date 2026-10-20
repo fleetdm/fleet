@@ -1346,7 +1346,7 @@ func TestUpdateAppStoreAppActivityToken(t *testing.T) {
 	t.Parallel()
 	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 
-	setup := func(t *testing.T, tokenID *uint, getToken func(context.Context, uint) (*fleet.VPPTokenDB, error)) *fleet.ActivityEditedAppStoreApp {
+	run := func(t *testing.T, tokenID *uint, getToken func(context.Context, uint) (*fleet.VPPTokenDB, error)) (*mock.Store, *fleet.ActivityEditedAppStoreApp, error) {
 		ds := new(mock.Store)
 		svc := newTestService(t, ds)
 		ds.GetAppStoreAppVersionsByTeamAndTitleIDFunc = func(context.Context, uint, uint) ([]*fleet.VPPAppStoreApp, error) {
@@ -1364,6 +1364,10 @@ func TestUpdateAppStoreAppActivityToken(t *testing.T) {
 		ds.GetVPPTokenFunc = getToken
 
 		_, act, err := svc.UpdateAppStoreApp(ctx, 5, nil, fleet.AppStoreAppUpdatePayload{SelfService: new(true)})
+		return ds, act, err
+	}
+	setup := func(t *testing.T, tokenID *uint, getToken func(context.Context, uint) (*fleet.VPPTokenDB, error)) *fleet.ActivityEditedAppStoreApp {
+		_, act, err := run(t, tokenID, getToken)
 		require.NoError(t, err)
 		return act
 	}
@@ -1388,5 +1392,13 @@ func TestUpdateAppStoreAppActivityToken(t *testing.T) {
 			return nil, common_mysql.NotFound("VPPToken")
 		})
 		require.Nil(t, act.VPPToken)
+	})
+
+	t.Run("token lookup failure doesn't write the edit", func(t *testing.T) {
+		ds, _, err := run(t, new(uint(2)), func(context.Context, uint) (*fleet.VPPTokenDB, error) {
+			return nil, errors.New("db down")
+		})
+		require.ErrorContains(t, err, "db down")
+		require.False(t, ds.InsertVPPAppWithTeamFuncInvoked)
 	})
 }
