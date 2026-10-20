@@ -74,6 +74,7 @@ func TestVPP(t *testing.T) {
 		{"SetTeamVPPAppVersions", testSetTeamVPPAppVersions},
 		{"ListHostSoftwareAppStoreAppHostVersion", testListHostSoftwareAppStoreAppHostVersion},
 		{"AppStoreAppConfigurationResendHosts", testAppStoreAppConfigurationResendHosts},
+		{"PastActivityVPPInstallDisplayNameHonorsPlatform", testPastActivityVPPInstallDisplayNameHonorsPlatform},
 	}
 
 	for _, c := range cases {
@@ -5246,4 +5247,67 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 			hostWithFailedVerification.ID: new(app.AppTeamID),
 		}, installedVersionByHostID)
 	}
+}
+
+// When the same adam_id is added for both iOS and iPadOS, each with its own
+// display name, past-install activity for an iPad install must return the
+// iPadOS title's display name, not the iOS one.
+func testPastActivityVPPInstallDisplayNameHonorsPlatform(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Test org"+t.Name(), "Test location"+t.Name())
+	require.NoError(t, err)
+	tok, err := ds.InsertVPPToken(ctx, dataToken)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{tm.ID})
+	require.NoError(t, err)
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	iPadOSHost, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "ipados-test-1",
+		UUID:           uuid.NewString(),
+		Platform:       string(fleet.IPadOSPlatform),
+		HardwareSerial: uuid.NewString(),
+		TeamID:         &tm.ID,
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, iPadOSHost, false)
+
+	// Same adam_id registered on both platforms, each with a distinct display
+	// name. Insert iOS first so MySQL would naturally return the iOS row first
+	// on an unqualified join — the fix must prefer the platform-matching row.
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID:    fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.IOSPlatform},
+			DisplayName: ptr.String("QA51285 VPP iPhone Name"),
+		},
+		Name:             "vpp1",
+		BundleIdentifier: "com.app.vpp1",
+	}, &tm.ID, nil)
+	require.NoError(t, err)
+
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID:    fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.IPadOSPlatform},
+			DisplayName: ptr.String("QA51285 VPP iPad Name"),
+		},
+		Name:             "vpp1",
+		BundleIdentifier: "com.app.vpp1",
+	}, &tm.ID, nil)
+	require.NoError(t, err)
+
+	cmdUUID := createVPPAppInstallRequest(t, ds, iPadOSHost, "adam_vpp_1", user)
+	createVPPAppInstallResult(t, ds, iPadOSHost, cmdUUID, fleet.MDMAppleStatusAcknowledged)
+
+	_, act, err := ds.GetPastActivityDataForVPPAppInstall(ctx, &mdm.CommandResults{
+		CommandUUID: cmdUUID,
+		Status:      fleet.MDMAppleStatusAcknowledged,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, act.SoftwareDisplayName)
+	assert.Equal(t, "QA51285 VPP iPad Name", *act.SoftwareDisplayName)
 }
