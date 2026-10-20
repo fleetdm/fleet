@@ -143,7 +143,17 @@ GEANT's eduroam configuration tool writes it rather than as the schema's Trusted
       (authEncryption.transitionMode ? '<transitionMode xmlns="http://www.microsoft.com/networking/WLAN/profile/v4">true</transitionMode>' : '') +
       '</authEncryption>';
     if(!isEnterprise && passphrase) {
-      securityXml += `<sharedKey><keyType>passPhrase</keyType><protected>false</protected><keyMaterial>${escapeXml(passphrase)}</keyMaterial></sharedKey>`;
+      // Windows refuses to install a profile whose key is anything other than a passphrase of 8 to 63 printable ASCII
+      // characters, or a 64-digit hex key.
+      let keyType;
+      if(/^[0-9a-fA-F]{64}$/.test(passphrase)) {
+        keyType = 'networkKey';
+      } else if(/^[\x20-\x7E]{8,63}$/.test(passphrase)) {
+        keyType = 'passPhrase';
+      } else {
+        throw new Error('A Wi-Fi password must be 8 to 63 printable ASCII characters, or a 64-digit hex key.');
+      }
+      securityXml += `<sharedKey><keyType>${keyType}</keyType><protected>false</protected><keyMaterial>${escapeXml(passphrase)}</keyMaterial></sharedKey>`;
     }
     if(isEnterprise) {
       securityXml += '<OneX xmlns="http://www.microsoft.com/networking/OneX/v1">' +

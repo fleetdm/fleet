@@ -137,9 +137,10 @@ bookkeeping -- tags, PayloadUUIDs, identifiers -- and writing it out was most of
       pathForPayloadAt: (idx)=>{ return `${payloads[idx].payloadType}/`; },
     });
 
-    let settingsEnforced = _.map(_.flatten(_.map(payloadDicts, 'dict').concat(_.omit(rootDict, 'PayloadContent')).map((dict)=>{
+    // A null or undefined setting is left out of the profile, so it is left out of what the profile enforces too.
+    let settingsEnforced = _.map(_.filter(_.flatten(_.map(payloadDicts, 'dict').concat(_.omit(rootDict, 'PayloadContent')).map((dict)=>{
       return _.pairs(_.omit(dict, KEYS_THAT_ENFORCE_NOTHING));
-    })), ([name, value])=>{
+    })), ([, value])=>{ return value !== undefined && value !== null; }), ([name, value])=>{
       return { name, value: _.isObject(value) ? JSON.stringify(value) : String(value) };
     });
 

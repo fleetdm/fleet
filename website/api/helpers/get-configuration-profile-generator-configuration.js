@@ -439,6 +439,8 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
         "payloads": [// One for each dict inside PayloadContent.
           {
             "payloadType": "TODO",
+            // Leave this out unless another payload references this one: one of the UUIDs supplied with the instructions.
+            "payloadUUID": "TODO",
             // Every key this payload sets, with its value.  Nested dictionaries are objects and arrays are arrays.
             "settings": {"TODO": "TODO"}
           },
@@ -462,7 +464,9 @@ ${COULD_NOT_GENERATE_SHAPE}`;
             "locURI": "TODO",
             // The node's value as the node takes it: a number for int, true or false for bool, text for chr, and for a
             // node whose value is an XML document, that document on one line.
-            "data": "TODO"
+            "data": "TODO",
+            // Leave this out unless the node is not in the provided list: its DFFormat.
+            "format": "TODO"
           },
           {
             // A Wi-Fi network, in place of "locURI" and "data".  Its WlanXml node and WLAN profile are written from these fields.

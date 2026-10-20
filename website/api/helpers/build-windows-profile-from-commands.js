@@ -125,8 +125,8 @@ than anything else, and a value that does not fit its node's Format makes the co
       } else if(/\/Policy\/Config\/[^/]+~Policy~/i.test(locUri)) {
         // An ingested ADMX template's policy, which the reference cannot list, always takes a policy fragment.
         format = 'chr';
-      } else if(_.isString(command.format) && command.format) {
-        format = command.format;
+      } else if(_.contains(['b64', 'bin', 'bool', 'chr', 'date', 'float', 'int', 'node', 'null', 'time', 'xml'], String(command.format).toLowerCase())) {
+        format = String(command.format).toLowerCase();
       } else {
         format = _.isBoolean(command.data) ? 'bool' : _.isNumber(command.data) && Number.isInteger(command.data) ? 'int' : 'chr';
       }

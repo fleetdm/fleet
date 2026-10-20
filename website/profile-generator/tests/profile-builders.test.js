@@ -133,6 +133,13 @@ describe('profile builders', function() {
       assert.ok(_.contains(profile, '<key>BrowserSignin</key><true/>'));
     });
 
+    it('leaves a null setting out of the profile and out of what it enforces', function() {
+      let built = build([{ payloadType: 'com.apple.applicationaccess', settings: { allowCamera: false, allowAirDrop: null } }]);
+      assert.deepStrictEqual(built.unusableValues, []);
+      assert.ok(!_.contains(built.profile, 'allowAirDrop'));
+      assert.deepStrictEqual(_.pluck(built.settingsEnforced, 'name'), ['allowCamera']);
+    });
+
     it('requires each PayloadUUID to be a UUID that no other payload uses', function() {
       let uuid = 'AAAAAAAA-1111-2222-3333-444444444444';
       assert.deepStrictEqual(build([
@@ -170,6 +177,17 @@ describe('profile builders', function() {
       assert.ok(appearsInOrder(profile, ['chr</Format>', 'Corp%20Net/Proxy</LocURI>', '<Data>proxy.example.com:8080</Data>']));
       assert.ok(_.contains(profile, '<Data><![CDATA[<enabled/><dataid="HomepageLocation"value="https://example.com"/>]]></Data>'));
       assert.ok(!/<Atomic>/.test(profile));
+    });
+
+    it('takes a format from the model only when it is a SyncML format, for a node the reference does not list', function() {
+      let built = build([
+        { verb: 'Replace', locURI: './Device/Vendor/MSFT/Example/Unlisted/Count', data: 5, format: 'integer' },
+        { verb: 'Replace', locURI: './Device/Vendor/MSFT/Example/Unlisted/Enabled', data: true, format: 'Bool' },
+        { verb: 'Replace', locURI: './Device/Vendor/MSFT/Example/Unlisted/Name', data: 'x', format: 'string' },
+      ]);
+      assert.deepStrictEqual(built.unusableCommands, []);
+      let formats = _.map(built.profile.match(/<Format xmlns="syncml:metinf">[^<]*<\/Format>/g), (format)=>{ return format.replace(/<[^>]+>/g, ''); });
+      assert.deepStrictEqual(formats, ['int', 'bool', 'chr']);
     });
 
     it('rejects data that does not fit its node, and a verb a profile cannot carry', function() {
@@ -275,8 +293,8 @@ describe('profile builders', function() {
     });
 
     it('writes WPA3 Personal, with transition mode inside authEncryption', function() {
-      assert.strictEqual(element(wlan({ ssid: 'Home', security: 'WPA3Personal', passphrase: 'x' }), 'authentication'), 'WPA3SAE');
-      let transition = wlan({ ssid: 'Home', security: 'WPA3PersonalTransition', passphrase: 'x' });
+      assert.strictEqual(element(wlan({ ssid: 'Home', security: 'WPA3Personal', passphrase: 'correct horse' }), 'authentication'), 'WPA3SAE');
+      let transition = wlan({ ssid: 'Home', security: 'WPA3PersonalTransition', passphrase: 'correct horse' });
       assert.ok(_.contains(transition, '<useOneX>false</useOneX><transitionMode xmlns="http://www.microsoft.com/networking/WLAN/profile/v4">true</transitionMode></authEncryption>'));
     });
 
@@ -286,6 +304,14 @@ describe('profile builders', function() {
       assert.strictEqual(element(xml, 'encryption'), 'none');
       assert.ok(!_.contains(xml, '<sharedKey>'));
       assert.throws(()=>{ wlan({ ssid: 'Lobby', security: 'Open', passphrase: 'x' }); }, /An open network has no password/);
+    });
+
+    it('takes a passphrase Windows accepts, writes a 64-digit hex key as a network key, and rejects anything else', function() {
+      assert.strictEqual(element(wlan({ ssid: 'Home', security: 'WPA2Personal', passphrase: 'a'.repeat(63) }), 'keyType'), 'passPhrase');
+      assert.strictEqual(element(wlan({ ssid: 'Home', security: 'WPA2Personal', passphrase: 'ab'.repeat(32) }), 'keyType'), 'networkKey');
+      for (let passphrase of ['wifi', 'z'.repeat(64), 'pässwört-123']) {
+        assert.throws(()=>{ wlan({ ssid: 'Home', security: 'WPA2Personal', passphrase }); }, /8 to 63 printable ASCII characters/, passphrase);
+      }
     });
 
     it('keeps server certificate validation on for PEAP, asking the user when nothing says what to trust', function() {
