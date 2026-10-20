@@ -443,7 +443,7 @@
   deprecated: true
 - method: "POST"
   path: "/api/v1/fleet/mcp"
-  display_name: "Use Fleet's MCP server"
+  display_name: "Use Fleet's MCP server (includes running live queries)"
 - method: "POST"
   path: "/api/v1/fleet/scripts/run"
   display_name: "Run script"

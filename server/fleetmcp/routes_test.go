@@ -19,127 +19,15 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-const liveQuerySQL = "SELECT version FROM os_version;"
-
-// Drives every argument mode of every embedded tool against a fake Fleet, so a
-// tool's ToolRoutes entry is exactly the routes it can call: a missing route
-// would let a restricted user reach a tool that fails partway, an extra one
-// would hide a tool the user can use.
-func TestToolRoutesMatchTools(t *testing.T) {
-	fake, fc := newFakeFleet(t)
-	c := newInProcessMCPClient(t, NewEmbeddedMCPServer(fc))
-	tools := listToolNames(t, c)
-
-	cve := "CVE-2024-0001"
-	modes := map[string][]map[string]any{
-		"get_aggregate_platforms": {nil},
-		"get_endpoints":           {nil, {"fleet": "Workstations", "label": "Engineering"}},
-		"get_fleets":              {nil},
-		// "alpha" matches one hostname; no hostname matches a UUID, so that
-		// falls back to the identifier route.
-		"get_host":                 {{"host_id": "42"}, {"identifier": "alpha"}, {"identifier": "uuid-42"}},
-		"get_host_policies":        {{"host_id": "42"}, {"identifier": "uuid-42"}},
-		"get_host_users":           {{"host_id": "42"}, {"host_identifier": "uuid-42"}},
-		"get_labels":               {nil},
-		"get_osquery_schema":       {{"tables": "os_version"}},
-		"get_policies":             {nil},
-		"get_policy_compliance":    {{"policy_id": "3"}, {"policy_id": "3", "fleet": "Workstations"}},
-		"get_policy_hosts":         {{"policy_id": "3"}, {"policy_id": "3", "response": "failing", "fleet": "Workstations", "label": "Engineering"}},
-		"get_queries":              {nil},
-		"get_software":             {{"fleet": "Workstations"}, {"host_id": "42"}, {"host_identifier": "uuid-42"}},
-		"get_total_system_count":   {nil},
-		"get_vetted_queries":       {nil},
-		"get_vulnerability_hosts":  {{"cve_id": cve, "fleet": "Workstations"}},
-		"get_vulnerability_impact": {{"cve_id": cve}},
-		"prepare_live_query": {
-			{"host_ids": "42"}, {"hostnames": "uuid-42"}, {"fleet": "Workstations", "label": "Engineering"}, {"cve_id": cve},
-		},
-		// One target runs on the host's REST endpoint, more start a campaign.
-		"run_live_query": {
-			{"sql": liveQuerySQL, "host_ids": "42"},
-			{"sql": liveQuerySQL, "hostnames": "uuid-42"},
-			{"sql": liveQuerySQL, "fleet": "Workstations", "label": "Engineering"},
-			{"sql": liveQuerySQL, "cve_id": cve},
-		},
-	}
-	require.ElementsMatch(t, tools, slices.Collect(maps.Keys(modes)), "every embedded tool must be driven")
-	require.ElementsMatch(t, tools, slices.Collect(maps.Keys(ToolRoutes)), "every embedded tool needs a ToolRoutes entry")
-
-	for _, tool := range tools {
-		t.Run(tool, func(t *testing.T) {
-			for _, args := range modes[tool] {
-				res := callTool(t, t.Context(), c, tool, args)
-				assert.False(t, res.IsError, "%v: %v", args, res.Content)
-			}
-			hit, unmatched := fake.take()
-			assert.Empty(t, unmatched, "requests to routes no tool declares")
-			assert.ElementsMatch(t, ToolRoutes[tool], slices.Collect(maps.Keys(hit)))
-		})
-	}
-}
-
-func TestEmbeddedToolsFollowRouteFilter(t *testing.T) {
-	fake, fc := newFakeFleet(t)
-	s := NewEmbeddedMCPServer(fc)
-	s.AddTool(mcp.NewTool("undeclared"), func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		return mcp.NewToolResultText("ran"), nil
-	})
-	c := newInProcessMCPClient(t, s)
-	assert.Len(t, listToolNames(t, c), 20, "without a filter every tool is listed")
-
-	granted := []Route{{"GET", "/api/v1/fleet/fleets"}, {"GET", "/api/v1/fleet/hosts/count"}}
-	ctx := ContextWithRouteFilter(t.Context(), func(r Route) bool { return slices.Contains(granted, r) })
-
-	list, err := c.ListTools(ctx, mcp.ListToolsRequest{})
-	require.NoError(t, err)
-	var names []string
-	for _, tool := range list.Tools {
-		names = append(names, tool.Name)
-	}
-	assert.ElementsMatch(t, []string{"get_fleets", "get_osquery_schema", "get_total_system_count", "get_vetted_queries"}, names)
-
-	res := callTool(t, ctx, c, "get_endpoints", nil)
-	require.True(t, res.IsError)
-	text := res.Content[0].(mcp.TextContent).Text
-	assert.Contains(t, text, "GET /api/v1/fleet/hosts, GET /api/v1/fleet/hosts/:id, GET /api/v1/fleet/labels, GET /api/v1/fleet/labels/:id/hosts.")
-	assert.NotContains(t, text, "/hosts/count")
-	res = callTool(t, ctx, c, "undeclared", nil)
-	require.True(t, res.IsError, "a tool missing from ToolRoutes must not run for a restricted user")
-	hit, unmatched := fake.take()
-	assert.Empty(t, hit, "a hidden tool must not reach Fleet")
-	assert.Empty(t, unmatched)
-
-	res = callTool(t, ctx, c, "get_total_system_count", nil)
-	assert.False(t, res.IsError, res.Content)
-}
-
-// mcp-go runs a task-augmented tools/call without the tool handler middlewares,
-// so a task tool would skip the route filter's call guard.
-func TestEmbeddedToolsAreNotTasks(t *testing.T) {
-	_, fc := newFakeFleet(t)
-	c := newInProcessMCPClient(t, NewEmbeddedMCPServer(fc))
-	require.Len(t, listToolNames(t, c), len(ToolRoutes))
-	res, err := c.ListTools(t.Context(), mcp.ListToolsRequest{})
-	require.NoError(t, err)
-	for _, tool := range res.Tools {
-		assert.True(t, tool.Execution == nil || tool.Execution.TaskSupport == mcp.TaskSupportForbidden, tool.Name)
-	}
-}
-
-func newFakeFleet(t *testing.T) (*routeRecorder, *FleetClient) {
+// Drives every embedded tool against a Fleet that serves only EmbeddedRoutes,
+// so a tool can't call a route the list doesn't grant and the list can't grant
+// a route no tool calls.
+func TestEmbeddedRoutesMatchTools(t *testing.T) {
 	fake := &routeRecorder{t: t, hit: map[Route]bool{}}
-	for _, routes := range ToolRoutes {
-		for _, r := range routes {
-			if !slices.Contains(fake.routes, r) {
-				fake.routes = append(fake.routes, r)
-			}
-		}
-	}
 	srv := httptest.NewServer(fake)
 	t.Cleanup(srv.Close)
 	dial := func(ctx context.Context, network, _ string) (net.Conn, error) {
@@ -149,58 +37,86 @@ func newFakeFleet(t *testing.T) (*routeRecorder, *FleetClient) {
 	fc, err := NewFleetClient(t.Context(), "http://fleet.internal", "", false, "", slog.New(slog.DiscardHandler),
 		WithDialContext(dial), WithLiveQueryWaits(5*time.Second, 5*time.Second))
 	require.NoError(t, err)
-	return fake, fc
-}
 
-func newInProcessMCPClient(t *testing.T, s *server.MCPServer) *client.Client {
-	c, err := client.NewInProcessClient(s)
+	c, err := client.NewInProcessClient(NewEmbeddedMCPServer(fc))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = c.Close() })
 	require.NoError(t, c.Start(t.Context()))
-	return c
+	tools := listToolNames(t, c)
+
+	called := map[string]bool{}
+	for _, call := range []struct {
+		tool string
+		args map[string]any
+	}{
+		{"get_endpoints", nil},
+		{"get_endpoints", map[string]any{"label": "Engineering"}},
+		{"get_host", map[string]any{"host_id": "42"}},
+		// No hostname matches a UUID, so this falls back to the identifier route.
+		{"get_host", map[string]any{"identifier": "uuid-42"}},
+		{"get_host_policies", map[string]any{"identifier": "uuid-42"}},
+		{"get_host_users", map[string]any{"host_id": "42"}},
+		{"get_total_system_count", nil},
+		{"get_aggregate_platforms", nil},
+		{"get_fleets", nil},
+		{"get_labels", nil},
+		{"get_queries", nil},
+		{"get_vetted_queries", nil},
+		{"get_osquery_schema", map[string]any{"tables": "os_version"}},
+		{"prepare_live_query", map[string]any{"host_ids": "42"}},
+		{"run_live_query", map[string]any{"sql": "SELECT version FROM os_version;", "host_ids": "42"}},
+		{"run_live_query", map[string]any{"sql": "SELECT version FROM os_version;", "host_ids": "42,43"}},
+		{"get_policies", nil},
+		{"get_policy_compliance", map[string]any{"policy_id": "3"}},
+		{"get_policy_compliance", map[string]any{"policy_id": "3", "fleet": "Workstations"}},
+		{"get_policy_hosts", map[string]any{"policy_id": "3", "response": "failing"}},
+		{"get_vulnerability_impact", map[string]any{"cve_id": "CVE-2024-0001"}},
+		{"get_vulnerability_hosts", map[string]any{"cve_id": "CVE-2024-0001"}},
+		{"get_software", nil},
+		{"get_software", map[string]any{"host_id": "42"}},
+	} {
+		req := mcp.CallToolRequest{}
+		req.Params.Name = call.tool
+		req.Params.Arguments = call.args
+		res, err := c.CallTool(t.Context(), req)
+		require.NoError(t, err, call.tool)
+		assert.False(t, res.IsError, "%s %v: %v", call.tool, call.args, res.Content)
+		called[call.tool] = true
+	}
+	assert.ElementsMatch(t, tools, slices.Collect(maps.Keys(called)), "every embedded tool must be driven")
+
+	fake.mu.Lock()
+	defer fake.mu.Unlock()
+	assert.Empty(t, fake.unlisted, "requests to routes missing from EmbeddedRoutes")
+	var unused []Route
+	for _, r := range EmbeddedRoutes {
+		if !fake.hit[r] {
+			unused = append(unused, r)
+		}
+	}
+	assert.Empty(t, unused, "EmbeddedRoutes no tool calls")
 }
 
-func callTool(t *testing.T, ctx context.Context, c *client.Client, name string, args map[string]any) *mcp.CallToolResult {
-	req := mcp.CallToolRequest{}
-	req.Params.Name = name
-	req.Params.Arguments = args
-	res, err := c.CallTool(ctx, req)
-	require.NoError(t, err, name)
-	require.NotEmpty(t, res.Content, name)
-	return res
-}
-
-// routeRecorder serves the routes in ToolRoutes and records which ones the
-// tools reach.
 type routeRecorder struct {
-	t         *testing.T
-	routes    []Route
-	mu        sync.Mutex
-	hit       map[Route]bool
-	unmatched []string
-}
-
-func (f *routeRecorder) take() (map[Route]bool, []string) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	hit, unmatched := f.hit, f.unmatched
-	f.hit, f.unmatched = map[Route]bool{}, nil
-	return hit, unmatched
+	t        *testing.T
+	mu       sync.Mutex
+	hit      map[Route]bool
+	unlisted []string
 }
 
 func (f *routeRecorder) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// The results websocket authenticates its own messages rather than going
-	// through the endpoint allowlist, so it isn't a tool route.
+	// The results websocket authenticates its own messages, so the route check
+	// the list feeds doesn't apply to it.
 	if r.URL.Path == "/api/v1/fleet/results/websocket" {
 		f.serveCampaignResults(w, r)
 		return
 	}
-	route, params, ok := f.match(r.Method, r.URL.EscapedPath())
+	route, params, ok := matchEmbeddedRoute(r.Method, r.URL.EscapedPath())
 	f.mu.Lock()
 	if ok {
 		f.hit[route] = true
 	} else {
-		f.unmatched = append(f.unmatched, r.Method+" "+r.URL.Path)
+		f.unlisted = append(f.unlisted, r.Method+" "+r.URL.Path)
 	}
 	f.mu.Unlock()
 	if !ok {
@@ -231,15 +147,15 @@ func (f *routeRecorder) serveCampaignResults(w http.ResponseWriter, r *http.Requ
 	writeWSFrame(f.t, conn, "status", map[string]any{"status": "finished"})
 }
 
-// match resolves a request the way Fleet's router would, with a literal
-// segment winning over a parameter (hosts/count over hosts/:id).
-func (f *routeRecorder) match(method, path string) (Route, map[string]string, bool) {
+// matchEmbeddedRoute resolves a request the way Fleet's router would, with a
+// literal segment winning over a parameter (hosts/count over hosts/:id).
+func matchEmbeddedRoute(method, path string) (Route, map[string]string, bool) {
 	segs := strings.Split(path, "/")
 	var best Route
 	var bestParams map[string]string
 	bestLiterals := -1
 routes:
-	for _, r := range f.routes {
+	for _, r := range EmbeddedRoutes {
 		tpl := strings.Split(r.Path, "/")
 		if r.Method != method || len(tpl) != len(segs) {
 			continue

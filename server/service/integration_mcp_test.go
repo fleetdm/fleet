@@ -1,14 +1,11 @@
 package service
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
-	"maps"
 	"net/http"
 	"net/url"
-	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -51,7 +48,7 @@ func (ts *withServer) newMCPClient(t *testing.T, headers map[string]string) *cli
 
 // doMCPInternal sends a request over the connection the embedded MCP's tools
 // call the API through.
-func (ts *withServer) doMCPInternal(t *testing.T, method, path string, body any, token string) *http.Response {
+func (ts *withServer) doMCPInternal(t *testing.T, method, path, token string) *http.Response {
 	t.Helper()
 	conn, ok := testMCPConns.Load(ts.server)
 	require.True(t, ok)
@@ -60,13 +57,7 @@ func (ts *withServer) doMCPInternal(t *testing.T, method, path string, body any,
 	tr.Proxy = nil
 	c := fleethttp.NewClient(fleethttp.WithFollowRedir(false))
 	c.Transport = tr
-	var reqBody io.Reader
-	if body != nil {
-		b, err := json.Marshal(body)
-		require.NoError(t, err)
-		reqBody = bytes.NewReader(b)
-	}
-	req, err := http.NewRequestWithContext(t.Context(), method, mcpInternalBaseURL+path, reqBody)
+	req, err := http.NewRequestWithContext(t.Context(), method, mcpInternalBaseURL+path, nil)
 	require.NoError(t, err)
 	req.Header.Set("Authorization", "Bearer "+token)
 	resp, err := c.Do(req)
@@ -133,102 +124,21 @@ func (s *integrationEnterpriseTestSuite) TestEmbeddedMCP() {
 		return resp
 	}
 	operator := createAPIOnly(map[string]any{"name": t.Name() + " operator", "global_role": fleet.RoleObserverPlus})
-	allTools := slices.Sorted(maps.Keys(fleetmcp.ToolRoutes))
-	// restricted creates an API-only user granted the MCP route and the
-	// endpoints of the given tools.
-	restricted := func(name string, tools ...string) apiOnlyUser {
-		grants := []map[string]any{{"method": "POST", "path": "/api/v1/fleet/mcp"}}
-		var routes []fleetmcp.Route
-		for _, tool := range tools {
-			for _, r := range fleetmcp.ToolRoutes[tool] {
-				if !slices.Contains(routes, r) {
-					routes = append(routes, r)
-					grants = append(grants, map[string]any{"method": r.Method, "path": r.Path})
-				}
-			}
-		}
-		return createAPIOnly(map[string]any{"name": t.Name() + " " + name, "global_role": fleet.RoleObserverPlus, "api_endpoints": grants})
-	}
-	mcpOnly := restricted("mcp only")
-	everyTool := restricted("every tool", allTools...)
-
-	admin := s.users["admin1@example.com"]
-	label, err := s.ds.NewLabel(ctx, &fleet.Label{
-		Name: t.Name(), Query: "select 1", LabelType: fleet.LabelTypeRegular, LabelMembershipType: fleet.LabelMembershipTypeManual,
+	// Restricted to the MCP route alone: every tool must still work, and nothing else.
+	mcpOnly := createAPIOnly(map[string]any{
+		"name":          t.Name() + " mcp only",
+		"global_role":   fleet.RoleObserverPlus,
+		"api_endpoints": []map[string]any{{"method": "POST", "path": "/api/v1/fleet/mcp"}},
 	})
-	require.NoError(t, err)
-	require.NoError(t, s.ds.AddLabelsToHost(ctx, globalHost.ID, []uint{label.ID}))
-	globalPolicy, err := s.ds.NewGlobalPolicy(ctx, &admin.ID, fleet.PolicyPayload{Name: t.Name(), Query: "select 1"})
-	require.NoError(t, err)
-	teamPolicy, err := s.ds.NewTeamPolicy(ctx, team.ID, &admin.ID, fleet.PolicyPayload{Name: t.Name() + " team", Query: "select 1"})
-	require.NoError(t, err)
-	// Asleep hosts let a campaign finish as soon as Fleet reports no online targets.
-	asleepIDs := []uint{asleep[0].ID, asleep[1].ID}
+
 	// Fleet stops a campaign's query only once its results stream closes, so
 	// the test waits for every stop before TearDownTest resets the mock.
 	var campaigns, stoppedCampaigns atomic.Int64
-	s.lq.On("RunQuery", mock.Anything, mock.Anything, mock.MatchedBy(func(got []uint) bool {
-		return len(got) == 2 && ((got[0] == asleepIDs[0] && got[1] == asleepIDs[1]) || (got[0] == asleepIDs[1] && got[1] == asleepIDs[0]))
-	})).Return(nil).Run(func(mock.Arguments) { campaigns.Add(1) })
 	s.lq.On("StopQuery", mock.Anything).Return(nil).Run(func(mock.Arguments) { stoppedCampaigns.Add(1) })
 	defer func() {
 		assert.Eventually(t, func() bool { return stoppedCampaigns.Load() == campaigns.Load() }, 10*time.Second, 50*time.Millisecond,
 			"every live query campaign must be stopped")
 	}()
-
-	listTools := func(c *client.Client) []string {
-		res, err := c.ListTools(t.Context(), mcp.ListToolsRequest{})
-		require.NoError(t, err)
-		names := make([]string, 0, len(res.Tools))
-		for _, tool := range res.Tools {
-			names = append(names, tool.Name)
-		}
-		return names
-	}
-	hostID := fmt.Sprint(globalHost.ID)
-	everyToolCall := []struct {
-		tool string
-		args map[string]any
-	}{
-		{"get_endpoints", nil},
-		{"get_endpoints", map[string]any{"fleet": team.Name}},
-		{"get_endpoints", map[string]any{"label": label.Name}},
-		{"get_endpoints", map[string]any{"policy_id": fmt.Sprint(globalPolicy.ID), "policy_response": "failing"}},
-		{"get_host", map[string]any{"host_id": hostID}},
-		{"get_host", map[string]any{"identifier": globalHost.UUID}},
-		{"get_host_policies", map[string]any{"host_id": hostID}},
-		{"get_host_policies", map[string]any{"identifier": globalHost.UUID}},
-		{"get_host_users", map[string]any{"host_id": hostID}},
-		{"get_total_system_count", nil},
-		{"get_aggregate_platforms", nil},
-		{"get_fleets", nil},
-		{"get_labels", nil},
-		{"get_queries", nil},
-		{"get_vetted_queries", nil},
-		{"get_osquery_schema", map[string]any{"tables": "os_version"}},
-		{"prepare_live_query", map[string]any{"host_ids": hostID}},
-		{"run_live_query", map[string]any{"sql": "SELECT version FROM os_version;", "host_ids": fmt.Sprintf("%d,%d", asleepIDs[0], asleepIDs[1])}},
-		{"get_policies", nil},
-		{"get_policy_compliance", map[string]any{"policy_id": fmt.Sprint(globalPolicy.ID)}},
-		{"get_policy_compliance", map[string]any{"policy_id": fmt.Sprint(teamPolicy.ID), "fleet": team.Name}},
-		{"get_policy_hosts", map[string]any{"policy_id": fmt.Sprint(globalPolicy.ID), "response": "failing"}},
-		{"get_vulnerability_impact", map[string]any{"cve_id": "CVE-2024-0001"}},
-		{"get_vulnerability_hosts", map[string]any{"cve_id": "CVE-2024-0001"}},
-		{"get_software", nil},
-		{"get_software", map[string]any{"host_id": hostID}},
-	}
-	// A tool call Fleet rejects comes back as a tool error, so every call here
-	// must succeed.
-	useEveryTool := func(t *testing.T, c *client.Client) {
-		var used []string
-		for _, call := range everyToolCall {
-			callMCPTool(t, c, call.tool, call.args)
-			if !slices.Contains(used, call.tool) {
-				used = append(used, call.tool)
-			}
-		}
-		assert.ElementsMatch(t, allTools, used, "every tool must be called")
-	}
 
 	totalHosts := func(c *client.Client) int {
 		var n int
@@ -265,23 +175,69 @@ func (s *integrationEnterpriseTestSuite) TestEmbeddedMCP() {
 		assert.Positive(t, totalHosts(s.newMCPClient(t, headers)))
 	})
 
-	t.Run("an API-only user without an endpoint allowlist gets every tool", func(t *testing.T) {
+	t.Run("tools run as the API-only user", func(t *testing.T) {
 		c := s.newMCPClient(t, bearer(operator.Token))
-		assert.ElementsMatch(t, allTools, listTools(c))
-		assert.NotContains(t, listTools(c), "refresh_osquery_schema")
-		useEveryTool(t, c)
+		tools, err := c.ListTools(t.Context(), mcp.ListToolsRequest{})
+		require.NoError(t, err)
+		var names []string
+		for _, tool := range tools.Tools {
+			names = append(names, tool.Name)
+		}
+		assert.Contains(t, names, "run_live_query")
+		assert.NotContains(t, names, "refresh_osquery_schema")
+		assert.GreaterOrEqual(t, totalHosts(c), 4)
 	})
 
-	t.Run("the MCP route alone only grants the tools that call no endpoint", func(t *testing.T) {
+	t.Run("a user restricted to the MCP route can use every tool and nothing else", func(t *testing.T) {
+		admin := s.users["admin1@example.com"]
+		label, err := s.ds.NewLabel(ctx, &fleet.Label{
+			Name: t.Name(), Query: "select 1", LabelType: fleet.LabelTypeRegular, LabelMembershipType: fleet.LabelMembershipTypeManual,
+		})
+		require.NoError(t, err)
+		require.NoError(t, s.ds.AddLabelsToHost(ctx, globalHost.ID, []uint{label.ID}))
+		globalPolicy, err := s.ds.NewGlobalPolicy(ctx, &admin.ID, fleet.PolicyPayload{Name: t.Name(), Query: "select 1"})
+		require.NoError(t, err)
+		teamPolicy, err := s.ds.NewTeamPolicy(ctx, team.ID, &admin.ID, fleet.PolicyPayload{Name: t.Name() + " team", Query: "select 1"})
+		require.NoError(t, err)
+
+		hostID := fmt.Sprint(globalHost.ID)
 		c := s.newMCPClient(t, bearer(mcpOnly.Token))
-		assert.ElementsMatch(t, []string{"get_osquery_schema", "get_vetted_queries"}, listTools(c))
-		callMCPTool(t, c, "get_vetted_queries", nil)
+		// A tool whose API call isn't covered by the MCP route set fails with
+		// the endpoint restriction, so every call here must succeed.
+		for _, call := range []struct {
+			tool string
+			args map[string]any
+		}{
+			{"get_endpoints", nil},
+			{"get_endpoints", map[string]any{"fleet": team.Name}},
+			{"get_endpoints", map[string]any{"label": label.Name}},
+			{"get_endpoints", map[string]any{"policy_id": fmt.Sprint(globalPolicy.ID), "policy_response": "failing"}},
+			{"get_host", map[string]any{"host_id": hostID}},
+			{"get_host", map[string]any{"identifier": globalHost.UUID}},
+			{"get_host_policies", map[string]any{"host_id": hostID}},
+			{"get_host_policies", map[string]any{"identifier": globalHost.UUID}},
+			{"get_host_users", map[string]any{"host_id": hostID}},
+			{"get_total_system_count", nil},
+			{"get_aggregate_platforms", nil},
+			{"get_fleets", nil},
+			{"get_labels", nil},
+			{"get_queries", nil},
+			{"get_vetted_queries", nil},
+			{"get_osquery_schema", map[string]any{"tables": "os_version"}},
+			{"prepare_live_query", map[string]any{"host_ids": hostID}},
+			{"get_policies", nil},
+			{"get_policy_compliance", map[string]any{"policy_id": fmt.Sprint(globalPolicy.ID)}},
+			{"get_policy_compliance", map[string]any{"policy_id": fmt.Sprint(teamPolicy.ID), "fleet": team.Name}},
+			{"get_policy_hosts", map[string]any{"policy_id": fmt.Sprint(globalPolicy.ID), "response": "failing"}},
+			{"get_vulnerability_impact", map[string]any{"cve_id": "CVE-2024-0001"}},
+			{"get_vulnerability_hosts", map[string]any{"cve_id": "CVE-2024-0001"}},
+			{"get_software", nil},
+			{"get_software", map[string]any{"host_id": hostID}},
+		} {
+			callMCPTool(t, c, call.tool, call.args)
+		}
 
-		text, isError := callMCPToolResult(t, c, "get_endpoints", nil)
-		assert.True(t, isError)
-		assert.Contains(t, text, "get_endpoints needs Fleet API endpoints this API-only user isn't allowed to call")
-		assert.Contains(t, text, "GET /api/v1/fleet/hosts/count")
-
+		// The same token can't call the API directly.
 		s.DoRawWithHeaders("GET", "/api/latest/fleet/hosts/count", nil, http.StatusForbidden, bearer(mcpOnly.Token))
 
 		noMCP := createAPIOnly(map[string]any{
@@ -292,58 +248,17 @@ func (s *integrationEnterpriseTestSuite) TestEmbeddedMCP() {
 		s.DoRawWithHeaders("POST", mcpPath, mcpInitializeBody, http.StatusForbidden, bearer(noMCP.Token))
 	})
 
-	t.Run("granting some tools' endpoints grants exactly the tools they cover", func(t *testing.T) {
-		c := s.newMCPClient(t, bearer(restricted("some tools", "get_host", "get_policies", "get_total_system_count").Token))
-		// get_host_policies and get_host_users call the same endpoints as
-		// get_host, and get_fleets calls one of get_policies'.
-		covered := []string{
-			"get_fleets", "get_host", "get_host_policies", "get_host_users", "get_osquery_schema",
-			"get_policies", "get_total_system_count", "get_vetted_queries",
-		}
-		assert.ElementsMatch(t, covered, listTools(c))
-		for _, call := range []struct {
-			tool string
-			args map[string]any
-		}{
-			{"get_fleets", nil},
-			{"get_host", map[string]any{"identifier": globalHost.UUID}},
-			{"get_host_policies", map[string]any{"host_id": hostID}},
-			{"get_host_users", map[string]any{"host_id": hostID}},
-			{"get_policies", nil},
-			{"get_total_system_count", nil},
-		} {
-			callMCPTool(t, c, call.tool, call.args)
-		}
-
-		text, isError := callMCPToolResult(t, c, "run_live_query", map[string]any{"sql": "SELECT 1;", "host_ids": hostID})
-		assert.True(t, isError)
-		assert.Contains(t, text, "POST /api/v1/fleet/hosts/:id/query")
-	})
-
-	t.Run("granting every tool's endpoints grants every tool", func(t *testing.T) {
-		c := s.newMCPClient(t, bearer(everyTool.Token))
-		assert.ElementsMatch(t, allTools, listTools(c))
-		useEveryTool(t, c)
-	})
-
 	t.Run("a tool argument can't reach another route", func(t *testing.T) {
-		for _, u := range []apiOnlyUser{operator, everyTool} {
-			c := s.newMCPClient(t, bearer(u.Token))
-			for _, identifier := range []string{
-				fmt.Sprintf("../%d/recovery_lock_password", globalHost.ID),
-				fmt.Sprintf("../%d/encryption_key", globalHost.ID),
-				"..",
-			} {
-				text, isError := callMCPToolResult(t, c, "get_host", map[string]any{"identifier": identifier})
-				assert.True(t, isError, identifier)
-				assert.Contains(t, text, "not found", identifier)
-			}
+		c := s.newMCPClient(t, bearer(mcpOnly.Token))
+		for _, identifier := range []string{
+			fmt.Sprintf("../%d/recovery_lock_password", globalHost.ID),
+			fmt.Sprintf("../%d/encryption_key", globalHost.ID),
+			"..",
+		} {
+			text, isError := callMCPToolResult(t, c, "get_host", map[string]any{"identifier": identifier})
+			assert.True(t, isError, identifier)
+			assert.Contains(t, text, "not found", identifier)
 		}
-		// Were a tool to reach it, a restricted user's allowlist would still
-		// stop it.
-		denied := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", globalHost.ID), nil,
-			http.StatusForbidden, bearer(everyTool.Token))
-		assert.Contains(t, readBody(denied), auth.EndpointRestrictionDeniedMessage)
 
 		var resp listActivitiesResponse
 		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &resp, "order_key", "id", "order_direction", "desc", "per_page", "20")
@@ -352,21 +267,33 @@ func (s *integrationEnterpriseTestSuite) TestEmbeddedMCP() {
 		}
 	})
 
-	t.Run("requests on the internal connection are held to the caller's allowlist", func(t *testing.T) {
-		u := restricted("internal", "get_fleets")
-		resp := s.doMCPInternal(t, "GET", "/api/v1/fleet/fleets", nil, u.Token)
+	t.Run("the internal connection skips the allowlist only for the tools' routes", func(t *testing.T) {
+		resp := s.doMCPInternal(t, "GET", "/api/v1/fleet/hosts/count", mcpOnly.Token)
 		assert.Equal(t, http.StatusOK, resp.StatusCode, readBody(resp))
-		for _, req := range []struct {
-			method, path string
-			body         any
-		}{
-			{"GET", "/api/v1/fleet/hosts/count", nil},
-			{"GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/recovery_lock_password", globalHost.ID), nil},
-			{"POST", "/api/v1/fleet/reports/run", map[string]any{"query": "SELECT 1;", "selected": map[string]any{"hosts": []uint{globalHost.ID}}}},
+		for _, req := range []struct{ method, path string }{
+			{"GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/recovery_lock_password", globalHost.ID)},
+			{"GET", "/api/v1/fleet/users"},
+			{"DELETE", fmt.Sprintf("/api/v1/fleet/hosts/%d", globalHost.ID)},
 		} {
-			resp := s.doMCPInternal(t, req.method, req.path, req.body, u.Token)
+			resp := s.doMCPInternal(t, req.method, req.path, mcpOnly.Token)
 			assert.Equal(t, http.StatusForbidden, resp.StatusCode, req.path)
 			assert.Contains(t, readBody(resp), auth.EndpointRestrictionDeniedMessage, req.path)
+		}
+
+		// Outside the internal connection, the same token gets no exemption.
+		for _, r := range fleetmcp.EmbeddedRoutes {
+			segs := strings.Split(r.Path, "/")
+			for i, seg := range segs {
+				if strings.HasPrefix(seg, ":") {
+					segs[i] = "1"
+				}
+			}
+			var body []byte
+			if r.Method == http.MethodPost {
+				body = []byte("{}")
+			}
+			resp := s.DoRawWithHeaders(r.Method, strings.Join(segs, "/"), body, http.StatusForbidden, bearer(mcpOnly.Token))
+			assert.Contains(t, readBody(resp), auth.EndpointRestrictionDeniedMessage, r.Path)
 		}
 	})
 
@@ -392,7 +319,7 @@ func (s *integrationEnterpriseTestSuite) TestEmbeddedMCP() {
 		t.Setenv("FLEET_LIVE_QUERY_REST_PERIOD", "2s")
 		s.lq.On("RunQuery", mock.Anything, mock.Anything, []uint{globalHost.ID}).Return(nil).Run(func(mock.Arguments) { campaigns.Add(1) })
 
-		c := s.newMCPClient(t, bearer(everyTool.Token))
+		c := s.newMCPClient(t, bearer(mcpOnly.Token))
 		start := time.Now()
 		text := callMCPTool(t, c, "run_live_query", map[string]any{
 			"sql":      "SELECT version FROM os_version;",
@@ -408,7 +335,7 @@ func (s *integrationEnterpriseTestSuite) TestEmbeddedMCP() {
 			var resp listActivitiesResponse
 			s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &resp, "order_key", "id", "order_direction", "desc", "per_page", "5")
 			for _, a := range resp.Activities {
-				if a.Type == liveQueryActivity && a.ActorID != nil && *a.ActorID == everyTool.User.ID {
+				if a.Type == liveQueryActivity && a.ActorID != nil && *a.ActorID == mcpOnly.User.ID {
 					return true
 				}
 			}
@@ -417,12 +344,18 @@ func (s *integrationEnterpriseTestSuite) TestEmbeddedMCP() {
 	})
 
 	// Campaign creation and the results websocket both go through the in-memory
-	// connection with the caller's token.
+	// connection with the caller's token. Asleep hosts let the campaign finish
+	// as soon as Fleet reports no online targets.
 	t.Run("a multi-host live query streams results over the internal connection", func(t *testing.T) {
-		c := s.newMCPClient(t, bearer(everyTool.Token))
+		ids := []uint{asleep[0].ID, asleep[1].ID}
+		s.lq.On("RunQuery", mock.Anything, mock.Anything, mock.MatchedBy(func(got []uint) bool {
+			return len(got) == 2 && ((got[0] == ids[0] && got[1] == ids[1]) || (got[0] == ids[1] && got[1] == ids[0]))
+		})).Return(nil).Run(func(mock.Arguments) { campaigns.Add(1) })
+
+		c := s.newMCPClient(t, bearer(mcpOnly.Token))
 		text := callMCPTool(t, c, "run_live_query", map[string]any{
 			"sql":      "SELECT version FROM os_version;",
-			"host_ids": fmt.Sprintf("%d,%d", asleepIDs[0], asleepIDs[1]),
+			"host_ids": fmt.Sprintf("%d,%d", ids[0], ids[1]),
 		})
 		var res struct {
 			Results struct {
