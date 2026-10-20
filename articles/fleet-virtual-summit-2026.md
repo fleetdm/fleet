@@ -1,5 +1,7 @@
 # Join the Fleet Virtual Summit 2026
 
+![Fleet Virtual Summit 2026](../website/assets/images/articles/fleet-virtual-summit-graphic-1200x627@2x.png)
+
 Fleet is hosting its first virtual summit on Tuesday, November 10, 2026, at 11 AM ET / 8 AM PT / 4 PM GMT. Four panels of IT and security practitioners will talk about how GitOps, open source, and AI agents get device management to 2027 and beyond. It streams free on LinkedIn Live.
 
 ## What to expect
@@ -138,4 +140,5 @@ The devices IT manages, the tools it uses, and the skills the job requires will 
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="publishedOn" value="2026-10-02">
 <meta name="articleTitle" value="Join the Fleet Virtual Summit 2026">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-virtual-summit-graphic-1200x627@2x.png">
 <meta name="description" value="Fleet's first virtual summit is November 10 on LinkedIn Live: four free panels on GitOps, open source, AI agents, and device management in 2030.">
