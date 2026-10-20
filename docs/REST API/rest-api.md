@@ -1808,7 +1808,6 @@ None.
     "okta_assertion_consumer_service_url": "https://example.okta.com/sso/saml2/0ogmbinlfy9hvGs7cx492",
     "okta_audience_uri": "https://www.okta.com/saml2/service-provider/asdhjlksoewpoasn",
     "okta_certificate": "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----",
-    "google_api_key_json": "********",
     "bypass_disabled": false
   },
   "host_expiry_settings": {
@@ -2061,6 +2060,20 @@ None.
          }
       }
     ],
+    "google_conditional_access": [
+      {
+        "api_key_json": {
+           "type": "service_account",
+           "project_id": "fleet-conditional-access",
+           "private_key_id": "<private key id>",
+           "private_key": "-----BEGIN PRIVATE KEY-----\n<private key>\n-----END PRIVATE KEY-----\n",
+           "client_email": "fleet-conditional-access@fleet-conditional-access.iam.gserviceaccount.com",
+           "client_id": "<client id>",
+           "token_uri": "https://oauth2.googleapis.com/token",
+           "universe_domain": "googleapis.com"
+         }
+      }
+    ],
     "jira": [],
     "zendesk": [],
     "certificates_idp_introspection_urls": [],
@@ -2208,7 +2221,6 @@ Modifies the Fleet's configuration with the supplied information.
     "okta_assertion_consumer_service_url": "https://example.okta.com/sso/saml2/0ogmbinlfy9hvGs7cx492",
     "okta_audience_uri": "https://www.okta.com/saml2/service-provider/asdhjlksoewpoasn",
     "okta_certificate": "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----",
-    "google_api_key_json": "********",
     "bypass_disabled": false
   },
   "host_expiry_settings": {
@@ -2424,6 +2436,11 @@ Modifies the Fleet's configuration with the supplied information.
       {
         "domain": "",
         "impersonated_user_email": "",
+        "api_key_json": null
+      }
+    ],
+    "google_conditional_access": [
+      {
         "api_key_json": null
       }
     ],
@@ -2797,6 +2814,7 @@ _Available in Fleet Premium._
 | zendesk         | array  | See [`integrations.zendesk`](#integrations-zendesk).                 |
 | google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar). |
 | google_workspace | array | See [`integrations.google_workspace`](#integrations-google-workspace). |
+| google_conditional_access | array | See [`integrations.google_conditional_access`](#integrations-google-conditional-access). |
 
 <br/>
 
@@ -2859,6 +2877,18 @@ _Available in Fleet Premium._
 
 <br/>
 
+##### integrations.google_conditional_access
+
+_Available in Fleet Premium._
+
+`integrations.google_conditional_access` is an array of objects with the following structure. When set, Fleet marks iOS, iPadOS, and Android hosts as managed in Google so that Google Context-Aware Access can block sign-in from hosts that aren't managed by Fleet. Only global admins can set it. To remove it, set it to `[]`.
+
+| Name         | Type   | Description |
+| ------------ | ------ | ----------- |
+| api_key_json | object | The service account JSON key (with domain-wide delegation enabled) used to mark hosts as managed in Google. Use a separate service account from `google_calendar` and `google_workspace`. |
+
+<br/>
+
 ##### Example request body
 
 ```json
@@ -2887,6 +2917,11 @@ _Available in Fleet Premium._
         "impersonated_user_email": "admin@example.com",
         "api_key_json": "<API KEY JSON>"
       }
+    ],
+    "google_conditional_access": [
+      {
+        "api_key_json": "<API KEY JSON>"
+      }
     ]
   }
 }
@@ -2902,10 +2937,9 @@ _Available in Fleet Premium._
 | okta_assertion_consumer_service_url | string  | The assertion consumer service URL found in Okta after creating an IdP in **Security** > **Identity Providers** > **SAML 2.0 IdP**      |
 | okta_audience_uri                   | string  | The audience URI found in Okta after creating an IdP in **Security** > **Identity Providers** > **SAML 2.0 IdP**      |
 | okta_certificate                    | string  | The certificate provided by Okta during the **Set Up Authenticator** workflow      |
-| google_api_key_json                 | object  | The service account JSON key used to mark iOS, iPadOS, and Android hosts as managed in Google. The service account must have domain-wide delegation enabled. Only global admins can set this. Returned as `"********"` in responses. To remove it, set to `null`. |
 | bypass_disabled                    | boolean  | Disables the per-policy setting to allow bypassing Okta conditional access. (Default: `false`.) |
 
-When updating Okta conditional access config, all `okta_*` fields must either be empty or included in the request.
+When updating conditional access config, all `conditional_access` fields must either be empty or included in the request.
 
 ##### Example request body
 
@@ -2916,19 +2950,6 @@ When updating Okta conditional access config, all `okta_*` fields must either be
     "okta_assertion_consumer_service_url": "https://example.okta.com/sso/saml2/0ogmbinlfy9hvGs7cx492",
     "okta_audience_uri": "https://www.okta.com/saml2/service-provider/asdhjlksoewpoasn",
     "okta_certificate": "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----",
-    "google_api_key_json": {
-      "type": "service_account",
-      "project_id": "fleet-conditional-access",
-      "private_key_id": "<private key id>",
-      "private_key": "-----BEGIN PRIVATE KEY-----\n<private key>\n-----END PRIVATE KEY-----\n",
-      "client_email": "fleet-conditional-access@fleet-conditional-access.iam.gserviceaccount.com",
-      "client_id": "<client id>",
-      "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-      "token_uri": "https://oauth2.googleapis.com/token",
-      "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-      "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/fleet-conditional-access%40fleet-conditional-access.iam.gserviceaccount.com",
-      "universe_domain": "googleapis.com"
-    },
     "bypass_disabled": false
   }
 }
