@@ -520,6 +520,63 @@ describe("ManageHostsPage", () => {
     ).not.toBeDisabled();
   });
 
+  it.each([
+    { tier: "Free", isPremiumTier: false, hasSelection: false },
+    { tier: "Premium", isPremiumTier: true, hasSelection: true },
+  ])(
+    "offers host selection for bulk delete to a technician on Fleet $tier: $hasSelection",
+    async ({ isPremiumTier, hasSelection }) => {
+      setupHandlers(1, [
+        {
+          id: 1,
+          hostname: "test-host",
+          display_name: "test-host",
+          status: "online",
+          platform: "darwin",
+          team_id: null,
+          issues: { total_issues_count: 0, failing_policies_count: 0 },
+        },
+      ]);
+      mockServer.use(
+        http.get(baseUrl("/fleets"), () => {
+          return HttpResponse.json({
+            teams: [{ id: 1, name: "Team 1", description: "" }],
+          });
+        })
+      );
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            ...mockAppContext,
+            isPremiumTier,
+            isFreeTier: !isPremiumTier,
+            availableTeams: [createMockTeamSummary({ id: 1, name: "Team 1" })],
+            setCurrentTeam: jest.fn(),
+            isGlobalAdmin: false,
+            isGlobalTechnician: true,
+            currentUser: createMockUser({ global_role: "technician" }),
+          },
+        },
+      });
+
+      // Free redirects away any fleet_id; Premium waits for a valid one.
+      const fleetId = isPremiumTier ? "1" : undefined;
+      const props = createMockProps({
+        location: {
+          pathname: "/hosts/manage",
+          search: fleetId ? `?fleet_id=${fleetId}` : "",
+          hash: "",
+          query: fleetId ? { fleet_id: fleetId } : {},
+        },
+      });
+      render(<ManageHostsPage {...(props as any)} />);
+
+      expect(await screen.findByText("1 host")).toBeInTheDocument();
+      expect(screen.queryAllByRole("checkbox").length > 0).toBe(hasSelection);
+    }
+  );
+
   it("substitutes the display-only 'agent' column with real fields when exporting to CSV", async () => {
     const mockHost = {
       id: 1,

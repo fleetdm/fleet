@@ -208,6 +208,46 @@ func (s *integrationTestSuite) TestBulkDeleteHostsErrors() {
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusBadRequest, &resp)
 }
 
+func (s *integrationTestSuite) TestTechnicianCannotDeleteHostsOnFree() {
+	t := s.T()
+	ctx := t.Context()
+
+	hosts := s.createHosts(t)
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hosts[1].ID})))
+
+	newTechnicianSession := func(email string, globalRole *string, teams []fleet.UserTeam) string {
+		u := &fleet.User{Name: email, Email: email, GlobalRole: globalRole, Teams: teams}
+		require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
+		u, err := s.ds.NewUser(ctx, u)
+		require.NoError(t, err)
+		return createSession(t, u.ID, s.ds).Key
+	}
+	globalTechnician := newTechnicianSession("free.global.technician@example.com", new(fleet.RoleTechnician), nil)
+	teamTechnician := newTechnicianSession("free.team.technician@example.com", nil,
+		[]fleet.UserTeam{{Team: *team, Role: fleet.RoleTechnician}})
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	teamFilter := &map[string]any{"team_id": float64(team.ID)}
+
+	s.token = globalTechnician
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusPaymentRequired)
+	s.Do("POST", "/api/latest/fleet/hosts/delete", deleteHostsRequest{IDs: []uint{hosts[0].ID}}, http.StatusPaymentRequired)
+	s.Do("POST", "/api/latest/fleet/hosts/delete", deleteHostsRequest{Filters: teamFilter}, http.StatusPaymentRequired)
+
+	s.token = teamTechnician
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[1].ID), nil, http.StatusPaymentRequired)
+	s.Do("POST", "/api/latest/fleet/hosts/delete", deleteHostsRequest{IDs: []uint{hosts[1].ID}}, http.StatusPaymentRequired)
+	s.Do("POST", "/api/latest/fleet/hosts/delete", deleteHostsRequest{Filters: teamFilter}, http.StatusPaymentRequired)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusNotFound)
+
+	for _, h := range hosts {
+		_, err := s.ds.HostLite(ctx, h.ID)
+		require.NoError(t, err)
+	}
+}
+
 func (s *integrationTestSuite) TestHostsCount() {
 	t := s.T()
 
