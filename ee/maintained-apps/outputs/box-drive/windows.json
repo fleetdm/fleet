@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.54.169",
+      "version": "2.55.140",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Box' AND publisher = 'Box, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Box' AND publisher = 'Box, Inc.' AND version_compare(version, '2.54.169') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Box' AND publisher = 'Box, Inc.' AND version_compare(version, '2.55.140') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'box drive.exe');"
       },
       "installer_url": "https://e3.boxcdn.net/desktop/releases/win/BoxDrive.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "13b5870c",
-      "sha256": "5a9e027d1a6f3b70a70172ceb11a83fd585ea2889ac7890326dce7224f019bb7",
+      "sha256": "8501ddccea04cd7cda50bd35f9999b41e6dfd21f404ce3e854058f199cb36daf",
       "default_categories": [
         "Productivity"
       ],

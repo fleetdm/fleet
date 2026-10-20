@@ -2680,6 +2680,50 @@ func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 	require.True(t, ds.SetHostMDMAppleEnrollmentPermissionsFuncInvoked)
 }
 
+func TestMDMAuthenticateAccountDrivenUserEnrollment(t *testing.T) {
+	ds := new(mock.Store)
+	mdmLifecycle := mdmlifecycle.New(ds, slog.New(slog.DiscardHandler), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil })
+	svc := MDMAppleCheckinAndCommandService{
+		notificationsSvc: &mock.MockNotificationsService{},
+		ds:               ds,
+		mdmLifecycle:     mdmLifecycle,
+		keyValueStore:    redis_key_value.New(redistest.NopRedis()),
+		logger:           slog.New(slog.DiscardHandler),
+	}
+	ctx := t.Context()
+	enrollID, productName := "B24CC50B-75F5-4FF2-8D2C-25B4CD900703", "iPad15,7"
+
+	ds.MDMAppleUpsertHostFunc = func(ctx context.Context, mdmHost *fleet.Host, personalType fleet.PersonalEnrollmentType) error {
+		require.Equal(t, enrollID, mdmHost.UUID)
+		require.Equal(t, fleet.PersonalEnrollmentTypeAccountDriven, personalType)
+		return nil
+	}
+	ds.GetHostMDMCheckinInfoFunc = func(ct context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
+		require.Equal(t, enrollID, hostUUID)
+		return &fleet.HostMDMCheckinInfo{}, nil
+	}
+	ds.MDMResetEnrollmentFunc = func(ctx context.Context, hostUUID string, scepRenewalInProgress bool) error {
+		require.Equal(t, enrollID, hostUUID)
+		return nil
+	}
+	ds.SetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string, accessRights int) error {
+		require.Equal(t, enrollID, hostUUID)
+		require.Equal(t, apple_mdm.AppleEnrollmentAccessRights(true), accessRights)
+		return nil
+	}
+
+	err := svc.Authenticate(
+		&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: enrollID, Type: mdm.UserEnrollmentDevice}},
+		&mdm.Authenticate{
+			EnrollmentID: enrollID,
+			ProductName:  productName,
+		},
+	)
+	require.NoError(t, err)
+	require.True(t, ds.MDMAppleUpsertHostFuncInvoked)
+	require.True(t, ds.SetHostMDMAppleEnrollmentPermissionsFuncInvoked)
+}
+
 func TestMDMAuthenticateADE(t *testing.T) {
 	ds := new(mock.Store)
 	mdmLifecycle := mdmlifecycle.New(ds, slog.New(slog.DiscardHandler), func(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error { return nil })
@@ -9861,6 +9905,17 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			)),
 			errMsg: "",
 			vars:   []string{"HOST_END_USER_IDP_FULL_NAME"},
+		},
+		{
+			name: "Custom profile with IdP external ID var",
+			profile: string(scopedMobileconfigForTest(
+				"ExternalID Var",
+				"com.example.externalid",
+				nil,
+				"HOST_END_USER_IDP_EXTERNAL_ID", // will be prefixed to $FLEET_VAR_ by helper
+			)),
+			errMsg: "",
+			vars:   []string{"HOST_END_USER_IDP_EXTERNAL_ID"},
 		},
 	}
 	for _, tc := range cases {
