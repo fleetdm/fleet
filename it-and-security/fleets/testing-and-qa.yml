@@ -76,8 +76,8 @@ controls:
     enable_end_user_authentication: true
     apple_setup_assistant:
   macos_updates:
-    deadline:
-    minimum_version:
+    deadline: "2026-10-27"
+    minimum_version: "27.0.1"
   enable_disk_encryption: true
   scripts:
     # macOS scripts
