@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.2",
+      "version": "2.2.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'codes.rambo.VirtualBuddy';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'codes.rambo.VirtualBuddy' AND version_compare(bundle_short_version, '2.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'codes.rambo.VirtualBuddy' AND version_compare(bundle_short_version, '2.2.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'codes.rambo.VirtualBuddy' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/insidegui/VirtualBuddy/releases/download/2.2/VirtualBuddy_v2.2-428.dmg",
+      "installer_url": "https://github.com/insidegui/VirtualBuddy/releases/download/2.2.1/VirtualBuddy_v2.2.1-430.dmg",
       "install_script_ref": "9d749b66",
       "uninstall_script_ref": "335b859b",
-      "sha256": "7e672ebca6aec1e7de3adecb6cbbdf978f68dabe5406e48f22187f5dedc98339",
+      "sha256": "16fac6dddbb012548911c0a6807a882e8df5b5b4897a218923b108aaa333fc63",
       "default_categories": [
         "Productivity"
       ]
