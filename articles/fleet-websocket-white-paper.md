@@ -9,6 +9,11 @@ description: "Fleet cut managed cloud infrastructure costs by replacing agent po
 
 # How Fleet cut infrastructure costs by more than half with WebSockets
 
+**Sharon Katz** and **Lucas Emanuel Rodriguez**
+Fleet Device Management | October 2026
+
+---
+
 ## Executive summary
 
 Every device management platform in production today uses the same architecture: agents poll the server on a fixed interval asking for work, and the server almost always responds with nothing. At scale, this creates extraordinary waste. Fleet measured it: **99.7% of all polling requests return empty responses**.
