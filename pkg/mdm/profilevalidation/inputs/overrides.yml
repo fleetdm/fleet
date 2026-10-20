@@ -14,9 +14,20 @@ loosen:
     reason: >-
       Apple's schema says string, but it-and-security's fleet-okta-conditional-access profile sends
       a list of URIs and is deployed.
+  - kind: apple_profile
+    payload_type: com.apple.applicationaccess
+    key_path: NoSuchKey
+    action: any
+    reason: Temporary, to test PR error comments.
+
 
 # add: keys Apple's schema doesn't list but devices accept.
 add:
+  - kind: apple_profile
+    payload_type: com.apple.applicationaccess
+    name: allowCamera
+    key: {type: boolean}
+    reason: Temporary, to test PR warning comments.
   - kind: apple_profile
     payload_type: TopLevel
     name: PayloadEnabled
