@@ -1,4 +1,4 @@
-import { validateQuery } from "components/forms/validators";
+import { validateQuery } from "components/forms/validators/validate_query";
 
 import {
   IFleetMaintainedAppFormData,

@@ -10,7 +10,7 @@ import Button from "components/buttons/Button";
 import Dropdown from "components/forms/fields/Dropdown";
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio";
-import { validateQuery } from "components/forms/validators";
+import { validateQuery } from "components/forms/validators/validate_query";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import MainContent from "components/MainContent";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";

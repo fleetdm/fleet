@@ -2,7 +2,10 @@ import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import React from "react";
 
-import { EMPTY_QUERY_ERR, validateQuery } from "components/forms/validators";
+import {
+  EMPTY_QUERY_ERR,
+  validateQuery,
+} from "components/forms/validators/validate_query";
 import mockServer from "test/mock-server";
 import { baseUrl, createCustomRenderer } from "test/test-utils";
 

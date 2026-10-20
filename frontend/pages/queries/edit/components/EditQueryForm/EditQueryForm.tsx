@@ -21,7 +21,10 @@ import Dropdown from "components/forms/fields/Dropdown";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Slider from "components/forms/fields/Slider";
-import { validateQuery, EMPTY_QUERY_ERR } from "components/forms/validators";
+import {
+  validateQuery,
+  EMPTY_QUERY_ERR,
+} from "components/forms/validators/validate_query";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Icon from "components/Icon/Icon";
 import LogDestinationIndicator from "components/LogDestinationIndicator";
