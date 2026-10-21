@@ -80,7 +80,7 @@ If you would like to use Fleet's Android features, the following endpoints need 
 - `/api/*/fleet/android_enterprise/pubsub`: Allows Fleet to receive enrollment and status report [notifications from the Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises).
 - `/api/fleetd/*`: Allows deploying certificates for [connecting end users to Wi-Fi/VPN](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#basic-article).
 
-These endpoints are inbound. Android MDM also needs your Fleet server to reach fleetdm.com (outbound). See [Outbound connections](https://fleetdm.com/docs/deploy/reference-architectures#outbound-connections).
+These endpoints are inbound. Android MDM also needs your Fleet server to reach fleetdm.com (outbound). See [Android MDM](https://fleetdm.com/docs/deploy/reference-architectures#android-mdm).
 
 ## SCEP proxy
 

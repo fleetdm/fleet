@@ -127,77 +127,104 @@ Environment="NO_PROXY=localhost,127.0.0.1,::1"
 
 > Note: If HTTP_PROXY/HTTPS_PROXY points at a loopback or private address, Fleet's private network blocking may block it. See [server_allow_private_network_integrations](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-allow-private-network-integrations).
 
-Also, allow the Fleet server to reach the following routes.
+Also, allow the Fleet server to reach the following routes over HTTPS (port 443) for the features you use.
 
-### Fleet
+### Apple MDM
 
-| Destination | Used for | When |
-|---|---|---|
-| `fleetdm.com/api/android/*` | Android MDM. Fleet calls the [Android Management API](https://developers.google.com/android/management) through this proxy, so the Fleet server doesn't need to reach Google. See [Android endpoints](#android-endpoints). | Android MDM is turned on |
-| `fleetdm.com/api/v1/microsoft-compliance-partner*` | [Microsoft Entra conditional access](https://fleetdm.com/guides/entra-conditional-access-integration). Fleet reaches Entra through this proxy. | Entra conditional access is set up |
-| `fleetdm.com/api/v1/deliver-apple-csr` | Getting a signed certificate signing request (CSR) for an Apple Push Notification service (APNs) certificate. | Turning on Apple MDM or renewing APNs |
-| `fleetdm.com/api/vpp/v1/*` | App Store app details, like names, icons, and versions. | App Store (VPP) apps are added |
-| `fleetdm.com/api/v1/webhooks/receive-usage-analytics` | [Usage statistics](https://fleetdm.com/guides/fleet-usage-statistics). | Default. Fleet Free can turn it off with `server_settings.enable_analytics` |
-| `fleetdm.com/api/v1/get-human-interpretation-from-osquery-sql` | Autofilling a policy's description and resolution. | Default. Turn off with `server_settings.ai_features_disabled` |
-| `maintained-apps.fleetdm.com` | The Fleet-maintained apps catalog. Fleet also downloads each app's installer from its vendor's URL. | Fleet Premium |
-| `raw.githubusercontent.com/fleetdm/fleet/*` | A fallback for the Fleet-maintained apps catalog. | If `maintained-apps.fleetdm.com` is unreachable |
-| `download.fleetdm.com` | Installing Fleet's agent (fleetd) on Windows hosts with MDM. | Windows MDM is turned on |
-
-#### Android MDM
-
-Allowlist the whole `fleetdm.com/api/android/*` prefix, because new endpoints are added over time. Current endpoints:
-
-- `POST /api/android/v1/signupUrls`
-- `POST /api/android/v1/enterprises`
-- `GET /api/android/v1/enterprises`
-- `DELETE /api/android/v1/enterprises/:enterpriseId`
-- `POST /api/android/v1/enterprises/:enterpriseId/enrollmentTokens`
-- `PATCH /api/android/v1/enterprises/:enterpriseId/policies/:policyId`
-- `POST /api/android/v1/enterprises/:enterpriseId/policies/:policyId::action`
-- `GET /api/android/v1/enterprises/:enterpriseId/devices`
-- `GET /api/android/v1/enterprises/:enterpriseId/devices/:deviceId`
-- `PATCH /api/android/v1/enterprises/:enterpriseId/devices/:deviceId`
-- `DELETE /api/android/v1/enterprises/:enterpriseId/devices/:deviceId`
-- `POST /api/android/v1/enterprises/:enterpriseId/devices/:deviceId::issueCommand`
-- `GET /api/android/v1/enterprises/:enterpriseId/devices/:deviceId/operations/:operationId`
-- `GET /api/android/v1/enterprises/:enterpriseId/applications/:applicationId`
-- `POST /api/android/v1/enterprises/:enterpriseId/webApps`
-
-#### Vulnerability processing
-
-| Destination | Used for |
+| Route | Reason |
 |---|---|
-| `api.github.com` and `github.com` (`fleetdm/nvd` and `fleetdm/vulnerabilities` releases) | CPE dictionary, CVE feeds, Microsoft (MSRC and Office) bulletins, OSV, Go vulnerability data, and OVAL sources. GitHub redirects release downloads to its asset hosts, so allow those too. |
-| `epss.empiricalsecurity.com` | Exploit Prediction Scoring System (EPSS) scores. |
-| `www.cisa.gov` | CISA's Known Exploited Vulnerabilities (KEV) catalog. |
-| Upstream OVAL sources | Linux distributions that OSV doesn't cover, like Fedora. The sources are listed in [`oval_sources.json`](https://github.com/fleetdm/nvd/blob/master/oval_sources.json). |
+| `fleetdm.com/api/v1/deliver-apple-csr` | Get a signed certificate signing request (CSR) for your Apple Push Notification service (APNs) certificate. |
+| `api.push.apple.com` | Send MDM commands to hosts through APNs. |
+| `mdmenrollment.apple.com` | Automatic enrollment (ADE) with Apple Business Manager (ABM). |
+| `gdmf.apple.com` | Get the latest macOS, iOS, and iPadOS versions for OS updates. |
+
+### Windows MDM
+
+| Route | Reason |
+|---|---|
+| `download.fleetdm.com` | Install Fleet's agent (fleetd) on Windows hosts. |
+| `login.microsoftonline.com` | Verify Windows automatic enrollment with Microsoft Entra, and sign in to Microsoft Graph. |
+| `graph.microsoft.com` | Sync Windows Autopilot devices. |
+
+### Android MDM
+
+Fleet calls the [Android Management API](https://developers.google.com/android/management) through fleetdm.com, so the Fleet server doesn't need to reach Google. Allowlist the whole `fleetdm.com/api/android/*` prefix, because new routes are added over time.
+
+| Route | Reason |
+|---|---|
+| `POST /api/android/v1/signupUrls` | Start connecting Android Enterprise. |
+| `POST /api/android/v1/enterprises` | Create your Android Enterprise. |
+| `GET /api/android/v1/enterprises` | Check your Android Enterprise connection. |
+| `DELETE /api/android/v1/enterprises/:enterpriseId` | Turn off Android MDM. |
+| `POST /api/android/v1/enterprises/:enterpriseId/enrollmentTokens` | Create enrollment tokens so hosts can enroll. |
+| `PATCH /api/android/v1/enterprises/:enterpriseId/policies/:policyId` | Apply configuration profiles and settings. |
+| `POST /api/android/v1/enterprises/:enterpriseId/policies/:policyId::action` | Add or remove apps. |
+| `GET /api/android/v1/enterprises/:enterpriseId/devices` | Sync enrolled hosts. |
+| `GET /api/android/v1/enterprises/:enterpriseId/devices/:deviceId` | Get a host's details. |
+| `PATCH /api/android/v1/enterprises/:enterpriseId/devices/:deviceId` | Update a host's settings. |
+| `DELETE /api/android/v1/enterprises/:enterpriseId/devices/:deviceId` | Unenroll or wipe a host. |
+| `POST /api/android/v1/enterprises/:enterpriseId/devices/:deviceId::issueCommand` | Send commands, like lock. |
+| `GET /api/android/v1/enterprises/:enterpriseId/devices/:deviceId/operations/:operationId` | Check a command's status. |
+| `GET /api/android/v1/enterprises/:enterpriseId/applications/:applicationId` | Get Google Play app details. |
+| `POST /api/android/v1/enterprises/:enterpriseId/webApps` | Create web apps. |
+
+### App Store apps (VPP)
+
+| Route | Reason |
+|---|---|
+| `vpp.itunes.apple.com` | Install App Store apps with Apps and Books (VPP). |
+| `fleetdm.com/api/vpp/v1/*` | Get App Store app details, like names, icons, and versions. |
+| `api.ent.apple.com` | Get App Store app details directly from Apple. Only if `mdm.apple_vpp_app_metadata_api_bearer_token` is set. |
+
+### Fleet-maintained apps
+
+| Route | Reason |
+|---|---|
+| `maintained-apps.fleetdm.com` | Get the Fleet-maintained apps catalog. Fleet also downloads each app's installer from its vendor's URL. |
+| `raw.githubusercontent.com/fleetdm/fleet/*` | A fallback for the catalog, if `maintained-apps.fleetdm.com` is unreachable. |
+
+### Conditional access
+
+| Route | Reason |
+|---|---|
+| `fleetdm.com/api/v1/microsoft-compliance-partner*` | [Microsoft Entra conditional access](https://fleetdm.com/guides/entra-conditional-access-integration). Fleet reaches Entra through fleetdm.com. |
+
+### Vulnerability processing
+
+| Route | Reason |
+|---|---|
+| `api.github.com` and `github.com` (`fleetdm/nvd` and `fleetdm/vulnerabilities` releases) | Download the CPE dictionary, CVE feeds, Microsoft (MSRC and Office) bulletins, OSV, Go vulnerability data, and OVAL sources. GitHub redirects release downloads to its asset hosts, so allow those too. |
+| `epss.empiricalsecurity.com` | Download Exploit Prediction Scoring System (EPSS) scores. |
+| `www.cisa.gov` | Download CISA's Known Exploited Vulnerabilities (KEV) catalog. |
+| Upstream OVAL sources | Download OVAL definitions for Linux distributions that OSV doesn't cover, like Fedora. The sources are listed in [`oval_sources.json`](https://github.com/fleetdm/nvd/blob/master/oval_sources.json). |
 
 You can point some feeds at a mirror with [`cpe_database_url`](https://fleetdm.com/docs/configuration/fleet-server-configuration#cpe-database-url), [`cpe_translations_url`](https://fleetdm.com/docs/configuration/fleet-server-configuration#cpe-translations-url), [`cve_feed_prefix_url`](https://fleetdm.com/docs/configuration/fleet-server-configuration#cve-feed-prefix-url), and [`cisa_known_exploits_url`](https://fleetdm.com/docs/configuration/fleet-server-configuration#cisa-known-exploits-url). To stop all of these downloads, use [`disable_data_sync`](https://fleetdm.com/docs/configuration/fleet-server-configuration#disable-data-sync) and provide the files yourself.
 
-#### Apple
+### Google Calendar
 
-| Destination | Used for | When |
-|---|---|---|
-| `api.push.apple.com` | Sending MDM commands through APNs. | Apple MDM is turned on |
-| `mdmenrollment.apple.com` | Automatic enrollment (ADE) with Apple Business Manager (ABM). | An ABM token is added |
-| `vpp.itunes.apple.com` | Installing App Store apps with Apps and Books (VPP). | A VPP token is added |
-| `api.ent.apple.com` | App Store app details, directly from Apple instead of fleetdm.com. | `mdm.apple_vpp_app_metadata_api_bearer_token` is set |
-| `gdmf.apple.com` | Published macOS, iOS, and iPadOS versions, for OS update settings. | Default |
+| Route | Reason |
+|---|---|
+| `oauth2.googleapis.com` | Sign in to Google. |
+| `www.googleapis.com` | Create calendar events for hosts failing policies. |
 
-#### Microsoft
+### Google Workspace
 
-| Destination | Used for | When |
-|---|---|---|
-| `login.microsoftonline.com` | Verifying Windows automatic enrollment (Autopilot) with Entra, and signing in to Microsoft Graph. | Windows automatic enrollment or Microsoft Graph credentials are set up |
-| `graph.microsoft.com` | Syncing Windows Autopilot devices. | Microsoft Graph credentials are added |
+| Route | Reason |
+|---|---|
+| `oauth2.googleapis.com` | Sign in to Google. |
+| `admin.googleapis.com` | Sync identity provider (IdP) host vitals from your directory. |
 
-#### Google
+### Usage statistics
 
-| Destination | Used for | When |
-|---|---|---|
-| `oauth2.googleapis.com` | Signing in to Google APIs. | Google Calendar or Google Workspace is connected |
-| `www.googleapis.com` | Google Calendar events for failing policies. | Google Calendar is connected |
-| `admin.googleapis.com` | Syncing identity provider (IdP) host vitals from Google Workspace. | Google Workspace is connected |
+| Route | Reason |
+|---|---|
+| `fleetdm.com/api/v1/webhooks/receive-usage-analytics` | Send [usage statistics](https://fleetdm.com/guides/fleet-usage-statistics). On by default. Fleet Free can turn it off with `server_settings.enable_analytics`. |
+
+### Policy autofill
+
+| Route | Reason |
+|---|---|
+| `fleetdm.com/api/v1/get-human-interpretation-from-osquery-sql` | Autofill a policy's description and resolution. On by default. Turn off with `server_settings.ai_features_disabled`. |
 
 ## Public IPs of devices
 
