@@ -1,0 +1,8 @@
+- name: macOS - CrowdStrike Falcon is running
+  query: SELECT 1 FROM processes WHERE name = 'falcond';
+  critical: false
+  description: Checks that the CrowdStrike Falcon sensor (the falcond process) is running on this Mac. If it isn't, the Mac isn't being protected or reporting to CrowdStrike.
+  resolution: |-
+    Falcon should be installed and kept running automatically. If this fails, restart the Mac and refetch in Fleet Desktop.
+    If it still fails, drop a note in #help-it.
+  platform: darwin

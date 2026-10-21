@@ -198,6 +198,7 @@ policies:
   - path: ../lib/macos/policies/gatekeeper-enabled.yml
   - path: ../lib/macos/policies/sip-enabled.yml
   - path: ../lib/macos/policies/remote-login-disabled.yml
+  - path: ../lib/macos/policies/crowdstrike-falcon-running.yml
   - path: ../lib/macos/policies/screen-lock-inactivity.yml
   - path: ../lib/macos/policies/local-admin-count-reasonable.yml
   # Windows policies
