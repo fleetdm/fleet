@@ -24,7 +24,10 @@ cask "hex" do
     "~/.config/hex",
     "~/Library/Application Support/voice-control",
     "~/Library/Caches/com.kitlangton.hex2",
+    "~/Library/Caches/moonshine_voice/download.moonshine.ai/model/small-streaming-en",
+    "~/Library/Cookies/com.kitlangton.hex2.binarycookies",
     "~/Library/HTTPStorages/com.kitlangton.hex2",
+    "~/Library/HTTPStorages/com.kitlangton.hex2.binarycookies",
     "~/Library/Preferences/com.kitlangton.hex2.plist",
     "~/Library/Saved Application State/com.kitlangton.hex2.savedState",
   ]
