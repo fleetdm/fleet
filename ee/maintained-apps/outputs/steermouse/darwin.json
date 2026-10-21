@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.8",
+      "version": "5.8.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'jp.plentycom.app.SteerMouse';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'jp.plentycom.app.SteerMouse' AND version_compare(bundle_short_version, '5.8') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'jp.plentycom.app.SteerMouse' AND version_compare(bundle_short_version, '5.8.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'jp.plentycom.app.SteerMouse' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://plentycom.jp/ctrl/files_sm/SteerMouse5.8.dmg",
+      "installer_url": "https://plentycom.jp/ctrl/files_sm/SteerMouse5.8.1.dmg",
       "install_script_ref": "e8c75799",
       "uninstall_script_ref": "4c055268",
-      "sha256": "f3166054704323c6cdcf7ce25398e92670978e540e4dd30cbb4418ed5548537f",
+      "sha256": "405e8183853919af0fe963755cb19f36474af5cddd790bb18c1bcd8cd9c2639a",
       "default_categories": [
         "Productivity"
       ]
