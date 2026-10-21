@@ -298,14 +298,24 @@ func NewDBConnections(cfg config.MysqlConfig, opts ...DBOption) (*common_mysql.D
 		return nil, err
 	}
 
+	// On a failed step, close the pools opened so far, since the caller gets no handle to them. Cleared on success.
+	var opened []*sqlx.DB
+	defer func() {
+		for _, db := range opened {
+			_ = db.Close()
+		}
+	}()
+
 	dbWriter, err := NewDB(&cfg, options)
 	if err != nil {
 		return nil, err
 	}
+	opened = append(opened, dbWriter)
 	healthWriter, err := newHealthCheckDB(cfg, *options)
 	if err != nil {
 		return nil, fmt.Errorf("health check: %w", err)
 	}
+	opened = append(opened, healthWriter)
 	dbReader := dbWriter
 	var healthReader *sqlx.DB
 	if replicaConf != nil {
@@ -320,12 +330,14 @@ func NewDBConnections(cfg config.MysqlConfig, opts ...DBOption) (*common_mysql.D
 		if err != nil {
 			return nil, err
 		}
+		opened = append(opened, dbReader)
 		healthReader, err = newHealthCheckDB(*replicaConf, replicaOptions)
 		if err != nil {
 			return nil, fmt.Errorf("replica health check: %w", err)
 		}
 	}
 
+	opened = nil
 	return &common_mysql.DBConnections{
 		Primary:       dbWriter,
 		Replica:       dbReader,
