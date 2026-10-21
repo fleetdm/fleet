@@ -159,6 +159,27 @@ func (c *CertificateAuthority) EffectiveEJBCAUsernameTemplate() string {
 	return ""
 }
 
+// EJBCA returns the settings of an EJBCA CA, with the empty value for what isn't set.
+func (c *CertificateAuthority) EJBCA() EJBCA {
+	ejbca := EJBCA{
+		ID:                       c.ID,
+		Name:                     ptr.ValOrZero(c.Name),
+		URL:                      ptr.ValOrZero(c.URL),
+		MTLSCertPEM:              ptr.ValOrZero(c.MTLSCertPEM),
+		MTLSKeyPEM:               ptr.ValOrZero(c.MTLSKeyPEM),
+		TrustCABundlePEM:         ptr.ValOrZero(c.TrustCABundlePEM),
+		CertificateAuthorityName: ptr.ValOrZero(c.EJBCACAName),
+		CertificateProfileName:   ptr.ValOrZero(c.EJBCACertificateProfileName),
+		EndEntityProfileName:     ptr.ValOrZero(c.EJBCAEndEntityProfileName),
+		CertificateCommonName:    ptr.ValOrZero(c.CertificateCommonName),
+		UsernameTemplate:         ptr.ValOrZero(c.EJBCAUsernameTemplate),
+	}
+	if c.CertificateUserPrincipalNames != nil {
+		ejbca.CertificateUserPrincipalNames = *c.CertificateUserPrincipalNames
+	}
+	return ejbca
+}
+
 // ESTProxyCA returns the EST connection settings of a Hydrant or custom EST CA, which store
 // their credentials in different fields.
 func (c *CertificateAuthority) ESTProxyCA() (ESTProxyCA, error) {
@@ -708,25 +729,7 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 				Challenge: *ca.Challenge,
 			})
 		case string(CATypeEJBCA):
-			ejbca := EJBCA{
-				ID:                       ca.ID,
-				Name:                     *ca.Name,
-				URL:                      *ca.URL,
-				MTLSCertPEM:              ptr.ValOrZero(ca.MTLSCertPEM),
-				TrustCABundlePEM:         ptr.ValOrZero(ca.TrustCABundlePEM),
-				CertificateAuthorityName: ptr.ValOrZero(ca.EJBCACAName),
-				CertificateProfileName:   ptr.ValOrZero(ca.EJBCACertificateProfileName),
-				EndEntityProfileName:     ptr.ValOrZero(ca.EJBCAEndEntityProfileName),
-				CertificateCommonName:    ptr.ValOrZero(ca.CertificateCommonName),
-				UsernameTemplate:         ptr.ValOrZero(ca.EJBCAUsernameTemplate),
-			}
-			if ca.MTLSKeyPEM != nil {
-				ejbca.MTLSKeyPEM = *ca.MTLSKeyPEM
-			}
-			if ca.CertificateUserPrincipalNames != nil {
-				ejbca.CertificateUserPrincipalNames = *ca.CertificateUserPrincipalNames
-			}
-			grouped.EJBCA = append(grouped.EJBCA, ejbca)
+			grouped.EJBCA = append(grouped.EJBCA, ca.EJBCA())
 		case string(CATypeSmallstep):
 			grouped.Smallstep = append(grouped.Smallstep, SmallstepSCEPProxyCA{
 				ID:           ca.ID,

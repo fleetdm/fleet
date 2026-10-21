@@ -856,21 +856,28 @@ func (ds *Datastore) generateUpdateQueryWithArgs(ctx context.Context, ca *fleet.
 		for _, f := range []struct {
 			column string
 			value  *string
+			// optional fields are stored as NULL when emptied, as they are when they are not set on create
+			optional bool
 		}{
-			{"name", ca.Name},
-			{"url", ca.URL},
-			{"certificate_common_name", ca.CertificateCommonName},
-			{"mtls_cert_pem", ca.MTLSCertPEM},
-			{"trust_ca_bundle_pem", ca.TrustCABundlePEM},
-			{"ejbca_ca_name", ca.EJBCACAName},
-			{"ejbca_certificate_profile_name", ca.EJBCACertificateProfileName},
-			{"ejbca_end_entity_profile_name", ca.EJBCAEndEntityProfileName},
-			{"ejbca_username_template", ca.EJBCAUsernameTemplate},
+			{"name", ca.Name, false},
+			{"url", ca.URL, false},
+			{"certificate_common_name", ca.CertificateCommonName, false},
+			{"mtls_cert_pem", ca.MTLSCertPEM, false},
+			{"trust_ca_bundle_pem", ca.TrustCABundlePEM, true},
+			{"ejbca_ca_name", ca.EJBCACAName, false},
+			{"ejbca_certificate_profile_name", ca.EJBCACertificateProfileName, false},
+			{"ejbca_end_entity_profile_name", ca.EJBCAEndEntityProfileName, false},
+			{"ejbca_username_template", ca.EJBCAUsernameTemplate, true},
 		} {
-			if f.value != nil {
-				updates = append(updates, f.column+" = ?")
-				*args = append(*args, *f.value)
+			if f.value == nil {
+				continue
 			}
+			if f.optional {
+				updates = append(updates, f.column+" = NULLIF(?, '')")
+			} else {
+				updates = append(updates, f.column+" = ?")
+			}
+			*args = append(*args, *f.value)
 		}
 		if ca.MTLSKeyPEM != nil {
 			updates = append(updates, "mtls_key_encrypted = ?")
@@ -881,12 +888,16 @@ func (ds *Datastore) generateUpdateQueryWithArgs(ctx context.Context, ca *fleet.
 			*args = append(*args, encryptedMTLSKey)
 		}
 		if ca.CertificateUserPrincipalNames != nil {
-			updates = append(updates, "certificate_user_principal_names = ?")
-			upns, err := json.Marshal(*ca.CertificateUserPrincipalNames)
-			if err != nil {
-				return "", ctxerr.Wrap(ctx, err, "marshalling certificate user principal names for updating certificate authority")
+			if len(*ca.CertificateUserPrincipalNames) == 0 {
+				updates = append(updates, "certificate_user_principal_names = NULL")
+			} else {
+				updates = append(updates, "certificate_user_principal_names = ?")
+				upns, err := json.Marshal(*ca.CertificateUserPrincipalNames)
+				if err != nil {
+					return "", ctxerr.Wrap(ctx, err, "marshalling certificate user principal names for updating certificate authority")
+				}
+				*args = append(*args, upns)
 			}
-			*args = append(*args, upns)
 		}
 	default:
 		return "", fmt.Errorf("unknown certificate authority type: %s", ca.Type)

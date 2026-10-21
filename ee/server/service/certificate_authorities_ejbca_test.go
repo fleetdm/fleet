@@ -1,6 +1,7 @@
 package service
 
 import (
+	"cmp"
 	"context"
 	"encoding/base64"
 	"errors"
@@ -131,12 +132,12 @@ func TestValidateEJBCAFields(t *testing.T) {
 		{
 			name:    "unsupported variable in the common name",
 			modify:  func(p *fleet.EJBCA) { p.CertificateCommonName = "$FLEET_VAR_HOST_END_USER_IDP_USERNAME_X" },
-			wantErr: "FLEET_VAR_HOST_END_USER_IDP_USERNAME_X is not allowed in the common name",
+			wantErr: "FLEET_VAR_HOST_END_USER_IDP_USERNAME_X is not allowed in CA Common Name (CN)",
 		},
 		{
 			name:    "unsupported variable in the username template",
 			modify:  func(p *fleet.EJBCA) { p.UsernameTemplate = "$FLEET_VAR_DIGICERT_DATA_X" },
-			wantErr: "FLEET_VAR_DIGICERT_DATA_X is not allowed in the username template",
+			wantErr: "FLEET_VAR_DIGICERT_DATA_X is not allowed in EJBCA Username Template",
 		},
 		{
 			name:    "more than one UPN",
@@ -146,7 +147,7 @@ func TestValidateEJBCAFields(t *testing.T) {
 		{
 			name:    "blank UPN",
 			modify:  func(p *fleet.EJBCA) { p.CertificateUserPrincipalNames = []string{" "} },
-			wantErr: "user principal name cannot be empty",
+			wantErr: "EJBCA certificate_user_principal_name cannot be empty if specified",
 		},
 		{
 			name:    "UPN too long",
@@ -156,7 +157,7 @@ func TestValidateEJBCAFields(t *testing.T) {
 		{
 			name:    "unsupported variable in the UPN",
 			modify:  func(p *fleet.EJBCA) { p.CertificateUserPrincipalNames = []string{"$FLEET_VAR_NDES_SCEP_CHALLENGE"} },
-			wantErr: "FLEET_VAR_NDES_SCEP_CHALLENGE is not allowed in the user principal name",
+			wantErr: "FLEET_VAR_NDES_SCEP_CHALLENGE is not allowed in CA User Principal Name",
 		},
 	}
 	for _, tt := range tests {
@@ -183,10 +184,12 @@ func TestReadEJBCAClientP12(t *testing.T) {
 		p12      string
 		password string
 		wantErr  string
+		// wantField is the field the error is on, client_p12 unless set.
+		wantField string
 	}{
 		{name: "valid", p12: p12s.valid, password: ejbcaP12Password},
 		{name: "no PKCS#12", password: ejbcaP12Password, wantErr: "client certificate PKCS#12 cannot be empty"},
-		{name: "no password", p12: p12s.valid, wantErr: "PKCS#12 password cannot be empty"},
+		{name: "no password", p12: p12s.valid, wantErr: "PKCS#12 password cannot be empty", wantField: "password"},
 		{name: "not base64", p12: "%%%", password: ejbcaP12Password, wantErr: "must be base64 encoded"},
 		{
 			name:     "not a PKCS#12",
@@ -194,7 +197,7 @@ func TestReadEJBCAClientP12(t *testing.T) {
 			password: ejbcaP12Password,
 			wantErr:  "Couldn't read the PKCS#12 file",
 		},
-		{name: "wrong password", p12: p12s.valid, password: "wrong", wantErr: "PKCS#12 password is incorrect"},
+		{name: "wrong password", p12: p12s.valid, password: "wrong", wantErr: "PKCS#12 password is incorrect", wantField: "password"},
 		{
 			name:     "expired",
 			p12:      p12s.expired,
@@ -213,6 +216,9 @@ func TestReadEJBCAClientP12(t *testing.T) {
 			creds, err := readEJBCAClientP12(t.Context(), tt.p12, tt.password, "")
 			if tt.wantErr != "" {
 				require.ErrorContains(t, err, tt.wantErr)
+				invalid, ok := errors.AsType[*fleet.InvalidArgumentError](err)
+				require.True(t, ok, "got %v", err)
+				assert.Equal(t, cmp.Or(tt.wantField, "client_p12"), invalid.Invalid()[0]["name"])
 				return
 			}
 			require.NoError(t, err)

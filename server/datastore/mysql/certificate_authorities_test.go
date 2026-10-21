@@ -741,6 +741,16 @@ func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.NotNil(t, keyFirstCA.MTLSCertExpiresAt)
 		require.True(t, newNotAfter.Equal(*keyFirstCA.MTLSCertExpiresAt))
+
+		// Emptying an optional field stores NULL, as it is when the field isn't set on create, so a read leaves it out.
+		require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, ejbcaCA.ID, &fleet.CertificateAuthority{
+			Type: string(fleet.CATypeEJBCA), TrustCABundlePEM: new(""), EJBCAUsernameTemplate: new(""), CertificateUserPrincipalNames: &[]string{},
+		}))
+		cleared, err := ds.GetCertificateAuthorityByID(ctx, ejbcaCA.ID, false)
+		require.NoError(t, err)
+		require.Nil(t, cleared.TrustCABundlePEM)
+		require.Nil(t, cleared.EJBCAUsernameTemplate)
+		require.Nil(t, cleared.CertificateUserPrincipalNames)
 	})
 
 	t.Run("successfully updates smallstep SCEP proxy CA", func(t *testing.T) {
