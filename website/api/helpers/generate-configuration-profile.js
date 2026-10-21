@@ -207,11 +207,12 @@ module.exports = {
  * The configurationProfile and settingsEnforced of a .mobileconfig response, written from the payloads and
  * settings it holds instead.
  *
- * A response with an unusable payload or value is a failed generation, with the reason when there is one: a
- * profile missing part of what the model chose is not the profile that was asked for.
+ * A response with an unusable payload or value is a failed generation, with the reason when there is one, even when
+ * the model also wrote a document of its own: a profile missing part of what the model chose is not the profile that
+ * was asked for.
  *
  * @param  {Dictionary} rawResult  {payloads, profileSettings, profileFilename, profileDisplayName, profileDescription}
- * @returns {Dictionary}  {configurationProfile, settingsEnforced}, {reasonWhyAProfileCouldNotBeGenerated}, or {}
+ * @returns {Dictionary}  {configurationProfile, settingsEnforced}, {couldNotGenerateProfile, reasonWhyAProfileCouldNotBeGenerated}, or {}
  */
 function mobileconfigWrittenFromPayloadSettings(rawResult) {
   let isUsablePayload = (payload)=>{
@@ -231,7 +232,7 @@ function mobileconfigWrittenFromPayloadSettings(rawResult) {
     profileDescription: _.isString(rawResult.profileDescription) ? rawResult.profileDescription : '',
   });
   if(built.unusableValues.length > 0) {
-    return { reasonWhyAProfileCouldNotBeGenerated: built.unusableValues.join(' ') };
+    return { couldNotGenerateProfile: true, reasonWhyAProfileCouldNotBeGenerated: built.unusableValues.join(' ') };
   }
   return { configurationProfile: built.profile, settingsEnforced: built.settingsEnforced };
 }
@@ -240,11 +241,11 @@ function mobileconfigWrittenFromPayloadSettings(rawResult) {
 /**
  * The configurationProfile and settingsEnforced of a Windows response, written from the commands it holds instead.
  *
- * Like a .mobileconfig, a response with an unusable command gets nothing, and so is a failed generation, with the
- * reason it could not be written.
+ * Like a .mobileconfig, a response with an unusable command is a failed generation, with the reason it could not be
+ * written.
  *
  * @param  {Dictionary} rawResult  {commands, atomic}
- * @returns {Dictionary}  {configurationProfile, settingsEnforced, deliveryNotes}, or {reasonWhyAProfileCouldNotBeGenerated}
+ * @returns {Dictionary}  {configurationProfile, settingsEnforced, deliveryNotes}, {couldNotGenerateProfile, reasonWhyAProfileCouldNotBeGenerated}, or {}
  */
 function windowsProfileWrittenFromCommands(rawResult) {
   if(!_.isArray(rawResult.commands) || rawResult.commands.length === 0 || !_.every(rawResult.commands, _.isPlainObject)) {
@@ -252,7 +253,7 @@ function windowsProfileWrittenFromCommands(rawResult) {
   }
   let built = sails.helpers.buildWindowsProfileFromCommands.with({ commands: rawResult.commands, atomic: rawResult.atomic === true });
   if(built.unusableCommands.length > 0) {
-    return { reasonWhyAProfileCouldNotBeGenerated: built.unusableCommands.join(' ') };
+    return { couldNotGenerateProfile: true, reasonWhyAProfileCouldNotBeGenerated: built.unusableCommands.join(' ') };
   }
   return {
     configurationProfile: built.profile,

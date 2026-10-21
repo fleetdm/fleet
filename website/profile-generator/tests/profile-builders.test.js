@@ -202,6 +202,13 @@ describe('profile builders', function() {
       assert.ok(/^<Exec>/.test(enroll.profile));
     });
 
+    it('finds no reference node for a LocURI named like an object member', function() {
+      for (let locURI of ['constructor', '__proto__', './Device/Vendor/hasOwnProperty']) {
+        let built = build([{ verb: 'Replace', locURI, data: 1 }]);
+        assert.deepStrictEqual(built.unusableCommands, [`${locURI} is not in the CSP reference and came with no recognized format, so its <Format> is unknown.`], locURI);
+      }
+    });
+
     it('rejects data that does not fit its node, and a verb a profile cannot carry', function() {
       let built = build([
         { verb: 'Replace', locURI: './Device/Vendor/MSFT/Policy/Config/Camera/AllowCamera', data: true },
