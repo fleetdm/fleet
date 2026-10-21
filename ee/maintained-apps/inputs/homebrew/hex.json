@@ -1,0 +1,9 @@
+{
+  "name": "Hex",
+  "slug": "hex/darwin",
+  "unique_identifier": "com.kitlangton.hex2",
+  "token": "hex",
+  "installer_format": "dmg",
+  "default_categories": ["Productivity"],
+  "cask_path": "ee/maintained-apps/inputs/homebrew/custom-tap/api/hex.json"
+}

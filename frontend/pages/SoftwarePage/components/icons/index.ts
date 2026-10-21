@@ -492,6 +492,7 @@ import Hazel from "./png/Hazel.png";
 import Hazeover from "./png/Hazeover.png";
 import Heidisql from "./png/Heidisql.png";
 import Helium from "./png/Helium.png";
+import Hex from "./png/Hex.png";
 import HexFiend from "./png/HexFiend.png";
 import HeyDesktop from "./png/HeyDesktop.png";
 import Hiddenbar from "./png/Hiddenbar.png";
@@ -1665,6 +1666,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   hazeover: Hazeover,
   heidisql: Heidisql,
   helium: Helium,
+  hex: Hex,
   "hex fiend": HexFiend,
   hey: HeyDesktop,
   "hidden bar": Hiddenbar,

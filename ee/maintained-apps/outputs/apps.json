@@ -4153,6 +4153,13 @@
       "description": "Hex Fiend is a hex editor focussing on speed."
     },
     {
+      "name": "Hex",
+      "slug": "hex/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.kitlangton.hex2",
+      "description": "Hex is a local-first voice dictation application."
+    },
+    {
       "name": "HEY",
       "slug": "hey-desktop/darwin",
       "platform": "darwin",

@@ -1,0 +1,85 @@
+{
+  "token": "hex",
+  "old_tokens": [],
+  "name": [
+    "Hex"
+  ],
+  "desc": "Local-first voice dictation",
+  "homepage": "https://hex.kitlangton.com/",
+  "url": "https://downloads.hex.kitlangton.dev/releases/HEX-2.3.0-arm64.dmg",
+  "url_specs": {},
+  "version": "2.3.0",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": false,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "pinned": false,
+  "pinned_version": null,
+  "sha256": "3a2872b29bde17f3a5c3cc2643e74eaa11ae7d6911b53a803f619a62fd55e5ce",
+  "artifacts": [
+    {
+      "uninstall": [
+        {
+          "quit": "com.kitlangton.hex2"
+        }
+      ]
+    },
+    {
+      "app": [
+        "Hex.app"
+      ],
+      "target": "/Applications/Hex.app"
+    },
+    {
+      "zap": [
+        {
+          "trash": [
+            "~/.config/hex",
+            "~/Library/Application Support/voice-control",
+            "~/Library/Caches/com.kitlangton.hex2",
+            "~/Library/HTTPStorages/com.kitlangton.hex2",
+            "~/Library/Preferences/com.kitlangton.hex2.plist",
+            "~/Library/Saved Application State/com.kitlangton.hex2.savedState"
+          ]
+        }
+      ]
+    }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+    "arch": [
+      {
+        "type": "arm",
+        "bits": 64
+      }
+    ],
+    "macos": {
+      ">=": [
+        "15"
+      ]
+    }
+  },
+  "conflicts_with": null,
+  "container": null,
+  "rename": [],
+  "auto_updates": true,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "languages": [],
+  "ruby_source_path": "Casks/hex.rb",
+  "ruby_source_checksum": {
+    "sha256": "f22ccb55adc832ad023ebd16e9b44137ba28e48f16ada41570f9562f5463b83b"
+  }
+}
