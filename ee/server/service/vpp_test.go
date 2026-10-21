@@ -1295,7 +1295,7 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 		require.Equal(t, map[uint]uint{1: 11}, sent)
 	})
 
-	t.Run("a host in scope for two versions gets the first-added one and an unlabeled version skips the label scope query", func(t *testing.T) {
+	t.Run("a host in scope for two versions gets the first-added one, and the label scope query isn't run for a version without labels", func(t *testing.T) {
 		f := newTestAppStoreAppDatastore()
 		addFleet(f, 0)
 		addVersion(f, 0, 10, `<dict/>`, 100)
@@ -1462,7 +1462,7 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 		require.Equal(t, map[uint]uint{1: 20}, sent)
 	})
 
-	t.Run("an install of a version the host isn't in scope for is followed by the host's version", func(t *testing.T) {
+	t.Run("a host whose latest install is of a version it isn't in scope for gets the version it's in scope for", func(t *testing.T) {
 		f := newTestAppStoreAppDatastore()
 		addFleet(f, 0)
 		addVersion(f, 0, 10, `<dict><key>v</key><string>a</string></dict>`, 100)
@@ -1488,7 +1488,7 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 		require.Equal(t, nothingSent, sent)
 	})
 
-	t.Run("a host whose user removed the app gets later configuration edits once the app is reinstalled", func(t *testing.T) {
+	t.Run("a host without the app in its inventory gets nothing, and gets the latest configuration if the app is back in its inventory", func(t *testing.T) {
 		f := newTestAppStoreAppDatastore()
 		addFleet(f, 0)
 		version := addVersion(f, 0, 10, `<dict/>`)
@@ -1569,7 +1569,7 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 		require.Equal(t, nothingSent, sent)
 	})
 
-	t.Run("a failed install waits before a retry unless the configuration changes", func(t *testing.T) {
+	t.Run("a host whose install failed within the last hour gets nothing, unless the configuration changes after the failure", func(t *testing.T) {
 		f := newTestAppStoreAppDatastore()
 		addFleet(f, 0)
 		version := addVersion(f, 0, 10, `<dict/>`)
@@ -1577,7 +1577,7 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 		install(f, 1, 10)
 		setConfiguration(f, version, `<dict><key>a</key><string>b</string></dict>`)
 
-		// fail the host's install of the new configuration, as a variable without a value does, the host should get nothing during the wait
+		// fail the host's install of the new configuration, as a variable without a value does, the host should get nothing since the install failed less than an hour ago
 		failInstall(f, 1, 10)
 		f.now = time.Now().Truncate(time.Second)
 		f.failedInstalls[0].CreatedAt = f.now
@@ -1585,14 +1585,14 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, nothingSent, sent)
 
-		// edit the configuration again, the host should get version 10 right away
+		// edit the configuration again, the host should get version 10 right away since the new configuration might not fail
 		setConfiguration(f, version, `<dict><key>a</key><string>c</string></dict>`)
 		sent, err = reconcile(f, ctx)
 		require.NoError(t, err)
 		require.Equal(t, map[uint]uint{1: 10}, sent)
 	})
 
-	t.Run("a failed install older than the wait is retried", func(t *testing.T) {
+	t.Run("a host whose install failed more than an hour ago gets its version again", func(t *testing.T) {
 		f := newTestAppStoreAppDatastore()
 		addFleet(f, 0)
 		version := addVersion(f, 0, 10, `<dict/>`)
@@ -1600,7 +1600,7 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 		install(f, 1, 10)
 		setConfiguration(f, version, `<dict><key>a</key><string>b</string></dict>`)
 
-		// fail the host's install two hours ago, then run the cron after the wait, as after a missing variable gets a value, the host should get version 10
+		// fail the host's install two hours ago and run the cron, the host should get version 10 again since the install failed more than an hour ago
 		failInstall(f, 1, 10)
 		f.failedInstalls[0].CreatedAt = time.Now().Add(-2 * time.Hour)
 		sent, err := reconcile(f, ctx)

@@ -2162,8 +2162,8 @@ func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 	// Go through the versions in the order they were added, so each host gets the first version it's in scope for
 	hostIDsWithoutVersion := slices.Collect(maps.Keys(installByHostID))
 	var includedHostIDs map[uint]struct{}
-	var unactivatedHostIDs map[uint]struct{}
-	var failedHostIDs map[uint]struct{}
+	var hostIDsWithQueuedInstall map[uint]struct{}
+	var hostIDsWithRecentFailedInstall map[uint]struct{}
 	var vppApp *fleet.VPPApp
 	for _, version := range versions {
 		if len(hostIDsWithoutVersion) == 0 {
@@ -2215,7 +2215,7 @@ func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 			continue
 		}
 
-		unactivatedHostIDs, err = ds.GetHostIDsWithUnactivatedVPPAppInstall(ctx, version.VPPAppsTeamsID, hostIDs)
+		hostIDsWithQueuedInstall, err = ds.GetHostIDsWithUnactivatedVPPAppInstall(ctx, version.VPPAppsTeamsID, hostIDs)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "get hosts with a queued install of app store app version %d", version.VPPAppsTeamsID)
 		}
@@ -2225,7 +2225,7 @@ func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 		if version.ConfigurationUpdatedAt != nil && version.ConfigurationUpdatedAt.After(failedSince) {
 			failedSince = version.ConfigurationUpdatedAt.Truncate(time.Second)
 		}
-		failedHostIDs, err = ds.GetHostIDsWithRecentFailedVPPAppInstall(ctx, version.VPPAppsTeamsID, failedSince, hostIDs)
+		hostIDsWithRecentFailedInstall, err = ds.GetHostIDsWithRecentFailedVPPAppInstall(ctx, version.VPPAppsTeamsID, failedSince, hostIDs)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "get hosts with a recent failed install of app store app version %d", version.VPPAppsTeamsID)
 		}
@@ -2239,10 +2239,10 @@ func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 			return ctxerr.Wrapf(ctx, err, "get app store app version %d", version.VPPAppsTeamsID)
 		}
 		for _, hostID := range hostIDs {
-			if _, unactivated := unactivatedHostIDs[hostID]; unactivated {
+			if _, queued := hostIDsWithQueuedInstall[hostID]; queued {
 				continue
 			}
-			if _, failed := failedHostIDs[hostID]; failed {
+			if _, failed := hostIDsWithRecentFailedInstall[hostID]; failed {
 				continue
 			}
 			// Log the hosts that can't take the install, the next run tries them again
