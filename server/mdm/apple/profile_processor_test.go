@@ -1375,7 +1375,6 @@ func TestPreprocessProfileContentsEJBCA(t *testing.T) {
 	}
 
 	t.Run("expands the CA fields for each host and records the certificates", func(t *testing.T) {
-		t.Parallel()
 		// The username of the first CA defaults to its common name, and the second CA has its own template.
 		withUsername := ejbcaCA("usernameCA")
 		withUsername.UsernameTemplate = fleet.FleetVarHostUUID.WithPrefix()
@@ -1414,7 +1413,6 @@ func TestPreprocessProfileContentsEJBCA(t *testing.T) {
 	})
 
 	t.Run("a failed enrollment fails the profile of that host with the reason", func(t *testing.T) {
-		t.Parallel()
 		res := run(t, premium(), profileFor("myCA"), []fleet.EJBCA{ejbcaCA("myCA")}, opts{enroll: func(fleet.EJBCA) error { return errors.New("boom") }})
 		assert.Equal(t, map[string]string{
 			"host-1": "Couldn't get certificate from EJBCA for myCA. boom",
@@ -1425,7 +1423,6 @@ func TestPreprocessProfileContentsEJBCA(t *testing.T) {
 	})
 
 	t.Run("a variable that can't be filled in says it is in the CA", func(t *testing.T) {
-		t.Parallel()
 		ca := ejbcaCA("myCA")
 		ca.CertificateCommonName = fleet.FleetVarHostEndUserEmailIDP.WithPrefix()
 		res := run(t, premium(), profileFor("myCA"), []fleet.EJBCA{ca}, opts{})
@@ -1450,7 +1447,6 @@ func TestPreprocessProfileContentsEJBCA(t *testing.T) {
 		},
 	} {
 		t.Run(tt.name+" fails the profile", func(t *testing.T) {
-			t.Parallel()
 			res := run(t, tt.ctx, profileFor("myCA"), tt.cas, opts{})
 			assert.Empty(t, res.enrolls)
 			require.Len(t, res.profiles, 2)
@@ -1461,10 +1457,7 @@ func TestPreprocessProfileContentsEJBCA(t *testing.T) {
 		})
 	}
 
-	// A profile that gets more than one certificate is rare. If a later one fails, the host keeps its old certificates, so the records of
-	// the ones issued before the failure are not saved.
 	t.Run("a failure later in the profile doesn't record the certificates issued before it", func(t *testing.T) {
-		t.Parallel()
 		digiCert := &digicert_mock.Service{}
 		digiCert.GetCertificateFunc = func(context.Context, fleet.DigiCertCA) (*fleet.DigiCertCertificate, error) {
 			return &fleet.DigiCertCertificate{PfxData: []byte("pfx"), Password: "password", SerialNumber: "abc"}, nil

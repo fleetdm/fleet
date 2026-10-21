@@ -2077,7 +2077,7 @@ func createTestServerWithStatusCode(statusCode int) (*httptest.Server, func()) {
 
 func (s *integrationMDMTestSuite) TestEJBCAIntegration() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 	s.setSkipWorkerJobs(t)
 	fake := ejbcatest.New(t, nil)
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
