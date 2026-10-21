@@ -4099,6 +4099,10 @@ type Datastore interface {
 
 	ListMDMAndroidUUIDsToHostIDs(ctx context.Context, hostIDs []uint) (map[string]uint, error)
 
+	// ListMDMAndroidUUIDsToHostIDsWithAppsTargetingLabels is like ListMDMAndroidUUIDsToHostIDs, but only
+	// returns the hosts whose fleet has an Android app targeted by any of the given labels.
+	ListMDMAndroidUUIDsToHostIDsWithAppsTargetingLabels(ctx context.Context, hostIDs []uint, labelIDs []uint) (map[string]uint, error)
+
 	// VPP App Configuration (iOS/iPadOS)
 	GetVPPAppConfiguration(ctx context.Context, vppAppTeamID uint) ([]byte, error)
 	// HasVPPAppConfigurationChanged compares newConfig with the configuration of the version with vppAppTeamID, or of the first-added version when vppAppTeamID is nil.
