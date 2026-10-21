@@ -53,6 +53,9 @@ than anything else, and a value that does not fit its node's Format makes the co
     // LocURIs are compared without their ./Device or ./User scope, which the reference writes only for some CSPs,
     // and without case.  A {Braced} segment is a dynamic node, matching any one segment.
     let comparableLocUri = (locUri)=>{ return String(locUri).trim().replace(/^\.\/(?:Device|User)\/Vendor\//i, './Vendor/').toLowerCase(); };
+    // The type names a model reaches for in place of a SyncML format.
+    let formatsByAlias = { integer: 'int', boolean: 'bool', string: 'chr' };
+
     let nodesByComparableLocUri = {};
     let dynamicNodes = [];
     for (let node of nodes) {
@@ -133,8 +136,13 @@ than anything else, and a value that does not fit its node's Format makes the co
         format = 'chr';
       } else if(_.contains(['b64', 'bin', 'bool', 'chr', 'date', 'float', 'int', 'node', 'null', 'time', 'xml'], String(command.format).toLowerCase())) {
         format = String(command.format).toLowerCase();
+      } else if(_.has(formatsByAlias, String(command.format).toLowerCase())) {
+        format = formatsByAlias[String(command.format).toLowerCase()];
       } else {
-        format = _.isBoolean(command.data) ? 'bool' : _.isNumber(command.data) && Number.isInteger(command.data) ? 'int' : 'chr';
+        // A value's JavaScript type does not say which DFFormat the node declares, and a wrong <Format> deploys
+        // cleanly and enforces nothing.
+        unusableCommands.push(`${locUri} is not in the CSP reference and came with no recognized format, so its <Format> is unknown.`);
+        continue;
       }
       let whyTheDataDoesNotFit = whyDataDoesNotFit(command.data, format, verb);
       if(whyTheDataDoesNotFit) {

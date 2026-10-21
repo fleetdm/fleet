@@ -179,7 +179,7 @@ describe('profile builders', function() {
       assert.ok(!/<Atomic>/.test(profile));
     });
 
-    it('takes a format from the model only when it is a SyncML format, for a node the reference does not list', function() {
+    it('takes a SyncML format or a common alias from the model for a node the reference does not list, and rejects anything else', function() {
       let built = build([
         { verb: 'Replace', locURI: './Device/Vendor/MSFT/Example/Unlisted/Count', data: 5, format: 'integer' },
         { verb: 'Replace', locURI: './Device/Vendor/MSFT/Example/Unlisted/Enabled', data: true, format: 'Bool' },
@@ -188,6 +188,10 @@ describe('profile builders', function() {
       assert.deepStrictEqual(built.unusableCommands, []);
       let formats = Array.from(built.profile.matchAll(/<Format xmlns="syncml:metinf">([^<]*)<\/Format>/g), (match)=>{ return match[1]; });
       assert.deepStrictEqual(formats, ['int', 'bool', 'chr']);
+      for (let format of [undefined, 'number', '']) {
+        let unlisted = build([{ verb: 'Replace', locURI: './Device/Vendor/MSFT/Example/Unlisted/Count', data: 5, format }]);
+        assert.deepStrictEqual(unlisted.unusableCommands, ['./Device/Vendor/MSFT/Example/Unlisted/Count is not in the CSP reference and came with no recognized format, so its <Format> is unknown.'], String(format));
+      }
     });
 
     it('rejects an Exec, which runs a one-time command, except to enroll a SCEP certificate', function() {
