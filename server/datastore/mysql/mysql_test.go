@@ -801,13 +801,15 @@ func TestHealthCheckWithFullPools(t *testing.T) {
 	// Registered before the connection cleanups below, so it runs after they release the held connections.
 	t.Cleanup(func() { _ = ds.Close() })
 
-	// Cap each request pool at one connection and hold it, so any other query on that pool waits.
+	// Cap each request pool at one connection and hold it until the test ends, so HealthCheck below finds both pools full.
 	for _, db := range []*sqlx.DB{ds.primary, ds.replica.(*sqlx.DB)} {
 		db.SetMaxOpenConns(1)
 		conn, err := db.Conn(t.Context())
 		require.NoError(t, err)
+		// Connection held until the test ends.
 		t.Cleanup(func() { _ = conn.Close() })
 
+		// Other normal requests time out.
 		waitCtx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
 		_, err = db.ExecContext(waitCtx, "SELECT 1")
 		cancel()
@@ -818,13 +820,15 @@ func TestHealthCheckWithFullPools(t *testing.T) {
 }
 
 func TestHealthCheckTimesOut(t *testing.T) {
+	t.Parallel()
 	mock, ds := mockDatastore(t)
 	defer ds.Close()
 
 	mock.ExpectQuery("SELECT @@read_only").
 		WillDelayFor(time.Minute).
 		WillReturnRows(sqlmock.NewRows([]string{"@@read_only"}).AddRow(0))
-	require.Error(t, ds.HealthCheck())
+	// sqlmock reports a context that ends during the delay as ErrCancelled, not the context's own error.
+	require.ErrorIs(t, ds.HealthCheck(), sqlmock.ErrCancelled)
 }
 
 func TestNewReadsPasswordFromDisk(t *testing.T) {
