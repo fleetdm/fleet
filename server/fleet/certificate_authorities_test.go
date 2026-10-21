@@ -61,20 +61,20 @@ func TestGroupCertificateAuthoritiesByTypeEJBCA(t *testing.T) {
 		{
 			ID:                            1,
 			Type:                          string(CATypeEJBCA),
-			Name:                          ptr.String("full"),
-			URL:                           ptr.String("https://ejbca.example.com"),
-			MTLSCertPEM:                   ptr.String("cert"),
-			MTLSKeyPEM:                    ptr.String("key"),
-			TrustCABundlePEM:              ptr.String("bundle"),
-			EJBCACAName:                   ptr.String("ManagementCA"),
-			EJBCACertificateProfileName:   ptr.String("certProfile"),
-			EJBCAEndEntityProfileName:     ptr.String("eeProfile"),
-			CertificateCommonName:         ptr.String("cn"),
-			EJBCAUsernameTemplate:         ptr.String("username"),
+			Name:                          new("full"),
+			URL:                           new("https://ejbca.example.com"),
+			MTLSCertPEM:                   new("cert"),
+			MTLSKeyPEM:                    new("key"),
+			TrustCABundlePEM:              new("bundle"),
+			EJBCACAName:                   new("ManagementCA"),
+			EJBCACertificateProfileName:   new("certProfile"),
+			EJBCAEndEntityProfileName:     new("eeProfile"),
+			CertificateCommonName:         new("cn"),
+			EJBCAUsernameTemplate:         new("username"),
 			CertificateUserPrincipalNames: &[]string{"upn"},
 		},
 		// The optional fields are not set.
-		{ID: 2, Type: string(CATypeEJBCA), Name: ptr.String("minimal"), URL: ptr.String("https://ejbca.example.com")},
+		{ID: 2, Type: string(CATypeEJBCA), Name: new("minimal"), URL: new("https://ejbca.example.com")},
 	})
 	require.NoError(t, err)
 	require.False(t, grouped.IsEmpty())
