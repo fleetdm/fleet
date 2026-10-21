@@ -2032,13 +2032,18 @@ const ManageHostsPage = ({
       },
     ];
 
+    // Technician is a Premium-only role, but its sessions outlive a downgrade to Free.
+    const isTechnicianOnFree =
+      !isPremiumTier && (isGlobalTechnician || isTeamTechnician);
     const tableColumns = generateVisibleTableColumns({
       hiddenColumns,
       isFreeTier,
       // The selection column is only for roles that can bulk delete hosts.
-      isOnlyObserver: isOnGlobalTeam
-        ? isOnlyObserver
-        : !isTeamMaintainerOrTeamAdmin && !isTeamTechnician,
+      isOnlyObserver:
+        isTechnicianOnFree ||
+        (isOnGlobalTeam
+          ? isOnlyObserver
+          : !isTeamMaintainerOrTeamAdmin && !isTeamTechnician),
       teamId: teamIdForApi,
     });
 
