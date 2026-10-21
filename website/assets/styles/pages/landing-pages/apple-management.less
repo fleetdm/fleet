@@ -247,7 +247,7 @@
     justify-content: center;
     border-radius: 24px;
     border: 1px solid @core-fleet-black-10;
-    background: #F8F8F8;// Same neutral grey as the cards on /partners; @ui-off-white reads slightly violet.
+    background: #F8F8F8;
     width: 100%;
     [purpose='banner-image'] {
       width: 50%;
@@ -1151,9 +1151,7 @@
 }
 
 #apple-management {
-  // Additions for this page on top of the shared /linux-management layout.
 
-  // "How the move works" and "Moving from Intune or SCCM": text beside an image, from the earlier Apple page.
   [purpose='section-buttons'] {
     display: flex;
     flex-direction: row;
@@ -1198,8 +1196,7 @@
     padding: @section-gap;
     border: 1px solid @core-fleet-black-10;
     border-radius: 16px;
-    background: #F8F8F8;// Same neutral grey as the cards on /partners; @ui-off-white reads slightly violet.
-    // page-section sets align-items: flex-start, which would otherwise shrink this to its content.
+    background: #F8F8F8;
     align-self: stretch;
     width: 100%;
     [purpose='callout-text'] {
@@ -1241,7 +1238,7 @@
     grid-template-columns: 2fr 1.4fr 1.4fr;
     gap: @section-gap-sm;
     padding: @inner-padding @section-gap-sm;
-    background: #F8F8F8;// Same neutral grey as the cards on /partners; @ui-off-white reads slightly violet.
+    background: #F8F8F8;
     border-bottom: 1px solid @core-fleet-black-10;
     span {
       .body-s();
@@ -1312,7 +1309,6 @@
     color: @core-fleet-black-75;
   }
 
-  // Capability chips under "Built for …". Pill radius has no token; 999px makes the ends round.
   [purpose='capability-list'] {
     display: flex;
     flex-wrap: wrap;
@@ -1344,11 +1340,8 @@
     object-fit: contain;
   }
 
-  // Every feature image sits on the same light grey panel, inset and faded like the self-service image.
-  // The insets are percentages of the box width, matching where that image's built-in card starts.
   [purpose='feature-with-image-row'] [purpose='feature-item'] [purpose='feature-image'] {
     position: relative;
-    // Matches the grey baked into the self-service image, so both kinds of panel look the same.
     background: #F5F6F7;
     border-radius: 16px;
     overflow: hidden;
@@ -1383,7 +1376,6 @@
     }
   }
 
-  // Customer logos added for this page. Logo heights are tuned per mark, like the other landing pages.
   [purpose='logo-grid'] [purpose='logo-row'] [purpose='logo'] {
     &.nvidia img {
       height: 22px;

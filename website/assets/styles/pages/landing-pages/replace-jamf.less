@@ -483,9 +483,6 @@
     }
   }
 
-  // Heading introducing the pain-card row. A step down from the page's
-  // other section-heading h2s (32px), since this one sits directly under
-  // the hero rather than opening its own full section.
   [purpose='top-section'] [purpose='section-heading'] {
     max-width: none;
     margin-bottom: 8px;
@@ -503,7 +500,6 @@
     flex-wrap: wrap;
   }
 
-  // Callout closing the pain-card row: restates the promise, one CTA.
   [purpose='callout'] {
     display: flex;
     flex-direction: row;
@@ -513,15 +509,10 @@
     margin-top: 48px;
     padding: 32px 40px;
     border-radius: 16px;
-    // page-section (this callout's parent in the pain-card block) sets
-    // align-items: flex-start, which otherwise shrinks this to its content
-    // width instead of the full section width the other callout gets.
     align-self: stretch;
     width: 100%;
-    background: #F8F8F8;// Same neutral grey as the cards on /partners; @ui-off-white reads slightly violet.
+    background: #F8F8F8;
     border: 1px solid @core-fleet-black-10;
-    // Stacks and centers everything instead of the default left-text,
-    // right-button row. Used for the callout that closes the pain-card list.
     &.centered {
       flex-direction: column;
       text-align: center;
@@ -546,8 +537,6 @@
       }
     }
     [purpose='cta-button'] {
-      // No size override here on purpose — every CTA on the page uses the
-      // same base [purpose='cta-button'] size (36px height, 14px type).
       flex-shrink: 0;
     }
   }
@@ -1282,9 +1271,6 @@
 
   }
 
-  // ─── Fleet vs. Jamf ─────────────────────────────────────────────────────
-  // A row per capability so each product is read across, rather than two
-  // columns of verdicts where one side looks like a list of losses.
   [purpose='comparison'] {
     display: flex;
     flex-direction: column;
@@ -1309,7 +1295,7 @@
     grid-template-columns: 2fr 1.4fr 1.4fr;
     gap: 24px;
     padding: 14px 24px;
-    background: #F8F8F8;// Same neutral grey as the cards on /partners; @ui-off-white reads slightly violet.
+    background: #F8F8F8;
     border-bottom: 1px solid #E2E4EA;
     span {
       font-size: 13px;
@@ -1405,7 +1391,6 @@
 }
 
 #replace-jamf {
-  // Customer logos added for this page. Logo heights are tuned per mark, like the other landing pages.
   [purpose='logo-grid'] [purpose='logo-row'] [purpose='logo'] {
     &.nvidia img {
       height: 22px;
@@ -1443,11 +1428,8 @@
     object-fit: contain;
   }
 
-  // Every feature image sits on the same light grey panel, inset and faded like the self-service image.
-  // The insets are percentages of the box width, matching where that image's built-in card starts.
   [purpose='feature-with-image-row'] [purpose='feature-item'] [purpose='feature-image'] {
     position: relative;
-    // Matches the grey baked into the self-service image, so both kinds of panel look the same.
     background: #F5F6F7;
     border-radius: 16px;
     overflow: hidden;
