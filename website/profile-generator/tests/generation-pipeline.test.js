@@ -84,6 +84,24 @@ describe('configuration profile generation pipeline', function() {
   };
   let declaration = JSON.stringify({ Type: 'com.apple.configuration.passcode.settings', Identifier: 'passcode', Payload: { MinimumLength: 8 } });
 
+  describe('writes a .mobileconfig from the payload settings the model returns', function() {
+
+    it('ends the root PayloadIdentifier with a segment that differs between two generations of the same request', async function() {
+      let settingsResponse = { profileFilename: 'camera.mobileconfig', profileDisplayName: 'Camera Disabled', deliveryNotes: '', payloads: [{ payloadType: 'com.apple.applicationaccess', settings: { allowCamera: false } }] };
+      generationOutcomes = [settingsResponse, settingsResponse];
+      let rootIdentifiers = [];
+      for (let generation of [await generate('mobileconfig'), await generate('mobileconfig')]) {
+        assert.strictEqual(generation.couldNotGenerateProfile, false);
+        let identifiers = Array.from(generation.generatedProfile.profile.matchAll(/<key>PayloadIdentifier<\/key>\s*<string>([^<]*)<\/string>/g), (match)=>{ return match[1]; });
+        let root = _.find(identifiers, (identifier)=>{ return /^com\.example\.camera\.[0-9a-f]{8}$/.test(identifier); });
+        assert.ok(root, identifiers.join(', '));
+        rootIdentifiers.push(root);
+      }
+      assert.notStrictEqual(rootIdentifiers[0], rootIdentifiers[1]);
+    });
+
+  });
+
   describe('checks that the content is the kind of profile that was asked for', function() {
 
     it('rejects prose as a Windows profile', async function() {

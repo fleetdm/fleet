@@ -459,7 +459,7 @@ ${COULD_NOT_GENERATE_SHAPE}`;
         "atomic": false,
         "commands": [
           {
-            // Replace, Add, or Exec.
+            // Replace or Add.  Exec only for a ClientCertificateInstall SCEP Install/Enroll node.
             "verb": "Replace",
             "locURI": "TODO",
             // The node's value as the node takes it: a number for int, true or false for bool, text for chr, and for a
@@ -1143,13 +1143,6 @@ its description says it turns something on or off -- it enables, disables, preve
 feature.  ${isWrittenFromSettings ?
   'An ADMX-backed node\'s "data" is <enabled/> to apply what the description says and\n<disabled/> to stop applying it, never 1 or 0.  Otherwise the node\'s "data" is the text the\nrequest calls for.' :
   'An ADMX-backed node\'s <Data> is <![CDATA[<enabled/>]]> to apply what the description says and\n<![CDATA[<disabled/>]]> to stop applying it, never 1 or 0.  Otherwise the node\'s <Data> is the text the\nrequest calls for.'}
-
-A node in an \`ADMX_\` area is always ADMX-backed, whatever its description says.  Any other Policy CSP node
-listed as \`chr\` with no values is either a text setting or an ADMX-backed policy, and it is ADMX-backed when
-its description says it turns something on or off -- it enables, disables, prevents, allows, or turns off a
-feature.  An ADMX-backed node's <Data> is <![CDATA[<enabled/>]]> to apply what the description says and
-<![CDATA[<disabled/>]]> to stop applying it, never 1 or 0.  Otherwise the node's <Data> is the text the
-request calls for.
 
 This is authoritative for the groups below and settles their node names, paths, formats and values.  It
 is not the whole CSP reference, and what is missing decides between two different answers.  If no node here

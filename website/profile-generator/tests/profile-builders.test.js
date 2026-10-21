@@ -190,6 +190,14 @@ describe('profile builders', function() {
       assert.deepStrictEqual(formats, ['int', 'bool', 'chr']);
     });
 
+    it('rejects an Exec, which runs a one-time command, except to enroll a SCEP certificate', function() {
+      let built = build([{ verb: 'Exec', locURI: './Device/Vendor/MSFT/Defender/Scan/Quick' }]);
+      assert.deepStrictEqual(built.unusableCommands, ['./Device/Vendor/MSFT/Defender/Scan/Quick runs a one-time command, which a profile cannot do.']);
+      let enroll = build([{ verb: 'Exec', locURI: './Device/Vendor/MSFT/ClientCertificateInstall/SCEP/Corp/Install/Enroll' }]);
+      assert.deepStrictEqual(enroll.unusableCommands, []);
+      assert.ok(/^<Exec>/.test(enroll.profile));
+    });
+
     it('rejects data that does not fit its node, and a verb a profile cannot carry', function() {
       let built = build([
         { verb: 'Replace', locURI: './Device/Vendor/MSFT/Policy/Config/Camera/AllowCamera', data: true },

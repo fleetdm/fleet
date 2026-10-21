@@ -113,6 +113,12 @@ than anything else, and a value that does not fit its node's Format makes the co
         unusableCommands.push('A command had neither a LocURI nor a Wi-Fi network.');
         continue;
       }
+      // Exec runs a one-time command rather than setting a value.  Enrolling a SCEP certificate is the one Exec a
+      // profile carries.
+      if(verb === 'Exec' && !/\/ClientCertificateInstall\/SCEP\/[^/]+\/Install\/Enroll$/i.test(command.locURI.trim())) {
+        unusableCommands.push(`${command.locURI.trim()} runs a one-time command, which a profile cannot do.`);
+        continue;
+      }
       let node = nodeAt(command.locURI);
       if(node && node.mustBeWrappedInAtomic) {
         isAtomic = true;
