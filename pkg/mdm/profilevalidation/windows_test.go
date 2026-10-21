@@ -101,3 +101,51 @@ func TestWindowsFormatsUnmarshal(t *testing.T) {
 		})
 	}
 }
+
+func TestWindowsNodeLookup(t *testing.T) {
+	nodes := map[string]*WindowsNode{}
+	add := func(locURI string) *WindowsNode {
+		n := &WindowsNode{Format: WindowsFormats{WindowsFormatChr}, Scope: WindowsScopeDevice}
+		nodes[locURI] = n
+		return n
+	}
+	maxInactivity := add("./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock")
+	firewallType := add("./Vendor/MSFT/Firewall/MdmStore/FirewallRules/*/Action/Type")
+	syncVersion := add("./Device/Vendor/MSFT/DMClient/Provider/*/SyncApplicationVersion")
+	twoStars := add("./Device/Vendor/MSFT/Example/*/Group/*/Value")
+	oneStar := add("./Device/Vendor/MSFT/Example/*/Group/Fixed/Value")
+	literal := add("./Device/Vendor/MSFT/Example/Known/Group/Fixed/Value")
+	nodes["./Device/Vendor/MSFT/Example/*/Null"] = nil
+	s := &ProfileValidationSchema{Windows: nodes}
+
+	cases := []struct {
+		name   string
+		locURI string
+		want   *WindowsNode
+	}{
+		{name: "exact", locURI: "./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock", want: maxInactivity},
+		{name: "dynamic segment", locURI: "./Vendor/MSFT/Firewall/MdmStore/FirewallRules/MyRule/Action/Type", want: firewallType},
+		{name: "dynamic segment with spaces", locURI: "./Device/Vendor/MSFT/DMClient/Provider/MS DM Server/SyncApplicationVersion", want: syncVersion},
+		{name: "literal star matches its own pattern", locURI: "./Vendor/MSFT/Firewall/MdmStore/FirewallRules/*/Action/Type", want: firewallType},
+		{name: "exact beats star", locURI: "./Device/Vendor/MSFT/Example/Known/Group/Fixed/Value", want: literal},
+		{name: "fewer stars win", locURI: "./Device/Vendor/MSFT/Example/Other/Group/Fixed/Value", want: oneStar},
+		{name: "two stars when only they match", locURI: "./Device/Vendor/MSFT/Example/Other/Group/Else/Value", want: twoStars},
+		{name: "empty segment doesn't match star", locURI: "./Vendor/MSFT/Firewall/MdmStore/FirewallRules//Action/Type"},
+		{name: "extra segment", locURI: "./Vendor/MSFT/Firewall/MdmStore/FirewallRules/MyRule/Action/Type/Extra"},
+		{name: "missing segment", locURI: "./Vendor/MSFT/Firewall/MdmStore/FirewallRules/Action/Type"},
+		// Root equivalence is the validator's call, not the lookup's.
+		{name: "device root not equal to bare root", locURI: "./Device/Vendor/MSFT/Firewall/MdmStore/FirewallRules/MyRule/Action/Type"},
+		{name: "case sensitive", locURI: "./Device/Vendor/MSFT/Policy/Config/DeviceLock/maxinactivitytimedevicelock"},
+		{name: "null node skipped", locURI: "./Device/Vendor/MSFT/Example/X/Null"},
+		{name: "unknown", locURI: "./Device/Vendor/MSFT/Unknown"},
+		{name: "empty", locURI: ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assert.Same(t, c.want, s.WindowsNode(c.locURI))
+		})
+	}
+
+	// A schema without a Windows section doesn't panic.
+	assert.Nil(t, (&ProfileValidationSchema{}).WindowsNode("./Device/Vendor/MSFT/Unknown"))
+}

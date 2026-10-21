@@ -1,6 +1,9 @@
 package profilevalidation
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"strings"
+)
 
 // WindowsVersion pins the Microsoft DDF v2 drop the Windows section was generated from.
 type WindowsVersion struct {
@@ -96,4 +99,43 @@ func (f *WindowsFormats) UnmarshalJSON(data []byte) error {
 	}
 	*f = list
 	return nil
+}
+
+// WindowsNode returns the node for a LocURI, or nil if the schema doesn't know it. A "*" segment in
+// the schema matches any one non-empty segment; an exact match wins, then the match with the fewest
+// "*" segments. Paths are compared as written: ./Vendor/MSFT/X and ./Device/Vendor/MSFT/X differ.
+func (s *ProfileValidationSchema) WindowsNode(locURI string) *WindowsNode {
+	if n := s.Windows[locURI]; n != nil {
+		return n
+	}
+	want := strings.Split(locURI, "/")
+	var best *WindowsNode
+	bestKey, bestStars := "", 0
+	// scans every node on a miss (~5k); we can index the "*" paths at Parse if lookups get hot.
+	for key, n := range s.Windows {
+		stars, ok := matchWindowsPath(strings.Split(key, "/"), want)
+		if !ok || n == nil {
+			continue
+		}
+		// Ties break on the key so the result doesn't depend on map order.
+		if best == nil || stars < bestStars || (stars == bestStars && key < bestKey) {
+			best, bestKey, bestStars = n, key, stars
+		}
+	}
+	return best
+}
+
+func matchWindowsPath(pattern, path []string) (stars int, ok bool) {
+	if len(pattern) != len(path) {
+		return 0, false
+	}
+	for i, seg := range pattern {
+		switch {
+		case seg == "*" && path[i] != "":
+			stars++
+		case seg != path[i]:
+			return 0, false
+		}
+	}
+	return stars, true
 }

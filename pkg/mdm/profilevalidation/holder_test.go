@@ -122,6 +122,9 @@ func TestLookups(t *testing.T) {
 	// Profile and declaration names are separate namespaces.
 	assert.Nil(t, s.AppleProfile("com.apple.configuration.passcode.settings"))
 	assert.Nil(t, s.AppleDeclaration("com.apple.applicationaccess"))
+
+	assert.NotNil(t, s.WindowsNode(mustHaveWindowsNodes[0]))
+	assert.Nil(t, s.WindowsNode("./Device/Vendor/MSFT/Unknown"))
 }
 
 func TestNoServerFleetImport(t *testing.T) {
