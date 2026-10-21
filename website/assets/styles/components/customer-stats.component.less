@@ -1,0 +1,69 @@
+// A row of results, used above the quote and logos on landing pages.
+[purpose='customer-stats'] {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: @section-gap;
+  width: 100%;
+  max-width: @content-max-width;
+  margin: 0 auto @section-64;
+  h2 {
+    .section-heading();
+    text-align: center;
+    margin-bottom: 0;
+  }
+
+  [purpose='customer-stat-grid'] {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: @inner-padding;
+    width: 100%;
+  }
+
+  [purpose='customer-stat'] {
+    display: flex;
+    flex-direction: column;
+    gap: @inner-padding-xs;
+    padding: @section-gap-sm;
+    border: 1px solid @core-fleet-black-10;
+    border-radius: 16px;
+    background: @accent-white;
+    p {
+      margin-bottom: 0;
+    }
+    [purpose='stat-company'] {
+      .body-m();
+      font-weight: @bold;
+      color: @core-fleet-black-75;
+    }
+    [purpose='stat-number'] {
+      .title-l();
+      color: @core-fleet-black;
+    }
+    [purpose='stat-label'] {
+      .body-m();
+      color: @core-fleet-black-75;
+    }
+  }
+
+  &.three-up [purpose='customer-stat-grid'] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  @media (max-width: 991px) {
+    margin-bottom: @section-64-md;
+    [purpose='customer-stat-grid'] {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 575px) {
+    margin-bottom: @section-48-xs;
+    [purpose='customer-stat-grid'] {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    &.three-up [purpose='customer-stat-grid'] {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+}

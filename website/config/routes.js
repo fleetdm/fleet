@@ -728,6 +728,15 @@ module.exports.routes = {
     action: 'landing-pages/view-replace-jamf',
     locals: {
       hideHeaderLinks: true,
+      pageTitleForMeta: 'Replace Jamf',
+      pageDescriptionForMeta: 'Move off Jamf without touching a laptop. Apple\'s native MDM migration moves your Macs to Fleet with no factory reset, and your Apple Business Manager setup stays in place.'
+    }
+  },
+
+  'GET /lp/jamf-migration': {
+    action: 'landing-pages/view-jamf-migration',
+    locals: {
+      hideHeaderLinks: true,
       pageTitleForMeta: 'Replace Jamf with confidence',
       pageDescriptionForMeta: 'Replace Jamf with Fleet. Manage devices faster, review changes safely, and deploy across macOS, Windows, and Linux from one platform.'
     }

@@ -101,6 +101,7 @@ module.exports = {
       // Landing pages:
       '/lp/patch-faster',
       '/lp/replace-jamf',
+      '/lp/jamf-migration',
       '/lp/autonomous-endpoint-management',
       '/lp/apple-mdm',
       '/lp/on-premise',
