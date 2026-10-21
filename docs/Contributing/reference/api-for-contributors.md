@@ -5235,7 +5235,7 @@ Response format varies by operation according to the SCEP protocol specification
 
 ## Android fleetdm.com proxy
 
-The following endpoints are exposed on fleetdm.com to proxy Google Android Management API. For the full, customer-facing list of routes, see [Outbound connections](https://fleetdm.com/docs/deploy/reference-architectures#outbound-connections).
+The following endpoints are exposed on fleetdm.com to proxy Google Android Management API. For what customers need to allowlist, see [Outbound connections](https://fleetdm.com/docs/deploy/reference-architectures#outbound-connections).
 
 ### Create Android signup URL
 

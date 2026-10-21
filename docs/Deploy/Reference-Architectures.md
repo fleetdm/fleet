@@ -135,32 +135,10 @@ If your network restricts egress, allow the Fleet server to reach these destinat
 
 | Destination | Used for |
 |---|---|
-| `https://fleetdm.com/api/android/*` | Android MDM. Fleet calls the [Android Management API](https://developers.google.com/android/management) through this proxy. See [Android routes](#android-routes). |
+| `https://fleetdm.com/api/android/*` | Android MDM. Fleet calls the [Android Management API](https://developers.google.com/android/management) through this proxy, so the Fleet server doesn't need to reach Google. Allowlist the whole `/api/android/*` prefix. |
 | `https://fleetdm.com/api/vpp/v1/*` | App Store (VPP) apps. Fleet gets App Store app details, like names, icons, and versions. |
 | `https://fleetdm.com/api/v1/webhooks/receive-usage-analytics` | [Usage statistics](https://fleetdm.com/guides/fleet-usage-statistics), if enabled. |
 | `https://fleetdm.com/api/v1/get-human-interpretation-from-osquery-sql` | Autofilling a policy's description and resolution in the Fleet UI. |
-
-##### Android routes
-
-Allowlist the `/api/android/*` prefix, not individual routes, because new routes are added over time. The Fleet server doesn't call Google directly for Android. fleetdm.com calls the Android Management API, and Google sends notifications to the Fleet server at `/api/*/fleet/android_enterprise/pubsub` (inbound, see [Which API endpoints to expose to the public internet?](https://fleetdm.com/guides/what-api-endpoints-to-expose-to-the-public-internet#android)).
-
-Current routes:
-
-- `POST /api/android/v1/signupUrls`
-- `POST /api/android/v1/enterprises`
-- `GET /api/android/v1/enterprises`
-- `DELETE /api/android/v1/enterprises/:enterpriseId`
-- `POST /api/android/v1/enterprises/:enterpriseId/enrollmentTokens`
-- `PATCH /api/android/v1/enterprises/:enterpriseId/policies/:policyId`
-- `POST /api/android/v1/enterprises/:enterpriseId/policies/:policyId::action`
-- `GET /api/android/v1/enterprises/:enterpriseId/devices`
-- `GET /api/android/v1/enterprises/:enterpriseId/devices/:deviceId`
-- `PATCH /api/android/v1/enterprises/:enterpriseId/devices/:deviceId`
-- `DELETE /api/android/v1/enterprises/:enterpriseId/devices/:deviceId`
-- `POST /api/android/v1/enterprises/:enterpriseId/devices/:deviceId::issueCommand`
-- `GET /api/android/v1/enterprises/:enterpriseId/devices/:deviceId/operations/:operationId`
-- `GET /api/android/v1/enterprises/:enterpriseId/applications/:applicationId`
-- `POST /api/android/v1/enterprises/:enterpriseId/webApps`
 
 ## Public IPs of devices
 
