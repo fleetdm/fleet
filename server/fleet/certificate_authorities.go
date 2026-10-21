@@ -74,10 +74,24 @@ const (
 	CATypeEJBCA           CAType = "ejbca"
 )
 
+// IssuedCertificate is a certificate a CA issued for a host, with the key Fleet generated for it, in a PKCS#12 bundle that Password opens.
+type IssuedCertificate struct {
+	PfxData        []byte
+	Password       string
+	NotValidBefore time.Time
+	NotValidAfter  time.Time
+	SerialNumber   string
+}
+
 type CertificateAuthoritySummary struct {
 	ID   uint   `json:"id"`
 	Name string `json:"name"`
 	Type string `json:"type"`
+
+	// MTLSCertExpiresAt is when the client certificate of an EJBCA CA expires, so the list shows it without a request per CA. The datastore
+	// derives it from MTLSCertPEM, which is not serialized.
+	MTLSCertExpiresAt *time.Time `json:"mtls_cert_expires_at,omitempty" db:"-"`
+	MTLSCertPEM       *string    `json:"-" db:"mtls_cert_pem"`
 }
 
 type CertificateAuthority struct {
@@ -190,6 +204,7 @@ type CertificateAuthorityPayload struct {
 	Hydrant         *HydrantCA            `json:"hydrant,omitempty"`
 	CustomESTProxy  *ESTProxyCA           `json:"custom_est_proxy,omitempty"`
 	Smallstep       *SmallstepSCEPProxyCA `json:"smallstep,omitempty"`
+	EJBCA           *EJBCA                `json:"ejbca,omitempty"`
 }
 
 // If you update this struct, make sure to adjust the Equals and NeedToVerify methods below
@@ -333,6 +348,7 @@ type CertificateAuthorityUpdatePayload struct {
 	*HydrantCAUpdatePayload            `json:"hydrant,omitempty"`
 	*CustomESTCAUpdatePayload          `json:"custom_est_proxy,omitempty"`
 	*SmallstepSCEPProxyCAUpdatePayload `json:"smallstep,omitempty"`
+	*EJBCAUpdatePayload                `json:"ejbca,omitempty"`
 }
 
 // ValidatePayload checks that only one CA type is specified in the update payload and that the private key is provided.
@@ -354,6 +370,9 @@ func (p *CertificateAuthorityUpdatePayload) ValidatePayload(privateKey string, e
 		caInPayload++
 	}
 	if p.SmallstepSCEPProxyCAUpdatePayload != nil {
+		caInPayload++
+	}
+	if p.EJBCAUpdatePayload != nil {
 		caInPayload++
 	}
 	if caInPayload == 0 {

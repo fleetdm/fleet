@@ -158,6 +158,33 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 		activity = fleet.ActivityAddedSmallstep{Name: p.Smallstep.Name}
 	}
 
+	if p.EJBCA != nil {
+		p.EJBCA.Preprocess()
+		if err := svc.validateEJBCA(ctx, p.EJBCA, errPrefix); err != nil {
+			return nil, err
+		}
+		caToCreate.Type = string(fleet.CATypeEJBCA)
+		caToCreate.Name = &p.EJBCA.Name
+		caToCreate.URL = &p.EJBCA.URL
+		caToCreate.MTLSCertPEM = &p.EJBCA.MTLSCertPEM
+		caToCreate.MTLSKeyPEM = &p.EJBCA.MTLSKeyPEM
+		if p.EJBCA.TrustCABundlePEM != "" {
+			caToCreate.TrustCABundlePEM = &p.EJBCA.TrustCABundlePEM
+		}
+		caToCreate.EJBCACAName = &p.EJBCA.CertificateAuthorityName
+		caToCreate.EJBCACertificateProfileName = &p.EJBCA.CertificateProfileName
+		caToCreate.EJBCAEndEntityProfileName = &p.EJBCA.EndEntityProfileName
+		caToCreate.CertificateCommonName = &p.EJBCA.CertificateCommonName
+		if p.EJBCA.UsernameTemplate != "" {
+			caToCreate.EJBCAUsernameTemplate = &p.EJBCA.UsernameTemplate
+		}
+		if len(p.EJBCA.CertificateUserPrincipalNames) > 0 {
+			caToCreate.CertificateUserPrincipalNames = &p.EJBCA.CertificateUserPrincipalNames
+		}
+		caDisplayType = "EJBCA"
+		activity = fleet.ActivityAddedEJBCA{Name: p.EJBCA.Name}
+	}
+
 	createdCA, err := svc.ds.NewCertificateAuthority(ctx, caToCreate)
 	if err != nil {
 		if errors.As(err, &fleet.ConflictError{}) {
@@ -194,6 +221,9 @@ func (svc *Service) validatePayload(p *fleet.CertificateAuthorityPayload, errPre
 		casToCreate++
 	}
 	if p.CustomESTProxy != nil {
+		casToCreate++
+	}
+	if p.EJBCA != nil {
 		casToCreate++
 	}
 	if casToCreate == 0 {
@@ -464,6 +494,10 @@ func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateA
 		}
 	case string(fleet.CATypeCustomESTProxy):
 		activity = fleet.ActivityDeletedCustomESTProxy{
+			Name: ca.Name,
+		}
+	case string(fleet.CATypeEJBCA):
+		activity = fleet.ActivityDeletedEJBCA{
 			Name: ca.Name,
 		}
 	}
@@ -1236,6 +1270,20 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 			caActivityName = *oldCA.Name
 		}
 		activity = fleet.ActivityEditedSmallstep{Name: caActivityName}
+	case p.EJBCAUpdatePayload != nil:
+		if p.EJBCAUpdatePayload.IsEmpty() {
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%sEJBCA CA update payload is empty", errPrefix)}
+		}
+		if oldCA.Type != string(fleet.CATypeEJBCA) {
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%sThe certificate authority types must be the same.", errPrefix)}
+		}
+		update, err := svc.updateEJBCA(ctx, p.EJBCAUpdatePayload, oldCA, errPrefix)
+		if err != nil {
+			return err
+		}
+		caToUpdate = *update
+		caActivityName = cmp.Or(ptr.ValOrZero(caToUpdate.Name), ptr.ValOrZero(oldCA.Name))
+		activity = fleet.ActivityEditedEJBCA{Name: caActivityName}
 	}
 
 	if oldCA.Type != caToUpdate.Type {

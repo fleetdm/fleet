@@ -912,6 +912,8 @@ type AsyncBatchSaveHostsScheduledQueryStatsFunc func(ctx context.Context, stats 
 
 type UpdateHostSoftwareFunc func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error)
 
+type MarkSoftwareAsAIToolFunc func(ctx context.Context, software []fleet.Software) error
+
 type UpdateHostSoftwareInstalledPathsFunc func(ctx context.Context, hostID uint, reported map[string]fleet.ExecutableHashes, mutationResults *fleet.UpdateHostSoftwareDBResult) error
 
 type UpdateHostFunc func(ctx context.Context, host *fleet.Host) error
@@ -1950,7 +1952,7 @@ type GetHostIDsWithUnactivatedVPPAppInstallFunc func(ctx context.Context, vppApp
 
 type GetSummaryHostSoftwareInstallsFunc func(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error)
 
-type GetSummaryHostVPPAppInstallsFunc func(ctx context.Context, vppAppTeamID uint) (*fleet.VPPAppStatusSummary, error)
+type GetSummaryHostVPPAppInstallsFunc func(ctx context.Context, versions []*fleet.VPPAppStoreApp) (map[uint]*fleet.VPPAppStatusSummary, error)
 
 type GetSoftwareInstallResultsFunc func(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error)
 
@@ -3942,6 +3944,9 @@ type DataStore struct {
 
 	UpdateHostSoftwareFunc        UpdateHostSoftwareFunc
 	UpdateHostSoftwareFuncInvoked bool
+
+	MarkSoftwareAsAIToolFunc        MarkSoftwareAsAIToolFunc
+	MarkSoftwareAsAIToolFuncInvoked bool
 
 	UpdateHostSoftwareInstalledPathsFunc        UpdateHostSoftwareInstalledPathsFunc
 	UpdateHostSoftwareInstalledPathsFuncInvoked bool
@@ -9601,6 +9606,13 @@ func (s *DataStore) UpdateHostSoftware(ctx context.Context, hostID uint, softwar
 	return s.UpdateHostSoftwareFunc(ctx, hostID, software)
 }
 
+func (s *DataStore) MarkSoftwareAsAITool(ctx context.Context, software []fleet.Software) error {
+	s.mu.Lock()
+	s.MarkSoftwareAsAIToolFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkSoftwareAsAIToolFunc(ctx, software)
+}
+
 func (s *DataStore) UpdateHostSoftwareInstalledPaths(ctx context.Context, hostID uint, reported map[string]fleet.ExecutableHashes, mutationResults *fleet.UpdateHostSoftwareDBResult) error {
 	s.mu.Lock()
 	s.UpdateHostSoftwareInstalledPathsFuncInvoked = true
@@ -13234,11 +13246,11 @@ func (s *DataStore) GetSummaryHostSoftwareInstalls(ctx context.Context, installe
 	return s.GetSummaryHostSoftwareInstallsFunc(ctx, installerID)
 }
 
-func (s *DataStore) GetSummaryHostVPPAppInstalls(ctx context.Context, vppAppTeamID uint) (*fleet.VPPAppStatusSummary, error) {
+func (s *DataStore) GetSummaryHostVPPAppInstalls(ctx context.Context, versions []*fleet.VPPAppStoreApp) (map[uint]*fleet.VPPAppStatusSummary, error) {
 	s.mu.Lock()
 	s.GetSummaryHostVPPAppInstallsFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetSummaryHostVPPAppInstallsFunc(ctx, vppAppTeamID)
+	return s.GetSummaryHostVPPAppInstallsFunc(ctx, versions)
 }
 
 func (s *DataStore) GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error) {
