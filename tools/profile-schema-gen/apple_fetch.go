@@ -9,7 +9,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -94,19 +93,4 @@ func wantedAppleFile(rel string) bool {
 		}
 	}
 	return false
-}
-
-func writeFile(name string, r io.Reader) error {
-	if err := os.MkdirAll(filepath.Dir(name), 0o755); err != nil {
-		return err
-	}
-	f, err := os.Create(name)
-	if err != nil {
-		return err
-	}
-	if _, err := io.Copy(f, r); err != nil {
-		f.Close()
-		return fmt.Errorf("write %s: %w", name, err)
-	}
-	return f.Close()
 }

@@ -4,10 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"path"
@@ -29,21 +26,9 @@ var ddfLinkRe = regexp.MustCompile(`https://download\.microsoft\.com/download/[0
 // sha256 is filled in when the zip is downloaded.
 func resolveDDF(ctx context.Context, logger *slog.Logger, client *http.Client, pageURL string) (profilevalidation.WindowsVersion, error) {
 	logger.InfoContext(ctx, "resolving latest DDF drop", "url", pageURL)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, pageURL, nil)
-	if err != nil {
-		return profilevalidation.WindowsVersion{}, err
-	}
-	resp, err := client.Do(req)
+	page, err := httpGet(ctx, client, pageURL, 10*units.MB)
 	if err != nil {
 		return profilevalidation.WindowsVersion{}, fmt.Errorf("resolve DDF drop: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return profilevalidation.WindowsVersion{}, fmt.Errorf("resolve DDF drop: unexpected status %s from %s", resp.Status, pageURL)
-	}
-	page, err := io.ReadAll(io.LimitReader(resp.Body, 10*units.MB))
-	if err != nil {
-		return profilevalidation.WindowsVersion{}, fmt.Errorf("resolve DDF drop: read %s: %w", pageURL, err)
 	}
 
 	links := ddfLinkRe.FindAllSubmatch(page, -1)
@@ -62,25 +47,12 @@ func resolveDDF(ctx context.Context, logger *slog.Logger, client *http.Client, p
 // files flat into dest. It returns the zip's sha256.
 func downloadDDF(ctx context.Context, logger *slog.Logger, client *http.Client, url, wantSHA256, dest string) (string, error) {
 	logger.InfoContext(ctx, "downloading DDF zip", "url", url, "dest", dest)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return "", err
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("download DDF zip: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("download DDF zip: unexpected status %s from %s", resp.Status, url)
-	}
 	// The zip is under 1 MB; the cap only stops a runaway response.
-	data, err := io.ReadAll(io.LimitReader(resp.Body, 50*units.MB))
+	data, err := httpGet(ctx, client, url, 50*units.MB)
 	if err != nil {
 		return "", fmt.Errorf("download DDF zip: %w", err)
 	}
-	sum := sha256.Sum256(data)
-	got := hex.EncodeToString(sum[:])
+	got := sha256Hex(data)
 	if wantSHA256 != "" && got != wantSHA256 {
 		return "", fmt.Errorf("DDF zip %s has sha256 %s, but the output pins %s; Microsoft changed the file, or the download is corrupt", url, got, wantSHA256)
 	}

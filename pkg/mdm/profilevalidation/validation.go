@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -63,6 +62,29 @@ type ProfileValidationSchema struct {
 type Range struct {
 	Min *float64 `json:"min,omitempty"`
 	Max *float64 `json:"max,omitempty"`
+}
+
+// marshalOneOrMany writes a single value as itself and anything else as a list.
+func marshalOneOrMany[T any](s []T) ([]byte, error) {
+	if len(s) == 1 {
+		return json.Marshal(s[0])
+	}
+	return json.Marshal(s)
+}
+
+// unmarshalOneOrMany reads a single value or a list into dst.
+func unmarshalOneOrMany[T any](data []byte, dst *[]T) error {
+	var v T
+	if err := json.Unmarshal(data, &v); err == nil {
+		*dst = []T{v}
+		return nil
+	}
+	var list []T
+	if err := json.Unmarshal(data, &list); err != nil {
+		return err
+	}
+	*dst = list
+	return nil
 }
 
 type Version struct {
@@ -154,7 +176,7 @@ func (s *ProfileValidationSchema) checkApple() error {
 	}
 	n := 0
 	for _, p := range s.AppleProfiles {
-		if p != nil && p.Source != "override" {
+		if p != nil && p.Source != AppleSourceOverride {
 			n++
 		}
 	}
@@ -193,10 +215,20 @@ func (s *ProfileValidationSchema) checkWindows() error {
 	// Only Microsoft's settings count toward the floor: interior nodes (format node) are kept so
 	// profiles can create dynamic instances, and ADMX template policies would hide a shrunken DDF.
 	settings := 0
-	for _, n := range s.Windows {
-		if n != nil && n.Source == WindowsSourceWindows && !slices.Equal(n.Format, WindowsFormats{WindowsFormatNode}) {
+	var bad []string
+	for locURI, n := range s.Windows {
+		switch {
+		case n == nil:
+			bad = append(bad, fmt.Sprintf("windows %s is null", locURI))
+		case n.XSD != "" && s.WindowsXSDs[n.XSD] == "":
+			bad = append(bad, fmt.Sprintf("windows %s references missing xsd %s", locURI, n.XSD))
+		case n.Source == WindowsSourceWindows && !slices.Equal(n.Format, WindowsFormats{WindowsFormatNode}):
 			settings++
 		}
+	}
+	if len(bad) > 0 {
+		// The smallest, so the same document always reports the same error.
+		return errors.New(slices.Min(bad))
 	}
 	if settings < minWindowsNodes {
 		return fmt.Errorf("windows has %d settings, want at least %d", settings, minWindowsNodes)
@@ -204,15 +236,6 @@ func (s *ProfileValidationSchema) checkWindows() error {
 	for _, n := range mustHaveWindowsNodes {
 		if s.Windows[n] == nil {
 			return fmt.Errorf("windows is missing %s", n)
-		}
-	}
-	for _, locURI := range slices.Sorted(maps.Keys(s.Windows)) {
-		n := s.Windows[locURI]
-		if n == nil {
-			return fmt.Errorf("windows %s is null", locURI)
-		}
-		if n.XSD != "" && s.WindowsXSDs[n.XSD] == "" {
-			return fmt.Errorf("windows %s references missing xsd %s", locURI, n.XSD)
 		}
 	}
 	return nil

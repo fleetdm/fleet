@@ -144,8 +144,7 @@ func runApple(ctx context.Context, logger *slog.Logger, client *http.Client, o a
 			return profilevalidation.AppleVersion{}, errors.New("no Apple commit pinned in the output; run with -update to fetch the latest")
 		}
 		pin := *o.Pinned
-		downloaded, err := os.ReadFile(filepath.Join(o.Dir, commitMarker))
-		got := strings.TrimSpace(string(downloaded))
+		got, err := readMarker(o.Dir, commitMarker)
 		if err == nil && got == pin.Commit {
 			logger.InfoContext(ctx, "using existing download for pinned commit", "dir", o.Dir, "release", pin.Release, "commit", pin.Commit)
 			return pin, nil
@@ -183,15 +182,10 @@ func runApple(ctx context.Context, logger *slog.Logger, client *http.Client, o a
 
 // downloadApple replaces dir with Apple's sources at sha and marks which commit it holds.
 func downloadApple(ctx context.Context, logger *slog.Logger, client *http.Client, tarballURL, dir, sha string) error {
-	logger.DebugContext(ctx, "clearing previous download", "dir", dir)
-	if err := os.RemoveAll(dir); err != nil {
-		return err
-	}
-	if err := downloadAppleTarball(ctx, logger, client, tarballURL, sha, dir); err != nil {
-		return err
-	}
-	// Written last, so an interrupted download never looks complete.
-	return os.WriteFile(filepath.Join(dir, commitMarker), []byte(sha+"\n"), 0o644)
+	_, err := replaceDownload(ctx, logger, dir, commitMarker, func() (string, error) {
+		return sha, downloadAppleTarball(ctx, logger, client, tarballURL, sha, dir)
+	})
+	return err
 }
 
 type windowsRunOptions struct {
@@ -211,8 +205,7 @@ func runWindows(ctx context.Context, logger *slog.Logger, client *http.Client, o
 			return profilevalidation.WindowsVersion{}, errors.New("no DDF drop pinned in the output; run with -update to fetch the latest")
 		}
 		pin := *o.Pinned
-		downloaded, err := os.ReadFile(filepath.Join(o.Dir, sha256Marker))
-		got := strings.TrimSpace(string(downloaded))
+		got, err := readMarker(o.Dir, sha256Marker)
 		if err == nil && got == pin.SHA256 {
 			logger.InfoContext(ctx, "using existing download for pinned drop", "dir", o.Dir, "release", pin.Release, "sha256", pin.SHA256)
 			return pin, nil
@@ -253,14 +246,7 @@ func runWindows(ctx context.Context, logger *slog.Logger, client *http.Client, o
 
 // downloadWindows replaces dir with the DDF drop at url and marks which zip it holds.
 func downloadWindows(ctx context.Context, logger *slog.Logger, client *http.Client, url, wantSHA256, dir string) (string, error) {
-	logger.DebugContext(ctx, "clearing previous download", "dir", dir)
-	if err := os.RemoveAll(dir); err != nil {
-		return "", err
-	}
-	sum, err := downloadDDF(ctx, logger, client, url, wantSHA256, dir)
-	if err != nil {
-		return "", err
-	}
-	// Written last, so an interrupted download never looks complete.
-	return sum, os.WriteFile(filepath.Join(dir, sha256Marker), []byte(sum+"\n"), 0o644)
+	return replaceDownload(ctx, logger, dir, sha256Marker, func() (string, error) {
+		return downloadDDF(ctx, logger, client, url, wantSHA256, dir)
+	})
 }

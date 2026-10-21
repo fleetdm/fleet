@@ -77,17 +77,17 @@ type ddfEntry struct {
 
 // loadWindows reads every DDF file in dir and returns its nodes sorted by LocURI.
 func loadWindows(ctx context.Context, logger *slog.Logger, dir string) ([]ddfEntry, error) {
-	paths, err := filepath.Glob(filepath.Join(dir, "*.xml"))
+	dirEntries, err := os.ReadDir(dir) // sorted by name
 	if err != nil {
 		return nil, err
 	}
-	// Glob is case-sensitive; the zip has .XML files too.
-	upper, err := filepath.Glob(filepath.Join(dir, "*.XML"))
-	if err != nil {
-		return nil, err
+	var paths []string
+	for _, d := range dirEntries {
+		// The same test the extractor uses: the zip has .XML files too.
+		if !d.IsDir() && strings.EqualFold(filepath.Ext(d.Name()), ".xml") {
+			paths = append(paths, filepath.Join(dir, d.Name()))
+		}
 	}
-	paths = append(paths, upper...)
-	slices.Sort(paths)
 	if len(paths) == 0 {
 		return nil, fmt.Errorf("no DDF files in %s", dir)
 	}

@@ -19,23 +19,19 @@ import (
 
 // loosenTypes are the values loosen's types may add, per kind. "any" has its own action, and
 // widening a Windows setting into an interior node makes no sense.
-var (
-	appleLoosenTypes = []string{
-		string(profilevalidation.AppleTypeString), string(profilevalidation.AppleTypeInteger), string(profilevalidation.AppleTypeReal),
-		string(profilevalidation.AppleTypeBoolean), string(profilevalidation.AppleTypeDate), string(profilevalidation.AppleTypeData),
-		string(profilevalidation.AppleTypeArray), string(profilevalidation.AppleTypeDictionary),
+var loosenTypes = func() map[string][]string {
+	var apple []string
+	for _, t := range appleTypes {
+		if t != profilevalidation.AppleTypeAny {
+			apple = append(apple, string(t))
+		}
 	}
-	loosenTypes = map[string][]string{
-		kindAppleProfile:     appleLoosenTypes,
-		kindAppleDeclaration: appleLoosenTypes,
-		kindWindows: {
-			string(profilevalidation.WindowsFormatInt), string(profilevalidation.WindowsFormatChr), string(profilevalidation.WindowsFormatBool),
-			string(profilevalidation.WindowsFormatB64), string(profilevalidation.WindowsFormatXML), string(profilevalidation.WindowsFormatNull),
-			string(profilevalidation.WindowsFormatBin), string(profilevalidation.WindowsFormatTime), string(profilevalidation.WindowsFormatDate),
-			string(profilevalidation.WindowsFormatFloat),
-		},
+	return map[string][]string{
+		kindAppleProfile:     apple,
+		kindAppleDeclaration: apple,
+		kindWindows:          {"int", "chr", "bool", "b64", "xml", "null", "bin", "time", "date", "float"},
 	}
-)
+}()
 
 // Override kinds name the schema section an entry targets.
 const (
@@ -167,7 +163,7 @@ func (f *overridesFile) validate() error {
 	}
 
 	for i, e := range f.Loosen {
-		p := e.commonProblems(true)
+		p := e.commonProblems("loosen", kindAppleProfile, kindAppleDeclaration, kindWindows)
 		switch {
 		case e.Kind == kindWindows && e.KeyPath != "":
 			p = append(p, "windows entries take no key_path; loc_uri is the node")
@@ -180,13 +176,9 @@ func (f *overridesFile) validate() error {
 				p = append(p, `action "types" needs a non-empty types list`)
 			}
 			if allowed, ok := loosenTypes[e.Kind]; ok {
-				vocabulary := "an Apple type"
-				if e.Kind == kindWindows {
-					vocabulary = "a windows format"
-				}
 				for _, t := range e.Types {
 					if !slices.Contains(allowed, t) {
-						p = append(p, fmt.Sprintf("types: %q isn't %s (%s)", t, vocabulary, strings.Join(allowed, ", ")))
+						p = append(p, fmt.Sprintf("types: %q isn't valid for %s (%s)", t, e.Kind, strings.Join(allowed, ", ")))
 					}
 				}
 			}
@@ -204,10 +196,7 @@ func (f *overridesFile) validate() error {
 	}
 
 	for i, e := range f.Add {
-		p := e.commonProblems(false)
-		if e.Kind == kindWindows {
-			p = append(p, "add is for Apple only; only loosen applies to windows")
-		}
+		p := e.commonProblems("add", kindAppleProfile, kindAppleDeclaration)
 		if e.Name == "" {
 			p = append(p, "name is required")
 		}
@@ -221,10 +210,8 @@ func (f *overridesFile) validate() error {
 	}
 
 	for i, e := range f.Allow {
-		p := e.commonProblems(false)
-		if e.Kind != kindAppleProfile {
-			p = append(p, "allow is apple_profile only: third-party preference domains exist only in profiles")
-		}
+		// Third-party preference domains exist only in profiles.
+		p := e.commonProblems("allow", kindAppleProfile)
 		if e.PayloadType == appleTopLevel || e.PayloadType == appleCommonPayloadKeys {
 			p = append(p, "the profile envelope can't be allowed; use add for its keys")
 		}
@@ -241,11 +228,15 @@ func (f *overridesFile) validate() error {
 	return errors.Join(errs...)
 }
 
-// commonProblems checks the fields every entry shares. Each kind is addressed by its own field.
-func (e overrideEntry) commonProblems(windowsAllowed bool) []string {
+// commonProblems checks the fields every entry shares and that action applies to the entry's kind.
+// Each kind is addressed by its own field.
+func (e overrideEntry) commonProblems(action string, kinds ...string) []string {
 	var p []string
 	if strings.TrimSpace(e.Reason) == "" {
 		p = append(p, "reason is required")
+	}
+	if slices.Contains([]string{kindAppleProfile, kindAppleDeclaration, kindWindows}, e.Kind) && !slices.Contains(kinds, e.Kind) {
+		return append(p, fmt.Sprintf("%s doesn't apply to %s entries, only %s", action, e.Kind, strings.Join(kinds, ", ")))
 	}
 	set := 0
 	for _, v := range []string{e.PayloadType, e.DeclarationType, e.LocURI} {
@@ -263,9 +254,6 @@ func (e overrideEntry) commonProblems(windowsAllowed bool) []string {
 			p = append(p, "apple_declaration entries need declaration_type (and no payload_type or loc_uri)")
 		}
 	case kindWindows:
-		if !windowsAllowed {
-			break
-		}
 		if e.LocURI == "" || set != 1 {
 			p = append(p, "windows entries need loc_uri (and no payload_type or declaration_type)")
 		}
@@ -329,7 +317,7 @@ func withRoot(pt *profilevalidation.ApplePayloadType, fn func(root *profilevalid
 
 func (a *overrideApplier) allow(e overrideEntry) error {
 	pt := &profilevalidation.ApplePayloadType{
-		Source:   "override",
+		Source:   profilevalidation.AppleSourceOverride,
 		Override: e.Reason,
 		Keys:     e.Keys,
 		// Vendors add settings all the time; allow says the type is legitimate, not that its keys are complete.
@@ -417,17 +405,19 @@ func (a *overrideApplier) loosenWindows(e overrideEntry) error {
 		return errors.New("loc_uri not found; Microsoft may have renamed or removed it")
 	}
 	if e.Action == "any" {
-		n.Format = profilevalidation.WindowsFormats{profilevalidation.WindowsFormatAny}
-		// "Any value" must not stay narrowed by value constraints. Scope, builds, and deprecation
-		// describe the node, not its value, so they stay.
-		n.Enum, n.Range, n.RegEx, n.Flag, n.XSD, n.ADMXBacked, n.Delimiter = nil, nil, "", nil, "", false, ""
+		// "Any value" must not stay narrowed by value constraints, including ones added to
+		// WindowsNode later, so keep only what describes the node rather than its value.
+		*n = profilevalidation.WindowsNode{
+			Format: profilevalidation.WindowsFormats{profilevalidation.WindowsFormatAny},
+			Scope:  n.Scope, MinBuild: n.MinBuild, Deprecated: n.Deprecated, Source: n.Source,
+		}
 	} else {
 		// Unioned, never replaced: an override can only widen.
+		formats := make(profilevalidation.WindowsFormats, 0, len(e.Types))
 		for _, t := range e.Types {
-			if f := profilevalidation.WindowsFormat(t); !slices.Contains(n.Format, f) {
-				n.Format = append(n.Format, f)
-			}
+			formats = append(formats, profilevalidation.WindowsFormat(t))
 		}
+		n.Format = mergeTypes(n.Format, formats)
 	}
 	n.Override = e.Reason
 	return nil

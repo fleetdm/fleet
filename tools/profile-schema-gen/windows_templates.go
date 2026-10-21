@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -40,7 +38,6 @@ func addWindowsTemplates(ctx context.Context, logger *slog.Logger, path string, 
 	if err != nil {
 		return profilevalidation.WindowsTemplatesVersion{}, fmt.Errorf("read ADMX template data: %w", err)
 	}
-	sum := sha256.Sum256(data)
 	var tmpl admxTemplateData
 	if err := json.Unmarshal(data, &tmpl); err != nil {
 		return profilevalidation.WindowsTemplatesVersion{}, fmt.Errorf("decode %s: %w", path, err)
@@ -89,5 +86,5 @@ func addWindowsTemplates(ctx context.Context, logger *slog.Logger, path string, 
 		args = append(args, name, perTemplate[name])
 	}
 	logger.InfoContext(ctx, "added ADMX template policies", args...)
-	return profilevalidation.WindowsTemplatesVersion{SHA256: hex.EncodeToString(sum[:]), GeneratedAt: tmpl.GeneratedAt}, nil
+	return profilevalidation.WindowsTemplatesVersion{SHA256: sha256Hex(data), GeneratedAt: tmpl.GeneratedAt}, nil
 }

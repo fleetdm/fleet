@@ -89,7 +89,7 @@ func convertAppleGroup(ctx context.Context, logger *slog.Logger, g *appleGroup) 
 	trimPlatforms(merged, nil)
 	return &profilevalidation.ApplePayloadType{
 		Platforms: merged.Platforms,
-		Source:    "apple",
+		Source:    profilevalidation.AppleSourceApple,
 		Keys:      merged.Keys,
 		Open:      merged.Open,
 		Values:    merged.Values,
@@ -237,16 +237,6 @@ func mergePlatform(a, b profilevalidation.ApplePlatform) profilevalidation.Apple
 		Removed:    laterVersionIfBoth(a.Removed, b.Removed),
 		Supervised: a.Supervised && b.Supervised,
 	}
-}
-
-func mergeTypes(a, b profilevalidation.AppleTypes) profilevalidation.AppleTypes {
-	out := slices.Clone(a)
-	for _, t := range b {
-		if !slices.Contains(out, t) {
-			out = append(out, t)
-		}
-	}
-	return out
 }
 
 // mergeRangeList returns the union, or nil (any value) if either side doesn't restrict values.

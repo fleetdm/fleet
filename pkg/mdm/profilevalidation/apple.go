@@ -1,9 +1,5 @@
 package profilevalidation
 
-import (
-	"encoding/json"
-)
-
 // AppleVersion pins the apple/device-management commit the Apple sections were generated from.
 type AppleVersion struct {
 	Release string `json:"release"`
@@ -20,7 +16,7 @@ type AppleEnvelope struct {
 // ApplePayloadType describes one .mobileconfig payload type, DDM declaration type, or envelope schema.
 type ApplePayloadType struct {
 	Platforms map[AppleOS]ApplePlatform `json:"platforms,omitempty"`
-	// Source is "apple" for upstream entries and "override" for allow entries.
+	// Source is AppleSourceApple for upstream entries and AppleSourceOverride for allow entries.
 	Source string               `json:"source,omitempty"`
 	Keys   map[string]*AppleKey `json:"keys,omitempty"`
 	// Open and Values work as on AppleKey, for payload types whose top level accepts any key.
@@ -107,26 +103,15 @@ const (
 	AppleValueTypeUUID         AppleValueType = "uuid"
 )
 
+const (
+	AppleSourceApple    = "apple"
+	AppleSourceOverride = "override"
+)
+
 // AppleTypes is a key's type. It's a single string in JSON unless an override widened it to a list.
 type AppleTypes []AppleType
 
-func (t AppleTypes) MarshalJSON() ([]byte, error) {
-	if len(t) == 1 {
-		return json.Marshal(t[0])
-	}
-	return json.Marshal([]AppleType(t))
-}
-
+func (t AppleTypes) MarshalJSON() ([]byte, error) { return marshalOneOrMany(t) }
 func (t *AppleTypes) UnmarshalJSON(data []byte) error {
-	var s AppleType
-	if err := json.Unmarshal(data, &s); err == nil {
-		*t = AppleTypes{s}
-		return nil
-	}
-	var list []AppleType
-	if err := json.Unmarshal(data, &list); err != nil {
-		return err
-	}
-	*t = list
-	return nil
+	return unmarshalOneOrMany(data, (*[]AppleType)(t))
 }

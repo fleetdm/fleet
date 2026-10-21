@@ -1,9 +1,6 @@
 package profilevalidation
 
-import (
-	"encoding/json"
-	"strings"
-)
+import "strings"
 
 // WindowsVersion pins the Microsoft DDF v2 drop the Windows section was generated from.
 type WindowsVersion struct {
@@ -83,25 +80,9 @@ const (
 // WindowsFormats is a node's format. It's a single string in JSON unless an override widened it.
 type WindowsFormats []WindowsFormat
 
-func (f WindowsFormats) MarshalJSON() ([]byte, error) {
-	if len(f) == 1 {
-		return json.Marshal(f[0])
-	}
-	return json.Marshal([]WindowsFormat(f))
-}
-
+func (f WindowsFormats) MarshalJSON() ([]byte, error) { return marshalOneOrMany(f) }
 func (f *WindowsFormats) UnmarshalJSON(data []byte) error {
-	var s WindowsFormat
-	if err := json.Unmarshal(data, &s); err == nil {
-		*f = WindowsFormats{s}
-		return nil
-	}
-	var list []WindowsFormat
-	if err := json.Unmarshal(data, &list); err != nil {
-		return err
-	}
-	*f = list
-	return nil
+	return unmarshalOneOrMany(data, (*[]WindowsFormat)(f))
 }
 
 // WindowsNode returns the node for a LocURI, or nil if the schema doesn't know it. A "*" segment in
@@ -114,8 +95,12 @@ func (s *ProfileValidationSchema) WindowsNode(locURI string) *WindowsNode {
 	want := strings.Split(locURI, "/")
 	var best *WindowsNode
 	bestKey, bestStars := "", 0
-	// scans every node on a miss (~5k); we can index the "*" paths at Parse if lookups get hot.
+	// scans every key on a miss (~8.5k), but splits only "*" keys of the right depth; we can index
+	// those at Parse if lookups get hot.
 	for key, n := range s.Windows {
+		if !strings.Contains(key, "*") || strings.Count(key, "/") != len(want)-1 {
+			continue
+		}
 		stars, ok := matchWindowsPath(strings.Split(key, "/"), want)
 		if !ok || n == nil {
 			continue

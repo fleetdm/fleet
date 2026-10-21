@@ -3,8 +3,6 @@ package main
 import (
 	"archive/zip"
 	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
 	"log/slog"
 	"maps"
 	"net/http"
@@ -106,11 +104,6 @@ func makeZip(t *testing.T, files map[string]string) []byte {
 	}
 	require.NoError(t, zw.Close())
 	return buf.Bytes()
-}
-
-func sha256Hex(b []byte) string {
-	sum := sha256.Sum256(b)
-	return hex.EncodeToString(sum[:])
 }
 
 // ddfServer serves zips by path; anything else is a 404.
@@ -263,7 +256,7 @@ func (m microsoftTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 }
 
 func TestRunWindowsUpdate(t *testing.T) {
-	oldZip := makeZip(t, map[string]string{"Old.xml": "<MgmtTree/>"})
+	oldSHA := strings.Repeat("0", 64)
 	newZip := makeZip(t, ddfDrop)
 	const newURL = "https://download.microsoft.com/download/015bd9f5/DDFv2Feb2026.zip"
 	page := `<a href="` + newURL + `">February 2026</a><a href="https://download.microsoft.com/download/2ff2c8b9/DDFv2Sept25.zip">Sept</a>`
@@ -291,8 +284,8 @@ func TestRunWindowsUpdate(t *testing.T) {
 	}{
 		{name: "no pin", wantLog: "no DDF pin; using latest"},
 		{name: "same drop", pinned: &want, wantLog: "latest DDF drop matches pin"},
-		{name: "new drop", pinned: &profilevalidation.WindowsVersion{Release: "DDFv2Sept25", URL: "https://download.microsoft.com/download/2ff2c8b9/DDFv2Sept25.zip", SHA256: sha256Hex(oldZip)}, wantLog: "moving DDF pin to latest"},
-		{name: "republished in place", pinned: &profilevalidation.WindowsVersion{Release: "DDFv2Feb2026", URL: newURL, SHA256: sha256Hex(oldZip)}, wantLog: "level=WARN msg=\"DDF zip changed at the pinned URL\""},
+		{name: "new drop", pinned: &profilevalidation.WindowsVersion{Release: "DDFv2Sept25", URL: "https://download.microsoft.com/download/2ff2c8b9/DDFv2Sept25.zip", SHA256: oldSHA}, wantLog: "moving DDF pin to latest"},
+		{name: "republished in place", pinned: &profilevalidation.WindowsVersion{Release: "DDFv2Feb2026", URL: newURL, SHA256: oldSHA}, wantLog: "level=WARN msg=\"DDF zip changed at the pinned URL\""},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

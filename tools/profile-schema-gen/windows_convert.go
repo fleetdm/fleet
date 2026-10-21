@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"log/slog"
 	"maps"
 	"regexp"
@@ -79,18 +77,14 @@ func convertWindows(ctx context.Context, logger *slog.Logger, entries []ddfEntry
 					logger.WarnContext(ctx, "unrecognized DDF range; leaving the node unconstrained", "loc_uri", e.LocURI, "range", av.Value)
 					break
 				}
-				lo, errLo := strconv.ParseFloat(m[1], 64)
-				hi, errHi := strconv.ParseFloat(m[2], 64)
-				if errLo != nil || errHi != nil {
-					logger.WarnContext(ctx, "unrecognized DDF range; leaving the node unconstrained", "loc_uri", e.LocURI, "range", av.Value)
-					break
-				}
+				// The regex only matches integers, so parsing can't fail.
+				lo, _ := strconv.ParseFloat(m[1], 64)
+				hi, _ := strconv.ParseFloat(m[2], 64)
 				n.Range = &profilevalidation.Range{Min: &lo, Max: &hi}
 			case "RegEx":
 				n.RegEx = av.Value
 			case "XSD":
-				sum := sha256.Sum256([]byte(av.Value))
-				key := hex.EncodeToString(sum[:])
+				key := sha256Hex([]byte(av.Value))
 				schema.WindowsXSDs[key] = av.Value
 				n.XSD = key
 			case "ADMX":
