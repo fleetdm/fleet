@@ -1,16 +1,18 @@
 name: Profile validation schema
 
-# check: on PRs touching the schema package or its generator, regenerate at the pinned Apple commit
-#        and fail if the committed schema differs (hand edits, a forgotten regeneration, or an
-#        overrides change that wasn't applied).
-# update: daily, regenerate from the latest commit of Apple's release branch and open (or update)
-#         a PR when the schema changes.
+# check: on PRs touching the schema package, its generator, or the ADMX template data, regenerate at
+#        the pinned Apple commit and DDF drop and fail if the committed schema differs (hand edits, a
+#        forgotten regeneration, or an overrides or template change that wasn't applied).
+# update: daily, regenerate from Apple's latest release-branch commit and Microsoft's current DDF
+#         drop and open (or update) a PR when the schema changes. Tests run on that PR (the check
+#         job), not here; a failure here is posted to #help-engineering instead of passing silently.
 
 on:
   pull_request:
     paths:
       - 'pkg/mdm/profilevalidation/**'
       - 'tools/profile-schema-gen/**'
+      - 'website/profile-generator/schema/windows-admx-templates.json'
       - '.github/workflows/profile-validation-schema.yml'
   schedule:
     - cron: '0 6 * * *'
@@ -43,8 +45,9 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
-      - name: Regenerate at the pinned Apple commit
-        # -fetch-pinned downloads the commit the committed schema pins, from codeload; no API call.
+      - name: Regenerate at the pinned upstream versions
+        # -fetch-pinned downloads what the committed schema pins: the Apple commit from codeload (no
+        # API call) and the DDF zip, which must match its pinned sha256.
         shell: bash  # explicit bash adds -o pipefail, so tee doesn't hide the generator's exit code
         run: go run ./tools/profile-schema-gen -fetch-pinned 2>&1 | tee "$RUNNER_TEMP/generate.log"
 
@@ -99,19 +102,21 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
-      - name: Regenerate from Apple's latest release
-        run: go run ./tools/profile-schema-gen -update
-
-      # test-go.yaml only triggers on .go and testdata changes, so the schema-only PR this
-      # job opens would otherwise run none of these tests. Test before opening it.
-      - name: Test the schema package and generator
-        run: go test ./pkg/mdm/profilevalidation/... ./tools/profile-schema-gen/...
+      - name: Regenerate from the latest upstream versions
+        shell: bash  # explicit bash adds -o pipefail, so tee doesn't hide the generator's exit code
+        run: go run ./tools/profile-schema-gen -update 2>&1 | tee "$RUNNER_TEMP/generate.log"
 
       - name: Read the new pin
         id: pin
         run: |
-          echo "release=$(jq -r '.version.apple.release' pkg/mdm/profilevalidation/outputs/profile_schema.json)" >> "$GITHUB_OUTPUT"
-          echo "commit=$(jq -r '.version.apple.commit' pkg/mdm/profilevalidation/outputs/profile_schema.json)" >> "$GITHUB_OUTPUT"
+          schema=pkg/mdm/profilevalidation/outputs/profile_schema.json
+          {
+            echo "release=$(jq -r '.version.apple.release' "$schema")"
+            echo "commit=$(jq -r '.version.apple.commit' "$schema")"
+            echo "windows_release=$(jq -r '.version.windows.release' "$schema")"
+            echo "windows_url=$(jq -r '.version.windows.url' "$schema")"
+            echo "windows_sha256=$(jq -r '.version.windows.sha256' "$schema")"
+          } >> "$GITHUB_OUTPUT"
 
       # Does nothing when the schema didn't change. A fixed branch means a newer run updates the
       # open PR in place instead of opening another one.
@@ -126,13 +131,39 @@ jobs:
           add-paths: pkg/mdm/profilevalidation/outputs/profile_schema.json
           title: "Update profile validation schema"
           commit-message: |
-            Update profile validation schema to Apple ${{ steps.pin.outputs.release }}
+            Update profile validation schema to Apple ${{ steps.pin.outputs.release }} and Windows ${{ steps.pin.outputs.windows_release }}
 
             Generated automatically with tools/profile-schema-gen -update.
           body: |
-            Automated regeneration of `pkg/mdm/profilevalidation/outputs/profile_schema.json` from Apple's [apple/device-management](https://github.com/apple/device-management) `release` branch.
+            Automated regeneration of `pkg/mdm/profilevalidation/outputs/profile_schema.json` from Apple's [apple/device-management](https://github.com/apple/device-management) `release` branch and Microsoft's current [DDF v2 drop](https://learn.microsoft.com/en-us/windows/client-management/mdm/configuration-service-provider-ddf).
 
             - Apple release: `${{ steps.pin.outputs.release }}`
             - Apple commit: [`${{ steps.pin.outputs.commit }}`](https://github.com/apple/device-management/commit/${{ steps.pin.outputs.commit }})
+            - Windows DDF drop: [`${{ steps.pin.outputs.windows_release }}`](${{ steps.pin.outputs.windows_url }})
+            - DDF zip sha256: `${{ steps.pin.outputs.windows_sha256 }}`
 
-            Before merging, check the diff for changes that could matter to validation, such as removed types or keys, or narrowed types. If an override no longer applies, generation fails instead of producing this PR. See `pkg/mdm/profilevalidation/README.md`.
+            Before merging, check the diff for changes that could matter to validation, such as removed types, keys, or LocURIs, or narrowed types or formats. If an override no longer applies, generation fails instead of producing this PR. See `pkg/mdm/profilevalidation/README.md`.
+
+      # A failed -update writes nothing (the output is replaced atomically), so there's no PR to
+      # carry the failure. Post it to Slack with the generator's errors instead.
+      - name: Build Slack failure message
+        if: failure()
+        run: |
+          errors="$(grep -E 'level=ERROR' "$RUNNER_TEMP/generate.log" 2>/dev/null | tail -n 10 | cut -c1-300 || true)"
+          [ -n "$errors" ] || errors="No generator errors logged; a later step failed."
+          jq -n --arg errors "$errors" --arg run "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" '{
+            text: ":rotating_light: Profile validation schema update failed",
+            blocks: [
+              {type: "section", text: {type: "mrkdwn", text: ":rotating_light: *Profile validation schema update failed*\nThe daily `-update` run produced no PR. Logs: \($run)"}},
+              {type: "section", text: {type: "mrkdwn", text: ("```" + $errors + "```")}}
+            ]
+          }' > "$RUNNER_TEMP/slack-payload.json"
+
+      - name: Notify Slack on failure
+        if: failure()
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload-file-path: ${{ runner.temp }}/slack-payload.json
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
