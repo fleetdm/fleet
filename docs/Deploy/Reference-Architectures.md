@@ -127,9 +127,7 @@ Environment="NO_PROXY=localhost,127.0.0.1,::1"
 
 > Note: If HTTP_PROXY/HTTPS_PROXY points at a loopback or private address, Fleet's private network blocking may block it. See [server_allow_private_network_integrations](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-allow-private-network-integrations).
 
-### Outbound connections
-
-If your network restricts egress, allow the Fleet server to reach these destinations over HTTPS (port 443). Most are only needed if you use the feature next to them.
+Also, allow the Fleet server to reach the following routes.
 
 #### Fleet
 
