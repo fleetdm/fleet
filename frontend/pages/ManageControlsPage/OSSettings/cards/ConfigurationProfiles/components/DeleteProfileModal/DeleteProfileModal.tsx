@@ -1,12 +1,16 @@
 import React, { useContext } from "react";
 
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 import Modal from "components/Modal";
 import { AppContext } from "context/app";
+import { ProfilePlatform } from "interfaces/mdm";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 interface DeleteProfileModalProps {
   profileName: string;
   profileId: string;
+  platform: ProfilePlatform;
   onCancel: () => void;
   onDelete: (profileId: string) => void;
   isDeleting: boolean;
@@ -24,6 +28,7 @@ const generateMessageSuffix = (isPremiumTier?: boolean, teamId?: number) => {
 const DeleteProfileModal = ({
   profileName,
   profileId,
+  platform,
   onCancel,
   onDelete,
   isDeleting,
@@ -47,6 +52,16 @@ const DeleteProfileModal = ({
             profile from all hosts {messageSuffix}.
           </p>
           <p>Pending profiles will be canceled.</p>
+          {platform === "windows" && (
+            <p>
+              Some Windows settings may not be cleanly removed from hosts.{" "}
+              <CustomLink
+                text="Learn more"
+                newTab
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/removal-behavior`}
+              />
+            </p>
+          )}
         </div>
         <div className="modal-cta-wrap">
           <Button
