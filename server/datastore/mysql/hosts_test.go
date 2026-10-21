@@ -12121,6 +12121,44 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 		require.Equal(t, fleet.BitLockerProtectionStatusOff, *returned.BitLockerProtectionStatus)
 	})
 
+	// UpdateHost writes timezone unconditionally, so a host loaded without it would wipe the stored value on save.
+	t.Run("preserves timezone across a save", func(t *testing.T) {
+		h, err := ds.EnrollOsquery(
+			ctx,
+			fleet.WithEnrollOsqueryHostID("timezone-uuid"),
+			fleet.WithEnrollOsqueryHardwareUUID("timezone-uuid"),
+			fleet.WithEnrollOsqueryNodeKey("timezone-node-key"),
+		)
+		require.NoError(t, err)
+
+		orbitKey := uuid.New().String()
+		_, err = ds.EnrollOrbit(
+			ctx,
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+				HardwareUUID:   *h.OsqueryHostID,
+				HardwareSerial: h.HardwareSerial,
+			}),
+			fleet.WithEnrollOrbitNodeKey(orbitKey),
+		)
+		require.NoError(t, err)
+
+		h.OrbitNodeKey = &orbitKey
+		h.TimeZone = new("America/New_York")
+		require.NoError(t, ds.UpdateHost(ctx, h))
+
+		loaded, err := ds.LoadHostByOrbitNodeKey(ctx, orbitKey)
+		require.NoError(t, err)
+		require.NotNil(t, loaded.TimeZone)
+		require.Equal(t, "America/New_York", *loaded.TimeZone)
+
+		require.NoError(t, ds.UpdateHost(ctx, loaded))
+
+		reloaded, err := ds.Host(ctx, h.ID)
+		require.NoError(t, err)
+		require.NotNil(t, reloaded.TimeZone)
+		require.Equal(t, "America/New_York", *reloaded.TimeZone)
+	})
+
 	createOrbitHost := func(tag string) *fleet.Host {
 		h, err := ds.NewHost(ctx, &fleet.Host{
 			Platform:           tag,

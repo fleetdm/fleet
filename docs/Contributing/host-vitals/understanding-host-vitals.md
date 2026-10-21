@@ -1395,6 +1395,33 @@ WHERE (
 select * from system_info limit 1
 ```
 
+## timezone_unix
+
+- Description: Reads the target of the `/etc/localtime` symlink, which requires osquery 5.17.0 or later. Hosts where `/etc/localtime` is a copied file report no timezone.
+
+- Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin
+
+- Discovery query:
+```sql
+SELECT 1 FROM pragma_table_info('file') WHERE name = 'symlink_target_path'
+```
+
+- Query:
+```sql
+SELECT symlink_target_path FROM file WHERE path = '/etc/localtime'
+```
+
+## timezone_windows
+
+- Description: Reads the Windows time zone name from the registry and maps it to an IANA name using the CLDR windowsZones table.
+
+- Platforms: windows
+
+- Query:
+```sql
+SELECT data FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\TimeZoneInformation\\TimeZoneKeyName'
+```
+
 ## uptime
 
 - Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin, windows, chrome
