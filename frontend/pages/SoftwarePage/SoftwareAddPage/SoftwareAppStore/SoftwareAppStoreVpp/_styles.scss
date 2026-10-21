@@ -1,12 +1,10 @@
 .software-app-store-vpp {
   &__content {
-    display: flex;
-    flex-direction: column;
+    @include vertical-page-layout;
   }
 
   &__premium-message,
   &__error {
     margin-top: $pad-xxxlarge;
   }
-
 }

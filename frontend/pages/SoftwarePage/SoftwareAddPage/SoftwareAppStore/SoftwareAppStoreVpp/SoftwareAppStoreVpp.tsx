@@ -7,11 +7,13 @@ import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
 import { ILabelSummary } from "interfaces/label";
+import { formatVppTokenLabel } from "interfaces/mdm";
 import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 import PATHS from "router/paths";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
@@ -28,7 +30,11 @@ import { getPathWithQueryParams } from "utilities/url";
 import SoftwareVppForm from "../../../components/forms/SoftwareVppForm";
 import { ISoftwareVppFormData } from "../../../components/forms/SoftwareVppForm/SoftwareVppForm";
 
-import { getErrorMessage, teamHasVPPToken } from "./helpers";
+import {
+  getAssignedVppTokens,
+  getErrorMessage,
+  getFleetVppTokens,
+} from "./helpers";
 
 const baseClass = "software-app-store-vpp";
 //
@@ -157,18 +163,25 @@ const SoftwareAppStoreVpp = ({
   );
 
   const noVppTokenUploaded = !vppInfo || !vppInfo.vpp_tokens.length;
-  const hasVppToken = teamHasVPPToken(currentTeamId, vppInfo?.vpp_tokens);
+  const assignedTokens = getAssignedVppTokens(
+    currentTeamId,
+    vppInfo?.vpp_tokens
+  );
+  const fleetTokens = getFleetVppTokens(currentTeamId, vppInfo?.vpp_tokens);
+  const [selectedTokenId, setSelectedTokenId] = useState<number>();
+  const vppTokenId =
+    fleetTokens.find((t) => t.id === selectedTokenId)?.id ?? fleetTokens[0]?.id;
 
   const {
     data: vppApps,
     isLoading: isLoadingVppApps,
     error: errorVppApps,
   } = useQuery(
-    ["vppSoftware", currentTeamId],
-    () => mdmAppleAPI.getVppApps(currentTeamId),
+    ["vppSoftware", currentTeamId, vppTokenId],
+    () => mdmAppleAPI.getVppApps(currentTeamId, vppTokenId),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: hasVppToken && !!isMacMdmEnabledAndConfigured,
+      enabled: !!vppTokenId && !!isMacMdmEnabledAndConfigured,
       staleTime: 30000,
       select: (res) => res.app_store_apps,
     }
@@ -197,7 +210,10 @@ const SoftwareAppStoreVpp = ({
     try {
       const {
         software_title_id: softwareVppTitleId,
-      } = await softwareAPI.addAppStoreApp(currentTeamId, formData);
+      } = await softwareAPI.addAppStoreApp(currentTeamId, {
+        ...formData,
+        vppTokenId,
+      });
 
       notify.success(
         <>
@@ -245,11 +261,11 @@ const SoftwareAppStoreVpp = ({
       );
     }
 
-    if (isLoadingVppInfo || isLoadingVppApps || isLoadingLabels) {
+    if (isLoadingVppInfo || isLoadingLabels) {
       return <Spinner />;
     }
 
-    if (errorVppInfo || errorVppApps || isErrorLabels) {
+    if (errorVppInfo || isErrorLabels) {
       return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
 
@@ -262,7 +278,7 @@ const SoftwareAppStoreVpp = ({
       );
     }
 
-    if (!hasVppToken) {
+    if (!assignedTokens.length) {
       return (
         <AddTeamToVppMessage
           onEditVpp={() => router.push(PATHS.ADMIN_INTEGRATIONS_VPP)}
@@ -271,12 +287,26 @@ const SoftwareAppStoreVpp = ({
       );
     }
 
-    if (!vppApps) {
-      return <NoVppAppsMessage />;
+    // Every token assigned to this fleet has expired.
+    if (!fleetTokens.length) {
+      return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
-    return (
-      <div className={`${baseClass}__content`}>
+
+    // The token dropdown stays above the list so a token that is loading,
+    // errored, or empty doesn't strand the user on it.
+    const renderApps = () => {
+      if (isLoadingVppApps) {
+        return <Spinner />;
+      }
+      if (errorVppApps) {
+        return <DataError verticalPaddingSize="pad-xxxlarge" />;
+      }
+      if (!vppApps) {
+        return <NoVppAppsMessage />;
+      }
+      return (
         <SoftwareVppForm
+          key={vppTokenId}
           labels={labels || []}
           onSubmit={onAddSoftware}
           onCancel={goBackToSoftwareLibrary}
@@ -284,6 +314,28 @@ const SoftwareAppStoreVpp = ({
           isLoading={isLoading}
           vppApps={vppApps}
         />
+      );
+    };
+
+    return (
+      <div className={`${baseClass}__content`}>
+        {fleetTokens.length > 1 && (
+          <DropdownWrapper
+            ariaLabel="Select VPP token"
+            name="vpp-token"
+            label="VPP token"
+            onChange={(token) =>
+              token && setSelectedTokenId(Number(token.value))
+            }
+            value={vppTokenId?.toString()}
+            options={fleetTokens.map((t) => ({
+              label: formatVppTokenLabel(t),
+              value: t.id.toString(),
+              helpText: t.org_name,
+            }))}
+          />
+        )}
+        {renderApps()}
         {showPreviewEndUserExperience && (
           <CategoriesEndUserExperienceModal
             onCancel={onClickPreviewEndUserExperience}
