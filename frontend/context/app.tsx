@@ -107,7 +107,7 @@ interface ISetNoSandboxHostsAction {
 
 interface ISetHostCountAction {
   type: ACTIONS.SET_HOST_COUNT;
-  hostCount: number;
+  hostCount?: number;
 }
 
 interface ISetFilteredHostsPathAction {
@@ -223,7 +223,7 @@ type InitialStateType = {
   setVppExpiry: (vppExpiry: string) => void;
   setSandboxExpiry: (sandboxExpiry: string) => void;
   setNoSandboxHosts: (noSandboxHosts: boolean) => void;
-  setHostCount: (hostCount: number) => void;
+  setHostCount: (hostCount?: number) => void;
   setFilteredHostsPath: (filteredHostsPath: string) => void;
   setFilteredSoftwarePath: (filteredSoftwarePath: string) => void;
   setFilteredQueriesPath: (filteredQueriesPath: string) => void;
@@ -578,7 +578,7 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     dispatch({ type: ACTIONS.SET_NO_SANDBOX_HOSTS, noSandboxHosts });
   }, []);
 
-  const setHostCount = useCallback((hostCount: number) => {
+  const setHostCount = useCallback((hostCount?: number) => {
     dispatch({ type: ACTIONS.SET_HOST_COUNT, hostCount });
   }, []);
 

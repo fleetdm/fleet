@@ -1,1 +1,1 @@
-- Fleet Premium: Added a banner that tells global users when more hosts are enrolled than their license allows, with a link to a guide for adding hosts.
+- Fleet Premium: Added a banner that tells global users when enrolled hosts are more than 20% over their license count, with a link to a guide for adding hosts.

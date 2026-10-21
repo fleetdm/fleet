@@ -18,6 +18,9 @@ export interface IMainContentConfig {
   renderedBanner: boolean;
 }
 
+// Only warn once hosts are more than 20% over the license count.
+const LICENSE_HOST_LIMIT_THRESHOLD = 1.2;
+
 interface IMainContentProps {
   children: ReactNode | ((mainContentConfig: IMainContentConfig) => ReactNode);
   /** An optional classname to pass to the main content component.
@@ -88,7 +91,7 @@ const MainContent = ({
       } else if (
         licensedHostCount &&
         hostCount !== undefined &&
-        hostCount > licensedHostCount
+        hostCount > licensedHostCount * LICENSE_HOST_LIMIT_THRESHOLD
       ) {
         banner = (
           <LicenseHostLimitMessage

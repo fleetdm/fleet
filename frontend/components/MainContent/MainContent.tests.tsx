@@ -96,14 +96,14 @@ describe("MainContent license host limit banner", () => {
   };
 
   it("shows the banner when hosts exceed the licensed count", () => {
-    renderWithHostCount({ hostCount: 51 });
+    renderWithHostCount({ hostCount: 61 });
     expect(
-      screen.getByText(/Your license covers 50 hosts, but you have 51 enrolled/)
+      screen.getByText(/Your license covers 50 hosts, but you have 61 enrolled/)
     ).toBeInTheDocument();
   });
 
-  it("does not show the banner at or under the licensed count", () => {
-    renderWithHostCount({ hostCount: 50 });
+  it("does not show the banner until hosts are more than 20% over the licensed count", () => {
+    renderWithHostCount({ hostCount: 60 });
     expect(screen.queryByText(/Your license covers/)).not.toBeInTheDocument();
   });
 
@@ -113,12 +113,12 @@ describe("MainContent license host limit banner", () => {
   });
 
   it("does not show the banner when the license has no host limit", () => {
-    renderWithHostCount({ hostCount: 51, deviceCount: 0 });
+    renderWithHostCount({ hostCount: 61, deviceCount: 0 });
     expect(screen.queryByText(/Your license covers/)).not.toBeInTheDocument();
   });
 
   it("does not show the banner on Fleet Free", () => {
-    renderWithHostCount({ hostCount: 51, isPremiumTier: false });
+    renderWithHostCount({ hostCount: 61, isPremiumTier: false });
     expect(screen.queryByText(/Your license covers/)).not.toBeInTheDocument();
   });
 });

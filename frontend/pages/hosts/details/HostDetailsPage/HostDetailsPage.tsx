@@ -946,6 +946,7 @@ const HostDetailsPage = ({
       setIsUpdating(true);
       try {
         await hostAPI.destroy(host);
+        queryClient.invalidateQueries(["hosts_count_for_license"]);
         notify.success(`Host "${host.display_name}" was successfully deleted.`);
         router.push(PATHS.MANAGE_HOSTS);
       } catch (error) {

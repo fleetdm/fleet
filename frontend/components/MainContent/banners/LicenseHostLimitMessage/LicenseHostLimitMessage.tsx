@@ -2,6 +2,7 @@ import React from "react";
 
 import CustomLink from "components/CustomLink";
 import InfoBanner from "components/InfoBanner";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { pluralize } from "utilities/strings/stringUtils";
 
 const baseClass = "license-host-limit-message";
@@ -12,7 +13,7 @@ interface ILicenseHostLimitMessageProps {
 }
 
 /**
- * Shown when more hosts are enrolled than the Fleet Premium license allows.
+ * Shown when enrolled hosts exceed the Fleet Premium license count by more than 20%.
  */
 const LicenseHostLimitMessage = ({
   hostCount,
@@ -24,7 +25,7 @@ const LicenseHostLimitMessage = ({
       color="yellow"
       cta={
         <CustomLink
-          url="https://fleetdm.com/learn-more-about/add-hosts-to-license"
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/add-hosts-to-license`}
           text="Learn how"
           newTab
           variant="banner-link"
