@@ -620,7 +620,7 @@ func (e ConflictError) StatusCode() int {
 }
 
 // EJBCANameInUseError is returned when a certificate authority name would be shared by an EJBCA certificate authority and another
-// certificate authority. The name of an EJBCA CA has to be unique among all the CAs, not only among its own type.
+// certificate authority. The name of an EJBCA CA has to be unique among all the CAs.
 type EJBCANameInUseError struct {
 	Name string
 }

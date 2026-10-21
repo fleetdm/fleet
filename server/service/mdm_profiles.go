@@ -561,7 +561,7 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 		if !ejbcaVars.Ok() {
 			return &fleet.BadRequestError{Message: ejbcaVars.ErrorMessage()}
 		}
-		// The Windows profile validation rejects these variables before it gets here, so there is no per-platform validator to inject.
+		// Only supported for Apple.
 		if err := additionalEJBCAValidation(profileContents, ejbcaVars); err != nil {
 			return err
 		}

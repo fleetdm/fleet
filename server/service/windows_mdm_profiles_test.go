@@ -127,14 +127,8 @@ func TestValidateWindowsProfileFleetVariables(t *testing.T) {
 		},
 		{
 			name: "EJBCA variable",
-			profileXML: `<Replace>
-				<Item>
-					<Target>
-						<LocURI>./Device/Vendor/MSFT/Policy/Config/System/AllowLocation</LocURI>
-					</Target>
-					<Data>$FLEET_VAR_EJBCA_DATA_myCA</Data>
-				</Item>
-			</Replace>`,
+			profileXML: `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/System/AllowLocation</LocURI></Target>` +
+				`<Data>$FLEET_VAR_EJBCA_DATA_myCA</Data></Item></Replace>`,
 			wantErr:     true,
 			errContains: "Fleet variable $FLEET_VAR_EJBCA_DATA_myCA is not supported in Windows profiles",
 		},

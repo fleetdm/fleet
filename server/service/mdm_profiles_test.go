@@ -16,7 +16,6 @@ func TestValidateProfileCertificateAuthorityVariables(t *testing.T) {
 			newMockDigicertCA("https://example.com", "caName"),
 			newMockDigicertCA("https://example.com", "caName2"),
 		},
-		EJBCA: []fleet.EJBCA{{Name: "ejbcaName"}, {Name: "ejbcaName2"}},
 		CustomScepProxy: []fleet.CustomSCEPProxyCA{
 			newMockCustomSCEPProxyCA("https://example.com", "scepName"),
 			newMockCustomSCEPProxyCA("https://example.com", "scepName2"),
@@ -32,39 +31,6 @@ func TestValidateProfileCertificateAuthorityVariables(t *testing.T) {
 		profile string
 		errMsg  string
 	}{
-		{
-			name: "EJBCA badCA",
-			profile: pkcs12ForValidation("$FLEET_VAR_EJBCA_PASSWORD_bad", "$FLEET_VAR_EJBCA_DATA_bad", "Name",
-				"com.apple.security.pkcs12"),
-			errMsg: "_bad does not exist",
-		},
-		{
-			name: "EJBCA password shows up an extra time",
-			profile: pkcs12ForValidation("$FLEET_VAR_EJBCA_PASSWORD_ejbcaName", "$FLEET_VAR_EJBCA_DATA_ejbcaName",
-				"$FLEET_VAR_EJBCA_PASSWORD_ejbcaName", "com.apple.security.pkcs12"),
-			errMsg: "$FLEET_VAR_EJBCA_PASSWORD_ejbcaName is already present in configuration profile",
-		},
-		{
-			name:    "EJBCA password missing",
-			profile: pkcs12ForValidation("password", "$FLEET_VAR_EJBCA_DATA_ejbcaName", "Name", "com.apple.security.pkcs12"),
-			errMsg:  "Missing $FLEET_VAR_EJBCA_PASSWORD_ejbcaName",
-		},
-		{
-			name:    "EJBCA data missing",
-			profile: pkcs12ForValidation("$FLEET_VAR_EJBCA_PASSWORD_ejbcaName", "data", "Name", "com.apple.security.pkcs12"),
-			errMsg:  "Missing $FLEET_VAR_EJBCA_DATA_ejbcaName",
-		},
-		{
-			name: "EJBCA password and data CA names don't match",
-			profile: pkcs12ForValidation("$FLEET_VAR_EJBCA_PASSWORD_ejbcaName", "$FLEET_VAR_EJBCA_DATA_ejbcaName2", "Name",
-				"com.apple.security.pkcs12"),
-			errMsg: "Missing $FLEET_VAR_EJBCA_DATA_ejbcaName in the profile",
-		},
-		{
-			name: "EJBCA happy path",
-			profile: pkcs12ForValidation("$FLEET_VAR_EJBCA_PASSWORD_ejbcaName", "$FLEET_VAR_EJBCA_DATA_ejbcaName", "Name",
-				"com.apple.security.pkcs12"),
-		},
 		{
 			name: "DigiCert badCA",
 			profile: digiCertForValidation("$FLEET_VAR_DIGICERT_PASSWORD_bad", "$FLEET_VAR_DIGICERT_DATA_bad", "Name",
