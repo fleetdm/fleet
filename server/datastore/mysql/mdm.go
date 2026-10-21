@@ -3277,6 +3277,8 @@ func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtCon
 	}
 	idp := accts[hostID]
 
+	// TODO(JK): re-send profiles and App Store app configurations that use $FLEET_VAR_HOST_END_USER_EMAIL_IDP when this changes the IdP email
+
 	// manual ("idp") and device-reported ("entra_join") rows are reported under the
 	// same "mdm_idp_accounts" source, so all three reconcile together.
 	var hostEmails []fleet.HostDeviceMapping

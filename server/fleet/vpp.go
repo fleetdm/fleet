@@ -149,6 +149,8 @@ type VPPAppStoreApp struct {
 	// Configuration is the managed app configuration payload.
 	// JSON for Android, XML for iOS / iPadOS.
 	Configuration json.RawMessage `json:"configuration,omitempty"`
+	// ConfigurationUpdatedAt is when the configuration last changed.
+	ConfigurationUpdatedAt *time.Time `db:"configuration_updated_at" json:"-"`
 }
 
 const (
@@ -234,6 +236,10 @@ type HostVPPSoftwareInstall struct {
 	RetryCount           int        `db:"retry_count"`
 	ExpectedVersion      string     `db:"expected_version"`
 	PolicyID             *uint      `db:"policy_id"`
+
+	VPPAppTeamID             *uint     `db:"vpp_app_team_id"`
+	CreatedAt                time.Time `db:"created_at"`
+	NeedsConfigurationResend bool      `db:"needs_configuration_resend"`
 }
 
 type HostVPPSoftwareInstallLite struct {

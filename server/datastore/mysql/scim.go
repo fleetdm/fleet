@@ -2406,17 +2406,32 @@ func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostI
 		return ctxerr.Wrap(ctx, err, "find affected app configs")
 	}
 
-	// Re-send iOS and iPadOS apps with the new configuration to the affected hosts that have them
 	var apps []affectedApp
+	var appleAppTeamIDs []uint
 	for _, app := range affectedApps {
-		if app.Platform != fleet.IOSPlatform && app.Platform != fleet.IPadOSPlatform {
-			apps = append(apps, app)
+		if app.Platform == fleet.IOSPlatform || app.Platform == fleet.IPadOSPlatform {
+			appleAppTeamIDs = append(appleAppTeamIDs, app.AppTeamID)
 			continue
 		}
-		appID := fleet.VPPAppID{AdamID: app.ApplicationID, Platform: app.Platform}
-		err = insertResendVPPAppConfigurationJob(ctx, tx, appID, app.GlobalOrTeamID, []uint{app.AppTeamID}, false, hostIDs)
+		apps = append(apps, app)
+	}
+
+	// Flag the affected hosts' installs of the iOS and iPadOS versions for the configuration cron, it reads the latest one
+	if len(appleAppTeamIDs) > 0 {
+		const markConfigurationResendStmt = `
+		UPDATE host_vpp_software_installs
+		SET needs_configuration_resend = 1
+		WHERE host_id IN (?) AND vpp_app_team_id IN (?) AND canceled = 0
+`
+		var markStmt string
+		var markArgs []any
+		markStmt, markArgs, err = sqlx.In(markConfigurationResendStmt, hostIDs, appleAppTeamIDs)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "queue vpp app configuration resend")
+			return ctxerr.Wrap(ctx, err, "prepare mark vpp app configuration resend")
+		}
+		_, err = tx.ExecContext(ctx, markStmt, markArgs...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "mark vpp app configuration resend")
 		}
 	}
 

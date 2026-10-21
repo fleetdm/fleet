@@ -4739,6 +4739,8 @@ func (ds *Datastore) SetOrUpdateIDPHostDeviceMapping(ctx context.Context, hostID
 			return ctxerr.Wrap(ctx, err, "insert IDP device mapping")
 		}
 
+		// TODO(JK): re-send profiles and App Store app configurations that use the IdP username variables when this changes it
+
 		return nil
 	})
 	return err
@@ -6590,6 +6592,7 @@ func (ds *Datastore) UpdateHostRefetchCriticalQueriesUntil(ctx context.Context, 
 // re-open a lost-update race where a stale in-memory host struct (loaded before a
 // concurrent transfer) silently clobbers the admin's assignment. See #44071.
 func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
+	// TODO(JK): re-send profiles and App Store app configurations that use $FLEET_VAR_HOST_HARDWARE_SERIAL when this changes the serial number
 	if host.OrbitNodeKey == nil || *host.OrbitNodeKey == "" {
 		// iOS/iPadOS hosts currently do not use/set orbit_node_key.
 		if host.Platform != "ios" && host.Platform != "ipados" {

@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"bytes"
 	"cmp"
 	"context"
 	"database/sql"
@@ -49,6 +50,7 @@ SELECT
 	vat.id vpp_apps_teams_id,
 	vat.name version_name,
 	vat.created_at added_at,
+	vat.configuration_updated_at,
 	IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.update_schedule_enabled, NULL) AS auto_update_enabled,
 	IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.start_time, NULL) AS auto_update_window_start,
 	IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.end_time, NULL) AS auto_update_window_end,
@@ -586,7 +588,6 @@ ORDER BY vat.id
 
 	var toAddApps []fleet.VPPAppTeam
 	var toRemoveVersionIDs []uint
-	removedVersionAppIDs := make(map[fleet.VPPAppID]struct{})
 
 	// Install only the first-added version of each app during setup, the first existing version in the list or else the first new version
 	setupIncomingIndexByApp := make(map[fleet.VPPAppID]int)
@@ -602,22 +603,11 @@ ORDER BY vat.id
 			return false, errDeleteInstallerInstalledDuringSetup
 		}
 		toRemoveVersionIDs = append(toRemoveVersionIDs, existingVersion.AppTeamID)
-		if existingVersion.Platform == fleet.IOSPlatform || existingVersion.Platform == fleet.IPadOSPlatform {
-			removedVersionAppIDs[existingVersion.VPPAppID] = struct{}{}
-		}
 	}
 
-	// Re-send iOS and iPadOS apps whose version configuration changed, or whose version labels changed which version
-	// a host gets, to the hosts that have them
-	resendAppIDs := make(map[fleet.VPPAppID]struct{})
-	configChangedAppTeamIDsByApp := make(map[fleet.VPPAppID][]uint)
-	labelsChangedAppIDs := make(map[fleet.VPPAppID]struct{})
-
 	appsWithChangedLabels := make(map[uint]map[uint]struct{})
-	incomingAppIDs := make(map[fleet.VPPAppID]struct{})
 	var vppTokenRequired, setupExperienceChanged bool
 	for i, incomingApp := range incomingVersions {
-		incomingAppIDs[incomingApp.VPPAppID] = struct{}{}
 		if incomingApp.Platform.IsApplePlatform() {
 			vppTokenRequired = true
 		}
@@ -646,15 +636,6 @@ ORDER BY vat.id
 
 		if changed.InstallDuringSetup {
 			setupExperienceChanged = true
-		}
-
-		if isExistingApp && changed.Configuration && (incomingApp.Platform == fleet.IOSPlatform || incomingApp.Platform == fleet.IPadOSPlatform) {
-			resendAppIDs[incomingApp.VPPAppID] = struct{}{}
-			configChangedAppTeamIDsByApp[incomingApp.VPPAppID] = append(configChangedAppTeamIDsByApp[incomingApp.VPPAppID], incomingApp.AppTeamID)
-		}
-		if changed.Labels && (incomingApp.Platform == fleet.IOSPlatform || incomingApp.Platform == fleet.IPadOSPlatform) {
-			resendAppIDs[incomingApp.VPPAppID] = struct{}{}
-			labelsChangedAppIDs[incomingApp.VPPAppID] = struct{}{}
 		}
 
 		if changed.Any {
@@ -727,9 +708,13 @@ ORDER BY vat.id
 				} else {
 					// Empty incoming = delete intent. Removing the configuration from
 					// the YAML / API payload clears the stored config.
-					_, err := tx.ExecContext(ctx, `UPDATE vpp_apps_teams SET configuration = NULL WHERE id = ?`, vppAppTeamID)
+					_, err := tx.ExecContext(ctx, `UPDATE vpp_apps_teams SET configuration = NULL, configuration_updated_at = NOW(6) WHERE id = ? AND configuration IS NOT NULL`, vppAppTeamID)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "clearing configuration for vpp app")
+					}
+					err = setAppConfigVariableAssociations(ctx, tx, vppAppTeamID, nil)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "clearing configuration variable associations for vpp app")
 					}
 				}
 			}
@@ -760,26 +745,6 @@ ORDER BY vat.id
 		for _, toRemoveVersionID := range toRemoveVersionIDs {
 			if err := removeVPPAppTeams(ctx, tx, toRemoveVersionID); err != nil {
 				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps removing vpp app version from team")
-			}
-		}
-
-		for appID := range resendAppIDs {
-			_, versionLabelsChanged := labelsChangedAppIDs[appID]
-			err = insertResendVPPAppConfigurationJob(ctx, tx, appID, ptr.ValOrZero(teamID), configChangedAppTeamIDsByApp[appID], versionLabelsChanged, nil)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps queueing vpp app configuration resend")
-			}
-		}
-
-		// Re-send iOS and iPadOS apps to hosts whose installed version was removed, when another version of the app is left
-		for appID := range removedVersionAppIDs {
-			_, hasIncomingVersion := incomingAppIDs[appID]
-			if !hasIncomingVersion {
-				continue
-			}
-			err = insertResendVPPAppConfigurationJob(ctx, tx, appID, ptr.ValOrZero(teamID), nil, false, nil)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps queueing vpp app configuration resend for removed versions")
 			}
 		}
 
@@ -914,8 +879,12 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 						return ctxerr.Wrap(ctx, err, "setting configuration for vpp app")
 					}
 				} else {
-					if _, err := tx.ExecContext(ctx, `UPDATE vpp_apps_teams SET configuration = NULL WHERE id = ?`, vppAppTeamID); err != nil {
+					if _, err := tx.ExecContext(ctx, `UPDATE vpp_apps_teams SET configuration = NULL, configuration_updated_at = NOW(6) WHERE id = ? AND configuration IS NOT NULL`, vppAppTeamID); err != nil {
 						return ctxerr.Wrap(ctx, err, "clearing configuration for vpp app")
+					}
+					err = setAppConfigVariableAssociations(ctx, tx, vppAppTeamID, nil)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "clearing configuration variable associations for vpp app")
 					}
 				}
 			}
@@ -3742,9 +3711,22 @@ func (ds *Datastore) updateVPPAppConfigurationTx(ctx context.Context, tx sqlx.Ex
 		return ctxerr.Wrap(ctx, err, "validating vpp app configuration")
 	}
 
-	_, err := tx.ExecContext(ctx, `UPDATE vpp_apps_teams SET configuration = ? WHERE id = ?`, config, vppAppTeamID)
+	var storedConfig []byte
+	err := sqlx.GetContext(ctx, tx, &storedConfig, `SELECT configuration FROM vpp_apps_teams WHERE id = ?`, vppAppTeamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get stored vpp app configuration")
+	}
+	if bytes.Equal(storedConfig, config) {
+		return nil
+	}
+
+	_, err = tx.ExecContext(ctx, `UPDATE vpp_apps_teams SET configuration = ?, configuration_updated_at = NOW(6) WHERE id = ?`, config, vppAppTeamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updateVPPAppConfiguration")
+	}
+	err = setAppConfigVariableAssociations(ctx, tx, vppAppTeamID, config)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "setting vpp app configuration variable associations")
 	}
 	return nil
 }
@@ -3820,39 +3802,44 @@ ORDER BY other_vat.id
 	return versionIDs, nil
 }
 
-func (ds *Datastore) ListHostAppStoreAppInstallVersions(ctx context.Context, appID fleet.VPPAppID, fleetID uint, hostIDs []uint) (map[uint]*uint, error) {
+func (ds *Datastore) ListHostAppStoreAppInstallVersions(ctx context.Context, appID fleet.VPPAppID, fleetID uint, hostIDs []uint) (map[uint]*fleet.HostVPPSoftwareInstall, error) {
 	hostFilter := "TRUE"
-	args := []any{appID.AdamID, appID.Platform, fleetID, fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError}
+	args := []any{appID.AdamID, appID.Platform, fleetID}
 	if len(hostIDs) > 0 {
 		hostFilter = "hvsi.host_id IN (?)"
 		args = append(args, hostIDs)
 	}
 
-	// Read the latest install of the app on each host of the fleet that still has the app in its inventory. Filter out failed
-	// installs since the host still has the version from the install before it.
+	// Read the latest install of the app on each host of the fleet with MDM on that still has the app in its inventory. Filter
+	// out failed installs since the host still has the version from the install before it.
 	stmt := fmt.Sprintf(`
 SELECT
 	latest.host_id,
-	latest.vpp_app_team_id
+	latest.vpp_app_team_id,
+	latest.created_at,
+	latest.needs_configuration_resend
 FROM (
 	SELECT
 		hvsi.host_id,
 		hvsi.adam_id,
 		hvsi.platform,
 		hvsi.vpp_app_team_id,
+		hvsi.created_at,
+		hvsi.needs_configuration_resend,
 		ROW_NUMBER() OVER (PARTITION BY hvsi.host_id ORDER BY hvsi.created_at DESC, hvsi.id DESC) AS rn
 	FROM
 		host_vpp_software_installs hvsi
 		JOIN hosts h ON h.id = hvsi.host_id
-		LEFT JOIN nano_command_results ncr ON ncr.id = h.uuid AND ncr.command_uuid = hvsi.command_uuid
 	WHERE
 		hvsi.adam_id = ? AND
 		hvsi.platform = ? AND
 		COALESCE(h.team_id, 0) = ? AND
-		hvsi.removed = 0 AND
 		hvsi.canceled = 0 AND
 		hvsi.verification_failed_at IS NULL AND
-		COALESCE(ncr.status, '') NOT IN (?, ?) AND
+		EXISTS (
+			SELECT 1 FROM nano_enrollments ne
+			WHERE ne.id = h.uuid AND ne.enabled = 1 AND ne.type IN ('Device', 'User Enrollment (Device)')
+		) AND
 		%s
 ) latest
 WHERE
@@ -3874,41 +3861,17 @@ WHERE
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build list host app store app install versions query")
 	}
-	var rows []struct {
-		HostID       uint  `db:"host_id"`
-		VPPAppTeamID *uint `db:"vpp_app_team_id"`
-	}
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &rows, query, queryArgs...)
+	var installs []*fleet.HostVPPSoftwareInstall
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &installs, query, queryArgs...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list host app store app install versions")
 	}
 
-	installedVersionByHostID := make(map[uint]*uint, len(rows))
-	for _, row := range rows {
-		installedVersionByHostID[row.HostID] = row.VPPAppTeamID
+	installByHostID := make(map[uint]*fleet.HostVPPSoftwareInstall, len(installs))
+	for _, install := range installs {
+		installByHostID[install.HostID] = install
 	}
-	return installedVersionByHostID, nil
-}
-
-func insertResendVPPAppConfigurationJob(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppID, fleetID uint, configChangedAppTeamIDs []uint, versionLabelsChanged bool, hostIDs []uint) error {
-	// Write the args in the format of the software worker's softwareWorkerArgs
-	args, err := json.Marshal(map[string]any{
-		"task":                        "resend_vpp_app_configuration",
-		"application_id":              appID.AdamID,
-		"platform":                    appID.Platform,
-		"fleet_id":                    fleetID,
-		"config_changed_app_team_ids": configChangedAppTeamIDs,
-		"version_labels_changed":      versionLabelsChanged,
-		"host_ids":                    hostIDs,
-	})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "marshal job args for vpp app configuration resend")
-	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO jobs (name, args, state, error) VALUES ('software_worker', ?, 'queued', '')`, json.RawMessage(args))
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "insert vpp app configuration resend job")
-	}
-	return nil
+	return installByHostID, nil
 }
 
 func (ds *Datastore) GetHostIDsWithUnactivatedVPPAppInstall(ctx context.Context, vppAppTeamID uint, hostIDs []uint) (map[uint]struct{}, error) {
@@ -3941,6 +3904,40 @@ WHERE
 
 	hostIDSet := make(map[uint]struct{}, len(queuedHostIDs))
 	for _, hostID := range queuedHostIDs {
+		hostIDSet[hostID] = struct{}{}
+	}
+	return hostIDSet, nil
+}
+
+func (ds *Datastore) GetHostIDsWithRecentFailedVPPAppInstall(ctx context.Context, vppAppTeamID uint, since time.Time, hostIDs []uint) (map[uint]struct{}, error) {
+	if len(hostIDs) == 0 {
+		return map[uint]struct{}{}, nil
+	}
+
+	const stmt = `
+SELECT DISTINCT
+	hvsi.host_id
+FROM
+	host_vpp_software_installs hvsi
+WHERE
+	hvsi.host_id IN (?) AND
+	hvsi.vpp_app_team_id = ? AND
+	hvsi.canceled = 0 AND
+	hvsi.created_at >= ? AND
+	hvsi.verification_failed_at IS NOT NULL
+`
+	query, args, err := sqlx.In(stmt, hostIDs, vppAppTeamID, since)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build hosts with recent failed vpp app install query")
+	}
+	var failedHostIDs []uint
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &failedHostIDs, query, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get hosts with recent failed vpp app install")
+	}
+
+	hostIDSet := make(map[uint]struct{}, len(failedHostIDs))
+	for _, hostID := range failedHostIDs {
 		hostIDSet[hostID] = struct{}{}
 	}
 	return hostIDSet, nil

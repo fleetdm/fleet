@@ -3585,13 +3585,17 @@ type Datastore interface {
 	// belongs to, on the same fleet and platform, first-added first.
 	GetAppStoreAppVersionIDsFromSpecificVersion(ctx context.Context, vppAppTeamID uint) ([]uint, error)
 
-	// ListHostAppStoreAppInstallVersions returns, for each host on the fleet whose inventory has the app, the version id
-	// of its latest install of the app that didn't fail, nil when that install has no version. A non-empty hostIDs limits it to those hosts.
-	ListHostAppStoreAppInstallVersions(ctx context.Context, appID VPPAppID, fleetID uint, hostIDs []uint) (map[uint]*uint, error)
+	// ListHostAppStoreAppInstallVersions returns, for each host on the fleet with MDM on whose inventory has the app, its
+	// latest install of the app that didn't fail. A non-empty hostIDs limits it to those hosts.
+	ListHostAppStoreAppInstallVersions(ctx context.Context, appID VPPAppID, fleetID uint, hostIDs []uint) (map[uint]*HostVPPSoftwareInstall, error)
 
 	// GetHostIDsWithUnactivatedVPPAppInstall returns the hosts among hostIDs that have an install of the App Store app
 	// version waiting in the upcoming activities queue that hasn't activated yet.
 	GetHostIDsWithUnactivatedVPPAppInstall(ctx context.Context, vppAppTeamID uint, hostIDs []uint) (map[uint]struct{}, error)
+
+	// GetHostIDsWithRecentFailedVPPAppInstall returns the hosts among hostIDs that have a failed install of the App Store
+	// app version created at or after since.
+	GetHostIDsWithRecentFailedVPPAppInstall(ctx context.Context, vppAppTeamID uint, since time.Time, hostIDs []uint) (map[uint]struct{}, error)
 
 	// GetSummaryHostSoftwareInstalls returns the software install summary for
 	// the given software installer id.

@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"image/png"
 	"io"
+	"log/slog"
 	"maps"
 	"net/http"
 	"net/url"
@@ -23,6 +24,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
@@ -1675,31 +1677,10 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		}
 	}
 
-	var appleConfigChanged bool
-	if payload.Configuration != nil && (meta.Platform == fleet.IOSPlatform || meta.Platform == fleet.IPadOSPlatform) {
-		appleConfigChanged, err = svc.ds.HasVPPAppConfigurationChanged(ctx, meta.Platform, meta.AdamID, ptr.ValOrZero(teamID), &meta.VPPAppsTeamsID, datastoreConfig)
-		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: checking if vpp app configuration changed")
-		}
-	}
-
 	// Update the app
 	insertedApp, err := svc.ds.InsertVPPAppWithTeam(ctx, appToWrite, teamID, &meta.VPPAppsTeamsID)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: write app to db")
-	}
-
-	// Re-send the app to iOS and iPadOS hosts that have it when this version's configuration changed, or its labels
-	// changed which version a host gets
-	if (meta.Platform == fleet.IOSPlatform || meta.Platform == fleet.IPadOSPlatform) && (appleConfigChanged || labelsChanged) {
-		var configChangedAppTeamIDs []uint
-		if appleConfigChanged {
-			configChangedAppTeamIDs = []uint{insertedApp.AppTeamID}
-		}
-		err = worker.QueueResendVPPAppConfigurationJob(ctx, svc.ds, svc.logger, meta.VPPAppID, ptr.ValOrZero(teamID), configChangedAppTeamIDs, labelsChanged, nil)
-		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "enqueuing job to resend vpp app configuration")
-		}
 	}
 
 	// if labelsChanged, new hosts may require having the app made available, and if config
@@ -2076,4 +2057,196 @@ func (svc *Service) CreateAndroidWebApp(ctx context.Context, title, startURL str
 	}
 
 	return packageName, nil
+}
+
+func ReconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore, vppInstaller fleet.AppleMDMVPPInstaller, logger *slog.Logger) error {
+	if !license.IsPremium(ctx) {
+		return nil
+	}
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reading app config")
+	}
+	if !appConfig.MDM.EnabledAndConfigured {
+		return nil
+	}
+
+	teams, err := ds.TeamsSummary(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list fleets")
+	}
+	fleetIDs := []uint{0}
+	for _, team := range teams {
+		fleetIDs = append(fleetIDs, team.ID)
+	}
+
+	var vppToken *fleet.VPPTokenDB
+	var apps []fleet.VPPAppResponse
+	for _, fleetID := range fleetIDs {
+		// Skip fleets that can't install App Store apps until their VPP token is added or renewed
+		vppToken, err = ds.GetVPPTokenByTeamID(ctx, &fleetID)
+		if err != nil {
+			if fleet.IsNotFound(err) {
+				continue
+			}
+			return ctxerr.Wrapf(ctx, err, "get vpp token of fleet %d", fleetID)
+		}
+		if time.Now().After(vppToken.RenewDate) {
+			continue
+		}
+
+		apps, err = ds.GetVPPApps(ctx, &fleetID)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "list app store apps of fleet %d", fleetID)
+		}
+
+		// GetVPPApps returns a row per version, so reconcile each title once
+		reconciledTitleIDs := make(map[uint]struct{})
+		for _, app := range apps {
+			if (app.Platform != fleet.IOSPlatform && app.Platform != fleet.IPadOSPlatform) || app.TitleID == nil {
+				continue
+			}
+			if _, reconciled := reconciledTitleIDs[*app.TitleID]; reconciled {
+				continue
+			}
+			reconciledTitleIDs[*app.TitleID] = struct{}{}
+
+			// Log the error and move on to the next title, so one title doesn't stop the others from being reconciled
+			err = reconcileAppStoreAppTitleConfigurations(ctx, ds, vppInstaller, logger, fleetID, *app.TitleID)
+			if err != nil {
+				logger.ErrorContext(ctx, "reconcile app store app configurations", "fleet_id", fleetID, "title_id", *app.TitleID, "err", err)
+			}
+		}
+	}
+	return nil
+}
+
+func reconcileAppStoreAppTitleConfigurations(ctx context.Context, ds fleet.Datastore, vppInstaller fleet.AppleMDMVPPInstaller, logger *slog.Logger, fleetID uint, titleID uint) error {
+	versions, err := ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, fleetID, titleID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get app store app versions")
+	}
+	installByHostID, err := ds.ListHostAppStoreAppInstallVersions(ctx, versions[0].VPPAppID, fleetID, nil)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list app store app installs")
+	}
+	versionByID := make(map[uint]*fleet.VPPAppStoreApp, len(versions))
+	for _, version := range versions {
+		versionByID[version.VPPAppsTeamsID] = version
+	}
+
+	// Go through the versions in the order they were added, so each host gets the first version it's in scope for
+	hostIDsWithoutVersion := slices.Collect(maps.Keys(installByHostID))
+	var includedHostIDs map[uint]struct{}
+	var sentConfiguration []byte
+	var unactivatedHostIDs map[uint]struct{}
+	var failedHostIDs map[uint]struct{}
+	var vppApp *fleet.VPPApp
+	var host *fleet.Host
+	var token string
+	for _, version := range versions {
+		if len(hostIDsWithoutVersion) == 0 {
+			break
+		}
+		// A version without labels includes every host left, so skip the label scope query for it
+		if len(version.LabelsIncludeAny) == 0 && len(version.LabelsExcludeAny) == 0 && len(version.LabelsIncludeAll) == 0 {
+			includedHostIDs = make(map[uint]struct{}, len(hostIDsWithoutVersion))
+			for _, hostID := range hostIDsWithoutVersion {
+				includedHostIDs[hostID] = struct{}{}
+			}
+		} else {
+			includedHostIDs, err = ds.GetIncludedHostIDMapForVPPAppHosts(ctx, version.VPPAppsTeamsID, hostIDsWithoutVersion)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "get hosts in scope of app store app version %d", version.VPPAppsTeamsID)
+			}
+		}
+		hostIDsWithoutVersion = slices.DeleteFunc(hostIDsWithoutVersion, func(hostID uint) bool {
+			_, included := includedHostIDs[hostID]
+			return included
+		})
+
+		// Keep the hosts whose latest install didn't send this version's configuration
+		var hostIDs []uint
+		for hostID := range includedHostIDs {
+			install := installByHostID[hostID]
+			switch {
+			// Re-send when a Fleet variable the configuration uses changed, or the configuration changed after the install. Install times have whole seconds, so an install in the same second as the change counts as before it.
+			case install.NeedsConfigurationResend, version.ConfigurationUpdatedAt != nil && install.CreatedAt.Before(*version.ConfigurationUpdatedAt):
+			// Re-send when the host moved to this version, unless neither version has a configuration. The previous version is in another fleet when the host changed fleets, and unknown when it was deleted.
+			case !ptr.Equal(install.VPPAppTeamID, &version.VPPAppsTeamsID):
+				if len(version.Configuration) > 0 || install.VPPAppTeamID == nil {
+					break
+				}
+				sentVersion, inFleet := versionByID[*install.VPPAppTeamID]
+				if inFleet {
+					sentConfiguration = sentVersion.Configuration
+				} else {
+					sentConfiguration, err = ds.GetVPPAppConfiguration(ctx, *install.VPPAppTeamID)
+					if err != nil && !fleet.IsNotFound(err) {
+						return ctxerr.Wrapf(ctx, err, "get configuration of app store app version %d", *install.VPPAppTeamID)
+					}
+				}
+				if len(sentConfiguration) == 0 {
+					continue
+				}
+			default:
+				continue
+			}
+			hostIDs = append(hostIDs, hostID)
+		}
+		if len(hostIDs) == 0 {
+			continue
+		}
+
+		unactivatedHostIDs, err = ds.GetHostIDsWithUnactivatedVPPAppInstall(ctx, version.VPPAppsTeamsID, hostIDs)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "get hosts with a queued install of app store app version %d", version.VPPAppsTeamsID)
+		}
+
+		// Wait before retrying an install of this version that failed after its configuration last changed, counting a failure in the same second as the change as after it
+		failedSince := time.Now().Add(-fleet.AppStoreAppAutomaticInstallWait)
+		if version.ConfigurationUpdatedAt != nil && version.ConfigurationUpdatedAt.After(failedSince) {
+			failedSince = version.ConfigurationUpdatedAt.Truncate(time.Second)
+		}
+		failedHostIDs, err = ds.GetHostIDsWithRecentFailedVPPAppInstall(ctx, version.VPPAppsTeamsID, failedSince, hostIDs)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "get hosts with a recent failed install of app store app version %d", version.VPPAppsTeamsID)
+		}
+
+		// Skip a version deleted since the versions were read
+		vppApp, err = ds.GetVPPAppByTeamAndTitleID(ctx, &fleetID, titleID, version.VPPAppsTeamsID)
+		if err != nil {
+			if fleet.IsNotFound(err) {
+				continue
+			}
+			return ctxerr.Wrapf(ctx, err, "get app store app version %d", version.VPPAppsTeamsID)
+		}
+		for _, hostID := range hostIDs {
+			if _, unactivated := unactivatedHostIDs[hostID]; unactivated {
+				continue
+			}
+			if _, failed := failedHostIDs[hostID]; failed {
+				continue
+			}
+			// Skip a host deleted since the installs were read
+			host, err = ds.Host(ctx, hostID)
+			if err != nil {
+				if fleet.IsNotFound(err) {
+					continue
+				}
+				return ctxerr.Wrapf(ctx, err, "get host %d", hostID)
+			}
+			// Log the hosts that can't take the install, the next run tries them again
+			token, err = vppInstaller.GetVPPTokenIfCanInstallVPPApps(ctx, true, host)
+			if err == nil {
+				_, err = vppInstaller.InstallVPPAppPostValidation(ctx, host, vppApp, token, fleet.HostSoftwareInstallOptions{
+					ForConfigurationResend: true,
+				})
+			}
+			if err != nil {
+				logger.WarnContext(ctx, "failed to send app store app configuration", "host_id", hostID, "vpp_app_team_id", version.VPPAppsTeamsID, "err", err)
+			}
+		}
+	}
+	return nil
 }
