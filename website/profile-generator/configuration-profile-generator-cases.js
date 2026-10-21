@@ -30,7 +30,9 @@
 // decision for this generator was that there isn't one -- the CANARY cases are written as exact
 // substrings so this can stay dumb.  Properties that genuinely can't be checked this way (one dict
 // per payload domain, distinct PayloadUUIDs, single-line CDATA, a DDM Identifier's relationship to
-// its Type) are noted on the case in `readByEye` and stay a human read.
+// its Type) are noted on the case in `readByEye` and stay a human read.  `mustStartWith` and
+// `mustMatch` are the two exceptions, for a property of where the profile starts and for values
+// that are random per generation.  Both are compared against the whitespace-stripped profile too.
 const TEST_CASES = [
 
   //  ╔═╗╔═╗╔═╗
@@ -654,6 +656,37 @@ const TEST_CASES = [
       mustContainElement: [['Format', 'int'], ['Format', 'chr'], ['Data', '0']],
     }
   },
+  // Exec runs a one-time command rather than setting a value, so a profile cannot satisfy these.  Defender/Scan
+  // and Reboot/RebootNow are real Exec nodes, which is what makes generating one tempting.
+  {
+    id: 'negative-csp-defender-quick-scan',
+    profileType: 'csp',
+    instructions: 'Run a Microsoft Defender quick scan on every computer.',
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'negative-csp-restart-now',
+    profileType: 'csp',
+    instructions: 'Restart these computers now.',
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'negative-csp-defender-signature-update-now',
+    profileType: 'csp',
+    instructions: 'Update Microsoft Defender security intelligence right now.',
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'csp-defender-daily-quick-scan-time',
+    profileType: 'csp',
+    instructions: 'Schedule a daily Microsoft Defender quick scan at 2:00 AM.',
+    // Minutes after midnight.
+    expect: {
+      mustContain: ['./Device/Vendor/MSFT/Policy/Config/Defender/ScheduleQuickScanTime'],
+      mustContainElement: [['Data', '120']],
+      mustNotContain: ['<Exec>', 'MSFT/Defender/Scan<'],
+    }
+  },
 
   //  ╔╦╗╔═╗╔╗ ╦╦  ╔═╗╔═╗╔╗╔╔═╗╦╔═╗
   //  ║║║║ ║╠╩╗║║  ║╣ ║  ║║║╠╣ ║║ ╦
@@ -1167,6 +1200,34 @@ const TEST_CASES = [
       routesTo: 'ddm',
       expect: { mustContain: ['com.apple.configuration.softwareupdate.settings', '"MajorPeriodInDays":73'] },
     },
+  },
+  // The identifier token is random per generation, so these match its shape: a final segment of 8 lowercase hex characters.
+  {
+    id: 'mobileconfig-identifier-token-camera-screenshots',
+    profileType: 'mobileconfig',
+    instructions: 'Disable the camera and screenshots.',
+    expect: {
+      mustMatch: ['<key>PayloadIdentifier</key><string>[^<]*\\.[0-9a-f]{8}</string>'],
+      mustContain: ['com.apple.applicationaccess'],
+    }
+  },
+  {
+    id: 'mobileconfig-identifier-token-two-domains',
+    profileType: 'mobileconfig',
+    instructions: 'Disable content caching and start the screen saver after 5 minutes.',
+    expect: {
+      mustMatch: ['<key>PayloadIdentifier</key><string>[^<]*\\.[0-9a-f]{8}</string>'],
+      mustContain: ['com.apple.applicationaccess', 'com.apple.screensaver'],
+    }
+  },
+  {
+    id: 'mobileconfig-identifier-token-login-window-buttons',
+    profileType: 'mobileconfig',
+    instructions: 'Hide the Sleep, Restart, and Shut Down buttons on the login window.',
+    expect: {
+      mustMatch: ['<key>PayloadIdentifier</key><string>[^<]*\\.[0-9a-f]{8}</string>'],
+      mustContain: ['com.apple.loginwindow'],
+    }
   },
   // 2026-10-02: JordanMontgomery: I commented out the two Platform SSO cases below because they fail every run: the model does not know the vendor-specific extension values and URLs.
   // FUTURE: uncomment these cases once the prompt carries step-by-step Platform SSO instructions, the way it does for WLAN XML.
@@ -1960,6 +2021,13 @@ function checkExpectations(expectations, generatedProfile) {
   for (let needle of expectations.mustNotContain || []) {
     if(_.contains(profileWithoutWhitespace, stripWhitespace(needle))) {
       failures.push(`contains forbidden substring: ${JSON.stringify(needle)}`);
+    }
+  }
+
+  // For values that are random per generation, where no fixed substring can stand in.
+  for (let pattern of expectations.mustMatch || []) {
+    if(!new RegExp(pattern).test(profileWithoutWhitespace)) {
+      failures.push(`does not match pattern: ${pattern}`);
     }
   }
 

@@ -276,7 +276,9 @@ function mobileconfigWrittenFromPayloadSettings(rawResult) {
   let built = sails.helpers.buildMobileconfigFromPayloadSettings.with({
     payloads: rawResult.payloads,
     profileSettings: _.isPlainObject(rawResult.profileSettings) ? rawResult.profileSettings : {},
-    profileIdentifier: `com.example.${filenameStem}`,
+    // A random last segment, so two profiles generated for the same request never share a PayloadIdentifier: an MDM
+    // that keys profiles on it, as Fleet does, rejects the second.
+    profileIdentifier: `com.example.${filenameStem}.${require('crypto').randomBytes(4).toString('hex')}`,
     profileDisplayName: _.isString(rawResult.profileDisplayName) && rawResult.profileDisplayName.trim() !== '' ? rawResult.profileDisplayName : filenameStem,
     profileDescription: _.isString(rawResult.profileDescription) ? rawResult.profileDescription : '',
   });

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "14.1.586",
+      "version": "14.2.587",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Tower' AND publisher = 'saas.group';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Tower' AND publisher = 'saas.group' AND version_compare(version, '14.1.586') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Tower' AND publisher = 'saas.group' AND version_compare(version, '14.2.587') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'tower.exe');"
       },
-      "installer_url": "https://www.git-tower.com/apps/tower3-win/586-6dd78fd9/Tower-14.1.586.msi",
+      "installer_url": "https://www.git-tower.com/apps/tower3-win/587-d266412d/Tower-14.2.587.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "1c38382b",
-      "sha256": "8b68cd58b05629abaaf14432a2d665033e19f86f9b5d8c9d77823a0171612b84",
+      "sha256": "41d2901b3026ce0c1b6f1562825f13341387ac000367f72febb2faca06ae01b4",
       "default_categories": [
         "Developer tools"
       ]

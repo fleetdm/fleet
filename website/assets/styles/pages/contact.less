@@ -277,6 +277,13 @@
     max-width: 392px;
     width: 100%;
     padding-top: 48px;
+    [purpose='logos-caption'] {
+      margin: 16px 0 0;
+      text-align: center;
+      font-size: 12px;
+      line-height: 150%;
+      color: @core-fleet-black-75;
+    }
     [purpose='logo-grid'] {
       display: flex;
       flex-direction: column;
@@ -307,6 +314,21 @@
           }
           &.grafana img {
             max-height: 23px;
+          }
+          &.nvidia img {
+            max-height: 24px;
+          }
+          &.stripe img {
+            max-height: 28px;
+          }
+          &.reddit img {
+            max-height: 28px;
+          }
+          &.mollie img {
+            max-height: 28px;
+          }
+          &.epic img {
+            max-height: 32px;
           }
         }
       }

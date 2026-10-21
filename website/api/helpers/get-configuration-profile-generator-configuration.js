@@ -532,7 +532,7 @@ ${COULD_NOT_GENERATE_SHAPE}`;
         "atomic": false,
         "commands": [
           {
-            // Replace, Add, or Exec.
+            // Replace or Add.  Exec only for a ClientCertificateInstall SCEP Install/Enroll node.
             "verb": "Replace",
             "locURI": "TODO",
             // The node's value as the node takes it: a number for int, true or false for bool, text for chr, and for a
@@ -653,9 +653,10 @@ ${COULD_NOT_GENERATE_SHAPE}`;
           ...(isWrittenFromSettings ? [
             'Return the commands and their values, not the SyncML.  The profile is written from "commands" after you return it: each command\'s Format is taken from the node\'s DFFormat in the provided list, and its Item, Meta, Target, and CDATA are added for you.  Never write SyncML or OMA-DM command elements yourself -- no Add, Replace, Exec, Atomic, Item, Meta, Target, Data, or Format.',
             'A node whose value is itself an XML document -- VPNv2 ProfileXML, an AppLocker policy, an AssignedAccess configuration -- takes that document as its "data", written on one line; it is wrapped in CDATA for you.  An ADMX-backed node\'s "data" is its policy fragment.',
+            '"verb" is Replace or Add.  Exec runs a one-time command rather than setting a value, so never use it; the one exception is the Install/Enroll node of a ClientCertificateInstall SCEP certificate.  If the request can only be met by running a command -- starting a scan, restarting, wiping, updating right now -- return the "couldNotGenerateProfile" shape and name the command.',
             '"atomic" wraps every command in one <Atomic>.  Set it only when the instructions ask for the settings to be applied together, all or nothing.',
           ] : [
-            'A Windows profile is a sequence of OMA-DM command elements, not a SyncML document.  The top level must be one or more <Add>, <Replace>, <Exec>, or <Atomic> elements and nothing else.  Never wrap them in <SyncML>, <SyncBody>, <Final/>, or an invented container such as <WindowsCSP>, and never emit an XML declaration -- the SyncML envelope carries session state (SyncHdr, SessionID, MsgID) that only the MDM server can populate at delivery time.',
+            'A Windows profile is a sequence of OMA-DM command elements, not a SyncML document.  The top level must be one or more <Add>, <Replace>, or <Atomic> elements and nothing else.  <Exec> runs a one-time command rather than setting a value, so never emit it; the one exception is the Install/Enroll node of a ClientCertificateInstall SCEP certificate.  If the request can only be met by running a command -- starting a scan, restarting, wiping, updating right now -- return the "couldNotGenerateProfile" shape and name the command.  Never wrap the commands in <SyncML>, <SyncBody>, <Final/>, or an invented container such as <WindowsCSP>, and never emit an XML declaration -- the SyncML envelope carries session state (SyncHdr, SessionID, MsgID) that only the MDM server can populate at delivery time.',
             'If you use <Atomic>, it must wrap every command in the profile.  Never mix an <Atomic> element with sibling top-level commands, and never nest one <Atomic> inside another.',
           ]),
           // Node identity.
@@ -745,7 +746,7 @@ ${COULD_NOT_GENERATE_SHAPE}`;
             '"profileDisplayName" is the root PayloadDisplayName, which an end user sees in System Settings, and some MDMs use it as the profile name.  Make it human-readable and specific to what the profile actually enforces, which is not always what was asked for: a profile that only sets allowBluetoothModification is "Bluetooth Settings Locked", not "Disable Bluetooth".  "profileDescription" follows the same rule.',
           ] : [
             'Take every PayloadUUID from the list of UUIDs provided with the instructions, in the order given, and never invent one.  Two dicts sharing a UUID is a profile that installs unpredictably, so use each one exactly once.',
-            'PayloadIdentifier is reverse-DNS.  Each payload dict\'s identifier is the root identifier plus a distinguishing suffix, and no two identifiers in the profile are the same.',
+            'PayloadIdentifier is reverse-DNS, and the root identifier ends with the identifier token provided with the instructions, so two profiles generated for the same request never share one.  Each payload dict\'s identifier is the root identifier plus a distinguishing suffix, and no two identifiers in the profile are the same.',
             'PayloadDisplayName on the root is what an end user sees in System Settings, and some MDMs use it as the profile name.  Make it human-readable and specific to what the profile actually enforces, which is not always what was asked for: a profile that only sets allowBluetoothModification is "Bluetooth Settings Locked", not "Disable Bluetooth".  PayloadDescription follows the same rule.',
           ]),
           // Structure.
@@ -1291,10 +1292,14 @@ to the profile automatically after you return it.`;
     // Written from settings, every PayloadUUID is added after generation, and these are only for a payload another
     // payload references, which a profile rarely needs more than a few of.
     let suppliedPayloadUuids = [];
+    // Two profiles generated from the same request otherwise get the same PayloadIdentifier, and an MDM
+    // that keys profiles on it, as Fleet does, rejects the second one.
+    let suppliedIdentifierToken = '';
     if(profileType === 'mobileconfig') {
       for (let i = 0; i < (isWrittenFromSettings ? 4 : 10); i++) {
         suppliedPayloadUuids.push((await sails.helpers.strings.uuid()).toUpperCase());
       }
+      suppliedIdentifierToken = require('crypto').randomBytes(4).toString('hex');
     }
 
 
@@ -1336,6 +1341,8 @@ ${RESPONSE_SHAPE}`;
     PayloadContent.  Never invent a UUID and never use one twice.  Where one payload references another payload
     (PayloadCertificateUUID, VPNUUID and similar), repeat that payload's UUID from this list exactly.
     ${suppliedPayloadUuids.map((uuid)=>`- ${uuid}`).join('\n    ')}
+
+    Identifier token, the last segment of the root PayloadIdentifier: ${suppliedIdentifierToken}
 `;
     }
 
