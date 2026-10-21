@@ -249,7 +249,14 @@ describe("enroll-ota.html — /enroll/next-steps", () => {
     expect(lines).toEqual([
       "You're done! \u{1F389}",
       "Close this page after you set up your work profile.",
+      "Having issues? Try again.",
     ]);
+    // A plain link, so it loads in this tab without any scripted navigation.
+    const tryAgain = doc.querySelector<HTMLAnchorElement>(".try-again-link");
+    expect(tryAgain?.getAttribute("href")).toBe(
+      "/enroll?enroll_secret=test-secret"
+    );
+    expect(tryAgain?.getAttribute("target")).toBeNull();
     // Informational page: no token, and nothing left to select.
     expect(fetchMock).not.toHaveBeenCalled();
     expect(doc.querySelector(".enroll-link")).toBeNull();
@@ -285,5 +292,16 @@ describe("enroll-ota.html — /enroll/next-steps", () => {
 
     expect(heading()).toBe("After setup...");
     expect(doc.querySelector(".error-title")).toBeNull();
+    expect(doc.querySelector(".try-again-link")?.getAttribute("href")).toBe(
+      "/enroll"
+    );
+  });
+
+  it("points Try again at the enroll page under a URL prefix", async () => {
+    await loadPage({ nextSteps: true, urlPrefix: "/fleet" });
+
+    expect(doc.querySelector(".try-again-link")?.getAttribute("href")).toBe(
+      "/fleet/enroll?enroll_secret=test-secret"
+    );
   });
 });

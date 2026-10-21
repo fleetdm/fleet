@@ -324,6 +324,9 @@
         <div class="android-content">
           <p>You're done! &#127881;</p>
           <p>Close this page after you set up your work profile.</p>
+          <p>
+            Having issues? <a class="try-again-link" href="">Try again</a>.
+          </p>
         </div>
       </section>
     </template>
@@ -958,6 +961,12 @@
             return;
           }
           renderContent("android-next-steps-template");
+          // An ordinary link, so it loads /enroll in this tab and mints a
+          // fresh token for anyone whose hand-off didn't take.
+          const tryAgainLink = document.querySelector(".try-again-link");
+          if (tryAgainLink) {
+            tryAgainLink.setAttribute("href", buildEnrollPath("/enroll"));
+          }
           return;
         }
 

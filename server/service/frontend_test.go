@@ -188,6 +188,7 @@ func TestServeEndUserEnrollNextSteps(t *testing.T) {
 			assert.Contains(t, bodyString, `IS_NEXT_STEPS = "true"`)
 			assert.Contains(t, bodyString, "After setup...")
 			assert.Contains(t, bodyString, "Close this page after you set up your work profile.")
+			assert.Contains(t, bodyString, "Having issues?")
 		})
 	}
 }
