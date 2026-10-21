@@ -1,0 +1,1 @@
+- Fixed a memory leak in the macOS `app_icons` table, which did not free the C copy of the application path on each query.
