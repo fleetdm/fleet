@@ -103,11 +103,16 @@ func run(ctx context.Context, logger *slog.Logger, out, overrides string, update
 	if err := convertApple(ctx, appleLogger, src, &schema); err != nil {
 		return err
 	}
-	schema.Version.Windows, err = runWindows(ctx, logger.With("platform", "windows"), client, windowsRunOptions{
-		PageURL: ddfPageURL, Dir: filepath.Join(workDir, "windows"),
+	windowsLogger := logger.With("platform", "windows")
+	windowsDir := filepath.Join(workDir, "windows")
+	schema.Version.Windows, err = runWindows(ctx, windowsLogger, client, windowsRunOptions{
+		PageURL: ddfPageURL, Dir: windowsDir,
 		Pinned: pinnedWindows, Update: update, FetchPinned: fetchPinned,
 	})
 	if err != nil {
+		return err
+	}
+	if _, err := loadWindows(ctx, windowsLogger, windowsDir); err != nil {
 		return err
 	}
 	schema.Windows = map[string]*profilevalidation.WindowsNode{}
