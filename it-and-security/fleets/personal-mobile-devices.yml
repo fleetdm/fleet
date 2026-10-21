@@ -20,6 +20,7 @@ controls:
   apple_settings:
     configuration_profiles:
       - path: ../lib/ios/declaration-profiles/Passcode settings.json
+      - path: ../lib/macos/declaration-profiles/Passcode minimum length.json
       - path: ../lib/ios/configuration-profiles/self-service.mobileconfig
   setup_experience:
     enable_end_user_authentication: true

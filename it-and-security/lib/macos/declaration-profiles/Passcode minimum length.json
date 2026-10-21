@@ -1,0 +1,7 @@
+{
+    "Type": "com.apple.configuration.passcode.settings",
+    "Identifier": "com.fleetdm.config.passcode.minimum-length",
+    "Payload": {
+        "MinimumLength": 4
+    }
+}
