@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "8.7",
+      "version": "8.7.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.flyingmeat.Acorn8';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.flyingmeat.Acorn8' AND version_compare(bundle_short_version, '8.7') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.flyingmeat.Acorn8' AND version_compare(bundle_short_version, '8.7.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.flyingmeat.Acorn8' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://flyingmeat.com/download/Acorn-8.7.zip",
+      "installer_url": "https://flyingmeat.com/download/Acorn-8.7.1.zip",
       "install_script_ref": "a6a10ee5",
       "uninstall_script_ref": "d8d84d04",
-      "sha256": "d5e05403327be04e62f92dfc8b9b0cfc2e78dde79f7ce590b284a4354e2f9476",
+      "sha256": "e69e0d74382a4f9c76a184ecbf9759055ac5bebdf3336f6b3eaa0a7ff5cfb5a5",
       "default_categories": [
         "Productivity"
       ]
