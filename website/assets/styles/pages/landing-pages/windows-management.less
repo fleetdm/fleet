@@ -28,7 +28,7 @@
     }
   }
 
-  .section-spacing(@section-120; @section-160; @section-64; 64px);
+  .section-spacing(@section-160; @section-160; @section-64; 64px);
 
   p {
     margin-bottom: 0px;
@@ -685,7 +685,7 @@
   }
 
   @media (max-width: 1200px) {
-    .section-spacing(@section-120-lg; @section-160-lg; @section-64-lg; 64px);
+    .section-spacing(@section-160-lg; @section-160-lg; @section-64-lg; 64px);
     [purpose='page-hero'] {
       padding-top: 48px;
       padding-bottom: 0;
@@ -706,7 +706,7 @@
 
   }
   @media (max-width: 991px) {
-    .section-spacing(@section-120-md; @section-160-md; @section-64-md; 48px);
+    .section-spacing(@section-160-md; @section-160-md; @section-64-md; 48px);
 
     [purpose='page-container'] {
       padding: 48px;
@@ -835,7 +835,7 @@
   }
 
   @media (max-width: 767px) {
-    .section-spacing(@section-120-sm; @section-160-sm; @section-64-sm; 32px);
+    .section-spacing(@section-160-sm; @section-160-sm; @section-64-sm; 32px);
 
     // Flex instead of grid so a partial last row of distros is centered.
     [purpose='supported-os-grid'] {
@@ -1004,7 +1004,7 @@
   }
 
   @media (max-width: 575px) {
-    .section-spacing(@section-120-xs; @section-160-xs; @section-64-xs; 32px);
+    .section-spacing(@section-160-xs; @section-160-xs; @section-64-xs; 32px);
 
     [purpose='page-container'] {
       padding-left: 24px;
@@ -1296,16 +1296,6 @@
     [purpose='section-buttons'] {
       flex-direction: column;
       align-items: flex-start;
-    }
-  }
-
-  [purpose='customer-stats'] {
-    margin-bottom: @section-64;
-  }
-
-  @media (max-width: 991px) {
-    [purpose='customer-stats'] {
-      margin-bottom: @section-64-md;
     }
   }
 }
