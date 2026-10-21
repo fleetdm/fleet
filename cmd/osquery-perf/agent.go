@@ -390,6 +390,7 @@ type mdmAgent struct {
 	supplementalOSVersionExtra string
 	isPersonalEnrollment       bool
 	apnsPushURL                string
+	identityRand               *rand.Rand
 }
 
 // delayCancelableMDMAck holds the fetch→acknowledge window open for
@@ -504,6 +505,12 @@ type agent struct {
 	nodeKey                       string
 	templates                     *template.Template
 	os                            string
+
+	// identityRand is derived from --seed and only drives host identifiers
+	// (UUID, serial, MDM device IDs), so restarting with the same seed brings
+	// back the same hosts instead of enrolling new ones.
+	identityRand *rand.Rand
+
 	// deviceAuthToken holds Fleet Desktop device authentication token.
 	//
 	// Non-nil means the agent is identified as orbit osquery,
@@ -797,16 +804,17 @@ func newAgent(
 	psso pssoParams,
 	mdmAPNSPushURL string,
 	websocketProb float64,
+	identityRand *rand.Rand,
 ) *agent {
 	var deviceAuthToken *string
-	if rand.Float64() <= orbitProb {
+	if identityRand.Float64() <= orbitProb {
 		deviceAuthToken = ptr.String(uuid.NewString())
 	}
-	serialNumber := mdmtest.RandSerialNumber()
-	if rand.Float64() <= emptySerialProb {
+	serialNumber := mdmtest.RandSerialNumberFrom(identityRand)
+	if identityRand.Float64() <= emptySerialProb {
 		serialNumber = ""
 	}
-	hostUUID := strings.ToUpper(uuid.New().String())
+	hostUUID := seededUUID(identityRand)
 
 	// determine the simulated host's OS based on the template name (see
 	// validTemplateNames below for the list of possible names, the OS is always
@@ -821,7 +829,7 @@ func newAgent(
 		macMDMClient *mdmtest.TestAppleMDMClient
 		winMDMClient *mdmtest.TestWindowsMDMClient
 	)
-	if rand.Float64() < mdmProb {
+	if identityRand.Float64() < mdmProb {
 		switch agentOS {
 		case "macos":
 			macMDMClient = mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
@@ -829,9 +837,12 @@ func newAgent(
 				SCEPURL:       serverAddress + apple_mdm.SCEPPath,
 				MDMURL:        serverAddress + apple_mdm.MDMPath,
 			}, "MacBookPro16,1")
-			// Have the osquery agent match the MDM device serial number and UUID.
-			serialNumber = macMDMClient.SerialNumber
-			hostUUID = macMDMClient.UUID
+			// The MDM device and the osquery agent share the seeded serial number and UUID.
+			if serialNumber == "" {
+				serialNumber = mdmtest.RandSerialNumberFrom(identityRand)
+			}
+			macMDMClient.SerialNumber = serialNumber
+			macMDMClient.UUID = hostUUID
 
 		case "windows":
 			// windows MDM enrollment requires orbit enrollment
@@ -895,6 +906,7 @@ func newAgent(
 		wsSupported:    rand.Float64() < websocketProb, // nolint:gosec // ignore weak randomizer
 		mdmAPNSPushURL: mdmAPNSPushURL,
 		ddmDeclTokens:  make(map[string]string),
+		identityRand:   identityRand,
 
 		orbitConfigNudge:        make(chan time.Time, 1),
 		orbitConfigConnected:    make(chan struct{}, 1),
@@ -913,7 +925,7 @@ func newAgent(
 		// Every 20th host (5%) withholds its issued SCEP certs to exercise the server's verification backstop (test-only failure).
 		withholdSCEPCert: agentIndex%20 == 0,
 
-		entraIDDeviceID:          uuid.NewString(),
+		entraIDDeviceID:          strings.ToLower(seededUUID(identityRand)),
 		entraIDUserPrincipalName: fmt.Sprintf("fake-%s@example.com", randomString(5)),
 		configTLSETag:            configTLSETag,
 	}
@@ -985,6 +997,15 @@ type scheduledQuery struct {
 	packName string
 }
 
+func newIdentityRand(seed int64) *rand.Rand {
+	return rand.New(rand.NewSource(seed)) //nolint:gosec // load testing, not security-sensitive
+}
+
+// seededUUID returns an uppercase UUID drawn from r.
+func seededUUID(r *rand.Rand) string {
+	return strings.ToUpper(uuid.Must(uuid.NewRandomFromReader(r)).String())
+}
+
 func (a *agent) isOrbit() bool {
 	return a.deviceAuthToken != nil
 }
@@ -1008,6 +1029,8 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		}
 		if a.winMDMClient != nil {
 			a.winMDMClient = mdmtest.NewTestMDMClientWindowsProgramatic(a.serverAddress, *a.orbitNodeKey)
+			a.winMDMClient.DeviceID = strings.ToLower(seededUUID(a.identityRand))
+			a.winMDMClient.HardwareID = strings.ToLower(seededUUID(a.identityRand))
 		}
 	}
 
@@ -4442,7 +4465,7 @@ func (a *agent) submitLogs(results []resultLog) error {
 }
 
 func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
-	udid := mdmtest.RandUDID()
+	udid := mdmtest.RandUDIDFrom(a.identityRand)
 
 	mdmClient := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
 		SCEPChallenge: mdmSCEPChallenge,
@@ -4450,7 +4473,7 @@ func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
 		MDMURL:        a.serverAddress + apple_mdm.MDMPath,
 	}, a.model)
 	mdmClient.UUID = udid
-	mdmClient.SerialNumber = mdmtest.RandSerialNumber()
+	mdmClient.SerialNumber = mdmtest.RandSerialNumberFrom(a.identityRand)
 	deviceName := fmt.Sprintf("%s-%d", a.model, a.agentIndex)
 	productName := a.model
 	softwareSource := "ios_apps"
@@ -4816,8 +4839,14 @@ func main() {
 		log.Fatalf("Argument mdm_apns_url must be specified when mdm_prob is greater than 0")
 	}
 
-	tmplsm := make(map[*template.Template]int)
+	// A slice keeps template assignment in flag order: with a map, the same
+	// --seed could hand a host's identity to a different OS on restart.
+	type tmplCount struct {
+		tmpl  *template.Template
+		count int
+	}
 	requestedTemplates := strings.Split(*osTemplates, ",")
+	tmplsm := make([]tmplCount, 0, len(requestedTemplates))
 	tmplsTotalHostCount := 0
 	for _, nm := range requestedTemplates {
 		numberOfHosts := 0
@@ -4841,7 +4870,7 @@ func main() {
 		if err != nil {
 			log.Fatal("parse templates: ", err)
 		}
-		tmplsm[tmpl] = numberOfHosts
+		tmplsm = append(tmplsm, tmplCount{tmpl, numberOfHosts})
 		tmplsTotalHostCount += numberOfHosts
 	}
 	if tmplsTotalHostCount != 0 && tmplsTotalHostCount != *hostCount {
@@ -4863,18 +4892,18 @@ func main() {
 		nodeKeyManager.LoadKeys()
 	}
 
-	var tmplss []*template.Template
-	for tmpl := range tmplsm {
-		tmplss = append(tmplss, tmpl)
-	}
+	// Per-agent identity seeds are drawn up front from --seed: the global rand
+	// is also consumed by already-running agents, so its sequence isn't stable.
+	identitySeeds := newIdentityRand(*randSeed)
 
 	for i := 0; i < *hostCount; i++ {
+		identityRand := newIdentityRand(identitySeeds.Int63())
 		var tmpl *template.Template
 		if tmplsTotalHostCount > 0 {
-			for tmpl_, hostCount := range tmplsm {
-				if hostCount > 0 {
-					tmpl = tmpl_
-					tmplsm[tmpl_]--
+			for j := range tmplsm {
+				if tmplsm[j].count > 0 {
+					tmpl = tmplsm[j].tmpl
+					tmplsm[j].count--
 					break
 				}
 			}
@@ -4882,7 +4911,7 @@ func main() {
 				log.Fatalf("Failed to determine template for host: %d", i)
 			}
 		} else {
-			tmpl = tmplss[i%len(tmplss)]
+			tmpl = tmplsm[i%len(tmplsm)].tmpl
 		}
 
 		if tmpl.Name() == "iphone_14.6.tmpl" || tmpl.Name() == "ipad_13.18.tmpl" || tmpl.Name() == "iphone_17.tmpl" {
@@ -4925,6 +4954,7 @@ func main() {
 				mdmProfileFailureProb: *mdmProfileFailureProb,
 				cancelableCmdAckDelay: *mdmCancelableCommandAckDelay,
 				apnsPushURL:           *mdmAPNSURL,
+				identityRand:          identityRand,
 			}
 			go mobileDevice.runAppleIDeviceMDMLoop(*mdmSCEPChallenge)
 			time.Sleep(sleepTime)
@@ -5054,6 +5084,7 @@ func main() {
 			},
 			*mdmAPNSURL,
 			*websocketProb,
+			identityRand,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager

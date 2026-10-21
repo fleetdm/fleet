@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -294,4 +295,20 @@ func TestHomebrewExecutableHashes(t *testing.T) {
 			require.Less(t, count, maxLargeKegExecutables, kegPath)
 		}
 	})
+}
+
+func TestSeededIdentityIsReproducible(t *testing.T) {
+	identity := func(seed int64) (string, string, string) {
+		r := newIdentityRand(seed)
+		return seededUUID(r), mdmtest.RandSerialNumberFrom(r), mdmtest.RandUDIDFrom(r)
+	}
+	u1, s1, d1 := identity(42)
+	u2, s2, d2 := identity(42)
+	require.Equal(t, u1, u2)
+	require.Equal(t, s1, s2)
+	require.Equal(t, d1, d2)
+
+	u3, s3, _ := identity(43)
+	require.NotEqual(t, u1, u3)
+	require.NotEqual(t, s1, s3)
 }
