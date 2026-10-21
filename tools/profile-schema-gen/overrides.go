@@ -17,6 +17,26 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// loosenTypes are the values loosen's types may add, per kind. "any" has its own action, and
+// widening a Windows setting into an interior node makes no sense.
+var (
+	appleLoosenTypes = []string{
+		string(profilevalidation.AppleTypeString), string(profilevalidation.AppleTypeInteger), string(profilevalidation.AppleTypeReal),
+		string(profilevalidation.AppleTypeBoolean), string(profilevalidation.AppleTypeDate), string(profilevalidation.AppleTypeData),
+		string(profilevalidation.AppleTypeArray), string(profilevalidation.AppleTypeDictionary),
+	}
+	loosenTypes = map[string][]string{
+		kindAppleProfile:     appleLoosenTypes,
+		kindAppleDeclaration: appleLoosenTypes,
+		kindWindows: {
+			string(profilevalidation.WindowsFormatInt), string(profilevalidation.WindowsFormatChr), string(profilevalidation.WindowsFormatBool),
+			string(profilevalidation.WindowsFormatB64), string(profilevalidation.WindowsFormatXML), string(profilevalidation.WindowsFormatNull),
+			string(profilevalidation.WindowsFormatBin), string(profilevalidation.WindowsFormatTime), string(profilevalidation.WindowsFormatDate),
+			string(profilevalidation.WindowsFormatFloat),
+		},
+	}
+)
+
 // Override kinds name the schema section an entry targets.
 const (
 	kindAppleProfile     = "apple_profile"
@@ -42,10 +62,12 @@ type overrideEntry struct {
 	LocURI          string `json:"loc_uri"`
 	Reason          string `json:"reason"`
 
-	KeyPath string `json:"key_path"` // loosen: the key; add: its parent dictionary ("" for the top level)
+	KeyPath string `json:"key_path"` // Apple loosen: the key; add: its parent dictionary ("" for the top level)
 
-	Action string                       `json:"action"` // loosen: "types" or "any"
-	Types  profilevalidation.AppleTypes `json:"types"`  // loosen with action "types"
+	Action string `json:"action"` // loosen: "types" or "any"
+	// Types are Apple types, or DDF formats for windows entries (see loosenTypes); loosen with
+	// action "types". Plain strings, so they're checked against the entry's kind before use.
+	Types []string `json:"types"`
 
 	Name string                      `json:"name"` // add
 	Key  *profilevalidation.AppleKey `json:"key"`  // add
@@ -146,13 +168,27 @@ func (f *overridesFile) validate() error {
 
 	for i, e := range f.Loosen {
 		p := e.commonProblems(true)
-		if e.KeyPath == "" {
+		switch {
+		case e.Kind == kindWindows && e.KeyPath != "":
+			p = append(p, "windows entries take no key_path; loc_uri is the node")
+		case e.Kind != kindWindows && e.KeyPath == "":
 			p = append(p, "key_path is required")
 		}
 		switch e.Action {
 		case "types":
 			if len(e.Types) == 0 {
 				p = append(p, `action "types" needs a non-empty types list`)
+			}
+			if allowed, ok := loosenTypes[e.Kind]; ok {
+				vocabulary := "an Apple type"
+				if e.Kind == kindWindows {
+					vocabulary = "a windows format"
+				}
+				for _, t := range e.Types {
+					if !slices.Contains(allowed, t) {
+						p = append(p, fmt.Sprintf("types: %q isn't %s (%s)", t, vocabulary, strings.Join(allowed, ", ")))
+					}
+				}
 			}
 		case "any":
 			if len(e.Types) > 0 {
@@ -168,7 +204,10 @@ func (f *overridesFile) validate() error {
 	}
 
 	for i, e := range f.Add {
-		p := e.commonProblems(true)
+		p := e.commonProblems(false)
+		if e.Kind == kindWindows {
+			p = append(p, "add is for Apple only; only loosen applies to windows")
+		}
 		if e.Name == "" {
 			p = append(p, "name is required")
 		}
@@ -246,11 +285,6 @@ type overrideApplier struct {
 
 func (a *overrideApplier) do(action string, i int, e overrideEntry, apply func(overrideEntry) error) {
 	logger := a.logger.With("action", action, "kind", e.Kind, "target", e.target())
-	if e.Kind == kindWindows {
-		// Accepted so the file format is stable; the Windows sections don't exist yet.
-		logger.InfoContext(a.ctx, "skipping windows override until Windows sections are generated")
-		return
-	}
 	if err := apply(e); err != nil {
 		a.errs = append(a.errs, fmt.Errorf("%s[%d] (%s %s %s): %w", action, i, e.Kind, e.target(), e.KeyPath, err))
 		return
@@ -346,6 +380,9 @@ func (a *overrideApplier) addKey(parent *profilevalidation.AppleKey, name string
 }
 
 func (a *overrideApplier) loosen(e overrideEntry) error {
+	if e.Kind == kindWindows {
+		return a.loosenWindows(e)
+	}
 	pt := a.payloadType(e)
 	if pt == nil {
 		return fmt.Errorf("%s isn't in the schema", e.target())
@@ -362,11 +399,38 @@ func (a *overrideApplier) loosen(e overrideEntry) error {
 			k.RangeList, k.Range, k.Format, k.ValueType, k.Repetition = nil, nil, "", "", nil
 		} else {
 			// Unioned, never replaced: an override can only widen.
-			k.Type = mergeTypes(k.Type, e.Types)
+			types := make(profilevalidation.AppleTypes, 0, len(e.Types))
+			for _, t := range e.Types {
+				types = append(types, profilevalidation.AppleType(t))
+			}
+			k.Type = mergeTypes(k.Type, types)
 		}
 		k.Override = e.Reason
 		return nil
 	})
+}
+
+// loosenWindows widens the node at e.LocURI, matched exactly: a "*" path is targeted as written.
+func (a *overrideApplier) loosenWindows(e overrideEntry) error {
+	n := a.schema.Windows[e.LocURI]
+	if n == nil {
+		return errors.New("loc_uri not found; Microsoft may have renamed or removed it")
+	}
+	if e.Action == "any" {
+		n.Format = profilevalidation.WindowsFormats{profilevalidation.WindowsFormatAny}
+		// "Any value" must not stay narrowed by value constraints. Scope, builds, and deprecation
+		// describe the node, not its value, so they stay.
+		n.Enum, n.Range, n.RegEx, n.Flag, n.XSD, n.ADMXBacked, n.Delimiter = nil, nil, "", nil, "", false, ""
+	} else {
+		// Unioned, never replaced: an override can only widen.
+		for _, t := range e.Types {
+			if f := profilevalidation.WindowsFormat(t); !slices.Contains(n.Format, f) {
+				n.Format = append(n.Format, f)
+			}
+		}
+	}
+	n.Override = e.Reason
+	return nil
 }
 
 // resolveKeyPath walks path ("A.B[].C") from root and returns the deepest key reached and the part
