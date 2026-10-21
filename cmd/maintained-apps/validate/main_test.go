@@ -126,3 +126,31 @@ func TestValidateSqlInput(t *testing.T) {
 		})
 	}
 }
+
+func TestProgramsExistsWhereClause(t *testing.T) {
+	testCases := []struct {
+		query string
+		want  string
+	}{
+		{"", ""},
+		{
+			"SELECT 1 FROM programs WHERE name LIKE 'QGIS %' AND publisher = 'QGIS.org' AND version LIKE '3.44.%';",
+			"name LIKE 'QGIS %' AND publisher = 'QGIS.org' AND version LIKE '3.44.%'",
+		},
+		{
+			"select 1 from programs where name = 'Foo'",
+			"name = 'Foo'",
+		},
+		{
+			"SELECT 1 FROM apps WHERE bundle_identifier = 'com.example.foo';",
+			"",
+		},
+		{
+			"SELECT 1 WHERE EXISTS (SELECT 1 FROM programs WHERE name = 'Foo') OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
+			"",
+		},
+	}
+	for _, tc := range testCases {
+		require.Equal(t, tc.want, programsExistsWhereClause(tc.query), tc.query)
+	}
+}

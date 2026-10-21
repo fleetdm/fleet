@@ -36,7 +36,7 @@ Engineering teams version-control production infrastructure, review changes in p
       <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/viktoralexfilipsson/?isSelfProfile=false">Viktor Filipsson</a></strong>, Sonos, Senior IT System Engineer</p></td>
     </tr>
     <tr>
-      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-betsy-keiser-100x100@2x.jpeg" alt="Betsy Keiser" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
+      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-betsy-keiser-100x100@2x.png" alt="Betsy Keiser" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
       <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/betsykeiser/">Betsy Keiser</a></strong>, SandboxAQ, Staff Client Platform Engineer</p></td>
     </tr>
   </tbody>

@@ -2142,9 +2142,10 @@ func TestHostAuth(t *testing.T) {
 		{"team technician, belongs to team", test.UserTeamTechnicianTeam1, false, true},
 		{"team technician, DOES NOT belong to team", test.UserTeamTechnicianTeam2, true, true},
 	}
+	premiumCtx := license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	for _, tt := range technicianCases {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+			ctx := viewer.NewContext(premiumCtx, viewer.Viewer{User: tt.user})
 			isTeamOnlyRole := tt.user.GlobalRole == nil
 
 			err := svc.DeleteHost(ctx, 1)
@@ -2161,6 +2162,24 @@ func TestHostAuth(t *testing.T) {
 
 			_, err = svc.SetHostDeviceMapping(ctx, 1, "a@b.c", "custom")
 			checkAuthErr(t, true, err)
+		})
+
+		t.Run(tt.name+" on Free", func(t *testing.T) {
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+			isTeamOnlyRole := tt.user.GlobalRole == nil
+			checkFreeDelete := func(shouldFailAuthz bool, err error) {
+				t.Helper()
+				if shouldFailAuthz {
+					checkHostWriteAuthErr(t, true, isTeamOnlyRole, err)
+					return
+				}
+				require.ErrorIs(t, err, fleet.ErrMissingLicense)
+			}
+
+			checkFreeDelete(tt.shouldFailTeamDelete, svc.DeleteHost(ctx, 1))
+			checkFreeDelete(tt.shouldFailGlobalDelete, svc.DeleteHost(ctx, 2))
+			checkFreeDelete(tt.shouldFailTeamDelete, svc.DeleteHosts(ctx, []uint{1}, nil))
+			checkFreeDelete(tt.shouldFailGlobalDelete, svc.DeleteHosts(ctx, []uint{2}, nil))
 		})
 	}
 
@@ -4850,29 +4869,34 @@ func TestHostEncryptionKey(t *testing.T) {
 			archived   *fleet.HostArchivedDiskEncryptionKey
 			want       string
 			wantErr    string
-			windowsOff bool
+			noReescrow string // why nothing asks the host for a new key, if anything
 		}{
-			{"server private key", &fleet.HostDiskEncryptionKey{Base64Encrypted: aesKey, Decryptable: new(true)}, nil, recoveryKey, "", false},
-			{"legacy key with a renewed certificate", &fleet.HostDiskEncryptionKey{Base64Encrypted: legacyB64, WSTEPEncrypted: true, Decryptable: new(true)}, nil, recoveryKey, "", false},
-			{"legacy key on an unmarked row, since reads do not depend on the marker", &fleet.HostDiskEncryptionKey{Base64Encrypted: legacyB64, Decryptable: new(true)}, nil, recoveryKey, "", false},
-			{"server-key blob on a marked row", &fleet.HostDiskEncryptionKey{Base64Encrypted: aesKey, WSTEPEncrypted: true, Decryptable: new(true)}, nil, recoveryKey, "", false},
-			{"unreadable key on an unmarked row", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, Decryptable: new(true)}, nil, "", "Couldn't decrypt the disk encryption key.", false},
-			{"legacy key after the pair was replaced, before the job marked it", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true, Decryptable: new(true)}, nil, "", "Couldn't decrypt the disk encryption key.", false},
-			{"legacy key after the pair was replaced, marked by the job", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true, Decryptable: new(false)}, nil, "", "The host will escrow a new one", false},
-			// Marked, but the fleet no longer enforces disk encryption, so nothing asks the host for a new key.
-			{"marked key in a fleet without Windows disk encryption", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true, Decryptable: new(false)}, nil, "", "Couldn't decrypt the disk encryption key.", true},
+			{"server private key", &fleet.HostDiskEncryptionKey{Base64Encrypted: aesKey, Decryptable: new(true)}, nil, recoveryKey, "", ""},
+			{"legacy key with a renewed certificate", &fleet.HostDiskEncryptionKey{Base64Encrypted: legacyB64, WSTEPEncrypted: true, Decryptable: new(true)}, nil, recoveryKey, "", ""},
+			{"legacy key on an unmarked row, since reads do not depend on the marker", &fleet.HostDiskEncryptionKey{Base64Encrypted: legacyB64, Decryptable: new(true)}, nil, recoveryKey, "", ""},
+			{"server-key blob on a marked row", &fleet.HostDiskEncryptionKey{Base64Encrypted: aesKey, WSTEPEncrypted: true, Decryptable: new(true)}, nil, recoveryKey, "", ""},
+			{"unreadable key on an unmarked row", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, Decryptable: new(true)}, nil, "", "Couldn't decrypt the disk encryption key.", ""},
+			{"legacy key after the pair was replaced, before the job marked it", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true, Decryptable: new(true)}, nil, "", "Couldn't decrypt the disk encryption key.", ""},
+			{"legacy key after the pair was replaced, marked by the job", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true, Decryptable: new(false)}, nil, "", "The host will escrow a new one", ""},
+			// Marked, but nothing will ask the host for a new key, so the error must not promise one.
+			{"marked key in a fleet without Windows disk encryption", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true, Decryptable: new(false)}, nil, "", "Couldn't decrypt the disk encryption key.", "fleet"},
+			{"marked key while Windows MDM is off", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, Decryptable: new(false)}, nil, "", "Couldn't decrypt the disk encryption key.", "windows mdm"},
+			{"marked key on a host not enrolled in Fleet MDM", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, Decryptable: new(false)}, nil, "", "Couldn't decrypt the disk encryption key.", "not enrolled"},
 			{"archived legacy key when the current one is unreadable",
 				&fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true},
-				&fleet.HostArchivedDiskEncryptionKey{Base64Encrypted: legacyB64, WSTEPEncrypted: true}, recoveryKey, "", false},
+				&fleet.HostArchivedDiskEncryptionKey{Base64Encrypted: legacyB64, WSTEPEncrypted: true}, recoveryKey, "", ""},
 			{"archived key on the server private key",
 				&fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true},
-				&fleet.HostArchivedDiskEncryptionKey{Base64Encrypted: aesKey}, recoveryKey, "", false},
+				&fleet.HostArchivedDiskEncryptionKey{Base64Encrypted: aesKey}, recoveryKey, "", ""},
 		}
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
 				ds := new(mock.Store)
 				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-					return &fleet.AppConfig{}, nil
+					return &fleet.AppConfig{MDM: fleet.MDM{WindowsEnabledAndConfigured: c.noReescrow != "windows mdm"}}, nil
+				}
+				ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+					return c.noReescrow != "not enrolled", nil
 				}
 				ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 					return &fleet.Host{ID: 1, Platform: "windows"}, nil
@@ -4887,7 +4911,7 @@ func TestHostEncryptionKey(t *testing.T) {
 					return c.archived, nil
 				}
 				ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
-					return fleet.DiskEncryptionConfig{WindowsEnabled: !c.windowsOff}, nil
+					return fleet.DiskEncryptionConfig{WindowsEnabled: c.noReescrow != "fleet"}, nil
 				}
 				svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
 				ctx = test.UserContext(ctx, test.UserAdmin)
@@ -4897,7 +4921,7 @@ func TestHostEncryptionKey(t *testing.T) {
 					require.ErrorAs(t, err, &ume)
 					require.ErrorContains(t, err, c.wantErr)
 					require.NotContains(t, err.Error(), "MDM has been turned off")
-					if (c.current.Decryptable != nil && *c.current.Decryptable) || c.windowsOff {
+					if (c.current.Decryptable != nil && *c.current.Decryptable) || c.noReescrow != "" {
 						require.NotContains(t, err.Error(), "escrow a new one", "no re-escrow is coming for this host")
 					}
 					return

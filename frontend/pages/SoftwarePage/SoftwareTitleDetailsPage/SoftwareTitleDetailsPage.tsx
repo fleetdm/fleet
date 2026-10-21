@@ -367,10 +367,14 @@ const SoftwareTitleDetailsPage = ({
       setShowDeleteModal(true);
     };
 
-    const statusPath = (software_status: "installed" | "pending" | "failed") =>
+    const statusPath = (
+      software_status: "installed" | "pending" | "failed",
+      appStoreAppVersionId?: number
+    ) =>
       getPathWithQueryParams(paths.MANAGE_HOSTS, {
         software_title_id: softwareId,
         software_status,
+        app_store_app_version_id: appStoreAppVersionId,
         fleet_id: currentTeamId ?? APP_CONTEXT_NO_TEAM_ID,
       });
 
@@ -438,9 +442,9 @@ const SoftwareTitleDetailsPage = ({
           installed={version.status?.installed ?? 0}
           pending={version.status?.pending ?? 0}
           failed={version.status?.failed ?? 0}
-          installedPath={statusPath("installed")}
-          pendingPath={statusPath("pending")}
-          failedPath={statusPath("failed")}
+          installedPath={statusPath("installed", version.id)}
+          pendingPath={statusPath("pending", version.id)}
+          failedPath={statusPath("failed", version.id)}
           canActivateMultipleVersions
           isSelfService={!!version.self_service}
           isAutoUpdateEnabled={!!version.auto_update_enabled}
