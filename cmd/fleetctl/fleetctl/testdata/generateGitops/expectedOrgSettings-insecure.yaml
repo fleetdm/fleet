@@ -28,10 +28,10 @@ certificate_authorities:
       certificate_profile_name: some-ejbca-certificate-profile-name
       certificate_user_principal_names:
         - some-ejbca-certificate-user-principal-name
-      client_p12: ___GITOPS_COMMENT_11___
+      client_p12: ___GITOPS_COMMENT_0___
       end_entity_profile_name: some-ejbca-end-entity-profile-name
       name: some-ejbca-name
-      password: ___GITOPS_COMMENT_12___
+      password: ___GITOPS_COMMENT_1___
       trust_ca_bundle: |
         -----BEGIN CERTIFICATE-----
         some-ejbca-trust-bundle

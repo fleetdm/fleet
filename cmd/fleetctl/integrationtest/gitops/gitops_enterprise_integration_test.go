@@ -797,6 +797,55 @@ reports:
 	gotProfileMu.Unlock()
 	require.Len(t, fakeEJBCA.Requests(), ejbcaRequests) // EJBCA was NOT called because its stored config was not modified
 
+	// A CA that changes type and keeps its name is replaced, even though GitOps applies the deletes later, because an EJBCA CA can't
+	// share its name with a CA of another type.
+	_, err = globalFile.WriteString(fmt.Sprintf(
+		`
+agent_options:
+controls:
+  apple_settings:
+    configuration_profiles:
+      - path: %s/testdata/gitops/lib/scep-and-digicert.mobileconfig
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+  certificate_authorities:
+    digicert:
+      - name: DigiCert
+        url: %s
+        api_token: digicert_api_token
+        profile_id: digicert_profile_id
+        certificate_common_name: digicert_cn
+        certificate_user_principal_names: ["digicert_upn_2"]
+        certificate_seat_id: digicert_seat_id
+    custom_scep_proxy:
+      - name: CustomScepProxy
+        url: %s
+        challenge: challenge
+      - name: EJBCA_WIFI
+        url: %s
+        challenge: challenge
+policies:
+reports:
+`,
+		dirPath,
+		digiCertServer.URL,
+		scepServer.URL+"/scep",
+		scepServer.URL+"/scep",
+	))
+	require.NoError(t, err)
+
+	s.assertDryRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"}))
+	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}))
+
+	groupedCAs, err = s.DS.GetGroupedCertificateAuthorities(t.Context(), false)
+	require.NoError(t, err)
+	assert.Empty(t, groupedCAs.EJBCA)
+	require.Len(t, groupedCAs.CustomScepProxy, 2)
+
 	// Now test that we can clear the configs
 	_, err = globalFile.WriteString(`
 agent_options:

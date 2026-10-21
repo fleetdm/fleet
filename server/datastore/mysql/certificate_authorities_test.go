@@ -970,6 +970,9 @@ func testEJBCANamesAreUnique(t *testing.T, ds *Datastore) {
 		inUse(t, err, "shared")
 		_, err = ds.NewCertificateAuthority(ctx, scepCA("ejbca"))
 		inUse(t, err, "ejbca")
+		// The names are compared without regard to case, like the column is.
+		_, err = ds.NewCertificateAuthority(ctx, scepCA("EJBCA"))
+		inUse(t, err, "ejbca")
 		require.ElementsMatch(t, unchanged, names())
 	})
 

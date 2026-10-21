@@ -281,16 +281,17 @@ func ensureEJBCANamesNotSharedDB(ctx context.Context, tx sqlx.ExtContext, names 
 	if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "check EJBCA certificate authority names")
 	}
-	ejbca, other := map[string]struct{}{}, map[string]struct{}{}
+	// The names are compared without regard to case, like the column is.
+	ejbca, other := map[string]string{}, map[string]struct{}{}
 	for _, row := range rows {
 		if row.Type == string(fleet.CATypeEJBCA) {
-			ejbca[row.Name] = struct{}{}
+			ejbca[strings.ToLower(row.Name)] = row.Name
 		} else {
-			other[row.Name] = struct{}{}
+			other[strings.ToLower(row.Name)] = struct{}{}
 		}
 	}
-	for name := range ejbca {
-		if _, shared := other[name]; shared {
+	for lowerName, name := range ejbca {
+		if _, shared := other[lowerName]; shared {
 			return fleet.EJBCANameInUseError{Name: name}
 		}
 	}
