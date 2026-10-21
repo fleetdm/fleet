@@ -18,10 +18,19 @@ function Test-StreamerRegistered {
   $entry = Get-ItemProperty -Path $uninstallPaths -ErrorAction SilentlyContinue |
     Where-Object { $_.DisplayName -eq $softwareName -and $_.DisplayVersion } |
     Select-Object -First 1
-  return [bool]$entry
+  if (-not $entry) { return $false }
+  $installed = $null
+  if (-not [version]::TryParse($entry.DisplayVersion, [ref]$installed)) { return $true }
+  return $installed -ge $targetVersion
 }
 
 try {
+
+# An older Streamer stays registered until the inner MSI replaces it, so wait
+# for at least the installer's own version.
+$vi = (Get-Item -LiteralPath $exeFilePath).VersionInfo
+$targetVersion = [version]::new($vi.ProductMajorPart, $vi.ProductMinorPart, $vi.ProductBuildPart, $vi.ProductPrivatePart)
+Write-Host "Installer version: $targetVersion"
 
 $process = Start-Process -FilePath "$exeFilePath" `
   -ArgumentList "prevercheck /s /i hidewindow=1" `
@@ -35,13 +44,13 @@ if ($successCodes -notcontains $exitCode) { Exit $exitCode }
 $deadline = (Get-Date).AddSeconds(180)
 while ((Get-Date) -lt $deadline) {
   if (Test-StreamerRegistered) {
-    Write-Host "$softwareName is registered."
+    Write-Host "$softwareName $targetVersion or later is registered."
     Exit 0
   }
   Start-Sleep -Seconds 5
 }
 
-Write-Host "Timed out waiting for $softwareName to register in Programs and Features."
+Write-Host "Timed out waiting for $softwareName $targetVersion to register in Programs and Features."
 Exit 1
 
 } catch {
