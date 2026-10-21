@@ -2,7 +2,7 @@
 
 This guide details which API endpoints to make publicly accessible.
 
-These are inbound endpoints, on your Fleet server. For the routes your Fleet server needs to reach (outbound), see [Using a proxy](https://fleetdm.com/docs/deploy/reference-architectures#using-a-proxy).
+These are inbound endpoints, on your Fleet server. For the routes your Fleet server needs to reach (outbound), see the [reference architectures](https://fleetdm.com/docs/deploy/reference-architectures#using-a-proxy).
 
 ## Managing hosts that can travel outside VPN or intranet
 
