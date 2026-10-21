@@ -948,7 +948,7 @@ Can only be configured for "All fleets" (`org_settings`).
 ```yaml
 org_settings:
   fleet_desktop:
-    about_url: https://example.org/transparency
+    about_url: https://example.org/better
     alternative_browser_host: fleet-desktop.example.com
     sso_enabled: false
 ```
