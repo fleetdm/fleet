@@ -2,6 +2,7 @@ import { IMdmVppToken } from "interfaces/mdm";
 import { ApplePlatform } from "interfaces/platform";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
+import { getPathWithQueryParams } from "utilities/url";
 
 export interface IGetVppInfoResponse {
   org_name: string;
@@ -62,10 +63,18 @@ export default {
     return sendRequest("DELETE", MDM_APPLE_VPP_TOKEN);
   },
 
-  getVppApps: (teamId: number): Promise<IGetVppAppsResponse> => {
+  getVppApps: (
+    teamId: number,
+    vppTokenId?: number
+  ): Promise<IGetVppAppsResponse> => {
     const { SOFTWARE_APP_STORE_APPS } = endpoints;
-    const path = `${SOFTWARE_APP_STORE_APPS}?fleet_id=${teamId}`;
-    return sendRequest("GET", path);
+    return sendRequest(
+      "GET",
+      getPathWithQueryParams(SOFTWARE_APP_STORE_APPS, {
+        fleet_id: teamId,
+        vpp_token_id: vppTokenId,
+      })
+    );
   },
 
   getVppTokens: (): Promise<IGetVppTokensResponse> => {
