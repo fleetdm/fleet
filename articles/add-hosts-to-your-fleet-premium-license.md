@@ -27,7 +27,7 @@ After Stripe processes the change, fleetdm.com generates a new license key for t
 1. Log in to Fleet and reload the page.
 2. Confirm that the banner about your host count is gone.
 
-If you still have more than 20% more hosts enrolled than your new license allows, the banner stays. You can raise your host count again, or delete hosts that are no longer in use from the **Hosts** page.
+If your enrolled hosts are still more than 20% over your new license count, the banner stays. You can raise your host count again, or delete hosts that are no longer in use from the **Hosts** page.
 
 <meta name="articleTitle" value="Add hosts to your Fleet Premium license">
 <meta name="authorFullName" value="Noah Talerman">
