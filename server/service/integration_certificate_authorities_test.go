@@ -2578,6 +2578,22 @@ func (s *integrationMDMTestSuite) TestEJBCACertificateAuthorities() {
 	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", createReq("EJBCA_WIFI", trusted), http.StatusBadRequest,
 		&createCertificateAuthorityResponse{})
 
+	// The name of an EJBCA CA can't be shared with a CA of another type, when it is created or renamed.
+	otherCA, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type: string(fleet.CATypeCustomSCEPProxy), Name: new("OTHER_CA"), URL: new("https://scep.example.com"), Challenge: new("c"),
+	})
+	require.NoError(t, err)
+	res = s.Do("POST", "/api/latest/fleet/certificate_authorities", createReq("OTHER_CA", trusted), http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), `"OTHER_CA" name is already used by another certificate authority`)
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", createResp.ID),
+		map[string]any{"ejbca": map[string]any{"name": "OTHER_CA"}}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "the name of an EJBCA certificate authority can't be shared")
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", otherCA.ID),
+		map[string]any{"custom_scep_proxy": map[string]any{"name": "EJBCA_WIFI"}}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), `"EJBCA_WIFI" name is already used by another certificate authority`)
+	_, err = s.ds.DeleteCertificateAuthority(ctx, otherCA.ID)
+	require.NoError(t, err)
+
 	// No response has a secret: not the PKCS#12 or its password, and not the stored key, in PEM or as the base64 of its body.
 	stored, err := s.ds.GetCertificateAuthorityByID(ctx, createResp.ID, true)
 	require.NoError(t, err)

@@ -187,6 +187,9 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 
 	createdCA, err := svc.ds.NewCertificateAuthority(ctx, caToCreate)
 	if err != nil {
+		if _, ok := errors.AsType[fleet.EJBCANameInUseError](err); ok {
+			return nil, &fleet.BadRequestError{Message: errPrefix + err.Error()}
+		}
 		if errors.As(err, &fleet.ConflictError{}) {
 			if caToCreate.Type == string(fleet.CATypeNDESSCEPProxy) {
 				return nil, &fleet.BadRequestError{Message: fmt.Sprintf("%s. Only a single NDES CA can be added.", errPrefix)}
@@ -1291,6 +1294,9 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 	}
 
 	if err := svc.ds.UpdateCertificateAuthorityByID(ctx, id, &caToUpdate); err != nil {
+		if _, ok := errors.AsType[fleet.EJBCANameInUseError](err); ok {
+			return &fleet.BadRequestError{Message: errPrefix + err.Error()}
+		}
 		return err
 	}
 
