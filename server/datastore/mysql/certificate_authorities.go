@@ -268,9 +268,8 @@ func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.Cert
 }
 
 // ensureEJBCANamesNotSharedDB fails if one of the names is used by an EJBCA certificate authority and by another certificate authority.
-// It is for the names a write just set, so it only holds an EJBCA name to the rule and leaves the CAs of other types that share a name, which
-// the unique index allows, as they are. The locking read waits for a concurrent write of the same name, so two creates can't both pass.
 func ensureEJBCANamesNotSharedDB(ctx context.Context, tx sqlx.ExtContext, names ...string) error {
+	// FOR UPDATE is needed to keep 2 concurrent writes from both passing the check
 	stmt, args, err := sqlx.In(`SELECT name, type FROM certificate_authorities WHERE name IN (?) FOR UPDATE`, names)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "prepare check of EJBCA certificate authority names")
