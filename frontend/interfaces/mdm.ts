@@ -54,6 +54,8 @@ export interface IMdmVppToken {
   country_code: string;
   renew_date: string;
   teams: ITokenTeam[] | null; // null means token isn't configured to a team; empty array means all teams
+  /** Null for rows the backend can't date. Renders "---". */
+  created_at: string | null;
 }
 
 export const getMdmServerUrl = ({ server_url }: IConfigServerSettings) => {
