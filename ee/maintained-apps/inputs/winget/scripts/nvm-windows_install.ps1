@@ -1,13 +1,8 @@
 # Learn more about .exe install scripts:
 # http://fleetdm.com/learn-more-about/exe-install-scripts
 #
-# NVM for Windows installs per user and has no machine-wide mode, so installing it from this
-# script's SYSTEM context would put it in SYSTEM's profile where nobody can launch
-# it. Run the installer as the signed-in user instead.
-#
-# Setup always requests elevation to register its Event Log source and waits for the
-# answer, even when silent. Running the task elevated skips that prompt for local
-# admins; a standard user sees a UAC prompt, and canceling it still completes the install.
+# NVM for Windows installs per user, so this script runs setup as the signed-in user.
+# A standard user sees a UAC prompt; canceling it still completes the install.
 
 $exeFilePath = "${env:INSTALLER_PATH}"
 $taskName = "fleet-install-nvm-windows"
@@ -45,8 +40,6 @@ try {
     $startDate = Get-Date
     Start-ScheduledTask -TaskName $taskName
 
-    # Wait for a result rather than for the "Running" state, which a fast task can
-    # enter and leave between polls.
     Start-Sleep -Seconds 2
     while ($true) {
         $info = Get-ScheduledTaskInfo -TaskName $taskName

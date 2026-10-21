@@ -1,10 +1,6 @@
-# NVM for Windows installs per user, so its uninstall entry is in the installing user's
-# registry hive rather than SYSTEM's, and its uninstaller reads the directory to
-# remove out of the hive of whoever runs it -- run as SYSTEM against a user's
-# install it exits 0 and deletes nothing. So search every hive and run the
-# uninstaller as the user who owns the entry.
-#
-# The uninstaller also deletes every Node.js version NVM for Windows manages for that user.
+# NVM for Windows installs per user, and its uninstaller only removes files when run as
+# the user who installed it, so this script runs it as each entry's owner. Uninstalling
+# also deletes every Node.js version NVM for Windows manages for that user.
 
 $displayNamePattern = '^NVM\ for\ Windows$'
 $publisher = "Author Software Inc."
@@ -28,13 +24,10 @@ function Get-AppEntries {
         foreach ($sub in (Get-ChildItem -Path $root -ErrorAction SilentlyContinue)) {
             $key = Get-ItemProperty $sub.PSPath -ErrorAction SilentlyContinue
             if (-not $key.DisplayName) { continue }
-            # Some installers pad these values with nulls (Fork writes "Fork" + 15 of them).
             $name = ($key.DisplayName -replace "`0", "").Trim()
             if ($name -notmatch $displayNamePattern) { continue }
             if (($key.Publisher -replace "`0", "").Trim() -ne $publisher) { continue }
 
-            # Only a real user's entry needs the uninstaller run for them; HKLM and the
-            # service SIDs are already in the right context.
             $sid = $null
             if ($sub.PSPath -match 'HKEY_USERS\\(S-1-5-21-[\d-]+|S-1-12-1-[\d-]+)\\') { $sid = $matches[1] }
 
@@ -64,8 +57,6 @@ function Resolve-Uninstaller {
         Throw "Could not parse uninstall string: $Command"
     }
 
-    # A 32-bit installer run as SYSTEM is redirected into SysWOW64, but records the
-    # unredirected system32 path that 64-bit PowerShell cannot resolve.
     if (-not (Test-Path -LiteralPath $exePath)) {
         $redirected = $exePath -replace '(?i)\\system32\\', '\SysWOW64\'
         if ($redirected -ne $exePath -and (Test-Path -LiteralPath $redirected)) {
@@ -103,8 +94,6 @@ function Invoke-UninstallerAsUser {
         $startDate = Get-Date
         Start-ScheduledTask -TaskName $taskName
 
-        # Wait for a result rather than for the "Running" state, which a fast task can
-        # enter and leave between polls.
         Start-Sleep -Seconds 2
         while ($true) {
             $info = Get-ScheduledTaskInfo -TaskName $taskName
@@ -144,9 +133,6 @@ try {
         $installDir = Split-Path $uninstaller.ExePath -Parent
         $removedDirs.Add($installDir)
 
-        # Anything running out of this install directory blocks removal. Matching on the
-        # directory rather than a process name keeps another install of the same app,
-        # in another user's profile, running.
         Get-Process -ErrorAction SilentlyContinue |
             Where-Object { $_.Path -and $_.Path.StartsWith($installDir, [System.StringComparison]::OrdinalIgnoreCase) } |
             Stop-Process -Force -ErrorAction SilentlyContinue
@@ -169,9 +155,7 @@ try {
         Write-Host "  Uninstall exit code: $result"
         if ($null -ne $result -and $result -ne 0 -and $exitCode -eq 0) { $exitCode = $result }
 
-        # An uninstaller that relaunches itself from %TEMP% exits while removal is
-        # still in flight. Either the directory or the registration going away means
-        # it got there.
+        # The uninstaller relaunches from %TEMP% and exits before removal finishes.
         for ($waited = 0; $waited -lt 60; $waited++) {
             if (-not (Test-Path -LiteralPath $installDir)) { break }
             if (-not (Get-ItemProperty $entry.KeyPath -ErrorAction SilentlyContinue)) {
@@ -195,9 +179,6 @@ try {
         }
     }
 
-    # Shortcuts sit in the installing user's profile, so an uninstall that could not
-    # reach that profile leaves them behind. Match on where they point rather than on a
-    # filename, which also catches the vendor subfolders some installers create.
     if ($removedDirs.Count) {
         $shell = New-Object -ComObject WScript.Shell
         foreach ($profileDir in (Get-ChildItem 'C:\Users' -Directory -ErrorAction SilentlyContinue)) {
