@@ -137,6 +137,9 @@ Also, allow the Fleet server to reach the following routes for the features you 
 | `api.push.apple.com` | Send MDM commands to hosts through APNs. |
 | `mdmenrollment.apple.com` | Automatic enrollment (ADE) with Apple Business Manager (ABM). |
 | `gdmf.apple.com` | Get the latest macOS, iOS, and iPadOS versions for OS updates. |
+| `vpp.itunes.apple.com` | Install App Store apps with Apps and Books (VPP). |
+| `fleetdm.com/api/vpp/v1/*` | Get App Store app details, like names, icons, and versions. |
+| `api.ent.apple.com` | Get App Store app details directly from Apple. Only if `mdm.apple_vpp_app_metadata_api_bearer_token` is set. |
 
 ### Windows MDM
 
@@ -167,14 +170,6 @@ Fleet calls the [Android Management API](https://developers.google.com/android/m
 | `GET /api/android/v1/enterprises/:enterpriseId/devices/:deviceId/operations/:operationId` | Check a command's status. |
 | `GET /api/android/v1/enterprises/:enterpriseId/applications/:applicationId` | Get Google Play app details. |
 | `POST /api/android/v1/enterprises/:enterpriseId/webApps` | Create web apps. |
-
-### App Store apps (VPP)
-
-| Route | Reason |
-|---|---|
-| `vpp.itunes.apple.com` | Install App Store apps with Apps and Books (VPP). |
-| `fleetdm.com/api/vpp/v1/*` | Get App Store app details, like names, icons, and versions. |
-| `api.ent.apple.com` | Get App Store app details directly from Apple. Only if `mdm.apple_vpp_app_metadata_api_bearer_token` is set. |
 
 ### Fleet-maintained apps
 
