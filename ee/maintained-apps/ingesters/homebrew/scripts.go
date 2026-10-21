@@ -402,8 +402,9 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID stri
 	process(u.Quit, func(appName string) {
 		// Some casks list app names (e.g. "DeskTime") instead of bundle IDs.
 		// osascript's application id can't resolve a name, so the quit would
-		// silently do nothing; quit the app being uninstalled instead.
-		if !strings.Contains(appName, ".") {
+		// silently do nothing; quit the app being uninstalled instead. A dotless
+		// wildcard is still a pattern, so it's left for the wildcard handler.
+		if !strings.Contains(appName, ".") && !strings.Contains(appName, "*") {
 			appName = bundleID
 		}
 		if _, ok := quitIDs[appName]; ok {

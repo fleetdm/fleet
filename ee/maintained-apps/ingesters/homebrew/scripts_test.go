@@ -659,6 +659,13 @@ func TestUninstallScriptQuitsAppByBundleIDWhenCaskListsNames(t *testing.T) {
 	require.Equal(t, 1, strings.Count(script, `quit_application 'video.fathom.electron'`), script)
 	require.Contains(t, script, `quit_application 'com.example.agent'`)
 	require.NotContains(t, script, `quit_application 'Fathom`)
+
+	// A dotless wildcard is a pattern, not an app name, so it still expands
+	// against running apps instead of collapsing to the main bundle ID.
+	cask.Artifacts[0].Uninstall[0].Quit = optjson.StringOr[[]string]{String: "*Fathom*"}
+	script = uninstallScriptForApp(app, cask)
+	require.Contains(t, script, `quit_matching_applications '*Fathom*'`)
+	require.NotContains(t, script, `quit_application 'video.fathom.electron'`)
 }
 
 // TestQuitMatchingApplicationsRunsMatches runs the generated helper in bash with
