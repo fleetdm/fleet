@@ -56,7 +56,8 @@ than anything else, and a value that does not fit its node's Format makes the co
     // The type names a model reaches for in place of a SyncML format.
     let formatsByAlias = { integer: 'int', boolean: 'bool', string: 'chr' };
 
-    let nodesByComparableLocUri = {};
+    // No prototype, so a LocURI such as "constructor" finds nothing rather than an inherited member.
+    let nodesByComparableLocUri = Object.create(null);
     let dynamicNodes = [];
     for (let node of nodes) {
       if(/\{[^}]+\}/.test(node.locUri)) {

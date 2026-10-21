@@ -86,6 +86,18 @@ describe('configuration profile generation pipeline', function() {
 
   describe('writes a .mobileconfig from the payload settings the model returns', function() {
 
+    it('fails a generation whose settings cannot be written, even when the model also wrote a document of its own', async function() {
+      let ownDocument = { configurationProfile: '<?xml version="1.0"?><plist version="1.0"><dict/></plist>', settingsEnforced: [{ name: 'allowCamera', value: 'disabled' }] };
+      generationOutcomes = [_.extend({ profileFilename: 'camera.mobileconfig', deliveryNotes: '', payloads: [{ payloadType: 'com.apple.applicationaccess', settings: { allowCamera: 'disabled' } }] }, ownDocument)];
+      let result = await generate('mobileconfig');
+      assert.strictEqual(result.couldNotGenerateProfile, true);
+      assert.ok(/allowCamera takes true or false/.test(result.reasonWhyAProfileCouldNotBeGenerated), result.reasonWhyAProfileCouldNotBeGenerated);
+      generationOutcomes = [{ profileFilename: 'scan.xml', deliveryNotes: '', commands: [{ verb: 'Exec', locURI: './Device/Vendor/MSFT/Defender/Scan/Quick' }], configurationProfile: '<Exec><Item><Target><LocURI>./Device/Vendor/MSFT/Defender/Scan/Quick</LocURI></Target></Item></Exec>', settingsEnforced: [{ name: 'Scan/Quick', value: '' }] }];
+      let windows = await generate('csp');
+      assert.strictEqual(windows.couldNotGenerateProfile, true);
+      assert.ok(/runs a one-time command/.test(windows.reasonWhyAProfileCouldNotBeGenerated), windows.reasonWhyAProfileCouldNotBeGenerated);
+    });
+
     it('ends the root PayloadIdentifier with a segment that differs between two generations of the same request', async function() {
       let settingsResponse = { profileFilename: 'camera.mobileconfig', profileDisplayName: 'Camera Disabled', deliveryNotes: '', payloads: [{ payloadType: 'com.apple.applicationaccess', settings: { allowCamera: false } }] };
       generationOutcomes = [settingsResponse, settingsResponse];
