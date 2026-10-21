@@ -492,7 +492,7 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
         ],
         rules: [
           // Document shape.  Wrong here and Fleet rejects the file on upload.
-          'A Windows profile is a sequence of OMA-DM command elements, not a SyncML document.  The top level must be one or more <Add>, <Replace>, <Exec>, or <Atomic> elements and nothing else.  Never wrap them in <SyncML>, <SyncBody>, <Final/>, or an invented container such as <WindowsCSP>, and never emit an XML declaration -- the SyncML envelope carries session state (SyncHdr, SessionID, MsgID) that only the MDM server can populate at delivery time.',
+          'A Windows profile is a sequence of OMA-DM command elements, not a SyncML document.  The top level must be one or more <Add>, <Replace>, or <Atomic> elements and nothing else.  <Exec> runs a one-time command rather than setting a value, so never emit it; the one exception is the Install/Enroll node of a ClientCertificateInstall SCEP certificate.  If the request can only be met by running a command -- starting a scan, restarting, wiping, updating right now -- return the "couldNotGenerateProfile" shape and name the command.  Never wrap the commands in <SyncML>, <SyncBody>, <Final/>, or an invented container such as <WindowsCSP>, and never emit an XML declaration -- the SyncML envelope carries session state (SyncHdr, SessionID, MsgID) that only the MDM server can populate at delivery time.',
           'If you use <Atomic>, it must wrap every command in the profile.  Never mix an <Atomic> element with sibling top-level commands, and never nest one <Atomic> inside another.',
           // Node identity.
           'Emit only LocURI paths that exist in a published CSP.  Never construct, guess, or extrapolate a path, and name the CSP you used in "schemaReference".',
@@ -552,7 +552,7 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
           'Beyond the keys the request names and the keys those depend on, a key\'s presence in the provided list is not a reason to set it.',
           // Identifiers.
           'Take every PayloadUUID from the list of UUIDs provided with the instructions, in the order given, and never invent one.  Two dicts sharing a UUID is a profile that installs unpredictably, so use each one exactly once.',
-          'PayloadIdentifier is reverse-DNS.  Each payload dict\'s identifier is the root identifier plus a distinguishing suffix, and no two identifiers in the profile are the same.',
+          'PayloadIdentifier is reverse-DNS, and the root identifier ends with the identifier token provided with the instructions, so two profiles generated for the same request never share one.  Each payload dict\'s identifier is the root identifier plus a distinguishing suffix, and no two identifiers in the profile are the same.',
           'PayloadDisplayName on the root is what an end user sees in System Settings, and some MDMs use it as the profile name.  Make it human-readable and specific to what the profile actually enforces, which is not always what was asked for: a profile that only sets allowBluetoothModification is "Bluetooth Settings Locked", not "Disable Bluetooth".  PayloadDescription follows the same rule.',
           // Structure.
           'Put every key for one payload domain in a single dict inside PayloadContent.  Do not emit several dicts with the same PayloadType.',
@@ -1061,10 +1061,14 @@ to the profile automatically after you return it.`;
     // Generated list of UUIDs this profile can use.
     // Note: This is generated here and sent to the LLM to prevent it from adding invalid/placeholder UUIDs
     let suppliedPayloadUuids = [];
+    // Two profiles generated from the same request otherwise get the same PayloadIdentifier, and an MDM
+    // that keys profiles on it, as Fleet does, rejects the second one.
+    let suppliedIdentifierToken = '';
     if(profileType === 'mobileconfig') {
       for (let i = 0; i < 10; i++) {
         suppliedPayloadUuids.push((await sails.helpers.strings.uuid()).toUpperCase());
       }
+      suppliedIdentifierToken = require('crypto').randomBytes(4).toString('hex');
     }
 
 
@@ -1101,6 +1105,8 @@ ${RESPONSE_SHAPE}`;
     PayloadContent.  Never invent a UUID and never use one twice.  Where one payload references another payload
     (PayloadCertificateUUID, VPNUUID and similar), repeat that payload's UUID from this list exactly.
     ${suppliedPayloadUuids.map((uuid)=>`- ${uuid}`).join('\n    ')}
+
+    Identifier token, the last segment of the root PayloadIdentifier: ${suppliedIdentifierToken}
 `;
     }
 

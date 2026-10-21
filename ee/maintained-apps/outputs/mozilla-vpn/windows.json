@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.39.0",
+      "version": "2.40.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Mozilla VPN' AND publisher = 'Mozilla Corporation';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Mozilla VPN' AND publisher = 'Mozilla Corporation' AND version_compare(version, '2.39.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Mozilla VPN' AND publisher = 'Mozilla Corporation' AND version_compare(version, '2.40.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'mozilla vpn.exe');"
       },
-      "installer_url": "https://archive.mozilla.org/pub/vpn/releases/2.39.0/windows/MozillaVPN.msi",
+      "installer_url": "https://archive.mozilla.org/pub/vpn/releases/2.40.0/windows/MozillaVPN.msi",
       "install_script_ref": "c02fc638",
       "uninstall_script_ref": "500bade7",
-      "sha256": "aec6f8a8ede72ea9607d6a9fd1a4f5d12c8e662b8dea87b1b106ece0b8946f94",
+      "sha256": "2bb12d3a09a75c2501d4737fa75342a2cc9154a6779a99af7048ea7e63b1f1c2",
       "default_categories": [
         "Security"
       ],
