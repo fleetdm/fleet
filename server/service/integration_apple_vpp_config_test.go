@@ -1839,6 +1839,16 @@ func (s *integrationMDMTestSuite) TestVPPAppConfigurationReconciliation() {
 		return configurationsReceived(t, device)
 	}
 
+	t.Run("running the configuration cron for a host whose version and configuration didn't change sends nothing", func(t *testing.T) {
+		team := newFleet(t)
+		version := addVersion(t, team.ID, "Only", "configuration-unchanged", nil)
+		host, device := newHost(t, &team.ID)
+		require.Equal(t, []string{"configuration-unchanged"}, installApp(t, host, device, version.TitleID))
+
+		// run the configuration cron without any change, the host should get nothing
+		require.Empty(t, reconcileAndReceive(t, device))
+	})
+
 	t.Run("editing the configuration of a host's version sends the new configuration to the host", func(t *testing.T) {
 		team := newFleet(t)
 		version := addVersion(t, team.ID, "Only", "configuration-before", nil)
@@ -1889,6 +1899,22 @@ func (s *integrationMDMTestSuite) TestVPPAppConfigurationReconciliation() {
 		require.Equal(t, []string{"configuration-b"}, reconcileAndReceive(t, device))
 	})
 
+	t.Run("deleting a host's version when the next version has no configuration sends an install without a configuration", func(t *testing.T) {
+		team := newFleet(t)
+		labelA := newManualLabel(t, "a")
+		versionA := addVersion(t, team.ID, "A", "configuration-a", []string{labelA.Name})
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+			TeamID: &team.ID, AppStoreID: adamID, Platform: fleet.IOSPlatform, Name: "B",
+		}, http.StatusOK, &addAppStoreAppResponse{})
+		host, device := newHost(t, &team.ID, labelA)
+		require.Equal(t, []string{"configuration-a"}, installApp(t, host, device, versionA.TitleID))
+
+		// delete version A, the host should get version B without a configuration
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", versionA.TitleID), nil, http.StatusNoContent,
+			"fleet_id", fmt.Sprint(team.ID), "version_id", fmt.Sprint(versionA.VersionID))
+		require.Equal(t, []string{""}, reconcileAndReceive(t, device))
+	})
+
 	t.Run("moving a host to a version without a configuration sends an install without a configuration", func(t *testing.T) {
 		team := newFleet(t)
 		labelA := newManualLabel(t, "a")
@@ -1920,6 +1946,39 @@ func (s *integrationMDMTestSuite) TestVPPAppConfigurationReconciliation() {
 		// remove label A from the host, the host should get nothing since neither version has a configuration
 		require.NoError(t, s.ds.RemoveLabelsFromHost(ctx, host.ID, []uint{labelA.ID}))
 		require.Empty(t, reconcileAndReceive(t, device))
+	})
+
+	t.Run("moving a host to a version whose configuration was cleared after the host's install of another version without a configuration sends nothing", func(t *testing.T) {
+		team := newFleet(t)
+		labelA := newManualLabel(t, "a")
+		var versionA addAppStoreAppResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+			TeamID: &team.ID, AppStoreID: adamID, Platform: fleet.IOSPlatform, Name: "A", LabelsIncludeAny: []string{labelA.Name},
+		}, http.StatusOK, &versionA)
+		versionB := addVersion(t, team.ID, "B", "configuration-b", nil)
+		host, device := newHost(t, &team.ID, labelA)
+		require.Equal(t, []string{""}, installApp(t, host, device, versionA.TitleID))
+
+		// clear version B's configuration after the host's install of version A, then remove label A from the host, the host should get nothing since neither version has a configuration
+		editConfiguration(t, team.ID, versionB, json.RawMessage(`null`))
+		require.NoError(t, s.ds.RemoveLabelsFromHost(ctx, host.ID, []uint{labelA.ID}))
+		require.Empty(t, reconcileAndReceive(t, device))
+	})
+
+	t.Run("moving a host to a version without a configuration after its installed version's configuration was cleared sends an install without a configuration", func(t *testing.T) {
+		team := newFleet(t)
+		labelA := newManualLabel(t, "a")
+		versionA := addVersion(t, team.ID, "A", "configuration-a", []string{labelA.Name})
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+			TeamID: &team.ID, AppStoreID: adamID, Platform: fleet.IOSPlatform, Name: "B",
+		}, http.StatusOK, &addAppStoreAppResponse{})
+		host, device := newHost(t, &team.ID, labelA)
+		require.Equal(t, []string{"configuration-a"}, installApp(t, host, device, versionA.TitleID))
+
+		// remove label A from the host and clear version A's configuration before the cron runs, the host should get version B without a configuration since it still has version A's configuration
+		require.NoError(t, s.ds.RemoveLabelsFromHost(ctx, host.ID, []uint{labelA.ID}))
+		editConfiguration(t, team.ID, versionA, json.RawMessage(`null`))
+		require.Equal(t, []string{""}, reconcileAndReceive(t, device))
 	})
 
 	t.Run("replacing a manual label's hosts sends the configuration of the host's next version", func(t *testing.T) {
@@ -2116,6 +2175,25 @@ func (s *integrationMDMTestSuite) TestVPPAppConfigurationReconciliation() {
 		require.Equal(t, []string{"configuration-new-fleet"}, reconcileAndReceive(t, device))
 	})
 
+	t.Run("moving a host to another fleet where neither version has a configuration sends an install without a configuration", func(t *testing.T) {
+		team := newFleet(t)
+		otherTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + " other"})
+		require.NoError(t, err)
+		var version addAppStoreAppResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+			TeamID: &team.ID, AppStoreID: adamID, Platform: fleet.IOSPlatform, Name: "Old fleet",
+		}, http.StatusOK, &version)
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+			TeamID: &otherTeam.ID, AppStoreID: adamID, Platform: fleet.IOSPlatform, Name: "New fleet",
+		}, http.StatusOK, &addAppStoreAppResponse{})
+		host, device := newHost(t, &team.ID)
+		require.Equal(t, []string{""}, installApp(t, host, device, version.TitleID))
+
+		// move the host to the other fleet, the host should get an install without a configuration since the cron doesn't read versions of other fleets
+		s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{host.ID}, TeamID: &otherTeam.ID}, http.StatusOK)
+		require.Equal(t, []string{""}, reconcileAndReceive(t, device))
+	})
+
 	t.Run("deleting a host's fleet sends the configuration of the Unassigned version", func(t *testing.T) {
 		team := newFleet(t)
 		version := addVersion(t, team.ID, "Deleted fleet", "configuration-deleted-fleet", nil)
@@ -2144,7 +2222,7 @@ func (s *integrationMDMTestSuite) TestVPPAppConfigurationReconciliation() {
 		require.Equal(t, []string{"configuration-b"}, reconcileAndReceive(t, device))
 	})
 
-	t.Run("deleting a host that checks in again sends the configuration of the host's version", func(t *testing.T) {
+	t.Run("deleting a host that checks in again sends nothing since the re-created host has no install from Fleet", func(t *testing.T) {
 		labelA := newManualLabel(t, "a")
 		versionA := addVersionAInLabelAndVersionB(t, 0, labelA.Name)
 		t.Cleanup(func() {
@@ -2153,7 +2231,7 @@ func (s *integrationMDMTestSuite) TestVPPAppConfigurationReconciliation() {
 		host, device := newHost(t, nil, labelA)
 		require.Equal(t, []string{"configuration-a"}, installApp(t, host, device, versionA.TitleID))
 
-		// delete the host and let it check in again, the re-created host has no labels and should get version B's configuration
+		// delete the host and let it check in again, the re-created host is in scope for version B but should get nothing since Fleet never installed the app on it
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK)
 		err := apple_mdm.IOSiPadOSRevive(ctx, s.ds, s.mdmCommander, s.logger)
 		require.NoError(t, err)
@@ -2164,7 +2242,7 @@ func (s *integrationMDMTestSuite) TestVPPAppConfigurationReconciliation() {
 		require.NoError(t, err)
 		refetch(t, recreatedHost)
 		configurationsReceived(t, device)
-		require.Equal(t, []string{"configuration-b"}, reconcileAndReceive(t, device))
+		require.Empty(t, reconcileAndReceive(t, device))
 	})
 
 	t.Run("refetching a host after a dynamic label in exclude any was created sends the configuration of the host's next version", func(t *testing.T) {
@@ -2245,7 +2323,7 @@ func (s *integrationMDMTestSuite) TestVPPAppConfigurationReconciliation() {
 		require.Equal(t, []string{"configuration-b"}, reconcileAndReceive(t, device))
 	})
 
-	t.Run("deleting a version with an install queued for it sends the configuration of the host's next version", func(t *testing.T) {
+	t.Run("deleting a version with an install queued for it sends the first-added version's configuration and then the host's next version's configuration", func(t *testing.T) {
 		team := newFleet(t)
 		labelA := newManualLabel(t, "a")
 		labelB := newManualLabel(t, "b")
@@ -2255,13 +2333,16 @@ func (s *integrationMDMTestSuite) TestVPPAppConfigurationReconciliation() {
 		host, device := newHost(t, &team.ID, labelB)
 		queueInstallBehindOtherApp(t, team.ID, host, versionB.TitleID)
 
-		// delete version B before its install runs, the host should get version C's configuration
+		// delete version B before its install runs, the queued install should send the first-added version A's configuration
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", versionB.TitleID), nil, http.StatusNoContent,
 			"fleet_id", fmt.Sprint(team.ID), "version_id", fmt.Sprint(versionB.VersionID))
+		require.Equal(t, []string{"configuration-a"}, reconcileAndReceive(t, device))
+
+		// run the configuration cron again, the host should get version C's configuration
 		require.Equal(t, []string{"configuration-c"}, reconcileAndReceive(t, device))
 	})
 
-	t.Run("moving a host with a queued install to another fleet sends the configuration of the new fleet's version", func(t *testing.T) {
+	t.Run("moving a host with a queued install to another fleet sends the new fleet's first-added version's configuration and then the configuration of the host's version there", func(t *testing.T) {
 		team := newFleet(t)
 		otherTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + " other"})
 		require.NoError(t, err)
@@ -2271,8 +2352,11 @@ func (s *integrationMDMTestSuite) TestVPPAppConfigurationReconciliation() {
 		host, device := newHost(t, &team.ID)
 		queueInstallBehindOtherApp(t, team.ID, host, version.TitleID)
 
-		// move the host to the other fleet before its install runs, the host isn't in label A and should get version B's configuration
+		// move the host to the other fleet before its install runs, the queued install should send the other fleet's first-added version A's configuration
 		s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{host.ID}, TeamID: &otherTeam.ID}, http.StatusOK)
+		require.Equal(t, []string{"configuration-a"}, reconcileAndReceive(t, device))
+
+		// run the configuration cron again, the host isn't in label A and should get version B's configuration
 		require.Equal(t, []string{"configuration-b"}, reconcileAndReceive(t, device))
 	})
 

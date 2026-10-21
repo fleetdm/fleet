@@ -356,8 +356,8 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 		return newAppleMDMOSUpdatesSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
 	})
 
-	deps.register("failed to register app store app configurations schedule", func() (fleet.CronSchedule, error) {
-		return newAppStoreAppConfigurationsSchedule(ctx, deps.instanceID, deps.ds, deps.svc.(fleet.AppleMDMVPPInstaller), deps.logger)
+	deps.register("failed to register app store app configuration reconciler schedule", func() (fleet.CronSchedule, error) {
+		return newAppStoreAppConfigurationReconcilerSchedule(ctx, deps.instanceID, deps.ds, deps.svc.(fleet.AppleMDMVPPInstaller), deps.logger)
 	})
 }
 

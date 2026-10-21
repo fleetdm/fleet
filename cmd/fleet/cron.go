@@ -3263,7 +3263,7 @@ func newAppleMDMOSUpdatesSchedule(
 	return s, nil
 }
 
-func newAppStoreAppConfigurationsSchedule(
+func newAppStoreAppConfigurationReconcilerSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
@@ -3271,7 +3271,7 @@ func newAppStoreAppConfigurationsSchedule(
 	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
-		name            = string(fleet.CronAppStoreAppConfigurations)
+		name            = string(fleet.CronAppStoreAppConfigurationReconciler)
 		defaultInterval = 1 * time.Minute
 	)
 
@@ -3279,7 +3279,7 @@ func newAppStoreAppConfigurationsSchedule(
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
-		schedule.WithJob("reconcile_app_store_app_configurations", func(ctx context.Context) error {
+		schedule.WithJob("reconcile_apple_app_store_app_configurations", func(ctx context.Context) error {
 			return eeservice.ReconcileAppStoreAppConfigurations(ctx, ds, vppInstaller, logger)
 		}),
 	)

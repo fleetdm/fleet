@@ -3802,7 +3802,7 @@ ORDER BY other_vat.id
 	return versionIDs, nil
 }
 
-func (ds *Datastore) ListHostAppStoreAppInstallVersions(ctx context.Context, appID fleet.VPPAppID, fleetID uint, hostIDs []uint) (map[uint]*fleet.HostVPPSoftwareInstall, error) {
+func (ds *Datastore) ListHostAppStoreAppInstallVersions(ctx context.Context, appID fleet.VPPAppID, fleetID uint, hostIDs []uint) (map[uint]fleet.HostVPPSoftwareInstall, error) {
 	hostFilter := "TRUE"
 	args := []any{appID.AdamID, appID.Platform, fleetID}
 	if len(hostIDs) > 0 {
@@ -3861,13 +3861,13 @@ WHERE
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build list host app store app install versions query")
 	}
-	var installs []*fleet.HostVPPSoftwareInstall
+	var installs []fleet.HostVPPSoftwareInstall
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &installs, query, queryArgs...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list host app store app install versions")
 	}
 
-	installByHostID := make(map[uint]*fleet.HostVPPSoftwareInstall, len(installs))
+	installByHostID := make(map[uint]fleet.HostVPPSoftwareInstall, len(installs))
 	for _, install := range installs {
 		installByHostID[install.HostID] = install
 	}

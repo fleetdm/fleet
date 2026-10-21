@@ -3587,7 +3587,7 @@ type Datastore interface {
 
 	// ListHostAppStoreAppInstallVersions returns, for each host on the fleet with MDM on whose inventory has the app, its
 	// latest install of the app that didn't fail. A non-empty hostIDs limits it to those hosts.
-	ListHostAppStoreAppInstallVersions(ctx context.Context, appID VPPAppID, fleetID uint, hostIDs []uint) (map[uint]*HostVPPSoftwareInstall, error)
+	ListHostAppStoreAppInstallVersions(ctx context.Context, appID VPPAppID, fleetID uint, hostIDs []uint) (map[uint]HostVPPSoftwareInstall, error)
 
 	// GetHostIDsWithUnactivatedVPPAppInstall returns the hosts among hostIDs that have an install of the App Store app
 	// version waiting in the upcoming activities queue that hasn't activated yet.

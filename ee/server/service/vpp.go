@@ -2112,7 +2112,7 @@ func ReconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 			reconciledTitleIDs[*app.TitleID] = struct{}{}
 
 			// Log the error and move on to the next title, so one title doesn't stop the others from being reconciled
-			err = reconcileAppStoreAppTitleConfigurations(ctx, ds, vppInstaller, logger, fleetID, *app.TitleID)
+			err = reconcileAppStoreAppConfigurations(ctx, ds, vppInstaller, logger, fleetID, *app.TitleID)
 			if err != nil {
 				logger.ErrorContext(ctx, "reconcile app store app configurations", "fleet_id", fleetID, "title_id", *app.TitleID, "err", err)
 			}
@@ -2121,7 +2121,7 @@ func ReconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 	return nil
 }
 
-func reconcileAppStoreAppTitleConfigurations(ctx context.Context, ds fleet.Datastore, vppInstaller fleet.AppleMDMVPPInstaller, logger *slog.Logger, fleetID uint, titleID uint) error {
+func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore, vppInstaller fleet.AppleMDMVPPInstaller, logger *slog.Logger, fleetID uint, titleID uint) error {
 	versions, err := ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, fleetID, titleID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get app store app versions")
@@ -2138,7 +2138,6 @@ func reconcileAppStoreAppTitleConfigurations(ctx context.Context, ds fleet.Datas
 	// Go through the versions in the order they were added, so each host gets the first version it's in scope for
 	hostIDsWithoutVersion := slices.Collect(maps.Keys(installByHostID))
 	var includedHostIDs map[uint]struct{}
-	var sentConfiguration []byte
 	var unactivatedHostIDs map[uint]struct{}
 	var failedHostIDs map[uint]struct{}
 	var vppApp *fleet.VPPApp
@@ -2165,34 +2164,30 @@ func reconcileAppStoreAppTitleConfigurations(ctx context.Context, ds fleet.Datas
 			return included
 		})
 
-		// Keep the hosts whose latest install didn't send this version's configuration
+		// Collect the hosts whose latest install didn't send this version's configuration
 		var hostIDs []uint
 		for hostID := range includedHostIDs {
 			install := installByHostID[hostID]
 			switch {
-			// Re-send when a Fleet variable the configuration uses changed, or the configuration changed after the install. Install times have whole seconds, so an install in the same second as the change counts as before it.
-			case install.NeedsConfigurationResend, version.ConfigurationUpdatedAt != nil && install.CreatedAt.Before(*version.ConfigurationUpdatedAt):
-			// Re-send when the host moved to this version, unless neither version has a configuration. The previous version is in another fleet when the host changed fleets, and unknown when it was deleted.
 			case !ptr.Equal(install.VPPAppTeamID, &version.VPPAppsTeamsID):
-				if len(version.Configuration) > 0 || install.VPPAppTeamID == nil {
-					break
-				}
-				sentVersion, inFleet := versionByID[*install.VPPAppTeamID]
-				if inFleet {
-					sentConfiguration = sentVersion.Configuration
-				} else {
-					sentConfiguration, err = ds.GetVPPAppConfiguration(ctx, *install.VPPAppTeamID)
-					if err != nil && !fleet.IsNotFound(err) {
-						return ctxerr.Wrapf(ctx, err, "get configuration of app store app version %d", *install.VPPAppTeamID)
+				// Re-send when the host's latest install is of another version, unless neither version has a configuration
+				if len(version.Configuration) == 0 && install.VPPAppTeamID != nil {
+					installedVersion, inHostFleet := versionByID[*install.VPPAppTeamID]
+					if inHostFleet && len(installedVersion.Configuration) == 0 {
+						// Use the installed version's configuration only if it didn't change after the install
+						if installedVersion.ConfigurationUpdatedAt == nil || installedVersion.ConfigurationUpdatedAt.Before(install.CreatedAt) {
+							continue
+						}
 					}
 				}
-				if len(sentConfiguration) == 0 {
-					continue
-				}
-			default:
-				continue
+				hostIDs = append(hostIDs, hostID)
+			case install.NeedsConfigurationResend:
+				// Re-send when a Fleet variable the configuration uses changed
+				hostIDs = append(hostIDs, hostID)
+			case version.ConfigurationUpdatedAt != nil && install.CreatedAt.Before(*version.ConfigurationUpdatedAt):
+				// Re-send when the configuration changed after the install, counting an install in the same second as before the change
+				hostIDs = append(hostIDs, hostID)
 			}
-			hostIDs = append(hostIDs, hostID)
 		}
 		if len(hostIDs) == 0 {
 			continue
