@@ -506,3 +506,34 @@
 #    - 📖 Experience documenting processes and procedures in a clear, concise manner.
 #    - 🚀 Self-motivated and proactive, able to work independently in a fully remote environment.
 #    - ➕ Bonus: Experience with Fleet, osquery, or other open-source IT tools. Familiarity with automation tools and scripting (Bash, PowerShell). Experience working in GitHub, with git, or in a code repository.
+
+# - jobTitle: 🪟 Windows Technical Marketing Engineer
+#   department: IT & Enablement
+#   hiringManagerName: Allen Houchins
+#   hiringManagerGithubUsername: allenhouchins
+#   hiringManagerLinkedInUrl: https://www.linkedin.com/in/allenhouchins/
+#   responsibilities: |
+#     - 🪟 Be Fleet's go-to Windows voice. Write articles, how-to guides, and tutorials for fleetdm.com that show IT admins how to manage Windows with Fleet, from Autopilot and provisioning packages to configuration profiles, patching, BitLocker, and scripts.
+#     - 🧭 Help Windows admins make the jump. Create migration guides and comparison content for teams moving from Intune, SCCM, or Workspace ONE, written by someone who has lived it.
+#     - 🔬 Participate in Windows feature reviews. Review specs and designs, test new Windows features on real devices before customers do, and give product and engineering sharp, admin's-eye feedback.
+#     - 🚢 Turn every Windows release into something admins can use right away: launch-day guides, docs updates, demos, and short videos.
+#     - 🤝 Work with marketing, product, and sales to decide what Windows admins need to hear next, and help shape the Windows content roadmap.
+#     - 🎤 Be a practitioner voice for Fleet at webinars, virtual events, conferences, and in Windows admin communities like WinAdmins. If you've been waiting for an excuse to give a talk, this is it.
+#     - 🧰 Publish the PowerShell scripts, policies, configuration profiles, and Fleet-maintained apps you build so Windows admins everywhere can borrow them (with our blessing).
+#     - 🎨 Keep Fleet's Windows messaging honest by reviewing landing pages, campaigns, and sales content as someone who has actually stared down a stuck Autopilot enrollment screen.
+#     - 🐕 Run Fleet on Fleet. Help manage our own Windows, macOS, and Linux devices with Fleet using GitOps, in public, in the fleetdm/fleet repo. Your day job doubles as your best source material.
+#     - 💻 Support Fleet's fully remote, global team with hands-on IT help, onboarding and offboarding, hardware logistics, access management, and SOC 2 controls, and have a real say in where our internal IT goes next.
+#     - 🤖 Automate repetitive IT work with scripts, APIs, and AI-assisted workflows, and document it in the public Fleet handbook.
+#   experience: |
+#     - 🦉 5+ years of experience in IT administration, client platform engineering, or systems administration, with Windows as your home turf.
+#     - 🪟 Deep, hands-on experience managing Windows at scale with tools like Intune, SCCM, Workspace ONE, or Fleet, including Autopilot, provisioning packages, CSPs, Group Policy, BitLocker, and Windows Update for Business.
+#     - 🖥️ Working knowledge of macOS and Linux device management.
+#     - ✍️ A track record of technical writing that people actually read, like blog posts, guides, docs, or knowledge base articles. Send us samples.
+#     - 🗣️ A clear, confident communicator in writing and on camera (or excited to get there). You can explain technical concepts to a non-technical teammate and to a room full of Windows admins.
+#     - 🧠 Product sense: you can read a spec, spot what an admin will trip over, and explain why it matters.
+#     - ⚡ Fluent in PowerShell and comfortable working with REST APIs.
+#     - 🔐 Experience administering an identity provider (Okta, Entra ID, or Google Workspace), including SSO and SCIM provisioning.
+#     - 🌿 Comfortable working in GitHub with git, pull requests, and GitOps workflows. Our articles and handbook live in the repo too.
+#     - 🤖 Use AI tools (Claude, Copilot, etc.) as part of your daily workflow to move faster and produce higher-quality work.
+#     - 🟣 Openness: You are flexible and open to new ideas and ways of working.
+#     - ➕ Bonus: A blog, YouTube channel, conference talk, or community presence we can check out. Experience moving an organization off Intune or SCCM. Familiarity with osquery, SQL, or SOC 2 audits.
