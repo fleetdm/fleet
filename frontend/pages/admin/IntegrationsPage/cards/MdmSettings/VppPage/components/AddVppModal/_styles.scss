@@ -1,5 +1,4 @@
 .add-vpp-modal {
-
   &__description {
     margin: 0;
   }
@@ -39,6 +38,10 @@
         margin: 0;
       }
     }
+  }
+
+  .vpp-fleets-selector {
+    margin-top: $pad-large;
   }
 
   &__file-uploader {

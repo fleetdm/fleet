@@ -1,11 +1,15 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useContext, useState } from "react";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import FileUploader from "components/FileUploader";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
 import mdmAppleAPI from "services/entities/mdm_apple";
+
+import VppFleetsSelector from "../VppFleetsSelector";
+import { fleetsForApi, IVppFleetsValue } from "../VppFleetsSelector/helpers";
 
 import { getErrorMessage } from "./helpers";
 
@@ -16,8 +20,17 @@ interface IAddVppModalProps {
   onAdded: () => void;
 }
 
+const LEARN_MORE_URL = "https://fleetdm.com/learn-more-about/add-vpp";
+
 const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
+  const { config } = useContext(AppContext);
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
+
   const [tokenFile, setTokenFile] = useState<File | null>(null);
+  const [fleetsValue, setFleetsValue] = useState<IVppFleetsValue>({
+    allFleets: true,
+    fleetIds: [],
+  });
   const [isUploading, setIsUploading] = useState(false);
 
   const onSelectFile = useCallback((files: FileList | null) => {
@@ -36,7 +49,24 @@ const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
     }
 
     try {
-      await mdmAppleAPI.uploadVppToken(tokenFile);
+      const { token } = await mdmAppleAPI.uploadVppToken(tokenFile);
+      const fleets = fleetsForApi(fleetsValue);
+      // The new token is unassigned, so Custom with no fleets needs no PATCH.
+      if (fleets !== null && !gitOpsModeEnabled) {
+        try {
+          await mdmAppleAPI.editVppTeams({
+            tokenId: token.id,
+            teamIds: fleets,
+          });
+        } catch (e) {
+          notify.error(
+            "Couldn't assign fleets. The VPP token was added. Try again from Actions > Edit fleets.",
+            { response: e }
+          );
+          onAdded();
+          return;
+        }
+      }
       notify.success("Added successfully.");
       onAdded();
     } catch (e) {
@@ -45,7 +75,7 @@ const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
     } finally {
       setIsUploading(false);
     }
-  }, [tokenFile, onAdded, onCancel]);
+  }, [tokenFile, fleetsValue, gitOpsModeEnabled, onAdded, onCancel]);
 
   return (
     <Modal
@@ -56,11 +86,7 @@ const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
     >
       <p className={`${baseClass}__description`}>
         Follow the step-by-step guide to add VPP.{" "}
-        <CustomLink
-          url="https://fleetdm.com/learn-more-about/add-vpp"
-          text="Learn how"
-          newTab
-        />
+        <CustomLink url={LEARN_MORE_URL} text="Learn more" newTab />
       </p>
       <FileUploader
         className={`${baseClass}__file-uploader ${
@@ -74,6 +100,15 @@ const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
         fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
         onFileUpload={onSelectFile}
       />
+      {!gitOpsModeEnabled && (
+        <VppFleetsSelector
+          value={fleetsValue}
+          onChange={setFleetsValue}
+          tooltipPosition="bottom-start"
+          tooltipLearnMoreUrl={LEARN_MORE_URL}
+          disabled={isUploading}
+        />
+      )}
       <div className="modal-cta-wrap">
         <Button
           onClick={uploadVppToken}
