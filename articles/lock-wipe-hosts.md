@@ -157,6 +157,8 @@ Lock on Windows and Linux, and wipe on Linux run as scripts, not MDM commands. Y
 
 Wipe on Windows and lock, wipe, and clear passcode on Android aren't cancelable.
 
+If a Windows host re-enrolls in MDM before it receives a pending lock or wipe, Fleet cancels the lock or wipe.
+
 ### Cancel from the UI
 
 1. Navigate to the **Hosts** page and open the host's **Host details** page.

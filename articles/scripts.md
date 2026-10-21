@@ -116,18 +116,7 @@ echo "Configuring account for $FLEET_VAR_HOST_END_USER_IDP_USERNAME"
 Write-Host "Serial: $FLEET_VAR_HOST_HARDWARE_SERIAL"
 ```
 
-### Supported variables include:
-
-- $FLEET_VAR_HOST_END_USER_IDP_USERNAME
-- $FLEET_VAR_HOST_END_USER_IDP_FULL_NAME
-- $FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART
-- $FLEET_VAR_HOST_END_USER_IDP_GROUPS
-- $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT
-- $FLEET_VAR_HOST_HARDWARE_SERIAL
-- $FLEET_VAR_HOST_UUID
-- $FLEET_VAR_HOST_PLATFORM
-
-See the full list in the [Fleet variables](https://fleetdm.com/guides/fleet-variables) guide.
+See the full list of supported variables in the [built-in variables](https://fleetdm.com/guides/fleet-variables) guide.
 
 > The ${FLEET_VAR_NAME} brace syntax is also supported for embedding variables within strings (e.g., user_${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}@company.com).
 
