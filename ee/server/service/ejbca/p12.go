@@ -40,7 +40,7 @@ func ParseClientP12(ctx context.Context, p12 []byte, password string) (*ClientCr
 	if err != nil {
 		switch {
 		case errors.Is(err, pkcs12.ErrIncorrectPassword), errors.Is(err, pkcs12.ErrDecryption):
-			return nil, ctxerr.Wrap(ctx, ErrP12Password)
+			return nil, ErrP12Password
 		case isBER(p12):
 			return nil, ctxerr.New(ctx, msgP12BER)
 		default:

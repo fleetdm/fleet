@@ -84,6 +84,26 @@ func validateEJBCAFields(ca *fleet.EJBCA, errPrefix string) error {
 
 // readEJBCAClientP12 reads the client certificate chain and key out of a base64 PKCS#12 and rejects a certificate that isn't valid now.
 func readEJBCAClientP12(ctx context.Context, p12Base64, password, errPrefix string) (*ejbca.ClientCredentials, error) {
+	creds, err := parseEJBCAClientP12(ctx, p12Base64, password, errPrefix)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now()
+	if now.After(creds.Leaf.NotAfter) {
+		return nil, fleet.NewInvalidArgumentError("client_p12", fmt.Sprintf(
+			"%sThe client certificate expired on %s. Upload a client certificate that hasn't expired.",
+			errPrefix, creds.Leaf.NotAfter.UTC().Format(time.DateOnly)))
+	}
+	if now.Before(creds.Leaf.NotBefore) {
+		return nil, fleet.NewInvalidArgumentError("client_p12", fmt.Sprintf(
+			"%sThe client certificate isn't valid until %s. Upload a client certificate that is valid now.",
+			errPrefix, creds.Leaf.NotBefore.UTC().Format(time.DateOnly)))
+	}
+	return creds, nil
+}
+
+// parseEJBCAClientP12 reads the client certificate chain and key out of a base64 PKCS#12, whether or not the certificate is valid now.
+func parseEJBCAClientP12(ctx context.Context, p12Base64, password, errPrefix string) (*ejbca.ClientCredentials, error) {
 	if strings.TrimSpace(p12Base64) == "" {
 		return nil, fleet.NewInvalidArgumentError("client_p12", fmt.Sprintf("%sThe client certificate PKCS#12 cannot be empty.", errPrefix))
 	}
@@ -108,17 +128,6 @@ func readEJBCAClientP12(ctx context.Context, p12Base64, password, errPrefix stri
 	}
 	if len(creds.CertPEM) > ejbcaMaxPEMLength {
 		return nil, fleet.NewInvalidArgumentError("client_p12", fmt.Sprintf("%sThe client certificate chain is too large.", errPrefix))
-	}
-	now := time.Now()
-	if now.After(creds.Leaf.NotAfter) {
-		return nil, fleet.NewInvalidArgumentError("client_p12", fmt.Sprintf(
-			"%sThe client certificate expired on %s. Upload a client certificate that hasn't expired.",
-			errPrefix, creds.Leaf.NotAfter.UTC().Format(time.DateOnly)))
-	}
-	if now.Before(creds.Leaf.NotBefore) {
-		return nil, fleet.NewInvalidArgumentError("client_p12", fmt.Sprintf(
-			"%sThe client certificate isn't valid until %s. Upload a client certificate that is valid now.",
-			errPrefix, creds.Leaf.NotBefore.UTC().Format(time.DateOnly)))
 	}
 	return creds, nil
 }

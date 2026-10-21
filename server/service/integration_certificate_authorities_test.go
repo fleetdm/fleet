@@ -2677,3 +2677,110 @@ func (s *integrationMDMTestSuite) TestEJBCACertificateAuthorityNameCannotBeShare
 		map[string]any{"custom_scep_proxy": map[string]any{"name": "EJBCA_WIFI"}}, http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(res.Body), `"EJBCA_WIFI" name is already used by another certificate authority`)
 }
+
+func (s *integrationMDMTestSuite) TestBatchApplyEJBCACertificateAuthorities() {
+	t := s.T()
+	ctx := context.Background()
+	deleteCAs := func() {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, "DELETE FROM certificate_authorities")
+			return err
+		})
+	}
+	deleteCAs()
+	t.Cleanup(deleteCAs)
+
+	fake := ejbcatest.New(t, nil)
+	const p12Password = "p12-password"
+	expiry := time.Now().Add(90 * 24 * time.Hour).UTC().Truncate(time.Second)
+	ejbcaSpec := func(name, p12 string) fleet.EJBCA {
+		return fleet.EJBCA{
+			Name: name, URL: fake.HTTP.URL, ClientP12: p12, Password: p12Password, TrustCABundlePEM: fake.ServerPEM,
+			CertificateAuthorityName: ejbcatest.CAName, CertificateProfileName: ejbcatest.CertProfile,
+			EndEntityProfileName: ejbcatest.EndEntityProfile, CertificateCommonName: "$FLEET_VAR_HOST_END_USER_EMAIL_IDP",
+			UsernameTemplate: "$FLEET_VAR_HOST_HARDWARE_SERIAL", CertificateUserPrincipalNames: []string{"$FLEET_VAR_HOST_END_USER_EMAIL_IDP"},
+		}
+	}
+	apply := func(dryRun bool, status int, ejbcas ...fleet.EJBCA) string {
+		res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{
+			CertificateAuthorities: fleet.GroupedCertificateAuthorities{EJBCA: ejbcas}, DryRun: dryRun,
+		}, status)
+		if status == http.StatusOK {
+			return ""
+		}
+		return extractServerErrorText(res.Body)
+	}
+	stored := func() []fleet.EJBCA {
+		grouped, err := s.ds.GetGroupedCertificateAuthorities(ctx, true)
+		require.NoError(t, err)
+		return grouped.EJBCA
+	}
+
+	trusted := fake.ClientP12(t, expiry, p12Password)
+	wifi := ejbcaSpec("EJBCA_WIFI", trusted)
+
+	// A dry run validates against EJBCA but stores nothing.
+	apply(true, http.StatusOK, wifi)
+	require.Empty(t, stored())
+	require.NotEmpty(t, fake.Requests())
+
+	// Add.
+	apply(false, http.StatusOK, wifi)
+	got := stored()
+	require.Len(t, got, 1)
+	require.Equal(t, wifi.Name, got[0].Name)
+	require.Equal(t, wifi.CertificateCommonName, got[0].CertificateCommonName)
+	require.Equal(t, wifi.UsernameTemplate, got[0].UsernameTemplate)
+	require.Equal(t, wifi.CertificateUserPrincipalNames, got[0].CertificateUserPrincipalNames)
+	require.Contains(t, got[0].MTLSCertPEM, "BEGIN CERTIFICATE")
+	require.Contains(t, got[0].MTLSKeyPEM, "PRIVATE KEY")
+	added := s.lastActivityMatches(fleet.ActivityAddedEJBCA{}.ActivityName(), `{"name":"EJBCA_WIFI"}`, 0)
+
+	// The same spec changes nothing and doesn't contact EJBCA.
+	requests := len(fake.Requests())
+	apply(false, http.StatusOK, wifi)
+	require.Len(t, fake.Requests(), requests)
+	s.lastActivityMatches(fleet.ActivityAddedEJBCA{}.ActivityName(), "", added)
+
+	// A changed field is validated again and stored.
+	wifi.CertificateCommonName = "new-common-name"
+	apply(false, http.StatusOK, wifi)
+	require.Greater(t, len(fake.Requests()), requests)
+	require.Equal(t, "new-common-name", stored()[0].CertificateCommonName)
+	s.lastActivityMatches(fleet.ActivityEditedEJBCA{}.ActivityName(), `{"name":"EJBCA_WIFI"}`, 0)
+
+	// A new client certificate replaces the stored one.
+	oldCert := stored()[0].MTLSCertPEM
+	wifi.ClientP12 = fake.ClientP12(t, expiry, p12Password)
+	apply(false, http.StatusOK, wifi)
+	require.NotEqual(t, oldCert, stored()[0].MTLSCertPEM)
+
+	// Bad credentials are rejected, and the stored CA keeps its certificate.
+	storedCert := stored()[0].MTLSCertPEM
+	wrongPassword := wifi
+	wrongPassword.Password = "wrong"
+	require.Contains(t, apply(false, http.StatusUnprocessableEntity, wrongPassword), "certificate_authorities.ejbca: ")
+	missingP12 := wifi
+	missingP12.ClientP12 = ""
+	require.Contains(t, apply(false, http.StatusUnprocessableEntity, missingP12), "PKCS#12 cannot be empty")
+	expired := ejbcaSpec("EJBCA_EXPIRED", ejbcatest.ClientP12Between(t, fake.ClientCA, time.Now().Add(-48*time.Hour),
+		time.Now().Add(-24*time.Hour), p12Password))
+	require.Contains(t, apply(false, http.StatusUnprocessableEntity, wifi, expired), "expired")
+	require.Equal(t, storedCert, stored()[0].MTLSCertPEM)
+	require.Len(t, stored(), 1)
+
+	// Names are unique among the EJBCA CAs, and an EJBCA name can't be shared with a CA of another type.
+	require.Contains(t, apply(false, http.StatusUnprocessableEntity, wifi, wifi), "already")
+	res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{
+		CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+			EJBCA:           []fleet.EJBCA{wifi},
+			CustomScepProxy: []fleet.CustomSCEPProxyCA{{Name: wifi.Name, URL: "https://scep.example.com/scep", Challenge: "challenge"}},
+		}, DryRun: true,
+	}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), `"EJBCA_WIFI" name is already used by another certificate authority`)
+
+	// Leaving the CA out of the spec deletes it.
+	apply(false, http.StatusOK)
+	require.Empty(t, stored())
+	s.lastActivityMatches(fleet.ActivityDeletedEJBCA{}.ActivityName(), `{"name":"EJBCA_WIFI"}`, 0)
+}

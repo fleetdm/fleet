@@ -9,6 +9,61 @@ import (
 
 func TestValidateCertificateAuthoritiesSpec(t *testing.T) {
 	// TODO(hca): placeholder for additional tests to the extent not otherwise covered by client_test
+
+	t.Run("ejbca", func(t *testing.T) {
+		grouped, err := ValidateCertificateAuthoritiesSpec(map[string]any{
+			"ejbca": []any{map[string]any{
+				"name": "ejbca", "url": "https://ejbca.example.com", "client_p12": "p12", "password": "pw", "trust_ca_bundle": "bundle",
+				"certificate_authority_name": "ca", "certificate_profile_name": "cert", "end_entity_profile_name": "entity",
+				"certificate_common_name": "cn", "username_template": "user", "certificate_user_principal_names": []any{"upn"},
+			}},
+		})
+		require.NoError(t, err)
+		require.Equal(t, []EJBCA{{
+			Name: "ejbca", URL: "https://ejbca.example.com", ClientP12: "p12", Password: "pw", TrustCABundlePEM: "bundle",
+			CertificateAuthorityName: "ca", CertificateProfileName: "cert", EndEntityProfileName: "entity",
+			CertificateCommonName: "cn", UsernameTemplate: "user", CertificateUserPrincipalNames: []string{"upn"},
+		}}, grouped.EJBCA)
+
+		grouped, err = ValidateCertificateAuthoritiesSpec(map[string]any{})
+		require.NoError(t, err)
+		require.Equal(t, []EJBCA{}, grouped.EJBCA)
+
+		_, err = ValidateCertificateAuthoritiesSpec(map[string]any{"ejbca": "not a list"})
+		require.ErrorContains(t, err, "org_settings.certificate_authorities.ejbca cannot be parsed")
+	})
+}
+
+func TestEJBCAEquals(t *testing.T) {
+	base := EJBCA{
+		Name: "ejbca", URL: "https://ejbca.example.com", MTLSCertPEM: "cert", MTLSKeyPEM: "key", TrustCABundlePEM: "bundle",
+		CertificateAuthorityName: "ca", CertificateProfileName: "cert", EndEntityProfileName: "entity",
+		CertificateCommonName: "cn", UsernameTemplate: "user", CertificateUserPrincipalNames: []string{"upn"},
+	}
+	// The PKCS#12 and its password are inputs, so they don't count.
+	same := base
+	same.ClientP12, same.Password = "p12", "pw"
+	require.True(t, base.Equals(&same))
+
+	for name, change := range map[string]func(*EJBCA){
+		"name":                  func(e *EJBCA) { e.Name = "other" },
+		"url":                   func(e *EJBCA) { e.URL = "https://other.example.com" },
+		"client certificate":    func(e *EJBCA) { e.MTLSCertPEM = "other" },
+		"client key":            func(e *EJBCA) { e.MTLSKeyPEM = "other" },
+		"trust bundle":          func(e *EJBCA) { e.TrustCABundlePEM = "" },
+		"certificate authority": func(e *EJBCA) { e.CertificateAuthorityName = "other" },
+		"certificate profile":   func(e *EJBCA) { e.CertificateProfileName = "other" },
+		"end entity profile":    func(e *EJBCA) { e.EndEntityProfileName = "other" },
+		"common name":           func(e *EJBCA) { e.CertificateCommonName = "other" },
+		"username template":     func(e *EJBCA) { e.UsernameTemplate = "" },
+		"upns":                  func(e *EJBCA) { e.CertificateUserPrincipalNames = nil },
+	} {
+		t.Run(name, func(t *testing.T) {
+			changed := base
+			change(&changed)
+			require.False(t, base.Equals(&changed))
+		})
+	}
 }
 
 func TestEffectiveEJBCAUsernameTemplate(t *testing.T) {
@@ -86,6 +141,17 @@ func TestGroupCertificateAuthoritiesByTypeEJBCA(t *testing.T) {
 		},
 		{ID: 2, Name: "minimal", URL: "https://ejbca.example.com"},
 	}, grouped.EJBCA)
+
+	// Storing a CA and reading it back gives the same settings, with the empty optional fields stored as NULL.
+	for _, ejbca := range grouped.EJBCA {
+		stored := ejbca.CertificateAuthority()
+		require.Equal(t, string(CATypeEJBCA), stored.Type)
+		require.Equal(t, ejbca, stored.EJBCA())
+	}
+	stored := grouped.EJBCA[1].CertificateAuthority()
+	require.Nil(t, stored.TrustCABundlePEM)
+	require.Nil(t, stored.EJBCAUsernameTemplate)
+	require.Nil(t, stored.CertificateUserPrincipalNames)
 }
 
 func TestPreprocessCAFields(t *testing.T) {

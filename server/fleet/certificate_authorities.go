@@ -180,6 +180,33 @@ func (c *CertificateAuthority) EJBCA() EJBCA {
 	return ejbca
 }
 
+// CertificateAuthority returns the stored form of the EJBCA CA. The empty username template, trust bundle, and UPN list are stored as
+// NULL.
+func (e *EJBCA) CertificateAuthority() *CertificateAuthority {
+	ca := &CertificateAuthority{
+		ID:                          e.ID,
+		Type:                        string(CATypeEJBCA),
+		Name:                        &e.Name,
+		URL:                         &e.URL,
+		MTLSCertPEM:                 &e.MTLSCertPEM,
+		MTLSKeyPEM:                  &e.MTLSKeyPEM,
+		EJBCACAName:                 &e.CertificateAuthorityName,
+		EJBCACertificateProfileName: &e.CertificateProfileName,
+		EJBCAEndEntityProfileName:   &e.EndEntityProfileName,
+		CertificateCommonName:       &e.CertificateCommonName,
+	}
+	if e.TrustCABundlePEM != "" {
+		ca.TrustCABundlePEM = &e.TrustCABundlePEM
+	}
+	if e.UsernameTemplate != "" {
+		ca.EJBCAUsernameTemplate = &e.UsernameTemplate
+	}
+	if len(e.CertificateUserPrincipalNames) > 0 {
+		ca.CertificateUserPrincipalNames = &e.CertificateUserPrincipalNames
+	}
+	return ca
+}
+
 // ESTProxyCA returns the EST connection settings of a Hydrant or custom EST CA, which store
 // their credentials in different fields.
 func (c *CertificateAuthority) ESTProxyCA() (ESTProxyCA, error) {
@@ -645,7 +672,7 @@ type GroupedCertificateAuthorities struct {
 	NDESSCEP        *NDESSCEPProxyCA       `json:"ndes_scep_proxy"`
 	CustomScepProxy []CustomSCEPProxyCA    `json:"custom_scep_proxy"`
 	Smallstep       []SmallstepSCEPProxyCA `json:"smallstep"`
-	EJBCA           []EJBCA                `json:"-"` // not exported or applied by GitOps yet, so it is kept out of the spec until it can be
+	EJBCA           []EJBCA                `json:"ejbca"`
 }
 
 // IsEmpty returns true if no certificate authorities of any type are configured.
@@ -860,6 +887,22 @@ func ValidateCertificateAuthoritiesSpec(incoming interface{}) (*GroupedCertifica
 			return nil, fmt.Errorf("org_settings.certificate_authorities.smallstep cannot be parsed: %w", err)
 		}
 		groupedCAs.Smallstep = smallstepData
+	}
+
+	if ejbcaCA, ok := spec.(map[string]interface{})["ejbca"]; !ok || ejbcaCA == nil {
+		groupedCAs.EJBCA = []EJBCA{}
+	} else {
+		// We unmarshal EJBCA integration into its dedicated type for additional validation
+		ejbcaJSON, err := json.Marshal(ejbcaCA)
+		if err != nil {
+			return nil, fmt.Errorf("org_settings.certificate_authorities.ejbca cannot be marshalled into JSON: %w", err)
+		}
+		var ejbcaData []EJBCA
+		err = json.Unmarshal(ejbcaJSON, &ejbcaData)
+		if err != nil {
+			return nil, fmt.Errorf("org_settings.certificate_authorities.ejbca cannot be parsed: %w", err)
+		}
+		groupedCAs.EJBCA = ejbcaData
 	}
 
 	return &groupedCAs, nil
