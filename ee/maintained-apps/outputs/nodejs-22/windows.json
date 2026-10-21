@@ -5,7 +5,7 @@
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Node.js' AND publisher = 'Node.js Foundation' AND version LIKE '22.%';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Node.js' AND publisher = 'Node.js Foundation' AND version LIKE '22.%' AND version_compare(version, '22.23.2') < 0);",
-        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'node.exe');"
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'node.js 22.exe');"
       },
       "installer_url": "https://nodejs.org/dist/v22.23.2/node-v22.23.2-x64.msi",
       "install_script_ref": "22e48c46",
