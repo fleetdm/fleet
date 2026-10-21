@@ -127,7 +127,7 @@ Environment="NO_PROXY=localhost,127.0.0.1,::1"
 
 > Note: If HTTP_PROXY/HTTPS_PROXY points at a loopback or private address, Fleet's private network blocking may block it. See [server_allow_private_network_integrations](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-allow-private-network-integrations).
 
-Also, allow the Fleet server to reach the following routes over HTTPS (port 443) for the features you use.
+Also, allow the Fleet server to reach the following routes for the features you use.
 
 ### Apple MDM
 
