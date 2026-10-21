@@ -1,1 +1,2 @@
-- Fleet Premium: added AI tools to software inventory from fleetd's `ai_tools` table. MCP servers, AI CLI tools and AI skills are new software types, and AI apps and extensions that Fleet already reports under another type are marked as AI tools.
+- Fleet Premium: added AI tools to software inventory from fleetd's `ai_tools` table. MCP servers, AI CLI tools and AI skills are new software types; AI apps and extensions Fleet already reports under another type are marked as AI tools instead.
+- Fleet Premium: added an "AI tools" filter and the new types to the software filters on the **Software** page, host details and **My device**, plus an `ai_tool` filter and field on the software, host software and device software API endpoints.
