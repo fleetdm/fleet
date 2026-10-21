@@ -1,9 +1,10 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import FileSaver from "file-saver";
 import React from "react";
-
-import { renderWithSetup } from "test/test-utils";
-
+import { notify } from "components/ToastNotification";
+import { IUser } from "interfaces/user";
+import usersAPI from "services/entities/users";
+import { renderWithAppContext, renderWithSetup } from "test/test-utils";
 import QueryReport from "./QueryReport";
 
 const tableProps = {
@@ -250,5 +251,109 @@ describe("QueryReport", () => {
     expect(csv).toContain("only_on_page_two");
     expect(csv).toContain("value2");
     saveAs.mockRestore();
+  });
+});
+
+describe("Report column preferences", () => {
+  const queryReport = {
+    query_id: 6,
+    results: [
+      {
+        host_id: 1,
+        host_name: "host1",
+        last_fetched: "2020-01-01",
+        columns: { name: "example", version: "1" },
+      },
+    ],
+    report_clipped: false,
+    count: 1,
+  };
+
+  const setup = (
+    settings: import("interfaces/config").IUserSettings = {
+      hidden_host_columns: ["osquery_version"],
+      report_column_order: { "7": ["name"] },
+    }
+  ) => {
+    const setUserSettings = jest.fn();
+    const view = renderWithAppContext(
+      <QueryReport queryId={6} queryReport={queryReport} {...tableProps} />,
+      {
+        contextValue: {
+          currentUser: { id: 1 } as IUser,
+          userSettings: settings,
+          setUserSettings,
+        },
+      }
+    );
+    return { ...view, setUserSettings };
+  };
+
+  it("saves a report-specific order while preserving other preferences", async () => {
+    const update = jest
+      .spyOn(usersAPI, "update")
+      .mockResolvedValue({} as IUser);
+    const { setUserSettings } = setup();
+    fireEvent.click(screen.getByRole("button", { name: "Column preferences" }));
+    expect(
+      screen.getByRole("button", { name: "Move Host left" })
+    ).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Move name left" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(setUserSettings).toHaveBeenCalled());
+    expect(update).toHaveBeenCalledWith(1, {
+      settings: {
+        hidden_host_columns: ["osquery_version"],
+        report_column_order: {
+          "7": ["name"],
+          "6": ["Host", "name", "last_fetched", "version"],
+        },
+      },
+    });
+    update.mockRestore();
+  });
+
+  it("loads saved order, ignores removed columns, and appends new columns", () => {
+    setup({
+      hidden_host_columns: [],
+      report_column_order: { "6": ["name", "removed", "Host", "name"] },
+    });
+    const headers = screen.getAllByRole("columnheader");
+    expect(headers[0]).toHaveTextContent("name");
+    expect(headers[1]).toHaveTextContent("Host");
+    expect(headers[2]).toHaveTextContent("Last fetched");
+    expect(headers[3]).toHaveTextContent("version");
+  });
+
+  it("keeps the dialog and original preferences when saving fails", async () => {
+    const update = jest
+      .spyOn(usersAPI, "update")
+      .mockRejectedValue(new Error("offline"));
+    const error = jest.spyOn(notify, "error").mockImplementation(jest.fn());
+    const { setUserSettings } = setup();
+    fireEvent.click(screen.getByRole("button", { name: "Column preferences" }));
+    fireEvent.click(screen.getByRole("button", { name: "Move name left" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(error).toHaveBeenCalled());
+    expect(setUserSettings).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+    expect(screen.getAllByRole("columnheader")[1]).toHaveTextContent(
+      "Last fetched"
+    );
+    update.mockRestore();
+    error.mockRestore();
+  });
+
+  it("cancels without saving", () => {
+    const update = jest.spyOn(usersAPI, "update");
+    setup();
+    fireEvent.click(screen.getByRole("button", { name: "Column preferences" }));
+    fireEvent.click(screen.getByRole("button", { name: "Move name left" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(update).not.toHaveBeenCalled();
+    expect(screen.getAllByRole("columnheader")[1]).toHaveTextContent(
+      "Last fetched"
+    );
+    update.mockRestore();
   });
 });

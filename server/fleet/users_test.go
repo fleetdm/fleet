@@ -442,3 +442,18 @@ func TestHasAnyGlobalRole(t *testing.T) {
 	require.False(t, (&User{GlobalRole: new("")}).HasAnyGlobalRole())
 	require.True(t, (&User{GlobalRole: new(RoleObserver)}).HasAnyGlobalRole())
 }
+
+func TestUserSettingsReportColumnOrder(t *testing.T) {
+	for _, value := range []interface{}{
+		`{"hidden_host_columns":["osquery_version"],"report_column_order":{"6":["last_fetched","Host","name"]}}`,
+		[]byte(`{"hidden_host_columns":["osquery_version"],"report_column_order":{"6":["last_fetched","Host","name"]}}`),
+	} {
+		var settings UserSettings
+		require.NoError(t, settings.Scan(value))
+		assert.Equal(t, []string{"osquery_version"}, settings.HiddenHostColumns)
+		assert.Equal(t, map[string][]string{"6": {"last_fetched", "Host", "name"}}, settings.ReportColumnOrder)
+	}
+	var legacy UserSettings
+	require.NoError(t, legacy.Scan(`{"hidden_host_columns":[]}`))
+	assert.Nil(t, legacy.ReportColumnOrder)
+}

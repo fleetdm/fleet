@@ -354,6 +354,7 @@ export const CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS = 30;
 
 export interface IUserSettings {
   hidden_host_columns: string[];
+  report_column_order?: Record<string, string[]>;
 }
 export interface IGitOpsExceptions {
   labels: boolean;
