@@ -158,9 +158,17 @@ Claude may ask you to confirm the schedule, model, or repository before it creat
 
 > **Note:** Routine schedules run in UTC. When daylight saving time starts or ends, the routine runs an hour earlier or later in your local time.
 
-> **Note:** To refresh the dashboards more often, edit the routine's schedule, for example to every 4 hours. Routines can't run more than once an hour, and each run uses Claude usage on your plan. Trend charts and day-by-day signals, such as memory strain and weak Wi-Fi, keep one value per UTC day, from that day's last run.
-
 > **Warning:** Check the routine's connectors after setup. A routine with connectors it doesn't need, like mail or file storage, can reach data that has nothing to do with these dashboards.
+
+### Optional: Refresh more often than once a day
+
+The routine runs once a day by default. To refresh the dashboards more often, for example every 4 hours:
+
+1. Open Claude Code and run `/schedule update`.
+2. Ask Claude to change the "DEX dashboards (daily rebuild)" routine to the cron expression `7 */4 * * *`, which runs at 7 minutes past every fourth hour. A run scheduled exactly on the hour can start several minutes late.
+3. Optional: ask Claude to rename the routine to match its new schedule, for example "DEX dashboards (every 4 hours)."
+
+Routines can't run more than once an hour, and each run uses Claude usage on your plan. Trend charts and day-by-day signals, such as memory strain and weak Wi-Fi, keep one value per UTC day, from that day's last run.
 
 ## Verify
 
