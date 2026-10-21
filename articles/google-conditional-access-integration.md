@@ -221,7 +221,7 @@ gcloud run services describe fleet-google-device --region=$REGION --format='valu
 
 The last command prints the page's URL. You'll use it in Step 6.
 
-## Step 6: Add the icon in Fleet
+## Step 6: Deploy the web clip (iOS) and web app (Android)
 
 **iOS and iPadOS:** Save this profile as `register-with-google.mobileconfig`, replace `<page URL>` with the URL from Step 5, and add it in **Controls > OS settings > Custom settings**:
 
