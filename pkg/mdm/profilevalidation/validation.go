@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -80,6 +82,7 @@ const (
 	minAppleProfileTypes             = 100
 	minAppleConfigurationDeclaration = 40
 	appleConfigurationPrefix         = "com.apple.configuration."
+	minWindowsNodes                  = 4000
 )
 
 // mustHaveAppleProfileKeys maps payload types to keys that must be present.
@@ -89,6 +92,10 @@ var mustHaveAppleProfileKeys = map[string][]string{
 
 var mustHaveAppleDeclarations = []string{
 	"com.apple.configuration.passcode.settings",
+}
+
+var mustHaveWindowsNodes = []string{
+	"./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock",
 }
 
 func ParseProfileValidationSchema() error {
@@ -132,6 +139,13 @@ func Parse(data []byte) (*ProfileValidationSchema, error) {
 }
 
 func (s *ProfileValidationSchema) check() error {
+	if err := s.checkApple(); err != nil {
+		return err
+	}
+	return s.checkWindows()
+}
+
+func (s *ProfileValidationSchema) checkApple() error {
 	if s.AppleEnvelope.TopLevel == nil || s.AppleEnvelope.CommonPayloadKeys == nil {
 		return errors.New("apple_envelope is missing TopLevel or CommonPayloadKeys")
 	}
@@ -170,6 +184,27 @@ func (s *ProfileValidationSchema) check() error {
 	for _, d := range mustHaveAppleDeclarations {
 		if s.AppleDeclarations[d] == nil {
 			return fmt.Errorf("apple_declarations is missing %s", d)
+		}
+	}
+	return nil
+}
+
+func (s *ProfileValidationSchema) checkWindows() error {
+	if len(s.Windows) < minWindowsNodes {
+		return fmt.Errorf("windows has %d nodes, want at least %d", len(s.Windows), minWindowsNodes)
+	}
+	for _, n := range mustHaveWindowsNodes {
+		if s.Windows[n] == nil {
+			return fmt.Errorf("windows is missing %s", n)
+		}
+	}
+	for _, locURI := range slices.Sorted(maps.Keys(s.Windows)) {
+		n := s.Windows[locURI]
+		if n == nil {
+			return fmt.Errorf("windows %s is null", locURI)
+		}
+		if n.XSD != "" && s.WindowsXSDs[n.XSD] == "" {
+			return fmt.Errorf("windows %s references missing xsd %s", locURI, n.XSD)
 		}
 	}
 	return nil

@@ -23,6 +23,12 @@ func minimalDoc() map[string]any {
 	for i := len(declarations); i < minAppleConfigurationDeclaration; i++ {
 		declarations[fmt.Sprintf("%sexample%d", appleConfigurationPrefix, i)] = map[string]any{}
 	}
+	windows := map[string]any{
+		mustHaveWindowsNodes[0]: map[string]any{"format": "int", "scope": "device"},
+	}
+	for i := len(windows); i < minWindowsNodes; i++ {
+		windows[fmt.Sprintf("./Device/Vendor/MSFT/Example/Node%d", i)] = map[string]any{"format": "chr", "scope": "device"}
+	}
 	return map[string]any{
 		"format_version": 1,
 		"version":        map[string]any{"apple": map[string]any{"release": "Release-v27.0", "commit": "abc"}, "generated_at": "2026-10-15T00:00:00Z"},
@@ -33,7 +39,7 @@ func minimalDoc() map[string]any {
 		"apple_declaration_envelope": map[string]any{"keys": map[string]any{}},
 		"apple_profiles":             profiles,
 		"apple_declarations":         declarations,
-		"windows":                    map[string]any{},
+		"windows":                    windows,
 		"windows_xsds":               map[string]any{},
 	}
 }
@@ -95,6 +101,31 @@ func TestParse(t *testing.T) {
 			removeOne(doc, "apple_profiles", "com.apple.applicationaccess")
 			section(doc, "apple_profiles")["com.example.filler"] = map[string]any{"source": "override"}
 		}, wantErr: "apple_profiles has 99 payload types, want at least 100 non-overridden"},
+		{name: "windows below floor", mutate: func(doc map[string]any) {
+			removeOne(doc, "windows", mustHaveWindowsNodes[0])
+		}, wantErr: "windows has 3999 nodes, want at least 4000"},
+		{name: "missing must-have windows node", mutate: func(doc map[string]any) {
+			delete(section(doc, "windows"), mustHaveWindowsNodes[0])
+			section(doc, "windows")["./Device/Vendor/MSFT/Example/Filler"] = map[string]any{"format": "int"}
+		}, wantErr: "windows is missing ./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock"},
+		{name: "null windows node", mutate: func(doc map[string]any) {
+			section(doc, "windows")["./Device/Vendor/MSFT/Example/Null"] = nil
+		}, wantErr: "windows ./Device/Vendor/MSFT/Example/Null is null"},
+		{name: "windows xsd resolves", mutate: func(doc map[string]any) {
+			section(doc, "windows_xsds")["abc"] = "<xs:schema/>"
+			section(doc, "windows")["./Device/Vendor/MSFT/Example/XML"] = map[string]any{"format": "chr", "xsd": "abc"}
+		}},
+		{name: "dangling windows xsd", mutate: func(doc map[string]any) {
+			section(doc, "windows")["./Device/Vendor/MSFT/Example/XML"] = map[string]any{"format": "chr", "xsd": "abc"}
+		}, wantErr: "windows ./Device/Vendor/MSFT/Example/XML references missing xsd abc"},
+		{name: "empty windows xsd counts as missing", mutate: func(doc map[string]any) {
+			section(doc, "windows_xsds")["abc"] = ""
+			section(doc, "windows")["./Device/Vendor/MSFT/Example/XML"] = map[string]any{"format": "chr", "xsd": "abc"}
+		}, wantErr: "references missing xsd abc"},
+		{name: "apple checked before windows", mutate: func(doc map[string]any) {
+			delete(doc, "apple_declaration_envelope")
+			doc["windows"] = map[string]any{}
+		}, wantErr: "apple_declaration_envelope is missing"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -113,6 +144,7 @@ func TestParse(t *testing.T) {
 			require.NotNil(t, got)
 			assert.Equal(t, 1, got.FormatVersion)
 			assert.Len(t, got.AppleProfiles, minAppleProfileTypes)
+			assert.GreaterOrEqual(t, len(got.Windows), minWindowsNodes)
 		})
 	}
 }

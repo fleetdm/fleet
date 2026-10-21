@@ -66,8 +66,13 @@ func validSchema() *profilevalidation.ProfileValidationSchema {
 		AppleDeclarations: map[string]*profilevalidation.ApplePayloadType{
 			"com.apple.configuration.passcode.settings": {Source: "apple"},
 		},
-		Windows:     map[string]*profilevalidation.WindowsNode{},
+		Windows: map[string]*profilevalidation.WindowsNode{
+			"./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock": {Format: profilevalidation.WindowsFormats{profilevalidation.WindowsFormatInt}},
+		},
 		WindowsXSDs: map[string]string{},
+	}
+	for i := len(s.Windows); i < 4000; i++ {
+		s.Windows[fmt.Sprintf("./Device/Vendor/MSFT/Example/Node%04d", i)] = &profilevalidation.WindowsNode{Format: profilevalidation.WindowsFormats{profilevalidation.WindowsFormatChr}}
 	}
 	for i := len(s.AppleProfiles); i < 100; i++ {
 		s.AppleProfiles[fmt.Sprintf("com.example.p%03d", i)] = &profilevalidation.ApplePayloadType{Source: "apple"}
