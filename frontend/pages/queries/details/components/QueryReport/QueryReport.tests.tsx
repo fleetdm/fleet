@@ -1,11 +1,13 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import FileSaver from "file-saver";
 import React from "react";
+
 import { notify } from "components/ToastNotification";
 import { IUserSettings } from "interfaces/config";
 import { IUser } from "interfaces/user";
 import usersAPI from "services/entities/users";
 import { renderWithAppContext, renderWithSetup } from "test/test-utils";
+
 import QueryReport from "./QueryReport";
 
 const tableProps = {

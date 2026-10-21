@@ -1,6 +1,7 @@
 import FileSaver from "file-saver";
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import { Column, Row } from "react-table";
+
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import EmptyState from "components/EmptyState";
@@ -18,6 +19,7 @@ import {
   generateCSVFilename,
   generateCSVQueryResults,
 } from "utilities/generate_csv";
+
 import ColumnPreferencesModal from "./ColumnPreferencesModal";
 import generateReportColumnConfigsFromResults from "./QueryReportTableConfig";
 
