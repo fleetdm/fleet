@@ -11,12 +11,32 @@ $exitCode = 0
 $stagedInstaller = $null
 
 try {
-    $owner = Get-CimInstance Win32_Process -Filter 'name = "explorer.exe"' -ErrorAction SilentlyContinue |
+    $owners = @(Get-CimInstance Win32_Process -Filter 'name = "explorer.exe"' -ErrorAction SilentlyContinue |
         Invoke-CimMethod -MethodName GetOwner -ErrorAction SilentlyContinue |
-        Where-Object { $_.User } |
-        Select-Object -First 1
-    if (-not $owner) {
+        Where-Object { $_.User })
+    if ($owners.Count -eq 0) {
         Throw "NVM for Windows installs per user and no user is signed in to this host. Sign in and try again."
+    }
+
+    # With several users signed in, upgrade whoever has the oldest copy, since that's
+    # the copy the patch policy flags.
+    $owner = $owners[0]
+    $oldest = $null
+    foreach ($candidate in $owners) {
+        try {
+            $sid = (New-Object System.Security.Principal.NTAccount("$($candidate.Domain)\$($candidate.User)")).Translate(
+                [System.Security.Principal.SecurityIdentifier]).Value
+        } catch { continue }
+        foreach ($sub in (Get-ChildItem "Registry::HKEY_USERS\$sid\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" -ErrorAction SilentlyContinue)) {
+            $key = Get-ItemProperty $sub.PSPath -ErrorAction SilentlyContinue
+            if ($key.DisplayName -ne "NVM for Windows" -or $key.Publisher -ne "Author Software Inc.") { continue }
+            $version = $null
+            if (-not [version]::TryParse([string]$key.DisplayVersion, [ref]$version)) { $version = [version]"0.0" }
+            if ($null -eq $oldest -or $version -lt $oldest) {
+                $oldest = $version
+                $owner = $candidate
+            }
+        }
     }
     $userAccount = "$($owner.Domain)\$($owner.User)"
     Write-Host "Installing NVM for Windows for $userAccount."

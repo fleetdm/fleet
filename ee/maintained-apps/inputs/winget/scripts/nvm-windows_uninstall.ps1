@@ -1,6 +1,7 @@
 # NVM for Windows installs per user, and its uninstaller only removes files when run as
-# the user who installed it, so this script runs it as each entry's owner. Uninstalling
-# also deletes every Node.js version NVM for Windows manages for that user.
+# the user who installed it, so this script runs it as each entry's owner. A copy
+# belonging to a user who isn't signed in can't be removed and fails the uninstall.
+# Uninstalling also deletes every Node.js version NVM for Windows manages for that user.
 
 $displayNamePattern = '^NVM\ for\ Windows$'
 $publisher = "Author Software Inc."
@@ -40,6 +41,24 @@ function Get-AppEntries {
         }
     }
     return $entries
+}
+
+# Registry hives of users who aren't signed in aren't loaded, so find their copies
+# by the uninstaller in the program folder setup always uses.
+function Get-SignedOutInstalls {
+    foreach ($profileKey in (Get-ChildItem 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList' -ErrorAction SilentlyContinue)) {
+        $sid = $profileKey.PSChildName
+        if ($sid -notmatch '^S-1-(5-21|12-1)-[\d-]+$' -or (Test-Path "Registry::HKEY_USERS\$sid")) { continue }
+        $profilePath = (Get-ItemProperty $profileKey.PSPath -ErrorAction SilentlyContinue).ProfileImagePath
+        if (-not $profilePath) { continue }
+        $uninstallers = @(Get-ChildItem -LiteralPath (Join-Path $profilePath "AppData\Local\Author Software\nvm") -File -Filter "unins*.exe" -ErrorAction SilentlyContinue)
+        if ($uninstallers.Count -eq 0) { continue }
+        try {
+            (New-Object System.Security.Principal.SecurityIdentifier($sid)).Translate([System.Security.Principal.NTAccount]).Value
+        } catch {
+            $sid
+        }
+    }
 }
 
 function Resolve-Uninstaller {
@@ -87,7 +106,8 @@ function Invoke-UninstallerAsUser {
         }
         $trigger = New-ScheduledTaskTrigger -AtLogOn
         $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
-        $principal = New-ScheduledTaskPrincipal -UserId $account
+        # Without elevation, the uninstaller waits on a UAC prompt.
+        $principal = New-ScheduledTaskPrincipal -UserId $account -RunLevel Highest
         $task = New-ScheduledTask -Action $action -Trigger $trigger -Settings $settings -Principal $principal
         Register-ScheduledTask -TaskName $taskName -InputObject $task -Force | Out-Null
 
@@ -102,7 +122,8 @@ function Invoke-UninstallerAsUser {
                 return $info.LastTaskResult
             }
             if ((New-TimeSpan -Start $startDate).TotalSeconds -gt 300) {
-                Write-Host "  Uninstall task still running after 300s; checking the result anyway."
+                Stop-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue
+                Write-Host "  Timed out waiting for the uninstall task to finish."
                 return $null
             }
             Start-Sleep -Seconds 5
@@ -116,7 +137,8 @@ function Invoke-UninstallerAsUser {
 
 try {
     $entries = @(Get-AppEntries)
-    if ($entries.Count -eq 0) {
+    $signedOut = @(Get-SignedOutInstalls)
+    if ($entries.Count -eq 0 -and $signedOut.Count -eq 0) {
         Write-Host "NVM for Windows is not installed."
         Exit 0
     }
@@ -152,8 +174,13 @@ try {
                 -NoNewWindow -PassThru -Wait
             $result = $process.ExitCode
         }
+        if ($null -eq $result) {
+            Write-Host "  Leaving this copy registered so the uninstall can be retried."
+            if ($exitCode -eq 0) { $exitCode = 1 }
+            continue
+        }
         Write-Host "  Uninstall exit code: $result"
-        if ($null -ne $result -and $result -ne 0 -and $exitCode -eq 0) { $exitCode = $result }
+        if ($result -ne 0 -and $exitCode -eq 0) { $exitCode = $result }
 
         # The uninstaller relaunches from %TEMP% and exits before removal finishes.
         for ($waited = 0; $waited -lt 60; $waited++) {
@@ -207,7 +234,12 @@ try {
         Write-Host "WARNING: $($remaining.Count) NVM for Windows registration(s) still present:"
         $remaining | ForEach-Object { Write-Host "  - $($_.DisplayName) [$($_.KeyPath)]" }
         if ($exitCode -eq 0) { $exitCode = 1 }
-    } else {
+    }
+    if ($signedOut.Count -gt 0) {
+        Write-Host "NVM for Windows is still installed for users who aren't signed in: $($signedOut -join ', '). Run the uninstall again while they're signed in."
+        if ($exitCode -eq 0) { $exitCode = 1 }
+    }
+    if ($exitCode -eq 0) {
         Write-Host "NVM for Windows removed."
     }
 
