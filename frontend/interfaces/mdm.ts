@@ -72,7 +72,11 @@ export interface IVppTokenSummary {
 export const formatVppTokenLabel = (token: {
   location: string;
   country_code: string;
-}) => `${token.location} • ${formatCountry(token.country_code)}`;
+}) =>
+  // Legacy tokens have no country until the backfill runs.
+  [token.location, formatCountry(token.country_code)]
+    .filter(Boolean)
+    .join(" • ");
 
 export const getMdmServerUrl = ({ server_url }: IConfigServerSettings) => {
   return server_url.concat("/mdm/apple/mdm");
