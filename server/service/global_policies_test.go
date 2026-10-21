@@ -1148,13 +1148,19 @@ func TestApplyPolicySpecsHidden(t *testing.T) {
 	testAdmin := fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}
 	premium := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
 
-	t.Run("free tier rejected", func(t *testing.T) {
+	t.Run("free tier ignored", func(t *testing.T) {
 		ds := newDS()
+		var applied []*fleet.PolicySpec
+		ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+			applied = specs
+			return nil
+		}
 		svc, ctx := newTestService(t, ds, nil, nil)
 		viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &testAdmin})
 		err := svc.ApplyPolicySpecs(viewerCtx, []*fleet.PolicySpec{hiddenSpec()})
-		require.ErrorIs(t, err, fleet.ErrMissingLicense)
-		require.False(t, ds.ApplyPolicySpecsFuncInvoked)
+		require.NoError(t, err)
+		require.Len(t, applied, 1)
+		require.False(t, applied[0].Hidden)
 	})
 
 	t.Run("premium accepted", func(t *testing.T) {
