@@ -18,8 +18,10 @@ import (
 ////////////////////////////////////////////////////////////////////////////////
 
 type windowsTOSTemplateData struct {
-	RedirectURL string
+	// html/template would otherwise rewrite the ms-appx-web:/ms-aadj-redir: schemes to #ZgotmplZ.
+	RedirectURL template.URL
 	ClientData  string
+	CSPNonce    string
 	// Content is the admin's rendered agreement. Empty means the template shows Fleet's default terms.
 	Content template.HTML
 }
