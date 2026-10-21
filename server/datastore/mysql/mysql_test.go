@@ -787,6 +787,74 @@ func TestHealthCheckDetectsReadOnly(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestHealthCheckWithFullPool(t *testing.T) {
+	// fillPool caps the pool at one connection and holds it until the test ends, so any other query on the pool waits.
+	fillPool := func(t *testing.T, db *sqlx.DB) {
+		db.SetMaxOpenConns(1)
+		conn, err := db.Conn(t.Context())
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = conn.Close() })
+
+		waitCtx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+		defer cancel()
+		_, err = db.ExecContext(waitCtx, "SELECT 1")
+		require.ErrorIs(t, err, context.DeadlineExceeded)
+	}
+
+	testCases := []struct {
+		name        string
+		dbName      string
+		withReplica bool
+	}{
+		{name: "primary only", dbName: "TestHealthCheckWithFullPool_primary", withReplica: false},
+		{name: "primary and replica", dbName: "TestHealthCheckWithFullPool_replica", withReplica: true},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			createTestDatabase(t, tc.dbName)
+			cfg := config.MysqlConfig{
+				Username: testing_utils.TestUsername,
+				Password: testing_utils.TestPassword,
+				Address:  testing_utils.TestAddress,
+				Database: tc.dbName,
+			}
+			opts := []DBOption{LimitAttempts(1), Logger(slog.New(slog.DiscardHandler))}
+			if tc.withReplica {
+				opts = append(opts, Replica(&cfg))
+			}
+			ds, err := New(cfg, clock.NewMockClock(), opts...)
+			require.NoError(t, err)
+			// Registered before fillPool's cleanups, so it runs after the held connections are released.
+			t.Cleanup(func() { _ = ds.Close() })
+
+			fillPool(t, ds.primary)
+			if tc.withReplica {
+				replica, ok := ds.replica.(*sqlx.DB)
+				require.True(t, ok)
+				require.NotSame(t, ds.primary, replica)
+				fillPool(t, replica)
+			}
+
+			start := time.Now()
+			require.NoError(t, ds.HealthCheck())
+			assert.Less(t, time.Since(start), time.Second)
+		})
+	}
+}
+
+func TestHealthCheckTimesOut(t *testing.T) {
+	mock, ds := mockDatastore(t)
+	defer ds.Close()
+
+	mock.ExpectQuery("SELECT @@read_only").
+		WillDelayFor(time.Minute).
+		WillReturnRows(sqlmock.NewRows([]string{"@@read_only"}).AddRow(0))
+
+	start := time.Now()
+	require.Error(t, ds.HealthCheck())
+	assert.Less(t, time.Since(start), healthCheckTimeout+time.Second)
+}
+
 func TestNewReadsPasswordFromDisk(t *testing.T) {
 	passwordFile, err := os.CreateTemp(t.TempDir(), "*.passwordtest")
 	require.NoError(t, err)

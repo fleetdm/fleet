@@ -65,6 +65,12 @@ type Datastore struct {
 	replica fleet.DBReader // so it cannot be used to perform writes
 	primary *sqlx.DB
 
+	// Pools reserved for HealthCheck, so it doesn't wait behind requests for a connection. nil when the datastore
+	// wasn't built by NewDBConnections, or (healthReplica) when there is no read replica; HealthCheck then uses
+	// primary and replica.
+	healthPrimary *sqlx.DB
+	healthReplica *sqlx.DB
+
 	logger *slog.Logger
 	clock  clock.Clock
 	config config.MysqlConfig
@@ -296,7 +302,12 @@ func NewDBConnections(cfg config.MysqlConfig, opts ...DBOption) (*common_mysql.D
 	if err != nil {
 		return nil, err
 	}
+	healthWriter, err := newHealthCheckDB(cfg, *options)
+	if err != nil {
+		return nil, fmt.Errorf("health check: %w", err)
+	}
 	dbReader := dbWriter
+	var healthReader *sqlx.DB
 	if replicaConf != nil {
 		// Set up IAM auth for replica if needed (may have different region/credentials)
 		replicaOptions := *options
@@ -309,9 +320,30 @@ func NewDBConnections(cfg config.MysqlConfig, opts ...DBOption) (*common_mysql.D
 		if err != nil {
 			return nil, err
 		}
+		healthReader, err = newHealthCheckDB(*replicaConf, replicaOptions)
+		if err != nil {
+			return nil, fmt.Errorf("replica health check: %w", err)
+		}
 	}
 
-	return &common_mysql.DBConnections{Primary: dbWriter, Replica: dbReader, Options: options}, nil
+	return &common_mysql.DBConnections{
+		Primary:       dbWriter,
+		Replica:       dbReader,
+		Options:       options,
+		HealthPrimary: healthWriter,
+		HealthReplica: healthReader,
+	}, nil
+}
+
+// newHealthCheckDB opens a single-connection pool for HealthCheck. A health check runs two trivial queries, so one
+// connection is enough even when several load balancer nodes probe at once.
+func newHealthCheckDB(conf config.MysqlConfig, opts common_mysql.DBOptions) (*sqlx.DB, error) {
+	conf.MaxOpenConns = 1
+	conf.MaxIdleConns = 1
+	// The interceptor driver name can only be registered once, and health checks aren't traced.
+	opts.Interceptor = nil
+	opts.TracingConfig = nil
+	return NewDB(&conf, &opts)
 }
 
 // NewDatastore creates a Datastore using existing database connections.
@@ -320,6 +352,8 @@ func NewDatastore(conns *common_mysql.DBConnections, cfg config.MysqlConfig, c c
 	ds := &Datastore{
 		primary:             conns.Primary,
 		replica:             conns.Replica,
+		healthPrimary:       conns.HealthPrimary,
+		healthReplica:       conns.HealthReplica,
 		logger:              conns.Options.Logger,
 		clock:               c,
 		config:              cfg,
@@ -760,17 +794,27 @@ func getVersionsFromMigrations(migrations goose.Migrations) []int64 {
 	return versions
 }
 
+// healthCheckTimeout bounds the whole MySQL health check. It stays under the 5 s default timeout of an AWS load
+// balancer health check, which also has to cover the Redis check.
+const healthCheckTimeout = 3 * time.Second
+
 // HealthCheck returns an error if the MySQL backend is not healthy.
 func (ds *Datastore) HealthCheck() error {
 	// NOTE: does not receive a context as argument here, because the HealthCheck
 	// interface potentially affects more than the datastore layer, and I'm not
 	// sure we can safely identify and change them all at this moment.
+	ctx, cancel := context.WithTimeout(context.Background(), healthCheckTimeout)
+	defer cancel()
 
+	primary := ds.primary
+	if ds.healthPrimary != nil {
+		primary = ds.healthPrimary
+	}
 	// Check that the primary is reachable and not in read-only mode.
 	// After an AWS Aurora failover the old writer is demoted to a reader;
 	// detecting this lets the health check fail so the orchestrator can restart Fleet.
 	var readOnly int
-	if err := ds.primary.QueryRowContext(context.Background(), "SELECT @@read_only").Scan(&readOnly); err != nil {
+	if err := primary.QueryRowContext(ctx, "SELECT @@read_only").Scan(&readOnly); err != nil {
 		return err
 	}
 	if readOnly == 1 {
@@ -780,8 +824,12 @@ func (ds *Datastore) HealthCheck() error {
 	}
 
 	if ds.readReplicaConfig != nil {
+		var replica fleet.DBReader = ds.replica
+		if ds.healthReplica != nil {
+			replica = ds.healthReplica
+		}
 		var dst int
-		if err := sqlx.GetContext(context.Background(), ds.replica, &dst, "select 1"); err != nil {
+		if err := sqlx.GetContext(ctx, replica, &dst, "select 1"); err != nil {
 			return err
 		}
 	}
@@ -814,6 +862,14 @@ func (ds *Datastore) Close() error {
 	if ds.readReplicaConfig != nil {
 		if errRead := ds.replica.Close(); errRead != nil {
 			err = multierror.Append(err, errRead)
+		}
+	}
+	for _, healthDB := range []*sqlx.DB{ds.healthPrimary, ds.healthReplica} {
+		if healthDB == nil {
+			continue
+		}
+		if errHealth := healthDB.Close(); errHealth != nil {
+			err = multierror.Append(err, errHealth)
 		}
 	}
 	return err
