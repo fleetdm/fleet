@@ -73,7 +73,7 @@ jobs:
             has_google_chrome = ("google-chrome/windows" -in $slugs)
             has_7zip          = ("7-zip/windows" -in $slugs)
             has_firefox       = (("firefox/windows" -in $slugs) -or ("firefox@esr/windows" -in $slugs))
-            has_nodejs        = ("nodejs/windows" -in $slugs)
+            has_nodejs        = (("nodejs/windows" -in $slugs) -or ("nodejs-22/windows" -in $slugs))
             has_powershell    = ("powershell/windows" -in $slugs)
             has_r             = ("r/windows" -in $slugs)
             has_git           = ("git/windows" -in $slugs)
