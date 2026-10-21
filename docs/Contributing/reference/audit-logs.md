@@ -77,8 +77,6 @@ This activity contains the following fields:
 {
 	"policy_id": 123,
 	"policy_name": "foo",
-	"team_id": 1,
-	"team_name": "Workstations",
 	"fleet_id": 1,
 	"fleet_name": "Workstations"
 }
@@ -100,8 +98,6 @@ This activity contains the following fields:
 {
 	"policy_id": 123,
 	"policy_name": "foo",
-	"team_id": 1,
-	"team_name": "Workstations",
 	"fleet_id": 1,
 	"fleet_name": "Workstations"
 }
@@ -123,8 +119,6 @@ This activity contains the following fields:
 {
 	"policy_id": 123,
 	"policy_name": "foo",
-	"team_id": 1,
-	"team_name": "Workstations",
 	"fleet_id": 1,
 	"fleet_name": "Workstations"
 }
@@ -148,8 +142,6 @@ This activity contains the following fields:
 {
 	"policy_id": 123,
 	"policy_name": "foo",
-	"team_id": 1,
-	"team_name": "Workstations",
 	"fleet_id": 1,
 	"fleet_name": "Workstations",
 	"host_id": 42,
@@ -212,8 +204,6 @@ This activity contains the following fields:
 {
 	"query_id": 123,
 	"query_name": "foo",
-	"team_id": 1,
-	"team_name": "Workstations",
 	"report_id": 123,
 	"report_name": "foo",
 	"fleet_id": 1,
@@ -237,8 +227,6 @@ This activity contains the following fields:
 {
 	"query_id": 123,
 	"query_name": "foo",
-	"team_id": 1,
-	"team_name": "Workstations",
 	"report_id": 123,
 	"report_name": "foo",
 	"fleet_id": 1,
@@ -260,8 +248,6 @@ This activity contains the following fields:
 ```json
 {
 	"query_name": "foo",
-	"team_id": 1,
-	"team_name": "Workstations",
 	"report_name": "foo",
 	"fleet_id": 1,
 	"fleet_name": "Workstations"
@@ -282,8 +268,6 @@ This activity contains the following fields:
 ```json
 {
 	"query_ids": [1, 42, 100],
-	"team_id": 123,
-	"team_name": "Workstations",
 	"report_ids": [1, 42, 100],
 	"fleet_id": 123,
 	"fleet_name": "Workstations"
@@ -313,7 +297,7 @@ This activity contains a field "specs" where each item is a report spec with the
 }
 ```
 
-## created_team
+## created_fleet
 
 Generated when creating fleets.
 
@@ -325,14 +309,12 @@ This activity contains the following fields:
 
 ```json
 {
-	"team_id": 123,
-	"team_name": "Workstations",
 	"fleet_id": 123,
 	"fleet_name": "Workstations"
 }
 ```
 
-## deleted_team
+## deleted_fleet
 
 Generated when deleting fleets.
 
@@ -344,18 +326,16 @@ This activity contains the following fields:
 
 ```json
 {
-	"team_id": 123,
-	"team_name": "Workstations",
 	"fleet_id": 123,
 	"fleet_name": "Workstations"
 }
 ```
 
-## applied_spec_team
+## applied_spec_fleet
 
 Generated when applying fleet specs.
 
-This activity contains a field "teams" where each item contains the fleet details with the following fields:
+This activity contains a field "fleets" where each item contains the fleet details with the following fields:
 - "id": Unique ID of the fleet.
 - "name": Name of the fleet.
 
@@ -363,7 +343,7 @@ This activity contains a field "teams" where each item contains the fleet detail
 
 ```json
 {
-	"teams": [
+	"fleets": [
 		{
 			"id": 123,
 			"name": "foo"
@@ -386,8 +366,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations",
   "host_ids": [1, 2, 3],
@@ -408,8 +386,6 @@ This activity contains the following fields:
 
 ```json
 {
-	"team_id": 123,
-	"team_name": "Workstations",
 	"fleet_id": 123,
 	"fleet_name": "Workstations",
 	"global": false
@@ -613,7 +589,7 @@ This activity contains the following fields:
 }
 ```
 
-## changed_user_team_role
+## changed_user_fleet_role
 
 Generated when user fleet roles are changed.
 
@@ -634,14 +610,12 @@ This activity contains the following fields:
 	"user_name": "Foo",
 	"user_email": "foo@example.com",
 	"role": "Maintainer",
-	"team_id": 5,
-	"team_name": "Bar",
 	"fleet_id": 5,
 	"fleet_name": "Bar"
 }
 ```
 
-## deleted_user_team_role
+## deleted_user_fleet_role
 
 Generated when user fleet roles are deleted.
 
@@ -662,8 +636,6 @@ This activity contains the following fields:
 	"user_name": "Foo",
 	"user_email": "foo@example.com",
 	"role": "Observer",
-	"team_id": 2,
-	"team_name": "Zoo",
 	"fleet_id": 2,
 	"fleet_name": "Zoo"
 }
@@ -787,8 +759,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 3,
-  "team_name": "Workstations",
   "fleet_id": 3,
   "fleet_name": "Workstations",
   "minimum_version": "13.0.1",
@@ -810,8 +780,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 3,
-  "team_name": "iPhones",
   "fleet_id": 3,
   "fleet_name": "iPhones",
   "minimum_version": "17.5.1",
@@ -833,8 +801,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 3,
-  "team_name": "iPads",
   "fleet_id": 3,
   "fleet_name": "iPads",
   "minimum_version": "17.5.1",
@@ -856,8 +822,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 3,
-  "team_name": "Workstations",
   "fleet_id": 3,
   "fleet_name": "Workstations",
   "deadline_days": 5,
@@ -879,8 +843,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 3,
-  "team_name": "Workstations",
   "fleet_id": 3,
   "fleet_name": "Workstations",
   "days": ["monday", "wednesday", "friday"],
@@ -900,8 +862,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -919,8 +879,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -976,8 +934,6 @@ This activity contains the following fields:
 {
   "profile_name": "Custom settings 1",
   "profile_identifier": "com.my.profile",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -999,8 +955,6 @@ This activity contains the following fields:
 {
   "profile_name": "Custom settings 1",
   "profile_identifier": "com.my.profile",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1022,8 +976,6 @@ This activity contains the following fields:
 {
   "profile_name": "Custom settings 1",
   "profile_identifier": "com.my.profile",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1043,8 +995,6 @@ This activity contains the following fields:
 ```json
 {
   "name": "dep_profile.json",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1064,8 +1014,6 @@ This activity contains the following fields:
 ```json
 {
   "name": "dep_profile.json",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1084,8 +1032,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1104,8 +1050,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1217,8 +1161,6 @@ This activity contains the following fields:
 ```json
 {
   "bootstrap_package_name": "bootstrap-package.pkg",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1238,8 +1180,6 @@ This activity contains the following fields:
 ```json
 {
   "package_name": "bootstrap-package.pkg",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1257,8 +1197,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1276,8 +1214,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1376,8 +1312,6 @@ This activity contains the following fields:
 ```json
 {
   "script_name": "set-timezones.sh",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1397,8 +1331,6 @@ This activity contains the following fields:
 ```json
 {
   "script_name": "set-timezones.sh",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1416,8 +1348,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1437,8 +1367,6 @@ This activity contains the following fields:
 ```json
 {
   "script_name": "set-timezones.sh",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1458,8 +1386,6 @@ This activity contains the following fields:
 ```json
 {
   "profile_name": "Custom settings 1",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1479,8 +1405,6 @@ This activity contains the following fields:
 ```json
 {
   "profile_name": "Custom settings 1",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1500,8 +1424,6 @@ This activity contains the following fields:
 ```json
 {
   "profile_name": "Custom settings 1",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1595,8 +1517,6 @@ This activity contains the following fields:
 {
   "profile_name": "Passcode requirements",
   "profile_identifier": "com.my.declaration",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1618,8 +1538,6 @@ This activity contains the following fields:
 {
   "profile_name": "Passcode requirements",
   "profile_identifier": "com.my.declaration",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1641,8 +1559,6 @@ This activity contains the following fields:
 {
   "profile_name": "Passcode requirements",
   "profile_identifier": "com.my.declaration",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1662,8 +1578,6 @@ This activity contains the following fields:
 ```json
 {
   "profile_name": "Custom settings 1",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1683,8 +1597,6 @@ This activity contains the following fields:
 ```json
 {
   "profile_name": "Custom settings 1",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1704,8 +1616,6 @@ This activity contains the following fields:
 ```json
 {
   "profile_name": "Custom settings 1",
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1723,8 +1633,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -1846,7 +1754,7 @@ This activity contains the following fields:
 - "host_display_name": Display name of the host.
 - "patch_notification_uuid": ID of the notification. The reminder for the same notification reuses this ID.
 - "status": Whether notification is displayed or failed.
-- "software": Software titles included in the notification. Each entry has `title` (raw name), `title_id`, and `display_name` (set only when an admin picked a per-team override).
+- "software": Software titles included in the notification. Each entry has `title` (raw name), `title_id`, and `display_name` (set only when an admin picked a per-fleet override).
 - "policy_ids": IDs of the patch policies included in the notification.
 - "time_before": Either 1 hour or 5 minutes before patch is forced.
 - "install_at": Timestamp at which the apps will be installed if the end user doesn't update them first.
@@ -1920,8 +1828,6 @@ This activity contains the following fields:
 {
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
-  "team_name": "Workstations",
-  "team_id": 123,
   "fleet_name": "Workstations",
   "fleet_id": 123,
   "self_service": true,
@@ -1961,13 +1867,11 @@ This activity contains the following fields:
 {
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
-  "team_name": "Workstations",
-  "team_id": 123,
   "fleet_name": "Workstations",
   "fleet_id": 123,
   "self_service": true,
   "software_title_id": 2234,
-  "software_icon_url": "/api/latest/fleet/software/titles/2234/icon?team_id=123",
+  "software_icon_url": "/api/latest/fleet/software/titles/2234/icon?fleet_id=123",
   "software_display_name": "Crowdstrike Falcon",
   "pinned_version": "149.0.7827.54",
   "labels_include_any": [
@@ -2002,8 +1906,6 @@ This activity contains the following fields:
 {
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
-  "team_name": "Workstations",
-  "team_id": 123,
   "fleet_name": "Workstations",
   "fleet_id": 123,
   "self_service": true,
@@ -2142,8 +2044,6 @@ This activity contains the following fields:
     "country_code": "jp"
   },
   "self_service": false,
-  "team_name": "Workstations",
-  "team_id": 1,
   "fleet_name": "Workstations",
   "fleet_id": 1,
   "labels_include_any": [
@@ -2179,8 +2079,6 @@ This activity contains the following fields:
   "software_title": "Logic Pro",
   "app_store_id": "1234567",
   "platform": "darwin",
-  "team_name": "Workstations",
-  "team_id": 1,
   "fleet_name": "Workstations",
   "fleet_id": 1,
   "software_icon_url": "",
@@ -2337,11 +2235,9 @@ This activity contains the following fields:
     "country_code": "jp"
   },
   "self_service": true,
-  "team_name": "Workstations",
-  "team_id": 1,
   "fleet_name": "Workstations",
   "fleet_id": 1,
-  "software_icon_url": "/api/latest/fleet/software/titles/123/icon?team_id=1",
+  "software_icon_url": "/api/latest/fleet/software/titles/123/icon?fleet_id=1",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -3017,8 +2913,6 @@ This activity contains the following field:
 
 ```json
 {
-  "team_id": 5,
-  "team_name": "Workstations",
   "fleet_id": 5,
   "fleet_name": "Workstations"
 }
@@ -3036,8 +2930,6 @@ This activity contains the following field:
 
 ```json
 {
-  "team_id": 5,
-  "team_name": "Workstations",
   "fleet_id": 5,
   "fleet_name": "Workstations"
 }
@@ -3161,8 +3053,6 @@ This activity contains the following fields:
 ```json
 {
 	"platform": "darwin",
-	"team_id": 1,
-	"team_name": "Workstations",
 	"fleet_id": 1,
 	"fleet_name": "Workstations"
 }
@@ -3254,8 +3144,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -3307,8 +3195,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
@@ -3326,8 +3212,6 @@ This activity contains the following fields:
 
 ```json
 {
-  "team_id": 123,
-  "team_name": "Workstations",
   "fleet_id": 123,
   "fleet_name": "Workstations"
 }
