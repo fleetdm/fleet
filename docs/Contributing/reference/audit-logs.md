@@ -711,7 +711,6 @@ Windows hosts that enroll automatically through Microsoft Entra ID get this acti
 {
   "host_id": 42,
   "host_serial": "C08VQ2AXHT96",
-  "host_id": "123",
   "host_display_name": "MacBookPro16,1 (C08VQ2AXHT96)",
   "installed_from_dep": true,
   "mdm_platform": "apple",
@@ -2247,10 +2246,10 @@ This activity contains the following fields:
       "name": "Product",
       "id": 17
     }
-  ]
-  "software_display_name": "Logic Pro DAW"
-  "auto_update_enabled": true
-  "auto_update_window_start": "22:00"
+  ],
+  "software_display_name": "Logic Pro DAW",
+  "auto_update_enabled": true,
+  "auto_update_window_start": "22:00",
   "auto_update_window_end": "02:00"
 }
 ```
