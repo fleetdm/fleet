@@ -11,7 +11,7 @@ How it works:
 3. The page marks that device as managed in Google.
 4. A Context-Aware Access level blocks sign-in from devices that aren't marked as managed.
 
-> **Note:** Built-in support for Google is [coming soon](https://github.com/fleetdm/fleet/issues/54888). Until then, everything in this guide works today.
+> **Note:** Built-in support for Google is [coming soon](https://github.com/fleetdm/fleet/issues/56195). Until then, everything in this guide works today.
 
 ## Prerequisites
 
