@@ -28,8 +28,11 @@ import (
 // here, so they make no network calls.
 const workDir = "tools/profile-schema-gen/downloads"
 
-// commitMarker records which upstream commit a download directory holds.
-const commitMarker = ".commit"
+// commitMarker records which upstream commit a download directory holds; sha256Marker which zip.
+const (
+	commitMarker = ".commit"
+	sha256Marker = ".sha256"
+)
 
 func main() {
 	out := flag.String("out", "pkg/mdm/profilevalidation/outputs/profile_schema.json", "path of the generated schema; its version block is the pin for runs without -update")
@@ -66,14 +69,19 @@ func run(ctx context.Context, logger *slog.Logger, out, overrides string, update
 		return err
 	}
 	var pinnedApple *profilevalidation.AppleVersion
+	var pinnedWindows *profilevalidation.WindowsVersion
 	if existing == nil {
 		logger.InfoContext(ctx, "no existing output", "out", out)
 	} else {
 		v := existing.Version
 		logger.InfoContext(ctx, "existing output", "out", out, "apple_release", v.Apple.Release,
-			"apple_commit", v.Apple.Commit, "generated_at", v.GeneratedAt)
+			"apple_commit", v.Apple.Commit, "windows_release", v.Windows.Release, "windows_sha256", v.Windows.SHA256,
+			"generated_at", v.GeneratedAt)
 		if v.Apple.Commit != "" {
 			pinnedApple = &v.Apple
+		}
+		if v.Windows.SHA256 != "" {
+			pinnedWindows = &v.Windows
 		}
 	}
 
@@ -95,9 +103,15 @@ func run(ctx context.Context, logger *slog.Logger, out, overrides string, update
 	if err := convertApple(ctx, appleLogger, src, &schema); err != nil {
 		return err
 	}
-	if err := runWindows(ctx, logger.With("platform", "windows"), &schema); err != nil {
+	schema.Version.Windows, err = runWindows(ctx, logger.With("platform", "windows"), client, windowsRunOptions{
+		PageURL: ddfPageURL, Dir: filepath.Join(workDir, "windows"),
+		Pinned: pinnedWindows, Update: update, FetchPinned: fetchPinned,
+	})
+	if err != nil {
 		return err
 	}
+	schema.Windows = map[string]*profilevalidation.WindowsNode{}
+	schema.WindowsXSDs = map[string]string{}
 	if err := applyOverrides(ctx, logger.With("step", "overrides"), overrides, &schema); err != nil {
 		return err
 	}
@@ -171,9 +185,73 @@ func downloadApple(ctx context.Context, logger *slog.Logger, client *http.Client
 	return os.WriteFile(filepath.Join(dir, commitMarker), []byte(sha+"\n"), 0o644)
 }
 
-func runWindows(ctx context.Context, logger *slog.Logger, schema *profilevalidation.ProfileValidationSchema) error {
-	logger.InfoContext(ctx, "skipping: Windows sections are not generated yet; writing them empty")
-	schema.Windows = map[string]*profilevalidation.WindowsNode{}
-	schema.WindowsXSDs = map[string]string{}
-	return nil
+type windowsRunOptions struct {
+	PageURL     string // the Learn page that links the current DDF drop
+	Dir         string // where the DDF XML files are extracted
+	Pinned      *profilevalidation.WindowsVersion
+	Update      bool // move to the newest drop
+	FetchPinned bool // without Update, download the pinned drop if dir doesn't hold it
+}
+
+// runWindows returns the DDF drop to generate and leaves its XML files in o.Dir. Like runApple,
+// without o.Update it uses the pin and only downloads it when o.FetchPinned is set; a pinned zip
+// whose sha256 changed fails.
+func runWindows(ctx context.Context, logger *slog.Logger, client *http.Client, o windowsRunOptions) (profilevalidation.WindowsVersion, error) {
+	if !o.Update {
+		if o.Pinned == nil {
+			return profilevalidation.WindowsVersion{}, errors.New("no DDF drop pinned in the output; run with -update to fetch the latest")
+		}
+		pin := *o.Pinned
+		downloaded, err := os.ReadFile(filepath.Join(o.Dir, sha256Marker))
+		got := strings.TrimSpace(string(downloaded))
+		if err == nil && got == pin.SHA256 {
+			logger.InfoContext(ctx, "using existing download for pinned drop", "dir", o.Dir, "release", pin.Release, "sha256", pin.SHA256)
+			return pin, nil
+		}
+		if !o.FetchPinned {
+			if err != nil {
+				return profilevalidation.WindowsVersion{}, fmt.Errorf("no DDF download in %s for pinned drop %s; run with -fetch-pinned to download it, or -update to move to the latest", o.Dir, pin.Release)
+			}
+			return profilevalidation.WindowsVersion{}, fmt.Errorf("%s holds DDF zip %s but the output pins %s (%s); run with -fetch-pinned to download it, or -update to move to the latest", o.Dir, got, pin.SHA256, pin.Release)
+		}
+		logger.InfoContext(ctx, "downloading pinned drop", "release", pin.Release, "url", pin.URL)
+		_, err = downloadWindows(ctx, logger, client, pin.URL, pin.SHA256, o.Dir)
+		return pin, err
+	}
+
+	version, err := resolveDDF(ctx, logger, client, o.PageURL)
+	if err != nil {
+		return profilevalidation.WindowsVersion{}, err
+	}
+	if version.SHA256, err = downloadWindows(ctx, logger, client, version.URL, "", o.Dir); err != nil {
+		return profilevalidation.WindowsVersion{}, err
+	}
+	switch {
+	case o.Pinned == nil:
+		logger.InfoContext(ctx, "no DDF pin; using latest", "release", version.Release, "sha256", version.SHA256)
+	case *o.Pinned == version:
+		logger.InfoContext(ctx, "latest DDF drop matches pin; regenerating anyway", "release", version.Release, "sha256", version.SHA256)
+	case o.Pinned.URL == version.URL:
+		// Same link, different bytes: Microsoft republished the drop in place.
+		logger.WarnContext(ctx, "DDF zip changed at the pinned URL", "release", version.Release,
+			"from_sha256", o.Pinned.SHA256, "to_sha256", version.SHA256)
+	default:
+		logger.InfoContext(ctx, "moving DDF pin to latest", "from_release", o.Pinned.Release, "to_release", version.Release,
+			"to_sha256", version.SHA256)
+	}
+	return version, nil
+}
+
+// downloadWindows replaces dir with the DDF drop at url and marks which zip it holds.
+func downloadWindows(ctx context.Context, logger *slog.Logger, client *http.Client, url, wantSHA256, dir string) (string, error) {
+	logger.DebugContext(ctx, "clearing previous download", "dir", dir)
+	if err := os.RemoveAll(dir); err != nil {
+		return "", err
+	}
+	sum, err := downloadDDF(ctx, logger, client, url, wantSHA256, dir)
+	if err != nil {
+		return "", err
+	}
+	// Written last, so an interrupted download never looks complete.
+	return sum, os.WriteFile(filepath.Join(dir, sha256Marker), []byte(sum+"\n"), 0o644)
 }
