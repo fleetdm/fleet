@@ -20,7 +20,7 @@ function Test-StreamerRegistered {
     Select-Object -First 1
   if (-not $entry) { return $false }
   $installed = $null
-  if (-not [version]::TryParse($entry.DisplayVersion, [ref]$installed)) { return $true }
+  if (-not [version]::TryParse($entry.DisplayVersion, [ref]$installed)) { return $false }
   return $installed -ge $targetVersion
 }
 
