@@ -606,6 +606,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             filters={softwareFilters}
             isPremiumTier={isPremiumTier || false}
             availableTypes={getSoftwareTypes({ premium: isPremiumTier })}
+            showAiToolFilter
           />
         )}
       </>

@@ -29,6 +29,8 @@ interface ISoftwareFiltersModalProps {
   isPremiumTier: boolean;
   /** Types offered in the picker. The picker is hidden when omitted. */
   availableTypes?: readonly ISoftwareType[];
+  /** Shows the Premium-only "AI tools" toggle. */
+  showAiToolFilter?: boolean;
 }
 
 type IFormData = {
@@ -42,6 +44,7 @@ const SoftwareFiltersModal = ({
   filters,
   isPremiumTier,
   availableTypes,
+  showAiToolFilter = false,
 }: ISoftwareFiltersModalProps) => {
   const [selectedTypes, setSelectedTypes] = useState(filters.types ?? []);
   const [aiToolFilterEnabled, setAiToolFilterEnabled] = useState(
@@ -168,7 +171,7 @@ const SoftwareFiltersModal = ({
             onChange={setSelectedTypes}
           />
         )}
-        {isPremiumTier && (
+        {isPremiumTier && showAiToolFilter && (
           <Slider
             value={aiToolFilterEnabled}
             onChange={() => setAiToolFilterEnabled(!aiToolFilterEnabled)}
@@ -182,7 +185,6 @@ const SoftwareFiltersModal = ({
           onChange={onToggleVulnSoftware}
           inactiveText="Vulnerable software"
           activeText="Vulnerable software"
-          ariaLabel="Vulnerable software"
         />
         {isPremiumTier && (
           <>
