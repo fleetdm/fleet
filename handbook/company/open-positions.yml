@@ -522,7 +522,7 @@
 #     - 🧰 Publish the PowerShell scripts, policies, configuration profiles, and Fleet-maintained apps you build so Windows admins everywhere can borrow them (with our blessing).
 #     - 🎨 Keep Fleet's Windows messaging honest by reviewing landing pages, campaigns, and sales content as someone who has actually stared down a stuck Autopilot enrollment screen.
 #     - 🐕 Run Fleet on Fleet. Help manage our own Windows, macOS, and Linux devices with Fleet using GitOps, in public, in the fleetdm/fleet repo. Your day job doubles as your best source material.
-#     - 💻 Support Fleet's fully remote, global team with hands-on IT help, onboarding and offboarding, hardware logistics, access management, and SOC 2 controls, and have a real say in where our internal IT goes next.
+#     - 💻 Support Fleet's fully remote, global team with hands-on IT help.
 #     - 🤖 Automate repetitive IT work with scripts, APIs, and AI-assisted workflows, and document it in the public Fleet handbook.
 #   experience: |
 #     - 🦉 5+ years of experience in IT administration, client platform engineering, or systems administration, with Windows as your home turf.
