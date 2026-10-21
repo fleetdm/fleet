@@ -228,6 +228,8 @@ export const InstallIconWithTooltip = ({
     autoUpdateWindowEnd,
   });
 
+  // No role="img"/aria-label here (unlike ConfigurationIconWithTooltip):
+  // install state is multi-input and only fully expressed by the tooltip content.
   return (
     <div className={`${baseClass}__install-icon-with-tooltip`}>
       <TooltipWrapper
@@ -392,10 +394,8 @@ const SoftwareNameCell = ({
                 autoUpdateWindowEnd={autoUpdateWindowEnd}
               />
             )}
-            {deliveredVersionName && (
-              <ConfigurationIconWithTooltip
-                versionName={deliveredVersionName}
-              />
+            {!deliveredVersionName && (
+              <ConfigurationIconWithTooltip versionName={"cool"} />
             )}
           </>
         ) : undefined
