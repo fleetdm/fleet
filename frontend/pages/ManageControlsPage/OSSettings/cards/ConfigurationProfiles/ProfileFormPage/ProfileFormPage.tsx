@@ -4,6 +4,7 @@ import { RouteComponentProps } from "react-router";
 
 import BackButton from "components/BackButton";
 import DataError from "components/DataError";
+import InfoBanner from "components/InfoBanner";
 import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
 import { AppContext } from "context/app";
@@ -17,6 +18,9 @@ import mdmAPI from "services/entities/mdm";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 
+import AIProfileGenerator, {
+  getAIPlatformOptions,
+} from "./components/AIProfileGenerator";
 import ProfileForm from "./components/ProfileForm";
 
 const baseClass = "profile-form-page";
@@ -39,6 +43,7 @@ const ProfileFormPage = ({
 }: IProfileFormPageProps) => {
   const profileUUID = routeParams.profile_uuid;
   const {
+    config,
     isPremiumTier,
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -65,6 +70,20 @@ const ProfileFormPage = ({
   const listPath = getPathWithQueryParams(PATHS.CONTROLS_CUSTOM_SETTINGS, {
     fleet_id: isPremiumTier ? teamId : undefined,
   });
+
+  // Adding defaults to the AI view. The manual view has its own URL, so the
+  // AI view's timeout can send the admin there and Back returns.
+  const isManualPath =
+    location.pathname === PATHS.CONTROLS_CUSTOM_SETTINGS_NEW_MANUAL;
+  const showAIView =
+    !profileUUID &&
+    !isManualPath &&
+    !gitOpsModeEnabled &&
+    !config?.server_settings.ai_features_disabled &&
+    getAIPlatformOptions(config?.mdm).length > 0;
+  const aiTimedOut =
+    isManualPath &&
+    !!(location.state as { aiTimedOut?: boolean } | undefined)?.aiTimedOut;
 
   const {
     data: profile,
@@ -147,6 +166,22 @@ const ProfileFormPage = ({
     if (profileUUID && (isErrorProfile || isErrorContents || !profile)) {
       return <DataError description="Couldn't load the profile." />;
     }
+    if (showAIView) {
+      return (
+        <AIProfileGenerator
+          router={router}
+          teamId={teamId}
+          teamName={currentTeamName}
+          isPremiumTier={!!isPremiumTier}
+          gitOpsModeEnabled={gitOpsModeEnabled}
+          listPath={listPath}
+          manualLocation={{
+            pathname: PATHS.CONTROLS_CUSTOM_SETTINGS_NEW_MANUAL,
+            query: isPremiumTier ? { fleet_id: teamId } : {},
+          }}
+        />
+      );
+    }
     return (
       <ProfileForm
         // remount when switching profiles so the form re-seeds
@@ -167,7 +202,14 @@ const ProfileFormPage = ({
       <div className={`${baseClass}__header-links`}>
         <BackButton text="Back to profiles" path={listPath} />
       </div>
-      <h1>{profileUUID ? "Edit profile" : "Add profile"}</h1>
+      {/* the AI view titles itself with the generated profile's name */}
+      {!showAIView && <h1>{profileUUID ? "Edit profile" : "Add profile"}</h1>}
+      {aiTimedOut && (
+        <InfoBanner color="yellow" icon="warning">
+          Profile creation was taking too long. Upload or paste a profile
+          instead.
+        </InfoBanner>
+      )}
       {renderContent()}
     </MainContent>
   );
