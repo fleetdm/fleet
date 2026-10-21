@@ -326,7 +326,9 @@ func handlePolicyAction(store *deviceStore) http.HandlerFunc {
 		// extractAndStoreCertTemplateIDs never matches.
 		hostUUID := policyID(r)
 
-		if store.requirePolicies && !store.policyExists(name) {
+		// Only a simulated device's policy is checked: a real device's policy can be created
+		// through Google, which this process doesn't track.
+		if store.requirePolicies && store.getByESID(hostUUID) != nil && !store.policyExists(name) {
 			// The body Fleet sees from AMAPI, through the fleetdm.com proxy, for a policy that
 			// doesn't exist.
 			log.Printf("Policy action on missing policy %q", name) // #nosec G706 -- load testing tool

@@ -174,6 +174,12 @@ func TestPolicyActionRequiresExistingPolicy(t *testing.T) {
 			wantStatus: http.StatusNotFound,
 		},
 		{
+			name:            "a policy for a device the mock doesn't simulate is not checked",
+			requirePolicies: true,
+			policyID:        "real-device",
+			wantStatus:      http.StatusOK,
+		},
+		{
 			name:       "missing policy is accepted by default",
 			policyID:   testESID,
 			wantStatus: http.StatusOK,
