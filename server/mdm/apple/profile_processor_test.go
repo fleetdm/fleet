@@ -27,8 +27,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// noEJBCAService is for the tests that don't use EJBCA, which fail if it is called.
-var noEJBCAService fleet.EJBCAService = &ejbca_mock.Service{}
+// noEJBCAService and noDigiCertService are for the tests that don't use the CA, which fail if it is called.
+var (
+	noEJBCAService    fleet.EJBCAService    = &ejbca_mock.Service{}
+	noDigiCertService fleet.DigiCertService = &digicert_mock.Service{}
+)
 
 func TestPreprocessProfileContents(t *testing.T) {
 	ctx := context.Background()
@@ -1298,8 +1301,13 @@ func TestPreprocessProfileContentsEJBCA(t *testing.T) {
 		configs  map[string]fleet.EJBCA
 		enrolled int
 	}
+	// runExtra is for the tests that need more than the EJBCA CA: more CAs, and a DigiCert service.
+	type runExtra struct {
+		groupedCAs func(*fleet.GroupedCertificateAuthorities)
+		digiCert   fleet.DigiCertService
+	}
 	run := func(t *testing.T, ctx context.Context, ca fleet.EJBCA, includeCA bool, enroll func(config fleet.EJBCA) error, noIdPEmail bool, profile string,
-		extraCAs ...fleet.EJBCA,
+		extra ...runExtra,
 	) result {
 		logger := slog.New(slog.DiscardHandler)
 		appCfg := &fleet.AppConfig{}
@@ -1367,10 +1375,19 @@ func TestPreprocessProfileContentsEJBCA(t *testing.T) {
 		profileContents := map[string]mobileconfig.Mobileconfig{"p1": mobileconfig.Mobileconfig(profile)}
 		groupedCAs := &fleet.GroupedCertificateAuthorities{}
 		if includeCA {
-			groupedCAs.EJBCA = append([]fleet.EJBCA{ca}, extraCAs...)
+			groupedCAs.EJBCA = []fleet.EJBCA{ca}
+		}
+		digiCertService := noDigiCertService
+		if len(extra) > 0 {
+			if extra[0].groupedCAs != nil {
+				extra[0].groupedCAs(groupedCAs)
+			}
+			if extra[0].digiCert != nil {
+				digiCertService = extra[0].digiCert
+			}
 		}
 
-		err := preprocessProfileContents(ctx, appCfg, ds, scep.NewSCEPConfigService(logger, nil), nil, ejbcaMock, logger, targets, profileContents,
+		err := preprocessProfileContents(ctx, appCfg, ds, scep.NewSCEPConfigService(logger, nil), digiCertService, ejbcaMock, logger, targets, profileContents,
 			res.profiles, map[string]string{}, groupedCAs)
 		require.NoError(t, err)
 		for profUUID, target := range targets {
@@ -1458,7 +1475,7 @@ func TestPreprocessProfileContentsEJBCA(t *testing.T) {
 		assert.Zero(t, res.enrolled)
 		for _, p := range res.profiles {
 			assert.Equal(t, fleet.MDMDeliveryFailed, *p.Status)
-			assert.Equal(t, "Fleet couldn't populate $FLEET_VAR_EJBCA_PASSWORD_myCA because myCA certificate authority doesn't exist.", p.Detail)
+			assert.Equal(t, "Fleet couldn't populate $EJBCA_PASSWORD_myCA because myCA certificate authority doesn't exist.", p.Detail)
 		}
 	})
 
@@ -1485,10 +1502,30 @@ func TestPreprocessProfileContentsEJBCA(t *testing.T) {
 				return errors.New("boom")
 			}
 			return nil
-		}, false, profile, second)
+		}, false, profile, runExtra{groupedCAs: func(g *fleet.GroupedCertificateAuthorities) { g.EJBCA = append(g.EJBCA, second) }})
 		assert.Equal(t, 4, res.enrolled, "two certificates are requested for each host")
 		assert.Len(t, res.failures, 2)
 		assert.Empty(t, res.managed, "the first certificate was issued but its profile wasn't sent")
+		assert.Empty(t, res.contents)
+	})
+
+	t.Run("a DigiCert certificate issued before an EJBCA failure isn't recorded either", func(t *testing.T) {
+		t.Parallel()
+		digiCert := &digicert_mock.Service{}
+		digiCert.GetCertificateFunc = func(context.Context, fleet.DigiCertCA) (*fleet.DigiCertCertificate, error) {
+			return &fleet.DigiCertCertificate{PfxData: []byte("pfx"), Password: "password", SerialNumber: "abc"}, nil
+		}
+		// The variables are not processed in the order of the profile: the last CA in it comes first, so DigiCert is issued before EJBCA fails.
+		profile := profileXML + "<string>$FLEET_VAR_DIGICERT_PASSWORD_dcCA</string><data>${FLEET_VAR_DIGICERT_DATA_dcCA}</data>"
+		res := run(t, premium(), baseCA(), true, func(fleet.EJBCA) error { return errors.New("boom") }, false, profile, runExtra{
+			digiCert: digiCert,
+			groupedCAs: func(g *fleet.GroupedCertificateAuthorities) {
+				g.DigiCert = []fleet.DigiCertCA{{Name: "dcCA", CertificateCommonName: "cn", CertificateSeatID: "seat"}}
+			},
+		})
+		require.True(t, digiCert.GetCertificateFuncInvoked, "DigiCert has to be issued before the failure for this test to mean anything")
+		assert.Len(t, res.failures, 2)
+		assert.Empty(t, res.managed)
 		assert.Empty(t, res.contents)
 	})
 }
