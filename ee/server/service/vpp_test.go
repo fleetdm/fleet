@@ -1671,7 +1671,7 @@ func TestBatchAssociateVPPAppsTokenErrors(t *testing.T) {
 		{
 			name:     "location doesn't match a token",
 			payloads: []fleet.VPPBatchPayload{batchIOS("1", "Nowhere")},
-			want:     `Couldn't apply. VPP token "Nowhere doesn't exist.`,
+			want:     `Couldn't apply. VPP token "Nowhere" doesn't exist.`,
 			status:   http.StatusUnprocessableEntity,
 		},
 		{
@@ -1977,14 +1977,14 @@ func TestBatchAssociateVPPAppsDryRunNewFleetLocation(t *testing.T) {
 	t.Run("a location that doesn't exist", func(t *testing.T) {
 		fx := setup(t, batchUSToken(), batchJPToken())
 		err := fx.apply(true, batchIOS("1", "Nowhere"))
-		require.ErrorContains(t, err, `Couldn't apply. VPP token "Nowhere doesn't exist.`)
+		require.ErrorContains(t, err, `Couldn't apply. VPP token "Nowhere" doesn't exist.`)
 		require.Empty(t, fx.assetCalls)
 	})
 
 	t.Run("a location with no tokens uploaded", func(t *testing.T) {
 		fx := setup(t)
 		err := fx.apply(true, batchIOS("1", "Acme Japan"))
-		require.ErrorContains(t, err, `Couldn't apply. VPP token "Acme Japan doesn't exist.`)
+		require.ErrorContains(t, err, `Couldn't apply. VPP token "Acme Japan" doesn't exist.`)
 	})
 
 	t.Run("an expired location token", func(t *testing.T) {

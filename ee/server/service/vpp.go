@@ -328,7 +328,7 @@ func vppTokenByLocation(tokens []*fleet.VPPTokenDB, location string) *fleet.VPPT
 }
 
 func vppLocationNotFoundError(location string) error {
-	return fleet.NewInvalidArgumentError("app_store_apps", fmt.Sprintf(`Couldn't apply. VPP token "%s doesn't exist.`, location))
+	return fleet.NewInvalidArgumentError("app_store_apps", fmt.Sprintf("Couldn't apply. VPP token %q doesn't exist.", location))
 }
 
 func vppTokenExpiredError(tok *fleet.VPPTokenDB) error {
