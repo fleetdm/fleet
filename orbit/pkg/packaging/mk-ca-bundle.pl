@@ -37,7 +37,7 @@ use Getopt::Std;
 use MIME::Base64;
 use strict;
 use warnings;
-use vars qw($opt_b $opt_d $opt_f $opt_h $opt_i $opt_k $opt_l $opt_m $opt_n $opt_p $opt_q $opt_s $opt_t $opt_u $opt_v $opt_w);
+use vars qw($opt_b $opt_d $opt_f $opt_h $opt_i $opt_k $opt_l $opt_m $opt_n $opt_p $opt_q $opt_s $opt_t $opt_u $opt_v $opt_w $opt_x);
 use List::Util;
 use Text::Wrap;
 use Time::Local;
@@ -60,7 +60,7 @@ $opt_d = 'release';
 # If the OpenSSL commandline is not in search path you can configure it here!
 my $openssl = 'openssl';
 
-my $version = '1.33';
+my $version = '1.35';
 
 $opt_w = 76; # default base64 encoded lines length
 
@@ -110,7 +110,7 @@ my @valid_signature_algorithms = (
 
 $0 =~ s@.*(/|\\)@@;
 $Getopt::Std::STANDARD_HELP_VERSION = 1;
-getopts('bd:fhiklmnp:qs:tuvw:');
+getopts('bd:fhiklmnp:qs:tuvw:x:');
 
 if(!defined($opt_d)) {
     # to make plain "-d" use not cause warnings, and actually still work
@@ -171,7 +171,7 @@ sub HELP_MESSAGE() {
     print "\t-i\tprint version info about used modules\n";
     print "\t-k\tallow URLs other than HTTPS, enable HTTP fallback (insecure)\n";
     print "\t-l\tprint license info about certdata.txt\n";
-    print "\t-m\tinclude meta data in output\n";
+    print "\t-m\tinclude meta data in output (SHA-256 fingerprints are included by default)\n";
     print "\t-n\tno download of certdata.txt (to use existing)\n";
     print wrap("\t","\t\t", "-p\tlist of Mozilla trust purposes and levels for certificates to include in output. " .
           "Takes the form of a comma separated list of purposes, a colon, and a comma separated list of levels. " .
@@ -188,6 +188,7 @@ sub HELP_MESSAGE() {
     print "\t-u\tunlink (remove) certdata.txt after processing\n";
     print "\t-v\tbe verbose and print out processed CAs\n";
     print "\t-w <l>\twrap base64 output lines after <l> chars (default: ${opt_w})\n";
+    print "\t-x\texclude list of SHA-256 fingerprints. Comma separated, case-insensitive, whitespace and ':' byte delimiters are ignored.\n";
     exit;
 }
 
@@ -224,7 +225,7 @@ sub parse_csv_param($$@) {
     } split(',', $param_string);
 
     # Find all values which are not in the list of valid values or "ALL"
-    my @invalid = grep { !is_in_list($_,"ALL",@valid_values) } @values;
+    my @invalid = grep { !is_in_list($_, "ALL", @valid_values) } @values;
 
     if(scalar(@invalid) > 0) {
         # Tell the user which parameters were invalid and print the standard help
@@ -233,7 +234,7 @@ sub parse_csv_param($$@) {
         HELP_MESSAGE();
     }
 
-    @values = @valid_values if(is_in_list("ALL",@values));
+    @values = @valid_values if(is_in_list("ALL", @values));
 
     return @values;
 }
@@ -257,7 +258,7 @@ sub sha256 {
 
 sub oldhash {
     my $hash = "";
-    open(C, "<$_[0]") || return 0;
+    open(C, "<", $_[0]) or return 0;
     while(<C>) {
         chomp;
         if($_ =~ /^\#\# SHA256: (.*)/) {
@@ -301,6 +302,13 @@ my $fetched;
 
 my $oldhash = oldhash($crt);
 
+my @opt_x_list;
+if($opt_x) {
+    $opt_x = uc $opt_x;
+    $opt_x =~ s/[\s:]//g;
+    @opt_x_list = split(/,/, $opt_x);
+}
+
 report "SHA256 of old file: $oldhash";
 
 if(!$opt_n) {
@@ -309,7 +317,7 @@ if(!$opt_n) {
 
     # If we have an HTTPS URL then use curl
     if($url =~ /^https:\/\//i) {
-        my $curl = `curl -V`;
+        my $curl = qx(curl -V);
         if($curl) {
             if($curl =~ /^Protocols:.* https( |$)/m) {
                 report "Get certdata with curl!";
@@ -403,7 +411,7 @@ my $format = $opt_t ? "plain text and " : "";
 if($stdout) {
     open(CRT, '> -') or die "Could not open STDOUT: $!\n";
 } else {
-    open(CRT,">$crt.~") or die "Could not open $crt.~: $!\n";
+    open(CRT, ">", "$crt.~") or die "Could not open $crt.~: $!\n";
 }
 print CRT <<EOT;
 ##
@@ -493,7 +501,7 @@ while(<TXT>) {
     #
     # The latter is for certificates that have already been removed and are not
     # included. Not all explicitly distrusted certificates are ignored at this
-    # point, just those without an actual certificate.
+    # point, only those without an actual certificate.
     elsif(!$main_block && !$trust_block) {
         next;
     }
@@ -575,9 +583,9 @@ while(<TXT>) {
                 last;
             }
             if(/^CKA_TRUST_([A-Z_]+)\s+CK_TRUST\s+CKT_NSS_([A-Z_]+)\s*$/) {
-                if(!is_in_list($1,@valid_mozilla_trust_purposes)) {
+                if(!is_in_list($1, @valid_mozilla_trust_purposes)) {
                     report "Warning: Unrecognized trust purpose for cert: $caname. Trust purpose: $1. Trust Level: $2";
-                } elsif(!is_in_list($2,@valid_mozilla_trust_levels)) {
+                } elsif(!is_in_list($2, @valid_mozilla_trust_levels)) {
                     report "Warning: Unrecognized trust level for cert: $caname. Trust purpose: $1. Trust Level: $2";
                 } else {
                     push @{$trust_purposes_by_level{$2}}, $1;
@@ -604,6 +612,20 @@ while(<TXT>) {
             $skipnum ++;
             report "Skipping: $caname lacks acceptable trust level" if($opt_v);
         } else {
+
+            # Skip if explicitly excluded
+            if($opt_x) {
+                my ($fingerprint_sha256) = grep { /^# Fingerprint .*SHA.*256/i } @precert;
+                $fingerprint_sha256 =~ s/://g;
+                $fingerprint_sha256 = uc $fingerprint_sha256;
+                ($fingerprint_sha256) = $fingerprint_sha256 =~ /([A-F0-9]{64})/;
+                if(grep { $_ eq $fingerprint_sha256 } @opt_x_list) {
+                    report "Skipping: '$main_block_name' fingerprint explicitly excluded: $fingerprint_sha256";
+                    $skipnum++;
+                    next;
+                }
+            }
+
             my $encoded = MIME::Base64::encode_base64($cka_value, '');
             $encoded =~ s/(.{1,${opt_w}})/$1\n/g;
             my $pem = "-----BEGIN CERTIFICATE-----\n"
@@ -621,6 +643,9 @@ while(<TXT>) {
             if($opt_m) {
                 print CRT for @precert;
             }
+            else {
+                print CRT for grep { /^# Fingerprint .*SHA.*256/i } @precert;
+            }
             if(!$opt_t) {
                 print CRT $pem;
             } else {
@@ -635,7 +660,7 @@ while(<TXT>) {
                     print TMP $pem;
                     close(TMP) or die "Could not close openssl pipe: $!";
                     if(!$stdout) {
-                        open(CRT, ">>$crt.~") or die "Could not open $crt.~: $!";
+                        open(CRT, ">>", "$crt.~") or die "Could not open $crt.~: $!";
                     }
                 }
                 $pipe = "|$openssl x509 -text -inform PEM";
@@ -647,7 +672,7 @@ while(<TXT>) {
                 print TMP $pem;
                 close(TMP) or die "Could not close openssl pipe: $!";
                 if(!$stdout) {
-                    open(CRT, ">>$crt.~") or die "Could not open $crt.~: $!";
+                    open(CRT, ">>", "$crt.~") or die "Could not open $crt.~: $!";
                 }
             }
             report "Processed: $caname" if($opt_v);
