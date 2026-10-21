@@ -216,6 +216,7 @@ Reply in the thread: `The dry run failed. Run python3 .agents/skills/fleet-gitop
 - [Use Claude Code with Fleet](https://fleetdm.com/guides/use-claude-code-with-fleet)
 - [Set up GitHub Copilot in Slack and Microsoft Teams for Fleet GitOps](https://fleetdm.com/guides/github-copilot-in-slack-and-teams-for-fleet-gitops)
 - [Set up Codex in Slack and Microsoft Teams for Fleet GitOps](https://fleetdm.com/guides/codex-in-slack-and-teams-for-fleet-gitops)
+- [Set up Gemini with Slack and Microsoft Teams for Fleet GitOps](https://fleetdm.com/guides/gemini-with-slack-and-teams-for-fleet-gitops)
 
 <meta name="articleTitle" value="Set up Claude in Slack and Microsoft Teams for Fleet GitOps">
 <meta name="authorFullName" value="Allen Houchins">

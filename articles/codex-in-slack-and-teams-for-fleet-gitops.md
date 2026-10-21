@@ -158,6 +158,7 @@ Run `echo $FLEET_MCP_TOKEN` in a new terminal to confirm the token loads. A `401
 - [Fleet's GitOps YAML reference](https://fleetdm.com/docs/configuration/yaml-files)
 - [Set up Claude in Slack and Microsoft Teams for Fleet GitOps](https://fleetdm.com/guides/claude-in-slack-and-teams-for-fleet-gitops)
 - [Set up GitHub Copilot in Slack and Microsoft Teams for Fleet GitOps](https://fleetdm.com/guides/github-copilot-in-slack-and-teams-for-fleet-gitops)
+- [Set up Gemini with Slack and Microsoft Teams for Fleet GitOps](https://fleetdm.com/guides/gemini-with-slack-and-teams-for-fleet-gitops)
 
 <meta name="articleTitle" value="Set up Codex in Slack and Microsoft Teams for Fleet GitOps">
 <meta name="authorFullName" value="Allen Houchins">

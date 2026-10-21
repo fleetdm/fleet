@@ -186,6 +186,7 @@ Check the **Start MCP Servers** step in the session logs. A `401` means the secr
 - [Fleet's GitOps YAML reference](https://fleetdm.com/docs/configuration/yaml-files)
 - [Set up Claude in Slack and Microsoft Teams for Fleet GitOps](https://fleetdm.com/guides/claude-in-slack-and-teams-for-fleet-gitops)
 - [Set up Codex in Slack and Microsoft Teams for Fleet GitOps](https://fleetdm.com/guides/codex-in-slack-and-teams-for-fleet-gitops)
+- [Set up Gemini with Slack and Microsoft Teams for Fleet GitOps](https://fleetdm.com/guides/gemini-with-slack-and-teams-for-fleet-gitops)
 
 <meta name="articleTitle" value="Set up GitHub Copilot in Slack and Microsoft Teams for Fleet GitOps">
 <meta name="authorFullName" value="Allen Houchins">

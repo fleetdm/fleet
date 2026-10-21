@@ -1,6 +1,13 @@
 # Connect your AI tool to Fleet's MCP server
 
-Fleet's MCP server lets your AI tool look up hosts, policies, and software in Fleet, so you can ask questions about your fleet in plain English. Fleet has a setup guide for Claude, Codex, and GitHub Copilot. Each one also connects the tool to Slack or Microsoft Teams and to your GitOps repository, so your team can ask for a change in chat and get a pull request back. Pick the guide for the AI tool your organization already uses.
+Fleet's MCP server lets your AI tool look up hosts, policies, and software in Fleet, so you can ask questions about your fleet in plain English. Fleet has a setup guide for Claude, Codex, GitHub Copilot, and Gemini. Each one also connects the tool to Slack or Microsoft Teams and to your GitOps repository, so your team can ask for a change in chat and get a pull request back. Pick the guide for the AI tool your organization already uses.
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 32px 0px;">
+<a href="https://fleetdm.com/guides/claude-in-slack-and-teams-for-fleet-gitops" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 1px solid #E2E4EA; border-radius: 8px; color: #192147; font-weight: 700; text-decoration: none;"><img src="../website/assets/images/icon-claude-ai-28x28@2x.png" alt="" style="width: 28px; height: 28px; padding: 0; margin: 0;">Claude</a>
+<a href="https://fleetdm.com/guides/codex-in-slack-and-teams-for-fleet-gitops" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 1px solid #E2E4EA; border-radius: 8px; color: #192147; font-weight: 700; text-decoration: none;"><img src="../website/assets/images/icon-open-ai-28x28@2x.png" alt="" style="width: 28px; height: 28px; padding: 0; margin: 0;">Codex</a>
+<a href="https://fleetdm.com/guides/github-copilot-in-slack-and-teams-for-fleet-gitops" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 1px solid #E2E4EA; border-radius: 8px; color: #192147; font-weight: 700; text-decoration: none;"><img src="../website/assets/images/icon-github-28x28@2x.png" alt="" style="width: 28px; height: 28px; padding: 0; margin: 0;">GitHub Copilot</a>
+<a href="https://fleetdm.com/guides/gemini-with-slack-and-teams-for-fleet-gitops" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 1px solid #E2E4EA; border-radius: 8px; color: #192147; font-weight: 700; text-decoration: none;"><img src="../website/assets/images/app-icon-google-gemini-60x60@2x.png" alt="" style="width: 28px; height: 28px; padding: 0; margin: 0;">Gemini</a>
+</div>
 
 ## Prerequisites
 
@@ -10,21 +17,20 @@ Fleet's MCP server lets your AI tool look up hosts, policies, and software in Fl
 
 ## Pick your guide
 
-| | Claude | Codex | GitHub Copilot |
+| AI tool | Chat | Ask Fleet questions from | Plan you need |
 |:--|:--|:--|:--|
-| Mention in chat | `@Claude` | `@ChatGPT` | `@GitHub` |
-| Slack | Yes (public beta) | Yes | Yes (public preview) |
-| Microsoft Teams | No app yet. The guide covers a workaround. | Yes | Yes (public preview) |
-| Where you can ask Fleet questions | Slack, and Claude Code on the web | The Codex app, CLI, and IDE extension. Not from chat yet. | Slack and Teams |
-| Plan you need | Claude Team or Enterprise | ChatGPT Enterprise | Copilot Business or Enterprise, plus cloud sandbox usage |
-| Guide | [Set up Claude](https://fleetdm.com/guides/claude-in-slack-and-teams-for-fleet-gitops) | [Set up Codex](https://fleetdm.com/guides/codex-in-slack-and-teams-for-fleet-gitops) | [Set up GitHub Copilot](https://fleetdm.com/guides/github-copilot-in-slack-and-teams-for-fleet-gitops) |
+| <span style="white-space: nowrap;"><img src="../website/assets/images/icon-claude-ai-28x28@2x.png" alt="" style="display: inline; width: 20px; height: 20px; padding: 0; margin: 0px 8px 0px 0px; vertical-align: -4px;">[Claude](https://fleetdm.com/guides/claude-in-slack-and-teams-for-fleet-gitops)</span> | `@Claude` in Slack (public beta). No Teams app yet. The guide covers a workaround. | Slack, and Claude Code on the web | Claude Team or Enterprise |
+| <span style="white-space: nowrap;"><img src="../website/assets/images/icon-open-ai-28x28@2x.png" alt="" style="display: inline; width: 20px; height: 20px; padding: 0; margin: 0px 8px 0px 0px; vertical-align: -4px;">[Codex](https://fleetdm.com/guides/codex-in-slack-and-teams-for-fleet-gitops)</span> | `@ChatGPT` in Slack and Teams | The Codex app, CLI, and IDE extension. Not from chat yet. | ChatGPT Enterprise |
+| <span style="white-space: nowrap;"><img src="../website/assets/images/icon-github-28x28@2x.png" alt="" style="display: inline; width: 20px; height: 20px; padding: 0; margin: 0px 8px 0px 0px; vertical-align: -4px;">[GitHub Copilot](https://fleetdm.com/guides/github-copilot-in-slack-and-teams-for-fleet-gitops)</span> | `@GitHub` in Slack and Teams (public preview) | Slack and Teams | Copilot Business or Enterprise, plus cloud sandbox usage |
+| <span style="white-space: nowrap;"><img src="../website/assets/images/app-icon-google-gemini-60x60@2x.png" alt="" style="display: inline; width: 20px; height: 20px; padding: 0; margin: 0px 8px 0px 0px; vertical-align: -4px;">[Gemini](https://fleetdm.com/guides/gemini-with-slack-and-teams-for-fleet-gitops)</span> | No chat agent yet. Create a GitHub issue from Slack or Teams, then comment `@gemini-cli`. | GitHub issues, and Antigravity CLI | A Gemini API key with billing, or Vertex AI |
 
 Not sure which one fits? Start here:
 
 - If your organization already pays for one of these plans, use that tool.
-- If your team works in Microsoft Teams, choose GitHub Copilot or Codex. Claude doesn't have a Teams app yet.
+- If your team works in Microsoft Teams, GitHub Copilot and Codex have a Teams app. Claude and Gemini need a workaround.
 - If you want to ask Fleet questions without leaving chat, choose Claude in Slack, or GitHub Copilot in Slack or Teams.
-- If your admins mostly work in a terminal or code editor, Codex is a good fit. Its Fleet MCP connection lives there.
+- If your admins mostly work in a terminal or code editor, Codex or Gemini is a good fit. Their Fleet MCP connections live there.
+- If your organization uses Google Cloud, choose Gemini. It runs in your own GitHub Actions and can bill through Vertex AI.
 
 ## What every guide sets up
 
@@ -101,4 +107,4 @@ fleetctl user create --name "AI assistant (read-only)" --api-only --global-role 
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-10-21">
-<meta name="description" value="Pick the setup guide for Claude, Codex, or GitHub Copilot, then ask questions about your fleet with Fleet's MCP server.">
+<meta name="description" value="Pick the setup guide for Claude, Codex, GitHub Copilot, or Gemini, then ask questions about your fleet with Fleet's MCP server.">
