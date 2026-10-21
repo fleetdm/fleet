@@ -102,6 +102,13 @@ describe("MainContent license host limit banner", () => {
     ).toBeInTheDocument();
   });
 
+  it("uses singular host when the license covers 1 host", () => {
+    renderWithHostCount({ hostCount: 2, deviceCount: 1 });
+    expect(
+      screen.getByText(/Your license covers 1 host, but you have 2 enrolled/)
+    ).toBeInTheDocument();
+  });
+
   it("does not show the banner at or under the licensed count", () => {
     renderWithHostCount({ hostCount: 50 });
     expect(screen.queryByText(/Your license covers/)).not.toBeInTheDocument();

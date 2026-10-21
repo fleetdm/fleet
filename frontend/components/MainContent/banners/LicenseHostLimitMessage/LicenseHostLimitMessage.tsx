@@ -2,6 +2,7 @@ import React from "react";
 
 import CustomLink from "components/CustomLink";
 import InfoBanner from "components/InfoBanner";
+import { pluralize } from "utilities/strings/stringUtils";
 
 const baseClass = "license-host-limit-message";
 
@@ -30,9 +31,10 @@ const LicenseHostLimitMessage = ({
         />
       }
     >
-      Your license covers {licensedHostCount.toLocaleString()} hosts, but you
-      have {hostCount.toLocaleString()} enrolled. Remove inactive hosts or add
-      hosts to your license.
+      Your license covers {licensedHostCount.toLocaleString()}{" "}
+      {pluralize(licensedHostCount, "host")}, but you have{" "}
+      {hostCount.toLocaleString()} enrolled. Add hosts to your license or delete
+      hosts.
     </InfoBanner>
   );
 };
