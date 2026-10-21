@@ -608,6 +608,24 @@ module.exports.routes = {
     }
   },
 
+  'GET /lp/apple-management': {
+    action: 'landing-pages/view-apple-management',
+    locals: {
+      hideHeaderLinks: true,
+      pageTitleForMeta: 'Apple device management',
+      pageDescriptionForMeta: 'Jamf is not your only option. Fleet manages Macs, iPhones, and iPads on Apple\'s own MDM protocol, with migration that does not touch a single laptop.',
+    }
+  },
+
+  'GET /lp/windows-management': {
+    action: 'landing-pages/view-windows-management',
+    locals: {
+      hideHeaderLinks: true,
+      pageTitleForMeta: 'Windows device management',
+      pageDescriptionForMeta: 'Manage Windows devices with full visibility and control. Automate patching, enforce BitLocker, and unify Windows, macOS, and Linux in one place.',
+    }
+  },
+
   'GET /whitepapers/:slug': {
     action: 'articles/view-basic-whitepaper'
   },

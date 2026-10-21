@@ -102,6 +102,8 @@ module.exports = {
       '/lp/patch-faster',
       '/lp/replace-jamf',
       '/lp/jamf-migration',
+      '/lp/apple-management',
+      '/lp/windows-management',
       '/lp/autonomous-endpoint-management',
       '/lp/apple-mdm',
       '/lp/on-premise',
