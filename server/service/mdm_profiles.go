@@ -10,15 +10,38 @@ import (
 	"github.com/fleetdm/fleet/v4/server/variables"
 )
 
+// pkcs12CAPrefixes are the Fleet variable prefixes of a certificate authority that delivers a PKCS#12 in a profile.
+type pkcs12CAPrefixes interface {
+	prefixes() (data, password fleet.FleetVarName)
+}
+
+type digiCertPrefixes struct{}
+
+func (digiCertPrefixes) prefixes() (fleet.FleetVarName, fleet.FleetVarName) {
+	return fleet.FleetVarDigiCertDataPrefix, fleet.FleetVarDigiCertPasswordPrefix
+}
+
+type ejbcaPrefixes struct{}
+
+func (ejbcaPrefixes) prefixes() (fleet.FleetVarName, fleet.FleetVarName) {
+	return fleet.FleetVarEJBCADataPrefix, fleet.FleetVarEJBCAPasswordPrefix
+}
+
 // Certificate Authority structs for MDM profile checking
 // to ensure all variables needed for a given CA is present within a single profile.
-type DigiCertVarsFound struct {
+type PKCS12VarsFound[P pkcs12CAPrefixes] struct {
 	dataCA     map[string]struct{}
 	passwordCA map[string]struct{}
 }
 
-// Ok makes sure that both DATA and PASSWORD variables are present in a DigiCert profile.
-func (d *DigiCertVarsFound) Ok() bool {
+// DigiCertVarsFound and EJBCAVarsFound track the variables of the CAs that deliver a PKCS#12.
+type (
+	DigiCertVarsFound = PKCS12VarsFound[digiCertPrefixes]
+	EJBCAVarsFound    = PKCS12VarsFound[ejbcaPrefixes]
+)
+
+// Ok makes sure that both DATA and PASSWORD variables are present for each CA in the profile.
+func (d *PKCS12VarsFound[P]) Ok() bool {
 	if d == nil {
 		return true
 	}
@@ -33,11 +56,11 @@ func (d *DigiCertVarsFound) Ok() bool {
 	return true
 }
 
-func (d *DigiCertVarsFound) Found() bool {
+func (d *PKCS12VarsFound[P]) Found() bool {
 	return d != nil
 }
 
-func (d *DigiCertVarsFound) CAs() []string {
+func (d *PKCS12VarsFound[P]) CAs() []string {
 	if d == nil {
 		return nil
 	}
@@ -48,24 +71,28 @@ func (d *DigiCertVarsFound) CAs() []string {
 	return keys
 }
 
-func (d *DigiCertVarsFound) ErrorMessage() string {
+func (d *PKCS12VarsFound[P]) ErrorMessage() string {
+	if d == nil {
+		return ""
+	}
+	var p P
+	dataVar, passwordVar := p.prefixes()
 	for ca := range d.passwordCA {
 		if _, ok := d.dataCA[ca]; !ok {
-			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", fleet.FleetVarDigiCertDataPrefix, ca)
+			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", dataVar, ca)
 		}
 	}
 	for ca := range d.dataCA {
 		if _, ok := d.passwordCA[ca]; !ok {
-			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", fleet.FleetVarDigiCertPasswordPrefix, ca)
+			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", passwordVar, ca)
 		}
 	}
-	return fmt.Sprintf("CA name mismatch between $FLEET_VAR_%s<ca_name> and $FLEET_VAR_%s<ca_name> in the profile.",
-		fleet.FleetVarDigiCertDataPrefix, fleet.FleetVarDigiCertPasswordPrefix)
+	return fmt.Sprintf("CA name mismatch between $FLEET_VAR_%s<ca_name> and $FLEET_VAR_%s<ca_name> in the profile.", dataVar, passwordVar)
 }
 
-func (d *DigiCertVarsFound) SetData(value string) (*DigiCertVarsFound, bool) {
+func (d *PKCS12VarsFound[P]) SetData(value string) (*PKCS12VarsFound[P], bool) {
 	if d == nil {
-		d = &DigiCertVarsFound{}
+		d = &PKCS12VarsFound[P]{}
 	}
 	if d.dataCA == nil {
 		d.dataCA = make(map[string]struct{})
@@ -75,9 +102,9 @@ func (d *DigiCertVarsFound) SetData(value string) (*DigiCertVarsFound, bool) {
 	return d, !alreadyPresent
 }
 
-func (d *DigiCertVarsFound) SetPassword(value string) (*DigiCertVarsFound, bool) {
+func (d *PKCS12VarsFound[P]) SetPassword(value string) (*PKCS12VarsFound[P], bool) {
 	if d == nil {
-		d = &DigiCertVarsFound{}
+		d = &PKCS12VarsFound[P]{}
 	}
 	if d.passwordCA == nil {
 		d.passwordCA = make(map[string]struct{})
@@ -85,85 +112,6 @@ func (d *DigiCertVarsFound) SetPassword(value string) (*DigiCertVarsFound, bool)
 	_, alreadyPresent := d.passwordCA[value]
 	d.passwordCA[value] = struct{}{}
 	return d, !alreadyPresent
-}
-
-// EJBCAVarsFound is the same as DigiCertVarsFound for EJBCA.
-type EJBCAVarsFound struct {
-	dataCA     map[string]struct{}
-	passwordCA map[string]struct{}
-}
-
-// Ok makes sure that both DATA and PASSWORD variables are present in an EJBCA profile.
-func (e *EJBCAVarsFound) Ok() bool {
-	if e == nil {
-		return true
-	}
-	if len(e.dataCA) != len(e.passwordCA) {
-		return false
-	}
-	for ca := range e.dataCA {
-		if _, ok := e.passwordCA[ca]; !ok {
-			return false
-		}
-	}
-	return true
-}
-
-func (e *EJBCAVarsFound) Found() bool {
-	return e != nil
-}
-
-func (e *EJBCAVarsFound) CAs() []string {
-	if e == nil {
-		return nil
-	}
-	keys := make([]string, 0, len(e.dataCA))
-	for key := range e.dataCA {
-		keys = append(keys, key)
-	}
-	return keys
-}
-
-func (e *EJBCAVarsFound) ErrorMessage() string {
-	if e == nil {
-		return ""
-	}
-	for ca := range e.passwordCA {
-		if _, ok := e.dataCA[ca]; !ok {
-			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", fleet.FleetVarEJBCADataPrefix, ca)
-		}
-	}
-	for ca := range e.dataCA {
-		if _, ok := e.passwordCA[ca]; !ok {
-			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", fleet.FleetVarEJBCAPasswordPrefix, ca)
-		}
-	}
-	return fmt.Sprintf("CA name mismatch between $FLEET_VAR_%s<ca_name> and $FLEET_VAR_%s<ca_name> in the profile.",
-		fleet.FleetVarEJBCADataPrefix, fleet.FleetVarEJBCAPasswordPrefix)
-}
-
-func (e *EJBCAVarsFound) SetData(value string) (*EJBCAVarsFound, bool) {
-	if e == nil {
-		e = &EJBCAVarsFound{}
-	}
-	if e.dataCA == nil {
-		e.dataCA = make(map[string]struct{})
-	}
-	_, alreadyPresent := e.dataCA[value]
-	e.dataCA[value] = struct{}{}
-	return e, !alreadyPresent
-}
-
-func (e *EJBCAVarsFound) SetPassword(value string) (*EJBCAVarsFound, bool) {
-	if e == nil {
-		e = &EJBCAVarsFound{}
-	}
-	if e.passwordCA == nil {
-		e.passwordCA = make(map[string]struct{})
-	}
-	_, alreadyPresent := e.passwordCA[value]
-	e.passwordCA[value] = struct{}{}
-	return e, !alreadyPresent
 }
 
 type NDESVarsFound struct {
