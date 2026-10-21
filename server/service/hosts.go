@@ -4254,6 +4254,34 @@ func (svc *Service) HostEncryptionKey(ctx context.Context, id uint, allowArchive
 	return key, nil
 }
 
+// windowsKeyReescrowPending reports whether the server is asking a Windows host for a new recovery key, so a failed read
+// can say one is coming. It follows the orbit config and the escrow endpoint: the stored key is not known to be
+// decryptable, Windows MDM is on, the host is enrolled in it, and its fleet enforces disk encryption.
+func (svc *Service) windowsKeyReescrowPending(ctx context.Context, host *fleet.Host, storedKeyUndecryptable bool) (bool, error) {
+	if !storedKeyUndecryptable {
+		return false, nil
+	}
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "get app config")
+	}
+	if !appConfig.MDM.WindowsEnabledAndConfigured {
+		return false, nil
+	}
+	diskEncryption, err := svc.ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "get disk encryption config")
+	}
+	if !diskEncryption.WindowsEnabled {
+		return false, nil
+	}
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "check whether host is connected to Fleet MDM")
+	}
+	return connected, nil
+}
+
 func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Host, allowArchivedSerialLookup bool) (*fleet.HostDiskEncryptionKey, error) {
 	// First, determine the decryption function based on the host platform and configuration.
 	var decryptFn func(b64 string) (string, error)
@@ -4310,16 +4338,8 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
 	}
-	// Captured before the decrypt attempt below overwrites it: a Windows host is asked to escrow a new key when the
-	// stored one is not known to be decryptable, and only while its fleet enforces disk encryption.
-	reescrowRequested := key != nil && (key.Decryptable == nil || !*key.Decryptable)
-	if reescrowRequested && host.FleetPlatform() == "windows" {
-		diskEncryption, err := svc.ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "get disk encryption config")
-		}
-		reescrowRequested = diskEncryption.WindowsEnabled
-	}
+	// Captured before the decrypt attempt below overwrites it.
+	storedKeyUndecryptable := key != nil && (key.Decryptable == nil || !*key.Decryptable)
 	// Same rule the rotate endpoint uses, so a marker it would replace isn't
 	// reported as pending.
 	var rotationPending bool
@@ -4413,7 +4433,11 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 			msg := "Couldn't decrypt the disk encryption key. The decryption certificate and key are invalid because MDM has been turned off."
 			if host.FleetPlatform() == "windows" {
 				msg = "Couldn't decrypt the disk encryption key."
-				if reescrowRequested {
+				reescrow, err := svc.windowsKeyReescrowPending(ctx, host, storedKeyUndecryptable)
+				if err != nil {
+					return nil, err
+				}
+				if reescrow {
 					msg += " The host will escrow a new one when it comes online."
 				}
 			}
