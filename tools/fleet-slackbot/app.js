@@ -123,7 +123,7 @@ function createGoogleChatServer() {
       return;
     }
     Promise.resolve(route(req, res)).catch((err) => {
-      console.error(`[http] ${req.method} ${req.url} failed:`, err);
+      console.error("[http] %s %s failed:", req.method, pathname, err);
       if (!res.headersSent) res.writeHead(500);
       res.end();
     });
