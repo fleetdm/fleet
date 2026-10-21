@@ -3360,7 +3360,8 @@ func storeDarwinDiskEncryptionKey(
 			if err != nil {
 				logger.WarnContext(ctx, "comparing disk encryption key plaintext", "host_id", host.ID, "err", err)
 			} else if same {
-				return ds.ReplaceHostDiskEncryptionKeyBlob(ctx, host.ID, existing.Base64Encrypted, base64Key)
+				_, err := ds.ReplaceHostDiskEncryptionKeyBlob(ctx, host.ID, existing.Base64Encrypted, base64Key)
+				return err
 			}
 		}
 	}
@@ -3918,6 +3919,19 @@ var bitLockerPresentDiscovery = fmt.Sprintf(`
 			)
 			SELECT 1 FROM should_run WHERE yes = 1`, bitLockerPresent)
 
+// bitLockerDiscovery is the discovery clause for a query that needs BitLocker to be usable and the given conditions to hold.
+// The conditions sit behind CASE because osquery's SQLite evaluates every operand of AND, and bitlocker_key_protectors errors
+// where BitLocker is absent. A failing discovery query makes osquery drop the host's whole distributed batch.
+func bitLockerDiscovery(conditions string) string {
+	return fmt.Sprintf(`
+			WITH should_run(yes) AS (
+			SELECT
+				CASE WHEN %s THEN (%s
+				) ELSE 0 END
+			)
+			SELECT 1 FROM should_run WHERE yes = 1`, bitLockerPresent, conditions)
+}
+
 // bitlockerPolicyQueries run wherever Fleet enforces Windows disk encryption, whether or not a startup PIN is required.
 var bitlockerPolicyQueries = map[string]DetailQuery{
 	// An admin, third-party software, or a previous MDM can leave a volume encrypted but unprotected while policy forbids the
@@ -3928,16 +3942,11 @@ var bitlockerPolicyQueries = map[string]DetailQuery{
 		// - BitLocker is not an optional component (is built in) OR is an optional component and enabled.
 		// - And no protector that can release the volume master key at boot exists, so the agent has to create one.
 		// - And the volume is fully encrypted, whether or not protection is currently on.
-		Discovery: fmt.Sprintf(`
-			WITH should_run(yes) AS (
-			SELECT
-				%s
+		Discovery: bitLockerDiscovery(`
 				-- 1, 4, 5, 6 are the TPM-family protectors; 2 is an external startup key on a USB stick.
-				AND NOT EXISTS(SELECT 1 FROM bitlocker_key_protectors WHERE drive_letter = 'C:' AND key_protector_type IN (1,2,4,5,6))
+				NOT EXISTS(SELECT 1 FROM bitlocker_key_protectors WHERE drive_letter = 'C:' AND key_protector_type IN (1,2,4,5,6))
 				-- Volume is fully encrypted.
-				AND EXISTS(SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND conversion_status = 1)
-			)
-			SELECT 1 FROM should_run WHERE yes = 1`, bitLockerPresent),
+				AND EXISTS(SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND conversion_status = 1)`),
 		Query: "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\\UseTPM'",
 		DirectIngestFunc: func(
 			ctx context.Context,
@@ -4028,18 +4037,13 @@ var tpmPINQueries = map[string]DetailQuery{
 		// - BitLocker is not an optional component (is built in) OR is an optional component and enabled.
 		// - And a TPM PIN is not yet set.
 		// - And the volume is encrypted (to avoid errors while trying to apply the policy).
-		Discovery: fmt.Sprintf(`
-			WITH should_run(yes) AS (
-			SELECT
-				%s
+		Discovery: bitLockerDiscovery(`
 				-- PIN is already set, so regardless of the current config, we don't need to enforce it:
 				-- 4: TPM And PIN.
 				-- 6: TPM And PIN And Startup key.
-				AND NOT EXISTS(SELECT 1 FROM bitlocker_key_protectors WHERE drive_letter = 'C:' AND key_protector_type IN (4,6))
+				NOT EXISTS(SELECT 1 FROM bitlocker_key_protectors WHERE drive_letter = 'C:' AND key_protector_type IN (4,6))
 				-- Volume is encrypted
-				AND EXISTS(SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1)
-			)
-			SELECT 1 FROM should_run WHERE yes = 1`, bitLockerPresent),
+				AND EXISTS(SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1)`),
 		// Every value under the policy key, matched by name in Go because registry value names are case-insensitive.
 		Query: "SELECT name, data FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE'",
 		DirectIngestFunc: func(

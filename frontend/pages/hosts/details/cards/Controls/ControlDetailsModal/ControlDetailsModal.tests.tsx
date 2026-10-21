@@ -367,6 +367,56 @@ describe("ControlDetailsModal", () => {
       ).toHaveTextContent(detail);
       expect(screen.queryByText(/hasn't set a BitLocker PIN/)).toBeNull();
     });
+
+    it("keeps the generic enforcing wording on windows disk encryption with no reason", () => {
+      renderModal({
+        control: generateWinDiskEncryptionSetting("enforcing", ""),
+      });
+
+      expect(
+        screen.getByText(/will receive the MDM command/, { selector: "span" })
+      ).toHaveTextContent(
+        "Anna's MacBook Pro will receive the MDM command to turn on disk encryption when the host comes online."
+      );
+      expect(screen.queryByText("Details:")).toBeNull();
+    });
+
+    // The server only sends a detail for this status when it cannot read the
+    // stored key and is asking the host for a new one, so the detail is the
+    // message, not a footnote to copy about an MDM command.
+    it("prefers the server reason over the MDM command wording on windows disk encryption enforcing", () => {
+      const detail =
+        "Fleet can't read this host's stored recovery key. The host will escrow a new one when it comes online.";
+
+      renderModal({
+        control: generateWinDiskEncryptionSetting("enforcing", detail),
+      });
+
+      expect(
+        screen.getByText(/stored recovery key/, { selector: "span" })
+      ).toHaveTextContent(detail);
+      expect(screen.queryByText(/will receive the MDM command/)).toBeNull();
+      expect(screen.queryByText("Details:")).toBeNull();
+    });
+
+    it("leaves a real windows profile that happens to be named Disk encryption alone", () => {
+      renderModal({
+        control: createMockHostMdmProfile({
+          name: "Disk encryption",
+          platform: "windows",
+          operation_type: "install",
+          status: "pending",
+          detail:
+            "./Device/Vendor/MSFT/BitLocker/RequireDeviceEncryption: status 500",
+        }),
+      });
+
+      // The detail stays in the copyable block below the status message.
+      expect(screen.getByText("Details:")).toBeInTheDocument();
+      expect(
+        screen.queryByText(/RequireDeviceEncryption/, { selector: "span" })
+      ).toBeNull();
+    });
   });
 
   describe("non-failed controls carrying a detail", () => {

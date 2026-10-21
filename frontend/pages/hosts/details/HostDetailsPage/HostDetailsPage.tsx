@@ -198,6 +198,8 @@ const ANDROID_SW_INSTALL_LEARN_MORE_LINK =
   "https://fleetdm.com/learn-more-about/install-google-play-apps";
 const NIXOS_PACKAGE_MANAGEMENT_LINK =
   "https://fleetdm.com/learn-more-about/nixos-package-management";
+const SOFTWARE_LIBRARY_UNSUPPORTED_HEADER =
+  "Software library is currently not supported on this host";
 
 /** Returns the empty state explaining why the software library is unsupported
  * on the host's platform, or undefined if it's supported. Android hosts don't
@@ -206,7 +208,7 @@ const NIXOS_PACKAGE_MANAGEMENT_LINK =
 const getSoftwareLibraryUnsupportedState = (platform: HostPlatform) => {
   if (isAndroid(platform)) {
     return {
-      header: "Software library is currently not supported on this host",
+      header: SOFTWARE_LIBRARY_UNSUPPORTED_HEADER,
       info: (
         <>
           Software install is coming soon.{" "}
@@ -221,6 +223,7 @@ const getSoftwareLibraryUnsupportedState = (platform: HostPlatform) => {
   }
   if (platform === "nixos") {
     return {
+      header: SOFTWARE_LIBRARY_UNSUPPORTED_HEADER,
       info: (
         <>
           Installing software on NixOS hosts happens outside of Fleet.{" "}

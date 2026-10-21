@@ -380,7 +380,9 @@ export const FileUploader = ({
 
   return (
     <div
-      className={`${baseClass}__wrapper form-field`}
+      className={classnames(`${baseClass}__wrapper form-field`, {
+        [`${baseClass}__wrapper--disabled`]: disabled,
+      })}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
