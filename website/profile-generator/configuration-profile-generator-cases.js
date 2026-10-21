@@ -1229,6 +1229,358 @@ const TEST_CASES = [
   //     mustNotContainElement: [['string', 'true']],
   //   }
   // },
+  // Third-party apps' preference domains, from profile-generator/schema/apple-third-party-payload-manifests.json.
+  // Every key and value below is copied from that file.  The runners do not turn on useThirdPartyAppLookup,
+  // so an app's keys are only provided when one of its keywords appears in the instructions as a whole
+  // word, which is why each case names its app the way its keywords do.
+  {
+    id: 'mobileconfig-third-party-chrome-password-manager',
+    profileType: 'mobileconfig',
+    canary: true,
+    instructions: 'Turn off Chrome\'s built-in password manager.',
+    expect: {
+      mustContain: ['<string>com.google.Chrome</string>', '<key>PasswordManagerEnabled</key><false/>'],
+      mustNotContain: ['com.google.chrome<', 'com.microsoft.Edge', 'PasswordManagerEnabled</key><string>'],
+      mustNotContainElement: [['string', 'false']],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-chrome-homepage',
+    profileType: 'mobileconfig',
+    instructions: 'Set the Google Chrome homepage to https://fleetdm.com and show the Home button on the toolbar.',
+    // HomepageIsNewTabPage true would override HomepageLocation, so it can be omitted or false but not true.
+    expect: {
+      mustContain: ['com.google.Chrome', '<key>HomepageLocation</key><string>https://fleetdm.com</string>', '<key>ShowHomeButton</key><true/>'],
+      mustNotContain: ['<key>HomepageIsNewTabPage</key><true/>', 'HomePageLocation'],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-chrome-incognito',
+    profileType: 'mobileconfig',
+    instructions: 'Disable Incognito mode in Chrome.',
+    // An integer enum, not a toggle: 1 is disabled and 2 is forced, so "disable means false" or "disable
+    // means 0" both get it wrong.  IncognitoEnabled is the deprecated boolean this replaced.
+    expect: {
+      mustContain: ['com.google.Chrome', '<key>IncognitoModeAvailability</key><integer>1</integer>'],
+      mustNotContain: ['IncognitoEnabled', '<key>IncognitoModeAvailability</key><false/>', '<key>IncognitoModeAvailability</key><integer>0</integer>'],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-chrome-session-cookies',
+    profileType: 'mobileconfig',
+    instructions: 'Change Chrome\'s default cookie setting so sites\' cookies are only kept until the browser is closed.',
+    // 4 is "keep for the session"; 1 and 2 are allow-all and block-all.  The value's meaning is only in
+    // allowedValueTitles, so this checks that it is rendered.  The request names the default setting because
+    // CookiesSessionOnlyForUrls with a * pattern also satisfies "only keep cookies until the browser is closed".
+    expect: {
+      mustContain: ['com.google.Chrome', '<key>DefaultCookiesSetting</key><integer>4</integer>'],
+      mustNotContain: ['<key>DefaultCookiesSetting</key><integer>1</integer>', '<key>DefaultCookiesSetting</key><integer>2</integer>', 'CookiesSessionOnlyForUrls'],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-chrome-force-install-extension',
+    profileType: 'mobileconfig',
+    instructions: 'Add the extension with the ID ddkjiahejlhfcafbddmgiahcphecmpfh to Chrome\'s force-installed extensions list, so users cannot remove it.',
+    // The list, rather than "force-install", because ExtensionSettings with installation_mode force_installed
+    // also force-installs.  The manifest names the array's items ExtensionInstallForcelistItem, which is not a
+    // plist key: the array holds bare <string>s, either the ID or the ID;update_url.
+    expect: {
+      mustContain: ['com.google.Chrome', '<key>ExtensionInstallForcelist</key><array><string>ddkjiahejlhfcafbddmgiahcphecmpfh'],
+      mustNotContain: ['ExtensionInstallForcelistItem', 'ExtensionInstallBlocklist', 'ExtensionInstallWhitelist'],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-chrome-signin-restriction',
+    profileType: 'mobileconfig',
+    instructions: 'Force users to sign in to Chrome, and only allow accounts from acme.com.',
+    // BrowserSignin 2 is "force sign-in"; 1 only allows it.  RestrictSigninToPattern is a regular expression, so
+    // the dot is escaped and a glob such as *@acme.com is wrong; anchors are optional.
+    expect: {
+      mustContain: ['com.google.Chrome', '<key>BrowserSignin</key><integer>2</integer>', '<key>RestrictSigninToPattern</key><string>', '@acme\\.com'],
+      mustNotContain: ['<key>BrowserSignin</key><true/>', 'ForceBrowserSignin', '<string>*@'],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-chrome-safe-browsing',
+    profileType: 'mobileconfig',
+    instructions: 'Turn on enhanced Safe Browsing protection in Chrome.',
+    // SafeBrowsingEnabled is the deprecated boolean, and it cannot express "enhanced".
+    expect: {
+      mustContain: ['com.google.Chrome', '<key>SafeBrowsingProtectionLevel</key><integer>2</integer>'],
+      mustNotContain: ['SafeBrowsingEnabled'],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-edge-not-chrome',
+    profileType: 'mobileconfig',
+    instructions: 'Disable InPrivate browsing in Microsoft Edge and skip the first-run experience.',
+    // Edge's policies mirror Chrome's, but its private-mode key has its own name.
+    expect: {
+      mustContain: ['com.microsoft.Edge', '<key>InPrivateModeAvailability</key><integer>1</integer>', '<key>HideFirstRunExperience</key><true/>'],
+      mustNotContain: ['com.google.Chrome', 'IncognitoModeAvailability', 'com.microsoft.edge<'],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-firefox-privacy',
+    profileType: 'mobileconfig',
+    instructions: 'Turn off telemetry, Pocket, and Firefox Studies in Firefox.',
+    // Firefox ignores org.mozilla.firefox on macOS unless EnterprisePoliciesEnabled is true, which the
+    // manifest marks required.
+    readByEye: 'All four keys must sit in ONE org.mozilla.firefox dict.',
+    expect: {
+      mustContain: [
+        'org.mozilla.firefox', '<key>EnterprisePoliciesEnabled</key><true/>', '<key>DisableTelemetry</key><true/>',
+        '<key>DisablePocket</key><true/>', '<key>DisableFirefoxStudies</key><true/>'
+      ],
+      mustNotContain: ['org.mozilla.Firefox', 'DisableFirefoxTelemetry'],
+      mustNotContainElement: [['string', 'true']],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-firefox-homepage-nested',
+    profileType: 'mobileconfig',
+    instructions: 'Set the Firefox homepage to https://intranet.acme.com, open it when Firefox starts, and stop users changing it.',
+    // Homepage is a dict, not a string, so this checks the nested keys are kept nested.  Locked is what stops users
+    // changing the homepage; a StartPage of homepage-locked only fixes what opens at startup, so either StartPage
+    // value is right but Locked is required.
+    expect: {
+      mustContain: [
+        'org.mozilla.firefox', '<key>EnterprisePoliciesEnabled</key><true/>', '<key>Homepage</key><dict>',
+        '<key>URL</key><string>https://intranet.acme.com</string>', '<key>StartPage</key><string>homepage', '<key>Locked</key><true/>'
+      ],
+      mustNotContain: ['<key>Homepage</key><string>', 'HomepageLocation', 'Homepage.URL'],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-mixed-with-apple-payload',
+    profileType: 'mobileconfig',
+    instructions: 'Turn off AirDrop and turn off Chrome\'s password manager.',
+    readByEye: 'Exactly TWO dicts in PayloadContent, com.apple.applicationaccess and com.google.Chrome, each with its own PayloadUUID and identifier.',
+    expect: {
+      mustContain: [
+        'com.apple.applicationaccess', '<key>allowAirDrop</key><false/>',
+        '<string>com.google.Chrome</string>', '<key>PasswordManagerEnabled</key><false/>'
+      ],
+      mustNotContainElement: [['string', 'false']],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-zoom-camera-off',
+    profileType: 'mobileconfig',
+    instructions: 'Have Zoom join meetings with the camera off and the microphone muted.',
+    // The trap is Apple's allowCamera, which turns off the camera for every app rather than at join time.
+    expect: {
+      mustContain: ['us.zoom.config', '<key>ZDisableVideo</key><true/>', '<key>MuteVoipWhenJoin</key><true/>'],
+      mustNotContain: ['allowCamera', 'com.apple.applicationaccess', 'zDisableVideo'],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-zoom-sso-url',
+    profileType: 'mobileconfig',
+    instructions: 'Lock Zoom\'s SSO sign-in to our company URL, acme.zoom.us.',
+    // The value is the subdomain alone, per the manifest: "acme", not "acme.zoom.us" or a full URL.
+    expect: {
+      mustContain: ['us.zoom.config', '<key>ForceSSOURL</key><string>acme</string>'],
+      mustNotContain: ['<string>acme.zoom.us</string>', '<string>https://acme.zoom.us'],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-slack-hardware-acceleration',
+    profileType: 'mobileconfig',
+    instructions: 'Turn off hardware acceleration in Slack.',
+    expect: {
+      mustContain: ['com.tinyspeck.slackmacgap', '<key>HardwareAcceleration</key><false/>'],
+      mustNotContain: ['com.tinyspeck.slack<', 'com.slack.Slack', 'DisableHardwareAcceleration'],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-onedrive-known-folders',
+    profileType: 'mobileconfig',
+    instructions: 'Silently move users\' Desktop and Documents folders into OneDrive for our Microsoft 365 tenant 11111111-2222-3333-4444-555555555555.',
+    // The trap is Apple's allowCloudDesktopAndDocuments, which is iCloud's version of the same feature.
+    // OneDriveUpdater shares the "onedrive" keyword and has none of these keys.
+    expect: {
+      mustContain: [
+        'com.microsoft.OneDrive', '<key>KFMSilentOptIn</key><string>11111111-2222-3333-4444-555555555555</string>',
+        '<key>KFMSilentOptInDesktop</key><true/>', '<key>KFMSilentOptInDocuments</key><true/>'
+      ],
+      mustNotContain: ['allowCloudDesktopAndDocuments', 'com.microsoft.OneDriveUpdater'],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-defender-nested-dicts',
+    profileType: 'mobileconfig',
+    instructions: 'In Microsoft Defender for Endpoint, block tampering and automatically send safe samples to Microsoft.',
+    // Every wdav setting lives one dict down (tamperProtection, cloudService), and the values are
+    // lowercase strings rather than booleans.
+    expect: {
+      mustContain: [
+        'com.microsoft.wdav', '<key>tamperProtection</key><dict>', '<key>enforcementLevel</key><string>block</string>',
+        '<key>cloudService</key><dict>', '<key>automaticSampleSubmissionConsent</key><string>safe</string>'
+      ],
+      mustNotContain: ['tamperProtection.enforcementLevel', '<key>tamperProtection</key><true/>', 'com.microsoft.defender', '<string>Block</string>'],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-microsoft-autoupdate',
+    profileType: 'mobileconfig',
+    instructions: 'Set Microsoft AutoUpdate to download and install updates automatically from the Current channel.',
+    expect: {
+      mustContain: ['com.microsoft.autoupdate2', '<key>HowToCheck</key><string>AutomaticDownload</string>', '<key>ChannelName</key><string>Current</string>'],
+      mustNotContain: ['com.apple.SoftwareUpdate', 'com.microsoft.autoupdate<', 'com.microsoft.autoupdate.fba'],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-office-macros',
+    profileType: 'mobileconfig',
+    instructions: 'Block Office macros from running, without prompting users.',
+    // The setting is shared by every Office app, so it belongs in com.microsoft.office rather than one
+    // dict per app.
+    expect: {
+      mustContain: ['com.microsoft.office', '<key>VisualBasicMacroExecutionState</key><string>DisabledWithoutWarnings</string>'],
+      mustNotContain: ['DisabledWithWarnings', 'com.microsoft.Word', 'com.microsoft.Excel'],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-1password-dotted-keys',
+    profileType: 'mobileconfig',
+    instructions: 'Lock 1Password 8 after 10 minutes of inactivity and whenever the Mac locks.',
+    // 1Password's keys are flat strings with dots in them, not a path into nested dicts.
+    expect: {
+      mustContain: ['com.1password.1password', '<key>security.autolock.minutes</key><integer>10</integer>', '<key>security.autolock.onDeviceLock</key><true/>'],
+      mustNotContain: ['<key>security</key><dict>', '<key>autolock</key>', 'com.agilebits.onepassword7'],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-vscode-telemetry',
+    profileType: 'mobileconfig',
+    instructions: 'Turn off telemetry in Visual Studio Code.',
+    // TelemetryLevel is a string enum; "off" is the value, not <false/>.
+    expect: {
+      mustContain: ['com.microsoft.VSCode', '<key>TelemetryLevel</key><string>off</string>'],
+      mustNotContain: ['<key>TelemetryLevel</key><false/>', 'telemetry.telemetryLevel', 'EnableTelemetry'],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-claude-desktop',
+    profileType: 'mobileconfig',
+    instructions: 'Turn off automatic updates and nonessential telemetry in Claude Desktop.',
+    // disableEssentialTelemetry is the lookalike the request does not ask for.
+    expect: {
+      mustContain: ['com.anthropic.claudefordesktop', '<key>disableAutoUpdates</key><true/>', '<key>disableNonessentialTelemetry</key><true/>'],
+      mustNotContain: ['<key>disableEssentialTelemetry</key><true/>', 'DisableAutoUpdates'],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-santa-domain',
+    profileType: 'mobileconfig',
+    instructions: 'Put North Pole Security\'s Santa into Lockdown mode and have it sync with https://santa.acme.com.',
+    // "santa" matches both com.google.santa and com.northpolesec.santa; the request names which one.
+    expect: {
+      mustContain: ['com.northpolesec.santa', '<key>ClientMode</key><integer>2</integer>', '<key>SyncBaseURL</key><string>https://santa.acme.com'],
+      mustNotContain: ['com.google.santa', '<key>ClientMode</key><string>'],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-sap-privileges',
+    profileType: 'mobileconfig',
+    instructions: 'In SAP Privileges, make admin rights expire after 15 minutes and require users to give a reason.',
+    expect: {
+      mustContain: ['corp.sap.privileges', '<key>ExpirationInterval</key><integer>15</integer>', '<key>ReasonRequired</key><true/>'],
+      mustNotContain: ['<key>ExpirationInterval</key><integer>900</integer>', 'com.sap.privileges'],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-alias-microsoft-defender',
+    profileType: 'mobileconfig',
+    instructions: 'Turn on tamper protection in Microsoft Defender and have it block tampering.',
+    expect: {
+      mustContain: ['com.microsoft.wdav', '<key>tamperProtection</key><dict>', '<key>enforcementLevel</key><string>block</string>'],
+      mustNotContain: ['tamperProtection.enforcementLevel', '<key>tamperProtection</key><true/>', 'com.microsoft.defender'],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-alias-vs-code',
+    profileType: 'mobileconfig',
+    instructions: 'Turn off telemetry in VS Code.',
+    expect: {
+      mustContain: ['com.microsoft.VSCode', '<key>TelemetryLevel</key><string>off</string>'],
+      mustNotContain: ['<key>TelemetryLevel</key><false/>', 'telemetry.telemetryLevel'],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-alias-microsoft-365-macros',
+    profileType: 'mobileconfig',
+    instructions: 'Set the macro security level in Microsoft 365 apps so macros are disabled without a warning.',
+    // "microsoft 365 apps" provides both com.microsoft.office and com.microsoft.autoupdate2; only the first has
+    // macro settings.  The request names the security level because VisualBasicEntirelyDisabled also stops macros.
+    expect: {
+      mustContain: ['<string>com.microsoft.office</string>', '<key>VisualBasicMacroExecutionState</key><string>DisabledWithoutWarnings</string>'],
+      mustNotContain: ['com.microsoft.autoupdate2', 'com.microsoft.Word', 'com.microsoft.Excel', 'VBAWarnings'],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-alias-microsoft-365-updates',
+    profileType: 'mobileconfig',
+    instructions: 'Make Microsoft 365 apps download and install their updates automatically.',
+    expect: {
+      mustContain: ['com.microsoft.autoupdate2', '<key>HowToCheck</key><string>AutomaticDownload</string>'],
+      mustNotContain: ['com.apple.SoftwareUpdate'],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-alias-cloudflare-zero-trust',
+    profileType: 'mobileconfig',
+    instructions: 'Register Macs with our Cloudflare Zero Trust organization, acme.  Users will sign in with our identity provider.',
+    // "trust" alone used to match Jamf Trust.  The sign-in sentence is there because the organization key's
+    // description says registration needs an IdP or a service token, and without it the model refused two runs in
+    // three for want of a service token.
+    expect: {
+      mustContain: ['com.cloudflare.warp', '<key>organization</key><string>acme</string>'],
+      mustNotContain: ['com.jamf.trust', '<string>acme.cloudflareaccess.com</string>', 'auth_client_id', 'auth_client_secret'],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-alias-crowdstrike',
+    profileType: 'mobileconfig',
+    instructions: 'License the CrowdStrike sensor with our customer ID 0123456789ABCDEF0123456789ABCDEF-12.',
+    expect: {
+      mustContain: ['com.crowdstrike.falcon', '<key>ccid</key><string>0123456789ABCDEF0123456789ABCDEF-12</string>'],
+      mustNotContain: ['<key>CCID</key>', 'CustomerID'],
+    }
+  },
+  // Ordinary words that are also the names of apps, and no longer keywords on their own (GENERIC_KEYWORDS in
+  // regenerate-apple-third-party-payload-manifests.js).  These check the request is still answered with Apple's
+  // own payload rather than the app's.
+  {
+    id: 'mobileconfig-third-party-keyword-edge-not-microsoft-edge',
+    profileType: 'mobileconfig',
+    instructions: 'Lock the Dock to the left edge of the screen.',
+    expect: {
+      mustContain: ['com.apple.dock', '<key>orientation</key><string>left</string>'],
+      mustNotContain: ['com.microsoft.Edge'],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-keyword-verify-not-okta',
+    profileType: 'mobileconfig',
+    instructions: 'Show "Verify your identity with the IT help desk before signing in" on the login window.',
+    expect: {
+      mustContain: ['com.apple.loginwindow', '<key>LoginwindowText</key><string>Verify your identity with the IT help desk before signing in</string>'],
+      mustNotContain: ['com.okta.mobile', 'com.jamf.connect.verify'],
+    }
+  },
+  {
+    id: 'mobileconfig-third-party-keyword-drive-not-google-drive',
+    profileType: 'mobileconfig',
+    instructions: 'Show "Back up your drive before leaving for the day" on the login window.',
+    // A login-window message rather than a FileVault setting, so the case fails only on the keyword: the
+    // FileVault version failed on Apple's payload choice, as mobileconfig-cis-prevent-filevault-disable does.
+    expect: {
+      mustContain: ['com.apple.loginwindow', '<key>LoginwindowText</key><string>Back up your drive before leaving for the day</string>'],
+      mustNotContain: ['com.google.drivefs'],
+    }
+  },
 
   //  ╔╦╗╔╦╗╔╦╗
   //   ║║ ║║║║║
