@@ -32,7 +32,7 @@ As part of locking an iOS or iPadOS host, Fleet collects the device's location d
 
 If a company-owned Android host is lost or stolen, you can put it in lost mode. The device plays a loud sound and shows the contact details you choose, so whoever finds it knows how to return it.
 
-Lost mode is available in Fleet Free and Fleet Premium. It's only supported on company-owned Android hosts (fully managed, or company-owned with a work profile). Fleet rejects lost mode commands for BYOD hosts.
+Lost mode is available in Fleet Free and Fleet Premium. It's only supported on company-owned (fully managed) Android hosts. Fleet rejects lost mode commands for BYOD hosts.
 
 Lost mode doesn't prevent access to the device. Anyone who knows the device's PIN or password can unlock it and exit lost mode.
 
