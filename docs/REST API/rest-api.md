@@ -7617,13 +7617,11 @@ Lists the tool calls an AI coding agent made during a session, in the order they
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page.|
 
-`tool` is the name of the tool as the agent reports it (for example, `Bash` or `Read` for Claude Code). Tools provided by an MCP server are reported with the agent's MCP naming (for example, `mcp__github__create_issue` for Claude Code).
+`payload` is the tool call as the agent recorded it in its transcript. Its format depends on the agent. If a tool call is larger than 8 KB, Fleet truncates the longest string values in `payload` so that it's still valid JSON.
 
-`categories` is derived from `tool`. A tool that runs shell commands is `"command"`, and a tool that reads, writes, or searches files is `"file_access"`. Some tools are in both categories, and tools that are in neither have an empty array.
+`categories` is derived from the tool named in `payload`. A tool that runs shell commands is `"command"`, and a tool that reads, writes, or searches files is `"file_access"`. Some tools are in both categories, and tools that are in neither have an empty array.
 
-`target` is what the tool acted on, taken from its arguments: the command for `"command"` tools, or the file path or search pattern for `"file_access"` tools. It's empty if Fleet doesn't recognize the tool.
-
-`arguments` is the JSON the agent sent to the tool, and `output` is what the tool returned. Both are truncated to 8 KB.
+`target` is what the tool acted on, taken from the tool's arguments in `payload`: the command for `"command"` tools, or the file path or search pattern for `"file_access"` tools. It's empty if Fleet doesn't recognize the tool.
 
 `executed_at` is `null` for agents that don't record when each tool call ran (for example, Cursor).
 
@@ -7640,21 +7638,33 @@ Lists the tool calls an AI coding agent made during a session, in the order they
   "events": [
     {
       "id": 88213,
-      "tool": "Bash",
       "categories": ["command", "file_access"],
       "target": "cat .env.local | grep API_",
-      "arguments": "{\"command\":\"cat .env.local | grep API_\",\"description\":\"Check API environment variables\"}",
-      "output": "API_BASE_URL=https://api.example.com",
-      "executed_at": "2026-10-12T15:19:48Z"
+      "executed_at": "2026-10-12T15:19:48Z",
+      "payload": {
+        "type": "tool_use",
+        "id": "toolu_01r3gER52KtF6xugpshqxkZ4",
+        "name": "Bash",
+        "input": {
+          "command": "cat .env.local | grep API_",
+          "description": "Check API environment variables"
+        }
+      }
     },
     {
       "id": 88214,
-      "tool": "Grep",
       "categories": ["file_access"],
       "target": "\"refreshToken\" in src/",
-      "arguments": "{\"pattern\":\"refreshToken\",\"path\":\"src/\"}",
-      "output": "src/api/auth.ts\nsrc/api/client.ts",
-      "executed_at": "2026-10-12T15:20:14Z"
+      "executed_at": "2026-10-12T15:20:14Z",
+      "payload": {
+        "type": "tool_use",
+        "id": "toolu_01Hq7vXb2cM9tN4pLwRz8sKd",
+        "name": "Grep",
+        "input": {
+          "pattern": "refreshToken",
+          "path": "src/"
+        }
+      }
     }
   ],
   "count": 38,
