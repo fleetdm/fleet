@@ -150,7 +150,8 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	u2 := test.NewUser(t, ds, "user2", "user2@example.com", false)
 	ctx := viewer.NewContext(noUserCtx, viewer.Viewer{User: u2})
 
-	test.CreateInsertGlobalVPPToken(t, ds)
+	vppTok := test.CreateInsertGlobalVPPToken(t, ds)
+	require.NotNil(t, vppTok)
 
 	// create four hosts
 	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
@@ -239,7 +240,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	// vppCommand1 is now active for h1
 
 	// install the VPP app on h2, self-service
-	err = ds.InsertHostVPPSoftwareInstall(noUserCtx, h2.ID, vppApp.VPPAppID, vppCommand2, "event-id-2", fleet.HostSoftwareInstallOptions{SelfService: true})
+	err = ds.InsertHostVPPSoftwareInstall(noUserCtx, h2.ID, vppApp.VPPAppID, vppCommand2, "event-id-2", fleet.HostSoftwareInstallOptions{SelfService: true, VPPTokenID: vppTok.ID})
 	require.NoError(t, err)
 	// vppCommand2 is now active for h2
 
@@ -505,6 +506,17 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 					require.Equal(t, wantExec, details["command_uuid"], "result %d", i)
 					require.Equal(t, "vpp_no_team_app_1", details["software_title"], "result %d", i)
 					require.Equal(t, !execIDsWithUser[wantExec], details["self_service"], "result %d", i)
+					if wantExec == vppCommand2 {
+						require.Equal(t, map[string]any{
+							"id":           float64(vppTok.ID),
+							"location":     vppTok.Location,
+							"country_code": vppTok.CountryCode,
+						}, details["vpp_token"], "result %d", i)
+					} else {
+						// no token was recorded at queue time
+						require.Contains(t, details, "vpp_token", "result %d", i)
+						require.Nil(t, details["vpp_token"], "result %d", i)
+					}
 					wantUser = u2
 
 				default:

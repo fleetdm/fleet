@@ -701,7 +701,12 @@ func (a *AppleMDM) installSetupExperienceAppsOnIosIpadOS(ctx context.Context, ho
 		}
 		var failActivity fleet.ActivityDetails
 		if isVPPApp {
+			vppToken, tokErr := fleet.ActivityVPPTokenByID(ctx, a.Datastore, app.VPPAppVPPTokenID)
+			if tokErr != nil {
+				a.Log.WarnContext(ctx, "failed to look up VPP token for setup experience install failure activity", "err", tokErr)
+			}
 			failActivity = fleet.ActivityInstalledAppStoreApp{
+				VPPToken:            vppToken,
 				HostID:              host.ID,
 				HostDisplayName:     host.DisplayName(),
 				SoftwareTitle:       app.Name,

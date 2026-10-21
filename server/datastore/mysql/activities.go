@@ -245,7 +245,12 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'command_uuid', ua.execution_id,
 				'self_service', ua.payload->'$.self_service' IS TRUE,
 				'status', 'pending_install',
-				'host_platform', h.platform
+				'host_platform', h.platform,
+				'vpp_token', IF(vt.id IS NULL, NULL, JSON_OBJECT(
+					'id', vt.id,
+					'location', vt.location,
+					'country_code', COALESCE(vt.country_code, '')
+				))
 			) AS details,
 			IF(ua.activated_at IS NULL, 0, 1) as topmost,
 			ua.priority as priority,
@@ -254,6 +259,8 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			upcoming_activities ua
 		INNER JOIN
 			vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
+		LEFT JOIN
+			vpp_tokens vt ON vt.id = vaua.vpp_token_id
 		LEFT OUTER JOIN
 			users u ON ua.user_id = u.id
 		LEFT OUTER JOIN

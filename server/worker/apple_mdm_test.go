@@ -1500,7 +1500,7 @@ INSERT INTO setup_experience_status_results (
 
 	t.Run("emits activity on VPP install failure during setup experience", func(t *testing.T) {
 		mysqltest.SetTestABMAssets(t, ds, testOrgName)
-		test.CreateInsertGlobalVPPToken(t, ds)
+		vppToken := test.CreateInsertGlobalVPPToken(t, ds)
 		defer mysqltest.TruncateTables(t, ds)
 
 		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
@@ -1561,6 +1561,7 @@ VALUES (?, ?, ?, ?)`, h.UUID, vppAppWithTeam.Name, fleet.SetupExperienceStatusPe
 		assert.Equal(t, h.Platform, act.HostPlatform)
 		assert.True(t, act.FromSetupExperience)
 		assert.False(t, act.SelfService)
+		assert.Equal(t, &fleet.ActivityVPPToken{ID: vppToken.ID, Location: vppToken.Location, CountryCode: vppToken.CountryCode}, act.VPPToken)
 	})
 
 	t.Run("installs in-house apps during iOS setup experience", func(t *testing.T) {

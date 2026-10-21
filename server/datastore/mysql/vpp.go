@@ -46,6 +46,7 @@ SELECT
 	vap.latest_version,
 	vat.self_service,
 	vat.id vpp_apps_teams_id,
+	vat.vpp_token_id,
 	vat.name version_name,
 	vat.created_at added_at,
 	IF(vat.update_schedule_enabled = 1 OR vat.start_time != '', vat.update_schedule_enabled, NULL) AS auto_update_enabled,
@@ -786,15 +787,20 @@ WHERE
 
 func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint, existingVPPAppTeamID *uint) (*fleet.VPPApp, error) {
 	var vppTokenID *uint
-	vppToken, err := ds.GetVPPTokenByTeamID(ctx, teamID)
-	if err != nil {
-		if !fleet.IsNotFound(err) || app.Platform != fleet.AndroidPlatform {
-			return nil, ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam unable to get VPP Token ID")
-		}
+	if app.Platform != fleet.AndroidPlatform {
+		vppTokenID = app.VPPTokenID
 	}
+	if vppTokenID == nil {
+		vppToken, err := ds.GetVPPTokenByTeamID(ctx, teamID)
+		if err != nil {
+			if !fleet.IsNotFound(err) || app.Platform != fleet.AndroidPlatform {
+				return nil, ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam unable to get VPP Token ID")
+			}
+		}
 
-	if vppToken != nil && app.Platform != fleet.AndroidPlatform {
-		vppTokenID = &vppToken.ID
+		if vppToken != nil && app.Platform != fleet.AndroidPlatform {
+			vppTokenID = &vppToken.ID
+		}
 	}
 
 	teamName, err := ds.getTeamName(ctx, teamID)
@@ -1240,7 +1246,8 @@ func (ds *Datastore) GetVPPAppMetadataByAdamIDPlatformTeamID(ctx context.Context
 	 va.created_at,
 	 vat.created_at added_at,
 	 va.updated_at,
-	 vat.id
+	 vat.id,
+	 vat.vpp_token_id
 	FROM vpp_apps va
 	JOIN vpp_apps_teams vat ON va.adam_id = vat.adam_id AND va.platform = vat.platform AND vat.global_or_team_id = ?
 	WHERE va.adam_id = ? AND va.platform = ?
@@ -1545,10 +1552,14 @@ SELECT
 	hvsi.policy_id AS policy_id,
 	p.name AS policy_name,
 	h.platform AS platform,
-	COALESCE(vat.name, '') AS version_name
+	COALESCE(vat.name, '') AS version_name,
+	vt.id AS vpp_token_id,
+	COALESCE(vt.location, '') AS vpp_token_location,
+	COALESCE(vt.country_code, '') AS vpp_token_country_code
 FROM
 	host_vpp_software_installs hvsi
 	LEFT OUTER JOIN vpp_apps_teams vat ON vat.id = hvsi.vpp_app_team_id
+	LEFT OUTER JOIN vpp_tokens vt ON vt.id = hvsi.vpp_token_id
 	LEFT OUTER JOIN users u ON hvsi.user_id = u.id
 	LEFT OUTER JOIN hosts h ON h.id = hvsi.host_id
 	LEFT OUTER JOIN host_display_names hdn ON hdn.host_id = hvsi.host_id
@@ -1578,6 +1589,9 @@ WHERE
 		PolicyName          *string `db:"policy_name"`
 		HostPlatform        string  `db:"platform"`
 		VersionName         string  `db:"version_name"`
+		VPPTokenID          *uint   `db:"vpp_token_id"`
+		VPPTokenLocation    string  `db:"vpp_token_location"`
+		VPPTokenCountryCode string  `db:"vpp_token_country_code"`
 	}
 
 	listStmt, args, err := sqlx.Named(stmt, map[string]any{
@@ -1632,6 +1646,13 @@ WHERE
 		Status:              status,
 		HostPlatform:        res.HostPlatform,
 		VersionName:         res.VersionName,
+	}
+	if res.VPPTokenID != nil {
+		act.VPPToken = &fleet.ActivityVPPToken{
+			ID:          *res.VPPTokenID,
+			Location:    res.VPPTokenLocation,
+			CountryCode: res.VPPTokenCountryCode,
+		}
 	}
 
 	return user, act, nil
@@ -1858,7 +1879,6 @@ func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData
 	var countryCode any
 	if tok.CountryCode != "" {
 		countryCode = tok.CountryCode
-		vppTokenDB.CountryCode = tok.CountryCode
 	}
 
 	res, err := ds.writer(ctx).ExecContext(
@@ -1876,9 +1896,7 @@ func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData
 
 	id, _ := res.LastInsertId()
 
-	vppTokenDB.ID = uint(id) //nolint:gosec // dismiss G115
-
-	return vppTokenDB, nil
+	return ds.GetVPPToken(ctxdb.RequirePrimary(ctx, true), uint(id)) //nolint:gosec // dismiss G115
 }
 
 func (ds *Datastore) UpdateVPPToken(ctx context.Context, tokenID uint, tok *fleet.VPPTokenData) (*fleet.VPPTokenDB, error) {
@@ -2043,7 +2061,8 @@ func (ds *Datastore) GetVPPToken(ctx context.Context, tokenID uint) (*fleet.VPPT
 		location,
 		renew_at,
 		token,
-		COALESCE(country_code, '') AS country_code
+		COALESCE(country_code, '') AS country_code,
+		created_at
 	FROM
 		vpp_tokens v
 	WHERE
@@ -2094,6 +2113,7 @@ func (ds *Datastore) GetVPPToken(ctx context.Context, tokenID uint) (*fleet.VPPT
 		RenewDate:   tokEnc.RenewDate,
 		Token:       string(tokDec),
 		CountryCode: tokEnc.CountryCode,
+		CreatedAt:   tokEnc.CreatedAt,
 	}
 
 	if tokTeams == nil {
@@ -2328,7 +2348,8 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, er
 		location,
 		renew_at,
 		token,
-		COALESCE(country_code, '') AS country_code
+		COALESCE(country_code, '') AS country_code,
+		created_at
 	FROM
 		vpp_tokens v
 `
@@ -2379,6 +2400,7 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, er
 			RenewDate:   tokEnc.RenewDate,
 			Token:       string(tokDec),
 			CountryCode: tokEnc.CountryCode,
+			CreatedAt:   tokEnc.CreatedAt,
 		}
 	}
 
@@ -2413,7 +2435,7 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, er
 	}
 
 	slices.SortFunc(outTokens, func(a, b *fleet.VPPTokenDB) int {
-		return cmp.Compare(a.OrgName, b.OrgName)
+		return cmp.Compare(a.ID, b.ID)
 	})
 
 	return outTokens, nil
@@ -2427,7 +2449,8 @@ func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fl
 		v.location,
 		v.renew_at,
 		v.token,
-		COALESCE(v.country_code, '') AS country_code
+		COALESCE(v.country_code, '') AS country_code,
+		v.created_at
 	FROM
 		vpp_token_teams vt
 	INNER JOIN
@@ -2492,6 +2515,7 @@ func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fl
 		RenewDate:   tokEnc.RenewDate,
 		Token:       string(tokDec),
 		CountryCode: tokEnc.CountryCode,
+		CreatedAt:   tokEnc.CreatedAt,
 	}
 
 	if tokTeams == nil {

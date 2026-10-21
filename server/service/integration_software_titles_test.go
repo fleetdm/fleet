@@ -45,7 +45,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		HostIDs: []uint{host.ID},
 	}, http.StatusOK, &addResp)
 
-	s.setVPPTokenForTeam(team.ID)
+	tok := s.setVPPTokenForTeam(team.ID)
 
 	// =========================================
 	//           CUSTOM PACKAGES
@@ -333,7 +333,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 		"software_display_name": "%s"
 	}`,
 		macOSApp.AdamID, stResp.SoftwareTitle.Name, macOSApp.IconURL, string(macOSApp.Platform), team.Name, team.Name, team.ID, team.ID, stResp.SoftwareTitle.ID, *updateAppReq.DisplayName)
-	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), activityData, 0)
+	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), withVPPToken(t, activityData, tok), 0)
 
 	updateAppReq = &updateAppStoreAppRequest{TeamID: &team.ID, SelfService: ptr.Bool(false), DisplayName: ptr.String("MacOSAppStoreAppUpdated2")}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", macOSTitleID), updateAppReq, http.StatusOK, &updateAppResp)

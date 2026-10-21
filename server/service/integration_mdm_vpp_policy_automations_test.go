@@ -193,8 +193,8 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 			http.StatusOK, &addedMacOSApp)
 		s.lastActivityMatches(
 			fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-			fmt.Sprintf(`{"version_name": "Default version", "team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "fleet_id": %d, "platform": "%s", "self_service": false}`, team.Name, team.Name,
-				app.Name, getSoftwareTitleIDFromApp(app), app.AdamID, team.ID, team.ID, app.Platform),
+			withVPPToken(t, fmt.Sprintf(`{"version_name": "Default version", "team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "fleet_id": %d, "platform": "%s", "self_service": false}`, team.Name, team.Name,
+				app.Name, getSoftwareTitleIDFromApp(app), app.AdamID, team.ID, team.ID, app.Platform), validToken.Token),
 			0,
 		)
 		listSw = listSoftwareTitlesResponse{}
@@ -551,7 +551,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	assert.EqualValues(t, 1, hostActivitiesResp.Count)
 	assert.JSONEq(
 		t,
-		fmt.Sprintf(
+		withVPPToken(t, fmt.Sprintf(
 			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "software_display_name": null, "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "host_platform": "%s"}`,
 			mdmHost.ID,
 			mdmHost.DisplayName(),
@@ -561,7 +561,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 			fleet.SoftwareInstallPending,
 			false,
 			mdmHost.Platform,
-		),
+		), validToken.Token),
 		string(*hostActivitiesResp.Activities[0].Details),
 	)
 
@@ -597,7 +597,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 
 	s.lastActivityMatchesExtended(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(
+		withVPPToken(t, fmt.Sprintf(
 			`{"version_name": "Default version", "host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "policy_id": %d, "policy_name": "%s", "host_platform": "%s", "from_setup_experience": false, "from_auto_update": false, "from_configuration_resend": false}`,
 			mdmHost.ID,
 			mdmHost.DisplayName(),
@@ -609,7 +609,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 			policy1Team1.ID,
 			policy1Team1.Name,
 			mdmHost.Platform,
-		),
+		), validToken.Token),
 		0,
 		new(true),
 	)
@@ -672,7 +672,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	assert.EqualValues(t, 1, hostActivitiesResp.Count)
 	assert.JSONEq(
 		t,
-		fmt.Sprintf(
+		withVPPToken(t, fmt.Sprintf(
 			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "software_display_name": null, "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "host_platform": "%s"}`,
 			mdmHost2.ID,
 			mdmHost2.DisplayName(),
@@ -682,7 +682,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 			fleet.SoftwareInstallPending,
 			false,
 			mdmHost2.Platform,
-		),
+		), validToken.Token),
 		string(*hostActivitiesResp.Activities[0].Details),
 	)
 
@@ -715,7 +715,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 
 	s.lastActivityMatchesExtended(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(
+		withVPPToken(t, fmt.Sprintf(
 			`{"version_name": "Default version", "host_id": %d, "host_display_name": "%s", "host_platform": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v, "policy_id": %d, "policy_name": "%s", "from_setup_experience": false, "from_auto_update": false, "from_configuration_resend": false}`,
 			mdmHost2.ID,
 			mdmHost2.DisplayName(),
@@ -727,7 +727,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 			false,
 			policy3Team1.ID,
 			policy3Team1.Name,
-		),
+		), validToken.Token),
 		0,
 		new(true),
 	)

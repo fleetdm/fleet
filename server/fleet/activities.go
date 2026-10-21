@@ -1716,6 +1716,9 @@ type ActivityAddedAppStoreApp struct {
 	AutoUpdateStartTime *string                   `json:"auto_update_window_start,omitempty"`
 	AutoUpdateEndTime   *string                   `json:"auto_update_window_end,omitempty"`
 	VersionName         string                    `json:"version_name"`
+
+	// VPPToken is the token the app was added from. Nil for Google Play apps.
+	VPPToken *ActivityVPPToken `json:"vpp_token"`
 }
 
 func (a ActivityAddedAppStoreApp) ActivityName() string {
@@ -1761,6 +1764,9 @@ type ActivityInstalledAppStoreApp struct {
 	FailureReason           string  `json:"failure_reason,omitempty"`
 	FromConfigurationResend bool    `json:"from_configuration_resend"`
 	VersionName             string  `json:"version_name,omitempty"`
+
+	// VPPToken is the token the install used. Nil for Google Play apps and after the token is deleted.
+	VPPToken *ActivityVPPToken `json:"vpp_token"`
 }
 
 func (a ActivityInstalledAppStoreApp) HostIDs() []uint {
@@ -1804,6 +1810,9 @@ type ActivityEditedAppStoreApp struct {
 	AutoUpdateStartTime *string                   `json:"auto_update_window_start,omitempty"`
 	AutoUpdateEndTime   *string                   `json:"auto_update_window_end,omitempty"`
 	VersionName         string                    `json:"version_name"`
+
+	// VPPToken is the token the app was added from. Nil for Google Play apps.
+	VPPToken *ActivityVPPToken `json:"vpp_token"`
 }
 
 func (a ActivityEditedAppStoreApp) ActivityName() string {
