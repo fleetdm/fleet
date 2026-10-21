@@ -4346,3 +4346,35 @@ func TestStagedUploadAvailable(t *testing.T) {
 		require.Equal(t, c.want, svc.StagedUploadAvailable(ctx), "%+v", c)
 	}
 }
+
+func TestValidateVPPAssignmentsManyTokensPerFleet(t *testing.T) {
+	ds := new(mock.Store)
+	ds.TeamsSummaryFunc = func(context.Context) ([]*fleet.TeamSummary, error) {
+		return []*fleet.TeamSummary{{ID: 1, Name: "Workstations"}}, nil
+	}
+	ds.ListVPPTokensFunc = func(context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{{ID: 1, Location: "HQ"}, {ID: 2, Location: "EU"}}, nil
+	}
+	svc := &Service{ds: ds}
+	lic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+
+	t.Run("a fleet under two tokens passes", func(t *testing.T) {
+		invalid := &fleet.InvalidArgumentError{}
+		got, err := svc.validateVPPAssignments(t.Context(), []fleet.MDMAppleVolumePurchasingProgramInfo{
+			{Location: "HQ", Teams: []string{"Workstations", fleet.TeamNameNoTeam}},
+			{Location: "EU", Teams: []string{"Workstations", fleet.TeamNameNoTeam}},
+		}, invalid, lic)
+		require.NoError(t, err)
+		require.False(t, invalid.HasErrors())
+		require.Equal(t, map[uint][]uint{1: {1, 0}, 2: {1, 0}}, got)
+	})
+
+	t.Run("All fleets can't mix with other fleets on one token", func(t *testing.T) {
+		invalid := &fleet.InvalidArgumentError{}
+		_, err := svc.validateVPPAssignments(t.Context(), []fleet.MDMAppleVolumePurchasingProgramInfo{
+			{Location: "HQ", Teams: []string{fleet.DisplayNameAllTeams, "Workstations"}},
+		}, invalid, lic)
+		require.NoError(t, err)
+		require.True(t, invalid.HasErrors())
+	})
+}

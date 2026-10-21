@@ -27,6 +27,8 @@ type VPPAppTeam struct {
 
 	AppTeamID   uint `db:"id" json:"-"`
 	SelfService bool `db:"self_service" json:"self_service"`
+	// VPPTokenID is the VPP token the app was added from on this fleet. Nil for Google Play apps.
+	VPPTokenID *uint `db:"vpp_token_id" json:"-"`
 	// VersionName is the name of this version of the app on the fleet. Empty means DefaultAppStoreAppVersionName.
 	VersionName string `db:"version_name" json:"-"`
 
@@ -215,15 +217,6 @@ type VPPAppStatusSummary struct {
 	Failed uint `json:"failed" db:"failed"`
 }
 
-type ErrVPPTokenTeamConstraint struct {
-	Name string
-	ID   *uint
-}
-
-func (e ErrVPPTokenTeamConstraint) Error() string {
-	return fmt.Sprintf("Error: %q team already has a VPP token. Each team can only have one VPP token.", e.Name)
-}
-
 // HostVPPSoftwareInstall represents a VPP software install attempt on a host.
 type HostVPPSoftwareInstall struct {
 	InstallCommandUUID   string     `db:"command_uuid"`
@@ -399,6 +392,8 @@ type VPPInstallReleaseInfo struct {
 	AdamID                string
 	AssociatedEventID     string
 	HasOtherActiveInstall bool
+	// VPPTokenID is the token that assigned the license. Nil when unknown.
+	VPPTokenID *uint
 }
 
 type DuplicateStringGroup struct {

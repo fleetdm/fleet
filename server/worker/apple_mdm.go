@@ -652,8 +652,9 @@ func (a *AppleMDM) installSetupExperienceAppsOnIosIpadOS(ctx context.Context, ho
 			vppApp := &fleet.VPPApp{
 				TitleID: *app.SoftwareTitleID,
 				VPPAppTeam: fleet.VPPAppTeam{
-					VPPAppID:  *vppAppID,
-					AppTeamID: ptr.ValOrZero(app.VPPAppTeamID),
+					VPPAppID:   *vppAppID,
+					AppTeamID:  ptr.ValOrZero(app.VPPAppTeamID),
+					VPPTokenID: app.VPPAppVPPTokenID,
 				},
 			}
 			opts := fleet.HostSoftwareInstallOptions{
@@ -739,12 +740,11 @@ func (a *AppleMDM) installSoftwareFromVPP(ctx context.Context, host *fleet.Host,
 	if a.VPPInstaller == nil {
 		return "", errors.New("VPP installer not configured")
 	}
-	token, err := a.VPPInstaller.GetVPPTokenIfCanInstallVPPApps(ctx, appleDevice, host)
-	if err != nil {
+	if err := a.VPPInstaller.CheckCanInstallVPPApps(ctx, appleDevice, host); err != nil {
 		return "", err
 	}
 
-	return a.VPPInstaller.InstallVPPAppPostValidation(ctx, host, vppApp, token, opts)
+	return a.VPPInstaller.InstallVPPAppPostValidation(ctx, host, vppApp, opts)
 }
 
 func (a *AppleMDM) installBootstrapPackage(ctx context.Context, hostUUID string, teamID *uint) (string, error) {
