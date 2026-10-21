@@ -135,7 +135,7 @@ If your network restricts egress, allow the Fleet server to reach these destinat
 
 | Destination | Used for | When |
 |---|---|---|
-| `fleetdm.com/api/android/*` | Android MDM. Fleet calls the [Android Management API](https://developers.google.com/android/management) through this proxy, so the Fleet server doesn't need to reach Google. Allowlist the whole prefix. | Android MDM is turned on |
+| `fleetdm.com/api/android/*` | Android MDM. Fleet calls the [Android Management API](https://developers.google.com/android/management) through this proxy, so the Fleet server doesn't need to reach Google. See [Android endpoints](#android-endpoints). | Android MDM is turned on |
 | `fleetdm.com/api/v1/microsoft-compliance-partner*` | [Microsoft Entra conditional access](https://fleetdm.com/guides/entra-conditional-access-integration). Fleet reaches Entra through this proxy. | Entra conditional access is set up |
 | `fleetdm.com/api/v1/deliver-apple-csr` | Getting a signed certificate signing request (CSR) for an Apple Push Notification service (APNs) certificate. | Turning on Apple MDM or renewing APNs |
 | `fleetdm.com/api/vpp/v1/*` | App Store app details, like names, icons, and versions. | App Store (VPP) apps are added |
@@ -144,6 +144,26 @@ If your network restricts egress, allow the Fleet server to reach these destinat
 | `maintained-apps.fleetdm.com` | The Fleet-maintained apps catalog. Fleet also downloads each app's installer from its vendor's URL. | Fleet Premium |
 | `raw.githubusercontent.com/fleetdm/fleet/*` | A fallback for the Fleet-maintained apps catalog. | If `maintained-apps.fleetdm.com` is unreachable |
 | `download.fleetdm.com` | Installing Fleet's agent (fleetd) on Windows hosts with MDM. | Windows MDM is turned on |
+
+##### Android endpoints
+
+Allowlist the whole `fleetdm.com/api/android/*` prefix, because new endpoints are added over time. Current endpoints:
+
+- `POST /api/android/v1/signupUrls`
+- `POST /api/android/v1/enterprises`
+- `GET /api/android/v1/enterprises`
+- `DELETE /api/android/v1/enterprises/:enterpriseId`
+- `POST /api/android/v1/enterprises/:enterpriseId/enrollmentTokens`
+- `PATCH /api/android/v1/enterprises/:enterpriseId/policies/:policyId`
+- `POST /api/android/v1/enterprises/:enterpriseId/policies/:policyId::action`
+- `GET /api/android/v1/enterprises/:enterpriseId/devices`
+- `GET /api/android/v1/enterprises/:enterpriseId/devices/:deviceId`
+- `PATCH /api/android/v1/enterprises/:enterpriseId/devices/:deviceId`
+- `DELETE /api/android/v1/enterprises/:enterpriseId/devices/:deviceId`
+- `POST /api/android/v1/enterprises/:enterpriseId/devices/:deviceId::issueCommand`
+- `GET /api/android/v1/enterprises/:enterpriseId/devices/:deviceId/operations/:operationId`
+- `GET /api/android/v1/enterprises/:enterpriseId/applications/:applicationId`
+- `POST /api/android/v1/enterprises/:enterpriseId/webApps`
 
 #### Vulnerability processing
 
