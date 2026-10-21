@@ -316,7 +316,6 @@ func TestNewEJBCACertificateAuthority(t *testing.T) {
 	})
 
 	t.Run("the name is used by another CA", func(t *testing.T) {
-		t.Parallel()
 		env := newEJBCATestEnv(t, nil)
 		env.ds.NewCertificateAuthorityFunc = func(context.Context, *fleet.CertificateAuthority) (*fleet.CertificateAuthority, error) {
 			return nil, fleet.EJBCANameInUseError{Name: "EJBCA_WIFI"}

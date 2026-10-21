@@ -916,7 +916,6 @@ func testEditResendsProfiles(t *testing.T, ds *Datastore) {
 	}
 }
 
-// newEJBCACA creates an EJBCA CA with the given common name template, optional username template and UPNs.
 // testEJBCANamesAreUnique checks that the name of an EJBCA CA can't be shared with a CA of any other type, however the CAs are written,
 // and that CAs of the other types that already share a name are not affected.
 func testEJBCANamesAreUnique(t *testing.T, ds *Datastore) {
@@ -995,6 +994,7 @@ func testEJBCANamesAreUnique(t *testing.T, ds *Datastore) {
 	})
 }
 
+// newEJBCACA creates an EJBCA CA with the given common name template, optional username template and UPNs.
 func newEJBCACA(t *testing.T, ds *Datastore, name, commonName string, usernameTemplate *string, upns *[]string,
 ) *fleet.CertificateAuthority {
 	ca, err := ds.NewCertificateAuthority(t.Context(), &fleet.CertificateAuthority{
