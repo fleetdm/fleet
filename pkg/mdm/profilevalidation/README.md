@@ -183,6 +183,7 @@ loosen:
 ```
 
 - The target must exist upstream: the key at `key_path` for Apple, or the node at `loc_uri` for Windows. If it's renamed or removed, generation fails so someone can look.
+- A Windows target must be a setting. Interior nodes (`format: node`) can't be loosened.
 - `action: types` adds the listed types to the key's type or the node's format. It never replaces it, so the target still accepts what upstream allows. The values must come from the entry's own vocabulary:
   - Apple: `string`, `integer`, `real`, `boolean`, `date`, `data`, `array`, `dictionary`.
   - Windows: `int`, `chr`, `bool`, `b64`, `xml`, `null`, `bin`, `time`, `date`, `float`.

@@ -404,6 +404,9 @@ func (a *overrideApplier) loosenWindows(e overrideEntry) error {
 	if n == nil {
 		return errors.New("loc_uri not found; Microsoft may have renamed or removed it")
 	}
+	if slices.Contains(n.Format, profilevalidation.WindowsFormatNode) {
+		return errors.New("loc_uri is an interior node (format node); loosen applies to settings only")
+	}
 	if e.Action == "any" {
 		// "Any value" must not stay narrowed by value constraints, including ones added to
 		// WindowsNode later, so keep only what describes the node rather than its value.

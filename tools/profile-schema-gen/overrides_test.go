@@ -245,6 +245,7 @@ func TestApplyOverridesWindowsLoosen(t *testing.T) {
 			Format: formats("int"), Scope: "device", Source: ddf, Enum: []string{"0", "1"}, Delimiter: "|",
 			MinBuild: []string{"10.0.16299"}, Deprecated: &profilevalidation.WindowsDeprecated{Build: "10.0.22000"},
 		},
+		"./Vendor/MSFT/Firewall/MdmStore/FirewallRules/*": {Format: formats("node"), Scope: "device", Source: ddf, RegEx: "^[^|/]*$"},
 		"./User/Vendor/MSFT/Policy/Config/Example/Constrained": {
 			Format: formats("chr"), Scope: "user", Source: ddf, RegEx: "^a$", Flag: []string{"0x1"}, XSD: "abc", ADMXBacked: true,
 		},
@@ -274,10 +275,20 @@ loosen:
 loosen:
   - {kind: windows, loc_uri: ./Device/Vendor/MSFT/Policy/Config/Example/Missing, action: any, reason: r}
   - {kind: windows, loc_uri: ./Vendor/MSFT/Firewall/MdmStore/FirewallRules/MyRule/Action/Type, action: any, reason: r}
+  - {kind: windows, loc_uri: ./Vendor/MSFT/Firewall/MdmStore/FirewallRules/*, action: types, types: [chr], reason: r}
 `)
 	require.ErrorContains(t, err, "loosen[0] (windows ./Device/Vendor/MSFT/Policy/Config/Example/Missing ): loc_uri not found; Microsoft may have renamed or removed it")
 	// Matching is exact: an instance path doesn't resolve to its "*" node.
 	require.ErrorContains(t, err, "loosen[1] (windows ./Vendor/MSFT/Firewall/MdmStore/FirewallRules/MyRule/Action/Type ): loc_uri not found")
+	// Interior nodes aren't settings: neither action applies, and the node is left as is.
+	require.ErrorContains(t, err, "loosen[2] (windows ./Vendor/MSFT/Firewall/MdmStore/FirewallRules/* ): loc_uri is an interior node (format node); loosen applies to settings only")
+	err = applyYAML(t, s, `
+loosen:
+  - {kind: windows, loc_uri: ./Vendor/MSFT/Firewall/MdmStore/FirewallRules/*, action: any, reason: r}
+`)
+	require.ErrorContains(t, err, "loosen[0] (windows ./Vendor/MSFT/Firewall/MdmStore/FirewallRules/* ): loc_uri is an interior node")
+	assert.JSONEq(t, `{"format": "node", "scope": "device", "source": "windows", "regex": "^[^|/]*$"}`,
+		jsonOf(t, s.Windows["./Vendor/MSFT/Firewall/MdmStore/FirewallRules/*"]))
 }
 
 func TestApplyOverridesWindowsLoosenWritesOutput(t *testing.T) {
