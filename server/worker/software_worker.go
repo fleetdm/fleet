@@ -426,12 +426,31 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 		return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
 	}
 
-	configsByAppID, err = v.substituteFleetVarsInConfigs(ctx, configsByAppID, androidHostToSubstitutionHost(androidHost))
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "substitute fleet vars in app configs")
+	// Substitute per app, so that an app this host can't supply a referenced value for
+	// doesn't keep the rest from replacing the previous enrollment's apps, nor the device
+	// from moving to its host policy. Whichever value is missing has its own resend trigger.
+	substitutionHost := androidHostToSubstitutionHost(androidHost)
+	availableAppIDs := make([]string, 0, len(appIDs))
+	for _, appID := range appIDs {
+		config, ok := configsByAppID[appID]
+		if !ok {
+			availableAppIDs = append(availableAppIDs, appID)
+			continue
+		}
+		substituted, err := v.substituteFleetVarsInConfigs(ctx, map[string][]byte{appID: config}, substitutionHost)
+		if err != nil {
+			if isUnresolvableAndroidAppConfigForHost(err) {
+				v.Log.WarnContext(ctx, "skipping android app for host that can't supply a value referenced by its config",
+					"host_uuid", hostUUID, "application_id", appID, "err", err)
+				continue
+			}
+			return ctxerr.Wrap(ctx, err, "substitute fleet vars in app configs")
+		}
+		configsByAppID[appID] = substituted[appID]
+		availableAppIDs = append(availableAppIDs, appID)
 	}
 
-	appPolicies, err := buildApplicationPolicyWithConfig(ctx, appIDs, configsByAppID, "AVAILABLE")
+	appPolicies, err := buildApplicationPolicyWithConfig(ctx, availableAppIDs, configsByAppID, "AVAILABLE")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building application policies with config")
 	}

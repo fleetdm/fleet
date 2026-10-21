@@ -1106,6 +1106,87 @@ func TestResendVPPAppConfiguration(t *testing.T) {
 	require.Empty(t, installer.installedAppTeamIDByHostID)
 }
 
+// An app whose configuration references a value the host can't supply must not keep the
+// host's other apps from replacing the previous enrollment's, nor the device from moving to
+// its host policy.
+func TestMakeAndroidAppsAvailableForHostSkipsUnresolvableAppConfig(t *testing.T) {
+	const (
+		hostUUID       = "host-uuid"
+		enterpriseName = "enterprises/test"
+	)
+	defaultPolicyID := fmt.Sprint(android.DefaultAndroidPolicyID)
+
+	cases := []struct {
+		name         string
+		expandErr    error
+		wantErr      bool
+		wantPackages []string
+	}{
+		{
+			name:         "missing custom host vital value",
+			expandErr:    &fleet.MissingCustomHostVitalValueError{MissingIDs: []uint{7}, MissingNames: []string{"Asset tag"}},
+			wantPackages: []string{"com.example.noconfig", "com.fleetdm.agent"},
+		},
+		{
+			name:      "other substitution error",
+			expandErr: errors.New("database is down"),
+			wantErr:   true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, uuid string) (*fleet.AndroidHost, error) {
+				return &fleet.AndroidHost{Host: &fleet.Host{ID: 1, UUID: uuid, Platform: "android"}, Device: &android.Device{DeviceID: "device-id"}}, nil
+			}
+			ds.ResetMDMAndroidHostProfilesForRedeliveryFunc = func(ctx context.Context, uuid string) error { return nil }
+			ds.GetAndroidAppsInScopeForHostFunc = func(ctx context.Context, hostID uint) ([]fleet.VPPAppTeam, error) {
+				return []fleet.VPPAppTeam{{AdamID: "com.example.vital", AppTeamID: 1}, {AdamID: "com.example.noconfig", AppTeamID: 2}}, nil
+			}
+			ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, vppAppTeamIDs []uint) (map[string][]byte, error) {
+				return map[string][]byte{"com.example.vital": []byte(`{"managedConfiguration":{"assetTag":"$FLEET_HOST_VITAL_7"}}`)}, nil
+			}
+			ds.ExpandCustomHostVitalsFunc = func(ctx context.Context, hostID uint, document string) (string, error) {
+				return "", c.expandErr
+			}
+
+			var setPackages []string
+			var devicePatched bool
+			androidModule := &mockAndroidModule{
+				buildFleetAgentApplicationPolicyFunc: func(ctx context.Context, hostUUID string) (*androidmanagement.ApplicationPolicy, error) {
+					return &androidmanagement.ApplicationPolicy{PackageName: "com.fleetdm.agent"}, nil
+				},
+				patchPolicyFunc: func(ctx context.Context, policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (bool, error) {
+					return false, nil
+				},
+				setAppsForAndroidPolicyFunc: func(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) error {
+					for _, p := range appPolicies {
+						setPackages = append(setPackages, p.PackageName)
+					}
+					return nil
+				},
+				patchDeviceFunc: func(ctx context.Context, policyID, deviceName string, device *androidmanagement.Device) (bool, error) {
+					devicePatched = true
+					return false, nil
+				},
+			}
+			w := &SoftwareWorker{Datastore: ds, AndroidModule: androidModule, Log: slog.New(slog.DiscardHandler)}
+
+			err := w.makeAndroidAppsAvailableForHost(t.Context(), hostUUID, 1, enterpriseName, defaultPolicyID)
+			if c.wantErr {
+				require.Error(t, err)
+				require.Nil(t, setPackages)
+				require.False(t, devicePatched)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, c.wantPackages, setPackages)
+			require.True(t, devicePatched)
+		})
+	}
+}
+
 // Moving a host off the default policy replaces every setting of its host-specific policy,
 // which a re-enrolled host reuses and the reconciler may already have filled, so the host's
 // profiles must be queued for redelivery after the patch. The device must only be moved to
