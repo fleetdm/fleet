@@ -89,21 +89,22 @@ func allFields(ifv reflect.Value) []fieldPair {
 // an error about a request refers to something the caller can find in the
 // payload they sent rather than to Fleet's internal Go field name.
 //
-// Falls back to the Go field name when the field carries no usable json tag,
-// which is the best available name in that case.
+// Falls back to the Go field name when the field carries no usable json or
+// query tag, which is the best available name in that case.
 func requestFieldName(sf reflect.StructField) string {
-	jsonTag, ok := sf.Tag.Lookup("json")
-	if !ok {
-		return sf.Name
+	for _, key := range []string{"json", "query"} {
+		tag, ok := sf.Tag.Lookup(key)
+		if !ok {
+			continue
+		}
+
+		// Strip options such as ",omitempty" or ",optional".
+		if name, _, _ := strings.Cut(tag, ","); name != "" && name != "-" {
+			return name
+		}
 	}
 
-	// Strip options such as ",omitempty".
-	name, _, _ := strings.Cut(jsonTag, ",")
-	if name == "" || name == "-" {
-		return sf.Name
-	}
-
-	return name
+	return sf.Name
 }
 
 // sentFieldName is requestFieldName for a field that may have been renamed.
