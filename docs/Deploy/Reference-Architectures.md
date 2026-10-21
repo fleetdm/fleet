@@ -127,6 +127,41 @@ Environment="NO_PROXY=localhost,127.0.0.1,::1"
 
 > Note: If HTTP_PROXY/HTTPS_PROXY points at a loopback or private address, Fleet's private network blocking may block it. See [server_allow_private_network_integrations](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-allow-private-network-integrations).
 
+### Outbound connections
+
+If your network restricts egress, allow the Fleet server to reach these destinations over HTTPS (port 443). Each one is only needed if you use the feature next to it.
+
+#### fleetdm.com
+
+| Destination | Used for |
+|---|---|
+| `https://fleetdm.com/api/android/*` | Android MDM. Fleet calls the [Android Management API](https://developers.google.com/android/management) through this proxy. See [Android routes](#android-routes). |
+| `https://fleetdm.com/api/vpp/v1/*` | App Store (VPP) apps. Fleet gets App Store app details, like names, icons, and versions. |
+| `https://fleetdm.com/api/v1/webhooks/receive-usage-analytics` | [Usage statistics](https://fleetdm.com/guides/fleet-usage-statistics), if enabled. |
+| `https://fleetdm.com/api/v1/get-human-interpretation-from-osquery-sql` | Autofilling a policy's description and resolution in the Fleet UI. |
+
+##### Android routes
+
+Allowlist the `/api/android/*` prefix, not individual routes, because new routes are added over time. The Fleet server doesn't call Google directly for Android. fleetdm.com calls the Android Management API, and Google sends notifications to the Fleet server at `/api/*/fleet/android_enterprise/pubsub` (inbound, see [Which API endpoints to expose to the public internet?](https://fleetdm.com/guides/what-api-endpoints-to-expose-to-the-public-internet#android)).
+
+Current routes:
+
+- `POST /api/android/v1/signupUrls`
+- `POST /api/android/v1/enterprises`
+- `GET /api/android/v1/enterprises`
+- `DELETE /api/android/v1/enterprises/:enterpriseId`
+- `POST /api/android/v1/enterprises/:enterpriseId/enrollmentTokens`
+- `PATCH /api/android/v1/enterprises/:enterpriseId/policies/:policyId`
+- `POST /api/android/v1/enterprises/:enterpriseId/policies/:policyId::action`
+- `GET /api/android/v1/enterprises/:enterpriseId/devices`
+- `GET /api/android/v1/enterprises/:enterpriseId/devices/:deviceId`
+- `PATCH /api/android/v1/enterprises/:enterpriseId/devices/:deviceId`
+- `DELETE /api/android/v1/enterprises/:enterpriseId/devices/:deviceId`
+- `POST /api/android/v1/enterprises/:enterpriseId/devices/:deviceId::issueCommand`
+- `GET /api/android/v1/enterprises/:enterpriseId/devices/:deviceId/operations/:operationId`
+- `GET /api/android/v1/enterprises/:enterpriseId/applications/:applicationId`
+- `POST /api/android/v1/enterprises/:enterpriseId/webApps`
+
 ## Public IPs of devices
 
 Fleet attempts to deduce the public IP of devices from well-known HTTP headers received on requests made by Fleet's agent (fleetd).
