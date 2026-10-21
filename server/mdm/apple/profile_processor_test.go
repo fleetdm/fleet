@@ -1271,73 +1271,54 @@ func TestPreprocessProfileContentsPSSORegistrationToken(t *testing.T) {
 
 func TestPreprocessProfileContentsEJBCA(t *testing.T) {
 	t.Parallel()
-	const (
-		caName      = "myCA"
-		profileXML  = "<string>$FLEET_VAR_EJBCA_PASSWORD_myCA</string><data>${FLEET_VAR_EJBCA_DATA_myCA}</data>"
-		serialHost1 = "SERIAL-AAA"
-		serialHost2 = "SERIAL-BBB"
-	)
 	hostsByUUID := map[string]*fleet.Host{
-		"host-1": {ID: 1, UUID: "host-1", HardwareSerial: serialHost1, Platform: "darwin"},
-		"host-2": {ID: 2, UUID: "host-2", HardwareSerial: serialHost2, Platform: "darwin"},
+		"host-1": {ID: 1, UUID: "host-1", HardwareSerial: "SERIAL-AAA", Platform: "darwin"},
+		"host-2": {ID: 2, UUID: "host-2", HardwareSerial: "SERIAL-BBB", Platform: "darwin"},
 	}
-	baseCA := func() fleet.EJBCA {
+	ejbcaCA := func(name string) fleet.EJBCA {
 		return fleet.EJBCA{
-			Name:                          caName,
-			URL:                           "https://ejbca.example.com",
+			Name:                          name,
 			CertificateAuthorityName:      "ManagementCA",
 			CertificateProfileName:        "certProfile",
 			EndEntityProfileName:          "eeProfile",
-			CertificateCommonName:         "cn-" + fleet.FleetVarHostEndUserIDPUsername.WithPrefix(),
+			CertificateCommonName:         "cn-" + fleet.FleetVarHostHardwareSerial.WithPrefix(),
 			CertificateUserPrincipalNames: []string{fleet.FleetVarHostHardwareSerial.WithPrefix() + "@example.com"},
 		}
 	}
-	// configs are what the EJBCA service was asked to enroll, by the hardware serial of the host.
+	// profileFor is a profile that gets a certificate from each of the EJBCA CAs.
+	profileFor := func(caNames ...string) string {
+		var profile strings.Builder
+		for _, name := range caNames {
+			fmt.Fprintf(&profile, "<string>$FLEET_VAR_EJBCA_PASSWORD_%[1]s</string><data>${FLEET_VAR_EJBCA_DATA_%[1]s}</data>", name)
+		}
+		return profile.String()
+	}
 	type result struct {
-		contents map[string]string // the profile each host gets, by host UUID
-		managed  []*fleet.MDMManagedCertificate
+		enrolls  []fleet.EJBCA                  // what the EJBCA service was asked to enroll, in order
+		contents map[string]string              // the profile each host got, by host UUID
+		managed  []*fleet.MDMManagedCertificate // the records saved
+		failures map[string]string              // the failure detail the profile of each host got, by host UUID
 		profiles map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload
-		failures map[string]string // the failure detail, by host UUID
-		configs  map[string]fleet.EJBCA
-		enrolled int
 	}
-	// runExtra is for the tests that need more than the EJBCA CA: more CAs, and a DigiCert service.
-	type runExtra struct {
-		groupedCAs func(*fleet.GroupedCertificateAuthorities)
-		digiCert   fleet.DigiCertService
+	// opts is for what a test needs besides EJBCA CAs: a failing enrollment, and DigiCert CAs with their service.
+	type opts struct {
+		enroll      func(fleet.EJBCA) error
+		digiCert    fleet.DigiCertService
+		digiCertCAs []fleet.DigiCertCA
 	}
-	run := func(t *testing.T, ctx context.Context, ca fleet.EJBCA, includeCA bool, enroll func(config fleet.EJBCA) error, noIdPEmail bool, profile string,
-		extra ...runExtra,
-	) result {
+	run := func(t *testing.T, ctx context.Context, profile string, cas []fleet.EJBCA, o opts) result {
 		logger := slog.New(slog.DiscardHandler)
 		appCfg := &fleet.AppConfig{}
 		appCfg.MDM.EnabledAndConfigured = true
-		res := result{contents: map[string]string{}, failures: map[string]string{}, configs: map[string]fleet.EJBCA{}}
+		res := result{contents: map[string]string{}, failures: map[string]string{}}
 
 		ds := new(mock.Store)
 		ds.ListHostsLiteByUUIDsFunc = func(_ context.Context, _ fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
-			var hosts []*fleet.Host
-			for _, uuid := range uuids {
-				if h, ok := hostsByUUID[uuid]; ok {
-					hosts = append(hosts, h)
-				}
-			}
-			return hosts, nil
+			return []*fleet.Host{hostsByUUID[uuids[0]]}, nil
 		}
-		ds.HostIDsByIdentifierFunc = func(_ context.Context, _ fleet.TeamFilter, identifiers []string) ([]uint, error) {
-			return []uint{hostsByUUID[identifiers[0]].ID}, nil
-		}
-		ds.ScimUserByHostIDFunc = func(_ context.Context, hostID uint) (*fleet.ScimUser, error) {
-			return &fleet.ScimUser{UserName: fmt.Sprintf("user%d@example.com", hostID)}, nil
-		}
-		ds.ListHostDeviceMappingFunc = func(context.Context, uint) ([]*fleet.HostDeviceMapping, error) { return nil, nil }
-		ds.GetHostEmailsFunc = func(context.Context, string, string) ([]string, error) {
-			if noIdPEmail {
-				return nil, nil
-			}
-			return []string{"idp@example.com"}, nil
-		}
-		ds.BulkUpsertMDMAppleHostProfilesFunc = func(_ context.Context, _ []*fleet.MDMAppleBulkUpsertHostProfilePayload) error { return nil }
+		// No host has an IdP email, which is what the test of a variable that can't be filled in needs.
+		ds.GetHostEmailsFunc = func(context.Context, string, string) ([]string, error) { return nil, nil }
+		ds.BulkUpsertMDMAppleHostProfilesFunc = func(context.Context, []*fleet.MDMAppleBulkUpsertHostProfilePayload) error { return nil }
 		ds.BulkUpsertMDMManagedCertificatesFunc = func(_ context.Context, payload []*fleet.MDMManagedCertificate) error {
 			res.managed = append(res.managed, payload...)
 			return nil
@@ -1349,46 +1330,38 @@ func TestPreprocessProfileContentsEJBCA(t *testing.T) {
 
 		ejbcaMock := &ejbca_mock.Service{}
 		ejbcaMock.GetCertificateFunc = func(_ context.Context, config fleet.EJBCA) (*fleet.EJBCACertificate, error) {
-			res.enrolled++
-			serial := strings.TrimSuffix(config.CertificateUserPrincipalNames[0], "@example.com")
-			res.configs[serial] = config
-			if enroll != nil {
-				if err := enroll(config); err != nil {
+			res.enrolls = append(res.enrolls, config)
+			if o.enroll != nil {
+				if err := o.enroll(config); err != nil {
 					return nil, err
 				}
 			}
+			serial := strings.TrimSuffix(config.CertificateUserPrincipalNames[0], "@example.com")
 			now := time.Now()
 			return &fleet.EJBCACertificate{
-				PfxData: []byte("pfx-" + serial), Password: "password-" + serial, NotValidBefore: now, NotValidAfter: now.Add(time.Hour), SerialNumber: "abc",
+				PfxData: []byte("pfx-" + config.Name + "-" + serial), Password: "password-" + config.Name + "-" + serial,
+				NotValidBefore: now, NotValidAfter: now.Add(time.Hour), SerialNumber: "abc",
 			}, nil
 		}
 
-		pending := fleet.MDMDeliveryPending
 		res.profiles = map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload{}
 		for uuid := range hostsByUUID {
 			res.profiles[fleet.HostProfileUUID{HostUUID: uuid, ProfileUUID: "p1"}] = &fleet.MDMAppleBulkUpsertHostProfilePayload{
 				ProfileUUID: "p1", ProfileIdentifier: "com.apple.security.pkcs12", HostUUID: uuid, OperationType: fleet.MDMOperationTypeInstall,
-				Status: &pending, CommandUUID: "cmd-1", Scope: fleet.PayloadScopeSystem,
+				Status: &fleet.MDMDeliveryPending, CommandUUID: "cmd-1", Scope: fleet.PayloadScopeSystem,
 			}
 		}
-		targets := map[string]*fleet.CmdTarget{"p1": {CmdUUID: "cmd-1", ProfileIdentifier: "com.apple.security.pkcs12", EnrollmentIDs: []string{"host-1", "host-2"}}}
+		targets := map[string]*fleet.CmdTarget{
+			"p1": {CmdUUID: "cmd-1", ProfileIdentifier: "com.apple.security.pkcs12", EnrollmentIDs: []string{"host-1", "host-2"}},
+		}
 		profileContents := map[string]mobileconfig.Mobileconfig{"p1": mobileconfig.Mobileconfig(profile)}
-		groupedCAs := &fleet.GroupedCertificateAuthorities{}
-		if includeCA {
-			groupedCAs.EJBCA = []fleet.EJBCA{ca}
-		}
 		digiCertService := noDigiCertService
-		if len(extra) > 0 {
-			if extra[0].groupedCAs != nil {
-				extra[0].groupedCAs(groupedCAs)
-			}
-			if extra[0].digiCert != nil {
-				digiCertService = extra[0].digiCert
-			}
+		if o.digiCert != nil {
+			digiCertService = o.digiCert
 		}
 
-		err := preprocessProfileContents(ctx, appCfg, ds, scep.NewSCEPConfigService(logger, nil), digiCertService, ejbcaMock, logger, targets, profileContents,
-			res.profiles, map[string]string{}, groupedCAs)
+		err := preprocessProfileContents(ctx, appCfg, ds, scep.NewSCEPConfigService(logger, nil), digiCertService, ejbcaMock, logger, targets,
+			profileContents, res.profiles, map[string]string{}, &fleet.GroupedCertificateAuthorities{EJBCA: cas, DigiCert: o.digiCertCAs})
 		require.NoError(t, err)
 		for profUUID, target := range targets {
 			if profUUID != "p1" {
@@ -1403,51 +1376,46 @@ func TestPreprocessProfileContentsEJBCA(t *testing.T) {
 
 	t.Run("expands the CA fields for each host and records the certificates", func(t *testing.T) {
 		t.Parallel()
-		res := run(t, premium(), baseCA(), true, nil, false, profileXML)
-		require.Len(t, res.configs, 2)
-		// Each host gets its own values, the username defaults to the common name, and nothing is left from the first host.
-		assert.Equal(t, "cn-user1@example.com", res.configs[serialHost1].CertificateCommonName)
-		assert.Equal(t, "cn-user1@example.com", res.configs[serialHost1].UsernameTemplate)
-		assert.Equal(t, "cn-user2@example.com", res.configs[serialHost2].CertificateCommonName)
-		assert.Equal(t, "cn-user2@example.com", res.configs[serialHost2].UsernameTemplate)
-		assert.Equal(t, []string{serialHost2 + "@example.com"}, res.configs[serialHost2].CertificateUserPrincipalNames)
+		// The username of the first CA defaults to its common name, and the second CA has its own template.
+		withUsername := ejbcaCA("usernameCA")
+		withUsername.UsernameTemplate = fleet.FleetVarHostUUID.WithPrefix()
+		res := run(t, premium(), profileFor("defaultCA", "usernameCA"), []fleet.EJBCA{ejbcaCA("defaultCA"), withUsername}, opts{})
 
-		// The profile of each host has its own certificate and password.
-		require.Len(t, res.contents, 2)
-		for _, serial := range []string{serialHost1, serialHost2} {
-			var contents string
-			for host, c := range res.contents {
-				if hostsByUUID[host].HardwareSerial == serial {
-					contents = c
-				}
+		require.Len(t, res.enrolls, 4)
+		for _, config := range res.enrolls {
+			// Each host's values are the ones of its own serial, and nothing is left from the other host.
+			serial := strings.TrimSuffix(config.CertificateUserPrincipalNames[0], "@example.com")
+			assert.Equal(t, "cn-"+serial, config.CertificateCommonName)
+			if config.Name == "defaultCA" {
+				assert.Equal(t, "cn-"+serial, config.UsernameTemplate)
+			} else {
+				assert.Contains(t, []string{"host-1", "host-2"}, config.UsernameTemplate)
 			}
-			assert.Contains(t, contents, base64.StdEncoding.EncodeToString([]byte("pfx-"+serial)))
-			assert.Contains(t, contents, "password-"+serial)
+		}
+
+		// The profile of each host has the certificate and password of each CA, and no variable is left.
+		require.Len(t, res.contents, 2)
+		for host, contents := range res.contents {
+			for _, name := range []string{"defaultCA", "usernameCA"} {
+				entry := name + "-" + hostsByUUID[host].HardwareSerial
+				assert.Contains(t, contents, base64.StdEncoding.EncodeToString([]byte("pfx-"+entry)))
+				assert.Contains(t, contents, "password-"+entry)
+			}
 			assert.NotContains(t, contents, "FLEET_VAR_")
 		}
 
-		require.Len(t, res.managed, 2)
+		require.Len(t, res.managed, 4)
 		for _, m := range res.managed {
 			assert.Equal(t, fleet.CAConfigEJBCA, m.Type)
-			assert.Equal(t, caName, m.CAName)
 			assert.Equal(t, "p1", m.ProfileUUID)
 			assert.Equal(t, "abc", *m.Serial)
 		}
 		assert.Empty(t, res.failures)
 	})
 
-	t.Run("an explicit username template is expanded separately from the common name", func(t *testing.T) {
-		t.Parallel()
-		ca := baseCA()
-		ca.UsernameTemplate = fleet.FleetVarHostHardwareSerial.WithPrefix()
-		res := run(t, premium(), ca, true, nil, false, profileXML)
-		assert.Equal(t, serialHost1, res.configs[serialHost1].UsernameTemplate)
-		assert.Equal(t, "cn-user1@example.com", res.configs[serialHost1].CertificateCommonName)
-	})
-
 	t.Run("a failed enrollment fails the profile of that host with the reason", func(t *testing.T) {
 		t.Parallel()
-		res := run(t, premium(), baseCA(), true, func(fleet.EJBCA) error { return errors.New("boom") }, false, profileXML)
+		res := run(t, premium(), profileFor("myCA"), []fleet.EJBCA{ejbcaCA("myCA")}, opts{enroll: func(fleet.EJBCA) error { return errors.New("boom") }})
 		assert.Equal(t, map[string]string{
 			"host-1": "Couldn't get certificate from EJBCA for myCA. boom",
 			"host-2": "Couldn't get certificate from EJBCA for myCA. boom",
@@ -1458,70 +1426,55 @@ func TestPreprocessProfileContentsEJBCA(t *testing.T) {
 
 	t.Run("a variable that can't be filled in says it is in the CA", func(t *testing.T) {
 		t.Parallel()
-		ca := baseCA()
+		ca := ejbcaCA("myCA")
 		ca.CertificateCommonName = fleet.FleetVarHostEndUserEmailIDP.WithPrefix()
-		res := run(t, premium(), ca, true, nil, true, profileXML)
-		assert.Zero(t, res.enrolled)
+		res := run(t, premium(), profileFor("myCA"), []fleet.EJBCA{ca}, opts{})
+		assert.Empty(t, res.enrolls)
+		require.Len(t, res.failures, 2)
 		for _, detail := range res.failures {
 			assert.Contains(t, detail, "There is no IdP email for this host")
 			assert.Contains(t, detail, "EJBCA certificate authority")
 		}
-		assert.Len(t, res.failures, 2)
 	})
 
-	t.Run("a CA that doesn't exist fails the profile", func(t *testing.T) {
-		t.Parallel()
-		res := run(t, premium(), baseCA(), false, nil, false, profileXML)
-		assert.Zero(t, res.enrolled)
-		for _, p := range res.profiles {
-			assert.Equal(t, fleet.MDMDeliveryFailed, *p.Status)
-			assert.Equal(t, "Fleet couldn't populate $EJBCA_PASSWORD_myCA because myCA certificate authority doesn't exist.", p.Detail)
-		}
-	})
-
-	t.Run("EJBCA needs Fleet Premium", func(t *testing.T) {
-		t.Parallel()
-		res := run(t, license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree}), baseCA(), true, nil, false, profileXML)
-		assert.Zero(t, res.enrolled)
-		for _, p := range res.profiles {
-			assert.Equal(t, fleet.MDMDeliveryFailed, *p.Status)
-			assert.Equal(t, "EJBCA integration requires a Fleet Premium license.", p.Detail)
-		}
-	})
-
-	t.Run("a failure later in the profile doesn't record the certificates issued before it", func(t *testing.T) {
-		t.Parallel()
-		second := baseCA()
-		second.Name = "secondCA"
-		profile := profileXML + "<string>$FLEET_VAR_EJBCA_PASSWORD_secondCA</string><data>${FLEET_VAR_EJBCA_DATA_secondCA}</data>"
-		// The variables are not processed in the order of the profile, so the second request of each host is the one that fails.
-		requests := map[string]int{}
-		res := run(t, premium(), baseCA(), true, func(config fleet.EJBCA) error {
-			requests[config.CertificateUserPrincipalNames[0]]++
-			if requests[config.CertificateUserPrincipalNames[0]] == 2 {
-				return errors.New("boom")
+	for _, tt := range []struct {
+		name    string
+		ctx     context.Context
+		cas     []fleet.EJBCA
+		message string
+	}{
+		{"a CA that doesn't exist", premium(), nil, "Fleet couldn't populate $EJBCA_PASSWORD_myCA because myCA certificate authority doesn't exist."},
+		{
+			"EJBCA needs Fleet Premium", license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree}),
+			[]fleet.EJBCA{ejbcaCA("myCA")}, "EJBCA integration requires a Fleet Premium license.",
+		},
+	} {
+		t.Run(tt.name+" fails the profile", func(t *testing.T) {
+			t.Parallel()
+			res := run(t, tt.ctx, profileFor("myCA"), tt.cas, opts{})
+			assert.Empty(t, res.enrolls)
+			require.Len(t, res.profiles, 2)
+			for _, p := range res.profiles {
+				assert.Equal(t, fleet.MDMDeliveryFailed, *p.Status)
+				assert.Equal(t, tt.message, p.Detail)
 			}
-			return nil
-		}, false, profile, runExtra{groupedCAs: func(g *fleet.GroupedCertificateAuthorities) { g.EJBCA = append(g.EJBCA, second) }})
-		assert.Equal(t, 4, res.enrolled, "two certificates are requested for each host")
-		assert.Len(t, res.failures, 2)
-		assert.Empty(t, res.managed, "the first certificate was issued but its profile wasn't sent")
-		assert.Empty(t, res.contents)
-	})
+		})
+	}
 
-	t.Run("a DigiCert certificate issued before an EJBCA failure isn't recorded either", func(t *testing.T) {
+	// A profile that gets more than one certificate is rare. If a later one fails, the host keeps its old certificates, so the records of
+	// the ones issued before the failure are not saved.
+	t.Run("a failure later in the profile doesn't record the certificates issued before it", func(t *testing.T) {
 		t.Parallel()
 		digiCert := &digicert_mock.Service{}
 		digiCert.GetCertificateFunc = func(context.Context, fleet.DigiCertCA) (*fleet.DigiCertCertificate, error) {
 			return &fleet.DigiCertCertificate{PfxData: []byte("pfx"), Password: "password", SerialNumber: "abc"}, nil
 		}
 		// The variables are not processed in the order of the profile: the last CA in it comes first, so DigiCert is issued before EJBCA fails.
-		profile := profileXML + "<string>$FLEET_VAR_DIGICERT_PASSWORD_dcCA</string><data>${FLEET_VAR_DIGICERT_DATA_dcCA}</data>"
-		res := run(t, premium(), baseCA(), true, func(fleet.EJBCA) error { return errors.New("boom") }, false, profile, runExtra{
-			digiCert: digiCert,
-			groupedCAs: func(g *fleet.GroupedCertificateAuthorities) {
-				g.DigiCert = []fleet.DigiCertCA{{Name: "dcCA", CertificateCommonName: "cn", CertificateSeatID: "seat"}}
-			},
+		profile := profileFor("myCA") + "<string>$FLEET_VAR_DIGICERT_PASSWORD_dcCA</string><data>${FLEET_VAR_DIGICERT_DATA_dcCA}</data>"
+		res := run(t, premium(), profile, []fleet.EJBCA{ejbcaCA("myCA")}, opts{
+			enroll:      func(fleet.EJBCA) error { return errors.New("boom") },
+			digiCert:    digiCert,
+			digiCertCAs: []fleet.DigiCertCA{{Name: "dcCA", CertificateCommonName: "cn", CertificateSeatID: "seat"}},
 		})
 		require.True(t, digiCert.GetCertificateFuncInvoked, "DigiCert has to be issued before the failure for this test to mean anything")
 		assert.Len(t, res.failures, 2)

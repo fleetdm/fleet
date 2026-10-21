@@ -372,8 +372,9 @@ func preprocessProfileContents(
 
 			hostContents := contentsStr
 			failed := false
-			// The PKCS#12 certificates issued for this host are only recorded if the whole profile is sent, so a later failure doesn't
-			// replace the record of the certificate the host still has.
+			// Holds the records of the certificates issued for this host while its profile is built. They are saved only if the whole
+			// profile is sent: after a later failure the host keeps its old certificates, and a new record would give a wrong expiry.
+			// This only matters for a profile that gets more than one certificate, which is rare and not possible with some CA types (like SCEP).
 			var pkcs12ManagedCertificates []*fleet.MDMManagedCertificate
 
 		fleetVarLoop:
