@@ -2140,9 +2140,10 @@ func TestHostAuth(t *testing.T) {
 		{"team technician, belongs to team", test.UserTeamTechnicianTeam1, false, true},
 		{"team technician, DOES NOT belong to team", test.UserTeamTechnicianTeam2, true, true},
 	}
+	premiumCtx := license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	for _, tt := range technicianCases {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+			ctx := viewer.NewContext(premiumCtx, viewer.Viewer{User: tt.user})
 			isTeamOnlyRole := tt.user.GlobalRole == nil
 
 			err := svc.DeleteHost(ctx, 1)
@@ -2159,6 +2160,24 @@ func TestHostAuth(t *testing.T) {
 
 			_, err = svc.SetHostDeviceMapping(ctx, 1, "a@b.c", "custom")
 			checkAuthErr(t, true, err)
+		})
+
+		t.Run(tt.name+" on Free", func(t *testing.T) {
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+			isTeamOnlyRole := tt.user.GlobalRole == nil
+			checkFreeDelete := func(shouldFailAuthz bool, err error) {
+				t.Helper()
+				if shouldFailAuthz {
+					checkHostWriteAuthErr(t, true, isTeamOnlyRole, err)
+					return
+				}
+				require.ErrorIs(t, err, fleet.ErrMissingLicense)
+			}
+
+			checkFreeDelete(tt.shouldFailTeamDelete, svc.DeleteHost(ctx, 1))
+			checkFreeDelete(tt.shouldFailGlobalDelete, svc.DeleteHost(ctx, 2))
+			checkFreeDelete(tt.shouldFailTeamDelete, svc.DeleteHosts(ctx, []uint{1}, nil))
+			checkFreeDelete(tt.shouldFailGlobalDelete, svc.DeleteHosts(ctx, []uint{2}, nil))
 		})
 	}
 
