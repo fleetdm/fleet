@@ -415,11 +415,11 @@ The `controls` section allows you to configure scripts and device management (MD
 - `windows_enabled_and_configured` specifies whether or not to turn on Windows MDM features (default: `false`). Can only be configured for "All fleets" (`default.yml`).
 - `windows_entra_tenant_ids` is a list of Microsoft Entra tenant IDs to enable automatic (Autopilot) and manual enrollment by end users (**Settings** > **Accounts** > **Access work or school** on Windows). Can only be configured for "All fleets" (`default.yml`). Find your **Tenant ID**, on [**Microsoft Entra ID** > **Home**](https://entra.microsoft.com/#home).
 - `windows_entra_client_ids` is a list of Microsoft Entra application (client) IDs for the applications used to enroll Windows hosts via Microsoft Entra. Set this when you set up Entra enrollment: Microsoft Entra issues v2 access tokens whose audience is the application's client ID, so Fleet needs the client ID to authorize enrollment. Can only be configured for "All fleets" (`default.yml`). Find your **Application (client) ID** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Overview**.
-- `enable_turn_on_windows_mdm_manually` specifies whether or not to require end users to sign in using **Settings > Access work or school** (default: `false`). If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. Either method results in an MDM status of "On (manual)". To get a status of "On (company-owned)", use [Windows Autopilot](https://fleetdm.com/guides/windows-mdm-setup#windows-autopilot). Can only be configured for "All fleets" (`default.yml`).
-- `windows_migration_enabled` specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution. `enable_turn_on_windows_mdm_manually` must be set to `false`. (default: `false`). Can only be configured for "All fleets" (`default.yml`).
+- `turn_on_windows_mdm_manually_enabled` specifies whether or not to require end users to sign in using **Settings > Access work or school** (default: `false`). If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. Either method results in an MDM status of "On (manual)". To get a status of "On (company-owned)", use [Windows Autopilot](https://fleetdm.com/guides/windows-mdm-setup#windows-autopilot). Can only be configured for "All fleets" (`default.yml`).
+- `windows_migration_enabled` specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution. `turn_on_windows_mdm_manually_enabled` must be set to `false`. (default: `false`). Can only be configured for "All fleets" (`default.yml`).
 - `apple_require_hardware_attestation` specifies whether or not to require Apple hosts with supported hardware (Apple Silicon Macs, and iPhones and iPads with an A11 Bionic or later chip running iOS/iPadOS 16 or later) to complete a device attestation challenge verifying that the hardware serial matches a known host record from AB as part of DEP enrollment (default: `false`). Hosts without supported hardware (for example, Intel Macs) enroll with SCEP and aren't attested, unless `only_allow_apple_business_enrollment` is also `true`. In that case, they can't enroll. Can only be configured for "All fleets" (default.yml).
 - `only_allow_apple_business_enrollment` specifies whether or not to allow only Apple hosts that are assigned to Fleet in Apple Business (AB) to turn on MDM, through Automated Device Enrollment (ADE) (default: `false`). When `true`, manual enrollment, over-the-air (OTA) enrollment, and account-driven user enrollment (BYOD) are blocked. Fleet also stops renewing MDM certificates for enrolled hosts that aren't in AB, so those hosts lose MDM when their certificate expires. If `apple_require_hardware_attestation` is also `true`, new enrollment is ACME-only: hosts without supported hardware can't enroll (SCEP isn't used as a fallback), and enrolled hosts without supported hardware also stop renewing. Can only be configured for "All fleets" (`default.yml`). _Available in Fleet Premium._
-- `enable_recovery_lock_password` specifies whether or not to enforce Recovery Lock password on eligible macOS hosts (default: `false`).
+- `recovery_lock_password_enabled` specifies whether or not to enforce Recovery Lock password on eligible macOS hosts (default: `false`).
 - `name_template` sets a naming convention for macOS, iOS, and iPadOS hosts. Fleet resolves the template per host, renames the host on the device via an MDM command, and updates the host's name in Fleet. Supports the built-in host identity variables (`$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_PLATFORM`), the IdP end-user variables (`$FLEET_VAR_HOST_END_USER_IDP_USERNAME`, `_USERNAME_LOCAL_PART`, `_GROUPS`, `_DEPARTMENT`, `_FULL_NAME`), and custom (`$FLEET_SECRET_*`) variables; certificate authority variables aren't supported. A referenced custom variable must already exist. Supported for fleets and for hosts that aren't in a fleet ("Unassigned"): set it in a fleet's YAML, or in `no_team.yml`/`default.yml` controls to apply it to "Unassigned" hosts. Removing the key clears the template but doesn't rename any host. _Available in Fleet Premium._
 
 > `enable_disk_encryption` at this level is deprecated. Please use per-platform (`apple_settings`, `windows_settings`, `linux_settings`) instead.
@@ -440,11 +440,11 @@ controls:
     - 4e342a0d-ec1a-4353-bdeb-785542e0a8fb
   windows_entra_client_ids:
     - 8c8e3fd4-9b2c-4d3e-8f10-2233445566aa
-  enable_turn_on_windows_mdm_manually: false # Available in Fleet Premium
+  turn_on_windows_mdm_manually_enabled: false # Available in Fleet Premium
   windows_migration_enabled: true # Available in Fleet Premium
   apple_require_hardware_attestation: false # Available in Fleet Premium
   only_allow_apple_business_enrollment: false # Available in Fleet Premium
-  enable_recovery_lock_password: true # Available in Fleet Premium
+  recovery_lock_password_enabled: true # Available in Fleet Premium
   name_template: "iPad $FLEET_VAR_HOST_HARDWARE_SERIAL" # Available in Fleet Premium
   android_enabled_and_configured: true
   macos_updates: # Available in Fleet Premium
@@ -473,8 +473,8 @@ controls:
     deadline_days: 5
     grace_period_days: 2
   apple_settings:
-    enable_disk_encryption: true # Available in Fleet Premium
-    enable_escrow_disk_encryption_key: true # Available in Fleet Premium
+    disk_encryption_enabled: true # Available in Fleet Premium
+    escrow_disk_encryption_key_enabled: true # Available in Fleet Premium
     configuration_profiles:
       - path: ../lib/macos/profiles/ddm.json
         labels_include_any:
@@ -488,11 +488,11 @@ controls:
       - paths: ../lib/windows/profiles/*.xml
         labels_include_any:
           - Engineering
-    enable_disk_encryption: true # Available in Fleet Premium
+    disk_encryption_enabled: true # Available in Fleet Premium
     require_bitlocker_pin: true # Available in Fleet Premium
   linux_settings:
-    enable_escrow_disk_encryption_key: true # Available in Fleet Premium
-    enable_managed_local_account: true   
+    escrow_disk_encryption_key_enabled: true # Available in Fleet Premium
+    managed_local_account_enabled: true   
   android_settings:
     configuration_profiles:
       - path: ../lib/android-profile.json
@@ -503,13 +503,13 @@ controls:
         subject_alternative_name: "DNS=example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
   setup_experience: # Available in Fleet Premium
     bootstrap_package: https://example.org/bootstrap_package.pkg
-    enable_end_user_authentication: true
-    apple_enable_release_device_manually: true
+    end_user_authentication_enabled: true
+    apple_release_device_manually_enabled: true
     apple_setup_assistant: ../lib/dep-profile.json
     macos_script: ../lib/macos-setup-script.sh
-    enable_managed_local_account: true
+    managed_local_account_enabled: true
   macos_migration: # Available in Fleet Premium
-    enable: true
+    enabled: true
     mode: voluntary
     webhook_url: https://example.org/webhook_handler
   apple_account_provisioning: # Available in Fleet Premium
@@ -546,21 +546,21 @@ controls:
 ### apple_settings
 - `configuration_profiles` is a list of macOS, iOS, and iPadOS configuration profiles (.mobileconfig/.json) or declaration profiles (.json). See notes on [referencing and targeting confguration profiles](#referencing-and-targeting-configuration-profiles).
   - In addition to configuration profiles, you can upload **assets** which are `.json` files containing an Apple asset declaration (`com.apple.asset`). Assets follow the same `path:` / `paths:` syntax as profiles but should be stored in a separate `assets/` folder (e.g. `../lib/macos/assets/my-asset.json`).
-- `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS hosts (default: `false`).
-- `enable_escrow_disk_encryption_key` specifies whether Fleet escrows the Filevault recovery key for macOS hosts (default: `false`). When set to `true`, for keys to be escrowed, `enable_disk_encryption` must be set to `true` or Filevault must be enabled by another means(such as a custom Filevault profile, or manually by users).
+- `disk_encryption_enabled` specifies whether or not to enforce disk encryption on macOS hosts (default: `false`).
+- `escrow_disk_encryption_key_enabled` specifies whether Fleet escrows the Filevault recovery key for macOS hosts (default: `false`). When set to `true`, for keys to be escrowed, `disk_encryption_enabled` must be set to `true` or Filevault must be enabled by another means(such as a custom Filevault profile, or manually by users).
 - `managed_local_account_settings` are settings for the managed local account.
   - `enabled` specifies whether to create the managed local account on that platform (default: `false`).
 - `end_user_local_account_type` specifies the end user account type for macOS hosts. Requires `managed_local_account_settings.enabled` to be `true`. Default: `"admin"`.
 
 ### windows_settings
 - `configuration_profiles` is a list of Windows configuration profiles (.xml). See notes on [referencing and targeting confguration profiles](#referencing-and-targeting-configuration-profiles).
-- `enable_disk_encryption` specifies whether or not to enforce disk encryption on Windows hosts (default: `false`).
-- `require_bitlocker_pin` specifies whether or not to require end users on Windows hosts to set a BitLocker PIN. When set, this PIN is required to unlock Windows hosts during startup. `windows_settings.enable_disk_encryption` must be set to `true`. (default: `false`).
-- `enable_managed_local_account` specifies whether to create the managed local account on that platform (default: `false`).
+- `disk_encryption_enabled` specifies whether or not to enforce disk encryption on Windows hosts (default: `false`).
+- `require_bitlocker_pin` specifies whether or not to require end users on Windows hosts to set a BitLocker PIN. When set, this PIN is required to unlock Windows hosts during startup. `windows_settings.disk_encryption_enabled` must be set to `true`. (default: `false`).
+- `managed_local_account_enabled` specifies whether to create the managed local account on that platform (default: `false`).
 
 
 ### linux_settings
-- `enable_escrow_disk_encryption_key` specifies whether Fleet escrows the disk encryption key for Linux hosts with an encrypted disk (default: false). When set to true, Fleet Desktop prompts the user to enter their current encryption passphrase, generates a new passphrase, adds it as a LUKS keyslot, and securely stores it in Fleet.
+- `escrow_disk_encryption_key_enabled` specifies whether Fleet escrows the disk encryption key for Linux hosts with an encrypted disk (default: false). When set to true, Fleet Desktop prompts the user to enter their current encryption passphrase, generates a new passphrase, adds it as a LUKS keyslot, and securely stores it in Fleet.
 
 > `activation` is a path to a JSON file containing custom activation criteria for declaration (DDM) profiles. Only supported for Apple declaration profiles (.json with DDM format). If not specified, no custom activation is applied.
 
@@ -605,17 +605,17 @@ The `setup_experience` section lets you control the out-of-the-box [setup experi
 
 - `bootstrap_package` is the URL to a bootstrap package. Fleet will download the bootstrap package. Applies to macOS only (default: `""`).
 - `macos_manual_agent_install` specifies whether Fleet's agent (fleetd) will be installed as part of setup experience. Applies to macOS only (default: `false`)
-- `enable_end_user_authentication` specifies whether or not to require IdP authentication when the user first sets up their host. Applies to macOS, Windows, Linux, iOS/iPadOS, and Android.
+- `end_user_authentication_enabled` specifies whether or not to require IdP authentication when the user first sets up their host. Applies to macOS, Windows, Linux, iOS/iPadOS, and Android.
 - `require_all_software_macos` specifies whether to cancel setup on a macOS host if any software installs fail.
 - `require_all_software_windows` specifies whether to cancel setup on a Windows host if any software installs fail. When `true`, the host is blocked at the Windows Enrollment Status Page and the end user must reset the device to try again. When `false`, the Enrollment Status Page lists the software that failed and the end user can continue to the desktop and install it later via self-service.
 - `lock_end_user_info` specifies whether or not to enable end user to edit the local account Account Name and Full Name in macOS Setup Assistant. (default: `true`)
 - `require_all_software` specifies whether to cancel setup on a macOS host if any software installs fail.
-- `apple_enable_release_device_manually` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. Applies to Apple (macOS, iOS, iPadOS) hosts that automatically enroll via Apple Business (AB).
+- `apple_release_device_manually_enabled` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. Applies to Apple (macOS, iOS, iPadOS) hosts that automatically enroll via Apple Business (AB).
 - `apple_setup_assistant` is a path to a custom [automatic enrollment (ADE) profile](https://support.apple.com/guide/deployment/automated-device-enrollment-management-dep73069dd57/web) (.json). Applies to macOS and iOS/iPadOS hosts.
 - `macos_script` is the path to a custom setup script to run after the host is first set up. Applies to macOS only.
 
 `enable_managed_local_account` and `end_user_local_account_type` at this level are deprecated. 
-Please use the platform-specific `apple_settings.managed_local_account_settings`, `apple_settings.end_user_local_account_type`, or `windows_settings.enable_managed_local_account` instead.
+Please use the platform-specific `apple_settings.managed_local_account_settings`, `apple_settings.end_user_local_account_type`, or `windows_settings.managed_local_account_enabled` instead.
 
 #### Example
 
@@ -625,9 +625,9 @@ Please use the platform-specific `apple_settings.managed_local_account_settings`
 setup_experience:
   bootstrap_package: "https://your-storage/package.pkg"
   macos_manual_agent_install: false
-  enable_end_user_authentication: true
+  end_user_authentication_enabled: true
   lock_end_user_info: true
-  apple_enable_release_device_manually: false
+  apple_release_device_manually_enabled: false
   apple_setup_assistant: "./setup_assistant.json"
   macos_script: "./post_setup.sh"
 ```
@@ -636,7 +636,7 @@ setup_experience:
 
 The `macos_migration` section lets you control the [end user migration workflow](https://fleetdm.com/docs/using-fleet/mdm-migration-guide#end-user-workflow) for macOS hosts that enrolled to your old MDM solution.
 
-- `enable` specifies whether or not to enable end user migration workflow (default: `false`)
+- `enabled` specifies whether or not to enable end user migration workflow (default: `false`)
 - `mode` specifies whether the end user initiates migration (`voluntary`) or they're nudged every 15-20 minutes to migrate (`forced`) (default: `""`).
 - `webhook_url` is the URL that Fleet sends a webhook to when the end user selects **Start**. Receive this webhook using your automation tool (ex. Tines) to unenroll your end users from your old MDM solution.
 
@@ -958,8 +958,8 @@ Currently, managing users and ticket destinations (Jira and Zendesk) are only su
 
 The `features` section of the configuration YAML lets you turn on/off Fleet features.
 - `additional_queries` adds extra host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned (default: empty).
-- `enable_host_users` specifies whether or not Fleet collects user data from hosts (default: `true`).
-- `enable_software_inventory` specifies whether or not Fleet collects software inventory from hosts (default: `true`).
+- `host_users_enabled` specifies whether or not Fleet collects user data from hosts (default: `true`).
+- `software_inventory_enabled` specifies whether or not Fleet collects software inventory from hosts (default: `true`).
 - `historical_data` controls per-dataset collection of the data that drive the dashboard charts. Each sub-key defaults to `true`:
   - `uptime` — host activity samples that drive the **Hosts active** dashboard chart.
   - `vulnerabilities` — per-host software vulnerability data that drive the **Vulnerability exposure** dashboard chart. _Available in Fleet Premium._ Fleet Free doesn't collect this data, because the chart that reads it requires Fleet Premium.
@@ -982,8 +982,8 @@ org_settings:
     additional_queries:
       time: SELECT * FROM time
       macs: SELECT mac FROM interface_details
-    enable_host_users: true
-    enable_software_inventory: true
+    host_users_enabled: true
+    software_inventory_enabled: true
     historical_data:
       uptime: true
       vulnerabilities: false
@@ -1010,7 +1010,7 @@ The `fleet_desktop` section lets you customize the Fleet Desktop experience.
 - `alternative_browser_host` is a custom hostname that my hosts will access Fleet Desktop from.
 - `sso_enabled` determines whether to require IdP authentication in addition to the Fleet Desktop token to access the device page.
 
-> `sso_enabled` doesn't enforce SSO while a host (macOS, Windows, or Linux) is completing [setup experience](https://fleetdm.com/guides/setup-experience). To require SSO during setup, use [setup_experience.enable_end_user_authentication](https://fleetdm.com/docs/configuration/yaml-files#setup-experience).
+> `sso_enabled` doesn't enforce SSO while a host (macOS, Windows, or Linux) is completing [setup experience](https://fleetdm.com/guides/setup-experience). To require SSO during setup, use [setup_experience.end_user_authentication_enabled](https://fleetdm.com/docs/configuration/yaml-files#setup-experience).
 
 Can only be configured for "All fleets" (`org_settings`).
 
@@ -1131,7 +1131,7 @@ org_settings:
 ### server_settings
 
 - `ai_features_disabled` disables AI-assisted policy descriptions and resolutions. (default: `false`)
-- `enable_analytics` specifies whether or not to enable Fleet's [usage statistics](https://fleetdm.com/docs/using-fleet/usage-statistics). (default: `true`)
+- `analytics_enabled` specifies whether or not to enable Fleet's [usage statistics](https://fleetdm.com/docs/using-fleet/usage-statistics). (default: `true`)
 - `live_reporting_disabled` disables the ability to run live reports (ad hoc reports executed via the UI or fleetctl). (default: `false`)
 - `discard_reports_data` disables storing results for all reports and deletes existing stored data. If set to `true`, data is still sent to the configured log destination if `automations_enabled`. (default: `false`)
 - `report_cap` sets the maximum number of results to store per report before the report is clipped. If the number of hosts is higher than this cap, Fleet uses the number of hosts instead, so a report that returns one result per host is never clipped. If increasing this cap, we recommend enabling reports for one query at a time and monitoring your infrastructure. (default: `1000`)
@@ -1147,7 +1147,7 @@ Can only be configured for "All fleets" (`org_settings`).
 org_settings:
   server_settings:
     ai_features_disabled: false
-    enable_analytics: true
+    analytics_enabled: true
     live_reporting_disabled: false
     discard_reports_data: false
     scripts_disabled: false
@@ -1159,14 +1159,14 @@ org_settings:
 
 The `sso_settings` section lets you define [single sign-on (SSO)](https://fleetdm.com/docs/deploying/configuration#configuring-single-sign-on-sso) settings.
 
-- `enable_sso` (default: `false`)
+- `sso_enabled` (default: `false`)
 - `idp_name` is the human-friendly name for the identity provider that will provide single sign-on authentication (default: `""`).
 - `idp_image_url` is an optional link to an image such as a logo for the identity provider. (default: `""`).
 - `entity_id` is the entity ID: a Uniform Resource Identifier (URI) that you use to identify Fleet when configuring the identity provider. It must exactly match the Entity ID field used in identity provider configuration (default: `""`).
 - `metadata` is the metadata (in XML format) provided by the identity provider. (default: `""`)
 - `metadata_url` is the URL that references the identity provider metadata. Only one of  `metadata` or `metadata_url` is required (default: `""`).
-- `enable_jit_provisioning` specifies whether or not to enable [just-in-time user provisioning](https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning) (default: `false`).
-- `enable_sso_idp_login` specifies whether or not to allow single sign-on login initiated by identity provider (default: `false`).
+- `jit_provisioning_enabled` specifies whether or not to enable [just-in-time user provisioning](https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning) (default: `false`).
+- `sso_idp_login_enabled` specifies whether or not to allow single sign-on login initiated by identity provider (default: `false`).
 - `sso_server_url` is used if the URL your Fleet users (admins, maintainers, observers) use to login to Fleet via SSO is different than the base URL of your Fleet instance. If not configured, login via SSO will use the base URL of the Fleet instance.
 
 Can only be configured for "All fleets" (`org_settings`).
@@ -1176,13 +1176,13 @@ Can only be configured for "All fleets" (`org_settings`).
 ```yaml
 org_settings:
   sso_settings:
-    enable_sso: true
+    sso_enabled: true
     idp_name: Okta
     idp_image_url: https://www.okta.com/favicon.ico
     entity_id: https://example.okta.com
     metadata: $SSO_METADATA
-    enable_jit_provisioning: true # Available in Fleet Premium
-    enable_sso_idp_login: true
+    jit_provisioning_enabled: true # Available in Fleet Premium
+    sso_idp_login_enabled: true
     sso_server_url: https://admin.example.com # Optional, SSO will only work from this URL
 ```
 
@@ -1223,7 +1223,7 @@ org_settings:
       - https://company.okta.com/oauth2/v1/introspect
     certificates_idp_client_ids:
       - 0oa1b2c3d4e5f6g7h8i9
-    certificates_disable_host_end_user_binding: false
+    certificates_host_end_user_binding_disabled: false
 ```
 
 `/fleets/fleet-name.yml`
@@ -1244,7 +1244,7 @@ For "All fleets" (`org_settings`):
 
 For specific fleets (`settings`):
 
-- `enable_calendar_events` to enable calendar events for a fleet (default: `false`).
+- `calendar_events_enabled` to enable calendar events for a fleet (default: `false`).
 - `webhook_url` is the webhook URL triggered during a user's calendar event (default: `""`).
 
 #### google_workspace
@@ -1277,13 +1277,13 @@ Can be configured for "All fleets" (`org_settings`). Use API to configure Jira f
 
 Can be configured for "All fleets" (`org_settings`). Use API to configure Zendesk for specific fleets or "Unassigned" hosts.
 
-#### certificates_idp_introspection_urls, certificates_idp_client_ids, and certificates_disable_host_end_user_binding
+#### certificates_idp_introspection_urls, certificates_idp_client_ids, and certificates_host_end_user_binding_disabled
 
 These settings control identity verification on the [Request certificate](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) API. Can only be configured for "All fleets" (`org_settings`).
 
 - `certificates_idp_introspection_urls` (Fleet Premium): allowlist of OAuth 2.0 token introspection URLs accepted in `idp_oauth_url`. Entries must be absolute `https` URLs without embedded credentials and are matched exactly. While empty, requests that include IdP credentials are rejected. Once it has entries, `idp_oauth_url`, `idp_token`, and `idp_client_id` are required on every request (default: `[]`).
 - `certificates_idp_client_ids` (Fleet Premium): optional allowlist of OAuth client IDs accepted in `idp_client_id`. Requires `certificates_idp_introspection_urls` to have entries (default: `[]`).
-- `certificates_disable_host_end_user_binding`: by default, requests authenticated with an HTTP signature must carry a CSR whose email and UPN match the end user Fleet has recorded for the host, and hosts with no recorded end user are rejected. Set to `true` to turn this check off (default: `false`).
+- `certificates_host_end_user_binding_disabled`: by default, requests authenticated with an HTTP signature must carry a CSR whose email and UPN match the end user Fleet has recorded for the host, and hosts with no recorded end user are rejected. Set to `true` to turn this check off (default: `false`).
 
 Omitting these keys from your YAML resets them to their defaults, which clears both allowlists. To restore the behavior of earlier Fleet versions while you migrate, set the [`server.allow_request_certificate_any_idp`](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-allow-request-certificate-any-idp) server setting.
 
@@ -1432,7 +1432,7 @@ The `webhook_settings` section lets you define webhook settings for failing poli
 
 #### activities_webhook
 
-- `enable_activities_webhook` (default: `false`)
+- `activities_webhook_enabled` (default: `false`)
 - `destination_url` is the URL to `POST` to when an activity is generated (default: `""`)
 
 Can only be configured for "All fleets" (`org_settings`). To send webhooks for a specific fleet's host activities, see [host_activities_webhook](#host-activities-webhook).
@@ -1443,7 +1443,7 @@ Can only be configured for "All fleets" (`org_settings`). To send webhooks for a
 org_settings:
   webhook_settings:
     activities_webhook:
-      enable_activities_webhook: true
+      activities_webhook_enabled: true
       destination_url: https://example.org/webhook_handler
 ```
 
@@ -1451,7 +1451,7 @@ org_settings:
 
 _Available in Fleet Premium._
 
-- `enable_host_activities_webhook` (default: `false`)
+- `host_activities_webhook_enabled` (default: `false`)
 - `destination_url` is the URL to `POST` to when an activity linked to one of the fleet's hosts is generated (default: `""`)
 
 Can be configured for specific fleets (`settings`) or "Unassigned" (`settings` in `unassigned.yml`). The webhook payload has the same format as [activities_webhook](#activities-webhook). MDM command results (shown via **Show MDM commands** on the host details page) are not returned via the activities API, and currently don't trigger this webhook. If `webhook_settings` is specified for "Unassigned" hosts and `host_activities_webhook` is omitted, the webhook is turned off.
@@ -1463,7 +1463,7 @@ name: Workstations
 team_settings:
   webhook_settings:
     host_activities_webhook:
-      enable_host_activities_webhook: true
+      host_activities_webhook_enabled: true
       destination_url: https://example.org/webhook_handler
 ```
 
@@ -1471,7 +1471,7 @@ team_settings:
 
 > These settings can also be configured per-fleet when nested under `settings`.
 
-- `enable_failing_policies_webhook` (default: `false`)
+- `failing_policies_webhook_enabled` (default: `false`)
 - `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: `""`).
 - `policy_ids` is the list of policies that will trigger a webhook.
 - `host_batch_size` is the maximum number of host identifiers to send in one webhook request. A value of `0` means all host identifiers with a failing policy will be sent in a single request.
@@ -1482,7 +1482,7 @@ team_settings:
 org_settings:
   webhook_settings:
     failing_policies_webhook:
-      enable_failing_policies_webhook: true
+      failing_policies_webhook_enabled: true
       destination_url: https://example.org/webhook_handler
       host_batch_size: 0
       policy_ids:
@@ -1493,7 +1493,7 @@ org_settings:
 
 #### host_status_webhook
 
-- `enable_host_status_webhook` (default: `false`)
+- `host_status_webhook_enabled` (default: `false`)
 - `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: `""`).
 - `days_count` is the number of days that hosts need to be offline to count as part of the percentage (default: `0`).
 - `host_percentage` is the percentage of hosts that need to be offline to trigger the webhook. (default: `0`).
@@ -1506,7 +1506,7 @@ Can be configured for "All fleets" (`org_settings`) and specific fleets (`settin
 org_settings:
   webhook_settings:
     host_status_webhook:
-      enable_host_status_webhook: true
+      host_status_webhook_enabled: true
       destination_url: https://example.org/webhook_handler
       days_count: 7
       host_percentage: 25
@@ -1514,7 +1514,7 @@ org_settings:
 
 #### vulnerabilities_webhook
 
-- `enable_vulnerabilities_webhook` (default: `false`)
+- `vulnerabilities_webhook_enabled` (default: `false`)
 - `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: `""`).
 - `host_batch_size` is the maximum number of host identifiers to send in one webhook request. A value of `0` means all host identifiers with a detected vulnerability will be sent in a single request.
 
@@ -1526,7 +1526,7 @@ Can only be configured for "All fleets" (`org_settings`).
 org_settings:
   webhook_settings:
     vulnerabilities_webhook:
-      enable_vulnerabilities_webhook: true
+      vulnerabilities_webhook_enabled: true
       destination_url: https://example.org/webhook_handler
       host_batch_size: 0
 ```
@@ -1601,7 +1601,7 @@ org_settings:
 
 The `end_user_authentication` section lets you define the identity provider (IdP) settings used for [IdP authentication](https://fleetdm.com/guides/setup-experience#require-idp-authentication) during Automated Device Enrollment (ADE).
 
-Once the IdP settings are configured, you can use the [`controls.setup_experience.enable_end_user_authentication`](#setup-experience) key to control the end user experience during ADE.
+Once the IdP settings are configured, you can use the [`controls.setup_experience.end_user_authentication_enabled`](#setup-experience) key to control the end user experience during ADE.
 
 - `idp_name` is the human-friendly name for the identity provider that will provide single sign-on authentication (default: `""`).
 - `entity_id` is the entity ID: a Uniform Resource Identifier (URI) that you use to identify Fleet when configuring the identity provider. It must exactly match the Entity ID field used in identity provider configuration (default: `""`).
@@ -1624,7 +1624,7 @@ org_settings:
 
 ##### end_user_license_agreement
 
-You can require an end user to agree to an end user license agreement (EULA) before they can use their new Mac. `end_user_authentication` must be configured, and `controls.enable_end_user_authentication` must be set to `true`.
+You can require an end user to agree to an end user license agreement (EULA) before they can use their new Mac. `end_user_authentication` must be configured, and `controls.end_user_authentication_enabled` must be set to `true`.
 
 - `end_user_license_agreement` is the path to the PDF document.
 
@@ -1686,7 +1686,7 @@ Can only be configured for "All fleets" (`org_settings`).
 ```yaml
 org_settings:
   smtp_settings:
-    enable_smtp: true
+    smtp_enabled: true
     sender_address: organization@example.com
     server: localhost
     port: 1025
