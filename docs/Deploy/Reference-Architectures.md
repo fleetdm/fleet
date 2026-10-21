@@ -131,6 +131,8 @@ Also, allow the Fleet server to reach the following routes for the features you 
 
 ### Apple MDM
 
+Learn more about [Apple MDM](https://fleetdm.com/guides/apple-mdm-setup) and [App Store apps](https://fleetdm.com/guides/install-app-store-apps).
+
 | Route | Reason |
 |---|---|
 | `fleetdm.com/api/v1/deliver-apple-csr` | Get a signed certificate signing request (CSR) for your Apple Push Notification service (APNs) certificate. |
@@ -143,6 +145,8 @@ Also, allow the Fleet server to reach the following routes for the features you 
 
 ### Windows MDM
 
+Learn more about [Windows MDM](https://fleetdm.com/guides/windows-mdm-setup).
+
 | Route | Reason |
 |---|---|
 | `download.fleetdm.com` | Install Fleet's agent (fleetd) on Windows hosts. |
@@ -150,6 +154,8 @@ Also, allow the Fleet server to reach the following routes for the features you 
 | `graph.microsoft.com` | Sync Windows Autopilot devices. |
 
 ### Android MDM
+
+Learn more about [Android MDM](https://fleetdm.com/guides/android-mdm-setup).
 
 Fleet calls the [Android Management API](https://developers.google.com/android/management) through fleetdm.com, so the Fleet server doesn't need to reach Google. Allowlist the whole `fleetdm.com/api/android/*` prefix, because new routes are added over time.
 
@@ -173,6 +179,8 @@ Fleet calls the [Android Management API](https://developers.google.com/android/m
 
 ### Fleet-maintained apps
 
+Learn more about [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps).
+
 | Route | Reason |
 |---|---|
 | `maintained-apps.fleetdm.com` | Get the Fleet-maintained apps catalog. Fleet also downloads each app's installer from its vendor's URL. |
@@ -180,11 +188,15 @@ Fleet calls the [Android Management API](https://developers.google.com/android/m
 
 ### Conditional access
 
+Learn more about [conditional access](https://fleetdm.com/guides/conditional-access).
+
 | Route | Reason |
 |---|---|
 | `fleetdm.com/api/v1/microsoft-compliance-partner*` | [Microsoft Entra conditional access](https://fleetdm.com/guides/entra-conditional-access-integration). Fleet reaches Entra through fleetdm.com. |
 
 ### Vulnerability processing
+
+Learn more about [vulnerability processing](https://fleetdm.com/guides/vulnerability-processing).
 
 | Route | Reason |
 |---|---|
@@ -197,12 +209,16 @@ You can point some feeds at a mirror with [`cpe_database_url`](https://fleetdm.c
 
 ### Google Calendar
 
+Learn more about [calendar events](https://fleetdm.com/guides/using-maintenance-windows).
+
 | Route | Reason |
 |---|---|
 | `oauth2.googleapis.com` | Sign in to Google. |
 | `www.googleapis.com` | Create calendar events for hosts failing policies. |
 
 ### Google Workspace
+
+Learn more about [syncing IdP host vitals from Google Workspace](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts#google-workspace).
 
 | Route | Reason |
 |---|---|
@@ -211,15 +227,19 @@ You can point some feeds at a mirror with [`cpe_database_url`](https://fleetdm.c
 
 ### Usage statistics
 
+Learn more about [usage statistics](https://fleetdm.com/guides/fleet-usage-statistics).
+
 | Route | Reason |
 |---|---|
-| `fleetdm.com/api/v1/webhooks/receive-usage-analytics` | Send [usage statistics](https://fleetdm.com/guides/fleet-usage-statistics). On by default. Fleet Free can turn it off with `server_settings.enable_analytics`. |
+| `fleetdm.com/api/v1/webhooks/receive-usage-analytics` | Send usage statistics. On by default. Fleet Free can turn it off with [`enable_analytics`](https://fleetdm.com/docs/configuration/yaml-files#server-settings). |
 
 ### Policy autofill
 
+Learn more about [policy autofill](https://fleetdm.com/guides/fleet-ai-assisted-policy-descriptions-and-resolutions).
+
 | Route | Reason |
 |---|---|
-| `fleetdm.com/api/v1/get-human-interpretation-from-osquery-sql` | Autofill a policy's description and resolution. On by default. Turn off with `server_settings.ai_features_disabled`. |
+| `fleetdm.com/api/v1/get-human-interpretation-from-osquery-sql` | Autofill a policy's description and resolution. On by default. Turn off with [`ai_features_disabled`](https://fleetdm.com/docs/configuration/yaml-files#server-settings). |
 
 ## Public IPs of devices
 
