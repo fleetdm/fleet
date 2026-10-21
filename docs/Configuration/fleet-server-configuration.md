@@ -1478,7 +1478,7 @@ This setting only applies in legacy body-auth mode (`osquery_allow_body_auth_fal
 
 Caches the scheduled-report section of the osquery config in memory, so that Fleet doesn't rebuild it from the database on every config check-in. Disabled by default.
 
-When enabled, the cache holds that section for one minute, keyed by fleet (team) and the `server_settings.query_reports_disabled` setting, which reduces database reads on config check-ins. It covers only the `packs` key of the response; the rest of the config is rebuilt on every check-in. It's also used only where it can't change what a host receives: hosts with 2017 packs, and fleets with label-scoped reports (whose configs differ per host), always build from the database.
+When enabled, the cache holds that section for one minute, keyed by fleet and the `server_settings.query_reports_disabled` setting, which reduces database reads on config check-ins. It covers only the `packs` key of the response; the rest of the config is rebuilt on every check-in. It's also used only where it can't change what a host receives: hosts with 2017 packs, and fleets with label-scoped reports (whose configs differ per host), always build from the database.
 
 When disabled, every check-in builds that section from the database.
 
@@ -1526,7 +1526,7 @@ Setting this to `false` is the escape hatch that disables the feature entirely: 
 
 Enables the Redis-backed ETag short circuit for the osquery config endpoint (`/api/osquery/config`). Disabled by default.
 
-When enabled, Fleet stores config ETags in Redis. When an agent's config request body carries an `"etag"` field matching the stored validator, Fleet answers with the minimal `{"etag":"ok"}` body directly from Redis **without building the config** — skipping that request's database reads entirely. Fleets (teams) whose config is uniform share one ETag per fleet and platform; fleets with label-scoped reports (whose configs are host-specific) use isolated per-host ETags that are invalidated whenever a host's label results are recorded. Qualifying changes (agent options, features, report schedules, label deletion, 2017 packs, fleet/team changes) invalidate the stored ETags immediately; a short "write fence" window after each change keeps Fleet's in-memory caches from repopulating Redis with stale data.
+When enabled, Fleet stores config ETags in Redis. When an agent's config request body carries an `"etag"` field matching the stored validator, Fleet answers with the minimal `{"etag":"ok"}` body directly from Redis **without building the config** — skipping that request's database reads entirely. Fleets whose config is uniform share one ETag per fleet and platform; fleets with label-scoped reports (whose configs are host-specific) use isolated per-host ETags that are invalidated whenever a host's label results are recorded. Qualifying changes (agent options, features, report schedules, label deletion, 2017 packs, fleet changes) invalidate the stored ETags immediately; a short "write fence" window after each change keeps Fleet's in-memory caches from repopulating Redis with stale data.
 
 The short circuit is automatically bypassed — falling back to a normal full config build — when the deployment has user-created 2017 packs, when the agent sends no (or an empty) etag, or on any Redis error (the feature fails open and can never block config delivery). Requires Redis; has no effect without it. It also requires `osquery_config_etags` (above): when that is `false`, this option is forced off with a startup warning, and no config ETag Redis traffic occurs at all. Agents that don't send the `"etag"` field receive the config exactly as before this feature existed, with no etag in the response.
 
@@ -3864,7 +3864,7 @@ The content of the Windows WSTEP identity certificate. An X.509 certificate, PEM
       -----END CERTIFICATE-----
   ```
 
-Fleet encrypts Windows BitLocker recovery keys with this certificate before storing them. If you change the certificate/key pair, every key escrowed against the old pair becomes permanently unrecoverable. Back up your pair, and treat replacing it as key loss for every Windows host that has already escrowed a key. Fleet doesn't detect this on its own. Viewing one of these keys on the **Host details** page returns an error rather than an incorrect key. To make affected hosts escrow a fresh key, move them to a team with disk encryption turned off, then move them back.
+Fleet encrypts Windows BitLocker recovery keys with this certificate before storing them. If you change the certificate/key pair, every key escrowed against the old pair becomes permanently unrecoverable. Back up your pair, and treat replacing it as key loss for every Windows host that has already escrowed a key. Fleet doesn't detect this on its own. Viewing one of these keys on the **Host details** page returns an error rather than an incorrect key. To make affected hosts escrow a fresh key, move them to a fleet with disk encryption turned off, then move them back.
 
 ### mdm.windows_wstep_identity_key_bytes
 
@@ -3915,7 +3915,7 @@ If you're using Fleet to [deploy certificates](https://fleetdm.com/guides/connec
 
 The profile reconciler runs approximately every 30 seconds. The best practice is to set this at a level that is half or less the number that can be handled by your certificate authority in one minute. If a profile for instance is uploaded that references a SCEP server which can handle 100 transactions per minute, best practice would be to set this to 50 or less. Lower values will mean that a profile potentially takes longer to be sent to all hosts targeted by it, with a tradeoff that it will result in lower Certificate Authority load.
 
-For a team with 10,000 hosts targeted by a newly-uploaded profile containing Certificate Authority variables, a setting of 100 would mean that it would take 100 runs of the profile reconciler, or, at least 50 minutes, for all 10,000 certificate profiles to be sent.
+For a fleet with 10,000 hosts targeted by a newly-uploaded profile containing Certificate Authority variables, a setting of 100 would mean that it would take 100 runs of the profile reconciler, or, at least 50 minutes, for all 10,000 certificate profiles to be sent.
 
 Currently this limit only applies to the Apple profile reconciler. Windows and Android support will be added soon. Additionally, newly enrolling ADE hosts do not count toward and are not affected by this limit, so as not to delay onboarding.
 
