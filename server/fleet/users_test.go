@@ -444,7 +444,7 @@ func TestHasAnyGlobalRole(t *testing.T) {
 }
 
 func TestUserSettingsReportColumnOrder(t *testing.T) {
-	for _, value := range []interface{}{
+	for _, value := range []any{
 		`{"hidden_host_columns":["osquery_version"],"report_column_order":{"6":["last_fetched","Host","name"]}}`,
 		[]byte(`{"hidden_host_columns":["osquery_version"],"report_column_order":{"6":["last_fetched","Host","name"]}}`),
 	} {
