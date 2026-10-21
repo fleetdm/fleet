@@ -1,3 +1,8 @@
+// Kept out of the shared `validators` barrel so the vendored osquery SQL
+// parser (`utilities/osquery_sql_parser`, ~1 MB generated Peggy grammar)
+// doesn't become a static dependency of auth forms (login, registration,
+// password reset) that only need the lightweight predicates.
+
 import { astify } from "utilities/osquery_sql_parser";
 import type { ParserSyntaxError } from "utilities/osquery_sql_parser";
 
@@ -9,10 +14,10 @@ export const invalidSyntaxOnLineErr = (line: number, column: number) =>
 export const expectedSelectErr = (line: number) =>
   `Expected a SELECT statement on line ${line}.`;
 
-const invalidQueryResponse = (message: string) => {
-  return { valid: false, error: message };
-};
-const validQueryResponse = { valid: true, error: null };
+export interface IValidateQueryResult {
+  isValid: boolean;
+  error: string | null;
+}
 
 const describeSyntaxError = (err: unknown): string => {
   const { location, expected } = err as Partial<ParserSyntaxError>;
@@ -39,15 +44,15 @@ const describeSyntaxError = (err: unknown): string => {
   return invalidSyntaxOnLineErr(location.start.line, location.start.column);
 };
 
-export const validateQuery = (queryText?: string) => {
+export const validateQuery = (queryText?: string): IValidateQueryResult => {
   if (!queryText?.trim()) {
-    return invalidQueryResponse(EMPTY_QUERY_ERR);
+    return { isValid: false, error: EMPTY_QUERY_ERR };
   }
 
   try {
     astify(queryText);
-    return validQueryResponse;
+    return { isValid: true, error: null };
   } catch (err) {
-    return invalidQueryResponse(describeSyntaxError(err));
+    return { isValid: false, error: describeSyntaxError(err) };
   }
 };
