@@ -75,6 +75,7 @@ func TestVPP(t *testing.T) {
 		{"SetTeamVPPAppVersions", testSetTeamVPPAppVersions},
 		{"ListHostSoftwareAppStoreAppHostVersion", testListHostSoftwareAppStoreAppHostVersion},
 		{"AppStoreAppConfigurationResendHosts", testAppStoreAppConfigurationResendHosts},
+		{"PastActivityVPPInstallDisplayNameHonorsPlatform", testPastActivityVPPInstallDisplayNameHonorsPlatform},
 	}
 
 	for _, c := range cases {
@@ -2854,6 +2855,32 @@ func testAndroidAppConfigs(t *testing.T, ds *Datastore) {
 	require.Equal(t, []byte(`{}`), assigned[app3.VPPAppID].Configuration)
 	require.Equal(t, expectedConfig1, assigned[app4.VPPAppID].Configuration)
 
+	// Omitting the configuration for an app that currently has one should clear it.
+	_, err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
+		{VPPAppID: app1.VPPAppID},
+		{VPPAppID: app2.VPPAppID},
+		{VPPAppID: app3.VPPAppID},
+		{VPPAppID: app4.VPPAppID},
+	}, map[string]uint{"1": 1, "2": 2, "3": 3, "4": 4})
+	require.NoError(t, err)
+
+	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
+	require.NoError(t, err)
+	require.Len(t, assigned, 4)
+
+	for _, a := range assigned {
+		config, err := ds.GetAndroidAppConfiguration(ctx, a.AdamID, team.ID)
+		require.True(t, err == nil || fleet.IsNotFound(err))
+		if config != nil {
+			a.Configuration = config
+			assigned[a.VPPAppID] = a
+		}
+	}
+
+	require.Equal(t, []byte(nil), assigned[app1.VPPAppID].Configuration, "app with no prior configuration should stay nil")
+	require.Equal(t, []byte(`{}`), assigned[app2.VPPAppID].Configuration, "configuration should be cleared when omitted")
+	require.Equal(t, []byte(`{}`), assigned[app4.VPPAppID].Configuration, "configuration should be cleared when omitted")
+
 	// Delete all
 	_, err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{}, nil)
 	require.NoError(t, err)
@@ -5452,4 +5479,61 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 			hostWithFailedVerification.ID: new(app.AppTeamID),
 		}, installedVersionByHostID)
 	}
+}
+
+// When the same adam_id is added for both iOS and iPadOS, each with its own
+// display name, past-install activity for an iPad install must return the
+// iPadOS title's display name, not the iOS one.
+func testPastActivityVPPInstallDisplayNameHonorsPlatform(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Test org"+t.Name(), "Test location"+t.Name())
+	require.NoError(t, err)
+	tok, err := ds.InsertVPPToken(ctx, dataToken)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok.ID, []uint{tm.ID})
+	require.NoError(t, err)
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	iPadOSHost, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "ipados-test-1",
+		UUID:           uuid.NewString(),
+		Platform:       string(fleet.IPadOSPlatform),
+		HardwareSerial: uuid.NewString(),
+		TeamID:         &tm.ID,
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, iPadOSHost, false)
+
+	// Same adam_id registered on both platforms, each with a distinct display
+	// name. Insert iOS first so MySQL would naturally return the iOS row first
+	// on an unqualified join — the fix must prefer the platform-matching row.
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		AdamID: "adam_vpp_1", Platform: fleet.IOSPlatform,
+		DisplayName: new("QA51285 VPP iPhone Name"),
+	}, &tm.ID, nil)
+	require.NoError(t, err)
+
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		AdamID: "adam_vpp_1", Platform: fleet.IPadOSPlatform,
+		DisplayName: new("QA51285 VPP iPad Name"),
+	}, &tm.ID, nil)
+	require.NoError(t, err)
+
+	cmdUUID := createVPPAppInstallRequest(t, ds, iPadOSHost, "adam_vpp_1", user)
+	createVPPAppInstallResult(t, ds, iPadOSHost, cmdUUID, fleet.MDMAppleStatusAcknowledged)
+
+	_, act, err := ds.GetPastActivityDataForVPPAppInstall(ctx, &mdm.CommandResults{
+		CommandUUID: cmdUUID,
+		Status:      fleet.MDMAppleStatusAcknowledged,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, act.SoftwareDisplayName)
+	assert.Equal(t, "QA51285 VPP iPad Name", *act.SoftwareDisplayName)
 }

@@ -6,7 +6,7 @@ import CustomLink from "components/CustomLink";
 import Editor from "components/Editor";
 import FileUploader from "components/FileUploader";
 import InputField from "components/forms/fields/InputField";
-import valid_url from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
@@ -58,7 +58,7 @@ const validate = (data: IFormData): IFormErrors => {
       OKTA_ACS_URL
     ] = `Assertion consumer service URL must be ${MAX_URL_LENGTH} characters or fewer`;
   } else if (
-    !valid_url({ url: data[OKTA_ACS_URL], protocols: ["http", "https"] })
+    !isValidURL({ url: data[OKTA_ACS_URL], protocols: ["http", "https"] })
   ) {
     errors[OKTA_ACS_URL] = "Enter a valid URL with http or https scheme";
   }

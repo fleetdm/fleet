@@ -630,7 +630,7 @@ ORDER BY vat.id
 		// upsert the app if anything changed
 		existingApp, isExistingApp := existingVersionsByID[incomingApp.AppTeamID]
 
-		changed, err := ds.hasAppStoreAppChanged(ctx, teamID, incomingApp, existingApp, isExistingApp)
+		changed, err := ds.hasAppStoreAppChanged(ctx, teamID, &incomingApp, existingApp, isExistingApp)
 		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "checking if app store app changed")
 		}
@@ -1588,7 +1588,7 @@ FROM
 	LEFT OUTER JOIN users u ON hvsi.user_id = u.id
 	LEFT OUTER JOIN hosts h ON h.id = hvsi.host_id
 	LEFT OUTER JOIN host_display_names hdn ON hdn.host_id = hvsi.host_id
-	LEFT OUTER JOIN vpp_apps vpa ON hvsi.adam_id = vpa.adam_id
+	LEFT OUTER JOIN vpp_apps vpa ON hvsi.adam_id = vpa.adam_id AND hvsi.platform = vpa.platform
 	LEFT OUTER JOIN software_titles st ON st.id = vpa.title_id
 	LEFT OUTER JOIN software_title_display_names stdn
 		ON stdn.software_title_id = vpa.title_id
@@ -3241,7 +3241,10 @@ type appStoreAppChanges struct {
 	Configuration      bool
 }
 
-func (ds *Datastore) hasAppStoreAppChanged(ctx context.Context, teamID *uint, incomingApp fleet.VPPAppTeam, existingApp fleet.VPPAppTeam, isExistingApp bool) (appStoreAppChanges, error) {
+// hasAppStoreAppChanged reports what changed between incomingApp and existingApp.
+// For Android, when the incoming configuration is being cleared, it also rewrites
+// incomingApp.Configuration to `{}` so the caller writes the sentinel downstream.
+func (ds *Datastore) hasAppStoreAppChanged(ctx context.Context, teamID *uint, incomingApp *fleet.VPPAppTeam, existingApp fleet.VPPAppTeam, isExistingApp bool) (appStoreAppChanges, error) {
 	var categoriesChanged, labelsChanged, installDuringSetupChanged, displayNameChanged, configurationChanged, autoUpdateChanged bool
 
 	if isExistingApp {

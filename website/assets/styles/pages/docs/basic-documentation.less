@@ -235,6 +235,8 @@
     [purpose='content-column'] {
       display: flex;
       flex-direction: column;
+      // Fill the row even when the page has only short lines (e.g. lists of links); otherwise it shrinks to fit.
+      flex: 1 1 0%;
       min-width: 0;
     }
 
