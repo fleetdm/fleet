@@ -2355,9 +2355,9 @@ func triggerResendDeviceNamesForIDPChange(ctx context.Context, tx sqlx.ExtContex
 	return reconcileHostDeviceNamesForHostsDB(ctx, tx, affectedHostIDs)
 }
 
-// queueManagedConfigResendJobs finds android app configs that reference any of
+// queueManagedConfigResendJobs finds app store app configs that reference any of
 // the affected fleet variables and inserts worker jobs to re-push the managed
-// configuration with the updated values.
+// configuration with the updated values, or sets a flag for VPP apps.
 func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []any) error {
 	if len(hostIDs) == 0 {
 		return nil
@@ -2416,7 +2416,7 @@ func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostI
 		apps = append(apps, app)
 	}
 
-	// Flag the affected hosts' installs of the iOS and iPadOS versions for the configuration cron, it reads the latest one
+	// Flag the affected installs of the iOS and iPadOS versions for the configuration cron
 	if len(appleAppTeamIDs) > 0 {
 		const markConfigurationResendStmt = `
 		UPDATE host_vpp_software_installs

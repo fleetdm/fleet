@@ -2204,7 +2204,7 @@ func reconcileAppStoreAppTitleConfigurations(ctx context.Context, ds fleet.Datas
 		}
 
 		// Wait before retrying an install of this version that failed after its configuration last changed, counting a failure in the same second as the change as after it
-		failedSince := time.Now().Add(-fleet.AppStoreAppAutomaticInstallWait)
+		failedSince := time.Now().Add(-fleet.VPPAutomaticInstallWaitSeconds * time.Second)
 		if version.ConfigurationUpdatedAt != nil && version.ConfigurationUpdatedAt.After(failedSince) {
 			failedSince = version.ConfigurationUpdatedAt.Truncate(time.Second)
 		}

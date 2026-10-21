@@ -1430,9 +1430,6 @@ type SoftwareScopeLabel struct {
 // Max total attempts (including initial) for a non-policy software install.
 const MaxSoftwareInstallAttempts = 3
 
-// Wait this long after an App Store app install before auto-updates or configuration re-sends queue another, so a failing install isn't queued on every run
-const AppStoreAppAutomaticInstallWait = time.Hour
-
 // MaxPackagesPerTitle caps how many custom packages a single software title can hold per team.
 const MaxPackagesPerTitle = 10
 
