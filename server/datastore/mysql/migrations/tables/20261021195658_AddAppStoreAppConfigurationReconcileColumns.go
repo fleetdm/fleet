@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20261020200751, Down_20261020200751)
+	MigrationClient.AddMigration(Up_20261021195658, Down_20261021195658)
 }
 
-func Up_20261020200751(tx *sql.Tx) error {
+func Up_20261021195658(tx *sql.Tx) error {
 	var err error
 	if !columnExists(tx, "vpp_apps_teams", "configuration_updated_at") {
 		_, err = tx.Exec(`ALTER TABLE vpp_apps_teams ADD COLUMN configuration_updated_at DATETIME(6) NULL DEFAULT NULL`)
@@ -41,6 +41,6 @@ func Up_20261020200751(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20261020200751(tx *sql.Tx) error {
+func Down_20261021195658(tx *sql.Tx) error {
 	return nil
 }
