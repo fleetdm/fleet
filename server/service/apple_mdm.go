@@ -6811,7 +6811,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		)
 
 		// Load VPP metadata for the software title.
-		vppAppMetadata, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitle.ID)
+		vppAppMetadata, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, softwareTitle.ID)
 		switch {
 		case err == nil:
 			// OK
