@@ -1,0 +1,1 @@
+* Orbit now refreshes the `certs.pem` CA bundle installed by `fleetctl package` at startup when it is an older bundle that Fleet shipped, so CA bundle updates reach already-enrolled hosts. A missing file or a bundle an admin replaced is left untouched.

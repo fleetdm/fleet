@@ -38,6 +38,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/autopilot"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/bitlocker"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/cabundle"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
@@ -1230,7 +1231,17 @@ func orbitAction(c *cli.Context) error {
 				osquery.WithFlags([]string{"--tls_server_certs", certPath}),
 			)
 		} else {
-			certPath = filepath.Join(c.String("root-dir"), "certs.pem")
+			certPath = filepath.Join(c.String("root-dir"), cabundle.FileName)
+			// Package installs never update this file, so bring an older Fleet-shipped
+			// bundle up to date before osquery starts using it.
+			switch outcome, err := cabundle.Refresh(c.String("root-dir")); {
+			case err != nil:
+				log.Info().Err(err).Msg("Failed to refresh CA bundle. Keeping the installed one.")
+			case outcome == cabundle.Updated:
+				log.Info().Msg("Refreshed CA bundle to the version embedded in orbit.")
+			case outcome == cabundle.Custom:
+				log.Debug().Msg("CA bundle was not shipped by Fleet. Leaving it untouched.")
+			}
 			if exists, err := file.Exists(certPath); err == nil && exists {
 				_, err = certificate.LoadPEM(certPath)
 				if err != nil {
