@@ -681,11 +681,11 @@ func makeCallbackSSOEndpoint(urlPrefix string) handlerFunc {
 			}
 			resp.Err = err
 		}
+		// Meta refresh rather than an inline script so the redirect isn't blocked when CSP is enabled.
 		relayStateLoadPage := ` <html>
-     <script type='text/javascript'>
-     var redirectURL = {{ .RedirectURL }};
-     window.location = redirectURL;
-     </script>
+     <head>
+     <meta http-equiv="refresh" content="0;url={{ .RedirectURL }}">
+     </head>
      <body>
      Redirecting to Fleet at {{ .RedirectURL }} ...
      </body>
