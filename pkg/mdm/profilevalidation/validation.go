@@ -50,14 +50,24 @@ type ProfileValidationSchema struct {
 	AppleDeclarations map[string]*ApplePayloadType `json:"apple_declarations"`
 	// AppleDeclarationEnvelope holds the keys every DDM declaration shares (Type, Identifier, ...).
 	AppleDeclarationEnvelope *ApplePayloadType `json:"apple_declaration_envelope"`
-	// Windows sections are filled by a later change; kept raw until their shape is defined.
-	Windows     json.RawMessage `json:"windows"`
-	WindowsXSDs json.RawMessage `json:"windows_xsds"`
+	// Windows maps a leaf LocURI, as declared, to its node.
+	Windows map[string]*WindowsNode `json:"windows"`
+	// WindowsXSDs maps a sha256 to an XSD document that chr nodes reference by it.
+	WindowsXSDs map[string]string `json:"windows_xsds"`
+}
+
+// Range is an inclusive numeric range: an Apple key's range or repetition, or a Windows node's range.
+// Pointers keep a 0 bound distinct from no bound.
+type Range struct {
+	Min *float64 `json:"min,omitempty"`
+	Max *float64 `json:"max,omitempty"`
 }
 
 type Version struct {
-	Apple       AppleVersion `json:"apple"`
-	GeneratedAt time.Time    `json:"generated_at"`
+	Apple            AppleVersion            `json:"apple"`
+	Windows          WindowsVersion          `json:"windows"`
+	WindowsTemplates WindowsTemplatesVersion `json:"windows_templates"`
+	GeneratedAt      time.Time               `json:"generated_at"`
 }
 
 // Floors and must-haves catch a reorganized upstream that would otherwise silently shrink the

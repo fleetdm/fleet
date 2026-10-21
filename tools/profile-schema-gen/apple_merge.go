@@ -264,11 +264,11 @@ func mergeRangeList(a, b []any) []any {
 }
 
 // widenRange returns bounds covering both, dropping a bound either side lacks.
-func widenRange(a, b *profilevalidation.AppleRange) *profilevalidation.AppleRange {
+func widenRange(a, b *profilevalidation.Range) *profilevalidation.Range {
 	if a == nil || b == nil {
 		return nil
 	}
-	out := &profilevalidation.AppleRange{}
+	out := &profilevalidation.Range{}
 	if a.Min != nil && b.Min != nil {
 		out.Min = new(min(*a.Min, *b.Min))
 	}
@@ -281,7 +281,7 @@ func widenRange(a, b *profilevalidation.AppleRange) *profilevalidation.AppleRang
 	return out
 }
 
-func fmtRange(r *profilevalidation.AppleRange) string {
+func fmtRange(r *profilevalidation.Range) string {
 	if r == nil {
 		return "none"
 	}

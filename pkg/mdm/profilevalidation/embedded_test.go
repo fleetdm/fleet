@@ -19,8 +19,8 @@ func TestEmbeddedSchema(t *testing.T) {
 	assert.Regexp(t, `^[0-9a-f]{40}$`, s.Version.Apple.Commit)
 	assert.NotEmpty(t, s.Version.Apple.Release)
 	assert.False(t, s.Version.GeneratedAt.IsZero())
-	assert.JSONEq(t, `{}`, string(s.Windows))
-	assert.JSONEq(t, `{}`, string(s.WindowsXSDs))
+	assert.Empty(t, s.Windows)
+	assert.Empty(t, s.WindowsXSDs)
 
 	var apple, allowed int
 	for _, pt := range s.AppleProfiles {
@@ -83,7 +83,7 @@ func TestEmbeddedSchema(t *testing.T) {
 		assert.True(t, airPrint.Platforms[AppleOSiOS].Supervised)
 		assert.Equal(t, "n/a", airPrint.Platforms[AppleOSmacOS].Introduced)
 		delay := s.AppleProfile("com.apple.applicationaccess").Keys["enforcedSoftwareUpdateDelay"].Range
-		assert.Equal(t, &AppleRange{Min: new(1.0), Max: new(90.0)}, delay)
+		assert.Equal(t, &Range{Min: new(1.0), Max: new(90.0)}, delay)
 	})
 
 	t.Run("declarations", func(t *testing.T) {
@@ -92,7 +92,7 @@ func TestEmbeddedSchema(t *testing.T) {
 		assert.NotNil(t, s.AppleDeclarationEnvelope.Keys["Identifier"])
 		passcode := s.AppleDeclaration("com.apple.configuration.passcode.settings")
 		require.NotNil(t, passcode)
-		assert.Equal(t, &AppleRange{Min: new(0.0), Max: new(16.0)}, passcode.Keys["MinimumLength"].Range)
+		assert.Equal(t, &Range{Min: new(0.0), Max: new(16.0)}, passcode.Keys["MinimumLength"].Range)
 		assert.Nil(t, s.AppleProfile("com.apple.configuration.passcode.settings"), "profiles and declarations don't mix")
 	})
 

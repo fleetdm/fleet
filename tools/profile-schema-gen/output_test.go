@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -67,8 +66,8 @@ func validSchema() *profilevalidation.ProfileValidationSchema {
 		AppleDeclarations: map[string]*profilevalidation.ApplePayloadType{
 			"com.apple.configuration.passcode.settings": {Source: "apple"},
 		},
-		Windows:     json.RawMessage("{}"),
-		WindowsXSDs: json.RawMessage("{}"),
+		Windows:     map[string]*profilevalidation.WindowsNode{},
+		WindowsXSDs: map[string]string{},
 	}
 	for i := len(s.AppleProfiles); i < 100; i++ {
 		s.AppleProfiles[fmt.Sprintf("com.example.p%03d", i)] = &profilevalidation.ApplePayloadType{Source: "apple"}

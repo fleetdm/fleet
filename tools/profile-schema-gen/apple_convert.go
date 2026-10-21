@@ -237,11 +237,11 @@ func joinKeyPath(parent, key string) string {
 	return parent + "." + key
 }
 
-func convertRange(r *appleRange) *profilevalidation.AppleRange {
+func convertRange(r *appleRange) *profilevalidation.Range {
 	if r == nil || (r.Min == nil && r.Max == nil) {
 		return nil
 	}
-	return &profilevalidation.AppleRange{Min: r.Min, Max: r.Max}
+	return &profilevalidation.Range{Min: r.Min, Max: r.Max}
 }
 
 func knownAppleType(t profilevalidation.AppleType) bool {

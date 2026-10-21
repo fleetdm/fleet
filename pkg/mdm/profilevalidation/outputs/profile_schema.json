@@ -5,7 +5,16 @@
       "release": "Release-v27.0",
       "commit": "09f249a06e7e3289930bf6d05f38fb562f748ebf"
     },
-    "generated_at": "2026-10-20T09:02:22Z"
+    "windows": {
+      "release": "",
+      "url": "",
+      "sha256": ""
+    },
+    "windows_templates": {
+      "sha256": "",
+      "generated_at": ""
+    },
+    "generated_at": "2026-10-21T05:22:39Z"
   },
   "apple_envelope": {
     "TopLevel": {

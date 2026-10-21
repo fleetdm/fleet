@@ -10,7 +10,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -174,7 +173,7 @@ func downloadApple(ctx context.Context, logger *slog.Logger, client *http.Client
 
 func runWindows(ctx context.Context, logger *slog.Logger, schema *profilevalidation.ProfileValidationSchema) error {
 	logger.InfoContext(ctx, "skipping: Windows sections are not generated yet; writing them empty")
-	schema.Windows = json.RawMessage("{}")
-	schema.WindowsXSDs = json.RawMessage("{}")
+	schema.Windows = map[string]*profilevalidation.WindowsNode{}
+	schema.WindowsXSDs = map[string]string{}
 	return nil
 }
