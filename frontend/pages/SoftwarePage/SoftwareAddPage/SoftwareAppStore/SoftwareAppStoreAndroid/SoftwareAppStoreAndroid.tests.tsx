@@ -106,6 +106,66 @@ describe("SoftwareAppStoreAndroid", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("requests global labels for the Unassigned fleet", async () => {
+    let requestedFleetId: string | null = null;
+    mockServer.use(
+      http.get(baseUrl("/labels/summary"), ({ request }) => {
+        requestedFleetId = new URL(request.url).searchParams.get("fleet_id");
+        return HttpResponse.json({
+          labels: [{ id: 2, name: "Android pilot", label_type: "regular" }],
+        });
+      })
+    );
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPremiumTier: true,
+          isGlobalAdmin: true,
+          isAndroidMdmEnabledAndConfigured: true,
+        },
+      },
+    });
+
+    const { user } = render(
+      <SoftwareAppStoreAndroid currentTeamId={0} router={router} />
+    );
+
+    await user.click(await screen.findByRole("radio", { name: "Custom" }));
+
+    expect(
+      screen.getByRole("checkbox", { name: "Android pilot" })
+    ).toBeInTheDocument();
+    expect(requestedFleetId).toBe("global");
+  });
+
+  it("waits for custom labels before showing the form", async () => {
+    mockServer.use(
+      http.get(baseUrl("/labels/summary"), () =>
+        HttpResponse.json({ labels: [] })
+      )
+    );
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isPremiumTier: true,
+          isGlobalAdmin: true,
+          isAndroidMdmEnabledAndConfigured: true,
+        },
+      },
+    });
+
+    render(<SoftwareAppStoreAndroid currentTeamId={1} router={router} />);
+
+    expect(
+      screen.queryByRole("textbox", { name: "Application ID" })
+    ).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole("textbox", { name: "Application ID" })
+    ).toBeInTheDocument();
+  });
+
   it("shows an error when custom labels fail to load", async () => {
     mockServer.use(
       http.get(baseUrl("/labels/summary"), () =>

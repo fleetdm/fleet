@@ -23,6 +23,15 @@ describe("SoftwareAndroidForm", () => {
       />
     );
 
+    expect(
+      screen.getByText(/always available in self-service \(Google Play Store\)/)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /setup experience/ })
+    ).toHaveAttribute(
+      "href",
+      expect.stringContaining("/controls/setup-experience/install-software")
+    );
     expect(screen.getByText("Target")).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "All hosts" })).toBeChecked();
     expect(
