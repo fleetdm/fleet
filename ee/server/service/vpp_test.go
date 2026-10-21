@@ -2,11 +2,11 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -21,6 +21,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	svcmock "github.com/fleetdm/fleet/v4/server/mock/service"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
@@ -36,8 +37,11 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
 	t.Run("Fails if missing VPP token when payloads to associate", func(t *testing.T) {
-		ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
-			return nil, sql.ErrNoRows
+		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+			return nil, nil
+		}
+		ds.GetAssignedVPPAppsFunc = func(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
+			return nil, nil
 		}
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return &fleet.AppConfig{}, nil
@@ -53,7 +57,7 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 					Platform:         fleet.MacOSPlatform,
 				},
 			}, true)
-			require.ErrorContains(t, err, "could not retrieve vpp token")
+			require.ErrorContains(t, err, "No available VPP Token")
 		})
 		t.Run("not dry run", func(t *testing.T) {
 			_, _, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
@@ -66,7 +70,7 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 					Platform:         fleet.MacOSPlatform,
 				},
 			}, false)
-			require.ErrorContains(t, err, "could not retrieve vpp token")
+			require.ErrorContains(t, err, "No available VPP Token")
 		})
 	})
 
@@ -257,8 +261,8 @@ func TestGetAnchoredVPPAppsMetadataSkipsReAnchorOnEmptyMetadata(t *testing.T) {
 	}
 
 	apps, reAnchors, err := svc.getAnchoredVPPAppsMetadata(t.Context(),
-		[]fleet.VPPAppTeam{{VPPAppID: fleet.VPPAppID{AdamID: "100", Platform: fleet.MacOSPlatform}}},
-		vppTokenInfo{Secret: "de-secret", Country: "de"},
+		[]fleet.VPPAppTeam{{AdamID: "100", Platform: fleet.MacOSPlatform, VPPTokenID: new(uint(7))}},
+		map[uint]vppTokenInfo{7: {Secret: "de-secret", Country: "de"}},
 	)
 	require.NoError(t, err)
 	require.Empty(t, apps, "row with empty Apple metadata must not be inserted")
@@ -381,14 +385,19 @@ func TestBatchAssociateVPPAppsDedupsMissingAssetsError(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, _ *uint) (*fleet.VPPTokenDB, error) {
-		return &fleet.VPPTokenDB{
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{{
 			ID:          1,
 			OrgName:     "us-org",
+			Location:    "Acme US",
 			Token:       "us-secret",
 			RenewDate:   time.Now().Add(24 * time.Hour),
 			CountryCode: "us",
-		}, nil
+			Teams:       []fleet.TeamTuple{},
+		}}, nil
+	}
+	ds.GetAssignedVPPAppsFunc = func(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
+		return nil, nil
 	}
 	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, _ uint, _ []string) (map[string]uint, error) {
 		return nil, nil
@@ -418,7 +427,7 @@ func TestBatchAssociateVPPAppsDedupsMissingAssetsError(t *testing.T) {
 	}, false)
 
 	require.Error(t, err)
-	require.ErrorContains(t, err, "requested app not available on vpp account: "+adamID)
+	require.ErrorContains(t, err, `Couldn't apply. App "`+adamID+`" isn't available in the "Acme US" VPP token.`)
 	require.Equal(t, 1, strings.Count(err.Error(), adamID),
 		"missing-asset error must dedup by AdamID, got: %s", err.Error())
 }
@@ -441,14 +450,19 @@ func TestBatchAssociateVPPAppsDryRunReportsMissingAssets(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, _ *uint) (*fleet.VPPTokenDB, error) {
-		return &fleet.VPPTokenDB{
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{{
 			ID:          1,
 			OrgName:     "us-org",
+			Location:    "Acme US",
 			Token:       "us-secret",
 			RenewDate:   time.Now().Add(24 * time.Hour),
 			CountryCode: "us",
-		}, nil
+			Teams:       []fleet.TeamTuple{},
+		}}, nil
+	}
+	ds.GetAssignedVPPAppsFunc = func(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
+		return nil, nil
 	}
 	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, _ uint, _ []string) (map[string]uint, error) {
 		return nil, nil
@@ -483,7 +497,7 @@ func TestBatchAssociateVPPAppsDryRunReportsMissingAssets(t *testing.T) {
 	const missing = "1107542306"
 	_, _, err = svc.BatchAssociateVPPApps(ctx, "", payload(missing), true)
 	require.Error(t, err)
-	require.ErrorContains(t, err, "requested app not available on vpp account: "+missing)
+	require.ErrorContains(t, err, `Couldn't apply. App "`+missing+`" isn't available in the "Acme US" VPP token.`)
 	require.False(t, ds.BatchInsertVPPAppsFuncInvoked)
 	require.False(t, ds.SetTeamVPPAppsFuncInvoked)
 }
@@ -1401,4 +1415,655 @@ func TestUpdateAppStoreAppActivityToken(t *testing.T) {
 		require.ErrorContains(t, err, "db down")
 		require.False(t, ds.InsertVPPAppWithTeamFuncInvoked)
 	})
+}
+
+const batchVPPTeamName = "📱 Mobile"
+
+// batchVPPFixture wires BatchAssociateVPPApps for fleet 7 with fake Apple VPP
+// and metadata servers. Assets are per token secret.
+type batchVPPFixture struct {
+	svc *Service
+	ds  *mock.Store
+	ctx context.Context
+
+	// assets maps a token secret to the adam IDs it owns.
+	assets map[string][]string
+	// assetCalls holds the secret of every assets request, in order.
+	assetCalls []string
+	// assigned and existing are the fleet's current rows and their vpp_apps rows.
+	assigned map[fleet.VPPAppID]fleet.VPPAppTeam
+	existing map[fleet.VPPAppID]*fleet.VPPApp
+
+	setApps  []fleet.VPPAppTeam
+	titleIDs map[string]uint
+	inserted []*fleet.VPPApp
+}
+
+func newBatchVPPFixture(t *testing.T, tokens ...*fleet.VPPTokenDB) *batchVPPFixture {
+	t.Helper()
+	fx := &batchVPPFixture{
+		assets:   map[string][]string{"us-secret": {"1", "2"}, "jp-secret": {"3"}},
+		assigned: map[fleet.VPPAppID]fleet.VPPAppTeam{},
+		existing: map[fleet.VPPAppID]*fleet.VPPApp{},
+	}
+
+	vppSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		secret := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+		fx.assetCalls = append(fx.assetCalls, secret)
+		var assets []string
+		for _, id := range fx.assets[secret] {
+			assets = append(assets, `{"adamId":"`+id+`","pricingParam":"STDQ"}`)
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"assets":[` + strings.Join(assets, ",") + `]}`))
+	}))
+	t.Cleanup(vppSrv.Close)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", vppSrv.URL, t)
+
+	metaSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		var data []string
+		for _, id := range []string{"1", "2", "3"} {
+			data = append(data, `{"id":"`+id+`","attributes":{"name":"App `+id+`","deviceFamilies":["iphone","ipad"],`+
+				`"platformAttributes":{"ios":{"bundleId":"com.example.`+id+`","artwork":{"url":"https://example.test/icon.png"},`+
+				`"latestVersionInfo":{"versionDisplay":"1.0"}}}}}`)
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"data":[` + strings.Join(data, ",") + `]}`))
+	}))
+	t.Cleanup(metaSrv.Close)
+	dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", metaSrv.URL, t)
+
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+	svc.config = config.FleetConfig{MDM: config.MDMConfig{AppleConnectJWT: "test-jwt"}}
+
+	ds.TeamByNameFunc = func(context.Context, string) (*fleet.Team, error) {
+		return &fleet.Team{ID: 7, Name: batchVPPTeamName}, nil
+	}
+	ds.ListVPPTokensFunc = func(context.Context) ([]*fleet.VPPTokenDB, error) { return tokens, nil }
+	ds.GetAssignedVPPAppsFunc = func(context.Context, *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
+		return fx.assigned, nil
+	}
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(context.Context, uint, []string) (map[string]uint, error) { return nil, nil }
+	ds.GetDuplicateStringGroupsUnderCollationFunc = func(context.Context, []string) ([]fleet.DuplicateStringGroup, error) {
+		return nil, nil
+	}
+	ds.GetVPPAppByAdamIDPlatformFunc = func(_ context.Context, adamID string, platform fleet.InstallableDevicePlatform) (*fleet.VPPApp, error) {
+		if app, ok := fx.existing[fleet.VPPAppID{AdamID: adamID, Platform: platform}]; ok {
+			return app, nil
+		}
+		return nil, common_mysql.NotFound("VPPApp")
+	}
+	ds.GetVPPTokenOwningAppInCountryFunc = func(_ context.Context, _ string, _ fleet.InstallableDevicePlatform, country string) (*fleet.VPPTokenDB, error) {
+		for _, tok := range tokens {
+			if tok.CountryCode == country {
+				return tok, nil
+			}
+		}
+		return nil, common_mysql.NotFound("VPPToken")
+	}
+	ds.BatchInsertVPPAppsFunc = func(_ context.Context, apps []*fleet.VPPApp) error {
+		for i, app := range apps {
+			app.TitleID = uint(100 + i)
+		}
+		fx.inserted = apps
+		return nil
+	}
+	ds.SetTeamVPPAppsFunc = func(_ context.Context, _ *uint, apps []fleet.VPPAppTeam, titleIDs map[string]uint) (bool, error) {
+		fx.setApps = apps
+		fx.titleIDs = titleIDs
+		return false, nil
+	}
+	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(context.Context, uint) error { return nil }
+	ds.GetVPPAppsFunc = func(context.Context, *uint) ([]fleet.VPPAppResponse, error) { return nil, nil }
+	ds.GetEnterpriseFunc = func(context.Context) (*android.Enterprise, error) { return nil, common_mysql.NotFound("Enterprise") }
+
+	fx.svc = svc
+	fx.ds = ds
+	ctx := authz_ctx.NewContext(t.Context(), &authz_ctx.AuthorizationContext{})
+	fx.ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+	return fx
+}
+
+func (fx *batchVPPFixture) apply(dryRun bool, payloads ...fleet.VPPBatchPayload) error {
+	_, _, err := fx.svc.BatchAssociateVPPApps(fx.ctx, batchVPPTeamName, payloads, dryRun)
+	return err
+}
+
+// boundTokens returns the token each app was passed to SetTeamVPPApps with.
+func (fx *batchVPPFixture) boundTokens() map[fleet.VPPAppID]uint {
+	bound := make(map[fleet.VPPAppID]uint, len(fx.setApps))
+	for _, app := range fx.setApps {
+		bound[app.VPPAppID] = *app.VPPTokenID
+	}
+	return bound
+}
+
+func batchUSToken() *fleet.VPPTokenDB {
+	return &fleet.VPPTokenDB{ID: 1, Location: "Acme US", Token: "us-secret", RenewDate: time.Now().Add(24 * time.Hour), CountryCode: "us", Teams: []fleet.TeamTuple{{ID: 7}}}
+}
+
+func batchJPToken() *fleet.VPPTokenDB {
+	return &fleet.VPPTokenDB{ID: 2, Location: "Acme Japan", Token: "jp-secret", RenewDate: time.Now().Add(24 * time.Hour), CountryCode: "jp", Teams: []fleet.TeamTuple{{ID: 7}}}
+}
+
+func batchIOS(adamID, location string) fleet.VPPBatchPayload {
+	return fleet.VPPBatchPayload{
+		AppStoreID:       adamID,
+		Platform:         fleet.IOSPlatform,
+		Location:         location,
+		LabelsExcludeAny: []string{},
+		LabelsIncludeAny: []string{},
+		LabelsIncludeAll: []string{},
+		Categories:       []string{},
+	}
+}
+
+func batchAppID(adamID string) fleet.VPPAppID {
+	return fleet.VPPAppID{AdamID: adamID, Platform: fleet.IOSPlatform}
+}
+
+func TestBatchAssociateVPPAppsTokenResolution(t *testing.T) {
+	// dev_mode.SetOverride uses t.Setenv, which is incompatible with t.Parallel.
+
+	t.Run("binds the first-added token, or the located one", func(t *testing.T) {
+		fx := newBatchVPPFixture(t, batchUSToken(), batchJPToken())
+		require.NoError(t, fx.apply(false, batchIOS("1", ""), batchIOS("3", "Acme Japan")))
+		require.Equal(t, map[fleet.VPPAppID]uint{batchAppID("1"): 1, batchAppID("3"): 2}, fx.boundTokens())
+		require.ElementsMatch(t, []string{"us-secret", "jp-secret"}, fx.assetCalls, "one assets call per token")
+		require.Len(t, fx.inserted, 2)
+	})
+
+	t.Run("an existing app keeps its token without a location", func(t *testing.T) {
+		fx := newBatchVPPFixture(t, batchUSToken(), batchJPToken())
+		fx.assigned[batchAppID("3")] = fleet.VPPAppTeam{VPPTokenID: new(uint(2))}
+		fx.existing[batchAppID("3")] = &fleet.VPPApp{Name: "App 3", TitleID: 33, CountryCode: "jp"}
+		require.NoError(t, fx.apply(false, batchIOS("3", "")))
+		require.Equal(t, map[fleet.VPPAppID]uint{batchAppID("3"): 2}, fx.boundTokens())
+		require.Equal(t, []string{"jp-secret"}, fx.assetCalls)
+	})
+
+	t.Run("an existing app accepts its own location", func(t *testing.T) {
+		fx := newBatchVPPFixture(t, batchUSToken(), batchJPToken())
+		fx.assigned[batchAppID("3")] = fleet.VPPAppTeam{VPPTokenID: new(uint(2))}
+		fx.existing[batchAppID("3")] = &fleet.VPPApp{Name: "App 3", TitleID: 33, CountryCode: "jp"}
+		require.NoError(t, fx.apply(false, batchIOS("3", "Acme Japan")))
+		require.Equal(t, map[fleet.VPPAppID]uint{batchAppID("3"): 2}, fx.boundTokens())
+	})
+
+	t.Run("a new version lands on the token of the app", func(t *testing.T) {
+		fx := newBatchVPPFixture(t, batchUSToken(), batchJPToken())
+		fx.assigned[batchAppID("3")] = fleet.VPPAppTeam{VPPTokenID: new(uint(2))}
+		fx.existing[batchAppID("3")] = &fleet.VPPApp{Name: "App 3", TitleID: 33, CountryCode: "jp"}
+		v1, v2 := batchIOS("3", ""), batchIOS("3", "")
+		v1.VersionName, v2.VersionName = "Stable", "Beta"
+		require.NoError(t, fx.apply(false, v1, v2))
+		require.Len(t, fx.setApps, 2)
+		for _, app := range fx.setApps {
+			require.Equal(t, uint(2), *app.VPPTokenID)
+		}
+	})
+
+	t.Run("a third token assigned to the fleet leaves apps on their tokens", func(t *testing.T) {
+		third := &fleet.VPPTokenDB{ID: 3, Location: "Acme EU", Token: "eu-secret", RenewDate: time.Now().Add(24 * time.Hour), CountryCode: "de", Teams: []fleet.TeamTuple{{ID: 7}}}
+		fx := newBatchVPPFixture(t, batchUSToken(), batchJPToken(), third)
+		fx.assigned[batchAppID("1")] = fleet.VPPAppTeam{VPPTokenID: new(uint(1))}
+		fx.assigned[batchAppID("3")] = fleet.VPPAppTeam{VPPTokenID: new(uint(2))}
+		fx.existing[batchAppID("1")] = &fleet.VPPApp{Name: "App 1", TitleID: 11, CountryCode: "us"}
+		fx.existing[batchAppID("3")] = &fleet.VPPApp{Name: "App 3", TitleID: 33, CountryCode: "jp"}
+		require.NoError(t, fx.apply(false, batchIOS("1", ""), batchIOS("3", "")))
+		require.Equal(t, map[fleet.VPPAppID]uint{batchAppID("1"): 1, batchAppID("3"): 2}, fx.boundTokens())
+	})
+
+	t.Run("first-added is the lowest id among the fleet's and All fleets tokens", func(t *testing.T) {
+		token := func(id uint, teams []fleet.TeamTuple) *fleet.VPPTokenDB {
+			secret := "token-" + strings.Repeat("x", int(id))
+			return &fleet.VPPTokenDB{ID: id, Location: secret, Token: secret, RenewDate: time.Now().Add(24 * time.Hour), CountryCode: "us", Teams: teams}
+		}
+		for _, tt := range []struct {
+			name   string
+			tokens []*fleet.VPPTokenDB
+			want   uint
+		}{
+			{
+				name:   "All fleets token below the fleet token",
+				tokens: []*fleet.VPPTokenDB{token(1, []fleet.TeamTuple{{ID: 9}}), token(2, []fleet.TeamTuple{}), token(3, []fleet.TeamTuple{{ID: 7}})},
+				want:   2,
+			},
+			{
+				name:   "moving the lowest token to All fleets keeps it first",
+				tokens: []*fleet.VPPTokenDB{token(1, []fleet.TeamTuple{}), token(2, []fleet.TeamTuple{{ID: 9}}), token(3, []fleet.TeamTuple{{ID: 7}})},
+				want:   1,
+			},
+		} {
+			t.Run(tt.name, func(t *testing.T) {
+				fx := newBatchVPPFixture(t, tt.tokens...)
+				fx.assets = map[string][]string{}
+				for _, tok := range tt.tokens {
+					fx.assets[tok.Token] = []string{"1"}
+				}
+				require.NoError(t, fx.apply(false, batchIOS("1", "")))
+				require.Equal(t, map[fleet.VPPAppID]uint{batchAppID("1"): tt.want}, fx.boundTokens())
+			})
+		}
+	})
+}
+
+func TestBatchAssociateVPPAppsTokenErrors(t *testing.T) {
+	// dev_mode.SetOverride uses t.Setenv, which is incompatible with t.Parallel.
+
+	expired := time.Now().Add(-24 * time.Hour)
+	missingLine := func(adamID, location string) string {
+		return `Couldn't apply. App "` + adamID + `" isn't available in the "` + location + `" VPP token. Please purchase a license in Apple Business and try again.`
+	}
+	androidPayload := fleet.VPPBatchPayload{AppStoreID: "com.example.app", Platform: fleet.AndroidPlatform, Location: "Acme Japan"}
+
+	tests := []struct {
+		name     string
+		tokens   func() (us, jp *fleet.VPPTokenDB)
+		assigned map[fleet.VPPAppID]fleet.VPPAppTeam
+		payloads []fleet.VPPBatchPayload
+		want     string
+		status   int
+		// dryRunPasses is set for the one error a dry run skips.
+		dryRunPasses bool
+	}{
+		{
+			name:     "location doesn't match a token",
+			payloads: []fleet.VPPBatchPayload{batchIOS("1", "Nowhere")},
+			want:     `Couldn't apply. VPP token "Nowhere doesn't exist.`,
+			status:   http.StatusUnprocessableEntity,
+		},
+		{
+			name: "location token isn't assigned to the fleet",
+			tokens: func() (*fleet.VPPTokenDB, *fleet.VPPTokenDB) {
+				jp := batchJPToken()
+				jp.Teams = []fleet.TeamTuple{{ID: 9}}
+				return batchUSToken(), jp
+			},
+			payloads:     []fleet.VPPBatchPayload{batchIOS("3", "Acme Japan")},
+			want:         `Couldn't apply. VPP token "Acme Japan" isn't assigned to fleet "📱 Mobile". Add it under "org_settings.mdm.volume_purchasing_program".`,
+			status:       http.StatusUnprocessableEntity,
+			dryRunPasses: true,
+		},
+		{
+			name:     "no location and the app isn't in the first-added token",
+			payloads: []fleet.VPPBatchPayload{batchIOS("3", "")},
+			want:     missingLine("3", "Acme US"),
+			status:   http.StatusUnprocessableEntity,
+		},
+		{
+			name:     "location and the app isn't in that token",
+			payloads: []fleet.VPPBatchPayload{batchIOS("1", "Acme Japan")},
+			want:     missingLine("1", "Acme Japan"),
+			status:   http.StatusUnprocessableEntity,
+		},
+		{
+			name: "one line per missing app, sorted, once per app across platforms",
+			payloads: []fleet.VPPBatchPayload{
+				{AppStoreID: "9", Categories: []string{}},
+				batchIOS("3", ""),
+				batchIOS("10", ""),
+			},
+			want:   strings.Join([]string{missingLine("10", "Acme US"), missingLine("3", "Acme US"), missingLine("9", "Acme US")}, "\n"),
+			status: http.StatusUnprocessableEntity,
+		},
+		{
+			name: "first-added token is expired for a new app",
+			tokens: func() (*fleet.VPPTokenDB, *fleet.VPPTokenDB) {
+				us := batchUSToken()
+				us.RenewDate = expired
+				return us, batchJPToken()
+			},
+			payloads: []fleet.VPPBatchPayload{batchIOS("1", "")},
+			want:     `Couldn't apply. "Acme US" VPP token is expired. Please renew it.`,
+			status:   http.StatusUnprocessableEntity,
+		},
+		{
+			name: "location token is expired for a new app",
+			tokens: func() (*fleet.VPPTokenDB, *fleet.VPPTokenDB) {
+				jp := batchJPToken()
+				jp.RenewDate = expired
+				return batchUSToken(), jp
+			},
+			payloads: []fleet.VPPBatchPayload{batchIOS("3", "Acme Japan")},
+			want:     `Couldn't apply. "Acme Japan" VPP token is expired. Please renew it.`,
+			status:   http.StatusUnprocessableEntity,
+		},
+		{
+			name:     "location differs from the token of an app that's already added",
+			assigned: map[fleet.VPPAppID]fleet.VPPAppTeam{batchAppID("1"): {VPPTokenID: new(uint(1))}},
+			payloads: []fleet.VPPBatchPayload{batchIOS("1", "Acme Japan")},
+			want:     `Couldn't apply. Canva is already added from the "Acme US" VPP token. To add it from "Acme Japan", remove it, run GitOps, and then add it back with the new location.`,
+			status:   http.StatusConflict,
+		},
+		{
+			name: "no token available to the fleet",
+			tokens: func() (*fleet.VPPTokenDB, *fleet.VPPTokenDB) {
+				us, jp := batchUSToken(), batchJPToken()
+				us.Teams, jp.Teams = []fleet.TeamTuple{{ID: 9}}, nil
+				return us, jp
+			},
+			payloads: []fleet.VPPBatchPayload{batchIOS("1", "")},
+			want:     "No available VPP Token",
+			status:   http.StatusUnprocessableEntity,
+		},
+		{
+			name:     "same app and platform with different locations",
+			payloads: []fleet.VPPBatchPayload{batchIOS("3", "Acme Japan"), batchIOS("3", "")},
+			want:     `Couldn't apply. App "3" is specified more than once with different location values.`,
+			status:   http.StatusUnprocessableEntity,
+		},
+		{
+			name:     "location on an Android app",
+			payloads: []fleet.VPPBatchPayload{androidPayload},
+			want:     `Couldn't apply. location isn't supported for Android apps.`,
+			status:   http.StatusUnprocessableEntity,
+		},
+	}
+	for _, tt := range tests {
+		for _, dryRun := range []bool{false, true} {
+			name := tt.name + " real run"
+			if dryRun {
+				name = tt.name + " dry run"
+			}
+			t.Run(name, func(t *testing.T) {
+				tokens := func() (*fleet.VPPTokenDB, *fleet.VPPTokenDB) { return batchUSToken(), batchJPToken() }
+				if tt.tokens != nil {
+					tokens = tt.tokens
+				}
+				us, jp := tokens()
+				fx := newBatchVPPFixture(t, us, jp)
+				maps.Copy(fx.assigned, tt.assigned)
+				for id := range tt.assigned {
+					fx.existing[id] = &fleet.VPPApp{Name: "Canva", TitleID: 11, CountryCode: "us"}
+				}
+
+				err := fx.apply(dryRun, tt.payloads...)
+				if dryRun && tt.dryRunPasses {
+					require.NoError(t, err)
+				} else {
+					require.Error(t, err)
+					require.Contains(t, err.Error(), tt.want)
+					require.Equal(t, tt.status, vppErrStatus(err))
+				}
+				require.False(t, fx.ds.SetTeamVPPAppsFuncInvoked)
+			})
+		}
+	}
+
+	t.Run("each missing app is reported once", func(t *testing.T) {
+		fx := newBatchVPPFixture(t, batchUSToken(), batchJPToken())
+		err := fx.apply(false, fleet.VPPBatchPayload{AppStoreID: "9", Categories: []string{}})
+		require.Error(t, err)
+		require.Equal(t, 1, strings.Count(err.Error(), `App "9"`))
+	})
+}
+
+func TestBatchAssociateVPPAppsExistingAppOnExpiredToken(t *testing.T) {
+	// dev_mode.SetOverride uses t.Setenv, which is incompatible with t.Parallel.
+
+	setup := func(t *testing.T) *batchVPPFixture {
+		jp := batchJPToken()
+		jp.RenewDate = time.Now().Add(-24 * time.Hour)
+		fx := newBatchVPPFixture(t, batchUSToken(), jp)
+		fx.assigned[batchAppID("3")] = fleet.VPPAppTeam{VPPTokenID: new(uint(2))}
+		fx.existing[batchAppID("3")] = &fleet.VPPApp{Name: "App 3", TitleID: 33, CountryCode: "jp"}
+		return fx
+	}
+
+	t.Run("survives a run next to a new app", func(t *testing.T) {
+		fx := setup(t)
+		require.NoError(t, fx.apply(false, batchIOS("1", ""), batchIOS("3", "")))
+		require.Equal(t, map[fleet.VPPAppID]uint{batchAppID("1"): 1, batchAppID("3"): 2}, fx.boundTokens(),
+			"SetTeamVPPApps removes any app that isn't passed to it")
+		require.Equal(t, []string{"us-secret"}, fx.assetCalls, "the expired token isn't read")
+		require.Len(t, fx.inserted, 1, "metadata of the expired app is kept")
+		require.Equal(t, uint(33), fx.titleIDs[batchAppID("3").String()])
+		require.Equal(t, uint(100), fx.titleIDs[batchAppID("1").String()])
+	})
+
+	t.Run("survives a run with no other app", func(t *testing.T) {
+		fx := setup(t)
+		require.NoError(t, fx.apply(false, batchIOS("3", "")))
+		require.Equal(t, map[fleet.VPPAppID]uint{batchAppID("3"): 2}, fx.boundTokens())
+		require.False(t, fx.ds.BatchInsertVPPAppsFuncInvoked)
+		require.Empty(t, fx.assetCalls)
+	})
+
+	t.Run("dry run doesn't fail or read the expired token", func(t *testing.T) {
+		fx := setup(t)
+		require.NoError(t, fx.apply(true, batchIOS("1", ""), batchIOS("3", "")))
+		require.Equal(t, []string{"us-secret"}, fx.assetCalls)
+	})
+
+	t.Run("an app moved to the expired token's location still fails", func(t *testing.T) {
+		fx := setup(t)
+		err := fx.apply(false, batchIOS("1", "Acme Japan"))
+		require.ErrorContains(t, err, `Couldn't apply. "Acme Japan" VPP token is expired. Please renew it.`)
+	})
+}
+
+func TestBatchAssociateVPPAppsExpandedPlatformsOnExpiredToken(t *testing.T) {
+	// dev_mode.SetOverride uses t.Setenv, which is incompatible with t.Parallel.
+
+	setup := func(t *testing.T) *batchVPPFixture {
+		us := batchUSToken()
+		us.RenewDate = time.Now().Add(-24 * time.Hour)
+		fx := newBatchVPPFixture(t, us, batchJPToken())
+		// An iOS-only app has no macOS row.
+		for _, platform := range []fleet.InstallableDevicePlatform{fleet.IOSPlatform, fleet.IPadOSPlatform} {
+			id := fleet.VPPAppID{AdamID: "1", Platform: platform}
+			fx.assigned[id] = fleet.VPPAppTeam{VPPTokenID: new(uint(1))}
+			fx.existing[id] = &fleet.VPPApp{Name: "App 1", TitleID: 11, CountryCode: "us"}
+		}
+		return fx
+	}
+	noPlatform := func(adamID string) fleet.VPPBatchPayload {
+		return fleet.VPPBatchPayload{AppStoreID: adamID, Categories: []string{}}
+	}
+
+	t.Run("an app with no platform keeps its rows", func(t *testing.T) {
+		fx := setup(t)
+		require.NoError(t, fx.apply(false, noPlatform("1")))
+		require.Equal(t, map[fleet.VPPAppID]uint{
+			{AdamID: "1", Platform: fleet.IOSPlatform}:    1,
+			{AdamID: "1", Platform: fleet.IPadOSPlatform}: 1,
+		}, fx.boundTokens())
+	})
+
+	t.Run("an app with no platform and a location keeps its rows", func(t *testing.T) {
+		fx := setup(t)
+		located := noPlatform("1")
+		located.Location = "Acme US"
+		require.NoError(t, fx.apply(false, located))
+		require.Equal(t, map[fleet.VPPAppID]uint{
+			{AdamID: "1", Platform: fleet.IOSPlatform}:    1,
+			{AdamID: "1", Platform: fleet.IPadOSPlatform}: 1,
+		}, fx.boundTokens())
+	})
+
+	t.Run("a new app on the expired token still fails", func(t *testing.T) {
+		fx := setup(t)
+		err := fx.apply(false, noPlatform("2"))
+		require.ErrorContains(t, err, `Couldn't apply. "Acme US" VPP token is expired. Please renew it.`)
+	})
+
+	t.Run("an explicit platform still fails", func(t *testing.T) {
+		fx := setup(t)
+		macOS := noPlatform("1")
+		macOS.Platform = fleet.MacOSPlatform
+		err := fx.apply(false, macOS)
+		require.ErrorContains(t, err, `Couldn't apply. "Acme US" VPP token is expired. Please renew it.`)
+	})
+}
+
+func TestBatchAssociateVPPAppsExpandedPlatformsInheritToken(t *testing.T) {
+	// dev_mode.SetOverride uses t.Setenv, which is incompatible with t.Parallel.
+
+	// App 3 is iOS-only and sits on the Japan token, which isn't the first-added one.
+	setup := func(t *testing.T, jp *fleet.VPPTokenDB) *batchVPPFixture {
+		fx := newBatchVPPFixture(t, batchUSToken(), jp)
+		for i, platform := range []fleet.InstallableDevicePlatform{fleet.IOSPlatform, fleet.IPadOSPlatform} {
+			id := fleet.VPPAppID{AdamID: "3", Platform: platform}
+			fx.assigned[id] = fleet.VPPAppTeam{AppTeamID: uint(5 + i), VPPTokenID: new(uint(2))}
+			fx.existing[id] = &fleet.VPPApp{Name: "App 3", TitleID: 13, CountryCode: "jp"}
+		}
+		return fx
+	}
+	noPlatform := func(adamID string) fleet.VPPBatchPayload {
+		return fleet.VPPBatchPayload{AppStoreID: adamID, Categories: []string{}}
+	}
+	want := map[fleet.VPPAppID]uint{
+		{AdamID: "3", Platform: fleet.IOSPlatform}:    2,
+		{AdamID: "3", Platform: fleet.IPadOSPlatform}: 2,
+	}
+
+	t.Run("an app with no platform and no location stays on its token", func(t *testing.T) {
+		fx := setup(t, batchJPToken())
+		require.NoError(t, fx.apply(false, noPlatform("3")))
+		require.Equal(t, want, fx.boundTokens())
+		require.Equal(t, []string{"jp-secret"}, fx.assetCalls)
+	})
+
+	t.Run("the token is expired", func(t *testing.T) {
+		jp := batchJPToken()
+		jp.RenewDate = time.Now().Add(-24 * time.Hour)
+		fx := setup(t, jp)
+		require.NoError(t, fx.apply(false, noPlatform("3")))
+		require.Equal(t, want, fx.boundTokens())
+		require.Empty(t, fx.assetCalls)
+	})
+
+	t.Run("a new app uses the first-added token", func(t *testing.T) {
+		fx := setup(t, batchJPToken())
+		require.NoError(t, fx.apply(false, noPlatform("2")))
+		require.Equal(t, uint(1), fx.boundTokens()[fleet.VPPAppID{AdamID: "2", Platform: fleet.IOSPlatform}])
+	})
+
+	t.Run("a new app fails when the first-added token is expired", func(t *testing.T) {
+		us := batchUSToken()
+		us.RenewDate = time.Now().Add(-24 * time.Hour)
+		fx := newBatchVPPFixture(t, us, batchJPToken())
+		err := fx.apply(false, noPlatform("2"))
+		require.ErrorContains(t, err, `Couldn't apply. "Acme US" VPP token is expired. Please renew it.`)
+	})
+}
+
+func TestBatchAssociateVPPAppsDryRunNewFleetLocation(t *testing.T) {
+	// dev_mode.SetOverride uses t.Setenv, which is incompatible with t.Parallel.
+
+	setup := func(t *testing.T, tokens ...*fleet.VPPTokenDB) *batchVPPFixture {
+		fx := newBatchVPPFixture(t, tokens...)
+		fx.ds.TeamByNameFunc = func(context.Context, string) (*fleet.Team, error) { return nil, common_mysql.NotFound("Team") }
+		return fx
+	}
+
+	t.Run("a located app is checked against that token only", func(t *testing.T) {
+		fx := setup(t, batchUSToken(), batchJPToken())
+		require.NoError(t, fx.apply(true, batchIOS("3", "Acme Japan")))
+		require.Equal(t, []string{"jp-secret"}, fx.assetCalls)
+	})
+
+	t.Run("a located app missing from its token", func(t *testing.T) {
+		fx := setup(t, batchUSToken(), batchJPToken())
+		// The US token has app 1, but the location names Japan.
+		err := fx.apply(true, batchIOS("1", "Acme Japan"))
+		require.ErrorContains(t, err, `Couldn't apply. App "1" isn't available in the "Acme Japan" VPP token. Please purchase a license in Apple Business and try again.`)
+		require.Equal(t, http.StatusUnprocessableEntity, vppErrStatus(err))
+		require.Equal(t, []string{"jp-secret"}, fx.assetCalls)
+	})
+
+	t.Run("a location that doesn't exist", func(t *testing.T) {
+		fx := setup(t, batchUSToken(), batchJPToken())
+		err := fx.apply(true, batchIOS("1", "Nowhere"))
+		require.ErrorContains(t, err, `Couldn't apply. VPP token "Nowhere doesn't exist.`)
+		require.Empty(t, fx.assetCalls)
+	})
+
+	t.Run("a location with no tokens uploaded", func(t *testing.T) {
+		fx := setup(t)
+		err := fx.apply(true, batchIOS("1", "Acme Japan"))
+		require.ErrorContains(t, err, `Couldn't apply. VPP token "Acme Japan doesn't exist.`)
+	})
+
+	t.Run("an expired location token", func(t *testing.T) {
+		jp := batchJPToken()
+		jp.RenewDate = time.Now().Add(-24 * time.Hour)
+		fx := setup(t, batchUSToken(), jp)
+		err := fx.apply(true, batchIOS("3", "Acme Japan"))
+		require.ErrorContains(t, err, `Couldn't apply. "Acme Japan" VPP token is expired. Please renew it.`)
+		require.Empty(t, fx.assetCalls)
+	})
+
+	t.Run("apps without a location keep the union check", func(t *testing.T) {
+		fx := setup(t, batchUSToken(), batchJPToken())
+		// Each app is on some token, so the union passes. App 3 is only on the Japan token.
+		require.NoError(t, fx.apply(true, batchIOS("2", ""), batchIOS("3", "")))
+
+		err := fx.apply(true, batchIOS("9", ""))
+		require.ErrorContains(t, err, "requested app not available on vpp account: 9")
+	})
+
+	t.Run("located and unlocated apps are both checked", func(t *testing.T) {
+		fx := setup(t, batchUSToken(), batchJPToken())
+		err := fx.apply(true, batchIOS("3", "Acme Japan"), batchIOS("9", ""))
+		require.ErrorContains(t, err, "requested app not available on vpp account: 9")
+		require.ElementsMatch(t, []string{"jp-secret", "us-secret"}, fx.assetCalls, "one assets call per token")
+	})
+
+	t.Run("a location on an Android app", func(t *testing.T) {
+		fx := setup(t, batchUSToken(), batchJPToken())
+		err := fx.apply(true, fleet.VPPBatchPayload{AppStoreID: "com.example.app", Platform: fleet.AndroidPlatform, Location: "Acme Japan"})
+		require.ErrorContains(t, err, "Couldn't apply. location isn't supported for Android apps.")
+		require.False(t, fx.ds.ListVPPTokensFuncInvoked)
+	})
+
+	t.Run("one app with different locations", func(t *testing.T) {
+		fx := setup(t, batchUSToken(), batchJPToken())
+		err := fx.apply(true, batchIOS("3", "Acme Japan"), batchIOS("3", ""))
+		require.ErrorContains(t, err, `Couldn't apply. App "3" is specified more than once with different location values.`)
+		require.False(t, fx.ds.ListVPPTokensFuncInvoked)
+	})
+}
+
+func TestResolveBatchVPPTokenStepOrder(t *testing.T) {
+	t.Parallel()
+	us, jp := batchUSToken(), batchJPToken()
+	expiredUS := batchUSToken()
+	expiredUS.RenewDate = time.Now().Add(-24 * time.Hour)
+	all := []*fleet.VPPTokenDB{us, jp}
+
+	tests := []struct {
+		name       string
+		teamTokens []*fleet.VPPTokenDB
+		allTokens  []*fleet.VPPTokenDB
+		existing   *uint
+		location   string
+		dryRun     bool
+		wantID     uint
+		wantErr    string
+	}{
+		{name: "unknown location beats an existing app", teamTokens: all, allTokens: all, existing: new(uint(1)), location: "Nowhere", wantErr: "doesn't exist"},
+		{name: "unassigned beats the already-added error", teamTokens: []*fleet.VPPTokenDB{us}, allTokens: all, existing: new(uint(1)), location: "Acme Japan", wantErr: "isn't assigned to fleet"},
+		{name: "a dry run skips the unassigned check", teamTokens: []*fleet.VPPTokenDB{us}, allTokens: all, location: "Acme Japan", dryRun: true, wantID: 2},
+		{name: "a dry run still reaches the already-added error", teamTokens: []*fleet.VPPTokenDB{us}, allTokens: all, existing: new(uint(1)), location: "Acme Japan", dryRun: true, wantErr: "already added"},
+		{name: "already added beats expiry", teamTokens: []*fleet.VPPTokenDB{expiredUS, jp}, allTokens: []*fleet.VPPTokenDB{expiredUS, jp}, existing: new(uint(1)), location: "Acme Japan", wantErr: "already added"},
+		{name: "an existing app on an expired token passes", teamTokens: []*fleet.VPPTokenDB{expiredUS}, allTokens: []*fleet.VPPTokenDB{expiredUS}, existing: new(uint(1)), wantID: 1},
+		{name: "an existing app outside the fleet's tokens keeps its token", teamTokens: []*fleet.VPPTokenDB{us}, allTokens: all, existing: new(uint(2)), wantID: 2},
+		{name: "a new app on an expired token fails", teamTokens: []*fleet.VPPTokenDB{expiredUS}, allTokens: []*fleet.VPPTokenDB{expiredUS}, wantErr: "is expired"},
+		{name: "a new app takes the first token", teamTokens: all, allTokens: all, wantID: 1},
+		{name: "the location is compared after NFC normalization", teamTokens: all, allTokens: all, location: "Acme Japan", wantID: 2},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tok, err := resolveBatchVPPToken(tt.teamTokens, tt.allTokens, tt.existing, tt.location, batchVPPTeamName, tt.dryRun)
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.wantID, tok.ID)
+		})
+	}
 }

@@ -578,12 +578,9 @@ ORDER BY vat.id
 
 	appsWithChangedLabels := make(map[uint]map[uint]struct{})
 	incomingAppIDs := make(map[fleet.VPPAppID]struct{})
-	var vppTokenRequired, setupExperienceChanged bool
+	var setupExperienceChanged bool
 	for i, incomingApp := range incomingVersions {
 		incomingAppIDs[incomingApp.VPPAppID] = struct{}{}
-		if incomingApp.Platform.IsApplePlatform() {
-			vppTokenRequired = true
-		}
 		if _, ok := setupIncomingIndexByApp[incomingApp.VPPAppID]; !ok {
 			setupIncomingIndexByApp[incomingApp.VPPAppID] = i
 		}
@@ -630,21 +627,9 @@ ORDER BY vat.id
 		return false, ctxerr.Wrap(ctx, err, "get team name for VPP app conflict error")
 	}
 
-	var vppToken *fleet.VPPTokenDB
-	if len(incomingApps) > 0 && vppTokenRequired {
-		vppToken, err = ds.GetVPPTokenByTeamID(ctx, teamID)
-		if err != nil {
-			return false, ctxerr.Wrap(ctx, err, "SetTeamVPPApps retrieve VPP token ID")
-		}
-	}
-
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		for _, toAdd := range toAddApps {
-			var tokenID *uint
-			if vppToken != nil {
-				tokenID = &vppToken.ID
-			}
-			vppAppTeamID, err := insertVPPAppTeams(ctx, tx, toAdd, teamID, tokenID, nil)
+			vppAppTeamID, err := insertVPPAppTeams(ctx, tx, toAdd, teamID, toAdd.VPPTokenID, nil)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps inserting vpp app into team")
 			}
@@ -919,7 +904,7 @@ func (ds *Datastore) GetVPPApps(ctx context.Context, teamID *uint) ([]fleet.VPPA
 func (ds *Datastore) GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
 	stmt := `
 SELECT
-	adam_id, platform, self_service, install_during_setup, id, created_at added_at, name version_name
+	adam_id, platform, self_service, install_during_setup, id, created_at added_at, name version_name, vpp_token_id
 FROM
 	vpp_apps_teams vat
 WHERE
