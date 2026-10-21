@@ -728,6 +728,15 @@ module.exports.routes = {
     }
   },
 
+  'GET /windows': {
+    action: 'view-windows',
+    locals: {
+      pageTitleForMeta: 'AI-native Windows management',
+      pageDescriptionForMeta: 'Patch apps, answer questions in seconds, and manage every Windows setting. Say what you need done, approve the change, and Fleet handles the rest.',
+      currentSection: 'platform',
+    }
+  },
+
   //  ╦  ╔═╗╔╗╔╔╦╗╦╔╗╔╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗
   //  ║  ╠═╣║║║ ║║║║║║║ ╦  ╠═╝╠═╣║ ╦║╣ ╚═╗
   //  ╩═╝╩ ╩╝╚╝═╩╝╩╝╚╝╚═╝  ╩  ╩ ╩╚═╝╚═╝╚═╝
