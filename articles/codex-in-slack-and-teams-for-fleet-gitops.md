@@ -151,6 +151,7 @@ Run `echo $FLEET_MCP_TOKEN` in a new terminal to confirm the token loads. A `401
 
 ## Further reading
 
+- [Connect your AI tool to Fleet's MCP server](https://fleetdm.com/guides/connect-your-ai-tool-to-fleet-mcp)
 - [ChatGPT in Slack and Microsoft Teams](https://learn.chatgpt.com/docs/enterprise/chatgpt-slack-and-teams)
 - [Codex Cloud environments](https://learn.chatgpt.com/docs/environments/cloud-environments)
 - [Codex MCP servers](https://learn.chatgpt.com/docs/extend/mcp)

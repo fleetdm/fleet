@@ -208,6 +208,7 @@ Reply in the thread: `The dry run failed. Run python3 .agents/skills/fleet-gitop
 
 ## Further reading
 
+- [Connect your AI tool to Fleet's MCP server](https://fleetdm.com/guides/connect-your-ai-tool-to-fleet-mcp)
 - [Set up Claude Tag](https://claude.com/docs/claude-tag/admins/setup-overview)
 - [Configure GitHub access for Claude Tag](https://claude.com/docs/claude-tag/admins/configure-github)
 - [Connect a custom MCP server to Claude Tag](https://claude.com/docs/claude-tag/admins/connections/custom)
