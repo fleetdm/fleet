@@ -3094,6 +3094,7 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		return team, nil
 	}
 	vppToken := &fleet.VPPTokenDB{ //nolint:gosec // G101 not a real token
+		ID:          1,
 		Location:    "Foobar",
 		RenewDate:   time.Now().Add(24 * 365 * time.Hour),
 		Token:       "vpp-token",
@@ -3106,7 +3107,15 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		CountryCode: "us",
 	}
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
-		return []*fleet.VPPTokenDB{vppToken, vppToken2}, nil
+		// Copies, since callers reset Teams on the returned tokens.
+		tok, tok2 := *vppToken, *vppToken2
+		if savedTeam != nil {
+			tok.Teams = []fleet.TeamTuple{{ID: savedTeam.ID, Name: savedTeam.Name}}
+		}
+		return []*fleet.VPPTokenDB{&tok, &tok2}, nil
+	}
+	ds.GetAssignedVPPAppsFunc = func(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
+		return map[fleet.VPPAppID]fleet.VPPAppTeam{}, nil
 	}
 
 	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
@@ -3260,10 +3269,10 @@ software:
 	assert.Equal(t, secret, enrolledTeamSecrets[0].Secret)
 
 	// Dry run again (after team was created by real run)
-	ds.GetVPPTokenByTeamIDFuncInvoked = false
+	ds.GetAssignedVPPAppsFuncInvoked = false
 	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"})
-	// Dry run should attempt to get the VPP token when applying VPP apps (it may not exist), so we want to error to the user.
-	require.True(t, ds.GetVPPTokenByTeamIDFuncInvoked)
+	// Dry run should resolve each app's VPP token for the existing team, so a missing token errors to the user.
+	require.True(t, ds.GetAssignedVPPAppsFuncInvoked)
 
 	// Now, set  up a team to delete
 	teamToDeleteID := uint(999)
@@ -7859,6 +7868,20 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 			Token:       string(token),
 			CountryCode: "us",
 		}, nil
+	}
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		return []*fleet.VPPTokenDB{{
+			ID:          1,
+			OrgName:     "fleet",
+			Location:    "ca",
+			RenewDate:   tokExpire,
+			Token:       string(token),
+			CountryCode: "us",
+			Teams:       []fleet.TeamTuple{},
+		}}, nil
+	}
+	ds.GetAssignedVPPAppsFunc = func(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
+		return map[fleet.VPPAppID]fleet.VPPAppTeam{}, nil
 	}
 	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
 		return map[string]uint{}, nil

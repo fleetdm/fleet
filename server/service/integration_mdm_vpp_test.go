@@ -229,6 +229,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	}
 
 	actual := assoc[fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform}]
+	require.NotNil(t, meta.VPPTokenID)
 	// Only macOS version should be self-service
 	assert.Equal(t, fleet.VPPAppTeam{
 		AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform,
@@ -236,6 +237,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		InstallDuringSetup: new(false),
 		VersionName:        fleet.DefaultAppStoreAppVersionName,
 		AppTeamID:          meta.AppTeamID,
+		VPPTokenID:         meta.VPPTokenID,
 		AddedAt:            actual.AddedAt,
 	}, actual)
 	require.GreaterOrEqual(t, actual.AddedAt, beforeAssociation)
@@ -267,6 +269,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		InstallDuringSetup: new(false),
 		VersionName:        fleet.DefaultAppStoreAppVersionName,
 		AppTeamID:          meta.AppTeamID,
+		VPPTokenID:         meta.VPPTokenID,
 		AddedAt:            actual.AddedAt,
 	}, actual)
 	meta, err = s.ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, s.appleVPPConfigSrvConfig.Assets[1].AdamID, fleet.IOSPlatform, &tmGood.ID)
@@ -277,6 +280,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		InstallDuringSetup: new(false),
 		VersionName:        fleet.DefaultAppStoreAppVersionName,
 		AppTeamID:          meta.AppTeamID,
+		VPPTokenID:         meta.VPPTokenID,
 		AddedAt:            actual.AddedAt,
 	}, actual)
 	meta, err = s.ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, s.appleVPPConfigSrvConfig.Assets[1].AdamID, fleet.IPadOSPlatform, &tmGood.ID)
@@ -287,6 +291,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		InstallDuringSetup: new(false),
 		VersionName:        fleet.DefaultAppStoreAppVersionName,
 		AppTeamID:          meta.AppTeamID,
+		VPPTokenID:         meta.VPPTokenID,
 		AddedAt:            actual.AddedAt,
 	}, actual)
 	meta, err = s.ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, s.appleVPPConfigSrvConfig.Assets[1].AdamID, fleet.MacOSPlatform, &tmGood.ID)
@@ -297,6 +302,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		InstallDuringSetup: new(false),
 		VersionName:        fleet.DefaultAppStoreAppVersionName,
 		AppTeamID:          meta.AppTeamID,
+		VPPTokenID:         meta.VPPTokenID,
 		AddedAt:            actual.AddedAt,
 	}, actual)
 
