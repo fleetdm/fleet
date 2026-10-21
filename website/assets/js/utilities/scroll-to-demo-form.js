@@ -15,8 +15,21 @@
 
     event.preventDefault();
     if(typeof $ !== 'undefined') { $('#navbarToggleExternalContent').collapse('hide'); }// Close the mobile nav if it's open.
-    // Jump straight to the form, like an anchor link, rather than smooth-scrolling.
-    demoForm.scrollIntoView({ behavior: 'auto', block: 'center' });
+    // Most pages lead into the form with a bottom CTA (eyebrow + heading) right above it,
+    // so land on that lead-in instead of cutting it off.
+    let target = demoForm;
+    let leadIns = document.querySelectorAll('[purpose="bottom-cta"]');
+    let leadIn = leadIns.length ? leadIns[leadIns.length - 1] : null;
+    let maxLeadInDistance = 800;// Further than this and it's not the form's lead-in.
+    if(leadIn && (leadIn.compareDocumentPosition(demoForm) & Node.DOCUMENT_POSITION_FOLLOWING) && demoForm.getBoundingClientRect().top - leadIn.getBoundingClientRect().top < maxLeadInDistance) {
+      target = leadIn;
+    }
+    // Leave room for the sticky site header in case it's showing.
+    let header = document.querySelector('[purpose="header-container"]');
+    let headerHeight = header ? header.getBoundingClientRect().height : 0;
+    let breathingRoom = 24;
+    // Jump straight there, like an anchor link, rather than smooth-scrolling.
+    window.scrollTo({ top: target.getBoundingClientRect().top + window.pageYOffset - headerHeight - breathingRoom, behavior: 'auto' });
     let firstInput = demoForm.querySelector('input');
     if(firstInput) { firstInput.focus({ preventScroll: true }); }
   });
