@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/x509"
 	"encoding/asn1"
@@ -13,6 +14,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
@@ -65,7 +68,7 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 		return nil, &fleet.BadRequestError{Message: err.Error(), InternalErr: err}
 	}
 
-	if err := svc.verifyRequesterIdentity(ctx, p, hostID, certificateRequest); err != nil {
+	if err := svc.verifyRequesterIdentity(ctx, p, hostID, fleet.CAType(ca.Type), certificateRequest); err != nil {
 		return nil, err
 	}
 
@@ -96,7 +99,9 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 // verifyRequesterIdentity applies the identity safeguards to the CSR: the IdP introspection
 // allowlist, the calling host's end-user binding, and IdP token introspection. hostID is the
 // calling host for device-signed requests and nil otherwise.
-func (svc *Service) verifyRequesterIdentity(ctx context.Context, p fleet.RequestCertificatePayload, hostID *uint, certificateRequest *x509.CertificateRequest) error {
+func (svc *Service) verifyRequesterIdentity(ctx context.Context, p fleet.RequestCertificatePayload, hostID *uint, caType fleet.CAType,
+	certificateRequest *x509.CertificateRequest,
+) error {
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "loading app config for certificate request")
@@ -119,22 +124,44 @@ func (svc *Service) verifyRequesterIdentity(ctx context.Context, p fleet.Request
 		}
 	}
 
-	// Both identity checks bind to the CSR's single email address and to the UPN it must agree
-	// with. A CSR missing either cannot be bound, so it is refused rather than partly checked.
-	var csrEmail, csrUsername string
-
-	if bindHostID != nil || idpProvided {
+	// Both identity checks bind to one identity in the CSR. Usually that is its single email
+	// address, which the UPN must agree with, and a CSR missing either cannot be bound, so it is
+	// refused rather than partly checked. Google CAS refuses a certificate that mixes the UPN with
+	// email, DNS, URI or IP SANs, so for it the UPN is the identity and the only SAN allowed. That
+	// shape is checked on every request, since Google would reject anything else.
+	var identity, csrEmail, csrUsername string
+	upnOnly := caType == fleet.CATypeGoogleCAS
+	switch {
+	case upnOnly:
+		identity, err = extractCSROnlyUPN(ctx, certificateRequest)
+		if err == nil {
+			err = checkCSROnlyUPNSubject(ctx, certificateRequest, identity)
+		}
+		if err != nil {
+			svc.logger.ErrorContext(ctx, "CSR did not have the UPN-only format the certificate authority requires", "err", err)
+			return InvalidCSRError{}
+		}
+	case bindHostID != nil || idpProvided:
 		csrEmail, csrUsername, err = svc.extractCSRUserInfo(ctx, certificateRequest)
 		if err != nil {
 			svc.logger.ErrorContext(ctx, "CSR did not have expected format for identity verification", "err", err)
 			return InvalidCSRError{}
 		}
+		// The UPN is a SAN entry independent of the email, and it is the field 802.1X and AD-backed
+		// mTLS authenticate on, so binding the email alone would still let a caller name a victim
+		// there. Binding the UPN to the email binds it transitively once the email is bound below.
+		if bindHostID != nil && !upnMatchesEmail(csrEmail, csrUsername) {
+			mismatch := hostEndUserMismatchError()
+			svc.logger.ErrorContext(ctx, "Failing Certificate Request due to host end user binding", "host_id", *bindHostID, "err", mismatch)
+			return mismatch
+		}
+		identity = csrEmail
 	}
 
 	// Runs before introspection: a pure DB lookup, so a request that cannot pass it never reaches
 	// the network.
 	if bindHostID != nil {
-		if err := svc.verifyHostEndUserBinding(ctx, *bindHostID, csrEmail, csrUsername); err != nil {
+		if err := svc.verifyHostEndUserBinding(ctx, *bindHostID, identity); err != nil {
 			svc.logger.ErrorContext(ctx, "Failing Certificate Request due to host end user binding", "host_id", *bindHostID, "err", err)
 			return err
 		}
@@ -159,18 +186,33 @@ func (svc *Service) verifyRequesterIdentity(ctx context.Context, p fleet.Request
 
 		idpUsername = *introspectionResponse.Username
 
-		if !upnMatchesEmail(csrEmail, csrUsername) {
+		// Without host binding this is checked after the token, so an invalid token is reported as such.
+		if !upnOnly && !upnMatchesEmail(csrEmail, csrUsername) {
 			svc.logger.ErrorContext(ctx, "Failing Certificate Request due to mismatch between CSR email and UPN", "csr_email", csrEmail, "csr_upn", csrUsername)
 			return InvalidCSRError{}
 		}
-		if csrEmail != *introspectionResponse.Username {
-			svc.logger.ErrorContext(ctx, "Failing Certificate Request due to mismatch between CSR email and IDP token username", "csr_email", csrEmail, "idp_username", *introspectionResponse.Username)
+
+		// The CSR's identity must name the user the IdP token belongs to. The email is compared
+		// exactly, as it always has been; the Google CAS UPN ignoring ASCII case, as IdPs compare usernames.
+		if upnOnly && !equalFoldASCII(identity, idpUsername) {
+			svc.logger.ErrorContext(ctx, "Failing Certificate Request due to mismatch between CSR UPN and IDP token username", "csr_upn", identity, "idp_username", idpUsername)
+			return InvalidIDPTokenError{}
+		}
+		if !upnOnly && csrEmail != idpUsername {
+			svc.logger.ErrorContext(ctx, "Failing Certificate Request due to mismatch between CSR email and IDP token username", "csr_email", csrEmail, "idp_username", idpUsername)
 			// The email in the CSR must match the username from the IDP token introspection
 			return InvalidIDPTokenError{}
 		}
 	}
 
-	svc.logger.InfoContext(ctx, "Retrieving certificate", "ca_id", p.ID, "idp_username", idpUsername)
+	logAttrs := []any{"ca_id", p.ID, "idp_username", idpUsername}
+	if upnOnly {
+		logAttrs = append(logAttrs, "csr_upn", identity)
+		if hostID != nil {
+			logAttrs = append(logAttrs, "host_id", *hostID)
+		}
+	}
+	svc.logger.InfoContext(ctx, "Retrieving certificate", logAttrs...)
 	return nil
 }
 
@@ -196,8 +238,16 @@ func (svc *Service) newCertificateIssuer(ca *fleet.CertificateAuthority) (certif
 		return func(ctx context.Context, csr *x509.CertificateRequest) ([]byte, error) {
 			return issueSCEPCertificate(ctx, svc.scepEnrollmentClient, scepURL, csr)
 		}, nil
+	case fleet.CATypeGoogleCAS:
+		googleCAS, err := ca.GoogleCASCA()
+		if err != nil {
+			return nil, err
+		}
+		return func(ctx context.Context, csr *x509.CertificateRequest) ([]byte, error) {
+			return svc.issueGoogleCASCertificate(ctx, googleCAS, csr)
+		}, nil
 	default:
-		return nil, errors.New("This API currently only supports Hydrant, EST, and NDES Certificate Authorities.")
+		return nil, errors.New("This API currently only supports Hydrant, EST, NDES, and Google CAS Certificate Authorities.")
 	}
 }
 
@@ -227,6 +277,52 @@ func issueSCEPCertificate(ctx context.Context, client fleet.SCEPEnrollmentClient
 	return wrapBase64(envelope), nil
 }
 
+// issueGoogleCASCertificate serves Google CAS CAs. Google returns a PEM certificate, which is
+// wrapped as a PKCS7 envelope so the response has the same shape as every other CA's.
+func (svc *Service) issueGoogleCASCertificate(ctx context.Context, ca fleet.GoogleCASCA, csr *x509.CertificateRequest) ([]byte, error) {
+	cert, err := svc.googleCASService.IssueCertificate(ctx, ca, csr)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "Google CAS certificate request failed")
+	}
+	if err := checkIssuedIdentity(ctx, cert, csr); err != nil {
+		// Google issued it, so it stays valid in the pool unless revoked by its serial number.
+		svc.logger.ErrorContext(ctx, "Not returning the certificate Google CAS issued", "serial", cert.SerialNumber.String(), "err", err)
+		return nil, err
+	}
+	envelope, err := pkcs7.DegenerateCertificate(cert.Raw)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "encoding issued certificate as PKCS7")
+	}
+	return wrapBase64(envelope), nil
+}
+
+// checkIssuedIdentity requires the issued certificate to identify the requester only by the CSR's UPN.
+func checkIssuedIdentity(ctx context.Context, cert *x509.Certificate, csr *x509.CertificateRequest) error {
+	requested, err := extractCSROnlyUPN(ctx, csr)
+	if err != nil {
+		return err
+	}
+	sanOID := asn1.ObjectIdentifier{2, 5, 29, 17}
+	securityIdentifierOID := asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 311, 25, 2}
+	var issued string
+	sans := 0
+	for _, ext := range cert.Extensions {
+		switch {
+		case ext.Id.Equal(securityIdentifierOID):
+			return ctxerr.New(ctx, "Google CAS issued a certificate with identity information Fleet didn't request. Check the CA pool's issuance policy.")
+		case ext.Id.Equal(sanOID):
+			sans++
+			if issued, err = parseOnlyUPNSAN(ctx, ext.Value); err != nil {
+				return ctxerr.Wrap(ctx, err, "Google CAS issued a certificate whose SAN isn't only the requested UPN. Check the CA pool's issuance policy.")
+			}
+		}
+	}
+	if sans != 1 || issued != requested {
+		return ctxerr.New(ctx, "Google CAS issued a certificate for another UPN than the requested one. Check the CA pool's issuance policy.")
+	}
+	return nil
+}
+
 // wrapBase64 base64-encodes data in 64-character lines, which PEM (RFC 7468) requires and MIME
 // base64 (RFC 2045) allows. encoding/pem wraps only when writing a whole block with its armor.
 func wrapBase64(data []byte) []byte {
@@ -242,18 +338,15 @@ func wrapBase64(data []byte) []byte {
 	return []byte(b.String())
 }
 
-// verifyHostEndUserBinding requires the CSR to name the identity the calling host is recorded as
+func hostEndUserMismatchError() error {
+	return fleet.NewPermissionError("Certificate subject does not match the end user identity recorded for this host.")
+}
+
+// verifyHostEndUserBinding requires the CSR's identity to be the one the calling host is recorded as
 // belonging to. It fails closed: a host with no recorded IdP username is rejected, which is what
 // stops a host enrolled with a leaked enroll secret even when it holds a valid stolen token.
-func (svc *Service) verifyHostEndUserBinding(ctx context.Context, hostID uint, csrEmail, csrUsername string) error {
-	mismatch := fleet.NewPermissionError("Certificate subject does not match the end user identity recorded for this host.")
-
-	// The UPN is a SAN entry independent of the email, and it is the field 802.1X and AD-backed
-	// mTLS authenticate on, so binding the email alone would still let a caller name a victim
-	// there. Binding the UPN to the email binds it transitively once the email is bound below.
-	if !upnMatchesEmail(csrEmail, csrUsername) {
-		return mismatch
-	}
+func (svc *Service) verifyHostEndUserBinding(ctx context.Context, hostID uint, identity string) error {
+	mismatch := hostEndUserMismatchError()
 
 	endUsers, err := fleet.GetEndUsers(ctx, svc.ds, hostID)
 	if err != nil {
@@ -266,7 +359,7 @@ func (svc *Service) verifyHostEndUserBinding(ctx context.Context, hostID uint, c
 		return mismatch
 	}
 	// Case-insensitive, as IdPs treat usernames and as SetHostDeviceMapping compares this field.
-	if !strings.EqualFold(endUsers[0].IdpUserName, csrEmail) {
+	if !strings.EqualFold(endUsers[0].IdpUserName, identity) {
 		return mismatch
 	}
 	return nil
@@ -380,6 +473,170 @@ func (svc *Service) extractCSRUserInfo(ctx context.Context, req *x509.Certificat
 	}
 
 	return req.EmailAddresses[0], upn, nil
+}
+
+// extractCSROnlyUPN returns the CSR's UPN when the CSR asks for nothing else, the shape Fleet sends
+// to Google CAS: DER with a single extension request, whose only extension is a SAN holding one
+// strictly encoded UPN.
+func extractCSROnlyUPN(ctx context.Context, req *x509.CertificateRequest) (string, error) {
+	sanOID := asn1.ObjectIdentifier{2, 5, 29, 17}
+	if len(req.Extensions) != 1 || !req.Extensions[0].Id.Equal(sanOID) {
+		return "", ctxerr.Errorf(ctx, "CSR must request only a SAN extension, but requests %d extensions", len(req.Extensions))
+	}
+	if err := checkCSRIsCanonical(req); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "CSR must be DER with a single extension request")
+	}
+	return parseOnlyUPNSAN(ctx, req.Extensions[0].Value)
+}
+
+// checkCSRIsCanonical requires the request to be exactly version 0, the subject, the key and one
+// extension request holding the extensions, signed, in DER: the only shape sent to Google CAS.
+func checkCSRIsCanonical(req *x509.CertificateRequest) error {
+	if req.PublicKey == nil {
+		return errors.New("CSR's public key algorithm is not supported")
+	}
+	spki, err := x509.MarshalPKIXPublicKey(req.PublicKey)
+	if err != nil || !bytes.Equal(spki, req.RawSubjectPublicKeyInfo) {
+		return errors.New("CSR's public key encoding is not canonical")
+	}
+	var outer struct{ TBS, Algorithm, Signature asn1.RawValue }
+	if rest, err := asn1.Unmarshal(req.Raw, &outer); err != nil || len(rest) > 0 {
+		return errors.New("CSR is malformed")
+	}
+	if again, err := asn1.Marshal(outer); err != nil || !bytes.Equal(again, req.Raw) {
+		return errors.New("CSR encoding is not canonical")
+	}
+	extensions, err := asn1.Marshal(req.Extensions)
+	if err != nil {
+		return err
+	}
+	attribute, err := asn1.Marshal(struct {
+		Type   asn1.ObjectIdentifier
+		Values []asn1.RawValue `asn1:"set"`
+	}{asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 14}, []asn1.RawValue{{FullBytes: extensions}}})
+	if err != nil {
+		return err
+	}
+	tbs, err := asn1.Marshal(struct {
+		Version    int
+		Subject    asn1.RawValue
+		PublicKey  asn1.RawValue
+		Attributes []asn1.RawValue `asn1:"tag:0"`
+	}{0, asn1.RawValue{FullBytes: req.RawSubject}, asn1.RawValue{FullBytes: req.RawSubjectPublicKeyInfo}, []asn1.RawValue{{FullBytes: attribute}}})
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(tbs, req.RawTBSCertificateRequest) {
+		return errors.New("CSR encoding is not canonical")
+	}
+	return nil
+}
+
+// parseOnlyUPNSAN returns the UPN from a SAN extension value whose only entry is a UPN otherName:
+// SEQUENCE { type-id OID, value [0] EXPLICIT UTF8String }, with nothing else at any level.
+func parseOnlyUPNSAN(ctx context.Context, value []byte) (string, error) {
+	upnOID := asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 311, 20, 2, 3}
+	var sans []asn1.RawValue
+	if rest, err := asn1.Unmarshal(value, &sans); err != nil || len(rest) > 0 {
+		return "", ctxerr.New(ctx, "malformed SAN extension")
+	}
+	if len(sans) != 1 {
+		return "", ctxerr.Errorf(ctx, "SAN must have exactly one entry, a UPN, but has %d", len(sans))
+	}
+	if sans[0].Class != asn1.ClassContextSpecific || sans[0].Tag != 0 || !sans[0].IsCompound {
+		return "", ctxerr.Errorf(ctx, "only SAN entry must be a UPN, not a tag %d entry", sans[0].Tag)
+	}
+	var oid asn1.ObjectIdentifier
+	rest, err := asn1.Unmarshal(sans[0].Bytes, &oid)
+	if err != nil || !oid.Equal(upnOID) {
+		return "", ctxerr.New(ctx, "only SAN entry must be a UPN, not another otherName")
+	}
+	var explicit asn1.RawValue
+	if rest, err = asn1.Unmarshal(rest, &explicit); err != nil || len(rest) > 0 ||
+		explicit.Class != asn1.ClassContextSpecific || explicit.Tag != 0 || !explicit.IsCompound {
+		return "", ctxerr.New(ctx, "malformed UPN")
+	}
+	var upnValue asn1.RawValue
+	if rest, err = asn1.Unmarshal(explicit.Bytes, &upnValue); err != nil || len(rest) > 0 ||
+		upnValue.Class != asn1.ClassUniversal || upnValue.Tag != asn1.TagUTF8String || upnValue.IsCompound {
+		return "", ctxerr.New(ctx, "UPN must be a single UTF8String")
+	}
+	upn := string(upnValue.Bytes)
+	if upn == "" || !utf8.ValidString(upn) || strings.ContainsFunc(upn, unicode.IsControl) {
+		return "", ctxerr.New(ctx, "UPN is empty, not valid UTF-8, or has control characters")
+	}
+	return upn, nil
+}
+
+// checkCSROnlyUPNSubject allows the request script's subject: empty, or a single UTF8String or
+// PrintableString common name of the UPN, optionally after a prefix of letters, digits, spaces, dots,
+// underscores or hyphens and a colon.
+func checkCSROnlyUPNSubject(ctx context.Context, req *x509.CertificateRequest, upn string) error {
+	var rdns []asn1.RawValue
+	if rest, err := asn1.Unmarshal(req.RawSubject, &rdns); err != nil || len(rest) > 0 {
+		return ctxerr.New(ctx, "CSR's subject is malformed")
+	}
+	if len(rdns) == 0 {
+		return nil
+	}
+	var names []asn1.RawValue
+	if len(rdns) != 1 {
+		return ctxerr.New(ctx, "CSR's subject must be empty or a single common name")
+	}
+	if rest, err := asn1.UnmarshalWithParams(rdns[0].FullBytes, &names, "set"); err != nil || len(rest) > 0 || len(names) != 1 {
+		return ctxerr.New(ctx, "CSR's subject must be empty or a single common name")
+	}
+	var name struct {
+		Type  asn1.ObjectIdentifier
+		Value asn1.RawValue
+	}
+	if rest, err := asn1.Unmarshal(names[0].FullBytes, &name); err != nil || len(rest) > 0 {
+		return ctxerr.New(ctx, "CSR's common name is malformed")
+	}
+	if again, err := asn1.Marshal(name); err != nil || !bytes.Equal(again, names[0].FullBytes) {
+		return ctxerr.New(ctx, "CSR's common name encoding is not canonical")
+	}
+	cn := string(name.Value.Bytes)
+	switch {
+	case !name.Type.Equal(asn1.ObjectIdentifier{2, 5, 4, 3}) || name.Value.Class != asn1.ClassUniversal || name.Value.IsCompound:
+		return ctxerr.New(ctx, "CSR's subject must be empty or a single common name")
+	case name.Value.Tag == asn1.TagUTF8String && utf8.ValidString(cn):
+	case name.Value.Tag == asn1.TagPrintableString && strings.Trim(cn, printableStringChars) == "":
+	default:
+		return ctxerr.New(ctx, "CSR's common name must be a valid UTF8String or PrintableString")
+	}
+	if equalFoldASCII(cn, upn) {
+		return nil
+	}
+	if prefix, rest, found := strings.Cut(cn, ":"); found && prefix != "" && strings.Trim(prefix, subjectPrefixChars) == "" && equalFoldASCII(rest, upn) {
+		return nil
+	}
+	return ctxerr.New(ctx, "CSR's common name must be the UPN, optionally after a prefix and a colon")
+}
+
+const (
+	subjectPrefixChars   = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ._-"
+	printableStringChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 '()+,-./:=?"
+)
+
+// equalFoldASCII compares case-insensitively, folding ASCII letters only.
+func equalFoldASCII(a, b string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := 0; i < len(a); i++ {
+		ca, cb := a[i], b[i]
+		if 'A' <= ca && ca <= 'Z' {
+			ca += 'a' - 'A'
+		}
+		if 'A' <= cb && cb <= 'Z' {
+			cb += 'a' - 'A'
+		}
+		if ca != cb {
+			return false
+		}
+	}
+	return true
 }
 
 // The go standard library does not provide a way to extract the UPN from a CSR, so we must do it
