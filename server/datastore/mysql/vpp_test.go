@@ -2862,6 +2862,8 @@ func testAndroidAppConfigs(t *testing.T, ds *Datastore) {
 		}
 	}
 
+	require.Equal(t, []byte(nil), assigned[app1.VPPAppID].Configuration, "app with no prior configuration should stay nil")
+	require.Equal(t, []byte(`{}`), assigned[app2.VPPAppID].Configuration, "configuration should be cleared when omitted")
 	require.Equal(t, []byte(`{}`), assigned[app4.VPPAppID].Configuration, "configuration should be cleared when omitted")
 
 	// Delete all
