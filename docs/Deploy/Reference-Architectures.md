@@ -129,16 +129,72 @@ Environment="NO_PROXY=localhost,127.0.0.1,::1"
 
 ### Outbound connections
 
-If your network restricts egress, allow the Fleet server to reach these destinations over HTTPS (port 443). Each one is only needed if you use the feature next to it.
+If your network restricts egress, allow the Fleet server to reach these destinations over HTTPS (port 443). Most are only needed if you use the feature next to them.
 
-#### fleetdm.com
+#### Fleet
+
+| Destination | Used for | When |
+|---|---|---|
+| `fleetdm.com/api/android/*` | Android MDM. Fleet calls the [Android Management API](https://developers.google.com/android/management) through this proxy, so the Fleet server doesn't need to reach Google. Allowlist the whole prefix. | Android MDM is turned on |
+| `fleetdm.com/api/v1/microsoft-compliance-partner*` | [Microsoft Entra conditional access](https://fleetdm.com/guides/entra-conditional-access-integration). Fleet reaches Entra through this proxy. | Entra conditional access is set up |
+| `fleetdm.com/api/v1/deliver-apple-csr` | Getting a signed certificate signing request (CSR) for an Apple Push Notification service (APNs) certificate. | Turning on Apple MDM or renewing APNs |
+| `fleetdm.com/api/vpp/v1/*` | App Store app details, like names, icons, and versions. | App Store (VPP) apps are added |
+| `fleetdm.com/api/v1/webhooks/receive-usage-analytics` | [Usage statistics](https://fleetdm.com/guides/fleet-usage-statistics). | Default. Fleet Free can turn it off with `server_settings.enable_analytics` |
+| `fleetdm.com/api/v1/get-human-interpretation-from-osquery-sql` | Autofilling a policy's description and resolution. | Default. Turn off with `server_settings.ai_features_disabled` |
+| `maintained-apps.fleetdm.com` | The Fleet-maintained apps catalog. Fleet also downloads each app's installer from its vendor's URL. | Fleet Premium |
+| `raw.githubusercontent.com/fleetdm/fleet/*` | A fallback for the Fleet-maintained apps catalog. | If `maintained-apps.fleetdm.com` is unreachable |
+| `download.fleetdm.com` | Installing Fleet's agent (fleetd) on Windows hosts with MDM. | Windows MDM is turned on |
+
+#### Vulnerability processing
 
 | Destination | Used for |
 |---|---|
-| `https://fleetdm.com/api/android/*` | Android MDM. Fleet calls the [Android Management API](https://developers.google.com/android/management) through this proxy, so the Fleet server doesn't need to reach Google. Allowlist the whole `/api/android/*` prefix. |
-| `https://fleetdm.com/api/vpp/v1/*` | App Store (VPP) apps. Fleet gets App Store app details, like names, icons, and versions. |
-| `https://fleetdm.com/api/v1/webhooks/receive-usage-analytics` | [Usage statistics](https://fleetdm.com/guides/fleet-usage-statistics), if enabled. |
-| `https://fleetdm.com/api/v1/get-human-interpretation-from-osquery-sql` | Autofilling a policy's description and resolution in the Fleet UI. |
+| `api.github.com` and `github.com` (`fleetdm/nvd` and `fleetdm/vulnerabilities` releases) | CPE dictionary, CVE feeds, Microsoft (MSRC and Office) bulletins, OSV, Go vulnerability data, and OVAL sources. GitHub redirects release downloads to its asset hosts, so allow those too. |
+| `epss.empiricalsecurity.com` | Exploit Prediction Scoring System (EPSS) scores. |
+| `www.cisa.gov` | CISA's Known Exploited Vulnerabilities (KEV) catalog. |
+| Upstream OVAL sources | Linux distributions that OSV doesn't cover, like Fedora. The sources are listed in [`oval_sources.json`](https://github.com/fleetdm/nvd/blob/master/oval_sources.json). |
+
+You can point some feeds at a mirror with [`cpe_database_url`](https://fleetdm.com/docs/configuration/fleet-server-configuration#cpe-database-url), [`cpe_translations_url`](https://fleetdm.com/docs/configuration/fleet-server-configuration#cpe-translations-url), [`cve_feed_prefix_url`](https://fleetdm.com/docs/configuration/fleet-server-configuration#cve-feed-prefix-url), and [`cisa_known_exploits_url`](https://fleetdm.com/docs/configuration/fleet-server-configuration#cisa-known-exploits-url). To stop all of these downloads, use [`disable_data_sync`](https://fleetdm.com/docs/configuration/fleet-server-configuration#disable-data-sync) and provide the files yourself.
+
+#### Apple
+
+| Destination | Used for | When |
+|---|---|---|
+| `api.push.apple.com` | Sending MDM commands through APNs. | Apple MDM is turned on |
+| `mdmenrollment.apple.com` | Automatic enrollment (ADE) with Apple Business Manager (ABM). | An ABM token is added |
+| `vpp.itunes.apple.com` | Installing App Store apps with Apps and Books (VPP). | A VPP token is added |
+| `api.ent.apple.com` | App Store app details, directly from Apple instead of fleetdm.com. | `mdm.apple_vpp_app_metadata_api_bearer_token` is set |
+| `gdmf.apple.com` | Published macOS, iOS, and iPadOS versions, for OS update settings. | Default |
+
+#### Microsoft
+
+| Destination | Used for | When |
+|---|---|---|
+| `login.microsoftonline.com` | Verifying Windows automatic enrollment (Autopilot) with Entra, and signing in to Microsoft Graph. | Windows automatic enrollment or Microsoft Graph credentials are set up |
+| `graph.microsoft.com` | Syncing Windows Autopilot devices. | Microsoft Graph credentials are added |
+
+#### Google
+
+| Destination | Used for | When |
+|---|---|---|
+| `oauth2.googleapis.com` | Signing in to Google APIs. | Google Calendar or Google Workspace is connected |
+| `www.googleapis.com` | Google Calendar events for failing policies. | Google Calendar is connected |
+| `admin.googleapis.com` | Syncing identity provider (IdP) host vitals from Google Workspace. | Google Workspace is connected |
+
+#### Integrations you configure
+
+These go to a URL or service you choose, so allow whatever you set up.
+
+| Feature | Destination |
+|---|---|
+| Webhooks (activities, failing policies, host status, vulnerabilities) | The webhook's destination URL |
+| Jira and Zendesk ticket automations | Your Jira or Zendesk URL |
+| Log destinations (Firehose, Kinesis, Lambda, Pub/Sub, Kafka REST, Splunk, NATS, webhook) | The service or URL in your [log destination settings](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-result-log-plugin) |
+| Software installer and file carve storage | Your S3 bucket or [S3-compatible endpoint](https://fleetdm.com/docs/configuration/fleet-server-configuration#s3-software-installers-endpoint-url), or `storage.googleapis.com` for Google Cloud Storage |
+| Email | Your SMTP server, or Amazon SES |
+| Certificate authorities (DigiCert, NDES, custom SCEP, Smallstep, EST, Hydrant, EJBCA) | The CA's URL |
+| Single sign-on (SSO) | Your IdP's metadata URL, if you use one |
+| Identity checks on the [Request certificate](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) API | Your IdP's token introspection URL |
 
 ## Public IPs of devices
 
