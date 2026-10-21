@@ -129,7 +129,7 @@ Environment="NO_PROXY=localhost,127.0.0.1,::1"
 
 Also, allow the Fleet server to reach the following routes.
 
-#### Fleet
+### Fleet
 
 | Destination | Used for | When |
 |---|---|---|
@@ -143,7 +143,7 @@ Also, allow the Fleet server to reach the following routes.
 | `raw.githubusercontent.com/fleetdm/fleet/*` | A fallback for the Fleet-maintained apps catalog. | If `maintained-apps.fleetdm.com` is unreachable |
 | `download.fleetdm.com` | Installing Fleet's agent (fleetd) on Windows hosts with MDM. | Windows MDM is turned on |
 
-##### Android endpoints
+#### Android MDM
 
 Allowlist the whole `fleetdm.com/api/android/*` prefix, because new endpoints are added over time. Current endpoints:
 
@@ -198,21 +198,6 @@ You can point some feeds at a mirror with [`cpe_database_url`](https://fleetdm.c
 | `oauth2.googleapis.com` | Signing in to Google APIs. | Google Calendar or Google Workspace is connected |
 | `www.googleapis.com` | Google Calendar events for failing policies. | Google Calendar is connected |
 | `admin.googleapis.com` | Syncing identity provider (IdP) host vitals from Google Workspace. | Google Workspace is connected |
-
-#### Integrations you configure
-
-These go to a URL or service you choose, so allow whatever you set up.
-
-| Feature | Destination |
-|---|---|
-| Webhooks (activities, failing policies, host status, vulnerabilities) | The webhook's destination URL |
-| Jira and Zendesk ticket automations | Your Jira or Zendesk URL |
-| Log destinations (Firehose, Kinesis, Lambda, Pub/Sub, Kafka REST, Splunk, NATS, webhook) | The service or URL in your [log destination settings](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-result-log-plugin) |
-| Software installer and file carve storage | Your S3 bucket or [S3-compatible endpoint](https://fleetdm.com/docs/configuration/fleet-server-configuration#s3-software-installers-endpoint-url), or `storage.googleapis.com` for Google Cloud Storage |
-| Email | Your SMTP server, or Amazon SES |
-| Certificate authorities (DigiCert, NDES, custom SCEP, Smallstep, EST, Hydrant, EJBCA) | The CA's URL |
-| Single sign-on (SSO) | Your IdP's metadata URL, if you use one |
-| Identity checks on the [Request certificate](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) API | Your IdP's token introspection URL |
 
 ## Public IPs of devices
 
