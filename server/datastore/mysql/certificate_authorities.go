@@ -502,7 +502,7 @@ func (ds *Datastore) BatchApplyCertificateAuthorities(ctx context.Context, ops f
 				return err
 			}
 			for _, ca := range updates {
-				if old, ok := oldCAs[*ca.Name]; ok && certificateFieldsChanged(old, ca, true) {
+				if old, ok := oldCAs[strings.ToLower(*ca.Name)]; ok && certificateFieldsChanged(old, ca, true) {
 					resendCANames[t.caType] = append(resendCANames[t.caType], *ca.Name)
 				}
 			}
@@ -543,7 +543,8 @@ var profileCATypes = []struct {
 	{fleet.CATypeEJBCA, fleet.FleetVarEJBCADataPrefix},
 }
 
-// getCAsForUpdateDB locks the CAs of a type matching where, selecting only the fields that certificateFieldsChanged compares.
+// getCAsForUpdateDB locks the CAs of a type matching where, selecting only the fields that certificateFieldsChanged compares. The result is
+// keyed by the lowercase name, because the column compares names without regard to case.
 func (ds *Datastore) getCAsForUpdateDB(ctx context.Context, tx sqlx.ExtContext, caType fleet.CAType, where string, args ...any,
 ) (map[string]*fleet.CertificateAuthority, error) {
 	stmt, args, err := sqlx.In(`
@@ -565,7 +566,7 @@ func (ds *Datastore) getCAsForUpdateDB(ctx context.Context, tx sqlx.ExtContext, 
 		if err := ds.postprocessRetrievedCertificateAuthority(ctx, &row, false); err != nil {
 			return nil, err
 		}
-		cas[*row.Name] = &row.CertificateAuthority
+		cas[strings.ToLower(*row.Name)] = &row.CertificateAuthority
 	}
 	return cas, nil
 }

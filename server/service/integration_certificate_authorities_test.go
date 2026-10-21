@@ -2791,6 +2791,15 @@ func (s *integrationMDMTestSuite) TestBatchApplyEJBCACertificateAuthorities() {
 		}, DryRun: true,
 	}, http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(res.Body), "name is already used by another certificate authority")
+	ndesEJBCA := wifi
+	ndesEJBCA.Name = "ndes"
+	res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{
+		CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+			EJBCA:    []fleet.EJBCA{ndesEJBCA},
+			NDESSCEP: &fleet.NDESSCEPProxyCA{URL: "https://ndes.example.com/scep", AdminURL: "https://ndes.example.com/admin", Username: "user", Password: "pw"},
+		}, DryRun: true,
+	}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), `"ndes" name is already used by another certificate authority`)
 
 	// A rename that only changes the case updates the CA, it doesn't delete it.
 	apply(false, http.StatusOK, lowerCase)
