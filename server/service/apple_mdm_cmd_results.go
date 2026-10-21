@@ -201,6 +201,16 @@ func NewInstalledApplicationListResultsHandler(
 				return ctxerr.Wrap(ctx, err, "creating activity for installed app store app")
 			}
 
+			// Count only installs the verification command settles, an install command that finished but was never verified
+			// isn't counted. In-house app installs have no policy_id, so only VPP installs are counted.
+			if expectedInstall.PolicyID != nil {
+				installVerified := terminalStatus == fleet.MDMAppleStatusAcknowledged
+				err = ds.IncrementHostPolicyAutomationRunCount(ctx, *expectedInstall.PolicyID, expectedInstall.HostID, fleet.ActivityInstalledAppStoreApp{}, installVerified)
+				if err != nil {
+					logger.ErrorContext(ctx, "increment host policy automation run count for vpp install", "host_id", expectedInstall.HostID, "command_uuid", expectedInstall.InstallCommandUUID, "err", err)
+				}
+			}
+
 			return nil
 		}
 

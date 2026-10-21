@@ -1,6 +1,7 @@
 package service
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -176,23 +177,20 @@ func TestValidateWindowsProfileFleetVariables(t *testing.T) {
 	}
 }
 
+// syncMLAddItem builds a SyncML Add item with a LocURI target and Data content.
+func syncMLAddItem(locURI, data string) string {
+	return fmt.Sprintf(`<Add><Item><Target><LocURI>%s</LocURI></Target><Data>%s</Data></Item></Add>`, locURI, data)
+}
+
 func TestAdditionalNDESValidationForWindowsProfiles(t *testing.T) {
 	ndesVars := &NDESVarsFound{}
 	ndesVars, _ = ndesVars.SetChallenge()
 	ndesVars, _ = ndesVars.SetURL()
 
-	// Helper to build a SyncML Add item with a LocURI target and Data content.
-	addItem := func(locURI, data string) string {
-		return fmt.Sprintf(
-			`<Add><Item><Target><LocURI>%s</LocURI></Target><Data>%s</Data></Item></Add>`,
-			locURI, data,
-		)
-	}
-
 	// A valid NDES profile with all required fields.
-	validProfile := addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
-		addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
-		addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName", "CN=test,OU=$FLEET_VAR_SCEP_RENEWAL_ID")
+	validProfile := syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
+		syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
+		syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName", "CN=test,OU=$FLEET_VAR_SCEP_RENEWAL_ID")
 
 	tests := []struct {
 		name        string
@@ -206,9 +204,9 @@ func TestAdditionalNDESValidationForWindowsProfiles(t *testing.T) {
 		},
 		{
 			name: "valid NDES profile with braces syntax",
-			contents: addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "${FLEET_VAR_NDES_SCEP_CHALLENGE}") +
-				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "${FLEET_VAR_NDES_SCEP_PROXY_URL}") +
-				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName", "CN=test,OU=${FLEET_VAR_SCEP_RENEWAL_ID}"),
+			contents: syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "${FLEET_VAR_NDES_SCEP_CHALLENGE}") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "${FLEET_VAR_NDES_SCEP_PROXY_URL}") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName", "CN=test,OU=${FLEET_VAR_SCEP_RENEWAL_ID}"),
 		},
 		{
 			name: "valid NDES profile wrapped in atomic",
@@ -223,35 +221,35 @@ func TestAdditionalNDESValidationForWindowsProfiles(t *testing.T) {
 		},
 		{
 			name: "challenge var in wrong field",
-			contents: addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
-				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE"),
+			contents: syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE"),
 			wantErr:     true,
 			errContains: `must only be in the SCEP certificate's "Challenge" field`,
 		},
 		{
 			name: "challenge var in arbitrary data field",
-			contents: addItem("./Device/Vendor/MSFT/Something/Else", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
-				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE"),
+			contents: syncMLAddItem("./Device/Vendor/MSFT/Something/Else", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE"),
 			wantErr:     true,
 			errContains: `must only be in the SCEP certificate's "Challenge" field`,
 		},
 		{
 			name: "proxy url var in wrong field",
-			contents: addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
-				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL"),
+			contents: syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL"),
 			wantErr:     true,
 			errContains: `must only be in the SCEP certificate's "ServerURL" field`,
 		},
 		{
 			name: "proxy url var in arbitrary data field",
-			contents: addItem("./Device/Vendor/MSFT/Something/Else", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
-				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL"),
+			contents: syncMLAddItem("./Device/Vendor/MSFT/Something/Else", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL"),
 			wantErr:     true,
 			errContains: `must only be in the SCEP certificate's "ServerURL" field`,
 		},
 		{
 			name: "challenge var in LocURI target",
-			contents: addItem(
+			contents: syncMLAddItem(
 				"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_NDES_SCEP_CHALLENGE/Install/Challenge",
 				"$FLEET_VAR_NDES_SCEP_CHALLENGE",
 			),
@@ -260,7 +258,7 @@ func TestAdditionalNDESValidationForWindowsProfiles(t *testing.T) {
 		},
 		{
 			name: "proxy url var in LocURI target",
-			contents: addItem(
+			contents: syncMLAddItem(
 				"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_NDES_SCEP_PROXY_URL/Install/ServerURL",
 				"$FLEET_VAR_NDES_SCEP_PROXY_URL",
 			),
@@ -269,37 +267,45 @@ func TestAdditionalNDESValidationForWindowsProfiles(t *testing.T) {
 		},
 		{
 			name: "challenge field has wrong value",
-			contents: addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "hardcoded-password") +
-				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL"),
+			contents: syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "hardcoded-password") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL"),
 			wantErr:     true,
 			errContains: `must be in the SCEP certificate's "Challenge" field`,
 		},
 		{
 			name: "server url field has wrong value",
-			contents: addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
-				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "https://hardcoded.example.com"),
+			contents: syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "https://hardcoded.example.com"),
 			wantErr:     true,
 			errContains: `must be in the SCEP certificate's "ServerURL" field`,
 		},
 		{
 			name: "subject name missing renewal id",
-			contents: addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
-				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
-				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName", "CN=test"),
+			contents: syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName", "CN=test"),
 			wantErr:     true,
-			errContains: "SubjectName item must contain the $FLEET_VAR_CERTIFICATE_RENEWAL_ID variable in the OU field",
+			errContains: subjectNameMissingRenewalIDMsg,
 		},
 		{
 			name: "valid NDES profile with preferred CERTIFICATE_RENEWAL_ID",
-			contents: addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
-				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
-				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName", "CN=test,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID"),
+			contents: syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName", "CN=test,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID"),
 		},
 		{
 			name: "valid NDES profile with preferred CERTIFICATE_RENEWAL_ID (braces syntax)",
-			contents: addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "${FLEET_VAR_NDES_SCEP_CHALLENGE}") +
-				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "${FLEET_VAR_NDES_SCEP_PROXY_URL}") +
-				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName", "CN=test,OU=${FLEET_VAR_CERTIFICATE_RENEWAL_ID}"),
+			contents: syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "${FLEET_VAR_NDES_SCEP_CHALLENGE}") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "${FLEET_VAR_NDES_SCEP_PROXY_URL}") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName", "CN=test,OU=${FLEET_VAR_CERTIFICATE_RENEWAL_ID}"),
+		},
+		{
+			// CDATA reaches the validator undecoded, and the raw "&" in it would fail a plain XML parse.
+			name: "valid NDES profile with renewal ID in a CDATA CN",
+			contents: syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName",
+					"<![CDATA[CN=AT&T $FLEET_VAR_CERTIFICATE_RENEWAL_ID]]>"),
 		},
 		{
 			name:     "nil ndes vars returns nil",
@@ -307,23 +313,23 @@ func TestAdditionalNDESValidationForWindowsProfiles(t *testing.T) {
 		},
 		{
 			name: "subject name with trailing whitespace in LocURI is still validated for renewal id",
-			contents: addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
-				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
-				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName ", "CN=test"),
+			contents: syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName ", "CN=test"),
 			wantErr:     true,
-			errContains: "SubjectName item must contain the $FLEET_VAR_CERTIFICATE_RENEWAL_ID variable in the OU field",
+			errContains: subjectNameMissingRenewalIDMsg,
 		},
 		{
 			name: "challenge with trailing whitespace in LocURI still validates correctly",
-			contents: addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge ", "hardcoded-password") +
-				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL"),
+			contents: syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge ", "hardcoded-password") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL"),
 			wantErr:     true,
 			errContains: `must be in the SCEP certificate's "Challenge" field`,
 		},
 		{
 			name: "server url with trailing whitespace in LocURI still validates correctly",
-			contents: addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
-				addItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL ", "https://hardcoded.example.com"),
+			contents: syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL ", "https://hardcoded.example.com"),
 			wantErr:     true,
 			errContains: `must be in the SCEP certificate's "ServerURL" field`,
 		},
@@ -351,13 +357,6 @@ func TestAdditionalNDESValidationForWindowsProfiles(t *testing.T) {
 func TestAdditionalCustomSCEPValidationForWindowsProfiles(t *testing.T) {
 	t.Parallel()
 
-	addItem := func(locURI, data string) string {
-		return fmt.Sprintf(
-			`<Add><Item><Target><LocURI>%s</LocURI></Target><Data>%s</Data></Item></Add>`,
-			locURI, data,
-		)
-	}
-
 	customSCEPVars := &CustomSCEPVarsFound{}
 	customSCEPVars, _ = customSCEPVars.SetURL("ca1")
 	customSCEPVars, _ = customSCEPVars.SetChallenge("ca1")
@@ -371,28 +370,35 @@ func TestAdditionalCustomSCEPValidationForWindowsProfiles(t *testing.T) {
 	}{
 		{
 			name: "valid custom SCEP profile",
-			contents: addItem(
+			contents: syncMLAddItem(
 				"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName",
 				"CN=test,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID",
 			),
 		},
 		{
+			name: "valid custom SCEP profile with renewal ID in an entity-quoted CN",
+			contents: syncMLAddItem(
+				"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName",
+				"CN=&quot;Doe, Jane $FLEET_VAR_CERTIFICATE_RENEWAL_ID&quot;",
+			),
+		},
+		{
 			name: "subject name missing renewal id",
-			contents: addItem(
+			contents: syncMLAddItem(
 				"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName",
 				"CN=test",
 			),
 			wantErr:     true,
-			errContains: "SubjectName item must contain the $FLEET_VAR_CERTIFICATE_RENEWAL_ID variable in the OU field",
+			errContains: subjectNameMissingRenewalIDMsg,
 		},
 		{
 			name: "subject name with trailing whitespace in LocURI is still validated for renewal id",
-			contents: addItem(
+			contents: syncMLAddItem(
 				"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName ",
 				"CN=test",
 			),
 			wantErr:     true,
-			errContains: "SubjectName item must contain the $FLEET_VAR_CERTIFICATE_RENEWAL_ID variable in the OU field",
+			errContains: subjectNameMissingRenewalIDMsg,
 		},
 	}
 
@@ -405,6 +411,93 @@ func TestAdditionalCustomSCEPValidationForWindowsProfiles(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
+		})
+	}
+}
+
+func TestValidateWindowsProfileFleetVariablesRenewalIDPlacement(t *testing.T) {
+	t.Parallel()
+
+	ndesProfile := func(subjectName string) string {
+		return syncMLAddItem("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
+			syncMLAddItem("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
+			syncMLAddItem("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName", subjectName)
+	}
+	premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	groupedCAs := &fleet.GroupedCertificateAuthorities{NDESSCEP: &fleet.NDESSCEPProxyCA{}}
+
+	tests := []struct {
+		name        string
+		subjectName string
+		errContains string
+	}{
+		{name: "CN", subjectName: "CN=$FLEET_VAR_HOST_HARDWARE_SERIAL $FLEET_VAR_CERTIFICATE_RENEWAL_ID managementAttestation"},
+		{
+			name:        "both CN and OU",
+			subjectName: "CN=$FLEET_VAR_CERTIFICATE_RENEWAL_ID managementAttestation,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID",
+			errContains: renewalIDDuplicateMsg,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := validateWindowsProfileFleetVariables(ndesProfile(tt.subjectName), premiumLic, groupedCAs)
+			if tt.errContains == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, tt.errContains)
+		})
+	}
+}
+
+func TestValidateSubjectNameRenewalID(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		subjectName string
+		want        bool
+		errMsg      string // when want is false; defaults to subjectNameMissingRenewalIDMsg
+	}{
+		{name: "OU", subjectName: "CN=test,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: true},
+		{name: "OU legacy SCEP_RENEWAL_ID", subjectName: "CN=test,OU=$FLEET_VAR_SCEP_RENEWAL_ID", want: true},
+		{name: "OU among other values", subjectName: "CN=test,OU=team $FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: true},
+		{
+			name:        "CN among other values",
+			subjectName: "CN=$FLEET_VAR_HOST_HARDWARE_SERIAL $FLEET_VAR_CERTIFICATE_RENEWAL_ID managementAttestation",
+			want:        true,
+		},
+		{name: "CN quoted", subjectName: `CN="$FLEET_VAR_CERTIFICATE_RENEWAL_ID, device",O=Fleet`, want: true},
+		{name: "lowercase keys", subjectName: "cn=test,ou=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: true},
+		{name: "space after separator", subjectName: "CN=test, OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: true},
+		{name: "renewal ID in O", subjectName: "CN=test,O=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: false},
+		{name: "renewal ID in O after an ampersand", subjectName: "CN=AT&amp;T;O=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: false},
+		{name: "OU in CDATA", subjectName: "<![CDATA[OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID,CN=test]]>", want: true},
+		{name: "CN in CDATA with an ampersand", subjectName: "<![CDATA[CN=AT&T $FLEET_VAR_CERTIFICATE_RENEWAL_ID]]>", want: true},
+		{name: "CN quoted with entities", subjectName: "CN=&quot;a, $FLEET_VAR_CERTIFICATE_RENEWAL_ID&quot;,O=Fleet", want: true},
+		{name: "OU after an encoded separator", subjectName: "CN=test&#44;OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: true},
+		{
+			name:        "OU text inside an entity-quoted O value",
+			subjectName: "CN=test,O=&quot;OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID&quot;",
+			errMsg:      subjectNameEntityQuotedVariableMsg,
+		},
+		{name: "OU with several CNs", subjectName: "CN=a,CN=b,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: true},
+		{name: "second CN", subjectName: "CN=a,CN=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", errMsg: subjectNameRenewalIDInOneOfManyCNsMsg},
+		{name: "malformed XML", subjectName: "CN=AT&T $FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: false},
+		{name: "OU text inside a quoted O value", subjectName: `CN=test,O="OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID"`, want: false},
+		{name: "different variable", subjectName: "CN=$FLEET_VAR_HOST_UUID,OU=$FLEET_VAR_HOST_HARDWARE_SERIAL", want: false},
+		{name: "empty", subjectName: "", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateSubjectNameRenewalID(tt.subjectName)
+			if tt.want {
+				require.NoError(t, err)
+				return
+			}
+			require.EqualError(t, err, cmp.Or(tt.errMsg, subjectNameMissingRenewalIDMsg))
 		})
 	}
 }

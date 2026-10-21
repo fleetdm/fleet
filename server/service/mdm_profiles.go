@@ -373,6 +373,14 @@ func (cs *SmallstepVarsFound) SetRenewalID() (*SmallstepVarsFound, bool) {
 	return cs, !alreadyPresent
 }
 
+var (
+	renewalIDNotInSubjectMsg = "Variable " + fleet.FleetVarCertificateRenewalID.WithPrefix() +
+		" must be in the SCEP certificate's organizational unit (OU). In some use cases, it can go in the common name (CN) instead."
+	renewalIDDuplicateMsg = "Variable " + fleet.FleetVarCertificateRenewalID.WithPrefix() +
+		" can only be used once in a profile. Put it in the SCEP certificate's organizational unit (OU). " +
+		"In some use cases, it can go in the common name (CN) instead."
+)
+
 // validateProfileCertificateAuthorityVariables checks that all Fleet variables
 // used in the given profile contents correspond to existing Certificate Authorities,
 // and that is mapped to a set of CA vars, that can later be used for validation.
@@ -530,7 +538,7 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 			if k == string(fleet.FleetVarSCEPRenewalID) || k == string(fleet.FleetVarCertificateRenewalID) {
 				// Special message for renewal ID — surface the preferred name
 				// in the error regardless of which form the user authored.
-				return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarCertificateRenewalID) + " must be in the SCEP certificate's organizational unit (OU)."}
+				return &fleet.BadRequestError{Message: renewalIDDuplicateMsg}
 			}
 
 			return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is already present in configuration profile.", k)}

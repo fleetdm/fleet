@@ -419,6 +419,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /admin/superadmins': {
+    action: 'admin/view-superadmins',
+    locals: {
+      hideFooterLinks: true,
+      showAdminLinks: true,
+    }
+  },
+
 
   'GET /connect-vanta': {
     action: 'view-connect-vanta',
@@ -708,6 +716,15 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Device management for Europe',
       pageDescriptionForMeta: 'Keep device data in the EU. Manage Windows, macOS, Linux, and mobile devices from one independent platform.',
+    }
+  },
+
+  'GET /pharma': {
+    action: 'view-pharma',
+    locals: {
+      pageTitleForMeta: 'Pharma 4.0',
+      pageDescriptionForMeta: 'Move device management from batch to continuous. Fleet patches Mac, iPhone, iPad, Windows, and Linux continuously, records every change like a batch record, and uses AI to handle the fundamentals.',
+      currentSection: 'platform',
     }
   },
 
@@ -1423,6 +1440,7 @@ module.exports.routes = {
   'GET /learn-more-about/supported-fleet-maintained-app-slugs': 'https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json',
   'GET /learn-more-about/alternative-browser-host': '/guides/enroll-hosts#alternative-browser-host',
   'GET /learn-more-about/deploy-self-service-to-ios': '/guides/software-self-service#deploy-self-service-on-ios-and-ipados',
+  'GET /learn-more-about/android-software': '/guides/install-app-store-apps#google-play-android',
   'GET /learn-more-about/android-software-managed-configuration': '/guides/install-app-store-apps#managed-configuration',
   'GET /learn-more-about/ios-software-managed-configuration': '/guides/install-app-store-apps#ios-and-ipados-managed-configuration',
   'GET /learn-more-about/microsoft-entra-tenant-id': 'https://entra.microsoft.com/#home',
@@ -1564,6 +1582,8 @@ module.exports.routes = {
   'POST /api/v1/deliver-application-submission': { action: 'deliver-application-submission' },
   'POST /api/v1/deliver-gitops-request': { action: 'deliver-gitops-workshop-request' },
   'POST /api/v1/admin/reset-one-fleet-premium-local-trial': { action: 'admin/reset-one-fleet-premium-local-trial' },
+  'POST /api/v1/admin/grant-superadmin': { action: 'admin/grant-superadmin' },
+  'POST /api/v1/admin/revoke-superadmin': { action: 'admin/revoke-superadmin' },
   'POST /api/v1/deliver-whitepaper-download-request': { action: 'deliver-whitepaper-download-request' },
   'POST /api/v1/deliver-webinar-access-request': { action: 'deliver-webinar-access-request' },
   'POST /api/v1/deliver-partner-registration-submission': { action: 'deliver-partner-registration-submission' },
