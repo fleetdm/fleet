@@ -93,6 +93,15 @@
         gap: 20px;
       }
 
+      /* Unlike the step lists, this screen's copy is three short lines, so it
+         drops the 48px offset they add and sits on the section's own spacing. */
+      .next-steps-lines {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+      }
+
       .switch-browser-content {
         display: flex;
         flex-direction: column;
@@ -321,7 +330,7 @@
     <template id="android-next-steps-template">
       <section class="device-instructions-content">
         <h1>After setup...</h1>
-        <div class="android-content">
+        <div class="next-steps-lines">
           <p>You're done! &#127881;</p>
           <p>Close this page after you set up your work profile.</p>
           <p>
