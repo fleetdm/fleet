@@ -8,7 +8,7 @@ import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import InputField from "components/forms/fields/InputField";
-import validURL from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
@@ -74,7 +74,7 @@ const validateTeamSettingsFormData = (
 
   // validate host webhook fields
   if (curFormData.teamHostStatusWebhookEnabled) {
-    if (!validURL({ url: curFormData.teamHostStatusWebhookDestinationUrl })) {
+    if (!isValidURL({ url: curFormData.teamHostStatusWebhookDestinationUrl })) {
       const errorPrefix = curFormData.teamHostStatusWebhookDestinationUrl
         ? `${curFormData.teamHostStatusWebhookDestinationUrl} is not`
         : "Please enter";

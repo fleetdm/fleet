@@ -156,7 +156,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		// if error is because the host does not exist, check first if the user
 		// had access to run a script (to prevent leaking valid host ids).
 		if fleet.IsNotFound(err) {
-			if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{}, fleet.ActionWrite); err != nil {
+			if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{ScriptID: request.ScriptID}, fleet.ActionWrite); err != nil {
 				return nil, err
 			}
 		}
@@ -180,8 +180,9 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 
 	maxPending := maxPendingScripts
 
-	// authorize with the host's team
-	if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+	// authorize with the host's team; script_id matters because some roles can
+	// only run saved scripts, not ad hoc ones.
+	if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{TeamID: host.TeamID, ScriptID: request.ScriptID}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -1328,7 +1329,7 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint, _ *fleet.MDMWipeM
 		return err
 	}
 
-	// On Fleet Free, Wipe is only available for Android (COBO) hosts. Wipe for macOS, Windows, Linux and iOS/iPadOS
+	// On Fleet Free, Wipe is only available for Android hosts. Wipe for macOS, Windows, Linux and iOS/iPadOS
 	// remains a Fleet Premium feature, implemented by the ee WipeHost method which shadows this one on Premium
 	// deployments (so Android-on-Premium also goes through ee, not here).
 	if host.FleetPlatform() != "android" {

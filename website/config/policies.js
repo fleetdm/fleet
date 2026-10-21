@@ -55,7 +55,6 @@ module.exports.policies = {
   'redirect-vanta-authorization-request': true,
   'view-deals': true,
   'deliver-deal-registration-submission': true,
-  'get-est-device-certificate': true,
   'view-customers': true,
   'view-fleetctl-preview': true,
   'get-llm-generated-configuration-profile': true,
@@ -88,4 +87,6 @@ module.exports.policies = {
   'view-arch-linux-management': true,
   'view-omarchy': true,
   'view-europe': true,
+  'view-pharma': true,
+  'view-windows': true,
 };

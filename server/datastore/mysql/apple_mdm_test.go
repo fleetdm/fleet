@@ -54,6 +54,7 @@ func TestMDMApple(t *testing.T) {
 		{"ConsumeADUEEnrollmentChallenge", testConsumeADUEEnrollmentChallenge},
 		{"CleanupExpiredADUEEnrollmentChallenges", testCleanupExpiredADUEEnrollmentChallenges},
 		{"MDMAppleDEPEnrollmentChallenges", testMDMAppleDEPEnrollmentChallenges},
+		{"NewAppleSCEPChallenge", testNewAppleSCEPChallenge},
 		{"RotateMDMAppleAutomaticEnrollmentToken", testRotateMDMAppleAutomaticEnrollmentToken},
 		{"ConsumeAppleSCEPChallenge", testConsumeAppleSCEPChallenge},
 		{"SetAppleSCEPChallengeIssuedCert", testSetAppleSCEPChallengeIssuedCert},
@@ -71,6 +72,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestDeleteMDMAppleConfigProfileCleansUpOptIns", testDeleteMDMAppleConfigProfileCleansUpOptIns},
 		{"TestDeleteMDMAppleConfigProfileByTeamAndIdentifier", testDeleteMDMAppleConfigProfileByTeamAndIdentifier},
 		{"TestListMDMAppleConfigProfiles", testListMDMAppleConfigProfiles},
+		{"TestExpandHostSecretsSCEPRenewalChallenge", testExpandHostSecretsSCEPRenewalChallenge},
 		{"TestHostDetailsMDMProfiles", testHostDetailsMDMProfiles},
 		{"TestHostDetailsMDMProfilesIOSIPadOS", testHostDetailsMDMProfilesIOSIPadOS},
 		{"TestBatchSetMDMAppleProfiles", testBatchSetMDMAppleProfiles},
@@ -135,6 +137,7 @@ func TestMDMApple(t *testing.T) {
 		{"HostMDMCommandsUUID", testHostMDMCommandsUUID},
 		{"CleanupHostMDMCommandsQueueAware", testCleanupHostMDMCommandsQueueAware},
 		{"IngestMDMAppleDeviceFromOTAEnrollment", testIngestMDMAppleDeviceFromOTAEnrollment},
+		{"IngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial", testIngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial},
 		{"IngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping", testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping},
 		{"MDMManagedSCEPCertificates", testMDMManagedSCEPCertificates},
 		{"MDMManagedDigicertCertificates", testMDMManagedDigicertCertificates},
@@ -10720,6 +10723,74 @@ func testIngestMDMAppleDeviceFromOTAEnrollment(t *testing.T, ds *Datastore) {
 	require.ElementsMatch(t, wantSerials, gotSerials)
 }
 
+func testIngestMDMAppleDeviceFromOTAEnrollmentEnrolledSerial(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	createBuiltinLabels(t, ds)
+
+	enrolled, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "enrolled",
+		OsqueryHostID:  new("enrolled"),
+		NodeKey:        new("enrolled"),
+		UUID:           "enrolled-uuid",
+		HardwareSerial: "enrolled-serial",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, enrolled, false)
+
+	// a different UUID claiming the enrolled host's serial is refused, and the host keeps its UUID
+	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
+		Serial: enrolled.HardwareSerial, UDID: "new-uuid", Product: "MacBook Pro",
+	})
+	var conflict *fleet.ConflictError
+	require.ErrorAs(t, err, &conflict)
+	host, err := ds.HostLite(ctx, enrolled.ID)
+	require.NoError(t, err)
+	require.Equal(t, enrolled.UUID, host.UUID)
+
+	// the enrolled device itself can re-enroll
+	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
+		Serial: enrolled.HardwareSerial, UDID: enrolled.UUID, Product: "MacBook Pro",
+	})
+	require.NoError(t, err)
+
+	// once MDM is turned off, the serial can be claimed by a new UUID
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE nano_enrollments SET enabled = 0 WHERE device_id = ?`, enrolled.UUID)
+		return err
+	})
+	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
+		Serial: enrolled.HardwareSerial, UDID: "new-uuid", Product: "MacBook Pro",
+	})
+	require.NoError(t, err)
+	host, err = ds.HostLite(ctx, enrolled.ID)
+	require.NoError(t, err)
+	require.Equal(t, "new-uuid", host.UUID)
+
+	// so can the serial of a deleted host
+	deleted, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "deleted",
+		OsqueryHostID:  new("deleted"),
+		NodeKey:        new("deleted"),
+		UUID:           "deleted-uuid",
+		HardwareSerial: "deleted-serial",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, deleted, false)
+	require.NoError(t, ds.DeleteHost(ctx, deleted.ID))
+	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
+		Serial: deleted.HardwareSerial, UDID: "replacement-uuid", Product: "MacBook Pro",
+	})
+	require.NoError(t, err)
+
+	// and a device that was never enrolled
+	_, err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, "", fleet.MDMAppleMachineInfo{
+		Serial: "never-enrolled-serial", UDID: "never-enrolled-uuid", Product: "MacBook Pro",
+	})
+	require.NoError(t, err)
+}
+
 func testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	createBuiltinLabels(t, ds)
@@ -11092,6 +11163,12 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 			name:                 "Custom SCEP",
 			caName:               "test-ca",
 			caType:               fleet.CAConfigCustomSCEPProxy,
+			challengeRetrievedAt: nil,
+		},
+		{
+			name:                 "EJBCA",
+			caName:               "ejbca",
+			caType:               fleet.CAConfigEJBCA,
 			challengeRetrievedAt: nil,
 		},
 	}
@@ -14068,6 +14145,31 @@ func testMDMAppleResetEnrollmentScimLink(t *testing.T, ds *Datastore) {
 		require.True(t, fleet.IsNotFound(err), "no IdP account and no manual mapping: link must not survive")
 	})
 
+	t.Run("manual IdP mapping over an ADE account survives SCEP renewal only", func(t *testing.T) {
+		for _, scepRenewal := range []bool{true, false} {
+			host := newDarwinHost(t, fmt.Sprintf("uuid-ade-override-%v", scepRenewal))
+			associateIdPAccount(t, host, fmt.Sprintf("staging-%v@example.com", scepRenewal))
+			realUser := fmt.Sprintf("real-%v@example.com", scepRenewal)
+			require.NoError(t, ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, realUser))
+
+			require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, scepRenewal))
+
+			var emails []fleet.HostDeviceMapping
+			require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &emails,
+				`SELECT email, source FROM host_emails WHERE host_id = ?`, host.ID))
+			require.Len(t, emails, 1)
+			if scepRenewal {
+				require.Equal(t, fleet.HostDeviceMapping{Email: realUser, Source: fleet.DeviceMappingIDP}, emails[0])
+			} else {
+				// a real re-enrollment re-authenticates, so the IdP account replaces the manual mapping
+				require.Equal(t, fleet.HostDeviceMapping{
+					Email:  fmt.Sprintf("staging-%v@example.com", scepRenewal),
+					Source: fleet.DeviceMappingMDMIdpAccounts,
+				}, emails[0])
+			}
+		}
+	})
+
 	t.Run("ADE re-enrollment by a different user re-points the link", func(t *testing.T) {
 		host := newDarwinHost(t, "uuid-ade-handoff")
 		firstUserID := newScimUser(t, "first@example.com")
@@ -14544,6 +14646,125 @@ func insertAppleSCEPChallenge(t *testing.T, ds *Datastore, challenge string, pur
 			int64(expiresOffset/time.Second), consumed, consumed)
 		return err
 	})
+}
+
+func testExpandHostSecretsSCEPRenewalChallenge(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	doc := `<string>` + fleet.HostSecretPlaceholder(fleet.HostSecretSCEPChallenge) + `</string>`
+	expand := func(t *testing.T, enrollmentID string) string {
+		t.Helper()
+		expanded, err := ds.ExpandHostSecrets(ctx, doc, enrollmentID)
+		require.NoError(t, err)
+		challenge := strings.TrimSuffix(strings.TrimPrefix(expanded, "<string>"), "</string>")
+		require.NotEmpty(t, challenge)
+		require.NotContains(t, challenge, fleet.HostSecretPrefix)
+		return challenge
+	}
+	enroll := func(t *testing.T, enrollmentID string) {
+		t.Helper()
+		nanoEnroll(t, ds, &fleet.Host{UUID: enrollmentID, Platform: "darwin"}, false)
+	}
+	setRow := func(t *testing.T, challenge, set string) {
+		t.Helper()
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE mdm_apple_scep_challenges SET `+set+` WHERE challenge = ?`, challenge)
+			return err
+		})
+	}
+
+	// the device channel ID is the UDID for device enrollments and the EnrollmentID for ADUE
+	for _, enrollmentID := range []string{"device-udid", "adue-enrollment-id"} {
+		enroll(t, enrollmentID)
+		challenge := expand(t, enrollmentID)
+
+		// re-deliveries return the same challenge
+		require.Equal(t, challenge, expand(t, enrollmentID))
+
+		var row struct {
+			fleet.AppleSCEPChallengeInfo
+			SecondsLeft int64 `db:"seconds_left"`
+		}
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &row, `SELECT purpose, host_uuid, hardware_serial, idp_account_uuid,
+				TIMESTAMPDIFF(SECOND, NOW(6), expires_at) AS seconds_left FROM mdm_apple_scep_challenges WHERE challenge = ?`, challenge)
+		})
+		require.Equal(t, fleet.AppleSCEPChallengeInfo{Purpose: fleet.AppleMDMCertPurposeSCEPRenewal, UUID: new(enrollmentID)}, row.AppleSCEPChallengeInfo)
+		require.InDelta(t, fleet.AppleSCEPRenewalChallengeTTL.Seconds(), row.SecondsLeft, 5)
+
+		// a consumed challenge is replaced
+		info, err := ds.ConsumeAppleSCEPChallenge(ctx, challenge)
+		require.NoError(t, err)
+		require.Equal(t, fleet.AppleMDMCertPurposeSCEPRenewal, info.Purpose)
+		next := expand(t, enrollmentID)
+		require.NotEqual(t, challenge, next)
+
+		// so is an expired one
+		setRow(t, next, "expires_at = NOW(6) - INTERVAL 1 SECOND")
+		require.NotEqual(t, next, expand(t, enrollmentID))
+	}
+
+	// a challenge isn't shared between enrollments
+	enroll(t, "other-udid")
+	require.NotEqual(t, expand(t, "device-udid"), expand(t, "other-udid"))
+
+	// an enrollment Fleet doesn't know isn't given a challenge
+	_, err := ds.ExpandHostSecrets(ctx, doc, "unknown-enrollment")
+	require.Error(t, err)
+
+	// concurrent deliveries to the same enrollment create a single challenge
+	enroll(t, "concurrent-udid")
+	const workers = 10
+	results := make([]string, workers)
+	var wg sync.WaitGroup
+	for i := range workers {
+		wg.Go(func() {
+			expanded, err := ds.ExpandHostSecrets(ctx, doc, "concurrent-udid")
+			assert.NoError(t, err)
+			results[i] = expanded
+		})
+	}
+	wg.Wait()
+	for _, r := range results {
+		require.Equal(t, results[0], r)
+	}
+	var count int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &count, `SELECT COUNT(*) FROM mdm_apple_scep_challenges WHERE host_uuid = ?`, "concurrent-udid")
+	})
+	require.Equal(t, 1, count)
+}
+
+func testNewAppleSCEPChallenge(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	_, err := ds.NewAppleSCEPChallenge(ctx, fleet.AppleSCEPChallengeInfo{Purpose: fleet.AppleMDMCertPurposeADE}, 0)
+	require.Error(t, err)
+
+	device := fleet.AppleSCEPChallengeInfo{Purpose: fleet.AppleMDMCertPurposeADE, UUID: new("udid"), Serial: new("serial")}
+	first, err := ds.NewAppleSCEPChallenge(ctx, device, time.Hour)
+	require.NoError(t, err)
+	second, err := ds.NewAppleSCEPChallenge(ctx, device, time.Hour)
+	require.NoError(t, err)
+	require.NotEmpty(t, first)
+	require.NotEqual(t, first, second)
+
+	var secondsLeft int64
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &secondsLeft,
+			`SELECT TIMESTAMPDIFF(SECOND, NOW(6), expires_at) FROM mdm_apple_scep_challenges WHERE challenge = ?`, first)
+	})
+	require.InDelta(t, time.Hour.Seconds(), secondsLeft, 5)
+
+	info, err := ds.ConsumeAppleSCEPChallenge(ctx, first)
+	require.NoError(t, err)
+	require.Equal(t, device, *info)
+
+	adue := fleet.AppleSCEPChallengeInfo{Purpose: fleet.AppleMDMCertPurposeADUE, IDPAccountUUID: new("idp-account")}
+	challenge, err := ds.NewAppleSCEPChallenge(ctx, adue, time.Hour)
+	require.NoError(t, err)
+	info, err = ds.ConsumeAppleSCEPChallenge(ctx, challenge)
+	require.NoError(t, err)
+	require.Equal(t, adue, *info)
 }
 
 func testConsumeAppleSCEPChallenge(t *testing.T, ds *Datastore) {

@@ -78,6 +78,53 @@ describe("FileDetails", () => {
     expect(onDeleteFile).toHaveBeenCalled();
   });
 
+  it("disables the delete button when `disabled` is true", async () => {
+    const onDeleteFile = jest.fn();
+    const { user, container } = setup({ onDeleteFile, disabled: true });
+
+    const deleteButton = container.querySelector(
+      ".file-details__delete-button"
+    ) as HTMLButtonElement;
+    expect(deleteButton).toBeDisabled();
+
+    await user.click(deleteButton);
+    expect(onDeleteFile).not.toHaveBeenCalled();
+  });
+
+  it("disables the delete button when GitOps mode is enabled and the file is gitopsCompatible", async () => {
+    const onDeleteFile = jest.fn();
+    const { user, container } = setup({
+      onDeleteFile,
+      gitOpsModeEnabled: true,
+      gitopsCompatible: true,
+    });
+
+    const deleteButton = container.querySelector(
+      ".file-details__delete-button"
+    ) as HTMLButtonElement;
+    expect(deleteButton).toBeDisabled();
+
+    await user.click(deleteButton);
+    expect(onDeleteFile).not.toHaveBeenCalled();
+  });
+
+  it("leaves the delete button enabled when GitOps mode is enabled but the file is not gitopsCompatible", async () => {
+    const onDeleteFile = jest.fn();
+    const { user, container } = setup({
+      onDeleteFile,
+      gitOpsModeEnabled: true,
+      gitopsCompatible: false,
+    });
+
+    const deleteButton = container.querySelector(
+      ".file-details__delete-button"
+    ) as HTMLButtonElement;
+    expect(deleteButton).toBeEnabled();
+
+    await user.click(deleteButton);
+    expect(onDeleteFile).toHaveBeenCalled();
+  });
+
   it("renders progress bar and hides edit/delete when progress is present", () => {
     const { container } = setup({ progress: 0.5 });
 

@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"reflect"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -43,18 +46,38 @@ type MDMAndroidConfigProfile struct {
 // associated error messages when they are included
 var AndroidForbiddenJSONKeys = map[string]string{
 	"statusReportingSettings":       `Android configuration profile can't include "statusReportingSettings" setting. To get host vitals, use Get host endpoint: https://fleetdm.com/docs/rest-api/rest-api#get-host`,
-	"applications":                  `Android configuration profile can't include "applications" setting. Software management is coming soon.`,
-	"appFunctions":                  `Android configuration profile can't include "appFunctions" setting. Software management is coming soon.`,
-	"playStoreMode":                 `Android configuration profile can't include "playStoreMode" setting. Software management is coming soon.`,
-	"installAppsDisabled":           `Android configuration profile can't include "installAppsDisabled" setting. Software management is coming soon.`,
-	"uninstallAppsDisabled":         `Android configuration profile can't include "uninstallAppsDisabled" setting. Software management is coming soon.`,
-	"blockApplicationsEnabled":      `Android configuration profile can't include "blockApplicationsEnabled" setting. Software management is coming soon.`,
-	"appAutoUpdatePolicy":           `Android configuration profile can't include "appAutoUpdatePolicy" setting. Software management is coming soon.`,
+	"applications":                  androidSoftwareKeyErrPremium("applications"),
+	"appFunctions":                  androidSoftwareKeyErrPremium("appFunctions"),
+	"playStoreMode":                 androidSoftwareKeyErrPremium("playStoreMode"),
+	"installAppsDisabled":           androidSoftwareKeyErrPremium("installAppsDisabled"),
+	"uninstallAppsDisabled":         androidSoftwareKeyErrPremium("uninstallAppsDisabled"),
+	"blockApplicationsEnabled":      androidSoftwareKeyErrPremium("blockApplicationsEnabled"),
+	"appAutoUpdatePolicy":           androidSoftwareKeyErrPremium("appAutoUpdatePolicy"),
 	"kioskCustomLauncherEnabled":    `Android configuration profile can't include "kioskCustomLauncherEnabled" setting. Currently, only personal hosts are supported.`,
 	"kioskCustomization":            `Android configuration profile can't include "kioskCustomization" setting. Currently, only personal hosts are supported.`,
 	"persistentPreferredActivities": `Android configuration profile can't include "persistentPreferredActivities" setting. Currently, only personal hosts are supported.`,
 	"setupActions":                  `Android configuration profile can't include "setupActions" setting. Currently, setup experience customization isn't supported.`,
 	"encryptionPolicy":              `Android configuration profile can't include "encryptionPolicy" setting. Currently, disk encryption isn't supported.`,
+}
+
+// AndroidSoftwareJSONKeysFree are the software management keys from AndroidForbiddenJSONKeys with the
+// error messages shown instead for non-Premium licenses, since software management is Premium only.
+var AndroidSoftwareJSONKeysFree = map[string]string{
+	"applications":             androidSoftwareKeyErrFree("applications"),
+	"appFunctions":             androidSoftwareKeyErrFree("appFunctions"),
+	"playStoreMode":            androidSoftwareKeyErrFree("playStoreMode"),
+	"installAppsDisabled":      androidSoftwareKeyErrFree("installAppsDisabled"),
+	"uninstallAppsDisabled":    androidSoftwareKeyErrFree("uninstallAppsDisabled"),
+	"blockApplicationsEnabled": androidSoftwareKeyErrFree("blockApplicationsEnabled"),
+	"appAutoUpdatePolicy":      androidSoftwareKeyErrFree("appAutoUpdatePolicy"),
+}
+
+func androidSoftwareKeyErrPremium(key string) string {
+	return fmt.Sprintf(`Android configuration profile can't include %q setting. To manage Android software, add Play Store apps in Fleet. Learn more: https://fleetdm.com/learn-more-about/android-software`, key)
+}
+
+func androidSoftwareKeyErrFree(key string) string {
+	return fmt.Sprintf(`Android configuration profile can't include %q setting. Android software management is Fleet Premium only.`, key)
 }
 
 // AndroidPremiumOnlyJSONKeys are keys that may not be included in user-provided Android
@@ -85,6 +108,12 @@ func (m *MDMAndroidConfigProfile) ValidateUserProvided(isPremium bool) error {
 		return errors.New("JSON profile is empty")
 	}
 	for key := range profileKeyMap {
+		if !isPremium {
+			if errMsg, ok := AndroidSoftwareJSONKeysFree[key]; ok {
+				return errors.New(errMsg)
+			}
+		}
+
 		if errMsg, ok := AndroidForbiddenJSONKeys[key]; ok {
 			return errors.New(errMsg)
 		}
@@ -332,6 +361,7 @@ var FleetVarsSupportedInAndroidAppConfig = []FleetVarName{
 	FleetVarHostEndUserIDPGroups,
 	FleetVarHostEndUserIDPDepartment,
 	FleetVarHostEndUserIDPFullname,
+	FleetVarHostEndUserIDPExternalID,
 }
 
 var validAndroidWorkProfileWidgets = map[string]struct{}{
@@ -345,9 +375,35 @@ var validAndroidCredentialProviderPolicies = map[string]struct{}{
 	"CREDENTIAL_PROVIDER_ALLOWED":            {},
 }
 
+// androidAppConfigDeniedKeys are ApplicationPolicy fields Fleet sets itself: packageName is the
+// software title's identity and installType is how Fleet drives self-service vs. setup experience.
+// Keys are lowercased because encoding/json, which the worker uses to read stored configs, matches
+// field names case-insensitively.
+var androidAppConfigDeniedKeys = map[string]struct{}{
+	"packagename": {},
+	"installtype": {},
+}
+
+// androidApplicationPolicyFields returns the lowercased JSON names of
+// androidmanagement.ApplicationPolicy's fields. Allowed keys follow the vendored
+// google.golang.org/api version, so a field Google adds later is rejected until that dependency is
+// bumped.
+var androidApplicationPolicyFields = sync.OnceValue(func() map[string]struct{} {
+	fields := make(map[string]struct{})
+	for field := range reflect.TypeFor[androidmanagement.ApplicationPolicy]().Fields() {
+		name, _, _ := strings.Cut(field.Tag.Get("json"), ",")
+		if name != "" && name != "-" {
+			fields[strings.ToLower(name)] = struct{}{}
+		}
+	}
+	return fields
+})
+
+var unknownJSONFieldRegexp = regexp.MustCompile(`unknown field ("(?:[^"\\]|\\.)*")`)
+
 // ValidateAndroidAppConfiguration validates Android app configuration JSON.
-// Configuration must be valid JSON with only "managedConfiguration",
-// "workProfileWidgets" and/or "credentialProviderPolicy" as top-level keys.
+// Configuration must be a valid JSON object whose top-level keys are
+// ApplicationPolicy fields, other than "packageName" and "installType".
 // Empty configuration is not allowed.
 func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 	if len(config) == 0 {
@@ -356,20 +412,39 @@ func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 		}
 	}
 
-	type androidAppConfig struct {
-		ManagedConfiguration     json.RawMessage `json:"managedConfiguration"`
-		WorkProfileWidgets       string          `json:"workProfileWidgets"`
-		CredentialProviderPolicy string          `json:"credentialProviderPolicy"`
+	var topLevel map[string]json.RawMessage
+	if err := json.Unmarshal(config, &topLevel); err != nil || topLevel == nil {
+		return &BadRequestError{
+			Message: "Couldn't update configuration. Invalid JSON.",
+		}
 	}
 
-	var cfg androidAppConfig
-	if err := JSONStrictDecode(bytes.NewReader(config), &cfg); err != nil {
-		if strings.Contains(err.Error(), "unknown field") {
+	keys := slices.Sorted(maps.Keys(topLevel))
+	for _, key := range keys {
+		if _, denied := androidAppConfigDeniedKeys[strings.ToLower(key)]; denied {
 			return &BadRequestError{
-				Message: `Couldn't update configuration. Only "managedConfiguration", "workProfileWidgets", and "credentialProviderPolicy" are supported as top-level keys.`,
+				Message: `Couldn't update configuration. "packageName" and "installType" are not supported as top-level keys.`,
 			}
 		}
+	}
+	allowedFields := androidApplicationPolicyFields()
+	for _, key := range keys {
+		if _, ok := allowedFields[strings.ToLower(key)]; !ok {
+			return &BadRequestError{Message: fmt.Sprintf("Couldn't update configuration. Unknown top-level key %q.", key)}
+		}
+	}
 
+	// managedConfiguration is a RawMessage, so the strict decode leaves app-defined keys alone.
+	var cfg androidmanagement.ApplicationPolicy
+	if err := JSONStrictDecode(bytes.NewReader(config), &cfg); err != nil {
+		if fieldPath := jsondecode.FieldPath(err); jsondecode.IsTypeError(err) && fieldPath != "" {
+			return &BadRequestError{Message: fmt.Sprintf("Couldn't update configuration. %q format is wrong.", fieldPath)}
+		}
+		if m := unknownJSONFieldRegexp.FindStringSubmatch(err.Error()); m != nil {
+			if name, uerr := strconv.Unquote(m[1]); uerr == nil {
+				return &BadRequestError{Message: fmt.Sprintf("Couldn't update configuration. Unknown key %q.", name)}
+			}
+		}
 		return &BadRequestError{
 			Message: "Couldn't update configuration. Invalid JSON.",
 		}

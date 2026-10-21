@@ -51,6 +51,8 @@ export interface ISoftware {
   vendor?: string;
   release?: string;
   icon_url: string | null; // Only available on team view if an admin uploaded an icon to a team's software
+  /** Fleet marked this software as an AI tool (Premium; always false on Free). */
+  ai_tool?: boolean;
 }
 
 export type IVulnerabilitySoftware = Omit<
@@ -158,6 +160,7 @@ export interface ISoftwarePackage {
   labels_exclude_any: ILabelSoftwareTitle[] | null;
   categories?: SoftwareCategory[] | null;
   fleet_maintained_app_id?: number | null;
+  fleet_maintained_app_slug?: string;
   fleet_maintained_versions?: IFleetMaintainedVersion[] | null;
   /** Version pin: null/absent = Latest, exact version = exact pin, caret
    * ("^149") = major-version pin. */
@@ -193,9 +196,44 @@ export interface IAppStoreApp {
   labels_include_all: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;
   categories?: SoftwareCategory[] | null;
-  /** Typed as string but Android configs arrive as a parsed object at runtime
-   * (backend sends json.RawMessage which Axios auto-parses). */
-  configuration?: string;
+  /** iOS/iPadOS: XML plist string. Android: parsed JSON object (BE sends
+   * json.RawMessage which Axios auto-parses). */
+  configuration?: string | Record<string, unknown>;
+}
+
+/** One App Store app version on a software title. iOS/iPadOS/Android titles
+ * can have multiple versions in creation order; each carries its own name,
+ * configuration, labels, auto-update window, and status counts. macOS VPP
+ * and in-house .ipa titles have a single entry. See title_detail
+ * `app_store_apps` in rest-api.md.
+ *
+ * `name` here is the admin-provided version name (e.g. "Production"), not the
+ * title name — a semantic distinction from `IAppStoreApp.name`. */
+export interface IAppStoreAppVersion {
+  /** Version id. Used to target this version in PATCH/DELETE requests. */
+  id: number;
+  /** Admin-provided version name, unique per title per fleet. */
+  name: string;
+  app_store_id: string;
+  platform: typeof HOST_APPLE_PLATFORMS[number] | "android";
+  /** Latest Store version. All versions on a title share this value. */
+  version: string;
+  status: ISoftwareAppStoreAppStatus;
+  self_service: boolean;
+  automatic_install_policies?: ISoftwareInstallPolicy[] | null;
+  labels_include_any: ILabelSoftwareTitle[] | null;
+  labels_include_all: ILabelSoftwareTitle[] | null;
+  labels_exclude_any: ILabelSoftwareTitle[] | null;
+  auto_update_enabled?: boolean;
+  auto_update_window_start?: string | null;
+  auto_update_window_end?: string | null;
+  /** Determines first-added precedence when a host is in scope for more than one version. */
+  created_at: string;
+  categories?: SoftwareCategory[] | null;
+  display_name?: string;
+  /** iOS/iPadOS: XML plist string. Android: parsed JSON object (BE sends
+   * json.RawMessage which Axios auto-parses). */
+  configuration?: string | Record<string, unknown>;
 }
 
 /**
@@ -228,9 +266,15 @@ export interface ISoftwareTitle {
    * `null` when the title has no custom packages. */
   packages: ISoftwarePackage[] | null;
   app_store_app: IAppStoreApp | null;
+  /** All App Store app versions on this title, in `created_at` order.
+   * `null` when the title has no App Store app. See
+   * [[ISoftwareTitleDetails.app_store_apps]]. */
+  app_store_apps: IAppStoreAppVersion[] | null;
   auto_update_enabled?: boolean;
   auto_update_window_start?: string;
   auto_update_window_end?: string;
+  /** Fleet marked this software as an AI tool (Premium; always false on Free). */
+  ai_tool?: boolean;
   /** @deprecated Use extension_for instead */
   browser?: string;
 }
@@ -250,6 +294,12 @@ export interface ISoftwareTitleDetails {
    * convenience alias to `packages[0]`. */
   packages: ISoftwarePackage[] | null;
   app_store_app: IAppStoreApp | null;
+  /** All App Store app versions on this title, in `created_at` order
+   * (first-added precedence). `null` when the title has no App Store app.
+   * iOS/iPadOS/Android titles may have up to 10 versions; macOS VPP has at
+   * most one entry. When present, treat as the source of truth;
+   * `app_store_app` is a convenience alias to `app_store_apps[0]`. */
+  app_store_apps: IAppStoreAppVersion[] | null;
   source: SoftwareSource;
   extension_for?: SoftwareExtensionFor;
   hosts_count: number;
@@ -260,6 +310,8 @@ export interface ISoftwareTitleDetails {
   auto_update_enabled?: boolean;
   auto_update_window_start?: string;
   auto_update_window_end?: string;
+  /** Fleet marked this software as an AI tool (Premium; always false on Free). */
+  ai_tool?: boolean;
   /** @deprecated Use extension_for instead */
   browser?: string;
 }
@@ -293,6 +345,8 @@ export interface ISoftwareVersion {
   generated_cpe: string;
   vulnerabilities: ISoftwareVulnerability[] | null;
   hosts_count?: number;
+  /** Fleet marked this software as an AI tool (Premium; always false on Free). */
+  ai_tool?: boolean;
   /** @deprecated Use extension_for instead */
   browser?: string;
 }
@@ -319,6 +373,20 @@ const SOFTWARE_TYPE_VARIANTS = [
     displayName: "Adobe plugin",
     source: "adobe_plugins",
     platforms: ["darwin", "windows"],
+  },
+  {
+    key: "ai_cli_tool",
+    displayName: "AI CLI tool",
+    source: "ai_clis",
+    platforms: DESKTOP,
+    premiumOnly: true,
+  },
+  {
+    key: "ai_skill",
+    displayName: "AI skill",
+    source: "ai_skills",
+    platforms: DESKTOP,
+    premiumOnly: true,
   },
   {
     key: "android_app",
@@ -464,6 +532,13 @@ const SOFTWARE_TYPE_VARIANTS = [
     source: "pkg_packages",
     platforms: ["darwin"],
     installerOnly: true,
+  },
+  {
+    key: "mcp_server",
+    displayName: "MCP server",
+    source: "mcp_servers",
+    platforms: DESKTOP,
+    premiumOnly: true,
   },
   {
     key: "nix_package",
@@ -682,6 +757,8 @@ export interface ISoftwareType {
   platforms: readonly SoftwareTypePlatform[];
   /** Installer-only sources never appear in a host's inventory. */
   installerOnly?: boolean;
+  /** Hidden on Fleet Free, where the API rejects the source. */
+  premiumOnly?: boolean;
 }
 
 const compareDisplayNames = (a: ISoftwareType, b: ISoftwareType) =>
@@ -731,15 +808,21 @@ const getSoftwareTypePlatform = (
   }
 };
 
+/** Software types available on the license tier, sorted by display name. */
+export const getSoftwareTypes = (opts?: {
+  premium?: boolean;
+}): ISoftwareType[] =>
+  SOFTWARE_TYPES.filter((t) => opts?.premium || !t.premiumOnly);
+
 /** Software types that apply to a host platform, sorted by display name.
  * Host pages hide installer-only types because hosts never report them. */
 export const getSoftwareTypesForPlatform = (
   platform: string,
-  opts?: { hostPage?: boolean }
+  opts?: { hostPage?: boolean; premium?: boolean }
 ): ISoftwareType[] => {
   const typePlatform = getSoftwareTypePlatform(platform);
   if (!typePlatform) return [];
-  return SOFTWARE_TYPES.filter(
+  return getSoftwareTypes(opts).filter(
     (t) =>
       t.platforms.includes(typePlatform) && !(opts?.hostPage && t.installerOnly)
   );
@@ -808,6 +891,9 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   jetbrains_plugins: null,
   go_binaries: null,
   adobe_plugins: null,
+  ai_clis: null,
+  ai_skills: null,
+  mcp_servers: null,
 } as const;
 
 /** Look up an installable source's platform, normalizing the mapping's
@@ -833,6 +919,9 @@ export const SCRIPT_PACKAGE_SOURCES = [
  * the backend limit changes. */
 export const MAX_PACKAGES_PER_TITLE = 10;
 
+/** Mirrors the backend cap on App Store app versions per title per fleet. */
+export const MAX_APP_STORE_APP_VERSIONS_PER_TITLE = 10;
+
 /** Sources that don't map cleanly to versions or hosts in software inventory.
  * UI behavior for these sources:
  * - Never shows “Update available” (no version to compare against the package version).
@@ -844,6 +933,25 @@ export const NO_VERSION_OR_HOST_DATA_SOURCES = [
   "tgz_packages",
   ...SCRIPT_PACKAGE_SOURCES,
 ];
+
+/** Sources that never report a version, with the reason shown on the "---" cell. */
+export const NO_VERSION_TOOLTIP_BY_SOURCE: Partial<
+  Record<SoftwareSource, string>
+> = {
+  mcp_servers:
+    "Fleet doesn't detect MCP server versions yet. Most MCP servers run with npx or uvx, which pick the version at launch unless it's pinned.",
+  ai_skills: "AI skills are markdown files, so they don't have versions.",
+};
+
+/** Sources Fleet never scans for vulnerabilities, with the reason shown on the "---" cell. */
+export const NO_VULNERABILITIES_TOOLTIP_BY_SOURCE: Partial<
+  Record<SoftwareSource, string>
+> = {
+  mcp_servers:
+    "Currently, Fleet doesn't detect vulnerabilities for MCP servers.",
+  ai_skills:
+    "AI skills are markdown files, so they don't have vulnerabilities.",
+};
 
 export type InstallableSoftwareSource = keyof typeof INSTALLABLE_SOURCE_PLATFORM_CONVERSION;
 
@@ -1087,6 +1195,10 @@ export interface IHostAppStoreApp {
   last_install: IAppLastInstall | null;
   categories?: SoftwareCategory[] | null;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
+  /** Id of the admin version this host received; null when none delivered. Backend emits as `version_id` on `SoftwarePackageOrApp`. */
+  version_id?: number | null;
+  /** Admin version label (e.g. "Production"). */
+  version_name?: string | null;
 }
 
 export interface IHostSoftware {
@@ -1112,6 +1224,8 @@ export interface IHostSoftware {
   auto_update_enabled?: boolean;
   auto_update_window_start?: string;
   auto_update_window_end?: string;
+  /** Fleet marked this software as an AI tool (Premium; always false on Free). */
+  ai_tool?: boolean;
 }
 
 /**

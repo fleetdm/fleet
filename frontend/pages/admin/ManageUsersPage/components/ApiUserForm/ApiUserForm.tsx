@@ -54,11 +54,9 @@ const ApiUserForm = ({
 
   const {
     formData,
-    setField,
     commitFields,
     getError,
-    clearFieldError,
-    validateField,
+    getTextFieldProps,
     handleSubmit,
     isSubmitting,
   } = useFormValidation<ApiUserFormState>({
@@ -174,13 +172,8 @@ const ApiUserForm = ({
     <div>
       <form autoComplete="off" onSubmit={handleSubmit(onValidSubmit)}>
         <InputField
-          name="name"
+          {...getTextFieldProps("name")}
           label="Name"
-          value={formData.name}
-          onChange={(value: string) => setField("name", value)}
-          onFocus={() => clearFieldError("name")}
-          onBlur={() => validateField("name")}
-          error={getError("name")}
           disabled={isSubmitting}
           autofocus
           inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}

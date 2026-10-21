@@ -8,7 +8,7 @@ TMPDIR=$(dirname "$(realpath "$INSTALLER_PATH")")
 
 quit_and_track_application() {
   local bundle_id="$1"
-  local var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
+  local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local timeout_duration=10
 
   local app_running
@@ -31,28 +31,28 @@ quit_and_track_application() {
 
   echo "Quitting application '$bundle_id'..."
 
-  local quit_success=false
+  local quit_success=false still_running
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    if osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1; then
-      if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then
-        echo "Application '$bundle_id' quit successfully."
-        quit_success=true
-        break
-      fi
-    fi
+    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1
     sleep 1
+    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+      echo "Application '$bundle_id' quit successfully."
+      quit_success=true
+      break
+    fi
   done
 
   if [[ "$quit_success" = false ]]; then
     echo "Application '$bundle_id' did not quit."
+    return 1
   fi
 }
 
 
 relaunch_application() {
   local bundle_id="$1"
-  local var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
+  local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local was_running
 
   eval "was_running=\$$var_name"
@@ -91,7 +91,7 @@ MOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)
 yes | hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH" || exit 1
 sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"
 hdiutil detach "$MOUNT_POINT" || true
-quit_and_track_application 'org.mozilla.firefoxdeveloperedition'
+quit_and_track_application 'org.mozilla.firefoxdeveloperedition' || exit 1
 if [ -d "$APPDIR/Firefox Developer Edition.app" ]; then
 	sudo mv "$APPDIR/Firefox Developer Edition.app" "$TMPDIR/Firefox Developer Edition.app.bkp" || exit $?
 fi
