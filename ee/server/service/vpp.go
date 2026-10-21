@@ -1121,6 +1121,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 		appID.SelfService = true
 		appID.AddAutoInstallPolicy = false
+		appID.ValidatedLabels = validatedLabels
 
 		enterprise, err := svc.ds.GetEnterprise(ctx)
 		if err != nil {

@@ -1562,3 +1562,80 @@ func (s *integrationMDMTestSuite) TestAndroidPubSubStatusReport_MissingHardwareI
 	}
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
 }
+
+func (s *integrationMDMTestSuite) TestAndroidAppsLabelScope() {
+	t := s.T()
+	ctx := t.Context()
+
+	s.setSkipWorkerJobs(t)
+	s.enableAndroidMDM(t)
+
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		return &androidmanagement.Application{IconUrl: "https://example.com/1.jpg", Title: packageName}, nil
+	}
+
+	// policy IDs (host UUIDs) that were sent each package, by AddAppsToAndroidPolicy
+	madeAvailable := map[string][]string{}
+	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		policyID := policyName[strings.LastIndex(policyName, "/")+1:]
+		if policyID == "" {
+			// hosts that haven't reported an applied policy yet are sent an empty policy ID
+			return &androidmanagement.Policy{}, nil
+		}
+		for _, app := range appPolicies {
+			madeAvailable[app.PackageName] = append(madeAvailable[app.PackageName], policyID)
+		}
+		return &androidmanagement.Policy{}, nil
+	}
+
+	secrets, err := s.ds.GetEnrollSecrets(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, secrets, 1)
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAndroidPubSubToken}, nil)
+	require.NoError(t, err)
+	pubsubToken := assets[fleet.MDMAssetAndroidPubSubToken]
+	require.NotEmpty(t, pubsubToken.Value)
+
+	for _, name := range []string{"label-scope-pilot-a", "label-scope-pilot-b", "label-scope-other"} {
+		enrollmentMessage := enrollmentMessageWithEnterpriseSpecificID(t, androidmanagement.Device{
+			Name:                createAndroidDeviceID(name),
+			EnrollmentTokenData: fmt.Sprintf(`{"EnrollSecret": "%s"}`, secrets[0].Secret),
+		}, strings.ToUpper(uuid.New().String()))
+		req := android_service.PubSubPushRequest{PubSubMessage: *enrollmentMessage}
+		s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
+	}
+
+	var hostsResp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hostsResp, "platform", "android", "order_key", "id")
+	require.Len(t, hostsResp.Hosts, 3)
+	pilotHostA, pilotHostB, otherHost := hostsResp.Hosts[0], hostsResp.Hosts[1], hostsResp.Hosts[2]
+
+	var labelResp fleet.CreateLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{
+		Name:    "Android pilot " + t.Name(),
+		HostIDs: []uint{pilotHostA.ID, pilotHostB.ID},
+	}, http.StatusOK, &labelResp)
+	pilotLabel := labelResp.Label
+
+	t.Run("adding an app with labels scopes it to the labeled hosts", func(t *testing.T) {
+		clear(madeAvailable)
+		const appID = "com.example.labelscope.add"
+
+		var addAppResp addAppStoreAppResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+			AppStoreID:       appID,
+			Platform:         fleet.AndroidPlatform,
+			LabelsIncludeAny: []string{pilotLabel.Name},
+		}, http.StatusOK, &addAppResp)
+
+		var titleResp getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addAppResp.TitleID), nil, http.StatusOK, &titleResp, "team_id", "0")
+		require.NotNil(t, titleResp.SoftwareTitle.AppStoreApp)
+		require.Len(t, titleResp.SoftwareTitle.AppStoreApp.LabelsIncludeAny, 1)
+		require.Equal(t, pilotLabel.ID, titleResp.SoftwareTitle.AppStoreApp.LabelsIncludeAny[0].LabelID)
+
+		s.runWorkerUntilDone()
+		require.ElementsMatch(t, []string{pilotHostA.UUID, pilotHostB.UUID}, madeAvailable[appID])
+		require.NotContains(t, madeAvailable[appID], otherHost.UUID)
+	})
+}
