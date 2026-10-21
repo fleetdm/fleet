@@ -719,6 +719,15 @@ module.exports.routes = {
     }
   },
 
+  'GET /pharma': {
+    action: 'view-pharma',
+    locals: {
+      pageTitleForMeta: 'Pharma 4.0',
+      pageDescriptionForMeta: 'Move device management from batch to continuous. Fleet patches Mac, iPhone, iPad, Windows, and Linux continuously, records every change like a batch record, and uses AI to handle the fundamentals.',
+      currentSection: 'platform',
+    }
+  },
+
   //  ╦  ╔═╗╔╗╔╔╦╗╦╔╗╔╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗
   //  ║  ╠═╣║║║ ║║║║║║║ ╦  ╠═╝╠═╣║ ╦║╣ ╚═╗
   //  ╩═╝╩ ╩╝╚╝═╩╝╩╝╚╝╚═╝  ╩  ╩ ╩╚═╝╚═╝╚═╝
