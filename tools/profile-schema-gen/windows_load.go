@@ -27,7 +27,7 @@ type ddfProps struct {
 	// Applicability is inherited by child nodes; the loader copies the nearest ancestor's into a
 	// node that has none.
 	Applicability *ddfApplicability `xml:"Applicability"`
-	Deprecated *struct {
+	Deprecated    *struct {
 		Build string `xml:"OsBuildDeprecated,attr"`
 	} `xml:"Deprecated"`
 	AllowedValues *ddfAllowedValues `xml:"AllowedValues"`

@@ -73,37 +73,37 @@
   },
   "windows": {
     "./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock": {
-      "format": "int", "scope": "device", "range": {"min": 0, "max": 999}, "min_build": ["10.0.10240"]
+      "format": "int", "scope": "device", "source": "windows", "range": {"min": 0, "max": 999}, "min_build": ["10.0.10240"]
     },
     "./Device/Vendor/MSFT/DMClient/Provider/*/SyncApplicationVersion": {
-      "format": "chr", "scope": "device", "regex": "^(\\d\\.)?(\\d)$"
+      "format": "chr", "scope": "device", "source": "windows", "regex": "^(\\d\\.)?(\\d)$"
     },
     "./Device/Vendor/MSFT/DMClient/Provider/*/FirstSyncStatus/BlockInStatusPage": {
-      "format": "int", "scope": "device", "flag": ["0x0", "0x1", "0x2", "0x4"], "min_build": ["10.0.17134"]
+      "format": "int", "scope": "device", "source": "windows", "flag": ["0x0", "0x1", "0x2", "0x4"], "min_build": ["10.0.17134"]
     },
     "./Device/Vendor/MSFT/Policy/Config/LocalUsersAndGroups/Configure": {
-      "format": "chr", "scope": "device", "xsd": "4f2a", "min_build": ["10.0.19042"]
+      "format": "chr", "scope": "device", "source": "windows", "xsd": "4f2a", "min_build": ["10.0.19042"]
     },
     "./Device/Vendor/MSFT/Policy/Config/RemoteAssistance/SolicitedRemoteAssistance": {
-      "format": "chr", "scope": "device", "admx_backed": true
+      "format": "chr", "scope": "device", "source": "windows", "admx_backed": true
     },
     "./Vendor/MSFT/Firewall/MdmStore/FirewallRules/*/Action/Type": {
-      "format": "int", "scope": "device", "enum": ["0", "1"]
+      "format": "int", "scope": "device", "source": "windows", "enum": ["0", "1"]
     },
     "./Device/Vendor/MSFT/Policy/Config/GoogleChrome~Policy~googlechrome~Startup/HomepageLocation": {
       "format": "chr", "scope": "device", "source": "admx_template"
     },
     "./User/Vendor/MSFT/Policy/Config/Example/Deprecated": {
-      "format": "int", "scope": "user", "range": {"min": -1, "max": 10},
+      "format": "int", "scope": "user", "source": "windows", "range": {"min": -1, "max": 10},
       "min_build": ["10.0.19041", "10.0.19042.1", "99.9.99999"], "deprecated": {"build": "10.0.22000"}
     },
     "./Device/Vendor/MSFT/Policy/Config/Example/List": {
-      "format": "chr", "scope": "device", "enum": ["a", "b"], "delimiter": ",", "deprecated": {}
+      "format": "chr", "scope": "device", "source": "windows", "enum": ["a", "b"], "delimiter": ",", "deprecated": {}
     },
     "./Device/Vendor/MSFT/Policy/Config/Example/Loosened": {
-      "format": ["int", "chr"], "scope": "device", "override": "Devices accept a string.", "future_field": 1
+      "format": ["int", "chr"], "scope": "device", "source": "windows", "override": "Devices accept a string.", "future_field": 1
     },
-    "./Device/Vendor/MSFT/Example/FutureFormat": {"format": "decimal128", "scope": "device"}
+    "./Device/Vendor/MSFT/Example/FutureFormat": {"format": "decimal128", "scope": "device", "source": "windows"}
   },
   "windows_xsds": {
     "4f2a": "<xs:schema xmlns:xs=\"http://www.w3.org/2001/XMLSchema\"><xs:element name=\"accessgroup\"/></xs:schema>"

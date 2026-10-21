@@ -76,7 +76,7 @@ func TestConvertWindows(t *testing.T) {
 	int1 := profilevalidation.WindowsFormats{profilevalidation.WindowsFormatInt}
 	device := profilevalidation.WindowsScopeDevice
 
-	assert.Equal(t, &profilevalidation.WindowsNode{Format: int1, Scope: device, Enum: []string{"0", "1", "2"}}, node("Enum"))
+	assert.Equal(t, &profilevalidation.WindowsNode{Format: int1, Scope: device, Source: profilevalidation.WindowsSourceWindows, Enum: []string{"0", "1", "2"}}, node("Enum"))
 	assert.Equal(t, []string{"0x0", "0x1", "0x4"}, node("Flag").Flag)
 	assert.Equal(t, &profilevalidation.Range{Min: new(0.0), Max: new(999.0)}, node("Range").Range)
 	assert.Equal(t, &profilevalidation.Range{Min: new(-1.0), Max: new(100.0)}, node("NegativeRange").Range)

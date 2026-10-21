@@ -39,6 +39,7 @@ func convertWindows(ctx context.Context, logger *slog.Logger, entries []ddfEntry
 		n := &profilevalidation.WindowsNode{
 			Format: profilevalidation.WindowsFormats{profilevalidation.WindowsFormat(p.Format.value())},
 			Scope:  profilevalidation.WindowsScopeDevice,
+			Source: profilevalidation.WindowsSourceWindows,
 		}
 		if strings.HasPrefix(e.LocURI, "./User/") {
 			n.Scope = profilevalidation.WindowsScopeUser

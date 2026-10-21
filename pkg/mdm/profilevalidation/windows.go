@@ -39,7 +39,7 @@ type WindowsNode struct {
 	MinBuild   []string           `json:"min_build,omitempty"`
 	Deprecated *WindowsDeprecated `json:"deprecated,omitempty"`
 
-	// Source is "ddf" (omitted) or "admx_template".
+	// Source is "windows" for Microsoft's DDF nodes or "admx_template" for template policies.
 	Source   string `json:"source,omitempty"`
 	Override string `json:"override,omitempty"`
 }
@@ -56,7 +56,10 @@ const (
 	WindowsScopeUser   WindowsScope = "user"
 )
 
-const WindowsSourceADMXTemplate = "admx_template"
+const (
+	WindowsSourceWindows      = "windows"
+	WindowsSourceADMXTemplate = "admx_template"
+)
 
 // WindowsFormat is a DDF DFFormat. Values outside this list are carried as declared.
 type WindowsFormat string

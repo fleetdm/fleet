@@ -190,11 +190,11 @@ func (s *ProfileValidationSchema) checkApple() error {
 }
 
 func (s *ProfileValidationSchema) checkWindows() error {
-	// Interior nodes (format node) are kept so profiles can create dynamic instances, but only
-	// settings count toward the floor.
+	// Only Microsoft's settings count toward the floor: interior nodes (format node) are kept so
+	// profiles can create dynamic instances, and ADMX template policies would hide a shrunken DDF.
 	settings := 0
 	for _, n := range s.Windows {
-		if n != nil && !slices.Equal(n.Format, WindowsFormats{WindowsFormatNode}) {
+		if n != nil && n.Source == WindowsSourceWindows && !slices.Equal(n.Format, WindowsFormats{WindowsFormatNode}) {
 			settings++
 		}
 	}

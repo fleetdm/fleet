@@ -24,10 +24,10 @@ func minimalDoc() map[string]any {
 		declarations[fmt.Sprintf("%sexample%d", appleConfigurationPrefix, i)] = map[string]any{}
 	}
 	windows := map[string]any{
-		mustHaveWindowsNodes[0]: map[string]any{"format": "int", "scope": "device"},
+		mustHaveWindowsNodes[0]: map[string]any{"format": "int", "scope": "device", "source": "windows"},
 	}
 	for i := len(windows); i < minWindowsNodes; i++ {
-		windows[fmt.Sprintf("./Device/Vendor/MSFT/Example/Node%d", i)] = map[string]any{"format": "chr", "scope": "device"}
+		windows[fmt.Sprintf("./Device/Vendor/MSFT/Example/Node%d", i)] = map[string]any{"format": "chr", "scope": "device", "source": "windows"}
 	}
 	return map[string]any{
 		"format_version": 1,
@@ -106,15 +106,20 @@ func TestParse(t *testing.T) {
 		}, wantErr: "windows has 3999 settings, want at least 4000"},
 		{name: "interior nodes don't count toward floor", mutate: func(doc map[string]any) {
 			removeOne(doc, "windows", mustHaveWindowsNodes[0])
-			section(doc, "windows")["./Device/Vendor/MSFT/Example/Interior"] = map[string]any{"format": "node"}
+			section(doc, "windows")["./Device/Vendor/MSFT/Example/Interior"] = map[string]any{"format": "node", "source": "windows"}
 		}, wantErr: "windows has 3999 settings, want at least 4000"},
 		{name: "a widened interior node counts", mutate: func(doc map[string]any) {
 			removeOne(doc, "windows", mustHaveWindowsNodes[0])
-			section(doc, "windows")["./Device/Vendor/MSFT/Example/Interior"] = map[string]any{"format": []string{"node", "chr"}}
+			section(doc, "windows")["./Device/Vendor/MSFT/Example/Interior"] = map[string]any{"format": []string{"node", "chr"}, "source": "windows"}
 		}},
+		{name: "only windows-sourced nodes count toward floor", mutate: func(doc map[string]any) {
+			removeOne(doc, "windows", mustHaveWindowsNodes[0])
+			section(doc, "windows")["./Device/Vendor/MSFT/Policy/Config/App~Policy~cat/Template"] = map[string]any{"format": "chr", "source": "admx_template"}
+			section(doc, "windows")["./Device/Vendor/MSFT/Example/NoSource"] = map[string]any{"format": "chr"}
+		}, wantErr: "windows has 3999 settings, want at least 4000"},
 		{name: "missing must-have windows node", mutate: func(doc map[string]any) {
 			delete(section(doc, "windows"), mustHaveWindowsNodes[0])
-			section(doc, "windows")["./Device/Vendor/MSFT/Example/Filler"] = map[string]any{"format": "int"}
+			section(doc, "windows")["./Device/Vendor/MSFT/Example/Filler"] = map[string]any{"format": "int", "source": "windows"}
 		}, wantErr: "windows is missing ./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock"},
 		{name: "null windows node", mutate: func(doc map[string]any) {
 			section(doc, "windows")["./Device/Vendor/MSFT/Example/Null"] = nil

@@ -117,14 +117,23 @@ func TestEmbeddedSchemaWindows(t *testing.T) {
 	assert.Regexp(t, `^https://download\.microsoft\.com/download/.+/`+v.Release+`\.zip$`, v.URL)
 	assert.Regexp(t, `^[0-9a-f]{64}$`, v.SHA256)
 
-	var settings, interior int
+	tv := s.Version.WindowsTemplates
+	assert.Regexp(t, `^[0-9a-f]{64}$`, tv.SHA256)
+	assert.NotEmpty(t, tv.GeneratedAt)
+
+	var settings, interior, templates int
 	for locURI, n := range s.Windows {
 		if n.XSD != "" {
 			assert.NotEmpty(t, s.WindowsXSDs[n.XSD], "%s references a missing xsd", locURI)
 		}
-		if slices.Equal(n.Format, WindowsFormats{WindowsFormatNode}) {
+		switch {
+		case n.Source == WindowsSourceADMXTemplate:
+			templates++
+		case n.Source != WindowsSourceWindows:
+			t.Errorf("%s has unexpected source %q", locURI, n.Source)
+		case slices.Equal(n.Format, WindowsFormats{WindowsFormatNode}):
 			interior++
-		} else {
+		default:
 			settings++
 		}
 	}
@@ -136,6 +145,10 @@ func TestEmbeddedSchemaWindows(t *testing.T) {
 		assert.Equal(t, 809, interior)
 		assert.Len(t, s.WindowsXSDs, 7)
 	}
+	// 1,575 policies, written once per scope they apply to.
+	if tv.SHA256 == "c834b85a777dcbbcf66943daa97012c0d6da9780fd8f71176c81071e711f5559" {
+		assert.Equal(t, 2570, templates)
+	}
 
 	node := func(locURI string) *WindowsNode {
 		n := s.WindowsNode(locURI)
@@ -146,7 +159,7 @@ func TestEmbeddedSchemaWindows(t *testing.T) {
 	chr := WindowsFormats{WindowsFormatChr}
 
 	t.Run("ticket examples", func(t *testing.T) {
-		assert.Equal(t, &WindowsNode{Format: int1, Scope: WindowsScopeDevice, Range: &Range{Min: new(0.0), Max: new(999.0)}, MinBuild: []string{"10.0.10240"}},
+		assert.Equal(t, &WindowsNode{Format: int1, Scope: WindowsScopeDevice, Source: WindowsSourceWindows, Range: &Range{Min: new(0.0), Max: new(999.0)}, MinBuild: []string{"10.0.10240"}},
 			node("./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock"))
 		assert.Equal(t, `^(\d\.)?(\d)$`, node("./Device/Vendor/MSFT/DMClient/Provider/*/SyncApplicationVersion").RegEx)
 		assert.Equal(t, []string{"0x0", "0x1", "0x2", "0x4"}, node("./Device/Vendor/MSFT/DMClient/Provider/*/FirstSyncStatus/BlockInStatusPage").Flag)
@@ -165,6 +178,17 @@ func TestEmbeddedSchemaWindows(t *testing.T) {
 		assert.Equal(t, WindowsFormats{WindowsFormatNode}, scep.Format)
 		// On an interior "*" node the regex constrains the instance's name.
 		assert.Equal(t, "^[^|/]*$", node("./Vendor/MSFT/Firewall/MdmStore/FirewallRules/*").RegEx)
+	})
+
+	t.Run("ADMX template policies", func(t *testing.T) {
+		const homepage = "Vendor/MSFT/Policy/Config/GoogleChrome~Policy~googlechrome~Startup/HomepageLocation"
+		assert.Equal(t, &WindowsNode{Format: chr, Scope: WindowsScopeDevice, Source: WindowsSourceADMXTemplate}, node("./Device/"+homepage))
+		assert.Equal(t, &WindowsNode{Format: chr, Scope: WindowsScopeUser, Source: WindowsSourceADMXTemplate}, node("./User/"+homepage))
+		// Paths use the profile generator's AppNames. Fleet's docs install Chrome as "Chrome", which
+		// only reaches the DDF's generic Policy/Config/*/* node: #55792's matcher has to handle it.
+		docs := node("./Device/Vendor/MSFT/Policy/Config/chrome~Policy~googlechrome/RelaunchNotification")
+		assert.Equal(t, WindowsSourceWindows, docs.Source)
+		assert.Equal(t, WindowsFormats{WindowsFormatNull}, docs.Format)
 	})
 
 	t.Run("scope, builds, and deprecation", func(t *testing.T) {

@@ -27,12 +27,12 @@ func TestWindowsContractExample(t *testing.T) {
 	chr := WindowsFormats{WindowsFormatChr}
 
 	assert.Equal(t, &WindowsNode{
-		Format: int1, Scope: WindowsScopeDevice, Range: &Range{Min: new(0.0), Max: new(999.0)}, MinBuild: []string{"10.0.10240"},
+		Format: int1, Scope: WindowsScopeDevice, Source: WindowsSourceWindows, Range: &Range{Min: new(0.0), Max: new(999.0)}, MinBuild: []string{"10.0.10240"},
 	}, node("./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock"))
 	assert.Equal(t, `^(\d\.)?(\d)$`, node("./Device/Vendor/MSFT/DMClient/Provider/*/SyncApplicationVersion").RegEx)
 	assert.Equal(t, []string{"0x0", "0x1", "0x2", "0x4"}, node("./Device/Vendor/MSFT/DMClient/Provider/*/FirstSyncStatus/BlockInStatusPage").Flag)
 	assert.Equal(t, []string{"0", "1"}, node("./Vendor/MSFT/Firewall/MdmStore/FirewallRules/*/Action/Type").Enum)
-	assert.Equal(t, &WindowsNode{Format: chr, Scope: WindowsScopeDevice, ADMXBacked: true},
+	assert.Equal(t, &WindowsNode{Format: chr, Scope: WindowsScopeDevice, Source: WindowsSourceWindows, ADMXBacked: true},
 		node("./Device/Vendor/MSFT/Policy/Config/RemoteAssistance/SolicitedRemoteAssistance"))
 	assert.Equal(t, WindowsSourceADMXTemplate,
 		node("./Device/Vendor/MSFT/Policy/Config/GoogleChrome~Policy~googlechrome~Startup/HomepageLocation").Source)

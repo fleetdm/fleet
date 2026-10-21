@@ -117,6 +117,10 @@ func run(ctx context.Context, logger *slog.Logger, out, overrides string, update
 		return err
 	}
 	convertWindows(ctx, windowsLogger, entries, &schema)
+	schema.Version.WindowsTemplates, err = addWindowsTemplates(ctx, windowsLogger, windowsTemplatesPath, &schema)
+	if err != nil {
+		return err
+	}
 	if err := applyOverrides(ctx, logger.With("step", "overrides"), overrides, &schema); err != nil {
 		return err
 	}
