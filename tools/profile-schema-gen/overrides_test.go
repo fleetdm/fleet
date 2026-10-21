@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/profilevalidation"
 	"github.com/stretchr/testify/assert"
@@ -233,14 +234,68 @@ allow:
 		jsonOf(t, s.AppleProfiles["com.apple.Safari"]))
 }
 
-func TestApplyOverridesWindowsIsNoOp(t *testing.T) {
+func TestApplyOverridesWindowsLoosen(t *testing.T) {
 	s := overrideSchema(t)
-	before := jsonOf(t, s)
+	formats := func(f ...profilevalidation.WindowsFormat) profilevalidation.WindowsFormats { return f }
+	ddf := profilevalidation.WindowsSourceWindows
+	s.Windows = map[string]*profilevalidation.WindowsNode{
+		"./Device/Vendor/MSFT/Policy/Config/Example/Int": {Format: formats("int"), Scope: "device", Source: ddf, Range: &profilevalidation.Range{Min: new(0.0), Max: new(9.0)}},
+		"./Device/Vendor/MSFT/Policy/Config/Example/Chr": {Format: formats("chr"), Scope: "device", Source: ddf},
+		"./Vendor/MSFT/Firewall/MdmStore/FirewallRules/*/Action/Type": {
+			Format: formats("int"), Scope: "device", Source: ddf, Enum: []string{"0", "1"}, Delimiter: "|",
+			MinBuild: []string{"10.0.16299"}, Deprecated: &profilevalidation.WindowsDeprecated{Build: "10.0.22000"},
+		},
+		"./User/Vendor/MSFT/Policy/Config/Example/Constrained": {
+			Format: formats("chr"), Scope: "user", Source: ddf, RegEx: "^a$", Flag: []string{"0x1"}, XSD: "abc", ADMXBacked: true,
+		},
+	}
+	appleBefore := jsonOf(t, s.AppleProfiles)
+
 	require.NoError(t, applyYAML(t, s, `
 loosen:
-  - {kind: windows, loc_uri: ./Device/Vendor/MSFT/Policy/Config/Example/Setting, key_path: x, action: any, reason: later}
+  - {kind: windows, loc_uri: ./Device/Vendor/MSFT/Policy/Config/Example/Int, action: types, types: [chr, int, bool], reason: Devices accept strings.}
+  - {kind: windows, loc_uri: ./Vendor/MSFT/Firewall/MdmStore/FirewallRules/*/Action/Type, action: any, reason: Any action.}
+  - {kind: windows, loc_uri: ./User/Vendor/MSFT/Policy/Config/Example/Constrained, action: any, reason: Anything.}
 `))
-	assert.Equal(t, before, jsonOf(t, s))
+
+	// types: unioned in order, never repeated, never replaced; the range stays.
+	assert.JSONEq(t, `{"format": ["int", "chr", "bool"], "scope": "device", "source": "windows", "range": {"min": 0, "max": 9},
+		"override": "Devices accept strings."}`, jsonOf(t, s.Windows["./Device/Vendor/MSFT/Policy/Config/Example/Int"]))
+	// any: a "*" path is targeted as written; value constraints go, the node's description stays.
+	assert.JSONEq(t, `{"format": "any", "scope": "device", "source": "windows", "min_build": ["10.0.16299"],
+		"deprecated": {"build": "10.0.22000"}, "override": "Any action."}`, jsonOf(t, s.Windows["./Vendor/MSFT/Firewall/MdmStore/FirewallRules/*/Action/Type"]))
+	assert.JSONEq(t, `{"format": "any", "scope": "user", "source": "windows", "override": "Anything."}`,
+		jsonOf(t, s.Windows["./User/Vendor/MSFT/Policy/Config/Example/Constrained"]))
+	// Untargeted nodes and the Apple sections are untouched.
+	assert.JSONEq(t, `{"format": "chr", "scope": "device", "source": "windows"}`, jsonOf(t, s.Windows["./Device/Vendor/MSFT/Policy/Config/Example/Chr"]))
+	assert.Equal(t, appleBefore, jsonOf(t, s.AppleProfiles))
+
+	err := applyYAML(t, s, `
+loosen:
+  - {kind: windows, loc_uri: ./Device/Vendor/MSFT/Policy/Config/Example/Missing, action: any, reason: r}
+  - {kind: windows, loc_uri: ./Vendor/MSFT/Firewall/MdmStore/FirewallRules/MyRule/Action/Type, action: any, reason: r}
+`)
+	require.ErrorContains(t, err, "loosen[0] (windows ./Device/Vendor/MSFT/Policy/Config/Example/Missing ): loc_uri not found; Microsoft may have renamed or removed it")
+	// Matching is exact: an instance path doesn't resolve to its "*" node.
+	require.ErrorContains(t, err, "loosen[1] (windows ./Vendor/MSFT/Firewall/MdmStore/FirewallRules/MyRule/Action/Type ): loc_uri not found")
+}
+
+func TestApplyOverridesWindowsLoosenWritesOutput(t *testing.T) {
+	s := validSchema()
+	require.NoError(t, applyYAML(t, s, `
+loosen:
+  - {kind: windows, loc_uri: ./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock, action: types, types: [chr], reason: Devices accept strings.}
+`))
+	out := filepath.Join(t.TempDir(), "profile_schema.json")
+	require.NoError(t, writeOutput(t.Context(), slog.New(slog.DiscardHandler), out, s, nil, time.Now()))
+	written, err := os.ReadFile(out)
+	require.NoError(t, err)
+	parsed, err := profilevalidation.Parse(written)
+	require.NoError(t, err)
+	n := notNil(t, parsed.Windows["./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock"])
+	assert.Equal(t, profilevalidation.WindowsFormats{"int", "chr"}, n.Format)
+	assert.Equal(t, "Devices accept strings.", n.Override)
+	assert.Equal(t, profilevalidation.WindowsSourceWindows, n.Source)
 }
 
 func TestApplyOverridesFileErrors(t *testing.T) {
@@ -253,6 +308,30 @@ func TestApplyOverridesFileErrors(t *testing.T) {
 		{name: "unknown field in a key definition", yaml: "add:\n  - {kind: apple_profile, payload_type: x, name: y, key: {typ: string}, reason: r}\n", wantErrs: []string{`unknown field "typ"`}},
 		{name: "unknown section", yaml: "remove: []\n", wantErrs: []string{`unknown field "remove"`}},
 		{name: "not YAML", yaml: "loosen: [unclosed\n", wantErrs: []string{"overrides"}},
+		{
+			name: "windows loosen",
+			yaml: `
+loosen:
+  - {kind: windows, loc_uri: ./Device/Vendor/MSFT/A, key_path: x, action: any, reason: r}
+  - {kind: windows, action: any, reason: r}
+  - {kind: windows, loc_uri: ./Device/Vendor/MSFT/B, payload_type: com.apple.MCX, action: any, reason: r}
+  - {kind: windows, loc_uri: ./Device/Vendor/MSFT/C, action: types, types: [string, node, any, chr], reason: r}
+  - {kind: apple_profile, payload_type: com.apple.MCX, key_path: k, action: types, types: [chr, strng, any, string], reason: r}
+  - {kind: apple_declaration, declaration_type: com.apple.configuration.x, key_path: k, action: types, types: [int], reason: r}
+`,
+			wantErrs: []string{
+				"loosen[0] (windows ./Device/Vendor/MSFT/A x): windows entries take no key_path; loc_uri is the node",
+				"loosen[1] (windows  ): windows entries need loc_uri (and no payload_type or declaration_type)",
+				"loosen[2] (windows ./Device/Vendor/MSFT/B ): windows entries need loc_uri (and no payload_type or declaration_type)",
+				`loosen[3] (windows ./Device/Vendor/MSFT/C ): types: "string" isn't a windows format (int, chr, bool, b64, xml, null, bin, time, date, float)`,
+				`loosen[3] (windows ./Device/Vendor/MSFT/C ): types: "node" isn't a windows format`,
+				`loosen[3] (windows ./Device/Vendor/MSFT/C ): types: "any" isn't a windows format`,
+				`loosen[4] (apple_profile com.apple.MCX k): types: "chr" isn't an Apple type (string, integer, real, boolean, date, data, array, dictionary)`,
+				`loosen[4] (apple_profile com.apple.MCX k): types: "strng" isn't an Apple type`,
+				`loosen[4] (apple_profile com.apple.MCX k): types: "any" isn't an Apple type`,
+				`loosen[5] (apple_declaration com.apple.configuration.x k): types: "int" isn't an Apple type`,
+			},
+		},
 		{
 			name: "every problem in the file is reported together",
 			yaml: `
@@ -269,6 +348,7 @@ add:
   - {kind: apple_profile, payload_type: x, declaration_type: y, name: m, key: {type: string}, reason: r}
   - {kind: apple_declaration, payload_type: x, name: m, key: {type: string}, reason: r}
   - {kind: windows, name: m, key: {type: string}, reason: r}
+  - {kind: windows, loc_uri: ./Device/Vendor/MSFT/X, name: m, key: {type: chr}, reason: r}
 allow:
   - {kind: apple_declaration, declaration_type: com.example.x, reason: r}
   - {kind: apple_profile, payload_type: TopLevel, reason: r}
@@ -289,7 +369,8 @@ allow:
 				"add[2] (apple_profile x ): key with a type is required",
 				"add[3] (apple_profile x ): apple_profile entries need payload_type (and no declaration_type or loc_uri)",
 				"add[4] (apple_declaration  ): apple_declaration entries need declaration_type",
-				"add[5] (windows  ): windows entries need loc_uri",
+				"add[5] (windows  ): add is for Apple only; only loosen applies to windows",
+				"add[6] (windows ./Device/Vendor/MSFT/X ): add is for Apple only; only loosen applies to windows",
 				"allow[0] (apple_declaration com.example.x ): allow is apple_profile only",
 				"allow[1] (apple_profile TopLevel ): the profile envelope can't be allowed",
 				"allow[2] (apple_profile com.example.y k): allow takes only payload_type, keys, and reason",
