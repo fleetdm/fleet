@@ -125,6 +125,9 @@ func (e *EJBCAVarsFound) CAs() []string {
 }
 
 func (e *EJBCAVarsFound) ErrorMessage() string {
+	if e == nil {
+		return ""
+	}
 	for ca := range e.passwordCA {
 		if _, ok := e.dataCA[ca]; !ok {
 			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", fleet.FleetVarEJBCADataPrefix, ca)

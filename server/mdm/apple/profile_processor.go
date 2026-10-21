@@ -987,7 +987,7 @@ func isEJBCAConfigured(ctx context.Context, logger *slog.Logger, groupedCAs *fle
 	existingEJBCACAs map[string]*fleet.EJBCA, profUUID string, target *fleet.CmdTarget, caName string, fleetVar string,
 ) (bool, error) {
 	if !license.IsPremium(ctx) {
-		return fleet.MarkProfilesFailed(ctx, ds, logger, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, "EJBCA integration requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
+		return fleet.MarkProfilesFailed(ctx, ds, logger, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, "EJBCA integration requires a Fleet Premium license.", new(time.Now().UTC()))
 	}
 	if _, ok := existingEJBCACAs[caName]; ok {
 		return true, nil
@@ -1001,7 +1001,7 @@ func isEJBCAConfigured(ctx context.Context, logger *slog.Logger, groupedCAs *fle
 		}
 	}
 	return fleet.MarkProfilesFailed(ctx, ds, logger, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID,
-		fmt.Sprintf("Fleet couldn't populate $FLEET_VAR_%s because %s certificate authority doesn't exist.", fleetVar, caName), ptr.Time(time.Now().UTC()))
+		fmt.Sprintf("Fleet couldn't populate $FLEET_VAR_%s because %s certificate authority doesn't exist.", fleetVar, caName), new(time.Now().UTC()))
 }
 
 func isNDESSCEPConfigured(ctx context.Context, logger *slog.Logger, groupedCAs *fleet.GroupedCertificateAuthorities, ds fleet.Datastore,
