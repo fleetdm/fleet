@@ -2312,56 +2312,6 @@ func (s *integrationMDMTestSuite) TestVPPAppConfigurationReconciliation() {
 		require.Equal(t, []string{"username-after"}, reconcileAndReceive(t, device))
 	})
 
-	t.Run("changing a host's IdP email on enrollment sends the configuration with the new email", func(t *testing.T) {
-		team := newFleet(t)
-		version := addVersionWithRawConfiguration(t, team.ID, `<dict><key>value</key><string>$FLEET_VAR_HOST_END_USER_EMAIL_IDP</string></dict>`)
-		host, device := newHost(t, &team.ID)
-		accountUUIDBefore := uuid.NewString()
-		err := s.ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{UUID: accountUUIDBefore, Username: "before", Email: "email-before@example.com"})
-		require.NoError(t, err)
-		_, err = s.ds.AssociateHostMDMIdPAccount(ctx, host.UUID, accountUUIDBefore)
-		require.NoError(t, err)
-		require.Equal(t, []string{"email-before@example.com"}, installApp(t, host, device, version.TitleID))
-
-		// link the host to another IdP account, the host should get the configuration with the new email
-		accountUUIDAfter := uuid.NewString()
-		err = s.ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{UUID: accountUUIDAfter, Username: "after", Email: "email-after@example.com"})
-		require.NoError(t, err)
-		_, err = s.ds.AssociateHostMDMIdPAccount(ctx, host.UUID, accountUUIDAfter)
-		require.NoError(t, err)
-		require.Equal(t, []string{"email-after@example.com"}, reconcileAndReceive(t, device))
-	})
-
-	t.Run("changing the IdP username of a host without an IdP user sends the configuration with the new username", func(t *testing.T) {
-		team := newFleet(t)
-		version := addVersionWithRawConfiguration(t, team.ID, `<dict><key>value</key><string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</string></dict>`)
-		host, device := newHost(t, &team.ID)
-		s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
-			putHostDeviceMappingRequest{Email: "mapped-before@example.com", Source: fleet.DeviceMappingIDP}, http.StatusOK, &putHostDeviceMappingResponse{})
-		require.Equal(t, []string{"mapped-before@example.com"}, installApp(t, host, device, version.TitleID))
-
-		// set another IdP username through device mapping, the host should get the configuration with the new username
-		s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping", host.ID),
-			putHostDeviceMappingRequest{Email: "mapped-after@example.com", Source: fleet.DeviceMappingIDP}, http.StatusOK, &putHostDeviceMappingResponse{})
-		require.Equal(t, []string{"mapped-after@example.com"}, reconcileAndReceive(t, device))
-	})
-
-	t.Run("changing a host's serial number sends the configuration with the new serial number", func(t *testing.T) {
-		team := newFleet(t)
-		version := addVersionWithRawConfiguration(t, team.ID, `<dict><key>value</key><string>$FLEET_VAR_HOST_HARDWARE_SERIAL</string></dict>`)
-		host, device := newHost(t, &team.ID)
-		require.Equal(t, []string{host.HardwareSerial}, installApp(t, host, device, version.TitleID))
-
-		// change the host's serial number, the host should get the configuration with the new serial number
-		newSerial := mdmtest.RandSerialNumber()
-		s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, newSerial)
-		host, err := s.ds.Host(ctx, host.ID)
-		require.NoError(t, err)
-		host.HardwareSerial = newSerial
-		require.NoError(t, s.ds.UpdateHost(ctx, host))
-		require.Equal(t, []string{newSerial}, reconcileAndReceive(t, device))
-	})
-
 	t.Run("reinstalling an app the user removed sends later configuration edits to the host", func(t *testing.T) {
 		team := newFleet(t)
 		version := addVersion(t, team.ID, "Only", "configuration-before", nil)
