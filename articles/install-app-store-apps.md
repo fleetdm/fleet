@@ -32,9 +32,9 @@ You can also manage which Google Play Store apps are available for self-service 
 
 3. Select **Add software > App store**, choose the Android platform, then enter the application ID.
 
-4. Optionally, use the **Target** option to limit which hosts get the app. Choose **Custom**, then include or exclude hosts with specific labels.
+4. Optionally, use the **Target** option to limit which hosts can install the app. Choose **Custom**, then include or exclude hosts with specific labels.
 
-> Dynamic (query) labels never match Android hosts, so use manual or host vitals labels to target Android apps. If a host leaves the target, the app is removed from its managed Google Play Store and uninstalled from the work profile.
+> Dynamic (query) labels don't apply to Android hosts: including one targets no Android hosts, and excluding one has no effect. Use manual or host vitals labels to target Android apps.
 
 #### Install Android web app (web clip)
 
