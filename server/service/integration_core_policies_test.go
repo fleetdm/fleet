@@ -1226,7 +1226,9 @@ func (s *integrationTestSuite) TestTeamPolicyHiddenRequiresPremium() {
 	token := "hidden-policies-token"
 	createHostAndDeviceToken(t, s.ds, token)
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"?include_hidden_policies=true", nil, http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(res.Body), "requires a premium license")
+	require.Contains(t, extractServerErrorText(res.Body), "option include_hidden_policies requires a premium license")
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/policies?include_hidden_policies=true", nil, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(res.Body), "option include_hidden_policies requires a premium license")
 
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
 	var raw struct {
