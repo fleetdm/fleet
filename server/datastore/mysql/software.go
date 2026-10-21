@@ -223,6 +223,31 @@ func (ds *Datastore) aiToolTitleIDs(ctx context.Context, q sqlx.QueryerContext, 
 	return result, nil
 }
 
+// setHostSoftwareAITool fills ai_tool on a page of host software. When the list was filtered to AI
+// tools every title qualifies; otherwise one lookup over the page's title IDs decides.
+func (ds *Datastore) setHostSoftwareAITool(ctx context.Context, aiToolFilter bool, software []*fleet.HostSoftwareWithInstaller) error {
+	switch {
+	case aiToolFilter:
+		for _, s := range software {
+			s.AITool = new(true)
+		}
+	case len(software) > 0:
+		titleIDs := make([]uint, 0, len(software))
+		for _, s := range software {
+			titleIDs = append(titleIDs, s.ID)
+		}
+		aiToolTitles, err := ds.aiToolTitleIDs(ctx, ds.reader(ctx), titleIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get ai tool host software titles")
+		}
+		for _, s := range software {
+			_, ok := aiToolTitles[s.ID]
+			s.AITool = new(ok)
+		}
+	}
+	return nil
+}
+
 func (ds *Datastore) UpdateHostSoftwareInstalledPaths(
 	ctx context.Context,
 	hostID uint,
@@ -5765,6 +5790,39 @@ func filterSelfServiceOutOfScopeHostSoftware(
 // folder. Callers apply this only for macOS hosts with opts.MacOSApplicationsOnly set. Pruning the in-memory maps (rather than
 // the SQL) keeps the count and main queries consistent and applies uniformly across software, VPP, and in-house apps. Maps are
 // mutated in place.
+// pruneHostSoftwareByFilters applies the macOS /Applications, type and AI tool filters by pruning
+// the in-memory maps rather than the SQL, which keeps the count and main queries consistent and
+// applies uniformly across software, VPP, and in-house apps. The /Applications filter is ignored
+// for non-macOS hosts.
+func (ds *Datastore) pruneHostSoftwareByFilters(
+	ctx context.Context,
+	host *fleet.Host,
+	opts fleet.HostSoftwareTitleListOptions,
+	bySoftwareTitleID map[uint]*hostSoftware,
+	bySoftwareID map[uint]*hostSoftware,
+	byVPPAdamID map[string]*hostSoftware,
+	byInHouseID map[uint]*hostSoftware,
+) error {
+	if opts.MacOSApplicationsOnly && fleet.IsMacOSPlatform(host.Platform) {
+		if err := ds.filterHostSoftwareToMacOSApplications(ctx, host.ID, bySoftwareTitleID, bySoftwareID,
+			byVPPAdamID, byInHouseID); err != nil {
+			return err
+		}
+	}
+	if len(opts.TypeFilter) > 0 {
+		if err := ds.filterHostSoftwareByType(ctx, opts.TypeFilter, bySoftwareTitleID, bySoftwareID,
+			byVPPAdamID, byInHouseID); err != nil {
+			return err
+		}
+	}
+	if opts.AITool {
+		if err := ds.filterHostSoftwareToAITools(ctx, bySoftwareTitleID, bySoftwareID, byVPPAdamID, byInHouseID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (ds *Datastore) filterHostSoftwareToMacOSApplications(
 	ctx context.Context,
 	hostID uint,
@@ -7007,28 +7065,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		}
 	}
 
-	// Filter to apps installed at the top level of the macOS /Applications
-	// folder. Ignored for non-macOS hosts. Pruning the in-memory maps (rather
-	// than the SQL) keeps the count and main queries consistent and applies
-	// uniformly across software, VPP, and in-house apps.
-	if opts.MacOSApplicationsOnly && fleet.IsMacOSPlatform(host.Platform) {
-		if err := ds.filterHostSoftwareToMacOSApplications(ctx, host.ID, bySoftwareTitleID, bySoftwareID,
-			byVPPAdamID, byInHouseID); err != nil {
-			return nil, nil, err
-		}
-	}
-
-	if len(opts.TypeFilter) > 0 {
-		if err := ds.filterHostSoftwareByType(ctx, opts.TypeFilter, bySoftwareTitleID, bySoftwareID,
-			byVPPAdamID, byInHouseID); err != nil {
-			return nil, nil, err
-		}
-	}
-
-	if opts.AITool {
-		if err := ds.filterHostSoftwareToAITools(ctx, bySoftwareTitleID, bySoftwareID, byVPPAdamID, byInHouseID); err != nil {
-			return nil, nil, err
-		}
+	if err := ds.pruneHostSoftwareByFilters(ctx, host, opts, bySoftwareTitleID, bySoftwareID, byVPPAdamID, byInHouseID); err != nil {
+		return nil, nil, err
 	}
 
 	var softwareTitleIDs []uint
@@ -7625,25 +7663,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		software = append(software, &hs.HostSoftwareWithInstaller)
 	}
 
-	switch {
-	case opts.AITool:
-		// The filter already pruned every title that isn't an AI tool.
-		for _, s := range software {
-			s.AITool = new(true)
-		}
-	case len(software) > 0:
-		titleIDs := make([]uint, 0, len(software))
-		for _, s := range software {
-			titleIDs = append(titleIDs, s.ID)
-		}
-		aiToolTitles, err := ds.aiToolTitleIDs(ctx, ds.reader(ctx), titleIDs)
-		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "get ai tool host software titles")
-		}
-		for _, s := range software {
-			_, ok := aiToolTitles[s.ID]
-			s.AITool = new(ok)
-		}
+	if err := ds.setHostSoftwareAITool(ctx, opts.AITool, software); err != nil {
+		return nil, nil, err
 	}
 
 	// Post-pagination lookup rather than an assembly-SQL JOIN — cheaper on
