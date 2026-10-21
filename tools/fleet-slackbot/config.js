@@ -77,4 +77,9 @@ for (const [name, value] of required) {
   }
 }
 
+if (config.platform === "google-chat" && !/^\d+$/.test(config.googleChat.projectNumber)) {
+  console.error("GOOGLE_CHAT_PROJECT_NUMBER must be the numeric project number, not the project ID");
+  process.exit(1);
+}
+
 module.exports = config;

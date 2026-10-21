@@ -12,6 +12,7 @@ const MAX_MESSAGE_BYTES = 30000;
 const SPACE_WRITE_INTERVAL_MS = 1100;
 const MAX_CARD_FILES = 25;
 const MAX_CARD_SUMMARY_CHARS = 2000;
+const MAX_MEMORY_ENTRY_CHARS = 4000;
 
 const STATUS_TEXT = {
   analyzing: () => "🔍 Querying Fleet and analyzing your request...",
@@ -22,7 +23,7 @@ const STATUS_TEXT = {
 function truncateBytes(text, maxBytes, notice) {
   if (Buffer.byteLength(text) <= maxBytes) return text;
   // Cutting mid-character leaves a replacement character; drop it.
-  const cut = Buffer.from(text).subarray(0, maxBytes - Buffer.byteLength(notice)).toString().replace(/�$/, "");
+  const cut = Buffer.from(text).subarray(0, maxBytes - Buffer.byteLength(notice)).toString().replace(/\uFFFD$/, "");
   return cut + notice;
 }
 
@@ -167,7 +168,7 @@ class ConversationMemory {
   add(key, role, text) {
     const entries = this.conversations.get(key) || [];
     this.conversations.delete(key);
-    entries.push({ role, text });
+    entries.push({ role, text: text.length > MAX_MEMORY_ENTRY_CHARS ? `${text.slice(0, MAX_MEMORY_ENTRY_CHARS)}…` : text });
     this.conversations.set(key, entries.slice(-this.maxEntries));
     if (this.conversations.size > this.maxConversations) {
       this.conversations.delete(this.conversations.keys().next().value);

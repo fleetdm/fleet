@@ -117,7 +117,7 @@ Each criterion names the evidence that covers it.
 - [x] Card content is HTML-escaped, and output stays within Chat's byte limit even with multibyte text. Evidence: `google-chat.test.js`.
 - [x] Path traversal is rejected before a branch exists, and draft PRs go on `fleet/<hash>` branches. Evidence: `request-pipeline.test.js`.
 - [x] A chat failure after the PR exists reports the PR link instead of "try again". Only Anthropic errors are described as AI-service rate limits. Users can't close the untrusted-input tags. Evidence: `request-pipeline.test.js`.
-- [x] The Slack adapter keeps its reactions, status text, Block Kit PR message, truncation, and error flow. Evidence: `slack-handlers.test.js`.
+- [x] The Slack adapter keeps its reactions, status text, Block Kit PR message, truncation, and error flow. Evidence: `slack-handlers.test.js`, plus a one-off run of `main`'s original `handleRequest` beside the new pipeline, which made identical Slack API calls in all five scenarios (answer, PR with warnings, path traversal, error, rate limit).
 - [x] The Slack system prompt is byte-identical to the one before this change. Checked against `origin/main` during development.
 - [ ] End to end against a real Google Chat app (needs a Workspace project): a DM question, an @mention in a space, a change request that opens a draft PR, and a follow-up in the thread.
 

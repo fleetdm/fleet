@@ -1,6 +1,7 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { createSlackChat } = require("./slack-handlers");
+const { processRequest } = require("./request-pipeline");
 
 function fakeSlackClient() {
   const calls = [];
@@ -73,4 +74,87 @@ test("Slack answers are truncated below Slack's message limit", async () => {
   const text = client.calls[0][1].text;
   assert.ok(text.length < 40000);
   assert.ok(text.endsWith("_…response truncated due to length._"));
+});
+
+// Characterization: the Slack call sequence main produced for each path.
+async function runSlack({ parsed, runError }) {
+  const client = fakeSlackClient();
+  const chat = createSlackChat({ client, channelId: "C1", threadTs: "100.1", messageTs: "100.2", logPrefix: "[test]" });
+  const github = {
+    getRepoTreePaths: async () => [],
+    createBranch: async () => {},
+    commitChanges: async () => {},
+    createPullRequest: async () => ({ url: "https://github.com/o/r/pull/9" }),
+  };
+  const claude = {
+    runAgentLoop: async () => {
+      if (runError) throw runError;
+      return "x";
+    },
+    _parseResponse: () => parsed,
+  };
+  await processRequest({
+    userText: "q",
+    userId: "U1",
+    threadContext: "",
+    platformName: "Slack",
+    chat,
+    config: { github: { gitopsBasePath: "it-and-security" } },
+    github,
+    claude,
+    logPrefix: "[test]",
+  });
+  return client.calls.map(([kind, arg, text]) => (kind === "postMessage" ? [kind, arg.text] : kind === "update" ? [kind, text] : [kind, arg]));
+}
+
+const ACK = [
+  ["reactions.add", "hourglass_flowing_sand"],
+  ["postMessage", ":hourglass_flowing_sand: Thinking..."],
+  ["update", ":mag: Querying Fleet and analyzing your request..."],
+];
+
+test("Slack info path matches main", async () => {
+  assert.deepEqual(await runSlack({ parsed: { type: "info", text: "42 Macs" } }), [
+    ...ACK,
+    ["postMessage", "42 Macs"],
+    ["update", ":white_check_mark: Done."],
+    ["reactions.remove", "hourglass_flowing_sand"],
+    ["reactions.add", "white_check_mark"],
+  ]);
+});
+
+test("Slack PR path with validation warnings matches main", async () => {
+  // Missing query/critical/resolution yields warnings without blocking the PR.
+  const content = "- name: macOS - Firefox installed\n  platform: darwin\n  description: Checks that Firefox is installed on this host.\n";
+  const parsed = {
+    type: "changes",
+    summary: "s",
+    prTitle: "Add policy",
+    prBody: "b",
+    changes: [{ filePath: "lib/macos/policies/p.yml", changeDescription: "New", content }],
+  };
+  assert.deepEqual(await runSlack({ parsed }), [
+    ...ACK,
+    ["postMessage", "Draft PR created: https://github.com/o/r/pull/9"],
+    [
+      "postMessage",
+      ":warning: *Validation warnings:*\n" +
+        "• `lib/macos/policies/p.yml`: Policy missing required field: query\n" +
+        "• `lib/macos/policies/p.yml`: Policy missing required field: critical\n" +
+        "• `lib/macos/policies/p.yml`: Policy missing required field: resolution",
+    ],
+    ["update", ":white_check_mark: Done."],
+    ["reactions.remove", "hourglass_flowing_sand"],
+    ["reactions.add", "white_check_mark"],
+  ]);
+});
+
+test("Slack error path matches main", async () => {
+  assert.deepEqual(await runSlack({ runError: new Error("boom") }), [
+    ...ACK,
+    ["reactions.remove", "hourglass_flowing_sand"],
+    ["reactions.add", "x"],
+    ["postMessage", ":x: *Error:* An unexpected error occurred. Please try again."],
+    ["update", ":x: Failed."],
+  ]);
 });

@@ -135,12 +135,15 @@ test("pullRequestMessage escapes model output and caps the file list", () => {
   assert.equal(msg.fallbackText, "Draft PR created: https://github.com/o/r/pull/1");
 });
 
-test("truncateBytes respects the byte limit with multibyte text", () => {
-  const text = "é".repeat(100); // 200 bytes
-  const out = truncateBytes(text, 51, "…");
-  assert.ok(Buffer.byteLength(out) <= 51);
-  assert.ok(out.endsWith("…"));
-  assert.doesNotMatch(out, /�/);
+test("truncateBytes cuts on a character boundary within the byte limit", () => {
+  for (const ch of ["é", "€", "😀"]) {
+    for (let maxBytes = 40; maxBytes < 48; maxBytes++) {
+      const out = truncateBytes(ch.repeat(100), maxBytes, "…");
+      assert.ok(Buffer.byteLength(out) <= maxBytes, `${ch} at ${maxBytes}`);
+      assert.ok(out.endsWith("…"));
+      assert.doesNotMatch(out, /\uFFFD/);
+    }
+  }
   assert.equal(truncateBytes("short", 51, "…"), "short");
 });
 
@@ -204,7 +207,7 @@ async function waitFor(predicate) {
   throw new Error("timed out waiting for condition");
 }
 
-function makeHandler({ allowedDomains = [], answer = "You have 42 Macs." } = {}) {
+function makeHandler({ allowedDomains = [], answer = "You have 42 Macs.", agentGate = Promise.resolve() } = {}) {
   const writes = [];
   let nextId = 0;
   const api = {
@@ -221,6 +224,7 @@ function makeHandler({ allowedDomains = [], answer = "You have 42 Macs." } = {})
   const claude = {
     runAgentLoop: async (prompt) => {
       prompts.push(prompt);
+      await agentGate;
       return answer;
     },
     _parseResponse: (text) => ({ type: "info", text }),
@@ -243,13 +247,18 @@ test("unauthenticated events are rejected without processing", async () => {
   assert.equal(writes.length, 0);
 });
 
-test("a mention is acknowledged immediately and answered in its thread", async () => {
-  const { handler, writes } = makeHandler();
+test("a mention is acknowledged before the agent finishes, then answered in its thread", async () => {
+  let releaseAgent;
+  const agentGate = new Promise((resolve) => { releaseAgent = resolve; });
+  const { handler, writes, prompts } = makeHandler({ agentGate });
   const res = fakeResponse();
   await handler(fakeRequest({ chat: { user: message.sender, messagePayload: { message, space: namedSpace } } }), res);
 
   assert.equal(res.status, 200);
   assert.equal(res.body, "{}");
+  await waitFor(() => prompts.length === 1);
+  assert.ok(!writes.some((w) => w.text === "✅ Done."), "agent is still running after the ack");
+  releaseAgent();
 
   await waitFor(() => writes.some((w) => w.op === "update" && w.text === "✅ Done."));
   const [status, answer] = writes.filter((w) => w.op === "create");
