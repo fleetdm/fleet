@@ -324,6 +324,11 @@ func parseStorePath(storePath string) (name, version, output string, ok bool) {
 	if version == "" || version[0] < '0' || version[0] > '9' {
 		return "", "", "", false
 	}
+	// Some config files carry the extension in the name rather than at the end
+	// of the path, e.g. kmod-debian-aliases.conf-30+20230601-2.
+	if strings.HasSuffix(name, ".conf") {
+		return "", "", "", false
+	}
 	for _, o := range knownOutputs {
 		if v, found := strings.CutSuffix(version, "-"+o); found {
 			version, output = v, o

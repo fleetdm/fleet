@@ -41,7 +41,7 @@ func TestParseStorePath(t *testing.T) {
 		{name: "drv", drvName: "hello-2.12.1.drv", wantOK: false},
 		{name: "tarball", drvName: "openssl-3.0.14.tar.gz", wantOK: false},
 		{name: "patch", drvName: "fix-build-1.patch", wantOK: false},
-		{name: "conf file", drvName: "kmod-debian-aliases-22-1.1.conf", wantOK: false},
+		{name: "conf in package name", drvName: "kmod-debian-aliases.conf-30+20230601-2", wantOK: false},
 		{name: "fontconfig conf", drvName: "fc-00-nixos-cache.conf", wantOK: false},
 		{name: "dbus config dir", drvName: "dbus-1", wantOK: false},
 		{name: "non-digit version", drvName: "foo-_bar", wantOK: false},
