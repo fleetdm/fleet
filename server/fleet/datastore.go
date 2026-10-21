@@ -3585,9 +3585,21 @@ type Datastore interface {
 	// belongs to, on the same fleet and platform, first-added first.
 	GetAppStoreAppVersionIDsFromSpecificVersion(ctx context.Context, vppAppTeamID uint) ([]uint, error)
 
-	// ListHostAppStoreAppInstallVersions returns, for each host on the fleet with MDM on whose inventory has the app, its
-	// latest install of the app that didn't fail. A non-empty hostIDs limits it to those hosts.
+	// ListHostAppStoreAppInstallVersions returns, for each of hostIDs that's on the fleet and whose inventory has the app, its
+	// latest install of the app that didn't fail.
 	ListHostAppStoreAppInstallVersions(ctx context.Context, appID VPPAppID, fleetID uint, hostIDs []uint) (map[uint]HostVPPSoftwareInstall, error)
+
+	// ListIOSAndIPadOSMDMHostsAfterID returns up to limit iOS and iPadOS hosts with MDM on whose id is after afterHostID,
+	// ordered by id, with only their id, uuid, serial number, platform and fleet.
+	ListIOSAndIPadOSMDMHostsAfterID(ctx context.Context, afterHostID uint, limit int) ([]*Host, error)
+
+	// GetAppStoreAppConfigurationReconcileCursor returns the id of the last host the App Store app configuration reconciler
+	// cron checked, or 0 to start from the first host.
+	GetAppStoreAppConfigurationReconcileCursor(ctx context.Context) (uint, error)
+
+	// SetAppStoreAppConfigurationReconcileCursor sets the id of the last host the App Store app configuration reconciler cron
+	// checked. 0 starts the next run from the first host.
+	SetAppStoreAppConfigurationReconcileCursor(ctx context.Context, cursor uint) error
 
 	// GetHostIDsWithUnactivatedVPPAppInstall returns the hosts among hostIDs that have an install of the App Store app
 	// version waiting in the upcoming activities queue that hasn't activated yet.

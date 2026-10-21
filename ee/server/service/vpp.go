@@ -2059,6 +2059,9 @@ func (svc *Service) CreateAndroidWebApp(ctx context.Context, title, startURL str
 	return packageName, nil
 }
 
+// Check this many iOS and iPadOS hosts per run, the next run continues after the last one
+const appStoreAppConfigurationReconcileBatchSize = 1000
+
 func ReconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore, vppInstaller fleet.AppleMDMVPPInstaller, logger *slog.Logger) error {
 	if !license.IsPremium(ctx) {
 		return nil
@@ -2071,18 +2074,27 @@ func ReconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 		return nil
 	}
 
-	teams, err := ds.TeamsSummary(ctx)
+	// Start from the first host when the cursor can't be read, checking hosts again only costs reads
+	cursor, err := ds.GetAppStoreAppConfigurationReconcileCursor(ctx)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "list fleets")
+		logger.WarnContext(ctx, "failed to read app store app configuration reconcile cursor, starting from the first host", "err", err)
+		cursor = 0
 	}
-	fleetIDs := []uint{0}
-	for _, team := range teams {
-		fleetIDs = append(fleetIDs, team.ID)
+	hosts, err := ds.ListIOSAndIPadOSMDMHostsAfterID(ctx, cursor, appStoreAppConfigurationReconcileBatchSize)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list iOS and iPadOS hosts")
+	}
+	hostIDsByFleetID := make(map[uint][]uint)
+	hostByID := make(map[uint]fleet.Host, len(hosts))
+	for _, host := range hosts {
+		fleetID := ptr.ValOrZero(host.TeamID)
+		hostIDsByFleetID[fleetID] = append(hostIDsByFleetID[fleetID], host.ID)
+		hostByID[host.ID] = *host
 	}
 
 	var vppToken *fleet.VPPTokenDB
 	var apps []fleet.VPPAppResponse
-	for _, fleetID := range fleetIDs {
+	for fleetID, hostIDs := range hostIDsByFleetID {
 		// Skip fleets that can't install App Store apps until their VPP token is added or renewed
 		vppToken, err = ds.GetVPPTokenByTeamID(ctx, &fleetID)
 		if err != nil {
@@ -2112,21 +2124,33 @@ func ReconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 			reconciledTitleIDs[*app.TitleID] = struct{}{}
 
 			// Log the error and move on to the next title, so one title doesn't stop the others from being reconciled
-			err = reconcileAppStoreAppConfigurations(ctx, ds, vppInstaller, logger, fleetID, *app.TitleID)
+			err = reconcileAppStoreAppConfigurations(ctx, ds, vppInstaller, logger, fleetID, *app.TitleID, vppToken.Token, hostIDs, hostByID)
 			if err != nil {
 				logger.ErrorContext(ctx, "reconcile app store app configurations", "fleet_id", fleetID, "title_id", *app.TitleID, "err", err)
 			}
 		}
 	}
+
+	// Continue after this batch on the next run, or start from the first host again after the last batch
+	var nextCursor uint
+	if len(hosts) == appStoreAppConfigurationReconcileBatchSize {
+		nextCursor = hosts[len(hosts)-1].ID
+	}
+	err = ds.SetAppStoreAppConfigurationReconcileCursor(ctx, nextCursor)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set app store app configuration reconcile cursor")
+	}
 	return nil
 }
 
-func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore, vppInstaller fleet.AppleMDMVPPInstaller, logger *slog.Logger, fleetID uint, titleID uint) error {
+func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore, vppInstaller fleet.AppleMDMVPPInstaller, logger *slog.Logger, fleetID uint, titleID uint,
+	vppToken string, batchHostIDs []uint, hostByID map[uint]fleet.Host,
+) error {
 	versions, err := ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, fleetID, titleID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get app store app versions")
 	}
-	installByHostID, err := ds.ListHostAppStoreAppInstallVersions(ctx, versions[0].VPPAppID, fleetID, nil)
+	installByHostID, err := ds.ListHostAppStoreAppInstallVersions(ctx, versions[0].VPPAppID, fleetID, batchHostIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list app store app installs")
 	}
@@ -2141,8 +2165,6 @@ func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 	var unactivatedHostIDs map[uint]struct{}
 	var failedHostIDs map[uint]struct{}
 	var vppApp *fleet.VPPApp
-	var host *fleet.Host
-	var token string
 	for _, version := range versions {
 		if len(hostIDsWithoutVersion) == 0 {
 			break
@@ -2223,21 +2245,11 @@ func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 			if _, failed := failedHostIDs[hostID]; failed {
 				continue
 			}
-			// Skip a host deleted since the installs were read
-			host, err = ds.Host(ctx, hostID)
-			if err != nil {
-				if fleet.IsNotFound(err) {
-					continue
-				}
-				return ctxerr.Wrapf(ctx, err, "get host %d", hostID)
-			}
 			// Log the hosts that can't take the install, the next run tries them again
-			token, err = vppInstaller.GetVPPTokenIfCanInstallVPPApps(ctx, true, host)
-			if err == nil {
-				_, err = vppInstaller.InstallVPPAppPostValidation(ctx, host, vppApp, token, fleet.HostSoftwareInstallOptions{
-					ForConfigurationResend: true,
-				})
-			}
+			host := hostByID[hostID]
+			_, err = vppInstaller.InstallVPPAppPostValidation(ctx, &host, vppApp, vppToken, fleet.HostSoftwareInstallOptions{
+				ForConfigurationResend: true,
+			})
 			if err != nil {
 				logger.WarnContext(ctx, "failed to send app store app configuration", "host_id", hostID, "vpp_app_team_id", version.VPPAppsTeamsID, "err", err)
 			}

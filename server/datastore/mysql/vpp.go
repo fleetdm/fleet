@@ -3803,47 +3803,36 @@ ORDER BY other_vat.id
 }
 
 func (ds *Datastore) ListHostAppStoreAppInstallVersions(ctx context.Context, appID fleet.VPPAppID, fleetID uint, hostIDs []uint) (map[uint]fleet.HostVPPSoftwareInstall, error) {
-	hostFilter := "TRUE"
-	args := []any{appID.AdamID, appID.Platform, fleetID}
-	if len(hostIDs) > 0 {
-		hostFilter = "hvsi.host_id IN (?)"
-		args = append(args, hostIDs)
+	if len(hostIDs) == 0 {
+		return map[uint]fleet.HostVPPSoftwareInstall{}, nil
 	}
 
-	// Read the latest install of the app on each host of the fleet with MDM on that still has the app in its inventory. Filter
-	// out failed installs since the host still has the version from the install before it.
-	stmt := fmt.Sprintf(`
+	// Read the latest install of the app on each of the hosts that's still on the fleet and has the app in its inventory. Start
+	// from the hosts so only each host's latest installs are read, not the app's whole install history. Filter out failed
+	// installs since the host still has the version from the install before it.
+	const stmt = `
 SELECT
-	latest.host_id,
+	h.id AS host_id,
 	latest.vpp_app_team_id,
 	latest.created_at,
 	latest.needs_configuration_resend
-FROM (
-	SELECT
-		hvsi.host_id,
-		hvsi.adam_id,
-		hvsi.platform,
-		hvsi.vpp_app_team_id,
-		hvsi.created_at,
-		hvsi.needs_configuration_resend,
-		ROW_NUMBER() OVER (PARTITION BY hvsi.host_id ORDER BY hvsi.created_at DESC, hvsi.id DESC) AS rn
-	FROM
-		host_vpp_software_installs hvsi
-		JOIN hosts h ON h.id = hvsi.host_id
-	WHERE
-		hvsi.adam_id = ? AND
-		hvsi.platform = ? AND
-		COALESCE(h.team_id, 0) = ? AND
-		hvsi.canceled = 0 AND
-		hvsi.verification_failed_at IS NULL AND
-		EXISTS (
-			SELECT 1 FROM nano_enrollments ne
-			WHERE ne.id = h.uuid AND ne.enabled = 1 AND ne.type IN ('Device', 'User Enrollment (Device)')
-		) AND
-		%s
-) latest
+FROM
+	hosts h
+	JOIN LATERAL (
+		SELECT hvsi.vpp_app_team_id, hvsi.created_at, hvsi.needs_configuration_resend
+		FROM host_vpp_software_installs hvsi
+		WHERE
+			hvsi.host_id = h.id AND
+			hvsi.adam_id = ? AND
+			hvsi.platform = ? AND
+			hvsi.canceled = 0 AND
+			hvsi.verification_failed_at IS NULL
+		ORDER BY hvsi.created_at DESC, hvsi.id DESC
+		LIMIT 1
+	) latest ON TRUE
 WHERE
-	latest.rn = 1 AND
+	h.id IN (?) AND
+	h.team_id <=> ? AND
 	EXISTS (
 		SELECT 1
 		FROM
@@ -3851,18 +3840,17 @@ WHERE
 			JOIN software s ON s.id = hs.software_id
 			JOIN vpp_apps va ON va.title_id = s.title_id
 		WHERE
-			hs.host_id = latest.host_id AND
-			va.adam_id = latest.adam_id AND
-			va.platform = latest.platform
+			hs.host_id = h.id AND
+			va.adam_id = ? AND
+			va.platform = ?
 	)
-`, hostFilter)
-
-	query, queryArgs, err := sqlx.In(stmt, args...)
+`
+	query, args, err := sqlx.In(stmt, appID.AdamID, appID.Platform, hostIDs, ptr.UintOrNilIfZero(fleetID), appID.AdamID, appID.Platform)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build list host app store app install versions query")
 	}
 	var installs []fleet.HostVPPSoftwareInstall
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &installs, query, queryArgs...)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &installs, query, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list host app store app install versions")
 	}
@@ -3872,6 +3860,46 @@ WHERE
 		installByHostID[install.HostID] = install
 	}
 	return installByHostID, nil
+}
+
+func (ds *Datastore) ListIOSAndIPadOSMDMHostsAfterID(ctx context.Context, afterHostID uint, limit int) ([]*fleet.Host, error) {
+	const stmt = `
+SELECT
+	h.id,
+	h.uuid,
+	h.hardware_serial,
+	h.platform,
+	h.team_id
+FROM
+	hosts h
+WHERE
+	h.id > ? AND
+	h.platform IN ('ios', 'ipados') AND
+	EXISTS (
+		SELECT 1 FROM nano_enrollments ne
+		WHERE ne.id = h.uuid AND ne.enabled = 1 AND ne.type IN ('Device', 'User Enrollment (Device)')
+	)
+ORDER BY h.id
+LIMIT ?
+`
+	var hosts []*fleet.Host
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, stmt, afterHostID, limit)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list iOS and iPadOS MDM hosts after id")
+	}
+	return hosts, nil
+}
+
+// GetAppStoreAppConfigurationReconcileCursor returns 0 since the bare mysql.Datastore has no place to keep the cursor, the
+// mysqlredis wrapper keeps it in Redis.
+func (ds *Datastore) GetAppStoreAppConfigurationReconcileCursor(_ context.Context) (uint, error) {
+	return 0, nil
+}
+
+// SetAppStoreAppConfigurationReconcileCursor does nothing since the bare mysql.Datastore has no place to keep the cursor, the
+// mysqlredis wrapper keeps it in Redis.
+func (ds *Datastore) SetAppStoreAppConfigurationReconcileCursor(_ context.Context, _ uint) error {
+	return nil
 }
 
 func (ds *Datastore) GetHostIDsWithUnactivatedVPPAppInstall(ctx context.Context, vppAppTeamID uint, hostIDs []uint) (map[uint]struct{}, error) {
