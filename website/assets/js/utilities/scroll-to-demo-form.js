@@ -1,5 +1,5 @@
 // On pages that have an inline demo form (`#demo-form`), turn every "Get a demo"
-// link (including the ones in the site header) into a scroll to that form,
+// link (including the ones in the site header) into a jump to that form,
 // instead of sending the visitor to /contact.
 (function() {
   document.addEventListener('click', (event)=>{
@@ -15,8 +15,8 @@
 
     event.preventDefault();
     if(typeof $ !== 'undefined') { $('#navbarToggleExternalContent').collapse('hide'); }// Close the mobile nav if it's open.
-    let prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    demoForm.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center' });
+    // Jump straight to the form, like an anchor link, rather than smooth-scrolling.
+    demoForm.scrollIntoView({ behavior: 'auto', block: 'center' });
     let firstInput = demoForm.querySelector('input');
     if(firstInput) { firstInput.focus({ preventScroll: true }); }
   });
