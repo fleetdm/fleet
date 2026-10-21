@@ -438,7 +438,7 @@ func registerPremiumCrons(ctx context.Context, deps cronSchedulesDeps) {
 func registerMiscCrons(ctx context.Context, deps cronSchedulesDeps) {
 	// Start the service that calculates and updates host vitals label membership.
 	deps.register("failed to register host vitals label membership schedule", func() (fleet.CronSchedule, error) {
-		return newHostVitalsLabelMembershipSchedule(ctx, deps.instanceID, deps.ds, deps.logger)
+		return newHostVitalsLabelMembershipSchedule(ctx, deps.instanceID, deps.ds, deps.logger, deps.config.MDM.AndroidBatchSize)
 	})
 
 	// Start the service that marks activities as completed.

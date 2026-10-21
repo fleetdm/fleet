@@ -4572,6 +4572,10 @@ func (svc *Service) AddLabelsToHost(ctx context.Context, id uint, labelNames []s
 		return ctxerr.Wrap(ctx, err, "add labels to host")
 	}
 
+	if err := worker.QueueReconcileAndroidAppScopeForLabelChange(ctx, svc.ds, svc.logger, []uint{host.ID}, labelIDs, svc.config.MDM.AndroidBatchSize); err != nil {
+		return ctxerr.Wrap(ctx, err, "queue android app scope reconcile")
+	}
+
 	return svc.emitEditedLabelActivities(ctx, labelNames, tmID)
 }
 
@@ -4610,6 +4614,10 @@ func (svc *Service) RemoveLabelsFromHost(ctx context.Context, id uint, labelName
 
 	if err := svc.ds.RemoveLabelsFromHost(ctx, host.ID, labelIDs); err != nil {
 		return ctxerr.Wrap(ctx, err, "remove labels from host")
+	}
+
+	if err := worker.QueueReconcileAndroidAppScopeForLabelChange(ctx, svc.ds, svc.logger, []uint{host.ID}, labelIDs, svc.config.MDM.AndroidBatchSize); err != nil {
+		return ctxerr.Wrap(ctx, err, "queue android app scope reconcile")
 	}
 
 	return svc.emitEditedLabelActivities(ctx, labelNames, tmID)
