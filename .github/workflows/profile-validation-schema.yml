@@ -155,7 +155,7 @@ jobs:
             text: ":rotating_light: Profile validation schema update failed",
             blocks: [
               {type: "section", text: {type: "mrkdwn", text: ":rotating_light: *Profile validation schema update failed*\nThe daily `-update` run produced no PR. Logs: \($run)"}},
-              {type: "section", text: {type: "mrkdwn", text: ("```" + $errors + "```")}}
+              {type: "section", text: {type: "mrkdwn", text: ("```" + $errors[:2994] + "```")}}
             ]
           }' > "$RUNNER_TEMP/slack-payload.json"
 
