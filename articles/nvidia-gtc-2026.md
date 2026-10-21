@@ -1,4 +1,4 @@
-# NVIDIA GTC Berlin: Fleet Brings Full NVIDIA AI Hardware Suite Under Enterprise IT Control
+# NVIDIA GTC Berlin: Fleet brings full NVIDIA AI hardware suite under enterprise IT control
 
 _From [NVIDIA RTX PRO](https://www.nvidia.com/en-us/products/workstations/) workstations to [NVIDIA DGX Station](https://www.nvidia.com/en-us/products/workstations/dgx-station/), Fleet gives IT and security teams one place to deploy, secure and govern NVIDIA-powered devices alongside the rest of the enterprise estate_
 
@@ -20,5 +20,5 @@ To learn more about Fleet’s support for NVIDIA-powered systems, visit [https:/
 <meta name="authorFullName" value="Allen Houchins">
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="publishedOn" value="2026-10-21">
-<meta name="articleTitle" value="NVIDIA GTC Berlin: Fleet Brings Full NVIDIA AI Hardware Suite Under Enterprise IT Control">
+<meta name="articleTitle" value="NVIDIA GTC Berlin: Fleet brings full NVIDIA AI hardware suite under enterprise IT control">
 <meta name="description" value="Fleet announces support for NVIDIA RTX PRO workstations and NVIDIA DGX Station, managed alongside macOS, Windows and Linux devices.">
