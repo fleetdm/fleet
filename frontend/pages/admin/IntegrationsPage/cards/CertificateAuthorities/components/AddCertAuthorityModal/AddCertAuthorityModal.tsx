@@ -17,6 +17,8 @@ import CustomSCEPForm from "../CustomSCEPForm";
 import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 import DigicertForm from "../DigicertForm";
 import { IDigicertFormData } from "../DigicertForm/DigicertForm";
+import GoogleCASForm from "../GoogleCASForm";
+import { IGoogleCASFormData } from "../GoogleCASForm/GoogleCASForm";
 import HydrantForm from "../HydrantForm";
 import { IHydrantFormData } from "../HydrantForm/HydrantForm";
 import NDESForm from "../NDESForm";
@@ -37,7 +39,8 @@ export type ICertFormData =
   | INDESFormData
   | ICustomSCEPFormData
   | ISmallstepFormData
-  | ICustomESTFormData;
+  | ICustomESTFormData
+  | IGoogleCASFormData;
 
 const baseClass = "add-cert-authority-modal";
 
@@ -113,6 +116,17 @@ const AddCertAuthorityModal = ({
     password: "",
   });
 
+  const [
+    googleCASFormData,
+    setGoogleCASFormData,
+  ] = useState<IGoogleCASFormData>({
+    name: "",
+    projectId: "",
+    caPool: "",
+    location: "",
+    apiKeyJson: "",
+  });
+
   const onChangeDropdown = (value: ICertificateAuthorityType) => {
     setCertAuthorityType(value);
   };
@@ -145,6 +159,10 @@ const AddCertAuthorityModal = ({
         setFormData = setCustomESTFormData;
         formData = customESTFormData;
         break;
+      case "google_cas":
+        setFormData = setGoogleCASFormData;
+        formData = googleCASFormData;
+        break;
       default:
         return;
     }
@@ -175,6 +193,9 @@ const AddCertAuthorityModal = ({
         break;
       case "custom_est_proxy":
         formData = customESTFormData;
+        break;
+      case "google_cas":
+        formData = googleCASFormData;
         break;
       default:
         return;
@@ -265,6 +286,18 @@ const AddCertAuthorityModal = ({
         return (
           <CustomESTForm
             formData={customESTFormData}
+            certAuthorities={certAuthorities}
+            submitBtnText={submitBtnText}
+            isSubmitting={isAdding}
+            onChange={onChangeForm}
+            onSubmit={onAddCertAuthority}
+            onCancel={onExit}
+          />
+        );
+      case "google_cas":
+        return (
+          <GoogleCASForm
+            formData={googleCASFormData}
             certAuthorities={certAuthorities}
             submitBtnText={submitBtnText}
             isSubmitting={isAdding}

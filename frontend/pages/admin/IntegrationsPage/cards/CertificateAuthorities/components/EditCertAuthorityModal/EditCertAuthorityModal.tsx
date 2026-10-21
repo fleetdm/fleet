@@ -13,6 +13,7 @@ import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
 import CustomESTForm from "../CustomESTForm";
 import CustomSCEPForm from "../CustomSCEPForm";
 import DigicertForm from "../DigicertForm";
+import GoogleCASForm from "../GoogleCASForm";
 import HydrantForm from "../HydrantForm";
 import NDESForm from "../NDESForm";
 import SmallstepForm from "../SmallstepForm";
@@ -96,6 +97,8 @@ const EditCertAuthorityModal = ({
         return CustomSCEPForm;
       case "custom_est_proxy":
         return CustomESTForm;
+      case "google_cas":
+        return GoogleCASForm;
       default:
         throw new Error(
           `Unknown certificate authority type: ${certAuthority.type}`

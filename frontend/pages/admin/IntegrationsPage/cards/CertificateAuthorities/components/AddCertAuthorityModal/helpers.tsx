@@ -11,6 +11,7 @@ import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
 import { ICustomESTFormData } from "../CustomESTForm/CustomESTForm";
 import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 import { IDigicertFormData } from "../DigicertForm/DigicertForm";
+import { IGoogleCASFormData } from "../GoogleCASForm/GoogleCASForm";
 import CA_LABEL_BY_TYPE from "../helpers";
 import { IHydrantFormData } from "../HydrantForm/HydrantForm";
 import { INDESFormData } from "../NDESForm/NDESForm";
@@ -27,6 +28,7 @@ const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
     value: "custom_scep_proxy",
   },
   { label: CA_LABEL_BY_TYPE.digicert, value: "digicert" },
+  { label: CA_LABEL_BY_TYPE.google_cas, value: "google_cas" },
   {
     label: CA_LABEL_BY_TYPE.hydrant,
     value: "hydrant",
@@ -171,6 +173,24 @@ export const generateAddCertAuthorityData = (
         },
       };
     }
+    case "google_cas": {
+      const {
+        name,
+        projectId,
+        caPool,
+        location,
+        apiKeyJson,
+      } = formData as IGoogleCASFormData;
+      return {
+        google_cas: {
+          name,
+          project: projectId,
+          ca_pool: caPool,
+          location,
+          api_key_json: apiKeyJson,
+        },
+      };
+    }
     default:
       throw new Error(
         `Unknown certificate authority type: ${certAuthorityType}`
@@ -224,6 +244,13 @@ const CA_NOT_FOUND_ERROR =
 const INVALID_URL_PATTERN = /Invalid [\w ]*URL\./;
 
 /**
+ * Matches the server's Google CAS errors, which name the field or setting to
+ * fix, so they are shown as they are.
+ */
+const GOOGLE_CAS_ERROR_PATTERN = /google cas|^google couldn't|^ca pool\b|^the (service account|ca pool|google cloud project id|location)\b/i;
+const SERVER_ERROR_PREFIX = /^Couldn't (add|edit) certificate authority\. /;
+
+/**
  * Gets the error message we want to display from the api error message.
  * This is used in both add and edit certificate authority flows.
  */
@@ -232,8 +259,11 @@ export const getDisplayErrMessage = (err: unknown): string | JSX.Element => {
   const rawReason = getErrorReason(err);
   const reason = rawReason.toLowerCase();
   const invalidUrlMatch = rawReason.match(INVALID_URL_PATTERN);
+  const unprefixedReason = rawReason.replace(SERVER_ERROR_PREFIX, "");
 
-  if (reason.includes("invalid api token")) {
+  if (GOOGLE_CAS_ERROR_PATTERN.test(unprefixedReason)) {
+    message = unprefixedReason;
+  } else if (reason.includes("invalid api token")) {
     message = INVALID_API_TOKEN_ERROR;
   } else if (reason.includes("invalid profile guid")) {
     message = INVALID_PROFILE_GUID_ERROR;
