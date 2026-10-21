@@ -20,7 +20,9 @@ import (
 // current drop is read from the page itself: it links the current zip first, then older ones.
 const ddfPageURL = "https://learn.microsoft.com/en-us/windows/client-management/mdm/configuration-service-provider-ddf"
 
-var ddfLinkRe = regexp.MustCompile(`https://download\.microsoft\.com/download/[0-9A-Za-z/-]+/(DDFv2[0-9A-Za-z_-]*)\.zip`)
+// this looks complex, but it boils down to "https://download\.microsoft\.com/download/[0-9A-Za-z/-]+/(DDFv2[0-9A-Za-z_-]*)\.zip" as the regex
+// with additional safety to anchor the URL from the actual download.microsoft.com site, and avoids other URLs embedding the link as query params etc.
+var ddfLinkRe = regexp.MustCompile(`(?:^|[^A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-])(https://download\.microsoft\.com/download/[0-9A-Za-z/-]+/(DDFv2[0-9A-Za-z_-]*)\.zip)(?:$|[^A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-])`)
 
 // resolveDDF returns the release name and URL of the newest DDF v2 drop linked from pageURL. The
 // sha256 is filled in when the zip is downloaded.
@@ -35,10 +37,11 @@ func resolveDDF(ctx context.Context, logger *slog.Logger, client *http.Client, p
 	if len(links) == 0 {
 		return profilevalidation.WindowsVersion{}, fmt.Errorf("resolve DDF drop: no DDFv2 zip linked from %s; the page layout may have changed", pageURL)
 	}
+	// Group 0 includes the boundary characters around the link; 1 is the URL, 2 the release.
 	for i, l := range links {
-		logger.DebugContext(ctx, "found DDF link", "position", i, "url", string(l[0]))
+		logger.DebugContext(ctx, "found DDF link", "position", i, "url", string(l[1]))
 	}
-	v := profilevalidation.WindowsVersion{Release: string(links[0][1]), URL: string(links[0][0])}
+	v := profilevalidation.WindowsVersion{Release: string(links[0][2]), URL: string(links[0][1])}
 	logger.InfoContext(ctx, "resolved latest DDF drop", "release", v.Release, "url", v.URL, "links_on_page", len(links))
 	return v, nil
 }

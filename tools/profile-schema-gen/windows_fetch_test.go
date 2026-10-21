@@ -70,6 +70,11 @@ func TestResolveDDF(t *testing.T) {
 			page:    ddfPage,
 			wantErr: "unexpected status 500 Internal Server Error",
 		},
+		{
+			name:    "requires https://download.microsoft.com and no other host can take over",
+			page:    `<a href="https://example.com?https://download.microsoft.com/download/015bd9f5-9cca-4821-8a85-a4c5f9a5d0f2/DDFv2Feb2026.zip">x</a>`,
+			wantErr: "no DDFv2 zip linked from",
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
