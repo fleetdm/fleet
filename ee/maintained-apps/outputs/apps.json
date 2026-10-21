@@ -4104,6 +4104,13 @@
       "description": "HandBrake is an open-source video transcoder."
     },
     {
+      "name": "Handy",
+      "slug": "handy/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.pais.handy",
+      "description": "Handy is a speech to text application."
+    },
+    {
       "name": "Harmony SASE",
       "slug": "harmony-sase/darwin",
       "platform": "darwin",
@@ -6216,6 +6223,13 @@
       "platform": "darwin",
       "unique_identifier": "com.nvidia.nvidia-sync",
       "description": "NVIDIA Sync is a utility for launching applications and containers on remote Linux systems."
+    },
+    {
+      "name": "NVM for Windows",
+      "slug": "nvm-windows/windows",
+      "platform": "windows",
+      "unique_identifier": "NVM for Windows",
+      "description": "NVM for Windows is a version manager for installing and switching between multiple Node.js versions."
     },
     {
       "name": "OBS",

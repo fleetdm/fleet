@@ -486,6 +486,7 @@ import GrooveOmniDialer from "./png/GrooveOmniDialer.png";
 import Gyazo from "./png/Gyazo.png";
 import Hammerspoon from "./png/Hammerspoon.png";
 import HandbrakeApp from "./png/HandbrakeApp.png";
+import Handy from "./png/Handy.png";
 import HarmonySase from "./png/HarmonySase.png";
 import Hazel from "./png/Hazel.png";
 import Hazeover from "./png/Hazeover.png";
@@ -735,6 +736,7 @@ import Numi from "./png/Numi.png";
 import Nvda from "./png/Nvda.png";
 import NvidiaGeforceNow from "./png/NvidiaGeforceNow.png";
 import NvidiaSync from "./png/NvidiaSync.png";
+import NvmWindows from "./png/NvmWindows.png";
 import Obs from "./png/Obs.png";
 import Obsidian from "./png/Obsidian.png";
 import Ocenaudio from "./png/Ocenaudio.png";
@@ -1658,6 +1660,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "groove omnidialer": GrooveOmniDialer,
   hammerspoon: Hammerspoon,
   handbrake: HandbrakeApp,
+  handy: Handy,
   "harmony sase": HarmonySase,
   hazel: Hazel,
   hazeover: Hazeover,
@@ -1921,6 +1924,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   nvda: Nvda,
   "nvidia geforce now": NvidiaGeforceNow,
   "nvidia sync": NvidiaSync,
+  "nvm for windows": NvmWindows,
   obs: Obs,
   obsidian: Obsidian,
   ocenaudio: Ocenaudio,

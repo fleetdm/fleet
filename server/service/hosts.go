@@ -4224,15 +4224,26 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 			return mdm.DecodeAndDecrypt(b64, svc.config.Server.PrivateKey)
 		}
 	case host.FleetPlatform() == "windows":
-		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
-			return nil, err
-		}
-		cert, _, _, err := svc.config.MDM.MicrosoftWSTEP()
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting Microsoft WSTEP certificate to decrypt key")
+		// The server private key is tried first: it reads every key escrowed by this release and is cheap to try. Keys
+		// escrowed by older releases are encrypted to the WSTEP certificate until the hourly job re-encrypts them, so
+		// the certificate is the fallback, loaded only then. Older releases needed no private key, so a deployment
+		// without one still reads its legacy keys. Windows MDM does not need to be on to read a key.
+		if svc.config.Server.PrivateKey == "" && !svc.config.MDM.IsMicrosoftWSTEPSet() {
+			return nil, errors.New("private key is unavailable")
 		}
 		decryptFn = func(b64 string) (string, error) {
-			b, err := mdm.DecryptBase64CMS(b64, cert.Leaf, cert.PrivateKey)
+			plain, err := "", errors.New("private key is unavailable")
+			if svc.config.Server.PrivateKey != "" {
+				plain, err = mdm.DecodeAndDecrypt(b64, svc.config.Server.PrivateKey)
+			}
+			if err == nil || !svc.config.MDM.IsMicrosoftWSTEPSet() {
+				return plain, err
+			}
+			cert, _, _, err := svc.config.MDM.MicrosoftWSTEP()
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "getting Microsoft WSTEP certificate to decrypt key")
+			}
+			b, err := mdm.DecryptBase64CMSWithKey(b64, cert.PrivateKey)
 			return string(b), err
 		}
 	default:
@@ -4256,6 +4267,16 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 	key, err := svc.ds.GetHostDiskEncryptionKey(ctx, host.ID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "getting host encryption key")
+	}
+	// Captured before the decrypt attempt below overwrites it: a Windows host is asked to escrow a new key when the
+	// stored one is not known to be decryptable, and only while its fleet enforces disk encryption.
+	reescrowRequested := key != nil && (key.Decryptable == nil || !*key.Decryptable)
+	if reescrowRequested && host.FleetPlatform() == "windows" {
+		diskEncryption, err := svc.ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get disk encryption config")
+		}
+		reescrowRequested = diskEncryption.WindowsEnabled
 	}
 	// Same rule the rotate endpoint uses, so a marker it would replace isn't
 	// reported as pending.
@@ -4344,9 +4365,18 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 
 	if key == nil || key.DecryptedValue == "" {
 		if len(decryptErrs) > 0 {
-			// Decryption failed, likely due to rotated MDM certificates
+			// On Apple hosts this happens after MDM was turned off and back on, which replaces the CA that the host
+			// encrypted to. On Windows the server did the encrypting, so the host is asked for a new key once the stored
+			// one is marked undecryptable.
+			msg := "Couldn't decrypt the disk encryption key. The decryption certificate and key are invalid because MDM has been turned off."
+			if host.FleetPlatform() == "windows" {
+				msg = "Couldn't decrypt the disk encryption key."
+				if reescrowRequested {
+					msg += " The host will escrow a new one when it comes online."
+				}
+			}
 			return nil, ctxerr.Wrap(ctx, fleet.NewUserMessageError(
-				errors.New("Couldn't decrypt the disk encryption key. The decryption certificate and key are invalid because MDM has been turned off."),
+				errors.New(msg),
 				http.StatusUnprocessableEntity,
 			), "host encryption key decryption failed")
 		}
