@@ -10881,7 +10881,7 @@ Content-Type: application/octet-stream
   "token": {
     "id": 1,
     "org_name": "Fleet Device Management Inc.",
-    "location": "Fleet Device Management Inc.",
+    "organization_unit": "Fleet Device Management Inc.",
     "country_code": "us",
     "renew_date": "2027-10-20T00:00:00Z",
     "created_at": "2026-10-20T14:02:11Z",
@@ -10915,7 +10915,7 @@ None.
     {
       "id": 1,
       "org_name": "Fleet Device Management Inc.",
-      "location": "https://example.com/mdm/apple/mdm",
+      "organization_unit": "Fleet Device Management Inc.",
       "country_code": "us",
       "renew_date": "2023-11-29T00:00:00Z",
       "created_at": "2022-11-29T14:02:11Z",
@@ -10960,6 +10960,8 @@ None.
 }
 ```
 
+`organization_unit` is the name of the organization unit in Apple Business that's associated with the VPP token. Apple previously called this "location."
+
 ### Update Volume Purchasing Program (VPP) token's fleets
 
 _Available in Fleet Premium_
@@ -11000,7 +11002,7 @@ When a VPP token is removed from a fleet, App Store apps that were added to that
   "token": {
     "id": 1,
     "org_name": "Fleet Device Management Inc.",
-    "location": "Fleet Device Management Inc.",
+    "organization_unit": "Fleet Device Management Inc.",
     "country_code": "us",
     "renew_date": "2027-10-20T00:00:00Z",
     "created_at": "2026-10-20T14:02:11Z",
