@@ -47,6 +47,7 @@ type ejbcaTestEnv struct {
 	svc      *Service
 	ctx      context.Context
 	ejbca    *ejbca_mock.Service
+	ds       *mock.Store
 	created  *fleet.CertificateAuthority // what was sent to the datastore to create
 	updated  *fleet.CertificateAuthority // what was sent to the datastore to update
 	verified []fleet.EJBCA               // what EJBCA was asked to verify
@@ -55,7 +56,7 @@ type ejbcaTestEnv struct {
 func newEJBCATestEnv(t *testing.T, stored *fleet.CertificateAuthority) *ejbcaTestEnv {
 	t.Helper()
 	ds := new(mock.Store)
-	env := &ejbcaTestEnv{ejbca: new(ejbca_mock.Service)}
+	env := &ejbcaTestEnv{ejbca: new(ejbca_mock.Service), ds: ds}
 	env.ejbca.VerifyConnectionFunc = func(_ context.Context, config fleet.EJBCA) error {
 		env.verified = append(env.verified, config)
 		return nil
@@ -312,6 +313,19 @@ func TestNewEJBCACertificateAuthority(t *testing.T) {
 		var badRequest *fleet.BadRequestError
 		require.ErrorAs(t, err, &badRequest)
 		assert.Nil(t, env.created, "nothing is stored")
+	})
+
+	t.Run("the name is used by another CA", func(t *testing.T) {
+		t.Parallel()
+		env := newEJBCATestEnv(t, nil)
+		env.ds.NewCertificateAuthorityFunc = func(context.Context, *fleet.CertificateAuthority) (*fleet.CertificateAuthority, error) {
+			return nil, fleet.EJBCANameInUseError{Name: "EJBCA_WIFI"}
+		}
+		payload := validEJBCA(p12s.valid)
+		_, err := env.svc.NewCertificateAuthority(env.ctx, fleet.CertificateAuthorityPayload{EJBCA: &payload})
+		var badRequest *fleet.BadRequestError
+		require.ErrorAs(t, err, &badRequest)
+		require.ErrorContains(t, err, `Couldn't add certificate authority. "EJBCA_WIFI" name is already used by another certificate authority`)
 	})
 
 	t.Run("only one CA can be created at a time", func(t *testing.T) {

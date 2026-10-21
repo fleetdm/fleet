@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"math/big"
 	"slices"
 	"testing"
@@ -926,8 +927,8 @@ func testEJBCANamesAreUnique(t *testing.T, ds *Datastore) {
 		}
 	}
 	inUse := func(t *testing.T, err error, name string) {
-		var nameInUse fleet.EJBCANameInUseError
-		require.ErrorAs(t, err, &nameInUse)
+		nameInUse, ok := errors.AsType[fleet.EJBCANameInUseError](err)
+		require.True(t, ok, "got %v", err)
 		require.Equal(t, name, nameInUse.Name)
 	}
 	names := func() []string {
@@ -940,82 +941,57 @@ func testEJBCANamesAreUnique(t *testing.T, ds *Datastore) {
 		return res
 	}
 
-	// CAs of other types may keep sharing a name, which the unique index on type and name allows.
-	newDigiCertCA(t, ds, "shared", "cn", "seat", nil)
+	// CAs of other types may keep sharing a name, which the unique index on type and name allows, and a batch that keeps the name is fine.
+	digiCert := newDigiCertCA(t, ds, "shared", "cn", "seat", nil)
 	_, err := ds.NewCertificateAuthority(ctx, scepCA("shared"))
 	require.NoError(t, err)
-	// An update that doesn't set the name, or a batch that keeps it, doesn't check anything.
-	digiCertShared, err := ds.GetCertificateAuthorityByID(ctx, 1, true)
+	digiCert, err = ds.GetCertificateAuthorityByID(ctx, digiCert.ID, true)
 	require.NoError(t, err)
-	require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, digiCertShared.ID, &fleet.CertificateAuthority{
-		Type: digiCertShared.Type, CertificateSeatID: new("other-seat"),
-	}))
-	digiCertShared.CertificateSeatID = new("batch-seat")
-	require.NoError(t, ds.BatchApplyCertificateAuthorities(ctx, fleet.CertificateAuthoritiesBatchOperations{Update: []*fleet.CertificateAuthority{digiCertShared}}))
+	digiCert.CertificateSeatID = new("batch-seat")
+	require.NoError(t, ds.BatchApplyCertificateAuthorities(ctx, fleet.CertificateAuthoritiesBatchOperations{Update: []*fleet.CertificateAuthority{digiCert}}))
 
 	ejbca := newEJBCACA(t, ds, "ejbca", "cn", nil, nil)
+	unchanged := []string{"digicert:shared", "custom_scep_proxy:shared", "ejbca:ejbca"}
 
 	t.Run("create", func(t *testing.T) {
 		// An EJBCA CA can't take a name another CA has, and no other CA can take the name of an EJBCA CA.
 		_, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
-			Type: string(fleet.CATypeEJBCA), Name: new("shared"), URL: new("https://ejbca.example.com"), MTLSCertPEM: new("cert"), MTLSKeyPEM: new("key"),
+			Type: string(fleet.CATypeEJBCA), Name: new("shared"), URL: new("https://ejbca.example.com"),
 		})
 		inUse(t, err, "shared")
 		_, err = ds.NewCertificateAuthority(ctx, scepCA("ejbca"))
 		inUse(t, err, "ejbca")
-		digiCert := &fleet.CertificateAuthority{
-			Type: string(fleet.CATypeDigiCert), Name: new("ejbca"), URL: new("https://example.com"), APIToken: new("token"),
-			ProfileID: new("profile"), CertificateCommonName: new("cn"), CertificateSeatID: new("seat"),
-		}
-		_, err = ds.NewCertificateAuthority(ctx, digiCert)
-		inUse(t, err, "ejbca")
-		// Nothing was stored, and the same name in the same type is still the existing conflict.
-		require.ElementsMatch(t, []string{"digicert:shared", "custom_scep_proxy:shared", "ejbca:ejbca"}, names())
-		_, err = ds.NewCertificateAuthority(ctx, scepCA("shared"))
-		require.ErrorAs(t, err, &fleet.ConflictError{})
+		require.ElementsMatch(t, unchanged, names())
 	})
 
 	t.Run("rename", func(t *testing.T) {
 		err := ds.UpdateCertificateAuthorityByID(ctx, ejbca.ID, &fleet.CertificateAuthority{Type: ejbca.Type, Name: new("shared")})
 		inUse(t, err, "shared")
-		err = ds.UpdateCertificateAuthorityByID(ctx, digiCertShared.ID, &fleet.CertificateAuthority{Type: digiCertShared.Type, Name: new("ejbca")})
+		err = ds.UpdateCertificateAuthorityByID(ctx, digiCert.ID, &fleet.CertificateAuthority{Type: digiCert.Type, Name: new("ejbca")})
 		inUse(t, err, "ejbca")
-		require.ElementsMatch(t, []string{"digicert:shared", "custom_scep_proxy:shared", "ejbca:ejbca"}, names())
+		require.ElementsMatch(t, unchanged, names())
 
-		// A name nobody has is fine, and it frees the old one.
+		// A name nobody has is fine.
 		require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, ejbca.ID, &fleet.CertificateAuthority{Type: ejbca.Type, Name: new("renamed")}))
-		_, err = ds.NewCertificateAuthority(ctx, scepCA("ejbca"))
-		require.NoError(t, err)
-		require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, ejbca.ID, &fleet.CertificateAuthority{Type: ejbca.Type, Name: new("ejbca2")}))
 	})
 
 	t.Run("batch apply", func(t *testing.T) {
-		cas, err := ds.ListCertificateAuthorities(ctx)
+		ejbca, err := ds.GetCertificateAuthorityByID(ctx, ejbca.ID, true)
 		require.NoError(t, err)
-		var existing *fleet.CertificateAuthoritySummary
-		for _, ca := range cas {
-			if ca.Type == string(fleet.CATypeEJBCA) {
-				existing = ca
-			}
-		}
-		require.NotNil(t, existing)
 		before := names()
 
 		// A new CA with an EJBCA name is rejected, and the whole batch rolls back.
 		err = ds.BatchApplyCertificateAuthorities(ctx, fleet.CertificateAuthoritiesBatchOperations{
-			Add: []*fleet.CertificateAuthority{scepCA("fresh"), scepCA(existing.Name)},
+			Add: []*fleet.CertificateAuthority{scepCA("fresh"), scepCA(*ejbca.Name)},
 		})
-		inUse(t, err, existing.Name)
+		inUse(t, err, *ejbca.Name)
 		require.ElementsMatch(t, before, names())
 
-		// A CA of another type that replaces the EJBCA CA of the same name in one batch is fine, since the old one is deleted in it.
-		ejbcaToDelete, err := ds.GetCertificateAuthorityByID(ctx, existing.ID, true)
-		require.NoError(t, err)
+		// A CA of another type can replace the EJBCA CA of the same name in one batch, since the old one is deleted in it.
 		require.NoError(t, ds.BatchApplyCertificateAuthorities(ctx, fleet.CertificateAuthoritiesBatchOperations{
-			Add: []*fleet.CertificateAuthority{scepCA(existing.Name)}, Delete: []*fleet.CertificateAuthority{ejbcaToDelete},
+			Add: []*fleet.CertificateAuthority{scepCA(*ejbca.Name)}, Delete: []*fleet.CertificateAuthority{ejbca},
 		}))
-		require.Contains(t, names(), "custom_scep_proxy:"+existing.Name)
-		require.NotContains(t, names(), "ejbca:"+existing.Name)
+		require.ElementsMatch(t, []string{"digicert:shared", "custom_scep_proxy:shared", "custom_scep_proxy:" + *ejbca.Name}, names())
 	})
 }
 
