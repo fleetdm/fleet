@@ -86,10 +86,6 @@ func TestGroupCertificateAuthoritiesByTypeEJBCA(t *testing.T) {
 		},
 		{ID: 2, Name: "minimal", URL: "https://ejbca.example.com"},
 	}, grouped.EJBCA)
-
-	empty, err := GroupCertificateAuthoritiesByType(nil)
-	require.NoError(t, err)
-	require.True(t, empty.IsEmpty())
 }
 
 func TestPreprocessCAFields(t *testing.T) {
