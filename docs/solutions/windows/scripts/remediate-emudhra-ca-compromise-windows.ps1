@@ -163,6 +163,10 @@ function Get-ServerChain([uri]$Uri) {
     $iar = $tcp.BeginConnect($Uri.Host, $port, $null, $null)
     if (-not $iar.AsyncWaitHandle.WaitOne(15000)) { $tcp.Close(); throw "connect to $($Uri.Host):$port timed out" }
     $tcp.EndConnect($iar)
+    # Bound the TLS handshake too: a server that accepts TCP but never answers would
+    # otherwise block AuthenticateAsClient until Fleet's script timeout kills the run.
+    $tcp.ReceiveTimeout = 15000
+    $tcp.SendTimeout = 15000
     $script:ServerChain = @()
     $callback = [System.Net.Security.RemoteCertificateValidationCallback] {
         param($sender, $cert, $chain, $errors)
