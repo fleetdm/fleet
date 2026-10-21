@@ -889,7 +889,7 @@ func ValidateCertificateAuthoritiesSpec(incoming interface{}) (*GroupedCertifica
 		groupedCAs.Smallstep = smallstepData
 	}
 
-	if ejbcaCA, ok := spec.(map[string]interface{})["ejbca"]; !ok || ejbcaCA == nil {
+	if ejbcaCA, ok := spec.(map[string]any)["ejbca"]; !ok || ejbcaCA == nil {
 		groupedCAs.EJBCA = []EJBCA{}
 	} else {
 		// We unmarshal EJBCA integration into its dedicated type for additional validation
