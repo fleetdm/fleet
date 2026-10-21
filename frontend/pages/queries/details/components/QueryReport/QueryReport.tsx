@@ -100,12 +100,19 @@ const QueryReport = ({
   );
   const saveColumnPreferences = async (order: string[]) => {
     if (!currentUser) return;
+    // Keep positions for columns absent from the current server-side page.
+    const previousOrder = userSettings?.report_column_order?.[queryId] || [];
+    const remaining = [...order];
+    const mergedOrder = Array.from(new Set(previousOrder)).map((id) =>
+      order.includes(id) ? (remaining.shift() as string) : id
+    );
+    mergedOrder.push(...remaining);
     const settings = {
       hidden_host_columns: [],
       ...userSettings,
       report_column_order: {
         ...userSettings?.report_column_order,
-        [queryId]: order,
+        [queryId]: mergedOrder,
       },
     };
     try {
@@ -157,7 +164,14 @@ const QueryReport = ({
         generateCSVQueryResults(
           rows,
           generateCSVFilename(`${queryName || CSV_TITLE} - Report`),
-          orderColumns(exportColumns)
+          orderColumns(exportColumns).map<Column>((column) => ({
+            ...column,
+            id:
+              column.id === HOST_TABLE_COLUMN_ID
+                ? "host_display_name"
+                : column.id,
+          })),
+          true
         )
       );
     } catch (error) {

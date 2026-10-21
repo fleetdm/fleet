@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useLayoutEffect } from "react";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
@@ -13,9 +13,33 @@ const ColumnPreferencesModal = ({ columns, onSave, onExit }: IProps) => {
   const [order, setOrder] = useState(columns);
   const [isSaving, setIsSaving] = useState(false);
 
+  const listRef = useRef<HTMLOListElement>(null);
+  const pendingFocus = useRef<{ id: string; offset: number } | null>(null);
+  const [announcement, setAnnouncement] = useState("");
+  useLayoutEffect(() => {
+    const pending = pendingFocus.current;
+    if (!pending) return;
+    const row = Array.from(listRef.current?.children || []).find(
+      (element) => element.getAttribute("data-column-id") === pending.id
+    );
+    const buttons = row?.querySelectorAll<HTMLButtonElement>("button");
+    const preferred = buttons?.[pending.offset < 0 ? 0 : 1];
+    (preferred?.disabled
+      ? buttons?.[pending.offset < 0 ? 1 : 0]
+      : preferred
+    )?.focus();
+    pendingFocus.current = null;
+  }, [order]);
+
   const moveColumn = (index: number, offset: number) => {
     const next = [...order];
     [next[index], next[index + offset]] = [next[index + offset], next[index]];
+    pendingFocus.current = { id: order[index], offset };
+    const label =
+      order[index] === "last_fetched" ? "Last fetched" : order[index];
+    setAnnouncement(
+      `${label} moved to position ${index + offset + 1} of ${order.length}`
+    );
     setOrder(next);
   };
 
@@ -39,36 +63,40 @@ const ColumnPreferencesModal = ({ columns, onSave, onExit }: IProps) => {
         your account.
       </p>
       <ol
+        ref={listRef}
         className="query-report__column-preferences"
         aria-label="Column order"
       >
         {order.map((id, index) => {
           const label = id === "last_fetched" ? "Last fetched" : id;
           return (
-            <li key={id}>
+            <li key={id} data-column-id={id}>
               <span>{label}</span>
               <Button
                 variant="secondary"
                 size="small"
-                ariaLabel={`Move ${label} left`}
+                ariaLabel={`Move up: ${label}`}
                 disabled={isSaving || index === 0}
                 onClick={() => moveColumn(index, -1)}
               >
-                Move left
+                Move up
               </Button>
               <Button
                 variant="secondary"
                 size="small"
-                ariaLabel={`Move ${label} right`}
+                ariaLabel={`Move down: ${label}`}
                 disabled={isSaving || index === order.length - 1}
                 onClick={() => moveColumn(index, 1)}
               >
-                Move right
+                Move down
               </Button>
             </li>
           );
         })}
       </ol>
+      <p role="status" aria-label="Column position" aria-live="polite">
+        {announcement}
+      </p>
       <ModalFooter
         primaryButtons={
           <>

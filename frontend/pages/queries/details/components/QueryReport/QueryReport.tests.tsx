@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import FileSaver from "file-saver";
 import React from "react";
 import { notify } from "components/ToastNotification";
+import { IUserSettings } from "interfaces/config";
 import { IUser } from "interfaces/user";
 import usersAPI from "services/entities/users";
 import { renderWithAppContext, renderWithSetup } from "test/test-utils";
@@ -270,7 +271,7 @@ describe("Report column preferences", () => {
   };
 
   const setup = (
-    settings: import("interfaces/config").IUserSettings = {
+    settings: IUserSettings = {
       hidden_host_columns: ["osquery_version"],
       report_column_order: { "7": ["name"] },
     }
@@ -296,9 +297,9 @@ describe("Report column preferences", () => {
     const { setUserSettings } = setup();
     fireEvent.click(screen.getByRole("button", { name: "Column preferences" }));
     expect(
-      screen.getByRole("button", { name: "Move Host left" })
+      screen.getByRole("button", { name: "Move up: Host" })
     ).toBeDisabled();
-    fireEvent.click(screen.getByRole("button", { name: "Move name left" }));
+    fireEvent.click(screen.getByRole("button", { name: "Move up: name" }));
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(setUserSettings).toHaveBeenCalled());
     expect(update).toHaveBeenCalledWith(1, {
@@ -332,7 +333,7 @@ describe("Report column preferences", () => {
     const error = jest.spyOn(notify, "error").mockImplementation(jest.fn());
     const { setUserSettings } = setup();
     fireEvent.click(screen.getByRole("button", { name: "Column preferences" }));
-    fireEvent.click(screen.getByRole("button", { name: "Move name left" }));
+    fireEvent.click(screen.getByRole("button", { name: "Move up: name" }));
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(error).toHaveBeenCalled());
     expect(setUserSettings).not.toHaveBeenCalled();
@@ -344,11 +345,68 @@ describe("Report column preferences", () => {
     error.mockRestore();
   });
 
+  it("retains absent column positions and keyboard focus", async () => {
+    const update = jest
+      .spyOn(usersAPI, "update")
+      .mockResolvedValue({} as IUser);
+    setup({
+      hidden_host_columns: [],
+      report_column_order: {
+        "6": ["Host", "absent", "name", "last_fetched", "version"],
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Column preferences" }));
+    fireEvent.click(screen.getByRole("button", { name: "Move up: name" }));
+    fireEvent.click(screen.getByRole("button", { name: "Move up: name" }));
+    expect(
+      screen.getByRole("button", { name: "Move down: name" })
+    ).toHaveFocus();
+    expect(
+      screen.getByRole("status", { name: "Column position" })
+    ).toHaveTextContent("name moved to position 1 of 4");
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(update).toHaveBeenCalled());
+    expect(update.mock.calls[0][1].settings?.report_column_order?.[6]).toEqual([
+      "name",
+      "absent",
+      "Host",
+      "last_fetched",
+      "version",
+    ]);
+    update.mockRestore();
+  });
+
+  it("exports Host at its saved position", async () => {
+    const saveAs = jest
+      .spyOn(FileSaver, "saveAs")
+      .mockImplementation(jest.fn());
+    const load = tableProps.loadAllResults.mockResolvedValue(
+      queryReport.results
+    );
+    setup({
+      hidden_host_columns: [],
+      report_column_order: { "6": ["name", "Host", "version", "last_fetched"] },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Export results/ }));
+    await waitFor(() => expect(saveAs).toHaveBeenCalled());
+    const csv = await new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.readAsText(saveAs.mock.calls[0][0] as File);
+    });
+    expect(csv.split("\n")[0]).toBe(
+      '"name","host_display_name","version","last_fetched"'
+    );
+    expect(csv.split("\n")[1]).toContain('"example","host1","1"');
+    saveAs.mockRestore();
+    load.mockResolvedValue([]);
+  });
+
   it("cancels without saving", () => {
     const update = jest.spyOn(usersAPI, "update");
     setup();
     fireEvent.click(screen.getByRole("button", { name: "Column preferences" }));
-    fireEvent.click(screen.getByRole("button", { name: "Move name left" }));
+    fireEvent.click(screen.getByRole("button", { name: "Move up: name" }));
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(update).not.toHaveBeenCalled();
     expect(screen.getAllByRole("columnheader")[1]).toHaveTextContent(
