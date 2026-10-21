@@ -1254,5 +1254,16 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidReenrollIntoOtherFle
 			"move device",
 			"add app " + newFleetApp + " PREINSTALLED",
 		}, callsFor(policyName), "company owned: %t", companyOwned)
+
+		// a deleted host re-enrolls as a new host, which still reuses the host policy
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK)
+		newHost := enroll(emptyFleetSecret, emptyFleetID)
+		require.NotEqual(t, host.ID, newHost.ID, "company owned: %t", companyOwned)
+		require.Equal(t, host.UUID, newHost.UUID, "company owned: %t", companyOwned)
+		require.Equal(t, []string{
+			"add app " + fleetAgent + " FORCE_INSTALLED",
+			"set apps " + fleetAgent,
+			"move device",
+		}, callsFor(policyName), "company owned: %t", companyOwned)
 	}
 }
