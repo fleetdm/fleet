@@ -65,9 +65,7 @@ type Datastore struct {
 	replica fleet.DBReader // so it cannot be used to perform writes
 	primary *sqlx.DB
 
-	// Pools reserved for HealthCheck, so it doesn't wait behind requests for a connection. nil when the datastore
-	// wasn't built by NewDBConnections, or (healthReplica) when there is no read replica; HealthCheck then uses
-	// primary and replica.
+	// Pools reserved for HealthCheck, so it doesn't wait behind requests for a connection.
 	healthPrimary *sqlx.DB
 	healthReplica *sqlx.DB
 
@@ -298,10 +296,10 @@ func NewDBConnections(cfg config.MysqlConfig, opts ...DBOption) (*common_mysql.D
 		return nil, err
 	}
 
-	// On a failed step, close the pools opened so far, since the caller gets no handle to them. Cleared on success.
-	var opened []*sqlx.DB
+	// Pools opened so far, closed if a later step fails since the caller gets no handle to them. Cleared on success.
+	var closeOnFailure []*sqlx.DB
 	defer func() {
-		for _, db := range opened {
+		for _, db := range closeOnFailure {
 			_ = db.Close()
 		}
 	}()
@@ -310,12 +308,12 @@ func NewDBConnections(cfg config.MysqlConfig, opts ...DBOption) (*common_mysql.D
 	if err != nil {
 		return nil, err
 	}
-	opened = append(opened, dbWriter)
+	closeOnFailure = append(closeOnFailure, dbWriter)
 	healthWriter, err := newHealthCheckDB(cfg, *options)
 	if err != nil {
 		return nil, fmt.Errorf("health check: %w", err)
 	}
-	opened = append(opened, healthWriter)
+	closeOnFailure = append(closeOnFailure, healthWriter)
 	dbReader := dbWriter
 	var healthReader *sqlx.DB
 	if replicaConf != nil {
@@ -330,14 +328,14 @@ func NewDBConnections(cfg config.MysqlConfig, opts ...DBOption) (*common_mysql.D
 		if err != nil {
 			return nil, err
 		}
-		opened = append(opened, dbReader)
+		closeOnFailure = append(closeOnFailure, dbReader)
 		healthReader, err = newHealthCheckDB(*replicaConf, replicaOptions)
 		if err != nil {
 			return nil, fmt.Errorf("replica health check: %w", err)
 		}
 	}
 
-	opened = nil
+	closeOnFailure = nil
 	return &common_mysql.DBConnections{
 		Primary:       dbWriter,
 		Replica:       dbReader,
@@ -347,12 +345,11 @@ func NewDBConnections(cfg config.MysqlConfig, opts ...DBOption) (*common_mysql.D
 	}, nil
 }
 
-// newHealthCheckDB opens a single-connection pool for HealthCheck. A health check runs two trivial queries, so one
-// connection is enough even when several load balancer nodes probe at once.
+// newHealthCheckDB opens a single-connection pool for HealthCheck. A health check runs two trivial queries.
 func newHealthCheckDB(conf config.MysqlConfig, opts common_mysql.DBOptions) (*sqlx.DB, error) {
 	conf.MaxOpenConns = 1
 	conf.MaxIdleConns = 1
-	// The interceptor driver name can only be registered once, and health checks aren't traced.
+	// Health checks aren't traced with OTEL/telemetry.
 	opts.Interceptor = nil
 	opts.TracingConfig = nil
 	return NewDB(&conf, &opts)
@@ -806,8 +803,8 @@ func getVersionsFromMigrations(migrations goose.Migrations) []int64 {
 	return versions
 }
 
-// healthCheckTimeout bounds the whole MySQL health check. It stays under the 5 s default timeout of an AWS load
-// balancer health check, which also has to cover the Redis check.
+// healthCheckTimeout bounds the whole MySQL health check, so a slow or hung database fails the check with a logged
+// reason instead of leaving the load balancer to time out.
 const healthCheckTimeout = 3 * time.Second
 
 // HealthCheck returns an error if the MySQL backend is not healthy.

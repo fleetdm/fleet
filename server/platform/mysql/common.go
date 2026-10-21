@@ -51,8 +51,7 @@ type DBConnections struct {
 	Primary *sqlx.DB
 	Replica *sqlx.DB
 	Options *DBOptions
-	// HealthPrimary and HealthReplica are small pools reserved for health checks, so that requests filling Primary or
-	// Replica can't make the health check wait for a connection. HealthReplica is nil when there is no read replica.
+	// HealthPrimary and HealthReplica are small pools reserved for health checks.
 	HealthPrimary *sqlx.DB
 	HealthReplica *sqlx.DB
 }
