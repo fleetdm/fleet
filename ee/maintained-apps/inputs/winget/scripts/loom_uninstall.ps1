@@ -123,7 +123,7 @@ function Invoke-UninstallerAsUser {
 }
 
 try {
-    $entries = Get-AppEntries
+    $entries = @(Get-AppEntries)
     if ($entries.Count -eq 0) {
         Write-Host "Loom is not installed."
         Exit 0
@@ -218,7 +218,7 @@ try {
         }
     }
 
-    $remaining = Get-AppEntries
+    $remaining = @(Get-AppEntries)
     if ($remaining.Count -gt 0) {
         Write-Host "WARNING: $($remaining.Count) Loom registration(s) still present:"
         $remaining | ForEach-Object { Write-Host "  - $($_.DisplayName) [$($_.KeyPath)]" }
