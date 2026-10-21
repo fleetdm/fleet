@@ -394,8 +394,10 @@ const SoftwareNameCell = ({
                 autoUpdateWindowEnd={autoUpdateWindowEnd}
               />
             )}
-            {!deliveredVersionName && (
-              <ConfigurationIconWithTooltip versionName={"cool"} />
+            {deliveredVersionName && (
+              <ConfigurationIconWithTooltip
+                versionName={deliveredVersionName}
+              />
             )}
           </>
         ) : undefined
