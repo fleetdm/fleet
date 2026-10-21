@@ -169,7 +169,7 @@ const QueryReport = ({
             id:
               column.id === HOST_TABLE_COLUMN_ID
                 ? "host_display_name"
-                : column.id,
+                : (column.id as string),
           })),
           true
         )
