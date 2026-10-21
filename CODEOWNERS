@@ -40,9 +40,8 @@ go.sum @fleetdm/go
 go.mod @fleetdm/go
 /cmd/ @fleetdm/go
 /server/ @fleetdm/go
-/server/api_endpoints/api_endpoints.yml @rachaelshaw # « API endpoint display names in the Fleet UI (API-only users)
 /ee/server/ @fleetdm/go
-/orbit/ @sharon-fdm @lucasmrod
+/orbit/ @sharon-fdm @lucasmrod @lukeheath
 
 # Orbit paths owned by other teams (medium risk: Sharon + Lucas + team TL/EM)
 /orbit/pkg/bitlocker/          @sharon-fdm @lucasmrod @juan-fdz-hawa @getvictor

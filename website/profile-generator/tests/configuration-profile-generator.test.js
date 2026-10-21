@@ -3,14 +3,16 @@
  * profile-generator/configuration-profile-generator-cases.js -- one live generation per `it()`, and
  * every case run REPEATS times, because a prompt that passes a case two runs in three is not passing it.
  *
- * The prompt comes from api/helpers/get-configuration-profile-generator-configuration.js, the same
- * helper the public endpoint calls, so there is nothing here to keep in sync with production.
+ * Each generation goes through api/helpers/generate-configuration-profile.js, the same helper the public
+ * endpoint calls, so there is nothing here to keep in sync with production: the prompts, the model each
+ * profile type is generated with, and the post-processing are all production's.
  *
  * Every test costs a real model call, which is why this is not part of `npm test`.  Run it
  * deliberately:
  *
  *   sails_custom__anthropicSecret='…' npm run test-profile-generator
- *   sails_custom__anthropicSecret='…' BASE_MODEL=claude-sonnet-5 npm run test-profile-generator
+ *   sails_custom__anthropicSecret='…' BASE_MODEL=claude-haiku-5-5 DISABLE_THINKING=1 npm run test-profile-generator
+ *   sails_custom__anthropicSecret='…' BASE_MODEL=claude-sonnet-5-5 EFFORT=medium npm run test-profile-generator
  *   sails_custom__anthropicSecret='…' LOG_ALL_GENERATIONS=1 npm run test-profile-generator
  *   sails_custom__anthropicSecret='…' REPEATS=1 npm run test-profile-generator
  *
@@ -24,12 +26,16 @@
 const assert = require('assert');
 const util = require('util');
 
-const { TEST_CASES, checkExpectations } = require('../configuration-profile-generator-cases');
+const { TEST_CASES, checkExpectations, isWorthRetryingAfterAPause } = require('../configuration-profile-generator-cases');
 
 
 // Overridable because the interesting question is usually whether a cheaper model can still pass
-// these, and the answer changes with every model release.  Same default as the script.
-const BASE_MODEL = process.env.BASE_MODEL || 'claude-haiku-4-5';
+// these, and the answer changes with every model release.  Unset, each profile type is generated the
+// way production generates it.
+const BASE_MODEL = process.env.BASE_MODEL || undefined;
+const EFFORT = process.env.EFFORT || undefined;
+// Unset leaves each profile type's production setting alone; DISABLE_THINKING=0 turns thinking back on.
+const DISABLE_THINKING = process.env.DISABLE_THINKING ? process.env.DISABLE_THINKING !== '0' : undefined;
 
 const LOG_ALL_GENERATIONS = process.env.LOG_ALL_GENERATIONS;
 
@@ -98,12 +104,13 @@ describe('configuration profile generator', function() {
               // Never a rejected promise: a generation that throws resolves to its error instead, since a
               // repeat that blew up before its own test got to await it would otherwise take down the
               // whole run as an unhandled rejection.
-              let {rawResult, unexpectedError, elapsedMs, windowsCspAreasProvided, applePayloadTypesProvided} = await repeats[repeatIdx];
+              let {generationResult, unexpectedError, elapsedMs} = await repeats[repeatIdx];
 
               // Distinguished from an abstention on purpose: collapsing the two would report a
               // misconfigured anthropicSecret as a model that refused to answer.
               assert(!unexpectedError, `unexpected error: ${unexpectedError && unexpectedError.message}`);
 
+              let {rawResult, generatedProfile, windowsCspAreasProvided, applePayloadTypesProvided} = generationResult;
               let expectations = testCase.expect || {};
 
               // In every failure message, because a profile written from the wrong part of the schema and one
@@ -120,25 +127,25 @@ describe('configuration profile generator', function() {
               }
 
               // The profile goes in the failure message rather than to stdout: a failure you cannot see is a
-              // failure you cannot act on, and mocha only shows what the assertion carried.
-              let generationForFailureMessage =
-                `\n\nprofileFilename: ${rawResult.profileFilename}` +
-                `\ndeliveryNotes: ${JSON.stringify(rawResult.deliveryNotes)}` +
-                `\n\n${withAdmxTemplatesCollapsed(rawResult.configurationProfile)}\n\n` +
-                `settingsEnforced:\n${util.inspect(rawResult.settingsEnforced, { depth: 4, colors: false })}\n`;
-
-              // Mirrors the action's own acceptance test: an abstention, or a response missing any
-              // required key, is not a usable profile.
-              let abstained = (
-                rawResult.couldNotGenerateProfile ||
-                !rawResult.configurationProfile ||
-                !rawResult.profileFilename ||
-                !rawResult.settingsEnforced
-              );
+              // failure you cannot act on, and mocha only shows what the assertion carried.  The model's own
+              // output is shown when there is no profile, since a response the generator rejected still says
+              // what went wrong.
+              let generationForFailureMessage = generatedProfile ?
+                `\n\nprofileFilename: ${generatedProfile.profileFilename}` +
+                `\ndeliveryNotes: ${JSON.stringify(generatedProfile.deliveryNotes)}` +
+                `\n\n${withAdmxTemplatesCollapsed(generatedProfile.profile)}\n\n` +
+                `settingsEnforced:\n${util.inspect(generatedProfile.items, { depth: 4, colors: false })}\n` :
+                `\n\nModel response:\n${withAdmxTemplatesCollapsed(util.inspect(rawResult, { depth: 4, colors: false }))}\n`;
 
               if(expectations.expectFailure) {
+                // Content of the wrong type is a broken generation, not the model declining.
                 assert(
-                  abstained,
+                  !generationResult.contentDidNotMatchProfileType,
+                  `expected this request to be refused, but it generated content that is not a ${profileType} profile` +
+                  generationForFailureMessage
+                );
+                assert(
+                  generationResult.couldNotGenerateProfile,
                   'expected this request to be refused, but a profile was generated' +
                   (testCase.readByEye ? `\n\nNote on this case: ${testCase.readByEye}` : '') +
                   whatTheLookupProvided +
@@ -147,14 +154,14 @@ describe('configuration profile generator', function() {
                 return;
               }
 
-              assert(!abstained, `abstained but a profile was expected -- reason given: ${JSON.stringify(rawResult.reasonWhyAProfileCouldNotBeGenerated || '(none)')}${whatTheLookupProvided}`);
-
-              let generatedProfile = {
-                profile: rawResult.configurationProfile,
-                profileFilename: rawResult.profileFilename,
-                deliveryNotes: rawResult.deliveryNotes,
-                items: rawResult.settingsEnforced,
-              };
+              assert(
+                !generationResult.couldNotGenerateProfile,
+                (generationResult.contentDidNotMatchProfileType ?
+                  `generated content that is not a ${profileType} profile` :
+                  `abstained but a profile was expected -- reason given: ${JSON.stringify(generationResult.reasonWhyAProfileCouldNotBeGenerated || '(none)')}`) +
+                whatTheLookupProvided +
+                (generationResult.contentDidNotMatchProfileType ? generationForFailureMessage : '')
+              );
 
               let checkFailures = checkExpectations(expectations, generatedProfile);
               assert.strictEqual(
@@ -181,7 +188,7 @@ describe('configuration profile generator', function() {
                   `      settingsEnforced:\n${util.inspect(generatedProfile.items, { depth: 4, colors: false })}\n`
                 );
               }
-              assert(elapsedMs <= MAX_ELAPSED_MS, `generated a passing profile, but took ${elapsedMs}ms, over the ${MAX_ELAPSED_MS}ms budget`);
+              assert(elapsedMs <= MAX_ELAPSED_MS, `generated a passing profile, but took ${elapsedMs}ms (lookups ${generationResult.timings.configurationMs}ms, generation ${generationResult.timings.generationMs}ms), over the ${MAX_ELAPSED_MS}ms budget`);
 
             });
             // Read by summary-reporter.js for the per-profile-type tally.
@@ -215,38 +222,30 @@ function withAdmxTemplatesCollapsed(profile) {
  * a time: a repeat that failed before its own test reached it would otherwise surface as an unhandled
  * rejection and take the run with it.
  *
+ * A generation the API rate-limited or was too overloaded to serve is retried once, after a pause, and timed
+ * from the retry: a 429 or a 529 says how many requests were in flight, not anything about the prompt.
+ *
  * @param  {Dictionary} testCase
- * @returns {Dictionary}  {rawResult, elapsedMs, windowsCspAreasProvided, applePayloadTypesProvided} or {unexpectedError, elapsedMs}
+ * @returns {Dictionary}  {generationResult, elapsedMs} or {unexpectedError, elapsedMs}
  */
 async function generateOnce(testCase) {
-  let startedAt = Date.now();
-  try {
-    // The helper supplies the PayloadUUIDs and is called once per generation, so every repeat of a case
-    // gets its own set.
-    let generatorConfiguration = await sails.helpers.getConfigurationProfileGeneratorConfiguration.with({
-      profileType: testCase.profileType,
-      naturalLanguageInstructions: testCase.instructions,
-      useApplePayloadTypeLookup: true,
-    });
-    let rawResult = await sails.helpers.ai.prompt.with({
-      systemPrompt: generatorConfiguration.systemPrompt,
-      prompt: generatorConfiguration.userPrompt,
-      baseModel: BASE_MODEL,
-      expectJson: true,
-    });
-    // The same step the action runs, so a case asserts on the profile an admin would download.
-    if(testCase.profileType === 'csp' && rawResult.configurationProfile) {
-      let withAdmxInstalls = await sails.helpers.addAdmxInstallCommandsToWindowsProfile.with({ profile: rawResult.configurationProfile });
-      rawResult.configurationProfile = withAdmxInstalls.profile;
-      rawResult.deliveryNotes = [rawResult.deliveryNotes].concat(withAdmxInstalls.deliveryNotes).filter(Boolean).join(' ');
+  for (let attempt = 1; ; attempt++) {
+    let startedAt = Date.now();
+    try {
+      let generationResult = await sails.helpers.generateConfigurationProfile.with({
+        profileType: testCase.profileType,
+        naturalLanguageInstructions: testCase.instructions,
+        baseModel: BASE_MODEL,
+        effort: EFFORT,
+        disableThinking: DISABLE_THINKING,
+      });
+      return { generationResult, elapsedMs: Date.now() - startedAt };
+    } catch (err) {
+      if(attempt === 1 && isWorthRetryingAfterAPause(err)) {
+        await new Promise((resolve)=>{ setTimeout(resolve, 3000); });
+        continue;
+      }
+      return { unexpectedError: err, elapsedMs: Date.now() - startedAt };
     }
-    return {
-      rawResult,
-      elapsedMs: Date.now() - startedAt,
-      windowsCspAreasProvided: generatorConfiguration.windowsCspAreasProvided,
-      applePayloadTypesProvided: generatorConfiguration.applePayloadTypesProvided,
-    };
-  } catch (err) {
-    return { unexpectedError: err, elapsedMs: Date.now() - startedAt };
   }
 }

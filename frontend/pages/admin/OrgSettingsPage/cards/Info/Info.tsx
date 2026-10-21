@@ -4,7 +4,7 @@ import { useQueryClient } from "react-query";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import InputField from "components/forms/fields/InputField";
-import validUrl from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
@@ -193,7 +193,7 @@ const Info = ({
     if (!orgSupportURL) {
       errors.org_support_url = `Organization support URL must be present`;
     } else if (
-      !validUrl({ url: orgSupportURL, protocols: ["http", "https", "file"] })
+      !isValidURL({ url: orgSupportURL, protocols: ["http", "https", "file"] })
     ) {
       errors.org_support_url = "Organization support URL is not a valid URL";
     }

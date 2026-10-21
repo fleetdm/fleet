@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.1.2.0",
+      "version": "4.1.3.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Reflector 4' AND publisher = 'Squirrels';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Reflector 4' AND publisher = 'Squirrels' AND version_compare(version, '4.1.2.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Reflector 4' AND publisher = 'Squirrels' AND version_compare(version, '4.1.3.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'reflector.exe');"
       },
-      "installer_url": "https://download.airsquirrels.com/Reflector4/Windows/Reflector-4.1.2-64.msi",
+      "installer_url": "https://download.airsquirrels.com/Reflector4/Windows/Reflector-4.1.3-64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "a51dc755",
-      "sha256": "b5c790b33413733e34d35c6e5b45c61a1c6d268db77de93273ecd6d0dc0d83d0",
+      "sha256": "59c657bcb9aabfcfca21b67405f91f4480b78476e9283988124f8d6acca4d986",
       "default_categories": [
         "Productivity"
       ],

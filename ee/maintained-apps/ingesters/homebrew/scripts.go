@@ -835,7 +835,7 @@ ids.join("\n")'
 // executable path, so 'pgrep -f <bundle_id>' never matches.
 const quitAndTrackApplicationFunc = `quit_and_track_application() {
   local bundle_id="$1"
-  local var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
+  local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local timeout_duration=10
 
   # check if the application is running
@@ -889,7 +889,7 @@ const quitAndTrackApplicationFunc = `quit_and_track_application() {
 // context.
 const relaunchApplicationFunc = `relaunch_application() {
   local bundle_id="$1"
-  local var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
+  local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
   local was_running
 
   # Check if the app was running before installation

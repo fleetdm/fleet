@@ -1372,6 +1372,23 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationsContinuousVPPAppRetryRese
 		"retry_count incremented on each RetryVPPInstall until it reaches MaxSoftwareInstallAttempts")
 	firstRowID := rows[0].ID
 
+	// read the policy's VPP run count for the host, only the final error after the retries should be counted as one failed run
+	var failCount uint
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &failCount, `
+			SELECT fail_count FROM host_policy_automation_run_counts
+			WHERE policy_id = ? AND activity_type = 'installed_app_store_app' AND host_id = ?
+		`, policy.ID, mdmHost.ID)
+	})
+	require.Equal(t, uint(1), failCount)
+
+	// read the install row after the final error, it should be failed so no later step treats it as pending
+	var verificationFailed bool
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &verificationFailed, `SELECT verification_failed_at IS NOT NULL FROM host_vpp_software_installs WHERE id = ?`, firstRowID)
+	})
+	require.True(t, verificationFailed)
+
 	// No more retries should fire once the cap is reached, even though the
 	// install never succeeded.
 	require.Never(t, func() bool {
