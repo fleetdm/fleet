@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"slices"
 	"testing"
 	"time"
 
@@ -1218,10 +1219,15 @@ func (s *integrationTestSuite) TestTeamPolicyHiddenRequiresPremium() {
 		json.RawMessage(`{"hidden": true}`), http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(res.Body), "requires a premium license")
 
-	res = s.Do("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
+	// Specs ignore hidden on Free, like critical, so a GitOps run doesn't fail partway.
+	s.Do("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
 		Specs: []*fleet.PolicySpec{{Name: "premium hidden spec", Query: "SELECT 1;", Team: team.Name, Hidden: true}},
-	}, http.StatusPaymentRequired)
-	require.Contains(t, extractServerErrorText(res.Body), "Requires Fleet Premium license")
+	}, http.StatusOK)
+	teamPolicies, _, err := s.ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
+	require.NoError(t, err)
+	specIdx := slices.IndexFunc(teamPolicies, func(p *fleet.Policy) bool { return p.Name == "premium hidden spec" })
+	require.NotEqual(t, -1, specIdx)
+	require.False(t, teamPolicies[specIdx].Hidden)
 
 	token := "hidden-policies-token"
 	createHostAndDeviceToken(t, s.ds, token)
