@@ -88,7 +88,8 @@ Respond in JSON with this data shape:
     \`\`\`
     ${naturalLanguageInstructions}
     \`\`\``,
-          baseModel: 'claude-haiku-4-5',
+          baseModel: 'claude-haiku-5-5',
+          effort: 'low',
           expectJson: true,
         })
         .tolerate((err)=>{
@@ -105,60 +106,27 @@ Respond in JSON with this data shape:
       })();
     }
 
-    // Get the prompts for this profile, and the configuration for this profile type.
-    let generatorConfiguration = await sails.helpers.getConfigurationProfileGeneratorConfiguration.with({
+    let generationResult = await sails.helpers.generateConfigurationProfile.with({
       profileType,
       naturalLanguageInstructions,
-      useLighterResponseShape: true,
-      useApplePayloadTypeLookup: true,
-    });
-
-    // Generate the configuration profile with Haiku, the model the profile generator's test suite measures these prompts against.
-    let configurationProfileGenerationResult = await sails.helpers.ai.prompt.with({
-      systemPrompt: generatorConfiguration.systemPrompt,
-      prompt: generatorConfiguration.userPrompt,
-      baseModel: 'claude-haiku-4-5',
-      expectJson: true,
     })
-    .tolerate((err)=>{
-      sails.log.warn(`When trying to generate a configuration profile with the smaller model, an error occurred. Falling back to the larger model. Full error: ${require('util').inspect(err, {depth: 2})}`);
-      return undefined;
+    .intercept((err)=>{
+      sails.log.warn(`When trying to generate a configuration profile for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
+      if(this.req.isSocket){
+        // If this request was from a socket and an error occurs, broadcast an 'error' event and unsubscribe the socket from this room.
+        sails.sockets.broadcast(roomId, 'error', {error: 'couldNotGenerateProfile'});
+        sails.sockets.leave(this.req, roomId);
+        return 'couldNotGenerateProfile';
+      }
+      // A failure, rather than the model declining, so an HTTP caller gets a 500 it can tell apart from a 400 decline.
+      return err;
     });
 
-    // If Haiku did not generate a profile, either because of an error or because it returned the couldNotGenerateProfile
-    // shape, send the same prompts to Sonnet.
-    if(!configurationProfileGenerationResult ||
-        configurationProfileGenerationResult.couldNotGenerateProfile ||
-        !configurationProfileGenerationResult.configurationProfile ||
-        !configurationProfileGenerationResult.profileFilename ||
-        !configurationProfileGenerationResult.settingsEnforced) {
-      configurationProfileGenerationResult = await sails.helpers.ai.prompt.with({
-        systemPrompt: generatorConfiguration.systemPrompt,
-        prompt: generatorConfiguration.userPrompt,
-        baseModel: 'claude-sonnet-5',
-        expectJson: true,
-      })
-      .intercept((err)=>{
-        sails.log.warn(`When trying generate a configuration profile for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
-        if(this.req.isSocket){
-          // If this request was from a socket and an error occurs, broadcast an 'error' event and unsubscribe the socket from this room.
-          sails.sockets.broadcast(roomId, 'error', {error: 'couldNotGenerateProfile'});
-          sails.sockets.leave(this.req, roomId);
-        }
-        return 'couldNotGenerateProfile';
-      });
-    }
-
-    // Check the generated result, and return an error if a profile could not be generated.
-    if(!configurationProfileGenerationResult ||
-        configurationProfileGenerationResult.couldNotGenerateProfile ||
-        !configurationProfileGenerationResult.configurationProfile ||
-        !configurationProfileGenerationResult.profileFilename ||
-        !configurationProfileGenerationResult.settingsEnforced) {
+    if(generationResult.couldNotGenerateProfile) {
       if(this.req.isSocket){
         // If the result has a reasonWhyAProfileCouldNotBeGenerated, broadcast an error event with a reason to the requesting user's socket, and leave the room.
-        if(configurationProfileGenerationResult && configurationProfileGenerationResult.reasonWhyAProfileCouldNotBeGenerated){
-          sails.sockets.broadcast(roomId, 'error', {error: 'couldNotGenerateProfile', reason: configurationProfileGenerationResult.reasonWhyAProfileCouldNotBeGenerated});
+        if(generationResult.reasonWhyAProfileCouldNotBeGenerated){
+          sails.sockets.broadcast(roomId, 'error', {error: 'couldNotGenerateProfile', reason: generationResult.reasonWhyAProfileCouldNotBeGenerated});
         } else {
           // Otherwise, broadcast an error event with no reason.
           sails.sockets.broadcast(roomId, 'error', {error: 'couldNotGenerateProfile'});
@@ -170,29 +138,13 @@ Respond in JSON with this data shape:
       }
     }
 
-    let generatedProfile = {
-      profile: configurationProfileGenerationResult.configurationProfile,
-      profileFilename: configurationProfileGenerationResult.profileFilename,
-      deliveryNotes: configurationProfileGenerationResult.deliveryNotes,
-      items: configurationProfileGenerationResult.settingsEnforced,
-      additionalProfiles: [],
-    };
-
-    // Run the profile through the addAdmxInstallCommandsToWindowsProfile helper before returning it to the user.
-    if(profileType === 'csp') {
-      let withAdmxInstalls = await sails.helpers.addAdmxInstallCommandsToWindowsProfile.with({ profile: generatedProfile.profile });
-      generatedProfile.profile = withAdmxInstalls.profile;
-      generatedProfile.additionalProfiles = withAdmxInstalls.admxInstallProfiles || [];
-      generatedProfile.deliveryNotes = _.compact([generatedProfile.deliveryNotes].concat(withAdmxInstalls.deliveryNotes)).join(' ');
-    }
-
     // If this request was from a socket, we'll broadcast a 'profileGenerated' event with the generated profile and unsubscribe the socket.
     if(this.req.isSocket){
-      sails.sockets.broadcast(roomId, 'profileGenerated', {result: generatedProfile});
+      sails.sockets.broadcast(roomId, 'profileGenerated', {result: generationResult.generatedProfile});
       sails.sockets.leave(this.req, roomId);
     } else {
       // Otherwise, return the generated profile as JSON.
-      return generatedProfile;
+      return generationResult.generatedProfile;
     }
 
   }
