@@ -70,7 +70,7 @@ sequenceDiagram
     ios->>ios: Enter Apple credentials
     ios->>fleet: Get SCEP certificate flow
     ios->>+fleet: PUT /mdm/apple/mdm<br/>[check-in protocol]<br/>MessageType: Authenticate
-    fleet->>fleet: Lookup Bearer token for ADUE challenge<br>and assign the host to the team referenced.
+    fleet->>fleet: Lookup Bearer token for ADUE challenge<br>and assign the host to the fleet referenced.
     fleet-->>-ios: OK
     ios->>+fleet: PUT /mdm/apple/mdm<br/>[check-in protocol]<br/>MessageType: TokenUpdate
     fleet-->>-ios: OK

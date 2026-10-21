@@ -94,7 +94,7 @@ Between phases 1 and 2 macOS registers the user (`beginUserRegistration`). The e
 
 - **OIDC ROPG has provider-specific limitations.** Okta: ROPG must be explicitly enabled on the application and the app must be Native or Service type. Entra: MFA-required users and federated (AD FS) users cannot authenticate via ROPG. These are upstream constraints, not Fleet bugs. Customers in those configurations need an alternative `PSSOIdPClient` backend (LDAP bind or a direct-trust flow).
 - **AASA requires a public-CA TLS certificate.** Apple's framework silently rejects self-signed certificates when fetching `/.well-known/apple-app-site-association`. Local development requires a real DNS name with a Let's Encrypt cert, or a tunnel such as ngrok or cloudflared.
-- **Global config only.** PSSO settings live on `AppConfig`; there is no per-team override.
+- **Global config only.** PSSO settings live on `AppConfig`; there is no per-fleet override.
 
 ### LDAP identity backend (Google Workspace Secure LDAP)
 

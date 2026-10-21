@@ -153,7 +153,7 @@ if ($tpmCount -eq 0) {
         Write-Output "      0x80310061 = FVE_E_POLICY_STARTUP_PIN_REQUIRED both mean policy forbids a"
         Write-Output "                   TPM-only protector, for example when Fleet's disk encryption"
         Write-Output "                   setting windows_require_bitlocker_pin is enabled for this host's"
-        Write-Output "                   team. A startup PIN has to be enrolled by the end user; an"
+        Write-Output "                   fleet. A startup PIN has to be enrolled by the end user; an"
         Write-Output "                   unattended script cannot choose one, so this needs an admin."
         Write-Output "      NOT calling EnableKeyProtectors: enabling protectors with no auto-unlock protector"
         Write-Output "      present would cause a recovery prompt at the next boot."
