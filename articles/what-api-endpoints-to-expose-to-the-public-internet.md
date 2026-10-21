@@ -2,6 +2,8 @@
 
 This guide details which API endpoints to make publicly accessible.
 
+These are inbound endpoints, on your Fleet server. For the routes your Fleet server needs to reach (outbound), see [Using a proxy](https://fleetdm.com/docs/deploy/reference-architectures#using-a-proxy).
+
 ## Managing hosts that can travel outside VPN or intranet
 
 If you would like to manage hosts that can travel outside your VPN or intranet, we recommend only exposing the osquery endpoints to the public internet:
@@ -79,8 +81,6 @@ If you would like to use Fleet's Android features, the following endpoints need 
 - `/api/*/fleet/android_enterprise/enrollment_token`: Allows Fleet to receive the [Android Management API enrollment token](https://developers.google.com/android/management/reference/rest/v1/enterprises.enrollmentTokens/get).
 - `/api/*/fleet/android_enterprise/pubsub`: Allows Fleet to receive enrollment and status report [notifications from the Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises).
 - `/api/fleetd/*`: Allows deploying certificates for [connecting end users to Wi-Fi/VPN](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#basic-article).
-
-These endpoints are inbound. Android MDM also needs your Fleet server to reach fleetdm.com (outbound). See [Android MDM](https://fleetdm.com/docs/deploy/reference-architectures#android-mdm).
 
 ## SCEP proxy
 
