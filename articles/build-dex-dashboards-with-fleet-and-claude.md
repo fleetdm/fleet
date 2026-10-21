@@ -31,7 +31,7 @@ These dashboards replace a business intelligence (BI) tool with a scheduled Clau
 
 ### Limitations
 
-- The data is a daily snapshot, not live. Each dashboard is only as fresh as its last run. The Fleet API returns current state, not history, so trend charts and Patch velocity's timing start on the day you set this up.
+- The data is a snapshot, not live. Each dashboard is only as fresh as its last run. The Fleet API returns current state, not history, so trend charts and Patch velocity's timing start on the day you set this up.
 - Fleet data passes through Claude. The routine reads each page, host names included, and the pages are stored as Claude artifacts. Check that this fits your organization's data-handling commitments.
 - Viewers see every fleet. Anyone who can open a dashboard sees all the computers the API-only user can read. The fleet filter changes the view, not who can see what.
 - Size has limits. Each run downloads every computer's software inventory and embeds the results in the pages. For 114 computers, that's about 12 MB from Fleet and an 80-second run. Larger fleets mean longer runs and bigger pages, and a Claude artifact can't be larger than 16 MB. Fleet also stores at most 1,000 rows per report.
@@ -157,6 +157,8 @@ Never ask me for the Fleet API token. It lives only in the cloud environment.
 Claude may ask you to confirm the schedule, model, or repository before it creates the routine. Confirm the values from the prompt. The first run starts each dashboard's history. From then on, the routine runs once a day.
 
 > **Note:** Routine schedules run in UTC. When daylight saving time starts or ends, the routine runs an hour earlier or later in your local time.
+
+> **Note:** To refresh the dashboards more often, edit the routine's schedule, for example to every 4 hours. Routines can't run more than once an hour, and each run uses Claude usage on your plan. Trend charts and day-by-day signals, such as memory strain and weak Wi-Fi, keep one value per UTC day, from that day's last run.
 
 > **Warning:** Check the routine's connectors after setup. A routine with connectors it doesn't need, like mail or file storage, can reach data that has nothing to do with these dashboards.
 
