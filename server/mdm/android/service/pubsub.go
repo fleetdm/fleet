@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"golang.org/x/text/cases"
@@ -1084,7 +1085,8 @@ func (svc *Service) clearReusedHostPolicyApps(ctx context.Context, enterpriseNam
 	if appliedPolicyID != nil && *appliedPolicyID != fmt.Sprint(android.DefaultAndroidPolicyID) {
 		return
 	}
-	if err := svc.SetAppsForAndroidPolicy(ctx, enterpriseName, nil, map[string]string{hostUUID: hostUUID}); err != nil {
+	// Don't hold the Pub/Sub push on quota errors, this is best-effort.
+	if err := svc.SetAppsForAndroidPolicy(androidmgmt.WithoutRetry(ctx), enterpriseName, nil, map[string]string{hostUUID: hostUUID}); err != nil {
 		svc.logger.WarnContext(ctx, "failed to clear the apps of the android host policy on enrollment", "host_uuid", hostUUID, "err", err)
 	}
 }

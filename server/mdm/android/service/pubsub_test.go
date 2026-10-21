@@ -3864,7 +3864,8 @@ func TestClearReusedHostPolicyApps(t *testing.T) {
 			client := android_mock.Client{}
 			client.InitCommonMocks()
 			var patched []string
-			client.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+			client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+				require.True(t, androidmgmt.RetryDisabled(ctx), "a quota error must not hold the Pub/Sub push")
 				require.True(t, opts.OnlyUpdateApps)
 				require.Empty(t, policy.Applications)
 				patched = append(patched, policyName)
