@@ -856,7 +856,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.Contains(t, rawCmd, ">"+vppApp1.VPPAppTeam.AdamID+"<")
 	require.Contains(t, rawCmd, ">"+vpp1_1+"<")
 	require.Contains(t, rawCmd, `<key>ManagementFlags</key>
-        <integer>0</integer>`, "MacOS VPP app install command should have ManagementFlags 0")
+    <integer>0</integer>`, "MacOS VPP app install command should have ManagementFlags 0")
 
 	// insert a result for that command and create the past activity,
 	// which triggers the next activity to be activated (should be none
@@ -1042,7 +1042,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.Contains(t, rawCmd, ">"+vppApp1IOS.VPPAppTeam.AdamID+"<")
 	require.Contains(t, rawCmd, ">"+vpp1_1_ios+"<")
 	require.Contains(t, rawCmd, `<key>ManagementFlags</key>
-        <integer>1</integer>`)
+    <integer>1</integer>`)
 
 	// record a result for the VPP app install, which will activate the in-house app
 	cmdRes = &mdm.CommandResults{
@@ -1074,7 +1074,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	rawCmd = string(cmd.Raw)
 	require.Contains(t, rawCmd, ">"+ihaCmd+"<")
 	require.Contains(t, rawCmd, `<key>ManagementFlags</key>
-        <integer>1</integer>`)
+    <integer>1</integer>`)
 
 	// enqueue a VPP app request for iOS host once more
 	vpp1_1_ios = uuid.NewString()

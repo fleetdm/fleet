@@ -374,8 +374,7 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
     <key>PrimaryAccountUserName</key>
     <string>%s</string>
     <key>LockPrimaryAccountInfo</key>
-    <%t />
-`, fullName, userName, ssoAccount.LockPrimaryAccountInfo)
+    <%t />`, fullName, userName, ssoAccount.LockPrimaryAccountInfo)
 	}
 
 	if adminAccount != nil {
@@ -383,13 +382,11 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
 		case fleet.PrimaryAccountTypeStandard:
 			payload += `
     <key>SetPrimarySetupAccountAsRegularUser</key>
-    <true />
-		`
+    <true />`
 		case fleet.PrimaryAccountTypeNone:
 			payload += `
     <key>SkipPrimarySetupAccountCreation</key>
-    <true />
-		`
+    <true />`
 		default:
 			// no-op for admin account type as that is default
 		}
@@ -406,18 +403,17 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
 		payload += fmt.Sprintf(`
     <key>AutoSetupAdminAccounts</key>
     <array>
-        <dict>
-          <key>hidden</key>
-          <%t />
-          <key>passwordHash</key>
-          <data>%s</data>
-          <key>shortName</key>
-          <string>%s</string>
-          <key>fullName</key>
-          <string>%s</string>
-        </dict>
-    </array>
-`, adminAccount.Hidden, passwordHashEncoded, shortName, fullName)
+      <dict>
+        <key>hidden</key>
+        <%t />
+        <key>passwordHash</key>
+        <data>%s</data>
+        <key>shortName</key>
+        <string>%s</string>
+        <key>fullName</key>
+        <string>%s</string>
+      </dict>
+    </array>`, adminAccount.Hidden, passwordHashEncoded, shortName, fullName)
 	}
 
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
@@ -429,7 +425,6 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
     <key>RequestType</key>
     <string>AccountConfiguration</string>
   </dict>
-
   <key>CommandUUID</key>
   <string>%s</string>
 </dict>
