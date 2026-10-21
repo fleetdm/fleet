@@ -80,31 +80,45 @@ function verifierWithIdTokenPayload(payload) {
 test("classic project-number tokens from Chat are accepted", async () => {
   const verify = verifierWithIdTokenPayload(null);
   const token = signJwt(privateKey, "k1", { iss: "chat@system.gserviceaccount.com", aud: PROJECT_NUMBER });
-  assert.equal(await verify(`Bearer ${token}`), true);
+  assert.equal((await verify(`Bearer ${token}`)).ok, true);
 });
 
 test("classic tokens for another project or issuer are rejected", async () => {
   const verify = verifierWithIdTokenPayload(null);
   const otherProject = signJwt(privateKey, "k1", { iss: "chat@system.gserviceaccount.com", aud: "999" });
   const otherIssuer = signJwt(privateKey, "k1", { iss: "attacker@example.com", aud: PROJECT_NUMBER });
-  assert.equal(await verify(`Bearer ${otherProject}`), false);
-  assert.equal(await verify(`Bearer ${otherIssuer}`), false);
-  assert.equal(await verify(undefined), false);
-  assert.equal(await verify("Basic abc"), false);
+  assert.equal((await verify(`Bearer ${otherProject}`)).ok, false);
+  assert.equal((await verify(`Bearer ${otherIssuer}`)).ok, false);
+  assert.equal((await verify(undefined)).ok, false);
+  assert.equal((await verify("Basic abc")).ok, false);
 });
 
 test("add-on tokens must come from this project's add-on service agent", async () => {
   const ours = `service-${PROJECT_NUMBER}@gcp-sa-gsuiteaddons.iam.gserviceaccount.com`;
-  assert.equal(await verifierWithIdTokenPayload({ email: ours, email_verified: true })("Bearer t"), true);
-  assert.equal(await verifierWithIdTokenPayload({ email: ours, email_verified: false })("Bearer t"), false);
+  assert.equal((await verifierWithIdTokenPayload({ email: ours, email_verified: true })("Bearer t")).ok, true);
+  assert.equal((await verifierWithIdTokenPayload({ email: ours, email_verified: false })("Bearer t")).ok, false);
 
   const otherProject = "service-999@gcp-sa-gsuiteaddons.iam.gserviceaccount.com";
-  assert.equal(await verifierWithIdTokenPayload({ email: otherProject, email_verified: true })("Bearer t"), false);
+  assert.equal((await verifierWithIdTokenPayload({ email: otherProject, email_verified: true })("Bearer t")).ok, false);
+});
+
+test("rejections explain why without echoing the token", async () => {
+  const verify = verifierWithIdTokenPayload({ email: "service-999@gcp-sa-gsuiteaddons.iam.gserviceaccount.com", email_verified: true });
+  const { ok, reason } = await verify("Bearer not.a.jwt");
+  assert.equal(ok, false);
+  assert.match(reason, /add-on: token is for service-999@/);
+  assert.match(reason, /classic: /);
+  assert.doesNotMatch(reason, /not\.a\.jwt/);
+});
+
+test("the verifier refuses to run without an audience", () => {
+  assert.throws(() => createRequestVerifier({ projectNumber: PROJECT_NUMBER }), /endpoint URL/);
+  assert.throws(() => createRequestVerifier({ endpointUrl: ENDPOINT_URL }), /project number/);
 });
 
 test("classic endpoint-URL-audience tokens are rejected because they don't identify a project", async () => {
   const verify = verifierWithIdTokenPayload({ email: "chat@system.gserviceaccount.com", email_verified: true });
-  assert.equal(await verify("Bearer t"), false);
+  assert.equal((await verify("Bearer t")).ok, false);
 });
 
 // ── Formatting helpers ─────────────────────────────────────────────────
@@ -131,10 +145,11 @@ test("truncateBytes respects the byte limit with multibyte text", () => {
 });
 
 test("senderAllowed enforces the domain allowlist only when one is set", () => {
-  assert.equal(senderAllowed({ email: "a@other.com" }, []), true);
-  assert.equal(senderAllowed({ email: "a@Example.com" }, ["example.com"]), true);
-  assert.equal(senderAllowed({ email: "a@evil-example.com" }, ["example.com"]), false);
-  assert.equal(senderAllowed({}, ["example.com"]), false);
+  assert.equal(senderAllowed("a@other.com", []), true);
+  assert.equal(senderAllowed("a@Example.com", ["example.com"]), true);
+  assert.equal(senderAllowed("a@evil-example.com", ["example.com"]), false);
+  assert.equal(senderAllowed("a@example.com.evil.com", ["example.com"]), false);
+  assert.equal(senderAllowed(undefined, ["example.com"]), false);
 });
 
 test("ConversationMemory keeps recent entries and evicts old conversations", () => {
@@ -214,7 +229,7 @@ function makeHandler({ allowedDomains = [], answer = "You have 42 Macs." } = {})
   const config = { github: { gitopsBasePath: "it-and-security" }, googleChat: { allowedDomains } };
   const handler = createGoogleChatHandler(config, github, claude, {
     api,
-    verify: async (header) => header === "Bearer ok",
+    verify: async (header) => (header === "Bearer ok" ? { ok: true } : { ok: false, reason: "test" }),
   });
   return { handler, writes, prompts };
 }

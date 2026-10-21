@@ -30,9 +30,8 @@ function escapeHtml(text) {
   return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-// Status and activity text avoids bold/italics: Google Chat's legacy syntax
-// and Markdown disagree on `*`, and the app-level default decides which one
-// applies to edits.
+// Status and activity text avoids bold/italics: edits use the app-level
+// markup default, and Google Chat's legacy syntax and Markdown disagree on `*`.
 function formatActivity(lines) {
   return lines.length > 0 ? `🔍 Tools used:\n${lines.join("\n")}` : null;
 }
@@ -96,10 +95,19 @@ function createSpacePacer(intervalMs) {
  * are paced per space, and 429/5xx responses are retried. Creates carry a
  * requestId so a retried create can't post twice.
  */
+function parseCredentials(credentials) {
+  try {
+    return JSON.parse(credentials);
+  } catch {
+    // Don't echo the value: it's a private key.
+    throw new Error("GOOGLE_CHAT_CREDENTIALS must be the service account key JSON itself, not a path (use GOOGLE_APPLICATION_CREDENTIALS for a key file)");
+  }
+}
+
 function createChatApi({ credentials }) {
   const auth = new GoogleAuth({
     scopes: ["https://www.googleapis.com/auth/chat.bot"],
-    ...(credentials ? { credentials: JSON.parse(credentials) } : {}),
+    ...(credentials ? { credentials: parseCredentials(credentials) } : {}),
   });
   const paced = createSpacePacer(SPACE_WRITE_INTERVAL_MS);
 
@@ -112,12 +120,16 @@ function createChatApi({ credentials }) {
         retryDelay: 1000,
         httpMethodsToRetry: ["POST", "PATCH"],
         statusCodesToRetry: [[429, 429], [500, 599]],
+        onRetryAttempt: (err) => console.warn(`[gchat] Retrying ${opts.method} after HTTP ${err.response?.status ?? "error"}`),
       },
     });
     return res.data;
   };
 
   return {
+    // Fail at startup, not on the first message: once Chat has our 200 ack,
+    // the bot has no way left to tell the user its credentials are broken.
+    checkCredentials: () => auth.getAccessToken(),
     createMessage: (spaceName, threadName, message) =>
       paced(spaceName, () =>
         request({
@@ -133,7 +145,7 @@ function createChatApi({ credentials }) {
           url: `${CHAT_API}/${messageName}`,
           method: "PATCH",
           params: { updateMask: "text" },
-          data: { text, markupSyntax: "MARKUP_SYNTAX_MARKDOWN" },
+          data: { text },
         })
       ),
   };
@@ -167,11 +179,13 @@ class ConversationMemory {
   }
 }
 
-function senderAllowed(user, allowedDomains) {
-  if (allowedDomains.length === 0) return true;
-  const email = (user && user.email) || "";
-  const at = email.lastIndexOf("@");
-  return at !== -1 && allowedDomains.includes(email.slice(at + 1).toLowerCase());
+function emailDomain(email) {
+  const at = (email || "").lastIndexOf("@");
+  return at === -1 ? "" : email.slice(at + 1).toLowerCase();
+}
+
+function senderAllowed(email, allowedDomains) {
+  return allowedDomains.length === 0 || allowedDomains.includes(emailDomain(email));
 }
 
 /**
@@ -220,7 +234,9 @@ function createGoogleChatChat({ api, spaceName, threadName, memory, memoryKey, l
         console.error(`${logPrefix} Failed to post error: ${err.message}`);
       }
       if (statusName) {
-        await setStatusText(formatActivity(activityLines) || "❌ Failed.").catch(() => {});
+        await setStatusText(formatActivity(activityLines) || "❌ Failed.").catch((err) =>
+          console.warn(`${logPrefix} Failed to set failure status: ${err.message}`)
+        );
       }
     },
   };
@@ -262,8 +278,9 @@ function createGoogleChatHandler(config, github, claude, deps = {}) {
     const threadName = message.thread && message.thread.name;
     const logPrefix = isDirectMessage(space) ? "[gchat-dm]" : "[gchat-mention]";
 
-    if (!senderAllowed(sender, config.googleChat.allowedDomains)) {
-      console.log(`${logPrefix} Ignoring message from a sender outside GOOGLE_CHAT_ALLOWED_DOMAINS`);
+    const email = sender.email || (event.user && event.user.email);
+    if (!senderAllowed(email, config.googleChat.allowedDomains)) {
+      console.log(`${logPrefix} Refusing sender outside GOOGLE_CHAT_ALLOWED_DOMAINS (domain: ${emailDomain(email) || "no email on event"})`);
       await api.createMessage(space.name, threadName, { text: "Sorry, I can only help people in this organization's Google Workspace." });
       return;
     }
@@ -304,17 +321,20 @@ function createGoogleChatHandler(config, github, claude, deps = {}) {
   }
 
   return async function handleGoogleChatEvent(req, res) {
-    const rawBody = await readBody(req);
-    if (rawBody === null) {
-      res.writeHead(413);
-      res.end("Request body too large");
+    // The token is in a header, so reject before buffering the body.
+    const verdict = await verify(req.headers.authorization);
+    if (!verdict.ok) {
+      console.log(`[gchat] Rejecting request: ${verdict.reason}. Check GOOGLE_CHAT_PROJECT_NUMBER and GOOGLE_CHAT_ENDPOINT_URL.`);
+      res.writeHead(401);
+      res.end("Unauthorized");
       return;
     }
 
-    if (!(await verify(req.headers.authorization))) {
-      console.log("[gchat] Invalid or missing bearer token, rejecting (check GOOGLE_CHAT_PROJECT_NUMBER and GOOGLE_CHAT_ENDPOINT_URL)");
-      res.writeHead(401);
-      res.end("Unauthorized");
+    const rawBody = await readBody(req);
+    if (rawBody === null) {
+      console.log("[gchat] Rejecting request body over 1MB");
+      res.writeHead(413);
+      res.end("Request body too large");
       return;
     }
 
@@ -330,11 +350,16 @@ function createGoogleChatHandler(config, github, claude, deps = {}) {
     sendJson(res, 200, {});
 
     if (event.kind !== "message" || !event.message) return;
-    handleMessage(event).catch((err) => console.error("[gchat] Error handling message:", err));
+    handleMessage(event).catch((err) => {
+      // The Chat API error body says why, e.g. API disabled or app not in the space.
+      const detail = err.response?.data?.error?.message || err.message;
+      console.error(`[gchat] Failed handling ${event.message.name}: ${err.response?.status ?? ""} ${detail}`);
+    });
   };
 }
 
 module.exports = {
+  createChatApi,
   createGoogleChatHandler,
   createGoogleChatChat,
   createSpacePacer,

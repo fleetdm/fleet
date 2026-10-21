@@ -51,7 +51,7 @@ The pipeline throttles status edits to one every 2 seconds on both platforms.
 ### Google Chat event flow
 
 1. Google POSTs the event with `Authorization: Bearer <token>`.
-2. The bot verifies the token, parses the body, and returns `200 {}` immediately.
+2. The bot verifies the token before reading the body. Then it reads at most 1 MB, parses it, and returns `200 {}` immediately.
 3. Classic Chat events (top-level `type`) and add-on events (`chat.messagePayload`) are mapped to one shape.
 4. The bot skips senders that are bots, applies the optional domain allowlist, and dedupes on `message.name`.
 5. The pipeline runs. Replies go through the Chat REST API with app credentials. Creates carry a fresh `requestId`, so a retried create can't post twice.
@@ -74,7 +74,7 @@ Classic apps can also use the "HTTP endpoint URL" audience, which the bot reject
 
 **Shared guards** (unchanged, now in one place for chat requests):
 
-- User text and thread history are wrapped as untrusted.
+- User text and thread history are wrapped as untrusted. Google Chat, unlike Slack, doesn't escape `<` in message text, so users could close the `<user_input>` and `<thread_history>` tags themselves. Those tags are now neutralized inside user text.
 - Changed paths must be `default.yml`, `fleets/`, or `lib/`, with no traversal.
 - Placeholder content and the YAML schema are checked before a branch is created.
 - PRs are always drafts.
@@ -82,6 +82,9 @@ Classic apps can also use the "HTTP endpoint URL" audience, which the bot reject
 **Output escaping.** Card text uses Chat's HTML subset, so the summary, file paths, and descriptions are HTML-escaped.
 
 ## Reliability and limits
+
+- **Startup checks.** The bot gets a Chat API access token before it starts listening, and exits with a clear message if it can't. Once Chat has the `200` ack, the bot has no way left to tell a user that its credentials are broken.
+- **Failures after a PR opens.** If a chat post fails after the PR exists, the user is told the PR was opened, with its link, and that there's no need to retry. This applies on both platforms and prevents duplicate PRs. If only the final status edit fails, a delivered answer isn't reported as a failure.
 
 - **Quota.** Writes are serialized per space with at least 1.1 seconds between them. 429 and 5xx responses are retried 3 times with backoff.
 - **Size.** Chat limits a message to 32,000 bytes. Answers and status text are truncated at 30,000 bytes on a character boundary. The PR card shows at most 25 files and a 2,000-character summary.
@@ -105,18 +108,22 @@ Classic apps can also use the "HTTP endpoint URL" audience, which the bot reject
 
 Each criterion names the evidence that covers it.
 
-- [x] Forged, other-project, other-issuer and URL-audience tokens get 401, and nothing is processed. Evidence: `google-chat.test.js`, plus local `curl` against the running server.
+- [x] Forged, other-project, other-issuer and URL-audience tokens get 401, and nothing is processed. The log gives the reason without the token. Evidence: `google-chat.test.js`, plus local `curl` against the running server.
+- [x] A malformed request line gets 400 and the server stays up. Missing or invalid Google credentials stop startup with a message that names the setting. Evidence: local smoke test.
 - [x] Our project's add-on tokens and classic tokens are accepted. Evidence: `google-chat.test.js`.
 - [x] An @mention is acked with `200 {}` before any agent work. The answer lands in the event's thread with Markdown. Evidence: `google-chat.test.js`.
 - [x] A follow-up DM includes the earlier exchange as untrusted thread history. Evidence: `google-chat.test.js`.
 - [x] Bot senders are ignored, senders outside the allowlist get a refusal and no Fleet access, and a redelivered event runs once. Evidence: `google-chat.test.js`.
 - [x] Card content is HTML-escaped, and output stays within Chat's byte limit even with multibyte text. Evidence: `google-chat.test.js`.
 - [x] Path traversal is rejected before a branch exists, and draft PRs go on `fleet/<hash>` branches. Evidence: `request-pipeline.test.js`.
+- [x] A chat failure after the PR exists reports the PR link instead of "try again". Only Anthropic errors are described as AI-service rate limits. Users can't close the untrusted-input tags. Evidence: `request-pipeline.test.js`.
 - [x] The Slack adapter keeps its reactions, status text, Block Kit PR message, truncation, and error flow. Evidence: `slack-handlers.test.js`.
 - [x] The Slack system prompt is byte-identical to the one before this change. Checked against `origin/main` during development.
 - [ ] End to end against a real Google Chat app (needs a Workspace project): a DM question, an @mention in a space, a change request that opens a draft PR, and a follow-up in the thread.
 
 ## Revisit as this grows
+
+- Slack mode has the same malformed-request-line crash, inside Bolt's `SocketModeReceiver` HTTP server. Fixing that belongs upstream in Bolt, or in a process-level handler, in a separate change.
 
 - Move to Node 22 or later. Node 20 reached end of life in April 2026, and current Google client libraries require 22. This affects the Slack deployment and CI too.
 - The default model (`claude-opus-4-6`) and the web search tool version are a generation behind. A model update is its own change.

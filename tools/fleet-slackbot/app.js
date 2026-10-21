@@ -99,14 +99,24 @@ function createSlackApp() {
 
 function createGoogleChatServer() {
   const http = require("http");
-  const { createGoogleChatHandler } = require("./google-chat-handlers");
+  const { createChatApi, createGoogleChatHandler } = require("./google-chat-handlers");
+  const api = createChatApi(config.googleChat);
   const routes = {
     "GET /healthz": healthHandler,
     "POST /github/webhook": webhookHandler,
-    "POST /google-chat/events": createGoogleChatHandler(config, github, claude),
+    "POST /google-chat/events": createGoogleChatHandler(config, github, claude, { api }),
   };
   const server = http.createServer((req, res) => {
-    const route = routes[`${req.method} ${new URL(req.url, "http://localhost").pathname}`];
+    let pathname;
+    try {
+      pathname = new URL(req.url, "http://localhost").pathname;
+    } catch {
+      // A malformed request line would otherwise throw here and crash the process.
+      res.writeHead(400);
+      res.end();
+      return;
+    }
+    const route = routes[`${req.method} ${pathname}`];
     if (!route) {
       res.writeHead(404);
       res.end();
@@ -118,7 +128,17 @@ function createGoogleChatServer() {
       res.end();
     });
   });
-  return { start: () => new Promise((resolve) => server.listen(config.webhook.port, resolve)) };
+  return {
+    async start() {
+      try {
+        await api.checkCredentials();
+      } catch (err) {
+        console.error(`[gchat] Can't get Google Chat API credentials (set GOOGLE_CHAT_CREDENTIALS or Application Default Credentials): ${err.message}`);
+        process.exit(1);
+      }
+      await new Promise((resolve) => server.listen(config.webhook.port, resolve));
+    },
+  };
 }
 
 const app = config.platform === "google-chat" ? createGoogleChatServer() : createSlackApp();
