@@ -173,7 +173,8 @@ module.exports = {
     // The type is promised to whoever asked for it, so content of another type is a failed generation rather
     // than a profile: a .mobileconfig handed back as a declaration is rejected by an MDM, or worse, accepted.
     if(!doesContentMatchProfileType(profile, profileType)) {
-      sails.log.warn(`A generated ${profileType} profile did not look like one, so it was treated as a failed generation.  Instructions: ${JSON.stringify(naturalLanguageInstructions)}`);
+      // The instructions themselves stay out of the log: admins put passwords and enrollment tokens in them.
+      sails.log.warn(`A generated ${profileType} profile did not look like one, so it was treated as a failed generation.  The instructions were ${naturalLanguageInstructions.length} characters long.`);
       result.couldNotGenerateProfile = true;
       result.contentDidNotMatchProfileType = true;
       return result;
