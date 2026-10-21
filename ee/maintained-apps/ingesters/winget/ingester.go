@@ -480,12 +480,6 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	}
 
 	out.Queries.Open = patch_policy.GenerateOpenQuery("windows", "", out.Name)
-	switch input.Slug {
-	case "nvm-windows/windows":
-		// nvm.exe is a short-lived CLI. Default Node.js storage sits under the app root, so
-		// matching the path catches running node.exe, which setup force-closes on upgrade.
-		out.Queries.Open = `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(path) LIKE '%\author software\nvm\%');`
-	}
 
 	// arm64 builds can't run on x64 hosts, so their policies must pass there. The open
 	// query stays as-is: it only runs on a host already queued for the install.

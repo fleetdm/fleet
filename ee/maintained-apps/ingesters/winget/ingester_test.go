@@ -360,7 +360,6 @@ func TestIngestValidations(t *testing.T) {
 		wantExists          string
 		wantPatched         string
 		wantPatchedContains string
-		wantOpen            string
 		inputApp            inputApp
 		cfg                 serverConfig
 	}{
@@ -466,29 +465,6 @@ func TestIngestValidations(t *testing.T) {
 			},
 		},
 		{
-			name:     "per-slug open query override",
-			wantOpen: `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(path) LIKE '%\author software\nvm\%');`,
-			inputApp: inputApp{
-				Name:                "Foo",
-				UniqueIdentifier:    "Foo",
-				PackageIdentifier:   "Foo",
-				InstallerArch:       "x64",
-				Slug:                "nvm-windows/windows",
-				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
-				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
-				InstallerType:       "msi",
-				InstallerScope:      "machine",
-			},
-			cfg: serverConfig{
-				productCode:       "{ABCDEF}",
-				installerType:     "msi",
-				installerScope:    "machine",
-				installerArch:     "x64",
-				installerProdCode: "{ACBDEF}",
-				upgradeCode:       "{ABCDEF}",
-			},
-		},
-		{
 			name:    "wrong installer type",
 			wantErr: "failed to find installer for app",
 			inputApp: inputApp{
@@ -541,11 +517,10 @@ func TestIngestValidations(t *testing.T) {
 				require.Contains(t, out.Queries.Patched, c.wantPatchedContains)
 			}
 			// The managed "is app open" query matches a process named "<title>.exe".
-			wantOpen := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'foo.exe');"
-			if c.wantOpen != "" {
-				wantOpen = c.wantOpen
-			}
-			require.Equal(t, wantOpen, out.Queries.Open)
+			require.Equal(t,
+				"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'foo.exe');",
+				out.Queries.Open,
+			)
 		})
 	}
 }
