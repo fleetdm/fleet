@@ -988,6 +988,31 @@ func (svc *Service) checkDeleteForHostIDs(ctx context.Context, ids []uint) error
 		if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionDeleteHost, notFoundErr); err != nil {
 			return err
 		}
+		if err := checkTechnicianDeleteLicense(ctx, host); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Technician is a Premium-only role, but sessions and API tokens issued before a
+// downgrade to Free keep working.
+func checkTechnicianDeleteLicense(ctx context.Context, host *fleet.Host) error {
+	if license.IsPremium(ctx) {
+		return nil
+	}
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil
+	}
+	isTechnician := vc.User.GlobalRole != nil && *vc.User.GlobalRole == fleet.RoleTechnician
+	if host.TeamID != nil {
+		isTechnician = isTechnician || vc.User.TeamMembership(func(t fleet.UserTeam) bool {
+			return t.Role == fleet.RoleTechnician
+		})[*host.TeamID]
+	}
+	if isTechnician {
+		return fleet.ErrMissingLicense
 	}
 	return nil
 }
@@ -1213,6 +1238,9 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 	// other team.
 	notFoundErr := ctxerr.Wrap(ctx, common_mysql.NotFound("Host").WithID(id), "get host for delete")
 	if err := svc.authz.AuthorizeOrNotFound(ctx, host, fleet.ActionDeleteHost, notFoundErr); err != nil {
+		return err
+	}
+	if err := checkTechnicianDeleteLicense(ctx, host); err != nil {
 		return err
 	}
 
