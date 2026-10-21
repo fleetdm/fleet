@@ -1062,6 +1062,8 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 			return ctxerr.Wrap(ctx, err, "get android enterprise")
 		}
 
+		svc.clearReusedHostPolicyApps(ctx, enterprise.Name(), host.Host.UUID, host.Device.AppliedPolicyID)
+
 		err = worker.QueueRunAndroidSetupExperience(ctx, svc.fleetDS, svc.logger,
 			host.Host.UUID, host.Host.TeamID, enterprise.Name())
 		if err != nil {
@@ -1071,6 +1073,20 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 
 	// Enrollment activities are intentionally not emitted for Android at this time.
 	return nil
+}
+
+// clearReusedHostPolicyApps empties the app list of the host-specific policy of a device that
+// isn't on it yet. A re-enrolled host reuses that policy, which still lists the apps of its
+// previous enrollment, and the profile reconciler may move the device to it before the setup
+// experience replaces them. On failure the setup experience still replaces them before it
+// moves the device, so this only logs.
+func (svc *Service) clearReusedHostPolicyApps(ctx context.Context, enterpriseName, hostUUID string, appliedPolicyID *string) {
+	if appliedPolicyID != nil && *appliedPolicyID != fmt.Sprint(android.DefaultAndroidPolicyID) {
+		return
+	}
+	if err := svc.SetAppsForAndroidPolicy(ctx, enterpriseName, nil, map[string]string{hostUUID: hostUUID}); err != nil {
+		svc.logger.WarnContext(ctx, "failed to clear the apps of the android host policy on enrollment", "host_uuid", hostUUID, "err", err)
+	}
 }
 
 // androidDeviceVitals extracts the host vitals that live in
@@ -1388,6 +1404,8 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "get android enterprise")
 	}
+
+	svc.clearReusedHostPolicyApps(ctx, enterprise.Name(), fleetHost.Host.UUID, host.Device.AppliedPolicyID)
 
 	err = worker.QueueRunAndroidSetupExperience(ctx, svc.fleetDS, svc.logger,
 		fleetHost.Host.UUID, fleetHost.Host.TeamID, enterprise.Name())

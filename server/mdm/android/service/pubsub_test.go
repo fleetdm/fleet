@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -3835,4 +3836,51 @@ func TestPubSubEnrollment_ClearsHostMDMActionsOnReEnroll(t *testing.T) {
 		"AndroidHostLite must be invoked to detect existing host on re-enroll")
 	require.True(t, mockDS.ClearHostMDMActionsFuncInvoked,
 		"ClearHostMDMActions must be called on Android re-enrollment to drop stale lock/wipe/clear-passcode refs")
+}
+
+// A re-enrolled host reuses its host-specific policy, so its previous enrollment's apps must be
+// cleared before anything can move the device to it, unless the device is already on it.
+func TestClearReusedHostPolicyApps(t *testing.T) {
+	const (
+		hostUUID       = "host-uuid"
+		enterpriseName = "enterprises/test"
+	)
+	defaultPolicyID := fmt.Sprint(android.DefaultAndroidPolicyID)
+
+	cases := []struct {
+		name            string
+		appliedPolicyID *string
+		apiErr          error
+		wantCleared     bool
+	}{
+		{name: "no applied policy", wantCleared: true},
+		{name: "default policy", appliedPolicyID: &defaultPolicyID, wantCleared: true},
+		{name: "already on host policy", appliedPolicyID: new(hostUUID)},
+		{name: "AMAPI error is only logged", appliedPolicyID: &defaultPolicyID, apiErr: errors.New("quota"), wantCleared: true},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			client := android_mock.Client{}
+			client.InitCommonMocks()
+			var patched []string
+			client.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+				require.True(t, opts.OnlyUpdateApps)
+				require.Empty(t, policy.Applications)
+				patched = append(patched, policyName)
+				return &androidmanagement.Policy{}, c.apiErr
+			}
+			mockDS := InitCommonDSMocks()
+			svc, err := NewServiceWithClient(slog.New(slog.DiscardHandler), mockDS, &client, "test-private-key", &mockDS.DataStore, noopNewActivity, config.AndroidAgentConfig{})
+			require.NoError(t, err)
+
+			svc.(*Service).clearReusedHostPolicyApps(t.Context(), enterpriseName, hostUUID, c.appliedPolicyID)
+
+			if c.wantCleared {
+				require.Equal(t, []string{enterpriseName + "/policies/" + hostUUID}, patched)
+			} else {
+				require.Empty(t, patched)
+			}
+		})
+	}
 }

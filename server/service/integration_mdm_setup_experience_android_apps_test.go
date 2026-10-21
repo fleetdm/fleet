@@ -77,7 +77,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	}
 
 	// the host policy's apps should change three times:
-	// 1. Fleet agent added during enrollment (via ensureHostSpecificPolicyIsApplied)
+	// 1. Fleet agent added during enrollment (via prepareHostSpecificPolicy)
 	// 2. The app list replaced with the 2 Android apps available for self-install, plus the Fleet agent
 	// 3. Setup experience with only the app to install at setup (PREINSTALLED)
 	var patchAppsCallCount int // no need for mutex, protected via runWorkerUntilDone
@@ -102,6 +102,10 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 	}
 	s.androidAPIClient.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
 		if !opts.OnlyUpdateApps {
+			return &androidmanagement.Policy{}, nil
+		}
+		if len(policy.Applications) == 0 {
+			// the enrollment clears the apps of the host policy before the setup experience runs
 			return &androidmanagement.Policy{}, nil
 		}
 		patchAppsCallCount++
@@ -176,12 +180,13 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroid() {
 			`SELECT COUNT(*) FROM android_policy_requests WHERE policy_id = ?`,
 			host.UUID)
 	})
-	// 1. The default enrollment policy
-	// 2. The Fleet-enforced per-device policy
-	// 3. The patch applications to make apps available for self-service
-	// 4. The patch applications to force install at setup experience
+	// 1. The clear of the host policy's apps at enrollment
+	// 2. The default enrollment policy
+	// 3. The Fleet-enforced per-device policy
+	// 4. The patch applications to make apps available for self-service
+	// 5. The patch applications to force install at setup experience
 	// (Note: Fleet agent install call is not recorded in the database)
-	require.Equal(t, 4, count)
+	require.Equal(t, 5, count)
 
 	// the pending install should show up in the host software
 	getHostSw := getHostSoftwareResponse{}
@@ -581,10 +586,11 @@ func (s *integrationMDMTestSuite) TestAndroidAppConfiguration() {
 
 	// worker should have (in any order due to staggered job queuing):
 	// - made each app available to the included hosts (for self-service), so 2 entries for that (from the PATCH apps to set the config)
-	// - added the Fleet agent to the host's policy (from the host enrollment, via ensureHostSpecificPolicyIsApplied)
+	// - cleared the host policy's apps (from the host enrollment)
+	// - added the Fleet agent to the host's policy (from the host enrollment, via prepareHostSpecificPolicy)
 	// - replaced the host's app list with all apps available (for self-service) and the Fleet agent, from the host enrollment
 	// - installed the apps, from the host enrollment
-	require.Len(t, patchAppsPolicies, 5)
+	require.Len(t, patchAppsPolicies, 6)
 
 	type appCall struct {
 		PackageName          string
@@ -1089,9 +1095,9 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidWithConfiguration() 
 	require.Nil(t, getHostSw.Software[1].Status)
 }
 
-// A re-enrolled Android host reuses its host-specific policy, so its new fleet's apps must
-// replace the previous fleet's apps in that policy instead of being added to them, before the
-// device is moved to that policy.
+// A re-enrolled Android host reuses its host-specific policy, so its previous fleet's apps must
+// be cleared from that policy when it enrolls, and its new fleet's apps must replace them before
+// the device is moved to that policy.
 func (s *integrationMDMTestSuite) TestSetupExperienceAndroidReenrollIntoOtherFleetReplacesApps() {
 	t := s.T()
 	ctx := t.Context()
@@ -1101,6 +1107,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidReenrollIntoOtherFle
 	const (
 		previousFleetApp = "com.reenroll.previousfleet"
 		newFleetApp      = "com.reenroll.newfleet"
+		vitalConfigApp   = "com.reenroll.vitalconfig"
 		fleetAgent       = "com.fleetdm.agent"
 	)
 	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
@@ -1177,6 +1184,15 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidReenrollIntoOtherFle
 		TeamID:   newFleetID,
 		TitleIDs: []uint{addAppResp.TitleID},
 	}, http.StatusOK)
+	// a newly enrolled host has no value for this vital, so this app can't be made available to it
+	vital, err := s.ds.CreateCustomHostVital(ctx, t.Name())
+	require.NoError(t, err)
+	s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID:    vitalConfigApp,
+		Platform:      fleet.AndroidPlatform,
+		TeamID:        &newFleetID,
+		Configuration: json.RawMessage(fmt.Sprintf(`{"managedConfiguration": {"assetTag": "$%s%d"}}`, fleet.CustomHostVitalPrefix, vital.ID)),
+	}, http.StatusOK)
 	s.runWorkerUntilDoneWithChecks(true)
 	callsFor("")
 
@@ -1197,7 +1213,6 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidReenrollIntoOtherFle
 			}
 			s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &android_service.PubSubPushRequest{PubSubMessage: *msg},
 				http.StatusOK, "token", string(pubsubToken.Value))
-			s.runWorkerUntilDoneWithChecks(true)
 
 			var hosts listHostsResponse
 			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hosts, "query", identifier)
@@ -1205,6 +1220,13 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidReenrollIntoOtherFle
 			host := hosts.Hosts[0].Host
 			require.NotNil(t, host.TeamID)
 			require.Equal(t, fleetID, *host.TeamID, "company owned: %t", companyOwned)
+
+			// the enrollment itself clears the reused policy's apps, before the profile
+			// reconciler or the setup experience can move the device to it
+			policyName := fmt.Sprintf("enterprises/%s/policies/%s", enterpriseID, host.UUID)
+			require.Equal(t, []string{"set apps "}, callsFor(policyName), "company owned: %t", companyOwned)
+
+			s.runWorkerUntilDoneWithChecks(true)
 			return host
 		}
 
@@ -1227,6 +1249,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceAndroidReenrollIntoOtherFle
 		require.Equal(t, host.ID, enroll(newFleetSecret, newFleetID).ID)
 		require.Equal(t, []string{
 			"add app " + fleetAgent + " FORCE_INSTALLED",
+			// the app whose config the host can't supply a value for is left out
 			"set apps " + newFleetApp + "," + fleetAgent,
 			"move device",
 			"add app " + newFleetApp + " PREINSTALLED",
