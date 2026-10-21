@@ -112,11 +112,11 @@ func run(ctx context.Context, logger *slog.Logger, out, overrides string, update
 	if err != nil {
 		return err
 	}
-	if _, err := loadWindows(ctx, windowsLogger, windowsDir); err != nil {
+	entries, err := loadWindows(ctx, windowsLogger, windowsDir)
+	if err != nil {
 		return err
 	}
-	schema.Windows = map[string]*profilevalidation.WindowsNode{}
-	schema.WindowsXSDs = map[string]string{}
+	convertWindows(ctx, windowsLogger, entries, &schema)
 	if err := applyOverrides(ctx, logger.With("step", "overrides"), overrides, &schema); err != nil {
 		return err
 	}

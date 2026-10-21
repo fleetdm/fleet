@@ -2,6 +2,7 @@ package profilevalidation
 
 import (
 	"encoding/json"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,8 +20,6 @@ func TestEmbeddedSchema(t *testing.T) {
 	assert.Regexp(t, `^[0-9a-f]{40}$`, s.Version.Apple.Commit)
 	assert.NotEmpty(t, s.Version.Apple.Release)
 	assert.False(t, s.Version.GeneratedAt.IsZero())
-	assert.Empty(t, s.Windows)
-	assert.Empty(t, s.WindowsXSDs)
 
 	var apple, allowed int
 	for _, pt := range s.AppleProfiles {
@@ -106,6 +105,83 @@ func TestEmbeddedSchema(t *testing.T) {
 		require.NotNil(t, enabled)
 		assert.NotEmpty(t, enabled.Override)
 		assert.Equal(t, []any{"System", "User"}, s.AppleDeclarationEnvelope.Keys["PayloadScope"].RangeList)
+	})
+}
+
+func TestEmbeddedSchemaWindows(t *testing.T) {
+	s, err := Parse(profileValidationSchemaRaw)
+	require.NoError(t, err)
+
+	v := s.Version.Windows
+	assert.Regexp(t, `^DDFv2\w+$`, v.Release)
+	assert.Regexp(t, `^https://download\.microsoft\.com/download/.+/`+v.Release+`\.zip$`, v.URL)
+	assert.Regexp(t, `^[0-9a-f]{64}$`, v.SHA256)
+
+	var settings, interior int
+	for locURI, n := range s.Windows {
+		if n.XSD != "" {
+			assert.NotEmpty(t, s.WindowsXSDs[n.XSD], "%s references a missing xsd", locURI)
+		}
+		if slices.Equal(n.Format, WindowsFormats{WindowsFormatNode}) {
+			interior++
+		} else {
+			settings++
+		}
+	}
+	// Exact counts are for the drop the ticket was checked against; later drops are covered by
+	// Parse's floor, so the daily update PR doesn't fail just because Microsoft added nodes.
+	if v.Release == "DDFv2Feb2026" {
+		assert.Equal(t, "bf667d895af4a8c8ab5a31065ce0e28ea2f8b649c4dc416f452f62fd1c42ff14", v.SHA256)
+		assert.Equal(t, 5146, settings)
+		assert.Equal(t, 809, interior)
+		assert.Len(t, s.WindowsXSDs, 7)
+	}
+
+	node := func(locURI string) *WindowsNode {
+		n := s.WindowsNode(locURI)
+		require.NotNil(t, n, locURI)
+		return n
+	}
+	int1 := WindowsFormats{WindowsFormatInt}
+	chr := WindowsFormats{WindowsFormatChr}
+
+	t.Run("ticket examples", func(t *testing.T) {
+		assert.Equal(t, &WindowsNode{Format: int1, Scope: WindowsScopeDevice, Range: &Range{Min: new(0.0), Max: new(999.0)}, MinBuild: []string{"10.0.10240"}},
+			node("./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock"))
+		assert.Equal(t, `^(\d\.)?(\d)$`, node("./Device/Vendor/MSFT/DMClient/Provider/*/SyncApplicationVersion").RegEx)
+		assert.Equal(t, []string{"0x0", "0x1", "0x2", "0x4"}, node("./Device/Vendor/MSFT/DMClient/Provider/*/FirstSyncStatus/BlockInStatusPage").Flag)
+		configure := node("./Device/Vendor/MSFT/Policy/Config/LocalUsersAndGroups/Configure")
+		assert.Equal(t, chr, configure.Format)
+		assert.Contains(t, s.WindowsXSDs[configure.XSD], "xs:schema")
+		assert.True(t, node("./Device/Vendor/MSFT/Policy/Config/RemoteAssistance/SolicitedRemoteAssistance").ADMXBacked)
+		assert.Equal(t, []string{"0", "1"}, node("./Vendor/MSFT/Firewall/MdmStore/FirewallRules/*/Action/Type").Enum)
+	})
+
+	t.Run("dynamic instances and interior nodes", func(t *testing.T) {
+		assert.Same(t, s.Windows["./Vendor/MSFT/Firewall/MdmStore/FirewallRules/*/Action/Type"],
+			node("./Vendor/MSFT/Firewall/MdmStore/FirewallRules/BlockTelnet/Action/Type"))
+		// Profiles <Add> the instance before setting its children, as Fleet's SCEP profiles do.
+		scep := node("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID")
+		assert.Equal(t, WindowsFormats{WindowsFormatNode}, scep.Format)
+		// On an interior "*" node the regex constrains the instance's name.
+		assert.Equal(t, "^[^|/]*$", node("./Vendor/MSFT/Firewall/MdmStore/FirewallRules/*").RegEx)
+	})
+
+	t.Run("scope, builds, and deprecation", func(t *testing.T) {
+		assert.Equal(t, WindowsScopeUser, node("./User/Vendor/MSFT/Policy/Config/Education/PrinterNames").Scope)
+		// Applicability inherited from an ancestor.
+		assert.Equal(t, []string{"10.0.10240"}, node("./Device/Vendor/MSFT/DMClient/Provider/*/SyncApplicationVersion").MinBuild)
+		var lists, deprecated int
+		for _, n := range s.Windows {
+			if len(n.MinBuild) > 1 {
+				lists++
+			}
+			if n.Deprecated != nil {
+				deprecated++
+			}
+		}
+		assert.Greater(t, lists, 1000, "backported builds are kept as lists")
+		assert.NotZero(t, deprecated)
 	})
 }
 

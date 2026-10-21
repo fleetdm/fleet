@@ -103,7 +103,15 @@ func TestParse(t *testing.T) {
 		}, wantErr: "apple_profiles has 99 payload types, want at least 100 non-overridden"},
 		{name: "windows below floor", mutate: func(doc map[string]any) {
 			removeOne(doc, "windows", mustHaveWindowsNodes[0])
-		}, wantErr: "windows has 3999 nodes, want at least 4000"},
+		}, wantErr: "windows has 3999 settings, want at least 4000"},
+		{name: "interior nodes don't count toward floor", mutate: func(doc map[string]any) {
+			removeOne(doc, "windows", mustHaveWindowsNodes[0])
+			section(doc, "windows")["./Device/Vendor/MSFT/Example/Interior"] = map[string]any{"format": "node"}
+		}, wantErr: "windows has 3999 settings, want at least 4000"},
+		{name: "a widened interior node counts", mutate: func(doc map[string]any) {
+			removeOne(doc, "windows", mustHaveWindowsNodes[0])
+			section(doc, "windows")["./Device/Vendor/MSFT/Example/Interior"] = map[string]any{"format": []string{"node", "chr"}}
+		}},
 		{name: "missing must-have windows node", mutate: func(doc map[string]any) {
 			delete(section(doc, "windows"), mustHaveWindowsNodes[0])
 			section(doc, "windows")["./Device/Vendor/MSFT/Example/Filler"] = map[string]any{"format": "int"}

@@ -43,7 +43,7 @@ func writeDDFs(t *testing.T, files map[string]string) string {
 	return dir
 }
 
-func leafURIs(leaves []ddfLeaf) []string {
+func entryURIs(leaves []ddfEntry) []string {
 	uris := make([]string, 0, len(leaves))
 	for _, l := range leaves {
 		uris = append(uris, l.LocURI)
@@ -69,15 +69,25 @@ func TestLoadWindows(t *testing.T) {
 
 	leaves, err := loadWindows(t.Context(), logger, dir)
 	require.NoError(t, err)
-	require.Len(t, leaves, 3)
+	// Interior nodes are kept, including an empty one, so profiles can <Add> dynamic instances.
+	require.Len(t, leaves, 11)
 	assert.Equal(t, []string{
+		"./Device/Vendor/MSFT/Policy",
+		"./Device/Vendor/MSFT/Policy/Config",
+		"./Device/Vendor/MSFT/Policy/Config/DeviceLock",
 		"./Device/Vendor/MSFT/Policy/Config/DeviceLock/DevicePasswordEnabled",
 		"./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock",
+		"./Vendor/MSFT/Firewall",
+		"./Vendor/MSFT/Firewall/FirewallRules",
+		"./Vendor/MSFT/Firewall/FirewallRules/*",
+		"./Vendor/MSFT/Firewall/FirewallRules/*/Action",
 		"./Vendor/MSFT/Firewall/FirewallRules/*/Action/Type",
-	}, leafURIs(leaves))
-	assert.Equal(t, "Policy_DeviceLock.xml", leaves[0].File)
-	assert.Equal(t, "Firewall.XML", leaves[2].File)
-	assert.Equal(t, "int", leaves[0].Props.Format.value())
+		"./Vendor/MSFT/Firewall/FirewallRules/Empty",
+	}, entryURIs(leaves))
+	assert.Equal(t, "Policy_DeviceLock.xml", leaves[3].File)
+	assert.Equal(t, "Firewall.XML", leaves[9].File)
+	assert.Equal(t, "int", leaves[3].Props.Format.value())
+	assert.Equal(t, "node", leaves[7].Props.Format.value())
 
 	again, err := loadWindows(t.Context(), logger, dir)
 	require.NoError(t, err)
@@ -92,7 +102,7 @@ func TestLoadWindowsWhitespaceAndRootLeaf(t *testing.T) {
 	})
 	leaves, err := loadWindows(t.Context(), slog.New(slog.DiscardHandler), dir)
 	require.NoError(t, err)
-	assert.Equal(t, []string{"./DevDetail/Top", "./User/Vendor/MSFT/Area/Setting"}, leafURIs(leaves))
+	assert.Equal(t, []string{"./DevDetail/Top", "./User/Vendor/MSFT/Area", "./User/Vendor/MSFT/Area/Setting"}, entryURIs(leaves))
 }
 
 func TestLoadWindowsErrors(t *testing.T) {

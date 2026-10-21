@@ -190,8 +190,16 @@ func (s *ProfileValidationSchema) checkApple() error {
 }
 
 func (s *ProfileValidationSchema) checkWindows() error {
-	if len(s.Windows) < minWindowsNodes {
-		return fmt.Errorf("windows has %d nodes, want at least %d", len(s.Windows), minWindowsNodes)
+	// Interior nodes (format node) are kept so profiles can create dynamic instances, but only
+	// settings count toward the floor.
+	settings := 0
+	for _, n := range s.Windows {
+		if n != nil && !slices.Equal(n.Format, WindowsFormats{WindowsFormatNode}) {
+			settings++
+		}
+	}
+	if settings < minWindowsNodes {
+		return fmt.Errorf("windows has %d settings, want at least %d", settings, minWindowsNodes)
 	}
 	for _, n := range mustHaveWindowsNodes {
 		if s.Windows[n] == nil {

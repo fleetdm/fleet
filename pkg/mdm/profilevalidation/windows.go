@@ -18,8 +18,8 @@ type WindowsTemplatesVersion struct {
 	GeneratedAt string `json:"generated_at"`
 }
 
-// WindowsNode is one leaf LocURI, keyed in the schema by its declared path. Dynamic segments (an
-// empty NodeName in the DDF) are "*".
+// WindowsNode is one LocURI, keyed in the schema by its declared path. Dynamic segments (an empty
+// NodeName in the DDF) are "*". Interior nodes have format "node"; the rest are settings.
 type WindowsNode struct {
 	Format WindowsFormats `json:"format"`
 	Scope  WindowsScope   `json:"scope"`
