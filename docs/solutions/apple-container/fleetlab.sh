@@ -152,6 +152,13 @@ cmd_setup() {
 
 # ---------------------------------------------------------------- deploy ---
 run_fleet() {
+  local fleet_address
+  if [[ -n "${FLEET_SERVER_ADDRESS:-}" && "${FLEET_SERVER_ADDRESS}" =~ :[0-9]+$ ]]; then
+    fleet_address="${FLEET_SERVER_ADDRESS}"
+  else
+    fleet_address="${FLEET_SERVER_ADDRESS:-0.0.0.0}:${FLEET_PORT}"
+  fi
+
   container run -d --name fleet --network "$NET" \
     --platform linux/amd64 --rosetta -m 4G -c 2 \
     -p "${FLEET_PORT}:${FLEET_PORT}" \
@@ -162,7 +169,7 @@ run_fleet() {
     -e FLEET_MYSQL_DATABASE="$MYSQL_DATABASE" \
     -e FLEET_MYSQL_USERNAME="$MYSQL_USER" \
     -e FLEET_MYSQL_PASSWORD="$MYSQL_PASSWORD" \
-    -e FLEET_SERVER_ADDRESS="${FLEET_SERVER_ADDRESS:-0.0.0.0}:${FLEET_PORT}" \
+    -e FLEET_SERVER_ADDRESS="$fleet_address" \
     -e FLEET_SERVER_TLS="${FLEET_SERVER_TLS:-true}" \
     -e FLEET_SERVER_CERT=/certs/fleet.crt -e FLEET_SERVER_KEY=/certs/fleet.key \
     -e FLEET_SERVER_PRIVATE_KEY="$FLEET_SERVER_PRIVATE_KEY" \
