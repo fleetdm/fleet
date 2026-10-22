@@ -16,12 +16,9 @@
   }
 
   &__query-info {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: $pad-medium;
-
     h2 {
+      flex: 1;
+      min-width: 0;
       font-size: $small;
       font-weight: $bold;
       margin: 0;
@@ -34,16 +31,17 @@
       margin: $pad-xsmall 0 0;
       overflow-wrap: anywhere;
     }
+  }
+
+  &__query-info-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: $pad-medium;
 
     @media (max-width: $break-sm) {
       flex-direction: column;
-      gap: $pad-medium;
     }
-  }
-
-  &__query-info-text {
-    flex: 1;
-    min-width: 0;
   }
 
   .data-table {
