@@ -104,6 +104,9 @@ fi`, appPath)
 
 func uninstallScriptForApp(app inputApp, cask *brewCask) string {
 	sb := newScriptBuilder()
+	// Most casks don't name the app in uninstall quit, so quit it at the stanza's
+	// quit step, or else before the app artifact, which brew lists after it.
+	appStopped := app.UniqueIdentifier == "" || uninstallStopsApp(cask, app.UniqueIdentifier)
 
 	for _, artifact := range cask.Artifacts {
 		switch {
@@ -126,6 +129,7 @@ func uninstallScriptForApp(app inputApp, cask *brewCask) string {
 					}
 				}
 			}
+			quitAppBeforeRemoval(sb, app.UniqueIdentifier, &appStopped)
 			// Remove all collected app paths. appPath is cask-controlled and lands
 			// inside a double-quoted `sudo rm -rf` argument, so escape it to stop
 			// $(...)/backtick command substitution.
@@ -145,7 +149,7 @@ func uninstallScriptForApp(app inputApp, cask *brewCask) string {
 				sb.Write(strings.Join(cask.PreUninstallScripts, "\n"))
 			}
 			for _, u := range artifact.Uninstall {
-				processUninstallArtifact(u, sb, app.UniqueIdentifier)
+				processUninstallArtifact(u, sb, app.UniqueIdentifier, &appStopped)
 			}
 			if len(cask.PostUninstallScripts) > 0 {
 				sb.Write(strings.Join(cask.PostUninstallScripts, "\n"))
@@ -153,7 +157,7 @@ func uninstallScriptForApp(app inputApp, cask *brewCask) string {
 		case len(artifact.Zap) > 0:
 			sortUninstall(artifact.Zap)
 			for _, z := range artifact.Zap {
-				processUninstallArtifact(z, sb, app.UniqueIdentifier)
+				processUninstallArtifact(z, sb, app.UniqueIdentifier, nil)
 			}
 		}
 	}
@@ -378,7 +382,9 @@ func processScript(script optjson.StringOr[map[string]any], sb *scriptBuilder, a
 	}
 }
 
-func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID string) {
+// processUninstallArtifact writes an uninstall or zap directive. appStopped is
+// nil for zap, which runs after the app is removed.
+func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID string, appStopped *bool) {
 	process := func(target optjson.StringOr[[]string], f func(path string)) {
 		if target.IsOther {
 			for _, path := range target.Other {
@@ -422,6 +428,8 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID stri
 			sb.Writef("quit_application 'com.electron.dockerdesktop'")
 		}
 	})
+
+	quitAppBeforeRemoval(sb, bundleID, appStopped)
 
 	// per the spec, signals can't have a different format. In the homebrew
 	// source code an error is raised when the format is different.
@@ -468,6 +476,42 @@ func quitTargetsApp(quitID, bundleID string) bool {
 	}
 	pattern := strings.ReplaceAll(regexp.QuoteMeta(quitID), `\*`, `.*`)
 	return regexp.MustCompile(`(?i)^` + pattern + `$`).MatchString(bundleID)
+}
+
+// uninstallStopsApp reports whether a cask's uninstall stanza quits or signals
+// the app. Casks signal apps that don't quit cleanly, so a quit that stops the
+// script mustn't run ahead of the signal.
+func uninstallStopsApp(cask *brewCask, bundleID string) bool {
+	names := func(target optjson.StringOr[[]string]) []string {
+		if target.IsOther {
+			return target.Other
+		}
+		if target.String == "" {
+			return nil
+		}
+		return []string{target.String}
+	}
+	targetsApp := func(id string) bool { return quitTargetsApp(id, bundleID) }
+	for _, artifact := range cask.Artifacts {
+		for _, u := range artifact.Uninstall {
+			if slices.ContainsFunc(names(u.Quit), targetsApp) ||
+				(u.Signal.IsOther && len(u.Signal.Other) == 2 && targetsApp(u.Signal.Other[1])) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// quitAppBeforeRemoval quits the app being uninstalled, as the install script's
+// quit_and_track_application does, and stops the script if it won't quit.
+func quitAppBeforeRemoval(sb *scriptBuilder, bundleID string, appStopped *bool) {
+	if appStopped == nil || *appStopped {
+		return
+	}
+	*appStopped = true
+	sb.AddFunction("quit_application", quitApplicationFunc)
+	sb.Writef("quit_application %s || exit 1", shellSingleQuote(bundleID))
 }
 
 type scriptBuilder struct {
