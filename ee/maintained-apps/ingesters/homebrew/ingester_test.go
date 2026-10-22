@@ -267,7 +267,7 @@ func TestIngestValidations(t *testing.T) {
 				require.Equal(t, "0.4.26+4", out.Version)
 				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'ai.elementlabs.lmstudio';", out.Queries.Exists)
 				require.Equal(t,
-					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ai.elementlabs.lmstudio' AND version_compare(REPLACE(bundle_short_version, '+', '.'), '0.4.26.4') < 0);",
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ai.elementlabs.lmstudio' AND version_compare(bundle_short_version, '0.4.26+4') < 0);",
 					out.Queries.Patched,
 				)
 			case "swiftdialog":

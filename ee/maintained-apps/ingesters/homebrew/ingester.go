@@ -322,14 +322,6 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.UniqueIdentifier, out.Version,
 		)
 	}
-	if input.Token == "lm-studio" {
-		// version_compare doesn't treat "+" as a delimiter, so "0.4.25+10" would sort
-		// above "0.4.26+4"; compare the build as its own dotted segment instead.
-		out.Queries.Patched = fmt.Sprintf(
-			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(REPLACE(bundle_short_version, '+', '.'), '%s') < 0);",
-			out.UniqueIdentifier, strings.ReplaceAll(out.Version, "+", "."),
-		)
-	}
 	switch input.Token {
 	case "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3":
 		// CFBundleShortVersionString is major.minor only ("26.3" for cask "26.3.5"),
