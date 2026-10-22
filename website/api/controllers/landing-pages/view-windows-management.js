@@ -12,13 +12,12 @@ module.exports = {
     success: {
       viewTemplatePath: 'pages/landing-pages/windows-management'
     },
-    badConfig: { responseType: 'badConfig' },
   },
 
 
   fn: async function () {
     if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.testimonials)) {
-      throw {badConfig: 'builtStaticContent.testimonials'};
+      throw new Error('Could not build the page: sails.config.builtStaticContent.testimonials is missing. Run `sails run build-static-content` to generate it.');
     }
     // Get testimonials for the <scrolalble-tweets> component.
     let testimonialsForScrollableTweets = _.clone(sails.config.builtStaticContent.testimonials);
