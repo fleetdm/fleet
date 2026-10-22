@@ -3802,29 +3802,97 @@ ORDER BY other_vat.id
 	return versionIDs, nil
 }
 
-func (ds *Datastore) ListHostAppStoreAppInstallVersions(ctx context.Context, appID fleet.VPPAppID, fleetID uint, hostIDs []uint) (map[uint]fleet.HostVPPSoftwareInstall, error) {
-	if len(hostIDs) == 0 {
-		return map[uint]fleet.HostVPPSoftwareInstall{}, nil
+func (ds *Datastore) GetAppStoreAppVersionsByTeam(ctx context.Context, teamID uint) (map[uint][]*fleet.VPPAppStoreApp, error) {
+	const stmt = `
+SELECT
+	va.title_id,
+	vat.adam_id,
+	vat.platform,
+	vat.id AS vpp_apps_teams_id,
+	vat.configuration_updated_at
+FROM
+	vpp_apps_teams vat
+	JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
+WHERE
+	vat.global_or_team_id = ?
+ORDER BY vat.id
+`
+	var versions []struct {
+		TitleID uint `db:"title_id"`
+		fleet.VPPAppStoreApp
+	}
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &versions, stmt, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app store app versions by team")
+	}
+	versionsByTitleID := make(map[uint][]*fleet.VPPAppStoreApp)
+	if len(versions) == 0 {
+		return versionsByTitleID, nil
 	}
 
-	// Read the latest install of the app on each of the hosts that's still on the fleet and has the app in its inventory. Start
+	versionIDs := make([]uint, 0, len(versions))
+	for _, version := range versions {
+		versionIDs = append(versionIDs, version.VPPAppsTeamsID)
+	}
+	labelsByVersionID, err := ds.getVPPAppLabels(ctx, versionIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app store app version labels")
+	}
+	configurationByVersionID, err := ds.BulkGetVPPAppConfigurations(ctx, versionIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get app store app version configurations")
+	}
+
+	for i := range versions {
+		version := &versions[i].VPPAppStoreApp
+		for _, label := range labelsByVersionID[version.VPPAppsTeamsID] {
+			switch {
+			case label.Exclude:
+				version.LabelsExcludeAny = append(version.LabelsExcludeAny, label)
+			case label.RequireAll:
+				version.LabelsIncludeAll = append(version.LabelsIncludeAll, label)
+			default:
+				version.LabelsIncludeAny = append(version.LabelsIncludeAny, label)
+			}
+		}
+		version.Configuration = configurationByVersionID[version.VPPAppsTeamsID]
+		versionsByTitleID[versions[i].TitleID] = append(versionsByTitleID[versions[i].TitleID], version)
+	}
+	return versionsByTitleID, nil
+}
+
+func (ds *Datastore) ListHostAppStoreAppInstallVersions(ctx context.Context, fleetID uint, hostIDs []uint) (map[uint]map[uint]fleet.HostVPPSoftwareInstall, error) {
+	installByHostIDByTitleID := make(map[uint]map[uint]fleet.HostVPPSoftwareInstall)
+	if len(hostIDs) == 0 {
+		return installByHostIDByTitleID, nil
+	}
+
+	// Read the latest install of each app on each of the hosts that's still on the fleet and has the app in its inventory. Start
 	// from the hosts so only each host's latest installs are read, not the app's whole install history. Filter out failed
 	// installs since the host still has the version from the install before it.
 	const stmt = `
 SELECT
+	app.title_id,
 	h.id AS host_id,
 	latest.vpp_app_team_id,
 	latest.created_at,
 	latest.needs_configuration_resend
 FROM
 	hosts h
+	CROSS JOIN (
+		SELECT DISTINCT va.title_id, va.adam_id, va.platform
+		FROM
+			vpp_apps_teams vat
+			JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
+		WHERE vat.global_or_team_id = ?
+	) app
 	JOIN LATERAL (
 		SELECT hvsi.vpp_app_team_id, hvsi.created_at, hvsi.needs_configuration_resend
 		FROM host_vpp_software_installs hvsi
 		WHERE
 			hvsi.host_id = h.id AND
-			hvsi.adam_id = ? AND
-			hvsi.platform = ? AND
+			hvsi.adam_id = app.adam_id AND
+			hvsi.platform = app.platform AND
 			hvsi.canceled = 0 AND
 			hvsi.verification_failed_at IS NULL
 		ORDER BY hvsi.created_at DESC, hvsi.id DESC
@@ -3838,28 +3906,31 @@ WHERE
 		FROM
 			host_software hs
 			JOIN software s ON s.id = hs.software_id
-			JOIN vpp_apps va ON va.title_id = s.title_id
 		WHERE
 			hs.host_id = h.id AND
-			va.adam_id = ? AND
-			va.platform = ?
+			s.title_id = app.title_id
 	)
 `
-	query, args, err := sqlx.In(stmt, appID.AdamID, appID.Platform, hostIDs, ptr.UintOrNilIfZero(fleetID), appID.AdamID, appID.Platform)
+	query, args, err := sqlx.In(stmt, fleetID, hostIDs, ptr.UintOrNilIfZero(fleetID))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build list host app store app install versions query")
 	}
-	var installs []fleet.HostVPPSoftwareInstall
+	var installs []struct {
+		TitleID uint `db:"title_id"`
+		fleet.HostVPPSoftwareInstall
+	}
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &installs, query, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list host app store app install versions")
 	}
 
-	installByHostID := make(map[uint]fleet.HostVPPSoftwareInstall, len(installs))
 	for _, install := range installs {
-		installByHostID[install.HostID] = install
+		if installByHostIDByTitleID[install.TitleID] == nil {
+			installByHostIDByTitleID[install.TitleID] = make(map[uint]fleet.HostVPPSoftwareInstall)
+		}
+		installByHostIDByTitleID[install.TitleID][install.HostID] = install.HostVPPSoftwareInstall
 	}
-	return installByHostID, nil
+	return installByHostIDByTitleID, nil
 }
 
 func (ds *Datastore) ListIOSAndIPadOSMDMHostsAfterID(ctx context.Context, afterHostID uint, limit int) ([]*fleet.Host, error) {

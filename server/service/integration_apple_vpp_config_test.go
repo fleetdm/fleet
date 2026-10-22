@@ -1663,22 +1663,12 @@ func (s *integrationMDMTestSuite) TestVPPAppConfigurationReconciliation() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", vppTokenID),
 		patchVPPTokensTeamsRequest{TeamIDs: []uint{}}, http.StatusOK, &patchVPPTokensTeamsResponse{})
 
-	// Adam ID "2" is registered for iOS in the mock proxy. Adam ID "3" is changed to iOS, it is installed without a
-	// configuration to keep the host busy so an install of app "2" waits in the host's queue.
+	// Adam ID "2" is the iOS app every case installs, it's registered for iOS in the mock proxy
 	const adamID = "2"
-	const otherAdamID = "3"
-	s.appleVPPProxySrvData = maps.Clone(s.appleVPPProxySrvData)
-	s.appleVPPProxySrvData[otherAdamID] = `{"id": "3", "attributes": {"name": "App 3", "platformAttributes": {"ios": {"bundleId": "c-3", "artwork": {"url": "https://example.com/images/3/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "3.0.0"}}}, "deviceFamilies": ["iphone"]}}`
 	appInInventory := fleet.Software{Name: "App 2", BundleIdentifier: "b-2", Version: "2.0.0", Source: "ios_apps", Installed: true}
 	otherAppInInventory := fleet.Software{Name: "App 3", BundleIdentifier: "c-3", Version: "3.0.0", Source: "ios_apps", Installed: true}
 	configurationValueRegexp := regexp.MustCompile(`<key>value</key><string>([^<]*)</string>`)
 	appInstallRegexp := regexp.MustCompile(`<key>iTunesStoreID</key>\s*<integer>` + adamID + `</integer>`)
-
-	configurationJSON := func(value string) json.RawMessage {
-		b, err := json.Marshal(fmt.Sprintf(`<dict><key>value</key><string>%s</string></dict>`, value))
-		require.NoError(t, err)
-		return b
-	}
 
 	newFleet := func(t *testing.T) *fleet.Team {
 		team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
@@ -1693,41 +1683,19 @@ func (s *integrationMDMTestSuite) TestVPPAppConfigurationReconciliation() {
 	}
 
 	addVersion := func(t *testing.T, teamID uint, name string, configurationValue string, labelsIncludeAny []string) addAppStoreAppResponse {
-		var resp addAppStoreAppResponse
-		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
-			TeamID: &teamID, AppStoreID: adamID, Platform: fleet.IOSPlatform, Name: name,
-			LabelsIncludeAny: labelsIncludeAny, Configuration: configurationJSON(configurationValue),
-		}, http.StatusOK, &resp)
-		return resp
-	}
-
-	// addVersionAInLabelAndVersionB adds version A scoped to the label with configuration "configuration-a", then version
-	// B without labels with configuration "configuration-b", and returns version A
-	addVersionAInLabelAndVersionB := func(t *testing.T, teamID uint, labelName string) addAppStoreAppResponse {
-		versionA := addVersion(t, teamID, "A", "configuration-a", []string{labelName})
-		addVersion(t, teamID, "B", "configuration-b", nil)
-		return versionA
-	}
-
-	addVersionWithRawConfiguration := func(t *testing.T, teamID uint, configuration string) addAppStoreAppResponse {
-		b, err := json.Marshal(configuration)
+		configuration, err := json.Marshal(fmt.Sprintf(`<dict><key>value</key><string>%s</string></dict>`, configurationValue))
 		require.NoError(t, err)
 		var resp addAppStoreAppResponse
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
-			TeamID: &teamID, AppStoreID: adamID, Platform: fleet.IOSPlatform, Configuration: b,
+			TeamID: &teamID, AppStoreID: adamID, Platform: fleet.IOSPlatform, Name: name,
+			LabelsIncludeAny: labelsIncludeAny, Configuration: configuration,
 		}, http.StatusOK, &resp)
 		return resp
 	}
 
-	editConfiguration := func(t *testing.T, teamID uint, version addAppStoreAppResponse, configuration json.RawMessage) {
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", version.TitleID), &updateAppStoreAppRequest{
-			TeamID: &teamID, VersionID: &version.VersionID, Configuration: configuration,
-		}, http.StatusOK, &updateAppStoreAppResponse{})
-	}
-
-	// configurationsReceived acknowledges every command the device has, and returns the configuration value of each
-	// InstallApplication command of app "2", an empty value for a command without a configuration
-	configurationsReceived := func(t *testing.T, device *mdmtest.TestAppleMDMClient) []string {
+	// acknowledgeCommands answers every command the device has, and returns the configuration value of each install of app
+	// "2", an empty value for an install without a configuration
+	acknowledgeCommands := func(t *testing.T, device *mdmtest.TestAppleMDMClient) []string {
 		var configurations []string
 		for {
 			cmd, err := device.Idle()
@@ -1764,24 +1732,19 @@ func (s *integrationMDMTestSuite) TestVPPAppConfigurationReconciliation() {
 		}
 	}
 
-	newHost := func(t *testing.T, teamID *uint, labels ...*fleet.Label) (*fleet.Host, *mdmtest.TestAppleMDMClient) {
+	newHost := func(t *testing.T, teamID uint) (*fleet.Host, *mdmtest.TestAppleMDMClient) {
 		host, device := s.createAppleMobileHostThenEnrollMDM("ios")
 		s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, device.SerialNumber)
-		if teamID != nil {
-			s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{host.ID}, TeamID: teamID}, http.StatusOK)
-		}
+		s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{host.ID}, TeamID: &teamID}, http.StatusOK)
 		s.awaitRunAppleMDMWorkerSchedule()
-		configurationsReceived(t, device)
-		for _, label := range labels {
-			require.NoError(t, s.ds.AddLabelsToHost(ctx, host.ID, []uint{label.ID}))
-		}
+		acknowledgeCommands(t, device)
 		return host, device
 	}
 
 	installApp := func(t *testing.T, host *fleet.Host, device *mdmtest.TestAppleMDMClient, titleID uint) []string {
 		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID), &installSoftwareRequest{}, http.StatusAccepted)
 		s.awaitRunAppleMDMWorkerSchedule()
-		configurations := configurationsReceived(t, device)
+		configurations := acknowledgeCommands(t, device)
 		_, err := s.ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{appInInventory})
 		require.NoError(t, err)
 		// Move the app's configuration changes back a second, install times have whole seconds and would compare as older than
@@ -1793,62 +1756,52 @@ func (s *integrationMDMTestSuite) TestVPPAppConfigurationReconciliation() {
 		return configurations
 	}
 
-	// queueInstallBehindOtherApp queues an install of app "3" that the device doesn't fetch, then an install of app "2"
-	// that waits behind it in the host's queue
-	queueInstallBehindOtherApp := func(t *testing.T, teamID uint, host *fleet.Host, titleID uint) {
-		var otherAppResp addAppStoreAppResponse
-		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
-			TeamID: &teamID, AppStoreID: otherAdamID, Platform: fleet.IOSPlatform,
-		}, http.StatusOK, &otherAppResp)
-		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, otherAppResp.TitleID), &installSoftwareRequest{}, http.StatusAccepted)
-		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID), &installSoftwareRequest{}, http.StatusAccepted)
-	}
-
-	// reconcile runs the work Fleet does in the background to send configurations
-	reconcile := func() {
+	// runCronAndAcknowledge runs the configuration cron and the worker that sends its installs, and returns what the device got
+	runCronAndAcknowledge := func(t *testing.T, device *mdmtest.TestAppleMDMClient) []string {
 		s.runWorkerUntilDone()
 		premiumCtx := license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 		err := eeservice.ReconcileAppStoreAppConfigurations(premiumCtx, s.ds, s.fleetSvc.(fleet.AppleMDMVPPInstaller), s.logger)
 		require.NoError(t, err)
 		s.runWorkerUntilDone()
-	}
-
-	reconcileAndReceive := func(t *testing.T, device *mdmtest.TestAppleMDMClient) []string {
-		reconcile()
-		return configurationsReceived(t, device)
+		return acknowledgeCommands(t, device)
 	}
 
 	t.Run("running the configuration cron for a host whose version and configuration didn't change sends nothing", func(t *testing.T) {
 		team := newFleet(t)
 		version := addVersion(t, team.ID, "Only", "configuration-unchanged", nil)
-		host, device := newHost(t, &team.ID)
+		host, device := newHost(t, team.ID)
 		require.Equal(t, []string{"configuration-unchanged"}, installApp(t, host, device, version.TitleID))
 
 		// run the configuration cron without any change, the host should get nothing
-		require.Empty(t, reconcileAndReceive(t, device))
+		require.Empty(t, runCronAndAcknowledge(t, device))
 	})
 
 	t.Run("editing the configuration of a host's version sends the new configuration to the host", func(t *testing.T) {
 		team := newFleet(t)
 		version := addVersion(t, team.ID, "Only", "configuration-before", nil)
-		host, device := newHost(t, &team.ID)
+		host, device := newHost(t, team.ID)
 		require.Equal(t, []string{"configuration-before"}, installApp(t, host, device, version.TitleID))
 
 		// edit the version's configuration, the host should get the new configuration
-		editConfiguration(t, team.ID, version, configurationJSON("configuration-after"))
-		require.Equal(t, []string{"configuration-after"}, reconcileAndReceive(t, device))
+		configuration, err := json.Marshal(`<dict><key>value</key><string>configuration-after</string></dict>`)
+		require.NoError(t, err)
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", version.TitleID), &updateAppStoreAppRequest{
+			TeamID: &team.ID, VersionID: &version.VersionID, Configuration: configuration,
+		}, http.StatusOK, &updateAppStoreAppResponse{})
+		require.Equal(t, []string{"configuration-after"}, runCronAndAcknowledge(t, device))
 	})
 
 	t.Run("adding a label to a host sends the configuration of the label's version", func(t *testing.T) {
 		team := newFleet(t)
 		labelA := newManualLabel(t, "a")
-		versionA := addVersionAInLabelAndVersionB(t, team.ID, labelA.Name)
-		host, device := newHost(t, &team.ID)
+		versionA := addVersion(t, team.ID, "A", "configuration-a", []string{labelA.Name})
+		addVersion(t, team.ID, "B", "configuration-b", nil)
+		host, device := newHost(t, team.ID)
 		require.Equal(t, []string{"configuration-b"}, installApp(t, host, device, versionA.TitleID))
 
 		// add label A to the host, the host should get version A's configuration
 		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", host.ID), addLabelsToHostRequest{Labels: []string{labelA.Name}}, http.StatusOK, &addLabelsToHostResponse{})
-		require.Equal(t, []string{"configuration-a"}, reconcileAndReceive(t, device))
+		require.Equal(t, []string{"configuration-a"}, runCronAndAcknowledge(t, device))
 	})
 
 	t.Run("moving a host to another fleet sends the configuration of the new fleet's version", func(t *testing.T) {
@@ -1857,31 +1810,41 @@ func (s *integrationMDMTestSuite) TestVPPAppConfigurationReconciliation() {
 		require.NoError(t, err)
 		version := addVersion(t, team.ID, "Old fleet", "configuration-old-fleet", nil)
 		addVersion(t, otherTeam.ID, "New fleet", "configuration-new-fleet", nil)
-		host, device := newHost(t, &team.ID)
+		host, device := newHost(t, team.ID)
 		require.Equal(t, []string{"configuration-old-fleet"}, installApp(t, host, device, version.TitleID))
 
 		// move the host to the other fleet, the host should get the other fleet's configuration
 		s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{host.ID}, TeamID: &otherTeam.ID}, http.StatusOK)
-		require.Equal(t, []string{"configuration-new-fleet"}, reconcileAndReceive(t, device))
+		require.Equal(t, []string{"configuration-new-fleet"}, runCronAndAcknowledge(t, device))
 	})
 
-	t.Run("deleting a version with an install queued for it sends the first-added version's configuration and then the host's next version's configuration", func(t *testing.T) {
+	t.Run("deleting a queued install's version sends the first-added version, then the next cron run sends the host's version", func(t *testing.T) {
 		team := newFleet(t)
 		labelA := newManualLabel(t, "a")
 		labelB := newManualLabel(t, "b")
 		addVersion(t, team.ID, "A", "configuration-a", []string{labelA.Name})
 		versionB := addVersion(t, team.ID, "B", "configuration-b", []string{labelB.Name})
 		addVersion(t, team.ID, "C", "configuration-c", []string{labelB.Name})
-		host, device := newHost(t, &team.ID, labelB)
-		queueInstallBehindOtherApp(t, team.ID, host, versionB.TitleID)
+		host, device := newHost(t, team.ID)
+		require.NoError(t, s.ds.AddLabelsToHost(ctx, host.ID, []uint{labelB.ID}))
+
+		// queue an install of app "3" that the device doesn't answer, so the install of version B waits behind it in the host's queue
+		s.appleVPPProxySrvData = maps.Clone(s.appleVPPProxySrvData)
+		s.appleVPPProxySrvData["3"] = `{"id": "3", "attributes": {"name": "App 3", "platformAttributes": {"ios": {"bundleId": "c-3", "artwork": {"url": "https://example.com/images/3/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "3.0.0"}}}, "deviceFamilies": ["iphone"]}}`
+		var otherApp addAppStoreAppResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+			TeamID: &team.ID, AppStoreID: "3", Platform: fleet.IOSPlatform,
+		}, http.StatusOK, &otherApp)
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, otherApp.TitleID), &installSoftwareRequest{}, http.StatusAccepted)
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, versionB.TitleID), &installSoftwareRequest{}, http.StatusAccepted)
 
 		// delete version B before its install runs, the queued install should send the first-added version A's configuration
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", versionB.TitleID), nil, http.StatusNoContent,
 			"fleet_id", fmt.Sprint(team.ID), "version_id", fmt.Sprint(versionB.VersionID))
-		require.Equal(t, []string{"configuration-a"}, reconcileAndReceive(t, device))
+		require.Equal(t, []string{"configuration-a"}, runCronAndAcknowledge(t, device))
 
 		// run the configuration cron again, the host should get version C's configuration
-		require.Equal(t, []string{"configuration-c"}, reconcileAndReceive(t, device))
+		require.Equal(t, []string{"configuration-c"}, runCronAndAcknowledge(t, device))
 	})
 
 	t.Run("linking a host to another IdP user sends the configuration with the new username", func(t *testing.T) {
@@ -1890,8 +1853,8 @@ func (s *integrationMDMTestSuite) TestVPPAppConfigurationReconciliation() {
 		require.NoError(t, err)
 		otherScimUserID, err := s.ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "username-after"})
 		require.NoError(t, err)
-		version := addVersionWithRawConfiguration(t, team.ID, `<dict><key>value</key><string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</string></dict>`)
-		host, device := newHost(t, &team.ID)
+		version := addVersion(t, team.ID, "Only", "$FLEET_VAR_HOST_END_USER_IDP_USERNAME", nil)
+		host, device := newHost(t, team.ID)
 		_, err = s.ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, scimUserID)
 		require.NoError(t, err)
 		require.Equal(t, []string{"username-before"}, installApp(t, host, device, version.TitleID))
@@ -1899,7 +1862,7 @@ func (s *integrationMDMTestSuite) TestVPPAppConfigurationReconciliation() {
 		// link the host to another IdP user, the host should get the configuration with the new username
 		_, err = s.ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, otherScimUserID)
 		require.NoError(t, err)
-		require.Equal(t, []string{"username-after"}, reconcileAndReceive(t, device))
+		require.Equal(t, []string{"username-after"}, runCronAndAcknowledge(t, device))
 	})
 }
 

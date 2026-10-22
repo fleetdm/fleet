@@ -1946,7 +1946,9 @@ type ListHostAppStoreAppVersionsFunc func(ctx context.Context, host *fleet.Host)
 
 type GetAppStoreAppVersionIDsFromSpecificVersionFunc func(ctx context.Context, vppAppTeamID uint) ([]uint, error)
 
-type ListHostAppStoreAppInstallVersionsFunc func(ctx context.Context, appID fleet.VPPAppID, fleetID uint, hostIDs []uint) (map[uint]fleet.HostVPPSoftwareInstall, error)
+type GetAppStoreAppVersionsByTeamFunc func(ctx context.Context, teamID uint) (map[uint][]*fleet.VPPAppStoreApp, error)
+
+type ListHostAppStoreAppInstallVersionsFunc func(ctx context.Context, fleetID uint, hostIDs []uint) (map[uint]map[uint]fleet.HostVPPSoftwareInstall, error)
 
 type ListIOSAndIPadOSMDMHostsAfterIDFunc func(ctx context.Context, afterHostID uint, limit int) ([]*fleet.Host, error)
 
@@ -5503,6 +5505,9 @@ type DataStore struct {
 
 	GetAppStoreAppVersionIDsFromSpecificVersionFunc        GetAppStoreAppVersionIDsFromSpecificVersionFunc
 	GetAppStoreAppVersionIDsFromSpecificVersionFuncInvoked bool
+
+	GetAppStoreAppVersionsByTeamFunc        GetAppStoreAppVersionsByTeamFunc
+	GetAppStoreAppVersionsByTeamFuncInvoked bool
 
 	ListHostAppStoreAppInstallVersionsFunc        ListHostAppStoreAppInstallVersionsFunc
 	ListHostAppStoreAppInstallVersionsFuncInvoked bool
@@ -13245,11 +13250,18 @@ func (s *DataStore) GetAppStoreAppVersionIDsFromSpecificVersion(ctx context.Cont
 	return s.GetAppStoreAppVersionIDsFromSpecificVersionFunc(ctx, vppAppTeamID)
 }
 
-func (s *DataStore) ListHostAppStoreAppInstallVersions(ctx context.Context, appID fleet.VPPAppID, fleetID uint, hostIDs []uint) (map[uint]fleet.HostVPPSoftwareInstall, error) {
+func (s *DataStore) GetAppStoreAppVersionsByTeam(ctx context.Context, teamID uint) (map[uint][]*fleet.VPPAppStoreApp, error) {
+	s.mu.Lock()
+	s.GetAppStoreAppVersionsByTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAppStoreAppVersionsByTeamFunc(ctx, teamID)
+}
+
+func (s *DataStore) ListHostAppStoreAppInstallVersions(ctx context.Context, fleetID uint, hostIDs []uint) (map[uint]map[uint]fleet.HostVPPSoftwareInstall, error) {
 	s.mu.Lock()
 	s.ListHostAppStoreAppInstallVersionsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListHostAppStoreAppInstallVersionsFunc(ctx, appID, fleetID, hostIDs)
+	return s.ListHostAppStoreAppInstallVersionsFunc(ctx, fleetID, hostIDs)
 }
 
 func (s *DataStore) ListIOSAndIPadOSMDMHostsAfterID(ctx context.Context, afterHostID uint, limit int) ([]*fleet.Host, error) {

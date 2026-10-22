@@ -3585,9 +3585,14 @@ type Datastore interface {
 	// belongs to, on the same fleet and platform, first-added first.
 	GetAppStoreAppVersionIDsFromSpecificVersion(ctx context.Context, vppAppTeamID uint) ([]uint, error)
 
-	// ListHostAppStoreAppInstallVersions returns, for each of hostIDs that's on the fleet and whose inventory has the app, its
-	// latest install of the app that didn't fail.
-	ListHostAppStoreAppInstallVersions(ctx context.Context, appID VPPAppID, fleetID uint, hostIDs []uint) (map[uint]HostVPPSoftwareInstall, error)
+	// GetAppStoreAppVersionsByTeam returns every App Store app version on the team, first-added first and indexed by software
+	// title id, with only their app id, version id, labels, configuration and configuration change time.
+	GetAppStoreAppVersionsByTeam(ctx context.Context, teamID uint) (map[uint][]*VPPAppStoreApp, error)
+
+	// ListHostAppStoreAppInstallVersions returns, for each App Store app on the fleet and each of hostIDs that's on
+	// the fleet and whose inventory has the app, its latest install of the app that didn't fail, indexed by software title id and
+	// then host id.
+	ListHostAppStoreAppInstallVersions(ctx context.Context, fleetID uint, hostIDs []uint) (map[uint]map[uint]HostVPPSoftwareInstall, error)
 
 	// ListIOSAndIPadOSMDMHostsAfterID returns up to limit iOS and iPadOS hosts with MDM on whose id is after afterHostID,
 	// ordered by id, with only their id, uuid, serial number, platform and fleet.

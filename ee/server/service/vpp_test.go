@@ -1055,17 +1055,14 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 			}
 			return token, nil
 		}
-		f.ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
-			var apps []fleet.VPPAppResponse
-			for _, version := range f.versionsByFleetID[ptr.ValOrZero(teamID)] {
-				apps = append(apps, fleet.VPPAppResponse{TitleID: new(uint(1)), AppStoreID: version.AdamID, Platform: version.Platform})
+		f.ds.GetAppStoreAppVersionsByTeamFunc = func(ctx context.Context, fleetID uint) (map[uint][]*fleet.VPPAppStoreApp, error) {
+			versionsByTitleID := make(map[uint][]*fleet.VPPAppStoreApp)
+			if len(f.versionsByFleetID[fleetID]) > 0 {
+				versionsByTitleID[1] = f.versionsByFleetID[fleetID]
 			}
-			return apps, nil
+			return versionsByTitleID, nil
 		}
-		f.ds.GetAppStoreAppVersionsByTeamAndTitleIDFunc = func(ctx context.Context, teamID uint, titleID uint) ([]*fleet.VPPAppStoreApp, error) {
-			return f.versionsByFleetID[teamID], nil
-		}
-		f.ds.ListHostAppStoreAppInstallVersionsFunc = func(ctx context.Context, appID fleet.VPPAppID, fleetID uint, hostIDs []uint) (map[uint]fleet.HostVPPSoftwareInstall, error) {
+		f.ds.ListHostAppStoreAppInstallVersionsFunc = func(ctx context.Context, fleetID uint, hostIDs []uint) (map[uint]map[uint]fleet.HostVPPSoftwareInstall, error) {
 			installByHostID := make(map[uint]fleet.HostVPPSoftwareInstall)
 			for _, hostID := range hostIDs {
 				if _, inInventory := f.inventoryHostIDs[hostID]; !inInventory || ptr.ValOrZero(hostByID(f, hostID).TeamID) != fleetID {
@@ -1077,7 +1074,7 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 					}
 				}
 			}
-			return installByHostID, nil
+			return map[uint]map[uint]fleet.HostVPPSoftwareInstall{1: installByHostID}, nil
 		}
 		f.ds.GetIncludedHostIDMapForVPPAppHostsFunc = func(ctx context.Context, vppAppTeamID uint, hostIDs []uint) (map[uint]struct{}, error) {
 			version := versionByID(f, vppAppTeamID)
@@ -1646,22 +1643,6 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 		require.Equal(t, nothingSent, sent)
 	})
 
-	t.Run("a macOS App Store app isn't reconciled", func(t *testing.T) {
-		f := newTestAppStoreAppDatastore()
-		addFleet(f, 0)
-		version := addVersion(f, 0, 10, `<dict/>`)
-		version.Platform = fleet.MacOSPlatform
-		addHost(f, 1, 0)
-		install(f, 1, 10)
-		setConfiguration(f, version, `<dict><key>a</key><string>b</string></dict>`)
-
-		// run the cron, the host should get nothing and the app's versions shouldn't be read
-		sent, err := reconcile(f, ctx)
-		require.NoError(t, err)
-		require.Equal(t, nothingSent, sent)
-		require.False(t, f.ds.GetAppStoreAppVersionsByTeamAndTitleIDFuncInvoked)
-	})
-
 	t.Run("an error on one App Store app is logged and the next app is still reconciled", func(t *testing.T) {
 		f := newTestAppStoreAppDatastore()
 		addFleet(f, 0)
@@ -1669,20 +1650,27 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 		addHost(f, 1, 0)
 		install(f, 1, 10)
 		setConfiguration(f, version, `<dict><key>a</key><string>b</string></dict>`)
-		apps := f.ds.GetVPPAppsFunc
-		f.ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
-			appsInFleet, err := apps(ctx, teamID)
-			return append([]fleet.VPPAppResponse{{TitleID: new(uint(2)), AppStoreID: "2", Platform: fleet.IOSPlatform}}, appsInFleet...), err
+		versions := f.ds.GetAppStoreAppVersionsByTeamFunc
+		f.ds.GetAppStoreAppVersionsByTeamFunc = func(ctx context.Context, fleetID uint) (map[uint][]*fleet.VPPAppStoreApp, error) {
+			versionsByTitleID, err := versions(ctx, fleetID)
+			versionsByTitleID[2] = []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: 20, LabelsIncludeAny: []fleet.SoftwareScopeLabel{{LabelID: 1}}}}
+			return versionsByTitleID, err
 		}
-		versions := f.ds.GetAppStoreAppVersionsByTeamAndTitleIDFunc
-		f.ds.GetAppStoreAppVersionsByTeamAndTitleIDFunc = func(ctx context.Context, teamID uint, titleID uint) ([]*fleet.VPPAppStoreApp, error) {
-			if titleID == 2 {
+		installs := f.ds.ListHostAppStoreAppInstallVersionsFunc
+		f.ds.ListHostAppStoreAppInstallVersionsFunc = func(ctx context.Context, fleetID uint, hostIDs []uint) (map[uint]map[uint]fleet.HostVPPSoftwareInstall, error) {
+			installByHostIDByTitleID, err := installs(ctx, fleetID, hostIDs)
+			installByHostIDByTitleID[2] = installByHostIDByTitleID[1]
+			return installByHostIDByTitleID, err
+		}
+		includedHostIDs := f.ds.GetIncludedHostIDMapForVPPAppHostsFunc
+		f.ds.GetIncludedHostIDMapForVPPAppHostsFunc = func(ctx context.Context, vppAppTeamID uint, hostIDs []uint) (map[uint]struct{}, error) {
+			if vppAppTeamID == 20 {
 				return nil, errors.New("read failed")
 			}
-			return versions(ctx, teamID, titleID)
+			return includedHostIDs(ctx, vppAppTeamID, hostIDs)
 		}
 
-		// fail reading another app's versions first, the host should still get version 10
+		// fail reading the label scope of another app's version, the host should still get version 10
 		sent, err := reconcile(f, ctx)
 		require.NoError(t, err)
 		require.Equal(t, map[uint]uint{1: 10}, sent)
@@ -1711,6 +1699,58 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, map[uint]uint{lastHostID: 10}, sent)
 		require.Zero(t, f.cursor)
+	})
+
+	t.Run("a fleet whose VPP token or App Store apps can't be read doesn't stop other fleets or the cursor", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		addFleet(f, 5)
+		addFleet(f, 6)
+		version := addVersion(f, 0, 10, `<dict/>`)
+		addVersion(f, 5, 20, `<dict/>`)
+		addVersion(f, 6, 30, `<dict/>`)
+		addHost(f, 1, 0)
+		addHost(f, 2, 5)
+		addHost(f, 3, 6)
+		install(f, 1, 10)
+		install(f, 2, 20)
+		install(f, 3, 30)
+		setConfiguration(f, version, `<dict><key>a</key><string>b</string></dict>`)
+		tokens := f.ds.GetVPPTokenByTeamIDFunc
+		f.ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
+			if ptr.ValOrZero(teamID) == 5 {
+				return nil, errors.New("token can't be decrypted")
+			}
+			return tokens(ctx, teamID)
+		}
+		versions := f.ds.GetAppStoreAppVersionsByTeamFunc
+		f.ds.GetAppStoreAppVersionsByTeamFunc = func(ctx context.Context, fleetID uint) (map[uint][]*fleet.VPPAppStoreApp, error) {
+			if fleetID == 6 {
+				return nil, errors.New("read failed")
+			}
+			return versions(ctx, fleetID)
+		}
+
+		// fail reading fleet 5's VPP token and fleet 6's App Store apps, the Unassigned host should still get version 10 and the cursor should be saved
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 10}, sent)
+		require.True(t, f.ds.SetAppStoreAppConfigurationReconcileCursorFuncInvoked)
+	})
+
+	t.Run("a run whose context ended returns the error without saving the cursor", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		addVersion(f, 0, 10, `<dict/>`)
+		addHost(f, 1, 0)
+		install(f, 1, 10)
+		endedCtx, cancel := context.WithCancel(ctx)
+		cancel()
+
+		// run the cron with a context that already ended, as when the run times out, the run should fail and the cursor shouldn't be saved
+		_, err := reconcile(f, endedCtx)
+		require.ErrorIs(t, err, context.Canceled)
+		require.False(t, f.ds.SetAppStoreAppConfigurationReconcileCursorFuncInvoked)
 	})
 
 	t.Run("a Fleet Free instance reconciles nothing", func(t *testing.T) {

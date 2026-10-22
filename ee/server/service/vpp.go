@@ -2093,42 +2093,46 @@ func ReconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 	}
 
 	var vppToken *fleet.VPPTokenDB
-	var apps []fleet.VPPAppResponse
+	var versionsByTitleID map[uint][]*fleet.VPPAppStoreApp
+	var installByHostIDByTitleID map[uint]map[uint]fleet.HostVPPSoftwareInstall
 	for fleetID, hostIDs := range hostIDsByFleetID {
 		// Skip fleets that can't install App Store apps until their VPP token is added or renewed
 		vppToken, err = ds.GetVPPTokenByTeamID(ctx, &fleetID)
 		if err != nil {
-			if fleet.IsNotFound(err) {
-				continue
+			// Log the error and move on to the next fleet, so one fleet doesn't stop the cursor from moving past this batch
+			if !fleet.IsNotFound(err) {
+				logger.ErrorContext(ctx, "get vpp token for app store app configurations", "fleet_id", fleetID, "err", err)
 			}
-			return ctxerr.Wrapf(ctx, err, "get vpp token of fleet %d", fleetID)
+			continue
 		}
 		if time.Now().After(vppToken.RenewDate) {
 			continue
 		}
 
-		apps, err = ds.GetVPPApps(ctx, &fleetID)
+		versionsByTitleID, err = ds.GetAppStoreAppVersionsByTeam(ctx, fleetID)
 		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "list app store apps of fleet %d", fleetID)
+			logger.ErrorContext(ctx, "list app store app versions for app store app configurations", "fleet_id", fleetID, "err", err)
+			continue
+		}
+		installByHostIDByTitleID, err = ds.ListHostAppStoreAppInstallVersions(ctx, fleetID, hostIDs)
+		if err != nil {
+			logger.ErrorContext(ctx, "list app store app installs for app store app configurations", "fleet_id", fleetID, "err", err)
+			continue
 		}
 
-		// GetVPPApps returns a row per version, so reconcile each title once
-		reconciledTitleIDs := make(map[uint]struct{})
-		for _, app := range apps {
-			if (app.Platform != fleet.IOSPlatform && app.Platform != fleet.IPadOSPlatform) || app.TitleID == nil {
-				continue
-			}
-			if _, reconciled := reconciledTitleIDs[*app.TitleID]; reconciled {
-				continue
-			}
-			reconciledTitleIDs[*app.TitleID] = struct{}{}
-
+		for titleID, versions := range versionsByTitleID {
 			// Log the error and move on to the next title, so one title doesn't stop the others from being reconciled
-			err = reconcileAppStoreAppConfigurations(ctx, ds, vppInstaller, logger, fleetID, *app.TitleID, vppToken.Token, hostIDs, hostByID)
+			err = reconcileAppStoreAppConfigurations(ctx, ds, vppInstaller, logger, fleetID, titleID, versions, installByHostIDByTitleID[titleID],
+				vppToken.Token, hostByID)
 			if err != nil {
-				logger.ErrorContext(ctx, "reconcile app store app configurations", "fleet_id", fleetID, "title_id", *app.TitleID, "err", err)
+				logger.ErrorContext(ctx, "reconcile app store app configurations", "fleet_id", fleetID, "title_id", titleID, "err", err)
 			}
 		}
+	}
+
+	// Skip saving the cursor when the run timed out, so the next run checks this batch again
+	if ctx.Err() != nil {
+		return ctxerr.Wrap(ctx, ctx.Err(), "reconcile app store app configurations")
 	}
 
 	// Continue after this batch on the next run, or start from the first host again after the last batch
@@ -2144,16 +2148,9 @@ func ReconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 }
 
 func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore, vppInstaller fleet.AppleMDMVPPInstaller, logger *slog.Logger, fleetID uint, titleID uint,
-	vppToken string, batchHostIDs []uint, hostByID map[uint]fleet.Host,
+	versions []*fleet.VPPAppStoreApp, installByHostID map[uint]fleet.HostVPPSoftwareInstall, vppToken string, hostByID map[uint]fleet.Host,
 ) error {
-	versions, err := ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, fleetID, titleID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get app store app versions")
-	}
-	installByHostID, err := ds.ListHostAppStoreAppInstallVersions(ctx, versions[0].VPPAppID, fleetID, batchHostIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "list app store app installs")
-	}
+	var err error
 	versionByID := make(map[uint]*fleet.VPPAppStoreApp, len(versions))
 	for _, version := range versions {
 		versionByID[version.VPPAppsTeamsID] = version
