@@ -1428,6 +1428,25 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 		require.Equal(t, map[uint]uint{1: 12}, sent)
 	})
 
+	t.Run("moving a host between versions with the same configuration sends the new version when a Fleet variable the configuration uses changed", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		addVersion(f, 0, 10, `<dict><key>user</key><string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</string></dict>`, 100)
+		addVersion(f, 0, 11, `<dict><key>user</key><string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</string></dict>`)
+		addHost(f, 1, 0, 100)
+		install(f, 1, 10)
+
+		// move the host from version 10 to version 11 with the same configuration and flag its latest install like a SCIM user change does, the host should get version 11 once
+		setLabel(f, 1, 100, false)
+		flagLatestInstall(f, 1)
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 11}, sent)
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+	})
+
 	t.Run("moving a host off a version whose configuration was cleared after the host's install sends the next version", func(t *testing.T) {
 		f := newTestAppStoreAppDatastore()
 		addFleet(f, 0)
