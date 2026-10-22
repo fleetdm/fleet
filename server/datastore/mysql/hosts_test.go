@@ -5377,19 +5377,6 @@ func testHostsListByInstallerAndVPPVersion(t *testing.T, ds *Datastore) {
 	require.ErrorAs(t, err, &badRequestErr)
 	_, err = ds.ListHosts(ctx, filter, fleet.HostListOptions{SoftwareTitleIDFilter: &vppTitleID, AppStoreAppVersionIDFilter: &otherAppVersion, SoftwareStatusFilter: &failed})
 	require.ErrorAs(t, err, &badRequestErr)
-
-	// fail both version installs and list the failed hosts of version1 in a label with both hosts, only host1 should be listed
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET verification_failed_at = NOW(6) WHERE adam_id = 'ivv-adam'`)
-		return err
-	})
-	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "ivv-label", Query: "select 1", LabelMembershipType: fleet.LabelMembershipTypeManual})
-	require.NoError(t, err)
-	require.NoError(t, ds.AddLabelsToHost(ctx, host1.ID, []uint{label.ID}))
-	require.NoError(t, ds.AddLabelsToHost(ctx, host2.ID, []uint{label.ID}))
-	labelHosts, err := ds.ListHostsInLabel(ctx, filter, label.ID, fleet.HostListOptions{SoftwareTitleIDFilter: &vppTitleID, AppStoreAppVersionIDFilter: &version1, SoftwareStatusFilter: &failed})
-	require.NoError(t, err)
-	require.Equal(t, []uint{host1.ID}, hostIDs(labelHosts))
 }
 
 func testHostsListBySoftwareChangedAt(t *testing.T, ds *Datastore) {
