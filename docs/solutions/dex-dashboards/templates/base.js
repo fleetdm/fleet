@@ -108,8 +108,10 @@ function renderTop(fleets, onChange, counts = {}, unsupported = {}) {
     FLEET = e.target.value; store.set("dex-fleet", FLEET); onChange();
   } }, h("option", { value: "" }, "All fleets"), fleets.map((f) => h("option", { value: f, selected: f === FLEET }, f)));
   const host = DATA.fleet_url.replace(/^https?:\/\//, "");
+  const overview = DATA.links && DATA.links.overview;
   mount("top", toggle,
     h("div", { class: "meta" },
+      overview ? h("a", { href: overview, target: "_blank", rel: "noopener" }, "All dashboards") : null,
       h("span", {}, `Updated ${fmt.date(DATA.generated_at)}, ${DATA.generated_at.slice(11, 16)} UTC · `, h("a", { href: DATA.fleet_url, target: "_blank", rel: "noopener" }, host)),
       sel, themeToggle()));
 }

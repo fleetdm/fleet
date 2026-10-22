@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """Build a DEX dashboard page from a collect.py snapshot.
 
-  build.py --page lifecycle|software|patch --snapshot snap.json \
+  build.py --page lifecycle|software|patch|... --snapshot snap.json \
            --templates DIR --history in.json --out-html index.html --out-history out.json
+  build.py --page overview --snapshot snap.json --templates DIR --out-html overview.html \
+           --page-history lifecycle=out.json ...
 
 The history file carries state between daily runs (strain days, version
-first-seen dates). Pass a missing or empty path on the first run.
+first-seen dates). Pass a missing or empty path on the first run. The overview
+keeps no history: it reads the histories the other pages just wrote.
 """
 import argparse
 import datetime as dt
@@ -1495,6 +1498,49 @@ BUILDERS = {"lifecycle": build_lifecycle, "software": build_software, "patch": b
             "sustainability": build_sustainability}
 
 
+# ---------------------------------------------------------------- overview
+
+OVERVIEW_DAYS = 30
+# The trend fields each overview card reads, from that page's history.
+OVERVIEW_FIELDS = {
+    "lifecycle": ("refresh", "battery", "investigate", "old", "scored"),
+    "software": ("seats", "idle"),
+    "patch": ("app_installs", "app_current", "os_installs", "os_current", "updates"),
+    "ai": ("reported", "ai", "act", "high", "med"),
+    "connectivity": ("computers", "fresh24", "stale7", "weak", "persistent"),
+    "analytics": ("computers", "all_fresh", "disk_known", "disk_on", "agent_current", "failing"),
+    "sustainability": ("kwh", "co2", "sleep_off", "never_slept"),
+}
+
+
+def build_overview(snap, page_hists):
+    """Reads the daily counts each page just saved, so every number matches that page's trend."""
+    today = parse_ts(snap["generated_at"]).date()
+    cutoff = (today - dt.timedelta(days=OVERVIEW_DAYS)).isoformat()
+    pages = {}
+    for page, fields in OVERVIEW_FIELDS.items():
+        hist = page_hists.get(page) or {}
+        trend = {d: {k: dict(v) for k, v in by_key.items()} for d, by_key in (hist.get("trend") or {}).items()}
+        # Sustainability keeps kWh and CO2 apart from its trend.
+        for d, by_key in (hist.get("kwh_day") or {}).items():
+            for k, (kwh, co2) in by_key.items():
+                trend.setdefault(d, {}).setdefault(k, {}).update(kwh=round(kwh, 4), co2=round(co2, 1))
+        rows = []
+        for d in sorted(trend):
+            if d <= cutoff:
+                continue
+            keep = {k: {f: v[f] for f in fields if v.get(f)} for k, v in trend[d].items()}
+            rows.append([d, {k: v for k, v in keep.items() if v}])
+        pages[page] = {"since": hist.get("since"), "fields": list(fields), "trend": rows}
+    hosts = {}
+    for h in snap["hosts"]:
+        plat = platform_of(h)
+        if plat:
+            key = f"{h.get('team_name') or 'Unassigned'}|{plat}"
+            hosts[key] = hosts.get(key, 0) + 1
+    return {"generated_at": snap["generated_at"], "fleet_url": snap["fleet_url"], "hosts": hosts, "pages": pages}
+
+
 def render(templates, page, data):
     def read(name):
         with open(os.path.join(templates, name)) as f:
@@ -1509,23 +1555,36 @@ def render(templates, page, data):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--page", required=True, choices=sorted(BUILDERS))
+    ap.add_argument("--page", required=True, choices=sorted(BUILDERS) + ["overview"])
     ap.add_argument("--snapshot", required=True)
     ap.add_argument("--templates", required=True)
     ap.add_argument("--history")
     ap.add_argument("--out-html", required=True)
-    ap.add_argument("--out-history", required=True)
+    ap.add_argument("--out-history", help="required for every page but the overview")
+    ap.add_argument("--page-history", action="append", default=[], help="overview only: page=path to that page's new history")
+    ap.add_argument("--link", action="append", default=[], help="page=URL of that page's artifact")
     args = ap.parse_args()
     snap = load_json(args.snapshot, None)
     if not snap or snap.get("schema") != 1:
         sys.exit("FATAL: snapshot missing or wrong schema")
-    hist = load_json(args.history, {})
-    data = BUILDERS[args.page](snap, hist)
+    links = dict(x.split("=", 1) for x in args.link)
+    if args.page == "overview":
+        data = build_overview(snap, {p: load_json(path, {}) for p, path in (x.split("=", 1) for x in args.page_history)})
+        # Without artifact URLs, link the pages written next to this one.
+        data["links"] = {p: links.get(p) or f"{p}.html" for p in OVERVIEW_FIELDS}
+    else:
+        if not args.out_history:
+            sys.exit("FATAL: --out-history is required")
+        hist = load_json(args.history, {})
+        data = BUILDERS[args.page](snap, hist)
+        data["links"] = {"overview": links["overview"]} if links.get("overview") else {}
     with open(args.out_html, "w") as f:
         f.write(render(args.templates, args.page, data))
-    with open(args.out_history, "w") as f:
-        json.dump(hist, f, separators=(",", ":"))
-    print(f"{args.page}: html={os.path.getsize(args.out_html)}B history={os.path.getsize(args.out_history)}B")
+    if args.page != "overview":
+        with open(args.out_history, "w") as f:
+            json.dump(hist, f, separators=(",", ":"))
+    print(f"{args.page}: html={os.path.getsize(args.out_html)}B"
+          + (f" history={os.path.getsize(args.out_history)}B" if args.page != "overview" else ""))
 
 
 if __name__ == "__main__":

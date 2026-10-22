@@ -2,10 +2,14 @@
 """Daily run: collect one Fleet snapshot, then rebuild every page.
 
   run.py --work DIR --history lifecycle=PATH --history software=PATH --history patch=PATH --history ai=PATH \
-         --history connectivity=PATH --history analytics=PATH --history sustainability=PATH
+         --history connectivity=PATH --history analytics=PATH --history sustainability=PATH \
+         [--link lifecycle=URL ... --link overview=URL]
 
-Writes DIR/out/<page>.html and DIR/out/<page>-history.json. Exits non-zero
-without writing pages when the data looks wrong, so nothing bad is published.
+Writes DIR/out/<page>.html and DIR/out/<page>-history.json, then
+DIR/out/overview.html from those histories. --link gives each page's artifact
+URL, so the overview links to the dashboards and each dashboard links back.
+Exits non-zero without writing pages when the data looks wrong, so nothing bad
+is published.
 """
 import argparse
 import json
@@ -22,6 +26,7 @@ def main():
     ap.add_argument("--work", required=True)
     ap.add_argument("--history", action="append", default=[], help="page=path to that page's data/history.json")
     ap.add_argument("--first-run", action="store_true", help="allow missing history (starts a new baseline)")
+    ap.add_argument("--link", action="append", default=[], help="page=URL of that page's artifact")
     args = ap.parse_args()
 
     hist = dict(h.split("=", 1) for h in args.history)
@@ -41,14 +46,18 @@ def main():
     if computers == 0:
         sys.exit("FATAL: Fleet returned no macOS, Windows, or Linux hosts. Not rebuilding.")
 
+    build = [sys.executable, "-I", os.path.join(HERE, "build.py"), "--snapshot", snap,
+             "--templates", os.path.join(HERE, "templates")] + [a for x in args.link for a in ("--link", x)]
+    out = os.path.join(args.work, "out")
     for page in PAGES:
-        out = os.path.join(args.work, "out", page)
-        cmd = [sys.executable, "-I", os.path.join(HERE, "build.py"), "--page", page, "--snapshot", snap,
-               "--templates", os.path.join(HERE, "templates"), "--out-html", out + ".html",
-               "--out-history", out + "-history.json"]
+        cmd = build + ["--page", page, "--out-html", os.path.join(out, page + ".html"),
+                       "--out-history", os.path.join(out, page + "-history.json")]
         if hist.get(page) and os.path.exists(hist[page]):
             cmd += ["--history", hist[page]]
         subprocess.run(cmd, check=True)
+    subprocess.run(build + ["--page", "overview", "--out-html", os.path.join(out, "overview.html")]
+                   + [a for page in PAGES for a in ("--page-history", f"{page}={os.path.join(out, page + '-history.json')}")],
+                   check=True)
     print(f"OK computers={computers} generated_at={data['generated_at']}")
 
 

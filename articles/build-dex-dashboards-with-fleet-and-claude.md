@@ -10,13 +10,15 @@ Fleet already knows what hardware your computers run, which apps people open, an
 - Analytics: whether the data behind the dashboards is complete and fresh, plus security posture and Fleet agent versions.
 - Sustainability: how much energy your Macs use, which computers never sleep, and which laptop batteries need service.
 
+An overview page sums up all seven, with today's key numbers and a 30-day trend for each, and links to every dashboard.
+
 A daily [Claude Code routine](https://code.claude.com/docs/en/routines) reads the Fleet API and publishes each dashboard as a private Claude artifact. You don't run a server or a database. Every dashboard covers macOS, Windows, and Linux, with a toggle to show one platform at a time and a light or dark theme that follows your system setting until you pick one.
 
 ## How it works
 
 - A cloud environment holds a read-only Fleet API token and can reach only your Fleet server.
-- Once a day, the routine runs a set of Python scripts from Fleet's repository. They read your hosts, their software, and 13 DEX reports, then build the seven pages.
-- Each dashboard stores a small history file next to its page. Every run reads the history back and adds a day. Patch velocity uses it to time how long each new version takes to reach every computer, Hardware lifecycle uses it to tell sustained memory strain on a Mac from a single bad day, and Sustainability uses it to turn each Mac's running energy total into kWh per day. Each page also charts its key numbers over time, for up to a year. All of this gets more useful over the first few weeks.
+- Once a day, the routine runs a set of Python scripts from Fleet's repository. They read your hosts, their software, and 13 DEX reports, then build the seven pages and the overview.
+- Each dashboard stores a small history file next to its page. Every run reads the history back and adds a day. Patch velocity uses it to time how long each new version takes to reach every computer, Hardware lifecycle uses it to tell sustained memory strain on a Mac from a single bad day, and Sustainability uses it to turn each Mac's running energy total into kWh per day. Each page also charts its key numbers over time, for up to a year, and the overview reads the same daily counts, so its numbers match each dashboard's. All of this gets more useful over the first few weeks.
 
 ## Tradeoffs
 
@@ -154,10 +156,10 @@ Set up the Fleet DEX dashboards from the files in this folder.
 - Slack alerts: send failure DMs to Slack member ID <your Slack member ID>
 
 1. Run `python3 bundle.py --out <dir>`, where <dir> is a new temporary directory outside this folder that you choose. It prints a sha256 hash. Don't change any files in this folder.
-2. Publish seven new private artifacts from placeholder-lifecycle.html, placeholder-software.html, placeholder-patch.html, placeholder-ai.html, placeholder-connectivity.html, placeholder-analytics.html, and placeholder-sustainability.html in that output directory. On the Hardware lifecycle artifact, also publish dex-dashboards.json as src/dex-dashboards.json with content type application/json. Publish the AI governance artifact with these capabilities, so its policy decisions are saved and only editors can change them: {"db": {"rules": [{"path": "governance", "read": "view", "write": "admin"}, {"path": "governance-log", "read": "view", "write": "admin"}]}, "user": {"scopes": ["profile"]}, "downloads": true}. Publish the other six with these capabilities, so each viewer's theme choice is saved: {"db": {}, "user": {}}. Note the seven artifact URLs.
-3. Read routine-prompt.md. Take the text between "PROMPT START" and "PROMPT END", and fill in {{LIFECYCLE_URL}}, {{SOFTWARE_URL}}, {{PATCH_URL}}, {{AI_URL}}, {{CONNECTIVITY_URL}}, {{ANALYTICS_URL}}, {{SUSTAINABILITY_URL}}, and {{BUNDLE_SHA256}}. Replace {{IF_THE_RUN_FAILS}} with the Slack block (and my member ID) if I asked for Slack alerts above, otherwise with the block for no Slack.
+2. Publish eight new private artifacts from placeholder-overview.html, placeholder-lifecycle.html, placeholder-software.html, placeholder-patch.html, placeholder-ai.html, placeholder-connectivity.html, placeholder-analytics.html, and placeholder-sustainability.html in that output directory. On the Hardware lifecycle artifact, also publish dex-dashboards.json as src/dex-dashboards.json with content type application/json. Publish the AI governance artifact with these capabilities, so its policy decisions are saved and only editors can change them: {"db": {"rules": [{"path": "governance", "read": "view", "write": "admin"}, {"path": "governance-log", "read": "view", "write": "admin"}]}, "user": {"scopes": ["profile"]}, "downloads": true}. Publish the other seven with these capabilities, so each viewer's theme choice is saved: {"db": {}, "user": {}}. Note the eight artifact URLs.
+3. Read routine-prompt.md. Take the text between "PROMPT START" and "PROMPT END", and fill in {{LIFECYCLE_URL}}, {{SOFTWARE_URL}}, {{PATCH_URL}}, {{AI_URL}}, {{CONNECTIVITY_URL}}, {{ANALYTICS_URL}}, {{SUSTAINABILITY_URL}}, {{OVERVIEW_URL}}, and {{BUNDLE_SHA256}}. Replace {{IF_THE_RUN_FAILS}} with the Slack block (and my member ID) if I asked for Slack alerts above, otherwise with the block for no Slack.
 4. Create a disabled routine named "DEX dashboards (daily rebuild)" with that prompt: the environment above, a daily schedule at the run time above converted to UTC, the Sonnet model, no repository, and the tools Bash, Read, Write, ToolSearch, and Artifact. A new routine gets every connector on my account by default, so remove them all. If I asked for Slack alerts, keep only the Slack connector and allow its slack_send_message tool. If you can't find my Slack connector, create the routine without it and tell me.
-5. Run the routine once. When it finishes, read its run log. If it published all seven dashboards, enable the routine and send me the seven artifact links. If it didn't, show me the error and leave the routine disabled.
+5. Run the routine once. When it finishes, read its run log. If it published all eight artifacts, enable the routine and send me the overview's link. If it didn't, show me the error and leave the routine disabled.
 
 Never ask me for the Fleet API token. It lives only in the cloud environment.
 ```
@@ -180,9 +182,9 @@ Routines can't run more than once an hour, and each run uses Claude usage on you
 
 ## Verify
 
-1. Open the seven artifact links. Each shows today's date next to **Updated**.
+1. Open the overview. Each card shows today's numbers and opens its dashboard in a new tab. Each dashboard shows today's date next to **Updated**, and **All dashboards** takes you back to the overview.
 2. On Patch velocity, the summary says "Timing starts with the next release." Until a new version ships and computers pick it up, it shows the share of installs on the newest version instead.
-3. Under **Over time**, each chart says "Not enough history yet." The charts fill in after the second daily run.
+3. Under **Over time**, each chart says "Not enough history yet," and the overview's cards say the trend starts after a second day. The charts fill in after the second daily run.
 4. On AI governance, pick a posture under **AI policy**. The change log shows your name and the time. People who can only view the dashboard see the policy but can't change it.
 5. On Sustainability, the summary shows each Mac's average power since boot. Energy in kWh starts after the second run, once there are two readings to compare.
 6. On Analytics, check the **Data sources** table. Each report shows how many computers sent results in the last 7 days. A report marked **Not set up** isn't in Fleet yet, or its name doesn't match `dex-reports.yml`.
@@ -244,7 +246,7 @@ When Fleet updates these scripts, or you change them:
 
 1. Run `git pull` in `fleet-dex`, and review what changed.
 2. Ask Claude Code to run `bundle.py` again, publish the new `dex-dashboards.json` to the Hardware lifecycle artifact as `src/dex-dashboards.json`, and replace the hash in the routine's prompt with the new one.
-3. If the update adds a dashboard, also ask Claude Code to publish it from its placeholder page with `empty-history.json` as `data/history.json`, and to update the routine's prompt from the new `routine-prompt.md`. The routine stops when some dashboards have history and others don't, so the new one needs an empty history file to start from.
+3. If the update adds a dashboard, also ask Claude Code to publish it from its placeholder page with `empty-history.json` as `data/history.json`, and to update the routine's prompt from the new `routine-prompt.md`. The routine stops when some dashboards have history and others don't, so the new one needs an empty history file to start from. The overview is the exception: it keeps no history, so publish it from `placeholder-overview.html` without one.
 
 The history files stay where they are, so the dashboards keep their history.
 
