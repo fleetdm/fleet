@@ -32,11 +32,13 @@ import (
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/condaccess"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
+	"github.com/fleetdm/fleet/v4/ee/server/service/ejbca"
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/mdm/profilevalidation"
 	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/acl/acmeacl"
@@ -54,10 +56,13 @@ import (
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/datastore/azure"
+	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/failing"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
+	"github.com/fleetdm/fleet/v4/server/datastore/orbitconfig_notify"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
@@ -118,6 +123,9 @@ import (
 
 const (
 	liveQueryMemCacheDuration = 1 * time.Second
+	// orbitConfigHostsBatchWindow merges the per-host orbit config wake-ups
+	// fired within it into one publish: datastore writers fire one per host.
+	orbitConfigHostsBatchWindow = 100 * time.Millisecond
 )
 
 type initializer interface {
@@ -264,6 +272,16 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	}
 
 	config.Server.ValidatePrivateKeyLength(initFatal)
+
+	// The embedded schema is checked by the generator and tests, so a failure here means a broken
+	// build; refuse to start rather than validate profiles against nothing. Tests start serve more
+	// than once per process, so only parse if nothing is loaded yet.
+	if profilevalidation.Current() == nil {
+		if err := profilevalidation.ParseProfileValidationSchema(); err != nil {
+			initFatal(err, "loading profile validation schema")
+		}
+	}
+
 	if len(config.Server.PrivateKey) > 0 {
 		// Truncate to 32 bytes because AES-256 requires a 32 byte (256 bit) PK;
 		// some infra setups generate keys that are longer than 32 bytes.
@@ -310,6 +328,29 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if redisPool == nil {
 		initFatal(errors.New("redis pool was nil after initialization"), "initialize Redis")
 		return
+	}
+
+	// Agent WebSocket transport (ADR-0011) wake-ups are published over Redis
+	// pub/sub. Created here so the datastore can notify agents of orbit config
+	// changes (see orbitConfigHostsBatchWindow).
+	var agentNotifier *pubsub.RedisAgentNotifier
+	var delayedAgentNotifier *pubsub.DelayedAgentNotifier
+	if config.WebSocket.TransportEnabled {
+		agentNotifier = pubsub.NewRedisAgentNotifier(redisPool, logger.With("component", "agent-notifier"))
+		// Live query and scoped orbit config wake-ups are delayed by the TTL of
+		// the in-memory caches the notified agent's request reads, so it can't
+		// be served a snapshot predating the change. Host orbit config wake-ups
+		// read nothing cached; their delay only batches them (see
+		// pubsub.DelayedAgentNotifier).
+		delayedAgentNotifier = pubsub.NewDelayedAgentNotifier(agentNotifier, pubsub.AgentNotifierDelays{
+			LiveQuery:        liveQueryMemCacheDuration,
+			OrbitConfigHosts: orbitConfigHostsBatchWindow,
+			OrbitConfigScope: cached_mysql.MaxOrbitConfigInputTTL(),
+		}, logger.With("component", "agent-notifier"))
+		if config.WebSocket.OrbitConfigEnabled {
+			mds.WithOrbitConfigNotifier(delayedAgentNotifier)
+			ds = orbitconfig_notify.New(ds, delayedAgentNotifier, logger.With("component", "orbitconfig-notify"))
+		}
 	}
 
 	resultStore := pubsub.NewRedisQueryResults(
@@ -480,6 +521,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 	scepConfigMgr := scep.NewSCEPConfigService(logger, nil)
 	digiCertService := digicert.NewService(digicert.WithLogger(logger))
+	ejbcaService := ejbca.NewService(ejbca.WithLogger(logger))
 	ctx = ctxerr.NewContext(ctx, eh)
 
 	// Declare svc early so the closure below can capture it.
@@ -515,7 +557,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		initFatal(err, "initializing ee android service")
 	}
 
-	orgLogoStore := initOrgLogoStore(ctx, config.S3, mds, logger)
+	// Must run before initOrgLogoStore, which picks the object store backend regardless of license tier.
+	config.ValidateSoftwareInstallersBackend(initFatal)
+	softwareInstallersBackend, _ := config.SoftwareInstallersBackend()
+
+	orgLogoStore := initOrgLogoStore(ctx, softwareInstallersBackend, config.S3, config.CloudStorage.Azure, mds, logger)
 
 	svc, err = service.NewService(
 		ctx,
@@ -561,84 +607,19 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if license.IsPremium() {
 		hydrantService := est.NewService(est.WithLogger(logger))
 		profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
-		if config.S3.SoftwareInstallersBucket != "" {
-			if config.S3.BucketsAndPrefixesMatch() {
-				logger.WarnContext(ctx,
-					"the S3 buckets and prefixes for carves and software installers appear to be identical, this can cause issues")
-			}
-			// Extract the CloudFront URL signer before creating the S3 stores.
-			config.S3.ValidateCloudFrontURL(initFatal)
-			config.S3.ValidateSoftwareInstallersSignedURL(initFatal)
-			if config.S3.SoftwareInstallersCloudFrontURLSigningPrivateKey != "" {
-				// Strip newlines from private key
-				signingPrivateKey := strings.ReplaceAll(config.S3.SoftwareInstallersCloudFrontURLSigningPrivateKey, "\\n", "\n")
-				privateKey, err := cryptoutil.ParsePrivateKey([]byte(signingPrivateKey),
-					"CloudFront URL signing private key")
-				if err != nil {
-					initFatal(err, "parsing CloudFront URL signing private key")
-				}
-				var ok bool
-				config.S3.SoftwareInstallersCloudFrontSigner, ok = privateKey.(crypto.Signer)
-				if !ok {
-					initFatal(errors.New("CloudFront URL signing private key is not a crypto.Signer"),
-						"parsing CloudFront URL signing private key")
-				}
-			}
-			store, err := s3.NewSoftwareInstallerStore(config.S3)
-			if err != nil {
-				initFatal(err, "initializing S3 software installer store")
-			}
-			softwareInstallStore = store
-			logger.InfoContext(ctx, "using S3 software installer store", "bucket", config.S3.SoftwareInstallersBucket)
-
-			bstore, err := s3.NewBootstrapPackageStore(config.S3)
-			if err != nil {
-				initFatal(err, "initializing S3 bootstrap package store")
-			}
-			bootstrapPackageStore = bstore
-			logger.InfoContext(ctx, "using S3 bootstrap package store", "bucket", config.S3.SoftwareInstallersBucket)
-
-			softwareTitleIconStore, err = s3.NewSoftwareTitleIconStore(config.S3)
-			if err != nil {
-				initFatal(err, "initializing S3 software title icon store")
-			}
-			logger.InfoContext(ctx, "using S3 software title icon store", "bucket", config.S3.SoftwareInstallersBucket)
-
-			stagedUploadStore, err = s3.NewStagedUploadStore(config.S3)
-			if err != nil {
-				initFatal(err, "initializing S3 staged upload store")
-			}
-		} else {
-			installerDir := os.TempDir()
-			if dir := os.Getenv("FLEET_SOFTWARE_INSTALLER_STORE_DIR"); dir != "" {
-				installerDir = dir
-			}
-			store, err := filesystem.NewSoftwareInstallerStore(installerDir)
-			if err != nil {
-				logger.ErrorContext(ctx, "failed to configure local filesystem software installer store", "err", err)
-				softwareInstallStore = failing.NewFailingSoftwareInstallerStore()
-			} else {
-				softwareInstallStore = store
-				logger.InfoContext(ctx,
-					"using local filesystem software installer store, this is not suitable for multi-container deployments", "directory",
-					installerDir)
-			}
-
-			iconDir := os.TempDir()
-			if dir := os.Getenv("FLEET_SOFTWARE_TITLE_ICON_STORE_DIR"); dir != "" {
-				iconDir = dir
-			}
-			iconStore, err := filesystem.NewSoftwareTitleIconStore(iconDir)
-			if err != nil {
-				logger.ErrorContext(ctx, "failed to configure local filesystem software title icon store", "err", err)
-				softwareTitleIconStore = failing.NewFailingSoftwareTitleIconStore()
-			} else {
-				softwareTitleIconStore = iconStore
-				logger.WarnContext(ctx,
-					"using local filesystem software title icon store, this is not suitable for production use", "directory",
-					iconDir)
-			}
+		var stores softwareInstallerStores
+		switch softwareInstallersBackend {
+		case configpkg.StorageBackendAzure:
+			stores = newAzureSoftwareInstallerStores(ctx, config.CloudStorage.Azure, logger)
+		case configpkg.StorageBackendS3:
+			stores = newS3SoftwareInstallerStores(ctx, &config, logger)
+		default:
+			stores = newFilesystemSoftwareInstallerStores(ctx, logger)
 		}
+		softwareInstallStore = stores.installer
+		bootstrapPackageStore = stores.bootstrap
+		softwareTitleIconStore = stores.icon
+		stagedUploadStore = stores.stagedUpload
 
 		distributedLock = redis_lock.NewLock(redisPool)
 		svc, err = eeservice.NewService(
@@ -661,6 +642,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			redis_install_attempts.New(redisPool),
 			scepConfigMgr,
 			digiCertService,
+			ejbcaService,
 			androidSvc,
 			hydrantService,
 			psso.NewRedisNonceStore(redisPool),
@@ -742,14 +724,22 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		agentWSHub = agentws.NewHub(logger.With("component", "agentws"),
 			config.WebSocket.PingInterval, config.WebSocket.PongTimeout)
 		agentWSHub.InstanceID = instanceID
-		agentNotifier := pubsub.NewRedisAgentNotifier(redisPool, logger.With("component", "agent-notifier"))
-		// Delay live query wake-ups by the live query store's in-memory cache
-		// TTL so a notified read can't be served from a cache snapshot
-		// predating the campaign (see pubsub.DelayedAgentNotifier).
-		svc.SetAgentCheckInNotifier(pubsub.NewDelayedAgentNotifier(agentNotifier,
-			liveQueryMemCacheDuration, logger.With("component", "agent-notifier")))
+		svc.SetAgentCheckInNotifier(delayedAgentNotifier)
+
+		if config.WebSocket.OrbitConfigEnabled {
+			agentWSHub.EnableScopedNotifications(ctx, ds, config.WebSocket.CheckBatchSize, config.WebSocket.OrbitConfigSpread)
+		}
 		go agentNotifier.Subscribe(ctx, func(n pubsub.AgentNotification) {
-			agentWSHub.Notify(n.Type, n.Reason, n.HostIDs)
+			switch {
+			case n.Scope != "":
+				agentWSHub.QueueScope(agentws.ScopedNotification{MsgType: n.Type, Reason: n.Reason, Scope: n.Scope})
+			case n.Type == fleet.AgentWSMessageTypeOrbitConfig:
+				// Paced: a write can target thousands of hosts at once (e.g. a
+				// fleet-wide Windows MDM command).
+				agentWSHub.NotifyPaced(n.Type, n.Reason, n.HostIDs)
+			default:
+				agentWSHub.Notify(n.Type, n.Reason, n.HostIDs)
+			}
 		})
 		// Each instance checks only the connections it holds, so this is a
 		// plain per-instance goroutine, not a locked cron job.
@@ -1029,6 +1019,10 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 					"Your server already has stored a SCEP challenge. Fleet will ignore this value provided via environment variables when this happens.")
 			}
 		}
+		if appCfg.MDM.EnabledAndConfigured {
+			// after the SCEP challenge is stored, since legacy migration profiles are checked against it
+			checkSilentMigrationEnrollmentProfile(ctx, ds, logger)
+		}
 		if err := service.RegisterAppleMDMProtocolServices(
 			rootMux,
 			config.MDM,
@@ -1280,10 +1274,18 @@ func createChartBoundedContext(dbConns *common_mysql.DBConnections, svc fleet.Se
 }
 
 // initOrgLogoStore builds the OrgLogoStore implementation appropriate for the deployment:
-//   - S3 when a software installers bucket is configured (shared bucket, distinct prefix)
+//   - the configured object store backend (S3 or Azure Blob) when one is selected for the software installers group
 //   - otherwise a database-backed store, so custom org logos work without object storage or a writable filesystem.
-func initOrgLogoStore(ctx context.Context, s3Config configpkg.S3Config, ds *mysql.Datastore, logger *slog.Logger) fleet.OrgLogoStore {
-	if s3Config.SoftwareInstallersBucket != "" {
+func initOrgLogoStore(ctx context.Context, backend configpkg.StorageBackend, s3Config configpkg.S3Config, azureConfig configpkg.AzureConfig, ds *mysql.Datastore, logger *slog.Logger) fleet.OrgLogoStore {
+	switch backend {
+	case configpkg.StorageBackendAzure:
+		store, err := azure.NewOrgLogoStore(azureConfig)
+		if err != nil {
+			initFatal(err, "initializing Azure Blob org logo store")
+		}
+		logger.InfoContext(ctx, "using Azure Blob org logo store", "container", azureConfig.SoftwareInstallersContainer)
+		return store
+	case configpkg.StorageBackendS3:
 		store, err := s3.NewOrgLogoStore(s3Config)
 		if err != nil {
 			initFatal(err, "initializing S3 org logo store")
@@ -1293,6 +1295,134 @@ func initOrgLogoStore(ctx context.Context, s3Config configpkg.S3Config, ds *mysq
 	}
 	logger.InfoContext(ctx, "using database org logo store")
 	return ds.NewOrgLogoStore()
+}
+
+// softwareInstallerStores groups the stores backing the software installers
+// group for a given storage backend. Stores a backend doesn't support are nil.
+type softwareInstallerStores struct {
+	installer    fleet.SoftwareInstallerStore
+	bootstrap    fleet.MDMBootstrapPackageStore
+	icon         fleet.SoftwareTitleIconStore
+	stagedUpload fleet.StagedUploadStore
+}
+
+func newAzureSoftwareInstallerStores(ctx context.Context, cfg configpkg.AzureConfig, logger *slog.Logger) softwareInstallerStores {
+	var stores softwareInstallerStores
+
+	installer, err := azure.NewSoftwareInstallerStore(cfg)
+	if err != nil {
+		initFatal(err, "initializing Azure Blob software installer store")
+	}
+	stores.installer = installer
+	logger.InfoContext(ctx, "using Azure Blob software installer store", "container", cfg.SoftwareInstallersContainer)
+
+	bstore, err := azure.NewBootstrapPackageStore(cfg)
+	if err != nil {
+		initFatal(err, "initializing Azure Blob bootstrap package store")
+	}
+	stores.bootstrap = bstore
+	logger.InfoContext(ctx, "using Azure Blob bootstrap package store", "container", cfg.SoftwareInstallersContainer)
+
+	stores.icon, err = azure.NewSoftwareTitleIconStore(cfg)
+	if err != nil {
+		initFatal(err, "initializing Azure Blob software title icon store")
+	}
+	logger.InfoContext(ctx, "using Azure Blob software title icon store", "container", cfg.SoftwareInstallersContainer)
+
+	return stores
+}
+
+// newS3SoftwareInstallerStores also stores the parsed CloudFront URL signer in
+// the provided config, as the service layer reads it from there.
+func newS3SoftwareInstallerStores(ctx context.Context, config *configpkg.FleetConfig, logger *slog.Logger) softwareInstallerStores {
+	var stores softwareInstallerStores
+
+	if config.S3.BucketsAndPrefixesMatch() {
+		logger.WarnContext(ctx,
+			"the S3 buckets and prefixes for carves and software installers appear to be identical, this can cause issues")
+	}
+	// Extract the CloudFront URL signer before creating the S3 stores.
+	config.S3.ValidateCloudFrontURL(initFatal)
+	config.S3.ValidateSoftwareInstallersSignedURL(initFatal)
+	if config.S3.SoftwareInstallersCloudFrontURLSigningPrivateKey != "" {
+		// Strip newlines from private key
+		signingPrivateKey := strings.ReplaceAll(config.S3.SoftwareInstallersCloudFrontURLSigningPrivateKey, "\\n", "\n")
+		privateKey, err := cryptoutil.ParsePrivateKey([]byte(signingPrivateKey),
+			"CloudFront URL signing private key")
+		if err != nil {
+			initFatal(err, "parsing CloudFront URL signing private key")
+		}
+		var ok bool
+		config.S3.SoftwareInstallersCloudFrontSigner, ok = privateKey.(crypto.Signer)
+		if !ok {
+			initFatal(errors.New("CloudFront URL signing private key is not a crypto.Signer"),
+				"parsing CloudFront URL signing private key")
+		}
+	}
+	installer, err := s3.NewSoftwareInstallerStore(config.S3)
+	if err != nil {
+		initFatal(err, "initializing S3 software installer store")
+	}
+	stores.installer = installer
+	logger.InfoContext(ctx, "using S3 software installer store", "bucket", config.S3.SoftwareInstallersBucket)
+
+	bstore, err := s3.NewBootstrapPackageStore(config.S3)
+	if err != nil {
+		initFatal(err, "initializing S3 bootstrap package store")
+	}
+	stores.bootstrap = bstore
+	logger.InfoContext(ctx, "using S3 bootstrap package store", "bucket", config.S3.SoftwareInstallersBucket)
+
+	stores.icon, err = s3.NewSoftwareTitleIconStore(config.S3)
+	if err != nil {
+		initFatal(err, "initializing S3 software title icon store")
+	}
+	logger.InfoContext(ctx, "using S3 software title icon store", "bucket", config.S3.SoftwareInstallersBucket)
+
+	stores.stagedUpload, err = s3.NewStagedUploadStore(config.S3)
+	if err != nil {
+		initFatal(err, "initializing S3 staged upload store")
+	}
+
+	return stores
+}
+
+// newFilesystemSoftwareInstallerStores is the fallback when no object store is
+// configured. It is not suitable for multi-container deployments.
+func newFilesystemSoftwareInstallerStores(ctx context.Context, logger *slog.Logger) softwareInstallerStores {
+	var stores softwareInstallerStores
+
+	installerDir := os.TempDir()
+	if dir := os.Getenv("FLEET_SOFTWARE_INSTALLER_STORE_DIR"); dir != "" {
+		installerDir = dir
+	}
+	store, err := filesystem.NewSoftwareInstallerStore(installerDir)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to configure local filesystem software installer store", "err", err)
+		stores.installer = failing.NewFailingSoftwareInstallerStore()
+	} else {
+		stores.installer = store
+		logger.InfoContext(ctx,
+			"using local filesystem software installer store, this is not suitable for multi-container deployments", "directory",
+			installerDir)
+	}
+
+	iconDir := os.TempDir()
+	if dir := os.Getenv("FLEET_SOFTWARE_TITLE_ICON_STORE_DIR"); dir != "" {
+		iconDir = dir
+	}
+	iconStore, err := filesystem.NewSoftwareTitleIconStore(iconDir)
+	if err != nil {
+		logger.ErrorContext(ctx, "failed to configure local filesystem software title icon store", "err", err)
+		stores.icon = failing.NewFailingSoftwareTitleIconStore()
+	} else {
+		stores.icon = iconStore
+		logger.WarnContext(ctx,
+			"using local filesystem software title icon store, this is not suitable for production use", "directory",
+			iconDir)
+	}
+
+	return stores
 }
 
 func createActivityBoundedContext(svc fleet.Service, ds fleet.Datastore, dbConns *common_mysql.DBConnections, logger *slog.Logger) (activity_api.Service, endpointer.HandlerRoutesFunc) {

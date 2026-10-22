@@ -279,10 +279,11 @@ func androidWipeAckUnenroll(ctx context.Context, ds fleet.Datastore, newActivity
 	cmd *android.MDMAndroidCommand, onUnenrolled func(hostID uint),
 ) error {
 	ah, err := ds.AndroidHostLiteByHostUUID(ctx, cmd.HostUUID)
-	if err != nil {
+	if err != nil && !fleet.IsNotFound(err) {
 		return ctxerr.Wrap(ctx, err, "android wipe-ack unenroll: lookup host by uuid")
 	}
-	if ah == nil || ah.Host == nil {
+	// No host found (e.g. deleted from Fleet) leaves nothing to unenroll; returning nil lets the command reach a terminal state.
+	if err != nil || ah == nil || ah.Host == nil {
 		return nil
 	}
 
@@ -977,15 +978,9 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	host.Host.Build = device.SoftwareInfo.AndroidBuildNumber
 	host.Host.Memory = device.MemoryInfo.TotalRam
 
-	// AMAPI only sends memory events on status reports, so an enrollment payload always
-	// calculates as "not supported". On enrollment, leaving the fields zero skips the
-	// host_disks write and keeps the last measurement until the next status report, which
-	// is still written as reported.
-	if gigsTotal, gigsAvailable, percentAvailable := svc.calculateAndroidStorageMetrics(ctx, device, true); !fromEnroll || gigsAvailable >= 0 {
-		host.Host.GigsTotalDiskSpace = gigsTotal
-		host.Host.GigsDiskSpaceAvailable = gigsAvailable
-		host.Host.PercentDiskSpaceAvailable = percentAvailable
-	}
+	// A payload without a measurement calculates as "not supported" (-1). UpdateAndroidHost
+	// keeps the host's last real measurement instead of writing that over it.
+	host.Host.GigsTotalDiskSpace, host.Host.GigsDiskSpaceAvailable, host.Host.PercentDiskSpaceAvailable = svc.calculateAndroidStorageMetrics(ctx, device, true)
 
 	host.Host.HardwareSerial = device.HardwareInfo.SerialNumber
 	host.Host.CPUType = device.HardwareInfo.Hardware

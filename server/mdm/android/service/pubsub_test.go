@@ -1574,7 +1574,7 @@ func TestUpdateHost(t *testing.T) {
 		require.Equal(t, "Android 15 (2026-05-01)", capturedHost.Host.OSVersion)
 	})
 
-	t.Run("status report without MEASURED events still records storage as not supported", func(t *testing.T) {
+	t.Run("status report without MEASURED events passes not supported to the datastore", func(t *testing.T) {
 		existingHost.Host.GigsTotalDiskSpace = 0
 		existingHost.Host.GigsDiskSpaceAvailable = 0
 		existingHost.Host.PercentDiskSpaceAvailable = 0
@@ -1603,8 +1603,7 @@ func TestUpdateHost(t *testing.T) {
 
 		require.NoError(t, svc.ProcessPubSubPush(t.Context(), "value", message))
 
-		// Only an enrollment keeps the last measurement. A status report is written as reported, so a
-		// host that stops measuring shows "Not supported" and its total stays current.
+		// The service passes -1 through; UpdateAndroidHost decides whether a stored measurement wins.
 		require.NotNil(t, capturedHost)
 		require.InDelta(t, 128.0, capturedHost.Host.GigsTotalDiskSpace, 0.1)
 		require.InDelta(t, -1, capturedHost.Host.GigsDiskSpaceAvailable, 0.01)
@@ -2210,7 +2209,7 @@ func TestAndroidStorageExtraction(t *testing.T) {
 		require.Equal(t, float64(-1), createdHost.Host.PercentDiskSpaceAvailable, "should set percent available to -1 when MEASURED events are missing")
 	})
 
-	t.Run("re-enrollment without MEASURED events keeps the stored storage", func(t *testing.T) {
+	t.Run("re-enrollment without MEASURED events passes not supported to the datastore", func(t *testing.T) {
 		const esid = "REENROLL-TEST-ESID"
 		existing := &fleet.AndroidHost{
 			Host:   &fleet.Host{ID: 42, UUID: "reenroll-uuid", Platform: "android"},
@@ -2244,11 +2243,10 @@ func TestAndroidStorageExtraction(t *testing.T) {
 		require.NoError(t, err)
 
 		require.NotNil(t, updatedHost)
-		// Zero leaves host_disks untouched, so the stored measurement survives. Writing the
-		// -1 sentinel here is what showed a previously measured host as "Not supported".
-		require.Zero(t, updatedHost.Host.GigsDiskSpaceAvailable, "must not overwrite stored available space")
-		require.Zero(t, updatedHost.Host.PercentDiskSpaceAvailable, "must not overwrite stored percentage")
-		require.Zero(t, updatedHost.Host.GigsTotalDiskSpace, "must not overwrite stored total")
+		// UpdateAndroidHost keeps the host's last real measurement over -1.
+		require.InDelta(t, 64.0, updatedHost.Host.GigsTotalDiskSpace, 0.1)
+		require.InDelta(t, -1, updatedHost.Host.GigsDiskSpaceAvailable, 0.01)
+		require.InDelta(t, -1, updatedHost.Host.PercentDiskSpaceAvailable, 0.01)
 	})
 
 	t.Run("re-enrollment with MEASURED events still updates storage", func(t *testing.T) {
@@ -3491,6 +3489,78 @@ func TestPubSubCommand(t *testing.T) {
 		require.Error(t, err, "transient DB failure must bubble so Pub/Sub retries")
 		require.Contains(t, err.Error(), "simulated transient DB connection drop", "wrapped error must preserve the original cause")
 	})
+
+	t.Run("WIPE+ack transient host lookup failure bubbles error so Pub/Sub retries", func(t *testing.T) {
+		svc, mockDS := newSvc(t)
+
+		stored := &android.MDMAndroidCommand{
+			CommandUUID:   "cmd-uuid-wipe-lookup-transient",
+			HostUUID:      "host-uuid-wipe-lookup-transient",
+			OperationName: "enterprises/E/devices/D/operations/wipe-lookup-transient",
+			CommandType:   string(android.MDMAndroidCommandTypeWipe),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}
+		mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
+			return stored, nil
+		}
+		mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
+			t.Fatalf("the command must stay pending when the host lookup fails transiently")
+			return nil
+		}
+		mockDS.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
+			return nil, errors.New("simulated transient DB connection drop")
+		}
+
+		msg := makeMessage(t, androidmanagement.Operation{Name: stored.OperationName, Done: true})
+		err := svc.ProcessPubSubPush(t.Context(), validToken, msg)
+		require.Error(t, err, "transient lookup failure must bubble so Pub/Sub retries")
+		require.Contains(t, err.Error(), "simulated transient DB connection drop")
+		require.False(t, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked)
+	})
+
+	for _, tc := range []struct {
+		name         string
+		status       android.MDMAndroidCommandStatus
+		expectUpdate bool
+	}{
+		{name: "pending", status: android.MDMAndroidCommandStatusPending, expectUpdate: true},
+		{name: "already-terminal redelivery", status: android.MDMAndroidCommandStatusAcknowledged, expectUpdate: false},
+	} {
+		t.Run("WIPE+ack for a host deleted from Fleet is acked: "+tc.name, func(t *testing.T) {
+			// The command row outlives the host (no FK), so the unenroll finds no host. That must not strand
+			// the row as pending or make Pub/Sub redeliver forever.
+			svc, mockDS := newSvc(t)
+
+			stored := &android.MDMAndroidCommand{
+				CommandUUID:   "cmd-uuid-wipe-host-gone",
+				HostUUID:      "host-uuid-wipe-host-gone",
+				OperationName: "enterprises/E/devices/D/operations/wipe-host-gone",
+				CommandType:   string(android.MDMAndroidCommandTypeWipe),
+				Status:        string(tc.status),
+			}
+			mockDS.GetMDMAndroidCommandByOperationNameFunc = func(ctx context.Context, opName string) (*android.MDMAndroidCommand, error) {
+				return stored, nil
+			}
+			var gotStatus string
+			mockDS.UpdateMDMAndroidCommandStatusFunc = func(ctx context.Context, commandUUID, status string, errorCode, errorMessage, rawResult *string) error {
+				gotStatus = status
+				return nil
+			}
+			mockDS.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
+				return nil, common_mysql.NotFound("Android device").WithName(hostUUID)
+			}
+
+			msg := makeMessage(t, androidmanagement.Operation{Name: stored.OperationName, Done: true})
+			require.NoError(t, svc.ProcessPubSubPush(t.Context(), validToken, msg))
+
+			require.True(t, mockDS.AndroidHostLiteByHostUUIDFuncInvoked)
+			require.False(t, mockDS.SetAndroidHostUnenrolledFuncInvoked)
+			require.Equal(t, tc.expectUpdate, mockDS.UpdateMDMAndroidCommandStatusFuncInvoked)
+			if tc.expectUpdate {
+				require.Equal(t, string(android.MDMAndroidCommandStatusAcknowledged), gotStatus)
+			}
+		})
+	}
 
 	t.Run("unknown operation, host deleted from Fleet -> ack", func(t *testing.T) {
 		// COBO unenroll / manual cleanup: the host is gone from Fleet, the command row is gone from mdm_android_commands, but Pub/Sub is

@@ -6,6 +6,11 @@ on:
       - ".github/workflows/test-configuration-profile-generator.yml"
       - "website/profile-generator/**"
       - "website/api/helpers/get-configuration-profile-generator-configuration.js"
+      - "website/api/helpers/generate-configuration-profile.js"
+      - "website/api/helpers/add-admx-install-commands-to-windows-profile.js"
+      - "website/api/helpers/ai/prompt.js"
+      - "website/api/controllers/get-llm-generated-configuration-profile.js"
+      - "website/.mocharc.json"
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:

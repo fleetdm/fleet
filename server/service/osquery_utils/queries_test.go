@@ -429,6 +429,33 @@ func TestSoftwareIngestionMutations(t *testing.T) {
 	}
 	MutateSoftwareOnIngestion(t.Context(), rAppNoMatch, slog.New(slog.DiscardHandler))
 	assert.Equal(t, "4.6.1", rAppNoMatch.Version)
+
+	// AI CLIs reported by catalog slug are stored under their product name
+	aiCLI := &fleet.Software{Name: "claude-code", Source: "ai_clis", Version: "2.0.14"}
+	MutateSoftwareOnIngestion(t.Context(), aiCLI, slog.New(slog.DiscardHandler))
+	require.Equal(t, "Claude Code", aiCLI.Name)
+
+	aiCLIUnknownSlug := &fleet.Software{Name: "brand-new-agent", Source: "ai_clis"}
+	MutateSoftwareOnIngestion(t.Context(), aiCLIUnknownSlug, slog.New(slog.DiscardHandler))
+	require.Equal(t, "brand-new-agent", aiCLIUnknownSlug.Name)
+
+	// The same name under another source is the package's own name
+	homebrewCodex := &fleet.Software{Name: "codex", Source: "homebrew_packages"}
+	MutateSoftwareOnIngestion(t.Context(), homebrewCodex, slog.New(slog.DiscardHandler))
+	require.Equal(t, "codex", homebrewCodex.Name)
+
+	// Cursor rule files are named by the developer, so they share one title
+	cursorRule := &fleet.Software{Name: "acme-billing-api.mdc", Source: "ai_skills"}
+	MutateSoftwareOnIngestion(t.Context(), cursorRule, slog.New(slog.DiscardHandler))
+	require.Equal(t, "Cursor rules", cursorRule.Name)
+
+	cursorRuleUpper := &fleet.Software{Name: "Testing.MDC", Source: "ai_skills"}
+	MutateSoftwareOnIngestion(t.Context(), cursorRuleUpper, slog.New(slog.DiscardHandler))
+	require.Equal(t, "Cursor rules", cursorRuleUpper.Name)
+
+	instructionFile := &fleet.Software{Name: "CLAUDE.md", Source: "ai_skills"}
+	MutateSoftwareOnIngestion(t.Context(), instructionFile, slog.New(slog.DiscardHandler))
+	require.Equal(t, "CLAUDE.md", instructionFile.Name)
 }
 
 func TestDetailQueryNetworkInterfaces(t *testing.T) {
@@ -719,6 +746,12 @@ func TestGetDetailQueries(t *testing.T) {
 		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_macos_executable_sha256", "software_macos_homebrew_executable_sha256", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at", "software_windows_acrobat_dc", "software_go_binaries", "software_windows_program_files_scan")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
+
+	// AI tools inventory is premium only
+	queriesPremiumWithSoftware := GetDetailQueries(premiumCtx, config.FleetConfig{}, nil, &fleet.Features{EnableSoftwareInventory: true}, Integrations{}, nil)
+	require.Contains(t, queriesPremiumWithSoftware, "software_ai_tools")
+	require.NotContains(t, queriesPremium, "software_ai_tools")
+	require.NotContains(t, queriesWithUsersAndSoftware, "software_ai_tools")
 
 	// test that appropriate mdm queries are added based on app config
 	var mdmQueriesBase, mdmQueriesWindows []string
@@ -1072,6 +1105,27 @@ func TestDetailQueriesOSVersionChrome(t *testing.T) {
 
 	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
 	assert.Equal(t, "chromeos 1.3.3.7", host.OSVersion)
+}
+
+func TestDetailQueriesUptimeChrome(t *testing.T) {
+	query := GetDetailQueries(t.Context(), config.FleetConfig{}, nil, nil, Integrations{}, nil)["uptime"]
+	assert.Contains(t, query.Platforms, "chrome")
+
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, nil))
+	host := fleet.Host{Platform: "chrome"}
+
+	require.NoError(t, query.IngestFunc(t.Context(), logger, &host, nil))
+	assert.Zero(t, host.Uptime)
+	assert.True(t, host.LastRestartedAt.IsZero())
+	assert.Empty(t, logs.String())
+
+	before := time.Now()
+	require.NoError(t, query.IngestFunc(t.Context(), logger, &host, []map[string]string{{"total_seconds": "3600"}}))
+	after := time.Now()
+	assert.Equal(t, time.Hour, host.Uptime)
+	assert.False(t, host.LastRestartedAt.Before(before.Add(-time.Hour)))
+	assert.False(t, host.LastRestartedAt.After(after.Add(-time.Hour)))
 }
 
 func TestDirectIngestMDMMac(t *testing.T) {
@@ -2157,6 +2211,72 @@ func TestDirectIngestSoftware(t *testing.T) {
 		})
 	})
 
+	t.Run("ai_tool marker", func(t *testing.T) {
+		data := []map[string]string{
+			{"name": "Claude", "version": "1.2.4", "source": "apps", "bundle_identifier": "com.anthropic.claudefordesktop", "ai_tool": "1"},
+			{"name": "Safari", "version": "18.0", "source": "apps", "bundle_identifier": "com.apple.Safari"},
+			{"name": "github", "version": "", "source": "mcp_servers", "ai_tool": "1"},
+		}
+		var ingested []fleet.Software
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+			ingested = software
+			return nil, nil
+		}
+		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
+			return nil
+		}
+		var marked []fleet.Software
+		ds.MarkSoftwareAsAIToolFunc = func(ctx context.Context, software []fleet.Software) error {
+			marked = software
+			return nil
+		}
+
+		require.NoError(t, directIngestSoftware(ctx, logger, &host, ds, data))
+		require.Len(t, ingested, 3)
+		require.True(t, ptr.ValOrZero(ingested[0].AITool))
+		require.False(t, ptr.ValOrZero(ingested[1].AITool))
+		require.True(t, ptr.ValOrZero(ingested[2].AITool))
+		require.True(t, ds.MarkSoftwareAsAIToolFuncInvoked)
+		require.Equal(t, []fleet.Software{ingested[0], ingested[2]}, marked)
+		first := ingested
+
+		// No flagged rows, no call.
+		ds.MarkSoftwareAsAIToolFuncInvoked = false
+		require.NoError(t, directIngestSoftware(ctx, logger, &host, ds, data[1:2]))
+		require.False(t, ds.MarkSoftwareAsAIToolFuncInvoked)
+
+		// Software the host already reports flagged needs no lookup.
+		flaggedClaude, unflaggedGithub := first[0], first[2]
+		unflaggedGithub.AITool = nil
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+			return &fleet.UpdateHostSoftwareDBResult{WasCurrInstalled: []fleet.Software{flaggedClaude, first[1], unflaggedGithub}}, nil
+		}
+		ds.MarkSoftwareAsAIToolFuncInvoked = false
+		require.NoError(t, directIngestSoftware(ctx, logger, &host, ds, data))
+		require.True(t, ds.MarkSoftwareAsAIToolFuncInvoked)
+		require.Equal(t, []fleet.Software{first[2]}, marked)
+
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+			return &fleet.UpdateHostSoftwareDBResult{WasCurrInstalled: []fleet.Software{flaggedClaude, first[1], first[2]}}, nil
+		}
+		ds.MarkSoftwareAsAIToolFuncInvoked = false
+		require.NoError(t, directIngestSoftware(ctx, logger, &host, ds, data))
+		require.False(t, ds.MarkSoftwareAsAIToolFuncInvoked)
+
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+			return nil, nil
+		}
+		ds.MarkSoftwareAsAIToolFuncInvoked = false
+		ds.MarkSoftwareAsAIToolFunc = func(ctx context.Context, software []fleet.Software) error {
+			return errors.New("mark failed")
+		}
+		require.ErrorContains(t, directIngestSoftware(ctx, logger, &host, ds, data), "mark failed")
+		ds.MarkSoftwareAsAIToolFunc = nil
+		ds.MarkSoftwareAsAIToolFuncInvoked = false
+		ds.UpdateHostSoftwareFuncInvoked = false
+		ds.UpdateHostSoftwareInstalledPathsFuncInvoked = false
+	})
+
 	t.Run("vendor gets truncated", func(t *testing.T) {
 		for _, tc := range []struct {
 			data     []map[string]string
@@ -2384,6 +2504,29 @@ func TestDirectIngestSoftware(t *testing.T) {
 		assert.True(t, software.LastOpenedAt.Equal(expectedTime))
 
 		ds.UpdateHostSoftwareFuncInvoked = false
+	})
+
+	t.Run("rpm epoch", func(t *testing.T) {
+		data := []map[string]string{
+			{"name": "mod_ssl", "version": "2.4.62", "release": "13.el9_8.6", "arch": "x86_64", "source": "rpm_packages", "epoch": "1"},
+			{"name": "httpd", "version": "2.4.62", "release": "13.el9_8.6", "arch": "x86_64", "source": "rpm_packages", "epoch": ""},
+		}
+
+		var got []fleet.Software
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+			got = software
+			return nil, nil
+		}
+		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
+			return nil
+		}
+
+		require.NoError(t, directIngestSoftware(ctx, logger, &host, ds, data))
+		epochs := map[string]*uint32{}
+		for _, sw := range got {
+			epochs[sw.Name] = sw.Epoch
+		}
+		require.Equal(t, map[string]*uint32{"mod_ssl": new(uint32(1)), "httpd": nil}, epochs)
 	})
 }
 
@@ -2764,8 +2907,8 @@ func TestDirectIngestDiskEncryptionKeyDarwinSameKeyNewEnvelope(t *testing.T) {
 		ds.GetAllMDMConfigAssetsByNameIncludingDeletedFunc = func(ctx context.Context, _ []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error) {
 			return []fleet.MDMConfigAsset{{Name: fleet.MDMAssetCACert, Value: caCertPEM}}, nil
 		}
-		ds.ReplaceHostDiskEncryptionKeyBlobFunc = func(ctx context.Context, hostID uint, currentBase64Encrypted, newBase64Encrypted string) error {
-			return nil
+		ds.ReplaceHostDiskEncryptionKeyBlobFunc = func(ctx context.Context, hostID uint, currentBase64Encrypted, newBase64Encrypted string) (bool, error) {
+			return true, nil
 		}
 		ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, h *fleet.Host, key, clientError string, decryptable *bool) (bool, error) {
 			return true, nil
@@ -2794,10 +2937,10 @@ func TestDirectIngestDiskEncryptionKeyDarwinSameKeyNewEnvelope(t *testing.T) {
 				ds := newDS(&fleet.HostDiskEncryptionKey{Base64Encrypted: storedBlob, Decryptable: new(true)})
 				incoming := encrypt("AAAA-BBBB")
 				var replaced string
-				ds.ReplaceHostDiskEncryptionKeyBlobFunc = func(ctx context.Context, hostID uint, currentBase64Encrypted, newBase64Encrypted string) error {
+				ds.ReplaceHostDiskEncryptionKeyBlobFunc = func(ctx context.Context, hostID uint, currentBase64Encrypted, newBase64Encrypted string) (bool, error) {
 					require.Equal(t, storedBlob, currentBase64Encrypted, "the swap is conditional on the compared blob")
 					replaced = newBase64Encrypted
-					return nil
+					return true, nil
 				}
 				h := newHost()
 				require.NoError(t, tc.ingest(ctx, logger, h, ds, tc.rows(incoming)))
@@ -5590,6 +5733,40 @@ func TestLinkWindowsHostMDMEnrollmentReleasesUnusedInstallSecret(t *testing.T) {
 	}
 }
 
+// An Autopilot device that enrolled as a host other than its pending one becomes identifiable when its enrollment is linked, which
+// is when its Autopilot record moves to that host.
+func TestLinkWindowsHostMDMEnrollmentMovesAutopilotRecord(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		ztdID    string
+		moveErr  error
+		wantMove bool
+	}{
+		{name: "an enrollment carrying an Autopilot device ID", ztdID: "ap-1", wantMove: true},
+		{name: "a move failure does not fail the link", ztdID: "ap-1", moveErr: errors.New("db unavailable"), wantMove: true},
+		{name: "an enrollment without an Autopilot device ID", ztdID: ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// A self-deploying enrollment has no UPN, which must not skip the move.
+			ds := newLinkWindowsHostMDMEnrollmentStore(&fleet.MDMWindowsEnrolledDevice{
+				ZTDRegistrationID: tc.ztdID, EntraDeviceID: "entra-1",
+			})
+			ds.MoveWindowsAutopilotRecordToHostFunc = func(ctx context.Context, hostID uint, autopilotDeviceID, entraDeviceID string) (bool, error) {
+				assert.EqualValues(t, 1, hostID)
+				assert.Equal(t, tc.ztdID, autopilotDeviceID)
+				assert.Equal(t, "entra-1", entraDeviceID)
+				return tc.moveErr == nil, tc.moveErr
+			}
+
+			_, err := LinkWindowsHostMDMEnrollment(t.Context(), slog.New(slog.DiscardHandler), ds, 1, "host-uuid", "device-1", false)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantMove, ds.MoveWindowsAutopilotRecordToHostFuncInvoked)
+		})
+	}
+}
+
 // osquery detail ingest runs on every refetch and derives installed_from_dep from the enrollment's OOBE flag. An
 // already-provisioned Autopilot device re-enrolls out of OOBE, so without an exception the next refetch would clear
 // the marker and demote the host to manual.
@@ -6004,4 +6181,269 @@ func TestMacOSHomebrewExecutableSHA256Query(t *testing.T) {
 		{"/usr/local/Cellar/jq", "1.7.1", "/usr/local/Cellar/jq/1.7.1/bin/jq-deferred", "", "deferred"},
 		{"/opt/homebrew/Cellar/node_exporter", "1.2", "/opt/homebrew/Cellar/node_exporter/1.2/bin/node_exporter", "ffff", "hashed"},
 	}, got)
+}
+
+// TestSoftwareAIToolsQuery runs the software_ai_tools query against sqlite, which osquery embeds,
+// to check which ai_tools rows it keeps and how it maps them onto software sources.
+func TestSoftwareAIToolsQuery(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+	_, err = db.Exec(`CREATE TABLE ai_tools (type TEXT, name TEXT, version TEXT, path TEXT, evidence TEXT, source TEXT, category TEXT)`)
+	require.NoError(t, err)
+	_, err = db.Exec(`INSERT INTO ai_tools VALUES
+		('agents', 'claude-code', '2.0.14', '/Users/a/.local/bin/claude', 'catalog,running', 'native', 'coding-assistant'),
+		('agents', 'claude-code', '', '/opt/homebrew/bin/claude', 'binary,catalog,tool_home', 'homebrew', 'coding-assistant'),
+		('agents', 'my-project', '', '/Users/a/src/my-project', 'framework:crewai', 'evidence', 'agent-runtime'),
+		('mcp_server', 'github', '', '/Users/a/.cursor/mcp.json', '', 'cursor', ''),
+		('mcp_server', 'node server.js', '', '', '', 'process', ''),
+		('agent_instruction', 'CLAUDE.md', '', '/Users/a/src/x/CLAUDE.md', '', 'claude', 'skill'),
+		('skill', 'pdf', '1.0', '/Users/a/.claude/skills/pdf/SKILL.md', '', 'claude', 'skill'),
+		('apps', 'Claude', '1.2.4', '/Applications/Claude.app', '', 'apps', ''),
+		('ide_plugins', 'GitHub Copilot', '1.0.0', '/Users/a/.vscode/extensions/github.copilot-1.0.0', '', 'vscode', ''),
+		('browser_extension', 'ChatGPT', '1.0', '/Users/a/Library/x/manifest.json', '', 'chrome', ''),
+		('sockets', 'api.openai.com', '', '', '', 'egress', ''),
+		('some_future_type', 'x', '1.0', '/Users/a/x', '', 'x', '')`)
+	require.NoError(t, err)
+
+	rows, err := db.Query(softwareAITools.Query)
+	require.NoError(t, err)
+	defer rows.Close()
+	cols, err := rows.Columns()
+	require.NoError(t, err)
+	// directIngestSoftware and AIToolsProcessResults read rows by these keys, so a renamed alias
+	// would ingest empty fields instead of failing.
+	require.Equal(t, []string{
+		"name", "version", "bundle_identifier", "extension_id", "extension_for", "source", "vendor",
+		"last_opened_at", "installed_path", "ai_type", "ai_install_method",
+	}, cols)
+
+	type aiRow struct{ name, version, source, path, aiType string }
+	var got []aiRow
+	for rows.Next() {
+		var r aiRow
+		var bundleID, extensionID, extensionFor, vendor, lastOpenedAt, installMethod string
+		require.NoError(t, rows.Scan(&r.name, &r.version, &bundleID, &extensionID, &extensionFor, &r.source, &vendor, &lastOpenedAt, &r.path, &r.aiType, &installMethod))
+		// A value in either column puts the title on a key a real app can own, and the title
+		// insert silently drops it.
+		require.Empty(t, bundleID)
+		require.Empty(t, extensionFor)
+		got = append(got, r)
+	}
+	require.NoError(t, rows.Err())
+	require.Equal(t, []aiRow{
+		{"claude-code", "2.0.14", "ai_clis", "/Users/a/.local/bin/claude", "agents"},
+		{"claude-code", "", "ai_clis", "/opt/homebrew/bin/claude", "agents"},
+		{"github", "", "mcp_servers", "/Users/a/.cursor/mcp.json", "mcp_server"},
+		{"CLAUDE.md", "", "ai_skills", "/Users/a/src/x/CLAUDE.md", "agent_instruction"},
+		{"pdf", "1.0", "ai_skills", "/Users/a/.claude/skills/pdf/SKILL.md", "skill"},
+		{"Claude", "1.2.4", "ai_tools", "/Applications/Claude.app", "apps"},
+		{"GitHub Copilot", "1.0.0", "ai_tools", "/Users/a/.vscode/extensions/github.copilot-1.0.0", "ide_plugins"},
+		{"ChatGPT", "1.0", "ai_tools", "/Users/a/Library/x/manifest.json", "browser_extension"},
+	}, got)
+}
+
+func TestAIToolsProcessResults(t *testing.T) {
+	sw := func(name, source, path string) map[string]string {
+		return map[string]string{"name": name, "version": "1.0", "source": source, "installed_path": path}
+	}
+	brew := func(name, version, path string) map[string]string {
+		return map[string]string{"name": name, "version": version, "source": "homebrew_packages", "installed_path": path}
+	}
+	ai := func(aiType, name, path string) map[string]string {
+		source := "ai_tools"
+		switch aiType {
+		case "agents":
+			source = "ai_clis"
+		case "mcp_server":
+			source = "mcp_servers"
+		case "agent_instruction":
+			source = "ai_skills"
+		}
+		return map[string]string{"name": name, "version": "", "source": source, "installed_path": path, "ai_type": aiType}
+	}
+	type result struct{ name, source, path, aiTool string }
+	summarize := func(rows []map[string]string) []result {
+		out := make([]result, 0, len(rows))
+		for _, r := range rows {
+			out = append(out, result{r["name"], r["source"], r["installed_path"], r["ai_tool"]})
+		}
+		return out
+	}
+
+	for _, tc := range []struct {
+		name     string
+		platform string
+		main     []map[string]string
+		ai       []map[string]string
+		want     []result
+	}{
+		{
+			name:     "app marker flags the app at the same path and is not stored",
+			platform: "darwin",
+			main:     []map[string]string{sw("Claude", "apps", "/Applications/Claude.app"), sw("Safari", "apps", "/Applications/Safari.app")},
+			ai:       []map[string]string{ai("apps", "Claude", "/Applications/Claude.app")},
+			want:     []result{{"Claude", "apps", "/Applications/Claude.app", "1"}, {"Safari", "apps", "/Applications/Safari.app", ""}},
+		},
+		{
+			name:     "browser extension manifest flags the extension directory",
+			platform: "darwin",
+			main: []map[string]string{
+				sw("ChatGPT", "chrome_extensions", "/Users/a/Library/Chrome/Default/Extensions/abc/1.0_0"),
+				sw("Claude", "chrome_extensions", "/Users/a/Library/Chrome/Profile 1/Extensions/def/2.0_0/"),
+			},
+			ai: []map[string]string{
+				ai("browser_extension", "ChatGPT", "/Users/a/Library/Chrome/Default/Extensions/abc/1.0_0/manifest.json"),
+				ai("browser_extension", "Claude", "/Users/a/Library/Chrome/Profile 1/Extensions/def/2.0_0/manifest.json"),
+			},
+			want: []result{
+				{"ChatGPT", "chrome_extensions", "/Users/a/Library/Chrome/Default/Extensions/abc/1.0_0", "1"},
+				{"Claude", "chrome_extensions", "/Users/a/Library/Chrome/Profile 1/Extensions/def/2.0_0/", "1"},
+			},
+		},
+		{
+			name:     "Windows browser extension manifest flags the extension directory",
+			platform: "windows",
+			main:     []map[string]string{sw("ChatGPT", "chrome_extensions", `C:\Users\a\AppData\Local\Google\Chrome\User Data\Default\Extensions\abc\1.0_0`)},
+			ai:       []map[string]string{ai("browser_extension", "ChatGPT", `C:\Users\A\AppData\Local\Google\Chrome\User Data\Default\Extensions\abc\1.0_0\Manifest.json`)},
+			want:     []result{{"ChatGPT", "chrome_extensions", `C:\Users\a\AppData\Local\Google\Chrome\User Data\Default\Extensions\abc\1.0_0`, "1"}},
+		},
+		{
+			name:     "Windows paths match case-insensitively",
+			platform: "windows",
+			main:     []map[string]string{sw("Foo", "programs", `c:\users\a\appdata\local\programs\foo\`)},
+			ai:       []map[string]string{ai("agents", "foo", `C:\Users\A\AppData\Local\Programs\Foo`)},
+			want:     []result{{"Foo", "programs", `c:\users\a\appdata\local\programs\foo\`, "1"}},
+		},
+		{
+			name:     "Windows network paths match case-insensitively",
+			platform: "windows",
+			main:     []map[string]string{sw("Foo", "programs", `\\fileserver\apps\foo\`)},
+			ai:       []map[string]string{ai("agents", "foo", `\\FileServer\Apps\Foo`)},
+			want:     []result{{"Foo", "programs", `\\fileserver\apps\foo\`, "1"}},
+		},
+		{
+			name:     "macOS paths stay case-sensitive",
+			platform: "darwin",
+			main:     []map[string]string{sw("Foo", "apps", "/Applications/foo.app")},
+			ai:       []map[string]string{ai("agents", "foo", "/Applications/Foo.app")},
+			want:     []result{{"Foo", "apps", "/Applications/foo.app", ""}, {"foo", "ai_clis", "/Applications/Foo.app", "1"}},
+		},
+		{
+			name:     "agent matching the npm package at the same path flags it and is not stored",
+			platform: "darwin",
+			// npm_packages reports the package's package.json; fleetd reports its directory.
+			main: []map[string]string{sw("@openai/codex", "npm_packages", "/usr/local/lib/node_modules/@openai/codex/package.json")},
+			ai:   []map[string]string{ai("agents", "codex", "/usr/local/lib/node_modules/@openai/codex")},
+			want: []result{{"@openai/codex", "npm_packages", "/usr/local/lib/node_modules/@openai/codex/package.json", "1"}},
+		},
+		{
+			// The slug differs from the formula name, so only the path can match.
+			name:     "agent inside an installed Homebrew version flags that version and is not stored",
+			platform: "darwin",
+			main: []map[string]string{
+				brew("block-goose-cli", "1.1.0", "/opt/homebrew/Cellar/block-goose-cli"),
+				brew("block-goose-cli", "1.2.0", "/opt/homebrew/Cellar/block-goose-cli"),
+			},
+			ai: []map[string]string{ai("agents", "goose", "/opt/homebrew/Cellar/block-goose-cli/1.2.0/bin/goose")},
+			want: []result{
+				{"block-goose-cli", "homebrew_packages", "/opt/homebrew/Cellar/block-goose-cli", ""},
+				{"block-goose-cli", "homebrew_packages", "/opt/homebrew/Cellar/block-goose-cli", "1"},
+			},
+		},
+		{
+			name:     "agent inside a Homebrew version the host doesn't report is stored",
+			platform: "darwin",
+			main:     []map[string]string{brew("block-goose-cli", "1.1.0", "/opt/homebrew/Cellar/block-goose-cli")},
+			ai:       []map[string]string{ai("agents", "goose", "/opt/homebrew/Cellar/block-goose-cli/1.2.0/bin/goose")},
+			want: []result{
+				{"block-goose-cli", "homebrew_packages", "/opt/homebrew/Cellar/block-goose-cli", ""},
+				{"goose", "ai_clis", "/opt/homebrew/Cellar/block-goose-cli/1.2.0/bin/goose", "1"},
+			},
+		},
+		{
+			// Until fleetd reports the resolved path, a symlinked CLI only matches by path.
+			name:     "agent linked from a Homebrew bin dir is stored",
+			platform: "darwin",
+			main: []map[string]string{
+				brew("claude-code", "2.0.14", "/opt/homebrew/Caskroom/claude-code"),
+				brew("jq", "1.7.1", "/usr/local/Cellar/jq"),
+			},
+			ai: []map[string]string{
+				ai("agents", "claude-code", "/opt/homebrew/bin/claude"),
+				ai("agents", "goose", "/usr/local/bin/goose"),
+			},
+			want: []result{
+				{"claude-code", "homebrew_packages", "/opt/homebrew/Caskroom/claude-code", ""},
+				{"jq", "homebrew_packages", "/usr/local/Cellar/jq", ""},
+				{"claude-code", "ai_clis", "/opt/homebrew/bin/claude", "1"},
+				{"goose", "ai_clis", "/usr/local/bin/goose", "1"},
+			},
+		},
+		{
+			name:     "agent named like an unrelated Homebrew package is stored",
+			platform: "darwin",
+			main:     []map[string]string{brew("goose", "3.24.0", "/opt/homebrew/Cellar/goose")},
+			ai:       []map[string]string{ai("agents", "goose", "/Users/a/.local/bin/goose")},
+			want: []result{
+				{"goose", "homebrew_packages", "/opt/homebrew/Cellar/goose", ""},
+				{"goose", "ai_clis", "/Users/a/.local/bin/goose", "1"},
+			},
+		},
+		{
+			name:     "unmatched native agent is stored",
+			platform: "darwin",
+			ai:       []map[string]string{ai("agents", "claude-code", "/Users/a/.local/bin/claude")},
+			want:     []result{{"claude-code", "ai_clis", "/Users/a/.local/bin/claude", "1"}},
+		},
+		{
+			name:     "MCP servers and instruction files are stored",
+			platform: "darwin",
+			ai: []map[string]string{
+				ai("mcp_server", "github", "/Users/a/.cursor/mcp.json"),
+				ai("mcp_server", "github", "/Users/a/Library/Application Support/Claude/claude_desktop_config.json"),
+				ai("agent_instruction", "CLAUDE.md", "/Users/a/src/x/CLAUDE.md"),
+			},
+			want: []result{
+				{"github", "mcp_servers", "/Users/a/.cursor/mcp.json", "1"},
+				{"github", "mcp_servers", "/Users/a/Library/Application Support/Claude/claude_desktop_config.json", "1"},
+				{"CLAUDE.md", "ai_skills", "/Users/a/src/x/CLAUDE.md", "1"},
+			},
+		},
+		{
+			name:     "unmatched marker rows are dropped",
+			platform: "darwin",
+			ai: []map[string]string{
+				ai("apps", "ChatGPT", "/Applications/ChatGPT.app"),
+				ai("ide_plugins", "GitHub Copilot Chat", "/Applications/Visual Studio Code.app/Contents/Resources/app/extensions/copilot"),
+				ai("browser_extension", "Claude", "/Users/a/Extensions/x/manifest.json"),
+			},
+			want: []result{},
+		},
+		{
+			name:     "no ai_tools rows leaves the software rows unchanged",
+			platform: "darwin",
+			main:     []map[string]string{sw("Claude", "apps", "/Applications/Claude.app")},
+			want:     []result{{"Claude", "apps", "/Applications/Claude.app", ""}},
+		},
+		{
+			name:     "null rows are skipped",
+			platform: "darwin",
+			main:     []map[string]string{sw("Claude", "apps", "/Applications/Claude.app"), nil},
+			ai:       []map[string]string{nil, ai("apps", "Claude", "/Applications/Claude.app")},
+			want:     []result{{"Claude", "apps", "/Applications/Claude.app", "1"}, {"", "", "", ""}},
+		},
+		{
+			name:     "main rows without a path are never flagged",
+			platform: "darwin",
+			main:     []map[string]string{sw("Foo", "apps", ""), sw("Bar", "deb_packages", "")},
+			ai:       []map[string]string{ai("apps", "Foo", "")},
+			want:     []result{{"Foo", "apps", "", ""}, {"Bar", "deb_packages", "", ""}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := AIToolsProcessResults(tc.platform, tc.main, tc.ai)
+			require.Equal(t, tc.want, summarize(got))
+		})
+	}
 }

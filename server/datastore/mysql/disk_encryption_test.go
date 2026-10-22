@@ -37,6 +37,7 @@ func TestDiskEncryption(t *testing.T) {
 		{"TestDiskEncryptionKeyRotation", testDiskEncryptionKeyRotation},
 		{"TestIsAppleMDMCommandPending", testIsAppleMDMCommandPending},
 		{"TestDiskEncryptionKeyRotationInProgress", testDiskEncryptionKeyRotationInProgress},
+		{"TestWSTEPEncryptedDiskEncryptionKeys", testWSTEPEncryptedDiskEncryptionKeys},
 	}
 
 	for _, c := range cases {
@@ -588,14 +589,18 @@ func testDiskEncryptionKeyRotation(t *testing.T, ds *Datastore) {
 	require.Equal(t, new(false), key.Decryptable)
 
 	archived := archiveRows(t)
-	require.NoError(t, ds.ReplaceHostDiskEncryptionKeyBlob(ctx, host.ID, "blob-1", "blob-2"))
+	replaced, err := ds.ReplaceHostDiskEncryptionKeyBlob(ctx, host.ID, "blob-1", "blob-2")
+	require.NoError(t, err)
+	require.True(t, replaced)
 	key = requireUnchanged(t)
 	require.Equal(t, "blob-2", key.Base64Encrypted)
 	require.Equal(t, new(false), key.Decryptable)
 	require.Equal(t, archived, archiveRows(t))
 
 	// the stored key changed since it was compared, so the swap doesn't apply
-	require.NoError(t, ds.ReplaceHostDiskEncryptionKeyBlob(ctx, host.ID, "blob-1", "blob-3"))
+	replaced, err = ds.ReplaceHostDiskEncryptionKeyBlob(ctx, host.ID, "blob-1", "blob-3")
+	require.NoError(t, err)
+	require.False(t, replaced)
 	require.Equal(t, "blob-2", requireUnchanged(t).Base64Encrypted)
 
 	requestedAt := func(t *testing.T) *time.Time {
@@ -721,4 +726,137 @@ func testDiskEncryptionKeyRotationInProgress(t *testing.T, ds *Datastore) {
 	require.NoError(t, commander.EnqueueCommand(ctx, []string{host.UUID}, createRawAppleCmd(fleet.RotateFileVaultKeyCmdName, cmdUUID)))
 	backdate(t)
 	require.True(t, inProgress(t, cmdUUID))
+}
+
+func testWSTEPEncryptedDiskEncryptionKeys(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	newHost := func(name string) *fleet.Host {
+		return test.NewHost(t, ds, name+".local", "1.1.1.1", name+"-osquery", name+"-node", time.Now())
+	}
+	legacy := newHost("legacy")
+	errorOnly := newHost("error")
+	current := newHost("current")
+
+	setKey := func(h *fleet.Host, key, clientError string, decryptable *bool) {
+		_, err := ds.SetOrUpdateHostDiskEncryptionKey(ctx, h, key, clientError, decryptable)
+		require.NoError(t, err)
+	}
+	setKey(legacy, "wstep-blob", "", new(true))
+	setKey(errorOnly, "", "bitlocker error", nil)
+	setKey(current, "aes-blob", "", new(true))
+
+	// Rows written by this release are never marked; the migration marks the legacy ones.
+	backdate := time.Now().Add(-time.Hour).UTC().Truncate(time.Second)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		if _, err := q.ExecContext(ctx, `UPDATE host_disk_encryption_keys SET wstep_encrypted = 1, updated_at = ? WHERE host_id IN (?, ?)`,
+			backdate, legacy.ID, errorOnly.ID); err != nil {
+			return err
+		}
+		_, err := q.ExecContext(ctx, `UPDATE host_disk_encryption_keys_archive SET wstep_encrypted = 1 WHERE host_id = ?`, legacy.ID)
+		return err
+	})
+	key, err := ds.GetHostDiskEncryptionKey(ctx, current.ID)
+	require.NoError(t, err)
+	require.False(t, key.WSTEPEncrypted)
+	key, err = ds.GetHostDiskEncryptionKey(ctx, legacy.ID)
+	require.NoError(t, err)
+	require.True(t, key.WSTEPEncrypted)
+	archived, err := ds.GetHostArchivedDiskEncryptionKey(ctx, legacy, false)
+	require.NoError(t, err)
+	require.True(t, archived.WSTEPEncrypted)
+	require.NotZero(t, archived.ID)
+
+	// Only marked rows holding a key are listed, in ID order, after the cursor.
+	keys, err := ds.ListWSTEPEncryptedDiskEncryptionKeys(ctx, 0, 10)
+	require.NoError(t, err)
+	require.Len(t, keys, 1)
+	require.Equal(t, legacy.ID, keys[0].HostID)
+	require.Equal(t, "wstep-blob", keys[0].Base64Encrypted)
+	require.True(t, keys[0].WSTEPEncrypted)
+	keys, err = ds.ListWSTEPEncryptedDiskEncryptionKeys(ctx, legacy.ID, 10)
+	require.NoError(t, err)
+	require.Empty(t, keys)
+	archivedKeys, err := ds.ListWSTEPEncryptedArchivedDiskEncryptionKeys(ctx, 0, 10)
+	require.NoError(t, err)
+	require.Len(t, archivedKeys, 1)
+	require.Equal(t, archived.ID, archivedKeys[0].ID)
+	archivedKeys, err = ds.ListWSTEPEncryptedArchivedDiskEncryptionKeys(ctx, archived.ID, 10)
+	require.NoError(t, err)
+	require.Empty(t, archivedKeys)
+
+	// Marking matches the stored blob, clears the marker, keeps updated_at, and takes the row out of the list.
+	require.NoError(t, ds.MarkWindowsDiskEncryptionKeysUndecryptable(ctx, nil))
+	require.NoError(t, ds.MarkWindowsDiskEncryptionKeysUndecryptable(ctx, []fleet.HostDiskEncryptionKey{
+		{HostID: legacy.ID, Base64Encrypted: "wstep-blob"},
+		{HostID: current.ID, Base64Encrypted: "stale-blob"},
+	}))
+	key, err = ds.GetHostDiskEncryptionKey(ctx, legacy.ID)
+	require.NoError(t, err)
+	require.Equal(t, new(false), key.Decryptable)
+	require.False(t, key.WSTEPEncrypted)
+	require.True(t, backdate.Equal(key.UpdatedAt), "updated_at moved to %s", key.UpdatedAt)
+	key, err = ds.GetHostDiskEncryptionKey(ctx, current.ID)
+	require.NoError(t, err)
+	require.Equal(t, new(true), key.Decryptable, "the stored blob changed since it was read")
+	keys, err = ds.ListWSTEPEncryptedDiskEncryptionKeys(ctx, 0, 10)
+	require.NoError(t, err)
+	require.Empty(t, keys)
+
+	// A re-escrow from the host replaces the key and clears the marker; an error report alone does not.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_disk_encryption_keys SET wstep_encrypted = 1 WHERE host_id = ?`, legacy.ID)
+		return err
+	})
+	setKey(legacy, "", "bitlocker error", nil)
+	key, err = ds.GetHostDiskEncryptionKey(ctx, legacy.ID)
+	require.NoError(t, err)
+	require.True(t, key.WSTEPEncrypted)
+	setKey(legacy, "aes-blob-2", "", new(true))
+	key, err = ds.GetHostDiskEncryptionKey(ctx, legacy.ID)
+	require.NoError(t, err)
+	require.False(t, key.WSTEPEncrypted)
+	require.Equal(t, new(true), key.Decryptable)
+	// The archived copy of the new key is not marked either.
+	archivedKeys, err = ds.ListWSTEPEncryptedArchivedDiskEncryptionKeys(ctx, 0, 10)
+	require.NoError(t, err)
+	require.Len(t, archivedKeys, 1)
+	require.Equal(t, "wstep-blob", archivedKeys[0].Base64Encrypted)
+
+	// Replacing the blob is a compare-and-swap that clears the marker and keeps updated_at and decryptable.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_disk_encryption_keys SET wstep_encrypted = 1, decryptable = 1, base64_encrypted = 'wstep-blob', updated_at = ? WHERE host_id = ?`,
+			backdate, legacy.ID)
+		return err
+	})
+	replaced, err := ds.ReplaceHostDiskEncryptionKeyBlob(ctx, legacy.ID, "stale-blob", "aes-blob-3")
+	require.NoError(t, err)
+	require.False(t, replaced, "the stored key changed since it was read")
+	replaced, err = ds.ReplaceHostDiskEncryptionKeyBlob(ctx, legacy.ID, "wstep-blob", "aes-blob-3")
+	require.NoError(t, err)
+	require.True(t, replaced)
+	key, err = ds.GetHostDiskEncryptionKey(ctx, legacy.ID)
+	require.NoError(t, err)
+	require.Equal(t, "aes-blob-3", key.Base64Encrypted)
+	require.False(t, key.WSTEPEncrypted)
+	require.Equal(t, new(true), key.Decryptable)
+	require.True(t, backdate.Equal(key.UpdatedAt), "updated_at moved to %s", key.UpdatedAt)
+
+	// The archive: a compare-and-swap too, and passing the stored blob back clears the marker alone, which is how an
+	// unreadable archived key leaves the list.
+	replaced, err = ds.ReplaceWSTEPEncryptedArchivedDiskEncryptionKey(ctx, archived.ID, "stale-blob", "aes-blob-4")
+	require.NoError(t, err)
+	require.False(t, replaced)
+	replaced, err = ds.ReplaceWSTEPEncryptedArchivedDiskEncryptionKey(ctx, archived.ID, "wstep-blob", "wstep-blob")
+	require.NoError(t, err)
+	require.True(t, replaced)
+	var archivedAfter fleet.HostArchivedDiskEncryptionKey
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &archivedAfter,
+			`SELECT base64_encrypted, wstep_encrypted FROM host_disk_encryption_keys_archive WHERE id = ?`, archived.ID)
+	})
+	require.Equal(t, "wstep-blob", archivedAfter.Base64Encrypted)
+	require.False(t, archivedAfter.WSTEPEncrypted)
+	archivedKeys, err = ds.ListWSTEPEncryptedArchivedDiskEncryptionKeys(ctx, 0, 10)
+	require.NoError(t, err)
+	require.Empty(t, archivedKeys)
 }

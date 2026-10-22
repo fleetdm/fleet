@@ -348,8 +348,31 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 		}
 
 		// update storage data in host_disks table for API consumption
-		// Check != 0 to allow -1 sentinel value for "not supported" to be stored
-		if host.Host.GigsTotalDiskSpace != 0 || host.Host.GigsDiskSpaceAvailable != 0 {
+		switch {
+		case host.Host.GigsDiskSpaceAvailable < 0:
+			// AMAPI omits storage measurements from enrollment payloads, from the status reports a
+			// re-enrolled device sends before it measures again, and from reports whose memory events
+			// have aged out. So -1 only replaces a row with no real measurement yet; a host that has
+			// measured keeps its last measurement (with its total, so the three values agree) until it
+			// reports a new one.
+			//
+			// Decided in one statement on the writer so a lagging replica can't make it drop a known
+			// value. The condition only reads columns that stay unchanged whenever it holds, so
+			// assignment order doesn't matter.
+			const keepMeasurement = `gigs_disk_space_available >= 0 AND gigs_total_disk_space > 0`
+			if _, err := tx.ExecContext(ctx, `
+				INSERT INTO host_disks (host_id, gigs_disk_space_available, percent_disk_space_available, gigs_total_disk_space, gigs_all_disk_space)
+				VALUES (?, ?, ?, ?, NULL)
+				ON DUPLICATE KEY UPDATE
+					percent_disk_space_available = IF(`+keepMeasurement+`, percent_disk_space_available, VALUES(percent_disk_space_available)),
+					gigs_disk_space_available = IF(`+keepMeasurement+`, gigs_disk_space_available, VALUES(gigs_disk_space_available)),
+					gigs_total_disk_space = IF(`+keepMeasurement+`, gigs_total_disk_space, VALUES(gigs_total_disk_space)),
+					gigs_all_disk_space = NULL`,
+				host.Host.ID, host.Host.GigsDiskSpaceAvailable, host.Host.PercentDiskSpaceAvailable, host.Host.GigsTotalDiskSpace,
+			); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating Android host disk space without a measurement")
+			}
+		case host.Host.GigsTotalDiskSpace != 0 || host.Host.GigsDiskSpaceAvailable != 0:
 			err = ds.SetOrUpdateHostDisksSpace(ctx, host.Host.ID,
 				host.Host.GigsDiskSpaceAvailable,
 				host.Host.PercentDiskSpaceAvailable,
@@ -372,11 +395,11 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 //
 // Note that it deliberately does not clear the host's vitals (host_disks,
 // host_operating_system) the way appleHostRefsForMDMReset does. The enrollment
-// overwrites both unconditionally, so deleting them buys nothing, and it is unsafe
-// with a read replica: SetOrUpdateHostDisksSpace and UpdateHostOperatingSystem both
-// read the current row from the replica and skip the write when the values are
-// unchanged, so a lagging replica makes the enrollment skip a write that the delete
-// was counting on and leaves the host with no vitals row at all.
+// overwrites both (keeping a disk measurement it doesn't carry), so deleting them
+// buys nothing, and it is unsafe with a read replica: SetOrUpdateHostDisksSpace and
+// UpdateHostOperatingSystem both read the current row from the replica and skip the
+// write when the values are unchanged, so a lagging replica makes the enrollment skip
+// a write that the delete was counting on and leaves the host with no vitals row at all.
 //
 // Pending installs are failed rather than deleted, so it returns the users and
 // activities the caller must emit, the same contract as
@@ -1530,16 +1553,17 @@ func (ds *Datastore) UpdateMDMAndroidCommandStatus(ctx context.Context, commandU
 	return nil
 }
 
-// ListPendingMDMAndroidCommands returns pending commands created before createdBefore, oldest first, capped at limit
-// rows. The reconciler cron uses the age cutoff to skip commands that Pub/Sub is still likely to deliver, and the limit
-// to bound how many AMAPI calls a single run makes.
-func (ds *Datastore) ListPendingMDMAndroidCommands(ctx context.Context, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error) {
+// ListPendingMDMAndroidCommands returns pending commands whose operation_name starts with operationNamePrefix and that
+// were created before createdBefore, oldest first, capped at limit rows. The reconciler cron uses the prefix to poll
+// only commands of the current enterprise, the age cutoff to skip commands that Pub/Sub is still likely to deliver, and
+// the limit to bound how many AMAPI calls a single run makes.
+func (ds *Datastore) ListPendingMDMAndroidCommands(ctx context.Context, operationNamePrefix string, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error) {
 	const stmt = `
 		SELECT
 			command_uuid, host_uuid, operation_name, command_type, status,
 			error_code, error_message, created_at, updated_at
 		FROM mdm_android_commands
-		WHERE status = ? AND created_at < ?
+		WHERE status = ? AND created_at < ? AND LEFT(operation_name, CHAR_LENGTH(?)) = ?
 		-- command_uuid breaks ties so rows with identical created_at keep a stable order between runs,
 		-- otherwise a full batch could return the same subset every time and starve the rest.
 		ORDER BY created_at, command_uuid
@@ -1548,11 +1572,37 @@ func (ds *Datastore) ListPendingMDMAndroidCommands(ctx context.Context, createdB
 	var cmds []*android.MDMAndroidCommand
 	if err := sqlx.SelectContext(
 		ctx, ds.reader(ctx), &cmds, stmt,
-		string(android.MDMAndroidCommandStatusPending), createdBefore, limit,
+		string(android.MDMAndroidCommandStatusPending), createdBefore, operationNamePrefix, operationNamePrefix, limit,
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing pending mdm android commands")
 	}
 	return cmds, nil
+}
+
+// FailPendingMDMAndroidCommandsOutsidePrefix marks as error, with errorMessage, up to limit pending commands whose
+// operation_name does not start with operationNamePrefix and that were created before createdBefore, oldest first. It
+// returns how many rows it updated.
+func (ds *Datastore) FailPendingMDMAndroidCommandsOutsidePrefix(ctx context.Context, operationNamePrefix string, createdBefore time.Time, errorMessage string, limit int) (int64, error) {
+	errorMessage = truncateRunes(errorMessage, mdmAndroidCommandErrorMessageMaxRunes)
+	const stmt = `
+		UPDATE mdm_android_commands
+		SET status = ?, error_code = NULL, error_message = ?
+		WHERE status = ? AND created_at < ? AND LEFT(operation_name, CHAR_LENGTH(?)) <> ?
+		ORDER BY created_at, command_uuid
+		LIMIT ?
+	`
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt,
+		string(android.MDMAndroidCommandStatusError), errorMessage,
+		string(android.MDMAndroidCommandStatusPending), createdBefore, operationNamePrefix, operationNamePrefix, limit,
+	)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "failing pending mdm android commands outside prefix")
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "rows affected failing pending mdm android commands outside prefix")
+	}
+	return n, nil
 }
 
 // androidApplicableProfilesQuery computes, per host, the set of applicable profiles based on team and label scoping. Label

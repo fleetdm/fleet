@@ -33,6 +33,9 @@ describe("AddAssetModal", () => {
       )
     ).toBeInTheDocument();
     expect(screen.getByText("Upload asset")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Assets are reusable data or credentials/i)
+    ).toBeInTheDocument();
 
     expect(screen.getByRole("button", { name: "Add asset" })).toBeDisabled();
   });

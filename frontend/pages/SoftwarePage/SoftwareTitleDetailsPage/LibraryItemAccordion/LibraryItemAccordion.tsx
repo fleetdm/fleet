@@ -38,8 +38,8 @@ export interface ILibraryItemAccordionProps {
   /** Software title display name (or package filename for custom packages). */
   filename: string;
   version?: string | null;
-  /** ISO timestamp. Rendered as "Added X ago". */
-  addedAt: string;
+  /** ISO timestamp. Rendered as "Added X ago". Omit to hide it. */
+  addedAt?: string;
 
   /** Drives the file/store icon and the version-row treatment.
    * - "package" (default): file-pkg graphic, plain version text
@@ -491,7 +491,12 @@ const LibraryItemAccordion = ({
 
   const getStatusCountTooltip = () => {
     if (isAndroidApp) {
-      return <>Latest status from the Google Play Store</>;
+      return (
+        <>
+          Latest status from setup experience. Doesn&apos;t include apps
+          installed via self service.
+        </>
+      );
     }
 
     if (isTarballPackage) {
