@@ -87,12 +87,20 @@ func TestIngestValidations(t *testing.T) {
 				Version: "1.0",
 			}
 
-		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "lm-studio", "swiftdialog", "teleport-suite", "r-app", "qgis", "qgis@ltr", "kicad", "chatgpt", "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
+		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "swiftdialog", "teleport-suite", "r-app", "qgis", "qgis@ltr", "kicad", "chatgpt", "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
 			cask = brewCask{
 				Token:   appToken,
 				Name:    []string{appToken},
 				URL:     "https://example.com",
 				Version: "1.0",
+			}
+
+		case "lm-studio":
+			cask = brewCask{
+				Token:   appToken,
+				Name:    []string{appToken},
+				URL:     "https://example.com",
+				Version: "0.4.26,4",
 			}
 
 		case "firefox@developer-edition":
@@ -256,12 +264,13 @@ func TestIngestValidations(t *testing.T) {
 					out.Queries.Patched,
 				)
 			case "lm-studio":
-				// LM Studio's CFBundleShortVersionString carries a "+<build>" suffix
-				// ("0.4.26+4"), which version_compare sorts above any plain version, so
-				// the patched query strips the suffix before comparing.
+				// LM Studio's bundle versions look like "0.4.26+4" while the cask
+				// version is "0.4.26,4", so the manifest version uses the "+" form and
+				// the default patched query compares against it.
+				require.Equal(t, "0.4.26+4", out.Version)
 				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'ai.elementlabs.lmstudio';", out.Queries.Exists)
 				require.Equal(t,
-					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ai.elementlabs.lmstudio' AND version_compare(COALESCE(REGEX_MATCH(bundle_short_version, '^([0-9]+(?:\\.[0-9]+)*)', 1), ''), '1.0') < 0);",
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ai.elementlabs.lmstudio' AND version_compare(bundle_short_version, '0.4.26+4') < 0);",
 					out.Queries.Patched,
 				)
 			case "swiftdialog":

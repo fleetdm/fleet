@@ -151,6 +151,15 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 
 	out.Name = input.Name
 	out.Version = strings.Split(cask.Version, ",")[0]
+	if input.Token == "lm-studio" {
+		// LM Studio reports "<version>+<build>" ("0.4.26+4") as both
+		// CFBundleShortVersionString and CFBundleVersion, while the cask version is
+		// "0.4.26,4". Use the app's own form so the manifest version, the validator
+		// and the default patched query line up. osquery's version_compare sorts a
+		// "+build" version above any plain one, so the plain "0.4.26" would let
+		// outdated hosts pass the patch policy.
+		out.Version = strings.ReplaceAll(cask.Version, ",", "+")
+	}
 	out.InstallerURL = cask.URL
 	out.UniqueIdentifier = input.UniqueIdentifier
 	out.SHA256 = cask.SHA256
@@ -339,17 +348,6 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		// directly on the host).
 		out.Queries.Patched = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(REGEX_MATCH(bundle_short_version, 'R (?:R )?([0-9]+(?:\\.[0-9]+)+) GUI', 1), '%s') < 0);",
-			out.UniqueIdentifier, out.Version,
-		)
-	}
-	if input.Token == "lm-studio" {
-		// LM Studio's CFBundleShortVersionString carries a build suffix ("0.4.26+4")
-		// while the manifest version is "0.4.26". osquery's version_compare treats
-		// the "+4" form as newer than any plain version ("0.4.26+4" vs "0.4.27" is 1),
-		// so the default patch policy would pass outdated hosts. Strip the suffix
-		// before comparing. COALESCE keeps version_compare from erroring on NULL.
-		out.Queries.Patched = fmt.Sprintf(
-			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(COALESCE(REGEX_MATCH(bundle_short_version, '^([0-9]+(?:\\.[0-9]+)*)', 1), ''), '%s') < 0);",
 			out.UniqueIdentifier, out.Version,
 		)
 	}
