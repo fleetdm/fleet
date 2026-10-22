@@ -482,6 +482,9 @@ module.exports.custom = {
   // slackWebhookUrlForContactForm: '…',
   // slackWebhookUrlForNewlyCreatedOppts: '…',
 
+  // Job board (fleetdm.com/hire):
+  // slackWebhookUrlForJobBoard: '…',
+
   // GitHub bot:
   // githubAccessToken: '…',
   // githubBotWebhookSecret: '…',
@@ -543,5 +546,11 @@ module.exports.custom = {
   // Eventbrite API
   // eventbriteOrgId: '',
   // eventbriteApiToken: '',
+
+  // The kinds of roles that can be posted to, and sought on, fleetdm.com/hire.
+  jobBoardRoles: [
+    'IT Engineer / Client Platform Engineer',
+    'Security Engineer',
+  ],
 
 };

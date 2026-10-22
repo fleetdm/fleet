@@ -67,6 +67,9 @@ parasails.registerPage('login', {
       } else if(window.location.hash === '#tryfleet'){
         this.pageToRedirectToAfterFormSubmission = '/try-fleet';
         window.location.hash = '';
+      } else if(window.location.hash === '#hire'){
+        this.pageToRedirectToAfterFormSubmission = '/hire#looking';
+        window.location.hash = '';
       }
     }
 
