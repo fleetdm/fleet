@@ -208,7 +208,7 @@ module.exports = {
         // failure this exists to remove.  Asked about App Store app updates, a description-only index
         // offers com.apple.appstore ("configures macOS App Store restrictions") and nothing pointing at
         // com.apple.SoftwareUpdate, which is where AutomaticallyInstallAppUpdates is.  The index is ~35KB
-        // and identical on every request, so it wants to be a cached prompt prefix.
+        // and identical on every request, which is what lets it be cached.
         let payloadTypeIndex = _.map(_.reject(schemaFile.entries, (entry)=>{ return _.contains(ALWAYS_PROVIDED_ENTRY_NAMES, entry.name); }), (entry)=>{
           let about = _.compact([entry.title].concat(entry.platforms || [])).join('; ');
           return `${entry.name} (${about}): ${entry.description || ''} Keys: ${_.pluck(entry.keys, 'key').join(' ')}`;
@@ -244,11 +244,14 @@ Respond in JSON with this data shape:
 {
   "payloadTypes": ["TODO"]
 }`,
+          systemPromptCacheTtl: '1h',
           prompt: `Here are the instructions from an IT admin:
 \`\`\`
 ${naturalLanguageInstructions}
 \`\`\``,
-          baseModel: 'claude-haiku-4-5',
+          baseModel: 'claude-haiku-5-5',
+          effort: 'low',
+          disableThinking: true,
           expectJson: true,
         })
         .tolerate((err)=>{
@@ -484,9 +487,6 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
 
       'csp': {
         description: 'CSP XML profile that enforces OS settings on Windows devices',
-        // How the triage prompt describes a setting the references below actually cover.  Kept
-        // next to those references so the two cannot drift apart.
-        firstPartySettingDescription: 'a node in a Microsoft-published CSP',
         references: [
           'Windows CSP nodes, formats, and allowed values: https://learn.microsoft.com/en-us/windows/client-management/mdm/',
         ],
@@ -510,6 +510,7 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
           'Only use an Add or Replace verb on a node whose AccessType permits it.  Roughly 500 leaf nodes accept only Get, and a Replace against one is accepted, deploys, and then fails on the device.',
           'Include the nodes the requested setting depends on.  DeviceLock/MinDevicePasswordLength has no effect unless DeviceLock/DevicePasswordEnabled is also set.',
           'Beyond the nodes the request names and the nodes those depend on, a node\'s presence in the provided list is not a reason to set it.  A WiFi profile never needs ProfileSource, for one: it defaults to Enterprise.',
+          'When one node already does everything the request asks, set that node alone.  Do not add narrower nodes that each cover part of what it already covers: they change nothing, and each one is another setting for a different profile to conflict with.',
           'Record the minimum OS build and the Windows editions each node applies to in "caveats".  A valid setting aimed at the wrong SKU is a silent no-op, not an error.',
           // Embedded values.
           'When a node\'s value is embedded XML -- WiFi/Profile/*/WlanXml, ADMXInstall, and similar -- wrap it in <![CDATA[ ... ]]> rather than escaping it as entities, and emit that value as a single line with no line breaks or indentation between its elements.  This applies only to the embedded value; the surrounding SyncML keeps its normal indentation.',
@@ -521,7 +522,6 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
 
       'mobileconfig': {
         description: 'XML .mobileconfig profile that enforces OS settings on macOS/iOS/ipadOS devices',
-        firstPartySettingDescription: 'a key in an Apple-published payload',
         providedSchema: appleSchema,
         providedSchemaDescription: appleSchemaDescription,
         references: [
@@ -563,7 +563,6 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
 
       'ddm': {
         description: 'Apple DDM declaration in JSON format that enforces OS settings on macOS devices',
-        firstPartySettingDescription: 'a key in an Apple-published declaration type',
         providedSchema: appleSchema,
         providedSchemaDescription: `Provided context: every declaration Apple publishes, and every key each one accepts, taken from Apple's
 own declaration definitions.  Format is a declaration type followed by its keys, where \`*\` marks a required key,
@@ -598,7 +597,6 @@ This is the complete set.  A declaration type or key that does not appear here d
 
       'android': {
         description: 'Android Management API Policy in JSON format that enforces OS settings on Android devices',
-        firstPartySettingDescription: 'a field in the Google-published Android Management API Policy',
         providedSchema: androidSchema,
         // A Policy is a flat object of arbitrary keys, unlike a DDM declaration's Type/Identifier/Payload, so the
         // model readily returns the Policy itself as its whole response instead of inside "configurationProfile".
@@ -713,34 +711,43 @@ a field that does not appear here does not exist.`,
       // Storage, not ADMX_RemovableStorage; the sign-in banner is in LocalPoliciesSecurityOptions, not any
       // of the four areas with "Logon" in the name), so an area-name index asks the model to recall the
       // taxonomy -- which is the failure this whole reference exists to remove.  Given node names it can
-      // find the setting and read off the area instead.  The index is ~140KB and identical on every request,
-      // so it wants to be a cached prompt prefix.
+      // find the setting and read off the area instead.  Windows' own groups render to ~140KB, identical on
+      // every request, which is what lets them be cached.
       //
       // A standalone CSP's interior nodes are left out, since the leaves under them already spell out the
       // path.  Names are deduplicated because a CSP published in both scopes (WiFi) would otherwise list
       // each one twice.
       //
       // A third-party template's group says which app it belongs to, since its area name is built from the
-      // template's own category names (Cat_GoogleUpdate~Cat_Applications) and does not always say.
+      // template's own category names (Cat_GoogleUpdate~Cat_Applications) and does not always say.  Those
+      // groups depend on which apps the request names, so they go after the cached part of the prompt.
 
       // Build the lookup's index: one line per group, naming the group and every node in it.
-      let nodeNameIndex = _.map(nodesByArea, (nodesInThisArea, areaName)=>{
+      let windowsGroupIndexLines = [];
+      let thirdPartyTemplateGroupIndexLines = [];
+      _.each(nodesByArea, (nodesInThisArea, areaName)=>{
         let leafNodes = _.filter(nodesInThisArea, (node)=>{ return node.csp === 'Policy' || node.format !== 'node'; });
         // Find the template this group's policies come from, if any, so the group can be labelled with its app.
         let admxTemplate = admxTemplatesById[_.first(nodesInThisArea).admxTemplate];
-        return `${areaName}${admxTemplate ? ` (${admxTemplate.displayName} template)` : ''}: ${_.uniq(_.pluck(leafNodes, 'name')).sort().join(' ')}`;
-      }).join('\n');
+        let indexLine = `${areaName}${admxTemplate ? ` (${admxTemplate.displayName} template)` : ''}: ${_.uniq(_.pluck(leafNodes, 'name')).sort().join(' ')}`;
+        if(admxTemplate) {
+          thirdPartyTemplateGroupIndexLines.push(indexLine);
+        } else {
+          windowsGroupIndexLines.push(indexLine);
+        }
+      });
 
-      let thirdPartyTemplateGuidance = '';
-      // Only explain third-party template groups to the lookup when the request names one of their apps.
-      if(admxTemplateIdsTheRequestNames.length > 0) {
-        thirdPartyTemplateGuidance = `
-Groups marked "(<App> template)" hold a third-party application's own policies, from the ADMX template
-that application publishes, rather than anything in Windows.  When the request is about that application's
-behavior, name its groups rather than a Windows area that sounds similar.  Groups with _recommended in
-their name set a default the user can change; name them only when the request asks for a default or a
-recommendation rather than an enforced setting.
-`;
+      let thirdPartyTemplateGroups;
+      if(thirdPartyTemplateGroupIndexLines.length > 0) {
+        thirdPartyTemplateGroups =
+`Below are more groups, for the third-party applications this request names, in the same format as the
+groups above.  Groups marked "(<App> template)" hold a third-party application's own policies, from the ADMX
+template that application publishes, rather than anything in Windows.  When the request is about that
+application's behavior, name its groups rather than a Windows area that sounds similar.  Groups with
+_recommended in their name set a default the user can change; name them only when the request asks for a
+default or a recommendation rather than an enforced setting.
+
+${thirdPartyTemplateGroupIndexLines.join('\n')}`;
       }
 
       // The small model on purpose: this is a lookup rather than a judgement.
@@ -772,20 +779,30 @@ The Policy CSP has adjacent-sounding areas -- Wifi holds AllowWiFi and AllowWiFi
 block a feature rather than configure it.  For a request to set something up, name the standalone CSP
 first; name the Policy area too only if the request also asks to allow or block the feature.
 
+Microsoft Defender's settings are split between the Policy CSP's Defender area and the Defender CSP, and
+many of the newer ones exist only in the Defender CSP.  For a request about Defender, name both.
+
+What the sign-in screen shows -- a message or title before sign-in, the last signed-in user's name -- is set
+by interactive logon security options, which are in LocalPoliciesSecurityOptions.
+
 Return an empty array, naming nothing, only when no group below could satisfy the request.  An empty
 array is a real answer here, not a failure.
-${thirdPartyTemplateGuidance}
-${nodeNameIndex}
+
+${windowsGroupIndexLines.join('\n')}
 
 Respond in JSON with this data shape:
 {
   "areas": ["TODO"]
 }`,
+        systemPromptCacheTtl: '1h',
+        uncachedSystemPromptSuffix: thirdPartyTemplateGroups,
         prompt: `Here are the instructions from an IT admin:
 \`\`\`
 ${naturalLanguageInstructions}
 \`\`\``,
-        baseModel: 'claude-haiku-4-5',
+        baseModel: 'claude-haiku-5-5',
+        effort: 'low',
+        disableThinking: true,
         expectJson: true,
       })
       .tolerate((err)=>{
@@ -997,6 +1014,13 @@ is a node the setting depends on, which belongs in the profile alongside it.  Th
 the node's declared DFFormat (\`node\` is an interior node that holds children, not a value): emit it
 verbatim and make <Data> legal for it, rather than reasoning about the value's type from its name.
 
+A node in an \`ADMX_\` area is always ADMX-backed, whatever its description says.  Any other Policy CSP node
+listed as \`chr\` with no values is either a text setting or an ADMX-backed policy, and it is ADMX-backed when
+its description says it turns something on or off -- it enables, disables, prevents, allows, or turns off a
+feature.  An ADMX-backed node's <Data> is <![CDATA[<enabled/>]]> to apply what the description says and
+<![CDATA[<disabled/>]]> to stop applying it, never 1 or 0.  Otherwise the node's <Data> is the text the
+request calls for.
+
 This is authoritative for the groups below and settles their node names, paths, formats and values.  It
 is not the whole CSP reference, and what is missing decides between two different answers.  If no node here
 enforces what was asked, return the "couldNotGenerateProfile" shape and name what you were looking for,
@@ -1132,7 +1156,12 @@ ${uuidsToUse}${hexEncodingsToUse}
     ${naturalLanguageInstructions}
     \`\`\``;
 
-    // promptConfig comes back because the action's triage call needs description and firstPartySettingDescription; suppliedPayloadUuids so a caller can check what the model was given.
+    // Only these profile types' system prompts never vary: DDM and Android always get their whole schema, and
+    // a .mobileconfig gets the whole schema whenever the lookup did not narrow it.  Every other system prompt
+    // carries the schema narrowed for this one request, so caching it would only pay for writes.
+    let systemPromptIsTheSameForEveryRequest = profileType === 'ddm' || profileType === 'android' || (profileType === 'mobileconfig' && applePayloadTypesProvided.length === 0);
+
+    // suppliedPayloadUuids so a caller can check what the model was given.
     // windowsCspAreasProvided so a caller can tell a profile that was written from the wrong areas from one
     // written from the right areas badly -- the two look identical in the generated profile, and the first
     // is a lookup problem while the second is a prompt problem.
@@ -1140,7 +1169,7 @@ ${uuidsToUse}${hexEncodingsToUse}
     // nothing, and the full schema went in.
     // admxTemplatesProvided is every third-party template whose policies the model was shown, which is a
     // superset of the ones the profile ends up using.
-    return { systemPrompt, userPrompt, promptConfig, suppliedPayloadUuids, windowsCspAreasProvided, applePayloadTypesProvided, admxTemplatesProvided };
+    return { systemPrompt, systemPromptIsTheSameForEveryRequest, userPrompt, suppliedPayloadUuids, windowsCspAreasProvided, applePayloadTypesProvided, admxTemplatesProvided };
 
   }
 

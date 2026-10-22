@@ -76,7 +76,7 @@ Several Parasails components are used across multiple pages:
 Landing pages typically include a "See Fleet in action" video button. The pattern requires:
 1. Page script: add `modal: ''` to `data`, plus `clickOpenVideoModal` and `closeModal` methods
 2. Template: add a `<modal purpose="video-modal">` with a YouTube iframe
-3. LESS: include responsive video modal styles (see `assets/styles/pages/landing-pages/linux-management.less` for reference)
+3. LESS: include responsive video modal styles (see `assets/styles/pages/linux-management.less` for reference)
 
 #### Testimonials
 Testimonials are defined in `handbook/company/testimonials.yml` and compiled into `sails.config.builtStaticContent.testimonials`. Each has `quote`, `quoteAuthorName`, `quoteAuthorJobTitle`, `productCategories` (e.g., `Device management`, `Observability`, `Software management`), and optional media fields.

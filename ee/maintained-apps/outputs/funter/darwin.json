@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "7.1.2",
+      "version": "7.1.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.nektony.Funter-SIII';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nektony.Funter-SIII' AND version_compare(bundle_short_version, '7.1.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nektony.Funter-SIII' AND version_compare(bundle_short_version, '7.1.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.nektony.Funter-SIII' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.nektony.com/download/funter/Funter.dmg?build=377",
+      "installer_url": "https://download.nektony.com/download/funter/Funter.dmg?build=382",
       "install_script_ref": "44500dda",
       "uninstall_script_ref": "0088be9f",
-      "sha256": "8f160d43fb50191b4e1bc9fe74a6c979a1be14faff9b8c2ce564506e75e8844f",
+      "sha256": "c2e10d648b5edb02b221e2a69c259b0da01160324d50daeebc8789e8885e5ffb",
       "default_categories": [
         "Productivity"
       ]

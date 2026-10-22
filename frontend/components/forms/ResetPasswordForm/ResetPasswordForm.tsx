@@ -2,9 +2,11 @@ import React from "react";
 
 import Button from "components/buttons/Button";
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
-import validatePassword from "components/forms/validators/valid_password";
-import validateEquality from "components/forms/validators/validate_equality";
-import validatePresence from "components/forms/validators/validate_presence";
+import {
+  validatePassword,
+  isEqual,
+  isPresent,
+} from "components/forms/validators";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
 import { IResetPasswordForm } from "interfaces/user";
 
@@ -32,7 +34,7 @@ const validate = (formData: IFormData): IFormErrors => {
     new_password_confirmation: newPasswordConfirmation,
   } = formData;
 
-  if (!validatePresence(newPassword)) {
+  if (!isPresent(newPassword)) {
     errors.new_password = "Enter a new password";
   } else {
     const { error_code: errorCode, error } = validatePassword(newPassword);
@@ -41,12 +43,9 @@ const validate = (formData: IFormData): IFormErrors => {
     }
   }
 
-  if (!validatePresence(newPasswordConfirmation)) {
+  if (!isPresent(newPasswordConfirmation)) {
     errors.new_password_confirmation = "Confirm your new password";
-  } else if (
-    newPassword &&
-    !validateEquality(newPassword, newPasswordConfirmation)
-  ) {
+  } else if (newPassword && !isEqual(newPassword, newPasswordConfirmation)) {
     errors.new_password_confirmation = "Match the password above";
   }
 

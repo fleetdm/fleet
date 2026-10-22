@@ -446,10 +446,13 @@ const TEST_CASES = [
     id: 'csp-cis-admx-include-cmdline',
     profileType: 'csp',
     instructions: 'Record the full command line in process creation events.',
+    // IncludeCmdLine only applies while process creation auditing is on, so a profile may also set
+    // Audit/DetailedTracking_AuditProcessCreation, an int node; an int IncludeCmdLine still fails on the chr
+    // and <enabled/> checks.
     expect: {
       mustContain: ['Policy/Config/ADMX_AuditSettings/IncludeCmdLine', '<![CDATA[', '<enabled/>'],
       mustContainElement: [['Format', 'chr']],
-      mustNotContainElement: [['Format', 'int'], ['Format', 'bool'], ['Data', '1']],
+      mustNotContainElement: [['Format', 'bool']],
       mustNotContain: ['&lt;enabled/&gt;', '<data id='],
     }
   },
@@ -530,7 +533,9 @@ const TEST_CASES = [
   {
     id: 'csp-wifi-hex-ssid',
     profileType: 'csp',
-    instructions: 'Add a wifi profile for the network "CorpNet" using WPA2 Enterprise.',
+    // The EAP method is named because an enterprise network cannot be configured without one, and declining
+    // to guess it is right; what this case tests is the SSID's hex encoding.
+    instructions: 'Add a wifi profile for the network "CorpNet" using WPA2 Enterprise with PEAP.',
     readByEye: 'The embedded <WLANProfile> must be on ONE line inside the CDATA.',
     expect: {
       mustContain: ['WiFi/Profile/CorpNet/WlanXml', '<![CDATA[', '<SSID><hex>436F72704E6574</hex><name>CorpNet</name></SSID>'],
@@ -1361,7 +1366,9 @@ const TEST_CASES = [
   {
     id: 'ddm-rapid-security-response',
     profileType: 'ddm',
-    instructions: 'Automatically download updates, always install security updates, let users choose when to install OS updates, and turn on Rapid Security Responses.',
+    instructions: 'Automatically download updates, always install security updates, let users turn automatic installation of OS updates on or off themselves, and turn on Rapid Security Responses.',
+    // Worded so that only Allowed fits: "let users choose when to install OS updates" also reads as AlwaysOff, with
+    // automatic installation off so that users install when they choose.
     // The sub-key is "Enable", not "Enabled" -- the latter is an easy slip and is silently ignored.
     expect: {
       mustContain: [
@@ -1982,7 +1989,20 @@ function checkExpectations(expectations, generatedProfile) {
 }
 
 
+/**
+ * Whether a generation failed because of the API rather than the prompt -- a rate limit (429) or an API that is
+ * overloaded (529) or erroring (5xx) -- and so deserves a retry after a pause before it counts against a case.
+ *
+ * @param  {Ref} err
+ * @returns {Boolean}
+ */
+function isWorthRetryingAfterAPause(err) {
+  return !!err && (err.statusCode === 429 || err.statusCode >= 500);
+}
+
+
 module.exports = {
   TEST_CASES,
   checkExpectations,
+  isWorthRetryingAfterAPause,
 };

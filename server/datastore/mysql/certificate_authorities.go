@@ -3,16 +3,15 @@ package mysql
 import (
 	"cmp"
 	"context"
-	"crypto/x509"
 	"database/sql"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"slices"
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/crypto"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -152,24 +151,16 @@ func (ds *Datastore) postprocessRetrievedCertificateAuthority(ctx context.Contex
 // mtlsCertExpiry returns the expiry of the first certificate in the PEM, like the TLS client does, or nil, logged, if it can't be
 // parsed so reads don't break.
 func (ds *Datastore) mtlsCertExpiry(ctx context.Context, caID uint, certPEM string) *time.Time {
-	rest := []byte(certPEM)
-	for {
-		var block *pem.Block
-		block, rest = pem.Decode(rest)
-		if block == nil {
-			ds.logger.DebugContext(ctx, "certificate authority mTLS certificate has no PEM certificate", "certificate_authority_id", caID)
-			return nil
-		}
-		if block.Type != "CERTIFICATE" {
-			continue
-		}
-		cert, err := x509.ParseCertificate(block.Bytes)
-		if err != nil {
-			ds.logger.DebugContext(ctx, "parsing certificate authority mTLS certificate", "certificate_authority_id", caID, "err", err)
-			return nil
-		}
-		return &cert.NotAfter
+	cert, err := certificate.FirstCertificateFromPEM([]byte(certPEM))
+	if err != nil {
+		ds.logger.DebugContext(ctx, "parsing certificate authority mTLS certificate", "certificate_authority_id", caID, "err", err)
+		return nil
 	}
+	if cert == nil {
+		ds.logger.DebugContext(ctx, "certificate authority mTLS certificate has no PEM certificate", "certificate_authority_id", caID)
+		return nil
+	}
+	return &cert.NotAfter
 }
 
 func (ds *Datastore) GetAllCertificateAuthorities(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
@@ -217,7 +208,7 @@ func (ds *Datastore) GetAllCertificateAuthorities(ctx context.Context, includeSe
 func (ds *Datastore) ListCertificateAuthorities(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
 	stmt := `
 	SELECT
-		id, name, type
+		id, name, type, mtls_cert_pem
 	FROM
 		certificate_authorities
 	ORDER BY
@@ -227,6 +218,12 @@ func (ds *Datastore) ListCertificateAuthorities(ctx context.Context) ([]*fleet.C
 	var cas []*fleet.CertificateAuthoritySummary = []*fleet.CertificateAuthoritySummary{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &cas, stmt); err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "list CertificateAuthorities")
+	}
+	for _, ca := range cas {
+		if ca.MTLSCertPEM != nil {
+			ca.MTLSCertExpiresAt = ds.mtlsCertExpiry(ctx, ca.ID, *ca.MTLSCertPEM)
+			ca.MTLSCertPEM = nil
+		}
 	}
 
 	return cas, nil

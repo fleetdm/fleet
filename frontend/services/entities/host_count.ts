@@ -44,6 +44,7 @@ export interface IHostCountLoadOptions {
   softwareTitleId?: number;
   softwareVersionId?: number;
   softwareStatus?: string;
+  appStoreAppVersionId?: number;
   lowDiskSpaceHosts?: number;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
@@ -76,6 +77,7 @@ export default {
     const softwareTitleId = options?.softwareTitleId;
     const softwareVersionId = options?.softwareVersionId;
     const softwareStatus = options?.softwareStatus;
+    const appStoreAppVersionId = options?.appStoreAppVersionId;
     const macSettingsStatus = options?.macSettingsStatus;
     const status = options?.status;
     const mdmId = options?.mdmId;
@@ -117,6 +119,7 @@ export default {
         softwareId,
         softwareTitleId,
         softwareStatus,
+        appStoreAppVersionId,
         softwareVersionId,
         lowDiskSpaceHosts,
         osName,

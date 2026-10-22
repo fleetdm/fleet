@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.0.4-4926",
+      "version": "4.1.0-4994",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.timpler.screenstudio';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.timpler.screenstudio' AND version_compare(bundle_short_version, '4.0.4-4926') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.timpler.screenstudio' AND version_compare(bundle_short_version, '4.1.0-4994') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.timpler.screenstudio' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://screenstudioassets.com/releases/4.0.4-4926/Screen%20Studio-4.0.4-4926-arm64-mac.zip",
+      "installer_url": "https://screenstudioassets.com/releases/4.1.0-4994/Screen%20Studio-4.1.0-4994-arm64-mac.zip",
       "install_script_ref": "6cf0f23e",
       "uninstall_script_ref": "2d679c2a",
-      "sha256": "72be5a27d520a9ec9c1563db47020d8a8727b588829f7961db52db99e5831ff2",
+      "sha256": "1a243eea8f54e29f163e20ca2b081adf3c31ccf85c85eb5ee1ed957c0e908d21",
       "default_categories": [
         "Productivity"
       ]
