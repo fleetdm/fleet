@@ -161,6 +161,15 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 | Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_ [Terry Kwok](https://www.linkedin.com/in/terry-kwok) _([@terry-kwok-code](https://github.com/terry-kwok-code))_
 | Software Engineer                 | [Dante Catalfamo](https://www.linkedin.com/in/dante-catalfamo-a6330412b/) _([@dantecatalfamo](https://github.com/dantecatalfamo))_
 
+**Areas of expertise**:
+- Android MDM (Android Management API) & configuration
+- Android configuration profiles
+- Android device onboarding (zero-touch)
+- Android setup experience
+- Personal (BYOD) enrollment (work profile)
+- Android agent
+- Android OS updates
+
 > The [Slack channel](https://fleetdm.slack.com/archives/C0BK050C3BJ), [kanban board](https://github.com/orgs/fleetdm/projects/112), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-byod) for this product group is `#g-byod`.
 
 
