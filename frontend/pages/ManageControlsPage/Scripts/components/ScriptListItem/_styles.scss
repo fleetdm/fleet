@@ -21,9 +21,7 @@
     max-width: 100%;
     overflow: hidden;
 
-    // TooltipWrapper's __element sets cursor: default (#49859) to drop the
-    // I-beam on tooltipped prose; override here so hovering the name shows
-    // the row's pointer cursor like clicking the row background does.
+    // Override TooltipWrapper's cursor: default (I-beam suppression on prose).
     .component__tooltip-wrapper__element {
       cursor: pointer;
     }
