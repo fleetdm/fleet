@@ -1215,7 +1215,14 @@ func TestUpdateSoftwareInstallerMatchesSoftwareIdentity(t *testing.T) {
 			TeamID:  &state.teamID,
 			Patch:   new(true),
 		})
-		require.ErrorContains(t, err, "Fleet-maintained apps")
+		require.ErrorContains(t, err, `"patch", "patch_when_closed", "notify_before_patching", and "patch_deadline" are only available for Fleet-maintained apps.`)
+
+		_, err = state.svc.UpdateSoftwareInstaller(state.ctx, &fleet.UpdateSoftwareInstallerPayload{
+			TitleID:       titleID,
+			TeamID:        &state.teamID,
+			PatchDeadline: new(true),
+		})
+		require.ErrorContains(t, err, `"patch_deadline" are only available for Fleet-maintained apps.`)
 	})
 
 	t.Run("upgrade code allows a different title name", func(t *testing.T) {
@@ -3530,9 +3537,9 @@ func TestPlanPatchPolicy(t *testing.T) {
 	// patch_when_closed set without patch enabled is rejected, whether patch is omitted with no
 	// existing policy or explicitly disabled.
 	t.Run("rejects patch_when_closed without patch", func(t *testing.T) {
-		_, _, _, err := planPatchPolicy(payload(nil, new(true)), fmaInstaller, nil)
+		_, _, _, _, err := planPatchPolicy(payload(nil, new(true)), fmaInstaller, nil)
 		require.ErrorContains(t, err, `"patch" must be true`)
-		_, _, _, err = planPatchPolicy(payload(new(false), new(true)), fmaInstaller, nil)
+		_, _, _, _, err = planPatchPolicy(payload(new(false), new(true)), fmaInstaller, nil)
 		require.ErrorContains(t, err, `"patch" must be true`)
 	})
 
@@ -3540,7 +3547,7 @@ func TestPlanPatchPolicy(t *testing.T) {
 	t.Run("rejects pre-install edit while managed", func(t *testing.T) {
 		p := payload(nil, nil)
 		p.PreInstallQuery = new("SELECT changed;")
-		_, _, _, err := planPatchPolicy(p, fmaInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: true})
+		_, _, _, _, err := planPatchPolicy(p, fmaInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: true})
 		require.ErrorContains(t, err, "managed by Fleet")
 	})
 
@@ -3548,14 +3555,14 @@ func TestPlanPatchPolicy(t *testing.T) {
 	t.Run("allows pre-install edit on non-FMA package", func(t *testing.T) {
 		p := payload(nil, nil)
 		p.PreInstallQuery = new("SELECT changed;")
-		patchFlag, _, _, err := planPatchPolicy(p, nonFMAInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: true})
+		patchFlag, _, _, _, err := planPatchPolicy(p, nonFMAInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: true})
 		require.NoError(t, err)
 		assert.False(t, patchFlag)
 	})
 
 	// patch:true with no existing policy plans a create with patch_when_closed on.
 	t.Run("creates when no policy exists", func(t *testing.T) {
-		patchFlag, patchWhenClosedFlag, _, err := planPatchPolicy(payload(new(true), new(true)), fmaInstaller, nil)
+		patchFlag, patchWhenClosedFlag, _, _, err := planPatchPolicy(payload(new(true), new(true)), fmaInstaller, nil)
 		require.NoError(t, err)
 		assert.True(t, patchFlag)
 		assert.True(t, patchWhenClosedFlag)
@@ -3563,21 +3570,21 @@ func TestPlanPatchPolicy(t *testing.T) {
 
 	// patch:true with patch_when_closed omitted defaults a new policy to "only when closed".
 	t.Run("new policy defaults to patch_when_closed", func(t *testing.T) {
-		_, patchWhenClosedFlag, _, err := planPatchPolicy(payload(new(true), nil), fmaInstaller, nil)
+		_, patchWhenClosedFlag, _, _, err := planPatchPolicy(payload(new(true), nil), fmaInstaller, nil)
 		require.NoError(t, err)
 		assert.True(t, patchWhenClosedFlag)
 	})
 
 	// patch:false disables the existing patch policy.
 	t.Run("disables when patch off", func(t *testing.T) {
-		patchFlag, _, _, err := planPatchPolicy(payload(new(false), nil), fmaInstaller, &fleet.PatchPolicyData{ID: 9})
+		patchFlag, _, _, _, err := planPatchPolicy(payload(new(false), nil), fmaInstaller, &fleet.PatchPolicyData{ID: 9})
 		require.NoError(t, err)
 		assert.False(t, patchFlag)
 	})
 
 	// Toggling patch_when_closed on an existing policy keeps patch on and flips the value.
 	t.Run("updates patch_when_closed on existing policy", func(t *testing.T) {
-		patchFlag, patchWhenClosedFlag, _, err := planPatchPolicy(payload(nil, new(true)), fmaInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: false})
+		patchFlag, patchWhenClosedFlag, _, _, err := planPatchPolicy(payload(nil, new(true)), fmaInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: false})
 		require.NoError(t, err)
 		assert.True(t, patchFlag)
 		assert.True(t, patchWhenClosedFlag)
@@ -3587,7 +3594,7 @@ func TestPlanPatchPolicy(t *testing.T) {
 	t.Run("pre-install edit allowed when patch_when_closed is off", func(t *testing.T) {
 		p := payload(nil, nil)
 		p.PreInstallQuery = new("SELECT changed;")
-		_, patchWhenClosedFlag, _, err := planPatchPolicy(p, fmaInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: false})
+		_, patchWhenClosedFlag, _, _, err := planPatchPolicy(p, fmaInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: false})
 		require.NoError(t, err)
 		assert.False(t, patchWhenClosedFlag)
 	})
@@ -3597,7 +3604,7 @@ func TestPlanPatchPolicy(t *testing.T) {
 	t.Run("notify_before_patching displaces the patch_when_closed default", func(t *testing.T) {
 		p := payload(new(true), nil)
 		p.NotifyBeforePatching = new(true)
-		_, patchWhenClosedFlag, notifyFlag, err := planPatchPolicy(p, macFMAInstaller, nil)
+		_, patchWhenClosedFlag, notifyFlag, _, err := planPatchPolicy(p, macFMAInstaller, nil)
 		require.NoError(t, err)
 		assert.False(t, patchWhenClosedFlag)
 		assert.True(t, notifyFlag)
@@ -3608,7 +3615,7 @@ func TestPlanPatchPolicy(t *testing.T) {
 	t.Run("notify_before_patching displaces patch_when_closed on an existing policy", func(t *testing.T) {
 		p := payload(nil, nil)
 		p.NotifyBeforePatching = new(true)
-		patchFlag, patchWhenClosedFlag, notifyFlag, err := planPatchPolicy(p, macFMAInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: true})
+		patchFlag, patchWhenClosedFlag, notifyFlag, _, err := planPatchPolicy(p, macFMAInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: true})
 		require.NoError(t, err)
 		assert.True(t, patchFlag)
 		assert.False(t, patchWhenClosedFlag)
@@ -3619,10 +3626,10 @@ func TestPlanPatchPolicy(t *testing.T) {
 	t.Run("rejects notify_before_patching without patch", func(t *testing.T) {
 		p := payload(nil, nil)
 		p.NotifyBeforePatching = new(true)
-		_, _, _, err := planPatchPolicy(p, macFMAInstaller, nil)
+		_, _, _, _, err := planPatchPolicy(p, macFMAInstaller, nil)
 		require.ErrorContains(t, err, `"patch" must be true`)
 		p.NotifyBeforePatching = new(false)
-		_, _, _, err = planPatchPolicy(p, macFMAInstaller, nil)
+		_, _, _, _, err = planPatchPolicy(p, macFMAInstaller, nil)
 		require.ErrorContains(t, err, `"patch" must be true`)
 	})
 
@@ -3630,15 +3637,15 @@ func TestPlanPatchPolicy(t *testing.T) {
 	t.Run("rejects both patch options", func(t *testing.T) {
 		p := payload(new(true), new(true))
 		p.NotifyBeforePatching = new(true)
-		_, _, _, err := planPatchPolicy(p, macFMAInstaller, nil)
-		require.ErrorContains(t, err, `Only one of "patch_when_closed" or "notify_before_patching" can be set to true`)
+		_, _, _, _, err := planPatchPolicy(p, macFMAInstaller, nil)
+		require.ErrorContains(t, err, fleet.ErrPolicyPatchOptionsMutuallyExclusive.Error())
 	})
 
 	// Fleet Desktop has no notify command on Windows yet.
 	t.Run("rejects notify_before_patching on a windows app", func(t *testing.T) {
 		p := payload(new(true), nil)
 		p.NotifyBeforePatching = new(true)
-		_, _, _, err := planPatchPolicy(p, windowsFMAInstaller, nil)
+		_, _, _, _, err := planPatchPolicy(p, windowsFMAInstaller, nil)
 		require.ErrorContains(t, err, "only available for macOS Fleet-maintained apps")
 	})
 
@@ -3647,8 +3654,91 @@ func TestPlanPatchPolicy(t *testing.T) {
 	t.Run("rejects pre-install edit while notify_before_patching is on", func(t *testing.T) {
 		p := payload(nil, nil)
 		p.PreInstallQuery = new("SELECT changed;")
-		_, _, _, err := planPatchPolicy(p, macFMAInstaller, &fleet.PatchPolicyData{ID: 9, NotifyBeforePatching: true})
+		_, _, _, _, err := planPatchPolicy(p, macFMAInstaller, &fleet.PatchPolicyData{ID: 9, NotifyBeforePatching: true})
 		require.ErrorContains(t, err, "managed by Fleet")
+	})
+
+	t.Run("patch_deadline alone displaces the patch_when_closed default", func(t *testing.T) {
+		p := payload(new(true), nil)
+		p.PatchDeadline = new(true)
+		patchFlag, patchWhenClosedFlag, notifyFlag, deadlineFlag, err := planPatchPolicy(p, macFMAInstaller, nil)
+		require.NoError(t, err)
+		assert.True(t, patchFlag)
+		assert.False(t, patchWhenClosedFlag)
+		assert.False(t, notifyFlag)
+		assert.True(t, deadlineFlag)
+	})
+
+	t.Run("patch_deadline displaces patch_when_closed on an existing policy", func(t *testing.T) {
+		p := payload(nil, nil)
+		p.PatchDeadline = new(true)
+		_, patchWhenClosedFlag, _, deadlineFlag, err := planPatchPolicy(p, macFMAInstaller, &fleet.PatchPolicyData{ID: 9, PatchWhenClosed: true})
+		require.NoError(t, err)
+		assert.False(t, patchWhenClosedFlag)
+		assert.True(t, deadlineFlag)
+	})
+
+	t.Run("omitted patch_deadline keeps the existing value", func(t *testing.T) {
+		_, patchWhenClosedFlag, notifyFlag, deadlineFlag, err := planPatchPolicy(payload(nil, nil), macFMAInstaller, &fleet.PatchPolicyData{ID: 9, PatchDeadline: true})
+		require.NoError(t, err)
+		assert.False(t, patchWhenClosedFlag)
+		assert.False(t, notifyFlag)
+		assert.True(t, deadlineFlag)
+	})
+
+	t.Run("explicit patch_deadline false clears it", func(t *testing.T) {
+		p := payload(nil, new(true))
+		p.PatchDeadline = new(false)
+		_, patchWhenClosedFlag, _, deadlineFlag, err := planPatchPolicy(p, macFMAInstaller, &fleet.PatchPolicyData{ID: 9, PatchDeadline: true})
+		require.NoError(t, err)
+		assert.True(t, patchWhenClosedFlag)
+		assert.False(t, deadlineFlag)
+	})
+
+	t.Run("rejects patch_deadline with another option", func(t *testing.T) {
+		p := payload(new(true), new(true))
+		p.PatchDeadline = new(true)
+		_, _, _, _, err := planPatchPolicy(p, macFMAInstaller, nil)
+		require.ErrorContains(t, err, fleet.ErrPolicyPatchOptionsMutuallyExclusive.Error())
+
+		p = payload(new(true), nil)
+		p.NotifyBeforePatching = new(true)
+		p.PatchDeadline = new(true)
+		_, _, _, _, err = planPatchPolicy(p, macFMAInstaller, nil)
+		require.ErrorContains(t, err, fleet.ErrPolicyPatchOptionsMutuallyExclusive.Error())
+	})
+
+	t.Run("rejects patch_deadline without patch", func(t *testing.T) {
+		p := payload(nil, nil)
+		p.PatchDeadline = new(true)
+		_, _, _, _, err := planPatchPolicy(p, macFMAInstaller, nil)
+		require.ErrorContains(t, err, `If "patch_deadline" is set, "patch" must be true.`)
+		p.PatchDeadline = new(false)
+		_, _, _, _, err = planPatchPolicy(p, macFMAInstaller, nil)
+		require.ErrorContains(t, err, `If "patch_deadline" is set, "patch" must be true.`)
+	})
+
+	t.Run("rejects patch_deadline on a windows app", func(t *testing.T) {
+		p := payload(new(true), nil)
+		p.PatchDeadline = new(true)
+		_, _, _, _, err := planPatchPolicy(p, windowsFMAInstaller, nil)
+		require.ErrorContains(t, err, fleet.ErrPolicyPatchDeadlineRequiresMacOS.Error())
+	})
+
+	t.Run("rejects pre-install edit while patch_deadline is on", func(t *testing.T) {
+		p := payload(nil, nil)
+		p.PreInstallQuery = new("SELECT changed;")
+		_, _, _, _, err := planPatchPolicy(p, macFMAInstaller, &fleet.PatchPolicyData{ID: 9, PatchDeadline: true})
+		require.ErrorContains(t, err, `"pre_install_query" is managed by Fleet and can't be set directly while "patch_deadline" is enabled.`)
+	})
+
+	t.Run("patch_deadline on a non-FMA installer plans nothing", func(t *testing.T) {
+		p := payload(new(true), nil)
+		p.PatchDeadline = new(true)
+		patchFlag, _, _, deadlineFlag, err := planPatchPolicy(p, nonFMAInstaller, nil)
+		require.NoError(t, err)
+		assert.False(t, patchFlag)
+		assert.False(t, deadlineFlag)
 	})
 }
 

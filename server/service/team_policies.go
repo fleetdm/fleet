@@ -47,6 +47,7 @@ func teamPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		PatchSoftwareTitleID:         req.PatchSoftwareTitleID,
 		PatchWhenClosed:              req.PatchWhenClosed,
 		NotifyBeforePatching:         req.NotifyBeforePatching,
+		PatchDeadline:                req.PatchDeadline,
 		ProfileUUID:                  req.ProfileUUID,
 	})
 	if err != nil {
@@ -112,7 +113,7 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 	}
 
 	//nolint:nilaway // ds.NewTeamPolicy returns an error whenever policy is nil
-	if policy.Type == fleet.PolicyTypePatch && (policy.PatchWhenClosed || policy.NotifyBeforePatching) && policy.PatchSoftwareTitleID != nil {
+	if policy.Type == fleet.PolicyTypePatch && (policy.PatchWhenClosed || policy.NotifyBeforePatching || policy.PatchDeadline) && policy.PatchSoftwareTitleID != nil {
 		if err := svc.ds.ClearPreInstallQueryForTitle(ctx, teamID, *policy.PatchSoftwareTitleID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "clear pre-install query for title")
 		}
@@ -359,14 +360,20 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 	if p.NotifyBeforePatching && !p.ContinuousAutomationsEnabled {
 		return fleet.PolicyPayload{}, &fleet.BadRequestError{Message: errNotifyBeforePatchingRequiresContinuousAutomations}
 	}
+	if p.PatchDeadline && !p.ContinuousAutomationsEnabled {
+		return fleet.PolicyPayload{}, &fleet.BadRequestError{Message: errPatchDeadlineRequiresContinuousAutomations}
+	}
 
 	// The policy's platform is generated from the installer down in the datastore, so check the installer here.
-	if p.NotifyBeforePatching && p.PatchSoftwareTitleID != nil {
+	if (p.NotifyBeforePatching || p.PatchDeadline) && p.PatchSoftwareTitleID != nil {
 		installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &teamID, *p.PatchSoftwareTitleID, false)
 		if err != nil {
 			return fleet.PolicyPayload{}, ctxerr.Wrap(ctx, err, "getting installer for notify before patching")
 		}
 		if installer.Platform != "darwin" {
+			if p.PatchDeadline {
+				return fleet.PolicyPayload{}, &fleet.BadRequestError{Message: fleet.ErrPolicyPatchDeadlineRequiresMacOS.Error()}
+			}
 			return fleet.PolicyPayload{}, &fleet.BadRequestError{Message: fleet.ErrPolicyNotifyBeforePatchingRequiresMacOS.Error()}
 		}
 	}
@@ -392,6 +399,7 @@ func (svc *Service) newTeamPolicyPayloadToPolicyPayload(ctx context.Context, tea
 		ContinuousAutomationsEnabled: p.ContinuousAutomationsEnabled,
 		PatchWhenClosed:              p.PatchWhenClosed,
 		NotifyBeforePatching:         p.NotifyBeforePatching,
+		PatchDeadline:                p.PatchDeadline,
 		Type:                         policyType,
 		PatchSoftwareTitleID:         p.PatchSoftwareTitleID,
 		ProfileUUID:                  p.ProfileUUID,
@@ -798,11 +806,18 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	if p.NotifyBeforePatching != nil {
 		notifyBeforePatching = *p.NotifyBeforePatching
 	}
-	if patchWhenClosed && notifyBeforePatching {
+	patchDeadline := policy.PatchDeadline
+	if p.PatchDeadline != nil {
+		patchDeadline = *p.PatchDeadline
+	}
+	if fleet.PatchOptionsConflict(patchWhenClosed, notifyBeforePatching, patchDeadline) {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: fleet.ErrPolicyPatchOptionsMutuallyExclusive.Error()})
 	}
 	if notifyBeforePatching && policy.Platform != "darwin" {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: fleet.ErrPolicyNotifyBeforePatchingRequiresMacOS.Error()})
+	}
+	if patchDeadline && policy.Platform != "darwin" {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: fleet.ErrPolicyPatchDeadlineRequiresMacOS.Error()})
 	}
 	// patch_when_closed needs continuous automations: reject an explicit false, otherwise force it on.
 	if patchWhenClosed && p.ContinuousAutomationsEnabled != nil && !*p.ContinuousAutomationsEnabled {
@@ -811,11 +826,15 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	if notifyBeforePatching && p.ContinuousAutomationsEnabled != nil && !*p.ContinuousAutomationsEnabled {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: errNotifyBeforePatchingRequiresContinuousAutomations})
 	}
-	if patchWhenClosed || notifyBeforePatching {
+	if patchDeadline && p.ContinuousAutomationsEnabled != nil && !*p.ContinuousAutomationsEnabled {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: errPatchDeadlineRequiresContinuousAutomations})
+	}
+	if patchWhenClosed || notifyBeforePatching || patchDeadline {
 		policy.ContinuousAutomationsEnabled = true
 	}
 	policy.PatchWhenClosed = patchWhenClosed
 	policy.NotifyBeforePatching = notifyBeforePatching
+	policy.PatchDeadline = patchDeadline
 	if removeStats {
 		policy.FailingHostCount = 0
 		policy.PassingHostCount = 0
@@ -918,7 +937,7 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		return nil, ctxerr.Wrap(ctx, err, "populate automations")
 	}
 
-	if policy.Type == fleet.PolicyTypePatch && (policy.PatchWhenClosed || policy.NotifyBeforePatching) && policy.PatchSoftwareTitleID != nil {
+	if policy.Type == fleet.PolicyTypePatch && (policy.PatchWhenClosed || policy.NotifyBeforePatching || policy.PatchDeadline) && policy.PatchSoftwareTitleID != nil {
 		if err := svc.ds.ClearPreInstallQueryForTitle(ctx, ptr.ValOrZero(teamID), *policy.PatchSoftwareTitleID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "clear pre-install query for title")
 		}
