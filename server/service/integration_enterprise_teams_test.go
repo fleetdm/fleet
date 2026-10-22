@@ -452,7 +452,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp, "dry_run", "true")
 	assert.Equal(t, map[string]uint{teamName: team.ID}, applyResp.TeamIDsByName)
 
-	// dry-run with macos disk encryption set to true
+	// dry-run with macos disk encryption set to true, no error: like the disk
+	// encryption API, it doesn't require Apple MDM
 	teamSpecs = map[string]any{
 		"specs": []any{
 			map[string]any{
@@ -465,9 +466,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			},
 		},
 	}
-	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
-	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Couldn't update apple_settings because MDM features aren't turned on in Fleet.")
+	applyResp = applyTeamSpecsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp, "dry_run", "true")
+	assert.Equal(t, map[string]uint{teamName: team.ID}, applyResp.TeamIDsByName)
 
 	// dry-run with macos enable release device set to false, no error
 	teamSpecs = map[string]any{
@@ -686,6 +687,39 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	require.Len(t, team.Secrets, 1)
 	assert.Equal(t, "ABC", team.Secrets[0].Secret)
+}
+
+func (s *integrationEnterpriseTestSuite) TestTeamSpecsMacOSDiskEncryptionWithoutAppleMDM() {
+	t := s.T()
+	ctx := t.Context()
+
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	require.False(t, appCfg.MDM.EnabledAndConfigured, "this suite runs without Apple MDM")
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	spec := func(macOSSettings map[string]any) map[string]any {
+		return map[string]any{"specs": []any{map[string]any{"name": team.Name, "mdm": map[string]any{"macos_settings": macOSSettings}}}}
+	}
+
+	var applyResp applyTeamSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", spec(map[string]any{
+		"enable_disk_encryption":            true,
+		"enable_escrow_disk_encryption_key": true,
+	}), http.StatusOK, &applyResp)
+
+	var getResp getTeamResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &getResp)
+	assert.True(t, getResp.Team.Config.MDM.MacOSSettings.EnableDiskEncryption.Value)
+	assert.True(t, getResp.Team.Config.MDM.MacOSSettings.EnableEscrowDiskEncryptionKey.Value)
+
+	// custom profiles still need Apple MDM
+	res := s.Do("POST", "/api/latest/fleet/spec/teams", spec(map[string]any{
+		"custom_settings": []string{"foo"},
+	}), http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "Couldn't update apple_settings because MDM features aren't turned on in Fleet.")
 }
 
 // applyTeamSpecsRequest hands its decode error back as a UserMessageError, so an oversized body only

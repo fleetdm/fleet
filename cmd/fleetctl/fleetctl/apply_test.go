@@ -4255,6 +4255,7 @@ spec:
 			wantErr:    `400 Bad Request: invalid value type at 'macos_settings.custom_settings.labels_include_any': expected string but got float64`,
 		},
 		{
+			// macOS disk encryption doesn't require Apple MDM
 			desc: "team config macos_settings.enable_disk_encryption true",
 			spec: `
 apiVersion: v1
@@ -4266,7 +4267,7 @@ spec:
       apple_settings:
         enable_disk_encryption: true
 `,
-			wantErr: `Couldn't update apple_settings because MDM features aren't turned on in Fleet.`,
+			wantOutput: `[+] applied 1 fleet`,
 		},
 		{
 			desc: "team config macos_settings.enable_disk_encryption false",
