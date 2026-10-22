@@ -231,6 +231,7 @@ _*MSAs, DPAs, and reseller agreements*_
 - Final drafts will be indicated in the naming convention, using "YYYY-MM-DD [Customer Name] FINAL" to indicate the document is ready to be sent for signature.  
 
 _*All other agreements*_
+
 - Email to deal desk and cc CFO
 - Nate or Tina will either ok it for signature or send to outside counsel if necessary.
 
