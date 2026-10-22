@@ -1009,23 +1009,12 @@ A `path:`/`paths:` file can define more than one app, so related apps can be gro
 
 Currently, managing users and ticket destinations (Jira and Zendesk) are only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api).
 
-### features
+### host_data_collection
 
-The `features` section of the configuration YAML lets you turn on/off Fleet features.
+The `host_data_collection` section of the configuration YAML lets you control what Fleet collects from hosts.
 - `additional_queries` adds extra host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned (default: empty).
 - `enable_host_users` specifies whether or not Fleet collects user data from hosts (default: `true`).
 - `enable_software_inventory` specifies whether or not Fleet collects software inventory from hosts (default: `true`).
-- `historical_data` controls per-dataset collection of the data that drive the dashboard charts. Each sub-key defaults to `true`:
-  - `uptime` — host activity samples that drive the **Hosts active** dashboard chart.
-  - `vulnerabilities` — per-host software vulnerability data that drive the **Vulnerability exposure** dashboard chart. _Available in Fleet Premium._ Fleet Free doesn't collect this data, because the chart that reads it requires Fleet Premium.
-- `vulnerability_exposure_historical_reporting` lets you define and persist the default filters for the **Vulnerability exposure** dashboard chart (risk registry) when the page loads. These filter display only and don't change which data Fleet collects. A user can still adjust the filters in the UI, but these changes aren't saved. `historical_data.vulnerabilities` must be enabled.
-  - `software_filters` is the list of software categories to show. Valid values: `os` (operating system), `browsers` (Google Chrome, Safari, Mozilla Firefox, Brave, and Opera), `office` (Word, Excel, PowerPoint, and Outlook), and `adobe` (Acrobat, Flash, and Shockwave Player) (default: all categories).
-  - `cvss_min` / `cvss_max` filters vulnerabilities by severity (CVSS version 3.x base score, range 0 to 10). Omitting a bound leaves that side unfiltered, which isn't the same as setting it to `0` or `10`: vulnerabilities that Fleet has no CVSS score for are shown only when neither bound is set.
-  - `epss_min` / `epss_max` filters vulnerabilities by probability of exploit ([EPSS](https://www.first.org/epss/)) score (range 0 to 100).
-  - `has_known_exploit`, when `true`, only includes software that has vulnerabilities which have been actively exploited in the wild ([CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)) (default: `false`).
-  - `exclude_vulnerabilities` is a list of specific CVEs to exclude.
- 
-A dataset is collected for a given host only when the sub-key is `true` at both the global level (`org_settings.features.historical_data`) and the host's fleet level (`settings.features.historical_data`). Setting a sub-key to `false` at either level disables collection for the affected hosts. Flipping the global sub-key off disables it for every fleet, regardless of per-fleet settings.
 
 Can be configured for "All fleets" (`org_settings`) and specific fleets (`settings`).
 
@@ -1033,29 +1022,62 @@ Can be configured for "All fleets" (`org_settings`) and specific fleets (`settin
 
 ```yaml
 org_settings:
-  features:
+  host_data_collection:
     additional_queries:
       time: SELECT * FROM time
       macs: SELECT mac FROM interface_details
     enable_host_users: true
     enable_software_inventory: true
-    historical_data:
-      uptime: true
-      vulnerabilities: false
-    vulnerability_exposure_historical_reporting:
-      software_filters:
-        - os
-        - browsers
-        - office
-        - adobe
-      has_known_exploit: true
-      cvss_min: 9
-      cvss_max: 10
-      epss_min: 0
-      epss_max: 100
-      exclude_vulnerabilities:
-        - CVE-2025-50897
-        - CVE-2025-76306
+```
+
+### historical_data
+
+The `historical_data` section of the configuration YAML controls per-dataset collection of the data that drive the dashboard charts. Each sub-key defaults to `true`:
+- `uptime` — host activity samples that drive the **Hosts active** dashboard chart.
+- `vulnerabilities` — per-host software vulnerability data that drive the **Vulnerability exposure** dashboard chart. _Available in Fleet Premium._ Fleet Free doesn't collect this data, because the chart that reads it requires Fleet Premium.
+
+A dataset is collected for a given host only when the sub-key is `true` at both the global level (`org_settings.historical_data`) and the host's fleet level (`settings.historical_data`). Setting a sub-key to `false` at either level disables collection for the affected hosts. Flipping the global sub-key off disables it for every fleet, regardless of per-fleet settings.
+
+Can be configured for "All fleets" (`org_settings`) and specific fleets (`settings`).
+
+#### Example
+
+```yaml
+org_settings:
+  historical_data:
+    uptime: true
+    vulnerabilities: false
+```
+
+### vulnerability_exposure_historical_reporting
+
+The `vulnerability_exposure_historical_reporting` section of the configuration YAML lets you define and persist the default filters for the **Vulnerability exposure** dashboard chart (risk registry) when the page loads. These filter display only and don't change which data Fleet collects. A user can still adjust the filters in the UI, but these changes aren't saved. `historical_data.vulnerabilities` must be enabled.
+- `software_filters` is the list of software categories to show. Valid values: `os` (operating system), `browsers` (Google Chrome, Safari, Mozilla Firefox, Brave, and Opera), `office` (Word, Excel, PowerPoint, and Outlook), and `adobe` (Acrobat, Flash, and Shockwave Player) (default: all categories).
+- `cvss_min` / `cvss_max` filters vulnerabilities by severity (CVSS version 3.x base score, range 0 to 10). Omitting a bound leaves that side unfiltered, which isn't the same as setting it to `0` or `10`: vulnerabilities that Fleet has no CVSS score for are shown only when neither bound is set.
+- `epss_min` / `epss_max` filters vulnerabilities by probability of exploit ([EPSS](https://www.first.org/epss/)) score (range 0 to 100).
+- `has_known_exploit`, when `true`, only includes software that has vulnerabilities which have been actively exploited in the wild ([CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)) (default: `false`).
+- `exclude_vulnerabilities` is a list of specific CVEs to exclude.
+
+Can be configured for "All fleets" (`org_settings`) and specific fleets (`settings`).
+
+#### Example
+
+```yaml
+org_settings:
+  vulnerability_exposure_historical_reporting:
+    software_filters:
+      - os
+      - browsers
+      - office
+      - adobe
+    has_known_exploit: true
+    cvss_min: 9
+    cvss_max: 10
+    epss_min: 0
+    epss_max: 100
+    exclude_vulnerabilities:
+      - CVE-2025-50897
+      - CVE-2025-76306
 ```
 
 ### fleet_desktop
