@@ -114,6 +114,19 @@ describe('configuration profile generation pipeline', function() {
 
   });
 
+  describe('takes a platform from Fleet in place of a profile type', function() {
+
+    it('generates a Windows CSP profile for the windows platform', async function() {
+      generationOutcomes = [{ profileFilename: 'camera.xml', deliveryNotes: '', commands: [{ verb: 'Replace', locURI: './Device/Vendor/MSFT/Policy/Config/Camera/AllowCamera', data: 0 }] }];
+      let result = await sails.helpers.generateConfigurationProfile.with({ platform: 'windows', forFleet: true, naturalLanguageInstructions: 'Turn off the camera' });
+      assert.strictEqual(result.couldNotGenerateProfile, false, result.reasonWhyAProfileCouldNotBeGenerated);
+      assert.strictEqual(result.profileType, 'csp');
+      assert.deepStrictEqual(result.windowsCspAreasProvided, ['Storage']);
+      assert.ok(/<LocURI>\.\/Device\/Vendor\/MSFT\/Policy\/Config\/Camera\/AllowCamera<\/LocURI>/.test(result.generatedProfile.profile), result.generatedProfile.profile);
+    });
+
+  });
+
   describe('checks that the content is the kind of profile that was asked for', function() {
 
     it('rejects prose as a Windows profile', async function() {
