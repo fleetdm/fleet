@@ -76,7 +76,9 @@
 
 .host-report-card {
   &__header {
-    @include flex-column-24px-gap;
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
     margin-bottom: px-to-rem(24);
   }
 
