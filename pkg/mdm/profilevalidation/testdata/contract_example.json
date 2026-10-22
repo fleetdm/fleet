@@ -1,0 +1,75 @@
+{
+  "format_version": 1,
+  "version": {
+    "apple": {"release": "Release-v27.0", "commit": "0123456789abcdef0123456789abcdef01234567"},
+    "microsoft": {"drop": "DDFv2Sept25", "sha256": "abc"},
+    "admx_templates": {"commit": "abc"},
+    "generated_at": "2026-10-15T00:00:00Z"
+  },
+  "apple_envelope": {
+    "TopLevel": {"keys": {"PayloadVersion": {"type": "integer", "required": true}}},
+    "CommonPayloadKeys": {"keys": {"PayloadUUID": {"type": "string", "required": true}}}
+  },
+  "apple_declaration_envelope": {
+    "platforms": {"iOS": {"introduced": "15.0"}, "macOS": {"introduced": "13.0"}, "tvOS": {"introduced": "16.0"},
+                  "visionOS": {"introduced": "1.1"}, "watchOS": {"introduced": "10.0"}},
+    "source": "apple",
+    "keys": {
+      "Type": {"type": "string", "required": true},
+      "Identifier": {"type": "string", "required": true},
+      "Payload": {"type": "dictionary", "required": true, "open": true}
+    }
+  },
+  "apple_profiles": {
+    "com.apple.applicationaccess": {
+      "platforms": {"iOS": {"introduced": "4.0"}, "macOS": {"introduced": "10.7"}, "tvOS": {"introduced": "9.0"},
+                    "visionOS": {"introduced": "1.1"}, "watchOS": {"introduced": "10.0"}},
+      "source": "apple",
+      "keys": {
+        "allowCamera": {"type": "boolean"},
+        "allowAirPrint": {"type": "boolean", "platforms": {"iOS": {"introduced": "11.0", "supervised": true}, "macOS": {"introduced": "n/a"}}},
+        "autonomousSingleAppModePermittedAppIDs": {"type": "array", "items": {"type": "string"}},
+        "enforcedSoftwareUpdateDelay": {"type": "integer", "range": {"min": 1, "max": 90},
+                                        "platforms": {"macOS": {"introduced": "10.13.4", "deprecated": "26.0", "removed": "27.0"}}}
+      }
+    },
+    "com.apple.example.override": {
+      "keys": {
+        "SomeKey": {"type": ["integer", "string"]}
+      }
+    },
+    "com.apple.eas.account": {
+      "keys": {
+        "PayloadCertificateUUID": {"type": "string", "format": "^[0-9A-Za-z]{8}-[0-9A-Za-z]{4}-[0-9A-Za-z]{4}-[0-9A-Za-z]{4}-[0-9A-Za-z]{12}$"}
+      }
+    },
+    "com.apple.homescreenlayout": {
+      "platforms": {"iOS": {"introduced": "9.3", "supervised": true}, "tvOS": {"introduced": "11.0", "supervised": true},
+                    "macOS": {"introduced": "n/a"}},
+      "source": "apple",
+      "keys": {
+        "Dock": {"type": "array", "items": {"type": "dictionary", "keys": {
+          "Type": {"type": "string", "required": true, "rangelist": ["Application", "Folder", "WebClip"]},
+          "Pages": {"type": "array", "items": {"type": "array", "items": {"type": "dictionary", "ref": "Dock[]"}}}
+        }}}
+      }
+    },
+    "com.apple.ManagedClient.preferences": {
+      "source": "apple",
+      "keys": {"PayloadContent": {"type": "dictionary", "open": true}}
+    }
+  },
+  "apple_declarations": {
+    "com.apple.configuration.passcode.settings": {
+      "platforms": {"iOS": {"introduced": "15.0"}, "macOS": {"introduced": "13.0"}, "tvOS": {"introduced": "n/a"},
+                    "visionOS": {"introduced": "2.0"}, "watchOS": {"introduced": "10.0"}},
+      "source": "apple",
+      "keys": {
+        "MinimumLength": {"type": "integer", "range": {"min": 0, "max": 16}},
+        "CustomRegex": {"type": "dictionary", "keys": {"Regex": {"type": "string", "required": true}}}
+      }
+    }
+  },
+  "windows": {},
+  "windows_xsds": {}
+}

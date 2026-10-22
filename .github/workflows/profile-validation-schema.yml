@@ -1,0 +1,138 @@
+name: Profile validation schema
+
+# check: on PRs touching the schema package or its generator, regenerate at the pinned Apple commit
+#        and fail if the committed schema differs (hand edits, a forgotten regeneration, or an
+#        overrides change that wasn't applied).
+# update: daily, regenerate from the latest commit of Apple's release branch and open (or update)
+#         a PR when the schema changes.
+
+on:
+  pull_request:
+    paths:
+      - 'pkg/mdm/profilevalidation/**'
+      - 'tools/profile-schema-gen/**'
+      - '.github/workflows/profile-validation-schema.yml'
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write  # Required to comment generator warnings on the PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout Fleet
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Regenerate at the pinned Apple commit
+        # -fetch-pinned downloads the commit the committed schema pins, from codeload; no API call.
+        shell: bash  # explicit bash adds -o pipefail, so tee doesn't hide the generator's exit code
+        run: go run ./tools/profile-schema-gen -fetch-pinned 2>&1 | tee "$RUNNER_TEMP/generate.log"
+
+      - name: Comment generator warnings and errors on the PR
+        # Fork PRs get a read-only token, so they can't comment.
+        if: always() && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          log="$RUNNER_TEMP/generate.log"
+          [ -f "$log" ] || exit 0
+          lines="$(grep -E 'level=(WARN|ERROR)' "$log" || true)"
+          [ -n "$lines" ] || exit 0
+          printf 'Profile schema generator warnings and errors:\n```\n%s\n```\n' "$lines" |
+            gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file -
+
+      # test-go.yaml only triggers on .go and testdata changes, so a PR that changes only the
+      # schema or the overrides file would otherwise run none of these tests.
+      - name: Test the schema package and generator
+        run: go test ./pkg/mdm/profilevalidation/... ./tools/profile-schema-gen/...
+
+      - name: Fail if the committed schema is out of date
+        run: |
+          if [ -n "$(git status --porcelain -- pkg/mdm/profilevalidation/outputs)" ]; then
+            git --no-pager diff --stat -- pkg/mdm/profilevalidation/outputs
+            echo "::error::pkg/mdm/profilevalidation/outputs/profile_schema.json doesn't match the generator's output. Run 'go run ./tools/profile-schema-gen -fetch-pinned' from the repository root and commit the result."
+            exit 1
+          fi
+
+  update:
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: write       # Required to push the branch
+      pull-requests: write  # Required to open the PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout Fleet
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Regenerate from Apple's latest release
+        run: go run ./tools/profile-schema-gen -update
+
+      # test-go.yaml only triggers on .go and testdata changes, so the schema-only PR this
+      # job opens would otherwise run none of these tests. Test before opening it.
+      - name: Test the schema package and generator
+        run: go test ./pkg/mdm/profilevalidation/... ./tools/profile-schema-gen/...
+
+      - name: Read the new pin
+        id: pin
+        run: |
+          echo "release=$(jq -r '.version.apple.release' pkg/mdm/profilevalidation/outputs/profile_schema.json)" >> "$GITHUB_OUTPUT"
+          echo "commit=$(jq -r '.version.apple.commit' pkg/mdm/profilevalidation/outputs/profile_schema.json)" >> "$GITHUB_OUTPUT"
+
+      # Does nothing when the schema didn't change. A fixed branch means a newer run updates the
+      # open PR in place instead of opening another one.
+      - name: Create or update pull request
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          # A PAT, not GITHUB_TOKEN, so CI runs on the PR; fleet-release PRs skip the PR template check.
+          token: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
+          base: main
+          branch: profile-validation-schema-update
+          delete-branch: true
+          add-paths: pkg/mdm/profilevalidation/outputs/profile_schema.json
+          title: "Update profile validation schema"
+          commit-message: |
+            Update profile validation schema to Apple ${{ steps.pin.outputs.release }}
+
+            Generated automatically with tools/profile-schema-gen -update.
+          body: |
+            Automated regeneration of `pkg/mdm/profilevalidation/outputs/profile_schema.json` from Apple's [apple/device-management](https://github.com/apple/device-management) `release` branch.
+
+            - Apple release: `${{ steps.pin.outputs.release }}`
+            - Apple commit: [`${{ steps.pin.outputs.commit }}`](https://github.com/apple/device-management/commit/${{ steps.pin.outputs.commit }})
+
+            Before merging, check the diff for changes that could matter to validation, such as removed types or keys, or narrowed types. If an override no longer applies, generation fails instead of producing this PR. See `pkg/mdm/profilevalidation/README.md`.
