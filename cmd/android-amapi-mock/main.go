@@ -180,13 +180,9 @@ func (ds *deviceStore) notePolicyRestored(policyName string) {
 	ds.restoredPolicies[policyName] = struct{}{}
 }
 
-// policyExists reports whether policyName would be found in AMAPI: the enterprise's default
-// policy, a policy this process issued a version for (a patch creates a policy), or one a
-// device restored.
+// policyExists reports whether policyName would be found in AMAPI: a policy this process
+// issued a version for (a patch creates a policy), or one a device restored.
 func (ds *deviceStore) policyExists(policyName string) bool {
-	if strings.HasSuffix(policyName, fmt.Sprintf("/policies/%d", android.DefaultAndroidPolicyID)) {
-		return true
-	}
 	ds.policyMu.RLock()
 	defer ds.policyMu.RUnlock()
 	if _, ok := ds.policyVersions[policyName]; ok {

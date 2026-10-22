@@ -147,12 +147,6 @@ func TestPolicyActionRequiresExistingPolicy(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
-			name:            "default policy exists",
-			requirePolicies: true,
-			policyID:        fmt.Sprint(android.DefaultAndroidPolicyID),
-			wantStatus:      http.StatusOK,
-		},
-		{
 			name:            "policy restored by a device registering again exists",
 			requirePolicies: true,
 			setup: func(t *testing.T, mux *http.ServeMux) {
