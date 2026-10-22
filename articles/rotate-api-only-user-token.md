@@ -21,44 +21,7 @@ Note the old user's `id` from the response. You'll need it to delete the user la
 
 ## Create the new API-only user
 
-Give the new user a name that tells the two users apart, for example `test-api-user (2026-10)`. Create it with the Fleet UI, fleetctl, or the REST API.
-
-### Fleet UI
-
-1. Go to **Settings > Users** and select **Create user**.
-2. Select the **API-only** option.
-3. Enter a name and assign the same role or fleets as the old user.
-4. With Fleet Premium, add the same API endpoint restrictions as the old user, if it had any.
-5. Create the user and copy its API token.
-
-### fleetctl
-
-```sh
-fleetctl user create --name 'test-api-user (2026-10)' --api-only --global-role 'observer'
-```
-
-With Fleet Premium, use `--fleet <fleet_id>:<role>` instead of `--global-role` to limit the user to a fleet:
-
-```sh
-fleetctl user create --name 'test-api-user (2026-10)' --api-only --fleet 4:gitops
-```
-
-`--email` and `--password` are optional. If you omit them, Fleet generates an email address, and the user authenticates with its API token only. fleetctl prints the token once, so copy it before you close the terminal.
-
-### REST API
-
-Use [Create API-only user](https://fleetdm.com/docs/rest-api/rest-api#create-api-only-user):
-
-```sh
-curl -X POST "https://fleet.example.com/api/v1/fleet/users/api_only" \
-  -H "Authorization: Bearer <admin_token>" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"test-api-user (2026-10)","global_role":"observer"}'
-```
-
-The response includes the new user's `token`. Specify either `global_role` or `fleets`, not both. With Fleet Premium, add `api_endpoints` to restrict the user to specific endpoints.
-
-> **Note:** Use the `api_only` endpoint, not [Create a user](https://fleetdm.com/docs/rest-api/rest-api#create-a-user) (`/api/v1/fleet/users/admin`). A user created through `/users/admin` may be flagged for a password reset, and its token returns `password reset required` errors until the reset is done.
+Follow instructions to [create an new API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) and give the new user a name that tells the two users apart, for example `test-api-user (2026-10)`. 
 
 ## Update your integrations
 
