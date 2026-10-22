@@ -229,150 +229,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/adobe_plugins.yml"
   },
   {
-    "name": "ai_agent_skills",
-    "description": "AI agent skills (SKILL.md packages) found on the system, including project-scope matches when queried with an exact directory = <value> constraint. A skill whose directory resolves outside the root it was found under, such as one symlinked in from elsewhere, is not reported.",
-    "url": "https://fleetdm.com/tables/ai_agent_skills",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
-    "evented": false,
-    "cacheable": false,
-    "notes": "",
-    "examples": "```\nselect s.name, f.size, f.mtime from ai_agent_skills s join file f on f.path = s.path\n```",
-    "columns": [
-      {
-        "name": "name",
-        "description": "Skill name from SKILL.md frontmatter",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "description",
-        "description": "Skill description from SKILL.md frontmatter",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "version",
-        "description": "Skill version, from the conventional metadata.version frontmatter key, if present",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "license",
-        "description": "Declared license, if present",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "compatibility",
-        "description": "Declared environment requirements (target product, required packages, network access), if present",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "allowed_tools",
-        "description": "Declared pre-approved tool permissions, if present",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "agent",
-        "description": "Agent runtime the skill was discovered for (claude, cursor, copilot, codex, agents)",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "scope",
-        "description": "Installation scope: user, project, system or plugin",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "directory",
-        "description": "Skill root directory; for project-scope rows, echoes the exact directory = <value> constraint that triggered the scan (LIKE and other predicates are not supported and return no project-scope rows)",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": true
-      },
-      {
-        "name": "path",
-        "description": "Absolute path to SKILL.md; join the hash table on this for its hash, or the file table for its size and modification time",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "resource_count",
-        "description": "Number of bundled files under the skill directory, excluding SKILL.md and any dot-prefixed file or directory",
-        "type": "integer",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "script_count",
-        "description": "Number of files under scripts/",
-        "type": "integer",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "uid",
-        "description": "Owning user id; populated for user-scope rows and for plugin-scope rows discovered under a user's home directory. Blank for project/system-scope rows",
-        "type": "bigint",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": true
-      },
-      {
-        "name": "username",
-        "description": "Owning username; populated for user-scope rows and for plugin-scope rows discovered under a user's home directory. Blank for project/system-scope rows, which have no owning user and are not joinable to the users table on uid",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      }
-    ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/ai_agent_skills.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fai_agent_skills.yml&value=name%3A%20ai_agent_skills%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
-  },
-  {
     "name": "ai_tools",
     "description": "Surfaces AI tools on the host: MCP servers, AI agent CLIs, AI desktop apps, IDE plugins, live AI/MCP network sockets, agent instruction files, and browser extensions. Every row is an AI tool. Type-specific extras live in a compact JSON `detail` column.",
     "platforms": [
@@ -2816,15 +2672,6 @@
         "index": false
       },
       {
-        "name": "protector_types",
-        "description": "Protector types used to secure the volume's encryption key.",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
         "name": "version",
         "description": "The FVE metadata version of the drive.",
         "type": "integer",
@@ -2985,6 +2832,387 @@
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/block_devices.yml"
+  },
+  {
+    "name": "bpf_process_events",
+    "description": "Track time/action process executions.",
+    "url": "https://fleetdm.com/tables/bpf_process_events",
+    "platforms": [
+      "linux"
+    ],
+    "evented": true,
+    "cacheable": false,
+    "notes": "",
+    "columns": [
+      {
+        "name": "tid",
+        "description": "Thread ID",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "pid",
+        "description": "Process ID",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "parent",
+        "description": "Parent process ID",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "uid",
+        "description": "User ID",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "gid",
+        "description": "Group ID",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "cid",
+        "description": "Cgroup ID",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "exit_code",
+        "description": "Exit code of the system call",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "probe_error",
+        "description": "Set to 1 if one or more buffers could not be captured",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "syscall",
+        "description": "System call name",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "path",
+        "description": "Binary path",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "cwd",
+        "description": "Current working directory",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "cmdline",
+        "description": "Command line arguments",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "duration",
+        "description": "How much time was spent inside the syscall (nsecs)",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "json_cmdline",
+        "description": "Command line arguments, in JSON format",
+        "type": "text",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "ntime",
+        "description": "The nsecs uptime timestamp as obtained from BPF",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "time",
+        "description": "Time of execution in UNIX time",
+        "type": "bigint",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "eid",
+        "description": "Event ID",
+        "type": "integer",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false
+      }
+    ],
+    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/linux/bpf_process_events.table",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fbpf_process_events.yml&value=name%3A%20bpf_process_events%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+  },
+  {
+    "name": "bpf_socket_events",
+    "description": "Track network socket opens and closes.",
+    "url": "https://fleetdm.com/tables/bpf_socket_events",
+    "platforms": [
+      "linux"
+    ],
+    "evented": true,
+    "cacheable": false,
+    "notes": "",
+    "columns": [
+      {
+        "name": "tid",
+        "description": "Thread ID",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "pid",
+        "description": "Process ID",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "parent",
+        "description": "Parent process ID",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "uid",
+        "description": "User ID",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "gid",
+        "description": "Group ID",
+        "type": "bigint",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "cid",
+        "description": "Cgroup ID",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "exit_code",
+        "description": "Exit code of the system call",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "probe_error",
+        "description": "Set to 1 if one or more buffers could not be captured",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "syscall",
+        "description": "System call name",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "path",
+        "description": "Path of executed file",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "fd",
+        "description": "The file description for the process socket",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "family",
+        "description": "The Internet protocol family ID",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "type",
+        "description": "The socket type",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "protocol",
+        "description": "The network protocol ID",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "local_address",
+        "description": "Local address associated with socket",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "remote_address",
+        "description": "Remote address associated with socket",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "local_port",
+        "description": "Local network protocol port number",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "remote_port",
+        "description": "Remote network protocol port number",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "duration",
+        "description": "How much time was spent inside the syscall (nsecs)",
+        "type": "integer",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "ntime",
+        "description": "The nsecs uptime timestamp as obtained from BPF",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "time",
+        "description": "Time of execution in UNIX time",
+        "type": "bigint",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "eid",
+        "description": "Event ID",
+        "type": "integer",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false
+      }
+    ],
+    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/linux/bpf_socket_events.table",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fbpf_socket_events.yml&value=name%3A%20bpf_socket_events%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
   },
   {
     "name": "browser_plugins",
@@ -4040,7 +4268,7 @@
     "columns": [
       {
         "name": "browser_type",
-        "description": "The browser type (Valid values: chrome, chrome_beta, chrome_dev, chrome_canary, chromium, opera, yandex, brave, brave_beta, brave_nightly, edge, edge_beta, edge_dev, edge_canary, vivaldi, arc, dia, comet)",
+        "description": "The browser type (Valid values: chrome, chromium, opera, yandex, brave, edge, edge_beta)",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -4368,87 +4596,6 @@
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/chrome_extensions.yml"
-  },
-  {
-    "name": "chrome_search_engines",
-    "description": "The configured default search engine for Chrome-based browser profiles.",
-    "url": "https://fleetdm.com/tables/chrome_search_engines",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
-    "evented": false,
-    "cacheable": false,
-    "notes": "",
-    "examples": "```\nselect * from users join chrome_search_engines using (uid)\n```",
-    "columns": [
-      {
-        "name": "browser_type",
-        "description": "The browser type (Valid values: chrome, chrome_beta, chrome_dev, chrome_canary, chromium, opera, yandex, brave, brave_beta, brave_nightly, edge, edge_beta, edge_dev, edge_canary, vivaldi, arc, dia, comet)",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "uid",
-        "description": "The local user that owns the profile",
-        "type": "bigint",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": true
-      },
-      {
-        "name": "profile",
-        "description": "The name of the Chrome profile",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "profile_path",
-        "description": "The profile path",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "name",
-        "description": "The display name of the default search engine",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "keyword",
-        "description": "The keyword used to trigger this search engine from the address bar",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "url",
-        "description": "The URL template used by this search engine",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      }
-    ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/chrome_search_engines.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fchrome_search_engines.yml&value=name%3A%20chrome_search_engines%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
   },
   {
     "name": "cis_audit",
@@ -6519,33 +6666,6 @@
         "name": "pem",
         "description": "Certificate PEM format",
         "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "tls_version",
-        "description": "TLS protocol version negotiated for the connection; empty if the handshake did not complete",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "cipher_suite",
-        "description": "IANA name of the cipher suite negotiated for the connection; empty if the handshake did not complete",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "cipher_bits",
-        "description": "Number of secret/key bits used by the negotiated cipher suite; NULL if the handshake did not complete",
-        "type": "integer",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -12063,156 +12183,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/firmwarepasswd.yml"
   },
   {
-    "name": "flatpak_packages",
-    "description": "Installed Flatpak packages.",
-    "url": "https://fleetdm.com/tables/flatpak_packages",
-    "platforms": [
-      "linux"
-    ],
-    "evented": false,
-    "cacheable": true,
-    "notes": "",
-    "columns": [
-      {
-        "name": "name",
-        "description": "Human-readable package name (from AppStream metadata)",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "app_id",
-        "description": "Application ID (e.g. org.gnome.Gedit)",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": true
-      },
-      {
-        "name": "version",
-        "description": "Package version (from AppStream metadata)",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "arch",
-        "description": "Architecture (e.g. x86_64)",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "branch",
-        "description": "Tracking branch (e.g. stable)",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "commit_hash",
-        "description": "Active deployment commit checksum",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "origin",
-        "description": "Remote name the package was installed from",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "runtime",
-        "description": "Runtime identifier (from package metadata)",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "type",
-        "description": "Package type: app or runtime",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "installation",
-        "description": "Installation scope: system or user",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "summary",
-        "description": "One-line summary",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "description",
-        "description": "Long description (from AppStream metadata)",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "license",
-        "description": "SPDX license expression",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "homepage",
-        "description": "Project homepage URL",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "developer_name",
-        "description": "Developer or publisher name",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      }
-    ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/linux/flatpak_packages.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fflatpak_packages.yml&value=name%3A%20flatpak_packages%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
-  },
-  {
     "name": "fleetd_logs",
     "evented": false,
     "platforms": [
@@ -12678,267 +12648,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/google_chrome_profiles.yml"
   },
   {
-    "name": "gpu_info",
-    "description": "Retrieve GPU (graphics processing unit) inventory information of the machine, reporting only stable attributes.",
-    "url": "https://fleetdm.com/tables/gpu_info",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
-    "evented": false,
-    "cacheable": false,
-    "notes": "",
-    "columns": [
-      {
-        "name": "device_id",
-        "description": "The GPU identifier used to correlate rows with other GPU tables. Derived from the PCI slot address when available (e.g. GPU0000:01:00.0); macOS GPUs without a PCI slot use GPUintegrated, while other platforms use an enumeration-based fallback.",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "name",
-        "description": "The name of the GPU.",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "vendor",
-        "description": "The vendor of the GPU.",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "vendor_id",
-        "description": "The hex encoded PCI vendor identifier of the GPU.",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "model",
-        "description": "The model of the GPU.",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "model_id",
-        "description": "The hex encoded PCI model identifier of the GPU. On Apple Silicon, where the GPU is integrated in the SoC and has no PCI device ID, the IOKit SoC identifier is reported instead (e.g. gpu,t6000).",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "driver",
-        "description": "The driver in use by the GPU.",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "driver_version",
-        "description": "The version of the installed driver.",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "vram",
-        "description": "The total video memory of the GPU in bytes. Fixed capacity only: on Linux only available for AMD GPUs (amdgpu driver, via mem_info_vram_total sysfs) and for NVIDIA GPUs with the proprietary driver loaded (via NVML, the library behind nvidia-smi, which also requires the query to have permission to talk to the driver); Intel drivers expose no equivalent; on macOS empty for unified-memory GPUs (Apple Silicon), which have no dedicated VRAM",
-        "type": "bigint",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "pci_slot",
-        "description": "The PCI slot of the GPU, as a bus address (e.g. 0000:01:00.0 on Linux, 0000:bb:dd.f on Windows, b:d:f on macOS). Empty for non-PCI adapters (e.g. Apple Silicon integrated GPUs).",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "pci_class_id",
-        "description": "The PCI class identifier of the GPU in hex format. Empty when the GPU has no PCI identity (e.g. Apple Silicon integrated GPUs) or when the platform does not expose the class code (Windows).",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "cores",
-        "description": "The number of GPU cores. Only available on macOS.",
-        "type": "integer",
-        "notes": "",
-        "hidden": true,
-        "required": false,
-        "index": false,
-        "platforms": [
-          "darwin"
-        ]
-      },
-      {
-        "name": "metal_support",
-        "description": "The Metal feature set supported by the GPU. Only available on macOS.",
-        "type": "text",
-        "notes": "",
-        "hidden": true,
-        "required": false,
-        "index": false,
-        "platforms": [
-          "darwin"
-        ]
-      },
-      {
-        "name": "driver_date",
-        "description": "The date of the installed driver, as a Unix timestamp. Only available on Windows.",
-        "type": "bigint",
-        "notes": "",
-        "hidden": true,
-        "required": false,
-        "index": false,
-        "platforms": [
-          "windows",
-          "win32",
-          "cygwin"
-        ]
-      }
-    ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/posix/gpu_info.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fgpu_info.yml&value=name%3A%20gpu_info%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
-  },
-  {
-    "name": "gpu_metrics",
-    "description": "Information about GPU devices on the system, including inventory and runtime telemetry where supported.",
-    "url": "https://fleetdm.com/tables/gpu_metrics",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
-    "evented": false,
-    "cacheable": false,
-    "notes": "",
-    "columns": [
-      {
-        "name": "device_id",
-        "description": "The GPU identifier used to correlate rows with other GPU tables. Derived from the PCI slot address when available (e.g. GPU0000:01:00.0); macOS GPUs without a PCI slot use GPUintegrated, while other platforms use an enumeration-based fallback.",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "gpu_utilization_pct",
-        "description": "GPU engine utilization as a percentage (0-100).",
-        "type": "double",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "power_draw_watts",
-        "description": "Estimated average GPU power draw in Watts over a 500 ms sampling window.",
-        "type": "double",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false,
-        "platforms": [
-          "linux",
-          "darwin"
-        ]
-      },
-      {
-        "name": "allocated_vram",
-        "description": "Allocated GPU memory in bytes from IOAccelerator.",
-        "type": "bigint",
-        "notes": "",
-        "hidden": true,
-        "required": false,
-        "index": false,
-        "platforms": [
-          "darwin"
-        ]
-      },
-      {
-        "name": "in_use_vram",
-        "description": "In-use GPU memory in bytes from IOAccelerator.",
-        "type": "bigint",
-        "notes": "",
-        "hidden": true,
-        "required": false,
-        "index": false,
-        "platforms": [
-          "darwin"
-        ]
-      },
-      {
-        "name": "temperature_gpu_celsius",
-        "description": "GPU core temperature in degrees Celsius.",
-        "type": "double",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false,
-        "platforms": [
-          "linux"
-        ]
-      },
-      {
-        "name": "power_limit_watts",
-        "description": "Configured GPU power limit in Watts.",
-        "type": "double",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false,
-        "platforms": [
-          "linux"
-        ]
-      },
-      {
-        "name": "fan_speed_pct",
-        "description": "GPU fan speed as a percentage of maximum (0-100).",
-        "type": "double",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false,
-        "platforms": [
-          "linux"
-        ]
-      }
-    ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/gpu_metrics.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fgpu_metrics.yml&value=name%3A%20gpu_metrics%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
-  },
-  {
     "name": "groups",
     "description": "Local system groups.",
     "url": "https://fleetdm.com/tables/groups",
@@ -13307,8 +13016,7 @@
     "description": "The installed homebrew package database.",
     "url": "https://fleetdm.com/tables/homebrew_packages",
     "platforms": [
-      "darwin",
-      "linux"
+      "darwin"
     ],
     "evented": false,
     "cacheable": true,
@@ -17471,93 +17179,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/macos_user_profiles.yml"
   },
   {
-    "name": "macports_packages",
-    "description": "The installed MacPorts port database.",
-    "url": "https://fleetdm.com/tables/macports_packages",
-    "platforms": [
-      "darwin"
-    ],
-    "evented": false,
-    "cacheable": true,
-    "notes": "",
-    "columns": [
-      {
-        "name": "name",
-        "description": "Port name",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "version",
-        "description": "Port version",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "revision",
-        "description": "MacPorts revision of the port",
-        "type": "integer",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "variants",
-        "description": "Active variants, as recorded by MacPorts",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "requested",
-        "description": "1 if explicitly requested, 0 if a dependency",
-        "type": "integer",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "arch",
-        "description": "Architectures the port was built for",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "date",
-        "description": "Install time, in unix time",
-        "type": "bigint",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "prefix",
-        "description": "MacPorts install prefix",
-        "type": "text",
-        "notes": "",
-        "hidden": true,
-        "required": false,
-        "index": false
-      }
-    ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/darwin/macports_packages.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fmacports_packages.yml&value=name%3A%20macports_packages%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
-  },
-  {
     "name": "magic",
     "description": "Magic number recognition library table.",
     "url": "https://fleetdm.com/tables/magic",
@@ -21413,156 +21034,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/package_receipts.yml"
   },
   {
-    "name": "pacman_packages",
-    "description": "Packages installed by the pacman package manager.",
-    "url": "https://fleetdm.com/tables/pacman_packages",
-    "platforms": [
-      "linux"
-    ],
-    "evented": false,
-    "cacheable": true,
-    "notes": "",
-    "columns": [
-      {
-        "name": "name",
-        "description": "Package name",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": true
-      },
-      {
-        "name": "version",
-        "description": "Package version, including epoch and release",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "source",
-        "description": "Name of the base package this package was built from",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "description",
-        "description": "Package description",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "url",
-        "description": "Upstream project URL",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "licenses",
-        "description": "Comma separated list of licenses",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "groups",
-        "description": "Comma separated list of groups the package belongs to",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "arch",
-        "description": "Package architecture",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "size",
-        "description": "Installed size of the package in bytes",
-        "type": "bigint",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "packager",
-        "description": "Person or process that built the package",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "build_time",
-        "description": "Unix time when the package was built",
-        "type": "bigint",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "install_time",
-        "description": "Unix time when the package was installed",
-        "type": "bigint",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "install_reason",
-        "description": "Either 'explicit' if the package was installed directly, or 'dependency' if it was installed to satisfy another package. Empty when the database records a reason this table does not recognize",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "validation",
-        "description": "Comma separated list of methods used to validate the package, for example 'sha256' or 'pgp'",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "dbpath",
-        "description": "pacman database path. The installed packages are read from the 'local' subdirectory. Defaults to /var/lib/pacman",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      }
-    ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/linux/pacman_packages.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fpacman_packages.yml&value=name%3A%20pacman_packages%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
-  },
-  {
     "name": "parse_ini",
     "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
     "description": "Parse a file as INI configuration.",
@@ -22959,15 +22430,6 @@
       {
         "name": "accessed_directories",
         "description": "Directories accessed by application within ten seconds of launch.",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "executable_path",
-        "description": "Full path of the executable.",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -26198,7 +25660,7 @@
       },
       {
         "name": "path",
-        "description": "Path to the .appex bundle for the extension",
+        "description": "Path to the Info.plist describing the extension",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -28983,138 +28445,6 @@
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/smc_keys.yml"
-  },
-  {
-    "name": "snap_packages",
-    "description": "Installed snap packages.",
-    "url": "https://fleetdm.com/tables/snap_packages",
-    "platforms": [
-      "linux"
-    ],
-    "evented": false,
-    "cacheable": true,
-    "notes": "",
-    "columns": [
-      {
-        "name": "name",
-        "description": "Package name",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": true
-      },
-      {
-        "name": "version",
-        "description": "Package version",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "summary",
-        "description": "One-line summary",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "description",
-        "description": "Long description",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "type",
-        "description": "Snap type (app, base, kernel, gadget, snapd)",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "confinement",
-        "description": "Confinement policy (strict, devmode, classic)",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "base",
-        "description": "Base snap this snap is built on",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "license",
-        "description": "SPDX license expression",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "grade",
-        "description": "Grade (stable, devel)",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "architectures",
-        "description": "Comma-separated list of supported architectures",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "revision",
-        "description": "Installed revision number",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "channel",
-        "description": "Tracking channel (e.g. stable, beta, edge)",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "snap_id",
-        "description": "Snap Store identifier",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      }
-    ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/linux/snap_packages.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fsnap_packages.yml&value=name%3A%20snap_packages%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
   },
   {
     "name": "sntp_request",
@@ -32325,7 +31655,7 @@
       },
       {
         "name": "vscode_edition",
-        "description": "The VSCode edition (vscode, vscode_insiders, vscodium, vscodium_insiders, cursor, windsurf, trae, antigravity, code_server)",
+        "description": "The VSCode edition (vscode, vscode_insiders, vscodium, vscodium_insiders, cursor, windsurf, trae)",
         "type": "text",
         "notes": "",
         "hidden": false,
