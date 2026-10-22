@@ -23,10 +23,10 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
     "/hosts?page=0&per_page=20&order_key=display_name&order_direction=asc":
       RESPONSES.ALL_HOSTS,
     // this basic path only matches with '1337' as the value for the team id query param
-    "/hosts?page=0&per_page=20&order_key=display_name&order_direction=asc&team_id=1337":
+    "/hosts?page=0&per_page=20&order_key=display_name&order_direction=asc&fleet_id=1337":
       RESPONSES.HOSTS_TEAM_1337,
     // this wildcard path matches with any other value for the team id query param
-    "/hosts?page=0&per_page=20&order_key=display_name&order_direction=asc&team_id={team_id}":
+    "/hosts?page=0&per_page=20&order_key=display_name&order_direction=asc&fleet_id={fleet_id}":
       RESPONSES.HOSTS_TEAM_ID,
     // this basic path only matches with '1337' as the value for the host id route param
     "/hosts/1337": RESPONSES.HOST_1337,
@@ -41,7 +41,7 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
       count: 1,
     },
     // this wildcard path matches with any value for the team id route param
-    "hosts/count?team_id={*}": {
+    "hosts/count?fleet_id={*}": {
       count: 1,
     },
   },

@@ -18,7 +18,7 @@ const createMockPatchPolicy = (overrides?: Partial<IPolicy>): IPolicy => ({
   author_email: "admin@example.com",
   resolution: "Install the latest version from self-service.",
   platform: "darwin",
-  team_id: 1,
+  fleet_id: 1,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
   critical: false,
@@ -177,7 +177,7 @@ describe("PatchAutomationCta", () => {
     it("renders for a no-team policy (team_id === 0)", () => {
       renderWithAppContext(
         <PatchAutomationCta
-          storedPolicy={createMockPatchPolicy({ team_id: 0 })}
+          storedPolicy={createMockPatchPolicy({ fleet_id: 0 })}
           canEditPolicy
           onAddAutomation={jest.fn()}
         />
