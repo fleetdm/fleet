@@ -9,11 +9,12 @@ module.exports = {
 
   inputs: {
     dry: { type: 'boolean', description: 'Whether to make this a dry run.  (.sailsrc file will not be overwritten.  HTML files will not be generated.)' },
+    getRealTimestamps: {type: 'boolean', description: 'Whether or not to use git log to build real lastModifiedAt timestamps.', defaultsTo: true},
     githubAccessToken: { type: 'string', description: 'If provided, A GitHub token will be used to authenticate requests to the GitHub API'},
   },
 
 
-  fn: async function ({ dry, githubAccessToken }) {
+  fn: async function ({ dry, githubAccessToken, getRealTimestamps }) {
     let path = require('path');
     let YAML = require('yaml');
     let util = require('util');
@@ -195,7 +196,6 @@ module.exports = {
           });
           let lineNumberForEdittingThisQuery = linesInYamlFile.indexOf(lineWithTheQueriesNameKey);
           query.lineNumberInYaml = lineNumberForEdittingThisQuery; // Set the line number for edits.
-
 
           query.slug = _.kebabCase(query.name);// « unique slug to use for routing to this query's detail page
           // Remove the platform name from query names. This allows us to keep queries at their existing URLs while hiding them in the UI.
@@ -580,12 +580,15 @@ module.exports = {
                 sails.log.silly(`Parsed ${Object.keys(embeddedMetadata).length} <meta> tags:`, embeddedMetadata);
               }//ﬁ
 
-              // Get last modified timestamp using git, and represent it as a JS timestamp.
-              // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
-              let lastModifiedAt = (new Date((await sails.helpers.process.executeCommand.with({
-                command: `git log -1 --format="%ai" '${path.relative(topLvlRepoPath, pageSourcePath)}'`,
-                dir: topLvlRepoPath,
-              })).stdout)).getTime();
+              let lastModifiedAt = 0;
+              if(getRealTimestamps) {
+                // Get last modified timestamp using git, and represent it as a JS timestamp.
+                // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
+                lastModifiedAt = (new Date((await sails.helpers.process.executeCommand.with({
+                  command: `git log -1 --format="%ai" '${path.relative(topLvlRepoPath, pageSourcePath)}'`,
+                  dir: topLvlRepoPath,
+                })).stdout)).getTime();
+              }
 
 
               // Determine display title (human-readable title) to use for this page.
