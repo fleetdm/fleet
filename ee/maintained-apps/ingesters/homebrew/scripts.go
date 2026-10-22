@@ -102,7 +102,7 @@ fi`, appPath)
 	return sb.String(), nil
 }
 
-func uninstallScriptForApp(cask *brewCask) string {
+func uninstallScriptForApp(app inputApp, cask *brewCask) string {
 	sb := newScriptBuilder()
 
 	for _, artifact := range cask.Artifacts {
@@ -145,7 +145,7 @@ func uninstallScriptForApp(cask *brewCask) string {
 				sb.Write(strings.Join(cask.PreUninstallScripts, "\n"))
 			}
 			for _, u := range artifact.Uninstall {
-				processUninstallArtifact(u, sb)
+				processUninstallArtifact(u, sb, app.UniqueIdentifier)
 			}
 			if len(cask.PostUninstallScripts) > 0 {
 				sb.Write(strings.Join(cask.PostUninstallScripts, "\n"))
@@ -153,7 +153,7 @@ func uninstallScriptForApp(cask *brewCask) string {
 		case len(artifact.Zap) > 0:
 			sortUninstall(artifact.Zap)
 			for _, z := range artifact.Zap {
-				processUninstallArtifact(z, sb)
+				processUninstallArtifact(z, sb, app.UniqueIdentifier)
 			}
 		}
 	}
@@ -378,7 +378,7 @@ func processScript(script optjson.StringOr[map[string]any], sb *scriptBuilder, a
 	}
 }
 
-func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
+func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID string) {
 	process := func(target optjson.StringOr[[]string], f func(path string)) {
 		if target.IsOther {
 			for _, path := range target.Other {
@@ -400,15 +400,24 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 
 	process(u.Quit, func(appName string) {
 		sb.AddFunction("quit_application", quitApplicationFunc)
+		// Stop before the app's bundle is removed if the app itself won't quit.
+		// Other IDs (helpers, shared updaters like Microsoft AutoUpdate, other
+		// vendors' apps) keep Homebrew's warn-and-continue: most of them aren't
+		// in the bundle being removed, and a helper that launchd relaunches would
+		// block the uninstall for good.
+		var stop string
+		if quitTargetsApp(appName, bundleID) {
+			stop = " || exit 1"
+		}
 		// osascript can't resolve a wildcard application id, so the pattern is
 		// expanded against the running applications first. As in Homebrew, only
 		// '*' is a wildcard.
 		if strings.Contains(appName, "*") {
 			sb.AddFunction("quit_matching_applications", quitMatchingApplicationsFunc)
-			sb.Writef("quit_matching_applications %s", shellSingleQuote(appName))
+			sb.Writef("quit_matching_applications %s%s", shellSingleQuote(appName), stop)
 			return
 		}
-		sb.Writef("quit_application %s", shellSingleQuote(appName))
+		sb.Writef("quit_application %s%s", shellSingleQuote(appName), stop)
 		if appName == "com.docker.docker" {
 			sb.Writef("quit_application 'com.electron.dockerdesktop'")
 		}
@@ -448,6 +457,17 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 		sb.AddFunction("trash", trashFunc)
 		sb.Writef("trash $LOGGED_IN_USER %s", shellSingleQuote(path))
 	})
+}
+
+// quitTargetsApp reports whether a cask quit ID, which may contain '*'
+// wildcards, names the app being uninstalled. Like LaunchServices and
+// Homebrew's wildcard expansion, the match is case-insensitive.
+func quitTargetsApp(quitID, bundleID string) bool {
+	if bundleID == "" {
+		return false
+	}
+	pattern := strings.ReplaceAll(regexp.QuoteMeta(quitID), `\*`, `.*`)
+	return regexp.MustCompile(`(?i)^` + pattern + `$`).MatchString(bundleID)
 }
 
 type scriptBuilder struct {
@@ -706,9 +726,12 @@ const removeLaunchctlServiceFunc = `remove_launchctl_service() {
   done
 }`
 
-// quitApplicationFunc quits a running application. It's a direct port of the
+// quitApplicationFunc quits a running application. It's a port of the
 // homebrew implementation
 // https://github.com/Homebrew/brew/blob/e1ff668957dd8a66304c0290dfa66083e6c7444e/Library/Homebrew/cask/artifact/abstract_uninstall.rb#L192
+// Returns 1 if the application is still running after the timeout. As in
+// quitAndTrackApplicationFunc, the quit is confirmed with 'is running' because
+// 'pgrep -f <bundle_id>' never matches.
 const quitApplicationFunc = `quit_application() {
   local bundle_id="$1"
   local timeout_duration=10
@@ -730,28 +753,29 @@ const quitApplicationFunc = `quit_application() {
   echo "Quitting application '$bundle_id'..."
 
   # try to quit the application within the timeout period
-  local quit_success=false
+  local quit_success=false still_running
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    if osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1; then
-      if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then
-        echo "Application '$bundle_id' quit successfully."
-        quit_success=true
-        break
-      fi
-    fi
+    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1
     sleep 1
+    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+      echo "Application '$bundle_id' quit successfully."
+      quit_success=true
+      break
+    fi
   done
 
   if [[ "$quit_success" = false ]]; then
     echo "Application '$bundle_id' did not quit."
+    return 1
   fi
 }
 `
 
 // quitMatchingApplicationsFunc quits every running application whose bundle ID
-// matches a '*' wildcard, using quitApplicationFunc for each match. It's a port
-// of the homebrew implementation: anchored and case-insensitive.
+// matches a '*' wildcard, using quitApplicationFunc for each match, and returns
+// 1 if any of them didn't quit. It's a port of the homebrew implementation:
+// anchored and case-insensitive.
 // https://github.com/Homebrew/brew/blob/cc9ff034b1d98cdd4061f68cf715bb967c483a8f/Library/Homebrew/cask/artifact/abstract_uninstall.rb#L371
 const quitMatchingApplicationsFunc = `quit_matching_applications() {
   local pattern="$1"
@@ -811,9 +835,11 @@ ids.join("\n")'
     return
   fi
 
+  local status=0
   for id in "${matches[@]}"; do
-    quit_application "$id"
+    quit_application "$id" || status=1
   done
+  return $status
 }
 `
 

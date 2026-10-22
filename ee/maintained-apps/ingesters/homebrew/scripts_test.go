@@ -1,6 +1,7 @@
 package homebrew
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -494,7 +495,7 @@ func TestUninstallScriptNeutralizesCommandSubstitutionInAppPath(t *testing.T) {
 		},
 	}
 
-	script := uninstallScriptForApp(cask)
+	script := uninstallScriptForApp(inputApp{}, cask)
 	require.Contains(t, script, `sudo rm -rf "$APPDIR/Foo\$(touch /tmp/pwned).app"`)
 	require.NotContains(t, script, `"$APPDIR/Foo$(touch /tmp/pwned).app"`)
 }
@@ -517,7 +518,7 @@ func TestUninstallScriptScriptDirectiveEscapesApostrophe(t *testing.T) {
 		},
 	}
 
-	script := uninstallScriptForApp(cask)
+	script := uninstallScriptForApp(inputApp{}, cask)
 	require.Contains(t, script, `'\''`)
 	require.NotContains(t, script, `/opt/x'; touch /tmp/pwned; '`)
 }
@@ -555,7 +556,7 @@ func TestUninstallScriptEscapesApostrophe(t *testing.T) {
 		},
 	}
 
-	script := uninstallScriptForApp(cask)
+	script := uninstallScriptForApp(inputApp{}, cask)
 	require.Contains(t, script, `trash $LOGGED_IN_USER '~/Library/Application Support/Cycling '\''74'`)
 	require.NotContains(t, script, `Cycling '74'`)
 }
@@ -581,7 +582,7 @@ func TestUninstallScriptExpandsLaunchctlWildcard(t *testing.T) {
 		},
 	}
 
-	script := uninstallScriptForApp(cask)
+	script := uninstallScriptForApp(inputApp{}, cask)
 	require.Contains(t, script, `remove_launchctl_service 'com.elgato.StreamDeck*'`)
 	// The helper must expand a wildcard label before touching launchctl.
 	require.Contains(t, script, `if [[ "$service" == *"*"* ]]; then`)
@@ -619,7 +620,7 @@ func TestUninstallScriptExpandsQuitWildcard(t *testing.T) {
 		},
 	}
 
-	script := uninstallScriptForApp(cask)
+	script := uninstallScriptForApp(inputApp{}, cask)
 	require.Contains(t, script, `quit_matching_applications 'com.elgato.WaveLink*'`)
 	require.NotContains(t, script, `quit_application 'com.elgato.WaveLink*'`)
 	require.Contains(t, script, quitMatchingApplicationsFunc)
@@ -630,7 +631,7 @@ func TestUninstallScriptExpandsQuitWildcard(t *testing.T) {
 	// A cask without wildcard quit IDs must not pick up the new helper, so its
 	// uninstall script (and script ref) stays unchanged.
 	cask.Artifacts[0].Uninstall[0].Quit = optjson.StringOr[[]string]{String: "com.elgato.StreamDeck"}
-	script = uninstallScriptForApp(cask)
+	script = uninstallScriptForApp(inputApp{}, cask)
 	require.NotContains(t, script, "quit_matching_applications")
 	require.Contains(t, script, `quit_application 'com.elgato.StreamDeck'`)
 }
@@ -664,8 +665,8 @@ func TestQuitMatchingApplicationsRunsMatches(t *testing.T) {
 		// match as a substring or not at all, and a matching ID that carries
 		// AppleScript (a running app can report any bundle ID).
 		stubs := `list_fails=` + strconv.FormatBool(listFails) + `
+quit=" "
 stat() { echo ` + consoleUser + `; }
-pgrep() { return 1; }
 sleep() { :; }
 osascript() {
   if [[ "$1" == "-l" ]]; then
@@ -676,12 +677,15 @@ osascript() {
       'com.elgato.WaveLink" is running or (do shell script "id") is "" or application id "com.elgato.WaveLink'
     return
   fi
-  if [[ "$2" == *" is running" ]]; then
-    echo true
-  fi
+  local id=${2#*\"}
+  id=${id%%\"*}
+  case "$2" in
+    *" to quit") quit+="$id " ;;
+    *" is running") if [[ "$quit" == *" $id "* ]]; then echo false; else echo true; fi ;;
+  esac
 }
 `
-		out, err := exec.Command(bash, "-c", stubs+uninstallScriptForApp(cask)).CombinedOutput()
+		out, err := exec.Command(bash, "-c", stubs+uninstallScriptForApp(inputApp{}, cask)).CombinedOutput()
 		require.NoError(t, err, string(out))
 		return string(out)
 	}
@@ -716,6 +720,150 @@ osascript() {
 	})
 }
 
+func TestQuitTargetsApp(t *testing.T) {
+	for _, tc := range []struct {
+		quitID, bundleID string
+		want             bool
+	}{
+		{"com.example.Foo", "com.example.Foo", true},
+		{"COM.EXAMPLE.foo", "com.example.Foo", true},
+		{"com.example.Foo*", "com.example.Foo", true},
+		{"com.example.F*o", "com.example.Foo", true},
+		{"com.example.Foo.*", "com.example.Foo", false},
+		{"com.example.Foo.helper", "com.example.Foo", false},
+		{"com.microsoft.autoupdate2", "com.microsoft.Word", false},
+		{"com.example.Fo.", "com.example.Foo", false},
+		{"com.example.Fo+", "com.example.Foo", false},
+		{"*", "", false},
+	} {
+		require.Equal(t, tc.want, quitTargetsApp(tc.quitID, tc.bundleID), "%q vs %q", tc.quitID, tc.bundleID)
+	}
+
+	cask := &brewCask{Artifacts: []*brewArtifact{{Uninstall: []*brewUninstall{{
+		Quit: optjson.StringOr[[]string]{IsOther: true, Other: []string{"com.docker.docker", "com.docker.helper"}},
+	}}}}}
+	script := uninstallScriptForApp(inputApp{UniqueIdentifier: "com.docker.docker"}, cask)
+	require.Contains(t, script, "quit_application 'com.docker.docker' || exit 1\nquit_application 'com.electron.dockerdesktop'\nquit_application 'com.docker.helper'\n")
+}
+
+// TestUninstallScriptStopsWhenAppWontQuit runs generated uninstall scripts in
+// bash with osascript and friends stubbed out. The app being uninstalled must
+// not be removed while it's still running. Other quit IDs (helpers, shared
+// updaters) only log that they didn't quit, as in Homebrew.
+func TestUninstallScriptStopsWhenAppWontQuit(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("as root the wildcard helper lists apps through /bin/launchctl asuser, which can't be stubbed")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+
+	const remove = "sudo rm -rf /Applications//Foo.app"
+
+	// stuck apps accept the quit event but keep running; canceled ones fail it,
+	// as when the user cancels a save prompt. sleep advances SECONDS so the
+	// timeout loop doesn't take real time.
+	run := func(t *testing.T, quitIDs []string, running, stuck, canceled string) (string, int) {
+		cask := &brewCask{Artifacts: []*brewArtifact{
+			{Uninstall: []*brewUninstall{{Quit: optjson.StringOr[[]string]{IsOther: true, Other: quitIDs}}}},
+			{App: []optjson.StringOr[*brewAppTarget]{{String: "Foo.app"}}},
+		}}
+		stubs := `running=" ` + running + ` "
+stuck=" ` + stuck + ` "
+canceled=" ` + canceled + ` "
+stat() { echo alice; }
+sleep() { SECONDS=$((SECONDS + $1)); }
+sudo() { echo "sudo $*"; }
+osascript() {
+  if [[ "$1" == "-l" ]]; then
+    printf '%s\n' $running
+    return
+  fi
+  local id=${2#*\"}
+  id=${id%%\"*}
+  case "$2" in
+    *" to quit")
+      [[ "$canceled" == *" $id "* ]] && return 1
+      [[ "$stuck" == *" $id "* ]] || running=${running/ $id / }
+      return 0
+      ;;
+    *" is running")
+      if [[ "$running" == *" $id "* ]]; then echo true; else echo false; fi
+      ;;
+  esac
+}
+`
+		script := uninstallScriptForApp(inputApp{UniqueIdentifier: "com.example.Foo"}, cask)
+		out, err := exec.Command(bash, "-c", stubs+script).CombinedOutput()
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return string(out), exitErr.ExitCode()
+		}
+		require.NoError(t, err, string(out))
+		return string(out), 0
+	}
+
+	const all = "com.example.Foo com.example.Foo.helper com.example.Updater"
+	appAndHelper := []string{"com.example.Foo", "com.example.Foo.helper"}
+
+	out, code := run(t, appAndHelper, "", "", "")
+	require.Zero(t, code, out)
+	require.NotContains(t, out, "Quitting application")
+	require.Contains(t, out, remove)
+
+	out, code = run(t, appAndHelper, all, "", "")
+	require.Zero(t, code, out)
+	require.Contains(t, out, "Application 'com.example.Foo' quit successfully.")
+	require.Contains(t, out, "Application 'com.example.Foo.helper' quit successfully.")
+	require.Contains(t, out, remove)
+
+	for _, quitIDs := range [][]string{appAndHelper, {"com.example.Foo*"}} {
+		out, code = run(t, quitIDs, all, "com.example.Foo", "")
+		require.Equal(t, 1, code, out)
+		require.Contains(t, out, "Application 'com.example.Foo' did not quit.")
+		require.NotContains(t, out, remove)
+
+		out, code = run(t, quitIDs, all, "", "com.example.Foo")
+		require.Equal(t, 1, code, out)
+		require.Contains(t, out, "Application 'com.example.Foo' did not quit.")
+		require.NotContains(t, out, remove)
+	}
+
+	for _, quitIDs := range [][]string{appAndHelper, {"com.example.Foo.*"}} {
+		out, code = run(t, quitIDs, all, "com.example.Foo.helper", "")
+		require.Zero(t, code, out)
+		require.Contains(t, out, "Application 'com.example.Foo.helper' did not quit.")
+		require.Contains(t, out, remove)
+	}
+
+	out, code = run(t, []string{"com.example.Updater"}, all, "", "com.example.Updater")
+	require.Zero(t, code, out)
+	require.Contains(t, out, "Application 'com.example.Updater' did not quit.")
+	require.Contains(t, out, remove)
+}
+
+// TestCustomUninstallScriptsUseCurrentQuitHelper checks the quit_application
+// copies in custom uninstall scripts. An old copy confirmed the quit with
+// pgrep, which never matches the bundle id, and never reported a failed quit.
+func TestCustomUninstallScriptsUseCurrentQuitHelper(t *testing.T) {
+	paths, err := filepath.Glob("../../inputs/homebrew/scripts/*uninstall*.sh")
+	require.NoError(t, err)
+	require.NotEmpty(t, paths)
+	for _, path := range paths {
+		b, err := os.ReadFile(path)
+		require.NoError(t, err)
+		script := string(b)
+		if !strings.Contains(script, "\nquit_application() {\n") {
+			continue
+		}
+		require.True(t, strings.Contains(script, quitApplicationFunc), "%s has a stale copy of quit_application", filepath.Base(path))
+	}
+}
+
 // TestUninstallScriptEarlyScriptDirective covers the `early_script` uninstall
 // directive: it takes the same shape as `script`, and casks use it for the
 // commands that make the rest of the removal possible (clearing an immutable
@@ -743,7 +891,7 @@ func TestUninstallScriptEarlyScriptDirective(t *testing.T) {
 		},
 	}
 
-	script := uninstallScriptForApp(cask)
+	script := uninstallScriptForApp(inputApp{}, cask)
 	chflags := `(cd /Users/$LOGGED_IN_USER && '/usr/bin/chflags' '-RL' 'noschg' '/Applications/Foo.app') || true`
 	require.Contains(t, script, chflags)
 	require.Less(t, strings.Index(script, chflags), strings.Index(script, `remove_pkg_files 'com.example.foo'`))
@@ -771,7 +919,7 @@ func TestUninstallScriptEarlyScriptHonorsSudo(t *testing.T) {
 		},
 	}
 
-	script := uninstallScriptForApp(cask)
+	script := uninstallScriptForApp(inputApp{}, cask)
 	require.Contains(t, script, `(cd /Users/$LOGGED_IN_USER && sudo '/Applications/Foo.app/Contents/MacOS/Foo' '--unload-system-extension')`)
 	require.NotContains(t, script, "|| true")
 }
@@ -800,7 +948,7 @@ func TestUninstallScriptSkipsHomebrewPrefixScript(t *testing.T) {
 		},
 	}
 
-	script := uninstallScriptForApp(cask)
+	script := uninstallScriptForApp(inputApp{}, cask)
 	require.NotContains(t, script, "$HOMEBREW_PREFIX")
 	require.NotContains(t, script, "/usr/sbin/installer")
 }
