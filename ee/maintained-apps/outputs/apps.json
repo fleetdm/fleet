@@ -5056,6 +5056,13 @@
       "description": "Little Snitch is a network monitor and application firewall that provides real-time visibility and control over network connections for macOS."
     },
     {
+      "name": "LM Studio",
+      "slug": "lm-studio/darwin",
+      "platform": "darwin",
+      "unique_identifier": "ai.elementlabs.lmstudio",
+      "description": "LM Studio is an app to discover, download, and run local LLMs."
+    },
+    {
       "name": "Local",
       "slug": "local/darwin",
       "platform": "darwin",

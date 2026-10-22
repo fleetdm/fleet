@@ -342,6 +342,17 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.UniqueIdentifier, out.Version,
 		)
 	}
+	if input.Token == "lm-studio" {
+		// LM Studio's CFBundleShortVersionString carries a build suffix ("0.4.26+4")
+		// while the manifest version is "0.4.26". osquery's version_compare treats
+		// the "+4" form as newer than any plain version ("0.4.26+4" vs "0.4.27" is 1),
+		// so the default patch policy would pass outdated hosts. Strip the suffix
+		// before comparing. COALESCE keeps version_compare from erroring on NULL.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(COALESCE(REGEX_MATCH(bundle_short_version, '^([0-9]+(?:\\.[0-9]+)*)', 1), ''), '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
 	if input.Token == "firefox@developer-edition" {
 		// The bundle reports only the base version ("153.0") for cask version
 		// "153.0b13", so compare CFBundleVersion (encodes the build date, resolved

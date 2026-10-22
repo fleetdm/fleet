@@ -87,7 +87,7 @@ func TestIngestValidations(t *testing.T) {
 				Version: "1.0",
 			}
 
-		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "swiftdialog", "teleport-suite", "r-app", "qgis", "qgis@ltr", "kicad", "chatgpt", "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
+		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "lm-studio", "swiftdialog", "teleport-suite", "r-app", "qgis", "qgis@ltr", "kicad", "chatgpt", "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
 			cask = brewCask{
 				Token:   appToken,
 				Name:    []string{appToken},
@@ -151,6 +151,7 @@ func TestIngestValidations(t *testing.T) {
 		{"", inputApp{Token: "firefox@nightly", UniqueIdentifier: "org.mozilla.nightly", InstallerFormat: "dmg", Name: "Mozilla Firefox Nightly", Slug: "firefox@nightly/darwin"}},
 		{"", inputApp{Token: "i1profiler", UniqueIdentifier: "com.x-rite.i1Profiler", InstallerFormat: "zip", Name: "i1Profiler", Slug: "i1profiler/darwin"}},
 		{"", inputApp{Token: "steam", UniqueIdentifier: "com.valvesoftware.steam", InstallerFormat: "dmg", Name: "Steam", Slug: "steam/darwin"}},
+		{"", inputApp{Token: "lm-studio", UniqueIdentifier: "ai.elementlabs.lmstudio", InstallerFormat: "dmg", Name: "LM Studio", Slug: "lm-studio/darwin"}},
 		{"", inputApp{Token: "swiftdialog", UniqueIdentifier: "au.csiro.dialog", InstallerFormat: "pkg", Name: "swiftDialog", Slug: "swiftdialog/darwin"}},
 		{"", inputApp{Token: "teleport-suite", UniqueIdentifier: "com.gravitational.teleport.tsh", InstallerFormat: "pkg", Name: "Teleport Suite", Slug: "teleport-suite/darwin"}},
 		{"", inputApp{Token: "r-app", UniqueIdentifier: "org.R-project.R", InstallerFormat: "pkg", Name: "R for macOS", Slug: "r/darwin"}},
@@ -252,6 +253,15 @@ func TestIngestValidations(t *testing.T) {
 				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.valvesoftware.steam';", out.Queries.Exists)
 				require.Equal(t,
 					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.valvesoftware.steam' AND version_compare(bundle_version, '1.0') < 0);",
+					out.Queries.Patched,
+				)
+			case "lm-studio":
+				// LM Studio's CFBundleShortVersionString carries a "+<build>" suffix
+				// ("0.4.26+4"), which version_compare sorts above any plain version, so
+				// the patched query strips the suffix before comparing.
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'ai.elementlabs.lmstudio';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ai.elementlabs.lmstudio' AND version_compare(COALESCE(REGEX_MATCH(bundle_short_version, '^([0-9]+(?:\\.[0-9]+)*)', 1), ''), '1.0') < 0);",
 					out.Queries.Patched,
 				)
 			case "swiftdialog":

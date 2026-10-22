@@ -28,6 +28,7 @@ import IntuneCompanyPortal from "./IntuneCompanyPortal";
 import iOS from "./iOS";
 import iPadOS from "./iPadOS";
 import LinuxOS from "./LinuxOS";
+import LMStudio from "./png/LMStudio.png";
 import MacOS from "./MacOS";
 import { TMatchedIcon } from "./MatchedIcon";
 import OnePassword from "./OnePassword";
@@ -1776,6 +1777,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   linearmouse: Linearmouse,
   "lingon x": LingonX,
   "little snitch": LittleSnitch,
+  "lm studio": LMStudio,
   local: Local,
   localsend: Localsend,
   locationsimulator: Locationsimulator,
