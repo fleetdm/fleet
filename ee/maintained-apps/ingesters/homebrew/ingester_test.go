@@ -264,9 +264,6 @@ func TestIngestValidations(t *testing.T) {
 					out.Queries.Patched,
 				)
 			case "lm-studio":
-				// LM Studio's bundle versions look like "0.4.26+4" while the cask
-				// version is "0.4.26,4", so the manifest version uses the "+" form and
-				// the default patched query compares against it.
 				require.Equal(t, "0.4.26+4", out.Version)
 				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'ai.elementlabs.lmstudio';", out.Queries.Exists)
 				require.Equal(t,
