@@ -56,31 +56,31 @@ class CertificateEnrollmentHandler(private val scepClient: ScepClient, private v
                 serialNumber = result.serialNumber,
             )
         } else {
-            EnrollmentResult.Failure("Certificate installation failed for alias '${config.name}': installKeyPair returned false")
+            EnrollmentResult.Failure("Couldn't install the \"${config.name}\" certificate on the host.")
         }
     } catch (e: ScepEnrollmentException) {
         // SCEP server rejected enrollment (e.g., PENDING status, invalid challenge)
-        EnrollmentResult.Failure("SCEP enrollment failed: ${e.message}", e, isRetryable = false)
+        EnrollmentResult.Failure("The certificate authority didn't issue the certificate. Check your certificate authority configuration. ${e.message}", e, isRetryable = false)
     } catch (e: ScepNetworkException) {
         // Network communication failure - likely transient, can retry
-        EnrollmentResult.Failure("Network error during SCEP enrollment: ${e.message}", e, isRetryable = true)
+        EnrollmentResult.Failure("Couldn't reach the certificate authority. ${e.message}", e, isRetryable = true)
     } catch (e: ScepCertificateException) {
         // Certificate validation or processing failed
-        EnrollmentResult.Failure("Certificate validation failed: ${e.message}", e, isRetryable = false)
+        EnrollmentResult.Failure("Couldn't process the certificate. ${e.message}", e, isRetryable = false)
     } catch (e: ScepKeyGenerationException) {
         // Key generation failed - device cryptography issue
-        EnrollmentResult.Failure("Failed to generate key pair: ${e.message}", e, isRetryable = false)
+        EnrollmentResult.Failure("Couldn't generate a private key for the certificate on the host. ${e.message}", e, isRetryable = false)
     } catch (e: ScepCsrException) {
         // CSR creation failed - likely configuration issue
-        EnrollmentResult.Failure("Failed to create CSR: ${e.message}", e, isRetryable = false)
+        EnrollmentResult.Failure("Couldn't create the certificate signing request (CSR). ${e.message}", e, isRetryable = false)
     } catch (e: IllegalArgumentException) {
         // Configuration validation failed
-        EnrollmentResult.Failure("Invalid configuration: ${e.message}", e, isRetryable = false)
+        EnrollmentResult.Failure("The certificate's configuration isn't valid. ${e.message}", e, isRetryable = false)
     } catch (e: IllegalStateException) {
         // Delegation or system state issue (e.g. CERT_INSTALL not granted)
-        EnrollmentResult.Failure("Certificate installation failed: ${e.message}", e, isRetryable = false)
+        EnrollmentResult.Failure("Couldn't install the \"${config.name}\" certificate on the host. ${e.message}", e, isRetryable = false)
     } catch (e: Exception) {
         // Unexpected errors
-        EnrollmentResult.Failure("Unexpected error during enrollment: ${e.message}", e, isRetryable = false)
+        EnrollmentResult.Failure("Something went wrong while getting the certificate. ${e.message}", e, isRetryable = false)
     }
 }
