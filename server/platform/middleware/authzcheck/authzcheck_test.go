@@ -57,6 +57,21 @@ func TestAuthzCheckAuthRequired(t *testing.T) {
 	assert.Contains(t, err.Error(), "required")
 }
 
+func TestAuthzCheckAuthUnavailable(t *testing.T) {
+	t.Parallel()
+
+	checker := NewMiddleware()
+
+	check := func(ctx context.Context, req any) (any, error) {
+		return nil, platform_http.NewAuthUnavailableError("dial tcp: connection refused")
+	}
+	check = checker.AuthzCheck()(check)
+
+	_, err := check(context.Background(), struct{}{})
+	var unavailable *platform_http.AuthUnavailableError
+	assert.ErrorAs(t, err, &unavailable)
+}
+
 func TestAuthzCheckMissing(t *testing.T) {
 	t.Parallel()
 
