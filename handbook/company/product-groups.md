@@ -167,7 +167,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 - Android device onboarding (zero-touch)
 - Android setup experience
 - Personal (BYOD) enrollment (work profile)
-- Android agent
+- Android agent (app)
 - Android OS updates
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C0BK050C3BJ), [kanban board](https://github.com/orgs/fleetdm/projects/112), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-byod) for this product group is `#g-byod`.
