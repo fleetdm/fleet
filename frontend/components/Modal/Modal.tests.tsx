@@ -261,4 +261,95 @@ describe("Modal", () => {
       expect(getBodyPaddingRight()).toBe("");
     });
   });
+
+  describe("focus trap", () => {
+    it("sets role=dialog and aria-modal=true for assistive tech", () => {
+      const { container } = render(
+        <Modal title="Accessible" onExit={noop}>
+          <div>content</div>
+        </Modal>
+      );
+
+      const dialog = container.querySelector('[role="dialog"]');
+      expect(dialog).toHaveAttribute("aria-modal", "true");
+      expect(dialog).toHaveAttribute("aria-label", "Accessible");
+    });
+
+    it("focuses the first focusable element on open", () => {
+      render(
+        <Modal title="Focus" onExit={noop}>
+          <input type="text" aria-label="first-input" />
+        </Modal>
+      );
+
+      // Close button in the header is the first focusable in DOM order.
+      expect(screen.getByTestId("close-icon").closest("button")).toHaveFocus();
+    });
+
+    it("restores focus to the trigger element when the modal unmounts", () => {
+      const trigger = document.createElement("button");
+      trigger.textContent = "open";
+      document.body.appendChild(trigger);
+      trigger.focus();
+
+      const { unmount } = render(
+        <Modal title="Focus restore" onExit={noop}>
+          <input type="text" aria-label="inside" />
+        </Modal>
+      );
+
+      unmount();
+
+      expect(trigger).toHaveFocus();
+      document.body.removeChild(trigger);
+    });
+
+    it("traps Tab from the last focusable back to the first", () => {
+      render(
+        <Modal title="Trap" onExit={noop}>
+          <input type="text" aria-label="only-input" />
+        </Modal>
+      );
+
+      const closeButton = screen.getByTestId("close-icon").closest("button");
+      const input = screen.getByLabelText("only-input");
+
+      input.focus();
+      fireEvent.keyDown(document, { key: "Tab" });
+      expect(closeButton).toHaveFocus();
+    });
+
+    it("traps Shift+Tab from the first focusable back to the last", () => {
+      render(
+        <Modal title="Trap" onExit={noop}>
+          <input type="text" aria-label="only-input" />
+        </Modal>
+      );
+
+      const closeButton = screen.getByTestId("close-icon").closest("button");
+      const input = screen.getByLabelText("only-input");
+
+      closeButton?.focus();
+      fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+      expect(input).toHaveFocus();
+    });
+
+    it("pulls focus back into the modal when Tab is pressed from outside", () => {
+      const outside = document.createElement("button");
+      outside.textContent = "outside";
+      document.body.appendChild(outside);
+
+      render(
+        <Modal title="Trap" onExit={noop}>
+          <input type="text" aria-label="inside" />
+        </Modal>
+      );
+
+      outside.focus();
+      fireEvent.keyDown(document, { key: "Tab" });
+      const closeButton = screen.getByTestId("close-icon").closest("button");
+      expect(closeButton).toHaveFocus();
+      document.body.removeChild(outside);
+    });
+  });
 });
