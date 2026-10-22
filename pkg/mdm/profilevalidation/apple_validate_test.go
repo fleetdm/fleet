@@ -2,6 +2,9 @@ package profilevalidation
 
 import (
 	"encoding/json"
+	"fmt"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -147,4 +150,182 @@ func TestTypeAccepts(t *testing.T) {
 			assert.Equal(t, c.want, typeAccepts(c.key, c.value, c.declaration))
 		})
 	}
+}
+
+// walkFixture is a payload type covering the walker's rules. %s is where a test can add an extra
+// field the validator doesn't know.
+const walkFixture = `{"keys": {
+	"Flag": {"type": "boolean"},
+	"Deferrals": {"type": "dictionary", "keys": {"MajorPeriodInDays": {"type": "integer"%s}}},
+	"Services": {"type": "dictionary", "keys": {
+		"Camera": {"type": "array", "items": {"type": "dictionary", "keys": {"Allowed": {"type": "boolean"}}}}
+	}},
+	"Open": {"type": "dictionary", "open": true, "keys": {"Known": {"type": "integer"}}},
+	"Headers": {"type": "dictionary", "open": true, "values": {"type": "string"}},
+	"Settings": {"type": "any"},
+	"Set": {"type": "set"},
+	"Plain": {"type": "dictionary"},
+	"com.example.dotted": {"type": "integer"}
+}}`
+
+func walkProfile(t *testing.T, pt *ApplePayloadType, mode Mode, content string) []Finding {
+	t.Helper()
+	dict, err := decodeAppleProfile([]byte(plistDict(content)))
+	require.NoError(t, err)
+	w := &appleWalker{root: pt.Keys, mode: mode, payloadType: "com.example.test"}
+	w.walkKeys(pt.Keys, pt.Open, pt.Values, dict, "")
+	return w.findings
+}
+
+func TestAppleWalker(t *testing.T) {
+	var pt ApplePayloadType
+	require.NoError(t, json.Unmarshal(fmt.Appendf(nil, walkFixture, ""), &pt))
+
+	mismatch := func(path string, expected []string, actual string) Finding {
+		return Finding{Code: CodeTypeMismatch, PayloadType: "com.example.test", KeyPath: path, Expected: expected, Actual: actual}
+	}
+	unknown := func(path string) Finding {
+		return Finding{Code: CodeUnknownKey, PayloadType: "com.example.test", KeyPath: path}
+	}
+
+	cases := []struct {
+		name       string
+		content    string
+		lenient    []Finding
+		strictOnly []Finding
+	}{
+		{name: "valid", content: `<key>Flag</key><true/><key>Deferrals</key><dict><key>MajorPeriodInDays</key><integer>3</integer></dict>`},
+		{
+			name:    "top-level mismatch",
+			content: `<key>Flag</key><string>true</string>`,
+			lenient: []Finding{mismatch("Flag", []string{"boolean"}, "string")},
+		},
+		{
+			name:    "nested mismatch",
+			content: `<key>Deferrals</key><dict><key>MajorPeriodInDays</key><string>3</string></dict>`,
+			lenient: []Finding{mismatch("Deferrals.MajorPeriodInDays", []string{"integer"}, "string")},
+		},
+		{
+			name: "array positions in the path",
+			content: `<key>Services</key><dict><key>Camera</key><array>
+				<dict><key>Allowed</key><true/></dict><dict><key>Allowed</key><string>no</string></dict>
+			</array></dict>`,
+			lenient: []Finding{mismatch("Services.Camera[1].Allowed", []string{"boolean"}, "string")},
+		},
+		{
+			name:    "a mismatched dictionary isn't walked",
+			content: `<key>Deferrals</key><string>soon</string>`,
+			lenient: []Finding{mismatch("Deferrals", []string{"dictionary"}, "string")},
+		},
+		{
+			name:    "dotted key name written as-is",
+			content: `<key>com.example.dotted</key><true/>`,
+			lenient: []Finding{mismatch("com.example.dotted", []string{"integer"}, "boolean")},
+		},
+		{
+			name:    "open dictionary checks listed keys only",
+			content: `<key>Open</key><dict><key>Known</key><string>x</string><key>Anything</key><true/></dict>`,
+			lenient: []Finding{mismatch("Open.Known", []string{"integer"}, "string")},
+		},
+		{
+			name:    "open dictionary values are checked, names never",
+			content: `<key>Headers</key><dict><key>X-Good</key><string>a</string><key>X-Bad</key><integer>1</integer></dict>`,
+			lenient: []Finding{mismatch("Headers.X-Bad", []string{"string"}, "integer")},
+		},
+		{name: "any stops the walk", content: `<key>Settings</key><dict><key>Deep</key><dict><key>X</key><true/></dict></dict>`},
+		{name: "unrecognized type accepts anything", content: `<key>Set</key><array><true/><string>x</string></array>`},
+		{name: "dictionary without keys isn't walked", content: `<key>Plain</key><dict><key>Anything</key><true/></dict>`},
+		{
+			name:       "unknown keys are strict only",
+			content:    `<key>Flagg</key><true/><key>Deferrals</key><dict><key>Typo</key><true/></dict>`,
+			strictOnly: []Finding{unknown("Deferrals.Typo"), unknown("Flagg")},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assert.Equal(t, c.lenient, walkProfile(t, &pt, ModeLenient, c.content))
+			strict := append(slices.Clone(c.lenient), c.strictOnly...)
+			slices.SortStableFunc(strict, func(a, b Finding) int { return strings.Compare(a.KeyPath, b.KeyPath) })
+			got := walkProfile(t, &pt, ModeStrict, c.content)
+			if len(strict) == 0 {
+				strict = nil
+			}
+			assert.Equal(t, strict, got)
+		})
+	}
+}
+
+func TestAppleWalkerIgnoresUnknownSchemaFields(t *testing.T) {
+	var plain, extra ApplePayloadType
+	require.NoError(t, json.Unmarshal(fmt.Appendf(nil, walkFixture, ""), &plain))
+	require.NoError(t, json.Unmarshal(fmt.Appendf(nil, walkFixture, `, "requiredif": {"Flag": true}, "range": {"min": 1}`), &extra))
+	for _, content := range []string{
+		`<key>Deferrals</key><dict><key>MajorPeriodInDays</key><integer>0</integer></dict>`,
+		`<key>Deferrals</key><dict><key>MajorPeriodInDays</key><true/></dict>`,
+	} {
+		for _, mode := range []Mode{ModeLenient, ModeStrict} {
+			assert.Equal(t, walkProfile(t, &plain, mode, content), walkProfile(t, &extra, mode, content))
+		}
+	}
+}
+
+func TestAppleWalkerRef(t *testing.T) {
+	s, err := Parse(profileValidationSchemaRaw)
+	require.NoError(t, err)
+	layout := notNil(t, s.AppleProfile("com.apple.homescreenlayout"))
+
+	// A wrong-type Type in a folder nested two folders deep, reached through "ref": "Pages[]".
+	folder := func(inner string) string {
+		return `<dict><key>Type</key><string>Folder</string><key>Pages</key><array><array>` + inner + `</array></array></dict>`
+	}
+	content := `<key>Pages</key><array><array>` + folder(folder(`<dict><key>Type</key><integer>1</integer></dict>`)) + `</array></array>`
+	for _, mode := range []Mode{ModeLenient, ModeStrict} {
+		assert.Equal(t, []Finding{{
+			Code: CodeTypeMismatch, PayloadType: "com.example.test", KeyPath: "Pages[0][0].Pages[0][0].Pages[0][0].Type",
+			Expected: []string{"string"}, Actual: "integer",
+		}}, walkProfile(t, layout, mode, content))
+	}
+}
+
+func TestResolveAppleRefRealSchema(t *testing.T) {
+	s, err := Parse(profileValidationSchemaRaw)
+	require.NoError(t, err)
+	// Every ref in the embedded schema must resolve, or the walker silently stops checking there.
+	var walk func(root map[string]*AppleKey, k *AppleKey, path string)
+	var refs int
+	walk = func(root map[string]*AppleKey, k *AppleKey, path string) {
+		if k == nil {
+			return
+		}
+		if k.Ref != "" {
+			refs++
+			assert.NotNil(t, resolveAppleRef(root, k.Ref), "%s ref %s", path, k.Ref)
+		}
+		for name, c := range k.Keys {
+			walk(root, c, path+"."+name)
+		}
+		walk(root, k.Items, path+"[]")
+		walk(root, k.Values, path+".ANY")
+	}
+	for _, types := range []map[string]*ApplePayloadType{s.AppleProfiles, s.AppleDeclarations} {
+		for name, pt := range types {
+			for key, k := range pt.Keys {
+				walk(pt.Keys, k, name+":"+key)
+			}
+		}
+	}
+	assert.Positive(t, refs)
+}
+
+func TestResolveAppleRef(t *testing.T) {
+	var pt ApplePayloadType
+	require.NoError(t, json.Unmarshal([]byte(`{"keys": {
+		"a.b": {"type": "dictionary", "keys": {"c": {"type": "array", "items": {"type": "integer"}}}},
+		"a": {"type": "dictionary", "keys": {"b": {"type": "string"}}}
+	}}`), &pt))
+	assert.Equal(t, AppleTypes{AppleTypeInteger}, notNil(t, resolveAppleRef(pt.Keys, "a.b.c[]")).Type)
+	assert.Equal(t, AppleTypes{AppleTypeDictionary}, notNil(t, resolveAppleRef(pt.Keys, "a.b")).Type)
+	assert.Nil(t, resolveAppleRef(pt.Keys, "a.b.d"))
+	assert.Nil(t, resolveAppleRef(pt.Keys, "a[]"))
+	assert.Nil(t, resolveAppleRef(pt.Keys, "missing"))
 }

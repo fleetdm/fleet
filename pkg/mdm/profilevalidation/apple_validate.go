@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -119,4 +120,107 @@ func typeAccepts(key *AppleKey, v any, declaration bool) bool {
 	}
 	// No types at all is treated like an unknown type.
 	return len(key.Type) == 0
+}
+
+// appleWalker checks one payload's or declaration's values against its schema keys.
+type appleWalker struct {
+	// root is the payload type's top-level keys, where refs resolve from.
+	root        map[string]*AppleKey
+	mode        Mode
+	declaration bool
+	payloadType string
+	findings    []Finding
+}
+
+// walkKeys checks a dictionary. Listed keys are checked against their definition and other keys
+// against values; with neither, an unknown key is reported in strict mode unless the dictionary
+// is open.
+func (w *appleWalker) walkKeys(keys map[string]*AppleKey, open bool, values *AppleKey, dict map[string]any, path string) {
+	for _, name := range slices.Sorted(maps.Keys(dict)) {
+		keyPath := name
+		if path != "" {
+			keyPath = path + "." + name
+		}
+		switch {
+		case keys[name] != nil:
+			w.walkValue(keys[name], dict[name], keyPath)
+		case values != nil:
+			w.walkValue(values, dict[name], keyPath)
+		case !open && w.mode == ModeStrict:
+			w.findings = append(w.findings, Finding{Code: CodeUnknownKey, PayloadType: w.payloadType, KeyPath: keyPath})
+		}
+	}
+}
+
+func (w *appleWalker) walkValue(key *AppleKey, v any, path string) {
+	if key.Ref != "" {
+		// A ref names an enclosing definition, so this can't loop; an unresolvable one passes.
+		if key = resolveAppleRef(w.root, key.Ref); key == nil || key.Ref != "" {
+			return
+		}
+	}
+	if !typeAccepts(key, v, w.declaration) {
+		expected := make([]string, 0, len(key.Type))
+		for _, t := range key.Type {
+			expected = append(expected, string(t))
+		}
+		w.findings = append(w.findings, Finding{
+			Code: CodeTypeMismatch, PayloadType: w.payloadType, KeyPath: path, Expected: expected, Actual: kindOf(v),
+		})
+		return
+	}
+	// any, or a type this validator doesn't know, accepts the value whole.
+	for _, t := range key.Type {
+		if !slices.Contains(knownAppleTypes, t) {
+			return
+		}
+	}
+	switch v := v.(type) {
+	case map[string]any:
+		if len(key.Keys) > 0 || key.Values != nil {
+			w.walkKeys(key.Keys, key.Open, key.Values, v, path)
+		}
+	case []any:
+		if key.Items != nil {
+			for i, item := range v {
+				w.walkValue(key.Items, item, fmt.Sprintf("%s[%d]", path, i))
+			}
+		}
+	}
+}
+
+// resolveAppleRef finds the definition a ref names, e.g. "Dock[]" or
+// "ManagedBookmarks[].Bookmarks[].Folder", starting from a payload type's keys. Key names can
+// contain dots, so each step takes the longest key name that fits.
+func resolveAppleRef(root map[string]*AppleKey, ref string) *AppleKey {
+	var cur *AppleKey
+	keys := root
+	for rest := ref; rest != ""; {
+		if after, ok := strings.CutPrefix(rest, "[]"); ok {
+			if cur == nil || cur.Items == nil {
+				return nil
+			}
+			cur, keys, rest = cur.Items, cur.Items.Keys, after
+			continue
+		}
+		if cur != nil {
+			var ok bool
+			if rest, ok = strings.CutPrefix(rest, "."); !ok {
+				return nil
+			}
+		}
+		var next *AppleKey
+		best := ""
+		for name, k := range keys {
+			if k != nil && len(name) > len(best) && strings.HasPrefix(rest, name) &&
+				(len(rest) == len(name) || rest[len(name)] == '.' || rest[len(name)] == '[') {
+				next, best = k, name
+			}
+		}
+		if next == nil {
+			return nil
+		}
+		cur, keys, rest = next, next.Keys, rest[len(best):]
+	}
+	return cur
 }
