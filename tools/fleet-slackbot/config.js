@@ -1,9 +1,22 @@
 require("dotenv").config();
 
+const PLATFORMS = ["slack", "google-chat"];
+
 const config = {
+  platform: process.env.CHAT_PLATFORM || "slack",
   slack: {
     botToken: process.env.SLACK_BOT_TOKEN,
     appToken: process.env.SLACK_APP_TOKEN,
+  },
+  googleChat: {
+    projectNumber: process.env.GOOGLE_CHAT_PROJECT_NUMBER,
+    endpointUrl: process.env.GOOGLE_CHAT_ENDPOINT_URL,
+    // Service account key JSON. When unset, Application Default Credentials are used.
+    credentials: process.env.GOOGLE_CHAT_CREDENTIALS,
+    allowedDomains: (process.env.GOOGLE_CHAT_ALLOWED_DOMAINS || "")
+      .split(",")
+      .map((d) => d.trim().toLowerCase())
+      .filter(Boolean),
   },
   github: {
     token: process.env.GITHUB_TOKEN,
@@ -31,10 +44,25 @@ const config = {
   },
 };
 
+if (!PLATFORMS.includes(config.platform)) {
+  console.error(`Invalid CHAT_PLATFORM "${config.platform}" (expected one of: ${PLATFORMS.join(", ")})`);
+  process.exit(1);
+}
+
+const platformRequired = {
+  slack: [
+    ["SLACK_BOT_TOKEN", config.slack.botToken],
+    ["SLACK_APP_TOKEN", config.slack.appToken],
+  ],
+  "google-chat": [
+    ["GOOGLE_CHAT_PROJECT_NUMBER", config.googleChat.projectNumber],
+    ["GOOGLE_CHAT_ENDPOINT_URL", config.googleChat.endpointUrl],
+  ],
+};
+
 // Validate required env vars
 const required = [
-  ["SLACK_BOT_TOKEN", config.slack.botToken],
-  ["SLACK_APP_TOKEN", config.slack.appToken],
+  ...platformRequired[config.platform],
   ["GITHUB_TOKEN", config.github.token],
   ["GITHUB_BOT_USERNAME", config.github.botUsername],
   ["ANTHROPIC_API_KEY", config.anthropic.apiKey],
@@ -47,6 +75,11 @@ for (const [name, value] of required) {
     console.error(`Missing required environment variable: ${name}`);
     process.exit(1);
   }
+}
+
+if (config.platform === "google-chat" && !/^\d+$/.test(config.googleChat.projectNumber)) {
+  console.error("GOOGLE_CHAT_PROJECT_NUMBER must be the numeric project number, not the project ID");
+  process.exit(1);
 }
 
 module.exports = config;

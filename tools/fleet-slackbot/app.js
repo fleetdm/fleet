@@ -1,9 +1,8 @@
-const { App } = require("@slack/bolt");
 const config = require("./config");
 const GitHubClient = require("./github-client");
 const ClaudeClient = require("./claude-client");
 const McpClient = require("./mcp-client");
-const { registerHandlers } = require("./slack-handlers");
+const SYSTEM_PROMPTS = require("./system-prompt");
 const { createWebhookHandler } = require("./webhook-handler");
 
 const github = new GitHubClient({
@@ -59,34 +58,90 @@ const claude = new ClaudeClient({
   model: config.anthropic.model,
   maxToolCalls: config.anthropic.maxToolCalls,
   mcpClient,
+  systemPrompt: SYSTEM_PROMPTS[config.platform],
 });
 
-const app = new App({
-  token: config.slack.botToken,
-  socketMode: true,
-  appToken: config.slack.appToken,
-  processBeforeResponse: false,
-  customRoutes: [
-    {
-      path: "/healthz",
-      method: "GET",
-      handler: (_req, res) => {
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ ok: true }));
+const healthHandler = (_req, res) => {
+  res.writeHead(200, { "Content-Type": "application/json" });
+  res.end(JSON.stringify({ ok: true }));
+};
+const webhookHandler = createWebhookHandler(config, github, claude);
+
+function createSlackApp() {
+  const { App } = require("@slack/bolt");
+  const { registerHandlers } = require("./slack-handlers");
+
+  const app = new App({
+    token: config.slack.botToken,
+    socketMode: true,
+    appToken: config.slack.appToken,
+    processBeforeResponse: false,
+    customRoutes: [
+      {
+        path: "/healthz",
+        method: "GET",
+        handler: healthHandler,
       },
+      {
+        path: "/github/webhook",
+        method: "POST",
+        handler: webhookHandler,
+      },
+    ],
+    installerOptions: {
+      port: config.webhook.port,
     },
-    {
-      path: "/github/webhook",
-      method: "POST",
-      handler: createWebhookHandler(config, github, claude),
-    },
-  ],
-  installerOptions: {
-    port: config.webhook.port,
-  },
-});
+  });
 
-registerHandlers(app, config, github, claude);
+  registerHandlers(app, config, github, claude);
+  return app;
+}
+
+function createGoogleChatServer() {
+  const http = require("http");
+  const { createChatApi, createGoogleChatHandler } = require("./google-chat-handlers");
+  const api = createChatApi(config.googleChat);
+  const routes = {
+    "GET /healthz": healthHandler,
+    "POST /github/webhook": webhookHandler,
+    "POST /google-chat/events": createGoogleChatHandler(config, github, claude, { api }),
+  };
+  const server = http.createServer((req, res) => {
+    let pathname;
+    try {
+      pathname = new URL(req.url, "http://localhost").pathname;
+    } catch {
+      // A malformed request line would otherwise throw here and crash the process.
+      res.writeHead(400);
+      res.end();
+      return;
+    }
+    const route = routes[`${req.method} ${pathname}`];
+    if (!route) {
+      res.writeHead(404);
+      res.end();
+      return;
+    }
+    Promise.resolve(route(req, res)).catch((err) => {
+      console.error("[http] %s %s failed:", req.method, pathname, err);
+      if (!res.headersSent) res.writeHead(500);
+      res.end();
+    });
+  });
+  return {
+    async start() {
+      try {
+        await api.checkCredentials();
+      } catch (err) {
+        console.error(`[gchat] Can't get Google Chat API credentials (set GOOGLE_CHAT_CREDENTIALS or Application Default Credentials): ${err.message}`);
+        process.exit(1);
+      }
+      await new Promise((resolve) => server.listen(config.webhook.port, resolve));
+    },
+  };
+}
+
+const app = config.platform === "google-chat" ? createGoogleChatServer() : createSlackApp();
 
 (async () => {
   // Connect to the Fleet MCP server before starting
@@ -98,7 +153,7 @@ registerHandlers(app, config, github, claude);
   }
 
   await app.start();
-  console.log("Fleet is running!");
+  console.log(`Fleet is running! (platform: ${config.platform})`);
   console.log(`  Repo: ${config.github.repo}`);
   console.log(`  Branch: ${config.github.baseBranch}`);
   console.log(`  Path: ${config.github.gitopsBasePath}`);
@@ -106,5 +161,8 @@ registerHandlers(app, config, github, claude);
   console.log(`  MCP: ${config.mcp.url}`);
   console.log(`  Webhook: /github/webhook (port ${config.webhook.port})`);
   console.log(`  CI auto-fix: ${config.ci.autoFix ? `enabled (check: ${config.ci.checkName})` : "disabled"}`);
-  console.log("\nListening for /fleet commands, @mentions, and GitHub webhooks...");
+  if (config.platform === "google-chat") {
+    console.log(`  Google Chat events: /google-chat/events (port ${config.webhook.port})`);
+  }
+  console.log("\nListening for @mentions, DMs, and GitHub webhooks...");
 })();

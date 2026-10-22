@@ -1,5 +1,5 @@
 const Anthropic = require("@anthropic-ai/sdk");
-const SYSTEM_PROMPT = require("./system-prompt");
+const SYSTEM_PROMPTS = require("./system-prompt");
 
 // Default per-response cap on client-side tool invocations. Each call to
 // runAgentLoop (i.e. each user message) starts with a fresh budget. This
@@ -10,9 +10,10 @@ const SYSTEM_PROMPT = require("./system-prompt");
 const DEFAULT_MAX_TOOL_CALLS = 100;
 
 class ClaudeClient {
-  constructor({ apiKey, model, mcpClient, maxToolCalls }) {
+  constructor({ apiKey, model, mcpClient, maxToolCalls, systemPrompt = SYSTEM_PROMPTS.slack }) {
     this.client = new Anthropic({ apiKey, timeout: 10 * 60 * 1000 });
     this.model = model;
+    this.systemPrompt = systemPrompt;
     this.mcpClient = mcpClient;
     this.maxToolCalls =
       Number.isFinite(maxToolCalls) && maxToolCalls > 0
@@ -156,7 +157,7 @@ class ClaudeClient {
     const params = {
       model: this.model,
       max_tokens: 16000,
-      system: SYSTEM_PROMPT,
+      system: this.systemPrompt,
       messages,
     };
 
@@ -173,7 +174,7 @@ class ClaudeClient {
       params.tool_choice = options.toolChoice;
     }
 
-    // Use streaming to get partial text for live Slack updates
+    // Use streaming to get partial text for live chat updates
     const stream = this.client.messages.stream(params);
 
     if (onText) {
