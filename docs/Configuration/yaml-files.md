@@ -128,7 +128,7 @@ Policies support `path:` (single file) and `paths:` (glob pattern) references. S
 
 ### Options
 
-For available options, see the parameters for the [Create policy](https://fleetdm.com/docs/rest-api/rest-api#create-policy) and [Create fleet-level policy](https://fleetdm.com/docs/rest-api/rest-api#create-fleet-level-policy) API endpoints.
+For available options, see the parameters for the [Create policy](https://fleetdm.com/docs/rest-api/rest-api#create-policy) API endpoint.
 
 #### Patch policy
 
