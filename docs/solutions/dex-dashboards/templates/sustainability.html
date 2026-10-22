@@ -143,8 +143,11 @@ const kwhFmt = (x) => (x == null ? "---" : x >= 100 ? fmt.n(Math.round(x)) : x >
 const wFmt = (x) => (x == null ? "---" : `${x >= 20 ? Math.round(x) : Math.round(x * 10) / 10} W`);
 const kgFmt = (g) => (g == null ? "---" : g >= 10000 ? `${fmt.n(Math.round(g / 1000))} kg` : g >= 1000 ? `${Math.round(g / 100) / 10} kg` : `${Math.round(g)} g`);
 const historyDays = (Date.parse(DATA.generated_at) - Date.parse(DATA.history_since + "T00:00:00Z")) / 864e5;
-// History shorter than the window means the total only covers part of it.
-const windowLabel = (days) => (historyDays < days ? `since ${fmt.date(DATA.history_since)}` : `last ${days} days`);
+// History shorter than the window means the total only covers part of it. That
+// start date is always within the last 30 days, so the year is left out.
+const windowLabel = (days) => (historyDays < days
+  ? `since ${new Date(DATA.history_since + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}`
+  : `last ${days} days`);
 const minFmt = (m) => (m == null ? "---" : m === 0 ? "never" : `${m} min`);
 const kindLabel = { laptop: "laptop", desktop: "desktop", server: "server" };
 // Normal stays gray: green and red can't be told apart with deuteranopia in dark mode.
@@ -205,7 +208,7 @@ function render() {
     h("div", { class: "rail" }, h("div", { class: "eyebrow" }, "Right now"),
       plat === "windows" ? h("div", { class: "rail-row" }, h("span", {}, "Laptops with readings"), h("b", {}, `${fmt.n(spotWin.length)} of ${fmt.n(wins.filter((r) => r.kind === "laptop").length)}`))
         : plat === "linux" ? h("div", { class: "rail-row" }, h("span", {}, "Computers with a power sensor"), h("b", {}, `${fmt.n(spotLin.length)} of ${fmt.n(lins.length)}`))
-        : h("div", { class: "rail-row" }, h("span", {}, `Estimated carbon, ${windowLabel(30)}`), h("b", {}, kgFmt(co2_30))),
+        : h("div", { class: "rail-row" }, h("span", {}, `Carbon, ${windowLabel(30)}`), h("b", {}, kgFmt(co2_30))),
       h("div", { class: "rail-row" }, h("span", {}, "Haven't slept"), h("b", { class: never.length ? "hl-bad" : null }, fmt.n(never.length))),
       h("div", { class: "rail-row" }, h("span", {}, "Sleep turned off"), h("b", {}, fmt.n(off.length))),
       h("div", { class: "rail-row" }, h("span", {}, "Batteries to service"), h("b", {}, fmt.n(service.length)))));
