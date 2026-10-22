@@ -76,6 +76,7 @@
 
 .host-report-card {
   &__header {
+    @include flex-column-24px-gap;
     margin-bottom: px-to-rem(24);
   }
 
@@ -121,7 +122,7 @@
   &__description {
     font-size: $xx-small;
     color: $ui-fleet-black-75;
-    margin: $pad-xsmall 0 0;
+    margin: 0;
     overflow-wrap: anywhere;
   }
 
