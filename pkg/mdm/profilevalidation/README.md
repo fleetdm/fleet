@@ -224,7 +224,7 @@ loosen:
   - kind: apple_profile
     payload_type: com.apple.security.scep
     key_path: PayloadContent.SubjectAltName.uniformResourceIdentifier
-    action: types        # or: any
+    action: types        # or: any, open
     types: [array]
     reason: Apple's schema says string, but devices accept a list of URIs.
 ```
@@ -244,6 +244,7 @@ loosen:
   - Apple: `string`, `integer`, `real`, `boolean`, `date`, `data`, `array`, `dictionary`.
   - Windows: `int`, `chr`, `bool`, `b64`, `xml`, `null`, `bin`, `time`, `date`, `float`.
 - `action: any` makes the target accept any value and clears its value constraints. A Windows node keeps its `scope`, `min_build`, `deprecated`, and `source: windows`.
+- `action: open` (Apple only) makes a dictionary accept keys it doesn't list. Its listed keys stay checked, so use it where vendors add their own keys, e.g. a VPN payload's `VendorConfig`. The target must be a dictionary.
 
 ### `add`: a key Apple's schema doesn't list
 
