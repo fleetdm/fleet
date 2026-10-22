@@ -90,6 +90,12 @@ func TestDecodeAppleDeclarationErrors(t *testing.T) {
 	require.ErrorContains(t, err, "decode declaration")
 	_, err = decodeAppleDeclaration([]byte(`[]`))
 	require.ErrorContains(t, err, "root is array")
+	_, err = decodeAppleDeclaration([]byte(`{"Type": "x"} garbage`))
+	require.ErrorContains(t, err, "unexpected data after the top-level object")
+	_, err = decodeAppleDeclaration([]byte(`{"Type": "x"} {"Type": "y"}`))
+	require.ErrorContains(t, err, "unexpected data after the top-level object")
+	_, err = decodeAppleDeclaration([]byte("{\"Type\": \"x\"}\n\t "))
+	require.NoError(t, err, "trailing whitespace is fine")
 }
 
 func TestTypeAccepts(t *testing.T) {
@@ -134,6 +140,8 @@ func TestTypeAccepts(t *testing.T) {
 		{name: "date in localtime string", key: localTime, value: date, want: true},
 		{name: "date in url string", key: url, value: date},
 		{name: "date in plain string", key: key(AppleTypeString), value: date},
+		{name: "unknown valuetype accepts a date", key: &AppleKey{Type: AppleTypes{AppleTypeString}, ValueType: "<future>"}, value: date, want: true},
+		{name: "unknown valuetype accepts a boolean", key: &AppleKey{Type: AppleTypes{AppleTypeString}, ValueType: "future"}, value: true, want: true},
 
 		{name: "declaration string in data", key: key(AppleTypeData), value: "AQID", declaration: true, want: true},
 		{name: "declaration string in date", key: key(AppleTypeDate), value: "2026-01-01T00:00:00Z", declaration: true, want: true},
@@ -166,6 +174,7 @@ const walkFixture = `{"keys": {
 	"Settings": {"type": "any"},
 	"Set": {"type": "set"},
 	"Plain": {"type": "dictionary"},
+	"Future": {"type": "dictionary", "valuetype": "<future>", "keys": {"X": {"type": "integer"}}},
 	"com.example.dotted": {"type": "integer"}
 }}`
 
@@ -236,6 +245,7 @@ func TestAppleWalker(t *testing.T) {
 		{name: "any stops the walk", content: `<key>Settings</key><dict><key>Deep</key><dict><key>X</key><true/></dict></dict>`},
 		{name: "unrecognized type accepts anything", content: `<key>Set</key><array><true/><string>x</string></array>`},
 		{name: "dictionary without keys isn't walked", content: `<key>Plain</key><dict><key>Anything</key><true/></dict>`},
+		{name: "unrecognized valuetype accepts anything", content: `<key>Future</key><dict><key>X</key><string>x</string><key>Y</key><true/></dict>`},
 		{
 			name:       "unknown keys are strict only",
 			content:    `<key>Flagg</key><true/><key>Deferrals</key><dict><key>Typo</key><true/></dict>`,
@@ -385,6 +395,16 @@ func TestValidateAppleProfile(t *testing.T) {
 			name:    "invented payload type",
 			profile: mobileconfig(payload("com.apple.example", `<key>Anything</key><true/>`)),
 			strict:  []Finding{{Code: CodeUnknownType, PayloadType: "com.apple.example"}},
+		},
+		{
+			name: "invented payload type with a bad envelope",
+			profile: mobileconfig(`<dict><key>PayloadType</key><string>com.apple.example</string>
+				<key>PayloadUUID</key><integer>1</integer><key>PayloadIdentifier</key><string>example</string></dict>`),
+			strict: []Finding{
+				{Code: CodeUnknownType, PayloadType: "com.apple.example"},
+				{Code: CodeMissingPayloadVersion, PayloadType: "com.apple.example", KeyPath: "PayloadVersion"},
+				{Code: CodeMalformedIdentifier, PayloadType: "com.apple.example", KeyPath: "PayloadIdentifier"},
+			},
 		},
 		{
 			name:    "misspelled restrictions key",

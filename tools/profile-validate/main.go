@@ -134,7 +134,8 @@ func validatorFor(s *profilevalidation.ProfileValidationSchema, path string) fun
 				Type any `json:"Type"`
 			}
 			if json.Unmarshal(data, &head) != nil {
-				return nil, errNotApple
+				// Could be a broken declaration: let the validator's decode error get it logged as skipped.
+				return s.ValidateAppleDeclaration(data, mode)
 			}
 			if t, _ := head.Type.(string); !strings.HasPrefix(t, "com.apple.") {
 				return nil, errNotApple

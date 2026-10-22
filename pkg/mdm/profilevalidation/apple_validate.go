@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"maps"
 	"regexp"
 	"slices"
@@ -41,6 +42,10 @@ func decodeAppleDeclaration(data []byte) (map[string]any, error) {
 	var root any
 	if err := dec.Decode(&root); err != nil {
 		return nil, fmt.Errorf("decode declaration: %w", err)
+	}
+	// Decode stops after the first value; anything but whitespace after it is invalid JSON.
+	if _, err := dec.Token(); err != io.EOF {
+		return nil, errors.New("decode declaration: unexpected data after the top-level object")
 	}
 	dict, ok := root.(map[string]any)
 	if !ok {
@@ -87,6 +92,30 @@ var knownAppleTypes = []AppleType{
 	AppleTypeData, AppleTypeArray, AppleTypeDictionary,
 }
 
+var knownAppleValueTypes = []AppleValueType{
+	AppleValueTypeDomain, AppleValueTypeDomainPrefix, AppleValueTypeEmail, AppleValueTypeHostname,
+	AppleValueTypeLocalTime, AppleValueTypeRegex, AppleValueTypeTimestamp, AppleValueTypeURL, AppleValueTypeUUID,
+}
+
+// appleValueType is key's valuetype without the angle brackets the data carries.
+func appleValueType(key *AppleKey) AppleValueType {
+	return AppleValueType(strings.Trim(string(key.ValueType), "<>"))
+}
+
+// acceptsAnything reports whether key takes any value whole: no types, any, or a type or valuetype
+// this validator doesn't know.
+func acceptsAnything(key *AppleKey) bool {
+	if len(key.Type) == 0 || (key.ValueType != "" && !slices.Contains(knownAppleValueTypes, appleValueType(key))) {
+		return true
+	}
+	for _, t := range key.Type {
+		if !slices.Contains(knownAppleTypes, t) {
+			return true
+		}
+	}
+	return false
+}
+
 // typeAccepts reports whether v fits one of key's types. declaration is set for JSON values, which
 // have no data or date types.
 func typeAccepts(key *AppleKey, v any, declaration bool) bool {
@@ -94,11 +123,11 @@ func typeAccepts(key *AppleKey, v any, declaration bool) bool {
 	if s, ok := v.(string); ok && variables.SecretRegex.MatchString(s) {
 		return true
 	}
+	if acceptsAnything(key) {
+		return true
+	}
 	kind := AppleType(kindOf(v))
 	for _, t := range key.Type {
-		if !slices.Contains(knownAppleTypes, t) {
-			return true
-		}
 		switch t {
 		case kind:
 			return true
@@ -107,9 +136,8 @@ func typeAccepts(key *AppleKey, v any, declaration bool) bool {
 				return true
 			}
 		case AppleTypeString:
-			// Apple is moving <date> keys to string with a time valuetype; the data carries
-			// valuetypes in angle brackets.
-			vt := AppleValueType(strings.Trim(string(key.ValueType), "<>"))
+			// Apple is moving <date> keys to string with a time valuetype.
+			vt := appleValueType(key)
 			if kind == AppleTypeDate && (vt == AppleValueTypeTimestamp || vt == AppleValueTypeLocalTime) {
 				return true
 			}
@@ -119,8 +147,7 @@ func typeAccepts(key *AppleKey, v any, declaration bool) bool {
 			}
 		}
 	}
-	// No types at all is treated like an unknown type.
-	return len(key.Type) == 0
+	return false
 }
 
 // appleWalker checks one payload's or declaration's values against its schema keys.
@@ -170,11 +197,8 @@ func (w *appleWalker) walkValue(key *AppleKey, v any, path string) {
 		})
 		return
 	}
-	// any, or a type this validator doesn't know, accepts the value whole.
-	for _, t := range key.Type {
-		if !slices.Contains(knownAppleTypes, t) {
-			return
-		}
+	if acceptsAnything(key) {
+		return
 	}
 	switch v := v.(type) {
 	case map[string]any:
@@ -268,8 +292,10 @@ func (s *ProfileValidationSchema) ValidateAppleProfile(data []byte, mode Mode) (
 		w.payloadType = payloadType
 		p := s.AppleProfiles[payloadType]
 		if p == nil || (mode == ModeStrict && p.Override == "" && slices.Contains(strictUnknownAppleProfiles, payloadType)) {
+			// Its keys pass, but strict mode still checks the envelope every payload carries.
 			if mode == ModeStrict {
 				w.findings = append(w.findings, Finding{Code: CodeUnknownType, PayloadType: payloadType})
+				w.checkEnvelope(payload)
 			}
 			continue
 		}

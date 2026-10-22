@@ -46,13 +46,17 @@ func TestRun(t *testing.T) {
 	write("unreadable.mobileconfig", `<?xml version="1.0"?><plist><dict><key>k</key><data>$NOT_EXPANDED</data></dict></plist>`)
 	write("declaration.json", `{"Type": "com.apple.configuration.passcode.settings", "Identifier": "x", "Payload": {"MinimumLength": "8"}}`)
 	write("android.json", `{"passwordPolicies": []}`)
+	write("broken.json", `{"Type": "com.apple.configuration.passcode.settings",}`)
 	write("notes.txt", "not a profile")
 
-	var out bytes.Buffer
-	logger := slog.New(slog.DiscardHandler)
+	var out, logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, nil))
 	findings, err := run(t.Context(), logger, &out, s, profilevalidation.ModeLenient, []string{dir})
 	require.NoError(t, err)
 	assert.Equal(t, 2, findings)
+	// Unparseable files are reported as skipped, not silently ignored as non-Apple JSON.
+	assert.Contains(t, logs.String(), "files=5 findings=2 skipped=2")
+	assert.Contains(t, logs.String(), "broken.json")
 	assert.Equal(t,
 		filepath.Join(dir, "declaration.json")+": TYPE_MISMATCH com.apple.configuration.passcode.settings MinimumLength expected=integer actual=string\n"+
 			bad+": TYPE_MISMATCH com.apple.applicationaccess allowAirDrop expected=boolean actual=string\n",
