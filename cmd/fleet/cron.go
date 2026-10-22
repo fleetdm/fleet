@@ -3273,6 +3273,7 @@ func newAppStoreAppConfigurationReconcilerSchedule(
 	const (
 		name            = string(fleet.CronAppStoreAppConfigurationReconciler)
 		defaultInterval = 1 * time.Minute
+		maxRunTime      = 5 * time.Minute
 	)
 
 	logger = logger.With("cron", name)
@@ -3280,7 +3281,9 @@ func newAppStoreAppConfigurationReconcilerSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("reconcile_apple_app_store_app_configurations", func(ctx context.Context) error {
-			return eeservice.ReconcileAppStoreAppConfigurations(ctx, ds, vppInstaller, logger)
+			workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
+			defer cancel()
+			return eeservice.ReconcileAppStoreAppConfigurations(workCtx, ds, vppInstaller, logger)
 		}),
 	)
 

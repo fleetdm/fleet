@@ -17,12 +17,25 @@ func TestUp_20261021195658(t *testing.T) {
 	variablesVersionID := execNoErrLastID(t, db, `INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id, name, configuration) VALUES ('ios-app', 'ios', 0, 'Variables', '<dict><key>a</key><string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART</string><key>b</key><string>${FLEET_VAR_HOST_UUID}</string></dict>')`)
 	execNoErr(t, db, `INSERT INTO vpp_apps (adam_id, platform) VALUES ('android-app', 'android')`)
 	androidVersionID := execNoErrLastID(t, db, `INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id, name, configuration) VALUES ('android-app', 'android', 0, 'Android', '{"managedConfiguration": {"a": "$FLEET_VAR_HOST_UUID"}}')`)
+	const backdated = "2026-01-02 03:04:05"
+	execNoErr(t, db, `UPDATE vpp_apps_teams SET updated_at = ? WHERE id = ?`, backdated, configuredVersionID)
+	execNoErr(t, db, `UPDATE host_vpp_software_installs SET updated_at = ? WHERE id = ?`, backdated, installID)
 
 	applyNext(t, db)
 
+	// read the updated_at of the configured version and the existing install, adding the columns should not change them
+	var versionUpdatedAtUnchanged bool
+	err := db.Get(&versionUpdatedAtUnchanged, `SELECT updated_at = ? FROM vpp_apps_teams WHERE id = ?`, backdated, configuredVersionID)
+	require.NoError(t, err)
+	require.True(t, versionUpdatedAtUnchanged)
+	var installUpdatedAtUnchanged bool
+	err = db.Get(&installUpdatedAtUnchanged, `SELECT updated_at = ? FROM host_vpp_software_installs WHERE id = ?`, backdated, installID)
+	require.NoError(t, err)
+	require.True(t, installUpdatedAtUnchanged)
+
 	// read the configured version, it should have no configuration time so its existing installs aren't sent again
 	var configurationUpdatedAt sql.NullTime
-	err := db.Get(&configurationUpdatedAt, `SELECT configuration_updated_at FROM vpp_apps_teams WHERE id = ?`, configuredVersionID)
+	err = db.Get(&configurationUpdatedAt, `SELECT configuration_updated_at FROM vpp_apps_teams WHERE id = ?`, configuredVersionID)
 	require.NoError(t, err)
 	require.False(t, configurationUpdatedAt.Valid)
 
