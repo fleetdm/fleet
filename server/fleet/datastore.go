@@ -847,6 +847,9 @@ type Datastore interface {
 	// PatchNotificationExistsForApp reports whether a patch notification on this
 	// host still has this app to install.
 	PatchNotificationExistsForApp(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error)
+	// GetHostPatchDeadlineAt returns when the host's earliest open patch deadline notification
+	// forces its install, or nil if the host has none.
+	GetHostPatchDeadlineAt(ctx context.Context, hostID uint) (*time.Time, error)
 	// DisplayedPatchNotificationExistsForApp reports whether this app is on a patch
 	// notification the end user has seen that has not queued its install yet.
 	DisplayedPatchNotificationExistsForApp(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error)

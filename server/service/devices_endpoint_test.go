@@ -111,6 +111,9 @@ func TestGetDeviceHostEndpointScrubbing(t *testing.T) {
 	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
 		return nil, nil
 	}
+	ds.GetHostPatchDeadlineAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+		return nil, nil
+	}
 	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
 		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
@@ -252,6 +255,9 @@ func TestGetDeviceHostEndpointNoScrubbingForMacOS(t *testing.T) {
 		return nil, nil
 	}
 	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+		return nil, nil
+	}
+	ds.GetHostPatchDeadlineAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
 	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
@@ -407,6 +413,9 @@ func TestGetDeviceHostEndpointConditionalAccessBypass(t *testing.T) {
 				return nil, nil
 			}
 			ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+				return nil, nil
+			}
+			ds.GetHostPatchDeadlineAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 				return nil, nil
 			}
 			ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {

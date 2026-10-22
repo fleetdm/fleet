@@ -37,6 +37,31 @@ LIMIT 1
 	return exists, nil
 }
 
+func (ds *Datastore) GetHostPatchDeadlineAt(ctx context.Context, hostID uint) (*time.Time, error) {
+	// install_at is set once the first toast displays, until then the toast is due 1 hour before the deadline
+	const selectStmt = `
+SELECT COALESCE(pn.install_at, neu.next_attempt_at + INTERVAL 1 HOUR) AS patch_deadline_at
+FROM notifications_end_user neu
+	JOIN patch_notifications pn ON pn.notification_uuid = neu.uuid
+WHERE neu.host_id = ?
+	AND neu.kind = ?
+	AND neu.status IN (?, ?)
+ORDER BY patch_deadline_at
+LIMIT 1
+`
+
+	var at *time.Time
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &at, selectStmt, hostID, fleet.PatchDeadlineNotificationKind,
+		notifications_api.EndUserNotificationPending, notifications_api.EndUserNotificationDispatched,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host patch deadline at")
+	}
+	return at, nil
+}
+
 func (ds *Datastore) DisplayedPatchNotificationExistsForApp(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error) {
 	// match only a displayed notification, displayed_at is what sets install_at
 	const selectStmt = `
