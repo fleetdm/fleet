@@ -855,13 +855,16 @@ module.exports = {
         builtStaticContent.openPositions = [];// This will be passed into a component on the company handbook page to render a list of open positions.
         let RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO = 'handbook/company/open-positions.yml';
 
-        // Get last modified timestamp using git, and represent it as a JS timestamp.
-        // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
-        let lastModifiedAt = (new Date((await sails.helpers.process.executeCommand.with({
-          command: `git log -1 --format="%ai" '${path.join(topLvlRepoPath, RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO)}'`,
-          dir: topLvlRepoPath,
-        })).stdout)).getTime();
 
+        let lastModifiedAt = 0;
+        if(getRealTimestamps) {
+          // Get last modified timestamp using git, and represent it as a JS timestamp.
+          // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
+          lastModifiedAt = (new Date((await sails.helpers.process.executeCommand.with({
+            command: `git log -1 --format="%ai" '${path.join(topLvlRepoPath, RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO)}'`,
+            dir: topLvlRepoPath,
+          })).stdout)).getTime();
+        }
 
         let openPositionsYaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find open positions YAML file at "${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
         let openPositionsToCreatePartialsFor = YAML.parse(openPositionsYaml, {prettyErrors: true});
