@@ -53,7 +53,7 @@ describe("RunScriptDetailsModal", () => {
     );
   });
 
-  it("strips the fleetctl 'Go to Fleet' pointer from the host-timeout message", async () => {
+  it("rewrites the fleetctl 'Go to Fleet' lead-in on the host-timeout message", async () => {
     mockScriptsAPI.getScriptResult.mockResolvedValue(
       createMockScriptResult({
         exit_code: null,
@@ -67,8 +67,8 @@ describe("RunScriptDetailsModal", () => {
 
     const statusMessage = await screen.findByText(/didn't hear back/);
     expect(statusMessage.textContent).not.toContain("Go to Fleet");
-    expect(statusMessage.textContent).not.toContain(
-      "Host details > Activities"
+    expect(statusMessage.textContent).toContain(
+      "Check Host details > Activities to see script results."
     );
   });
 

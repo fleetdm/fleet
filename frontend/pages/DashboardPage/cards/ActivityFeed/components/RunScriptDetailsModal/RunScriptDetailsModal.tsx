@@ -75,17 +75,14 @@ const StatusMessage = ({
         // Expected API message: "A script is already running on this host. Please wait about 1 minute to let it finish."
         return <StatusMessageRunning />;
       }
-      // The API message is fleetctl copy; strip the trailing "Go to Fleet
-      // and check Host details > Activities" pointer, since the modal is
-      // already on that view.
+      // The API message is fleetctl copy; drop the "Go to Fleet and" lead-in,
+      // since the user is already in Fleet.
       return (
         <StatusMessageError
-          message={message
-            .replace(
-              /\s*Go to Fleet and check Host details > Activities to see script results\.?/,
-              ""
-            )
-            .trim()}
+          message={message.replace(
+            /Go to Fleet and check Host details/,
+            "Check Host details"
+          )}
         />
       );
     case -2:
