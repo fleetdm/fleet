@@ -17,11 +17,14 @@ const INSTRUCTIONS = [
   'Turn off the camera',
 ];
 
-// Each is passed to the configuration helper alongside the instructions.
+// Each is passed to the configuration helper alongside the instructions.  .mobileconfig and Windows prompts are
+// checked both ways, since asking for settings rather than the document changes their rules and response shape.
 const VARIANTS = [
   { profileType: 'mobileconfig' },
+  { profileType: 'mobileconfig', writeProfilesFromSettings: true },
   { profileType: 'ddm' },
   { profileType: 'csp' },
+  { profileType: 'csp', writeProfilesFromSettings: true },
   { profileType: 'android' },
 ];
 
@@ -96,5 +99,17 @@ describe('cached prompt prefixes', function() {
       });
     }
   }
+
+  it('caches the Apple router\'s system prompt, the same for every request', async function() {
+    let routerSystemPrompts = [];
+    for (let instruction of INSTRUCTIONS) {
+      promptCalls = [];
+      await sails.helpers.routeAppleConfigurationProfileRequest.with({ naturalLanguageInstructions: instruction, forFleet: true });
+      let routerCall = _.find(promptCalls, (call)=>{ return /declarative device management/.test(call.systemPrompt || ''); });
+      assert.ok(routerCall && routerCall.systemPromptCacheTtl, 'the router\'s system prompt should be cached');
+      routerSystemPrompts.push(routerCall.systemPrompt);
+    }
+    assert.strictEqual(_.uniq(routerSystemPrompts).length, 1, 'the router\'s cached system prompt differs between requests');
+  });
 
 });

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.5",
+      "version": "2.5.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'jp.plentycom.CursorSense.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'jp.plentycom.CursorSense.app' AND version_compare(bundle_short_version, '2.5') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'jp.plentycom.CursorSense.app' AND version_compare(bundle_short_version, '2.5.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'jp.plentycom.CursorSense.app' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://plentycom.jp/ctrl/files_cs/CursorSense2.5.dmg",
+      "installer_url": "https://plentycom.jp/ctrl/files_cs/CursorSense2.5.1.dmg",
       "install_script_ref": "565c9c1f",
       "uninstall_script_ref": "afcf7e24",
-      "sha256": "f4c13fdd02d33826867edbed605992e5b8de3de87057164d9121f936fffef3a0",
+      "sha256": "9a62a93ddadfa7331276bad4f261c92d839aa069bedac8f59ad3769b36282d8d",
       "default_categories": [
         "Productivity"
       ]

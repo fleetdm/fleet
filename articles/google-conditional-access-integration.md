@@ -1,14 +1,12 @@
 # Conditional access: Google
 
-With Fleet's [conditional access](https://fleetdm.com/guides/conditional-access), Google blocks sign-in from iPhones, iPads, and Android devices that aren't managed by Fleet. Google calls this Context-Aware Access.
-
-[Watch the demo](https://drive.google.com/file/d/1PEaBUbwOSGaoIbiYSM7jk5WYf291C5X8/view?usp=sharing).
+With Fleet's [conditional access](https://fleetdm.com/guides/conditional-access), Google blocks sign-in from iPhones, iPads, and Android devices that aren't company-owned and managed by Fleet. Google calls this Context-Aware Access.
 
 How it works:
 
-1. Fleet adds a **Register with Google** icon to each managed device: a web clip on iOS and iPadOS, and a web app on Android.
-2. The icon opens a page you host on Google Cloud behind Identity-Aware Proxy (IAP). IAP signs in the end user and adds the device's Google device ID to the request.
-3. The page marks that device as managed in Google.
+1. Fleet installs Google Chrome on each managed device with a **Register with Google** bookmark. The bookmark's link includes the host's UUID in Fleet.
+2. The bookmark opens a page you host on Google Cloud behind Identity-Aware Proxy (IAP). IAP signs in the end user and adds the device's Google device ID to the request.
+3. The page asks Fleet whether the host is enrolled and company-owned. If so, it marks the device as managed in Google.
 4. A Context-Aware Access level blocks sign-in from devices that aren't marked as managed.
 
 > **Note:** Built-in support for Google is [coming soon](https://github.com/fleetdm/fleet/issues/56195). Until then, everything in this guide works today.
@@ -19,7 +17,6 @@ How it works:
 - A Chrome Enterprise Premium license for each end user. Without it, IAP doesn't include the device ID.
 - A Google super admin account.
 - A Google Cloud organization linked to your Workspace domain, and a billing account.
-- iPhones, iPads, and Android devices enrolled to Fleet, with the end user signed in to a Google app, like Gmail, with their work account.
 - A computer with the [Google Cloud CLI](https://cloud.google.com/sdk/docs/install) (`gcloud`).
 
 ## Step 1: Set up Google Workspace
@@ -29,7 +26,7 @@ In the Google Admin console:
 1. Head to **Devices > Mobile & endpoints > Settings > Universal settings**. Set **Mobile management** to **Basic** (the default), and turn off **Device approvals**.
 2. Head to **Account > Account settings > Profile** and copy your **Customer ID**.
 3. Head to **Billing > Subscriptions > Chrome Enterprise Premium** and assign licenses to your end users.
-4. Create a user for the page to act as, like `google-device-sync@example.com`, in an organizational unit that the access level in Step 7 doesn't cover. Then head to **Account > Admin roles**, create a role with only the **Services > Mobile Device Management** and **Security > Security settings** privileges, and assign it to that user.
+4. Create a user for the page to act as, like `google-device-sync@example.com`, in an organizational unit that the access level in Step 8 doesn't cover. Then head to **Account > Admin roles**, create a role with only the **Services > Mobile Device Management** and **Security > Security settings** privileges, and assign it to that user.
 
 ## Step 2: Create a Google Cloud project
 
@@ -82,7 +79,13 @@ gcloud access-context-manager levels create fleet_mobile_device --policy=${POLIC
   --title="Fleet: iOS or Android device" --custom-level-spec=mobile.yaml
 ```
 
-## Step 5: Deploy the page
+## Step 5: Create a Fleet API-only user
+
+The page asks Fleet about the host before it marks the device. [Create an API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with the global **Observer** role, restricted to only the [Get host by identifier](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-identifier) endpoint.
+
+Save the user's API token in a file named `fleet-api-token.txt`. You'll use it in Step 6.
+
+## Step 6: Deploy the page
 
 1. In a new folder, create `main.py`:
 
@@ -100,17 +103,54 @@ GOOGLE_SA_KEY = json.loads(os.environ["GOOGLE_SA_KEY"])
 ADMIN_EMAIL = os.environ["ADMIN_EMAIL"]
 CUSTOMER_ID = os.environ["CUSTOMER_ID"]
 IAP_AUDIENCE = os.environ["IAP_AUDIENCE"]
+FLEET_URL = os.environ["FLEET_URL"].rstrip("/")
+FLEET_API_TOKEN = os.environ["FLEET_API_TOKEN"].strip()
 SEGMENT = CUSTOMER_ID.lstrip("C") + "-fleet"
 IAP_KEYS = "https://www.gstatic.com/iap/verify/public_key"
 CI = "https://cloudidentity.googleapis.com/v1"
 DEVICES_SCOPE = "https://www.googleapis.com/auth/cloud-identity.devices"
+PATH = "/mark-as-managed-in-google"
+# Fleet platform -> Google deviceType
+PLATFORMS = {"ios": "IOS", "ipados": "IOS", "android": "ANDROID"}
+COMPANY_OWNED = "On (automatic)"
 
-PAGE = ("<!doctype html><meta name=viewport content='width=device-width'>"
-        "<body style='font-family:-apple-system,sans-serif;padding:2em'><h2>{title}</h2><p>{text}</p></body>")
+with open(os.path.join(os.path.dirname(__file__), "page.html")) as f:
+    PAGE = f.read()
 
 
-def page(title, text, status=200):
-    return PAGE.format(title=title, text=text), status
+class NotAllowed(Exception):
+    pass
+
+
+def upstream_error(source, r):
+    try:
+        body = r.json()
+        message = body.get("message") or body.get("error", {}).get("message")
+    except ValueError:
+        message = None
+    return RuntimeError(f"{source} returned {r.status_code}: {message or r.text[:200]}")
+
+
+def fleet_host(host_uuid):
+    r = requests.get(f"{FLEET_URL}/api/v1/fleet/hosts/identifier/{requests.utils.quote(host_uuid, safe='')}",
+                     params={"exclude_software": "true"},
+                     headers={"Authorization": f"Bearer {FLEET_API_TOKEN}"}, timeout=20)
+    if r.status_code == 404:
+        return None
+    if not r.ok:
+        raise upstream_error("Fleet", r)
+    return r.json()["host"]
+
+
+def check_host(host):
+    """Raises NotAllowed unless the host is a company-owned mobile device."""
+    if not host:
+        raise NotAllowed("host not found in Fleet")
+    if host.get("platform") not in PLATFORMS:
+        raise NotAllowed(f"platform {host.get('platform')} not supported")
+    status = (host.get("mdm") or {}).get("enrollment_status")
+    if status != COMPANY_OWNED:
+        raise NotAllowed(f"enrollment status is {status}")
 
 
 def google_token():
@@ -119,72 +159,166 @@ def google_token():
     return creds.token
 
 
-def gget(token, path, params=None):
-    r = requests.get(f"{CI}/{path}", params={"customer": "customers/my_customer", **(params or {})},
-                     headers={"Authorization": f"Bearer {token}"}, timeout=20)
-    r.raise_for_status()
+def gcall(method, token, path, **kwargs):
+    r = requests.request(method, f"{CI}/{path}", headers={"Authorization": f"Bearer {token}"}, timeout=20,
+                         params={"customer": "customers/my_customer", **kwargs.pop("params", {})}, **kwargs)
+    if not r.ok:
+        raise upstream_error("Google", r)
     return r.json()
 
 
-def google_device(token, device_id):
+def google_devices(token):
     page_token = None
     while True:
-        res = gget(token, "devices", {"view": "USER_ASSIGNED_DEVICES", "pageSize": 100, **({"pageToken": page_token} if page_token else {})})
-        for d in res.get("devices", []):
-            if (d.get("deviceId") or "").lower() == device_id.lower():
-                return d
+        params = {"view": "USER_ASSIGNED_DEVICES", "pageSize": 100}
+        if page_token:
+            params["pageToken"] = page_token
+        res = gcall("GET", token, "devices", params=params)
+        yield from res.get("devices", [])
         page_token = res.get("nextPageToken")
         if not page_token:
-            return None
+            return
 
 
-def device_user_name(token, device, email):
-    users = gget(token, f"{device['name']}/deviceUsers").get("deviceUsers", [])
-    for u in users:
-        if (u.get("userEmail") or "").lower() == email:
-            return u["name"]
-    return users[0]["name"] if users else None
+def device_users(token, device):
+    return gcall("GET", token, f"{device['name']}/deviceUsers").get("deviceUsers", [])
 
 
-def mark(token, name):
-    body = {"managed": "MANAGED", "assetTags": []}
-    r = requests.patch(f"{CI}/{name}/clientStates/{SEGMENT}", params={"customer": "customers/my_customer"},
-                       json=body, headers={"Authorization": f"Bearer {token}"}, timeout=20)
-    r.raise_for_status()
-    return r.json()
+def mark_managed(token, device_user, host_uuid):
+    body = {"managed": "MANAGED", "customId": host_uuid}
+    return gcall("PATCH", token, f"{device_user}/clientStates/{SEGMENT}", json=body)
 
 
-@app.route("/")
-def register():
+def register(host_uuid):
     jwt = request.headers.get("X-Goog-IAP-JWT-Assertion", "")
     if not jwt:
-        return page("Not behind IAP", "This page must be reached through Identity-Aware Proxy.", 500)
+        raise NotAllowed("request didn't come through Identity-Aware Proxy")
     try:
         claims = id_token.verify_token(jwt, Request(), audience=IAP_AUDIENCE, certs_url=IAP_KEYS)
     except Exception as e:
-        return page("Could not verify this request", str(e), 401)
+        raise RuntimeError(f"Couldn't verify the IAP token: {e}")
     email = (claims.get("email") or "").lower()
     device_id = (claims.get("google") or {}).get("device_id")
     if not device_id:
-        return page("No device identity", "Google did not identify this device. Sign in to Gmail on it first, then try again.", 422)
+        raise RuntimeError("Google didn't identify this device. Check that the IAP access level is attached.")
+    if not host_uuid:
+        raise NotAllowed("link has no host")
+
+    host = fleet_host(host_uuid)
+    check_host(host)
 
     token = google_token()
-    device = google_device(token, device_id)
+    device = next((d for d in google_devices(token) if (d.get("deviceId") or "").lower() == device_id.lower()), None)
     if not device:
-        return page("Device not found", "Google knows this device but it is not in your organization's device list yet. Try again in a few minutes.", 422)
-    name = device_user_name(token, device, email)
-    if not name:
-        return page("Device not found", "Google has no device user for this account on this device.", 422)
-    mark(token, name)
-    print(json.dumps({"registered": name, "email": email, "device_id": device_id, "model": device.get("model"), "type": device.get("deviceType")}))
-    return page("This device is registered", "You can close this page.")
+        raise RuntimeError("Google doesn't list this device yet. Try again in a few minutes.")
+    if device.get("deviceType") != PLATFORMS[host["platform"]]:
+        raise NotAllowed(f"Google device type {device.get('deviceType')} doesn't match Fleet platform {host['platform']}")
+    user = next((u["name"] for u in device_users(token, device) if (u.get("userEmail") or "").lower() == email), None)
+    if not user:
+        raise RuntimeError(f"Google has no user {email} on this device.")
+    mark_managed(token, user, host_uuid)
+    return {"registered": user, "email": email, "device_id": device_id, "host": host_uuid}
+
+
+@app.get(PATH)
+def page():
+    return PAGE
+
+
+@app.post(PATH)
+def mark():
+    host_uuid = request.args.get("host", "")
+    try:
+        log = register(host_uuid)
+    except NotAllowed as e:
+        print(json.dumps({"not_allowed": str(e), "host": host_uuid}))
+        return {"state": "not_allowed"}
+    except Exception as e:
+        print(json.dumps({"error": str(e), "host": host_uuid}))
+        return {"state": "error", "message": str(e)}
+    print(json.dumps(log))
+    return {"state": "done"}
 
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
 ```
 
-2. In the same folder, create `requirements.txt`:
+2. In the same folder, create `page.html`, the page end users see:
+
+```html
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Register with Google</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><circle cx='3' cy='3' r='3' fill='%2363C740'/><circle cx='12' cy='3' r='3' fill='%235CABDF'/><circle cx='21' cy='3' r='3' fill='%23D66C7B'/><circle cx='3' cy='12' r='3' fill='%23C98DEF'/><circle cx='12' cy='12' r='3' fill='%23FAA669'/><circle cx='3' cy='21' r='3' fill='%233AEFC4'/></svg>">
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #192147; margin: 0; padding: 24px; }
+    header svg { width: 32px; height: 32px; }
+    main { max-width: 480px; margin: 48px auto; text-align: center; }
+    h1 { font-size: 20px; margin: 0 0 8px; }
+    p { margin: 8px 0; color: #515774; }
+    a { color: #6a67fe; }
+    .warn { font-size: 28px; }
+    .spinner { width: 40px; height: 40px; margin: 0 auto; border: 4px solid #e2e4ea; border-top-color: #6a67fe; border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    [hidden] { display: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-label="Fleet">
+      <circle cx="3" cy="3" r="3" fill="#63C740"/><circle cx="12" cy="3" r="3" fill="#5CABDF"/>
+      <circle cx="21" cy="3" r="3" fill="#D66C7B"/><circle cx="3" cy="12" r="3" fill="#C98DEF"/>
+      <circle cx="12" cy="12" r="3" fill="#FAA669"/><circle cx="3" cy="21" r="3" fill="#3AEFC4"/>
+    </svg>
+  </header>
+  <main>
+    <div id="loading" hidden>
+      <div class="spinner" role="status" aria-label="Loading"></div>
+    </div>
+    <div id="done" hidden>
+      <h1>You're done! &#127881;</h1>
+      <p>You can log in to apps with your company email.</p>
+    </div>
+    <div id="not_allowed" hidden>
+      <div class="warn">&#9888;&#65039;</div>
+      <h1>This device isn't allowed to access company data.</h1>
+      <p>Only company-owned devices that are enrolled to Fleet are allowed.</p>
+    </div>
+    <div id="error" hidden>
+      <div class="warn">&#9888;&#65039;</div>
+      <h1>Something went wrong.</h1>
+      <p><a href="#" id="retry">Try again</a>.</p>
+      <p>Error message: <span id="message"></span></p>
+    </div>
+  </main>
+  <script>
+    const states = ["loading", "done", "not_allowed", "error"];
+    function show(state, message) {
+      states.forEach(s => document.getElementById(s).hidden = s !== state);
+      document.getElementById("message").textContent = message || "";
+    }
+    async function register() {
+      show("loading");
+      try {
+        const res = await fetch(location.pathname + location.search, {method: "POST"});
+        const body = await res.json();
+        show(body.state, body.message);
+      } catch (e) {
+        show("error", e.message);
+      }
+    }
+    document.getElementById("retry").onclick = e => { e.preventDefault(); register(); };
+    register();
+  </script>
+</body>
+</html>
+```
+
+3. Create `requirements.txt`:
 
 ```
 flask
@@ -193,100 +327,101 @@ gunicorn
 google-auth
 ```
 
-3. Create `Procfile`:
+4. Create `Procfile`:
 
 ```
 web: gunicorn -b :$PORT main:app
 ```
 
-4. From that folder, deploy it. Set `ADMIN_EMAIL` to the user from Step 1, `CUSTOMER_ID` to your customer ID, and `<your domain>` to your Workspace primary domain:
+5. From that folder, deploy it. Set `FLEET_URL` to your Fleet URL, `ADMIN_EMAIL` to the user from Step 1, `CUSTOMER_ID` to your customer ID, and `<your domain>` to your Workspace primary domain:
 
 ```sh
+FLEET_URL=https://<your Fleet URL>
 gcloud secrets create fleet-google-sa-key --data-file=google-device-sync.json
-gcloud secrets add-iam-policy-binding fleet-google-sa-key \
-  --member=serviceAccount:$PN-compute@developer.gserviceaccount.com --role=roles/secretmanager.secretAccessor
+gcloud secrets create fleet-api-token --data-file=fleet-api-token.txt
+for SECRET in fleet-google-sa-key fleet-api-token; do
+  gcloud secrets add-iam-policy-binding $SECRET \
+    --member=serviceAccount:$PN-compute@developer.gserviceaccount.com --role=roles/secretmanager.secretAccessor
+done
 gcloud run deploy fleet-google-device --source . --region=$REGION --no-allow-unauthenticated --iap \
-  --set-env-vars "ADMIN_EMAIL=<admin from Step 1>,CUSTOMER_ID=<customer ID>,IAP_AUDIENCE=/projects/$PN/locations/$REGION/services/fleet-google-device" \
-  --set-secrets GOOGLE_SA_KEY=fleet-google-sa-key:latest
+  --set-env-vars "ADMIN_EMAIL=<admin from Step 1>,CUSTOMER_ID=<customer ID>,FLEET_URL=$FLEET_URL,IAP_AUDIENCE=/projects/$PN/locations/$REGION/services/fleet-google-device" \
+  --set-secrets GOOGLE_SA_KEY=fleet-google-sa-key:latest,FLEET_API_TOKEN=fleet-api-token:latest
 gcloud run services add-iam-policy-binding fleet-google-device --region=$REGION \
   --member=serviceAccount:service-$PN@gcp-sa-iap.iam.gserviceaccount.com --role=roles/run.invoker
+# the condition needs the level's full name; this recomputes it in case Step 4 ran in another shell
+POLICY=accessPolicies/$(gcloud access-context-manager policies list --organization=$(gcloud organizations list --format='value(ID)') --format='value(name)' | sed 's#accessPolicies/##')
 cat > cond.yaml <<EOF
 expression: '"$POLICY/accessLevels/fleet_mobile_device" in request.auth.access_levels'
 title: fleet_mobile_device
 EOF
 gcloud iap web add-iam-policy-binding --member=domain:<your domain> --role=roles/iap.httpsResourceAccessor \
   --region=$REGION --resource-type=cloud-run --service=fleet-google-device --condition-from-file=cond.yaml
-gcloud run services describe fleet-google-device --region=$REGION --format='value(status.url)'
+echo "$(gcloud run services describe fleet-google-device --region=$REGION --format='value(status.url)')/mark-as-managed-in-google"
 ```
 
-The last command prints the page's URL. You'll use it in Step 6.
+The last command prints the page URL. You'll use it in Step 7.
 
-## Step 6: Deploy the web clip (iOS) and web app (Android) to devices
+The page shows one of three results:
 
-**iOS and iPadOS:** Save this profile as `register-with-google.mobileconfig`, replace `<page URL>` with the URL from Step 5, and add it in **Controls > OS settings > Custom settings**:
+| Result | When |
+|---|---|
+| **You're done! 🎉** | The device is marked as managed in Google. |
+| **This device isn't allowed to access company data.** | The host isn't in Fleet or isn't company-owned (its enrollment status isn't **On (automatic)**). Also shown when Google sees a different platform than Fleet. |
+| **Something went wrong.** | A request to Fleet or Google failed, or the page couldn't verify the request from IAP. The page shows the error and a **Try again** link. |
+
+The page logs every result, with the reason, to Cloud Logging.
+
+## Step 7: Add the bookmark to Chrome
+
+Add Google Chrome to each fleet with iPhones, iPads, or Android devices, with a configuration that adds the **Register with Google** bookmark. Fleet replaces `$FLEET_VAR_HOST_UUID` with each host's UUID, so every device gets its own link. Replace `PAGE_URL` with the URL from Step 6.
+
+**iOS and iPadOS:**
+
+1. Head to **Software > Add software > App store**, and add **Google Chrome** for iOS and iPadOS.
+2. Open Chrome's software details, select **Actions > Edit configuration**, and add:
 
 ```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
 <dict>
-	<key>PayloadContent</key>
-	<array>
-		<dict>
-			<key>PayloadType</key>
-			<string>com.apple.webClip.managed</string>
-			<key>PayloadVersion</key>
-			<integer>1</integer>
-			<key>PayloadIdentifier</key>
-			<string>com.apple.webClip.managed.47833116-A108-47D0-A7F9-2B90FFE0CF55</string>
-			<key>PayloadUUID</key>
-			<string>47833116-A108-47D0-A7F9-2B90FFE0CF55</string>
-			<key>Label</key>
-			<string>Register with Google</string>
-			<key>URL</key>
-			<string><page URL></string>
-			<key>IsRemovable</key>
-			<false/>
-			<key>FullScreen</key>
-			<false/>
-			<key>Precomposed</key>
-			<true/>
-		</dict>
-	</array>
-	<key>PayloadType</key>
-	<string>Configuration</string>
-	<key>PayloadVersion</key>
-	<integer>1</integer>
-	<key>PayloadIdentifier</key>
-	<string>com.example.google-register-webclip</string>
-	<key>PayloadUUID</key>
-	<string>4D616BE1-E775-4363-B51E-240DD7AC6057</string>
-	<key>PayloadDisplayName</key>
-	<string>Register with Google</string>
+  <key>ManagedBookmarks</key>
+  <array>
+    <dict>
+      <key>toplevel_name</key>
+      <string>Work</string>
+    </dict>
+    <dict>
+      <key>name</key>
+      <string>Register with Google</string>
+      <key>url</key>
+      <string>PAGE_URL?host=$FLEET_VAR_HOST_UUID</string>
+    </dict>
+  </array>
 </dict>
-</plist>
 ```
 
-`FullScreen` is `false` so the web clip opens in Safari, which already has the end user's Google session.
+3. Install Chrome through Fleet. The configuration only reaches a device when Fleet installs Chrome on it:
+   - For hosts that enroll later, head to **Controls > Setup experience > 4. Install software** and add Chrome.
+   - For hosts that are already enrolled, install Chrome from each host's **Host details** page, or with the [install software API](https://fleetdm.com/docs/rest-api/rest-api#install-software).
+
+If the end user installed Chrome themselves, installing it through Fleet takes over management. The bookmark shows up after the end user quits and reopens Chrome.
 
 **Android:**
 
-1. Head to **Software > Add software > App store**, and add **Google Chrome** for Android to each fleet. Android web apps run in Chrome. Ask end users to sign in to Chrome with their work account.
-2. Create a web app with the page URL and a 512x512 PNG icon, using Fleet's API:
+1. Head to **Software > Add software > App store**, and add **Google Chrome** for Android.
+2. Open Chrome's software details, select **Actions > Edit configuration**, and add:
 
-```sh
-curl -X POST https://<your Fleet URL>/api/v1/fleet/software/web_apps -H "Authorization: Bearer <API token>" \
-  -F 'title=Register with Google' -F 'url=<page URL>' -F 'icon=@icon-512.png'
+```json
+{
+  "managedConfiguration": {
+    "ManagedBookmarks": "[{\"toplevel_name\": \"Work\"}, {\"name\": \"Register with Google\", \"url\": \"PAGE_URL?host=$FLEET_VAR_HOST_UUID\"}]"
+  }
+}
 ```
 
-3. A few minutes later, add the returned `app_store_id` to each fleet. If Fleet says the app isn't available in Google Play yet, wait and try again:
+3. Install Chrome on each host from **Host details**. For hosts that enroll later, add Chrome in **Controls > Setup experience > 4. Install software**.
 
-```sh
-curl -X POST https://<your Fleet URL>/api/v1/fleet/software/app_store_apps -H "Authorization: Bearer <API token>" \
-  -H "Content-Type: application/json" -d '{"app_store_id": "<app_store_id>", "fleet_id": <fleet ID>, "platform": "android", "self_service": false}'
-```
+Learn more about [managed configuration for App Store and Google Play apps](https://fleetdm.com/guides/install-app-store-apps).
 
-## Step 7: Turn on blocking
+## Step 8: Turn on blocking
 
 1. In the Google Admin console, head to **Security > Access and data control > Context-Aware Access > Access levels**. Create an **Advanced** access level named `Fleet managed device` with this condition:
 
@@ -297,25 +432,43 @@ device.vendors.exists(k, device.vendors[k].is_managed_device == true)
 2. Select **Assign access levels**, choose your end users' organizational units and the apps to protect, and assign the level. Select **Block users from accessing Google desktop and mobile apps if access levels aren't met**.
 3. Choose **Monitor** first. After your devices show as managed, switch to **Active**.
 
-## Step 8: Test
+## Step 9: Test
 
-On a device enrolled to Fleet, open **Register with Google**. The page says "This device is registered." In the Google Admin console, the device's **Third-party services** panel shows `<customer ID>-fleet` as **Managed**.
+Ask end users to follow these steps, in this order:
+
+1. Sign in to Gmail on the device with their work account.
+2. Sign in to Chrome with the same work account. IAP identifies the device through Chrome's signed-in account, so the page is blocked when Chrome isn't signed in or is signed in to another account.
+3. In Chrome, open **Bookmarks > Work > Register with Google**.
+
+The page says "You're done!" In the Google Admin console, the device's **Third-party services** panel shows `<customer ID>-fleet` as **Managed**.
 
 | Device | Expected result |
 |---|---|
-| Registered with Google | Sign-in succeeds |
+| Company-owned, enrolled to Fleet, and registered | Sign-in succeeds |
 | Not registered | Sign-in blocked |
+| Personal (BYOD) | Page says "This device isn't allowed to access company data." Sign-in blocked |
+| Not enrolled to Fleet | No **Register with Google** bookmark. Sign-in blocked |
+
+## Remove a device
+
+The page marks devices as managed, but it doesn't unmark them. When a host leaves Fleet or stops being company-owned, remove the device from Google: in the Google Admin console, head to **Devices > Mobile & endpoints > Devices**, select the device, and delete it.
 
 ## Troubleshooting
 
-- **"You don't have access"**: IAP didn't find the device. Check that the end user signed in to a Google app on the device and has a Chrome Enterprise Premium license.
-- **"Couldn't verify this request"**: `IAP_AUDIENCE` in Step 5 doesn't match the service.
+- **"You don't have access"**: IAP can't tie the browser to a device Google knows about. Check that Chrome is signed in with the end user's work account, the same one signed in to Gmail. If Google doesn't list the device yet, it adds it the first time the end user signs in to a Google app on it, so ask them to sign in to Gmail, then open **Register with Google** again. If that doesn't help, check that the end user has a Chrome Enterprise Premium license.
+- **No Register with Google bookmark**: Check that Chrome is installed and that you saved the configuration from Step 7. On iOS and iPadOS, the end user has to quit and reopen Chrome.
+- **"This device isn't allowed to access company data."**: Check the reason in Cloud Logging. A company iPhone or iPad enrolled without Apple Business Manager shows as **On (manual)** in Fleet, and the page doesn't allow it.
+- **"Couldn't verify the IAP token"**: `IAP_AUDIENCE` in Step 6 doesn't match the service.
+- **"Fleet returned 401"** or **"Fleet returned 403"**: The API-only user's token from Step 5 is wrong or can't call Get host by identifier.
+- **"Google didn't identify this device"**: The IAP binding from Step 6 is missing the access level condition, so IAP doesn't send the device ID. Run the `gcloud iap web add-iam-policy-binding` command from Step 6 again.
+- **"Google has no user ... on this device"**: The end user signed in to the page with a different account than the one signed in to Gmail on the device. Sign in to both with the same work account.
 - **`unauthorized_client` error**: Domain-wide delegation from Step 3 isn't active yet. It can take a few minutes.
-- **Device blocked after a wipe**: Google creates a new device ID after a factory reset, a wipe, or a new Android work profile. Open **Register with Google** again.
+- **"Google returned 403"**: The user from Step 1 is missing the **Mobile Device Management** or **Security settings** privilege, or the domain-wide delegation scope from Step 3 is wrong.
+- **Device blocked after a wipe**: Google creates a new device ID after a factory reset or a wipe. Sign in to Gmail on the device again, then open **Register with Google**.
 
 <meta name="articleTitle" value="Conditional access: Google">
 <meta name="authorFullName" value="Juan Fernandez">
 <meta name="authorGitHubUsername" value="juan-fdz-hawa">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-10-20">
-<meta name="description" value="Use Google for conditional access, blocking sign-in from iPhones, iPads, and Android devices that aren't managed by Fleet.">
+<meta name="description" value="Use Google for conditional access, blocking sign-in from iPhones, iPads, and Android devices that aren't company-owned and managed by Fleet.">
