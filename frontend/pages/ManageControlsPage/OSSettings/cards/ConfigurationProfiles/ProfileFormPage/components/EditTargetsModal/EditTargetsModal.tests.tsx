@@ -84,6 +84,22 @@ describe("EditTargetsModal", () => {
     });
   });
 
+  it("only filters the labels when Enter is pressed in the search", async () => {
+    const { user, onDone } = renderModal();
+
+    await user.click(screen.getByLabelText("Custom"));
+    await user.click(
+      await screen.findByRole("checkbox", { name: "Apple Silicon macOS hosts" })
+    );
+    await user.type(
+      screen.getByPlaceholderText("Search labels"),
+      "Engineering{Enter}"
+    );
+
+    expect(onDone).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
+  });
+
   it("discards changes on Cancel", async () => {
     const { user, onDone, onExit } = renderModal();
 

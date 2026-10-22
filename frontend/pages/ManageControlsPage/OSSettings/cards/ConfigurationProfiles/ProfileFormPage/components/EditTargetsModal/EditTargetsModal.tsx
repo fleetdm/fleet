@@ -118,30 +118,48 @@ const EditTargetsModal = ({
       }),
   };
 
+  // Enter in the label search would otherwise submit the modal; it only
+  // filters.
+  const onKeyDown = (evt: React.KeyboardEvent<HTMLDivElement>) => {
+    if (
+      evt.key === "Enter" &&
+      evt.target instanceof HTMLInputElement &&
+      evt.target.type === "text"
+    ) {
+      evt.preventDefault();
+    }
+  };
+
   return (
     <Modal className={baseClass} title="Edit targets" onExit={onExit}>
       <form onSubmit={handleSubmit(onDone)}>
-        <GitOpsModeTooltipWrapper
-          isInputField
-          renderChildren={(disableChildren) => (
-            <FormField label="Target" name="target" error={getError("target")}>
-              <TargetLabelSelector
-                selectedTargetType={draft.targetType}
-                onSelectTargetType={(targetType) =>
-                  commitFields({ targetType })
-                }
-                labels={labels || []}
-                includeConfig={includeTab}
-                excludeConfig={excludeTab}
-                isLoadingLabels={isLoadingLabels}
-                isErrorLabels={isErrorLabels}
-                emptyStateDescription="Add a label to target your configuration profile."
-                onAddLabel={onAddLabel}
-                disableOptions={disabled || disableChildren}
-              />
-            </FormField>
-          )}
-        />
+        <div onKeyDown={onKeyDown}>
+          <GitOpsModeTooltipWrapper
+            isInputField
+            renderChildren={(disableChildren) => (
+              <FormField
+                label="Target"
+                name="target"
+                error={getError("target")}
+              >
+                <TargetLabelSelector
+                  selectedTargetType={draft.targetType}
+                  onSelectTargetType={(targetType) =>
+                    commitFields({ targetType })
+                  }
+                  labels={labels || []}
+                  includeConfig={includeTab}
+                  excludeConfig={excludeTab}
+                  isLoadingLabels={isLoadingLabels}
+                  isErrorLabels={isErrorLabels}
+                  emptyStateDescription="Add a label to target your configuration profile."
+                  onAddLabel={onAddLabel}
+                  disableOptions={disabled || disableChildren}
+                />
+              </FormField>
+            )}
+          />
+        </div>
         <ModalFooter
           primaryButtons={
             <>
