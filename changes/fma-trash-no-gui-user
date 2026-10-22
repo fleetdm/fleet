@@ -1,0 +1,1 @@
+- Fixed uninstall scripts for Fleet-maintained apps on macOS leaving files behind when no one was logged in. At the login window, system paths such as `/Users/Shared` and `/Library/Application Support` are now deleted, and per-user paths are skipped. Before, these files were moved into a Trash folder that doesn't exist.
