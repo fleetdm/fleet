@@ -281,7 +281,7 @@ func ensureEJBCANamesNotSharedDB(ctx context.Context, tx sqlx.ExtContext, names 
 	if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "check EJBCA certificate authority names")
 	}
-	// The names are compared without regard to case, like the column is.
+	// The names are compared without regard to case, like the DB column is.
 	ejbca, other := map[string]string{}, map[string]struct{}{}
 	for _, row := range rows {
 		if row.Type == string(fleet.CATypeEJBCA) {

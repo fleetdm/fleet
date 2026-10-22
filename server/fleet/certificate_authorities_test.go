@@ -10,7 +10,6 @@ import (
 )
 
 func TestValidateCertificateAuthoritiesSpec(t *testing.T) {
-	// TODO(hca): placeholder for additional tests to the extent not otherwise covered by client_test
 
 	t.Run("ejbca", func(t *testing.T) {
 		grouped, err := ValidateCertificateAuthoritiesSpec(map[string]any{
