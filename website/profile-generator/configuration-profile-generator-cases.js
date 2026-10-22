@@ -2030,7 +2030,7 @@ function checkExpectations(expectations, generatedProfile, profileType) {
     if(/<SyncML|<SyncBody/.test(outsideCdata)) {
       failures.push('contains a SyncML envelope');
     }
-    let managementPlaneNode = String(generatedProfile.profile).match(/\/MSFT\/(DMClient|DMAcc|EnrollmentStatusTracking)\b/i);
+    let managementPlaneNode = String(generatedProfile.profile).match(/(?:\/MSFT|\.\/SyncML)\/(DMClient|DMAcc|EnrollmentStatusTracking)\b/i);
     if(managementPlaneNode) {
       failures.push(`writes to the ${managementPlaneNode[1]} CSP, which the MDM uses to manage the device`);
     }
