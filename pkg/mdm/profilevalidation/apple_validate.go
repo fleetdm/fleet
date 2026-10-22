@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -223,4 +224,85 @@ func resolveAppleRef(root map[string]*AppleKey, ref string) *AppleKey {
 		cur, keys, rest = next, next.Keys, rest[len(best):]
 	}
 	return cur
+}
+
+// strictUnknownAppleProfiles are payload types Apple documents but strict mode treats as unknown
+// unless an override vouches for them: they accept any preference domain, so the generator could
+// put anything there.
+var strictUnknownAppleProfiles = []string{"com.apple.ManagedClient.preferences"}
+
+var (
+	appleUUIDRe       = regexp.MustCompile(`^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$`)
+	appleReverseDNSRe = regexp.MustCompile(`^[^.\s]+(\.[^.\s]+)+$`)
+)
+
+// TopLevelPayloadType is the Finding.PayloadType for problems in a profile's outer dictionary.
+const TopLevelPayloadType = "TopLevel"
+
+// ValidateAppleProfile checks a .mobileconfig against the schema. It returns an error only when
+// the profile can't be read: invalid or signed, or not a Configuration profile.
+func (s *ProfileValidationSchema) ValidateAppleProfile(data []byte, mode Mode) ([]Finding, error) {
+	root, err := decodeAppleProfile(data)
+	if err != nil {
+		return nil, err
+	}
+	if pt := root["PayloadType"]; pt != "Configuration" {
+		return nil, fmt.Errorf("invalid PayloadType: %v", pt)
+	}
+
+	top := s.AppleEnvelope.TopLevel
+	w := &appleWalker{root: top.Keys, mode: mode, payloadType: TopLevelPayloadType}
+	w.walkKeys(top.Keys, top.Open, top.Values, root, "")
+	if mode == ModeStrict {
+		w.checkEnvelope(root)
+	}
+
+	contents, _ := root["PayloadContent"].([]any)
+	for _, item := range contents {
+		// A non-dictionary item is already reported against TopLevel.
+		payload, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		payloadType, _ := payload["PayloadType"].(string)
+		w.payloadType = payloadType
+		p := s.AppleProfiles[payloadType]
+		if p == nil || (mode == ModeStrict && p.Override == "" && slices.Contains(strictUnknownAppleProfiles, payloadType)) {
+			if mode == ModeStrict {
+				w.findings = append(w.findings, Finding{Code: CodeUnknownType, PayloadType: payloadType})
+			}
+			continue
+		}
+		// Every payload carries the common keys; a payload's own definition of one wins.
+		keys := maps.Clone(s.AppleEnvelope.CommonPayloadKeys.Keys)
+		maps.Copy(keys, p.Keys)
+		w.root = p.Keys
+		w.walkKeys(keys, p.Open, p.Values, payload, "")
+		if mode == ModeStrict {
+			w.checkEnvelope(payload)
+		}
+	}
+	return w.findings, nil
+}
+
+// checkEnvelope reports a missing PayloadVersion and a malformed PayloadUUID or PayloadIdentifier.
+// Wrong types are left to the walk, and values with Fleet variables aren't checked.
+func (w *appleWalker) checkEnvelope(dict map[string]any) {
+	if _, ok := dict["PayloadVersion"]; !ok {
+		w.findings = append(w.findings, Finding{Code: CodeMissingPayloadVersion, PayloadType: w.payloadType, KeyPath: "PayloadVersion"})
+	}
+	formats := []struct {
+		key  string
+		re   *regexp.Regexp
+		code Code
+	}{
+		{"PayloadUUID", appleUUIDRe, CodeMalformedUUID},
+		{"PayloadIdentifier", appleReverseDNSRe, CodeMalformedIdentifier},
+	}
+	for _, f := range formats {
+		v, ok := dict[f.key].(string)
+		if ok && !variables.Contains(v) && !variables.SecretRegex.MatchString(v) && !f.re.MatchString(v) {
+			w.findings = append(w.findings, Finding{Code: f.code, PayloadType: w.payloadType, KeyPath: f.key})
+		}
+	}
 }

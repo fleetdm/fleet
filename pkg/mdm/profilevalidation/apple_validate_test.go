@@ -3,6 +3,7 @@ package profilevalidation
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"testing"
@@ -328,4 +329,193 @@ func TestResolveAppleRef(t *testing.T) {
 	assert.Nil(t, resolveAppleRef(pt.Keys, "a.b.d"))
 	assert.Nil(t, resolveAppleRef(pt.Keys, "a[]"))
 	assert.Nil(t, resolveAppleRef(pt.Keys, "missing"))
+}
+
+// mobileconfig wraps payloads in a profile with a valid envelope.
+func mobileconfig(payloads ...string) []byte {
+	return []byte(plistDict(`<key>PayloadType</key><string>Configuration</string>
+		<key>PayloadVersion</key><integer>1</integer>
+		<key>PayloadUUID</key><string>0F1E2D3C-4B5A-6978-8796-A5B4C3D2E1F0</string>
+		<key>PayloadIdentifier</key><string>com.example.profile</string>
+		<key>PayloadDisplayName</key><string>Example</string>
+		<key>PayloadContent</key><array>` + strings.Join(payloads, "") + `</array>`))
+}
+
+// payload is a payload dictionary with a valid envelope plus body.
+func payload(payloadType, body string) string {
+	return `<dict><key>PayloadType</key><string>` + payloadType + `</string>
+		<key>PayloadVersion</key><integer>1</integer>
+		<key>PayloadUUID</key><string>a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6</string>
+		<key>PayloadIdentifier</key><string>com.example.payload</string>` + body + `</dict>`
+}
+
+func TestValidateAppleProfile(t *testing.T) {
+	s, err := Parse(profileValidationSchemaRaw)
+	require.NoError(t, err)
+
+	const restrictions = "com.apple.applicationaccess"
+	mismatch := func(payloadType, path string, expected []string, actual string) Finding {
+		return Finding{Code: CodeTypeMismatch, PayloadType: payloadType, KeyPath: path, Expected: expected, Actual: actual}
+	}
+	mcxPreferences := payload("com.apple.ManagedClient.preferences", `<key>PayloadContent</key><dict>
+		<key>com.example.app</key><dict><key>Forced</key><array><dict>
+			<key>mcx_preference_settings</key><dict><key>Anything</key><integer>1</integer><key>Nested</key><dict/></dict>
+		</dict></array></dict>
+	</dict>`)
+
+	cases := []struct {
+		name     string
+		profile  []byte
+		lenient  []Finding
+		strict   []Finding
+		sameBoth bool // strict reports exactly what lenient does
+	}{
+		{
+			name:     "boolean holding a string",
+			profile:  mobileconfig(payload(restrictions, `<key>allowAirDrop</key><string>false</string>`)),
+			lenient:  []Finding{mismatch(restrictions, "allowAirDrop", []string{"boolean"}, "string")},
+			sameBoth: true,
+		},
+		{
+			name:     "integer holding a real",
+			profile:  mobileconfig(payload(restrictions, `<key>enforcedSoftwareUpdateDelay</key><real>3.5</real>`)),
+			sameBoth: true,
+		},
+		{
+			name:    "invented payload type",
+			profile: mobileconfig(payload("com.apple.example", `<key>Anything</key><true/>`)),
+			strict:  []Finding{{Code: CodeUnknownType, PayloadType: "com.apple.example"}},
+		},
+		{
+			name:    "misspelled restrictions key",
+			profile: mobileconfig(payload(restrictions, `<key>allowAirDropp</key><false/>`)),
+			strict:  []Finding{{Code: CodeUnknownKey, PayloadType: restrictions, KeyPath: "allowAirDropp"}},
+		},
+		{
+			name:    "ManagedClient preferences",
+			profile: mobileconfig(mcxPreferences),
+			strict:  []Finding{{Code: CodeUnknownType, PayloadType: "com.apple.ManagedClient.preferences"}},
+		},
+		{
+			name: "nested documented key",
+			profile: mobileconfig(payload("com.apple.extensiblesso",
+				`<key>PlatformSSO</key><dict><key>AllowDeviceIdentifiersInAttestation</key><string>yes</string></dict>`)),
+			lenient:  []Finding{mismatch("com.apple.extensiblesso", "PlatformSSO.AllowDeviceIdentifiersInAttestation", []string{"boolean"}, "string")},
+			sameBoth: true,
+		},
+		{
+			name:     "fleet variable in a string slot",
+			profile:  mobileconfig(payload(restrictions, `<key>PayloadDisplayName</key><string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</string>`)),
+			sameBoth: true,
+		},
+		{
+			name: "fleet variable in integer and data slots",
+			profile: mobileconfig(
+				payload(restrictions, `<key>enforcedSoftwareUpdateDelay</key><string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</string>`),
+				payload("com.apple.security.pkcs12", `<key>PayloadContent</key><string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</string>`),
+			),
+			lenient: []Finding{
+				mismatch(restrictions, "enforcedSoftwareUpdateDelay", []string{"integer"}, "string"),
+				mismatch("com.apple.security.pkcs12", "PayloadContent", []string{"data"}, "string"),
+			},
+			sameBoth: true,
+		},
+		{
+			name:     "digicert placeholder in a data slot",
+			profile:  mobileconfig(payload("com.apple.security.pkcs12", `<key>PayloadContent</key><data>$FLEET_VAR_DIGICERT_DATA_CA</data>`)),
+			sameBoth: true,
+		},
+		{
+			name:     "secret in an integer slot",
+			profile:  mobileconfig(payload(restrictions, `<key>enforcedSoftwareUpdateDelay</key><string>${FLEET_SECRET_DELAY}</string>`)),
+			sameBoth: true,
+		},
+		{
+			name: "seeded allow entries",
+			profile: mobileconfig(
+				payload("com.google.Chrome", `<key>HomepageLocation</key><string>https://fleetdm.com</string>`),
+				payload("us.zoom.config", `<key>nogoogle</key><integer>1</integer>`),
+				payload("com.apple.universalcontrol", `<key>Disable</key><true/>`),
+			),
+			sameBoth: true,
+		},
+		{
+			name: "no platform checks",
+			profile: mobileconfig(
+				payload("com.apple.airplay.security", `<key>AccessType</key><string>ANY</string><key>SecurityType</key><string>PASSCODE_ONCE</string>`),
+				payload(restrictions, `<key>allowAppClips</key><false/>`),
+			),
+			sameBoth: true,
+		},
+		{
+			name: "envelope problems",
+			profile: []byte(plistDict(`<key>PayloadType</key><string>Configuration</string>
+				<key>PayloadUUID</key><string>not-a-uuid</string>
+				<key>PayloadIdentifier</key><string>$FLEET_VAR_HOST_UUID</string>
+				<key>PayloadContent</key><array><dict>
+					<key>PayloadType</key><string>` + restrictions + `</string>
+					<key>PayloadUUID</key><string>${FLEET_SECRET_UUID}</string>
+					<key>PayloadIdentifier</key><string>restrictions</string>
+				</dict></array>`)),
+			strict: []Finding{
+				{Code: CodeMissingPayloadVersion, PayloadType: TopLevelPayloadType, KeyPath: "PayloadVersion"},
+				{Code: CodeMalformedUUID, PayloadType: TopLevelPayloadType, KeyPath: "PayloadUUID"},
+				{Code: CodeMissingPayloadVersion, PayloadType: restrictions, KeyPath: "PayloadVersion"},
+				{Code: CodeMalformedIdentifier, PayloadType: restrictions, KeyPath: "PayloadIdentifier"},
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := s.ValidateAppleProfile(c.profile, ModeLenient)
+			require.NoError(t, err)
+			assert.Equal(t, c.lenient, got)
+
+			want := c.strict
+			if c.sameBoth {
+				want = c.lenient
+			}
+			got, err = s.ValidateAppleProfile(c.profile, ModeStrict)
+			require.NoError(t, err)
+			assert.Equal(t, want, got)
+		})
+	}
+}
+
+func TestValidateAppleProfileOverrides(t *testing.T) {
+	embedded, err := Parse(profileValidationSchemaRaw)
+	require.NoError(t, err)
+	s := *embedded
+	s.AppleProfiles = maps.Clone(embedded.AppleProfiles)
+	// As the generator writes allow entries: open, source override, and keys only when listed.
+	s.AppleProfiles["com.example.allowed"] = &ApplePayloadType{Source: AppleSourceOverride, Open: true, Override: "custom domain"}
+	s.AppleProfiles["com.example.typed"] = &ApplePayloadType{
+		Source: AppleSourceOverride, Open: true, Override: "custom domain",
+		Keys: map[string]*AppleKey{"Enabled": {Type: AppleTypes{AppleTypeBoolean}}},
+	}
+	mcx := *notNil(t, s.AppleProfiles["com.apple.ManagedClient.preferences"])
+	mcx.Override = "allowed for this test"
+	s.AppleProfiles["com.apple.ManagedClient.preferences"] = &mcx
+
+	profile := mobileconfig(
+		payload("com.example.allowed", `<key>Anything</key><dict><key>Deep</key><true/></dict>`),
+		payload("com.example.typed", `<key>Enabled</key><string>yes</string><key>Other</key><integer>1</integer>`),
+		payload("com.apple.ManagedClient.preferences", `<key>PayloadContent</key><dict/>`),
+	)
+	for _, mode := range []Mode{ModeLenient, ModeStrict} {
+		got, err := s.ValidateAppleProfile(profile, mode)
+		require.NoError(t, err)
+		assert.Equal(t, []Finding{{
+			Code: CodeTypeMismatch, PayloadType: "com.example.typed", KeyPath: "Enabled", Expected: []string{"boolean"}, Actual: "string",
+		}}, got)
+	}
+}
+
+func TestValidateAppleProfileErrors(t *testing.T) {
+	s, err := Parse(profileValidationSchemaRaw)
+	require.NoError(t, err)
+	_, err = s.ValidateAppleProfile([]byte(plistDict(`<key>PayloadType</key><string>com.apple.applicationaccess</string>`)), ModeLenient)
+	require.ErrorContains(t, err, "invalid PayloadType: com.apple.applicationaccess")
+	_, err = s.ValidateAppleProfile([]byte("0\x82 signed"), ModeStrict)
+	require.ErrorContains(t, err, "signed profiles are not supported")
 }
