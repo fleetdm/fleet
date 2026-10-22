@@ -1439,9 +1439,14 @@ func (ds *Datastore) applyHostFilters(
 	} else if opt.SoftwareTitleIDFilter != nil {
 		// Reject a version filter that isn't a version of the title in the fleet
 		if opt.AppStoreAppVersionIDFilter != nil {
-			err := ds.checkAppStoreAppVersionFilterForTitle(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, *opt.AppStoreAppVersionIDFilter)
+			_, err := ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, *opt.AppStoreAppVersionIDFilter)
 			if err != nil {
-				return "", nil, err
+				if fleet.IsNotFound(err) {
+					return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+						Message: "app_store_app_version_id is not a version of this software title in this fleet",
+					})
+				}
+				return "", nil, ctxerr.Wrap(ctx, err, "get app store app version for title")
 			}
 		}
 
