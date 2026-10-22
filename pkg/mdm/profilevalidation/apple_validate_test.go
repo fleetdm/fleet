@@ -519,3 +519,99 @@ func TestValidateAppleProfileErrors(t *testing.T) {
 	_, err = s.ValidateAppleProfile([]byte("0\x82 signed"), ModeStrict)
 	require.ErrorContains(t, err, "signed profiles are not supported")
 }
+
+func TestValidateAppleDeclaration(t *testing.T) {
+	s, err := Parse(profileValidationSchemaRaw)
+	require.NoError(t, err)
+
+	const lockType = "com.apple.configuration.passcode.settings"
+	declaration := func(declarationType, payload string) []byte {
+		return []byte(`{"Type": "` + declarationType + `", "Identifier": "com.example.declaration", "Payload": ` + payload + `}`)
+	}
+
+	cases := []struct {
+		name     string
+		data     []byte
+		lenient  []Finding
+		strict   []Finding
+		sameBoth bool
+	}{
+		{
+			name:     "valid",
+			data:     declaration(lockType, `{"RequirePasscode": true, "MinimumLength": 8}`),
+			sameBoth: true,
+		},
+		{
+			name: "wrong type in Payload",
+			data: declaration(lockType, `{"RequirePasscode": "yes", "MinimumLength": 8.5}`),
+			lenient: []Finding{{
+				Code: CodeTypeMismatch, PayloadType: lockType, KeyPath: "RequirePasscode", Expected: []string{"boolean"}, Actual: "string",
+			}},
+			sameBoth: true,
+		},
+		{
+			name:   "unknown Type",
+			data:   declaration("com.apple.configuration.example", `{"Anything": 1}`),
+			strict: []Finding{{Code: CodeUnknownType, PayloadType: "com.apple.configuration.example"}},
+		},
+		{
+			name: "unknown keys",
+			data: []byte(`{"Type": "` + lockType + `", "Identifier": "x", "ServerToken": "t", "Payload": {"RequirePasscod": true}}`),
+			strict: []Finding{
+				{Code: CodeUnknownKey, PayloadType: lockType, KeyPath: "ServerToken"},
+				{Code: CodeUnknownKey, PayloadType: lockType, KeyPath: "RequirePasscod"},
+			},
+		},
+		{
+			name: "envelope key of the wrong type",
+			data: []byte(`{"Type": "` + lockType + `", "Identifier": 1, "Payload": []}`),
+			lenient: []Finding{
+				{Code: CodeTypeMismatch, PayloadType: lockType, KeyPath: "Identifier", Expected: []string{"string"}, Actual: "integer"},
+				{Code: CodeTypeMismatch, PayloadType: lockType, KeyPath: "Payload", Expected: []string{"dictionary"}, Actual: "array"},
+			},
+			sameBoth: true,
+		},
+		{
+			name:     "JSON string in a data slot",
+			data:     declaration("com.apple.configuration.extensible-sso", `{"PlatformSSO": {"AccessKey": {"ReaderGroupIdentifier": "AQID"}}}`),
+			sameBoth: true,
+		},
+		{
+			name:     "secret in an integer slot",
+			data:     declaration(lockType, `{"MinimumLength": "$FLEET_SECRET_LENGTH"}`),
+			sameBoth: true,
+		},
+		{
+			name:     "activation",
+			data:     declaration("com.apple.activation.simple", `{"StandardConfigurations": ["com.example.declaration"]}`),
+			sameBoth: true,
+		},
+		{
+			name: "activation with a wrong item",
+			data: declaration("com.apple.activation.simple", `{"StandardConfigurations": ["a", 1]}`),
+			lenient: []Finding{{
+				Code: CodeTypeMismatch, PayloadType: "com.apple.activation.simple", KeyPath: "StandardConfigurations[1]",
+				Expected: []string{"string"}, Actual: "integer",
+			}},
+			sameBoth: true,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := s.ValidateAppleDeclaration(c.data, ModeLenient)
+			require.NoError(t, err)
+			assert.Equal(t, c.lenient, got)
+
+			want := c.strict
+			if c.sameBoth {
+				want = c.lenient
+			}
+			got, err = s.ValidateAppleDeclaration(c.data, ModeStrict)
+			require.NoError(t, err)
+			assert.Equal(t, want, got)
+		})
+	}
+
+	_, err = s.ValidateAppleDeclaration([]byte(`not json`), ModeLenient)
+	require.ErrorContains(t, err, "decode declaration")
+}

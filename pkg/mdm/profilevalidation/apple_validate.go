@@ -306,3 +306,32 @@ func (w *appleWalker) checkEnvelope(dict map[string]any) {
 		}
 	}
 }
+
+// ValidateAppleDeclaration checks a DDM declaration against the schema: the envelope keys every
+// declaration shares, then Payload against its Type. It returns an error only when the
+// declaration isn't a JSON object.
+func (s *ProfileValidationSchema) ValidateAppleDeclaration(data []byte, mode Mode) ([]Finding, error) {
+	root, err := decodeAppleDeclaration(data)
+	if err != nil {
+		return nil, err
+	}
+	declarationType, _ := root["Type"].(string)
+	env := s.AppleDeclarationEnvelope
+	w := &appleWalker{root: env.Keys, mode: mode, declaration: true, payloadType: declarationType}
+	// The envelope's Payload is an open dictionary, so this stops at it.
+	w.walkKeys(env.Keys, env.Open, env.Values, root, "")
+
+	d := s.AppleDeclarations[declarationType]
+	if d == nil {
+		if mode == ModeStrict {
+			w.findings = append(w.findings, Finding{Code: CodeUnknownType, PayloadType: declarationType})
+		}
+		return w.findings, nil
+	}
+	// A Payload of the wrong type is already reported against the envelope.
+	if payload, ok := root["Payload"].(map[string]any); ok {
+		w.root = d.Keys
+		w.walkKeys(d.Keys, d.Open, d.Values, payload, "")
+	}
+	return w.findings, nil
+}
