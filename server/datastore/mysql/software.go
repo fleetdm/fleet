@@ -3535,22 +3535,25 @@ func (ds *Datastore) cleanupUnusedSoftware(ctx context.Context) error {
 		SELECT s.id
 		FROM software s
 		LEFT JOIN software_host_counts shc ON s.id = shc.software_id
-		WHERE shc.software_id IS NULL
+		WHERE s.id > ? AND shc.software_id IS NULL
 		AND NOT EXISTS (SELECT 1 FROM host_software hsw WHERE hsw.software_id = s.id)
+		ORDER BY s.id
 		LIMIT ?
 	`
 
 	// Use the reader for the first SELECT to reduce writer load. Subsequent iterations use the writer
 	// so that we see our own deletes and don't re-select the same rows due to replica lag.
 	db := ds.reader(ctx)
+	var lastID uint
 	for range cleanupMaxIterations {
 		var ids []uint
-		if err := sqlx.SelectContext(ctx, db, &ids, findUnusedSoftwareStmt, cleanupBatchSize); err != nil {
+		if err := sqlx.SelectContext(ctx, db, &ids, findUnusedSoftwareStmt, lastID, cleanupBatchSize); err != nil {
 			return ctxerr.Wrap(ctx, err, "find unused software for cleanup")
 		}
 		if len(ids) == 0 {
 			return nil
 		}
+		lastID = ids[len(ids)-1]
 
 		stmt, args, err := sqlx.In(`DELETE FROM software WHERE id IN (?)`, ids)
 		if err != nil {
