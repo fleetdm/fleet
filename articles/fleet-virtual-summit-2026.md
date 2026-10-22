@@ -92,10 +92,14 @@ AI agents are showing up on employee devices faster than IT can inventory them. 
       <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-jason-walton-100x100@2x.jpeg" alt="Jason Walton" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
       <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/cjasonwalton/">Jason Walton</a></strong>, Schrödinger, VP of Information Security</p></td>
     </tr>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-akira-okamoto-100x100@2x.jpeg" alt="Akira Okamoto" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/akira-okamoto-4990283a/">Akira Okamoto</a></strong>, Veeva Systems, Director IT Infrastructure</p></td>
+    </tr>
   </tbody>
 </table>
 
-*More panelists to be announced*
+
 
 <a purpose="cta-button" no-icon href="https://calendly.com/fleetdm/fleet-virtual-summit-ai-agents-as-a-device-management-problem">Reserve a spot in this session</a>
 
