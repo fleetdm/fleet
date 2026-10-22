@@ -2365,7 +2365,7 @@ Modifies the Fleet's configuration with the supplied information.
     "databases_path": ""
   },
   "fleet_desktop": {
-    "transparency_url": "https://fleetdm.com/better",
+    "about_url": "https://fleetdm.com/better",
     "alternative_browser_host": "fleet-desktop.example.com",
     "sso_enabled": false
   },
@@ -2632,7 +2632,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------- |
-| transparency_url                  | string  | The URL used to display transparency information to users of Fleet Desktop.      |
+| about_url                  | string  | The URL used to display information about Fleet Desktop to end users.      |
 | alternative_browser_host          | string  | The hostname used to navigate Fleet Desktop traffic through.                     |
 | sso_enabled                       | boolean | Whether end users must [sign in via SSO](https://fleetdm.com/guides/fleet-desktop#single-sign-on-sso-for-fleet-desktop-authenticated-routes) before accessing Fleet Desktop. Requires an IdP configured. |
 
@@ -2645,7 +2645,7 @@ _Available in Fleet Premium._
 ```json
 {
   "fleet_desktop": {
-    "transparency_url": "https://fleetdm.com/better",
+    "about_url": "https://fleetdm.com/better",
     "alternative_browser_host": "fleet-desktop.example.com",
     "sso_enabled": false
   }
@@ -6581,7 +6581,7 @@ For `homebrew_packages`, Fleet returns one entry per Mach-O executable in the fo
 
 Each entry in `installed_versions` includes `release` when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions.
 
-`software_package.has_uninstall_script` is `true` when the installer has a non-empty uninstall script configured. It's omitted for VPP and in-house apps. For `.tgz` and script-only (`.ps1`/`.sh`/`.py`) packages the uninstall script is optional, so this field is what tells clients whether uninstall is actually available.
+`package.has_uninstall_script` is `true` when the installer has a non-empty uninstall script configured. It's omitted for VPP and in-house apps. For `.tgz` and script-only (`.ps1`/`.sh`/`.py`) packages the uninstall script is optional, so this field is what tells clients whether uninstall is actually available.
 
 `skipped_install` is `true` when the last install was a patch-when-closed skip (the target app was open). `status` is `failed_install` in that case; the field distinguishes a deferred install from a real failure. Omitted otherwise.
 
@@ -6615,7 +6615,7 @@ Each entry in `installed_versions` includes `release` when set. For `rpm_package
         }
       ],
       "display_name": "",
-      "software_package": null,
+      "package": null,
       "app_store_app": null
     },
     {
@@ -6646,7 +6646,7 @@ Each entry in `installed_versions` includes `release` when set. For `rpm_package
         }
       ],
       "display_name": "",
-      "software_package": {
+      "package": {
         "name": "GoogleChrome.pkg",
         "automatic_install_policies": null,
         "version": "149.0.7827.54",
@@ -6697,7 +6697,7 @@ Each entry in `installed_versions` includes `release` when set. For `rpm_package
         }
       ],
       "display_name": "",
-      "software_package": null,
+      "package": null,
       "app_store_app": null
     }
   ],
@@ -6741,7 +6741,7 @@ For `homebrew_packages`, Fleet returns one entry per Mach-O executable in the fo
 
 Each entry in `installed_versions` includes `release` when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions.
 
-`software_package.has_uninstall_script` is `true` when the installer has a non-empty uninstall script configured. It's omitted for VPP and in-house apps. For `.tgz` and script-only (`.ps1`/`.sh`/`.py`) packages the uninstall script is optional, so this field is what tells clients whether uninstall is actually available.
+`package.has_uninstall_script` is `true` when the installer has a non-empty uninstall script configured. It's omitted for VPP and in-house apps. For `.tgz` and script-only (`.ps1`/`.sh`/`.py`) packages the uninstall script is optional, so this field is what tells clients whether uninstall is actually available.
 
 `skipped_install` is `true` when the last install was a patch-when-closed skip (the target app was open). `status` is `failed_install` in that case; the field distinguishes a deferred install from a real failure. Omitted otherwise.
 
@@ -6775,7 +6775,7 @@ Each entry in `installed_versions` includes `release` when set. For `rpm_package
         }
       ],
       "display_name": "",
-      "software_package": null,
+      "package": null,
       "app_store_app": null
     },
     {
@@ -6806,7 +6806,7 @@ Each entry in `installed_versions` includes `release` when set. For `rpm_package
         }
       ],
       "display_name": "",
-      "software_package": {
+      "package": {
         "name": "GoogleChrome.pkg",
         "automatic_install_policies": null,
         "version": "149.0.7827.54",
@@ -6857,7 +6857,7 @@ Each entry in `installed_versions` includes `release` when set. For `rpm_package
         }
       ],
       "display_name": "",
-      "software_package": null,
+      "package": null,
       "app_store_app": null
     }
   ],
@@ -9926,13 +9926,15 @@ List software that can be automatically installed during setup. If `install_duri
       "id": 12,
       "name": "Firefox.app",
       "icon_url": "/api/latest/fleet/software/titles/12/icon?fleet_id=3",
-      "software_package": {
-        "name": "FirefoxInstall.pkg",
-        "platform": "darwin",
-        "version": "125.6",
-        "self_service": true,
-        "install_during_setup": true
-      },
+      "packages": [
+        {
+          "name": "FirefoxInstall.pkg",
+          "platform": "darwin",
+          "version": "125.6",
+          "self_service": true,
+          "install_during_setup": true
+        }
+      ],
       "app_store_app": null,
       "versions_count": 3,
       "source": "apps",
@@ -10531,7 +10533,7 @@ Content-Type: application/octet-stream
   "token": {
     "id": 1,
     "org_name": "Fleet Device Management Inc.",
-    "location": "Fleet Device Management Inc.",
+    "organization_unit": "Fleet Device Management Inc.",
     "country_code": "us",
     "renew_date": "2027-10-20T00:00:00Z",
     "created_at": "2026-10-20T14:02:11Z",
@@ -10564,7 +10566,7 @@ None.
     {
       "id": 1,
       "org_name": "Fleet Device Management Inc.",
-      "location": "https://example.com/mdm/apple/mdm",
+      "organization_unit": "Fleet Device Management Inc.",
       "country_code": "us",
       "renew_date": "2023-11-29T00:00:00Z",
       "created_at": "2022-11-29T14:02:11Z",
@@ -10590,6 +10592,8 @@ None.
   ]
 }
 ```
+
+`organization_unit` is the name of the organization unit in Apple Business that's associated with the VPP token. Apple previously called this "location."
 
 ### Update Volume Purchasing Program (VPP) token's fleets
 
@@ -10631,7 +10635,7 @@ When a VPP token is removed from a fleet, App Store apps that were added to that
   "token": {
     "id": 1,
     "org_name": "Fleet Device Management Inc.",
-    "location": "Fleet Device Management Inc.",
+    "organization_unit": "Fleet Device Management Inc.",
     "country_code": "us",
     "renew_date": "2027-10-20T00:00:00Z",
     "created_at": "2026-10-20T14:02:11Z",
@@ -14732,16 +14736,6 @@ Get a list of all software.
               "package_url": ""
           }
       ],
-      "software_package": {
-          "name": "Slack-4.50.128-macOS.pkg",
-          "automatic_install_policies": null,
-          "version": "4.50.128",
-          "platform": "darwin",
-          "self_service": false,
-          "last_install": null,
-          "last_uninstall": null,
-          "package_url": ""
-      },
       "app_store_app": null,
       "bundle_identifier": "com.tinyspeck.slackmacgap",
       "hash_sha256": "f7e4cba7676dacb03ac4cdbe5a99cc1d80ef751c484a13c6a7cf6a93de4a494e",
@@ -14765,7 +14759,6 @@ Get a list of all software.
           }
       ],
       "packages": null,
-      "software_package": null,
       "app_store_app": null,
       "display_name": ""
     },
@@ -14786,7 +14779,6 @@ Get a list of all software.
           }
       ],
       "packages": null,
-      "software_package": null,
       "app_store_app": null,
       "bundle_identifier": "com.raycast.macos",
       "display_name": ""
@@ -14803,7 +14795,7 @@ Get a list of all software.
 
 Each entry in `versions` includes `release` when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions.
 
-A software title can have more than one package. The `packages` array lists all packages added for the title. `software_package` is kept for backwards compatibility and contains the oldest (first added) package; it's `null` when no package is available.
+A software title can have more than one package. The `packages` array lists all packages added for the title.
 
 ### List software versions
 
@@ -15107,38 +15099,6 @@ Returns information about the specified software. By default, `versions` are sor
             "fleet_id": 310
         }
     ],
-    "software_package": {
-        "title_id": 2792,
-        "name": "Slack-4.50.128-macOS.pkg",
-        "icon_url": null,
-        "version": "4.50.128",
-        "platform": "darwin",
-        "uploaded_at": "2026-06-04T17:29:09.155424Z",
-        "installer_id": 36817,
-        "install_script": "#!/bin/sh\n\ninstaller -pkg \"$INSTALLER_PATH\" -target /\n",
-        "pre_install_query": "",
-        "post_install_script": "",
-        "uninstall_script": "#!/bin/sh\n\n# Fleet extracts and saves package IDs.\npkg_ids=(\n  'com.tinyspeck.slackmacgap'\n)\n\n# For each package id, get all .app folders associated with the package and remove them.\nfor pkg_id in \"${pkg_ids[@]}\"\ndo\n  # Get volume and location of the package.\n  volume=$(pkgutil --pkg-info \"$pkg_id\" | grep -i \"volume\" | awk '{if (NF>1) print $NF}')\n  location=$(pkgutil --pkg-info \"$pkg_id\" | grep -i \"location\" | awk '{if (NF>1) print $NF}')\n  # Check if this package id corresponds to a valid/installed package\n  if [[ ! -z \"$volume\" ]]; then\n    # Remove individual directories that end with \".app\" belonging to the package.\n    # Only process directories that end with \".app\" to prevent Fleet from removing top level directories.\n    pkgutil --only-dirs --files \"$pkg_id\" | grep \"\\.app$\" | sed -e 's@^@'\"$volume\"\"$location\"'/@' | tr '\\n' '\\0' | xargs -n 1 -0 rm -rf\n    # Remove receipts\n    pkgutil --forget \"$pkg_id\"\n  else\n    echo \"WARNING: volume is empty for package ID $pkg_id\"\n  fi\ndone\n",
-        "hash_sha256": "f7e4cba7676dacb03ac4cdbe5a99cc1d80ef751c484a13c6a7cf6a93de4a494e",
-        "status": {
-            "installed": 0,
-            "pending_install": 1,
-            "failed_install": 0,
-            "pending_uninstall": 0,
-            "failed_uninstall": 0
-        },
-        "self_service": false,
-        "url": "",
-        "fleet_maintained_app_id": null,
-        "automatic_install_policies": null,
-        "labels_include_any": null,
-        "labels_exclude_any": null,
-        "labels_include_all": null,
-        "categories": null,
-        "display_name": "",
-        "patch_policy": null,
-        "fleet_id": 310
-    },
     "app_store_app": null,
     "bundle_identifier": "com.tinyspeck.slackmacgap",
     "display_name": ""
@@ -15150,7 +15110,7 @@ Returns information about the specified software. By default, `versions` are sor
 
 Each entry in `versions` includes `release` when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions.
 
-A software title can have more than one package. The `packages` array lists all packages added for the title, including per-package `self_service`, `categories`, and labels (`labels_include_any`, `labels_exclude_any`, `labels_include_all`). `software_package` is kept for backwards compatibility and contains the oldest (first added) package.
+A software title can have more than one package. The `packages` array lists all packages added for the title, including per-package `self_service`, `categories`, and labels (`labels_include_any`, `labels_exclude_any`, `labels_include_all`).
 
 > `installer_id` is deprecated as of Fleet 5.0. It's maintained for backwards compatibility. Please use `id` instead.
 
@@ -15185,9 +15145,9 @@ For Fleet-maintained apps, software package objects include two additional field
 ]
 ```
 
-For in-house iOS apps, the `software_package` field is populated with package information.
+For in-house iOS apps, the `packages` array is populated with package information.
 
-For Apple App Store and Google Play apps, the `software_package` field is `null` and `app_store_apps` is populated with information from the store.
+For Apple App Store and Google Play apps, `packages` is `null` and `app_store_apps` is populated with information from the store.
 
 A software title can have more than one app store apps on the same fleet for iOS, iPadOS, and Android. Each one is a *version* of the app, and the `app_store_apps` array lists all of them. Fleet always installs the latest version available in the Apple App Store or Google Play, so versions don't differ by the app version that's installed. Instead, each version carries its own settings: `name`, `self_service`, `categories`, labels (`labels_include_any`, `labels_exclude_any`, `labels_include_all`), automatic update settings, and managed app configuration.
 
@@ -16244,7 +16204,7 @@ Body: <blob>
 
 _Available in Fleet Premium._
 
-Install software (package or app store app) on a macOS, iOS, iPadOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` or `app_store_app` to be installed.
+Install software (package or app store app) on a macOS, iOS, iPadOS, Windows, or Linux (Ubuntu) host. Software title must have a package or App Store app to be installed.
 
 Package installs time out after 1 hour.
 

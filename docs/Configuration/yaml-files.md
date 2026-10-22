@@ -896,17 +896,17 @@ App Store apps support `path:` (single file) and `paths:` (glob pattern) referen
 - `auto_update_enabled` enables automatic updates for the app (default: `false`). Only supported for iOS and iPadOS App Store (VPP) apps.
 - `auto_update_window_start` is the start of the daily maintenance window during which Fleet will apply automatic updates, formatted as `HH:MM` in the host's local time (e.g. `"00:00"`). Required when `auto_update_enabled` is `true`. Must be wrapped in quotes so it is processed as a string.
 - `auto_update_window_end` is the end of the daily maintenance window, formatted as `HH:MM` in the host's local time (e.g. `"04:00"`). Required when `auto_update_enabled` is `true`. If the end time is earlier than the start time, the window wraps to the next day (e.g. `"22:00"` to `"02:00"`). Must be wrapped in quotes so it is processed as a string.
-- `location` is the name of the organization unit in Apple Business for the VPP token that the Apple App Store app is added from (optional). Only needed if the fleet has more than one VPP token and you want to add the app from a VPP token other than the fleet's first-added VPP token. The VPP token must be assigned to the fleet in [`volume_purchasing_program`](#volume-purchasing-program). Not supported for Android apps.
+- `organization_unit` is the name of the organization unit in Apple Business for the VPP token that the Apple App Store app is added from (optional). Only needed if the fleet has more than one VPP token and you want to add the app from a VPP token other than the fleet's first-added VPP token. The VPP token must be assigned to the fleet in [`volume_purchasing_program`](#volume-purchasing-program). Not supported for Android apps.
 
 To add the same App Store app for multiple platforms, specify the `app_store_id` multiple times, along with the `platform` you want. If you don't specify a platform, one app for each available platform will be added (macOS, iOS, and iPadOS).
 
 #### Multiple VPP tokens
 
-If a fleet has more than one VPP token, Fleet uses the first-added VPP token for Apple App Store apps without a `location`. The first-added VPP token is the one that was uploaded to Fleet first, out of the VPP tokens assigned to the fleet (including a VPP token assigned to "All fleets"). If the app isn't available in that VPP token, GitOps fails. Specify `location` to add it from a different VPP token.
+If a fleet has more than one VPP token, Fleet uses the first-added VPP token for Apple App Store apps without a `organization_unit`. The first-added VPP token is the one that was uploaded to Fleet first, out of the VPP tokens assigned to the fleet (including a VPP token assigned to "All fleets"). If the app isn't available in that VPP token, GitOps fails. Specify `organization_unit` to add it from a different VPP token.
 
 Each Apple App Store app can be added to a fleet from only one VPP token per platform. Fleet uses that VPP token to assign licenses.
 
-If an app is already added to the fleet and `location` isn't specified, Fleet keeps the app's current VPP token. This way, adding a new VPP token to a fleet, or removing one, doesn't change the VPP token of apps that are already added. If you specify a `location` that's different from the app's current VPP token, GitOps fails. To move an app to a different VPP token, remove the app from your YAML, run GitOps, and then add the app back with the new `location`.
+If an app is already added to the fleet and `organization_unit` isn't specified, Fleet keeps the app's current VPP token. This way, adding a new VPP token to a fleet, or removing one, doesn't change the VPP token of apps that are already added. If you specify a `organization_unit` that's different from the app's current VPP token, GitOps fails. To move an app to a different VPP token, remove the app from your YAML, run GitOps, and then add the app back with the new `location`.
 
 To keep the first-added VPP token, renew it instead of deleting it and uploading a new one. A VPP token that's deleted and uploaded again counts as the most recently added VPP token.
 
@@ -917,7 +917,7 @@ software:
       platform: ios
     - app_store_id: "1091189122" # Added from the second VPP token
       platform: ios
-      location: Acme Japan
+      organization_unit: Acme Japan
 ```
 
 When you update an Android app's configuration via GitOps, the app's settings are applied without reinstalling the app. The install status will show as "Pending" until the configuration is applied.
@@ -1063,7 +1063,7 @@ org_settings:
 ### fleet_desktop
 
 The `fleet_desktop` section lets you customize the Fleet Desktop experience.
-- `transparency_url` directs end users to a custom URL when they select **About Fleet** in the Fleet Desktop dropdown (default: [https://fleetdm.com/transparency](https://fleetdm.com/transparency)).
+- `about_url` directs end users to a custom URL when they select **About Fleet** in the Fleet Desktop dropdown (default: [https://fleetdm.com/better](https://fleetdm.com/better)).
 - `alternative_browser_host` is a custom hostname that my hosts will access Fleet Desktop from.
 - `sso_enabled` determines whether to require IdP authentication in addition to the Fleet Desktop token to access the device page.
 
@@ -1076,7 +1076,7 @@ Can only be configured for "All fleets" (`org_settings`).
 ```yaml
 org_settings:
   fleet_desktop:
-    transparency_url: https://example.org/transparency
+    about_url: https://example.org/better
     alternative_browser_host: fleet-desktop.example.com
     sso_enabled: false
 ```
@@ -1645,7 +1645,7 @@ org_settings:
 #### volume_purchasing_program
 
 After you've uploaded a [Volume Purchasing Program](https://fleetdm.com/guides/macos-mdm-setup#volume-purchasing-program-vpp) (VPP) token, the  `volume_purchasing_program` section lets you configure the fleets in Fleet that have access to that VPP token's App Store apps. Currently, adding a VPP token is only available using Fleet's UI.
-- `location` is the name of the organization unit in the Apple Business account. Apple previously called this "location." Fleet will rename it to "organization unit" in the next major version.
+- `organization_unit` is the name of the organization unit in the Apple Business account. Apple previously called this "location."
 - `fleets` is a list of fleet names. If you choose specific fleets, App Store apps in this VPP account will only be available to install on hosts in these fleets. If not specified, App Store apps will not be available to install on any fleet. To apply it to all fleets, use `- All fleets`. A VPP token can't be assigned to `All fleets` and specific fleets at the same time.
 
 A fleet can have more than one VPP token. A VPP token assigned to `All fleets` is available in every fleet, including fleets created later, in addition to any other VPP tokens assigned to those fleets. Learn how Fleet chooses the VPP token for each app in [multiple VPP tokens](#multiple-vpp-tokens).
@@ -1660,7 +1660,7 @@ Can only be configured for "All fleets" (`org_settings`).
 org_settings:
   mdm:
     volume_purchasing_program: # Available in Fleet Premium
-    - location: Fleet Device Management Inc.
+    - organization_unit: Fleet Device Management Inc.
       fleets:
       - 💻 Workstations
       - 💻🐣 Workstations (canary)

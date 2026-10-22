@@ -387,6 +387,7 @@ import Far2L from "./png/Far2L.png";
 import Farrago from "./png/Farrago.png";
 import Fastmail from "./png/Fastmail.png";
 import Fastscripts from "./png/Fastscripts.png";
+import Fathom from "./png/Fathom.png";
 import Fellow from "./png/Fellow.png";
 import Ferdium from "./png/Ferdium.png";
 import FetchApp from "./png/FetchApp.png";
@@ -448,6 +449,7 @@ import Gimp from "./png/Gimp.png";
 import Git from "./png/Git.png";
 import GitExtensions from "./png/GitExtensions.png";
 import Gitfinder from "./png/Gitfinder.png";
+import GitHubCopilot from "./png/GitHubCopilot.png";
 import GithubCopilotForXcode from "./png/GithubCopilotForXcode.png";
 import GitHubDesktop from "./png/GitHubDesktop.png";
 import Gitify from "./png/Gitify.png";
@@ -484,6 +486,7 @@ import GrooveOmniDialer from "./png/GrooveOmniDialer.png";
 import Gyazo from "./png/Gyazo.png";
 import Hammerspoon from "./png/Hammerspoon.png";
 import HandbrakeApp from "./png/HandbrakeApp.png";
+import Handy from "./png/Handy.png";
 import HarmonySase from "./png/HarmonySase.png";
 import Hazel from "./png/Hazel.png";
 import Hazeover from "./png/Hazeover.png";
@@ -733,6 +736,7 @@ import Numi from "./png/Numi.png";
 import Nvda from "./png/Nvda.png";
 import NvidiaGeforceNow from "./png/NvidiaGeforceNow.png";
 import NvidiaSync from "./png/NvidiaSync.png";
+import NvmWindows from "./png/NvmWindows.png";
 import Obs from "./png/Obs.png";
 import Obsidian from "./png/Obsidian.png";
 import Ocenaudio from "./png/Ocenaudio.png";
@@ -845,6 +849,7 @@ import PyCharmCe from "./png/PyCharmCe.png";
 import Python313 from "./png/Python313.png";
 import Python314 from "./png/Python314.png";
 import Qemu from "./png/Qemu.png";
+import Qgis from "./png/Qgis.png";
 import Qlab from "./png/Qlab.png";
 import Qlmarkdown from "./png/Qlmarkdown.png";
 import QspacePro from "./png/QspacePro.png";
@@ -1557,6 +1562,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   farrago: Farrago,
   fastmail: Fastmail,
   fastscripts: Fastscripts,
+  fathom: Fathom,
   fellow: Fellow,
   ferdium: Ferdium,
   fetch: FetchApp,
@@ -1613,6 +1619,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   git: Git,
   "git extensions": GitExtensions,
   gitfinder: Gitfinder,
+  "github copilot": GitHubCopilot,
   "github copilot for xcode": GithubCopilotForXcode,
   "github desktop": GitHubDesktop,
   gitify: Gitify,
@@ -1653,6 +1660,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "groove omnidialer": GrooveOmniDialer,
   hammerspoon: Hammerspoon,
   handbrake: HandbrakeApp,
+  handy: Handy,
   "harmony sase": HarmonySase,
   hazel: Hazel,
   hazeover: Hazeover,
@@ -1916,6 +1924,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   nvda: Nvda,
   "nvidia geforce now": NvidiaGeforceNow,
   "nvidia sync": NvidiaSync,
+  "nvm for windows": NvmWindows,
   obs: Obs,
   obsidian: Obsidian,
   ocenaudio: Ocenaudio,
@@ -2030,6 +2039,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "python 3.13": Python313,
   "python 3.14": Python314,
   qemu: Qemu,
+  qgis: Qgis,
+  "qgis ltr": Qgis,
   qlab: Qlab,
   "qspace pro": QspacePro,
   quip: Quip,
@@ -2397,6 +2408,9 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   jetbrains_plugins: Extension,
   adobe_plugins: AdobePlugin,
   go_binaries: GoBinary,
+  ai_clis: Package,
+  ai_skills: Package,
+  mcp_servers: Package,
 } as const;
 
 /**
@@ -2429,10 +2443,17 @@ const matchStrictNameSourceToIcon = ({
  * collide with the application they extend. An Adobe plugin named "Adobe Creative Cloud
  * Libraries" is a plugin, not Creative Cloud, and one named "Zoom" is a plugin, not Zoom,
  * so showing the other application's icon would misrepresent the row; a Go binary named
- * "zoom" is the same case. Other extension sources keep matching on name first, so e.g.
- * a VSCode extension named "Docker" still gets the Docker icon.
+ * "zoom" is the same case, as are MCP servers and AI skills named after the service they
+ * connect to (e.g. "slack"). Other extension sources keep matching on name first, so e.g.
+ * a VSCode extension named "Docker" still gets the Docker icon, and AI CLI tools match
+ * their vendor's application.
  */
-const SOURCE_ICON_OVERRIDES_NAME = ["adobe_plugins", "go_binaries"];
+const SOURCE_ICON_OVERRIDES_NAME = [
+  "adobe_plugins",
+  "go_binaries",
+  "mcp_servers",
+  "ai_skills",
+];
 
 /**
  * This returns the icon component for a given software name and source. If a strict match is found,

@@ -2083,13 +2083,13 @@ This activity contains the following fields:
 Generated when VPP features are enabled in Fleet.
 
 This activity contains the following fields:
-- "location": Organization unit associated with the VPP content token for the enabled VPP features. Apple previously called this "location." Fleet will rename it to "organization unit" in the next major version.
+- "organization_unit": Organization unit associated with the VPP content token for the enabled VPP features. Apple previously called this "location."
 
 #### Example
 
 ```json
 {
-  "location": "Acme Inc."
+  "organization_unit": "Acme Inc."
 }
 ```
 
@@ -2098,13 +2098,13 @@ This activity contains the following fields:
 Generated when VPP features are disabled in Fleet.
 
 This activity contains the following fields:
-- "location": Organization unit associated with the VPP content token for the disabled VPP features. Apple previously called this "location." Fleet will rename it to "organization unit" in the next major version.
+- "organization_unit": Organization unit associated with the VPP content token for the disabled VPP features. Apple previously called this "location."
 
 #### Example
 
 ```json
 {
-  "location": "Acme Inc."
+  "organization_unit": "Acme Inc."
 }
 ```
 
@@ -2119,7 +2119,7 @@ This activity contains the following fields:
 - "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
 - "vpp_token": The VPP token the app was added from, at the time of the activity. `null` for Google Play apps.
   - "id": ID of the VPP token.
-  - "location": Name of the organization unit in Apple Business for the VPP token.
+  - "organization_unit": Name of the organization unit in Apple Business for the VPP token.
   - "country_code": Country code of the VPP token (e.g. `us`).
 - "self_service": App installation can be initiated by device owner.
 - "fleet_name": Name of the fleet to which this App Store app was added, or `null` if it was added to no fleet.
@@ -2138,7 +2138,7 @@ This activity contains the following fields:
   "platform": "darwin",
   "vpp_token": {
     "id": 2,
-    "location": "Acme Japan",
+    "organization_unit": "Acme Japan",
     "country_code": "jp"
   },
   "self_service": false,
@@ -2209,7 +2209,7 @@ This activity contains the following fields:
 - "app_store_id": ID of the app on the Apple App Store or Google Play.
 - "vpp_token": The VPP token the app was added from, at the time of the activity. `null` for Google Play apps.
   - "id": ID of the VPP token.
-  - "location": Name of the organization unit in Apple Business for the VPP token.
+  - "organization_unit": Name of the organization unit in Apple Business for the VPP token.
   - "country_code": Country code of the VPP token (e.g. `us`).
 - "status": Status of the App Store app installation.
 - "command_uuid": UUID of the MDM command used to install the app.
@@ -2231,7 +2231,7 @@ This activity contains the following fields:
   "app_store_id": "1234567",
   "vpp_token": {
     "id": 2,
-    "location": "Acme Japan",
+    "organization_unit": "Acme Japan",
     "country_code": "jp"
   },
   "command_uuid": "98765432-1234-1234-1234-1234567890ab",
@@ -2309,7 +2309,7 @@ This activity contains the following fields:
 - "platform": Platform of the app (`android`, `darwin`, `ios`, or `ipados`).
 - "vpp_token": The VPP token the app was added from, at the time of the activity. `null` for Google Play apps.
   - "id": ID of the VPP token.
-  - "location": Name of the organization unit in Apple Business for the VPP token.
+  - "organization_unit": Name of the organization unit in Apple Business for the VPP token.
   - "country_code": Country code of the VPP token (e.g. `us`).
 - "self_service": App installation can be initiated by device owner.
 - "fleet_name": Name of the fleet on which this App Store app was updated, or `null` if it was updated on no fleet.
@@ -2333,7 +2333,7 @@ This activity contains the following fields:
   "platform": "darwin",
   "vpp_token": {
     "id": 2,
-    "location": "Acme Japan",
+    "organization_unit": "Acme Japan",
     "country_code": "jp"
   },
   "self_service": true,
