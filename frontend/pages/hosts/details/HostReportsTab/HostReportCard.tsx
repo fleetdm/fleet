@@ -4,16 +4,20 @@ import ActionsDropdown from "components/ActionsDropdown";
 import Button from "components/buttons/Button";
 import Card from "components/Card";
 import DataSet from "components/DataSet";
-import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import InfoBanner from "components/InfoBanner";
 import Tag from "components/Tag";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
+import TooltipWrapper from "components/TooltipWrapper";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { IHostReport } from "services/entities/host_reports";
 import { Colors } from "styles/var/colors";
-import { internallyTruncateText } from "utilities/helpers";
+import {
+  humanLastSeen,
+  internallyTruncateText,
+  internationalTimeFormat,
+} from "utilities/helpers";
 import { pluralize } from "utilities/strings/stringUtils";
 
 const baseClass = "host-report-card";
@@ -84,15 +88,20 @@ const HostReportCard = ({
   }, [hasResults]);
 
   const renderLastUpdated = () => {
-    if (isAwaitingResults) return null;
+    const lastFetched = report.last_fetched;
+    if (!lastFetched) return null;
 
     const prefix = doesNotStoreResults ? "Last ran" : "Last updated";
     return (
       <span className={`${baseClass}__last-updated`}>
-        {prefix}{" "}
-        <HumanTimeDiffWithFleetLaunchCutoff
-          timeString={report.last_fetched ?? ""}
-        />
+        <TooltipWrapper
+          tipContent={internationalTimeFormat(new Date(lastFetched))}
+          position="top"
+          underline={false}
+          showArrow
+        >
+          {prefix} {humanLastSeen(lastFetched)}
+        </TooltipWrapper>
       </span>
     );
   };

@@ -37,7 +37,7 @@ describe("HQRTable component", () => {
     testData.forEach((tableProps) => {
       render(<HQRTable {...tableProps} />);
       expect(screen.getByText("1 result")).toBeInTheDocument();
-      expect(screen.getByText("Last fetched")).toBeInTheDocument();
+      expect(screen.getByText(/Last updated/)).toBeInTheDocument();
       tableProps.rows.forEach((row) => {
         Object.entries(row).forEach(([col, val]) => {
           expect(screen.getByText(col)).toBeInTheDocument();
@@ -64,7 +64,7 @@ describe("HQRTable component", () => {
 
     testData.forEach((tableProps) => {
       render(<HQRTable {...tableProps} />);
-      expect(screen.queryByText("Last fetched")).toBeNull();
+      expect(screen.queryByText(/Last updated/)).toBeNull();
       expect(screen.getByText("Collecting results...")).toBeInTheDocument();
     });
   });
@@ -86,7 +86,7 @@ describe("HQRTable component", () => {
 
     testData.forEach((tableProps) => {
       render(<HQRTable {...tableProps} />);
-      expect(screen.queryByText("Last fetched")).toBeNull();
+      expect(screen.queryByText(/Last updated/)).toBeNull();
       expect(screen.getByText("Report clipped")).toBeInTheDocument();
     });
   });
@@ -108,7 +108,7 @@ describe("HQRTable component", () => {
 
     testData.forEach((tableProps) => {
       render(<HQRTable {...tableProps} />);
-      expect(screen.queryByText("Last fetched")).toBeNull();
+      expect(screen.queryByText(/Last updated/)).toBeNull();
       expect(screen.getByText("Nothing to report")).toBeInTheDocument();
     });
   });

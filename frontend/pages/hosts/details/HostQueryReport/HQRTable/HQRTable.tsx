@@ -5,7 +5,6 @@ import { Row } from "react-table";
 import Button from "components/buttons/Button";
 import Card from "components/Card";
 import EmptyState from "components/EmptyState";
-import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import Spinner from "components/Spinner";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
@@ -19,6 +18,8 @@ import {
 import {
   getPerformanceImpactDescription,
   getPerformanceImpactIndicatorTooltip,
+  humanLastSeen,
+  internationalTimeFormat,
 } from "utilities/helpers";
 
 import generateColumnConfigs from "./HQRTableConfig";
@@ -168,8 +169,16 @@ const HQRTable = ({
       <>
         <TableCount name="results" count={filteredResults.length} />
         <span className="last-fetched">
-          Last fetched{" "}
-          <HumanTimeDiffWithFleetLaunchCutoff timeString={lastFetched ?? ""} />
+          <TooltipWrapper
+            tipContent={
+              lastFetched && internationalTimeFormat(new Date(lastFetched))
+            }
+            position="top"
+            underline={false}
+            showArrow
+          >
+            Last updated {humanLastSeen(lastFetched ?? "")}
+          </TooltipWrapper>
         </span>
       </>
     );
