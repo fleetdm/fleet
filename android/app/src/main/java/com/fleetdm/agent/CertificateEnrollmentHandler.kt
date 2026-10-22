@@ -60,7 +60,11 @@ class CertificateEnrollmentHandler(private val scepClient: ScepClient, private v
         }
     } catch (e: ScepEnrollmentException) {
         // SCEP server rejected enrollment (e.g., PENDING status, invalid challenge)
-        EnrollmentResult.Failure("The certificate authority didn't issue the certificate. Check your certificate authority configuration. ${e.message}", e, isRetryable = false)
+        EnrollmentResult.Failure(
+            "The certificate authority didn't issue the certificate. Check your certificate authority configuration. ${e.message}",
+            e,
+            isRetryable = false,
+        )
     } catch (e: ScepNetworkException) {
         // Network communication failure - likely transient, can retry
         EnrollmentResult.Failure("Couldn't reach the certificate authority. ${e.message}", e, isRetryable = true)

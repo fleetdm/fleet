@@ -93,7 +93,10 @@ class CertificateEnrollmentHandlerTest {
         assertTrue(result is CertificateEnrollmentHandler.EnrollmentResult.Failure)
         val failure = result as CertificateEnrollmentHandler.EnrollmentResult.Failure
         assertFalse(failure.isRetryable)
-        assertEquals("The certificate authority didn't issue the certificate. Check your certificate authority configuration. Mock enrollment failed", failure.reason)
+        assertEquals(
+            "The certificate authority didn't issue the certificate. Check your certificate authority configuration. Mock enrollment failed",
+            failure.reason,
+        )
     }
 
     @Test
