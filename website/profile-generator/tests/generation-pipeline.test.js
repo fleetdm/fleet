@@ -73,8 +73,8 @@ describe('configuration profile generation pipeline', function() {
     sails.helpers.ai.prompt = originalPromptHelper;
   });
 
-  let generate = async (profileType)=>{
-    return await sails.helpers.generateConfigurationProfile.with({ profileType, naturalLanguageInstructions: 'Turn off the camera', useApplePayloadTypeLookup: false });
+  let generate = async (profileType, forFleet = false)=>{
+    return await sails.helpers.generateConfigurationProfile.with({ profileType, naturalLanguageInstructions: 'Turn off the camera', useApplePayloadTypeLookup: false, forFleet });
   };
   let responseWith = (configurationProfile)=>{
     return { configurationProfile, profileFilename: 'profile', deliveryNotes: '', settingsEnforced: [{ name: 'setting', value: 'value' }] };
@@ -183,6 +183,25 @@ describe('configuration profile generation pipeline', function() {
         assert.strictEqual(result.reasonWhyAProfileCouldNotBeGenerated, expected);
       });
     }
+
+  });
+
+  describe('scopes a user-channel-only declaration to the user', function() {
+
+    let calDav = JSON.stringify({ Type: 'com.apple.configuration.account.caldav', Identifier: 'caldav', Payload: { HostName: 'cal.acme.example' } });
+
+    it('when Fleet asks', async function() {
+      generationOutcomes = [responseWith(calDav)];
+      let result = await generate('ddm', true);
+      assert.strictEqual(JSON.parse(result.generatedProfile.profile).PayloadScope, 'User');
+      assert.match(result.generatedProfile.deliveryNotes, /label/);
+    });
+
+    it('but not otherwise', async function() {
+      generationOutcomes = [responseWith(calDav)];
+      let result = await generate('ddm');
+      assert.strictEqual(JSON.parse(result.generatedProfile.profile).PayloadScope, undefined);
+    });
 
   });
 
