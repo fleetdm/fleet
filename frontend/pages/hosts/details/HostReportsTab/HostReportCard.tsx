@@ -4,6 +4,7 @@ import ActionsDropdown from "components/ActionsDropdown";
 import Button from "components/buttons/Button";
 import Card from "components/Card";
 import DataSet from "components/DataSet";
+import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import InfoBanner from "components/InfoBanner";
@@ -12,7 +13,7 @@ import TooltipTruncatedText from "components/TooltipTruncatedText";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { IHostReport } from "services/entities/host_reports";
 import { Colors } from "styles/var/colors";
-import { humanLastSeen, internallyTruncateText } from "utilities/helpers";
+import { internallyTruncateText } from "utilities/helpers";
 import { pluralize } from "utilities/strings/stringUtils";
 
 const baseClass = "host-report-card";
@@ -88,7 +89,10 @@ const HostReportCard = ({
     const prefix = doesNotStoreResults ? "Last ran" : "Last updated";
     return (
       <span className={`${baseClass}__last-updated`}>
-        {prefix} {humanLastSeen(report.last_fetched || "")}
+        {prefix}{" "}
+        <HumanTimeDiffWithFleetLaunchCutoff
+          timeString={report.last_fetched ?? ""}
+        />
       </span>
     );
   };

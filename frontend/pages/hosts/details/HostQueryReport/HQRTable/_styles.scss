@@ -28,9 +28,11 @@
       overflow: hidden;
     }
     h3 {
-      font-size: $x-small;
+      font-size: $xx-small;
       font-weight: $regular;
-      margin: 0;
+      color: $ui-fleet-black-75;
+      margin: $pad-xsmall 0 0;
+      overflow-wrap: anywhere;
     }
 
     @media (max-width: $break-sm) {

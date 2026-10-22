@@ -49,15 +49,16 @@ const PerformanceImpact = ({ queryStats, queryId }: PerformanceImpactProps) => {
   };
 
   return (
-    <TooltipWrapper
-      tipContent={getPerformanceImpactIndicatorTooltip(
-        performanceImpact.indicator
-      )}
-    >
-      <span className="performance-impact">
-        <strong>Performance impact</strong>: {performanceImpact.indicator}
-      </span>
-    </TooltipWrapper>
+    <span className="performance-impact">
+      <strong>Performance impact</strong>:{" "}
+      <TooltipWrapper
+        tipContent={getPerformanceImpactIndicatorTooltip(
+          performanceImpact.indicator
+        )}
+      >
+        {performanceImpact.indicator}
+      </TooltipWrapper>
+    </span>
   );
 };
 
@@ -193,7 +194,7 @@ const HQRTable = ({
     return <Spinner />;
   }
   return (
-    <Card paddingSize="xxlarge" includeShadow className={baseClass}>
+    <Card paddingSize="xxlarge" className={baseClass}>
       {renderTableInfo()}
       {rows.length === 0 ? (
         renderEmptyState()
