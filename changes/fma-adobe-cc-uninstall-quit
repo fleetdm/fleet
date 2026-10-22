@@ -1,0 +1,1 @@
+- Fixed the Adobe Creative Cloud Fleet-maintained app uninstall so it waits for Creative Cloud to quit, and force-stops it if it doesn't, before removing it.
