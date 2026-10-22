@@ -5164,8 +5164,8 @@ func testHostsListByInstallerAndVPPVersion(t *testing.T, ds *Datastore) {
 			// resolves the title to this installer when status composition kicks in.
 			res, err := q.ExecContext(ctx,
 				`INSERT INTO software_installers
-					(title_id, filename, version, platform, storage_id, install_script_content_id, uninstall_script_content_id, package_ids, patch_query, is_active)
-				VALUES (?, ?, '1.0', 'darwin', ?, ?, ?, '', '', 1)`,
+					(title_id, filename, version, platform, storage_id, install_script_content_id, uninstall_script_content_id, package_ids, patch_query, pre_install_query, is_active)
+				VALUES (?, ?, '1.0', 'darwin', ?, ?, ?, '', '', '', 1)`,
 				titleID, storageID+".pkg", storageID, scriptID, scriptID)
 			if err != nil {
 				return err
@@ -5342,6 +5342,32 @@ func testHostsListByInstallerAndVPPVersion(t *testing.T, ds *Datastore) {
 	_, err := ds.ListHosts(ctx, filter, fleet.HostListOptions{SoftwareTitleIDFilter: &vppTitleID, AppStoreAppVersionIDFilter: &otherAppVersion})
 	require.ErrorAs(t, err, &badRequestErr)
 	_, err = ds.ListHosts(ctx, filter, fleet.HostListOptions{SoftwareTitleIDFilter: &vppTitleID, AppStoreAppVersionIDFilter: &otherAppVersion, SoftwareStatusFilter: &failed})
+	require.ErrorAs(t, err, &badRequestErr)
+
+	// list the hosts of the title with a package of another title, with and without a status, the package should be rejected
+	var otherTitleInstaller uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `INSERT INTO software_titles (name, source, extension_for) VALUES ('ivv-other-title', 'apps', '')`)
+		if err != nil {
+			return err
+		}
+		otherTitleID, _ := res.LastInsertId()
+		res, err = q.ExecContext(ctx,
+			`INSERT INTO software_installers
+				(title_id, filename, version, platform, storage_id, install_script_content_id, uninstall_script_content_id, package_ids, patch_query, pre_install_query, is_active)
+			VALUES (?, 'ivv-other.pkg', '1.0', 'darwin', 'ivv-storage-other', ?, ?, '', '', '', 1)`,
+			otherTitleID, scriptID, scriptID)
+		if err != nil {
+			return err
+		}
+		lid, _ := res.LastInsertId()
+		otherTitleInstaller = uint(lid) //nolint:gosec // bounded by test fixture
+		return nil
+	})
+	linkInstall(host1.ID, otherTitleInstaller)
+	_, err = ds.ListHosts(ctx, filter, fleet.HostListOptions{SoftwareTitleIDFilter: &titleID, SoftwareInstallerIDFilter: &otherTitleInstaller})
+	require.ErrorAs(t, err, &badRequestErr)
+	_, err = ds.ListHosts(ctx, filter, fleet.HostListOptions{SoftwareTitleIDFilter: &titleID, SoftwareInstallerIDFilter: &otherTitleInstaller, SoftwareStatusFilter: &installed})
 	require.ErrorAs(t, err, &badRequestErr)
 }
 
