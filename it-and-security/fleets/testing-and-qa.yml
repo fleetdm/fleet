@@ -78,6 +78,10 @@ controls:
   macos_updates:
     deadline:
     minimum_version:
+  windows_settings:
+    configuration_profiles:
+      # CIS Level 2 User Account Control (CIS Windows 11 Enterprise Benchmark section 2.3.17)
+      - path: ../lib/windows/configuration-profiles/CIS Level 2 User Account Control.xml
   enable_disk_encryption: true
   scripts:
     # macOS scripts
@@ -92,6 +96,8 @@ controls:
     - path: ../lib/all/scripts/remove-emudhra-roots-fleetd.sh
 policies:
   # macOS policies
+  # Windows policies
+  - path: ../lib/windows/policies/cis-user-account-control.yml
   # Linux policies
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 reports:
