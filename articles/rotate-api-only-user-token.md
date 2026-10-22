@@ -27,7 +27,6 @@ Follow instructions to [create an new API-only user](https://fleetdm.com/guides/
 
 Replace the old token with the new one everywhere it's used: secrets managers, CI variables, identity provider settings (for example, Okta SCIM provisioning), and fleetctl contexts.
 
-For a fleetctl context, edit `~/.fleet/config` and replace the `token` value. Editing the file, rather than passing the token on the command line, keeps it out of your shell history.
 
 ## Verify the new token
 
