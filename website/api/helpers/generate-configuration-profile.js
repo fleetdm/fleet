@@ -137,7 +137,7 @@ module.exports = {
       useApplePayloadTypeLookup,
       // The router already worked out which payload types a .mobileconfig needs, so the lookup would only
       // ask the same question again.
-      applePayloadTypes: route && route.profileType === 'mobileconfig' ? route.applePayloadTypes : undefined,
+      applePayloadTypes: useApplePayloadTypeLookup && route && route.profileType === 'mobileconfig' ? route.applePayloadTypes : undefined,
       writeProfilesFromSettings,
     });
     let configuredAt = Date.now();
