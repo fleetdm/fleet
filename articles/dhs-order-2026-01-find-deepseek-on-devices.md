@@ -1,4 +1,4 @@
-# Who installed DeepSeek? Under DHS Order 2026-01, ask the devices, not the employees
+# DeepSeek ban for federal agencies: How to prove every device is clean under DHS Order 2026-01
 
 *DHS told civilian agencies to remove DeepSeek and anything built on it. The order assumes you already know where it runs, and most teams only have a guess.*
 
@@ -18,55 +18,72 @@ Most of the coverage is about the politics. The operational problem is simpler a
 
 ## What the order covers
 
-The order names DeepSeek, its affiliates, and third-party products and services developed using DeepSeek implementations. It also bars procurement, including through agency-approved product lists and e-commerce marketplaces.
+Civilian executive branch agencies are in scope. Their national security and secure compartmented information systems are not. Two requirements take effect immediately:
 
-That second category is the one that changes the work. A chatbot app with "DeepSeek" in its name is easy to spot. A coding assistant, note-taking tool, or browser extension that calls a DeepSeek model behind its own branding is not, and the order treats it the same way. You aren't only looking for one app. You're looking for a dependency.
+- **Exclude** DeepSeek and its affiliates from procurement, including agency-approved product lists and e-commerce marketplaces.
+- **Remove** DeepSeek and affiliate products, plus "third-party products and services developed using DeepSeek implementations," from agency IT.
 
-Private companies aren't bound by a federal civilian order. Contractors, regulated industries, and security teams that follow federal guidance will still get the same question from a customer or auditor, so the same inventory work applies.
+The second half is what changes the work. A chatbot named DeepSeek is easy to spot. A coding assistant that calls a DeepSeek model under its own brand is not, and the order treats both the same. You aren't looking for an app. You're looking for a dependency.
+
+An agency that can't comply right away has 60 days from issuance to file a written exception request. The request has to name the covered product and describe the mitigations in place. Until removal is finished, DHS encourages traffic monitoring, enhanced logging, and exfiltration controls.
+
+Private companies aren't bound by the order. Contractors and regulated teams will hear the same question from customers and auditors anyway.
+
+The order is a United States federal measure. FASCSA orders cover federal executive agencies, so state and local governments and organizations outside the US aren't in scope. Federal contractors can be pulled in through their contracts: [FAR 52.204-30](https://www.acquisition.gov/far/52.204-30) bars a contractor from providing or using, in contract performance, a covered article named in an applicable FASCSA order. Applicable orders are the ones listed in SAM.gov or in the solicitation. A contractor that finds one must report it to the contracting officer within 3 business days. The inventory steps below work the same either way.
 
 ## Why asking people doesn't answer it
 
-The usual first move is a message to staff asking them to say whether they use DeepSeek. It produces a short list of honest people and tells you nothing about everyone else. Someone who tried the app once, installed an extension in a personal browser profile, or pulled a model into a local runtime may not think of it as "using DeepSeek" at all.
+An email asking who uses DeepSeek gets you a short list of honest people. Someone who tried the app once, added an extension to a personal browser profile, or pulled a DeepSeek model into Ollama for a weekend project may not count that as "using DeepSeek." The list is also stale the day you collect it.
 
-A self-reported list also goes stale the day after you collect it. An inventory that updates on its own doesn't have that problem.
+## Where to look on each device
 
-## Pulling the list from the devices
+Fleet's agent reports installed software hourly by default. Search the **Software** page for "deepseek" to see every host with a match, its version, and, where the platform reports it, the install path. The [software inventory reference](https://fleetdm.com/guides/software-inventory-reference) lists what's covered, gaps included.
 
-Fleet's software inventory collects installed apps, Linux packages, browser extensions, and IDE extensions across macOS, Windows, and Linux hosts. By default Fleet queries hosts for software inventory hourly. The [software inventory reference](https://fleetdm.com/guides/software-inventory-reference) lists exactly which software types and platforms are covered, including the ones that aren't.
+- **Desktop apps:** macOS and Windows apps, and Linux deb and rpm packages.
+- **Mobile apps:** iOS, iPadOS, and Android apps on devices enrolled in Fleet's MDM. Fully managed devices report every app. [BYOD iPhones and iPads](https://fleetdm.com/guides/enroll-byod-ios-ipados-hosts) report only apps Fleet installed, and Android BYOD reports the work profile only.
+- **Browser extensions:** Chrome, Edge, Brave, Firefox, Safari, and more on macOS, Windows, and Linux.
+- **IDE extensions:** VS Code, Cursor, Windsurf, and JetBrains plugins, where AI coding assistants tend to live.
+- **Python packages:** system, per-user, pipx, uv, and conda installs.
 
-The first pass is a name search. Search the software list for "deepseek" and you get every host reporting a matching app, package, or extension, along with the version and install path where the platform provides them. That list is your starting point for removal tickets.
+Two things inventory can't show you. Model weights are files, not software: a DeepSeek model pulled into [Ollama](https://docs.ollama.com/faq) appears as Ollama, not as DeepSeek. And the web chatbot at chat.deepseek.com installs nothing. That belongs to DNS and proxy logs, which is the monitoring the order already asks for.
 
-Two caveats belong in the write-up. Fleet only sees what the inventory covers, so personal-side apps on BYOD devices and software inside containers or virtual machines can sit outside it. And a name search finds software that is named for DeepSeek. It does not tell you which models a tool calls at runtime.
+## Keeping watch with osquery
+
+Removal isn't a one-time sweep. Someone reinstalls the app, a new hire brings an extension over from a personal profile, or a developer tries a new model. The inventory has to keep looking after the cleanup is done.
+
+[Fleet's agent](https://fleetdm.com/docs/get-started/anatomy#fleetd) is built on [osquery](https://www.osquery.io/), the open-source agent that exposes a device's apps, packages, extensions, and files as tables you can ask questions of. That's what keeps the software list current on its own. When DeepSeek comes back on a host, it shows up at the next refresh, with no new survey and no new scan.
+
+osquery reaches past the software list too. Its [tables](https://fleetdm.com/tables) cover the file system, so the places inventory can't see, such as model folders on disk, are still within reach. Fleet [reports](https://fleetdm.com/docs/get-started/anatomy#report) save those questions and run them across macOS, Windows, and Linux hosts. If you need help shaping one for DeepSeek, [Fleet support](https://fleetdm.com/support) or your customer success team can help. If you aren't a Fleet customer yet, [talk to Fleet](https://fleetdm.com/contact).
+
+"We told people to uninstall it" is a statement. "Zero hosts report DeepSeek as of this morning" is evidence. Fleet counts how many hosts have each software title, so the number you drive to zero is already on the **Software** page.
 
 ## The wrappers need another source
 
-For products built on DeepSeek, the device can only give you the inventory side. Fleet can list every AI assistant, extension, and developer tool installed, which is the set of candidates. Whether any of them embeds DeepSeek is a question for the vendor, the contract, and the procurement record.
+For products built on DeepSeek, the device gives you the candidate list: every AI assistant, extension, and developer tool installed. Send each vendor the same written question about which model providers they use, and record the answers next to the inventory. A vendor that won't answer is a call for security and procurement, or the subject of an exception request. A scan won't settle it.
 
-A practical sequence: pull the full list of AI-related software from your hosts, send each vendor the same written question about which model providers they use, and record the answers next to the inventory. Where a vendor can't or won't answer, that is a decision for your security and procurement leads, not something a scan resolves.
+## The count is the compliance
 
-## Making the removal measurable
-
-Once you have a list of hosts and the software to remove, a policy keeps the work honest. A Fleet policy that passes only when no matching software is installed shows up as a failing-host count. Remove the software, let the next inventory check run, and the count falls.
-
-That count is the useful artifact. "We told people to uninstall it" is a statement. "Fleet shows zero hosts failing the policy as of this morning" is something an auditor can read. If new software appears later, the same policy flags it without anyone remembering to look.
-
-## Closing
-
-The order tells agencies what to remove. The work for IT is finding it first, and that starts with the devices, which report what is installed whether or not anyone remembers to mention it. Take the inventory result as a floor, ask vendors about the wrappers, and keep the policy running so the count stays at zero.
+The order says what to remove. Finding it is the work, and devices report what's installed whether anyone mentions it or not. Treat the first result as a floor, chase the wrappers through vendors, and keep watching the inventory until the count stays at zero.
 
 ## See it live
 
-- **Get a demo.** See software inventory and policies across macOS, Windows, and Linux hosts: [fleetdm.com/contact](https://fleetdm.com/contact)
+- **Get a demo.** See software inventory across macOS, Windows, Linux, iOS, and Android: [fleetdm.com/contact](https://fleetdm.com/contact)
+- **Manage every platform in one place.** See how Fleet handles [device management](https://fleetdm.com/device-management) across your fleet.
 - **Read the reference.** Check what Fleet collects on each platform: [Software inventory reference](https://fleetdm.com/guides/software-inventory-reference)
+- **Look past one vendor.** Find every AI tool on your hosts: [Shadow AI is already on your fleet](https://fleetdm.com/articles/shadow-ai-is-already-on-your-fleet)
 
 ## Sources
 
-- Federal Register public inspection, [DHS Exclusion and Removal Order 2026-01, document 2026-21447](https://public-inspection.federalregister.gov/2026-21447.pdf).
+- Federal Register, [Notice of Order Regarding Exclusion and Removal of DeepSeek Products from Federal Civilian Executive Branch Information Technology Systems and Procurements, document 2026-21447](https://www.federalregister.gov/d/2026-21447) ([public inspection PDF](https://public-inspection.federalregister.gov/2026-21447.pdf)). Signed order in docket [DHS-2026-0628](https://www.regulations.gov/docket/DHS-2026-0628).
+- Bloomberg Government, [US Moves to Bar China's DeepSeek From Federal Agency Systems](https://news.bgov.com/california-brief/us-moves-to-bar-deepseek-from-federal-agencies-and-contracts).
 - The Next Web, [US orders civilian federal agencies to remove DeepSeek from their systems](https://thenextweb.com/news/us-bars-deepseek-federal-agencies).
+- NowSecure, [NowSecure Uncovers Multiple Security and Privacy Flaws in DeepSeek iOS Mobile App](https://www.nowsecure.com/blog/2025/02/06/nowsecure-uncovers-multiple-security-and-privacy-flaws-in-deepseek-ios-mobile-app/).
+- Ollama, [FAQ: Where are models stored?](https://docs.ollama.com/faq)
+- Acquisition.gov, [FAR 52.204-30, Federal Acquisition Supply Chain Security Act Orders—Prohibition (Dec 2023)](https://www.acquisition.gov/far/52.204-30).
 
-<meta name="articleTitle" value="Who installed DeepSeek? Under DHS Order 2026-01, ask the devices, not the employees">
+<meta name="articleTitle" value="DeepSeek ban for federal agencies: How to prove every device is clean under DHS Order 2026-01">
 <meta name="authorFullName" value="Aube Paul">
 <meta name="authorGitHubUsername" value="robinedev">
 <meta name="category" value="industry news">
 <meta name="publishedOn" value="2026-10-21">
-<meta name="description" value="DHS Order 2026-01 removes DeepSeek and products built on it from federal systems. Find where it runs by asking devices, not employees.">
+<meta name="description" value="DHS Order 2026-01 removes DeepSeek and tools built on it from federal systems. Find its apps, extensions, and local models on every device.">
