@@ -28,6 +28,7 @@ die()  { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 
 exists()   { container ls -a 2>/dev/null | awk 'NR>1 {print $1}' | grep -qx "$1"; }
 running()  { container ls    2>/dev/null | awk 'NR>1 {print $1}' | grep -qx "$1"; }
+volume_exists() { container volume ls 2>/dev/null | awk 'NR>1 {print $1}' | grep -qx "$1"; }
 lan_ip()   { ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo "<your-mac-ip>"; }
 # `container ls` only succeeds when Apple container's services are running.
 ensure_system() { container ls >/dev/null 2>&1 || container system start; }
@@ -104,8 +105,10 @@ cmd_setup() {
     [[ -n "$url" ]] || die "Couldn't find the installer. Download it from https://github.com/apple/container/releases"
     read -r -p "Download and install $(basename "$url")? [y/N] " a
     [[ "$a" =~ ^[Yy]$ ]] || die "Install Apple container, then re-run setup."
-    curl -fL "$url" -o /tmp/container-installer.pkg
-    sudo installer -pkg /tmp/container-installer.pkg -target /
+    local tmp; tmp="$(mktemp -d)"
+    curl -fL "$url" -o "$tmp/container-installer.pkg"
+    sudo installer -pkg "$tmp/container-installer.pkg" -target /
+    rm -rf "$tmp"
   fi
   ensure_system
 
@@ -246,7 +249,7 @@ wait_for_fleet() {
 cmd_up() {
   load_env; ensure_system
   exists fleet && die "Fleet is already deployed. Use ./fleetlab.sh start"
-  if container volume ls 2>/dev/null | awk 'NR>1 {print $1}' | grep -qx fleet-mysql; then
+  if volume_exists fleet-mysql; then
     say "Reusing Fleet data from a previous deployment (its passwords must match .env)"
   fi
 
@@ -256,6 +259,12 @@ cmd_up() {
   for v in "${VOLUMES[@]}"; do container volume create "$v" >/dev/null 2>&1 || true; done
 
   say "Starting MySQL and Redis"
+  # An earlier `up` that failed before starting Fleet leaves these behind.
+  local c
+  for c in fleet-mysql fleet-redis; do
+    container stop "$c" >/dev/null 2>&1 || true
+    container rm "$c" >/dev/null 2>&1 || true
+  done
   container run -d --name fleet-mysql --network "$NET" \
     -e MYSQL_ROOT_PASSWORD="$MYSQL_ROOT_PASSWORD" -e MYSQL_DATABASE="$MYSQL_DATABASE" \
     -e MYSQL_USER="$MYSQL_USER" -e MYSQL_PASSWORD="$MYSQL_PASSWORD" \
@@ -353,8 +362,12 @@ cmd_reset() {
   read -r -p "Delete ALL Fleet data (database, logs, settings)? [y/N] " a
   [[ "$a" =~ ^[Yy]$ ]] || { echo "Cancelled."; exit 0; }
   cmd_down
-  local v
-  for v in "${VOLUMES[@]}"; do container volume rm "$v" >/dev/null 2>&1 || true; done
+  local v left=()
+  for v in "${VOLUMES[@]}"; do
+    container volume rm "$v" >/dev/null 2>&1 || true
+    if volume_exists "$v"; then left+=("$v"); fi
+  done
+  (( ${#left[@]} == 0 )) || die "Couldn't delete ${left[*]}. A container may still be using it. Check: container ls -a"
   ok "All Fleet data deleted. Fresh deploy: ./fleetlab.sh up"
 }
 
