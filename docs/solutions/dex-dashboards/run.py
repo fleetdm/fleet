@@ -2,7 +2,7 @@
 """Daily run: collect one Fleet snapshot, then rebuild every page.
 
   run.py --work DIR --history lifecycle=PATH --history software=PATH --history patch=PATH --history ai=PATH \
-         --history connectivity=PATH --history analytics=PATH
+         --history connectivity=PATH --history analytics=PATH --history sustainability=PATH
 
 Writes DIR/out/<page>.html and DIR/out/<page>-history.json. Exits non-zero
 without writing pages when the data looks wrong, so nothing bad is published.
@@ -14,7 +14,7 @@ import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PAGES = ("lifecycle", "software", "patch", "ai", "connectivity", "analytics")
+PAGES = ("lifecycle", "software", "patch", "ai", "connectivity", "analytics", "sustainability")
 
 
 def main():

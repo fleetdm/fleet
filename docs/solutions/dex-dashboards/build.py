@@ -1190,10 +1190,309 @@ def build_analytics(snap, hist):
         "hosts": out, "newest": newest, "trend": save_trend(hist, today, day),
     }
 
+# ---------------------------------------------------------------- sustainability
+
+# Grams of CO2 per kWh of electricity generated, latest year per country (2025
+# for most). Source: Ember, via Our World in Data's "Carbon intensity of
+# electricity generation" (CC BY 4.0). Keyed by the ISO country code Fleet's
+# GeoIP lookup returns.
+GRID_INTENSITY = {
+    "AE": 468, "AF": 131, "AG": 595, "AL": 25, "AM": 212, "AO": 185, "AR": 346, "AS": 611, "AT": 117, "AU": 525,
+    "AW": 550, "AZ": 632, "BA": 571, "BB": 595, "BD": 696, "BE": 150, "BF": 562, "BG": 276, "BH": 902, "BI": 184,
+    "BJ": 584, "BM": 639, "BN": 892, "BO": 481, "BR": 110, "BS": 653, "BT": 24, "BW": 851, "BY": 309, "BZ": 170,
+    "CA": 191, "CD": 28, "CG": 716, "CH": 39, "CI": 405, "CK": 250, "CL": 289, "CM": 226, "CN": 525, "CO": 187,
+    "CR": 24, "CU": 643, "CV": 462, "CY": 489, "CZ": 401, "DE": 330, "DJ": 450, "DK": 114, "DM": 600, "DO": 537,
+    "DZ": 633, "EC": 159, "EE": 319, "EG": 563, "EH": 667, "ER": 578, "ES": 154, "ET": 23, "FI": 57, "FJ": 278,
+    "FK": 1000, "FO": 347, "FR": 41, "GA": 523, "GB": 217, "GD": 667, "GE": 146, "GF": 245, "GH": 469, "GI": 591,
+    "GL": 150, "GM": 667, "GN": 181, "GP": 497, "GQ": 644, "GR": 315, "GT": 301, "GU": 608, "GW": 625, "GY": 645,
+    "HK": 675, "HN": 322, "HR": 159, "HT": 535, "HU": 163, "ID": 680, "IE": 257, "IL": 493, "IN": 670, "IQ": 683,
+    "IR": 660, "IS": 28, "IT": 285, "JM": 563, "JO": 530, "JP": 477, "KE": 95, "KG": 153, "KH": 499, "KI": 500,
+    "KM": 643, "KN": 609, "KP": 341, "KR": 417, "KW": 635, "KY": 634, "KZ": 805, "LA": 232, "LB": 390, "LC": 650,
+    "LK": 329, "LR": 316, "LS": 21, "LT": 138, "LU": 123, "LV": 139, "LY": 827, "MA": 596, "MD": 633, "ME": 264,
+    "MG": 432, "MK": 441, "ML": 539, "MM": 503, "MN": 816, "MO": 474, "MQ": 530, "MR": 512, "MS": 1000, "MT": 484,
+    "MU": 642, "MV": 612, "MW": 55, "MX": 474, "MY": 602, "MZ": 129, "NA": 49, "NC": 561, "NE": 674, "NG": 456,
+    "NI": 301, "NL": 254, "NO": 28, "NP": 24, "NR": 600, "NZ": 93, "OM": 544, "PA": 221, "PE": 238, "PF": 431,
+    "PG": 514, "PH": 588, "PK": 347, "PL": 589, "PM": 600, "PR": 655, "PS": 414, "PT": 128, "PY": 25, "QA": 582,
+    "RE": 394, "RO": 251, "RS": 696, "RU": 450, "RW": 354, "SA": 692, "SB": 636, "SC": 556, "SD": 154, "SE": 35,
+    "SG": 497, "SH": 1000, "SI": 183, "SK": 95, "SL": 48, "SN": 540, "SO": 512, "SR": 322, "SS": 643, "ST": 556,
+    "SV": 139, "SY": 706, "SZ": 131, "TC": 630, "TD": 622, "TG": 423, "TH": 546, "TJ": 73, "TL": 667, "TM": 1306,
+    "TN": 560, "TO": 571, "TR": 475, "TT": 682, "TW": 633, "TZ": 345, "UA": 250, "UG": 59, "US": 384, "UY": 80,
+    "UZ": 1000, "VC": 600, "VE": 86, "VG": 647, "VI": 632, "VN": 461, "VU": 500, "WS": 375, "XK": 901, "YE": 592,
+    "ZA": 699, "ZM": 120, "ZW": 384
+}
+GRID_SOURCE = "Ember via Our World in Data (CC BY 4.0), latest year per country"
+# Used for computers with no GeoIP country. Unset, it falls back to the most
+# common country in the fleet.
+DEFAULT_GRID = os.environ.get("DEX_GRID_INTENSITY", "")
+HOST_KWH_DAYS = 35
+SPOT_DAYS = 30
+NEVER_SLEPT_DAYS = 7
+LONG_DISPLAY_MIN = 30
+# A reading this far above any Mac's draw means a bad counter, not real use.
+MAX_PLAUSIBLE_WATTS = 1000
+# Processes in pmset's "sleep prevented by" list that are macOS itself.
+MAC_SYSTEM_BLOCKERS = {
+    "powerd", "dasd", "coreaudiod", "bluetoothd", "sharingd", "useractivityd", "backupd", "mds", "mds_stores",
+    "WindowServer", "runningboardd", "apsd", "cloudd", "nsurlsessiond", "softwareupdated", "locationd", "airportd",
+    "mDNSResponder", "configd", "UserEventAgent", "symptomsd", "rapportd", "ControlCenter", "audiomxd",
+    "com.apple.audio.coreaudiod", "kernel_task", "launchd", "AirPlayXPCHelper", "screensharingd",
+}
+
+
+def as_int(v):
+    try:
+        return int(float(str(v).strip()))
+    except (TypeError, ValueError):
+        return None
+
+
+def prevented_by(text):
+    """Process names from pmset's "1 (sleep prevented by a, b)"."""
+    m = re.search(r"prevented by ([^)]*)\)", text or "")
+    return sorted({p.strip() for p in m.group(1).split(",") if p.strip()}) if m else []
+
+
+def gnome_value(v):
+    """dconf prints GVariant text: "'nothing'\\n" or "3600\\n". Empty means the default."""
+    v = (v or "").strip()
+    return v.strip("'") if v else None
+
+
+def split_days(start, end, kwh, hours):
+    """Spread kWh and hours evenly over the UTC days between two readings."""
+    out = {}
+    if end <= start:
+        return {end.date().isoformat(): (kwh, hours)}
+    total = (end - start).total_seconds()
+    t = start
+    while t < end:
+        nxt = min(end, dt.datetime.combine(t.date() + dt.timedelta(days=1), dt.time(), tzinfo=dt.timezone.utc))
+        share = (nxt - t).total_seconds() / total
+        out[t.date().isoformat()] = (kwh * share, hours * share)
+        t = nxt
+    return out
+
+
+def add_spot(hist, hid, t, watts, today):
+    """Keep one running average per host per day for single power readings."""
+    if watts is None or watts <= 0 or watts > MAX_PLAUSIBLE_WATTS:
+        return
+    seen = hist.setdefault("spot_seen", {})
+    stamp = t.isoformat() if t else today.isoformat()
+    if seen.get(hid) == stamp:
+        return
+    seen[hid] = stamp
+    day = hist.setdefault("spot", {}).setdefault(hid, {}).setdefault(today.isoformat(), [0.0, 0])
+    day[0] = round(day[0] + watts, 3)
+    day[1] += 1
+
+
+def energy_reading(hist, hid, row):
+    """Turn a new Mac energy counter reading into kWh per UTC day.
+
+    The counter is millijoules since boot. Time comes from the host's own
+    uptime, because Fleet can receive a result long after the host recorded it.
+    """
+    e, up, t = as_int(row.get("energy_mj")), as_int(row.get("uptime_s")), parse_ts(row.get("last_fetched"))
+    if e is None or up is None or up <= 0 or t is None:
+        return {}
+    store = hist.setdefault("energy", {})
+    last = store.get(hid)
+    if last and t.timestamp() <= last["t"]:
+        return {}
+    store[hid] = {"e": e, "up": up, "t": t.timestamp()}
+    if not last:
+        return {}
+    if up >= last["up"] and e >= last["e"]:
+        joules, secs = (e - last["e"]) / 1000, up - last["up"]
+    else:
+        # Rebooted since the last reading. Count the energy since boot, minus
+        # any stretch the last reading already covered.
+        joules, secs = e / 1000, up
+        overlap = last["t"] - (t.timestamp() - up)
+        if overlap > 600:
+            joules *= max(0.0, 1 - overlap / up)
+            secs = max(0, up - overlap)
+    if secs <= 0 or joules < 0 or joules / secs > MAX_PLAUSIBLE_WATTS:
+        return {}
+    return split_days(t - dt.timedelta(seconds=secs), t, joules / 3.6e6, secs / 3600)
+
+
+def battery_status(det, dh):
+    batts = det.get("batteries") or []
+    pct = num((dh or {}).get("battery_health_pct"))
+    cycles = as_int((dh or {}).get("battery_cycles"))
+    if cycles is None and batts:
+        cycles = batts[0].get("cycle_count")
+    if not batts and pct is None:
+        return None
+    health = (batts[0].get("health") or "") if batts else ""
+    if health.lower().startswith("service") or (pct is not None and pct < 80) or (cycles or 0) >= 1000:
+        status = "service"
+    elif pct is not None and pct < 90:
+        status = "worn"
+    else:
+        status = "normal"
+    return {"status": status, "pct": pct, "cycles": cycles}
+
+
+def build_sustainability(snap, hist):
+    now = parse_ts(snap["generated_at"])
+    today = now.date()
+    hist.setdefault("schema", 1)
+    hist.setdefault("since", today.isoformat())
+    dex = snap.get("dex") or {}
+    details = snap.get("host_details") or {}
+    info = snap.get("report_info") or {}
+    hosts = {str(h["id"]): h for h in snap["hosts"]}
+    ids = [hid for hid, h in hosts.items() if platform_of(h) and not is_virtual(h)]
+
+    countries = [(details.get(hid) or {}).get("country") for hid in ids]
+    known = [c for c in countries if c in GRID_INTENSITY]
+    if num(DEFAULT_GRID):
+        fallback, fallback_from = num(DEFAULT_GRID), "DEX_GRID_INTENSITY"
+    elif known:
+        common = max(set(known), key=known.count)
+        fallback, fallback_from = GRID_INTENSITY[common], common
+    else:
+        fallback, fallback_from = None, None
+
+    host_kwh = hist.setdefault("host_kwh", {})
+    kwh_day = hist.setdefault("kwh_day", {})
+    rows, day = [], {}
+    for hid in ids:
+        h, det = hosts[hid], details.get(hid) or {}
+        plat, fleet_name = platform_of(h), h.get("team_name") or "Unassigned"
+        key = f"{fleet_name}|{plat}"
+        country = det.get("country") or ""
+        grid = GRID_INTENSITY.get(country) or fallback
+        up_days = round(h["uptime"] / 1e9 / 86400, 1) if h.get("uptime") else None
+        r = {"id": int(hid), "n": host_name(h), "f": fleet_name, "p": plat,
+             "model": det.get("hardware_marketing_name") or h.get("hardware_model") or "Unknown",
+             "country": country, "grid": grid, "grid_known": country in GRID_INTENSITY, "up": up_days,
+             "kind": None, "measured": False, "avg_boot_w": None, "now_w": None, "spot_w": None, "spot_n": 0,
+             "sleep_off": None, "display_long": None, "never_slept": None, "fast_startup": None, "womp": None,
+             "sleep_ac": None, "display_ac": None, "apps": [], "system": [],
+             "battery": battery_status(det, (snap.get("device_health") or {}).get(hid))}
+
+        if plat == "macos":
+            er, sr = (dex.get("mac_energy") or {}).get(hid), (dex.get("mac_sleep") or {}).get(hid)
+            laptop = "macbook" in r["model"].lower() or bool(er and er.get("power_source"))
+            r["kind"] = "laptop" if laptop else "desktop"
+            if er:
+                r["now_w"] = num(er.get("system_watts"))
+                e, up = as_int(er.get("energy_mj")), as_int(er.get("uptime_s"))
+                if e is not None and up:
+                    r["measured"] = True
+                    r["avg_boot_w"] = round(e / 1000 / up, 2)
+                    for d, (kwh, hours) in energy_reading(hist, hid, er).items():
+                        slot = host_kwh.setdefault(hid, {}).setdefault(d, [0.0, 0.0])
+                        slot[0], slot[1] = round(slot[0] + kwh, 6), round(slot[1] + hours, 4)
+                        agg = kwh_day.setdefault(d, {}).setdefault(key, [0.0, 0.0])
+                        agg[0] = round(agg[0] + kwh, 6)
+                        agg[1] = round(agg[1] + kwh * (grid or 0), 3)
+                else:
+                    # No energy counter: keep PSTR as a single reading, never as kWh.
+                    add_spot(hist, hid, parse_ts(er.get("last_fetched")), r["now_w"], today)
+            if sr:
+                ac_sleep, ac_display = as_int(sr.get("ac_sleep")), as_int(sr.get("ac_displaysleep"))
+                count = as_int(sr.get("sleep_count"))
+                r["sleep_ac"], r["display_ac"] = ac_sleep, ac_display
+                r["sleep_off"] = None if ac_sleep is None else int(ac_sleep == 0)
+                r["display_long"] = None if ac_display is None else int(ac_display == 0 or ac_display > LONG_DISPLAY_MIN)
+                r["never_slept"] = None if count is None or up_days is None else int(count == 0 and up_days >= NEVER_SLEPT_DAYS)
+                r["womp"] = None if as_int(sr.get("ac_womp")) is None else int(as_int(sr.get("ac_womp")) == 1)
+                blockers = set(prevented_by(sr.get("sleep_now"))) | set(prevented_by(sr.get("displaysleep_now")))
+                r["apps"] = sorted(b for b in blockers if b not in MAC_SYSTEM_BLOCKERS)
+                r["system"] = sorted(b for b in blockers if b in MAC_SYSTEM_BLOCKERS)
+
+        elif plat == "windows":
+            wr = (dex.get("win_power") or {}).get(hid)
+            r["kind"] = "laptop" if (det.get("batteries") or (wr and wr.get("power_source"))) else "desktop"
+            if wr:
+                if (wr.get("power_source") or "") != "AC Power":
+                    add_spot(hist, hid, parse_ts(wr.get("last_fetched")), num(wr.get("discharge_watts")), today)
+                sleep_s, display_s = as_int(wr.get("sleep_ac_s")), as_int(wr.get("display_ac_s"))
+                r["sleep_ac"] = None if sleep_s is None else round(sleep_s / 60)
+                r["display_ac"] = None if display_s is None else round(display_s / 60)
+                r["sleep_off"] = None if sleep_s is None else int(sleep_s == 0)
+                r["display_long"] = None if display_s is None else int(display_s == 0 or display_s > LONG_DISPLAY_MIN * 60)
+                sleeps = as_int(wr.get("sleeps_30d"))
+                r["never_slept"] = None if sleeps is None else int(sleeps == 0)
+                r["fast_startup"] = None if as_int(wr.get("fast_startup")) is None else int(as_int(wr.get("fast_startup")) == 1)
+
+        else:
+            lr = (dex.get("lin_power") or {}).get(hid)
+            if lr:
+                desktop = (lr.get("graphical") or "") == "active"
+                r["kind"] = "laptop" if (as_int(lr.get("batteries")) or 0) > 0 else "desktop" if desktop else "server"
+                try:
+                    names, power = json.loads(lr.get("hwmon_names") or "{}"), json.loads(lr.get("hwmon_power") or "{}")
+                except ValueError:
+                    names, power = {}, {}
+                amd = [num(v) for p, v in power.items() if names.get(p.rsplit("/", 1)[0] + "/name") == "amdgpu"]
+                if amd and amd[0]:
+                    add_spot(hist, hid, parse_ts(lr.get("last_fetched")), amd[0] / 1e6, today)
+                gnome = gnome_value(lr.get("gnome_sleep_ac_type"))
+                masked = "masked" in ((lr.get("sleep_target") or ""), (lr.get("suspend_target") or ""))
+                if r["kind"] != "server":
+                    r["sleep_off"] = int(masked or gnome == "nothing")
+                    timeout = as_int(gnome_value(lr.get("gnome_sleep_ac_timeout")))
+                    r["sleep_ac"] = 0 if r["sleep_off"] else (round(timeout / 60) if timeout else None)
+            else:
+                r["kind"] = None
+
+        spot = (hist.get("spot") or {}).get(hid) or {}
+        cutoff = (today - dt.timedelta(days=SPOT_DAYS)).isoformat()
+        tot = [v for d, v in spot.items() if d >= cutoff]
+        n = sum(v[1] for v in tot)
+        if n:
+            r["spot_w"], r["spot_n"] = round(sum(v[0] for v in tot) / n, 2), n
+        mine = host_kwh.get(hid) or {}
+        for days in (7, 30):
+            since = (today - dt.timedelta(days=days - 1)).isoformat()
+            got = [v for d, v in mine.items() if d >= since]
+            r[f"kwh{days}"] = round(sum(v[0] for v in got), 4) if got else None
+            r[f"hours{days}"] = round(sum(v[1] for v in got), 2) if got else None
+        rows.append(r)
+        count_into(day, fleet_name, plat, computers=1, sleep_off=r["sleep_off"] or 0,
+                   never_slept=r["never_slept"] or 0, measured=int(r["measured"]))
+
+    keep = set(ids)
+    for name in ("energy", "host_kwh", "spot", "spot_seen"):
+        store = hist.get(name) or {}
+        for hid in list(store):
+            if hid not in keep:
+                del store[hid]
+    cutoff = (today - dt.timedelta(days=HOST_KWH_DAYS)).isoformat()
+    for hid, days in host_kwh.items():
+        host_kwh[hid] = {d: v for d, v in days.items() if d >= cutoff}
+    spot_cut = (today - dt.timedelta(days=SPOT_DAYS)).isoformat()
+    for hid, days in (hist.get("spot") or {}).items():
+        hist["spot"][hid] = {d: v for d, v in days.items() if d >= spot_cut}
+    hist["kwh_day"] = trim_daily(kwh_day, TREND_DAYS, today)
+
+    # kWh lives in kwh_day, so merge it into copies and keep the saved trend lean.
+    trend = {d: {k: dict(v) for k, v in counts.items()} for d, counts in save_trend(hist, today, day)}
+    for d, by_key in hist["kwh_day"].items():
+        merged = trend.setdefault(d, {})
+        for k, (kwh, co2) in by_key.items():
+            merged.setdefault(k, {}).update(kwh=round(kwh, 4), co2=round(co2, 1))
+    return {
+        "generated_at": snap["generated_at"], "fleet_url": snap["fleet_url"], "history_since": hist["since"],
+        "rows": rows, "trend": [[d, trend[d]] for d in sorted(trend)],
+        "grid": {"fallback": fallback, "fallback_from": fallback_from, "source": GRID_SOURCE},
+        "never_slept_days": NEVER_SLEPT_DAYS, "long_display_min": LONG_DISPLAY_MIN, "spot_days": SPOT_DAYS,
+        "virtual": sum(1 for hid, h in hosts.items() if platform_of(h) and is_virtual(h)),
+        "reports": {k: bool((info.get(k) or {}).get("found")) for k in ("mac_energy", "mac_sleep", "win_power", "lin_power")},
+    }
+
+
 # ---------------------------------------------------------------- render
 
 BUILDERS = {"lifecycle": build_lifecycle, "software": build_software, "patch": build_patch, "ai": build_ai,
-            "connectivity": build_connectivity, "analytics": build_analytics}
+            "connectivity": build_connectivity, "analytics": build_analytics,
+            "sustainability": build_sustainability}
 
 
 def render(templates, page, data):

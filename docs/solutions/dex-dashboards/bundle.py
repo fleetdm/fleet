@@ -6,6 +6,7 @@
 Writes:
   DIR/dex-dashboards.json         publish on the Hardware lifecycle artifact as src/dex-dashboards.json
   DIR/placeholder-<page>.html     first version of each artifact, shown until the routine's first run
+  DIR/empty-history.json          publish as data/history.json on a dashboard added to an existing setup
 and prints the bundle's sha256, which goes in the routine prompt. The routine
 refuses to run a bundle whose hash doesn't match.
 """
@@ -19,10 +20,10 @@ FILES = [
     "run.py", "collect.py", "build.py",
     "templates/base.css", "templates/base.js",
     "templates/lifecycle.html", "templates/software.html", "templates/patch.html", "templates/ai.html",
-    "templates/connectivity.html", "templates/analytics.html",
+    "templates/connectivity.html", "templates/analytics.html", "templates/sustainability.html",
 ]
 TITLES = {"lifecycle": "Hardware lifecycle", "software": "Software usage", "patch": "Patch velocity", "ai": "AI governance",
-          "connectivity": "Connectivity", "analytics": "Analytics"}
+          "connectivity": "Connectivity", "analytics": "Analytics", "sustainability": "Sustainability"}
 PLACEHOLDER = """<title>{title}</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
@@ -58,6 +59,10 @@ def main():
     for page, title in TITLES.items():
         with open(os.path.join(args.out, f"placeholder-{page}.html"), "w") as f:
             f.write(PLACEHOLDER.format(title=title))
+    # The routine stops when some pages have history and others don't, so a
+    # page added later starts from an empty history instead of a missing one.
+    with open(os.path.join(args.out, "empty-history.json"), "w") as f:
+        f.write("{}")
     print(bundle_hash(files))
 
 

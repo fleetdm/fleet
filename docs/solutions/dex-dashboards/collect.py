@@ -37,6 +37,10 @@ DEX_REPORTS = {
     "win_security": "DEX - Security compliance - Windows firewall status",
     "win_secure_boot": "DEX - Security compliance - Secure Boot status (Windows)",
     "win_tpm": "DEX - Security compliance - TPM status (Windows)",
+    "mac_energy": "DEX - Sustainability - Mac energy",
+    "mac_sleep": "DEX - Sustainability - Mac sleep settings",
+    "win_power": "DEX - Sustainability - Windows power",
+    "lin_power": "DEX - Sustainability - Linux power",
 }
 AI_ROWS_COLUMNS = {"tool_type": "type", "tool_name": "name", "origin": "source", "target_endpoint": "endpoint",
                    "risk_indicators": "risk_flags"}
@@ -205,12 +209,14 @@ def main():
             break
         page += 1
 
-    # Get host adds custom host vitals (e.g. warranty dates) and battery health.
+    # Get host adds custom host vitals (e.g. warranty dates), battery health,
+    # and the country from GeoIP, when the Fleet server has a GeoIP database.
     def detail(h):
         g = fleet.get(f"/api/v1/fleet/hosts/{h['id']}", {"exclude_software": "true"}).get("host") or {}
         return str(h["id"]), {
             "vitals": {v.get("name"): v.get("value") for v in g.get("custom_host_vitals") or []},
             "batteries": g.get("batteries") or [],
+            "country": (g.get("geolocation") or {}).get("country_iso") or "",
             "hardware_marketing_name": g.get("hardware_marketing_name") or "",
             "os_update_minimum_version": g.get("os_update_minimum_version") or "",
             "os_update_deadline": g.get("os_update_deadline") or "",
