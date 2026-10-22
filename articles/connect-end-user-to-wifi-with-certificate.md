@@ -1013,7 +1013,7 @@ Fleet automatically retries each failed macOS, iOS, iPadOS, and Android certific
 >
 > Please confirm your CA supports the OU value in the certificate it issues.
 >
-> On Windows, automatic renewal only works if the configuration profile contains only the certificate (SCEP) settings. If the profile includes other settings, like Wi-Fi or VPN, put them in a separate profile.
+> On Windows, put the certificate (SCEP) settings in their own profile. Fleet resends the whole profile when it renews a certificate, so other settings in the same profile, like Wi-Fi or VPN, are resent too and can cause the renewal to fail.
 >
 > Fleet ignores vendor-specific renewal keys in a profile (e.g. `RedeployProfileBeforeCertificateExpiresInDays`) and always uses the renewal timing described above.
 >
