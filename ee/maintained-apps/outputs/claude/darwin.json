@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.1623.4",
+      "version": "3.6556.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.anthropic.claudefordesktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.anthropic.claudefordesktop' AND version_compare(bundle_short_version, '3.1623.4') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.anthropic.claudefordesktop' AND version_compare(bundle_short_version, '3.6556.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.anthropic.claudefordesktop' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://downloads.claude.ai/releases/darwin/universal/3.1623.4/Claude-c2d2186fc67f536dfb131352c659f99b10840e4b.zip",
+      "installer_url": "https://downloads.claude.ai/releases/darwin/universal/3.6556.1/Claude-8e298a7fb62db44b6c902bdcbbc3bb1a74d147f0.zip",
       "install_script_ref": "76e19208",
       "uninstall_script_ref": "421baa98",
-      "sha256": "12a1235e9b52fe4890de2895c20e0fd5983c78dfd8e4ded5c6d0f14240a00a6a",
+      "sha256": "ff3aa9fc87f9d6a2ad37d545ea15c73d8a4bc9ab53bbd1fd17d7dd479841ca16",
       "default_categories": [
         "Developer tools"
       ]
