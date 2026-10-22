@@ -181,7 +181,7 @@ const ManageHostsPage = ({
 
   const { setResetSelectedRows } = useContext(TableContext);
 
-  const shouldStripScriptBatchExecParamOnTeamChange = (
+  const shouldStripParamOnTeamChange = (
     newTeamId?: number,
     curTeamId?: number
   ) => newTeamId !== curTeamId;
@@ -207,8 +207,10 @@ const ManageHostsPage = ({
     overrideParamsOnTeamChange: {
       ...STRIP_FLEET_SCOPED_FILTERS_ON_ALL_FLEETS,
       // remove batch script summary results filters on team change
-      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID]: shouldStripScriptBatchExecParamOnTeamChange,
-      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS]: shouldStripScriptBatchExecParamOnTeamChange,
+      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID]: shouldStripParamOnTeamChange,
+      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS]: shouldStripParamOnTeamChange,
+      // remove the App Store app version filter on team change, versions belong to one fleet
+      [HOSTS_QUERY_PARAMS.APP_STORE_APP_VERSION_ID]: shouldStripParamOnTeamChange,
     },
   });
 
@@ -362,6 +364,10 @@ const ManageHostsPage = ({
         HOSTS_QUERY_PARAMS.SOFTWARE_STATUS
       ] as SoftwareAggregateStatus)
     : undefined;
+  const appStoreAppVersionId =
+    queryParams?.app_store_app_version_id !== undefined
+      ? parseInt(queryParams.app_store_app_version_id, 10)
+      : undefined;
   const status = isAcceptableStatus(queryParams?.status)
     ? queryParams?.status
     : undefined;
@@ -679,6 +685,7 @@ const ManageHostsPage = ({
         softwareTitleId,
         softwareVersionId,
         softwareStatus,
+        appStoreAppVersionId,
         status,
         mdmId,
         mdmEnrollmentStatus,
@@ -729,6 +736,7 @@ const ManageHostsPage = ({
         softwareTitleId,
         softwareVersionId,
         softwareStatus,
+        appStoreAppVersionId,
         status,
         mdmId,
         mdmEnrollmentStatus,
@@ -1249,6 +1257,7 @@ const ManageHostsPage = ({
         if (softwareStatus && teamIdForApi !== API_ALL_TEAMS_ID) {
           // software_status is only valid when software_title_id is present and a subset of hosts ('No team' or a team) is selected
           newQueryParams[HOSTS_QUERY_PARAMS.SOFTWARE_STATUS] = softwareStatus;
+          newQueryParams.app_store_app_version_id = appStoreAppVersionId;
         }
       } else if (mdmId) {
         newQueryParams.mdm_id = mdmId;
@@ -1334,6 +1343,7 @@ const ManageHostsPage = ({
       routeTemplate,
       routeParams,
       softwareStatus,
+      appStoreAppVersionId,
       depProfileError,
       depAssignProfileResponse,
     ]
@@ -1805,6 +1815,7 @@ const ManageHostsPage = ({
         softwareTitleId,
         softwareVersionId,
         softwareStatus,
+        appStoreAppVersionId,
         status,
         mdmId,
         mdmEnrollmentStatus,
@@ -1871,6 +1882,7 @@ const ManageHostsPage = ({
       softwareTitleId,
       softwareVersionId,
       softwareStatus,
+      appStoreAppVersionId,
       status,
       mdmId,
       mdmEnrollmentStatus,

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "0.98.8.0",
+      "version": "0.99.0.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.jasp-stats.JASP';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.jasp-stats.JASP' AND version_compare(bundle_short_version, '0.98.8.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.jasp-stats.JASP' AND version_compare(bundle_short_version, '0.99.0.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.jasp-stats.JASP' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/jasp-stats/jasp-desktop/releases/download/v0.98.8/JASP-0.98.8.0-macOS-arm64.dmg",
+      "installer_url": "https://github.com/jasp-stats/jasp-desktop/releases/download/v0.99.0/JASP-0.99.0.0-macOS-arm64.dmg",
       "install_script_ref": "863cbb9a",
       "uninstall_script_ref": "999422e4",
-      "sha256": "402a56bf0e3a50194197e6ee6f47e925f830043c1a94464d8aca243c14d11b98",
+      "sha256": "f67c1279c40440ee94860382866fc5681756d08c3338d95f52d87faff3a0afec",
       "default_categories": [
         "Productivity"
       ]
