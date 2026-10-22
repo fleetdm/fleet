@@ -90,7 +90,7 @@ func (c *Client) windowsProfileDeletionWarning(
 		}
 	}
 	deletes := slices.ContainsFunc(current, func(p *fleet.MDMConfigProfilePayload) bool {
-		_, kept := keep[p.Name]
+		_, kept := keep[strings.TrimSpace(p.Name)]
 		return p.Platform == "windows" && !kept
 	})
 

@@ -6799,9 +6799,17 @@ func TestGitOpsWarnsOnDeletedWindowsProfiles(t *testing.T) {
 			ds, savedAppConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 			(*savedAppConfig).MDM.WindowsEnabledAndConfigured = tt.windowsOnServer
 			ds.CleanupAllHostMDMProfilesForPlatformFunc = func(ctx context.Context, platform string) error { return nil }
+			// The mock runs on the server's goroutine.
+			var (
+				mu           sync.Mutex
+				listedTeamID *uint
+			)
 			ds.ListMDMConfigProfilesFunc = func(
 				ctx context.Context, teamID *uint, opt fleet.ListOptions,
 			) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
+				mu.Lock()
+				listedTeamID = teamID
+				mu.Unlock()
 				if tt.listErr != nil {
 					return nil, nil, tt.listErr
 				}
@@ -6848,9 +6856,26 @@ agent_options:
 					args = append(args, "--dry-run")
 				}
 				ds.ListMDMConfigProfilesFuncInvoked = false
+				mu.Lock()
+				listedTeamID = nil
+				mu.Unlock()
 				out, err := runAppNoChecks(args)
 				require.NoError(t, err, out.String())
-				assert.Equal(t, tt.wantLookup && !(dryRun && tt.newFleet), ds.ListMDMConfigProfilesFuncInvoked, args)
+				wantLookup := tt.wantLookup && !(dryRun && tt.newFleet)
+				assert.Equal(t, wantLookup, ds.ListMDMConfigProfilesFuncInvoked, args)
+				if wantLookup {
+					mu.Lock()
+					gotTeamID := listedTeamID
+					mu.Unlock()
+					if tt.inFleet {
+						team, err := ds.TeamByName(t.Context(), fleetName)
+						require.NoError(t, err)
+						require.NotNil(t, gotTeamID, args)
+						assert.Equal(t, team.ID, *gotTeamID, args)
+					} else {
+						assert.Nil(t, gotTeamID, args)
+					}
+				}
 				if tt.wantWarning == "" {
 					assert.NotContains(t, out.String(), warningSnippet, args)
 					assert.NotContains(t, out.String(), "couldn't check for deleted Windows profiles", args)
