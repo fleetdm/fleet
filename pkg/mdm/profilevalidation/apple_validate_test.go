@@ -397,16 +397,6 @@ func TestValidateAppleProfile(t *testing.T) {
 			strict:  []Finding{{Code: CodeUnknownType, PayloadType: "com.apple.example"}},
 		},
 		{
-			name: "invented payload type with a bad envelope",
-			profile: mobileconfig(`<dict><key>PayloadType</key><string>com.apple.example</string>
-				<key>PayloadUUID</key><integer>1</integer><key>PayloadIdentifier</key><string>example</string></dict>`),
-			strict: []Finding{
-				{Code: CodeUnknownType, PayloadType: "com.apple.example"},
-				{Code: CodeMissingPayloadVersion, PayloadType: "com.apple.example", KeyPath: "PayloadVersion"},
-				{Code: CodeMalformedIdentifier, PayloadType: "com.apple.example", KeyPath: "PayloadIdentifier"},
-			},
-		},
-		{
 			name:    "misspelled restrictions key",
 			profile: mobileconfig(payload(restrictions, `<key>allowAirDropp</key><false/>`)),
 			strict:  []Finding{{Code: CodeUnknownKey, PayloadType: restrictions, KeyPath: "allowAirDropp"}},

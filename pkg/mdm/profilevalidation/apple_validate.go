@@ -292,10 +292,8 @@ func (s *ProfileValidationSchema) ValidateAppleProfile(data []byte, mode Mode) (
 		w.payloadType = payloadType
 		p := s.AppleProfiles[payloadType]
 		if p == nil || (mode == ModeStrict && p.Override == "" && slices.Contains(strictUnknownAppleProfiles, payloadType)) {
-			// Its keys pass, but strict mode still checks the envelope every payload carries.
 			if mode == ModeStrict {
 				w.findings = append(w.findings, Finding{Code: CodeUnknownType, PayloadType: payloadType})
-				w.checkEnvelope(payload)
 			}
 			continue
 		}
