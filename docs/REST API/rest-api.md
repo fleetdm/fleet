@@ -1286,7 +1286,7 @@ Requests a certificate from a certificate authority (CA). Currently, this endpoi
 
 By default, the `certificate` field in the response is a PEM-encoded PKCS7 envelope (`-----BEGIN PKCS7-----`/`-----END PKCS7-----`). Set `return_pem_certificate` to `true` to receive a standard PEM `CERTIFICATE` block instead.
 
-As an alternative to [API token authentication](https://fleetdm.com/docs/rest-api/rest-api#retrieve-your-api-token), you can send an [HTTP signature in the request header](#example-http-signature). A request authenticated this way must name the end user Fleet has recorded for that host. Hosts with no recorded end user are rejected. Turn this off with `integrations.certificates_disable_host_end_user_binding`.
+As an alternative to [API token authentication](https://fleetdm.com/docs/rest-api/rest-api#retrieve-your-api-token), you can send an [HTTP signature in the request header](#example-http-signature). A request authenticated this way must name the end user Fleet has recorded for that host. Hosts with no recorded end user are rejected. Turn this off with `integrations.certificates_host_end_user_binding_disabled`.
 
 **Available in Fleet Premium.** IdP credentials are only accepted for an introspection endpoint listed in `integrations.certificates_idp_introspection_urls`. While that list is empty, requests that include IdP credentials are rejected. Once it has entries, every request must include IdP credentials. See [Update configuration](#update-configuration). To restore the behavior of earlier Fleet versions while you migrate, set the [`server.allow_request_certificate_any_idp`](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-allow-request-certificate-any-idp) server setting.
 
@@ -1769,13 +1769,13 @@ None.
   },
   "server_settings": {
     "server_url": "https://instance.fleet.com",
-    "enable_analytics": true,
+    "analytics_enabled": true,
     "live_query_disabled": false,
     "query_reports_disabled": false,
     "ai_features_disabled": false
   },
   "smtp_settings": {
-    "enable_smtp": false,
+    "smtp_enabled": false,
     "configured": false,
     "sender_address": "",
     "server": "",
@@ -1783,11 +1783,11 @@ None.
     "authentication_type": "authtype_username_password",
     "user_name": "",
     "password": "********",
-    "enable_ssl_tls": true,
+    "ssl_tls_enabled": true,
     "authentication_method": "authmethod_plain",
     "domain": "",
     "verify_ssl_certs": true,
-    "enable_start_tls": true
+    "start_tls_enabled": true
   },
   "sso_settings": {
     "entity_id": "",
@@ -1796,9 +1796,9 @@ None.
     "metadata": "",
     "metadata_url": "",
     "idp_name": "",
-    "enable_sso": false,
-    "enable_sso_idp_login": false,
-    "enable_jit_provisioning": false,
+    "sso_enabled": false,
+    "sso_idp_login_enabled": false,
+    "jit_provisioning_enabled": false,
     "sso_server_url": ""
   },
   "conditional_access": {
@@ -1820,8 +1820,8 @@ None.
     "preserve_host_activities_on_reenrollment": false
   },
   "features": {
-    "enable_host_users": true,
-    "enable_software_inventory": true,
+    "host_users_enabled": true,
+    "software_inventory_enabled": true,
     "additional_queries": null
   },
   "mdm": {
@@ -1834,10 +1834,10 @@ None.
       "8c8e3fd4-9b2c-4d3e-8f10-2233445566aa"
     ],
     "microsoft_graph_credential_invalid": false,
-    "enable_turn_on_windows_mdm_manually": false,
+    "turn_on_windows_mdm_manually_enabled": false,
     "apple_require_hardware_attestation": false,
     "only_allow_apple_business_enrollment": false,
-    "enable_profile_validation": true,
+    "profile_validation_enabled": true,
     "name_template": "",
     "macos_updates": {
       "minimum_version": "12.3.1",
@@ -1875,8 +1875,8 @@ None.
           "labels": ["Label 1", "Label 2"]
         }
       ],
-      "enable_disk_encryption": true,
-      "enable_escrow_disk_encryption_key": true,
+      "disk_encryption_enabled": true,
+      "escrow_disk_encryption_key_enabled": true,
       "assets": [
         {
           "path": "path/to/assets/asset.json"
@@ -1900,12 +1900,12 @@ None.
          "labels": ["Label 3", "Label 4"]
         }
       ],
-      "enable_disk_encryption": true,
+      "disk_encryption_enabled": true,
       "require_bitlocker_pin": true,
-      "enable_managed_local_account": true
+      "managed_local_account_enabled": true
     },
     "linux_settings": {
-      "enable_escrow_disk_encryption_key": true
+      "escrow_disk_encryption_key_enabled": true
     },
     "scripts": ["path/to/script.sh"],
     "end_user_authentication": {
@@ -1915,26 +1915,26 @@ None.
       "idp_name": ""
     },
     "macos_migration": {
-      "enable": false,
+      "enabled": false,
       "mode": "voluntary",
       "webhook_url": "https://webhook.example.com"
     },
     "macos_setup": {
       "bootstrap_package": "",
-      "enable_end_user_authentication": false,
+      "end_user_authentication_enabled": false,
       "macos_setup_assistant": "path/to/config.json",
-      "enable_release_device_manually": false,
+      "release_device_manually_enabled": false,
       "manual_agent_install": false,
-      "enable_managed_local_account": false,
+      "managed_local_account_enabled": false,
       "end_user_local_account_type": "admin"
     },
     "setup_experience": {
       "bootstrap_package": "",
-      "enable_end_user_authentication": false,
+      "end_user_authentication_enabled": false,
       "apple_setup_assistant": "path/to/config.json",
-      "enable_release_device_manually": false,
+      "release_device_manually_enabled": false,
       "manual_agent_install": false,
-      "enable_managed_local_account": false,
+      "managed_local_account_enabled": false,
       "end_user_local_account_type": "admin"
     },
     "client_url": "https://instance.fleet.com",
@@ -2004,24 +2004,24 @@ None.
   },
   "webhook_settings": {
     "host_status_webhook": {
-      "enable_host_status_webhook": true,
+      "host_status_webhook_enabled": true,
       "destination_url": "https://server.com",
       "host_percentage": 5,
       "days_count": 7
     },
     "failing_policies_webhook":{
-      "enable_failing_policies_webhook":true,
+      "failing_policies_webhook_enabled":true,
       "destination_url": "https://server.com",
       "policy_ids": [1, 2, 3],
       "host_batch_size": 1000
     },
     "vulnerabilities_webhook":{
-      "enable_vulnerabilities_webhook":true,
+      "vulnerabilities_webhook_enabled":true,
       "destination_url": "https://server.com",
       "host_batch_size": 1000
     },
     "activities_webhook":{
-      "enable_activities_webhook":true,
+      "activities_webhook_enabled":true,
       "destination_url": "https://server.com"
     }
   },
@@ -2064,7 +2064,7 @@ None.
     "zendesk": [],
     "certificates_idp_introspection_urls": [],
     "certificates_idp_client_ids": [],
-    "certificates_disable_host_end_user_binding": false
+    "certificates_host_end_user_binding_disabled": false
   },
   "logging": {
     "debug": false,
@@ -2168,13 +2168,13 @@ Modifies the Fleet's configuration with the supplied information.
   },
   "server_settings": {
     "server_url": "https://instance.fleet.com",
-    "enable_analytics": true,
+    "analytics_enabled": true,
     "live_query_disabled": false,
     "query_reports_disabled": false,
     "ai_features_disabled": false
   },
   "smtp_settings": {
-    "enable_smtp": true,
+    "smtp_enabled": true,
     "configured": true,
     "sender_address": "",
     "server": "localhost",
@@ -2182,11 +2182,11 @@ Modifies the Fleet's configuration with the supplied information.
     "authentication_type": "authtype_username_none",
     "user_name": "",
     "password": "********",
-    "enable_ssl_tls": true,
+    "ssl_tls_enabled": true,
     "authentication_method": "authmethod_plain",
     "domain": "",
     "verify_ssl_certs": true,
-    "enable_start_tls": true
+    "start_tls_enabled": true
   },
   "sso_settings": {
     "entity_id": "",
@@ -2195,9 +2195,9 @@ Modifies the Fleet's configuration with the supplied information.
     "metadata": "",
     "metadata_url": "",
     "idp_name": "",
-    "enable_sso": false,
-    "enable_sso_idp_login": false,
-    "enable_jit_provisioning": false,
+    "sso_enabled": false,
+    "sso_idp_login_enabled": false,
+    "jit_provisioning_enabled": false,
     "sso_server_url": "https://instance.fleet.com"
   },
   "conditional_access": {
@@ -2219,8 +2219,8 @@ Modifies the Fleet's configuration with the supplied information.
     "preserve_host_activities_on_reenrollment": false
   },
   "features": {
-    "enable_host_users": true,
-    "enable_software_inventory": true,
+    "host_users_enabled": true,
+    "software_inventory_enabled": true,
     "additional_queries": null
   },
   "license": {
@@ -2238,11 +2238,11 @@ Modifies the Fleet's configuration with the supplied information.
       "8c8e3fd4-9b2c-4d3e-8f10-2233445566aa"
     ],
     "microsoft_graph_credential_invalid": false,
-    "enable_turn_on_windows_mdm_manually": false,
+    "turn_on_windows_mdm_manually_enabled": false,
     "apple_require_hardware_attestation": false,
     "only_allow_apple_business_enrollment": false,
-    "enable_profile_validation": true,
-    "enable_recovery_lock_password": true,
+    "profile_validation_enabled": true,
+    "recovery_lock_password_enabled": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01",
@@ -2291,8 +2291,8 @@ Modifies the Fleet's configuration with the supplied information.
           "labels_include_any": ["Label 5", "Label 6"]
         },
       ],
-      "enable_disk_encryption": true,
-      "enable_escrow_disk_encryption_key": true,
+      "disk_encryption_enabled": true,
+      "escrow_disk_encryption_key_enabled": true,
       "assets": [
         {
           "path": "path/to/assets/asset.json"
@@ -2316,12 +2316,12 @@ Modifies the Fleet's configuration with the supplied information.
           "labels_exclude_any": ["Label 1", "Label 2"]
         }
       ],
-      "enable_disk_encryption": true,
+      "disk_encryption_enabled": true,
       "require_bitlocker_pin": true,
-      "enable_managed_local_account": true
+      "managed_local_account_enabled": true
     },
     "linux_settings": {
-      "enable_escrow_disk_encryption_key": true
+      "escrow_disk_encryption_key_enabled": true
     },
     "end_user_authentication": {
       "entity_id": "",
@@ -2330,22 +2330,22 @@ Modifies the Fleet's configuration with the supplied information.
       "idp_name": ""
     },
     "macos_migration": {
-      "enable": false,
+      "enabled": false,
       "mode": "voluntary",
       "webhook_url": "https://webhook.example.com"
     },
     "macos_setup": {
       "bootstrap_package": "",
-      "enable_end_user_authentication": false,
-      "enable_managed_local_account": false,
+      "end_user_authentication_enabled": false,
+      "managed_local_account_enabled": false,
       "end_user_local_account_type": "admin",
       "lock_end_user_info": true,
       "macos_setup_assistant": "path/to/config.json"
     },
     "setup_experience": {
       "bootstrap_package": "",
-      "enable_end_user_authentication": false,
-      "enable_managed_local_account": false,
+      "end_user_authentication_enabled": false,
+      "managed_local_account_enabled": false,
       "end_user_local_account_type": "admin",
       "lock_end_user_info": true,
       "apple_setup_assistant": "path/to/config.json"
@@ -2390,24 +2390,24 @@ Modifies the Fleet's configuration with the supplied information.
   },
   "webhook_settings": {
     "host_status_webhook": {
-      "enable_host_status_webhook": true,
+      "host_status_webhook_enabled": true,
       "destination_url": "https://server.com",
       "host_percentage": 5,
       "days_count": 7
     },
     "failing_policies_webhook":{
-      "enable_failing_policies_webhook":true,
+      "failing_policies_webhook_enabled":true,
       "destination_url": "https://server.com",
       "policy_ids": [1, 2, 3],
       "host_batch_size": 1000
     },
     "vulnerabilities_webhook":{
-      "enable_vulnerabilities_webhook":true,
+      "vulnerabilities_webhook_enabled":true,
       "destination_url": "https://server.com",
       "host_batch_size": 1000
     },
     "activities_webhook":{
-      "enable_activities_webhook":true,
+      "activities_webhook_enabled":true,
       "destination_url": "https://server.com"
     }
   },
@@ -2431,13 +2431,13 @@ Modifies the Fleet's configuration with the supplied information.
         "username": "some_user",
         "password": "sec4et!",
         "project_key": "jira_project",
-        "enable_software_vulnerabilities": false
+        "software_vulnerabilities_enabled": false
       }
     ],
     "zendesk": [],
     "certificates_idp_introspection_urls": ["https://company.okta.com/oauth2/v1/introspect"],
     "certificates_idp_client_ids": ["0oa1b2c3d4e5f6g7h8i9"],
-    "certificates_disable_host_end_user_binding": false
+    "certificates_host_end_user_binding_disabled": false
   },
   "logging": {
       "debug": false,
@@ -2498,7 +2498,7 @@ Modifies the Fleet's configuration with the supplied information.
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ------------------------------------------------------------------------------------------- |
 | server_url                        | string  | The Fleet server URL.                                                                       |
-| enable_analytics                  | boolean | Whether to send anonymous usage statistics. Always enabled for Fleet Premium customers.     |
+| analytics_enabled                  | boolean | Whether to send anonymous usage statistics. Always enabled for Fleet Premium customers.     |
 | live_reporting_disabled           | boolean | Whether the live reporting capabilities are disabled.                                       |
 | discard_reports_data              | boolean | Whether storing report results are disabled.                                                |
 | ai_features_disabled              | boolean | Whether AI features are disabled.                                                           |
@@ -2514,7 +2514,7 @@ Modifies the Fleet's configuration with the supplied information.
 {
   "server_settings": {
     "server_url": "https://localhost:8080",
-    "enable_analytics": true,
+    "analytics_enabled": true,
     "live_reporting_disabled": false,
     "discard_reports_data": false,
     "ai_features_disabled": false
@@ -2526,18 +2526,18 @@ Modifies the Fleet's configuration with the supplied information.
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_smtp                       | boolean | Whether SMTP is enabled for the Fleet app.                                                                                                                            |
+| smtp_enabled                       | boolean | Whether SMTP is enabled for the Fleet app.                                                                                                                            |
 | sender_address                    | string  | The sender email address for the Fleet app. An invitation email is an example of the emails that may use this sender address                                          |
 | server                            | string  | The SMTP server for the Fleet app.                                                                                                                                    |
 | port                              | integer | The SMTP port for the Fleet app.                                                                                                                                      |
 | authentication_type               | string  | The authentication type used by the SMTP server. Options include `"authtype_username_password"` or `"none"`                                                       |
 | user_name                         | string  | The username used to authenticate requests made to the SMTP server.                                                                                                   |
 | password                          | string  | The password used to authenticate requests made to the SMTP server.                                                                                                   |
-| enable_ssl_tls                    | boolean | Whether or not SSL and TLS are enabled for the SMTP server.                                                                                                           |
+| ssl_tls_enabled                    | boolean | Whether or not SSL and TLS are enabled for the SMTP server.                                                                                                           |
 | authentication_method             | string  | The authentication method used to make authenticate requests to SMTP server. Options include `"authmethod_plain"`, `"authmethod_cram_md5"`, and `"authmethod_login"`. |
 | domain                            | string  | The domain for the SMTP server.                                                                                                                                       |
 | verify_ssl_certs                  | boolean | Whether or not SSL certificates are verified by the SMTP server. Turn this off (not recommended) if you use a self-signed certificate.                                |
-| enable_start_tls                 | boolean | Detects if STARTTLS is enabled in your SMTP server and starts to use it.                                                                                              |
+| start_tls_enabled                 | boolean | Detects if STARTTLS is enabled in your SMTP server and starts to use it.                                                                                              |
 
 <br/>
 
@@ -2548,18 +2548,18 @@ Modifies the Fleet's configuration with the supplied information.
 ```json
 {
   "smtp_settings": {
-    "enable_smtp": true,
+    "smtp_enabled": true,
     "sender_address": "",
     "server": "localhost",
     "port": 1025,
     "authentication_type": "none",
     "user_name": "",
     "password": "",
-    "enable_ssl_tls": true,
+    "ssl_tls_enabled": true,
     "authentication_method": "authmethod_plain",
     "domain": "",
     "verify_ssl_certs": true,
-    "enable_start_tls": true
+    "start_tls_enabled": true
   }
 }
 ```
@@ -2568,14 +2568,14 @@ Modifies the Fleet's configuration with the supplied information.
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_sso                        | boolean | Whether or not SSO is enabled for the Fleet application. If this value is true, you must also include most of the SSO settings parameters below.                       |
+| sso_enabled                        | boolean | Whether or not SSO is enabled for the Fleet application. If this value is true, you must also include most of the SSO settings parameters below.                       |
 | entity_id                         | string  | The required entity ID is a URI that you use to identify Fleet when configuring the identity provider. Must be 5 or more characters.                                   |
 | issuer_uri                        | string  | The URI you provide here must exactly match the Entity ID field used in the identity provider configuration.                                                           |
 | idp_image_url                     | string  | An optional link to an image such as a logo for the identity provider.                                                                                                 |
 | metadata_url                      | string  | A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata. Must be either https or http |
 | metadata                          | string  |  Metadata provided by the identity provider. Either `metadata` or a `metadata_url` must be provided.                                                                   |
-| enable_sso_idp_login              | boolean | Determines whether Identity Provider (IdP) initiated login for Single sign-on (SSO) is enabled for the Fleet application.                                              |
-| enable_jit_provisioning           | boolean | _Available in Fleet Premium._ When enabled, allows [just-in-time user provisioning](https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning). |
+| sso_idp_login_enabled              | boolean | Determines whether Identity Provider (IdP) initiated login for Single sign-on (SSO) is enabled for the Fleet application.                                              |
+| jit_provisioning_enabled           | boolean | _Available in Fleet Premium._ When enabled, allows [just-in-time user provisioning](https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning). |
 | sso_server_url           | boolean | Update this URL if you want your Fleet users (admins, maintainers, observers) to login via SSO using a URL that's different than the base URL of your Fleet instance. If not configured, login via SSO will use the base URL of the Fleet instance. |
 
 <br/>
@@ -2585,15 +2585,15 @@ Modifies the Fleet's configuration with the supplied information.
 ```json
 {
   "sso_settings": {
-    "enable_sso": false,
+    "sso_enabled": false,
     "entity_id": "",
     "issuer_uri": "",
     "idp_image_url": "",
     "metadata_url": "",
     "metadata": "",
     "idp_name": "",
-    "enable_sso_idp_login": false,
-    "enable_jit_provisioning": false,
+    "sso_idp_login_enabled": false,
+    "jit_provisioning_enabled": false,
     "sso_server_url": ""
   }
 }
@@ -2653,7 +2653,7 @@ _Available in Fleet Premium._
 
 <br/>
 
-> `sso_enabled` doesn't enforce SSO while a host (macOS, Windows, or Linux) is completing [setup experience](https://fleetdm.com/guides/setup-experience). To require SSO during setup, use [setup_experience.enable_end_user_authentication](https://fleetdm.com/docs/rest-api/rest-api#mdm-setup-experience).
+> `sso_enabled` doesn't enforce SSO while a host (macOS, Windows, or Linux) is completing [setup experience](https://fleetdm.com/guides/setup-experience). To require SSO during setup, use [setup_experience.end_user_authentication_enabled](https://fleetdm.com/docs/rest-api/rest-api#mdm-setup-experience).
 
 ##### Example request body
 
@@ -2714,7 +2714,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_host_status_webhook        | boolean | Whether or not the host status webhook is enabled.                                                                                          |
+| host_status_webhook_enabled        | boolean | Whether or not the host status webhook is enabled.                                                                                          |
 | destination_url                   | string  | The URL to deliver the webhook request to.                                                                                                  |
 | host_percentage                   | integer | The minimum percentage of hosts that must fail to check in to Fleet in order to trigger the webhook request.                                |
 | days_count                        | integer | The minimum number of days that the configured `host_percentage` must fail to check in to Fleet in order to trigger the webhook request.    |
@@ -2727,7 +2727,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ------------------------------------------------------------------------------------------------------------------- |
-| enable_failing_policies_webhook   | boolean | Whether or not the failing policies webhook is enabled.                                                             |
+| failing_policies_webhook_enabled   | boolean | Whether or not the failing policies webhook is enabled.                                                             |
 | destination_url                   | string  | The URL to deliver the webhook requests to.                                                                         |
 | policy_ids                        | array   | List of policy IDs to enable failing policies webhook.                                                              |
 | host_batch_size                   | integer | Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request). |
@@ -2740,7 +2740,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_vulnerabilities_webhook    | boolean | Whether or not the vulnerabilities webhook is enabled.                                                                                                  |
+| vulnerabilities_webhook_enabled    | boolean | Whether or not the vulnerabilities webhook is enabled.                                                                                                  |
 | destination_url                   | string  | The URL to deliver the webhook requests to.                                                                                                             |
 | host_batch_size                   | integer | Maximum number of hosts to batch on vulnerabilities webhook requests. The default, 0, means no batching (all vulnerable hosts are sent on one request). |
 
@@ -2752,7 +2752,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | --------------------------------------------------------- |
-| enable_activities_webhook         | boolean | Whether or not the activity feed webhook is enabled.      |
+| activities_webhook_enabled         | boolean | Whether or not the activity feed webhook is enabled.      |
 | destination_url                   | string  | The URL to deliver the webhook requests to.               |
 
 <br/>
@@ -2763,24 +2763,24 @@ _Available in Fleet Premium._
 {
   "webhook_settings": {
     "host_status_webhook": {
-      "enable_host_status_webhook": true,
+      "host_status_webhook_enabled": true,
       "destination_url": "https://server.com",
       "host_percentage": 5,
       "days_count": 7
     },
     "failing_policies_webhook":{
-      "enable_failing_policies_webhook": true,
+      "failing_policies_webhook_enabled": true,
       "destination_url": "https://server.com",
       "policy_ids": [1, 2, 3],
       "host_batch_size": 1000
     },
     "vulnerabilities_webhook":{
-      "enable_vulnerabilities_webhook":true,
+      "vulnerabilities_webhook_enabled":true,
       "destination_url": "https://server.com",
       "host_batch_size": 1000
     },
     "activities_webhook":{
-      "enable_activities_webhook":true,
+      "activities_webhook_enabled":true,
       "destination_url": "https://server.com"
     }
   }
@@ -2804,8 +2804,8 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_software_vulnerabilities   | boolean | Whether or not Jira integration is enabled for software vulnerabilities. Only one vulnerability automation can be enabled at a given time (enable_vulnerabilities_webhook and enable_software_vulnerabilities). |
-| enable_failing_policies           | boolean | Whether or not Jira integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
+| software_vulnerabilities_enabled   | boolean | Whether or not Jira integration is enabled for software vulnerabilities. Only one vulnerability automation can be enabled at a given time (vulnerabilities_webhook_enabled and software_vulnerabilities_enabled). |
+| failing_policies_enabled           | boolean | Whether or not Jira integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (failing_policies_webhook_enabled and failing_policies_enabled). |
 | url                               | string  | The URL of the Jira server to integrate with. |
 | username                          | string  | The Jira username to use for this Jira integration. |
 | api_token                         | string  | The API token of the Jira username to use for this Jira integration. |
@@ -2821,8 +2821,8 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_software_vulnerabilities   | boolean | Whether or not Zendesk integration is enabled for software vulnerabilities. Only one vulnerability automation can be enabled at a given time (enable_vulnerabilities_webhook and enable_software_vulnerabilities). |
-| enable_failing_policies           | boolean | Whether or not Zendesk integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
+| software_vulnerabilities_enabled   | boolean | Whether or not Zendesk integration is enabled for software vulnerabilities. Only one vulnerability automation can be enabled at a given time (vulnerabilities_webhook_enabled and software_vulnerabilities_enabled). |
+| failing_policies_enabled           | boolean | Whether or not Zendesk integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (failing_policies_webhook_enabled and failing_policies_enabled). |
 | url                               | string  | The URL of the Zendesk server to integrate with. |
 | email                             | string  | The Zendesk user email to use for this Zendesk integration. |
 | api_token                         | string  | The Zendesk API token to use for this Zendesk integration. |
@@ -2864,8 +2864,8 @@ _Available in Fleet Premium._
   "integrations": {
     "jira": [
       {
-        "enable_software_vulnerabilities": false,
-        "enable_failing_policies": true,
+        "software_vulnerabilities_enabled": false,
+        "failing_policies_enabled": true,
         "url": "https://jiraserver.com",
         "username": "some_user",
         "api_token": "<TOKEN>",
@@ -2926,13 +2926,13 @@ When updating conditional access config, all `conditional_access` fields must ei
 | windows_entra_tenant_ids          | array | _Available in Fleet Premium._ IDs of Microsoft Entra tenants to connect to Fleet, to enable automatic (Autopilot) and manual enrollment by end users (**Settings** > **Accounts** > **Access work or school** on Windows). Find your **Tenant ID**, on [**Microsoft Entra ID** > **Home**](https://entra.microsoft.com/#home). |
 | windows_entra_client_ids          | array | _Available in Fleet Premium._ Microsoft Entra application (client) IDs for the applications used to enroll Windows hosts via Microsoft Entra. Set this when you set up Entra enrollment: Microsoft Entra issues v2 access tokens whose audience is the application's client ID, so Fleet needs the client ID to authorize enrollment. Find your **Application (client) ID** on [**Microsoft Entra ID** > **App registrations**](https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) > your MDM application > **Overview**. |
 | microsoft_graph_credential_invalid | boolean | _Available in Fleet Premium._ Read-only. `true` when at least one Microsoft Graph credential has been rejected by Microsoft Entra or denied by Microsoft Graph, so Windows Autopilot devices are no longer syncing. Resolve it by supplying a new client secret, or granting admin consent, with [Modify Microsoft Graph credentials](#modify-microsoft-graph-credentials). Fleet computes this field, so it's ignored if you try to set it. |
-| enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
+| turn_on_windows_mdm_manually_enabled | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
 | windows_require_bitlocker_pin           | boolean | _Deprecated at this level._ Use `windows_settings.require_bitlocker_pin` instead. |
-| windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that are "Unassigned" will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
+| windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that are "Unassigned" will be required to set a BitLocker PIN if set to true. `disk_encryption_enabled` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 | apple_require_hardware_attestation | boolean | _Available in Fleet Premium._ Specifies whether or not to require Apple hosts with supported hardware (Apple Silicon Macs, and iPhones and iPads with an A11 Bionic or later chip running iOS/iPadOS 16 or later) to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment. Hosts without supported hardware (for example, Intel Macs) enroll with SCEP and aren't attested, unless `only_allow_apple_business_enrollment` is also enabled. In that case, they can't enroll. |
 | only_allow_apple_business_enrollment | boolean | _Available in Fleet Premium._ Specifies whether or not to allow only Apple hosts that are assigned to Fleet in Apple Business (AB) to turn on MDM, through Automated Device Enrollment (ADE). When enabled, manual enrollment, over-the-air (OTA) enrollment, and account-driven user enrollment (BYOD) are blocked. Fleet also stops renewing MDM certificates for enrolled hosts that aren't in AB, so those hosts lose MDM when their certificate expires. If `apple_require_hardware_attestation` is also enabled, only hosts with supported hardware can enroll (SCEP isn't used as a fallback), and enrolled hosts without supported hardware also stop renewing. |
-| enable_profile_validation          | boolean | Specifies whether or not to check that recognized settings in Apple and Windows configuration profiles have values of the expected type when profiles are added or edited. Settings and payload types Fleet doesn't recognize are always allowed. Default is `true`. Set to `false` to skip this check. |
-| enable_recovery_lock_password     | boolean | _Available in Fleet Premium._ Unassigned hosts will have Recovery Lock password enabled if set to true. |
+| profile_validation_enabled          | boolean | Specifies whether or not to check that recognized settings in Apple and Windows configuration profiles have values of the expected type when profiles are added or edited. Settings and payload types Fleet doesn't recognize are always allowed. Default is `true`. Set to `false` to skip this check. |
+| recovery_lock_password_enabled     | boolean | _Available in Fleet Premium._ Unassigned hosts will have Recovery Lock password enabled if set to true. |
 | name_template                     | string  | _Available in Fleet Premium._ Naming convention applied to "Unassigned" macOS, iOS, and iPadOS hosts. Supports the built-in host identity and IdP end-user variables and custom (`$FLEET_SECRET_*`) variables; certificate authority variables aren't supported. See the [Update host name template](#update-host-name-template) endpoint for the full list. An empty string clears the template. To set the template for a fleet, use that endpoint. |
 | macos_updates            | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
 | ios_updates              | object  | See [`mdm.ios_updates`](#mdm-ios-updates). |
@@ -3019,7 +3019,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable                            | boolean | Whether to enable the end user migration workflow for devices migrating from your old MDM solution. |
+| enabled                           | boolean | Whether to enable the end user migration workflow for devices migrating from your old MDM solution. |
 | mode                              | string  | The end user migration workflow mode for devices migrating from your old MDM solution. Options are `"voluntary"` or `"forced"`. |
 | webhook_url                       | string  | The webhook url configured to receive requests to unenroll devices migrating from your old MDM solution. |
 
@@ -3033,9 +3033,9 @@ _Available in Fleet Premium._
 
 | Name                                 | Type    | Description   |
 | ---------------------                | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_end_user_authentication       | boolean | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#end-user-authentication). |
-| enable_managed_local_account         | boolean | _Available in Fleet Premium._ During Setup experience, a managed local account will be created on eligible hosts if set to true. |
-| end_user_local_account_type          | string  | _Available in Fleet Premium._ Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
+| end_user_authentication_enabled       | boolean | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#end-user-authentication). |
+| managed_local_account_enabled         | boolean | _Available in Fleet Premium._ During Setup experience, a managed local account will be created on eligible hosts if set to true. |
+| end_user_local_account_type          | string  | _Available in Fleet Premium._ Specifies the type of local end user account created. (Default: `"admin"`) `managed_local_account_enabled` must be true. |
 | lock_end_user_info                   | boolean | If set to true, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`) |
 
 <br/>
@@ -3057,8 +3057,8 @@ _Available in Fleet Premium._
 | Name                                   | Type    | Description   |
 | -------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
-| enable_disk_encryption             | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true. |
-| enable_escrow_disk_encryption_key  | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. Supported for macOS and Linux hosts. |
+| disk_encryption_enabled             | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true. |
+| escrow_disk_encryption_key_enabled  | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. Supported for macOS and Linux hosts. |
 | managed_local_account_settings         | object  | Settings for the managed local account. |
 | managed_local_account_settings.enabled | boolean | Whether to create the managed local account (default: `false`). |
 | end_user_local_account_type            | string  | The end user account type. Requires `managed_local_account_settings.enabled` to be `true`. Options: `"admin"`, `"standard"`, `"none"` (default: `"admin"`). |
@@ -3072,7 +3072,7 @@ _Available in Fleet Premium._
 | Name                                   | Type    | Description   |
 | -------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
-| enable_managed_local_account           | boolean | Whether to create the managed local account (default: `false`). |
+| managed_local_account_enabled           | boolean | Whether to create the managed local account (default: `false`). |
 
 <br/>
 
@@ -3092,7 +3092,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_escrow_disk_encryption_key  | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. Supported for macOS and Linux hosts. |
+| escrow_disk_encryption_key_enabled  | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. Supported for macOS and Linux hosts. |
 
 <br/>
 
@@ -3115,10 +3115,10 @@ _Available in Fleet Premium._
 {
   "mdm": {
     "windows_enabled_and_configured": false,
-    "enable_turn_on_windows_mdm_manually": false,
+    "turn_on_windows_mdm_manually_enabled": false,
     "apple_require_hardware_attestation": false,
     "only_allow_apple_business_enrollment": false,
-    "enable_recovery_lock_password": true,
+    "recovery_lock_password_enabled": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01",
@@ -3139,8 +3139,8 @@ _Available in Fleet Premium._
           "labels": ["Label 3", "Label 4"]
         },
       ],
-      "enable_disk_encryption": true,
-      "enable_escrow_disk_encryption_key": true,
+      "disk_encryption_enabled": true,
+      "escrow_disk_encryption_key_enabled": true,
       "assets": [
         {
           "path": "path/to/assets/asset.json"
@@ -3157,12 +3157,12 @@ _Available in Fleet Premium._
           "labels": ["Label 1", "Label 2"]
         }
       ],
-      "enable_disk_encryption": true,
+      "disk_encryption_enabled": true,
       "require_bitlocker_pin": true,
-      "enable_managed_local_account": true
+      "managed_local_account_enabled": true
     },
     "linux_settings": {
-      "enable_escrow_disk_encryption_key": true,
+      "escrow_disk_encryption_key_enabled": true,
     },
     "end_user_authentication": {
       "entity_id": "",
@@ -3171,13 +3171,13 @@ _Available in Fleet Premium._
       "idp_name": ""
     },
     "macos_migration": {
-      "enable": false,
+      "enabled": false,
       "mode": "voluntary",
       "webhook_url": "https://webhook.example.com"
     },
     "setup_experience": {
       "bootstrap_package": "",
-      "enable_end_user_authentication": false,
+      "end_user_authentication_enabled": false,
       "lock_end_user_info": true,
       "apple_setup_assistant": "path/to/config.json"
     },
@@ -3192,8 +3192,8 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_host_users                 | boolean | Whether to enable the users feature in Fleet. (Default: `true`)                                                                          |
-| enable_software_inventory         | boolean | Whether to enable the software inventory feature in Fleet. (Default: `true`)                                                             |
+| host_users_enabled                 | boolean | Whether to enable the users feature in Fleet. (Default: `true`)                                                                          |
+| software_inventory_enabled         | boolean | Whether to enable the software inventory feature in Fleet. (Default: `true`)                                                             |
 | additional_queries                | object | `additional_queries` adds extra host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned. (Default: `null`)                                                                         |
 | historical_data                   | object | Per-dataset toggles for historical data collection used by the dashboard charts. See [Historical data](#historical-data) below.        |
 
@@ -3216,8 +3216,8 @@ host's fleet sub-key are `true`.
 ```json
 {
   "features": {
-    "enable_host_users": true,
-    "enable_software_inventory": true,
+    "host_users_enabled": true,
+    "software_inventory_enabled": true,
     "additional_queries": {
       "time": "SELECT * FROM time",
       "macs": "SELECT mac FROM interface_details"
@@ -3623,7 +3623,7 @@ the `software` table.
 | macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
-| disable_failing_policies| boolean | query | If `true`, hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.                                                                                                                       |
+| failing_policies_disabled| boolean | query | If `true`, hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.                                                                                                                       |
 | macos_settings_disk_encryption | string | query | Filters the hosts by disk encryption status. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'. |
 | bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only "Unassigned" hosts.** |
@@ -6948,7 +6948,7 @@ Some cell values are escaped so that spreadsheet applications treat them as text
 | low_disk_space          | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                 |
 | label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `status`, `query` and `fleet_id`.                                                                                                                                                                                                                     |
 | bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a fleet ID filter, the results include only hosts that are "Unassigned".** |
-| disable_failing_policies | boolean | query | If `true`, hosts will return failing policies as 0 (returned as the `issues` column) regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.      |
+| failing_policies_disabled | boolean | query | If `true`, hosts will return failing policies as 0 (returned as the `issues` column) regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.      |
 
 If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Servers are excluded from the results.
 
@@ -8212,7 +8212,7 @@ Returns a list of the hosts that belong to the specified label.
 | status                   | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia', 'missing' or 'enrolled'. 'enrolled' returns every host except those pending MDM enrollment.                                                                                                                 |
 | query                    | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`.                                                                                                                         |
 | fleet_id                  | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts in the specified fleet.                                                                                                                                |
-| disable_failing_policies | boolean | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.      |
+| failing_policies_disabled | boolean | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.      |
 | mdm_id                   | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).      |
 | mdm_name                 | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).      |
 | mdm_enrollment_status    | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'personal', 'manual-personal', 'automatic', 'enrolled', 'pending', or 'unenrolled'. 'pending' only includes Apple (macOS, iOS, iPadOS) hosts in Apple Business (AB) that are not yet enrolled to Fleet.  |
@@ -9172,7 +9172,7 @@ _Available in Fleet Premium_
 | Name                                    | Type    | In    | Description                                                                                 |
 | --------------------------------------- | ------  | ----  | --------------------------------------------------------------------------------------      |
 | fleet_id                                | integer | body  | The fleet ID to apply the settings to. Settings are applied to "Unassigned" hosts if absent.       |
-| enable_disk_encryption                  | boolean | body  | _Deprecated._ Whether disk encryption and/or escrow should be enforced on all platforms. When set to true, enables disk encryption for macOS and Windows hosts, and enables escrow for macOS and Linux hosts. Use per-platform settings instead. |
+| disk_encryption_enabled                  | boolean | body  | _Deprecated._ Whether disk encryption and/or escrow should be enforced on all platforms. When set to true, enables disk encryption for macOS and Windows hosts, and enables escrow for macOS and Linux hosts. Use per-platform settings instead. |
 | windows_require_bitlocker_pin           | boolean | _Deprecated at this level._ Use `windows_settings.require_bitlocker_pin` instead. |
 | macos_settings                          | object  | body  | See `macos_settings` below. |
 | windows_settings                        | object  | body  | See `windows_settings` below. |
@@ -9182,8 +9182,8 @@ _Available in Fleet Premium_
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------- |
-| enable_disk_encryption            | boolean | Whether disk encryption should be enforced on macOS hosts that belong to the fleet (or "Unassigned"). |
-| enable_escrow_disk_encryption_key | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. |
+| disk_encryption_enabled            | boolean | Whether disk encryption should be enforced on macOS hosts that belong to the fleet (or "Unassigned"). |
+| escrow_disk_encryption_key_enabled | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. |
 
 <br/>
 
@@ -9191,8 +9191,8 @@ _Available in Fleet Premium_
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------- |
-| enable_disk_encryption            | boolean | Whether disk encryption should be enforced on Windows hosts that belong to the fleet (or "Unassigned"). |
-| require_bitlocker_pin             | boolean | End users on Windows hosts that belong to the fleet (or "Unassigned") will be required to set a BitLocker PIN if set to true. `windows_settings.enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
+| disk_encryption_enabled            | boolean | Whether disk encryption should be enforced on Windows hosts that belong to the fleet (or "Unassigned"). |
+| require_bitlocker_pin             | boolean | End users on Windows hosts that belong to the fleet (or "Unassigned") will be required to set a BitLocker PIN if set to true. `windows_settings.disk_encryption_enabled` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 
 <br/>
 
@@ -9200,7 +9200,7 @@ _Available in Fleet Premium_
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------- |
-| enable_escrow_disk_encryption_key | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. |
+| escrow_disk_encryption_key_enabled | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. |
 
 
 #### Example
@@ -9815,14 +9815,14 @@ _Available in Fleet Premium_
 | Name                           | Type    | In    | Description                                                                                 |
 | -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
 | fleet_id                        | integer | body  | The fleet ID to apply the settings to. Settings are applied to "Unassigned" hosts if absent.       |
-| enable_end_user_authentication | boolean | body  | When enabled, require end users to authenticate with your identity provider (IdP) when they set up their new macOS hosts. |
+| end_user_authentication_enabled | boolean | body  | When enabled, require end users to authenticate with your identity provider (IdP) when they set up their new macOS hosts. |
 | lock_end_user_info | boolean | body  | When enabled, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`)  |
 | require_all_software_macos | boolean | body | If set to `true`, setup will be canceled on macOS hosts if any software installs fail. |
 | require_all_software_windows | boolean | body | If set to `true`, setup will be canceled on Windows hosts if any software installs fail (the host is blocked at the Windows Enrollment Status Page until the device is reset). If `false`, the Enrollment Status Page lists the failed software and the end user can continue to the desktop and install it later via self-service. |
-| enable_release_device_manually | boolean | body  | When enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. |
+| release_device_manually_enabled | boolean | body  | When enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. |
 | manual_agent_install | boolean | body  | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
-| enable_managed_local_account     | boolean | body | _Available in Fleet Premium._ During the Setup experience, a managed local account will be created on macOS hosts if set to true. |
-| end_user_local_account_type     | string | body | Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
+| managed_local_account_enabled     | boolean | body | _Available in Fleet Premium._ During the Setup experience, a managed local account will be created on macOS hosts if set to true. |
+| end_user_local_account_type     | string | body | Specifies the type of local end user account created. (Default: `"admin"`) `managed_local_account_enabled` must be true. |
 
 #### Example
 
@@ -9834,8 +9834,8 @@ _Available in Fleet Premium_
 {
   "team_id": 1,
   "fleet_id": 1,
-  "enable_end_user_authentication": true,
-  "enable_release_device_manually": true
+  "end_user_authentication_enabled": true,
+  "release_device_manually_enabled": true
 }
 ```
 
@@ -10190,8 +10190,8 @@ Edit managed local account enforcement settings for eligible hosts.
 | Name                                 | Type    | In    | Description                                                                          |
 | ------------------------------------ | ------  | ----  | -------------------------------------------------------------------------------------|
 | fleet_id                             | integer | body  | The fleet ID to apply the settings to. If omitted, settings apply to unassigned hosts.|
-| enable_managed_local_account         | boolean | body  | _Available in Fleet Premium._ During Setup experience, a managed local account will be created on eligible hosts if set to true. |
-| end_user_local_account_type          | string  | body  | Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
+| managed_local_account_enabled         | boolean | body  | _Available in Fleet Premium._ During Setup experience, a managed local account will be created on eligible hosts if set to true. |
+| end_user_local_account_type          | string  | body  | Specifies the type of local end user account created. (Default: `"admin"`) `managed_local_account_enabled` must be true. |
 
 #### Example
 
@@ -10202,7 +10202,7 @@ Edit managed local account enforcement settings for eligible hosts.
 ```json
 {
   "fleet_id": 3,
-  "enable_managed_local_account": true,
+  "managed_local_account_enabled": true,
   "end_user_local_account_type": "admin"
 }
 ```
@@ -17125,19 +17125,19 @@ _Available in Fleet Premium_
     },
     "webhook_settings": {
       "failing_policies_webhook": {
-        "enable_failing_policies_webhook": false,
+        "failing_policies_webhook_enabled": false,
         "destination_url": "",
         "policy_ids": null,
         "host_batch_size": 0
       },
       "host_activities_webhook": {
-        "enable_host_activities_webhook": true,
+        "host_activities_webhook_enabled": true,
         "destination_url": "https://server.com/example"
       }
     },
     "integrations": {
       "google_calendar": {
-        "enable_calendar_events": true,
+        "calendar_events_enabled": true,
         "webhook_url": "https://server.com/example"
       }
     },
@@ -17173,8 +17173,8 @@ _Available in Fleet Premium_
             "path": "path/to/assets/asset.json"
           }
         ],
-        "enable_disk_encryption": true,
-        "enable_escrow_disk_encryption_key": true,
+        "disk_encryption_enabled": true,
+        "escrow_disk_encryption_key_enabled": true,
         "assets": [
           {
             "path": "path/to/assets/asset.json"
@@ -17197,27 +17197,27 @@ _Available in Fleet Premium_
             "labels": ["Label 3", "Label 4"]
           }
         ],
-        "enable_disk_encryption": true,
+        "disk_encryption_enabled": true,
         "require_bitlocker_pin": true,
-        "enable_managed_local_account": true
+        "managed_local_account_enabled": true
       },
       "linux_settings": {
-        "enable_escrow_disk_encryption_key": true
+        "escrow_disk_encryption_key_enabled": true
       },
       "macos_setup": {
         "bootstrap_package": "",
-        "enable_end_user_authentication": false,
+        "end_user_authentication_enabled": false,
         "macos_setup_assistant": "path/to/config.json",
-        "enable_release_device_manually": false,
+        "release_device_manually_enabled": false,
         "manual_agent_install": false
       },
       "setup_experience": {
         "bootstrap_package": "",
-        "enable_end_user_authentication": false,
-        "enable_managed_local_account": false,
+        "end_user_authentication_enabled": false,
+        "managed_local_account_enabled": false,
         "end_user_local_account_type": "admin",
         "apple_setup_assistant": "path/to/config.json",
-        "enable_release_device_manually": false,
+        "release_device_manually_enabled": false,
         "manual_agent_install": false
       }
     }
@@ -17303,7 +17303,7 @@ Returned when the requested name only differs from an existing fleet's name by l
     },
     "webhook_settings": {
       "failing_policies_webhook": {
-        "enable_failing_policies_webhook": false,
+        "failing_policies_webhook_enabled": false,
         "destination_url": "",
         "policy_ids": null,
         "host_batch_size": 0
@@ -17399,7 +17399,7 @@ Returned when the requested name only differs from another fleet's name by lette
     },
     "webhook_settings": {
       "failing_policies_webhook": {
-        "enable_failing_policies_webhook": false,
+        "failing_policies_webhook_enabled": false,
         "destination_url": "",
         "policy_ids": null,
         "host_batch_size": 0
@@ -17426,7 +17426,7 @@ Returned when the requested name only differs from another fleet's name by lette
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_failing_policies_webhook | boolean | Whether or not the failing policies webhook is enabled.                                                                                                                                                   |
+| failing_policies_webhook_enabled | boolean | Whether or not the failing policies webhook is enabled.                                                                                                                                                   |
 | destination_url                 | string  | The URL to deliver the webhook requests to.                                                                                                                                                               |
 | policy_ids                      | array   | List of policy IDs to enable failing policies webhook.                                                                                                                                                    |
 | host_batch_size                 | integer | Maximum number of hosts to batch on failing policy webhook requests. The default, `0`, means no batching (all hosts failing a policy are sent on one request).                                              |
@@ -17439,7 +17439,7 @@ Returned when the requested name only differs from another fleet's name by lette
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_host_status_webhook | boolean | Whether or not the host status webhook is enabled. |
+| host_status_webhook_enabled | boolean | Whether or not the host status webhook is enabled. |
 | destination_url            | string | The URL to deliver the webhook request to. |
 | host_percentage            | integer | The minimum percentage of hosts that must fail to check in to Fleet in order to trigger the webhook request. |
 | days_count | integer | body | The minimum number of days that the configured `host_percentage` must fail to check in to Fleet in order to trigger the webhook request. |
@@ -17452,10 +17452,10 @@ Returned when the requested name only differs from another fleet's name by lette
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_host_activities_webhook | boolean | Whether or not the host activities webhook is enabled. When enabled, Fleet sends a webhook request every time an activity linked to one of this fleet's hosts is created. The webhook payload has the same format as the global [activities webhook](#webhook-settings-activities-webhook). MDM command results (shown via **Show MDM commands** on the host details page) are not activities and don't trigger this webhook yet. |
+| host_activities_webhook_enabled | boolean | Whether or not the host activities webhook is enabled. When enabled, Fleet sends a webhook request every time an activity linked to one of this fleet's hosts is created. The webhook payload has the same format as the global [activities webhook](#webhook-settings-activities-webhook). MDM command results (shown via **Show MDM commands** on the host details page) are not activities and don't trigger this webhook yet. |
 | destination_url                | string  | The URL to deliver the webhook requests to.                                                                                                                                                               |
 
-Omitting `host_activities_webhook` from a `webhook_settings` update leaves the stored value unchanged. To turn the webhook off, send the object with `enable_host_activities_webhook: false`.
+Omitting `host_activities_webhook` from a `webhook_settings` update leaves the stored value unchanged. To turn the webhook off, send the object with `host_activities_webhook_enabled: false`.
 
 <br/>
 
@@ -17465,19 +17465,19 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 {
   "webhook_settings": {
     "failing_policies_webhook":{
-      "enable_failing_policies_webhook": true,
+      "failing_policies_webhook_enabled": true,
       "destination_url": "https://server.com",
       "policy_ids": [1, 2, 3],
       "host_batch_size": 1000
     },
     "host_status_webhook": {
-      "enable_host_status_webhook": true,
+      "host_status_webhook_enabled": true,
       "destination_url": "https://server.com",
       "host_percentage": 5,
       "days_count": 7
     },
     "host_activities_webhook": {
-      "enable_host_activities_webhook": true,
+      "host_activities_webhook_enabled": true,
       "destination_url": "https://server.com"
     }
   }
@@ -17495,7 +17495,7 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 | conditional_access_enabled | boolean | **Available in Fleet Premium.** Whether to block third party app sign-ins on hosts failing policies. Must have Microsoft Entra or Okta connected and configured in global config. |
 | certificates_idp_introspection_urls | array | **Available in Fleet Premium.** Allowlist of OAuth 2.0 token introspection URLs that the [Request certificate](#request-certificate) endpoint accepts in `idp_oauth_url`. Each entry must be an absolute `https` URL without embedded credentials and is matched exactly. While empty, requests that include IdP credentials are rejected. When it has entries, `idp_oauth_url`, `idp_token`, and `idp_client_id` are required on every certificate request. |
 | certificates_idp_client_ids | array | **Available in Fleet Premium.** Optional allowlist of OAuth client IDs that the [Request certificate](#request-certificate) endpoint accepts in `idp_client_id`. When it has entries, `idp_client_id` must match one of them. Requires `certificates_idp_introspection_urls` to have entries. |
-| certificates_disable_host_end_user_binding | boolean | By default, a [Request certificate](#request-certificate) call authenticated with an [HTTP signature](#example-http-signature) must carry a CSR whose email and UPN match the end user Fleet has recorded for that host (the IdP username from SCIM or end user authentication, compared case-insensitively), and hosts with no recorded end user are rejected. Set to `true` to turn this check off. Requests authenticated with an API token are unaffected. Defaults to `false`. |
+| certificates_host_end_user_binding_disabled | boolean | By default, a [Request certificate](#request-certificate) call authenticated with an [HTTP signature](#example-http-signature) must carry a CSR whose email and UPN match the end user Fleet has recorded for that host (the IdP username from SCIM or end user authentication, compared case-insensitively), and hosts with no recorded end user are rejected. Set to `true` to turn this check off. Requests authenticated with an API token are unaffected. Defaults to `false`. |
 
 <br/>
 
@@ -17507,7 +17507,7 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 | ------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | url                             | string  | The URL of the Jira server to use.                                                                                                                                                                        |
 | project_key                     | string  | The project key of the Jira integration to use. Jira tickets will be created in this project.                                                                                                             |
-| enable_failing_policies         | boolean | Whether or not that Jira integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (`enable_failing_policies_webhook` and `enable_failing_policies`).    |
+| failing_policies_enabled         | boolean | Whether or not that Jira integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (`failing_policies_webhook_enabled` and `failing_policies_enabled`).    |
 
 <br/>
 
@@ -17519,7 +17519,7 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 | ------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | url                             | string  | The URL of the Zendesk server to use.                                                                                                                                                                     |
 | group_id                        | integer | The Zendesk group ID to use. Zendesk tickets will be created in this group.                                                                                                                               |
-| enable_failing_policies         | boolean | Whether or not that Zendesk integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (`enable_failing_policies_webhook` and `enable_failing_policies`). |
+| failing_policies_enabled         | boolean | Whether or not that Zendesk integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (`failing_policies_webhook_enabled` and `failing_policies_enabled`). |
 
 <br/>
 
@@ -17529,7 +17529,7 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 
 | Name                                                    | Type    | Description                                                                                                                                                                                               |
 | ------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_calendar_events          | boolean | Whether or not calendar events are enabled for this fleet.                                                                                                                                                  |
+| calendar_events_enabled          | boolean | Whether or not calendar events are enabled for this fleet.                                                                                                                                                  |
 | webhook_url                     | string | The URL to send a request to during calendar events, to trigger auto-remediation.                |
 
 ##### Example request body
@@ -17540,8 +17540,8 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
     "conditional_access_enabled": true,
     "jira": [
       {
-        "enable_software_vulnerabilities": false,
-        "enable_failing_policies": true,
+        "software_vulnerabilities_enabled": false,
+        "failing_policies_enabled": true,
         "url": "https://jiraserver.com",
         "username": "some_user",
         "api_token": "<TOKEN>",
@@ -17645,8 +17645,8 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 | managed_local_account_settings         | object  | Settings for the managed local account. |
 | managed_local_account_settings.enabled | boolean | Whether to create the managed local account (default: `false`). |
 | end_user_local_account_type            | string  | The end user account type. Requires `managed_local_account_settings.enabled` to be `true`. Options: `"admin"`, `"standard"`, `"none"` (default: `"admin"`). |
-| enable_disk_encryption             | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true. |
-| enable_escrow_disk_encryption_key  | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. Supported for macOS and Linux hosts. |
+| disk_encryption_enabled             | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true. |
+| escrow_disk_encryption_key_enabled  | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. Supported for macOS and Linux hosts. |
 
 <br/>
 
@@ -17658,9 +17658,9 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 | Name                                    | Type    | Description   |
 | ---------------------                   | ------- | -------------------------------------------------------------------------------------------------------|
 | custom_settings                         | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead.                                                                                                                             |
-| enable_managed_local_account           | boolean  | Whether to create the managed local account (default: `false`). |
-| enable_disk_encryption                  | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true. |
-| require_bitlocker_pin                   | boolean | End users on Windows hosts that are "Unassigned" will be required to set a BitLocker PIN if set to true. `windows_settings.enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
+| managed_local_account_enabled           | boolean  | Whether to create the managed local account (default: `false`). |
+| disk_encryption_enabled                  | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true. |
+| require_bitlocker_pin                   | boolean | End users on Windows hosts that are "Unassigned" will be required to set a BitLocker PIN if set to true. `windows_settings.disk_encryption_enabled` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 <br/>
 
 ##### mdm.linux_settings
@@ -17669,7 +17669,7 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 
 | Name                               | Type    | Description   |
 | ---------------------              | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_escrow_disk_encryption_key  | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. Supported for macOS and Linux hosts. |
+| escrow_disk_encryption_key_enabled  | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. Supported for macOS and Linux hosts. |
 
 
 <br/>
@@ -17682,10 +17682,10 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 
 | Name                                  | Type    | Description   |
 | ------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_end_user_authentication        | boolean | If set to true, IdP authentication will be required during automatic MDM enrollment of new macOS hosts. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#require-idp-authentication).
+| end_user_authentication_enabled        | boolean | If set to true, IdP authentication will be required during automatic MDM enrollment of new macOS hosts. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#require-idp-authentication).
 | lock_end_user_info                    | boolean | If set to true, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`) |
-| enable_managed_local_account          | boolean | _Available in Fleet Premium._ During Setup experience, a managed local account will be created on eligible hosts if set to true. |
-| end_user_local_account_type          | string  | body  | Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
+| managed_local_account_enabled          | boolean | _Available in Fleet Premium._ During Setup experience, a managed local account will be created on eligible hosts if set to true. |
+| end_user_local_account_type          | string  | body  | Specifies the type of local end user account created. (Default: `"admin"`) `managed_local_account_enabled` must be true. |
 
 
 ##### Example request body
@@ -17717,8 +17717,8 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
           "labels": ["Label 3", "Label 4"]
         },
       ],
-      "enable_disk_encryption": true,
-      "enable_escrow_disk_encryption_key": true,
+      "disk_encryption_enabled": true,
+      "escrow_disk_encryption_key_enabled": true,
       "assets": [
         {
           "path": "path/to/assets/asset.json"
@@ -17741,15 +17741,15 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
           "labels": ["Label 1", "Label 2"]
         }
       ],
-      "enable_disk_encryption": true,
+      "disk_encryption_enabled": true,
       "require_bitlocker_pin": true,
-      "enable_managed_local_account": true
+      "managed_local_account_enabled": true
     },
     "linux_settings": {
-      "enable_escrow_disk_encryption_key": true
+      "escrow_disk_encryption_key_enabled": true
     },
     "setup_experience": {
-      "enable_end_user_authentication": false
+      "end_user_authentication_enabled": false
     }
   }
 }
@@ -17780,7 +17780,7 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_software_inventory         | boolean  | Whether to enable software inventory for this fleet. If this key is omitted, the previously-configured value does not change. |
+| software_inventory_enabled         | boolean  | Whether to enable software inventory for this fleet. If this key is omitted, the previously-configured value does not change. |
 | historical_data         | object  | See [features.historical_data](#features-historical-data). |
 
 ##### features.historical_data
@@ -17895,7 +17895,7 @@ This also applies to `DELETE /api/v1/fleet/fleets/:id/users` (remove users from 
     },
     "webhook_settings": {
       "failing_policies_webhook": {
-        "enable_failing_policies_webhook": false,
+        "failing_policies_webhook_enabled": false,
         "destination_url": "",
         "policy_ids": null,
         "host_batch_size": 0
@@ -17933,8 +17933,8 @@ This also applies to `DELETE /api/v1/fleet/fleets/:id/users` (remove users from 
            "path": "path/to/assets/asset.json"
           }
         ],
-        "enable_disk_encryption": true,
-        "enable_escrow_disk_encryption_key": true,
+        "disk_encryption_enabled": true,
+        "escrow_disk_encryption_key_enabled": true,
         "assets": [
           {
             "path": "path/to/assets/asset.json"
@@ -17957,21 +17957,21 @@ This also applies to `DELETE /api/v1/fleet/fleets/:id/users` (remove users from 
            "labels": ["Label 3", "Label 4"]
           }
         ],
-        "enable_disk_encryption": true,
+        "disk_encryption_enabled": true,
         "require_bitlocker_pin": false,
-        "enable_managed_local_account": true
+        "managed_local_account_enabled": true
       },
       "linux_settings": {
-        "enable_escrow_disk_encryption_key": true
+        "escrow_disk_encryption_key_enabled": true
       },
       "macos_setup": {
         "bootstrap_package": "",
-        "enable_end_user_authentication": false,
+        "end_user_authentication_enabled": false,
         "macos_setup_assistant": "path/to/config.json"
       },
       "setup_experience": {
         "bootstrap_package": "",
-        "enable_end_user_authentication": false,
+        "end_user_authentication_enabled": false,
         "apple_setup_assistant": "path/to/config.json"
       }
     },
@@ -18090,7 +18090,7 @@ _Available in Fleet Premium_
     },
     "webhook_settings": {
       "failing_policies_webhook": {
-        "enable_failing_policies_webhook": false,
+        "failing_policies_webhook_enabled": false,
         "destination_url": "",
         "policy_ids": null,
         "host_batch_size": 0
