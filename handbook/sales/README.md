@@ -225,7 +225,7 @@ When needing a contract to undergo legal review, we use the following processes 
 _*MSAs, DPAs, and reseller agreements*_
 
 - Email these to outside counsel and cc deal desk, CFO, and SVP Sales.
-- Once outside counsel returns a draft, Nate or Tina will review and approve it is ready to be sent back to the customer or reseller.
+- Once outside counsel returns a draft, deal desk or CFO will review and approve it is ready to be sent back to the customer or reseller.
 - When all negotiations are concluded and terms are agreed upon, Nate will make sure the document is clean and ready for signature.
 - Final drafts will be indicated in the naming convention, using "YYYY-MM-DD [Customer Name] FINAL" to indicate the document is ready to be sent for signature.  
 
