@@ -32,8 +32,14 @@ module.exports = {
     if(githubAccessToken) {// If a github token was provided, Add an authorization header for requests to GitHub.
       baseHeadersForGithubRequests['Authorization'] = `token ${githubAccessToken}`;
     } else {
-      sails.log('Skipping GitHub API requests for contributer profiles and ritual validation.\nNOTE: The contributors in the standard query library will be populated with fake data.\nTo see how the standard query library will look on fleetdm.com, pass a GitHub access token into this script with the `--githubAccessToken={YOUR_GITHUB_ACCESS_TOKEN}` flag. \n Note: This script can take up to 30s to run.');
+      sails.log('Skipping GitHub API requests for contributer profiles and ritual validation.\nNOTE: The contributors in the standard query library will be populated with fake data.\nTo see how the standard query library will look on fleetdm.com, pass a GitHub access token into this script with the `--githubAccessToken={YOUR_GITHUB_ACCESS_TOKEN}` flag.');
     }//ﬁ
+
+    if(!getRealTimestamps) {
+      sails.log(`Skipping building real lastModifiedAt timestamps. To see when a file was last updated on your local server, run this script without the --getRealTimestamps flag.`)
+    } else {
+      sails.log(`Note: This script can take over 30s to run.`)
+    }
 
     await sails.helpers.flow.simultaneously([
       async()=>{// Parse queries.yml library (Informational queries and host vital queries) from YAML and prepare to bake them into the Sails app's configuration.
