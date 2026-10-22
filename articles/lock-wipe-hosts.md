@@ -28,7 +28,55 @@ As part of locking an iOS or iPadOS host, Fleet collects the device's location d
 >
 > On a fully-managed device, it locks the whole device, while on a BYOD device, it depends on how the end user has their device lock configured. If the user has a separate work profile lock (a distinct PIN for work apps), it locks just the work profile. Android shows a **Lock pending** badge while locking, then returns to normal once acknowledged (no **Locked** badge).
 
-### Get location of locked iOS/iPadOS host
+### Find a lost Android host
+
+If a company-owned Android host is lost and you want to retrieve it, you can put it in lost mode. The device plays a loud sound and shows the contact details you choose, so whoever finds it knows how to return it.
+
+Lost mode is available in Fleet Free and Fleet Premium. It's only supported on company-owned (fully managed) Android hosts. Fleet rejects lost mode commands for BYOD hosts.
+
+Lost mode doesn't prevent access to the device. Anyone who knows the device's PIN or password can unlock it and exit lost mode.
+
+To start lost mode, send the Android Management API's [`START_LOST_MODE`](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand#CommandType.ENUM_VALUES.START_LOST_MODE) command as a [custom MDM command](https://fleetdm.com/guides/mdm-commands):
+
+1. Save the payload below as a file named `android-start-lost-mode.json`. Replace the example values with your own. Each field is optional, but the payload must include at least one field other than `lostOrganization`.
+
+```json
+{
+  "type": "START_LOST_MODE",
+  "startLostModeParams": {
+    "lostMessage": { "defaultMessage": "This device is lost. Please contact IT." },
+    "lostPhoneNumber": { "defaultMessage": "+1 555 555 0100" },
+    "lostEmailAddress": "it-helpdesk@yourcompany.com",
+    "lostStreetAddress": { "defaultMessage": "Your Company, 123 Main St, Anytown" },
+    "lostOrganization": { "defaultMessage": "Your Company" }
+  }
+}
+```
+
+2. Run the command against one host:
+
+```shell
+fleetctl mdm run-command --payload=android-start-lost-mode.json --hosts=$HOST_IDENTIFIER
+```
+
+You can also run it with the [REST API](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command). To check whether the device entered lost mode, see [Verify the MDM command result](https://fleetdm.com/guides/mdm-commands#step-4-verify-the-mdm-command-result).
+
+When the device enters lost mode, it rings and shows a **This device was reported lost** screen with two options:
+
+- **I found this device**: Silences the sound and shows your message, email address, and street address. From here, the finder can tap **Call owner** to call the `lostPhoneNumber`, or **Emergency** to place an emergency call.
+- **This is my device**: Prompts for the device PIN or password. Entering it unlocks the device and exits lost mode.
+
+If the end user recently exited lost mode, or you recently reset the device's password, Android may reject a new `START_LOST_MODE` command. The command result shows the `USER_EXIT_LOST_MODE_RECENTLY` or `RESET_PASSWORD_RECENTLY` status.
+
+To take the device out of lost mode remotely, send the [`STOP_LOST_MODE`](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand#CommandType.ENUM_VALUES.STOP_LOST_MODE) command the same way:
+
+```json
+{
+  "type": "STOP_LOST_MODE"
+}
+```
+
+### Find a lost iOS/iPadOS host
 
 1. Navigate to the **Hosts** page by clicking the "Hosts" tab in the main navigation header. Find the locked device. You can search by name, hostname, UUID, serial number, or private IP address in the search box in the upper right corner.
 2. Click the host to open the **Host details** page
