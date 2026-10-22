@@ -11,9 +11,75 @@
             <animated-arrow-button href="/try">Try it yourself</animated-arrow-button>
           </div>
         </div>
-        <%# <div purpose="hero-image">
-          <img alt="Fleet's AI answering questions about Windows devices in Microsoft Teams" src="TODO">
-        </div> %>
+        <div purpose="hero-image">
+          <div purpose="teams-animation" role="img" aria-label="A Microsoft Teams chat with Fleet. An admin asks which Windows hosts haven't checked in for over a week. Fleet reports that 1,136 of 12,480 are offline, flags 41 Broad ring workstations missing for 30+ days, and offers to open a pull request. The admin says yes, and Fleet opens PR #1284 to enforce a 3-day Windows update deadline, pending their review.">
+            <div purpose="teams-window" aria-hidden="true">
+              <img purpose="teams-chrome" alt="" src="/images/teams-chat-window-1044x576.svg">
+              <div purpose="teams-messages">
+                <div purpose="teams-message-stack">
+                  <div purpose="teams-first-message">
+                    <p><strong>@Fleet</strong> show me Windows hosts that haven’t checked in for over a week.</p>
+                  </div>
+                  <div purpose="teams-first-reply">
+                    <div purpose="teams-typing">
+                      <img purpose="teams-avatar" alt="" src="/images/icon-fleet-avatar-28x28.svg">
+                      <div purpose="teams-typing-bubble"><span></span><span></span><span></span></div>
+                    </div>
+                    <div purpose="teams-reply">
+                      <img purpose="teams-avatar" alt="" src="/images/icon-fleet-avatar-28x28.svg">
+                      <div purpose="teams-reply-body">
+                        <span purpose="teams-sender">Fleet</span>
+                        <div purpose="teams-reply-bubble">
+                          <p><strong>1,136 of 12,480 Windows hosts are offline</strong>. 52 have been gone 30+ days (MIA).</p>
+                          <p><strong>Workstations – Broad ring (needs attention)</strong>: 87<br>&nbsp;• 41 MIA, 30+ days. Likely lost, left with departed staff, or reimaged without the agent.<br>&nbsp;• 46 offline for under 30 days<br>&nbsp;• Including <strong>WS-FIN-2291</strong>, <strong>WS-ENG-0874</strong>, <strong>WS-SLS-1450</strong>, and 84 more</p>
+                          <p><strong>Likely expected: 1,049</strong><br>&nbsp;• 812 in Lab devices and VDI pools, routinely powered off<br>&nbsp;• 237 kiosks on overnight shutdown</p>
+                          <p>The 41 MIA workstations in the Broad ring are the real risk. They haven’t received updates or policy changes in over a month. Want me to open a PR so they install pending updates within 3 days of reconnecting?</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div purpose="teams-second-message">
+                    <p>Yes, open the PR. Tag me as reviewer.</p>
+                  </div>
+                  <div purpose="teams-second-reply">
+                    <div purpose="teams-typing">
+                      <img purpose="teams-avatar" alt="" src="/images/icon-fleet-avatar-28x28.svg">
+                      <div purpose="teams-typing-bubble"><span></span><span></span><span></span></div>
+                    </div>
+                    <div purpose="teams-reply">
+                      <img purpose="teams-avatar" alt="" src="/images/icon-fleet-avatar-28x28.svg">
+                      <div purpose="teams-reply-body">
+                        <span purpose="teams-sender">Fleet</span>
+                        <div purpose="teams-reply-bubble">
+                          <div purpose="teams-reply-section">
+                            <p>I’ve opened a pull request to enforce Windows update deadlines on Workstations - Broad ring.</p>
+                            <p><strong>PR #1284: Enforce 3-day Windows update deadline for Workstations - Broad ring</strong> <code>fleets/workstations-broad-ring.yml</code></p>
+                          </div>
+                          <div purpose="teams-code-block">
+                            <p>diff</p>
+                            <pre>controls:
+<span purpose="diff-sign">+</span> <span purpose="diff-added">windows_updates:</span>
+<span purpose="diff-sign">+</span><span purpose="diff-added">   deadline_days: 3</span>
+<span purpose="diff-sign">+</span><span purpose="diff-added">   grace_period_days: 1</span></pre>
+                          </div>
+                          <div>
+                            <p><strong>What this changes</strong></p>
+                            <ul>
+                              <li>Applies to all 9,214 Windows hosts in the Broad ring</li>
+                              <li>Offline hosts get the deadline the next time they check in</li>
+                              <li>Users get a 1-day grace period after a restart before updates are forced</li>
+                            </ul>
+                            <p purpose="teams-reply-footer">Nothing changes until the PR is merged. I’ve requested your review on <span purpose="teams-pr-link">PR #1284</span></p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div purpose="page-section">
