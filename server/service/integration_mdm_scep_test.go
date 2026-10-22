@@ -2248,7 +2248,7 @@ func (s *integrationMDMTestSuite) TestEJBCAIntegration() {
 		if prof.Status == nil {
 			return ""
 		}
-		return string(*prof.Status)
+		return *prof.Status
 	}
 	retries := func() uint {
 		counts, err := s.ds.GetHostMDMProfilesRetryCounts(ctx, &fleet.Host{UUID: host.UUID, Platform: "darwin"})
