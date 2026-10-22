@@ -214,6 +214,23 @@ All leads generated as a result of the CEO and Fleetie requests must be logged i
 - Outcome and notes
 - Follow-up date (if applicable)
 
+### Legal reviews
+
+When needing a contract to undergo legal review we use the follow processes for different types of agreements.
+
+#### NDAs
+- NDAs are emailed to Nathanael Holliday for review, CC Tina Ong.
+- Nate will review and either give the ok for signature or send to outside counsel if necessary.
+
+#### MSAs, DPAs, and reseller agreements
+- Email these to outside counsel and CC Nathanael Holliday, Tina Ong and Chaz Maclaughlin
+- Once outside counsel returns a draft, Nate or Tina will review and approve it is ready to be sent back to the customer or reseller.
+- When all negotiations are concluded and terms are agreed upon, Nate will make sure the document is clean and ready for signature.
+- Final drafts will be indicated in the naming convention, using "YYYY-MM-DD [Customer Name] FINAL" to indicate the document is ready to be sent for signature.  
+
+#### All other agreements
+- Email to Nathanael Holliday and CC Tina Ong
+- Nate or Tina will either ok it for signature or send to outside counsel if necessary.
 
 ## Rituals
 
