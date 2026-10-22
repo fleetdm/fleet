@@ -45,6 +45,14 @@ const LOG_ALL_GENERATIONS = process.env.LOG_ALL_GENERATIONS;
 const REPEATS = Number(process.env.REPEATS || 3);
 assert(Number.isSafeInteger(REPEATS) && REPEATS > 0 && REPEATS < 11, 'REPEATS must be a positive integer between 1 and 10');
 
+// PROFILE_TYPE=csp runs only the cases written for one profile type.
+const PROFILE_TYPE = process.env.PROFILE_TYPE || undefined;
+const CASES_TO_RUN = PROFILE_TYPE ? TEST_CASES.filter((someCase)=>{ return someCase.profileType === PROFILE_TYPE; }) : TEST_CASES;
+assert(CASES_TO_RUN.length > 0, `No cases have profileType ${PROFILE_TYPE}`);
+
+// WRITE_PROFILES_FROM_SETTINGS=0 has the model write each .mobileconfig and Windows profile itself, to compare against.
+const WRITE_PROFILES_FROM_SETTINGS = process.env.WRITE_PROFILES_FROM_SETTINGS ? process.env.WRITE_PROFILES_FROM_SETTINGS !== '0' : undefined;
+
 // A profile the admin has to wait half a minute for is a broken feature even when the XML is
 // perfect, so latency is an assertion rather than a note.  Checked after the content assertions, so
 // a case that is both wrong and slow reports the wrong part first.
@@ -70,7 +78,7 @@ describe('configuration profile generator', function() {
   // Derived from the cases rather than hard-coded, so adding a case of some new profile type cannot
   // silently leave it unrun.  Native array methods rather than lodash: `_` is a Sails global, and it
   // does not exist yet when mocha loads this file to register the tests.
-  let profileTypesInOrder = TEST_CASES.reduce((typesSoFar, someCase)=>{
+  let profileTypesInOrder = CASES_TO_RUN.reduce((typesSoFar, someCase)=>{
     if(!typesSoFar.includes(someCase.profileType)) { typesSoFar.push(someCase.profileType); }
     return typesSoFar;
   }, []);
@@ -79,7 +87,7 @@ describe('configuration profile generator', function() {
 
     describe(profileType, function() {
 
-      for (let testCase of TEST_CASES.filter((someCase)=>{ return someCase.profileType === profileType; })) {
+      for (let testCase of CASES_TO_RUN.filter((someCase)=>{ return someCase.profileType === profileType; })) {
 
         describe(`${testCase.id}: ${testCase.instructions}`, function() {
 
@@ -238,6 +246,7 @@ async function generateOnce(testCase) {
         baseModel: BASE_MODEL,
         effort: EFFORT,
         disableThinking: DISABLE_THINKING,
+        writeProfilesFromSettings: WRITE_PROFILES_FROM_SETTINGS,
       });
       return { generationResult, elapsedMs: Date.now() - startedAt };
     } catch (err) {

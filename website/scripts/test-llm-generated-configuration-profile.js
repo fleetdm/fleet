@@ -94,12 +94,18 @@ csp cases report as not-checked either way.`
       type: 'boolean',
       defaultsTo: true,
       description: 'Whether or not to use the configuration helper\'s lookup functionality, as production does.'
-    }
+    },
+
+    writeProfilesFromSettings: {
+      type: 'boolean',
+      defaultsTo: true,
+      description: 'Whether to have the model return each .mobileconfig\'s payloads and each Windows profile\'s commands, as production does, rather than write the document itself.',
+    },
 
   },
 
 
-  fn: async function ({profileType, naturalLanguageInstructions, baseModel, effort, disableThinking, verbose, validateWithContour, parallelTests, caseId, testLighterResponse, lookupAppleSchemaKeys}) {
+  fn: async function ({profileType, naturalLanguageInstructions, baseModel, effort, disableThinking, verbose, validateWithContour, parallelTests, caseId, testLighterResponse, lookupAppleSchemaKeys, writeProfilesFromSettings}) {
 
     let path = require('path');
     let util = require('util');
@@ -209,6 +215,7 @@ csp cases report as not-checked either way.`
       (parallelTests > 1 ? `parallelTests: ${parallelTests}\n` : '') +
       `Using smaller response shape: ${testLighterResponse}\n` +
       `Looking up apple payloads for mobileconfig profiles: ${lookupAppleSchemaKeys}\n` +
+      `Writing .mobileconfig and Windows profiles from settings: ${writeProfilesFromSettings}\n` +
       `verbose: ${verbose}\n` +
       '----------'
     );
@@ -249,6 +256,7 @@ csp cases report as not-checked either way.`
               disableThinking,
               useLighterResponseShape: testLighterResponse,
               useApplePayloadTypeLookup: lookupAppleSchemaKeys,
+              writeProfilesFromSettings,
             });
             return { generationResult, elapsedMs: Date.now() - startedAt };
           } catch (err) {

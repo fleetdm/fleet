@@ -52,6 +52,12 @@ module.exports = {
       description: 'Whether or not to narrow the .mobileconfig schema to the payload types this request needs before generating.',
     },
 
+    writeProfilesFromSettings: {
+      type: 'boolean',
+      defaultsTo: true,
+      description: 'Whether to have the model return a .mobileconfig\'s payloads, or a Windows profile\'s commands, and their values, and write the document from them, rather than have it write the document.',
+    },
+
   },
 
 
@@ -65,7 +71,7 @@ module.exports = {
   },
 
 
-  fn: async function ({profileType, naturalLanguageInstructions, baseModel, effort, disableThinking, useLighterResponseShape, useApplePayloadTypeLookup}) {
+  fn: async function ({profileType, naturalLanguageInstructions, baseModel, effort, disableThinking, useLighterResponseShape, useApplePayloadTypeLookup, writeProfilesFromSettings}) {
 
     // Each profile type is generated with the cheapest configuration measured to clear the test suite's 95% bar
     // and its latency budget.  Sonnet 5.5 at low effort was the only model to clear both for every type when
@@ -93,6 +99,7 @@ module.exports = {
       naturalLanguageInstructions,
       useLighterResponseShape,
       useApplePayloadTypeLookup,
+      writeProfilesFromSettings,
     });
     let configuredAt = Date.now();
 
@@ -143,23 +150,31 @@ module.exports = {
       timings: { configurationMs: configuredAt - startedAt, generationMs: generatedAt - configuredAt },
     };
 
+    // What the model returned, with the document written from its settings where it returned settings, so
+    // rawResult stays exactly what the model said.
+    let response = rawResult;
+    if(writeProfilesFromSettings && (profileType === 'mobileconfig' || profileType === 'csp') && _.isObject(rawResult) && !rawResult.couldNotGenerateProfile) {
+      response = _.extend({}, rawResult, profileType === 'mobileconfig' ? mobileconfigWrittenFromPayloadSettings(rawResult) : windowsProfileWrittenFromCommands(rawResult));
+    }
+
     // A response missing any of these is not a usable profile, whatever else it holds.
-    if(!_.isObject(rawResult) ||
-        rawResult.couldNotGenerateProfile ||
-        !rawResult.configurationProfile ||
-        !rawResult.profileFilename ||
-        !rawResult.settingsEnforced) {
+    if(!_.isObject(response) ||
+        response.couldNotGenerateProfile ||
+        !response.configurationProfile ||
+        !response.profileFilename ||
+        !response.settingsEnforced) {
       result.couldNotGenerateProfile = true;
-      result.reasonWhyAProfileCouldNotBeGenerated = _.isObject(rawResult) && rawResult.reasonWhyAProfileCouldNotBeGenerated ? rawResult.reasonWhyAProfileCouldNotBeGenerated : undefined;
+      result.reasonWhyAProfileCouldNotBeGenerated = _.isObject(response) && response.reasonWhyAProfileCouldNotBeGenerated ? response.reasonWhyAProfileCouldNotBeGenerated : undefined;
       return result;
     }
 
-    let profile = withDoubleEscapedLineBreaksRepaired(rawResult.configurationProfile, profileType);
+    let profile = withDoubleEscapedLineBreaksRepaired(response.configurationProfile, profileType);
 
     // The type is promised to whoever asked for it, so content of another type is a failed generation rather
     // than a profile: a .mobileconfig handed back as a declaration is rejected by an MDM, or worse, accepted.
     if(!doesContentMatchProfileType(profile, profileType)) {
-      sails.log.warn(`A generated ${profileType} profile did not look like one, so it was treated as a failed generation.  Instructions: ${JSON.stringify(naturalLanguageInstructions)}`);
+      // The instructions themselves stay out of the log: admins put passwords and enrollment tokens in them.
+      sails.log.warn(`A generated ${profileType} profile did not look like one, so it was treated as a failed generation.  The instructions were ${naturalLanguageInstructions.length} characters long.`);
       result.couldNotGenerateProfile = true;
       result.contentDidNotMatchProfileType = true;
       return result;
@@ -167,9 +182,9 @@ module.exports = {
 
     result.generatedProfile = {
       profile,
-      profileFilename: rawResult.profileFilename,
-      deliveryNotes: rawResult.deliveryNotes,
-      items: rawResult.settingsEnforced,
+      profileFilename: response.profileFilename,
+      deliveryNotes: response.deliveryNotes,
+      items: response.settingsEnforced,
       additionalProfiles: [],
     };
 
@@ -186,6 +201,66 @@ module.exports = {
 
 
 };
+
+
+/**
+ * The configurationProfile and settingsEnforced of a .mobileconfig response, written from the payloads and
+ * settings it holds instead.
+ *
+ * A response with an unusable payload or value is a failed generation, with the reason when there is one, even when
+ * the model also wrote a document of its own: a profile missing part of what the model chose is not the profile that
+ * was asked for.
+ *
+ * @param  {Dictionary} rawResult  {payloads, profileSettings, profileFilename, profileDisplayName, profileDescription}
+ * @returns {Dictionary}  {configurationProfile, settingsEnforced}, {couldNotGenerateProfile, reasonWhyAProfileCouldNotBeGenerated}, or {}
+ */
+function mobileconfigWrittenFromPayloadSettings(rawResult) {
+  let isUsablePayload = (payload)=>{
+    return _.isPlainObject(payload) && _.isString(payload.payloadType) && _.isPlainObject(payload.settings);
+  };
+  if(!_.isArray(rawResult.payloads) || rawResult.payloads.length === 0 || !_.every(rawResult.payloads, isUsablePayload)) {
+    return {};
+  }
+  let filenameStem = _.kebabCase(String(rawResult.profileFilename || '').replace(/\.mobileconfig$/i, '')) || 'profile';
+  let built = sails.helpers.buildMobileconfigFromPayloadSettings.with({
+    payloads: rawResult.payloads,
+    profileSettings: _.isPlainObject(rawResult.profileSettings) ? rawResult.profileSettings : {},
+    // A random last segment, so two profiles generated for the same request never share a PayloadIdentifier: an MDM
+    // that keys profiles on it, as Fleet does, rejects the second.
+    profileIdentifier: `com.example.${filenameStem}.${require('crypto').randomBytes(4).toString('hex')}`,
+    profileDisplayName: _.isString(rawResult.profileDisplayName) && rawResult.profileDisplayName.trim() !== '' ? rawResult.profileDisplayName : filenameStem,
+    profileDescription: _.isString(rawResult.profileDescription) ? rawResult.profileDescription : '',
+  });
+  if(built.unusableValues.length > 0) {
+    return { couldNotGenerateProfile: true, reasonWhyAProfileCouldNotBeGenerated: built.unusableValues.join(' ') };
+  }
+  return { configurationProfile: built.profile, settingsEnforced: built.settingsEnforced };
+}
+
+
+/**
+ * The configurationProfile and settingsEnforced of a Windows response, written from the commands it holds instead.
+ *
+ * Like a .mobileconfig, a response with an unusable command is a failed generation, with the reason it could not be
+ * written.
+ *
+ * @param  {Dictionary} rawResult  {commands, atomic}
+ * @returns {Dictionary}  {configurationProfile, settingsEnforced, deliveryNotes}, {couldNotGenerateProfile, reasonWhyAProfileCouldNotBeGenerated}, or {}
+ */
+function windowsProfileWrittenFromCommands(rawResult) {
+  if(!_.isArray(rawResult.commands) || rawResult.commands.length === 0 || !_.every(rawResult.commands, _.isPlainObject)) {
+    return {};
+  }
+  let built = sails.helpers.buildWindowsProfileFromCommands.with({ commands: rawResult.commands, atomic: rawResult.atomic === true });
+  if(built.unusableCommands.length > 0) {
+    return { couldNotGenerateProfile: true, reasonWhyAProfileCouldNotBeGenerated: built.unusableCommands.join(' ') };
+  }
+  return {
+    configurationProfile: built.profile,
+    settingsEnforced: built.settingsEnforced,
+    deliveryNotes: _.compact([rawResult.deliveryNotes].concat(built.deliveryNotes)).join(' '),
+  };
+}
 
 
 /**

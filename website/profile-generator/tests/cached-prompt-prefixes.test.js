@@ -17,11 +17,14 @@ const INSTRUCTIONS = [
   'Turn off the camera',
 ];
 
-// Each is passed to the configuration helper alongside the instructions.
+// Each is passed to the configuration helper alongside the instructions.  .mobileconfig and Windows prompts are
+// checked both ways, since asking for settings rather than the document changes their rules and response shape.
 const VARIANTS = [
   { profileType: 'mobileconfig' },
+  { profileType: 'mobileconfig', writeProfilesFromSettings: true },
   { profileType: 'ddm' },
   { profileType: 'csp' },
+  { profileType: 'csp', writeProfilesFromSettings: true },
   { profileType: 'android' },
 ];
 
