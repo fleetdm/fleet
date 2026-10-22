@@ -195,6 +195,8 @@ var (
 		FleetVarHostPlatform,
 		FleetVarHostUUID,
 	}, IDPFleetVariables)
+	// FleetVarsSupportedInEJBCA lists the variables allowed in an EJBCA CA's common name, username template, and UPN.
+	FleetVarsSupportedInEJBCA = FleetVarsSupportedInDigiCert
 )
 
 type AppleMDM struct {

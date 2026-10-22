@@ -4,7 +4,8 @@
  * A reporter rather than an `after` hook: mocha prints its failure list once every hook has finished, so
  * anything a hook logged would end up buried above a run's worth of failing profiles.
  *
- * The run passes once every profile type reaches a 95% success rate.
+ * The run passes once every profile type reaches a 95% success rate.  Tests that make no generation, which
+ * have no profile type, are not tallied: any one of them failing fails the run.
  */
 const Mocha = require('mocha');
 const { EVENT_TEST_PASS, EVENT_TEST_FAIL, EVENT_RUN_END } = Mocha.Runner.constants;
@@ -22,7 +23,12 @@ class ProfileGeneratorSummaryReporter extends Mocha.reporters.Spec {
     super(runner, options);
 
     let tallyByProfileType = {};
+    let failedTestsWithoutAProfileType = 0;
     let tally = (test, outcome)=>{
+      if(!test.profileType) {
+        if(outcome === 'failed') { failedTestsWithoutAProfileType++; }
+        return;
+      }
       tallyByProfileType[test.profileType] = tallyByProfileType[test.profileType] || { passed: 0, failed: 0 };
       tallyByProfileType[test.profileType][outcome]++;
     };
@@ -47,15 +53,16 @@ class ProfileGeneratorSummaryReporter extends Mocha.reporters.Spec {
         let label = PLATFORM_BY_PROFILE_TYPE[profileType] ? `${profileType} (${PLATFORM_BY_PROFILE_TYPE[profileType]})` : profileType;
         lines.push(`    ${label.padEnd(22)} ${String(ran).padStart(4)} ran   ${String(passed).padStart(4)} passed   ${percent(passed, ran).padStart(6)} success rate`);
       }
-      this.passesSuccessThreshold = typesBelowThreshold.length === 0;
+      this.passesSuccessThreshold = typesBelowThreshold.length === 0 && failedTestsWithoutAProfileType === 0;
 
       console.log(
         '\n  ==== Profile generator summary ====\n\n' +
         (lines.length ? lines.join('\n') : '    (no generations ran)') + '\n' +
         `    ${'total'.padEnd(22)} ${String(totalRan).padStart(4)} ran   ${String(totalPassed).padStart(4)} passed   ${percent(totalPassed, totalRan).padStart(6)} success rate\n\n` +
-        (this.passesSuccessThreshold ?
+        (typesBelowThreshold.length === 0 ?
           '  Every profile type meets the 95% threshold.\n\n' :
           `  Below the 95% threshold: ${typesBelowThreshold.join(', ')}.\n\n`) +
+        (failedTestsWithoutAProfileType > 0 ? `  ${failedTestsWithoutAProfileType} test(s) that make no generation failed.\n\n` : '') +
         '  Note: Android is not implemented in the profile generator yet, Android profiles should be generated using Claude Code.\n'
       );
     });

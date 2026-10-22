@@ -465,6 +465,29 @@ func TestIngestValidations(t *testing.T) {
 			},
 		},
 		{
+			name: "ignore upgrade code",
+			inputApp: inputApp{
+				Name:                "Foo",
+				UniqueIdentifier:    "Foo",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "x64",
+				Slug:                "foo/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "msi",
+				InstallerScope:      "machine",
+				IgnoreUpgradeCode:   true,
+			},
+			cfg: serverConfig{
+				productCode:       "{ABCDEF}",
+				installerType:     "msi",
+				installerScope:    "machine",
+				installerArch:     "x64",
+				installerProdCode: "{ACBDEF}",
+				upgradeCode:       "{ABCDEF}",
+			},
+		},
+		{
 			name:    "wrong installer type",
 			wantErr: "failed to find installer for app",
 			inputApp: inputApp{
@@ -515,6 +538,11 @@ func TestIngestValidations(t *testing.T) {
 			}
 			if c.wantPatchedContains != "" {
 				require.Contains(t, out.Queries.Patched, c.wantPatchedContains)
+			}
+			if c.inputApp.IgnoreUpgradeCode {
+				require.Empty(t, out.UpgradeCode)
+			} else {
+				require.Equal(t, c.cfg.upgradeCode, out.UpgradeCode)
 			}
 			// The managed "is app open" query matches a process named "<title>.exe".
 			require.Equal(t,
