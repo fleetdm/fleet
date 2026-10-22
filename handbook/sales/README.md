@@ -219,7 +219,7 @@ All leads generated as a result of the CEO and Fleetie requests must be logged i
 When needing a contract to undergo legal review, we use the following processes for different types of agreements.
 
 #### NDAs
-- NDAs are emailed to Nathanael Holliday for review, CC Tina Ong.
+- NDAs are emailed to deal desk for review, cc CFO.
 - Nate will review and either give the ok for signature or send to outside counsel if necessary.
 
 #### MSAs, DPAs, and reseller agreements
