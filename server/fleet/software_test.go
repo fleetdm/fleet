@@ -1307,6 +1307,17 @@ func TestParseSoftwareTypeFilter(t *testing.T) {
 			},
 		},
 		{
+			name:   "AI tool sources",
+			source: "ai_clis,mcp_servers,ai_skills",
+			want:   SoftwareTypeFilter{"ai_clis": nil, "mcp_servers": nil, "ai_skills": nil},
+		},
+		{
+			name:       "the ai_tools pseudo-source is never stored",
+			source:     "ai_tools",
+			wantArg:    "source",
+			wantReason: `Invalid source: "ai_tools" isn't a valid source. See the options: https://fleetdm.com/docs/rest-api/rest-api#list-software`,
+		},
+		{
 			name:       "unknown source",
 			source:     "apps,app",
 			wantArg:    "source",
@@ -1425,4 +1436,19 @@ func TestSoftwareEpochNotPartOfIdentity(t *testing.T) {
 	sumWith, err := withEpoch.ComputeRawChecksum()
 	require.NoError(t, err)
 	require.Equal(t, sumWithout, sumWith)
+}
+
+// TestSoftwareAIToolNotPartOfIdentity pins the flag outside the software identity, so an
+// existing row can be flagged in place instead of becoming a second row.
+func TestSoftwareAIToolNotPartOfIdentity(t *testing.T) {
+	sw := Software{Name: "Claude", Version: "1.2.4", Source: "apps", BundleIdentifier: "com.anthropic.claudefordesktop"}
+	flagged := sw
+	flagged.AITool = new(true)
+
+	require.Equal(t, sw.ToUniqueStr(), flagged.ToUniqueStr())
+	want, err := sw.ComputeRawChecksum()
+	require.NoError(t, err)
+	got, err := flagged.ComputeRawChecksum()
+	require.NoError(t, err)
+	require.Equal(t, want, got)
 }

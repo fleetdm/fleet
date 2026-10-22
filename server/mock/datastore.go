@@ -15,6 +15,7 @@ import (
 //go:generate go run ./mockimpl/impl.go -o scep/config.go "s *SCEPConfigService" "fleet.SCEPConfigService"
 //go:generate go run ./mockimpl/impl.go -o scep/enrollment_client.go "c *SCEPEnrollmentClient" "fleet.SCEPEnrollmentClient"
 //go:generate go run ./mockimpl/impl.go -o digicert/digicert.go "s *Service" "fleet.DigiCertService"
+//go:generate go run ./mockimpl/impl.go -o ejbca/ejbca.go "s *Service" "fleet.EJBCAService"
 //go:generate go run ./mockimpl/impl.go -o mdm/bootstrap_package_store.go "s *MDMBootstrapPackageStore" "fleet.MDMBootstrapPackageStore"
 //go:generate go run ./mockimpl/impl.go -o software/software_installer_store.go "s *SoftwareInstallerStore" "fleet.SoftwareInstallerStore"
 

@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -1574,7 +1575,7 @@ func TestUpdateHost(t *testing.T) {
 		require.Equal(t, "Android 15 (2026-05-01)", capturedHost.Host.OSVersion)
 	})
 
-	t.Run("status report without MEASURED events still records storage as not supported", func(t *testing.T) {
+	t.Run("status report without MEASURED events passes not supported to the datastore", func(t *testing.T) {
 		existingHost.Host.GigsTotalDiskSpace = 0
 		existingHost.Host.GigsDiskSpaceAvailable = 0
 		existingHost.Host.PercentDiskSpaceAvailable = 0
@@ -1603,8 +1604,7 @@ func TestUpdateHost(t *testing.T) {
 
 		require.NoError(t, svc.ProcessPubSubPush(t.Context(), "value", message))
 
-		// Only an enrollment keeps the last measurement. A status report is written as reported, so a
-		// host that stops measuring shows "Not supported" and its total stays current.
+		// The service passes -1 through; UpdateAndroidHost decides whether a stored measurement wins.
 		require.NotNil(t, capturedHost)
 		require.InDelta(t, 128.0, capturedHost.Host.GigsTotalDiskSpace, 0.1)
 		require.InDelta(t, -1, capturedHost.Host.GigsDiskSpaceAvailable, 0.01)
@@ -2210,7 +2210,7 @@ func TestAndroidStorageExtraction(t *testing.T) {
 		require.Equal(t, float64(-1), createdHost.Host.PercentDiskSpaceAvailable, "should set percent available to -1 when MEASURED events are missing")
 	})
 
-	t.Run("re-enrollment without MEASURED events keeps the stored storage", func(t *testing.T) {
+	t.Run("re-enrollment without MEASURED events passes not supported to the datastore", func(t *testing.T) {
 		const esid = "REENROLL-TEST-ESID"
 		existing := &fleet.AndroidHost{
 			Host:   &fleet.Host{ID: 42, UUID: "reenroll-uuid", Platform: "android"},
@@ -2244,11 +2244,10 @@ func TestAndroidStorageExtraction(t *testing.T) {
 		require.NoError(t, err)
 
 		require.NotNil(t, updatedHost)
-		// Zero leaves host_disks untouched, so the stored measurement survives. Writing the
-		// -1 sentinel here is what showed a previously measured host as "Not supported".
-		require.Zero(t, updatedHost.Host.GigsDiskSpaceAvailable, "must not overwrite stored available space")
-		require.Zero(t, updatedHost.Host.PercentDiskSpaceAvailable, "must not overwrite stored percentage")
-		require.Zero(t, updatedHost.Host.GigsTotalDiskSpace, "must not overwrite stored total")
+		// UpdateAndroidHost keeps the host's last real measurement over -1.
+		require.InDelta(t, 64.0, updatedHost.Host.GigsTotalDiskSpace, 0.1)
+		require.InDelta(t, -1, updatedHost.Host.GigsDiskSpaceAvailable, 0.01)
+		require.InDelta(t, -1, updatedHost.Host.PercentDiskSpaceAvailable, 0.01)
 	})
 
 	t.Run("re-enrollment with MEASURED events still updates storage", func(t *testing.T) {
@@ -4002,4 +4001,52 @@ func TestPubSubEnrollment_ClearsHostMDMActionsOnReEnroll(t *testing.T) {
 		"AndroidHostLite must be invoked to detect existing host on re-enroll")
 	require.True(t, mockDS.ClearHostMDMActionsFuncInvoked,
 		"ClearHostMDMActions must be called on Android re-enrollment to drop stale lock/wipe/clear-passcode refs")
+}
+
+// A re-enrolled host reuses its host-specific policy, so its previous enrollment's apps must be
+// cleared before anything can move the device to it, unless the device is already on it.
+func TestClearReusedHostPolicyApps(t *testing.T) {
+	const (
+		hostUUID       = "host-uuid"
+		enterpriseName = "enterprises/test"
+	)
+	defaultPolicyID := fmt.Sprint(android.DefaultAndroidPolicyID)
+
+	cases := []struct {
+		name            string
+		appliedPolicyID *string
+		apiErr          error
+		wantCleared     bool
+	}{
+		{name: "no applied policy", wantCleared: true},
+		{name: "default policy", appliedPolicyID: &defaultPolicyID, wantCleared: true},
+		{name: "already on host policy", appliedPolicyID: new(hostUUID)},
+		{name: "AMAPI error is only logged", appliedPolicyID: &defaultPolicyID, apiErr: errors.New("quota"), wantCleared: true},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			client := android_mock.Client{}
+			client.InitCommonMocks()
+			var patched []string
+			client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+				require.True(t, androidmgmt.RetryDisabled(ctx), "a quota error must not hold the Pub/Sub push")
+				require.True(t, opts.OnlyUpdateApps)
+				require.Empty(t, policy.Applications)
+				patched = append(patched, policyName)
+				return &androidmanagement.Policy{}, c.apiErr
+			}
+			mockDS := InitCommonDSMocks()
+			svc, err := NewServiceWithClient(slog.New(slog.DiscardHandler), mockDS, &client, "test-private-key", &mockDS.DataStore, noopNewActivity, config.AndroidAgentConfig{})
+			require.NoError(t, err)
+
+			svc.(*Service).clearReusedHostPolicyApps(t.Context(), enterpriseName, hostUUID, c.appliedPolicyID)
+
+			if c.wantCleared {
+				require.Equal(t, []string{enterpriseName + "/policies/" + hostUUID}, patched)
+			} else {
+				require.Empty(t, patched)
+			}
+		})
+	}
 }
