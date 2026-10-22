@@ -14,7 +14,7 @@
       "sha256": "c834b85a777dcbbcf66943daa97012c0d6da9780fd8f71176c81071e711f5559",
       "generated_at": "2026-10-07T14:08:30.957Z"
     },
-    "generated_at": "2026-10-22T11:53:27Z"
+    "generated_at": "2026-10-22T12:03:43Z"
   },
   "apple_envelope": {
     "TopLevel": {
@@ -5995,6 +5995,10 @@
               "introduced": "n/a"
             }
           }
+        },
+        "allowMediaSharing": {
+          "type": "boolean",
+          "override": "Key used to disable media sharing; used in CIS benchmark profiles."
         },
         "allowMediaSharingModification": {
           "type": "boolean",
