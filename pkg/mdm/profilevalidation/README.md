@@ -130,7 +130,63 @@ Release-v27.0 has 119 payload types and 48 configuration declarations. DDFv2Feb2
   - `AppleProfile(payloadType)` and `AppleDeclaration(declarationType)`.
   - `WindowsNode(locURI)` returns the exact node, or else the node whose `*` segments match, preferring the fewest `*`. Paths are compared as written.
 - **Swapping it:** `Replace(schema)` swaps in a newer schema from `Parse`, for example a downloaded copy. New `Current()` calls see it, and a schema a caller already holds never changes. Don't modify a schema you get from `Current()`.
-- **Dependencies:** the package doesn't import `server/fleet`.
+**Dependencies:** 
+- It imports `server/variables`, which only uses the standard library.
+
+## Validating Apple profiles
+
+```go
+s := profilevalidation.Current()
+findings, err := s.ValidateAppleProfile(data, profilevalidation.ModeLenient)   // .mobileconfig
+findings, err := s.ValidateAppleDeclaration(data, profilevalidation.ModeStrict) // DDM declaration JSON
+```
+
+- **Errors** mean the bytes can't be read: invalid plist or JSON, a signed profile, or a profile whose `PayloadType` isn't `Configuration`. Everything else is a finding.
+- **A finding** has:
+  - a `code`;
+  - a `payload_type`: the payload's `PayloadType`, the declaration's `Type`, or `TopLevel` for the profile root;
+  - a `key_path`, dotted from the payload or from the declaration's `Payload` with `[n]` for array positions, e.g. `Services.Camera[0].Allowed`;
+  - `expected`, every accepted type;
+  - `actual`.
+
+  Callers build messages from these fields; the validator doesn't format sentences.
+
+**Both modes:**
+
+- **Wrong types:** a value whose type doesn't match a documented key is reported as `TYPE_MISMATCH`.
+  - Integer and real are interchangeable.
+  - A key whose type is a list accepts any type in it.
+  - A plist `<date>` passes where the key is `string` with a `timestamp` or `localtime` valuetype.
+  - In declarations, a JSON string passes `data` and `date` keys.
+- **Envelope keys:** `TopLevel` keys are checked at the profile root, and `CommonPayloadKeys` in every payload. The declaration envelope is checked on every declaration.
+- **Where the walk goes:**
+  - It follows dictionaries that have `keys` or `values`, arrays that have `items`, and `ref`s back to their definition.
+  - It stops at `any` and at any type it doesn't recognize.
+  - An open dictionary never reports unknown key names, but its values are checked against `values` when it has one.
+- **Fleet variables** are strings like any other, so `$FLEET_VAR_…` passes a string key and fails an integer one.
+  - DigiCert `<data>` placeholders are blanked before parsing.
+  - A string that contains `$FLEET_SECRET_…` passes any key, because a secret can hold any value.
+- **Never checked:** platforms, required keys, allowed values, formats, and removed keys. The schema carries them for later.
+
+**Strict mode also reports:**
+
+- **`UNKNOWN_TYPE`:** a payload or declaration type the schema doesn't have. `com.apple.ManagedClient.preferences` also counts as unknown unless an `allow` override vouches for it.
+- **`UNKNOWN_KEY`:** a key that isn't documented, outside open dictionaries.
+- **`MISSING_PAYLOAD_VERSION`:** on the profile root or any payload.
+- **`MALFORMED_UUID`:** a `PayloadUUID` that isn't in 8-4-4-4-12 hex form. Values containing Fleet variables or secrets aren't checked.
+- **`MALFORMED_IDENTIFIER`:** a `PayloadIdentifier` that isn't reverse-DNS. Values containing Fleet variables or secrets aren't checked.
+
+Lenient mode is for profiles admins upload. Strict mode is for profiles the AI profile generator writes.
+
+To check the repo's profiles by hand, run from the repository root:
+
+```sh
+go run ./tools/profile-validate [-strict] [paths…]   # defaults to it-and-security, docs/solutions, ee/cis
+```
+
+- It prints one line per finding and exits 1 if there are any.
+- Files it can't parse are logged and skipped. For example, a profile with a GitOps environment variable that fleetctl expands before upload.
+- Every profile in those directories passes lenient mode. Strict mode reports fixture problems (mostly missing `PayloadVersion` in CIS profiles), which is expected.
 
 ## Overrides
 
@@ -245,3 +301,4 @@ Things the schema records but doesn't decide; the validator (#55792) owns them.
     - **Strict mode** (AI-generated profiles) matches template policies exactly, AppName included.
     - **Lenient mode** ignores the AppName and matches on `{SettingType}~{Category…}/{policy}`, because admins pick their own AppName (Fleet's docs install Chrome as `Chrome`, not `GoogleChrome`). An unknown policy or app isn't an error: it may be a custom ADMX, or a newer vendor release than the template data.
 - **Future:** the template file also lists each policy's ADMX elements (`admxElements`: element ids, types, and enum values) for 642 of its 1,575 policies. The schema doesn't carry them yet; they could validate the `<data id="…" value="…"/>` payload of known policies.
+- **Future (Apple):** strict mode rejects `com.apple.ManagedClient.preferences` as a whole unless `allow` replaces it. Per-domain strictness is possible: list known preference domains under `PayloadContent` (as `add` entries), and report unknown domains as `UNKNOWN_KEY` instead of the whole type as `UNKNOWN_TYPE`. That needs `mcx_preference_settings` to be typed per domain, since it's `any` today.
