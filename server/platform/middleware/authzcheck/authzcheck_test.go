@@ -67,7 +67,7 @@ func TestAuthzCheckAuthUnavailable(t *testing.T) {
 	}
 	check = checker.AuthzCheck()(check)
 
-	_, err := check(context.Background(), struct{}{})
+	_, err := check(t.Context(), struct{}{})
 	var unavailable *platform_http.AuthUnavailableError
 	assert.ErrorAs(t, err, &unavailable)
 }
