@@ -85,14 +85,295 @@
   }
   [purpose='hero-image'] {
     width: 100%;
-    img {
-      display: block;
-      width: 100%;
-      aspect-ratio: 1072 / 480;
-      object-fit: cover;
-      border-radius: 16px;
-      background-color: @core-fleet-black-5;
+    container-type: inline-size;
+  }
+
+  // Teams chat animation. Laid out at the Figma frame's 1072×603 size, where
+  // 1em is one Figma pixel, so the whole graphic scales through font-size.
+  [purpose='teams-animation'] {
+    position: relative;
+    width: 1072em;
+    height: 603em;
+    margin: 0 auto;
+    // Fallback for browsers without container query units (e.g. Safari 14–15):
+    // the hero's width from the viewport and .page-container() padding.
+    font-size: ~'calc(min(1072px, 100vw - 128px) / 1072)';
+    @media (max-width: 991px) {
+      font-size: ~'calc((100vw - 64px) / 1072)';
     }
+    @media (max-width: 575px) {
+      font-size: ~'calc((100vw - 48px) / 1072)';
+    }
+    @supports (width: 1cqw) {
+      font-size: ~'calc(min(1072px, 100cqw) / 1072)';
+    }
+    text-align: left;
+    -webkit-text-size-adjust: 100%;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    color: #242424;
+    p {
+      font-family: inherit;
+      font-size: 12em;
+      line-height: 18 / 12;
+      color: #242424;
+      margin: 0;
+    }
+    strong {
+      font-weight: 700;
+    }
+  }
+  [purpose='teams-window'] {
+    position: absolute;
+    left: 14em;
+    top: 8em;
+    width: 1044em;
+    height: 576em;
+    border-radius: 6.962em;
+    overflow: hidden;
+    box-shadow: 0 3.481em 9.283em rgba(0, 0, 0, 0.15);
+  }
+  [purpose='teams-chrome'] {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  // The message area below the chat header.
+  [purpose='teams-messages'] {
+    position: absolute;
+    left: 278.5em;
+    top: 93.3em;
+    width: 765.8em;
+    height: 482.7em;
+    overflow: hidden;
+  }
+  [purpose='teams-message-stack'] {
+    display: flex;
+    flex-direction: column;
+    gap: 13.752em;
+    padding: 11.7em 23.5em 0 22.7em;
+  }
+  [purpose='teams-first-message'], [purpose='teams-second-message'] {
+    align-self: flex-end;
+    padding: 10.314em 13.752em;
+    border-radius: 3.438em;
+    background-color: #e8ebfa;
+    p {
+      white-space: nowrap;
+    }
+  }
+  [purpose='teams-first-reply'], [purpose='teams-second-reply'] {
+    position: relative;
+  }
+  [purpose='teams-reply'], [purpose='teams-typing'] {
+    display: flex;
+    align-items: flex-start;
+    gap: 6.876em;
+  }
+  [purpose='teams-typing'] {
+    position: absolute;
+    top: 0;
+    left: 0;
+    padding-top: 10.314em;
+    opacity: 0;
+  }
+  [purpose='teams-avatar'] {
+    display: block;
+    flex-shrink: 0;
+    width: 28em;
+    height: 28em;
+    margin-top: 10.314em;
+  }
+  [purpose='teams-typing'] [purpose='teams-avatar'] {
+    margin-top: 0;
+  }
+  [purpose='teams-typing-bubble'] {
+    display: flex;
+    align-items: center;
+    gap: 3.5em;
+    height: 28em;
+    padding: 0 13.752em;
+    border-radius: 3.481em;
+    background-color: #f5f5f5;
+    span {
+      display: block;
+      width: 5.2em;
+      height: 5.2em;
+      border-radius: 50%;
+      background-color: #616161;
+    }
+  }
+  [purpose='teams-reply-body'] {
+    display: flex;
+    flex-direction: column;
+    gap: 3.438em;
+    width: 515.709em;
+  }
+  [purpose='teams-second-reply'] [purpose='teams-reply-body'] {
+    width: 465.124em;
+  }
+  [purpose='teams-sender'] {
+    font-size: 10em;
+    line-height: 14 / 10;
+    color: #616161;
+  }
+  [purpose='teams-reply-bubble'] {
+    display: flex;
+    flex-direction: column;
+    gap: 18em;
+    padding: 10.314em 20.628em 10.314em 13.752em;
+    border-radius: 3.481em;
+    background-color: #f5f5f5;
+    // Inline padding leaves the 18px line height alone, as in the Figma chip.
+    code {
+      padding: 1.719em / 11 4.298em / 11;
+      border: 0.86em / 11 solid #dadada;
+      border-radius: 3.438em / 11;
+      background-color: #eeeeee;
+      font-family: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 11em / 12;
+      color: #242424;
+    }
+    ul {
+      margin: 0;
+      padding-left: 18em / 12;
+      font-size: 12em;
+      line-height: 18 / 12;
+      list-style: disc;
+    }
+  }
+  // Figma gives the code block the full text column, and indents the prose
+  // 6.876px from its right edge.
+  [purpose='teams-second-reply'] [purpose='teams-reply-bubble'] {
+    gap: 12.893em;
+    padding-right: 13.752em;
+    p, ul {
+      padding-right: 6.876em / 12;
+    }
+    [purpose='teams-code-block'] p {
+      padding-right: 0;
+    }
+  }
+  [purpose='teams-reply-section'] {
+    display: flex;
+    flex-direction: column;
+    gap: 18em;
+  }
+  [purpose='teams-code-block'] {
+    display: flex;
+    flex-direction: column;
+    gap: 6.876em;
+    padding: 10.314em;
+    border: 0.86em solid #dadada;
+    border-radius: 6.876em;
+    background-color: #eeeeee;
+    p {
+      font-size: 10em;
+      line-height: 16 / 10;
+    }
+    pre {
+      margin: 0;
+      overflow: visible;
+      font-family: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 11em;
+      line-height: 16 / 11;
+      color: #242424;
+    }
+  }
+  [purpose='diff-added'] {
+    color: #40c040;
+  }
+  [purpose='teams-reply-bubble'] [purpose='teams-reply-footer'] {
+    margin-top: 18em / 12;
+  }
+  [purpose='teams-pr-link'] {
+    color: #3149c1;
+    text-decoration: underline;
+  }
+
+  // Without animation (prefers-reduced-motion) this is the second keyframe:
+  // the first question and answer.
+  [purpose='teams-second-message'], [purpose='teams-second-reply'] [purpose='teams-reply'] {
+    opacity: 0;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    [purpose='teams-message-stack'] {
+      animation: teams-scroll 16s ease-in-out infinite;
+    }
+    [purpose='teams-first-message'] {
+      animation: teams-first-message 16s ease-out infinite;
+    }
+    [purpose='teams-first-reply'] [purpose='teams-typing'] {
+      animation: teams-first-typing 16s linear infinite;
+    }
+    [purpose='teams-first-reply'] [purpose='teams-reply'] {
+      animation: teams-first-reply 16s ease-out infinite;
+    }
+    [purpose='teams-second-message'] {
+      animation: teams-second-message 16s ease-out infinite;
+    }
+    [purpose='teams-second-reply'] [purpose='teams-typing'] {
+      animation: teams-second-typing 16s linear infinite;
+    }
+    [purpose='teams-second-reply'] [purpose='teams-reply'] {
+      animation: teams-second-reply 16s ease-out infinite;
+    }
+    [purpose='teams-typing-bubble'] span {
+      animation: teams-typing-dot 1.2s ease-in-out infinite;
+      &:nth-child(2) {
+        animation-delay: 0.15s;
+      }
+      &:nth-child(3) {
+        animation-delay: 0.3s;
+      }
+    }
+  }
+
+  // 16s loop. 1% = 0.16s: 5% = 0.8s, 14.375% = 2.3s, 17.5% = 2.8s, 42.5% = 6.8s,
+  // 45% = 7.2s, 47.5% = 7.6s, 56.875% = 9.1s, 61.875% = 9.9s, 93.125% = 14.9s,
+  // 96.25% = 15.4s.
+  @keyframes teams-first-message {
+    0%, 93.125% { opacity: 1; }
+    96.25% { opacity: 0; }
+    100% { opacity: 1; }
+  }
+  @keyframes teams-first-typing {
+    0%, 5% { opacity: 0; }
+    6.25%, 13.125% { opacity: 1; }
+    14.375%, 100% { opacity: 0; }
+  }
+  @keyframes teams-first-reply {
+    0%, 14.375% { opacity: 0; transform: translateY(12em); }
+    17.5%, 93.125% { opacity: 1; transform: translateY(0); }
+    96.25% { opacity: 0; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(12em); }
+  }
+  @keyframes teams-second-message {
+    0%, 42.5% { opacity: 0; transform: translateY(12em); }
+    45%, 93.125% { opacity: 1; transform: translateY(0); }
+    96.25% { opacity: 0; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(12em); }
+  }
+  @keyframes teams-second-typing {
+    0%, 47.5% { opacity: 0; }
+    48.75%, 55.625% { opacity: 1; }
+    56.875%, 100% { opacity: 0; }
+  }
+  @keyframes teams-second-reply {
+    0%, 56.875% { opacity: 0; transform: translateY(12em); }
+    60%, 93.125% { opacity: 1; transform: translateY(0); }
+    96.25% { opacity: 0; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(12em); }
+  }
+  // Scrolls by the 325.4px offset between frames 3 and 4, and jumps back
+  // while every message is faded out.
+  @keyframes teams-scroll {
+    0%, 56.875% { transform: translateY(0); }
+    61.875%, 96.2% { transform: translateY(-325.4em); }
+    96.25%, 100% { transform: translateY(0); }
+  }
+  @keyframes teams-typing-dot {
+    0%, 60%, 100% { opacity: 0.4; transform: translateY(0); }
+    30% { opacity: 1; transform: translateY(-3em); }
   }
 
   // Section headings
