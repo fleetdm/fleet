@@ -24,6 +24,15 @@ func TestGenerateQueryForManifest(t *testing.T) {
 			want: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.foo' AND version_compare(bundle_short_version, '1.0') < 0);",
 		},
 		{
+			name: "darwin with +build version",
+			p: patch_policy.PolicyData{
+				Platform:    "darwin",
+				Version:     "0.4.26+4",
+				ExistsQuery: "SELECT 1 FROM apps WHERE bundle_identifier = 'com.foo';",
+			},
+			want: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.foo' AND version_compare(REPLACE(bundle_short_version, '+', '.'), '0.4.26.4') < 0);",
+		},
+		{
 			name: "windows from exists query",
 			p: patch_policy.PolicyData{
 				Platform:    "windows",
@@ -110,6 +119,25 @@ func TestGenerateFromInstallerEscapesQuotes(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Contains(t, query, "version_compare(bundle_short_version, 'x'' UNION SELECT 1 FROM shadow --') < 0);")
+
+	generated, err = patch_policy.GenerateFromInstaller(patch_policy.PolicyData{}, &fleet.SoftwareInstaller{
+		Platform:         "darwin",
+		SoftwareTitle:    "Foo",
+		BundleIdentifier: "com.foo",
+		Version:          "1.2+3'",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.foo' "+
+		"AND version_compare(REPLACE(bundle_short_version, '+', '.'), '1.2.3''') < 0);", generated.Query)
+
+	generated, err = patch_policy.GenerateFromInstaller(patch_policy.PolicyData{}, &fleet.SoftwareInstaller{
+		Platform:      "windows",
+		SoftwareTitle: "Foo",
+		Version:       "1.2+3",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Foo' "+
+		"AND version_compare(REPLACE(version, '+', '.'), '1.2.3') < 0);", generated.Query)
 }
 
 func TestGenerateOpenQuery(t *testing.T) {

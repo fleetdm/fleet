@@ -1,0 +1,1 @@
+- Fixed patch policies for software with a `+build` version (e.g. `0.4.26+4`) reporting some outdated hosts as up to date, or newer hosts as outdated, when build numbers have different digit counts.
