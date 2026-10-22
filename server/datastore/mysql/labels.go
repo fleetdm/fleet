@@ -830,15 +830,16 @@ func (ds *Datastore) deleteMembershipOfDeletedLabels(ctx context.Context, labelI
 }
 
 func (ds *Datastore) deleteLabelMembershipInBatches(ctx context.Context, labelIDs []uint) error {
+	db := ds.writer(ctx)
 	for _, labelID := range labelIDs {
 		var afterHostID uint
 		for {
 			var hostIDs []uint
-			// Every row of a deleted label goes, so a lagging replica can only leave a row behind, never delete one that
-			// should stay. The host_id cursor seeks past deleted rows instead of rescanning them while purge catches up.
-			// The index is forced because for ORDER BY host_id the optimizer may walk the primary key (host_id,
-			// label_id) instead, scanning every host's labels to find this label's rows.
-			if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostIDs, `
+			// Pages are read from the primary: this cleanup runs once, so rows a lagging replica hasn't caught up on
+			// would never be deleted. The host_id cursor seeks past deleted rows instead of rescanning them while purge
+			// catches up. The index is forced because for ORDER BY host_id the optimizer may walk the primary key
+			// (host_id, label_id) instead, scanning every host's labels to find this label's rows.
+			if err := sqlx.SelectContext(ctx, db, &hostIDs, `
 				SELECT host_id FROM label_membership FORCE INDEX (idx_lm_label_id)
 				WHERE label_id = ? AND host_id > ?
 				ORDER BY host_id
@@ -854,7 +855,7 @@ func (ds *Datastore) deleteLabelMembershipInBatches(ctx context.Context, labelID
 				return ctxerr.Wrap(ctx, err, "build label_membership batch delete")
 			}
 			// Retry to get past deadlocks with hosts' label result writes.
-			if err := common_mysql.WithRetryTxx(ctx, ds.writer(ctx), func(tx sqlx.ExtContext) error {
+			if err := common_mysql.WithRetryTxx(ctx, db, func(tx sqlx.ExtContext) error {
 				_, err := tx.ExecContext(ctx, stmt, args...)
 				return err
 			}, ds.logger); err != nil {
