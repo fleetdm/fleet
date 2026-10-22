@@ -180,5 +180,5 @@ In the proxy's access log, expect CONNECTs to the Fleet server and to `updates.f
 
 - Unauthenticated proxies only. fleetd has no supported authenticated-proxy path (#35957).
 - If the proxy does SSL inspection, ship a `certs.pem` containing Fleet's roots plus the proxy's CA; osquery reads it via `--tls_server_certs`. For Orbit, import the proxy CA into `LocalMachine\Root`. This is untested.
-- `FLEET_SECRET` appears in msiexec and deployment-tool logs, so use a team-scoped enroll secret.
+- `FLEET_SECRET` appears in msiexec and deployment-tool logs, so use a fleet-scoped enroll secret.
 - When you test with outbound traffic blocked, Windows `curl.exe` stalls on its certificate revocation check, because that check goes out directly. Use `curl.exe --ssl-no-revoke -x ...`. fleetd wasn't affected in testing.

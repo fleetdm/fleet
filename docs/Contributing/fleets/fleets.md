@@ -2,9 +2,9 @@
 
 Fleets (formally "teams") are a _premium_ feature in Fleet and allow grouping of hosts inside a fleet, distinct configuration settings specific to that fleet, limiting user read-write authorizations to specific fleets, etc. See [the fleets guide](https://fleetdm.com/guides/teams) for more information on what is a fleet and how its recommended best-practices.
 
-## How teams are implemented
+## How fleets are implemented
 
-At a basic level, fleets are created and stored in the `teams` table. Other entities that may belong to one or many fleets simply have a relationship to the relevant `team.id`, e.g. a host may belong to only one team, and so there is a `host.team_id` column in the `hosts` table that points to the team the host belongs to (or is `NULL` if it doesn't belong to a team, more on that later). Similarly, a user may be authorized to access multiple fleets, and so there is a `user_teams` relationship table that maps a given `user.id` to zero or many `team.id`.
+At a basic level, fleets are created and stored in the `teams` table. Other entities that may belong to one or many fleets simply have a relationship to the relevant `team.id`, e.g. a host may belong to only one fleet, and so there is a `host.team_id` column in the `hosts` table that points to the fleet the host belongs to (or is `NULL` if it doesn't belong to a fleet, more on that later). Similarly, a user may be authorized to access multiple fleets, and so there is a `user_teams` relationship table that maps a given `user.id` to zero or many `team.id`.
 
 In addition to the fleets created in the `teams` table, there is also a concept of "Unassigned" and "All fleets". Those are not actual entries stored in `teams`, they use special values to represent them.
 

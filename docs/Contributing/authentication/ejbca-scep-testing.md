@@ -152,7 +152,7 @@ curl -sk -X POST \
       "subject_name": "CN=qa-user@example.com",
       "subject_alternative_name": "DNS=qa-host.example.com, UPN=qa-user@corp.example.com",
       "certificate_authority_id": <CA_ID>,
-      "team_id": <TEAM_ID>
+      "fleet_id": <FLEET_ID>
     }' \
     https://localhost:8080/api/latest/fleet/certificates
 ```
