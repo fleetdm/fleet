@@ -2,7 +2,7 @@
 
 Fleet is open-source AI device management, patching, and governance for every OS: macOS, Windows, Linux, Chromebooks, iOS, and Android (BYOD or corporate-owned).
 
-Use the AI you already trust to describe a change in plain English, like a new policy, a CVE fix, or a configuration profile. The change arrives as a pull request, so a person reviews it before it reaches any device.
+Use the AI you already trust to describe a change in plain text, like a new policy, a CVE fix, or a configuration profile. The change arrives as a pull request, so a person reviews it before it reaches any device.
 
 **Get started with AI:** [Use Claude Code with Fleet](https://fleetdm.com/guides/use-claude-code-with-fleet) · [AI-powered IT](https://fleetdm.com/ai) · [Get started with AI and Fleet](https://fleetdm.com/guides/get-started-with-ai-and-fleet)
 
