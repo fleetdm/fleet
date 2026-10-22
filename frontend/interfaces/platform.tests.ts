@@ -53,6 +53,7 @@ describe("platform helpers", () => {
     it("matches the distributions Fleet can escrow LUKS keys for", () => {
       expect(isDiskEncryptionSupportedLinuxPlatform("ubuntu", "")).toBe(true);
       expect(isDiskEncryptionSupportedLinuxPlatform("zorin", "")).toBe(true);
+      expect(isDiskEncryptionSupportedLinuxPlatform("omarchy", "")).toBe(true);
     });
 
     it("matches Fedora only through its OS version, since it reports rhel", () => {
@@ -66,7 +67,6 @@ describe("platform helpers", () => {
 
     it("does not match other Linux distributions", () => {
       expect(isDiskEncryptionSupportedLinuxPlatform("arch", "")).toBe(false);
-      expect(isDiskEncryptionSupportedLinuxPlatform("omarchy", "")).toBe(false);
       expect(isDiskEncryptionSupportedLinuxPlatform("cachyos", "")).toBe(false);
       expect(isDiskEncryptionSupportedLinuxPlatform("manjaro", "")).toBe(false);
       expect(isDiskEncryptionSupportedLinuxPlatform("debian", "")).toBe(false);
