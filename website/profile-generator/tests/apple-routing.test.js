@@ -110,7 +110,8 @@ describe('Apple request routing', function() {
     let route = await routeWith('Turn off AirDrop', new Promise(()=>{}));
     assert.strictEqual(route.profileType, 'mobileconfig');
     assert.deepStrictEqual(route.applePayloadTypes, []);
-    assert.ok(route.routerMs >= 5000 && route.routerMs < 6000, `routed in ${route.routerMs}ms`);
+    // Node can fire a timer a millisecond or so before Date.now() says its delay is up.
+    assert.ok(route.routerMs >= 4900 && route.routerMs < 6000, `routed in ${route.routerMs}ms`);
   });
 
   it('reads the last JSON object when the router corrects itself', async function() {
