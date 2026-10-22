@@ -40,15 +40,17 @@ locals {
     }
   )
 
+  # Orbit config notifications require the transport, so the two are switched together.
+  websocket_environment_variables = var.enable_websocket_transport ? {
+    FLEET_WEBSOCKET_TRANSPORT_ENABLED    = "true"
+    FLEET_WEBSOCKET_ORBIT_CONFIG_ENABLED = "true"
+  } : {}
+
   extra_environment_variables = merge(
     {
       CLOUDWATCH_NAMESPACE = "fleet-loadtest-migration"
       CLOUDWATCH_REGION    = "us-east-2"
       # PROMETHEUS_SCRAPE_URL = "http://localhost:8080/metrics"
-
-      # Agent WebSocket transport, and orbit config change notifications over it (which require the transport).
-      FLEET_WEBSOCKET_TRANSPORT_ENABLED    = "true"
-      FLEET_WEBSOCKET_ORBIT_CONFIG_ENABLED = "true"
 
       FLEET_VULNERABILITIES_DATABASES_PATH       = "/home/fleet"
       FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING = "false"
@@ -81,7 +83,8 @@ locals {
       FLEET_DEV_SKIP_S3_CONFIG = "1"
     },
     local.otel_environment_variables,
-    local.mdm_apple_environment_variables
+    local.mdm_apple_environment_variables,
+    local.websocket_environment_variables
   )
   extra_secrets = {
     FLEET_LICENSE_KEY = data.aws_secretsmanager_secret.license.arn
