@@ -14,7 +14,11 @@
         <div purpose="hero-image">
           <div purpose="teams-animation" role="img" aria-label="A Microsoft Teams chat with Fleet. An admin asks which Windows hosts haven't checked in for over a week. Fleet reports that 1,136 of 12,480 are offline, flags 41 Broad ring workstations missing for 30+ days, and offers to open a pull request. The admin says yes, and Fleet opens PR #1284 to enforce a 3-day Windows update deadline, pending their review.">
             <div purpose="teams-window" aria-hidden="true">
-              <img purpose="teams-chrome" alt="" src="/images/teams-chat-window-1044x576.svg">
+              <picture purpose="teams-chrome">
+                <source media="(max-width: 767px)" srcset="/images/teams-chat-window-mobile-492x576.svg">
+                <source media="(max-width: 991px)" srcset="/images/teams-chat-window-tablet-844x576.svg">
+                <img alt="" src="/images/teams-chat-window-1044x576.svg">
+              </picture>
               <div purpose="teams-messages">
                 <div purpose="teams-message-stack">
                   <div purpose="teams-first-message">
