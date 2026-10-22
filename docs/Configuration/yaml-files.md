@@ -502,7 +502,6 @@ controls:
     enable_end_user_authentication: true
     apple_enable_release_device_manually: true
     apple_setup_assistant: ../lib/dep-profile.json
-    macos_script: ../lib/macos-setup-script.sh
     enable_managed_local_account: true
   macos_migration: # Available in Fleet Premium
     enable: true
@@ -608,7 +607,8 @@ The `setup_experience` section lets you control the out-of-the-box [setup experi
 - `require_all_software` specifies whether to cancel setup on a macOS host if any software installs fail.
 - `apple_enable_release_device_manually` when enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. Applies to Apple (macOS, iOS, iPadOS) hosts that automatically enroll via Apple Business (AB).
 - `apple_setup_assistant` is a path to a custom [automatic enrollment (ADE) profile](https://support.apple.com/guide/deployment/automated-device-enrollment-management-dep73069dd57/web) (.json). Applies to macOS and iOS/iPadOS hosts.
-- `macos_script` is the path to a custom setup script to run after the host is first set up. Applies to macOS only.
+
+> To run a script during setup, add a script-only package (.sh file) to software.packages with `setup_experience: true`. See [software](https://fleetdm.com/docs/configuration/yaml-files#software).
 
 `enable_managed_local_account` and `end_user_local_account_type` at this level are deprecated. 
 Please use the platform-specific `apple_settings.managed_local_account_settings`, `apple_settings.end_user_local_account_type`, or `windows_settings.enable_managed_local_account` instead.
@@ -625,7 +625,6 @@ setup_experience:
   lock_end_user_info: true
   apple_enable_release_device_manually: false
   apple_setup_assistant: "./setup_assistant.json"
-  macos_script: "./post_setup.sh"
 ```
 
 ### macos_migration
