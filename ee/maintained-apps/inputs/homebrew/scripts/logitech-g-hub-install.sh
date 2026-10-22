@@ -109,6 +109,7 @@ EXIT_CODE=$?
 rm -rf "$TMPDIR/lghub_installer.app" "$TMPDIR/__MACOSX"
 if [ $EXIT_CODE -ne 0 ]; then
   echo "Error: Installer exited with code $EXIT_CODE" >&2
+  relaunch_application 'com.logi.ghub'
   exit $EXIT_CODE
 fi
 
