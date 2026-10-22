@@ -4062,6 +4062,20 @@
       "description": "Grids is an instagram desktop application."
     },
     {
+      "name": "Grok Bot",
+      "slug": "grok-bot/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.anysphere.sand",
+      "description": "Grok Bot is an AI teammate that works across your apps and tools."
+    },
+    {
+      "name": "Grok Bot",
+      "slug": "grok-bot/windows",
+      "platform": "windows",
+      "unique_identifier": "Grok Bot",
+      "description": "Grok Bot is an AI teammate that works across your apps and tools."
+    },
+    {
       "name": "Groove OmniDialer",
       "slug": "groove-omnidialer/darwin",
       "platform": "darwin",
@@ -5082,6 +5096,13 @@
       "platform": "windows",
       "unique_identifier": "Logi Options+",
       "description": "Logi Options+ is software for managing Logitech devices."
+    },
+    {
+      "name": "Logitech G HUB",
+      "slug": "logitech-g-hub/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.logi.ghub",
+      "description": "Logitech G HUB is software for customizing Logitech G gaming gear."
     },
     {
       "name": "Logitech Unifying Software",
@@ -8220,6 +8241,13 @@
       "description": "Splashtop Streamer is used to connect to and control computers."
     },
     {
+      "name": "Splashtop Streamer",
+      "slug": "splashtop-streamer/windows",
+      "platform": "windows",
+      "unique_identifier": "Splashtop Streamer",
+      "description": "Splashtop Streamer is used to connect to and control computers."
+    },
+    {
       "name": "Splice",
       "slug": "splice/darwin",
       "platform": "darwin",
@@ -9114,6 +9142,13 @@
       "platform": "darwin",
       "unique_identifier": "com.unity3d.unityhub",
       "description": "Unity Hub is a management tool for Unity."
+    },
+    {
+      "name": "UnnaturalScrollWheels",
+      "slug": "unnaturalscrollwheels/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.theron.UnnaturalScrollWheels",
+      "description": "UnnaturalScrollWheels is a utility that inverts the scroll direction of physical scroll wheels independently of the trackpad."
     },
     {
       "name": "Upscayl",

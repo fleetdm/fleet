@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.7.12",
+      "version": "2.8.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.keepassx.keepassxc';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.keepassx.keepassxc' AND version_compare(bundle_short_version, '2.7.12') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.keepassx.keepassxc' AND version_compare(bundle_short_version, '2.8.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.keepassx.keepassxc' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/keepassxreboot/keepassxc/releases/download/2.7.12/KeePassXC-2.7.12-arm64.dmg",
+      "installer_url": "https://github.com/keepassxreboot/keepassxc/releases/download/2.8.0/KeePassXC-2.8.0-arm64.dmg",
       "install_script_ref": "56418a51",
       "uninstall_script_ref": "f5eeb917",
-      "sha256": "65f4f63607180c0a15794b4a4068f85e99ed5391c87c1fb9312648f1b36fed40",
+      "sha256": "223d5c71ae6c11d48192c69fd582fd5f10047e91ebcebc014de33a42539b9519",
       "default_categories": [
         "Productivity"
       ]

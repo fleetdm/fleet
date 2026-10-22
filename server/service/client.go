@@ -839,6 +839,9 @@ func (c *Client) ApplyGroup(
 			// Since we just updated AppConfig, we don't want to get a stale (cached) AppConfig on the server if
 			// this HTTP request gets routed to another Fleet server.
 			profilesSpecOptions.NoCache = true
+			warnDeletedWindowsProfiles := c.windowsProfileDeletionWarning(appconfig,
+				&fleet.TeamSpecsDryRunAssumptions{WindowsEnabledAndConfigured: optjson.SetBool(assumeEnabled)},
+				nil, fleet.DisplayNameNoTeam, fileContents, logfn)
 			if err := c.ApplyNoTeamProfiles(fileContents, profilesSpecOptions, assumeEnabled); err != nil {
 				return nil, nil, nil, nil, fmt.Errorf("applying custom settings: %w", err)
 			}
@@ -847,6 +850,7 @@ func (c *Client) ApplyGroup(
 			} else {
 				logfn("[+] applied MDM profiles\n")
 			}
+			warnDeletedWindowsProfiles()
 		}
 	}
 
@@ -1152,9 +1156,12 @@ func (c *Client) ApplyGroup(
 					} else {
 						logfn("[+] applying MDM profiles for fleet %s\n", tmName)
 					}
+					warnDeletedWindowsProfiles := c.windowsProfileDeletionWarning(appconfig, teamProfilesOpts.DryRunAssumptions,
+						&teamID, tmName, profs, logfn)
 					if err := c.ApplyTeamProfiles(currentTeamName, profs, teamProfilesOpts); err != nil {
 						return nil, nil, nil, nil, fmt.Errorf("applying custom settings for fleet %q: %w", tmName, err)
 					}
+					warnDeletedWindowsProfiles()
 				}
 			}
 		}

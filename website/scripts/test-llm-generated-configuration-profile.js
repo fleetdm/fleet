@@ -8,15 +8,15 @@ module.exports = {
 
 
   extendedDescription:
-`The prompt comes from api/helpers/get-configuration-profile-generator-configuration.js, the same
-helper the public endpoint calls, so there is nothing to keep in sync -- only the model varies here.
+`Each generation goes through api/helpers/generate-configuration-profile.js, the same helper the public
+endpoint calls, so there is nothing to keep in sync -- only what is overridden here varies.
 
 Examples:
   sails run test-llm-generated-configuration-profile --profileType=csp --naturalLanguageInstructions="Require a device password"
   sails run test-llm-generated-configuration-profile
   sails run test-llm-generated-configuration-profile --profileType=mobileconfig --verbose
-  sails run test-llm-generated-configuration-profile --profileType=csp --baseModel=claude-haiku-4-5
-  sails run test-llm-generated-configuration-profile --profileType=ddm --baseModel=claude-haiku-4-5 --validateWithContour
+  sails run test-llm-generated-configuration-profile --profileType=csp --baseModel=claude-haiku-5-5 --disableThinking
+  sails run test-llm-generated-configuration-profile --profileType=ddm --baseModel=claude-sonnet-5-5 --effort=medium --validateWithContour
   sails run test-llm-generated-configuration-profile --profileType=ddm --naturalLanguageInstructions="Defer minor updates by 30 days" --parallelTests=5
   sails run test-llm-generated-configuration-profile --caseId=ddm-defer-minor-updates --parallelTests=5
   sails run test-llm-generated-configuration-profile --profileType=csp --parallelTests=5`,
@@ -37,8 +37,17 @@ Examples:
 
     baseModel: {
       type: 'string',
-      defaultsTo: 'claude-haiku-4-5',
-      description: 'The model to generate with.'
+      description: 'The model to generate with, instead of the one production generates each profile type with.'
+    },
+
+    effort: {
+      type: 'string',
+      description: 'The effort level to generate at, instead of the one production generates each profile type at.'
+    },
+
+    disableThinking: {
+      type: 'boolean',
+      description: 'Generate with thinking turned on (false) or off (true), instead of the way production generates each profile type.'
     },
 
     verbose: {
@@ -77,24 +86,37 @@ csp cases report as not-checked either way.`
 
     testLighterResponse: {
       type: 'boolean',
-      defaultsTo: false,
-      description: 'Whether or not to run the tests with a smaller response shape.'
+      defaultsTo: true,
+      description: 'Whether or not to run the tests with a smaller response shape, as production does.'
     },
 
     lookupAppleSchemaKeys: {
       type: 'boolean',
+      defaultsTo: true,
+      description: 'Whether or not to use the configuration helper\'s lookup functionality, as production does.'
+    },
+
+    asFleet: {
+      type: 'boolean',
       defaultsTo: false,
-      description: 'Whether or not to use the configuration helper\'s lookup functionality.'
-    }
+      description: 'Ask the way Fleet does, for the Apple platform rather than a profile type, so each request is routed to a declaration or a .mobileconfig first.',
+      extendedDescription: 'Runs only the Apple cases, checks where each was routed, and scores it against its Fleet expectations.  With --naturalLanguageInstructions, no --profileType is needed.'
+    },
+
+    writeProfilesFromSettings: {
+      type: 'boolean',
+      defaultsTo: true,
+      description: 'Whether to have the model return each .mobileconfig\'s payloads and each Windows profile\'s commands, as production does, rather than write the document itself.',
+    },
 
   },
 
 
-  fn: async function ({profileType, naturalLanguageInstructions, baseModel, verbose, validateWithContour, parallelTests, caseId, testLighterResponse, lookupAppleSchemaKeys}) {
+  fn: async function ({profileType, naturalLanguageInstructions, baseModel, effort, disableThinking, verbose, validateWithContour, parallelTests, caseId, testLighterResponse, lookupAppleSchemaKeys, asFleet, writeProfilesFromSettings}) {
 
     let path = require('path');
     let util = require('util');
-    let { TEST_CASES, checkExpectations } = require('../profile-generator/configuration-profile-generator-cases');
+    let { TEST_CASES, checkExpectations, fleetRequestFor, isWorthRetryingAfterAPause } = require('../profile-generator/configuration-profile-generator-cases');
 
     const MAX_ELAPSED_MS = 10000;
 
@@ -102,12 +124,20 @@ csp cases report as not-checked either way.`
     if(naturalLanguageInstructions || caseId) {
       runAllTestCases = false;
     }
-    if(naturalLanguageInstructions && !profileType){
+    if(naturalLanguageInstructions && !profileType && !asFleet){
       throw new Error(`A profileType is required to run this script with a naturalLanguageInstructions input, please run this script again with a --profileType input set to the type of profile you want to test generating. (example: --profileType=ddm)`);
     }
     if(parallelTests < 1) {
       throw new Error(`--parallelTests must be at least 1 (got ${parallelTests}).`);
     }
+
+    // What the generations were run with, for the transcript and its filename.
+    let generationLabel = _.compact([
+      baseModel || 'production models',
+      effort ? `effort ${effort}` : undefined,
+      disableThinking === true ? 'thinking off' : disableThinking === false ? 'thinking on' : undefined,
+      asFleet ? 'as Fleet' : undefined,
+    ]).join(', ');
 
     // Resolved before anything is spent.  Listing near-misses matters with this many cases: a bare
     // "not found" on a mistyped id means paging back through the file to find the right spelling.
@@ -127,6 +157,9 @@ csp cases report as not-checked either way.`
         throw new Error(`--profileType is "${profileType}" but the case "${caseId}" is a ${chosenCase.profileType} case.  Leave --profileType off; the id already implies it.`);
       }
       profileType = chosenCase.profileType;
+      if(asFleet && !fleetRequestFor(chosenCase)) {
+        throw new Error(`The case "${caseId}" does not run as a Fleet request (Fleet asks by platform only for Apple cases, and a case can opt out with \`fleet: false\`), so --asFleet would check nothing.  Leave --asFleet off, or pick an Apple case.`);
+      }
     }
 
     // Checked once, up front, rather than per case: a missing binary is a setup mistake, and finding out
@@ -189,10 +222,12 @@ csp cases report as not-checked either way.`
       'Inputs:\n' +
       `profileType: ${profileType || '(every type)'}\n` +
       (runAllTestCases ? 'Run all tests: true\n' : caseId ? `caseId: ${caseId}\n` : `naturalLanguageInstructions: ${naturalLanguageInstructions}\n`) +
-      `LLM model used: ${baseModel}\n` +
+      `Generated with: ${generationLabel}\n` +
       (parallelTests > 1 ? `parallelTests: ${parallelTests}\n` : '') +
       `Using smaller response shape: ${testLighterResponse}\n` +
       `Looking up apple payloads for mobileconfig profiles: ${lookupAppleSchemaKeys}\n` +
+      `Writing .mobileconfig and Windows profiles from settings: ${writeProfilesFromSettings}\n` +
+      `Asking as Fleet does: ${asFleet}\n` +
       `verbose: ${verbose}\n` +
       '----------'
     );
@@ -200,7 +235,7 @@ csp cases report as not-checked either way.`
     let cases;
     if(runAllTestCases) {
       cases = _.filter(TEST_CASES, (testCase)=>{
-        return !profileType || testCase.profileType === profileType;
+        return (!profileType || testCase.profileType === profileType) && (!asFleet || fleetRequestFor(testCase));
       });
       if(cases.length === 0) {
         throw new Error(`No cases defined for profileType "${profileType}".`);
@@ -216,33 +251,35 @@ csp cases report as not-checked either way.`
     // Wrapped in an IIFE so the request goes out now rather than when it is awaited: a Sails deferred
     // does not start until something awaits it.  elapsedMs is measured per call, so it stays the model's
     // latency rather than the batch's wall clock.
+    //
+    // A generation the API rate-limited or was too overloaded to serve is retried once, after a pause, and
+    // timed from the retry, as the test suite does: it says how many requests were in flight, not anything
+    // about the prompt.
     let startGenerating = (testCase)=>{
       return (async ()=>{
-        let startedAt = Date.now();
-        try {
-          // The helper supplies the PayloadUUIDs, and it is called once per run, so parallel repeats
-          // of one case still get their own set.
-          let generatorConfiguration = await sails.helpers.getConfigurationProfileGeneratorConfiguration.with({
-            profileType: testCase.profileType,
-            naturalLanguageInstructions: testCase.instructions,
-            useLighterResponseShape: testLighterResponse,
-            useApplePayloadTypeLookup: lookupAppleSchemaKeys,
-          });
-          let rawResult = await sails.helpers.ai.prompt.with({
-            systemPrompt: generatorConfiguration.systemPrompt,
-            prompt: generatorConfiguration.userPrompt,
-            baseModel,
-            expectJson: true,
-          });
-          // The same step the action runs, so a case is checked against the profile an admin would download.
-          if(testCase.profileType === 'csp' && rawResult.configurationProfile) {
-            let withAdmxInstalls = await sails.helpers.addAdmxInstallCommandsToWindowsProfile.with({ profile: rawResult.configurationProfile });
-            rawResult.configurationProfile = withAdmxInstalls.profile;
-            rawResult.deliveryNotes = _.compact([rawResult.deliveryNotes].concat(withAdmxInstalls.deliveryNotes)).join(' ');
+        for (let attempt = 1; ; attempt++) {
+          let startedAt = Date.now();
+          try {
+            let generationResult = await sails.helpers.generateConfigurationProfile.with({
+              profileType: asFleet ? undefined : testCase.profileType,
+              platform: asFleet ? 'apple' : undefined,
+              forFleet: asFleet,
+              naturalLanguageInstructions: testCase.instructions,
+              baseModel,
+              effort,
+              disableThinking,
+              useLighterResponseShape: testLighterResponse,
+              useApplePayloadTypeLookup: lookupAppleSchemaKeys,
+              writeProfilesFromSettings,
+            });
+            return { generationResult, elapsedMs: Date.now() - startedAt };
+          } catch (err) {
+            if(attempt === 1 && isWorthRetryingAfterAPause(err)) {
+              await new Promise((resolve)=>{ setTimeout(resolve, 3000); });
+              continue;
+            }
+            return { unexpectedError: err, elapsedMs: Date.now() - startedAt };
           }
-          return { rawResult, elapsedMs: Date.now() - startedAt };
-        } catch (err) {
-          return { unexpectedError: err, elapsedMs: Date.now() - startedAt };
         }
       })();
     };
@@ -266,39 +303,38 @@ csp cases report as not-checked either way.`
 
         // Awaited in order even when they finished out of order, so the transcript reads predictably.
         let outcome = await repeatsInFlight[repeatIdx];
-        let rawResult = outcome.rawResult;
+        let generationResult = outcome.generationResult;
         let unexpectedError = outcome.unexpectedError;
         let elapsedMs = outcome.elapsedMs;
         // Numbered only when there is more than one, so a single run still reads as the plain id.
         let displayId = parallelTests > 1 ? `${testCase.id} #${repeatIdx + 1}` : testCase.id;
+        // Ad-hoc instructions asked as Fleet have no profile type until they are routed.
+        let caseProfileType = testCase.profileType || 'apple';
 
-        // Mirror the action's own acceptance test: an abstention, or a response missing any
-        // required key, is not a usable profile.
-        let abstained = !unexpectedError && (
-          rawResult.couldNotGenerateProfile ||
-        !rawResult.configurationProfile ||
-        !rawResult.profileFilename ||
-        !rawResult.settingsEnforced
-        );
-        let generatedProfile = (unexpectedError || abstained) ? undefined : {
-          profile: rawResult.configurationProfile,
-          profileFilename: rawResult.profileFilename,
-          deliveryNotes: rawResult.deliveryNotes,
-          items: rawResult.settingsEnforced,
-        };
+        let abstained = !unexpectedError && generationResult.couldNotGenerateProfile;
+        let generatedProfile = (unexpectedError || abstained) ? undefined : generationResult.generatedProfile;
 
-        let expectations = testCase.expect || {};
+        let fleetRequest = asFleet ? fleetRequestFor(testCase) : undefined;
+        let expectations = (asFleet ? (fleetRequest && fleetRequest.expect) : testCase.expect) || {};
+        let routedTo = asFleet && generationResult ? (generationResult.route && generationResult.route.couldNotGenerateProfile ? 'decline' : generationResult.profileType) : undefined;
         let checkFailures;
         if(unexpectedError) {
         // Distinguished from an abstention on purpose: collapsing them would hide a
         // misconfigured anthropicSecret as a model refusal.
           checkFailures = [`unexpected error: ${unexpectedError.message}`];
+        } else if(abstained && generationResult.contentDidNotMatchProfileType) {
+          // Content of the wrong type is a broken generation, not the model declining, even where declining was the right answer.
+          checkFailures = [`generated content that is not a ${generationResult.profileType} profile`];
         } else if(abstained) {
           checkFailures = expectations.expectFailure ? [] : [
-            `abstained but a profile was expected -- reason given: ${JSON.stringify(rawResult.reasonWhyAProfileCouldNotBeGenerated || '(none)')}`
+            `abstained but a profile was expected -- reason given: ${JSON.stringify(generationResult.reasonWhyAProfileCouldNotBeGenerated || '(none)')}`
           ];
         } else {
           checkFailures = checkExpectations(expectations, generatedProfile);
+        }
+
+        if(generationResult && fleetRequest && fleetRequest.routesTo && routedTo !== fleetRequest.routesTo) {
+          checkFailures = [`routed to ${routedTo} rather than ${fleetRequest.routesTo} (${generationResult.route.decidedBecause})`].concat(checkFailures);
         }
 
         if(elapsedMs > MAX_ELAPSED_MS) {
@@ -313,7 +349,7 @@ csp cases report as not-checked either way.`
         // warnings would turn the suite red for reasons unrelated to what each case is testing.
         let contourResult;
         if(validateWithContour && generatedProfile) {
-          contourResult = await runContourValidation(testCase.profileType, generatedProfile.profile);
+          contourResult = await runContourValidation(generationResult.profileType, generatedProfile.profile);
           checkFailures = checkFailures.concat(_.map(contourResult.errors, (contourError)=>{
             return `contour: ${contourError}`;
           }));
@@ -323,7 +359,7 @@ csp cases report as not-checked either way.`
           id: displayId,
           // The base id, so repeats of one case can be grouped back together for the failure rate.
           caseId: testCase.id,
-          profileType: testCase.profileType,
+          profileType: caseProfileType,
           canary: !!testCase.canary,
           elapsedMs,
           checkFailures,
@@ -335,9 +371,10 @@ csp cases report as not-checked either way.`
         // makes a slow run indistinguishable from a hung one.
         report(
         `${String(elapsedMs).padStart(6)}ms  ` +
-        `${testCase.profileType.padEnd(13)} ` +
+        `${caseProfileType.padEnd(13)} ` +
         `${String(displayId).padEnd(38)} ` +
-        `${checkFailures.length === 0 ? 'ok' : 'FAILED'}`
+        `${checkFailures.length === 0 ? 'ok' : 'FAILED'}` +
+        (generationResult ? `  (${routedTo ? `routed to ${routedTo} in ${generationResult.timings.routingMs}ms, ` : ''}lookups ${generationResult.timings.configurationMs}ms, generation ${generationResult.timings.generationMs}ms)` : '')
         );
         for (let checkFailure of checkFailures) {
           report(`         └─ ${checkFailure}`);
@@ -355,7 +392,7 @@ csp cases report as not-checked either way.`
         if(generatedProfile) {
           let banner = testCase.canary && checkFailures.length === 0 ? 'CANARY, automated checks passed -- confirm by eye' : testCase.canary ? 'CANARY, FAILED' : checkFailures.length > 0 ? 'FAILED' : 'ok';
           let caseDetailLines = [
-            `\n──── ${displayId} @ (${baseModel}) -- ${banner} ────`,
+            `\n──── ${displayId} @ (${generationLabel}) -- ${banner} ────`,
             `instructions: ${testCase.instructions}`,
           ];
           if(testCase.readByEye) {
@@ -405,7 +442,7 @@ csp cases report as not-checked either way.`
     // Back to the section that gets assembled directly under the inputs header, ahead of the per-case details.
     transcriptSection = summaryLines;
 
-    for (let tableLine of buildResultsTable(results, baseModel, parallelTests)) {
+    for (let tableLine of buildResultsTable(results, generationLabel, parallelTests)) {
       reportWithoutLogPrefix(tableLine);
     }
 
@@ -413,7 +450,7 @@ csp cases report as not-checked either way.`
     let passing = _.filter(results, (result)=>{ return result.checkFailures.length === 0; });
     let elapsedTimes = _.pluck(results, 'elapsedMs').sort((a, b)=>{ return a - b; });
     report(
-      `${String(baseModel).padEnd(8)} ` +
+      `${generationLabel}  ` +
       `passed ${passing.length}/${results.length}  ` +
       `median ${elapsedTimes[Math.floor(elapsedTimes.length / 2)]}ms  ` +
       `slowest ${_.last(elapsedTimes)}ms`
@@ -448,7 +485,8 @@ csp cases report as not-checked either way.`
 
     if(verbose) {
       let citations = _.uniq(_.flatten(_.map(_.filter(results, 'generatedProfile'), (result)=>{
-        return _.map(result.generatedProfile.items || [], (item)=>{ return `${result.id}: ${item.schemaReference}`; });
+        // The lighter response shape asks for no schemaReference, so there is nothing to cite.
+        return _.map(_.filter(result.generatedProfile.items || [], 'schemaReference'), (item)=>{ return `${result.id}: ${item.schemaReference}`; });
       })));
       report(`\n${citations.length} citation(s) to spot-check against the published reference:`);
       for (let citation of citations) {
@@ -513,7 +551,7 @@ csp cases report as not-checked either way.`
     let transcriptPath = path.resolve(
       sails.config.appPath,
       `test-results/${profileType ? profileType : 'all'}`,
-      `${(new Date().toLocaleString()).replace(/\/|\:/g, '-')} - ${profileType || 'all'} - (${testLighterResponse ? 'light-response' : 'full-response'}) ${baseModel}${whatWasRunForFilename}.txt`
+      `${(new Date().toLocaleString()).replace(/\/|\:/g, '-')} - ${profileType || 'all'} - (${testLighterResponse ? 'light-response' : 'full-response'}) ${generationLabel}${whatWasRunForFilename}.txt`
     );
     // The reordering the three sections exist for: what ran, then how it went, then the evidence.
     await sails.helpers.fs.write(transcriptPath, headerLines.concat(summaryLines, detailLines).join('\n'), true);
@@ -671,10 +709,10 @@ async function runContourValidation(profileType, profile) {
  * sails.log prefix that would break column alignment, and the saved transcript.
  *
  * @param  {Array} results
- * @param  {String} baseModel
+ * @param  {String} generationLabel
  * @returns {Array} lines
  */
-function buildResultsTable(results, baseModel, parallelTests) {
+function buildResultsTable(results, generationLabel, parallelTests) {
   // An asterisk rather than a separate column: it keeps the case name and its weight together, and
   // the name column is already the widest thing in the table.
   let nameFor = (name, isCanary)=>{ return isCanary ? `${name} *` : name; };
@@ -689,7 +727,7 @@ function buildResultsTable(results, baseModel, parallelTests) {
     // fails, not what any single run did -- a case that fails two times in five is a different problem
     // from one that fails every time, and a flat list of runs hides which is which.
     let caseIdsInOrder = _.uniq(_.pluck(results, 'caseId'));
-    lines = [`\n=== Results (${baseModel}, ${parallelTests} runs per case) ===`].concat(buildTable(
+    lines = [`\n=== Results (${generationLabel}, ${parallelTests} runs per case) ===`].concat(buildTable(
       ['case', 'type', 'passed', 'fail rate', 'median ms'],
       _.map(caseIdsInOrder, (caseId)=>{
         let runsOfThisCase = _.where(results, { caseId });
@@ -706,7 +744,7 @@ function buildResultsTable(results, baseModel, parallelTests) {
       ['left', 'left', 'right', 'right', 'right']
     ));
   } else {
-    lines = [`\n=== Results (${baseModel}) ===`].concat(buildTable(
+    lines = [`\n=== Results (${generationLabel}) ===`].concat(buildTable(
       ['case', 'type', 'ms', 'result'],
       _.map(results, (result)=>{
         return [nameFor(result.id, result.canary), result.profileType, String(result.elapsedMs), result.checkFailures.length === 0 ? 'ok' : `FAIL ${result.checkFailures.length}`];

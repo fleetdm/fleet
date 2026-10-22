@@ -3597,9 +3597,9 @@ type Datastore interface {
 	// the given software installer id.
 	GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*SoftwareInstallerStatusSummary, error)
 
-	// GetSummaryHostVPPAppInstalls returns the VPP app install summary for the
-	// given vpp_apps_teams row.
-	GetSummaryHostVPPAppInstalls(ctx context.Context, vppAppTeamID uint) (*VPPAppStatusSummary, error)
+	// GetSummaryHostVPPAppInstalls returns the VPP app install summary of the given versions of an app in a fleet,
+	// keyed by vpp_apps_teams id. Pass all versions of the app, a host counts once per status across them.
+	GetSummaryHostVPPAppInstalls(ctx context.Context, versions []*VPPAppStoreApp) (map[uint]*VPPAppStatusSummary, error)
 
 	GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*HostSoftwareInstallerResult, error)
 
@@ -4676,9 +4676,13 @@ type AndroidDatastore interface {
 	// version <= the provided policy version.
 	ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*HostAndroidVPPSoftwareInstall, error)
 
+	// ListHostMDMAndroidVPPAppsLatestFailedInstall lists the Android VPP apps
+	// whose most recent install on the host failed.
+	ListHostMDMAndroidVPPAppsLatestFailedInstall(ctx context.Context, hostID uint) ([]*HostAndroidVPPSoftwareInstall, error)
+
 	// BulkSetVPPInstallsAsVerified marks all VPP apps identified by the command UUIDs
-	// as verified. This is for Android hosts, where the verification uuid is not important,
-	// so the implementation generates a random one.
+	// as verified, clearing any earlier failure. This is for Android hosts, where the
+	// verification uuid is not important, so the implementation generates a random one.
 	BulkSetVPPInstallsAsVerified(ctx context.Context, hostID uint, commandUUIDs []string) error
 
 	// BulkSetVPPInstallsAsFailed marks all VPP apps identified by the command UUIDs

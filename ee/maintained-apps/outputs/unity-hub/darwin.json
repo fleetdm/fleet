@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.22.3",
+      "version": "3.22.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.unity3d.unityhub';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.unity3d.unityhub' AND version_compare(bundle_short_version, '3.22.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.unity3d.unityhub' AND version_compare(bundle_short_version, '3.22.4') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.unity3d.unityhub' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://public-cdn.cloud.unity3d.com/hub/prod/3.22.3/UnityHubSetup-3.22.3-arm64.dmg",
+      "installer_url": "https://public-cdn.cloud.unity3d.com/hub/prod/3.22.4/UnityHubSetup-3.22.4-arm64.dmg",
       "install_script_ref": "4598f38d",
       "uninstall_script_ref": "5b95ff58",
-      "sha256": "a6794e2c8173f72910d630dade43003a37cf45db638cb4df079d23f63ebd970e",
+      "sha256": "9a76c03b8a02e5c61be79b877972a73b093de4eb31b8eb511932744af6f0fc9b",
       "default_categories": [
         "Productivity"
       ]

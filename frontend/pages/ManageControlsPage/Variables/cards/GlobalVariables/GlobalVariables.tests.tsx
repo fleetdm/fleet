@@ -194,6 +194,30 @@ describe("Custom variables", () => {
       ).toBeInTheDocument();
     });
 
+    it("renders a long name in a truncating cell and the created date as relative time", async () => {
+      const longName = `LONG_${"VARIABLE_NAME_".repeat(10)}END`;
+      // The API returns created_at with microsecond precision.
+      const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .replace(/Z$/, "123Z");
+      variablesResponse.variables = [
+        {
+          id: 3,
+          name: longName,
+          created_at: twoDaysAgo,
+          updated_at: twoDaysAgo,
+        },
+      ];
+
+      render(<GlobalVariables {...baseProps} />);
+
+      await waitFor(() => {
+        expect(screen.getByText(longName, CELL_TEXT)).toBeInTheDocument();
+      });
+      expect(screen.getByText("2 days ago")).toBeInTheDocument();
+      expect(screen.queryByText("Invalid date")).not.toBeInTheDocument();
+    });
+
     it("shows the copy button but not delete when user cannot edit", async () => {
       const renderReadOnly = createCustomRenderer({
         withBackendMock: true,

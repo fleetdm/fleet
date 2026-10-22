@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.4.1",
+      "version": "3.4.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.vorssaint.utils';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.vorssaint.utils' AND version_compare(bundle_short_version, '3.4.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.vorssaint.utils' AND version_compare(bundle_short_version, '3.4.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.vorssaint.utils' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/vorssaint/vorssaint-utils/releases/download/v3.4.1/Vorssaint-3.4.1.dmg",
+      "installer_url": "https://github.com/vorssaint/vorssaint-utils/releases/download/v3.4.2/Vorssaint-3.4.2.dmg",
       "install_script_ref": "ee499a32",
       "uninstall_script_ref": "3185693d",
-      "sha256": "d3cebdd07795826294d821946cb1d40f5e8b85d2883a81153c552046cc80ab3a",
+      "sha256": "dbb3ff76c94313416ceac00774fc5a36ed310115f5422f365dfa014cde4214d7",
       "default_categories": [
         "Productivity"
       ]

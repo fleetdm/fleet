@@ -107,13 +107,31 @@ ORDER BY vat.id`
 		}
 	}
 
+	versionIDs := make([]uint, 0, len(versions))
 	for _, app := range versions {
-		labels, err := ds.getVPPAppLabels(ctx, app.VPPAppsTeamsID)
+		versionIDs = append(versionIDs, app.VPPAppsTeamsID)
+	}
+	labelsByVersionID, err := ds.getVPPAppLabels(ctx, versionIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get vpp app labels")
+	}
+	categoriesByVersionID, err := ds.getCategoriesForVPPApps(ctx, versionIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Select configuration separately because we can't scan NULL into json.RawMessage, if this is for a fleet
+	var configurationByVersionID map[uint][]byte
+	if teamID != nil {
+		configurationByVersionID, err = ds.BulkGetVPPAppConfigurations(ctx, versionIDs)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "get vpp app labels")
+			return nil, ctxerr.Wrap(ctx, err, "get configuration for app store app")
 		}
+	}
+
+	for _, app := range versions {
 		var exclAny, inclAny, inclAll []fleet.SoftwareScopeLabel
-		for _, l := range labels {
+		for _, l := range labelsByVersionID[app.VPPAppsTeamsID] {
 			switch {
 			case l.Exclude && !l.RequireAll:
 				exclAny = append(exclAny, l)
@@ -139,22 +157,11 @@ ORDER BY vat.id`
 		app.LabelsIncludeAny = inclAny
 		app.LabelsIncludeAll = inclAll
 
-		categories, err := ds.getCategoriesForVPPApp(ctx, app.VPPAppsTeamsID)
-		if err != nil {
-			return nil, err
-		}
-		app.Categories = categories
+		app.Categories = categoriesByVersionID[app.VPPAppsTeamsID]
 
 		app.DisplayName = displayName
 
-		// Select configuration separately because we can't scan NULL into json.RawMessage
-		var configuration []byte
-		err = sqlx.GetContext(ctx, ds.reader(ctx), &configuration,
-			`SELECT configuration FROM vpp_apps_teams WHERE id = ? AND global_or_team_id = ?`, app.VPPAppsTeamsID, tmID)
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return nil, ctxerr.Wrap(ctx, err, "get configuration for app store app")
-		}
-		if configuration != nil {
+		if configuration, ok := configurationByVersionID[app.VPPAppsTeamsID]; ok {
 			app.Configuration = configuration
 		}
 
@@ -167,25 +174,37 @@ ORDER BY vat.id`
 	return versions, nil
 }
 
-func (ds *Datastore) getCategoriesForVPPApp(ctx context.Context, vppAppsTeamID uint) ([]string, error) {
-	stmt := `
+func (ds *Datastore) getCategoriesForVPPApps(ctx context.Context, vppAppsTeamIDs []uint) (map[uint][]string, error) {
+	stmt, args, err := sqlx.In(`
 SELECT
+	vatsc.vpp_app_team_id,
 	sc.name
 FROM software_categories sc
 JOIN vpp_app_team_software_categories vatsc ON sc.id = vatsc.software_category_id
-WHERE vatsc.vpp_app_team_id = ?`
-
-	var categories []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &categories, stmt, vppAppsTeamID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get categories for vpp app")
+WHERE vatsc.vpp_app_team_id IN (?)`, vppAppsTeamIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build get categories for vpp apps query")
 	}
 
-	return categories, nil
+	var categories []struct {
+		VPPAppsTeamsID uint   `db:"vpp_app_team_id"`
+		Name           string `db:"name"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &categories, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get categories for vpp apps")
+	}
+
+	categoriesByVersionID := make(map[uint][]string, len(vppAppsTeamIDs))
+	for _, category := range categories {
+		categoriesByVersionID[category.VPPAppsTeamsID] = append(categoriesByVersionID[category.VPPAppsTeamsID], category.Name)
+	}
+	return categoriesByVersionID, nil
 }
 
-func (ds *Datastore) getVPPAppLabels(ctx context.Context, vppAppsTeamsID uint) ([]fleet.SoftwareScopeLabel, error) {
-	query := `
+func (ds *Datastore) getVPPAppLabels(ctx context.Context, vppAppsTeamsIDs []uint) (map[uint][]fleet.SoftwareScopeLabel, error) {
+	query, args, err := sqlx.In(`
 SELECT
+	vatl.vpp_app_team_id,
 	label_id,
 	exclude,
 	l.name AS label_name,
@@ -197,129 +216,136 @@ FROM
 	JOIN vpp_apps va ON va.adam_id = vat.adam_id
 	JOIN labels l ON l.id = vatl.label_id
 WHERE
-	vatl.vpp_app_team_id = ? AND va.platform = vat.platform
-`
+	vatl.vpp_app_team_id IN (?) AND va.platform = vat.platform
+`, vppAppsTeamsIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build get vpp app labels query")
+	}
 
-	var labels []fleet.SoftwareScopeLabel
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, query, vppAppsTeamsID); err != nil {
+	var labels []struct {
+		VPPAppsTeamsID uint `db:"vpp_app_team_id"`
+		fleet.SoftwareScopeLabel
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, query, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get vpp app labels")
 	}
 
-	return labels, nil
+	labelsByVersionID := make(map[uint][]fleet.SoftwareScopeLabel, len(vppAppsTeamsIDs))
+	for _, label := range labels {
+		labelsByVersionID[label.VPPAppsTeamsID] = append(labelsByVersionID[label.VPPAppsTeamsID], label.SoftwareScopeLabel)
+	}
+	return labelsByVersionID, nil
 }
 
-func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, vppAppTeamID uint) (*fleet.VPPAppStatusSummary,
-	error,
-) {
-	var dest fleet.VPPAppStatusSummary
-
-	stmt := `
+// Select the status of an App Store app version on each host, counting at most one installed, one pending and one failed version per host.
+// The installed version is the latest successful install, failed and pending installs count only when they are newer than it.
+const vppAppVersionHostStatusesQuery = `
 WITH
 
--- select most recent upcoming activity per host (per activity type)
+-- select the latest upcoming activity of each host and version
 upcoming AS (
-	SELECT host_id, status FROM (
-		SELECT
-			ua.host_id,
-			:software_status_pending AS status,
-			ROW_NUMBER() OVER (
-				PARTITION BY ua.host_id, ua.activity_type
-				ORDER BY ua.priority ASC, ua.created_at DESC, ua.id DESC
-			) AS rn
-		FROM
-			upcoming_activities ua
-			JOIN vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
-			JOIN vpp_apps_teams vat ON vat.id = vaua.vpp_app_team_id
-			JOIN hosts h ON ua.host_id = h.id
-		WHERE
-			ua.activity_type = 'vpp_app_install'
-			AND vaua.vpp_app_team_id = :vpp_app_team_id
-			AND COALESCE(h.team_id, 0) = vat.global_or_team_id
-	) ranked
-	WHERE rn = 1
+	SELECT
+		ua.host_id,
+		vaua.vpp_app_team_id,
+		MAX(ua.id) AS id
+	FROM
+		upcoming_activities ua
+		JOIN vpp_app_upcoming_activities vaua ON ua.id = vaua.upcoming_activity_id
+		JOIN vpp_apps_teams vat ON vat.id = vaua.vpp_app_team_id
+		JOIN hosts h ON ua.host_id = h.id
+	WHERE
+		ua.activity_type = 'vpp_app_install'
+		AND vaua.vpp_app_team_id IN (:version_ids)
+		AND COALESCE(h.team_id, 0) = vat.global_or_team_id
+	GROUP BY ua.host_id, vaua.vpp_app_team_id
 ),
 
--- select most recent past activities for each host
+-- select the latest successful, failed and unfinished install of each host and version, reading only the index
 -- NOTE if you change this logic make sure to change vppAppHostStatusNamedQuery accordingly
-past AS (
+latest_installs AS (
 	SELECT
-		ranked.host_id,
-		CASE
-			WHEN ranked.verification_at IS NOT NULL THEN
-				:software_status_installed
-			WHEN ranked.verification_failed_at IS NOT NULL THEN
-				:software_status_failed
-			WHEN ncr.status = :mdm_status_error OR ncr.status = :mdm_status_format_error THEN
-				:software_status_failed
-			WHEN ncr.id IS NULL OR ncr.status = :mdm_status_acknowledged THEN
-				-- if ncr join is null this is an android vpp app
-				:software_status_pending
-			ELSE
-				NULL -- either pending or not installed via VPP App
-		END AS status
+		host_id,
+		vpp_app_team_id,
+		MAX(IF(verification_at IS NOT NULL, id, NULL)) AS installed_id,
+		MAX(IF(verification_at IS NULL AND verification_failed_at IS NOT NULL, id, NULL)) AS failed_id,
+		MAX(IF(verification_at IS NULL AND verification_failed_at IS NULL, id, NULL)) AS unfinished_id
+	FROM host_vpp_software_installs
+	WHERE vpp_app_team_id IN (:version_ids) AND canceled = 0 AND removed = 0
+	GROUP BY vpp_app_team_id, host_id
+),
+
+-- select the installs of each host and version in the version's fleet, counting unfinished Android installs as pending because Android installs bypass upcoming activities
+attempts AS (
+	SELECT
+		li.host_id,
+		li.vpp_app_team_id,
+		li.installed_id,
+		li.failed_id,
+		IF(vat.platform = 'android', li.unfinished_id, NULL) AS pending_id
+	FROM latest_installs li
+	JOIN hosts h ON h.id = li.host_id
+	JOIN vpp_apps_teams vat ON vat.id = li.vpp_app_team_id
+	WHERE COALESCE(h.team_id, 0) = vat.global_or_team_id
+),
+
+-- keep the version with the latest install of each status on each host
+latest AS (
+	SELECT
+		host_id,
+		vpp_app_team_id,
+		status,
+		install_id,
+		ROW_NUMBER() OVER (
+			PARTITION BY host_id, status
+			ORDER BY install_id DESC
+		) AS rn
 	FROM (
-		SELECT
-			hvsi.host_id,
-			hvsi.command_uuid,
-			hvsi.verification_at,
-			hvsi.verification_failed_at,
-			hvsi.platform,
-			h.uuid AS host_uuid,
-			ROW_NUMBER() OVER (
-				PARTITION BY hvsi.host_id
-				ORDER BY hvsi.created_at DESC, hvsi.id DESC
-			) AS rn
-		FROM
-			host_vpp_software_installs hvsi
-			JOIN hosts h ON hvsi.host_id = h.id
-			JOIN vpp_apps_teams vat ON vat.id = hvsi.vpp_app_team_id
-		WHERE
-			hvsi.vpp_app_team_id = :vpp_app_team_id
-			AND COALESCE(h.team_id, 0) = vat.global_or_team_id
-			AND hvsi.removed = 0
-			AND hvsi.canceled = 0
-	) ranked
-	LEFT JOIN nano_command_results ncr ON
-		ncr.id = ranked.host_uuid AND
-		ncr.command_uuid = ranked.command_uuid
-	WHERE
-		ranked.rn = 1
-		-- Allow rows with no nano_command_results — Android VPP never produces
-		-- one, and Fleet-side pre-flight failures (e.g. unresolvable
-		-- managed-config Fleet variable on iOS/iPadOS) record only the install
-		-- row with verification_failed_at set, no MDM command. The CASE above
-		-- maps verification_failed_at IS NOT NULL to failed ahead of the ncr
-		-- branches. This check runs after ranking, so a host whose most recent
-		-- row lacks a command result is dropped rather than falling back to an
-		-- older row.
-		AND (ncr.id IS NOT NULL OR ranked.verification_failed_at IS NOT NULL OR (ranked.platform = 'android' AND ncr.id IS NULL))
-		AND ranked.host_id NOT IN (SELECT host_id FROM upcoming) -- antijoin to exclude hosts with upcoming activities
+		SELECT host_id, vpp_app_team_id, :software_status_installed AS status, installed_id AS install_id FROM attempts WHERE installed_id IS NOT NULL
+		UNION ALL
+		SELECT host_id, vpp_app_team_id, :software_status_failed, failed_id FROM attempts WHERE failed_id IS NOT NULL
+		UNION ALL
+		SELECT host_id, vpp_app_team_id, :software_status_pending, pending_id FROM attempts WHERE pending_id IS NOT NULL
+		UNION ALL
+		-- Use the upcoming activity id as the install id, it's only compared with other upcoming activities because Android installs bypass them and a title's versions are all on one platform
+		SELECT host_id, vpp_app_team_id, :software_status_pending, id FROM upcoming
+	) statuses
 )
 
--- count each status
+-- Drop failed installs that are older than the host's latest successful install
 SELECT
+	l.host_id,
+	l.vpp_app_team_id,
+	l.status
+FROM latest l
+LEFT JOIN latest i ON i.host_id = l.host_id AND i.status = :software_status_installed AND i.rn = 1
+WHERE
+	l.rn = 1
+	AND (l.status != :software_status_failed OR i.host_id IS NULL OR l.install_id > i.install_id)`
+
+func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, versions []*fleet.VPPAppStoreApp) (map[uint]*fleet.VPPAppStatusSummary,
+	error,
+) {
+	summaries := make(map[uint]*fleet.VPPAppStatusSummary, len(versions))
+	versionIDs := make([]uint, 0, len(versions))
+	for _, version := range versions {
+		summaries[version.VPPAppsTeamsID] = &fleet.VPPAppStatusSummary{}
+		versionIDs = append(versionIDs, version.VPPAppsTeamsID)
+	}
+	if len(versionIDs) == 0 {
+		return summaries, nil
+	}
+
+	stmt := fmt.Sprintf(`
+SELECT
+	vpp_app_team_id,
 	COALESCE(SUM( IF(status = :software_status_pending, 1, 0)), 0) AS pending,
 	COALESCE(SUM( IF(status = :software_status_failed, 1, 0)), 0) AS failed,
 	COALESCE(SUM( IF(status = :software_status_installed, 1, 0)), 0) AS installed
-FROM (
-
--- union most recent past and upcoming activities after joining to get statuses for most recent activities
-SELECT
-	past.host_id,
-	past.status
-FROM past
-UNION
-SELECT
-	upcoming.host_id,
-	upcoming.status
-FROM upcoming
-) t`
+FROM (%s) t
+GROUP BY vpp_app_team_id`, vppAppVersionHostStatusesQuery)
 
 	query, args, err := sqlx.Named(stmt, map[string]interface{}{
-		"vpp_app_team_id":           vppAppTeamID,
-		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
-		"mdm_status_error":          fleet.MDMAppleStatusError,
-		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
+		"version_ids":               versionIDs,
 		"software_status_pending":   fleet.SoftwareInstallPending,
 		"software_status_failed":    fleet.SoftwareInstallFailed,
 		"software_status_installed": fleet.SoftwareInstalled,
@@ -327,12 +353,23 @@ FROM upcoming
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get summary host vpp installs: named query")
 	}
+	query, args, err = sqlx.In(query, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get summary host vpp installs: in query")
+	}
 
-	err = sqlx.GetContext(ctx, ds.reader(ctx), &dest, query, args...)
+	var versionSummaries []struct {
+		VPPAppTeamID uint `db:"vpp_app_team_id"`
+		fleet.VPPAppStatusSummary
+	}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &versionSummaries, query, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get summary host vpp install status")
 	}
-	return &dest, nil
+	for _, versionSummary := range versionSummaries {
+		summaries[versionSummary.VPPAppTeamID] = &versionSummary.VPPAppStatusSummary
+	}
+	return summaries, nil
 }
 
 // hvsiAlias is the table alias to use as prefix for the
@@ -387,14 +424,14 @@ func (ds *Datastore) BatchInsertVPPApps(ctx context.Context, apps []*fleet.VPPAp
 }
 
 func (ds *Datastore) getExistingLabels(ctx context.Context, vppAppTeamID uint) (*fleet.LabelIdentsWithScope, error) {
-	existingLabels, err := ds.getVPPAppLabels(ctx, vppAppTeamID)
+	existingLabels, err := ds.getVPPAppLabels(ctx, []uint{vppAppTeamID})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting existing labels")
 	}
 
 	var labels fleet.LabelIdentsWithScope
 	var exclAny, inclAny, inclAll []fleet.SoftwareScopeLabel
-	for _, l := range existingLabels {
+	for _, l := range existingLabels[vppAppTeamID] {
 		switch {
 		case l.Exclude && !l.RequireAll:
 			exclAny = append(exclAny, l)
