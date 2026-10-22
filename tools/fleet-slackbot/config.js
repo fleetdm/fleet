@@ -33,9 +33,15 @@ const config = {
   },
 };
 
-if (!Number.isSafeInteger(config.mcp.toolTimeoutMs) || config.mcp.toolTimeoutMs <= 0) {
+// Node clamps setTimeout delays above 2^31-1 to 1ms, which would fail every call instantly.
+const MAX_TIMEOUT_MS = 2147483647;
+if (
+  !Number.isSafeInteger(config.mcp.toolTimeoutMs) ||
+  config.mcp.toolTimeoutMs <= 0 ||
+  config.mcp.toolTimeoutMs > MAX_TIMEOUT_MS
+) {
   console.error(
-    `Invalid FLEET_MCP_TOOL_TIMEOUT_MS: ${process.env.FLEET_MCP_TOOL_TIMEOUT_MS} (must be a positive integer of milliseconds)`
+    `Invalid FLEET_MCP_TOOL_TIMEOUT_MS: ${process.env.FLEET_MCP_TOOL_TIMEOUT_MS} (must be an integer between 1 and ${MAX_TIMEOUT_MS} milliseconds)`
   );
   process.exit(1);
 }
