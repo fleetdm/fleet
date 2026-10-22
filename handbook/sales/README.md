@@ -216,7 +216,7 @@ All leads generated as a result of the CEO and Fleetie requests must be logged i
 
 ### Legal reviews
 
-When needing a contract to undergo legal review we use the follow processes for different types of agreements.
+When needing a contract to undergo legal review, we use the following processes for different types of agreements.
 
 #### NDAs
 - NDAs are emailed to Nathanael Holliday for review, CC Tina Ong.
