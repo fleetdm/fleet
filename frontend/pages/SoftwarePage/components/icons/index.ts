@@ -482,6 +482,7 @@ import Granola from "./png/Granola.png";
 import Graphviz from "./png/Graphviz.png";
 import Grepwin from "./png/Grepwin.png";
 import Grids from "./png/Grids.png";
+import GrokBot from "./png/GrokBot.png";
 import GrooveOmniDialer from "./png/GrooveOmniDialer.png";
 import Gyazo from "./png/Gyazo.png";
 import Hammerspoon from "./png/Hammerspoon.png";
@@ -601,6 +602,7 @@ import Local from "./png/Local.png";
 import Localsend from "./png/Localsend.png";
 import Locationsimulator from "./png/Locationsimulator.png";
 import Logioptionsplus from "./png/Logioptionsplus.png";
+import LogitechGHub from "./png/LogitechGHub.png";
 import LogitechUnifyingSoftware from "./png/LogitechUnifyingSoftware.png";
 import LogiTune from "./png/LogiTune.png";
 import Logseq from "./png/Logseq.png";
@@ -849,6 +851,7 @@ import PyCharmCe from "./png/PyCharmCe.png";
 import Python313 from "./png/Python313.png";
 import Python314 from "./png/Python314.png";
 import Qemu from "./png/Qemu.png";
+import Qgis from "./png/Qgis.png";
 import Qlab from "./png/Qlab.png";
 import Qlmarkdown from "./png/Qlmarkdown.png";
 import QspacePro from "./png/QspacePro.png";
@@ -1064,6 +1067,7 @@ import UltimakerCura from "./png/UltimakerCura.png";
 import Unclutter from "./png/Unclutter.png";
 import Unicodechecker from "./png/Unicodechecker.png";
 import UnityHub from "./png/UnityHub.png";
+import UnnaturalScrollWheels from "./png/UnnaturalScrollWheels.png";
 import Upscayl from "./png/Upscayl.png";
 import UsageApp from "./png/UsageApp.png";
 import Utm from "./png/Utm.png";
@@ -1656,6 +1660,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   graphviz: Graphviz,
   grepwin: Grepwin,
   grids: Grids,
+  "grok bot": GrokBot,
   "groove omnidialer": GrooveOmniDialer,
   hammerspoon: Hammerspoon,
   handbrake: HandbrakeApp,
@@ -1777,6 +1782,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   locationsimulator: Locationsimulator,
   "logi options+": Logioptionsplus,
   "logi tune": LogiTune,
+  "logitech g hub": LogitechGHub,
   "logitech unifying software": LogitechUnifyingSoftware,
   logseq: Logseq,
   lookaway: Lookaway,
@@ -2038,6 +2044,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "python 3.13": Python313,
   "python 3.14": Python314,
   qemu: Qemu,
+  qgis: Qgis,
+  "qgis ltr": Qgis,
   qlab: Qlab,
   "qspace pro": QspacePro,
   quip: Quip,
@@ -2261,6 +2269,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   unclutter: Unclutter,
   unicodechecker: Unicodechecker,
   "unity hub": UnityHub,
+  unnaturalscrollwheels: UnnaturalScrollWheels,
   upscayl: Upscayl,
   usage: UsageApp,
   utm: Utm,
@@ -2405,6 +2414,9 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   jetbrains_plugins: Extension,
   adobe_plugins: AdobePlugin,
   go_binaries: GoBinary,
+  ai_clis: Package,
+  ai_skills: Package,
+  mcp_servers: Package,
 } as const;
 
 /**
@@ -2437,10 +2449,17 @@ const matchStrictNameSourceToIcon = ({
  * collide with the application they extend. An Adobe plugin named "Adobe Creative Cloud
  * Libraries" is a plugin, not Creative Cloud, and one named "Zoom" is a plugin, not Zoom,
  * so showing the other application's icon would misrepresent the row; a Go binary named
- * "zoom" is the same case. Other extension sources keep matching on name first, so e.g.
- * a VSCode extension named "Docker" still gets the Docker icon.
+ * "zoom" is the same case, as are MCP servers and AI skills named after the service they
+ * connect to (e.g. "slack"). Other extension sources keep matching on name first, so e.g.
+ * a VSCode extension named "Docker" still gets the Docker icon, and AI CLI tools match
+ * their vendor's application.
  */
-const SOURCE_ICON_OVERRIDES_NAME = ["adobe_plugins", "go_binaries"];
+const SOURCE_ICON_OVERRIDES_NAME = [
+  "adobe_plugins",
+  "go_binaries",
+  "mcp_servers",
+  "ai_skills",
+];
 
 /**
  * This returns the icon component for a given software name and source. If a strict match is found,

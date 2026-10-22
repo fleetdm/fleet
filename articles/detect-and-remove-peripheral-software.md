@@ -291,7 +291,7 @@ exit 0
 
 > **Warning:** Disabling device metadata retrieval blocks companion app installation via device metadata for ALL hardware, including legitimate ones your users may want. Scope this to specific fleets rather than applying it globally.
 
-> **Note:** `PreventDeviceMetadataFromNetwork` is also settable through Windows MDM as an ADMX-backed policy (`./Device/Vendor/MSFT/Policy/Config/DeviceInstallation/PreventDeviceMetadataFromNetwork`). If you manage Windows hosts with Fleet MDM, a custom configuration profile is the more durable option: profiles are re-enforced, while a script sets the value once. The script approach above works on hosts without MDM enrollment.
+> **Note:** `PreventDeviceMetadataFromNetwork` is also settable through Windows MDM as an ADMX-backed policy (`./Device/Vendor/MSFT/Policy/Config/DeviceInstallation/PreventDeviceMetadataFromNetwork`). If your Windows hosts are enrolled to Fleet with MDM turned on, a custom configuration profile is the more durable option: profiles are re-enforced, while a script sets the value once. The script approach above works on hosts without MDM enrollment.
 
 ## Get notified when unwanted software is detected
 
