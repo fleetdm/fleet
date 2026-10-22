@@ -117,11 +117,11 @@ const ScriptBatchDetailsPage = ({
   const pathToProgress = useMemo(() => {
     const params = buildQueryStringFromParams({
       status: batchDetails?.status,
-      fleet_id: batchDetails?.team_id,
+      fleet_id: batchDetails?.fleet_id,
     });
 
     return paths.CONTROLS_SCRIPTS_BATCH_PROGRESS + (params ? `?${params}` : "");
-  }, [batchDetails?.status, batchDetails?.team_id]);
+  }, [batchDetails?.status, batchDetails?.fleet_id]);
 
   const onCancelBatch = useCallback(async () => {
     setIsCanceling(true);
@@ -203,7 +203,7 @@ const ScriptBatchDetailsPage = ({
             queryParams={{
               script_batch_execution_status: selectedHostStatus, // refers to script batch host status, may update pending conv w Rachael
               script_batch_execution_id: batchExecutionId,
-              fleet_id: batchDetails?.team_id,
+              fleet_id: batchDetails?.fleet_id,
             }}
           />
         </span>

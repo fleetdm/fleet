@@ -82,7 +82,7 @@ const WINDOWS_XML = `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/
 
 const existingProfile: IMdmProfile = {
   profile_uuid: "w-123",
-  team_id: 0,
+  fleet_id: 0,
   name: "Existing Windows",
   description: "Existing description",
   platform: "windows",
@@ -714,7 +714,7 @@ describe("ProfileFormPage", () => {
     });
     jest
       .spyOn(configProfileAPI, "getConfigProfile")
-      .mockResolvedValue({ ...existingProfile, team_id: 3 });
+      .mockResolvedValue({ ...existingProfile, fleet_id: 3 });
 
     const { router } = renderPage(
       existingProfile.profile_uuid,
@@ -750,7 +750,7 @@ describe("ProfileFormPage", () => {
     });
     jest
       .spyOn(configProfileAPI, "getConfigProfile")
-      .mockResolvedValue({ ...existingProfile, team_id: 3 });
+      .mockResolvedValue({ ...existingProfile, fleet_id: 3 });
 
     const { router } = renderPage(
       existingProfile.profile_uuid,

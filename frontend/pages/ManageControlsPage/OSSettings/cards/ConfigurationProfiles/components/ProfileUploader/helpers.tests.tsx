@@ -280,7 +280,7 @@ describe("detectProfileContentType", () => {
 
   it("derives an existing profile's type from the API shape", () => {
     const base = {
-      team_id: 0,
+      fleet_id: 0,
       name: "n",
       identifier: null,
       created_at: "",
@@ -374,7 +374,7 @@ describe("getAcceptedExtensions", () => {
     platform: IMdmProfile["platform"]
   ): IMdmProfile => ({
     profile_uuid: profileUUID,
-    team_id: 0,
+    fleet_id: 0,
     name: "n",
     platform,
     identifier: null,

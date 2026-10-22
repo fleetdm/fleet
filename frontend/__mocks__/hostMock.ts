@@ -101,9 +101,9 @@ const DEFAULT_HOST_MOCK: IHost = {
   distributed_interval: 10,
   config_tls_refresh: 10,
   logger_tls_period: 10,
-  team_id: null,
+  fleet_id: null,
   pack_stats: null,
-  team_name: null,
+  fleet_name: null,
   gigs_disk_space_available: 100.0,
   percent_disk_space_available: 50,
   issues: {
@@ -159,8 +159,8 @@ export const createMockIosHostResponse = {
   host: createMockHost({
     hostname: "Test device (iPhone)",
     display_name: "Test device (iPhone)",
-    team_id: 2,
-    team_name: "Mobile",
+    fleet_id: 2,
+    fleet_name: "Mobile",
     platform: "ios",
     os_version: "iOS 14.7.1",
     hardware_serial: "C8QH6T96DPNA",

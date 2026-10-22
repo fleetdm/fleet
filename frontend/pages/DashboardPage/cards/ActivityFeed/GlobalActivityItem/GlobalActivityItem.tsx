@@ -118,7 +118,7 @@ const getEditedProfileMessage = (
   const suffix = getProfileMessageSuffix(
     isPremiumTier,
     platform,
-    activity.details?.team_name
+    activity.details?.fleet_name
   );
   // profile_name is set only when a single profile was edited in place;
   // fleetctl/GitOps batch edits omit it
@@ -256,7 +256,7 @@ const TAGGED_TEMPLATES = {
       "edited agent options."
     ) : (
       <>
-        edited agent options on <b>{activity.details?.team_name}</b> fleet.
+        edited agent options on <b>{activity.details?.fleet_name}</b> fleet.
       </>
     );
   },
@@ -394,37 +394,37 @@ const TAGGED_TEMPLATES = {
     );
   },
   userChangedTeamRole: (activity: IActivity) => {
-    const { user_email, role, team_name, jit } = activity.details || {};
+    const { user_email, role, fleet_name, jit } = activity.details || {};
 
     if (isPassiveRoleActivity(activity)) {
       return (
         <>
-          was assigned the <b>{role}</b> role for the <b>{team_name}</b> fleet
+          was assigned the <b>{role}</b> role for the <b>{fleet_name}</b> fleet
           {jit && " via just-in-time (JIT) provisioning"}.
         </>
       );
     }
     return (
       <>
-        changed <b>{user_email}</b> to <b>{role}</b> for the <b>{team_name}</b>{" "}
+        changed <b>{user_email}</b> to <b>{role}</b> for the <b>{fleet_name}</b>{" "}
         fleet.
       </>
     );
   },
   userDeletedTeamRole: (activity: IActivity) => {
-    const { user_email, team_name, jit } = activity.details || {};
+    const { user_email, fleet_name, jit } = activity.details || {};
 
     if (isPassiveRoleActivity(activity)) {
       return (
         <>
-          was removed from the <b>{team_name}</b> fleet
+          was removed from the <b>{fleet_name}</b> fleet
           {jit && " via just-in-time (JIT) provisioning"}.
         </>
       );
     }
     return (
       <>
-        removed <b>{user_email}</b> from the <b>{team_name}</b> fleet.
+        removed <b>{user_email}</b> from the <b>{fleet_name}</b> fleet.
       </>
     );
   },
@@ -582,9 +582,9 @@ const TAGGED_TEMPLATES = {
       <>(deadline: {activity.details.deadline})</>
     ) : null;
 
-    const teamSection = activity.details?.team_id ? (
+    const teamSection = activity.details?.fleet_id ? (
       <>
-        the <b>{activity.details.team_name}</b> fleet
+        the <b>{activity.details.fleet_name}</b> fleet
       </>
     ) : (
       <>unassigned</>
@@ -615,9 +615,9 @@ const TAGGED_TEMPLATES = {
     applePlatform: AppleDisplayPlatform,
     activity: IActivity
   ) => {
-    const teamSection = activity.details?.team_id ? (
+    const teamSection = activity.details?.fleet_id ? (
       <>
-        the <b>{activity.details.team_name}</b> fleet
+        the <b>{activity.details.fleet_name}</b> fleet
       </>
     ) : (
       <>unassigned</>
@@ -636,9 +636,9 @@ const TAGGED_TEMPLATES = {
     applePlatform: AppleDisplayPlatform,
     activity: IActivity
   ) => {
-    const teamSection = activity.details?.team_id ? (
+    const teamSection = activity.details?.fleet_id ? (
       <>
-        the <b>{activity.details.team_name}</b> fleet
+        the <b>{activity.details.fleet_name}</b> fleet
       </>
     ) : (
       <>unassigned</>
@@ -722,10 +722,10 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         enabled managed local accounts for{" "}
-        {activity.details?.team_name ? (
+        {activity.details?.fleet_name ? (
           <>
             {platformDisplay} hosts assigned to the{" "}
-            <b>{activity.details.team_name}</b> fleet.
+            <b>{activity.details.fleet_name}</b> fleet.
           </>
         ) : (
           `unassigned ${platformDisplay} hosts.`
@@ -741,10 +741,10 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         disabled managed local accounts for{" "}
-        {activity.details?.team_name ? (
+        {activity.details?.fleet_name ? (
           <>
             {platformDisplay} hosts assigned to the{" "}
-            <b>{activity.details.team_name}</b> fleet.
+            <b>{activity.details.fleet_name}</b> fleet.
           </>
         ) : (
           `unassigned ${platformDisplay} hosts.`
@@ -805,7 +805,7 @@ const TAGGED_TEMPLATES = {
         {getProfileMessageSuffix(
           isPremiumTier,
           "apple",
-          activity.details?.team_name
+          activity.details?.fleet_name
         )}
         .
       </>
@@ -828,7 +828,7 @@ const TAGGED_TEMPLATES = {
         {getProfileMessageSuffix(
           isPremiumTier,
           "apple",
-          activity.details?.team_name
+          activity.details?.fleet_name
         )}
         .
       </>
@@ -854,7 +854,7 @@ const TAGGED_TEMPLATES = {
         {getProfileMessageSuffix(
           isPremiumTier,
           "android",
-          activity.details?.team_name
+          activity.details?.fleet_name
         )}
         .
       </>
@@ -877,7 +877,7 @@ const TAGGED_TEMPLATES = {
         {getProfileMessageSuffix(
           isPremiumTier,
           "android",
-          activity.details?.team_name
+          activity.details?.fleet_name
         )}
         .
       </>
@@ -894,7 +894,7 @@ const TAGGED_TEMPLATES = {
         {getProfileMessageSuffix(
           isPremiumTier,
           "android",
-          activity.details?.team_name
+          activity.details?.fleet_name
         )}{" "}
         via fleetctl.
       </>
@@ -956,7 +956,7 @@ const TAGGED_TEMPLATES = {
         {getProfileMessageSuffix(
           isPremiumTier,
           "windows",
-          activity.details?.team_name
+          activity.details?.fleet_name
         )}
         .
       </>
@@ -979,7 +979,7 @@ const TAGGED_TEMPLATES = {
         {getProfileMessageSuffix(
           isPremiumTier,
           "windows",
-          activity.details?.team_name
+          activity.details?.fleet_name
         )}
         .
       </>
@@ -989,11 +989,11 @@ const TAGGED_TEMPLATES = {
     return getEditedProfileMessage(activity, isPremiumTier, "windows");
   },
   enabledDiskEncryption: (activity: IActivity) => {
-    const suffix = getHostTeamAssignmentSuffix(activity.details?.team_name);
+    const suffix = getHostTeamAssignmentSuffix(activity.details?.fleet_name);
     return <> enforced disk encryption for hosts {suffix}.</>;
   },
   disabledEncryption: (activity: IActivity) => {
-    const suffix = getHostTeamAssignmentSuffix(activity.details?.team_name);
+    const suffix = getHostTeamAssignmentSuffix(activity.details?.fleet_name);
     return <>removed disk encryption enforcement for hosts {suffix}.</>;
   },
   editedDiskEncryptionSettings: (activity: IActivity) => {
@@ -1018,25 +1018,25 @@ const TAGGED_TEMPLATES = {
     );
   },
   enabledRecoveryLockPasswords: (activity: IActivity) => {
-    const suffix = getHostTeamAssignmentSuffix(activity.details?.team_name);
+    const suffix = getHostTeamAssignmentSuffix(activity.details?.fleet_name);
     return <>enforced Recovery Lock passwords for hosts {suffix}.</>;
   },
   disabledRecoveryLockPasswords: (activity: IActivity) => {
-    const suffix = getHostTeamAssignmentSuffix(activity.details?.team_name);
+    const suffix = getHostTeamAssignmentSuffix(activity.details?.fleet_name);
     return <>removed Recovery Lock password enforcement for hosts {suffix}.</>;
   },
   changedMacOSSetupAssistant: (activity: IActivity) => {
     return getMacOSSetupAssistantMessage(
       "added",
       activity.details?.name,
-      activity.details?.team_name
+      activity.details?.fleet_name
     );
   },
   deletedMacOSSetupAssistant: (activity: IActivity) => {
     return getMacOSSetupAssistantMessage(
       "deleted",
       activity.details?.name,
-      activity.details?.team_name
+      activity.details?.fleet_name
     );
   },
   defaultActivityTemplate: (activity: IActivity) => {
@@ -1070,9 +1070,9 @@ const TAGGED_TEMPLATES = {
           ""
         )}
         for macOS hosts that automatically enroll to{" "}
-        {activity.details?.team_name ? (
+        {activity.details?.fleet_name ? (
           <>
-            the <b>{activity.details.team_name}</b> fleet
+            the <b>{activity.details.fleet_name}</b> fleet
           </>
         ) : (
           `unassigned`
@@ -1109,9 +1109,9 @@ const TAGGED_TEMPLATES = {
           ""
         )}
         for macOS hosts that automatically enroll to{" "}
-        {activity.details?.team_name ? (
+        {activity.details?.fleet_name ? (
           <>
-            the <b>{activity.details.team_name}</b> fleet
+            the <b>{activity.details.fleet_name}</b> fleet
           </>
         ) : (
           `unassigned`
@@ -1125,9 +1125,9 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         required end user authentication for hosts that automatically enroll to{" "}
-        {activity.details?.team_name ? (
+        {activity.details?.fleet_name ? (
           <>
-            the <b>{activity.details.team_name}</b> fleet
+            the <b>{activity.details.fleet_name}</b> fleet
           </>
         ) : (
           `unassigned`
@@ -1176,9 +1176,9 @@ const TAGGED_TEMPLATES = {
         {" "}
         removed end user authentication requirement for hosts that automatically
         enroll to{" "}
-        {activity.details?.team_name ? (
+        {activity.details?.fleet_name ? (
           <>
-            the <b>{activity.details.team_name}</b> fleet
+            the <b>{activity.details.fleet_name}</b> fleet
           </>
         ) : (
           `unassigned`
@@ -1189,7 +1189,7 @@ const TAGGED_TEMPLATES = {
   },
   transferredHosts: (activity: IActivity) => {
     const hostNames = activity.details?.host_display_names || [];
-    const teamName = activity.details?.team_name;
+    const teamName = activity.details?.fleet_name;
     if (hostNames.length === 1) {
       return (
         <>
@@ -1335,9 +1335,9 @@ const TAGGED_TEMPLATES = {
           "a script "
         )}
         to{" "}
-        {activity.details?.team_name ? (
+        {activity.details?.fleet_name ? (
           <>
-            the <b>{activity.details.team_name}</b> fleet
+            the <b>{activity.details.fleet_name}</b> fleet
           </>
         ) : (
           `unassigned`
@@ -1360,9 +1360,9 @@ const TAGGED_TEMPLATES = {
           "a script "
         )}
         for{" "}
-        {activity.details?.team_name ? (
+        {activity.details?.fleet_name ? (
           <>
-            the <b>{activity.details.team_name}</b> fleet
+            the <b>{activity.details.fleet_name}</b> fleet
           </>
         ) : (
           `unassigned`
@@ -1385,9 +1385,9 @@ const TAGGED_TEMPLATES = {
           "a script "
         )}
         from{" "}
-        {activity.details?.team_name ? (
+        {activity.details?.fleet_name ? (
           <>
-            the <b>{activity.details.team_name}</b> fleet
+            the <b>{activity.details.fleet_name}</b> fleet
           </>
         ) : (
           `unassigned`
@@ -1401,9 +1401,9 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         edited scripts for{" "}
-        {activity.details?.team_name ? (
+        {activity.details?.fleet_name ? (
           <>
-            the <b>{activity.details.team_name}</b> fleet
+            the <b>{activity.details.fleet_name}</b> fleet
           </>
         ) : (
           `unassigned`
@@ -1416,9 +1416,9 @@ const TAGGED_TEMPLATES = {
     const deadlineDays = activity.details?.deadline_days;
     const gracePeriodDays = activity.details?.grace_period_days;
     const isCleared = deadlineDays === undefined || deadlineDays === null;
-    const teamText = activity.details?.team_name ? (
+    const teamText = activity.details?.fleet_name ? (
       <>
-        the <b>{activity.details.team_name}</b> fleet
+        the <b>{activity.details.fleet_name}</b> fleet
       </>
     ) : (
       `unassigned`
@@ -1446,13 +1446,13 @@ const TAGGED_TEMPLATES = {
   },
   deletedMultipleSavedQuery: (activity: IActivity) => {
     let teamText;
-    if (activity.details?.team_id === -1) {
+    if (activity.details?.fleet_id === -1) {
       teamText = " globally";
-    } else if (activity.details?.team_name) {
+    } else if (activity.details?.fleet_name) {
       teamText = (
         <>
           {" "}
-          on the <b>{activity.details.team_name}</b> fleet
+          on the <b>{activity.details.fleet_name}</b> fleet
         </>
       );
     } else {
@@ -1517,7 +1517,7 @@ const TAGGED_TEMPLATES = {
         {getProfileMessageSuffix(
           isPremiumTier,
           "apple",
-          activity.details?.team_name
+          activity.details?.fleet_name
         )}
         .
       </>
@@ -1532,7 +1532,7 @@ const TAGGED_TEMPLATES = {
         {getProfileMessageSuffix(
           isPremiumTier,
           "apple",
-          activity.details?.team_name
+          activity.details?.fleet_name
         )}
         .
       </>
@@ -1543,7 +1543,7 @@ const TAGGED_TEMPLATES = {
     const suffix = getProfileMessageSuffix(
       isPremiumTier,
       "apple",
-      activity.details?.team_name
+      activity.details?.fleet_name
     );
     // profile_name is set only when a single declaration was edited in
     // place; fleetctl/GitOps batch edits omit it
@@ -1596,9 +1596,9 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         added <b>{activity.details?.software_package}</b> to{" "}
-        {activity.details?.team_name ? (
+        {activity.details?.fleet_name ? (
           <>
-            the <b>{activity.details?.team_name}</b> fleet.
+            the <b>{activity.details?.fleet_name}</b> fleet.
           </>
         ) : (
           `unassigned.`
@@ -1611,9 +1611,9 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         edited <b>{activity.details?.software_package}</b> on{" "}
-        {activity.details?.team_name ? (
+        {activity.details?.fleet_name ? (
           <>
-            the <b>{activity.details?.team_name}</b> fleet.
+            the <b>{activity.details?.fleet_name}</b> fleet.
           </>
         ) : (
           `unassigned.`
@@ -1626,9 +1626,9 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         deleted <b>{activity.details?.software_package}</b> from{" "}
-        {activity.details?.team_name ? (
+        {activity.details?.fleet_name ? (
           <>
-            the <b>{activity.details?.team_name}</b> fleet.
+            the <b>{activity.details?.fleet_name}</b> fleet.
           </>
         ) : (
           `unassigned.`
@@ -1835,10 +1835,10 @@ const TAGGED_TEMPLATES = {
         {makeVersionSuffix(swPlatform, versionName)}{" "}
         {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}
         to{" "}
-        {activity.details?.team_name ? (
+        {activity.details?.fleet_name ? (
           <>
             {" "}
-            the <b>{activity.details?.team_name}</b> fleet.
+            the <b>{activity.details?.fleet_name}</b> fleet.
           </>
         ) : (
           `unassigned.`
@@ -1864,10 +1864,10 @@ const TAGGED_TEMPLATES = {
         {makeVersionSuffix(platform, versionName)}{" "}
         {platform ? `(${PLATFORM_DISPLAY_NAMES[platform]}) ` : ""}
         on{" "}
-        {activity.details?.team_name ? (
+        {activity.details?.fleet_name ? (
           <>
             {" "}
-            the <b>{activity.details?.team_name}</b> fleet.
+            the <b>{activity.details?.fleet_name}</b> fleet.
           </>
         ) : (
           `unassigned.`
@@ -1893,10 +1893,10 @@ const TAGGED_TEMPLATES = {
         {makeVersionSuffix(platform, versionName)}{" "}
         {platform ? `(${PLATFORM_DISPLAY_NAMES[platform]}) ` : ""}
         from{" "}
-        {activity.details?.team_name ? (
+        {activity.details?.fleet_name ? (
           <>
             {" "}
-            the <b>{activity.details?.team_name}</b> fleet.
+            the <b>{activity.details?.fleet_name}</b> fleet.
           </>
         ) : (
           `unassigned.`
@@ -1962,7 +1962,7 @@ const TAGGED_TEMPLATES = {
     <> edited conditional access end user experience.</>
   ),
   enabledConditionalAccessAutomations: (activity: IActivity) => {
-    const teamName = activity.details?.team_name;
+    const teamName = activity.details?.fleet_name;
     return (
       <>
         {" "}
@@ -1980,7 +1980,7 @@ const TAGGED_TEMPLATES = {
     );
   },
   disabledConditionalAccessAutomations: (activity: IActivity) => {
-    const teamName = activity.details?.team_name;
+    const teamName = activity.details?.fleet_name;
     return (
       <>
         {" "}
@@ -2077,13 +2077,13 @@ const TAGGED_TEMPLATES = {
   },
   createdSavedQuery: (activity: IActivity) => {
     let teamText;
-    if (activity.details?.team_id === -1) {
+    if (activity.details?.fleet_id === -1) {
       teamText = " globally";
-    } else if (activity.details?.team_name) {
+    } else if (activity.details?.fleet_name) {
       teamText = (
         <>
           {" "}
-          on the <b>{activity.details.team_name}</b> fleet
+          on the <b>{activity.details.fleet_name}</b> fleet
         </>
       );
     } else {
@@ -2099,13 +2099,13 @@ const TAGGED_TEMPLATES = {
   },
   editedSavedQuery: (activity: IActivity) => {
     let teamText;
-    if (activity.details?.team_id === -1) {
+    if (activity.details?.fleet_id === -1) {
       teamText = " globally";
-    } else if (activity.details?.team_name) {
+    } else if (activity.details?.fleet_name) {
       teamText = (
         <>
           {" "}
-          on the <b>{activity.details.team_name}</b> fleet
+          on the <b>{activity.details.fleet_name}</b> fleet
         </>
       );
     } else {
@@ -2121,13 +2121,13 @@ const TAGGED_TEMPLATES = {
   },
   deletedSavedQuery: (activity: IActivity) => {
     let teamText;
-    if (activity.details?.team_id === -1) {
+    if (activity.details?.fleet_id === -1) {
       teamText = " globally";
-    } else if (activity.details?.team_name) {
+    } else if (activity.details?.fleet_name) {
       teamText = (
         <>
           {" "}
-          on the <b>{activity.details.team_name}</b> fleet
+          on the <b>{activity.details.fleet_name}</b> fleet
         </>
       );
     } else {
@@ -2143,20 +2143,20 @@ const TAGGED_TEMPLATES = {
   },
   createdPolicy: (activity: IActivity) => {
     let teamText;
-    if (activity.details?.team_id === -1) {
+    if (activity.details?.fleet_id === -1) {
       teamText = " globally";
-    } else if (activity.details?.team_id === 0) {
+    } else if (activity.details?.fleet_id === 0) {
       teamText = (
         <>
           {" "}
           for <b>Unassigned</b>
         </>
       );
-    } else if (activity.details?.team_name) {
+    } else if (activity.details?.fleet_name) {
       teamText = (
         <>
           {" "}
-          on the <b>{activity.details.team_name}</b> fleet
+          on the <b>{activity.details.fleet_name}</b> fleet
         </>
       );
     } else {
@@ -2173,20 +2173,20 @@ const TAGGED_TEMPLATES = {
   },
   editedPolicy: (activity: IActivity) => {
     let teamText;
-    if (activity.details?.team_id === -1) {
+    if (activity.details?.fleet_id === -1) {
       teamText = " globally";
-    } else if (activity.details?.team_id === 0) {
+    } else if (activity.details?.fleet_id === 0) {
       teamText = (
         <>
           {" "}
           for <b>Unassigned</b>
         </>
       );
-    } else if (activity.details?.team_name) {
+    } else if (activity.details?.fleet_name) {
       teamText = (
         <>
           {" "}
-          on the <b>{activity.details.team_name}</b> fleet
+          on the <b>{activity.details.fleet_name}</b> fleet
         </>
       );
     } else {
@@ -2203,20 +2203,20 @@ const TAGGED_TEMPLATES = {
   },
   deletedPolicy: (activity: IActivity) => {
     let teamText;
-    if (activity.details?.team_id === -1) {
+    if (activity.details?.fleet_id === -1) {
       teamText = " globally";
-    } else if (activity.details?.team_id === 0) {
+    } else if (activity.details?.fleet_id === 0) {
       teamText = (
         <>
           {" "}
           for <b>Unassigned</b>
         </>
       );
-    } else if (activity.details?.team_name) {
+    } else if (activity.details?.fleet_name) {
       teamText = (
         <>
           {" "}
-          on the <b>{activity.details.team_name}</b> fleet
+          on the <b>{activity.details.fleet_name}</b> fleet
         </>
       );
     } else {
@@ -2245,20 +2245,20 @@ const TAGGED_TEMPLATES = {
     }
 
     let teamText;
-    if (activity.details?.team_id === -1) {
+    if (activity.details?.fleet_id === -1) {
       teamText = " globally";
-    } else if (activity.details?.team_id === 0) {
+    } else if (activity.details?.fleet_id === 0) {
       teamText = (
         <>
           {" "}
           for <b>Unassigned</b>
         </>
       );
-    } else if (activity.details?.team_name) {
+    } else if (activity.details?.fleet_name) {
       teamText = (
         <>
           {" "}
-          on the <b>{activity.details.team_name}</b> fleet
+          on the <b>{activity.details.fleet_name}</b> fleet
         </>
       );
     } else {
@@ -2423,7 +2423,7 @@ const TAGGED_TEMPLATES = {
     );
   },
   editedSetupExperienceSoftware: (activity: IActivity) => {
-    const { platform, team_name, team_id } = activity.details || {};
+    const { platform, fleet_name, fleet_id } = activity.details || {};
 
     let platformText = "";
     switch (platform) {
@@ -2444,11 +2444,11 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         edited setup experience software for {platformText} hosts that enroll to{" "}
-        {team_id === API_NO_TEAM_ID ? (
+        {fleet_id === API_NO_TEAM_ID ? (
           `unassigned`
         ) : (
           <>
-            the <b>{team_name}</b> fleet
+            the <b>{fleet_name}</b> fleet
           </>
         )}
         .
@@ -2501,10 +2501,10 @@ const TAGGED_TEMPLATES = {
     );
   },
   createdCert: (activity: IActivity) => {
-    const { name, team_name } = activity.details || {};
-    const teamText = team_name ? (
+    const { name, fleet_name } = activity.details || {};
+    const teamText = fleet_name ? (
       <>
-        assigned to the <b>{team_name}</b>
+        assigned to the <b>{fleet_name}</b>
       </>
     ) : (
       <>with no</>
@@ -2518,10 +2518,10 @@ const TAGGED_TEMPLATES = {
     );
   },
   deletedCert: (activity: IActivity) => {
-    const { name, team_name } = activity.details || {};
-    const teamText = team_name ? (
+    const { name, fleet_name } = activity.details || {};
+    const teamText = fleet_name ? (
       <>
-        assigned to the <b>{team_name}</b>
+        assigned to the <b>{fleet_name}</b>
       </>
     ) : (
       <>with no</>
@@ -2535,14 +2535,14 @@ const TAGGED_TEMPLATES = {
     );
   },
   editedEnrollSecrets: (activity: IActivity, isPremiumTier: boolean) => {
-    let { team_name } = activity.details || {};
-    if (isPremiumTier && !team_name) {
-      team_name = "Unassigned";
+    let { fleet_name } = activity.details || {};
+    if (isPremiumTier && !fleet_name) {
+      fleet_name = "Unassigned";
     }
-    const postFix = team_name ? (
+    const postFix = fleet_name ? (
       <>
         {" "}
-        for <b>{team_name}</b>
+        for <b>{fleet_name}</b>
       </>
     ) : (
       <></>
@@ -3244,11 +3244,26 @@ interface IActivityItemProps {
   onDetailsClick?: ShowActivityDetailsHandler;
 }
 
+// Activities recorded before the fleet rename only have team_id and team_name.
+const withFleetDetails = (activity: IActivity): IActivity => {
+  const { details } = activity;
+  if (!details) return activity;
+  return {
+    ...activity,
+    details: {
+      ...details,
+      fleet_id: details.fleet_id ?? details.team_id,
+      fleet_name: details.fleet_name ?? details.team_name,
+    },
+  };
+};
+
 const GlobalActivityItem = ({
-  activity,
+  activity: rawActivity,
   isPremiumTier,
   onDetailsClick = noop,
 }: IActivityItemProps) => {
+  const activity = withFleetDetails(rawActivity);
   const hasDetails =
     ACTIVITIES_WITH_DETAILS.has(activity.type) &&
     (isPremiumTier || !PREMIUM_ONLY_DETAIL_ACTIVITIES.has(activity.type));

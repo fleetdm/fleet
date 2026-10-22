@@ -271,10 +271,10 @@ const PolicyForm = ({
       ? currentTeam.id
       : undefined;
   const isGlobalPolicy = isEditMode
-    ? storedPolicy?.team_id == null
+    ? storedPolicy?.fleet_id == null
     : newPolicyTeamId === undefined;
   const automationsTeamId = isEditMode
-    ? storedPolicy?.team_id ?? undefined
+    ? storedPolicy?.fleet_id ?? undefined
     : newPolicyTeamId;
 
   const { data: automationsTeamData } = useQuery<ILoadTeamResponse, Error>(
@@ -332,7 +332,7 @@ const PolicyForm = ({
      - Team users cannot edit inherited policies
     Reroute edit existing policy page (/:policyId/edit) to policy details page (/:policyId) */
   useEffect(() => {
-    const isInheritedPolicy = isEditMode && storedPolicy?.team_id === null;
+    const isInheritedPolicy = isEditMode && storedPolicy?.fleet_id === null;
 
     const noEditPermissions =
       isTeamObserver ||
@@ -362,7 +362,7 @@ const PolicyForm = ({
     isTeamTechnician,
     isGlobalTechnician,
     isOnGlobalTeam,
-    storedPolicy?.team_id,
+    storedPolicy?.fleet_id,
     router,
     teamIdForApi,
   ]);
@@ -411,14 +411,14 @@ const PolicyForm = ({
   const onAddPatchAutomation = async () => {
     if (
       !storedPolicy?.patch_software?.software_title_id ||
-      storedPolicy?.team_id == null
+      storedPolicy?.fleet_id == null
     ) {
       return;
     }
     setIsAddingAutomation(true);
     try {
       await teamPoliciesAPI.update(policyIdForEdit as number, {
-        team_id: storedPolicy.team_id,
+        team_id: storedPolicy.fleet_id,
         software_title_id: storedPolicy.patch_software.software_title_id,
       });
       queryClient.invalidateQueries(["policy", policyIdForEdit]);
@@ -717,9 +717,9 @@ const PolicyForm = ({
     // currentTeam reflects the team URL, not the policy's true Fleet.
     let fleetName: string | undefined;
     if (isEditMode) {
-      if (storedPolicy?.team_id === null) {
+      if (storedPolicy?.fleet_id === null) {
         fleetName = APP_CONTEXT_ALL_TEAMS_SUMMARY.name;
-      } else if (storedPolicy?.team_id === 0) {
+      } else if (storedPolicy?.fleet_id === 0) {
         fleetName = APP_CONTEXT_NO_TEAM_SUMMARY.name;
       } else {
         fleetName = currentTeam?.name;

@@ -97,7 +97,7 @@ const ReportPicker = ({
       {reports.map((report) => {
         const showObserverIcon = !isViewerObserver && report.observer_can_run;
         const showInheritedBadge =
-          isViewingSpecificTeam && report.team_id !== currentTeam?.id;
+          isViewingSpecificTeam && report.fleet_id !== currentTeam?.id;
 
         return (
           <Command.Item

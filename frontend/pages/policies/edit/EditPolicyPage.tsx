@@ -157,7 +157,7 @@ const PolicyPage = ({
       retry: false,
       select: (data: IStoredPolicyResponse) => data.policy,
       onSuccess: (returnedQuery) => {
-        const deNulledReturnedQueryTeamId = returnedQuery.team_id ?? undefined;
+        const deNulledReturnedQueryTeamId = returnedQuery.fleet_id ?? undefined;
 
         setLastEditedQueryId(returnedQuery.id);
         setLastEditedQueryName(returnedQuery.name);
@@ -201,13 +201,13 @@ const PolicyPage = ({
   if (
     !isOnGlobalTeam &&
     !isStoredPolicyLoading &&
-    storedPolicy?.team_id !== undefined &&
-    storedPolicy?.team_id !== null &&
-    !(storedPolicy?.team_id?.toString() === location.query.fleet_id)
+    storedPolicy?.fleet_id !== undefined &&
+    storedPolicy?.fleet_id !== null &&
+    !(storedPolicy?.fleet_id?.toString() === location.query.fleet_id)
   ) {
     router.push(
       getPathWithQueryParams(location.pathname, {
-        fleet_id: storedPolicy?.team_id?.toString(),
+        fleet_id: storedPolicy?.fleet_id?.toString(),
       })
     );
   }
