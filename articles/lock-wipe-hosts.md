@@ -28,7 +28,7 @@ As part of locking an iOS or iPadOS host, Fleet collects the device's location d
 >
 > On a fully-managed device, it locks the whole device, while on a BYOD device, it depends on how the end user has their device lock configured. If the user has a separate work profile lock (a distinct PIN for work apps), it locks just the work profile. Android shows a **Lock pending** badge while locking, then returns to normal once acknowledged (no **Locked** badge).
 
-### Put an Android host in lost mode
+### Find a lost Android host
 
 If a company-owned Android host is lost and you want to retrieve it, you can put it in lost mode. The device plays a loud sound and shows the contact details you choose, so whoever finds it knows how to return it.
 
@@ -76,7 +76,7 @@ To take the device out of lost mode remotely, send the [`STOP_LOST_MODE`](https:
 }
 ```
 
-### Get location of locked iOS/iPadOS host
+### Find a lost iOS/iPadOS host
 
 1. Navigate to the **Hosts** page by clicking the "Hosts" tab in the main navigation header. Find the locked device. You can search by name, hostname, UUID, serial number, or private IP address in the search box in the upper right corner.
 2. Click the host to open the **Host details** page
