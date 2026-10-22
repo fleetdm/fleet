@@ -2626,6 +2626,17 @@ func (a ActivityTypeEditedSelfServiceCategory) ActivityName() string {
 	return "edited_self_service_category"
 }
 
+type ActivityTypeEditedPatchDeadlineSettings struct {
+	TeamID   *uint    `json:"team_id" renameto:"fleet_id"`
+	TeamName *string  `json:"team_name" renameto:"fleet_name"`
+	Days     []string `json:"days"`
+	Time     string   `json:"time"`
+}
+
+func (a ActivityTypeEditedPatchDeadlineSettings) ActivityName() string {
+	return "edited_patch_deadline_settings"
+}
+
 type ActivityTypeDeletedSelfServiceCategory struct {
 	SelfServiceCategoryName string  `json:"self_service_category_name"`
 	TeamID                  *uint   `json:"team_id" renameto:"fleet_id"`

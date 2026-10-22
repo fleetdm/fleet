@@ -490,6 +490,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.PATCH("/api/_version_/fleet/software/self_service_categories/{id:[0-9]+}", patchSelfServiceCategoriesEndpoint, patchSelfServiceCategoriesRequest{})
 	ue.DELETE("/api/_version_/fleet/software/self_service_categories/{id:[0-9]+}", deleteSelfServiceCategoriesEndpoint, deleteSelfServiceCategoriesRequest{})
 
+	ue.GET("/api/_version_/fleet/software/patch_deadline_settings", getPatchDeadlineSettingsEndpoint, getPatchDeadlineSettingsRequest{})
+	ue.PATCH("/api/_version_/fleet/software/patch_deadline_settings", updatePatchDeadlineSettingsEndpoint, updatePatchDeadlineSettingsRequest{})
+
 	// Setup Experience
 	//
 	// Setup experience software endpoints:

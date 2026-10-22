@@ -680,6 +680,10 @@ type GetCategoriesForSoftwareTitlesFunc func(ctx context.Context, softwareTitleI
 
 type GetCategoriesForSoftwareInstallersFunc func(ctx context.Context, installerIDs []uint) (map[uint][]string, error)
 
+type GetPatchDeadlineSettingsFunc func(ctx context.Context, teamID uint) (*fleet.PatchDeadlineSettings, error)
+
+type SetPatchDeadlineSettingsFunc func(ctx context.Context, settings fleet.PatchDeadlineSettings) error
+
 type GetSoftwareTitlesForInstallAllFunc func(ctx context.Context, host *fleet.Host, categoryID *uint, matchQuery string) ([]*fleet.HostSoftwareWithInstaller, *string, error)
 
 type AssociateMDMInstallToVerificationUUIDFunc func(ctx context.Context, installUUID string, verifyCommandUUID string, hostUUID string) error
@@ -3584,6 +3588,12 @@ type DataStore struct {
 
 	GetCategoriesForSoftwareInstallersFunc        GetCategoriesForSoftwareInstallersFunc
 	GetCategoriesForSoftwareInstallersFuncInvoked bool
+
+	GetPatchDeadlineSettingsFunc        GetPatchDeadlineSettingsFunc
+	GetPatchDeadlineSettingsFuncInvoked bool
+
+	SetPatchDeadlineSettingsFunc        SetPatchDeadlineSettingsFunc
+	SetPatchDeadlineSettingsFuncInvoked bool
 
 	GetSoftwareTitlesForInstallAllFunc        GetSoftwareTitlesForInstallAllFunc
 	GetSoftwareTitlesForInstallAllFuncInvoked bool
@@ -8762,6 +8772,20 @@ func (s *DataStore) GetCategoriesForSoftwareInstallers(ctx context.Context, inst
 	s.GetCategoriesForSoftwareInstallersFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetCategoriesForSoftwareInstallersFunc(ctx, installerIDs)
+}
+
+func (s *DataStore) GetPatchDeadlineSettings(ctx context.Context, teamID uint) (*fleet.PatchDeadlineSettings, error) {
+	s.mu.Lock()
+	s.GetPatchDeadlineSettingsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetPatchDeadlineSettingsFunc(ctx, teamID)
+}
+
+func (s *DataStore) SetPatchDeadlineSettings(ctx context.Context, settings fleet.PatchDeadlineSettings) error {
+	s.mu.Lock()
+	s.SetPatchDeadlineSettingsFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetPatchDeadlineSettingsFunc(ctx, settings)
 }
 
 func (s *DataStore) GetSoftwareTitlesForInstallAll(ctx context.Context, host *fleet.Host, categoryID *uint, matchQuery string) ([]*fleet.HostSoftwareWithInstaller, *string, error) {

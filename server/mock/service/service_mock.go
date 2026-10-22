@@ -913,6 +913,10 @@ type UpdateSoftwareCategoryFunc func(ctx context.Context, id uint, name string) 
 
 type DeleteSoftwareCategoryFunc func(ctx context.Context, id uint) error
 
+type GetPatchDeadlineSettingsFunc func(ctx context.Context, teamID *uint) (*fleet.PatchDeadlineSettings, error)
+
+type UpdatePatchDeadlineSettingsFunc func(ctx context.Context, teamID *uint, days any, time any) (*fleet.PatchDeadlineSettings, error)
+
 type UploadOrgLogoFunc func(ctx context.Context, mode fleet.OrgLogoMode, content io.ReadSeeker) error
 
 type DeleteOrgLogoFunc func(ctx context.Context, mode fleet.OrgLogoMode) error
@@ -2381,6 +2385,12 @@ type Service struct {
 
 	DeleteSoftwareCategoryFunc        DeleteSoftwareCategoryFunc
 	DeleteSoftwareCategoryFuncInvoked bool
+
+	GetPatchDeadlineSettingsFunc        GetPatchDeadlineSettingsFunc
+	GetPatchDeadlineSettingsFuncInvoked bool
+
+	UpdatePatchDeadlineSettingsFunc        UpdatePatchDeadlineSettingsFunc
+	UpdatePatchDeadlineSettingsFuncInvoked bool
 
 	UploadOrgLogoFunc        UploadOrgLogoFunc
 	UploadOrgLogoFuncInvoked bool
@@ -5700,6 +5710,20 @@ func (s *Service) DeleteSoftwareCategory(ctx context.Context, id uint) error {
 	s.DeleteSoftwareCategoryFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteSoftwareCategoryFunc(ctx, id)
+}
+
+func (s *Service) GetPatchDeadlineSettings(ctx context.Context, teamID *uint) (*fleet.PatchDeadlineSettings, error) {
+	s.mu.Lock()
+	s.GetPatchDeadlineSettingsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetPatchDeadlineSettingsFunc(ctx, teamID)
+}
+
+func (s *Service) UpdatePatchDeadlineSettings(ctx context.Context, teamID *uint, days any, time any) (*fleet.PatchDeadlineSettings, error) {
+	s.mu.Lock()
+	s.UpdatePatchDeadlineSettingsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdatePatchDeadlineSettingsFunc(ctx, teamID, days, time)
 }
 
 func (s *Service) UploadOrgLogo(ctx context.Context, mode fleet.OrgLogoMode, content io.ReadSeeker) error {
