@@ -14,7 +14,7 @@ API-only user tokens don't expire, and getting a new token from the [log in API]
 
 The new user needs the same access as the old one, so record it first.
 
-1. Go to **Settings > Users**.
+1. Go to **Settings > Users**. Only Fleet users with the global admin role have access to this page.
 2. Find the old API-only user. API-only users show **API** next to their name.
 3. Note its role and, with Fleet Premium, its fleets and API endpoint restrictions.
 
