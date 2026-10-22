@@ -3743,6 +3743,11 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 }
 
 func (ds *Datastore) HostIDsByIdentifier(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error) {
+	// A blank identifier would match every host with an empty hostname, UUID or serial (whitespace-only
+	// ones too, since these columns use PAD SPACE collations).
+	hostIdentifiers = slices.DeleteFunc(slices.Clone(hostIdentifiers), func(ident string) bool {
+		return strings.TrimSpace(ident) == ""
+	})
 	if len(hostIdentifiers) == 0 {
 		return []uint{}, nil
 	}
