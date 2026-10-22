@@ -9,6 +9,7 @@ import (
 	"errors"
 	"math/big"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -793,6 +794,8 @@ func testEditResendsProfiles(t *testing.T, ds *Datastore) {
 	ejbcaCA := newEJBCACA(t, ds, "ejbca_ca", "cn", new("user"), &[]string{"upn"})
 	ejbcaProf := newCAProfile(t, ds, fleet.FleetVarEJBCADataPrefix, "ejbca_prof", "ejbca_ca", 0)
 	ejbcaTeamProf := newCAProfile(t, ds, fleet.FleetVarEJBCADataPrefix, "ejbca_team_prof", "ejbca_ca", team.ID)
+	// A profile names its CA with the exact spelling, so this one is for the CA once the case of its name changes.
+	ejbcaUpperCaseProf := newCAProfile(t, ds, fleet.FleetVarEJBCADataPrefix, "ejbca_upper_case_prof", "EJBCA_CA", 0)
 
 	apiEdit := func(update fleet.CertificateAuthority) func() error {
 		return func() error {
@@ -818,6 +821,8 @@ func testEditResendsProfiles(t *testing.T, ds *Datastore) {
 		edit func() error
 		// wantResend is whether the DigiCert profiles of ca are resent, wantEJBCAResend the same for the profiles of ejbcaCA.
 		wantResend, wantEJBCAResend bool
+		// wantUpperCaseResend is whether the profile that names the EJBCA CA in upper case is resent.
+		wantUpperCaseResend bool
 	}{
 		{name: "API edit of the URL", edit: apiEdit(fleet.CertificateAuthority{URL: new("https://new.example.com")})},
 		{name: "API edit to the same seat ID", edit: apiEdit(fleet.CertificateAuthority{CertificateSeatID: new("seat")})},
@@ -897,6 +902,13 @@ func testEditResendsProfiles(t *testing.T, ds *Datastore) {
 			return ds.BatchApplyCertificateAuthorities(ctx,
 				fleet.CertificateAuthoritiesBatchOperations{Update: []*fleet.CertificateAuthority{digiCert, ejbca}})
 		}, wantResend: true, wantEJBCAResend: true},
+		// The name column ignores case, so the CA is the same one, and the profiles that use the new spelling are resent for the changed field.
+		{name: "EJBCA GitOps edit that changes the case of the name and the common name", edit: func() error {
+			return gitOpsUpdate(ejbcaCA.ID, func(c *fleet.CertificateAuthority) {
+				c.Name = new(strings.ToUpper(*c.Name))
+				c.CertificateCommonName = new("case-rename-cn")
+			})
+		}, wantUpperCaseResend: true},
 	}
 	pendingIf := func(resend bool) fleet.MDMDeliveryStatus {
 		if resend {
@@ -906,7 +918,7 @@ func testEditResendsProfiles(t *testing.T, ds *Datastore) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			for _, p := range []*fleet.MDMAppleConfigProfile{prof, otherProf, ejbcaProf} {
+			for _, p := range []*fleet.MDMAppleConfigProfile{prof, otherProf, ejbcaProf, ejbcaUpperCaseProf} {
 				forceSetAppleHostProfileStatus(t, ds, host.UUID, p, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
 			}
 			for _, p := range []*fleet.MDMAppleConfigProfile{teamProf, ejbcaTeamProf} {
@@ -918,7 +930,8 @@ func testEditResendsProfiles(t *testing.T, ds *Datastore) {
 			assertHostProfileStatus(t, ds, host.UUID,
 				hostProfileStatus{prof.ProfileUUID, pendingIf(c.wantResend)},
 				hostProfileStatus{otherProf.ProfileUUID, fleet.MDMDeliveryVerified},
-				hostProfileStatus{ejbcaProf.ProfileUUID, pendingIf(c.wantEJBCAResend)})
+				hostProfileStatus{ejbcaProf.ProfileUUID, pendingIf(c.wantEJBCAResend)},
+				hostProfileStatus{ejbcaUpperCaseProf.ProfileUUID, pendingIf(c.wantUpperCaseResend)})
 			assertHostProfileStatus(t, ds, teamHost.UUID,
 				hostProfileStatus{teamProf.ProfileUUID, pendingIf(c.wantResend)},
 				hostProfileStatus{ejbcaTeamProf.ProfileUUID, pendingIf(c.wantEJBCAResend)})
@@ -969,6 +982,9 @@ func testEJBCANamesAreUnique(t *testing.T, ds *Datastore) {
 		})
 		inUse(t, err, "shared")
 		_, err = ds.NewCertificateAuthority(ctx, scepCA("ejbca"))
+		inUse(t, err, "ejbca")
+		// The names are compared without regard to case, like the column is.
+		_, err = ds.NewCertificateAuthority(ctx, scepCA("EJBCA"))
 		inUse(t, err, "ejbca")
 		require.ElementsMatch(t, unchanged, names())
 	})

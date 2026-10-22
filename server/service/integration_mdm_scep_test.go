@@ -40,6 +40,7 @@ import (
 	svc_scep "github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
@@ -2091,7 +2092,7 @@ func (s *integrationMDMTestSuite) TestEJBCAIntegration() {
 	require.NoError(t, s.ds.SaveAppConfig(ctx, appConfig))
 
 	const p12Password = "p12-password"
-	createCA := func(name, endEntityProfile string) uint {
+	createCA := func(fake *ejbcatest.Server, name, endEntityProfile string) uint {
 		var res createCertificateAuthorityResponse
 		s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", map[string]any{"ejbca": map[string]any{
 			"name":                             name,
@@ -2108,7 +2109,7 @@ func (s *integrationMDMTestSuite) TestEJBCAIntegration() {
 		}}, http.StatusOK, &res)
 		return res.ID
 	}
-	caID := createCA("ejbca_CA", ejbcatest.EndEntityProfile)
+	caID := createCA(fake, "ejbca_CA", ejbcatest.EndEntityProfile)
 
 	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setupPusher(s, t, mdmDevice)
@@ -2204,7 +2205,7 @@ func (s *integrationMDMTestSuite) TestEJBCAIntegration() {
 	assert.Len(t, enrolls, 2)
 
 	// An enrollment EJBCA rejects fails the profile with the reason.
-	createCA("fail_CA", "noSuchEndEntityProfile")
+	createCA(fake, "fail_CA", "noSuchEndEntityProfile")
 	setProfiles(
 		fleet.MDMProfileBatchPayload{Name: "N2", Contents: profile},
 		fleet.MDMProfileBatchPayload{Name: "N3", Contents: ejbcaForTest("N3", "I3", "fail_CA")},
@@ -2223,4 +2224,57 @@ func (s *integrationMDMTestSuite) TestEJBCAIntegration() {
 		}
 	}
 	assert.True(t, foundFailed)
+
+	// An EJBCA that is temporarily unavailable keeps the profile queued for the retries a profile gets, and then fails it.
+	unavailable := ejbcatest.New(t, func(f *ejbcatest.Server) { f.EnrollStatus = http.StatusServiceUnavailable })
+	createCA(unavailable, "down_CA", ejbcatest.EndEntityProfile)
+	setProfiles(
+		fleet.MDMProfileBatchPayload{Name: "N2", Contents: profile},
+		fleet.MDMProfileBatchPayload{Name: "N3", Contents: ejbcaForTest("N3", "I3", "fail_CA")},
+		fleet.MDMProfileBatchPayload{Name: "N4", Contents: ejbcaForTest("N4", "I4", "down_CA")},
+	)
+	hostProfile := func(name string) fleet.HostMDMProfile {
+		var resp getDeviceHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &resp)
+		for _, prof := range *resp.Host.MDM.Profiles {
+			if prof.Name == name {
+				return prof
+			}
+		}
+		require.Failf(t, "profile not found", "profile %s", name)
+		return fleet.HostMDMProfile{}
+	}
+	statusOf := func(prof fleet.HostMDMProfile) string {
+		if prof.Status == nil {
+			return ""
+		}
+		return string(*prof.Status)
+	}
+	retries := func() uint {
+		counts, err := s.ds.GetHostMDMProfilesRetryCounts(ctx, &fleet.Host{UUID: host.UUID, Platform: "darwin"})
+		require.NoError(t, err)
+		for _, count := range counts {
+			if count.ProfileIdentifier == "I4" {
+				return count.Retries
+			}
+		}
+		require.Fail(t, "no retry count for the profile")
+		return 0
+	}
+	for attempt := uint(1); attempt <= mdm.MaxAppleProfileRetries; attempt++ {
+		s.awaitTriggerProfileSchedule(t)
+		assert.Equal(t, attempt, retries())
+		assert.NotEqual(t, string(fleet.MDMDeliveryFailed), statusOf(hostProfile("N4")), "attempt %d", attempt)
+	}
+	s.awaitTriggerProfileSchedule(t)
+	failedProfile := hostProfile("N4")
+	assert.Equal(t, string(fleet.MDMDeliveryFailed), statusOf(failedProfile))
+	assert.Contains(t, failedProfile.Detail, "Couldn't get certificate from EJBCA for down_CA.")
+	var enrollAttempts int
+	for _, request := range unavailable.Requests() {
+		if strings.HasPrefix(request, "POST ") && strings.HasSuffix(request, "/v1/certificate/pkcs10enroll") {
+			enrollAttempts++
+		}
+	}
+	assert.Equal(t, int(mdm.MaxAppleProfileRetries)+1, enrollAttempts)
 }

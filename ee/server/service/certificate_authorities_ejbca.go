@@ -58,6 +58,9 @@ func validateEJBCAFields(ca *fleet.EJBCA, errPrefix string) error {
 			return fleet.NewInvalidArgumentError(field.name, fmt.Sprintf("%sThe %s cannot be empty.", errPrefix, field.label))
 		}
 	}
+	if ca.UsernameTemplate != "" && strings.TrimSpace(ca.UsernameTemplate) == "" {
+		return fleet.NewInvalidArgumentError("username_template", errPrefix+"The username template cannot be only spaces.")
+	}
 	for _, field := range []struct{ name, label, value string }{
 		{"certificate_authority_name", "EJBCA CA name", ca.CertificateAuthorityName},
 		{"certificate_profile_name", "certificate profile name", ca.CertificateProfileName},

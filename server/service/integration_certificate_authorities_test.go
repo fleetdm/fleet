@@ -2656,19 +2656,19 @@ func (s *integrationMDMTestSuite) TestEJBCACertificateAuthorities() {
 
 func (s *integrationMDMTestSuite) TestEJBCACertificateAuthorityNameCannotBeShared() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 	// A name-only edit doesn't contact EJBCA, so the CAs can be set up directly, with the fields an edit validates.
 	ejbca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type: string(fleet.CATypeEJBCA), Name: new("EJBCA_WIFI"), URL: new("https://ejbca.example.com"), EJBCACAName: new("CA"),
 		EJBCACertificateProfileName: new("profile"), EJBCAEndEntityProfileName: new("entity"), CertificateCommonName: new("cn"),
 	})
 	require.NoError(t, err)
-	t.Cleanup(func() { _, _ = s.ds.DeleteCertificateAuthority(ctx, ejbca.ID) })
+	t.Cleanup(func() { _, _ = s.ds.DeleteCertificateAuthority(context.Background(), ejbca.ID) })
 	scep, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type: string(fleet.CATypeCustomSCEPProxy), Name: new("SCEP_WIFI"), URL: new("https://scep.example.com"), Challenge: new("c"),
 	})
 	require.NoError(t, err)
-	t.Cleanup(func() { _, _ = s.ds.DeleteCertificateAuthority(ctx, scep.ID) })
+	t.Cleanup(func() { _, _ = s.ds.DeleteCertificateAuthority(context.Background(), scep.ID) })
 
 	res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", ejbca.ID),
 		map[string]any{"ejbca": map[string]any{"name": "SCEP_WIFI"}}, http.StatusBadRequest)

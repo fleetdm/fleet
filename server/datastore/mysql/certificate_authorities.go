@@ -281,16 +281,17 @@ func ensureEJBCANamesNotSharedDB(ctx context.Context, tx sqlx.ExtContext, names 
 	if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "check EJBCA certificate authority names")
 	}
-	ejbca, other := map[string]struct{}{}, map[string]struct{}{}
+	// The names are compared without regard to case, like the DB column is.
+	ejbca, other := map[string]string{}, map[string]struct{}{}
 	for _, row := range rows {
 		if row.Type == string(fleet.CATypeEJBCA) {
-			ejbca[row.Name] = struct{}{}
+			ejbca[strings.ToLower(row.Name)] = row.Name
 		} else {
-			other[row.Name] = struct{}{}
+			other[strings.ToLower(row.Name)] = struct{}{}
 		}
 	}
-	for name := range ejbca {
-		if _, shared := other[name]; shared {
+	for lowerName, name := range ejbca {
+		if _, shared := other[lowerName]; shared {
 			return fleet.EJBCANameInUseError{Name: name}
 		}
 	}
@@ -501,7 +502,7 @@ func (ds *Datastore) BatchApplyCertificateAuthorities(ctx context.Context, ops f
 				return err
 			}
 			for _, ca := range updates {
-				if old, ok := oldCAs[*ca.Name]; ok && certificateFieldsChanged(old, ca, true) {
+				if old, ok := oldCAs[strings.ToLower(*ca.Name)]; ok && certificateFieldsChanged(old, ca, true) {
 					resendCANames[t.caType] = append(resendCANames[t.caType], *ca.Name)
 				}
 			}
@@ -542,7 +543,8 @@ var profileCATypes = []struct {
 	{fleet.CATypeEJBCA, fleet.FleetVarEJBCADataPrefix},
 }
 
-// getCAsForUpdateDB locks the CAs of a type matching where, selecting only the fields that certificateFieldsChanged compares.
+// getCAsForUpdateDB locks the CAs of a type matching where, selecting only the fields that certificateFieldsChanged compares. The result is
+// keyed by the lowercase name, because the column compares names without regard to case.
 func (ds *Datastore) getCAsForUpdateDB(ctx context.Context, tx sqlx.ExtContext, caType fleet.CAType, where string, args ...any,
 ) (map[string]*fleet.CertificateAuthority, error) {
 	stmt, args, err := sqlx.In(`
@@ -564,7 +566,7 @@ func (ds *Datastore) getCAsForUpdateDB(ctx context.Context, tx sqlx.ExtContext, 
 		if err := ds.postprocessRetrievedCertificateAuthority(ctx, &row, false); err != nil {
 			return nil, err
 		}
-		cas[*row.Name] = &row.CertificateAuthority
+		cas[strings.ToLower(*row.Name)] = &row.CertificateAuthority
 	}
 	return cas, nil
 }

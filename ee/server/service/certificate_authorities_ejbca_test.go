@@ -125,6 +125,11 @@ func TestValidateEJBCAFields(t *testing.T) {
 		},
 		{name: "no common name", modify: func(p *fleet.EJBCA) { p.CertificateCommonName = "" }, wantErr: "common name cannot be empty"},
 		{
+			name:    "username template with only spaces",
+			modify:  func(p *fleet.EJBCA) { p.UsernameTemplate = "  " },
+			wantErr: "username template cannot be only spaces",
+		},
+		{
 			name:    "name too long",
 			modify:  func(p *fleet.EJBCA) { p.CertificateProfileName = strings.Repeat("a", 256) },
 			wantErr: "certificate profile name cannot be longer than 255 characters",
