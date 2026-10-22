@@ -2,7 +2,7 @@
 
 API-only user tokens don't expire, and getting a new token from the [log in API](https://fleetdm.com/docs/rest-api/rest-api#log-in) doesn't revoke the old one. To rotate a token so that the old one stops working, create a new API-only user, move your integrations to its token, then delete the old user. Deleting a user revokes all of its tokens. This guide covers API-only users only, not regular users who sign in to the Fleet UI.
 
-## Record the old user's access
+## Step 1: Record the old user's access
 
 The new user needs the same access as the old one, so record it first.
 
