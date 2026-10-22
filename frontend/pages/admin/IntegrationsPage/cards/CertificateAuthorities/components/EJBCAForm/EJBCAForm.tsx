@@ -1,0 +1,246 @@
+import React, { useCallback, useState } from "react";
+
+import Button from "components/buttons/Button";
+import FileUploader from "components/FileUploader";
+import InputField from "components/forms/fields/InputField";
+import { notify } from "components/ToastNotification";
+import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
+import { ICertificateAuthorityPartial } from "interfaces/certificates";
+import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
+import { monthDayYearFormat } from "utilities/date_format";
+
+import {
+  MAX_P12_SIZE_BYTES,
+  readFileAsBase64,
+  validateEJBCAForm,
+} from "./helpers";
+
+const baseClass = "ejbca-form";
+
+export interface IEJBCAFormData {
+  name: string;
+  url: string;
+  /** The client certificate and key, as a base64 PKCS#12 */
+  clientP12: string;
+  password: string;
+  trustCABundle: string;
+  caName: string;
+  certificateProfileName: string;
+  endEntityProfileName: string;
+  commonName: string;
+  usernameTemplate: string;
+  userPrincipalName: string;
+}
+
+export const EMPTY_EJBCA_FORM_DATA: IEJBCAFormData = {
+  name: "",
+  url: "",
+  clientP12: "",
+  password: "",
+  trustCABundle: "",
+  caName: "",
+  certificateProfileName: "",
+  endEntityProfileName: "",
+  commonName: "",
+  usernameTemplate: "",
+  userPrincipalName: "",
+};
+
+interface IEJBCAFormProps {
+  certAuthorities?: ICertificateAuthorityPartial[];
+  initialFormData?: IEJBCAFormData;
+  /** The id of the CA being edited. Without it, the form adds a CA. */
+  editingCertAuthorityId?: number;
+  /** When the stored client certificate of the CA being edited expires */
+  clientCertExpiresAt?: string;
+  submitBtnText: string;
+  isSubmitting?: boolean;
+  /** The errors for the fields that the server reported on the last submission */
+  serverErrors?: IFormErrors | null;
+  onSubmit: (formData: IEJBCAFormData) => void | Promise<unknown>;
+  onCancel: () => void;
+}
+
+const EJBCAForm = ({
+  certAuthorities = [],
+  initialFormData = EMPTY_EJBCA_FORM_DATA,
+  editingCertAuthorityId,
+  clientCertExpiresAt,
+  submitBtnText,
+  isSubmitting: isSubmittingExternal = false,
+  serverErrors,
+  onSubmit,
+  onCancel,
+}: IEJBCAFormProps) => {
+  const isEditing = editingCertAuthorityId !== undefined;
+  const [p12File, setP12File] = useState<File | null>(null);
+
+  const {
+    getTextFieldProps,
+    getError,
+    commitFields,
+    handleSubmit,
+    isSubmitting,
+  } = useFormValidation<IEJBCAFormData>({
+    initialFormData,
+    validate: (data) =>
+      validateEJBCAForm(data, {
+        certAuthorities,
+        editingId: editingCertAuthorityId,
+      }),
+    serverErrors,
+    isSubmitting: isSubmittingExternal,
+    // These are sent as they are: a password can have spaces at its ends, and the bundle is a PEM.
+    skipTrim: ["clientP12", "password"],
+  });
+
+  const onSelectP12 = useCallback(
+    async (files: FileList | null) => {
+      const file = files?.[0];
+      if (!file) return;
+      if (!/\.(p12|pfx)$/i.test(file.name)) {
+        notify.error("Invalid file type. Please upload a .p12 or .pfx file.");
+        return;
+      }
+      if (file.size > MAX_P12_SIZE_BYTES) {
+        notify.error("The file is too large. Please upload a file under 1 MB.");
+        return;
+      }
+      try {
+        const clientP12 = await readFileAsBase64(file);
+        setP12File(file);
+        commitFields({ clientP12 });
+      } catch {
+        notify.error("Couldn't read the file. Please try again.");
+      }
+    },
+    [commitFields]
+  );
+
+  const onDeleteP12 = () => {
+    setP12File(null);
+    commitFields({ clientP12: "", password: "" });
+  };
+
+  const renderClientCertExpiry = () => {
+    if (!isEditing || !clientCertExpiresAt) return null;
+    return (
+      <p className={`${baseClass}__client-cert-expiry`}>
+        The client certificate expires on{" "}
+        <b>{monthDayYearFormat(clientCertExpiresAt)}</b>. Upload a new one to
+        replace it.
+      </p>
+    );
+  };
+
+  return (
+    <form className={baseClass} onSubmit={handleSubmit(onSubmit)}>
+      <InputField
+        label="Name"
+        {...getTextFieldProps("name")}
+        helpText="Letters, numbers, and underscores only."
+        placeholder="WIFI_CERTIFICATE"
+        disabled={isSubmitting}
+        inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
+      />
+      <InputField
+        label="URL"
+        {...getTextFieldProps("url")}
+        helpText="URL of your EJBCA REST API endpoint."
+        placeholder="https://ejbca.local:8443"
+        disabled={isSubmitting}
+      />
+      <div className={`${baseClass}__client-cert`}>
+        {renderClientCertExpiry()}
+        <FileUploader
+          label={isEditing ? "New client certificate" : "Client certificate"}
+          graphicName="file-certificate"
+          message="Client certificate and key (.p12)"
+          additionalInfo="Fleet uses it to authenticate to EJBCA."
+          accept=".p12,.pfx"
+          buttonType="secondary"
+          internalError={getError("clientP12")}
+          fileDetails={p12File ? { name: p12File.name } : undefined}
+          onFileUpload={onSelectP12}
+          onDeleteFile={onDeleteP12}
+          disabled={isSubmitting}
+        />
+      </div>
+      {(!isEditing || p12File) && (
+        <InputField
+          label="Client certificate password"
+          {...getTextFieldProps("password")}
+          type="password"
+          helpText="Password of the .p12 file."
+          disabled={isSubmitting}
+        />
+      )}
+      <InputField
+        label="Trust CA bundle"
+        {...getTextFieldProps("trustCABundle")}
+        type="textarea"
+        helpText="The CA certificates that sign the HTTPS certificate of your EJBCA server, in PEM format. If you leave it empty, Fleet trusts public CAs. (optional)"
+        placeholder="-----BEGIN CERTIFICATE-----"
+        disabled={isSubmitting}
+      />
+      <InputField
+        label="CA name"
+        {...getTextFieldProps("caName")}
+        helpText="Name of the CA in EJBCA that issues the certificates."
+        placeholder="ManagementCA"
+        disabled={isSubmitting}
+        inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
+      />
+      <InputField
+        label="Certificate profile name"
+        {...getTextFieldProps("certificateProfileName")}
+        helpText="Name of the certificate profile in EJBCA."
+        placeholder="ENDUSER"
+        disabled={isSubmitting}
+        inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
+      />
+      <InputField
+        label="End entity profile name"
+        {...getTextFieldProps("endEntityProfileName")}
+        helpText="Name of the end entity profile in EJBCA."
+        placeholder="EMPTY"
+        disabled={isSubmitting}
+        inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
+      />
+      <InputField
+        label="Certificate common name (CN)"
+        {...getTextFieldProps("commonName")}
+        helpText="Certificates delivered to your hosts will have this CN in the subject."
+        placeholder="$FLEET_VAR_HOST_HARDWARE_SERIAL"
+        disabled={isSubmitting}
+        inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
+      />
+      <InputField
+        label="Username"
+        {...getTextFieldProps("usernameTemplate")}
+        helpText="EJBCA creates an end entity with this username for each host. If you leave it empty, Fleet uses the CN. (optional)"
+        placeholder="$FLEET_VAR_HOST_HARDWARE_SERIAL"
+        disabled={isSubmitting}
+        inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
+      />
+      <InputField
+        label="User principal name (UPN)"
+        {...getTextFieldProps("userPrincipalName")}
+        helpText="Certificates delivered to your hosts will have this UPN attribute in Subject Alternative Name (SAN). (optional)"
+        placeholder="$FLEET_VAR_HOST_HARDWARE_SERIAL"
+        disabled={isSubmitting}
+        inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
+      />
+      <div className="modal-cta-wrap">
+        <Button type="submit" isLoading={isSubmitting} disabled={isSubmitting}>
+          {submitBtnText}
+        </Button>
+        <Button variant="secondary" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
+};
+
+export default EJBCAForm;

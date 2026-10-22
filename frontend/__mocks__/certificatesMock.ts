@@ -1,5 +1,6 @@
 import {
   ICertificateAuthorityPartial,
+  ICertificatesEJBCA,
   ICertificatesNDES,
   IHostCertificate,
 } from "interfaces/certificates";
@@ -75,6 +76,28 @@ export const createMockNDESCertAuthority = (
   overrides?: Partial<ICertificatesNDES>
 ): ICertificatesNDES => {
   return { ...DEFAULT_NDES_CERT_AUTHORITY_MOCK, ...overrides };
+};
+
+const DEFAULT_EJBCA_CERT_AUTHORITY_MOCK: ICertificatesEJBCA = {
+  id: 1,
+  type: "ejbca",
+  name: "TEST_EJBCA",
+  url: "https://ejbca.example.com:8443",
+  trust_ca_bundle:
+    "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----",
+  certificate_authority_name: "ManagementCA",
+  certificate_profile_name: "ENDUSER",
+  end_entity_profile_name: "EMPTY",
+  certificate_common_name: "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+  username_template: "$FLEET_VAR_HOST_UUID",
+  certificate_user_principal_names: ["$FLEET_VAR_HOST_HARDWARE_SERIAL"],
+  mtls_cert_expires_at: "2099-01-01T00:00:00Z",
+};
+
+export const createMockEJBCACertAuthority = (
+  overrides?: Partial<ICertificatesEJBCA>
+): ICertificatesEJBCA => {
+  return { ...DEFAULT_EJBCA_CERT_AUTHORITY_MOCK, ...overrides };
 };
 
 export const createMockCertificateAuthorityPartial = (
