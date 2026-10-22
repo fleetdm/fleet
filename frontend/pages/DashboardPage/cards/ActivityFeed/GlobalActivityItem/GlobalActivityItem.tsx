@@ -2537,7 +2537,7 @@ const TAGGED_TEMPLATES = {
   editedEnrollSecrets: (activity: IActivity, isPremiumTier: boolean) => {
     let { team_name } = activity.details || {};
     if (isPremiumTier && !team_name) {
-      team_name = "No Team";
+      team_name = "Unassigned";
     }
     const postFix = team_name ? (
       <>
