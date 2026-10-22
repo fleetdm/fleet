@@ -163,7 +163,7 @@ import LocationModal from "../modals/LocationModal";
 import MDMStatusModal from "../modals/MDMStatusModal";
 import VitalsModal from "../modals/VitalsModal";
 
-import HostDetailsBanners from "./components/HostDetailsBanners";
+import { useHostDetailsBanner } from "./components/HostDetailsBanners";
 import ReleaseFromABModal from "./components/ReleaseFromABModal";
 import {
   canShowMyDeviceButton,
@@ -1482,6 +1482,24 @@ const HostDetailsPage = ({
     }
   };
 
+  // Computed before the loading return so MainContent knows whether this page
+  // has its own banner, which outranks the license host limit banner.
+  const hostDetailsBanner = useHostDetailsBanner({
+    mdmEnrollmentStatus: host?.mdm.enrollment_status ?? null,
+    hostPlatform: host?.platform,
+    macDiskEncryptionStatus: host?.mdm.apple_settings?.disk_encryption,
+    diskEncryptionActionRequired: host?.mdm.apple_settings?.action_required,
+    connectedToFleetMdm: host?.mdm.connected_to_fleet,
+    diskEncryptionOSSetting: host?.mdm.os_settings?.disk_encryption,
+    diskIsEncrypted: host?.disk_encryption_enabled,
+    diskEncryptionKeyAvailable: host?.mdm.encryption_key_available,
+    lastMdmEnrolledAt: host?.last_mdm_enrolled_at,
+    detailUpdatedAt: host?.detail_updated_at,
+    depAssignedToFleet: host?.dep_assigned_to_fleet || false,
+    onlyAllowAppleBusinessEnrollment:
+      config?.mdm.only_allow_apple_business_enrollment || false,
+  });
+
   if (
     !host ||
     isLoadingHost ||
@@ -1812,28 +1830,7 @@ const HostDetailsPage = ({
     return (
       <>
         <>
-          {!mainContentConfig.renderedBanner && (
-            <HostDetailsBanners
-              mdmEnrollmentStatus={host?.mdm.enrollment_status}
-              hostPlatform={host?.platform}
-              macDiskEncryptionStatus={
-                host?.mdm.apple_settings?.disk_encryption
-              }
-              diskEncryptionActionRequired={
-                host?.mdm.apple_settings?.action_required
-              }
-              connectedToFleetMdm={host?.mdm.connected_to_fleet}
-              diskEncryptionOSSetting={host?.mdm.os_settings?.disk_encryption}
-              diskIsEncrypted={host?.disk_encryption_enabled}
-              diskEncryptionKeyAvailable={host?.mdm.encryption_key_available}
-              lastMdmEnrolledAt={host?.last_mdm_enrolled_at}
-              detailUpdatedAt={host?.detail_updated_at}
-              depAssignedToFleet={host?.dep_assigned_to_fleet || false}
-              onlyAllowAppleBusinessEnrollment={
-                config?.mdm.only_allow_apple_business_enrollment || false
-              }
-            />
-          )}
+          {!mainContentConfig.renderedBanner && hostDetailsBanner}
           <div className={`${baseClass}__header-links`}>
             <BackButton
               text="Back to all hosts"
@@ -2567,7 +2564,11 @@ const HostDetailsPage = ({
     );
   };
 
-  return <MainContent className={baseClass}>{renderContent}</MainContent>;
+  return (
+    <MainContent className={baseClass} pageHasBanner={!!hostDetailsBanner}>
+      {renderContent}
+    </MainContent>
+  );
 };
 
 export default HostDetailsPage;

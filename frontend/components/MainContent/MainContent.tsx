@@ -23,6 +23,9 @@ const LICENSE_HOST_LIMIT_THRESHOLD = 1.2;
 
 interface IMainContentProps {
   children: ReactNode | ((mainContentConfig: IMainContentConfig) => ReactNode);
+  /** Whether the page renders its own banner. Page banners take priority over
+   * the license host limit banner, so it's hidden when this is true. */
+  pageHasBanner?: boolean;
   /** An optional classname to pass to the main content component.
    * This can be used to apply styles directly onto the main content div
    */
@@ -38,6 +41,7 @@ const baseClass = "main-content";
 const MainContent = ({
   children,
   className,
+  pageHasBanner = false,
 }: IMainContentProps): JSX.Element => {
   const classes = classnames(baseClass, className);
   const {
@@ -89,6 +93,7 @@ const MainContent = ({
       } else if (isFleetLicenseExpired) {
         banner = <LicenseExpirationBanner />;
       } else if (
+        !pageHasBanner &&
         licensedHostCount &&
         hostCount !== undefined &&
         hostCount > licensedHostCount * LICENSE_HOST_LIMIT_THRESHOLD
