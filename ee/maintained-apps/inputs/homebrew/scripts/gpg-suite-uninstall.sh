@@ -249,7 +249,7 @@ fi
 
 if [ -n "$UNINSTALLER_PATH" ] && [ -f "$UNINSTALLER_PATH" ]; then
   echo "Running GPG Suite Uninstaller from: $UNINSTALLER_PATH"
-  (cd /Users/$LOGGED_IN_USER && sudo "$UNINSTALLER_PATH") || echo "GPG Suite Uninstaller failed, continuing with manual removal"
+  (cd "/Users/$LOGGED_IN_USER" 2>/dev/null || cd /; sudo "$UNINSTALLER_PATH") || echo "GPG Suite Uninstaller failed, continuing with manual removal"
 else
   echo "GPG Suite Uninstaller not found, performing manual removal"
   # Explicitly remove the app bundle to ensure it's gone

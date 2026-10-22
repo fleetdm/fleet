@@ -352,20 +352,16 @@ func processScript(script optjson.StringOr[map[string]any], sb *scriptBuilder, a
 			}
 		}
 
-		// Build the command execution
+		// fleetd runs the script as root, so this runs as root with or without
+		// sudo and doesn't depend on anyone being logged in.
 		if needsSudo {
-			if mustSucceed {
-				sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo %s)`, cmd)
-			} else {
-				sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo %s) || true`, cmd)
-			}
-		} else {
-			if mustSucceed {
-				sb.Writef(`(cd /Users/$LOGGED_IN_USER && %s)`, cmd)
-			} else {
-				sb.Writef(`(cd /Users/$LOGGED_IN_USER && %s) || true`, cmd)
-			}
+			cmd = "sudo " + cmd
 		}
+		line := fmt.Sprintf(`(%s; %s)`, cdConsoleUserHome, cmd)
+		if !mustSucceed {
+			line += " || true"
+		}
+		sb.Write(line)
 	} else if len(script.String) > 0 {
 		if strings.Contains(script.String, "$HOMEBREW_PREFIX") {
 			return
@@ -373,10 +369,21 @@ func processScript(script optjson.StringOr[map[string]any], sb *scriptBuilder, a
 		addUserVar()
 		// Quote via shellSingleQuote rather than a bare '%s': the cask-controlled
 		// value could otherwise close the quote with an embedded apostrophe and
-		// inject commands.
-		sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo -u "$LOGGED_IN_USER" %s)`, shellSingleQuote(script.String))
+		// inject commands. Like brew, this runs as the user, so it's skipped when
+		// no one is logged in.
+		quoted := shellSingleQuote(script.String)
+		sb.Writef(`if [[ -n "$LOGGED_IN_USER" && "$LOGGED_IN_USER" != "root" && "$LOGGED_IN_USER" != "loginwindow" ]]; then
+  (%s; sudo -u "$LOGGED_IN_USER" %s)
+else
+  printf 'Not logged into a non-root GUI; skipping %%s.\n' %s
+fi`, cdConsoleUserHome, quoted, quoted)
 	}
 }
+
+// cdConsoleUserHome starts script directives in the console user's home, falling
+// back to / when there's none (e.g. at the login window, where the console user
+// is "loginwindow") so the directive still runs.
+const cdConsoleUserHome = `cd "/Users/$LOGGED_IN_USER" 2>/dev/null || cd /`
 
 func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 	process := func(target optjson.StringOr[[]string], f func(path string)) {

@@ -1,6 +1,7 @@
 package homebrew
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -863,7 +864,7 @@ func TestUninstallScriptEarlyScriptDirective(t *testing.T) {
 	}
 
 	script := uninstallScriptForApp(cask)
-	chflags := `(cd /Users/$LOGGED_IN_USER && '/usr/bin/chflags' '-RL' 'noschg' '/Applications/Foo.app') || true`
+	chflags := `(cd "/Users/$LOGGED_IN_USER" 2>/dev/null || cd /; '/usr/bin/chflags' '-RL' 'noschg' '/Applications/Foo.app') || true`
 	require.Contains(t, script, chflags)
 	require.Less(t, strings.Index(script, chflags), strings.Index(script, `remove_pkg_files 'com.example.foo'`))
 }
@@ -891,8 +892,117 @@ func TestUninstallScriptEarlyScriptHonorsSudo(t *testing.T) {
 	}
 
 	script := uninstallScriptForApp(cask)
-	require.Contains(t, script, `(cd /Users/$LOGGED_IN_USER && sudo '/Applications/Foo.app/Contents/MacOS/Foo' '--unload-system-extension')`)
+	require.Contains(t, script, `(cd "/Users/$LOGGED_IN_USER" 2>/dev/null || cd /; sudo '/Applications/Foo.app/Contents/MacOS/Foo' '--unload-system-extension')`)
 	require.NotContains(t, script, "|| true")
+}
+
+// TestUninstallScriptScriptDirectiveWithoutGUIUser runs generated script
+// directives in bash with the console user stubbed. Fleet also runs uninstalls
+// at the login window, where `cd /Users/loginwindow` failed and skipped the
+// vendor uninstaller, and an empty user ran it with `sudo -u ""`.
+func TestUninstallScriptScriptDirectiveWithoutGUIUser(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+
+	tmp := t.TempDir()
+	// /Users is relocated into tmp, where only alice has a home.
+	usersDir := filepath.Join(tmp, "Users")
+	require.NoError(t, os.MkdirAll(filepath.Join(usersDir, "alice"), 0o755))
+	resolvedUsersDir, err := filepath.EvalSymlinks(usersDir)
+	require.NoError(t, err)
+	aliceHome := filepath.Join(resolvedUsersDir, "alice")
+
+	rootTool := filepath.Join(tmp, "bin", "root-tool")
+	userTool := filepath.Join(tmp, "bin", "user-tool")
+	toolScript := []byte(`#!/bin/bash
+echo "ran ${0##*/} in $(pwd -P)"
+exit "${TOOL_EXIT:-0}"
+`)
+	require.NoError(t, os.MkdirAll(filepath.Dir(rootTool), 0o755))
+	for _, tool := range []string{rootTool, userTool} {
+		require.NoError(t, os.WriteFile(tool, toolScript, 0o755)) //nolint:gosec // G306: the test executes it
+	}
+
+	rootScript := func(mustSucceed bool) *brewUninstall {
+		return &brewUninstall{EarlyScript: optjson.StringOr[map[string]any]{
+			IsOther: true,
+			Other: map[string]any{
+				"executable":   rootTool,
+				"args":         []any{"--unload"},
+				"sudo":         true,
+				"must_succeed": mustSucceed,
+			},
+		}}
+	}
+	userScript := &brewUninstall{Script: optjson.StringOr[map[string]any]{String: userTool}}
+
+	run := func(t *testing.T, consoleUser string, toolExit int, directives ...*brewUninstall) (string, int) {
+		stubs := `console_user=` + shellSingleQuote(consoleUser) + `
+users_dir=` + shellSingleQuote(usersDir) + `
+scutil() { [[ -z "$console_user" ]] || echo "  Name : $console_user"; }
+cd() {
+  if [[ "$1" == /Users/* ]]; then
+    builtin cd "$users_dir/${1#/Users/}"
+  else
+    builtin cd "$@"
+  fi
+}
+sudo() {
+  echo "sudo $*"
+  [[ "$1" != -u ]] || shift 2
+  "$@"
+}
+`
+		cask := &brewCask{Artifacts: []*brewArtifact{{Uninstall: directives}}}
+		cmd := exec.Command(bash, "-c", stubs+uninstallScriptForApp(cask))
+		cmd.Env = append(os.Environ(), "TOOL_EXIT="+strconv.Itoa(toolExit))
+		out, err := cmd.CombinedOutput()
+		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
+			return string(out), exitErr.ExitCode()
+		}
+		require.NoError(t, err, string(out))
+		return string(out), 0
+	}
+
+	for name, user := range map[string]string{"loginwindow": "loginwindow", "empty": "", "root": "root"} {
+		t.Run(name, func(t *testing.T) {
+			out, code := run(t, user, 0, rootScript(true), userScript)
+			require.Zero(t, code, out)
+			require.Contains(t, out, "sudo "+rootTool+" --unload\nran root-tool in ")
+			require.Contains(t, out, "Not logged into a non-root GUI; skipping "+userTool+".\n")
+			require.NotContains(t, out, "user-tool in")
+			if user != "" {
+				require.Contains(t, out, "ran root-tool in /\n")
+			}
+		})
+	}
+
+	t.Run("normal user", func(t *testing.T) {
+		out, code := run(t, "alice", 0, rootScript(true), userScript)
+		require.Zero(t, code, out)
+		require.Contains(t, out, "sudo "+rootTool+" --unload\nran root-tool in "+aliceHome+"\n")
+		require.Contains(t, out, "sudo -u alice "+userTool+"\nran user-tool in "+aliceHome+"\n")
+		require.NotContains(t, out, "Not logged into")
+	})
+
+	t.Run("must_succeed", func(t *testing.T) {
+		out, code := run(t, "loginwindow", 3, rootScript(true))
+		require.Contains(t, out, "ran root-tool in /\n")
+		require.Equal(t, 3, code, out)
+
+		out, code = run(t, "loginwindow", 3, rootScript(false))
+		require.Contains(t, out, "ran root-tool in /\n")
+		require.Zero(t, code, out)
+
+		out, code = run(t, "alice", 3, userScript)
+		require.Contains(t, out, "ran user-tool in "+aliceHome+"\n")
+		require.Equal(t, 3, code, out)
+	})
 }
 
 // TestUninstallScriptSkipsHomebrewPrefixScript drops script directives pointing
