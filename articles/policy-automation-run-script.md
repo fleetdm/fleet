@@ -1,6 +1,6 @@
 # Automatically run scripts
 
-![Fleet MDM Cover](../website/assets/images/articles/introducing-cross-platform-script-execution-800x450@2x.png)
+![Cross-platform script execution](../website/assets/images/articles/introducing-cross-platform-script-execution-800x450@2x.png)
 
 Fleet [v4.58.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.58.0) introduces the ability to execute scripts on hosts automatically based on predefined policy failures. This guide will walk you through configuring Fleet to automatically execute scripts on hosts using uploaded scripts based on programmed policies.
 

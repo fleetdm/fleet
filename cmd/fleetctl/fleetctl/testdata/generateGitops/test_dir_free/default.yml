@@ -207,9 +207,7 @@ policies:
 - calendar_events_enabled: false
   conditional_access_enabled: true
   continuous_automations_enabled: false
-  critical: false
   description: This is a global policy
-  hidden: false
   install_software:
     hash_sha256: # TODO: Add your hash_sha256 here
   name: Global Policy
@@ -221,9 +219,7 @@ policies:
 - calendar_events_enabled: false
   conditional_access_enabled: false
   continuous_automations_enabled: false
-  critical: false
   description: This is a global policy with include_all scope
-  hidden: false
   name: Global Policy Include All
   platform: darwin
   query: SELECT * FROM global_policy WHERE id = 2

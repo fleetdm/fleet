@@ -19,12 +19,6 @@ This handbook page details processes specific to working [with](#contact-us) and
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/94) for this department, including pending tasks and the status of new requests.
 
 
-
-### Marketing assets
-
-The complete list of all marketing assets is listed on [this handbook page](https://fleetdm.com/handbook/marketing/marketing-assets).
-
-
 ### Press boilerplate text
 
 Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Over 1,300 organizations use Fleet to manage devices at scale, stay compliant, and cut costs. Fleet brings infrastructure-as-code to device management, and with built-in AI, IT teams can describe what they need in plain English, review the proposed changes by a human IT expert, and roll them out across every endpoint. Fleet gives you full control and supports the choices that work for your organization, including total deployment flexibility. 
