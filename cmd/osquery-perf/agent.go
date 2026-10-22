@@ -833,7 +833,7 @@ func newAgent(
 		macMDMClient *mdmtest.TestAppleMDMClient
 		winMDMClient *mdmtest.TestWindowsMDMClient
 	)
-	mdmRoll := rand.Float64()
+	mdmRoll := rand.Float64() // nolint:gosec // ignore weak randomizer
 	switch {
 	case agentOS == "macos" && mdmRoll < mdmProbMacOS:
 		macMDMClient = mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
@@ -848,7 +848,7 @@ func newAgent(
 	case agentOS == "windows" && mdmRoll < mdmProbWindows:
 		// windows MDM enrollment requires orbit enrollment
 		if deviceAuthToken == nil {
-			deviceAuthToken = ptr.String(uuid.NewString())
+			deviceAuthToken = new(uuid.NewString())
 		}
 		// creating the Windows MDM client requires the orbit node key, but we
 		// only get it after orbit enrollment. So here we just set the value to a
