@@ -417,11 +417,11 @@ Testing requires a test Mac that is present in your Apple Business (AB) account.
 
 ## Configuring via REST API
 
-Fleet also provides a REST API for managing setup experience software and scripts programmatically. Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api).
+Fleet also provides a REST API for managing setup experience software programmatically. Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api).
 
 ## Configuring via GitOps
 
-To manage setup experience software and script using Fleet's best practice GitOps, check out the `setup_experience` key in the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#setup-experience)
+To manage setup experience software using Fleet's best practice GitOps, check out the `setup_experience` key in the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#setup-experience)
 
 ## Advanced
 
