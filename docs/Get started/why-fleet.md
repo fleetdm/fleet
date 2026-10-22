@@ -2,7 +2,7 @@
 
 Fleet is open-source AI device management, patching, and governance for every OS: macOS, Windows, Linux, Chromebooks, iOS, and Android (BYOD or corporate-owned).
 
-Describe the outcome you need, like "Our security team needs to know which Windows computers don't have antivirus protection running." The AI you already trust works out the change, whether that's a policy, a CVE fix, or a configuration profile. The change arrives as a pull request, so a person reviews it before it reaches any device.
+Describe the outcome you need, like "Our security team needs to know which Windows computers don't have antivirus protection running." The AI you already trust works out the change, whether that's a policy, report, or configuration profile. The change arrives as a pull request, so a person reviews it before it reaches any device.
 
 To get started, see [Get started with AI and Fleet](https://fleetdm.com/guides/get-started-with-ai-and-fleet).
 
