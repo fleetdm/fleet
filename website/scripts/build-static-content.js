@@ -36,9 +36,9 @@ module.exports = {
     }//ﬁ
 
     if(!getRealTimestamps) {
-      sails.log(`Skipping building real lastModifiedAt timestamps. To see when a file was last updated on your local server, run this script without the --getRealTimestamps flag.`)
+      sails.log(`Skipping building real lastModifiedAt timestamps. To see when a file was last updated on your local server, run this script without the --getRealTimestamps flag.`);
     } else {
-      sails.log(`Note: This script can take over 30s to run.`)
+      sails.log(`Note: This script can take over 30s to run.`);
     }
 
     await sails.helpers.flow.simultaneously([
