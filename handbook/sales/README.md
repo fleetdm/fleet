@@ -232,6 +232,7 @@ _*MSAs, DPAs, and reseller agreements*_
 
 _*All other agreements*_
 
+
 - Email to deal desk and cc CFO
 - Nate or Tina will either ok it for signature or send to outside counsel if necessary.
 
