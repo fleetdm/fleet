@@ -11,6 +11,8 @@ import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
 import { ICustomESTFormData } from "../CustomESTForm/CustomESTForm";
 import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 import { IDigicertFormData } from "../DigicertForm/DigicertForm";
+import { IEJBCAFormData } from "../EJBCAForm/EJBCAForm";
+import { generateEJBCAAddData } from "../EJBCAForm/helpers";
 import CA_LABEL_BY_TYPE from "../helpers";
 import { IHydrantFormData } from "../HydrantForm/HydrantForm";
 import { INDESFormData } from "../NDESForm/NDESForm";
@@ -27,6 +29,7 @@ const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
     value: "custom_scep_proxy",
   },
   { label: CA_LABEL_BY_TYPE.digicert, value: "digicert" },
+  { label: CA_LABEL_BY_TYPE.ejbca, value: "ejbca" },
   {
     label: CA_LABEL_BY_TYPE.hydrant,
     value: "hydrant",
@@ -107,6 +110,8 @@ export const generateAddCertAuthorityData = (
         },
       };
     }
+    case "ejbca":
+      return { ejbca: generateEJBCAAddData(formData as IEJBCAFormData) };
     case "custom_scep_proxy": {
       const {
         name: customSCEPName,

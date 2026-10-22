@@ -1,9 +1,17 @@
-import { createMockNDESCertAuthority } from "__mocks__/certificatesMock";
+import {
+  createMockEJBCACertAuthority,
+  createMockNDESCertAuthority,
+} from "__mocks__/certificatesMock";
 import { UNCHANGED_PASSWORD_API_RESPONSE } from "utilities/constants";
 
+import { generateEJBCAFormData } from "../EJBCAForm/helpers";
 import { INDESFormData } from "../NDESForm/NDESForm";
 
-import { generateEditCertAuthorityData, updateFormData } from "./helpers";
+import {
+  generateDefaultFormData,
+  generateEditCertAuthorityData,
+  updateFormData,
+} from "./helpers";
 
 const ndesCertAuthority = createMockNDESCertAuthority();
 
@@ -70,6 +78,21 @@ describe("EditCertAuthorityModal helpers", () => {
       ).toEqual({
         ndes_scep_proxy: { password: "entered-password" },
       });
+    });
+
+    it("sends only what changed for an EJBCA CA, with no client certificate unless a new one is uploaded", () => {
+      const ejbcaCertAuthority = createMockEJBCACertAuthority();
+      const formData = generateDefaultFormData(ejbcaCertAuthority);
+
+      expect(
+        generateEditCertAuthorityData(ejbcaCertAuthority, formData)
+      ).toEqual({ ejbca: {} });
+      expect(
+        generateEditCertAuthorityData(ejbcaCertAuthority, {
+          ...generateEJBCAFormData(ejbcaCertAuthority),
+          commonName: "new-cn",
+        })
+      ).toEqual({ ejbca: { certificate_common_name: "new-cn" } });
     });
   });
 });

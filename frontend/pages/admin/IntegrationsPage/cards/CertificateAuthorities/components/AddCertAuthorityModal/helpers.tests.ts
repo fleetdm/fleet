@@ -1,4 +1,12 @@
-import { getDisplayErrMessage } from "./helpers";
+import { createMockEJBCACertAuthority } from "__mocks__/certificatesMock";
+
+import { generateEJBCAFormData } from "../EJBCAForm/helpers";
+
+import {
+  generateAddCertAuthorityData,
+  generateDropdownOptions,
+  getDisplayErrMessage,
+} from "./helpers";
 
 /** Builds an API error in the shape getErrorReason reads. */
 const apiError = (reason: string) => ({
@@ -6,6 +14,29 @@ const apiError = (reason: string) => ({
 });
 
 describe("AddCertAuthorityModal helpers", () => {
+  it("has EJBCA in the dropdown options", () => {
+    expect(generateDropdownOptions(false).map((o) => o.value)).toContain(
+      "ejbca"
+    );
+  });
+
+  it("generates the data to add an EJBCA CA", () => {
+    const formData = {
+      ...generateEJBCAFormData(createMockEJBCACertAuthority()),
+      clientP12: "AQID",
+      password: "p12-password",
+    };
+
+    expect(generateAddCertAuthorityData("ejbca", formData)).toEqual({
+      ejbca: expect.objectContaining({
+        name: "TEST_EJBCA",
+        client_p12: "AQID",
+        password: "p12-password",
+        certificate_authority_name: "ManagementCA",
+      }),
+    });
+  });
+
   describe("getDisplayErrMessage", () => {
     // The server names the CA type in the message ("Invalid NDES SCEP admin URL or
     // credentials"), so the match can't assume the reason starts with "invalid admin URL".
