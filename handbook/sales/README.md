@@ -229,7 +229,7 @@ When needing a contract to undergo legal review, we use the following processes 
 - Final drafts will be indicated in the naming convention, using "YYYY-MM-DD [Customer Name] FINAL" to indicate the document is ready to be sent for signature.  
 
 #### All other agreements
-- Email to Nathanael Holliday and CC Tina Ong
+- Email to deal desk and cc CFO
 - Nate or Tina will either ok it for signature or send to outside counsel if necessary.
 
 ## Rituals
