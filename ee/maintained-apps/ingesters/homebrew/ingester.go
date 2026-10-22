@@ -322,6 +322,15 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.UniqueIdentifier, out.Version,
 		)
 	}
+	if input.Token == "logitech-g-hub" {
+		// lghub.app ships without a CFBundleShortVersionString, so bundle_short_version
+		// is empty and the default patch policy can never pass. The cask version
+		// matches CFBundleVersion.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
 	switch input.Token {
 	case "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3":
 		// CFBundleShortVersionString is major.minor only ("26.3" for cask "26.3.5"),
