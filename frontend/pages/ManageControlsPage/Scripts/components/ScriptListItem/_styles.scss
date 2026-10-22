@@ -20,7 +20,13 @@
     min-width: 0;
     max-width: 100%;
     overflow: hidden;
-    cursor: pointer;
+
+    // TooltipWrapper's __element sets cursor: default (#49859) to drop the
+    // I-beam on tooltipped prose; override here so hovering the name shows
+    // the row's pointer cursor like clicking the row background does.
+    .component__tooltip-wrapper__element {
+      cursor: pointer;
+    }
   }
 
   &__actions {
