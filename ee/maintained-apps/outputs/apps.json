@@ -4069,6 +4069,13 @@
       "description": "Grok Bot is an AI teammate that works across your apps and tools."
     },
     {
+      "name": "Grok Bot",
+      "slug": "grok-bot/windows",
+      "platform": "windows",
+      "unique_identifier": "Grok Bot",
+      "description": "Grok Bot is an AI teammate that works across your apps and tools."
+    },
+    {
       "name": "Groove OmniDialer",
       "slug": "groove-omnidialer/darwin",
       "platform": "darwin",
