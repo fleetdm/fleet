@@ -5,7 +5,7 @@
 #      Works even where Microsoft's automatic disallowed-list update is blocked or offline.
 #   2. Strips the two compromised roots from fleetd's CA bundle
 #      (C:\Program Files\Orbit\certs.pem), which osqueryd uses for its TLS connection to Fleet.
-#      Only after proving the Fleet server still chains to a root left in the bundle.
+#      Only after proving a CA in the Fleet server's chain still has its key in the bundle.
 # Idempotent: safe to re-run. Built for Fleet "Run script" (runs as SYSTEM).
 # Save it as a Fleet script (it is larger than the 10,000-character ad hoc limit).
 # Rollback: copy certs.pem.pre-emudhra back, and delete the 16 entries from
@@ -123,6 +123,19 @@ function Get-PemThumbprints([string]$Text) {
     return $set
 }
 
+# A CA's public key, independent of which copy (self-signed or cross-signed) carries it.
+function Get-KeyId($Cert) {
+    return $Cert.GetKeyAlgorithm() + ':' + $Cert.GetKeyAlgorithmParametersString() + ':' + $Cert.GetPublicKeyString()
+}
+
+function Get-PemKeyIds([string]$Text) {
+    $set = @{}
+    foreach ($m in [regex]::Matches($Text, '(?s)-----BEGIN CERTIFICATE-----(.*?)-----END CERTIFICATE-----')) {
+        try { $set[(Get-KeyId (New-CertFromB64 ($m.Groups[1].Value -replace '\s', '')))] = $true } catch { }
+    }
+    return $set
+}
+
 function Get-OrbitEnv([string]$Name) {
     try {
         $envList = (Get-ItemProperty -Path $OrbitSvcKey -Name Environment -ErrorAction Stop).Environment
@@ -155,7 +168,7 @@ function Get-OrbitSetting([string]$EnvName, [string]$Flag) {
     return $v
 }
 
-# Thumbprints of the chain Windows builds for the Fleet server, leaf first, root last.
+# Certificates of the chain Windows builds for the Fleet server, leaf first, root last.
 function Get-ServerChain([uri]$Uri) {
     $port = $Uri.Port
     if ($port -le 0) { $port = 443 }
@@ -170,7 +183,8 @@ function Get-ServerChain([uri]$Uri) {
     $script:ServerChain = @()
     $callback = [System.Net.Security.RemoteCertificateValidationCallback] {
         param($sender, $cert, $chain, $errors)
-        $script:ServerChain = @($chain.ChainElements | ForEach-Object { $_.Certificate.Thumbprint })
+        # Copy each certificate so it stays valid after the chain is disposed.
+        $script:ServerChain = @($chain.ChainElements | ForEach-Object { New-CertFromB64 ([Convert]::ToBase64String($_.Certificate.RawData)) })
         return $true
     }
     $ssl = New-Object System.Net.Security.SslStream($tcp.GetStream(), $false, $callback)
@@ -200,11 +214,17 @@ function Repair-OrbitBundle {
     } elseif ($url) {
         try { $chain = Get-ServerChain ([uri]$url) } catch { Write-Warn "FLEETD: could not reach Fleet server ($($_.Exception.Message)); not changed"; return }
         if ($chain.Count -eq 0) { Write-Warn "FLEETD: no certificate chain from Fleet server; not changed"; return }
-        $bad = @($Intermediates | Where-Object { $chain -contains $_.Sha1 })
+        $thumbs = @($chain | ForEach-Object { $_.Thumbprint })
+        $bad = @($Intermediates | Where-Object { $thumbs -contains $_.Sha1 })
         if ($bad.Count -gt 0) { Write-Warn "FLEETD: Fleet server chains through a COMPROMISED intermediate ($($bad[0].Name)). Replace the server certificate now; not changed"; return }
-        $root = $chain[$chain.Count - 1]
-        if (-not $kept.ContainsKey($root)) { Write-Warn "FLEETD: Fleet server root $root is not in the filtered bundle; not changed"; return }
-        Write-Log "FLEETD: Fleet server chains to root $root, which stays in the bundle"
+        # Windows may extend the chain through a cross-signed copy of a root to an older root
+        # that the bundle does not carry. osquery stops at the first CA whose key is in the
+        # bundle, so match on the public key of every CA in the chain, not on the thumbprint
+        # of the last certificate.
+        $keptKeys = Get-PemKeyIds $result.Text
+        $anchor = @($chain | Select-Object -Skip 1 | Where-Object { $keptKeys.ContainsKey((Get-KeyId $_)) }) | Select-Object -First 1
+        if (-not $anchor) { Write-Warn "FLEETD: no CA in the Fleet server chain ($($thumbs -join ', ')) has its key in the filtered bundle; not changed"; return }
+        Write-Log "FLEETD: Fleet server chain is anchored by '$($anchor.Subject)', whose key stays in the bundle"
     } else {
         Write-Warn "FLEETD: Fleet URL not found under $OrbitSvcKey (Environment or ImagePath); cannot prove safety; not changed"; return
     }
