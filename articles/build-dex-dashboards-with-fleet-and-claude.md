@@ -261,4 +261,4 @@ The history files stay where they are, so the dashboards keep their history.
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="publishedOn" value="2026-10-16">
 <meta name="category" value="guides">
-<meta name="description" value="Build seven daily DEX dashboards from Fleet data with a Claude Code routine, from hardware lifecycle and patching to AI governance, connectivity, and sustainability.">
+<meta name="description" value="Build seven daily DEX dashboards from Fleet data with a Claude Code routine, from hardware lifecycle and patching to AI governance and sustainability.">
