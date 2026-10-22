@@ -4035,11 +4035,16 @@ This setting requires that every Mac enrolled in Fleet MDM runs fleetd installed
 
 ### fleet_allow_bootstrap_package_during_migration
 
-When set to `1` or `true`, this environment variable enables Fleet to install bootstrap packages on hosts during MDM migration enrollments (i.e. non-DEP enrollments). By default, bootstrap packages are only installed for DEP-enrolled hosts. Setting this variable restores the previous behavior, ensuring all new enrollments receive the bootstrap package.
+> **Deprecated.** Use the **Install during migration** setting in **Controls > Setup experience > Bootstrap package** (`enable_bootstrap_package_during_migration` in the team spec) instead.
+
+When set to `1` or `true`, this environment variable enables Fleet to install bootstrap packages on hosts during MDM migration enrollments (i.e. non-DEP enrollments). By default, bootstrap packages are only installed for DEP-enrolled hosts.
+
+On server startup, if this variable is set, Fleet copies its value to the **Install during migration** setting (fleet-wide default) and logs a deprecation warning. After that, manage the setting in the UI, YAML, or API. If both the variable and the setting are present, the setting wins.
 
 This is only supported as an environment variable.
 
 - Environment variable: `FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION`
+
 
 ### silent_migration_enrollment_profile
 
