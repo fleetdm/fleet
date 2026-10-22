@@ -91,7 +91,7 @@ const HostReportCard = ({
     const lastFetched = report.last_fetched;
     if (!lastFetched) return null;
 
-    const prefix = doesNotStoreResults ? "Last ran" : "Last updated";
+    const prefix = doesNotStoreResults ? "Last ran" : "Last fetched";
     return (
       <span className={`${baseClass}__last-updated`}>
         <TooltipWrapper

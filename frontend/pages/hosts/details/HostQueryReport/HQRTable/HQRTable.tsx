@@ -177,7 +177,7 @@ const HQRTable = ({
             underline={false}
             showArrow
           >
-            Last updated {humanLastSeen(lastFetched ?? "")}
+            Last fetched {humanLastSeen(lastFetched ?? "")}
           </TooltipWrapper>
         </span>
       </>
