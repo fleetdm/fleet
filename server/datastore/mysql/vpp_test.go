@@ -2776,9 +2776,9 @@ func testAndroidVPPLatestFailedInstall(t *testing.T, ds *Datastore) {
 	require.ElementsMatch(t, []string{canceledFailedCmd, removedFailedCmd}, listFailed(host.Host.ID))
 	require.Equal(t, []string{otherHostFailedCmd}, listFailed(otherHost.Host.ID))
 
-	summary, err := ds.GetSummaryHostVPPAppInstalls(ctx, failed.AppTeamID)
+	summaries, err := ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: failed.AppTeamID}})
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Installed: 1, Failed: 1}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Installed: 1, Failed: 1}, summaries[failed.AppTeamID])
 }
 
 func testGetVPPAppInstallStatusByCommandUUID(t *testing.T, ds *Datastore) {

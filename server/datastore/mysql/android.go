@@ -2704,7 +2704,8 @@ func (ds *Datastore) ListHostMDMAndroidVPPAppsLatestFailedInstall(ctx context.Co
 	// Only the latest install per app counts, so a failure that a later install replaced
 	// is never revisited. Installs from before the current enrollment are left out too:
 	// re-enrolling fails them, and until the setup experience creates the new installs
-	// they would otherwise still be the latest.
+	// they would otherwise still be the latest. They're always older than this
+	// enrollment's installs, so leaving them out before ranking doesn't change the latest.
 	const stmt = `
 SELECT
 	host_id,
@@ -2720,9 +2721,8 @@ FROM (
 		hvsi.associated_event_id,
 		hvsi.created_at,
 		hvsi.verification_failed_at,
-		h.last_enrolled_at,
 		ROW_NUMBER() OVER (
-			PARTITION BY hvsi.adam_id, hvsi.platform
+			PARTITION BY hvsi.adam_id
 			ORDER BY hvsi.created_at DESC, hvsi.id DESC
 		) AS rn
 	FROM
@@ -2732,12 +2732,12 @@ FROM (
 		hvsi.host_id = ? AND
 		hvsi.platform = ? AND
 		hvsi.removed = 0 AND
-		hvsi.canceled = 0
+		hvsi.canceled = 0 AND
+		hvsi.created_at >= h.last_enrolled_at
 ) ranked
 WHERE
 	ranked.rn = 1 AND
-	ranked.verification_failed_at IS NOT NULL AND
-	ranked.created_at >= ranked.last_enrolled_at
+	ranked.verification_failed_at IS NOT NULL
 `
 
 	var failedInstalls []*fleet.HostAndroidVPPSoftwareInstall
