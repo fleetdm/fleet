@@ -985,14 +985,21 @@ module.exports = {
               // If the table has `"evented": true`, we'll add an evented table label (in html)
               tableMdString += '   <a style="text-decoration: none" purpose="evented-table-label" href="https://fleetdm.com/guides/osquery-evented-tables-overview?utm_source=fleetdm.com&utm_content=table-'+_.escape(encodeURIComponent(table.name))+'"><span>EVENTED TABLE</span></a>\n';
             }
-            // Add the tables description to the markdown string and start building the table in the markdown string
-            tableMdString += '\n\n'+table.description+'\n\n|Column | Type | Description |\n|-|-|-|\n';
+            // Escape angle brackets in table descriptions if they are not wraped in backticks (`)
+            let descriptionForMarkdownPage = table.description.replace(/(`+)[\s\S]*?\1|[<>]/g, (match, backticks)=>{
+              return backticks ? match : _.escape(match);
+            });
 
+            // Add the tables description to the markdown string and start building the table in the markdown string
+            tableMdString += '\n\n'+descriptionForMarkdownPage+'\n\n|Column | Type | Description |\n|-|-|-|\n';
             // Iterate through the columns of the table, we'll add a row to the markdown table element for each column in this schema table
             for(let column of _.sortBy(table.columns, 'name')) {
               let columnDescriptionForTable = '';// Set the initial value of the description that will be added to the table for this column.
               if(column.description) {
-                columnDescriptionForTable = column.description;
+                // Escape angle brackets inside column descriptions.
+                columnDescriptionForTable = column.description.replace(/(`+)[\s\S]*?\1|[<>]/g, (match, backticks)=>{
+                  return backticks ? match : _.escape(match);
+                });
               }
               // Replacing pipe characters and newlines with html entities in column descriptions to keep it from breaking markdown tables.
               columnDescriptionForTable = columnDescriptionForTable.replace(/\|/g, '&#124;').replace(/\n/gm, '&#10;');
