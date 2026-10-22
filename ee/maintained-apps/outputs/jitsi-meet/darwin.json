@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.8.0",
+      "version": "2026.10.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.jitsi.jitsi-meet';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.jitsi.jitsi-meet' AND version_compare(bundle_short_version, '2026.8.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.jitsi.jitsi-meet' AND version_compare(bundle_short_version, '2026.10.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.jitsi.jitsi-meet' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/jitsi/jitsi-meet-electron/releases/download/v2026.8.0/jitsi-meet.dmg",
+      "installer_url": "https://github.com/jitsi/jitsi-meet-electron/releases/download/v2026.10.0/jitsi-meet.dmg",
       "install_script_ref": "1b32536d",
       "uninstall_script_ref": "ed2d9125",
-      "sha256": "9480833adebc35c0974e75bd2c45b07c154eca7816d83295403219f682bf3452",
+      "sha256": "6e45229b85b82ec5461636f5720e1283bda094d1677cb5b753e1c024eba62d4f",
       "default_categories": [
         "Communication"
       ]
