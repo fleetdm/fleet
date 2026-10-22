@@ -36,13 +36,16 @@ const DeleteProfileModal = ({
   const { isPremiumTier, currentTeam } = useContext(AppContext);
 
   const messageSuffix = generateMessageSuffix(isPremiumTier, currentTeam?.id);
+  const isWindows = platform === "windows";
 
   return (
     <Modal
       className={baseClass}
       title="Delete configuration profile"
       onExit={onCancel}
-      onEnter={() => onDelete(profileId)}
+      // Modal's Enter handler runs wherever focus is, so it would delete instead
+      // of opening the Windows "Learn more" link.
+      onEnter={isWindows ? undefined : () => onDelete(profileId)}
       width="large"
     >
       <>
@@ -52,7 +55,7 @@ const DeleteProfileModal = ({
             profile from all hosts {messageSuffix}.
           </p>
           <p>Pending profiles will be canceled.</p>
-          {platform === "windows" && (
+          {isWindows && (
             <p>
               Some Windows settings may not be cleanly removed from hosts.{" "}
               <CustomLink

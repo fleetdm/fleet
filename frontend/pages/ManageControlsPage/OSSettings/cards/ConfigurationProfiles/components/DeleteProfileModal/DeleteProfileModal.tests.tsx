@@ -9,14 +9,17 @@ import DeleteProfileModal from "./DeleteProfileModal";
 
 const render = createCustomRenderer();
 
-const renderModal = (platform: ProfilePlatform) =>
+const renderModal = (
+  platform: ProfilePlatform,
+  onDelete: (profileId: string) => void = noop
+) =>
   render(
     <DeleteProfileModal
       profileName="Test profile"
       profileId="profile-uuid"
       platform={platform}
       onCancel={noop}
-      onDelete={noop}
+      onDelete={onDelete}
       isDeleting={false}
     />
   );
@@ -36,6 +39,26 @@ describe("DeleteProfileModal", () => {
       "https://fleetdm.com/learn-more-about/removal-behavior"
     );
     expect(link).toHaveAttribute("target", "_blank");
+  });
+
+  it("doesn't delete when Enter is pressed on the Windows Learn more link", async () => {
+    const onDelete = jest.fn();
+    const { user } = renderModal("windows", onDelete);
+
+    screen.getByRole("link", { name: /Learn more/i }).focus();
+    await user.keyboard("{Enter}");
+
+    expect(onDelete).not.toHaveBeenCalled();
+  });
+
+  it("deletes on Enter for non-Windows profiles", async () => {
+    const onDelete = jest.fn();
+    const { user } = renderModal("darwin", onDelete);
+
+    await user.keyboard("{Enter}");
+
+    expect(onDelete).toHaveBeenCalledTimes(1);
+    expect(onDelete).toHaveBeenCalledWith("profile-uuid");
   });
 
   it.each<ProfilePlatform>(["darwin", "ios", "ipados", "android", "linux"])(
