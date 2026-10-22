@@ -89,7 +89,7 @@ func convertAppleGroup(ctx context.Context, logger *slog.Logger, g *appleGroup) 
 	trimPlatforms(merged, nil)
 	return &profilevalidation.ApplePayloadType{
 		Platforms: merged.Platforms,
-		Source:    "apple",
+		Source:    profilevalidation.AppleSourceApple,
 		Keys:      merged.Keys,
 		Open:      merged.Open,
 		Values:    merged.Values,
@@ -239,16 +239,6 @@ func mergePlatform(a, b profilevalidation.ApplePlatform) profilevalidation.Apple
 	}
 }
 
-func mergeTypes(a, b profilevalidation.AppleTypes) profilevalidation.AppleTypes {
-	out := slices.Clone(a)
-	for _, t := range b {
-		if !slices.Contains(out, t) {
-			out = append(out, t)
-		}
-	}
-	return out
-}
-
 // mergeRangeList returns the union, or nil (any value) if either side doesn't restrict values.
 func mergeRangeList(a, b []any) []any {
 	if a == nil || b == nil {
@@ -264,11 +254,11 @@ func mergeRangeList(a, b []any) []any {
 }
 
 // widenRange returns bounds covering both, dropping a bound either side lacks.
-func widenRange(a, b *profilevalidation.AppleRange) *profilevalidation.AppleRange {
+func widenRange(a, b *profilevalidation.Range) *profilevalidation.Range {
 	if a == nil || b == nil {
 		return nil
 	}
-	out := &profilevalidation.AppleRange{}
+	out := &profilevalidation.Range{}
 	if a.Min != nil && b.Min != nil {
 		out.Min = new(min(*a.Min, *b.Min))
 	}
@@ -281,7 +271,7 @@ func widenRange(a, b *profilevalidation.AppleRange) *profilevalidation.AppleRang
 	return out
 }
 
-func fmtRange(r *profilevalidation.AppleRange) string {
+func fmtRange(r *profilevalidation.Range) string {
 	if r == nil {
 		return "none"
 	}

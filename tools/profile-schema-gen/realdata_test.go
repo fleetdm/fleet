@@ -44,7 +44,6 @@ func TestRealDataHalfRemovedFailsAndWritesNothing(t *testing.T) {
 	require.NoError(t, err)
 	var schema profilevalidation.ProfileValidationSchema
 	require.NoError(t, convertApple(t.Context(), logger, src, &schema))
-	require.NoError(t, runWindows(t.Context(), logger, &schema))
 
 	out := filepath.Join(t.TempDir(), "profile_schema.json")
 	require.NoError(t, os.WriteFile(out, []byte("previous output"), 0o600))

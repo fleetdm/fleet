@@ -1,9 +1,5 @@
 package profilevalidation
 
-import (
-	"encoding/json"
-)
-
 // AppleVersion pins the apple/device-management commit the Apple sections were generated from.
 type AppleVersion struct {
 	Release string `json:"release"`
@@ -20,7 +16,7 @@ type AppleEnvelope struct {
 // ApplePayloadType describes one .mobileconfig payload type, DDM declaration type, or envelope schema.
 type ApplePayloadType struct {
 	Platforms map[AppleOS]ApplePlatform `json:"platforms,omitempty"`
-	// Source is "apple" for upstream entries and "override" for allow entries.
+	// Source is AppleSourceApple for upstream entries and AppleSourceOverride for allow entries.
 	Source string               `json:"source,omitempty"`
 	Keys   map[string]*AppleKey `json:"keys,omitempty"`
 	// Open and Values work as on AppleKey, for payload types whose top level accepts any key.
@@ -35,9 +31,9 @@ type AppleKey struct {
 	Type       AppleTypes     `json:"type"`
 	Required   bool           `json:"required,omitempty"`
 	RangeList  []any          `json:"rangelist,omitempty"`
-	Range      *AppleRange    `json:"range,omitempty"`
+	Range      *Range         `json:"range,omitempty"`
 	Format     string         `json:"format,omitempty"`
-	Repetition *AppleRange    `json:"repetition,omitempty"`
+	Repetition *Range         `json:"repetition,omitempty"`
 	ValueType  AppleValueType `json:"valuetype,omitempty"`
 	// Open means keys not listed in Keys are accepted. Values, when set, is what their values must
 	// look like (Apple's "ANY" subkey).
@@ -52,12 +48,6 @@ type AppleKey struct {
 	Platforms map[AppleOS]ApplePlatform `json:"platforms,omitempty"`
 	// Override is the reason from the Fleet override that added or changed this key, if any.
 	Override string `json:"override,omitempty"`
-}
-
-// AppleRange is used for both range and repetition. Pointers keep a 0 bound distinct from no bound.
-type AppleRange struct {
-	Min *float64 `json:"min,omitempty"`
-	Max *float64 `json:"max,omitempty"`
 }
 
 // AppleOS is a platform key from the "supportedOS Object" in Apple's docs/schema.md. iPadOS is
@@ -113,26 +103,15 @@ const (
 	AppleValueTypeUUID         AppleValueType = "uuid"
 )
 
+const (
+	AppleSourceApple    = "apple"
+	AppleSourceOverride = "override"
+)
+
 // AppleTypes is a key's type. It's a single string in JSON unless an override widened it to a list.
 type AppleTypes []AppleType
 
-func (t AppleTypes) MarshalJSON() ([]byte, error) {
-	if len(t) == 1 {
-		return json.Marshal(t[0])
-	}
-	return json.Marshal([]AppleType(t))
-}
-
+func (t AppleTypes) MarshalJSON() ([]byte, error) { return marshalOneOrMany(t) }
 func (t *AppleTypes) UnmarshalJSON(data []byte) error {
-	var s AppleType
-	if err := json.Unmarshal(data, &s); err == nil {
-		*t = AppleTypes{s}
-		return nil
-	}
-	var list []AppleType
-	if err := json.Unmarshal(data, &list); err != nil {
-		return err
-	}
-	*t = list
-	return nil
+	return unmarshalOneOrMany(data, (*[]AppleType)(t))
 }

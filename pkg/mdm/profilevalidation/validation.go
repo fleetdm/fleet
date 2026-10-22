@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -50,14 +51,47 @@ type ProfileValidationSchema struct {
 	AppleDeclarations map[string]*ApplePayloadType `json:"apple_declarations"`
 	// AppleDeclarationEnvelope holds the keys every DDM declaration shares (Type, Identifier, ...).
 	AppleDeclarationEnvelope *ApplePayloadType `json:"apple_declaration_envelope"`
-	// Windows sections are filled by a later change; kept raw until their shape is defined.
-	Windows     json.RawMessage `json:"windows"`
-	WindowsXSDs json.RawMessage `json:"windows_xsds"`
+	// Windows maps a leaf LocURI, as declared, to its node.
+	Windows map[string]*WindowsNode `json:"windows"`
+	// WindowsXSDs maps a sha256 to an XSD document that chr nodes reference by it.
+	WindowsXSDs map[string]string `json:"windows_xsds"`
+}
+
+// Range is an inclusive numeric range: an Apple key's range or repetition, or a Windows node's range.
+// Pointers keep a 0 bound distinct from no bound.
+type Range struct {
+	Min *float64 `json:"min,omitempty"`
+	Max *float64 `json:"max,omitempty"`
+}
+
+// marshalOneOrMany writes a single value as itself and anything else as a list.
+func marshalOneOrMany[T any](s []T) ([]byte, error) {
+	if len(s) == 1 {
+		return json.Marshal(s[0])
+	}
+	return json.Marshal(s)
+}
+
+// unmarshalOneOrMany reads a single value or a list into dst.
+func unmarshalOneOrMany[T any](data []byte, dst *[]T) error {
+	var v T
+	if err := json.Unmarshal(data, &v); err == nil {
+		*dst = []T{v}
+		return nil
+	}
+	var list []T
+	if err := json.Unmarshal(data, &list); err != nil {
+		return err
+	}
+	*dst = list
+	return nil
 }
 
 type Version struct {
-	Apple       AppleVersion `json:"apple"`
-	GeneratedAt time.Time    `json:"generated_at"`
+	Apple            AppleVersion            `json:"apple"`
+	Windows          WindowsVersion          `json:"windows"`
+	WindowsTemplates WindowsTemplatesVersion `json:"windows_templates"`
+	GeneratedAt      time.Time               `json:"generated_at"`
 }
 
 // Floors and must-haves catch a reorganized upstream that would otherwise silently shrink the
@@ -70,6 +104,7 @@ const (
 	minAppleProfileTypes             = 100
 	minAppleConfigurationDeclaration = 40
 	appleConfigurationPrefix         = "com.apple.configuration."
+	minWindowsNodes                  = 4000
 )
 
 // mustHaveAppleProfileKeys maps payload types to keys that must be present.
@@ -79,6 +114,10 @@ var mustHaveAppleProfileKeys = map[string][]string{
 
 var mustHaveAppleDeclarations = []string{
 	"com.apple.configuration.passcode.settings",
+}
+
+var mustHaveWindowsNodes = []string{
+	"./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock",
 }
 
 func ParseProfileValidationSchema() error {
@@ -122,6 +161,13 @@ func Parse(data []byte) (*ProfileValidationSchema, error) {
 }
 
 func (s *ProfileValidationSchema) check() error {
+	if err := s.checkApple(); err != nil {
+		return err
+	}
+	return s.checkWindows()
+}
+
+func (s *ProfileValidationSchema) checkApple() error {
 	if s.AppleEnvelope.TopLevel == nil || s.AppleEnvelope.CommonPayloadKeys == nil {
 		return errors.New("apple_envelope is missing TopLevel or CommonPayloadKeys")
 	}
@@ -130,7 +176,7 @@ func (s *ProfileValidationSchema) check() error {
 	}
 	n := 0
 	for _, p := range s.AppleProfiles {
-		if p != nil && p.Source != "override" {
+		if p != nil && p.Source != AppleSourceOverride {
 			n++
 		}
 	}
@@ -160,6 +206,36 @@ func (s *ProfileValidationSchema) check() error {
 	for _, d := range mustHaveAppleDeclarations {
 		if s.AppleDeclarations[d] == nil {
 			return fmt.Errorf("apple_declarations is missing %s", d)
+		}
+	}
+	return nil
+}
+
+func (s *ProfileValidationSchema) checkWindows() error {
+	// Only Microsoft's settings count toward the floor: interior nodes (format node) are kept so
+	// profiles can create dynamic instances, and ADMX template policies would hide a shrunken DDF.
+	settings := 0
+	var bad []string
+	for locURI, n := range s.Windows {
+		switch {
+		case n == nil:
+			bad = append(bad, fmt.Sprintf("windows %s is null", locURI))
+		case n.XSD != "" && s.WindowsXSDs[n.XSD] == "":
+			bad = append(bad, fmt.Sprintf("windows %s references missing xsd %s", locURI, n.XSD))
+		case n.Source == WindowsSourceWindows && !slices.Equal(n.Format, WindowsFormats{WindowsFormatNode}):
+			settings++
+		}
+	}
+	if len(bad) > 0 {
+		// The smallest, so the same document always reports the same error.
+		return errors.New(slices.Min(bad))
+	}
+	if settings < minWindowsNodes {
+		return fmt.Errorf("windows has %d settings, want at least %d", settings, minWindowsNodes)
+	}
+	for _, n := range mustHaveWindowsNodes {
+		if s.Windows[n] == nil {
+			return fmt.Errorf("windows is missing %s", n)
 		}
 	}
 	return nil

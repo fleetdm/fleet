@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
+	"slices"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/profilevalidation"
@@ -237,19 +238,20 @@ func joinKeyPath(parent, key string) string {
 	return parent + "." + key
 }
 
-func convertRange(r *appleRange) *profilevalidation.AppleRange {
+func convertRange(r *appleRange) *profilevalidation.Range {
 	if r == nil || (r.Min == nil && r.Max == nil) {
 		return nil
 	}
-	return &profilevalidation.AppleRange{Min: r.Min, Max: r.Max}
+	return &profilevalidation.Range{Min: r.Min, Max: r.Max}
+}
+
+// appleTypes are the types Apple's schema.md defines, "any" last.
+var appleTypes = []profilevalidation.AppleType{
+	profilevalidation.AppleTypeString, profilevalidation.AppleTypeInteger, profilevalidation.AppleTypeReal,
+	profilevalidation.AppleTypeBoolean, profilevalidation.AppleTypeDate, profilevalidation.AppleTypeData,
+	profilevalidation.AppleTypeArray, profilevalidation.AppleTypeDictionary, profilevalidation.AppleTypeAny,
 }
 
 func knownAppleType(t profilevalidation.AppleType) bool {
-	switch t {
-	case profilevalidation.AppleTypeString, profilevalidation.AppleTypeInteger, profilevalidation.AppleTypeReal,
-		profilevalidation.AppleTypeBoolean, profilevalidation.AppleTypeDate, profilevalidation.AppleTypeData,
-		profilevalidation.AppleTypeArray, profilevalidation.AppleTypeDictionary, profilevalidation.AppleTypeAny:
-		return true
-	}
-	return false
+	return slices.Contains(appleTypes, t)
 }

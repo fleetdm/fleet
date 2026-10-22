@@ -14,7 +14,7 @@ func TestContractExampleDecodes(t *testing.T) {
 	raw, err := os.ReadFile("testdata/contract_example.json")
 	require.NoError(t, err)
 
-	// version.microsoft and version.admx_templates aren't modeled yet and must be ignored.
+	// Unknown fields (version.future_platform, a Windows node's future_field) must be ignored.
 	var s ProfileValidationSchema
 	require.NoError(t, json.Unmarshal(raw, &s))
 
@@ -39,7 +39,7 @@ func TestContractExampleDecodes(t *testing.T) {
 	assert.Nil(t, notNil(t, access.Keys["allowCamera"]).Platforms)
 	assert.Equal(t, AppleTypes{AppleTypeString}, notNil(t, access.Keys["autonomousSingleAppModePermittedAppIDs"]).Items.Type)
 	delay := notNil(t, access.Keys["enforcedSoftwareUpdateDelay"])
-	assert.Equal(t, &AppleRange{Min: new(1.0), Max: new(90.0)}, delay.Range)
+	assert.Equal(t, &Range{Min: new(1.0), Max: new(90.0)}, delay.Range)
 	assert.Equal(t, ApplePlatform{Introduced: "10.13.4", Deprecated: "26.0", Removed: "27.0"}, delay.Platforms[AppleOSmacOS])
 
 	assert.Equal(t, AppleTypes{AppleTypeInteger, AppleTypeString}, notNil(t, notNil(t, s.AppleProfiles["com.apple.example.override"]).Keys["SomeKey"]).Type)
@@ -55,9 +55,7 @@ func TestContractExampleDecodes(t *testing.T) {
 	require.NotNil(t, notNil(t, passcode.Keys["MinimumLength"]).Range.Min)
 	assert.Zero(t, *notNil(t, passcode.Keys["MinimumLength"]).Range.Min)
 	assert.True(t, notNil(t, notNil(t, passcode.Keys["CustomRegex"]).Keys["Regex"]).Required)
-
-	assert.JSONEq(t, `{}`, string(s.Windows))
-	assert.JSONEq(t, `{}`, string(s.WindowsXSDs))
+	// Windows sections are checked in TestWindowsContractExample.
 
 	// Re-encoding and decoding again is lossless for everything modeled.
 	out, err := json.Marshal(s)
@@ -69,7 +67,7 @@ func TestContractExampleDecodes(t *testing.T) {
 
 func TestAppleKeyEncoding(t *testing.T) {
 	// Optional fields are omitted, a single type is a string, and a 0 bound is kept.
-	out, err := json.Marshal(&AppleKey{Type: AppleTypes{AppleTypeInteger}, Range: &AppleRange{Min: new(0.0)}})
+	out, err := json.Marshal(&AppleKey{Type: AppleTypes{AppleTypeInteger}, Range: &Range{Min: new(0.0)}})
 	require.NoError(t, err)
 	assert.JSONEq(t, `{"type": "integer", "range": {"min": 0}}`, string(out))
 
