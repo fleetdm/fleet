@@ -111,7 +111,10 @@ func run(ctx context.Context, logger *slog.Logger, out io.Writer, s *profilevali
 			}
 			return nil
 		})
-		root.Close()
+		closeErr := root.Close()
+		if closeErr != nil {
+			return findings, closeErr
+		}
 		if err != nil {
 			return findings, err
 		}
