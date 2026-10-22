@@ -3,6 +3,7 @@ package apple_mdm
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"log/slog"
 	"slices"
@@ -12,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/profiles"
 )
 
@@ -154,9 +156,10 @@ func isPKCS12CAConfigured(ctx context.Context, logger *slog.Logger, groupedCAs *
 }
 
 // issuePKCS12ForHost fills in the CA's fields for the host, requests its certificate, and puts the certificate and its password in the
-// profile contents. If something fails, the host's profile is marked failed and ok is false. The managed certificate is only for the caller
-// to record once the whole profile is sent.
-func issuePKCS12ForHost(ctx context.Context, ds fleet.Datastore, ca pkcs12CA, variable pkcs12CAVariable, target *fleet.CmdTarget,
+// profile contents. If something fails, the host's profile is marked failed and ok is false, except when the CA is temporarily
+// unavailable: then the profile is retried later, as many times as a profile that fails on the host, and only marked failed after that. The
+// managed certificate is only for the caller to record once the whole profile is sent.
+func issuePKCS12ForHost(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, ca pkcs12CA, variable pkcs12CAVariable, target *fleet.CmdTarget,
 	hostLite fleet.Host, profUUID, hostContents string, hostIDForUUIDCache map[string]uint, variablesUpdatedAt *time.Time,
 	onMismatchedHostCount func(int) error,
 ) (contents string, managed *fleet.MDMManagedCertificate, ok bool, err error) {
@@ -176,6 +179,17 @@ func issuePKCS12ForHost(ctx context.Context, ds fleet.Datastore, ca pkcs12CA, va
 
 	cert, err := issue(ctx)
 	if err != nil {
+		if _, transient := errors.AsType[fleet.CertificateAuthorityTransientError](err); transient {
+			retrying, retryErr := retryHostProfile(ctx, ds, hostLite.UUID, target.ProfileIdentifier)
+			if retryErr != nil {
+				return "", nil, false, ctxerr.Wrapf(ctx, retryErr, "retrying host MDM Apple profile for %s", variable.caType.vendor)
+			}
+			if retrying {
+				logger.WarnContext(ctx, "could not get a certificate because the CA is unavailable; the profile will be retried",
+					"vendor", variable.caType.vendor, "ca", variable.caName, "host_uuid", hostLite.UUID, "profile_uuid", profUUID, "err", err)
+				return "", nil, false, nil
+			}
+		}
 		err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
 			CommandUUID:        target.CmdUUID,
 			HostUUID:           hostLite.UUID,
@@ -208,4 +222,24 @@ func issuePKCS12ForHost(ctx context.Context, ds fleet.Datastore, ca pkcs12CA, va
 		CAName:         variable.caName,
 		Serial:         &cert.SerialNumber,
 	}, true, nil
+}
+
+// retryHostProfile queues the host's profile to be processed again, if it has retries left, and reports whether it did. It uses the same
+// count as a profile that the host fails to install, so the profile is only marked failed once that is used up.
+func retryHostProfile(ctx context.Context, ds fleet.Datastore, hostUUID, profileIdentifier string) (bool, error) {
+	// The platform is darwin for iOS and iPadOS too, which have the same profiles and retries.
+	host := &fleet.Host{UUID: hostUUID, Platform: "darwin"}
+	counts, err := ds.GetHostMDMProfilesRetryCounts(ctx, host)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "getting profile retry counts")
+	}
+	for _, count := range counts {
+		if count.ProfileIdentifier == profileIdentifier && count.Retries >= mdm.MaxAppleProfileRetries {
+			return false, nil
+		}
+	}
+	if err := ds.UpdateHostMDMProfilesVerification(ctx, host, nil, nil, []string{profileIdentifier}); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "queueing profile retry")
+	}
+	return true, nil
 }

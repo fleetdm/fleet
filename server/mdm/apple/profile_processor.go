@@ -584,7 +584,7 @@ func preprocessProfileContents(
 							"This error should never happen since we validated/populated CAs earlier")
 						continue
 					}
-					updatedContents, managed, ok, err := issuePKCS12ForHost(ctx, ds, ca, pkcs12Var, target, hostLite, profUUID, hostContents,
+					updatedContents, managed, ok, err := issuePKCS12ForHost(ctx, ds, logger, ca, pkcs12Var, target, hostLite, profUUID, hostContents,
 						hostIDForUUIDCache, variablesUpdatedAt, onMismatchedHostCount)
 					if err != nil {
 						return err

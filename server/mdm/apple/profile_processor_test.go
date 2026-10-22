@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	digicert_mock "github.com/fleetdm/fleet/v4/server/mock/digicert"
@@ -1299,18 +1300,21 @@ func TestPreprocessProfileContentsEJBCA(t *testing.T) {
 		managed  []*fleet.MDMManagedCertificate // the records saved
 		failures map[string]string              // the failure detail the profile of each host got, by host UUID
 		profiles map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload
+		retried  map[string][]string // the profiles that were queued to be retried, by host UUID
 	}
-	// opts is for what a test needs besides EJBCA CAs: a failing enrollment, and DigiCert CAs with their service.
+	// opts is for what a test needs besides EJBCA CAs: a failing enrollment, DigiCert CAs with their service, and how many times the
+	// profile of each host has been retried already.
 	type opts struct {
 		enroll      func(fleet.EJBCA) error
 		digiCert    fleet.DigiCertService
 		digiCertCAs []fleet.DigiCertCA
+		retries     uint
 	}
 	run := func(t *testing.T, ctx context.Context, profile string, cas []fleet.EJBCA, o opts) result {
 		logger := slog.New(slog.DiscardHandler)
 		appCfg := &fleet.AppConfig{}
 		appCfg.MDM.EnabledAndConfigured = true
-		res := result{contents: map[string]string{}, failures: map[string]string{}}
+		res := result{contents: map[string]string{}, failures: map[string]string{}, retried: map[string][]string{}}
 
 		ds := new(mock.Store)
 		ds.ListHostsLiteByUUIDsFunc = func(_ context.Context, _ fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
@@ -1325,6 +1329,14 @@ func TestPreprocessProfileContentsEJBCA(t *testing.T) {
 		}
 		ds.UpdateOrDeleteHostMDMAppleProfileFunc = func(_ context.Context, p *fleet.HostMDMAppleProfile) error {
 			res.failures[p.HostUUID] = p.Detail
+			return nil
+		}
+		ds.GetHostMDMProfilesRetryCountsFunc = func(context.Context, *fleet.Host) ([]fleet.HostMDMProfileRetryCount, error) {
+			return []fleet.HostMDMProfileRetryCount{{ProfileIdentifier: "com.apple.security.pkcs12", Retries: o.retries}}, nil
+		}
+		ds.UpdateHostMDMProfilesVerificationFunc = func(_ context.Context, host *fleet.Host, _, _, toRetry []string) error {
+			assert.Equal(t, "darwin", host.Platform)
+			res.retried[host.UUID] = toRetry
 			return nil
 		}
 
@@ -1371,7 +1383,7 @@ func TestPreprocessProfileContentsEJBCA(t *testing.T) {
 		return res
 	}
 	premium := func() context.Context {
-		return license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		return license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	}
 
 	t.Run("expands the CA fields for each host and records the certificates", func(t *testing.T) {
@@ -1422,6 +1434,23 @@ func TestPreprocessProfileContentsEJBCA(t *testing.T) {
 		assert.Empty(t, res.contents)
 	})
 
+	t.Run("a CA that is unavailable retries the profile until the retries are used up", func(t *testing.T) {
+		enroll := func(fleet.EJBCA) error {
+			return fleet.CertificateAuthorityTransientError{Message: "EJBCA is unavailable"}
+		}
+
+		res := run(t, premium(), profileFor("myCA"), []fleet.EJBCA{ejbcaCA("myCA")}, opts{enroll: enroll, retries: mdm.MaxAppleProfileRetries - 1})
+		assert.Equal(t, map[string][]string{"host-1": {"com.apple.security.pkcs12"}, "host-2": {"com.apple.security.pkcs12"}}, res.retried)
+		assert.Empty(t, res.failures)
+
+		res = run(t, premium(), profileFor("myCA"), []fleet.EJBCA{ejbcaCA("myCA")}, opts{enroll: enroll, retries: mdm.MaxAppleProfileRetries})
+		assert.Empty(t, res.retried)
+		assert.Equal(t, map[string]string{
+			"host-1": "Couldn't get certificate from EJBCA for myCA. EJBCA is unavailable",
+			"host-2": "Couldn't get certificate from EJBCA for myCA. EJBCA is unavailable",
+		}, res.failures)
+	})
+
 	t.Run("a variable that can't be filled in says it is in the CA", func(t *testing.T) {
 		ca := ejbcaCA("myCA")
 		ca.CertificateCommonName = fleet.FleetVarHostEndUserEmailIDP.WithPrefix()
@@ -1442,7 +1471,7 @@ func TestPreprocessProfileContentsEJBCA(t *testing.T) {
 	}{
 		{"a CA that doesn't exist", premium(), nil, "Fleet couldn't populate $EJBCA_PASSWORD_myCA because myCA certificate authority doesn't exist."},
 		{
-			"EJBCA needs Fleet Premium", license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree}),
+			"EJBCA needs Fleet Premium", license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierFree}),
 			[]fleet.EJBCA{ejbcaCA("myCA")}, "EJBCA integration requires a Fleet Premium license.",
 		},
 	} {
@@ -1462,12 +1491,14 @@ func TestPreprocessProfileContentsEJBCA(t *testing.T) {
 		digiCert.GetCertificateFunc = func(context.Context, fleet.DigiCertCA) (*fleet.DigiCertCertificate, error) {
 			return &fleet.DigiCertCertificate{PfxData: []byte("pfx"), Password: "password", SerialNumber: "abc"}, nil
 		}
-		// The variables are not processed in the order of the profile: the last CA in it comes first, so DigiCert is issued before EJBCA fails.
-		profile := profileFor("myCA") + "<string>$FLEET_VAR_DIGICERT_PASSWORD_dcCA</string><data>${FLEET_VAR_DIGICERT_DATA_dcCA}</data>"
+		// The variables are processed longest first, not in the order of the profile, so the DigiCert variable, which is longer, is issued
+		// before EJBCA fails.
+		profile := profileFor("myCA") + "<string>$FLEET_VAR_DIGICERT_PASSWORD_aLongerDigiCertCA</string>" +
+			"<data>${FLEET_VAR_DIGICERT_DATA_aLongerDigiCertCA}</data>"
 		res := run(t, premium(), profile, []fleet.EJBCA{ejbcaCA("myCA")}, opts{
 			enroll:      func(fleet.EJBCA) error { return errors.New("boom") },
 			digiCert:    digiCert,
-			digiCertCAs: []fleet.DigiCertCA{{Name: "dcCA", CertificateCommonName: "cn", CertificateSeatID: "seat"}},
+			digiCertCAs: []fleet.DigiCertCA{{Name: "aLongerDigiCertCA", CertificateCommonName: "cn", CertificateSeatID: "seat"}},
 		})
 		require.True(t, digiCert.GetCertificateFuncInvoked, "DigiCert has to be issued before the failure for this test to mean anything")
 		assert.Len(t, res.failures, 2)
