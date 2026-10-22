@@ -17,7 +17,8 @@ const BASE_PROPS = {
 };
 
 const renderModal = (
-  overrides: Partial<React.ComponentProps<typeof AddVersionModal>> = {}
+  overrides: Partial<React.ComponentProps<typeof AddVersionModal>> = {},
+  { gitOpsModeEnabled = false }: { gitOpsModeEnabled?: boolean } = {}
 ) => {
   const render = createCustomRenderer({
     withBackendMock: true,
@@ -25,6 +26,7 @@ const renderModal = (
       app: {
         isPremiumTier: true,
         isGlobalAdmin: true,
+        config: { gitops: { gitops_mode_enabled: gitOpsModeEnabled } },
       },
     },
   });
@@ -152,5 +154,19 @@ describe("AddVersionModal", () => {
       auto_update_window_start: "22:00",
       auto_update_window_end: "02:00",
     });
+  });
+
+  it("disables form fields and Add but leaves Cancel enabled in GitOps mode", () => {
+    renderModal({}, { gitOpsModeEnabled: true });
+    expect(screen.getByLabelText(/Name/i)).toBeDisabled();
+    // Self-service slider renders as a <button role="switch">; disabled
+    // removes it from the keyboard tab order.
+    expect(screen.getByRole("switch")).toBeDisabled();
+    // Target radio is a native <input type="radio">; fieldset[disabled]
+    // covers it, but asserted here so a future refactor can't silently
+    // leave it keyboard-reachable.
+    expect(screen.getByLabelText("All hosts")).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^Add$/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^Cancel$/i })).toBeEnabled();
   });
 });

@@ -1,6 +1,7 @@
 import {
   formatSoftwareType,
   formatSoftwareVersion,
+  getSoftwareTypes,
   getSoftwareTypesForPlatform,
   parseSoftwareTypesParam,
   SOFTWARE_TYPES,
@@ -87,10 +88,13 @@ describe("getSoftwareTypesForPlatform", () => {
   );
 
   // A case-sensitive sort would push "deb package", "macOS app" and
-  // "npm package" below every capitalized name.
+  // "npm package" below every capitalized name, and "Adobe plugin" below
+  // "AI CLI tool".
   it("sorts types case-insensitively by display name", () => {
     const names = (platform: string) =>
-      getSoftwareTypesForPlatform(platform).map((t) => t.displayName);
+      getSoftwareTypesForPlatform(platform, { premium: true }).map(
+        (t) => t.displayName
+      );
     expect(names("ubuntu").indexOf("deb package")).toBeLessThan(
       names("ubuntu").indexOf("Edge extension")
     );
@@ -99,6 +103,9 @@ describe("getSoftwareTypesForPlatform", () => {
     );
     expect(names("darwin").indexOf("npm package")).toBeLessThan(
       names("darwin").indexOf("Opera extension")
+    );
+    expect(names("darwin").indexOf("Adobe plugin")).toBeLessThan(
+      names("darwin").indexOf("AI CLI tool")
     );
   });
 
@@ -125,6 +132,45 @@ describe("getSoftwareTypesForPlatform", () => {
 
   it("returns no types for an unknown platform", () => {
     expect(keysFor("unknown")).toEqual([]);
+  });
+
+  it.each([
+    { platform: "darwin", hasAiTypes: true },
+    { platform: "windows", hasAiTypes: true },
+    { platform: "ubuntu", hasAiTypes: true },
+    { platform: "ios", hasAiTypes: false },
+    { platform: "ipados", hasAiTypes: false },
+    { platform: "android", hasAiTypes: false },
+    { platform: "chrome", hasAiTypes: false },
+  ])(
+    "lists the AI types on Premium $platform hosts: $hasAiTypes",
+    ({ platform, hasAiTypes }) => {
+      const keys = getSoftwareTypesForPlatform(platform, {
+        hostPage: true,
+        premium: true,
+      }).map((t) => t.key);
+      ["ai_cli_tool", "ai_skill", "mcp_server"].forEach((key) =>
+        expect(keys.includes(key)).toBe(hasAiTypes)
+      );
+    }
+  );
+
+  it("hides Premium-only types by default", () => {
+    expect(
+      getSoftwareTypesForPlatform("darwin").some((t) => t.premiumOnly)
+    ).toBe(false);
+  });
+});
+
+describe("getSoftwareTypes", () => {
+  it("includes Premium-only types on Premium", () => {
+    expect(getSoftwareTypes({ premium: true })).toEqual(SOFTWARE_TYPES);
+  });
+
+  it("drops Premium-only types on Free", () => {
+    const keys = getSoftwareTypes({ premium: false }).map((t) => t.key);
+    expect(keys).not.toContain("mcp_server");
+    expect(keys).toContain("macos_app");
   });
 });
 

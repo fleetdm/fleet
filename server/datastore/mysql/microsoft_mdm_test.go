@@ -100,6 +100,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestWindowsHostLiteByHardwareSerial", testWindowsHostLiteByHardwareSerial},
 		{"TestWindowsHostLiteByUUID", testWindowsHostLiteByUUID},
 		{"TestMDMWindowsUnlinkedEnrollmentHardwareSerial", testMDMWindowsUnlinkedEnrollmentHardwareSerial},
+		{"TestMDMWindowsUnlinkedEnrollmentZTDRegistrationID", testMDMWindowsUnlinkedEnrollmentZTDRegistrationID},
 		{"TestMDMWindowsClaimEnrolledActivity", testMDMWindowsClaimEnrolledActivity},
 		{"TestMDMWindowsSetEnrollmentFleetdPresent", testMDMWindowsSetEnrollmentFleetdPresent},
 		{"TestWindowsEnrollmentDefaultFleet", testWindowsEnrollmentDefaultFleet},
@@ -1087,6 +1088,40 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 				require.Contains(t, bls.Detail, "0x80310066")
 
 				require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, targetHost.ID, fleet.DiskEncryptionProtectionRestored, ""))
+			})
+
+			// A stored key Fleet cannot read makes the host re-escrow, which is Fleet's work, so the status is enforcing and
+			// the detail says why. An agent error still takes precedence over it.
+			t.Run("detail when the stored key cannot be read", func(t *testing.T) {
+				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, targetHost.ID, true, new(fleet.BitLockerProtectionStatusOn)))
+				h, err := ds.Host(ctx, targetHost.ID)
+				require.NoError(t, err)
+				setDecryptable := func(t *testing.T, decryptable bool) {
+					ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+						_, err := q.ExecContext(ctx, `UPDATE host_disk_encryption_keys SET decryptable = ? WHERE host_id = ?`, decryptable, targetHost.ID)
+						return err
+					})
+				}
+				setDecryptable(t, false)
+				defer setDecryptable(t, true)
+
+				bls, err := ds.GetMDMWindowsBitLockerStatus(ctx, h)
+				require.NoError(t, err)
+				require.Equal(t, fleet.DiskEncryptionEnforcing, *bls.Status)
+				require.Equal(t, fleet.BitLockerKeyUndecryptableDetail, bls.Detail)
+
+				_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, h, "", "bitlocker failed", nil)
+				require.NoError(t, err)
+				defer func() {
+					ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+						_, err := q.ExecContext(ctx, `UPDATE host_disk_encryption_keys SET client_error = '' WHERE host_id = ?`, targetHost.ID)
+						return err
+					})
+				}()
+				bls, err = ds.GetMDMWindowsBitLockerStatus(ctx, h)
+				require.NoError(t, err)
+				require.Equal(t, fleet.DiskEncryptionFailed, *bls.Status)
+				require.Equal(t, "bitlocker failed", bls.Detail)
 			})
 		})
 	})
@@ -9396,6 +9431,37 @@ func testMDMWindowsClaimEnrolledActivity(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.False(t, claimed, "a racing duplicate enrollment request must not re-announce the enrollment")
 	})
+}
+
+// The lookup shares its implementation with the serial one, which testMDMWindowsUnlinkedEnrollmentHardwareSerial covers in
+// full, so this only checks that the Autopilot device ID column is the one matched.
+func testMDMWindowsUnlinkedEnrollmentZTDRegistrationID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newEnrollment := func(hostUUID, ztdRegistrationID string) *fleet.MDMWindowsEnrolledDevice {
+		d := &fleet.MDMWindowsEnrolledDevice{
+			MDMDeviceID:            uuid.New().String(),
+			MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+			MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+			MDMDeviceType:          "CIMClient_Windows",
+			MDMEnrollType:          "AzureADJoin",
+			MDMEnrollProtoVersion:  "5.0",
+			MDMEnrollClientVersion: "10.0.26100.1",
+			ZTDRegistrationID:      ztdRegistrationID,
+			HostUUID:               hostUUID,
+		}
+		require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, d))
+		return d
+	}
+
+	unlinked := newEnrollment("", "ztd-1")
+	got, err := ds.MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationID(ctx, "ztd-1")
+	require.NoError(t, err)
+	require.Equal(t, unlinked.MDMDeviceID, got.MDMDeviceID)
+
+	newEnrollment("11111111-1111-1111-1111-111111111111", "ztd-2")
+	_, err = ds.MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationID(ctx, "ztd-2")
+	require.True(t, fleet.IsNotFound(err), "a linked enrollment is not returned, got %v", err)
 }
 
 func testMDMWindowsUnlinkedEnrollmentHardwareSerial(t *testing.T, ds *Datastore) {

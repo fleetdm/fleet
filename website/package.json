@@ -35,7 +35,8 @@
   "overrides": {
     "js-yaml": "3.15.1",
     "jsforce": {
-      "form-data": "4.0.6"
+      "form-data": "4.0.6",
+      "csv-parse": "7.0.3"
     },
     "request": {
       "form-data": "2.5.6"

@@ -7,7 +7,7 @@ import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore Dropdown is still a JS component
 import Dropdown from "components/forms/fields/Dropdown";
 import InputField from "components/forms/fields/InputField";
-import validEmail from "components/forms/validators/valid_email";
+import { isValidEmail } from "components/forms/validators";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
@@ -49,7 +49,7 @@ export const validate = (data: ISmtpConfigFormData): IFormErrors => {
   if (enableSMTP) {
     if (!smtpSenderAddress) {
       errors.smtpSenderAddress = "Enter a sender address";
-    } else if (!validEmail(smtpSenderAddress)) {
+    } else if (!isValidEmail(smtpSenderAddress)) {
       errors.smtpSenderAddress = "Enter a valid sender address";
     }
 
@@ -68,7 +68,7 @@ export const validate = (data: ISmtpConfigFormData): IFormErrors => {
         errors.smtpPassword = "Enter an SMTP password";
       }
     }
-  } else if (smtpSenderAddress && !validEmail(smtpSenderAddress)) {
+  } else if (smtpSenderAddress && !isValidEmail(smtpSenderAddress)) {
     // Even when SMTP is disabled, a filled-in sender address must be a valid
     // email so the value is ready when SMTP flips on.
     errors.smtpSenderAddress = "Enter a valid sender address";
@@ -96,6 +96,7 @@ const Smtp = ({
     getError,
     clearFieldError,
     validateField,
+    getTextFieldProps,
     handleSubmit: onSubmit,
     isSubmitting,
   } = useFormValidation<ISmtpConfigFormData>({
@@ -141,12 +142,7 @@ const Smtp = ({
       <>
         <InputField
           label="SMTP username"
-          name="smtpUsername"
-          value={formData.smtpUsername}
-          onChange={(value: string) => setField("smtpUsername", value)}
-          onFocus={() => clearFieldError("smtpUsername")}
-          onBlur={() => validateField("smtpUsername")}
-          error={getError("smtpUsername")}
+          {...getTextFieldProps("smtpUsername")}
           blockAutoComplete
           ignore1password={false}
           disabled={isSubmitting}
@@ -154,12 +150,7 @@ const Smtp = ({
         <InputField
           label="SMTP password"
           type="password"
-          name="smtpPassword"
-          value={formData.smtpPassword}
-          onChange={(value: string) => setField("smtpPassword", value)}
-          onFocus={() => clearFieldError("smtpPassword")}
-          onBlur={() => validateField("smtpPassword")}
-          error={getError("smtpPassword")}
+          {...getTextFieldProps("smtpPassword")}
           blockAutoComplete
           ignore1password={false}
           disabled={isSubmitting}
@@ -218,24 +209,14 @@ const Smtp = ({
           </Checkbox>
           <InputField
             label="Sender address"
-            name="smtpSenderAddress"
-            value={formData.smtpSenderAddress}
-            onChange={(value: string) => setField("smtpSenderAddress", value)}
-            onFocus={() => clearFieldError("smtpSenderAddress")}
-            onBlur={() => validateField("smtpSenderAddress")}
-            error={getError("smtpSenderAddress")}
+            {...getTextFieldProps("smtpSenderAddress")}
             tooltip="The sender address for emails from Fleet."
             disabled={isSubmitting}
           />
           <div className="smtp-server-inputs">
             <InputField
               label="SMTP server"
-              name="smtpServer"
-              value={formData.smtpServer}
-              onChange={(value: string) => setField("smtpServer", value)}
-              onFocus={() => clearFieldError("smtpServer")}
-              onBlur={() => validateField("smtpServer")}
-              error={getError("smtpServer")}
+              {...getTextFieldProps("smtpServer")}
               tooltip="The hostname / private IP address and corresponding port of your organization's SMTP server."
               disabled={isSubmitting}
             />

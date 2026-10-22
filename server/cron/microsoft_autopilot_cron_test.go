@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -276,20 +277,21 @@ func TestMicrosoftAutopilotSync(t *testing.T) {
 		assert.ElementsMatch(t, []string{"DUP-SERIAL"}, env.serials())
 	})
 
-	// Both fields are the identity a pending host is built from: the device ID resolves it, the serial is all it has
-	// until the machine boots. A device missing either cannot become a usable pending host.
-	for _, tc := range []struct {
-		name   string
-		device msgraph.WindowsAutopilotDevice
-	}{
-		{"a device with no autopilot device id is skipped", device("", "SERIAL-2", "")},
-		{"a device with a placeholder serial is skipped", device("ap-2", "Default string", "")},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
+	t.Run("a device with no autopilot device id is skipped", func(t *testing.T) {
+		env := newAutopilotSyncEnv(t, testCred(tenantA))
+		env.graph(tenantA, device("ap-1", "SERIAL-1", ""), device("", "SERIAL-2", ""))
+		env.sync(t)
+		assert.ElementsMatch(t, []string{"SERIAL-1"}, env.serials())
+	})
+
+	// The device ID is the identity, so a device whose serial cannot identify it is still synced.
+	for _, serial := range []string{"Default string", ""} {
+		t.Run("a device with serial "+strconv.Quote(serial)+" is synced", func(t *testing.T) {
 			env := newAutopilotSyncEnv(t, testCred(tenantA))
-			env.graph(tenantA, device("ap-1", "SERIAL-1", ""), tc.device)
+			env.graph(tenantA, device("ap-1", "SERIAL-1", ""), device("ap-2", serial, "Engineering"))
 			env.sync(t)
-			assert.ElementsMatch(t, []string{"SERIAL-1"}, env.serials())
+			assert.ElementsMatch(t, []string{"SERIAL-1", serial}, env.serials())
+			assert.Equal(t, "Engineering", env.device(t, "ap-2").GroupTag)
 		})
 	}
 

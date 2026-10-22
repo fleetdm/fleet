@@ -628,6 +628,7 @@ var hostRefs = []string{
 	"host_autopilot_devices",
 	"host_one_time_enroll_secrets",
 	"notifications_end_user",
+	"host_policy_automation_run_counts",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
@@ -1469,7 +1470,18 @@ func (ds *Datastore) applyHostFilters(
 						Message: "software_installer_id does not apply to this software_title_id (title is a VPP app)",
 					}, "mismatched child id for title")
 				}
-				vppAppJoin, vppAppParams, err := ds.vppAppJoin(*vppID, opt.AppStoreAppVersionIDFilter, *opt.SoftwareStatusFilter)
+				if opt.AppStoreAppVersionIDFilter != nil {
+					_, err = ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, *opt.AppStoreAppVersionIDFilter)
+					switch {
+					case fleet.IsNotFound(err):
+						return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+							Message: "app_store_app_version_id does not apply to this software_title_id (not a version of the title in this fleet)",
+						}, "mismatched child id for title")
+					case err != nil:
+						return "", nil, ctxerr.Wrap(ctx, err, "get app store app version for title")
+					}
+				}
+				vppAppJoin, vppAppParams, err := ds.vppAppJoin(ctx, *vppID, opt.AppStoreAppVersionIDFilter, *opt.SoftwareStatusFilter)
 				if err != nil {
 					return "", nil, ctxerr.Wrap(ctx, err, "vpp app join")
 				}
@@ -2568,6 +2580,7 @@ type enrolledHostInfo struct {
 // use the best match in this order:
 //   - if it matched on osquery_host_id (with osqueryID or uuid), use that host
 //   - otherwise if it is Apple MDM host and matched on serial, use that host
+//   - otherwise if it is a pending Windows Autopilot host matched on its Autopilot device ID, then on serial, use that host
 //   - otherwise if the enrolling host's platform is "android" and an Android host can be found
 //     with a matching uuid, use that host
 //
@@ -2584,7 +2597,7 @@ func matchHostDuringEnrollment(
 	q sqlx.QueryerContext,
 	enrollType enroll,
 	isAppleMDMEnabled bool,
-	osqueryID, uuid, serial, platform string,
+	osqueryID, uuid, serial, autopilotDeviceID, platform string,
 ) (*enrolledHostInfo, error) {
 	type hostMatch struct {
 		ID             uint
@@ -2629,19 +2642,36 @@ func matchHostDuringEnrollment(
 		args = append(args, serial)
 	}
 
-	// Windows Autopilot pre-creates a pending host from the Autopilot registry, so orbit-enroll has to be able to find
-	// it by serial the same way Apple ADE does. Two Autopilot devices can share a serial, and each gets its own pending
-	// host. orbit never sees the Autopilot device ID, so this branch cannot tell them apart and takes the oldest. The
-	// MDM enrollment path matches exactly, on that ID, and is what corrects the pairing.
-	if serial != "" && platform == "windows" && !orbitEnrollingWithOsqueryIdentifier {
+	// Windows Autopilot pre-creates a pending host from the Autopilot registry, so orbit-enroll has to be able to find it.
+	// Both branches below only match a host that has never checked in, so a device presenting another device's
+	// identifiers can claim a pending host but never take over an enrolled one. Once claimed, the host is matched by UUID.
+	// The Autopilot device ID (ZTDID), reported by fleetd, identifies the pending host exactly.
+	if autopilotDeviceID != "" && platform == "windows" && !orbitEnrollingWithOsqueryIdentifier {
 		if query.Len() > 0 {
 			_, _ = query.WriteString(" UNION ")
 		}
 		_, _ = query.WriteString(fmt.Sprintf(`(SELECT h.id, h.last_enrolled_at, h.%s IS NOT NULL AS node_key_set, 2 priority, h.platform
 			FROM hosts h
+			JOIN host_autopilot_devices had ON had.host_id = h.id AND had.deleted_at IS NULL
+			WHERE had.autopilot_device_id = ? AND h.platform = 'windows' AND h.osquery_host_id IS NULL AND h.orbit_node_key IS NULL
+			ORDER BY h.id LIMIT 1)`, nodeKeyColumn))
+		args = append(args, autopilotDeviceID)
+	}
+	// The serial is the fallback for fleetd that does not report the ZTDID. A device that does report one is never matched by
+	// serial: its own pending host carries its ZTDID, so a serial match could only be another device's host. Two Autopilot
+	// devices can share a serial, and each gets its own pending host; this branch cannot tell them apart and takes the oldest
+	// one still unclaimed. A placeholder serial would match unrelated devices, so it is skipped.
+	if serial != "" && autopilotDeviceID == "" && platform == "windows" && !orbitEnrollingWithOsqueryIdentifier &&
+		!fleet.IsPlaceholderHardwareSerial(serial) {
+		if query.Len() > 0 {
+			_, _ = query.WriteString(" UNION ")
+		}
+		_, _ = query.WriteString(fmt.Sprintf(`(SELECT h.id, h.last_enrolled_at, h.%s IS NOT NULL AS node_key_set, 3 priority, h.platform
+			FROM hosts h
 			JOIN host_mdm hm ON hm.host_id = h.id
 			JOIN host_autopilot_devices had ON had.host_id = h.id AND had.deleted_at IS NULL
 			WHERE h.hardware_serial = ? AND h.platform = 'windows' AND hm.enrolled = 0 AND hm.installed_from_dep = 1
+				AND h.osquery_host_id IS NULL AND h.orbit_node_key IS NULL
 			ORDER BY h.id LIMIT 1)`, nodeKeyColumn))
 		args = append(args, serial)
 	}
@@ -2670,8 +2700,8 @@ func matchHostDuringEnrollment(
 		LastEnrolledAt: rows[0].LastEnrolledAt,
 		NodeKeySet:     rows[0].NodeKeySet,
 		Platform:       rows[0].Platform,
-		// Priority 2 on a Windows row is the Autopilot serial match.
-		PendingAutopilot: rows[0].Priority == 2 && rows[0].Platform == "windows" && !rows[0].NodeKeySet,
+		// Priority 2 and 3 on a Windows row are the Autopilot ZTDID and serial matches.
+		PendingAutopilot: (rows[0].Priority == 2 || rows[0].Priority == 3) && rows[0].Platform == "windows" && !rows[0].NodeKeySet,
 	}, nil
 }
 
@@ -2709,7 +2739,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 		// The serial is passed through for Windows so a pending Autopilot host can be reused.
 		serialToMatch := hostInfo.HardwareSerial
 		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, orbitEnroll, isAppleMDMEnabled, hostInfo.OsqueryIdentifier,
-			hostInfo.HardwareUUID, serialToMatch, hostInfo.Platform)
+			hostInfo.HardwareUUID, serialToMatch, hostInfo.AutopilotDeviceID, hostInfo.Platform)
 
 		// If the osquery identifier that osqueryd will use was not sent by Orbit, then use the hardware UUID as identifier
 		// (using the hardware UUID is Orbit's default behavior).
@@ -2928,7 +2958,7 @@ func (ds *Datastore) HostPreviouslyOrbitEnrolled(ctx context.Context, hostInfo f
 	serialToMatch := hostInfo.HardwareSerial
 
 	matched, err := matchHostDuringEnrollment(ctx, ds.reader(ctx), orbitEnroll, isMDMEnabled, hostInfo.OsqueryIdentifier,
-		hostInfo.HardwareUUID, serialToMatch, hostInfo.Platform)
+		hostInfo.HardwareUUID, serialToMatch, hostInfo.AutopilotDeviceID, hostInfo.Platform)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		// No host matches these identifiers: this is a new device (or one moving to a different Fleet server), not a re-enroll.
@@ -2969,7 +2999,7 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 		zeroTime := common_mysql.GetDefaultNonZeroTime()
 
 		var hostID uint
-		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, osqueryEnroll, isAppleMDMEnabled, osqueryHostID, hardwareUUID, hardwareSerial, "")
+		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, osqueryEnroll, isAppleMDMEnabled, osqueryHostID, hardwareUUID, hardwareSerial, "", "")
 		switch {
 		case err != nil && !errors.Is(err, sql.ErrNoRows):
 			return ctxerr.Wrap(ctx, err, "check existing")
@@ -4010,7 +4040,8 @@ func (ds *Datastore) HostByUUID(ctx context.Context, uuid string) (*fleet.Host, 
 
 func (ds *Datastore) AddHostsToTeam(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
 	teamID := params.TeamID
-	hostIDs := params.HostIDs
+	// batches get sorted in place; don't reorder the caller's slice
+	hostIDs := slices.Clone(params.HostIDs)
 	batchSize := int(params.BatchSize)
 
 	if len(hostIDs) == 0 {

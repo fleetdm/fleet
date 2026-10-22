@@ -1015,7 +1015,7 @@ type Service interface {
 
 	// GetHostDEPAssignmentDetails retrieves Fleet's DEP assignment record and
 	// Apple's live device details from ABM for the given host ID.
-	// Returns (nil, nil, "", nil) for non-DEP hosts.
+	// Returns (nil, nil, "", nil) for non-DEP hosts and hosts whose ABM token was deleted.
 	// If ABM returns an error, dep_device is nil, depError classifies why, and
 	// the original error is logged rather than returned to the caller.
 	GetHostDEPAssignmentDetails(ctx context.Context, hostID uint) (*HostDEPAssignment, *godep.DeviceDetails, DEPDeviceErrorType, error)
