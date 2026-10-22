@@ -1295,9 +1295,9 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 	t.Run("a host in scope for two versions gets the first-added one, and the label scope query isn't run for a version without labels", func(t *testing.T) {
 		f := newTestAppStoreAppDatastore()
 		addFleet(f, 0)
-		addVersion(f, 0, 10, `<dict/>`, 100)
-		addVersion(f, 0, 11, `<dict/>`, 100)
-		addVersion(f, 0, 12, `<dict/>`)
+		addVersion(f, 0, 10, `<dict><key>v</key><string>a</string></dict>`, 100)
+		addVersion(f, 0, 11, `<dict><key>v</key><string>b</string></dict>`, 100)
+		addVersion(f, 0, 12, `<dict><key>v</key><string>c</string></dict>`)
 		addHost(f, 1, 0, 100)
 		addHost(f, 2, 0)
 		install(f, 1, 12)
@@ -1403,6 +1403,29 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 		sent, err = reconcile(f, ctx)
 		require.NoError(t, err)
 		require.Equal(t, nothingSent, sent)
+	})
+
+	t.Run("moving a host between versions with the same configuration sends nothing, and moving it to a version with another configuration sends that version", func(t *testing.T) {
+		f := newTestAppStoreAppDatastore()
+		addFleet(f, 0)
+		addVersion(f, 0, 10, `<dict><key>v</key><string>same</string></dict>`, 100)
+		addVersion(f, 0, 11, `<dict><key>v</key><string>same</string></dict>`, 200)
+		addVersion(f, 0, 12, `<dict><key>v</key><string>other</string></dict>`)
+		addHost(f, 1, 0, 100)
+		install(f, 1, 10)
+
+		// move the host from version 10 to version 11 with the same configuration, the host should get nothing
+		setLabel(f, 1, 100, false)
+		setLabel(f, 1, 200, true)
+		sent, err := reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, nothingSent, sent)
+
+		// move the host to version 12 with another configuration, the host should get version 12
+		setLabel(f, 1, 200, false)
+		sent, err = reconcile(f, ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[uint]uint{1: 12}, sent)
 	})
 
 	t.Run("moving a host off a version whose configuration was cleared after the host's install sends the next version", func(t *testing.T) {

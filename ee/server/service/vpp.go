@@ -2189,11 +2189,11 @@ func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 			install := installByHostID[hostID]
 			switch {
 			case !ptr.Equal(install.VPPAppTeamID, &version.VPPAppsTeamsID):
-				// Re-send when the host's latest install is of another version, unless neither version has a configuration
-				if len(version.Configuration) == 0 && install.VPPAppTeamID != nil {
+				// Re-send when the host's latest install is of another version, unless both versions have the same configuration
+				if install.VPPAppTeamID != nil {
 					installedVersion, inHostFleet := versionByID[*install.VPPAppTeamID]
-					if inHostFleet && len(installedVersion.Configuration) == 0 {
-						// Use the installed version's configuration only if it didn't change after the install
+					if inHostFleet && bytes.Equal(installedVersion.Configuration, version.Configuration) {
+						// Skip the host when the installed version's configuration didn't change after the install
 						if installedVersion.ConfigurationUpdatedAt == nil || installedVersion.ConfigurationUpdatedAt.Before(install.CreatedAt) {
 							continue
 						}
@@ -2242,7 +2242,7 @@ func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 			if _, failed := hostIDsWithRecentFailedInstall[hostID]; failed {
 				continue
 			}
-			// Log the hosts that can't take the install, the next run tries them again
+			// Log a failed install and move on to the next host, the next run sends it again
 			host := hostByID[hostID]
 			_, err = vppInstaller.InstallVPPAppPostValidation(ctx, &host, vppApp, vppToken, fleet.HostSoftwareInstallOptions{
 				ForConfigurationResend: true,

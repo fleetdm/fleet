@@ -33,13 +33,13 @@ func TestUp_20261021195658(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, installUpdatedAtUnchanged)
 
-	// read the configured version, it should have no configuration time so its existing installs aren't sent again
+	// read configuration_updated_at of the configured version, it should be NULL so the cron doesn't send the version's existing installs again
 	var configurationUpdatedAt sql.NullTime
 	err = db.Get(&configurationUpdatedAt, `SELECT configuration_updated_at FROM vpp_apps_teams WHERE id = ?`, configuredVersionID)
 	require.NoError(t, err)
 	require.False(t, configurationUpdatedAt.Valid)
 
-	// read the existing install, it should not need a configuration re-send
+	// read needs_configuration_resend of the existing install, it should be 0 so the cron doesn't send the install again
 	var needsConfigurationResend bool
 	err = db.Get(&needsConfigurationResend, `SELECT needs_configuration_resend FROM host_vpp_software_installs WHERE id = ?`, installID)
 	require.NoError(t, err)
