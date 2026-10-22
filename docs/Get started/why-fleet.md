@@ -19,7 +19,7 @@ Fleet is open source, and free features will always be free.
 Fleet is used in production by IT and security teams managing thousands of devices. Many deployments support tens of thousands, and a few large organizations manage 400,000 or more.
 
 - **Get what you need:** Fleet works directly with data and events from the native operating system, down to the bare metal. Strong diagnostics let you investigate errors on end-user devices and collect accurate audit evidence in minutes. It’s also modular. (You can turn off features you are not using.)
-- **Out of the box:** Ready-to-use integrations exist for [most common tools](https://fleetdm.com/integrations). You can become a power user in the GUI or govern your fleet with [infrastructure-as-code](https://fleetdm.com/docs/configuration/yaml-files). You can also build custom workflows with the REST API, webhook events, MCP server, and the fleetctl command-line tool. 
+- **Out of the box:** Ready-to-use integrations exist for [most common tools](https://fleetdm.com/integrations). You can become a power user in the GUI or govern your fleet with [AI](https://fleetdm.com/ai). You can also build custom workflows with the REST API, webhook events, MCP server, and the fleetctl command-line tool. 
 - **Good neighbors:** Fleet is independent and open by design. We helped [create osquery](https://fleetdm.com/handbook/company#history) and remain committed to improving it.
 - **Free as in free:** The free version of Fleet will [always be free](https://fleetdm.com/pricing). Fleet is independently backed and actively maintained with the help of many contributors.
 
