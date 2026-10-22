@@ -1,6 +1,12 @@
 # Why Fleet
 
-Fleet is an open-source device management platform for macOS, Linux, Windows, Chromebooks, iOS, and Android devices (BYOD or corporate-owned).
+Fleet is open-source AI device management, patching, and governance for every OS: macOS, Windows, Linux, Chromebooks, iOS, and Android (BYOD or corporate-owned).
+
+Use the AI you already trust to describe a change in plain English, like a new policy, a CVE fix, or a configuration profile. The change arrives as a pull request, so a person reviews it before it reaches any device.
+
+**Get started with AI:** [Use Claude Code with Fleet](https://fleetdm.com/guides/use-claude-code-with-fleet) · [AI-powered IT](https://fleetdm.com/ai)
+
+<!-- TODO: Add a link to Allen Houchins' AI getting-started guide once it's published. -->
 
 ![Fleet dashboard](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/fleet-dashboard-612x344@2x.png)
 
@@ -15,7 +21,7 @@ Fleet is open source, and free features will always be free.
 Fleet is used in production by IT and security teams managing thousands of devices. Many deployments support tens of thousands, and a few large organizations manage 400,000 or more.
 
 - **Get what you need:** Fleet works directly with data and events from the native operating system, down to the bare metal. Strong diagnostics let you investigate errors on end-user devices and collect accurate audit evidence in minutes. It’s also modular. (You can turn off features you are not using.)
-- **Out of the box:** Ready-to-use integrations exist for [most common tools](https://fleetdm.com/integrations). You can become a power user in the GUI or govern your fleet with [infrastructure-as-code](https://fleetdm.com/docs/configuration/yaml-files) or your favorite [AI tool](https://fleetdm.com/webinars/beyond-the-hype-practical-ai-for-device-management). You can also build custom workflows with the REST API, webhook events, MCP server, and the fleetctl command-line tool. 
+- **Out of the box:** Ready-to-use integrations exist for [most common tools](https://fleetdm.com/integrations). You can become a power user in the GUI or govern your fleet with [infrastructure-as-code](https://fleetdm.com/docs/configuration/yaml-files). You can also build custom workflows with the REST API, webhook events, MCP server, and the fleetctl command-line tool. 
 - **Good neighbors:** Fleet is independent and open by design. We helped [create osquery](https://fleetdm.com/handbook/company#history) and remain committed to improving it.
 - **Free as in free:** The free version of Fleet will [always be free](https://fleetdm.com/pricing). Fleet is independently backed and actively maintained with the help of many contributors.
 
