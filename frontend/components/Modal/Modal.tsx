@@ -45,6 +45,23 @@ export interface IModalProps {
   className?: string;
 }
 
+const FOCUSABLE_SELECTOR = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  '[tabindex]:not([tabindex="-1"])',
+].join(",");
+
+const getFocusable = (container: HTMLElement): HTMLElement[] => {
+  const nodes = container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
+  return Array.from(nodes).filter((el) => {
+    const style = window.getComputedStyle(el);
+    return style.display !== "none" && style.visibility !== "hidden";
+  });
+};
+
 const Modal = ({
   title,
   children,
@@ -59,6 +76,8 @@ const Modal = ({
 }: IModalProps): JSX.Element => {
   const isDownOnBackgroundRef = useRef(false);
   const isFormDirtyRef = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
   const [isClosing, setIsClosing] = useState(false);
   const isClosingRef = useRef(false);
 
@@ -136,6 +155,67 @@ const Modal = ({
     };
   }, []);
 
+  useEffect(() => {
+    triggerRef.current = document.activeElement as HTMLElement | null;
+
+    const container = containerRef.current;
+    // isContentDisabled autofocuses the close button via the Button's own
+    // autofocus prop, so don't fight it.
+    if (container && !isContentDisabled) {
+      const focusables = getFocusable(container);
+      (focusables[0] ?? container).focus();
+    }
+
+    return () => {
+      const trigger = triggerRef.current;
+      if (trigger && document.body.contains(trigger)) {
+        trigger.focus();
+      }
+    };
+    // Mount-only: initial focus and trigger capture happen once per modal lifetime.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (isHidden) return undefined;
+
+    const trapFocus = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      const container = containerRef.current;
+      if (!container) return;
+
+      const focusables = getFocusable(container);
+      if (focusables.length === 0) {
+        e.preventDefault();
+        container.focus();
+        return;
+      }
+
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+
+      if (!container.contains(active)) {
+        e.preventDefault();
+        first.focus();
+        return;
+      }
+
+      if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", trapFocus);
+    return () => {
+      document.removeEventListener("keydown", trapFocus);
+    };
+  }, [isHidden]);
+
   const backgroundClasses = classnames(`${baseClass}__background`, {
     [`${baseClass}__hidden`]: isHidden,
     [`${baseClass}__closing`]: isClosing,
@@ -203,8 +283,15 @@ const Modal = ({
       onMouseDown={handleBackgroundMouseDown}
       onMouseUp={handleBackgroundMouseUp}
     >
+      {/* Handlers here are stopPropagation shims for the click-outside-to-close
+          overlay above, not user-facing interactions on the dialog itself. */}
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
+        ref={containerRef}
         className={modalContainerClasses}
+        role="dialog"
+        aria-modal="true"
+        aria-label={typeof title === "string" ? title : undefined}
         tabIndex={-1} // Make focusable
         onMouseDown={handleContainerMouseDown}
         onMouseUp={handleContainerMouseUp}
