@@ -194,13 +194,13 @@ const HostReportCard = ({
             <h3 className={`${baseClass}__name`}>
               <TooltipTruncatedText value={report.name} fixedPositionStrategy />
             </h3>
+            {renderLastUpdated()}
           </div>
           {report.description && (
             <p className={`${baseClass}__description`}>{report.description}</p>
           )}
         </div>
         <div className={`${baseClass}__header-right`}>
-          {renderLastUpdated()}
           {report.report_clipped && (
             <Tag tooltip="This report is full and isn't saving results from hosts that aren't in it yet. If automations are enabled, results are still sent to your log destination.">
               <Icon size="small" name="warning" color={ICON_COLOR} />
