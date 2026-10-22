@@ -8,6 +8,7 @@ import (
 	"encoding/json/v2"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -951,7 +952,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 		if policy != nil && *policy == host.UUID {
 			svc.verifyDevicePolicy(ctx, host.UUID, device)
 		}
-		svc.verifyDeviceSoftware(ctx, host.Host, device)
+		svc.verifyDeviceSoftware(ctx, host.Host, device, fromEnroll)
 	} else if fromEnroll {
 		// Re-enrollment of a previously-enrolled host: the freshly-enrolled device has not applied any policy yet.
 		// Clear stale data so that the host-specific policy is applied correctly.
@@ -1634,7 +1635,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 	}
 }
 
-func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, device *androidmanagement.Device) {
+func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, device *androidmanagement.Device, fromEnroll bool) {
 	appliedPolicyVersion := device.AppliedPolicyVersion
 	hostUUID := host.UUID
 
@@ -1648,7 +1649,28 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 		svc.logger.ErrorContext(ctx, "error getting pending vpp installs", "err", err)
 		return
 	}
-	if len(pendingInstallApps) == 0 {
+	// A failure is not final: the device can report an app installed after Fleet gave up
+	// on it, e.g. when it was offline past the install timeout or the report listing the
+	// app arrived after the one that failed it. Not on enrollment though, as the host's
+	// enrollment time isn't updated yet, so the installs that re-enrolling just failed would
+	// count as current.
+	installedPackages := make(map[string]bool, len(device.ApplicationReports))
+	for _, appReport := range device.ApplicationReports {
+		if appReport.State == "INSTALLED" {
+			installedPackages[appReport.PackageName] = true
+		}
+	}
+	var failedInstallApps []*fleet.HostAndroidVPPSoftwareInstall
+	if !fromEnroll && len(installedPackages) > 0 {
+		failedInstallApps, err = svc.listFailedInstallsReportedInstalled(ctx, host.ID, installedPackages)
+		if err != nil {
+			// Still verify this report's pending installs; the failed ones can be recovered
+			// by a later report.
+			svc.logger.ErrorContext(ctx, "error getting failed vpp installs", "err", err)
+			failedInstallApps = nil
+		}
+	}
+	if len(pendingInstallApps) == 0 && len(failedInstallApps) == 0 {
 		return
 	}
 
@@ -1742,6 +1764,17 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 			}
 		}
 	}
+	for _, install := range failedInstallApps {
+		// The pending installs come from the replica, which can still list an install the
+		// primary already failed; that install was handled above.
+		if slices.ContainsFunc(pendingInstallApps, func(pending *fleet.HostAndroidVPPSoftwareInstall) bool {
+			return pending.CommandUUID == install.CommandUUID
+		}) {
+			continue
+		}
+		toVerifyUUIDs = append(toVerifyUUIDs, install.CommandUUID)
+		svc.logger.InfoContext(ctx, "Previously failed software reported as installed, marking as verified", "host_uuid", hostUUID, "package_name", install.AdamID)
+	}
 	if err := svc.ds.BulkSetVPPInstallsAsVerified(ctx, host.ID, toVerifyUUIDs); err != nil {
 		svc.logger.ErrorContext(ctx, "error marking vpp installs as verified", "err", err, "host_uuid", hostUUID)
 		return
@@ -1786,6 +1819,35 @@ func (svc *Service) verifyDeviceSoftware(ctx context.Context, host *fleet.Host, 
 			return
 		}
 	}
+}
+
+// listFailedInstallsReportedInstalled returns the host's failed installs whose app the
+// status report lists as installed. Nearly every report lists installed apps, so the
+// replica is checked first. A match is confirmed on the primary, because reports for a
+// host arrive seconds apart and a lagging replica would still list an install the previous
+// report already verified, which would then be verified again with a second "installed"
+// activity. A failure the replica hasn't caught up with yet is recovered by a later report.
+func (svc *Service) listFailedInstallsReportedInstalled(ctx context.Context, hostID uint, installedPackages map[string]bool,
+) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+	reportedInstalled := func(installs []*fleet.HostAndroidVPPSoftwareInstall) []*fleet.HostAndroidVPPSoftwareInstall {
+		return slices.DeleteFunc(installs, func(install *fleet.HostAndroidVPPSoftwareInstall) bool {
+			return !installedPackages[install.AdamID]
+		})
+	}
+
+	candidates, err := svc.ds.ListHostMDMAndroidVPPAppsLatestFailedInstall(ctx, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list failed installs")
+	}
+	if len(reportedInstalled(candidates)) == 0 {
+		return nil, nil
+	}
+
+	confirmed, err := svc.ds.ListHostMDMAndroidVPPAppsLatestFailedInstall(ctxdb.RequirePrimary(ctx, true), hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list failed installs from primary")
+	}
+	return reportedInstalled(confirmed), nil
 }
 
 func buildNonComplianceErrorMessage(nonCompliance []*androidmanagement.NonComplianceDetail) string {
