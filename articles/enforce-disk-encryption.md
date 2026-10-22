@@ -2,7 +2,7 @@
 
 _Available in Fleet Premium_
 
-In Fleet, you can enforce disk encryption for your macOS and Windows hosts, and escrow disk encryption keys for macOS, Windows, and Linux (Ubuntu, Kubuntu, Fedora, and Omarchy) hosts.
+In Fleet, you can enforce disk encryption for your macOS and Windows hosts, and escrow disk encryption keys for macOS, Windows, and Linux (Ubuntu, Kubuntu, and Fedora) hosts.
 
 > Apple calls this [FileVault](https://support.apple.com/en-us/HT204837), Microsoft calls this [BitLocker](https://learn.microsoft.com/en-us/windows/security/operating-system-security/data-protection/bitlocker/), and Linux typically uses [LUKS](https://en.wikipedia.org/wiki/Linux_Unified_Key_Setup) (Linux Unified Key Setup).
 
@@ -68,7 +68,7 @@ You can click each status to view the list of hosts for that status.
 
 ## Escrow disk encryption key on Linux
 
-Fleet supports Linux Unified Key Setup version 2 (LUKS2) for escrowing disk encryption keys on Ubuntu Linux, Kubuntu Linux, Fedora Linux, and Omarchy (4 and later) hosts. The passphrase prompt uses `zenity` (or `kdialog`), which Omarchy doesn't install by default: add it with `sudo pacman -S zenity`.
+Fleet supports Linux Unified Key Setup version 2 (LUKS2) for escrowing disk encryption keys on Ubuntu Linux, Kubuntu Linux, and Fedora Linux hosts.
 
 1. Share [this step-by-step guide](https://fleetdm.com/learn-more-about/encrypt-linux-device) with end users setting up a work computer running Ubuntu Linux, Kubuntu Linux or Fedora Linux.
 
