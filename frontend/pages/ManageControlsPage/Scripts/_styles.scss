@@ -37,6 +37,11 @@
       &:hover {
         cursor: pointer;
       }
+      // Row acts as role="button" for technicians and GitOps-mode admins;
+      // replace the UA default outline with a Fleet-black keyboard focus ring.
+      &:focus {
+        outline: 1px solid $core-fleet-black;
+      }
     }
   }
 }
