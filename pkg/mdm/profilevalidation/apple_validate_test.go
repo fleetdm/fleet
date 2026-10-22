@@ -1,7 +1,9 @@
 package profilevalidation
 
 import (
+	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -84,4 +86,65 @@ func TestDecodeAppleDeclarationErrors(t *testing.T) {
 	require.ErrorContains(t, err, "decode declaration")
 	_, err = decodeAppleDeclaration([]byte(`[]`))
 	require.ErrorContains(t, err, "root is array")
+}
+
+func TestTypeAccepts(t *testing.T) {
+	key := func(types ...AppleType) *AppleKey { return &AppleKey{Type: types} }
+	timestamp := &AppleKey{Type: AppleTypes{AppleTypeString}, ValueType: "<timestamp>"}
+	localTime := &AppleKey{Type: AppleTypes{AppleTypeString}, ValueType: "localtime"}
+	url := &AppleKey{Type: AppleTypes{AppleTypeString}, ValueType: "<url>"}
+	date := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	cases := []struct {
+		name        string
+		key         *AppleKey
+		value       any
+		declaration bool
+		want        bool
+	}{
+		{name: "string in string", key: key(AppleTypeString), value: "x", want: true},
+		{name: "string in boolean", key: key(AppleTypeBoolean), value: "true"},
+		{name: "boolean in boolean", key: key(AppleTypeBoolean), value: true, want: true},
+		{name: "integer in integer", key: key(AppleTypeInteger), value: uint64(1), want: true},
+		{name: "real in integer", key: key(AppleTypeInteger), value: 1.5, want: true},
+		{name: "integer in real", key: key(AppleTypeReal), value: int64(-1), want: true},
+		{name: "float32 in real", key: key(AppleTypeReal), value: float32(1.5), want: true},
+		{name: "json integer in real", key: key(AppleTypeReal), value: json.Number("1"), declaration: true, want: true},
+		{name: "string in integer", key: key(AppleTypeInteger), value: "1"},
+		{name: "array in dictionary", key: key(AppleTypeDictionary), value: []any{}},
+		{name: "dictionary in dictionary", key: key(AppleTypeDictionary), value: map[string]any{}, want: true},
+		{name: "array in array", key: key(AppleTypeArray), value: []any{}, want: true},
+		{name: "data in data", key: key(AppleTypeData), value: []byte{}, want: true},
+		{name: "date in date", key: key(AppleTypeDate), value: date, want: true},
+
+		{name: "list accepts integer", key: key(AppleTypeInteger, AppleTypeString), value: uint64(1), want: true},
+		{name: "list accepts string", key: key(AppleTypeInteger, AppleTypeString), value: "x", want: true},
+		{name: "list rejects boolean", key: key(AppleTypeInteger, AppleTypeString), value: true},
+
+		{name: "any", key: key(AppleTypeAny), value: true, want: true},
+		{name: "unknown type", key: key("set"), value: true, want: true},
+		{name: "unknown type in list", key: key(AppleTypeInteger, "set"), value: true, want: true},
+		{name: "no types", key: key(), value: true, want: true},
+
+		{name: "date in timestamp string", key: timestamp, value: date, want: true},
+		{name: "date in localtime string", key: localTime, value: date, want: true},
+		{name: "date in url string", key: url, value: date},
+		{name: "date in plain string", key: key(AppleTypeString), value: date},
+
+		{name: "declaration string in data", key: key(AppleTypeData), value: "AQID", declaration: true, want: true},
+		{name: "declaration string in date", key: key(AppleTypeDate), value: "2026-01-01T00:00:00Z", declaration: true, want: true},
+		{name: "profile string in data", key: key(AppleTypeData), value: "AQID"},
+		{name: "profile string in date", key: key(AppleTypeDate), value: "2026-01-01T00:00:00Z"},
+
+		{name: "fleet variable in string", key: key(AppleTypeString), value: "$FLEET_VAR_HOST_END_USER_IDP_USERNAME", want: true},
+		{name: "fleet variable in integer", key: key(AppleTypeInteger), value: "$FLEET_VAR_HOST_END_USER_IDP_USERNAME"},
+		{name: "fleet variable in data", key: key(AppleTypeData), value: "$FLEET_VAR_HOST_END_USER_IDP_USERNAME"},
+		{name: "secret in integer", key: key(AppleTypeInteger), value: "$FLEET_SECRET_PORT", want: true},
+		{name: "braced secret inside a string in boolean", key: key(AppleTypeBoolean), value: "x${FLEET_SECRET_ON}", want: true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assert.Equal(t, c.want, typeAccepts(c.key, c.value, c.declaration))
+		})
+	}
 }
