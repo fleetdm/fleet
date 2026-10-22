@@ -106,9 +106,10 @@ cmd_setup() {
     read -r -p "Download and install $(basename "$url")? [y/N] " a
     [[ "$a" =~ ^[Yy]$ ]] || die "Install Apple container, then re-run setup."
     local tmp; tmp="$(mktemp -d)"
+    trap 'rm -rf "$tmp"' EXIT
     curl -fL "$url" -o "$tmp/container-installer.pkg"
     sudo installer -pkg "$tmp/container-installer.pkg" -target /
-    rm -rf "$tmp"
+    rm -rf "$tmp"; trap - EXIT
   fi
   ensure_system
 
@@ -352,6 +353,7 @@ cmd_certs() {
 }
 
 cmd_down() {
+  ensure_system
   cmd_stop
   local c
   for c in "${CONTAINERS[@]}"; do container rm "$c" >/dev/null 2>&1 || true; done
@@ -362,10 +364,11 @@ cmd_reset() {
   read -r -p "Delete ALL Fleet data (database, logs, settings)? [y/N] " a
   [[ "$a" =~ ^[Yy]$ ]] || { echo "Cancelled."; exit 0; }
   cmd_down
-  local v left=()
+  local v vols left=()
+  for v in "${VOLUMES[@]}"; do container volume rm "$v" >/dev/null 2>&1 || true; done
+  vols="$(container volume ls | awk 'NR>1 {print $1}')" || die "Couldn't list volumes to confirm the reset. Check: container volume ls"
   for v in "${VOLUMES[@]}"; do
-    container volume rm "$v" >/dev/null 2>&1 || true
-    if volume_exists "$v"; then left+=("$v"); fi
+    if grep -qx "$v" <<< "$vols"; then left+=("$v"); fi
   done
   (( ${#left[@]} == 0 )) || die "Couldn't delete ${left[*]}. A container may still be using it. Check: container ls -a"
   ok "All Fleet data deleted. Fresh deploy: ./fleetlab.sh up"
