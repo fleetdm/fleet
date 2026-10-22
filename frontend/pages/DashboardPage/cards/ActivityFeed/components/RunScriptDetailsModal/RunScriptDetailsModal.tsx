@@ -71,12 +71,22 @@ const StatusMessage = ({
 }: IStatusMessageProps) => {
   switch (exitCode) {
     case null:
-      return !hostTimeout ? (
+      if (!hostTimeout) {
         // Expected API message: "A script is already running on this host. Please wait about 1 minute to let it finish."
-        <StatusMessageRunning />
-      ) : (
-        // Expected API message: "Fleet hasn’t heard from the host in over 1 minute. Fleet doesn’t know if the script ran because the host went offline."
-        <StatusMessageError message={message} />
+        return <StatusMessageRunning />;
+      }
+      // The API message is fleetctl copy; strip the trailing "Go to Fleet
+      // and check Host details > Activities" pointer, since the modal is
+      // already on that view.
+      return (
+        <StatusMessageError
+          message={message
+            .replace(
+              /\s*Go to Fleet and check Host details > Activities to see script results\.?/,
+              ""
+            )
+            .trim()}
+        />
       );
     case -2:
       // Expected API message: "Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled."
