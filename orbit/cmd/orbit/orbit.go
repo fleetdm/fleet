@@ -36,6 +36,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/augeas"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/bitlocker"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/cabundle"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
@@ -1034,7 +1035,13 @@ func orbitAction(c *cli.Context) error {
 				osquery.WithFlags([]string{"--tls_server_certs", certPath}),
 			)
 		} else {
-			certPath = filepath.Join(c.String("root-dir"), "certs.pem")
+			// Only the Fleet-shipped bundle is refreshed; a --fleet-certificate (fleet.pem) is never touched.
+			if updated, err := cabundle.Refresh(c.String("root-dir")); err != nil {
+				log.Error().Err(err).Msg("refresh CA bundle, keeping the installed one")
+			} else if updated {
+				log.Info().Msg("updated CA bundle to the version embedded in orbit")
+			}
+			certPath = filepath.Join(c.String("root-dir"), cabundle.FileName)
 			if exists, err := file.Exists(certPath); err == nil && exists {
 				_, err = certificate.LoadPEM(certPath)
 				if err != nil {
