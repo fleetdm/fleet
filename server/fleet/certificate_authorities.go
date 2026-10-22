@@ -180,8 +180,8 @@ func (c *CertificateAuthority) EJBCA() EJBCA {
 	return ejbca
 }
 
-// CertificateAuthority returns the stored form of the EJBCA CA. The empty username template, trust bundle, and UPN list are stored as
-// NULL.
+// CertificateAuthority returns the stored form of the EJBCA CA. The required fields are always set, and the empty optional username
+// template, trust bundle, and UPN list are stored as NULL.
 func (e *EJBCA) CertificateAuthority() *CertificateAuthority {
 	ca := &CertificateAuthority{
 		ID:                          e.ID,

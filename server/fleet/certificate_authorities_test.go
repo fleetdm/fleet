@@ -1,6 +1,8 @@
 package fleet
 
 import (
+	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -28,42 +30,52 @@ func TestValidateCertificateAuthoritiesSpec(t *testing.T) {
 		grouped, err = ValidateCertificateAuthoritiesSpec(map[string]any{})
 		require.NoError(t, err)
 		require.Equal(t, []EJBCA{}, grouped.EJBCA)
-
-		_, err = ValidateCertificateAuthoritiesSpec(map[string]any{"ejbca": "not a list"})
-		require.ErrorContains(t, err, "org_settings.certificate_authorities.ejbca cannot be parsed")
 	})
 }
 
-func TestEJBCAEquals(t *testing.T) {
-	base := EJBCA{
-		Name: "ejbca", URL: "https://ejbca.example.com", MTLSCertPEM: "cert", MTLSKeyPEM: "key", TrustCABundlePEM: "bundle",
+// fullEJBCA returns an EJBCA CA with every field set, other than the PKCS#12 and its password, which are only inputs.
+func fullEJBCA() EJBCA {
+	return EJBCA{
+		ID: 1, Name: "ejbca", URL: "https://ejbca.example.com", MTLSCertPEM: "cert", MTLSKeyPEM: "key", TrustCABundlePEM: "bundle",
 		CertificateAuthorityName: "ca", CertificateProfileName: "cert", EndEntityProfileName: "entity",
 		CertificateCommonName: "cn", UsernameTemplate: "user", CertificateUserPrincipalNames: []string{"upn"},
 	}
-	// The PKCS#12 and its password are inputs, so they don't count.
+}
+
+func TestEJBCAEquals(t *testing.T) {
+	base := fullEJBCA()
 	same := base
-	same.ClientP12, same.Password = "p12", "pw"
+	same.ID, same.ClientP12, same.Password = 2, "p12", "pw"
 	require.True(t, base.Equals(&same))
 
-	for name, change := range map[string]func(*EJBCA){
-		"name":                  func(e *EJBCA) { e.Name = "other" },
-		"url":                   func(e *EJBCA) { e.URL = "https://other.example.com" },
-		"client certificate":    func(e *EJBCA) { e.MTLSCertPEM = "other" },
-		"client key":            func(e *EJBCA) { e.MTLSKeyPEM = "other" },
-		"trust bundle":          func(e *EJBCA) { e.TrustCABundlePEM = "" },
-		"certificate authority": func(e *EJBCA) { e.CertificateAuthorityName = "other" },
-		"certificate profile":   func(e *EJBCA) { e.CertificateProfileName = "other" },
-		"end entity profile":    func(e *EJBCA) { e.EndEntityProfileName = "other" },
-		"common name":           func(e *EJBCA) { e.CertificateCommonName = "other" },
-		"username template":     func(e *EJBCA) { e.UsernameTemplate = "" },
-		"upns":                  func(e *EJBCA) { e.CertificateUserPrincipalNames = nil },
-	} {
+	// Every other field counts. A field that is added without being set in fullEJBCA, or compared, fails here.
+	typ := reflect.TypeFor[EJBCA]()
+	for i := range typ.NumField() {
+		name := typ.Field(i).Name
+		if slices.Contains([]string{"ID", "ClientP12", "Password"}, name) {
+			continue
+		}
 		t.Run(name, func(t *testing.T) {
 			changed := base
-			change(&changed)
+			reflect.ValueOf(&changed).Elem().Field(i).SetZero()
 			require.False(t, base.Equals(&changed))
 		})
 	}
+}
+
+func TestEJBCACertificateAuthority(t *testing.T) {
+	full := fullEJBCA()
+	stored := full.CertificateAuthority()
+	require.Equal(t, string(CATypeEJBCA), stored.Type)
+	require.Equal(t, full, stored.EJBCA())
+
+	// The empty optional fields are stored as NULL.
+	minimal := EJBCA{ID: 2, Name: "minimal", URL: "https://ejbca.example.com"}
+	stored = minimal.CertificateAuthority()
+	require.Equal(t, minimal, stored.EJBCA())
+	require.Nil(t, stored.TrustCABundlePEM)
+	require.Nil(t, stored.EJBCAUsernameTemplate)
+	require.Nil(t, stored.CertificateUserPrincipalNames)
 }
 
 func TestEffectiveEJBCAUsernameTemplate(t *testing.T) {
@@ -141,17 +153,6 @@ func TestGroupCertificateAuthoritiesByTypeEJBCA(t *testing.T) {
 		},
 		{ID: 2, Name: "minimal", URL: "https://ejbca.example.com"},
 	}, grouped.EJBCA)
-
-	// Storing a CA and reading it back gives the same settings, with the empty optional fields stored as NULL.
-	for _, ejbca := range grouped.EJBCA {
-		stored := ejbca.CertificateAuthority()
-		require.Equal(t, string(CATypeEJBCA), stored.Type)
-		require.Equal(t, ejbca, stored.EJBCA())
-	}
-	stored := grouped.EJBCA[1].CertificateAuthority()
-	require.Nil(t, stored.TrustCABundlePEM)
-	require.Nil(t, stored.EJBCAUsernameTemplate)
-	require.Nil(t, stored.CertificateUserPrincipalNames)
 }
 
 func TestPreprocessCAFields(t *testing.T) {

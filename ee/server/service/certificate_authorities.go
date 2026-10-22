@@ -862,9 +862,9 @@ func (svc *Service) processEJBCACAs(ctx context.Context, batchOps *fleet.Certifi
 			if err != nil {
 				return err
 			}
-			unchanged := *incoming
-			unchanged.MTLSCertPEM, unchanged.MTLSKeyPEM = creds.CertPEM, creds.KeyPEM
-			if unchanged.Equals(existing) {
+			candidate := *incoming
+			candidate.MTLSCertPEM, candidate.MTLSKeyPEM = creds.CertPEM, creds.KeyPEM
+			if candidate.Equals(existing) {
 				continue
 			}
 		}
