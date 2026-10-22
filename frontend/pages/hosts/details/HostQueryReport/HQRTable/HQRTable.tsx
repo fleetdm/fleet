@@ -187,13 +187,13 @@ const HQRTable = ({
   const renderTableInfo = useCallback(
     () => (
       <div className={`${baseClass}__query-info`}>
-        <div className={`${baseClass}__query-info-text`}>
+        <div className={`${baseClass}__query-info-header`}>
           <h2>
             <TooltipTruncatedText value={queryName} fixedPositionStrategy />
           </h2>
-          <h3>{queryDescription}</h3>
+          <PerformanceImpact queryStats={queryStats} queryId={queryId} />
         </div>
-        <PerformanceImpact queryStats={queryStats} queryId={queryId} />
+        {queryDescription && <h3>{queryDescription}</h3>}
       </div>
     ),
     [queryDescription, queryName, queryStats, queryId]

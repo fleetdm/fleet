@@ -189,32 +189,32 @@ const HostReportCard = ({
   return (
     <Card className={baseClass} paddingSize="xlarge">
       <div className={`${baseClass}__header`}>
-        <div className={`${baseClass}__header-left`}>
+        <div className={`${baseClass}__header-top`}>
           <div className={`${baseClass}__title-row`}>
             <h3 className={`${baseClass}__name`}>
               <TooltipTruncatedText value={report.name} fixedPositionStrategy />
             </h3>
             {renderLastUpdated()}
           </div>
-          {report.description && (
-            <p className={`${baseClass}__description`}>{report.description}</p>
-          )}
+          <div className={`${baseClass}__header-right`}>
+            {report.report_clipped && (
+              <Tag tooltip="This report is full and isn't saving results from hosts that aren't in it yet. If automations are enabled, results are still sent to your log destination.">
+                <Icon size="small" name="warning" color={ICON_COLOR} />
+                Report clipped
+              </Tag>
+            )}
+            <ActionsDropdown
+              options={actionOptions}
+              placeholder="Actions"
+              onChange={onActionChange}
+              variant="secondary"
+              menuAlign="right"
+            />
+          </div>
         </div>
-        <div className={`${baseClass}__header-right`}>
-          {report.report_clipped && (
-            <Tag tooltip="This report is full and isn't saving results from hosts that aren't in it yet. If automations are enabled, results are still sent to your log destination.">
-              <Icon size="small" name="warning" color={ICON_COLOR} />
-              Report clipped
-            </Tag>
-          )}
-          <ActionsDropdown
-            options={actionOptions}
-            placeholder="Actions"
-            onChange={onActionChange}
-            variant="secondary"
-            menuAlign="right"
-          />
-        </div>
+        {report.description && (
+          <p className={`${baseClass}__description`}>{report.description}</p>
+        )}
       </div>
 
       {renderDataCells()}
