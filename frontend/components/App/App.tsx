@@ -238,9 +238,9 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
 
   const fetchCurrentUser = useCallback(async () => {
     try {
-      const { user, available_teams, settings } = await usersAPI.me();
+      const { user, available_fleets, settings } = await usersAPI.me();
       setCurrentUser(user);
-      setAvailableTeams(user, available_teams);
+      setAvailableTeams(user, available_fleets);
       setUserSettings(settings);
       fetchConfig();
     } catch (error) {

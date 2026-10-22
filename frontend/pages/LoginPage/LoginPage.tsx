@@ -119,7 +119,7 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
 
       try {
         const response = await sessionsAPI.login(formData);
-        const { user, available_teams, token, token_expires_at } = response;
+        const { user, available_fleets, token, token_expires_at } = response;
 
         const expiresAt = token_expires_at
           ? new Date(token_expires_at)
@@ -127,7 +127,7 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
         authToken.save(token, expiresAt);
 
         setCurrentUser(user);
-        setAvailableTeams(user, available_teams);
+        setAvailableTeams(user, available_fleets);
         setCurrentTeam(undefined);
 
         if (!user.global_role && user.teams.length === 0) {

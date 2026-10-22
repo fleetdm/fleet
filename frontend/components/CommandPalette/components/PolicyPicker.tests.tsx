@@ -39,7 +39,7 @@ const policyWith = (
   fields: Partial<IPolicyStats> & Pick<IPolicyStats, "id" | "name">
 ): IPolicyStats =>
   (({
-    team_id: null,
+    fleet_id: null,
     type: "",
     critical: false,
     ...fields,

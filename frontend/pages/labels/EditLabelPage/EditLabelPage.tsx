@@ -147,7 +147,7 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
         defaultDescription={label.description}
         defaultQuery={label.query}
         defaultPlatform={label.platform}
-        teamName={label.team_name || null}
+        teamName={label.fleet_name || null}
         isEditing
         onSave={onUpdateLabel}
         onCancel={onCancelEdit}
@@ -161,7 +161,7 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
         defaultName={label.name}
         defaultDescription={label.description}
         defaultTargetedHosts={targetedHosts}
-        teamName={label.team_name || null}
+        teamName={label.fleet_name || null}
         onSave={onUpdateLabel}
         onCancel={onCancelEdit}
       />

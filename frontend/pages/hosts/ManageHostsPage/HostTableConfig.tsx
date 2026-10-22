@@ -201,8 +201,8 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     Header: (cellProps: IHostTableHeaderProps) => (
       <HeaderCell value="Fleet" isSortedDesc={cellProps.column.isSortedDesc} />
     ),
-    accessor: "team_name",
-    id: "team_name",
+    accessor: "fleet_name",
+    id: "team_name", // sort key; the API doesn't accept fleet_name yet
     Cell: (cellProps) => (
       <TextCell value={cellProps.cell.value} formatter={hostTeamName} />
     ),

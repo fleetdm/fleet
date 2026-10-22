@@ -826,6 +826,28 @@ describe("Activity Feed", () => {
     expect(withNoTeams).toBeNull();
   });
 
+  it("renders the fleet name from fleet_name", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledMacDiskEncryption,
+      details: { fleet_id: 1, fleet_name: "Alphas" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    expect(screen.queryByText("that are unassigned")).toBeNull();
+  });
+
+  it("renders the fleet name from team_name for activities recorded before the fleet rename", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledMacDiskEncryption,
+      details: { team_id: 1, team_name: "Alphas" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    expect(screen.queryByText("that are unassigned")).toBeNull();
+  });
+
   it("renders an 'enabled_macos_disk_encryption' type activity for hosts that are unassigned.", () => {
     // Test deprecated activity type
     const activity = createMockActivity({
