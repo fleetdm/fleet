@@ -146,9 +146,7 @@ const ScriptListItem = ({
           position="top"
           showArrow
         >
-          <Button variant="link" className={`${baseClass}__title-button`}>
-            <TooltipTruncatedText value={script.name} fixedPositionStrategy />
-          </Button>
+          <TooltipTruncatedText value={script.name} fixedPositionStrategy />
         </TooltipWrapper>
       }
       details={
