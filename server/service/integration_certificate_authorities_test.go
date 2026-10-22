@@ -2761,14 +2761,15 @@ func (s *integrationMDMTestSuite) TestBatchApplyEJBCACertificateAuthorities() {
 	apply(false, http.StatusOK, wifi)
 	require.Greater(t, len(fake.Requests()), requests)
 	require.Equal(t, "new-common-name", stored()[0].CertificateCommonName)
-	s.lastActivityMatches(fleet.ActivityEditedEJBCA{}.ActivityName(), `{"name":"EJBCA_WIFI"}`, 0)
+	edited := s.lastActivityMatches(fleet.ActivityEditedEJBCA{}.ActivityName(), `{"name":"EJBCA_WIFI"}`, 0)
 
-	// A new client certificate replaces the stored one.
+	// A new client certificate replaces the stored one, and is an edit too.
 	oldCert := stored()[0].MTLSCertPEM
 	wifi.ClientP12 = fake.ClientP12(t, expiry, p12Password)
 	apply(false, http.StatusOK, wifi)
 	storedCert := stored()[0].MTLSCertPEM
 	require.NotEqual(t, oldCert, storedCert)
+	require.NotEqual(t, edited, s.lastActivityMatches(fleet.ActivityEditedEJBCA{}.ActivityName(), `{"name":"EJBCA_WIFI"}`, 0))
 
 	// Bad credentials reject the whole batch, and the stored CA keeps its certificate.
 	wrongPassword := wifi
@@ -2787,26 +2788,24 @@ func (s *integrationMDMTestSuite) TestBatchApplyEJBCACertificateAuthorities() {
 	lowerCase.Name = "ejbca_wifi"
 	require.Contains(t, apply(false, http.StatusUnprocessableEntity, wifi, wifi), "already")
 	require.Contains(t, apply(false, http.StatusUnprocessableEntity, wifi, lowerCase), "already")
-	ndes := &fleet.NDESSCEPProxyCA{URL: "https://ndes.test/scep", AdminURL: "https://ndes.test/admin", Username: "user", Password: "pw"}
 	for _, tc := range []struct {
 		name     string
-		ejbca    fleet.EJBCA
 		scepName string
-		ndes     *fleet.NDESSCEPProxyCA
-		wantName string
 	}{
-		{"custom SCEP", wifi, "EJBCA_WIFI", nil, "EJBCA_WIFI"},
-		{"custom SCEP in another case", wifi, "ejbca_wifi", nil, "EJBCA_WIFI"},
-		{"NDES", ejbcaSpec("ndes", wifi.ClientP12), "", ndes, "ndes"},
+		{"custom SCEP", "EJBCA_WIFI"},
+		{"custom SCEP in another case", "ejbca_wifi"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			grouped := fleet.GroupedCertificateAuthorities{EJBCA: []fleet.EJBCA{tc.ejbca}, NDESSCEP: tc.ndes}
-			if tc.scepName != "" {
-				grouped.CustomScepProxy = []fleet.CustomSCEPProxyCA{scepSpec(tc.scepName)}
+			grouped := fleet.GroupedCertificateAuthorities{
+				EJBCA: []fleet.EJBCA{wifi}, CustomScepProxy: []fleet.CustomSCEPProxyCA{scepSpec(tc.scepName)},
 			}
 			errText := applyCAs(batchApplyCertificateAuthoritiesRequest{CertificateAuthorities: grouped, DryRun: true}, http.StatusBadRequest)
-			require.Contains(t, errText, fmt.Sprintf("%q name is already used by another certificate authority", tc.wantName))
+			require.Contains(t, errText, `"EJBCA_WIFI" name is already used by another certificate authority`)
 		})
+	}
+	// The name of the NDES CA is reserved in any case, whether or not an NDES CA is configured.
+	for _, name := range []string{"NDES", "ndes"} {
+		require.Contains(t, apply(true, http.StatusUnprocessableEntity, ejbcaSpec(name, wifi.ClientP12)), "CA name cannot be NDES")
 	}
 
 	// A rename that only changes the case updates the CA, it doesn't delete it.

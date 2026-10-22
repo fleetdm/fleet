@@ -24,7 +24,7 @@ const (
 
 // validateEJBCA checks a new EJBCA CA, reads the client certificate and key out of its PKCS#12, and verifies the connection to EJBCA.
 func (svc *Service) validateEJBCA(ctx context.Context, ca *fleet.EJBCA, errPrefix string) error {
-	if err := validateCAName(ca.Name, errPrefix); err != nil {
+	if err := validateEJBCAName(ca.Name, errPrefix); err != nil {
 		return err
 	}
 	if err := validateURL(ca.URL, "EJBCA", errPrefix); err != nil {
@@ -44,6 +44,15 @@ func (svc *Service) validateEJBCA(ctx context.Context, ca *fleet.EJBCA, errPrefi
 	ca.MTLSCertPEM, ca.MTLSKeyPEM = creds.CertPEM, creds.KeyPEM
 
 	return svc.verifyEJBCA(ctx, *ca, errPrefix)
+}
+
+// validateEJBCAName checks the name like any CA's, and also reserves NDES in any case: an EJBCA name can't be shared with another CA, and
+// the name of the NDES CA is fixed, so an EJBCA CA with it would stop NDES from being configured later.
+func validateEJBCAName(name, errPrefix string) error {
+	if strings.EqualFold(name, "NDES") {
+		return fleet.NewInvalidArgumentError("name", errPrefix+"CA name cannot be NDES")
+	}
+	return validateCAName(name, errPrefix)
 }
 
 // validateEJBCAFields checks the fields that make up an EJBCA CA's enrollment settings, whether it is new or the result of an update.
@@ -191,7 +200,7 @@ func (svc *Service) updateEJBCA(
 	}
 
 	if u.Name != nil {
-		if err := validateCAName(merged.Name, errPrefix); err != nil {
+		if err := validateEJBCAName(merged.Name, errPrefix); err != nil {
 			return nil, err
 		}
 	}

@@ -663,9 +663,6 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 			otherNames[strings.ToLower(name)] = struct{}{}
 		}
 	}
-	if n := incoming.NDESSCEP; n != nil && (n.URL != "" || n.AdminURL != "" || n.Username != "" || n.Password != "") {
-		otherNames["ndes"] = struct{}{}
-	}
 	for _, ca := range incoming.EJBCA {
 		if _, shared := otherNames[strings.ToLower(ca.Name)]; shared {
 			return nil, &fleet.BadRequestError{Message: "certificate_authorities.ejbca: " + fleet.EJBCANameInUseError{Name: ca.Name}.Error()}
