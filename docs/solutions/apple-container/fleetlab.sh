@@ -258,6 +258,8 @@ cmd_up() {
   container network create "$NET" >/dev/null 2>&1 || true
   local v
   for v in "${VOLUMES[@]}"; do container volume create "$v" >/dev/null 2>&1 || true; done
+  if exists fleet-mysql; then container rm -f fleet-mysql >/dev/null 2>&1 || true; fi
+  if exists fleet-redis; then container rm -f fleet-redis >/dev/null 2>&1 || true; fi
 
   say "Starting MySQL and Redis"
   # An earlier `up` that failed before starting Fleet leaves these behind.
