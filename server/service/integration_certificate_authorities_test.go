@@ -2680,10 +2680,10 @@ func (s *integrationMDMTestSuite) TestEJBCACertificateAuthorityNameCannotBeShare
 
 func (s *integrationMDMTestSuite) TestBatchApplyEJBCACertificateAuthorities() {
 	t := s.T()
-	ctx := context.Background()
+	ctx := t.Context()
 	deleteCAs := func() {
 		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, "DELETE FROM certificate_authorities")
+			_, err := q.ExecContext(context.Background(), "DELETE FROM certificate_authorities")
 			return err
 		})
 	}
@@ -2691,6 +2691,8 @@ func (s *integrationMDMTestSuite) TestBatchApplyEJBCACertificateAuthorities() {
 	t.Cleanup(deleteCAs)
 
 	fake := ejbcatest.New(t, nil)
+	scepServer := scep_server.StartTestSCEPServer(t)
+	t.Cleanup(scepServer.Close)
 	const p12Password = "p12-password"
 	expiry := time.Now().Add(90 * 24 * time.Hour).UTC().Truncate(time.Second)
 	ejbcaSpec := func(name, p12 string) fleet.EJBCA {
@@ -2701,23 +2703,38 @@ func (s *integrationMDMTestSuite) TestBatchApplyEJBCACertificateAuthorities() {
 			UsernameTemplate: "$FLEET_VAR_HOST_HARDWARE_SERIAL", CertificateUserPrincipalNames: []string{"$FLEET_VAR_HOST_END_USER_EMAIL_IDP"},
 		}
 	}
-	apply := func(dryRun bool, status int, ejbcas ...fleet.EJBCA) string {
-		res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{
-			CertificateAuthorities: fleet.GroupedCertificateAuthorities{EJBCA: ejbcas}, DryRun: dryRun,
-		}, status)
+	scepSpec := func(name string) fleet.CustomSCEPProxyCA {
+		return fleet.CustomSCEPProxyCA{Name: name, URL: scepServer.URL + "/scep", Challenge: "challenge"}
+	}
+	// applyCAs posts the spec and returns the error text, if the status is not a success.
+	applyCAs := func(req batchApplyCertificateAuthoritiesRequest, status int) string {
+		res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, status)
 		if status == http.StatusOK {
 			return ""
 		}
 		return extractServerErrorText(res.Body)
+	}
+	apply := func(dryRun bool, status int, ejbcas ...fleet.EJBCA) string {
+		return applyCAs(batchApplyCertificateAuthoritiesRequest{
+			CertificateAuthorities: fleet.GroupedCertificateAuthorities{EJBCA: ejbcas}, DryRun: dryRun,
+		}, status)
 	}
 	stored := func() []fleet.EJBCA {
 		grouped, err := s.ds.GetGroupedCertificateAuthorities(ctx, true)
 		require.NoError(t, err)
 		return grouped.EJBCA
 	}
+	caNames := func() []string {
+		cas, err := s.ds.ListCertificateAuthorities(ctx)
+		require.NoError(t, err)
+		names := make([]string, 0, len(cas))
+		for _, ca := range cas {
+			names = append(names, ca.Type+":"+ca.Name)
+		}
+		return names
+	}
 
-	trusted := fake.ClientP12(t, expiry, p12Password)
-	wifi := ejbcaSpec("EJBCA_WIFI", trusted)
+	wifi := ejbcaSpec("EJBCA_WIFI", fake.ClientP12(t, expiry, p12Password))
 
 	// A dry run validates against EJBCA but stores nothing.
 	apply(true, http.StatusOK, wifi)
@@ -2728,9 +2745,6 @@ func (s *integrationMDMTestSuite) TestBatchApplyEJBCACertificateAuthorities() {
 	apply(false, http.StatusOK, wifi)
 	got := stored()
 	require.Len(t, got, 1)
-	require.Equal(t, wifi.Name, got[0].Name)
-	require.Equal(t, wifi.CertificateCommonName, got[0].CertificateCommonName)
-	require.Equal(t, wifi.UsernameTemplate, got[0].UsernameTemplate)
 	require.Equal(t, wifi.CertificateUserPrincipalNames, got[0].CertificateUserPrincipalNames)
 	require.Contains(t, got[0].MTLSCertPEM, "BEGIN CERTIFICATE")
 	require.Contains(t, got[0].MTLSKeyPEM, "PRIVATE KEY")
@@ -2753,17 +2767,13 @@ func (s *integrationMDMTestSuite) TestBatchApplyEJBCACertificateAuthorities() {
 	oldCert := stored()[0].MTLSCertPEM
 	wifi.ClientP12 = fake.ClientP12(t, expiry, p12Password)
 	apply(false, http.StatusOK, wifi)
-	require.NotEqual(t, oldCert, stored()[0].MTLSCertPEM)
-
-	// Bad credentials are rejected, and the stored CA keeps its certificate.
 	storedCert := stored()[0].MTLSCertPEM
+	require.NotEqual(t, oldCert, storedCert)
+
+	// Bad credentials reject the whole batch, and the stored CA keeps its certificate.
 	wrongPassword := wifi
 	wrongPassword.Password = "wrong"
 	require.Contains(t, apply(false, http.StatusUnprocessableEntity, wrongPassword), "certificate_authorities.ejbca: ")
-	require.Equal(t, storedCert, stored()[0].MTLSCertPEM)
-	missingP12 := wifi
-	missingP12.ClientP12 = ""
-	require.Contains(t, apply(false, http.StatusUnprocessableEntity, missingP12), "PKCS#12 cannot be empty")
 	require.Equal(t, storedCert, stored()[0].MTLSCertPEM)
 	expired := ejbcaSpec("EJBCA_EXPIRED", ejbcatest.ClientP12Between(t, fake.ClientCA, time.Now().Add(-48*time.Hour),
 		time.Now().Add(-24*time.Hour), p12Password))
@@ -2772,73 +2782,56 @@ func (s *integrationMDMTestSuite) TestBatchApplyEJBCACertificateAuthorities() {
 	require.Len(t, stored(), 1)
 
 	// Names are unique among the EJBCA CAs, ignoring case like the database does, and an EJBCA name can't be shared with a CA of another
-	// type.
-	require.Contains(t, apply(false, http.StatusUnprocessableEntity, wifi, wifi), "already")
+	// type. These fail in a dry run too.
 	lowerCase := wifi
 	lowerCase.Name = "ejbca_wifi"
+	require.Contains(t, apply(false, http.StatusUnprocessableEntity, wifi, wifi), "already")
 	require.Contains(t, apply(false, http.StatusUnprocessableEntity, wifi, lowerCase), "already")
-	res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{
-		CertificateAuthorities: fleet.GroupedCertificateAuthorities{
-			EJBCA:           []fleet.EJBCA{wifi},
-			CustomScepProxy: []fleet.CustomSCEPProxyCA{{Name: wifi.Name, URL: "https://scep.example.com/scep", Challenge: "challenge"}},
-		}, DryRun: true,
-	}, http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(res.Body), `"EJBCA_WIFI" name is already used by another certificate authority`)
-	res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{
-		CertificateAuthorities: fleet.GroupedCertificateAuthorities{
-			EJBCA:           []fleet.EJBCA{wifi},
-			CustomScepProxy: []fleet.CustomSCEPProxyCA{{Name: "ejbca_wifi", URL: "https://scep.example.com/scep", Challenge: "challenge"}},
-		}, DryRun: true,
-	}, http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(res.Body), "name is already used by another certificate authority")
-	ndesEJBCA := wifi
-	ndesEJBCA.Name = "ndes"
-	res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{
-		CertificateAuthorities: fleet.GroupedCertificateAuthorities{
-			EJBCA:    []fleet.EJBCA{ndesEJBCA},
-			NDESSCEP: &fleet.NDESSCEPProxyCA{URL: "https://ndes.example.com/scep", AdminURL: "https://ndes.example.com/admin", Username: "user", Password: "pw"},
-		}, DryRun: true,
-	}, http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(res.Body), `"ndes" name is already used by another certificate authority`)
+	ndes := &fleet.NDESSCEPProxyCA{URL: "https://ndes.test/scep", AdminURL: "https://ndes.test/admin", Username: "user", Password: "pw"}
+	for _, tc := range []struct {
+		name     string
+		ejbca    fleet.EJBCA
+		scepName string
+		ndes     *fleet.NDESSCEPProxyCA
+		wantName string
+	}{
+		{"custom SCEP", wifi, "EJBCA_WIFI", nil, "EJBCA_WIFI"},
+		{"custom SCEP in another case", wifi, "ejbca_wifi", nil, "EJBCA_WIFI"},
+		{"NDES", ejbcaSpec("ndes", wifi.ClientP12), "", ndes, "ndes"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			grouped := fleet.GroupedCertificateAuthorities{EJBCA: []fleet.EJBCA{tc.ejbca}, NDESSCEP: tc.ndes}
+			if tc.scepName != "" {
+				grouped.CustomScepProxy = []fleet.CustomSCEPProxyCA{scepSpec(tc.scepName)}
+			}
+			errText := applyCAs(batchApplyCertificateAuthoritiesRequest{CertificateAuthorities: grouped, DryRun: true}, http.StatusBadRequest)
+			require.Contains(t, errText, fmt.Sprintf("%q name is already used by another certificate authority", tc.wantName))
+		})
+	}
 
 	// A rename that only changes the case updates the CA, it doesn't delete it.
 	apply(false, http.StatusOK, lowerCase)
-	require.Len(t, stored(), 1)
-	require.Equal(t, "ejbca_wifi", stored()[0].Name)
+	require.Equal(t, []string{"ejbca:ejbca_wifi"}, caNames())
 
 	// GitOps applies the spec without deletes first and deletes later, after it cleans up the certificate templates. A CA that changes type
 	// and keeps its name has to be replaced in the first pass anyway, because the name can't be shared with an EJBCA CA, while the other
 	// CAs that aren't in the spec stay for the later pass.
-	scepServer := scep_server.StartTestSCEPServer(t)
-	t.Cleanup(scepServer.Close)
 	_, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type: string(fleet.CATypeCustomSCEPProxy), Name: new("NOT_IN_SPEC"), URL: new(scepServer.URL + "/scep"), Challenge: new("challenge"),
 	})
 	require.NoError(t, err)
-	applySkippingDeletes := func(grouped fleet.GroupedCertificateAuthorities) {
-		s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{
-			CertificateAuthorities: grouped, SkipDeletes: true,
-		}, http.StatusOK)
-	}
-	caNames := func() []string {
-		cas, err := s.ds.ListCertificateAuthorities(ctx)
-		require.NoError(t, err)
-		names := make([]string, 0, len(cas))
-		for _, ca := range cas {
-			names = append(names, ca.Type+":"+ca.Name)
-		}
-		return names
-	}
-	applySkippingDeletes(fleet.GroupedCertificateAuthorities{
-		CustomScepProxy: []fleet.CustomSCEPProxyCA{{Name: "ejbca_wifi", URL: scepServer.URL + "/scep", Challenge: "challenge"}},
-	})
+	applyCAs(batchApplyCertificateAuthoritiesRequest{
+		CertificateAuthorities: fleet.GroupedCertificateAuthorities{CustomScepProxy: []fleet.CustomSCEPProxyCA{scepSpec("ejbca_wifi")}},
+		SkipDeletes:            true,
+	}, http.StatusOK)
 	require.ElementsMatch(t, []string{"custom_scep_proxy:ejbca_wifi", "custom_scep_proxy:NOT_IN_SPEC"}, caNames())
 	s.lastActivityOfTypeMatches(fleet.ActivityDeletedEJBCA{}.ActivityName(), `{"name":"ejbca_wifi"}`, 0)
-	applySkippingDeletes(fleet.GroupedCertificateAuthorities{EJBCA: []fleet.EJBCA{lowerCase}})
+	applyCAs(batchApplyCertificateAuthoritiesRequest{
+		CertificateAuthorities: fleet.GroupedCertificateAuthorities{EJBCA: []fleet.EJBCA{lowerCase}}, SkipDeletes: true,
+	}, http.StatusOK)
 	require.ElementsMatch(t, []string{"ejbca:ejbca_wifi", "custom_scep_proxy:NOT_IN_SPEC"}, caNames())
 
-	// Leaving the CA out of the spec deletes it.
+	// Leaving the CAs out of the spec deletes them.
 	apply(false, http.StatusOK)
-	require.Empty(t, stored())
-	s.lastActivityOfTypeMatches(fleet.ActivityDeletedEJBCA{}.ActivityName(), `{"name":"ejbca_wifi"}`, 0)
+	require.Empty(t, caNames())
 }

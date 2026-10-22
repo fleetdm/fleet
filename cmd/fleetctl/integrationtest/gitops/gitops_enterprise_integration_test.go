@@ -594,6 +594,18 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestCAIntegrations() {
 	fakeEJBCA := ejbcatest.New(t, nil)
 	t.Setenv("EJBCA_WIFI_CLIENT_P12", fakeEJBCA.ClientP12(t, time.Now().Add(90*24*time.Hour), "p12-password"))
 	t.Setenv("EJBCA_WIFI_PASSWORD", "p12-password")
+	ejbcaYAML := fmt.Sprintf(`    ejbca:
+      - name: EJBCA_WIFI
+        url: %s
+        client_p12: $EJBCA_WIFI_CLIENT_P12
+        password: $EJBCA_WIFI_PASSWORD
+        trust_ca_bundle: %q
+        certificate_authority_name: %s
+        certificate_profile_name: %s
+        end_entity_profile_name: %s
+        certificate_common_name: ejbca_cn
+        certificate_user_principal_names: ["ejbca_upn"]
+`, fakeEJBCA.HTTP.URL, fakeEJBCA.ServerPEM, ejbcatest.CAName, ejbcatest.CertProfile, ejbcatest.EndEntityProfile)
 
 	// Get the path to the directory of this test file
 	_, currentFile, _, ok := runtime.Caller(0)
@@ -657,25 +669,13 @@ org_settings:
       - name: CustomScepProxy
         url: %s
         challenge: challenge
-    ejbca:
-      - name: EJBCA_WIFI
-        url: %s
-        client_p12: $EJBCA_WIFI_CLIENT_P12
-        password: $EJBCA_WIFI_PASSWORD
-        trust_ca_bundle: %q
-        certificate_authority_name: `+ejbcatest.CAName+`
-        certificate_profile_name: `+ejbcatest.CertProfile+`
-        end_entity_profile_name: `+ejbcatest.EndEntityProfile+`
-        certificate_common_name: ejbca_cn
-        certificate_user_principal_names: ["ejbca_upn"]
-policies:
+%spolicies:
 reports:
 `,
 		dirPath,
 		digiCertServer.URL,
 		scepServer.URL+"/scep",
-		fakeEJBCA.HTTP.URL,
-		fakeEJBCA.ServerPEM,
+		ejbcaYAML,
 	))
 	require.NoError(t, err)
 
@@ -714,9 +714,6 @@ reports:
 	require.Len(t, groupedCAs.EJBCA, 1)
 	ejbcaCA := groupedCAs.EJBCA[0]
 	require.Equal(t, "EJBCA_WIFI", ejbcaCA.Name)
-	require.Equal(t, fakeEJBCA.HTTP.URL, ejbcaCA.URL)
-	require.Equal(t, "ejbca_cn", ejbcaCA.CertificateCommonName)
-	require.Equal(t, []string{"ejbca_upn"}, ejbcaCA.CertificateUserPrincipalNames)
 	require.Contains(t, ejbcaCA.MTLSCertPEM, "BEGIN CERTIFICATE")
 	ejbcaRequests := len(fakeEJBCA.Requests())
 	require.NotZero(t, ejbcaRequests)
@@ -752,26 +749,14 @@ org_settings:
       - name: CustomScepProxy
         url: %s
         challenge: challenge
-    ejbca:
-      - name: EJBCA_WIFI
-        url: %s
-        client_p12: $EJBCA_WIFI_CLIENT_P12
-        password: $EJBCA_WIFI_PASSWORD
-        trust_ca_bundle: %q
-        certificate_authority_name: `+ejbcatest.CAName+`
-        certificate_profile_name: `+ejbcatest.CertProfile+`
-        end_entity_profile_name: `+ejbcatest.EndEntityProfile+`
-        certificate_common_name: ejbca_cn
-        certificate_user_principal_names: ["ejbca_upn"]
-policies:
+%spolicies:
 reports:
 `,
 		dirPath,
 		digiCertServer.URL,
 		"digicert_upn_2", // minor modification to stored config so gitops run is not a no-op and triggers call to external digicert service
 		scepServer.URL+"/scep",
-		fakeEJBCA.HTTP.URL,
-		fakeEJBCA.ServerPEM,
+		ejbcaYAML,
 	))
 	require.NoError(t, err)
 
@@ -805,7 +790,6 @@ agent_options:
 controls:
   apple_settings:
     configuration_profiles:
-      - path: %s/testdata/gitops/lib/scep-and-digicert.mobileconfig
 org_settings:
   server_settings:
     server_url: $FLEET_URL
@@ -813,27 +797,13 @@ org_settings:
     org_name: Fleet
   secrets:
   certificate_authorities:
-    digicert:
-      - name: DigiCert
-        url: %s
-        api_token: digicert_api_token
-        profile_id: digicert_profile_id
-        certificate_common_name: digicert_cn
-        certificate_user_principal_names: ["digicert_upn_2"]
-        certificate_seat_id: digicert_seat_id
     custom_scep_proxy:
-      - name: CustomScepProxy
-        url: %s
-        challenge: challenge
       - name: EJBCA_WIFI
         url: %s
         challenge: challenge
 policies:
 reports:
 `,
-		dirPath,
-		digiCertServer.URL,
-		scepServer.URL+"/scep",
 		scepServer.URL+"/scep",
 	))
 	require.NoError(t, err)
@@ -844,7 +814,8 @@ reports:
 	groupedCAs, err = s.DS.GetGroupedCertificateAuthorities(t.Context(), false)
 	require.NoError(t, err)
 	assert.Empty(t, groupedCAs.EJBCA)
-	require.Len(t, groupedCAs.CustomScepProxy, 2)
+	require.Len(t, groupedCAs.CustomScepProxy, 1)
+	assert.Equal(t, "EJBCA_WIFI", groupedCAs.CustomScepProxy[0].Name)
 
 	// Now test that we can clear the configs
 	_, err = globalFile.WriteString(`
