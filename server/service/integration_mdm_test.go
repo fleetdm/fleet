@@ -216,7 +216,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	scepStorage, err := s.ds.NewSCEPDepot()
 	require.NoError(s.T(), err)
 	conditionalAccessSCEPStorage, err := s.ds.NewConditionalAccessSCEPDepot(slog.New(slog.DiscardHandler), &fleetCfg)
-	require.NoError(s.T(), err)
+	s.Require().NoError(err)
 
 	pushLog := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
