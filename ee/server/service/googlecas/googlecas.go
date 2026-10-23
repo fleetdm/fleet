@@ -4,6 +4,7 @@ package googlecas
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"cloud.google.com/go/auth"
 	"cloud.google.com/go/auth/credentials"
 	"cloud.google.com/go/auth/httptransport"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
@@ -187,6 +189,9 @@ func (s *Service) describeError(ctx context.Context, err error, ca fleet.GoogleC
 		}
 		return fmt.Errorf("Google CAS returned an error (HTTP %d).", apiErr.Code)
 	}
+	if status, ok := tokenServiceUnavailable(err); ok {
+		return fmt.Errorf("Google couldn't issue an access token (HTTP %d). Try again later.", status)
+	}
 	if isConnectionError(err) {
 		return errors.New("Couldn't connect to Google CAS. Try again later.")
 	}
@@ -196,9 +201,23 @@ func (s *Service) describeError(ctx context.Context, err error, ca fleet.GoogleC
 // A malformed, revoked or deleted key fails while getting a token, before any API status is available.
 var errAuthentication = errors.New("Couldn't authenticate with Google CAS. Check that the service account key is valid.")
 
-// isConnectionError reports a failure to reach Google or to get a whole response from it, which says nothing about the key.
+// tokenServiceUnavailable reports a token request Google turned away for a reason expected to clear, such as an outage or rate
+// limiting, and its HTTP status. Those say nothing about the key.
+func tokenServiceUnavailable(err error) (int, bool) {
+	authErr, ok := errors.AsType[*auth.Error](err)
+	if !ok || authErr.Response == nil {
+		return 0, false
+	}
+	status := authErr.Response.StatusCode
+	return status, status >= http.StatusInternalServerError || status == http.StatusTooManyRequests || status == http.StatusRequestTimeout
+}
+
+// isConnectionError reports a failure to reach Google, to verify its TLS certificate, or to get a whole response from it, which says
+// nothing about the key.
 func isConnectionError(err error) bool {
-	_, ok := errors.AsType[*net.OpError](err)
-	return ok || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) ||
+	_, opErr := errors.AsType[*net.OpError](err)
+	_, certErr := errors.AsType[*tls.CertificateVerificationError](err)
+	_, recordErr := errors.AsType[tls.RecordHeaderError](err)
+	return opErr || certErr || recordErr || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) ||
 		errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF)
 }

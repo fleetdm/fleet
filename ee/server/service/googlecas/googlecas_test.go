@@ -132,6 +132,8 @@ func TestVerifyCAPool(t *testing.T) {
 		{"pool missing", http.StatusOK, http.StatusNotFound, `CA pool "my-pool" wasn't found in project "my-project", location "us-central1"`},
 		{"google outage", http.StatusOK, http.StatusServiceUnavailable, "Google CAS returned an error (HTTP 503)"},
 		{"key revoked", http.StatusBadRequest, http.StatusOK, "Couldn't authenticate with Google CAS"},
+		{"token endpoint outage", http.StatusServiceUnavailable, http.StatusOK, "Google couldn't issue an access token (HTTP 503). Try again later."},
+		{"token endpoint rate limit", http.StatusTooManyRequests, http.StatusOK, "Google couldn't issue an access token (HTTP 429). Try again later."},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			srv, _ := newGoogle(t, tc.tokenStatus, tc.poolStatus)
@@ -145,6 +147,13 @@ func TestVerifyCAPool(t *testing.T) {
 	t.Run("Google unreachable", func(t *testing.T) {
 		srv, _ := newGoogle(t, http.StatusOK, http.StatusOK)
 		srv.Close()
+		err := newSvc(srv).VerifyCAPool(t.Context(), newCA(t))
+		require.ErrorContains(t, err, "Couldn't connect to Google CAS")
+	})
+
+	t.Run("untrusted TLS certificate", func(t *testing.T) {
+		srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+		t.Cleanup(srv.Close)
 		err := newSvc(srv).VerifyCAPool(t.Context(), newCA(t))
 		require.ErrorContains(t, err, "Couldn't connect to Google CAS")
 	})
