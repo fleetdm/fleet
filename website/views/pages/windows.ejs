@@ -347,7 +347,8 @@
               <span class="fa fa-angle-down"></span>
             </p>
             <div purpose="accordion-answer" id="accordion__body-faq-4" class="collapse" aria-labelledby="accordion__header-faq-4">
-              <p>No. With Windows MDM turned on, installing Fleet’s agent enrolls the host, either directly or through a provisioning package. Connecting Entra adds automatic enrollment the first time a user signs in. Autopilot adds pre-registration and holds the device at the Enrollment Status Page until setup finishes.</p>
+              <p>No. Hardware vendors’ factory services, available from Dell, Lenovo, and HP, can install Fleet’s agent (fleetd) before the device ships. When the end user turns it on and finishes Windows setup, the device enrolls in Fleet and starts installing your software. No Autopilot or Entra required.</p>
+              <p>Already paying for Entra? Fleet supports Entra and Autopilot too, so you can keep using them. You can also install fleetd directly on devices you already have.</p>
             </div>
           </div>
           <div purpose="accordion-item">
@@ -356,7 +357,7 @@
               <span class="fa fa-angle-down"></span>
             </p>
             <div purpose="accordion-answer" id="accordion__body-faq-5" class="collapse" aria-labelledby="accordion__header-faq-5">
-              <p>Your tenant needs one qualifying subscription, such as Microsoft 365 E3 or E5, or Enterprise Mobility + Security E3 or E5. Each user who enrolls automatically needs a Microsoft Entra ID P1 license, which Microsoft 365 E3 and E5 already include. You don’t need Intune licenses for end users.</p>
+              <p>None, if you use a hardware vendor’s factory service to preinstall Fleet’s agent. Microsoft licenses only apply if you choose to enroll through Entra. In that case, each user who enrolls needs a Microsoft Entra ID P1 license.</p>
             </div>
           </div>
           <div purpose="accordion-item">
