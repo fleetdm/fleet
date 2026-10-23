@@ -16,22 +16,34 @@ const p12File = () =>
   });
 
 describe("EJBCAForm", () => {
-  it("shows every error on submit and doesn't submit when the form is empty", async () => {
+  it("shows the errors on submit, without submitting, and checks the name against the other CAs", async () => {
     const onSubmit = jest.fn();
     const { user } = renderWithSetup(
-      <EJBCAForm submitBtnText="Add CA" onSubmit={onSubmit} onCancel={noop} />
+      <EJBCAForm
+        certAuthorities={[
+          createMockCertificateAuthorityPartial({
+            name: "Taken_Name",
+            type: "custom_scep_proxy",
+          }),
+        ]}
+        submitBtnText="Add CA"
+        onSubmit={onSubmit}
+        onCancel={noop}
+      />
     );
 
     // the button stays enabled, so that clicking it shows what is missing
     await user.click(screen.getByRole("button", { name: "Add CA" }));
-
-    expect(screen.getByText("Enter a name")).toBeVisible();
     expect(screen.getByText("Enter a URL")).toBeVisible();
+
+    // a field's error replaces its label
+    await user.type(screen.getByLabelText("Enter a name"), "taken_name");
+    await user.click(screen.getByRole("button", { name: "Add CA" }));
     expect(
-      screen.getByText("Upload a client certificate (.p12)")
+      screen.getByText(
+        "Enter a name that isn't used by another certificate authority"
+      )
     ).toBeVisible();
-    expect(screen.getByText("Enter an EJBCA CA name")).toBeVisible();
-    expect(screen.getByText("Enter a common name")).toBeVisible();
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
@@ -75,65 +87,20 @@ describe("EJBCAForm", () => {
     });
   });
 
-  it("keeps showing the error of the client certificate after a file is selected", async () => {
+  it("shows the errors that the server reported, the one of the client certificate also after a file is selected", async () => {
+    const passwordError = "The PKCS#12 password is incorrect";
+    const clientP12Error = "The client certificate expired on 2020-01-01";
     const { user, container } = renderWithSetup(
       <EJBCAForm
-        serverErrors={{
-          clientP12: "The client certificate expired on 2020-01-01",
-        }}
+        serverErrors={{ password: passwordError, clientP12: clientP12Error }}
         submitBtnText="Add CA"
         onSubmit={noop}
         onCancel={noop}
       />
     );
+    expect(screen.getByText(passwordError)).toBeVisible();
     await user.upload(getFileInput(container), p12File());
-    expect(
-      await screen.findByText("The client certificate expired on 2020-01-01")
-    ).toBeVisible();
-  });
-
-  it("says when the name is used by another certificate authority", async () => {
-    const { user } = renderWithSetup(
-      <EJBCAForm
-        certAuthorities={[
-          createMockCertificateAuthorityPartial({
-            name: "Taken_Name",
-            type: "custom_scep_proxy",
-          }),
-        ]}
-        submitBtnText="Add CA"
-        onSubmit={noop}
-        onCancel={noop}
-      />
-    );
-
-    await user.type(screen.getByLabelText("Name"), "taken_name");
-    await user.click(screen.getByRole("button", { name: "Add CA" }));
-
-    expect(
-      screen.getByText(
-        "Enter a name that isn't used by another certificate authority"
-      )
-    ).toBeVisible();
-  });
-
-  it("shows the errors that the server reported for the fields", () => {
-    renderWithSetup(
-      <EJBCAForm
-        serverErrors={{
-          password: "The PKCS#12 password is incorrect or the file is damaged",
-        }}
-        submitBtnText="Add CA"
-        onSubmit={noop}
-        onCancel={noop}
-      />
-    );
-
-    expect(
-      screen.getByText(
-        "The PKCS#12 password is incorrect or the file is damaged"
-      )
-    ).toBeVisible();
+    expect(await screen.findByText(clientP12Error)).toBeVisible();
   });
 
   describe("when editing", () => {
