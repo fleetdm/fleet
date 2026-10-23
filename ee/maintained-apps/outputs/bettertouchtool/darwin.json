@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.974",
+      "version": "6.977",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.hegenberg.BetterTouchTool';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hegenberg.BetterTouchTool' AND version_compare(bundle_short_version, '6.974') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hegenberg.BetterTouchTool' AND version_compare(bundle_short_version, '6.977') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.hegenberg.BetterTouchTool' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://folivora.ai/releases/btt6.974-2026102208.zip",
+      "installer_url": "https://folivora.ai/releases/btt6.977-2026102302.zip",
       "install_script_ref": "d93a7301",
       "uninstall_script_ref": "aef4d4fc",
-      "sha256": "3c2ad500197762039d661985bfbf474bb6f2572f1a39b9675b048b07bd3ac4e7",
+      "sha256": "c81b890eaa35306cfbd70bc529d9c0539aa77a52eb590ccacc837545f8844892",
       "default_categories": [
         "Productivity"
       ]
