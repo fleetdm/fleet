@@ -30,8 +30,14 @@ const context = { certAuthorities: [] };
 
 describe("EJBCAForm helpers", () => {
   describe("validateEJBCAForm", () => {
-    it("has no errors for a valid form", () => {
+    it("has no errors for a valid form, including the URL of an internal host", () => {
       expect(validateEJBCAForm(validFormData, context)).toEqual({});
+      expect(
+        validateEJBCAForm(
+          { ...validFormData, url: "https://ejbca:8443" },
+          context
+        )
+      ).toEqual({});
     });
 
     it("has an error for each required field that is empty", () => {
@@ -76,9 +82,9 @@ describe("EJBCAForm helpers", () => {
       expect(errors.name).toContain(error);
     });
 
-    it("lets the CA that is edited keep its name", () => {
+    it("lets the CA that is edited keep its name and stored client certificate", () => {
       const errors = validateEJBCAForm(
-        { ...validFormData, clientP12: "" },
+        { ...validFormData, clientP12: "", password: "" },
         {
           certAuthorities: [
             createMockCertificateAuthorityPartial({
@@ -111,17 +117,10 @@ describe("EJBCAForm helpers", () => {
       );
     });
 
-    it("needs the password with a client certificate, and the certificate only when adding", () => {
+    it("needs the password with a client certificate", () => {
       expect(
         validateEJBCAForm({ ...validFormData, password: "" }, context)
       ).toEqual({ password: "Enter the password of the client certificate" });
-      // when editing, the stored certificate stays unless a new one is uploaded
-      expect(
-        validateEJBCAForm(
-          { ...validFormData, clientP12: "", password: "" },
-          { certAuthorities: [], editingId: 5 }
-        )
-      ).toEqual({});
     });
 
     it("needs a PEM in the trust CA bundle, if there is one", () => {
@@ -130,15 +129,6 @@ describe("EJBCAForm helpers", () => {
           .trustCABundle
       ).toBe("Enter a PEM-encoded certificate");
     });
-  });
-
-  it("accepts the URL of an internal host", () => {
-    expect(
-      validateEJBCAForm(
-        { ...validFormData, url: "https://ejbca:8443" },
-        context
-      )
-    ).toEqual({});
   });
 
   describe("generateEJBCAAddData", () => {
@@ -238,36 +228,29 @@ describe("EJBCAForm helpers", () => {
   });
 
   describe("splitEJBCAServerErrors", () => {
-    it("puts the errors of the fields on the form, and the rest apart", () => {
+    it("maps the names the server reports to the fields of the form, and leaves the rest apart", () => {
       const { fieldErrors, otherReasons } = splitEJBCAServerErrors({
         errors: [
-          {
-            name: "password",
-            reason:
-              "Couldn't add certificate authority. The PKCS#12 password is incorrect or the file is damaged.",
-          },
-          { name: "base", reason: "Couldn't add certificate authority. Oops." },
+          { name: "password", reason: "The password is incorrect." },
+          { name: "certificate_authority_name", reason: "Unknown CA." },
+          { name: "certificate_user_principal_names", reason: "Bad UPN." },
+          { name: "base", reason: "Oops." },
         ],
       });
 
       expect(fieldErrors).toEqual({
-        password:
-          "Couldn't add certificate authority. The PKCS#12 password is incorrect or the file is damaged.",
+        password: "The password is incorrect.",
+        caName: "Unknown CA.",
+        userPrincipalName: "Bad UPN.",
       });
-      expect(otherReasons).toEqual([
-        "Couldn't add certificate authority. Oops.",
-      ]);
+      expect(otherReasons).toEqual(["Oops."]);
     });
   });
 
   describe("getEJBCAErrorMessage", () => {
-    it("says what failed, with the reasons or what to do", () => {
-      expect(
-        getEJBCAErrorMessage("add", [
-          "Couldn't add certificate authority. EJBCA rejected the TLS client certificate.",
-        ])
-      ).toBe(
-        "Couldn't add certificate authority. EJBCA rejected the TLS client certificate."
+    it("has the reasons of the server, or says what failed and what to do", () => {
+      expect(getEJBCAErrorMessage("add", ["First.", "Second."])).toBe(
+        "First. Second."
       );
       expect(getEJBCAErrorMessage("edit", [])).toBe(
         "Couldn't edit certificate authority. Please try again."

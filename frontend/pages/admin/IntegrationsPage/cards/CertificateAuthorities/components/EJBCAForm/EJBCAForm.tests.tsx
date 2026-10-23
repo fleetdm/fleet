@@ -75,7 +75,7 @@ describe("EJBCAForm", () => {
     });
   });
 
-  it("keeps showing the error of the client certificate after a file is selected", () => {
+  it("keeps showing the error of the client certificate after a file is selected", async () => {
     const { user, container } = renderWithSetup(
       <EJBCAForm
         serverErrors={{
@@ -86,11 +86,10 @@ describe("EJBCAForm", () => {
         onCancel={noop}
       />
     );
-    return user.upload(getFileInput(container), p12File()).then(() => {
-      expect(
-        screen.getByText("The client certificate expired on 2020-01-01")
-      ).toBeVisible();
-    });
+    await user.upload(getFileInput(container), p12File());
+    expect(
+      await screen.findByText("The client certificate expired on 2020-01-01")
+    ).toBeVisible();
   });
 
   it("says when the name is used by another certificate authority", async () => {
@@ -163,8 +162,9 @@ describe("EJBCAForm", () => {
       expect(screen.queryByLabelText("Client certificate password")).toBeNull();
 
       await user.upload(getFileInput(container), p12File());
+      // the file is read asynchronously
       expect(
-        screen.getByLabelText("Client certificate password")
+        await screen.findByLabelText("Client certificate password")
       ).toBeVisible();
     });
 
