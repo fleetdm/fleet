@@ -629,7 +629,6 @@ ${COULD_NOT_GENERATE_SHAPE}`;
       'Write credentials the admin supplied as literals, since the profile is unusable without them.  Do not invent a placeholder.  Note in "deliveryNotes" that the file contains a cleartext credential.',
       'When a platform requires a companion artifact the profile cannot contain -- a DDM activation declaration, a referenced asset declaration -- generate the configuration itself and describe the companion in "deliveryNotes".',
       'If a setting is commonly managed by an MDM directly rather than by a custom profile, such as disk encryption, still generate the profile as asked and note in "deliveryNotes" that some MDMs manage this natively and may reject or conflict with a custom profile.',
-      'Never put a URL or a link in "reasonWhyAProfileCouldNotBeGenerated".  Name the setting and say why it could not be generated, in plain words.',
     ].concat(isWrittenFromSettings ? [] : [
       'Escape newlines inside "configurationProfile" as \\n so the surrounding JSON stays valid.  Do not emit raw line breaks inside the string, and do not collapse the profile onto one line.',
     ]);
