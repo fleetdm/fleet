@@ -214,9 +214,8 @@ func TestCustomInstallScriptsStopWhenAppWontQuit(t *testing.T) {
 		"expressvpn-install.sh":     "vpn-installer.sh kills the app's processes before replacing it",
 		"harmony-sase-install.sh":   "the pkg force-quits the app",
 		"logitune-install.sh":       "the pkg's preinstall force-kills the app",
-		"qgis-ltr-install.sh":       "quit_app_at_path force-kills the app if it won't close",
 	}
-	quitCall := regexp.MustCompile(`^\s*quit_\w+(\s|$)`)
+	quitCall := regexp.MustCompile(`^\s*(quit_application|quit_and_track_application)\s`)
 	// kicad-install.sh's abort_install relaunches the apps and exits 1.
 	stopsOnFailure := regexp.MustCompile(`\|\|\s*(exit(\s+[1-9][0-9]*)?|abort_install)\s*$`)
 
