@@ -1622,6 +1622,22 @@ func (s *integrationMDMTestSuite) checkAppliedCAs(t *testing.T, ds fleet.Datasto
 		assert.Empty(t, gotCAs.EST)
 	}
 
+	if len(expectedCAs.Smallstep) != 0 {
+		assert.Len(t, gotCAs.Smallstep, len(expectedCAs.Smallstep))
+		wantByName := make(map[string]fleet.SmallstepSCEPProxyCA)
+		gotByName := make(map[string]fleet.SmallstepSCEPProxyCA)
+		for _, ca := range expectedCAs.Smallstep {
+			wantByName[ca.Name] = ca
+		}
+		for _, ca := range gotCAs.Smallstep {
+			ca.ID = 0 // ignore IDs when comparing
+			gotByName[ca.Name] = ca
+		}
+		assert.Equal(t, wantByName, gotByName)
+	} else {
+		assert.Empty(t, gotCAs.Smallstep)
+	}
+
 	if expectedCAs.NDESSCEP != nil {
 		assert.NotNil(t, gotCAs.NDESSCEP)
 		gotCAs.NDESSCEP.ID = 0 // ignore ID when comparing
