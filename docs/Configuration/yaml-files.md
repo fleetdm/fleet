@@ -138,50 +138,51 @@ You can create a patch policy by setting `type` to `patch` and specifying `fleet
 
 A patch policy's `query` automatically updates. Hosts will fail this policy if they're not running the latest version found in [the app's metadata](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `version` is set for `fleet_maintained_apps`, that version is included in the query.
 
-To patch the app when this policy fails, set `automation_type` to `software` and set exactly one of these options to `true`. If `automation_type` isn't set, the policy only reports hosts that aren't running the latest version, and Fleet doesn't patch the app.
+To patch the app when this policy fails, set one of these options to `true`. Only one can be `true`. If none are set, the policy only reports hosts that aren't running the latest version, and Fleet doesn't patch the app.
 
 - `force_patch`: Fleet patches the app when this policy fails, whether or not the app is open.
 - `patch_when_closed`: Fleet silently patches the app when this policy fails and the app isn't open.
 - `notify_before_patching`: Fleet checks if the app is open, and if yes shows a notification listing the apps that will be updated, waits 1 hour, then installs the patch. A reminder is shown 5 minutes before the install. This option is only available on macOS, and requires the Fleet Desktop app (available as a Fleet-maintained app).
 
-Fleet adds a read-only pre-install query that checks if the app is open when `patch_when_closed` or `notify_before_patching` is set to `true`. Also, `continuous_automations_enabled` is automatically set to `true` when one of these options is enabled. The Fleet-managed pre-install query is ignored for self-service, host details page, and setup experience installs.
+Fleet adds a read-only pre-install query that checks if the app is open when `patch_when_closed` or `notify_before_patching` is set to `true`. Also, `continuous_automations_enabled` is automatically set to `true` when one of these options is enabled. The Fleet-managed pre-install query is ignored for self-service, host details page, and setup experience installs. Fleet-managed pre-install query is ignored for self-service, host details page, and setup experience installs.
 
 #### Automations
 
-To run an automation when a policy fails, set `automation_type`. Each policy can have one automation. If `automation_type` isn't set, the policy has no automation.
+Each policy can have one automation. If more than one of `install_software`, `run_script`, `resend_configuration_profile`, `calendar_events_enabled`, `conditional_access_enabled`, or `webhook_or_ticket_enabled` is set, `fleetctl gitops` fails with an error.
 
-| `automation_type` | What happens when the policy fails | Also requires |
-| ----------------- | ---------------------------------- | ------------- |
-| `webhook_or_ticket` | Fleet sends failing hosts to the [`failing_policies_webhook`](#failing-policies-webhook), or creates a Jira or Zendesk ticket, using the destination configured for the policy's fleet (or "All fleets" for global policies). | |
-| `calendar` | _Available in Fleet Premium._ Fleet creates a calendar event for the end user using [`google_calendar`](#google-calendar). | |
-| `conditional_access` | _Available in Fleet Premium._ Fleet blocks single sign-on for end users whose hosts fail the policy. | |
-| `software` | _Available in Fleet Premium._ Fleet installs software. | [`install_software`](#install-software). For [patch policies](#patch-policy), one of `force_patch`, `patch_when_closed`, or `notify_before_patching` instead. |
-| `script` | _Available in Fleet Premium._ Fleet runs a script. | [`run_script`](#run-script) |
-| `configuration_profile` | _Available in Fleet Premium._ Fleet resends a configuration profile. | [`resend_configuration_profile`](#resend-configuration-profile) |
+##### Install software
 
-`fleetctl gitops` fails with an error if `install_software`, `run_script`, or `resend_configuration_profile` is set without the matching `automation_type`.
+_Available in Fleet Premium_
 
-`calendar`, `conditional_access`, `software`, `script`, and `configuration_profile` can only be configured for policies on a fleet (`fleets/fleet-name.yml`) or "Unassigned" (`fleets/unassigned.yml`). `calendar` can't be configured for "Unassigned."
-
-##### install_software
-
-Specify one of:
+To trigger software install, when policy fails, specify one of:
   - `install_software.package_path` is the path to a [custom package YAML file](#packages) with one package in it. If the file has multiple packages, use `install_software.hash_sha256` instead, or split the multi-package file into single-package files.
   - `install_software.fleet_maintained_app_slug` is a [Fleet-maintained app slug](https://fleetdm.com/docs/configuration/yaml-files#fleet-maintained-apps).
   - `install_software.hash_sha256` is [SHA256 hash](https://fleetdm.com/docs/configuration/yaml-files#hash) of a custom package.
   - `install_software.app_store_id` is the ID of the Apple App Store app or Google Play app.
 
-The software must be defined in the same fleet (or "Unassigned").
+##### Run script
 
-##### run_script
+_Available in Fleet Premium_
 
-- `run_script.path` is a path to a script YAML. The script must be defined in the same fleet (or "Unassigned").
+To trigger script run, when policy fails, specify:
 
-##### resend_configuration_profile
+- `run_script.path` is a path to a script YAML.
+
+##### Resend configuration profile
+
+_Available in Fleet Premium_
+
+To trigger a configuration profile resend when a policy fails, specify:
 
 - `resend_configuration_profile` is the name of the configuration profile to resend. The profile must already be added to the same fleet's **Controls > OS settings > Configuration profiles** section.
 
 > When the configuration profile automation is added or changed, the policy's status will reset for associated hosts. This allows the resend to trigger on hosts that had previously failed the policy.
+
+##### Webhook or ticket
+
+To send failing hosts to a webhook or create a ticket when a policy fails, specify:
+
+- `webhook_or_ticket_enabled: true` (default: `false`). Fleet uses the [`failing_policies_webhook`](#failing-policies-webhook), Jira, or Zendesk destination configured for the policy's fleet (or "All fleets" for global policies).
 
 ##### Example
 
@@ -197,7 +198,7 @@ policies:
     query: "SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';"
     platform: darwin
     critical: false
-    automation_type: webhook_or_ticket
+    webhook_or_ticket_enabled: true
     labels_include_any:
       - Engineering
       - Customer Support
@@ -214,7 +215,6 @@ policies:
   query: "SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';"
   platform: darwin
   critical: false
-  automation_type: configuration_profile
   resend_configuration_profile: "Passcode requirements"
 - name: macOS - Disable guest account
   description: This policy checks if the guest account is disabled.
@@ -222,7 +222,6 @@ policies:
   query: "SELECT 1 FROM managed_policies WHERE domain='com.apple.mcx' AND username = '' AND name='DisableGuestAccount' AND CAST(value AS INT) = 1;"
   platform: darwin
   critical: false
-  automation_type: script
   run_script:
     path: ./disable-guest-account.sh
 - name: macOS - Firefox installed
@@ -231,7 +230,6 @@ policies:
   resolution: Install Firefox app if not installed.
   query: "SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefox'"
   continuous_automations_enabled: true
-  automation_type: software
   install_software:
     package_path: ./firefox.package.yml
 - name: macOS - Logic Pro installed
@@ -239,7 +237,6 @@ policies:
   description: This policy checks that Logic Pro is installed
   resolution: Install Logic Pro App Store app if not installed
   query: "SELECT 1 FROM apps WHERE bundle_identifier = 'com.apple.logic10'"
-  automation_type: software
   install_software:
     app_store_id: "1487937127" # (for App Store apps)
 - name: macOS - Zoom installed
@@ -247,15 +244,15 @@ policies:
   description: This policy checks that Zoom is installed
   resolution: Install Logic Pro App Store app if not installed
   query: "SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.xos'"
-  automation_type: software
   install_software:
     fleet_maintained_app_slug: zoom/darwin
+    package_path: ./linux-firefox.deb.package.yml
+    # app_store_id: "1487937127" (for App Store apps)
 - name: Zoom up to date
   description: Outdated software might introduce security vulnerabilities or compatibility issues.
   resolution: Install the latest version from self-service.
   type: patch
   fleet_maintained_app_slug: zoom/darwin
-  automation_type: software
   continuous_automations_enabled: true
   patch_when_closed: true
 - name: Slack
@@ -263,7 +260,6 @@ policies:
   resolution: Install the latest version from self-service.
   type: patch
   fleet_maintained_app_slug: slack/darwin
-  automation_type: software
   continuous_automations_enabled: true
   force_patch: true
 - name: 1Password up to date
@@ -271,17 +267,20 @@ policies:
   resolution: Install the latest version from self-service.
   type: patch
   fleet_maintained_app_slug: 1password/darwin
-  automation_type: software
   notify_before_patching: true
 ```
 
-`default.yml` (for policies with no `automation_type`, or `automation_type: webhook_or_ticket`), `fleets/fleet-name.yml`, or `fleets/unassigned.yml`
+`default.yml` (for policies that neither install software nor run scripts), `fleets/fleet-name.yml`, or `fleet/unassigned.yml`
 
 ```yaml
 policies:
   - path: ../lib/policies-name.policies.yml
   - paths: ../lib/*.policies.yml
 ```
+
+> Currently, the `run_script` and `install_software` policy automations can only be configured for a fleet (`fleets/fleet-name.yml`) or "Unassigned" (`fleets/unassigned.yml`). The automations can only be added to policies in which the script (or software) is defined in the same fleet (or "Unassigned"). `calendar_events_enabled` can only be configured for policies on a fleet.
+
+> Currently, the `resend_configuration_profile` policy automation can only be configured for a fleet (`fleets/fleet-name.yml`) or "Unassigned" (`fleets/unassigned.yml`). The profile must be defined in the same fleet's controls section.
 
 > If using `labels_include_any`/`labels_exclude_any` for targeting, these keys are specified on the individual policies. Specifying at the top level of `policies` will _not_ apply the labels to each policy.
 
@@ -1567,7 +1566,7 @@ settings:
 - `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: `""`).
 - `host_batch_size` is the maximum number of host identifiers to send in one webhook request. A value of `0` means all host identifiers with a failing policy will be sent in a single request.
 
-To choose which policies trigger the webhook, set `automation_type` to `webhook_or_ticket` on each [policy](#automations).
+To choose which policies trigger the webhook, set [`webhook_or_ticket_enabled`](#webhook-or-ticket) on each policy.
 
 #### Example
 
