@@ -132,7 +132,7 @@ server_settings:
   deferred_save_host: false
   enable_analytics: true
   live_reporting_disabled: false
-  mcp_enabled: true
+  mcp_disabled: false
   report_cap: 1
   discard_reports_data: false
   scripts_disabled: false

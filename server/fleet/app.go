@@ -1616,7 +1616,6 @@ type VulnerabilitiesWebhookSettings struct {
 
 func (c *AppConfig) ApplyDefaultsForNewInstalls() {
 	c.ServerSettings.EnableAnalytics = true
-	c.ServerSettings.MCPEnabled = true
 
 	// Add default values for SMTPSettings.
 	var smtpSettings SMTPSettings
@@ -1860,7 +1859,7 @@ type ServerSettings struct {
 	QueryReportsDisabled bool   `json:"query_reports_disabled" renameto:"discard_reports_data"`
 	ScriptsDisabled      bool   `json:"scripts_disabled"`
 	AIFeaturesDisabled   bool   `json:"ai_features_disabled"`
-	MCPEnabled           bool   `json:"mcp_enabled"`
+	MCPDisabled          bool   `json:"mcp_disabled"`
 	QueryReportCap       int    `json:"query_report_cap" renameto:"report_cap"`
 }
 

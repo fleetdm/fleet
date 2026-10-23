@@ -3,7 +3,6 @@ package auth
 import (
 	"context"
 	"log/slog"
-	"net"
 	"net/http"
 
 	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
@@ -48,29 +47,6 @@ func APIOnlyEndpointCheck(next endpoint.Endpoint) endpoint.Endpoint {
 	return apiOnlyEndpointCheck(apiendpoints.IsInCatalog, next)
 }
 
-type embeddedMCPRoutesKey struct{}
-
-// EmbeddedMCPConnContext returns the ConnContext for the embedded MCP's
-// in-memory listener. Requests on its connections may reach routes, the ones
-// the MCP's tools call, without each being on an API-only user's allowlist:
-// the caller was already allowed the MCP route, and granting that route grants
-// the tools. Only that listener sets it, so no external request can.
-func EmbeddedMCPConnContext(routes []fleet.APIEndpoint) func(context.Context, net.Conn) context.Context {
-	allowed := make(map[string]struct{}, len(routes))
-	for _, r := range routes {
-		allowed[r.Fingerprint()] = struct{}{}
-	}
-	return func(ctx context.Context, _ net.Conn) context.Context {
-		return context.WithValue(ctx, embeddedMCPRoutesKey{}, allowed)
-	}
-}
-
-func embeddedMCPRouteAllowed(ctx context.Context, fingerprint string) bool {
-	allowed, _ := ctx.Value(embeddedMCPRoutesKey{}).(map[string]struct{})
-	_, ok := allowed[fingerprint]
-	return ok
-}
-
 func apiOnlyEndpointCheck(isInCatalog func(string) bool, next endpoint.Endpoint) endpoint.Endpoint {
 	return func(ctx context.Context, request any) (any, error) {
 		v, ok := viewer.FromContext(ctx)
@@ -94,11 +70,6 @@ func apiOnlyEndpointCheck(isInCatalog func(string) bool, next endpoint.Endpoint)
 
 		if !isInCatalog(fp) {
 			return nil, endpointRestrictionDenied(ctx, routeTemplate, "endpoint not in API endpoint catalog")
-		}
-
-		// Role and fleet authorization still apply to these calls.
-		if embeddedMCPRouteAllowed(ctx, fp) {
-			return next(ctx, request)
 		}
 
 		// Check whether the requested endpoint matches any of the user's allowed endpoints.

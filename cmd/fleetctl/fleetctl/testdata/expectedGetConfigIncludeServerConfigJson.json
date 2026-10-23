@@ -22,7 +22,7 @@
       "deferred_save_host": false,
       "scripts_disabled": false,
       "ai_features_disabled": false,
-      "mcp_enabled": false
+      "mcp_disabled": false
     },
     "smtp_settings": {
       "enable_smtp": false,

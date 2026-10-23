@@ -80,7 +80,7 @@
     "query_reports_disabled": false,
     "scripts_disabled": false,
     "ai_features_disabled": false,
-    "mcp_enabled": true,
+    "mcp_disabled": false,
     "query_report_cap": 1
   },
   "smtp_settings": {

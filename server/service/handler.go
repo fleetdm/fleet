@@ -1339,7 +1339,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	// A raw handler: Streamable HTTP owns the request and response, and the
 	// handler runs Fleet's auth and license checks itself. Always registered,
-	// since server_settings.mcp_enabled can change at runtime.
+	// since server_settings.mcp_disabled can change at runtime.
 	ue.HandleHTTPHandler("/api/_version_/fleet/mcp", extra.mcpHandler, "POST")
 
 	quota := throttled.RateQuota{MaxRate: throttled.PerHour(10), MaxBurst: forgotPasswordRateLimitMaxBurst}
