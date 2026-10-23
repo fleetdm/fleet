@@ -4,6 +4,8 @@ import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 
+const MOVED_CLASS = "query-report__column-moved";
+
 interface IProps {
   columns: string[];
   onSave: (columns: string[]) => Promise<void>;
@@ -16,13 +18,37 @@ const ColumnPreferencesModal = ({ columns, onSave, onExit }: IProps) => {
 
   const listRef = useRef<HTMLOListElement>(null);
   const pendingFocus = useRef<{ id: string; offset: number } | null>(null);
+  const previousTops = useRef(new Map<string, number>());
   const [announcement, setAnnouncement] = useState("");
   useLayoutEffect(() => {
     const pending = pendingFocus.current;
     if (!pending) return;
-    const row = Array.from(listRef.current?.children || []).find(
+    const rows = Array.from(listRef.current?.children || []) as HTMLElement[];
+    const row = rows.find(
       (element) => element.getAttribute("data-column-id") === pending.id
     );
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      // FLIP: start each swapped row at its old position and slide it into place.
+      rows.forEach((element) => {
+        const previousTop = previousTops.current.get(
+          element.getAttribute("data-column-id") || ""
+        );
+        if (previousTop === undefined) return;
+        const delta = previousTop - element.getBoundingClientRect().top;
+        if (delta) {
+          element.animate?.(
+            [{ transform: `translateY(${delta}px)` }, { transform: "none" }],
+            { duration: 200, easing: "ease-out" }
+          );
+        }
+      });
+      if (row) {
+        row.classList.remove(MOVED_CLASS);
+        row.getBoundingClientRect(); // force reflow to restart the highlight
+        row.classList.add(MOVED_CLASS);
+      }
+    }
+    previousTops.current.clear();
     const buttons = row?.querySelectorAll<HTMLButtonElement>("button");
     const preferred = buttons?.[pending.offset < 0 ? 0 : 1];
     (preferred?.disabled
@@ -36,6 +62,12 @@ const ColumnPreferencesModal = ({ columns, onSave, onExit }: IProps) => {
     const next = [...order];
     [next[index], next[index + offset]] = [next[index + offset], next[index]];
     pendingFocus.current = { id: order[index], offset };
+    Array.from(listRef.current?.children || []).forEach((element) => {
+      previousTops.current.set(
+        element.getAttribute("data-column-id") || "",
+        element.getBoundingClientRect().top
+      );
+    });
     const label =
       order[index] === "last_fetched" ? "Last fetched" : order[index];
     setAnnouncement(
@@ -95,7 +127,12 @@ const ColumnPreferencesModal = ({ columns, onSave, onExit }: IProps) => {
           );
         })}
       </ol>
-      <p role="status" aria-label="Column position" aria-live="polite">
+      <p
+        className="sr-only"
+        role="status"
+        aria-label="Column position"
+        aria-live="polite"
+      >
         {announcement}
       </p>
       <ModalFooter

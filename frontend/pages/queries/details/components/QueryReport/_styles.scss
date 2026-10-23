@@ -25,8 +25,21 @@
     }
   }
 
+  &__column-moved {
+    animation: column-moved 800ms ease-out;
+  }
+
   &__results-cta {
     display: flex;
-    gap: $pad-medium;
+    gap: $gap-table-elements;
+  }
+}
+
+@keyframes column-moved {
+  from {
+    background-color: $ui-vibrant-blue-50;
+  }
+  to {
+    background-color: transparent;
   }
 }
