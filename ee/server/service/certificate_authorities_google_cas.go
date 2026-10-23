@@ -191,17 +191,17 @@ func (svc *Service) processGoogleCASCAs(ctx context.Context, batchOps *fleet.Cer
 	incomingByName := make(map[string]*fleet.GoogleCASCA)
 	for _, incoming := range incomingCAs {
 		// Note: caller is responsible for ensuring incoming list has no duplicates
-		incomingByName[incoming.Name] = &incoming
+		incomingByName[caNameKey(incoming.Name)] = &incoming
 	}
 
 	existingByName := make(map[string]*fleet.GoogleCASCA)
 	for _, existing := range existingCAs {
 		// if existing CA isn't in the incoming list, we should delete it
-		if _, ok := incomingByName[existing.Name]; !ok {
+		if _, ok := incomingByName[caNameKey(existing.Name)]; !ok {
 			batchOps.Delete = append(batchOps.Delete, googleCASToCertificateAuthority(existing))
 		}
 		// Note: the datastore guarantees existing names are unique
-		existingByName[existing.Name] = &existing
+		existingByName[caNameKey(existing.Name)] = &existing
 	}
 
 	const errPrefix = "certificate_authorities.google_cas: "
@@ -210,7 +210,7 @@ func (svc *Service) processGoogleCASCAs(ctx context.Context, batchOps *fleet.Cer
 		if err := validateGoogleCASLocally(&incoming, errPrefix); err != nil {
 			return err
 		}
-		existing, ok := existingByName[incoming.Name]
+		existing, ok := existingByName[caNameKey(incoming.Name)]
 		// An unchanged CA is left alone, so GitOps runs don't call Google or record an edited activity for it.
 		if ok && existing.Equals(&incoming) {
 			continue

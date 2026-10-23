@@ -1662,13 +1662,14 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 		named := func(names ...string) fleet.GroupedCertificateAuthorities {
 			var cas fleet.GroupedCertificateAuthorities
 			for _, name := range names {
-				digicert, customSCEP, hydrant, est, smallstep := goodDigiCertCA, goodCustomSCEPCA, goodHydrantCA, goodESTCA, goodSmallstepCA
-				digicert.Name, customSCEP.Name, hydrant.Name, est.Name, smallstep.Name = name, name, name, name, name
+				digicert, customSCEP, hydrant, est, smallstep, googleCAS := goodDigiCertCA, goodCustomSCEPCA, goodHydrantCA, goodESTCA, goodSmallstepCA, goodGoogleCASCA
+				digicert.Name, customSCEP.Name, hydrant.Name, est.Name, smallstep.Name, googleCAS.Name = name, name, name, name, name, name
 				cas.DigiCert = append(cas.DigiCert, digicert)
 				cas.CustomScepProxy = append(cas.CustomScepProxy, customSCEP)
 				cas.Hydrant = append(cas.Hydrant, hydrant)
 				cas.EST = append(cas.EST, est)
 				cas.Smallstep = append(cas.Smallstep, smallstep)
+				cas.GoogleCAS = append(cas.GoogleCAS, googleCAS)
 			}
 			return cas
 		}
@@ -1693,7 +1694,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 		require.ElementsMatch(t, []string{
 			fleet.ActivityEditedDigiCert{}.ActivityName(), fleet.ActivityEditedCustomSCEPProxy{}.ActivityName(),
 			fleet.ActivityEditedHydrant{}.ActivityName(), fleet.ActivityEditedCustomESTProxy{}.ActivityName(),
-			fleet.ActivityEditedSmallstep{}.ActivityName(),
+			fleet.ActivityEditedSmallstep{}.ActivityName(), fleet.ActivityEditedGoogleCAS{}.ActivityName(),
 		}, newTypes)
 
 		duplicates := named("DUP_X", "dup_x")
@@ -1706,6 +1707,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			{"hydrant", "Hydrant", fleet.GroupedCertificateAuthorities{Hydrant: duplicates.Hydrant}},
 			{"custom_est_proxy", "Custom EST Proxy", fleet.GroupedCertificateAuthorities{EST: duplicates.EST}},
 			{"smallstep", "Smallstep", fleet.GroupedCertificateAuthorities{Smallstep: duplicates.Smallstep}},
+			{"google_cas", "Google CAS", fleet.GroupedCertificateAuthorities{GoogleCAS: duplicates.GoogleCAS}},
 		} {
 			errMsg := extractServerErrorText(apply(tc.cas, http.StatusUnprocessableEntity).Body)
 			require.Contains(t, errMsg, "certificate_authorities."+tc.caType)
