@@ -51,6 +51,8 @@ export interface ISoftware {
   vendor?: string;
   release?: string;
   icon_url: string | null; // Only available on team view if an admin uploaded an icon to a team's software
+  /** Fleet marked this software as an AI tool (Premium; always false on Free). */
+  ai_tool?: boolean;
 }
 
 export type IVulnerabilitySoftware = Omit<
@@ -158,6 +160,7 @@ export interface ISoftwarePackage {
   labels_exclude_any: ILabelSoftwareTitle[] | null;
   categories?: SoftwareCategory[] | null;
   fleet_maintained_app_id?: number | null;
+  fleet_maintained_app_slug?: string;
   fleet_maintained_versions?: IFleetMaintainedVersion[] | null;
   /** Version pin: null/absent = Latest, exact version = exact pin, caret
    * ("^149") = major-version pin. */
@@ -270,6 +273,8 @@ export interface ISoftwareTitle {
   auto_update_enabled?: boolean;
   auto_update_window_start?: string;
   auto_update_window_end?: string;
+  /** Fleet marked this software as an AI tool (Premium; always false on Free). */
+  ai_tool?: boolean;
   /** @deprecated Use extension_for instead */
   browser?: string;
 }
@@ -305,6 +310,8 @@ export interface ISoftwareTitleDetails {
   auto_update_enabled?: boolean;
   auto_update_window_start?: string;
   auto_update_window_end?: string;
+  /** Fleet marked this software as an AI tool (Premium; always false on Free). */
+  ai_tool?: boolean;
   /** @deprecated Use extension_for instead */
   browser?: string;
 }
@@ -338,6 +345,8 @@ export interface ISoftwareVersion {
   generated_cpe: string;
   vulnerabilities: ISoftwareVulnerability[] | null;
   hosts_count?: number;
+  /** Fleet marked this software as an AI tool (Premium; always false on Free). */
+  ai_tool?: boolean;
   /** @deprecated Use extension_for instead */
   browser?: string;
 }
@@ -364,6 +373,20 @@ const SOFTWARE_TYPE_VARIANTS = [
     displayName: "Adobe plugin",
     source: "adobe_plugins",
     platforms: ["darwin", "windows"],
+  },
+  {
+    key: "ai_cli_tool",
+    displayName: "AI CLI tool",
+    source: "ai_clis",
+    platforms: DESKTOP,
+    premiumOnly: true,
+  },
+  {
+    key: "ai_skill",
+    displayName: "AI skill",
+    source: "ai_skills",
+    platforms: DESKTOP,
+    premiumOnly: true,
   },
   {
     key: "android_app",
@@ -509,6 +532,13 @@ const SOFTWARE_TYPE_VARIANTS = [
     source: "pkg_packages",
     platforms: ["darwin"],
     installerOnly: true,
+  },
+  {
+    key: "mcp_server",
+    displayName: "MCP server",
+    source: "mcp_servers",
+    platforms: DESKTOP,
+    premiumOnly: true,
   },
   {
     key: "nix_package",
@@ -727,6 +757,8 @@ export interface ISoftwareType {
   platforms: readonly SoftwareTypePlatform[];
   /** Installer-only sources never appear in a host's inventory. */
   installerOnly?: boolean;
+  /** Hidden on Fleet Free, where the API rejects the source. */
+  premiumOnly?: boolean;
 }
 
 const compareDisplayNames = (a: ISoftwareType, b: ISoftwareType) =>
@@ -776,15 +808,21 @@ const getSoftwareTypePlatform = (
   }
 };
 
+/** Software types available on the license tier, sorted by display name. */
+export const getSoftwareTypes = (opts?: {
+  premium?: boolean;
+}): ISoftwareType[] =>
+  SOFTWARE_TYPES.filter((t) => opts?.premium || !t.premiumOnly);
+
 /** Software types that apply to a host platform, sorted by display name.
  * Host pages hide installer-only types because hosts never report them. */
 export const getSoftwareTypesForPlatform = (
   platform: string,
-  opts?: { hostPage?: boolean }
+  opts?: { hostPage?: boolean; premium?: boolean }
 ): ISoftwareType[] => {
   const typePlatform = getSoftwareTypePlatform(platform);
   if (!typePlatform) return [];
-  return SOFTWARE_TYPES.filter(
+  return getSoftwareTypes(opts).filter(
     (t) =>
       t.platforms.includes(typePlatform) && !(opts?.hostPage && t.installerOnly)
   );
@@ -853,6 +891,9 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   jetbrains_plugins: null,
   go_binaries: null,
   adobe_plugins: null,
+  ai_clis: null,
+  ai_skills: null,
+  mcp_servers: null,
 } as const;
 
 /** Look up an installable source's platform, normalizing the mapping's
@@ -892,6 +933,25 @@ export const NO_VERSION_OR_HOST_DATA_SOURCES = [
   "tgz_packages",
   ...SCRIPT_PACKAGE_SOURCES,
 ];
+
+/** Sources that never report a version, with the reason shown on the "---" cell. */
+export const NO_VERSION_TOOLTIP_BY_SOURCE: Partial<
+  Record<SoftwareSource, string>
+> = {
+  mcp_servers:
+    "Fleet doesn't detect MCP server versions yet. Most MCP servers run with npx or uvx, which pick the version at launch unless it's pinned.",
+  ai_skills: "AI skills are markdown files, so they don't have versions.",
+};
+
+/** Sources Fleet never scans for vulnerabilities, with the reason shown on the "---" cell. */
+export const NO_VULNERABILITIES_TOOLTIP_BY_SOURCE: Partial<
+  Record<SoftwareSource, string>
+> = {
+  mcp_servers:
+    "Currently, Fleet doesn't detect vulnerabilities for MCP servers.",
+  ai_skills:
+    "AI skills are markdown files, so they don't have vulnerabilities.",
+};
 
 export type InstallableSoftwareSource = keyof typeof INSTALLABLE_SOURCE_PLATFORM_CONVERSION;
 
@@ -1164,6 +1224,8 @@ export interface IHostSoftware {
   auto_update_enabled?: boolean;
   auto_update_window_start?: string;
   auto_update_window_end?: string;
+  /** Fleet marked this software as an AI tool (Premium; always false on Free). */
+  ai_tool?: boolean;
 }
 
 /**

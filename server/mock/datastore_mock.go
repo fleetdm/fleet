@@ -70,6 +70,8 @@ type CleanupCarvesFunc func(ctx context.Context, now time.Time) (expired int, er
 
 type NewUserFunc func(ctx context.Context, user *fleet.User) (*fleet.User, error)
 
+type NewInitialUserFunc func(ctx context.Context, user *fleet.User) (*fleet.User, error)
+
 type HasUsersFunc func(ctx context.Context) (bool, error)
 
 type ListUsersFunc func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error)
@@ -656,6 +658,8 @@ type GetPastActivityDataForInHouseAppInstallFunc func(ctx context.Context, comma
 
 type SetHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload, attemptNumber *int) (wasCanceled bool, err error)
 
+type IncrementHostPolicyAutomationRunCountFunc func(ctx context.Context, policyID uint, hostID uint, activity fleet.ActivityDetails, succeeded bool) error
+
 type CreateIntermediateInstallFailureRecordFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, error)
 
 type ListSoftwareCategoriesFunc func(ctx context.Context, teamID uint) ([]fleet.SoftwareCategory, error)
@@ -908,6 +912,8 @@ type AsyncBatchSaveHostsScheduledQueryStatsFunc func(ctx context.Context, stats 
 
 type UpdateHostSoftwareFunc func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error)
 
+type MarkSoftwareAsAIToolFunc func(ctx context.Context, software []fleet.Software) error
+
 type UpdateHostSoftwareInstalledPathsFunc func(ctx context.Context, hostID uint, reported map[string]fleet.ExecutableHashes, mutationResults *fleet.UpdateHostSoftwareDBResult) error
 
 type UpdateHostFunc func(ctx context.Context, host *fleet.Host) error
@@ -984,7 +990,15 @@ type FailHostDiskEncryptionKeyRotationFunc func(ctx context.Context, hostID uint
 
 type GetHostByDiskEncryptionKeyRotationCommandFunc func(ctx context.Context, cmdUUID string) (*fleet.Host, error)
 
-type ReplaceHostDiskEncryptionKeyBlobFunc func(ctx context.Context, hostID uint, currentBase64Encrypted string, newBase64Encrypted string) error
+type ReplaceHostDiskEncryptionKeyBlobFunc func(ctx context.Context, hostID uint, currentBase64Encrypted string, newBase64Encrypted string) (bool, error)
+
+type ListWSTEPEncryptedDiskEncryptionKeysFunc func(ctx context.Context, afterHostID uint, limit int) ([]fleet.HostDiskEncryptionKey, error)
+
+type ListWSTEPEncryptedArchivedDiskEncryptionKeysFunc func(ctx context.Context, afterID uint, limit int) ([]fleet.HostArchivedDiskEncryptionKey, error)
+
+type ReplaceWSTEPEncryptedArchivedDiskEncryptionKeyFunc func(ctx context.Context, id uint, currentBase64Encrypted string, newBase64Encrypted string) (bool, error)
+
+type MarkWindowsDiskEncryptionKeysUndecryptableFunc func(ctx context.Context, keys []fleet.HostDiskEncryptionKey) error
 
 type IsHostDiskEncryptionKeyRotationInProgressFunc func(ctx context.Context, hostID uint, hostUUID string, cmdUUID string, staleAfter time.Duration) (bool, error)
 
@@ -1366,13 +1380,15 @@ type CleanupUnusedBootstrapPackagesFunc func(ctx context.Context, pkgStore fleet
 
 type GetHostMDMMacOSSetupFunc func(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error)
 
-type MDMGetEULAMetadataFunc func(ctx context.Context) (*fleet.MDMEULA, error)
+type MDMGetEULAMetadataFunc func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error)
 
-type MDMGetEULABytesFunc func(ctx context.Context, token string) (*fleet.MDMEULA, error)
+type MDMGetEULABytesFunc func(ctx context.Context, platform fleet.MDMEULAPlatform, token string) (*fleet.MDMEULA, error)
+
+type MDMGetEULAPlatformFunc func(ctx context.Context, token string) (fleet.MDMEULAPlatform, error)
 
 type MDMInsertEULAFunc func(ctx context.Context, eula *fleet.MDMEULA) error
 
-type MDMDeleteEULAFunc func(ctx context.Context, token string) error
+type MDMDeleteEULAFunc func(ctx context.Context, platform fleet.MDMEULAPlatform, token string) error
 
 type SetOrUpdateMDMAppleSetupAssistantFunc func(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error)
 
@@ -1560,6 +1576,8 @@ type MDMWindowsSaveUnlinkedEnrollmentHardwareSerialFunc func(ctx context.Context
 
 type MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc func(ctx context.Context, hardwareSerial string) (*fleet.MDMWindowsEnrolledDevice, error)
 
+type MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationIDFunc func(ctx context.Context, ztdRegistrationID string) (*fleet.MDMWindowsEnrolledDevice, error)
+
 type MDMWindowsConflictingEnrollmentHardwareIDFunc func(ctx context.Context, hostUUID string, mdmHardwareID string) (conflicted bool, conflictingHardwareID string, err error)
 
 type MDMWindowsClaimEnrolledActivityFunc func(ctx context.Context, mdmHardwareID string, claimedAt time.Time) (bool, error)
@@ -1639,6 +1657,8 @@ type SetMicrosoftGraphCredentialInvalidFunc func(ctx context.Context, tenantID s
 type RecordMicrosoftGraphSyncResultFunc func(ctx context.Context, tenantID string, syncErr *string) error
 
 type UpdateMicrosoftGraphCredentialInvalidAggregateFunc func(ctx context.Context) error
+
+type MoveWindowsAutopilotRecordToHostFunc func(ctx context.Context, hostID uint, autopilotDeviceID string, entraDeviceID string) (bool, error)
 
 type HostIDByAutopilotDeviceIDFunc func(ctx context.Context, autopilotDeviceID string) (uint, error)
 
@@ -1932,7 +1952,7 @@ type GetHostIDsWithUnactivatedVPPAppInstallFunc func(ctx context.Context, vppApp
 
 type GetSummaryHostSoftwareInstallsFunc func(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error)
 
-type GetSummaryHostVPPAppInstallsFunc func(ctx context.Context, vppAppTeamID uint) (*fleet.VPPAppStatusSummary, error)
+type GetSummaryHostVPPAppInstallsFunc func(ctx context.Context, versions []*fleet.VPPAppStoreApp) (map[uint]*fleet.VPPAppStatusSummary, error)
 
 type GetSoftwareInstallResultsFunc func(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error)
 
@@ -2234,7 +2254,9 @@ type GetMDMAndroidCommandByOperationNameFunc func(ctx context.Context, operation
 
 type UpdateMDMAndroidCommandStatusFunc func(ctx context.Context, commandUUID string, status string, errorCode *string, errorMessage *string, rawResult *string) error
 
-type ListPendingMDMAndroidCommandsFunc func(ctx context.Context, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error)
+type ListPendingMDMAndroidCommandsFunc func(ctx context.Context, operationNamePrefix string, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error)
+
+type FailPendingMDMAndroidCommandsOutsidePrefixFunc func(ctx context.Context, operationNamePrefix string, createdBefore time.Time, errorMessage string, limit int) (int64, error)
 
 type LockHostViaAndroidMDMFunc func(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error
 
@@ -2253,6 +2275,8 @@ type GetLatestAppleMDMCommandOfTypeFunc func(ctx context.Context, hostUUID strin
 type SetLockCommandForLostModeCheckinFunc func(ctx context.Context, hostID uint, commandUUID string) error
 
 type ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc func(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error)
+
+type ListHostMDMAndroidVPPAppsLatestFailedInstallFunc func(ctx context.Context, hostID uint) ([]*fleet.HostAndroidVPPSoftwareInstall, error)
 
 type BulkSetVPPInstallsAsVerifiedFunc func(ctx context.Context, hostID uint, commandUUIDs []string) error
 
@@ -2659,6 +2683,9 @@ type DataStore struct {
 
 	NewUserFunc        NewUserFunc
 	NewUserFuncInvoked bool
+
+	NewInitialUserFunc        NewInitialUserFunc
+	NewInitialUserFuncInvoked bool
 
 	HasUsersFunc        HasUsersFunc
 	HasUsersFuncInvoked bool
@@ -3539,6 +3566,9 @@ type DataStore struct {
 	SetHostSoftwareInstallResultFunc        SetHostSoftwareInstallResultFunc
 	SetHostSoftwareInstallResultFuncInvoked bool
 
+	IncrementHostPolicyAutomationRunCountFunc        IncrementHostPolicyAutomationRunCountFunc
+	IncrementHostPolicyAutomationRunCountFuncInvoked bool
+
 	CreateIntermediateInstallFailureRecordFunc        CreateIntermediateInstallFailureRecordFunc
 	CreateIntermediateInstallFailureRecordFuncInvoked bool
 
@@ -3917,6 +3947,9 @@ type DataStore struct {
 	UpdateHostSoftwareFunc        UpdateHostSoftwareFunc
 	UpdateHostSoftwareFuncInvoked bool
 
+	MarkSoftwareAsAIToolFunc        MarkSoftwareAsAIToolFunc
+	MarkSoftwareAsAIToolFuncInvoked bool
+
 	UpdateHostSoftwareInstalledPathsFunc        UpdateHostSoftwareInstalledPathsFunc
 	UpdateHostSoftwareInstalledPathsFuncInvoked bool
 
@@ -4033,6 +4066,18 @@ type DataStore struct {
 
 	ReplaceHostDiskEncryptionKeyBlobFunc        ReplaceHostDiskEncryptionKeyBlobFunc
 	ReplaceHostDiskEncryptionKeyBlobFuncInvoked bool
+
+	ListWSTEPEncryptedDiskEncryptionKeysFunc        ListWSTEPEncryptedDiskEncryptionKeysFunc
+	ListWSTEPEncryptedDiskEncryptionKeysFuncInvoked bool
+
+	ListWSTEPEncryptedArchivedDiskEncryptionKeysFunc        ListWSTEPEncryptedArchivedDiskEncryptionKeysFunc
+	ListWSTEPEncryptedArchivedDiskEncryptionKeysFuncInvoked bool
+
+	ReplaceWSTEPEncryptedArchivedDiskEncryptionKeyFunc        ReplaceWSTEPEncryptedArchivedDiskEncryptionKeyFunc
+	ReplaceWSTEPEncryptedArchivedDiskEncryptionKeyFuncInvoked bool
+
+	MarkWindowsDiskEncryptionKeysUndecryptableFunc        MarkWindowsDiskEncryptionKeysUndecryptableFunc
+	MarkWindowsDiskEncryptionKeysUndecryptableFuncInvoked bool
 
 	IsHostDiskEncryptionKeyRotationInProgressFunc        IsHostDiskEncryptionKeyRotationInProgressFunc
 	IsHostDiskEncryptionKeyRotationInProgressFuncInvoked bool
@@ -4610,6 +4655,9 @@ type DataStore struct {
 	MDMGetEULABytesFunc        MDMGetEULABytesFunc
 	MDMGetEULABytesFuncInvoked bool
 
+	MDMGetEULAPlatformFunc        MDMGetEULAPlatformFunc
+	MDMGetEULAPlatformFuncInvoked bool
+
 	MDMInsertEULAFunc        MDMInsertEULAFunc
 	MDMInsertEULAFuncInvoked bool
 
@@ -4895,6 +4943,9 @@ type DataStore struct {
 	MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc        MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc
 	MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFuncInvoked bool
 
+	MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationIDFunc        MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationIDFunc
+	MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationIDFuncInvoked bool
+
 	MDMWindowsConflictingEnrollmentHardwareIDFunc        MDMWindowsConflictingEnrollmentHardwareIDFunc
 	MDMWindowsConflictingEnrollmentHardwareIDFuncInvoked bool
 
@@ -5014,6 +5065,9 @@ type DataStore struct {
 
 	UpdateMicrosoftGraphCredentialInvalidAggregateFunc        UpdateMicrosoftGraphCredentialInvalidAggregateFunc
 	UpdateMicrosoftGraphCredentialInvalidAggregateFuncInvoked bool
+
+	MoveWindowsAutopilotRecordToHostFunc        MoveWindowsAutopilotRecordToHostFunc
+	MoveWindowsAutopilotRecordToHostFuncInvoked bool
 
 	HostIDByAutopilotDeviceIDFunc        HostIDByAutopilotDeviceIDFunc
 	HostIDByAutopilotDeviceIDFuncInvoked bool
@@ -5909,6 +5963,9 @@ type DataStore struct {
 	ListPendingMDMAndroidCommandsFunc        ListPendingMDMAndroidCommandsFunc
 	ListPendingMDMAndroidCommandsFuncInvoked bool
 
+	FailPendingMDMAndroidCommandsOutsidePrefixFunc        FailPendingMDMAndroidCommandsOutsidePrefixFunc
+	FailPendingMDMAndroidCommandsOutsidePrefixFuncInvoked bool
+
 	LockHostViaAndroidMDMFunc        LockHostViaAndroidMDMFunc
 	LockHostViaAndroidMDMFuncInvoked bool
 
@@ -5935,6 +5992,9 @@ type DataStore struct {
 
 	ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc        ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc
 	ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked bool
+
+	ListHostMDMAndroidVPPAppsLatestFailedInstallFunc        ListHostMDMAndroidVPPAppsLatestFailedInstallFunc
+	ListHostMDMAndroidVPPAppsLatestFailedInstallFuncInvoked bool
 
 	BulkSetVPPInstallsAsVerifiedFunc        BulkSetVPPInstallsAsVerifiedFunc
 	BulkSetVPPInstallsAsVerifiedFuncInvoked bool
@@ -6602,6 +6662,13 @@ func (s *DataStore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User,
 	s.NewUserFuncInvoked = true
 	s.mu.Unlock()
 	return s.NewUserFunc(ctx, user)
+}
+
+func (s *DataStore) NewInitialUser(ctx context.Context, user *fleet.User) (*fleet.User, error) {
+	s.mu.Lock()
+	s.NewInitialUserFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewInitialUserFunc(ctx, user)
 }
 
 func (s *DataStore) HasUsers(ctx context.Context) (bool, error) {
@@ -8655,6 +8722,13 @@ func (s *DataStore) SetHostSoftwareInstallResult(ctx context.Context, result *fl
 	return s.SetHostSoftwareInstallResultFunc(ctx, result, attemptNumber)
 }
 
+func (s *DataStore) IncrementHostPolicyAutomationRunCount(ctx context.Context, policyID uint, hostID uint, activity fleet.ActivityDetails, succeeded bool) error {
+	s.mu.Lock()
+	s.IncrementHostPolicyAutomationRunCountFuncInvoked = true
+	s.mu.Unlock()
+	return s.IncrementHostPolicyAutomationRunCountFunc(ctx, policyID, hostID, activity, succeeded)
+}
+
 func (s *DataStore) CreateIntermediateInstallFailureRecord(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, error) {
 	s.mu.Lock()
 	s.CreateIntermediateInstallFailureRecordFuncInvoked = true
@@ -9537,6 +9611,13 @@ func (s *DataStore) UpdateHostSoftware(ctx context.Context, hostID uint, softwar
 	return s.UpdateHostSoftwareFunc(ctx, hostID, software)
 }
 
+func (s *DataStore) MarkSoftwareAsAITool(ctx context.Context, software []fleet.Software) error {
+	s.mu.Lock()
+	s.MarkSoftwareAsAIToolFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkSoftwareAsAIToolFunc(ctx, software)
+}
+
 func (s *DataStore) UpdateHostSoftwareInstalledPaths(ctx context.Context, hostID uint, reported map[string]fleet.ExecutableHashes, mutationResults *fleet.UpdateHostSoftwareDBResult) error {
 	s.mu.Lock()
 	s.UpdateHostSoftwareInstalledPathsFuncInvoked = true
@@ -9803,11 +9884,39 @@ func (s *DataStore) GetHostByDiskEncryptionKeyRotationCommand(ctx context.Contex
 	return s.GetHostByDiskEncryptionKeyRotationCommandFunc(ctx, cmdUUID)
 }
 
-func (s *DataStore) ReplaceHostDiskEncryptionKeyBlob(ctx context.Context, hostID uint, currentBase64Encrypted string, newBase64Encrypted string) error {
+func (s *DataStore) ReplaceHostDiskEncryptionKeyBlob(ctx context.Context, hostID uint, currentBase64Encrypted string, newBase64Encrypted string) (bool, error) {
 	s.mu.Lock()
 	s.ReplaceHostDiskEncryptionKeyBlobFuncInvoked = true
 	s.mu.Unlock()
 	return s.ReplaceHostDiskEncryptionKeyBlobFunc(ctx, hostID, currentBase64Encrypted, newBase64Encrypted)
+}
+
+func (s *DataStore) ListWSTEPEncryptedDiskEncryptionKeys(ctx context.Context, afterHostID uint, limit int) ([]fleet.HostDiskEncryptionKey, error) {
+	s.mu.Lock()
+	s.ListWSTEPEncryptedDiskEncryptionKeysFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListWSTEPEncryptedDiskEncryptionKeysFunc(ctx, afterHostID, limit)
+}
+
+func (s *DataStore) ListWSTEPEncryptedArchivedDiskEncryptionKeys(ctx context.Context, afterID uint, limit int) ([]fleet.HostArchivedDiskEncryptionKey, error) {
+	s.mu.Lock()
+	s.ListWSTEPEncryptedArchivedDiskEncryptionKeysFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListWSTEPEncryptedArchivedDiskEncryptionKeysFunc(ctx, afterID, limit)
+}
+
+func (s *DataStore) ReplaceWSTEPEncryptedArchivedDiskEncryptionKey(ctx context.Context, id uint, currentBase64Encrypted string, newBase64Encrypted string) (bool, error) {
+	s.mu.Lock()
+	s.ReplaceWSTEPEncryptedArchivedDiskEncryptionKeyFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReplaceWSTEPEncryptedArchivedDiskEncryptionKeyFunc(ctx, id, currentBase64Encrypted, newBase64Encrypted)
+}
+
+func (s *DataStore) MarkWindowsDiskEncryptionKeysUndecryptable(ctx context.Context, keys []fleet.HostDiskEncryptionKey) error {
+	s.mu.Lock()
+	s.MarkWindowsDiskEncryptionKeysUndecryptableFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkWindowsDiskEncryptionKeysUndecryptableFunc(ctx, keys)
 }
 
 func (s *DataStore) IsHostDiskEncryptionKeyRotationInProgress(ctx context.Context, hostID uint, hostUUID string, cmdUUID string, staleAfter time.Duration) (bool, error) {
@@ -11140,18 +11249,25 @@ func (s *DataStore) GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*fle
 	return s.GetHostMDMMacOSSetupFunc(ctx, hostID)
 }
 
-func (s *DataStore) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, error) {
+func (s *DataStore) MDMGetEULAMetadata(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 	s.mu.Lock()
 	s.MDMGetEULAMetadataFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMGetEULAMetadataFunc(ctx)
+	return s.MDMGetEULAMetadataFunc(ctx, platform)
 }
 
-func (s *DataStore) MDMGetEULABytes(ctx context.Context, token string) (*fleet.MDMEULA, error) {
+func (s *DataStore) MDMGetEULABytes(ctx context.Context, platform fleet.MDMEULAPlatform, token string) (*fleet.MDMEULA, error) {
 	s.mu.Lock()
 	s.MDMGetEULABytesFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMGetEULABytesFunc(ctx, token)
+	return s.MDMGetEULABytesFunc(ctx, platform, token)
+}
+
+func (s *DataStore) MDMGetEULAPlatform(ctx context.Context, token string) (fleet.MDMEULAPlatform, error) {
+	s.mu.Lock()
+	s.MDMGetEULAPlatformFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMGetEULAPlatformFunc(ctx, token)
 }
 
 func (s *DataStore) MDMInsertEULA(ctx context.Context, eula *fleet.MDMEULA) error {
@@ -11161,11 +11277,11 @@ func (s *DataStore) MDMInsertEULA(ctx context.Context, eula *fleet.MDMEULA) erro
 	return s.MDMInsertEULAFunc(ctx, eula)
 }
 
-func (s *DataStore) MDMDeleteEULA(ctx context.Context, token string) error {
+func (s *DataStore) MDMDeleteEULA(ctx context.Context, platform fleet.MDMEULAPlatform, token string) error {
 	s.mu.Lock()
 	s.MDMDeleteEULAFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMDeleteEULAFunc(ctx, token)
+	return s.MDMDeleteEULAFunc(ctx, platform, token)
 }
 
 func (s *DataStore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
@@ -11819,6 +11935,13 @@ func (s *DataStore) MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx co
 	return s.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerialFunc(ctx, hardwareSerial)
 }
 
+func (s *DataStore) MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationID(ctx context.Context, ztdRegistrationID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+	s.mu.Lock()
+	s.MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationIDFunc(ctx, ztdRegistrationID)
+}
+
 func (s *DataStore) MDMWindowsConflictingEnrollmentHardwareID(ctx context.Context, hostUUID string, mdmHardwareID string) (conflicted bool, conflictingHardwareID string, err error) {
 	s.mu.Lock()
 	s.MDMWindowsConflictingEnrollmentHardwareIDFuncInvoked = true
@@ -12097,6 +12220,13 @@ func (s *DataStore) UpdateMicrosoftGraphCredentialInvalidAggregate(ctx context.C
 	s.UpdateMicrosoftGraphCredentialInvalidAggregateFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateMicrosoftGraphCredentialInvalidAggregateFunc(ctx)
+}
+
+func (s *DataStore) MoveWindowsAutopilotRecordToHost(ctx context.Context, hostID uint, autopilotDeviceID string, entraDeviceID string) (bool, error) {
+	s.mu.Lock()
+	s.MoveWindowsAutopilotRecordToHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.MoveWindowsAutopilotRecordToHostFunc(ctx, hostID, autopilotDeviceID, entraDeviceID)
 }
 
 func (s *DataStore) HostIDByAutopilotDeviceID(ctx context.Context, autopilotDeviceID string) (uint, error) {
@@ -13121,11 +13251,11 @@ func (s *DataStore) GetSummaryHostSoftwareInstalls(ctx context.Context, installe
 	return s.GetSummaryHostSoftwareInstallsFunc(ctx, installerID)
 }
 
-func (s *DataStore) GetSummaryHostVPPAppInstalls(ctx context.Context, vppAppTeamID uint) (*fleet.VPPAppStatusSummary, error) {
+func (s *DataStore) GetSummaryHostVPPAppInstalls(ctx context.Context, versions []*fleet.VPPAppStoreApp) (map[uint]*fleet.VPPAppStatusSummary, error) {
 	s.mu.Lock()
 	s.GetSummaryHostVPPAppInstallsFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetSummaryHostVPPAppInstallsFunc(ctx, vppAppTeamID)
+	return s.GetSummaryHostVPPAppInstallsFunc(ctx, versions)
 }
 
 func (s *DataStore) GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error) {
@@ -14178,11 +14308,18 @@ func (s *DataStore) UpdateMDMAndroidCommandStatus(ctx context.Context, commandUU
 	return s.UpdateMDMAndroidCommandStatusFunc(ctx, commandUUID, status, errorCode, errorMessage, rawResult)
 }
 
-func (s *DataStore) ListPendingMDMAndroidCommands(ctx context.Context, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error) {
+func (s *DataStore) ListPendingMDMAndroidCommands(ctx context.Context, operationNamePrefix string, createdBefore time.Time, limit int) ([]*android.MDMAndroidCommand, error) {
 	s.mu.Lock()
 	s.ListPendingMDMAndroidCommandsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListPendingMDMAndroidCommandsFunc(ctx, createdBefore, limit)
+	return s.ListPendingMDMAndroidCommandsFunc(ctx, operationNamePrefix, createdBefore, limit)
+}
+
+func (s *DataStore) FailPendingMDMAndroidCommandsOutsidePrefix(ctx context.Context, operationNamePrefix string, createdBefore time.Time, errorMessage string, limit int) (int64, error) {
+	s.mu.Lock()
+	s.FailPendingMDMAndroidCommandsOutsidePrefixFuncInvoked = true
+	s.mu.Unlock()
+	return s.FailPendingMDMAndroidCommandsOutsidePrefixFunc(ctx, operationNamePrefix, createdBefore, errorMessage, limit)
 }
 
 func (s *DataStore) LockHostViaAndroidMDM(ctx context.Context, host *fleet.Host, cmd *android.MDMAndroidCommand) error {
@@ -14246,6 +14383,13 @@ func (s *DataStore) ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx conte
 	s.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc(ctx, hostUUID, policyVersion)
+}
+
+func (s *DataStore) ListHostMDMAndroidVPPAppsLatestFailedInstall(ctx context.Context, hostID uint) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+	s.mu.Lock()
+	s.ListHostMDMAndroidVPPAppsLatestFailedInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostMDMAndroidVPPAppsLatestFailedInstallFunc(ctx, hostID)
 }
 
 func (s *DataStore) BulkSetVPPInstallsAsVerified(ctx context.Context, hostID uint, commandUUIDs []string) error {

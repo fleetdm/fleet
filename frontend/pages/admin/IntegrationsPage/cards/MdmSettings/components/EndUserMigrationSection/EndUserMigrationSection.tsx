@@ -92,7 +92,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
     setIsValidWebhookUrl(validateWebhookUrl(webhookUrl));
   };
 
-  const onSubmit = async (e: React.FormEvent<SubmitEvent>) => {
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (formData.isEnabled && !validateWebhookUrl(formData.webhookUrl)) {
@@ -160,7 +160,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
 
   return (
     <SettingsSection className={baseClass} title="End user migration workflow">
-      <form>
+      <form onSubmit={onSubmit}>
         <p>
           Control the end user migration workflow for macOS hosts.{" "}
           <CustomLink
@@ -247,7 +247,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
           tipOffset={8}
           renderChildren={(disableChildren) => (
             <Button
-              onClick={onSubmit}
+              type="submit"
               disabled={disableChildren || isUpdating}
               isLoading={isUpdating}
             >

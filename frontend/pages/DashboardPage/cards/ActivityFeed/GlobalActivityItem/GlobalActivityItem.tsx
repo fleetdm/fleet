@@ -176,6 +176,11 @@ const getMacOSSetupAssistantMessage = (
 const isPassiveRoleActivity = (activity: IActivity): boolean =>
   !!activity.details?.jit || activity.actor_id === activity.details?.user_id;
 
+const eulaPlatformSuffix = (activity: IActivity) => {
+  const platform = activity.details?.platform;
+  return platform ? ` for ${PLATFORM_DISPLAY_NAMES[platform]} hosts` : "";
+};
+
 // macOS activities carry version_name ("Default version") too; scope the
 // suffix to mobile so macOS copy stays unchanged.
 const makeVersionSuffix = (
@@ -1076,6 +1081,20 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  addedEndUserAgreement: (activity: IActivity) => (
+    <>
+      {" "}
+      added an end user agreement (EULA)
+      {eulaPlatformSuffix(activity)}.
+    </>
+  ),
+  deletedEndUserAgreement: (activity: IActivity) => (
+    <>
+      {" "}
+      deleted an end user agreement (EULA)
+      {eulaPlatformSuffix(activity)}.
+    </>
+  ),
   deletedMDMBootstrapPackage: (activity: IActivity) => {
     const packageName = activity.details?.bootstrap_package_name;
     return (
@@ -2599,7 +2618,8 @@ const TAGGED_TEMPLATES = {
     }
     const {
       host_display_name: hostName,
-      software_titles: titles = [],
+      software_titles: legacyTitles = [],
+      software,
       status,
       time_before: timeBefore,
     } = details;
@@ -2607,7 +2627,9 @@ const TAGGED_TEMPLATES = {
     const failed = isNotifyFailure(status);
     const verb = failed ? "failed to notify" : "notified";
 
-    const titleList = renderNotifyTitleList(titles);
+    // Prefer the richer `software` field on new activities; fall back to the
+    // legacy flat `software_titles` for pre-override activity rows.
+    const titleList = renderNotifyTitleList(software ?? legacyTitles);
 
     return (
       <>
@@ -2839,6 +2861,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedBootstrapPackage: {
       return TAGGED_TEMPLATES.deletedMDMBootstrapPackage(activity);
+    }
+    case ActivityType.AddedEndUserAgreement: {
+      return TAGGED_TEMPLATES.addedEndUserAgreement(activity);
+    }
+    case ActivityType.DeletedEndUserAgreement: {
+      return TAGGED_TEMPLATES.deletedEndUserAgreement(activity);
     }
     case ActivityType.ChangedMacOSSetupAssistant: {
       return TAGGED_TEMPLATES.changedMacOSSetupAssistant(activity);

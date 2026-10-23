@@ -1,6 +1,7 @@
 package condaccess
 
 import (
+	"bytes"
 	"context"
 	"crypto/x509"
 	"encoding/pem"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -131,4 +133,15 @@ func TestPKIOperationUndecryptableEnvelope(t *testing.T) {
 	assert.Equal(t, scep.BadRequest, certRep.FailInfo)
 	assert.Equal(t, req.TransactionID, certRep.TransactionID)
 	assert.False(t, signerCalled, "signer must not run when the envelope cannot be decrypted")
+}
+
+func TestPKIOperationRejectsDeeplyNestedBER(t *testing.T) {
+	svc := NewSCEPService(nil, nil, slog.New(slog.DiscardHandler))
+
+	deep := bytes.Repeat([]byte{0x30, 0x80}, cryptoutil.MaxBERDepth+1)
+	_, err := svc.PKIOperation(t.Context(), deep)
+
+	var badReq *fleet.BadRequestError
+	require.ErrorAs(t, err, &badReq)
+	require.ErrorIs(t, err, cryptoutil.ErrBERTooDeep)
 }

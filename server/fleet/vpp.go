@@ -233,6 +233,7 @@ type HostVPPSoftwareInstall struct {
 	BundleIdentifier     string     `db:"bundle_identifier"`
 	RetryCount           int        `db:"retry_count"`
 	ExpectedVersion      string     `db:"expected_version"`
+	PolicyID             *uint      `db:"policy_id"`
 }
 
 type HostVPPSoftwareInstallLite struct {
@@ -320,6 +321,7 @@ var FleetVarsSupportedInAppleAppConfig = []FleetVarName{
 	FleetVarHostEndUserIDPGroups,
 	FleetVarHostEndUserIDPDepartment,
 	FleetVarHostEndUserIDPFullname,
+	FleetVarHostEndUserIDPExternalID,
 }
 
 // ValidateAppleAppConfiguration validates a managed app configuration payload

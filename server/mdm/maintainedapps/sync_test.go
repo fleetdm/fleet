@@ -100,6 +100,8 @@ func TestHydrate(t *testing.T) {
 		_, err := Hydrate(t.Context(), newApp(), "9.9", nil, cache)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "specified version is not available")
+		expectedMessage := `Couldn't edit "Test App": specified version is not available. Available versions are listed in the Fleet UI under Actions > Edit software.`
+		require.Equal(t, expectedMessage, err.Error())
 	})
 }
 

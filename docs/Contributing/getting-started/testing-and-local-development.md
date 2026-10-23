@@ -19,8 +19,8 @@
     - [Command line](#command-line)
   - [Test hosts](#test-hosts)
   - [Email](#email)
-    - [Manually testing email with MailHog and Mailpit](#manually-testing-email-with-mailhog-and-mailpit)
-      - [MailHog SMTP server without authentication](#mailhog-smtp-server-without-authentication)
+    - [Manually testing email with Mailpit](#manually-testing-email-with-mailpit)
+      - [Mailpit SMTP server without authentication](#mailpit-smtp-server-without-authentication)
       - [Mailpit SMTP server with plain authentication](#mailpit-smtp-server-with-plain-authentication)
   - [Development database management](#development-database-management)
   - [MySQL shell](#mysql-shell)
@@ -178,7 +178,7 @@ MYSQL_TEST=1 make test-go
 
 ### Email tests
 
-To run email related integration tests using MailHog set environment as follows:
+To run email related integration tests using the Mailpit and smtp4dev services, set environment as follows:
 
 ```sh
 MAIL_TEST=1 make test-go
@@ -288,9 +288,11 @@ The Fleet repo includes tools to start testing osquery hosts. Please see the doc
 
 ## Email
 
-### Manually testing email with MailHog and Mailpit
+### Manually testing email with Mailpit
 
-#### MailHog SMTP server without authentication
+#### Mailpit SMTP server without authentication
+
+This runs as the `mailhog` service in `docker-compose.yml`. The service name is kept for backwards compatibility, but it runs Mailpit.
 
 To intercept sent emails while running a Fleet development environment, first, as an Admin in the Fleet UI, navigate to the Organization settings.
 
@@ -300,7 +302,7 @@ Then, in the "SMTP options" section, set:
 - "Use SSL/TLS to connect (recommended)" to unchecked. 
 - "Authentication type" to `None`.
 
-Visit [localhost:8025](http://localhost:8025) to view MailHog's admin interface displaying all emails sent using the simulated mail server.
+Visit [localhost:8025](http://localhost:8025) to view Mailpit's admin interface displaying all emails sent using the simulated mail server.
 
 #### Mailpit SMTP server with plain authentication
 
@@ -479,7 +481,7 @@ awslocal='AWS_ACCESS_KEY_ID=default AWS_SECRET_ACCESS_KEY=default AWS_DEFAULT_RE
 
 The following guide assumes you have server dependencies running:
 ```sh
-docker-compose up
+docker compose --profile localstack up
 #
 # (Starts LocalStack with kinesis enabled.)
 #

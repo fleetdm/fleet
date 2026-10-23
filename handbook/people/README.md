@@ -93,7 +93,7 @@ You can also grab a copy of the [original slides](https://fleetdm.com/handbook/c
 ```
 
 1. Copy and paste the template to the "[# general](https://fleetdm.slack.com/archives/C019FNQPA23)" Slack channel.
-2. Open [Gong recording](https://us-65885.app.gong.io/home?workspace-id=9148397688380544352&r=m) and click `Share call`, then click `Share with customers`, then `Copy link`.
+2. Open [Gong recording](https://us-65885.app.gong.io/home?workspace-id=9148397688380544352&r=m) and click `Share call`, then click `Share internally`, then `Copy link`.
 3. Paste the url `*[Watch the recording](`here-in-your-template-message`)*`.
 
 <img width="464" alt="image" src="https://github.com/Sampfluger88/fleet/assets/108141731/c2002cfa-a0f6-4349-bb06-71104f6cdce1">
@@ -334,7 +334,7 @@ Annually, around mid-year, Fleet will be prompted by Gusto to review company ben
 When procuring SaaS tools and services, analyze the purchase of these subscription services and look for ways to help the company:
 - Get product demos whenever possible.  Does the product do what it's supposed to do in the way that it is supposed to do it?
 - Avoid extra features you don't need, and if they're there anyway, avoid using them.
-- Data portability: is it possible for Fleet to export it's data if we stop using it? Is it easy to pull that data in an understandable format?
+- Data portability: Is it possible for Fleet to export its data if we stop using it? Is it easy to pull that data in an understandable format?
 - Programmability: Does it have a publicly documented legible REST API that requires at most a single API token?
 - Intentionality: The product fits into other tools and processes that Fleet uses today. Avoid [unintended consequences](https://en.wikipedia.org/wiki/Midas). The tool will change to fit the company, or we won't use it. 
 
@@ -380,6 +380,16 @@ Once the decision has been made not to renew a tool or subscription on Fleet's b
 ### Review and update company DRIs
 
 Every quarter during [OKR planning](https://fleetdm.com/handbook/company/leadership#board-meeting-and-okr-planning), the Head of People reviews the DRI tables on the [Communications page](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) and the [Security page](https://fleetdm.com/handbook/it/security#security) to ensure they are current and accurate.
+
+
+### Monitor compliance tests
+
+1. Every Monday, log in to Vanta and create GitHub issues for any tests that are due or need remediation in the next 3 weeks.    
+2. To do this, access "Tests" on the left side menu.  This will provide a status report of the tests, when they are due, and who the DRI is.  
+3. Click on a test, then click on "Tasks".  
+4. Click on "Create task." Then, "Create GitHub issue."
+5. This will bring you to a screen where you can select the appropriate DRIs and GitHub labels (multiple, if necessary, but always include the ":help-people" label). Vanta will autopopulate the issue with a brief description of the test due and what needs to be remediated. You can manually add details if necessary.
+6. Follow up with the DRI of each issue daily until it's resolved. As needed, loop in their manager, Fleet's CTO, or the Head of IT. If the test is within 3 days of being overdue, DM the fleetie and their manager, asking to have the issue prioritized and completed before the due date.
 
 
 

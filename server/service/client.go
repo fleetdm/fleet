@@ -23,6 +23,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/fleetdm/fleet/v4/client"
+	"github.com/fleetdm/fleet/v4/pkg/markdown"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -838,6 +839,9 @@ func (c *Client) ApplyGroup(
 			// Since we just updated AppConfig, we don't want to get a stale (cached) AppConfig on the server if
 			// this HTTP request gets routed to another Fleet server.
 			profilesSpecOptions.NoCache = true
+			warnDeletedWindowsProfiles := c.windowsProfileDeletionWarning(appconfig,
+				&fleet.TeamSpecsDryRunAssumptions{WindowsEnabledAndConfigured: optjson.SetBool(assumeEnabled)},
+				nil, fleet.DisplayNameNoTeam, fileContents, logfn)
 			if err := c.ApplyNoTeamProfiles(fileContents, profilesSpecOptions, assumeEnabled); err != nil {
 				return nil, nil, nil, nil, fmt.Errorf("applying custom settings: %w", err)
 			}
@@ -846,6 +850,7 @@ func (c *Client) ApplyGroup(
 			} else {
 				logfn("[+] applied MDM profiles\n")
 			}
+			warnDeletedWindowsProfiles()
 		}
 	}
 
@@ -1151,9 +1156,12 @@ func (c *Client) ApplyGroup(
 					} else {
 						logfn("[+] applying MDM profiles for fleet %s\n", tmName)
 					}
+					warnDeletedWindowsProfiles := c.windowsProfileDeletionWarning(appconfig, teamProfilesOpts.DryRunAssumptions,
+						&teamID, tmName, profs, logfn)
 					if err := c.ApplyTeamProfiles(currentTeamName, profs, teamProfilesOpts); err != nil {
 						return nil, nil, nil, nil, fmt.Errorf("applying custom settings for fleet %q: %w", tmName, err)
 					}
+					warnDeletedWindowsProfiles()
 				}
 			}
 		}
@@ -2267,6 +2275,7 @@ func (c *Client) DoGitOps(
 	baseDir := filepath.Dir(fullFilename)
 	filename := filepath.Base(fullFilename)
 	var teamAssumptions *fleet.TeamSpecsDryRunAssumptions
+	var windowsEULAPath string
 	var err error
 	logFn := func(format string, args ...interface{}) {
 		if logf != nil {
@@ -2350,6 +2359,14 @@ func (c *Client) DoGitOps(
 		// Plan PUT uploads and strip the gitops-only `path` keys, which
 		// aren't part of fleet.OrgInfo. URL changes ride on the PATCH.
 		orgLogoActions, err = c.planAndStripOrgLogos(incoming.OrgSettings, baseDir, dryRun, logFn)
+		if err != nil {
+			return nil, err
+		}
+
+		// windows_eula is applied after ApplyGroup, see doGitOpsWindowsEULA. The
+		// file is checked here, before labels or settings are applied, so a bad
+		// path can't leave Windows MDM turned on without its agreement.
+		windowsEULAPath, err = takeWindowsEULAPath(incoming.OrgSettings, baseDir)
 		if err != nil {
 			return nil, err
 		}
@@ -2992,6 +3009,9 @@ func (c *Client) DoGitOps(
 		if err := c.doGitOpsOrgLogos(orgLogoActions, dryRun, logFn); err != nil {
 			return nil, err
 		}
+		if err := c.doGitOpsWindowsEULA(windowsEULAPath, appConfig, teamAssumptions, baseDir, dryRun, logFn); err != nil {
+			return nil, err
+		}
 	}
 
 	var teamSoftwareInstallers []fleet.SoftwarePackageResponse
@@ -3404,8 +3424,8 @@ func (c *Client) doGitOpsNoTeamWebhookSettings(
 	// Apply webhook settings for "No Team"
 	// If webhook_settings are not specified, they will be applied as disabled to clear existing settings
 	teamPayload := fleet.TeamPayload{
-		WebhookSettings: &fleet.TeamWebhookSettings{
-			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+		WebhookSettings: &fleet.TeamSpecWebhookSettings{
+			FailingPoliciesWebhook: &fleet.FailingPoliciesWebhookSettings{
 				Enable: false,
 			},
 			HostActivitiesWebhook: &fleet.HostActivitiesWebhookSettings{
@@ -3418,7 +3438,7 @@ func (c *Client) doGitOpsNoTeamWebhookSettings(
 	if config.TeamSettings != nil {
 		if webhookSettings, ok := config.TeamSettings["webhook_settings"]; ok {
 			fpw := extractFailingPoliciesWebhook(webhookSettings)
-			teamPayload.WebhookSettings.FailingPoliciesWebhook = fpw
+			teamPayload.WebhookSettings.FailingPoliciesWebhook = &fpw
 			teamPayload.WebhookSettings.HostActivitiesWebhook = extractHostActivitiesWebhook(webhookSettings)
 		}
 	}
@@ -3977,7 +3997,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 					patchTeamID = *config.TeamID
 				}
 				if err := c.PatchFleet(patchTeamID, fleet.TeamPayload{
-					WebhookSettings: &fleet.TeamWebhookSettings{FailingPoliciesWebhook: fpw},
+					WebhookSettings: &fleet.TeamSpecWebhookSettings{FailingPoliciesWebhook: &fpw},
 				}); err != nil {
 					return fmt.Errorf("error updating failing policies webhook: %w", err)
 				}
@@ -4279,6 +4299,124 @@ func (c *Client) doGitOpsEULA(eulaPath string, logFn func(format string, args ..
 		logFn("[+] applied EULA\n")
 	}
 
+	return nil
+}
+
+// takeWindowsEULAPath removes windows_eula from org_settings.mdm, where it isn't
+// an app config field, and checks the file it names. A value that isn't a path
+// is an error: read as "no agreement", it would delete the one on the server.
+func takeWindowsEULAPath(orgSettings map[string]any, baseDir string) (string, error) {
+	mdm, ok := orgSettings["mdm"].(map[string]any)
+	if !ok {
+		return "", nil
+	}
+	v, exists := mdm["windows_eula"]
+	delete(mdm, "windows_eula")
+	if !exists || v == nil {
+		return "", nil
+	}
+	path, ok := v.(string)
+	if !ok {
+		return "", errors.New("windows_eula: must be the path to a markdown file")
+	}
+	if path == "" {
+		return "", nil
+	}
+	if err := checkWindowsEULAFile(resolveApplyRelativePath(baseDir, path)); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+// checkWindowsEULAFile catches the mistakes a dry run would otherwise miss when
+// the same file turns Windows MDM on, since the server can't be asked then.
+func checkWindowsEULAFile(path string) error {
+	if !strings.EqualFold(filepath.Ext(path), ".md") {
+		return fmt.Errorf("windows_eula: %s must be a markdown (.md) file", path)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("windows_eula: %w", err)
+	}
+	// Checked before reading, so a device file or a huge file can't stall the run.
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("windows_eula: %s is not a regular file", path)
+	}
+	if info.Size() > markdown.MaxTermsSize {
+		return fmt.Errorf("windows_eula: %s %w", path, markdown.ErrTooLarge)
+	}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("windows_eula: %w", err)
+	}
+	if len(bytes.TrimSpace(content)) == 0 {
+		return fmt.Errorf("windows_eula: %s is empty", path)
+	}
+	if err := markdown.ValidateTerms(content); err != nil {
+		return fmt.Errorf("windows_eula: %s %w", path, err)
+	}
+	return nil
+}
+
+// windowsMDMSettle waits out the app config cache, which lasts a second on each
+// server. A variable so tests don't wait.
+var windowsMDMSettle = func() { time.Sleep(time.Second) }
+
+// doGitOpsWindowsEULA runs after ApplyGroup rather than beside the macOS EULA:
+// the same file can turn Windows MDM on, and the Windows EULA endpoints are
+// gated on it, so applying first would be refused on the run that enables it.
+func (c *Client) doGitOpsWindowsEULA(
+	path string,
+	appConfig *fleet.EnrichedAppConfig,
+	assumptions *fleet.TeamSpecsDryRunAssumptions,
+	baseDir string,
+	dryRun bool,
+	logFn func(format string, args ...any),
+) error {
+	windowsMDMOnNow := appConfig.MDM.WindowsEnabledAndConfigured
+	windowsMDMOnAfter := windowsMDMOnNow
+	if assumptions != nil && assumptions.WindowsEnabledAndConfigured.Valid {
+		windowsMDMOnAfter = assumptions.WindowsEnabledAndConfigured.Value
+	}
+
+	switch {
+	case path != "" && !appConfig.License.IsPremium():
+		logFn("[!] skipping windows_eula: requires Fleet Premium\n")
+		return nil
+	case path != "" && !windowsMDMOnAfter:
+		logFn("[!] skipping windows_eula: requires Windows MDM to be turned on\n")
+		return nil
+	case !appConfig.License.IsPremium() || !windowsMDMOnAfter:
+		// Nothing to apply, and nothing reachable to delete.
+		return nil
+	}
+
+	// A dry run leaves the server untouched, so when this file is what turns
+	// Windows MDM on the endpoints are still gated. Report the intent instead.
+	if dryRun && !windowsMDMOnNow {
+		logFn("[+] would've applied Windows EULA\n")
+		return nil
+	}
+
+	if !windowsMDMOnNow {
+		// This run turned Windows MDM on, and a server can still have its app
+		// config cached from before and refuse the request. The profiles batch
+		// asks for a fresh read instead (no_cache); the EULA endpoints can't.
+		windowsMDMSettle()
+	}
+	if path == "" {
+		if err := c.DeleteWindowsEULAIfNeeded(dryRun); err != nil {
+			return fmt.Errorf("error deleting Windows EULA: %w", err)
+		}
+	} else if err := c.UploadWindowsEULAIfNeeded(resolveApplyRelativePath(baseDir, path), dryRun); err != nil {
+		return fmt.Errorf("error uploading Windows EULA: %w", err)
+	}
+
+	if dryRun {
+		logFn("[+] would've applied Windows EULA\n")
+	} else {
+		logFn("[+] applied Windows EULA\n")
+	}
 	return nil
 }
 

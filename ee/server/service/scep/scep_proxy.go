@@ -18,6 +18,7 @@ import (
 
 	"github.com/Azure/go-ntlmssp"
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/ee/server/service/certissue"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -655,7 +656,7 @@ func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy flee
 		)
 		// A 5xx means NDES answered but could not serve the request, which is the shape an IIS restart or an
 		// overloaded NDES takes; that clears on its own and must not be reported as bad credentials.
-		if ndesRetryableStatus(resp.StatusCode) {
+		if certissue.IsTransientStatus(resp.StatusCode) {
 			return "", ctxerr.Wrap(ctx, NewNDESTransientError(fmt.Sprintf(
 				"NDES admin URL returned status %d; could not retrieve the enrollment challenge password",
 				resp.StatusCode)))
@@ -787,14 +788,6 @@ func (e NDESTransientError) Error() string {
 
 func NewNDESTransientError(msg string) NDESTransientError {
 	return NDESTransientError{msg: msg}
-}
-
-// ndesRetryableStatus reports whether an NDES admin-URL HTTP status is one that clears on its own: any 5xx, plus the
-// request-timeout and rate-limit codes.
-func ndesRetryableStatus(code int) bool {
-	return code >= http.StatusInternalServerError ||
-		code == http.StatusRequestTimeout ||
-		code == http.StatusTooManyRequests
 }
 
 type NDESInvalidError struct {

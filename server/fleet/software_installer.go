@@ -118,7 +118,9 @@ type SoftwareInstaller struct {
 	// URL is the source URL for this installer (set when uploading via batch/gitops).
 	URL string `json:"url" db:"url"`
 	// FleetMaintainedAppID is the related Fleet-maintained app for this installer (if not nil).
-	FleetMaintainedAppID    *uint                    `json:"fleet_maintained_app_id" db:"fleet_maintained_app_id"`
+	FleetMaintainedAppID *uint `json:"fleet_maintained_app_id" db:"fleet_maintained_app_id"`
+	// FleetMaintainedAppSlug is the slug of the related Fleet-maintained app (if any).
+	FleetMaintainedAppSlug  string                   `json:"fleet_maintained_app_slug,omitempty" db:"fleet_maintained_app_slug"`
 	FleetMaintainedVersions []FleetMaintainedVersion `json:"fleet_maintained_versions,omitempty"`
 	PinnedVersion           *string                  `json:"pinned_version,omitempty" db:"-"`
 	// AutomaticInstallPolicies is the list of policies that trigger automatic
@@ -964,6 +966,9 @@ type HostSoftwareWithInstaller struct {
 	DisplayName       string                          `json:"display_name" db:"display_name"`
 	// UpgradeCode is a GUID representing a related set of Windows software products. See https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
+	// AITool is true when any software row of this title is flagged as an AI tool. It's a Premium
+	// field: the service clears it on Free so it's omitted from responses.
+	AITool *bool `json:"ai_tool,omitempty" db:"-"`
 
 	// SoftwarePackage provides software installer package information, it is
 	// only present if a software installer is available for the software title.

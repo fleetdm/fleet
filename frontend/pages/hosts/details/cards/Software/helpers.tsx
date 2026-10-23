@@ -82,6 +82,7 @@ export const isDefaultTypeSelection = (
 ) =>
   isMacOS(platform) &&
   !filters.vulnerable &&
+  !filters.aiTool &&
   isEqual(filters.types, [MACOS_APP_SOFTWARE_TYPE]);
 
 // available_for_install string > boolean conversion in parseHostSoftwareQueryParams
