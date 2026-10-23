@@ -70,6 +70,7 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "globalActivityWebhookEnabled": true,
   "oktaConditionalAccessConfigured": true,
   "entraConditionalAccessConfigured": true,
+  "googleConditionalAccessConfigured": true,
   "conditionalAccessBypassDisabled": false,
   "conditionalAccessEnabled": true,
   "numFleetsManagedAdminAccountEnabled": 999,

@@ -2060,6 +2060,11 @@ None.
          }
       }
     ],
+    "google_conditional_access": [
+      {
+        "customer_id": "C01234abc"
+      }
+    ],
     "jira": [],
     "zendesk": [],
     "certificates_idp_introspection_urls": [],
@@ -2423,6 +2428,11 @@ Modifies the Fleet's configuration with the supplied information.
         "domain": "",
         "impersonated_user_email": "",
         "api_key_json": null
+      }
+    ],
+    "google_conditional_access": [
+      {
+        "customer_id": "C01234abc"
       }
     ],
     "jira": [
@@ -2795,6 +2805,7 @@ _Available in Fleet Premium._
 | zendesk         | array  | See [`integrations.zendesk`](#integrations-zendesk).                 |
 | google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar). |
 | google_workspace | array | See [`integrations.google_workspace`](#integrations-google-workspace). |
+| google_conditional_access | array | See [`integrations.google_conditional_access`](#integrations-google-conditional-access). |
 
 <br/>
 
@@ -2857,6 +2868,20 @@ _Available in Fleet Premium._
 
 <br/>
 
+##### integrations.google_conditional_access
+
+_Available in Fleet Premium._
+
+`integrations.google_conditional_access` is an array of objects with the following structure. When set, Fleet marks company-owned iOS, iPadOS, and Android hosts as managed in Google when the end user signs in to Google from **Self-service** on the host. Google Context-Aware Access can then block sign-in from hosts that aren't managed by Fleet. Only global admins can set it. To turn it off, set it to `[]`.
+
+Before you set it, allow Fleet's app in your Google Admin console. Learn how in the [Conditional access: Google](https://fleetdm.com/guides/google-conditional-access-integration) guide.
+
+| Name        | Type   | Description |
+| ----------- | ------ | ----------- |
+| customer_id | string | Your Google Workspace customer ID (for example, `C01234abc`). Find it in the Google Admin console under **Account > Account settings**. |
+
+<br/>
+
 ##### Example request body
 
 ```json
@@ -2884,6 +2909,11 @@ _Available in Fleet Premium._
         "domain": "example.com",
         "impersonated_user_email": "admin@example.com",
         "api_key_json": "<API KEY JSON>"
+      }
+    ],
+    "google_conditional_access": [
+      {
+        "customer_id": "C01234abc"
       }
     ]
   }
