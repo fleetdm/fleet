@@ -238,7 +238,7 @@ describe("EJBCAForm helpers", () => {
   });
 
   describe("splitEJBCAServerErrors", () => {
-    it("puts the errors of the fields on the form, without how the server starts and ends them", () => {
+    it("puts the errors of the fields on the form, and the rest apart", () => {
       const { fieldErrors, otherReasons } = splitEJBCAServerErrors({
         errors: [
           {
@@ -251,7 +251,8 @@ describe("EJBCAForm helpers", () => {
       });
 
       expect(fieldErrors).toEqual({
-        password: "The PKCS#12 password is incorrect or the file is damaged",
+        password:
+          "Couldn't add certificate authority. The PKCS#12 password is incorrect or the file is damaged.",
       });
       expect(otherReasons).toEqual([
         "Couldn't add certificate authority. Oops.",

@@ -195,6 +195,7 @@ const EJBCAForm = ({
         label="Trust CA bundle"
         {...getTextFieldProps("trustCABundle")}
         type="textarea"
+        inputClassName={`${baseClass}__trust-ca-bundle`}
         helpText="PEM-encoded CA certificates that sign the HTTPS certificate of your EJBCA server. If you leave it empty, Fleet trusts public CAs. (optional)"
         placeholder="-----BEGIN CERTIFICATE-----"
         disabled={isSubmitting}

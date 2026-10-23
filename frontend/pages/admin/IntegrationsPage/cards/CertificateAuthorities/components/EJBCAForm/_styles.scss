@@ -9,4 +9,9 @@
   &__client-cert-expiry {
     margin: 0;
   }
+
+  &__trust-ca-bundle {
+    font-family: "SourceCodePro", $monospace;
+    font-size: $x-small;
+  }
 }

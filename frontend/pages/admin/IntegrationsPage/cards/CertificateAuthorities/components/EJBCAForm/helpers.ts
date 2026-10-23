@@ -35,15 +35,12 @@ const isHTTPSURLWithoutCredentials = (url: string) => {
   }
 };
 
-interface IValidationContext {
-  certAuthorities: ICertificateAuthorityPartial[];
-  /** The id of the CA being edited, which doesn't conflict with itself. */
-  editingId?: number;
-}
-
 export const validateEJBCAForm = (
   formData: IEJBCAFormData,
-  { certAuthorities, editingId }: IValidationContext
+  {
+    certAuthorities,
+    editingId,
+  }: { certAuthorities: ICertificateAuthorityPartial[]; editingId?: number }
 ): IFormErrors => {
   const errors: IFormErrors = {};
   const name = formData.name.trim();
@@ -144,8 +141,7 @@ export const generateEJBCAAddData = (
 });
 
 /**
- * The fields of an EJBCA CA that were changed. It is empty if nothing was. The server checks the
- * connection to EJBCA whenever a connection field is sent, so a field that is the same is left out.
+ * The fields of an EJBCA CA that were changed. It is empty if nothing was. A field that is the same is left out.
  */
 export const generateEJBCAEditData = (
   certAuthority: ICertificatesEJBCA,
@@ -199,38 +195,22 @@ export const readFileAsBase64 = (file: File): Promise<string> => {
   });
 };
 
-/**
- * The server starts its messages with what failed ("Couldn't add certificate authority.") and ends
- * them with a period. The form shows them next to a field, where that is not needed.
- */
-const cleanFieldReason = (reason: string) =>
-  reason
-    .replace(/^Couldn't (add|edit) certificate authority\.\s*/, "")
-    .replace(/\.$/, "");
-
 /** Sorts the errors of a failed request into the ones for a field of the form, and the rest. */
 export const splitEJBCAServerErrors = (err: unknown) => {
   const { fieldErrors, otherReasons } = splitServerErrors(
     err,
     SERVER_ERROR_NAMES
   );
-  const errors: IFormErrors = {};
-  Object.entries(fieldErrors).forEach(([field, reason]) => {
-    if (reason) errors[field] = cleanFieldReason(reason);
-  });
-  return { fieldErrors: errors, otherReasons };
+  return { fieldErrors: fieldErrors as IFormErrors, otherReasons };
 };
 
 /**
- * The toast for the errors of a failed request that don't belong to a field. It falls back to the
- * message the server sent for the whole request, which starts with what failed.
+ * The toast for the errors of a failed request that don't belong to a field.
  */
 export const getEJBCAErrorMessage = (
   action: "add" | "edit",
   otherReasons: string[]
-) => {
-  const reasons = otherReasons.map(cleanFieldReason).filter(Boolean);
-  return `Couldn't ${action} certificate authority. ${
-    reasons.length ? `${reasons.join(". ")}.` : "Please try again."
-  }`;
-};
+) =>
+  otherReasons.length
+    ? otherReasons.join(" ")
+    : `Couldn't ${action} certificate authority. Please try again.`;
