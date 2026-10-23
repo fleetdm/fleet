@@ -483,7 +483,7 @@
     text-align: center;
     &.left-aligned {
       align-items: flex-start;
-      max-width: 780px;
+      max-width: 688px;
       margin-left: 0;
       text-align: left;
     }
@@ -501,6 +501,14 @@
   }
 
   // Feature rows
+  [purpose='feature-pair'] {
+    display: flex;
+    flex-direction: column;
+    gap: 96px;
+  }
+  [purpose='page-section'] > [purpose='feature-with-image'] {
+    margin-top: @section-gap;
+  }
   [purpose='feature-with-image'] {
     .feature-with-image();
     [purpose='feature-image'], [purpose='photo-collage'] {
@@ -527,17 +535,6 @@
     flex-direction: column;
     gap: @section-gap;
   }
-  [purpose='feature-items'] {
-    display: flex;
-    flex-direction: column;
-    gap: @section-gap-sm;
-  }
-  [purpose='feature-item'] {
-    display: flex;
-    flex-direction: column;
-    gap: @inner-padding;
-    max-width: 360px;
-  }
   [purpose='photo-collage'] {
     max-width: calc(~'50% - 32px');
     display: grid;
@@ -547,7 +544,7 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
-      border-radius: 8px;
+      border-radius: 12px;
     }
     [purpose='photo-celebration'] {
       grid-column: 1;
@@ -612,7 +609,7 @@
   // The grid's background shows through the 1px gaps as divider lines between logos.
   [purpose='logo-grid'] {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 1px;
     flex: 1 1 50%;
     background-color: @core-fleet-black-10;
@@ -620,7 +617,7 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 96px;
+      height: 76px;
       background-color: @accent-white;
       // Each logo's height comes from its height attribute so differently shaped logos look balanced.
       // object-fit keeps wide logos from stretching when max-width caps them.
@@ -706,55 +703,6 @@
       background-size: 16px 16px;
     }
   }
-  [purpose='pills'] + [purpose='two-column-features'] {
-    margin-top: @section-48;
-    [purpose='feature-card-image'] {
-      margin-bottom: @section-gap;
-      img {
-        display: block;
-        width: 100%;
-        height: auto;
-        border-radius: 16px;
-      }
-    }
-  }
-
-  // Enrollment options
-  [purpose='enrollment-options'] {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: @section-48;
-    margin-top: @inner-padding;
-  }
-  [purpose='enrollment-option'] {
-    display: flex;
-    flex-direction: column;
-    gap: @inner-padding;
-    [purpose='enrollment-icon'] {
-      display: flex;
-      align-items: center;
-      height: 66px;
-      margin-bottom: @inner-padding-xs;
-    }
-    [purpose='windows-icon'] {
-      height: 56px;
-      width: 56px;
-    }
-    [purpose='entra-icon'] {
-      height: 64px;
-      width: 64px;
-    }
-    [purpose='provisioning-package-icon'] {
-      height: 66px;
-      width: 66px;
-    }
-    [purpose='checklist'] {
-      margin-top: @inner-padding-xs;
-      p {
-        margin-bottom: @inner-padding;
-      }
-    }
-  }
 
   // Customer quote
   [purpose='quote-section'] {
@@ -774,7 +722,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: @inner-padding-xs;
+      gap: @inner-padding-xxs;
     }
     [purpose='name-and-title'] {
       align-items: center;
@@ -875,9 +823,6 @@
     [purpose='migration-banner'] [purpose='banner-image'] {
       flex-basis: 280px;
     }
-    [purpose='enrollment-options'] {
-      gap: @section-gap;
-    }
   }
 
   @media (max-width: 767px) {
@@ -887,27 +832,11 @@
     [purpose='photo-collage'] {
       max-width: 100%;
     }
-    [purpose='feature-item'] {
-      max-width: none;
+    [purpose='feature-pair'] {
+      gap: @section-160-xs;
     }
     [purpose='two-column-features'] {
       grid-template-columns: 1fr;
-    }
-    [purpose='enrollment-options'] {
-      grid-template-columns: 1fr;
-      gap: @section-48;
-    }
-    [purpose='enrollment-option'] {
-      align-items: center;
-      max-width: 400px;
-      margin-left: auto;
-      margin-right: auto;
-      text-align: center;
-      [purpose='checklist'] {
-        max-width: 100%;
-        width: fit-content;
-        text-align: left;
-      }
     }
     [purpose='migration-banner'] {
       flex-direction: column;
