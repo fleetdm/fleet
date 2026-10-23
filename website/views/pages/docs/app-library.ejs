@@ -8,17 +8,17 @@
           <p>Install Fleet-maintained apps on your hosts without the need for additional configuration. Fleet also manages custom packages, self-service, and OS updates. <a href="https://fleetdm.com/software-management">Learn more about software</a>.</p>
         </div>
       </div>
-      <div purpose="platform-filters" class="d-flex justify-content-center" :class="[bowser.windows ? 'detected-windows' : '']">
-        <div purpose="platform-filter" :class="[selectedPlatform === 'macos' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('macos')">
-          <h1 class="d-flex align-items-center">
-          <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" class="d-inline">
-          <span class="d-none d-sm-inline">macOS</span>
-          </h1>
-        </div>
+      <div purpose="platform-filters" class="d-flex justify-content-center">
         <div purpose="platform-filter" :class="[selectedPlatform === 'windows' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('windows')">
           <h1 class="d-flex align-items-center">
             <img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" class="d-inline">
             <span class="d-none d-sm-inline">Windows</span>
+          </h1>
+        </div>
+        <div purpose="platform-filter" :class="[selectedPlatform === 'macos' ? 'selected' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('macos')">
+          <h1 class="d-flex align-items-center">
+          <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" class="d-inline">
+          <span class="d-none d-sm-inline">macOS</span>
           </h1>
         </div>
       </div>
