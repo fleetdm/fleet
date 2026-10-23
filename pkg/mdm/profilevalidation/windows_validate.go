@@ -147,6 +147,9 @@ func (s *ProfileValidationSchema) resolveWindowsNode(locURI string) (node *Windo
 			if n := s.WindowsNode(p); n != nil && !slices.Contains(catchAll, n) {
 				return n
 			}
+			if n := s.windowsTemplateNode(p); n != nil {
+				return n
+			}
 		}
 		return nil
 	}
@@ -157,6 +160,40 @@ func (s *ProfileValidationSchema) resolveWindowsNode(locURI string) (node *Windo
 		return n, true
 	}
 	return nil, false
+}
+
+// windowsTemplateNode matches an ingested ADMX policy ({App}~Policy~{Category}/{Policy}) to a
+// template policy regardless of {App}: the admin picks it in ADMXInstall, so a renamed install of
+// a template we know is still that template.
+func (s *ProfileValidationSchema) windowsTemplateNode(locURI string) *WindowsNode {
+	prefix, suffix, ok := cutWindowsADMXApp(locURI)
+	if !ok {
+		return nil
+	}
+	var best *WindowsNode
+	bestKey := ""
+	// ponytail: scans every key; index template keys by suffix at Parse if lookups get hot.
+	for key, n := range s.Windows {
+		if n == nil || n.Source != WindowsSourceADMXTemplate {
+			continue
+		}
+		kp, ks, ok := cutWindowsADMXApp(key)
+		// Ties break on the key so the result doesn't depend on map order.
+		if ok && strings.EqualFold(kp, prefix) && strings.EqualFold(ks, suffix) && (best == nil || key < bestKey) {
+			best, bestKey = n, key
+		}
+	}
+	return best
+}
+
+// cutWindowsADMXApp splits a LocURI around the app name of its ~Policy~ area, e.g.
+// "./Device/Vendor/MSFT/Policy/Config/", "~Policy~googlechrome/HomepageLocation".
+func cutWindowsADMXApp(locURI string) (prefix, suffix string, ok bool) {
+	i := strings.Index(strings.ToLower(locURI), "~policy~")
+	if i < 0 {
+		return "", "", false
+	}
+	return locURI[:strings.LastIndex(locURI[:i], "/")+1], locURI[i:], true
 }
 
 // windowsArea names what a LocURI configures for findings: the area for a Policy CSP setting,

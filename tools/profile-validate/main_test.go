@@ -48,25 +48,33 @@ func TestRun(t *testing.T) {
 	write("android.json", `{"passwordPolicies": []}`)
 	write("broken.json", `{"Type": "com.apple.configuration.passcode.settings",}`)
 	write("notes.txt", "not a profile")
+	const minLength = "./Device/Vendor/MSFT/Policy/Config/DeviceLock/MinDevicePasswordLength"
+	syncML := func(data string) string {
+		return `<Replace><Item><Meta><Format xmlns="syncml:metinf">int</Format></Meta><Target><LocURI>` + minLength + `</LocURI></Target><Data>` + data + `</Data></Item></Replace>`
+	}
+	write("windows/good.xml", syncML("8"))
+	badWindows := write("windows/bad.xml", syncML("eight"))
+	write("windows/other.xml", `<?xml version="1.0"?><config><setting>not SyncML</setting></config>`)
 
 	var out, logs bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&logs, nil))
 	findings, err := run(t.Context(), logger, &out, s, profilevalidation.ModeLenient, []string{dir})
 	require.NoError(t, err)
-	assert.Equal(t, 2, findings)
+	assert.Equal(t, 3, findings)
 	// Unparseable files are reported as skipped, not silently ignored as non-Apple JSON.
-	assert.Contains(t, logs.String(), "files=5 findings=2 skipped=2")
+	assert.Contains(t, logs.String(), "files=7 findings=3 skipped=2")
 	assert.Contains(t, logs.String(), "broken.json")
 	assert.Equal(t,
 		filepath.Join(dir, "declaration.json")+": TYPE_MISMATCH com.apple.configuration.passcode.settings MinimumLength expected=integer actual=string\n"+
-			bad+": TYPE_MISMATCH com.apple.applicationaccess allowAirDrop expected=boolean actual=string\n",
+			bad+": TYPE_MISMATCH com.apple.applicationaccess allowAirDrop expected=boolean actual=string\n"+
+			badWindows+": TYPE_MISMATCH DeviceLock "+minLength+" expected=int actual=\n",
 		out.String())
 
 	// Strict adds the restrictions payload's missing PayloadVersion in both profiles.
 	out.Reset()
 	findings, err = run(t.Context(), logger, &out, s, profilevalidation.ModeStrict, []string{dir})
 	require.NoError(t, err)
-	assert.Equal(t, 4, findings)
+	assert.Equal(t, 5, findings)
 
 	// A single file works as a path.
 	out.Reset()
