@@ -101,9 +101,9 @@ Source: [create-android-signup-url.js#L26-L50](https://github.com/fleetdm/fleet/
 
 ## Network requirements
 
-- **Outbound from Fleet:** the Fleet server needs outbound HTTPS to fleetdm.com.
-- **Inbound from Google:** Google Pub/Sub must reach `/api/v1/fleet/android_enterprise/pubsub`. If Fleet sits behind an identity-aware proxy, exempt this path. The token in the URL authenticates it.
-- **Inbound from devices:** devices that are enrolling must reach the Fleet enrollment page, and devices running the Fleet agent must reach the Fleet server.
+- The Fleet server needs outbound HTTPS to fleetdm.com.
+- Google Pub/Sub must reach `/api/v1/fleet/android_enterprise/pubsub`. If Fleet sits behind an identity-aware proxy, exempt this path. The token in the URL authenticates it.
+- Devices that are enrolling must reach the Fleet enrollment page, and devices running the Fleet agent must reach the Fleet server.
 
 Learn more in [Which API endpoints to expose to the public internet?](https://fleetdm.com/guides/what-api-endpoints-to-expose-to-the-public-internet#android)
 
@@ -171,6 +171,33 @@ The admin chooses one of two paths on the **Add hosts** page.
 If fleetdm.com is unreachable at step 2 on either path, the page shows an error and the end user can try again later. Nothing on the device changes until step 3.
 
 Source: [AndroidPanel.tsx#L11-L25](https://github.com/fleetdm/fleet/blob/59e246b449a55ed95f1e9e516739c6b2bb723f03/frontend/components/AddHostsModal/PlatformWrapper/AndroidPanel/AndroidPanel.tsx#L11-L25) (link format, two enrollment types), [service.go#L612-L717](https://github.com/fleetdm/fleet/blob/59e246b449a55ed95f1e9e516739c6b2bb723f03/server/mdm/android/service/service.go#L612-L717) (token request, IdP session, personal-usage flag), and [enroll-hosts.md#L29-L41](https://github.com/fleetdm/fleet/blob/59e246b449a55ed95f1e9e516739c6b2bb723f03/articles/enroll-hosts.md#L29-L41).
+
+## Coming soon: Google conditional access
+
+> **Note:** This section describes planned work, not a released feature. The design may change before it ships.
+
+Today, you can block sign-in from iPhones, iPads, and Android devices that aren't managed by Fleet with Google Context-Aware Access (part of Google's BeyondCorp model). Follow the [Conditional access: Google](https://fleetdm.com/guides/google-conditional-access-integration) guide. End users open a Chrome bookmark that loads a page you host, and that page marks company-owned devices as managed in Google ([#54888](https://github.com/fleetdm/fleet/issues/54888)).
+
+Native support in Fleet is [coming soon](https://github.com/fleetdm/fleet/issues/56195). Fleet will mark company-owned iOS, iPadOS, and Android hosts as managed in Google, so you won't need to host your own page. Like Android MDM, it will go through fleetdm.com ([#56354](https://github.com/fleetdm/fleet/issues/56354)), which will hold Fleet's Google credentials.
+
+### Planned setup
+
+1. An admin enters the organization's Google customer ID in Fleet and selects **Connect**.
+2. The Fleet server registers with fleetdm.com and gets a per-server secret, the same way Android MDM setup works.
+3. The admin signs in with Google to approve Fleet. Setup only finishes after fleetdm.com confirms that the admin belongs to that Google customer, so no one else can connect your Google organization to their Fleet server.
+
+### Planned flow for marking a device as managed
+
+1. The end user selects a button in **Self-service** on a company-owned iPhone, iPad, or Android device and signs in to Google.
+2. Google redirects to fleetdm.com.
+3. fleetdm.com asks the Fleet server to confirm that the host is company-owned and enrolled to Fleet.
+4. fleetdm.com looks up the device in Google and saves its Google device ID on the host in Fleet. Fleet refuses if the host already has a different Google device ID, so a link copied to a personal device can't take over a company-owned host.
+5. fleetdm.com marks the device as managed in Google with Fleet's service account. Google Context-Aware Access can then block sign-in from devices that aren't managed.
+
+### What will change compared to Android MDM
+
+- For Android MDM, fleetdm.com never calls your Fleet server. Google conditional access will add calls from fleetdm.com to your Fleet server, authenticated with the per-server secret. If you restrict inbound traffic, you'll need to allow `/api/*/fleet/google_conditional_access/*` and `/api/*/fleet/hosts/*/google_device_id` from fleetdm.com.
+- New data will pass through fleetdm.com: the Google customer ID, the Fleet server URL, and, for each device, its host ID and UUID, platform, enrollment status, and Google device ID.
 
 ## Further reading
 
