@@ -3147,6 +3147,90 @@ Use this only with `s3_carves_endpoint_url` set to `https://storage.googleapis.c
     software_installers_gcS_signed_url: true
   ```
 
+### azure_software_installers_account_name
+
+*Available in Fleet Premium.*
+
+Azure Storage account name. Setting `azure_software_installers_container` enables Azure Blob Storage
+as the backend for software installers, bootstrap packages, software title icons, and org logos,
+in place of S3. Only one of `s3_software_installers_bucket` and `azure_software_installers_container`
+may be set.
+
+- Default value: none
+- Environment variable: `FLEET_CLOUD_STORAGE_AZURE_FILES_ACCOUNT_NAME`
+- Config file format:
+  ```yaml
+  cloud_storage:
+    azure:
+      files_account_name: myfleetstorageaccount
+  ```
+
+### cloud_storage_azure_files_account_key
+
+*Available in Fleet Premium.*
+
+Azure Storage account shared key, used to authenticate against the storage account.
+
+- Default value: none
+- Environment variable: `FLEET_CLOUD_STORAGE_AZURE_FILES_ACCOUNT_KEY`
+- Config file format:
+  ```yaml
+  cloud_storage:
+    azure:
+      files_account_key: <account key>
+  ```
+
+### cloud_storage_azure_files_container
+
+*Available in Fleet Premium.*
+
+Azure Storage container where uploaded software installers, bootstrap packages, software title
+icons, and org logos are stored.
+
+- Default value: none
+- Environment variable: `FLEET_CLOUD_STORAGE_AZURE_FILES_CONTAINER`
+- Config file format:
+  ```yaml
+  cloud_storage:
+    azure:
+      files_container: fleet-software-installers
+  ```
+
+### cloud_storage_azure_files_container_url
+
+*Available in Fleet Premium.*
+
+Azure Blob Storage endpoint override. Leave blank to use the default
+`https://<account>.blob.core.windows.net` endpoint. Used to point at the
+[Azurite](https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azurite) emulator for
+testing.
+
+- Default value: none
+- Environment variable: `FLEET_CLOUD_STORAGE_AZURE_FILES_CONTAINER_URL`
+- Config file format:
+  ```yaml
+  cloud_storage:
+    azure:
+      files_container_url: http://127.0.0.1:10000/devstoreaccount1
+  ```
+
+### cloud_storage_azure_files_signed_url
+
+*Available in Fleet Premium.*
+
+When `true`, Fleet hands out [SAS-signed URLs](https://learn.microsoft.com/en-us/azure/storage/common/storage-sas-overview)
+for installer, in-house app, and bootstrap package downloads instead of proxying the bytes through
+Fleet.
+
+- Default value: false
+- Environment variable: `FLEET_CLOUD_STORAGE_AZURE_FILES_SIGNED_URL`
+- Config file format:
+  ```yaml
+  cloud_storage:  
+    azure:
+      files_signed_url: true
+  ```
+
 ### s3_carves_bucket
 
 Name of the S3 bucket for file carves.
