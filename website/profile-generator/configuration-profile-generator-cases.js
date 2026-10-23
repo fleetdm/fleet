@@ -1313,14 +1313,15 @@ const TEST_CASES = [
   // Fleet's own rules on.  `fleet.expect` is what the Fleet request must do instead.  A Fleet decline happens at
   // generation, after the request is routed to the case's own profile type.
   //
-  // Platform SSO declines for Fleet: the model does not know the vendors' extension values and URLs.  The generating
+  // Platform SSO declines for Fleet: the model does not know the vendors' extension values and URLs.  Asked by Fleet,
+  // Entra requests route to the extensible SSO declaration, and Okta's to a .mobileconfig.  The generating
   // versions of these two cases, with Microsoft's and Okta's expected values, are in this file's git history.
   {
     id: 'mobileconfig-psso-entra-setup-assistant',
     profileType: 'mobileconfig',
     instructions: 'Set up Microsoft Entra Platform SSO with password authentication, and let users register during Setup Assistant.',
     expect: { mustContain: ['com.apple.extensiblesso'] },
-    fleet: { expect: { expectFailure: true } },
+    fleet: { routesTo: 'ddm', expect: { expectFailure: true } },
   },
   {
     id: 'mobileconfig-psso-okta-password',
@@ -1337,16 +1338,20 @@ const TEST_CASES = [
       mustContain: ['com.apple.extensiblesso'],
       deliveryNotesMustNotContain: ['Fleet'],
     },
-    fleet: { expect: { expectFailure: true } },
+    fleet: { routesTo: 'ddm', expect: { expectFailure: true } },
   },
-  // Other single sign-on extensions still generate for Fleet.
+  // Other single sign-on extensions still generate for Fleet, which routes this one to the extensible SSO declaration.
   {
     id: 'mobileconfig-kerberos-sso',
     profileType: 'mobileconfig',
     instructions: 'Set up the Kerberos SSO extension for the ACME.EXAMPLE realm.',
     expect: {
       mustContain: ['com.apple.extensiblesso', 'com.apple.AppSSOKerberos.KerberosExtension', 'ACME.EXAMPLE'],
-    }
+    },
+    fleet: {
+      routesTo: 'ddm',
+      expect: { mustContain: ['com.apple.configuration.extensible-sso', 'com.apple.AppSSOKerberos.KerberosExtension', 'ACME.EXAMPLE'] },
+    },
   },
   // Fleet configures certificate identities with its own certificate authority integrations.
   {
@@ -1445,8 +1450,9 @@ const TEST_CASES = [
     profileType: 'ddm',
     instructions: 'Install our root CA certificate.',
     expect: { mustContain: ['com.apple.configuration.security.certificate'] },
-    // The certificate declaration needs an asset, which Fleet cannot deliver.
-    fleet: { expect: { expectFailure: true } },
+    // The certificate declaration needs an asset, so Fleet's request routes to a .mobileconfig, which cannot be written
+    // without the certificate itself.
+    fleet: { routesTo: 'mobileconfig', expect: { expectFailure: true } },
   },
   {
     id: 'ddm-safari-new-tab-macos',
@@ -1482,8 +1488,8 @@ const TEST_CASES = [
     profileType: 'ddm',
     instructions: 'Add a Google account for jane@acme.example.',
     expect: { mustContain: ['com.apple.configuration.account.google'] },
-    // com.apple.configuration.account.google is a type Fleet rejects.
-    fleet: { expect: { expectFailure: true } },
+    // Fleet rejects com.apple.configuration.account.google, so its request routes to the .mobileconfig payload instead.
+    fleet: { routesTo: 'mobileconfig', expect: { mustContain: ['com.apple.google-oauth', 'jane@acme.example'] } },
   },
   {
     id: 'ddm-auto-install-security-updates',
