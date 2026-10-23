@@ -3131,6 +3131,44 @@ This activity contains the following fields:
 }
 ```
 
+## set_host_google_device_id
+
+Generated when a host is bound to its device ID in Google, for example by the registration page from the Google conditional access guide. Not generated when the same ID is set again.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "google_device_id": The host's device ID in Google.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's iPhone",
+  "google_device_id": "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12"
+}
+```
+
+## deleted_host_google_device_id
+
+Generated when a user removes a host's device ID in Google. Not generated when the host has no Google device ID.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "google_device_id": The Google device ID that was removed.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's iPhone",
+  "google_device_id": "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12"
+}
+```
+
 ## edited_host_idp_data
 
 Generated when a user updates a host's IdP data. Currently IdP username can be edited.

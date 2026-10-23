@@ -404,6 +404,27 @@ export const buildHostVitals = ({
     });
   }
 
+  if (
+    (isIosOrIpadosHost || isAndroidHost) &&
+    vitalsData.google_device_id &&
+    vitalsData.google_device_id !== DEFAULT_EMPTY_CELL_VALUE
+  ) {
+    vitals.push({
+      sortKey: "Google device ID",
+      element: (
+        <DataSet
+          key="google-device-id"
+          title={
+            <TooltipWrapper tipContent="Device ID in Google Workspace">
+              Google device ID
+            </TooltipWrapper>
+          }
+          value={<TooltipTruncatedText value={vitalsData.google_device_id} />}
+        />
+      ),
+    });
+  }
+
   // Hardware model
   const hardwareModelDisplay = getHardwareModelDisplay(
     vitalsData.platform,
