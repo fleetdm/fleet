@@ -148,6 +148,8 @@ Fleet adds a read-only pre-install query that checks if the app is open when `pa
 
 #### Automations
 
+Each policy can have one automation. If more than one of `install_software`, `run_script`, `resend_configuration_profile`, `calendar_events_enabled`, `conditional_access_enabled`, or `webhook_or_ticket_enabled` is set, `fleetctl gitops` fails with an error.
+
 ##### Install software
 
 _Available in Fleet Premium_
@@ -176,6 +178,12 @@ To trigger a configuration profile resend when a policy fails, specify:
 
 > When the configuration profile automation is added or changed, the policy's status will reset for associated hosts. This allows the resend to trigger on hosts that had previously failed the policy.
 
+##### Webhook or ticket
+
+To send failing hosts to a webhook or create a ticket when a policy fails, specify:
+
+- `webhook_or_ticket_enabled: true` (default: `false`). Fleet uses the [`failing_policies_webhook`](#failing-policies-webhook), Jira, or Zendesk destination configured for the policy's fleet (or "All fleets" for global policies).
+
 ##### Example
 
 ##### Inline
@@ -190,8 +198,7 @@ policies:
     query: "SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';"
     platform: darwin
     critical: false
-    calendar_events_enabled: false
-    conditional_access_enabled: true
+    webhook_or_ticket_enabled: true
     labels_include_any:
       - Engineering
       - Customer Support
@@ -208,8 +215,6 @@ policies:
   query: "SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';"
   platform: darwin
   critical: false
-  calendar_events_enabled: false
-  conditional_access_enabled: true
   resend_configuration_profile: "Passcode requirements"
 - name: macOS - Disable guest account
   description: This policy checks if the guest account is disabled.
@@ -217,7 +222,6 @@ policies:
   query: "SELECT 1 FROM managed_policies WHERE domain='com.apple.mcx' AND username = '' AND name='DisableGuestAccount' AND CAST(value AS INT) = 1;"
   platform: darwin
   critical: false
-  calendar_events_enabled: false
   run_script:
     path: ./disable-guest-account.sh
 - name: macOS - Firefox installed
@@ -1560,8 +1564,9 @@ settings:
 
 - `enable_failing_policies_webhook` (default: `false`)
 - `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: `""`).
-- `policy_ids` is the list of policies that will trigger a webhook.
 - `host_batch_size` is the maximum number of host identifiers to send in one webhook request. A value of `0` means all host identifiers with a failing policy will be sent in a single request.
+
+To choose which policies trigger the webhook, set [`webhook_or_ticket_enabled`](#webhook-or-ticket) on each policy.
 
 #### Example
 
@@ -1572,10 +1577,6 @@ org_settings:
       enable_failing_policies_webhook: true
       destination_url: https://example.org/webhook_handler
       host_batch_size: 0
-      policy_ids:
-        - 1
-        - 2
-        - 3
 ```
 
 #### host_status_webhook
