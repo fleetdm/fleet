@@ -42,7 +42,7 @@ quit_application() {
 
   local console_user
   console_user=$(stat -f "%Su" /dev/console)
-  if [[ $EUID -eq 0 && "$console_user" == "root" ]]; then
+  if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
     echo "Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'."
     return
   fi
@@ -50,21 +50,21 @@ quit_application() {
   echo "Quitting application '$bundle_id'..."
 
   # try to quit the application within the timeout period
-  local quit_success=false
+  local quit_success=false still_running
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    if osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1; then
-      if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then
-        echo "Application '$bundle_id' quit successfully."
-        quit_success=true
-        break
-      fi
-    fi
+    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1
     sleep 1
+    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+      echo "Application '$bundle_id' quit successfully."
+      quit_success=true
+      break
+    fi
   done
 
   if [[ "$quit_success" = false ]]; then
     echo "Application '$bundle_id' did not quit."
+    return 1
   fi
 }
 
@@ -189,7 +189,7 @@ remove_launchctl_service 'org.gpgtools.macgpg2.shutdown-gpg-agent'
 remove_launchctl_service 'org.gpgtools.macgpg2.updater'
 remove_launchctl_service 'org.gpgtools.updater'
 quit_application 'com.apple.mail'
-quit_application 'org.gpgtools.gpgkeychain'
+quit_application 'org.gpgtools.gpgkeychain' || exit 1
 quit_application 'org.gpgtools.gpgkeychainaccess'
 quit_application 'org.gpgtools.gpgmail.upgrader'
 quit_application 'org.gpgtools.gpgservices'
