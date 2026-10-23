@@ -5452,7 +5452,7 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 			_, err = q.ExecContext(ctx, `UPDATE vpp_apps_teams SET configuration = '<dict/>' WHERE id = ?`, otherVersion.AppTeamID)
 			return err
 		})
-		versionsByTitleID, err := ds.GetAppStoreAppVersionsByTeam(ctx, fleetID, platforms)
+		versionsByTitleID, err := ds.GetAppStoreAppVersionsByFleet(ctx, fleetID, platforms)
 		require.NoError(t, err)
 		require.NotContains(t, versionsByTitleID, macOSApp.TitleID)
 		versions := versionsByTitleID[app.TitleID]

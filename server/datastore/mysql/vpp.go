@@ -3802,7 +3802,7 @@ ORDER BY other_vat.id
 	return versionIDs, nil
 }
 
-func (ds *Datastore) GetAppStoreAppVersionsByTeam(ctx context.Context, teamID uint, platforms []fleet.InstallableDevicePlatform) (map[uint][]*fleet.VPPAppStoreApp, error) {
+func (ds *Datastore) GetAppStoreAppVersionsByFleet(ctx context.Context, fleetID uint, platforms []fleet.InstallableDevicePlatform) (map[uint][]*fleet.VPPAppStoreApp, error) {
 	const stmt = `
 SELECT
 	va.title_id,
@@ -3819,9 +3819,9 @@ WHERE
 	vat.platform IN (?)
 ORDER BY vat.id
 `
-	query, args, err := sqlx.In(stmt, teamID, platforms)
+	query, args, err := sqlx.In(stmt, fleetID, platforms)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "build get app store app versions by team query")
+		return nil, ctxerr.Wrap(ctx, err, "build get app store app versions by fleet query")
 	}
 	var versions []struct {
 		TitleID uint `db:"title_id"`
@@ -3829,7 +3829,7 @@ ORDER BY vat.id
 	}
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &versions, query, args...)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get app store app versions by team")
+		return nil, ctxerr.Wrap(ctx, err, "get app store app versions by fleet")
 	}
 	versionsByTitleID := make(map[uint][]*fleet.VPPAppStoreApp)
 	if len(versions) == 0 {

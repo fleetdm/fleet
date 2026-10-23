@@ -3585,9 +3585,9 @@ type Datastore interface {
 	// belongs to, on the same fleet and platform, first-added first.
 	GetAppStoreAppVersionIDsFromSpecificVersion(ctx context.Context, vppAppTeamID uint) ([]uint, error)
 
-	// GetAppStoreAppVersionsByTeam returns every App Store app version of the platforms on the team, first-added first and indexed by
+	// GetAppStoreAppVersionsByFleet returns every App Store app version of the platforms on the fleet, first-added first and indexed by
 	// software title id, with only their app id, version id, whether they have labels, configuration and configuration change time.
-	GetAppStoreAppVersionsByTeam(ctx context.Context, teamID uint, platforms []InstallableDevicePlatform) (map[uint][]*VPPAppStoreApp, error)
+	GetAppStoreAppVersionsByFleet(ctx context.Context, fleetID uint, platforms []InstallableDevicePlatform) (map[uint][]*VPPAppStoreApp, error)
 
 	// ListHostAppStoreAppInstallVersions returns, for each App Store app of the platforms on the fleet and each of hostIDs that's on
 	// the fleet and whose inventory has the app, its latest install of the app that didn't fail, indexed by software title id and

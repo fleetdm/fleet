@@ -2110,7 +2110,7 @@ func ReconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 			continue
 		}
 
-		versionsByTitleID, err = ds.GetAppStoreAppVersionsByTeam(ctx, fleetID, platforms)
+		versionsByTitleID, err = ds.GetAppStoreAppVersionsByFleet(ctx, fleetID, platforms)
 		if err != nil {
 			logger.ErrorContext(ctx, "list app store app versions for app store app configurations", "fleet_id", fleetID, "err", err)
 			continue

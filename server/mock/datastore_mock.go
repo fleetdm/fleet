@@ -1946,7 +1946,7 @@ type ListHostAppStoreAppVersionsFunc func(ctx context.Context, host *fleet.Host)
 
 type GetAppStoreAppVersionIDsFromSpecificVersionFunc func(ctx context.Context, vppAppTeamID uint) ([]uint, error)
 
-type GetAppStoreAppVersionsByTeamFunc func(ctx context.Context, teamID uint, platforms []fleet.InstallableDevicePlatform) (map[uint][]*fleet.VPPAppStoreApp, error)
+type GetAppStoreAppVersionsByFleetFunc func(ctx context.Context, fleetID uint, platforms []fleet.InstallableDevicePlatform) (map[uint][]*fleet.VPPAppStoreApp, error)
 
 type ListHostAppStoreAppInstallVersionsFunc func(ctx context.Context, fleetID uint, hostIDs []uint, platforms []fleet.InstallableDevicePlatform) (map[uint]map[uint]fleet.HostVPPSoftwareInstall, error)
 
@@ -5506,8 +5506,8 @@ type DataStore struct {
 	GetAppStoreAppVersionIDsFromSpecificVersionFunc        GetAppStoreAppVersionIDsFromSpecificVersionFunc
 	GetAppStoreAppVersionIDsFromSpecificVersionFuncInvoked bool
 
-	GetAppStoreAppVersionsByTeamFunc        GetAppStoreAppVersionsByTeamFunc
-	GetAppStoreAppVersionsByTeamFuncInvoked bool
+	GetAppStoreAppVersionsByFleetFunc        GetAppStoreAppVersionsByFleetFunc
+	GetAppStoreAppVersionsByFleetFuncInvoked bool
 
 	ListHostAppStoreAppInstallVersionsFunc        ListHostAppStoreAppInstallVersionsFunc
 	ListHostAppStoreAppInstallVersionsFuncInvoked bool
@@ -13250,11 +13250,11 @@ func (s *DataStore) GetAppStoreAppVersionIDsFromSpecificVersion(ctx context.Cont
 	return s.GetAppStoreAppVersionIDsFromSpecificVersionFunc(ctx, vppAppTeamID)
 }
 
-func (s *DataStore) GetAppStoreAppVersionsByTeam(ctx context.Context, teamID uint, platforms []fleet.InstallableDevicePlatform) (map[uint][]*fleet.VPPAppStoreApp, error) {
+func (s *DataStore) GetAppStoreAppVersionsByFleet(ctx context.Context, fleetID uint, platforms []fleet.InstallableDevicePlatform) (map[uint][]*fleet.VPPAppStoreApp, error) {
 	s.mu.Lock()
-	s.GetAppStoreAppVersionsByTeamFuncInvoked = true
+	s.GetAppStoreAppVersionsByFleetFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetAppStoreAppVersionsByTeamFunc(ctx, teamID, platforms)
+	return s.GetAppStoreAppVersionsByFleetFunc(ctx, fleetID, platforms)
 }
 
 func (s *DataStore) ListHostAppStoreAppInstallVersions(ctx context.Context, fleetID uint, hostIDs []uint, platforms []fleet.InstallableDevicePlatform) (map[uint]map[uint]fleet.HostVPPSoftwareInstall, error) {
