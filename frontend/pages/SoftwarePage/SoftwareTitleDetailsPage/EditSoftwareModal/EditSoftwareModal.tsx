@@ -57,7 +57,7 @@ interface IEditSoftwareModalProps {
   displayName: string;
   source?: string;
   iconUrl?: string | null;
-  /** When true, the modal title reads "Edit package" instead of "Edit
+  /** When true, the modal title reads "Edit version" instead of "Edit
    * software" — we're editing one specific installer on a title that has
    * several, not the title's only package. */
   canActivateMultiplePackages?: boolean;
@@ -406,7 +406,7 @@ const EditSoftwareModal = ({
     <>
       <Modal
         className={editSoftwareModalClasses}
-        title={canActivateMultiplePackages ? "Edit package" : "Edit software"}
+        title={canActivateMultiplePackages ? "Edit version" : "Edit software"}
         onExit={onExit}
         width="large"
       >

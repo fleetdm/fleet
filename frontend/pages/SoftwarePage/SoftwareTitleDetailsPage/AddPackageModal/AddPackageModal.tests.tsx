@@ -42,10 +42,10 @@ describe("AddPackageModal", () => {
   });
 
   describe("standard mode", () => {
-    it("renders with the 'Add package' title", () => {
+    it("renders with the 'Add version' title", () => {
       renderModal();
       // Modal renders its title as a <span>, not a heading; use getByText.
-      expect(screen.getByText("Add package")).toBeInTheDocument();
+      expect(screen.getByText("Add version")).toBeInTheDocument();
     });
 
     it("renders the multi-package first-added banner in the target section", () => {

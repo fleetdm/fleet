@@ -64,19 +64,19 @@ describe("DeleteSoftwareModal", () => {
       renderModal();
 
       expect(screen.getByText("Delete software")).toBeInTheDocument();
-      expect(screen.queryByText("Delete package")).not.toBeInTheDocument();
+      expect(screen.queryByText("Delete version")).not.toBeInTheDocument();
       expect(
         screen.getByText("Custom icon and display name will be deleted.")
       ).toBeVisible();
     });
 
-    it("renders the 'Delete package' title and suppresses the custom-metadata warning when canActivateMultiplePackages is true", () => {
+    it("renders the 'Delete version' title and suppresses the custom-metadata warning when canActivateMultiplePackages is true", () => {
       // On a multi-package title, only one installer is being deleted — the
       // title-level custom icon and display name stay put, so the warning
       // would be misleading.
       renderModal({ canActivateMultiplePackages: true });
 
-      expect(screen.getByText("Delete package")).toBeInTheDocument();
+      expect(screen.getByText("Delete version")).toBeInTheDocument();
       expect(screen.queryByText("Delete software")).not.toBeInTheDocument();
       expect(
         screen.queryByText("Custom icon and display name will be deleted.")

@@ -79,7 +79,7 @@ interface IDeleteSoftwareModalProps {
   gitOpsModeEnabled?: boolean;
   isAppStoreApp?: boolean;
   isAndroidApp?: boolean;
-  /** When true, the modal title reads "Delete package" instead of "Delete
+  /** When true, the modal title reads "Delete version" instead of "Delete
    * software" and the title-level metadata warning is suppressed — we're
    * deleting one specific installer on a title that can hold several, not
    * the title itself. */
@@ -136,7 +136,7 @@ const DeleteSoftwareModal = ({
   }, [softwareId, teamId, installerId, versionId, onSuccess, onExit]);
 
   const getModalTitle = (): string => {
-    if (canActivateMultiplePackages) return "Delete package";
+    if (canActivateMultiplePackages) return "Delete version";
     if (isVersionDelete) return "Delete version";
     return "Delete software";
   };
