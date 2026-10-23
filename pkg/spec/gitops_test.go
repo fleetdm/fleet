@@ -2115,7 +2115,7 @@ policies:
     app_store_id: "123456"
 `
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "not found on fleet")
+	require.ErrorContains(t, err, "not found on fleet")
 
 	// Policy references a software installer not present in the team.
 	config = getTeamConfig([]string{"policies"})
@@ -5683,12 +5683,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
 				installSoftware.Other = tc.software
-				policy := &Policy{
-					GitOpsPolicySpec: GitOpsPolicySpec{
-						PolicySpec:      fleet.PolicySpec{Name: "missing software policy"},
-						InstallSoftware: installSoftware,
-					},
-				}
+				policy := &Policy{Name: "missing software policy", InstallSoftware: installSoftware}
 				errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, nil)
 				require.Len(t, errs, 1)
 				assert.Contains(t, errs[0].Error(), tc.wantErr)
