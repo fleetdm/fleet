@@ -233,6 +233,25 @@ describe("Host Summary section", () => {
       expect(screen.getByText(/Oct 13 at 5:00 PM/)).toBeInTheDocument();
     });
 
+    it("renders '---' when a deadline is set but the host's timezone hasn't been collected yet", () => {
+      const summaryData = createMockHostSummary({
+        platform: "darwin",
+        timezone: null,
+        patch_deadline_at: "2026-10-13T20:00:00Z",
+      });
+
+      renderWithSetup(
+        <HostSummary
+          summaryData={summaryData}
+          isPremiumTier
+          showPatchDeadline
+        />
+      );
+
+      const label = screen.getByText("Patch deadline");
+      expect(label.nextElementSibling).toHaveTextContent("---");
+    });
+
     it("renders '---' on a macOS Premium host with no scheduled deadline", () => {
       const summaryData = createMockHostSummary({
         platform: "darwin",
