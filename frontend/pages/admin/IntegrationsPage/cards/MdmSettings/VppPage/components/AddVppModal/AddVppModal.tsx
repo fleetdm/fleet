@@ -21,6 +21,8 @@ interface IAddVppModalProps {
 }
 
 const LEARN_MORE_URL = "https://fleetdm.com/learn-more-about/add-vpp";
+const FLEETS_LEARN_MORE_URL =
+  "https://fleetdm.com/learn-more-about/vpp-tokens-best-practice";
 
 const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
   const { config } = useContext(AppContext);
@@ -105,7 +107,7 @@ const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
           value={fleetsValue}
           onChange={setFleetsValue}
           tooltipPosition="bottom-start"
-          tooltipLearnMoreUrl={LEARN_MORE_URL}
+          tooltipLearnMoreUrl={FLEETS_LEARN_MORE_URL}
           disabled={isUploading}
         />
       )}

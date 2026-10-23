@@ -22,6 +22,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
@@ -2017,7 +2018,8 @@ func (svc *Service) UpdateVPPTokenTeams(ctx context.Context, tokenID uint, teamI
 		return nil, err
 	}
 
-	if _, err := svc.ds.GetVPPToken(ctx, tokenID); err != nil {
+	// Add VPP assigns fleets right after the upload, before a replica may have the token.
+	if _, err := svc.ds.GetVPPToken(ctxdb.RequirePrimary(ctx, true), tokenID); err != nil {
 		if fleet.IsNotFound(err) {
 			return nil, fleet.NewInvalidArgumentError("id",
 				fmt.Sprintf("Couldn't edit. VPP token with ID %d doesn't exist.", tokenID)).WithStatus(http.StatusNotFound)

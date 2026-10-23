@@ -85,7 +85,7 @@ describe("AddVppModal", () => {
     expect(screen.queryByText("Learn how")).toBeNull();
   });
 
-  it("links to the guide from the Fleets tooltip", async () => {
+  it("links to the token best practices from the Fleets tooltip", async () => {
     const { user } = renderModal();
 
     await user.hover(screen.getByText("Fleets"));
@@ -93,7 +93,10 @@ describe("AddVppModal", () => {
     const tooltip = await screen.findByRole("tooltip");
     expect(
       within(tooltip).getByRole("link", { name: /Learn more/ })
-    ).toHaveAttribute("href", "https://fleetdm.com/learn-more-about/add-vpp");
+    ).toHaveAttribute(
+      "href",
+      "https://fleetdm.com/learn-more-about/vpp-tokens-best-practice"
+    );
   });
 
   it("disables the fleet picker while the upload is in flight", async () => {
