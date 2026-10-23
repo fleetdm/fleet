@@ -128,6 +128,43 @@ function Get-KeyId($Cert) {
     return $Cert.GetKeyAlgorithm() + ':' + $Cert.GetKeyAlgorithmParametersString() + ':' + $Cert.GetPublicKeyString()
 }
 
+# Key identifier (hex) from a certificate extension: Subject Key Identifier (2.5.29.14) is an
+# OCTET STRING; Authority Key Identifier (2.5.29.35) is SEQUENCE { [0] keyIdentifier, ... }.
+function Get-ExtKeyId($Cert, [string]$Oid) {
+    $e = $Cert.Extensions | Where-Object { $_.Oid.Value -eq $Oid } | Select-Object -First 1
+    if (-not $e) { return '' }
+    $d = $e.RawData
+    $i = 0
+    if ($Oid -eq '2.5.29.35') {
+        if ($d.Length -lt 4 -or $d[0] -ne 0x30) { return '' }
+        $i = 2
+        if ($d[1] -band 0x80) { $i = 2 + ($d[1] -band 0x7f) }
+        if ($i + 1 -ge $d.Length -or $d[$i] -ne 0x80) { return '' }
+    } elseif ($d.Length -lt 2 -or $d[0] -ne 0x04) {
+        return ''
+    }
+    $len = [int]$d[$i + 1]
+    $start = $i + 2
+    if ($len -band 0x80) {
+        $n = $len -band 0x7f
+        $len = 0
+        for ($j = 0; $j -lt $n; $j++) { $len = ($len * 256) + $d[$start + $j] }
+        $start += $n
+    }
+    if ($start + $len -gt $d.Length) { return '' }
+    return ([BitConverter]::ToString($d, $start, $len) -replace '-', '')
+}
+
+# Self-signed as OpenSSL decides it for a trust anchor: issuer equals subject, and the
+# Authority Key Identifier is absent or equals the Subject Key Identifier. A same-name
+# rollover certificate signed by an older key carries the old key's identifier and fails.
+function Test-SelfSigned($Cert) {
+    if ($Cert.Subject -ne $Cert.Issuer) { return $false }
+    $aki = Get-ExtKeyId $Cert '2.5.29.35'
+    $ski = Get-ExtKeyId $Cert '2.5.29.14'
+    return (-not $aki -or -not $ski -or $aki -eq $ski)
+}
+
 # Trust anchors OpenSSL can end a chain on: the self-signed certificates in a PEM bundle,
 # keyed by subject and public key. A bundle certificate that only shares a key with a
 # chain CA, without being a self-signed root, cannot complete the chain.
@@ -136,7 +173,7 @@ function Get-PemAnchorIds([string]$Text) {
     foreach ($m in [regex]::Matches($Text, '(?s)-----BEGIN CERTIFICATE-----(.*?)-----END CERTIFICATE-----')) {
         try {
             $c = New-CertFromB64 ($m.Groups[1].Value -replace '\s', '')
-            if ($c.Subject -eq $c.Issuer) { $set[$c.Subject + '|' + (Get-KeyId $c)] = $true }
+            if (Test-SelfSigned $c) { $set[$c.Subject + '|' + (Get-KeyId $c)] = $true }
         } catch { }
     }
     return $set
