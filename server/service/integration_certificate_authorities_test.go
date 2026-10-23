@@ -1853,6 +1853,14 @@ func (s *integrationMDMTestSuite) TestGoogleCASCertificateAuthorities() {
 	stored, err = s.ds.GetCertificateAuthorityByID(ctx, createResp.ID, true)
 	require.NoError(t, err)
 	require.Equal(t, newKey, *stored.GoogleCASAPIKeyJSON)
+	editedID := s.lastActivityMatches(fleet.ActivityEditedGoogleCAS{}.ActivityName(), `{"name":"GOOGLE_VPN"}`, 0)
+
+	// Sending nothing new, or the stored values again, asks Google nothing and records no activity.
+	verified = nil
+	s.Do("PATCH", editURL, map[string]any{"google_cas": map[string]any{}}, http.StatusOK)
+	s.Do("PATCH", editURL, map[string]any{"google_cas": map[string]any{"name": "GOOGLE_VPN", "ca_pool": "other-pool", "api_key_json": fleet.MaskedPassword}}, http.StatusOK)
+	require.Empty(t, verified)
+	s.lastActivityMatches(fleet.ActivityEditedGoogleCAS{}.ActivityName(), "", editedID)
 
 	// A malformed key is rejected before Google is asked.
 	verified = nil

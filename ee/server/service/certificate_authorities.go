@@ -1341,6 +1341,10 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		if err != nil {
 			return err
 		}
+		if update == nil {
+			// Nothing changes, so there's nothing to store or record.
+			return nil
+		}
 		caToUpdate = *update
 		caActivityName = cmp.Or(ptr.ValOrZero(caToUpdate.Name), ptr.ValOrZero(oldCA.Name))
 		activity = fleet.ActivityEditedGoogleCAS{Name: caActivityName}

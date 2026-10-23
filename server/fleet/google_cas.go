@@ -50,12 +50,12 @@ func (k *GoogleCASKeyJSON) UnmarshalJSON(b []byte) error {
 // Equals reports whether two Google CAS CAs have the same settings, including the key, ignoring their IDs.
 func (g *GoogleCASCA) Equals(other *GoogleCASCA) bool {
 	return g.Name == other.Name && g.Project == other.Project && g.Location == other.Location && g.CAPool == other.CAPool &&
-		g.APIKeyJSON.equals(other.APIKeyJSON)
+		g.APIKeyJSON.Equals(other.APIKeyJSON)
 }
 
-// equals compares the keys as JSON values. A key pasted in the UI keeps Google's field order and formatting, while GitOps re-encodes it
+// Equals compares the keys as JSON values. A key pasted in the UI keeps Google's field order and formatting, while GitOps re-encodes it
 // with sorted fields, so the text differs for the same key.
-func (k GoogleCASKeyJSON) equals(other GoogleCASKeyJSON) bool {
+func (k GoogleCASKeyJSON) Equals(other GoogleCASKeyJSON) bool {
 	if k == other {
 		return true
 	}
@@ -85,11 +85,6 @@ type GoogleCASCAUpdatePayload struct {
 	Location   *string           `json:"location"`
 	CAPool     *string           `json:"ca_pool"`
 	APIKeyJSON *GoogleCASKeyJSON `json:"api_key_json"`
-}
-
-// IsEmpty checks if the struct only has all empty values
-func (p GoogleCASCAUpdatePayload) IsEmpty() bool {
-	return p == GoogleCASCAUpdatePayload{}
 }
 
 func (p *GoogleCASCAUpdatePayload) Preprocess() {

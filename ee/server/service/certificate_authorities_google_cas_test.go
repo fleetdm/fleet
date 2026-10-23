@@ -1,7 +1,9 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"os"
@@ -181,9 +183,33 @@ func TestUpdateGoogleCASCertificateAuthority(t *testing.T) {
 	t.Run("rejected by Google is not stored", func(t *testing.T) {
 		svc, ds, googleCAS, ctx := newGoogleCASTestService(t, stored())
 		googleCAS.VerifyCAPoolFunc = func(ctx context.Context, ca fleet.GoogleCASCA) error { return errors.New("no access") }
-		err := svc.UpdateCertificateAuthority(ctx, 1, update(fleet.GoogleCASCAUpdatePayload{APIKeyJSON: new(fleet.GoogleCASKeyJSON(testGoogleCASKey))}))
+		rotated := strings.Replace(testGoogleCASKey, `"sa@`, `"rotated@`, 1)
+		err := svc.UpdateCertificateAuthority(ctx, 1, update(fleet.GoogleCASCAUpdatePayload{APIKeyJSON: new(fleet.GoogleCASKeyJSON(rotated))}))
 		require.EqualError(t, err, "Couldn't edit certificate authority. no access")
 		require.False(t, ds.UpdateCertificateAuthorityByIDFuncInvoked)
+	})
+
+	t.Run("nothing changed is neither verified nor stored", func(t *testing.T) {
+		var reformattedKey bytes.Buffer
+		require.NoError(t, json.Indent(&reformattedKey, []byte(testGoogleCASKey), "", "  "))
+		for _, tc := range []struct {
+			name    string
+			payload fleet.GoogleCASCAUpdatePayload
+		}{
+			{"empty payload", fleet.GoogleCASCAUpdatePayload{}},
+			{"masked key alone", fleet.GoogleCASCAUpdatePayload{APIKeyJSON: new(fleet.GoogleCASKeyJSON(fleet.MaskedPassword))}},
+			{"stored values sent again", fleet.GoogleCASCAUpdatePayload{
+				Name: new("GOOGLE_WIFI"), Project: new(" my-project "), Location: new("us-central1"), CAPool: new("my-ca-pool"),
+				APIKeyJSON: new(fleet.GoogleCASKeyJSON(reformattedKey.String())),
+			}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				svc, ds, googleCAS, ctx := newGoogleCASTestService(t, stored())
+				require.NoError(t, svc.UpdateCertificateAuthority(ctx, 1, update(tc.payload)))
+				require.False(t, googleCAS.VerifyCAPoolFuncInvoked)
+				require.False(t, ds.UpdateCertificateAuthorityByIDFuncInvoked)
+			})
+		}
 	})
 
 	t.Run("validation", func(t *testing.T) {
@@ -192,8 +218,6 @@ func TestUpdateGoogleCASCertificateAuthority(t *testing.T) {
 			payload fleet.GoogleCASCAUpdatePayload
 			wantErr string
 		}{
-			{"empty payload", fleet.GoogleCASCAUpdatePayload{}, "Google CAS CA update payload is empty"},
-			{"masked key alone", fleet.GoogleCASCAUpdatePayload{APIKeyJSON: new(fleet.GoogleCASKeyJSON(fleet.MaskedPassword))}, "Google CAS CA update payload is empty"},
 			{"bad name", fleet.GoogleCASCAUpdatePayload{Name: new("NDES")}, "CA name cannot be NDES"},
 			{"empty project", fleet.GoogleCASCAUpdatePayload{Project: new("")}, "The Google Cloud project ID cannot be empty."},
 			{"bad key", fleet.GoogleCASCAUpdatePayload{APIKeyJSON: new(fleet.GoogleCASKeyJSON("{}"))}, `"type" set to "service_account"`},

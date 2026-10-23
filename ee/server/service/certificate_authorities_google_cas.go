@@ -110,27 +110,21 @@ func googleCASToCertificateAuthority(ca fleet.GoogleCASCA) *fleet.CertificateAut
 	}
 }
 
-// updateGoogleCAS validates an update against the stored CA and returns the changes to store. Fields the update doesn't set keep their
-// stored values, and the result is validated as a whole. The CA pool is verified again whenever a field Google sees changes.
+// updateGoogleCAS validates an update against the stored CA and returns the changes to store, or nil when nothing changes. Fields the
+// update doesn't set keep their stored values, and the result is validated as a whole. The CA pool is verified again only when a
+// field Google sees changes.
 func (svc *Service) updateGoogleCAS(
 	ctx context.Context, u *fleet.GoogleCASCAUpdatePayload, oldCA *fleet.CertificateAuthority, errPrefix string,
 ) (*fleet.CertificateAuthority, error) {
 	u.Preprocess()
-	// A masked value is what a read returns for the key, so it means "keep the stored one".
-	if u.APIKeyJSON != nil && *u.APIKeyJSON == fleet.MaskedPassword {
-		u.APIKeyJSON = nil
-	}
-	if u.IsEmpty() {
-		return nil, &fleet.BadRequestError{Message: fmt.Sprintf("%sGoogle CAS CA update payload is empty", errPrefix)}
-	}
-
-	merged := fleet.GoogleCASCA{
+	stored := fleet.GoogleCASCA{
 		Name:       ptr.ValOrZero(oldCA.Name),
 		Project:    ptr.ValOrZero(oldCA.GoogleCASProject),
 		Location:   ptr.ValOrZero(oldCA.GoogleCASLocation),
 		CAPool:     ptr.ValOrZero(oldCA.GoogleCASCAPool),
 		APIKeyJSON: fleet.GoogleCASKeyJSON(ptr.ValOrZero(oldCA.GoogleCASAPIKeyJSON)),
 	}
+	merged := stored
 	for _, o := range []struct {
 		field  *string
 		update *string
@@ -144,11 +138,15 @@ func (svc *Service) updateGoogleCAS(
 			*o.field = *o.update
 		}
 	}
-	if u.APIKeyJSON != nil {
+	// A masked value is what a read returns for the key, so it means "keep the stored one".
+	if u.APIKeyJSON != nil && *u.APIKeyJSON != fleet.MaskedPassword {
 		merged.APIKeyJSON = *u.APIKeyJSON
 	}
+	if merged.Equals(&stored) {
+		return nil, nil
+	}
 
-	if u.Name != nil {
+	if merged.Name != stored.Name {
 		if err := validateCAName(merged.Name, errPrefix); err != nil {
 			return nil, err
 		}
@@ -156,27 +154,37 @@ func (svc *Service) updateGoogleCAS(
 	if err := validateGoogleCASFields(&merged, errPrefix); err != nil {
 		return nil, err
 	}
-	if u.APIKeyJSON != nil {
+	keyChanged := !merged.APIKeyJSON.Equals(stored.APIKeyJSON)
+	if keyChanged {
 		if err := validateGoogleCASAPIKeyJSON(string(merged.APIKeyJSON), errPrefix); err != nil {
 			return nil, err
 		}
 	}
 
-	// The name only exists in Fleet, so changing just the name doesn't need Google.
-	if u.Project != nil || u.Location != nil || u.CAPool != nil || u.APIKeyJSON != nil {
+	// The name only exists in Fleet, so a change to just the name doesn't need Google.
+	if merged.Project != stored.Project || merged.Location != stored.Location || merged.CAPool != stored.CAPool || keyChanged {
 		if err := svc.verifyGoogleCAS(ctx, merged, errPrefix); err != nil {
 			return nil, err
 		}
 	}
 
-	return &fleet.CertificateAuthority{
-		Type:                string(fleet.CATypeGoogleCAS),
-		Name:                u.Name,
-		GoogleCASProject:    u.Project,
-		GoogleCASLocation:   u.Location,
-		GoogleCASCAPool:     u.CAPool,
-		GoogleCASAPIKeyJSON: (*string)(u.APIKeyJSON),
-	}, nil
+	changes := &fleet.CertificateAuthority{Type: string(fleet.CATypeGoogleCAS)}
+	if merged.Name != stored.Name {
+		changes.Name = &merged.Name
+	}
+	if merged.Project != stored.Project {
+		changes.GoogleCASProject = &merged.Project
+	}
+	if merged.Location != stored.Location {
+		changes.GoogleCASLocation = &merged.Location
+	}
+	if merged.CAPool != stored.CAPool {
+		changes.GoogleCASCAPool = &merged.CAPool
+	}
+	if keyChanged {
+		changes.GoogleCASAPIKeyJSON = (*string)(&merged.APIKeyJSON)
+	}
+	return changes, nil
 }
 
 func (svc *Service) processGoogleCASCAs(ctx context.Context, batchOps *fleet.CertificateAuthoritiesBatchOperations, incomingCAs []fleet.GoogleCASCA, existingCAs []fleet.GoogleCASCA) error {
