@@ -224,18 +224,37 @@ When Fleet delivers the profile to your hosts, Fleet will replace the variables.
 
 The following steps show how to deploy certificates from [EJBCA](https://www.ejbca.org/).
 
-### Step 1: Create a REST API client in EJBCA
+### Step 1: Prepare EJBCA
 
-1. In EJBCA, create a client certificate (PKCS#12) for Fleet's REST API access and a trust CA bundle (PEM) for your EJBCA instance.
-2. Note your EJBCA **Certificate Authority name** (e.g. "ManagementCA"), **Certificate profile name**, and **End entity profile name**.
+1. In EJBCA, enable the **REST Certificate Management** protocol. If you want Fleet to also check your certificate profile name when you add the CA, enable **REST Certificate Management V2** as well.
+2. Create a certificate profile and an end entity profile for the certificates that Fleet requests. The end entity profile must list the certificate profile and include a **CN** subject DN field. If you'll use a user principal name (UPN), add the **UPN** subject alternative name field. The certificate profile must be allowed to use your CA.
+3. Create a client certificate for Fleet and export it as a PKCS#12 (`.p12`) file with a password. Fleet uses it to authenticate to EJBCA's REST API with mutual TLS.
+4. Create a role in EJBCA and add the client certificate as a member of it. For example, match the **CA** that issued the certificate and its common name (**CN**). EJBCA uses this to find the role when Fleet connects. Then add these access rules to the role:
+   - `/administrator/`
+   - `/ca/<CA name>/`
+   - `/ca_functionality/create_certificate/`
+   - `/ra_functionality/create_end_entity/` and `/ra_functionality/edit_end_entity/`
+   - `/endentityprofilesrules/<end entity profile>/create_end_entity/` and `/endentityprofilesrules/<end entity profile>/edit_end_entity/`
+5. If the HTTPS certificate of your EJBCA server isn't signed by a public CA, export the CA certificate in PEM format. You'll add it to Fleet as the trust CA bundle.
+6. Note your EJBCA **CA name** (for example, "ManagementCA"), **certificate profile name**, and **end entity profile name**.
+
+> For testing, you can instead add the client certificate as a member of EJBCA's built-in **Super Administrator Role**. It allows everything in EJBCA, so use a role with only the rules above in production.
+
+> Without the `edit_end_entity` rules, the first certificate for a host succeeds, but Fleet can't get a new one for the same host later. Fleet requests a new certificate when you edit the CA or when a variable's value changes.
 
 ### Step 2: Connect Fleet to EJBCA
 
 1. In Fleet, head to **Settings > Integrations > Certificate authorities**.
 2. Select **Add CA** and then choose **EJBCA** in the dropdown.
 3. Add a **Name** for your certificate authority. Best practice is all caps snake case (for example, "WIFI_AUTHENTICATION"). This name is used later as a variable name in a configuration profile.
-4. In **URL**, enter the URL of your EJBCA REST API endpoint (e.g. "https://ejbca.example.com:8443").
-10. Select **Add CA**. Your EJBCA certificate authority (CA) should appear in your list of CAs in Fleet.
+4. In **URL**, enter the URL of your EJBCA instance (for example, "https://ejbca.example.com:8443"). It must start with `https://`.
+5. In **Client certificate**, upload the `.p12` file from step 1, and enter its password in **Client certificate password**.
+6. If your EJBCA server needs it, paste the CA certificate (PEM) from step 1 in **Trust CA bundle**. If you leave it empty, Fleet trusts public CAs.
+7. In **CA name**, **Certificate profile name**, and **End entity profile name**, enter the names you noted in step 1.
+8. In **Certificate common name (CN)**, enter the CN for the certificates. You can use [Fleet variables](https://fleetdm.com/guides/fleet-variables), like `$FLEET_VAR_HOST_HARDWARE_SERIAL`.
+9. Optionally, in **End entity username**, enter the username of the end entity that EJBCA creates for each host. If you leave it empty, Fleet uses the CN.
+10. Optionally, in **User principal name (UPN)**, enter the UPN to add to the certificate's Subject Alternative Name (SAN).
+11. Select **Add CA**. Fleet checks that EJBCA accepts the client certificate and knows the CA. Your EJBCA certificate authority (CA) should appear in your list of CAs in Fleet, with the date that the client certificate expires.
 
 ### Step 3: Add PKCS12 configuration profile to Fleet
 
@@ -287,11 +306,19 @@ The following steps show how to deploy certificates from [EJBCA](https://www.ejb
 >  - For `Password`, use `$FLEET_VAR_EJBCA_PASSWORD_{CA_NAME}`.
 >  - For `Data`, use `$FLEET_VAR_EJBCA_DATA_{CA_NAME}`.
 
-2. In the profile, replace `{CA_NAME}` with the name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like `$FLEET_VAR_EJBCA_PASSWORD_WIFI_AUTHENTICATION` and `$FLEET_VAR_EJBCA_DATA_WIFI_AUTHENTICATION`.
+2. In the profile, replace `{CA_NAME}` with the name you created in step 2. For example, if the name of the CA is "WIFI_AUTHENTICATION", the variables will look like `$FLEET_VAR_EJBCA_PASSWORD_WIFI_AUTHENTICATION` and `$FLEET_VAR_EJBCA_DATA_WIFI_AUTHENTICATION`.
 
 3. In Fleet, head to **Controls > OS settings > Configuration profiles** and add the configuration profile to deploy certificates to your hosts.
 
 When Fleet delivers the profile to your hosts, Fleet will replace the variables. If something goes wrong, errors will appear on each host's **Host details > OS settings**.
+
+### Additional EJBCA details:
+- Fleet creates a key for each host, sends EJBCA a certificate signing request, and delivers the certificate and key to the host in the PKCS#12 payload. EJBCA creates an end entity for each host, with the username you set (or the CN).
+- If you edit the CA name, certificate profile name, end entity profile name, CN, username, or UPN, or if the value of a variable you used in them changes, Fleet gets new certificates for the hosts that use this CA.
+- The client certificate that Fleet uses to authenticate to EJBCA expires. To replace it, edit the CA in **Settings > Integrations > Certificate authorities**, upload the new `.p12` file, and enter its password. Fleet keeps using the current one until EJBCA accepts the new one.
+- If EJBCA is temporarily unavailable, Fleet retries the configuration profile up to 3 times before it marks the profile as failed.
+- EJBCA changes a semicolon (`;`) in the CN to a slash (`/`). Avoid `;` in the values of the variables you use for the CN.
+- Fleet doesn't revoke certificates when you delete a host or a CA. To revoke them, use EJBCA.
 
 
 ## Microsoft NDES
