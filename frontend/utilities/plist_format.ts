@@ -1,7 +1,7 @@
 const PLIST_START = /<\?xml|<!DOCTYPE plist|<plist[\s>]/;
 const PLIST_END = "</plist>";
 // eslint-disable-next-line no-control-regex
-const CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/;
+const CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/; // Matches ASCII control characters except tab, \n, and \r
 
 const decodeBase64Bytes = (b64: string): Uint8Array | null => {
   try {
