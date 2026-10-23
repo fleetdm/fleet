@@ -2216,6 +2216,7 @@ This activity contains the following fields:
 - "policy_id": ID of the policy whose failure triggered the install. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered the install. Null if no associated policy.
 - "from_setup_experience": Whether the app was installed as part of the setup experience.
+- "from_configuration_resend": Whether Fleet re-installed the app to deliver an updated managed app configuration or a label change.
 - "failure_reason": Reason the installation failed before reaching the device (e.g. an unresolvable Fleet variable in the managed app configuration). Only present when "status" is "failed_install" and Fleet failed the install pre-flight; omitted otherwise.
 - "version_name": Name of the app version that was installed. An app can have more than one version on the same fleet, each with its own settings and managed app configuration.
 - "configuration": The managed app configuration that was applied, in XML format for iOS and iPadOS apps and JSON format for Android apps. Null if the version has no managed app configuration.
@@ -2238,6 +2239,7 @@ This activity contains the following fields:
   "policy_id": 123,
   "policy_name": "[Install Software] Logic Pro",
   "from_setup_experience": false,
+  "from_configuration_resend": false,
   "version_name": "Logic Pro",
   "configuration": null
 }
@@ -2256,6 +2258,7 @@ This activity contains the following fields:
   "policy_id": null,
   "policy_name": null,
   "from_setup_experience": false,
+  "from_configuration_resend": true,
   "version_name": "Production",
   "configuration": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>..."
 }
