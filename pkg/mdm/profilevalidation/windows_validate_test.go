@@ -183,3 +183,144 @@ func TestWindowsArea(t *testing.T) {
 		assert.Equal(t, want, windowsArea(locURI), locURI)
 	}
 }
+
+// syncMLItem is a <Replace> item; format and data are left out when empty.
+func syncMLItem(locURI, format, data string) string {
+	item := "<Replace><Item>"
+	if format != "" {
+		item += `<Meta><Format xmlns="syncml:metinf">` + format + "</Format></Meta>"
+	}
+	item += "<Target><LocURI>" + locURI + "</LocURI></Target>"
+	if data != "" {
+		item += "<Data>" + data + "</Data>"
+	}
+	return item + "</Item></Replace>\n"
+}
+
+func TestValidateWindowsProfile(t *testing.T) {
+	s, err := Parse(profileValidationSchemaRaw)
+	require.NoError(t, err)
+
+	const (
+		minLength   = "./Device/Vendor/MSFT/Policy/Config/DeviceLock/MinDevicePasswordLength"
+		inactivity  = "./User/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock"
+		emailSync   = "./Device/Vendor/MSFT/Policy/Config/Accounts/DomainNamesForEmailSync"
+		admxBacked  = "./Device/Vendor/MSFT/Policy/Config/ADMX_AdmPwd/POL_AdmPwd"
+		unknown     = "./Device/Vendor/MSFT/Unknown/Setting"
+		foreignADMX = "./Device/Vendor/MSFT/Policy/Config/chrome~Policy~googlechrome/RelaunchNotification"
+	)
+	typeMismatch := func(area, locURI string, expected ...string) Finding {
+		return Finding{Code: CodeTypeMismatch, PayloadType: area, KeyPath: locURI, Expected: expected}
+	}
+	unknownKey := func(area, locURI string) Finding {
+		return Finding{Code: CodeUnknownKey, PayloadType: area, KeyPath: locURI}
+	}
+
+	cases := []struct {
+		name            string
+		profile         string
+		lenient, strict []Finding
+	}{
+		{
+			name:    "int with letters",
+			profile: syncMLItem(minLength, "", "abc"),
+			lenient: []Finding{typeMismatch("DeviceLock", minLength, "int")},
+			strict:  []Finding{typeMismatch("DeviceLock", minLength, "int")},
+		},
+		{name: "int without meta", profile: syncMLItem(minLength, "", "5")},
+		{name: "bool accepts 1 on bare and device firewall", profile: syncMLItem("./Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall", "bool", "true") +
+			syncMLItem("./Device/Vendor/MSFT/Firewall/MdmStore/PrivateProfile/EnableFirewall", "bool", "1")},
+		{name: "ADMX-backed markup", profile: syncMLItem(admxBacked, "chr", `<![CDATA[<enabled/><data id="AdmPwd_PasswordLength" value="14"/>]]>`)},
+		{name: "ADMX-backed escaped markup", profile: syncMLItem(admxBacked, "chr", `&lt;disabled/&gt;`)},
+		{
+			name:    "unknown LocURI",
+			profile: syncMLItem(unknown, "int", "abc"),
+			strict:  []Finding{unknownKey("Unknown", unknown)},
+		},
+		{
+			name:    "ADMX area not from a template",
+			profile: syncMLItem(foreignADMX, "chr", "<enabled/>"),
+			strict:  []Finding{unknownKey("chrome~Policy~googlechrome", foreignADMX)},
+		},
+		{
+			name:    "policy typo",
+			profile: syncMLItem("./Device/Vendor/MSFT/Policy/Config/DeviceLock/Typoo", "int", "5"),
+			strict:  []Finding{unknownKey("DeviceLock", "./Device/Vendor/MSFT/Policy/Config/DeviceLock/Typoo")},
+		},
+		{
+			name:    "user path for device-only policy",
+			profile: syncMLItem(inactivity, "int", "5"),
+			strict:  []Finding{{Code: CodeWrongScope, PayloadType: "DeviceLock", KeyPath: inactivity, Expected: []string{"device"}, Actual: "user"}},
+		},
+		{
+			name:    "wrong scope still checks data",
+			profile: syncMLItem(inactivity, "int", "abc"),
+			lenient: []Finding{typeMismatch("DeviceLock", inactivity, "int")},
+			strict: []Finding{
+				{Code: CodeWrongScope, PayloadType: "DeviceLock", KeyPath: inactivity, Expected: []string{"device"}, Actual: "user"},
+				typeMismatch("DeviceLock", inactivity, "int"),
+			},
+		},
+		{
+			name:    "meta format disagrees",
+			profile: syncMLItem(emailSync, "int", "example.com"),
+			strict:  []Finding{{Code: CodeFormatMismatch, PayloadType: "Accounts", KeyPath: emailSync, Expected: []string{"chr"}, Actual: "int"}},
+		},
+		{name: "meta format case", profile: syncMLItem(emailSync, "CHR", "example.com")},
+		{
+			name: "chrome template policy and its ADMX install",
+			profile: syncMLItem("./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/GoogleChrome/Policy/GoogleChromeAdmx", "chr",
+				`<![CDATA[<policyDefinitions revision="1.0" schemaVersion="1.0"></policyDefinitions>]]>`) +
+				syncMLItem("./Device/Vendor/MSFT/Policy/Config/GoogleChrome~Policy~googlechrome~Startup/HomepageLocation", "chr",
+					`<![CDATA[<enabled/><data id="HomepageLocation" value="https://fleetdm.com"/>]]>`),
+		},
+		{name: "variable in chr", profile: syncMLItem(emailSync, "chr", "$FLEET_VAR_HOST_END_USER_IDP_USERNAME")},
+		{
+			name:    "variable in int",
+			profile: syncMLItem(minLength, "int", "$FLEET_VAR_HOST_END_USER_IDP_USERNAME"),
+			lenient: []Finding{typeMismatch("DeviceLock", minLength, "int")},
+			strict:  []Finding{typeMismatch("DeviceLock", minLength, "int")},
+		},
+		{name: "secret in int", profile: syncMLItem(minLength, "int", "$FLEET_SECRET_MIN_LENGTH")},
+		{name: "variable in dynamic segment", profile: syncMLItem("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/KeyLength", "int", "2048")},
+		{name: "secret-only body", profile: "$FLEET_SECRET_WINDOWS_PROFILE"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := s.ValidateWindowsProfile([]byte(c.profile), ModeLenient)
+			require.NoError(t, err)
+			assert.Equal(t, c.lenient, got, "lenient")
+			got, err = s.ValidateWindowsProfile([]byte(c.profile), ModeStrict)
+			require.NoError(t, err)
+			assert.Equal(t, c.strict, got, "strict")
+		})
+	}
+
+	_, err = s.ValidateWindowsProfile([]byte(`<Replace><Item>`), ModeLenient)
+	require.Error(t, err)
+}
+
+func TestValidateWindowsProfileFixture(t *testing.T) {
+	node := func(formats ...WindowsFormat) *WindowsNode {
+		return &WindowsNode{Format: formats, Scope: WindowsScopeDevice}
+	}
+	s := &ProfileValidationSchema{Windows: map[string]*WindowsNode{
+		"./Device/Vendor/MSFT/Example/Float":  node(WindowsFormatFloat),
+		"./Device/Vendor/MSFT/Example/IntChr": node(WindowsFormatInt, WindowsFormatChr),
+		"./Device/Vendor/MSFT/Example/Future": node("future"),
+		"./Device/Vendor/MSFT/Example/Any":    node(WindowsFormatAny),
+	}}
+	profile := syncMLItem("./Device/Vendor/MSFT/Example/Float", "float", "abc") +
+		syncMLItem("./Device/Vendor/MSFT/Example/IntChr", "chr", "abc") +
+		syncMLItem("./Device/Vendor/MSFT/Example/IntChr", "int", "5") +
+		// Formats the validator doesn't know accept any Data and any Meta format.
+		syncMLItem("./Device/Vendor/MSFT/Example/Future", "int", "abc") +
+		syncMLItem("./Device/Vendor/MSFT/Example/Any", "int", "abc")
+	got, err := s.ValidateWindowsProfile([]byte(profile), ModeStrict)
+	require.NoError(t, err)
+	assert.Empty(t, got)
+
+	got, err = s.ValidateWindowsProfile([]byte(syncMLItem("./Device/Vendor/MSFT/Example/IntChr", "bool", "abc")), ModeStrict)
+	require.NoError(t, err)
+	assert.Equal(t, []Finding{{Code: CodeFormatMismatch, PayloadType: "Example", KeyPath: "./Device/Vendor/MSFT/Example/IntChr", Expected: []string{"int", "chr"}, Actual: "bool"}}, got)
+}

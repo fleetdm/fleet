@@ -178,3 +178,59 @@ func windowsArea(locURI string) string {
 	}
 	return segs[0]
 }
+
+var knownWindowsFormats = []WindowsFormat{
+	WindowsFormatInt, WindowsFormatChr, WindowsFormatBool, WindowsFormatB64, WindowsFormatXML,
+	WindowsFormatNode, WindowsFormatNull, WindowsFormatBin, WindowsFormatTime, WindowsFormatDate,
+	WindowsFormatFloat,
+}
+
+// ValidateWindowsProfile checks a SyncML profile's items against the schema. It runs after the
+// structural validator, so it only reports schema problems; malformed XML returns an error.
+// Lenient mode reports Data that doesn't parse as the node's format. Strict mode also reports
+// unknown LocURIs, a <Meta><Format> that disagrees with the DDF, and a path in the wrong scope.
+func (s *ProfileValidationSchema) ValidateWindowsProfile(data []byte, mode Mode) ([]Finding, error) {
+	items, err := decodeWindowsProfile(data)
+	if err != nil {
+		return nil, err
+	}
+	strict := mode == ModeStrict
+	var findings []Finding
+	for _, item := range items {
+		finding := func(code Code, expected []string, actual string) {
+			findings = append(findings, Finding{
+				Code: code, PayloadType: windowsArea(item.LocURI), KeyPath: item.LocURI,
+				Expected: expected, Actual: actual,
+			})
+		}
+		node, wrongScope := s.resolveWindowsNode(item.LocURI)
+		if node == nil {
+			if strict {
+				finding(CodeUnknownKey, nil, "")
+			}
+			continue
+		}
+		formats := make([]string, 0, len(node.Format))
+		known := true
+		for _, f := range node.Format {
+			formats = append(formats, string(f))
+			known = known && slices.Contains(knownWindowsFormats, f)
+		}
+		if strict && wrongScope {
+			scope, _ := splitWindowsRoot(item.LocURI)
+			if scope == "" {
+				scope = WindowsScopeDevice
+			}
+			finding(CodeWrongScope, []string{string(node.Scope)}, string(scope))
+		}
+		if strict && known && item.MetaFormat != "" &&
+			!slices.ContainsFunc(formats, func(f string) bool { return strings.EqualFold(f, item.MetaFormat) }) {
+			finding(CodeFormatMismatch, formats, item.MetaFormat)
+		}
+		// Actual is left empty: echoing Data could leak values such as SCEP challenges.
+		if item.Data != nil && !windowsDataAccepts(node.Format, *item.Data) {
+			finding(CodeTypeMismatch, formats, "")
+		}
+	}
+	return findings, nil
+}
