@@ -25,13 +25,14 @@ func Up_20261021195658(tx *sql.Tx) error {
 		}
 	}
 
-	// Link existing iOS and iPadOS configurations to their Fleet variables, matching up to the end of the name so USERNAME doesn't match USERNAME_LOCAL_PART
+	// Link existing iOS and iPadOS configurations to their Fleet variables the way the save path finds them: case-sensitive, and either
+	// $NAME up to the end of the name so USERNAME doesn't match USERNAME_LOCAL_PART, or ${NAME} with its closing brace
 	_, err = tx.Exec(`
 		INSERT IGNORE INTO mdm_configuration_profile_variables (vpp_app_team_id, fleet_variable_id)
 		SELECT vat.id, fv.id
 		FROM vpp_apps_teams vat
 		JOIN fleet_variables fv
-			ON fv.is_prefix = 0 AND vat.configuration REGEXP CONCAT('\\$\\{?', fv.name, '([^A-Za-z0-9_]|$)')
+			ON fv.is_prefix = 0 AND REGEXP_LIKE(vat.configuration, CONCAT('\\$(', fv.name, '([^A-Za-z0-9_]|$)|\\{', fv.name, '\\})'), 'c')
 		WHERE vat.platform IN ('ios', 'ipados') AND vat.configuration IS NOT NULL
 	`)
 	if err != nil {
