@@ -2,8 +2,9 @@
  * <demo-request-form>
  * -----------------------------------------------------------------------------
  * An inline demo request form that uses the same submission logic as the
- * "Talk to us" form on /contact. Drop it at the bottom of a page: "Get a demo"
- * links on that page scroll to it (see scroll-to-demo-form.js).
+ * "Talk to us" form on /contact. While this component is on a page, clicking
+ * any "Get a demo" link (including the ones in the site header) jumps to this
+ * form instead of navigating to /contact.
  *
  * @type {Component}
  *
@@ -11,6 +12,14 @@
  */
 
 parasails.registerComponent('demoRequestForm', {
+  //  ╔═╗╦═╗╔═╗╔═╗╔═╗
+  //  ╠═╝╠╦╝║ ║╠═╝╚═╗
+  //  ╩  ╩╚═╚═╝╩  ╚═╝
+  props: [],
+
+  //  ╦╔╗╔╦╔╦╗╦╔═╗╦    ╔═╗╔╦╗╔═╗╔╦╗╔═╗
+  //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
+  //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: function() {
     return {
       syncing: false,
@@ -27,6 +36,9 @@ parasails.registerComponent('demoRequestForm', {
     };
   },
 
+  //  ╦ ╦╔╦╗╔╦╗╦
+  //  ╠═╣ ║ ║║║║
+  //  ╩ ╩ ╩ ╩ ╩╩═╝
   template: `
     <div purpose="demo-request-section" id="demo-form">
       <div purpose="demo-request-intro">
@@ -34,7 +46,7 @@ parasails.registerComponent('demoRequestForm', {
         <p>Get Fleet up and running and see what it can do in your environment.</p>
       </div>
       <div purpose="demo-request-card">
-        <ajax-form :handle-submitting="handleSubmittingDemoForm" :form-errors.sync="formErrors" :form-data="formData" :form-rules="demoFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
+        <ajax-form action="deliverTalkToUsFormSubmission" :form-errors.sync="formErrors" :form-data="formData" :form-rules="demoFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError" @submitted="submittedDemoForm">
           <div purpose="demo-request-grid">
             <div purpose="demo-request-field" class="full-width">
               <label for="demo-email">Work email</label>
@@ -72,10 +84,77 @@ parasails.registerComponent('demoRequestForm', {
     </div>
   `,
 
-  methods: {
-    handleSubmittingDemoForm: async function(argins) {
-      this.syncing = true;
-      window.location = await parasails.util.submitDemoRequest(argins);
-    },
+  //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
+  //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
+  //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
+  beforeMount: function() {
+
   },
+  mounted: async function(){
+    $(document).on('click.demoRequestForm', 'a[href^="/contact?talkToUs"], a[href="#demo-form"]', this.clickDemoLink);
+  },
+  beforeDestroy: function() {
+    $(document).off('.demoRequestForm');
+  },
+
+  //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
+  //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
+  //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
+  methods: {
+    clickDemoLink: function(event) {
+      // Let modified clicks (e.g. cmd+click to open in a new tab) through to /contact.
+      if(event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+      }
+      event.preventDefault();
+      $('#navbarToggleExternalContent').collapse('hide');// Close the mobile nav if it's open.
+      // Jump to the page's lead-in heading above the form when there is one close by, so the heading stays in view.
+      let target = this.$el;
+      let leadIn = _.last(document.querySelectorAll('[purpose="bottom-cta"]'));
+      let maxLeadInDistance = 800;
+      if(leadIn && (leadIn.compareDocumentPosition(this.$el) & Node.DOCUMENT_POSITION_FOLLOWING) && this.$el.getBoundingClientRect().top - leadIn.getBoundingClientRect().top < maxLeadInDistance) {
+        target = leadIn;
+      }
+      let header = document.querySelector('[purpose="header-container"]');
+      let headerHeight = header ? header.getBoundingClientRect().height : 0;
+      let breathingRoom = 24;
+      window.scrollTo({top: target.getBoundingClientRect().top + window.pageYOffset - headerHeight - breathingRoom, behavior: 'auto'});
+      this.$el.querySelector('input').focus({preventScroll: true});
+    },
+
+    submittedDemoForm: async function(report) {
+      this.syncing = true;
+      if(typeof window.lintrk !== 'undefined') { window.lintrk('track', { conversion_id: 18587089 }); }// eslint-disable-line camelcase
+
+      // Look at result from talking to api and decide what event to track.
+      if(report.icp){
+        if(typeof gtag !== 'undefined'){ gtag('event','fleet_website__contact_forms__demo__icp'); }
+        if(typeof window.lintrk !== 'undefined') { window.lintrk('track', { conversion_id: 27493081 }); } // eslint-disable-line camelcase
+      } else {
+        if(typeof gtag !== 'undefined'){ gtag('event','fleet_website__contact_forms__demo'); }
+      }
+
+      // Additional conversion tracking
+      if(typeof gtag !== 'undefined'){
+        gtag('event', 'conversion', {
+          'send_to': 'AW-10788733823/aNrhCNSYrPobEP-GvJgo',
+          'value': 1.0,
+          'currency': 'USD'
+        });
+      }//ﬁ
+
+      if(typeof qualified !== 'undefined') {
+        qualified('saveFormData',
+        {
+          email: this.formData.emailAddress,
+          name: this.formData.firstName +' '+ this.formData.lastName,
+          company: this.formData.organization,
+          how_many_hostsdevices_do_you_want_to_manage: this.formData.numberOfHosts,// eslint-disable-line camelcase
+        });
+        qualified('showFormExperience', 'experience-1772126772950');
+      }
+
+      this.goto(report.eventUrl);
+    },
+  }
 });
