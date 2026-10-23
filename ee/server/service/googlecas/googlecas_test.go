@@ -308,6 +308,7 @@ func TestIssueCertificate(t *testing.T) {
 		{"no permission", http.StatusForbidden, "can't issue certificates from the CA pool", false},
 		{"pool missing", http.StatusNotFound, "The certificate authority's CA pool wasn't found.", false},
 		{"rate limited", http.StatusTooManyRequests, "Google CAS couldn't issue the certificate (HTTP 429). Try again later.", true},
+		{"request timeout", http.StatusRequestTimeout, "Google CAS couldn't issue the certificate (HTTP 408). Try again later.", true},
 		{"google outage", http.StatusServiceUnavailable, "Google CAS couldn't issue the certificate (HTTP 503). Try again later.", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

@@ -316,7 +316,7 @@ func (s *Service) describeIssueError(ctx context.Context, err error, ca fleet.Go
 	s.logger.ErrorContext(ctx, "Google CAS certificate request failed", "ca_pool", ca.CAPoolResourceName(), "err", err)
 	if apiErr, ok := errors.AsType[*googleapi.Error](err); ok {
 		switch {
-		case apiErr.Code == http.StatusTooManyRequests || apiErr.Code >= http.StatusInternalServerError:
+		case apiErr.Code == http.StatusTooManyRequests || apiErr.Code == http.StatusRequestTimeout || apiErr.Code >= http.StatusInternalServerError:
 			return transientError(fmt.Sprintf("Google CAS couldn't issue the certificate (HTTP %d). Try again later.", apiErr.Code))
 		case apiErr.Code == http.StatusUnauthorized || apiErr.Code == http.StatusForbidden:
 			return errors.New("The service account can't issue certificates from the CA pool. Check the certificate authority's project ID, location and CA pool, and that the service account has the CA Service Certificate Manager role on the pool.")
