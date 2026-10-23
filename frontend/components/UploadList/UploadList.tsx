@@ -1,11 +1,6 @@
 import classnames from "classnames";
 import React from "react";
 
-// TODO: rename this component (and its `upload-list` BEM class) — the name is
-// a historical artifact from when it only backed an upload picker. It's now a
-// general-purpose "icon + name" list (self-service categories, patch deadline
-// apps, …) and the mismatch confuses readers. Keeping the rename as a separate
-// pass because it ripples through every consumer's SCSS selectors.
 const baseClass = "upload-list";
 
 interface IUploadListProps<T = any> {

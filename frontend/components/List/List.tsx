@@ -1,5 +1,5 @@
 import classnames from "classnames";
-import React, { ReactElement } from "react";
+import React, { KeyboardEvent, ReactElement } from "react";
 
 const baseClass = "list";
 
@@ -46,16 +46,30 @@ function List<TItem extends WithIdKey<TKey>, TKey extends string = "id">({
             [`${baseClass}__row--clickable`]: clickable,
           });
 
+          const activate = () => clickable && onClickRow?.(item);
+          const handleKeyDown = (e: KeyboardEvent<HTMLLIElement>) => {
+            if (!clickable) return;
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              activate();
+            }
+          };
+
           return (
-            // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+            // Clickable rows wear role="button" + tabIndex and get the mouse
+            // and keyboard handlers; non-clickable rows stay plain `<li>` so
+            // the jsx-a11y rule has nothing to flag.
             <li
               className={rowClasses}
               key={item[idKey]}
-              onClick={() => {
-                if (clickable) {
-                  onClickRow?.(item);
-                }
-              }}
+              {...(clickable
+                ? {
+                    role: "button",
+                    tabIndex: 0,
+                    onClick: activate,
+                    onKeyDown: handleKeyDown,
+                  }
+                : {})}
             >
               {renderItemRow?.(item) ?? null}
             </li>

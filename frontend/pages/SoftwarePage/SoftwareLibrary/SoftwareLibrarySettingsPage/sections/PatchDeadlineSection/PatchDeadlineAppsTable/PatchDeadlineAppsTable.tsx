@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { InjectedRouter } from "react-router";
 
+import List from "components/List";
 import PageDescription from "components/PageDescription";
 import Pagination from "components/Pagination";
 import SectionHeader from "components/SectionHeader";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
-import UploadList from "components/UploadList";
 import { IPolicySoftwareToInstall } from "interfaces/policy";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
@@ -16,12 +16,15 @@ const baseClass = "patch-deadline-apps-table";
 
 const PAGE_SIZE = 10;
 
+// List requires each row to have a React.Key under some property. patch_software
+// doesn't ship its own id, so project software_title_id in as `id` for keying.
+type IAppRow = IPolicySoftwareToInstall & { id: number };
+
 interface IPatchDeadlineAppsTableProps {
   // fleetId drives the page-reset effect and preserves fleet context on the
   // outgoing row link; the parent fetches policies by it too.
   fleetId: number;
-  // Each app is the `install_software` payload off a patch-automation policy.
-  // No id of its own — the row key uses software_title_id.
+  // Each app is the `patch_software` payload off a patch-automation policy.
   apps: IPolicySoftwareToInstall[];
   router: InjectedRouter;
 }
@@ -33,30 +36,29 @@ const PatchDeadlineAppsTable = ({
 }: IPatchDeadlineAppsTableProps) => {
   const [page, setPage] = useState(0);
 
-  // Switching fleets rewinds pagination so the user doesn't land past the end
-  // of a shorter list. (safePage clamps the render; this keeps the stored
-  // state in sync so Next doesn't require multiple clicks to re-engage.)
+  // Rewind pagination on fleet switch so a shorter list doesn't strand users
+  // past its end. safePage clamps the render; this keeps the stored state in
+  // sync so Next doesn't need extra clicks to re-engage.
   useEffect(() => {
     setPage(0);
   }, [fleetId]);
 
-  // Alphanumeric, case-insensitive sort on the admin-visible name. `numeric`
-  // makes "App 2" sort before "App 10"; `sensitivity: "base"` folds case so
-  // mixed-case titles don't clump by capitalization. Client-side is fine while
-  // the list is small; revisit if a fleet's deadline set grows large enough to
-  // warrant server sort/paginate.
-  const sortedApps = useMemo(
+  // Alphanumeric + case-insensitive. `numeric: true` makes "App 2" sort before
+  // "App 10". Client-side; revisit if lists grow large.
+  const sortedApps: IAppRow[] = useMemo(
     () =>
-      [...apps].sort((a, b) =>
-        getDisplayedSoftwareName(
-          a.name,
-          a.display_name
-        ).localeCompare(
-          getDisplayedSoftwareName(b.name, b.display_name),
-          undefined,
-          { numeric: true, sensitivity: "base" }
+      [...apps]
+        .sort((a, b) =>
+          getDisplayedSoftwareName(
+            a.name,
+            a.display_name
+          ).localeCompare(
+            getDisplayedSoftwareName(b.name, b.display_name),
+            undefined,
+            { numeric: true, sensitivity: "base" }
+          )
         )
-      ),
+        .map((app) => ({ ...app, id: app.software_title_id })),
     [apps]
   );
 
@@ -67,11 +69,12 @@ const PatchDeadlineAppsTable = ({
     (safePage + 1) * PAGE_SIZE
   );
 
-  const goToTitle = (id: number) => {
+  const goToTitle = (app: IAppRow) => {
     router.push(
-      getPathWithQueryParams(PATHS.SOFTWARE_TITLE_DETAILS(id.toString()), {
-        fleet_id: fleetId,
-      })
+      getPathWithQueryParams(
+        PATHS.SOFTWARE_TITLE_DETAILS(app.software_title_id.toString()),
+        { fleet_id: fleetId }
+      )
     );
   };
 
@@ -82,32 +85,22 @@ const PatchDeadlineAppsTable = ({
         variant="tab-panel"
         content="Deadline options apply to these apps."
       />
-      <UploadList<IPolicySoftwareToInstall>
-        className={`${baseClass}__list`}
-        keyAttribute="software_title_id"
-        listItems={pagedApps}
-        HeadingComponent={() => (
-          <span className={`${baseClass}__list-title`}>Name</span>
-        )}
-        ListItemComponent={({ listItem }) => {
+      <List<IAppRow>
+        data={pagedApps}
+        heading={<span className={`${baseClass}__list-title`}>Name</span>}
+        onClickRow={goToTitle}
+        renderItemRow={(item) => {
           const displayName = getDisplayedSoftwareName(
-            listItem.name,
-            listItem.display_name
+            item.name,
+            item.display_name
           );
           return (
-            <button
-              type="button"
-              className={`${baseClass}__row`}
-              onClick={() => goToTitle(listItem.software_title_id)}
-            >
-              <SoftwareIcon
-                name={listItem.name}
-                url={listItem.icon_url ?? undefined}
-              />
+            <div className={`${baseClass}__row-content`}>
+              <SoftwareIcon name={item.name} url={item.icon_url ?? undefined} />
               <div className={`${baseClass}__name`}>
                 <TooltipTruncatedText value={displayName} />
               </div>
-            </button>
+            </div>
           );
         }}
       />

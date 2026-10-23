@@ -6,47 +6,15 @@
     align-self: stretch;
   }
 
-  &__list {
-    align-self: stretch;
-    font-size: $x-small;
-
-    // Strip the item's own horizontal padding so the row <button> fills the
-    // whole item edge-to-edge: the entire row is the click target, and the
-    // focus-visible outline hugs the row (not just the inner button width).
-    .upload-list__list-item {
-      padding: 0;
-      height: 56px;
-      box-sizing: border-box;
-    }
-  }
-
   &__list-title {
-    font-size: $x-small;
     font-weight: $bold;
     color: $core-fleet-black;
   }
 
-  &__row {
-    // Strip the native button chrome so the row still reads as a list item,
-    // not a form control. Click/keyboard semantics stay (role=button).
-    all: unset;
-    cursor: pointer;
+  &__row-content {
     display: flex;
     align-items: center;
     gap: $pad-medium;
-    height: 100%;
-    width: 100%;
-    box-sizing: border-box;
-    // Padding moves from .upload-list__list-item onto the button so the full
-    // row width is the click target.
-    padding: 0 $pad-large;
-
-    // Match Fleet's unstyled-button focus mixin: 1px solid $core-focused-outline.
-    // Inset the outline so it hugs the row edge instead of overflowing the list.
-    &:focus-visible {
-      outline: 1px solid $core-focused-outline;
-      outline-offset: -1px;
-    }
   }
 
   &__name {
