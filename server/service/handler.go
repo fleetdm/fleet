@@ -666,6 +666,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// Okta Conditional Access
 	ue.GET("/api/_version_/fleet/conditional_access/idp/signing_cert", conditionalAccessGetIdPSigningCertEndpoint, conditionalAccessGetIdPSigningCertRequest{})
 	ue.GET("/api/_version_/fleet/conditional_access/idp/apple/profile", conditionalAccessGetIdPAppleProfileEndpoint, nil)
+	ue.GET("/api/_version_/fleet/conditional_access/idp/windows/profiles", conditionalAccessGetIdPWindowsProfilesEndpoint, nil)
 
 	// Deprecated: PATCH /mdm/apple/setup is now deprecated, replaced by the
 	// PATCH /setup_experience endpoint.

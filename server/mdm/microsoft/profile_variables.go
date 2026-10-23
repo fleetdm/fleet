@@ -30,13 +30,22 @@ func PreprocessWindowsProfileContentsForDeployment(deps ProfilePreprocessDepende
 // The space is allowed anywhere, including leading and trailing, and was verified to enroll fine on Windows 11.
 var windowsSCEPChallengeRegexp = regexp.MustCompile(`^[A-Za-z0-9 '()+,./:=?-]*$`)
 
+// IsValidWindowsSCEPChallenge reports whether Windows can send challenge as a SCEP challenge password.
+func IsValidWindowsSCEPChallenge(challenge string) bool {
+	return windowsSCEPChallengeRegexp.MatchString(challenge)
+}
+
 // scepChallengeInvalidCharsDetail is the host profile failure detail shown on the Host details page when a custom SCEP proxy
 // challenge contains characters Windows can't encode as a PrintableString.
 const scepChallengeInvalidCharsDetail = `Couldn't install certificate. The "%s" certificate authority challenge includes characters Windows doesn't support. Allowed: letters, numbers, spaces, and ' ( ) + , - . / : = ?`
 
-// ConditionalAccessSCEPChallengeInvalidCharsDetail is the host profile failure detail when every global enroll secret
-// contains characters Windows can't encode as a PrintableString, so none can be the conditional access SCEP challenge.
-const ConditionalAccessSCEPChallengeInvalidCharsDetail = `Couldn't install certificate. Every global enroll secret includes characters Windows doesn't support in a SCEP challenge. Allowed: letters, numbers, spaces, and ' ( ) + , - . / : = ?`
+// ConditionalAccessSCEPChallengeInvalidCharsMessage explains that every global enroll secret contains characters Windows
+// can't encode as a PrintableString, so none can be the conditional access SCEP challenge.
+const ConditionalAccessSCEPChallengeInvalidCharsMessage = `Every global enroll secret includes characters Windows doesn't support in a SCEP challenge. Allowed: letters, numbers, spaces, and ' ( ) + , - . / : = ?`
+
+// ConditionalAccessSCEPChallengeInvalidCharsDetail is the host profile failure detail for
+// ConditionalAccessSCEPChallengeInvalidCharsMessage.
+const ConditionalAccessSCEPChallengeInvalidCharsDetail = "Couldn't install certificate. " + ConditionalAccessSCEPChallengeInvalidCharsMessage
 
 // ConditionalAccessSCEPChallengeMissingDetail is the host profile failure detail when there is no global enroll secret
 // to use as the conditional access SCEP challenge.
