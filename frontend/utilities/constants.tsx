@@ -468,6 +468,8 @@ export const HOST_SUMMARY_DATA: (keyof IHost)[] = [
   "os_version",
   "mdm",
   "last_mdm_checked_in_at",
+  "timezone", // Formats patch_deadline_at in the host's local time
+  "patch_deadline_at", // Not rendered on my device page
 ];
 
 export const HOST_VITALS_DATA = [

@@ -719,8 +719,12 @@ export const buildHostVitals = ({
     });
   }
 
-  if (isIosOrIpadosHost && vitalsData?.timezone) {
-    const hasValidTimezone = vitalsData.timezone !== DEFAULT_EMPTY_CELL_VALUE;
+  // iOS/iPadOS only renders when the device reports a timezone; macOS, Windows,
+  // and Linux always render, showing "---" until osquery fills it in.
+  const timezoneSupportedPlatform = !isAndroidHost && !isChromeHost;
+  const hasValidTimezone =
+    !!vitalsData?.timezone && vitalsData.timezone !== DEFAULT_EMPTY_CELL_VALUE;
+  if (timezoneSupportedPlatform && (!isIosOrIpadosHost || hasValidTimezone)) {
     const localTime = hasValidTimezone
       ? // toZonedTime shifts the instant so its epoch value reads as the
         // host's timezone under the system's own default-timezone formatting,
