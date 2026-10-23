@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.64.1",
+      "version": "3.64.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.formlabs.PreForm';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.formlabs.PreForm' AND version_compare(bundle_short_version, '3.64.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.formlabs.PreForm' AND version_compare(bundle_short_version, '3.64.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.formlabs.PreForm' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://downloads.formlabs.com/PreForm/Release/3.64.1/PreForm_mac_3.64.1_release_releaser_664_160425.dmg",
+      "installer_url": "https://downloads.formlabs.com/PreForm/Release/3.64.2/PreForm_mac_3.64.2_release_releaser_665_161433.dmg",
       "install_script_ref": "a2d4eb0d",
       "uninstall_script_ref": "82b93609",
-      "sha256": "2e4b86f9a0af7314ceba40c847920e1f10ed705147e86544f8d48dd42d2d5ee3",
+      "sha256": "86d3253a7a59ec22c7bdbe1c775df4a86c03a78e3317b67c73b4ae9085778fe0",
       "default_categories": [
         "Productivity"
       ]
