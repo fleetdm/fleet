@@ -427,6 +427,11 @@ const SoftwareSummaryCard = ({
           isAppleVpp={isAppleVpp}
           fleetMaintainedAppSlug={fleetMaintainedAppSlug}
           appStoreId={appStoreId}
+          vppToken={
+            isPremiumTier && isAppleVpp
+              ? softwareTitle.app_store_app?.vpp_token ?? undefined
+              : undefined
+          }
           googlePlayId={googlePlayId}
         />
       </Card>
