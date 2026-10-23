@@ -98,3 +98,83 @@ func wellFormedXML(data string) bool {
 		}
 	}
 }
+
+// splitWindowsRoot splits a LocURI into its scope root and the rest of the path. root is
+// WindowsScopeDevice or WindowsScopeUser for a ./Device/ or ./User/ path, and "" for a bare one.
+func splitWindowsRoot(locURI string) (root WindowsScope, rest string) {
+	rest, ok := strings.CutPrefix(locURI, "./")
+	if !ok {
+		return "", locURI
+	}
+	first, after, _ := strings.Cut(rest, "/")
+	for _, scope := range []WindowsScope{WindowsScopeDevice, WindowsScopeUser} {
+		if strings.EqualFold(first, string(scope)) {
+			return scope, after
+		}
+	}
+	return "", rest
+}
+
+// resolveWindowsNode finds the node a LocURI targets. A bare ./Vendor/MSFT/X and
+// ./Device/Vendor/MSFT/X are the same setting, so each is tried for the other. If neither spelling
+// matches, the other scope is tried and wrongScope is set; a bare path counts as device scope.
+func (s *ProfileValidationSchema) resolveWindowsNode(locURI string) (node *WindowsNode, wrongScope bool) {
+	if !strings.HasPrefix(locURI, "./") {
+		return nil, false
+	}
+	root, rest := splitWindowsRoot(locURI)
+	device, bare, user := "./Device/"+rest, "./"+rest, "./User/"+rest
+	same, other := []string{device, bare}, []string{user}
+	switch root {
+	case "":
+		same = []string{bare, device}
+	case WindowsScopeUser:
+		same, other = []string{user}, []string{device, bare}
+	}
+	// The DDF declares Policy/Config/{Area}/{Policy} as dynamic nodes so ADMX ingestion can add
+	// areas. Matching them would make every policy LocURI known, so policies must match exactly:
+	// a DDF policy or a template policy.
+	var catchAll []*WindowsNode
+	for _, r := range []string{"./Device", "./User"} {
+		for _, p := range []string{"/Vendor/MSFT/Policy/Config/*", "/Vendor/MSFT/Policy/Config/*/*"} {
+			if n := s.Windows[r+p]; n != nil {
+				catchAll = append(catchAll, n)
+			}
+		}
+	}
+	lookup := func(paths []string) *WindowsNode {
+		for _, p := range paths {
+			if n := s.WindowsNode(p); n != nil && !slices.Contains(catchAll, n) {
+				return n
+			}
+		}
+		return nil
+	}
+	if n := lookup(same); n != nil {
+		return n, false
+	}
+	if n := lookup(other); n != nil {
+		return n, true
+	}
+	return nil, false
+}
+
+// windowsArea names what a LocURI configures for findings: the area for a Policy CSP setting,
+// e.g. DeviceLock, and otherwise the CSP, e.g. Firewall or DMAcc.
+func windowsArea(locURI string) string {
+	_, rest := splitWindowsRoot(locURI)
+	segs := strings.Split(rest, "/")
+	switch {
+	case len(segs) >= 2 && strings.EqualFold(segs[0], "Vendor") && strings.EqualFold(segs[1], "MSFT"):
+		segs = segs[2:]
+	case len(segs) >= 1 && strings.EqualFold(segs[0], "SyncML"):
+		segs = segs[1:]
+	}
+	if len(segs) >= 3 && strings.EqualFold(segs[0], "Policy") && strings.EqualFold(segs[1], "Config") {
+		return segs[2]
+	}
+	if len(segs) == 0 {
+		return ""
+	}
+	return segs[0]
+}

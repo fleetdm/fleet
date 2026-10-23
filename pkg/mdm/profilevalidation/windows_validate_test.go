@@ -123,3 +123,63 @@ func TestWindowsDataAccepts(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveWindowsNode(t *testing.T) {
+	s, err := Parse(profileValidationSchemaRaw)
+	require.NoError(t, err)
+	node := func(key string) *WindowsNode {
+		n := s.Windows[key]
+		require.NotNil(t, n, key)
+		return n
+	}
+	const chromeHomepage = "/Vendor/MSFT/Policy/Config/GoogleChrome~Policy~googlechrome~Startup/HomepageLocation"
+
+	cases := []struct {
+		name       string
+		locURI     string
+		want       *WindowsNode
+		wrongScope bool
+	}{
+		{name: "bare firewall", locURI: "./Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall", want: node("./Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall")},
+		{name: "device firewall", locURI: "./Device/Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall", want: node("./Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall")},
+		{name: "firewall rule name", locURI: "./Vendor/MSFT/Firewall/MdmStore/FirewallRules/Block Telnet/Action/Type", want: node("./Vendor/MSFT/Firewall/MdmStore/FirewallRules/*/Action/Type")},
+		{name: "variable in dynamic segment", locURI: "./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/Enroll", want: node("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/*/Install/Enroll")},
+		{name: "lowercase", locURI: "./device/vendor/msft/policy/config/devicelock/maxinactivitytimedevicelock", want: node("./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock")},
+		{name: "bare policy", locURI: "./Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock", want: node("./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock")},
+		{name: "user path for device-only policy", locURI: "./User/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock", want: node("./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock"), wrongScope: true},
+		{name: "user path for bare firewall", locURI: "./User/Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall", want: node("./Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall"), wrongScope: true},
+		{name: "device path for user-only policy", locURI: "./Device/Vendor/MSFT/Policy/Config/Education/PrinterNames", want: node("./User/Vendor/MSFT/Policy/Config/Education/PrinterNames"), wrongScope: true},
+		{name: "template policy", locURI: "./Device" + chromeHomepage, want: node("./Device" + chromeHomepage)},
+		{name: "template policy user", locURI: "./User" + chromeHomepage, want: node("./User" + chromeHomepage)},
+		{name: "ADMX install item", locURI: "./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/Chrome/Policy/ChromeAdmx", want: node("./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/*/*/*")},
+		{name: "DMAcc", locURI: "./SyncML/DMAcc/MDMServer/Name", want: node("./SyncML/DMAcc/*/Name")},
+		{name: "ingested ADMX area", locURI: "./Device/Vendor/MSFT/Policy/Config/chrome~Policy~googlechrome/RelaunchNotification"},
+		{name: "policy typo", locURI: "./Device/Vendor/MSFT/Policy/Config/DeviceLock/Typoo"},
+		{name: "policy area alone", locURI: "./Device/Vendor/MSFT/Policy/Config/Unknown"},
+		{name: "unknown CSP", locURI: "./Device/Vendor/MSFT/Unknown/Setting"},
+		{name: "not rooted", locURI: "Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, wrongScope := s.resolveWindowsNode(c.locURI)
+			assert.Same(t, c.want, got)
+			assert.Equal(t, c.wrongScope, wrongScope)
+		})
+	}
+}
+
+func TestWindowsArea(t *testing.T) {
+	for locURI, want := range map[string]string{
+		"./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock":                    "DeviceLock",
+		"./user/vendor/msft/policy/config/Start/HideSleep":                                             "Start",
+		"./Device/Vendor/MSFT/Policy/Config/GoogleChrome~Policy~googlechrome~Startup/HomepageLocation": "GoogleChrome~Policy~googlechrome~Startup",
+		"./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/Chrome/Policy/ChromeAdmx":            "Policy",
+		"./Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall":                                 "Firewall",
+		"./User/Vendor/MSFT/ClientCertificateInstall/SCEP/x/Install/Enroll":                            "ClientCertificateInstall",
+		"./SyncML/DMAcc/MDMServer/Name":                                                                "DMAcc",
+		"./DevDetail/Ext/Microsoft/DeviceName":                                                         "DevDetail",
+		"./Vendor/MSFT":                                                                                "",
+	} {
+		assert.Equal(t, want, windowsArea(locURI), locURI)
+	}
+}
