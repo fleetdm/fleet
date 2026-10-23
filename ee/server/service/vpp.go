@@ -2092,9 +2092,22 @@ func ReconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 		hostByID[host.ID] = *host
 	}
 
+	// Read every fleet's versions, so a host moved from another fleet gets an install only when the configuration differs
 	platforms := []fleet.InstallableDevicePlatform{fleet.IOSPlatform, fleet.IPadOSPlatform}
+	versionsByTitleIDByFleetID, err := ds.GetAppStoreAppVersionsByFleetAndTitle(ctx, platforms)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get app store app versions")
+	}
+	versionByID := make(map[uint]*fleet.VPPAppStoreApp)
+	for _, versionsByTitleID := range versionsByTitleIDByFleetID {
+		for _, versions := range versionsByTitleID {
+			for _, version := range versions {
+				versionByID[version.VPPAppsTeamsID] = version
+			}
+		}
+	}
+
 	var vppToken *fleet.VPPTokenDB
-	var versionsByTitleID map[uint][]*fleet.VPPAppStoreApp
 	var installByHostIDByTitleID map[uint]map[uint]fleet.HostVPPSoftwareInstall
 	for fleetID, hostIDs := range hostIDsByFleetID {
 		// Skip fleets that can't install App Store apps until their VPP token is added or renewed
@@ -2110,9 +2123,8 @@ func ReconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 			continue
 		}
 
-		versionsByTitleID, err = ds.GetAppStoreAppVersionsByFleet(ctx, fleetID, platforms)
-		if err != nil {
-			logger.ErrorContext(ctx, "list app store app versions for app store app configurations", "fleet_id", fleetID, "err", err)
+		versionsByTitleID := versionsByTitleIDByFleetID[fleetID]
+		if len(versionsByTitleID) == 0 {
 			continue
 		}
 		installByHostIDByTitleID, err = ds.ListHostAppStoreAppInstallVersions(ctx, fleetID, hostIDs, platforms)
@@ -2123,7 +2135,7 @@ func ReconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 
 		for titleID, versions := range versionsByTitleID {
 			// Log the error and move on to the next title, so one title doesn't stop the others from being reconciled
-			err = reconcileAppStoreAppConfigurations(ctx, ds, vppInstaller, logger, fleetID, titleID, versions, installByHostIDByTitleID[titleID],
+			err = reconcileAppStoreAppConfigurations(ctx, ds, vppInstaller, logger, fleetID, titleID, versions, versionByID, installByHostIDByTitleID[titleID],
 				vppToken.Token, hostByID)
 			if err != nil {
 				logger.ErrorContext(ctx, "reconcile app store app configurations", "fleet_id", fleetID, "title_id", titleID, "err", err)
@@ -2149,13 +2161,10 @@ func ReconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 }
 
 func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore, vppInstaller fleet.AppleMDMVPPInstaller, logger *slog.Logger, fleetID uint, titleID uint,
-	versions []*fleet.VPPAppStoreApp, installByHostID map[uint]fleet.HostVPPSoftwareInstall, vppToken string, hostByID map[uint]fleet.Host,
+	versions []*fleet.VPPAppStoreApp, versionByID map[uint]*fleet.VPPAppStoreApp, installByHostID map[uint]fleet.HostVPPSoftwareInstall, vppToken string,
+	hostByID map[uint]fleet.Host,
 ) error {
 	var err error
-	versionByID := make(map[uint]*fleet.VPPAppStoreApp, len(versions))
-	for _, version := range versions {
-		versionByID[version.VPPAppsTeamsID] = version
-	}
 
 	// Go through the versions in the order they were added, so each host gets the first version it's in scope for
 	hostIDsWithoutVersion := slices.Collect(maps.Keys(installByHostID))
@@ -2195,8 +2204,8 @@ func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 			case !ptr.Equal(install.VPPAppTeamID, &version.VPPAppsTeamsID):
 				// Re-send when the host's latest install is of another version, unless both versions have the same configuration
 				if install.VPPAppTeamID != nil {
-					installedVersion, inHostFleet := versionByID[*install.VPPAppTeamID]
-					if inHostFleet && !install.NeedsResend && bytes.Equal(installedVersion.Configuration, version.Configuration) {
+					installedVersion, found := versionByID[*install.VPPAppTeamID]
+					if found && !install.NeedsResend && bytes.Equal(installedVersion.Configuration, version.Configuration) {
 						// Skip the host when the installed version's configuration didn't change after the install
 						if installedVersion.ConfigurationUpdatedAt == nil || installedVersion.ConfigurationUpdatedAt.Before(install.CreatedAt) {
 							continue

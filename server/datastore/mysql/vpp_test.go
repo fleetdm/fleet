@@ -5426,7 +5426,7 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.NotEqual(t, app.AppTeamID, otherVersion.AppTeamID)
 
-		// add a macOS version of the app and give the second version a label and a configuration, then get the fleet's iOS and iPadOS versions, only the two iOS versions should be returned first-added first
+		// add a macOS version of the app and give the second version a label and a configuration, then get every fleet's iOS and iPadOS versions, only the two iOS versions should be returned for this fleet first-added first
 		platforms := []fleet.InstallableDevicePlatform{fleet.IOSPlatform, fleet.IPadOSPlatform}
 		macOSApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 			Name:             "ResendApp",
@@ -5445,8 +5445,9 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 			_, err = q.ExecContext(ctx, `UPDATE vpp_apps_teams SET configuration = '<dict/>' WHERE id = ?`, otherVersion.AppTeamID)
 			return err
 		})
-		versionsByTitleID, err := ds.GetAppStoreAppVersionsByFleet(ctx, fleetID, platforms)
+		versionsByTitleIDByFleetID, err := ds.GetAppStoreAppVersionsByFleetAndTitle(ctx, platforms)
 		require.NoError(t, err)
+		versionsByTitleID := versionsByTitleIDByFleetID[fleetID]
 		require.NotContains(t, versionsByTitleID, macOSApp.TitleID)
 		versions := versionsByTitleID[app.TitleID]
 		require.Len(t, versions, 2)

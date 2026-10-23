@@ -138,7 +138,7 @@ type VPPAppStoreApp struct {
 	LabelsExcludeAny []SoftwareScopeLabel `json:"labels_exclude_any" db:"labels_exclude_any"`
 	// LabelsIncludeAll is the list of "include all" labels for this app store app (if not nil).
 	LabelsIncludeAll []SoftwareScopeLabel `json:"labels_include_all" db:"labels_include_all"`
-	// HasLabels is whether this app store app has any labels, only filled by GetAppStoreAppVersionsByFleet.
+	// HasLabels is whether this app store app has any labels, only filled by GetAppStoreAppVersionsByFleetAndTitle.
 	HasLabels bool `json:"-" db:"has_labels"`
 	// BundleIdentifier is the bundle identifier for this app.
 	BundleIdentifier string `json:"-" db:"bundle_identifier"`
@@ -428,3 +428,6 @@ type HostAppStoreAppVersion struct {
 	InScope      bool   `db:"in_scope"`
 	VersionCount int    `db:"-"`
 }
+
+// AppStoreAppVersionsByFleetAndTitleID holds App Store app versions indexed by fleet id and then software title id, first-added first.
+type AppStoreAppVersionsByFleetAndTitleID map[uint]map[uint][]*VPPAppStoreApp

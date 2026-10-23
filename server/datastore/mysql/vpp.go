@@ -3802,9 +3802,10 @@ ORDER BY other_vat.id
 	return versionIDs, nil
 }
 
-func (ds *Datastore) GetAppStoreAppVersionsByFleet(ctx context.Context, fleetID uint, platforms []fleet.InstallableDevicePlatform) (map[uint][]*fleet.VPPAppStoreApp, error) {
+func (ds *Datastore) GetAppStoreAppVersionsByFleetAndTitle(ctx context.Context, platforms []fleet.InstallableDevicePlatform) (fleet.AppStoreAppVersionsByFleetAndTitleID, error) {
 	const stmt = `
 SELECT
+	vat.global_or_team_id,
 	va.title_id,
 	vat.adam_id,
 	vat.platform,
@@ -3815,25 +3816,25 @@ FROM
 	vpp_apps_teams vat
 	JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
 WHERE
-	vat.global_or_team_id = ? AND
 	vat.platform IN (?)
 ORDER BY vat.id
 `
-	query, args, err := sqlx.In(stmt, fleetID, platforms)
+	query, args, err := sqlx.In(stmt, platforms)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "build get app store app versions by fleet query")
+		return nil, ctxerr.Wrap(ctx, err, "build get app store app versions by fleet and title query")
 	}
 	var versions []struct {
+		FleetID uint `db:"global_or_team_id"`
 		TitleID uint `db:"title_id"`
 		fleet.VPPAppStoreApp
 	}
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &versions, query, args...)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get app store app versions by fleet")
+		return nil, ctxerr.Wrap(ctx, err, "get app store app versions by fleet and title")
 	}
-	versionsByTitleID := make(map[uint][]*fleet.VPPAppStoreApp)
+	versionsByTitleIDByFleetID := make(fleet.AppStoreAppVersionsByFleetAndTitleID)
 	if len(versions) == 0 {
-		return versionsByTitleID, nil
+		return versionsByTitleIDByFleetID, nil
 	}
 
 	versionIDs := make([]uint, 0, len(versions))
@@ -3848,9 +3849,14 @@ ORDER BY vat.id
 	for i := range versions {
 		version := &versions[i].VPPAppStoreApp
 		version.Configuration = configurationByVersionID[version.VPPAppsTeamsID]
-		versionsByTitleID[versions[i].TitleID] = append(versionsByTitleID[versions[i].TitleID], version)
+		fleetID := versions[i].FleetID
+		titleID := versions[i].TitleID
+		if versionsByTitleIDByFleetID[fleetID] == nil {
+			versionsByTitleIDByFleetID[fleetID] = make(map[uint][]*fleet.VPPAppStoreApp)
+		}
+		versionsByTitleIDByFleetID[fleetID][titleID] = append(versionsByTitleIDByFleetID[fleetID][titleID], version)
 	}
-	return versionsByTitleID, nil
+	return versionsByTitleIDByFleetID, nil
 }
 
 func (ds *Datastore) ListHostAppStoreAppInstallVersions(ctx context.Context, fleetID uint, hostIDs []uint, platforms []fleet.InstallableDevicePlatform) (map[uint]map[uint]fleet.HostVPPSoftwareInstall, error) {
