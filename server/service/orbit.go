@@ -1498,7 +1498,7 @@ func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.Ho
 				failureMessage = "Fleet couldn't find the notification this script belongs to."
 			}
 			if failureMessage == "" {
-				failureMessage = svc.setPatchNotificationPayloadForDisplay(ctx, notificationUUID)
+				failureMessage = svc.setPatchNotificationPayloadForDisplay(ctx, host.ID, notificationUUID)
 			}
 			if failureMessage == "" {
 				expanded, failureMessage = svc.expandNotificationURL(ctx, host, script, notificationUUID)
@@ -2552,7 +2552,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		// The install result and its activity are already recorded, so a failure
 		// here is logged rather than returned: failing the request would have orbit
 		// report the same result again and emit a second activity.
-		if isAppOpenSkip && hsi.NotifyBeforePatching {
+		if isAppOpenSkip && (hsi.NotifyBeforePatching || hsi.PatchDeadline) {
 			if err := svc.createPatchNotificationForEndUser(ctx, host, hsi); err != nil {
 				svc.logger.ErrorContext(
 					ctx,

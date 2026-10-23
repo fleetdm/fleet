@@ -5,7 +5,10 @@ import (
 	"time"
 )
 
-const PatchNotificationKind = "patch"
+const (
+	PatchNotificationKind         = "patch"
+	PatchDeadlineNotificationKind = "patch_deadline"
+)
 
 // A row of patch_notifications. InstallAt is null until the first toast reaches the end user.
 type PatchNotification struct {

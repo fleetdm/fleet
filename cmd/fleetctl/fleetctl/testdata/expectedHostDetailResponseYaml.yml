@@ -62,6 +62,7 @@ spec:
   osquery_version: ""
   pack_stats: null
   packs: []
+  patch_deadline_at: null
   percent_disk_space_available: 0
   platform: ""
   platform_like: ""
@@ -80,6 +81,7 @@ spec:
     id: 1
     name: query1
     notify_before_patching: false
+    patch_deadline: false
     patch_when_closed: false
     platform: ""
     query: select 1 from osquery_info where start_time > 1;
@@ -102,6 +104,7 @@ spec:
     id: 2
     name: query2
     notify_before_patching: false
+    patch_deadline: false
     patch_when_closed: false
     platform: ""
     query: select 1 from osquery_info where start_time > 1;

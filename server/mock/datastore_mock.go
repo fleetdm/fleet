@@ -572,6 +572,8 @@ type GetDetailsForUninstallFromExecutionIDFunc func(ctx context.Context, executi
 
 type PatchNotificationExistsForAppFunc func(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error)
 
+type GetHostPatchDeadlineAtFunc func(ctx context.Context, hostID uint) (*time.Time, error)
+
 type DisplayedPatchNotificationExistsForAppFunc func(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error)
 
 type NewPatchNotificationFunc func(ctx context.Context, notificationUUID string) error
@@ -3426,6 +3428,9 @@ type DataStore struct {
 
 	PatchNotificationExistsForAppFunc        PatchNotificationExistsForAppFunc
 	PatchNotificationExistsForAppFuncInvoked bool
+
+	GetHostPatchDeadlineAtFunc        GetHostPatchDeadlineAtFunc
+	GetHostPatchDeadlineAtFuncInvoked bool
 
 	DisplayedPatchNotificationExistsForAppFunc        DisplayedPatchNotificationExistsForAppFunc
 	DisplayedPatchNotificationExistsForAppFuncInvoked bool
@@ -8394,6 +8399,13 @@ func (s *DataStore) PatchNotificationExistsForApp(ctx context.Context, hostID ui
 	s.PatchNotificationExistsForAppFuncInvoked = true
 	s.mu.Unlock()
 	return s.PatchNotificationExistsForAppFunc(ctx, hostID, softwareTitleID)
+}
+
+func (s *DataStore) GetHostPatchDeadlineAt(ctx context.Context, hostID uint) (*time.Time, error) {
+	s.mu.Lock()
+	s.GetHostPatchDeadlineAtFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostPatchDeadlineAtFunc(ctx, hostID)
 }
 
 func (s *DataStore) DisplayedPatchNotificationExistsForApp(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error) {

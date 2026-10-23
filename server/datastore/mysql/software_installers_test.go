@@ -7855,17 +7855,19 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 		return installerID, titleID
 	}
 
-	// option is "closed", "notify", or "" for neither.
+	// option is "closed", "notify", "deadline", or "" for none.
 	patchPolicy := func(t *testing.T, titleID uint, option string) *fleet.Policy {
 		p, err := ds.NewTeamPolicy(ctx, team.ID, &user.ID, fleet.PolicyPayload{
 			Type:                 fleet.PolicyTypePatch,
 			PatchSoftwareTitleID: &titleID,
 			PatchWhenClosed:      option == "closed",
 			NotifyBeforePatching: option == "notify",
+			PatchDeadline:        option == "deadline",
 		})
 		require.NoError(t, err)
 		require.Equal(t, option == "closed", p.PatchWhenClosed)
 		require.Equal(t, option == "notify", p.NotifyBeforePatching)
+		require.Equal(t, option == "deadline", p.PatchDeadline)
 		if option != "" {
 			// The service does this after writing the policy; call it here to exercise the same effect.
 			require.NoError(t, ds.ClearPreInstallQueryForTitle(ctx, team.ID, titleID))
@@ -7873,9 +7875,9 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 		return p
 	}
 
-	// Both patch options swap the managed app-open query in as the install's pre-install condition,
+	// Every patch option swaps the managed app-open query in as the install's pre-install condition,
 	// on both UNION branches of the details query. A host each, so activation order is unambiguous.
-	for _, option := range []string{"closed", "notify"} {
+	for _, option := range []string{"closed", "notify", "deadline"} {
 		optHost := test.NewHost(t, ds, "pwc-host-"+option, "pwc-ip-"+option, "pwc-key-"+option, "pwc-uuid-"+option, time.Now())
 		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{optHost.ID})))
 
@@ -7888,6 +7890,12 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 		optDetails, err := ds.GetSoftwareInstallDetails(ctx, optExec)
 		require.NoError(t, err)
 		require.Equal(t, managedQuery, optDetails.PreInstallCondition, option)
+
+		// The upcoming branch reads the options live from the policy.
+		upcoming, err := ds.GetSoftwareInstallResults(ctx, optExec)
+		require.NoError(t, err)
+		require.Equal(t, option == "notify", upcoming.NotifyBeforePatching, option)
+		require.Equal(t, option == "deadline", upcoming.PatchDeadline, option)
 
 		// Activating the install moves it into host_software_installs, exercising the other UNION
 		// branch of the query, which must resolve the managed query the same way.
@@ -7917,16 +7925,24 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 		}, nil)
 		require.NoError(t, err)
 
+		// A completed row tells deadline from notify by reading the policy.
+		skipped, err := ds.GetSoftwareInstallResults(ctx, optExec)
+		require.NoError(t, err)
+		require.Equal(t, option == "notify", skipped.NotifyBeforePatching, option)
+		require.Equal(t, option == "deadline", skipped.PatchDeadline, option)
+
 		// Deleting the policy nulls host_software_installs.policy_id, and the recorded result still
 		// should report which patch option queued the install, to differentiate between them in details,
-		// rather than just use override pre install query.
+		// rather than just use override pre install query. A deadline install falls back to notify,
+		// which still warns before forcing.
 		_, err = ds.DeleteTeamPolicies(ctx, team.ID, []uint{optPol.ID})
 		require.NoError(t, err)
 		deletedPolicyResult, err := ds.GetSoftwareInstallResults(ctx, optExec)
 		require.NoError(t, err)
 		require.True(t, deletedPolicyResult.OverridePreInstallQuery, option)
 		require.Equal(t, option == "closed", deletedPolicyResult.PatchWhenClosed, option)
-		require.Equal(t, option == "notify", deletedPolicyResult.NotifyBeforePatching, option)
+		require.Equal(t, option == "notify" || option == "deadline", deletedPolicyResult.NotifyBeforePatching, option)
+		require.False(t, deletedPolicyResult.PatchDeadline, option)
 	}
 
 	// A patch policy with neither option keeps the user query on the policy path.
@@ -7978,7 +7994,7 @@ func testGetSoftwareInstallDetailsPatchWhenClosed(t *testing.T, ds *Datastore) {
 	for _, tc := range []struct {
 		option string
 		want   bool
-	}{{"closed", true}, {"notify", true}, {"", false}} {
+	}{{"closed", true}, {"notify", true}, {"deadline", true}, {"", false}} {
 		legacyHost := test.NewHost(t, ds, "pwc-host-legacy-"+tc.option, "pwc-ip-legacy-"+tc.option, "pwc-key-legacy-"+tc.option, "pwc-uuid-legacy-"+tc.option, time.Now())
 		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{legacyHost.ID})))
 		legacyInstaller, legacyTitle := newInstaller(t, "pwc-legacy-"+tc.option)

@@ -28,6 +28,7 @@ func TestPatchNotifications(t *testing.T) {
 		{"DeleteApps", testPatchNotificationDeleteApps},
 		{"InstallAt", testPatchNotificationInstallAt},
 		{"ListDue", testPatchNotificationListDue},
+		{"HostPatchDeadlineAt", testPatchNotificationHostPatchDeadlineAt},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -718,4 +719,75 @@ func testPatchNotificationAppInstallStatuses(t *testing.T, ds *Datastore) {
 	statuses, err = ds.ListPatchNotificationAppInstallStatuses(ctx, notificationUUID)
 	require.NoError(t, err)
 	require.Equal(t, map[uint]fleet.SoftwareInstallerStatus{titleID: fleet.SoftwareInstalled}, statuses)
+}
+
+func testPatchNotificationHostPatchDeadlineAt(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "deadline-host", "", "deadline-key", "deadline-uuid", time.Now())
+	otherHost := test.NewHost(t, ds, "deadline-other-host", "", "deadline-other-key", "deadline-other-uuid", time.Now())
+
+	newRow := func(hostID uint, kind, status string, nextAttemptAt time.Time) string {
+		notificationUUID := uuid.NewString()
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx, `
+				INSERT INTO notifications_end_user (uuid, host_id, status, kind, payload, next_attempt_at, expires_at)
+				VALUES (?, ?, ?, ?, '{}', ?, NOW(6) + INTERVAL 7 DAY)`,
+				notificationUUID, hostID, status, kind, nextAttemptAt); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx, `INSERT INTO patch_notifications (notification_uuid) VALUES (?)`, notificationUUID)
+			return err
+		})
+		return notificationUUID
+	}
+
+	at, err := ds.GetHostPatchDeadlineAt(ctx, host.ID)
+	require.NoError(t, err)
+	require.Nil(t, at)
+
+	// rows that don't count: a notify patch row, rows that are no longer open, and another host's row
+	soon := time.Now().UTC().Add(time.Hour).Truncate(time.Second)
+	newRow(host.ID, fleet.PatchNotificationKind, notifications_api.EndUserNotificationPending, soon)
+	for _, status := range []string{
+		notifications_api.EndUserNotificationActed,
+		notifications_api.EndUserNotificationFailed,
+		notifications_api.EndUserNotificationExpired,
+	} {
+		newRow(host.ID, fleet.PatchDeadlineNotificationKind, status, soon)
+	}
+	newRow(otherHost.ID, fleet.PatchDeadlineNotificationKind, notifications_api.EndUserNotificationPending, soon)
+	at, err = ds.GetHostPatchDeadlineAt(ctx, host.ID)
+	require.NoError(t, err)
+	require.Nil(t, at)
+
+	// a pending row's deadline is 1 hour after its first attempt
+	later := soon.Add(48 * time.Hour)
+	laterUUID := newRow(host.ID, fleet.PatchDeadlineNotificationKind, notifications_api.EndUserNotificationPending, later)
+	at, err = ds.GetHostPatchDeadlineAt(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, at)
+	require.WithinDuration(t, later.Add(time.Hour), *at, time.Second)
+
+	// the earliest of two open rows wins
+	earlierUUID := newRow(host.ID, fleet.PatchDeadlineNotificationKind, notifications_api.EndUserNotificationDispatched, soon)
+	at, err = ds.GetHostPatchDeadlineAt(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, at)
+	require.WithinDuration(t, soon.Add(time.Hour), *at, time.Second)
+
+	// install_at takes over once the toast has displayed, even when it is later than the other row
+	installAt := later.Add(24 * time.Hour)
+	_, err = ds.SetPatchNotificationInstallAt(ctx, earlierUUID, installAt)
+	require.NoError(t, err)
+	at, err = ds.GetHostPatchDeadlineAt(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, at)
+	require.WithinDuration(t, later.Add(time.Hour), *at, time.Second)
+
+	_, err = ds.SetPatchNotificationInstallAt(ctx, laterUUID, installAt.Add(time.Hour))
+	require.NoError(t, err)
+	at, err = ds.GetHostPatchDeadlineAt(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, at)
+	require.WithinDuration(t, installAt, *at, time.Second)
 }

@@ -2251,6 +2251,14 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		return nil, ctxerr.Wrap(ctx, err, "get os update for host details")
 	}
 
+	var patchDeadlineAt *time.Time
+	if host.Platform == "darwin" {
+		patchDeadlineAt, err = svc.ds.GetHostPatchDeadlineAt(ctx, host.ID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host patch deadline")
+		}
+	}
+
 	// LastMDMCheckedInAt lives on Host so it's also available to the list-hosts
 	// loader; the details service overwrites the (potentially nil) value from
 	// the list-load with the fresh nano_enrollments read done above.
@@ -2269,6 +2277,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		ConditionalAccessBypassed:     conditionalAccessBypassed,
 		OSUpdateMinimumVersion:        osUpdateMinVersion,
 		OSUpdateDeadline:              osUpdateDeadline,
+		PatchDeadlineAt:               patchDeadlineAt,
 	}, nil
 }
 

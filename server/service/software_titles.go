@@ -267,9 +267,9 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 						}
 						pkg.PatchPolicy = patchPolicy
 
-						// While patch_when_closed or notify_before_patching is on, the pre-install
-						// query is Fleet's managed app open query, shown read-only.
-						if patchPolicy != nil && (patchPolicy.PatchWhenClosed || patchPolicy.NotifyBeforePatching) {
+						// While patch_when_closed, notify_before_patching, or patch_deadline is on, the
+						// pre-install query is Fleet's managed app open query, shown read-only.
+						if patchPolicy != nil && (patchPolicy.PatchWhenClosed || patchPolicy.NotifyBeforePatching || patchPolicy.PatchDeadline) {
 							pkg.PreInstallQuery = pkg.AppOpenQuery
 						}
 					}
