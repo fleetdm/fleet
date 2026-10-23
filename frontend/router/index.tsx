@@ -248,10 +248,10 @@ const LazySoftwareLibrary = lazyPage(
       /* webpackChunkName: "software" */ "pages/SoftwarePage/SoftwareLibrary"
     )
 );
-const LazySelfServiceCategoriesPage = lazyPage(
+const LazySoftwareLibrarySettingsPage = lazyPage(
   () =>
     import(
-      /* webpackChunkName: "software" */ "pages/SoftwarePage/SoftwareLibrary/SelfServiceCategoriesPage"
+      /* webpackChunkName: "software" */ "pages/SoftwarePage/SoftwareLibrary/SoftwareLibrarySettingsPage"
     )
 );
 const LazySoftwareTitleDetailsPage = lazyPage(
@@ -765,8 +765,26 @@ const routes = (
               <Redirect from=":id" to="versions/:id" />
             </Route>
             <Route
+              path="library/settings"
+              component={LazySoftwareLibrarySettingsPage}
+            />
+            <Route
+              path="library/settings/:section"
+              component={LazySoftwareLibrarySettingsPage}
+            />
+            {/*
+              Static <Redirect to="/path"> strips the query. Use onEnter so
+              fleet_id (and any deep-link params like add_category=1) survive
+              the hop from the pre-rename URL.
+            */}
+            <Route
               path="library/categories"
-              component={LazySelfServiceCategoriesPage}
+              onEnter={(nextState, replace) =>
+                replace({
+                  pathname: PATHS.SOFTWARE_LIBRARY_SETTINGS_CATEGORIES,
+                  query: nextState.location.query,
+                })
+              }
             />
             <Route path="titles/:id" component={LazySoftwareTitleDetailsPage} />
             <Route

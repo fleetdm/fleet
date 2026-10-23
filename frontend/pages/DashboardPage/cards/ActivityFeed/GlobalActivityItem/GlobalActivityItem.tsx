@@ -189,6 +189,35 @@ const makeVersionSuffix = (
 ): string =>
   versionName && isMobilePlatform(platform || "") ? ` (${versionName})` : "";
 
+// Weekday keys the patch deadline API uses, sorted Monday-first. Sorting here
+// (rather than trusting the server) keeps the rendered list stable across
+// activities whose days array arrived in a different order.
+const WEEKDAY_ORDER: Record<string, number> = {
+  monday: 0,
+  tuesday: 1,
+  wednesday: 2,
+  thursday: 3,
+  friday: 4,
+  saturday: 5,
+  sunday: 6,
+};
+
+const capitalizeWeekday = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+// "Monday", "Monday and Friday", "Monday, Wednesday, and Friday". Drops any
+// unknown weekday the server might send (keeps the copy readable rather than
+// splicing "Fooday" into the activity text). Returns "" on an empty list;
+// callers decide how to render that edge case.
+const formatWeekdayList = (days: string[]): string => {
+  const known = days.filter((d) => d in WEEKDAY_ORDER);
+  const sorted = [...known].sort((a, b) => WEEKDAY_ORDER[a] - WEEKDAY_ORDER[b]);
+  const labels = sorted.map(capitalizeWeekday);
+  if (labels.length === 0) return "";
+  if (labels.length === 1) return labels[0];
+  if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
+  return `${labels.slice(0, -1).join(", ")}, and ${labels[labels.length - 1]}`;
+};
+
 const TAGGED_TEMPLATES = {
   liveQueryActivityTemplate: (activity: IActivity) => {
     const { targets_count: count, query_name: queryName, stats } =
@@ -2646,6 +2675,22 @@ const TAGGED_TEMPLATES = {
   disabledOnlyAppleBusinessEnrollment: () => {
     return <>disabled Apple Business only enrollment for Apple hosts.</>;
   },
+  editedPatchDeadlineSettings: (activity: IActivity) => {
+    const { details } = activity;
+    if (!details) {
+      return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
+    }
+    const fleetName = details.fleet_name || "Unassigned";
+    const daysLabel = formatWeekdayList(details.days ?? []);
+    const time = details.time || "";
+    return (
+      <>
+        {" "}
+        edited patch deadline for <b>{fleetName}</b> fleet to <b>{daysLabel}</b>{" "}
+        at <b>{time}</b>.
+      </>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -3217,6 +3262,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.NotifiedEndUserBeforePatching: {
       return TAGGED_TEMPLATES.notifiedEndUserBeforePatching(activity);
+    }
+    case ActivityType.EditedPatchDeadlineSettings: {
+      return TAGGED_TEMPLATES.editedPatchDeadlineSettings(activity);
     }
     case ActivityType.EnabledAppleBusinessOnlyEnrollment: {
       return TAGGED_TEMPLATES.enabledOnlyAppleBusinessEnrollment();
