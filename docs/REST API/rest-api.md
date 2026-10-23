@@ -766,7 +766,7 @@ Clears a policy's pass/fail results. Fleet does this automatically when you edit
 
 ### Connect certificate authority (CA)
 
-Connect Fleet to a certificate authority (CA). Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Okta](https://www.okta.com/), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), [Hydrant](https://www.hidglobal.com/), [Smallstep](https://smallstep.com/), and any custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) or [EST](https://en.wikipedia.org/wiki/Enrollment_over_Secure_Transport) CA. Okta uses NDES under the hood, so Okta CAs use the same `ndes_scep_proxy` object as Microsoft NDES.
+Connect Fleet to a certificate authority (CA). Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [EJBCA](https://www.ejbca.org/), [Okta](https://www.okta.com/), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), [Hydrant](https://www.hidglobal.com/), [Smallstep](https://smallstep.com/), and any custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) or [EST](https://en.wikipedia.org/wiki/Enrollment_over_Secure_Transport) CA. Okta uses NDES under the hood, so Okta CAs use the same `ndes_scep_proxy` object as Microsoft NDES.
 
 
 `POST /api/v1/fleet/certificate_authorities`
@@ -860,11 +860,21 @@ Object with the following structure:
 
 Object with the following structure:
 
-| Name                    | Type    | Description   |
-| ---------------------   | ------- | ---------------------------------------------------- |
-| name                    | string  | **Required**. Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. |
-| url                     | string  | **Required**. URL of the EJBCA REST API endpoint. |
-| password                | string  | **Required**. The password for the client certificate. |
+| Name                             | Type    | Description   |
+| -------------------------------- | ------- | ---------------------------------------------------- |
+| name                             | string  | **Required**. Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. The name can't be `NDES` or the name of another certificate authority of any type, in any case. |
+| url                              | string  | **Required**. URL of your EJBCA instance, used as base URL for EJBCA REST API requests (for example, `https://ejbca.example.com:8443`). Must be an `https` URL without a username or password. |
+| client_p12                       | string  | **Required**. Base64-encoded PKCS#12 (`.p12`) file with the client certificate and private key that Fleet uses to authenticate to EJBCA with mutual TLS. Must be under 1 MB and the certificate can't be expired. |
+| password                         | string  | **Required**. The password of the PKCS#12 file. |
+| trust_ca_bundle                  | string  | PEM-encoded CA certificates that sign the HTTPS certificate of your EJBCA instance. If it's empty, Fleet trusts public CAs. |
+| certificate_authority_name       | string  | **Required**. Name of the CA in EJBCA that issues the certificates (for example, `ManagementCA`). |
+| certificate_profile_name         | string  | **Required**. Name of the certificate profile in EJBCA. |
+| end_entity_profile_name          | string  | **Required**. Name of the end entity profile in EJBCA. |
+| certificate_common_name          | string  | **Required**. The certificate's common name. Supports the same [built-in variables](https://fleetdm.com/guides/fleet-variables) as `digicert`. |
+| username_template                | string  | The username of the end entity that EJBCA creates for each host. Supports the same variables as `certificate_common_name`. Defaults to `certificate_common_name`. |
+| certificate_user_principal_names | array   | The certificate's user principal names (UPN) attribute in Subject Alternative Name (SAN). Supports the same variables as `certificate_common_name`. Only one item is allowed. |
+
+When Fleet adds or edits an EJBCA CA, it checks that EJBCA accepts the client certificate, and that the CA and, when EJBCA can look it up, the certificate profile exist. It can't check the end entity profile.
 
 #### Example
 
@@ -885,13 +895,6 @@ Object with the following structure:
     ],
     "certificate_seat_id": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
   }
-},
-{
-  "ejbca": {
-    "name": "WIFI_CERTIFICATE",
-    "url": "https://ejbca.example.com:8443",
-    "password": "********"
-  }
 }
 ```
 
@@ -904,7 +907,40 @@ Object with the following structure:
   "id": 1,
   "name": "WIFI_CERTIFICATE",
   "type": "digicert"
-},
+}
+```
+
+#### Example (EJBCA)
+
+`POST /api/v1/fleet/certificate_authorities`
+
+##### Request body
+
+```json
+{
+  "ejbca": {
+    "name": "EJBCA_WIFI",
+    "url": "https://ejbca.example.com:8443",
+    "client_p12": "MIIJ...",
+    "password": "********",
+    "trust_ca_bundle": "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----\n",
+    "certificate_authority_name": "ManagementCA",
+    "certificate_profile_name": "ENDUSER",
+    "end_entity_profile_name": "WIFI_DEVICES",
+    "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+    "username_template": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+    "certificate_user_principal_names": [
+      "$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
+    ]
+  }
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
 {
   "id": 7,
   "name": "EJBCA_WIFI",
@@ -968,6 +1004,10 @@ When editing a CA, specify one object and only its fields that you want to updat
 
 When you change a DigiCert CA's `certificate_common_name`, `certificate_user_principal_names`, or `certificate_seat_id`, Fleet reissues the certificate to every host with a configuration profile that uses this CA, in all fleets. Changing only other fields, like `url` or `api_token`, doesn't reissue certificates.
 
+When you change an EJBCA CA's `certificate_authority_name`, `certificate_profile_name`, `end_entity_profile_name`, `certificate_common_name`, `username_template`, or `certificate_user_principal_names`, Fleet reissues the certificate to every host with a configuration profile that uses this CA, in all fleets. Changing only other fields, like `url` or `trust_ca_bundle`, doesn't reissue certificates.
+
+To replace the client certificate of an EJBCA CA, send `client_p12` and `password` together. Fleet keeps the stored client certificate until EJBCA accepts the new one. Fleet never returns `client_p12` or `password`, and ignores either one when it's `********`. Fleet checks the connection to EJBCA when you change `url`, `client_p12`, `trust_ca_bundle`, `certificate_authority_name`, or `certificate_profile_name`.
+
 #### Parameters
 
 | Name            | Type    | In   | Description                                                 |
@@ -979,6 +1019,7 @@ When you change a DigiCert CA's `certificate_common_name`, `certificate_user_pri
 | custom_est_proxy   | object | body | See [custom_est_proxy](#custom-est-proxy) |
 | hydrant   | object | body | See [hydrant](#hydrant) |
 | smallstep   | object | body | See [smallstep](#smallstep) |
+| ejbca   | object | body | See [ejbca](#ejbca) |
 
 See [Connect certificate authority](#connect-certificate-authority-ca) above for the structure of each CA object.
 
@@ -1021,6 +1062,12 @@ See [Connect certificate authority](#connect-certificate-authority-ca) above for
       "type": "digicert"
     },
     {
+      "id": 7,
+      "name": "EJBCA_WIFI",
+      "type": "ejbca",
+      "mtls_cert_expires_at": "2027-10-15T09:21:10Z"
+    },
+    {
       "id": 2,
       "name": "DIGICERT_STAGE",
       "type": "digicert"
@@ -1056,7 +1103,7 @@ See [Connect certificate authority](#connect-certificate-authority-ca) above for
 
 ### Get certificate authority (CA)
 
-Get details of the certificate authority.
+Get details of the certificate authority. Secrets, like the API token of a DigiCert CA or the client certificate and password of an EJBCA CA, are masked or not returned.
 
 `GET /api/v1/fleet/certificate_authorities/:id`
 
@@ -1087,6 +1134,35 @@ Get details of the certificate authority.
     "$FLEET_VAR_HOST_HARDWARE_SERIAL"
   ],
   "certificate_seat_id": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
+}
+```
+
+#### Example (EJBCA)
+
+`GET /api/v1/fleet/certificate_authorities/7`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "id": 7,
+  "type": "ejbca",
+  "name": "EJBCA_WIFI",
+  "url": "https://ejbca.example.com:8443",
+  "trust_ca_bundle": "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----\n",
+  "certificate_authority_name": "ManagementCA",
+  "certificate_profile_name": "ENDUSER",
+  "end_entity_profile_name": "WIFI_DEVICES",
+  "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+  "username_template": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+  "certificate_user_principal_names": [
+    "$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
+  ],
+  "mtls_cert_expires_at": "2027-10-15T09:21:10Z",
+  "created_at": "2026-10-15T09:21:10Z",
+  "updated_at": "2026-10-15T09:21:10Z"
 }
 ```
 

@@ -1403,7 +1403,16 @@ org_settings:
     ejbca:
       - name: EJBCA_WIFI
         url: https://ejbca.example.com:8443
+        client_p12: $EJBCA_CLIENT_P12
         password: $EJBCA_CLIENT_P12_PASSWORD
+        trust_ca_bundle: $EJBCA_TRUST_CA_BUNDLE
+        certificate_authority_name: ManagementCA
+        certificate_profile_name: ENDUSER
+        end_entity_profile_name: WIFI_DEVICES
+        certificate_common_name: $FLEET_VAR_HOST_HARDWARE_SERIAL
+        username_template: $FLEET_VAR_HOST_HARDWARE_SERIAL
+        certificate_user_principal_names:
+          - $FLEET_VAR_HOST_END_USER_IDP_USERNAME
 ```
 
 #### digicert
@@ -1461,9 +1470,21 @@ Can only be configured for "All fleets" (`org_settings`).
 
 #### ejbca
 
-- `name` is the name of certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
-- `url` is the URL of the EJBCA REST API endpoint.
-- `password` is the password for the client certificate.
+- `name` is the name of certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. The name can't be `NDES` or the name of another certificate authority of any type, in any case.
+- `url` is the URL of your EJBCA instance (for example, `https://ejbca.example.com:8443`). It must be an `https` URL without a username or password.
+- `client_p12` is the base64-encoded PKCS#12 (`.p12`) file with the client certificate and private key that Fleet uses to authenticate to EJBCA with mutual TLS. To get the value, run `base64 -i client.p12`, and store the output in an environment variable.
+- `password` is the password of the PKCS#12 file.
+- `trust_ca_bundle` is the PEM-encoded CA certificates that sign the HTTPS certificate of your EJBCA instance (optional). If it's empty, Fleet trusts public CAs.
+- `certificate_authority_name` is the name of the CA in EJBCA that issues the certificates.
+- `certificate_profile_name` is the name of the certificate profile in EJBCA.
+- `end_entity_profile_name` is the name of the end entity profile in EJBCA.
+- `certificate_common_name` is the certificate's CN. Accepts the same Fleet variables as `digicert`. Available on Apple hosts only.
+- `username_template` is the username of the end entity that EJBCA creates for each host (optional). Accepts the same Fleet variables as `certificate_common_name`. Defaults to `certificate_common_name`.
+- `certificate_user_principal_names` is the certificate's user principal names (UPN) attribute in Subject Alternative Name (SAN) (optional). Only one item is allowed. Accepts the same Fleet variables as `certificate_common_name`.
+
+When GitOps adds or changes an EJBCA CA, Fleet checks the connection to EJBCA, so the client certificate must be valid and EJBCA must know the CA. Fleet doesn't return the client certificate or its password, so `fleetctl generate-gitops` adds placeholders for `client_p12` and `password` that you have to fill in.
+
+When `certificate_authority_name`, `certificate_profile_name`, `end_entity_profile_name`, `certificate_common_name`, `username_template`, or `certificate_user_principal_names` is edited, certificates are reissued to every host with a configuration profile that uses this CA, across all fleets. Editing only other fields, like `url` or `trust_ca_bundle`, doesn't reissue certificates. Certificates are also reissued when a host's IdP variable value changes.
 
 Can only be configured for "All fleets" (`org_settings`).
 
