@@ -254,7 +254,7 @@ module.exports.custom = {
     'website/generators': 'eashaw',
     'website/assets': 'eashaw',
     'website/assets/styles': ['eashaw','mike-j-thomas'],
-    'website/assets/images': ['eashaw','mike-j-thomas'],
+    'website/assets/images': ['eashaw','mike-j-thomas','allenhouchins'],
     'website/assets/videos': ['eashaw','mike-j-thomas'],
     'website/assets/pdfs': ['eashaw','mike-j-thomas'],
     'website/package.json': 'eashaw',
@@ -277,7 +277,6 @@ module.exports.custom = {
     'frontend/pages/SoftwarePage/components/icons': 'allenhouchins',
     'ee/maintained-apps': 'allenhouchins',
     'pkg/patch_policy': 'allenhouchins',
-    'website/assets/images': 'allenhouchins',
 
     // Other brandfronts
     'README.md': ['mikermcneil', 'mike-j-thomas', 'lukeheath'],//« github brandfront (github.com/fleetdm/fleet)
