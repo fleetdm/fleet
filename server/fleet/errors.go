@@ -44,6 +44,8 @@ var (
 	CantAddSoftwareConflictMessage               = "Couldn't add software. %s already has an installer available for the %s fleet."
 	// Args: the two conflicting app names (order not significant).
 	CantAddConflictingFMAMessage = "Couldn't add software. Only one of %s or %s can be added to the same fleet."
+	// Args: the Fleet-maintained app name.
+	FleetMaintainedAppManifestUnreachableMessage = "Fleet couldn't fetch the manifest for %s. Please try again."
 	// AddMaintainedAppTimeoutErrMsg is returned when Fleet's own 15-minute installer
 	// download timeout is exceeded (context.DeadlineExceeded).
 	AddMaintainedAppTimeoutErrMsg = "Couldn't add. Downloading the installer took longer than Fleet's 15-minute limit. This can happen with very large installers or a slow connection to the vendor's content delivery network (CDN). Try again, and make sure any proxy, gateway, or load balancer in front of Fleet allows the request to run at least that long."
@@ -617,6 +619,22 @@ func (e ConflictError) StatusCode() int {
 	return http.StatusConflict
 }
 
+// EJBCANameInUseError is returned when a certificate authority name would be shared by an EJBCA certificate authority and another
+// certificate authority. The name of an EJBCA CA has to be unique among all the CAs.
+type EJBCANameInUseError struct {
+	Name string
+}
+
+func (e EJBCANameInUseError) Error() string {
+	return fmt.Sprintf("%q name is already used by another certificate authority, and the name of an EJBCA certificate authority can't be shared. "+
+		"Please choose a different name and try again.", e.Name)
+}
+
+// StatusCode implements the kithttp.StatusCoder interface.
+func (e EJBCANameInUseError) StatusCode() int {
+	return http.StatusConflict
+}
+
 // CertificateAuthorityTransientError is the 503 for a certificate request the CA could not
 // serve for a reason expected to clear on its own, such as no response or an HTTP 5xx.
 // Retry-After tells callers such as curl --retry when to try again.
@@ -689,3 +707,5 @@ func (e *ABOnlyEnrollmentForbiddenError) Internal() string {
 }
 
 const AdminOnlyEnrollmentForbiddenErrMsg = "Manual enrollment is not available because only Apple Business enrollment is allowed for this organization."
+
+const ManualEnrollmentStaticChallengeDisabledErrMsg = "Manual enrollment profile is not available because the static SCEP challenge is disabled for this Fleet server."

@@ -1046,6 +1046,13 @@ allow {
   action == [read, write, list][_]
 }
 
+# Global gitops can list AB tokens, so fleetctl gitops can check setup assistant coverage.
+allow {
+  object.type == "mdm_apple"
+  subject.global_role == gitops
+  action == list
+}
+
 # Global admins can write/modify AB release devices
 allow {
   object.type == "mdm_ab_release"
@@ -1235,16 +1242,16 @@ allow {
   action == write
 }
 
-# Global admins can read, write, and list MDM apple eula information.
+# Global admins can read, write, and list the EULA of every platform.
 allow {
-  object.type == "mdm_apple_eula"
+  object.type == "mdm_eula"
   subject.global_role == admin
   action == [read, write, list][_]
 }
 
-# Global gitops can read and write the EULA.
+# Global gitops can read and write the EULA of every platform.
 allow {
-  object.type == "mdm_apple_eula"
+  object.type == "mdm_eula"
   subject.global_role == gitops
   action == [read, write][_]
 }
@@ -1328,11 +1335,19 @@ allow {
 # Single host script result (script execution and output)
 ##
 
-# Global admins, maintainers, and technicians can write (execute) scripts (not
-# gitops as this is not something that relates to fleetctl gitops).
+# Global admins and maintainers can write (execute) scripts (not gitops as
+# this is not something that relates to fleetctl gitops).
 allow {
   object.type == "host_script_result"
-  subject.global_role == [admin, maintainer, technician][_]
+  subject.global_role == [admin, maintainer][_]
+  action == write
+}
+
+# Global technicians can write (execute) saved scripts only.
+allow {
+  object.type == "host_script_result"
+  not is_null(object.script_id)
+  subject.global_role == technician
   action == write
 }
 
@@ -1344,12 +1359,21 @@ allow {
   action == read
 }
 
-# Team admin, maintainers, and technicians can write (execute) scripts for their
-# teams (not gitops as this is not something that relates to fleetctl gitops).
+# Team admin and maintainers can write (execute) scripts for their teams (not
+# gitops as this is not something that relates to fleetctl gitops).
 allow {
   object.type == "host_script_result"
   not is_null(object.team_id)
-  team_role(subject, object.team_id) == [admin, maintainer, technician][_]
+  team_role(subject, object.team_id) == [admin, maintainer][_]
+  action == write
+}
+
+# Team technicians can write (execute) saved scripts for their teams only.
+allow {
+  object.type == "host_script_result"
+  not is_null(object.team_id)
+  not is_null(object.script_id)
+  team_role(subject, object.team_id) == technician
   action == write
 }
 

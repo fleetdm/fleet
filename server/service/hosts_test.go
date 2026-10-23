@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
@@ -2140,9 +2142,10 @@ func TestHostAuth(t *testing.T) {
 		{"team technician, belongs to team", test.UserTeamTechnicianTeam1, false, true},
 		{"team technician, DOES NOT belong to team", test.UserTeamTechnicianTeam2, true, true},
 	}
+	premiumCtx := license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	for _, tt := range technicianCases {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+			ctx := viewer.NewContext(premiumCtx, viewer.Viewer{User: tt.user})
 			isTeamOnlyRole := tt.user.GlobalRole == nil
 
 			err := svc.DeleteHost(ctx, 1)
@@ -2159,6 +2162,24 @@ func TestHostAuth(t *testing.T) {
 
 			_, err = svc.SetHostDeviceMapping(ctx, 1, "a@b.c", "custom")
 			checkAuthErr(t, true, err)
+		})
+
+		t.Run(tt.name+" on Free", func(t *testing.T) {
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+			isTeamOnlyRole := tt.user.GlobalRole == nil
+			checkFreeDelete := func(shouldFailAuthz bool, err error) {
+				t.Helper()
+				if shouldFailAuthz {
+					checkHostWriteAuthErr(t, true, isTeamOnlyRole, err)
+					return
+				}
+				require.ErrorIs(t, err, fleet.ErrMissingLicense)
+			}
+
+			checkFreeDelete(tt.shouldFailTeamDelete, svc.DeleteHost(ctx, 1))
+			checkFreeDelete(tt.shouldFailGlobalDelete, svc.DeleteHost(ctx, 2))
+			checkFreeDelete(tt.shouldFailTeamDelete, svc.DeleteHosts(ctx, []uint{1}, nil))
+			checkFreeDelete(tt.shouldFailGlobalDelete, svc.DeleteHosts(ctx, []uint{2}, nil))
 		})
 	}
 
@@ -4765,13 +4786,14 @@ func TestHostEncryptionKey(t *testing.T) {
 	})
 
 	t.Run("host platform mdm enabled", func(t *testing.T) {
+		// A Windows key depends on the server private key only, so it is readable whether or not Windows MDM is on.
 		cases := []struct {
 			hostPlatform  string
 			macMDMEnabled bool
 			winMDMEnabled bool
 			shouldFail    bool
 		}{
-			{"windows", true, false, true},
+			{"windows", true, false, false},
 			{"windows", false, true, false},
 			{"windows", true, true, false},
 			{"darwin", true, false, false},
@@ -4795,6 +4817,7 @@ func TestHostEncryptionKey(t *testing.T) {
 					return &fleet.HostDiskEncryptionKey{
 						Base64Encrypted: key,
 						Decryptable:     new(true),
+						WSTEPEncrypted:  c.hostPlatform == "windows",
 					}, nil
 				}
 				ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host, _ bool) (*fleet.HostArchivedDiskEncryptionKey, error) {
@@ -4816,15 +4839,142 @@ func TestHostEncryptionKey(t *testing.T) {
 				ctx = test.UserContext(ctx, test.UserAdmin)
 				_, err := svc.HostEncryptionKey(ctx, 1, false)
 				if c.shouldFail {
-					require.Error(t, err)
-					if c.macMDMEnabled && !c.winMDMEnabled && c.hostPlatform == "windows" {
-						require.ErrorContains(t, err, fleet.ErrWindowsMDMNotConfigured.Error())
-					} else {
-						require.ErrorContains(t, err, fleet.ErrMDMNotConfigured.Error())
-					}
+					require.ErrorContains(t, err, fleet.ErrMDMNotConfigured.Error())
 				} else {
 					require.NoError(t, err)
 				}
+			})
+		}
+	})
+
+	t.Run("Windows keys", func(t *testing.T) {
+		aesKey, err := mdm.EncryptAndEncode(recoveryKey, fleetCfg.Server.PrivateKey)
+		require.NoError(t, err)
+		// A key escrowed by an older release names the WSTEP certificate of that time. The configured one here has the same key
+		// and a different serial, which is what a renewal looks like.
+		renewed := selfSignedCertForKey(t, wstep.PrivateKey.(*rsa.PrivateKey), 42)
+		legacyKey, err := pkcs7.Encrypt([]byte(recoveryKey), []*x509.Certificate{renewed})
+		require.NoError(t, err)
+		legacyB64 := base64.StdEncoding.EncodeToString(legacyKey)
+		// Encrypted to a certificate whose key the server never had, as after replacing the WSTEP pair.
+		otherKey, err := rsa.GenerateKey(rand.Reader, 2048)
+		require.NoError(t, err)
+		deadKey, err := pkcs7.Encrypt([]byte(recoveryKey), []*x509.Certificate{selfSignedCertForKey(t, otherKey, 43)})
+		require.NoError(t, err)
+		deadB64 := base64.StdEncoding.EncodeToString(deadKey)
+
+		cases := []struct {
+			name       string
+			current    *fleet.HostDiskEncryptionKey
+			archived   *fleet.HostArchivedDiskEncryptionKey
+			want       string
+			wantErr    string
+			noReescrow string // why nothing asks the host for a new key, if anything
+		}{
+			{"server private key", &fleet.HostDiskEncryptionKey{Base64Encrypted: aesKey, Decryptable: new(true)}, nil, recoveryKey, "", ""},
+			{"legacy key with a renewed certificate", &fleet.HostDiskEncryptionKey{Base64Encrypted: legacyB64, WSTEPEncrypted: true, Decryptable: new(true)}, nil, recoveryKey, "", ""},
+			{"legacy key on an unmarked row, since reads do not depend on the marker", &fleet.HostDiskEncryptionKey{Base64Encrypted: legacyB64, Decryptable: new(true)}, nil, recoveryKey, "", ""},
+			{"server-key blob on a marked row", &fleet.HostDiskEncryptionKey{Base64Encrypted: aesKey, WSTEPEncrypted: true, Decryptable: new(true)}, nil, recoveryKey, "", ""},
+			{"unreadable key on an unmarked row", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, Decryptable: new(true)}, nil, "", "Couldn't decrypt the disk encryption key.", ""},
+			{"legacy key after the pair was replaced, before the job marked it", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true, Decryptable: new(true)}, nil, "", "Couldn't decrypt the disk encryption key.", ""},
+			{"legacy key after the pair was replaced, marked by the job", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true, Decryptable: new(false)}, nil, "", "The host will escrow a new one", ""},
+			// Marked, but nothing will ask the host for a new key, so the error must not promise one.
+			{"marked key in a fleet without Windows disk encryption", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true, Decryptable: new(false)}, nil, "", "Couldn't decrypt the disk encryption key.", "fleet"},
+			{"marked key while Windows MDM is off", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, Decryptable: new(false)}, nil, "", "Couldn't decrypt the disk encryption key.", "windows mdm"},
+			{"marked key on a host not enrolled in Fleet MDM", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, Decryptable: new(false)}, nil, "", "Couldn't decrypt the disk encryption key.", "not enrolled"},
+			{"archived legacy key when the current one is unreadable",
+				&fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true},
+				&fleet.HostArchivedDiskEncryptionKey{Base64Encrypted: legacyB64, WSTEPEncrypted: true}, recoveryKey, "", ""},
+			{"archived key on the server private key",
+				&fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true},
+				&fleet.HostArchivedDiskEncryptionKey{Base64Encrypted: aesKey}, recoveryKey, "", ""},
+		}
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				ds := new(mock.Store)
+				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+					return &fleet.AppConfig{MDM: fleet.MDM{WindowsEnabledAndConfigured: c.noReescrow != "windows mdm"}}, nil
+				}
+				ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+					return c.noReescrow != "not enrolled", nil
+				}
+				ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+					return &fleet.Host{ID: 1, Platform: "windows"}, nil
+				}
+				ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+					return c.current, nil
+				}
+				ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host, _ bool) (*fleet.HostArchivedDiskEncryptionKey, error) {
+					if c.archived == nil {
+						return nil, newNotFoundError()
+					}
+					return c.archived, nil
+				}
+				ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+					return fleet.DiskEncryptionConfig{WindowsEnabled: c.noReescrow != "fleet"}, nil
+				}
+				svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
+				ctx = test.UserContext(ctx, test.UserAdmin)
+				key, err := svc.HostEncryptionKey(ctx, 1, false)
+				if c.wantErr != "" {
+					var ume *fleet.UserMessageError
+					require.ErrorAs(t, err, &ume)
+					require.ErrorContains(t, err, c.wantErr)
+					require.NotContains(t, err.Error(), "MDM has been turned off")
+					if (c.current.Decryptable != nil && *c.current.Decryptable) || c.noReescrow != "" {
+						require.NotContains(t, err.Error(), "escrow a new one", "no re-escrow is coming for this host")
+					}
+					return
+				}
+				require.NoError(t, err)
+				require.Equal(t, c.want, key.DecryptedValue)
+			})
+		}
+	})
+
+	// Older releases encrypted Windows keys to the WSTEP certificate only, so a deployment without a server private key
+	// must still read the keys it already has.
+	t.Run("Windows keys without a server private key", func(t *testing.T) {
+		legacyKey, err := pkcs7.Encrypt([]byte(recoveryKey), []*x509.Certificate{wstep.Leaf})
+		require.NoError(t, err)
+		legacyB64 := base64.StdEncoding.EncodeToString(legacyKey)
+		withWSTEP := fleetCfg
+		withWSTEP.Server.PrivateKey = ""
+		neither := config.TestConfig()
+		neither.Server.PrivateKey = ""
+
+		for _, c := range []struct {
+			name    string
+			cfg     config.FleetConfig
+			want    string
+			wantErr string
+		}{
+			{"legacy key reads with the WSTEP pair", withWSTEP, recoveryKey, ""},
+			{"no private key and no WSTEP pair", neither, "", "private key is unavailable"},
+		} {
+			t.Run(c.name, func(t *testing.T) {
+				ds := new(mock.Store)
+				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+					return &fleet.AppConfig{}, nil
+				}
+				ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+					return &fleet.Host{ID: 1, Platform: "windows"}, nil
+				}
+				ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+					return &fleet.HostDiskEncryptionKey{Base64Encrypted: legacyB64, WSTEPEncrypted: true, Decryptable: new(true)}, nil
+				}
+				ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host, _ bool) (*fleet.HostArchivedDiskEncryptionKey, error) {
+					return nil, newNotFoundError()
+				}
+				svc, ctx := newTestServiceWithConfig(t, ds, c.cfg, nil, nil)
+				ctx = test.UserContext(ctx, test.UserAdmin)
+				key, err := svc.HostEncryptionKey(ctx, 1, false)
+				if c.wantErr != "" {
+					require.ErrorContains(t, err, c.wantErr)
+					return
+				}
+				require.NoError(t, err)
+				require.Equal(t, c.want, key.DecryptedValue)
 			})
 		}
 	})
@@ -5605,10 +5755,6 @@ func TestSuppressAndroidBYODWipeStatus(t *testing.T) {
 	}
 }
 
-// TestWipeHostFreeTierAndroidBYORejected verifies the core (Fleet Free) WipeHost rejects BYO (personally-owned)
-// Android hosts, since Wipe is COBO-only (BYO uses Unenroll). The non-Android license gate is already covered by the
-// free-tier TestPremiumEndpointsWithoutLicense integration test, and the Premium BYO rejection by
-// TestAndroidLockWipeClearPasscode; this guards the same rejection in the core implementation.
 // A caller who can list hosts but has no access to the host's fleet must not be
 // able to tell an existing host from a missing one.
 func TestHostMDMEndpointsMaskCrossFleetDenial(t *testing.T) {
@@ -5645,21 +5791,74 @@ func TestHostMDMEndpointsMaskCrossFleetDenial(t *testing.T) {
 	})
 }
 
-func TestWipeHostFreeTierAndroidBYORejected(t *testing.T) {
-	ds := new(mock.Store)
-	// Default newTestService license is Fleet Free.
-	svc, ctx := newTestService(t, ds, nil, nil)
-	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
-
+// TestWipeHostFreeTierAndroid verifies the core (Fleet Free) WipeHost wipes Android hosts regardless of ownership. The
+// non-Android license gate is already covered by the free-tier TestPremiumEndpointsWithoutLicense integration test, and
+// Premium by TestAndroidLockWipeClearPasscode.
+func TestWipeHostFreeTierAndroid(t *testing.T) {
 	const hostID = 1
-	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
-		return &fleet.Host{ID: hostID, Platform: "android", MDM: fleet.MDMHostData{EnrollmentStatus: new(fleet.MDMEnrollmentStatusPersonal)}}, nil
+	testCases := []struct {
+		name             string
+		enrollmentStatus string
+		androidEnabled   bool
+		wantErr          string
+	}{
+		{name: "company-owned", enrollmentStatus: fleet.MDMEnrollmentStatusAutomatic, androidEnabled: true},
+		{name: "personally-owned", enrollmentStatus: fleet.MDMEnrollmentStatusPersonal, androidEnabled: true},
+		{
+			name:             "android MDM off",
+			enrollmentStatus: fleet.MDMEnrollmentStatusPersonal,
+			androidEnabled:   false,
+			wantErr:          fleet.AndroidMDMNotConfiguredMessage,
+		},
 	}
-	ds.HostLiteFunc = mock.HostLiteFunc(ds.HostFunc)
 
-	err := svc.WipeHost(ctx, hostID, nil)
-	var badRequest *fleet.BadRequestError
-	require.ErrorAs(t, err, &badRequest)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+				return &fleet.Host{ID: hostID, Platform: "android", MDM: fleet.MDMHostData{EnrollmentStatus: new(tc.enrollmentStatus)}}, nil
+			}
+			ds.HostLiteFunc = mock.HostLiteFunc(ds.HostFunc)
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: tc.androidEnabled}}, nil
+			}
+			ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+				return true, nil
+			}
+			ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+				return &fleet.HostLockWipeStatus{}, nil
+			}
+
+			var wipedHostID uint
+			androidMock := &mockAndroidService{
+				WipeAndroidHostFunc: func(_ context.Context, id uint) error {
+					wipedHostID = id
+					return nil
+				},
+			}
+			// Default newTestService license is Fleet Free.
+			opts := &TestServerOpts{SkipCreateTestUsers: true, AndroidModule: androidMock}
+			svc, ctx := newTestService(t, ds, nil, nil, opts)
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+			var capturedActivity activity_api.ActivityDetails
+			opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+				capturedActivity = act
+				return nil
+			}
+
+			err := svc.WipeHost(ctx, hostID, nil)
+			if tc.wantErr != "" {
+				require.ErrorContains(t, err, tc.wantErr)
+				require.Zero(t, wipedHostID, "a rejected wipe must not reach AMAPI")
+				require.Nil(t, capturedActivity)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, uint(hostID), wipedHostID)
+			require.IsType(t, fleet.ActivityTypeWipedHost{}, capturedActivity)
+		})
+	}
 }
 
 func TestBulkOperationFilterValidation(t *testing.T) {
@@ -7552,6 +7751,27 @@ func TestGetHostDEPAssignmentDetailsNotFoundClassification(t *testing.T) {
 	}
 }
 
+func TestGetHostDEPAssignmentDetailsDeletedABMToken(t *testing.T) {
+	ds := new(mock.Store)
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return &fleet.Host{ID: id, HardwareSerial: "SERIAL123"}, nil
+	}
+	// Deleting an AB token nulls abm_token_id on its hosts' assignments.
+	ds.GetHostDEPAssignmentFunc = func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
+		return &fleet.HostDEPAssignment{HostID: hostID, ABMTokenID: nil}, nil
+	}
+
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{})
+	ctx = test.UserContext(ctx, test.UserAdmin)
+
+	depAssignment, depDevice, depErr, err := svc.GetHostDEPAssignmentDetails(ctx, 1)
+	require.NoError(t, err)
+	assert.Nil(t, depAssignment)
+	assert.Nil(t, depDevice)
+	assert.Empty(t, depErr)
+	assert.False(t, ds.GetABMTokenByIDFuncInvoked)
+}
+
 func TestReorderCSVColumnAfter(t *testing.T) {
 	cases := []struct {
 		name     string
@@ -7681,4 +7901,12 @@ func TestReorderCSVColumnAfter(t *testing.T) {
 			require.Equal(t, c.want, c.recs)
 		})
 	}
+}
+
+// selfSignedCertForKey issues a certificate for key with the given serial, so two certificates can share one key.
+func selfSignedCertForKey(t *testing.T, key *rsa.PrivateKey, serial int64) *x509.Certificate {
+	t.Helper()
+	cert, err := tokenpki.SelfSignedCertForKey(key, "Fleet WSTEP test", serial)
+	require.NoError(t, err)
+	return cert
 }

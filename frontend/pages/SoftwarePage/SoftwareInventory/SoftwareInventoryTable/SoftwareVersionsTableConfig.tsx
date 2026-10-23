@@ -12,10 +12,13 @@ import {
   formatSoftwareVersion,
   ISoftwareVersion,
   ISoftwareVulnerability,
+  NO_VERSION_TOOLTIP_BY_SOURCE,
+  NO_VULNERABILITIES_TOOLTIP_BY_SOURCE,
 } from "interfaces/software";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 
+import EmptyCellWithTooltip from "../../components/tables/EmptyCellWithTooltip";
 import VulnerabilitiesCell from "../../components/tables/VulnerabilitiesCell";
 
 // NOTE: cellProps come from react-table
@@ -76,9 +79,16 @@ const generateTableHeaders = (
       Header: "Version",
       disableSortBy: true,
       accessor: "version",
-      Cell: (cellProps: ITableStringCellProps) => (
-        <TextCell value={formatSoftwareVersion(cellProps.row.original)} />
-      ),
+      Cell: (cellProps: ITableStringCellProps) => {
+        const { version, source } = cellProps.row.original;
+        const noVersionTip = NO_VERSION_TOOLTIP_BY_SOURCE[source];
+        if (!version && noVersionTip) {
+          return <EmptyCellWithTooltip tipContent={noVersionTip} />;
+        }
+        return (
+          <TextCell value={formatSoftwareVersion(cellProps.row.original)} />
+        );
+      },
     },
     {
       Header: "Type",
@@ -93,6 +103,11 @@ const generateTableHeaders = (
       disableSortBy: true,
       accessor: "vulnerabilities",
       Cell: (cellProps: IVulnerabilitiesCellProps) => {
+        const noVulnerabilitiesTip =
+          NO_VULNERABILITIES_TOOLTIP_BY_SOURCE[cellProps.row.original.source];
+        if (noVulnerabilitiesTip) {
+          return <EmptyCellWithTooltip tipContent={noVulnerabilitiesTip} />;
+        }
         if (
           ["ipados_apps", "ios_apps"].includes(cellProps.row.original.source)
         ) {

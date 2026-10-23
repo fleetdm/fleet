@@ -207,7 +207,8 @@ func Hydrate(ctx context.Context, app *fleet.MaintainedApp, version string, team
 
 	body, err := fetchManifestFile(ctx, fmt.Sprintf("/%s.json", app.Slug))
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "fetch app manifest")
+		unreachableErr := fleet.NewBadGatewayError(fmt.Sprintf(fleet.FleetMaintainedAppManifestUnreachableMessage, app.Name), nil)
+		return nil, ctxerr.Wrapf(ctx, unreachableErr, "fetch app manifest: %v", err)
 	}
 
 	var manifest ma.FMAManifestFile
@@ -234,12 +235,12 @@ func Hydrate(ctx context.Context, app *fleet.MaintainedApp, version string, team
 	if selected == nil {
 		// Manifests expose only currently-published versions, so a version that's
 		// neither cached nor published (e.g. evicted or older) can't be fetched.
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+		return nil, &fleet.BadRequestError{
 			Message: fmt.Sprintf(
 				"Couldn't edit %q: specified version is not available. Available versions are listed in the Fleet UI under Actions > Edit software.",
 				app.Name,
 			),
-		})
+		}
 	}
 	selected.Slug = app.Slug
 

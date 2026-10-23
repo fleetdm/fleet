@@ -134,3 +134,31 @@ func TestSearchWithOmit(t *testing.T) {
 	_, err := svc.SearchTargets(ctx, "foo", nil, fleet.HostTargets{HostIDs: []uint{1, 2}, LabelIDs: []uint{3, 4}, TeamIDs: []uint{5, 6}})
 	require.NoError(t, err)
 }
+
+func TestSearchTargetsIncludesMobileHosts(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	user := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+
+	ds.SearchHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Host, error) {
+		return []*fleet.Host{
+			{Hostname: "mac.local", Platform: "darwin"},
+			{Hostname: "iphone.local", Platform: "ios"},
+			{Hostname: "ipad.local", Platform: "ipados"},
+			{Hostname: "pixel.local", Platform: "android"},
+			{Hostname: "win.local", Platform: "windows"},
+		}, nil
+	}
+	ds.SearchLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error) {
+		return nil, nil
+	}
+	ds.SearchTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Team, error) {
+		return nil, nil
+	}
+
+	results, err := svc.SearchTargets(ctx, "local", nil, fleet.HostTargets{})
+	require.NoError(t, err)
+	require.Len(t, results.Hosts, 5)
+}

@@ -87,9 +87,10 @@ services:
       - /var/lib/mysql:rw,noexec,nosuid
       - /tmpfs
 
-  # Unauthenticated SMTP server.
+  # Unauthenticated SMTP server. Kept the "mailhog" service name to avoid churn in CI and env vars.
+  # Using "axllent/mailpit" because it has amd64/arm64 builds.
   mailhog:
-    image: mailhog/mailhog:latest
+    image: axllent/mailpit:latest
     ports:
       - "127.0.0.1:${FLEET_MAILHOG_WEB_PORT:-8025}:8025"
       - "127.0.0.1:${FLEET_MAILHOG_SMTP_PORT:-1025}:1025"
@@ -123,7 +124,9 @@ services:
       - "127.0.0.1:${FLEET_REDIS_PORT:-6379}:6379"
 
   saml_idp:
-    image: fleetdm/docker-idp:latest
+    # Using simplesamlphp-1.19.0 instead of latest
+    # because it has amd64/arm64 builds.
+    image: fleetdm/docker-idp:simplesamlphp-1.19.0
     volumes:
       - ./tools/saml/users.php:/var/www/simplesamlphp/config/authsources.php
       - ./tools/saml/config.php:/var/www/simplesamlphp/metadata/saml20-sp-remote.php
@@ -135,6 +138,7 @@ services:
   # use http://localhost:4566 as the `--endpoint-url` argument in awscli
   localstack:
     image: localstack/localstack:4.5
+    profiles: ["localstack"]
     ports:
       - "127.0.0.1:${FLEET_LOCALSTACK_PORT:-4566}:4566"
       - "127.0.0.1:${FLEET_LOCALSTACK_LEGACY_PORT:-4571}:4571"
@@ -156,6 +160,17 @@ services:
     volumes:
       - data-s3:/data:rw
 
+  # Azurite emulator for Azure Blob Storage (software installers/bootstrap packages/icons/org logos)
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:3.35.0
+    profiles: ["azurite"]
+    command: ["azurite-blob", "--blobHost", "0.0.0.0", "--blobPort", "10000", "--skipApiVersionCheck"]
+    ports:
+      - "127.0.0.1:${FLEET_AZURITE_PORT:-10000}:10000"
+    volumes:
+      - data-azurite:/data:rw
+
 volumes:
   mysql-persistent-volume:
   data-s3:
+  data-azurite:

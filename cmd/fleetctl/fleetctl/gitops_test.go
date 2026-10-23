@@ -2964,6 +2964,8 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	savedAppConfig := &fleet.AppConfig{}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		appConfig := savedAppConfig.Copy()
+		// The team file adds App Store apps, which need Apple MDM.
+		appConfig.MDM.EnabledAndConfigured = true
 		return appConfig, nil
 	}
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
@@ -3053,6 +3055,12 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 			return savedTeam.ToTeamLite(), nil
 		}
 		return nil, nil
+	}
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		if tid == team.ID {
+			return savedTeam, nil
+		}
+		return nil, &notFoundError{}
 	}
 
 	ds.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) {
@@ -6163,10 +6171,12 @@ func TestGitOpsNoTeamConditionalAccess(t *testing.T) {
 	require.False(t, appConfig.Integrations.ConditionalAccessEnabled.Value)
 }
 
-func TestGitOpsEULASetting(t *testing.T) {
-	createGlobalGitOpsConfig := func(mdm string) string {
-		return fmt.Sprintf(`
+// eulaGitOpsConfig is a global GitOps file whose org_settings.mdm has the given setting. controls is one line under
+// controls, or empty.
+func eulaGitOpsConfig(controls, mdm string) string {
+	return fmt.Sprintf(`
 controls:
+  %s
 queries:
 policies:
 agent_options:
@@ -6180,8 +6190,18 @@ org_settings:
     - secret: "global"
   mdm:
     %s
-`, mdm)
-	}
+`, controls, mdm)
+}
+
+// writeGitOpsFile writes cfg as a GitOps file in dir, where paths relative to it resolve, and returns its path.
+func writeGitOpsFile(t *testing.T, dir, cfg string) string {
+	t.Helper()
+	path := filepath.Join(dir, "global.yml")
+	require.NoError(t, os.WriteFile(path, []byte(cfg), 0o600))
+	return path
+}
+
+func TestGitOpsEULASetting(t *testing.T) {
 
 	// Create a temporary PDF file
 	pdfContent := []byte("%PDF-1\npdf-test")
@@ -6210,9 +6230,9 @@ org_settings:
 	}{
 		{
 			name: "valid pdf file (no existing EULA uploaded)",
-			cfg:  createGlobalGitOpsConfig(fmt.Sprintf(`end_user_license_agreement: "%s"`, pdfPath)),
+			cfg:  eulaGitOpsConfig("", fmt.Sprintf(`end_user_license_agreement: "%s"`, pdfPath)),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
-				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 					return nil, &notFoundError{} // No existing EULA
 				}
 			},
@@ -6229,9 +6249,9 @@ org_settings:
 		},
 		{
 			name: "relative path to working dir to pdf file (no existing EULA uploaded)",
-			cfg:  createGlobalGitOpsConfig(`end_user_license_agreement: "./testdata/gitops/tiny_eula.pdf"`),
+			cfg:  eulaGitOpsConfig("", `end_user_license_agreement: "./testdata/gitops/tiny_eula.pdf"`),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
-				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 					return nil, &notFoundError{} // No existing EULA
 				}
 			},
@@ -6250,7 +6270,7 @@ org_settings:
 		},
 		{
 			name: "relative path to yaml file to pdf file (no existing EULA uploaded)",
-			cfg:  createGlobalGitOpsConfig(`end_user_license_agreement: "./lib/eula.pdf"`),
+			cfg:  eulaGitOpsConfig("", `end_user_license_agreement: "./lib/eula.pdf"`),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
 				err := os.Mkdir(filepath.Join(dir, "lib"), 0o755)
 				require.NoError(t, err)
@@ -6261,7 +6281,7 @@ org_settings:
 				err = tmpPDF.Close()
 				require.NoError(t, err)
 
-				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 					return nil, &notFoundError{} // No existing EULA
 				}
 			},
@@ -6278,9 +6298,9 @@ org_settings:
 		},
 		{
 			name: "valid new pdf file (different EULA already uploaded)",
-			cfg:  createGlobalGitOpsConfig(fmt.Sprintf(`end_user_license_agreement: "%s"`, pdfPath)),
+			cfg:  eulaGitOpsConfig("", fmt.Sprintf(`end_user_license_agreement: "%s"`, pdfPath)),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
-				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 					return &fleet.MDMEULA{
 						Name:  pdfPath,
 						Token: "test-token",
@@ -6302,9 +6322,9 @@ org_settings:
 		},
 		{
 			name: "no EULA specified (no existing EULA uploaded)",
-			cfg:  createGlobalGitOpsConfig(""),
+			cfg:  eulaGitOpsConfig("", ""),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
-				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 					return nil, &notFoundError{} // No existing EULA
 				}
 			},
@@ -6323,9 +6343,9 @@ org_settings:
 		},
 		{
 			name: "deleting existing EULA",
-			cfg:  createGlobalGitOpsConfig(""),
+			cfg:  eulaGitOpsConfig("", ""),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
-				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 					return &fleet.MDMEULA{
 						Name:  pdfPath,
 						Token: "test-token",
@@ -6345,24 +6365,43 @@ org_settings:
 		},
 		{
 			name: "not a PDF file",
-			cfg:  createGlobalGitOpsConfig(fmt.Sprintf(`end_user_license_agreement: "%s"`, invalidPDFPath)),
+			cfg:  eulaGitOpsConfig("", fmt.Sprintf(`end_user_license_agreement: "%s"`, invalidPDFPath)),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
-				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 					return nil, &notFoundError{} // No existing EULA
 				}
 			},
 			dryRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
-				assert.ErrorContains(t, err, "invalid file type")
+				assert.ErrorContains(t, err, "The file must be a PDF (.pdf).")
 			},
 			realRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
-				assert.ErrorContains(t, err, "invalid file type")
+				assert.ErrorContains(t, err, "The file must be a PDF (.pdf).")
+			},
+		},
+		{
+			// The server validates the new file before the old one is deleted, so
+			// a rejected file leaves the existing EULA in place.
+			name: "not a PDF file replacing an existing EULA keeps it",
+			cfg:  eulaGitOpsConfig("", fmt.Sprintf(`end_user_license_agreement: "%s"`, invalidPDFPath)),
+			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
+				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
+					return &fleet.MDMEULA{Name: "eula.pdf", Token: "test-token", Sha256: []byte("other")}, nil
+				}
+			},
+			dryRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
+				require.ErrorContains(t, err, "The file must be a PDF (.pdf).")
+				assert.False(t, ds.MDMDeleteEULAFuncInvoked)
+			},
+			realRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
+				require.ErrorContains(t, err, "The file must be a PDF (.pdf).")
+				assert.False(t, ds.MDMDeleteEULAFuncInvoked)
 			},
 		},
 		{
 			name: "uploading the same EULA again",
-			cfg:  createGlobalGitOpsConfig(""),
+			cfg:  eulaGitOpsConfig("", ""),
 			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
-				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+				ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 					hash := sha256.Sum256(pdfContent) // Simulate same EULA
 					return &fleet.MDMEULA{
 						Name:   pdfPath,
@@ -6392,30 +6431,493 @@ org_settings:
 			ds.MDMInsertEULAFunc = func(ctx context.Context, eula *fleet.MDMEULA) error {
 				return nil
 			}
-			ds.MDMDeleteEULAFunc = func(ctx context.Context, token string) error {
+			ds.MDMDeleteEULAFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform, token string) error {
 				return nil
 			}
 
-			tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-			require.NoError(t, err)
-			_, err = tmpFile.WriteString(tt.cfg)
-			require.NoError(t, err)
+			dir := t.TempDir()
+			cfgPath := writeGitOpsFile(t, dir, tt.cfg)
 
 			// these mocks are defined in the individual test cases
-			tt.mockSetup(t, ds, filepath.Dir(tmpFile.Name()))
+			tt.mockSetup(t, ds, dir)
 
 			// Dry run
-			out, err := runAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
+			out, err := runAppNoChecks([]string{"gitops", "-f", cfgPath, "--dry-run"})
 			tt.dryRunAssertion(t, ds, out.String(), err)
 			if t.Failed() {
 				t.FailNow()
 			}
 
 			// Real run
-			out, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+			out, err = runAppNoChecks([]string{"gitops", "-f", cfgPath})
 			tt.realRunAssertion(t, ds, out.String(), err)
 		})
 	}
+}
+
+func TestGitOpsWindowsEULASetting(t *testing.T) {
+	writeFile := func(t *testing.T, dir, name string, content []byte) string {
+		t.Helper()
+		p := filepath.Join(dir, name)
+		require.NoError(t, os.WriteFile(p, content, 0o600))
+		return p
+	}
+
+	mdContent := []byte("# Terms\n\nAccept these to continue.\n")
+	mdHash := sha256.Sum256(mdContent)
+
+	cases := []struct {
+		name            string
+		windowsOnServer bool
+		windowsInFile   bool
+		// mdmSetting is the windows_eula line; "%s" is replaced by the markdown path
+		mdmSetting     string
+		useNonMarkdown bool
+		missingFile    bool
+		directory      bool
+		content        string
+		existing       *fleet.MDMEULA
+		wantDryOut     string
+		wantRealOut    string
+		wantErr        string
+		wantInsert     bool
+		wantDelete     bool
+	}{
+		{
+			name:            "new file with windows mdm on",
+			windowsOnServer: true, windowsInFile: true,
+			mdmSetting:  `windows_eula: "%s"`,
+			wantDryOut:  "[+] would've applied Windows EULA",
+			wantRealOut: "[+] applied Windows EULA",
+			wantInsert:  true,
+		},
+		{
+			name:            "relative path",
+			windowsOnServer: true, windowsInFile: true,
+			mdmSetting:  `windows_eula: "./terms.md"`,
+			wantDryOut:  "[+] would've applied Windows EULA",
+			wantRealOut: "[+] applied Windows EULA",
+			wantInsert:  true,
+		},
+		{
+			name:            "same file already uploaded is a no-op",
+			windowsOnServer: true, windowsInFile: true,
+			mdmSetting:  `windows_eula: "%s"`,
+			existing:    &fleet.MDMEULA{Name: "terms.md", Token: "existing", Sha256: mdHash[:], Platform: fleet.MDMEULAPlatformWindows},
+			wantDryOut:  "[+] would've applied Windows EULA",
+			wantRealOut: "[+] applied Windows EULA",
+		},
+		{
+			name:            "same content under a new name is replaced",
+			windowsOnServer: true, windowsInFile: true,
+			mdmSetting:  `windows_eula: "%s"`,
+			existing:    &fleet.MDMEULA{Name: "old.md", Token: "existing", Sha256: mdHash[:], Platform: fleet.MDMEULAPlatformWindows},
+			wantDryOut:  "[+] would've applied Windows EULA",
+			wantRealOut: "[+] applied Windows EULA",
+			wantInsert:  true,
+			wantDelete:  true,
+		},
+		{
+			name:            "changed content under the same name is replaced",
+			windowsOnServer: true, windowsInFile: true,
+			mdmSetting:  `windows_eula: "%s"`,
+			existing:    &fleet.MDMEULA{Name: "terms.md", Token: "existing", Sha256: []byte("other"), Platform: fleet.MDMEULAPlatformWindows},
+			wantDryOut:  "[+] would've applied Windows EULA",
+			wantRealOut: "[+] applied Windows EULA",
+			wantInsert:  true,
+			wantDelete:  true,
+		},
+		{
+			// Read as "no agreement", this would delete the one on the server.
+			name:            "a value that isn't a path fails without deleting",
+			windowsOnServer: true, windowsInFile: true,
+			mdmSetting: `windows_eula: 123`,
+			existing:   &fleet.MDMEULA{Name: "terms.md", Token: "existing", Sha256: mdHash[:], Platform: fleet.MDMEULAPlatformWindows},
+			wantErr:    "windows_eula: must be the path to a markdown file",
+		},
+		{
+			name:            "absent key deletes the existing agreement",
+			windowsOnServer: true, windowsInFile: true,
+			existing:    &fleet.MDMEULA{Name: "old.md", Token: "existing", Sha256: []byte("other"), Platform: fleet.MDMEULAPlatformWindows},
+			wantDryOut:  "[+] would've applied Windows EULA",
+			wantRealOut: "[+] applied Windows EULA",
+			wantDelete:  true,
+		},
+		{
+			name:            "not a markdown file fails",
+			windowsOnServer: true, windowsInFile: true,
+			mdmSetting:     `windows_eula: "%s"`,
+			useNonMarkdown: true,
+			wantErr:        "must be a markdown (.md) file",
+		},
+		{
+			// The run that turns Windows MDM on applies the agreement after the
+			// controls, and a dry run reports it without touching the endpoints.
+			name:            "file turns windows mdm on",
+			windowsOnServer: false, windowsInFile: true,
+			mdmSetting:  `windows_eula: "%s"`,
+			wantDryOut:  "[+] would've applied Windows EULA",
+			wantRealOut: "[+] applied Windows EULA",
+			wantInsert:  true,
+		},
+		{
+			// Checked before anything is applied, so the run can't turn Windows
+			// MDM on and then fail on the agreement.
+			name:            "missing file fails before applying the config",
+			windowsOnServer: false, windowsInFile: true,
+			mdmSetting:  `windows_eula: "%s"`,
+			missingFile: true,
+			wantErr:     "no such file or directory",
+		},
+		{
+			name:            "html that would be dropped fails before applying the config",
+			windowsOnServer: false, windowsInFile: true,
+			mdmSetting: `windows_eula: "%s"`,
+			content:    "# Terms\n\n<div>\nClause 4 applies.\n</div>\n",
+			wantErr:    "contains HTML",
+		},
+		{
+			name:            "a directory fails before applying the config",
+			windowsOnServer: true, windowsInFile: true,
+			mdmSetting: `windows_eula: "%s"`,
+			directory:  true,
+			wantErr:    "is not a regular file",
+		},
+		{
+			name:            "a blank file fails before applying the config",
+			windowsOnServer: true, windowsInFile: true,
+			mdmSetting: `windows_eula: "%s"`,
+			content:    " \n\t\n",
+			wantErr:    "is empty",
+		},
+		{
+			name:            "file over 512 KB fails before applying the config",
+			windowsOnServer: false, windowsInFile: true,
+			mdmSetting: `windows_eula: "%s"`,
+			content:    strings.Repeat("Clause.\n", 70_000),
+			wantErr:    "is larger than 512 KB",
+		},
+		{
+			name:            "windows mdm off is reported, not applied",
+			windowsOnServer: false, windowsInFile: false,
+			mdmSetting:  `windows_eula: "%s"`,
+			wantDryOut:  "[!] skipping windows_eula: requires Windows MDM to be turned on",
+			wantRealOut: "[!] skipping windows_eula: requires Windows MDM to be turned on",
+		},
+		{
+			name:            "file turns windows mdm off",
+			windowsOnServer: true, windowsInFile: false,
+			mdmSetting:  `windows_eula: "%s"`,
+			wantDryOut:  "[!] skipping windows_eula: requires Windows MDM to be turned on",
+			wantRealOut: "[!] skipping windows_eula: requires Windows MDM to be turned on",
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds, savedAppConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+			(*savedAppConfig).MDM.WindowsEnabledAndConfigured = tt.windowsOnServer
+
+			dir := t.TempDir()
+			content := mdContent
+			if tt.content != "" {
+				content = []byte(tt.content)
+			}
+			mdPath := writeFile(t, dir, "terms.md", content)
+			if tt.useNonMarkdown {
+				mdPath = writeFile(t, dir, "terms.txt", mdContent)
+			}
+			if tt.missingFile {
+				mdPath = filepath.Join(dir, "missing.md")
+			}
+			if tt.directory {
+				mdPath = filepath.Join(dir, "folder.md")
+				require.NoError(t, os.Mkdir(mdPath, 0o700))
+			}
+			setting := tt.mdmSetting
+			if strings.Contains(setting, "%s") {
+				setting = fmt.Sprintf(setting, mdPath)
+			}
+			cfgPath := writeGitOpsFile(t, dir, eulaGitOpsConfig(fmt.Sprintf("windows_enabled_and_configured: %t", tt.windowsInFile), setting))
+
+			// Turning Windows MDM off through the config cleans up profiles, which
+			// the shared gitops mocks do not cover.
+			ds.CleanupAllHostMDMProfilesForPlatformFunc = func(ctx context.Context, platform string) error { return nil }
+
+			var inserted, deleted []string
+			ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
+				if platform == fleet.MDMEULAPlatformWindows && tt.existing != nil {
+					return tt.existing, nil
+				}
+				return nil, &notFoundError{}
+			}
+			ds.MDMInsertEULAFunc = func(ctx context.Context, eula *fleet.MDMEULA) error {
+				inserted = append(inserted, string(eula.Platform)+":"+eula.Name)
+				return nil
+			}
+			ds.MDMDeleteEULAFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform, token string) error {
+				deleted = append(deleted, string(platform)+":"+token)
+				return nil
+			}
+
+			// dry run never writes
+			out, err := runAppNoChecks([]string{"gitops", "-f", cfgPath, "--dry-run"})
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+			} else {
+				require.NoError(t, err, out.String())
+				assert.Contains(t, out.String(), tt.wantDryOut)
+			}
+			assert.Empty(t, inserted, "dry run must not upload")
+			assert.Empty(t, deleted, "dry run must not delete")
+
+			out, err = runAppNoChecks([]string{"gitops", "-f", cfgPath})
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
+				assert.Empty(t, inserted)
+				assert.Empty(t, deleted)
+				assert.False(t, ds.SaveAppConfigFuncInvoked, "config must not be applied")
+				return
+			}
+			require.NoError(t, err, out.String())
+			assert.Contains(t, out.String(), tt.wantRealOut)
+			if tt.wantInsert {
+				require.Equal(t, []string{string(fleet.MDMEULAPlatformWindows) + ":terms.md"}, inserted)
+			} else {
+				assert.Empty(t, inserted)
+			}
+			if tt.wantDelete {
+				require.Equal(t, []string{string(fleet.MDMEULAPlatformWindows) + ":existing"}, deleted)
+			} else {
+				assert.Empty(t, deleted)
+			}
+		})
+	}
+}
+
+func TestGitOpsWindowsEULAFreeTierWarns(t *testing.T) {
+	_, ds := testing_utils.RunServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License:       &fleet.LicenseInfo{Tier: fleet.TierFree},
+			KeyValueStore: testing_utils.NewMemKeyValueStore(),
+		},
+	)
+	setupEmptyGitOpsMocks(ds)
+
+	dir := t.TempDir()
+	mdPath := filepath.Join(dir, "terms.md")
+	require.NoError(t, os.WriteFile(mdPath, []byte("# Terms\n"), 0o600))
+	cfgPath := writeGitOpsFile(t, dir, eulaGitOpsConfig("windows_enabled_and_configured: false", fmt.Sprintf(`windows_eula: "%s"`, mdPath)))
+
+	out, err := runAppNoChecks([]string{"gitops", "-f", cfgPath})
+	require.NoError(t, err, out.String())
+	assert.False(t, ds.MDMInsertEULAFuncInvoked)
+	assert.Contains(t, out.String(), "[!] skipping windows_eula: requires Fleet Premium")
+}
+
+func TestGitOpsWarnsOnDeletedWindowsProfiles(t *testing.T) {
+	const (
+		fleetName      = "Workstations"
+		warningSnippet = "Windows settings from deleted profiles may not be cleanly removed from hosts"
+	)
+	windowsProfile := func(name string) *fleet.MDMConfigProfilePayload {
+		return &fleet.MDMConfigProfilePayload{ProfileUUID: "w" + name, Name: name, Platform: "windows"}
+	}
+
+	cases := []struct {
+		name    string
+		inFleet bool
+		// newFleet leaves the fleet uncreated, so the dry run has nothing to look up
+		newFleet        bool
+		windowsOnServer bool
+		windowsInFile   bool
+		// keepInFile lists keep.xml under windows_settings
+		keepInFile  bool
+		current     []*fleet.MDMConfigProfilePayload
+		listErr     error
+		wantLookup  bool
+		wantWarning string
+	}{
+		{
+			name:            "unassigned hosts lose Windows profiles",
+			windowsOnServer: true, windowsInFile: true, keepInFile: true,
+			current:     []*fleet.MDMConfigProfilePayload{windowsProfile("keep"), windowsProfile("gone"), windowsProfile("also gone")},
+			wantLookup:  true,
+			wantWarning: `[!] Fleet "Unassigned": some ` + warningSnippet + ". Learn more: " + fleet.WindowsProfileRemovalBehaviorURL,
+		},
+		{
+			name:    "a new fleet has nothing to delete",
+			inFleet: true, newFleet: true, windowsOnServer: true, keepInFile: true,
+			wantLookup: true,
+		},
+		{
+			name:    "a fleet loses a Windows profile",
+			inFleet: true, windowsOnServer: true, keepInFile: true,
+			current:     []*fleet.MDMConfigProfilePayload{windowsProfile("keep"), windowsProfile("gone")},
+			wantLookup:  true,
+			wantWarning: `[!] Fleet "` + fleetName + `": some ` + warningSnippet,
+		},
+		{
+			name:            "every Windows profile is kept",
+			windowsOnServer: true, windowsInFile: true, keepInFile: true,
+			current:    []*fleet.MDMConfigProfilePayload{windowsProfile("keep")},
+			wantLookup: true,
+		},
+		{
+			name:            "only macOS and Android profiles are deleted",
+			windowsOnServer: true, windowsInFile: true, keepInFile: true,
+			current: []*fleet.MDMConfigProfilePayload{
+				windowsProfile("keep"),
+				{ProfileUUID: "amac", Name: "mac", Platform: "darwin"},
+				{ProfileUUID: "gdroid", Name: "droid", Platform: "android"},
+			},
+			wantLookup: true,
+		},
+		{
+			// Windows MDM was off, so the deletion sends nothing to hosts.
+			name:            "run turns Windows MDM on",
+			windowsOnServer: false, windowsInFile: true, keepInFile: true,
+			current: []*fleet.MDMConfigProfilePayload{windowsProfile("gone")},
+		},
+		{
+			// Turning Windows MDM off clears the hosts' profiles, so no <Delete> is sent either.
+			name:            "run turns Windows MDM off",
+			windowsOnServer: true, windowsInFile: false,
+			current: []*fleet.MDMConfigProfilePayload{windowsProfile("gone")},
+		},
+		{
+			name:            "failed lookup is reported without failing the run",
+			windowsOnServer: true, windowsInFile: true, keepInFile: true,
+			listErr:     errors.New("boom"),
+			wantLookup:  true,
+			wantWarning: "[!] couldn't check for deleted Windows profiles",
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds, savedAppConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+			(*savedAppConfig).MDM.WindowsEnabledAndConfigured = tt.windowsOnServer
+			ds.CleanupAllHostMDMProfilesForPlatformFunc = func(ctx context.Context, platform string) error { return nil }
+			// The mock runs on the server's goroutine.
+			var (
+				mu           sync.Mutex
+				listedTeamID *uint
+			)
+			ds.ListMDMConfigProfilesFunc = func(
+				ctx context.Context, teamID *uint, opt fleet.ListOptions,
+			) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
+				mu.Lock()
+				listedTeamID = teamID
+				mu.Unlock()
+				if tt.listErr != nil {
+					return nil, nil, tt.listErr
+				}
+				return tt.current, &fleet.PaginationMetadata{}, nil
+			}
+
+			dir := t.TempDir()
+			profiles := "[]"
+			if tt.keepInFile {
+				xml, err := os.ReadFile("testdata/gitops/lib/windows-screenlock.xml")
+				require.NoError(t, err)
+				require.NoError(t, os.WriteFile(filepath.Join(dir, "keep.xml"), xml, 0o600))
+				profiles = "\n      - path: ./keep.xml"
+			}
+			var cfg string
+			if tt.inFleet {
+				if !tt.newFleet {
+					_, err := ds.NewTeam(t.Context(), &fleet.Team{Name: fleetName})
+					require.NoError(t, err)
+				}
+				cfg = fmt.Sprintf(`
+name: %s
+settings:
+  secrets:
+    - secret: "fleet-secret"
+controls:
+  windows_settings:
+    configuration_profiles: %s
+software:
+queries:
+policies:
+agent_options:
+`, fleetName, profiles)
+			} else {
+				cfg = eulaGitOpsConfig(fmt.Sprintf(`windows_enabled_and_configured: %t
+  windows_settings:
+    configuration_profiles: %s`, tt.windowsInFile, profiles), "")
+			}
+			cfgPath := writeGitOpsFile(t, dir, cfg)
+
+			for _, dryRun := range []bool{true, false} {
+				args := []string{"gitops", "-f", cfgPath}
+				if dryRun {
+					args = append(args, "--dry-run")
+				}
+				ds.ListMDMConfigProfilesFuncInvoked = false
+				mu.Lock()
+				listedTeamID = nil
+				mu.Unlock()
+				out, err := runAppNoChecks(args)
+				require.NoError(t, err, out.String())
+				wantLookup := tt.wantLookup && !(dryRun && tt.newFleet)
+				assert.Equal(t, wantLookup, ds.ListMDMConfigProfilesFuncInvoked, args)
+				if wantLookup {
+					mu.Lock()
+					gotTeamID := listedTeamID
+					mu.Unlock()
+					if tt.inFleet {
+						team, err := ds.TeamByName(t.Context(), fleetName)
+						require.NoError(t, err)
+						require.NotNil(t, gotTeamID, args)
+						assert.Equal(t, team.ID, *gotTeamID, args)
+					} else {
+						assert.Nil(t, gotTeamID, args)
+					}
+				}
+				if tt.wantWarning == "" {
+					assert.NotContains(t, out.String(), warningSnippet, args)
+					assert.NotContains(t, out.String(), "couldn't check for deleted Windows profiles", args)
+				} else {
+					assert.Equal(t, 1, strings.Count(out.String(), tt.wantWarning), out.String())
+				}
+			}
+		})
+	}
+}
+
+func TestGitOpsWarnsOnDeletedWindowsProfilesFreeTier(t *testing.T) {
+	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+	fleetCfg := config.TestConfig()
+	config.SetTestMDMConfig(t, &fleetCfg, tokenpki.PEMCertificate(testCert.Raw), tokenpki.PEMRSAPrivateKey(testKey), "../../../server/service/testdata")
+	_, ds := testing_utils.RunServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License:       &fleet.LicenseInfo{Tier: fleet.TierFree},
+			FleetConfig:   &fleetCfg,
+			KeyValueStore: testing_utils.NewMemKeyValueStore(),
+		},
+	)
+	setupEmptyGitOpsMocks(ds)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{WindowsEnabledAndConfigured: true}}, nil
+	}
+	ds.ListMDMConfigProfilesFunc = func(
+		ctx context.Context, teamID *uint, opt fleet.ListOptions,
+	) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
+		return []*fleet.MDMConfigProfilePayload{{ProfileUUID: "wgone", Name: "gone", Platform: "windows"}}, &fleet.PaginationMetadata{}, nil
+	}
+
+	cfgPath := writeGitOpsFile(t, t.TempDir(), eulaGitOpsConfig(`windows_enabled_and_configured: true
+  windows_settings:
+    configuration_profiles: []`, ""))
+	out, err := runAppNoChecks([]string{"gitops", "-f", cfgPath})
+	require.NoError(t, err, out.String())
+	// Fleet Free has no fleets, so the line doesn't name one.
+	assert.Contains(t, out.String(), "[!] Some Windows settings from deleted profiles may not be cleanly removed from hosts. Learn more: "+
+		fleet.WindowsProfileRemovalBehaviorURL)
+	assert.NotContains(t, out.String(), `Fleet "`)
 }
 
 // setupAndroidCertificatesTestMocks sets up common mocks for Android certificate GitOps tests
@@ -7478,6 +7980,9 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 		},
 	)
 	setupEmptyGitOpsMocks(ds)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+	}
 
 	tokExpire := time.Now().Add(time.Hour)
 	token, err := test.CreateVPPTokenEncoded(tokExpire, "fleet", "ca")
@@ -7491,11 +7996,7 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 		Name:      teamName,
 	}
 
-	var autoUpdateCalls []struct {
-		titleID uint
-		teamID  uint
-		config  fleet.SoftwareAutoUpdateConfig
-	}
+	var setTeamVPPAppsCalls [][]fleet.VPPAppTeam
 
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		if name == teamName && savedTeam != nil {
@@ -7576,16 +8077,12 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 			VPPAppsTeamsID: team.ID,
 		}, nil
 	}
-	ds.InsertVPPAppWithTeamFunc = func(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error) {
+	ds.InsertVPPAppWithTeamFunc = func(ctx context.Context, app *fleet.VPPApp, teamID *uint, existingVPPAppTeamID *uint) (*fleet.VPPApp, error) {
 		return app, nil
 	}
-	ds.UpdateSoftwareTitleAutoUpdateConfigFunc = func(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error {
-		autoUpdateCalls = append(autoUpdateCalls, struct {
-			titleID uint
-			teamID  uint
-			config  fleet.SoftwareAutoUpdateConfig
-		}{titleID, teamID, config})
-		return nil
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, incomingApps []fleet.VPPAppTeam, _ map[string]uint) (bool, error) {
+		setTeamVPPAppsCalls = append(setTeamVPPAppsCalls, incomingApps)
+		return false, nil
 	}
 	ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error { return nil }
 	ds.InsertOrReplaceMDMConfigAssetFunc = func(ctx context.Context, asset fleet.MDMConfigAsset) error { return nil }
@@ -7593,8 +8090,8 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 
 	// Mock DefaultTeamConfig functions for No Team webhook settings
 
-	t.Run("UpdateSoftwareTitleAutoUpdateConfig is applied for iOS VPP apps", func(t *testing.T) {
-		autoUpdateCalls = nil
+	t.Run("iOS VPP app with auto update settings sends the settings with its version", func(t *testing.T) {
+		setTeamVPPAppsCalls = nil
 		savedTeam = nil
 
 		teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -7621,19 +8118,67 @@ software:
 
 		_ = runAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
 
-		require.Len(t, autoUpdateCalls, 1, "UpdateSoftwareTitleAutoUpdateConfig should be called once")
-		assert.Equal(t, uint(100), autoUpdateCalls[0].titleID)
-		assert.Equal(t, team.ID, autoUpdateCalls[0].teamID)
-		require.NotNil(t, autoUpdateCalls[0].config.AutoUpdateEnabled)
-		assert.True(t, *autoUpdateCalls[0].config.AutoUpdateEnabled)
-		require.NotNil(t, autoUpdateCalls[0].config.AutoUpdateStartTime)
-		assert.Equal(t, "01:00", *autoUpdateCalls[0].config.AutoUpdateStartTime)
-		require.NotNil(t, autoUpdateCalls[0].config.AutoUpdateEndTime)
-		assert.Equal(t, "05:00", *autoUpdateCalls[0].config.AutoUpdateEndTime)
+		require.Len(t, setTeamVPPAppsCalls, 1, "SetTeamVPPApps should be called once")
+		require.Len(t, setTeamVPPAppsCalls[0], 1)
+		app := setTeamVPPAppsCalls[0][0]
+		assert.Equal(t, "2", app.AdamID)
+		require.NotNil(t, app.AutoUpdateEnabled)
+		assert.True(t, *app.AutoUpdateEnabled)
+		require.NotNil(t, app.AutoUpdateStartTime)
+		assert.Equal(t, "01:00", *app.AutoUpdateStartTime)
+		require.NotNil(t, app.AutoUpdateEndTime)
+		assert.Equal(t, "05:00", *app.AutoUpdateEndTime)
 	})
 
-	t.Run("UpdateSoftwareTitleAutoUpdateConfig is not called when no VPP apps provided", func(t *testing.T) {
-		autoUpdateCalls = nil
+	t.Run("iOS VPP app with two versions sends both versions in list order with their own settings", func(t *testing.T) {
+		setTeamVPPAppsCalls = nil
+		savedTeam = nil
+
+		teamFileVersions, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = teamFileVersions.WriteString(`
+controls:
+queries:
+policies:
+agent_options:
+name: TeamAutoUpdate
+team_settings:
+  secrets:
+    - secret: test
+software:
+  app_store_apps:
+    - app_store_id: "2"
+      platform: "ios"
+      versions:
+        - name: Production
+          auto_update_enabled: true
+          auto_update_window_start: "01:00"
+          auto_update_window_end: "05:00"
+        - name: Test
+          self_service: true
+`)
+		require.NoError(t, err)
+
+		_ = runAppForTest(t, []string{"gitops", "-f", teamFileVersions.Name()})
+
+		require.Len(t, setTeamVPPAppsCalls, 1, "SetTeamVPPApps should be called once")
+		require.Len(t, setTeamVPPAppsCalls[0], 2)
+		production := setTeamVPPAppsCalls[0][0]
+		assert.Equal(t, "Production", production.VersionName)
+		assert.False(t, production.SelfService)
+		require.NotNil(t, production.AutoUpdateEnabled)
+		assert.True(t, *production.AutoUpdateEnabled)
+		require.NotNil(t, production.AutoUpdateStartTime)
+		assert.Equal(t, "01:00", *production.AutoUpdateStartTime)
+		testVersion := setTeamVPPAppsCalls[0][1]
+		assert.Equal(t, "Test", testVersion.VersionName)
+		assert.True(t, testVersion.SelfService)
+		require.NotNil(t, testVersion.AutoUpdateEnabled)
+		assert.False(t, *testVersion.AutoUpdateEnabled)
+	})
+
+	t.Run("no VPP apps sends no app versions", func(t *testing.T) {
+		setTeamVPPAppsCalls = nil
 		savedTeam = nil
 
 		teamFileNoApps, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -7654,11 +8199,12 @@ software:
 
 		_ = runAppForTest(t, []string{"gitops", "-f", teamFileNoApps.Name()})
 
-		require.Empty(t, autoUpdateCalls, "UpdateSoftwareTitleAutoUpdateConfig should not be called when no VPP apps are provided")
+		require.Len(t, setTeamVPPAppsCalls, 1, "SetTeamVPPApps should be called once")
+		require.Empty(t, setTeamVPPAppsCalls[0], "no app versions should be sent when no VPP apps are provided")
 	})
 
-	t.Run("no auto update settings and no existing schedule does not call UpdateSoftwareTitleAutoUpdateConfig", func(t *testing.T) {
-		autoUpdateCalls = nil
+	t.Run("iOS VPP app without auto update settings sends automatic updates turned off", func(t *testing.T) {
+		setTeamVPPAppsCalls = nil
 		savedTeam = nil
 
 		// Ensure no existing schedules are returned for either source
@@ -7683,11 +8229,17 @@ software:
 
 		_ = runAppForTest(t, []string{"gitops", "-f", teamFileNoSettings.Name()})
 
-		require.Empty(t, autoUpdateCalls, "UpdateSoftwareTitleAutoUpdateConfig should not be called when YAML omits settings and no schedule exists")
+		require.Len(t, setTeamVPPAppsCalls, 1, "SetTeamVPPApps should be called once")
+		require.Len(t, setTeamVPPAppsCalls[0], 1)
+		app := setTeamVPPAppsCalls[0][0]
+		require.NotNil(t, app.AutoUpdateEnabled)
+		assert.False(t, *app.AutoUpdateEnabled)
+		assert.Nil(t, app.AutoUpdateStartTime)
+		assert.Nil(t, app.AutoUpdateEndTime)
 	})
 
-	t.Run("invalid auto-update window triggers error and does not call UpdateSoftwareTitleAutoUpdateConfig", func(t *testing.T) {
-		autoUpdateCalls = nil
+	t.Run("invalid auto-update window fails before any app version is sent", func(t *testing.T) {
+		setTeamVPPAppsCalls = nil
 		savedTeam = nil
 
 		teamFileInvalidWindow, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -7714,7 +8266,7 @@ software:
 
 		_, runErr := runAppNoChecks([]string{"gitops", "-f", teamFileInvalidWindow.Name()})
 		require.Error(t, runErr, "Expected error for invalid auto-update window")
-		require.Empty(t, autoUpdateCalls, "UpdateSoftwareTitleAutoUpdateConfig should not be called on invalid window")
+		require.Empty(t, setTeamVPPAppsCalls, "SetTeamVPPApps should not be called on invalid window")
 	})
 }
 

@@ -41,28 +41,11 @@ type Extension struct {
 	RiskFlags     string
 }
 
-func firstNonEmpty(vals ...string) string {
-	for _, v := range vals {
-		if v != "" {
-			return v
-		}
-	}
-	return ""
-}
-
 func boolToInt(b bool) int {
 	if b {
 		return 1
 	}
 	return 0
-}
-
-func isDir(p string) bool {
-	fi, err := os.Stat(p)
-	if err != nil {
-		return false
-	}
-	return fi.IsDir()
 }
 
 // browserRoot is one resolved browser profile-parent directory.
@@ -206,7 +189,7 @@ func chromiumProfiles(root string) []profDir {
 		p := filepath.Join(root, e.Name())
 		if fsutil.Exists(filepath.Join(p, "Preferences")) ||
 			fsutil.Exists(filepath.Join(p, "Secure Preferences")) ||
-			isDir(filepath.Join(p, "Extensions")) {
+			fsutil.IsDir(filepath.Join(p, "Extensions")) {
 			out = append(out, profDir{e.Name(), p})
 		}
 	}

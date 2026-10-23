@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -243,27 +244,17 @@ func (svc *Service) VerifyMDMAppleConfigured(ctx context.Context) error {
 ////////////////////////////////////////////////////////////////////////////////
 
 type createMDMEULARequest struct {
-	EULA   *multipart.FileHeader
-	DryRun bool `query:"dry_run,optional"` // if true, apply validation but do not save changes
+	EULA     *multipart.FileHeader
+	DryRun   bool `query:"dry_run,optional"` // if true, apply validation but do not save changes
+	Platform fleet.MDMEULAPlatform
 }
 
 func (createMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
+	// The route limit bounds the body; operators can raise it per endpoint.
+	eula, dryRun, err := decodeEULAUpload(r)
 	if err != nil {
-		return nil, &fleet.BadRequestError{
-			Message:     "failed to parse multipart form",
-			InternalErr: err,
-		}
+		return nil, err
 	}
-
-	if r.MultipartForm.File["eula"] == nil {
-		return nil, &fleet.BadRequestError{
-			Message:     "eula multipart field is required",
-			InternalErr: err,
-		}
-	}
-
-	eula := r.MultipartForm.File["eula"][0]
 
 	if eula.Size > fleet.MaxEULASize {
 		return nil, &fleet.BadRequestError{
@@ -271,14 +262,69 @@ func (createMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) 
 		}
 	}
 
-	dryRun := false
-	if v := r.URL.Query().Get("dry_run"); v != "" {
-		dryRun, _ = strconv.ParseBool(v)
+	// Metadata takes the platform in the query string, so the upload accepts it
+	// there too; the form field, as in other uploads, takes precedence.
+	platform := fleet.MDMEULAPlatform(r.URL.Query().Get("platform"))
+	if v := r.MultipartForm.Value["platform"]; len(v) > 0 && v[0] != "" {
+		if platform != "" && platform != fleet.MDMEULAPlatform(v[0]) {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("platform", "the form and the query string name different platforms"))
+		}
+		platform = fleet.MDMEULAPlatform(v[0])
 	}
 	return &createMDMEULARequest{
-		EULA:   eula,
-		DryRun: dryRun,
+		EULA:     eula,
+		DryRun:   dryRun,
+		Platform: platform,
 	}, nil
+}
+
+// decodeEULAUpload parses an EULA upload: the file in the eula field and the
+// dry_run flag.
+func decodeEULAUpload(r *http.Request) (*multipart.FileHeader, bool, error) {
+	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize) //nolint:gosec // G120: bounded by the route limit
+	if err != nil {
+		return nil, false, &fleet.BadRequestError{
+			Message:     "failed to parse multipart form",
+			InternalErr: err,
+		}
+	}
+
+	files := r.MultipartForm.File["eula"]
+	if len(files) == 0 {
+		return nil, false, &fleet.BadRequestError{
+			Message: "eula multipart field is required",
+		}
+	}
+
+	dryRun := false
+	if v := r.URL.Query().Get("dry_run"); v != "" {
+		// A mistyped dry run must not save.
+		if dryRun, err = strconv.ParseBool(v); err != nil {
+			return nil, false, &fleet.BadRequestError{Message: fmt.Sprintf("failed to decode dry_run bool in query: %s", err.Error())}
+		}
+	}
+	return files[0], dryRun, nil
+}
+
+// writeEULAFile writes an EULA download, macOS or Windows. nosniff keeps the
+// browser on contentType, and an attachment is saved rather than rendered.
+func writeEULAFile(ctx context.Context, w http.ResponseWriter, eula *fleet.MDMEULA, contentType string, attachment bool) {
+	w.Header().Set("Content-Length", strconv.Itoa(len(eula.Bytes)))
+	w.Header().Set("Content-Type", contentType)
+	if attachment {
+		w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": eula.Name}))
+	}
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	// The token is the only secret; a cached copy would outlive a delete.
+	w.Header().Set("Cache-Control", "no-store")
+
+	// OK to just log the error here as writing anything on
+	// `http.ResponseWriter` sets the status code to 200 (and it can't be
+	// changed.) Clients should rely on matching content-length with the
+	// header provided
+	if n, err := w.Write(eula.Bytes); err != nil {
+		logging.WithExtras(ctx, "err", err, "bytes_copied", n)
+	}
 }
 
 type createMDMEULAResponse struct {
@@ -295,18 +341,22 @@ func createMDMEULAEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	}
 	defer ff.Close()
 
-	if err := svc.MDMCreateEULA(ctx, req.EULA.Filename, ff, req.DryRun); err != nil {
+	if err := svc.MDMCreateEULA(ctx, req.Platform, req.EULA.Filename, ff, req.DryRun); err != nil {
 		return createMDMEULAResponse{Err: err}, nil
 	}
 
 	return createMDMEULAResponse{}, nil
 }
 
-func (svc *Service) MDMCreateEULA(ctx context.Context, name string, file io.ReadSeeker, dryRun bool) error {
+func (svc *Service) MDMCreateEULA(ctx context.Context, platform fleet.MDMEULAPlatform, name string, file io.ReadSeeker, dryRun bool) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
+	// The MDM error comes before the license one, as when middleware checked it.
+	if _, err := fleet.ValidateEULAPlatform(ctx, svc, platform); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
 	return fleet.ErrMissingLicense
 }
 
@@ -328,17 +378,12 @@ type getMDMEULAResponse struct {
 func (r getMDMEULAResponse) Error() error { return r.Err }
 
 func (r getMDMEULAResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
-	w.Header().Set("Content-Length", strconv.Itoa(len(r.eula.Bytes)))
-	w.Header().Set("Content-Type", "application/pdf")
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-
-	// OK to just log the error here as writing anything on
-	// `http.ResponseWriter` sets the status code to 200 (and it can't be
-	// changed.) Clients should rely on matching content-length with the
-	// header provided
-	if n, err := w.Write(r.eula.Bytes); err != nil {
-		logging.WithExtras(ctx, "err", err, "bytes_copied", n)
+	if r.eula.Platform == fleet.MDMEULAPlatformWindows {
+		// Markdown is downloaded, never rendered as a page in the browser.
+		writeEULAFile(ctx, w, r.eula, "text/markdown; charset=utf-8", true)
+		return
 	}
+	writeEULAFile(ctx, w, r.eula, "application/pdf", false)
 }
 
 func getMDMEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
@@ -364,7 +409,9 @@ func (svc *Service) MDMGetEULABytes(ctx context.Context, token string) (*fleet.M
 // GET /mdm/setup/eula/{token}/metadata
 ////////////////////////////////////////////////////////////////////////////////
 
-type getMDMEULAMetadataRequest struct{}
+type getMDMEULAMetadataRequest struct {
+	Platform string `query:"platform,optional"`
+}
 
 type getMDMEULAMetadataResponse struct {
 	*fleet.MDMEULA
@@ -374,7 +421,8 @@ type getMDMEULAMetadataResponse struct {
 func (r getMDMEULAMetadataResponse) Error() error { return r.Err }
 
 func getMDMEULAMetadataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	eula, err := svc.MDMGetEULAMetadata(ctx)
+	req := request.(*getMDMEULAMetadataRequest)
+	eula, err := svc.MDMGetEULAMetadata(ctx, fleet.MDMEULAPlatform(req.Platform))
 	if err != nil && !fleet.IsNotFound(err) {
 		return getMDMEULAMetadataResponse{Err: err}, nil
 	}
@@ -387,11 +435,15 @@ func getMDMEULAMetadataEndpoint(ctx context.Context, request interface{}, svc fl
 	return getMDMEULAMetadataResponse{MDMEULA: eula}, nil
 }
 
-func (svc *Service) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, error) {
+func (svc *Service) MDMGetEULAMetadata(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
+	// The MDM error comes before the license one, as when middleware checked it.
+	if _, err := fleet.ValidateEULAPlatform(ctx, svc, platform); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
 	return nil, fleet.ErrMissingLicense
 }
 
@@ -672,18 +724,17 @@ func (svc *Service) enqueueAndroidMDMCommand(ctx context.Context, rawJSON []byte
 
 	host := hosts[0]
 
-	// Wipe is COBO-only on Android, so a custom wipe must clear the same validation as the
-	// dedicated wipe endpoint. AMAPI derives the type from wipeParams when type is omitted, so
-	// any payload carrying wipeParams is a wipe regardless of what its type field says - don't
-	// let a caller-supplied type decide whether the check runs.
+	// A custom wipe must clear the same validation as the dedicated wipe endpoint. AMAPI
+	// derives the type from wipeParams when type is omitted, so any payload carrying
+	// wipeParams is a wipe regardless of what its type field says - don't let a
+	// caller-supplied type decide whether the check runs.
 	if cmdType == string(android.MDMAndroidCommandTypeWipe) || cmdPayload.WipeParams != nil {
-		// read from the primary: a replica lagging behind a recent enrollment would report
-		// the wrong ownership and let the wipe through
+		// hosts came from ListHostsLiteByUUIDs, which selects no MDM columns, so load the full
+		// host from the primary for any host-based rule the shared validator applies. Reusing
+		// the validator rather than re-deriving the rules here is what keeps this refusal
+		// identical to the dedicated endpoint's; the extra queries are noise next to the
+		// AMAPI round trip.
 		ctx = ctxdb.RequirePrimary(ctx, true)
-		// hosts came from ListHostsLiteByUUIDs, which selects no MDM columns, so the
-		// enrollment status has to come from a separate load. Reusing the shared validator
-		// rather than re-deriving the rule here is what keeps this refusal identical to the
-		// dedicated endpoint's; the extra queries are noise next to the AMAPI round trip.
 		hostWithMDM, err := svc.ds.Host(ctx, host.ID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get host")
@@ -828,6 +879,10 @@ func (svc *Service) enqueueMicrosoftMDMCommand(ctx context.Context, rawXMLCmd []
 	// Host-secret placeholders are Fleet's to write, never an admin's
 	if err := fleet.ValidateNoHostSecretVariables(string(rawXMLCmd)); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validate windows mdm command")
+	}
+
+	if err := fleet.ValidateWindowsMDMCommandID(cmdMsg.CmdID.Value); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validate windows mdm command id")
 	}
 
 	if cmdMsg.IsPremium() {
@@ -1588,7 +1643,8 @@ type deleteMDMConfigProfileRequest struct {
 }
 
 type deleteMDMConfigProfileResponse struct {
-	Err error `json:"error,omitempty"`
+	Warning string `json:"warning,omitempty"`
+	Err     error  `json:"error,omitempty"`
 }
 
 func (r deleteMDMConfigProfileResponse) Error() error { return r.Err }
@@ -1596,7 +1652,10 @@ func (r deleteMDMConfigProfileResponse) Error() error { return r.Err }
 func deleteMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteMDMConfigProfileRequest)
 
-	var err error
+	var (
+		err     error
+		warning string
+	)
 	if isAppleProfileUUID(req.ProfileUUID) { //nolint:gocritic // ignore ifElseChain
 		err = svc.DeleteMDMAppleConfigProfile(ctx, req.ProfileUUID)
 	} else if isAppleDeclarationUUID(req.ProfileUUID) {
@@ -1605,8 +1664,11 @@ func deleteMDMConfigProfileEndpoint(ctx context.Context, request interface{}, sv
 		err = svc.DeleteMDMAndroidConfigProfile(ctx, req.ProfileUUID)
 	} else {
 		err = svc.DeleteMDMWindowsConfigProfile(ctx, req.ProfileUUID)
+		if err == nil {
+			warning = fleet.WindowsProfileDeletedWarning
+		}
 	}
-	return &deleteMDMConfigProfileResponse{Err: err}, nil
+	return &deleteMDMConfigProfileResponse{Warning: warning, Err: err}, nil
 }
 
 func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error {
@@ -2716,6 +2778,13 @@ func (r batchModifyMDMConfigProfilesResponse) Status() int  { return http.Status
 func batchModifyMDMConfigProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchModifyMDMConfigProfilesRequest)
 
+	// The list replaces the fleet's whole set, so a missing key must not be read as "delete everything";
+	// an explicit [] still clears it.
+	if req.ConfigurationProfiles == nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return batchSetMDMProfilesResponse{Err: fleet.NewInvalidArgumentError("configuration_profiles", "configuration_profiles is required")}, nil
+	}
+
 	// We want to still use the existing BatchSetMDMProfiles method, so we convert
 	// the payload to the expected type.
 	profiles := make([]fleet.MDMProfileBatchPayload, len(req.ConfigurationProfiles))
@@ -2754,7 +2823,8 @@ type batchSetMDMProfilesRequest struct {
 type backwardsCompatProfilesParam []fleet.MDMProfileBatchPayload
 
 func (bcp *backwardsCompatProfilesParam) UnmarshalJSON(data []byte) error {
-	if len(data) == 0 {
+	// null stays nil so the endpoint can reject it like a missing key.
+	if len(data) == 0 || bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
 		return nil
 	}
 
@@ -2803,6 +2873,12 @@ func (r batchSetMDMProfilesResponse) Status() int { return http.StatusNoContent 
 
 func batchSetMDMProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchSetMDMProfilesRequest)
+	// The list replaces the fleet's whole set, so a missing key must not be read as "delete everything";
+	// an explicit [] (or {} in the deprecated format) still clears it.
+	if req.Profiles == nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return batchSetMDMProfilesResponse{Err: fleet.NewInvalidArgumentError("profiles", "profiles is required")}, nil
+	}
 	if err := svc.BatchSetMDMProfiles(
 		ctx, req.TeamID, req.TeamName, req.Profiles, req.DryRun, false, req.AssumeEnabled, req.NoCache,
 	); err != nil {
