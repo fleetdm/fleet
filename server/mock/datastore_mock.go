@@ -2332,8 +2332,6 @@ type DeleteAndroidAppConfigurationFunc func(ctx context.Context, adamID string, 
 
 type ListMDMAndroidUUIDsToHostIDsFunc func(ctx context.Context, hostIDs []uint) (map[string]uint, error)
 
-type ListMDMAndroidUUIDsToHostIDsWithAppsTargetingLabelsFunc func(ctx context.Context, hostIDs []uint, labelIDs []uint) (map[string]uint, error)
-
 type GetVPPAppConfigurationFunc func(ctx context.Context, vppAppTeamID uint) ([]byte, error)
 
 type HasVPPAppConfigurationChangedFunc func(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint, vppAppTeamID *uint, newConfig []byte) (bool, error)
@@ -6074,9 +6072,6 @@ type DataStore struct {
 
 	ListMDMAndroidUUIDsToHostIDsFunc        ListMDMAndroidUUIDsToHostIDsFunc
 	ListMDMAndroidUUIDsToHostIDsFuncInvoked bool
-
-	ListMDMAndroidUUIDsToHostIDsWithAppsTargetingLabelsFunc        ListMDMAndroidUUIDsToHostIDsWithAppsTargetingLabelsFunc
-	ListMDMAndroidUUIDsToHostIDsWithAppsTargetingLabelsFuncInvoked bool
 
 	GetVPPAppConfigurationFunc        GetVPPAppConfigurationFunc
 	GetVPPAppConfigurationFuncInvoked bool
@@ -14574,13 +14569,6 @@ func (s *DataStore) ListMDMAndroidUUIDsToHostIDs(ctx context.Context, hostIDs []
 	s.ListMDMAndroidUUIDsToHostIDsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListMDMAndroidUUIDsToHostIDsFunc(ctx, hostIDs)
-}
-
-func (s *DataStore) ListMDMAndroidUUIDsToHostIDsWithAppsTargetingLabels(ctx context.Context, hostIDs []uint, labelIDs []uint) (map[string]uint, error) {
-	s.mu.Lock()
-	s.ListMDMAndroidUUIDsToHostIDsWithAppsTargetingLabelsFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListMDMAndroidUUIDsToHostIDsWithAppsTargetingLabelsFunc(ctx, hostIDs, labelIDs)
 }
 
 func (s *DataStore) GetVPPAppConfiguration(ctx context.Context, vppAppTeamID uint) ([]byte, error) {

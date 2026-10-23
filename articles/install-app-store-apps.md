@@ -36,8 +36,6 @@ You can also manage which Google Play Store apps are available for self-service 
 
 > Dynamic (query) labels don't apply to Android hosts: including one targets no Android hosts, and excluding one has no effect. Use manual or host vitals labels to target Android apps.
 
-When a host leaves the target, because you edited the target or the host's labels changed, Fleet removes the app from the host's managed Google Play Store and uninstalls it, including its data. Hosts that join the target get the app. Changes to host vitals labels, like an end user's IdP group or department, take effect within about 5 minutes.
-
 #### Install Android web app (web clip)
 
 > Before deploying web apps, make sure to [add Google Chrome](#google-play-android) first. This applies to both work profile (BYO) and fully-managed Android devices. If Chrome isn’t installed, the end user will be prompted to install it and redirected to the managed Play Store.

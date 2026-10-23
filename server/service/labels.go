@@ -17,7 +17,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/worker"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -302,29 +301,9 @@ func (svc *Service) ModifyLabel(ctx context.Context, id uint, payload fleet.Modi
 		return nil, nil, err
 	}
 
-	// Snapshot the membership to reconcile the Android apps targeting the label on the hosts that change
-	var hostIDsBefore []uint
-	if hostIDs != nil {
-		hostIDsBefore, err = svc.ds.LabelMembershipHostIDs(ctx, label.ID)
-		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "get label host IDs before save")
-		}
-	}
-
 	saved, savedHostIDs, err := svc.ds.SaveLabel(ctx, &label.Label, hostIDs, filter)
 	if err != nil {
 		return nil, nil, err
-	}
-
-	if hostIDs != nil {
-		hostIDsAfter, err := svc.ds.LabelMembershipHostIDs(ctx, label.ID)
-		if err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "get label host IDs after save")
-		}
-		if err := worker.QueueReconcileAndroidAppScopeForLabelChange(ctx, svc.ds, svc.logger,
-			hostIDsSymmetricDifference(hostIDsBefore, hostIDsAfter), []uint{label.ID}, svc.config.MDM.AndroidBatchSize); err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "queue android app scope reconcile")
-		}
 	}
 
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeEditedLabel{
@@ -848,25 +827,6 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		beforeHostIDs[spec.Name] = ids
 	}
 
-	// The apply also clears the membership of labels whose platform changes. Snapshot those too, to
-	// reconcile the Android apps targeting a label on the hosts whose membership changes. Dynamic
-	// labels are skipped as they never match Android hosts.
-	platformChangedHostIDs := make(map[string][]uint)
-	for _, spec := range regularSpecs {
-		existing, ok := beforeByName[spec.Name]
-		if !ok || existing.Platform == spec.Platform || existing.LabelMembershipType == fleet.LabelMembershipTypeDynamic {
-			continue
-		}
-		if _, tracked := beforeHostIDs[spec.Name]; tracked {
-			continue
-		}
-		ids, err := svc.ds.LabelMembershipHostIDs(ctx, existing.ID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "get pre-apply label host IDs")
-		}
-		platformChangedHostIDs[spec.Name] = ids
-	}
-
 	if err := svc.ds.SetAsideLabels(ctx, teamID, namesToMove, *user.User); err != nil {
 		return ctxerr.Wrap(ctx, err, "cleaning up conflicting other team labels")
 	}
@@ -884,7 +844,6 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "lookup team name for label spec activity")
 	}
-	afterHostIDs := make(map[string][]uint)
 	for _, spec := range regularSpecs {
 		label, ok := afterApply[spec.Name]
 		if !ok || !labelMatchesTeamScope(label, teamID) {
@@ -899,7 +858,6 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "get post-apply label host IDs")
 				}
-				afterHostIDs[spec.Name] = after
 				hostsMatch = uintSetsEqual(before, after)
 			}
 			if fieldsMatch && hostsMatch {
@@ -923,35 +881,6 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 				return ctxerr.Wrap(ctx, err, "create activity for created label via spec")
 			}
 		}
-	}
-
-	var changedHostIDs, changedLabelIDs []uint
-	for _, spec := range regularSpecs {
-		label, ok := afterApply[spec.Name]
-		if !ok || !labelMatchesTeamScope(label, teamID) {
-			continue
-		}
-		before, tracked := beforeHostIDs[spec.Name]
-		if !tracked {
-			before, tracked = platformChangedHostIDs[spec.Name]
-		}
-		if !tracked {
-			continue
-		}
-		after, ok := afterHostIDs[spec.Name]
-		if !ok {
-			after, err = svc.ds.LabelMembershipHostIDs(ctx, label.ID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "get post-apply label host IDs")
-			}
-		}
-		if changed := hostIDsSymmetricDifference(before, after); len(changed) > 0 {
-			changedHostIDs = append(changedHostIDs, changed...)
-			changedLabelIDs = append(changedLabelIDs, label.ID)
-		}
-	}
-	if err := worker.QueueReconcileAndroidAppScopeForLabelChange(ctx, svc.ds, svc.logger, changedHostIDs, changedLabelIDs, svc.config.MDM.AndroidBatchSize); err != nil {
-		return ctxerr.Wrap(ctx, err, "queue android app scope reconcile")
 	}
 	return nil
 }
@@ -1010,30 +939,6 @@ func rawJSONBytes(m *json.RawMessage) []byte {
 		return nil
 	}
 	return *m
-}
-
-// hostIDsSymmetricDifference returns the host IDs that are in only one of a and b.
-func hostIDsSymmetricDifference(a, b []uint) []uint {
-	inA := make(map[uint]struct{}, len(a))
-	for _, id := range a {
-		inA[id] = struct{}{}
-	}
-	inB := make(map[uint]struct{}, len(b))
-	for _, id := range b {
-		inB[id] = struct{}{}
-	}
-	var diff []uint
-	for id := range inA {
-		if _, ok := inB[id]; !ok {
-			diff = append(diff, id)
-		}
-	}
-	for id := range inB {
-		if _, ok := inA[id]; !ok {
-			diff = append(diff, id)
-		}
-	}
-	return diff
 }
 
 func uintSetsEqual(a, b []uint) bool {

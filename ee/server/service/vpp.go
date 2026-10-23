@@ -1647,18 +1647,10 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 
 	// Get the hosts that are NOT in label scope currently (before the update happens)
 	var hostsNotInScope map[uint]struct{}
-	// and for Android, the ones that are, to take the app off those that leave the scope
-	var androidHostsInScopeBefore map[uint]struct{}
 	if labelsChanged {
 		hostsNotInScope, err = svc.ds.GetExcludedHostIDMapForVPPApp(ctx, meta.VPPAppsTeamsID)
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting hosts not in scope for vpp app")
-		}
-		if meta.Platform == fleet.AndroidPlatform {
-			androidHostsInScopeBefore, err = svc.ds.GetIncludedHostIDMapForVPPApp(ctx, meta.VPPAppsTeamsID)
-			if err != nil {
-				return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting hosts in scope for vpp app")
-			}
 		}
 	}
 
@@ -1743,16 +1735,6 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		// won't pick this up and the software won't install.
 		if err := svc.ds.ClearVPPAppAutoInstallPolicyStatusForHosts(ctx, meta.VPPAppsTeamsID, hostsToClear); err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "failed to clear auto install policy status for host")
-		}
-
-		var androidHostsLeftScope []uint
-		for id := range androidHostsInScopeBefore {
-			if _, ok := hostsInScope[id]; !ok {
-				androidHostsLeftScope = append(androidHostsLeftScope, id)
-			}
-		}
-		if err := worker.QueueReconcileAndroidAppScopeForHosts(ctx, svc.ds, svc.logger, androidHostsLeftScope, svc.config.MDM.AndroidBatchSize); err != nil {
-			return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: queue removing android app from hosts out of scope")
 		}
 	}
 

@@ -1581,34 +1581,15 @@ func (s *integrationMDMTestSuite) TestAndroidAppsLabelScope() {
 		return &androidmanagement.Application{IconUrl: "https://example.com/1.jpg", Title: packageName}, nil
 	}
 
-	policyIDFromName := func(policyName string) string {
-		return policyName[strings.LastIndex(policyName, "/")+1:]
-	}
 	// policy IDs (host UUIDs) that were sent each package, by AddAppsToAndroidPolicy
 	madeAvailable := map[string][]string{}
 	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
-		policyID := policyIDFromName(policyName)
+		policyID := policyName[strings.LastIndex(policyName, "/")+1:]
 		assert.NotEmpty(t, policyID, "app change sent to an empty policy ID")
 		for _, app := range appPolicies {
 			madeAvailable[app.PackageName] = append(madeAvailable[app.PackageName], policyID)
 		}
 		return &androidmanagement.Policy{}, nil
-	}
-	// packages each policy ID (host UUID) was set to, by SetAppsForAndroidPolicy
-	appsSet := map[string][]string{}
-	s.androidAPIClient.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
-		if opts.OnlyUpdateApps {
-			packages := []string{}
-			for _, app := range policy.Applications {
-				packages = append(packages, app.PackageName)
-			}
-			appsSet[policyIDFromName(policyName)] = packages
-		}
-		return &androidmanagement.Policy{}, nil
-	}
-	resetCalls := func() {
-		clear(madeAvailable)
-		clear(appsSet)
 	}
 
 	secrets, err := s.ds.GetEnrollSecrets(ctx, nil)
@@ -1627,11 +1608,20 @@ func (s *integrationMDMTestSuite) TestAndroidAppsLabelScope() {
 		req := android_service.PubSubPushRequest{PubSubMessage: *enrollmentMessage}
 		s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
 	}
+	// run the enrollment jobs before the app exists, so only the app's own delivery is recorded
+	s.runWorkerUntilDone()
 
 	var hostsResp listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hostsResp, "platform", "android", "order_key", "id")
 	require.Len(t, hostsResp.Hosts, 3)
 	pilotHostA, pilotHostB, otherHost := hostsResp.Hosts[0], hostsResp.Hosts[1], hostsResp.Hosts[2]
+
+	// the devices report applying their own policies, as they would after the setup experience
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE android_devices SET applied_policy_id = enterprise_specific_id WHERE host_id IN (?, ?, ?)`,
+			pilotHostA.ID, pilotHostB.ID, otherHost.ID)
+		return err
+	})
 
 	var labelResp fleet.CreateLabelResponse
 	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{
@@ -1641,121 +1631,22 @@ func (s *integrationMDMTestSuite) TestAndroidAppsLabelScope() {
 	pilotLabel := labelResp.Label
 
 	const appID = "com.example.labelscope"
-	var titleID uint
+	clear(madeAvailable)
+	var addAppResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID:       appID,
+		Platform:         fleet.AndroidPlatform,
+		LabelsIncludeAny: []string{pilotLabel.Name},
+	}, http.StatusOK, &addAppResp)
 
-	t.Run("adding an app with labels scopes it to the labeled hosts", func(t *testing.T) {
-		resetCalls()
+	var titleResp getSoftwareTitleResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addAppResp.TitleID), nil, http.StatusOK, &titleResp, "team_id", "0")
+	require.NotNil(t, titleResp.SoftwareTitle.AppStoreApp)
+	require.Len(t, titleResp.SoftwareTitle.AppStoreApp.LabelsIncludeAny, 1)
+	require.Equal(t, pilotLabel.ID, titleResp.SoftwareTitle.AppStoreApp.LabelsIncludeAny[0].LabelID)
 
-		var addAppResp addAppStoreAppResponse
-		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
-			AppStoreID:       appID,
-			Platform:         fleet.AndroidPlatform,
-			LabelsIncludeAny: []string{pilotLabel.Name},
-		}, http.StatusOK, &addAppResp)
-		titleID = addAppResp.TitleID
-
-		var titleResp getSoftwareTitleResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID), nil, http.StatusOK, &titleResp, "team_id", "0")
-		require.NotNil(t, titleResp.SoftwareTitle.AppStoreApp)
-		require.Len(t, titleResp.SoftwareTitle.AppStoreApp.LabelsIncludeAny, 1)
-		require.Equal(t, pilotLabel.ID, titleResp.SoftwareTitle.AppStoreApp.LabelsIncludeAny[0].LabelID)
-
-		s.runWorkerUntilDone()
-		require.ElementsMatch(t, []string{pilotHostA.UUID, pilotHostB.UUID}, madeAvailable[appID])
-	})
-
-	// From here on the hosts have moved to their own policies, as they would after the setup experience
-	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `UPDATE android_devices SET applied_policy_id = enterprise_specific_id WHERE host_id IN (?, ?, ?)`,
-			pilotHostA.ID, pilotHostB.ID, otherHost.ID)
-		return err
-	})
-
-	t.Run("editing the targets removes the app from hosts that leave its scope", func(t *testing.T) {
-		resetCalls()
-
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID), &updateAppStoreAppRequest{
-			TeamID:           new(uint(0)),
-			LabelsExcludeAny: []string{pilotLabel.Name},
-		}, http.StatusOK, &updateAppStoreAppResponse{})
-		s.runWorkerUntilDone()
-
-		require.ElementsMatch(t, []string{otherHost.UUID}, madeAvailable[appID])
-		require.Contains(t, appsSet, pilotHostA.UUID)
-		require.NotContains(t, appsSet[pilotHostA.UUID], appID)
-		require.Contains(t, appsSet, pilotHostB.UUID)
-		require.NotContains(t, appsSet[pilotHostB.UUID], appID)
-		require.NotContains(t, appsSet, otherHost.UUID)
-	})
-
-	t.Run("changing a manual label's hosts updates the hosts that join or leave it", func(t *testing.T) {
-		resetCalls()
-
-		// otherHost joins the excluded label and pilotHostB leaves it
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", pilotLabel.ID), &fleet.ModifyLabelPayload{
-			HostIDs: []uint{pilotHostA.ID, otherHost.ID},
-		}, http.StatusOK, &fleet.ModifyLabelResponse{})
-		s.runWorkerUntilDone()
-
-		require.Len(t, appsSet, 2)
-		require.NotContains(t, appsSet[otherHost.UUID], appID)
-		require.Contains(t, appsSet[pilotHostB.UUID], appID)
-	})
-
-	t.Run("adding and removing a label on a host updates that host", func(t *testing.T) {
-		resetCalls()
-		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", pilotHostB.ID), &addLabelsToHostRequest{
-			Labels: []string{pilotLabel.Name},
-		}, http.StatusOK)
-		s.runWorkerUntilDone()
-		require.Len(t, appsSet, 1)
-		require.NotContains(t, appsSet[pilotHostB.UUID], appID)
-
-		resetCalls()
-		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", pilotHostB.ID), &fleet.RemoveLabelsFromHostRequest{
-			Labels: []string{pilotLabel.Name},
-		}, http.StatusOK)
-		s.runWorkerUntilDone()
-		require.Len(t, appsSet, 1)
-		require.Contains(t, appsSet[pilotHostB.UUID], appID)
-	})
-
-	t.Run("applying label specs updates the hosts that join or leave the label", func(t *testing.T) {
-		resetCalls()
-
-		// otherHost leaves the excluded label, as a GitOps run would do
-		s.Do("POST", "/api/latest/fleet/spec/labels", &fleet.ApplyLabelSpecsRequest{
-			Specs: []*fleet.LabelSpec{{
-				Name:                pilotLabel.Name,
-				LabelMembershipType: fleet.LabelMembershipTypeManual,
-				Hosts:               fleet.HostsSlice{pilotHostA.UUID},
-			}},
-		}, http.StatusOK)
-		s.runWorkerUntilDone()
-
-		require.Len(t, appsSet, 1)
-		require.Contains(t, appsSet[otherHost.UUID], appID)
-	})
-
-	t.Run("changing a label no Android app targets doesn't update any host", func(t *testing.T) {
-		var unusedLabelResp fleet.CreateLabelResponse
-		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{
-			Name:    "Unused " + t.Name(),
-			HostIDs: []uint{pilotHostA.ID},
-		}, http.StatusOK, &unusedLabelResp)
-
-		resetCalls()
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/labels/%d", unusedLabelResp.Label.ID), &fleet.ModifyLabelPayload{
-			HostIDs: []uint{pilotHostB.ID, otherHost.ID},
-		}, http.StatusOK, &fleet.ModifyLabelResponse{})
-		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/labels", pilotHostA.ID), &addLabelsToHostRequest{
-			Labels: []string{unusedLabelResp.Label.Name},
-		}, http.StatusOK)
-		s.runWorkerUntilDone()
-
-		require.Empty(t, appsSet)
-		require.Empty(t, madeAvailable)
-	})
+	s.runWorkerUntilDone()
+	require.ElementsMatch(t, []string{pilotHostA.UUID, pilotHostB.UUID}, madeAvailable[appID])
 }
 
 // TestAndroidAppsTargetHostOwnPolicy checks that app changes go to the host's own policy, and skip

@@ -2514,7 +2514,6 @@ func newHostVitalsLabelMembershipSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	logger *slog.Logger,
-	androidBatchSize int,
 ) (*schedule.Schedule, error) {
 	const (
 		name     = string(fleet.CronHostVitalsLabelMembership)
@@ -2527,7 +2526,7 @@ func newHostVitalsLabelMembershipSchedule(
 		schedule.WithJob(
 			"cron_host_vitals_label_membership",
 			func(ctx context.Context) error {
-				return cronHostVitalsLabelMembership(ctx, ds, logger, androidBatchSize)
+				return cronHostVitalsLabelMembership(ctx, ds)
 			},
 		),
 	)
@@ -2537,8 +2536,6 @@ func newHostVitalsLabelMembershipSchedule(
 func cronHostVitalsLabelMembership(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger *slog.Logger,
-	androidBatchSize int,
 ) error {
 	// Get all labels. We don't have a function for labels by membership type
 	// so we'll filter them later.
@@ -2559,14 +2556,12 @@ func cronHostVitalsLabelMembership(
 		if label.LabelMembershipType != fleet.LabelMembershipTypeHostVitals {
 			continue
 		}
-		// Update membership for the label. The changed host IDs are also consumed
-		// by the config ETag invalidation decorator wrapping ds.
-		_, changedHostIDs, err := ds.UpdateLabelMembershipByHostCriteria(ctx, label)
+		// Update membership for the label. The changed host IDs are consumed
+		// by the config ETag invalidation decorator wrapping ds; nothing to
+		// do with them here.
+		_, _, err = ds.UpdateLabelMembershipByHostCriteria(ctx, label)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "update label membership for label %d (%s)", label.ID, label.Name)
-		}
-		if err := worker.QueueReconcileAndroidAppScopeForLabelChange(ctx, ds, logger, changedHostIDs, []uint{label.ID}, androidBatchSize); err != nil {
-			return ctxerr.Wrapf(ctx, err, "queue android app scope reconcile for label %d (%s)", label.ID, label.Name)
 		}
 	}
 	return nil

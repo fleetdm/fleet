@@ -83,7 +83,6 @@ func TestAndroid(t *testing.T) {
 		{"UpdateTeamIDOnAndroidDevices", testUpdateTeamIDOnAndroidDevices},
 		{"GetAndroidDeviceLastTeamID", testGetAndroidDeviceLastTeamID},
 		{"AndroidResetOnReenrollment", testAndroidResetOnReenrollment},
-		{"ListMDMAndroidUUIDsToHostIDsWithAppsTargetingLabels", testListMDMAndroidUUIDsToHostIDsWithAppsTargetingLabels},
 		{"GetIncludedHostUUIDMapForAppStoreAppTargetsOwnPolicy", testGetIncludedHostUUIDMapForAppStoreAppTargetsOwnPolicy},
 	}
 	for _, c := range cases {
@@ -4939,118 +4938,6 @@ func testBulkUpsertMDMAndroidHostProfilesUnlessResetSince(t *testing.T, ds *Data
 		{ProfileUUID: newProfile, Status: &pending, IncludedInPolicyVersion: new(2)},
 		{ProfileUUID: otherHostProfile, Status: &pending, IncludedInPolicyVersion: new(2)},
 	}, rows)
-}
-
-func testListMDMAndroidUUIDsToHostIDsWithAppsTargetingLabels(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-	test.AddBuiltinLabels(t, ds)
-
-	teamWithApp, err := ds.NewTeam(ctx, &fleet.Team{Name: "team with android app"})
-	require.NoError(t, err)
-	teamWithoutApp, err := ds.NewTeam(ctx, &fleet.Team{Name: "team without android app"})
-	require.NoError(t, err)
-
-	newAndroidHost := func(name string, teamID *uint) *fleet.AndroidHost {
-		h, err := ds.NewAndroidHost(ctx, createAndroidHost(name), false)
-		require.NoError(t, err)
-		if teamID != nil {
-			require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(teamID, []uint{h.Host.ID})))
-		}
-		return h
-	}
-	unassignedHost := newAndroidHost("unassigned-android", nil)
-	hostInTeamWithApp := newAndroidHost("team-with-app-android", &teamWithApp.ID)
-	hostInTeamWithoutApp := newAndroidHost("team-without-app-android", &teamWithoutApp.ID)
-	macHost := test.NewHost(t, ds, "mac", "", "mackey", "macuuid", time.Now(), test.WithPlatform("darwin"))
-	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&teamWithApp.ID, []uint{macHost.ID})))
-	allHostIDs := []uint{unassignedHost.Host.ID, hostInTeamWithApp.Host.ID, hostInTeamWithoutApp.Host.ID, macHost.ID}
-
-	newManualLabel := func(name string) *fleet.Label {
-		l, err := ds.NewLabel(ctx, &fleet.Label{Name: name, LabelMembershipType: fleet.LabelMembershipTypeManual})
-		require.NoError(t, err)
-		return l
-	}
-	androidLabel := newManualLabel("android pilot")
-	appleLabel := newManualLabel("apple pilot")
-	unusedLabel := newManualLabel("unused")
-
-	insertApp := func(adamID string, platform fleet.InstallableDevicePlatform, teamID *uint, scope fleet.LabelScope, label *fleet.Label) {
-		_, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
-			Name:             adamID,
-			BundleIdentifier: adamID,
-			AdamID:           adamID,
-			Platform:         platform,
-			ValidatedLabels: &fleet.LabelIdentsWithScope{
-				LabelScope: scope,
-				ByName:     map[string]fleet.LabelIdent{label.Name: {LabelID: label.ID, LabelName: label.Name}},
-			},
-		}, teamID, nil)
-		require.NoError(t, err)
-	}
-	insertApp("com.example.team", fleet.AndroidPlatform, &teamWithApp.ID, fleet.LabelScopeIncludeAny, androidLabel)
-	insertApp("com.example.unassigned", fleet.AndroidPlatform, nil, fleet.LabelScopeExcludeAny, androidLabel)
-
-	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Example org", "Example location")
-	require.NoError(t, err)
-	vppToken, err := ds.InsertVPPToken(ctx, dataToken)
-	require.NoError(t, err)
-	_, err = ds.UpdateVPPTokenTeams(ctx, vppToken.ID, []uint{teamWithoutApp.ID})
-	require.NoError(t, err)
-	insertApp("123456", fleet.MacOSPlatform, &teamWithoutApp.ID, fleet.LabelScopeIncludeAny, appleLabel)
-
-	cases := []struct {
-		name     string
-		hostIDs  []uint
-		labelIDs []uint
-		want     map[string]uint
-	}{
-		{
-			name:     "android hosts in fleets with an android app targeting the label",
-			hostIDs:  allHostIDs,
-			labelIDs: []uint{androidLabel.ID},
-			want: map[string]uint{
-				unassignedHost.Host.UUID:    unassignedHost.Host.ID,
-				hostInTeamWithApp.Host.UUID: hostInTeamWithApp.Host.ID,
-			},
-		},
-		{
-			name:     "only the requested hosts",
-			hostIDs:  []uint{hostInTeamWithApp.Host.ID},
-			labelIDs: []uint{androidLabel.ID, unusedLabel.ID},
-			want:     map[string]uint{hostInTeamWithApp.Host.UUID: hostInTeamWithApp.Host.ID},
-		},
-		{
-			name:     "label targeted only by an apple app",
-			hostIDs:  allHostIDs,
-			labelIDs: []uint{appleLabel.ID},
-			want:     map[string]uint{},
-		},
-		{
-			name:     "label not targeted by any app",
-			hostIDs:  allHostIDs,
-			labelIDs: []uint{unusedLabel.ID},
-			want:     map[string]uint{},
-		},
-		{
-			name:     "no labels",
-			hostIDs:  allHostIDs,
-			labelIDs: nil,
-			want:     nil,
-		},
-		{
-			name:     "no hosts",
-			hostIDs:  nil,
-			labelIDs: []uint{androidLabel.ID},
-			want:     nil,
-		},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			got, err := ds.ListMDMAndroidUUIDsToHostIDsWithAppsTargetingLabels(ctx, c.hostIDs, c.labelIDs)
-			require.NoError(t, err)
-			require.Equal(t, c.want, got)
-		})
-	}
 }
 
 // setAndroidHostAppliedPolicy sets the policy the host last reported applying. Hosts from

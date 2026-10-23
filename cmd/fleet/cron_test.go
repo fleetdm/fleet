@@ -766,7 +766,7 @@ func TestHostVitalsLabelMembershipCronIDP(t *testing.T) {
 	require.NoError(t, err)
 
 	// Run the actual cron.
-	require.NoError(t, cronHostVitalsLabelMembership(ctx, ds, slog.New(slog.DiscardHandler), 0))
+	require.NoError(t, cronHostVitalsLabelMembership(ctx, ds))
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 

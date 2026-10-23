@@ -28,7 +28,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -1361,48 +1360,10 @@ func TestHostVitalsLabelMembershipJob(t *testing.T) {
 		return nil, nil, nil
 	}
 
-	err := cronHostVitalsLabelMembership(ctx, ds, slog.New(slog.DiscardHandler), 0)
+	err := cronHostVitalsLabelMembership(ctx, ds)
 	require.NoError(t, err)
 	// Only one label (the host vitals label) should have been processed.
 	require.Equal(t, 1, numCalls)
-	// No host changed membership, so no Android app scope is reconciled
-	require.False(t, ds.ListMDMAndroidUUIDsToHostIDsWithAppsTargetingLabelsFuncInvoked)
-}
-
-func TestHostVitalsLabelMembershipJobReconcilesAndroidAppScope(t *testing.T) {
-	ds := new(mock.Store)
-	ctx := t.Context()
-
-	vitalsLabel := &fleet.Label{
-		Name: "Department", ID: 3, HostVitalsCriteria: new(json.RawMessage(`{"vital":"end_user_idp_department", "value":"Sales"}`)),
-		LabelType: fleet.LabelTypeRegular, LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
-	}
-	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error) {
-		return []*fleet.Label{vitalsLabel}, nil
-	}
-	ds.UpdateLabelMembershipByHostCriteriaFunc = func(ctx context.Context, hvl fleet.HostVitalsLabel) (*fleet.Label, []uint, error) {
-		return vitalsLabel, []uint{10, 11}, nil
-	}
-	var gotHostIDs, gotLabelIDs []uint
-	ds.ListMDMAndroidUUIDsToHostIDsWithAppsTargetingLabelsFunc = func(ctx context.Context, hostIDs []uint, labelIDs []uint) (map[string]uint, error) {
-		gotHostIDs, gotLabelIDs = hostIDs, labelIDs
-		return map[string]uint{"android-host": 10}, nil
-	}
-	ds.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
-		return &android.Enterprise{EnterpriseID: "test"}, nil
-	}
-	var queuedJobs []*fleet.Job
-	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
-		queuedJobs = append(queuedJobs, job)
-		return job, nil
-	}
-
-	require.NoError(t, cronHostVitalsLabelMembership(ctx, ds, slog.New(slog.DiscardHandler), 0))
-
-	require.Equal(t, []uint{10, 11}, gotHostIDs)
-	require.Equal(t, []uint{vitalsLabel.ID}, gotLabelIDs)
-	require.Len(t, queuedJobs, 1)
-	require.Contains(t, string(*queuedJobs[0].Args), "reconcile_android_app_scope_for_hosts")
 }
 
 // TestOTELResourceCreation verifies that the OTEL resource can be created without schema URL
