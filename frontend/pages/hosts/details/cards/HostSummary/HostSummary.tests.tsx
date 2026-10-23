@@ -233,6 +233,34 @@ describe("Host Summary section", () => {
       expect(screen.getByText(/Oct 13 at 5:00 PM/)).toBeInTheDocument();
     });
 
+    it("formats the deadline in 24-hour time for an en-GB viewer", () => {
+      const languageSpy = jest
+        .spyOn(window.navigator, "language", "get")
+        .mockReturnValue("en-GB");
+
+      try {
+        const summaryData = createMockHostSummary({
+          platform: "darwin",
+          timezone: "America/Argentina/Buenos_Aires",
+          patch_deadline_at: "2026-10-13T20:00:00Z",
+        });
+
+        renderWithSetup(
+          <HostSummary
+            summaryData={summaryData}
+            isPremiumTier
+            showPatchDeadline
+          />
+        );
+
+        // 20:00 UTC → 17:00 in Buenos Aires. en-GB → 24-hour time.
+        expect(screen.getByText(/17:00/)).toBeInTheDocument();
+        expect(screen.queryByText(/PM/)).not.toBeInTheDocument();
+      } finally {
+        languageSpy.mockRestore();
+      }
+    });
+
     it("renders '---' when a deadline is set but the host's timezone hasn't been collected yet", () => {
       const summaryData = createMockHostSummary({
         platform: "darwin",

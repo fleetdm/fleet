@@ -16,6 +16,7 @@ import {
   DATE_FNS_FORMAT_STRINGS,
   DEFAULT_EMPTY_CELL_VALUE,
 } from "utilities/constants";
+import { formatHostLocalDeadline } from "utilities/helpers";
 
 import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
 
@@ -121,11 +122,7 @@ const HostSummary = ({
 
     const value = canFormat ? (
       <TooltipWrapper tipContent="The deadline is in the host's local time.">
-        {formatInTimeZone(
-          patch_deadline_at,
-          timezone,
-          DATE_FNS_FORMAT_STRINGS.dateAtTime
-        )}
+        {formatHostLocalDeadline(patch_deadline_at, timezone)}
       </TooltipWrapper>
     ) : (
       DEFAULT_EMPTY_CELL_VALUE

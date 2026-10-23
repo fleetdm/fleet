@@ -726,9 +726,7 @@ export const buildHostVitals = ({
   // Windows, and Linux always show the row, with "---" until osquery fills
   // it in.
   const showTimezone =
-    !isAndroidHost &&
-    !isChromeHost &&
-    (!isIosOrIpadosHost || hasValidTimezone);
+    !isAndroidHost && !isChromeHost && (!isIosOrIpadosHost || hasValidTimezone);
   if (showTimezone) {
     const localTime = hasValidTimezone
       ? // toZonedTime shifts the instant so its epoch value reads as the
