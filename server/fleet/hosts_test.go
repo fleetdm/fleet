@@ -36,14 +36,13 @@ func TestIsLUKSSupported(t *testing.T) {
 		// Fedora hosts report their platform as "rhel", so they are identified by OS version.
 		{platform: "rhel", osVersion: "Fedora Linux 41", expected: true},
 		{platform: "rhel", osVersion: "CentOS Linux 7.9.2009", expected: false},
-		// Arch and its derivatives.
-		{platform: "arch", expected: true},
-		{platform: "archarm", expected: true},
-		{platform: "manjaro", expected: true},
-		{platform: "manjaro-arm", expected: true},
-		{platform: "cachyos", expected: true},
-		{platform: "omarchy", expected: true},
 		// Linux platforms without LUKS support, and non-Linux platforms.
+		{platform: "arch", expected: false},
+		{platform: "omarchy", expected: false},
+		{platform: "archarm", expected: false},
+		{platform: "manjaro", expected: false},
+		{platform: "manjaro-arm", expected: false},
+		{platform: "cachyos", expected: false},
 		{platform: "debian", expected: false},
 		{platform: "amd-ryzen-ai-developer-platform", expected: false},
 		{platform: "darwin", expected: false},
@@ -827,6 +826,9 @@ func TestPopulateOSSettingsAndMacOSSettingsMatrix(t *testing.T) {
 					for diskName, disk := range diskSignals {
 						exp := delivered.keyBasedWant[keyName]
 						switch {
+						case combo.cfg.MacOSFileVaultOff():
+							// the fleet delivers no FileVault profile, so this one is awaiting removal
+							exp = w(DiskEncryptionRemovingEnforcement, "")
 						case !combo.keyBased:
 							exp = delivered.diskBasedWant[diskName]
 						case combo.cfg.MacOSEscrowEnabled && !combo.cfg.MacOSEnabled && diskName == "unencrypted" && exp.action == ActionRequiredRotateKey:

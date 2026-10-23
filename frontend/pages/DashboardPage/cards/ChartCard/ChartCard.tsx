@@ -346,6 +346,7 @@ const ChartCard = ({
         <div className={`${baseClass}__header-left`}>
           {DATASET_OPTIONS.length > 1 ? (
             <DropdownWrapper
+              ariaLabel="Select dataset"
               name="dataset"
               value={selectedMetric}
               options={DATASET_OPTIONS}

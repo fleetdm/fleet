@@ -10,6 +10,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
+	"io"
 	"log/slog"
 	"math/big"
 	"net/http"
@@ -17,6 +19,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -24,12 +27,15 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep/sceptest"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	scepx509util "github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -174,6 +180,7 @@ func TestRequestCertificate(t *testing.T) {
 	hydrantSimpleEnrollResponse := defaultHydrantSimpleEnrollResponse
 	hydrantSimpleEnrollStatus := http.StatusOK
 	var hydrantSimpleEnrollCalls atomic.Int64
+	var hydrantSimpleEnrollBody atomic.Pointer[string]
 
 	mockHydrantServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
@@ -193,6 +200,8 @@ func TestRequestCertificate(t *testing.T) {
 			return
 		}
 		hydrantSimpleEnrollCalls.Add(1)
+		body, _ := io.ReadAll(r.Body)
+		hydrantSimpleEnrollBody.Store(new(string(body)))
 
 		if hydrantSimpleEnrollStatus != http.StatusOK {
 			w.WriteHeader(hydrantSimpleEnrollStatus)
@@ -230,6 +239,28 @@ func TestRequestCertificate(t *testing.T) {
 		Password: ptr.String("test-password"),
 	}
 
+	const ndesChallenge = "8CE317021F690069"
+	var ndesCAs []*fleet.CertificateAuthority
+	newNDESCA := func(scepURL *string) *fleet.CertificateAuthority {
+		ca := &fleet.CertificateAuthority{
+			ID:       uint(100 + len(ndesCAs)),
+			Name:     new("NDES"),
+			Type:     string(fleet.CATypeNDESSCEPProxy),
+			URL:      scepURL,
+			AdminURL: new("https://ndes.example.com/certsrv/mscep_admin/"),
+			Username: new("ndes-user"),
+			Password: new("ndes-password"),
+		}
+		ndesCAs = append(ndesCAs, ca)
+		return ca
+	}
+	ndesCA := newNDESCA(new(sceptest.NewTestSCEPServer(t, sceptest.WithIssuance(), sceptest.WithChallenge(ndesChallenge)).URL + "/scep"))
+	raNDESCA := newNDESCA(new(sceptest.NewTestSCEPServer(t, sceptest.WithIssuance(), sceptest.WithChallenge(ndesChallenge), sceptest.WithRAChain()).URL + "/scep"))
+	unreachableSCEPServer := httptest.NewServer(http.NotFoundHandler())
+	unreachableSCEPServer.Close()
+	unreachableNDESCA := newNDESCA(new(unreachableSCEPServer.URL + "/scep"))
+	noURLNDESCA := newNDESCA(nil)
+
 	useDefaultAuthContext := true
 
 	// Reset by baseSetupForTests; mutated by the allowlist and host-binding subtests.
@@ -240,7 +271,7 @@ func TestRequestCertificate(t *testing.T) {
 		// Setup DS mocks
 		ds.GetCertificateAuthorityByIDFunc = func(ctx context.Context, id uint, includeSecrets bool) (*fleet.CertificateAuthority, error) {
 			require.True(t, includeSecrets, "RequestCertificate should always fetch secrets")
-			for _, ca := range []*fleet.CertificateAuthority{hydrantCA, digicertCA, customESTCA} {
+			for _, ca := range append([]*fleet.CertificateAuthority{hydrantCA, digicertCA, customESTCA}, ndesCAs...) {
 				if ca.ID == id {
 					return ca, nil
 				}
@@ -271,6 +302,7 @@ func TestRequestCertificate(t *testing.T) {
 				est.WithTimeout(2*time.Second),
 				est.WithLogger(logger),
 			),
+			scepEnrollmentClient: scep.NewEnrollmentClient(logger),
 		}
 
 		authCtx := &authz_ctx.AuthorizationContext{}
@@ -286,6 +318,7 @@ func TestRequestCertificate(t *testing.T) {
 		hydrantSimpleEnrollResponse = defaultHydrantSimpleEnrollResponse
 		hydrantSimpleEnrollStatus = http.StatusOK
 		hydrantSimpleEnrollCalls.Store(0)
+		hydrantSimpleEnrollBody.Store(nil)
 
 		return svc, ds, ctx
 	}
@@ -456,7 +489,7 @@ func TestRequestCertificate(t *testing.T) {
 		require.Equal(t, "-----BEGIN PKCS7-----\n"+hydrantSimpleEnrollResponse+"\n-----END PKCS7-----\n", *cert)
 	})
 
-	t.Run("Request certificate - non-Hydrant and non-EST CA", func(t *testing.T) {
+	t.Run("Request certificate - unsupported CA type", func(t *testing.T) {
 		svc, _, ctx := baseSetupForTests()
 		setAllowlist(t, introspectURL, "test-client-id")
 		_, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
@@ -466,7 +499,9 @@ func TestRequestCertificate(t *testing.T) {
 			IDPToken:    ptr.String("test-idp-token"),
 			IDPClientID: ptr.String("test-idp-client-id"),
 		})
-		require.ErrorContains(t, err, "This API currently only supports Hydrant and EST Certificate Authorities.")
+		var badRequest *fleet.BadRequestError
+		require.ErrorAs(t, err, &badRequest)
+		require.Equal(t, "This API currently only supports Hydrant, EST, and NDES Certificate Authorities.", badRequest.Message)
 	})
 
 	t.Run("Request certificate - nonexistent CA", func(t *testing.T) {
@@ -579,14 +614,29 @@ func TestRequestCertificate(t *testing.T) {
 		require.ErrorAs(t, err, &invalidCSR)
 	})
 
-	t.Run("Request a certificate - CSR is not a CSR, no IDP provided", func(t *testing.T) {
+	t.Run("Request a certificate - CA receives the CSR re-encoded from its DER, whatever the PEM label", func(t *testing.T) {
 		svc, _, ctx := baseSetupForTests()
+
+		csr := strings.ReplaceAll(goodCSR, "CERTIFICATE REQUEST-----", "NEW CERTIFICATE REQUEST-----")
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{ID: hydrantCA.ID, CSR: csr})
+		require.NoError(t, err)
+		require.Equal(t, "-----BEGIN PKCS7-----\n"+hydrantSimpleEnrollResponse+"\n-----END PKCS7-----\n", *cert)
+
+		block, _ := pem.Decode([]byte(goodCSR))
+		require.NotNil(t, block)
+		require.Equal(t, string(wrapBase64(block.Bytes)), *hydrantSimpleEnrollBody.Load())
+	})
+
+	t.Run("Request a certificate - CSR is not a CSR, no IDP provided, rejected before any datastore call", func(t *testing.T) {
+		svc, ds, ctx := baseSetupForTests()
 
 		_, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
 			ID:  hydrantCA.ID,
 			CSR: "I am not a CSR",
 		})
 		require.ErrorAs(t, err, &invalidCSR)
+		require.False(t, ds.GetCertificateAuthorityByIDFuncInvoked)
+		require.False(t, ds.AppConfigFuncInvoked)
 	})
 
 	t.Run("Request a certificate - return_pem_certificate true", func(t *testing.T) {
@@ -1055,18 +1105,101 @@ func TestRequestCertificate(t *testing.T) {
 		require.NotNil(t, cert)
 	})
 
-	t.Run("Request a certificate - return_pem_certificate false preserves PKCS7 wrapping", func(t *testing.T) {
+	t.Run("Request a certificate - NDES", func(t *testing.T) {
+		for name, tc := range map[string]struct {
+			ca            *fleet.CertificateAuthority
+			csr           string
+			returnPEM     bool
+			wantBlockType string
+		}{
+			"default PKCS7 output": {ca: ndesCA, csr: newNDESTestCSR(t, ndesChallenge), wantBlockType: "PKCS7"},
+			"return_pem_certificate, CSR with escaped newlines": {
+				ca: ndesCA, csr: strings.ReplaceAll(newNDESTestCSR(t, ndesChallenge), "\n", `\n`), returnPEM: true, wantBlockType: "CERTIFICATE",
+			},
+			"CA chain with an RA certificate": {ca: raNDESCA, csr: newNDESTestCSR(t, ndesChallenge), returnPEM: true, wantBlockType: "CERTIFICATE"},
+		} {
+			t.Run(name, func(t *testing.T) {
+				svc, _, ctx := baseSetupForTests()
+
+				cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{ID: tc.ca.ID, CSR: tc.csr, ReturnPEMCertificate: tc.returnPEM})
+				require.NoError(t, err)
+				require.NotNil(t, cert)
+
+				block, rest := pem.Decode([]byte(*cert))
+				require.NotNil(t, block)
+				require.Empty(t, rest)
+				require.Equal(t, tc.wantBlockType, block.Type)
+				issued := block.Bytes
+				if block.Type == "PKCS7" {
+					p7, err := pkcs7.Parse(block.Bytes)
+					require.NoError(t, err)
+					require.Len(t, p7.Certificates, 1)
+					issued = p7.Certificates[0].Raw
+				}
+				parsed := parseDERCert(t, issued)
+				require.NoError(t, parsed.CheckSignatureFrom(sceptest.CACertificate(t)))
+				require.Equal(t, "test-host managementAttestation", parsed.Subject.CommonName)
+			})
+		}
+	})
+
+	t.Run("Request a certificate - NDES, unreachable SCEP URL is a 503 with Retry-After", func(t *testing.T) {
 		svc, _, ctx := baseSetupForTests()
 
-		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
-			ID:                   hydrantCA.ID,
-			CSR:                  goodCSR,
-			ReturnPEMCertificate: false,
-		})
-		require.NoError(t, err)
-		require.NotNil(t, cert)
-		require.Equal(t, "-----BEGIN PKCS7-----\n"+hydrantSimpleEnrollResponse+"\n-----END PKCS7-----\n", *cert)
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{ID: unreachableNDESCA.ID, CSR: newNDESTestCSR(t, ndesChallenge)})
+		transient, ok := errors.AsType[fleet.CertificateAuthorityTransientError](err)
+		require.True(t, ok, "got %v", err)
+		require.Equal(t, http.StatusServiceUnavailable, transient.StatusCode())
+		require.Equal(t, 30, transient.RetryAfter())
+		// The response carries the innermost message; the full chain is for the logs.
+		require.True(t, strings.HasPrefix(transient.Message, "getting CA certificates from SCEP URL: "), transient.Message)
+		require.Contains(t, err.Error(), "SCEP certificate request failed: getting CA certificates from SCEP URL: ")
+		require.NotContains(t, err.Error(), "getting CA certificates from SCEP URL: getting CA certificates")
+		require.Nil(t, cert)
 	})
+
+	t.Run("Request a certificate - NDES failures are bad requests", func(t *testing.T) {
+		// A missing challenge and a wrong one are the same rejection from the CA's side.
+		for name, tc := range map[string]struct {
+			ca          *fleet.CertificateAuthority
+			challenge   string
+			wantMessage string
+		}{
+			"CSR without a challenge": {
+				ca: ndesCA, wantMessage: "SCEP server rejected the request: status FAILURE with fail info badRequest (2); " +
+					"if this certificate authority requires a challenge, include it as the CSR's challengePassword attribute",
+			},
+			"CA without a SCEP URL": {ca: noURLNDESCA, challenge: ndesChallenge, wantMessage: "Certificate authority does not have a SCEP URL configured."},
+		} {
+			t.Run(name, func(t *testing.T) {
+				svc, _, ctx := baseSetupForTests()
+
+				cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{ID: tc.ca.ID, CSR: newNDESTestCSR(t, tc.challenge)})
+				var badRequest *fleet.BadRequestError
+				require.ErrorAs(t, err, &badRequest)
+				require.Contains(t, badRequest.Message, tc.wantMessage)
+				require.Nil(t, cert)
+			})
+		}
+	})
+}
+
+// Generated once; nothing needs distinct keys.
+var ndesTestCSRKey = sync.OnceValues(func() (*rsa.PrivateKey, error) {
+	return rsa.GenerateKey(rand.Reader, 2048)
+})
+
+// newNDESTestCSR returns a PEM CSR with challenge as its challengePassword, when non-empty.
+func newNDESTestCSR(t *testing.T, challenge string) string {
+	t.Helper()
+	key, err := ndesTestCSRKey()
+	require.NoError(t, err)
+	der, err := scepx509util.CreateCertificateRequest(rand.Reader, &scepx509util.CertificateRequest{
+		Subject:           pkix.Name{CommonName: "test-host managementAttestation"},
+		ChallengePassword: challenge,
+	}, key)
+	require.NoError(t, err)
+	return string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE REQUEST", Bytes: der}))
 }
 
 // parseDERCert parses DER-encoded certificate bytes for use as input to PKCS7 SignedData.

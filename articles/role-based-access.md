@@ -34,14 +34,12 @@ Observer+ is an observer with the added ability to run *any* report.
 
 ### GitOps
 
-`Applies only to Fleet Premium`
-
 GitOps is a modern approach to Continuous Deployment (CD) that uses Git as the single source of truth for declarative infrastructure and application configurations.
 GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 
 ## User permissions
 
-| **Action**                                                                                                                                 | Observer | Observer+* | Technician* | Maintainer | Admin | GitOps* |
+| **Action**                                                                                                                                 | Observer | Observer+* | Technician* | Maintainer | Admin | GitOps  |
 | ------------------------------------------------------------------------------------------------------------------------------------------ | :------: | :--------: | :--------: | :--------: | :---: | :-----: |
 | View all [activity](https://fleetdm.com/docs/using-fleet/rest-api#activities)                                                              | ✅       | ✅         | ✅         | ✅         | ✅    |         |
 | Cancel [hosts' upcoming activity](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-upcoming-activity)                                  |          |            |            | ✅         | ✅    |         |
@@ -128,6 +126,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View custom host vitals                                                                                                                    | ✅       | ✅         | ✅         | ✅         | ✅    | ✅      |
 | Create, edit, and delete custom host vitals                                                                                                |          |            |            | ✅         | ✅    | ✅      |
 | Set custom host vital values on hosts                                                                                                      |          |            |            | ✅         | ✅    |         |
+| Clear iOS/iPadOS passcodes from hosts                                                                                                      |          |            |✅          | ✅         | ✅    |         |
 
 \* Applies only to Fleet Premium
 
@@ -208,6 +207,7 @@ Users can be assigned to multiple fleets, and can have different roles for each 
 | View [custom variables](https://fleetdm.com/docs/rest-api/rest-api#list-custom-variables)                                        | ✅            | ✅             | ✅             | ✅              | ✅         |             |
 | View custom host vitals                                                                                                          | ✅            | ✅             | ✅              | ✅              | ✅         | ✅         |
 | Set custom host vital values on hosts                                                                                            |               |                |                 | ✅              | ✅         |             |
+| Clear iOS/iPadOS passcodes from hosts                                                                                                      |          |            |✅          | ✅         | ✅    |         |
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 

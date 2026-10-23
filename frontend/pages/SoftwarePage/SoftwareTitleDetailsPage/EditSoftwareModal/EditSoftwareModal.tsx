@@ -1,10 +1,11 @@
 import classnames from "classnames";
-import React, { useState, useEffect } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "react-query";
 
 import FileProgressModal from "components/FileProgressModal";
 import Modal from "components/Modal";
 import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
 import useBlockNavigation from "hooks/useBlockNavigation";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { ILabelSummary } from "interfaces/label";
@@ -143,6 +144,7 @@ const EditSoftwareModal = ({
     labelTargets: {},
     categories: [],
   });
+  const { config } = useContext(AppContext);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [showFileProgressModal, setShowFileProgressModal] = useState(false);
 
@@ -226,6 +228,7 @@ const EditSoftwareModal = ({
         softwareId,
         installerId,
         teamId,
+        directUpload: config?.staged_upload_available,
         onUploadProgress: (progressEvent) => {
           const progress = progressEvent.progress || 0;
           // for large uploads it seems to take a bit for the server to finalize its response so we'll keep the

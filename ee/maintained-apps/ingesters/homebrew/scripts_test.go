@@ -1,6 +1,12 @@
 package homebrew
 
 import (
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -105,6 +111,133 @@ func TestInstallScriptAppCopyPropagatesAndRestores(t *testing.T) {
 	fi
 	exit 1
 fi`)
+}
+
+// TestInstallScriptStopsWhenAppWontQuit runs generated install scripts in bash
+// with osascript and friends stubbed out. An app that's still running after the
+// quit timeout must not be replaced: fleetd deletes $TMPDIR after the install,
+// taking the moved-aside bundle the app is still running from.
+func TestInstallScriptStopsWhenAppWontQuit(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("as root the relaunch goes through /bin/launchctl asuser, which can't be stubbed")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+
+	installers := map[string]struct {
+		format   string
+		artifact *brewArtifact
+		replace  string
+	}{
+		"app": {"zip", &brewArtifact{App: []optjson.StringOr[*brewAppTarget]{{String: "Foo.app"}}}, `sudo cp -R`},
+		"pkg": {"pkg", &brewArtifact{Pkg: []optjson.StringOr[*brewPkgChoices]{{String: "Foo-1.0.pkg"}}}, `sudo installer -pkg`},
+	}
+
+	// mode is how the app responds: "not-running", "quits", "ignores" (accepts
+	// the quit event but keeps running), or "cancels" (the user cancels a save
+	// prompt, so the quit event fails). sleep advances SECONDS so the timeout
+	// loop doesn't take real time.
+	run := func(t *testing.T, script, mode string) (string, error) {
+		stubs := `mode=` + mode + `
+running=true
+[[ "$mode" == not-running ]] && running=false
+stat() { echo alice; }
+realpath() { echo /tmp/fleet-test/installer; }
+unzip() { :; }
+sleep() { SECONDS=$((SECONDS + $1)); }
+sudo() { echo "sudo $*"; }
+open() { :; }
+osascript() {
+  case "$2" in
+    *" to quit")
+      [[ "$mode" == quits ]] && running=false
+      [[ "$mode" == cancels ]] && return 1
+      return 0
+      ;;
+    *" is running")
+      echo "$running"
+      ;;
+  esac
+}
+`
+		out, err := exec.Command(bash, "-c", stubs+script).CombinedOutput()
+		return string(out), err
+	}
+
+	for name, installer := range installers {
+		t.Run(name, func(t *testing.T) {
+			script, err := installScriptForApp(inputApp{
+				Token:            "foo",
+				UniqueIdentifier: "com.example.Foo",
+				InstallerFormat:  installer.format,
+			}, &brewCask{Artifacts: []*brewArtifact{installer.artifact}})
+			require.NoError(t, err)
+
+			out, err := run(t, script, "not-running")
+			require.NoError(t, err, out)
+			require.Contains(t, out, installer.replace)
+			require.NotContains(t, out, "Quitting application")
+			require.NotContains(t, out, "Relaunching application")
+
+			out, err = run(t, script, "quits")
+			require.NoError(t, err, out)
+			require.Contains(t, out, "Application 'com.example.Foo' quit successfully.")
+			require.Contains(t, out, installer.replace)
+			require.Contains(t, out, "Relaunching application 'com.example.Foo'...")
+
+			for _, mode := range []string{"ignores", "cancels"} {
+				out, err = run(t, script, mode)
+				var exitErr *exec.ExitError
+				require.ErrorAs(t, err, &exitErr, out)
+				require.Equal(t, 1, exitErr.ExitCode(), out)
+				require.Contains(t, out, "Application 'com.example.Foo' did not quit.")
+				require.NotContains(t, out, installer.replace)
+				require.NotContains(t, out, "Relaunching application")
+			}
+		})
+	}
+}
+
+// TestCustomInstallScriptsStopWhenAppWontQuit checks the quit helper copies in
+// custom install scripts. A copy that confirms the quit with pgrep reports
+// success while the app keeps running, since pgrep -f never matches the bundle
+// id. A call that carries on after a failed quit must be listed here with the
+// reason it's safe.
+func TestCustomInstallScriptsStopWhenAppWontQuit(t *testing.T) {
+	continuesAnyway := map[string]string{
+		"docker_desktop_install.sh": "runs under set -e",
+		"expressvpn-install.sh":     "vpn-installer.sh kills the app's processes before replacing it",
+		"harmony-sase-install.sh":   "the pkg force-quits the app",
+		"logitune-install.sh":       "the pkg's preinstall force-kills the app",
+	}
+	quitCall := regexp.MustCompile(`^\s*(quit_application|quit_and_track_application)\s`)
+	// kicad-install.sh's abort_install relaunches the apps and exits 1.
+	stopsOnFailure := regexp.MustCompile(`\|\|\s*(exit(\s+[1-9][0-9]*)?|abort_install)\s*$`)
+
+	paths, err := filepath.Glob("../../inputs/homebrew/scripts/*.sh")
+	require.NoError(t, err)
+	require.NotEmpty(t, paths)
+	for _, path := range paths {
+		name := filepath.Base(path)
+		if strings.Contains(name, "uninstall") {
+			continue
+		}
+		b, err := os.ReadFile(path)
+		require.NoError(t, err)
+		for line := range strings.SplitSeq(string(b), "\n") {
+			require.NotContains(t, line, `pgrep -f "$bundle_id"`, "%s confirms the quit with pgrep", name)
+			if !quitCall.MatchString(line) || stopsOnFailure.MatchString(line) {
+				continue
+			}
+			_, ok := continuesAnyway[name]
+			require.True(t, ok, "%s: %q carries on when the app won't quit", name, strings.TrimSpace(line))
+		}
+	}
 }
 
 func TestShellDoubleQuoteEscape(t *testing.T) {
@@ -466,6 +599,123 @@ func TestUninstallScriptExpandsLaunchctlWildcard(t *testing.T) {
 	require.NotContains(t, script, `(( pid != 0 ))`)
 }
 
+// TestUninstallScriptExpandsQuitWildcard guards against a regression where a
+// cask quit ID containing a wildcard (e.g. "com.elgato.WaveLink*") was passed
+// straight to quit_application, whose osascript calls reject wildcard IDs, so
+// the app was never quit before its bundle was removed.
+func TestUninstallScriptExpandsQuitWildcard(t *testing.T) {
+	cask := &brewCask{
+		Artifacts: []*brewArtifact{
+			{
+				Uninstall: []*brewUninstall{
+					{
+						Quit: optjson.StringOr[[]string]{
+							IsOther: true,
+							Other:   []string{"com.elgato.WaveLink*", "com.elgato.StreamDeck"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	script := uninstallScriptForApp(cask)
+	require.Contains(t, script, `quit_matching_applications 'com.elgato.WaveLink*'`)
+	require.NotContains(t, script, `quit_application 'com.elgato.WaveLink*'`)
+	require.Contains(t, script, quitMatchingApplicationsFunc)
+	// quit_matching_applications quits each match through quit_application.
+	require.Contains(t, script, quitApplicationFunc)
+	require.Contains(t, script, `quit_application 'com.elgato.StreamDeck'`)
+
+	// A cask without wildcard quit IDs must not pick up the new helper, so its
+	// uninstall script (and script ref) stays unchanged.
+	cask.Artifacts[0].Uninstall[0].Quit = optjson.StringOr[[]string]{String: "com.elgato.StreamDeck"}
+	script = uninstallScriptForApp(cask)
+	require.NotContains(t, script, "quit_matching_applications")
+	require.Contains(t, script, `quit_application 'com.elgato.StreamDeck'`)
+}
+
+// TestQuitMatchingApplicationsRunsMatches runs the generated helper in bash with
+// osascript and friends stubbed out, checking which running apps it quits.
+func TestQuitMatchingApplicationsRunsMatches(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires bash")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("as root the helper lists apps through /bin/launchctl asuser, which can't be stubbed")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not found")
+	}
+
+	run := func(t *testing.T, consoleUser string, listFails bool, quitIDs ...string) string {
+		cask := &brewCask{
+			Artifacts: []*brewArtifact{
+				{
+					Uninstall: []*brewUninstall{
+						{Quit: optjson.StringOr[[]string]{IsOther: true, Other: quitIDs}},
+					},
+				},
+			},
+		}
+		// Shell functions take precedence over the real commands. The running
+		// list includes a duplicate, a differently-cased match, IDs that only
+		// match as a substring or not at all, and a matching ID that carries
+		// AppleScript (a running app can report any bundle ID).
+		stubs := `list_fails=` + strconv.FormatBool(listFails) + `
+stat() { echo ` + consoleUser + `; }
+pgrep() { return 1; }
+sleep() { :; }
+osascript() {
+  if [[ "$1" == "-l" ]]; then
+    if [[ "$list_fails" == true ]]; then
+      return 1
+    fi
+    printf '%s\n' com.elgato.WaveLink com.elgato.wavelink.Helper com.elgato.WaveLink x.com.elgato.WaveLink com.elgato.StreamDeck \
+      'com.elgato.WaveLink" is running or (do shell script "id") is "" or application id "com.elgato.WaveLink'
+    return
+  fi
+  if [[ "$2" == *" is running" ]]; then
+    echo true
+  fi
+}
+`
+		out, err := exec.Command(bash, "-c", stubs+uninstallScriptForApp(cask)).CombinedOutput()
+		require.NoError(t, err, string(out))
+		return string(out)
+	}
+
+	t.Run("quits each match once", func(t *testing.T) {
+		out := run(t, "alice", false, "com.elgato.WaveLink*")
+		require.Equal(t, 1, strings.Count(out, "Quitting application 'com.elgato.WaveLink'..."), out)
+		require.Equal(t, 1, strings.Count(out, "Quitting application 'com.elgato.wavelink.Helper'..."), out)
+		require.NotContains(t, out, "x.com.elgato.WaveLink")
+		require.NotContains(t, out, "com.elgato.StreamDeck")
+		require.NotContains(t, out, "do shell script")
+	})
+
+	t.Run("no match", func(t *testing.T) {
+		out := run(t, "alice", false, "com.example.Missing*")
+		require.Equal(t, "No running application matches 'com.example.Missing*'.\n", out)
+	})
+
+	t.Run("regex metacharacters are literal", func(t *testing.T) {
+		out := run(t, "alice", false, "com.elgato.Wave+Link*")
+		require.Equal(t, "No running application matches 'com.elgato.Wave+Link*'.\n", out)
+	})
+
+	t.Run("no GUI user", func(t *testing.T) {
+		out := run(t, "root", false, "com.elgato.WaveLink*")
+		require.Equal(t, "Not logged into a non-root GUI; skipping quitting applications matching 'com.elgato.WaveLink*'.\n", out)
+	})
+
+	t.Run("listing fails", func(t *testing.T) {
+		out := run(t, "alice", true, "com.elgato.WaveLink*")
+		require.Equal(t, "Failed to list running applications; skipping quitting applications matching 'com.elgato.WaveLink*'.\n", out)
+	})
+}
+
 // TestUninstallScriptEarlyScriptDirective covers the `early_script` uninstall
 // directive: it takes the same shape as `script`, and casks use it for the
 // commands that make the rest of the removal possible (clearing an immutable
@@ -553,4 +803,88 @@ func TestUninstallScriptSkipsHomebrewPrefixScript(t *testing.T) {
 	script := uninstallScriptForApp(cask)
 	require.NotContains(t, script, "$HOMEBREW_PREFIX")
 	require.NotContains(t, script, "/usr/sbin/installer")
+}
+
+// varNameDerivation is the line both generated functions share.
+const varNameDerivation = `  local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"`
+
+// varNameRoundTrip writes the flag via eval and reads it back, as the two
+// generated functions do.
+func varNameRoundTrip(t *testing.T, bundleID string) (name, wasRunning string) {
+	t.Helper()
+
+	script := `set -u
+track() {
+  local bundle_id="$1"
+` + varNameDerivation + `
+  eval "export $var_name=1"
+}
+read_back() {
+  local bundle_id="$1"
+` + varNameDerivation + `
+  local was_running=
+  eval "was_running=\$$var_name"
+  printf '%s|%s' "$var_name" "$was_running"
+}
+track "$1"
+read_back "$1"`
+
+	out, err := exec.Command("bash", "-c", script, "bash", bundleID).CombinedOutput()
+	require.NoError(t, err, "output: %s", out)
+
+	name, wasRunning, ok := strings.Cut(string(out), "|")
+	require.True(t, ok, "unexpected output: %q", out)
+	return name, wasRunning
+}
+
+// "org.mozilla.pale moon" used to derive a name with a space in it, which split
+// the eval so the read back came up empty and Pale Moon was never relaunched.
+func TestQuitRelaunchVarNameSurvivesEval(t *testing.T) {
+	for _, tc := range []struct {
+		bundleID string
+		want     string
+	}{
+		{"com.evernote.Evernote", "APP_WAS_RUNNING_com_evernote_Evernote"},
+		{"Cisco-Systems.Spark", "APP_WAS_RUNNING_Cisco_Systems_Spark"},
+		{"org.R-project.R", "APP_WAS_RUNNING_org_R_project_R"},
+		{"org.mozilla.pale moon", "APP_WAS_RUNNING_org_mozilla_pale_moon"},
+	} {
+		t.Run(tc.bundleID, func(t *testing.T) {
+			name, wasRunning := varNameRoundTrip(t, tc.bundleID)
+			require.Equal(t, tc.want, name)
+			require.Equal(t, "1", wasRunning)
+		})
+	}
+}
+
+// unique_identifier is repo-controlled, but the name still reaches a root eval.
+func TestQuitRelaunchVarNameNeutralizesCommandSubstitution(t *testing.T) {
+	pwned := filepath.Join(t.TempDir(), "pwned")
+
+	name, wasRunning := varNameRoundTrip(t, "com.evil$(touch "+pwned+")")
+
+	require.Regexp(t, `^APP_WAS_RUNNING_[A-Za-z0-9_]+$`, name, "derived name is not a bare shell identifier")
+	require.Equal(t, "1", wasRunning)
+	require.NoFileExists(t, pwned, "command substitution in the bundle ID was executed")
+}
+
+// If the two derivations drift, relaunch silently stops working.
+func TestQuitAndRelaunchDeriveVarNameIdentically(t *testing.T) {
+	require.Contains(t, quitAndTrackApplicationFunc, varNameDerivation)
+	require.Contains(t, relaunchApplicationFunc, varNameDerivation)
+	require.NotContains(t, quitAndTrackApplicationFunc, `tr '.-' '__'`)
+	require.NotContains(t, relaunchApplicationFunc, `tr '.-' '__'`)
+}
+
+// Custom install scripts carry their own copy of these functions.
+func TestCustomInstallScriptsDoNotUseOldVarNameDerivation(t *testing.T) {
+	scripts, err := filepath.Glob("../../inputs/homebrew/scripts/*.sh")
+	require.NoError(t, err)
+	require.NotEmpty(t, scripts)
+
+	for _, path := range scripts {
+		b, err := os.ReadFile(path)
+		require.NoError(t, err)
+		require.NotContains(t, string(b), `tr '.-' '__'`, "%s derives APP_WAS_RUNNING_ the old way", filepath.Base(path))
+	}
 }

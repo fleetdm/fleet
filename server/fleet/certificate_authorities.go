@@ -2,11 +2,14 @@ package fleet
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 // TODO HCA these types can/should be removed once appconfig CA support is removed
@@ -17,11 +20,12 @@ const (
 	CAConfigDigiCert        CAConfigAssetType = "digicert"
 	CAConfigCustomSCEPProxy CAConfigAssetType = "custom_scep_proxy"
 	CAConfigSmallstep       CAConfigAssetType = "smallstep"
+	CAConfigEJBCA           CAConfigAssetType = "ejbca"
 )
 
 // ListCATypesWithRenewalSupport returns the CA types that support renewal by Fleet
 func ListCATypesWithRenewalSupport() []CAConfigAssetType {
-	return []CAConfigAssetType{CAConfigDigiCert, CAConfigCustomSCEPProxy, CAConfigNDES, CAConfigSmallstep}
+	return []CAConfigAssetType{CAConfigDigiCert, CAConfigCustomSCEPProxy, CAConfigNDES, CAConfigSmallstep, CAConfigEJBCA}
 }
 
 // ListCATypesWithRenewalIDSupport returns the CA types that support renewal IDs within the profile. Digicert
@@ -69,12 +73,27 @@ const (
 	CATypeHydrant         CAType = "hydrant"
 	CATypeCustomESTProxy  CAType = "custom_est_proxy" // Enrollment over Secure Transport
 	CATypeSmallstep       CAType = "smallstep"
+	CATypeEJBCA           CAType = "ejbca"
 )
+
+// IssuedCertificate is a certificate a CA issued for a host, with the key Fleet generated for it, in a PKCS#12 bundle that Password opens.
+type IssuedCertificate struct {
+	PfxData        []byte
+	Password       string
+	NotValidBefore time.Time
+	NotValidAfter  time.Time
+	SerialNumber   string
+}
 
 type CertificateAuthoritySummary struct {
 	ID   uint   `json:"id"`
 	Name string `json:"name"`
 	Type string `json:"type"`
+
+	// MTLSCertExpiresAt is when the client certificate of an EJBCA CA expires, so the list shows it without a request per CA. The datastore
+	// derives it from MTLSCertPEM, which is not serialized.
+	MTLSCertExpiresAt *time.Time `json:"mtls_cert_expires_at,omitempty" db:"-"`
+	MTLSCertPEM       *string    `json:"-" db:"mtls_cert_pem"`
 }
 
 type CertificateAuthority struct {
@@ -110,12 +129,95 @@ type CertificateAuthority struct {
 	ClientID     *string `json:"client_id,omitempty" db:"client_id"`
 	ClientSecret *string `json:"client_secret,omitempty" db:"-"`
 
+	// EJBCA. The mTLS cert and key are never serialized and the key is encrypted at rest. The CSR common name and UPNs use the DigiCert
+	// fields. The username template is optional and defaults to the common name template.
+	MTLSCertPEM                 *string    `json:"-" db:"mtls_cert_pem"`
+	MTLSKeyPEM                  *string    `json:"-" db:"-"`
+	TrustCABundlePEM            *string    `json:"trust_ca_bundle,omitempty" db:"trust_ca_bundle_pem"`
+	EJBCACAName                 *string    `json:"certificate_authority_name,omitempty" db:"ejbca_ca_name"`
+	EJBCACertificateProfileName *string    `json:"certificate_profile_name,omitempty" db:"ejbca_certificate_profile_name"`
+	EJBCAEndEntityProfileName   *string    `json:"end_entity_profile_name,omitempty" db:"ejbca_end_entity_profile_name"`
+	EJBCAUsernameTemplate       *string    `json:"username_template,omitempty" db:"ejbca_username_template"`
+	MTLSCertExpiresAt           *time.Time `json:"mtls_cert_expires_at,omitempty" db:"-"` // derived from MTLSCertPEM on read
+
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
 
 func (c *CertificateAuthority) AuthzType() string {
 	return "certificate_authority"
+}
+
+// EffectiveEJBCAUsernameTemplate returns the template for the EJBCA username, which defaults to the common name template when unset.
+func (c *CertificateAuthority) EffectiveEJBCAUsernameTemplate() string {
+	if c.EJBCAUsernameTemplate != nil && *c.EJBCAUsernameTemplate != "" {
+		return *c.EJBCAUsernameTemplate
+	}
+	if c.CertificateCommonName != nil {
+		return *c.CertificateCommonName
+	}
+	return ""
+}
+
+// EJBCA returns the settings of an EJBCA CA, with the empty value for what isn't set.
+func (c *CertificateAuthority) EJBCA() EJBCA {
+	ejbca := EJBCA{
+		ID:                       c.ID,
+		Name:                     ptr.ValOrZero(c.Name),
+		URL:                      ptr.ValOrZero(c.URL),
+		MTLSCertPEM:              ptr.ValOrZero(c.MTLSCertPEM),
+		MTLSKeyPEM:               ptr.ValOrZero(c.MTLSKeyPEM),
+		TrustCABundlePEM:         ptr.ValOrZero(c.TrustCABundlePEM),
+		CertificateAuthorityName: ptr.ValOrZero(c.EJBCACAName),
+		CertificateProfileName:   ptr.ValOrZero(c.EJBCACertificateProfileName),
+		EndEntityProfileName:     ptr.ValOrZero(c.EJBCAEndEntityProfileName),
+		CertificateCommonName:    ptr.ValOrZero(c.CertificateCommonName),
+		UsernameTemplate:         ptr.ValOrZero(c.EJBCAUsernameTemplate),
+	}
+	if c.CertificateUserPrincipalNames != nil {
+		ejbca.CertificateUserPrincipalNames = *c.CertificateUserPrincipalNames
+	}
+	return ejbca
+}
+
+// ESTProxyCA returns the EST connection settings of a Hydrant or custom EST CA, which store
+// their credentials in different fields.
+func (c *CertificateAuthority) ESTProxyCA() (ESTProxyCA, error) {
+	var username, password *string
+	switch CAType(c.Type) {
+	case CATypeHydrant:
+		if c.ClientID == nil {
+			return ESTProxyCA{}, errors.New("Certificate authority does not have a client ID configured.")
+		}
+		if c.ClientSecret == nil {
+			return ESTProxyCA{}, errors.New("Certificate authority does not have a client secret configured.")
+		}
+		username, password = c.ClientID, c.ClientSecret
+	case CATypeCustomESTProxy:
+		if c.Username == nil {
+			return ESTProxyCA{}, errors.New("Certificate authority does not have a username configured.")
+		}
+		if c.Password == nil {
+			return ESTProxyCA{}, errors.New("Certificate authority does not have a password configured.")
+		}
+		username, password = c.Username, c.Password
+	default:
+		return ESTProxyCA{}, fmt.Errorf("Certificate authority of type %s is not an EST certificate authority.", c.Type)
+	}
+	if c.URL == nil {
+		return ESTProxyCA{}, errors.New("Certificate authority does not have a URL configured.")
+	}
+	var name string
+	if c.Name != nil {
+		name = *c.Name
+	}
+	return ESTProxyCA{
+		ID:       c.ID,
+		Name:     name,
+		URL:      *c.URL,
+		Username: *username,
+		Password: *password,
+	}, nil
 }
 
 type CertificateAuthorityPayload struct {
@@ -125,6 +227,7 @@ type CertificateAuthorityPayload struct {
 	Hydrant         *HydrantCA            `json:"hydrant,omitempty"`
 	CustomESTProxy  *ESTProxyCA           `json:"custom_est_proxy,omitempty"`
 	Smallstep       *SmallstepSCEPProxyCA `json:"smallstep,omitempty"`
+	EJBCA           *EJBCA                `json:"ejbca,omitempty"`
 }
 
 // If you update this struct, make sure to adjust the Equals and NeedToVerify methods below
@@ -234,6 +337,15 @@ type SCEPConfigService interface {
 	GetSmallstepSCEPChallenge(ctx context.Context, ca SmallstepSCEPProxyCA) (string, error)
 }
 
+// SCEPEnrollmentClient enrolls caller-supplied CSRs with an external SCEP CA on the caller's
+// behalf.
+type SCEPEnrollmentClient interface {
+	// GetCertificate enrolls csr, which must already carry any challenge the CA requires, against
+	// the SCEP server at url and returns the issued certificate. A failure expected to clear on its
+	// own is a CertificateAuthorityTransientError.
+	GetCertificate(ctx context.Context, url string, csr *x509.CertificateRequest) (*x509.Certificate, error)
+}
+
 type CustomSCEPProxyCA struct {
 	ID        uint   `json:"-"`
 	Name      string `json:"name"`
@@ -259,6 +371,7 @@ type CertificateAuthorityUpdatePayload struct {
 	*HydrantCAUpdatePayload            `json:"hydrant,omitempty"`
 	*CustomESTCAUpdatePayload          `json:"custom_est_proxy,omitempty"`
 	*SmallstepSCEPProxyCAUpdatePayload `json:"smallstep,omitempty"`
+	*EJBCAUpdatePayload                `json:"ejbca,omitempty"`
 }
 
 // ValidatePayload checks that only one CA type is specified in the update payload and that the private key is provided.
@@ -280,6 +393,9 @@ func (p *CertificateAuthorityUpdatePayload) ValidatePayload(privateKey string, e
 		caInPayload++
 	}
 	if p.SmallstepSCEPProxyCAUpdatePayload != nil {
+		caInPayload++
+	}
+	if p.EJBCAUpdatePayload != nil {
 		caInPayload++
 	}
 	if caInPayload == 0 {
@@ -529,6 +645,7 @@ type GroupedCertificateAuthorities struct {
 	NDESSCEP        *NDESSCEPProxyCA       `json:"ndes_scep_proxy"`
 	CustomScepProxy []CustomSCEPProxyCA    `json:"custom_scep_proxy"`
 	Smallstep       []SmallstepSCEPProxyCA `json:"smallstep"`
+	EJBCA           []EJBCA                `json:"-"` // not exported or applied by GitOps yet, so it is kept out of the spec until it can be
 }
 
 // IsEmpty returns true if no certificate authorities of any type are configured.
@@ -538,7 +655,8 @@ func (g *GroupedCertificateAuthorities) IsEmpty() bool {
 		len(g.DigiCert) == 0 &&
 		g.NDESSCEP == nil &&
 		len(g.CustomScepProxy) == 0 &&
-		len(g.Smallstep) == 0
+		len(g.Smallstep) == 0 &&
+		len(g.EJBCA) == 0
 }
 
 // ToCustomSCEPProxyCAMap converts the CustomScepProxy slice to a map keyed by CA name
@@ -558,6 +676,7 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 		CustomScepProxy: []CustomSCEPProxyCA{},
 		NDESSCEP:        nil,
 		Smallstep:       []SmallstepSCEPProxyCA{},
+		EJBCA:           []EJBCA{},
 	}
 
 	for _, ca := range cas {
@@ -609,6 +728,8 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 				URL:       *ca.URL,
 				Challenge: *ca.Challenge,
 			})
+		case string(CATypeEJBCA):
+			grouped.EJBCA = append(grouped.EJBCA, ca.EJBCA())
 		case string(CATypeSmallstep):
 			grouped.Smallstep = append(grouped.Smallstep, SmallstepSCEPProxyCA{
 				ID:           ca.ID,

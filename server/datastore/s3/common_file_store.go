@@ -226,6 +226,36 @@ func (s *commonFileStore) Sign(ctx context.Context, fileID string, expiresIn tim
 	return "", ctxerr.Wrapf(ctx, fleet.ErrNotConfigured, "signing %s URL in S3 store", s.fileLabel)
 }
 
+// PresignPut returns a presigned PUT URL for fileID with the body size signed
+// into the request, so the object store rejects a body of any other length.
+func (s *commonFileStore) PresignPut(ctx context.Context, fileID string, size int64, expiresIn time.Duration) (string, error) {
+	if !s.signedURL {
+		return "", ctxerr.Wrapf(ctx, fleet.ErrNotConfigured, "presigning %s upload URL in S3 store", s.fileLabel)
+	}
+	key := s.keyForFile(fileID)
+	req, err := s.presignClient.PresignPutObject(ctx, &s3.PutObjectInput{
+		Bucket:        &s.bucket,
+		Key:           &key,
+		ContentLength: &size,
+	}, s3.WithPresignExpires(expiresIn))
+	if err != nil {
+		return "", ctxerr.Wrapf(ctx, err, "presigning %s upload URL in S3 store", s.fileLabel)
+	}
+	return req.URL, nil
+}
+
+// Delete removes a file from S3. Deleting a missing file is not an error.
+func (s *commonFileStore) Delete(ctx context.Context, fileID string) error {
+	key := s.keyForFile(fileID)
+	if _, err := s.s3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: &s.bucket,
+		Key:    &key,
+	}); err != nil {
+		return ctxerr.Wrapf(ctx, err, "deleting %s in S3 store", s.fileLabel)
+	}
+	return nil
+}
+
 // keyForFile builds an S3 key to identify the file.
 func (s *commonFileStore) keyForFile(fileID string) string {
 	return path.Join(s.prefix, s.pathPrefix, fileID)

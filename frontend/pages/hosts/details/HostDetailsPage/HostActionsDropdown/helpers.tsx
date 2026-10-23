@@ -338,6 +338,7 @@ const canUnlock = ({
 
 const canDeleteHost = (config: IHostActionConfigOptions) => {
   const {
+    isPremiumTier,
     isGlobalAdmin,
     isGlobalMaintainer,
     isGlobalTechnician,
@@ -348,10 +349,10 @@ const canDeleteHost = (config: IHostActionConfigOptions) => {
   return (
     isGlobalAdmin ||
     isGlobalMaintainer ||
-    isGlobalTechnician ||
     isTeamAdmin ||
     isTeamMaintainer ||
-    isTeamTechnician
+    // Technician is a Premium-only role, but its sessions outlive a downgrade to Free.
+    (isPremiumTier && (isGlobalTechnician || isTeamTechnician))
   );
 };
 
@@ -667,7 +668,8 @@ export const getDropdownOptionTooltipContent = (
   value: string | number,
   isHostOnline?: boolean,
   scriptsGloballyDisabled?: boolean,
-  byodDisabled?: boolean
+  byodDisabled?: boolean,
+  hostMdmDeviceStatus?: HostMdmDeviceStatusUIState
 ) => {
   if (
     byodDisabled &&
@@ -700,6 +702,21 @@ export const getDropdownOptionTooltipContent = (
   }
   if (!isHostOnline && value === "query") {
     return <>You can&apos;t run a live report on an offline host.</>;
+  }
+  if (value === "query") {
+    if (hostMdmDeviceStatus === "locked" || hostMdmDeviceStatus === "wiped") {
+      return (
+        <>You can&apos;t run a live report on a {hostMdmDeviceStatus} host.</>
+      );
+    }
+    if (hostMdmDeviceStatus && isDeviceStatusUpdating(hostMdmDeviceStatus)) {
+      return (
+        <>
+          You can&apos;t run a live report while the host&apos;s device status
+          is updating.
+        </>
+      );
+    }
   }
   return undefined;
 };
@@ -742,7 +759,9 @@ const modifyOptions = (
       option.tooltipContent = getDropdownOptionTooltipContent(
         option.value,
         isHostOnline,
-        scriptsGloballyDisabled
+        scriptsGloballyDisabled,
+        false,
+        hostMdmDeviceStatus
       );
     });
   };

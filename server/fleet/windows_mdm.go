@@ -32,6 +32,15 @@ type MDMWindowsBitLockerSummary struct {
 	RemovingEnforcement uint `json:"removing_enforcement" db:"removing_enforcement"`
 }
 
+const (
+	// WindowsProfileRemovalBehaviorURL explains why some settings stay on Windows hosts after their profile is deleted:
+	// not every CSP accepts <Delete>.
+	WindowsProfileRemovalBehaviorURL = "https://fleetdm.com/learn-more-about/removal-behavior"
+	// WindowsProfileDeletedWarning is returned when a Windows configuration profile is deleted through the API.
+	WindowsProfileDeletedWarning = "Some Windows settings may not be cleanly removed from hosts and will remain at their last configured value. See " +
+		WindowsProfileRemovalBehaviorURL
+)
+
 // MDMWindowsConfigProfile represents a Windows MDM profile in Fleet.
 type MDMWindowsConfigProfile struct {
 	// ProfileUUID is the unique identifier of the configuration profile in
@@ -41,6 +50,7 @@ type MDMWindowsConfigProfile struct {
 	Name             string                      `db:"name" json:"name"`
 	Description      string                      `db:"description" json:"description"`
 	SyncML           []byte                      `db:"syncml" json:"-"`
+	Hidden           bool                        `db:"hidden" json:"hidden"`
 	LabelsIncludeAll []ConfigurationProfileLabel `db:"-" json:"labels_include_all,omitempty"`
 	LabelsIncludeAny []ConfigurationProfileLabel `db:"-" json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`

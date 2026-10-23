@@ -36,7 +36,7 @@ func Refresh(
 func Sync(dstDir string, platforms []oval.Platform) error {
 	client := fleethttp.NewClient(fleethttp.WithNoTimeout())
 	dwn := downloadDecompressed(client)
-	basePath, err := nvd.GetGitHubCVEAssetPath()
+	basePath, err := nvd.GetGitHubCVEAssetPath(context.Background())
 	if err != nil {
 		return err
 	}

@@ -817,7 +817,7 @@ Please also see [privacy](https://fleetdm.com/legal/privacy)
 
 | Question | Answer |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Do your systems or staff use artificial intelligence, machine learning, or automated decision making  (ChatGPT, Google Bard, etc.) to provide the in-scope services? | Yes. All AI functionality is opt-in. Fleet only uses AI in one place to help create descriptions of queries. |
+| Do your systems or staff use artificial intelligence, machine learning, or automated decision making  (ChatGPT, Google Bard, etc.) to provide the in-scope services? | Yes. Fleet uses AI in one place: when a user clicks **Autofill** while creating a policy, Fleet sends the policy's SQL to Anthropic to generate a description and resolution. Nothing is sent unless a user clicks **Autofill**, and admins can turn the feature off with `ai_features_disabled`. |
 
 | Question | Answer |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1307,6 +1307,7 @@ Encryption and key management for local disk encryption of end-user devices foll
 | Sub-processor Name | Purpose | Location |
 | ------------------ | ------- | -------- |
 | Amazon Web Services, Inc. and sub-processors located at https://aws.amazon.com/compliance/sub-processors/ | Database hosting platform | USA |
+| Anthropic, PBC | AI model provider for policy autofill, which generates policy descriptions and resolutions from a policy's SQL when a user clicks **Autofill**. Admins can turn this off with `ai_features_disabled`. | USA |
 
 
 ### Human resources security policy
@@ -2084,11 +2085,20 @@ If Fleet confirms the vulnerability:
 
 1. Fleet's security team creates a private GitHub security advisory.
 2. Fleet asks the researcher if they want credit or anonymity. If the researcher wishes to be credited, we invite them to the private advisory on GitHub.
-3. We request a CVE through GitHub.
+3. If the advisory meets the [CVE criteria](#when-to-request-a-cve), we request a CVE through GitHub.
 4. Developers address the issue in a private branch.
 5. As we release the fix, we make the advisory public.
 
 Example Fleet vulnerability advisory: [CVE-2022-23600](https://github.com/fleetdm/fleet/security/advisories/GHSA-ch68-7cf4-35vr)
+
+#### When to request a CVE
+
+- Request a CVE for every advisory rated Critical or High.
+- Request a CVE for a Medium advisory when an unauthenticated attacker can exploit the vulnerability in a default configuration.
+- For other Medium advisories and all Low advisories, don't request a CVE unless the reporter asks for one.
+- Don't request a CVE for hardening-level fixes.
+
+Published advisories for `github.com/fleetdm/fleet` are indexed in the GitHub Advisory Database and OSV without a CVE. Every CVE flows into customers' scanners and patch SLAs, so we reserve CVEs for issues where self-hosted customers may need to act.
 
 
 ### Vulnerabilities in dependencies

@@ -187,61 +187,56 @@ describe("Host Actions Dropdown", () => {
       });
     });
 
-    it("renders the Query action as disabled when a host is locked", async () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isGlobalAdmin: true,
-            currentUser: createMockUser(),
+    it.each<[HostMdmDeviceStatusUIState, string]>([
+      ["locked", "You can't run a live report on a locked host."],
+      ["wiped", "You can't run a live report on a wiped host."],
+      [
+        "locking",
+        "You can't run a live report while the host's device status is updating.",
+      ],
+      [
+        "unlocking",
+        "You can't run a live report while the host's device status is updating.",
+      ],
+      [
+        "wiping",
+        "You can't run a live report while the host's device status is updating.",
+      ],
+      [
+        "clearing_passcode",
+        "You can't run a live report while the host's device status is updating.",
+      ],
+    ])(
+      "explains why Live report is disabled on an online %s host",
+      async (status, tooltip) => {
+        const render = createCustomRenderer({
+          context: {
+            app: {
+              isGlobalAdmin: true,
+              currentUser: createMockUser(),
+            },
           },
-        },
-      });
+        });
 
-      const { user } = render(
-        <HostActionsDropdown
-          hostTeamId={null}
-          onSelect={noop}
-          hostStatus="offline"
-          hostMdmEnrollmentStatus={null}
-          hostMdmDeviceStatus="locked"
-          hostScriptsEnabled
-        />
-      );
+        const { user } = render(
+          <HostActionsDropdown
+            hostTeamId={null}
+            onSelect={noop}
+            hostStatus="online"
+            hostPlatform="ubuntu"
+            hostMdmEnrollmentStatus={null}
+            hostMdmDeviceStatus={status}
+            hostScriptsEnabled
+          />
+        );
 
-      await user.click(screen.getByText("Actions"));
-      expect(
-        screen.getByText("Live report").parentElement?.parentElement
-          ?.parentElement
-      ).toHaveClass("actions-dropdown-select__option--is-disabled");
-    });
-
-    it("renders the Query action as disabled when a host is updating", async () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isGlobalAdmin: true,
-            currentUser: createMockUser(),
-          },
-        },
-      });
-
-      const { user } = render(
-        <HostActionsDropdown
-          hostTeamId={null}
-          onSelect={noop}
-          hostStatus="online"
-          hostMdmEnrollmentStatus={null}
-          hostMdmDeviceStatus="locking"
-          hostScriptsEnabled
-        />
-      );
-
-      await user.click(screen.getByText("Actions"));
-
-      expect(screen.getByText("Live report").parentElement).toHaveClass(
-        "actions-dropdown-select__option--is-disabled"
-      );
-    });
+        await user.click(screen.getByText("Actions"));
+        const option = screen.getByText("Live report");
+        expect(option).toHaveAttribute("aria-disabled", "true");
+        await user.hover(option);
+        expect(await screen.findByText(tooltip)).toBeInTheDocument();
+      }
+    );
   });
 
   describe("Show disk encryption key action", () => {
@@ -740,6 +735,61 @@ describe("Host Actions Dropdown", () => {
       const { user } = render(
         <HostActionsDropdown
           hostTeamId={2}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Delete")).not.toBeInTheDocument();
+    });
+
+    it("does not render when the user is a global technician on Fleet Free", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: false,
+            isGlobalTechnician: true,
+            currentUser: createMockUser({ global_role: "technician" }),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Delete")).not.toBeInTheDocument();
+    });
+
+    it("does not render when the user is a technician on the host's fleet on Fleet Free", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: false,
+            currentUser: createMockUser({
+              teams: [createMockTeam({ id: 1, role: "technician" })],
+            }),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={1}
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"

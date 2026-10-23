@@ -10,6 +10,7 @@ import (
 	"github.com/WatchBeam/clock"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
+	"github.com/fleetdm/fleet/v4/ee/server/service/ejbca"
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
@@ -69,6 +70,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		c                               clock.Clock                   = clock.C
 		scepConfigService                                             = scep.NewSCEPConfigService(logger, nil)
 		digiCertService                                               = digicert.NewService(digicert.WithLogger(logger))
+		ejbcaService                                                  = ejbca.NewService(ejbca.WithLogger(logger))
 		estCAService                                                  = est.NewService(est.WithLogger(logger))
 		conditionalAccessMicrosoftProxy service.ConditionalAccessMicrosoftProxy
 
@@ -79,6 +81,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		softwareInstallStore   fleet.SoftwareInstallerStore
 		bootstrapPackageStore  fleet.MDMBootstrapPackageStore
 		softwareTitleIconStore fleet.SoftwareTitleIconStore
+		stagedUploadStore      fleet.StagedUploadStore
 		distributedLock        fleet.Lock
 		keyValueStore          fleet.KeyValueStore
 		androidService         android.Service
@@ -139,6 +142,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if opts[0].SoftwareTitleIconStore != nil {
 			softwareTitleIconStore = opts[0].SoftwareTitleIconStore
 		}
+		stagedUploadStore = opts[0].StagedUploadStore
 
 		// allow to explicitly set MDM storage to nil
 		mdmStorage = opts[0].MDMStorage
@@ -265,11 +269,13 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			softwareInstallStore,
 			bootstrapPackageStore,
 			softwareTitleIconStore,
+			stagedUploadStore,
 			distributedLock,
 			keyValueStore,
 			installAttemptCounter,
 			scepConfigService,
 			digiCertService,
+			ejbcaService,
 			androidModule,
 			estCAService,
 			nil, // PSSO nonce store; integration tests don't exercise PSSO

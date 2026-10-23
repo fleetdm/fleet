@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -183,6 +185,71 @@ func TestHTTPPreAuthMiddlewareRunsBeforeDecode(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 	assert.False(t, decodeCalled, "decoder must not run when pre-auth rejects")
 	assert.False(t, authCalled, "auth middleware must not run when pre-auth rejects")
+}
+
+func TestMultipartTempFilesRemovedAfterRequest(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("TMPDIR", tmpDir)
+
+	for _, decodeErr := range []error{nil, errors.New("bad form")} {
+		var spooled int
+		var flushable bool
+		r := mux.NewRouter()
+		ce := &CommonEndpointer[testHandlerFunc]{
+			EP: nopEP{},
+			MakeDecoderFn: func(iface any, requestBodySizeLimit int64) kithttp.DecodeRequestFunc {
+				return func(ctx context.Context, r *http.Request) (any, error) {
+					if err := r.ParseMultipartForm(1 << 10); err != nil {
+						return nil, err
+					}
+					files, _ := filepath.Glob(filepath.Join(tmpDir, "multipart-*"))
+					spooled = len(files)
+					return nopRequest{}, decodeErr
+				}
+			},
+			EncodeFn: func(ctx context.Context, w http.ResponseWriter, i any) error {
+				_, flushable = w.(http.Flusher)
+				w.WriteHeader(http.StatusOK)
+				return nil
+			},
+			AuthMiddleware: func(next endpoint.Endpoint) endpoint.Endpoint {
+				return func(ctx context.Context, req any) (any, error) {
+					if authctx, ok := authz_ctx.FromContext(ctx); ok {
+						authctx.SetChecked()
+					}
+					return next(ctx, req)
+				}
+			},
+			Router: r,
+			Opts:   []kithttp.ServerOption{kithttp.ServerErrorEncoder(func(_ context.Context, _ error, w http.ResponseWriter) { w.WriteHeader(http.StatusBadRequest) })},
+		}
+		ce.handleEndpoint("/", func(ctx context.Context, request any) (platform_http.Errorer, error) {
+			return nopResponse{}, nil
+		}, nil, "POST")
+		srv := httptest.NewServer(r)
+		t.Cleanup(srv.Close)
+
+		var body bytes.Buffer
+		mw := multipart.NewWriter(&body)
+		fw, err := mw.CreateFormFile("software", "a.pkg")
+		require.NoError(t, err)
+		_, err = fw.Write(bytes.Repeat([]byte{0}, 64<<10))
+		require.NoError(t, err)
+		require.NoError(t, mw.Close())
+
+		resp, err := http.Post(srv.URL+"/", mw.FormDataContentType(), &body)
+		require.NoError(t, err)
+		resp.Body.Close()
+		srv.Close() // waits for the finalizer
+
+		require.Equal(t, 1, spooled, "file part should be spooled to disk")
+		if decodeErr == nil {
+			assert.True(t, flushable, "encoder must still see http.Flusher")
+		}
+		files, err := filepath.Glob(filepath.Join(tmpDir, "multipart-*"))
+		require.NoError(t, err)
+		assert.Empty(t, files, "decode error: %v", decodeErr)
+	}
 }
 
 // TestHTTPPreAuthMiddlewarePassThrough asserts that when the pre-auth
@@ -728,6 +795,8 @@ func TestRequestFieldName(t *testing.T) {
 		EmptyTag  string `json:""`
 		NoJSONTag string
 		OtherTags string `url:"other_tags"`
+		QueryTag  string `query:"param_tag,optional"`
+		DryRun    string `json:"-" query:"dry_run,optional"`
 	}
 
 	ty := reflect.TypeFor[tagged]()
@@ -738,6 +807,8 @@ func TestRequestFieldName(t *testing.T) {
 	}{
 		{field: "Plain", want: "plain"},
 		{field: "WithOpts", want: "with_opts"},
+		{field: "QueryTag", want: "param_tag"},
+		{field: "DryRun", want: "dry_run"},
 		// The rest have no name a client could have sent, so the Go field name
 		// is all that's left to report.
 		{field: "Skipped", want: "Skipped"},
@@ -797,6 +868,22 @@ func TestMakeDecoderPremiumErrorNamesTheJSONField(t *testing.T) {
 	t.Run("a field that is not premium gated still decodes", func(t *testing.T) {
 		require.NoError(t, decodeBody(t, `{"free":"ok"}`))
 	})
+}
+
+type premiumGatedQueryRequest struct {
+	IncludeHidden bool `query:"include_hidden,optional" premium:"true"`
+}
+
+func TestMakeDecoderPremiumErrorNamesTheQueryParam(t *testing.T) {
+	decode := MakeDecoder(premiumGatedQueryRequest{}, defaultJSONUnmarshal, nil, nil, nil, nil, -1)
+
+	r := httptest.NewRequest("GET", "/?include_hidden=true", nil)
+	_, err := decode(t.Context(), r)
+	require.ErrorContains(t, err, "option include_hidden requires a premium license")
+
+	r = httptest.NewRequest("GET", "/?include_hidden=false", nil)
+	_, err = decode(t.Context(), r)
+	require.NoError(t, err)
 }
 
 type renamedPremiumRequest struct {

@@ -86,8 +86,13 @@ func (svc *Service) ListSoftwareTitles(
 		return nil, 0, nil, fleet.ErrMissingLicense
 	}
 
-	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit) {
+	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit || opt.AITool) {
 		return nil, 0, nil, fleet.ErrMissingLicense
+	}
+
+	opt.TypeFilter, err = fleet.ParseSoftwareTypeFilter(opt.Source, opt.ExtensionFor)
+	if err != nil {
+		return nil, 0, nil, err
 	}
 
 	// always include metadata for software titles
@@ -107,6 +112,11 @@ func (svc *Service) ListSoftwareTitles(
 	})
 	if err != nil {
 		return nil, 0, nil, err
+	}
+	if !lic.IsPremium() {
+		for i := range titles {
+			titles[i].AITool = nil
+		}
 	}
 
 	return titles, count, meta, nil
@@ -280,17 +290,18 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 		}
 
 		// add VPP app data if needed
-		if software.VPPAppsCount > 0 {
-			meta, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, id)
+		// Skip App Store apps when no fleet is given, their versions and settings are set per fleet
+		if software.VPPAppsCount > 0 && teamID != nil {
+			versions, err := svc.ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, *teamID, id)
 			if err != nil && !fleet.IsNotFound(err) {
 				return nil, ctxerr.Wrap(ctx, err, "get VPP app metadata")
 			}
-			if meta != nil {
-				summary, err := svc.ds.GetSummaryHostVPPAppInstalls(ctx, teamID, meta.VPPAppID)
-				if err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "get VPP app status summary")
-				}
-				meta.Status = summary
+			summaries, err := svc.ds.GetSummaryHostVPPAppInstalls(ctx, versions)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get VPP app status summary")
+			}
+			for _, meta := range versions {
+				meta.Status = summaries[meta.VPPAppsTeamsID]
 
 				// Wrap iOS / iPadOS plist as a JSON string for the response.
 				if len(meta.Configuration) > 0 {
@@ -303,8 +314,13 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 						meta.Configuration = wrapped
 					}
 				}
+
+				software.AppStoreApps = append(software.AppStoreApps, meta.AppStoreAppVersion())
 			}
-			software.AppStoreApp = meta
+			// Set app_store_app to the first-added version for backwards compatibility.
+			if len(versions) > 0 {
+				software.AppStoreApp = versions[0]
+			}
 		}
 
 		// add in house app data if needed
@@ -338,6 +354,9 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 	}
 
 	svc.filterInstallerDetailsForUser(ctx, teamID, software)
+	if !license.IsPremium() {
+		software.AITool = nil
+	}
 
 	return software, nil
 }
@@ -371,6 +390,9 @@ func (svc *Service) filterInstallerDetailsForUser(ctx context.Context, teamID *u
 	}
 	if title.AppStoreApp != nil {
 		title.AppStoreApp.Configuration = nil
+	}
+	for i := range title.AppStoreApps {
+		title.AppStoreApps[i].Configuration = nil
 	}
 }
 
@@ -436,21 +458,4 @@ func (svc *Service) UpdateSoftwareName(ctx context.Context, titleID uint, name s
 	}
 
 	return svc.ds.UpdateSoftwareTitleName(ctx, titleID, name)
-}
-
-func (svc *Service) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID *uint, config fleet.SoftwareAutoUpdateConfig) error {
-	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	// Coerce nil teamID to 0.
-	var tID uint
-	if teamID != nil {
-		tID = *teamID
-	}
-	if err := svc.ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, tID, config); err != nil {
-		return ctxerr.Wrap(ctx, err, "updating software title auto update config")
-	}
-
-	return nil
 }

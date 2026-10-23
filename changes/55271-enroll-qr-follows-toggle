@@ -1,0 +1,1 @@
+- Fixed the QR code on the `/enroll` page not updating when switching between Personal (BYOD) and Company-owned, so scanning it on a mobile device now opens the page with the selected option.

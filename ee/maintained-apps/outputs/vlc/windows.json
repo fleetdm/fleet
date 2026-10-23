@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.0.23",
+      "version": "3.0.24",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'VLC media player' AND publisher = 'VideoLAN';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'VLC media player' AND publisher = 'VideoLAN' AND version_compare(version, '3.0.23') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'VLC media player' AND publisher = 'VideoLAN' AND version_compare(version, '3.0.24') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'vlc media player.exe');"
       },
-      "installer_url": "https://download.videolan.org/pub/videolan/vlc/3.0.23/win64/vlc-3.0.23-win64.msi",
+      "installer_url": "https://download.videolan.org/pub/videolan/vlc/3.0.24/win64/vlc-3.0.24-win64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "9e6b767e",
-      "sha256": "bc4b902a480b98a4a5479327a7f210f06369a59bf727649e320faba5b4ef1f5e",
+      "sha256": "22172095ce4c2d5f5b600bb4c142d78105db29a77fa59a931941876f3b20f6d0",
       "default_categories": [
         "Productivity"
       ],

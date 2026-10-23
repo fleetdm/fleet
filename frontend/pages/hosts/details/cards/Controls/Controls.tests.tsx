@@ -8,6 +8,9 @@ import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import Controls from "./Controls";
 import { IHostMdmProfileWithAddedStatus } from "./OSSettingsTableConfig";
 
+// The details cell renders its text again inside the (hidden) truncation tooltip.
+const DETAIL_CELL_TEXT = ".data-table__tooltip-truncated-text";
+
 const control = (
   overrides: Partial<IHostMdmProfileWithAddedStatus>
 ): IHostMdmProfileWithAddedStatus =>
@@ -125,7 +128,9 @@ describe("Controls card", () => {
       });
 
       expect(
-        screen.getByText("Error.ConfigurationCannotBeApplied")
+        screen.getByText("Error.ConfigurationCannotBeApplied", {
+          selector: DETAIL_CELL_TEXT,
+        })
       ).toBeInTheDocument();
     });
 
@@ -142,7 +147,12 @@ describe("Controls card", () => {
       });
 
       expect(
-        screen.getByText("Waiting for certificate to be installed on the host.")
+        screen.getByText(
+          "Waiting for certificate to be installed on the host.",
+          {
+            selector: DETAIL_CELL_TEXT,
+          }
+        )
       ).toBeInTheDocument();
     });
 
@@ -153,7 +163,9 @@ describe("Controls card", () => {
         ],
       });
 
-      expect(screen.getByText("---")).toBeInTheDocument();
+      expect(
+        screen.getByText("---", { selector: DETAIL_CELL_TEXT })
+      ).toBeInTheDocument();
     });
   });
 
@@ -523,6 +535,7 @@ describe("Controls card", () => {
       const { user } = renderControls({
         ...selfServiceProps,
         isDeviceUser: true,
+        isPremiumTier: true,
         controls: [{ ...installed, hidden: true }],
       });
       await user.click(
@@ -535,7 +548,8 @@ describe("Controls card", () => {
       const { user } = renderControls({
         ...selfServiceProps,
         isDeviceUser: true,
-        controls: [installed],
+        isPremiumTier: true,
+        controls: [{ ...installed, hidden: true }],
       });
       await user.hover(screen.getByText("Show hidden profiles"));
       expect(
@@ -563,6 +577,7 @@ describe("Controls card", () => {
       const { user } = renderControls({
         ...selfServiceProps,
         isDeviceUser: true,
+        isPremiumTier: true,
         controls: [{ ...installed, hidden: true }],
       });
       expect(screen.queryAllByText("Opted in")).toHaveLength(0);
@@ -586,5 +601,42 @@ describe("Controls card", () => {
         "You don't have permission to resend this profile."
       )
     ).toBeInTheDocument();
+  });
+  it("hides the hidden profile toggle on fleet free", async () => {
+    renderControls({
+      isDeviceUser: true,
+      isPremiumTier: false,
+      isMacOSHost: true,
+      controls: [control({ profile_uuid: "a", status: "verified" })],
+    });
+    expect(
+      screen.queryByRole("switch", { name: "Show hidden profiles" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the hidden profile toggle for other platforms", async () => {
+    renderControls({
+      isDeviceUser: true,
+      isPremiumTier: true,
+      isMacOSHost: false,
+      controls: [
+        control({ profile_uuid: "w", status: "verified", hidden: true }),
+      ],
+    });
+    expect(
+      screen.queryByRole("switch", { name: "Show hidden profiles" })
+    ).toBeInTheDocument();
+  });
+
+  it("hides the hidden profile toggle when no profiles are hidden", async () => {
+    renderControls({
+      isDeviceUser: true,
+      isPremiumTier: true,
+      isMacOSHost: true,
+      controls: [control({ profile_uuid: "a", status: "verified" })],
+    });
+    expect(
+      screen.queryByRole("switch", { name: "Show hidden profiles" })
+    ).not.toBeInTheDocument();
   });
 });

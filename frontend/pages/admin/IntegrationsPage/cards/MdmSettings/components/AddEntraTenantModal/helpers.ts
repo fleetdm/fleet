@@ -1,4 +1,4 @@
-import isUUID from "components/forms/validators/valid_uuid";
+import { isValidUuid } from "components/forms/validators";
 
 import { IAddTenantFormData } from "../AddEntraTenantModal/AddEntraTenantModal";
 
@@ -44,7 +44,7 @@ const FORM_VALIDATIONS: IFormValidations = {
           ) {
             return true; // Skip this validation if name is empty
           }
-          return isUUID(formData.tenantId);
+          return isValidUuid(formData.tenantId);
         },
         message: "Invalid UUID. Please provide a valid UUID format.",
       },

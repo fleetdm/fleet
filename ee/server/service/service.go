@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -41,11 +42,14 @@ type Service struct {
 	softwareInstallStore   fleet.SoftwareInstallerStore
 	bootstrapPackageStore  fleet.MDMBootstrapPackageStore
 	softwareTitleIconStore fleet.SoftwareTitleIconStore
+	stagedUploadStore      fleet.StagedUploadStore
 	distributedLock        fleet.Lock
 	keyValueStore          fleet.KeyValueStore
 	installAttemptCounter  fleet.SoftwareInstallAttemptCounter
 	scepConfigService      fleet.SCEPConfigService
+	scepEnrollmentClient   fleet.SCEPEnrollmentClient
 	digiCertService        fleet.DigiCertService
+	ejbcaService           fleet.EJBCAService
 	androidModule          android.Service
 	estService             fleet.ESTService
 	msGraphClientFactory   msgraph.ClientFactory
@@ -65,11 +69,13 @@ func NewService(
 	softwareInstallStore fleet.SoftwareInstallerStore,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 	softwareTitleIconStore fleet.SoftwareTitleIconStore,
+	stagedUploadStore fleet.StagedUploadStore,
 	distributedLock fleet.Lock,
 	keyValueStore fleet.KeyValueStore,
 	installAttemptCounter fleet.SoftwareInstallAttemptCounter,
 	scepConfigService fleet.SCEPConfigService,
 	digiCertService fleet.DigiCertService,
+	ejbcaService fleet.EJBCAService,
 	androidService android.Service,
 	estService fleet.ESTService,
 	pssoNonceStore fleet.PSSONonceStore,
@@ -100,11 +106,14 @@ func NewService(
 		softwareInstallStore:   softwareInstallStore,
 		bootstrapPackageStore:  bootstrapPackageStore,
 		softwareTitleIconStore: softwareTitleIconStore,
+		stagedUploadStore:      stagedUploadStore,
 		distributedLock:        distributedLock,
 		keyValueStore:          keyValueStore,
 		installAttemptCounter:  installAttemptCounter,
 		scepConfigService:      scepConfigService,
+		scepEnrollmentClient:   scep.NewEnrollmentClient(logger),
 		digiCertService:        digiCertService,
+		ejbcaService:           ejbcaService,
 		androidModule:          androidService,
 		estService:             estService,
 		pssoNonceStore:         pssoNonceStore,
@@ -129,6 +138,7 @@ func NewService(
 		SetupExperienceNextStep:           eeservice.SetupExperienceNextStep,
 		GetVPPTokenIfCanInstallVPPApps:    eeservice.GetVPPTokenIfCanInstallVPPApps,
 		InstallVPPAppPostValidation:       eeservice.InstallVPPAppPostValidation,
+		VerifyAppleAccountProvisioning:    eeservice.verifyAppleAccountProvisioning,
 	})
 
 	return eeservice, nil

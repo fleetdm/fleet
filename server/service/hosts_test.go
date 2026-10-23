@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
@@ -182,7 +184,8 @@ func setupHostDetailsMDMAppleDiskEncryptionMocks(ds *mock.Store) {
 func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 	ds := new(mock.Store)
 	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
-		return fleet.DiskEncryptionConfig{}, nil
+		// a FileVault profile is only delivered while a macOS setting is on
+		return fleet.DiskEncryptionConfig{MacOSEnabled: true, MacOSEscrowEnabled: true}, nil
 	}
 	svc := &Service{ds: ds}
 
@@ -1029,6 +1032,9 @@ func TestHostDetailsLoadsAndroidDeviceVitals(t *testing.T) {
 // Fragile test: This test is fragile because of the large reliance on Datastore mocks. Consider refactoring test/logic or removing the test. It may be slowing us down more than helping us.
 func TestHostDetailsOSSettings(t *testing.T) {
 	ds := new(mock.Store)
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return true, nil
+	}
 	ds.ListAppleProfilesForReconcileByTeamFunc = func(ctx context.Context, teamID uint) ([]*fleet.AppleProfileForReconcile, error) {
 		return nil, nil
 	}
@@ -1290,6 +1296,9 @@ func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 
 func TestHostDetailsRecoveryLockPasswordStatus(t *testing.T) {
 	ds := new(mock.Store)
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return true, nil
+	}
 	ds.ListAppleProfilesForReconcileByTeamFunc = func(ctx context.Context, teamID uint) ([]*fleet.AppleProfileForReconcile, error) {
 		return nil, nil
 	}
@@ -1415,6 +1424,9 @@ func TestHostDetailsRecoveryLockPasswordStatus(t *testing.T) {
 
 func TestHostDetailsHostNameStatus(t *testing.T) {
 	ds := new(mock.Store)
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return true, nil
+	}
 	ds.ListAppleProfilesForReconcileByTeamFunc = func(ctx context.Context, teamID uint) ([]*fleet.AppleProfileForReconcile, error) {
 		return nil, nil
 	}
@@ -1554,6 +1566,9 @@ func TestHostDetailsHostNameStatus(t *testing.T) {
 
 func TestHostDetailsOSUpdates(t *testing.T) {
 	ds := new(mock.Store)
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return true, nil
+	}
 	ds.ListAppleProfilesForReconcileByTeamFunc = func(ctx context.Context, teamID uint) ([]*fleet.AppleProfileForReconcile, error) {
 		return nil, nil
 	}
@@ -2127,9 +2142,10 @@ func TestHostAuth(t *testing.T) {
 		{"team technician, belongs to team", test.UserTeamTechnicianTeam1, false, true},
 		{"team technician, DOES NOT belong to team", test.UserTeamTechnicianTeam2, true, true},
 	}
+	premiumCtx := license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	for _, tt := range technicianCases {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+			ctx := viewer.NewContext(premiumCtx, viewer.Viewer{User: tt.user})
 			isTeamOnlyRole := tt.user.GlobalRole == nil
 
 			err := svc.DeleteHost(ctx, 1)
@@ -2146,6 +2162,24 @@ func TestHostAuth(t *testing.T) {
 
 			_, err = svc.SetHostDeviceMapping(ctx, 1, "a@b.c", "custom")
 			checkAuthErr(t, true, err)
+		})
+
+		t.Run(tt.name+" on Free", func(t *testing.T) {
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+			isTeamOnlyRole := tt.user.GlobalRole == nil
+			checkFreeDelete := func(shouldFailAuthz bool, err error) {
+				t.Helper()
+				if shouldFailAuthz {
+					checkHostWriteAuthErr(t, true, isTeamOnlyRole, err)
+					return
+				}
+				require.ErrorIs(t, err, fleet.ErrMissingLicense)
+			}
+
+			checkFreeDelete(tt.shouldFailTeamDelete, svc.DeleteHost(ctx, 1))
+			checkFreeDelete(tt.shouldFailGlobalDelete, svc.DeleteHost(ctx, 2))
+			checkFreeDelete(tt.shouldFailTeamDelete, svc.DeleteHosts(ctx, []uint{1}, nil))
+			checkFreeDelete(tt.shouldFailGlobalDelete, svc.DeleteHosts(ctx, []uint{2}, nil))
 		})
 	}
 
@@ -4377,6 +4411,150 @@ func TestOSVersionsListOptions(t *testing.T) {
 	assert.Equal(t, now, vers.CountsUpdatedAt)
 }
 
+func TestOSVersionsOrderByVersion(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	// Mixes dot-separated numeric versions with differing digit counts, a
+	// Windows feature-update codename, and a non-numeric version (Arch
+	// Linux's "rolling") to exercise every branch of compareOSVersions.
+	// IDs 4, 8, and 9 share the "22H1" version across different editions
+	// (a realistic tie: distinct NameOnly values, since the datastore
+	// already aggregates same NameOnly+Version rows into one), to exercise
+	// the OSVersionID tie-breaker.
+	//
+	// Windows has the most hosts overall (3000) despite its version
+	// strings comparing "lower" than macOS's ("22H1"/"21H2"/"10.x" vs.
+	// "26.x") — this deliberately makes flat version comparison and
+	// grouped-by-platform comparison disagree on group order, so the
+	// assertions below only pass if the platform grouping is actually
+	// driving the primary sort, not just incidentally matching it.
+	testVersions := []fleet.OSVersion{
+		{OSVersionID: 1, NameOnly: "Windows 11 Pro", Platform: "windows", Version: "10.0.9200.100", HostsCount: 500},
+		{OSVersionID: 2, NameOnly: "Windows 11 Pro", Platform: "windows", Version: "10.0.26200.8875", HostsCount: 500},
+		{OSVersionID: 3, NameOnly: "Windows 10 Pro", Platform: "windows", Version: "21H2", HostsCount: 500},
+		{OSVersionID: 4, NameOnly: "Windows 10 Pro", Platform: "windows", Version: "22H1", HostsCount: 500},
+		{OSVersionID: 5, NameOnly: "macOS", Platform: "darwin", Version: "26.6", HostsCount: 100},
+		{OSVersionID: 6, NameOnly: "macOS", Platform: "darwin", Version: "26.10", HostsCount: 100},
+		{OSVersionID: 7, NameOnly: "Arch Linux", Platform: "arch", Version: "rolling", HostsCount: 10},
+		{OSVersionID: 8, NameOnly: "Windows 10 Enterprise", Platform: "windows", Version: "22H1", HostsCount: 500},
+		{OSVersionID: 9, NameOnly: "Windows 10 Education", Platform: "windows", Version: "22H1", HostsCount: 500},
+	}
+	// Platform totals: windows 3000, darwin 200, arch 10.
+
+	now := time.Now()
+
+	ds.OSVersionsFunc = func(
+		ctx context.Context, teamFilter *fleet.TeamFilter, platform *string, name *string, version *string,
+	) (*fleet.OSVersions, error) {
+		return &fleet.OSVersions{CountsUpdatedAt: now, OSVersions: testVersions}, nil
+	}
+
+	ds.ListVulnsByMultipleOSVersionsFunc = func(ctx context.Context, osVersions []fleet.OSVersion, includeCVSS bool,
+		teamID *uint, maxVulnerabilities *int,
+	) (map[string]fleet.OSVulnerabilitiesWithCount, error) {
+		return nil, nil
+	}
+
+	// Platform groups always order by host total descending (windows,
+	// then darwin, then arch), regardless of the version sort direction.
+	// Within each group: descending version sort puts latest first —
+	// "10.0.26200.8875" above "10.0.9200.100" (not a string comparison,
+	// which would get this backwards), "22H1" above "21H2", "26.10" above
+	// "26.6"; the "22H1" tie (IDs 4, 8, 9) breaks by OSVersionID ascending
+	// regardless of the primary sort direction. Ascending only reverses
+	// the within-group version order, not the group order itself.
+	wantDescending := []uint{4, 8, 9, 3, 2, 1, 6, 5, 7}
+	wantAscending := []uint{1, 2, 3, 4, 8, 9, 5, 6, 7}
+
+	opts := fleet.ListOptions{OrderKey: "version", OrderDirection: fleet.OrderDescending}
+	vers, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
+	require.NoError(t, err)
+	require.Len(t, vers.OSVersions, len(wantDescending))
+	for i, wantID := range wantDescending {
+		assert.Equal(t, wantID, vers.OSVersions[i].OSVersionID, "descending index %d", i)
+	}
+
+	// ascending version sort: reverse order, but the tied trio keeps the
+	// same relative (OSVersionID-ascending) order as in the descending case.
+	opts = fleet.ListOptions{OrderKey: "version", OrderDirection: fleet.OrderAscending}
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
+	require.NoError(t, err)
+	require.Len(t, vers.OSVersions, len(wantAscending))
+	for i, wantID := range wantAscending {
+		assert.Equal(t, wantID, vers.OSVersions[i].OSVersionID, "ascending index %d", i)
+	}
+
+	// pagination + descending version sort stays deterministic across
+	// pages, including page 1, which straddles the windows/darwin platform
+	// group boundary (windows IDs 2, 1 followed by darwin IDs 6, 5).
+	opts = fleet.ListOptions{Page: 0, PerPage: 4, OrderKey: "version", OrderDirection: fleet.OrderDescending}
+	page0, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
+	require.NoError(t, err)
+	require.Len(t, page0.OSVersions, 4)
+
+	opts = fleet.ListOptions{Page: 1, PerPage: 4, OrderKey: "version", OrderDirection: fleet.OrderDescending}
+	page1, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
+	require.NoError(t, err)
+	require.Len(t, page1.OSVersions, 4)
+
+	opts = fleet.ListOptions{Page: 2, PerPage: 4, OrderKey: "version", OrderDirection: fleet.OrderDescending}
+	page2, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
+	require.NoError(t, err)
+	require.Len(t, page2.OSVersions, 1)
+
+	gotPaged := make([]uint, 0, len(wantDescending))
+	for _, page := range []*fleet.OSVersions{page0, page1, page2} {
+		for _, v := range page.OSVersions {
+			gotPaged = append(gotPaged, v.OSVersionID)
+		}
+	}
+	assert.Equal(t, wantDescending, gotPaged, "paginated results must match the unpaginated descending order")
+
+	// invalid order key
+	opts = fleet.ListOptions{OrderKey: "nameonly"}
+	_, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false, nil)
+	require.Error(t, err)
+}
+
+func TestCompareOSVersions(t *testing.T) {
+	cases := []struct {
+		name     string
+		a, b     string
+		expected int
+	}{
+		{"equal numeric", "26.6", "26.6", 0},
+		{"multi-digit segment, not a string comparison", "26.6", "26.10", -1},
+		{"longer numeric version is newer", "26.5", "26.5.1", -1},
+		{"differing segment counts, four segments", "10.0.9200.100", "10.0.26200.8875", -1},
+		{"windows codename, same year", "21H1", "21H2", -1},
+		{"windows codename, different year", "21H2", "22H1", -1},
+		{"windows codename equal", "22H1", "22H1", 0},
+		{"non-numeric sorts before numeric", "rolling", "26.6", -1},
+		{"numeric sorts after non-numeric", "26.6", "rolling", 1},
+		{"two non-numeric versions are equal", "rolling", "rolling", 0},
+		{"empty string sorts before numeric", "", "26.6", -1},
+		// Segments beyond what strconv.Atoi can hold must still order
+		// correctly instead of overflowing/tying (see versionSegments).
+		{"segment one past int64 max orders correctly", "9223372036854775807", "9223372036854775808", -1},
+		{"arbitrarily large segment orders by significant digits", "31415926535897932384626", "9223372036854775808", 1},
+		{"leading zeros don't inflate significant digit count", "007", "12", -1},
+		{"all-zero segments of differing width are equal", "000", "0", 0},
+		// osquery's os_version table reports Ubuntu LTS releases with a
+		// literal " LTS" suffix (e.g. "22.04.9 LTS"), which Fleet stores
+		// verbatim (see versionSegments). Without stripping it, these tie
+		// as non-comparable instead of comparing numerically.
+		{"ubuntu LTS suffix is stripped before numeric comparison", "22.04.9 LTS", "22.04.15 LTS", -1},
+		{"ubuntu LTS suffix is case-insensitive", "22.04.9 lts", "22.04.15 LTS", -1},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assert.Equal(t, c.expected, compareOSVersions(c.a, c.b), c.name)
+			assert.Equal(t, -c.expected, compareOSVersions(c.b, c.a), c.name+" (reversed)")
+		})
+	}
+}
+
 func TestOSVersionsDefaultPagination(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
@@ -4608,13 +4786,14 @@ func TestHostEncryptionKey(t *testing.T) {
 	})
 
 	t.Run("host platform mdm enabled", func(t *testing.T) {
+		// A Windows key depends on the server private key only, so it is readable whether or not Windows MDM is on.
 		cases := []struct {
 			hostPlatform  string
 			macMDMEnabled bool
 			winMDMEnabled bool
 			shouldFail    bool
 		}{
-			{"windows", true, false, true},
+			{"windows", true, false, false},
 			{"windows", false, true, false},
 			{"windows", true, true, false},
 			{"darwin", true, false, false},
@@ -4638,6 +4817,7 @@ func TestHostEncryptionKey(t *testing.T) {
 					return &fleet.HostDiskEncryptionKey{
 						Base64Encrypted: key,
 						Decryptable:     new(true),
+						WSTEPEncrypted:  c.hostPlatform == "windows",
 					}, nil
 				}
 				ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host, _ bool) (*fleet.HostArchivedDiskEncryptionKey, error) {
@@ -4659,15 +4839,142 @@ func TestHostEncryptionKey(t *testing.T) {
 				ctx = test.UserContext(ctx, test.UserAdmin)
 				_, err := svc.HostEncryptionKey(ctx, 1, false)
 				if c.shouldFail {
-					require.Error(t, err)
-					if c.macMDMEnabled && !c.winMDMEnabled && c.hostPlatform == "windows" {
-						require.ErrorContains(t, err, fleet.ErrWindowsMDMNotConfigured.Error())
-					} else {
-						require.ErrorContains(t, err, fleet.ErrMDMNotConfigured.Error())
-					}
+					require.ErrorContains(t, err, fleet.ErrMDMNotConfigured.Error())
 				} else {
 					require.NoError(t, err)
 				}
+			})
+		}
+	})
+
+	t.Run("Windows keys", func(t *testing.T) {
+		aesKey, err := mdm.EncryptAndEncode(recoveryKey, fleetCfg.Server.PrivateKey)
+		require.NoError(t, err)
+		// A key escrowed by an older release names the WSTEP certificate of that time. The configured one here has the same key
+		// and a different serial, which is what a renewal looks like.
+		renewed := selfSignedCertForKey(t, wstep.PrivateKey.(*rsa.PrivateKey), 42)
+		legacyKey, err := pkcs7.Encrypt([]byte(recoveryKey), []*x509.Certificate{renewed})
+		require.NoError(t, err)
+		legacyB64 := base64.StdEncoding.EncodeToString(legacyKey)
+		// Encrypted to a certificate whose key the server never had, as after replacing the WSTEP pair.
+		otherKey, err := rsa.GenerateKey(rand.Reader, 2048)
+		require.NoError(t, err)
+		deadKey, err := pkcs7.Encrypt([]byte(recoveryKey), []*x509.Certificate{selfSignedCertForKey(t, otherKey, 43)})
+		require.NoError(t, err)
+		deadB64 := base64.StdEncoding.EncodeToString(deadKey)
+
+		cases := []struct {
+			name       string
+			current    *fleet.HostDiskEncryptionKey
+			archived   *fleet.HostArchivedDiskEncryptionKey
+			want       string
+			wantErr    string
+			noReescrow string // why nothing asks the host for a new key, if anything
+		}{
+			{"server private key", &fleet.HostDiskEncryptionKey{Base64Encrypted: aesKey, Decryptable: new(true)}, nil, recoveryKey, "", ""},
+			{"legacy key with a renewed certificate", &fleet.HostDiskEncryptionKey{Base64Encrypted: legacyB64, WSTEPEncrypted: true, Decryptable: new(true)}, nil, recoveryKey, "", ""},
+			{"legacy key on an unmarked row, since reads do not depend on the marker", &fleet.HostDiskEncryptionKey{Base64Encrypted: legacyB64, Decryptable: new(true)}, nil, recoveryKey, "", ""},
+			{"server-key blob on a marked row", &fleet.HostDiskEncryptionKey{Base64Encrypted: aesKey, WSTEPEncrypted: true, Decryptable: new(true)}, nil, recoveryKey, "", ""},
+			{"unreadable key on an unmarked row", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, Decryptable: new(true)}, nil, "", "Couldn't decrypt the disk encryption key.", ""},
+			{"legacy key after the pair was replaced, before the job marked it", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true, Decryptable: new(true)}, nil, "", "Couldn't decrypt the disk encryption key.", ""},
+			{"legacy key after the pair was replaced, marked by the job", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true, Decryptable: new(false)}, nil, "", "The host will escrow a new one", ""},
+			// Marked, but nothing will ask the host for a new key, so the error must not promise one.
+			{"marked key in a fleet without Windows disk encryption", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true, Decryptable: new(false)}, nil, "", "Couldn't decrypt the disk encryption key.", "fleet"},
+			{"marked key while Windows MDM is off", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, Decryptable: new(false)}, nil, "", "Couldn't decrypt the disk encryption key.", "windows mdm"},
+			{"marked key on a host not enrolled in Fleet MDM", &fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, Decryptable: new(false)}, nil, "", "Couldn't decrypt the disk encryption key.", "not enrolled"},
+			{"archived legacy key when the current one is unreadable",
+				&fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true},
+				&fleet.HostArchivedDiskEncryptionKey{Base64Encrypted: legacyB64, WSTEPEncrypted: true}, recoveryKey, "", ""},
+			{"archived key on the server private key",
+				&fleet.HostDiskEncryptionKey{Base64Encrypted: deadB64, WSTEPEncrypted: true},
+				&fleet.HostArchivedDiskEncryptionKey{Base64Encrypted: aesKey}, recoveryKey, "", ""},
+		}
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				ds := new(mock.Store)
+				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+					return &fleet.AppConfig{MDM: fleet.MDM{WindowsEnabledAndConfigured: c.noReescrow != "windows mdm"}}, nil
+				}
+				ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+					return c.noReescrow != "not enrolled", nil
+				}
+				ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+					return &fleet.Host{ID: 1, Platform: "windows"}, nil
+				}
+				ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+					return c.current, nil
+				}
+				ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host, _ bool) (*fleet.HostArchivedDiskEncryptionKey, error) {
+					if c.archived == nil {
+						return nil, newNotFoundError()
+					}
+					return c.archived, nil
+				}
+				ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+					return fleet.DiskEncryptionConfig{WindowsEnabled: c.noReescrow != "fleet"}, nil
+				}
+				svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
+				ctx = test.UserContext(ctx, test.UserAdmin)
+				key, err := svc.HostEncryptionKey(ctx, 1, false)
+				if c.wantErr != "" {
+					var ume *fleet.UserMessageError
+					require.ErrorAs(t, err, &ume)
+					require.ErrorContains(t, err, c.wantErr)
+					require.NotContains(t, err.Error(), "MDM has been turned off")
+					if (c.current.Decryptable != nil && *c.current.Decryptable) || c.noReescrow != "" {
+						require.NotContains(t, err.Error(), "escrow a new one", "no re-escrow is coming for this host")
+					}
+					return
+				}
+				require.NoError(t, err)
+				require.Equal(t, c.want, key.DecryptedValue)
+			})
+		}
+	})
+
+	// Older releases encrypted Windows keys to the WSTEP certificate only, so a deployment without a server private key
+	// must still read the keys it already has.
+	t.Run("Windows keys without a server private key", func(t *testing.T) {
+		legacyKey, err := pkcs7.Encrypt([]byte(recoveryKey), []*x509.Certificate{wstep.Leaf})
+		require.NoError(t, err)
+		legacyB64 := base64.StdEncoding.EncodeToString(legacyKey)
+		withWSTEP := fleetCfg
+		withWSTEP.Server.PrivateKey = ""
+		neither := config.TestConfig()
+		neither.Server.PrivateKey = ""
+
+		for _, c := range []struct {
+			name    string
+			cfg     config.FleetConfig
+			want    string
+			wantErr string
+		}{
+			{"legacy key reads with the WSTEP pair", withWSTEP, recoveryKey, ""},
+			{"no private key and no WSTEP pair", neither, "", "private key is unavailable"},
+		} {
+			t.Run(c.name, func(t *testing.T) {
+				ds := new(mock.Store)
+				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+					return &fleet.AppConfig{}, nil
+				}
+				ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+					return &fleet.Host{ID: 1, Platform: "windows"}, nil
+				}
+				ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+					return &fleet.HostDiskEncryptionKey{Base64Encrypted: legacyB64, WSTEPEncrypted: true, Decryptable: new(true)}, nil
+				}
+				ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host, _ bool) (*fleet.HostArchivedDiskEncryptionKey, error) {
+					return nil, newNotFoundError()
+				}
+				svc, ctx := newTestServiceWithConfig(t, ds, c.cfg, nil, nil)
+				ctx = test.UserContext(ctx, test.UserAdmin)
+				key, err := svc.HostEncryptionKey(ctx, 1, false)
+				if c.wantErr != "" {
+					require.ErrorContains(t, err, c.wantErr)
+					return
+				}
+				require.NoError(t, err)
+				require.Equal(t, c.want, key.DecryptedValue)
 			})
 		}
 	})
@@ -5448,10 +5755,6 @@ func TestSuppressAndroidBYODWipeStatus(t *testing.T) {
 	}
 }
 
-// TestWipeHostFreeTierAndroidBYORejected verifies the core (Fleet Free) WipeHost rejects BYO (personally-owned)
-// Android hosts, since Wipe is COBO-only (BYO uses Unenroll). The non-Android license gate is already covered by the
-// free-tier TestPremiumEndpointsWithoutLicense integration test, and the Premium BYO rejection by
-// TestAndroidLockWipeClearPasscode; this guards the same rejection in the core implementation.
 // A caller who can list hosts but has no access to the host's fleet must not be
 // able to tell an existing host from a missing one.
 func TestHostMDMEndpointsMaskCrossFleetDenial(t *testing.T) {
@@ -5488,21 +5791,74 @@ func TestHostMDMEndpointsMaskCrossFleetDenial(t *testing.T) {
 	})
 }
 
-func TestWipeHostFreeTierAndroidBYORejected(t *testing.T) {
-	ds := new(mock.Store)
-	// Default newTestService license is Fleet Free.
-	svc, ctx := newTestService(t, ds, nil, nil)
-	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
-
+// TestWipeHostFreeTierAndroid verifies the core (Fleet Free) WipeHost wipes Android hosts regardless of ownership. The
+// non-Android license gate is already covered by the free-tier TestPremiumEndpointsWithoutLicense integration test, and
+// Premium by TestAndroidLockWipeClearPasscode.
+func TestWipeHostFreeTierAndroid(t *testing.T) {
 	const hostID = 1
-	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
-		return &fleet.Host{ID: hostID, Platform: "android", MDM: fleet.MDMHostData{EnrollmentStatus: new(fleet.MDMEnrollmentStatusPersonal)}}, nil
+	testCases := []struct {
+		name             string
+		enrollmentStatus string
+		androidEnabled   bool
+		wantErr          string
+	}{
+		{name: "company-owned", enrollmentStatus: fleet.MDMEnrollmentStatusAutomatic, androidEnabled: true},
+		{name: "personally-owned", enrollmentStatus: fleet.MDMEnrollmentStatusPersonal, androidEnabled: true},
+		{
+			name:             "android MDM off",
+			enrollmentStatus: fleet.MDMEnrollmentStatusPersonal,
+			androidEnabled:   false,
+			wantErr:          fleet.AndroidMDMNotConfiguredMessage,
+		},
 	}
-	ds.HostLiteFunc = mock.HostLiteFunc(ds.HostFunc)
 
-	err := svc.WipeHost(ctx, hostID, nil)
-	var badRequest *fleet.BadRequestError
-	require.ErrorAs(t, err, &badRequest)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+				return &fleet.Host{ID: hostID, Platform: "android", MDM: fleet.MDMHostData{EnrollmentStatus: new(tc.enrollmentStatus)}}, nil
+			}
+			ds.HostLiteFunc = mock.HostLiteFunc(ds.HostFunc)
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: tc.androidEnabled}}, nil
+			}
+			ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+				return true, nil
+			}
+			ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+				return &fleet.HostLockWipeStatus{}, nil
+			}
+
+			var wipedHostID uint
+			androidMock := &mockAndroidService{
+				WipeAndroidHostFunc: func(_ context.Context, id uint) error {
+					wipedHostID = id
+					return nil
+				},
+			}
+			// Default newTestService license is Fleet Free.
+			opts := &TestServerOpts{SkipCreateTestUsers: true, AndroidModule: androidMock}
+			svc, ctx := newTestService(t, ds, nil, nil, opts)
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+			var capturedActivity activity_api.ActivityDetails
+			opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+				capturedActivity = act
+				return nil
+			}
+
+			err := svc.WipeHost(ctx, hostID, nil)
+			if tc.wantErr != "" {
+				require.ErrorContains(t, err, tc.wantErr)
+				require.Zero(t, wipedHostID, "a rejected wipe must not reach AMAPI")
+				require.Nil(t, capturedActivity)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, uint(hostID), wipedHostID)
+			require.IsType(t, fleet.ActivityTypeWipedHost{}, capturedActivity)
+		})
+	}
 }
 
 func TestBulkOperationFilterValidation(t *testing.T) {
@@ -7395,6 +7751,27 @@ func TestGetHostDEPAssignmentDetailsNotFoundClassification(t *testing.T) {
 	}
 }
 
+func TestGetHostDEPAssignmentDetailsDeletedABMToken(t *testing.T) {
+	ds := new(mock.Store)
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return &fleet.Host{ID: id, HardwareSerial: "SERIAL123"}, nil
+	}
+	// Deleting an AB token nulls abm_token_id on its hosts' assignments.
+	ds.GetHostDEPAssignmentFunc = func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
+		return &fleet.HostDEPAssignment{HostID: hostID, ABMTokenID: nil}, nil
+	}
+
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{})
+	ctx = test.UserContext(ctx, test.UserAdmin)
+
+	depAssignment, depDevice, depErr, err := svc.GetHostDEPAssignmentDetails(ctx, 1)
+	require.NoError(t, err)
+	assert.Nil(t, depAssignment)
+	assert.Nil(t, depDevice)
+	assert.Empty(t, depErr)
+	assert.False(t, ds.GetABMTokenByIDFuncInvoked)
+}
+
 func TestReorderCSVColumnAfter(t *testing.T) {
 	cases := []struct {
 		name     string
@@ -7524,4 +7901,12 @@ func TestReorderCSVColumnAfter(t *testing.T) {
 			require.Equal(t, c.want, c.recs)
 		})
 	}
+}
+
+// selfSignedCertForKey issues a certificate for key with the given serial, so two certificates can share one key.
+func selfSignedCertForKey(t *testing.T, key *rsa.PrivateKey, serial int64) *x509.Certificate {
+	t.Helper()
+	cert, err := tokenpki.SelfSignedCertForKey(key, "Fleet WSTEP test", serial)
+	require.NoError(t, err)
+	return cert
 }

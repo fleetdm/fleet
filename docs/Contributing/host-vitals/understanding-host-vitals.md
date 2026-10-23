@@ -112,7 +112,7 @@ SELECT 1 FROM disk_encryption WHERE filevault_status = 'on' LIMIT 1
 
 ## disk_encryption_linux
 
-- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform
+- Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform
 
 - Query:
 ```sql
@@ -173,7 +173,7 @@ SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
 
 ## disk_space_unix
 
-- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform
+- Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform
 
 - Query:
 ```sql
@@ -458,7 +458,7 @@ SELECT ipv4 AS address, mac FROM network_interfaces LIMIT 1
 
 ## network_interface_unix
 
-- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin
+- Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin
 
 - Query:
 ```sql
@@ -534,7 +534,7 @@ LIMIT 1;
 
 ## orbit_info
 
-- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin, windows
+- Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin, windows
 
 - Discovery query:
 ```sql
@@ -568,7 +568,7 @@ SELECT
 
 ## os_unix_like
 
-- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin
+- Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin
 
 - Query:
 ```sql
@@ -599,6 +599,8 @@ SELECT * FROM os_version LIMIT 1
 
 ## os_version_windows
 
+- Description: Reads the update build revision (UBR) from `os_version.revision`, which requires osquery 5.12.1 or later. Windows Server 2012 and 2012 R2 have no UBR and fall back to the `kernel_info` version.
+
 - Platforms: windows
 
 - Query:
@@ -608,11 +610,6 @@ WITH display_version_table AS (
 			FROM registry
 			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
 		),
-		ubr_table AS (
-			SELECT data AS ubr
-			FROM registry
-			WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
-		),
 		installation_type_table AS (
 			SELECT data AS installation_type
 			FROM registry
@@ -621,7 +618,7 @@ WITH display_version_table AS (
 		SELECT
 			os.name,
 			COALESCE(d.display_version, '') AS display_version,
-			COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version,
+			CASE WHEN CAST(os.revision AS INTEGER) > 0 THEN os.version || '.' || os.revision ELSE k.version END AS version,
 			COALESCE(it.installation_type, '') AS installation_type
 		FROM
 			os_version os,
@@ -629,54 +626,47 @@ WITH display_version_table AS (
 		LEFT JOIN
 			display_version_table d
 		LEFT JOIN
-			ubr_table u
-		LEFT JOIN
 			installation_type_table it
 ```
 
 ## os_windows
+
+- Description: Reads the update build revision (UBR) from `os_version.revision`, which requires osquery 5.12.1 or later. Windows Server 2012 and 2012 R2 have no UBR and fall back to the `kernel_info` version.
 
 - Platforms: windows
 
 - Query:
 ```sql
 WITH display_version_table AS (
-		SELECT data as display_version
-		FROM registry
-		WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
-	),
-	ubr_table AS (
-	SELECT data AS ubr
-	FROM registry
-	WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
-	),
-	installation_type_table AS (
-	SELECT data AS installation_type
-	FROM registry
-	WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\InstallationType'
-	)
-	SELECT
-		os.name,
-		os.platform,
-		os.arch,
-		k.version as kernel_version,
-		COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version,
-		COALESCE(d.display_version, '') AS display_version,
-		COALESCE(it.installation_type, '') AS installation_type
-	FROM
-		os_version os,
-		kernel_info k
-	LEFT JOIN
-		display_version_table d
-	LEFT JOIN
-		ubr_table u
-	LEFT JOIN
-		installation_type_table it
+			SELECT data as display_version
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+		),
+		installation_type_table AS (
+			SELECT data AS installation_type
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\InstallationType'
+		)
+		SELECT
+			os.name,
+			os.platform,
+			os.arch,
+			k.version as kernel_version,
+			CASE WHEN CAST(os.revision AS INTEGER) > 0 THEN os.version || '.' || os.revision ELSE k.version END AS version,
+			COALESCE(d.display_version, '') AS display_version,
+			COALESCE(it.installation_type, '') AS installation_type
+		FROM
+			os_version os,
+			kernel_info k
+		LEFT JOIN
+			display_version_table d
+		LEFT JOIN
+			installation_type_table it
 ```
 
 ## osquery_flags
 
-- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin, windows
+- Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin, windows
 
 - Query:
 ```sql
@@ -694,7 +684,7 @@ select * from osquery_info limit 1
 
 ## scheduled_query_stats
 
-- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin, windows
+- Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin, windows
 
 - Query:
 ```sql
@@ -727,6 +717,41 @@ SELECT
 FROM adobe_plugins
 ```
 
+## software_ai_tools
+
+- Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin, windows
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'ai_tools'
+```
+
+- Query:
+```sql
+SELECT
+  name,
+  version,
+  '' AS bundle_identifier,
+  '' AS extension_id,
+  '' AS extension_for,
+  CASE type
+    WHEN 'agents' THEN 'ai_clis'
+    WHEN 'mcp_server' THEN 'mcp_servers'
+    WHEN 'agent_instruction' THEN 'ai_skills'
+    WHEN 'skill' THEN 'ai_skills'
+    ELSE 'ai_tools'
+  END AS source,
+  '' AS vendor,
+  '' AS last_opened_at,
+  path AS installed_path,
+  type AS ai_type,
+  source AS ai_install_method
+FROM ai_tools
+WHERE type IN ('agents', 'mcp_server', 'agent_instruction', 'skill', 'apps', 'ide_plugins', 'browser_extension')
+  AND NOT (type = 'agents' AND evidence NOT LIKE '%catalog%')
+  AND NOT (type = 'mcp_server' AND source = 'process')
+```
+
 ## software_chrome
 
 - Platforms: chrome
@@ -748,7 +773,7 @@ FROM chrome_extensions
 
 - Description: A software override query[^1] to append last_opened_at information to Linux DEB software entries. The accuracy of this information is limited by the accuracy of the atime column in the file table, which can be affected by the system clock and mount settings like noatime and relatime.
 
-- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform
+- Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform
 
 - Discovery query:
 ```sql
@@ -766,7 +791,7 @@ SELECT package, MAX(atime) AS last_opened_at
 
 ## software_go_binaries
 
-- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin, windows
+- Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin, windows
 
 - Discovery query:
 ```sql
@@ -790,7 +815,7 @@ FROM go_binaries
 
 ## software_jetbrains_plugins
 
-- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin, windows
+- Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin, windows
 
 - Discovery query:
 ```sql
@@ -818,7 +843,7 @@ FROM cached_users CROSS JOIN jetbrains_plugins USING (uid)
 
 ## software_linux
 
-- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform
+- Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform
 
 - Query:
 ```sql
@@ -835,6 +860,7 @@ SELECT
   '' AS release,
   '' AS vendor,
   '' AS arch,
+  '' AS epoch,
   '' AS installed_path
 FROM deb_packages
 WHERE status LIKE '% ok installed'
@@ -848,6 +874,7 @@ SELECT
   '' AS release,
   '' AS vendor,
   '' AS arch,
+  '' AS epoch,
   '' AS installed_path
 FROM portage_packages
 UNION
@@ -860,6 +887,7 @@ SELECT
   release AS release,
   vendor AS vendor,
   arch AS arch,
+  epoch AS epoch,
   '' AS installed_path
 FROM rpm_packages
 UNION
@@ -872,6 +900,7 @@ SELECT
   '' AS release,
   '' AS vendor,
   '' AS arch,
+  '' AS epoch,
   path AS installed_path
 FROM npm_packages
 UNION
@@ -884,6 +913,7 @@ SELECT
   '' AS release,
   '' AS vendor,
   '' AS arch,
+  '' AS epoch,
   path AS installed_path
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
@@ -896,13 +926,38 @@ SELECT
   '' AS release,
   '' AS vendor,
   '' AS arch,
+  '' AS epoch,
   path AS installed_path
 FROM cached_users CROSS JOIN firefox_addons USING (uid);
 ```
 
+## software_linux_fleetd_nix
+
+- Platforms: nixos
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'fleetd_nix_packages'
+```
+
+- Query:
+```sql
+SELECT
+  name AS name,
+  version AS version,
+  '' AS extension_id,
+  '' AS extension_for,
+  'nix_packages' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch,
+  store_path AS installed_path
+FROM fleetd_nix_packages
+```
+
 ## software_linux_fleetd_pacman
 
-- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform
+- Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform
 
 - Discovery query:
 ```sql
@@ -1148,7 +1203,7 @@ SELECT
 
 - Description: Prior to osquery version 5.16.0, the python_packages table did not search user directories.
 
-- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin, windows
+- Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin, windows
 
 - Discovery query:
 ```sql
@@ -1176,7 +1231,7 @@ SELECT
 
 - Description: As of osquery version 5.16.0, the python_packages table searches user directories with support from a cross join on users. See https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table.
 
-- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin, windows
+- Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin, windows
 
 - Discovery query:
 ```sql
@@ -1208,7 +1263,7 @@ WITH cached_users AS (WITH cached_groups AS (select * from groups)
 
 - Description: A software override query[^1] to append last_opened_at information to Linux RPM software entries.  The accuracy of this information is limited by the accuracy of the atime column in the file table, which can be affected by the system clock and mount settings like noatime and relatime.
 
-- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform
+- Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform
 
 - Discovery query:
 ```sql
@@ -1226,7 +1281,7 @@ SELECT package, MAX(atime) AS last_opened_at
 
 ## software_vscode_extensions
 
-- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin, windows
+- Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin, windows
 
 - Discovery query:
 ```sql
@@ -1377,7 +1432,7 @@ select * from system_info limit 1
 
 ## uptime
 
-- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin, windows
+- Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin, windows, chrome
 
 - Query:
 ```sql
@@ -1386,7 +1441,7 @@ select * from uptime limit 1
 
 ## users
 
-- Platforms: linux, ubuntu, zorin, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin, windows
+- Platforms: linux, ubuntu, zorin, debian, parrot, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, manjaro-arm, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm, flatcar, coreos, cachyos, omarchy, amd-ryzen-ai-developer-platform, darwin, windows
 
 - Query:
 ```sql

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
@@ -30,10 +31,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/jmoiron/sqlx"
+	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/maps"
@@ -425,6 +429,33 @@ func TestSoftwareIngestionMutations(t *testing.T) {
 	}
 	MutateSoftwareOnIngestion(t.Context(), rAppNoMatch, slog.New(slog.DiscardHandler))
 	assert.Equal(t, "4.6.1", rAppNoMatch.Version)
+
+	// AI CLIs reported by catalog slug are stored under their product name
+	aiCLI := &fleet.Software{Name: "claude-code", Source: "ai_clis", Version: "2.0.14"}
+	MutateSoftwareOnIngestion(t.Context(), aiCLI, slog.New(slog.DiscardHandler))
+	require.Equal(t, "Claude Code", aiCLI.Name)
+
+	aiCLIUnknownSlug := &fleet.Software{Name: "brand-new-agent", Source: "ai_clis"}
+	MutateSoftwareOnIngestion(t.Context(), aiCLIUnknownSlug, slog.New(slog.DiscardHandler))
+	require.Equal(t, "brand-new-agent", aiCLIUnknownSlug.Name)
+
+	// The same name under another source is the package's own name
+	homebrewCodex := &fleet.Software{Name: "codex", Source: "homebrew_packages"}
+	MutateSoftwareOnIngestion(t.Context(), homebrewCodex, slog.New(slog.DiscardHandler))
+	require.Equal(t, "codex", homebrewCodex.Name)
+
+	// Cursor rule files are named by the developer, so they share one title
+	cursorRule := &fleet.Software{Name: "acme-billing-api.mdc", Source: "ai_skills"}
+	MutateSoftwareOnIngestion(t.Context(), cursorRule, slog.New(slog.DiscardHandler))
+	require.Equal(t, "Cursor rules", cursorRule.Name)
+
+	cursorRuleUpper := &fleet.Software{Name: "Testing.MDC", Source: "ai_skills"}
+	MutateSoftwareOnIngestion(t.Context(), cursorRuleUpper, slog.New(slog.DiscardHandler))
+	require.Equal(t, "Cursor rules", cursorRuleUpper.Name)
+
+	instructionFile := &fleet.Software{Name: "CLAUDE.md", Source: "ai_skills"}
+	MutateSoftwareOnIngestion(t.Context(), instructionFile, slog.New(slog.DiscardHandler))
+	require.Equal(t, "CLAUDE.md", instructionFile.Name)
 }
 
 func TestDetailQueryNetworkInterfaces(t *testing.T) {
@@ -711,10 +742,16 @@ func TestGetDetailQueries(t *testing.T) {
 
 	queriesWithUsersAndSoftware := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}, Integrations{}, nil)
 	qs = baseQueries
-	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_jetbrains_plugins", "software_adobe_plugins", "software_linux_fleetd_pacman",
+	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_jetbrains_plugins", "software_adobe_plugins", "software_linux_fleetd_pacman", "software_linux_fleetd_nix",
 		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_macos_executable_sha256", "software_macos_homebrew_executable_sha256", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at", "software_windows_acrobat_dc", "software_go_binaries", "software_windows_program_files_scan")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
+
+	// AI tools inventory is premium only
+	queriesPremiumWithSoftware := GetDetailQueries(premiumCtx, config.FleetConfig{}, nil, &fleet.Features{EnableSoftwareInventory: true}, Integrations{}, nil)
+	require.Contains(t, queriesPremiumWithSoftware, "software_ai_tools")
+	require.NotContains(t, queriesPremium, "software_ai_tools")
+	require.NotContains(t, queriesWithUsersAndSoftware, "software_ai_tools")
 
 	// test that appropriate mdm queries are added based on app config
 	var mdmQueriesBase, mdmQueriesWindows []string
@@ -1068,6 +1105,27 @@ func TestDetailQueriesOSVersionChrome(t *testing.T) {
 
 	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
 	assert.Equal(t, "chromeos 1.3.3.7", host.OSVersion)
+}
+
+func TestDetailQueriesUptimeChrome(t *testing.T) {
+	query := GetDetailQueries(t.Context(), config.FleetConfig{}, nil, nil, Integrations{}, nil)["uptime"]
+	assert.Contains(t, query.Platforms, "chrome")
+
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, nil))
+	host := fleet.Host{Platform: "chrome"}
+
+	require.NoError(t, query.IngestFunc(t.Context(), logger, &host, nil))
+	assert.Zero(t, host.Uptime)
+	assert.True(t, host.LastRestartedAt.IsZero())
+	assert.Empty(t, logs.String())
+
+	before := time.Now()
+	require.NoError(t, query.IngestFunc(t.Context(), logger, &host, []map[string]string{{"total_seconds": "3600"}}))
+	after := time.Now()
+	assert.Equal(t, time.Hour, host.Uptime)
+	assert.False(t, host.LastRestartedAt.Before(before.Add(-time.Hour)))
+	assert.False(t, host.LastRestartedAt.After(after.Add(-time.Hour)))
 }
 
 func TestDirectIngestMDMMac(t *testing.T) {
@@ -2153,6 +2211,72 @@ func TestDirectIngestSoftware(t *testing.T) {
 		})
 	})
 
+	t.Run("ai_tool marker", func(t *testing.T) {
+		data := []map[string]string{
+			{"name": "Claude", "version": "1.2.4", "source": "apps", "bundle_identifier": "com.anthropic.claudefordesktop", "ai_tool": "1"},
+			{"name": "Safari", "version": "18.0", "source": "apps", "bundle_identifier": "com.apple.Safari"},
+			{"name": "github", "version": "", "source": "mcp_servers", "ai_tool": "1"},
+		}
+		var ingested []fleet.Software
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+			ingested = software
+			return nil, nil
+		}
+		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
+			return nil
+		}
+		var marked []fleet.Software
+		ds.MarkSoftwareAsAIToolFunc = func(ctx context.Context, software []fleet.Software) error {
+			marked = software
+			return nil
+		}
+
+		require.NoError(t, directIngestSoftware(ctx, logger, &host, ds, data))
+		require.Len(t, ingested, 3)
+		require.True(t, ptr.ValOrZero(ingested[0].AITool))
+		require.False(t, ptr.ValOrZero(ingested[1].AITool))
+		require.True(t, ptr.ValOrZero(ingested[2].AITool))
+		require.True(t, ds.MarkSoftwareAsAIToolFuncInvoked)
+		require.Equal(t, []fleet.Software{ingested[0], ingested[2]}, marked)
+		first := ingested
+
+		// No flagged rows, no call.
+		ds.MarkSoftwareAsAIToolFuncInvoked = false
+		require.NoError(t, directIngestSoftware(ctx, logger, &host, ds, data[1:2]))
+		require.False(t, ds.MarkSoftwareAsAIToolFuncInvoked)
+
+		// Software the host already reports flagged needs no lookup.
+		flaggedClaude, unflaggedGithub := first[0], first[2]
+		unflaggedGithub.AITool = nil
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+			return &fleet.UpdateHostSoftwareDBResult{WasCurrInstalled: []fleet.Software{flaggedClaude, first[1], unflaggedGithub}}, nil
+		}
+		ds.MarkSoftwareAsAIToolFuncInvoked = false
+		require.NoError(t, directIngestSoftware(ctx, logger, &host, ds, data))
+		require.True(t, ds.MarkSoftwareAsAIToolFuncInvoked)
+		require.Equal(t, []fleet.Software{first[2]}, marked)
+
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+			return &fleet.UpdateHostSoftwareDBResult{WasCurrInstalled: []fleet.Software{flaggedClaude, first[1], first[2]}}, nil
+		}
+		ds.MarkSoftwareAsAIToolFuncInvoked = false
+		require.NoError(t, directIngestSoftware(ctx, logger, &host, ds, data))
+		require.False(t, ds.MarkSoftwareAsAIToolFuncInvoked)
+
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+			return nil, nil
+		}
+		ds.MarkSoftwareAsAIToolFuncInvoked = false
+		ds.MarkSoftwareAsAIToolFunc = func(ctx context.Context, software []fleet.Software) error {
+			return errors.New("mark failed")
+		}
+		require.ErrorContains(t, directIngestSoftware(ctx, logger, &host, ds, data), "mark failed")
+		ds.MarkSoftwareAsAIToolFunc = nil
+		ds.MarkSoftwareAsAIToolFuncInvoked = false
+		ds.UpdateHostSoftwareFuncInvoked = false
+		ds.UpdateHostSoftwareInstalledPathsFuncInvoked = false
+	})
+
 	t.Run("vendor gets truncated", func(t *testing.T) {
 		for _, tc := range []struct {
 			data     []map[string]string
@@ -2380,6 +2504,29 @@ func TestDirectIngestSoftware(t *testing.T) {
 		assert.True(t, software.LastOpenedAt.Equal(expectedTime))
 
 		ds.UpdateHostSoftwareFuncInvoked = false
+	})
+
+	t.Run("rpm epoch", func(t *testing.T) {
+		data := []map[string]string{
+			{"name": "mod_ssl", "version": "2.4.62", "release": "13.el9_8.6", "arch": "x86_64", "source": "rpm_packages", "epoch": "1"},
+			{"name": "httpd", "version": "2.4.62", "release": "13.el9_8.6", "arch": "x86_64", "source": "rpm_packages", "epoch": ""},
+		}
+
+		var got []fleet.Software
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+			got = software
+			return nil, nil
+		}
+		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
+			return nil
+		}
+
+		require.NoError(t, directIngestSoftware(ctx, logger, &host, ds, data))
+		epochs := map[string]*uint32{}
+		for _, sw := range got {
+			epochs[sw.Name] = sw.Epoch
+		}
+		require.Equal(t, map[string]*uint32{"mod_ssl": new(uint32(1)), "httpd": nil}, epochs)
 	})
 }
 
@@ -2723,6 +2870,115 @@ func TestDirectIngestDiskEncryptionLinux(t *testing.T) {
 	require.True(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked)
 }
 
+func TestDirectIngestDiskEncryptionKeyDarwinSameKeyNewEnvelope(t *testing.T) {
+	ctx := t.Context()
+	logger := slog.New(slog.DiscardHandler)
+	newHost := func() *fleet.Host { return &fleet.Host{ID: 1, Platform: "darwin"} }
+
+	caCert, caKey, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+	caCertPEM := tokenpki.PEMCertificate(caCert.Raw)
+	caKeyPEM := tokenpki.PEMRSAPrivateKey(caKey)
+	encrypt := func(plain string) string {
+		b, err := pkcs7.Encrypt([]byte(plain), []*x509.Certificate{caCert})
+		require.NoError(t, err)
+		return base64.StdEncoding.EncodeToString(b)
+	}
+	storedBlob := encrypt("AAAA-BBBB")
+
+	newDS := func(stored *fleet.HostDiskEncryptionKey) *mock.Store {
+		ds := new(mock.Store)
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{MacOSSettings: fleet.MacOSSettings{
+				EnableEscrowDiskEncryptionKey: optjson.SetBool(true),
+			}}}, nil
+		}
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) { return true, nil }
+		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
+			return stored, nil
+		}
+		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, _ []fleet.MDMAssetName, _ sqlx.QueryerContext,
+		) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+			return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+				fleet.MDMAssetCACert: {Name: fleet.MDMAssetCACert, Value: caCertPEM},
+				fleet.MDMAssetCAKey:  {Name: fleet.MDMAssetCAKey, Value: caKeyPEM},
+			}, nil
+		}
+		ds.GetAllMDMConfigAssetsByNameIncludingDeletedFunc = func(ctx context.Context, _ []fleet.MDMAssetName) ([]fleet.MDMConfigAsset, error) {
+			return []fleet.MDMConfigAsset{{Name: fleet.MDMAssetCACert, Value: caCertPEM}}, nil
+		}
+		ds.ReplaceHostDiskEncryptionKeyBlobFunc = func(ctx context.Context, hostID uint, currentBase64Encrypted, newBase64Encrypted string) (bool, error) {
+			return true, nil
+		}
+		ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, h *fleet.Host, key, clientError string, decryptable *bool) (bool, error) {
+			return true, nil
+		}
+		return ds
+	}
+	filevaultPRK := func(blob string) []map[string]string {
+		return []map[string]string{{"filevault_key": blob, "encrypted": "1"}}
+	}
+	fileLines := func(blob string) []map[string]string {
+		raw, err := base64.StdEncoding.DecodeString(blob)
+		require.NoError(t, err)
+		return []map[string]string{{"hex_line": hex.EncodeToString(raw), "encrypted": "1"}}
+	}
+
+	for _, tc := range []struct {
+		name   string
+		ingest func(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error
+		rows   func(blob string) []map[string]string
+	}{
+		{"filevault_prk", directIngestDiskEncryptionKeyFileDarwin, filevaultPRK},
+		{"file_lines", directIngestDiskEncryptionKeyFileLinesDarwin, fileLines},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Run("same plaintext replaces the blob in place", func(t *testing.T) {
+				ds := newDS(&fleet.HostDiskEncryptionKey{Base64Encrypted: storedBlob, Decryptable: new(true)})
+				incoming := encrypt("AAAA-BBBB")
+				var replaced string
+				ds.ReplaceHostDiskEncryptionKeyBlobFunc = func(ctx context.Context, hostID uint, currentBase64Encrypted, newBase64Encrypted string) (bool, error) {
+					require.Equal(t, storedBlob, currentBase64Encrypted, "the swap is conditional on the compared blob")
+					replaced = newBase64Encrypted
+					return true, nil
+				}
+				h := newHost()
+				require.NoError(t, tc.ingest(ctx, logger, h, ds, tc.rows(incoming)))
+				require.Equal(t, incoming, replaced)
+				require.False(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+				require.False(t, h.DiskEncryptionKeyEscrowed)
+			})
+
+			t.Run("different plaintext is a new key", func(t *testing.T) {
+				ds := newDS(&fleet.HostDiskEncryptionKey{Base64Encrypted: storedBlob, Decryptable: new(true)})
+				h := newHost()
+				require.NoError(t, tc.ingest(ctx, logger, h, ds, tc.rows(encrypt("CCCC-DDDD"))))
+				require.False(t, ds.ReplaceHostDiskEncryptionKeyBlobFuncInvoked)
+				require.True(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+				require.True(t, h.DiskEncryptionKeyEscrowed)
+			})
+
+			t.Run("unverified stored key skips the comparison", func(t *testing.T) {
+				for _, decryptable := range []*bool{nil, new(false)} {
+					ds := newDS(&fleet.HostDiskEncryptionKey{Base64Encrypted: storedBlob, Decryptable: decryptable})
+					require.NoError(t, tc.ingest(ctx, logger, newHost(), ds, tc.rows(encrypt("AAAA-BBBB"))))
+					require.False(t, ds.GetAllMDMConfigAssetsByNameFuncInvoked)
+					require.False(t, ds.ReplaceHostDiskEncryptionKeyBlobFuncInvoked)
+					require.True(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+				}
+			})
+
+			t.Run("undecryptable report falls through to the normal path", func(t *testing.T) {
+				ds := newDS(&fleet.HostDiskEncryptionKey{Base64Encrypted: storedBlob, Decryptable: new(true)})
+				garbage := base64.StdEncoding.EncodeToString([]byte("not a cms envelope"))
+				require.NoError(t, tc.ingest(ctx, logger, newHost(), ds, tc.rows(garbage)))
+				require.False(t, ds.ReplaceHostDiskEncryptionKeyBlobFuncInvoked)
+				require.True(t, ds.SetOrUpdateHostDiskEncryptionKeyFuncInvoked)
+			})
+		})
+	}
+}
+
 func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := t.Context()
@@ -2744,6 +3000,9 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 	// Default to connected to Fleet MDM; the dedicated subtest below overrides this.
 	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) {
 		return true, nil
+	}
+	ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
+		return nil, &notFoundErrorForTest{}
 	}
 
 	var wantKey string
@@ -3051,9 +3310,11 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := t.Context()
 	logger := slog.New(slog.DiscardHandler)
+	orbitNodeKey := "orbit-node-key"
 	host := &fleet.Host{ID: 1, UUID: "mdm-windows-hw-uuid"}
 
 	returnEnrollmentsUpdated := true
+	ds.MDMWindowsClearDeletedHostTeamFunc = func(ctx context.Context, mdmDeviceID string) error { return nil }
 	ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID string, deviceID string) (bool, error) {
 		require.NotEmpty(t, deviceID)
 		require.Equal(t, host.UUID, hostUUID)
@@ -3122,18 +3383,24 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 		return nil, nil
 	}
 
+	ds.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFunc = func(ctx context.Context, enrollmentID uint) error {
+		return nil
+	}
+
 	testCases := []struct {
 		name                                                 string
 		rows                                                 []map[string]string
 		expectError                                          string
 		mdmEnrollUserID                                      string
 		mdmEnrollNotInOOBE                                   bool
+		plainOsquery                                         bool
 		returnSCIMUser                                       bool
 		expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked bool
 		expectUpdateMDMInstalledFromDEPFuncInvoked           bool
 		expectReplaceHostDeviceMappingFuncInvoked            bool
 		expectScimUserByUserNameOrEmailFuncInvoked           bool
 		expectDeleteHostSCIMUserMappingFuncInvoked           bool
+		expectDeleteUnusedSecretsFuncInvoked                 bool
 	}{
 		{
 			// if no rows, assume the registry key is not present (i.e. mdm is turned off) and do nothing
@@ -3163,6 +3430,7 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 			expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked: true,
 			expectReplaceHostDeviceMappingFuncInvoked:            true,
 			expectScimUserByUserNameOrEmailFuncInvoked:           true,
+			expectDeleteUnusedSecretsFuncInvoked:                 true,
 		},
 		{
 			name: "device was enrolled by fleetie@example.com via Settings app",
@@ -3175,6 +3443,19 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 			expectUpdateMDMInstalledFromDEPFuncInvoked:           true,
 			expectScimUserByUserNameOrEmailFuncInvoked:           true,
 			expectReplaceHostDeviceMappingFuncInvoked:            true,
+			expectDeleteUnusedSecretsFuncInvoked:                 true,
+		},
+		{
+			// Without fleetd, the secret is still needed by the fleetd install Fleet sends.
+			name: "device enrolled by fleetie@example.com runs plain osquery",
+			rows: []map[string]string{
+				{"name": "mdm-windows-hostname", "data": "mdm-windows-device-id"},
+			},
+			mdmEnrollUserID: "fleetie@example.com",
+			plainOsquery:    true,
+			expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked: true,
+			expectReplaceHostDeviceMappingFuncInvoked:            true,
+			expectScimUserByUserNameOrEmailFuncInvoked:           true,
 		},
 	}
 
@@ -3184,6 +3465,7 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 		ds.ReplaceHostDeviceMappingFuncInvoked = false
 		ds.ScimUserByUserNameOrEmailFuncInvoked = false
 		ds.DeleteHostSCIMUserMappingFuncInvoked = false
+		ds.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFuncInvoked = false
 	}
 
 	for _, tc := range testCases {
@@ -3198,6 +3480,10 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 				baseEnrolledDeviceToReturn.MDMEnrollUserID = "a1b2c3d4e5f6g7h8i9j0"
 			}
 			baseEnrolledDeviceToReturn.MDMNotInOOBE = tc.mdmEnrollNotInOOBE
+			host.OrbitNodeKey = &orbitNodeKey
+			if tc.plainOsquery {
+				host.OrbitNodeKey = nil
+			}
 
 			// If no updates were done no further actions should be taken. This generic case covers this behavior.
 			if tc.expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked {
@@ -3210,6 +3496,7 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 				require.Equal(t, false, ds.ReplaceHostDeviceMappingFuncInvoked)
 				require.Equal(t, false, ds.ScimUserByUserNameOrEmailFuncInvoked)
 				require.Equal(t, false, ds.DeleteHostSCIMUserMappingFuncInvoked)
+				require.False(t, ds.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFuncInvoked)
 			}
 
 			// Run the actual defined testcase
@@ -3226,6 +3513,7 @@ func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 			require.Equal(t, tc.expectUpdateMDMInstalledFromDEPFuncInvoked, ds.UpdateMDMInstalledFromDEPFuncInvoked)
 			require.Equal(t, tc.expectReplaceHostDeviceMappingFuncInvoked, ds.ReplaceHostDeviceMappingFuncInvoked)
 			require.Equal(t, tc.expectScimUserByUserNameOrEmailFuncInvoked, ds.ScimUserByUserNameOrEmailFuncInvoked)
+			require.Equal(t, tc.expectDeleteUnusedSecretsFuncInvoked, ds.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFuncInvoked)
 			// this test will always return a SCIM user if invoked and as such should update the mapping and never delete it
 			require.Equal(t, false, ds.DeleteHostSCIMUserMappingFuncInvoked)
 
@@ -4238,6 +4526,44 @@ func TestSoftwareLinuxPacmanVersion(t *testing.T) {
 		{name: "linux-omarchy", version: "6.17.1.arch1", release: "2", source: "pacman_packages", arch: "x86_64"},
 		{name: "some-split", version: "2.0", release: "3.1", source: "pacman_packages", arch: "any"},
 		{name: "no-release", version: "1.2.3", release: "", source: "pacman_packages", arch: "any"},
+	}, got)
+}
+
+// TestSoftwareLinuxNix runs the Nix software query against sqlite, which osquery embeds.
+func TestSoftwareLinuxNix(t *testing.T) {
+	require.Equal(t, []string{"nixos"}, softwareLinuxNix.Platforms)
+	require.Equal(t, discoveryTable("fleetd_nix_packages"), softwareLinuxNix.Discovery)
+	require.Nil(t, softwareLinuxNix.IngestFunc)
+	require.Nil(t, softwareLinuxNix.DirectIngestFunc)
+	require.Nil(t, softwareLinuxNix.DirectTaskIngestFunc)
+
+	db, err := sql.Open("sqlite3", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+
+	_, err = db.Exec(`CREATE TABLE fleetd_nix_packages (name TEXT, version TEXT, output TEXT, store_path TEXT, direct INTEGER, profiles TEXT)`)
+	require.NoError(t, err)
+	_, err = db.Exec(`INSERT INTO fleetd_nix_packages VALUES
+		('openssl', '3.0.14', '', '/nix/store/aaa-openssl-3.0.14', 0, ''),
+		('openssl', '3.0.14', 'bin', '/nix/store/bbb-openssl-3.0.14-bin', 1, 'system')`)
+	require.NoError(t, err)
+
+	rows, err := db.Query(softwareLinuxNix.Query)
+	require.NoError(t, err)
+	defer rows.Close()
+
+	type pkg struct{ name, version, source, installedPath string }
+	var got []pkg
+	for rows.Next() {
+		var p pkg
+		var extensionID, extensionFor, release, vendor, arch string
+		require.NoError(t, rows.Scan(&p.name, &p.version, &extensionID, &extensionFor, &p.source, &release, &vendor, &arch, &p.installedPath))
+		got = append(got, p)
+	}
+	require.NoError(t, rows.Err())
+	require.Equal(t, []pkg{
+		{name: "openssl", version: "3.0.14", source: "nix_packages", installedPath: "/nix/store/aaa-openssl-3.0.14"},
+		{name: "openssl", version: "3.0.14", source: "nix_packages", installedPath: "/nix/store/bbb-openssl-3.0.14-bin"},
 	}, got)
 }
 
@@ -5283,6 +5609,32 @@ type notFoundErrorForTest struct{}
 func (e *notFoundErrorForTest) Error() string    { return "not found" }
 func (e *notFoundErrorForTest) IsNotFound() bool { return true }
 
+// newLinkWindowsHostMDMEnrollmentStore mocks the first link of an enrollment to a host.
+func newLinkWindowsHostMDMEnrollmentStore(device *fleet.MDMWindowsEnrolledDevice) *mock.Store {
+	ds := new(mock.Store)
+	ds.MDMWindowsClearDeletedHostTeamFunc = func(ctx context.Context, mdmDeviceID string) error { return nil }
+	ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID, mdmDeviceID string) (bool, error) {
+		return true, nil
+	}
+	ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+		return device, nil
+	}
+	// No default fleet configured, so the assignment helper returns before touching anything else.
+	ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
+		return nil, "", nil
+	}
+	ds.ReplaceHostDeviceMappingFunc = func(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping, source string) error {
+		return nil
+	}
+	ds.ScimUserByUserNameOrEmailFunc = func(ctx context.Context, userName, email string) (*fleet.ScimUser, error) {
+		return nil, &notFoundErrorForTest{}
+	}
+	ds.DeleteHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint) ([]fleet.ActivityTypeResentCertificate, error) {
+		return nil, nil
+	}
+	return ds
+}
+
 // A pending Autopilot host must keep installed_from_dep when its enrollment is linked out of OOBE.
 func TestLinkWindowsHostMDMEnrollmentKeepsAutopilotPendingMarker(t *testing.T) {
 	t.Parallel()
@@ -5296,15 +5648,8 @@ func TestLinkWindowsHostMDMEnrollmentKeepsAutopilotPendingMarker(t *testing.T) {
 		{"a pending Autopilot host keeps its marker", true, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			ds := new(mock.Store)
+			ds := newLinkWindowsHostMDMEnrollmentStore(&fleet.MDMWindowsEnrolledDevice{MDMEnrollUserID: "user@example.com", MDMNotInOOBE: true})
 			var depCleared bool
-
-			ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID, mdmDeviceID string) (bool, error) {
-				return true, nil
-			}
-			ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
-				return &fleet.MDMWindowsEnrolledDevice{MDMEnrollUserID: "user@example.com", MDMNotInOOBE: true}, nil
-			}
 			ds.GetHostAutopilotDeviceFunc = func(ctx context.Context, hostID uint) (*fleet.HostAutopilotDevice, error) {
 				if tc.hasAutopilotRow {
 					return &fleet.HostAutopilotDevice{HostID: hostID, GroupTag: "Engineering"}, nil
@@ -5315,24 +5660,109 @@ func TestLinkWindowsHostMDMEnrollmentKeepsAutopilotPendingMarker(t *testing.T) {
 				depCleared = !enrolledFromDEP
 				return nil
 			}
-			// No default fleet configured, so the assignment helper returns before touching anything else.
-			ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
-				return nil, "", nil
-			}
-			ds.ReplaceHostDeviceMappingFunc = func(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping, source string) error {
-				return nil
-			}
-			ds.ScimUserByUserNameOrEmailFunc = func(ctx context.Context, userName, email string) (*fleet.ScimUser, error) {
-				return nil, &notFoundErrorForTest{}
-			}
-			ds.DeleteHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint) ([]fleet.ActivityTypeResentCertificate, error) {
-				return nil, nil
-			}
 
-			updated, err := LinkWindowsHostMDMEnrollment(t.Context(), slog.New(slog.DiscardHandler), ds, 1, "host-uuid", "device-1")
+			updated, err := LinkWindowsHostMDMEnrollment(t.Context(), slog.New(slog.DiscardHandler), ds, 1, "host-uuid", "device-1", false)
 			require.NoError(t, err)
 			require.True(t, updated)
 			assert.Equal(t, tc.wantDEPCleared, depCleared)
+		})
+	}
+}
+
+func TestLinkWindowsHostMDMEnrollmentDeletedHostReturns(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name       string
+		enrollUser string
+		replaceErr error
+		wantClear  bool
+	}{
+		{name: "user-driven enrollment", enrollUser: "user@example.com", wantClear: true},
+		{name: "failed bookkeeping keeps the marker for a retry", enrollUser: "user@example.com", replaceErr: errors.New("replace failed")},
+		{name: "programmatic enrollment", enrollUser: "host-uuid", wantClear: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := newLinkWindowsHostMDMEnrollmentStore(&fleet.MDMWindowsEnrolledDevice{MDMEnrollUserID: tc.enrollUser, DeletedHostTeamID: new(uint(0))})
+			ds.ReplaceHostDeviceMappingFunc = func(ctx context.Context, id uint, mappings []*fleet.HostDeviceMapping, source string) error {
+				return tc.replaceErr
+			}
+
+			_, err := LinkWindowsHostMDMEnrollment(t.Context(), slog.New(slog.DiscardHandler), ds, 1, "host-uuid", "device-1", false)
+			if tc.replaceErr != nil {
+				require.ErrorIs(t, err, tc.replaceErr)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tc.wantClear, ds.MDMWindowsClearDeletedHostTeamFuncInvoked)
+			// The returning host keeps the fleet its enroll secret put it in, so the default fleet is not even looked up.
+			require.False(t, ds.GetWindowsEnrollmentDefaultFleetFuncInvoked)
+		})
+	}
+}
+
+func TestLinkWindowsHostMDMEnrollmentReleasesUnusedInstallSecret(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name           string
+		fleetdOnDevice bool
+		alreadyLinked  bool
+		enrollUser     string
+		wantDeleted    bool
+	}{
+		{name: "fleetd reported a user-driven enrollment", fleetdOnDevice: true, enrollUser: "user@example.com", wantDeleted: true},
+		{name: "linked without proof that fleetd runs on the device", enrollUser: "user@example.com"},
+		{name: "already linked, so it happened once before", fleetdOnDevice: true, alreadyLinked: true, enrollUser: "user@example.com"},
+		{name: "programmatic enrollment never gets an install secret", fleetdOnDevice: true, enrollUser: "device-token"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := newLinkWindowsHostMDMEnrollmentStore(&fleet.MDMWindowsEnrolledDevice{ID: 7, MDMEnrollUserID: tc.enrollUser})
+			ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID, mdmDeviceID string) (bool, error) {
+				return !tc.alreadyLinked, nil
+			}
+			ds.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFunc = func(ctx context.Context, enrollmentID uint) error {
+				assert.EqualValues(t, 7, enrollmentID)
+				return nil
+			}
+
+			_, err := LinkWindowsHostMDMEnrollment(t.Context(), slog.New(slog.DiscardHandler), ds, 1, "host-uuid", "device-1", tc.fleetdOnDevice)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantDeleted, ds.DeleteUnusedWindowsMDMOneTimeEnrollSecretsFuncInvoked)
+		})
+	}
+}
+
+// An Autopilot device that enrolled as a host other than its pending one becomes identifiable when its enrollment is linked, which
+// is when its Autopilot record moves to that host.
+func TestLinkWindowsHostMDMEnrollmentMovesAutopilotRecord(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		ztdID    string
+		moveErr  error
+		wantMove bool
+	}{
+		{name: "an enrollment carrying an Autopilot device ID", ztdID: "ap-1", wantMove: true},
+		{name: "a move failure does not fail the link", ztdID: "ap-1", moveErr: errors.New("db unavailable"), wantMove: true},
+		{name: "an enrollment without an Autopilot device ID", ztdID: ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// A self-deploying enrollment has no UPN, which must not skip the move.
+			ds := newLinkWindowsHostMDMEnrollmentStore(&fleet.MDMWindowsEnrolledDevice{
+				ZTDRegistrationID: tc.ztdID, EntraDeviceID: "entra-1",
+			})
+			ds.MoveWindowsAutopilotRecordToHostFunc = func(ctx context.Context, hostID uint, autopilotDeviceID, entraDeviceID string) (bool, error) {
+				assert.EqualValues(t, 1, hostID)
+				assert.Equal(t, tc.ztdID, autopilotDeviceID)
+				assert.Equal(t, "entra-1", entraDeviceID)
+				return tc.moveErr == nil, tc.moveErr
+			}
+
+			_, err := LinkWindowsHostMDMEnrollment(t.Context(), slog.New(slog.DiscardHandler), ds, 1, "host-uuid", "device-1", false)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantMove, ds.MoveWindowsAutopilotRecordToHostFuncInvoked)
 		})
 	}
 }
@@ -5751,4 +6181,269 @@ func TestMacOSHomebrewExecutableSHA256Query(t *testing.T) {
 		{"/usr/local/Cellar/jq", "1.7.1", "/usr/local/Cellar/jq/1.7.1/bin/jq-deferred", "", "deferred"},
 		{"/opt/homebrew/Cellar/node_exporter", "1.2", "/opt/homebrew/Cellar/node_exporter/1.2/bin/node_exporter", "ffff", "hashed"},
 	}, got)
+}
+
+// TestSoftwareAIToolsQuery runs the software_ai_tools query against sqlite, which osquery embeds,
+// to check which ai_tools rows it keeps and how it maps them onto software sources.
+func TestSoftwareAIToolsQuery(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+	_, err = db.Exec(`CREATE TABLE ai_tools (type TEXT, name TEXT, version TEXT, path TEXT, evidence TEXT, source TEXT, category TEXT)`)
+	require.NoError(t, err)
+	_, err = db.Exec(`INSERT INTO ai_tools VALUES
+		('agents', 'claude-code', '2.0.14', '/Users/a/.local/bin/claude', 'catalog,running', 'native', 'coding-assistant'),
+		('agents', 'claude-code', '', '/opt/homebrew/bin/claude', 'binary,catalog,tool_home', 'homebrew', 'coding-assistant'),
+		('agents', 'my-project', '', '/Users/a/src/my-project', 'framework:crewai', 'evidence', 'agent-runtime'),
+		('mcp_server', 'github', '', '/Users/a/.cursor/mcp.json', '', 'cursor', ''),
+		('mcp_server', 'node server.js', '', '', '', 'process', ''),
+		('agent_instruction', 'CLAUDE.md', '', '/Users/a/src/x/CLAUDE.md', '', 'claude', 'skill'),
+		('skill', 'pdf', '1.0', '/Users/a/.claude/skills/pdf/SKILL.md', '', 'claude', 'skill'),
+		('apps', 'Claude', '1.2.4', '/Applications/Claude.app', '', 'apps', ''),
+		('ide_plugins', 'GitHub Copilot', '1.0.0', '/Users/a/.vscode/extensions/github.copilot-1.0.0', '', 'vscode', ''),
+		('browser_extension', 'ChatGPT', '1.0', '/Users/a/Library/x/manifest.json', '', 'chrome', ''),
+		('sockets', 'api.openai.com', '', '', '', 'egress', ''),
+		('some_future_type', 'x', '1.0', '/Users/a/x', '', 'x', '')`)
+	require.NoError(t, err)
+
+	rows, err := db.Query(softwareAITools.Query)
+	require.NoError(t, err)
+	defer rows.Close()
+	cols, err := rows.Columns()
+	require.NoError(t, err)
+	// directIngestSoftware and AIToolsProcessResults read rows by these keys, so a renamed alias
+	// would ingest empty fields instead of failing.
+	require.Equal(t, []string{
+		"name", "version", "bundle_identifier", "extension_id", "extension_for", "source", "vendor",
+		"last_opened_at", "installed_path", "ai_type", "ai_install_method",
+	}, cols)
+
+	type aiRow struct{ name, version, source, path, aiType string }
+	var got []aiRow
+	for rows.Next() {
+		var r aiRow
+		var bundleID, extensionID, extensionFor, vendor, lastOpenedAt, installMethod string
+		require.NoError(t, rows.Scan(&r.name, &r.version, &bundleID, &extensionID, &extensionFor, &r.source, &vendor, &lastOpenedAt, &r.path, &r.aiType, &installMethod))
+		// A value in either column puts the title on a key a real app can own, and the title
+		// insert silently drops it.
+		require.Empty(t, bundleID)
+		require.Empty(t, extensionFor)
+		got = append(got, r)
+	}
+	require.NoError(t, rows.Err())
+	require.Equal(t, []aiRow{
+		{"claude-code", "2.0.14", "ai_clis", "/Users/a/.local/bin/claude", "agents"},
+		{"claude-code", "", "ai_clis", "/opt/homebrew/bin/claude", "agents"},
+		{"github", "", "mcp_servers", "/Users/a/.cursor/mcp.json", "mcp_server"},
+		{"CLAUDE.md", "", "ai_skills", "/Users/a/src/x/CLAUDE.md", "agent_instruction"},
+		{"pdf", "1.0", "ai_skills", "/Users/a/.claude/skills/pdf/SKILL.md", "skill"},
+		{"Claude", "1.2.4", "ai_tools", "/Applications/Claude.app", "apps"},
+		{"GitHub Copilot", "1.0.0", "ai_tools", "/Users/a/.vscode/extensions/github.copilot-1.0.0", "ide_plugins"},
+		{"ChatGPT", "1.0", "ai_tools", "/Users/a/Library/x/manifest.json", "browser_extension"},
+	}, got)
+}
+
+func TestAIToolsProcessResults(t *testing.T) {
+	sw := func(name, source, path string) map[string]string {
+		return map[string]string{"name": name, "version": "1.0", "source": source, "installed_path": path}
+	}
+	brew := func(name, version, path string) map[string]string {
+		return map[string]string{"name": name, "version": version, "source": "homebrew_packages", "installed_path": path}
+	}
+	ai := func(aiType, name, path string) map[string]string {
+		source := "ai_tools"
+		switch aiType {
+		case "agents":
+			source = "ai_clis"
+		case "mcp_server":
+			source = "mcp_servers"
+		case "agent_instruction":
+			source = "ai_skills"
+		}
+		return map[string]string{"name": name, "version": "", "source": source, "installed_path": path, "ai_type": aiType}
+	}
+	type result struct{ name, source, path, aiTool string }
+	summarize := func(rows []map[string]string) []result {
+		out := make([]result, 0, len(rows))
+		for _, r := range rows {
+			out = append(out, result{r["name"], r["source"], r["installed_path"], r["ai_tool"]})
+		}
+		return out
+	}
+
+	for _, tc := range []struct {
+		name     string
+		platform string
+		main     []map[string]string
+		ai       []map[string]string
+		want     []result
+	}{
+		{
+			name:     "app marker flags the app at the same path and is not stored",
+			platform: "darwin",
+			main:     []map[string]string{sw("Claude", "apps", "/Applications/Claude.app"), sw("Safari", "apps", "/Applications/Safari.app")},
+			ai:       []map[string]string{ai("apps", "Claude", "/Applications/Claude.app")},
+			want:     []result{{"Claude", "apps", "/Applications/Claude.app", "1"}, {"Safari", "apps", "/Applications/Safari.app", ""}},
+		},
+		{
+			name:     "browser extension manifest flags the extension directory",
+			platform: "darwin",
+			main: []map[string]string{
+				sw("ChatGPT", "chrome_extensions", "/Users/a/Library/Chrome/Default/Extensions/abc/1.0_0"),
+				sw("Claude", "chrome_extensions", "/Users/a/Library/Chrome/Profile 1/Extensions/def/2.0_0/"),
+			},
+			ai: []map[string]string{
+				ai("browser_extension", "ChatGPT", "/Users/a/Library/Chrome/Default/Extensions/abc/1.0_0/manifest.json"),
+				ai("browser_extension", "Claude", "/Users/a/Library/Chrome/Profile 1/Extensions/def/2.0_0/manifest.json"),
+			},
+			want: []result{
+				{"ChatGPT", "chrome_extensions", "/Users/a/Library/Chrome/Default/Extensions/abc/1.0_0", "1"},
+				{"Claude", "chrome_extensions", "/Users/a/Library/Chrome/Profile 1/Extensions/def/2.0_0/", "1"},
+			},
+		},
+		{
+			name:     "Windows browser extension manifest flags the extension directory",
+			platform: "windows",
+			main:     []map[string]string{sw("ChatGPT", "chrome_extensions", `C:\Users\a\AppData\Local\Google\Chrome\User Data\Default\Extensions\abc\1.0_0`)},
+			ai:       []map[string]string{ai("browser_extension", "ChatGPT", `C:\Users\A\AppData\Local\Google\Chrome\User Data\Default\Extensions\abc\1.0_0\Manifest.json`)},
+			want:     []result{{"ChatGPT", "chrome_extensions", `C:\Users\a\AppData\Local\Google\Chrome\User Data\Default\Extensions\abc\1.0_0`, "1"}},
+		},
+		{
+			name:     "Windows paths match case-insensitively",
+			platform: "windows",
+			main:     []map[string]string{sw("Foo", "programs", `c:\users\a\appdata\local\programs\foo\`)},
+			ai:       []map[string]string{ai("agents", "foo", `C:\Users\A\AppData\Local\Programs\Foo`)},
+			want:     []result{{"Foo", "programs", `c:\users\a\appdata\local\programs\foo\`, "1"}},
+		},
+		{
+			name:     "Windows network paths match case-insensitively",
+			platform: "windows",
+			main:     []map[string]string{sw("Foo", "programs", `\\fileserver\apps\foo\`)},
+			ai:       []map[string]string{ai("agents", "foo", `\\FileServer\Apps\Foo`)},
+			want:     []result{{"Foo", "programs", `\\fileserver\apps\foo\`, "1"}},
+		},
+		{
+			name:     "macOS paths stay case-sensitive",
+			platform: "darwin",
+			main:     []map[string]string{sw("Foo", "apps", "/Applications/foo.app")},
+			ai:       []map[string]string{ai("agents", "foo", "/Applications/Foo.app")},
+			want:     []result{{"Foo", "apps", "/Applications/foo.app", ""}, {"foo", "ai_clis", "/Applications/Foo.app", "1"}},
+		},
+		{
+			name:     "agent matching the npm package at the same path flags it and is not stored",
+			platform: "darwin",
+			// npm_packages reports the package's package.json; fleetd reports its directory.
+			main: []map[string]string{sw("@openai/codex", "npm_packages", "/usr/local/lib/node_modules/@openai/codex/package.json")},
+			ai:   []map[string]string{ai("agents", "codex", "/usr/local/lib/node_modules/@openai/codex")},
+			want: []result{{"@openai/codex", "npm_packages", "/usr/local/lib/node_modules/@openai/codex/package.json", "1"}},
+		},
+		{
+			// The slug differs from the formula name, so only the path can match.
+			name:     "agent inside an installed Homebrew version flags that version and is not stored",
+			platform: "darwin",
+			main: []map[string]string{
+				brew("block-goose-cli", "1.1.0", "/opt/homebrew/Cellar/block-goose-cli"),
+				brew("block-goose-cli", "1.2.0", "/opt/homebrew/Cellar/block-goose-cli"),
+			},
+			ai: []map[string]string{ai("agents", "goose", "/opt/homebrew/Cellar/block-goose-cli/1.2.0/bin/goose")},
+			want: []result{
+				{"block-goose-cli", "homebrew_packages", "/opt/homebrew/Cellar/block-goose-cli", ""},
+				{"block-goose-cli", "homebrew_packages", "/opt/homebrew/Cellar/block-goose-cli", "1"},
+			},
+		},
+		{
+			name:     "agent inside a Homebrew version the host doesn't report is stored",
+			platform: "darwin",
+			main:     []map[string]string{brew("block-goose-cli", "1.1.0", "/opt/homebrew/Cellar/block-goose-cli")},
+			ai:       []map[string]string{ai("agents", "goose", "/opt/homebrew/Cellar/block-goose-cli/1.2.0/bin/goose")},
+			want: []result{
+				{"block-goose-cli", "homebrew_packages", "/opt/homebrew/Cellar/block-goose-cli", ""},
+				{"goose", "ai_clis", "/opt/homebrew/Cellar/block-goose-cli/1.2.0/bin/goose", "1"},
+			},
+		},
+		{
+			// Until fleetd reports the resolved path, a symlinked CLI only matches by path.
+			name:     "agent linked from a Homebrew bin dir is stored",
+			platform: "darwin",
+			main: []map[string]string{
+				brew("claude-code", "2.0.14", "/opt/homebrew/Caskroom/claude-code"),
+				brew("jq", "1.7.1", "/usr/local/Cellar/jq"),
+			},
+			ai: []map[string]string{
+				ai("agents", "claude-code", "/opt/homebrew/bin/claude"),
+				ai("agents", "goose", "/usr/local/bin/goose"),
+			},
+			want: []result{
+				{"claude-code", "homebrew_packages", "/opt/homebrew/Caskroom/claude-code", ""},
+				{"jq", "homebrew_packages", "/usr/local/Cellar/jq", ""},
+				{"claude-code", "ai_clis", "/opt/homebrew/bin/claude", "1"},
+				{"goose", "ai_clis", "/usr/local/bin/goose", "1"},
+			},
+		},
+		{
+			name:     "agent named like an unrelated Homebrew package is stored",
+			platform: "darwin",
+			main:     []map[string]string{brew("goose", "3.24.0", "/opt/homebrew/Cellar/goose")},
+			ai:       []map[string]string{ai("agents", "goose", "/Users/a/.local/bin/goose")},
+			want: []result{
+				{"goose", "homebrew_packages", "/opt/homebrew/Cellar/goose", ""},
+				{"goose", "ai_clis", "/Users/a/.local/bin/goose", "1"},
+			},
+		},
+		{
+			name:     "unmatched native agent is stored",
+			platform: "darwin",
+			ai:       []map[string]string{ai("agents", "claude-code", "/Users/a/.local/bin/claude")},
+			want:     []result{{"claude-code", "ai_clis", "/Users/a/.local/bin/claude", "1"}},
+		},
+		{
+			name:     "MCP servers and instruction files are stored",
+			platform: "darwin",
+			ai: []map[string]string{
+				ai("mcp_server", "github", "/Users/a/.cursor/mcp.json"),
+				ai("mcp_server", "github", "/Users/a/Library/Application Support/Claude/claude_desktop_config.json"),
+				ai("agent_instruction", "CLAUDE.md", "/Users/a/src/x/CLAUDE.md"),
+			},
+			want: []result{
+				{"github", "mcp_servers", "/Users/a/.cursor/mcp.json", "1"},
+				{"github", "mcp_servers", "/Users/a/Library/Application Support/Claude/claude_desktop_config.json", "1"},
+				{"CLAUDE.md", "ai_skills", "/Users/a/src/x/CLAUDE.md", "1"},
+			},
+		},
+		{
+			name:     "unmatched marker rows are dropped",
+			platform: "darwin",
+			ai: []map[string]string{
+				ai("apps", "ChatGPT", "/Applications/ChatGPT.app"),
+				ai("ide_plugins", "GitHub Copilot Chat", "/Applications/Visual Studio Code.app/Contents/Resources/app/extensions/copilot"),
+				ai("browser_extension", "Claude", "/Users/a/Extensions/x/manifest.json"),
+			},
+			want: []result{},
+		},
+		{
+			name:     "no ai_tools rows leaves the software rows unchanged",
+			platform: "darwin",
+			main:     []map[string]string{sw("Claude", "apps", "/Applications/Claude.app")},
+			want:     []result{{"Claude", "apps", "/Applications/Claude.app", ""}},
+		},
+		{
+			name:     "null rows are skipped",
+			platform: "darwin",
+			main:     []map[string]string{sw("Claude", "apps", "/Applications/Claude.app"), nil},
+			ai:       []map[string]string{nil, ai("apps", "Claude", "/Applications/Claude.app")},
+			want:     []result{{"Claude", "apps", "/Applications/Claude.app", "1"}, {"", "", "", ""}},
+		},
+		{
+			name:     "main rows without a path are never flagged",
+			platform: "darwin",
+			main:     []map[string]string{sw("Foo", "apps", ""), sw("Bar", "deb_packages", "")},
+			ai:       []map[string]string{ai("apps", "Foo", "")},
+			want:     []result{{"Foo", "apps", "", ""}, {"Bar", "deb_packages", "", ""}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := AIToolsProcessResults(tc.platform, tc.main, tc.ai)
+			require.Equal(t, tc.want, summarize(got))
+		})
+	}
 }

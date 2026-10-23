@@ -340,6 +340,7 @@ export interface IHostEncrpytionKeyResponse {
   encryption_key: {
     updated_at: string;
     key: string;
+    rotation_pending: boolean;
   };
 }
 
