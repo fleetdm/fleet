@@ -1,10 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1044" height="576" viewBox="0 0 1044 576" fill="none" font-family="'Segoe UI', system-ui, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="1044" height="520" viewBox="0 0 1044 520" fill="none" font-family="'Segoe UI', system-ui, sans-serif">
 <defs>
-<clipPath id="window"><rect width="1044" height="576" rx="6.962"/></clipPath>
+<clipPath id="window"><rect width="1044" height="520" rx="6.962"/></clipPath>
 <filter id="search-shadow" x="-5%" y="-20%" width="110%" height="150%"><feDropShadow dx="0" dy="0" stdDeviation="0.43" flood-color="#000" flood-opacity="0.12"/><feDropShadow dx="0" dy="0.86" stdDeviation="0.43" flood-color="#000" flood-opacity="0.14"/></filter>
 </defs>
 <g clip-path="url(#window)">
-<rect x="0.00" y="0.00" width="1044.00" height="576.00" fill="#e9eaeb"/>
+<rect x="0.00" y="0.00" width="1044.00" height="520.00" fill="#e9eaeb"/>
 <rect x="0.00" y="0.00" width="1044.00" height="41.26" fill="#e8e9ea"/>
 <rect x="0.00" y="40.90" width="1044.00" height="0.86" fill="rgba(0,0,0,0.05)"/>
 <rect x="952.67" y="20.74" width="8.60" height="0.86" rx="0.860" fill="#424242"/>
@@ -14,9 +14,9 @@
 <g transform="translate(1018.70 14.20)"><g>
 <path d="M2.31075 2.42013L2.36047 2.36061C2.50966 2.21143 2.74123 2.19485 2.90872 2.31088L2.96824 2.36061L6.96193 6.35439L10.9556 2.36061C11.1235 2.19278 11.3956 2.19278 11.5634 2.36061C11.7312 2.52844 11.7312 2.80055 11.5634 2.96838L7.56961 6.96207L11.5634 10.9558C11.7126 11.1049 11.7291 11.3365 11.6131 11.504L11.5634 11.5635C11.4142 11.7127 11.1826 11.7293 11.0151 11.6133L10.9556 11.5635L6.96193 7.56974L2.96824 11.5635C2.80041 11.7314 2.52831 11.7314 2.36047 11.5635C2.19264 11.3957 2.19264 11.1236 2.36047 10.9558L6.35426 6.96207L2.36047 2.96838C2.21129 2.8192 2.19472 2.58762 2.31075 2.42013L2.36047 2.36061L2.31075 2.42013Z" fill="#424242"/>
 </g></g>
-<rect x="0.00" y="41.30" width="58.45" height="534.70" fill="#e8e9ea"/>
-<rect x="57.45" y="41.30" width="1.00" height="534.70" fill="#dcddde"/>
-<rect x="58.00" y="41.80" width="986.00" height="534.20" fill="#e8e9ea"/>
+<rect x="0.00" y="41.30" width="58.45" height="478.70" fill="#e8e9ea"/>
+<rect x="57.45" y="41.30" width="1.00" height="478.70" fill="#dcddde"/>
+<rect x="58.00" y="41.80" width="986.00" height="478.20" fill="#e8e9ea"/>
 <g transform="translate(15.22 6.89)"><g>
 <path d="M24.5396 11.6681H19.6851L18.3306 12.7636V18.1967C18.3306 20.2139 19.9651 21.8496 21.9823 21.8496C24.0006 21.8496 25.6351 20.2139 25.6351 18.1967V12.7636C25.6351 12.1592 25.1451 11.6681 24.5396 11.6681" fill="#5059C9"/>
 <path d="M25.6666 8.16667C25.6666 9.45467 24.6224 10.5 23.3333 10.5C22.0441 10.5 20.9999 9.45467 20.9999 8.16667C20.9999 6.87867 22.0441 5.83333 23.3333 5.83333C24.6224 5.83333 25.6666 6.87867 25.6666 8.16667" fill="#5059C9"/>
