@@ -228,17 +228,17 @@ func (e ErrVPPTokenTeamConstraint) Error() string {
 
 // HostVPPSoftwareInstall represents a VPP software install attempt on a host.
 type HostVPPSoftwareInstall struct {
-	InstallCommandUUID       string     `db:"command_uuid"`
-	InstallCommandAckAt      *time.Time `db:"ack_at"`
-	HostID                   uint       `db:"host_id"`
-	InstallCommandStatus     string     `db:"install_command_status"`
-	BundleIdentifier         string     `db:"bundle_identifier"`
-	RetryCount               int        `db:"retry_count"`
-	ExpectedVersion          string     `db:"expected_version"`
-	PolicyID                 *uint      `db:"policy_id"`
-	VPPAppTeamID             *uint      `db:"vpp_app_team_id"`
-	CreatedAt                time.Time  `db:"created_at"`
-	NeedsConfigurationResend bool       `db:"needs_configuration_resend"`
+	InstallCommandUUID   string     `db:"command_uuid"`
+	InstallCommandAckAt  *time.Time `db:"ack_at"`
+	HostID               uint       `db:"host_id"`
+	InstallCommandStatus string     `db:"install_command_status"`
+	BundleIdentifier     string     `db:"bundle_identifier"`
+	RetryCount           int        `db:"retry_count"`
+	ExpectedVersion      string     `db:"expected_version"`
+	PolicyID             *uint      `db:"policy_id"`
+	VPPAppTeamID         *uint      `db:"vpp_app_team_id"`
+	CreatedAt            time.Time  `db:"created_at"`
+	NeedsResend          bool       `db:"needs_resend"`
 }
 
 type HostVPPSoftwareInstallLite struct {

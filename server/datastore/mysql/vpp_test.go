@@ -5533,14 +5533,14 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 
 		// mark the pending host's installs removed and flag them for a configuration re-send, the host should still be returned with the flag
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET removed = 1, needs_configuration_resend = 1 WHERE host_id = ?`, hostWithPendingInstall.ID)
+			_, err := q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET removed = 1, needs_resend = 1 WHERE host_id = ?`, hostWithPendingInstall.ID)
 			return err
 		})
 		installByHostIDByTitleID, err = ds.ListHostAppStoreAppInstallVersions(ctx, fleetID, []uint{hostWithPendingInstall.ID})
 		require.NoError(t, err)
 		installByHostID = installByHostIDByTitleID[app.TitleID]
 		require.Len(t, installByHostID, 1)
-		require.True(t, installByHostID[hostWithPendingInstall.ID].NeedsConfigurationResend)
+		require.True(t, installByHostID[hostWithPendingInstall.ID].NeedsResend)
 
 		// get the hosts with a failed install of the other version in the last hour, the two hosts whose verification failed should be returned
 		failedHostIDs := []uint{hostWithPendingInstall.ID, hostWithFailedVerification.ID, hostWithOnlyFailedInstalls.ID}

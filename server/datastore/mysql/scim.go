@@ -2420,7 +2420,7 @@ func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostI
 	if len(appleAppTeamIDs) > 0 {
 		const markConfigurationResendStmt = `
 		UPDATE host_vpp_software_installs
-		SET needs_configuration_resend = 1
+		SET needs_resend = 1
 		WHERE host_id IN (?) AND vpp_app_team_id IN (?) AND canceled = 0
 `
 		var markStmt string

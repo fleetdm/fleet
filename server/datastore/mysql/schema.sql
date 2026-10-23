@@ -1635,7 +1635,7 @@ CREATE TABLE `host_vpp_software_installs` (
   `verification_failed_at` datetime(6) DEFAULT NULL,
   `retry_count` int NOT NULL DEFAULT '0',
   `vpp_app_team_id` int unsigned DEFAULT NULL,
-  `needs_configuration_resend` tinyint(1) NOT NULL DEFAULT '0',
+  `needs_resend` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_host_vpp_software_installs_command_uuid` (`command_uuid`),
   KEY `user_id` (`user_id`),

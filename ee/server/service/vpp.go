@@ -2192,7 +2192,7 @@ func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 				// Re-send when the host's latest install is of another version, unless both versions have the same configuration
 				if install.VPPAppTeamID != nil {
 					installedVersion, inHostFleet := versionByID[*install.VPPAppTeamID]
-					if inHostFleet && !install.NeedsConfigurationResend && bytes.Equal(installedVersion.Configuration, version.Configuration) {
+					if inHostFleet && !install.NeedsResend && bytes.Equal(installedVersion.Configuration, version.Configuration) {
 						// Skip the host when the installed version's configuration didn't change after the install
 						if installedVersion.ConfigurationUpdatedAt == nil || installedVersion.ConfigurationUpdatedAt.Before(install.CreatedAt) {
 							continue
@@ -2200,7 +2200,7 @@ func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 					}
 				}
 				hostIDs = append(hostIDs, hostID)
-			case install.NeedsConfigurationResend:
+			case install.NeedsResend:
 				// Re-send when a Fleet variable the configuration uses changed
 				hostIDs = append(hostIDs, hostID)
 			case version.ConfigurationUpdatedAt != nil && install.CreatedAt.Before(*version.ConfigurationUpdatedAt):

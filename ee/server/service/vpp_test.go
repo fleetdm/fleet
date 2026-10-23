@@ -1178,7 +1178,7 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 	flagLatestInstall := func(f *testAppStoreAppDatastore, hostID uint) {
 		for i := len(f.installs) - 1; i >= 0; i-- {
 			if f.installs[i].HostID == hostID {
-				f.installs[i].NeedsConfigurationResend = true
+				f.installs[i].NeedsResend = true
 				return
 			}
 		}

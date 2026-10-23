@@ -3876,7 +3876,7 @@ SELECT
 	h.id AS host_id,
 	latest.vpp_app_team_id,
 	latest.created_at,
-	latest.needs_configuration_resend
+	latest.needs_resend
 FROM
 	hosts h
 	CROSS JOIN (
@@ -3887,7 +3887,7 @@ FROM
 		WHERE vat.global_or_team_id = ?
 	) app
 	JOIN LATERAL (
-		SELECT hvsi.vpp_app_team_id, hvsi.created_at, hvsi.needs_configuration_resend
+		SELECT hvsi.vpp_app_team_id, hvsi.created_at, hvsi.needs_resend
 		FROM host_vpp_software_installs hvsi
 		WHERE
 			hvsi.host_id = h.id AND

@@ -18,10 +18,10 @@ func Up_20261021195658(tx *sql.Tx) error {
 		}
 	}
 
-	if !columnExists(tx, "host_vpp_software_installs", "needs_configuration_resend") {
-		_, err = tx.Exec(`ALTER TABLE host_vpp_software_installs ADD COLUMN needs_configuration_resend TINYINT(1) NOT NULL DEFAULT '0'`)
+	if !columnExists(tx, "host_vpp_software_installs", "needs_resend") {
+		_, err = tx.Exec(`ALTER TABLE host_vpp_software_installs ADD COLUMN needs_resend TINYINT(1) NOT NULL DEFAULT '0'`)
 		if err != nil {
-			return fmt.Errorf("adding needs_configuration_resend to host_vpp_software_installs: %w", err)
+			return fmt.Errorf("adding needs_resend to host_vpp_software_installs: %w", err)
 		}
 	}
 

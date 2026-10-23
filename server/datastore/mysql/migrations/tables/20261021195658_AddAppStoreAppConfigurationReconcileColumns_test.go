@@ -39,11 +39,11 @@ func TestUp_20261021195658(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, configurationUpdatedAt.Valid)
 
-	// read needs_configuration_resend of the existing install, it should be 0 so the cron doesn't send the install again
-	var needsConfigurationResend bool
-	err = db.Get(&needsConfigurationResend, `SELECT needs_configuration_resend FROM host_vpp_software_installs WHERE id = ?`, installID)
+	// read needs_resend of the existing install, it should be 0 so the cron doesn't send the install again
+	var needsResend bool
+	err = db.Get(&needsResend, `SELECT needs_resend FROM host_vpp_software_installs WHERE id = ?`, installID)
 	require.NoError(t, err)
-	require.False(t, needsConfigurationResend)
+	require.False(t, needsResend)
 
 	// read the variables linked to the iOS configuration, the local part variable and the UUID variable in braces should be linked but not the shorter username variable
 	var linkedVariables []string
