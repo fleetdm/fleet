@@ -1772,7 +1772,8 @@ None.
     "enable_analytics": true,
     "live_query_disabled": false,
     "query_reports_disabled": false,
-    "ai_features_disabled": false
+    "ai_features_disabled": false,
+    "mcp_disabled": false
   },
   "smtp_settings": {
     "enable_smtp": false,
@@ -2171,7 +2172,8 @@ Modifies the Fleet's configuration with the supplied information.
     "enable_analytics": true,
     "live_query_disabled": false,
     "query_reports_disabled": false,
-    "ai_features_disabled": false
+    "ai_features_disabled": false,
+    "mcp_disabled": false
   },
   "smtp_settings": {
     "enable_smtp": true,
@@ -2502,6 +2504,7 @@ Modifies the Fleet's configuration with the supplied information.
 | live_reporting_disabled           | boolean | Whether the live reporting capabilities are disabled.                                       |
 | discard_reports_data              | boolean | Whether storing report results are disabled.                                                |
 | ai_features_disabled              | boolean | Whether AI features are disabled.                                                           |
+| mcp_disabled                      | boolean | _Available in Fleet Premium._ Whether Fleet's built-in [MCP server](https://fleetdm.com/guides/fleet-mcp) is turned off. |
 | report_cap                        | integer | The maximum number of results to store per report before the report is clipped. If the number of hosts is higher than this cap, Fleet uses the number of hosts instead, so a report that returns one result per host is never clipped. If increasing this cap, we recommend enabling reports for one report at time and monitoring your infrastructure. (Default: `1000`) |
 
 > Note: If `server_url` changes, hosts that enrolled to the old URL will need to re-enroll, or they will no longer communicate with Fleet. Before re-enrolling Android hosts, you'll need to turn Android MDM off and back on to point Google to the new `server_url`.
@@ -2517,7 +2520,8 @@ Modifies the Fleet's configuration with the supplied information.
     "enable_analytics": true,
     "live_reporting_disabled": false,
     "discard_reports_data": false,
-    "ai_features_disabled": false
+    "ai_features_disabled": false,
+    "mcp_disabled": false
   }
 }
 ```
@@ -8339,6 +8343,76 @@ Deletes the label specified by ID.
 
 `Status: 200`
 
+
+---
+
+## MCP server
+
+- [Use Fleet's MCP server](#use-fleets-mcp-server)
+
+### Use Fleet's MCP server
+
+_Available in Fleet Premium._
+
+Connects an AI tool to Fleet's built-in [MCP server](https://fleetdm.com/guides/fleet-mcp). Point an MCP client at this URL, using the Streamable HTTP transport. The request body is an MCP JSON-RPC message.
+
+Only API-only users can use this endpoint. If the user is limited to specific API endpoints, each tool also needs the endpoints it calls. To turn the MCP server off, set `server_settings.mcp_disabled` with [Modify configuration](#modify-configuration).
+
+`POST /api/v1/fleet/mcp`
+
+#### Example
+
+`POST /api/v1/fleet/mcp`
+
+##### Request body
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/list"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "tools": [
+      {
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "description": "Get the total count of active systems enrolled in Fleet",
+        "inputSchema": {
+          "properties": {},
+          "required": [],
+          "type": "object"
+        },
+        "name": "get_total_system_count"
+      }
+    ]
+  }
+}
+```
+
+#### Errors
+
+| Status | Description |
+| ------ | ----------- |
+| 400    | The MCP server is turned off (`server_settings.mcp_disabled`). |
+| 401    | The API token is missing or invalid. |
+| 402    | Fleet Premium is required. |
+| 403    | The user isn't an API-only user, the user is limited to specific API endpoints that don't include this one, or the `Origin` header doesn't match `server_settings.server_url`. |
+| 405    | `GET` requests aren't supported. |
 
 ---
 
