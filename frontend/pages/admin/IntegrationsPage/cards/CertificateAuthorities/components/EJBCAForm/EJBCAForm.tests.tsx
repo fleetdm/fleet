@@ -158,7 +158,7 @@ describe("EJBCAForm", () => {
         <EJBCAForm {...editProps} onSubmit={noop} />
       );
 
-      expect(screen.getByText("January 1, 2099")).toBeVisible();
+      expect(screen.getByText(/expires on January 1, 2099/)).toBeVisible();
       expect(screen.queryByLabelText("Client certificate password")).toBeNull();
 
       await user.upload(getFileInput(container), p12File());
