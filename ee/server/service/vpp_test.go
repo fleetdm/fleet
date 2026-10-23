@@ -1074,6 +1074,12 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 						installByHostID[hostID] = install
 					}
 				}
+				install, installed := installByHostID[hostID]
+				queuedVersionID, queued := f.queuedVersionByHostID[hostID]
+				if installed && queued {
+					install.QueuedVPPAppTeamID = &queuedVersionID
+					installByHostID[hostID] = install
+				}
 			}
 			return map[uint]map[uint]fleet.HostVPPSoftwareInstall{1: installByHostID}, nil
 		}
@@ -1086,15 +1092,6 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 				}
 			}
 			return included, nil
-		}
-		f.ds.GetHostIDsWithUnactivatedVPPAppInstallFunc = func(ctx context.Context, vppAppTeamID uint, hostIDs []uint) (map[uint]struct{}, error) {
-			queued := make(map[uint]struct{})
-			for _, hostID := range hostIDs {
-				if versionID, ok := f.queuedVersionByHostID[hostID]; ok && versionID == vppAppTeamID {
-					queued[hostID] = struct{}{}
-				}
-			}
-			return queued, nil
 		}
 		f.ds.GetHostIDsWithRecentFailedVPPAppInstallFunc = func(ctx context.Context, vppAppTeamID uint, since time.Time, hostIDs []uint) (map[uint]struct{}, error) {
 			failed := make(map[uint]struct{})

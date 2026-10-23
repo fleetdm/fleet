@@ -3861,14 +3861,28 @@ func (ds *Datastore) ListHostAppStoreAppInstallVersions(ctx context.Context, fle
 
 	// Read the latest install of each app on each of the hosts that's still on the fleet and has the app in its inventory. Start
 	// from the hosts so only each host's latest installs are read, not the app's whole install history. Filter out failed
-	// installs since the host still has the version from the install before it.
+	// installs since the host still has the version from the install before it. Read the queued install in the same query, so
+	// an install activated while the cron runs shows up as either queued or installed.
 	const stmt = `
 SELECT
 	app.title_id,
 	h.id AS host_id,
 	latest.vpp_app_team_id,
 	latest.created_at,
-	latest.needs_resend
+	latest.needs_resend,
+	(
+		SELECT vaua.vpp_app_team_id
+		FROM
+			upcoming_activities ua
+			JOIN vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
+		WHERE
+			ua.host_id = h.id AND
+			ua.activated_at IS NULL AND
+			vaua.adam_id = app.adam_id AND
+			vaua.platform = app.platform
+		ORDER BY ua.created_at DESC, ua.id DESC
+		LIMIT 1
+	) AS queued_vpp_app_team_id
 FROM
 	hosts h
 	JOIN (
@@ -3963,41 +3977,6 @@ func (ds *Datastore) GetAppStoreAppConfigurationReconcileCursor(_ context.Contex
 // mysqlredis wrapper keeps it in Redis.
 func (ds *Datastore) SetAppStoreAppConfigurationReconcileCursor(_ context.Context, _ uint) error {
 	return nil
-}
-
-func (ds *Datastore) GetHostIDsWithUnactivatedVPPAppInstall(ctx context.Context, vppAppTeamID uint, hostIDs []uint) (map[uint]struct{}, error) {
-	if len(hostIDs) == 0 {
-		return map[uint]struct{}{}, nil
-	}
-
-	const stmt = `
-SELECT DISTINCT
-	ua.host_id
-FROM
-	upcoming_activities ua
-	JOIN vpp_app_upcoming_activities vaua ON vaua.upcoming_activity_id = ua.id
-WHERE
-	ua.host_id IN (?) AND
-	ua.activity_type = 'vpp_app_install' AND
-	ua.activated_at IS NULL AND
-	vaua.vpp_app_team_id = ?
-`
-	query, args, err := sqlx.In(stmt, hostIDs, vppAppTeamID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "build hosts with unactivated vpp app install query")
-	}
-	// Read the primary so a retried batch sees the installs it queued before it failed
-	var queuedHostIDs []uint
-	err = sqlx.SelectContext(ctx, ds.reader(ctxdb.RequirePrimary(ctx, true)), &queuedHostIDs, query, args...)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get hosts with unactivated vpp app install")
-	}
-
-	hostIDSet := make(map[uint]struct{}, len(queuedHostIDs))
-	for _, hostID := range queuedHostIDs {
-		hostIDSet[hostID] = struct{}{}
-	}
-	return hostIDSet, nil
 }
 
 func (ds *Datastore) GetHostIDsWithRecentFailedVPPAppInstall(ctx context.Context, vppAppTeamID uint, since time.Time, hostIDs []uint) (map[uint]struct{}, error) {

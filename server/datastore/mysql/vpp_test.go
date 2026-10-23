@@ -5392,11 +5392,7 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 		err = ds.InsertHostVPPSoftwareInstall(ctx, hostWithoutApp.ID, app.VPPAppID, uuid.NewString(), "event", fleet.HostSoftwareInstallOptions{VPPAppTeamID: app.AppTeamID})
 		require.NoError(t, err)
 
-		// get the hosts with an unactivated install, only the host whose install waits should be returned
 		allHostIDs := []uint{hostWithActivatedInstall.ID, hostWithUnactivatedInstall.ID, hostWithoutApp.ID}
-		unactivatedHostIDs, err := ds.GetHostIDsWithUnactivatedVPPAppInstall(ctx, app.AppTeamID, allHostIDs)
-		require.NoError(t, err)
-		require.Equal(t, map[uint]struct{}{hostWithUnactivatedInstall.ID: {}}, unactivatedHostIDs)
 
 		// add an iOS host without MDM, then list the iOS and iPadOS hosts with MDM on from the first host, only the three hosts with MDM on should be returned in id order with their fleet
 		test.NewHost(t, ds, "without-mdm-"+c.name, "", "without-mdm-"+c.name, "without-mdm-"+c.name, time.Now(), test.WithPlatform("ios"))
@@ -5419,7 +5415,7 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, map[uint]struct{}{hostWithActivatedInstall.ID: {}, hostWithoutApp.ID: {}}, includedHostIDs)
 
-		// add a second version of the app and get the hosts with an unactivated install of it, no host should be returned
+		// add a second version of the app, it should get its own version id
 		otherVersion, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 			Name:             "ResendApp",
 			BundleIdentifier: bundleID,
@@ -5429,9 +5425,6 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 		}, c.hostTeamID, nil)
 		require.NoError(t, err)
 		require.NotEqual(t, app.AppTeamID, otherVersion.AppTeamID)
-		unactivatedHostIDs, err = ds.GetHostIDsWithUnactivatedVPPAppInstall(ctx, otherVersion.AppTeamID, allHostIDs)
-		require.NoError(t, err)
-		require.Empty(t, unactivatedHostIDs)
 
 		// add a macOS version of the app and give the second version a label and a configuration, then get the fleet's iOS and iPadOS versions, only the two iOS versions should be returned first-added first
 		platforms := []fleet.InstallableDevicePlatform{fleet.IOSPlatform, fleet.IPadOSPlatform}
@@ -5465,12 +5458,13 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 		require.True(t, versions[1].HasLabels)
 		require.Equal(t, `<dict/>`, string(versions[1].Configuration))
 
-		// list the hosts' install versions, only the activated install on a host with the app in inventory should be returned
+		// list the hosts' install versions, only the activated install on a host with the app in inventory should be returned, with no queued install
 		installByHostIDByTitleID, err := ds.ListHostAppStoreAppInstallVersions(ctx, fleetID, allHostIDs, platforms)
 		require.NoError(t, err)
 		installByHostID := installByHostIDByTitleID[app.TitleID]
 		require.Len(t, installByHostID, 1)
 		require.Equal(t, new(app.AppTeamID), installByHostID[hostWithActivatedInstall.ID].VPPAppTeamID)
+		require.Nil(t, installByHostID[hostWithActivatedInstall.ID].QueuedVPPAppTeamID)
 		require.NotContains(t, installByHostID, hostWithoutApp.ID)
 
 		// verify the first version, then fail the MDM command for the other version, the host should be returned with the first version
@@ -5540,6 +5534,16 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 		installByHostID = installByHostIDByTitleID[app.TitleID]
 		require.Len(t, installByHostID, 1)
 		require.True(t, installByHostID[hostWithPendingInstall.ID].NeedsResend)
+
+		// queue an install of the other version on the host with a verified install of the first version, the host should be returned with the first version and the queued other version
+		err = ds.InsertHostVPPSoftwareInstall(ctx, hostWithFailedVerification.ID, app.VPPAppID, uuid.NewString(), "event", fleet.HostSoftwareInstallOptions{VPPAppTeamID: otherVersion.AppTeamID, DeferActivation: true})
+		require.NoError(t, err)
+		installByHostIDByTitleID, err = ds.ListHostAppStoreAppInstallVersions(ctx, fleetID, []uint{hostWithFailedVerification.ID}, platforms)
+		require.NoError(t, err)
+		installByHostID = installByHostIDByTitleID[app.TitleID]
+		require.Len(t, installByHostID, 1)
+		require.Equal(t, new(app.AppTeamID), installByHostID[hostWithFailedVerification.ID].VPPAppTeamID)
+		require.Equal(t, new(otherVersion.AppTeamID), installByHostID[hostWithFailedVerification.ID].QueuedVPPAppTeamID)
 
 		// get the hosts with a failed install of the other version in the last hour, the two hosts whose verification failed should be returned
 		failedHostIDs := []uint{hostWithPendingInstall.ID, hostWithFailedVerification.ID, hostWithOnlyFailedInstalls.ID}

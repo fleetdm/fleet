@@ -3590,8 +3590,8 @@ type Datastore interface {
 	GetAppStoreAppVersionsByFleet(ctx context.Context, fleetID uint, platforms []InstallableDevicePlatform) (map[uint][]*VPPAppStoreApp, error)
 
 	// ListHostAppStoreAppInstallVersions returns, for each App Store app of the platforms on the fleet and each of hostIDs that's on
-	// the fleet and whose inventory has the app, its latest install of the app that didn't fail, indexed by software title id and
-	// then host id.
+	// the fleet and whose inventory has the app, its latest install of the app that didn't fail and the version of its newest queued
+	// install of the app, indexed by software title id and then host id.
 	ListHostAppStoreAppInstallVersions(ctx context.Context, fleetID uint, hostIDs []uint, platforms []InstallableDevicePlatform) (map[uint]map[uint]HostVPPSoftwareInstall, error)
 
 	// ListIOSAndIPadOSMDMHostsAfterID returns up to limit iOS and iPadOS hosts with MDM on whose id is after afterHostID,
@@ -3605,10 +3605,6 @@ type Datastore interface {
 	// SetAppStoreAppConfigurationReconcileCursor sets the id of the last host the App Store app configuration reconciler cron
 	// checked. 0 starts the next run from the first host.
 	SetAppStoreAppConfigurationReconcileCursor(ctx context.Context, cursor uint) error
-
-	// GetHostIDsWithUnactivatedVPPAppInstall returns the hosts among hostIDs that have an install of the App Store app
-	// version waiting in the upcoming activities queue that hasn't activated yet.
-	GetHostIDsWithUnactivatedVPPAppInstall(ctx context.Context, vppAppTeamID uint, hostIDs []uint) (map[uint]struct{}, error)
 
 	// GetHostIDsWithRecentFailedVPPAppInstall returns the hosts among hostIDs that have a failed install of the App Store
 	// app version created at or after since.

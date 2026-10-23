@@ -1956,8 +1956,6 @@ type GetAppStoreAppConfigurationReconcileCursorFunc func(ctx context.Context) (u
 
 type SetAppStoreAppConfigurationReconcileCursorFunc func(ctx context.Context, cursor uint) error
 
-type GetHostIDsWithUnactivatedVPPAppInstallFunc func(ctx context.Context, vppAppTeamID uint, hostIDs []uint) (map[uint]struct{}, error)
-
 type GetHostIDsWithRecentFailedVPPAppInstallFunc func(ctx context.Context, vppAppTeamID uint, since time.Time, hostIDs []uint) (map[uint]struct{}, error)
 
 type GetSummaryHostSoftwareInstallsFunc func(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error)
@@ -5520,9 +5518,6 @@ type DataStore struct {
 
 	SetAppStoreAppConfigurationReconcileCursorFunc        SetAppStoreAppConfigurationReconcileCursorFunc
 	SetAppStoreAppConfigurationReconcileCursorFuncInvoked bool
-
-	GetHostIDsWithUnactivatedVPPAppInstallFunc        GetHostIDsWithUnactivatedVPPAppInstallFunc
-	GetHostIDsWithUnactivatedVPPAppInstallFuncInvoked bool
 
 	GetHostIDsWithRecentFailedVPPAppInstallFunc        GetHostIDsWithRecentFailedVPPAppInstallFunc
 	GetHostIDsWithRecentFailedVPPAppInstallFuncInvoked bool
@@ -13283,13 +13278,6 @@ func (s *DataStore) SetAppStoreAppConfigurationReconcileCursor(ctx context.Conte
 	s.SetAppStoreAppConfigurationReconcileCursorFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetAppStoreAppConfigurationReconcileCursorFunc(ctx, cursor)
-}
-
-func (s *DataStore) GetHostIDsWithUnactivatedVPPAppInstall(ctx context.Context, vppAppTeamID uint, hostIDs []uint) (map[uint]struct{}, error) {
-	s.mu.Lock()
-	s.GetHostIDsWithUnactivatedVPPAppInstallFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetHostIDsWithUnactivatedVPPAppInstallFunc(ctx, vppAppTeamID, hostIDs)
 }
 
 func (s *DataStore) GetHostIDsWithRecentFailedVPPAppInstall(ctx context.Context, vppAppTeamID uint, since time.Time, hostIDs []uint) (map[uint]struct{}, error) {

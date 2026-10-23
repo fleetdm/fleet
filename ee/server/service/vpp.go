@@ -2160,7 +2160,6 @@ func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 	// Go through the versions in the order they were added, so each host gets the first version it's in scope for
 	hostIDsWithoutVersion := slices.Collect(maps.Keys(installByHostID))
 	var includedHostIDs map[uint]struct{}
-	var hostIDsWithQueuedInstall map[uint]struct{}
 	var hostIDsWithRecentFailedInstall map[uint]struct{}
 	var vppApp *fleet.VPPApp
 	for _, version := range versions {
@@ -2188,6 +2187,10 @@ func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 		var hostIDs []uint
 		for hostID := range includedHostIDs {
 			install := installByHostID[hostID]
+			// Leave the host to its queued install of this version, which reads the current configuration when it activates
+			if ptr.Equal(install.QueuedVPPAppTeamID, &version.VPPAppsTeamsID) {
+				continue
+			}
 			switch {
 			case !ptr.Equal(install.VPPAppTeamID, &version.VPPAppsTeamsID):
 				// Re-send when the host's latest install is of another version, unless both versions have the same configuration
@@ -2213,11 +2216,6 @@ func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 			continue
 		}
 
-		hostIDsWithQueuedInstall, err = ds.GetHostIDsWithUnactivatedVPPAppInstall(ctx, version.VPPAppsTeamsID, hostIDs)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "get hosts with a queued install of app store app version %d", version.VPPAppsTeamsID)
-		}
-
 		// Wait before retrying an install of this version that failed after its configuration last changed, counting a failure in the same second as the change as after it
 		failedSince := time.Now().Add(-fleet.VPPAutomaticInstallWaitSeconds * time.Second)
 		if version.ConfigurationUpdatedAt != nil && version.ConfigurationUpdatedAt.After(failedSince) {
@@ -2237,9 +2235,6 @@ func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 			return ctxerr.Wrapf(ctx, err, "get app store app version %d", version.VPPAppsTeamsID)
 		}
 		for _, hostID := range hostIDs {
-			if _, queued := hostIDsWithQueuedInstall[hostID]; queued {
-				continue
-			}
 			if _, failed := hostIDsWithRecentFailedInstall[hostID]; failed {
 				continue
 			}
