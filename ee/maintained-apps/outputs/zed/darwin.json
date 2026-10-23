@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.24.4",
+      "version": "1.25.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'dev.zed.Zed';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dev.zed.Zed' AND version_compare(bundle_short_version, '1.24.4') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dev.zed.Zed' AND version_compare(bundle_short_version, '1.25.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'dev.zed.Zed' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/zed-industries/zed/releases/download/v1.24.4/Zed-aarch64.dmg",
+      "installer_url": "https://github.com/zed-industries/zed/releases/download/v1.25.2/Zed-aarch64.dmg",
       "install_script_ref": "97922b49",
       "uninstall_script_ref": "0436e2d8",
-      "sha256": "fda9ce886dbb4860fb366c647d4c6407bed95a288b45dd43cc59732ef21d8670",
+      "sha256": "c427b19bb0d55f5bd99391b21e7bda0dcf892abd80dbc020ef645c9d86457940",
       "default_categories": [
         "Developer tools"
       ]

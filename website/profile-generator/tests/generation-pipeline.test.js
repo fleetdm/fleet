@@ -84,6 +84,49 @@ describe('configuration profile generation pipeline', function() {
   };
   let declaration = JSON.stringify({ Type: 'com.apple.configuration.passcode.settings', Identifier: 'passcode', Payload: { MinimumLength: 8 } });
 
+  describe('writes a .mobileconfig from the payload settings the model returns', function() {
+
+    it('fails a generation whose settings cannot be written, even when the model also wrote a document of its own', async function() {
+      let ownDocument = { configurationProfile: '<?xml version="1.0"?><plist version="1.0"><dict/></plist>', settingsEnforced: [{ name: 'allowCamera', value: 'disabled' }] };
+      generationOutcomes = [_.extend({ profileFilename: 'camera.mobileconfig', deliveryNotes: '', payloads: [{ payloadType: 'com.apple.applicationaccess', settings: { allowCamera: 'disabled' } }] }, ownDocument)];
+      let result = await generate('mobileconfig');
+      assert.strictEqual(result.couldNotGenerateProfile, true);
+      assert.ok(/allowCamera takes true or false/.test(result.reasonWhyAProfileCouldNotBeGenerated), result.reasonWhyAProfileCouldNotBeGenerated);
+      generationOutcomes = [{ profileFilename: 'scan.xml', deliveryNotes: '', commands: [{ verb: 'Exec', locURI: './Device/Vendor/MSFT/Defender/Scan/Quick' }], configurationProfile: '<Exec><Item><Target><LocURI>./Device/Vendor/MSFT/Defender/Scan/Quick</LocURI></Target></Item></Exec>', settingsEnforced: [{ name: 'Scan/Quick', value: '' }] }];
+      let windows = await generate('csp');
+      assert.strictEqual(windows.couldNotGenerateProfile, true);
+      assert.ok(/runs a one-time command/.test(windows.reasonWhyAProfileCouldNotBeGenerated), windows.reasonWhyAProfileCouldNotBeGenerated);
+    });
+
+    it('ends the root PayloadIdentifier with a segment that differs between two generations of the same request', async function() {
+      let settingsResponse = { profileFilename: 'camera.mobileconfig', profileDisplayName: 'Camera Disabled', deliveryNotes: '', payloads: [{ payloadType: 'com.apple.applicationaccess', settings: { allowCamera: false } }] };
+      generationOutcomes = [settingsResponse, settingsResponse];
+      let rootIdentifiers = [];
+      for (let generation of [await generate('mobileconfig'), await generate('mobileconfig')]) {
+        assert.strictEqual(generation.couldNotGenerateProfile, false);
+        let identifiers = Array.from(generation.generatedProfile.profile.matchAll(/<key>PayloadIdentifier<\/key>\s*<string>([^<]*)<\/string>/g), (match)=>{ return match[1]; });
+        let root = _.find(identifiers, (identifier)=>{ return /^com\.example\.camera\.[0-9a-f]{8}$/.test(identifier); });
+        assert.ok(root, identifiers.join(', '));
+        rootIdentifiers.push(root);
+      }
+      assert.notStrictEqual(rootIdentifiers[0], rootIdentifiers[1]);
+    });
+
+  });
+
+  describe('takes a platform from Fleet in place of a profile type', function() {
+
+    it('generates a Windows CSP profile for the windows platform', async function() {
+      generationOutcomes = [{ profileFilename: 'camera.xml', deliveryNotes: '', commands: [{ verb: 'Replace', locURI: './Device/Vendor/MSFT/Policy/Config/Camera/AllowCamera', data: 0 }] }];
+      let result = await sails.helpers.generateConfigurationProfile.with({ platform: 'windows', forFleet: true, naturalLanguageInstructions: 'Turn off the camera' });
+      assert.strictEqual(result.couldNotGenerateProfile, false, result.reasonWhyAProfileCouldNotBeGenerated);
+      assert.strictEqual(result.profileType, 'csp');
+      assert.deepStrictEqual(result.windowsCspAreasProvided, ['Storage']);
+      assert.ok(/<LocURI>\.\/Device\/Vendor\/MSFT\/Policy\/Config\/Camera\/AllowCamera<\/LocURI>/.test(result.generatedProfile.profile), result.generatedProfile.profile);
+    });
+
+  });
+
   describe('checks that the content is the kind of profile that was asked for', function() {
 
     it('rejects prose as a Windows profile', async function() {
@@ -122,6 +165,24 @@ describe('configuration profile generation pipeline', function() {
       let result = await generate('ddm');
       assert.strictEqual(result.couldNotGenerateProfile, false);
     });
+
+  });
+
+  describe('keeps links out of a decline reason', function() {
+
+    for (let [reason, expected] of [
+      ['Edge has no CSP nodes. See https://learn.microsoft.com/en-us/deployedge/ for its ADMX templates.', 'Edge has no CSP nodes. See for its ADMX templates.'],
+      ['Use the [Edge ADMX templates](https://learn.microsoft.com/deployedge) instead.', 'Use the Edge ADMX templates instead.'],
+      ['No such setting (www.example.com).', 'No such setting.'],
+      ['No such setting.', 'No such setting.'],
+    ]) {
+      it(JSON.stringify(reason), async function() {
+        generationOutcomes = [{ couldNotGenerateProfile: true, reasonWhyAProfileCouldNotBeGenerated: reason }];
+        let result = await generate('csp');
+        assert.strictEqual(result.couldNotGenerateProfile, true);
+        assert.strictEqual(result.reasonWhyAProfileCouldNotBeGenerated, expected);
+      });
+    }
 
   });
 
