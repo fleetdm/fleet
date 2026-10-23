@@ -146,6 +146,7 @@ jobs:
         if: steps.check.outputs.update_needed == 'true'
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
+          token: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
           base: main
           branch: update-docker-base-image-${{ steps.check.outputs.image }}-${{ steps.check.outputs.new_version }}
           delete-branch: true
