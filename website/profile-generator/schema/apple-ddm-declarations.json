@@ -1,6 +1,7 @@
 {
-  "generatedAt": "2026-09-30T18:47:16.683Z",
-  "source": "https://github.com/apple/device-management/tree/release/declarative/declarations/configurations",
+  "generatedAt": "2026-10-15T13:23:46.980Z",
+  "source": "https://github.com/apple/device-management/tree/09f249a06e7e3289930bf6d05f38fb562f748ebf/declarative/declarations/configurations",
+  "sourceCommit": "09f249a06e7e3289930bf6d05f38fb562f748ebf",
   "entries": [
     {
       "name": "com.apple.configuration.accessibility.settings",
@@ -12,6 +13,23 @@
         "macOS",
         "visionOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "27.0"
+        },
+        "macOS": {
+          "introduced": "27.0"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "27.0"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "Vision",
@@ -38,6 +56,23 @@
         "macOS",
         "visionOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "15.0"
+        },
+        "macOS": {
+          "introduced": "13.0"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "1.1"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "VisibleName",
@@ -77,6 +112,23 @@
         "macOS",
         "visionOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "15.0"
+        },
+        "macOS": {
+          "introduced": "13.0"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "1.1"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "VisibleName",
@@ -116,6 +168,23 @@
         "macOS",
         "visionOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "15.0"
+        },
+        "macOS": {
+          "introduced": "13.0"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "1.1"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "VisibleName",
@@ -153,27 +222,112 @@
         {
           "key": "Port",
           "type": "integer",
-          "description": "The port number of the EWS server. The system uses this only when this declaration has a HostName value. Applicable for \"EWS\" only."
+          "description": "The port number of the EWS server. The system uses this only when this declaration has a HostName value. Applicable for \"EWS\" only.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "n/a"
+            },
+            "macOS": {
+              "introduced": "13.0"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "Path",
           "type": "string",
-          "description": "The path of the EWS server. The system uses this only when this declaration has a HostName value. Applicable for \"EWS\" only."
+          "description": "The path of the EWS server. The system uses this only when this declaration has a HostName value. Applicable for \"EWS\" only.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "n/a"
+            },
+            "macOS": {
+              "introduced": "13.0"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "ExternalHostName",
           "type": "string",
-          "description": "The external hostname of the EWS server (or IP address). Applicable for \"EWS\" only."
+          "description": "The external hostname of the EWS server (or IP address). Applicable for \"EWS\" only.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "n/a"
+            },
+            "macOS": {
+              "introduced": "13.0"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "ExternalPort",
           "type": "integer",
-          "description": "The external port number of the EWS server. The system uses this only when this declaration has an ExternalHostName value. Applicable for \"EWS\" only."
+          "description": "The external port number of the EWS server. The system uses this only when this declaration has an ExternalHostName value. Applicable for \"EWS\" only.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "n/a"
+            },
+            "macOS": {
+              "introduced": "13.0"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "External Path",
           "type": "string",
-          "description": "The external path of the EWS server. The system uses this only when this declaration has an ExternalHostName value. Applicable for \"EWS\" only."
+          "description": "The external path of the EWS server. The system uses this only when this declaration has an ExternalHostName value. Applicable for \"EWS\" only.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "n/a"
+            },
+            "macOS": {
+              "introduced": "13.0"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "OAuth",
@@ -194,7 +348,24 @@
             {
               "key": "TokenRequestURL",
               "type": "string",
-              "description": "The URL that this account uses for token requests with OAuth. The system ignores this value unless Enabled is true. Applicable for \"EAS\" only."
+              "description": "The URL that this account uses for token requests with OAuth. The system ignores this value unless Enabled is true. Applicable for \"EAS\" only.",
+              "supportedOS": {
+                "iOS": {
+                  "introduced": "15.0"
+                },
+                "macOS": {
+                  "introduced": "n/a"
+                },
+                "tvOS": {
+                  "introduced": "n/a"
+                },
+                "visionOS": {
+                  "introduced": "1.1"
+                },
+                "watchOS": {
+                  "introduced": "n/a"
+                }
+              }
             }
           ]
         },
@@ -212,6 +383,23 @@
           "key": "SMIME",
           "type": "dictionary",
           "description": "Settings for S/MIME. Applicable for \"EAS\" only.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "17.0"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "1.1"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          },
           "subkeys": [
             {
               "key": "Signing",
@@ -291,7 +479,24 @@
           "key": "LockMailService",
           "type": "boolean",
           "default": false,
-          "description": "If true, the system prevents the user from changing the status of the mail service for this account. Applicable for \"EAS\" only."
+          "description": "If true, the system prevents the user from changing the status of the mail service for this account. Applicable for \"EAS\" only.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "15.0"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "1.1"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "ContactsServiceActive",
@@ -303,7 +508,24 @@
           "key": "LockContactsService",
           "type": "boolean",
           "default": false,
-          "description": "If true, the system prevents the user from changing the status of the address book service for this account. Applicable for \"EAS\" only."
+          "description": "If true, the system prevents the user from changing the status of the address book service for this account. Applicable for \"EAS\" only.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "15.0"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "1.1"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "CalendarServiceActive",
@@ -315,7 +537,24 @@
           "key": "LockCalendarService",
           "type": "boolean",
           "default": false,
-          "description": "If true, the system prevents the user from changing the status of the calendar service for this account. Applicable for \"EAS\" only."
+          "description": "If true, the system prevents the user from changing the status of the calendar service for this account. Applicable for \"EAS\" only.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "15.0"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "1.1"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "RemindersServiceActive",
@@ -327,7 +566,24 @@
           "key": "LockRemindersService",
           "type": "boolean",
           "default": false,
-          "description": "If true, the system prevents the user from changing the status of the reminders service for this account. Applicable for \"EAS\" only."
+          "description": "If true, the system prevents the user from changing the status of the reminders service for this account. Applicable for \"EAS\" only.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "15.0"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "1.1"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "NotesServiceActive",
@@ -339,7 +595,24 @@
           "key": "LockNotesService",
           "type": "boolean",
           "default": false,
-          "description": "If true, the system prevents the user from changing the status of the notes service for this account. Applicable for \"EAS\" only."
+          "description": "If true, the system prevents the user from changing the status of the notes service for this account. Applicable for \"EAS\" only.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "15.0"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "1.1"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         }
       ]
     },
@@ -353,6 +626,23 @@
         "macOS",
         "visionOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "15.0"
+        },
+        "macOS": {
+          "introduced": "13.0"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "1.1"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "VisibleName",
@@ -377,6 +667,23 @@
         "macOS",
         "visionOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "15.0"
+        },
+        "macOS": {
+          "introduced": "13.0"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "1.1"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "VisibleName",
@@ -448,6 +755,23 @@
         "macOS",
         "visionOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "15.0"
+        },
+        "macOS": {
+          "introduced": "13.0"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "1.1"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "VisibleName",
@@ -554,6 +878,23 @@
           "key": "SMIME",
           "type": "dictionary",
           "description": "Settings for S/MIME.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "17.0"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "1.1"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          },
           "subkeys": [
             {
               "key": "Signing",
@@ -635,6 +976,23 @@
         "macOS",
         "visionOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "15.0"
+        },
+        "macOS": {
+          "introduced": "14.0"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "1.1"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "VisibleName",
@@ -664,6 +1022,23 @@
         "macOS",
         "visionOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "17.2"
+        },
+        "macOS": {
+          "introduced": "26.0"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "2.4"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "AppStoreID",
@@ -678,19 +1053,70 @@
         {
           "key": "ManifestURL",
           "type": "string",
-          "description": "The URL of the manifest for the managed app that the device downloads from a web site. The manifest is a ManifestURL property list. Only one of AppStoreID, BundleID, ManifestURL, or AppComposedIdentifier needs to be present."
+          "description": "The URL of the manifest for the managed app that the device downloads from a web site. The manifest is a ManifestURL property list. Only one of AppStoreID, BundleID, ManifestURL, or AppComposedIdentifier needs to be present.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "17.2"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "2.4"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "AppComposedIdentifier",
           "type": "string",
           "gloss": "The device uses this to take over management of an app installed by some other process, for example installed manually by the user, or via a package configuration. For example, \"com.example.app\" for the bundle ID format, or \"com.example.app (ABCD1234)\" for…",
-          "description": "A string that specifies the composed identifier of an existing app that needs to be managed. The following rules apply when the device takes over management: - If the InstallBehavior.Install key is set to Required, the device takes over management of the app."
+          "description": "A string that specifies the composed identifier of an existing app that needs to be managed. The following rules apply when the device takes over management: - If the InstallBehavior.Install key is set to Required, the device takes over management of the app.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "n/a"
+            },
+            "macOS": {
+              "introduced": "26.0"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "iOSApp",
           "type": "boolean",
           "default": false,
-          "description": "If true, the device installs an iOS or iPadOS app that runs on a Mac with Apple silicon. This is only used when the app is an App Store app."
+          "description": "If true, the device installs an iOS or iPadOS app that runs on a Mac with Apple silicon. This is only used when the app is an App Store app.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "n/a"
+            },
+            "macOS": {
+              "introduced": "26.0"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "InstallBehavior",
@@ -726,7 +1152,24 @@
             {
               "key": "Version",
               "type": "integer",
-              "description": "The App Store external version identifier (EVID) of the version of the app the device installs. You can retrieve this value from the App Store."
+              "description": "The App Store external version identifier (EVID) of the version of the app the device installs. You can retrieve this value from the App Store.",
+              "supportedOS": {
+                "iOS": {
+                  "introduced": "26.0"
+                },
+                "macOS": {
+                  "introduced": "26.0"
+                },
+                "tvOS": {
+                  "introduced": "n/a"
+                },
+                "visionOS": {
+                  "introduced": "26.0"
+                },
+                "watchOS": {
+                  "introduced": "n/a"
+                }
+              }
             },
             {
               "key": "AllowDownloadsOverCellular",
@@ -737,7 +1180,24 @@
                 "StoreSettings"
               ],
               "default": "StoreSettings",
-              "description": "Indicates how the device uses a cellular network when it downloads the app for automatic install or update operations: - AlwaysOn: The device…"
+              "description": "Indicates how the device uses a cellular network when it downloads the app for automatic install or update operations: - AlwaysOn: The device…",
+              "supportedOS": {
+                "iOS": {
+                  "introduced": "26.0"
+                },
+                "macOS": {
+                  "introduced": "n/a"
+                },
+                "tvOS": {
+                  "introduced": "n/a"
+                },
+                "visionOS": {
+                  "introduced": "n/a"
+                },
+                "watchOS": {
+                  "introduced": "n/a"
+                }
+              }
             }
           ]
         },
@@ -745,6 +1205,23 @@
           "key": "UpdateBehavior",
           "type": "dictionary",
           "description": "A dictionary that specifies how the device updates apps.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "26.0"
+            },
+            "macOS": {
+              "introduced": "26.0"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "26.0"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          },
           "subkeys": [
             {
               "key": "AutomaticAppUpdates",
@@ -763,12 +1240,46 @@
           "key": "IncludeInBackup",
           "type": "boolean",
           "default": true,
-          "description": "If true, backups contain the app and its data."
+          "description": "If true, backups contain the app and its data.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "17.2"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "2.4"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "Attributes",
           "type": "dictionary",
           "description": "A dictionary of values to associate with the app.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "17.2"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "2.4"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          },
           "subkeys": [
             {
               "key": "AssociatedDomains",
@@ -792,7 +1303,24 @@
             {
               "key": "CellularSliceUUID",
               "type": "string",
-              "description": "The cellular slice identifier, which can be the data network name (DNN) or app category."
+              "description": "The cellular slice identifier, which can be the data network name (DNN) or app category.",
+              "supportedOS": {
+                "iOS": {
+                  "introduced": "17.2"
+                },
+                "macOS": {
+                  "introduced": "n/a"
+                },
+                "tvOS": {
+                  "introduced": "n/a"
+                },
+                "visionOS": {
+                  "introduced": "n/a"
+                },
+                "watchOS": {
+                  "introduced": "n/a"
+                }
+              }
             },
             {
               "key": "ContentFilterUUID",
@@ -808,13 +1336,47 @@
               "key": "Hideable",
               "type": "boolean",
               "default": true,
-              "description": "If false, the system prevents the user from hiding the app."
+              "description": "If false, the system prevents the user from hiding the app.",
+              "supportedOS": {
+                "iOS": {
+                  "introduced": "18.1"
+                },
+                "macOS": {
+                  "introduced": "n/a"
+                },
+                "tvOS": {
+                  "introduced": "n/a"
+                },
+                "visionOS": {
+                  "introduced": "n/a"
+                },
+                "watchOS": {
+                  "introduced": "n/a"
+                }
+              }
             },
             {
               "key": "Lockable",
               "type": "boolean",
               "default": true,
-              "description": "If false, the system prevents the user from locking the app. This also prevents the user from hiding the app."
+              "description": "If false, the system prevents the user from locking the app. This also prevents the user from hiding the app.",
+              "supportedOS": {
+                "iOS": {
+                  "introduced": "18.1"
+                },
+                "macOS": {
+                  "introduced": "n/a"
+                },
+                "tvOS": {
+                  "introduced": "n/a"
+                },
+                "visionOS": {
+                  "introduced": "n/a"
+                },
+                "watchOS": {
+                  "introduced": "n/a"
+                }
+              }
             },
             {
               "key": "RelayUUID",
@@ -826,7 +1388,24 @@
               "type": "boolean",
               "default": false,
               "gloss": "If true, the device automatically locks after every transaction that requires a customer's card PIN. If false, the user can choose the behavior.",
-              "description": "If true, the device automatically locks after every transaction that requires a customer's card PIN. If false, the user can choose the behavior."
+              "description": "If true, the device automatically locks after every transaction that requires a customer's card PIN. If false, the user can choose the behavior.",
+              "supportedOS": {
+                "iOS": {
+                  "introduced": "17.2"
+                },
+                "macOS": {
+                  "introduced": "n/a"
+                },
+                "tvOS": {
+                  "introduced": "n/a"
+                },
+                "visionOS": {
+                  "introduced": "n/a"
+                },
+                "watchOS": {
+                  "introduced": "n/a"
+                }
+              }
             },
             {
               "key": "VPNUUID",
@@ -839,6 +1418,23 @@
           "key": "AppConfig",
           "type": "dictionary",
           "description": "A dictionary of app config data and credentials.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "18.4"
+            },
+            "macOS": {
+              "introduced": "27.0"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "2.4"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          },
           "subkeys": [
             {
               "key": "DataAssetReference",
@@ -932,6 +1528,23 @@
           "key": "ExtensionConfigs",
           "type": "dictionary",
           "description": "A dictionary of extension config data and credentials.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "18.4"
+            },
+            "macOS": {
+              "introduced": "27.0"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "2.4"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          },
           "subkeys": [
             {
               "key": "ANY",
@@ -943,7 +1556,24 @@
         {
           "key": "LegacyAppConfigAssetReference",
           "type": "string",
-          "description": "The identifier of an asset declaration containing a reference to the app config data."
+          "description": "The identifier of an asset declaration containing a reference to the app config data.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "18.4"
+            },
+            "macOS": {
+              "introduced": "27.0"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "2.4"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         }
       ]
     },
@@ -958,6 +1588,23 @@
         "tvOS",
         "visionOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "27.0"
+        },
+        "macOS": {
+          "introduced": "27.0"
+        },
+        "tvOS": {
+          "introduced": "27.0"
+        },
+        "visionOS": {
+          "introduced": "27.0"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "Allowed",
@@ -968,6 +1615,23 @@
               "key": "AllowedApps",
               "type": "array",
               "description": "If present, the device only shows or launches apps with bundle IDs in the array. Include the value com.apple.webapp to allow all webclips.",
+              "supportedOS": {
+                "iOS": {
+                  "introduced": "27.0"
+                },
+                "macOS": {
+                  "introduced": "n/a"
+                },
+                "tvOS": {
+                  "introduced": "27.0"
+                },
+                "visionOS": {
+                  "introduced": "27.0"
+                },
+                "watchOS": {
+                  "introduced": "n/a"
+                }
+              },
               "subkeys": [
                 {
                   "key": "AppIdentifier",
@@ -981,12 +1645,46 @@
               "key": "DeniedApps",
               "type": "array",
               "gloss": "For example, denying the App Store app may prevent users from accepting the terms and conditions for the user-based Volume Purchase Program (VPP).",
-              "description": "If present, the device prevents showing or launching apps with bundle IDs in the array. Include the value com.apple.webapp to restrict all webclips."
+              "description": "If present, the device prevents showing or launching apps with bundle IDs in the array. Include the value com.apple.webapp to restrict all webclips.",
+              "supportedOS": {
+                "iOS": {
+                  "introduced": "27.0"
+                },
+                "macOS": {
+                  "introduced": "n/a"
+                },
+                "tvOS": {
+                  "introduced": "27.0"
+                },
+                "visionOS": {
+                  "introduced": "27.0"
+                },
+                "watchOS": {
+                  "introduced": "n/a"
+                }
+              }
             },
             {
               "key": "AllowedBinaries",
               "type": "array",
               "description": "If present, the device only allows binaries that match the binary identifier properties to run.",
+              "supportedOS": {
+                "iOS": {
+                  "introduced": "n/a"
+                },
+                "macOS": {
+                  "introduced": "27.0"
+                },
+                "tvOS": {
+                  "introduced": "n/a"
+                },
+                "visionOS": {
+                  "introduced": "n/a"
+                },
+                "watchOS": {
+                  "introduced": "n/a"
+                }
+              },
               "subkeys": [
                 {
                   "key": "BinaryIdentifier",
@@ -1035,13 +1733,47 @@
             {
               "key": "DeniedBinaries",
               "type": "array",
-              "description": "If present, the device doesn't allow binaries that match the binary identifier properties to run."
+              "description": "If present, the device doesn't allow binaries that match the binary identifier properties to run.",
+              "supportedOS": {
+                "iOS": {
+                  "introduced": "n/a"
+                },
+                "macOS": {
+                  "introduced": "27.0"
+                },
+                "tvOS": {
+                  "introduced": "n/a"
+                },
+                "visionOS": {
+                  "introduced": "n/a"
+                },
+                "watchOS": {
+                  "introduced": "n/a"
+                }
+              }
             },
             {
               "key": "AlwaysAllowManagedApps",
               "type": "boolean",
               "default": false,
-              "description": "If true, the device implicitly includes managed apps in the effective allow list when AllowedBinaries is present."
+              "description": "If true, the device implicitly includes managed apps in the effective allow list when AllowedBinaries is present.",
+              "supportedOS": {
+                "iOS": {
+                  "introduced": "n/a"
+                },
+                "macOS": {
+                  "introduced": "27.0"
+                },
+                "tvOS": {
+                  "introduced": "n/a"
+                },
+                "visionOS": {
+                  "introduced": "n/a"
+                },
+                "watchOS": {
+                  "introduced": "n/a"
+                }
+              }
             }
           ]
         },
@@ -1049,6 +1781,23 @@
           "key": "Privacy",
           "type": "dictionary",
           "description": "The dictionary of app settings.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "27.0"
+            },
+            "macOS": {
+              "introduced": "27.0"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          },
           "subkeys": [
             {
               "key": "PermissionDefaults",
@@ -1073,7 +1822,24 @@
                         "None",
                         "Allow"
                       ],
-                      "description": "Controls whether an app privacy permission default is set. * None: No app privacy permission default is set for use of accessibility."
+                      "description": "Controls whether an app privacy permission default is set. * None: No app privacy permission default is set for use of accessibility.",
+                      "supportedOS": {
+                        "iOS": {
+                          "introduced": "n/a"
+                        },
+                        "macOS": {
+                          "introduced": "27.0"
+                        },
+                        "tvOS": {
+                          "introduced": "n/a"
+                        },
+                        "visionOS": {
+                          "introduced": "n/a"
+                        },
+                        "watchOS": {
+                          "introduced": "n/a"
+                        }
+                      }
                     },
                     {
                       "key": "Bluetooth",
@@ -1129,7 +1895,24 @@
                         "Approximate",
                         "Precise"
                       ],
-                      "description": "Controls whether an app privacy permission default is set. * None: No app privacy permission default is set for access to precise location."
+                      "description": "Controls whether an app privacy permission default is set. * None: No app privacy permission default is set for access to precise location.",
+                      "supportedOS": {
+                        "iOS": {
+                          "introduced": "27.0"
+                        },
+                        "macOS": {
+                          "introduced": "n/a"
+                        },
+                        "tvOS": {
+                          "introduced": "n/a"
+                        },
+                        "visionOS": {
+                          "introduced": "n/a"
+                        },
+                        "watchOS": {
+                          "introduced": "n/a"
+                        }
+                      }
                     },
                     {
                       "key": "Microphone",
@@ -1156,6 +1939,23 @@
       "platforms": [
         "iOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "26.0"
+        },
+        "macOS": {
+          "introduced": "n/a"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "n/a"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "TemporaryPairing",
@@ -1212,6 +2012,23 @@
       "platforms": [
         "macOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "n/a"
+        },
+        "macOS": {
+          "introduced": "27.0"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "n/a"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "AllowCacheDelete",
@@ -1447,6 +2264,23 @@
       "platforms": [
         "macOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "n/a"
+        },
+        "macOS": {
+          "introduced": "15.0"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "n/a"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "Restrictions",
@@ -1487,6 +2321,23 @@
         "macOS",
         "visionOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "27.0"
+        },
+        "macOS": {
+          "introduced": "27.0"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "27.0"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "ExtensionComposedIdentifier",
@@ -1575,6 +2426,23 @@
           "key": "PlatformSSO",
           "type": "dictionary",
           "description": "The dictionary to configure Platform SSO.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "n/a"
+            },
+            "macOS": {
+              "introduced": "27.0"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          },
           "subkeys": [
             {
               "key": "AuthenticationMethod",
@@ -1930,6 +2798,23 @@
         "macOS",
         "visionOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "26.4"
+        },
+        "macOS": {
+          "introduced": "26.4"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "26.4"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "Enabled",
@@ -1966,6 +2851,23 @@
         "macOS",
         "visionOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "26.4"
+        },
+        "macOS": {
+          "introduced": "26.4"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "26.4"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "AllowAppleIntelligenceReport",
@@ -1989,25 +2891,94 @@
           "key": "AllowImageWand",
           "type": "boolean",
           "default": true,
-          "description": "If false, disables Image Wand."
+          "description": "If false, disables Image Wand.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "26.4"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "26.4"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "AllowPersonalizedHandwritingResults",
           "type": "boolean",
           "default": true,
-          "description": "If false, disables Personalized Handwriting Results."
+          "description": "If false, disables Personalized Handwriting Results.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "26.4"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "AllowVisualIntelligence",
           "type": "boolean",
           "default": true,
-          "description": "If false, disables Visual Intelligence."
+          "description": "If false, disables Visual Intelligence.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "27.0"
+            },
+            "macOS": {
+              "introduced": "27.0"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "AllowVisualIntelligenceSummary",
           "type": "boolean",
           "default": true,
-          "description": "If false, disables Visual Intelligence Summary. Deprecated: use the AllowVisualIntelligence key."
+          "description": "If false, disables Visual Intelligence Summary. Deprecated: use the AllowVisualIntelligence key.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "26.4",
+              "deprecated": "27.0"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "AllowWritingTools",
@@ -2024,6 +2995,23 @@
               "key": "Calendar",
               "type": "dictionary",
               "description": "If present, configures Calendar and Reminders Intelligence features.",
+              "supportedOS": {
+                "iOS": {
+                  "introduced": "27.0"
+                },
+                "macOS": {
+                  "introduced": "27.0"
+                },
+                "tvOS": {
+                  "introduced": "n/a"
+                },
+                "visionOS": {
+                  "introduced": "27.0"
+                },
+                "watchOS": {
+                  "introduced": "n/a"
+                }
+              },
               "subkeys": [
                 {
                   "key": "AllowNaturalLanguageEditing",
@@ -2061,13 +3049,47 @@
                   "key": "AllowTranscription",
                   "type": "boolean",
                   "default": true,
-                  "description": "If false, disables Notes Transcription."
+                  "description": "If false, disables Notes Transcription.",
+                  "supportedOS": {
+                    "iOS": {
+                      "introduced": "26.4"
+                    },
+                    "macOS": {
+                      "introduced": "26.4"
+                    },
+                    "tvOS": {
+                      "introduced": "n/a"
+                    },
+                    "visionOS": {
+                      "introduced": "n/a"
+                    },
+                    "watchOS": {
+                      "introduced": "n/a"
+                    }
+                  }
                 },
                 {
                   "key": "AllowTranscriptionSummary",
                   "type": "boolean",
                   "default": true,
-                  "description": "If false, disables Notes Transcription Summary."
+                  "description": "If false, disables Notes Transcription Summary.",
+                  "supportedOS": {
+                    "iOS": {
+                      "introduced": "26.4"
+                    },
+                    "macOS": {
+                      "introduced": "26.4"
+                    },
+                    "tvOS": {
+                      "introduced": "n/a"
+                    },
+                    "visionOS": {
+                      "introduced": "n/a"
+                    },
+                    "watchOS": {
+                      "introduced": "n/a"
+                    }
+                  }
                 }
               ]
             },
@@ -2096,7 +3118,24 @@
           "key": "ForceOnDeviceOnlyTranslation",
           "type": "boolean",
           "default": false,
-          "description": "If true, forces On-Device Only Translation."
+          "description": "If true, forces On-Device Only Translation.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "26.4"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         }
       ]
     },
@@ -2109,12 +3148,46 @@
         "iOS",
         "macOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "26.4"
+        },
+        "macOS": {
+          "introduced": "26.4"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "n/a"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "AllowAutoCorrection",
           "type": "boolean",
           "default": true,
-          "description": "If false, disables auto-correction."
+          "description": "If false, disables auto-correction.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "26.4"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "AllowDefinitionLookup",
@@ -2138,25 +3211,93 @@
           "key": "AllowPredictiveText",
           "type": "boolean",
           "default": true,
-          "description": "If false, disables predictive text."
+          "description": "If false, disables predictive text.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "26.4"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "AllowSlideToType",
           "type": "boolean",
           "default": true,
-          "description": "If false, disables slide to type."
+          "description": "If false, disables slide to type.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "26.4"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "AllowSpellCheck",
           "type": "boolean",
           "default": true,
-          "description": "If false, disables spell check."
+          "description": "If false, disables spell check.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "26.4"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "AllowTextReplacement",
           "type": "boolean",
           "default": true,
-          "description": "If false, disables text replacement."
+          "description": "If false, disables text replacement.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "26.4"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         }
       ]
     },
@@ -2172,6 +3313,23 @@
         "visionOS",
         "watchOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "15.0"
+        },
+        "macOS": {
+          "introduced": "13.0"
+        },
+        "tvOS": {
+          "introduced": "16.0"
+        },
+        "visionOS": {
+          "introduced": "1.1"
+        },
+        "watchOS": {
+          "introduced": "10.0"
+        }
+      },
       "keys": [
         {
           "key": "ProfileURL",
@@ -2181,7 +3339,24 @@
         {
           "key": "ProfileAssetReference",
           "type": "string",
-          "description": "The identifier of an asset declaration containing a reference to the profile data. The corresponding asset needs to be of type com.apple.asset.data. One of ProfileURL or ProfileAssetReference needs to be present."
+          "description": "The identifier of an asset declaration containing a reference to the profile data. The corresponding asset needs to be of type com.apple.asset.data. One of ProfileURL or ProfileAssetReference needs to be present.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "27.0"
+            },
+            "macOS": {
+              "introduced": "27.0"
+            },
+            "tvOS": {
+              "introduced": "27.0"
+            },
+            "visionOS": {
+              "introduced": "27.0"
+            },
+            "watchOS": {
+              "introduced": "27.0"
+            }
+          }
         }
       ]
     },
@@ -2196,6 +3371,23 @@
         "tvOS",
         "visionOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "15.0"
+        },
+        "macOS": {
+          "introduced": "13.0"
+        },
+        "tvOS": {
+          "introduced": "16.0"
+        },
+        "visionOS": {
+          "introduced": "1.1"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "ProfileURL",
@@ -2205,7 +3397,24 @@
         {
           "key": "ProfileAssetReference",
           "type": "string",
-          "description": "The identifier of an asset declaration containing a reference to the profile data. The corresponding asset needs to be of type com.apple.asset.data. One of ProfileURL or ProfileAssetReference needs to be present."
+          "description": "The identifier of an asset declaration containing a reference to the profile data. The corresponding asset needs to be of type com.apple.asset.data. One of ProfileURL or ProfileAssetReference needs to be present.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "27.0"
+            },
+            "macOS": {
+              "introduced": "27.0"
+            },
+            "tvOS": {
+              "introduced": "27.0"
+            },
+            "visionOS": {
+              "introduced": "27.0"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "VisibleName",
@@ -2227,6 +3436,23 @@
         "visionOS",
         "watchOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "15.0"
+        },
+        "macOS": {
+          "introduced": "13.0"
+        },
+        "tvOS": {
+          "introduced": "16.0"
+        },
+        "visionOS": {
+          "introduced": "1.1"
+        },
+        "watchOS": {
+          "introduced": "10.0"
+        }
+      },
       "keys": [
         {
           "key": "StatusItems",
@@ -2263,6 +3489,23 @@
         "visionOS",
         "watchOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "15.0"
+        },
+        "macOS": {
+          "introduced": "13.0"
+        },
+        "tvOS": {
+          "introduced": "16.0"
+        },
+        "visionOS": {
+          "introduced": "1.1"
+        },
+        "watchOS": {
+          "introduced": "10.0"
+        }
+      },
       "keys": [
         {
           "key": "Echo",
@@ -2273,7 +3516,24 @@
         {
           "key": "EchoDataAssetReference",
           "type": "string",
-          "description": "The string to read from a data asset to echo back in status response reason description."
+          "description": "The string to read from a data asset to echo back in status response reason description.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "17.0"
+            },
+            "macOS": {
+              "introduced": "14.0"
+            },
+            "tvOS": {
+              "introduced": "17.0"
+            },
+            "visionOS": {
+              "introduced": "1.1"
+            },
+            "watchOS": {
+              "introduced": "10.0"
+            }
+          }
         },
         {
           "key": "ReturnStatus",
@@ -2297,6 +3557,23 @@
         "iOS",
         "macOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "18.0"
+        },
+        "macOS": {
+          "introduced": "15.0"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "n/a"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "Calculator",
@@ -2335,6 +3612,23 @@
               "key": "ProgrammerMode",
               "type": "dictionary",
               "description": "If present, configures the programmer mode of the calculator. If not present, programmer mode is enabled.",
+              "supportedOS": {
+                "iOS": {
+                  "introduced": "n/a"
+                },
+                "macOS": {
+                  "introduced": "15.0"
+                },
+                "tvOS": {
+                  "introduced": "n/a"
+                },
+                "visionOS": {
+                  "introduced": "n/a"
+                },
+                "watchOS": {
+                  "introduced": "n/a"
+                }
+              },
               "subkeys": [
                 {
                   "key": "Enabled",
@@ -2376,7 +3670,24 @@
                   "type": "boolean",
                   "required": true,
                   "default": true,
-                  "description": "Configures whether RPN input is enabled."
+                  "description": "Configures whether RPN input is enabled.",
+                  "supportedOS": {
+                    "iOS": {
+                      "introduced": "n/a"
+                    },
+                    "macOS": {
+                      "introduced": "15.0"
+                    },
+                    "tvOS": {
+                      "introduced": "n/a"
+                    },
+                    "visionOS": {
+                      "introduced": "n/a"
+                    },
+                    "watchOS": {
+                      "introduced": "n/a"
+                    }
+                  }
                 }
               ]
             }
@@ -2413,6 +3724,23 @@
       "platforms": [
         "macOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "n/a"
+        },
+        "macOS": {
+          "introduced": "26.4"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "n/a"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "ShouldDoManagedMigration",
@@ -2455,6 +3783,23 @@
         "macOS",
         "visionOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "27.0"
+        },
+        "macOS": {
+          "introduced": "27.0"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "27.0"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "VisibleName",
@@ -2489,7 +3834,24 @@
         {
           "key": "DNSProxyUUID",
           "type": "string",
-          "description": "A globally unique identifier for this DNS proxy configuration."
+          "description": "A globally unique identifier for this DNS proxy configuration.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "27.0"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "27.0"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         }
       ]
     },
@@ -2503,6 +3865,23 @@
         "macOS",
         "visionOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "27.0"
+        },
+        "macOS": {
+          "introduced": "27.0"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "27.0"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "VisibleName",
@@ -2677,6 +4056,23 @@
         "macOS",
         "visionOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "27.0"
+        },
+        "macOS": {
+          "introduced": "27.0"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "27.0"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "VisibleName",
@@ -2784,7 +4180,24 @@
         {
           "key": "RelayUUID",
           "type": "string",
-          "description": "A globally unique identifier for this relay configuration. The system uses this UUID to route managed apps through the servers in Relays."
+          "description": "A globally unique identifier for this relay configuration. The system uses this UUID to route managed apps through the servers in Relays.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "27.0"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "27.0"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "UIToggleEnabled",
@@ -2809,6 +4222,23 @@
         "iOS",
         "visionOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "27.0"
+        },
+        "macOS": {
+          "introduced": "n/a"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "27.0"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "VisibleName",
@@ -3079,6 +4509,23 @@
         "tvOS",
         "visionOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "27.0"
+        },
+        "macOS": {
+          "introduced": "27.0"
+        },
+        "tvOS": {
+          "introduced": "27.0"
+        },
+        "visionOS": {
+          "introduced": "27.0"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "VisibleName",
@@ -3202,6 +4649,23 @@
           "key": "NetworkRouting",
           "type": "dictionary",
           "description": "Specifies details about how the VPN routes different types of network traffic.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "27.0"
+            },
+            "macOS": {
+              "introduced": "27.0"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "27.0"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          },
           "subkeys": [
             {
               "key": "EnforceRoutes",
@@ -3285,7 +4749,24 @@
               "key": "DisableUserOverride",
               "type": "boolean",
               "default": false,
-              "description": "If true, the device disables the Connect On Demand toggle in Settings for this configuration."
+              "description": "If true, the device disables the Connect On Demand toggle in Settings for this configuration.",
+              "supportedOS": {
+                "iOS": {
+                  "introduced": "27.0"
+                },
+                "macOS": {
+                  "introduced": "n/a"
+                },
+                "tvOS": {
+                  "introduced": "27.0"
+                },
+                "visionOS": {
+                  "introduced": "27.0"
+                },
+                "watchOS": {
+                  "introduced": "n/a"
+                }
+              }
             },
             {
               "key": "Rules",
@@ -3386,7 +4867,24 @@
           "key": "EnableFallback",
           "type": "boolean",
           "default": false,
-          "description": "If true, the system enables a tunnel over cellular data to carry traffic that's eligible for Wi-Fi Assist and also requires VPN."
+          "description": "If true, the system enables a tunnel over cellular data to carry traffic that's eligible for Wi-Fi Assist and also requires VPN.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "27.0"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "27.0"
+            },
+            "visionOS": {
+              "introduced": "27.0"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "MTU",
@@ -3669,6 +5167,23 @@
         "macOS",
         "visionOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "27.0"
+        },
+        "macOS": {
+          "introduced": "27.0"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "27.0"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "VisibleName",
@@ -4011,6 +5526,23 @@
         "tvOS",
         "visionOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "27.0"
+        },
+        "macOS": {
+          "introduced": "27.0"
+        },
+        "tvOS": {
+          "introduced": "27.0"
+        },
+        "visionOS": {
+          "introduced": "27.0"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "VisibleName",
@@ -4113,6 +5645,23 @@
           "key": "NetworkRouting",
           "type": "dictionary",
           "description": "Specifies details about how the VPN routes different types of network traffic.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "27.0"
+            },
+            "macOS": {
+              "introduced": "27.0"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "27.0"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          },
           "subkeys": [
             {
               "key": "EnforceRoutes",
@@ -4184,7 +5733,24 @@
               "key": "DisableUserOverride",
               "type": "boolean",
               "default": false,
-              "description": "If true, the device disables the Connect On Demand toggle in Settings for this configuration."
+              "description": "If true, the device disables the Connect On Demand toggle in Settings for this configuration.",
+              "supportedOS": {
+                "iOS": {
+                  "introduced": "27.0"
+                },
+                "macOS": {
+                  "introduced": "n/a"
+                },
+                "tvOS": {
+                  "introduced": "27.0"
+                },
+                "visionOS": {
+                  "introduced": "27.0"
+                },
+                "watchOS": {
+                  "introduced": "n/a"
+                }
+              }
             },
             {
               "key": "Rules",
@@ -4409,6 +5975,23 @@
       "platforms": [
         "macOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "n/a"
+        },
+        "macOS": {
+          "introduced": "26.0"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "n/a"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "ManifestURL",
@@ -4437,6 +6020,23 @@
           "key": "UninstallBehavior",
           "type": "dictionary",
           "description": "A dictionary that describes how to uninstall the package.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "n/a"
+            },
+            "macOS": {
+              "introduced": "27.0"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          },
           "subkeys": [
             {
               "key": "Remove",
@@ -4459,6 +6059,23 @@
         "visionOS",
         "watchOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "15.0"
+        },
+        "macOS": {
+          "introduced": "13.0"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "2.0"
+        },
+        "watchOS": {
+          "introduced": "10.0"
+        }
+      },
       "keys": [
         {
           "key": "RequirePasscode",
@@ -4470,7 +6087,24 @@
           "key": "RequireAlphanumericPasscode",
           "type": "boolean",
           "default": false,
-          "description": "If true, the passcode needs to consist of at least one alphabetic character and at least one number."
+          "description": "If true, the passcode needs to consist of at least one alphabetic character and at least one number.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "16.2"
+            },
+            "macOS": {
+              "introduced": "13.1"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "2.0"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "RequireComplexPasscode",
@@ -4492,7 +6126,24 @@
           "min": 0,
           "max": 4,
           "default": 0,
-          "description": "Specifies the minimum number of complex characters in the password."
+          "description": "Specifies the minimum number of complex characters in the password.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "16.2"
+            },
+            "macOS": {
+              "introduced": "13.1"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "2.0"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "MaximumFailedAttempts",
@@ -4505,7 +6156,24 @@
         {
           "key": "FailedAttemptsResetInMinutes",
           "type": "integer",
-          "description": "The number of minutes before the login is reset after the maximum number of failed attempts. Also set the MaximumFailedAttempts key for this to take effect."
+          "description": "The number of minutes before the login is reset after the maximum number of failed attempts. Also set the MaximumFailedAttempts key for this to take effect.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "n/a"
+            },
+            "macOS": {
+              "introduced": "13.1"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "MaximumGracePeriodInMinutes",
@@ -4524,7 +6192,24 @@
           "type": "integer",
           "min": 0,
           "max": 730,
-          "description": "Specifies the maximum number of days that the passcode can remain unchanged."
+          "description": "Specifies the maximum number of days that the passcode can remain unchanged.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "16.2"
+            },
+            "macOS": {
+              "introduced": "13.1"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "2.0"
+            },
+            "watchOS": {
+              "introduced": "10.0"
+            }
+          }
         },
         {
           "key": "PasscodeReuseLimit",
@@ -4537,12 +6222,46 @@
           "key": "ChangeAtNextAuth",
           "type": "boolean",
           "default": false,
-          "description": "If true, the system forces a password reset the next time the user tries to authenticate."
+          "description": "If true, the system forces a password reset the next time the user tries to authenticate.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "n/a"
+            },
+            "macOS": {
+              "introduced": "13.1"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "CustomRegex",
           "type": "dictionary",
           "description": "Specifies a regular expression, and its description, to enforce password compliance.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "n/a"
+            },
+            "macOS": {
+              "introduced": "14.0"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          },
           "subkeys": [
             {
               "key": "Regex",
@@ -4576,6 +6295,23 @@
         "macOS",
         "visionOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "26.0"
+        },
+        "macOS": {
+          "introduced": "26.0"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "26.0"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "ManagedBookmarks",
@@ -4631,6 +6367,23 @@
         "macOS",
         "visionOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "18.0"
+        },
+        "macOS": {
+          "introduced": "15.0"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "26.0"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "ManagedExtensions",
@@ -4702,6 +6455,23 @@
         "macOS",
         "visionOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "26.0"
+        },
+        "macOS": {
+          "introduced": "26.0"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "26.0"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "AcceptCookies",
@@ -4713,13 +6483,47 @@
             "Always"
           ],
           "default": "Always",
-          "description": "The policy Safari uses for managing cookies: - Never: Safari always blocks cookies."
+          "description": "The policy Safari uses for managing cookies: - Never: Safari always blocks cookies.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "26.0"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "AllowDisablingFraudWarning",
           "type": "boolean",
           "default": true,
-          "description": "If false, the system forces fraud warnings on in Safari."
+          "description": "If false, the system forces fraud warnings on in Safari.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "26.0"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "AllowHistoryClearing",
@@ -4731,7 +6535,24 @@
           "key": "AllowJavaScript",
           "type": "boolean",
           "default": true,
-          "description": "If false, the system disables JavaScript in Safari."
+          "description": "If false, the system disables JavaScript in Safari.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "26.0"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "AllowPrivateBrowsing",
@@ -4743,7 +6564,24 @@
           "key": "AllowPopups",
           "type": "boolean",
           "default": true,
-          "description": "If false, the system disables popups in Safari."
+          "description": "If false, the system disables popups in Safari.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "26.0"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "AllowSummary",
@@ -4784,6 +6622,23 @@
           "key": "Privacy",
           "type": "dictionary",
           "description": "The dictionary of website privacy settings.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "27.0"
+            },
+            "macOS": {
+              "introduced": "27.0"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          },
           "subkeys": [
             {
               "key": "PermissionDefaults",
@@ -4835,6 +6690,23 @@
       "platforms": [
         "macOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "n/a"
+        },
+        "macOS": {
+          "introduced": "14.0"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "n/a"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "ConnectionUUID",
@@ -4892,6 +6764,23 @@
       "platforms": [
         "macOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "n/a"
+        },
+        "macOS": {
+          "introduced": "14.0"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "n/a"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "ConnectionGroupUUID",
@@ -4927,6 +6816,23 @@
       "platforms": [
         "macOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "n/a"
+        },
+        "macOS": {
+          "introduced": "14.0"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "n/a"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "MaximumVirtualDisplays",
@@ -4974,6 +6880,23 @@
         "visionOS",
         "watchOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "17.0"
+        },
+        "macOS": {
+          "introduced": "14.0"
+        },
+        "tvOS": {
+          "introduced": "17.0"
+        },
+        "visionOS": {
+          "introduced": "1.1"
+        },
+        "watchOS": {
+          "introduced": "10.0"
+        }
+      },
       "keys": [
         {
           "key": "CredentialAssetReference",
@@ -4995,6 +6918,23 @@
         "visionOS",
         "watchOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "17.0"
+        },
+        "macOS": {
+          "introduced": "14.0"
+        },
+        "tvOS": {
+          "introduced": "17.0"
+        },
+        "visionOS": {
+          "introduced": "1.1"
+        },
+        "watchOS": {
+          "introduced": "10.0"
+        }
+      },
       "keys": [
         {
           "key": "CredentialAssetReference",
@@ -5006,13 +6946,47 @@
           "key": "AllowAllAppsAccess",
           "type": "boolean",
           "default": false,
-          "description": "If true, apps can access the private key."
+          "description": "If true, apps can access the private key.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "n/a"
+            },
+            "macOS": {
+              "introduced": "14.0"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "KeyIsExtractable",
           "type": "boolean",
           "default": true,
-          "description": "If true, the private key is extractable in the keychain."
+          "description": "If true, the private key is extractable in the keychain.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "n/a"
+            },
+            "macOS": {
+              "introduced": "14.0"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         }
       ]
     },
@@ -5025,6 +6999,23 @@
         "iOS",
         "macOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "17.0"
+        },
+        "macOS": {
+          "introduced": "14.0"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "n/a"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "AttestationIdentityAssetReference",
@@ -5036,7 +7027,24 @@
           "key": "AttestationIdentityKeyIsExtractable",
           "type": "boolean",
           "default": true,
-          "description": "If true, the private key for the attestation identity is extractable in the keychain."
+          "description": "If true, the private key for the attestation identity is extractable in the keychain.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "n/a"
+            },
+            "macOS": {
+              "introduced": "14.0"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "RelyingParties",
@@ -5060,6 +7068,23 @@
       "platforms": [
         "macOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "n/a"
+        },
+        "macOS": {
+          "introduced": "15.0"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "n/a"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "TaskType",
@@ -5120,6 +7145,23 @@
       "platforms": [
         "macOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "n/a"
+        },
+        "macOS": {
+          "introduced": "14.0"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "n/a"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "ServiceType",
@@ -5147,42 +7189,161 @@
         "visionOS",
         "watchOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "26.4"
+        },
+        "macOS": {
+          "introduced": "26.4"
+        },
+        "tvOS": {
+          "introduced": "27.0"
+        },
+        "visionOS": {
+          "introduced": "26.4"
+        },
+        "watchOS": {
+          "introduced": "26.4"
+        }
+      },
       "keys": [
         {
           "key": "Enabled",
           "type": "boolean",
           "default": true,
-          "description": "If false, disables Siri."
+          "description": "If false, disables Siri.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "26.4"
+            },
+            "macOS": {
+              "introduced": "26.4"
+            },
+            "tvOS": {
+              "introduced": "27.0"
+            },
+            "visionOS": {
+              "introduced": "26.4"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "AllowSiriAI",
           "type": "boolean",
           "default": true,
-          "description": "If false, disables the Siri AI specific features of Siri."
+          "description": "If false, disables the Siri AI specific features of Siri.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "27.0"
+            },
+            "macOS": {
+              "introduced": "27.0"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "27.0"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "AllowUserGeneratedContent",
           "type": "boolean",
           "default": true,
-          "description": "If false, disables Siri user-generated content."
+          "description": "If false, disables Siri user-generated content.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "26.4"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "26.4"
+            }
+          }
         },
         {
           "key": "AllowWhileLocked",
           "type": "boolean",
           "default": true,
-          "description": "If false, disables Siri while locked."
+          "description": "If false, disables Siri while locked.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "26.4"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "26.4"
+            }
+          }
         },
         {
           "key": "ForceProfanityFilter",
           "type": "boolean",
           "default": false,
-          "description": "If true, forces Siri profanity filter."
+          "description": "If true, forces Siri profanity filter.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "26.4"
+            },
+            "macOS": {
+              "introduced": "26.4"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "ForceReduceSensitiveContent",
           "type": "boolean",
           "default": false,
-          "description": "If true, forces Siri to reduce sensitive content."
+          "description": "If true, forces Siri to reduce sensitive content.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "27.0"
+            },
+            "macOS": {
+              "introduced": "27.0"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "27.0"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         }
       ]
     },
@@ -5197,6 +7358,23 @@
         "tvOS",
         "visionOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "17.0"
+        },
+        "macOS": {
+          "introduced": "14.0"
+        },
+        "tvOS": {
+          "introduced": "18.4"
+        },
+        "visionOS": {
+          "introduced": "26.0"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "TargetOSVersion",
@@ -5235,6 +7413,23 @@
         "tvOS",
         "visionOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "18.0"
+        },
+        "macOS": {
+          "introduced": "15.0"
+        },
+        "tvOS": {
+          "introduced": "18.4"
+        },
+        "visionOS": {
+          "introduced": "26.0"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "Notifications",
@@ -5252,28 +7447,96 @@
               "type": "integer",
               "min": 1,
               "max": 90,
-              "description": "Specifies the number of days to defer a major or minor OS software update on the device."
+              "description": "Specifies the number of days to defer a major or minor OS software update on the device.",
+              "supportedOS": {
+                "iOS": {
+                  "introduced": "18.0"
+                },
+                "macOS": {
+                  "introduced": "n/a"
+                },
+                "tvOS": {
+                  "introduced": "18.4"
+                },
+                "visionOS": {
+                  "introduced": "26.0"
+                },
+                "watchOS": {
+                  "introduced": "n/a"
+                }
+              }
             },
             {
               "key": "MajorPeriodInDays",
               "type": "integer",
               "min": 1,
               "max": 90,
-              "description": "Specifies the number of days to defer a major OS software update on the device."
+              "description": "Specifies the number of days to defer a major OS software update on the device.",
+              "supportedOS": {
+                "iOS": {
+                  "introduced": "n/a"
+                },
+                "macOS": {
+                  "introduced": "15.0"
+                },
+                "tvOS": {
+                  "introduced": "n/a"
+                },
+                "visionOS": {
+                  "introduced": "n/a"
+                },
+                "watchOS": {
+                  "introduced": "n/a"
+                }
+              }
             },
             {
               "key": "MinorPeriodInDays",
               "type": "integer",
               "min": 1,
               "max": 90,
-              "description": "Specifies the number of days to defer a minor OS software update on the device. It also defers major updates for iOS."
+              "description": "Specifies the number of days to defer a minor OS software update on the device. It also defers major updates for iOS.",
+              "supportedOS": {
+                "iOS": {
+                  "introduced": "n/a"
+                },
+                "macOS": {
+                  "introduced": "15.0"
+                },
+                "tvOS": {
+                  "introduced": "n/a"
+                },
+                "visionOS": {
+                  "introduced": "n/a"
+                },
+                "watchOS": {
+                  "introduced": "n/a"
+                }
+              }
             },
             {
               "key": "SystemPeriodInDays",
               "type": "integer",
               "min": 1,
               "max": 90,
-              "description": "Specifies the number of days to defer system or non-OS updates."
+              "description": "Specifies the number of days to defer system or non-OS updates.",
+              "supportedOS": {
+                "iOS": {
+                  "introduced": "n/a"
+                },
+                "macOS": {
+                  "introduced": "15.0"
+                },
+                "tvOS": {
+                  "introduced": "n/a"
+                },
+                "visionOS": {
+                  "introduced": "n/a"
+                },
+                "watchOS": {
+                  "introduced": "n/a"
+                }
+              }
             }
           ]
         },
@@ -5285,7 +7548,24 @@
             "Oldest",
             "Newest"
           ],
-          "description": "This string specifies how the device shows software updates to the user."
+          "description": "This string specifies how the device shows software updates to the user.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "18.0"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "26.0"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "AutomaticActions",
@@ -5301,7 +7581,24 @@
                 "AlwaysOff"
               ],
               "default": "Allowed",
-              "description": "Specifies whether the user can control automatic downloads of available updates: - Allowed - the user can enable or disable automatic downloads."
+              "description": "Specifies whether the user can control automatic downloads of available updates: - Allowed - the user can enable or disable automatic downloads.",
+              "supportedOS": {
+                "iOS": {
+                  "introduced": "18.0"
+                },
+                "macOS": {
+                  "introduced": "15.0"
+                },
+                "tvOS": {
+                  "introduced": "n/a"
+                },
+                "visionOS": {
+                  "introduced": "26.0"
+                },
+                "watchOS": {
+                  "introduced": "n/a"
+                }
+              }
             },
             {
               "key": "InstallOSUpdates",
@@ -5323,7 +7620,24 @@
                 "AlwaysOff"
               ],
               "default": "Allowed",
-              "description": "Specifies whether the user can control automatic installation of available security updates: - Allowed - the user can enable or disable automatic…"
+              "description": "Specifies whether the user can control automatic installation of available security updates: - Allowed - the user can enable or disable automatic…",
+              "supportedOS": {
+                "iOS": {
+                  "introduced": "18.0"
+                },
+                "macOS": {
+                  "introduced": "15.0"
+                },
+                "tvOS": {
+                  "introduced": "n/a"
+                },
+                "visionOS": {
+                  "introduced": "26.0"
+                },
+                "watchOS": {
+                  "introduced": "n/a"
+                }
+              }
             }
           ]
         },
@@ -5331,6 +7645,23 @@
           "key": "RapidSecurityResponse",
           "type": "dictionary",
           "description": "These configurations set user access to interacting with Background Security Improvement.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "18.0"
+            },
+            "macOS": {
+              "introduced": "15.0"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          },
           "subkeys": [
             {
               "key": "Enable",
@@ -5350,12 +7681,46 @@
           "key": "AllowStandardUserOSUpdates",
           "type": "boolean",
           "default": true,
-          "description": "If set to true, a standard user can perform Major and Minor Software Updates."
+          "description": "If set to true, a standard user can perform Major and Minor Software Updates.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "n/a"
+            },
+            "macOS": {
+              "introduced": "15.0"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "Beta",
           "type": "dictionary",
           "description": "This object configures the beta program settings for a device.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "18.0"
+            },
+            "macOS": {
+              "introduced": "15.4"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "n/a"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          },
           "subkeys": [
             {
               "key": "ProgramEnrollment",
@@ -5426,6 +7791,23 @@
       "platforms": [
         "iOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "17.0"
+        },
+        "macOS": {
+          "introduced": "n/a"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "n/a"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "EnrollmentProfileURL",
@@ -5457,6 +7839,23 @@
         "macOS",
         "visionOS"
       ],
+      "supportedOS": {
+        "iOS": {
+          "introduced": "27.0"
+        },
+        "macOS": {
+          "introduced": "27.0"
+        },
+        "tvOS": {
+          "introduced": "n/a"
+        },
+        "visionOS": {
+          "introduced": "27.0"
+        },
+        "watchOS": {
+          "introduced": "n/a"
+        }
+      },
       "keys": [
         {
           "key": "VisibleName",
@@ -5474,7 +7873,24 @@
           "key": "ContentFilterUUID",
           "type": "string",
           "gloss": "This key must be present for unsupervised devices and user enrollment.",
-          "description": "A globally unique identifier for this content filter configuration."
+          "description": "A globally unique identifier for this content filter configuration.",
+          "supportedOS": {
+            "iOS": {
+              "introduced": "27.0"
+            },
+            "macOS": {
+              "introduced": "n/a"
+            },
+            "tvOS": {
+              "introduced": "n/a"
+            },
+            "visionOS": {
+              "introduced": "27.0"
+            },
+            "watchOS": {
+              "introduced": "n/a"
+            }
+          }
         },
         {
           "key": "ServerAddress",
@@ -5529,12 +7945,46 @@
                 "inspector"
               ],
               "default": "firewall",
-              "description": "The system uses this value to derive the relative order of content filters."
+              "description": "The system uses this value to derive the relative order of content filters.",
+              "supportedOS": {
+                "iOS": {
+                  "introduced": "n/a"
+                },
+                "macOS": {
+                  "introduced": "27.0"
+                },
+                "tvOS": {
+                  "introduced": "n/a"
+                },
+                "visionOS": {
+                  "introduced": "n/a"
+                },
+                "watchOS": {
+                  "introduced": "n/a"
+                }
+              }
             },
             {
               "key": "Browsers",
               "type": "dictionary",
               "description": "Settings that control the browser filter. If not present, the system doesn't use browser filtering.",
+              "supportedOS": {
+                "iOS": {
+                  "introduced": "27.0"
+                },
+                "macOS": {
+                  "introduced": "n/a"
+                },
+                "tvOS": {
+                  "introduced": "n/a"
+                },
+                "visionOS": {
+                  "introduced": "27.0"
+                },
+                "watchOS": {
+                  "introduced": "n/a"
+                }
+              },
               "subkeys": [
                 {
                   "key": "Enabled",
@@ -5567,6 +8017,23 @@
               "key": "Packets",
               "type": "dictionary",
               "description": "Settings that control the packet filter. If not present, the system doesn't use packet filtering.",
+              "supportedOS": {
+                "iOS": {
+                  "introduced": "n/a"
+                },
+                "macOS": {
+                  "introduced": "27.0"
+                },
+                "tvOS": {
+                  "introduced": "n/a"
+                },
+                "visionOS": {
+                  "introduced": "n/a"
+                },
+                "watchOS": {
+                  "introduced": "n/a"
+                }
+              },
               "subkeys": [
                 {
                   "key": "Enabled",
@@ -5586,6 +8053,23 @@
               "key": "URLs",
               "type": "dictionary",
               "description": "Settings that control the URL filter. If not present, the system doesn't use URL filtering.",
+              "supportedOS": {
+                "iOS": {
+                  "introduced": "27.0"
+                },
+                "macOS": {
+                  "introduced": "27.0"
+                },
+                "tvOS": {
+                  "introduced": "n/a"
+                },
+                "visionOS": {
+                  "introduced": "n/a"
+                },
+                "watchOS": {
+                  "introduced": "n/a"
+                }
+              },
               "subkeys": [
                 {
                   "key": "Enabled",

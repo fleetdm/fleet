@@ -26976,8 +26976,8 @@
       "linux"
     ],
     "evented": false,
-    "examples": "Full SentinelOne status for a host.\n\n```\nSELECT * FROM sentinelone;\n```\n\nReport which hosts have SentinelOne protected and talking to the management console. Hosts without the agent return no rows.\n\n```\nSELECT agent_version, protection, management_connected FROM sentinelone;\n```\n\nUse as the query for a policy that passes only when the agent is protecting the host and connected to the console.\n\n```\nSELECT 1 FROM sentinelone WHERE protection = 'enabled' AND management_connected = 'yes';\n```\n\nFind hosts that haven't checked in with the SentinelOne console in over a day.\n\n```\nSELECT agent_id, management_server, management_last_seen FROM sentinelone\nWHERE management_last_seen != '' AND management_last_seen < (strftime('%s', 'now') - 86400);\n```\n\nFind hosts where a SentinelOne daemon isn't ready.\n\n```\nSELECT agent_id FROM sentinelone\nWHERE service_agent_helper NOT IN ('', 'ready')\n   OR service_guard NOT IN ('', 'ready')\n   OR service_framework NOT IN ('', 'ready');\n```",
-    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n\nValues are the status strings `sentinelctl` reports, passed through unchanged. A column is an empty string when the installed agent doesn't report that field, so an empty value means \"not reported,\" not \"off.\"\n\n`sentinelctl` on Windows reports a smaller, flatter set of fields than on macOS and Linux. Where a Windows field has a macOS equivalent it populates the same column: agent build ID fills `agent_version`, disable state fills `operational_state`, SentinelMonitor fills `es_framework`, and SentinelNetworkMonitor fills `network_monitoring`. The remaining Windows-only fields have their own columns (`tamper_protection`, `agent_run_mode`, `mitigation_policy`), and the columns Windows doesn't report at all (threat protection, daemons, launchd, management) are empty.\n\nBecause `sentinelctl` needs root to report full status, this table depends on osquery running as root (macOS and Linux) or LocalSystem (Windows), which is how fleetd runs it.",
+    "examples": "Full SentinelOne status for a host.\n\n```\nSELECT * FROM sentinelone;\n```\n\nReport which hosts have SentinelOne protected and talking to the management console. Hosts without the agent return no rows. On Windows, `protection` and `management_connected` are empty.\n\n```\nSELECT agent_version, protection, management_connected FROM sentinelone;\n```\n\nUse as the query for a policy that passes when the SentinelOne agent is installed and ready. Works on macOS, Windows, and Linux.\n\n```\nSELECT 1 FROM sentinelone WHERE ready = 'yes';\n```\n\nUse as the query for a stricter policy that passes only when the agent is protecting the host and connected to the console. macOS and Linux only. Windows doesn't report these fields, so Windows hosts fail this policy.\n\n```\nSELECT 1 FROM sentinelone WHERE protection = 'enabled' AND management_connected = 'yes';\n```\n\nFind hosts that haven't checked in with the SentinelOne console in over a day.\n\n```\nSELECT agent_id, management_server, management_last_seen FROM sentinelone\nWHERE management_last_seen != '' AND management_last_seen < (strftime('%s', 'now') - 86400);\n```\n\nFind hosts where a SentinelOne daemon isn't ready.\n\n```\nSELECT agent_id FROM sentinelone\nWHERE service_agent_helper NOT IN ('', 'ready')\n   OR service_guard NOT IN ('', 'ready')\n   OR service_framework NOT IN ('', 'ready');\n```",
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n\nValues are the status strings `sentinelctl` reports, passed through unchanged. A column is an empty string when the installed agent doesn't report that field, so an empty value means \"not reported,\" not \"off.\"\n\n`sentinelctl` on Windows reports a smaller, flatter set of fields than on macOS and Linux. Where a Windows field has a macOS equivalent it populates the same column: agent build ID fills `agent_version`, disable state fills `operational_state`, SentinelMonitor fills `es_framework`, and SentinelNetworkMonitor fills `network_monitoring`. The remaining Windows-only fields have their own columns (`tamper_protection`, `agent_run_mode`, `mitigation_policy`), and the columns Windows doesn't report at all (threat protection, daemons, launchd, management) are empty.\n\nWindows doesn't report `protection` or `management_connected`, so use `ready` in policies that need to work on all platforms. For anti-tamper state on Windows, use `tamper_protection`.\n\nBecause `sentinelctl` needs root to report full status, this table depends on osquery running as root (macOS and Linux) or LocalSystem (Windows), which is how fleetd runs it.",
     "columns": [
       {
         "name": "agent_version",
@@ -27315,16 +27315,6 @@
       {
         "name": "management_server",
         "description": "URL of the SentinelOne management console this agent reports to.",
-        "type": "text",
-        "required": false,
-        "platforms": [
-          "darwin",
-          "linux"
-        ]
-      },
-      {
-        "name": "management_site_key",
-        "description": "Site key the agent enrolled with.",
         "type": "text",
         "required": false,
         "platforms": [

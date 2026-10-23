@@ -658,6 +658,8 @@ type GetPastActivityDataForInHouseAppInstallFunc func(ctx context.Context, comma
 
 type SetHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload, attemptNumber *int) (wasCanceled bool, err error)
 
+type IncrementHostPolicyAutomationRunCountFunc func(ctx context.Context, policyID uint, hostID uint, activity fleet.ActivityDetails, succeeded bool) error
+
 type CreateIntermediateInstallFailureRecordFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, error)
 
 type ListSoftwareCategoriesFunc func(ctx context.Context, teamID uint) ([]fleet.SoftwareCategory, error)
@@ -910,6 +912,8 @@ type AsyncBatchSaveHostsScheduledQueryStatsFunc func(ctx context.Context, stats 
 
 type UpdateHostSoftwareFunc func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error)
 
+type MarkSoftwareAsAIToolFunc func(ctx context.Context, software []fleet.Software) error
+
 type UpdateHostSoftwareInstalledPathsFunc func(ctx context.Context, hostID uint, reported map[string]fleet.ExecutableHashes, mutationResults *fleet.UpdateHostSoftwareDBResult) error
 
 type UpdateHostFunc func(ctx context.Context, host *fleet.Host) error
@@ -986,7 +990,15 @@ type FailHostDiskEncryptionKeyRotationFunc func(ctx context.Context, hostID uint
 
 type GetHostByDiskEncryptionKeyRotationCommandFunc func(ctx context.Context, cmdUUID string) (*fleet.Host, error)
 
-type ReplaceHostDiskEncryptionKeyBlobFunc func(ctx context.Context, hostID uint, currentBase64Encrypted string, newBase64Encrypted string) error
+type ReplaceHostDiskEncryptionKeyBlobFunc func(ctx context.Context, hostID uint, currentBase64Encrypted string, newBase64Encrypted string) (bool, error)
+
+type ListWSTEPEncryptedDiskEncryptionKeysFunc func(ctx context.Context, afterHostID uint, limit int) ([]fleet.HostDiskEncryptionKey, error)
+
+type ListWSTEPEncryptedArchivedDiskEncryptionKeysFunc func(ctx context.Context, afterID uint, limit int) ([]fleet.HostArchivedDiskEncryptionKey, error)
+
+type ReplaceWSTEPEncryptedArchivedDiskEncryptionKeyFunc func(ctx context.Context, id uint, currentBase64Encrypted string, newBase64Encrypted string) (bool, error)
+
+type MarkWindowsDiskEncryptionKeysUndecryptableFunc func(ctx context.Context, keys []fleet.HostDiskEncryptionKey) error
 
 type IsHostDiskEncryptionKeyRotationInProgressFunc func(ctx context.Context, hostID uint, hostUUID string, cmdUUID string, staleAfter time.Duration) (bool, error)
 
@@ -1940,7 +1952,7 @@ type GetHostIDsWithUnactivatedVPPAppInstallFunc func(ctx context.Context, vppApp
 
 type GetSummaryHostSoftwareInstallsFunc func(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error)
 
-type GetSummaryHostVPPAppInstallsFunc func(ctx context.Context, vppAppTeamID uint) (*fleet.VPPAppStatusSummary, error)
+type GetSummaryHostVPPAppInstallsFunc func(ctx context.Context, versions []*fleet.VPPAppStoreApp) (map[uint]*fleet.VPPAppStatusSummary, error)
 
 type GetSoftwareInstallResultsFunc func(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error)
 
@@ -2263,6 +2275,8 @@ type GetLatestAppleMDMCommandOfTypeFunc func(ctx context.Context, hostUUID strin
 type SetLockCommandForLostModeCheckinFunc func(ctx context.Context, hostID uint, commandUUID string) error
 
 type ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc func(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.HostAndroidVPPSoftwareInstall, error)
+
+type ListHostMDMAndroidVPPAppsLatestFailedInstallFunc func(ctx context.Context, hostID uint) ([]*fleet.HostAndroidVPPSoftwareInstall, error)
 
 type BulkSetVPPInstallsAsVerifiedFunc func(ctx context.Context, hostID uint, commandUUIDs []string) error
 
@@ -3552,6 +3566,9 @@ type DataStore struct {
 	SetHostSoftwareInstallResultFunc        SetHostSoftwareInstallResultFunc
 	SetHostSoftwareInstallResultFuncInvoked bool
 
+	IncrementHostPolicyAutomationRunCountFunc        IncrementHostPolicyAutomationRunCountFunc
+	IncrementHostPolicyAutomationRunCountFuncInvoked bool
+
 	CreateIntermediateInstallFailureRecordFunc        CreateIntermediateInstallFailureRecordFunc
 	CreateIntermediateInstallFailureRecordFuncInvoked bool
 
@@ -3930,6 +3947,9 @@ type DataStore struct {
 	UpdateHostSoftwareFunc        UpdateHostSoftwareFunc
 	UpdateHostSoftwareFuncInvoked bool
 
+	MarkSoftwareAsAIToolFunc        MarkSoftwareAsAIToolFunc
+	MarkSoftwareAsAIToolFuncInvoked bool
+
 	UpdateHostSoftwareInstalledPathsFunc        UpdateHostSoftwareInstalledPathsFunc
 	UpdateHostSoftwareInstalledPathsFuncInvoked bool
 
@@ -4046,6 +4066,18 @@ type DataStore struct {
 
 	ReplaceHostDiskEncryptionKeyBlobFunc        ReplaceHostDiskEncryptionKeyBlobFunc
 	ReplaceHostDiskEncryptionKeyBlobFuncInvoked bool
+
+	ListWSTEPEncryptedDiskEncryptionKeysFunc        ListWSTEPEncryptedDiskEncryptionKeysFunc
+	ListWSTEPEncryptedDiskEncryptionKeysFuncInvoked bool
+
+	ListWSTEPEncryptedArchivedDiskEncryptionKeysFunc        ListWSTEPEncryptedArchivedDiskEncryptionKeysFunc
+	ListWSTEPEncryptedArchivedDiskEncryptionKeysFuncInvoked bool
+
+	ReplaceWSTEPEncryptedArchivedDiskEncryptionKeyFunc        ReplaceWSTEPEncryptedArchivedDiskEncryptionKeyFunc
+	ReplaceWSTEPEncryptedArchivedDiskEncryptionKeyFuncInvoked bool
+
+	MarkWindowsDiskEncryptionKeysUndecryptableFunc        MarkWindowsDiskEncryptionKeysUndecryptableFunc
+	MarkWindowsDiskEncryptionKeysUndecryptableFuncInvoked bool
 
 	IsHostDiskEncryptionKeyRotationInProgressFunc        IsHostDiskEncryptionKeyRotationInProgressFunc
 	IsHostDiskEncryptionKeyRotationInProgressFuncInvoked bool
@@ -5960,6 +5992,9 @@ type DataStore struct {
 
 	ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc        ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc
 	ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked bool
+
+	ListHostMDMAndroidVPPAppsLatestFailedInstallFunc        ListHostMDMAndroidVPPAppsLatestFailedInstallFunc
+	ListHostMDMAndroidVPPAppsLatestFailedInstallFuncInvoked bool
 
 	BulkSetVPPInstallsAsVerifiedFunc        BulkSetVPPInstallsAsVerifiedFunc
 	BulkSetVPPInstallsAsVerifiedFuncInvoked bool
@@ -8687,6 +8722,13 @@ func (s *DataStore) SetHostSoftwareInstallResult(ctx context.Context, result *fl
 	return s.SetHostSoftwareInstallResultFunc(ctx, result, attemptNumber)
 }
 
+func (s *DataStore) IncrementHostPolicyAutomationRunCount(ctx context.Context, policyID uint, hostID uint, activity fleet.ActivityDetails, succeeded bool) error {
+	s.mu.Lock()
+	s.IncrementHostPolicyAutomationRunCountFuncInvoked = true
+	s.mu.Unlock()
+	return s.IncrementHostPolicyAutomationRunCountFunc(ctx, policyID, hostID, activity, succeeded)
+}
+
 func (s *DataStore) CreateIntermediateInstallFailureRecord(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, error) {
 	s.mu.Lock()
 	s.CreateIntermediateInstallFailureRecordFuncInvoked = true
@@ -9569,6 +9611,13 @@ func (s *DataStore) UpdateHostSoftware(ctx context.Context, hostID uint, softwar
 	return s.UpdateHostSoftwareFunc(ctx, hostID, software)
 }
 
+func (s *DataStore) MarkSoftwareAsAITool(ctx context.Context, software []fleet.Software) error {
+	s.mu.Lock()
+	s.MarkSoftwareAsAIToolFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkSoftwareAsAIToolFunc(ctx, software)
+}
+
 func (s *DataStore) UpdateHostSoftwareInstalledPaths(ctx context.Context, hostID uint, reported map[string]fleet.ExecutableHashes, mutationResults *fleet.UpdateHostSoftwareDBResult) error {
 	s.mu.Lock()
 	s.UpdateHostSoftwareInstalledPathsFuncInvoked = true
@@ -9835,11 +9884,39 @@ func (s *DataStore) GetHostByDiskEncryptionKeyRotationCommand(ctx context.Contex
 	return s.GetHostByDiskEncryptionKeyRotationCommandFunc(ctx, cmdUUID)
 }
 
-func (s *DataStore) ReplaceHostDiskEncryptionKeyBlob(ctx context.Context, hostID uint, currentBase64Encrypted string, newBase64Encrypted string) error {
+func (s *DataStore) ReplaceHostDiskEncryptionKeyBlob(ctx context.Context, hostID uint, currentBase64Encrypted string, newBase64Encrypted string) (bool, error) {
 	s.mu.Lock()
 	s.ReplaceHostDiskEncryptionKeyBlobFuncInvoked = true
 	s.mu.Unlock()
 	return s.ReplaceHostDiskEncryptionKeyBlobFunc(ctx, hostID, currentBase64Encrypted, newBase64Encrypted)
+}
+
+func (s *DataStore) ListWSTEPEncryptedDiskEncryptionKeys(ctx context.Context, afterHostID uint, limit int) ([]fleet.HostDiskEncryptionKey, error) {
+	s.mu.Lock()
+	s.ListWSTEPEncryptedDiskEncryptionKeysFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListWSTEPEncryptedDiskEncryptionKeysFunc(ctx, afterHostID, limit)
+}
+
+func (s *DataStore) ListWSTEPEncryptedArchivedDiskEncryptionKeys(ctx context.Context, afterID uint, limit int) ([]fleet.HostArchivedDiskEncryptionKey, error) {
+	s.mu.Lock()
+	s.ListWSTEPEncryptedArchivedDiskEncryptionKeysFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListWSTEPEncryptedArchivedDiskEncryptionKeysFunc(ctx, afterID, limit)
+}
+
+func (s *DataStore) ReplaceWSTEPEncryptedArchivedDiskEncryptionKey(ctx context.Context, id uint, currentBase64Encrypted string, newBase64Encrypted string) (bool, error) {
+	s.mu.Lock()
+	s.ReplaceWSTEPEncryptedArchivedDiskEncryptionKeyFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReplaceWSTEPEncryptedArchivedDiskEncryptionKeyFunc(ctx, id, currentBase64Encrypted, newBase64Encrypted)
+}
+
+func (s *DataStore) MarkWindowsDiskEncryptionKeysUndecryptable(ctx context.Context, keys []fleet.HostDiskEncryptionKey) error {
+	s.mu.Lock()
+	s.MarkWindowsDiskEncryptionKeysUndecryptableFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkWindowsDiskEncryptionKeysUndecryptableFunc(ctx, keys)
 }
 
 func (s *DataStore) IsHostDiskEncryptionKeyRotationInProgress(ctx context.Context, hostID uint, hostUUID string, cmdUUID string, staleAfter time.Duration) (bool, error) {
@@ -13174,11 +13251,11 @@ func (s *DataStore) GetSummaryHostSoftwareInstalls(ctx context.Context, installe
 	return s.GetSummaryHostSoftwareInstallsFunc(ctx, installerID)
 }
 
-func (s *DataStore) GetSummaryHostVPPAppInstalls(ctx context.Context, vppAppTeamID uint) (*fleet.VPPAppStatusSummary, error) {
+func (s *DataStore) GetSummaryHostVPPAppInstalls(ctx context.Context, versions []*fleet.VPPAppStoreApp) (map[uint]*fleet.VPPAppStatusSummary, error) {
 	s.mu.Lock()
 	s.GetSummaryHostVPPAppInstallsFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetSummaryHostVPPAppInstallsFunc(ctx, vppAppTeamID)
+	return s.GetSummaryHostVPPAppInstallsFunc(ctx, versions)
 }
 
 func (s *DataStore) GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error) {
@@ -14306,6 +14383,13 @@ func (s *DataStore) ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx conte
 	s.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListHostMDMAndroidVPPAppsPendingInstallWithVersionFunc(ctx, hostUUID, policyVersion)
+}
+
+func (s *DataStore) ListHostMDMAndroidVPPAppsLatestFailedInstall(ctx context.Context, hostID uint) ([]*fleet.HostAndroidVPPSoftwareInstall, error) {
+	s.mu.Lock()
+	s.ListHostMDMAndroidVPPAppsLatestFailedInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostMDMAndroidVPPAppsLatestFailedInstallFunc(ctx, hostID)
 }
 
 func (s *DataStore) BulkSetVPPInstallsAsVerified(ctx context.Context, hostID uint, commandUUIDs []string) error {
