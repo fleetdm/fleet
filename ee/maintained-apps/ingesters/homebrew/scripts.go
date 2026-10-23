@@ -352,20 +352,16 @@ func processScript(script optjson.StringOr[map[string]any], sb *scriptBuilder, a
 			}
 		}
 
-		// Build the command execution
+		// fleetd runs the script as root, so this runs as root with or without
+		// sudo and doesn't depend on anyone being logged in.
 		if needsSudo {
-			if mustSucceed {
-				sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo %s)`, cmd)
-			} else {
-				sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo %s) || true`, cmd)
-			}
-		} else {
-			if mustSucceed {
-				sb.Writef(`(cd /Users/$LOGGED_IN_USER && %s)`, cmd)
-			} else {
-				sb.Writef(`(cd /Users/$LOGGED_IN_USER && %s) || true`, cmd)
-			}
+			cmd = "sudo " + cmd
 		}
+		line := fmt.Sprintf(`(%s; %s)`, cdConsoleUserHome, cmd)
+		if !mustSucceed {
+			line += " || true"
+		}
+		sb.Write(line)
 	} else if len(script.String) > 0 {
 		if strings.Contains(script.String, "$HOMEBREW_PREFIX") {
 			return
@@ -373,10 +369,21 @@ func processScript(script optjson.StringOr[map[string]any], sb *scriptBuilder, a
 		addUserVar()
 		// Quote via shellSingleQuote rather than a bare '%s': the cask-controlled
 		// value could otherwise close the quote with an embedded apostrophe and
-		// inject commands.
-		sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo -u "$LOGGED_IN_USER" %s)`, shellSingleQuote(script.String))
+		// inject commands. Like brew, this runs as the user, so it's skipped when
+		// no one is logged in.
+		quoted := shellSingleQuote(script.String)
+		sb.Writef(`if [[ -n "$LOGGED_IN_USER" && "$LOGGED_IN_USER" != "root" && "$LOGGED_IN_USER" != "loginwindow" ]]; then
+  (%s; sudo -u "$LOGGED_IN_USER" %s)
+else
+  printf 'Not logged into a non-root GUI; skipping %%s.\n' %s
+fi`, cdConsoleUserHome, quoted, quoted)
 	}
 }
+
+// cdConsoleUserHome starts script directives in the console user's home, falling
+// back to / when there's none (e.g. at the login window, where the console user
+// is "loginwindow") so the directive still runs.
+const cdConsoleUserHome = `cd "/Users/$LOGGED_IN_USER" 2>/dev/null || cd /`
 
 func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID string) {
 	process := func(target optjson.StringOr[[]string], f func(path string)) {
@@ -467,7 +474,7 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID stri
 	process(u.Trash, func(path string) {
 		addUserVar()
 		sb.AddFunction("trash", trashFunc)
-		sb.Writef("trash $LOGGED_IN_USER %s", shellSingleQuote(path))
+		sb.Writef(`trash "$LOGGED_IN_USER" %s`, shellSingleQuote(path))
 	})
 }
 
@@ -961,15 +968,25 @@ const trashFunc = `trash() {
   local target_file="$2"
   local timestamp="$(date +%Y-%m-%d-%s)"
   local rand="$(jot -r 1 0 99999)"
+  local trash=""
 
-  # replace ~ with /Users/$logged_in_user
-  if [[ "$target_file" == ~* ]]; then
-    target_file="/Users/$logged_in_user${target_file:1}"
+  # At the login window there's no user Trash to move files into, so user
+  # paths are skipped and system paths are deleted outright. Removal is
+  # best-effort and never fails the uninstall.
+  if [[ -z "$logged_in_user" || "$logged_in_user" == "root" || "$logged_in_user" == "loginwindow" ]]; then
+    if [[ "$target_file" == ~* ]]; then
+      echo "Not logged into a non-root GUI; skipping $target_file."
+      return
+    fi
+  else
+    # replace ~ with /Users/$logged_in_user
+    if [[ "$target_file" == ~* ]]; then
+      target_file="/Users/$logged_in_user${target_file:1}"
+    fi
+    trash="/Users/$logged_in_user/.Trash"
   fi
 
-  local trash="/Users/$logged_in_user/.Trash"
-
-  # If the target contains glob characters, expand it and move each match.
+  # If the target contains glob characters, expand it and remove each match.
   if [[ "$target_file" == *[*?[]* ]]; then
     local file file_name
     local matched=false
@@ -983,9 +1000,13 @@ const trashFunc = `trash() {
       i=$((i + 1))
       file_name="$(basename "$file")"
       echo "removing $file."
-      # The per-match counter keeps matches that share a basename from
-      # overwriting each other in the trash.
-      mv -f "$file" "$trash/${file_name}_${timestamp}_${rand}_${i}"
+      if [[ -z "$trash" ]]; then
+        rm -rf "$file" || echo "Failed to remove $file."
+      else
+        # The per-match counter keeps matches that share a basename from
+        # overwriting each other in the trash.
+        mv -f "$file" "$trash/${file_name}_${timestamp}_${rand}_${i}" || echo "Failed to move $file to the Trash."
+      fi
     done < <(compgen -G "$target_file" 2>/dev/null)
     if [[ "$matched" == false ]]; then
       echo "$target_file doesn't exist."
@@ -997,7 +1018,11 @@ const trashFunc = `trash() {
 
   if [[ -e "$target_file" ]]; then
     echo "removing $target_file."
-    mv -f "$target_file" "$trash/${file_name}_${timestamp}_${rand}"
+    if [[ -z "$trash" ]]; then
+      rm -rf "$target_file" || echo "Failed to remove $target_file."
+    else
+      mv -f "$target_file" "$trash/${file_name}_${timestamp}_${rand}" || echo "Failed to move $target_file to the Trash."
+    fi
   else
     echo "$target_file doesn't exist."
   fi
