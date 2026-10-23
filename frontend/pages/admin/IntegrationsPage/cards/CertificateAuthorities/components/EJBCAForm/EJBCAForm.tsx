@@ -157,7 +157,7 @@ const EJBCAForm = ({
       <InputField
         label="URL"
         {...getTextFieldProps("url")}
-        helpText="EJBCA instance URL, without a path."
+        helpText="EJBCA instance URL."
         placeholder="https://ejbca.example.com:8443"
         disabled={isSubmitting}
       />
