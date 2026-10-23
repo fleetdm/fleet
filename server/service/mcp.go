@@ -41,16 +41,11 @@ func NewMCPConn() *MCPConn {
 // Start serves handler to the embedded MCP. baseCtx should be the context the
 // public server derives requests from (it carries the license).
 func (c *MCPConn) Start(baseCtx context.Context, handler http.Handler) {
-	routes := make([]fleet.APIEndpoint, 0, len(fleetmcp.EmbeddedRoutes))
-	for _, r := range fleetmcp.EmbeddedRoutes {
-		routes = append(routes, fleet.NewAPIEndpointFromTpl(r.Method, r.Path))
-	}
 	c.srv = &http.Server{
 		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       2 * time.Minute,
 		BaseContext:       func(net.Listener) context.Context { return baseCtx },
-		ConnContext:       auth.EmbeddedMCPConnContext(routes),
 	}
 	c.started.Store(true)
 	go func() { _ = c.srv.Serve(c.listener) }()
@@ -156,6 +151,23 @@ func newEmbeddedFleetClient(conn *MCPConn, urlPrefix string, logger *slog.Logger
 	)
 }
 
+// grantedMCPRoutes returns which tool routes an API-only user's endpoint
+// allowlist grants, matched the way APIOnlyEndpointCheck matches each call the
+// tools make, or nil when the user has no allowlist.
+func grantedMCPRoutes(u *fleet.User) func(fleetmcp.Route) bool {
+	if !u.APIOnly || len(u.APIEndpoints) == 0 {
+		return nil
+	}
+	granted := make(map[string]struct{}, len(u.APIEndpoints))
+	for _, ep := range u.APIEndpoints {
+		granted[fleet.NewAPIEndpointFromTpl(ep.Method, ep.Path).Fingerprint()] = struct{}{}
+	}
+	return func(r fleetmcp.Route) bool {
+		_, ok := granted[fleet.NewAPIEndpointFromTpl(r.Method, r.Path).Fingerprint()]
+		return ok
+	}
+}
+
 // sameOrigin reports whether a browser Origin header names the Fleet server
 // itself, comparing scheme, host and port.
 func sameOrigin(origin, serverURL string) bool {
@@ -235,9 +247,12 @@ func newMCPHandler(svc fleet.Service, logger *slog.Logger, conn *MCPConn, urlPre
 			reject(slog.LevelInfo, "Fleet Premium required", fleet.ErrMissingLicense, user...)
 			return
 		}
-		if !appConfig.ServerSettings.MCPEnabled {
-			reject(slog.LevelInfo, "server_settings.mcp_enabled is off", &fleet.BadRequestError{Message: "Fleet's MCP server is disabled (server_settings.mcp_enabled)"}, user...)
+		if appConfig.ServerSettings.MCPDisabled {
+			reject(slog.LevelInfo, "server_settings.mcp_disabled is on", &fleet.BadRequestError{Message: "Fleet's MCP server is disabled (server_settings.mcp_disabled)"}, user...)
 			return
+		}
+		if granted := grantedMCPRoutes(v.User); granted != nil {
+			ctx = fleetmcp.ContextWithRouteFilter(ctx, granted)
 		}
 		mcpHandler.ServeHTTP(w, r.WithContext(fleetmcp.ContextWithFleetToken(ctx, string(bearer))))
 	}), nil

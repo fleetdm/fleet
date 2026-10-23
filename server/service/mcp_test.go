@@ -74,11 +74,26 @@ func TestMCPUserLogHandler(t *testing.T) {
 	assert.Contains(t, buf.String(), "user=mcp@example.com")
 }
 
-// The API-only check rejects uncatalogued routes before it looks at the
-// embedded MCP's route set, so a tool calling one would fail for every
-// restricted user.
-func TestEmbeddedMCPRoutesAreInCatalog(t *testing.T) {
-	for _, r := range fleetmcp.EmbeddedRoutes {
-		assert.True(t, apiendpoints.IsInCatalog(fleet.NewAPIEndpointFromTpl(r.Method, r.Path).Fingerprint()), "%s %s", r.Method, r.Path)
+// An admin can only grant catalogued endpoints, so a tool calling any other
+// route would be hidden from every restricted user.
+func TestMCPToolRoutesAreInCatalog(t *testing.T) {
+	for tool, routes := range fleetmcp.ToolRoutes {
+		for _, r := range routes {
+			assert.True(t, apiendpoints.IsInCatalog(fleet.NewAPIEndpointFromTpl(r.Method, r.Path).Fingerprint()), "%s: %s", tool, r)
+		}
 	}
+}
+
+func TestGrantedMCPRoutes(t *testing.T) {
+	assert.Nil(t, grantedMCPRoutes(&fleet.User{}))
+	assert.Nil(t, grantedMCPRoutes(&fleet.User{APIOnly: true}))
+
+	granted := grantedMCPRoutes(&fleet.User{APIOnly: true, APIEndpoints: []fleet.APIEndpointRef{
+		{Method: "POST", Path: "/api/v1/fleet/mcp"},
+		{Method: "GET", Path: "/api/v1/fleet/hosts/:id"},
+	}})
+	require.NotNil(t, granted)
+	assert.True(t, granted(fleetmcp.Route{Method: "GET", Path: "/api/v1/fleet/hosts/:host_id"}), "placeholder names don't matter")
+	assert.False(t, granted(fleetmcp.Route{Method: "POST", Path: "/api/v1/fleet/hosts/:id"}))
+	assert.False(t, granted(fleetmcp.Route{Method: "GET", Path: "/api/v1/fleet/hosts"}))
 }

@@ -3463,9 +3463,8 @@ func TestModifyAppConfigGitOpsHistoricalDataDefaults(t *testing.T) {
 }
 
 // server_settings is merged rather than replaced in overwrite mode, so a GitOps
-// payload that predates mcp_enabled keeps the server's value (on by default)
-// instead of turning the embedded MCP off.
-func TestModifyAppConfigGitOpsMCPEnabled(t *testing.T) {
+// payload without mcp_disabled keeps the server's value.
+func TestModifyAppConfigGitOpsMCPDisabled(t *testing.T) {
 	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
 
 	testCases := []struct {
@@ -3474,11 +3473,11 @@ func TestModifyAppConfigGitOpsMCPEnabled(t *testing.T) {
 		payload  string
 		expected bool
 	}{
-		{"omitted keeps it on", true, `{"server_settings":{"server_url":"https://example.org"}}`, true},
-		{"omitted keeps it off", false, `{"server_settings":{"server_url":"https://example.org"}}`, false},
-		{"no server_settings keeps it on", true, `{"org_info":{"org_name":"Renamed"}}`, true},
-		{"explicit false turns it off", true, `{"server_settings":{"server_url":"https://example.org","mcp_enabled":false}}`, false},
-		{"explicit true turns it on", false, `{"server_settings":{"server_url":"https://example.org","mcp_enabled":true}}`, true},
+		{"omitted keeps it disabled", true, `{"server_settings":{"server_url":"https://example.org"}}`, true},
+		{"omitted keeps it enabled", false, `{"server_settings":{"server_url":"https://example.org"}}`, false},
+		{"no server_settings keeps it disabled", true, `{"org_info":{"org_name":"Renamed"}}`, true},
+		{"explicit true disables it", false, `{"server_settings":{"server_url":"https://example.org","mcp_disabled":true}}`, true},
+		{"explicit false enables it", true, `{"server_settings":{"server_url":"https://example.org","mcp_disabled":false}}`, false},
 	}
 
 	for _, tt := range testCases {
@@ -3490,7 +3489,7 @@ func TestModifyAppConfigGitOpsMCPEnabled(t *testing.T) {
 
 			dsAppConfig := &fleet.AppConfig{
 				OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
-				ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org", MCPEnabled: tt.initial},
+				ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org", MCPDisabled: tt.initial},
 			}
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
 			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
@@ -3507,8 +3506,8 @@ func TestModifyAppConfigGitOpsMCPEnabled(t *testing.T) {
 
 			updated, err := svc.ModifyAppConfig(ctx, []byte(tt.payload), fleet.ApplySpecOptions{Overwrite: true})
 			require.NoError(t, err)
-			require.Equal(t, tt.expected, updated.ServerSettings.MCPEnabled)
-			require.Equal(t, tt.expected, dsAppConfig.ServerSettings.MCPEnabled)
+			require.Equal(t, tt.expected, updated.ServerSettings.MCPDisabled)
+			require.Equal(t, tt.expected, dsAppConfig.ServerSettings.MCPDisabled)
 		})
 	}
 }

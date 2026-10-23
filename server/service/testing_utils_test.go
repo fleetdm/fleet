@@ -782,12 +782,18 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	}
 	server.Start()
 	mcpConn.Start(ctx, rootMux)
+	testMCPConns.Store(server, mcpConn)
 	t.Cleanup(func() {
+		testMCPConns.Delete(server)
 		server.Close()
 		_ = mcpConn.Shutdown(context.Background())
 	})
 	return users, server
 }
+
+// testMCPConns maps each test server to the internal connection its embedded
+// MCP calls the API through, for tests that send requests over it directly.
+var testMCPConns sync.Map
 
 func NewTestService(t *testing.T, ds fleet.Datastore, cfg config.FleetConfig, opts ...*TestServerOpts) (fleet.Service, context.Context) {
 	var rs fleet.QueryResultStore
