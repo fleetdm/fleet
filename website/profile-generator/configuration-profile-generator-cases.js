@@ -1315,6 +1315,7 @@ const TEST_CASES = [
     id: 'mobileconfig-psso-entra-setup-assistant',
     profileType: 'mobileconfig',
     forFleet: true,
+    fleet: false,
     instructions: 'Set up Microsoft Entra Platform SSO with password authentication, and let users register during Setup Assistant.',
     expect: { expectFailure: true }
   },
@@ -1322,6 +1323,7 @@ const TEST_CASES = [
     id: 'mobileconfig-psso-okta-password',
     profileType: 'mobileconfig',
     forFleet: true,
+    fleet: false,
     instructions: 'Set up Okta Platform SSO with password authentication for our Okta org at acme.okta.com, including the associated domains Okta Verify needs.',
     expect: { expectFailure: true }
   },
@@ -1329,6 +1331,7 @@ const TEST_CASES = [
     id: 'mobileconfig-fleet-psso-entra-password',
     profileType: 'mobileconfig',
     forFleet: true,
+    fleet: false,
     instructions: 'Set up Platform SSO with Microsoft Entra ID using password authentication.',
     expect: { expectFailure: true }
   },
@@ -1336,6 +1339,7 @@ const TEST_CASES = [
     id: 'mobileconfig-fleet-kerberos-sso',
     profileType: 'mobileconfig',
     forFleet: true,
+    fleet: false,
     instructions: 'Set up the Kerberos SSO extension for the ACME.EXAMPLE realm.',
     expect: {
       mustContain: ['com.apple.extensiblesso', 'com.apple.AppSSOKerberos.KerberosExtension', 'ACME.EXAMPLE'],
@@ -1345,6 +1349,7 @@ const TEST_CASES = [
     id: 'mobileconfig-fleet-scep',
     profileType: 'mobileconfig',
     forFleet: true,
+    fleet: false,
     instructions: 'Request a certificate from our SCEP server.',
     expect: { expectFailure: true }
   },
@@ -1352,6 +1357,7 @@ const TEST_CASES = [
     id: 'mobileconfig-fleet-filevault',
     profileType: 'mobileconfig',
     forFleet: true,
+    fleet: false,
     instructions: 'Turn on FileVault and escrow the recovery key.',
     expect: {
       mustContain: ['com.apple.MCX.FileVault2'],
@@ -1362,6 +1368,7 @@ const TEST_CASES = [
     id: 'mobileconfig-fleet-wifi-password',
     profileType: 'mobileconfig',
     forFleet: true,
+    fleet: false,
     instructions: 'Connect to the WPA2 Wi-Fi network "CorpNet" with the password "Sup3r-Secret!".',
     expect: {
       mustContain: ['com.apple.wifi.managed', '<key>SSID_STR</key><string>CorpNet</string>', '<key>Password</key><string>Sup3r-Secret!</string>'],
@@ -1369,9 +1376,11 @@ const TEST_CASES = [
     }
   },
   // The same requests off the Fleet path behave as they always have: no Fleet-only refusals, and no Fleet in the notes.
+  // `fleet: false` on these and the Fleet cases above: each pair already covers both paths, by profile type.
   {
     id: 'mobileconfig-public-psso-entra-password',
     profileType: 'mobileconfig',
+    fleet: false,
     instructions: 'Set up Platform SSO with Microsoft Entra ID using password authentication.',
     expect: {
       mustContain: ['com.apple.extensiblesso'],
@@ -1381,6 +1390,7 @@ const TEST_CASES = [
   {
     id: 'mobileconfig-public-scep',
     profileType: 'mobileconfig',
+    fleet: false,
     instructions: 'Request a certificate from our SCEP server at scep.acme.example with the challenge "abc123".',
     expect: {
       mustContain: ['com.apple.security.scep'],
@@ -1390,6 +1400,7 @@ const TEST_CASES = [
   {
     id: 'mobileconfig-public-filevault',
     profileType: 'mobileconfig',
+    fleet: false,
     // Shorter than the Fleet case: with key escrow the request runs over the 10-second budget, and this case is about the notes.
     instructions: 'Turn on FileVault.',
     expect: {
@@ -1400,6 +1411,7 @@ const TEST_CASES = [
   {
     id: 'mobileconfig-public-wifi-password',
     profileType: 'mobileconfig',
+    fleet: false,
     instructions: 'Connect to the WPA2 Wi-Fi network "CorpNet" with the password "Sup3r-Secret!".',
     expect: {
       mustContain: ['com.apple.wifi.managed', '<key>Password</key><string>Sup3r-Secret!</string>'],
@@ -1461,6 +1473,7 @@ const TEST_CASES = [
     id: 'ddm-fleet-root-ca',
     profileType: 'ddm',
     forFleet: true,
+    fleet: false,
     instructions: 'Install our root CA certificate.',
     // The certificate declaration needs an asset, which Fleet cannot deliver.
     expect: { expectFailure: true }
@@ -1468,6 +1481,7 @@ const TEST_CASES = [
   {
     id: 'ddm-fleet-safari-new-tab-macos',
     profileType: 'ddm',
+    fleet: false,
     forFleet: true,
     instructions: 'Set my new Safari tabs to open reddit.com on macOS.',
     // Safari settings only apply on the macOS user channel, and Fleet delivers to the device channel unless scoped.
@@ -1479,6 +1493,7 @@ const TEST_CASES = [
   {
     id: 'ddm-fleet-safari-new-tab-any-platform',
     profileType: 'ddm',
+    fleet: false,
     forFleet: true,
     instructions: 'Set new Safari tabs to open reddit.com.',
     expect: {
@@ -1489,6 +1504,7 @@ const TEST_CASES = [
   {
     id: 'ddm-public-safari-new-tab-macos',
     profileType: 'ddm',
+    fleet: false,
     instructions: 'Set my new Safari tabs to open reddit.com on macOS.',
     expect: {
       mustContain: ['com.apple.configuration.safari.settings'],
@@ -1498,6 +1514,7 @@ const TEST_CASES = [
     id: 'ddm-fleet-google-account',
     profileType: 'ddm',
     forFleet: true,
+    fleet: false,
     instructions: 'Add a Google account for jane@acme.example.',
     // com.apple.configuration.account.google is a type Fleet rejects.
     expect: { expectFailure: true }
