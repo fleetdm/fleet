@@ -30,7 +30,7 @@ func testPolicyName(esid string) string {
 func newTestMux(t *testing.T) (*http.ServeMux, *deviceStore) {
 	t.Helper()
 	store := newDeviceStore()
-	return newMux(store, nil, 0, 0), store
+	return newMux(store, nil, 0, 0, policyOptions{}), store
 }
 
 // registerTestDevice registers a fake device through the coordination API the way
@@ -666,7 +666,7 @@ func TestNoteEnterpriseIgnoresEmptyID(t *testing.T) {
 
 	assert.Empty(t, store.knownEnterprises())
 
-	mux := newMux(store, nil, 0, 0)
+	mux := newMux(store, nil, 0, 0, policyOptions{})
 	rr := httptest.NewRecorder()
 	mux.ServeHTTP(rr, httptest.NewRequest("GET", "/v1/enterprises", nil))
 	assert.Equal(t, http.StatusServiceUnavailable, rr.Code)
@@ -705,4 +705,50 @@ func TestDevicesListIncludesFakeDevices(t *testing.T) {
 	require.Len(t, resp.Devices, 1)
 	assert.Equal(t, testDeviceName, resp.Devices[0].Name)
 	assert.Empty(t, resp.NextPageToken)
+}
+
+func TestPolicyRequestGuard(t *testing.T) {
+	const hostPolicyID = "host-policy-uuid"
+	policyPath := func(pid string) string {
+		return fmt.Sprintf("/v1/enterprises/%s/policies/%s", testEnterpriseID, pid)
+	}
+	serve := func(mux *http.ServeMux, method, path string) int {
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, httptest.NewRequest(method, path, bytes.NewReader([]byte(`{}`))))
+		return rr.Code
+	}
+
+	cases := []struct {
+		name   string
+		opts   policyOptions
+		method string
+		path   string
+		want   int
+	}{
+		{"empty policy ID in an app action is rejected", policyOptions{}, "POST", policyPath(":modifyPolicyApplications"), http.StatusBadRequest},
+		{"empty policy ID in a remove action is rejected", policyOptions{}, "POST", policyPath(":removePolicyApplications"), http.StatusBadRequest},
+		{"empty policy ID in a patch is rejected", policyOptions{}, "PATCH", policyPath("") + "?updateMask=applications", http.StatusBadRequest},
+		{"default policy app action is accepted by default", policyOptions{}, "POST", policyPath("1:modifyPolicyApplications"), http.StatusOK},
+		{"default policy app action is rejected", policyOptions{rejectDefaultPolicyApps: true}, "POST", policyPath("1:modifyPolicyApplications"), http.StatusBadRequest},
+		{"default policy app removal is rejected", policyOptions{rejectDefaultPolicyApps: true}, "POST", policyPath("1:removePolicyApplications"), http.StatusBadRequest},
+		{"default policy apps patch is rejected", policyOptions{rejectDefaultPolicyApps: true}, "PATCH", policyPath("1") + "?updateMask=applications", http.StatusBadRequest},
+		{"default policy full patch is rejected", policyOptions{rejectDefaultPolicyApps: true}, "PATCH", policyPath("1"), http.StatusBadRequest},
+		{"default policy patch without apps is accepted", policyOptions{rejectDefaultPolicyApps: true}, "PATCH", policyPath("1") + "?updateMask=statusReportingSettings,kioskCustomization", http.StatusOK},
+		{"host policy app action is accepted", policyOptions{rejectDefaultPolicyApps: true}, "POST", policyPath(hostPolicyID + ":modifyPolicyApplications"), http.StatusOK},
+		{"action on a policy never created is accepted by default", policyOptions{}, "POST", policyPath(hostPolicyID + ":modifyPolicyApplications"), http.StatusOK},
+		{"action on a policy never created is rejected", policyOptions{requirePolicies: true}, "POST", policyPath(hostPolicyID + ":modifyPolicyApplications"), http.StatusNotFound},
+		{"patch creates a policy even when policies are required", policyOptions{requirePolicies: true}, "PATCH", policyPath(hostPolicyID), http.StatusOK},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			mux := newMux(newDeviceStore(), nil, 0, 0, c.opts)
+			require.Equal(t, c.want, serve(mux, c.method, c.path))
+		})
+	}
+
+	t.Run("action on a created policy is accepted when policies are required", func(t *testing.T) {
+		mux := newMux(newDeviceStore(), nil, 0, 0, policyOptions{requirePolicies: true})
+		require.Equal(t, http.StatusOK, serve(mux, "PATCH", policyPath(hostPolicyID)))
+		require.Equal(t, http.StatusOK, serve(mux, "POST", policyPath(hostPolicyID+":modifyPolicyApplications")))
+	})
 }
