@@ -756,11 +756,8 @@ const TEST_CASES = [
     id: 'csp-public-reboot',
     profileType: 'csp',
     instructions: 'Reboot the device.',
-    // Off the Fleet path the request generates as it always has.
-    expect: {
-      mustContain: ['Reboot/RebootNow'],
-      deliveryNotesMustNotContain: ['Fleet'],
-    }
+    // A restart is a one-time command, which no request may use as a profile.
+    expect: { expectFailure: true }
   },
 
   //  ╔╦╗╔═╗╔╗ ╦╦  ╔═╗╔═╗╔╗╔╔═╗╦╔═╗
