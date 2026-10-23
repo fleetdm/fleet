@@ -172,7 +172,7 @@ If fleetdm.com is unreachable at step 2 on either path, the page shows an error 
 
 Source: [AndroidPanel.tsx#L11-L25](https://github.com/fleetdm/fleet/blob/59e246b449a55ed95f1e9e516739c6b2bb723f03/frontend/components/AddHostsModal/PlatformWrapper/AndroidPanel/AndroidPanel.tsx#L11-L25) (link format, two enrollment types), [service.go#L612-L717](https://github.com/fleetdm/fleet/blob/59e246b449a55ed95f1e9e516739c6b2bb723f03/server/mdm/android/service/service.go#L612-L717) (token request, IdP session, personal-usage flag), and [enroll-hosts.md#L29-L41](https://github.com/fleetdm/fleet/blob/59e246b449a55ed95f1e9e516739c6b2bb723f03/articles/enroll-hosts.md#L29-L41).
 
-## Coming soon: Google conditional access
+## Google conditional access
 
 > **Note:** This section describes planned work, not a released feature. The design may change before it ships.
 
