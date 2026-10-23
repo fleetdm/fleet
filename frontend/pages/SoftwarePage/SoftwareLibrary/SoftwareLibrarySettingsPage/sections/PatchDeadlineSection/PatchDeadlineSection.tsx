@@ -64,12 +64,6 @@ const PatchDeadlineSection = ({
   // a dedicated patch-deadline-apps endpoint. This isn't written down in the
   // parent story (#39176), any sub-issue, the API/YAML spec PR (#55432), or
   // the Figma — swap for the real endpoint if the direction changes.
-  //
-  // TODO: once #55498 adds `patch_deadline` to the policy response, filter
-  // down to policies where `patch_deadline === true` instead of returning
-  // every patch-automation row. Right now `patch_deadline` is always
-  // undefined, so no filter is applied and the subsection shows every patch
-  // automation on the fleet. Narrow this when the BE lands.
   const { data: policiesData } = useQuery<ILoadTeamPoliciesResponse, Error>(
     ["patchDeadlineApps", fleetId],
     () =>
@@ -79,9 +73,13 @@ const PatchDeadlineSection = ({
       }),
     { enabled: isRouteOk, refetchOnWindowFocus: false }
   );
+  // Patch-type policies with the Deadline option carry their software info
+  // under `patch_software` (NOT `install_software`, which is for install-type
+  // policies). Filter down to policies that have `patch_deadline: true` AND a
+  // populated `patch_software` subobject.
   const apps = (policiesData?.policies ?? [])
-    .filter((p) => !!p.install_software)
-    .map((p) => p.install_software!);
+    .filter((p) => p.patch_deadline && !!p.patch_software)
+    .map((p) => p.patch_software!);
   const hasApps = apps.length > 0;
 
   const [days, setDays] = useState<Weekday[]>([]);

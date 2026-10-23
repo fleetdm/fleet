@@ -78,14 +78,15 @@ export const updatePatchDeadlineSettingsServerErrorHandler = http.patch(
 );
 
 // Mocks the policies endpoint (?automation_type=patch) response the Apps
-// subsection consumes. Pass partial install_software payloads; each becomes
-// one patch-type policy row with that install_software attached.
+// subsection consumes. Each entry becomes a patch-type policy with
+// `patch_deadline: true` and the given software under `patch_software` — the
+// shape the real BE returns for patch-with-deadline policies.
 export const getPatchDeadlineAppsHandler = (
   apps: Partial<IPolicySoftwareToInstall>[] = []
 ) =>
   http.get(patchPoliciesUrl, () => {
     const policies = apps.map((a, i) => {
-      const install_software: IPolicySoftwareToInstall = {
+      const patch_software: IPolicySoftwareToInstall = {
         software_title_id: a.software_title_id ?? i + 1,
         name: a.name ?? `App ${i + 1}`,
         ...(a.display_name !== undefined
@@ -96,9 +97,10 @@ export const getPatchDeadlineAppsHandler = (
       // Minimal IPolicy shape — only the fields the Settings page reads.
       const policy: Partial<IPolicy> = {
         id: i + 1,
-        name: `${install_software.name} patch policy`,
+        name: `${patch_software.name} patch policy`,
         type: "patch",
-        install_software,
+        patch_deadline: true,
+        patch_software,
       };
       return policy;
     });
