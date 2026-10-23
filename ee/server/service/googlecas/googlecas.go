@@ -35,6 +35,10 @@ type Service struct {
 	timeout  time.Duration
 	endpoint string
 	tokenURL string
+
+	// Created once and shared by every CA's client, like the EST client, so connections to Google are reused.
+	transport   *http.Transport
+	tokenClient *http.Client
 }
 
 // Compile-time check to ensure that Service implements fleet.GoogleCASService.
@@ -77,6 +81,8 @@ func NewService(opts ...Opt) *Service {
 	if s.logger == nil {
 		s.logger = slog.New(slog.NewTextHandler(os.Stdout, nil))
 	}
+	s.transport = fleethttp.NewTransport()
+	s.tokenClient = fleethttp.NewClient(fleethttp.WithFollowRedir(false))
 	return s
 }
 
@@ -128,18 +134,20 @@ func (s *Service) newClient(ctx context.Context, ca fleet.GoogleCASCA) (*private
 	// The token exchange and API calls both use fleethttp, so they get the same outbound restrictions as other integrations.
 	creds, err := credentials.NewCredentialsFromJSON(credentials.ServiceAccount, keyJSON, &credentials.DetectOptions{
 		Scopes: []string{privateca.CloudPlatformScope},
-		Client: fleethttp.NewClient(fleethttp.WithFollowRedir(false)),
+		Client: s.tokenClient,
 	})
 	if err != nil {
 		return nil, s.describeError(ctx, err, ca)
 	}
 	httpClient, err := httptransport.NewClient(&httptransport.Options{
 		Credentials:      creds,
-		BaseRoundTripper: fleethttp.NewTransport(),
+		BaseRoundTripper: s.transport,
 	})
 	if err != nil {
 		return nil, s.describeError(ctx, err, ca)
 	}
+	// Google doesn't redirect these API calls, and a redirect would carry the CA's access token, so it isn't followed.
+	httpClient.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	opts := []option.ClientOption{option.WithHTTPClient(httpClient)}
 	if s.endpoint != "" {
 		opts = append(opts, option.WithEndpoint(s.endpoint))

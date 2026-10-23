@@ -174,6 +174,24 @@ func TestVerifyCAPool(t *testing.T) {
 		require.ErrorContains(t, err, "Couldn't connect to Google CAS")
 	})
 
+	t.Run("redirects are not followed", func(t *testing.T) {
+		elsewhere, elsewhereCalls := newGoogle(t, http.StatusOK, http.StatusOK)
+		for _, redirected := range []string{"/token", poolPath} {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == redirected {
+					w.Header().Set("Location", elsewhere.URL+redirected)
+					w.WriteHeader(http.StatusTemporaryRedirect)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(map[string]any{"access_token": "test-token", "token_type": "Bearer", "expires_in": 3600})
+			}))
+			t.Cleanup(srv.Close)
+			require.Error(t, newSvc(srv).VerifyCAPool(t.Context(), newCA(t)), redirected)
+		}
+		require.Empty(t, *elsewhereCalls)
+	})
+
 	t.Run("key that isn't a service account is refused before any request", func(t *testing.T) {
 		srv, calls := newGoogle(t, http.StatusOK, http.StatusOK)
 		ca := newCA(t)
