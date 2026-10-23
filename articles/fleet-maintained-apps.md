@@ -91,7 +91,7 @@ software:
 
 Use a caret (`^`) constraint to pin to a major version (for example, `"^147"`). Omit `version` to keep the app on the latest version. See the [GitOps reference](https://fleetdm.com/docs/configuration/yaml-files#fleet-maintained-apps) for details.
 
-You can also pin via the REST API using the `version` parameter on the [`PATCH /api/v1/fleet/software/titles/:id/package`](https://fleetdm.com/docs/rest-api/rest-api#update-package) endpoint.
+You can also pin via the REST API using the `version` parameter on the [`PATCH /api/v1/fleet/software/titles/:software_title_id/packages/:package_id`](https://fleetdm.com/docs/rest-api/rest-api#update-package) endpoint.
 
 ## Rollback to a previous version
 
