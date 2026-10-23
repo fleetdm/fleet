@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -187,6 +188,9 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 
 	createdCA, err := svc.ds.NewCertificateAuthority(ctx, caToCreate)
 	if err != nil {
+		if _, ok := errors.AsType[fleet.EJBCANameInUseError](err); ok {
+			return nil, &fleet.BadRequestError{Message: errPrefix + err.Error()}
+		}
 		if errors.As(err, &fleet.ConflictError{}) {
 			if caToCreate.Type == string(fleet.CATypeNDESSCEPProxy) {
 				return nil, &fleet.BadRequestError{Message: fmt.Sprintf("%s. Only a single NDES CA can be added.", errPrefix)}
@@ -290,10 +294,14 @@ func validateDigicertCACN(cn string, errPrefix string) error {
 	if len(strings.TrimSpace(cn)) == 0 {
 		return fleet.NewInvalidArgumentError("certificate_common_name", fmt.Sprintf("%sCA Common Name (CN) cannot be empty", errPrefix))
 	}
-	fleetVars := variables.Find(cn)
-	for _, fleetVar := range fleetVars {
-		if !slices.Contains(fleet.FleetVarsSupportedInDigiCert, fleet.FleetVarName(fleetVar)) {
-			return fleet.NewInvalidArgumentError("certificate_common_name", fmt.Sprintf("%sFLEET_VAR_%s is not allowed in CA Common Name (CN)", errPrefix, fleetVar))
+	return validateCAFleetVariables("certificate_common_name", "CA Common Name (CN)", cn, fleet.FleetVarsSupportedInDigiCert, errPrefix)
+}
+
+// validateCAFleetVariables rejects a Fleet variable in the value of a CA field that is not one of the allowed ones.
+func validateCAFleetVariables(field, where, value string, allowed []fleet.FleetVarName, errPrefix string) error {
+	for _, fleetVar := range variables.Find(value) {
+		if !slices.Contains(allowed, fleet.FleetVarName(fleetVar)) {
+			return fleet.NewInvalidArgumentError(field, fmt.Sprintf("%sFLEET_VAR_%s is not allowed in %s", errPrefix, fleetVar, where))
 		}
 	}
 	return nil
@@ -309,35 +317,32 @@ func validateDigicertSeatID(seatID string, errPrefix string) error {
 	if len(strings.TrimSpace(seatID)) == 0 {
 		return fleet.NewInvalidArgumentError("certificate_seat_id", fmt.Sprintf("%sCA Seat ID cannot be empty", errPrefix))
 	}
-	fleetVars := variables.Find(seatID)
-	for _, fleetVar := range fleetVars {
-		if !slices.Contains(fleet.FleetVarsSupportedInDigiCert, fleet.FleetVarName(fleetVar)) {
-			return fleet.NewInvalidArgumentError("certificate_seat_id", fmt.Sprintf("%sFLEET_VAR_%s is not allowed in DigiCert Seat ID", errPrefix, fleetVar))
-		}
-	}
-	return nil
+	return validateCAFleetVariables("certificate_seat_id", "DigiCert Seat ID", seatID, fleet.FleetVarsSupportedInDigiCert, errPrefix)
 }
 
 func validateDigicertUserPrincipalNames(userPrincipalNames []string, errPrefix string) error {
-	if len(userPrincipalNames) == 0 {
+	return validateCAUserPrincipalNames(userPrincipalNames, "DigiCert", fleet.FleetVarsSupportedInDigiCert, 0, errPrefix)
+}
+
+// validateCAUserPrincipalNames allows at most one UPN, which has to have a value and only Fleet variables the CA supports. A maxLength of
+// 0 is no limit.
+func validateCAUserPrincipalNames(upns []string, vendor string, allowed []fleet.FleetVarName, maxLength int, errPrefix string) error {
+	if len(upns) == 0 {
 		return nil
 	}
-	if len(userPrincipalNames) > 1 {
+	if len(upns) > 1 {
 		return fleet.NewInvalidArgumentError("certificate_user_principal_names",
 			fmt.Sprintf("%sCurrently, only one item can be added to certificate_user_principal_names.", errPrefix))
 	}
-	if len(strings.TrimSpace(userPrincipalNames[0])) == 0 {
+	if len(strings.TrimSpace(upns[0])) == 0 {
 		return fleet.NewInvalidArgumentError("certificate_user_principal_names",
-			fmt.Sprintf("%sDigiCert certificate_user_principal_name cannot be empty if specified", errPrefix))
+			fmt.Sprintf("%s%s certificate_user_principal_name cannot be empty if specified", errPrefix, vendor))
 	}
-	fleetVars := variables.Find(userPrincipalNames[0])
-	for _, fleetVar := range fleetVars {
-		if !slices.Contains(fleet.FleetVarsSupportedInDigiCert, fleet.FleetVarName(fleetVar)) {
-			return fleet.NewInvalidArgumentError("certificate_user_principal_names",
-				fmt.Sprintf("%sFLEET_VAR_%s is not allowed in CA User Principal Name", errPrefix, fleetVar))
-		}
+	if maxLength > 0 && utf8.RuneCountInString(upns[0]) > maxLength {
+		return fleet.NewInvalidArgumentError("certificate_user_principal_names",
+			fmt.Sprintf("%sThe user principal name cannot be longer than %d characters.", errPrefix, maxLength))
 	}
-	return nil
+	return validateCAFleetVariables("certificate_user_principal_names", "CA User Principal Name", upns[0], allowed, errPrefix)
 }
 
 func (svc *Service) validateHydrant(ctx context.Context, hydrantCA *fleet.HydrantCA, errPrefix string) error {
@@ -1291,6 +1296,9 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 	}
 
 	if err := svc.ds.UpdateCertificateAuthorityByID(ctx, id, &caToUpdate); err != nil {
+		if _, ok := errors.AsType[fleet.EJBCANameInUseError](err); ok {
+			return &fleet.BadRequestError{Message: errPrefix + err.Error()}
+		}
 		return err
 	}
 

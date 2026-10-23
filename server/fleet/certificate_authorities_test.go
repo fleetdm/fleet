@@ -56,6 +56,38 @@ func TestGroupedCertificateAuthorities(t *testing.T) {
 	require.Equal(t, "another-custom-scep-proxy-challenge", mapped["another-custom-scep-proxy-name"].Challenge)
 }
 
+func TestGroupCertificateAuthoritiesByTypeEJBCA(t *testing.T) {
+	grouped, err := GroupCertificateAuthoritiesByType([]*CertificateAuthority{
+		{
+			ID:                            1,
+			Type:                          string(CATypeEJBCA),
+			Name:                          new("full"),
+			URL:                           new("https://ejbca.example.com"),
+			MTLSCertPEM:                   new("cert"),
+			MTLSKeyPEM:                    new("key"),
+			TrustCABundlePEM:              new("bundle"),
+			EJBCACAName:                   new("ManagementCA"),
+			EJBCACertificateProfileName:   new("certProfile"),
+			EJBCAEndEntityProfileName:     new("eeProfile"),
+			CertificateCommonName:         new("cn"),
+			EJBCAUsernameTemplate:         new("username"),
+			CertificateUserPrincipalNames: &[]string{"upn"},
+		},
+		// The optional fields are not set.
+		{ID: 2, Type: string(CATypeEJBCA), Name: new("minimal"), URL: new("https://ejbca.example.com")},
+	})
+	require.NoError(t, err)
+	require.False(t, grouped.IsEmpty())
+	require.Equal(t, []EJBCA{
+		{
+			ID: 1, Name: "full", URL: "https://ejbca.example.com", MTLSCertPEM: "cert", MTLSKeyPEM: "key", TrustCABundlePEM: "bundle",
+			CertificateAuthorityName: "ManagementCA", CertificateProfileName: "certProfile", EndEntityProfileName: "eeProfile",
+			CertificateCommonName: "cn", UsernameTemplate: "username", CertificateUserPrincipalNames: []string{"upn"},
+		},
+		{ID: 2, Name: "minimal", URL: "https://ejbca.example.com"},
+	}, grouped.EJBCA)
+}
+
 func TestPreprocessCAFields(t *testing.T) {
 	t.Run("DigiCert CA fields are trimmed and normalized", func(t *testing.T) {
 		digiCertCA := &DigiCertCA{
