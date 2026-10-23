@@ -1412,7 +1412,7 @@ org_settings:
 - `url` is the URL to DigiCert One instance (default: `https://one.digicert.com`).
 - `api_token` is the token used to authenticate requests to DigiCert.
 - `profile_id` is the ID of certificate profile in DigiCert.
-- `certificate_common_name` is the certificate's CN. Accepts these Fleet variables: `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_PLATFORM`, `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`, `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`, `$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME`, `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`, `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`, and the legacy `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. Available on Apple hosts only.
+- `certificate_common_name` is the certificate's CN. Accepts these Fleet variables: `$FLEET_VAR_HOST_UUID`, `$FLEET_VAR_HOST_HARDWARE_SERIAL`, `$FLEET_VAR_HOST_PLATFORM`, `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`, `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`, `$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME`, `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`, `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`, `$FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID`, and the legacy `$FLEET_VAR_HOST_END_USER_EMAIL_IDP`. Available on Apple hosts only.
 - `certificate_user_principal_names` is the certificate's user principal names (UPN) attribute in Subject Alternative Name (SAN). Accepts the same Fleet variables as `certificate_common_name`.
 - `certificate_seat_id` is the ID of the DigiCert's seat. Seats are license units in DigiCert. Accepts the same Fleet variables as `certificate_common_name`.
 
