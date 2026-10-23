@@ -149,7 +149,7 @@ const EJBCAForm = ({
       <InputField
         label="Name"
         {...getTextFieldProps("name")}
-        helpText="Letters, numbers, and underscores only."
+        helpText="Letters, numbers, and underscores only. Fleet will create configuration profile variables with the name as suffix (e.g. $FLEET_VAR_EJBCA_DATA_WIFI_CERTIFICATE)."
         placeholder="WIFI_CERTIFICATE"
         disabled={isSubmitting}
         inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
@@ -157,8 +157,8 @@ const EJBCAForm = ({
       <InputField
         label="URL"
         {...getTextFieldProps("url")}
-        helpText="URL of your EJBCA REST API endpoint."
-        placeholder="https://ejbca.local:8443"
+        helpText="EJBCA instance URL, without a path."
+        placeholder="https://ejbca.example.com:8443"
         disabled={isSubmitting}
       />
       <div className={`${baseClass}__client-cert`}>
@@ -195,7 +195,7 @@ const EJBCAForm = ({
         label="Trust CA bundle"
         {...getTextFieldProps("trustCABundle")}
         type="textarea"
-        helpText="The CA certificates that sign the HTTPS certificate of your EJBCA server, in PEM format. If you leave it empty, Fleet trusts public CAs. (optional)"
+        helpText="PEM-encoded CA certificates that sign the HTTPS certificate of your EJBCA server. If you leave it empty, Fleet trusts public CAs. (optional)"
         placeholder="-----BEGIN CERTIFICATE-----"
         disabled={isSubmitting}
       />
@@ -219,7 +219,7 @@ const EJBCAForm = ({
         label="End entity profile name"
         {...getTextFieldProps("endEntityProfileName")}
         helpText="Name of the end entity profile in EJBCA."
-        placeholder="EMPTY"
+        placeholder="WIFI_DEVICES"
         disabled={isSubmitting}
         inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
       />
@@ -232,7 +232,7 @@ const EJBCAForm = ({
         inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
       />
       <InputField
-        label="Username"
+        label="End entity username"
         {...getTextFieldProps("usernameTemplate")}
         helpText="EJBCA creates an end entity with this username for each host. If you leave it empty, Fleet uses the CN. (optional)"
         placeholder="$FLEET_VAR_HOST_HARDWARE_SERIAL"
