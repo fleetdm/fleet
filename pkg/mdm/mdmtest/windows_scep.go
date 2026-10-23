@@ -275,7 +275,8 @@ func (c *TestWindowsMDMClient) AppendSCEPInstallResponses(
 }
 
 // RunSCEP performs a single SCEP exchange against sc.ServerURL using the challenge and subject
-// from the CSP, and returns the issued certificate. It is exposed separately from
+// from the CSP, and returns the issued certificate. Like the Windows SCEP client, it appends
+// /pkiclient.exe to the server URL. It is exposed separately from
 // AppendSCEPInstallResponses so callers (and tests) can drive the exchange synchronously when
 // they want.
 func (c *TestWindowsMDMClient) RunSCEP(ctx context.Context, sc SCEPCommand, logger *slog.Logger) (*x509.Certificate, error) {
@@ -288,7 +289,7 @@ func (c *TestWindowsMDMClient) RunSCEP(ctx context.Context, sc SCEPCommand, logg
 		return nil, fmt.Errorf("scep parse subject alternative names: %w", err)
 	}
 	cert, _, err := performSCEPExchange(ctx, scepExchangeRequest{
-		URL:       sc.ServerURL,
+		URL:       strings.TrimSuffix(sc.ServerURL, "/") + "/pkiclient.exe",
 		Subject:   subject,
 		URIs:      uris,
 		Challenge: sc.Challenge,
