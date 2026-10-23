@@ -276,7 +276,7 @@ func (s *integrationTestSuite) TestSecretVariablesInUse() {
 	require.Contains(
 		t,
 		errorMsg,
-		"Couldn't delete. NAME1 is used by the \"Name0\" configuration profile in the \"No team\" fleet. Please delete the configuration profile and try again.",
+		"Couldn't delete. NAME1 is used by the \"Name0\" configuration profile in the \"Unassigned\" fleet. Please delete the configuration profile and try again.",
 	)
 
 	err = s.ds.DeleteMDMAppleConfigProfile(ctx, appleProfile.ProfileUUID)
@@ -333,7 +333,7 @@ func (s *integrationTestSuite) TestSecretVariablesInUse() {
 	require.Contains(
 		t,
 		errorMsg,
-		"Couldn't delete. NAME1 is used by the \"foobar.sh\" script in the \"No team\" fleet. Please edit or delete the script and try again.",
+		"Couldn't delete. NAME1 is used by the \"foobar.sh\" script in the \"Unassigned\" fleet. Please edit or delete the script and try again.",
 	)
 
 	err = s.ds.DeleteScript(ctx, script.ID)
