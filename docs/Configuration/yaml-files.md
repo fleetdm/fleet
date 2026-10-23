@@ -148,7 +148,7 @@ Fleet adds a read-only pre-install query that checks if the app is open when `pa
 
 #### Automations
 
-Each policy can have one automation. If more than one of `install_software`, `run_script`, `resend_configuration_profile`, `calendar_events_enabled`, `conditional_access_enabled`, or `webhook_or_ticket_enabled` is set, `fleetctl gitops` fails with an error.
+Each policy can have one automation. If more than one of `install_software`, `run_script`, `resend_configuration_profile`, `calendar_events_enabled`, `conditional_access_enabled`, or `webhooks_and_tickets_enabled` is set, `fleetctl gitops` fails with an error.
 
 ##### Install software
 
@@ -182,7 +182,7 @@ To trigger a configuration profile resend when a policy fails, specify:
 
 To send failing hosts to a webhook or create a ticket when a policy fails, specify:
 
-- `webhook_or_ticket_enabled: true` (default: `false`). Fleet uses the [`failing_policies_webhook`](#failing-policies-webhook), Jira, or Zendesk destination configured for the policy's fleet (or "All fleets" for global policies).
+- `webhooks_and_tickets_enabled: true` (default: `false`). Fleet uses the [`failing_policies_webhook`](#failing-policies-webhook), Jira, or Zendesk destination configured for the policy's fleet (or "All fleets" for global policies).
 
 ##### Example
 
@@ -198,7 +198,7 @@ policies:
     query: "SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';"
     platform: darwin
     critical: false
-    webhook_or_ticket_enabled: true
+    webhooks_and_tickets_enabled: true
     labels_include_any:
       - Engineering
       - Customer Support
@@ -1566,7 +1566,7 @@ settings:
 - `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: `""`).
 - `host_batch_size` is the maximum number of host identifiers to send in one webhook request. A value of `0` means all host identifiers with a failing policy will be sent in a single request.
 
-To choose which policies trigger the webhook, set [`webhook_or_ticket_enabled`](#webhook-or-ticket) on each policy.
+To choose which policies trigger the webhook, set [`webhooks_and_tickets_enabled`](#webhook-or-ticket) on each policy.
 
 #### Example
 
