@@ -2899,7 +2899,7 @@ func (svc *Service) validateVPPAssignments(
 			}
 			if teamName == fleet.TeamNameAllTeams {
 				if len(vpp.Teams) > 1 {
-					invalid.Appendf("mdm.volume_purchasing_program", "token cannot belong to %s and other fleets", fleet.DisplayNameAllTeams)
+					invalid.Appendf("mdm.volume_purchasing_program", "Couldn't apply. VPP token %q can't be assigned to All fleets and specific fleets at the same time.", vpp.Location)
 					return nil, nil
 				}
 				tokenTeams = []uint{}
