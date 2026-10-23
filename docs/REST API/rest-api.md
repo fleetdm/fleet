@@ -1886,9 +1886,7 @@ None.
           "path": "path/to/assets/asset.json"
         }
       ],
-      "managed_local_account_settings": {
-        "enabled": true
-      },
+      "enable_managed_local_account": true,
       "end_user_local_account_type": "admin"
     },
     "windows_settings": {
@@ -1937,9 +1935,7 @@ None.
       "enable_end_user_authentication": false,
       "apple_setup_assistant": "path/to/config.json",
       "enable_release_device_manually": false,
-      "manual_agent_install": false,
-      "enable_managed_local_account": false,
-      "end_user_local_account_type": "admin"
+      "manual_agent_install": false
     },
     "client_url": "https://instance.fleet.com",
     "apple_account_provisioning": {
@@ -2303,9 +2299,7 @@ Modifies the Fleet's configuration with the supplied information.
           "path": "path/to/assets/asset.json"
         }
       ],
-      "managed_local_account_settings": {
-        "enabled": true
-      },
+      "enable_managed_local_account": true,
       "end_user_local_account_type": "admin"
     },
     "windows_settings": {
@@ -2350,8 +2344,6 @@ Modifies the Fleet's configuration with the supplied information.
     "setup_experience": {
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
-      "enable_managed_local_account": false,
-      "end_user_local_account_type": "admin",
       "lock_end_user_info": true,
       "apple_setup_assistant": "path/to/config.json"
     },
@@ -3039,9 +3031,9 @@ _Available in Fleet Premium._
 | Name                                 | Type    | Description   |
 | ---------------------                | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_end_user_authentication       | boolean | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#end-user-authentication). |
-| enable_managed_local_account         | boolean | _Available in Fleet Premium._ During Setup experience, a managed local account will be created on eligible hosts if set to true. |
-| end_user_local_account_type          | string  | _Available in Fleet Premium._ Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
 | lock_end_user_info                   | boolean | If set to true, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`) |
+
+> `enable_managed_local_account` and `end_user_local_account_type` are deprecated as of Fleet 5.0. It is maintained for backwards compatibility. Please use the platform based `enable_managed_local_account` and `apple_settings.end_user_local_account_type` instead.
 
 <br/>
 
@@ -3064,9 +3056,10 @@ _Available in Fleet Premium._
 | custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
 | enable_disk_encryption             | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true. |
 | enable_escrow_disk_encryption_key  | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. Supported for macOS and Linux hosts. |
-| managed_local_account_settings         | object  | Settings for the managed local account. |
-| managed_local_account_settings.enabled | boolean | Whether to create the managed local account (default: `false`). |
-| end_user_local_account_type            | string  | The end user account type. Requires `managed_local_account_settings.enabled` to be `true`. Options: `"admin"`, `"standard"`, `"none"` (default: `"admin"`). |
+| enable_managed_local_account           | boolean | Whether to create the managed local account (default: `false`). |
+| end_user_local_account_type            | string  | The end user account type. Requires `enable_managed_local_account` to be `true`. Options: `"admin"`, `"standard"`, `"none"` (default: `"admin"`). |
+
+> `managed_local_account_settings` and `managed_local_account_settings.enabled` are deprecated as of Fleet 5.0. It is maintained for backwards compatibility. Please use `enable_managed_local_account` instead.
 
 <br/>
 
@@ -3151,9 +3144,7 @@ _Available in Fleet Premium._
           "path": "path/to/assets/asset.json"
         }
       ],
-      "managed_local_account_settings": {
-        "enabled": true
-      }
+      "enable_managed_local_account": true
     },
     "windows_settings": {
       "configuration_profiles": [
@@ -9833,8 +9824,6 @@ _Available in Fleet Premium_
 | require_all_software_windows | boolean | body | If set to `true`, setup will be canceled on Windows hosts if any software installs fail (the host is blocked at the Windows Enrollment Status Page until the device is reset). If `false`, the Enrollment Status Page lists the failed software and the end user can continue to the desktop and install it later via self-service. |
 | enable_release_device_manually | boolean | body  | When enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. |
 | manual_agent_install | boolean | body  | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
-| enable_managed_local_account     | boolean | body | _Available in Fleet Premium._ During the Setup experience, a managed local account will be created on macOS hosts if set to true. |
-| end_user_local_account_type     | string | body | Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
 
 #### Example
 
@@ -17166,9 +17155,7 @@ _Available in Fleet Premium_
             "path": "path/to/assets/asset.json"
           }
         ],
-        "managed_local_account_settings": {
-          "enabled": true
-        }
+        "enable_managed_local_account": true
       },
       "windows_settings": {
         "custom_settings": [
@@ -17200,8 +17187,6 @@ _Available in Fleet Premium_
       "setup_experience": {
         "bootstrap_package": "",
         "enable_end_user_authentication": false,
-        "enable_managed_local_account": false,
-        "end_user_local_account_type": "admin",
         "apple_setup_assistant": "path/to/config.json",
         "enable_release_device_manually": false,
         "manual_agent_install": false
@@ -17629,11 +17614,12 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 | Name                                   | Type    | Description   |
 | -------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | custom_settings                        | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
-| managed_local_account_settings         | object  | Settings for the managed local account. |
-| managed_local_account_settings.enabled | boolean | Whether to create the managed local account (default: `false`). |
-| end_user_local_account_type            | string  | The end user account type. Requires `managed_local_account_settings.enabled` to be `true`. Options: `"admin"`, `"standard"`, `"none"` (default: `"admin"`). |
+| enable_managed_local_account           | boolean | Whether to create the managed local account (default: `false`). |
+| end_user_local_account_type            | string  | The end user account type. Requires `enable_managed_local_account` to be `true`. Options: `"admin"`, `"standard"`, `"none"` (default: `"admin"`). |
 | enable_disk_encryption             | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true. |
 | enable_escrow_disk_encryption_key  | boolean | Specifies whether Fleet stores the disk encryption recovery key without prompting users to turn on disk encryption. Set to true when a third-party tool handles enforcement. Supported for macOS and Linux hosts. |
+
+> `managed_local_account_settings` and `managed_local_account_settings.enabled` are deprecated as of Fleet 5.0. It is maintained for backwards compatibility. Please use `enable_managed_local_account` instead.
 
 <br/>
 
@@ -17671,9 +17657,8 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 | ------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_end_user_authentication        | boolean | If set to true, IdP authentication will be required during automatic MDM enrollment of new macOS hosts. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#require-idp-authentication).
 | lock_end_user_info                    | boolean | If set to true, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`) |
-| enable_managed_local_account          | boolean | _Available in Fleet Premium._ During Setup experience, a managed local account will be created on eligible hosts if set to true. |
-| end_user_local_account_type          | string  | body  | Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
 
+> `enable_managed_local_account` and `end_user_local_account_type` are deprecated as of Fleet 5.0. It is maintained for backwards compatibility. Please use the platform based `enable_managed_local_account` and `apple_settings.end_user_local_account_type` instead.
 
 ##### Example request body
 
@@ -17711,9 +17696,7 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
           "path": "path/to/assets/asset.json"
         }
       ],
-      "managed_local_account_settings": {
-        "enabled": true
-      }
+      "enable_managed_local_account": true
     },
     "windows_settings": {
       "custom_settings": [
@@ -17928,9 +17911,7 @@ This also applies to `DELETE /api/v1/fleet/fleets/:id/users` (remove users from 
             "path": "path/to/assets/asset.json"
           }
         ],
-        "managed_local_account_settings": {
-          "enabled": true
-        }
+        "enable_managed_local_account": true
       },
       "windows_settings": {
         "custom_settings": [
