@@ -134,7 +134,7 @@ Linux wipe does not use an MDM command because there's no standard Linux MDM pro
 
 3. btrfs snapshots are attempted to be deleted — using `snapper` if available, with a fallback to `btrfs subvolume delete`. This step runs before file deletion because read-only snapshots resist `rm -rf`. Snapshot deletion may not be complete if `snapper` is not installed and the fallback cannot access all subvolumes.
 4. Deletion of non-essential user data is attempted: `/home/*`, `/tmp`, `/var/tmp`, `/var/log`, user caches, trash directories, and `/.snapshots`.
-5. Deletion of system directories is attempted: `/bin`, `/sbin`, `/usr`, `/lib`, `/opt`, `/etc`, `/var`, and `/srv`.
+5. Deletion of system directories is attempted in this order: `/bin`, `/sbin`, `/usr`, `/lib`, `/opt`, `/etc`, `/var`, `/srv`, and finally `/nix/store` (if the directory exists). A read-only mount directly at `/nix/store` is remounted read-write before deletion. If remounting fails or the mount is not confirmed writable, Nix store deletion is skipped and an error is reported.
 6. The host is halted via the kernel's sysrq interface.
 
 The script will not cross filesystem boundaries — it uses `--one-file-system` (or `find -xdev` as a fallback) to avoid recursing into mounted filesystems. This is a safety measure, but it also means data on separately mounted filesystems at non-standard paths will not be erased.
@@ -142,6 +142,7 @@ The script will not cross filesystem boundaries — it uses `--one-file-system` 
 #### Limitations
 
 - This is a **best-effort, script-based** erase, not a hardware-level secure erase. There is no guarantee all data is removed. Data may be recoverable with forensic tools, particularly on SSDs without full-disk encryption.
+- **Nix stores** are targeted at `/nix/store`. Only a read-only mount directly at that path is remounted; a read-only containing filesystem is not remounted. Deletion can still fail if the underlying filesystem is read-only or earlier deletions remove utilities needed to finish the wipe. This does not guarantee a complete wipe on NixOS.
 - **Separate partitions or mount points** not covered by the paths listed above (e.g. a dedicated `/data` partition) will not be erased. If your hosts use non-standard disk layouts, the script may leave data intact on those volumes.
 - **Network-mounted paths** are detected and skipped to protect remote storage, but detection relies on `/proc/mounts` being accurate and complete. **Disconnect all network drives before wiping** and confirm there is no network-backed storage accessible on the host at wipe time. If you are unsure, check what is mounted by running `mount` on the host before initiating the wipe.
 - After the script completes, the host will halt and will not reboot into a usable state. Physical access and OS reinstallation will be required to bring the host back into service.
