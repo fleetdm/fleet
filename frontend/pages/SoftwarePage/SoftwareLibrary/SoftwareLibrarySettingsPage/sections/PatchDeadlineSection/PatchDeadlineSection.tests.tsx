@@ -8,6 +8,7 @@ import { AppContext } from "context/app";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import {
   emptyPatchDeadlineAppsHandler,
+  getPatchDeadlineAppsErrorHandler,
   getPatchDeadlineAppsHandler,
   getPatchDeadlineSettingsHandler,
   updatePatchDeadlineSettingsFieldErrorHandler,
@@ -232,7 +233,7 @@ describe("PatchDeadlineSection", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("disables Save under GitOps mode", async () => {
+  it("disables Save and the day/time fields under GitOps mode", async () => {
     mockServer.use(getPatchDeadlineSettingsHandler());
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -241,8 +242,13 @@ describe("PatchDeadlineSection", () => {
 
     render(<SectionWrapper />);
 
-    await screen.findByRole("checkbox", { name: "Tuesday" });
+    const tuesday = await screen.findByRole("checkbox", { name: "Tuesday" });
     expect(screen.getByRole("button", { name: /save/i })).toBeDisabled();
+    // Fields disable too so a GitOps admin isn't able to edit values they
+    // can never persist. Fleet's custom checkbox div surfaces its disabled
+    // state via aria-disabled; the native time input via disabled.
+    expect(tuesday).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByLabelText("Time")).toBeDisabled();
   });
 
   it("surfaces field-scoped server errors inline next to the field", async () => {
@@ -425,6 +431,33 @@ describe("PatchDeadlineSection", () => {
         'img[src="https://cdn.example.test/figma.png"]'
       );
       expect(img).not.toBeNull();
+    });
+
+    it("shows a DataError in the Apps slot when the policies query fails", async () => {
+      // Hard-fail distinguishes from "fleet has no deadline apps" (which hides
+      // the whole subsection). Section header stays so the user knows what
+      // broke; the "listed below" pointer stays hidden because we don't know.
+      mockServer.use(
+        getPatchDeadlineSettingsHandler(),
+        getPatchDeadlineAppsErrorHandler
+      );
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: premiumAdminContext,
+      });
+
+      render(<SectionWrapper />);
+      await screen.findByRole("checkbox", { name: "Tuesday" });
+
+      expect(
+        await screen.findByRole("heading", { level: 2, name: "Apps" })
+      ).toBeInTheDocument();
+      // Fleet's DataError card copy.
+      expect(screen.getByText(/something's gone wrong/i)).toBeInTheDocument();
+      // Pointer sentence doesn't appear when we don't know whether apps exist.
+      expect(
+        screen.queryByText(/Apps with this option are listed below/i)
+      ).not.toBeInTheDocument();
     });
   });
 });

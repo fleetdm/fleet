@@ -8,11 +8,8 @@ import { IPolicy, IPolicySoftwareToInstall } from "interfaces/policy";
 import { baseUrl } from "test/test-utils";
 
 const settingsUrl = baseUrl("/software/patch_deadline_settings");
-// Inferred wiring from Carlo's Slack response: the Apps subsection pulls from
-// the existing patch-automation policies endpoint, not a dedicated endpoint.
-// Not spec'd anywhere (see PatchDeadlineSection.tsx for context).
-// Note the path segment is /fleets/ not /teams/ even though the endpoints
-// constant is still called TEAMS — Fleet renamed the URL but kept the var.
+// Note the path is /fleets/ even though the endpoints constant is still called
+// TEAMS. The URL got renamed, the constant did not.
 const patchPoliciesUrl = baseUrl("/fleets/:teamId/policies");
 
 export const getPatchDeadlineSettingsHandler = (
@@ -21,37 +18,24 @@ export const getPatchDeadlineSettingsHandler = (
   http.get(settingsUrl, ({ request }) => {
     const url = new URL(request.url);
     const fleetId = Number(url.searchParams.get("fleet_id") ?? 0);
-    const body: IPatchDeadlineSettings = {
+    const settings: IPatchDeadlineSettings = {
       fleet_id: fleetId,
       days: ["tuesday"] as Weekday[],
       time: "17:00",
       ...overrides,
     };
-    return HttpResponse.json(body);
+    return HttpResponse.json({ patch_deadline_settings: settings });
   });
 
 export const updatePatchDeadlineSettingsHandler = http.patch(
   settingsUrl,
   async ({ request }) => {
     const body = (await request.json()) as IPatchDeadlineSettings;
-    return HttpResponse.json(body);
+    return HttpResponse.json({ patch_deadline_settings: body });
   }
 );
 
-export const updatePatchDeadlineSettingsBadRequestHandler = http.patch(
-  settingsUrl,
-  () =>
-    HttpResponse.json(
-      {
-        message: "Validation error",
-        errors: [{ name: "time", reason: "bad" }],
-      },
-      { status: 400 }
-    )
-);
-
-// Factory for simulating field-scoped 400 validation errors from the backend.
-// Pass per-field reasons to drive the inline-error assertion.
+// Factory for simulating field-scoped 400 validation errors.
 export const updatePatchDeadlineSettingsFieldErrorHandler = (
   fieldErrors: { name: "days" | "time"; reason: string }[]
 ) =>
@@ -62,8 +46,7 @@ export const updatePatchDeadlineSettingsFieldErrorHandler = (
     )
   );
 
-// Hangs the response so tests can assert the Save button's in-flight state.
-// Returning a never-resolving promise keeps the mutation stuck in `isLoading`.
+// Never-resolving response so tests can assert the Save button's in-flight state.
 export const updatePatchDeadlineSettingsPendingHandler = http.patch(
   settingsUrl,
   () =>
@@ -77,10 +60,8 @@ export const updatePatchDeadlineSettingsServerErrorHandler = http.patch(
   () => HttpResponse.json({ message: "Internal server error" }, { status: 500 })
 );
 
-// Mocks the policies endpoint (?automation_type=patch) response the Apps
-// subsection consumes. Each entry becomes a patch-type policy with
-// `patch_deadline: true` and the given software under `patch_software` — the
-// shape the real BE returns for patch-with-deadline policies.
+// Each entry becomes a patch-type policy with `patch_deadline: true` and the
+// given software under `patch_software`, matching the real BE response shape.
 export const getPatchDeadlineAppsHandler = (
   apps: Partial<IPolicySoftwareToInstall>[] = []
 ) =>
@@ -94,7 +75,6 @@ export const getPatchDeadlineAppsHandler = (
           : {}),
         ...(a.icon_url !== undefined ? { icon_url: a.icon_url } : {}),
       };
-      // Minimal IPolicy shape — only the fields the Settings page reads.
       const policy: Partial<IPolicy> = {
         id: i + 1,
         name: `${patch_software.name} patch policy`,

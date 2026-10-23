@@ -50,6 +50,7 @@ const PatchDeadlineSection = ({
   fleetId,
   isRouteOk,
   canManage,
+  gitOpsModeEnabled,
 }: ILibrarySettingsCardProps) => {
   const queryClient = useQueryClient();
 
@@ -59,12 +60,10 @@ const PatchDeadlineSection = ({
     { enabled: isRouteOk, refetchOnWindowFocus: false }
   );
 
-  // Inferred wiring: Carlo (BE) said in Slack that the Apps subsection should
-  // pull from the existing patch-automation list on the policies endpoint, not
-  // a dedicated patch-deadline-apps endpoint. This isn't written down in the
-  // parent story (#39176), any sub-issue, the API/YAML spec PR (#55432), or
-  // the Figma — swap for the real endpoint if the direction changes.
-  const { data: policiesData } = useQuery<ILoadTeamPoliciesResponse, Error>(
+  const { data: policiesData, isError: isAppsError } = useQuery<
+    ILoadTeamPoliciesResponse,
+    Error
+  >(
     ["patchDeadlineApps", fleetId],
     () =>
       teamPoliciesAPI.loadAllNew({
@@ -161,7 +160,9 @@ const PatchDeadlineSection = ({
   // Role-based disable sticks (the user never gets to interact). Submit-time
   // disable uses readOnly so the field doesn't visually flicker to the greyed
   // "disabled" state for the few hundred ms of the PATCH round-trip.
-  const roleDisabled = !canManage;
+  // GitOps mode also fully disables the fields — the Save button on its own
+  // being blocked lets users edit values they can never persist.
+  const roleDisabled = !canManage || gitOpsModeEnabled;
   const fieldReadOnly = isSubmitting;
 
   return (
@@ -187,7 +188,12 @@ const PatchDeadlineSection = ({
         }
       />
 
-      <FormField name="patch-deadline-days" label="Days" error={errors.days}>
+      <FormField
+        name="patch-deadline-days"
+        label="Days"
+        error={errors.days}
+        disabled={roleDisabled}
+      >
         <div className={`${baseClass}__days`}>
           {WEEKDAYS.map((w) => (
             <Checkbox
@@ -238,7 +244,13 @@ const PatchDeadlineSection = ({
         />
       )}
 
-      {hasApps && (
+      {isAppsError && (
+        <div>
+          <SectionHeader title="Apps" />
+          <DataError verticalPaddingSize="pad-large" />
+        </div>
+      )}
+      {!isAppsError && hasApps && (
         <PatchDeadlineAppsTable fleetId={fleetId} apps={apps} router={router} />
       )}
     </div>
