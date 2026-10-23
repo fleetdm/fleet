@@ -122,10 +122,13 @@ differs from what it sits in: \`[only iOS]\` means the key does nothing on any o
           'com.apple.configuration.package',
         ];
         schemaFile = Object.assign({}, schemaFile, {
-          entries: _.reject(schemaFile.entries, (entry)=>{
-            let requiresAnAsset = _.any(entry.keys, (key)=>{ return key.required && /AssetReference$/.test(key.key); });
-            return _.contains(DECLARATION_TYPES_FLEET_REJECTS, entry.name) || requiresAnAsset;
-          }),
+          entries: _.compact(_.map(schemaFile.entries, (entry)=>{
+            if(_.contains(DECLARATION_TYPES_FLEET_REJECTS, entry.name)) {
+              return undefined;
+            }
+            let pruned = withoutAssetReferences(entry.keys);
+            return pruned.lostARequiredKey ? undefined : Object.assign({}, entry, { keys: pruned.keys });
+          })),
         });
       }
 
@@ -1356,7 +1359,7 @@ to the profile automatically after you return it.`;
         ],
         ddm: [
           'Never write a key that ends in AssetReference, since Fleet cannot deliver the asset declaration it points to.  If the setting needs one, return the "couldNotGenerateProfile" shape rather than describing the asset in "deliveryNotes".',
-          'A declaration type marked "(on macOS: user channel only)" does nothing on a Mac unless Fleet delivers it to the user, so add a top-level "PayloadScope": "User" key beside Type, Identifier and Payload.  Say in "deliveryNotes" that the declaration fails on iPhones and iPads, so it should be scoped to Macs with a label.',
+          'A declaration type marked "(on macOS: user channel only)" does nothing on a Mac unless Fleet delivers it to the user, so add a top-level "PayloadScope": "User" key beside Type, Identifier and Payload.  Say in "deliveryNotes" that the declaration needs the Mac\'s user channel, which Fleet creates for Macs that enroll automatically, and fails on iPhones and iPads, so it should be scoped to those Macs with a label.  When the instructions name only iPhones or iPads, leave "PayloadScope" out.',
         ],
       }[profileType] || []);
     }
@@ -1446,3 +1449,32 @@ ${uuidsToUse}${hexEncodingsToUse}
 
 };
 
+
+/**
+ * A declaration's keys without its asset references, at any depth.
+ *
+ * Fleet cannot deliver the asset declarations these point to.  A dictionary or array item that requires one goes
+ * with it, and so on up, so an optional part such as an app's password items is dropped while the rest of the
+ * declaration stays usable.
+ *
+ * @param  {Array} keys
+ * @returns {Dictionary}  {keys, lostARequiredKey}: whether a required key at this level had to go
+ */
+function withoutAssetReferences(keys) {
+  let lostARequiredKey = false;
+  let kept = _.compact(_.map(keys || [], (key)=>{
+    let goes = /AssetReferences?$/.test(key.key);
+    let subkeys;
+    if(!goes && key.subkeys) {
+      let pruned = withoutAssetReferences(key.subkeys);
+      goes = pruned.lostARequiredKey;
+      subkeys = pruned.keys;
+    }
+    if(goes) {
+      lostARequiredKey = lostARequiredKey || !!key.required;
+      return undefined;
+    }
+    return subkeys ? Object.assign({}, key, { subkeys }) : key;
+  }));
+  return { keys: kept, lostARequiredKey };
+}

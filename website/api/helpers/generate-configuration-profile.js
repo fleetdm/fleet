@@ -230,7 +230,11 @@ module.exports = {
     };
 
     if(profileType === 'ddm' && forFleet && _.isString(result.generatedProfile.profile)) {
-      let withUserScope = await sails.helpers.addUserPayloadScopeToDeclaration.with({ profile: result.generatedProfile.profile, deliveryNotes: result.generatedProfile.deliveryNotes || '' });
+      let withUserScope = await sails.helpers.addUserPayloadScopeToDeclaration.with({
+        profile: result.generatedProfile.profile,
+        deliveryNotes: result.generatedProfile.deliveryNotes || '',
+        platformsNamed: route ? route.platformsNamed : sails.helpers.getApplePlatformsNamed.with({ naturalLanguageInstructions }),
+      });
       result.generatedProfile.profile = withUserScope.profile;
       result.generatedProfile.deliveryNotes = withUserScope.deliveryNotes;
     }
