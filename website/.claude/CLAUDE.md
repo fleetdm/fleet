@@ -305,7 +305,7 @@ npm run build-for-prod  # Compile markdown, build and minify assets
 
 The dev server runs on port 2024. Check whether one is already running before lifting another.
 
-Scripts and features that don't need the database (e.g. the profile generator tests) can run with the ORM hook off: `sails_hooks__orm=false sails run <script>`.
+In the default development environment, scripts that don't need the database can disable the ORM and skip database-dependent bootstrap work: `sails_hooks__orm=false sails_models__migrate=safe sails run <script>`. For the profile generator tests, use `sails_hooks__orm=false sails_models__migrate=safe npm run test-profile-generator`.
 
 ## Git
 
