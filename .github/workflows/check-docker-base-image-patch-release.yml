@@ -1,0 +1,183 @@
+name: Check for new Docker base image patch release
+
+# Checks daily whether a new patch release of the base image used by the
+# fleetdm/fleet Docker image (tools/fleet-docker/Dockerfile) is available. If so,
+# it replaces that pinned image reference (tag and digest) in every file of the
+# repo that uses it, and opens an automated PR.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 7 * * *' # Nightly 7AM UTC
+
+# This workflow only runs on schedule and workflow_dispatch, so use a stable
+# group to serialize runs (a newly queued run cancels an in-progress one).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+env:
+  # Source of truth for the current base image version.
+  DOCKERFILE: tools/fleet-docker/Dockerfile
+
+jobs:
+  check-docker-base-image-patch-release:
+    # Only run from main: a manual dispatch from a feature branch would check
+    # out that branch and open a PR against main from stale/unrelated content.
+    if: github.repository == 'fleetdm/fleet' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # for peter-evans/create-pull-request to create branch
+      pull-requests: write # for peter-evans/create-pull-request to create a PR
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check for a new base image patch release
+        id: check
+        run: |
+          # Expected format: FROM <image>:<x.y.z>@sha256:<digest>
+          from=$(grep -m1 -E '^FROM ' "$DOCKERFILE" | awk '{print $2}')
+          if [[ ! "$from" =~ ^([a-z0-9._/-]+):([0-9]+\.[0-9]+)\.([0-9]+)@sha256:[0-9a-f]{64}$ ]]; then
+            echo "Unexpected FROM format in $DOCKERFILE: $from" >&2
+            exit 1
+          fi
+          image="${BASH_REMATCH[1]}"
+          major_minor="${BASH_REMATCH[2]}"
+          current="$major_minor.${BASH_REMATCH[3]}"
+          echo "Current base image: $image:$current (release branch: $major_minor)"
+
+          # Official images live under library/ on Docker Hub.
+          repo="$image"
+          [[ "$repo" == */* ]] || repo="library/$repo"
+
+          # Only look at patch releases of the same major.minor we are already on,
+          # and sort them instead of relying on the API's response ordering.
+          # The digest returned is the multi-platform index digest, which is what
+          # the Dockerfiles pin.
+          tags=$(curl -fsS --retry 3 \
+            "https://hub.docker.com/v2/repositories/$repo/tags?name=$major_minor.&page_size=100" | \
+            jq -r --arg mm "$major_minor." \
+            '.results[] | select(.name | startswith($mm)) | select(.name | test("^[0-9]+\\.[0-9]+\\.[0-9]+$")) | "\(.name) \(.digest)"' | \
+            sort -V -k1,1)
+          latest_line=$(echo "$tags" | tail -n1)
+          latest=$(echo "$latest_line" | awk '{print $1}')
+          digest=$(echo "$latest_line" | awk '{print $2}')
+          if [[ -z "$latest" ]]; then
+            echo "No release found for $image $major_minor, nothing to do."
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # These values come from an external HTTP response and get written into
+          # Dockerfiles and branch names: require strict formats.
+          if [[ ! "$latest" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Unexpected version format from Docker Hub: $latest" >&2
+            exit 1
+          fi
+          if [[ ! "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Unexpected digest format from Docker Hub for $latest: $digest" >&2
+            exit 1
+          fi
+          echo "Latest $image $major_minor patch release: $latest ($digest)"
+
+          if [[ "$latest" == "$current" ]]; then
+            echo "Already on the latest patch release."
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [[ "$(printf '%s\n%s\n' "$current" "$latest" | sort -V | tail -n1)" != "$latest" ]]; then
+            echo "Dockerfile version $current is newer than $latest, nothing to do."
+            echo "update_needed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          {
+            echo "update_needed=true"
+            echo "image=$image"
+            echo "current_ref=$from"
+            echo "current_version=$current"
+            echo "new_ref=$image:$latest@$digest"
+            echo "new_version=$latest"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Update base image references
+        id: update
+        if: steps.check.outputs.update_needed == 'true'
+        env:
+          CURRENT_REF: ${{ steps.check.outputs.current_ref }}
+          NEW_REF: ${{ steps.check.outputs.new_ref }}
+        run: |
+          # Replace the exact pinned reference everywhere it's used, so other
+          # Dockerfiles on the same base image stay in sync with the fleet image.
+          mapfile -t files < <(git grep -l -F "$CURRENT_REF")
+          if [[ ${#files[@]} -eq 0 ]]; then
+            echo "No files reference $CURRENT_REF" >&2
+            exit 1
+          fi
+          sed -i "s|${CURRENT_REF//./\\.}|$NEW_REF|g" "${files[@]}"
+          if git grep -q -F "$CURRENT_REF"; then
+            echo "Some references to $CURRENT_REF were not replaced" >&2
+            exit 1
+          fi
+          git diff
+
+          {
+            echo "files<<EOF"
+            printf -- "- \`%s\`\n" "${files[@]}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: PR changes
+        if: steps.check.outputs.update_needed == 'true'
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          base: main
+          branch: update-docker-base-image-${{ steps.check.outputs.image }}-${{ steps.check.outputs.new_version }}
+          delete-branch: true
+          title: Update Docker base image to ${{ steps.check.outputs.image }}:${{ steps.check.outputs.new_version }} [automated]
+          reviewers: lukeheath,georgekarrv,sharon-fdm
+          assignees: lucasmrod,getvictor,JordanMontgomery,cdcme
+          commit-message: |
+            Update Docker base image to ${{ steps.check.outputs.image }}:${{ steps.check.outputs.new_version }} [automated]
+          body: |
+            Automated change from [GitHub action](https://github.com/fleetdm/fleet/actions/workflows/check-docker-base-image-patch-release.yml).
+
+            Updates the Docker base image from `${{ steps.check.outputs.image }}:${{ steps.check.outputs.current_version }}` to the latest patch release, `${{ steps.check.outputs.new_ref }}`, in:
+
+            ${{ steps.update.outputs.files }}
+
+      - name: Slack notification on failure
+        if: ${{ failure() }}
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload: |
+            {
+              "text": "${{ job.status }}\nhttps://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "❌ The check Docker base image patch release workflow failed\nhttps://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_ORCHESTRATION_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
