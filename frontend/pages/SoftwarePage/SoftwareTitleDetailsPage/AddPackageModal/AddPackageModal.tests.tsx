@@ -126,7 +126,9 @@ describe("AddPackageModal", () => {
     it("hides the standard multi-package banner copy in GitOps mode", () => {
       renderModal({}, true);
       expect(
-        screen.queryByText(/will install the one that was added first/)
+        screen.queryByText(
+          /If multiple versions target the same host, Fleet will deploy the one that was added first\./i
+        )
       ).not.toBeInTheDocument();
     });
   });
