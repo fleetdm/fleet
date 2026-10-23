@@ -1089,6 +1089,40 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 
 				require.NoError(t, ds.SetOrUpdateHostBitLockerProtectionOutcome(ctx, targetHost.ID, fleet.DiskEncryptionProtectionRestored, ""))
 			})
+
+			// A stored key Fleet cannot read makes the host re-escrow, which is Fleet's work, so the status is enforcing and
+			// the detail says why. An agent error still takes precedence over it.
+			t.Run("detail when the stored key cannot be read", func(t *testing.T) {
+				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, targetHost.ID, true, new(fleet.BitLockerProtectionStatusOn)))
+				h, err := ds.Host(ctx, targetHost.ID)
+				require.NoError(t, err)
+				setDecryptable := func(t *testing.T, decryptable bool) {
+					ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+						_, err := q.ExecContext(ctx, `UPDATE host_disk_encryption_keys SET decryptable = ? WHERE host_id = ?`, decryptable, targetHost.ID)
+						return err
+					})
+				}
+				setDecryptable(t, false)
+				defer setDecryptable(t, true)
+
+				bls, err := ds.GetMDMWindowsBitLockerStatus(ctx, h)
+				require.NoError(t, err)
+				require.Equal(t, fleet.DiskEncryptionEnforcing, *bls.Status)
+				require.Equal(t, fleet.BitLockerKeyUndecryptableDetail, bls.Detail)
+
+				_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, h, "", "bitlocker failed", nil)
+				require.NoError(t, err)
+				defer func() {
+					ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+						_, err := q.ExecContext(ctx, `UPDATE host_disk_encryption_keys SET client_error = '' WHERE host_id = ?`, targetHost.ID)
+						return err
+					})
+				}()
+				bls, err = ds.GetMDMWindowsBitLockerStatus(ctx, h)
+				require.NoError(t, err)
+				require.Equal(t, fleet.DiskEncryptionFailed, *bls.Status)
+				require.Equal(t, "bitlocker failed", bls.Detail)
+			})
 		})
 	})
 }

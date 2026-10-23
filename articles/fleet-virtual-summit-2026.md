@@ -1,6 +1,9 @@
+![Fleet virtual summit, November 10th, 11 AM ET / 8 AM PT / 4 PM GMT](../website/assets/images/articles/fleet-virtual-summit-2026-1200x627@2x.png)
+
+
 # Join the Fleet Virtual Summit 2026
 
-Fleet is hosting its first virtual summit on Tuesday, November 10, 2026, at 11 AM ET / 8 AM PT / 4 PM GMT. Four panels of IT and security practitioners will talk about how GitOps, open source, and AI agents get device management to 2030. It streams free on LinkedIn Live.
+Fleet is hosting its first virtual summit on Tuesday, November 10, 2026, at 11 AM ET / 8 AM PT / 4 PM GMT. Four panels of IT and security practitioners will talk about how GitOps, open source, and AI agents get device management to 2027 and beyond. It streams free on LinkedIn Live.
 
 ## What to expect
 
@@ -33,7 +36,7 @@ Engineering teams version-control production infrastructure, review changes in p
       <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/viktoralexfilipsson/?isSelfProfile=false">Viktor Filipsson</a></strong>, Sonos, Senior IT System Engineer</p></td>
     </tr>
     <tr>
-      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-betsy-keiser-100x100@2x.jpeg" alt="Betsy Keiser" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
+      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-betsy-keiser-100x100@2x.png" alt="Betsy Keiser" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
       <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/betsykeiser/">Betsy Keiser</a></strong>, SandboxAQ, Staff Client Platform Engineer</p></td>
     </tr>
   </tbody>
@@ -54,11 +57,11 @@ Open source runs most enterprise infrastructure, but the tools that manage emplo
 <table style="width:100%; border-collapse:collapse; font-family:Inter, sans-serif; color:#515774;">
   <tbody>
     <tr>
-      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"></td>
+      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-daniel-moore-100x100@2x.png" alt="Daniel Moore" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
       <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/sodahabit/">Daniel Moore</a></strong>, Red Hat, Manager and Mac Admin, Endpoint Systems</p></td>
     </tr>
     <tr>
-      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"></td>
+      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-patricia-egger-100x100@2x.png" alt="Patricia Egger" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
       <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/patricia-egger/">Patricia Egger</a></strong>, Proton, Head of Security</p></td>
     </tr>
     <tr>
@@ -89,17 +92,21 @@ AI agents are showing up on employee devices faster than IT can inventory them. 
       <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-jason-walton-100x100@2x.jpeg" alt="Jason Walton" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
       <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/cjasonwalton/">Jason Walton</a></strong>, Schrödinger, VP of Information Security</p></td>
     </tr>
+    <tr>
+      <td style="border:1px solid #C5C7D1; padding:0; width:100px; vertical-align:middle;"><img src="../website/assets/images/articles/virtual-summit-headshot-akira-okamoto-100x100@2x.jpeg" alt="Akira Okamoto" width="100" height="100" style="display:block; margin:0; padding:0; width:100px; height:100px;"></td>
+      <td style="border:1px solid #C5C7D1; padding:16px; vertical-align:middle;"><p style="margin:0;"><strong><a href="https://www.linkedin.com/in/akira-okamoto-4990283a/">Akira Okamoto</a></strong>, Veeva Systems, Director IT Infrastructure</p></td>
+    </tr>
   </tbody>
 </table>
 
-*More panelists to be announced*
+
 
 <a purpose="cta-button" no-icon href="https://calendly.com/fleetdm/fleet-virtual-summit-ai-agents-as-a-device-management-problem">Reserve a spot in this session</a>
 
 
-### Device management 2030
+### Device management 2027
 
-The devices IT manages, the tools it uses, and the skills the job requires will look different four years from now. Practitioners who are already placing bets on that future talk about where IT teams, tools, and the definition of an endpoint are headed.
+The devices IT manages, the tools it uses, and the skills the job requires will look different next year and in the years to come. Practitioners who are already placing bets on that future talk about where IT teams, tools, and the definition of an endpoint are headed.
 - **Date:** Tuesday, November 10, 2026
 - **Time:** 12:30 PM ET / 9:30 AM PT / 5:30 PM GMT
 
@@ -138,4 +145,5 @@ The devices IT manages, the tools it uses, and the skills the job requires will 
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="publishedOn" value="2026-10-02">
 <meta name="articleTitle" value="Join the Fleet Virtual Summit 2026">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-virtual-summit-2026-1200x627@2x.png">
 <meta name="description" value="Fleet's first virtual summit is November 10 on LinkedIn Live: four free panels on GitOps, open source, AI agents, and device management in 2030.">

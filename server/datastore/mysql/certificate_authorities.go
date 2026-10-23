@@ -3,16 +3,15 @@ package mysql
 import (
 	"cmp"
 	"context"
-	"crypto/x509"
 	"database/sql"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"slices"
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/crypto"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -152,24 +151,16 @@ func (ds *Datastore) postprocessRetrievedCertificateAuthority(ctx context.Contex
 // mtlsCertExpiry returns the expiry of the first certificate in the PEM, like the TLS client does, or nil, logged, if it can't be
 // parsed so reads don't break.
 func (ds *Datastore) mtlsCertExpiry(ctx context.Context, caID uint, certPEM string) *time.Time {
-	rest := []byte(certPEM)
-	for {
-		var block *pem.Block
-		block, rest = pem.Decode(rest)
-		if block == nil {
-			ds.logger.DebugContext(ctx, "certificate authority mTLS certificate has no PEM certificate", "certificate_authority_id", caID)
-			return nil
-		}
-		if block.Type != "CERTIFICATE" {
-			continue
-		}
-		cert, err := x509.ParseCertificate(block.Bytes)
-		if err != nil {
-			ds.logger.DebugContext(ctx, "parsing certificate authority mTLS certificate", "certificate_authority_id", caID, "err", err)
-			return nil
-		}
-		return &cert.NotAfter
+	cert, err := certificate.FirstCertificateFromPEM([]byte(certPEM))
+	if err != nil {
+		ds.logger.DebugContext(ctx, "parsing certificate authority mTLS certificate", "certificate_authority_id", caID, "err", err)
+		return nil
 	}
+	if cert == nil {
+		ds.logger.DebugContext(ctx, "certificate authority mTLS certificate has no PEM certificate", "certificate_authority_id", caID)
+		return nil
+	}
+	return &cert.NotAfter
 }
 
 func (ds *Datastore) GetAllCertificateAuthorities(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
@@ -217,7 +208,7 @@ func (ds *Datastore) GetAllCertificateAuthorities(ctx context.Context, includeSe
 func (ds *Datastore) ListCertificateAuthorities(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
 	stmt := `
 	SELECT
-		id, name, type
+		id, name, type, mtls_cert_pem
 	FROM
 		certificate_authorities
 	ORDER BY
@@ -227,6 +218,12 @@ func (ds *Datastore) ListCertificateAuthorities(ctx context.Context) ([]*fleet.C
 	var cas []*fleet.CertificateAuthoritySummary = []*fleet.CertificateAuthoritySummary{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &cas, stmt); err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "list CertificateAuthorities")
+	}
+	for _, ca := range cas {
+		if ca.MTLSCertPEM != nil {
+			ca.MTLSCertExpiresAt = ds.mtlsCertExpiry(ctx, ca.ID, *ca.MTLSCertPEM)
+			ca.MTLSCertPEM = nil
+		}
 	}
 
 	return cas, nil
@@ -248,19 +245,57 @@ func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.Cert
 		return nil, err
 	}
 
-	result, err := ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(sqlInsertCertificateAuthority, placeholders), args...)
-	if err != nil {
-		if strings.Contains(err.Error(), "idx_ca_type_name") {
-			return nil, fleet.ConflictError{Message: "a certificate authority with this name already exists"}
+	var id int64
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		result, err := tx.ExecContext(ctx, fmt.Sprintf(sqlInsertCertificateAuthority, placeholders), args...)
+		if err != nil {
+			if strings.Contains(err.Error(), "idx_ca_type_name") {
+				return fleet.ConflictError{Message: "a certificate authority with this name already exists"}
+			}
+			return ctxerr.Wrap(ctx, err, "inserting new certificate authority")
 		}
-		return nil, ctxerr.Wrap(ctx, err, "inserting new certificate authority")
-	}
-	id, err := result.LastInsertId()
+		id, err = result.LastInsertId()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting last insert ID for new certificate authority")
+		}
+		return ensureEJBCANamesNotSharedDB(ctx, tx, *ca.Name)
+	})
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting last insert ID for new certificate authority")
+		return nil, err
 	}
 	ca.ID = uint(id) //nolint:gosec // dismiss G115
 	return ca, nil
+}
+
+// ensureEJBCANamesNotSharedDB fails if one of the names is used by an EJBCA certificate authority and by another certificate authority.
+func ensureEJBCANamesNotSharedDB(ctx context.Context, tx sqlx.ExtContext, names ...string) error {
+	// FOR UPDATE is needed to keep 2 concurrent writes from both passing the check
+	stmt, args, err := sqlx.In(`SELECT name, type FROM certificate_authorities WHERE name IN (?) FOR UPDATE`, names)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare check of EJBCA certificate authority names")
+	}
+	var rows []struct {
+		Name string `db:"name"`
+		Type string `db:"type"`
+	}
+	if err := sqlx.SelectContext(ctx, tx, &rows, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "check EJBCA certificate authority names")
+	}
+	// The names are compared without regard to case, like the DB column is.
+	ejbca, other := map[string]string{}, map[string]struct{}{}
+	for _, row := range rows {
+		if row.Type == string(fleet.CATypeEJBCA) {
+			ejbca[strings.ToLower(row.Name)] = row.Name
+		} else {
+			other[strings.ToLower(row.Name)] = struct{}{}
+		}
+	}
+	for lowerName, name := range ejbca {
+		if _, shared := other[lowerName]; shared {
+			return fleet.EJBCANameInUseError{Name: name}
+		}
+	}
+	return nil
 }
 
 const argsCountInsertCertificateAuthority = 22
@@ -467,7 +502,7 @@ func (ds *Datastore) BatchApplyCertificateAuthorities(ctx context.Context, ops f
 				return err
 			}
 			for _, ca := range updates {
-				if old, ok := oldCAs[*ca.Name]; ok && certificateFieldsChanged(old, ca, true) {
+				if old, ok := oldCAs[strings.ToLower(*ca.Name)]; ok && certificateFieldsChanged(old, ca, true) {
 					resendCANames[t.caType] = append(resendCANames[t.caType], *ca.Name)
 				}
 			}
@@ -477,6 +512,16 @@ func (ds *Datastore) BatchApplyCertificateAuthorities(ctx context.Context, ops f
 		}
 		if err := batchDeleteCertificateAuthorities(ctx, tx, ops.Delete); err != nil {
 			return err
+		}
+		// Checked after the deletes, so a CA that is replaced by one of another type with the same name, as a rename is in GitOps, is fine.
+		if len(upserts) > 0 {
+			names := make([]string, 0, len(upserts))
+			for _, ca := range upserts {
+				names = append(names, *ca.Name)
+			}
+			if err := ensureEJBCANamesNotSharedDB(ctx, tx, names...); err != nil {
+				return err
+			}
 		}
 		for _, t := range profileCATypes {
 			if names := resendCANames[t.caType]; len(names) > 0 {
@@ -498,7 +543,8 @@ var profileCATypes = []struct {
 	{fleet.CATypeEJBCA, fleet.FleetVarEJBCADataPrefix},
 }
 
-// getCAsForUpdateDB locks the CAs of a type matching where, selecting only the fields that certificateFieldsChanged compares.
+// getCAsForUpdateDB locks the CAs of a type matching where, selecting only the fields that certificateFieldsChanged compares. The result is
+// keyed by the lowercase name, because the column compares names without regard to case.
 func (ds *Datastore) getCAsForUpdateDB(ctx context.Context, tx sqlx.ExtContext, caType fleet.CAType, where string, args ...any,
 ) (map[string]*fleet.CertificateAuthority, error) {
 	stmt, args, err := sqlx.In(`
@@ -520,7 +566,7 @@ func (ds *Datastore) getCAsForUpdateDB(ctx context.Context, tx sqlx.ExtContext, 
 		if err := ds.postprocessRetrievedCertificateAuthority(ctx, &row, false); err != nil {
 			return nil, err
 		}
-		cas[*row.Name] = &row.CertificateAuthority
+		cas[strings.ToLower(*row.Name)] = &row.CertificateAuthority
 	}
 	return cas, nil
 }
@@ -634,6 +680,11 @@ func (ds *Datastore) UpdateCertificateAuthorityByID(ctx context.Context, certifi
 				return fleet.ConflictError{Message: "a certificate authority with this name already exists"}
 			}
 			return ctxerr.Wrapf(ctx, err, "updating certificate authority with id %d", certificateAuthorityID)
+		}
+		if ca.Name != nil {
+			if err := ensureEJBCANamesNotSharedDB(ctx, tx, *ca.Name); err != nil {
+				return err
+			}
 		}
 
 		if resendCAName == nil {
@@ -807,21 +858,28 @@ func (ds *Datastore) generateUpdateQueryWithArgs(ctx context.Context, ca *fleet.
 		for _, f := range []struct {
 			column string
 			value  *string
+			// optional fields are stored as NULL when emptied, as they are when they are not set on create
+			optional bool
 		}{
-			{"name", ca.Name},
-			{"url", ca.URL},
-			{"certificate_common_name", ca.CertificateCommonName},
-			{"mtls_cert_pem", ca.MTLSCertPEM},
-			{"trust_ca_bundle_pem", ca.TrustCABundlePEM},
-			{"ejbca_ca_name", ca.EJBCACAName},
-			{"ejbca_certificate_profile_name", ca.EJBCACertificateProfileName},
-			{"ejbca_end_entity_profile_name", ca.EJBCAEndEntityProfileName},
-			{"ejbca_username_template", ca.EJBCAUsernameTemplate},
+			{"name", ca.Name, false},
+			{"url", ca.URL, false},
+			{"certificate_common_name", ca.CertificateCommonName, false},
+			{"mtls_cert_pem", ca.MTLSCertPEM, false},
+			{"trust_ca_bundle_pem", ca.TrustCABundlePEM, true},
+			{"ejbca_ca_name", ca.EJBCACAName, false},
+			{"ejbca_certificate_profile_name", ca.EJBCACertificateProfileName, false},
+			{"ejbca_end_entity_profile_name", ca.EJBCAEndEntityProfileName, false},
+			{"ejbca_username_template", ca.EJBCAUsernameTemplate, true},
 		} {
-			if f.value != nil {
-				updates = append(updates, f.column+" = ?")
-				*args = append(*args, *f.value)
+			if f.value == nil {
+				continue
 			}
+			if f.optional {
+				updates = append(updates, f.column+" = NULLIF(?, '')")
+			} else {
+				updates = append(updates, f.column+" = ?")
+			}
+			*args = append(*args, *f.value)
 		}
 		if ca.MTLSKeyPEM != nil {
 			updates = append(updates, "mtls_key_encrypted = ?")
@@ -832,12 +890,16 @@ func (ds *Datastore) generateUpdateQueryWithArgs(ctx context.Context, ca *fleet.
 			*args = append(*args, encryptedMTLSKey)
 		}
 		if ca.CertificateUserPrincipalNames != nil {
-			updates = append(updates, "certificate_user_principal_names = ?")
-			upns, err := json.Marshal(*ca.CertificateUserPrincipalNames)
-			if err != nil {
-				return "", ctxerr.Wrap(ctx, err, "marshalling certificate user principal names for updating certificate authority")
+			if len(*ca.CertificateUserPrincipalNames) == 0 {
+				updates = append(updates, "certificate_user_principal_names = NULL")
+			} else {
+				updates = append(updates, "certificate_user_principal_names = ?")
+				upns, err := json.Marshal(*ca.CertificateUserPrincipalNames)
+				if err != nil {
+					return "", ctxerr.Wrap(ctx, err, "marshalling certificate user principal names for updating certificate authority")
+				}
+				*args = append(*args, upns)
 			}
-			*args = append(*args, upns)
 		}
 	default:
 		return "", fmt.Errorf("unknown certificate authority type: %s", ca.Type)

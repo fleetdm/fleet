@@ -340,70 +340,68 @@ func (v *SoftwareWorker) makeAndroidAppUnavailable(ctx context.Context, applicat
 	return nil
 }
 
-func (v *SoftwareWorker) ensureHostSpecificPolicyIsApplied(ctx context.Context, hostUUID string, enterpriseName, policyID string) error {
-	if policyID == fmt.Sprint(android.DefaultAndroidPolicyID) {
-		var policy androidmanagement.Policy
-		policy.StatusReportingSettings = &androidmanagement.StatusReportingSettings{
-			DeviceSettingsEnabled:        true,
-			MemoryInfoEnabled:            true,
-			NetworkInfoEnabled:           true,
-			DisplayInfoEnabled:           true,
-			PowerManagementEventsEnabled: true,
-			HardwareStatusEnabled:        true,
-			SystemPropertiesEnabled:      true,
-			SoftwareInfoEnabled:          true,
-			CommonCriteriaModeEnabled:    true,
-			ApplicationReportsEnabled:    true,
-			ApplicationReportingSettings: nil, // only option is "includeRemovedApps", which I opted not to enable (we can diff apps to see removals)
-		}
+// prepareHostSpecificPolicy sets the settings of the host-specific policy before the device is moved to it.
+func (v *SoftwareWorker) prepareHostSpecificPolicy(ctx context.Context, hostUUID string, enterpriseName string) error {
+	var policy androidmanagement.Policy
+	policy.StatusReportingSettings = &androidmanagement.StatusReportingSettings{
+		DeviceSettingsEnabled:        true,
+		MemoryInfoEnabled:            true,
+		NetworkInfoEnabled:           true,
+		DisplayInfoEnabled:           true,
+		PowerManagementEventsEnabled: true,
+		HardwareStatusEnabled:        true,
+		SystemPropertiesEnabled:      true,
+		SoftwareInfoEnabled:          true,
+		CommonCriteriaModeEnabled:    true,
+		ApplicationReportsEnabled:    true,
+		ApplicationReportingSettings: nil, // only option is "includeRemovedApps", which I opted not to enable (we can diff apps to see removals)
+	}
 
-		policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, hostUUID)
-		_, err := v.AndroidModule.PatchPolicy(ctx, hostUUID, policyName, &policy, nil)
-		if err != nil {
-			return err
-		}
+	policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, hostUUID)
+	_, err := v.AndroidModule.PatchPolicy(ctx, hostUUID, policyName, &policy, nil)
+	if err != nil {
+		return err
+	}
 
-		// That patch replaces every setting of the host policy, which a re-enrolled host
-		// reuses and the profile reconciler may already have filled for this enrollment,
-		// so have the reconciler send the host's profiles again.
-		if err := v.Datastore.ResetMDMAndroidHostProfilesForRedelivery(ctx, hostUUID); err != nil {
-			return ctxerr.Wrapf(ctx, err, "reset android profiles for redelivery for host %s", hostUUID)
-		}
+	// That patch replaces every setting of the host policy, which a re-enrolled host
+	// reuses and the profile reconciler may already have filled for this enrollment,
+	// so have the reconciler send the host's profiles again.
+	if err := v.Datastore.ResetMDMAndroidHostProfilesForRedelivery(ctx, hostUUID); err != nil {
+		return ctxerr.Wrapf(ctx, err, "reset android profiles for redelivery for host %s", hostUUID)
+	}
 
-		err = v.AndroidModule.BuildAndSendFleetAgentConfig(ctx, enterpriseName, []string{hostUUID}, false)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "build and send fleet agent config for host %s", hostUUID)
-		}
-
-		device := &androidmanagement.Device{
-			PolicyName: policyName,
-			// State must be specified when updating a device, otherwise it fails with
-			// "Illegal state transition from ACTIVE to DEVICE_STATE_UNSPECIFIED"
-			//
-			// > Note that when calling enterprises.devices.patch, ACTIVE and
-			// > DISABLED are the only allowable values.
-
-			// TODO(ap): should we send whatever the previous state was? If it was DISABLED,
-			// we probably don't want to re-enable it by accident. Those are the only
-			// 2 valid states when patching a device.
-			State: "ACTIVE",
-		}
-		androidHost, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, hostUUID)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "get android host by host UUID %s", hostUUID)
-		}
-		deviceName := fmt.Sprintf("%s/devices/%s", enterpriseName, androidHost.DeviceID)
-		_, err = v.AndroidModule.PatchDevice(ctx, hostUUID, deviceName, device)
-		if err != nil {
-			return err
-		}
+	err = v.AndroidModule.BuildAndSendFleetAgentConfig(ctx, enterpriseName, []string{hostUUID}, false)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "build and send fleet agent config for host %s", hostUUID)
 	}
 	return nil
 }
 
+func (v *SoftwareWorker) moveDeviceToHostSpecificPolicy(ctx context.Context, androidHost *fleet.AndroidHost, enterpriseName string) error {
+	device := &androidmanagement.Device{
+		PolicyName: fmt.Sprintf("%s/policies/%s", enterpriseName, androidHost.Host.UUID),
+		// State must be specified when updating a device, otherwise it fails with
+		// "Illegal state transition from ACTIVE to DEVICE_STATE_UNSPECIFIED"
+		//
+		// > Note that when calling enterprises.devices.patch, ACTIVE and
+		// > DISABLED are the only allowable values.
+
+		// TODO(ap): should we send whatever the previous state was? If it was DISABLED,
+		// we probably don't want to re-enable it by accident. Those are the only
+		// 2 valid states when patching a device.
+		State: "ACTIVE",
+	}
+	deviceName := fmt.Sprintf("%s/devices/%s", enterpriseName, androidHost.DeviceID)
+	_, err := v.AndroidModule.PatchDevice(ctx, androidHost.Host.UUID, deviceName, device)
+	return err
+}
+
 func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, hostUUID string, hostID uint, enterpriseName, policyID string) error {
-	if err := v.ensureHostSpecificPolicyIsApplied(ctx, hostUUID, enterpriseName, policyID); err != nil {
-		return ctxerr.Wrapf(ctx, err, "ensuring host-specific policy is applied for host %s", hostUUID)
+	onDefaultPolicy := policyID == fmt.Sprint(android.DefaultAndroidPolicyID)
+	if onDefaultPolicy {
+		if err := v.prepareHostSpecificPolicy(ctx, hostUUID, enterpriseName); err != nil {
+			return ctxerr.Wrapf(ctx, err, "preparing host-specific policy for host %s", hostUUID)
+		}
 	}
 
 	androidHost, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, hostUUID)
@@ -414,10 +412,6 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 	appsInScope, err := v.Datastore.GetAndroidAppsInScopeForHost(ctx, hostID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get android apps in scope for host")
-	}
-
-	if len(appsInScope) == 0 {
-		return nil
 	}
 
 	appIDs := make([]string, 0, len(appsInScope))
@@ -432,19 +426,56 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 		return ctxerr.Wrap(ctx, err, "bulk get android app configurations")
 	}
 
-	configsByAppID, err = v.substituteFleetVarsInConfigs(ctx, configsByAppID, androidHostToSubstitutionHost(androidHost))
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "substitute fleet vars in app configs")
+	// Substitute per app, so that an app this host can't supply a referenced value for
+	// doesn't keep the rest from replacing the previous enrollment's apps, nor the device
+	// from moving to its host policy. Whichever value is missing has its own resend trigger.
+	substitutionHost := androidHostToSubstitutionHost(androidHost)
+	availableAppIDs := make([]string, 0, len(appIDs))
+	for _, appID := range appIDs {
+		config, ok := configsByAppID[appID]
+		if !ok {
+			availableAppIDs = append(availableAppIDs, appID)
+			continue
+		}
+		substituted, err := v.substituteFleetVarsInConfigs(ctx, map[string][]byte{appID: config}, substitutionHost)
+		if err != nil {
+			if isUnresolvableAndroidAppConfigForHost(err) {
+				v.Log.WarnContext(ctx, "skipping android app for host that can't supply a value referenced by its config",
+					"host_uuid", hostUUID, "application_id", appID, "err", err)
+				continue
+			}
+			return ctxerr.Wrap(ctx, err, "substitute fleet vars in app configs")
+		}
+		configsByAppID[appID] = substituted[appID]
+		availableAppIDs = append(availableAppIDs, appID)
 	}
 
-	appPolicies, err := buildApplicationPolicyWithConfig(ctx, appIDs, configsByAppID, "AVAILABLE")
+	appPolicies, err := buildApplicationPolicyWithConfig(ctx, availableAppIDs, configsByAppID, "AVAILABLE")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building application policies with config")
 	}
 
-	_, err = v.AndroidModule.AddAppsToAndroidPolicy(ctx, enterpriseName, appPolicies, map[string]string{hostUUID: hostUUID})
+	// A re-enrolled host reuses its host policy, which still lists the apps of its
+	// previous enrollment, so replace the list instead of adding to it, before the
+	// device is moved to that policy. Fail rather than continue without the Fleet
+	// Agent, as replacing would remove it.
+	fleetAgentPolicy, err := v.AndroidModule.BuildFleetAgentApplicationPolicy(ctx, hostUUID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "add app store app: add app to android policy")
+		return ctxerr.Wrapf(ctx, err, "build fleet agent application policy for host %s", hostUUID)
+	}
+	if fleetAgentPolicy != nil {
+		appPolicies = append(appPolicies, fleetAgentPolicy)
+	}
+
+	err = v.AndroidModule.SetAppsForAndroidPolicy(ctx, enterpriseName, appPolicies, map[string]string{hostUUID: hostUUID})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set apps for android policy")
+	}
+
+	if onDefaultPolicy {
+		if err := v.moveDeviceToHostSpecificPolicy(ctx, androidHost, enterpriseName); err != nil {
+			return ctxerr.Wrapf(ctx, err, "moving device to host-specific policy for host %s", hostUUID)
+		}
 	}
 
 	return nil
