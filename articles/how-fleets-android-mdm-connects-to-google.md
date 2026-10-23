@@ -111,29 +111,18 @@ Source: [retry_client.go#L15-L24](https://github.com/fleetdm/fleet/blob/59e246b4
 
 > **Note:** This section describes planned work, not a released feature. The design may change before it ships.
 
-Today, you can block sign-in from iPhones, iPads, and Android devices that aren't managed by Fleet with Google Context-Aware Access (part of Google's BeyondCorp model). Follow the [Conditional access: Google](https://fleetdm.com/guides/google-conditional-access-integration) guide. End users open a Chrome bookmark that loads a page you host, and that page marks company-owned devices as managed in Google ([#54888](https://github.com/fleetdm/fleet/issues/54888)).
+Fleet will soon mark company-owned iPhones, iPads, and Android hosts as managed in Google ([#56195](https://github.com/fleetdm/fleet/issues/56195)). Like Android MDM, part of it will go through fleetdm.com ([#56354](https://github.com/fleetdm/fleet/issues/56354)).
 
-Native support in Fleet is [coming soon](https://github.com/fleetdm/fleet/issues/56195). Fleet will mark company-owned iOS, iPadOS, and Android hosts as managed in Google, so you won't need to host your own page. Like Android MDM, part of it will go through fleetdm.com ([#56354](https://github.com/fleetdm/fleet/issues/56354)), which will run the end user's Google sign-in.
+fleetdm.com will:
 
-### Planned setup
+- Run the end user's Google sign-in and use it to find the device in Google.
+- Send the device's Google device ID to your Fleet server.
 
-1. An admin enters the organization's Google customer ID and the email of a Google Workspace admin account in Fleet. Fleet acts as that admin when it marks devices as managed, so in Google, that admin shows as the one making the change. Use a dedicated admin account for Fleet.
-2. The Fleet server registers with fleetdm.com and gets a per-server secret, the same way Android MDM setup works.
+fleetdm.com won't mark devices as managed. Your Fleet server does that.
 
-There's no Google sign-in during setup.
+Compared to Android MDM:
 
-### Planned flow for marking a device as managed
-
-1. The end user opens **Self-service** (the web clip on iPhones and iPads, or the Fleet Android app) on a company-owned device. Fleet sends them to Google sign-in automatically. There's no button.
-2. After the end user signs in, Google redirects to fleetdm.com, which uses that sign-in to find the device in Google.
-3. fleetdm.com sends the device's Google device ID to the Fleet server.
-4. The Fleet server marks the device as managed in Google, acting as the admin from setup. Fleet refuses if the host already has a different Google device ID, so a link copied to a personal device can't take over a company-owned host. Google Context-Aware Access can then block sign-in from devices that aren't managed.
-5. The end user lands back in Self-service. If anything fails, they quit and reopen Self-service to try again.
-
-### What will change compared to Android MDM
-
-- For Android MDM, fleetdm.com never calls your Fleet server. Google conditional access will add a call from fleetdm.com to your Fleet server to send the Google device ID, authenticated with the per-server secret. If you restrict inbound traffic, you'll need to allow that endpoint from fleetdm.com. The exact path isn't final yet.
-- The Fleet server, not fleetdm.com, marks devices as managed in Google.
+- fleetdm.com will call your Fleet server, authenticated with the per-server secret. If you restrict inbound traffic, you'll need to allow that endpoint from fleetdm.com. The exact path isn't final yet.
 - New data will pass through fleetdm.com: the Fleet server URL and, for each device, its Google device ID.
 
 ## Further reading
