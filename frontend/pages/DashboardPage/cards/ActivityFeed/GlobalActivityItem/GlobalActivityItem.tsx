@@ -15,6 +15,7 @@ import {
   HISTORICAL_DATA_CONFIG_KEYS,
   HistoricalDataConfigKey,
 } from "interfaces/charts";
+import { WEEKDAY_ORDER, Weekday } from "interfaces/patch_deadline_settings";
 import {
   AppleDisplayPlatform,
   isAndroid,
@@ -189,19 +190,6 @@ const makeVersionSuffix = (
 ): string =>
   versionName && isMobilePlatform(platform || "") ? ` (${versionName})` : "";
 
-// Weekday keys the patch deadline API uses, sorted Monday-first. Sorting here
-// (rather than trusting the server) keeps the rendered list stable across
-// activities whose days array arrived in a different order.
-const WEEKDAY_ORDER: Record<string, number> = {
-  monday: 0,
-  tuesday: 1,
-  wednesday: 2,
-  thursday: 3,
-  friday: 4,
-  saturday: 5,
-  sunday: 6,
-};
-
 const capitalizeWeekday = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 // "Monday", "Monday and Friday", "Monday, Wednesday, and Friday". Drops any
@@ -209,7 +197,7 @@ const capitalizeWeekday = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 // splicing "Fooday" into the activity text). Returns "" on an empty list;
 // callers decide how to render that edge case.
 const formatWeekdayList = (days: string[]): string => {
-  const known = days.filter((d) => d in WEEKDAY_ORDER);
+  const known = days.filter((d): d is Weekday => d in WEEKDAY_ORDER);
   const sorted = [...known].sort((a, b) => WEEKDAY_ORDER[a] - WEEKDAY_ORDER[b]);
   const labels = sorted.map(capitalizeWeekday);
   if (labels.length === 0) return "";

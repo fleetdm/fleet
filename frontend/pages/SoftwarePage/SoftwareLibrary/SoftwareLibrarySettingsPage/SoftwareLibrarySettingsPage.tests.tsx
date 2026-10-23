@@ -95,9 +95,10 @@ describe("SoftwareLibrarySettingsPage", () => {
     );
 
     await waitFor(() => {
-      expect(router.replace).toHaveBeenCalledWith(
-        "/software/library/settings/categories?fleet_id=1"
-      );
+      expect(router.replace).toHaveBeenCalledWith({
+        pathname: "/software/library/settings/categories",
+        search: "?fleet_id=1",
+      });
     });
   });
 
@@ -121,9 +122,10 @@ describe("SoftwareLibrarySettingsPage", () => {
     );
 
     await waitFor(() => {
-      expect(router.replace).toHaveBeenCalledWith(
-        "/software/library/settings/categories?fleet_id=1&add_category=1"
-      );
+      expect(router.replace).toHaveBeenCalledWith({
+        pathname: "/software/library/settings/categories",
+        search: "?fleet_id=1&add_category=1",
+      });
     });
   });
 

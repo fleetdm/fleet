@@ -15,11 +15,15 @@ import { notify } from "components/ToastNotification";
 import { getErrorReason } from "interfaces/errors";
 import {
   IPatchDeadlineSettings,
+  WEEKDAYS,
+  WEEKDAY_ORDER,
   Weekday,
 } from "interfaces/patch_deadline_settings";
 import { ILoadTeamPoliciesResponse } from "interfaces/policy";
 import patchDeadlineSettingsAPI from "services/entities/patch_deadline_settings";
-import teamPoliciesAPI from "services/entities/team_policies";
+import teamPoliciesAPI, {
+  ITeamPoliciesQueryKey,
+} from "services/entities/team_policies";
 
 import { ILibrarySettingsCardProps } from "../../types";
 
@@ -27,23 +31,10 @@ import PatchDeadlineAppsTable from "./PatchDeadlineAppsTable";
 
 const baseClass = "patch-deadline-section";
 
-const WEEKDAYS: ReadonlyArray<{ key: Weekday; label: string }> = [
-  { key: "monday", label: "Monday" },
-  { key: "tuesday", label: "Tuesday" },
-  { key: "wednesday", label: "Wednesday" },
-  { key: "thursday", label: "Thursday" },
-  { key: "friday", label: "Friday" },
-  { key: "saturday", label: "Saturday" },
-  { key: "sunday", label: "Sunday" },
-];
-
 // Matches 24-hour HH:MM. Hours 00-23, minutes 00-59.
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-interface IFieldErrors {
-  days?: string;
-  time?: string;
-}
+type IFieldErrors = Partial<Record<"days" | "time", string>>;
 
 const PatchDeadlineSection = ({
   router,
@@ -60,11 +51,22 @@ const PatchDeadlineSection = ({
     { enabled: isRouteOk, refetchOnWindowFocus: false }
   );
 
+  // Share the `teamPolicies` cache key family so other consumers of the same
+  // (fleet, automation_type=patch) list dedupe through React Query instead of
+  // double-fetching. Response is "all patch policies"; the filter to
+  // `patch_deadline: true` happens client-side below.
+  const appsQueryKey: ITeamPoliciesQueryKey = {
+    scope: "teamPolicies",
+    teamId: fleetId,
+    automationType: "patch",
+  };
   const { data: policiesData, isError: isAppsError } = useQuery<
     ILoadTeamPoliciesResponse,
-    Error
+    Error,
+    ILoadTeamPoliciesResponse,
+    [ITeamPoliciesQueryKey]
   >(
-    ["patchDeadlineApps", fleetId],
+    [appsQueryKey],
     () =>
       teamPoliciesAPI.loadAllNew({
         teamId: fleetId,
@@ -138,7 +140,13 @@ const PatchDeadlineSection = ({
     const nextErrors = validate(days, time);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
-    updateMutation.mutate({ fleet_id: fleetId, days, time });
+    // Canonical Mon-first order on the wire so the server (and the activity
+    // feed renderer) never has to re-sort. Matches `WEEKDAY_ORDER` used by
+    // the activity copy.
+    const sortedDays = [...days].sort(
+      (a, b) => WEEKDAY_ORDER[a] - WEEKDAY_ORDER[b]
+    );
+    updateMutation.mutate({ fleet_id: fleetId, days: sortedDays, time });
   };
 
   if (!isRouteOk || isLoading) {

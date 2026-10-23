@@ -1,5 +1,3 @@
-import { isAxiosError } from "axios";
-
 import {
   IPatchDeadlineSettings,
   Weekday,
@@ -19,9 +17,10 @@ interface IPatchDeadlineSettingsResponse {
   patch_deadline_settings: IPatchDeadlineSettings;
 }
 
-// TEMPORARY: when the endpoint 404s (not yet deployed to the dev server), fall
-// back to the API defaults so the Settings page is navigable. Delete this
-// helper once the backend endpoint is live. Other errors (500s, network
+// REMOVE_WHEN_SHIPPED: when the endpoint 404s (not yet deployed to the dev
+// server), fall back to the documented API defaults so the Settings page is
+// navigable. Grep `REMOVE_WHEN_SHIPPED` and delete this helper + its callsite
+// below once the backend endpoint is live. Other errors (500s, network
 // failures) rethrow so React Query can surface them instead of a silent
 // "configured as Tuesday 17:00" that a Save would overwrite with defaults.
 const defaultSettings = (fleetId: number): IPatchDeadlineSettings => ({
@@ -31,15 +30,13 @@ const defaultSettings = (fleetId: number): IPatchDeadlineSettings => ({
 });
 
 // Fleet's sendRequest catches the AxiosError and rejects with the normalized
-// AxiosResponse (see services/index.ts), so `status` lives on the top level.
-// Also handle the raw AxiosError shape for callsites that use skipParseError.
-const is404 = (err: unknown): boolean => {
-  if (!err || typeof err !== "object") return false;
-  if ("status" in err && (err as { status: unknown }).status === 404) {
-    return true;
-  }
-  return isAxiosError(err) && err.response?.status === 404;
-};
+// AxiosResponse (see services/index.ts:105-111), so `status` lives on the top
+// level — no need to check isAxiosError here.
+const is404 = (err: unknown): boolean =>
+  !!err &&
+  typeof err === "object" &&
+  "status" in err &&
+  (err as { status: unknown }).status === 404;
 
 export default {
   getSettings: async (fleetId: number): Promise<IPatchDeadlineSettings> => {

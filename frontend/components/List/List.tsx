@@ -49,6 +49,10 @@ function List<TItem extends WithIdKey<TKey>, TKey extends string = "id">({
           const activate = () => clickable && onClickRow?.(item);
           const handleKeyDown = (e: KeyboardEvent<HTMLLIElement>) => {
             if (!clickable) return;
+            // Only react when the row itself has focus. Guards against a
+            // nested focusable child (future inline action) bubbling Space /
+            // Enter up and firing the row click in addition to its own.
+            if (e.target !== e.currentTarget) return;
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
               activate();

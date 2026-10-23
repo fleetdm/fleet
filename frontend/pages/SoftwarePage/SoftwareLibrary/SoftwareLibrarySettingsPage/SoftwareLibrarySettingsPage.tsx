@@ -79,7 +79,10 @@ const SoftwareLibrarySettingsPage = ({
   useEffect(() => {
     if (!isPremiumTier) return;
     if (params.section && currentSection.urlSection === params.section) return;
-    router.replace(DEFAULT_SECTION.path + (location.search || ""));
+    router.replace({
+      pathname: DEFAULT_SECTION.path,
+      search: location.search,
+    });
   }, [
     isPremiumTier,
     params.section,
