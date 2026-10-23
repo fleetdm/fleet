@@ -6,8 +6,10 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"math/big"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -31,6 +33,7 @@ func TestCertificateAuthority(t *testing.T) {
 		{"Delete", testDeleteCertificateAuthority},
 		{"UpdateCertificateAuthorityByID", testUpdateCertificateAuthorityByID},
 		{"EditResendsProfiles", testEditResendsProfiles},
+		{"EJBCANamesAreUnique", testEJBCANamesAreUnique},
 	}
 
 	for _, c := range cases {
@@ -372,6 +375,14 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 		require.Equal(t, ca.ID, allCASummaries[i].ID)
 		require.Equal(t, *ca.Name, allCASummaries[i].Name)
 		require.Equal(t, ca.Type, allCASummaries[i].Type)
+		// Only EJBCA entries carry the client certificate expiry.
+		if ca.Type == string(fleet.CATypeEJBCA) {
+			require.NotNil(t, allCASummaries[i].MTLSCertExpiresAt)
+			require.True(t, ca.MTLSCertExpiresAt.Equal(*allCASummaries[i].MTLSCertExpiresAt))
+		} else {
+			require.Nil(t, allCASummaries[i].MTLSCertExpiresAt)
+		}
+		require.Nil(t, allCASummaries[i].MTLSCertPEM)
 
 		// Ensure the full CAs match with and without secrets
 		compareCA(t, ca, allCAsWithSecrets[i], true)
@@ -731,6 +742,16 @@ func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.NotNil(t, keyFirstCA.MTLSCertExpiresAt)
 		require.True(t, newNotAfter.Equal(*keyFirstCA.MTLSCertExpiresAt))
+
+		// Emptying an optional field stores NULL, as it is when the field isn't set on create, so a read leaves it out.
+		require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, ejbcaCA.ID, &fleet.CertificateAuthority{
+			Type: string(fleet.CATypeEJBCA), TrustCABundlePEM: new(""), EJBCAUsernameTemplate: new(""), CertificateUserPrincipalNames: &[]string{},
+		}))
+		cleared, err := ds.GetCertificateAuthorityByID(ctx, ejbcaCA.ID, false)
+		require.NoError(t, err)
+		require.Nil(t, cleared.TrustCABundlePEM)
+		require.Nil(t, cleared.EJBCAUsernameTemplate)
+		require.Nil(t, cleared.CertificateUserPrincipalNames)
 	})
 
 	t.Run("successfully updates smallstep SCEP proxy CA", func(t *testing.T) {
@@ -773,6 +794,8 @@ func testEditResendsProfiles(t *testing.T, ds *Datastore) {
 	ejbcaCA := newEJBCACA(t, ds, "ejbca_ca", "cn", new("user"), &[]string{"upn"})
 	ejbcaProf := newCAProfile(t, ds, fleet.FleetVarEJBCADataPrefix, "ejbca_prof", "ejbca_ca", 0)
 	ejbcaTeamProf := newCAProfile(t, ds, fleet.FleetVarEJBCADataPrefix, "ejbca_team_prof", "ejbca_ca", team.ID)
+	// A profile names its CA with the exact spelling, so this one is for the CA once the case of its name changes.
+	ejbcaUpperCaseProf := newCAProfile(t, ds, fleet.FleetVarEJBCADataPrefix, "ejbca_upper_case_prof", "EJBCA_CA", 0)
 
 	apiEdit := func(update fleet.CertificateAuthority) func() error {
 		return func() error {
@@ -798,6 +821,8 @@ func testEditResendsProfiles(t *testing.T, ds *Datastore) {
 		edit func() error
 		// wantResend is whether the DigiCert profiles of ca are resent, wantEJBCAResend the same for the profiles of ejbcaCA.
 		wantResend, wantEJBCAResend bool
+		// wantUpperCaseResend is whether the profile that names the EJBCA CA in upper case is resent.
+		wantUpperCaseResend bool
 	}{
 		{name: "API edit of the URL", edit: apiEdit(fleet.CertificateAuthority{URL: new("https://new.example.com")})},
 		{name: "API edit to the same seat ID", edit: apiEdit(fleet.CertificateAuthority{CertificateSeatID: new("seat")})},
@@ -877,6 +902,13 @@ func testEditResendsProfiles(t *testing.T, ds *Datastore) {
 			return ds.BatchApplyCertificateAuthorities(ctx,
 				fleet.CertificateAuthoritiesBatchOperations{Update: []*fleet.CertificateAuthority{digiCert, ejbca}})
 		}, wantResend: true, wantEJBCAResend: true},
+		// The name column ignores case, so the CA is the same one, and the profiles that use the new spelling are resent for the changed field.
+		{name: "EJBCA GitOps edit that changes the case of the name and the common name", edit: func() error {
+			return gitOpsUpdate(ejbcaCA.ID, func(c *fleet.CertificateAuthority) {
+				c.Name = new(strings.ToUpper(*c.Name))
+				c.CertificateCommonName = new("case-rename-cn")
+			})
+		}, wantUpperCaseResend: true},
 	}
 	pendingIf := func(resend bool) fleet.MDMDeliveryStatus {
 		if resend {
@@ -886,7 +918,7 @@ func testEditResendsProfiles(t *testing.T, ds *Datastore) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			for _, p := range []*fleet.MDMAppleConfigProfile{prof, otherProf, ejbcaProf} {
+			for _, p := range []*fleet.MDMAppleConfigProfile{prof, otherProf, ejbcaProf, ejbcaUpperCaseProf} {
 				forceSetAppleHostProfileStatus(t, ds, host.UUID, p, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
 			}
 			for _, p := range []*fleet.MDMAppleConfigProfile{teamProf, ejbcaTeamProf} {
@@ -898,12 +930,94 @@ func testEditResendsProfiles(t *testing.T, ds *Datastore) {
 			assertHostProfileStatus(t, ds, host.UUID,
 				hostProfileStatus{prof.ProfileUUID, pendingIf(c.wantResend)},
 				hostProfileStatus{otherProf.ProfileUUID, fleet.MDMDeliveryVerified},
-				hostProfileStatus{ejbcaProf.ProfileUUID, pendingIf(c.wantEJBCAResend)})
+				hostProfileStatus{ejbcaProf.ProfileUUID, pendingIf(c.wantEJBCAResend)},
+				hostProfileStatus{ejbcaUpperCaseProf.ProfileUUID, pendingIf(c.wantUpperCaseResend)})
 			assertHostProfileStatus(t, ds, teamHost.UUID,
 				hostProfileStatus{teamProf.ProfileUUID, pendingIf(c.wantResend)},
 				hostProfileStatus{ejbcaTeamProf.ProfileUUID, pendingIf(c.wantEJBCAResend)})
 		})
 	}
+}
+
+// testEJBCANamesAreUnique checks that the name of an EJBCA CA can't be shared with a CA of any other type, however the CAs are written,
+// and that CAs of the other types that already share a name are not affected.
+func testEJBCANamesAreUnique(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	scepCA := func(name string) *fleet.CertificateAuthority {
+		return &fleet.CertificateAuthority{
+			Type: string(fleet.CATypeCustomSCEPProxy), Name: &name, URL: new("https://scep.example.com"), Challenge: new("challenge"),
+		}
+	}
+	inUse := func(t *testing.T, err error, name string) {
+		nameInUse, ok := errors.AsType[fleet.EJBCANameInUseError](err)
+		require.True(t, ok, "got %v", err)
+		require.Equal(t, name, nameInUse.Name)
+	}
+	names := func() []string {
+		cas, err := ds.ListCertificateAuthorities(ctx)
+		require.NoError(t, err)
+		var res []string
+		for _, ca := range cas {
+			res = append(res, ca.Type+":"+ca.Name)
+		}
+		return res
+	}
+
+	// CAs of other types may keep sharing a name, which the unique index on type and name allows, and a batch that keeps the name is fine.
+	digiCert := newDigiCertCA(t, ds, "shared", "cn", "seat", nil)
+	_, err := ds.NewCertificateAuthority(ctx, scepCA("shared"))
+	require.NoError(t, err)
+	digiCert, err = ds.GetCertificateAuthorityByID(ctx, digiCert.ID, true)
+	require.NoError(t, err)
+	digiCert.CertificateSeatID = new("batch-seat")
+	require.NoError(t, ds.BatchApplyCertificateAuthorities(ctx, fleet.CertificateAuthoritiesBatchOperations{Update: []*fleet.CertificateAuthority{digiCert}}))
+
+	ejbca := newEJBCACA(t, ds, "ejbca", "cn", nil, nil)
+	unchanged := []string{"digicert:shared", "custom_scep_proxy:shared", "ejbca:ejbca"}
+
+	t.Run("create", func(t *testing.T) {
+		// An EJBCA CA can't take a name another CA has, and no other CA can take the name of an EJBCA CA.
+		_, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+			Type: string(fleet.CATypeEJBCA), Name: new("shared"), URL: new("https://ejbca.example.com"),
+		})
+		inUse(t, err, "shared")
+		_, err = ds.NewCertificateAuthority(ctx, scepCA("ejbca"))
+		inUse(t, err, "ejbca")
+		// The names are compared without regard to case, like the column is.
+		_, err = ds.NewCertificateAuthority(ctx, scepCA("EJBCA"))
+		inUse(t, err, "ejbca")
+		require.ElementsMatch(t, unchanged, names())
+	})
+
+	t.Run("rename", func(t *testing.T) {
+		err := ds.UpdateCertificateAuthorityByID(ctx, ejbca.ID, &fleet.CertificateAuthority{Type: ejbca.Type, Name: new("shared")})
+		inUse(t, err, "shared")
+		err = ds.UpdateCertificateAuthorityByID(ctx, digiCert.ID, &fleet.CertificateAuthority{Type: digiCert.Type, Name: new("ejbca")})
+		inUse(t, err, "ejbca")
+		require.ElementsMatch(t, unchanged, names())
+
+		// A name nobody has is fine.
+		require.NoError(t, ds.UpdateCertificateAuthorityByID(ctx, ejbca.ID, &fleet.CertificateAuthority{Type: ejbca.Type, Name: new("renamed")}))
+	})
+
+	t.Run("batch apply", func(t *testing.T) {
+		ejbca, err := ds.GetCertificateAuthorityByID(ctx, ejbca.ID, true)
+		require.NoError(t, err)
+		before := names()
+
+		// A new CA with an EJBCA name is rejected, and the whole batch rolls back.
+		err = ds.BatchApplyCertificateAuthorities(ctx, fleet.CertificateAuthoritiesBatchOperations{
+			Add: []*fleet.CertificateAuthority{scepCA("fresh"), scepCA(*ejbca.Name)},
+		})
+		inUse(t, err, *ejbca.Name)
+		require.ElementsMatch(t, before, names())
+
+		// A CA of another type can replace the EJBCA CA of the same name in one batch, since the old one is deleted in it.
+		require.NoError(t, ds.BatchApplyCertificateAuthorities(ctx, fleet.CertificateAuthoritiesBatchOperations{
+			Add: []*fleet.CertificateAuthority{scepCA(*ejbca.Name)}, Delete: []*fleet.CertificateAuthority{ejbca},
+		}))
+		require.ElementsMatch(t, []string{"digicert:shared", "custom_scep_proxy:shared", "custom_scep_proxy:" + *ejbca.Name}, names())
+	})
 }
 
 // newEJBCACA creates an EJBCA CA with the given common name template, optional username template and UPNs.

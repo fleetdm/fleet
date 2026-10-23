@@ -2010,6 +2010,12 @@ func (svc *Service) recordFailedVPPInstall(ctx context.Context, host *fleet.Host
 		if err := svc.NewActivity(ctx, user, act); err != nil {
 			return "", ctxerr.Wrap(ctx, err, "create activity for failed vpp install")
 		}
+		if opts.PolicyID != nil {
+			err = svc.ds.IncrementHostPolicyAutomationRunCount(ctx, *opts.PolicyID, host.ID, fleet.ActivityInstalledAppStoreApp{}, false)
+			if err != nil {
+				svc.logger.ErrorContext(ctx, "increment host policy automation run count for failed vpp install", "host_id", host.ID, "command_uuid", cmdUUID, "err", err)
+			}
+		}
 	}
 	if opts.ForSetupExperience {
 		return cmdUUID, &fleet.PreflightInstallFailedError{Reason: reason}

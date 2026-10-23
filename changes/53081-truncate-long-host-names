@@ -1,0 +1,1 @@
+- Fixed a bug where long host names overlapped neighboring columns in the hosts table on the Hosts page.

@@ -26,11 +26,16 @@
 // are about the profile rather than about a document the profile transports.  A CSP profile must not
 // carry an XML declaration; the WLANProfile inside its CDATA may.
 //
+// `deliveryNotesMustContain` / `deliveryNotesMustNotContain` are compared case-insensitively against
+// "deliveryNotes" rather than the profile.
+//
 // Assertions are substring-only by design.  Anything cleverer would be a validator, and the design
 // decision for this generator was that there isn't one -- the CANARY cases are written as exact
 // substrings so this can stay dumb.  Properties that genuinely can't be checked this way (one dict
 // per payload domain, distinct PayloadUUIDs, single-line CDATA, a DDM Identifier's relationship to
-// its Type) are noted on the case in `readByEye` and stay a human read.
+// its Type) are noted on the case in `readByEye` and stay a human read.  `mustStartWith` and
+// `mustMatch` are the two exceptions, for a property of where the profile starts and for values
+// that are random per generation.  Both are compared against the whitespace-stripped profile too.
 const TEST_CASES = [
 
   //  ╔═╗╔═╗╔═╗
@@ -444,10 +449,13 @@ const TEST_CASES = [
     id: 'csp-cis-admx-include-cmdline',
     profileType: 'csp',
     instructions: 'Record the full command line in process creation events.',
+    // IncludeCmdLine only applies while process creation auditing is on, so a profile may also set
+    // Audit/DetailedTracking_AuditProcessCreation, an int node; an int IncludeCmdLine still fails on the chr
+    // and <enabled/> checks.
     expect: {
       mustContain: ['Policy/Config/ADMX_AuditSettings/IncludeCmdLine', '<![CDATA[', '<enabled/>'],
       mustContainElement: [['Format', 'chr']],
-      mustNotContainElement: [['Format', 'int'], ['Format', 'bool'], ['Data', '1']],
+      mustNotContainElement: [['Format', 'bool']],
       mustNotContain: ['&lt;enabled/&gt;', '<data id='],
     }
   },
@@ -528,7 +536,9 @@ const TEST_CASES = [
   {
     id: 'csp-wifi-hex-ssid',
     profileType: 'csp',
-    instructions: 'Add a wifi profile for the network "CorpNet" using WPA2 Enterprise.',
+    // The EAP method is named because an enterprise network cannot be configured without one, and declining
+    // to guess it is right; what this case tests is the SSID's hex encoding.
+    instructions: 'Add a wifi profile for the network "CorpNet" using WPA2 Enterprise with PEAP.',
     readByEye: 'The embedded <WLANProfile> must be on ONE line inside the CDATA.',
     expect: {
       mustContain: ['WiFi/Profile/CorpNet/WlanXml', '<![CDATA[', '<SSID><hex>436F72704E6574</hex><name>CorpNet</name></SSID>'],
@@ -649,6 +659,61 @@ const TEST_CASES = [
       mustContainElement: [['Format', 'int'], ['Format', 'chr'], ['Data', '0']],
     }
   },
+  // Exec runs a one-time command rather than setting a value, so a profile cannot satisfy these.  Defender/Scan
+  // and Reboot/RebootNow are real Exec nodes, which is what makes generating one tempting.
+  {
+    id: 'negative-csp-defender-quick-scan',
+    profileType: 'csp',
+    instructions: 'Run a Microsoft Defender quick scan on every computer.',
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'negative-csp-restart-now',
+    profileType: 'csp',
+    instructions: 'Restart these computers now.',
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'negative-csp-defender-signature-update-now',
+    profileType: 'csp',
+    instructions: 'Update Microsoft Defender security intelligence right now.',
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'csp-defender-daily-quick-scan-time',
+    profileType: 'csp',
+    instructions: 'Schedule a daily Microsoft Defender quick scan at 2:00 AM.',
+    // Minutes after midnight.
+    expect: {
+      mustContain: ['./Device/Vendor/MSFT/Policy/Config/Defender/ScheduleQuickScanTime'],
+      mustContainElement: [['Data', '120']],
+      mustNotContain: ['<Exec>', 'MSFT/Defender/Scan<'],
+    }
+  },
+  {
+    id: 'csp-xml-escaping-in-value',
+    profileType: 'csp',
+    instructions: 'Show "Research & Development <internal use only>" as the title of the message on the sign-in screen.',
+    // A CDATA-wrapped value is as valid as an entity-escaped one, so only the raw characters outside CDATA are forbidden.
+    expect: {
+      mustContain: ['LocalPoliciesSecurityOptions/InteractiveLogon_MessageTitleForUsersAttemptingToLogOn'],
+      mustNotContainOutsideCdata: ['Research & Development', '<internal use only>'],
+    }
+  },
+  {
+    id: 'csp-edge-homepage',
+    profileType: 'csp',
+    instructions: 'Set the Microsoft Edge homepage to intranet.acme.example.',
+    // The Browser area is Edge Legacy, so a profile written from it installs and does nothing.
+    expect: { expectFailure: true }
+  },
+  {
+    id: 'csp-mdm-check-in-interval',
+    profileType: 'csp',
+    instructions: 'Make Windows devices check in with the MDM server every 5 minutes.',
+    // Check-in timing lives in DMClient, which the MDM itself manages.
+    expect: { expectFailure: true }
+  },
 
   //  ╔╦╗╔═╗╔╗ ╦╦  ╔═╗╔═╗╔╗╔╔═╗╦╔═╗
   //  ║║║║ ║╠╩╗║║  ║╣ ║  ║║║╠╣ ║║ ╦
@@ -666,8 +731,9 @@ const TEST_CASES = [
     readByEye: 'Two payload dicts should be present, each with its own PayloadUUID and an identifier suffix.',
     expect: {
       mustContainElement: [['key', 'minLength'], ['key', 'allowSimple'], ['key', 'AutomaticCheckEnabled']],
-      mustNotContainElement: [['key', 'ForcePIN'], ['key', 'MinLength'], ['key', 'AllowSimple'], ['key', 'automaticCheckEnabled']]
-    }
+      mustNotContainElement: [['key', 'ForcePIN'], ['key', 'MinLength'], ['key', 'AllowSimple'], ['key', 'automaticCheckEnabled']],
+      deliveryNotesMustMatch: /macOS 27\.0/,
+    },
   },
   {
     id: 'mobileconfig-showfullname',
@@ -804,7 +870,11 @@ const TEST_CASES = [
     expect: {
       mustContain: ['com.apple.applicationaccess', '<key>allowContentCaching</key><false/>'],
       mustNotContainElement: [['key', 'AllowContentCaching']]
-    }
+    },
+    fleet: {
+      routesTo: 'ddm',
+      expect: { mustContain: ['com.apple.configuration.content-cache.settings', '"DenyActivation":true'] },
+    },
   },
   {
     id: 'mobileconfig-automatic-date-time',
@@ -819,8 +889,11 @@ const TEST_CASES = [
     profileType: 'mobileconfig',
     instructions: 'Automatically install App Store app updates.',
     expect: {
+      deliveryNotesMustContain: ['macOS 27'],
       mustContain: ['com.apple.SoftwareUpdate', '<key>AutomaticallyInstallAppUpdates</key><true/>'],
-      mustNotContain: ['AutomaticallyInstallMacOSUpdates']
+      mustNotContain: ['AutomaticallyInstallMacOSUpdates'],
+      // No declaration covers App Store apps, so the removed payload is the only way, and says so.
+      deliveryNotesMustMatch: /com\.apple\.SoftwareUpdate stops working in macOS 27\.0/,
     }
   },
   {
@@ -851,20 +924,32 @@ const TEST_CASES = [
     profileType: 'mobileconfig',
     instructions: 'Download macOS updates automatically as soon as they are available.',
     expect: {
+      deliveryNotesMustContain: ['macOS 27'],
       mustContain: ['com.apple.SoftwareUpdate', '<key>AutomaticDownload</key><true/>'],
       mustNotContain: ['AutomaticallyInstallMacOSUpdates'],
       mustNotContainElement: [['string', 'true']],
-    }
+      deliveryNotesMustMatch: /macOS 27\.0/,
+    },
+    fleet: {
+      routesTo: 'ddm',
+      expect: { mustContain: ['com.apple.configuration.softwareupdate.settings', '"Download":"AlwaysOn"'] },
+    },
   },
   {
     id: 'mobileconfig-cis-install-macos-updates',
     profileType: 'mobileconfig',
     instructions: 'Install macOS updates automatically.',
     expect: {
+      deliveryNotesMustContain: ['macOS 27'],
       mustContain: ['com.apple.SoftwareUpdate', '<key>AutomaticallyInstallMacOSUpdates</key><true/>'],
       mustNotContain: ['AutomaticallyInstallMacOSupdates', 'AutomaticallyInstallAppUpdates'],
       mustNotContainElement: [['string', 'true']],
-    }
+      deliveryNotesMustMatch: /macOS 27\.0/,
+    },
+    fleet: {
+      routesTo: 'ddm',
+      expect: { mustContain: ['com.apple.configuration.softwareupdate.settings', '"InstallOSUpdates":"AlwaysOn"'] },
+    },
   },
   {
     id: 'mobileconfig-cis-security-responses',
@@ -872,9 +957,15 @@ const TEST_CASES = [
     instructions: 'Install security responses and system data files automatically.',
     readByEye: 'Both keys must sit in ONE com.apple.SoftwareUpdate dict.',
     expect: {
+      deliveryNotesMustContain: ['macOS 27'],
       mustContain: ['com.apple.SoftwareUpdate', '<key>ConfigDataInstall</key><true/>', '<key>CriticalUpdateInstall</key><true/>'],
       mustNotContainElement: [['string', 'true']],
-    }
+      deliveryNotesMustMatch: /macOS 27\.0/,
+    },
+    // As a Fleet request it cannot be one profile: the software update declaration installs security responses,
+    // whose .mobileconfig key Apple removed in macOS 27, but no declaration installs system data files, so that
+    // part can only be the .mobileconfig key, which works up to macOS 26.
+    fleet: { routesTo: 'decline' },
   },
   {
     id: 'mobileconfig-cis-update-deferral',
@@ -885,10 +976,16 @@ const TEST_CASES = [
     // com.apple.SoftwareUpdate.  Apple removes them in macOS 27 in favour of DDM.
     readByEye: 'If a delay key (enforcedSoftwareUpdateDelay or enforcedSoftwareUpdateMinorOSDeferredInstallDelay) is present, its value must be 30.',
     expect: {
+      deliveryNotesMustContain: ['macOS 27'],
       mustContain: ['com.apple.applicationaccess', '<key>forceDelayedSoftwareUpdates</key><true/>'],
       mustNotContain: ['EnforcedSoftwareUpdateDelay', 'ForceDelayedSoftwareUpdates', 'com.apple.SoftwareUpdate', 'com.apple.configuration.softwareupdate'],
       mustNotContainElement: [['string', 'true'], ['string', '30']],
-    }
+      deliveryNotesMustMatch: /macOS 27\.0/,
+    },
+    fleet: {
+      routesTo: 'ddm',
+      expect: { mustContain: ['com.apple.configuration.softwareupdate.settings', '"Deferrals"', 'PeriodInDays":30'] },
+    },
   },
   {
     id: 'mobileconfig-cis-media-sharing-modification',
@@ -920,7 +1017,12 @@ const TEST_CASES = [
       mustContain: ['com.apple.applicationaccess', '<key>allowWritingTools</key><false/>'],
       mustNotContain: ['AllowWritingTools', 'com.apple.configuration.intelligence'],
       mustNotContainElement: [['string', 'false']],
-    }
+      deliveryNotesMustMatch: /deprecated allowWritingTools/,
+    },
+    fleet: {
+      routesTo: 'ddm',
+      expect: { mustContain: ['com.apple.configuration.intelligence.settings', '"AllowWritingTools":false'] },
+    },
   },
   {
     id: 'mobileconfig-cis-prevent-filevault-disable',
@@ -1015,7 +1117,17 @@ const TEST_CASES = [
         '<key>pinHistory</key><integer>24</integer>'
       ],
       mustNotContain: ['MaxFailedAttempts', 'MinLength', 'maxPinAgeInDays', 'PinHistory'],
-    }
+      deliveryNotesMustMatch: /deprecated com\.apple\.mobiledevice\.passwordpolicy/,
+    },
+    fleet: {
+      routesTo: 'ddm',
+      expect: {
+        mustContain: [
+          'com.apple.configuration.passcode.settings', '"MinimumLength":15', '"MaximumFailedAttempts":5',
+          '"MaximumPasscodeAgeInDays":365', '"PasscodeReuseLimit":24'
+        ],
+      },
+    },
   },
   // Grouping: N settings across M payload domains must be M dicts inside PayloadContent -- not N,
   // and not 1.  Dict counts are beyond a substring check, so each of these carries a readByEye.
@@ -1106,14 +1218,47 @@ const TEST_CASES = [
     // The delay key only sets the length; forceDelayedMajorSoftwareUpdates is what turns it on.  Both
     // live in com.apple.applicationaccess.  The observed failure was the delay key alone, inside a
     // com.apple.SoftwareUpdate dict.
-    readByEye: 'Apple deprecated both keys in macOS 26 and removed them in macOS 27, so "deliveryNotes" should say so and point to the DDM softwareupdate.settings Deferrals.',
     expect: {
+      deliveryNotesMustContain: ['macOS 27'],
       mustContain: [
         'com.apple.applicationaccess', '<key>forceDelayedMajorSoftwareUpdates</key><true/>',
         '<key>enforcedSoftwareUpdateMajorOSDeferredInstallDelay</key><integer>73</integer>'
       ],
       mustNotContain: ['com.apple.SoftwareUpdate', 'ForceDelayedMajorSoftwareUpdates', 'EnforcedSoftwareUpdateMajorOSDeferredInstallDelay'],
       mustNotContainElement: [['string', 'true'], ['string', '73']],
+      deliveryNotesMustMatch: /stop working in macOS 27\.0/,
+    },
+    fleet: {
+      routesTo: 'ddm',
+      expect: { mustContain: ['com.apple.configuration.softwareupdate.settings', '"MajorPeriodInDays":73'] },
+    },
+  },
+  // The identifier token is random per generation, so these match its shape: a final segment of 8 lowercase hex characters.
+  {
+    id: 'mobileconfig-identifier-token-camera-screenshots',
+    profileType: 'mobileconfig',
+    instructions: 'Disable the camera and screenshots.',
+    expect: {
+      mustMatch: ['<key>PayloadIdentifier</key><string>[^<]*\\.[0-9a-f]{8}</string>'],
+      mustContain: ['com.apple.applicationaccess'],
+    }
+  },
+  {
+    id: 'mobileconfig-identifier-token-two-domains',
+    profileType: 'mobileconfig',
+    instructions: 'Disable content caching and start the screen saver after 5 minutes.',
+    expect: {
+      mustMatch: ['<key>PayloadIdentifier</key><string>[^<]*\\.[0-9a-f]{8}</string>'],
+      mustContain: ['com.apple.applicationaccess', 'com.apple.screensaver'],
+    }
+  },
+  {
+    id: 'mobileconfig-identifier-token-login-window-buttons',
+    profileType: 'mobileconfig',
+    instructions: 'Hide the Sleep, Restart, and Shut Down buttons on the login window.',
+    expect: {
+      mustMatch: ['<key>PayloadIdentifier</key><string>[^<]*\\.[0-9a-f]{8}</string>'],
+      mustContain: ['com.apple.loginwindow'],
     }
   },
   // 2026-10-02: JordanMontgomery: I commented out the two Platform SSO cases below because they fail every run: the model does not know the vendor-specific extension values and URLs.
@@ -1211,6 +1356,15 @@ const TEST_CASES = [
     }
   },
   {
+    id: 'ddm-defer-major-updates',
+    profileType: 'ddm',
+    instructions: 'Defer macOS major updates by 90 days.',
+    expect: {
+      mustContain: ['softwareupdate.settings', 'Deferrals', '"MajorPeriodInDays":90'],
+      mustNotContain: ['forceDelayedMajorSoftwareUpdates', 'enforcedSoftwareUpdateMajorOSDeferredInstallDelay'],
+    }
+  },
+  {
     id: 'ddm-auto-install-security-updates',
     profileType: 'ddm',
     instructions: 'Automatically download and install security updates.',
@@ -1236,7 +1390,19 @@ const TEST_CASES = [
         '"AllowImageWand":false', '"AllowAppleIntelligenceReport":false', '"AllowPersonalizedHandwritingResults":false',
         '"AllowVisualIntelligenceSummary":false'
       ]
-    }
+    },
+    // Asked for by platform, "every Apple Intelligence feature" also takes in Siri's AI features and the
+    // ChatGPT integration, which are other declaration types, so one declaration cannot do it all and a
+    // .mobileconfig, which has a restriction for each of them, can.
+    fleet: {
+      routesTo: 'mobileconfig',
+      expect: {
+        mustContain: [
+          'com.apple.applicationaccess', '<key>allowWritingTools</key><false/>', '<key>allowGenmoji</key><false/>',
+          '<key>allowImagePlayground</key><false/>'
+        ],
+      },
+    },
   },
   {
     id: 'ddm-intelligence-partial',
@@ -1300,7 +1466,9 @@ const TEST_CASES = [
   {
     id: 'ddm-rapid-security-response',
     profileType: 'ddm',
-    instructions: 'Automatically download updates, always install security updates, let users choose when to install OS updates, and turn on Rapid Security Responses.',
+    instructions: 'Automatically download updates, always install security updates, let users turn automatic installation of OS updates on or off themselves, and turn on Rapid Security Responses.',
+    // Worded so that only Allowed fits: "let users choose when to install OS updates" also reads as AlwaysOff, with
+    // automatic installation off so that users install when they choose.
     // The sub-key is "Enable", not "Enabled" -- the latter is an easy slip and is silently ignored.
     expect: {
       mustContain: [
@@ -1835,17 +2003,50 @@ const TEST_CASES = [
 ];
 
 /**
- * Compare a generated profile against a case's `expect` block.
+ * Compare a generated profile against a case's `expect` block, and against the rules every profile of
+ * its type must follow.
  *
  * @param  {Dictionary} expectations
  * @param  {Dictionary} generatedProfile
+ * @param  {String} profileType
  * @returns {Array} human-readable descriptions of what failed
  */
-function checkExpectations(expectations, generatedProfile) {
+function checkExpectations(expectations, generatedProfile, profileType) {
   let failures = [];
 
   if(expectations.expectFailure) {
     return ['expected this request to be refused, but a profile was generated'];
+  }
+
+  // MDMs treat a .mobileconfig without an XML declaration as signed, and reject it.
+  if(profileType === 'mobileconfig' && !_.startsWith(_.trim(generatedProfile.profile), '<?xml')) {
+    failures.push('does not start with an XML declaration');
+  }
+  if(profileType === 'csp') {
+    let outsideCdata = String(generatedProfile.profile).replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, '<![CDATA[]]>');
+    if(_.contains(outsideCdata, '<?xml')) {
+      failures.push('contains an XML declaration outside CDATA');
+    }
+    if(/<SyncML|<SyncBody/.test(outsideCdata)) {
+      failures.push('contains a SyncML envelope');
+    }
+    let managementPlaneNode = String(generatedProfile.profile).match(/(?:\/MSFT|\.\/SyncML)\/(DMClient|DMAcc|EnrollmentStatusTracking)\b/i);
+    if(managementPlaneNode) {
+      failures.push(`writes to the ${managementPlaneNode[1]} CSP, which the MDM uses to manage the device`);
+    }
+  }
+
+  // Case-insensitive, since these are prose.
+  let deliveryNotes = String(generatedProfile.deliveryNotes || '').toLowerCase();
+  for (let needle of expectations.deliveryNotesMustContain || []) {
+    if(!_.contains(deliveryNotes, needle.toLowerCase())) {
+      failures.push(`deliveryNotes missing expected text: ${JSON.stringify(needle)} -- deliveryNotes were ${JSON.stringify(generatedProfile.deliveryNotes || '')}`);
+    }
+  }
+  for (let needle of expectations.deliveryNotesMustNotContain || []) {
+    if(_.contains(deliveryNotes, needle.toLowerCase())) {
+      failures.push(`deliveryNotes contain forbidden text: ${JSON.stringify(needle)} -- deliveryNotes were ${JSON.stringify(generatedProfile.deliveryNotes)}`);
+    }
   }
 
   // Whitespace is stripped from both sides so an assertion doesn't fail on JSON indentation.
@@ -1897,6 +2098,13 @@ function checkExpectations(expectations, generatedProfile) {
     }
   }
 
+  // For values that are random per generation, where no fixed substring can stand in.
+  for (let pattern of expectations.mustMatch || []) {
+    if(!new RegExp(pattern).test(profileWithoutWhitespace)) {
+      failures.push(`does not match pattern: ${pattern}`);
+    }
+  }
+
   // Same check, but blind to anything inside a CDATA section.  A CSP profile can carry a whole other
   // document as a node's value -- a WLANProfile, an ADMX fragment -- and a rule about the profile is not
   // a rule about what it transports.  Replaced with an empty CDATA rather than deleted so a needle
@@ -1910,11 +2118,79 @@ function checkExpectations(expectations, generatedProfile) {
     }
   }
 
+  if(expectations.deliveryNotesMustMatch && !expectations.deliveryNotesMustMatch.test(String(generatedProfile.deliveryNotes || ''))) {
+    failures.push(`delivery notes do not match ${expectations.deliveryNotesMustMatch} -- they were ${JSON.stringify(generatedProfile.deliveryNotes || '')}`);
+  }
+
   return failures;
+}
+
+/**
+ * Check the reason given for a refusal the case expected.
+ *
+ * @param  {String} reason
+ * @returns {Array} human-readable descriptions of what failed
+ */
+function checkDeclineReason(reason) {
+  // The UI already links every refusal to the OS settings page, so a reason links nowhere else.
+  if(/https?:\/\/|www\./i.test(String(reason || ''))) {
+    return [`reason contains a link: ${JSON.stringify(reason)}`];
+  }
+  return [];
+}
+
+
+/**
+ * How a case runs as a request from Fleet, which sends a platform rather than a profile type, or undefined
+ * when it does not run as one.
+ *
+ * Apple cases run as Fleet requests unless they say `fleet: false`.  The format a case routes to defaults to
+ * its own profile type, with its own expectations; a case that should route elsewhere says so with
+ * `fleet: {routesTo, expect}`, and must bring expectations for the format it routes to.  `routesTo: 'decline'`
+ * expects the request to be declined.  A case that expects to be declined anyway leaves the route unchecked.
+ *
+ * @param  {Dictionary} testCase
+ * @returns {Dictionary|undefined}  {routesTo, expect}
+ */
+function fleetRequestFor(testCase) {
+  if(testCase.fleet === false || !['mobileconfig', 'ddm'].includes(testCase.profileType)) {
+    return undefined;
+  }
+  let fleet = testCase.fleet || {};
+  let expectsFailure = !!(testCase.expect && testCase.expect.expectFailure);
+  let routesTo = fleet.routesTo || (expectsFailure ? undefined : testCase.profileType);
+  return {
+    routesTo,
+    expect: fleet.expect || (routesTo === 'decline' ? { expectFailure: true } : testCase.expect),
+  };
+}
+
+
+// Checked as soon as the cases load, so a case that routes elsewhere without saying what to expect there
+// fails the run before anything is spent on it.
+for (let testCase of TEST_CASES) {
+  if(testCase.fleet && testCase.fleet.routesTo && testCase.fleet.routesTo !== testCase.profileType && testCase.fleet.routesTo !== 'decline' && !testCase.fleet.expect) {
+    throw new Error(`The case ${testCase.id} routes to ${testCase.fleet.routesTo} as a Fleet request, so it needs a fleet.expect for that format.`);
+  }
+}
+
+
+/**
+ * Whether a generation failed because of the API rather than the prompt -- a rate limit (429) or an API that is
+ * overloaded (529) or erroring (5xx) -- and so deserves a retry after a pause before it counts against a case.
+ *
+ * @param  {Ref} err
+ * @returns {Boolean}
+ */
+function isWorthRetryingAfterAPause(err) {
+  return !!err && (err.statusCode === 429 || err.statusCode >= 500);
 }
 
 
 module.exports = {
   TEST_CASES,
   checkExpectations,
+  fleetRequestFor,
+  isWorthRetryingAfterAPause,
+  checkDeclineReason,
 };
