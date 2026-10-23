@@ -229,7 +229,7 @@ The following steps show how to deploy certificates from [EJBCA](https://www.ejb
 1. In EJBCA, enable the **REST Certificate Management** protocol. If you want Fleet to also check your certificate profile name when you add the CA, enable **REST Certificate Management V2** as well.
 2. Create a certificate profile and an end entity profile for the certificates that Fleet requests. The end entity profile must list the certificate profile and include a **CN** subject DN field. If you'll use a user principal name (UPN), add the **UPN** subject alternative name field. The certificate profile must be allowed to use your CA.
 3. Create a client certificate for Fleet and export it as a PKCS#12 (`.p12`) file with a password. Fleet uses it to authenticate to EJBCA's REST API with mutual TLS.
-4. Create a role in EJBCA and add the client certificate as a member of it. For example, match the **CA** that issued the certificate and its common name (**CN**). EJBCA uses this to find the role when Fleet connects. Then add these access rules to the role:
+4. Create a role in EJBCA and add the client certificate as a member of it. For example, match the **CA** that issued the certificate and its common name (**CN**). EJBCA uses this to find the role when Fleet connects. Then add these access rules to the role (open the role's **Access Rules**, switch to **Advanced Mode**, and select **Allow** next to each path):
    - `/administrator/`
    - `/ca/<CA name>/`
    - `/ca_functionality/create_certificate/`
@@ -319,6 +319,7 @@ When Fleet delivers the profile to your hosts, Fleet will replace the variables.
 - If EJBCA is temporarily unavailable, Fleet retries the configuration profile up to 3 times before it marks the profile as failed.
 - EJBCA changes a semicolon (`;`) in the CN to a slash (`/`). Avoid `;` in the values of the variables you use for the CN.
 - Fleet doesn't revoke certificates when you delete a host or a CA. To revoke them, use EJBCA.
+- If **Enforce unique DN** is on for your CA in EJBCA, a request fails when another username already has a certificate with the same subject DN. Keep the End entity username consistent for each host.
 
 
 ## Microsoft NDES
