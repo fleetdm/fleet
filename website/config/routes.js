@@ -616,24 +616,6 @@ module.exports.routes = {
     }
   },
 
-  'GET /lp/apple-management': {
-    action: 'landing-pages/view-apple-management',
-    locals: {
-      hideHeaderLinks: true,
-      pageTitleForMeta: 'Apple device management',
-      pageDescriptionForMeta: 'Jamf is not your only option. Fleet manages Macs, iPhones, and iPads on Apple\'s own MDM protocol, with migration that does not touch a single laptop.',
-    }
-  },
-
-  'GET /lp/windows-management': {
-    action: 'landing-pages/view-windows-management',
-    locals: {
-      hideHeaderLinks: true,
-      pageTitleForMeta: 'Windows device management',
-      pageDescriptionForMeta: 'Manage Windows devices with full visibility and control. Automate patching, enforce BitLocker, and unify Windows, macOS, and Linux in one place.',
-    }
-  },
-
   'GET /whitepapers/:slug': {
     action: 'articles/view-basic-whitepaper'
   },
@@ -770,15 +752,6 @@ module.exports.routes = {
 
   'GET /lp/replace-jamf': {
     action: 'landing-pages/view-replace-jamf',
-    locals: {
-      hideHeaderLinks: true,
-      pageTitleForMeta: 'Replace Jamf',
-      pageDescriptionForMeta: 'Move off Jamf without touching a laptop. Apple\'s native MDM migration moves your Macs to Fleet with no factory reset, and your Apple Business Manager setup stays in place.'
-    }
-  },
-
-  'GET /lp/jamf-migration': {
-    action: 'landing-pages/view-jamf-migration',
     locals: {
       hideHeaderLinks: true,
       pageTitleForMeta: 'Replace Jamf with confidence',
