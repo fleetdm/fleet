@@ -77,10 +77,14 @@ b, strong { font-weight: 600; }
   display: flex; flex-direction: column; gap: 24px;
 }
 
-/* Top bar: platform toggle, freshness, fleet filter, theme */
-.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; }
-.meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; color: var(--ink-2); font-size: 12px; }
-.meta select {
+/* Top bar: platform toggle on the left, fleet filter and theme on the right, freshness below */
+.top { display: flex; flex-direction: column; gap: 8px; }
+.top-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; }
+.controls { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.controls select { min-width: 0; flex: 0 1 auto; }
+.controls .seg-toggle { flex-shrink: 0; }
+.meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; color: var(--ink-2); font-size: 12px; }
+.controls select {
   font: 400 14px var(--font-ui); color: var(--ink); background: var(--panel);
   border: 1px solid var(--line-2); border-radius: 4px; padding: 0 28px 0 10px; max-width: 220px; height: 36px;
 }
