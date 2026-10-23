@@ -12,17 +12,17 @@
           </div>
         </div>
         <div purpose="hero-image">
-          <div purpose="teams-animation" role="img" aria-label="A Microsoft Teams chat with Fleet. An admin asks which Windows hosts haven't checked in for over a week. Fleet reports that 1,136 of 12,480 are offline, flags 41 Broad ring workstations missing for 30+ days, and offers to open a pull request. The admin says yes, and Fleet opens PR #1284 to enforce a 3-day Windows update deadline, pending their review.">
+          <div purpose="teams-animation" role="img" aria-label="A Microsoft Teams chat with Fleet. An admin asks what it takes to meet CIS Level 2 on their Windows devices. Fleet reports that 2,184 of 2,350 Windows hosts pass Level 1, that Level 2 adds 38 settings, and that the biggest gaps are Credential Guard, telemetry limits, and unneeded services, then offers to propose changes to close those gaps. The admin says yes, and Fleet proposes 3 new profiles and 38 policies for their review.">
             <div purpose="teams-window" aria-hidden="true">
               <picture purpose="teams-chrome">
                 <source media="(max-width: 767px)" srcset="/images/teams-chat-window-mobile-492x576.svg">
                 <source media="(max-width: 991px)" srcset="/images/teams-chat-window-tablet-844x576.svg">
-                <img alt="" src="/images/teams-chat-window-1044x576.svg">
+                <img alt="" src="/images/teams-chat-window-1044x520.svg">
               </picture>
               <div purpose="teams-messages">
                 <div purpose="teams-message-stack">
                   <div purpose="teams-first-message">
-                    <p><strong>@Fleet</strong> show me Windows hosts that haven’t checked in for over a week.</p>
+                    <p><strong>@Fleet</strong> what do we need for CIS level 2 on our Windows devices?</p>
                   </div>
                   <div purpose="teams-first-reply">
                     <div purpose="teams-typing">
@@ -34,16 +34,18 @@
                       <div purpose="teams-reply-body">
                         <span purpose="teams-sender">Fleet</span>
                         <div purpose="teams-reply-bubble">
-                          <p><strong>1,136 of 12,480 Windows hosts are offline</strong>. 52 have been gone 30+ days (MIA).</p>
-                          <p><strong>Workstations – Broad ring (needs attention)</strong>: 87<br>&nbsp;• 41 MIA, 30+ days. Likely lost, left with departed staff, or reimaged without the agent.<br>&nbsp;• 46 offline for under 30 days<br>&nbsp;• Including <strong>WS-FIN-2291</strong>, <strong>WS-ENG-0874</strong>, <strong>WS-SLS-1450</strong>, and 84 more</p>
-                          <p><strong>Likely expected: 1,049</strong><br>&nbsp;• 812 in Lab devices and VDI pools, routinely powered off<br>&nbsp;• 237 kiosks on overnight shutdown</p>
-                          <p>The 41 MIA workstations in the Broad ring are the real risk. They haven’t received updates or policy changes in over a month. Want me to open a PR so they install pending updates within 3 days of reconnecting?</p>
+                          <p>2,184 of 2,350 Windows hosts pass Level 1. Level 2 adds 38 settings. The biggest gaps are Credential Guard, telemetry limits, and unneeded services.</p>
+                        </div>
+                        <div purpose="teams-follow-up">
+                          <div purpose="teams-reply-bubble">
+                            <p>Want me to propose changes that close those gaps?</p>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
                   <div purpose="teams-second-message">
-                    <p>Yes, open the PR. Tag me as reviewer.</p>
+                    <p>Yes</p>
                   </div>
                   <div purpose="teams-second-reply">
                     <div purpose="teams-typing">
@@ -55,26 +57,7 @@
                       <div purpose="teams-reply-body">
                         <span purpose="teams-sender">Fleet</span>
                         <div purpose="teams-reply-bubble">
-                          <div purpose="teams-reply-section">
-                            <p>I’ve opened a pull request to enforce Windows update deadlines on Workstations - Broad ring.</p>
-                            <p><strong>PR #1284: Enforce 3-day Windows update deadline for Workstations - Broad ring</strong> <code>fleets/workstations-broad-ring.yml</code></p>
-                          </div>
-                          <div purpose="teams-code-block">
-                            <p>diff</p>
-                            <pre>controls:
-<span purpose="diff-sign">+</span> <span purpose="diff-added">windows_updates:</span>
-<span purpose="diff-sign">+</span><span purpose="diff-added">   deadline_days: 3</span>
-<span purpose="diff-sign">+</span><span purpose="diff-added">   grace_period_days: 1</span></pre>
-                          </div>
-                          <div>
-                            <p><strong>What this changes</strong></p>
-                            <ul>
-                              <li>Applies to all 9,214 Windows hosts in the Broad ring</li>
-                              <li>Offline hosts get the deadline the next time they check in</li>
-                              <li>Users get a 1-day grace period after a restart before updates are forced</li>
-                            </ul>
-                            <p purpose="teams-reply-footer">Nothing changes until the PR is merged. I’ve requested your review on <span purpose="teams-pr-link">PR #1284</span></p>
-                          </div>
+                          <p>Done. I’ve proposed 3 new profiles and 38 policies <span purpose="teams-link">for your review</span>.</p>
                         </div>
                       </div>
                     </div>
