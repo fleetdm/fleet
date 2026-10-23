@@ -612,7 +612,7 @@
   // The grid's background shows through the 1px gaps as divider lines between logos.
   [purpose='logo-grid'] {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 1px;
     flex: 1 1 50%;
     background-color: @core-fleet-black-10;
@@ -620,11 +620,11 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 76px;
+      height: 96px;
       background-color: @accent-white;
-      // object-fit keeps wide logos (e.g. ConductorOne) from stretching when max-width caps them.
+      // Each logo's height comes from its height attribute so differently shaped logos look balanced.
+      // object-fit keeps wide logos from stretching when max-width caps them.
       img {
-        height: 24px;
         width: auto;
         max-width: 80%;
         object-fit: contain;
