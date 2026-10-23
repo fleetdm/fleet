@@ -137,7 +137,7 @@ Fleet also provides a API endpoints for managing setup experience software progr
 Fleet can create a hidden local admin account (`_fleetadmin`) with a unique password on each Windows host. IT admins can use it as a
 break-glass login for troubleshooting, so you don't have to ship a shared local admin password in an image or a script.
 
-Fleet's agent (fleetd) creates the account, so it doesn't depend on Autopilot or OOBE. Every Windows host enrolled in Fleet MDM gets
+Fleet's agent (fleetd) creates the account, so it doesn't depend on Autopilot or OOBE. Every Windows host enrolled to Fleet with MDM turned on gets
 one, including hosts that enrolled before you turned the setting on. This is different from macOS, where the account can only be
 created during Setup Assistant. For macOS, see the
 [setup experience guide](https://fleetdm.com/guides/setup-experience#managed-local-account).

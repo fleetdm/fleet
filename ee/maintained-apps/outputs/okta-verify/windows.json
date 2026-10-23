@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "7.0.1.0",
+      "version": "7.1.0.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Okta Verify' AND publisher = 'Okta, Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Okta Verify' AND publisher = 'Okta, Inc.' AND version_compare(version, '7.0.1.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Okta Verify' AND publisher = 'Okta, Inc.' AND version_compare(version, '7.1.0.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'oktaverify.exe');"
       },
-      "installer_url": "https://ok1static2.oktacdn.com/artifacts/WINDOWS_OKTA_VERIFY/7.0.1.0/OktaVerifySetup-7.0.1.0-15bb87b.exe",
+      "installer_url": "https://ok1static2.oktacdn.com/artifacts/WINDOWS_OKTA_VERIFY/7.1.0.0/OktaVerifySetup-7.1.0.0-831181d.exe",
       "install_script_ref": "94c62de6",
       "uninstall_script_ref": "a88bfb4c",
-      "sha256": "f1fe7e154e5ac84ae6034b55c91fa627312c01d9b58041c2076badacf58aadd2",
+      "sha256": "6e09b1c12998336d7743290765bfbce8ba11b21b96c90355ad9fdf76b1f6897e",
       "default_categories": [
         "Productivity"
       ]

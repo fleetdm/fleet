@@ -10,6 +10,7 @@ import { ISupportedGraphicNames } from "components/ListItem/ListItem";
 import { notify } from "components/ToastNotification";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import TooltipWrapper from "components/TooltipWrapper";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { IScript } from "interfaces/script";
 import scriptAPI from "services/entities/scripts";
 
@@ -83,6 +84,12 @@ const ScriptListItem = ({
   isTechnician,
 }: IScriptListItemProps) => {
   const { graphicName, platform } = getFileRenderDetails(script.name);
+  const { gitOpsModeEnabled } = useGitOpsMode();
+
+  // Technicians have no action buttons; GitOps-mode admins have the Edit
+  // pencil disabled (so Enter does nothing). In both cases the row click is
+  // the only way to open the Edit modal, so expose it to the keyboard.
+  const isInteractiveRow = !!isTechnician || gitOpsModeEnabled;
 
   const onClickEdit = () => {
     onEdit(script);
@@ -146,9 +153,7 @@ const ScriptListItem = ({
           position="top"
           showArrow
         >
-          <Button variant="link" className={`${baseClass}__title-button`}>
-            <TooltipTruncatedText value={script.name} fixedPositionStrategy />
-          </Button>
+          <TooltipTruncatedText value={script.name} fixedPositionStrategy />
         </TooltipWrapper>
       }
       details={
@@ -159,6 +164,7 @@ const ScriptListItem = ({
       }
       actions={isTechnician ? undefined : actions}
       onClick={() => onClickScript(script)}
+      isInteractiveRow={isInteractiveRow}
     />
   );
 };

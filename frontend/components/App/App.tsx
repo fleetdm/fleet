@@ -76,7 +76,9 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
     config,
     currentUser,
     isGlobalAdmin,
+    isGlobalMaintainer,
     isGlobalObserver,
+    isGlobalTechnician,
     isOnlyObserver,
     isAnyTeamMaintainerOrTeamAdmin,
     setAvailableTeams,
@@ -90,6 +92,7 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
     setVppExpiry,
     setSandboxExpiry,
     setNoSandboxHosts,
+    setHostCount,
     isPremiumTier,
   } = useContext(AppContext);
 
@@ -190,6 +193,28 @@ const App = ({ children, location, router }: IAppProps): JSX.Element => {
       },
     }
   );
+
+  // Fleet-level users only see their own fleets' hosts, so only global users
+  // get a total that can be compared against the license.
+  const canCompareHostCountToLicense =
+    !!isPremiumTier &&
+    !!config?.license.device_count &&
+    (!!isGlobalAdmin ||
+      !!isGlobalMaintainer ||
+      !!isGlobalObserver ||
+      !!isGlobalTechnician);
+
+  useQuery(["hosts_count_for_license"], () => hostCountAPI.load({}), {
+    ...DEFAULT_USE_QUERY_OPTIONS,
+    enabled: canCompareHostCountToLicense,
+    onSuccess: ({ count }) => setHostCount(count),
+  });
+
+  useEffect(() => {
+    if (!canCompareHostCountToLicense) {
+      setHostCount(undefined);
+    }
+  }, [canCompareHostCountToLicense, setHostCount]);
 
   const fetchConfig = useCallback(async () => {
     try {

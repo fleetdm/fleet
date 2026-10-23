@@ -1470,7 +1470,18 @@ func (ds *Datastore) applyHostFilters(
 						Message: "software_installer_id does not apply to this software_title_id (title is a VPP app)",
 					}, "mismatched child id for title")
 				}
-				vppAppJoin, vppAppParams, err := ds.vppAppJoin(*vppID, opt.AppStoreAppVersionIDFilter, *opt.SoftwareStatusFilter)
+				if opt.AppStoreAppVersionIDFilter != nil {
+					_, err = ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, *opt.AppStoreAppVersionIDFilter)
+					switch {
+					case fleet.IsNotFound(err):
+						return "", nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+							Message: "app_store_app_version_id does not apply to this software_title_id (not a version of the title in this fleet)",
+						}, "mismatched child id for title")
+					case err != nil:
+						return "", nil, ctxerr.Wrap(ctx, err, "get app store app version for title")
+					}
+				}
+				vppAppJoin, vppAppParams, err := ds.vppAppJoin(ctx, *vppID, opt.AppStoreAppVersionIDFilter, *opt.SoftwareStatusFilter)
 				if err != nil {
 					return "", nil, ctxerr.Wrap(ctx, err, "vpp app join")
 				}

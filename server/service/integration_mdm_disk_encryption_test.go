@@ -870,6 +870,19 @@ func (s *integrationMDMTestSuite) TestWindowsMDMGetEncryptionKey() {
 	host := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
 	err := s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
+	// Without an enrollment row the server can't ask the host for a new key, so the error wouldn't promise one.
+	require.NoError(t, s.ds.MDMWindowsInsertEnrolledDevice(ctx, &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            "disk-encryption-key-" + host.UUID,
+		MDMHardwareID:          "disk-encryption-key-hw-" + host.UUID,
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          host.Hostname,
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.26100",
+		MDMNotInOOBE:           true,
+		HostUUID:               host.UUID,
+	}))
 
 	// request encryption key with no auth token
 	res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusUnauthorized)
