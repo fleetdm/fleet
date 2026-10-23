@@ -1055,7 +1055,7 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 			}
 			return token, nil
 		}
-		f.ds.GetAppStoreAppVersionsByTeamFunc = func(ctx context.Context, fleetID uint) (map[uint][]*fleet.VPPAppStoreApp, error) {
+		f.ds.GetAppStoreAppVersionsByTeamFunc = func(ctx context.Context, fleetID uint, platforms []fleet.InstallableDevicePlatform) (map[uint][]*fleet.VPPAppStoreApp, error) {
 			versionsByTitleID := make(map[uint][]*fleet.VPPAppStoreApp)
 			for _, version := range f.versionsByFleetID[fleetID] {
 				version.HasLabels = len(version.LabelsIncludeAny) > 0 || len(version.LabelsExcludeAny) > 0 || len(version.LabelsIncludeAll) > 0
@@ -1063,7 +1063,7 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 			}
 			return versionsByTitleID, nil
 		}
-		f.ds.ListHostAppStoreAppInstallVersionsFunc = func(ctx context.Context, fleetID uint, hostIDs []uint) (map[uint]map[uint]fleet.HostVPPSoftwareInstall, error) {
+		f.ds.ListHostAppStoreAppInstallVersionsFunc = func(ctx context.Context, fleetID uint, hostIDs []uint, platforms []fleet.InstallableDevicePlatform) (map[uint]map[uint]fleet.HostVPPSoftwareInstall, error) {
 			installByHostID := make(map[uint]fleet.HostVPPSoftwareInstall)
 			for _, hostID := range hostIDs {
 				if _, inInventory := f.inventoryHostIDs[hostID]; !inInventory || ptr.ValOrZero(hostByID(f, hostID).TeamID) != fleetID {
@@ -1694,14 +1694,14 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 		install(f, 1, 10)
 		setConfiguration(f, version, `<dict><key>a</key><string>b</string></dict>`)
 		versions := f.ds.GetAppStoreAppVersionsByTeamFunc
-		f.ds.GetAppStoreAppVersionsByTeamFunc = func(ctx context.Context, fleetID uint) (map[uint][]*fleet.VPPAppStoreApp, error) {
-			versionsByTitleID, err := versions(ctx, fleetID)
+		f.ds.GetAppStoreAppVersionsByTeamFunc = func(ctx context.Context, fleetID uint, platforms []fleet.InstallableDevicePlatform) (map[uint][]*fleet.VPPAppStoreApp, error) {
+			versionsByTitleID, err := versions(ctx, fleetID, platforms)
 			versionsByTitleID[2] = []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: 20, HasLabels: true}}
 			return versionsByTitleID, err
 		}
 		installs := f.ds.ListHostAppStoreAppInstallVersionsFunc
-		f.ds.ListHostAppStoreAppInstallVersionsFunc = func(ctx context.Context, fleetID uint, hostIDs []uint) (map[uint]map[uint]fleet.HostVPPSoftwareInstall, error) {
-			installByHostIDByTitleID, err := installs(ctx, fleetID, hostIDs)
+		f.ds.ListHostAppStoreAppInstallVersionsFunc = func(ctx context.Context, fleetID uint, hostIDs []uint, platforms []fleet.InstallableDevicePlatform) (map[uint]map[uint]fleet.HostVPPSoftwareInstall, error) {
+			installByHostIDByTitleID, err := installs(ctx, fleetID, hostIDs, platforms)
 			installByHostIDByTitleID[2] = installByHostIDByTitleID[1]
 			return installByHostIDByTitleID, err
 		}
@@ -1767,11 +1767,11 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 			return tokens(ctx, teamID)
 		}
 		versions := f.ds.GetAppStoreAppVersionsByTeamFunc
-		f.ds.GetAppStoreAppVersionsByTeamFunc = func(ctx context.Context, fleetID uint) (map[uint][]*fleet.VPPAppStoreApp, error) {
+		f.ds.GetAppStoreAppVersionsByTeamFunc = func(ctx context.Context, fleetID uint, platforms []fleet.InstallableDevicePlatform) (map[uint][]*fleet.VPPAppStoreApp, error) {
 			if fleetID == 6 {
 				return nil, errors.New("read failed")
 			}
-			return versions(ctx, fleetID)
+			return versions(ctx, fleetID, platforms)
 		}
 
 		// fail reading fleet 5's VPP token and fleet 6's App Store apps, the Unassigned host should still get version 10 and the cursor should be saved

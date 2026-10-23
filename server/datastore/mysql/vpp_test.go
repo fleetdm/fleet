@@ -5433,7 +5433,8 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Empty(t, unactivatedHostIDs)
 
-		// add a macOS version of the app and give the second version a label and a configuration, then get the fleet's versions, the two iOS versions should be returned first-added first and the macOS version under its own title
+		// add a macOS version of the app and give the second version a label and a configuration, then get the fleet's iOS and iPadOS versions, only the two iOS versions should be returned first-added first
+		platforms := []fleet.InstallableDevicePlatform{fleet.IOSPlatform, fleet.IPadOSPlatform}
 		macOSApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 			Name:             "ResendApp",
 			BundleIdentifier: bundleID,
@@ -5451,10 +5452,9 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 			_, err = q.ExecContext(ctx, `UPDATE vpp_apps_teams SET configuration = '<dict/>' WHERE id = ?`, otherVersion.AppTeamID)
 			return err
 		})
-		versionsByTitleID, err := ds.GetAppStoreAppVersionsByTeam(ctx, fleetID)
+		versionsByTitleID, err := ds.GetAppStoreAppVersionsByTeam(ctx, fleetID, platforms)
 		require.NoError(t, err)
-		require.Len(t, versionsByTitleID[macOSApp.TitleID], 1)
-		require.Equal(t, macOSApp.AppTeamID, versionsByTitleID[macOSApp.TitleID][0].VPPAppsTeamsID)
+		require.NotContains(t, versionsByTitleID, macOSApp.TitleID)
 		versions := versionsByTitleID[app.TitleID]
 		require.Len(t, versions, 2)
 		require.Equal(t, app.AppTeamID, versions[0].VPPAppsTeamsID)
@@ -5466,7 +5466,7 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 		require.Equal(t, `<dict/>`, string(versions[1].Configuration))
 
 		// list the hosts' install versions, only the activated install on a host with the app in inventory should be returned
-		installByHostIDByTitleID, err := ds.ListHostAppStoreAppInstallVersions(ctx, fleetID, allHostIDs)
+		installByHostIDByTitleID, err := ds.ListHostAppStoreAppInstallVersions(ctx, fleetID, allHostIDs, platforms)
 		require.NoError(t, err)
 		installByHostID := installByHostIDByTitleID[app.TitleID]
 		require.Len(t, installByHostID, 1)
@@ -5478,7 +5478,7 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 		err = ds.SetVPPInstallAsVerified(ctx, hostWithActivatedInstall.ID, activatedCmdUUID, uuid.NewString())
 		require.NoError(t, err)
 		insertVPPAppInstallWithResult(t, ds, hostWithActivatedInstall, otherVersion, "mdm_error")
-		installByHostIDByTitleID, err = ds.ListHostAppStoreAppInstallVersions(ctx, fleetID, allHostIDs)
+		installByHostIDByTitleID, err = ds.ListHostAppStoreAppInstallVersions(ctx, fleetID, allHostIDs, platforms)
 		require.NoError(t, err)
 		installByHostID = installByHostIDByTitleID[app.TitleID]
 		require.Len(t, installByHostID, 1)
@@ -5489,7 +5489,7 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 			_, err := q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET vpp_app_team_id = NULL WHERE host_id = ?`, hostWithActivatedInstall.ID)
 			return err
 		})
-		installByHostIDByTitleID, err = ds.ListHostAppStoreAppInstallVersions(ctx, fleetID, allHostIDs)
+		installByHostIDByTitleID, err = ds.ListHostAppStoreAppInstallVersions(ctx, fleetID, allHostIDs, platforms)
 		require.NoError(t, err)
 		installByHostID = installByHostIDByTitleID[app.TitleID]
 		require.Len(t, installByHostID, 1)
@@ -5498,7 +5498,7 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 		// move the host to another fleet, it should no longer be returned for this fleet
 		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&otherTeam.ID, []uint{hostWithActivatedInstall.ID}))
 		require.NoError(t, err)
-		installByHostIDByTitleID, err = ds.ListHostAppStoreAppInstallVersions(ctx, fleetID, allHostIDs)
+		installByHostIDByTitleID, err = ds.ListHostAppStoreAppInstallVersions(ctx, fleetID, allHostIDs, platforms)
 		require.NoError(t, err)
 		installByHostID = installByHostIDByTitleID[app.TitleID]
 		require.Empty(t, installByHostID)
@@ -5523,7 +5523,7 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 		insertVPPAppInstallWithResult(t, ds, hostWithOnlyFailedInstalls, app, "mdm_error")
 		insertVPPAppInstallWithResult(t, ds, hostWithOnlyFailedInstalls, otherVersion, "verification_failed")
 
-		installByHostIDByTitleID, err = ds.ListHostAppStoreAppInstallVersions(ctx, fleetID, []uint{hostWithPendingInstall.ID, hostWithFailedVerification.ID, hostWithOnlyFailedInstalls.ID})
+		installByHostIDByTitleID, err = ds.ListHostAppStoreAppInstallVersions(ctx, fleetID, []uint{hostWithPendingInstall.ID, hostWithFailedVerification.ID, hostWithOnlyFailedInstalls.ID}, platforms)
 		require.NoError(t, err)
 		installByHostID = installByHostIDByTitleID[app.TitleID]
 		require.Len(t, installByHostID, 2)
@@ -5535,7 +5535,7 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 			_, err := q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET removed = 1, needs_resend = 1 WHERE host_id = ?`, hostWithPendingInstall.ID)
 			return err
 		})
-		installByHostIDByTitleID, err = ds.ListHostAppStoreAppInstallVersions(ctx, fleetID, []uint{hostWithPendingInstall.ID})
+		installByHostIDByTitleID, err = ds.ListHostAppStoreAppInstallVersions(ctx, fleetID, []uint{hostWithPendingInstall.ID}, platforms)
 		require.NoError(t, err)
 		installByHostID = installByHostIDByTitleID[app.TitleID]
 		require.Len(t, installByHostID, 1)

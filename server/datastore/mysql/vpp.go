@@ -3802,7 +3802,7 @@ ORDER BY other_vat.id
 	return versionIDs, nil
 }
 
-func (ds *Datastore) GetAppStoreAppVersionsByTeam(ctx context.Context, teamID uint) (map[uint][]*fleet.VPPAppStoreApp, error) {
+func (ds *Datastore) GetAppStoreAppVersionsByTeam(ctx context.Context, teamID uint, platforms []fleet.InstallableDevicePlatform) (map[uint][]*fleet.VPPAppStoreApp, error) {
 	const stmt = `
 SELECT
 	va.title_id,
@@ -3815,14 +3815,19 @@ FROM
 	vpp_apps_teams vat
 	JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
 WHERE
-	vat.global_or_team_id = ?
+	vat.global_or_team_id = ? AND
+	vat.platform IN (?)
 ORDER BY vat.id
 `
+	query, args, err := sqlx.In(stmt, teamID, platforms)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build get app store app versions by team query")
+	}
 	var versions []struct {
 		TitleID uint `db:"title_id"`
 		fleet.VPPAppStoreApp
 	}
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &versions, stmt, teamID)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &versions, query, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get app store app versions by team")
 	}
@@ -3848,7 +3853,7 @@ ORDER BY vat.id
 	return versionsByTitleID, nil
 }
 
-func (ds *Datastore) ListHostAppStoreAppInstallVersions(ctx context.Context, fleetID uint, hostIDs []uint) (map[uint]map[uint]fleet.HostVPPSoftwareInstall, error) {
+func (ds *Datastore) ListHostAppStoreAppInstallVersions(ctx context.Context, fleetID uint, hostIDs []uint, platforms []fleet.InstallableDevicePlatform) (map[uint]map[uint]fleet.HostVPPSoftwareInstall, error) {
 	installByHostIDByTitleID := make(map[uint]map[uint]fleet.HostVPPSoftwareInstall)
 	if len(hostIDs) == 0 {
 		return installByHostIDByTitleID, nil
@@ -3866,13 +3871,13 @@ SELECT
 	latest.needs_resend
 FROM
 	hosts h
-	CROSS JOIN (
+	JOIN (
 		SELECT DISTINCT va.title_id, va.adam_id, va.platform
 		FROM
 			vpp_apps_teams vat
 			JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
-		WHERE vat.global_or_team_id = ?
-	) app
+		WHERE vat.global_or_team_id = ? AND vat.platform IN (?)
+	) app ON app.platform = h.platform
 	JOIN LATERAL (
 		SELECT hvsi.vpp_app_team_id, hvsi.created_at, hvsi.needs_resend
 		FROM host_vpp_software_installs hvsi
@@ -3898,7 +3903,7 @@ WHERE
 			s.title_id = app.title_id
 	)
 `
-	query, args, err := sqlx.In(stmt, fleetID, hostIDs, ptr.UintOrNilIfZero(fleetID))
+	query, args, err := sqlx.In(stmt, fleetID, platforms, hostIDs, ptr.UintOrNilIfZero(fleetID))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "build list host app store app install versions query")
 	}

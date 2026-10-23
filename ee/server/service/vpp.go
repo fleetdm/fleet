@@ -2092,6 +2092,7 @@ func ReconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 		hostByID[host.ID] = *host
 	}
 
+	platforms := []fleet.InstallableDevicePlatform{fleet.IOSPlatform, fleet.IPadOSPlatform}
 	var vppToken *fleet.VPPTokenDB
 	var versionsByTitleID map[uint][]*fleet.VPPAppStoreApp
 	var installByHostIDByTitleID map[uint]map[uint]fleet.HostVPPSoftwareInstall
@@ -2109,12 +2110,12 @@ func ReconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 			continue
 		}
 
-		versionsByTitleID, err = ds.GetAppStoreAppVersionsByTeam(ctx, fleetID)
+		versionsByTitleID, err = ds.GetAppStoreAppVersionsByTeam(ctx, fleetID, platforms)
 		if err != nil {
 			logger.ErrorContext(ctx, "list app store app versions for app store app configurations", "fleet_id", fleetID, "err", err)
 			continue
 		}
-		installByHostIDByTitleID, err = ds.ListHostAppStoreAppInstallVersions(ctx, fleetID, hostIDs)
+		installByHostIDByTitleID, err = ds.ListHostAppStoreAppInstallVersions(ctx, fleetID, hostIDs, platforms)
 		if err != nil {
 			logger.ErrorContext(ctx, "list app store app installs for app store app configurations", "fleet_id", fleetID, "err", err)
 			continue
