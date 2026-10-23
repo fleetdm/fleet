@@ -133,7 +133,8 @@ const PatchDeadlineSection = ({
     },
   });
 
-  const onSave = () => {
+  const handleSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
+    evt.preventDefault();
     const nextErrors = validate(days, time);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
@@ -188,61 +189,68 @@ const PatchDeadlineSection = ({
         }
       />
 
-      <FormField
-        name="patch-deadline-days"
-        label="Days"
-        error={errors.days}
-        disabled={roleDisabled}
-      >
-        <div className={`${baseClass}__days`}>
-          {WEEKDAYS.map((w) => (
-            <Checkbox
-              key={w.key}
-              name={w.key}
-              ariaLabel={w.label}
-              value={days.includes(w.key)}
-              onChange={() => toggleDay(w.key)}
-              disabled={roleDisabled || fieldReadOnly}
-            >
-              {w.label}
-            </Checkbox>
-          ))}
-        </div>
-      </FormField>
+      {/*
+        Native <form> so pressing Enter in Time submits (patterns.md 324-332).
+        Apps subsection stays OUTSIDE the form so a stray Enter from a row
+        can't trigger a settings save.
+      */}
+      <form onSubmit={handleSubmit} className={`${baseClass}__form`}>
+        <FormField
+          name="patch-deadline-days"
+          label="Days"
+          error={errors.days}
+          disabled={roleDisabled}
+        >
+          <div className={`${baseClass}__days`}>
+            {WEEKDAYS.map((w) => (
+              <Checkbox
+                key={w.key}
+                name={w.key}
+                ariaLabel={w.label}
+                value={days.includes(w.key)}
+                onChange={() => toggleDay(w.key)}
+                disabled={roleDisabled || fieldReadOnly}
+              >
+                {w.label}
+              </Checkbox>
+            ))}
+          </div>
+        </FormField>
 
-      <InputField
-        label="Time"
-        name="patch-deadline-time"
-        value={time}
-        onChange={(v: string) => setTime(v)}
-        onBlur={() => {
-          const next = validate(days, time);
-          setErrors((prev) => ({ ...prev, time: next.time }));
-        }}
-        onFocus={() => setErrors((prev) => ({ ...prev, time: undefined }))}
-        error={errors.time}
-        helpText={`Time is formatted as HH:MM in 24-hour format (e.g. "17:00"). All hosts' local time.`}
-        disabled={roleDisabled}
-        readOnly={fieldReadOnly}
-        inputOptions={{ maxLength: 5 }}
-      />
-
-      {canManage && (
-        <GitOpsModeTooltipWrapper
-          entityType="software"
-          position="top"
-          tipOffset={8}
-          renderChildren={(disableChildren) => (
-            <Button
-              onClick={onSave}
-              disabled={disableChildren || isSubmitting}
-              isLoading={isSubmitting}
-            >
-              Save
-            </Button>
-          )}
+        <InputField
+          label="Time"
+          name="patch-deadline-time"
+          value={time}
+          onChange={(v: string) => setTime(v)}
+          onBlur={() => {
+            const next = validate(days, time);
+            setErrors((prev) => ({ ...prev, time: next.time }));
+          }}
+          onFocus={() => setErrors((prev) => ({ ...prev, time: undefined }))}
+          error={errors.time}
+          helpText={`Time is formatted as HH:MM in 24-hour format (e.g. "17:00"). All hosts' local time.`}
+          disabled={roleDisabled}
+          readOnly={fieldReadOnly}
+          inputOptions={{ maxLength: 5 }}
         />
-      )}
+
+        {canManage && (
+          <GitOpsModeTooltipWrapper
+            entityType="software"
+            position="top"
+            tipOffset={8}
+            renderChildren={(disableChildren) => (
+              <Button
+                type="submit"
+                disabled={disableChildren || isSubmitting}
+                isLoading={isSubmitting}
+              >
+                Save
+              </Button>
+            )}
+          />
+        )}
+      </form>
 
       {isAppsError && (
         <div>

@@ -8,6 +8,14 @@
     align-self: stretch;
   }
 
+  // The <form> wraps the Days + Time + Save stack. Keep the same 24px vertical
+  // rhythm the section had before the wrap so visuals don't shift.
+  &__form {
+    @include vertical-page-tab-panel-layout;
+    align-items: flex-start;
+    align-self: stretch;
+  }
+
   &__days {
     display: flex;
     flex-wrap: wrap;

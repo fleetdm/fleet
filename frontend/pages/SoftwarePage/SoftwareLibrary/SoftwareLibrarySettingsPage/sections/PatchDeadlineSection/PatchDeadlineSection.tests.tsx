@@ -11,6 +11,8 @@ import {
   getPatchDeadlineAppsErrorHandler,
   getPatchDeadlineAppsHandler,
   getPatchDeadlineSettingsHandler,
+  getPatchDeadlineSettingsNotFoundHandler,
+  getPatchDeadlineSettingsServerErrorHandler,
   updatePatchDeadlineSettingsFieldErrorHandler,
   updatePatchDeadlineSettingsHandler,
   updatePatchDeadlineSettingsPendingHandler,
@@ -163,6 +165,65 @@ describe("PatchDeadlineSection", () => {
     await user.tab();
 
     expect(await screen.findByText("Enter time as HH:MM")).toBeInTheDocument();
+  });
+
+  it("falls back to the API defaults when the GET endpoint 404s", async () => {
+    // Not-yet-deployed endpoint should let the page render against the
+    // documented defaults (Tuesday 17:00), not surface a DataError.
+    mockServer.use(getPatchDeadlineSettingsNotFoundHandler);
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: premiumAdminContext,
+    });
+
+    render(<SectionWrapper />);
+
+    const tuesday = await screen.findByRole("checkbox", { name: "Tuesday" });
+    await waitFor(() => expect(tuesday).toBeChecked());
+    expect(screen.getByLabelText("Time")).toHaveValue("17:00");
+  });
+
+  it("surfaces non-404 GET failures instead of silently seeding defaults", async () => {
+    // A real 500 or network blip must NOT look like "configured as Tuesday
+    // 17:00" — the user would hit Save and overwrite the actual schedule.
+    mockServer.use(getPatchDeadlineSettingsServerErrorHandler);
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: premiumAdminContext,
+    });
+
+    render(<SectionWrapper />);
+
+    expect(
+      await screen.findByText(/something's gone wrong/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("checkbox", { name: "Tuesday" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("submits natively when Enter is pressed in the Time field", async () => {
+    mockServer.use(
+      getPatchDeadlineSettingsHandler(),
+      updatePatchDeadlineSettingsHandler
+    );
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: premiumAdminContext,
+    });
+
+    const { user } = render(<SectionWrapper />);
+
+    const time = await screen.findByLabelText("Time");
+    await waitFor(() => expect(time).toHaveValue("17:00"));
+    time.focus();
+    await user.keyboard("{Enter}");
+
+    await waitFor(() => {
+      expect(notify.success).toHaveBeenCalledWith(
+        "Successfully updated patch deadline."
+      );
+    });
   });
 
   it("saves on valid submit and toasts success", async () => {

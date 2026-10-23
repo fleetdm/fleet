@@ -60,6 +60,21 @@ export const updatePatchDeadlineSettingsServerErrorHandler = http.patch(
   () => HttpResponse.json({ message: "Internal server error" }, { status: 500 })
 );
 
+// Simulates the endpoint not being deployed yet. Service's catch should
+// return the API defaults (Tuesday at 17:00) only on 404, letting the page
+// render while the backend ships.
+export const getPatchDeadlineSettingsNotFoundHandler = http.get(
+  settingsUrl,
+  () => HttpResponse.json({ message: "Not found" }, { status: 404 })
+);
+
+// Non-404 GET failure. Service's catch should rethrow and React Query should
+// surface the error so a stale default doesn't masquerade as real settings.
+export const getPatchDeadlineSettingsServerErrorHandler = http.get(
+  settingsUrl,
+  () => HttpResponse.json({ message: "Internal server error" }, { status: 500 })
+);
+
 // Each entry becomes a patch-type policy with `patch_deadline: true` and the
 // given software under `patch_software`, matching the real BE response shape.
 export const getPatchDeadlineAppsHandler = (

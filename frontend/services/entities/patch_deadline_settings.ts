@@ -30,8 +30,16 @@ const defaultSettings = (fleetId: number): IPatchDeadlineSettings => ({
   time: "17:00",
 });
 
-const is404 = (err: unknown): boolean =>
-  isAxiosError(err) && err.response?.status === 404;
+// Fleet's sendRequest catches the AxiosError and rejects with the normalized
+// AxiosResponse (see services/index.ts), so `status` lives on the top level.
+// Also handle the raw AxiosError shape for callsites that use skipParseError.
+const is404 = (err: unknown): boolean => {
+  if (!err || typeof err !== "object") return false;
+  if ("status" in err && (err as { status: unknown }).status === 404) {
+    return true;
+  }
+  return isAxiosError(err) && err.response?.status === 404;
+};
 
 export default {
   getSettings: async (fleetId: number): Promise<IPatchDeadlineSettings> => {
