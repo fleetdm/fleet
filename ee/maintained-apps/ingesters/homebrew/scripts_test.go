@@ -952,8 +952,7 @@ osascript() {
 `
 		script := uninstallScriptForApp(inputApp{UniqueIdentifier: "com.example.Foo"}, cask)
 		out, err := exec.Command(bash, "-c", stubs+script).CombinedOutput()
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
+		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 			return string(out), exitErr.ExitCode()
 		}
 		require.NoError(t, err, string(out))
@@ -1013,7 +1012,7 @@ func TestCustomUninstallScriptsUseCurrentQuitHelper(t *testing.T) {
 		if !strings.Contains(script, "\nquit_application() {\n") {
 			continue
 		}
-		require.True(t, strings.Contains(script, quitApplicationFunc), "%s has a stale copy of quit_application", filepath.Base(path))
+		require.Contains(t, script, quitApplicationFunc, "%s has a stale copy of quit_application", filepath.Base(path))
 	}
 }
 
