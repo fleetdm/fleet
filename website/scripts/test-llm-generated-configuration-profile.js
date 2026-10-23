@@ -263,7 +263,8 @@ csp cases report as not-checked either way.`
             let generationResult = await sails.helpers.generateConfigurationProfile.with({
               profileType: asFleet ? undefined : testCase.profileType,
               platform: asFleet ? 'apple' : undefined,
-              forFleet: asFleet,
+              // A case's own forFleet runs it by profile type with Fleet's rules on.
+              forFleet: asFleet || !!testCase.forFleet,
               naturalLanguageInstructions: testCase.instructions,
               baseModel,
               effort,
@@ -330,7 +331,7 @@ csp cases report as not-checked either way.`
             `abstained but a profile was expected -- reason given: ${JSON.stringify(generationResult.reasonWhyAProfileCouldNotBeGenerated || '(none)')}`
           ];
         } else {
-          checkFailures = checkExpectations(expectations, generatedProfile, generationResult.profileType);
+          checkFailures = checkExpectations(expectations, generatedProfile, generationResult.profileType, asFleet || !!testCase.forFleet);
         }
 
         if(generationResult && fleetRequest && fleetRequest.routesTo && routedTo !== fleetRequest.routesTo) {

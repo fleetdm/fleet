@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.10.0",
+      "version": "6.10.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.meetfranz.franz';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.meetfranz.franz' AND version_compare(bundle_short_version, '6.10.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.meetfranz.franz' AND version_compare(bundle_short_version, '6.10.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.meetfranz.franz' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/meetfranz/franz-6/releases/download/v6.10.0/Franz-arm64.dmg",
+      "installer_url": "https://github.com/meetfranz/franz-6/releases/download/v6.10.1/Franz-arm64.dmg",
       "install_script_ref": "8f60dd75",
       "uninstall_script_ref": "9366c954",
-      "sha256": "5a5553547823961b8694774923c3d17b643d01d61fd7e983a7d2af567dbf47b2",
+      "sha256": "b52b0fb4756ed9ccd943dae54c5a7d22c2b1465cc320645dfc59baed9770afa8",
       "default_categories": [
         "Communication"
       ]

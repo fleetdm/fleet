@@ -593,12 +593,13 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 	// track processed CA names for duplicate name checking
 	allNames := make(map[string][]string)
 	checkAllNames := func(name, caType, displayCAType string) error {
-		for i := 0; i < len(allNames[name]); i++ {
-			if allNames[name][i] == caType {
+		key := caNameKey(name)
+		for i := 0; i < len(allNames[key]); i++ {
+			if allNames[key][i] == caType {
 				return fmtDuplicateCANameError(name, caType, displayCAType)
 			}
 		}
-		allNames[name] = append(allNames[name], caType)
+		allNames[key] = append(allNames[key], caType)
 		return nil
 	}
 
@@ -763,6 +764,12 @@ func (svc *Service) processNDESSCEP(ctx context.Context, batchOps *fleet.Certifi
 	return nil
 }
 
+// caNameKey is how batch planning compares CA names. Names are ASCII (see validateCAName) and the
+// unique key on type and name ignores case, so a case-only rename is an update, not an add and a delete.
+func caNameKey(name string) string {
+	return strings.ToLower(name)
+}
+
 func (svc *Service) processDigiCertCAs(ctx context.Context, batchOps *fleet.CertificateAuthoritiesBatchOperations, incomingCAs []fleet.DigiCertCA, existingCAs []fleet.DigiCertCA) error {
 	incomingByName := make(map[string]*fleet.DigiCertCA)
 	for _, incoming := range incomingCAs {
@@ -770,12 +777,12 @@ func (svc *Service) processDigiCertCAs(ctx context.Context, batchOps *fleet.Cert
 			return fleet.NewInvalidArgumentError("name", "certificate_authorities.digicert.name: Name cannot be empty.")
 		}
 		// Note: caller is responsible for ensuring incoming list has no duplicates
-		incomingByName[incoming.Name] = &incoming
+		incomingByName[caNameKey(incoming.Name)] = &incoming
 	}
 
 	existingByName := make(map[string]*fleet.DigiCertCA)
 	for _, existing := range existingCAs {
-		if _, ok := incomingByName[existing.Name]; !ok {
+		if _, ok := incomingByName[caNameKey(existing.Name)]; !ok {
 			// if current CA isn't in the incoming list, we should delete it
 			batchOps.Delete = append(batchOps.Delete, &fleet.CertificateAuthority{
 				Type:                          string(fleet.CATypeDigiCert),
@@ -789,7 +796,7 @@ func (svc *Service) processDigiCertCAs(ctx context.Context, batchOps *fleet.Cert
 			})
 		}
 		// Note: datastore is responsible for ensuring no existing list has no duplicates
-		existingByName[existing.Name] = &existing
+		existingByName[caNameKey(existing.Name)] = &existing
 	}
 
 	for name, incoming := range incomingByName {
@@ -837,13 +844,13 @@ func (svc *Service) processCustomSCEPProxyCAs(ctx context.Context, batchOps *fle
 	incomingByName := make(map[string]*fleet.CustomSCEPProxyCA)
 	for _, incoming := range incomingCAs {
 		// Note: caller is responsible for ensuring incoming list has no duplicates
-		incomingByName[incoming.Name] = &incoming
+		incomingByName[caNameKey(incoming.Name)] = &incoming
 	}
 
 	existingByName := make(map[string]*fleet.CustomSCEPProxyCA)
 	for _, existing := range existingCAs {
 		// if existing CA isn't in the incoming list, we should delete it
-		if _, ok := incomingByName[existing.Name]; !ok {
+		if _, ok := incomingByName[caNameKey(existing.Name)]; !ok {
 			batchOps.Delete = append(batchOps.Delete, &fleet.CertificateAuthority{
 				Type:      string(fleet.CATypeCustomSCEPProxy),
 				Name:      &existing.Name,
@@ -852,7 +859,7 @@ func (svc *Service) processCustomSCEPProxyCAs(ctx context.Context, batchOps *fle
 			})
 		}
 		// Note: datastore is responsible for ensuring no existing list has no duplicates
-		existingByName[existing.Name] = &existing
+		existingByName[caNameKey(existing.Name)] = &existing
 	}
 
 	for name, incoming := range incomingByName {
@@ -886,13 +893,13 @@ func (svc *Service) processHydrantCAs(ctx context.Context, batchOps *fleet.Certi
 	incomingByName := make(map[string]*fleet.HydrantCA)
 	for _, incoming := range incomingCAs {
 		// Note: caller is responsible for ensuring incoming list has no duplicates
-		incomingByName[incoming.Name] = &incoming
+		incomingByName[caNameKey(incoming.Name)] = &incoming
 	}
 
 	existingByName := make(map[string]*fleet.HydrantCA)
 	for _, existing := range existingCAs {
 		// if existing CA isn't in the incoming list, we should delete it
-		if _, ok := incomingByName[existing.Name]; !ok {
+		if _, ok := incomingByName[caNameKey(existing.Name)]; !ok {
 			batchOps.Delete = append(batchOps.Delete, &fleet.CertificateAuthority{
 				Type:         string(fleet.CATypeHydrant),
 				Name:         &existing.Name,
@@ -902,7 +909,7 @@ func (svc *Service) processHydrantCAs(ctx context.Context, batchOps *fleet.Certi
 			})
 		}
 		// Note: datastore is responsible for ensuring no existing list has no duplicates
-		existingByName[existing.Name] = &existing
+		existingByName[caNameKey(existing.Name)] = &existing
 	}
 
 	for name, incoming := range incomingByName {
@@ -939,13 +946,13 @@ func (svc *Service) processESTCAs(ctx context.Context, batchOps *fleet.Certifica
 	incomingByName := make(map[string]*fleet.ESTProxyCA)
 	for _, incoming := range incomingCAs {
 		// Note: caller is responsible for ensuring incoming list has no duplicates
-		incomingByName[incoming.Name] = &incoming
+		incomingByName[caNameKey(incoming.Name)] = &incoming
 	}
 
 	existingByName := make(map[string]*fleet.ESTProxyCA)
 	for _, existing := range existingCAs {
 		// if existing CA isn't in the incoming list, we should delete it
-		if _, ok := incomingByName[existing.Name]; !ok {
+		if _, ok := incomingByName[caNameKey(existing.Name)]; !ok {
 			batchOps.Delete = append(batchOps.Delete, &fleet.CertificateAuthority{
 				Type:     string(fleet.CATypeCustomESTProxy),
 				Name:     &existing.Name,
@@ -955,7 +962,7 @@ func (svc *Service) processESTCAs(ctx context.Context, batchOps *fleet.Certifica
 			})
 		}
 		// Note: datastore is responsible for ensuring no existing list has no duplicates
-		existingByName[existing.Name] = &existing
+		existingByName[caNameKey(existing.Name)] = &existing
 	}
 
 	for name, incoming := range incomingByName {
@@ -992,13 +999,13 @@ func (svc *Service) processSmallstepCAs(ctx context.Context, batchOps *fleet.Cer
 	incomingByName := make(map[string]*fleet.SmallstepSCEPProxyCA)
 	for _, incoming := range incomingCAs {
 		// Note: caller is responsible for ensuring incoming list has no duplicates
-		incomingByName[incoming.Name] = &incoming
+		incomingByName[caNameKey(incoming.Name)] = &incoming
 	}
 
 	existingByName := make(map[string]*fleet.SmallstepSCEPProxyCA)
 	for _, existing := range existingCAs {
 		// if existing CA isn't in the incoming list, we should delete it
-		if _, ok := incomingByName[existing.Name]; !ok {
+		if _, ok := incomingByName[caNameKey(existing.Name)]; !ok {
 			batchOps.Delete = append(batchOps.Delete, &fleet.CertificateAuthority{
 				Type:         string(fleet.CATypeSmallstep),
 				Name:         &existing.Name,
@@ -1009,7 +1016,7 @@ func (svc *Service) processSmallstepCAs(ctx context.Context, batchOps *fleet.Cer
 			})
 		}
 		// Note: datastore is responsible for ensuring no existing list has no duplicates
-		existingByName[existing.Name] = &existing
+		existingByName[caNameKey(existing.Name)] = &existing
 	}
 
 	for name, incoming := range incomingByName {
