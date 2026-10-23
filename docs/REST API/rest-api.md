@@ -5027,7 +5027,7 @@ Entries in `mdm.profiles` that represent an Android certificate carry a `certifi
 
 Returns the information of the host specified using the `hostname`, `uuid`, or `hardware_serial` as an identifier.
 
-`GET /api/v1/fleet/hosts/identifier/:identifier`
+`GET /api/v1/fleet/host_identifier/:identifier`
 
 > If you're hitting this endpoint often (e.g. every hour) for a large number of hosts (e.g. 1k+) the best practice is to set the `exclude_software` to `true` to prevent overloading the Fleet server.
 
@@ -5049,7 +5049,7 @@ If `hostname` is specified when there is more than one host with the same hostna
 
 #### Example (macOS)
 
-`GET /api/v1/fleet/hosts/identifier/392547dc-0000-0000-a87a-d701ff75bc65`
+`GET /api/v1/fleet/host_identifier/392547dc-0000-0000-a87a-d701ff75bc65`
 
 ##### Default response
 
@@ -5264,7 +5264,7 @@ If `hostname` is specified when there is more than one host with the same hostna
 ```
 #### Example (iOS/iPadOS)
 
-`GET /api/v1/fleet/hosts/identifier/392547dc-0000-0000-a87a-d701ff75bc65`
+`GET /api/v1/fleet/host_identifier/392547dc-0000-0000-a87a-d701ff75bc65`
 
 ##### Default response
 
@@ -5544,7 +5544,7 @@ If `hostname` is specified when there is more than one host with the same hostna
 ```
 
 #### Example (Android)
-`GET /api/v1/fleet/hosts/identifier/392547dc-0000-0000-a87a-d701ff75bc65`
+`GET /api/v1/fleet/host_identifier/392547dc-0000-0000-a87a-d701ff75bc65`
 
 ##### Default response
 
@@ -14344,8 +14344,6 @@ Returns a list of batch script executions.
 
 Returns a summary of a batch-run script, including host counts and current status.
 
-> The [Get batch script summary](https://github.com/fleetdm/fleet/blob/fleet-v4.71.1/docs/REST%20API/rest-api.md#get-batch-script-summary) endpoint is deprecated as of Fleet 4.73. It is maintained for backwards compatibility. Please use this endpoint instead.
-
 `GET /api/v1/fleet/scripts/batch/:batch_execution_id`
 
 #### Parameters
@@ -19197,7 +19195,7 @@ Experimental endpoints are excluded from the results, since they are not for use
 
 `GET /api/v1/fleet/rest_api?query=get%20host%20by%20identifier`
 or
-`GET /api/v1/fleet/rest_api?query=%2Fapi%2Fv1%2Ffleet%2Fhosts%2Fidentifier%2F%3Ahost_identifier`
+`GET /api/v1/fleet/rest_api?query=%2Fapi%2Fv1%2Ffleet%2Fhost_identifier%2F%3Aidentifier`
 
 ##### Default response
 
@@ -19210,7 +19208,7 @@ or
       "id": 123,
       "display_name": "Get host by identifier",
       "method": "GET",
-      "path": "/api/v1/fleet/hosts/identifier/:identifier",
+      "path": "/api/v1/fleet/host_identifier/:identifier",
       "deprecated": false
     }
   ],
