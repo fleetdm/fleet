@@ -1,1 +1,0 @@
-- Fixed macOS Fleet-maintained app uninstalls removing the app while it was still running when the app's Homebrew cask didn't list it to quit (for example, Microsoft Excel, Outlook, PowerPoint, and Teams). The uninstall now quits the app first and fails if the app won't quit.
