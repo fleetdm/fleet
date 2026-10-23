@@ -14,11 +14,12 @@ import Spinner from "components/Spinner";
 import { notify } from "components/ToastNotification";
 import { getErrorReason } from "interfaces/errors";
 import {
-  IPatchDeadlineAppsResponse,
   IPatchDeadlineSettings,
   Weekday,
 } from "interfaces/patch_deadline_settings";
+import { ILoadTeamPoliciesResponse } from "interfaces/policy";
 import patchDeadlineSettingsAPI from "services/entities/patch_deadline_settings";
+import teamPoliciesAPI from "services/entities/team_policies";
 
 import { ILibrarySettingsCardProps } from "../../types";
 
@@ -58,15 +59,29 @@ const PatchDeadlineSection = ({
     { enabled: isRouteOk, refetchOnWindowFocus: false }
   );
 
-  // The Apps subsection and the "Apps with this option are listed below."
-  // pointer in the description are both gated on this query having a non-empty
-  // result — hide both when the fleet has no deadline apps.
-  const { data: appsData } = useQuery<IPatchDeadlineAppsResponse, Error>(
+  // Inferred wiring: Carlo (BE) said in Slack that the Apps subsection should
+  // pull from the existing patch-automation list on the policies endpoint, not
+  // a dedicated patch-deadline-apps endpoint. This isn't written down in the
+  // parent story (#39176), any sub-issue, the API/YAML spec PR (#55432), or
+  // the Figma — swap for the real endpoint if the direction changes.
+  //
+  // TODO: once #55498 adds `patch_deadline` to the policy response, filter
+  // down to policies where `patch_deadline === true` instead of returning
+  // every patch-automation row. Right now `patch_deadline` is always
+  // undefined, so no filter is applied and the subsection shows every patch
+  // automation on the fleet. Narrow this when the BE lands.
+  const { data: policiesData } = useQuery<ILoadTeamPoliciesResponse, Error>(
     ["patchDeadlineApps", fleetId],
-    () => patchDeadlineSettingsAPI.getApps(fleetId),
+    () =>
+      teamPoliciesAPI.loadAllNew({
+        teamId: fleetId,
+        automationType: "patch",
+      }),
     { enabled: isRouteOk, refetchOnWindowFocus: false }
   );
-  const apps = appsData?.apps ?? [];
+  const apps = (policiesData?.policies ?? [])
+    .filter((p) => !!p.install_software)
+    .map((p) => p.install_software!);
   const hasApps = apps.length > 0;
 
   const [days, setDays] = useState<Weekday[]>([]);

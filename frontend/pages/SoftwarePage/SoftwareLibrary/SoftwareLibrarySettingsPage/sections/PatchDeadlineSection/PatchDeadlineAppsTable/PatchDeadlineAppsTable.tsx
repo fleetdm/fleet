@@ -6,7 +6,7 @@ import Pagination from "components/Pagination";
 import SectionHeader from "components/SectionHeader";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import UploadList from "components/UploadList";
-import { IPatchDeadlineApp } from "interfaces/patch_deadline_settings";
+import { IPolicySoftwareToInstall } from "interfaces/policy";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import PATHS from "router/paths";
@@ -18,9 +18,11 @@ const PAGE_SIZE = 10;
 
 interface IPatchDeadlineAppsTableProps {
   // fleetId drives the page-reset effect and preserves fleet context on the
-  // outgoing row link; the parent fetches apps by it too.
+  // outgoing row link; the parent fetches policies by it too.
   fleetId: number;
-  apps: IPatchDeadlineApp[];
+  // Each app is the `install_software` payload off a patch-automation policy.
+  // No id of its own — the row key uses software_title_id.
+  apps: IPolicySoftwareToInstall[];
   router: InjectedRouter;
 }
 
@@ -80,9 +82,9 @@ const PatchDeadlineAppsTable = ({
         variant="tab-panel"
         content="Deadline options apply to these apps."
       />
-      <UploadList<IPatchDeadlineApp>
+      <UploadList<IPolicySoftwareToInstall>
         className={`${baseClass}__list`}
-        keyAttribute="id"
+        keyAttribute="software_title_id"
         listItems={pagedApps}
         HeadingComponent={() => (
           <span className={`${baseClass}__list-title`}>Name</span>
@@ -90,19 +92,17 @@ const PatchDeadlineAppsTable = ({
         ListItemComponent={({ listItem }) => {
           const displayName = getDisplayedSoftwareName(
             listItem.name,
-            listItem.display_name,
-            listItem.bundle_identifier
+            listItem.display_name
           );
           return (
             <button
               type="button"
               className={`${baseClass}__row`}
-              onClick={() => goToTitle(listItem.id)}
+              onClick={() => goToTitle(listItem.software_title_id)}
             >
               <SoftwareIcon
                 name={listItem.name}
                 url={listItem.icon_url ?? undefined}
-                source={listItem.source}
               />
               <div className={`${baseClass}__name`}>
                 <TooltipTruncatedText value={displayName} />

@@ -394,5 +394,37 @@ describe("PatchDeadlineSection", () => {
       expect(screen.getByText("fleet2-J")).toBeInTheDocument();
       expect(screen.queryByText("fleet2-K")).not.toBeInTheDocument();
     });
+
+    it("renders a direct icon_url when the policy carries one", async () => {
+      // Direct (non-/api/) icon_url is a VPP-style URL and SoftwareIcon
+      // renders it as an <img src=…>. Prove the icon_url path survives the
+      // install_software -> SoftwareIcon handoff.
+      mockServer.use(
+        getPatchDeadlineSettingsHandler(),
+        getPatchDeadlineAppsHandler([
+          {
+            software_title_id: 42,
+            name: "Figma",
+            icon_url: "https://cdn.example.test/figma.png",
+          },
+        ])
+      );
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: premiumAdminContext,
+      });
+
+      const { container } = render(<SectionWrapper />);
+      await screen.findByRole("heading", { level: 2, name: "Apps" });
+
+      // SoftwareIcon renders a direct URL as <img src>; the row name link
+      // confirms the icon_url survived the install_software -> SoftwareIcon
+      // handoff. Query by src attribute (role="img" is unreliable in jsdom
+      // because the <img>'s onError handler fires and swaps to a fallback).
+      const img = container.querySelector(
+        'img[src="https://cdn.example.test/figma.png"]'
+      );
+      expect(img).not.toBeNull();
+    });
   });
 });

@@ -1,14 +1,19 @@
 import { http, HttpResponse } from "msw";
 
 import {
-  IPatchDeadlineApp,
   IPatchDeadlineSettings,
   Weekday,
 } from "interfaces/patch_deadline_settings";
+import { IPolicy, IPolicySoftwareToInstall } from "interfaces/policy";
 import { baseUrl } from "test/test-utils";
 
 const settingsUrl = baseUrl("/software/patch_deadline_settings");
-const appsUrl = baseUrl("/software/patch_deadline_settings/apps");
+// Inferred wiring from Carlo's Slack response: the Apps subsection pulls from
+// the existing patch-automation policies endpoint, not a dedicated endpoint.
+// Not spec'd anywhere (see PatchDeadlineSection.tsx for context).
+// Note the path segment is /fleets/ not /teams/ even though the endpoints
+// constant is still called TEAMS — Fleet renamed the URL but kept the var.
+const patchPoliciesUrl = baseUrl("/fleets/:teamId/policies");
 
 export const getPatchDeadlineSettingsHandler = (
   overrides?: Partial<IPatchDeadlineSettings>
@@ -72,23 +77,36 @@ export const updatePatchDeadlineSettingsServerErrorHandler = http.patch(
   () => HttpResponse.json({ message: "Internal server error" }, { status: 500 })
 );
 
+// Mocks the policies endpoint (?automation_type=patch) response the Apps
+// subsection consumes. Pass partial install_software payloads; each becomes
+// one patch-type policy row with that install_software attached.
 export const getPatchDeadlineAppsHandler = (
-  apps: Partial<IPatchDeadlineApp>[] = []
+  apps: Partial<IPolicySoftwareToInstall>[] = []
 ) =>
-  http.get(appsUrl, () =>
-    HttpResponse.json({
-      apps: apps.map((a, i) => ({
-        id: a.id ?? i + 1,
+  http.get(patchPoliciesUrl, () => {
+    const policies = apps.map((a, i) => {
+      const install_software: IPolicySoftwareToInstall = {
+        software_title_id: a.software_title_id ?? i + 1,
         name: a.name ?? `App ${i + 1}`,
-        icon_url: a.icon_url ?? null,
-        source: a.source ?? "apps",
-      })),
-      count: apps.length,
-    })
-  );
+        ...(a.display_name !== undefined
+          ? { display_name: a.display_name }
+          : {}),
+        ...(a.icon_url !== undefined ? { icon_url: a.icon_url } : {}),
+      };
+      // Minimal IPolicy shape — only the fields the Settings page reads.
+      const policy: Partial<IPolicy> = {
+        id: i + 1,
+        name: `${install_software.name} patch policy`,
+        type: "patch",
+        install_software,
+      };
+      return policy;
+    });
+    return HttpResponse.json({ policies });
+  });
 
 export const emptyPatchDeadlineAppsHandler = getPatchDeadlineAppsHandler([]);
 
-export const getPatchDeadlineAppsErrorHandler = http.get(appsUrl, () =>
+export const getPatchDeadlineAppsErrorHandler = http.get(patchPoliciesUrl, () =>
   HttpResponse.json({ message: "Internal server error" }, { status: 500 })
 );
