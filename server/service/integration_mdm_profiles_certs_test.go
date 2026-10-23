@@ -378,13 +378,9 @@ func (s *integrationMDMTestSuite) TestWindowsConditionalAccessSCEPProfile() {
 		_, err = mdmDevice.SendResponse()
 		require.NoError(t, err)
 	}
-	// Queues the profile for another delivery, the way the renewal job does.
+	// Queues the profile for another delivery, the way a resend or the renewal job does.
 	queueRedelivery := func(profileUUID string) {
-		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `UPDATE host_mdm_windows_profiles SET status = NULL WHERE host_uuid = ? AND profile_uuid = ?`,
-				host.UUID, profileUUID)
-			return err
-		})
+		require.NoError(t, s.ds.ResendHostMDMProfile(ctx, host.UUID, profileUUID))
 	}
 
 	s.awaitTriggerProfileSchedule(t)
