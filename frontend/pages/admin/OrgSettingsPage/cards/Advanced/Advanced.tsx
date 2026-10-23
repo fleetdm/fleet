@@ -28,7 +28,7 @@ interface IAdvancedConfigFormData {
   disableLiveQuery: boolean;
   disableScripts: boolean;
   disableAIFeatures: boolean;
-  enableMCP: boolean;
+  disableMCP: boolean;
   disableQueryReports: boolean;
   requireHardwareAttestation: boolean;
   onlyAllowAppleBusinessEnrollment: boolean;
@@ -125,7 +125,7 @@ const Advanced = ({
     disableLiveQuery: appConfig.server_settings.live_query_disabled || false,
     disableScripts: appConfig.server_settings.scripts_disabled || false,
     disableAIFeatures: appConfig.server_settings.ai_features_disabled || false,
-    enableMCP: appConfig.server_settings.mcp_enabled ?? true,
+    disableMCP: appConfig.server_settings.mcp_disabled || false,
     disableQueryReports:
       appConfig.server_settings.query_reports_disabled || false,
     requireHardwareAttestation:
@@ -189,7 +189,7 @@ const Advanced = ({
         scripts_disabled: formData.disableScripts,
         deferred_save_host: appConfig.server_settings.deferred_save_host,
         ai_features_disabled: formData.disableAIFeatures,
-        mcp_enabled: formData.enableMCP,
+        mcp_disabled: formData.disableMCP,
       },
       smtp_settings: {
         domain: formData.domain,

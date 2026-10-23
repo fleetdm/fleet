@@ -11,7 +11,7 @@ const renderAdvanced = (
     historicalData?: { uptime: boolean; vulnerabilities: boolean };
     handleSubmit?: jest.Mock;
     tier?: string;
-    mcpEnabled?: boolean;
+    mcpDisabled?: boolean;
   } = {}
 ) => {
   const baseConfig = createMockConfig();
@@ -20,7 +20,7 @@ const renderAdvanced = (
     license: { ...baseConfig.license, tier: overrides.tier ?? "premium" },
     server_settings: {
       ...baseConfig.server_settings,
-      mcp_enabled: overrides.mcpEnabled ?? true,
+      mcp_disabled: overrides.mcpDisabled ?? false,
     },
     features: {
       ...baseConfig.features,
@@ -153,17 +153,17 @@ describe("Advanced settings — MCP server", () => {
     expect(screen.getByLabelText(/MCP server/)).toBeChecked();
   });
 
-  it("sends mcp_enabled false after unchecking it", async () => {
+  it("sends mcp_disabled true after unchecking it", async () => {
     const { user, handleSubmit } = renderAdvanced();
-    await user.click(screen.getByRole("checkbox", { name: "enableMCP" }));
+    await user.click(screen.getByRole("checkbox", { name: "disableMCP" }));
     await user.click(screen.getByRole("button", { name: /^save$/i }));
-    expect(handleSubmit.mock.calls[0][0].server_settings.mcp_enabled).toBe(
-      false
+    expect(handleSubmit.mock.calls[0][0].server_settings.mcp_disabled).toBe(
+      true
     );
   });
 
   it("starts unchecked when the MCP server is disabled in config", () => {
-    renderAdvanced({ mcpEnabled: false });
+    renderAdvanced({ mcpDisabled: true });
     expect(screen.getByLabelText(/MCP server/)).not.toBeChecked();
   });
 

@@ -15,7 +15,7 @@ const FeaturesSection = ({
     disableLiveQuery,
     disableScripts,
     disableAIFeatures,
-    enableMCP,
+    disableMCP,
   } = formData;
 
   return (
@@ -119,10 +119,10 @@ const FeaturesSection = ({
             <Checkbox
               disabled={disableChildren}
               onChange={() =>
-                onInputChange({ name: "enableMCP", value: !enableMCP })
+                onInputChange({ name: "disableMCP", value: !disableMCP })
               }
-              name="enableMCP"
-              value={enableMCP}
+              name="disableMCP"
+              value={!disableMCP}
               labelTooltipContent={
                 !disableChildren && (
                   <>
@@ -135,7 +135,7 @@ const FeaturesSection = ({
                   </>
                 )
               }
-              helpText="Only API-only users can connect. They can do anything their role allows, including running live reports."
+              helpText="Only API-only users can connect. Users limited to specific endpoints only see the tools those endpoints allow."
             >
               MCP server
             </Checkbox>
