@@ -1075,10 +1075,15 @@ func TestReconcileAndroidAppScopeForHosts(t *testing.T) {
 		Host:   &fleet.Host{ID: 3, UUID: "no-policy-host"},
 		Device: &android.Device{},
 	}
+	otherPolicyHost := &fleet.AndroidHost{
+		Host:   &fleet.Host{ID: 5, UUID: "other-policy-host"},
+		Device: &android.Device{AppliedPolicyID: new("some-other-policy")},
+	}
 	hostsByUUID := map[string]*fleet.AndroidHost{
 		ownPolicyHost.UUID:     ownPolicyHost,
 		defaultPolicyHost.UUID: defaultPolicyHost,
 		noPolicyHost.UUID:      noPolicyHost,
+		otherPolicyHost.UUID:   otherPolicyHost,
 	}
 
 	ds := new(mock.Store)
@@ -1117,6 +1122,7 @@ func TestReconcileAndroidAppScopeForHosts(t *testing.T) {
 		ownPolicyHost.UUID:     ownPolicyHost.Host.ID,
 		defaultPolicyHost.UUID: defaultPolicyHost.Host.ID,
 		noPolicyHost.UUID:      noPolicyHost.Host.ID,
+		otherPolicyHost.UUID:   otherPolicyHost.Host.ID,
 		"deleted-host":         4,
 	}, enterpriseName)
 	require.NoError(t, err)

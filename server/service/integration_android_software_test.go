@@ -1019,6 +1019,13 @@ func (s *integrationMDMTestSuite) TestAndroidAppsUninstallOnDelete() {
 	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked = false
 	s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked = false // from now on (after device enrollment), this gets called only when we expect it to
 
+	// the devices report applying their own policies, so later app changes are sent to them
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE android_devices SET applied_policy_id = enterprise_specific_id WHERE host_id IN (?, ?, ?)`,
+			host1.ID, host2.ID, host3.ID)
+		return err
+	})
+
 	for _, host := range []fleet.HostResponse{host1, host2} {
 		var getHostSw getHostSoftwareResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw,
@@ -1581,10 +1588,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsLabelScope() {
 	madeAvailable := map[string][]string{}
 	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
 		policyID := policyIDFromName(policyName)
-		if policyID == "" {
-			// hosts that haven't reported an applied policy yet are sent an empty policy ID
-			return &androidmanagement.Policy{}, nil
-		}
+		assert.NotEmpty(t, policyID, "app change sent to an empty policy ID")
 		for _, app := range appPolicies {
 			madeAvailable[app.PackageName] = append(madeAvailable[app.PackageName], policyID)
 		}
@@ -1751,5 +1755,106 @@ func (s *integrationMDMTestSuite) TestAndroidAppsLabelScope() {
 
 		require.Empty(t, appsSet)
 		require.Empty(t, madeAvailable)
+	})
+}
+
+// TestAndroidAppsTargetHostOwnPolicy checks that app changes go to the host's own policy, and skip
+// hosts that haven't reported applying it yet, instead of going to the policy a device last
+// reported: that is the default policy every device enrolls with, or none at all.
+func (s *integrationMDMTestSuite) TestAndroidAppsTargetHostOwnPolicy() {
+	t := s.T()
+	ctx := t.Context()
+
+	s.setSkipWorkerJobs(t)
+	s.enableAndroidMDM(t)
+
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		return &androidmanagement.Application{IconUrl: "https://example.com/1.jpg", Title: packageName}, nil
+	}
+
+	// policy IDs of every request that changes a policy's apps, by kind
+	appChanges := map[string][]string{}
+	recordAppChange := func(kind, policyName string) {
+		appChanges[kind] = append(appChanges[kind], policyName[strings.LastIndex(policyName, "/")+1:])
+	}
+	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		recordAppChange("add", policyName)
+		return &androidmanagement.Policy{}, nil
+	}
+	s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFunc = func(ctx context.Context, policyName string, packageNames []string) (*androidmanagement.Policy, error) {
+		recordAppChange("remove", policyName)
+		return &androidmanagement.Policy{}, nil
+	}
+	s.androidAPIClient.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		if !opts.ExcludeApps {
+			recordAppChange("set", policyName)
+		}
+		return &androidmanagement.Policy{}, nil
+	}
+
+	secrets, err := s.ds.GetEnrollSecrets(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, secrets, 1)
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAndroidPubSubToken}, nil)
+	require.NoError(t, err)
+	pubsubToken := assets[fleet.MDMAssetAndroidPubSubToken]
+	require.NotEmpty(t, pubsubToken.Value)
+	for _, name := range []string{"own-policy", "default-policy", "no-policy"} {
+		enrollmentMessage := enrollmentMessageWithEnterpriseSpecificID(t, androidmanagement.Device{
+			Name:                createAndroidDeviceID("target-" + name),
+			EnrollmentTokenData: fmt.Sprintf(`{"EnrollSecret": "%s"}`, secrets[0].Secret),
+		}, strings.ToUpper(uuid.New().String()))
+		req := android_service.PubSubPushRequest{PubSubMessage: *enrollmentMessage}
+		s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
+	}
+	// run the enrollment jobs before the apps exist, so only the app changes below are recorded
+	s.runWorkerUntilDone()
+
+	var hostsResp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hostsResp, "platform", "android", "order_key", "id")
+	require.Len(t, hostsResp.Hosts, 3)
+	onOwnPolicy, onDefaultPolicy, noPolicyReported := hostsResp.Hosts[0], hostsResp.Hosts[1], hostsResp.Hosts[2]
+	setAppliedPolicy := func(host fleet.HostResponse, policyID *string) {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE android_devices SET applied_policy_id = ? WHERE host_id = ?`, policyID, host.ID)
+			return err
+		})
+	}
+	setAppliedPolicy(onOwnPolicy, &onOwnPolicy.UUID)
+	setAppliedPolicy(onDefaultPolicy, new(fmt.Sprint(android.DefaultAndroidPolicyID)))
+	setAppliedPolicy(noPolicyReported, nil)
+
+	const appID = "com.example.ownpolicy"
+	var titleID uint
+
+	t.Run("adding an app", func(t *testing.T) {
+		clear(appChanges)
+		var addAppResp addAppStoreAppResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+			AppStoreID: appID,
+			Platform:   fleet.AndroidPlatform,
+		}, http.StatusOK, &addAppResp)
+		titleID = addAppResp.TitleID
+		s.runWorkerUntilDone()
+
+		require.Equal(t, map[string][]string{"add": {onOwnPolicy.UUID}}, appChanges)
+	})
+
+	t.Run("a GitOps run setting the apps", func(t *testing.T) {
+		clear(appChanges)
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsRequest{
+			Apps: []fleet.VPPBatchPayload{{AppStoreID: appID, SelfService: true, Platform: fleet.AndroidPlatform}},
+		}, http.StatusOK, &batchAssociateAppStoreAppsResponse{})
+		s.runWorkerUntilDone()
+
+		require.Equal(t, map[string][]string{"set": {onOwnPolicy.UUID}}, appChanges)
+	})
+
+	t.Run("deleting the app", func(t *testing.T) {
+		clear(appChanges)
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", "0")
+		s.runWorkerUntilDone()
+
+		require.Equal(t, map[string][]string{"remove": {onOwnPolicy.UUID}}, appChanges)
 	})
 }

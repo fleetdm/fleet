@@ -1082,6 +1082,7 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	require.NoError(t, err)
 
 	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked = false
+	s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked = false
 	s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked = false
 	s.androidAPIClient.EnterprisesDevicesPatchFuncInvoked = false
 }

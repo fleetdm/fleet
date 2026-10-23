@@ -466,6 +466,12 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	s.runWorker()
 	time.Sleep(time.Second)
 
+	// the device reports applying its own policy, so the apps below are sent to it
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE android_devices SET applied_policy_id = enterprise_specific_id WHERE enterprise_specific_id = ?`, enterpriseSpecificID1)
+		return err
+	})
+
 	chromeAppID := "com.google.chrome"
 	driveAppID := "com.google.drive"
 	s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{

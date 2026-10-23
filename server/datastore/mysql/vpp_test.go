@@ -4391,6 +4391,8 @@ func testAndroidAppsInScopeHostVitalsExcludeAnyLabel(t *testing.T, ds *Datastore
 	newMember, err := ds.NewAndroidHost(ctx, createAndroidHost("es-id-member"), false)
 	require.NoError(t, err)
 	member := newMember.Host
+	setAndroidHostAppliedPolicy(t, ds, nonMember.UUID, &nonMember.UUID)
+	setAndroidHostAppliedPolicy(t, ds, member.UUID, &member.UUID)
 
 	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Test org"+t.Name(), "Test location"+t.Name())
 	require.NoError(t, err)

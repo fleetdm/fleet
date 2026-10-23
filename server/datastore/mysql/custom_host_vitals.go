@@ -589,7 +589,7 @@ func resendAndroidAppConfigsForCustomHostVital(ctx context.Context, tx sqlx.ExtC
 	return nil
 }
 
-// androidHostPolicyIDsForApps returns the host's applied Android policy ID for
+// androidHostPolicyIDsForApps returns the host's own Android policy ID for
 // each of the given app versions that is the host's version of its app, keyed by
 // vpp_apps_teams row id. The host's version is the first-added one it is in scope
 // for, other versions are absent. Single-host counterpart of
@@ -601,11 +601,13 @@ func androidHostPolicyIDsForApps(ctx context.Context, tx sqlx.ExtContext, hostID
 		return nil, nil
 	}
 
-	stmt := fmt.Sprintf(`SELECT vat.id AS app_team_id, COALESCE(ad.applied_policy_id, '') AS policy_id
+	// Like getIncludedHostUUIDMapForSoftware, only a host that reported applying its own
+	// policy is returned.
+	stmt := fmt.Sprintf(`SELECT vat.id AS app_team_id, h.uuid AS policy_id
 		FROM hosts h
 		JOIN android_devices ad ON ad.enterprise_specific_id = h.uuid
 		JOIN vpp_apps_teams vat ON vat.global_or_team_id = ? AND vat.id IN (?)
-		WHERE h.id = ? AND h.platform = 'android' AND EXISTS (%s)
+		WHERE h.id = ? AND h.platform = 'android' AND ad.applied_policy_id = h.uuid AND EXISTS (%s)
 			AND NOT EXISTS (
 				SELECT 1 FROM vpp_apps_teams earlier_vat
 				WHERE earlier_vat.adam_id = vat.adam_id AND earlier_vat.platform = vat.platform

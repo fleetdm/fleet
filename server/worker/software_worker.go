@@ -848,7 +848,7 @@ func (v *SoftwareWorker) reconcileAndroidAppScopeForHosts(ctx context.Context, u
 
 		// A host not on its own policy yet gets its in-scope apps when the setup experience moves it
 		// there, and changing the default policy would change it for every host that uses it.
-		if androidHost.AppliedPolicyID == nil || *androidHost.AppliedPolicyID == fmt.Sprint(android.DefaultAndroidPolicyID) {
+		if androidHost.AppliedPolicyID == nil || *androidHost.AppliedPolicyID != uuid {
 			continue
 		}
 
