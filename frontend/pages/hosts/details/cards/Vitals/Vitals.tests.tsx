@@ -1091,9 +1091,11 @@ describe("Custom host vitals", () => {
 
     expect(screen.getByText("Asset tag")).toBeInTheDocument();
     expect(screen.getByText("FLEET-001234")).toBeInTheDocument();
-    expect(screen.getByText("Purchase date")).toBeInTheDocument();
+    const purchaseDateLabel = screen.getByText("Purchase date");
     // The vital with no value falls back to the default empty cell value.
-    expect(screen.getByText(DEFAULT_EMPTY_CELL_VALUE)).toBeInTheDocument();
+    expect(purchaseDateLabel.nextElementSibling).toHaveTextContent(
+      DEFAULT_EMPTY_CELL_VALUE
+    );
   });
 
   it("renders values as plain text (no edit affordance) when no edit handler is provided", () => {
@@ -1683,5 +1685,76 @@ describe("Android vitals", () => {
         )
       ).toBeInTheDocument();
     });
+  });
+});
+
+describe("Timezone vital", () => {
+  it.each<[string, HostPlatform]>([
+    ["macOS", "darwin"],
+    ["Windows", "windows"],
+    ["Ubuntu", "ubuntu"],
+    ["RHEL", "rhel"],
+  ])(
+    "renders the Timezone vital with the IANA value for %s",
+    (_label, platform) => {
+      const mockHost = createMockHost({
+        platform,
+        timezone: "Europe/Sarajevo",
+      });
+
+      render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
+
+      expect(screen.getByText("Timezone")).toBeInTheDocument();
+      expect(screen.getByText("Europe/Sarajevo")).toBeInTheDocument();
+    }
+  );
+
+  it.each<[string, HostPlatform]>([
+    ["macOS", "darwin"],
+    ["Windows", "windows"],
+    ["Ubuntu", "ubuntu"],
+  ])("renders '---' when timezone is missing on %s", (_label, platform) => {
+    const mockHost = createMockHost({ platform, timezone: null });
+
+    const { container } = render(
+      <Vitals vitalsData={normalizeEmptyValues(mockHost)} mdm={mockHost.mdm} />
+    );
+
+    const timezoneLabel = screen.getByText("Timezone");
+    const timezoneValue = timezoneLabel.nextElementSibling;
+    expect(timezoneValue).toHaveTextContent(DEFAULT_EMPTY_CELL_VALUE);
+    expect(container).toBeInTheDocument(); // suppress unused warning
+  });
+
+  it("hides the Timezone vital on Android", () => {
+    const mockHost = createMockHost({
+      platform: "android",
+      timezone: "Europe/Sarajevo",
+    });
+
+    render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
+
+    expect(screen.queryByText("Timezone")).not.toBeInTheDocument();
+  });
+
+  it("hides the Timezone vital on Chrome", () => {
+    const mockHost = createMockHost({
+      platform: "chrome",
+      timezone: "Europe/Sarajevo",
+    });
+
+    render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
+
+    expect(screen.queryByText("Timezone")).not.toBeInTheDocument();
+  });
+
+  it("hides the Timezone vital on iOS when the device hasn't reported one", () => {
+    const mockHost = createMockHost({ platform: "ios", timezone: null });
+
+    render(
+      <Vitals vitalsData={normalizeEmptyValues(mockHost)} mdm={mockHost.mdm} />
+    );
+
+    expect(screen.queryByText("Timezone")).not.toBeInTheDocument();
   });
 });

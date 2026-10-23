@@ -212,6 +212,138 @@ describe("Host Summary section", () => {
     });
   });
 
+  describe("Patch deadline", () => {
+    it("renders the deadline in the host's timezone on a macOS Premium host", () => {
+      const summaryData = createMockHostSummary({
+        platform: "darwin",
+        timezone: "America/Argentina/Buenos_Aires",
+        patch_deadline_at: "2026-10-13T20:00:00Z",
+      });
+
+      renderWithSetup(
+        <HostSummary
+          summaryData={summaryData}
+          isPremiumTier
+          showPatchDeadline
+        />
+      );
+
+      expect(screen.getByText("Patch deadline")).toBeInTheDocument();
+      // 20:00 UTC → 17:00 in Buenos Aires (UTC-3)
+      expect(screen.getByText(/Oct 13 at 5:00 PM/)).toBeInTheDocument();
+    });
+
+    it("formats the deadline in 24-hour time for an en-GB viewer", () => {
+      const languageSpy = jest
+        .spyOn(window.navigator, "language", "get")
+        .mockReturnValue("en-GB");
+
+      try {
+        const summaryData = createMockHostSummary({
+          platform: "darwin",
+          timezone: "America/Argentina/Buenos_Aires",
+          patch_deadline_at: "2026-10-13T20:00:00Z",
+        });
+
+        renderWithSetup(
+          <HostSummary
+            summaryData={summaryData}
+            isPremiumTier
+            showPatchDeadline
+          />
+        );
+
+        // 20:00 UTC → 17:00 in Buenos Aires. en-GB → 24-hour time.
+        expect(screen.getByText(/17:00/)).toBeInTheDocument();
+        expect(screen.queryByText(/PM/)).not.toBeInTheDocument();
+      } finally {
+        languageSpy.mockRestore();
+      }
+    });
+
+    it("renders '---' when a deadline is set but the host's timezone hasn't been collected yet", () => {
+      const summaryData = createMockHostSummary({
+        platform: "darwin",
+        timezone: null,
+        patch_deadline_at: "2026-10-13T20:00:00Z",
+      });
+
+      renderWithSetup(
+        <HostSummary
+          summaryData={summaryData}
+          isPremiumTier
+          showPatchDeadline
+        />
+      );
+
+      const label = screen.getByText("Patch deadline");
+      expect(label.nextElementSibling).toHaveTextContent("---");
+    });
+
+    it("renders '---' on a macOS Premium host with no scheduled deadline", () => {
+      const summaryData = createMockHostSummary({
+        platform: "darwin",
+        patch_deadline_at: null,
+      });
+
+      renderWithSetup(
+        <HostSummary
+          summaryData={summaryData}
+          isPremiumTier
+          showPatchDeadline
+        />
+      );
+
+      const label = screen.getByText("Patch deadline");
+      expect(label.nextElementSibling).toHaveTextContent("---");
+    });
+
+    it("hides Patch deadline on non-macOS hosts", () => {
+      const summaryData = createMockHostSummary({
+        platform: "windows",
+        patch_deadline_at: "2026-10-13T20:00:00Z",
+      });
+
+      renderWithSetup(
+        <HostSummary
+          summaryData={summaryData}
+          isPremiumTier
+          showPatchDeadline
+        />
+      );
+
+      expect(screen.queryByText("Patch deadline")).not.toBeInTheDocument();
+    });
+
+    it("hides Patch deadline on Fleet Free", () => {
+      const summaryData = createMockHostSummary({
+        platform: "darwin",
+        patch_deadline_at: "2026-10-13T20:00:00Z",
+      });
+
+      renderWithSetup(
+        <HostSummary
+          summaryData={summaryData}
+          isPremiumTier={false}
+          showPatchDeadline
+        />
+      );
+
+      expect(screen.queryByText("Patch deadline")).not.toBeInTheDocument();
+    });
+
+    it("hides Patch deadline when showPatchDeadline is not set (e.g., My device page)", () => {
+      const summaryData = createMockHostSummary({
+        platform: "darwin",
+        patch_deadline_at: "2026-10-13T20:00:00Z",
+      });
+
+      renderWithSetup(<HostSummary summaryData={summaryData} isPremiumTier />);
+
+      expect(screen.queryByText("Patch deadline")).not.toBeInTheDocument();
+    });
+  });
+
   describe("Bootstrap package data", () => {
     it("renders Bootstrap package indicator when status is present", () => {
       const toggleBootstrapPackageModal = jest.fn();
