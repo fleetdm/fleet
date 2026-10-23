@@ -413,13 +413,7 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID stri
 
 	quitIDs := map[string]struct{}{}
 	process(u.Quit, func(appName string) {
-		// Some casks list app names (e.g. "DeskTime") instead of bundle IDs.
-		// osascript's application id can't resolve a name, so the quit would
-		// silently do nothing; quit the app being uninstalled instead. A dotless
-		// wildcard is still a pattern, so it's left for the wildcard handler.
-		if !strings.Contains(appName, ".") && !strings.Contains(appName, "*") {
-			appName = bundleID
-		}
+		appName = caskQuitID(appName, bundleID)
 		if _, ok := quitIDs[appName]; ok {
 			return
 		}
@@ -486,6 +480,18 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID stri
 	})
 }
 
+// caskQuitID returns the ID to quit for a cask uninstall quit entry. Some casks
+// list app names (e.g. "DeskTime") instead of bundle IDs. osascript's
+// application id can't resolve a name, so the quit would silently do nothing;
+// quit the app being uninstalled instead. A dotless wildcard is still a
+// pattern, so it's left for the wildcard handler.
+func caskQuitID(quitID, bundleID string) string {
+	if !strings.Contains(quitID, ".") && !strings.Contains(quitID, "*") {
+		return bundleID
+	}
+	return quitID
+}
+
 // quitTargetsApp reports whether a cask quit ID, which may contain '*'
 // wildcards, names the app being uninstalled. Like LaunchServices and
 // Homebrew's wildcard expansion, the match is case-insensitive.
@@ -511,9 +517,10 @@ func uninstallStopsApp(cask *brewCask, bundleID string) bool {
 		return []string{target.String}
 	}
 	targetsApp := func(id string) bool { return quitTargetsApp(id, bundleID) }
+	quitsApp := func(id string) bool { return targetsApp(caskQuitID(id, bundleID)) }
 	for _, artifact := range cask.Artifacts {
 		for _, u := range artifact.Uninstall {
-			if slices.ContainsFunc(names(u.Quit), targetsApp) ||
+			if slices.ContainsFunc(names(u.Quit), quitsApp) ||
 				(u.Signal.IsOther && len(u.Signal.Other) == 2 && targetsApp(u.Signal.Other[1])) {
 				return true
 			}
