@@ -155,6 +155,7 @@ spec:
     server_url: https://example.org
     scripts_disabled: false
     ai_features_disabled: false
+    mcp_disabled: false
   smtp_settings:
     authentication_method: ""
     authentication_type: ""

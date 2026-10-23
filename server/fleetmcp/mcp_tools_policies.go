@@ -48,7 +48,8 @@ func registerGetPolicyCompliance(s *server.MCPServer, fleetClient *FleetClient) 
 		if err != nil || policyID == "" {
 			return mcp.NewToolResultError("policy_id is required (use get_policies to list available policy IDs)"), nil
 		}
-		if _, perr := parsePositiveUintString("policy_id", policyID); perr != nil {
+		policyNum, perr := parsePositiveUintString("policy_id", policyID)
+		if perr != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("%v (use get_policies to list valid IDs)", perr)), nil
 		}
 
@@ -59,9 +60,9 @@ func registerGetPolicyCompliance(s *server.MCPServer, fleetClient *FleetClient) 
 			if terr != nil {
 				return mcp.NewToolResultError(fmt.Sprintf("Failed to resolve fleet %q: %v", fleet, terr)), nil
 			}
-			compliance, err = fleetClient.GetTeamPolicyCompliance(ctx, fmt.Sprintf("%d", teamIDs[0]), policyID)
+			compliance, err = fleetClient.GetTeamPolicyCompliance(ctx, teamIDs[0], uint(policyNum))
 		} else {
-			compliance, err = fleetClient.GetPolicyCompliance(ctx, policyID)
+			compliance, err = fleetClient.GetPolicyCompliance(ctx, uint(policyNum))
 		}
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to get policy compliance for ID %s: %v", policyID, err)), nil

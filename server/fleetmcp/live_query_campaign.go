@@ -7,11 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -116,6 +114,10 @@ func (fc *FleetClient) streamCampaignResults(ctx context.Context, campaignID uin
 		HandshakeTimeout: 45 * time.Second,
 		TLSClientConfig:  fc.tlsClientConfig(),
 	}
+	if fc.dialContext != nil {
+		dialer.Proxy = nil
+		dialer.NetDialContext = fc.dialContext
+	}
 	conn, _, err := dialer.DialContext(ctx, wsURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open live query results websocket: %w", err)
@@ -125,7 +127,7 @@ func (fc *FleetClient) streamCampaignResults(ctx context.Context, campaignID uin
 	// Authenticate with the same token used for REST calls, then subscribe to
 	// the campaign. WriteJSON marshals an arbitrary value, matching the server's
 	// JSONMessage{Type, Data} envelope.
-	if err := conn.WriteJSON(map[string]interface{}{"type": "auth", "data": map[string]string{"token": fc.apiKey}}); err != nil {
+	if err := conn.WriteJSON(map[string]any{"type": "auth", "data": map[string]string{"token": fc.token(ctx)}}); err != nil {
 		return nil, fmt.Errorf("failed to authenticate results websocket: %w", err)
 	}
 	if err := conn.WriteJSON(map[string]interface{}{"type": "select_campaign", "data": map[string]interface{}{"campaign_id": campaignID}}); err != nil {
@@ -134,7 +136,7 @@ func (fc *FleetClient) streamCampaignResults(ctx context.Context, campaignID uin
 
 	// Bound the read loop by the same deadline the synchronous REST endpoints
 	// use, so a wedged or offline-heavy fleet can't pin us indefinitely.
-	deadline := time.Now().Add(liveQueryDeadline(ctx, fc.logger))
+	deadline := time.Now().Add(fc.campaignWait)
 	_ = conn.SetReadDeadline(deadline)
 
 	// Closing the connection unblocks the blocking ReadJSON below, so a caller
@@ -320,19 +322,4 @@ func (fc *FleetClient) campaignWebsocketURL() (string, error) {
 // nil for test clients, in which case the dialer uses its defaults.
 func (fc *FleetClient) tlsClientConfig() *tls.Config {
 	return fc.tlsConfig
-}
-
-// liveQueryDeadline is how long to wait for hosts to report. It mirrors the
-// synchronous REST endpoints' FLEET_LIVE_QUERY_REST_PERIOD (default 25s).
-func liveQueryDeadline(ctx context.Context, logger *slog.Logger) time.Duration {
-	period := os.Getenv("FLEET_LIVE_QUERY_REST_PERIOD")
-	if period == "" {
-		return 25 * time.Second
-	}
-	d, err := time.ParseDuration(period)
-	if err != nil || d <= 0 {
-		logger.WarnContext(ctx, "invalid FLEET_LIVE_QUERY_REST_PERIOD, defaulting to 25s", "value", period)
-		return 25 * time.Second
-	}
-	return d
 }

@@ -3462,6 +3462,56 @@ func TestModifyAppConfigGitOpsHistoricalDataDefaults(t *testing.T) {
 	}
 }
 
+// server_settings is merged rather than replaced in overwrite mode, so a GitOps
+// payload without mcp_disabled keeps the server's value.
+func TestModifyAppConfigGitOpsMCPDisabled(t *testing.T) {
+	admin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+
+	testCases := []struct {
+		name     string
+		initial  bool
+		payload  string
+		expected bool
+	}{
+		{"omitted keeps it disabled", true, `{"server_settings":{"server_url":"https://example.org"}}`, true},
+		{"omitted keeps it enabled", false, `{"server_settings":{"server_url":"https://example.org"}}`, false},
+		{"no server_settings keeps it disabled", true, `{"org_info":{"org_name":"Renamed"}}`, true},
+		{"explicit true disables it", false, `{"server_settings":{"server_url":"https://example.org","mcp_disabled":true}}`, true},
+		{"explicit false enables it", true, `{"server_settings":{"server_url":"https://example.org","mcp_disabled":false}}`, false},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+			svc, ctx := newTestService(t, ds, nil, nil, opts)
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+			dsAppConfig := &fleet.AppConfig{
+				OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+				ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org", MCPDisabled: tt.initial},
+			}
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+				*dsAppConfig = *conf
+				return nil
+			}
+			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+			ds.HasQueuedJobWithArgsFunc = func(ctx context.Context, name string, args json.RawMessage) (bool, error) {
+				return false, nil
+			}
+			ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) { return job, nil }
+
+			updated, err := svc.ModifyAppConfig(ctx, []byte(tt.payload), fleet.ApplySpecOptions{Overwrite: true})
+			require.NoError(t, err)
+			require.Equal(t, tt.expected, updated.ServerSettings.MCPDisabled)
+			require.Equal(t, tt.expected, dsAppConfig.ServerSettings.MCPDisabled)
+		})
+	}
+}
+
 // TestDiffStringSlices covers the helper that computes per-value added/removed activity emissions for the Entra
 // tenant ID and client ID allowlists, including the deduplication that prevents a repeated config entry from
 // producing duplicate activities.
