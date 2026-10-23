@@ -2,10 +2,6 @@
 
 Fleet is open-source AI device management, patching, and governance for every OS: macOS, Windows, Linux, Chromebooks, iOS, and Android (BYOD or corporate-owned).
 
-Bring the AI tool you already trust, like Claude, ChatGPT, or GitHub Copilot. Tell it what you need in your own words, like "Our security team needs to know which Windows computers don't have antivirus protection running." It works out the change for you, whether that's a policy, report, or configuration profile. A person on your team approves every change before it reaches any device.
-
-To get started, see [Get started with AI and Fleet](https://fleetdm.com/guides/get-started-with-ai-and-fleet).
-
 ![Fleet dashboard](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/fleet-dashboard-612x344@2x.png)
 
 ## What's it for?
@@ -17,6 +13,8 @@ Fleet is open source, and free features will always be free.
 ## Is it any good?
 
 Fleet is used in production by IT and security teams managing thousands of devices. Many deployments support tens of thousands, and a few large organizations manage 400,000 or more.
+
+Bring the AI tool you already trust, like Claude, ChatGPT, or GitHub Copilot. Tell it what you need in your own words, like "Our security team needs to know which Windows computers don't have antivirus protection running." It works out the change for you, whether that's a policy, report, or configuration profile. A person on your team approves every change before it reaches any device. To get started, see [Get started with AI and Fleet](https://fleetdm.com/guides/get-started-with-ai-and-fleet).
 
 - **Get what you need:** Fleet works directly with data and events from the native operating system, down to the bare metal. Strong diagnostics let you investigate errors on end-user devices and collect accurate audit evidence in minutes. It’s also modular. (You can turn off features you are not using.)
 - **Out of the box:** Ready-to-use integrations exist for [most common tools](https://fleetdm.com/integrations). You can become a power user in the GUI or govern your fleet with [AI](https://fleetdm.com/guides/get-started-with-ai-and-fleet). You can also build custom workflows with the REST API, webhook events, MCP server, and the fleetctl command-line tool. 
