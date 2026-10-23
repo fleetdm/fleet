@@ -133,16 +133,12 @@ const EJBCAForm = ({
     commitFields({ clientP12: "", password: "" });
   };
 
-  const renderClientCertExpiry = () => {
-    if (!isEditing || !clientCertExpiresAt) return null;
-    return (
-      <p className={`${baseClass}__client-cert-expiry`}>
-        The client certificate expires on{" "}
-        <b>{monthDayYearFormat(clientCertExpiresAt)}</b>. Upload a new one to
-        replace it.
-      </p>
-    );
-  };
+  const clientCertInfo =
+    isEditing && clientCertExpiresAt
+      ? `The client certificate expires on ${monthDayYearFormat(
+          clientCertExpiresAt
+        )}. Upload a new one to replace it.`
+      : "Fleet uses it to authenticate to EJBCA.";
 
   return (
     <form className={baseClass} onSubmit={handleSubmit(onSubmit)}>
@@ -161,27 +157,24 @@ const EJBCAForm = ({
         placeholder="https://ejbca.example.com:8443"
         disabled={isSubmitting}
       />
-      <div className={`${baseClass}__client-cert`}>
-        {renderClientCertExpiry()}
-        <FileUploader
-          label={isEditing ? "New client certificate" : "Client certificate"}
-          graphicName="file-certificate"
-          message="Client certificate and key (.p12)"
-          additionalInfo="Fleet uses it to authenticate to EJBCA."
-          accept=".p12,.pfx"
-          buttonType="secondary"
-          internalError={getError("clientP12")}
-          // the error is shown in the details once a file is selected, as the uploader only shows it before
-          fileDetails={
-            p12File
-              ? { name: p12File.name, description: getError("clientP12") }
-              : undefined
-          }
-          onFileUpload={onSelectP12}
-          onDeleteFile={onDeleteP12}
-          disabled={isSubmitting}
-        />
-      </div>
+      <FileUploader
+        label={isEditing ? "New client certificate" : "Client certificate"}
+        graphicName="file-certificate"
+        message="Client certificate and key (.p12)"
+        additionalInfo={clientCertInfo}
+        accept=".p12,.pfx"
+        buttonType="secondary"
+        internalError={getError("clientP12")}
+        // the error is shown in the details once a file is selected, as the uploader only shows it before
+        fileDetails={
+          p12File
+            ? { name: p12File.name, description: getError("clientP12") }
+            : undefined
+        }
+        onFileUpload={onSelectP12}
+        onDeleteFile={onDeleteP12}
+        disabled={isSubmitting}
+      />
       {(!isEditing || p12File) && (
         <InputField
           label="Client certificate password"
