@@ -423,6 +423,88 @@ func (s *integrationMDMTestSuite) TestWindowsConditionalAccessSCEPProfile() {
 	require.Equal(t, microsoft_mdm.ConditionalAccessSCEPChallengeInvalidCharsDetail, p.Detail)
 }
 
+// TestWindowsConditionalAccessRenderedProfiles uploads both rendered Windows conditional access profiles unchanged and
+// enrolls the host's certificate against Fleet's conditional access SCEP server.
+func (s *integrationMDMTestSuite) TestWindowsConditionalAccessRenderedProfiles() {
+	t := s.T()
+	ctx := t.Context()
+
+	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: "conditional-access-secret"}}))
+	var profiles fleet.ConditionalAccessWindowsProfiles
+	s.DoJSON("GET", "/api/latest/fleet/conditional_access/idp/windows/profiles", nil, http.StatusOK, &profiles)
+
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	for fileName, contents := range map[string]string{
+		"OktaSCEP.xml":     profiles.SCEPProfile,
+		"OktaBrowsers.xml": profiles.BrowserProfile,
+	} {
+		body, headers := generateNewProfileMultipartRequest(t, fileName, []byte(contents), s.token,
+			map[string][]string{"team_id": {fmt.Sprint(tm.ID)}})
+		s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
+	}
+
+	host, mdmDevice := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host.ID})))
+	s.awaitTriggerProfileSchedule(t)
+
+	cmds, err := mdmDevice.StartManagementSession()
+	require.NoError(t, err)
+	msgID, err := mdmDevice.GetCurrentMsgID()
+	require.NoError(t, err)
+	scepCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	handled, scepResults, _ := mdmDevice.AppendSCEPInstallResponses(scepCtx, cmds, msgID, nil)
+	for _, c := range cmds {
+		if c.Verb == fleet.CmdStatus {
+			continue
+		}
+		if _, ok := handled[c.Cmd.CmdID.Value]; ok {
+			continue
+		}
+		cmdID, verb, status := c.Cmd.CmdID.Value, c.Verb, syncml.CmdStatusOK
+		mdmDevice.AppendResponse(fleet.SyncMLCmd{
+			XMLName: xml.Name{Local: fleet.CmdStatus},
+			MsgRef:  &msgID,
+			CmdRef:  &cmdID,
+			Cmd:     &verb,
+			Data:    &status,
+			CmdID:   fleet.CmdID{Value: uuid.NewString()},
+		})
+	}
+	var certs []*x509.Certificate
+	for res := range scepResults {
+		require.NoError(t, res.Err, "SCEP exchange failed")
+		certs = append(certs, res.Cert)
+	}
+	require.Len(t, certs, 1)
+	_, err = mdmDevice.SendResponse()
+	require.NoError(t, err)
+
+	hostProfiles, err := s.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	statuses := map[string]fleet.MDMDeliveryStatus{}
+	var scepProfileUUID string
+	for _, p := range hostProfiles {
+		require.NotNil(t, p.Status, p.Name)
+		statuses[p.Name] = *p.Status
+		if p.Name == "OktaSCEP" {
+			scepProfileUUID = p.ProfileUUID
+		}
+	}
+	require.Equal(t, fleet.MDMDeliveryVerifying, statuses["OktaSCEP"])
+	require.Equal(t, fleet.MDMDeliveryVerified, statuses["OktaBrowsers"])
+
+	cert := certs[0]
+	require.Equal(t, fleet.ConditionalAccessOktaCertificateCN, cert.Subject.CommonName)
+	require.Equal(t, []string{"fleet-" + scepProfileUUID}, cert.Subject.OrganizationalUnit)
+	require.Len(t, cert.URIs, 1)
+	require.Equal(t, "urn:device:fleet:uuid:"+host.UUID, cert.URIs[0].String())
+	hostID, err := s.ds.GetConditionalAccessCertHostIDBySerialNumber(ctx, uint64(cert.SerialNumber.Int64())) //nolint:gosec // G115
+	require.NoError(t, err)
+	require.Equal(t, host.ID, hostID)
+}
+
 // #40639 — integration coverage for non-proxied cert renewal
 // profile uploads. The renewal-ID marker is opt-in; ACME and non-proxied
 // SCEP profiles upload regardless of marker presence or placement. Auto-
