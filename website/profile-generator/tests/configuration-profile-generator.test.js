@@ -111,13 +111,13 @@ if(!ROUTING_ONLY && SUITE !== 'fleet') {
             let repeats = [];
             before(function() {
               repeats = Array.from({length: REPEATS}, ()=>{
-                return generateOnce({ profileType: testCase.profileType, naturalLanguageInstructions: testCase.instructions });
+                return generateOnce({ profileType: testCase.profileType, forFleet: !!testCase.forFleet, naturalLanguageInstructions: testCase.instructions });
               });
             });
 
             for (let repeatIdx = 0; repeatIdx < REPEATS; repeatIdx++) {
               let test = it(`#${repeatIdx + 1}`, async function() {
-                assertGeneration({ testCase, expectations: testCase.expect || {}, outcome: await repeats[repeatIdx], repeatIdx });
+                assertGeneration({ testCase, expectations: testCase.expect || {}, outcome: await repeats[repeatIdx], repeatIdx, forFleet: !!testCase.forFleet });
               });
               // Read by summary-reporter.js for the per-profile-type tally.
               test.profileType = profileType;
@@ -161,7 +161,7 @@ if(!ROUTING_ONLY && SUITE !== 'page') {
               assert.strictEqual(routedTo, fleetRequest.routesTo, `routed to ${routedTo} rather than ${fleetRequest.routesTo}${describeRoute(outcome.generationResult.route)}`);
             }
             // Fleet's server waits no longer for a decline than for a profile.
-            assertGeneration({ testCase, expectations: fleetRequest.expect || {}, outcome, repeatIdx, checkLatencyOfDeclines: true });
+            assertGeneration({ testCase, expectations: fleetRequest.expect || {}, outcome, repeatIdx, checkLatencyOfDeclines: true, forFleet: true });
           });
           // One bucket rather than ddm and mobileconfig, so that the page's per-type history stays comparable.
           test.profileType = 'apple (Fleet)';
@@ -233,8 +233,9 @@ function skipWithoutASecret() {
  * @param  {Dictionary} options.outcome  What generateOnce resolved to.
  * @param  {Number} options.repeatIdx
  * @param  {Boolean} options.checkLatencyOfDeclines  Whether a decline also has to arrive within the budget.
+ * @param  {Boolean} options.forFleet  Whether Fleet asked, which adds the checks for Fleet's own profile rules.
  */
-function assertGeneration({testCase, expectations, outcome, repeatIdx, checkLatencyOfDeclines}) {
+function assertGeneration({testCase, expectations, outcome, repeatIdx, checkLatencyOfDeclines, forFleet}) {
   let {generationResult, unexpectedError, elapsedMs} = outcome;
 
   // Distinguished from an abstention on purpose: collapsing the two would report a
@@ -299,7 +300,7 @@ function assertGeneration({testCase, expectations, outcome, repeatIdx, checkLate
     (generationResult.contentDidNotMatchProfileType ? generationForFailureMessage : '')
   );
 
-  let checkFailures = checkExpectations(expectations, generatedProfile, generationResult.profileType);
+  let checkFailures = checkExpectations(expectations, generatedProfile, generationResult.profileType, forFleet);
   assert.strictEqual(
     checkFailures.length, 0,
     `${testCase.canary ? 'CANARY -- ' : ''}${checkFailures.length} check(s) failed:\n` +
