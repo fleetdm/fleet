@@ -68,3 +68,58 @@ func TestDecodeWindowsProfileEdges(t *testing.T) {
 		})
 	}
 }
+
+func TestWindowsDataAccepts(t *testing.T) {
+	f := func(formats ...WindowsFormat) WindowsFormats { return formats }
+	cases := []struct {
+		name    string
+		formats WindowsFormats
+		data    string
+		want    bool
+	}{
+		{name: "int", formats: f(WindowsFormatInt), data: "5", want: true},
+		{name: "negative int", formats: f(WindowsFormatInt), data: "-1", want: true},
+		{name: "int with whitespace", formats: f(WindowsFormatInt), data: "\n  5\n", want: true},
+		{name: "int with letters", formats: f(WindowsFormatInt), data: "abc"},
+		{name: "int with real", formats: f(WindowsFormatInt), data: "1.5"},
+		{name: "empty int", formats: f(WindowsFormatInt), data: "  ", want: true},
+
+		{name: "bool true", formats: f(WindowsFormatBool), data: "true", want: true},
+		{name: "bool false", formats: f(WindowsFormatBool), data: "False", want: true},
+		{name: "bool 0", formats: f(WindowsFormatBool), data: "0", want: true},
+		{name: "bool 1", formats: f(WindowsFormatBool), data: "1", want: true},
+		{name: "bool 2", formats: f(WindowsFormatBool), data: "2"},
+		{name: "bool yes", formats: f(WindowsFormatBool), data: "yes"},
+
+		{name: "b64", formats: f(WindowsFormatB64), data: "Zmxl\n ZXQ=", want: true},
+		{name: "invalid b64", formats: f(WindowsFormatB64), data: "not base64!"},
+
+		{name: "xml", formats: f(WindowsFormatXML), data: `<a><b x="1"/></a>`, want: true},
+		{name: "unclosed xml", formats: f(WindowsFormatXML), data: `<a><b>`},
+		{name: "mismatched xml", formats: f(WindowsFormatXML), data: `<a></b>`},
+
+		{name: "chr", formats: f(WindowsFormatChr), data: "anything", want: true},
+		{name: "bin", formats: f(WindowsFormatBin), data: "anything", want: true},
+		{name: "time", formats: f(WindowsFormatTime), data: "anything", want: true},
+		{name: "float", formats: f(WindowsFormatFloat), data: "anything", want: true},
+		{name: "unknown format", formats: f("future"), data: "anything", want: true},
+		{name: "no format", data: "anything", want: true},
+
+		{name: "list with chr accepts text", formats: f(WindowsFormatInt, WindowsFormatChr), data: "abc", want: true},
+		{name: "list with chr accepts int", formats: f(WindowsFormatInt, WindowsFormatChr), data: "5", want: true},
+		{name: "list of checked formats", formats: f(WindowsFormatInt, WindowsFormatBool), data: "abc"},
+
+		{name: "variable in chr", formats: f(WindowsFormatChr), data: "$FLEET_VAR_HOST_END_USER_IDP_USERNAME", want: true},
+		{name: "variable in xml", formats: f(WindowsFormatXML), data: "<a>$FLEET_VAR_HOST_UUID</a>", want: true},
+		{name: "variable in int", formats: f(WindowsFormatInt), data: "$FLEET_VAR_HOST_END_USER_IDP_USERNAME"},
+		{name: "variable in bool", formats: f(WindowsFormatBool), data: "${FLEET_VAR_HOST_UUID}"},
+		{name: "variable in b64", formats: f(WindowsFormatB64), data: "$FLEET_VAR_HOST_UUID"},
+		{name: "secret in int", formats: f(WindowsFormatInt), data: "$FLEET_SECRET_TIMEOUT", want: true},
+		{name: "secret in b64", formats: f(WindowsFormatB64), data: "${FLEET_SECRET_CERT}", want: true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assert.Equal(t, c.want, windowsDataAccepts(c.formats, c.data))
+		})
+	}
+}
