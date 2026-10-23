@@ -12,7 +12,7 @@ import {
 } from "../../helpers";
 
 /** Tokens assigned to the fleet, directly or through All fleets, first added first. */
-export const getAssignedVppTokens = (
+export const getFleetVppTokens = (
   teamId: number,
   tokens: IMdmVppToken[] = []
 ) =>
@@ -24,11 +24,8 @@ export const getAssignedVppTokens = (
     )
     .sort((a, b) => a.id - b.id);
 
-/** Assigned tokens that haven't expired. */
-export const getFleetVppTokens = (teamId: number, tokens?: IMdmVppToken[]) =>
-  getAssignedVppTokens(teamId, tokens).filter(
-    (t) => !isPast(new Date(t.renew_date))
-  );
+export const isVppTokenExpired = (token?: IMdmVppToken) =>
+  !!token && isPast(new Date(token.renew_date));
 
 export const getErrorMessage = (e: unknown): string | ReactElement => {
   const reason = getErrorReason(e);

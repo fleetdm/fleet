@@ -317,6 +317,21 @@ describe("SoftwareDetailsSummary VPP token", () => {
     expect(screen.queryByText("VPP token")).not.toBeInTheDocument();
   });
 
+  it("links the App Store ID without a country segment when the token's country is empty", () => {
+    render(
+      <SoftwareDetailsSummary
+        displayName="PayPay"
+        appStoreId="1435783608"
+        vppToken={{ ...vppToken, country_code: "" }}
+      />
+    );
+
+    expect(screen.getByRole("link", { name: /1435783608/ })).toHaveAttribute(
+      "href",
+      "https://apps.apple.com/app/id1435783608"
+    );
+  });
+
   it("renders the VPP token label and its tooltip copy", async () => {
     const { user } = renderWithSetup(
       <SoftwareDetailsSummary

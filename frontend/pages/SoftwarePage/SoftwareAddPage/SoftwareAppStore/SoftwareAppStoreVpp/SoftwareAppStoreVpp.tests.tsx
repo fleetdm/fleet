@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "react-query";
 import { createMockVppApp } from "__mocks__/appleMdm";
 import { createMockVppToken } from "__mocks__/mdmMock";
 import { IMdmVppToken } from "interfaces/mdm";
+import PATHS from "router/paths";
 import mockServer from "test/mock-server";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
@@ -242,21 +243,22 @@ describe("SoftwareAppStoreVpp", () => {
     const renderPage = (
       gitOpsModeEnabled = false,
       client?: QueryClient,
-      teamId = 1
+      teamId = 1,
+      { isGlobalAdmin = true, pageRouter = router } = {}
     ) => {
       const render = createCustomRenderer({
         withBackendMock: !client,
         context: {
           app: {
             isPremiumTier: true,
-            isGlobalAdmin: true,
+            isGlobalAdmin,
             isMacMdmEnabledAndConfigured: true,
             config: { gitops: { gitops_mode_enabled: gitOpsModeEnabled } },
           },
         },
       });
       const page = (
-        <SoftwareAppStoreVpp currentTeamId={teamId} router={router} />
+        <SoftwareAppStoreVpp currentTeamId={teamId} router={pageRouter} />
       );
       return render(
         client ? (
@@ -380,44 +382,95 @@ describe("SoftwareAppStoreVpp", () => {
       expect(screen.getAllByTestId("dropdown-option")).toHaveLength(2);
     });
 
-    it("excludes an expired fleet token and sends the All fleets token's id", async () => {
-      mockServer.use(
-        tokensHandler([
-          createMockVppToken({
-            ...usToken,
-            renew_date: "2020-01-01T00:00:00Z",
-          }),
-          createMockVppToken({ ...jpToken, teams: [] }),
-        ])
+    const EXPIRED = "2020-01-01T00:00:00Z";
+    const expiredUs = createMockVppToken({ ...usToken, renew_date: EXPIRED });
+    const expiredJp = createMockVppToken({ ...jpToken, renew_date: EXPIRED });
+
+    it("lists an expired token, and switching between it and a valid one shows the empty state then the apps", async () => {
+      mockServer.use(tokensHandler([expiredUs, jpToken]));
+      const requests = useAppsHandler();
+
+      const { user } = renderPage(
+        false,
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
       );
+
+      expect(await screen.findByText("Token expired")).toBeInTheDocument();
+      expect(requests).toHaveLength(0);
+
+      await openTokenDropdown(user);
+      expect(screen.getAllByTestId("dropdown-option")).toHaveLength(2);
+      await user.click(screen.getByText(JP_LABEL));
+      await screen.findByRole("radio", { name: /App 2/ });
+      expect(screen.queryByText("Token expired")).not.toBeInTheDocument();
+      expect(requests).toHaveLength(1);
+      expect(requests[0].searchParams.get("vpp_token_id")).toBe("2");
+
+      await openTokenDropdown(user);
+      await user.click(screen.getByText(US_LABEL));
+      expect(await screen.findByText("Token expired")).toBeInTheDocument();
+      expect(requests).toHaveLength(1);
+    });
+
+    it("selects an expired token by default when every token has expired and keeps the dropdown", async () => {
+      mockServer.use(tokensHandler([expiredUs, expiredJp]));
       const requests = useAppsHandler();
 
       renderPage();
 
-      await waitFor(() => expect(requests).toHaveLength(1));
-      expect(requests[0].searchParams.get("vpp_token_id")).toBe("2");
+      expect(await screen.findByText("Token expired")).toBeInTheDocument();
+      expect(
+        screen.getByRole("combobox", { name: "Select VPP token" })
+      ).toBeInTheDocument();
+      expect(requests).toHaveLength(0);
+    });
+
+    it("hides the dropdown and shows the empty state with one expired token", async () => {
+      mockServer.use(tokensHandler([expiredUs]));
+      const requests = useAppsHandler();
+
+      renderPage();
+
+      expect(await screen.findByText("Token expired")).toBeInTheDocument();
       expect(
         screen.queryByRole("combobox", { name: "Select VPP token" })
       ).not.toBeInTheDocument();
+      expect(requests).toHaveLength(0);
     });
 
-    it("shows an error and requests no apps when every assigned token has expired", async () => {
-      mockServer.use(
-        tokensHandler([
-          createMockVppToken({
-            ...usToken,
-            renew_date: "2020-01-01T00:00:00Z",
-          }),
-        ])
-      );
-      const requests = useAppsHandler();
+    it("lets a global admin renew an expired token from the VPP settings page", async () => {
+      mockServer.use(tokensHandler([expiredUs]));
+      useAppsHandler();
+      const push = jest.fn();
 
-      renderPage();
+      const { user } = renderPage(false, undefined, 1, {
+        pageRouter: createMockRouter({ push }),
+      });
 
       expect(
-        await screen.findByText("Something's gone wrong.")
+        await screen.findByText(
+          "To add apps from this token you must renew it first."
+        )
       ).toBeInTheDocument();
-      expect(requests).toHaveLength(0);
+      await user.click(screen.getByRole("button", { name: "Renew" }));
+      expect(push).toHaveBeenCalledWith(PATHS.ADMIN_INTEGRATIONS_VPP);
+    });
+
+    it("tells a non-admin to ask their admin to renew an expired token", async () => {
+      mockServer.use(tokensHandler([expiredUs]));
+      useAppsHandler();
+
+      renderPage(false, undefined, 1, { isGlobalAdmin: false });
+
+      expect(
+        await screen.findByText(
+          "To add apps from this token, ask your admin to renew it."
+        )
+      ).toBeInTheDocument();
+      expect(screen.getByText("Token expired")).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Renew" })
+      ).not.toBeInTheDocument();
     });
 
     it("keeps the dropdown when the picked token has no apps", async () => {

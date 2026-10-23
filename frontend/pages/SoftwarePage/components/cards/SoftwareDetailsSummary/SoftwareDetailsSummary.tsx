@@ -302,9 +302,9 @@ const SoftwareDetailsSummary = ({
       />
     );
 
-  // Without a token, Apple redirects to the viewer's storefront.
+  // Without a country, Apple redirects to the viewer's storefront.
   const appStoreUrl = `https://apps.apple.com/${
-    vppToken ? `${vppToken.country_code.toLowerCase()}/` : ""
+    vppToken?.country_code ? `${vppToken.country_code.toLowerCase()}/` : ""
   }app/id${appStoreId}`;
 
   const actionOptions = buildActionOptions({

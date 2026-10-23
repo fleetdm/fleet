@@ -31,9 +31,9 @@ import SoftwareVppForm from "../../../components/forms/SoftwareVppForm";
 import { ISoftwareVppFormData } from "../../../components/forms/SoftwareVppForm/SoftwareVppForm";
 
 import {
-  getAssignedVppTokens,
   getErrorMessage,
   getFleetVppTokens,
+  isVppTokenExpired,
 } from "./helpers";
 
 const baseClass = "software-app-store-vpp";
@@ -83,6 +83,29 @@ const AddTeamToVppMessage = ({
     }
     primaryButton={
       isGlobalAdmin ? <Button onClick={onEditVpp}>Edit VPP</Button> : undefined
+    }
+  />
+);
+
+interface IVppTokenExpiredMessage {
+  onRenew: () => void;
+  isGlobalAdmin?: boolean;
+}
+
+const VppTokenExpiredMessage = ({
+  onRenew,
+  isGlobalAdmin,
+}: IVppTokenExpiredMessage) => (
+  <EmptyState
+    variant="list"
+    header="Token expired"
+    info={
+      isGlobalAdmin
+        ? "To add apps from this token you must renew it first."
+        : "To add apps from this token, ask your admin to renew it."
+    }
+    primaryButton={
+      isGlobalAdmin ? <Button onClick={onRenew}>Renew</Button> : undefined
     }
   />
 );
@@ -163,14 +186,12 @@ const SoftwareAppStoreVpp = ({
   );
 
   const noVppTokenUploaded = !vppInfo || !vppInfo.vpp_tokens.length;
-  const assignedTokens = getAssignedVppTokens(
-    currentTeamId,
-    vppInfo?.vpp_tokens
-  );
   const fleetTokens = getFleetVppTokens(currentTeamId, vppInfo?.vpp_tokens);
   const [selectedTokenId, setSelectedTokenId] = useState<number>();
-  const vppTokenId =
-    fleetTokens.find((t) => t.id === selectedTokenId)?.id ?? fleetTokens[0]?.id;
+  const selectedToken =
+    fleetTokens.find((t) => t.id === selectedTokenId) ?? fleetTokens[0];
+  const vppTokenId = selectedToken?.id;
+  const isSelectedTokenExpired = isVppTokenExpired(selectedToken);
 
   const {
     data: vppApps,
@@ -181,7 +202,10 @@ const SoftwareAppStoreVpp = ({
     () => mdmAppleAPI.getVppApps(currentTeamId, vppTokenId),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: !!vppTokenId && !!isMacMdmEnabledAndConfigured,
+      enabled:
+        !!vppTokenId &&
+        !isSelectedTokenExpired &&
+        !!isMacMdmEnabledAndConfigured,
       staleTime: 30000,
       select: (res) => res.app_store_apps,
     }
@@ -278,7 +302,7 @@ const SoftwareAppStoreVpp = ({
       );
     }
 
-    if (!assignedTokens.length) {
+    if (!fleetTokens.length) {
       return (
         <AddTeamToVppMessage
           onEditVpp={() => router.push(PATHS.ADMIN_INTEGRATIONS_VPP)}
@@ -287,14 +311,17 @@ const SoftwareAppStoreVpp = ({
       );
     }
 
-    // Every token assigned to this fleet has expired.
-    if (!fleetTokens.length) {
-      return <DataError verticalPaddingSize="pad-xxxlarge" />;
-    }
-
     // The token dropdown stays above the list so a token that is loading,
     // errored, or empty doesn't strand the user on it.
     const renderApps = () => {
+      if (isSelectedTokenExpired) {
+        return (
+          <VppTokenExpiredMessage
+            onRenew={() => router.push(PATHS.ADMIN_INTEGRATIONS_VPP)}
+            isGlobalAdmin={isGlobalAdmin}
+          />
+        );
+      }
       if (isLoadingVppApps) {
         return <Spinner />;
       }
