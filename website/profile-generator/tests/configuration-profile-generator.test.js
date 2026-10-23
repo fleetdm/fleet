@@ -33,7 +33,7 @@
 const assert = require('assert');
 const util = require('util');
 
-const { TEST_CASES, checkExpectations, fleetRequestFor, isWorthRetryingAfterAPause } = require('../configuration-profile-generator-cases');
+const { TEST_CASES, checkExpectations, checkDeclineReason, fleetRequestFor, isWorthRetryingAfterAPause } = require('../configuration-profile-generator-cases');
 
 
 // Overridable because the interesting question is usually whether a cheaper model can still pass
@@ -282,6 +282,8 @@ function assertGeneration({testCase, expectations, outcome, repeatIdx, checkLate
       whatTheLookupProvided +
       generationForFailureMessage
     );
+    let declineFailures = checkDeclineReason(generationResult.reasonWhyAProfileCouldNotBeGenerated);
+    assert.strictEqual(declineFailures.length, 0, declineFailures.join('\n'));
     if(checkLatencyOfDeclines) {
       assert(elapsedMs <= MAX_ELAPSED_MS, `declined as expected, but took ${timeTaken}, over the ${MAX_ELAPSED_MS}ms budget`);
     }
@@ -297,7 +299,7 @@ function assertGeneration({testCase, expectations, outcome, repeatIdx, checkLate
     (generationResult.contentDidNotMatchProfileType ? generationForFailureMessage : '')
   );
 
-  let checkFailures = checkExpectations(expectations, generatedProfile);
+  let checkFailures = checkExpectations(expectations, generatedProfile, generationResult.profileType);
   assert.strictEqual(
     checkFailures.length, 0,
     `${testCase.canary ? 'CANARY -- ' : ''}${checkFailures.length} check(s) failed:\n` +

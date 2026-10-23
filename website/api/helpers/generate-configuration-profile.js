@@ -100,7 +100,7 @@ module.exports = {
         return {
           profileType: undefined,
           couldNotGenerateProfile: true,
-          reasonWhyAProfileCouldNotBeGenerated: route.reasonWhyAProfileCouldNotBeGenerated,
+          reasonWhyAProfileCouldNotBeGenerated: withoutLinks(route.reasonWhyAProfileCouldNotBeGenerated),
           contentDidNotMatchProfileType: false,
           route,
           timings: { routingMs: Date.now() - startedAt, configurationMs: 0, generationMs: 0 },
@@ -204,7 +204,7 @@ module.exports = {
         !response.profileFilename ||
         !response.settingsEnforced) {
       result.couldNotGenerateProfile = true;
-      result.reasonWhyAProfileCouldNotBeGenerated = _.isObject(response) && response.reasonWhyAProfileCouldNotBeGenerated ? response.reasonWhyAProfileCouldNotBeGenerated : undefined;
+      result.reasonWhyAProfileCouldNotBeGenerated = _.isObject(response) && response.reasonWhyAProfileCouldNotBeGenerated ? withoutLinks(response.reasonWhyAProfileCouldNotBeGenerated) : undefined;
       return result;
     }
 
@@ -347,6 +347,29 @@ function withDoubleEscapedLineBreaksRepaired(content, profileType) {
     }
   }
   return content.replace(/>\\n/g, '>\n').replace(/\\n(?=[ \t]*<)/g, '\n');
+}
+
+
+/**
+ * A decline reason without its links.
+ *
+ * Every page that shows a decline already links to the OS settings docs, so a reason links nowhere else.  Done here
+ * rather than asked of the model: a prompt rule about how to word a decline made the Android model decline requests
+ * it can meet.
+ *
+ * @param  {String} reason
+ * @returns {String}
+ */
+function withoutLinks(reason) {
+  if(!_.isString(reason)) {
+    return reason;
+  }
+  return reason
+  .replace(/\[([^\]]+)\]\((?:https?:\/\/|www\.)[^)]*\)/gi, '$1')
+  .replace(/\s*\(?(?:https?:\/\/|www\.)[^\s)]+\)?/gi, '')
+  .replace(/\s+([.,;:])/g, '$1')
+  .replace(/\s{2,}/g, ' ')
+  .trim();
 }
 
 

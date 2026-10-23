@@ -168,6 +168,24 @@ describe('configuration profile generation pipeline', function() {
 
   });
 
+  describe('keeps links out of a decline reason', function() {
+
+    for (let [reason, expected] of [
+      ['Edge has no CSP nodes. See https://learn.microsoft.com/en-us/deployedge/ for its ADMX templates.', 'Edge has no CSP nodes. See for its ADMX templates.'],
+      ['Use the [Edge ADMX templates](https://learn.microsoft.com/deployedge) instead.', 'Use the Edge ADMX templates instead.'],
+      ['No such setting (www.example.com).', 'No such setting.'],
+      ['No such setting.', 'No such setting.'],
+    ]) {
+      it(JSON.stringify(reason), async function() {
+        generationOutcomes = [{ couldNotGenerateProfile: true, reasonWhyAProfileCouldNotBeGenerated: reason }];
+        let result = await generate('csp');
+        assert.strictEqual(result.couldNotGenerateProfile, true);
+        assert.strictEqual(result.reasonWhyAProfileCouldNotBeGenerated, expected);
+      });
+    }
+
+  });
+
   describe('retries a failed generation once', function() {
 
     for (let statusCode of [429, 529, 500]) {
