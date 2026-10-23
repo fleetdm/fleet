@@ -128,7 +128,7 @@ Release-v27.0 has 119 payload types and 48 configuration declarations. DDFv2Feb2
 - **At startup:** `fleet serve` calls `ParseProfileValidationSchema()`, which parses the embedded copy. It refuses to start if that fails.
 - **Reading it:** callers use `Current()`, then the lookups, which return nil for anything unknown:
   - `AppleProfile(payloadType)` and `AppleDeclaration(declarationType)`.
-  - `WindowsNode(locURI)` returns the exact node, or else the node whose `*` segments match, preferring the fewest `*`. Paths are compared as written.
+  - `WindowsNode(locURI)` returns the exact node, or else the node whose `*` segments match, preferring the fewest `*`. Segments compare case-insensitively; roots are compared as written.
 - **Swapping it:** `Replace(schema)` swaps in a newer schema from `Parse`, for example a downloaded copy. New `Current()` calls see it, and a schema a caller already holds never changes. Don't modify a schema you get from `Current()`.
 **Dependencies:** 
 - It imports `server/variables`, which only uses the standard library.
