@@ -9,6 +9,53 @@ jest.mock("services", () => ({
 
 const mockSendRequest = sendRequest as jest.MockedFunction<typeof sendRequest>;
 
+describe("softwareAPI.addAppStoreApp for Android", () => {
+  const androidFormData = {
+    applicationID: "com.google.android.gm",
+    selfService: true,
+    automaticInstall: false,
+    targetType: "All hosts",
+    customTarget: "labelsIncludeAny",
+    labelTargets: { "Android pilot": true, "Not selected": false },
+    categories: [],
+    platform: "android" as const,
+  };
+
+  beforeEach(() => {
+    mockSendRequest.mockReset();
+    mockSendRequest.mockResolvedValue({ software_title_id: 1 });
+  });
+
+  it("sends no labels when targeting all hosts", async () => {
+    await softwareAPI.addAppStoreApp(3, androidFormData);
+
+    const [, , body] = mockSendRequest.mock.calls[0];
+    expect(body).toMatchObject({
+      app_store_id: "com.google.android.gm",
+      fleet_id: 3,
+      platform: "android",
+    });
+    expect(body).not.toHaveProperty("labels_include_any");
+    expect(body).not.toHaveProperty("labels_include_all");
+    expect(body).not.toHaveProperty("labels_exclude_any");
+  });
+
+  it.each([
+    ["labelsIncludeAny", "labels_include_any"],
+    ["labelsIncludeAll", "labels_include_all"],
+    ["labelsExcludeAny", "labels_exclude_any"],
+  ])("sends the selected labels for %s as %s", async (customTarget, key) => {
+    await softwareAPI.addAppStoreApp(3, {
+      ...androidFormData,
+      targetType: "Custom",
+      customTarget,
+    });
+
+    const [, , body] = mockSendRequest.mock.calls[0];
+    expect(body).toMatchObject({ [key]: ["Android pilot"] });
+  });
+});
+
 describe("softwareAPI.getSoftwarePackageToken", () => {
   beforeEach(() => {
     mockSendRequest.mockReset();

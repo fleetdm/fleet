@@ -1244,6 +1244,9 @@ func TestModifyManualLabel(t *testing.T) {
 			},
 		}, nil, nil
 	}
+	ds.LabelMembershipHostIDsFunc = func(ctx context.Context, labelID uint) ([]uint, error) {
+		return nil, nil
+	}
 	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
 		return []uint{99, 100}, nil
 	}
@@ -1292,6 +1295,9 @@ func TestModifyLabelRejectsHostsForComputedMembership(t *testing.T) {
 	}
 	ds.SaveLabelFunc = func(ctx context.Context, lbl *fleet.Label, hostIDs []uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
 		return &fleet.LabelWithTeamName{Label: *lbl}, hostIDs, nil
+	}
+	ds.LabelMembershipHostIDsFunc = func(ctx context.Context, labelID uint) ([]uint, error) {
+		return nil, nil
 	}
 	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
 		return []uint{99}, nil
@@ -1510,6 +1516,9 @@ func TestLabelActivities(t *testing.T) {
 	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, a activity_api.ActivityDetails) error {
 		activities = append(activities, a)
 		return nil
+	}
+	ds.ListMDMAndroidUUIDsToHostIDsWithAppsTargetingLabelsFunc = func(ctx context.Context, hostIDs []uint, labelIDs []uint) (map[string]uint, error) {
+		return nil, nil
 	}
 
 	const teamID = uint(42)
