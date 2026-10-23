@@ -85,7 +85,7 @@ func TestNewBasicFileStructure(t *testing.T) {
 			if ext := filepath.Ext(path); d.IsDir() || (ext != ".yml" && ext != ".yaml") {
 				return nil
 			}
-			content, err := os.ReadFile(path)
+			content, err := os.ReadFile(path) //nolint:gosec // G122: reading files this test just wrote to its own temp dir
 			require.NoError(t, err)
 			var parsed any
 			assert.NoError(t, yaml.Unmarshal(content, &parsed), "invalid YAML in %s", path)
