@@ -899,33 +899,22 @@ func TestQuitTargetsApp(t *testing.T) {
 	require.Contains(t, script, "quit_application 'com.docker.docker' || exit 1\nquit_application 'com.electron.dockerdesktop'\nquit_application 'com.docker.helper'\n")
 }
 
-// TestUninstallScriptStopsWhenAppWontQuit runs generated uninstall scripts in
-// bash with osascript and friends stubbed out. The app being uninstalled must
-// not be removed while it's still running. Other quit IDs (helpers, shared
-// updaters) only log that they didn't quit, as in Homebrew.
-func TestUninstallScriptStopsWhenAppWontQuit(t *testing.T) {
+// runStubbedUninstallScript runs a generated uninstall script in bash with
+// osascript and friends stubbed out. running lists the running apps; stuck ones
+// accept the quit event but keep running, and canceled ones fail it, as when
+// the user cancels a save prompt. sleep advances SECONDS so the timeout loop
+// doesn't take real time.
+func runStubbedUninstallScript(t *testing.T, script, running, stuck, canceled string) (string, int) {
+	t.Helper()
 	if runtime.GOOS == "windows" {
 		t.Skip("requires bash")
-	}
-	if os.Geteuid() == 0 {
-		t.Skip("as root the wildcard helper lists apps through /bin/launchctl asuser, which can't be stubbed")
 	}
 	bash, err := exec.LookPath("bash")
 	if err != nil {
 		t.Skip("bash not found")
 	}
 
-	const remove = "sudo rm -rf /Applications//Foo.app"
-
-	// stuck apps accept the quit event but keep running; canceled ones fail it,
-	// as when the user cancels a save prompt. sleep advances SECONDS so the
-	// timeout loop doesn't take real time.
-	run := func(t *testing.T, quitIDs []string, running, stuck, canceled string) (string, int) {
-		cask := &brewCask{Artifacts: []*brewArtifact{
-			{Uninstall: []*brewUninstall{{Quit: optjson.StringOr[[]string]{IsOther: true, Other: quitIDs}}}},
-			{App: []optjson.StringOr[*brewAppTarget]{{String: "Foo.app"}}},
-		}}
-		stubs := `running=" ` + running + ` "
+	stubs := `running=" ` + running + ` "
 stuck=" ` + stuck + ` "
 canceled=" ` + canceled + ` "
 stat() { echo alice; }
@@ -950,13 +939,31 @@ osascript() {
   esac
 }
 `
+	out, err := exec.Command(bash, "-c", stubs+script).CombinedOutput()
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
+		return string(out), exitErr.ExitCode()
+	}
+	require.NoError(t, err, string(out))
+	return string(out), 0
+}
+
+// TestUninstallScriptStopsWhenAppWontQuit runs generated uninstall scripts with
+// runStubbedUninstallScript. The app being uninstalled must not be removed
+// while it's still running. Other quit IDs (helpers, shared updaters) only log
+// that they didn't quit, as in Homebrew.
+func TestUninstallScriptStopsWhenAppWontQuit(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("as root the wildcard helper lists apps through /bin/launchctl asuser, which can't be stubbed")
+	}
+	const remove = "sudo rm -rf /Applications//Foo.app"
+
+	run := func(t *testing.T, quitIDs []string, running, stuck, canceled string) (string, int) {
+		cask := &brewCask{Artifacts: []*brewArtifact{
+			{Uninstall: []*brewUninstall{{Quit: optjson.StringOr[[]string]{IsOther: true, Other: quitIDs}}}},
+			{App: []optjson.StringOr[*brewAppTarget]{{String: "Foo.app"}}},
+		}}
 		script := uninstallScriptForApp(inputApp{UniqueIdentifier: "com.example.Foo"}, cask)
-		out, err := exec.Command(bash, "-c", stubs+script).CombinedOutput()
-		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
-			return string(out), exitErr.ExitCode()
-		}
-		require.NoError(t, err, string(out))
-		return string(out), 0
+		return runStubbedUninstallScript(t, script, running, stuck, canceled)
 	}
 
 	const all = "com.example.Foo com.example.Foo.helper com.example.Updater"
@@ -997,6 +1004,179 @@ osascript() {
 	require.Contains(t, out, "Application 'com.example.Updater' did not quit.")
 	require.Contains(t, out, remove)
 }
+
+// TestUninstallScriptQuitsAppCaskDoesNotName covers casks whose uninstall quit
+// doesn't name the app, which is most of them: the script still quits the app
+// before removing anything, and stops if the app won't quit.
+func TestUninstallScriptQuitsAppCaskDoesNotName(t *testing.T) {
+	app := inputApp{UniqueIdentifier: "com.example.Foo"}
+	appArtifact := &brewArtifact{App: []optjson.StringOr[*brewAppTarget]{{String: "Foo.app"}}}
+	const all = "com.example.Foo com.example.Updater"
+
+	for name, cask := range map[string]*brewCask{
+		"no uninstall stanza": {Artifacts: []*brewArtifact{appArtifact}},
+		// Like the Microsoft Office casks, which only quit Microsoft AutoUpdate.
+		"quits only an updater": {Artifacts: []*brewArtifact{
+			{Uninstall: []*brewUninstall{{
+				Quit:   optjson.StringOr[[]string]{String: "com.example.Updater"},
+				Delete: optjson.StringOr[[]string]{String: "/Applications/Foo Helper.app"},
+			}}},
+			appArtifact,
+		}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			script := uninstallScriptForApp(app, cask)
+			require.Equal(t, 1, strings.Count(script, "quit_application 'com.example.Foo' || exit 1"), script)
+
+			out, code := runStubbedUninstallScript(t, script, all, "", "")
+			require.Zero(t, code, out)
+			require.Contains(t, out, "Application 'com.example.Foo' quit successfully.")
+			require.Contains(t, out, "sudo rm -rf /Applications//Foo.app")
+
+			out, code = runStubbedUninstallScript(t, script, all, "com.example.Foo", "")
+			require.Equal(t, 1, code, out)
+			require.Contains(t, out, "Application 'com.example.Foo' did not quit.")
+			require.NotContains(t, out, "sudo rm -rf")
+
+			out, code = runStubbedUninstallScript(t, script, all, "", "com.example.Foo")
+			require.Equal(t, 1, code, out)
+			require.NotContains(t, out, "sudo rm -rf")
+
+			out, code = runStubbedUninstallScript(t, script, "", "", "")
+			require.Zero(t, code, out)
+			require.NotContains(t, out, "Quitting application")
+			require.Contains(t, out, "sudo rm -rf /Applications//Foo.app")
+		})
+	}
+
+	// The updater keeps Homebrew's warn-and-continue.
+	script := uninstallScriptForApp(app, &brewCask{Artifacts: []*brewArtifact{
+		{Uninstall: []*brewUninstall{{Quit: optjson.StringOr[[]string]{String: "com.example.Updater"}}}},
+		appArtifact,
+	}})
+	out, code := runStubbedUninstallScript(t, script, all, "com.example.Updater", "")
+	require.Zero(t, code, out)
+	require.Contains(t, out, "Application 'com.example.Updater' did not quit.")
+	require.Contains(t, out, "Application 'com.example.Foo' quit successfully.")
+	require.Contains(t, out, "sudo rm -rf /Applications//Foo.app")
+}
+
+// TestUninstallScriptQuitsAppOnce checks where the generated quit goes and when
+// it's left out because the cask already stops the app.
+func TestUninstallScriptQuitsAppOnce(t *testing.T) {
+	app := inputApp{UniqueIdentifier: "com.example.Foo"}
+	appArtifact := &brewArtifact{App: []optjson.StringOr[*brewAppTarget]{{String: "Foo.app"}}}
+	const quit = "quit_application 'com.example.Foo' || exit 1"
+	const removeApp = `sudo rm -rf "$APPDIR/Foo.app"`
+	strs := func(s ...string) optjson.StringOr[[]string] {
+		return optjson.StringOr[[]string]{IsOther: true, Other: s}
+	}
+
+	t.Run("after launchctl, before the stanza removes anything", func(t *testing.T) {
+		script := uninstallScriptForApp(app, &brewCask{Artifacts: []*brewArtifact{
+			{Uninstall: []*brewUninstall{{
+				LaunchCtl: strs("com.example.Foo.agent"),
+				Quit:      strs("com.example.Updater"),
+				Script: optjson.StringOr[map[string]any]{IsOther: true, Other: map[string]any{
+					"executable": "/Applications/Foo.app/Contents/Resources/uninstall.sh",
+				}},
+				PkgUtil: strs("com.example.pkg"),
+			}}},
+			appArtifact,
+			{Zap: []*brewUninstall{{Trash: strs("~/Library/Preferences/com.example.Foo.plist")}}},
+		}})
+		require.Equal(t, 1, strings.Count(script, quit), script)
+		order := []string{
+			"remove_launchctl_service 'com.example.Foo.agent'",
+			"quit_application 'com.example.Updater'\n",
+			quit,
+			"/Applications/Foo.app/Contents/Resources/uninstall.sh",
+			"remove_pkg_files 'com.example.pkg'",
+			removeApp,
+			`trash "$LOGGED_IN_USER"`,
+		}
+		var prev string
+		for _, s := range order {
+			require.Contains(t, script, s)
+			if prev != "" {
+				require.Less(t, strings.Index(script, prev), strings.Index(script, s), "%q before %q", prev, s)
+			}
+			prev = s
+		}
+	})
+
+	t.Run("zap quit doesn't count", func(t *testing.T) {
+		// zap runs after the app is removed.
+		script := uninstallScriptForApp(app, &brewCask{Artifacts: []*brewArtifact{
+			appArtifact,
+			{Zap: []*brewUninstall{{Quit: strs("com.example.Foo")}}},
+		}})
+		require.Contains(t, script, quit)
+		require.Less(t, strings.Index(script, quit), strings.Index(script, removeApp))
+	})
+
+	for name, uninstall := range map[string]*brewUninstall{
+		"cask quits the app":                    {Quit: strs("com.example.Updater", "com.example.Foo")},
+		"cask quits the app by another case":    {Quit: strs("COM.EXAMPLE.FOO")},
+		"cask quits the app by wildcard":        {Quit: strs("com.example.*")},
+		"cask quits the app as a single string": {Quit: optjson.StringOr[[]string]{String: "com.example.Foo"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			script := uninstallScriptForApp(app, &brewCask{Artifacts: []*brewArtifact{
+				{Uninstall: []*brewUninstall{uninstall}},
+				appArtifact,
+			}})
+			require.Len(t, stoppingQuit.FindAllString(script, -1), 1, script)
+		})
+	}
+
+	// Casks signal apps that don't quit cleanly, and can split the stanza
+	// (perimeter81).
+	t.Run("cask signals the app", func(t *testing.T) {
+		script := uninstallScriptForApp(app, &brewCask{Artifacts: []*brewArtifact{
+			{Uninstall: []*brewUninstall{{EarlyScript: optjson.StringOr[map[string]any]{IsOther: true, Other: map[string]any{
+				"executable": "/usr/bin/chflags", "args": []any{"-RL", "noschg", "/Applications/Foo.app"},
+			}}}}},
+			{Uninstall: []*brewUninstall{{Signal: strs("TERM", "com.example.Foo")}}},
+			appArtifact,
+		}})
+		require.NotContains(t, script, "quit_application")
+		require.Contains(t, script, `send_signal 'TERM' 'com.example.Foo' "$LOGGED_IN_USER"`)
+	})
+
+	t.Run("cask signals something else", func(t *testing.T) {
+		script := uninstallScriptForApp(app, &brewCask{Artifacts: []*brewArtifact{
+			{Uninstall: []*brewUninstall{{Signal: strs("TERM", "com.example.Updater")}}},
+			appArtifact,
+		}})
+		require.Contains(t, script, quit)
+		require.Less(t, strings.Index(script, quit), strings.Index(script, "send_signal 'TERM'"))
+	})
+
+	// Like the Microsoft Office casks: a pkg install the stanza removes.
+	t.Run("no app artifact", func(t *testing.T) {
+		script := uninstallScriptForApp(app, &brewCask{Artifacts: []*brewArtifact{
+			{Uninstall: []*brewUninstall{{Quit: strs("com.example.Updater"), PkgUtil: strs("com.example.pkg")}}},
+		}})
+		require.Contains(t, script, quit)
+		require.Less(t, strings.Index(script, quit), strings.Index(script, "remove_pkg_files 'com.example.pkg'"))
+	})
+
+	t.Run("nothing to remove", func(t *testing.T) {
+		script := uninstallScriptForApp(app, &brewCask{Artifacts: []*brewArtifact{
+			{Zap: []*brewUninstall{{Trash: strs("~/Library/Preferences/com.example.Foo.plist")}}},
+		}})
+		require.NotContains(t, script, "quit_application")
+	})
+
+	t.Run("no unique identifier", func(t *testing.T) {
+		script := uninstallScriptForApp(inputApp{}, &brewCask{Artifacts: []*brewArtifact{appArtifact}})
+		require.NotContains(t, script, "quit_application")
+	})
+}
+
+// stoppingQuit matches generated quit calls that stop the script.
+var stoppingQuit = regexp.MustCompile(`(?m)^quit_(application|matching_applications) '[^']*' \|\| exit 1$`)
 
 // TestCustomUninstallScriptsUseCurrentQuitHelper checks the quit_application
 // copies in custom uninstall scripts. An old copy confirmed the quit with
