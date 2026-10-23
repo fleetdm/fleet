@@ -1,0 +1,1 @@
+- Added Azure Blob Storage support (via new `FLEET_CLOUD_STORAGE_AZURE_FILES_*` environment variables) as an alternative to S3 for storing software installers, bootstrap packages, software title icons, and org logos.

@@ -23,6 +23,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/fleetdm/fleet/v4/client"
+	"github.com/fleetdm/fleet/v4/pkg/markdown"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -838,6 +839,9 @@ func (c *Client) ApplyGroup(
 			// Since we just updated AppConfig, we don't want to get a stale (cached) AppConfig on the server if
 			// this HTTP request gets routed to another Fleet server.
 			profilesSpecOptions.NoCache = true
+			warnDeletedWindowsProfiles := c.windowsProfileDeletionWarning(appconfig,
+				&fleet.TeamSpecsDryRunAssumptions{WindowsEnabledAndConfigured: optjson.SetBool(assumeEnabled)},
+				nil, fleet.DisplayNameNoTeam, fileContents, logfn)
 			if err := c.ApplyNoTeamProfiles(fileContents, profilesSpecOptions, assumeEnabled); err != nil {
 				return nil, nil, nil, nil, fmt.Errorf("applying custom settings: %w", err)
 			}
@@ -846,6 +850,7 @@ func (c *Client) ApplyGroup(
 			} else {
 				logfn("[+] applied MDM profiles\n")
 			}
+			warnDeletedWindowsProfiles()
 		}
 	}
 
@@ -1019,31 +1024,35 @@ func (c *Client) ApplyGroup(
 					return nil, nil, nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Invalid custom icon file %s: %w", app.AppStoreID, app.Icon.Path, err)
 				}
 
-				appConfig, err := getAppStoreAppConfig(app.Platform, app.Configuration.Path)
-				if err != nil {
-					return nil, nil, nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Reading configuration %s: %w", app.AppStoreID, app.Configuration.Path, err)
-				}
+				for _, version := range app.ListVersions() {
+					var appConfig json.RawMessage
+					appConfig, err = getAppStoreAppConfig(app.Platform, version.Configuration.Path)
+					if err != nil {
+						return nil, nil, nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Reading configuration %s: %w", app.AppStoreID, version.Configuration.Path, err)
+					}
 
-				payload := fleet.VPPBatchPayload{
-					AppStoreID:          app.AppStoreID,
-					SelfService:         app.SelfService,
-					InstallDuringSetup:  installDuringSetup,
-					LabelsExcludeAny:    app.LabelsExcludeAny,
-					LabelsIncludeAny:    app.LabelsIncludeAny,
-					LabelsIncludeAll:    app.LabelsIncludeAll,
-					Categories:          app.Categories,
-					DisplayName:         app.DisplayName,
-					IconPath:            app.Icon.Path,
-					IconHash:            iconHash,
-					Platform:            fleet.InstallableDevicePlatform(app.Platform),
-					AutoUpdateEnabled:   app.AutoUpdateEnabled,
-					AutoUpdateStartTime: app.AutoUpdateStartTime,
-					AutoUpdateEndTime:   app.AutoUpdateEndTime,
+					payload := fleet.VPPBatchPayload{
+						AppStoreID:          app.AppStoreID,
+						VersionName:         version.Name,
+						SelfService:         version.SelfService,
+						InstallDuringSetup:  installDuringSetup,
+						LabelsExcludeAny:    version.LabelsExcludeAny,
+						LabelsIncludeAny:    version.LabelsIncludeAny,
+						LabelsIncludeAll:    version.LabelsIncludeAll,
+						Categories:          version.Categories,
+						DisplayName:         app.DisplayName,
+						IconPath:            app.Icon.Path,
+						IconHash:            iconHash,
+						Platform:            fleet.InstallableDevicePlatform(app.Platform),
+						AutoUpdateEnabled:   version.AutoUpdateEnabled,
+						AutoUpdateStartTime: version.AutoUpdateStartTime,
+						AutoUpdateEndTime:   version.AutoUpdateEndTime,
+					}
+					if appConfig != nil {
+						payload.Configuration = appConfig
+					}
+					appPayloads = append(appPayloads, payload)
 				}
-				if appConfig != nil {
-					payload.Configuration = appConfig
-				}
-				appPayloads = append(appPayloads, payload)
 
 				// can be referenced by setup_experience.software.app_store_id
 				if tmSoftwareAppsByAppID[tmName] == nil {
@@ -1147,9 +1156,12 @@ func (c *Client) ApplyGroup(
 					} else {
 						logfn("[+] applying MDM profiles for fleet %s\n", tmName)
 					}
+					warnDeletedWindowsProfiles := c.windowsProfileDeletionWarning(appconfig, teamProfilesOpts.DryRunAssumptions,
+						&teamID, tmName, profs, logfn)
 					if err := c.ApplyTeamProfiles(currentTeamName, profs, teamProfilesOpts); err != nil {
 						return nil, nil, nil, nil, fmt.Errorf("applying custom settings for fleet %q: %w", tmName, err)
 					}
+					warnDeletedWindowsProfiles()
 				}
 			}
 		}
@@ -2263,6 +2275,7 @@ func (c *Client) DoGitOps(
 	baseDir := filepath.Dir(fullFilename)
 	filename := filepath.Base(fullFilename)
 	var teamAssumptions *fleet.TeamSpecsDryRunAssumptions
+	var windowsEULAPath string
 	var err error
 	logFn := func(format string, args ...interface{}) {
 		if logf != nil {
@@ -2346,6 +2359,14 @@ func (c *Client) DoGitOps(
 		// Plan PUT uploads and strip the gitops-only `path` keys, which
 		// aren't part of fleet.OrgInfo. URL changes ride on the PATCH.
 		orgLogoActions, err = c.planAndStripOrgLogos(incoming.OrgSettings, baseDir, dryRun, logFn)
+		if err != nil {
+			return nil, err
+		}
+
+		// windows_eula is applied after ApplyGroup, see doGitOpsWindowsEULA. The
+		// file is checked here, before labels or settings are applied, so a bad
+		// path can't leave Windows MDM turned on without its agreement.
+		windowsEULAPath, err = takeWindowsEULAPath(incoming.OrgSettings, baseDir)
 		if err != nil {
 			return nil, err
 		}
@@ -2888,24 +2909,31 @@ func (c *Client) DoGitOps(
 			return nil, errors.New("controls.windows_settings.require_bitlocker_pin and controls.windows_require_bitlocker_pin cannot both be set")
 		}
 
-		enableRecoveryLockPassword := false
+		enableDiskEncryption, ok := incoming.Controls.EnableDiskEncryption.(bool)
+		if incoming.Controls.EnableDiskEncryption != nil && !ok {
+			return nil, errors.New("controls.enable_disk_encryption must be a boolean")
+		}
+		enableRecoveryLockPassword, ok := incoming.Controls.EnableRecoveryLockPassword.(bool)
+		if incoming.Controls.EnableRecoveryLockPassword != nil && !ok {
+			return nil, errors.New("controls.enable_recovery_lock_password must be a boolean")
+		}
 		requireBitLockerPIN := windowsSettings.RequireBitLockerPIN.Value
-		if incoming.Controls.EnableDiskEncryption != nil {
-			mdmAppConfig["enable_disk_encryption"] = incoming.Controls.EnableDiskEncryption.(bool)
-		}
-		if incoming.Controls.EnableRecoveryLockPassword != nil {
-			enableRecoveryLockPassword = incoming.Controls.EnableRecoveryLockPassword.(bool)
-		}
 		if incoming.Controls.RequireBitLockerPIN != nil {
-			requireBitLockerPIN = incoming.Controls.RequireBitLockerPIN.(bool)
+			requireBitLockerPIN, ok = incoming.Controls.RequireBitLockerPIN.(bool)
+			if !ok {
+				return nil, errors.New("controls.windows_require_bitlocker_pin must be a boolean")
+			}
 			mdmAppConfig["windows_require_bitlocker_pin"] = requireBitLockerPIN
+		}
+		if incoming.Controls.EnableDiskEncryption != nil {
+			mdmAppConfig["enable_disk_encryption"] = enableDiskEncryption
 		}
 
 		// BitLocker PIN needs Windows encryption on; deprecated flat toggle is the fallback when the per-platform key is unset.
 		if requireBitLockerPIN {
 			windowsDiskEncryption := windowsSettings.EnableDiskEncryption.Value
 			if !windowsSettings.EnableDiskEncryption.Set && incoming.Controls.EnableDiskEncryption != nil {
-				windowsDiskEncryption = incoming.Controls.EnableDiskEncryption.(bool)
+				windowsDiskEncryption = enableDiskEncryption
 			}
 			if !windowsDiskEncryption {
 				return nil, errors.New("controls.windows_settings.enable_disk_encryption must be true if controls.windows_settings.require_bitlocker_pin is true")
@@ -2979,6 +3007,9 @@ func (c *Client) DoGitOps(
 	// Apply org logo uploads/deletes after the AppConfig PATCH succeeded.
 	if incoming.TeamName == nil {
 		if err := c.doGitOpsOrgLogos(orgLogoActions, dryRun, logFn); err != nil {
+			return nil, err
+		}
+		if err := c.doGitOpsWindowsEULA(windowsEULAPath, appConfig, teamAssumptions, baseDir, dryRun, logFn); err != nil {
 			return nil, err
 		}
 	}
@@ -3252,28 +3283,32 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 				return nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Invalid custom icon file %s: %w", appStoreApp.AppStoreID, appStoreApp.Icon.Path, err)
 			}
 
-			appConfig, err := getAppStoreAppConfig(appStoreApp.Platform, appStoreApp.Configuration.Path)
-			if err != nil {
-				return nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Reading configuration %s: %w", appStoreApp.AppStoreID, appStoreApp.Configuration.Path, err)
-			}
+			for _, version := range appStoreApp.ListVersions() {
+				var appConfig json.RawMessage
+				appConfig, err = getAppStoreAppConfig(appStoreApp.Platform, version.Configuration.Path)
+				if err != nil {
+					return nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Reading configuration %s: %w", appStoreApp.AppStoreID, version.Configuration.Path, err)
+				}
 
-			payload := fleet.VPPBatchPayload{
-				AppStoreID:          appStoreApp.AppStoreID,
-				SelfService:         appStoreApp.SelfService,
-				InstallDuringSetup:  &installDuringSetup,
-				DisplayName:         appStoreApp.DisplayName,
-				IconPath:            appStoreApp.Icon.Path,
-				IconHash:            iconHash,
-				Platform:            fleet.InstallableDevicePlatform(appStoreApp.Platform),
-				AutoUpdateEnabled:   appStoreApp.AutoUpdateEnabled,
-				AutoUpdateStartTime: appStoreApp.AutoUpdateStartTime,
-				AutoUpdateEndTime:   appStoreApp.AutoUpdateEndTime,
-				Categories:          appStoreApp.Categories,
+				payload := fleet.VPPBatchPayload{
+					AppStoreID:          appStoreApp.AppStoreID,
+					VersionName:         version.Name,
+					SelfService:         version.SelfService,
+					InstallDuringSetup:  &installDuringSetup,
+					DisplayName:         appStoreApp.DisplayName,
+					IconPath:            appStoreApp.Icon.Path,
+					IconHash:            iconHash,
+					Platform:            fleet.InstallableDevicePlatform(appStoreApp.Platform),
+					AutoUpdateEnabled:   version.AutoUpdateEnabled,
+					AutoUpdateStartTime: version.AutoUpdateStartTime,
+					AutoUpdateEndTime:   version.AutoUpdateEndTime,
+					Categories:          version.Categories,
+				}
+				if appConfig != nil {
+					payload.Configuration = appConfig
+				}
+				appsPayload = append(appsPayload, payload)
 			}
-			if appConfig != nil {
-				payload.Configuration = appConfig
-			}
-			appsPayload = append(appsPayload, payload)
 		}
 	}
 
@@ -4264,6 +4299,124 @@ func (c *Client) doGitOpsEULA(eulaPath string, logFn func(format string, args ..
 		logFn("[+] applied EULA\n")
 	}
 
+	return nil
+}
+
+// takeWindowsEULAPath removes windows_eula from org_settings.mdm, where it isn't
+// an app config field, and checks the file it names. A value that isn't a path
+// is an error: read as "no agreement", it would delete the one on the server.
+func takeWindowsEULAPath(orgSettings map[string]any, baseDir string) (string, error) {
+	mdm, ok := orgSettings["mdm"].(map[string]any)
+	if !ok {
+		return "", nil
+	}
+	v, exists := mdm["windows_eula"]
+	delete(mdm, "windows_eula")
+	if !exists || v == nil {
+		return "", nil
+	}
+	path, ok := v.(string)
+	if !ok {
+		return "", errors.New("windows_eula: must be the path to a markdown file")
+	}
+	if path == "" {
+		return "", nil
+	}
+	if err := checkWindowsEULAFile(resolveApplyRelativePath(baseDir, path)); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+// checkWindowsEULAFile catches the mistakes a dry run would otherwise miss when
+// the same file turns Windows MDM on, since the server can't be asked then.
+func checkWindowsEULAFile(path string) error {
+	if !strings.EqualFold(filepath.Ext(path), ".md") {
+		return fmt.Errorf("windows_eula: %s must be a markdown (.md) file", path)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("windows_eula: %w", err)
+	}
+	// Checked before reading, so a device file or a huge file can't stall the run.
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("windows_eula: %s is not a regular file", path)
+	}
+	if info.Size() > markdown.MaxTermsSize {
+		return fmt.Errorf("windows_eula: %s %w", path, markdown.ErrTooLarge)
+	}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("windows_eula: %w", err)
+	}
+	if len(bytes.TrimSpace(content)) == 0 {
+		return fmt.Errorf("windows_eula: %s is empty", path)
+	}
+	if err := markdown.ValidateTerms(content); err != nil {
+		return fmt.Errorf("windows_eula: %s %w", path, err)
+	}
+	return nil
+}
+
+// windowsMDMSettle waits out the app config cache, which lasts a second on each
+// server. A variable so tests don't wait.
+var windowsMDMSettle = func() { time.Sleep(time.Second) }
+
+// doGitOpsWindowsEULA runs after ApplyGroup rather than beside the macOS EULA:
+// the same file can turn Windows MDM on, and the Windows EULA endpoints are
+// gated on it, so applying first would be refused on the run that enables it.
+func (c *Client) doGitOpsWindowsEULA(
+	path string,
+	appConfig *fleet.EnrichedAppConfig,
+	assumptions *fleet.TeamSpecsDryRunAssumptions,
+	baseDir string,
+	dryRun bool,
+	logFn func(format string, args ...any),
+) error {
+	windowsMDMOnNow := appConfig.MDM.WindowsEnabledAndConfigured
+	windowsMDMOnAfter := windowsMDMOnNow
+	if assumptions != nil && assumptions.WindowsEnabledAndConfigured.Valid {
+		windowsMDMOnAfter = assumptions.WindowsEnabledAndConfigured.Value
+	}
+
+	switch {
+	case path != "" && !appConfig.License.IsPremium():
+		logFn("[!] skipping windows_eula: requires Fleet Premium\n")
+		return nil
+	case path != "" && !windowsMDMOnAfter:
+		logFn("[!] skipping windows_eula: requires Windows MDM to be turned on\n")
+		return nil
+	case !appConfig.License.IsPremium() || !windowsMDMOnAfter:
+		// Nothing to apply, and nothing reachable to delete.
+		return nil
+	}
+
+	// A dry run leaves the server untouched, so when this file is what turns
+	// Windows MDM on the endpoints are still gated. Report the intent instead.
+	if dryRun && !windowsMDMOnNow {
+		logFn("[+] would've applied Windows EULA\n")
+		return nil
+	}
+
+	if !windowsMDMOnNow {
+		// This run turned Windows MDM on, and a server can still have its app
+		// config cached from before and refuse the request. The profiles batch
+		// asks for a fresh read instead (no_cache); the EULA endpoints can't.
+		windowsMDMSettle()
+	}
+	if path == "" {
+		if err := c.DeleteWindowsEULAIfNeeded(dryRun); err != nil {
+			return fmt.Errorf("error deleting Windows EULA: %w", err)
+		}
+	} else if err := c.UploadWindowsEULAIfNeeded(resolveApplyRelativePath(baseDir, path), dryRun); err != nil {
+		return fmt.Errorf("error uploading Windows EULA: %w", err)
+	}
+
+	if dryRun {
+		logFn("[+] would've applied Windows EULA\n")
+	} else {
+		logFn("[+] applied Windows EULA\n")
+	}
 	return nil
 }
 

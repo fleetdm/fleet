@@ -68,3 +68,22 @@ app_store_apps:
     platform: ios
     configuration:
       path: ../lib/some-team/software/my-ios-auto-update-app-ios-config.xml
+  - app_store_id: "4444333322"
+    platform: ios
+    versions:
+      - name: Production
+        self_service: true
+        categories:
+          - Productivity
+        labels_exclude_any:
+          - Label C
+        auto_update_enabled: true
+        auto_update_window_start: "01:00"
+        auto_update_window_end: "03:00"
+        configuration:
+          path: ../lib/some-team/software/my-multi-version-app-ios-production-config.xml
+      - name: Test
+        labels_include_any:
+          - Label C
+        configuration:
+          path: ../lib/some-team/software/my-multi-version-app-ios-test-config.xml

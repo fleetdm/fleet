@@ -231,7 +231,7 @@ func loadSoftwareDBRPM() []softwaredb.UbuntuSoftware {
 // rpmSliceToMaps converts UbuntuSoftware entries at the given indices to
 // osquery result maps. Mirrors softwaredb.DB.UbuntuToMaps but operates on a
 // caller-provided slice (the RPM-only filtered subset).
-func rpmSliceToMaps(pool []softwaredb.UbuntuSoftware, indices []uint32) []map[string]string {
+func rpmSliceToMaps(pool []softwaredb.UbuntuSoftware, indices []uint32, epochPercent int) []map[string]string {
 	results := make([]map[string]string, 0, len(indices))
 	for _, idx := range indices {
 		if int(idx) >= len(pool) {
@@ -252,9 +252,22 @@ func rpmSliceToMaps(pool []softwaredb.UbuntuSoftware, indices []uint32) []map[st
 		if s.Release != nil {
 			m["release"] = *s.Release
 		}
+		if epoch := rpmEpoch(s.Name, epochPercent); epoch != "" {
+			m["epoch"] = epoch
+		}
 		results = append(results, m)
 	}
 	return results
+}
+
+// rpmEpoch returns "1" or "2" for percent of package names, and "" (no epoch) for the rest. It's
+// derived from the name so that all agents agree on a package's epoch, as real hosts do; it's shared
+// software metadata, so disagreeing agents would rewrite it constantly.
+func rpmEpoch(name string, percent int) string {
+	if stablePercentile("epoch", name) >= percent {
+		return ""
+	}
+	return strconv.Itoa(stablePercentile("epoch_value", name)%2 + 1)
 }
 
 // loadRPMKernelList reads a JSON array of objects with name/version/release
@@ -478,6 +491,7 @@ type agent struct {
 	softwareVSCodeExtensionsCount softwareExtraEntityCount
 	softwareAdobePluginsCount     softwareExtraEntityCount
 	softwareGoBinariesCount       entityCount
+	softwareAIToolsCount          softwareAIToolsCount
 	userCount                     entityCount
 	policyPassProb                float64
 	munkiIssueProb                float64
@@ -520,6 +534,15 @@ type agent struct {
 	wsMu        sync.Mutex
 	ws          *wsTransport
 	wsSupported bool
+	// Like orbit, each WebSocket event has its own channel (size 1, merging
+	// events arriving before it is served), so a pending connect can't
+	// swallow a nudge. orbitConfigNudge carries when the first pending
+	// orbit/config nudge arrived; orbitConfigConnected reports a connect;
+	// orbitConfigDisconnected reports a dropped WebSocket, ending a slow
+	// fallback interval (see runOrbitLoop).
+	orbitConfigNudge        chan time.Time
+	orbitConfigConnected    chan struct{}
+	orbitConfigDisconnected chan struct{}
 
 	// isEnrolledToMDM is true when the mdmDevice has enrolled.
 	isEnrolledToMDM bool
@@ -583,6 +606,7 @@ type agent struct {
 	softwareVSCodeExtensionsFailProb float64
 	softwareAdobePluginsFailProb     float64
 	softwareGoBinariesFailProb       float64
+	softwareAIToolsFailProb          float64
 
 	softwareInstaller softwareInstaller
 
@@ -695,7 +719,15 @@ type softwareEntityCount struct {
 	embeddedBundlePaths               bool
 	homebrewKegPercent                int
 	homebrewLargeKegPercent           int
+	rpmEpochPercent                   int
 }
+type softwareAIToolsCount struct {
+	entityCount
+	// markedApps is the number of the host's apps also reported by ai_tools, which Fleet flags
+	// as AI tools instead of adding new titles.
+	markedApps int
+}
+
 type softwareExtraEntityCount struct {
 	entityCount
 	commonSoftwareUninstallCount int
@@ -744,11 +776,13 @@ func newAgent(
 	softwareVSCodeExtensionsQueryFailureProb float64,
 	softwareAdobePluginsQueryFailureProb float64,
 	softwareGoBinariesQueryFailureProb float64,
+	softwareAIToolsQueryFailureProb float64,
 	softwareInstaller softwareInstaller,
 	softwareCount softwareEntityCount,
 	softwareVSCodeExtensionsCount softwareExtraEntityCount,
 	softwareAdobePluginsCount softwareExtraEntityCount,
 	softwareGoBinariesCount entityCount,
+	softwareAIToolsCount softwareAIToolsCount,
 	userCount entityCount,
 	policyPassProb float64,
 	orbitProb float64,
@@ -837,6 +871,7 @@ func newAgent(
 		softwareVSCodeExtensionsCount: softwareVSCodeExtensionsCount,
 		softwareAdobePluginsCount:     softwareAdobePluginsCount,
 		softwareGoBinariesCount:       softwareGoBinariesCount,
+		softwareAIToolsCount:          softwareAIToolsCount,
 		userCount:                     userCount,
 		strings:                       make(map[string]string),
 		policyPassProb:                policyPassProb,
@@ -861,6 +896,7 @@ func newAgent(
 		softwareVSCodeExtensionsFailProb: softwareVSCodeExtensionsQueryFailureProb,
 		softwareAdobePluginsFailProb:     softwareAdobePluginsQueryFailureProb,
 		softwareGoBinariesFailProb:       softwareGoBinariesQueryFailureProb,
+		softwareAIToolsFailProb:          softwareAIToolsQueryFailureProb,
 		softwareInstaller:                softwareInstaller,
 
 		linuxUniqueSoftwareVersion: linuxUniqueSoftwareVersion,
@@ -872,6 +908,10 @@ func newAgent(
 		wsSupported:    rand.Float64() < websocketProb, // nolint:gosec // ignore weak randomizer
 		mdmAPNSPushURL: mdmAPNSPushURL,
 		ddmDeclTokens:  make(map[string]string),
+
+		orbitConfigNudge:        make(chan time.Time, 1),
+		orbitConfigConnected:    make(chan struct{}, 1),
+		orbitConfigDisconnected: make(chan struct{}, 1),
 
 		disableScriptExec:        disableScriptExec,
 		disableFleetDesktop:      disableFleetDesktop,
@@ -1281,8 +1321,12 @@ func (a *agent) runOrbitLoop() {
 	}
 
 	// orbit makes a call to check the config and update the CLI flags every 30
-	// seconds
-	orbitConfigTicker := time.Tick(30 * time.Second)
+	// seconds, or at the server's slower fallback interval while it is
+	// nudged on changes over the WebSocket (see nextOrbitConfigInterval)
+	orbitConfigInterval := orbitConfigDefaultInterval
+	orbitConfigTimer := time.NewTimer(orbitConfigInterval)
+	defer orbitConfigTimer.Stop()
+	var lastOrbitConfigFetch time.Time
 	// orbit makes a call every 5 minutes to check the validity of the device
 	// token on the server
 	orbitTokenRemoteCheckTicker := time.Tick(5 * time.Minute)
@@ -1296,51 +1340,64 @@ func (a *agent) runOrbitLoop() {
 	// fleet desktop pings every 10s for connectivity check.
 	fleetDesktopConnectivityCheck := time.Tick(10 * time.Second)
 
-	const windowsMDMEnrollmentAttemptFrequency = time.Hour
 	var lastEnrollAttempt time.Time
+
+	// fetchOrbitConfig serves a nudge or connect; nudgedAt is when the nudge
+	// arrived (zero for a connect), for the nudge→fetch latency.
+	fetchOrbitConfig := func(cause string, nudgedAt time.Time) {
+		orbitConfigTimer.Stop()
+		cfg, err := orbitClient.GetConfig()
+		lastOrbitConfigFetch = time.Now()
+		a.stats.IncrementOrbitConfigFetches(cause)
+		if !nudgedAt.IsZero() {
+			a.stats.RecordOrbitConfigNudgeLatency(time.Since(nudgedAt))
+		}
+		if err != nil {
+			a.stats.IncrementOrbitErrors()
+			orbitConfigInterval = orbitConfigDefaultInterval
+			orbitConfigTimer.Reset(orbitConfigInterval)
+			return
+		}
+		orbitConfigInterval = a.nextOrbitConfigInterval(cfg)
+		orbitConfigTimer.Reset(orbitConfigInterval)
+		a.handleOrbitConfig(cfg, orbitClient, &lastEnrollAttempt)
+	}
 
 	for {
 		select {
-		case <-orbitConfigTicker:
-			cfg, err := orbitClient.GetConfig()
-			if err != nil {
-				a.stats.IncrementOrbitErrors()
+		case <-a.orbitConfigDisconnected:
+			if orbitConfigInterval > orbitConfigDefaultInterval {
+				orbitConfigInterval = orbitConfigDefaultInterval
+				orbitConfigTimer.Reset(time.Duration(rand.Int63n(int64(orbitConfigInterval)))) // nolint:gosec // ignore weak randomizer
+			}
+			continue
+		case <-a.orbitConfigConnected:
+			// Like orbit, a connect fetches only when the server nudges, at most
+			// once per default interval.
+			if orbitConfigInterval <= orbitConfigDefaultInterval ||
+				time.Since(lastOrbitConfigFetch) < orbitConfigDefaultInterval {
 				continue
 			}
-			// Follow the server's WebSocket transport directive, like fleetd.
-			a.syncWSTransport(cfg.WebSocketTransport)
-			if len(cfg.Notifications.PendingScriptExecutionIDs) > 0 {
-				// there are pending scripts to execute on this host, start a goroutine
-				// that will simulate executing them.
-				go a.execScripts(cfg.Notifications.PendingScriptExecutionIDs, orbitClient)
+			fetchOrbitConfig("connect", time.Time{})
+		case at := <-a.orbitConfigNudge:
+			fetchOrbitConfig("nudge", at)
+		case <-orbitConfigTimer.C:
+			cfg, err := orbitClient.GetConfig()
+			lastOrbitConfigFetch = time.Now()
+			if orbitConfigInterval > orbitConfigDefaultInterval {
+				a.stats.IncrementOrbitConfigFetches("fallback")
+			} else {
+				a.stats.IncrementOrbitConfigFetches("fast")
 			}
-			if len(cfg.Notifications.PendingSoftwareInstallerIDs) > 0 {
-				// there are pending software installations on this host, start a
-				// goroutine that will download the software
-				go a.installSoftware(cfg.Notifications.PendingSoftwareInstallerIDs, orbitClient)
+			if err != nil {
+				a.stats.IncrementOrbitErrors()
+				orbitConfigInterval = orbitConfigDefaultInterval
+				orbitConfigTimer.Reset(orbitConfigInterval)
+				continue
 			}
-			if cfg.Notifications.NeedsProgrammaticWindowsMDMEnrollment &&
-				!a.mdmEnrolled() &&
-				a.winMDMClient != nil &&
-				time.Since(lastEnrollAttempt) > windowsMDMEnrollmentAttemptFrequency {
-				lastEnrollAttempt = time.Now()
-				if err := a.winMDMClient.Enroll(); err != nil {
-					log.Printf("Windows MDM enroll failed: %s", err)
-					a.stats.IncrementMDMErrors()
-				} else {
-					a.setMDMEnrolled()
-					a.stats.IncrementMDMEnrollments()
-					go a.runWindowsMDMLoop()
-				}
-			}
-			if cfg.Notifications.WindowsMDMSyncRequest && a.mdmEnrolled() && a.winMDMWake != nil {
-				// The server has queued Windows MDM commands and asked this (relaxed-poll) host to start an OMA-DM
-				// session now.
-				select {
-				case a.winMDMWake <- struct{}{}:
-				default:
-				}
-			}
+			orbitConfigInterval = a.nextOrbitConfigInterval(cfg)
+			orbitConfigTimer.Reset(orbitConfigInterval)
+			a.handleOrbitConfig(cfg, orbitClient, &lastEnrollAttempt)
 		case <-orbitTokenRemoteCheckTicker:
 			if !a.disableFleetDesktop && tokenRotationEnabled {
 				if err := deviceClient.CheckToken(*a.deviceAuthToken); err != nil {
@@ -1382,6 +1439,46 @@ func (a *agent) runOrbitLoop() {
 					continue
 				}
 			}
+		}
+	}
+}
+
+// handleOrbitConfig acts on a fetched orbit config, like fleetd's config
+// receivers.
+func (a *agent) handleOrbitConfig(cfg *fleet.OrbitConfig, orbitClient *fleetclient.OrbitClient, lastEnrollAttempt *time.Time) {
+	const windowsMDMEnrollmentAttemptFrequency = time.Hour
+	// Follow the server's WebSocket transport directive, like fleetd.
+	a.syncWSTransport(cfg.WebSocketTransport)
+	if len(cfg.Notifications.PendingScriptExecutionIDs) > 0 {
+		// there are pending scripts to execute on this host, start a goroutine
+		// that will simulate executing them.
+		go a.execScripts(cfg.Notifications.PendingScriptExecutionIDs, orbitClient)
+	}
+	if len(cfg.Notifications.PendingSoftwareInstallerIDs) > 0 {
+		// there are pending software installations on this host, start a
+		// goroutine that will download the software
+		go a.installSoftware(cfg.Notifications.PendingSoftwareInstallerIDs, orbitClient)
+	}
+	if cfg.Notifications.NeedsProgrammaticWindowsMDMEnrollment &&
+		!a.mdmEnrolled() &&
+		a.winMDMClient != nil &&
+		time.Since(*lastEnrollAttempt) > windowsMDMEnrollmentAttemptFrequency {
+		*lastEnrollAttempt = time.Now()
+		if err := a.winMDMClient.Enroll(); err != nil {
+			log.Printf("Windows MDM enroll failed: %s", err)
+			a.stats.IncrementMDMErrors()
+		} else {
+			a.setMDMEnrolled()
+			a.stats.IncrementMDMEnrollments()
+			go a.runWindowsMDMLoop()
+		}
+	}
+	if cfg.Notifications.WindowsMDMSyncRequest && a.mdmEnrolled() && a.winMDMWake != nil {
+		// The server has queued Windows MDM commands and asked this (relaxed-poll) host to start an OMA-DM
+		// session now.
+		select {
+		case a.winMDMWake <- struct{}{}:
+		default:
 		}
 	}
 }
@@ -2990,11 +3087,12 @@ const (
 	maxLargeKegExecutables = 400
 )
 
-// kegBucket maps a formula to a number in [0, 100) that is stable across runs and across hosts,
-// so a formula is a keg, is large, and installs the same executables wherever it appears — as with
-// a real formula, whose contents are a property of the formula, not of the machine.
-func kegBucket(salt, name string) int {
-	sum := sha256.Sum256([]byte(salt + "\x00" + name))
+// stablePercentile maps a software name to a number in [0, 100) that is stable across runs and
+// across hosts, so that a percentage of software gets a property (a formula is a keg, a package has
+// an epoch) consistently wherever it appears, as real software does: such properties belong to the
+// package, not the machine. Each property gets its own independent split.
+func stablePercentile(property, name string) int {
+	sum := sha256.Sum256([]byte(property + "\x00" + name))
 	return (int(sum[0])<<8 | int(sum[1])) % 100
 }
 
@@ -3009,13 +3107,13 @@ func (a *agent) homebrewExecutableHashes(software []map[string]string) []map[str
 		if s["source"] != "homebrew_packages" || kegPath == "" {
 			continue
 		}
-		if kegBucket("keg", name) >= a.softwareCount.homebrewKegPercent {
+		if stablePercentile("keg", name) >= a.softwareCount.homebrewKegPercent {
 			continue
 		}
 
-		count := kegBucket("count", name)%3 + 1
-		if kegBucket("large", name) < a.softwareCount.homebrewLargeKegPercent {
-			count = minLargeKegExecutables + kegBucket("count", name)*(maxLargeKegExecutables-minLargeKegExecutables)/100
+		count := stablePercentile("count", name)%3 + 1
+		if stablePercentile("large", name) < a.softwareCount.homebrewLargeKegPercent {
+			count = minLargeKegExecutables + stablePercentile("count", name)*(maxLargeKegExecutables-minLargeKegExecutables)/100
 		}
 
 		for i := range count {
@@ -3215,6 +3313,92 @@ func (a *agent) softwareGoBinaries() []map[string]string {
 	}
 
 	return binaries
+}
+
+// aiHomeDir returns the simulated user's home directory, with a trailing separator.
+func (a *agent) aiHomeDir() string {
+	switch a.os {
+	case "windows":
+		return `C:\Users\fleet\`
+	case "darwin":
+		return "/Users/fleet/"
+	default:
+		return "/home/fleet/"
+	}
+}
+
+func aiToolRow(name, version, source, installedPath, aiType, installMethod string) map[string]string {
+	return map[string]string{
+		"name":              name,
+		"version":           version,
+		"bundle_identifier": "",
+		"extension_id":      "",
+		"extension_for":     "",
+		"source":            source,
+		"vendor":            "",
+		"last_opened_at":    "",
+		"installed_path":    installedPath,
+		"ai_type":           aiType,
+		"ai_install_method": installMethod,
+	}
+}
+
+// softwareAITools generates the rows of the software_ai_tools detail query, covering the shapes
+// the ingestion handles: MCP servers declared in a shared config file and in a second client,
+// one instruction file name at several paths, agent CLIs installed natively (one with a catalog
+// slug that gets a display name), and marker rows at the path of apps the host already reports.
+func (a *agent) softwareAITools() []map[string]string {
+	c := a.softwareAIToolsCount
+	if c.common == 0 && c.unique == 0 && c.markedApps == 0 {
+		return nil
+	}
+
+	home := a.aiHomeDir()
+	sep := "/"
+	if a.os == "windows" {
+		sep = `\`
+	}
+	cursorConfig := home + ".cursor" + sep + "mcp.json"
+	claudeConfig := home + ".claude.json"
+	localBin := home + ".local" + sep + "bin" + sep
+
+	var rows []map[string]string
+	for i := range c.common {
+		name := fmt.Sprintf("common-mcp-server-%d", i)
+		rows = append(rows, aiToolRow(name, "", "mcp_servers", cursorConfig, "mcp_server", "cursor"))
+		if i == 0 {
+			rows = append(rows, aiToolRow(name, "", "mcp_servers", claudeConfig, "mcp_server", "claude"))
+		}
+		cli := fmt.Sprintf("common-ai-cli-%d", i)
+		rows = append(rows, aiToolRow(cli, a.selectSoftwareVersion(cli, "1.0.0", "1.0.1"), "ai_clis", localBin+cli, "agents", "native"))
+	}
+	for i := range c.unique {
+		name := fmt.Sprintf("unique-mcp-server-%s-%d", a.CachedString("hostname"), i)
+		rows = append(rows, aiToolRow(name, "", "mcp_servers", cursorConfig, "mcp_server", "cursor"))
+	}
+	if c.common > 0 || c.unique > 0 {
+		rows = append(rows, aiToolRow("claude-code", a.selectSoftwareVersion("claude-code", "2.0.14", "2.0.15"), "ai_clis", localBin+"claude", "agents", "native"))
+		for _, repo := range []string{"api", "web", "infra"} {
+			rows = append(rows, aiToolRow("CLAUDE.md", "", "ai_skills", home+"src"+sep+repo+sep+"CLAUDE.md", "agent_instruction", "claude"))
+		}
+	}
+
+	// Template apps are reported identically by every simulated Mac, so their paths always match.
+	if a.os == "darwin" {
+		marked := 0
+		for _, app := range macOSSoftware {
+			if marked >= c.markedApps {
+				break
+			}
+			if app["source"] != "apps" || app["installed_path"] == "" {
+				continue
+			}
+			rows = append(rows, aiToolRow(app["name"], app["version"], "ai_tools", app["installed_path"], "apps", "apps"))
+			marked++
+		}
+	}
+
+	return rows
 }
 
 func selectKernels(kernelList []map[string]string) []map[string]string {
@@ -4096,7 +4280,7 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 					} else {
 						a.cachedSoftwareIndices = softwaredb.MaybeMutateSoftware(a.cachedSoftwareIndices, len(rpmPool))
 					}
-					results = rpmSliceToMaps(rpmPool, a.cachedSoftwareIndices)
+					results = rpmSliceToMaps(rpmPool, a.cachedSoftwareIndices, a.softwareCount.rpmEpochPercent)
 				}
 
 				// Add pre-selected kernels for this agent
@@ -4134,6 +4318,15 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 		}
 		if ss == fleet.StatusOK {
 			results = a.softwareGoBinaries()
+		}
+		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"software_ai_tools":
+		ss := fleet.StatusOK
+		if a.softwareAIToolsFailProb > 0.0 && rand.Float64() <= a.softwareAIToolsFailProb { //nolint:gosec // ignore weak randomizer
+			ss = fleet.OsqueryStatus(1)
+		}
+		if ss == fleet.StatusOK {
+			results = a.softwareAITools()
 		}
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"disk_space_unix" || name == hostDetailQueryPrefix+"disk_space_windows":
@@ -4542,6 +4735,7 @@ func main() {
 		softwareVSCodeExtensionsQueryFailureProb = flag.Float64("software_vscode_extensions_query_fail_prob", 0.0, "Probability of the software vscode_extensions query failing")
 		softwareAdobePluginsQueryFailureProb     = flag.Float64("software_adobe_plugins_query_fail_prob", 0.0, "Probability of the software adobe_plugins query failing")
 		softwareGoBinariesQueryFailureProb       = flag.Float64("software_go_binaries_query_fail_prob", 0.0, "Probability of the software go_binaries query failing")
+		softwareAIToolsQueryFailureProb          = flag.Float64("software_ai_tools_query_fail_prob", 0.0, "Probability of the software ai_tools query failing (Fleet Premium only sends it)")
 
 		softwareInstallerPreInstallFailureProb = flag.Float64("software_installer_pre_install_fail_prob", 0.05,
 			"Probability of the pre-install query failing")
@@ -4556,6 +4750,8 @@ func main() {
 		commonAdobePluginsSoftwareUninstallCount     = flag.Int("common_adobe_plugins_software_uninstall_count", 1, "Number of common adobe_plugins plugins to uninstall")
 		commonAdobePluginsSoftwareUninstallProb      = flag.Float64("common_adobe_plugins_software_uninstall_prob", 0.1, "Probability of uninstalling common_adobe_plugins_software_uninstall_count common plugin/s")
 		commonGoBinariesSoftwareCount                = flag.Int("common_go_binaries_software_count", 5, "Number of common go_binaries binaries reported to fleet")
+		commonAIToolsCount                           = flag.Int("common_ai_tools_count", 3, "Number of common MCP servers and AI CLIs reported by ai_tools")
+		aiToolsMarkedAppsCount                       = flag.Int("ai_tools_marked_apps_count", 2, "Number of macOS template apps also reported by ai_tools, flagged as AI tools")
 		commonSoftwareUninstallCount                 = flag.Int("common_software_uninstall_count", 1, "Number of common software to uninstall")
 		commonVSCodeExtensionsSoftwareUninstallCount = flag.Int("common_vscode_extensions_software_uninstall_count", 1, "Number of common vscode_extensions software to uninstall")
 		commonSoftwareUninstallProb                  = flag.Float64("common_software_uninstall_prob", 0.1, "Probability of uninstalling common_software_uninstall_count unique software/s")
@@ -4567,6 +4763,7 @@ func main() {
 		uniqueAdobePluginsSoftwareUninstallCount     = flag.Int("unique_adobe_plugins_software_uninstall_count", 1, "Number of unique adobe_plugins plugins to uninstall")
 		uniqueAdobePluginsSoftwareUninstallProb      = flag.Float64("unique_adobe_plugins_software_uninstall_prob", 0.1, "Probability of uninstalling unique_adobe_plugins_software_uninstall_count unique plugin/s")
 		uniqueGoBinariesSoftwareCount                = flag.Int("unique_go_binaries_software_count", 1, "Number of unique go_binaries binaries installed on each host")
+		uniqueAIToolsCount                           = flag.Int("unique_ai_tools_count", 1, "Number of unique MCP servers reported by ai_tools on each host")
 		uniqueSoftwareUninstallCount                 = flag.Int("unique_software_uninstall_count", 1, "Number of unique software to uninstall")
 		uniqueVSCodeExtensionsSoftwareUninstallCount = flag.Int("unique_vscode_extensions_software_uninstall_count", 1, "Number of unique vscode_extensions software to uninstall")
 		uniqueSoftwareUninstallProb                  = flag.Float64("unique_software_uninstall_prob", 0.1, "Probability of uninstalling unique_software_uninstall_count common software/s")
@@ -4576,6 +4773,8 @@ func main() {
 			"Percentage of a macOS host's Homebrew packages that are kegs reporting executable hashes (0-100); the rest report none, as a cask does")
 		homebrewLargeKegPercent = flag.Int("software_homebrew_large_keg_percent", 1,
 			"Percentage of those kegs that install 200 or more executables, standing in for a formula like netpbm or texlive (0-100)")
+		rpmEpochPercent = flag.Int("software_rpm_epoch_percent", 18,
+			"Percentage of RHEL hosts' RPM packages reported with an epoch (0-100); picked by package name, so all hosts agree")
 
 		duplicateBundleIdentifiersPercent = flag.Int("duplicate_bundle_identifiers_percent", 0, "Percentage of software with duplicate bundle identifiers (0-100)")
 		softwareRenaming                  = flag.Bool("software_renaming", false, "Enable software renaming for duplicate bundle identifiers")
@@ -4714,6 +4913,9 @@ func main() {
 	}
 	if *uniqueGoBinariesSoftwareCount < 0 {
 		log.Fatalf("Argument unique_go_binaries_software_count cannot be negative, got %d", *uniqueGoBinariesSoftwareCount)
+	}
+	if *commonAIToolsCount < 0 || *uniqueAIToolsCount < 0 || *aiToolsMarkedAppsCount < 0 {
+		log.Fatalf("Arguments common_ai_tools_count, unique_ai_tools_count and ai_tools_marked_apps_count cannot be negative")
 	}
 	if *androidNonComplianceProb < 0 || *androidNonComplianceProb > 1 {
 		log.Fatalf("Argument android_non_compliance_prob must be between 0 and 1, got %f", *androidNonComplianceProb)
@@ -4881,6 +5083,7 @@ func main() {
 			*softwareVSCodeExtensionsQueryFailureProb,
 			*softwareAdobePluginsQueryFailureProb,
 			*softwareGoBinariesQueryFailureProb,
+			*softwareAIToolsQueryFailureProb,
 			softwareInstaller{
 				preInstallFailureProb:  *softwareInstallerPreInstallFailureProb,
 				installFailureProb:     *softwareInstallerInstallFailureProb,
@@ -4904,6 +5107,7 @@ func main() {
 				embeddedBundlePaths:               *embeddedBundlePaths,
 				homebrewKegPercent:                *homebrewKegPercent,
 				homebrewLargeKegPercent:           *homebrewLargeKegPercent,
+				rpmEpochPercent:                   *rpmEpochPercent,
 			},
 			softwareExtraEntityCount{
 				entityCount: entityCount{
@@ -4928,6 +5132,11 @@ func main() {
 			entityCount{
 				common: *commonGoBinariesSoftwareCount,
 				unique: *uniqueGoBinariesSoftwareCount,
+			},
+			softwareAIToolsCount{
+				common:     *commonAIToolsCount,
+				unique:     *uniqueAIToolsCount,
+				markedApps: *aiToolsMarkedAppsCount,
 			},
 			entityCount{
 				common: *commonUserCount,

@@ -1,0 +1,8 @@
+{
+  "provider": "Microsoft Entra ID",
+  "cases": [
+    {"name": "test user does not exist (AADSTS50034)", "source": "Microsoft docs; confirm with a test tenant", "status": 400, "body": "{\"error\":\"invalid_grant\",\"error_description\":\"AADSTS50034: The user account {EUII Hidden} does not exist in the directory.\",\"error_codes\":[50034]}", "want": "ok"},
+    {"name": "wrong client secret (AADSTS7000215)", "source": "Microsoft docs; confirm with a test tenant", "status": 401, "body": "{\"error\":\"invalid_client\",\"error_description\":\"AADSTS7000215: Invalid client secret provided.\",\"error_codes\":[7000215]}", "want": "client_credentials"},
+    {"name": "unknown application (AADSTS700016)", "source": "Microsoft docs; confirm with a test tenant", "status": 400, "body": "{\"error\":\"unauthorized_client\",\"error_description\":\"AADSTS700016: Application with identifier 'x' was not found in the directory.\",\"error_codes\":[700016]}", "want": "app_setup"}
+  ]
+}

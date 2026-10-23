@@ -7,7 +7,7 @@ try {
 # Copy the installer to a public folder so that all can access it
 # users
 $exeFilename = Split-Path $exeFilePath -leaf
-Copy-Item -Path $exeFilePath -Destination "${env:PUBLIC}" -Force
+Copy-Item -Path $exeFilePath -Destination "${env:PUBLIC}" -Force -ErrorAction Stop
 $exeFilePath = "${env:PUBLIC}\$exeFilename"
 
 # Task properties. The task will be started by the logged in user

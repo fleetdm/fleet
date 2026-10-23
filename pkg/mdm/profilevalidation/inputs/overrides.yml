@@ -1,0 +1,98 @@
+# Fleet overrides to the generated profile validation schema.
+#
+# Applied by tools/profile-schema-gen when it writes outputs/profile_schema.json. Read the
+# "Overrides" section of ../README.md before editing: every entry needs a kind, a target, and a
+# reason, and the generator rejects anything it can't apply.
+
+# loosen: an Apple key is stricter than what devices accept.
+loosen:
+  - kind: apple_profile
+    payload_type: com.apple.security.scep
+    key_path: PayloadContent.SubjectAltName.uniformResourceIdentifier
+    action: types
+    types: [array]
+    reason: >-
+      Apple's schema says string, but it-and-security's fleet-okta-conditional-access profile sends
+      a list of URIs and is deployed.
+
+
+# add: keys Apple's schema doesn't list but devices accept.
+add:
+  - kind: apple_profile
+    payload_type: TopLevel
+    name: PayloadEnabled
+    key: {type: boolean}
+    reason: >-
+      Written by Profile Manager and many vendors; used in several it-and-security profiles.
+  - kind: apple_profile
+    payload_type: CommonPayloadKeys
+    name: PayloadEnabled
+    key: {type: boolean}
+    reason: >-
+      Written by Profile Manager and many vendors; used in several it-and-security profiles.
+  - kind: apple_profile
+    payload_type: com.apple.applicationaccess
+    name: allowCloudBTMM
+    key: {type: boolean}
+    reason: Legacy Back to My Mac restriction; used in it-and-security misc profile.
+  - kind: apple_profile
+    payload_type: com.apple.applicationaccess
+    name: allowCloudFMM
+    key: {type: boolean}
+    reason: Legacy Find My Mac restriction; used in it-and-security misc profile.
+  - kind: apple_profile
+    payload_type: com.apple.MCX
+    name: forceInternetSharingOff
+    key: {type: boolean}
+    reason: CIS benchmark setting; used in it-and-security disable-internet-sharing profile.
+  - kind: apple_profile
+    payload_type: com.apple.loginwindow
+    name: com.apple.login.mcx.DisableAutoLoginClient
+    key: {type: boolean}
+    reason: CIS benchmark setting; used in it-and-security prevent-autologon profile.
+  - kind: apple_profile
+    payload_type: com.apple.security.firewall
+    name: EnableLogging
+    key: {type: boolean}
+    reason: CIS benchmark setting; used in it-and-security enable-firewall-logging profile.
+  - kind: apple_profile
+    payload_type: com.apple.security.firewall
+    name: LoggingOption
+    key: {type: string}
+    reason: CIS benchmark setting; used in it-and-security enable-firewall-logging profile.
+  - kind: apple_profile
+    payload_type: com.apple.security.scep
+    key_path: PayloadContent
+    name: ExtendedKeyUsage
+    key: {type: array, items: {type: string}}
+    reason: >-
+      Extended key usage OIDs for the SCEP certificate; used in it-and-security's
+      fleet-okta-conditional-access profile.
+  - kind: apple_declaration
+    declaration_type: DeclarationBase
+    name: PayloadScope
+    key: {type: string, rangelist: [System, User]}
+    reason: Fleet extension; sets the declaration's channel and is stripped before delivery.
+
+# allow: payload types outside Apple's schema that strict mode must accept. apple_profile only.
+allow:
+  - {kind: apple_profile, payload_type: com.1password.1password, reason: Vendor preference domain used by Fleet's profiles.}
+  - {kind: apple_profile, payload_type: com.apple.Accessibility, reason: Apple preference domain outside Apple's MDM schema; used by Fleet's profiles.}
+  - {kind: apple_profile, payload_type: com.apple.AdLib, reason: Apple preference domain outside Apple's MDM schema; used by Fleet's profiles.}
+  - {kind: apple_profile, payload_type: com.apple.Safari, reason: Apple preference domain outside Apple's MDM schema; used by Fleet's profiles.}
+  - {kind: apple_profile, payload_type: com.apple.SubmitDiagInfo, reason: Apple preference domain outside Apple's MDM schema; used by Fleet's profiles.}
+  - {kind: apple_profile, payload_type: com.apple.Terminal, reason: Apple preference domain outside Apple's MDM schema; used by Fleet's profiles.}
+  - {kind: apple_profile, payload_type: com.apple.TimeMachine, reason: Apple preference domain outside Apple's MDM schema; used by Fleet's profiles.}
+  - {kind: apple_profile, payload_type: com.apple.assistant.support, reason: Apple preference domain outside Apple's MDM schema; used by Fleet's profiles.}
+  - {kind: apple_profile, payload_type: com.apple.controlcenter, reason: Apple preference domain outside Apple's MDM schema; used by Fleet's profiles.}
+  - {kind: apple_profile, payload_type: com.apple.locationd, reason: Apple preference domain outside Apple's MDM schema; used by Fleet's profiles.}
+  - {kind: apple_profile, payload_type: com.apple.locationmenu, reason: Apple preference domain outside Apple's MDM schema; used by Fleet's profiles.}
+  - {kind: apple_profile, payload_type: com.apple.mDNSResponder, reason: Apple preference domain outside Apple's MDM schema; used by Fleet's profiles.}
+  - {kind: apple_profile, payload_type: com.apple.preferences.sharing.SharingPrefsExtension, reason: Apple preference domain outside Apple's MDM schema; used by Fleet's profiles.}
+  - {kind: apple_profile, payload_type: com.apple.universalcontrol, reason: Apple preference domain outside Apple's MDM schema; used by Fleet's profiles.}
+  - {kind: apple_profile, payload_type: com.github.macadmins.Nudge, reason: Vendor preference domain used by Fleet's profiles.}
+  - {kind: apple_profile, payload_type: com.google.Chrome, reason: Vendor preference domain used by Fleet's profiles and written by the AI profile generator.}
+  - {kind: apple_profile, payload_type: com.microsoft.autoupdate2, reason: Vendor preference domain used by Fleet's profiles.}
+  - {kind: apple_profile, payload_type: com.okta.mobile, reason: Vendor preference domain used by Fleet's profiles.}
+  - {kind: apple_profile, payload_type: com.okta.mobile.auth-service-extension, reason: Vendor preference domain used by Fleet's profiles.}
+  - {kind: apple_profile, payload_type: us.zoom.config, reason: Vendor preference domain named by the AI profile generator's prompt.}

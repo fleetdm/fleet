@@ -253,6 +253,10 @@ module.exports.custom = {
     'website/views': ['eashaw', 'mike-j-thomas'],
     'website/generators': 'eashaw',
     'website/assets': 'eashaw',
+    'website/assets/styles': ['eashaw','mike-j-thomas'],
+    'website/assets/images': ['eashaw','mike-j-thomas'],
+    'website/assets/videos': ['eashaw','mike-j-thomas'],
+    'website/assets/pdfs': ['eashaw','mike-j-thomas'],
     'website/package.json': 'eashaw',
     'website/config/routes.js': ['eashaw', 'mike-j-thomas'],// (for managing website URLs)
     'website/config/policies.js': ['eashaw', 'mikermcneil'],// (for adding new pages and managing permissions)
@@ -336,6 +340,7 @@ module.exports.custom = {
     'mdm_profiles': ['lukeheath'],//« for dogfood.fleetdm.com, this is the required OS settings applied to contributor Macs
     'vpn': ['rfairburn', 'lukeheath'],// « for managing VPN rules for accessing customer and Fleet Sandbox infrastructure
     '.github/workflows': ['lukeheath'],//« CI/CD workflows
+    '.claude': ['lukeheath'],//« Claude Code skills and settings
 
     // Issue templates
     '.github/ISSUE_TEMPLATE/3-sale.md': ['sampfluger88'],
@@ -373,7 +378,7 @@ module.exports.custom = {
   //
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
-  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.23.1',
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.24.0',
 
 
   //  ███╗   ███╗██╗███████╗ ██████╗

@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -291,6 +292,76 @@ func TestCachedWindowsEnrollmentDefaultFleet(t *testing.T) {
 	require.Nil(t, fleetID)
 	require.Empty(t, fleetName)
 	require.True(t, mockedDS.GetWindowsEnrollmentDefaultFleetFuncInvoked)
+}
+
+func TestCachedEULAMetadata(t *testing.T) {
+	t.Parallel()
+
+	mockedDS := new(mock.Store)
+	ds := New(mockedDS, WithEULAMetadataExpiration(time.Second))
+	ctx := t.Context()
+
+	stored := map[fleet.MDMEULAPlatform]*fleet.MDMEULA{}
+	reads := map[fleet.MDMEULAPlatform]int{}
+	mockedDS.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
+		reads[platform]++
+		eula, ok := stored[platform]
+		if !ok {
+			return nil, common_mysql.NotFound("MDMEULA")
+		}
+		clone := *eula
+		return &clone, nil
+	}
+	mockedDS.MDMInsertEULAFunc = func(ctx context.Context, eula *fleet.MDMEULA) error {
+		stored[eula.Platform] = eula
+		return nil
+	}
+	mockedDS.MDMDeleteEULAFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform, token string) error {
+		delete(stored, platform)
+		return nil
+	}
+	const windows = fleet.MDMEULAPlatformWindows
+
+	// "none uploaded" is cached too: it is the common answer
+	_, err := ds.MDMGetEULAMetadata(ctx, windows)
+	require.True(t, fleet.IsNotFound(err))
+	_, err = ds.MDMGetEULAMetadata(ctx, windows)
+	require.True(t, fleet.IsNotFound(err))
+	require.Equal(t, 1, reads[windows])
+
+	// a write through the cached store invalidates the entry
+	require.NoError(t, ds.MDMInsertEULA(ctx, &fleet.MDMEULA{Platform: windows, Token: "t1", Sha256: []byte{1, 2}}))
+	eula, err := ds.MDMGetEULAMetadata(ctx, windows)
+	require.NoError(t, err)
+	require.Equal(t, "t1", eula.Token)
+	require.Equal(t, 2, reads[windows])
+
+	// served from the cache, and mutating the result must not poison it
+	eula.Sha256[0] = 9
+	eula, err = ds.MDMGetEULAMetadata(ctx, windows)
+	require.NoError(t, err)
+	require.Equal(t, []byte{1, 2}, eula.Sha256)
+	require.Equal(t, 2, reads[windows])
+
+	// platforms are cached independently
+	_, err = ds.MDMGetEULAMetadata(ctx, fleet.MDMEULAPlatformDarwin)
+	require.True(t, fleet.IsNotFound(err))
+	require.Equal(t, 1, reads[fleet.MDMEULAPlatformDarwin])
+
+	// deleting invalidates as well
+	require.NoError(t, ds.MDMDeleteEULA(ctx, windows, "t1"))
+	_, err = ds.MDMGetEULAMetadata(ctx, windows)
+	require.True(t, fleet.IsNotFound(err))
+	require.Equal(t, 3, reads[windows])
+
+	// a write on another instance is only seen once the entry expires
+	stored[windows] = &fleet.MDMEULA{Platform: windows, Token: "t2"}
+	_, err = ds.MDMGetEULAMetadata(ctx, windows)
+	require.True(t, fleet.IsNotFound(err))
+	require.Eventually(t, func() bool {
+		eula, err := ds.MDMGetEULAMetadata(ctx, windows)
+		return err == nil && eula.Token == "t2"
+	}, 3*time.Second, 50*time.Millisecond)
 }
 
 func TestCachedPacksforHost(t *testing.T) {

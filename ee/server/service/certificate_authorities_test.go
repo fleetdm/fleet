@@ -329,9 +329,9 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 				URL:                           digicertURL,
 				APIToken:                      "digicert_api_token",
 				ProfileID:                     "digicert_profile_id",
-				CertificateCommonName:         "$FLEET_VAR_HOST_HARDWARE_SERIAL",
-				CertificateUserPrincipalNames: []string{"$FLEET_VAR_HOST_HARDWARE_SERIAL"},
-				CertificateSeatID:             "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+				CertificateCommonName:         "$FLEET_VAR_HOST_END_USER_IDP_USERNAME",
+				CertificateUserPrincipalNames: []string{"${FLEET_VAR_HOST_UUID}@example.com"},
+				CertificateSeatID:             "$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART",
 			},
 		}
 
@@ -2147,4 +2147,14 @@ func TestProcessCustomSCEPProxyCAsChallengeChars(t *testing.T) {
 	incoming := []fleet.CustomSCEPProxyCA{{Name: "SCEP1", URL: "https://customscep.example.com", Challenge: "base64url_style@challenge"}}
 	err := svc.processCustomSCEPProxyCAs(t.Context(), &fleet.CertificateAuthoritiesBatchOperations{}, incoming, nil)
 	require.NoError(t, err)
+}
+
+func TestDigicertFieldsAcceptIdPVariables(t *testing.T) {
+	for _, v := range fleet.IDPFleetVariables {
+		t.Run(string(v), func(t *testing.T) {
+			require.NoError(t, validateDigicertCACN(v.WithPrefix(), ""))
+			require.NoError(t, validateDigicertSeatID(v.WithPrefix(), ""))
+			require.NoError(t, validateDigicertUserPrincipalNames([]string{v.WithPrefix() + "@example.com"}, ""))
+		})
+	}
 }

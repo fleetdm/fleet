@@ -574,51 +574,60 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 		wantErr         string
 		tokenExpiration time.Time
 		expectedLabels  map[string]uint
+		dryRun          bool
 	}{
-		{"testdata/gitops/team_vpp_valid_app.yml", "", time.Now().Add(24 * time.Hour), map[string]uint{}},
-		{"testdata/gitops/team_vpp_valid_app_self_service.yml", "", time.Now().Add(24 * time.Hour), map[string]uint{}},
-		{"testdata/gitops/team_vpp_valid_empty.yml", "", time.Now().Add(24 * time.Hour), map[string]uint{}},
-		{"testdata/gitops/team_vpp_valid_empty.yml", "", time.Now().Add(-24 * time.Hour), map[string]uint{}},
-		{"testdata/gitops/team_vpp_valid_app.yml", "VPP token expired", time.Now().Add(-24 * time.Hour), map[string]uint{}},
-		{"testdata/gitops/team_vpp_invalid_app.yml", "app not available on vpp account", time.Now().Add(24 * time.Hour), map[string]uint{}},
+		{"testdata/gitops/team_vpp_valid_app.yml", "", time.Now().Add(24 * time.Hour), map[string]uint{}, false},
+		{"testdata/gitops/team_vpp_valid_app_self_service.yml", "", time.Now().Add(24 * time.Hour), map[string]uint{}, false},
+		{"testdata/gitops/team_vpp_valid_empty.yml", "", time.Now().Add(24 * time.Hour), map[string]uint{}, false},
+		{"testdata/gitops/team_vpp_valid_empty.yml", "", time.Now().Add(-24 * time.Hour), map[string]uint{}, false},
+		{"testdata/gitops/team_vpp_valid_app.yml", "VPP token expired", time.Now().Add(-24 * time.Hour), map[string]uint{}, false},
+		{"testdata/gitops/team_vpp_invalid_app.yml", "app not available on vpp account", time.Now().Add(24 * time.Hour), map[string]uint{}, false},
 		{
 			"testdata/gitops/team_vpp_incorrect_type.yml", "Couldn't edit \"../../fleetctl/testdata/gitops/team_vpp_incorrect_type.yml\" at \"software.app_store_apps.0.app_store_id\", expected type string but got number",
 			time.Now().Add(24 * time.Hour),
-			map[string]uint{},
+			map[string]uint{}, false,
 		},
-		{"testdata/gitops/team_vpp_empty_adamid.yml", "software app store id required", time.Now().Add(24 * time.Hour), map[string]uint{}},
+		{"testdata/gitops/team_vpp_empty_adamid.yml", "software app store id required", time.Now().Add(24 * time.Hour), map[string]uint{}, false},
 		{
 			"testdata/gitops/team_vpp_valid_app_labels_exclude_any.yml", "", time.Now().Add(24 * time.Hour),
-			map[string]uint{"label 1": 1, "label 2": 2},
+			map[string]uint{"label 1": 1, "label 2": 2}, false,
 		},
 		{
 			"testdata/gitops/team_vpp_valid_app_labels_include_any.yml", "", time.Now().Add(24 * time.Hour),
-			map[string]uint{"label 1": 1, "label 2": 2},
+			map[string]uint{"label 1": 1, "label 2": 2}, false,
 		},
 		{
 			"testdata/gitops/team_vpp_valid_app_labels_include_all.yml", "", time.Now().Add(24 * time.Hour),
-			map[string]uint{"label 1": 1, "label 2": 2},
+			map[string]uint{"label 1": 1, "label 2": 2}, false,
 		},
 		{
 			"testdata/gitops/team_vpp_invalid_app_labels_exclude_any.yml",
 			"Please create the missing labels, or update your settings to not refer to these labels.", time.Now().Add(24 * time.Hour),
-			map[string]uint{"label 1": 1, "label 2": 2},
+			map[string]uint{"label 1": 1, "label 2": 2}, false,
 		},
 		{
 			"testdata/gitops/team_vpp_invalid_app_labels_include_any.yml",
 			"Please create the missing labels, or update your settings to not refer to these labels.", time.Now().Add(24 * time.Hour),
-			map[string]uint{"label 1": 1, "label 2": 2},
+			map[string]uint{"label 1": 1, "label 2": 2}, false,
 		},
 		{
 			"testdata/gitops/team_vpp_invalid_app_labels_both.yml",
 			`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for app store app`, time.Now().Add(24 * time.Hour),
-			map[string]uint{},
+			map[string]uint{}, false,
 		},
+		// The dry run must report an unavailable app the same way the real apply
+		// does, including for a team that does not exist yet.
+		{"testdata/gitops/team_vpp_invalid_app.yml", "app not available on vpp account", time.Now().Add(24 * time.Hour), map[string]uint{}, true},
+		{"testdata/gitops/team_vpp_valid_app.yml", "", time.Now().Add(24 * time.Hour), map[string]uint{}, true},
 	}
 
 	for _, c := range cases {
 		c.file = filepath.Join("../../fleetctl", c.file)
-		t.Run(filepath.Base(c.file), func(t *testing.T) {
+		name := filepath.Base(c.file)
+		if c.dryRun {
+			name += " (dry run)"
+		}
+		t.Run(name, func(t *testing.T) {
 			ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 			token, err := test.CreateVPPTokenEncoded(c.tokenExpiration, "fleet", "ca")
 			require.NoError(t, err)
@@ -643,6 +652,19 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 					Teams:       nil,
 					CountryCode: "us",
 				}, nil
+			}
+			// On a dry run the team does not exist yet, so the server validates
+			// App Store apps against every token instead of the team's own.
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+				return []*fleet.VPPTokenDB{{
+					ID:          1,
+					OrgName:     "Fleet",
+					Location:    "Earth",
+					RenewDate:   c.tokenExpiration,
+					Token:       string(token),
+					Teams:       nil,
+					CountryCode: "us",
+				}}, nil
 			}
 
 			ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
@@ -700,7 +722,11 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 				return nil
 			}
 
-			_, err = fleetctltest.RunAppNoChecks([]string{"gitops", "-f", c.file})
+			args := []string{"gitops", "-f", c.file}
+			if c.dryRun {
+				args = append(args, "--dry-run")
+			}
+			_, err = fleetctltest.RunAppNoChecks(args)
 
 			if c.wantErr == "" {
 				require.NoError(t, err)

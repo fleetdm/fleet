@@ -133,6 +133,7 @@ func TestHosts(t *testing.T) {
 		{"LoadHostByNodeKeyLoadsDisk", testLoadHostByNodeKeyLoadsDisk},
 		{"LoadHostByNodeKeyUsesStmt", testLoadHostByNodeKeyUsesStmt},
 		{"HostsListBySoftware", testHostsListBySoftware},
+		{"HostsListByInstallerAndVPPVersion", testHostsListByInstallerAndVPPVersion},
 		{"HostsListBySoftwareChangedAt", testHostsListBySoftwareChangedAt},
 		{"HostsListByOperatingSystemID", testHostsListByOperatingSystemID},
 		{"HostsListByOSNameAndVersion", testHostsListByOSNameAndVersion},
@@ -390,12 +391,12 @@ func testHostMDMAppleEnrollmentPermissions(t *testing.T, ds *Datastore) {
 	require.Equal(t, apple_mdm.MDMAccessRightAll, perms.AccessRights)
 	require.False(t, perms.IsPersonalEnrollment)
 
-	// Record a personal (BYOD) enrollment in host_mdm; access rights still default
-	// until a permissions row is written.
+	// Record a personal (BYOD) enrollment in host_mdm; with no permissions row
+	// the access rights default to the narrowed personal bitmask.
 	require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://example.com?byod=1", false, "Fleet", "", fleet.PersonalEnrollmentTypeManualProfile))
 	perms, err = ds.GetHostMDMAppleEnrollmentPermissions(ctx, host.UUID)
 	require.NoError(t, err)
-	require.Equal(t, apple_mdm.MDMAccessRightAll, perms.AccessRights)
+	require.Equal(t, apple_mdm.AppleEnrollmentAccessRights(true), perms.AccessRights)
 	require.True(t, perms.IsPersonalEnrollment)
 
 	// Persist the narrowed BYOD bitmask and confirm it is read back together with
@@ -2077,14 +2078,37 @@ func testListHostsDEPFilters(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 	})
 
+	// --- label-scoped lists use a separate query builder ---
+
+	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "dep-filter-test-label", Query: "select 1"})
+	require.NoError(t, err)
+	for _, h := range []*fleet.Host{hostSuccess, hostFailed, hostThrottled, hostNoDEP} {
+		require.NoError(t, ds.RecordLabelQueryExecutions(ctx, h, map[uint]*bool{label.ID: new(true)}, time.Now(), false))
+	}
+
+	t.Run("dep_profile_error=true combined with label", func(t *testing.T) {
+		hosts := listHostsInLabelCheckCount(t, ds, filter, label.ID, fleet.HostListOptions{DEPProfileErrorFilter: new(true)}, 2)
+		assert.ElementsMatch(t, []uint{hostFailed.ID, hostThrottled.ID}, []uint{hosts[0].ID, hosts[1].ID})
+	})
+
+	t.Run("dep_assign_profile_response combined with label", func(t *testing.T) {
+		resp := fleet.DEPAssignProfileResponseSuccess
+		hosts := listHostsInLabelCheckCount(t, ds, filter, label.ID, fleet.HostListOptions{DEPAssignProfileResponseFilter: &resp}, 1)
+		assert.Equal(t, hostSuccess.ID, hosts[0].ID)
+
+		// hostNotAccessible is not in the label.
+		resp = fleet.DEPAssignProfileResponseNotAccessible
+		listHostsInLabelCheckCount(t, ds, filter, label.ID, fleet.HostListOptions{DEPAssignProfileResponseFilter: &resp}, 0)
+	})
+
 	// --- combining dep_profile_error with other filters ---
 
 	t.Run("dep_profile_error=true combined with team filter", func(t *testing.T) {
-		// Create a second team and assign hostFailed to it.
+		// Create a second team and assign hostFailed and hostSuccess to it.
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "dep-filter-test-team"})
 		require.NoError(t, err)
 
-		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hostFailed.ID}))
+		err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hostFailed.ID, hostSuccess.ID}))
 		require.NoError(t, err)
 
 		depErr := true
@@ -2094,6 +2118,12 @@ func testListHostsDEPFilters(t *testing.T, ds *Datastore) {
 			TeamFilter:            &team.ID,
 		}, 1)
 		require.Len(t, hosts, 1)
+		assert.Equal(t, hostFailed.ID, hosts[0].ID)
+
+		hosts = listHostsInLabelCheckCount(t, ds, filter, label.ID, fleet.HostListOptions{
+			DEPProfileErrorFilter: &depErr,
+			TeamFilter:            &team.ID,
+		}, 1)
 		assert.Equal(t, hostFailed.ID, hosts[0].ID)
 	})
 }
@@ -3360,32 +3390,28 @@ func testHostsMobileOnlineOffline(t *testing.T, ds *Datastore) {
 		assert.Equal(t, fleet.StatusOffline, h.Status(now), "Host.Status for %s", h.Hostname)
 	}
 
-	// Live-query target flow against the same host set: mobile hosts must be
-	// excluded from all three paths so the picker hides them (SearchHosts),
-	// the metrics don't lie about counting them (CountHostsInTargets), and
-	// the campaign never fires against phones that can't answer
-	// (HostIDsInTargets). If any of the three regresses, a mobile-only or
-	// mobile-inclusive target either shows a phantom row in the picker,
-	// reports counts that don't match the campaign, or launches a dead run.
+	// Mobile hosts are included in CountHostsInTargets and HostIDsInTargets
+	// (pre-#52518 behavior restored so the picker and campaign stay consistent).
 	targetIDs := append(append([]uint{}, expectedOnline...), expectedOffline...)
 	metrics, err := ds.CountHostsInTargets(ctx, filter, fleet.HostTargets{HostIDs: targetIDs}, now)
 	require.NoError(t, err)
-	assert.Equal(t, uint(0), metrics.OnlineHosts, "mobile hosts must not contribute to target metrics online")
-	assert.Equal(t, uint(0), metrics.OfflineHosts, "mobile hosts must not contribute to target metrics offline")
-	assert.Equal(t, uint(0), metrics.TotalHosts, "mobile hosts must not contribute to target metrics total")
+	assert.Equal(t, uint(len(targetIDs)), metrics.TotalHosts, "all mobile hosts contribute to target metrics")
 
 	ids, err := ds.HostIDsInTargets(ctx, filter, fleet.HostTargets{HostIDs: targetIDs})
 	require.NoError(t, err)
-	assert.Empty(t, ids, "mobile hosts must not flow into liveQueryStore.RunQuery")
+	assert.ElementsMatch(t, targetIDs, ids, "mobile hosts included in HostIDsInTargets")
 
-	// SearchHosts by name should skip mobile hosts even when they match — the
-	// picker calls this and would otherwise let a user pick a phone.
+	// SearchHosts returns all platforms including mobile. The live-query
+	// target picker filters mobile hosts at the service layer so that the
+	// manual-label host picker can still find them.
 	for _, h := range []*fleet.Host{iosOnline, ipadosOnline, androidOnline} {
 		found, err := ds.SearchHosts(ctx, filter, h.Hostname)
 		require.NoError(t, err)
+		var foundIDs []uint
 		for _, r := range found {
-			assert.NotEqual(t, h.ID, r.ID, "SearchHosts must not surface mobile host %q to the target picker", h.Hostname)
+			foundIDs = append(foundIDs, r.ID)
 		}
+		assert.Contains(t, foundIDs, h.ID, "SearchHosts must surface mobile host %q for the label picker", h.Hostname)
 	}
 }
 
@@ -5082,6 +5108,219 @@ func testHostsListBySoftware(t *testing.T, ds *Datastore) {
 	// unknown software_title_id
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{SoftwareTitleIDFilter: ptr.Uint(fooTitleID + 100)}, 0)
 	require.Len(t, hosts, 0)
+}
+
+func testHostsListByInstallerAndVPPVersion(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	mkHost := func(i int) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   new(fmt.Sprintf("ivv-%d", i)),
+			NodeKey:         new(fmt.Sprintf("ivv-key-%d", i)),
+			UUID:            fmt.Sprintf("ivv-uuid-%d", i),
+			Hostname:        fmt.Sprintf("ivv-host-%d.local", i),
+			Platform:        "darwin",
+		})
+		require.NoError(t, err)
+		return h
+	}
+	host1, host2, host3 := mkHost(1), mkHost(2), mkHost(3)
+
+	// Multi-package title with 2 installers.
+	var titleID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx,
+			`INSERT INTO software_titles (name, source, extension_for) VALUES (?, 'apps', '')`, "ivv-title")
+		if err != nil {
+			return err
+		}
+		id, _ := res.LastInsertId()
+		titleID = uint(id) //nolint:gosec // bounded by test fixture
+		return nil
+	})
+
+	// Shared script_contents row for the installer FK columns.
+	var scriptID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx,
+			`INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(MD5('ivv')), 'echo')`)
+		if err != nil {
+			return err
+		}
+		id, _ := res.LastInsertId()
+		scriptID = uint(id) //nolint:gosec // bounded by test fixture
+		return nil
+	})
+
+	mkInstaller := func(storageID string) uint {
+		var id uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			// is_active=1 so installerAvailableForInstallForTeamAndTitleID
+			// resolves the title to this installer when status composition kicks in.
+			res, err := q.ExecContext(ctx,
+				`INSERT INTO software_installers
+					(title_id, filename, version, platform, storage_id, install_script_content_id, uninstall_script_content_id, package_ids, patch_query, is_active)
+				VALUES (?, ?, '1.0', 'darwin', ?, ?, ?, '', '', 1)`,
+				titleID, storageID+".pkg", storageID, scriptID, scriptID)
+			if err != nil {
+				return err
+			}
+			lid, _ := res.LastInsertId()
+			id = uint(lid) //nolint:gosec // bounded by test fixture
+			return nil
+		})
+		return id
+	}
+	installer1 := mkInstaller("ivv-storage-1")
+	installer2 := mkInstaller("ivv-storage-2")
+
+	linkInstall := func(hostID, installerID uint) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO host_software_installs
+					(execution_id, host_id, software_installer_id, installer_filename, version, attempt_number)
+				VALUES (?, ?, ?, 'x.pkg', '1.0', 1)`,
+				uuid.NewString(), hostID, installerID)
+			return err
+		})
+	}
+	linkInstall(host1.ID, installer1)
+	linkInstall(host2.ID, installer2)
+
+	hostIDs := func(hs []*fleet.Host) []uint {
+		ids := make([]uint, 0, len(hs))
+		for _, h := range hs {
+			ids = append(ids, h.ID)
+		}
+		return ids
+	}
+
+	// Installer filter narrows to the one host that received installer1.
+	// Tested without a title filter at the datastore layer — transport
+	// enforces the title_id requirement; datastore just applies the EXISTS
+	// clause on host_software_installs.
+	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{
+		SoftwareInstallerIDFilter: &installer1,
+	}, 1)
+	require.Equal(t, host1.ID, hosts[0].ID)
+	require.NotContains(t, hostIDs(hosts), host3.ID)
+
+	// Switching to installer2 picks up the other host.
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{
+		SoftwareInstallerIDFilter: &installer2,
+	}, 1)
+	require.Equal(t, host2.ID, hosts[0].ID)
+	require.NotContains(t, hostIDs(hosts), host3.ID)
+
+	// Unknown installer id returns 0.
+	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{
+		SoftwareInstallerIDFilter: new(installer2 + 100),
+	}, 0)
+
+	// Status composition: regression guard for the per-installer ranking fix
+	// in softwareInstallerJoin. host4 FAILED on installer1 (older) and later
+	// INSTALLED installer2. Pre-fix, software_installer_id=installer1 +
+	// software_status=installed matched host4 (the title's latest row was
+	// installer2 installed, and the EXISTS layered on any installer1 history
+	// of any status). Post-fix, the join ranks per-installer, so host4's
+	// latest installer1 row ranks failed_install and the filter excludes it.
+	host4 := mkHost(4)
+	writeInstall := func(hostID, installerID uint, exitCode int, createdAt string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO host_software_installs
+					(execution_id, host_id, software_title_id, software_installer_id, installer_filename, version, attempt_number, install_script_exit_code, created_at)
+				VALUES (?, ?, ?, ?, 'x.pkg', '1.0', 1, ?, ?)`,
+				uuid.NewString(), hostID, titleID, installerID, exitCode, createdAt)
+			return err
+		})
+	}
+	writeInstall(host4.ID, installer1, 1, "2024-01-01 00:00:00.000000")
+	writeInstall(host4.ID, installer2, 0, "2024-02-01 00:00:00.000000")
+	installed := fleet.SoftwareInstalled
+
+	// installer1 + status=installed: host4's latest installer1 row failed, so
+	// the per-installer ranking excludes it.
+	listHostsCheckCount(t, ds, filter, fleet.HostListOptions{
+		SoftwareTitleIDFilter:     &titleID,
+		SoftwareInstallerIDFilter: &installer1,
+		SoftwareStatusFilter:      &installed,
+	}, 0)
+
+	// installer2 + status=installed: host4's latest installer2 row succeeded.
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{
+		SoftwareTitleIDFilter:     &titleID,
+		SoftwareInstallerIDFilter: &installer2,
+		SoftwareStatusFilter:      &installed,
+	}, 1)
+	require.Equal(t, host4.ID, hosts[0].ID)
+
+	// Multi-version App Store app title: one vpp_apps row, two vpp_apps_teams
+	// (versions), one host install per version.
+	var vppTitleID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx,
+			`INSERT INTO software_titles (name, source, extension_for) VALUES (?, 'apps', '')`, "ivv-vpp-title")
+		if err != nil {
+			return err
+		}
+		id, _ := res.LastInsertId()
+		vppTitleID = uint(id) //nolint:gosec // bounded by test fixture
+		_, err = q.ExecContext(ctx,
+			`INSERT INTO vpp_apps (adam_id, title_id, platform, name, latest_version)
+			VALUES ('ivv-adam', ?, 'darwin', 'ivv-vpp-title', '1.0')`, vppTitleID)
+		return err
+	})
+
+	mkVersion := func(name string) uint {
+		var id uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			res, err := q.ExecContext(ctx,
+				`INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id, name)
+				VALUES ('ivv-adam', 'darwin', 0, ?)`, name)
+			if err != nil {
+				return err
+			}
+			lid, _ := res.LastInsertId()
+			id = uint(lid) //nolint:gosec // bounded by test fixture
+			return nil
+		})
+		return id
+	}
+	version1 := mkVersion("Production")
+	version2 := mkVersion("Beta")
+
+	linkVPPInstall := func(hostID, versionID uint) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO host_vpp_software_installs
+					(host_id, adam_id, platform, command_uuid, vpp_app_team_id)
+				VALUES (?, 'ivv-adam', 'darwin', ?, ?)`,
+				hostID, uuid.NewString(), versionID)
+			return err
+		})
+	}
+	linkVPPInstall(host1.ID, version1)
+	linkVPPInstall(host2.ID, version2)
+
+	// Version filter narrows to the one host that received version1.
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{
+		AppStoreAppVersionIDFilter: &version1,
+	}, 1)
+	require.Equal(t, host1.ID, hosts[0].ID)
+	require.NotContains(t, hostIDs(hosts), host3.ID)
+
+	// And version2 picks up the other host.
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{
+		AppStoreAppVersionIDFilter: &version2,
+	}, 1)
+	require.Equal(t, host2.ID, hosts[0].ID)
+	require.NotContains(t, hostIDs(hosts), host3.ID)
 }
 
 func testHostsListBySoftwareChangedAt(t *testing.T, ds *Datastore) {
@@ -10595,7 +10834,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		BundleIdentifier: "com.app.deletehosts",
 		LatestVersion:    "1.0.0",
 	}
-	va, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &team.ID)
+	va, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &team.ID, nil)
 	require.NoError(t, err)
 
 	cmdUUID := uuid.NewString()
@@ -10686,6 +10925,10 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		INSERT INTO notifications_end_user (uuid, host_id, status, kind, payload, expires_at)
 		VALUES (?, ?, 'pending', 'patch', '{}', NOW(6) + INTERVAL 1 HOUR)`,
 		uuid.NewString(), host.ID)
+	require.NoError(t, err)
+
+	// Insert into host_policy_automation_run_counts table (no host FK, cleaned up via hostRefs).
+	err = ds.IncrementHostPolicyAutomationRunCount(ctx, policy.ID, host.ID, fleet.ActivityTypeRanScript{}, true)
 	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.

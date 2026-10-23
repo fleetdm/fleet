@@ -215,7 +215,7 @@ func registerWorkerCrons(ctx context.Context, deps cronSchedulesDeps) {
 	})
 
 	deps.register("failed to register worker integrations schedule", func() (fleet.CronSchedule, error) {
-		return newWorkerIntegrationsSchedule(ctx, deps.instanceID, deps.ds, deps.logger, deps.depStorage, deps.commander, deps.androidSvc, deps.chartSvc, deps.config.MDM.AndroidBatchSize, deps.activitySvc)
+		return newWorkerIntegrationsSchedule(ctx, deps.instanceID, deps.ds, deps.logger, deps.depStorage, deps.commander, deps.androidSvc, deps.chartSvc, deps.config.MDM.AndroidBatchSize, deps.activitySvc, deps.svc)
 	})
 }
 
@@ -302,6 +302,10 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 
 	deps.register("failed to register migrate_to_per_host_policy cron", func() (fleet.CronSchedule, error) {
 		return cronMigrateToPerHostPolicy(ctx, deps.instanceID, deps.ds, deps.logger, deps.androidSvc)
+	})
+
+	deps.register("failed to register reencrypt_windows_disk_encryption_keys cron", func() (fleet.CronSchedule, error) {
+		return newReencryptWindowsDiskEncryptionKeysSchedule(ctx, deps.instanceID, deps.ds, deps.config, deps.logger)
 	})
 
 	// The APNs sweep replaces the legacy per-minute pending-commands pusher;

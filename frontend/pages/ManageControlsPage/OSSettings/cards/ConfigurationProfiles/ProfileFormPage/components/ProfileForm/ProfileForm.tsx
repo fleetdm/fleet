@@ -188,8 +188,8 @@ const ProfileForm = ({
     setField,
     commitFields,
     getError,
+    getTextFieldProps,
     clearFieldError,
-    validateField,
     handleSubmit,
     isSubmitting,
   } = useFormValidation<IProfileFormData>({
@@ -490,23 +490,16 @@ const ProfileForm = ({
         renderChildren={(disableChildren) => (
           <div className={`${baseClass}__fields`}>
             <InputField
+              {...getTextFieldProps("name")}
               label="Name"
-              name="name"
-              value={formData.name}
-              error={getError("name")}
-              onChange={(value: string) => setField("name", value)}
-              onFocus={() => clearFieldError("name")}
-              onBlur={() => validateField("name")}
               placeholder="E.g., Disable camera access for Firefox"
               inputOptions={{ maxLength: NAME_MAX_LENGTH }}
               disabled={isFieldDisabled(disableChildren)}
             />
             <InputField
+              {...getTextFieldProps("description")}
               label="Description"
-              name="description"
               type="textarea"
-              value={formData.description}
-              onChange={(value: string) => setField("description", value)}
               placeholder="E.g., Blocks Firefox from accessing the camera on managed Macs, without affecting other apps."
               inputOptions={{ maxLength: DESCRIPTION_MAX_LENGTH }}
               disabled={isFieldDisabled(disableChildren)}
@@ -540,6 +533,7 @@ const ProfileForm = ({
               )}
             </div>
             <Editor
+              {...getTextFieldProps("contents")}
               name="profile-contents"
               label={
                 contentType
@@ -547,16 +541,12 @@ const ProfileForm = ({
                   : undefined
               }
               ariaLabel="Profile contents"
-              error={getError("contents")}
               mode={
                 contentType
                   ? PROFILE_CONTENT_TYPES[contentType].editorMode
                   : "text"
               }
-              value={formData.contents}
               onChange={onContentsChange}
-              onFocus={() => clearFieldError("contents")}
-              onBlur={() => validateField("contents")}
               placeholder="// Or paste your profile into here //"
               minLines={EMPTY_EDITOR_MAX_LINES}
               maxLines={hasContents ? EDITOR_MAX_LINES : EMPTY_EDITOR_MAX_LINES}

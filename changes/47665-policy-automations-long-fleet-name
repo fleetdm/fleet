@@ -1,0 +1,1 @@
+- Fixed the policy automations table overflowing the edit policy page and the manage automations modal at narrow widths or with long fleet names.
