@@ -206,7 +206,7 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			cask.PostUninstallScripts = input.PostUninstallScripts
 		}
 
-		uninstallScript = uninstallScriptForApp(&cask)
+		uninstallScript = uninstallScriptForApp(input, &cask)
 	default:
 		if len(input.PreUninstallScripts) != 0 {
 			return nil, ctxerr.New(ctx, "cannot provide pre-uninstall scripts if uninstall script is provided")
