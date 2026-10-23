@@ -253,6 +253,10 @@ module.exports.custom = {
     'website/views': ['eashaw', 'mike-j-thomas'],
     'website/generators': 'eashaw',
     'website/assets': 'eashaw',
+    'website/assets/styles': ['eashaw','mike-j-thomas'],
+    'website/assets/images': ['eashaw','mike-j-thomas'],
+    'website/assets/videos': ['eashaw','mike-j-thomas'],
+    'website/assets/pdfs': ['eashaw','mike-j-thomas'],
     'website/package.json': 'eashaw',
     'website/config/routes.js': ['eashaw', 'mike-j-thomas'],// (for managing website URLs)
     'website/config/policies.js': ['eashaw', 'mikermcneil'],// (for adding new pages and managing permissions)
