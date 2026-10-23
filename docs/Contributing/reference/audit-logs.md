@@ -1071,46 +1071,6 @@ This activity contains the following fields:
 }
 ```
 
-## enabled_macos_disk_encryption
-> **Deprecated:** Use `edited_disk_encryption_settings` instead.
-
-Generated when a user turns on disk encryption for a fleet (or no fleet).
-
-This activity contains the following fields:
-- "fleet_id": The ID of the fleet that disk encryption applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
-- "fleet_name": The name of the fleet that disk encryption applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
-
-#### Example
-
-```json
-{
-  "team_id": 123,
-  "team_name": "Workstations",
-  "fleet_id": 123,
-  "fleet_name": "Workstations"
-}
-```
-
-## disabled_macos_disk_encryption
-> **Deprecated:** Use `edited_disk_encryption_settings` instead.
-
-Generated when a user turns off disk encryption for a fleet (or no fleet).
-
-This activity contains the following fields:
-- "fleet_id": The ID of the fleet that disk encryption applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
-- "fleet_name": The name of the fleet that disk encryption applies to, `null` if it applies to devices that are not in a fleet ("Unassigned").
-
-#### Example
-
-```json
-{
-  "team_id": 123,
-  "team_name": "Workstations",
-  "fleet_id": 123,
-  "fleet_name": "Workstations"
-}
-```
-
 ## enabled_gitops_mode
 
 Generated when a user enables GitOps mode.
