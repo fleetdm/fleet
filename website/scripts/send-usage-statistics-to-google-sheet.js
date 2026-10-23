@@ -71,6 +71,12 @@ module.exports = {
     let getFleetMaintainedAppNames = (apps)=>{
       return _.map(apps || [], (app)=>{ return _.isString(app) ? app : app.name; });
     };
+    // Older reports (string slugs) carry no patch policy information, so they report no apps here.
+    let getFleetMaintainedAppNamesWithPatchPolicy = (apps, requireSoftwareAutomation)=>{
+      return _.pluck(_.filter(apps || [], (app)=>{
+        return !_.isString(app) && app.patchPolicy && (!requireSoftwareAutomation || app.softwareAutomation);
+      }), 'name');
+    };
 
     let rows = [];
     for (let statistics of latestStatisticsForEachInstance) {
@@ -131,6 +137,37 @@ module.exports = {
         hostCountsByPlatform.iPadOS,
         hostCountsByPlatform.Android,
         hostCountsByPlatform.ChromeOS,
+        statistics.numTeams,
+        statistics.numPolicies,
+        statistics.numPoliciesAutomationEnabledSoftware,
+        getFleetMaintainedAppNamesWithPatchPolicy(statistics.fleetMaintainedAppsMacOS, false).join(', '),
+        getFleetMaintainedAppNamesWithPatchPolicy(statistics.fleetMaintainedAppsMacOS, true).join(', '),
+        getFleetMaintainedAppNamesWithPatchPolicy(statistics.fleetMaintainedAppsWindows, false).join(', '),
+        getFleetMaintainedAppNamesWithPatchPolicy(statistics.fleetMaintainedAppsWindows, true).join(', '),
+        statistics.numHostsFleetMDMEnrolledMacOS,
+        statistics.numHostsFleetMDMEnrolledWindows,
+        statistics.numHostsNotResponding,
+        statistics.numWeeklyActiveUsers,
+        statistics.numWeeklyPolicyViolationDaysActual,
+        statistics.numWeeklyPolicyViolationDaysPossible,
+        statistics.mdmAndroidEnabled,
+        statistics.gitOpsModeEnabled,
+        (statistics.gitOpsModeExceptions || []).join(', '),
+        statistics.fleetDesktopSSOEnabled,
+        statistics.certificateAuthorityConfigured,
+        statistics.ticketDestinationConfigured,
+        statistics.ssoConfiguredFleetUsers,
+        statistics.ssoConfiguredEndUsers,
+        statistics.accountProvisioningConfigured,
+        statistics.idpSCIMConfigured,
+        statistics.idpGoogleWorkspaceConfigured,
+        statistics.anyVulnerabilitiesWebhookEnabled,
+        statistics.anyFailingPoliciesWebhookEnabled,
+        statistics.anyHostActivitiesWebhookEnabled,
+        statistics.globalActivityWebhookEnabled,
+        statistics.resultLogDestination,
+        statistics.statusLogDestination,
+        statistics.auditLogDestination,
       ]);
     }//∞
 
@@ -151,6 +188,16 @@ module.exports = {
       'Okta conditional access configured', 'Conditional access enabled',
       'Conditional access bypass disabled', 'Entra conditional access configured',
       'macOS hosts', 'Windows hosts', 'Linux hosts', 'iOS hosts', 'iPadOS hosts', 'Android hosts', 'ChromeOS hosts',
+      'Fleets', 'Policies', 'Policies with software automation',
+      'Fleet-maintained apps with patch policy (macOS)', 'Fleet-maintained apps with patch policy and software automation (macOS)',
+      'Fleet-maintained apps with patch policy (Windows)', 'Fleet-maintained apps with patch policy and software automation (Windows)',
+      'Hosts enrolled in macOS MDM', 'Hosts enrolled in Windows MDM', 'Hosts not responding',
+      'Weekly active users', 'Weekly policy violation days (actual)', 'Weekly policy violation days (possible)',
+      'Android MDM', 'GitOps mode', 'GitOps mode exceptions', 'Fleet Desktop SSO', 'Certificate authority configured',
+      'Ticket destination configured', 'SSO for Fleet users', 'SSO for end users', 'Account provisioning configured',
+      'SCIM configured', 'Google Workspace configured', 'Vulnerabilities webhook', 'Failing policies webhook',
+      'Host activities webhook', 'Global activity webhook', 'Result log destination', 'Status log destination',
+      'Audit log destination',
     ];
 
     let { google } = require('googleapis');
