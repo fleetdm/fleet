@@ -2008,24 +2008,24 @@ None.
   },
   "webhook_settings": {
     "host_status_webhook": {
-      "enable_host_status_webhook": true,
+      "enabled": true,
       "destination_url": "https://server.com",
       "host_percentage": 5,
       "days_count": 7
     },
     "failing_policies_webhook":{
-      "enable_failing_policies_webhook":true,
+      "enabled": true,
       "destination_url": "https://server.com",
       "policy_ids": [1, 2, 3],
       "host_batch_size": 1000
     },
     "vulnerabilities_webhook":{
-      "enable_vulnerabilities_webhook":true,
+      "enabled": true,
       "destination_url": "https://server.com",
       "host_batch_size": 1000
     },
     "activities_webhook":{
-      "enable_activities_webhook":true,
+      "enabled": true,
       "destination_url": "https://server.com"
     }
   },
@@ -2395,24 +2395,24 @@ Modifies the Fleet's configuration with the supplied information.
   },
   "webhook_settings": {
     "host_status_webhook": {
-      "enable_host_status_webhook": true,
+      "enabled": true,
       "destination_url": "https://server.com",
       "host_percentage": 5,
       "days_count": 7
     },
     "failing_policies_webhook":{
-      "enable_failing_policies_webhook":true,
+      "enabled": true,
       "destination_url": "https://server.com",
       "policy_ids": [1, 2, 3],
       "host_batch_size": 1000
     },
     "vulnerabilities_webhook":{
-      "enable_vulnerabilities_webhook":true,
+      "enabled": true,
       "destination_url": "https://server.com",
       "host_batch_size": 1000
     },
     "activities_webhook":{
-      "enable_activities_webhook":true,
+      "enabled": true,
       "destination_url": "https://server.com"
     }
   },
@@ -2719,7 +2719,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_host_status_webhook        | boolean | Whether or not the host status webhook is enabled.                                                                                          |
+| enabled                           | boolean | Whether or not the host status webhook is enabled.                                                                                          |
 | destination_url                   | string  | The URL to deliver the webhook request to.                                                                                                  |
 | host_percentage                   | integer | The minimum percentage of hosts that must fail to check in to Fleet in order to trigger the webhook request.                                |
 | days_count                        | integer | The minimum number of days that the configured `host_percentage` must fail to check in to Fleet in order to trigger the webhook request.    |
@@ -2732,7 +2732,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ------------------------------------------------------------------------------------------------------------------- |
-| enable_failing_policies_webhook   | boolean | Whether or not the failing policies webhook is enabled.                                                             |
+| enabled                           | boolean | Whether or not the failing policies webhook is enabled.                                                             |
 | destination_url                   | string  | The URL to deliver the webhook requests to.                                                                         |
 | policy_ids                        | array   | List of policy IDs to enable failing policies webhook.                                                              |
 | host_batch_size                   | integer | Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request). |
@@ -2745,7 +2745,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_vulnerabilities_webhook    | boolean | Whether or not the vulnerabilities webhook is enabled.                                                                                                  |
+| enabled                           | boolean | Whether or not the vulnerabilities webhook is enabled.                                                                                                  |
 | destination_url                   | string  | The URL to deliver the webhook requests to.                                                                                                             |
 | host_batch_size                   | integer | Maximum number of hosts to batch on vulnerabilities webhook requests. The default, 0, means no batching (all vulnerable hosts are sent on one request). |
 
@@ -2757,7 +2757,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | --------------------------------------------------------- |
-| enable_activities_webhook         | boolean | Whether or not the activity feed webhook is enabled.      |
+| enabled                           | boolean | Whether or not the activity feed webhook is enabled.      |
 | destination_url                   | string  | The URL to deliver the webhook requests to.               |
 
 <br/>
@@ -2768,24 +2768,24 @@ _Available in Fleet Premium._
 {
   "webhook_settings": {
     "host_status_webhook": {
-      "enable_host_status_webhook": true,
+      "enabled": true,
       "destination_url": "https://server.com",
       "host_percentage": 5,
       "days_count": 7
     },
     "failing_policies_webhook":{
-      "enable_failing_policies_webhook": true,
+      "enabled": true,
       "destination_url": "https://server.com",
       "policy_ids": [1, 2, 3],
       "host_batch_size": 1000
     },
     "vulnerabilities_webhook":{
-      "enable_vulnerabilities_webhook":true,
+      "enabled": true,
       "destination_url": "https://server.com",
       "host_batch_size": 1000
     },
     "activities_webhook":{
-      "enable_activities_webhook":true,
+      "enabled": true,
       "destination_url": "https://server.com"
     }
   }
@@ -2809,8 +2809,8 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_software_vulnerabilities   | boolean | Whether or not Jira integration is enabled for software vulnerabilities. Only one vulnerability automation can be enabled at a given time (enable_vulnerabilities_webhook and enable_software_vulnerabilities). |
-| enable_failing_policies           | boolean | Whether or not Jira integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
+| enable_software_vulnerabilities   | boolean | Whether or not Jira integration is enabled for software vulnerabilities. Only one vulnerability automation can be enabled at a given time (`webhook_settings.vulnerabilities_webhook.enabled` and `enable_software_vulnerabilities`). |
+| enable_failing_policies           | boolean | Whether or not Jira integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (`webhook_settings.failing_policies_webhook.enabled` and `enable_failing_policies`). |
 | url                               | string  | The URL of the Jira server to integrate with. |
 | username                          | string  | The Jira username to use for this Jira integration. |
 | api_token                         | string  | The API token of the Jira username to use for this Jira integration. |
@@ -2826,8 +2826,8 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_software_vulnerabilities   | boolean | Whether or not Zendesk integration is enabled for software vulnerabilities. Only one vulnerability automation can be enabled at a given time (enable_vulnerabilities_webhook and enable_software_vulnerabilities). |
-| enable_failing_policies           | boolean | Whether or not Zendesk integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
+| enable_software_vulnerabilities   | boolean | Whether or not Zendesk integration is enabled for software vulnerabilities. Only one vulnerability automation can be enabled at a given time (`webhook_settings.vulnerabilities_webhook.enabled` and `enable_software_vulnerabilities`). |
+| enable_failing_policies           | boolean | Whether or not Zendesk integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (`webhook_settings.failing_policies_webhook.enabled` and `enable_failing_policies`). |
 | url                               | string  | The URL of the Zendesk server to integrate with. |
 | email                             | string  | The Zendesk user email to use for this Zendesk integration. |
 | api_token                         | string  | The Zendesk API token to use for this Zendesk integration. |
@@ -17119,13 +17119,13 @@ _Available in Fleet Premium_
     },
     "webhook_settings": {
       "failing_policies_webhook": {
-        "enable_failing_policies_webhook": false,
+        "enabled": false,
         "destination_url": "",
         "policy_ids": null,
         "host_batch_size": 0
       },
       "host_activities_webhook": {
-        "enable_host_activities_webhook": true,
+        "enabled": true,
         "destination_url": "https://server.com/example"
       }
     },
@@ -17297,7 +17297,7 @@ Returned when the requested name only differs from an existing fleet's name by l
     },
     "webhook_settings": {
       "failing_policies_webhook": {
-        "enable_failing_policies_webhook": false,
+        "enabled": false,
         "destination_url": "",
         "policy_ids": null,
         "host_batch_size": 0
@@ -17394,7 +17394,7 @@ Returned when the requested name only differs from another fleet's name by lette
     },
     "webhook_settings": {
       "failing_policies_webhook": {
-        "enable_failing_policies_webhook": false,
+        "enabled": false,
         "destination_url": "",
         "policy_ids": null,
         "host_batch_size": 0
@@ -17421,7 +17421,7 @@ Returned when the requested name only differs from another fleet's name by lette
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_failing_policies_webhook | boolean | Whether or not the failing policies webhook is enabled.                                                                                                                                                   |
+| enabled                         | boolean | Whether or not the failing policies webhook is enabled.                                                                                                                                                   |
 | destination_url                 | string  | The URL to deliver the webhook requests to.                                                                                                                                                               |
 | policy_ids                      | array   | List of policy IDs to enable failing policies webhook.                                                                                                                                                    |
 | host_batch_size                 | integer | Maximum number of hosts to batch on failing policy webhook requests. The default, `0`, means no batching (all hosts failing a policy are sent on one request).                                              |
@@ -17434,7 +17434,7 @@ Returned when the requested name only differs from another fleet's name by lette
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_host_status_webhook | boolean | Whether or not the host status webhook is enabled. |
+| enabled                    | boolean | Whether or not the host status webhook is enabled. |
 | destination_url            | string | The URL to deliver the webhook request to. |
 | host_percentage            | integer | The minimum percentage of hosts that must fail to check in to Fleet in order to trigger the webhook request. |
 | days_count | integer | body | The minimum number of days that the configured `host_percentage` must fail to check in to Fleet in order to trigger the webhook request. |
@@ -17447,10 +17447,10 @@ Returned when the requested name only differs from another fleet's name by lette
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_host_activities_webhook | boolean | Whether or not the host activities webhook is enabled. When enabled, Fleet sends a webhook request every time an activity linked to one of this fleet's hosts is created. The webhook payload has the same format as the global [activities webhook](#webhook-settings-activities-webhook). MDM command results (shown via **Show MDM commands** on the host details page) are not activities and don't trigger this webhook yet. |
+| enabled                        | boolean | Whether or not the host activities webhook is enabled. When enabled, Fleet sends a webhook request every time an activity linked to one of this fleet's hosts is created. The webhook payload has the same format as the global [activities webhook](#webhook-settings-activities-webhook). MDM command results (shown via **Show MDM commands** on the host details page) are not activities and don't trigger this webhook yet. |
 | destination_url                | string  | The URL to deliver the webhook requests to.                                                                                                                                                               |
 
-Omitting `host_activities_webhook` from a `webhook_settings` update leaves the stored value unchanged. To turn the webhook off, send the object with `enable_host_activities_webhook: false`.
+Omitting `host_activities_webhook` from a `webhook_settings` update leaves the stored value unchanged. To turn the webhook off, send the object with `enabled: false`.
 
 <br/>
 
@@ -17460,19 +17460,19 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 {
   "webhook_settings": {
     "failing_policies_webhook":{
-      "enable_failing_policies_webhook": true,
+      "enabled": true,
       "destination_url": "https://server.com",
       "policy_ids": [1, 2, 3],
       "host_batch_size": 1000
     },
     "host_status_webhook": {
-      "enable_host_status_webhook": true,
+      "enabled": true,
       "destination_url": "https://server.com",
       "host_percentage": 5,
       "days_count": 7
     },
     "host_activities_webhook": {
-      "enable_host_activities_webhook": true,
+      "enabled": true,
       "destination_url": "https://server.com"
     }
   }
@@ -17502,7 +17502,7 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 | ------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | url                             | string  | The URL of the Jira server to use.                                                                                                                                                                        |
 | project_key                     | string  | The project key of the Jira integration to use. Jira tickets will be created in this project.                                                                                                             |
-| enable_failing_policies         | boolean | Whether or not that Jira integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (`enable_failing_policies_webhook` and `enable_failing_policies`).    |
+| enable_failing_policies         | boolean | Whether or not that Jira integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (`webhook_settings.failing_policies_webhook.enabled` and `enable_failing_policies`).    |
 
 <br/>
 
@@ -17514,7 +17514,7 @@ Omitting `host_activities_webhook` from a `webhook_settings` update leaves the s
 | ------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | url                             | string  | The URL of the Zendesk server to use.                                                                                                                                                                     |
 | group_id                        | integer | The Zendesk group ID to use. Zendesk tickets will be created in this group.                                                                                                                               |
-| enable_failing_policies         | boolean | Whether or not that Zendesk integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (`enable_failing_policies_webhook` and `enable_failing_policies`). |
+| enable_failing_policies         | boolean | Whether or not that Zendesk integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (`webhook_settings.failing_policies_webhook.enabled` and `enable_failing_policies`). |
 
 <br/>
 
@@ -17891,7 +17891,7 @@ This also applies to `DELETE /api/v1/fleet/fleets/:id/users` (remove users from 
     },
     "webhook_settings": {
       "failing_policies_webhook": {
-        "enable_failing_policies_webhook": false,
+        "enabled": false,
         "destination_url": "",
         "policy_ids": null,
         "host_batch_size": 0
@@ -18086,7 +18086,7 @@ _Available in Fleet Premium_
     },
     "webhook_settings": {
       "failing_policies_webhook": {
-        "enable_failing_policies_webhook": false,
+        "enabled": false,
         "destination_url": "",
         "policy_ids": null,
         "host_batch_size": 0
