@@ -1489,6 +1489,68 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusOK)
 		})
 	})
+
+	t.Run("names that differ only in case are the same CA", func(t *testing.T) {
+		t.Cleanup(func() {
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				_, _ = q.ExecContext(context.Background(), "DELETE FROM certificate_authorities")
+				return nil
+			})
+		})
+		named := func(names ...string) fleet.GroupedCertificateAuthorities {
+			var cas fleet.GroupedCertificateAuthorities
+			for _, name := range names {
+				digicert, customSCEP, hydrant, est, smallstep := goodDigiCertCA, goodCustomSCEPCA, goodHydrantCA, goodESTCA, goodSmallstepCA
+				digicert.Name, customSCEP.Name, hydrant.Name, est.Name, smallstep.Name = name, name, name, name, name
+				cas.DigiCert = append(cas.DigiCert, digicert)
+				cas.CustomScepProxy = append(cas.CustomScepProxy, customSCEP)
+				cas.Hydrant = append(cas.Hydrant, hydrant)
+				cas.EST = append(cas.EST, est)
+				cas.Smallstep = append(cas.Smallstep, smallstep)
+			}
+			return cas
+		}
+		apply := func(cas fleet.GroupedCertificateAuthorities, status int) *http.Response {
+			return s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{CertificateAuthorities: cas}, status)
+		}
+
+		apply(named("CASE_X"), http.StatusOK)
+		lastID := s.lastActivityMatches("", "", 0)
+
+		// Deletes are enabled, as the request doesn't set skip_deletes: each CA is renamed, not deleted.
+		apply(named("case_x"), http.StatusOK)
+		s.checkAppliedCAs(t, s.ds, named("case_x"))
+		var activities listActivitiesResponse
+		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities, "order_key", "id", "order_direction", "desc", "per_page", "20")
+		var newTypes []string
+		for _, a := range activities.Activities {
+			if a.ID > lastID {
+				newTypes = append(newTypes, a.Type)
+			}
+		}
+		require.ElementsMatch(t, []string{
+			fleet.ActivityEditedDigiCert{}.ActivityName(), fleet.ActivityEditedCustomSCEPProxy{}.ActivityName(),
+			fleet.ActivityEditedHydrant{}.ActivityName(), fleet.ActivityEditedCustomESTProxy{}.ActivityName(),
+			fleet.ActivityEditedSmallstep{}.ActivityName(),
+		}, newTypes)
+
+		duplicates := named("DUP_X", "dup_x")
+		for _, tc := range []struct {
+			caType, displayType string
+			cas                 fleet.GroupedCertificateAuthorities
+		}{
+			{"digicert", "DigiCert", fleet.GroupedCertificateAuthorities{DigiCert: duplicates.DigiCert}},
+			{"custom_scep_proxy", "Custom SCEP Proxy", fleet.GroupedCertificateAuthorities{CustomScepProxy: duplicates.CustomScepProxy}},
+			{"hydrant", "Hydrant", fleet.GroupedCertificateAuthorities{Hydrant: duplicates.Hydrant}},
+			{"custom_est_proxy", "Custom EST Proxy", fleet.GroupedCertificateAuthorities{EST: duplicates.EST}},
+			{"smallstep", "Smallstep", fleet.GroupedCertificateAuthorities{Smallstep: duplicates.Smallstep}},
+		} {
+			errMsg := extractServerErrorText(apply(tc.cas, http.StatusUnprocessableEntity).Body)
+			require.Contains(t, errMsg, "certificate_authorities."+tc.caType)
+			require.Contains(t, errMsg, "name is already used by another "+tc.displayType+" certificate authority")
+		}
+		s.checkAppliedCAs(t, s.ds, named("case_x"))
+	})
 }
 
 func (s *integrationMDMTestSuite) checkAppliedCAs(t *testing.T, ds fleet.Datastore, expectedCAs fleet.GroupedCertificateAuthorities) {
@@ -1558,6 +1620,22 @@ func (s *integrationMDMTestSuite) checkAppliedCAs(t *testing.T, ds fleet.Datasto
 		assert.Equal(t, wantByName, gotByName)
 	} else {
 		assert.Empty(t, gotCAs.EST)
+	}
+
+	if len(expectedCAs.Smallstep) != 0 {
+		assert.Len(t, gotCAs.Smallstep, len(expectedCAs.Smallstep))
+		wantByName := make(map[string]fleet.SmallstepSCEPProxyCA)
+		gotByName := make(map[string]fleet.SmallstepSCEPProxyCA)
+		for _, ca := range expectedCAs.Smallstep {
+			wantByName[ca.Name] = ca
+		}
+		for _, ca := range gotCAs.Smallstep {
+			ca.ID = 0 // ignore IDs when comparing
+			gotByName[ca.Name] = ca
+		}
+		assert.Equal(t, wantByName, gotByName)
+	} else {
+		assert.Empty(t, gotCAs.Smallstep)
 	}
 
 	if expectedCAs.NDESSCEP != nil {
