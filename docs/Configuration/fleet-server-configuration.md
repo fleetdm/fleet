@@ -3780,6 +3780,20 @@ The number of days the signed SCEP client certificates will be valid.
     apple_scep_signer_validity_days: 100
   ```
 
+### mdm.apple_scep_static_challenge_enabled
+
+Whether Fleet accepts its static SCEP challenge when Apple hosts request an MDM identity certificate. Fleet gives each host a one-time challenge tied to that host for automatic (ADE), over-the-air (OTA), and account-driven user enrollments, and for SCEP certificate renewals. The static challenge is only used by the [manual enrollment profile](https://fleetdm.com/docs/rest-api/rest-api#get-manual-enrollment-profile).
+
+Set this to `true` to accept the static challenge and make the manual enrollment profile available. When it's `false` (the default), the manual enrollment profile isn't available, and manual enrollment profiles you downloaded earlier stop working. Hosts that already have MDM turned on aren't affected.
+
+- Default value: `false`
+- Environment variable: `FLEET_MDM_APPLE_SCEP_STATIC_CHALLENGE_ENABLED`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_scep_static_challenge_enabled: false
+  ```
+
 ### mdm.apple_dep_sync_periodicity
 
 The duration between DEP device syncing (fetching and setting of DEP profiles). Only relevant if Apple Business (AB) is configured.
