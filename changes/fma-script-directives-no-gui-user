@@ -1,1 +1,0 @@
-- Fixed uninstall scripts for some Fleet-maintained apps on macOS (e.g. Anka, Cloudflare WARP, Chrome Remote Desktop Host, Microsoft Defender) skipping the vendor's uninstaller when no one was logged in. Vendor uninstallers that run as root now run at the login window. Uninstall steps that must run as the logged-in user are skipped with a message instead of failing.
