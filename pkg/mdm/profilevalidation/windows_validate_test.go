@@ -153,7 +153,11 @@ func TestResolveWindowsNode(t *testing.T) {
 		{name: "template policy user", locURI: "./User" + chromeHomepage, want: node("./User" + chromeHomepage)},
 		{name: "ADMX install item", locURI: "./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/Chrome/Policy/ChromeAdmx", want: node("./Device/Vendor/MSFT/Policy/ConfigOperations/ADMXInstall/*/*/*")},
 		{name: "DMAcc", locURI: "./SyncML/DMAcc/MDMServer/Name", want: node("./SyncML/DMAcc/*/Name")},
-		{name: "ingested ADMX area", locURI: "./Device/Vendor/MSFT/Policy/Config/chrome~Policy~googlechrome/RelaunchNotification"},
+		{name: "renamed template install", locURI: "./Device/Vendor/MSFT/Policy/Config/chrome~Policy~googlechrome/CloudManagementEnrollmentToken", want: node("./Device/Vendor/MSFT/Policy/Config/GoogleChrome~Policy~googlechrome/CloudManagementEnrollmentToken")},
+		{name: "renamed template install user", locURI: "./User/Vendor/MSFT/Policy/Config/MyChrome~policy~GoogleChrome~Startup/homepagelocation", want: node("./User" + chromeHomepage)},
+		// An older Chrome ADMX had RelaunchNotification directly under googlechrome.
+		{name: "template policy in another category", locURI: "./Device/Vendor/MSFT/Policy/Config/chrome~Policy~googlechrome/RelaunchNotification"},
+		{name: "unknown ADMX", locURI: "./Device/Vendor/MSFT/Policy/Config/Contoso~Policy~contoso/Setting"},
 		{name: "policy typo", locURI: "./Device/Vendor/MSFT/Policy/Config/DeviceLock/Typoo"},
 		{name: "policy area alone", locURI: "./Device/Vendor/MSFT/Policy/Config/Unknown"},
 		{name: "unknown CSP", locURI: "./Device/Vendor/MSFT/Unknown/Setting"},
@@ -238,10 +242,11 @@ func TestValidateWindowsProfile(t *testing.T) {
 			strict:  []Finding{unknownKey("Unknown", unknown)},
 		},
 		{
-			name:    "ADMX area not from a template",
+			name:    "ADMX policy not in a template",
 			profile: syncMLItem(foreignADMX, "chr", "<enabled/>"),
 			strict:  []Finding{unknownKey("chrome~Policy~googlechrome", foreignADMX)},
 		},
+		{name: "renamed template install", profile: syncMLItem("./Device/Vendor/MSFT/Policy/Config/chrome~Policy~googlechrome/CloudManagementEnrollmentToken", "chr", "<enabled/>")},
 		{
 			name:    "policy typo",
 			profile: syncMLItem("./Device/Vendor/MSFT/Policy/Config/DeviceLock/Typoo", "int", "5"),

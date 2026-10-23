@@ -178,15 +178,56 @@ findings, err := s.ValidateAppleDeclaration(data, profilevalidation.ModeStrict) 
 
 Lenient mode is for profiles admins upload. Strict mode is for profiles the AI profile generator writes.
 
+## Validating Windows profiles
+
+```go
+findings, err := s.ValidateWindowsProfile(data, profilevalidation.ModeLenient) // SyncML
+```
+
+It runs after the structural validator in `server/fleet` (well-formed XML, allowed top-level elements, LocURI format, Fleet-reserved LocURIs) and checks every `<Item>` with a `Target/LocURI`, wherever it's nested.
+
+- **Errors** mean the XML is malformed. A body that's only a secret placeholder has no items and no findings.
+- **A finding** has the same fields as Apple's:
+  - `key_path` is the LocURI as written;
+  - `payload_type` is the Policy area (`DeviceLock`, `GoogleChrome~Policy~googlechrome~Startup`), or else the CSP (`Firewall`, `DMAcc`);
+  - `expected` is the node's formats, or its scope for `WRONG_SCOPE`;
+  - `actual` is never the Data, which can hold secrets like SCEP challenges.
+
+**Matching a LocURI to a node:**
+
+- Segments compare case-insensitively. A `*` segment in the schema matches any one non-empty segment, including a Fleet variable.
+- A bare `./Vendor/MSFT/X` and `./Device/Vendor/MSFT/X` are the same setting; each is tried for the other. A bare path counts as device scope.
+- If neither spelling matches, the other scope (`./User/` ↔ `./Device/`) is tried and the match is flagged as the wrong scope.
+- Policies under `Policy/Config/{Area}/{Policy}` must match exactly. The DDF's `Policy/Config/*` and `Policy/Config/*/*` placeholders (declared for ADMX ingestion, format `null`) never match; otherwise every policy LocURI, typos included, would be known.
+- An ingested ADMX area, `{App}~Policy~{Category}`, matches a template policy whatever the `{App}`, because the admin picks it in `ADMXInstall/{App}/…`. Fleet's docs install Chrome as `chrome`, the template calls it `GoogleChrome`. A policy in another category (an older or newer ADMX release) or from an ADMX without a template is unknown.
+- `Policy/ConfigOperations/ADMXInstall/{App}/Policy/{File}` matches the DDF's dynamic nodes.
+
+**Both modes:**
+
+- **`TYPE_MISMATCH`:** a matched node's `<Data>` doesn't parse as its format. A node with several formats accepts Data that parses as any of them.
+  - `int`: a base-10 integer. `bool`: `true`, `false`, `0`, or `1`. `b64`: base64, whitespace ignored. `xml`: well-formed.
+  - Every other format passes: `chr` (including ADMX-backed `<enabled/>` markup), `node`, `null`, `bin`, `time`, `float`, and any format the validator doesn't know. Missing or blank Data passes.
+- **Fleet variables** expand to text, so `$FLEET_VAR_…` passes `chr` and `xml` and fails `int`, `bool`, and `b64`. Data containing `$FLEET_SECRET_…` passes any format.
+- **Unknown LocURIs pass.** Allowed values (`enum`, `range`, `regex`, `flag`, `xsd`) aren't checked; the schema carries them for later.
+
+**Strict mode also reports:**
+
+- **`UNKNOWN_KEY`:** a LocURI that matches no node.
+- **`WRONG_SCOPE`:** a `./User/` path for a node declared only under `./Device/`, or the reverse. Lenient mode still checks its Data against that node.
+- **`FORMAT_MISMATCH`:** a `<Meta><Format>` that isn't one of the node's formats. Data is always checked against the DDF, never against Meta, because Meta is optional.
+
+## Checking the repo's profiles
+
 To check the repo's profiles by hand, run from the repository root:
 
 ```sh
 go run ./tools/profile-validate [-strict] [paths…]   # defaults to it-and-security, docs/solutions, ee/cis
 ```
 
+- `.mobileconfig` files are Apple profiles, `.json` files with a `com.apple.*` `Type` are declarations, and `.xml` files with a `<LocURI>` are Windows profiles. Anything else is ignored.
 - It prints one line per finding and exits 1 if there are any.
 - Files it can't parse are logged and skipped. For example, a profile with a GitOps environment variable that fleetctl expands before upload.
-- Every profile in those directories passes lenient mode. Strict mode reports fixture problems (mostly missing `PayloadVersion` in CIS profiles), which is expected.
+- Every profile in those directories passes lenient mode. Strict mode reports fixture problems, which is expected: mostly missing `PayloadVersion` in CIS profiles, and a Chrome policy in the Windows ADMX example whose bundled ADMX puts it in an older category.
 
 ## Overrides
 
@@ -291,15 +332,8 @@ allow:
 
 ## Notes for validators
 
-Things the schema records but doesn't decide; the validator (#55792) owns them.
+Things the schema records that the validators don't use yet.
 
-- **Fleet variables:** substitute or skip `$FLEET_VAR_*` and `${FLEET_SECRET_*}` before checking a value. Otherwise `${FLEET_SECRET_LENGTH}` fails an `int` range.
-- **Root equivalence:** the DDF roots some CSPs at bare `./Vendor/MSFT` and others at `./Device/Vendor/MSFT`; decide which spellings are equivalent.
 - **Interior `*` nodes:** a `regex` on a `node` entry constrains the instance's name, not a value. For example, `FirewallRules/*` names can't contain `|` or `/`.
-- **ADMX policies** under `./{Device|User}/Vendor/MSFT/Policy/Config/{area}/{policy}`:
-  - **An area without `~`** is a built-in Policy CSP area (none of the 262 contain `~`). It must match a DDF node exactly. Don't fall back to `Policy/Config/*/*`, a generic placeholder Microsoft declares as `null`, or a typo in a built-in setting would pass.
-  - **An area with `~`** is an ingested ADMX: `{AppName}~{SettingType}~{Category…}`, created on the device by installing an ADMX through `Policy/ConfigOperations/ADMXInstall/{AppName}/…`. Its policies are always `chr`.
-    - **Strict mode** (AI-generated profiles) matches template policies exactly, AppName included.
-    - **Lenient mode** ignores the AppName and matches on `{SettingType}~{Category…}/{policy}`, because admins pick their own AppName (Fleet's docs install Chrome as `Chrome`, not `GoogleChrome`). An unknown policy or app isn't an error: it may be a custom ADMX, or a newer vendor release than the template data.
 - **Future:** the template file also lists each policy's ADMX elements (`admxElements`: element ids, types, and enum values) for 642 of its 1,575 policies. The schema doesn't carry them yet; they could validate the `<data id="…" value="…"/>` payload of known policies.
 - **Future (Apple):** strict mode rejects `com.apple.ManagedClient.preferences` as a whole unless `allow` replaces it. Per-domain strictness is possible: list known preference domains under `PayloadContent` (as `add` entries), and report unknown domains as `UNKNOWN_KEY` instead of the whole type as `UNKNOWN_TYPE`. That needs `mcx_preference_settings` to be typed per domain, since it's `any` today.
