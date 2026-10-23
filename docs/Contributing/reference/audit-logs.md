@@ -2963,15 +2963,15 @@ Generated when Okta conditional access configuration is removed.
 
 This activity does not contain any detail fields.
 
-## added_conditional_access_google
+## added_conditional_access_integration_google
 
-Generated when Google conditional access is turned on, or its Google customer ID is edited.
+Generated when Fleet is connected to Google for conditional access.
 
 This activity does not contain any detail fields.
 
-## deleted_conditional_access_google
+## deleted_conditional_access_integration_google
 
-Generated when Google conditional access is turned off.
+Generated when Fleet is disconnected from Google for conditional access.
 
 This activity does not contain any detail fields.
 
