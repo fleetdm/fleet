@@ -1,8 +1,24 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { noop } from "lodash";
 import React from "react";
 
+import { notify } from "components/ToastNotification";
+import softwareAPI from "services/entities/software";
+
 import DeleteSoftwareModal from "./DeleteSoftwareModal";
+
+jest.mock("components/ToastNotification", () => ({
+  notify: {
+    success: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
+jest.mock("services/entities/software", () => ({
+  __esModule: true,
+  default: { deleteSoftwareInstaller: jest.fn() },
+}));
 
 const renderModal = (
   props: Partial<React.ComponentProps<typeof DeleteSoftwareModal>> = {}
@@ -81,6 +97,25 @@ describe("DeleteSoftwareModal", () => {
       expect(
         screen.queryByText("Custom icon and display name will be deleted.")
       ).not.toBeInTheDocument();
+    });
+
+    it("names the deleted package in the success toast", async () => {
+      (softwareAPI.deleteSoftwareInstaller as jest.Mock).mockResolvedValue({});
+      renderModal({
+        canActivateMultiplePackages: true,
+        installerId: 3,
+        packageName: "Zoom-arm64.pkg",
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+      await waitFor(() => expect(notify.success).toHaveBeenCalledTimes(1));
+      const { container } = render(
+        <>{(notify.success as jest.Mock).mock.calls[0][0]}</>
+      );
+      expect(container).toHaveTextContent(
+        "Successfully deleted Zoom-arm64.pkg version."
+      );
     });
   });
 

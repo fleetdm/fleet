@@ -82,13 +82,13 @@ describe("AddPackageModal", () => {
       expect(screen.getByText("Linux")).toBeInTheDocument();
     });
 
-    it("renders the form's Save button as 'Save' (not 'Add software')", async () => {
+    it("renders the form's submit button as 'Add' (not 'Add software')", async () => {
       renderModal();
       // The button text comes from PackageForm — `multiPackageContext` flips
-      // it from "Add software" to "Save". The form mounts after labels load
+      // it from "Add software" to "Add". The form mounts after labels load
       // (an empty array via the optional-chained fallback), so await it.
-      const saveButton = await screen.findByRole("button", { name: "Save" });
-      expect(saveButton).toBeInTheDocument();
+      const addButton = await screen.findByRole("button", { name: "Add" });
+      expect(addButton).toBeInTheDocument();
       expect(
         screen.queryByRole("button", { name: "Add software" })
       ).not.toBeInTheDocument();

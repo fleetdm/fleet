@@ -242,7 +242,8 @@ const SoftwareTitleDetailsPage = ({
       });
 
       // Keep the admin on the title when deleting one of multiple App Store
-      // app versions, or when the title still has inventory versions to show.
+      // app versions or custom packages, or when the title still has
+      // inventory versions to show.
       // The `versions` count is Inventory (host-installed); a freshly-added
       // multi-version title with no installs has `versions.length === 0`, so
       // without the explicit sibling signal a version delete would redirect.
@@ -785,6 +786,8 @@ const SoftwareTitleDetailsPage = ({
     const versionCount = title.app_store_apps?.length ?? 0;
     const isVersionDelete = selectedVersionId !== null;
     const isLastVersion = isVersionDelete && versionCount <= 1;
+    const siblingPackagesRemain =
+      canActivateMultiplePackages && (title.packages?.length ?? 0) > 1;
     return (
       <DeleteSoftwareModal
         softwareId={softwareId}
@@ -796,11 +799,13 @@ const SoftwareTitleDetailsPage = ({
         isAppStoreApp={isAppStoreApp}
         isAndroidApp={isAndroidApp}
         canActivateMultiplePackages={canActivateMultiplePackages}
+        packageName={selected?.name}
         onExit={closeDeleteModal}
         onSuccess={() => {
           closeDeleteModal();
           onDeleteInstaller({
-            siblingVersionsRemain: isVersionDelete && !isLastVersion,
+            siblingVersionsRemain:
+              (isVersionDelete && !isLastVersion) || siblingPackagesRemain,
           });
         }}
       />

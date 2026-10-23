@@ -615,11 +615,12 @@ const PackageForm = ({
             // tooltipped and non-tooltipped branches need identical text,
             // disabled state, and type. A previous duplication let the
             // "Save" / "Add software" copy drift between branches.
+            let submitText = "Add software";
+            if (multiPackageContext) submitText = "Add";
+            else if (isEditingSoftware) submitText = "Save";
             const submitButton = (
               <Button type="submit" disabled={isSubmitDisabled}>
-                {isEditingSoftware || multiPackageContext
-                  ? "Save"
-                  : "Add software"}
+                {submitText}
               </Button>
             );
             return submitTooltipContent ? (

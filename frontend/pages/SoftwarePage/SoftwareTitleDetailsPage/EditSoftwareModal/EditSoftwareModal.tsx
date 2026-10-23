@@ -240,7 +240,8 @@ const EditSoftwareModal = ({
 
       notify.success(
         <>
-          Successfully edited <b>{formData.software?.name}</b>.
+          Successfully edited <b>{formData.software?.name}</b>
+          {canActivateMultiplePackages ? " version." : "."}
           {formData.selfService
             ? " The end user can install from Fleet Desktop."
             : ""}
