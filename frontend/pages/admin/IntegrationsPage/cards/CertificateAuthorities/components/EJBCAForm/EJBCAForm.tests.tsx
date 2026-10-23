@@ -75,6 +75,24 @@ describe("EJBCAForm", () => {
     });
   });
 
+  it("keeps showing the error of the client certificate after a file is selected", () => {
+    const { user, container } = renderWithSetup(
+      <EJBCAForm
+        serverErrors={{
+          clientP12: "The client certificate expired on 2020-01-01",
+        }}
+        submitBtnText="Add CA"
+        onSubmit={noop}
+        onCancel={noop}
+      />
+    );
+    return user.upload(getFileInput(container), p12File()).then(() => {
+      expect(
+        screen.getByText("The client certificate expired on 2020-01-01")
+      ).toBeVisible();
+    });
+  });
+
   it("says when the name is used by another certificate authority", async () => {
     const { user } = renderWithSetup(
       <EJBCAForm

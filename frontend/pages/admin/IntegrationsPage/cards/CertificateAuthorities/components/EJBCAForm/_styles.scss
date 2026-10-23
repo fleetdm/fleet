@@ -1,0 +1,12 @@
+.ejbca-form {
+  // the modal lays out the form, so only what is specific to this form is here
+  &__client-cert {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
+
+  &__client-cert-expiry {
+    margin: 0;
+  }
+}

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 
 import Button from "components/buttons/Button";
 import FileUploader from "components/FileUploader";
@@ -74,6 +74,8 @@ const EJBCAForm = ({
 }: IEJBCAFormProps) => {
   const isEditing = editingCertAuthorityId !== undefined;
   const [p12File, setP12File] = useState<File | null>(null);
+  // The number of the latest selection of a file, so that the read of an earlier one can't replace it.
+  const latestP12Selection = useRef(0);
 
   const {
     getTextFieldProps,
@@ -90,7 +92,7 @@ const EJBCAForm = ({
       }),
     serverErrors,
     isSubmitting: isSubmittingExternal,
-    // These are sent as they are: a password can have spaces at its ends, and the bundle is a PEM.
+    // These are sent as they are: a password can have spaces at its ends.
     skipTrim: ["clientP12", "password"],
   });
 
@@ -102,14 +104,22 @@ const EJBCAForm = ({
         notify.error("Invalid file type. Please upload a .p12 or .pfx file.");
         return;
       }
+      if (file.size === 0) {
+        notify.error("The file is empty. Please upload a .p12 or .pfx file.");
+        return;
+      }
       if (file.size > MAX_P12_SIZE_BYTES) {
         notify.error("The file is too large. Please upload a file under 1 MB.");
         return;
       }
+      latestP12Selection.current += 1;
+      const selection = latestP12Selection.current;
       try {
         const clientP12 = await readFileAsBase64(file);
-        setP12File(file);
-        commitFields({ clientP12 });
+        if (selection === latestP12Selection.current) {
+          setP12File(file);
+          commitFields({ clientP12 });
+        }
       } catch {
         notify.error("Couldn't read the file. Please try again.");
       }
@@ -118,6 +128,7 @@ const EJBCAForm = ({
   );
 
   const onDeleteP12 = () => {
+    latestP12Selection.current += 1;
     setP12File(null);
     commitFields({ clientP12: "", password: "" });
   };
@@ -160,7 +171,12 @@ const EJBCAForm = ({
           accept=".p12,.pfx"
           buttonType="secondary"
           internalError={getError("clientP12")}
-          fileDetails={p12File ? { name: p12File.name } : undefined}
+          // the error is shown in the details once a file is selected, as the uploader only shows it before
+          fileDetails={
+            p12File
+              ? { name: p12File.name, description: getError("clientP12") }
+              : undefined
+          }
           onFileUpload={onSelectP12}
           onDeleteFile={onDeleteP12}
           disabled={isSubmitting}

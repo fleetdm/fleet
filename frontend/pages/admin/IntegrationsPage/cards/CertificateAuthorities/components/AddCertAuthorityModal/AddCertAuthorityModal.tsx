@@ -127,6 +127,8 @@ const AddCertAuthorityModal = ({
 
   const onChangeDropdown = (value: ICertificateAuthorityType) => {
     setCertAuthorityType(value);
+    // the EJBCA form starts empty when it is shown again, so the errors of the last request don't belong to it
+    setEJBCAServerErrors(null);
   };
 
   const onChangeForm = (update: { name: string; value: string }) => {
