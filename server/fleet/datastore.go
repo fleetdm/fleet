@@ -3586,7 +3586,7 @@ type Datastore interface {
 	GetAppStoreAppVersionIDsFromSpecificVersion(ctx context.Context, vppAppTeamID uint) ([]uint, error)
 
 	// GetAppStoreAppVersionsByTeam returns every App Store app version on the team, first-added first and indexed by software
-	// title id, with only their app id, version id, labels, configuration and configuration change time.
+	// title id, with only their app id, version id, whether they have labels, configuration and configuration change time.
 	GetAppStoreAppVersionsByTeam(ctx context.Context, teamID uint) (map[uint][]*VPPAppStoreApp, error)
 
 	// ListHostAppStoreAppInstallVersions returns, for each App Store app on the fleet and each of hostIDs that's on

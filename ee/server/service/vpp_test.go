@@ -1057,8 +1057,9 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 		}
 		f.ds.GetAppStoreAppVersionsByTeamFunc = func(ctx context.Context, fleetID uint) (map[uint][]*fleet.VPPAppStoreApp, error) {
 			versionsByTitleID := make(map[uint][]*fleet.VPPAppStoreApp)
-			if len(f.versionsByFleetID[fleetID]) > 0 {
-				versionsByTitleID[1] = f.versionsByFleetID[fleetID]
+			for _, version := range f.versionsByFleetID[fleetID] {
+				version.HasLabels = len(version.LabelsIncludeAny) > 0 || len(version.LabelsExcludeAny) > 0 || len(version.LabelsIncludeAll) > 0
+				versionsByTitleID[1] = append(versionsByTitleID[1], version)
 			}
 			return versionsByTitleID, nil
 		}
@@ -1695,7 +1696,7 @@ func TestReconcileAppStoreAppConfigurations(t *testing.T) {
 		versions := f.ds.GetAppStoreAppVersionsByTeamFunc
 		f.ds.GetAppStoreAppVersionsByTeamFunc = func(ctx context.Context, fleetID uint) (map[uint][]*fleet.VPPAppStoreApp, error) {
 			versionsByTitleID, err := versions(ctx, fleetID)
-			versionsByTitleID[2] = []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: 20, LabelsIncludeAny: []fleet.SoftwareScopeLabel{{LabelID: 1}}}}
+			versionsByTitleID[2] = []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: 20, HasLabels: true}}
 			return versionsByTitleID, err
 		}
 		installs := f.ds.ListHostAppStoreAppInstallVersionsFunc

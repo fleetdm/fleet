@@ -5459,11 +5459,10 @@ func testAppStoreAppConfigurationResendHosts(t *testing.T, ds *Datastore) {
 		require.Len(t, versions, 2)
 		require.Equal(t, app.AppTeamID, versions[0].VPPAppsTeamsID)
 		require.Equal(t, app.VPPAppID, versions[0].VPPAppID)
-		require.Empty(t, versions[0].LabelsIncludeAny)
+		require.False(t, versions[0].HasLabels)
 		require.Empty(t, versions[0].Configuration)
 		require.Equal(t, otherVersion.AppTeamID, versions[1].VPPAppsTeamsID)
-		require.Len(t, versions[1].LabelsIncludeAny, 1)
-		require.Equal(t, label.ID, versions[1].LabelsIncludeAny[0].LabelID)
+		require.True(t, versions[1].HasLabels)
 		require.Equal(t, `<dict/>`, string(versions[1].Configuration))
 
 		// list the hosts' install versions, only the activated install on a host with the app in inventory should be returned

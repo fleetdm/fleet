@@ -3809,7 +3809,8 @@ SELECT
 	vat.adam_id,
 	vat.platform,
 	vat.id AS vpp_apps_teams_id,
-	vat.configuration_updated_at
+	vat.configuration_updated_at,
+	EXISTS (SELECT 1 FROM vpp_app_team_labels vatl WHERE vatl.vpp_app_team_id = vat.id) AS has_labels
 FROM
 	vpp_apps_teams vat
 	JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
@@ -3834,10 +3835,6 @@ ORDER BY vat.id
 	for _, version := range versions {
 		versionIDs = append(versionIDs, version.VPPAppsTeamsID)
 	}
-	labelsByVersionID, err := ds.getVPPAppLabels(ctx, versionIDs)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get app store app version labels")
-	}
 	configurationByVersionID, err := ds.BulkGetVPPAppConfigurations(ctx, versionIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get app store app version configurations")
@@ -3845,16 +3842,6 @@ ORDER BY vat.id
 
 	for i := range versions {
 		version := &versions[i].VPPAppStoreApp
-		for _, label := range labelsByVersionID[version.VPPAppsTeamsID] {
-			switch {
-			case label.Exclude:
-				version.LabelsExcludeAny = append(version.LabelsExcludeAny, label)
-			case label.RequireAll:
-				version.LabelsIncludeAll = append(version.LabelsIncludeAll, label)
-			default:
-				version.LabelsIncludeAny = append(version.LabelsIncludeAny, label)
-			}
-		}
 		version.Configuration = configurationByVersionID[version.VPPAppsTeamsID]
 		versionsByTitleID[versions[i].TitleID] = append(versionsByTitleID[versions[i].TitleID], version)
 	}

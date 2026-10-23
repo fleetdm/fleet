@@ -2167,7 +2167,7 @@ func reconcileAppStoreAppConfigurations(ctx context.Context, ds fleet.Datastore,
 			break
 		}
 		// A version without labels includes every host left, so skip the label scope query for it
-		if len(version.LabelsIncludeAny) == 0 && len(version.LabelsExcludeAny) == 0 && len(version.LabelsIncludeAll) == 0 {
+		if !version.HasLabels {
 			includedHostIDs = make(map[uint]struct{}, len(hostIDsWithoutVersion))
 			for _, hostID := range hostIDsWithoutVersion {
 				includedHostIDs[hostID] = struct{}{}
