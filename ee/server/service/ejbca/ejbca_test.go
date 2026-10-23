@@ -3,6 +3,7 @@ package ejbca
 import (
 	"context"
 	"crypto/rsa"
+	"errors"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -196,6 +197,8 @@ func TestGetCertificateErrors(t *testing.T) {
 		configure func(*ejbcatest.Server)
 		modify    func(t *testing.T, f *ejbcatest.Server, config *fleet.EJBCA)
 		wantErr   string
+		// wantTransient is whether the error is one that is expected to clear on its own, so the enrollment is worth retrying.
+		wantTransient bool
 	}{
 		{
 			name: "unknown CA",
@@ -229,7 +232,12 @@ func TestGetCertificateErrors(t *testing.T) {
 		{
 			name:      "EJBCA server error",
 			configure: func(f *ejbcatest.Server) { f.EnrollStatus = http.StatusInternalServerError },
-			wantErr:   fmt.Sprintf(msgUnexpected, http.StatusInternalServerError, "General failure"),
+			wantErr:   fmt.Sprintf(msgUnexpected, http.StatusInternalServerError, "General failure"), wantTransient: true,
+		},
+		{
+			name:    "EJBCA that is not running",
+			modify:  func(_ *testing.T, f *ejbcatest.Server, _ *fleet.EJBCA) { f.HTTP.Close() },
+			wantErr: strings.Split(msgUnreachable, "%s")[0], wantTransient: true,
 		},
 		{
 			name:      "certificate for another key",
@@ -257,6 +265,8 @@ func TestGetCertificateErrors(t *testing.T) {
 			cert, err := NewService().GetCertificate(t.Context(), config)
 			require.ErrorContains(t, err, tt.wantErr)
 			require.Nil(t, cert)
+			_, isTransient := errors.AsType[fleet.CertificateAuthorityTransientError](err)
+			require.Equal(t, tt.wantTransient, isTransient)
 		})
 	}
 

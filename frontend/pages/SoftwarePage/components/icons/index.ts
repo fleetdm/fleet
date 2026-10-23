@@ -598,10 +598,12 @@ import Linear from "./png/Linear.png";
 import Linearmouse from "./png/Linearmouse.png";
 import LingonX from "./png/LingonX.png";
 import LittleSnitch from "./png/LittleSnitch.png";
+import LMStudio from "./png/LMStudio.png";
 import Local from "./png/Local.png";
 import Localsend from "./png/Localsend.png";
 import Locationsimulator from "./png/Locationsimulator.png";
 import Logioptionsplus from "./png/Logioptionsplus.png";
+import LogitechGHub from "./png/LogitechGHub.png";
 import LogitechUnifyingSoftware from "./png/LogitechUnifyingSoftware.png";
 import LogiTune from "./png/LogiTune.png";
 import Logseq from "./png/Logseq.png";
@@ -1776,11 +1778,13 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   linearmouse: Linearmouse,
   "lingon x": LingonX,
   "little snitch": LittleSnitch,
+  "lm studio": LMStudio,
   local: Local,
   localsend: Localsend,
   locationsimulator: Locationsimulator,
   "logi options+": Logioptionsplus,
   "logi tune": LogiTune,
+  "logitech g hub": LogitechGHub,
   "logitech unifying software": LogitechUnifyingSoftware,
   logseq: Logseq,
   lookaway: Lookaway,

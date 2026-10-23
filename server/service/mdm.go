@@ -1643,7 +1643,8 @@ type deleteMDMConfigProfileRequest struct {
 }
 
 type deleteMDMConfigProfileResponse struct {
-	Err error `json:"error,omitempty"`
+	Warning string `json:"warning,omitempty"`
+	Err     error  `json:"error,omitempty"`
 }
 
 func (r deleteMDMConfigProfileResponse) Error() error { return r.Err }
@@ -1651,7 +1652,10 @@ func (r deleteMDMConfigProfileResponse) Error() error { return r.Err }
 func deleteMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteMDMConfigProfileRequest)
 
-	var err error
+	var (
+		err     error
+		warning string
+	)
 	if isAppleProfileUUID(req.ProfileUUID) { //nolint:gocritic // ignore ifElseChain
 		err = svc.DeleteMDMAppleConfigProfile(ctx, req.ProfileUUID)
 	} else if isAppleDeclarationUUID(req.ProfileUUID) {
@@ -1660,8 +1664,11 @@ func deleteMDMConfigProfileEndpoint(ctx context.Context, request interface{}, sv
 		err = svc.DeleteMDMAndroidConfigProfile(ctx, req.ProfileUUID)
 	} else {
 		err = svc.DeleteMDMWindowsConfigProfile(ctx, req.ProfileUUID)
+		if err == nil {
+			warning = fleet.WindowsProfileDeletedWarning
+		}
 	}
-	return &deleteMDMConfigProfileResponse{Err: err}, nil
+	return &deleteMDMConfigProfileResponse{Warning: warning, Err: err}, nil
 }
 
 func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUUID string) error {

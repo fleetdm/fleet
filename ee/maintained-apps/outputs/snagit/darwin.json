@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.4.2",
+      "version": "2026.4.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.TechSmith.Snagit';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.TechSmith.Snagit' AND version_compare(bundle_short_version, '2026.4.2') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.TechSmith.Snagit' AND version_compare(bundle_short_version, '2026.4.3') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.TechSmith.Snagit' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://download.techsmith.com/snagitmac/releases/2026.4.2/snagit.dmg",
+      "installer_url": "https://download.techsmith.com/snagitmac/releases/2026.4.3/snagit.dmg",
       "install_script_ref": "6029c2ee",
       "uninstall_script_ref": "59bfdeae",
-      "sha256": "37ed6ae873009cf7f922c86b79a0f80b777d76519f1a5a447d66c2d3f3dacf5b",
+      "sha256": "6f77c03f247de6fab3e5815ee07be176dbd588e654a40fe934366ea0551c94a2",
       "default_categories": [
         "Productivity"
       ]
