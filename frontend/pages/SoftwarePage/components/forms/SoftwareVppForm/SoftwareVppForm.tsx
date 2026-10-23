@@ -101,6 +101,7 @@ export interface ISoftwareVppFormData {
   labelTargets: Record<string, boolean>;
   selectedApp?: IVppApp | null;
   categories: string[];
+  vppTokenId?: number;
 }
 
 export interface IFormValidation {

@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
@@ -1299,7 +1300,8 @@ func TestUpdateVPPTokenTeamsValidation(t *testing.T) {
 
 	setup := func(t *testing.T) (*Service, *mock.Store) {
 		ds := new(mock.Store)
-		ds.GetVPPTokenFunc = func(_ context.Context, id uint) (*fleet.VPPTokenDB, error) {
+		ds.GetVPPTokenFunc = func(ctx context.Context, id uint) (*fleet.VPPTokenDB, error) {
+			require.True(t, ctxdb.IsPrimaryRequired(ctx), "a just-uploaded token may not be on the replica yet")
 			if id != 1 {
 				return nil, common_mysql.NotFound("VPPToken")
 			}
