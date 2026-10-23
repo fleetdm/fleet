@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -262,6 +263,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 	t.Run("Batch apply with no CAs succeeds when no private key is configured", func(t *testing.T) {
 		ds := new(mock.Store)
 		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			require.True(t, ctxdb.IsPrimaryRequired(ctx), "the batch plan reads the stored CAs from the primary")
 			return &fleet.GroupedCertificateAuthorities{}, nil
 		}
 		ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {

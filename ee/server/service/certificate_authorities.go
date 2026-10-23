@@ -13,6 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -585,7 +586,9 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 		Update: make([]*fleet.CertificateAuthority, 0),
 	}
 
-	existing, err := svc.ds.GetGroupedCertificateAuthorities(ctx, true)
+	// Google CAS entries that match the stored ones are skipped, so the stored state comes from the primary: a
+	// lagging replica could otherwise make a changed CA look unchanged.
+	existing, err := svc.ds.GetGroupedCertificateAuthorities(ctxdb.RequirePrimary(ctx, true), true)
 	if err != nil {
 		return nil, err
 	}
