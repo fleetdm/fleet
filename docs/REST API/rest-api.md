@@ -11833,6 +11833,7 @@ For example, a policy might ask "Is Gatekeeper enabled on macOS devices?" This p
       "calendar_events_enabled": true,
       "conditional_access_enabled": false,
       "continuous_automations_enabled": false,
+      "force_patch": false,
       "patch_when_closed": false,
       "notify_before_patching": false,
       "created_at": "2026-08-07T02:39:37Z",
@@ -11855,6 +11856,7 @@ For example, a policy might ask "Is Gatekeeper enabled on macOS devices?" This p
       "description": "If you're seeing this, mostly likely this is because someone is testing out failing policies in dogfood. You can ignore this.",
       "platform": "darwin,linux,windows",
       "type": "dynamic",
+      "force_patch": false,
       "patch_when_closed": false,
       "notify_before_patching": false,
       "created_at": "2026-05-13T16:16:42Z",
@@ -11981,21 +11983,23 @@ Returns the policy specified by ID.
 | labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
 | labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **any of these** labels. |
 | labels_exclude_all | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **all of these** labels. |
-| type | string | body | The type of the policy. Options are `"dynamic"` (classic policy with an editable query) or `"patch"` (tied to `patch_software_title_id` and automatically updated to include the newest Fleet-maintained app version). If not specified, defaults to `"dynamic"`. |
-| patch_software_title_id | integer | body | _Available in Fleet Premium_. ID of the software title (Fleet-maintained only) to create a patch policy for. Required if `type` is `patch`. |
-| patch_when_closed | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch`. If `true`, Fleet adds a read-only pre-install condition that skips the automated install while the app is open. Setting this to `true` also sets `continuous_automations_enabled` to `true`. If `false`, Fleet installs the update the next time the policy fails, whether or not the app is open. If `software_title_id` is not specified, install software policy automation won't be added. |
-| notify_before_patching | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch`. If `true`, Fleet shows the end user a notification listing the apps that will be patched in 1 hour. A reminder is shown 5 minutes before the install. Setting this to `true` also sets `continuous_automations_enabled` to `true`. Only supported on macOS hosts with Fleet Desktop installed (available as Fleet-maintained app). If `software_title_id` is not specified, install software policy automation won't be added.|
+| type | string | body | The type of the policy. Options are `"dynamic"` (classic policy with an editable query) or `"patch"` (tied to `software_title_id` and automatically updated to include the newest Fleet-maintained app version). If not specified, defaults to `"dynamic"`. |
+| force_patch | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch` and `automation_type` is `"software"`. If `true`, Fleet installs the update the next time the policy fails, whether or not the app is open. |
+| patch_when_closed | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch`. If `true`, Fleet adds a read-only pre-install condition that skips the automated install while the app is open. Setting this to `true` also sets `continuous_automations_enabled` to `true`. |
+| notify_before_patching | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch`. If `true`, Fleet shows the end user a notification listing the apps that will be patched in 1 hour. A reminder is shown 5 minutes before the install. Setting this to `true` also sets `continuous_automations_enabled` to `true`. Only supported on macOS hosts with Fleet Desktop installed (available as Fleet-maintained app). |
 | automation_type | string | body | The type of automation to enable for this policy. For global policies, this can be set to `"webhook_or_ticket"`. For fleet-level policies (_available in Fleet Premium_), there are additional options: `"calendar"`, `"configuration_profile"`, `"conditional_access"`, `"software"`, and `"script"`. Set this to `null` to remove a policy's automation. | 
-| software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. If `software_title_id` is specified and the software has `labels_include_any` or `labels_exclude_any` defined, the policy will inherit this target in addition to specified `platform`. **Required if `automation_type` is `"software"`.** |
+| software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. If `software_title_id` is specified and the software has `labels_include_any` or `labels_exclude_any` defined, the policy will inherit this target in addition to specified `platform`. If `type` is `patch`, this is the Fleet-maintained app the policy checks. **Required if `automation_type` is `"software"` or `type` is `"patch"`.** |
 | software_package_id | integer | body | _Available in Fleet Premium_. ID of the specific package to install when the software title has multiple packages. If omitted, defaults to the title's first-added package. |
 | script_id         | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. **Required if `automation_type` is `"script"`.** |
 | profile_uuid      | string  | body | _Available in Fleet Premium_. UUID of the configuration profile to resend if the policy fails. The profile must belong to the same fleet. **Required if `automation_type` is `"configuration_profile"`.** |
 | continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. If the install software automation does not resolve the policy after 10 attempts, Fleet will wait 24 hours before retrying. |
 
 
+If `type` is `patch` and `automation_type` is `"software"`, exactly one of `force_patch`, `patch_when_closed`, or `notify_before_patching` must be `true`. If `automation_type` isn't set, the patch policy only reports hosts that aren't running the latest version, and Fleet doesn't patch the app.
+
 Only one set of label targets (`labels_include_any`/`labels_include_all`) and one set of label exclusions (`labels_exclude_any`/`labels_exclude_all`) can be specified. If none are set, all hosts on the specified `platform` are targeted.
 
-> `patch_when_closed` and `notify_before_patching` are only supported for patch policies tied to a Fleet-maintained app (`patch_software_title_id` refers to a title added via [Add Fleet-maintained app](#add-fleet-maintained-app)). Enabling these options overrides any `pre_install_query` previously set on that software title — see [Update package](#update-package). When this is enabled, Fleet won't retry software install when pre-install condition fails.
+> `patch_when_closed` and `notify_before_patching` are only supported for patch policies tied to a Fleet-maintained app (`software_title_id` refers to a title added via [Add Fleet-maintained app](#add-fleet-maintained-app)). Enabling these options overrides any `pre_install_query` previously set on that software title — see [Update package](#update-package). When this is enabled, Fleet won't retry software install when pre-install condition fails.
 
 #### Example
 
@@ -12055,6 +12059,23 @@ Only one set of label targets (`labels_include_any`/`labels_include_all`) and on
 }
 ```
 
+#### Example (patch policy)
+
+`POST /api/v1/fleet/policies`
+
+##### Request body
+
+```json
+{
+  "name": "Zoom up to date",
+  "type": "patch",
+  "fleet_id": 1,
+  "software_title_id": 1234,
+  "automation_type": "software",
+  "notify_before_patching": true
+}
+```
+
 ---
 
 ### Update policy
@@ -12076,21 +12097,23 @@ Only one set of label targets (`labels_include_any`/`labels_include_all`) and on
 | labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
 | labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **any of these** labels. |
 | labels_exclude_all | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will **not** run on hosts that match **all of these** labels. |
-| type | string | body | The type of the policy. Options are `"dynamic"` (classic policy with an editable query) or `"patch"` (tied to `patch_software_title_id` and automatically updated to include the newest Fleet-maintained app version). If not specified, defaults to `"dynamic"`. |
-| patch_software_title_id | integer | body | _Available in Fleet Premium_. ID of the software title (Fleet-maintained only) to create a patch policy for. Required if `type` is `patch`. |
-| patch_when_closed | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch`. If `true`, Fleet adds a read-only pre-install condition that skips the automated install while the app is open. Setting this to `true` also sets `continuous_automations_enabled` to `true`. If `false`, Fleet installs the update the next time the policy fails, whether or not the app is open. If `software_title_id` is not specified, install software policy automation won't be added. |
-| notify_before_patching | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch`. If `true`, Fleet shows the end user a notification listing the apps that will be updated, waits 1 hour, and then installs. A reminder is shown 5 minutes before the install. Nothing is installed until the end user has been notified and the hour has elapsed. Setting this to `true` also sets `continuous_automations_enabled` to `true`. Only supported on macOS hosts with Fleet Desktop installed. If `software_title_id` is not specified, install software policy automation won't be added. |
+| type | string | body | The type of the policy. Options are `"dynamic"` (classic policy with an editable query) or `"patch"` (tied to `software_title_id` and automatically updated to include the newest Fleet-maintained app version). If not specified, defaults to `"dynamic"`. |
+| force_patch | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch` and `automation_type` is `"software"`. If `true`, Fleet installs the update the next time the policy fails, whether or not the app is open. |
+| patch_when_closed | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch`. If `true`, Fleet adds a read-only pre-install condition that skips the automated install while the app is open. Setting this to `true` also sets `continuous_automations_enabled` to `true`. |
+| notify_before_patching | boolean | body | _Available in Fleet Premium_. Only applies if `type` is `patch`. If `true`, Fleet shows the end user a notification listing the apps that will be updated, waits 1 hour, and then installs. A reminder is shown 5 minutes before the install. Nothing is installed until the end user has been notified and the hour has elapsed. Setting this to `true` also sets `continuous_automations_enabled` to `true`. Only supported on macOS hosts with Fleet Desktop installed. |
 | automation_type | string | body | The type of automation to enable for this policy. For global policies, this can be set to `"webhook_or_ticket"`. For fleet-level policies (_available in Fleet Premium_), there are additional options: `"calendar"`, `"configuration_profile"`, `"conditional_access"`, `"software"`, and `"script"`. Set this to `null` to remove a policy's automation. | 
-| software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. If `software_title_id` is specified and the software has `labels_include_any` or `labels_exclude_any` defined, the policy will inherit this target in addition to specified `platform`. **Required if `automation_type` is `"software"`.** |
+| software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. If `software_title_id` is specified and the software has `labels_include_any` or `labels_exclude_any` defined, the policy will inherit this target in addition to specified `platform`. If `type` is `patch`, this is the Fleet-maintained app the policy checks. **Required if `automation_type` is `"software"` or `type` is `"patch"`.** |
 | software_package_id | integer | body | _Available in Fleet Premium_. ID of the specific package to install when the software title has multiple packages. If omitted, defaults to the title's first-added package. |
 | script_id         | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. **Required if `automation_type` is `"script"`.** |
 | profile_uuid      | string  | body | _Available in Fleet Premium_. UUID of the configuration profile to resend if the policy fails. The profile must belong to the same fleet. **Required if `automation_type` is `"configuration_profile"`.** |
 | continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. If the install software automation does not resolve the policy after 10 attempts, Fleet will wait 24 hours before retrying. |
 
 
+If `type` is `patch` and `automation_type` is `"software"`, exactly one of `force_patch`, `patch_when_closed`, or `notify_before_patching` must be `true`. If `automation_type` isn't set, the patch policy only reports hosts that aren't running the latest version, and Fleet doesn't patch the app.
+
 Only one set of label targets (`labels_include_any`/`labels_include_all`) and one set of label exclusions (`labels_exclude_any`/`labels_exclude_all`) can be specified. If none are set, all hosts on the specified `platform` are targeted.
 
-Setting `patch_when_closed` or `notify_before_patching` to `false` after it was `true` removes the read-only pre-install condition Fleet added. `pre_install_query` becomes editable again on the software title.
+Switching from `patch_when_closed` or `notify_before_patching` to `force_patch`, or removing the automation, removes the read-only pre-install condition Fleet added. `pre_install_query` becomes editable again on the software title.
 
 #### Example
 
@@ -15217,7 +15240,7 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
 
 > Changes to the installer package will reset installation counts. Changes to any field other than `self_service` will cancel pending installs for the old package.
 
-> If this software title has a patch policy with `patch_when_closed` set to `true` (see [Update fleet-level policy](#update-fleet-level-policy)), `pre_install_query` is managed by Fleet and can't be set directly.
+> If this software title has a patch policy with `patch_when_closed` set to `true` (see [Update policy](#update-policy)), `pre_install_query` is managed by Fleet and can't be set directly.
 
 Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`, `uninstall_script`, `post_install_script`, and `pre_install_query` fields as bas64-encoded rather than as-is.
 
@@ -15739,7 +15762,7 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
 
 Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`, `uninstall_script`, `post_install_script`, and `pre_install_query` fields as bas64-encoded rather than as-is.
 
-To keep this app patched to the latest version, create a [patch policy](#create-fleet-level-policy) with `patch_software_title_id` set to the `software_title_id` returned below. `automatic_install` and a patch policy can both be added for the same app.
+To keep this app patched to the latest version, create a [patch policy](#create-policy) with `type` set to `"patch"` and `software_title_id` set to the `software_title_id` returned below. `automatic_install` and a patch policy can both be added for the same app.
 
 #### Example
 
