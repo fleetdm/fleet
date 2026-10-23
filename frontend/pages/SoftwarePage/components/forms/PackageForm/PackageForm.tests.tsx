@@ -54,7 +54,7 @@ const selectFileNamed = async (container: HTMLElement, name: string) => {
   await userEvent.upload(input, file, { applyAccept: false });
 };
 
-const TARGET_BANNER_COPY = /If multiple packages of the same software target the same host, Fleet will install the one that was added first\./i;
+const TARGET_BANNER_COPY = /If multiple versions target the same host, Fleet will deploy the one that was added first\./i;
 
 describe("PackageForm", () => {
   describe("Target section on the single-package Add flow", () => {

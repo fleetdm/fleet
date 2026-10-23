@@ -52,7 +52,7 @@ describe("AddPackageModal", () => {
       renderModal();
       expect(
         screen.getByText(
-          /If multiple packages of the same software target the same host, Fleet will install the one that was added first\./i
+          /If multiple versions target the same host, Fleet will deploy the one that was added first\./i
         )
       ).toBeInTheDocument();
     });

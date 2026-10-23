@@ -520,8 +520,8 @@ const PackageForm = ({
           iconColor="ui-fleet-black-50"
           className={`${baseClass}__multi-package-banner`}
         >
-          If multiple packages of the same software target the same host, Fleet
-          will install the one that was added first.
+          If multiple versions target the same host, Fleet will deploy the one
+          that was added first.
         </InfoBanner>
       )}
       <DropdownTargetLabelSelector
