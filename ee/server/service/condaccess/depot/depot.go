@@ -85,8 +85,8 @@ func (d *ConditionalAccessSCEPDepot) HasCN(cn string, allowTime int, cert *x509.
 }
 
 // Put stores a certificate under the given name.
-// The certificate must contain a SAN URI with the device UUID in the format:
-// urn:device:apple:uuid:<uuid>
+// The certificate must contain a SAN URI with the device UUID in one of the deviceUUIDURIPrefixes formats, such as
+// urn:device:fleet:uuid:<uuid>
 // The UUID is used to look up the host in Fleet, and the certificate is only issued
 // if the host exists. Old certificates for the same host are automatically revoked.
 func (d *ConditionalAccessSCEPDepot) Put(name string, crt *x509.Certificate) error {
@@ -97,8 +97,6 @@ func (d *ConditionalAccessSCEPDepot) Put(name string, crt *x509.Certificate) err
 		return errors.New("cannot represent serial number as int64")
 	}
 
-	// Extract UUID from SAN URI
-	// Expected format: urn:device:apple:uuid:<device-uuid>
 	uuid := extractUUIDFromCert(crt)
 	if uuid == "" {
 		return errors.New("no device UUID found in certificate SAN URI")
@@ -161,16 +159,19 @@ func (d *ConditionalAccessSCEPDepot) Put(name string, crt *x509.Certificate) err
 	return nil
 }
 
+// deviceUUIDURIPrefixes are the accepted SAN URI prefixes. Apple profiles use the first; Windows profiles use the
+// platform-neutral second.
+var deviceUUIDURIPrefixes = []string{"urn:device:apple:uuid:", "urn:device:fleet:uuid:"}
+
 // extractUUIDFromCert extracts the device UUID from the SAN URI field.
-// Expected format: urn:device:apple:uuid:<uuid>
 // Returns the UUID portion or empty string if not found.
 func extractUUIDFromCert(crt *x509.Certificate) string {
-	const prefix = "urn:device:apple:uuid:"
 	for _, uri := range crt.URIs {
-		// Check if this is a device URI (urn:device:apple:uuid:...)
-		uriStr := uri.String()
-		if strings.HasPrefix(uriStr, prefix) {
-			return strings.TrimPrefix(uriStr, prefix)
+		s := uri.String()
+		for _, prefix := range deviceUUIDURIPrefixes {
+			if uuid, ok := strings.CutPrefix(s, prefix); ok {
+				return uuid
+			}
 		}
 	}
 	return ""

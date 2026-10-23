@@ -115,41 +115,49 @@ func testSCEPEnrollment(t *testing.T, s *Suite) {
 	err := s.DS.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: testEnrollmentSecret}})
 	require.NoError(t, err)
 
-	// Create a test host
-	host, err := s.DS.NewHost(ctx, &fleet.Host{
-		OsqueryHostID:   ptr.String("test-host-scep-1"),
-		NodeKey:         ptr.String("test-node-key-scep-1"),
-		UUID:            "test-uuid-scep-1",
-		Hostname:        "test-hostname-scep-1",
-		Platform:        "darwin",
-		DetailUpdatedAt: time.Now(),
-	})
-	require.NoError(t, err)
+	// macOS profiles use the Apple prefix, Windows profiles the platform-neutral one.
+	for i, prefix := range []string{"urn:device:apple:uuid:", "urn:device:fleet:uuid:"} {
+		t.Run(prefix, func(t *testing.T) {
+			// Create a test host
+			host, err := s.DS.NewHost(ctx, &fleet.Host{
+				OsqueryHostID:   new(fmt.Sprintf("test-host-scep-%d", i+1)),
+				NodeKey:         new(fmt.Sprintf("test-node-key-scep-%d", i+1)),
+				UUID:            fmt.Sprintf("test-uuid-scep-%d", i+1),
+				Hostname:        fmt.Sprintf("test-hostname-scep-%d", i+1),
+				Platform:        "darwin",
+				DetailUpdatedAt: time.Now(),
+			})
+			require.NoError(t, err)
 
-	// Request certificate via SCEP
-	cert := requestSCEPCertificate(t, s, host.UUID, testEnrollmentSecret)
-	require.NotNil(t, cert)
+			// Request certificate via SCEP
+			deviceURI, err := url.Parse(prefix + host.UUID)
+			require.NoError(t, err)
+			cert, err := requestSCEPCertificateWithOptions(t, s, []*url.URL{deviceURI}, testEnrollmentSecret)
+			require.NoError(t, err, "SCEP request should succeed")
+			require.NotNil(t, cert)
 
-	// Verify certificate attributes
-	assert.NotNil(t, cert.SerialNumber)
-	assert.True(t, time.Now().Before(cert.NotAfter))
-	assert.True(t, time.Now().After(cert.NotBefore))
+			// Verify certificate attributes
+			assert.NotNil(t, cert.SerialNumber)
+			assert.True(t, time.Now().Before(cert.NotAfter))
+			assert.True(t, time.Now().After(cert.NotBefore))
 
-	// Verify SAN URI contains the host UUID
-	require.Len(t, cert.URIs, 1)
-	assert.Equal(t, "urn:device:apple:uuid:"+host.UUID, cert.URIs[0].String())
+			// Verify SAN URI contains the host UUID
+			require.Len(t, cert.URIs, 1)
+			assert.Equal(t, deviceURI.String(), cert.URIs[0].String())
 
-	// Verify certificate is stored in database and linked to host
-	hostID, err := s.DS.GetConditionalAccessCertHostIDBySerialNumber(ctx, uint64(cert.SerialNumber.Int64())) //nolint:gosec // G115
-	require.NoError(t, err)
-	assert.Equal(t, host.ID, hostID)
+			// Verify certificate is stored in database and linked to host
+			hostID, err := s.DS.GetConditionalAccessCertHostIDBySerialNumber(ctx, uint64(cert.SerialNumber.Int64())) //nolint:gosec // G115
+			require.NoError(t, err)
+			assert.Equal(t, host.ID, hostID)
 
-	// Verify certificate validity period (398 days, Apple's maximum)
-	expectedMaxDuration := 398*24*time.Hour + 24*time.Hour // Allow 1 day tolerance
-	expectedMinDuration := 398*24*time.Hour - 24*time.Hour
-	actualDuration := cert.NotAfter.Sub(cert.NotBefore)
-	assert.True(t, actualDuration >= expectedMinDuration && actualDuration <= expectedMaxDuration,
-		"Certificate should be valid for approximately 398 days")
+			// Verify certificate validity period (398 days, Apple's maximum)
+			expectedMaxDuration := 398*24*time.Hour + 24*time.Hour // Allow 1 day tolerance
+			expectedMinDuration := 398*24*time.Hour - 24*time.Hour
+			actualDuration := cert.NotAfter.Sub(cert.NotBefore)
+			assert.True(t, actualDuration >= expectedMinDuration && actualDuration <= expectedMaxDuration,
+				"Certificate should be valid for approximately 398 days")
+		})
+	}
 }
 
 func testInvalidChallenge(t *testing.T, s *Suite) {

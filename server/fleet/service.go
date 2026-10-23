@@ -1702,6 +1702,10 @@ type Service interface {
 	// ConditionalAccessGetIdPAppleProfile returns the Apple MDM configuration profile
 	// (for user scope) to configure Okta conditional access on the host.
 	ConditionalAccessGetIdPAppleProfile(ctx context.Context) (profileData []byte, err error)
+	// ConditionalAccessGetIdPWindowsProfiles returns the Windows MDM configuration profiles (SyncML) to configure Okta
+	// conditional access on the host: one that enrolls the certificate into the user's store and one that makes Chrome
+	// and Edge auto-select it.
+	ConditionalAccessGetIdPWindowsProfiles(ctx context.Context) (*ConditionalAccessWindowsProfiles, error)
 
 	//////////////////////////////////////////////////////////////////////////////
 	// Certificate Authorities
