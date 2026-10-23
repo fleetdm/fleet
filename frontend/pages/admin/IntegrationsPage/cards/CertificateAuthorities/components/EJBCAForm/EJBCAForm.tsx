@@ -112,6 +112,8 @@ const EJBCAForm = ({
         notify.error("The file is too large. Please upload a file under 1 MB.");
         return;
       }
+
+      // a slower read of an earlier file pick must not replace this one
       latestP12Selection.current += 1;
       const selection = latestP12Selection.current;
       try {
@@ -128,6 +130,7 @@ const EJBCAForm = ({
   );
 
   const onDeleteP12 = () => {
+    // allow deleting the file even if its read is still in progress
     latestP12Selection.current += 1;
     setP12File(null);
     commitFields({ clientP12: "", password: "" });
