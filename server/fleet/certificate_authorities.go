@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"slices"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 // TODO HCA these types can/should be removed once appconfig CA support is removed
@@ -155,6 +157,27 @@ func (c *CertificateAuthority) EffectiveEJBCAUsernameTemplate() string {
 		return *c.CertificateCommonName
 	}
 	return ""
+}
+
+// EJBCA returns the settings of an EJBCA CA, with the empty value for what isn't set.
+func (c *CertificateAuthority) EJBCA() EJBCA {
+	ejbca := EJBCA{
+		ID:                       c.ID,
+		Name:                     ptr.ValOrZero(c.Name),
+		URL:                      ptr.ValOrZero(c.URL),
+		MTLSCertPEM:              ptr.ValOrZero(c.MTLSCertPEM),
+		MTLSKeyPEM:               ptr.ValOrZero(c.MTLSKeyPEM),
+		TrustCABundlePEM:         ptr.ValOrZero(c.TrustCABundlePEM),
+		CertificateAuthorityName: ptr.ValOrZero(c.EJBCACAName),
+		CertificateProfileName:   ptr.ValOrZero(c.EJBCACertificateProfileName),
+		EndEntityProfileName:     ptr.ValOrZero(c.EJBCAEndEntityProfileName),
+		CertificateCommonName:    ptr.ValOrZero(c.CertificateCommonName),
+		UsernameTemplate:         ptr.ValOrZero(c.EJBCAUsernameTemplate),
+	}
+	if c.CertificateUserPrincipalNames != nil {
+		ejbca.CertificateUserPrincipalNames = *c.CertificateUserPrincipalNames
+	}
+	return ejbca
 }
 
 // ESTProxyCA returns the EST connection settings of a Hydrant or custom EST CA, which store
@@ -622,6 +645,7 @@ type GroupedCertificateAuthorities struct {
 	NDESSCEP        *NDESSCEPProxyCA       `json:"ndes_scep_proxy"`
 	CustomScepProxy []CustomSCEPProxyCA    `json:"custom_scep_proxy"`
 	Smallstep       []SmallstepSCEPProxyCA `json:"smallstep"`
+	EJBCA           []EJBCA                `json:"-"` // not exported or applied by GitOps yet, so it is kept out of the spec until it can be
 }
 
 // IsEmpty returns true if no certificate authorities of any type are configured.
@@ -631,7 +655,8 @@ func (g *GroupedCertificateAuthorities) IsEmpty() bool {
 		len(g.DigiCert) == 0 &&
 		g.NDESSCEP == nil &&
 		len(g.CustomScepProxy) == 0 &&
-		len(g.Smallstep) == 0
+		len(g.Smallstep) == 0 &&
+		len(g.EJBCA) == 0
 }
 
 // ToCustomSCEPProxyCAMap converts the CustomScepProxy slice to a map keyed by CA name
@@ -651,6 +676,7 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 		CustomScepProxy: []CustomSCEPProxyCA{},
 		NDESSCEP:        nil,
 		Smallstep:       []SmallstepSCEPProxyCA{},
+		EJBCA:           []EJBCA{},
 	}
 
 	for _, ca := range cas {
@@ -702,6 +728,8 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 				URL:       *ca.URL,
 				Challenge: *ca.Challenge,
 			})
+		case string(CATypeEJBCA):
+			grouped.EJBCA = append(grouped.EJBCA, ca.EJBCA())
 		case string(CATypeSmallstep):
 			grouped.Smallstep = append(grouped.Smallstep, SmallstepSCEPProxyCA{
 				ID:           ca.ID,

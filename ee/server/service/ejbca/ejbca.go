@@ -350,9 +350,9 @@ func transportError(ctx context.Context, err error) error {
 		// A TLS alert from EJBCA, such as bad certificate, which is how it refuses a client certificate it doesn't trust.
 		return ctxerr.Errorf(ctx, msgClientCertRejected, opErr.Err)
 	case errors.Is(err, io.EOF), errors.Is(err, io.ErrUnexpectedEOF):
-		return ctxerr.New(ctx, msgConnectionClosed)
+		return certissue.Transient(ctx, ctxerr.New(ctx, msgConnectionClosed))
 	default:
-		return ctxerr.Errorf(ctx, msgUnreachable, target, err)
+		return certissue.Transient(ctx, ctxerr.Errorf(ctx, msgUnreachable, target, err))
 	}
 }
 
@@ -370,7 +370,7 @@ func statusError(ctx context.Context, status int, body []byte, enrolling bool) e
 	case status == http.StatusBadRequest && enrolling:
 		return ctxerr.Errorf(ctx, msgEnrollRejected, message)
 	default:
-		return ctxerr.Errorf(ctx, msgUnexpected, status, message)
+		return certissue.TransientStatus(ctxerr.Errorf(ctx, msgUnexpected, status, message), status)
 	}
 }
 
