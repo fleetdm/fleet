@@ -1,4 +1,5 @@
 import { isValidURL } from "components/forms/validators";
+import { notify } from "components/ToastNotification";
 import { IFormErrors, trimFormData } from "hooks/useFormValidation";
 import {
   ICertificateAuthorityPartial,
@@ -214,3 +215,16 @@ export const getEJBCAErrorMessage = (
   otherReasons.length
     ? otherReasons.join(" ")
     : `Couldn't ${action} certificate authority. Please try again.`;
+
+/** Shows the errors of a failed request: the form gets the ones of its fields, and the rest are a toast. */
+export const handleEJBCAServerError = (
+  err: unknown,
+  action: "add" | "edit",
+  setFieldErrors: (errors: IFormErrors) => void
+) => {
+  const { fieldErrors, otherReasons } = splitEJBCAServerErrors(err);
+  setFieldErrors(fieldErrors);
+  if (otherReasons.length || Object.keys(fieldErrors).length === 0) {
+    notify.error(getEJBCAErrorMessage(action, otherReasons), { response: err });
+  }
+};
