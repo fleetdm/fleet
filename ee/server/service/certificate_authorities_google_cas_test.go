@@ -147,14 +147,17 @@ func TestUpdateGoogleCASCertificateAuthority(t *testing.T) {
 		return fleet.CertificateAuthorityUpdatePayload{GoogleCASCAUpdatePayload: &p}
 	}
 
-	t.Run("name only is stored without asking Google", func(t *testing.T) {
+	t.Run("name change is stored without asking Google, even with the other values sent unchanged", func(t *testing.T) {
 		svc, ds, googleCAS, ctx := newGoogleCASTestService(t, stored())
 		var updated *fleet.CertificateAuthority
 		ds.UpdateCertificateAuthorityByIDFunc = func(ctx context.Context, id uint, ca *fleet.CertificateAuthority) error {
 			updated = ca
 			return errors.New("mock error to avoid NewActivity panic")
 		}
-		err := svc.UpdateCertificateAuthority(ctx, 1, update(fleet.GoogleCASCAUpdatePayload{Name: new("GOOGLE_VPN")}))
+		err := svc.UpdateCertificateAuthority(ctx, 1, update(fleet.GoogleCASCAUpdatePayload{
+			Name: new("GOOGLE_VPN"), Project: new("my-project"), Location: new("us-central1"), CAPool: new("my-ca-pool"),
+			APIKeyJSON: new(fleet.GoogleCASKeyJSON(fleet.MaskedPassword)),
+		}))
 		require.EqualError(t, err, "mock error to avoid NewActivity panic")
 		require.False(t, googleCAS.VerifyCAPoolFuncInvoked)
 		require.Equal(t, &fleet.CertificateAuthority{Type: string(fleet.CATypeGoogleCAS), Name: new("GOOGLE_VPN")}, updated)
