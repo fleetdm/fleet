@@ -20,10 +20,7 @@ import DigicertForm from "../DigicertForm";
 import { IDigicertFormData } from "../DigicertForm/DigicertForm";
 import EJBCAForm from "../EJBCAForm";
 import { IEJBCAFormData } from "../EJBCAForm/EJBCAForm";
-import {
-  getEJBCAErrorMessage,
-  splitEJBCAServerErrors,
-} from "../EJBCAForm/helpers";
+import { handleEJBCAServerError } from "../EJBCAForm/helpers";
 import HydrantForm from "../HydrantForm";
 import { IHydrantFormData } from "../HydrantForm/HydrantForm";
 import NDESForm from "../NDESForm";
@@ -226,14 +223,7 @@ const AddCertAuthorityModal = ({
       notify.success("Successfully added your certificate authority.");
       onExit();
     } catch (e) {
-      // The form shows the errors of its fields, and the rest are a toast.
-      const { fieldErrors, otherReasons } = splitEJBCAServerErrors(e);
-      setEJBCAServerErrors(fieldErrors);
-      if (otherReasons.length || Object.keys(fieldErrors).length === 0) {
-        notify.error(getEJBCAErrorMessage("add", otherReasons), {
-          response: e,
-        });
-      }
+      handleEJBCAServerError(e, "add", setEJBCAServerErrors);
     }
     setIsAdding(false);
   };

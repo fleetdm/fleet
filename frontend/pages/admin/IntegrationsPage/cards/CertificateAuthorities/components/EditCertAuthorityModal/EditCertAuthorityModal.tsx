@@ -20,8 +20,8 @@ import DigicertForm from "../DigicertForm";
 import EJBCAForm from "../EJBCAForm";
 import { IEJBCAFormData } from "../EJBCAForm/EJBCAForm";
 import {
-  getEJBCAErrorMessage,
-  splitEJBCAServerErrors,
+  generateEJBCAEditData,
+  handleEJBCAServerError,
 } from "../EJBCAForm/helpers";
 import HydrantForm from "../HydrantForm";
 import NDESForm from "../NDESForm";
@@ -100,38 +100,24 @@ const EditCertAuthorityModal = ({
   };
 
   const onEditEJBCA = async (submittedFormData: IEJBCAFormData) => {
-    if (!fullCertAuthority) {
+    if (!fullCertAuthority || !isEJBCACertAuthority(fullCertAuthority)) {
       return;
     }
-    const editPatchData = generateEditCertAuthorityData(
-      fullCertAuthority,
-      submittedFormData
-    );
-    if (
-      !("ejbca" in editPatchData) ||
-      !Object.keys(editPatchData.ejbca).length
-    ) {
+    const changes = generateEJBCAEditData(fullCertAuthority, submittedFormData);
+    if (!Object.keys(changes).length) {
       // Nothing was changed, and the server rejects an empty update.
       onExit();
       return;
     }
     setIsUpdating(true);
     try {
-      await certificatesAPI.editCertificateAuthority(
-        certAuthority.id,
-        editPatchData
-      );
+      await certificatesAPI.editCertificateAuthority(certAuthority.id, {
+        ejbca: changes,
+      });
       notify.success("Successfully edited certificate authority.");
       onExit();
     } catch (e) {
-      // The form shows the errors of its fields, and the rest are a toast.
-      const { fieldErrors, otherReasons } = splitEJBCAServerErrors(e);
-      setEJBCAServerErrors(fieldErrors);
-      if (otherReasons.length || Object.keys(fieldErrors).length === 0) {
-        notify.error(getEJBCAErrorMessage("edit", otherReasons), {
-          response: e,
-        });
-      }
+      handleEJBCAServerError(e, "edit", setEJBCAServerErrors);
     }
     setIsUpdating(false);
   };

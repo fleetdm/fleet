@@ -330,9 +330,6 @@ export const updateFormData = (
       }
       break;
     }
-    case "ejbca":
-      // The server keeps the stored client certificate unless a new one is sent, whatever else is edited.
-      break;
     case "custom_est_proxy": {
       const formData = prevFormData as ICustomESTFormData;
       if (update.name === "url") {
