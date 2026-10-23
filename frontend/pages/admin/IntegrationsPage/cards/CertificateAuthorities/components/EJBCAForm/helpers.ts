@@ -1,5 +1,5 @@
 import { isValidURL } from "components/forms/validators";
-import { IFormErrors } from "hooks/useFormValidation";
+import { IFormErrors, trimFormData } from "hooks/useFormValidation";
 import {
   ICertificateAuthorityPartial,
   ICertificatesEJBCA,
@@ -24,6 +24,15 @@ const SERVER_ERROR_NAMES: Record<keyof IEJBCAFormData, string> = {
   commonName: "certificate_common_name",
   usernameTemplate: "username_template",
   userPrincipalName: "certificate_user_principal_names",
+};
+
+const isHTTPSURLWithoutCredentials = (url: string) => {
+  try {
+    const { protocol, username, password } = new URL(url);
+    return protocol === "https:" && !username && !password;
+  } catch {
+    return false;
+  }
 };
 
 interface IValidationContext {
@@ -60,8 +69,12 @@ export const validateEJBCAForm = (
   const url = formData.url.trim();
   if (!url) {
     errors.url = "Enter a URL";
-  } else if (!isValidURL({ url })) {
+  } else if (!isValidURL({ url, allowLocalHost: true })) {
+    // A host without a domain, like https://ejbca:8443, is fine.
     errors.url = "Enter a valid URL";
+  } else if (!isHTTPSURLWithoutCredentials(url)) {
+    // The server's EJBCA client doesn't connect to anything else.
+    errors.url = "Enter an https URL without a username or password";
   }
 
   // A new client certificate is needed when adding, and when editing it is optional, but then comes with its password.
@@ -138,7 +151,8 @@ export const generateEJBCAEditData = (
   certAuthority: ICertificatesEJBCA,
   formData: IEJBCAFormData
 ): Partial<ICertificatesEJBCA> => {
-  const stored = generateEJBCAFormData(certAuthority);
+  // The form trims what it submits, and a stored value can have spaces at its ends, like the newline that ends a PEM.
+  const stored = trimFormData(generateEJBCAFormData(certAuthority));
   const changes: Partial<ICertificatesEJBCA> = {};
   if (formData.name !== stored.name) changes.name = formData.name;
   if (formData.url !== stored.url) changes.url = formData.url;

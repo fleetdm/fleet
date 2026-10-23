@@ -93,10 +93,22 @@ describe("EJBCAForm helpers", () => {
       expect(errors).toEqual({});
     });
 
-    it("has a URL error for an invalid URL", () => {
-      expect(
-        validateEJBCAForm({ ...validFormData, url: "not a url" }, context).url
-      ).toBe("Enter a valid URL");
+    it.each([
+      ["is not a URL", "not a url", "Enter a valid URL"],
+      [
+        "is http",
+        "http://ejbca.example.com",
+        "Enter an https URL without a username or password",
+      ],
+      [
+        "has credentials",
+        "https://user:pass@ejbca.example.com",
+        "Enter an https URL without a username or password",
+      ],
+    ])("has a URL error when the URL %s", (_, url, error) => {
+      expect(validateEJBCAForm({ ...validFormData, url }, context).url).toBe(
+        error
+      );
     });
 
     it("needs the password with a client certificate, and the certificate only when adding", () => {
@@ -118,6 +130,15 @@ describe("EJBCAForm helpers", () => {
           .trustCABundle
       ).toBe("Enter a PEM-encoded certificate");
     });
+  });
+
+  it("accepts the URL of an internal host", () => {
+    expect(
+      validateEJBCAForm(
+        { ...validFormData, url: "https://ejbca:8443" },
+        context
+      )
+    ).toEqual({});
   });
 
   describe("generateEJBCAAddData", () => {
@@ -171,6 +192,23 @@ describe("EJBCAForm helpers", () => {
         certificate_authority_name: "OtherCA",
         certificate_common_name: "new-cn",
       });
+    });
+
+    it("doesn't count the whitespace the form trims as a change", () => {
+      // a PEM, as GitOps stores it, ends with a newline
+      const pem =
+        "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n";
+      const storedWithPem = createMockEJBCACertAuthority({
+        trust_ca_bundle: pem,
+      });
+
+      expect(
+        generateEJBCAEditData(storedWithPem, {
+          ...generateEJBCAFormData(storedWithPem),
+          trustCABundle: pem.trim(),
+          name: "NEW_NAME",
+        })
+      ).toEqual({ name: "NEW_NAME" });
     });
 
     it("clears the optional fields that were emptied", () => {
