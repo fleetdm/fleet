@@ -44,6 +44,8 @@ var (
 	CantAddSoftwareConflictMessage               = "Couldn't add software. %s already has an installer available for the %s fleet."
 	// Args: the two conflicting app names (order not significant).
 	CantAddConflictingFMAMessage = "Couldn't add software. Only one of %s or %s can be added to the same fleet."
+	// Args: the Fleet-maintained app name.
+	FleetMaintainedAppManifestUnreachableMessage = "Fleet couldn't fetch the manifest for %s. Please try again."
 	// AddMaintainedAppTimeoutErrMsg is returned when Fleet's own 15-minute installer
 	// download timeout is exceeded (context.DeadlineExceeded).
 	AddMaintainedAppTimeoutErrMsg = "Couldn't add. Downloading the installer took longer than Fleet's 15-minute limit. This can happen with very large installers or a slow connection to the vendor's content delivery network (CDN). Try again, and make sure any proxy, gateway, or load balancer in front of Fleet allows the request to run at least that long."
@@ -583,6 +585,12 @@ const (
 
 	// Invalid list options combinations
 	FilterTitlesByPlatformNeedsTeamIdErrMsg = "The 'platform' and 'team_id' parameters must be used together to filter the software available for install."
+
+	softwareTypeFilterDocsURL                   = "https://fleetdm.com/docs/rest-api/rest-api#list-software"
+	InvalidSoftwareSourceErrMsg                 = "Invalid source: %q isn't a valid source. See the options: " + softwareTypeFilterDocsURL
+	InvalidSoftwareExtensionForErrMsg           = "Invalid extension_for: %q isn't a valid browser or IDE. See the options: " + softwareTypeFilterDocsURL
+	SoftwareExtensionForRequiresSourceErrMsg    = "extension_for requires source. Specify a browser or IDE extension source, like source=chrome_extensions&extension_for=brave."
+	SoftwareExtensionForSourceNotSelectedErrMsg = "%q is a %q value, but source doesn't include %[2]q."
 )
 
 // Error message variables
@@ -683,3 +691,5 @@ func (e *ABOnlyEnrollmentForbiddenError) Internal() string {
 }
 
 const AdminOnlyEnrollmentForbiddenErrMsg = "Manual enrollment is not available because only Apple Business enrollment is allowed for this organization."
+
+const ManualEnrollmentStaticChallengeDisabledErrMsg = "Manual enrollment profile is not available because the static SCEP challenge is disabled for this Fleet server."

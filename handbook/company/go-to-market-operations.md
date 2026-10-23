@@ -148,7 +148,7 @@ Here are some topics for social media posts:
 
 > **Is there a post that you would like to see on the company page?**
 >
-> Original posts on LinkedIn by Fleet employees [can be promoted using the Fleet company page](https://fleetdm.com/handbook/marketing#promote-a-post-on-linkedin). If you think your post would make sense in front of a bigger audience, reach out in the [#help-marketing channel](https://fleetdm.slack.com/archives/C01ALP02RB5) linking the team to your personal LinkedIn post (only original posts please, re-posts and quotes of other posts can not be promoted). Include any context in the Slack message and keep an eye on your inbox. The Marketing team will request permission to use the post in a promoted post.   
+> Original posts on LinkedIn by Fleet employees [can be promoted using the Fleet company page](https://fleetdm.com/handbook/marketing#promote-a-workshop-on-linkedin). If you think your post would make sense in front of a bigger audience, reach out in the [#help-marketing channel](https://fleetdm.slack.com/archives/C01ALP02RB5) linking the team to your personal LinkedIn post (only original posts please, re-posts and quotes of other posts can not be promoted). Include any context in the Slack message and keep an eye on your inbox. The Marketing team will request permission to use the post in a promoted post.   
 
 
 ##### Fleet on LinkedIn
@@ -495,6 +495,7 @@ Even if you never show these decks on a screenshare, use them to keep the conver
 
 - [Fleet AI device management patching and governance for every OS (leave behind PDF)](https://fleetdm.com/pdfs/fleet-ai-device-management-patching-and-governance-for-every-os.pdf)
 - [Fleet for IT engineers and IT admins](https://docs.google.com/presentation/d/1WTyGrmA4pSB7H8BeT14BF7peozBceToW8TK__doyQTg/edit?slide=id.g3d7b8aeb1bc_1_182#slide=id.g3d7b8aeb1bc_1_182)
+- [Fleet fast track (PDF)](https://fleetdm.com/pdfs/fleet-fast-track.pdf)
 - [Fleet for digital workplace leaders](https://drive.google.com/file/d/1JlIV1PY5lECQQmq2H_eR35haeKefHXIf/view?usp=sharing)
 - [Fleet for partners](https://docs.google.com/presentation/d/1iNvn5EYnkklKxguYzrOh6ZNvZee53OqAlF3rc_Da_Us/edit?slide=id.g3871afd58d8_0_0#slide=id.g3871afd58d8_0_0)
 - [Meraki goes EoL](https://docs.google.com/presentation/d/19_aV9Xx94RClPdO34YBWdDo1FGBP_75MlttV8IcE4TM/edit?slide=id.g3f521d67c72_1_0#slide=id.g3f521d67c72_1_0)

@@ -426,6 +426,10 @@ var hostDetailQueries = map[string]DetailQuery{
 	"uptime": {
 		Query: "select * from uptime limit 1",
 		IngestFunc: func(ctx context.Context, logger *slog.Logger, host *fleet.Host, rows []map[string]string) error {
+			// fleetd-chrome returns no rows until it records its first startup.
+			if len(rows) == 0 && host.Platform == "chrome" {
+				return nil
+			}
 			if len(rows) != 1 {
 				logger.ErrorContext(ctx, fmt.Sprintf("detail_query_uptime expected single result got %d", len(rows)),
 					"component", "service", "method", "IngestFunc")
@@ -443,7 +447,7 @@ var hostDetailQueries = map[string]DetailQuery{
 
 			return nil
 		},
-		Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
+		Platforms: append(fleet.HostLinuxOSs, "darwin", "windows", "chrome"),
 	},
 	"disk_space_unix": {
 		// GROUP BY device collapses bind mounts so a filesystem mounted at multiple paths is counted once.
@@ -1237,7 +1241,7 @@ FROM cached_users CROSS JOIN jetbrains_plugins USING (uid)`),
 //
 // Every one of those drops the title's INSERT IGNORE and leaves the software row with no title
 // at all: invisible on the Software page, and an error logged on every check-in. Nothing
-// user-facing is lost, because the Type column shows a flat "Plugin (Adobe)" and never displays
+// user-facing is lost, because the Type column shows a flat "Adobe plugin" and never displays
 // the host application.
 var softwareAdobePlugins = DetailQuery{
 	Query: `
@@ -1297,6 +1301,32 @@ FROM packages`,
 	// the results of this query are appended to the results of the other software queries.
 }
 
+// softwareLinuxNix collects the Nix store paths reachable from the active NixOS system
+// profile and users' Nix and Home Manager profiles, including runtime dependencies.
+// Outputs of one package (e.g. openssl-3.0.14 and openssl-3.0.14-bin) are one software
+// with several installed paths.
+//
+// Only NixOS is inventoried: the table returns no rows where Nix is installed alongside another
+// distribution's package manager, whose packages the other software queries already report.
+var softwareLinuxNix = DetailQuery{
+	Query: `
+SELECT
+  name AS name,
+  version AS version,
+  '' AS extension_id,
+  '' AS extension_for,
+  'nix_packages' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch,
+  store_path AS installed_path
+FROM fleetd_nix_packages`,
+	Platforms: []string{"nixos"},
+	Discovery: discoveryTable("fleetd_nix_packages"),
+	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// the results of this query are appended to the results of the other software queries.
+}
+
 // softwareGoBinaries collects Go binaries installed with `go install`, reported by fleetd's
 // go_binaries table. Two ecosystem attributes ride in existing columns:
 //   - module_path is stored in extension_id. Used for vulnerability detection and is not
@@ -1338,6 +1368,7 @@ SELECT
   '' AS release,
   '' AS vendor,
   '' AS arch,
+  '' AS epoch,
   '' AS installed_path
 FROM deb_packages
 WHERE status LIKE '%% ok installed'
@@ -1351,6 +1382,7 @@ SELECT
   '' AS release,
   '' AS vendor,
   '' AS arch,
+  '' AS epoch,
   '' AS installed_path
 FROM portage_packages
 UNION
@@ -1363,6 +1395,7 @@ SELECT
   release AS release,
   vendor AS vendor,
   arch AS arch,
+  epoch AS epoch,
   '' AS installed_path
 FROM rpm_packages
 UNION
@@ -1375,6 +1408,7 @@ SELECT
   '' AS release,
   '' AS vendor,
   '' AS arch,
+  '' AS epoch,
   path AS installed_path
 FROM npm_packages
 UNION
@@ -1387,6 +1421,7 @@ SELECT
   '' AS release,
   '' AS vendor,
   '' AS arch,
+  '' AS epoch,
   path AS installed_path
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
 UNION
@@ -1399,6 +1434,7 @@ SELECT
   '' AS release,
   '' AS vendor,
   '' AS arch,
+  '' AS epoch,
   path AS installed_path
 FROM cached_users CROSS JOIN firefox_addons USING (uid);
 `),
@@ -2507,6 +2543,7 @@ func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.
 			row["extension_for"],
 			row["last_opened_at"],
 			row["upgrade_code"],
+			row["epoch"],
 		)
 		if err != nil {
 			logger.DebugContext(ctx, "failed to parse software row",
@@ -3551,14 +3588,14 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger *slog.Logger, ho
 }
 
 // LinkWindowsHostMDMEnrollment associates the Windows MDM enrollment for mdmDeviceID with the host identified by
-// (hostID, hostUUID). On the first time the linkage is established (i.e. mdm_windows_enrollments.host_uuid changes), it
-// also reconciles the host's IDP device mapping, SCIM user attribution, and DEP flag for Azure (Entra) enrollments,
-// matching the post-link bookkeeping that osquery's directIngestMDMDeviceIDWindows has historically performed.
+// (hostID, hostUUID). On the first time the linkage is established (i.e. mdm_windows_enrollments.host_uuid changes, or
+// the enrollment's host was deleted and this host came back), it also reconciles the host's IDP device mapping, SCIM
+// user attribution, and DEP flag for Azure (Entra) enrollments.
 //
-// Returns true when UpdateMDMWindowsEnrollmentsHostUUID actually changed the row, false when it did not. The "no
-// change" case covers two scenarios callers must not conflate with an error: (a) the enrollment was already linked to
-// this same hostUUID, so the `WHERE host_uuid <> ?` guard short-circuited; (b) no row matched mdmDeviceID at all (e.g.
-// the enrollment was deleted concurrently). Callers that depend on linkage being applied should re-read the enrollment
+// Returns true when UpdateMDMWindowsEnrollmentsHostUUID reported a new link, false when it did not. The "no change"
+// case covers two scenarios callers must not conflate with an error: (a) the enrollment was already linked to this
+// same hostUUID and its host was not deleted since; (b) no row matched mdmDeviceID at all (e.g. the enrollment was
+// deleted concurrently). Callers that depend on linkage being applied should re-read the enrollment
 // rather than infer it from the boolean alone.
 func LinkWindowsHostMDMEnrollment(
 	ctx context.Context, logger *slog.Logger, ds fleet.Datastore, hostID uint, hostUUID, mdmDeviceID string, fleetdOnDevice bool,
@@ -3574,8 +3611,24 @@ func LinkWindowsHostMDMEnrollment(
 	if err != nil {
 		return updated, ctxerr.Wrap(ctx, err, "getting windows mdm device after updating host uuid")
 	}
+	// An Autopilot device that enrolled as a host other than its pending one becomes identifiable only now.
+	if device != nil && device.ZTDRegistrationID != "" {
+		if _, err := ds.MoveWindowsAutopilotRecordToHost(ctx, hostID, device.ZTDRegistrationID, device.EntraDeviceID); err != nil {
+			// Best-effort: the duplicate pending host stays until the next link of this enrollment, or until an admin deletes it.
+			logger.ErrorContext(ctx, "failed to move autopilot record to the linked host", "err", err, "host_id", hostID)
+			ctxerr.Handle(ctx, err)
+		}
+	}
+	// Like a changed host_uuid, clearing the deleted host marker makes this bookkeeping run once. It is cleared only after the
+	// bookkeeping succeeds, so a failure is retried on the next link attempt.
+	clearDeletedHostMarker := func() error {
+		if err := ds.MDMWindowsClearDeletedHostTeam(ctx, mdmDeviceID); err != nil {
+			return ctxerr.Wrap(ctx, err, "clearing deleted host team of windows mdm device")
+		}
+		return nil
+	}
 	if device == nil || !microsoft_mdm.IsValidUPN(device.MDMEnrollUserID) {
-		return updated, nil
+		return updated, clearDeletedHostMarker()
 	}
 	device.HostUUID = hostUUID // in case the read was stale due to replication lag
 	// fleetd reporting this enrollment from the device means it enrolled without the secret minted for Fleet's fleetd install, which
@@ -3632,15 +3685,19 @@ func LinkWindowsHostMDMEnrollment(
 			logger.DebugContext(ctx, "failed to delete SCIM user mapping", "err", err)
 		}
 	}
-	return updated, nil
+	return updated, clearDeletedHostMarker()
 }
 
 // maybeAssignWindowsEnrollmentDefaultFleet moves a host to the configured Windows enrollment default fleet iff all of: the linked
 // enrollment is user-driven, a default fleet is configured, the host has no fleet, and the host record was created at or after
 // the enrollment row (MDM-first ordering, as in Autopilot, where Fleet installs fleetd after MDM enrollment). Hosts that enrolled
 // fleetd first keep the fleet their enroll secret chose. Pre-existing hosts are never moved, including hosts deliberately parked
-// in Unassigned, matching macOS ABM re-enrollment behavior.
+// in Unassigned, matching macOS ABM re-enrollment behavior. A deleted host that came back keeps the fleet its enroll secret put it
+// in: a shared secret's fleet, or for a one-time secret, the fleet the host was in when deleted.
 func maybeAssignWindowsEnrollmentDefaultFleet(ctx context.Context, logger *slog.Logger, ds fleet.Datastore, hostID uint, device *fleet.MDMWindowsEnrolledDevice) error {
+	if device.DeletedHostTeamID != nil {
+		return nil
+	}
 	teamID, teamName, err := ds.GetWindowsEnrollmentDefaultFleet(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get windows enrollment default fleet")
@@ -3861,6 +3918,19 @@ var bitLockerPresentDiscovery = fmt.Sprintf(`
 			)
 			SELECT 1 FROM should_run WHERE yes = 1`, bitLockerPresent)
 
+// bitLockerDiscovery is the discovery clause for a query that needs BitLocker to be usable and the given conditions to hold.
+// The conditions sit behind CASE because osquery's SQLite evaluates every operand of AND, and bitlocker_key_protectors errors
+// where BitLocker is absent. A failing discovery query makes osquery drop the host's whole distributed batch.
+func bitLockerDiscovery(conditions string) string {
+	return fmt.Sprintf(`
+			WITH should_run(yes) AS (
+			SELECT
+				CASE WHEN %s THEN (%s
+				) ELSE 0 END
+			)
+			SELECT 1 FROM should_run WHERE yes = 1`, bitLockerPresent, conditions)
+}
+
 // bitlockerPolicyQueries run wherever Fleet enforces Windows disk encryption, whether or not a startup PIN is required.
 var bitlockerPolicyQueries = map[string]DetailQuery{
 	// An admin, third-party software, or a previous MDM can leave a volume encrypted but unprotected while policy forbids the
@@ -3871,16 +3941,11 @@ var bitlockerPolicyQueries = map[string]DetailQuery{
 		// - BitLocker is not an optional component (is built in) OR is an optional component and enabled.
 		// - And no protector that can release the volume master key at boot exists, so the agent has to create one.
 		// - And the volume is fully encrypted, whether or not protection is currently on.
-		Discovery: fmt.Sprintf(`
-			WITH should_run(yes) AS (
-			SELECT
-				%s
+		Discovery: bitLockerDiscovery(`
 				-- 1, 4, 5, 6 are the TPM-family protectors; 2 is an external startup key on a USB stick.
-				AND NOT EXISTS(SELECT 1 FROM bitlocker_key_protectors WHERE drive_letter = 'C:' AND key_protector_type IN (1,2,4,5,6))
+				NOT EXISTS(SELECT 1 FROM bitlocker_key_protectors WHERE drive_letter = 'C:' AND key_protector_type IN (1,2,4,5,6))
 				-- Volume is fully encrypted.
-				AND EXISTS(SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND conversion_status = 1)
-			)
-			SELECT 1 FROM should_run WHERE yes = 1`, bitLockerPresent),
+				AND EXISTS(SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND conversion_status = 1)`),
 		Query: "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\\UseTPM'",
 		DirectIngestFunc: func(
 			ctx context.Context,
@@ -3971,18 +4036,13 @@ var tpmPINQueries = map[string]DetailQuery{
 		// - BitLocker is not an optional component (is built in) OR is an optional component and enabled.
 		// - And a TPM PIN is not yet set.
 		// - And the volume is encrypted (to avoid errors while trying to apply the policy).
-		Discovery: fmt.Sprintf(`
-			WITH should_run(yes) AS (
-			SELECT
-				%s
+		Discovery: bitLockerDiscovery(`
 				-- PIN is already set, so regardless of the current config, we don't need to enforce it:
 				-- 4: TPM And PIN.
 				-- 6: TPM And PIN And Startup key.
-				AND NOT EXISTS(SELECT 1 FROM bitlocker_key_protectors WHERE drive_letter = 'C:' AND key_protector_type IN (4,6))
+				NOT EXISTS(SELECT 1 FROM bitlocker_key_protectors WHERE drive_letter = 'C:' AND key_protector_type IN (4,6))
 				-- Volume is encrypted
-				AND EXISTS(SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1)
-			)
-			SELECT 1 FROM should_run WHERE yes = 1`, bitLockerPresent),
+				AND EXISTS(SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1)`),
 		// Every value under the policy key, matched by name in Go because registry value names are case-insensitive.
 		Query: "SELECT name, data FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE'",
 		DirectIngestFunc: func(
@@ -4064,6 +4124,7 @@ func GetDetailQueries(
 		generatedMap["software_python_packages_with_users_dir"] = softwarePythonPackagesWithUsersDir
 		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
 		generatedMap["software_linux_fleetd_pacman"] = softwareLinuxPacman
+		generatedMap["software_linux_fleetd_nix"] = softwareLinuxNix
 		generatedMap["software_jetbrains_plugins"] = softwareJetbrainsPlugins
 		generatedMap["software_adobe_plugins"] = softwareAdobePlugins
 		generatedMap["software_go_binaries"] = softwareGoBinaries

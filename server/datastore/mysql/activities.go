@@ -1018,7 +1018,13 @@ func (ds *Datastore) UnblockHostsUpcomingActivityQueue(ctx context.Context, maxH
 				active_ua.activated_at IS NOT NULL
 		WHERE
 			active_ua.host_id IS NULL AND
-			inactive_ua.activated_at IS NULL
+			inactive_ua.activated_at IS NULL AND
+			-- activation skips installs of a custom package a GitOps apply removed
+			NOT EXISTS (
+				SELECT 1 FROM software_install_upcoming_activities siua
+				JOIN software_installers si ON si.id = siua.software_installer_id
+				WHERE siua.upcoming_activity_id = inactive_ua.id AND si.is_active = 0 AND si.fleet_maintained_app_id IS NULL
+			)
 		%s
 		LIMIT ?`
 
@@ -1056,7 +1062,13 @@ func (ds *Datastore) ReleaseFleetInitiatedUpcomingActivities(ctx context.Context
 		WHERE
 			active_ua.host_id IS NULL AND
 			gated_ua.activated_at IS NULL AND
-			gated_ua.fleet_initiated = 1
+			gated_ua.fleet_initiated = 1 AND
+			-- activation skips installs of a custom package a GitOps apply removed
+			NOT EXISTS (
+				SELECT 1 FROM software_install_upcoming_activities siua
+				JOIN software_installers si ON si.id = siua.software_installer_id
+				WHERE siua.upcoming_activity_id = gated_ua.id AND si.is_active = 0 AND si.fleet_maintained_app_id IS NULL
+			)
 		GROUP BY
 			gated_ua.host_id
 		ORDER BY
@@ -1186,7 +1198,8 @@ func (ds *Datastore) reapStuckActivatedMDMInstallsForHost(ctx context.Context, h
 	SELECT
 		ua.execution_id,
 		ua.activity_type,
-		COALESCE(JSON_EXTRACT(ua.payload, '$.from_auto_update') = 1, 0) AS from_auto_update
+		COALESCE(JSON_EXTRACT(ua.payload, '$.from_auto_update') = 1, 0) AS from_auto_update,
+		COALESCE(JSON_EXTRACT(ua.payload, '$.from_configuration_resend') = 1, 0) AS from_configuration_resend
 	FROM
 		upcoming_activities ua
 	WHERE
@@ -1194,9 +1207,10 @@ func (ds *Datastore) reapStuckActivatedMDMInstallsForHost(ctx context.Context, h
 	ORDER BY ua.id`
 
 	type reapableInstall struct {
-		ExecutionID    string `db:"execution_id"`
-		ActivityType   string `db:"activity_type"`
-		FromAutoUpdate bool   `db:"from_auto_update"`
+		ExecutionID             string `db:"execution_id"`
+		ActivityType            string `db:"activity_type"`
+		FromAutoUpdate          bool   `db:"from_auto_update"`
+		FromConfigurationResend bool   `db:"from_configuration_resend"`
 	}
 
 	var reaped []fleet.ReapedMDMInstall
@@ -1269,6 +1283,7 @@ WHERE command_uuid = ?
 					return ctxerr.Wrap(ctx, err, "get past activity data for reaped app store app install")
 				}
 				act.FromAutoUpdate = inst.FromAutoUpdate
+				act.FromConfigurationResend = inst.FromConfigurationResend
 				entry.User, entry.AppStoreActivity = user, act
 			case softwareTypeInHouseApp:
 				user, act, err := ds.getPastActivityDataForInHouseAppInstallDB(ctx, tx, cmdResults)
@@ -1326,20 +1341,22 @@ func (ds *Datastore) ActivateNextUpcomingActivityForHost(ctx context.Context, ho
 	return err
 }
 
+// maxHostIDsPerActivationTx is small because activating an install locks its installer until commit, and a GitOps apply
+// removing that installer, with every install queued behind the apply, waits for the whole transaction.
+const maxHostIDsPerActivationTx = 10
+
 // activateNextUpcomingActivityForBatchOfHosts activates the next upcoming
 // activity of each host, chunked into batch transactions. It returns the
 // number of hosts whose activation committed, along with any per-host
 // activation errors joined together (partial success returns both a non-zero
 // count and a non-nil error).
 func (ds *Datastore) activateNextUpcomingActivityForBatchOfHosts(ctx context.Context, hostIDs []uint) (int, error) {
-	const maxHostIDsPerBatch = 500
-
 	slices.Sort(hostIDs)              // sorting can help avoid deadlocks
 	hostIDs = slices.Compact(hostIDs) // dedupe IDs (must be sorted first)
 
 	var activated int
 	var errs []error
-	for batch := range slices.Chunk(hostIDs, maxHostIDsPerBatch) {
+	for batch := range slices.Chunk(hostIDs, maxHostIDsPerActivationTx) {
 		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 			for _, hostID := range batch {
 				if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
@@ -1421,7 +1438,13 @@ SELECT
 FROM
 	upcoming_activities
 WHERE
-	host_id = ?
+	host_id = ? AND
+	-- skip a queued install of a custom package a GitOps apply removed; it's deleted after the apply commits
+	(activated_at IS NOT NULL OR NOT EXISTS (
+		SELECT 1 FROM software_install_upcoming_activities siua
+		JOIN software_installers si ON si.id = siua.software_installer_id
+		WHERE siua.upcoming_activity_id = upcoming_activities.id AND si.is_active = 0 AND si.fleet_maintained_app_id IS NULL
+	))
 	%s
 ORDER BY topmost DESC, priority DESC, created_at ASC
 LIMIT ?
@@ -1522,6 +1545,13 @@ WHERE
 	}
 	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "mark upcoming activities as activated")
+	}
+
+	switch toActivate[0].ActivityType {
+	case "script", "software_install", "software_uninstall":
+		// fleetd picks these up from its orbit config. MDM command activities
+		// are delivered by the APNs push instead.
+		ds.notifyOrbitConfig(ctx, tx, fleet.AgentWSReasonActivity, hostID)
 	}
 	return activatedExecIDs, nil
 }
@@ -1726,7 +1756,7 @@ func (ds *Datastore) activateNextVPPAppInstallActivity(ctx context.Context, tx s
 INSERT INTO
 	host_vpp_software_installs
 (host_id, adam_id, platform, command_uuid,
-	user_id, associated_event_id, self_service, policy_id)
+	user_id, associated_event_id, self_service, policy_id, vpp_app_team_id)
 SELECT
 	ua.host_id,
 	vaua.adam_id,
@@ -1735,7 +1765,8 @@ SELECT
 	ua.user_id,
 	ua.payload->>'$.associated_event_id',
 	COALESCE(ua.payload->'$.self_service', 0),
-	vaua.policy_id
+	vaua.policy_id,
+	vaua.vpp_app_team_id
 FROM
 	upcoming_activities ua
 	INNER JOIN vpp_app_upcoming_activities vaua

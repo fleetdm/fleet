@@ -124,7 +124,7 @@ describe('configuration profile generator', function() {
               let generationForFailureMessage =
                 `\n\nprofileFilename: ${rawResult.profileFilename}` +
                 `\ndeliveryNotes: ${JSON.stringify(rawResult.deliveryNotes)}` +
-                `\n\n${rawResult.configurationProfile}\n\n` +
+                `\n\n${withAdmxTemplatesCollapsed(rawResult.configurationProfile)}\n\n` +
                 `settingsEnforced:\n${util.inspect(rawResult.settingsEnforced, { depth: 4, colors: false })}\n`;
 
               // Mirrors the action's own acceptance test: an abstention, or a response missing any
@@ -177,7 +177,7 @@ describe('configuration profile generator', function() {
                   (whatTheLookupProvided ? `      ${whatTheLookupProvided.trim()}\n` : '') +
                   `      profileFilename: ${generatedProfile.profileFilename}\n` +
                   `      deliveryNotes: ${JSON.stringify(generatedProfile.deliveryNotes)}\n\n` +
-                  `${generatedProfile.profile}\n\n` +
+                  `${withAdmxTemplatesCollapsed(generatedProfile.profile)}\n\n` +
                   `      settingsEnforced:\n${util.inspect(generatedProfile.items, { depth: 4, colors: false })}\n`
                 );
               }
@@ -192,6 +192,20 @@ describe('configuration profile generator', function() {
     });
   }
 });
+
+
+/**
+ * A generated Windows profile with each embedded ADMX template cut down to its size, for printing: the
+ * templates are hundreds of KB, and the model did not write them.
+ *
+ * @param  {String} profile
+ * @returns {String}
+ */
+function withAdmxTemplatesCollapsed(profile) {
+  return String(profile || '').replace(/<!\[CDATA\[(\s*(?:<\?xml[^>]*\?>\s*)?<policyDefinitions[\s\S]*?)\]\]>/g, (unusedMatch, admxText)=>{
+    return `<![CDATA[…ADMX template, ${Math.round(Buffer.byteLength(admxText, 'utf8') / 1024)} KB…]]>`;
+  });
+}
 
 
 /**
@@ -220,6 +234,12 @@ async function generateOnce(testCase) {
       baseModel: BASE_MODEL,
       expectJson: true,
     });
+    // The same step the action runs, so a case asserts on the profile an admin would download.
+    if(testCase.profileType === 'csp' && rawResult.configurationProfile) {
+      let withAdmxInstalls = await sails.helpers.addAdmxInstallCommandsToWindowsProfile.with({ profile: rawResult.configurationProfile });
+      rawResult.configurationProfile = withAdmxInstalls.profile;
+      rawResult.deliveryNotes = [rawResult.deliveryNotes].concat(withAdmxInstalls.deliveryNotes).filter(Boolean).join(' ');
+    }
     return {
       rawResult,
       elapsedMs: Date.now() - startedAt,

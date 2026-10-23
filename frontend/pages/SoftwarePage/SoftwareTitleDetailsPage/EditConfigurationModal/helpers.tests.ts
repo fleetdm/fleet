@@ -63,12 +63,12 @@ describe("getErrorMessage", () => {
     );
   });
 
-  it("passes through the unsupported top-level key rejection verbatim", () => {
-    // The backend owns this sentence, so the key list users see is asserted in
+  it("passes through the denied top-level key rejection verbatim", () => {
+    // The backend owns this sentence, so the denied keys users see are asserted in
     // TestValidateAndroidAppConfiguration. This guards that nothing here
     // rewrites or truncates it on the way to the UI.
     const reason =
-      'Couldn\'t update configuration. Only "managedConfiguration", "workProfileWidgets", and "credentialProviderPolicy" are supported as top-level keys.';
+      'Couldn\'t update configuration. "packageName" and "installType" are not supported as top-level keys.';
     const unsupportedKeyErr = {
       response: {
         data: {

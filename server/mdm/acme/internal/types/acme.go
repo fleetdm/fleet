@@ -47,6 +47,8 @@ type Enrollment struct {
 	HostIdentifier string     `db:"host_identifier"`
 	NotValidAfter  *time.Time `db:"not_valid_after"`
 	Revoked        bool       `db:"revoked"`
+	Purpose        string     `db:"purpose"`
+	EnrollmentID   *string    `db:"enrollment_id"`
 }
 
 // IsValid returns true if the enrollment is still valid
@@ -254,7 +256,7 @@ type Identifier struct {
 
 // Datastore is the datastore interface for the ACME service module.
 type Datastore interface {
-	NewEnrollment(ctx context.Context, hostIdentifier string) (string, error)
+	NewEnrollment(ctx context.Context, hostIdentifier, purpose string, enrollmentID *string) (string, error)
 	GetACMEEnrollment(ctx context.Context, pathIdentifier string) (*Enrollment, error)
 	GetAccountByID(ctx context.Context, enrollmentID uint, accountID uint) (*Account, error)
 	CreateAccount(ctx context.Context, account *Account, onlyReturnExisting bool) (*Account, bool, error)

@@ -336,7 +336,7 @@ Sometimes a pull request is marked ready for review, but the author is away and 
 
 ### Daily standup (30 minutes)
 
-By-person updates first, then parking lot, then walk the board as time allows. The Inbox is reviewed during standup for bugs and any priority issues (P2 or greater). Complex user stories go through user story review reviewed. It's up to the Product Designer to decide if a user story needs to be reviewed. Simple stories, ones with known patters, can go straigh to the "Ready" column during the next weekly planning.
+By-person updates first, then parking lot, then walk the board as time allows. The Inbox is reviewed during standup for bugs and any priority issues (P2 or greater). Complex user stories go through user story review. It's up to the Product Designer to decide if a user story needs to be reviewed. Simple stories, ones with known patters, can go straigh to the "Ready" column during the next weekly planning.
 
 ### Weekly planning (1 hour, Monday)
 
@@ -1184,7 +1184,7 @@ Product group boards are exclusively composed of the following types of work ite
 
 6. **Reliability issues**: These represent scaling, performance, or reliability concerns, including post-mortem action items, marked with the `reliability` label. Reliability issues are prioritized by the relevant Engineering Manager. They are used to track work that improves system stability, addresses incident follow-ups, and resolves operational risks.
 
-7. **Security issues**: These represent vulnerabilities, pen test findings, and security hardening work, marked with the `security` label. Security issues include items from penetration tests, vulnerability scans, and proactive security improvements. They are prioritized by severity and tracked alongside other work items on the product group board.
+7. **Security issues**: These represent vulnerabilities, pen test findings, and security hardening work, marked with the `security` label. Security issues include items from penetration tests, vulnerability scans, and proactive security improvements. They are prioritized by severity and tracked alongside other work items on the product group board. If there are product changes, the issue is updated to use the [user story template](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/story.md) and proposed changes are brought to the relevant product group's design review.
 
 > Product group boards do not accommodate any other type of ticket. By strictly adhering to these work items, we maintain an organized and focused workflow that consistently adds value for our users.
 

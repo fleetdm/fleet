@@ -60,11 +60,97 @@ func enrollOrbitEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 		OsqueryIdentifier: req.OsqueryIdentifier,
 		ComputerName:      req.ComputerName,
 		HardwareModel:     req.HardwareModel,
+		AutopilotDeviceID: req.AutopilotDeviceID,
 	}, req.EnrollSecret, req.EUAToken)
 	if err != nil {
 		return enrollOrbitResponse{fleet.EnrollOrbitResponse{Err: err}}, nil
 	}
 	return enrollOrbitResponse{fleet.EnrollOrbitResponse{OrbitNodeKey: nodeKey}}, nil
+}
+
+// windowsEnrollmentAutopilotDeviceID returns the Autopilot device ID a Windows MDM enrollment reported.
+func (svc *Service) windowsEnrollmentAutopilotDeviceID(ctx context.Context, enrollmentID uint) (string, error) {
+	device, err := svc.ds.MDMWindowsGetEnrolledDeviceByID(ctx, enrollmentID)
+	switch {
+	case fleet.IsNotFound(err):
+		return "", nil
+	case err != nil:
+		return "", ctxerr.Wrap(ctx, err, "load windows mdm enrollment for its autopilot device id")
+	}
+	parsed, ok := fleet.ParseNonNilUUID(device.ZTDRegistrationID)
+	if !ok {
+		return "", nil
+	}
+	return parsed.String(), nil
+}
+
+// reverseLinkWindowsMDMEnrollment links an automatic (user-driven or Autopilot) Windows MDM enrollment that was created before
+// fleetd was installed. Linking it now, before orbit fetches its config and runs its one-shot setup-experience init, makes the
+// Windows enrollment default fleet (and therefore the ESP's software and profiles) apply to this host from the start.
+func (svc *Service) reverseLinkWindowsMDMEnrollment(ctx context.Context, host *fleet.Host, hostInfo fleet.OrbitHostInfo) {
+	// Skip the Autopilot device ID when another host owns that device's Autopilot record, so presenting another device's ID
+	// cannot pull that device's enrollment onto this host. With no record yet (the sync has not run, or the server has no
+	// Graph credential), it is used: the same device-asserted trust as the serial lookup below.
+	autopilotDeviceID := hostInfo.AutopilotDeviceID
+	if autopilotDeviceID != "" {
+		ownerHostID, err := svc.ds.HostIDByAutopilotDeviceID(ctx, autopilotDeviceID)
+		switch {
+		case fleet.IsNotFound(err):
+		case err != nil:
+			// Not knowing whether this host owns the record, a serial match could link the wrong enrollment. The next MDM
+			// session links it instead.
+			svc.logger.ErrorContext(ctx, "failed to look up autopilot record for reverse link", "err", err, "host_uuid", host.UUID)
+			ctxerr.Handle(ctx, err)
+			return
+		case ownerHostID != host.ID:
+			autopilotDeviceID = ""
+		}
+	}
+
+	lookups := []struct {
+		idKey string
+		id    string
+		find  func(context.Context, string) (*fleet.MDMWindowsEnrolledDevice, error)
+	}{
+		{"ztd_registration_id", autopilotDeviceID, svc.ds.MDMWindowsGetUnlinkedEnrolledDeviceWithZTDRegistrationID},
+		{"hardware_serial", hostInfo.HardwareSerial, svc.ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial},
+	}
+	for _, lookup := range lookups {
+		if lookup.id == "" || (lookup.idKey == "hardware_serial" && fleet.IsPlaceholderHardwareSerial(lookup.id)) {
+			continue
+		}
+		device, err := lookup.find(ctx, lookup.id)
+		if fleet.IsNotFound(err) {
+			continue
+		}
+		if err != nil {
+			svc.logger.ErrorContext(ctx, "failed to look up unlinked windows mdm enrollment",
+				"err", err, "host_uuid", host.UUID, lookup.idKey, lookup.id)
+			ctxerr.Handle(ctx, err)
+			return
+		}
+		// An enrollment whose device reported a different serial is some other machine's. Stop rather than try the serial,
+		// since this device's identifiers already disagree.
+		if device.HardwareSerial != nil && *device.HardwareSerial != "" && !strings.EqualFold(*device.HardwareSerial, hostInfo.HardwareSerial) {
+			svc.logger.WarnContext(ctx, "windows mdm: not reverse-linking an enrollment whose serial differs from the host's",
+				"device_id", device.MDMDeviceID, "host_uuid", host.UUID, lookup.idKey, lookup.id)
+			return
+		}
+		if svc.windowsHostClaimedByOtherHardware(ctx, device, host.UUID, lookup.idKey, lookup.id) {
+			return
+		}
+		if _, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, device.MDMDeviceID, true); err != nil {
+			svc.logger.ErrorContext(ctx, "failed to reverse-link windows mdm enrollment at orbit enroll",
+				"err", err, "host_uuid", host.UUID, "device_id", device.MDMDeviceID)
+			ctxerr.Handle(ctx, err)
+			return
+		}
+		// The enrollment predates this host record, so its mdm_enrolled activity was deferred; record it now that there is a
+		// host to attribute it to, rather than waiting for the next management session.
+		device.HostUUID = host.UUID
+		svc.maybeCreateWindowsMDMEnrolledActivity(ctx, device)
+		return
+	}
 }
 
 func (svc *Service) AuthenticateOrbitHost(ctx context.Context, orbitNodeKey string) (*fleet.Host, bool, error) {
@@ -207,6 +293,18 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 	// the primary is negligible.
 	ctx = ctxdb.RequirePrimary(ctx, true)
 
+	// The Autopilot device ID is matched against a GUID and only identifies a Windows device. Anything else is dropped rather
+	// than failing the enrollment, which then falls back to the other identifiers.
+	if hostInfo.AutopilotDeviceID != "" {
+		parsed, ok := fleet.ParseNonNilUUID(hostInfo.AutopilotDeviceID)
+		if !ok || hostInfo.Platform != "windows" {
+			svc.logger.DebugContext(ctx, "ignoring unusable autopilot device id at orbit enroll", "platform", hostInfo.Platform)
+			hostInfo.AutopilotDeviceID = ""
+		} else {
+			hostInfo.AutopilotDeviceID = parsed.String()
+		}
+	}
+
 	logging.WithLevel(
 		logging.WithExtras(
 			ctx,
@@ -218,6 +316,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 			"osquery_identifier", hostInfo.OsqueryIdentifier,
 			"computer_name", hostInfo.ComputerName,
 			"hardware_model", hostInfo.HardwareModel,
+			"autopilot_device_id", hostInfo.AutopilotDeviceID,
 		),
 		slog.LevelInfo,
 	)
@@ -248,6 +347,21 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		}
 		enrollTeamID = oneTime.TeamID
 		secretOpts = append(secretOpts, fleet.WithEnrollOrbitOneTimeEnrollSecret(oneTime.ID))
+		if enrollmentID := oneTime.WindowsEnrollmentID(); enrollmentID != nil {
+			autopilotDeviceID, err := svc.windowsEnrollmentAutopilotDeviceID(ctx, *enrollmentID)
+			if err != nil {
+				recordErrorDetail(ctx, err)
+				return "", fleet.OrbitError{Message: "enroll failed"}
+			}
+			// We flag autopilot device ID difference. Maybe a device re-registered in Autopilot after it enrolled. The
+			// enrollment's ID is used either way.
+			if hostInfo.AutopilotDeviceID != "" && autopilotDeviceID != "" && hostInfo.AutopilotDeviceID != autopilotDeviceID {
+				svc.logger.WarnContext(ctx, "orbit enroll: autopilot device id differs from the one-time secret's enrollment, using the enrollment's",
+					"enrollment_id", *enrollmentID, "presented_autopilot_device_id", hostInfo.AutopilotDeviceID,
+					"enrollment_autopilot_device_id", autopilotDeviceID)
+			}
+			hostInfo.AutopilotDeviceID = autopilotDeviceID
+		}
 	} else {
 		secret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
 		if err != nil {
@@ -280,9 +394,11 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 	hostIdentityCert, httpSigPresent := httpsig.FromContext(ctx)
 	if identityCert != nil {
 		if !httpSigPresent {
+			svc.recordEnrollmentRejected(ctx, fleet.EnrollmentRejectedHostIdentityCertRequired, identityCert.HostID, attempt)
 			return "", fleet.NewAuthFailedError("authentication error: missing HTTP signature")
 		}
 		if identityCert.SerialNumber != hostIdentityCert.SerialNumber {
+			svc.recordEnrollmentRejected(ctx, fleet.EnrollmentRejectedHostIdentityCertRequired, identityCert.HostID, attempt)
 			return "", fleet.NewAuthFailedError("authentication error: certificate serial number mismatch")
 		}
 	} else if httpSigPresent { // but we couldn't find the cert in DB
@@ -460,34 +576,8 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 				"err", err, "host_uuid", host.UUID, "device_id", euaDeviceID)
 		}
 		svc.maybeCreateWindowsMDMEnrolledActivityForDevice(ctx, euaDeviceID)
-	} else if platform == "windows" && appConfig.MDM.WindowsEnabledAndConfigured && hostInfo.HardwareSerial != "" {
-		// Reverse link: an automatic (user-driven) Windows MDM enrollment may already exist for this device, created before fleetd was
-		// installed. The OMA-DM session stores the device-reported SMBIOS serial on the unlinked enrollment row; link it now, before
-		// orbit fetches its config and runs its one-shot setup-experience init, so the Windows enrollment default fleet (and therefore
-		// the ESP's software and profiles) applies to this host from the start.
-		device, err := svc.ds.MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial(ctx, hostInfo.HardwareSerial)
-		switch {
-		case err != nil && !fleet.IsNotFound(err):
-			svc.logger.ErrorContext(ctx, "failed to look up unlinked windows mdm enrollment by serial",
-				"err", err, "host_uuid", host.UUID, "hardware_serial", hostInfo.HardwareSerial)
-		case err == nil:
-			// Same trust as the DevDetail path this mirrors: the serial on the unlinked enrollment was asserted by the
-			// device, so it must not claim a host that already belongs to different hardware.
-			if !svc.windowsHostClaimedByOtherHardware(ctx, device, host.UUID, "hardware_serial", hostInfo.HardwareSerial) {
-				if _, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, device.MDMDeviceID, true); err != nil {
-					svc.logger.ErrorContext(ctx, "failed to reverse-link windows mdm enrollment at orbit enroll",
-						"err", err, "host_uuid", host.UUID, "device_id", device.MDMDeviceID)
-				} else {
-					// The enrollment predates this host record, so its mdm_enrolled activity was deferred; record it now
-					// that there is a host to attribute it to, rather than waiting for the next management session.
-					device.HostUUID = host.UUID
-					svc.maybeCreateWindowsMDMEnrolledActivity(ctx, device)
-				}
-			}
-			// A Windows orbit enrollment is not linked when it is not MDM, when it is already linked, or when it is a
-			// programmatic fleetd-first enrollment. Note this matches on serial alone, so the lookup refuses when several
-			// unlinked enrollments share the serial.
-		}
+	} else if platform == "windows" && appConfig.MDM.WindowsEnabledAndConfigured {
+		svc.reverseLinkWindowsMDMEnrollment(ctx, host, hostInfo)
 	}
 
 	// Associate the newly-enrolled host with a SCIM user if applicable.
@@ -611,6 +701,14 @@ func resolveOrbitDebugLogging(ctx context.Context, host *fleet.Host, flags json.
 	return merged, &debug, nil
 }
 
+// orbitConfigOnboardingWindow is how long after osquery enrolls a host keeps
+// polling its orbit config at the default interval with orbit config nudges
+// enabled.
+const orbitConfigOnboardingWindow = time.Hour
+
+// GetOrbitConfig returns the host's orbit config. With orbit config nudges enabled, connected agents poll it rarely, so
+// a write changing its output must notify them: per-host writes via mysql's notifyOrbitConfig, fleet-wide and global
+// ones via the orbitconfig_notify datastore decorator. A missed write is only picked up by the slow fallback poll.
 func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
@@ -619,6 +717,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	if !ok {
 		return fleet.OrbitConfig{}, fleet.OrbitError{Message: "internal error: missing host from request context"}
 	}
+	recordOrbitConfigFallbackChanges(ctx, svc.logger, host.ID)
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -842,6 +941,13 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	var wsTransport *fleet.OrbitWebSocketTransportConfig
 	if svc.config.WebSocket.TransportEnabled {
 		wsTransport = &fleet.OrbitWebSocketTransportConfig{Enabled: true}
+		// Onboarding hosts keep the default poll interval: many flags depend
+		// on state ingested from osquery (host_mdm, the Windows MDM enrollment
+		// link), which doesn't notify agents.
+		onboarding := !host.IsOsqueryEnrolled() || svc.clock.Now().Sub(host.LastEnrolledAt) < orbitConfigOnboardingWindow
+		if svc.config.WebSocket.OrbitConfigEnabled && !onboarding {
+			wsTransport.OrbitConfigPollInterval = new(int(svc.config.WebSocket.OrbitConfigPollInterval.Seconds()))
+		}
 	}
 
 	// team ID is not nil, get team specific flags and options
@@ -2623,6 +2729,7 @@ func (svc *Service) retryPolicyAutomationScript(ctx context.Context, host *fleet
 		HostID:          host.ID,
 		ScriptID:        hsr.ScriptID,
 		PolicyID:        hsr.PolicyID,
+		ScriptContentID: hsr.ScriptContentID,
 		ScriptContents:  hsr.ScriptContents,
 		DeferActivation: svc.deferFleetInitiatedActivation(),
 	})

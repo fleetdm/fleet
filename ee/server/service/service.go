@@ -135,6 +135,7 @@ func NewService(
 		SetupExperienceNextStep:           eeservice.SetupExperienceNextStep,
 		GetVPPTokenIfCanInstallVPPApps:    eeservice.GetVPPTokenIfCanInstallVPPApps,
 		InstallVPPAppPostValidation:       eeservice.InstallVPPAppPostValidation,
+		VerifyAppleAccountProvisioning:    eeservice.verifyAppleAccountProvisioning,
 	})
 
 	return eeservice, nil
