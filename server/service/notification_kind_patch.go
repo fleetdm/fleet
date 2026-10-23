@@ -79,8 +79,8 @@ func (svc *Service) setPatchNotificationPayloadForDisplay(ctx context.Context, h
 	return ""
 }
 
-// A notification can wait days for its 1 hour notice, so apps updated in the meantime come off it
-// before the notice names them. A notification left with no apps fails in renderView.
+// A notification can wait days for its 1 hour notice, so remove apps the host updated in the
+// meantime before the notice names them. If that leaves no apps, renderView fails the notification.
 func (svc *Service) prunePatchNotificationApps(ctx context.Context, hostID uint, notificationUUID string) error {
 	appsByNotification, err := svc.ds.ListPatchNotificationAppsForNotifications(ctx, []string{notificationUUID})
 	if err != nil {
