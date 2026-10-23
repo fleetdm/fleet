@@ -90,27 +90,29 @@ const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
         Follow the step-by-step guide to add VPP.{" "}
         <CustomLink url={LEARN_MORE_URL} text="Learn more" newTab />
       </p>
-      <FileUploader
-        className={`${baseClass}__file-uploader ${
-          isUploading ? `${baseClass}__file-uploader--loading` : ""
-        }`}
-        accept=".vpptoken"
-        message="Content token (.vpptoken)"
-        graphicName="file-vpp"
-        buttonType="secondary"
-        buttonMessage={isUploading ? "Uploading..." : "Upload"}
-        fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
-        onFileUpload={onSelectFile}
-      />
-      {!gitOpsModeEnabled && (
-        <VppFleetsSelector
-          value={fleetsValue}
-          onChange={setFleetsValue}
-          tooltipPosition="bottom-start"
-          tooltipLearnMoreUrl={FLEETS_LEARN_MORE_URL}
-          disabled={isUploading}
+      <div className={`${baseClass}__form`}>
+        <FileUploader
+          className={`${baseClass}__file-uploader ${
+            isUploading ? `${baseClass}__file-uploader--loading` : ""
+          }`}
+          accept=".vpptoken"
+          message="Content token (.vpptoken)"
+          graphicName="file-vpp"
+          buttonType="secondary"
+          buttonMessage={isUploading ? "Uploading..." : "Upload"}
+          fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
+          onFileUpload={onSelectFile}
         />
-      )}
+        {!gitOpsModeEnabled && (
+          <VppFleetsSelector
+            value={fleetsValue}
+            onChange={setFleetsValue}
+            tooltipPosition="bottom-start"
+            tooltipLearnMoreUrl={FLEETS_LEARN_MORE_URL}
+            disabled={isUploading}
+          />
+        )}
+      </div>
       <div className="modal-cta-wrap">
         <Button
           onClick={uploadVppToken}
