@@ -1309,114 +1309,85 @@ const TEST_CASES = [
       mustContain: ['com.apple.loginwindow'],
     }
   },
+  // Each case below runs twice: as written, the way the public page asks, and as Fleet asks, by platform, with
+  // Fleet's own rules on.  `fleet.expect` is what the Fleet request must do instead.  A Fleet decline happens at
+  // generation, after the request is routed to the case's own profile type.
+  //
   // Platform SSO declines for Fleet: the model does not know the vendors' extension values and URLs.  The generating
   // versions of these two cases, with Microsoft's and Okta's expected values, are in this file's git history.
   {
     id: 'mobileconfig-psso-entra-setup-assistant',
     profileType: 'mobileconfig',
-    forFleet: true,
-    fleet: false,
     instructions: 'Set up Microsoft Entra Platform SSO with password authentication, and let users register during Setup Assistant.',
-    expect: { expectFailure: true }
+    expect: { mustContain: ['com.apple.extensiblesso'] },
+    fleet: { expect: { expectFailure: true } },
   },
   {
     id: 'mobileconfig-psso-okta-password',
     profileType: 'mobileconfig',
-    forFleet: true,
-    fleet: false,
     instructions: 'Set up Okta Platform SSO with password authentication for our Okta org at acme.okta.com, including the associated domains Okta Verify needs.',
-    expect: { expectFailure: true }
+    expect: { mustContain: ['com.apple.extensiblesso'] },
+    fleet: { expect: { expectFailure: true } },
   },
   {
-    id: 'mobileconfig-fleet-psso-entra-password',
+    id: 'mobileconfig-psso-entra-password',
     profileType: 'mobileconfig',
-    forFleet: true,
-    fleet: false,
     instructions: 'Set up Platform SSO with Microsoft Entra ID using password authentication.',
-    expect: { expectFailure: true }
+    expect: {
+      mustContain: ['com.apple.extensiblesso'],
+      deliveryNotesMustNotContain: ['Fleet'],
+    },
+    fleet: { expect: { expectFailure: true } },
   },
+  // Other single sign-on extensions still generate for Fleet.
   {
-    id: 'mobileconfig-fleet-kerberos-sso',
+    id: 'mobileconfig-kerberos-sso',
     profileType: 'mobileconfig',
-    forFleet: true,
-    fleet: false,
     instructions: 'Set up the Kerberos SSO extension for the ACME.EXAMPLE realm.',
     expect: {
       mustContain: ['com.apple.extensiblesso', 'com.apple.AppSSOKerberos.KerberosExtension', 'ACME.EXAMPLE'],
     }
   },
+  // Fleet configures certificate identities with its own certificate authority integrations.
   {
-    id: 'mobileconfig-fleet-scep',
+    id: 'mobileconfig-scep',
     profileType: 'mobileconfig',
-    forFleet: true,
-    fleet: false,
-    instructions: 'Request a certificate from our SCEP server.',
-    expect: { expectFailure: true }
-  },
-  {
-    id: 'mobileconfig-fleet-filevault',
-    profileType: 'mobileconfig',
-    forFleet: true,
-    fleet: false,
-    instructions: 'Turn on FileVault and escrow the recovery key.',
-    expect: {
-      mustContain: ['com.apple.MCX.FileVault2'],
-      deliveryNotesMustContain: ['Disk encryption'],
-    }
-  },
-  {
-    id: 'mobileconfig-fleet-wifi-password',
-    profileType: 'mobileconfig',
-    forFleet: true,
-    fleet: false,
-    instructions: 'Connect to the WPA2 Wi-Fi network "CorpNet" with the password "Sup3r-Secret!".',
-    expect: {
-      mustContain: ['com.apple.wifi.managed', '<key>SSID_STR</key><string>CorpNet</string>', '<key>Password</key><string>Sup3r-Secret!</string>'],
-      deliveryNotesMustContain: ['FLEET_SECRET'],
-    }
-  },
-  // The same requests off the Fleet path behave as they always have: no Fleet-only refusals, and no Fleet in the notes.
-  // `fleet: false` on these and the Fleet cases above: each pair already covers both paths, by profile type.
-  {
-    id: 'mobileconfig-public-psso-entra-password',
-    profileType: 'mobileconfig',
-    fleet: false,
-    instructions: 'Set up Platform SSO with Microsoft Entra ID using password authentication.',
-    expect: {
-      mustContain: ['com.apple.extensiblesso'],
-      deliveryNotesMustNotContain: ['Fleet'],
-    }
-  },
-  {
-    id: 'mobileconfig-public-scep',
-    profileType: 'mobileconfig',
-    fleet: false,
     instructions: 'Request a certificate from our SCEP server at scep.acme.example with the challenge "abc123".',
     expect: {
       mustContain: ['com.apple.security.scep'],
       deliveryNotesMustNotContain: ['Fleet'],
-    }
+    },
+    fleet: { expect: { expectFailure: true } },
   },
   {
-    id: 'mobileconfig-public-filevault',
+    id: 'mobileconfig-filevault',
     profileType: 'mobileconfig',
-    fleet: false,
-    // Shorter than the Fleet case: with key escrow the request runs over the 10-second budget, and this case is about the notes.
-    instructions: 'Turn on FileVault.',
+    instructions: 'Turn on FileVault and escrow the recovery key.',
     expect: {
       mustContain: ['com.apple.MCX.FileVault2'],
       deliveryNotesMustNotContain: ['Fleet'],
-    }
+    },
+    fleet: {
+      expect: {
+        mustContain: ['com.apple.MCX.FileVault2'],
+        deliveryNotesMustContain: ['Disk encryption'],
+      },
+    },
   },
   {
-    id: 'mobileconfig-public-wifi-password',
+    id: 'mobileconfig-wifi-password',
     profileType: 'mobileconfig',
-    fleet: false,
     instructions: 'Connect to the WPA2 Wi-Fi network "CorpNet" with the password "Sup3r-Secret!".',
     expect: {
       mustContain: ['com.apple.wifi.managed', '<key>Password</key><string>Sup3r-Secret!</string>'],
       deliveryNotesMustNotContain: ['Fleet'],
-    }
+    },
+    fleet: {
+      expect: {
+        mustContain: ['com.apple.wifi.managed', '<key>SSID_STR</key><string>CorpNet</string>', '<key>Password</key><string>Sup3r-Secret!</string>'],
+        deliveryNotesMustContain: ['FLEET_SECRET'],
+      },
+    },
   },
 
   //  ╔╦╗╔╦╗╔╦╗
@@ -1470,54 +1441,49 @@ const TEST_CASES = [
     }
   },
   {
-    id: 'ddm-fleet-root-ca',
+    id: 'ddm-root-ca',
     profileType: 'ddm',
-    forFleet: true,
-    fleet: false,
     instructions: 'Install our root CA certificate.',
+    expect: { mustContain: ['com.apple.configuration.security.certificate'] },
     // The certificate declaration needs an asset, which Fleet cannot deliver.
-    expect: { expectFailure: true }
+    fleet: { expect: { expectFailure: true } },
   },
   {
-    id: 'ddm-fleet-safari-new-tab-macos',
+    id: 'ddm-safari-new-tab-macos',
     profileType: 'ddm',
-    fleet: false,
-    forFleet: true,
-    instructions: 'Set my new Safari tabs to open reddit.com on macOS.',
-    // Safari settings only apply on the macOS user channel, and Fleet delivers to the device channel unless scoped.
-    expect: {
-      mustContain: ['com.apple.configuration.safari.settings', '"PayloadScope":"User"'],
-      deliveryNotesMustContain: ['label'],
-    }
-  },
-  {
-    id: 'ddm-fleet-safari-new-tab-any-platform',
-    profileType: 'ddm',
-    fleet: false,
-    forFleet: true,
-    instructions: 'Set new Safari tabs to open reddit.com.',
-    expect: {
-      mustContain: ['com.apple.configuration.safari.settings', '"PayloadScope":"User"'],
-      deliveryNotesMustContain: ['label'],
-    }
-  },
-  {
-    id: 'ddm-public-safari-new-tab-macos',
-    profileType: 'ddm',
-    fleet: false,
     instructions: 'Set my new Safari tabs to open reddit.com on macOS.',
     expect: {
       mustContain: ['com.apple.configuration.safari.settings'],
-    }
+    },
+    // Safari settings only apply on the macOS user channel, and Fleet delivers to the device channel unless scoped.
+    fleet: {
+      expect: {
+        mustContain: ['com.apple.configuration.safari.settings', '"PayloadScope":"User"'],
+        deliveryNotesMustContain: ['label'],
+      },
+    },
   },
   {
-    id: 'ddm-fleet-google-account',
+    id: 'ddm-safari-new-tab-any-platform',
     profileType: 'ddm',
-    forFleet: true,
-    fleet: false,
+    instructions: 'Set new Safari tabs to open reddit.com.',
+    expect: {
+      mustContain: ['com.apple.configuration.safari.settings'],
+    },
+    fleet: {
+      expect: {
+        mustContain: ['com.apple.configuration.safari.settings', '"PayloadScope":"User"'],
+        deliveryNotesMustContain: ['label'],
+      },
+    },
+  },
+  {
+    id: 'ddm-google-account',
+    profileType: 'ddm',
     instructions: 'Add a Google account for jane@acme.example.',
+    expect: { mustContain: ['com.apple.configuration.account.google'] },
     // com.apple.configuration.account.google is a type Fleet rejects.
-    expect: { expectFailure: true }
+    fleet: { expect: { expectFailure: true } },
   },
   {
     id: 'ddm-auto-install-security-updates',
