@@ -365,6 +365,8 @@ var fleetVarsSupportedInWindowsProfiles = []fleet.FleetVarName{
 	fleet.FleetVarHostPlatform,
 	fleet.FleetVarNDESSCEPChallenge,
 	fleet.FleetVarNDESSCEPProxyURL,
+	fleet.FleetVarConditionalAccessSCEPURL,
+	fleet.FleetVarConditionalAccessSCEPChallenge,
 }
 
 var (
@@ -449,7 +451,11 @@ func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInf
 		}
 	}
 
-	err := validateProfileCertificateAuthorityVariables(contents, lic, groupedCAs, nil, additionalCustomSCEPValidationForWindowsProfiles, additionalNDESValidationForWindowsProfiles, nil)
+	err := validateProfileCertificateAuthorityVariables(contents, lic, groupedCAs, caVarValidators{
+		customSCEP:        additionalCustomSCEPValidationForWindowsProfiles,
+		ndes:              additionalNDESValidationForWindowsProfiles,
+		conditionalAccess: additionalConditionalAccessValidationForWindowsProfiles,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -489,7 +495,20 @@ func additionalNDESValidationForWindowsProfiles(contents string, ndesVars *NDESV
 	if ndesVars == nil {
 		return nil
 	}
+	return validateWindowsSCEPURLAndChallengePlacement(contents, "NDES", fleet.FleetVarNDESSCEPProxyURL, fleet.FleetVarNDESSCEPChallenge)
+}
 
+func additionalConditionalAccessValidationForWindowsProfiles(contents string, conditionalAccessVars *ConditionalAccessVarsFound) error {
+	if conditionalAccessVars == nil {
+		return nil
+	}
+	return validateWindowsSCEPURLAndChallengePlacement(contents, "Conditional access",
+		fleet.FleetVarConditionalAccessSCEPURL, fleet.FleetVarConditionalAccessSCEPChallenge)
+}
+
+// validateWindowsSCEPURLAndChallengePlacement checks that a certificate authority's SCEP URL and challenge variables
+// are each in, and only in, their own SCEP node, and that the SubjectName carries the renewal ID in its OU or CN.
+func validateWindowsSCEPURLAndChallengePlacement(contents, groupName string, urlVar, challengeVar fleet.FleetVarName) error {
 	var cmdMsg *fleet.SyncMLCmd
 	dec := xml.NewDecoder(bytes.NewReader(bytes.TrimSpace([]byte(contents))))
 	for {
@@ -519,44 +538,43 @@ func additionalNDESValidationForWindowsProfiles(contents string, ndesVars *NDESV
 			isServerURL := strings.HasSuffix(target, "/Install/ServerURL")
 			isSubjectName := strings.HasSuffix(target, fleet.WindowsSCEPSubjectNameSuffix)
 
-			// Verify that each NDES variable appears ONLY in its expected field.
-			// This prevents the one-time challenge or proxy URL from being placed in an unexpected field
+			// Verify that each variable appears ONLY in its expected field.
+			// This prevents the challenge or URL from being placed in an unexpected field
 			// where it could be exfiltrated, since variable replacement is a global string substitution.
-			if !isChallenge && containsFleetVar(dataContent, fleet.FleetVarNDESSCEPChallenge) {
+			if !isChallenge && containsFleetVar(dataContent, challengeVar) {
 				return &fleet.BadRequestError{
 					Message: fmt.Sprintf(
-						"Variable %q must only be in the SCEP certificate's \"Challenge\" field.", fleet.FleetVarNDESSCEPChallenge.WithPrefix(),
+						"Variable %q must only be in the SCEP certificate's \"Challenge\" field.", challengeVar.WithPrefix(),
 					),
 				}
 			}
-			if !isServerURL && containsFleetVar(dataContent, fleet.FleetVarNDESSCEPProxyURL) {
+			if !isServerURL && containsFleetVar(dataContent, urlVar) {
 				return &fleet.BadRequestError{
 					Message: fmt.Sprintf(
-						"Variable %q must only be in the SCEP certificate's \"ServerURL\" field.", fleet.FleetVarNDESSCEPProxyURL.WithPrefix(),
+						"Variable %q must only be in the SCEP certificate's \"ServerURL\" field.", urlVar.WithPrefix(),
 					),
 				}
 			}
 
 			// Variables must not appear in LocURI target paths.
-			if containsFleetVar(target, fleet.FleetVarNDESSCEPChallenge) ||
-				containsFleetVar(target, fleet.FleetVarNDESSCEPProxyURL) {
+			if containsFleetVar(target, challengeVar) || containsFleetVar(target, urlVar) {
 				return &fleet.BadRequestError{
-					Message: "NDES Fleet variables must not appear in LocURI target paths.",
+					Message: groupName + " Fleet variables must not appear in LocURI target paths.",
 				}
 			}
 
 			// Verify the expected fields contain the correct variables.
-			if isChallenge && !isFleetVar(dataContent, fleet.FleetVarNDESSCEPChallenge) {
+			if isChallenge && !isFleetVar(dataContent, challengeVar) {
 				return &fleet.BadRequestError{
 					Message: fmt.Sprintf(
-						"Variable %q must be in the SCEP certificate's \"Challenge\" field.", fleet.FleetVarNDESSCEPChallenge.WithPrefix(),
+						"Variable %q must be in the SCEP certificate's \"Challenge\" field.", challengeVar.WithPrefix(),
 					),
 				}
 			}
-			if isServerURL && !isFleetVar(dataContent, fleet.FleetVarNDESSCEPProxyURL) {
+			if isServerURL && !isFleetVar(dataContent, urlVar) {
 				return &fleet.BadRequestError{
 					Message: fmt.Sprintf(
-						"Variable %q must be in the SCEP certificate's \"ServerURL\" field.", fleet.FleetVarNDESSCEPProxyURL.WithPrefix(),
+						"Variable %q must be in the SCEP certificate's \"ServerURL\" field.", urlVar.WithPrefix(),
 					),
 				}
 			}

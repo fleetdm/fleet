@@ -1594,6 +1594,59 @@ func TestReconcileWindowsProfilesWithOneHostFailingStillAddsManagedCertificate(t
 	require.EqualValues(t, 1, foundErrors, "Should have found one failed status update")
 }
 
+func TestReconcileWindowsProfilesConditionalAccessReadsSecretsOnce(t *testing.T) {
+	ctx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	ds := new(mock.Store)
+
+	profile := &fleet.MDMWindowsConfigProfile{
+		ProfileUUID: "conditional-access-profile",
+		Name:        "Conditional access",
+		SyncML: []byte(`<Add><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/ca/Install/ServerURL</LocURI></Target><Data>$FLEET_VAR_` +
+			string(fleet.FleetVarConditionalAccessSCEPURL) + `</Data></Item></Add>` +
+			`<Add><Item><Target><LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/ca/Install/Challenge</LocURI></Target><Data>$FLEET_VAR_` +
+			string(fleet.FleetVarConditionalAccessSCEPChallenge) + `</Data></Item></Add>`),
+	}
+	hostUUIDs := []string{"host-1", "host-2"}
+	_, managedCerts := setupReconcilerTest(ds, map[string]*fleet.MDMWindowsConfigProfile{
+		hostUUIDs[0]: profile,
+		hostUUIDs[1]: profile,
+	})
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://fleet.example.com"},
+			MDM:            fleet.MDM{WindowsEnabledAndConfigured: true},
+		}, nil
+	}
+	secretReads := 0
+	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
+		secretReads++
+		require.Nil(t, teamID)
+		return []*fleet.EnrollSecret{{Secret: "first"}, {Secret: "second"}}, nil
+	}
+	commandsByHost := map[string]string{}
+	ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc = func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, updates []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+		for _, hostUUID := range hostUUIDs {
+			commandsByHost[hostUUID] = string(cmd.RawCommand)
+		}
+		return nil
+	}
+
+	require.NoError(t, ReconcileWindowsProfiles(ctx, ds, slog.New(slog.DiscardHandler), false))
+
+	require.Equal(t, 1, secretReads)
+	require.Len(t, commandsByHost, len(hostUUIDs))
+	for _, hostUUID := range hostUUIDs {
+		require.Contains(t, commandsByHost[hostUUID], "https://fleet.example.com"+fleet.ConditionalAccessSCEPPath)
+		require.Contains(t, commandsByHost[hostUUID], "<Data>first</Data>")
+	}
+	require.Len(t, *managedCerts, len(hostUUIDs))
+	for _, cert := range *managedCerts {
+		require.Equal(t, fleet.CAConfigConditionalAccess, cert.Type)
+		require.Equal(t, fleet.ConditionalAccessManagedCertificateCAName, cert.CAName)
+	}
+}
+
 // TestReconcileWindowsProfilesSkipsDeletedProfile covers the race where an
 // admin deletes a Windows profile between the cron's initial list and the
 // per-profile upsert. Without the guard, the cron would insert a
