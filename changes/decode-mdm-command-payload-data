@@ -1,0 +1,1 @@
+- Improved the MDM command details modal to show the configuration profile sent in an `InstallProfile` command instead of base64-encoded data, and to keep long lines in the request payload from wrapping below their indentation.
