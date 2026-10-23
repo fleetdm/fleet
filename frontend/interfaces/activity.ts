@@ -229,6 +229,7 @@ export enum ActivityType {
   DeletedCustomHostVital = "deleted_custom_host_vital",
   ReleasedDeviceFromAB = "released_from_ab",
   NotifiedEndUserBeforePatching = "notified_end_user_before_patching",
+  EditedPatchDeadlineSettings = "edited_patch_deadline_settings",
   EnabledAppleBusinessOnlyEnrollment = "enabled_apple_business_only_enrollment",
   DisabledAppleBusinessOnlyEnrollment = "disabled_apple_business_only_enrollment",
   HostEnrollmentRejected = "host_enrollment_rejected",
@@ -482,6 +483,10 @@ export interface IActivityDetails {
   fleet_id?: number | null;
   fleet_name?: string | null;
   dataset?: string;
+  /** `edited_patch_deadline_settings` payload — weekday names (lowercase) and
+   * HH:MM 24-hour time in the host's local timezone. */
+  days?: string[];
+  time?: string;
 }
 
 /**
@@ -746,6 +751,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.ReleasedDeviceFromAB]: "Released host from Apple Business",
   [ActivityType.NotifiedEndUserBeforePatching]:
     "Notified end user before patching",
+  [ActivityType.EditedPatchDeadlineSettings]: "Edited patch deadline",
   [ActivityType.EnabledAppleBusinessOnlyEnrollment]:
     "Enabled Apple Business only enrollment",
   [ActivityType.DisabledAppleBusinessOnlyEnrollment]:

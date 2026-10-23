@@ -105,7 +105,9 @@ export default {
   SOFTWARE_OS: `${URL_PREFIX}/software/os`,
   SOFTWARE_VERSIONS: `${URL_PREFIX}/software/versions`,
   SOFTWARE_LIBRARY: `${URL_PREFIX}/software/library`,
-  SOFTWARE_LIBRARY_CATEGORIES: `${URL_PREFIX}/software/library/categories`,
+  SOFTWARE_LIBRARY_SETTINGS: `${URL_PREFIX}/software/library/settings`,
+  SOFTWARE_LIBRARY_SETTINGS_CATEGORIES: `${URL_PREFIX}/software/library/settings/categories`,
+  SOFTWARE_LIBRARY_SETTINGS_PATCH_DEADLINE: `${URL_PREFIX}/software/library/settings/patch-deadline`,
   SOFTWARE_TITLE_DETAILS: (id: string): string => {
     return `${URL_PREFIX}/software/titles/${id}`;
   },

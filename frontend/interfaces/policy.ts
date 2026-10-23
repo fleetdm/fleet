@@ -79,6 +79,7 @@ export interface IPolicy {
   continuous_automations_enabled?: boolean;
   patch_when_closed?: boolean;
   notify_before_patching?: boolean;
+  patch_deadline?: boolean;
   labels_include_any?: ILabelPolicy[];
   labels_include_all?: ILabelPolicy[];
   labels_exclude_any?: ILabelPolicy[];
