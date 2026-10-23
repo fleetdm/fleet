@@ -1493,6 +1493,7 @@ The available metrics are:
 - [Get Okta certificate](#get-okta-certificate)
 - [Get Okta configuration profile](#get-okta-configuration-profile)
 - [Delete Microsoft Entra ID](#disconnect-microsoft-entra-id)
+- [Delete Google conditional access](#delete-google-conditional-access)
 
 ### Get Okta certificate
 
@@ -1539,6 +1540,22 @@ Returns an Apple configuration profile file with `Content-Type: application/x-ap
 Disconnects Fleet from Entra. This won't unblock end users failing policies. Learn how to [unblock end users](https://fleetdm.com/guides/entra-conditional-access-integration#disable).
 
 `DELETE /api/v1/fleet/conditional-access/microsoft`
+
+#### Parameters
+
+None.
+
+##### Default response
+
+`Status: 200`
+
+### Delete Google conditional access
+
+_Available in Fleet Premium._
+
+Disconnects Fleet from Google. Fleet stops marking iOS, iPadOS, and Android hosts as managed in Google. Hosts that are already marked as managed stay managed in Google.
+
+`DELETE /api/v1/fleet/conditional-access/google`
 
 #### Parameters
 
@@ -1804,6 +1821,8 @@ None.
   "conditional_access": {
     "microsoft_entra_tenant_id": "",
     "microsoft_entra_connection_configured": false,
+    "google_customer_id": "",
+    "google_connection_configured": false,
     "okta_idp_id": "0ogmbinlfy9hvGs7cx492",
     "okta_assertion_consumer_service_url": "https://example.okta.com/sso/saml2/0ogmbinlfy9hvGs7cx492",
     "okta_audience_uri": "https://www.okta.com/saml2/service-provider/asdhjlksoewpoasn",
@@ -2203,6 +2222,8 @@ Modifies the Fleet's configuration with the supplied information.
   "conditional_access": {
     "microsoft_entra_tenant_id": "<TENANT ID>",
     "microsoft_entra_connection_configured": true,
+    "google_customer_id": "C01234abc",
+    "google_connection_configured": true,
     "okta_idp_id": "0ogmbinlfy9hvGs7cx492",
     "okta_assertion_consumer_service_url": "https://example.okta.com/sso/saml2/0ogmbinlfy9hvGs7cx492",
     "okta_audience_uri": "https://www.okta.com/saml2/service-provider/asdhjlksoewpoasn",

@@ -1289,7 +1289,9 @@ org_settings:
 
 `/fleets/fleet-name.yml`
 
-At the fleet level, there is the additional option to enable conditional access, which blocks third party app sign-ins on hosts failing policies. (Available in Fleet Premium. Must have Microsoft Entra connected.)
+At the fleet level, there is the additional option to enable conditional access, which blocks third party app sign-ins on hosts failing policies. (Available in Fleet Premium. Must have Okta or Microsoft Entra connected.)
+
+`conditional_access_enabled` only applies to the [Okta](https://fleetdm.com/guides/okta-conditional-access-integration) and [Microsoft Entra](https://fleetdm.com/guides/entra-conditional-access-integration) integrations. Google conditional access doesn't use it.
 
 ```yaml
 integrations:
