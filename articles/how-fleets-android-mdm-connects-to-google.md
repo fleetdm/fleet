@@ -122,7 +122,7 @@ fleetdm.com won't mark devices as managed. Your Fleet server does that.
 
 Compared to Android MDM:
 
-- fleetdm.com will call your Fleet server, authenticated with the per-server secret. If you restrict inbound traffic, you'll need to allow that endpoint from fleetdm.com. The exact path isn't final yet.
+- fleetdm.com will call your Fleet server, authenticated with the per-server secret. If you restrict inbound traffic, you'll need to allow that endpoint from fleetdm.com. The exact path isn't final yet. See the plan in [#56354](https://github.com/fleetdm/fleet/issues/56354).
 - New data will pass through fleetdm.com: the Fleet server URL and, for each device, its Google device ID.
 
 ## Further reading
