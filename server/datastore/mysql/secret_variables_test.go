@@ -657,7 +657,7 @@ func testDeleteUsedSecretVariable(t *testing.T, ds *Datastore) {
 		require.Equal(t, "FOOBAR", s.SecretName)
 		require.Equal(t, "apple_profile", s.Entity.Type)
 		require.Equal(t, "Name0", s.Entity.Name)
-		require.Equal(t, "No team", s.Entity.TeamName)
+		require.Equal(t, "Unassigned", s.Entity.TeamName)
 
 		// Deleting an unused variable is allowed.
 		_, err = ds.DeleteSecretVariable(ctx, id2)
@@ -711,7 +711,7 @@ func testDeleteUsedSecretVariable(t *testing.T, ds *Datastore) {
 		require.Equal(t, "FOOBAR", s.SecretName)
 		require.Equal(t, "apple_declaration", s.Entity.Type)
 		require.Equal(t, "decl-1", s.Entity.Name)
-		require.Equal(t, "No team", s.Entity.TeamName)
+		require.Equal(t, "Unassigned", s.Entity.TeamName)
 
 		err = ds.DeleteMDMAppleDeclaration(ctx, appleDeclaration.DeclarationUUID)
 		require.NoError(t, err)
@@ -756,7 +756,7 @@ func testDeleteUsedSecretVariable(t *testing.T, ds *Datastore) {
 		require.Equal(t, "FOOBAR", s.SecretName)
 		require.Equal(t, "windows_profile", s.Entity.Type)
 		require.Equal(t, "zoo", s.Entity.Name)
-		require.Equal(t, "No team", s.Entity.TeamName)
+		require.Equal(t, "Unassigned", s.Entity.TeamName)
 
 		err = ds.DeleteMDMWindowsConfigProfile(ctx, windowsProfile.ProfileUUID)
 		require.NoError(t, err)
@@ -799,7 +799,7 @@ func testDeleteUsedSecretVariable(t *testing.T, ds *Datastore) {
 		require.Equal(t, "FOOBAR", s.SecretName)
 		require.Equal(t, "script", s.Entity.Type)
 		require.Equal(t, "foobar.sh", s.Entity.Name)
-		require.Equal(t, "No team", s.Entity.TeamName)
+		require.Equal(t, "Unassigned", s.Entity.TeamName)
 
 		err = ds.DeleteScript(ctx, script.ID)
 		require.NoError(t, err)

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.26.1",
+      "version": "1.26.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mailspring.mailspring';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mailspring.mailspring' AND version_compare(bundle_short_version, '1.26.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mailspring.mailspring' AND version_compare(bundle_short_version, '1.26.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.mailspring.mailspring' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/Foundry376/Mailspring/releases/download/1.26.1/Mailspring-AppleSilicon.zip",
+      "installer_url": "https://github.com/Foundry376/Mailspring/releases/download/1.26.2/Mailspring-AppleSilicon.zip",
       "install_script_ref": "cca86a31",
       "uninstall_script_ref": "7913df25",
-      "sha256": "de4491669a6d13aab36428c21021335b1a3f0d8fa82e77a5540960f7a2dd0c1f",
+      "sha256": "4ca6a0d995e51583c2dc4c43bdccfb4a96ed61867f0e8e18486954ba55f83dce",
       "default_categories": [
         "Productivity"
       ]
