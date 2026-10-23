@@ -6,7 +6,7 @@
 <style>
 /*__BASE_CSS__*/
 /* Cards share subgrid rows, so titles, numbers, and detail rows line up across a row of cards. */
-.dashes { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.dashes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
 .dash { display: grid; grid-row: span 3; grid-template-rows: subgrid; gap: 16px; }
 .dash > * { min-width: 0; }
 .dash h3 { margin: 0 0 4px; font-size: 16px; }
@@ -15,16 +15,11 @@
 .dash h3 a span { color: var(--ink-2); font-weight: 400; margin-left: 4px; }
 .dash .about { margin: 0; color: var(--ink-2); }
 .dash .big { margin-top: 2px; }
-.dash.wide { grid-column: 1 / -1; grid-row: auto; grid-template-rows: none; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 32px; }
-.dash.wide > :first-child { grid-column: 1 / -1; }
 .spark { margin-top: 12px; }
 .spark-axis { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-2); margin-top: 2px; }
 .spark-empty { height: 48px; margin-top: 12px; display: flex; align-items: center; justify-content: center; text-align: center;
   font-size: 12px; color: var(--ink-2); background: var(--panel-2); border-radius: 4px; padding: 0 12px; }
 .spark-empty + .spark-axis { visibility: hidden; }
-@media (max-width: 700px) {
-  .dash.wide { grid-template-columns: minmax(0, 1fr); }
-}
 </style>
 
 <div class="wrap">
@@ -87,40 +82,40 @@ const sumSince = (rows, f, days) => {
 };
 const offMac = () => PLATFORM && PLATFORM !== "macos";
 
-// key: the card's main number for today's row. spark: the same measure per day.
+// Alphabetical by title. key: the card's main number for today's row. spark: the same measure per day.
 const CARDS = [
-  { page: "lifecycle", title: "Hardware lifecycle", about: "Which computers to replace, repair, or leave alone.",
-    label: () => "Need action", spark: (r) => r.refresh + r.battery + r.investigate,
-    unit: (r) => `of ${fmt.plural(r.scored, "computer")}`,
-    rows: (r) => [["Refresh", fmt.n(r.refresh), r.refresh], ["Battery service", fmt.n(r.battery)], ["Old CPU", fmt.pct(pct(r.old, r.scored))]] },
-  { page: "software", title: "Software usage", about: "Seats nobody opens, to reclaim at renewal.",
-    label: () => "Seats idle", spark: (r) => pct(r.idle, r.seats), keyFmt: fmt.pct, yMax: 100,
-    unit: (r) => `${fmt.n(r.idle)} of ${fmt.n(r.seats)}`,
-    rows: (r) => [["Seats in use", fmt.n(r.seats - r.idle)], ["Idle seats", fmt.n(r.idle)]] },
-  { page: "patch", title: "Patch velocity", about: "How fast new versions reach every computer.",
-    label: () => "App installs on the newest version", spark: (r) => pct(r.app_current, r.app_installs), keyFmt: fmt.pct, yMax: 100,
-    unit: (r) => `${fmt.n(r.app_current)} of ${fmt.n(r.app_installs)}`,
-    rows: (r, rows) => [["OS on the newest version", fmt.pct(pct(r.os_current, r.os_installs))],
-      [`Updates, ${windowLabel("patch", 7)}`, fmt.n(sumSince(rows, "updates", 7))]] },
   { page: "ai", title: "AI governance", about: "Which AI tools run where, and the settings that put data at risk.",
     label: () => "Using AI today", spark: (r) => r.act,
     unit: (r) => `of ${fmt.plural(r.ai, "computer")} with AI tools`,
     rows: (r) => [["High-risk findings", fmt.n(r.high), r.high], ["Medium-risk findings", fmt.n(r.med)]] },
+  { page: "analytics", title: "Analytics", about: "Whether the data behind these dashboards is complete and fresh, and the security posture it shows.",
+    label: () => "Every source fresh", spark: (r) => pct(r.all_fresh, r.computers), keyFmt: fmt.pct, yMax: 100,
+    unit: (r) => `${fmt.n(r.all_fresh)} of ${fmt.n(r.computers)}`,
+    rows: (r) => [["Disk encryption off", fmt.n(r.disk_known - r.disk_on), r.disk_known - r.disk_on],
+      ["fleetd current", fmt.pct(pct(r.agent_current, r.computers))], ["Failing a policy", fmt.n(r.failing)]] },
   { page: "connectivity", title: "Connectivity", about: "Whether every computer reports to Fleet, and the network under the Macs.",
     label: () => "Reporting within 24 hours", spark: (r) => pct(r.fresh24, r.computers), keyFmt: fmt.pct, yMax: 100,
     unit: (r) => `${fmt.n(r.fresh24)} of ${fmt.n(r.computers)}`,
     rows: (r) => [["Not seen for 7+ days", fmt.n(r.stale7), r.stale7],
       ["Weak Wi-Fi now", offMac() ? "---" : fmt.n(r.weak)], ["Weak Wi-Fi most days", offMac() ? "---" : fmt.n(r.persistent)]] },
+  { page: "lifecycle", title: "Hardware lifecycle", about: "Which computers to replace, repair, or leave alone.",
+    label: () => "Need action", spark: (r) => r.refresh + r.battery + r.investigate,
+    unit: (r) => `of ${fmt.plural(r.scored, "computer")}`,
+    rows: (r) => [["Refresh", fmt.n(r.refresh), r.refresh], ["Battery service", fmt.n(r.battery)], ["Old CPU", fmt.pct(pct(r.old, r.scored))]] },
+  { page: "patch", title: "Patch velocity", about: "How fast new versions reach every computer.",
+    label: () => "App installs on the newest version", spark: (r) => pct(r.app_current, r.app_installs), keyFmt: fmt.pct, yMax: 100,
+    unit: (r) => `${fmt.n(r.app_current)} of ${fmt.n(r.app_installs)}`,
+    rows: (r, rows) => [["OS on the newest version", fmt.pct(pct(r.os_current, r.os_installs))],
+      [`Updates, ${windowLabel("patch", 7)}`, fmt.n(sumSince(rows, "updates", 7))]] },
+  { page: "software", title: "Software usage", about: "Seats nobody opens, to reclaim at renewal.",
+    label: () => "Seats idle", spark: (r) => pct(r.idle, r.seats), keyFmt: fmt.pct, yMax: 100,
+    unit: (r) => `${fmt.n(r.idle)} of ${fmt.n(r.seats)}`,
+    rows: (r) => [["Seats in use", fmt.n(r.seats - r.idle)], ["Idle seats", fmt.n(r.idle)]] },
   { page: "sustainability", title: "Sustainability", about: "Energy use, sleep settings, and batteries to service.",
     label: () => `Energy used, ${windowLabel("sustainability", 7)}`, spark: (r) => r.kwh, macOnly: true,
     key: (r, rows) => sumSince(rows, "kwh", 7), keyFmt: kwhFmt, unit: () => "kWh, Macs",
     rows: (r, rows) => [[`Carbon, ${windowLabel("sustainability", 7)}`, offMac() ? "---" : kgFmt(sumSince(rows, "co2", 7))],
       ["Haven't slept", fmt.n(r.never_slept), r.never_slept], ["Sleep turned off", fmt.n(r.sleep_off)]] },
-  { page: "analytics", title: "Analytics", about: "Whether the data behind these dashboards is complete and fresh, and the security posture it shows.", wide: true,
-    label: () => "Every source fresh", spark: (r) => pct(r.all_fresh, r.computers), keyFmt: fmt.pct, yMax: 100,
-    unit: (r) => `${fmt.n(r.all_fresh)} of ${fmt.n(r.computers)}`,
-    rows: (r) => [["Disk encryption off", fmt.n(r.disk_known - r.disk_on), r.disk_known - r.disk_on],
-      ["fleetd current", fmt.pct(pct(r.agent_current, r.computers))], ["Failing a policy", fmt.n(r.failing)]] },
 ];
 
 // Sparklines draw at their container's width, like the trend charts.
@@ -204,7 +199,7 @@ function render() {
         : spark(rows, c.spark, { yMax: c.yMax, yFmt: keyFmt, label: `${c.title}: ${c.label()}` }));
     const details = h("div", { class: "rail" }, last ? c.rows(last, rows).map(([label, value, bad]) =>
       h("div", { class: "rail-row" }, h("span", {}, label), h("b", { class: bad ? "hl-bad" : null }, value))) : null);
-    return h("div", { class: `panel dash${c.wide ? " wide" : ""}` },
+    return h("div", { class: "panel dash" },
       h("div", {}, h("h3", {}, h("a", { href: DATA.links[c.page], target: "_blank", rel: "noopener" }, c.title, h("span", { "aria-hidden": "true" }, "↗"))),
         h("p", { class: "about" }, c.about)),
       main, details);
