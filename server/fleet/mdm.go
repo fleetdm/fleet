@@ -146,6 +146,7 @@ func HasCAVariables(fleetVars []string) bool {
 	for _, v := range fleetVars {
 		if v == string(FleetVarNDESSCEPChallenge) || v == string(FleetVarNDESSCEPProxyURL) ||
 			v == string(FleetVarSCEPRenewalID) || v == string(FleetVarCertificateRenewalID) || v == string(FleetVarSCEPWindowsCertificateID) ||
+			v == string(FleetVarConditionalAccessSCEPURL) || v == string(FleetVarConditionalAccessSCEPChallenge) ||
 			strings.HasPrefix(v, string(FleetVarDigiCertDataPrefix)) || strings.HasPrefix(v, string(FleetVarDigiCertPasswordPrefix)) ||
 			strings.HasPrefix(v, string(FleetVarEJBCADataPrefix)) || strings.HasPrefix(v, string(FleetVarEJBCAPasswordPrefix)) ||
 			strings.HasPrefix(v, string(FleetVarCustomSCEPChallengePrefix)) || strings.HasPrefix(v, string(FleetVarCustomSCEPProxyURLPrefix)) ||
