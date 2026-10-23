@@ -22,15 +22,13 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"golang.org/x/oauth2/google"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
 	"google.golang.org/api/privateca/v1"
 )
 
-const (
-	defaultTimeout = 20 * time.Second
-	googleTokenURL = "https://oauth2.googleapis.com/token" //nolint:gosec // G101: a public endpoint URL, not a credential
-)
+const defaultTimeout = 20 * time.Second
 
 type Service struct {
 	logger   *slog.Logger
@@ -72,7 +70,7 @@ func WithTokenURL(tokenURL string) Opt {
 }
 
 func NewService(opts ...Opt) *Service {
-	s := &Service{timeout: defaultTimeout, tokenURL: googleTokenURL}
+	s := &Service{timeout: defaultTimeout, tokenURL: google.JWTTokenURL}
 	for _, opt := range opts {
 		opt(s)
 	}
