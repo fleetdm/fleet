@@ -2902,6 +2902,7 @@ func openBrowserWindow(browserURL string) error {
 		var opts []execuser.Option
 		opts = append(opts, execuser.WithUser(*loggedInUser))
 		opts = append(opts, execuser.WithArg(browserURL, ""))
+		opts = append(opts, execuser.WithXDGSessionEnv())
 		log.Debug().Str("browser", browserBin).Str("url", browserURL).Str("user", *loggedInUser).Msg("opening browser for setup experience")
 		if _, err := execuser.Run(browserBin, opts...); err != nil {
 			return fmt.Errorf("opening browser with %s: %w", browserBin, err)
