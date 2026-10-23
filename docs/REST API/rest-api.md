@@ -4947,7 +4947,7 @@ Returns the information of the specified host.
 
 Entries in `mdm.profiles` that represent an Android certificate carry a `certificate_template_id`, plus `retrying`, `retry_count`, and `max_retries`. When a host reports a failed certificate install, Fleet automatically re-delivers the certificate up to `max_retries` times, which puts it back into an in-progress `status` while `detail` still holds the reported error. `retrying` is `true` for the duration of that window, and `retry_count` is how many retries have been used. A manual resend also sets `retry_count`, so only `retrying` identifies an automatic retry. These four fields are omitted for every other kind of profile, and the retry fields are also omitted when `operation_type` is `remove`, since removals are never retried.
 
-`browser` and `extension_for` fields are included when set and when empty. `extension_for` shows the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+The `extension_for` field is included when set and when empty. It shows the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor.
 
 `release` is included when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions. `generated_cpe` is empty for Go binaries. Their vulnerabilities come from the [Go vulnerability database](https://vuln.go.dev) instead of NVD.
 
@@ -5168,7 +5168,6 @@ If `hostname` is specified when there is more than one host with the same hostna
         "name": "Automat",
         "version": "0.8.0",
         "source": "python_packages",
-        "browser": "",
         "extension_for": "",
         "generated_cpe": "",
         "vulnerabilities": null,
@@ -5450,7 +5449,6 @@ If `hostname` is specified when there is more than one host with the same hostna
         "name": "Gmail",
         "version": "6.0.240414",
         "source": "ios_apps",
-        "browser": "",
         "extension_for": "",
         "generated_cpe": "",
         "vulnerabilities": null,
@@ -5703,7 +5701,7 @@ If `hostname` is specified when there is more than one host with the same hostna
 
 > Note: `installed_paths` may be blank depending on installer package. For example, on Linux, RPM-installed packages do not provide installed path information.
 
-`browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+The `extension_for` field is included when set and when empty. It shows the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor.
 
 `release` is included when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions. `generated_cpe` is empty for Go binaries. Their vulnerabilities come from the [Go vulnerability database](https://vuln.go.dev) instead of NVD.
 
@@ -5892,7 +5890,6 @@ For iOS/iPadOS hosts, Fleet omits identifying details from the response: `uuid`,
         "name": "SomeApp.app",
         "version": "1.0",
         "source": "apps",
-        "browser": "",
         "extension_for": "",
         "bundle_identifier": "com.some.app",
         "last_opened_at": "2021-08-18T21:14:00Z",
@@ -5955,7 +5952,7 @@ For iOS/iPadOS hosts, Fleet omits identifying details from the response: `uuid`,
 }
 ```
 
-`browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+The `extension_for` field is included when set and when empty. It shows the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor.
 
 `release` is included when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions. `generated_cpe` is empty for Go binaries. Their vulnerabilities come from the [Go vulnerability database](https://vuln.go.dev) instead of NVD.
 
@@ -14480,7 +14477,6 @@ Get a list of all software.
       "icon_url": null,
       "source": "apps",
       "extension_for": "",
-      "browser": "",
       "hosts_count": 5,
       "versions_count": 4,
       "versions": [
@@ -14534,7 +14530,6 @@ Get a list of all software.
       "icon_url": null,
       "source": "go_binaries",
       "extension_for": "",
-      "browser": "",
       "hosts_count": 19,
       "versions_count": 1,
       "versions": [
@@ -14556,7 +14551,6 @@ Get a list of all software.
       "icon_url": null,
       "source": "apps",
       "extension_for": "",
-      "browser": "",
       "hosts_count": 1,
       "versions_count": 1,
       "versions": [
@@ -14580,7 +14574,7 @@ Get a list of all software.
 }
 ```
 
-`browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+The `extension_for` field is included when set and when empty. It shows the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor.
 
 Each entry in `versions` includes `release` when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions.
 
@@ -14657,7 +14651,6 @@ Get a list of all software versions.
         "display_name": "",
         "version": "2.10.0",
         "source": "chrome_extensions",
-        "browser": "chrome",
         "extension_for": "chrome",
         "extension_id": "aeblfdkhhhdcdjpifhhbdiojplfjncoa",
         "generated_cpe": "cpe:2.3:a:1password:1password:2.19.0:*:*:*:*:chrome:*:*",
@@ -14704,7 +14697,7 @@ Get a list of all software versions.
 }
 ```
 
-`browser` and `extension_for` fields are included when set and when empty. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+The `extension_for` field is included when set and when empty. It shows the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor.
 
 `release` is included when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions. `generated_cpe` is empty for Go binaries. Their vulnerabilities come from the [Go vulnerability database](https://vuln.go.dev) instead of NVD.
 
@@ -14799,7 +14792,6 @@ Returns information about the specified software. By default, `versions` are sor
     "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/90/f7/27/90f727be-835b-54ad-4d9d-8b597e63e321/electron.png/512x512bb.png",
     "source": "apps",
     "extension_for": "",
-    "browser": "",
     "hosts_count": 5,
     "versions_count": 4,
     "versions": [
@@ -14930,7 +14922,7 @@ Returns information about the specified software. By default, `versions` are sor
 }
 ```
 
-`browser` and `extension_for` fields are included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+The `extension_for` field is included when set and when empty, at the same level as `source`. It shows the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor.
 
 Each entry in `versions` includes `release` when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions.
 
@@ -15054,7 +15046,7 @@ Returns information about the specified software version.
 }
 ```
 
-`browser` and `extension_for` fields are included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
+The `extension_for` field is included when set and when empty, at the same level as `source`. It shows the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor.
 
 `release` is included when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions. `generated_cpe` is empty for Go binaries. Their vulnerabilities come from the [Go vulnerability database](https://vuln.go.dev) instead of NVD.
 
