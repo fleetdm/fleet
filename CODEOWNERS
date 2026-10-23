@@ -45,7 +45,7 @@ go.mod @fleetdm/go
 
 # Orbit paths owned by other teams (medium risk: Sharon + Lucas + team TL/EM)
 /orbit/pkg/bitlocker/          @sharon-fdm @lucasmrod @juan-fdz-hawa @getvictor
-/orbit/pkg/luks/               @sharon-fdm @lucasmrod @ksykulev @georgekarrv
+/orbit/pkg/luks/               @sharon-fdm @lucasmrod @georgekarrv
 /orbit/pkg/profiles/           @sharon-fdm @lucasmrod @JordanMontgomery @georgekarrv
 /orbit/pkg/setup_experience/   @sharon-fdm @lucasmrod @JordanMontgomery @georgekarrv
 /orbit/pkg/useraction/         @sharon-fdm @lucasmrod @JordanMontgomery @georgekarrv
@@ -96,7 +96,7 @@ go.mod @fleetdm/go
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
 /docs                                                   @rachaelshaw
-/docs/solutions                                         @ddribeiro
+/docs/solutions                                         @ddribeiro @allenhouchins
 /docs/Configuration                                     @rachaelshaw
 /docs/Contributing                                      @lukeheath @georgekarrv @sharon-fdm # « Contributing docs are owned by the EMs only — don't add per-path individual owners here (see https://github.com/fleetdm/fleet/issues/46731)
 /docs/REST\ API/rest-api.md                             @rachaelshaw # « REST API reference documentation
