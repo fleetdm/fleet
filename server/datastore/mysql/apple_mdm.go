@@ -1019,7 +1019,7 @@ func (ds *Datastore) DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.
 	}
 
 	if deleted, _ := res.RowsAffected(); deleted == 0 {
-		message := fmt.Sprintf("identifier: %s, team_id: %d", profileIdentifier, teamID)
+		message := fmt.Sprintf("identifier: %s, team_id: %d", profileIdentifier, *teamID)
 		return ctxerr.Wrap(ctx, notFound("MDMAppleConfigProfile").WithMessage(message))
 	}
 
@@ -1700,7 +1700,7 @@ func ingestMDMAppleDeviceFromCheckinDB(
 
 	// MDM is necessarily enabled if this gets called, always pass true for that
 	// parameter.
-	enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, mdmEnroll, true, "", mdmHost.UUID, mdmHost.HardwareSerial, "")
+	enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, mdmEnroll, true, "", mdmHost.UUID, mdmHost.HardwareSerial, "", "")
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return insertMDMAppleHostDB(ctx, tx, mdmHost, logger, appCfg, personalType)
@@ -2088,6 +2088,25 @@ func (ds *Datastore) IngestMDMAppleDeviceFromOTAEnrollment(
 	var previousAcctUUID string
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		previousAcctUUID = ""
+
+		// createHostFromMDMDB rewrites the UUID of the host matching the serial, so don't let a device take over
+		// a host that's still enrolled under another UUID.
+		var enrolledUUID string
+		switch err := sqlx.GetContext(ctx, tx, &enrolledUUID, `
+			SELECT h.uuid FROM hosts h
+			JOIN nano_enrollments ne ON ne.device_id = h.uuid AND ne.enabled = 1
+			WHERE h.hardware_serial = ? AND h.uuid != ?
+			LIMIT 1`, deviceInfo.Serial, deviceInfo.UDID); {
+		case err == nil:
+			ds.logger.InfoContext(ctx, "refusing OTA enrollment: serial is enrolled under another UUID",
+				"serial", deviceInfo.Serial, "claimed_uuid", deviceInfo.UDID, "enrolled_uuid", enrolledUUID)
+			return ctxerr.Wrap(ctx, &fleet.ConflictError{
+				Message: "This device's serial number belongs to a host that's already enrolled. Delete the host or turn off MDM, then try again.",
+			})
+		case !errors.Is(err, sql.ErrNoRows):
+			return ctxerr.Wrap(ctx, err, "checking for an enrolled host with the same serial")
+		}
+
 		toInsert := []hostToCreateFromMDM{
 			{
 				HardwareSerial: deviceInfo.Serial,
@@ -5039,6 +5058,16 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 			return ctxerr.Errorf(ctx, "unsupported host platform: %q", host.Platform)
 		}
 
+		// ! Heavily consider putting methods above this check, so they always run on MDM renewals and not only fresh/re-enrollments
+		// ! It's a place easy for bugs to occur due to resets etc.
+		if scepRenewalInProgress {
+			// FIXME: We need to revisit this flow. Short-circuiting in random places means it is
+			// much more difficult to reason about the state of the host. We should try instead
+			// to centralize the flow control in the lifecycle methods.
+			ds.logger.InfoContext(ctx, "host lifecycle action received for a SCEP renewal in process, skipping additional reset actions", "host_uuid", hostUUID)
+			return nil
+		}
+
 		// Reconcile host_emails and host_scim_users sourced from mdm_idp_accounts.
 		//
 		// Note that we aren't deleting the mdm_idp_accounts themselves, just prior associations
@@ -5050,8 +5079,7 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 				return ctxerr.Wrap(ctx, err, "resetting host_emails sourced from mdm_idp_accounts")
 			}
 			// An IdP username set by an admin is kept by the reconcile above, so keep the
-			// SCIM link derived from it too: there is no IdP account to rebuild it from and
-			// this check-in may be a SCEP renewal rather than a real re-enrollment.
+			// SCIM link derived from it too: there is no IdP account to rebuild it from.
 			// Without either, drop the link so a host re-enrolled without SSO doesn't keep
 			// showing its previous user.
 			keepManualLink := false
@@ -5070,18 +5098,6 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 					return ctxerr.Wrap(ctx, err, "re-associating host with scim user from mdm idp account")
 				}
 			}
-		}
-
-		// TODO: Add test coverage for scepRenewalInProgress branching logic.
-		// FIXME: When revisiting scep renewal paths, think about no clear indicator for new enrollment vs only SCEP renewal coming from Authenticate
-		// which is why we call this method, with a distinct false value in TokenUpdate, as that is only where we have a clear indicator
-		// on if it is an old device that was expected to renew but was wiped.
-		if scepRenewalInProgress {
-			// FIXME: We need to revisit this flow. Short-circuiting in random places means it is
-			// much more difficult to reason about the state of the host. We should try instead
-			// to centralize the flow control in the lifecycle methods.
-			ds.logger.InfoContext(ctx, "host lifecycle action received for a SCEP renewal in process, skipping additional reset actions", "host_uuid", hostUUID)
-			return nil
 		}
 
 		// Deleting profiles from this table will cause all profiles to
@@ -9562,6 +9578,64 @@ SET operation_type = ?, status = NULL, detail = '', retries = 0
 WHERE host_uuid = ? AND profile_uuid = ?`,
 		fleet.MDMOperationTypeRemove, hostUUID, profileUUID)
 	return ctxerr.Wrap(ctx, err, "queue host mdm apple profile removal")
+}
+
+func (ds *Datastore) NewAppleSCEPChallenge(ctx context.Context, info fleet.AppleSCEPChallengeInfo, ttl time.Duration) (string, error) {
+	return newAppleSCEPChallengeDB(ctx, ds.writer(ctx), info, ttl)
+}
+
+func newAppleSCEPChallengeDB(ctx context.Context, q sqlx.ExecerContext, info fleet.AppleSCEPChallengeInfo, ttl time.Duration) (string, error) {
+	if ttl <= 0 {
+		return "", ctxerr.New(ctx, "challenge ttl must be greater than zero")
+	}
+	challenge, err := fleet.GenerateRandom32ByteEntropyURLSafeToken()
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "generating apple scep challenge")
+	}
+	_, err = q.ExecContext(ctx, `INSERT INTO mdm_apple_scep_challenges
+		(challenge, purpose, host_uuid, hardware_serial, idp_account_uuid, expires_at)
+		VALUES (?, ?, ?, ?, ?, NOW(6) + INTERVAL ? MICROSECOND)`,
+		challenge, info.Purpose, info.UUID, info.Serial, info.IDPAccountUUID, ttl.Microseconds())
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "insert apple scep challenge")
+	}
+	return string(challenge), nil
+}
+
+// findOrCreateAppleSCEPRenewalChallenge returns the enrollment's unconsumed, unexpired renewal challenge, creating
+// one if there's none. enrollmentID is the enrollment's device channel ID.
+func (ds *Datastore) findOrCreateAppleSCEPRenewalChallenge(ctx context.Context, enrollmentID string) (string, error) {
+	var challenge string
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		challenge = ""
+		// Locking the challenges table alone doesn't serialize concurrent deliveries: two transactions that both find
+		// no row hold compatible gap locks and can both insert. Every enrollment has a nano_enrollments row keyed by
+		// exactly this ID, ADUE included.
+		var lockedID string
+		if err := sqlx.GetContext(ctx, tx, &lockedID, `SELECT id FROM nano_enrollments WHERE id = ? FOR UPDATE`, enrollmentID); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return ctxerr.Wrap(ctx, notFound("NanoEnrollment").WithName(enrollmentID), "creating scep renewal challenge")
+			}
+			return ctxerr.Wrap(ctx, err, "locking nano enrollment for scep renewal challenge")
+		}
+
+		err := sqlx.GetContext(ctx, tx, &challenge, `SELECT challenge FROM mdm_apple_scep_challenges
+			WHERE host_uuid = ? AND purpose = ? AND consumed_at IS NULL AND expires_at > NOW(6)
+			ORDER BY id DESC LIMIT 1`, enrollmentID, fleet.AppleMDMCertPurposeSCEPRenewal)
+		switch {
+		case err == nil:
+			return nil
+		case !errors.Is(err, sql.ErrNoRows):
+			return ctxerr.Wrap(ctx, err, "getting scep renewal challenge")
+		}
+
+		challenge, err = newAppleSCEPChallengeDB(ctx, tx, fleet.AppleSCEPChallengeInfo{
+			Purpose: fleet.AppleMDMCertPurposeSCEPRenewal,
+			UUID:    &enrollmentID,
+		}, fleet.AppleSCEPRenewalChallengeTTL)
+		return err
+	})
+	return challenge, err
 }
 
 func (ds *Datastore) ConsumeAppleSCEPChallenge(ctx context.Context, challenge string) (*fleet.AppleSCEPChallengeInfo, error) {

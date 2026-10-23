@@ -2683,24 +2683,13 @@ func (svc *Service) applyTeamMacOSSettings(ctx context.Context, spec *fleet.Team
 		len(applyUpon.CustomSettings) > 0 &&
 		!fleet.MDMProfileSpecsMatch(applyUpon.CustomSettings, oldCustomSettings)
 
-	macOSDiskEncryptionOn := (setFields["enable_disk_encryption"] && applyUpon.EnableDiskEncryption.Value) ||
-		(setFields["enable_escrow_disk_encryption_key"] && applyUpon.EnableEscrowDiskEncryptionKey.Value)
-
-	if customSettingsChanged || macOSDiskEncryptionOn {
-		field := "custom_settings"
-		switch {
-		case setFields["custom_settings"]:
-		case setFields["enable_disk_encryption"] && applyUpon.EnableDiskEncryption.Value:
-			field = "enable_disk_encryption"
-		default:
-			field = "enable_escrow_disk_encryption_key"
-		}
-		if !appCfg.MDM.EnabledAndConfigured {
-			// TODO: Address potential edge cases when teams that previously utilized MDM features
-			// are edited later edited when MDM disabled
-			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(fmt.Sprintf("apple_settings.%s", field),
-				`Couldn't update apple_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
-		}
+	// macOS disk encryption isn't gated on Apple MDM, matching the disk encryption endpoint, so a
+	// Windows-only MDM org can apply its own generate-gitops export.
+	if customSettingsChanged && !appCfg.MDM.EnabledAndConfigured {
+		// TODO: Address potential edge cases when teams that previously utilized MDM features
+		// are edited later edited when MDM disabled
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("apple_settings.custom_settings",
+			`Couldn't update apple_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 	}
 
 	return setFields, nil

@@ -2,8 +2,7 @@ import React from "react";
 
 import Button from "components/buttons/Button";
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
-import validateEmail from "components/forms/validators/valid_email";
-import validatePresence from "components/forms/validators/validate_presence";
+import { isValidEmail, isPresent } from "components/forms/validators";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
 
 const baseClass = "forgot-password-form";
@@ -19,9 +18,9 @@ interface IForgotPasswordFormProps {
 const validate = ({ email }: IForgotPasswordFormData): IFormErrors => {
   const errors: IFormErrors = {};
 
-  if (!validatePresence(email)) {
+  if (!isPresent(email)) {
     errors.email = "Enter your email";
-  } else if (!validateEmail(email)) {
+  } else if (!isValidEmail(email)) {
     errors.email = "Enter a valid email";
   }
 
@@ -32,11 +31,7 @@ const ForgotPasswordForm = ({
   handleSubmit,
 }: IForgotPasswordFormProps): JSX.Element => {
   const {
-    formData,
-    setField,
-    getError,
-    clearFieldError,
-    validateField,
+    getTextFieldProps,
     handleSubmit: onSubmit,
     isSubmitting,
   } = useFormValidation<IForgotPasswordFormData>({
@@ -57,15 +52,10 @@ const ForgotPasswordForm = ({
       </p>
       <InputFieldWithIcon
         autofocus
-        name="email"
+        {...getTextFieldProps("email")}
         label="Email"
         placeholder="Email"
         type="email"
-        value={formData.email}
-        onChange={(value) => setField("email", value)}
-        onFocus={() => clearFieldError("email")}
-        onBlur={() => validateField("email")}
-        error={getError("email")}
         ignore1Password={false}
         disabled={isSubmitting}
       />

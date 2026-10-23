@@ -78,7 +78,7 @@
   &__header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     gap: $pad-medium;
     margin-bottom: px-to-rem(24);
   }
@@ -97,7 +97,8 @@
 
   &__title-row {
     display: flex;
-    align-items: baseline;
+    align-items: center;
+    min-height: 36px;
     gap: $pad-medium;
     flex-wrap: wrap;
   }

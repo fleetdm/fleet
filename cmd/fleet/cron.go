@@ -1133,6 +1133,7 @@ func newWorkerIntegrationsSchedule(
 	chartSvc chart_api.Service,
 	androidBatchSize int,
 	newActivitySvc activity_api.NewActivityService,
+	vppInstaller fleet.AppleMDMVPPInstaller,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronWorkerIntegrations)
@@ -1197,6 +1198,7 @@ func newWorkerIntegrationsSchedule(
 		Log:              logger,
 		AndroidModule:    androidModule,
 		AndroidBatchSize: androidBatchSize,
+		VPPInstaller:     vppInstaller,
 	}
 	chartScrubGlobal := &worker.ChartScrubGlobal{
 		ChartService: chartSvc,
@@ -1658,6 +1660,9 @@ func newCleanupsAndAggregationSchedule(
 			}
 			return nil
 		}),
+		schedule.WithJob("cleanup_host_certificates", func(ctx context.Context) error {
+			return cleanupHostCertificatesCronJob(ctx, ds, logger, config.Server.DeletedHostCertificatesRetention)
+		}),
 		schedule.WithJob("cleanup_host_mdm_apple_profiles", func(ctx context.Context) error {
 			return ds.CleanupHostMDMAppleProfiles(ctx)
 		}),
@@ -1813,6 +1818,24 @@ func cleanupHostScriptResultsCronJob(ctx context.Context, ds fleet.Datastore, lo
 	}
 	if deleted > 0 {
 		logger.InfoContext(ctx, "cleaned up host script results", "deleted", deleted)
+	}
+	return nil
+}
+
+// cleanupHostCertificatesCronJob is disabled by a non-positive retention
+func cleanupHostCertificatesCronJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, retention time.Duration) error {
+	if retention <= 0 {
+		return nil
+	}
+	deleted, err := ds.CleanupSoftDeletedHostCertificates(ctx, time.Now().Add(-retention).UTC())
+	if err != nil {
+		if deleted > 0 {
+			logger.WarnContext(ctx, "cleanup soft-deleted host certificates failed after partial progress", "deleted", deleted)
+		}
+		return err
+	}
+	if deleted > 0 {
+		logger.InfoContext(ctx, "cleaned up soft-deleted host certificates", "deleted", deleted)
 	}
 	return nil
 }
@@ -2819,6 +2842,21 @@ func newIPhoneIPadReviver(
 	return s, nil
 }
 
+func unblockHostsUpcomingActivityQueueCronJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, maxHosts int, skipFleetInitiated bool) error {
+	unblocked, err := ds.UnblockHostsUpcomingActivityQueue(ctx, maxHosts, skipFleetInitiated)
+	// per-host isolation in the datastore means a partial failure still unblocks the
+	// healthy hosts, so report progress before returning the error
+	if unblocked > 0 {
+		logger.InfoContext(ctx, "unblocked hosts upcoming activity queue",
+			"hosts_unblocked", unblocked,
+			"max_hosts", maxHosts,
+			// unblocked == max means more hosts are likely still blocked
+			"cap_reached", unblocked == maxHosts,
+		)
+	}
+	return err
+}
+
 func newUpcomingActivitiesSchedule(
 	ctx context.Context,
 	instanceID string,
@@ -2865,8 +2903,7 @@ func newUpcomingActivitiesSchedule(
 		// solely on deferred fleet-initiated activities are not blocked — they
 		// belong to the release cron, and unblocking them here would bypass
 		// its budget
-		_, err := ds.UnblockHostsUpcomingActivityQueue(ctx, maxUnblockHosts, fleetInitiatedReleaseEnabled)
-		return err
+		return unblockHostsUpcomingActivityQueueCronJob(ctx, ds, logger, maxUnblockHosts, fleetInitiatedReleaseEnabled)
 	}))
 
 	return schedule.New(ctx, name, instanceID, defaultInterval, ds, ds, opts...), nil
@@ -3053,6 +3090,36 @@ func cronMigrateToPerHostPolicy(
 		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob(name, func(ctx context.Context) error {
 			return androidSvc.MigrateToPerDevicePolicy(ctx)
+		}),
+	)
+	return s, nil
+}
+
+// newReencryptWindowsDiskEncryptionKeysSchedule moves legacy Windows recovery keys, encrypted to the WSTEP certificate
+// by older releases, onto the server private key. It is an online migration: the first run starts ten minutes after
+// startup, once the agents that were waiting for the server have checked in, and runs hourly from then on. It is not
+// run-once because customers upgrade from any version, so legacy rows can appear at any upgrade; a run that finds
+// none costs one index probe.
+func newReencryptWindowsDiskEncryptionKeysSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	config *config.FleetConfig,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronReencryptWindowsDiskEncryptionKeys)
+		defaultInterval = 1 * time.Hour
+		priorJobDiff    = -(defaultInterval - 10*time.Minute)
+	)
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		// ensures it runs ten minutes after Fleet is started
+		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
+		schedule.WithJob(name, func(ctx context.Context) error {
+			return service.ReencryptWSTEPDiskEncryptionKeys(ctx, logger, ds, config)
 		}),
 	)
 	return s, nil

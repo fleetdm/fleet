@@ -4426,7 +4426,7 @@ reports:
 	writeLib("dup2.yml", "- app_store_id: \"1\"\n  platform: darwin\n  self_service: false\n")
 
 	teamFile := filepath.Join(baseDir, "team.yml")
-	apply := func(softwareBody string) {
+	writeTeamFile := func(softwareBody string) {
 		cfg := fmt.Sprintf(`
 controls:
 software:
@@ -4440,10 +4440,20 @@ settings:
 reports:
 `, softwareBody, teamName)
 		require.NoError(t, os.WriteFile(teamFile, []byte(cfg), 0o644))
+	}
+	apply := func(softwareBody string) {
+		writeTeamFile(softwareBody)
 		// assertRealRunOutput rejects the re-apply line the VPP flow emits.
 		require.Contains(t, fleetctltest.RunAppForTest(t, []string{
 			"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
 		}), "gitops succeeded")
+	}
+	applyWithError := func(softwareBody string) error {
+		writeTeamFile(softwareBody)
+		_, err := fleetctltest.RunAppNoChecks([]string{
+			"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
+		})
+		return err
 	}
 
 	type applied struct {
@@ -4476,14 +4486,13 @@ reports:
 	// inline. Each run starts from empty so the comparison isn't reading stale state.
 	apply("")
 	require.Empty(t, assigned(team.ID))
-	apply("    - path: lib/dup1.yml\n    - path: lib/dup2.yml")
-	viaReferences := assigned(team.ID)
-
-	apply("")
+	err = applyWithError("    - path: lib/dup1.yml\n    - path: lib/dup2.yml")
+	require.ErrorContains(t, err, `More than one version is named "Default version"`)
 	require.Empty(t, assigned(team.ID))
-	apply("    - app_store_id: \"1\"\n      platform: darwin\n      self_service: true\n    - app_store_id: \"1\"\n      platform: darwin\n      self_service: false")
-	require.Equal(t, assigned(team.ID), viaReferences, "referenced duplicates must match inline duplicates")
-	require.Len(t, viaReferences, 1)
+
+	err = applyWithError("    - app_store_id: \"1\"\n      platform: darwin\n      self_service: true\n    - app_store_id: \"1\"\n      platform: darwin\n      self_service: false")
+	require.ErrorContains(t, err, `More than one version is named "Default version"`)
+	require.Empty(t, assigned(team.ID))
 }
 
 // TestGitOpsVPPAppAutoUpdate tests that auto-update settings for VPP apps (iOS/iPadOS)
@@ -4588,10 +4597,11 @@ settings:
 	var schedules []autoUpdateSchedule
 	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &schedules,
-			`SELECT title_id, team_id, enabled, start_time, end_time
-			FROM software_update_schedules
-			WHERE team_id = ?
-			ORDER BY title_id`, team.ID)
+			`SELECT va.title_id, vat.global_or_team_id AS team_id, vat.update_schedule_enabled AS enabled, vat.start_time, vat.end_time
+			FROM vpp_apps_teams vat
+			JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
+			WHERE vat.global_or_team_id = ?
+			ORDER BY va.title_id`, team.ID)
 	})
 
 	require.Len(t, schedules, 2)
@@ -4659,10 +4669,11 @@ settings:
 	var updatedSchedules []autoUpdateSchedule
 	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &updatedSchedules,
-			`SELECT title_id, team_id, enabled, start_time, end_time
-			FROM software_update_schedules
-			WHERE team_id = ?
-			ORDER BY title_id`, team.ID)
+			`SELECT va.title_id, vat.global_or_team_id AS team_id, vat.update_schedule_enabled AS enabled, vat.start_time, vat.end_time
+			FROM vpp_apps_teams vat
+			JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
+			WHERE vat.global_or_team_id = ?
+			ORDER BY va.title_id`, team.ID)
 	})
 
 	require.Len(t, updatedSchedules, 2)

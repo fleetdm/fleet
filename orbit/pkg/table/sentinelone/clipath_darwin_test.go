@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestCLICandidatePathsOrder asserts the installer-created symlink is tried
-// first on macOS: it is the only path stable across agent versions.
+// TestCLICandidatePathsOrder asserts only the root-owned agent bundle is used
+// on macOS, never a path under a possibly user-writable directory.
 func TestCLICandidatePathsOrder(t *testing.T) {
-	assert.Equal(t, "/usr/local/bin/sentinelctl", cliCandidatePaths[0])
+	assert.Equal(t, []string{"/Library/Sentinel/sentinel-agent.bundle/Contents/MacOS/sentinelctl"}, cliCandidatePaths)
 }

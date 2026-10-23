@@ -1234,6 +1234,8 @@ func TestEnqueueWindowsMDMCommand(t *testing.T) {
 			fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret) + `</Data></Item></Exec>`, "is reserved for profiles managed by Fleet", ""},
 		{"recovery lock password placeholder", false, `<Exec><CmdID>1</CmdID><Item><Target><LocURI>./FooBar</LocURI></Target><Data>` +
 			fleet.HostSecretPlaceholder(fleet.HostSecretRecoveryLockPassword) + `</Data></Item></Exec>`, "is reserved for profiles managed by Fleet", ""},
+		{"SCEP status probe CmdID", false, `<Exec><CmdID>` + fleet.WindowsSCEPStatusProbeCmdUUIDPrefix +
+			`c0ffee-1</CmdID><Item><Target><LocURI>./FooBar</LocURI></Target></Item></Exec>`, "is reserved for commands Fleet sends", ""},
 	}
 
 	for _, c := range cases {
@@ -2886,6 +2888,18 @@ func TestBackwardsCompatProfilesParamUnmarshalJSON(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:        "null",
+			input:       []byte("null"),
+			expect:      nil,
+			expectError: false,
+		},
+		{
+			name:        "empty old format",
+			input:       []byte(`{}`),
+			expect:      backwardsCompatProfilesParam{},
+			expectError: false,
+		},
+		{
 			name:  "new format",
 			input: []byte(`[{"name": "profile1", "contents": "Zm9vCg=="}, {"name": "profile2", "contents": "YmFyCg=="}]`),
 			expect: backwardsCompatProfilesParam{
@@ -2928,6 +2942,7 @@ func TestBackwardsCompatProfilesParamUnmarshalJSON(t *testing.T) {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
+				require.Equal(t, tc.expect == nil, bcp == nil)
 				require.ElementsMatch(t, tc.expect, bcp)
 			}
 		})
@@ -4120,6 +4135,22 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 			0,
 			`{"systemUpdate": {"type": "AUTOMATIC"}}`,
 			"",
+		},
+		{
+			"android software setting without premium license",
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			false,
+			0,
+			`{"playStoreMode": "BLACKLIST"}`,
+			`Android configuration profile can't include "playStoreMode" setting. Android software management is Fleet Premium only.`,
+		},
+		{
+			"android software setting with premium license",
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			true,
+			0,
+			`{"playStoreMode": "BLACKLIST"}`,
+			`Android configuration profile can't include "playStoreMode" setting. To manage Android software, add Play Store apps in Fleet. Learn more: https://fleetdm.com/learn-more-about/android-software`,
 		},
 		{
 			"android profile with team and free license",

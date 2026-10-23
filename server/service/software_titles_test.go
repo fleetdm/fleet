@@ -284,8 +284,11 @@ func TestSoftwareTitleByIDInstallerDetails(t *testing.T) {
 	ds.GetVPPAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPAppStoreApp, error) {
 		return &fleet.VPPAppStoreApp{Name: "Bar", Configuration: appConfiguration}, nil
 	}
-	ds.GetSummaryHostVPPAppInstallsFunc = func(ctx context.Context, teamID *uint, appID fleet.VPPAppID) (*fleet.VPPAppStatusSummary, error) {
-		return &fleet.VPPAppStatusSummary{}, nil
+	ds.GetAppStoreAppVersionsByTeamAndTitleIDFunc = func(ctx context.Context, teamID uint, titleID uint) ([]*fleet.VPPAppStoreApp, error) {
+		return []*fleet.VPPAppStoreApp{{Name: "Bar", Configuration: appConfiguration}}, nil
+	}
+	ds.GetSummaryHostVPPAppInstallsFunc = func(ctx context.Context, versions []*fleet.VPPAppStoreApp) (map[uint]*fleet.VPPAppStatusSummary, error) {
+		return map[uint]*fleet.VPPAppStatusSummary{0: {}}, nil
 	}
 
 	svc, ctx := newTestService(t, ds, nil, nil)

@@ -311,6 +311,7 @@ var softwareTypeFilterErrorCases = []struct {
 		[]string{"source", "apps,chrome_extensions", "extension_for", "cursor"},
 		fmt.Sprintf(fleet.SoftwareExtensionForSourceNotSelectedErrMsg, "cursor", "vscode_extensions"),
 	},
+	{[]string{"source", "ai_tool"}, fmt.Sprintf(fleet.InvalidSoftwareSourceErrMsg, "ai_tool")},
 }
 
 func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
@@ -680,6 +681,13 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 		res := s.Do("GET", "/api/latest/fleet/software/versions", nil, http.StatusUnprocessableEntity, c.params...)
 		require.Contains(t, extractServerErrorText(res.Body), c.reason)
 	}
+	// The ai_tool filter is Premium. Free never ingests AI tools, so their sources aren't gated.
+	for _, path := range []string{"/api/latest/fleet/software/versions", "/api/latest/fleet/software/count"} {
+		res := s.Do("GET", path, nil, http.StatusPaymentRequired, "ai_tool", "true")
+		require.NoError(t, res.Body.Close())
+		res = s.Do("GET", path, nil, http.StatusOK, "source", "mcp_servers")
+		require.NoError(t, res.Body.Close())
+	}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versionsResp,
 		"source", "chrome_extensions", "extension_for", "chrome", "per_page", "5")
 	require.Equal(t, 10, versionsResp.Count)
@@ -693,6 +701,10 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 		res := s.Do("GET", "/api/latest/fleet/software/titles", nil, http.StatusUnprocessableEntity, c.params...)
 		require.Contains(t, extractServerErrorText(res.Body), c.reason)
 	}
+	res := s.Do("GET", "/api/latest/fleet/software/titles", nil, http.StatusPaymentRequired, "ai_tool", "true")
+	require.NoError(t, res.Body.Close())
+	res = s.Do("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, "source", "mcp_servers")
+	require.NoError(t, res.Body.Close())
 	var titlesResp listSoftwareTitlesResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &titlesResp, "source", "apps")
 	require.Equal(t, 10, titlesResp.Count)
@@ -1404,4 +1416,94 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 		return sqlx.GetContext(context.Background(), q, &wiresharkSoftware, softwareQueryByName, "Wireshark 4.0.8 64-bit")
 	})
 	require.NotZero(t, wiresharkSoftware.ID)
+}
+
+// aiToolByName decodes the software items found at path in a JSON response body, either a list or a
+// single item, and returns each item's ai_tool by name. A nil value means the key is absent.
+func aiToolByName(t *testing.T, res *http.Response, path ...string) map[string]*bool {
+	t.Helper()
+	var body any
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&body))
+	require.NoError(t, res.Body.Close())
+	for _, key := range path {
+		obj, ok := body.(map[string]any)
+		require.True(t, ok, "expected an object at %q", key)
+		body = obj[key]
+	}
+	items, ok := body.([]any)
+	if !ok {
+		items = []any{body}
+	}
+	got := make(map[string]*bool, len(items))
+	for _, item := range items {
+		obj, ok := item.(map[string]any)
+		require.True(t, ok, "expected a software item")
+		name, _ := obj["name"].(string)
+		var aiTool *bool
+		if v, ok := obj["ai_tool"]; ok {
+			b, ok := v.(bool)
+			require.True(t, ok, "ai_tool of %q isn't a boolean", name)
+			aiTool = &b
+		}
+		got[name] = aiTool
+	}
+	return got
+}
+
+func (s *integrationTestSuite) TestAIToolFieldOmittedOnFree() {
+	t := s.T()
+	ctx := t.Context()
+
+	host := s.createHosts(t, "darwin")[0]
+	// A flag set while the server was on Premium stays in the database after a downgrade.
+	_, err := s.ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "AIToolFreeClaude", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.aitoolfreeclaude", AITool: new(true)},
+		{Name: "AIToolFreeSlack", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.aitoolfreeslack"},
+	})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+	token := "ai_tool_free_token"
+	createDeviceTokenForHost(t, s.ds, host.ID, token)
+
+	want := map[string]*bool{"AIToolFreeClaude": nil, "AIToolFreeSlack": nil}
+	get := func(path string, params ...string) *http.Response {
+		return s.Do("GET", path, nil, http.StatusOK, params...)
+	}
+
+	titles := aiToolByName(t, get("/api/latest/fleet/software/titles", "query", "aitoolfree"), "software_titles")
+	require.Equal(t, want, titles)
+	versions := aiToolByName(t, get("/api/latest/fleet/software/versions", "query", "aitoolfree"), "software")
+	require.Equal(t, want, versions)
+	require.Equal(t, want, aiToolByName(t, get(fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID)), "software"))
+	require.Equal(t, want, aiToolByName(t,
+		s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK), "software"))
+	require.Equal(t, want, aiToolByName(t, get(fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID)), "host", "software"))
+	require.Equal(t, want, aiToolByName(t, get("/api/latest/fleet/hosts/identifier/"+host.UUID), "host", "software"))
+	require.Equal(t, want, aiToolByName(t,
+		s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK), "host", "software"))
+
+	var titlesResp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &titlesResp, "query", "aitoolfree")
+	require.Len(t, titlesResp.SoftwareTitles, 2)
+	for _, title := range titlesResp.SoftwareTitles {
+		require.Equal(t, map[string]*bool{title.Name: nil},
+			aiToolByName(t, get(fmt.Sprintf("/api/latest/fleet/software/titles/%d", title.ID)), "software_title"))
+	}
+	var versionsResp listSoftwareVersionsResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versionsResp, "query", "aitoolfree")
+	require.Len(t, versionsResp.Software, 2)
+	for _, sw := range versionsResp.Software {
+		require.Equal(t, map[string]*bool{sw.Name: nil},
+			aiToolByName(t, get(fmt.Sprintf("/api/latest/fleet/software/versions/%d", sw.ID)), "software"))
+	}
+
+	var hostsBody struct {
+		Hosts []json.RawMessage `json:"hosts"`
+	}
+	res := get("/api/latest/fleet/hosts", "populate_software", "true", "query", host.Hostname)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&hostsBody))
+	require.NoError(t, res.Body.Close())
+	require.Len(t, hostsBody.Hosts, 1)
+	require.NotContains(t, string(hostsBody.Hosts[0]), `"ai_tool"`)
 }

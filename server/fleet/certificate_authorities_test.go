@@ -11,6 +11,23 @@ func TestValidateCertificateAuthoritiesSpec(t *testing.T) {
 	// TODO(hca): placeholder for additional tests to the extent not otherwise covered by client_test
 }
 
+func TestEffectiveEJBCAUsernameTemplate(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		ca       CertificateAuthority
+		expected string
+	}{
+		{"username template set", CertificateAuthority{EJBCAUsernameTemplate: new("user"), CertificateCommonName: new("cn")}, "user"},
+		{"username template unset", CertificateAuthority{CertificateCommonName: new("cn")}, "cn"},
+		{"username template empty", CertificateAuthority{EJBCAUsernameTemplate: new(""), CertificateCommonName: new("cn")}, "cn"},
+		{"nothing set", CertificateAuthority{}, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.expected, tc.ca.EffectiveEJBCAUsernameTemplate())
+		})
+	}
+}
+
 func TestGroupedCertificateAuthorities(t *testing.T) {
 	grouped := GroupedCertificateAuthorities{
 		NDESSCEP: &NDESSCEPProxyCA{ // should not be included
@@ -37,6 +54,38 @@ func TestGroupedCertificateAuthorities(t *testing.T) {
 	require.Len(t, mapped, 2)
 	require.Equal(t, "some-custom-scep-proxy-challenge", mapped["some-custom-scep-proxy-name"].Challenge)
 	require.Equal(t, "another-custom-scep-proxy-challenge", mapped["another-custom-scep-proxy-name"].Challenge)
+}
+
+func TestGroupCertificateAuthoritiesByTypeEJBCA(t *testing.T) {
+	grouped, err := GroupCertificateAuthoritiesByType([]*CertificateAuthority{
+		{
+			ID:                            1,
+			Type:                          string(CATypeEJBCA),
+			Name:                          new("full"),
+			URL:                           new("https://ejbca.example.com"),
+			MTLSCertPEM:                   new("cert"),
+			MTLSKeyPEM:                    new("key"),
+			TrustCABundlePEM:              new("bundle"),
+			EJBCACAName:                   new("ManagementCA"),
+			EJBCACertificateProfileName:   new("certProfile"),
+			EJBCAEndEntityProfileName:     new("eeProfile"),
+			CertificateCommonName:         new("cn"),
+			EJBCAUsernameTemplate:         new("username"),
+			CertificateUserPrincipalNames: &[]string{"upn"},
+		},
+		// The optional fields are not set.
+		{ID: 2, Type: string(CATypeEJBCA), Name: new("minimal"), URL: new("https://ejbca.example.com")},
+	})
+	require.NoError(t, err)
+	require.False(t, grouped.IsEmpty())
+	require.Equal(t, []EJBCA{
+		{
+			ID: 1, Name: "full", URL: "https://ejbca.example.com", MTLSCertPEM: "cert", MTLSKeyPEM: "key", TrustCABundlePEM: "bundle",
+			CertificateAuthorityName: "ManagementCA", CertificateProfileName: "certProfile", EndEntityProfileName: "eeProfile",
+			CertificateCommonName: "cn", UsernameTemplate: "username", CertificateUserPrincipalNames: []string{"upn"},
+		},
+		{ID: 2, Name: "minimal", URL: "https://ejbca.example.com"},
+	}, grouped.EJBCA)
 }
 
 func TestPreprocessCAFields(t *testing.T) {

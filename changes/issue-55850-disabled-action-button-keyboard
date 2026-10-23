@@ -1,0 +1,1 @@
+- Fixed disabled bulk-action buttons on the Hosts page, such as **Run script**, still receiving keyboard focus and opening with Enter.

@@ -16,6 +16,7 @@ module.exports = {
         'mobileconfig',
         'ddm',
         'csp',
+        'android',
       ],
     },
     naturalLanguageInstructions: {
@@ -35,7 +36,20 @@ module.exports = {
       defaultsTo: false,
       description: 'Whether or not to send a lookup prompt first that narrows the .mobileconfig schema to the payload types this request needs.',
       extendedDescription: 'Without it, the full .mobileconfig schema is provided, without key descriptions.'
-    }
+    },
+
+    applePayloadTypes: {
+      type: ['string'],
+      description: 'The payload types to narrow the .mobileconfig schema to, when they are already known, in place of the lookup.',
+      extendedDescription: 'An empty array provides the full schema, as a lookup that found nothing does.',
+    },
+
+    writeProfilesFromSettings: {
+      type: 'boolean',
+      defaultsTo: false,
+      description: 'Whether to ask for a .mobileconfig\'s payloads, or a Windows profile\'s commands, and their values, rather than the document itself.',
+      extendedDescription: 'Only .mobileconfig and Windows profiles are written from settings; every other profile type ignores this.',
+    },
   },
 
 
@@ -48,9 +62,10 @@ module.exports = {
   },
 
 
-  fn: async function ({profileType, naturalLanguageInstructions, useLighterResponseShape, useApplePayloadTypeLookup}) {
+  fn: async function ({profileType, naturalLanguageInstructions, useLighterResponseShape, useApplePayloadTypeLookup, applePayloadTypes, writeProfilesFromSettings}) {
 
     let path = require('path');
+    let isWrittenFromSettings = writeProfilesFromSettings && (profileType === 'mobileconfig' || profileType === 'csp');
 
     // Both Apple schemas are generated from apple/device-management by
     // `sails run regenerate-apple-profile-schemas` rather than maintained here by hand.  The
@@ -64,6 +79,14 @@ module.exports = {
     // under com.apple.appstore, a `position` key read off position-immutable -- because nothing next to a
     // name said what the key does.  Narrowed to the few payload types a request needs, every key can carry
     // Apple's description of it.
+    // How the Apple schemas mark availability, for the description of each.
+    let availabilityLegend = (whatIsListed)=>{
+      return `A ${whatIsListed}'s \`[...]\` gives the platforms it applies to and the OS version each introduced it in,
+with the versions Apple deprecated or removed it in where it has.  A key's \`[...]\` says only how the key
+differs from what it sits in: \`[only iOS]\` means the key does nothing on any other platform, and
+\`[macOS removed 27.0]\` means it does nothing on macOS 27 or later.`;
+    };
+
     let appleSchema;
     let appleSchemaDescription;
     let applePayloadTypesProvided = [];
@@ -89,12 +112,62 @@ module.exports = {
       // `Parent{}`, but their contents do not: past three levels the braces describe the shape of Apple's
       // YAML rather than anything the model has to get right.
       const MAX_DEPTH = 3;
-      let renderKey = (key, depth)=>{
 
-        // The name, with the suffixes that mark its shape.
+      // Where a payload type or declaration applies, and when Apple introduced, deprecated, or removed it
+      // there, e.g. "iOS 17.0+, macOS 14.0+ deprecated 26.0 removed 27.0".
+      let availabilityText = (supportedOS)=>{
+        return _.map(_.filter(Object.keys(supportedOS || {}), (platformName)=>{
+          return supportedOS[platformName].introduced && supportedOS[platformName].introduced !== 'n/a';
+        }), (platformName)=>{
+          let versions = supportedOS[platformName];
+          return _.compact([
+            `${platformName} ${versions.introduced}+`,
+            versions.deprecated ? `deprecated ${versions.deprecated}` : undefined,
+            versions.removed ? `removed ${versions.removed}` : undefined,
+          ]).join(' ');
+        }).join(', ');
+      };
+
+      // How a key's availability differs from the payload type, declaration, or key it sits in, e.g.
+      // "[only iOS]" or "[macOS removed 27.0]".  Empty for most keys, which have nothing of their own: a
+      // key with no supportedOS has its nearest ancestor's.
+      let lifecycleMarker = (supportedOS, inheritedSupportedOS)=>{
+        if(!supportedOS) {
+          return '';
+        }
+        let platformsAvailableOn = (lifecycle)=>{
+          return _.filter(Object.keys(lifecycle || {}), (platformName)=>{
+            return lifecycle[platformName].introduced && lifecycle[platformName].introduced !== 'n/a';
+          });
+        };
+        let platformNames = platformsAvailableOn(supportedOS);
+        let parts = [];
+        if(platformNames.length > 0 && platformNames.length < platformsAvailableOn(inheritedSupportedOS).length) {
+          parts.push(`only ${platformNames.join(', ')}`);
+        }
+        for (let platformName of platformNames) {
+          let versions = supportedOS[platformName];
+          let inheritedVersions = (inheritedSupportedOS || {})[platformName] || {};
+          let changes = _.compact([
+            versions.deprecated && versions.deprecated !== inheritedVersions.deprecated ? `deprecated ${versions.deprecated}` : undefined,
+            versions.removed && versions.removed !== inheritedVersions.removed ? `removed ${versions.removed}` : undefined,
+          ]);
+          if(changes.length > 0) {
+            parts.push(`${platformName} ${changes.join(', ')}`);
+          }
+        }
+        return parts.length > 0 ? `[${parts.join('; ')}]` : '';
+      };
+
+      let renderKey = (key, depth, inheritedSupportedOS)=>{
+
+        let supportedOS = key.supportedOS || inheritedSupportedOS;
+        let marker = lifecycleMarker(key.supportedOS, inheritedSupportedOS);
+
+        // The name, with the suffixes that mark its shape and where it differs from what it sits in.
         let type = String(key.type || '');
         let shape = /array/.test(type) ? '[]' : (/dictionary/.test(type) ? '{}' : '');
-        let labelText = `${key.key}${shape}${key.required ? '*' : ''}`;
+        let labelText = `${key.key}${shape}${key.required ? '*' : ''}${marker}`;
 
         // Whatever constrains the key's value, or nothing when its name is the whole story.  The default
         // rides along with an allowed-value list or a numeric range but not with a gloss, because a gloss
@@ -133,22 +206,22 @@ module.exports = {
           let renderedElementKeys = [];
           if(depth < MAX_DEPTH) {
             for (let elementKey of arrayElement.subkeys) {
-              renderedElementKeys.push(renderKey(elementKey, depth + 1).inlineText);
+              renderedElementKeys.push(renderKey(elementKey, depth + 1, supportedOS).inlineText);
             }
           }
           inlineText = `${labelText}{${renderedElementKeys.join(', ')}}`;
         } else if(arrayElement) {
-          let elementConstraint = renderKey(arrayElement, depth).constraint;
+          let elementConstraint = renderKey(arrayElement, depth, supportedOS).constraint;
           inlineText = `${labelText}${elementConstraint ? `:${elementConstraint}` : ''}`;
         } else if(key.subkeys && key.subkeys.length > 0) {
           // A dictionary: the bare name rather than the label, since its braces already give its shape.
           let renderedSubkeys = [];
           if(depth < MAX_DEPTH) {
             for (let subkey of key.subkeys) {
-              renderedSubkeys.push(renderKey(subkey, depth + 1).inlineText);
+              renderedSubkeys.push(renderKey(subkey, depth + 1, supportedOS).inlineText);
             }
           }
-          inlineText = `${key.key}${key.required ? '*' : ''}{${renderedSubkeys.join(', ')}}`;
+          inlineText = `${key.key}${key.required ? '*' : ''}${marker}{${renderedSubkeys.join(', ')}}`;
         } else {
           inlineText = `${labelText}${constraint ? `:${constraint}` : ''}`;
         }
@@ -168,12 +241,13 @@ module.exports = {
       let renderEntries = (entries, {describeKeys})=>{
         let lines = [];
         for (let entry of entries) {
-          lines.push(entry.name);
+          let availability = availabilityText(entry.supportedOS);
+          lines.push(availability ? `${entry.name}  [${availability}]` : entry.name);
 
           let plainKeys = [];
           let keysWithTheirOwnLine = [];
           for (let key of entry.keys) {
-            let renderedKey = renderKey(key, 0);
+            let renderedKey = renderKey(key, 0, entry.supportedOS);
             let hasSubkeys = key.subkeys && key.subkeys.length > 0;
             if(describeKeys) {
               let valueConstraint = renderedKey.constraint !== key.gloss ? renderedKey.constraint : undefined;
@@ -200,14 +274,18 @@ module.exports = {
       };
 
       let ALWAYS_PROVIDED_ENTRY_NAMES = ['CommonPayloadKeys', 'TopLevel'];
-      if(profileType === 'mobileconfig' && useApplePayloadTypeLookup) {
+      if(profileType === 'mobileconfig' && applePayloadTypes !== undefined) {
+        applePayloadTypesProvided = _.filter(_.uniq(applePayloadTypes), (name)=>{
+          return _.any(schemaFile.entries, {name}) && !_.contains(ALWAYS_PROVIDED_ENTRY_NAMES, name);
+        });
+      } else if(profileType === 'mobileconfig' && useApplePayloadTypeLookup) {
 
         // Key names are in the index, not just titles and descriptions, for the reason the Windows lookup
         // gives: picking from names and descriptions alone means recalling Apple's taxonomy, which is the
         // failure this exists to remove.  Asked about App Store app updates, a description-only index
         // offers com.apple.appstore ("configures macOS App Store restrictions") and nothing pointing at
         // com.apple.SoftwareUpdate, which is where AutomaticallyInstallAppUpdates is.  The index is ~35KB
-        // and identical on every request, so it wants to be a cached prompt prefix.
+        // and identical on every request, which is what lets it be cached.
         let payloadTypeIndex = _.map(_.reject(schemaFile.entries, (entry)=>{ return _.contains(ALWAYS_PROVIDED_ENTRY_NAMES, entry.name); }), (entry)=>{
           let about = _.compact([entry.title].concat(entry.platforms || [])).join('; ');
           return `${entry.name} (${about}): ${entry.description || ''} Keys: ${_.pluck(entry.keys, 'key').join(' ')}`;
@@ -243,11 +321,14 @@ Respond in JSON with this data shape:
 {
   "payloadTypes": ["TODO"]
 }`,
+          systemPromptCacheTtl: '1h',
           prompt: `Here are the instructions from an IT admin:
 \`\`\`
 ${naturalLanguageInstructions}
 \`\`\``,
-          baseModel: 'claude-haiku-4-5',
+          baseModel: 'claude-haiku-5-5',
+          effort: 'low',
+          disableThinking: true,
           expectJson: true,
         })
         .tolerate((err)=>{
@@ -299,7 +380,9 @@ the default -- and Apple's description of the key.  \`*\` marks a required key, 
 an array, \`Parent{child, child}\` gives a dictionary's contents, and \`Parent[]{child, child}\` an array whose
 elements are dictionaries with those keys.  CommonPayloadKeys and TopLevel are not payload types: the
 first gives the keys every dict inside PayloadContent may carry, and the second the keys that belong on
-the root dict and nowhere else.
+the root dict and nowhere else${isWrittenFromSettings ? ', which go in "profileSettings"' : ''}.
+
+${availabilityLegend('payload type')}
 
 Choose keys by their descriptions, not their names.  Apple's description decides what a key does and what
 its values mean -- SHOWFULLNAME reads as though true shows a list of users, and Apple's text says the
@@ -320,7 +403,9 @@ dictionary, \`[]\` is an array, \`Parent{child, child}\` gives a dictionary's co
 array whose elements are dictionaries with those keys.  An array of plain values is just \`Name[]\`, with what
 constrains its entries after a colon where there is anything to say: \`Name[]:(a|b)\`.  CommonPayloadKeys and
 TopLevel are not payload types: the first gives the keys every dict inside PayloadContent may carry, and the second
-the keys that belong on the root dict and nowhere else.
+the keys that belong on the root dict and nowhere else${isWrittenFromSettings ? ', which go in "profileSettings"' : ''}.
+
+${availabilityLegend('payload type')}
 
 Most keys are listed by name alone, which settles their spelling and casing.  A key appears on its own line when it
 carries something its name does not: \`(a|b|c)\` are the values it accepts, \`(min-max)\` the range, \`d=\` the default,
@@ -336,10 +421,150 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
       }
     }
 
+    // The Android schema is generated by `sails run regenerate-android-management-policy-schema`, which
+    // stores Policy and every schema it references by name.  It is rendered here as one tree rooted at
+    // Policy with every $ref expanded in place, so each field appears at the exact path it is written
+    // at.  Left as $refs, the model has to resolve them itself, and a nested key put at the wrong level
+    // is silently discarded by Google rather than rejected.  The refs have no cycles, and expanding
+    // them only grows ~311 lines to ~340.
+    let androidSchema;
+    if(profileType === 'android') {
+      let androidSchemaFilePath = path.resolve(sails.config.appPath, `profile-generator/schema/android-policy-schema.json`);
+      let androidSchemasByName;
+      try {
+        androidSchemasByName = require(androidSchemaFilePath);
+      } catch (err) {
+        throw new Error(
+          `Could not read the Android policy schema at ${androidSchemaFilePath}.  Run ` +
+          `\`sails run regenerate-android-management-policy-schema\` to build it.  Full error: ${err.message}`
+        );
+      }
+
+      // Each item is either a finished line or a schema whose properties still need expanding into lines.
+      // An expanded schema's lines replace it where it stands, so a nested object's fields land between
+      // its opening and closing braces.
+      let linesAndSchemasToExpand = [{schemaName: 'Policy', depth: 0}];
+      let lines = [];
+      while(linesAndSchemasToExpand.length > 0) {
+        let item = linesAndSchemasToExpand.shift();
+        if(_.isString(item)) {
+          lines.push(item);
+          continue;
+        }
+        let indent = _.repeat('  ', item.depth);
+        let expanded = _.flatten(_.map(androidSchemasByName[item.schemaName].properties, (property, propertyName)=>{
+          let isArray = property.type === 'array';
+          let valueSchema = isArray ? (property.items || {}) : property;
+          let deprecatedMarker = property.deprecated ? 'DEPRECATED ' : '';
+          let description = property.description ? ` -- ${property.description}` : '';
+          if(valueSchema.$ref && androidSchemasByName[valueSchema.$ref]) {
+            return [
+              `${indent}${propertyName}: ${deprecatedMarker}${isArray ? '[{' : '{'}${description}`,
+              {schemaName: valueSchema.$ref, depth: item.depth + 1},
+              `${indent}${isArray ? '}]' : '}'}`,
+            ];
+          }
+          // *_UNSPECIFIED is Google's "not set" value.  Writing it is the same as leaving the field out,
+          // so listing it only gives the model a way to produce a profile that does nothing.
+          let valueType;
+          if(valueSchema.enum) {
+            valueType = _.reject(valueSchema.enum, (value)=>{ return /_UNSPECIFIED$/.test(value); }).join('|');
+          } else if(valueSchema.format === 'int64') {
+            valueType = 'int64 as a quoted string';
+          } else if(valueSchema.format === 'google-duration') {
+            valueType = 'duration as a quoted string of seconds, e.g. "86400s"';
+          } else if(valueSchema.type === 'object') {
+            valueType = 'free-form object';
+          } else {
+            valueType = valueSchema.type;
+          }
+          return [`${indent}${propertyName}: ${deprecatedMarker}${isArray ? `[${valueType}]` : valueType}${description}`];
+        }));
+        linesAndSchemasToExpand = expanded.concat(linesAndSchemasToExpand);
+      }
+
+      androidSchema = lines.join('\n');
+    }
+
+    let COULD_NOT_GENERATE_SHAPE = `
+      If a configuration profile cannot be generated from the provided instructions, respond with this shape instead:
+      {
+        "couldNotGenerateProfile": true,
+        // Explain why a profile could not be generated, naming the specific setting, node, or key that could not be confirmed. The tone should be informational and brief.
+        "reasonWhyAProfileCouldNotBeGenerated": TODO
+      }
+      `;
 
     // The tail of the system prompt.
     let RESPONSE_SHAPE;
-    if(!useLighterResponseShape) {
+    if(isWrittenFromSettings && profileType === 'mobileconfig') {
+      RESPONSE_SHAPE = `Respond in JSON with this data shape:
+      {
+        "profileFilename": "TODO",
+        // The root PayloadDisplayName and PayloadDescription.
+        "profileDisplayName": "TODO",
+        "profileDescription": "TODO",
+        // TopLevel keys the request sets on the root dict, such as PayloadRemovalDisallowed.  Usually empty.
+        "profileSettings": {},
+        // Things the admin must do or decide that are not visible in the profile itself.
+        // Empty string when there is nothing exceptional, which is the common case.
+        "deliveryNotes": "",
+        "payloads": [// One for each dict inside PayloadContent.
+          {
+            "payloadType": "TODO",
+            // Leave this out unless another payload references this one: one of the UUIDs supplied with the instructions.
+            "payloadUUID": "TODO",
+            // Every key this payload sets, with its value.  Nested dictionaries are objects and arrays are arrays.
+            "settings": {"TODO": "TODO"}
+          },
+          {...}
+        ]
+      }
+${COULD_NOT_GENERATE_SHAPE}`;
+    } else if(isWrittenFromSettings && profileType === 'csp') {
+      RESPONSE_SHAPE = `Respond in JSON with this data shape:
+      {
+        "profileFilename": "TODO",
+        // Things the admin must do or decide that are not visible in the profile itself.
+        // Empty string when there is nothing exceptional, which is the common case.
+        "deliveryNotes": "",
+        // true only when the instructions ask for every command to be applied together, all or nothing.
+        "atomic": false,
+        "commands": [
+          {
+            // Replace or Add.  Exec only for a ClientCertificateInstall SCEP Install/Enroll node.
+            "verb": "Replace",
+            "locURI": "TODO",
+            // The node's value as the node takes it: a number for int, true or false for bool, text for chr, and for a
+            // node whose value is an XML document, that document on one line.
+            "data": "TODO",
+            // Leave this out unless the node is not in the provided list: its DFFormat.
+            "format": "TODO"
+          },
+          {
+            // A Wi-Fi network, in place of "locURI" and "data".  Its WlanXml node and WLAN profile are written from these fields.
+            "verb": "Add",
+            "wifi": {
+              "ssid": "TODO",
+              // WPA2Personal, WPA3Personal, WPA3PersonalTransition, WPA2Enterprise, WPA3Enterprise, WPA3Enterprise192, or Open.
+              "security": "TODO",
+              // Personal networks only.  Leave it out to have the user prompted for the password.
+              "passphrase": "TODO",
+              // Enterprise networks only.  "method" is PEAP (MSCHAPv2 inside), TLS, or TTLS (MSCHAPv2 inside).
+              // "serverNames" lists the RADIUS servers to trust and "trustedRootCAThumbprints" the SHA-1 thumbprints
+              // of their root CAs, each only when the instructions give them.
+              "eap": {"method": "TODO", "serverNames": [], "trustedRootCAThumbprints": []},
+              "hidden": false,
+              "connectAutomatically": true,
+              // Device, or User for a network only the signed-in user gets.
+              "scope": "Device"
+            }
+          },
+          {...}
+        ]
+      }
+${COULD_NOT_GENERATE_SHAPE}`;
+    } else if(!useLighterResponseShape) {
 
       RESPONSE_SHAPE = `Respond in JSON with this data shape:
       {
@@ -349,7 +574,7 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
             name: "TODO",
             // The value of the setting that is enforced
             value: "TODO",
-            // Where this setting comes from: the CSP node path, the Apple payload domain and key, or the declaration type.
+            // Where this setting comes from: the CSP node path, the Apple payload domain and key, the declaration type, or the Android Policy field path.
             schemaReference: "TODO",
           },
           {...}
@@ -398,14 +623,15 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
     let sharedRules = [
       'Generate a profile that any MDM can deliver.  Use only syntax defined by Apple, Microsoft, or Google -- never a vendor-specific variable, placeholder, or extension, and never Fleet-specific syntax such as $FLEET_SECRET_ or FLEET_VAR_.  A vendor placeholder the delivering MDM does not recognize is shipped to the device as a literal value.',
       'Reproduce user-supplied identifiers character for character, including case: SSIDs, profile names, certificate subjects, domain names.  Never re-capitalize, trim, or reword them.  An SSID differing by one letter\'s case deploys cleanly and matches nothing.',
-      'Use only settings you can attribute to a specific published source (an Apple payload key, a Windows CSP node, or an Apple declaration type).  If the instructions cannot be satisfied that way, do not approximate -- return the "couldNotGenerateProfile" shape instead.',
+      'Use only settings you can attribute to a specific published source (an Apple payload key, a Windows CSP node, an Apple declaration type, or an Android Management API Policy field).  If the instructions cannot be satisfied that way, do not approximate -- return the "couldNotGenerateProfile" shape instead.',
       'You have no network access and cannot open any URL.  Never state or imply that you validated this profile against a reference, a schema, or a linter.  "documentationUrl" is where a human can check your work, not evidence that you checked it.',
       'Enforce only what the instructions ask for.  The only settings you may add beyond the request are ones the requested setting depends on, and each of those must be called out in "caveats".',
       'Write credentials the admin supplied as literals, since the profile is unusable without them.  Do not invent a placeholder.  Note in "deliveryNotes" that the file contains a cleartext credential.',
       'When a platform requires a companion artifact the profile cannot contain -- a DDM activation declaration, a referenced asset declaration -- generate the configuration itself and describe the companion in "deliveryNotes".',
       'If a setting is commonly managed by an MDM directly rather than by a custom profile, such as disk encryption, still generate the profile as asked and note in "deliveryNotes" that some MDMs manage this natively and may reject or conflict with a custom profile.',
+    ].concat(isWrittenFromSettings ? [] : [
       'Escape newlines inside "configurationProfile" as \\n so the surrounding JSON stays valid.  Do not emit raw line breaks inside the string, and do not collapse the profile onto one line.',
-    ];
+    ]);
 
     // "deliveryNotes" defaults to noise unless it is aggressively constrained.  An empty string is a weaker affordance than an empty array, so these rules carry more of the load.
     let deliveryNotesRules = [
@@ -418,45 +644,69 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
     let promptConfigByProfileType = {
 
       'csp': {
-        description: 'CSP XML profile that enforces OS settings on Windows devices',
-        // How the triage prompt describes a setting the references below actually cover.  Kept
-        // next to those references so the two cannot drift apart.
-        firstPartySettingDescription: 'a node in a Microsoft-published CSP',
+        description: `CSP ${isWrittenFromSettings ? '' : 'XML '}profile that enforces OS settings on Windows devices`,
         references: [
           'Windows CSP nodes, formats, and allowed values: https://learn.microsoft.com/en-us/windows/client-management/mdm/',
         ],
         rules: [
           // Document shape.  Wrong here and Fleet rejects the file on upload.
-          'A Windows profile is a sequence of OMA-DM command elements, not a SyncML document.  The top level must be one or more <Add>, <Replace>, <Exec>, or <Atomic> elements and nothing else.  Never wrap them in <SyncML>, <SyncBody>, <Final/>, or an invented container such as <WindowsCSP>, and never emit an XML declaration -- the SyncML envelope carries session state (SyncHdr, SessionID, MsgID) that only the MDM server can populate at delivery time.',
-          'If you use <Atomic>, it must wrap every command in the profile.  Never mix an <Atomic> element with sibling top-level commands, and never nest one <Atomic> inside another.',
+          ...(isWrittenFromSettings ? [
+            'Return the commands and their values, not the SyncML.  The profile is written from "commands" after you return it: each command\'s Format is taken from the node\'s DFFormat in the provided list, and its Item, Meta, Target, and CDATA are added for you.  Never write SyncML or OMA-DM command elements yourself -- no Add, Replace, Exec, Atomic, Item, Meta, Target, Data, or Format.',
+            'A node whose value is itself an XML document -- VPNv2 ProfileXML, an AppLocker policy, an AssignedAccess configuration -- takes that document as its "data", written on one line; it is wrapped in CDATA for you.  An ADMX-backed node\'s "data" is its policy fragment.',
+            '"verb" is Replace or Add.  Exec runs a one-time command rather than setting a value, so never use it; the one exception is the Install/Enroll node of a ClientCertificateInstall SCEP certificate.  If the request can only be met by running a command -- starting a scan, restarting, wiping, updating right now -- return the "couldNotGenerateProfile" shape and name the command.',
+            '"atomic" wraps every command in one <Atomic>.  Set it only when the instructions ask for the settings to be applied together, all or nothing.',
+          ] : [
+            'A Windows profile is a sequence of OMA-DM command elements, not a SyncML document.  The top level must be one or more <Add>, <Replace>, or <Atomic> elements and nothing else.  <Exec> runs a one-time command rather than setting a value, so never emit it; the one exception is the Install/Enroll node of a ClientCertificateInstall SCEP certificate.  If the request can only be met by running a command -- starting a scan, restarting, wiping, updating right now -- return the "couldNotGenerateProfile" shape and name the command.  Never wrap the commands in <SyncML>, <SyncBody>, <Final/>, or an invented container such as <WindowsCSP>, and never emit an XML declaration -- the SyncML envelope carries session state (SyncHdr, SessionID, MsgID) that only the MDM server can populate at delivery time.',
+            'If you use <Atomic>, it must wrap every command in the profile.  Never mix an <Atomic> element with sibling top-level commands, and never nest one <Atomic> inside another.',
+          ]),
           // Node identity.
           'Emit only LocURI paths that exist in a published CSP.  Never construct, guess, or extrapolate a path, and name the CSP you used in "schemaReference".',
+          'Never write to the DMClient, DMAcc, or EnrollmentStatusTracking CSPs.  The MDM uses them to manage the device, and a profile that changes them can cut the device off from it.  If the request needs one of them, such as changing how often the device checks in, return the "couldNotGenerateProfile" shape.',
+          'Microsoft Edge has no CSP nodes of its own.  The Policy CSP\'s Browser area configures Edge Legacy, which current Windows no longer has, so a profile that uses it does nothing.  For any request about Microsoft Edge, return the "couldNotGenerateProfile" shape.',
           'Percent-encode any character in a LocURI path segment that is not URI-legal.  An SSID named "Cool Network" is Cool%20Network in the LocURI, while the value inside the payload keeps its literal spaces.',
           // Type integrity.  The largest source of silent failure.
-          'In the Policy CSP, settings that read as boolean are almost always DFFormat int with allowed values 0 and 1, not bool.  Default to <Format>int</Format> with numeric <Data>.  Use bool only when the node genuinely declares it, and say so in "caveats".',
-          'Before returning, re-read every Item and confirm <Data> is legal for the <Format> you declared: int accepts digits only, bool accepts literally true or false, chr accepts text.  If you have written 0 or 1 as the data, the format is int, not bool.',
+          ...(isWrittenFromSettings ? [
+            '"data" is the value exactly as the node takes it: a number for an int node, true or false for a bool node, and text for a chr node.  In the Policy CSP, settings that read as boolean are almost always int nodes taking 0 or 1, not bool nodes.',
+          ] : [
+            'In the Policy CSP, settings that read as boolean are almost always DFFormat int with allowed values 0 and 1, not bool.  Default to <Format>int</Format> with numeric <Data>.  Use bool only when the node genuinely declares it, and say so in "caveats".',
+            'Before returning, re-read every Item and confirm <Data> is legal for the <Format> you declared: int accepts digits only, bool accepts literally true or false, chr accepts text.  If you have written 0 or 1 as the data, the format is int, not bool.',
+          ]),
           'Never infer a boolean value from the node name.  DeviceLock/DevicePasswordEnabled takes 0 for enabled and 1 for disabled.  Always state what the value you chose actually does in "valueMeaning".',
-          'State the node\'s declared DFFormat verbatim in "allowedValues", next to the format you emitted, so a reviewer can compare the two side by side.',
-          'If you cannot recall a node\'s documented DFFormat with confidence, do not guess -- return the "couldNotGenerateProfile" shape and name the node you were unsure about.',
-          'ADMX-backed Policy CSP nodes are never int.  They declare DFFormat chr and take a policy fragment as their value: <Format>chr</Format> with <Data><![CDATA[<enabled/>]]></Data> or <![CDATA[<disabled/>]]>, plus a nested <data id="..." value="..."/> element for each sub-option the admin actually asked for and none for the ones they did not.  Writing 1 or 0 to one of these nodes deploys cleanly and enforces nothing.',
+          ...(isWrittenFromSettings ? [
+            'For a node that is not in the provided list, also give its DFFormat as "format".  If you cannot recall it with confidence, do not guess -- return the "couldNotGenerateProfile" shape and name the node you were unsure about.',
+            'ADMX-backed Policy CSP nodes are never int.  Their "data" is a policy fragment: "<enabled/>" or "<disabled/>", plus a nested <data id="..." value="..."/> element for each sub-option the admin actually asked for and none for the ones they did not.  Writing 1 or 0 to one of these nodes deploys cleanly and enforces nothing.',
+          ] : [
+            'State the node\'s declared DFFormat verbatim in "allowedValues", next to the format you emitted, so a reviewer can compare the two side by side.',
+            'If you cannot recall a node\'s documented DFFormat with confidence, do not guess -- return the "couldNotGenerateProfile" shape and name the node you were unsure about.',
+            'ADMX-backed Policy CSP nodes are never int.  They declare DFFormat chr and take a policy fragment as their value: <Format>chr</Format> with <Data><![CDATA[<enabled/>]]></Data> or <![CDATA[<disabled/>]]>, plus a nested <data id="..." value="..."/> element for each sub-option the admin actually asked for and none for the ones they did not.  Writing 1 or 0 to one of these nodes deploys cleanly and enforces nothing.',
+          ]),
           'Never derive the area segment of a Policy CSP LocURI from the name of the .admx file that backs it.  Most ADMX-backed areas are named ADMX_<AdmxFileName>, but plenty are not: PowerShell script block logging lives under WindowsPowerShell, not ADMX_PowerShellExecutionPolicy or ADMX_PowerShell, even though PowerShellExecutionPolicy.admx is the backing file.  Use the area exactly as the published node lists it, and if you cannot recall it, return the "couldNotGenerateProfile" shape rather than constructing one that looks right.',
           // Verb and dependencies.
-          'Use Replace for Policy CSP leaf nodes that hold a value.  Reserve Add for nodes that do not exist until you create them, such as ADMXInstall, certificate installs, and WiFi or VPN profile instances.  A WiFi profile instance is created by the Add of its WlanXml leaf -- never Add the WiFi/Profile/{SSID} node on its own.  When a node\'s AccessType permits both, choose Replace, because the profile may reach a host where the value is already set and Add can fail there.',
+          ...(isWrittenFromSettings ? [
+            'Use Replace for Policy CSP leaf nodes that hold a value.  Reserve Add for nodes that do not exist until you create them, such as certificate installs and VPN profile instances.  When a node\'s AccessType permits both, choose Replace, because the profile may reach a host where the value is already set and Add can fail there.',
+            'Add a Wi-Fi network with one "wifi" command, never with WiFi/Profile/{SSID} or WlanXml commands of your own: the WlanXml node, the SSID\'s encodings, and the WLAN profile are all written from its fields.  A command that sets another node of the network, such as WiFi/Profile/{SSID}/Proxy, still uses its LocURI.',
+          ] : [
+            'Use Replace for Policy CSP leaf nodes that hold a value.  Reserve Add for nodes that do not exist until you create them, such as ADMXInstall, certificate installs, and WiFi or VPN profile instances.  A WiFi profile instance is created by the Add of its WlanXml leaf -- never Add the WiFi/Profile/{SSID} node on its own.  When a node\'s AccessType permits both, choose Replace, because the profile may reach a host where the value is already set and Add can fail there.',
+          ]),
           'Only use an Add or Replace verb on a node whose AccessType permits it.  Roughly 500 leaf nodes accept only Get, and a Replace against one is accepted, deploys, and then fails on the device.',
           'Include the nodes the requested setting depends on.  DeviceLock/MinDevicePasswordLength has no effect unless DeviceLock/DevicePasswordEnabled is also set.',
           'Beyond the nodes the request names and the nodes those depend on, a node\'s presence in the provided list is not a reason to set it.  A WiFi profile never needs ProfileSource, for one: it defaults to Enterprise.',
+          'When one node already does everything the request asks, set that node alone.  Do not add narrower nodes that each cover part of what it already covers: they change nothing, and each one is another setting for a different profile to conflict with.',
           'Record the minimum OS build and the Windows editions each node applies to in "caveats".  A valid setting aimed at the wrong SKU is a silent no-op, not an error.',
           // Embedded values.
-          'When a node\'s value is embedded XML -- WiFi/Profile/*/WlanXml, ADMXInstall, and similar -- wrap it in <![CDATA[ ... ]]> rather than escaping it as entities, and emit that value as a single line with no line breaks or indentation between its elements.  This applies only to the embedded value; the surrounding SyncML keeps its normal indentation.',
-          'Be consistent within a profile about optional <Meta> children.  If you emit <Type> for one item, emit it for all of them, and namespace every <Meta> child as xmlns="syncml:metinf".',
-          'For WiFi profiles, emit <hex> and then <name> inside <SSID> -- the WLAN_profile schema enforces element order, and an <SSID> with <name> first is rejected.  Take <hex> from the encodings supplied with the instructions.  Never work a hex encoding out yourself: Windows and some MDMs treat the hex form as authoritative when both are present, so one wrong byte connects to nothing.  If no encoding was supplied for the SSID, emit <name> alone.',
-          'The WLAN_profile schema is not in the provided list, and it enforces element order and closed value lists, so build WlanXml from these facts rather than from memory.  Security settings sit at WLANProfile > MSM > security, with authEncryption (authentication, encryption, useOneX) first.  A personal network (WPA2PSK, WPA3SAE) follows it with sharedKey (keyType, protected, keyMaterial); an enterprise network (useOneX true) has no sharedKey and carries a OneX element instead.  <encryption> accepts only none, WEP, TKIP, AES, or GCMP256 -- WPA2 and WPA3SAE networks use AES, never CCMP, which is the 802.11 name for the same cipher.',
+          ...(isWrittenFromSettings ? [
+            'A "wifi" network given only a password is WPA2Personal.  One that names 802.1X, RADIUS, or an EAP method without a WPA version is WPA2Enterprise.  An enterprise network needs its EAP method: when the instructions do not name one, return the "couldNotGenerateProfile" shape and say which are available (PEAP, TLS, TTLS).  No other method can be written here, so for EAP-FAST, EAP-SIM, TTLS with PAP and the like, return the "couldNotGenerateProfile" shape naming the method.  When the instructions give no RADIUS server names or root CA, a note asking for them is added to "deliveryNotes" for you, so do not write one.',
+          ] : [
+            'When a node\'s value is embedded XML -- WiFi/Profile/*/WlanXml, ADMXInstall, and similar -- wrap it in <![CDATA[ ... ]]> rather than escaping it as entities, and emit that value as a single line with no line breaks or indentation between its elements.  This applies only to the embedded value; the surrounding SyncML keeps its normal indentation.',
+            'Be consistent within a profile about optional <Meta> children.  If you emit <Type> for one item, emit it for all of them, and namespace every <Meta> child as xmlns="syncml:metinf".',
+            'For WiFi profiles, emit <hex> and then <name> inside <SSID> -- the WLAN_profile schema enforces element order, and an <SSID> with <name> first is rejected.  Take <hex> from the encodings supplied with the instructions.  Never work a hex encoding out yourself: Windows and some MDMs treat the hex form as authoritative when both are present, so one wrong byte connects to nothing.  If no encoding was supplied for the SSID, emit <name> alone.',
+            'The WLAN_profile schema is not in the provided list, and it enforces element order and closed value lists, so build WlanXml from these facts rather than from memory.  Security settings sit at WLANProfile > MSM > security, with authEncryption (authentication, encryption, useOneX) first.  A personal network (WPA2PSK, WPA3SAE) follows it with sharedKey (keyType, protected, keyMaterial); an enterprise network (useOneX true) has no sharedKey and carries a OneX element instead.  <encryption> accepts only none, WEP, TKIP, AES, or GCMP256 -- WPA2 and WPA3SAE networks use AES, never CCMP, which is the 802.11 name for the same cipher.',
+          ]),
         ],
       },
 
       'mobileconfig': {
-        description: 'XML .mobileconfig profile that enforces OS settings on macOS/iOS/ipadOS devices',
-        firstPartySettingDescription: 'a key in an Apple-published payload',
+        description: `${isWrittenFromSettings ? '' : 'XML '}.mobileconfig profile that enforces OS settings on macOS/iOS/ipadOS devices`,
         providedSchema: appleSchema,
         providedSchemaDescription: appleSchemaDescription,
         references: [
@@ -469,36 +719,52 @@ unlisted preference domain, return the "couldNotGenerateProfile" shape rather th
           // Third-party payloads.
           'If this is an attempt to change a third-party application\'s settings, use that application\'s preference domain -- com.google.Chrome, us.zoom.config and its keys must come from the ProfileManifests reference.',
           // Document shape.
-          'Emit valid property list XML: the plist DOCTYPE, plist version="1.0", and correctly typed values.',
-          'Include PayloadIdentifier, PayloadType, PayloadUUID, PayloadVersion, and PayloadDisplayName on the root dict and on every dict inside PayloadContent.  The root PayloadType is "Configuration" and PayloadVersion is 1.',
-          'Keep the plist indented and readable across multiple lines.  Do not collapse it onto one line.',
+          ...(isWrittenFromSettings ? [
+            'Return the payloads and the settings each one sets, not the property list.  The .mobileconfig is written from "payloads" and "profileSettings" after you return it, with PayloadType, PayloadUUID, PayloadIdentifier, PayloadVersion, and PayloadDisplayName added to every dict, so never write XML and never set those keys yourself.',
+          ] : [
+            'Emit valid property list XML: the plist DOCTYPE, plist version="1.0", and correctly typed values.',
+            'Include PayloadIdentifier, PayloadType, PayloadUUID, PayloadVersion, and PayloadDisplayName on the root dict and on every dict inside PayloadContent.  The root PayloadType is "Configuration" and PayloadVersion is 1.',
+            'Keep the plist indented and readable across multiple lines.  Do not collapse it onto one line.',
+          ]),
           // Key fidelity.
           'Apple payload keys are not consistently cased, and the inconsistency is inside a single dict.  The passcode payload uses forcePIN, minLength, and allowSimple -- lowercase first letter -- beside PascalCase PayloadIdentifier and PayloadType.  Reproduce every key exactly as documented for its payload type.  Never normalize casing in either direction.',
           'Use only keys documented for the payload type you chose.  An invented key is written into the profile and nothing downstream rejects it, so the profile looks right and does nothing.',
           'Choose the payload type by finding the key, not by the payload type\'s name.  Locate the key that does what was asked in the provided list, then use the payload type it is listed under -- even when another payload type\'s name sounds closer to the request.  App Store app updates are AutomaticallyInstallAppUpdates in com.apple.SoftwareUpdate, not anything in com.apple.appstore.  Before returning, confirm every key in each PayloadContent dict is listed under that dict\'s PayloadType.',
-          'When more than one key in a payload could plausibly satisfy the request, choose by documented meaning, say what the chosen value actually does in valueMeaning, and return couldNotGenerateProfile rather than guessing between them.',
+          'When more than one key in a payload could plausibly satisfy the request, use the one whose description says it does what was asked, and say what the chosen value actually does in valueMeaning.  Return couldNotGenerateProfile only when no key\'s description says it does what was asked.',
+          'A request for a whole group of settings -- every iCloud feature, all sharing services -- asks for each key in the provided list that belongs to the group.  Set each of them, rather than looking for one key that does them all.',
           'When the payload type you need appears in the provided list, copy it and its keys character for character, casing included, and use no key the list does not give it.  A key you remember differently than the list spells it is the list\'s spelling, not yours.',
           'Where the provided list describes what a key\'s values mean, that description decides the value and your own reading of the key name does not.  Several of these keys are named in a way that implies the opposite of what they do.',
           'The provided list does not cover preference domains that have no payload manifest.  If you cannot recall the keys of an unlisted preference domain, do not guess and do not adapt a key from a DDM declaration -- return the "couldNotGenerateProfile" shape and name the payload type you were unsure about.',
           // Value typing.
-          'Type every value as plist: <true/> or <false/> for booleans, never <string>true</string>; <integer> for whole numbers; <real> for decimals; <data> with base64 for binary; <date> with an ISO 8601 timestamp.',
+          isWrittenFromSettings ?
+            'Give every value its JSON type: true or false for booleans, never "true"; a number for integers and decimals; a string for strings; base64 in a string for data; an ISO 8601 timestamp in a string for dates.  Each value\'s property list type is taken from the provided list.' :
+            'Type every value as plist: <true/> or <false/> for booleans, never <string>true</string>; <integer> for whole numbers; <real> for decimals; <data> with base64 for binary; <date> with an ISO 8601 timestamp.',
           // Dependencies
           'Include the keys the requested setting depends on. minLength and allowSimple enforce nothing unless forcePIN is also set.',
           'Beyond the keys the request names and the keys those depend on, a key\'s presence in the provided list is not a reason to set it.',
           // Identifiers.
-          'Take every PayloadUUID from the list of UUIDs provided with the instructions, in the order given, and never invent one.  Two dicts sharing a UUID is a profile that installs unpredictably, so use each one exactly once.',
-          'PayloadIdentifier is reverse-DNS.  Each payload dict\'s identifier is the root identifier plus a distinguishing suffix, and no two identifiers in the profile are the same.',
-          'PayloadDisplayName on the root is what an end user sees in System Settings, and some MDMs use it as the profile name.  Make it human-readable and specific to what the profile actually enforces, which is not always what was asked for: a profile that only sets allowBluetoothModification is "Bluetooth Settings Locked", not "Disable Bluetooth".  PayloadDescription follows the same rule.',
+          ...(isWrittenFromSettings ? [
+            'Where one payload references another (PayloadCertificateUUID, PayloadCertificateAnchorUUID, VPNUUID and similar), give the referenced payload a "payloadUUID" beside its "payloadType", taken from the UUIDs supplied with the instructions, and use that same UUID as the reference.  Every other payload is given its PayloadUUID for you.',
+            '"profileDisplayName" is the root PayloadDisplayName, which an end user sees in System Settings, and some MDMs use it as the profile name.  Make it human-readable and specific to what the profile actually enforces, which is not always what was asked for: a profile that only sets allowBluetoothModification is "Bluetooth Settings Locked", not "Disable Bluetooth".  "profileDescription" follows the same rule.',
+          ] : [
+            'Take every PayloadUUID from the list of UUIDs provided with the instructions, in the order given, and never invent one.  Two dicts sharing a UUID is a profile that installs unpredictably, so use each one exactly once.',
+            'PayloadIdentifier is reverse-DNS, and the root identifier ends with the identifier token provided with the instructions, so two profiles generated for the same request never share one.  Each payload dict\'s identifier is the root identifier plus a distinguishing suffix, and no two identifiers in the profile are the same.',
+            'PayloadDisplayName on the root is what an end user sees in System Settings, and some MDMs use it as the profile name.  Make it human-readable and specific to what the profile actually enforces, which is not always what was asked for: a profile that only sets allowBluetoothModification is "Bluetooth Settings Locked", not "Disable Bluetooth".  PayloadDescription follows the same rule.',
+          ]),
           // Structure.
-          'Put every key for one payload domain in a single dict inside PayloadContent.  Do not emit several dicts with the same PayloadType.',
+          isWrittenFromSettings ?
+            'Put every key for one payload domain in a single entry of "payloads".  Do not return several entries with the same payloadType.' :
+            'Put every key for one payload domain in a single dict inside PayloadContent.  Do not emit several dicts with the same PayloadType.',
+          // Availability.
+          'A key marked `[only <platforms>]` does nothing on any other platform.  When the request names a platform the key does not list, do not use the key.  When the request names no platform, use it as you would any other key: a device it does nothing on ignores it.',
+          'A payload type or key marked deprecated still works, and one marked removed does nothing on that OS version and later.  Prefer a key that is neither.  When the only key for a setting is deprecated or removed, use it anyway and never decline because of it: a note about it is added to "deliveryNotes" for you, so do not write one.',
 
 
         ],
       },
 
       'ddm': {
-        description: 'Apple DDM declaration in JSON format that enforces OS settings on macOS devices',
-        firstPartySettingDescription: 'a key in an Apple-published declaration type',
+        description: 'Apple DDM declaration in JSON format that enforces OS settings on Apple devices',
         providedSchema: appleSchema,
         providedSchemaDescription: `Provided context: every declaration Apple publishes, and every key each one accepts, taken from Apple's
 own declaration definitions.  Format is a declaration type followed by its keys, where \`*\` marks a required key,
@@ -511,6 +777,8 @@ carries something its name does not: \`(a|b|c)\` are the values it accepts, \`(m
 and a sentence is Apple's own description of what the value must look like.  Where such a sentence is given, it
 decides the value -- ExcludedPaths reads as though it takes any path, and Apple's text says entries are relative to
 the home directory and directories need a trailing slash.
+
+${availabilityLegend('declaration type')}
 
 This is the complete set.  A declaration type or key that does not appear here does not exist.`,
         references: [
@@ -528,6 +796,42 @@ This is the complete set.  A declaration type or key that does not appear here d
           'Derive Identifier from the full declaration type rather than its last component, or passcode.settings and softwareupdate.settings collapse into one identifier and silently overwrite each other.',
           'Keep Identifier to 64 bytes or fewer.  Apple\'s DeclarationBase caps it, and a longer identifier is accepted by an MDM and then rejected by the device at delivery.',
           'A declaration file holds exactly one declaration: one JSON object with Type, Identifier, and Payload.  Never return an array or several objects.  Settings that share a declaration type go in that one Payload.  When the request needs more than one declaration type, return the "couldNotGenerateProfile" shape, name each declaration type the request needs, and say that each one must be generated and uploaded as its own file.',
+          // Availability.
+          'A key marked `[only <platforms>]` does nothing on any other platform.  When the request names a platform the key does not list, do not use the key.  When the request names no platform, use it as you would any other key: a device it does nothing on ignores it.',
+        ],
+      },
+
+      'android': {
+        description: 'Android Management API Policy in JSON format that enforces OS settings on Android devices',
+        providedSchema: androidSchema,
+        // A Policy is a flat object of arbitrary keys, unlike a DDM declaration's Type/Identifier/Payload, so the
+        // model readily returns the Policy itself as its whole response instead of inside "configurationProfile".
+        // Haiku did this in most of its failed runs, so it is said both here, next to the schema, and in the rules.
+        providedSchemaDescription: `Provided context: every field of the Android Management API Policy, taken from Google's discovery
+document.  It describes the Policy that goes inside the "configurationProfile" string, not your response.
+Each line is \`fieldName: type -- description\`.  Indentation is nesting: a field ending in \`{\` is an object
+holding the indented fields beneath it, and one ending in \`[{\` is an array of such objects.  A type written as
+A|B|C lists every allowed enum value.  DEPRECATED marks a field Google has replaced.  This is the complete set:
+a field that does not appear here does not exist.`,
+        references: [
+          'Android Management API Policy fields, types, and enum values: https://developers.google.com/android/management/reference/rest/v1/enterprises.policies',
+        ],
+        rules: [
+          // Document shape.
+          'Your response is always the response shape described below, never the Policy itself.  The Policy is a JSON object serialized into the "configurationProfile" string, for example "configurationProfile": "{\\"screenCaptureDisabled\\": true}".  Never put a Policy field at the top level of your response: a response without "configurationProfile" is discarded as a failed generation, however correct the Policy in it is.',
+          'Inside "configurationProfile", the top-level keys are Policy fields.  Do not wrap them in an envelope such as {"policy": ...}, and do not add keys that are not Policy fields.',
+          // Key fidelity.  Nested keys are the silent failure.
+          'Copy every field name verbatim from the provided schema.  A wrong key at the top level is rejected by name, but the same typo one level down inside an object is silently discarded -- the profile deploys and the setting is simply absent.',
+          'Build nested objects along the exact path the indentation shows.  Never flatten a nested field to the top level or invent an intermediate key.  When a field is an array of objects ([{), its value is a JSON array even when it holds one object.',
+          // Enums.  The failure no local validation catches.
+          'Copy enum values character for character from the A|B|C list on that field\'s line, including case.  They are SCREAMING_SNAKE_CASE.  Enum values are not checked before the policy reaches Google, so a wrong-case or invented value passes every local check and then fails at delivery.',
+          // JSON types.
+          'Match each value to the type the schema declares.  Booleans are JSON booleans, not the strings "true" and "false".  Integers are JSON numbers.  Fields marked "int64 as a quoted string", such as maximumTimeToLock in milliseconds, must be quoted strings even though they hold a number.',
+          'Never set a DEPRECATED field.  Its replacement is usually named in its own description or in a newer field\'s "Replaces ..." note.  The common ones, with the paths they are written at: cameraDisabled is cameraAccess, unmuteMicrophoneDisabled is microphoneAccess, passwordRequirements is passwordPolicies, wifiConfigDisabled is deviceConnectivityManagement.configureWifi, usbFileTransferDisabled is deviceConnectivityManagement.usbDataAccess, tetheringConfigDisabled is deviceConnectivityManagement.tetheringSettings, and debuggingFeaturesAllowed and safeBootDisabled are advancedSecurityOverrides.developerSettings.',
+          // Abstention.
+          'If the requested setting is not a field in the provided schema, do not approximate with a similarly named field -- return the "couldNotGenerateProfile" shape and name the setting you could not find.',
+          // Natively-managed fields.
+          'Software management, status reporting, disk encryption, kiosk mode, and setup-experience fields -- applications, statusReportingSettings, encryptionPolicy, kioskCustomization, setupActions, systemUpdate, and similar -- are commonly owned by the MDM rather than by a custom profile.  Still emit them when asked, and note in "deliveryNotes" that some MDMs manage these natively and will reject a profile that sets them.',
         ],
       },
 
@@ -597,8 +901,13 @@ This is the complete set.  A declaration type or key that does not appear here d
       // can change.  Offered both, the lookup named the recommended twin for "make Chrome reopen the last
       // session", so it is only offered when the request asks for a default.
       let requestAsksForADefault = /\b(recommend\w*|default|suggest\w*|user can change|users can change)\b/.test(lowercaseInstructions);
+      // The MDM uses these CSPs to manage the device itself, so a profile that writes to them can cut the device off from its MDM.
+      const MANAGEMENT_PLANE_CSPS = ['DMClient', 'DMAcc', 'EnrollmentStatusTracking'];
       // Keep the nodes a profile can set: a template's policies only when the request names its app (leaving out its _recommended policies unless the request asks for a default), and every other node a profile can write to.
       let nodesAProfileCanSet = _.filter(nodeFile.nodes, (node)=>{
+        if(_.contains(MANAGEMENT_PLANE_CSPS, node.csp)) {
+          return false;
+        }
         if(node.admxTemplate) {
           return _.contains(admxTemplateIdsTheRequestNames, node.admxTemplate) && (requestAsksForADefault || !/_recommended(~|$)/.test(node.area));
         }
@@ -613,34 +922,43 @@ This is the complete set.  A declaration type or key that does not appear here d
       // Storage, not ADMX_RemovableStorage; the sign-in banner is in LocalPoliciesSecurityOptions, not any
       // of the four areas with "Logon" in the name), so an area-name index asks the model to recall the
       // taxonomy -- which is the failure this whole reference exists to remove.  Given node names it can
-      // find the setting and read off the area instead.  The index is ~140KB and identical on every request,
-      // so it wants to be a cached prompt prefix.
+      // find the setting and read off the area instead.  Windows' own groups render to ~140KB, identical on
+      // every request, which is what lets them be cached.
       //
       // A standalone CSP's interior nodes are left out, since the leaves under them already spell out the
       // path.  Names are deduplicated because a CSP published in both scopes (WiFi) would otherwise list
       // each one twice.
       //
       // A third-party template's group says which app it belongs to, since its area name is built from the
-      // template's own category names (Cat_GoogleUpdate~Cat_Applications) and does not always say.
+      // template's own category names (Cat_GoogleUpdate~Cat_Applications) and does not always say.  Those
+      // groups depend on which apps the request names, so they go after the cached part of the prompt.
 
       // Build the lookup's index: one line per group, naming the group and every node in it.
-      let nodeNameIndex = _.map(nodesByArea, (nodesInThisArea, areaName)=>{
+      let windowsGroupIndexLines = [];
+      let thirdPartyTemplateGroupIndexLines = [];
+      _.each(nodesByArea, (nodesInThisArea, areaName)=>{
         let leafNodes = _.filter(nodesInThisArea, (node)=>{ return node.csp === 'Policy' || node.format !== 'node'; });
         // Find the template this group's policies come from, if any, so the group can be labelled with its app.
         let admxTemplate = admxTemplatesById[_.first(nodesInThisArea).admxTemplate];
-        return `${areaName}${admxTemplate ? ` (${admxTemplate.displayName} template)` : ''}: ${_.uniq(_.pluck(leafNodes, 'name')).sort().join(' ')}`;
-      }).join('\n');
+        let indexLine = `${areaName}${admxTemplate ? ` (${admxTemplate.displayName} template)` : ''}: ${_.uniq(_.pluck(leafNodes, 'name')).sort().join(' ')}`;
+        if(admxTemplate) {
+          thirdPartyTemplateGroupIndexLines.push(indexLine);
+        } else {
+          windowsGroupIndexLines.push(indexLine);
+        }
+      });
 
-      let thirdPartyTemplateGuidance = '';
-      // Only explain third-party template groups to the lookup when the request names one of their apps.
-      if(admxTemplateIdsTheRequestNames.length > 0) {
-        thirdPartyTemplateGuidance = `
-Groups marked "(<App> template)" hold a third-party application's own policies, from the ADMX template
-that application publishes, rather than anything in Windows.  When the request is about that application's
-behavior, name its groups rather than a Windows area that sounds similar.  Groups with _recommended in
-their name set a default the user can change; name them only when the request asks for a default or a
-recommendation rather than an enforced setting.
-`;
+      let thirdPartyTemplateGroups;
+      if(thirdPartyTemplateGroupIndexLines.length > 0) {
+        thirdPartyTemplateGroups =
+`Below are more groups, for the third-party applications this request names, in the same format as the
+groups above.  Groups marked "(<App> template)" hold a third-party application's own policies, from the ADMX
+template that application publishes, rather than anything in Windows.  When the request is about that
+application's behavior, name its groups rather than a Windows area that sounds similar.  Groups with
+_recommended in their name set a default the user can change; name them only when the request asks for a
+default or a recommendation rather than an enforced setting.
+
+${thirdPartyTemplateGroupIndexLines.join('\n')}`;
       }
 
       // The small model on purpose: this is a lookup rather than a judgement.
@@ -672,20 +990,30 @@ The Policy CSP has adjacent-sounding areas -- Wifi holds AllowWiFi and AllowWiFi
 block a feature rather than configure it.  For a request to set something up, name the standalone CSP
 first; name the Policy area too only if the request also asks to allow or block the feature.
 
+Microsoft Defender's settings are split between the Policy CSP's Defender area and the Defender CSP, and
+many of the newer ones exist only in the Defender CSP.  For a request about Defender, name both.
+
+What the sign-in screen shows -- a message or title before sign-in, the last signed-in user's name -- is set
+by interactive logon security options, which are in LocalPoliciesSecurityOptions.
+
 Return an empty array, naming nothing, only when no group below could satisfy the request.  An empty
 array is a real answer here, not a failure.
-${thirdPartyTemplateGuidance}
-${nodeNameIndex}
+
+${windowsGroupIndexLines.join('\n')}
 
 Respond in JSON with this data shape:
 {
   "areas": ["TODO"]
 }`,
+        systemPromptCacheTtl: '1h',
+        uncachedSystemPromptSuffix: thirdPartyTemplateGroups,
         prompt: `Here are the instructions from an IT admin:
 \`\`\`
 ${naturalLanguageInstructions}
 \`\`\``,
-        baseModel: 'claude-haiku-4-5',
+        baseModel: 'claude-haiku-5-5',
+        effort: 'low',
+        disableThinking: true,
         expectJson: true,
       })
       .tolerate((err)=>{
@@ -894,8 +1222,15 @@ writing it under ./Device/ deploys cleanly and enforces nothing.  \`atomic\` mar
 documents as requiring an <Atomic> wrapper.  \`deprecated\` marks a node Microsoft has retired; prefer
 another node that does the same thing.  \`range=[a-b]\` is the node's allowed numeric range.  \`needs X=Y\`
 is a node the setting depends on, which belongs in the profile alongside it.  The format on each line is
-the node's declared DFFormat (\`node\` is an interior node that holds children, not a value): emit it
-verbatim and make <Data> legal for it, rather than reasoning about the value's type from its name.
+the node's declared DFFormat (\`node\` is an interior node that holds children, not a value): ${isWrittenFromSettings ?
+  'give a value legal for it' : 'emit it\nverbatim and make <Data> legal for it'}, rather than reasoning about the value's type from its name.
+
+A node in an \`ADMX_\` area is always ADMX-backed, whatever its description says.  Any other Policy CSP node
+listed as \`chr\` with no values is either a text setting or an ADMX-backed policy, and it is ADMX-backed when
+its description says it turns something on or off -- it enables, disables, prevents, allows, or turns off a
+feature.  ${isWrittenFromSettings ?
+  'An ADMX-backed node\'s "data" is <enabled/> to apply what the description says and\n<disabled/> to stop applying it, never 1 or 0.  Otherwise the node\'s "data" is the text the\nrequest calls for.' :
+  'An ADMX-backed node\'s <Data> is <![CDATA[<enabled/>]]> to apply what the description says and\n<![CDATA[<disabled/>]]> to stop applying it, never 1 or 0.  Otherwise the node\'s <Data> is the text the\nrequest calls for.'}
 
 This is authoritative for the groups below and settles their node names, paths, formats and values.  It
 is not the whole CSP reference, and what is missing decides between two different answers.  If no node here
@@ -921,8 +1256,9 @@ A group marked "(<App> template)" is a third-party application's policies, from 
 publishes, rather than part of Windows.  Its LocURI follows the Policy CSP pattern with the group name as
 the area, ~ characters included: ./Device/Vendor/MSFT/Policy/Config/GoogleChrome~Policy~googlechrome~Startup/HomepageLocation,
 or under ./User/ for one marked @User.  Each one is DFFormat chr, is set with <Replace>, and never takes a
-bare value: its <Data> is always a CDATA-wrapped policy fragment.  Its line shows the fragment that enables
-it -- copy that into <Data><![CDATA[...]]></Data>, keep a <data> element for each value the request gives
+bare value: ${isWrittenFromSettings ?
+  'its "data" is always a policy fragment.  Its line shows the fragment that enables\nit -- copy that into "data", keep a <data> element for each value the request gives' :
+  'its <Data> is always a CDATA-wrapped policy fragment.  Its line shows the fragment that enables\nit -- copy that into <Data><![CDATA[...]]></Data>, keep a <data> element for each value the request gives'}
 and drop the rest, and replace each {placeholder}, braces included, with the value.  A <data> element
 followed by * must be kept whenever the policy is enabled.  To turn a policy off, the fragment is <disabled/>
 alone.
@@ -960,11 +1296,17 @@ to the profile automatically after you return it.`;
 
     // Generated list of UUIDs this profile can use.
     // Note: This is generated here and sent to the LLM to prevent it from adding invalid/placeholder UUIDs
+    // Written from settings, every PayloadUUID is added after generation, and these are only for a payload another
+    // payload references, which a profile rarely needs more than a few of.
     let suppliedPayloadUuids = [];
+    // Two profiles generated from the same request otherwise get the same PayloadIdentifier, and an MDM
+    // that keys profiles on it, as Fleet does, rejects the second one.
+    let suppliedIdentifierToken = '';
     if(profileType === 'mobileconfig') {
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < (isWrittenFromSettings ? 4 : 10); i++) {
         suppliedPayloadUuids.push((await sails.helpers.strings.uuid()).toUpperCase());
       }
+      suppliedIdentifierToken = require('crypto').randomBytes(4).toString('hex');
     }
 
 
@@ -995,12 +1337,19 @@ ${numberedRules}
 ${RESPONSE_SHAPE}`;
 
     let uuidsToUse = '';
-    if(suppliedPayloadUuids.length > 0) {
+    if(suppliedPayloadUuids.length > 0 && isWrittenFromSettings) {
+      uuidsToUse = `
+    UUIDs for a payload that another payload references, to give it as "payloadUUID" and repeat as the reference:
+    ${suppliedPayloadUuids.map((uuid)=>`- ${uuid}`).join('\n    ')}
+`;
+    } else if(suppliedPayloadUuids.length > 0) {
       uuidsToUse = `
     Use these UUIDs for PayloadUUID, in the order listed: the first on the root dict, then one per dict inside
     PayloadContent.  Never invent a UUID and never use one twice.  Where one payload references another payload
     (PayloadCertificateUUID, VPNUUID and similar), repeat that payload's UUID from this list exactly.
     ${suppliedPayloadUuids.map((uuid)=>`- ${uuid}`).join('\n    ')}
+
+    Identifier token, the last segment of the root PayloadIdentifier: ${suppliedIdentifierToken}
 `;
     }
 
@@ -1009,7 +1358,7 @@ ${RESPONSE_SHAPE}`;
     // Only quoted strings, since that is how an SSID arrives in the instructions, and double quotes only, so an
     // apostrophe does not open one.
     let hexEncodingsToUse = '';
-    if(profileType === 'csp') {
+    if(profileType === 'csp' && !isWrittenFromSettings) {
       let quotedStrings = _.uniq(_.map(naturalLanguageInstructions.match(/["“”][^"“”]+["“”]/g) || [], (quoted)=>{ return quoted.slice(1, -1); }));
       if(quotedStrings.length > 0) {
         hexEncodingsToUse = `
@@ -1026,7 +1375,12 @@ ${uuidsToUse}${hexEncodingsToUse}
     ${naturalLanguageInstructions}
     \`\`\``;
 
-    // promptConfig comes back because the action's triage call needs description and firstPartySettingDescription; suppliedPayloadUuids so a caller can check what the model was given.
+    // Only these profile types' system prompts never vary: DDM and Android always get their whole schema, and
+    // a .mobileconfig gets the whole schema whenever the lookup did not narrow it.  Every other system prompt
+    // carries the schema narrowed for this one request, so caching it would only pay for writes.
+    let systemPromptIsTheSameForEveryRequest = profileType === 'ddm' || profileType === 'android' || (profileType === 'mobileconfig' && applePayloadTypesProvided.length === 0);
+
+    // suppliedPayloadUuids so a caller can check what the model was given.
     // windowsCspAreasProvided so a caller can tell a profile that was written from the wrong areas from one
     // written from the right areas badly -- the two look identical in the generated profile, and the first
     // is a lookup problem while the second is a prompt problem.
@@ -1034,7 +1388,7 @@ ${uuidsToUse}${hexEncodingsToUse}
     // nothing, and the full schema went in.
     // admxTemplatesProvided is every third-party template whose policies the model was shown, which is a
     // superset of the ones the profile ends up using.
-    return { systemPrompt, userPrompt, promptConfig, suppliedPayloadUuids, windowsCspAreasProvided, applePayloadTypesProvided, admxTemplatesProvided };
+    return { systemPrompt, systemPromptIsTheSameForEveryRequest, userPrompt, suppliedPayloadUuids, windowsCspAreasProvided, applePayloadTypesProvided, admxTemplatesProvided };
 
   }
 

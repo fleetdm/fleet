@@ -12,7 +12,8 @@
     height: 24px;
   }
 
-  &__install-icon-with-tooltip {
+  &__install-icon-with-tooltip,
+  &__configuration-icon-with-tooltip {
     display: inline-flex;
     align-items: center;
 
@@ -22,6 +23,13 @@
     .component__tooltip-wrapper__element {
       display: inline-flex;
       align-items: center;
+
+      // Configuration icon wraps its <Icon> in an aria-hidden span; without
+      // this, the span's inline baseline leaves the SVG sitting high.
+      > span {
+        display: inline-flex;
+        align-items: center;
+      }
     }
   }
 
