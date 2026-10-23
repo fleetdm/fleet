@@ -5,7 +5,6 @@ package googlecas
 import (
 	"context"
 	"crypto"
-	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -60,8 +59,8 @@ type Service struct {
 }
 
 type issueClient struct {
-	keyHash [sha256.Size]byte
-	client  *privateca.Service
+	key    fleet.GoogleCASKeyJSON
+	client *privateca.Service
 }
 
 // Compile-time check to ensure that Service implements fleet.GoogleCASService.
@@ -191,10 +190,9 @@ func (s *Service) IssueCertificate(ctx context.Context, ca fleet.GoogleCASCA, cs
 
 // issueClient returns the CA's cached client, creating it on first use and again when the CA's key changes.
 func (s *Service) issueClient(ca fleet.GoogleCASCA) (*privateca.Service, error) {
-	keyHash := sha256.Sum256([]byte(ca.APIKeyJSON))
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if cached, ok := s.issueClients[ca.ID]; ok && cached.keyHash == keyHash {
+	if cached, ok := s.issueClients[ca.ID]; ok && cached.key == ca.APIKeyJSON {
 		return cached.client, nil
 	}
 	// Built without the request's context, which is cancelled when the request ends, because the client outlives it. Token requests
@@ -203,7 +201,7 @@ func (s *Service) issueClient(ca fleet.GoogleCASCA) (*privateca.Service, error) 
 	if err != nil {
 		return nil, err
 	}
-	s.issueClients[ca.ID] = issueClient{keyHash: keyHash, client: client}
+	s.issueClients[ca.ID] = issueClient{key: ca.APIKeyJSON, client: client}
 	return client, nil
 }
 
