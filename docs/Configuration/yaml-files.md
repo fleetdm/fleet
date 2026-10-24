@@ -781,13 +781,13 @@ software:
 ```yaml
 - url: https://github.com/northpolesec/santa/releases/download/2026.2/santa-2026.2.pkg
   install_script:
-    path: ../lib/software/santa-install-script.sh
+    path: santa-install-script.sh
   self_service: true
   labels_exclude_any:
     - IT test team
 - url: https://github.com/northpolesec/santa/releases/download/2026.4/santa-2026.4.pkg
   install_script:
-    path: ../lib/software/santa-install-script.sh
+    path: santa-install-script.sh
   self_service: true
   categories:
     - "💻 Productivity"
@@ -896,7 +896,7 @@ software:
   categories:
     - "👬 Communication"
   configuration:
-    path: ../lib/software/zoom-config.xml
+    path: zoom-config.xml
 ```
 
 ### fleet_maintained_apps
