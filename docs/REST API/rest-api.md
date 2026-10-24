@@ -3503,6 +3503,8 @@ None.
 - [Turn off host's MDM](#turn-off-hosts-mdm)
 - [Batch-delete hosts](#batch-delete-hosts)
 - [Update human-device mapping](#update-human-device-mapping)
+- [Update host's Google device ID](#update-hosts-google-device-id)
+- [Delete host's Google device ID](#delete-hosts-google-device-id)
 - [Get host's device health report](#get-hosts-device-health-report)
 - [Get host's mobile device management (MDM) information](#get-hosts-mobile-device-management-mdm-information)
 - [Get mobile device management (MDM) status](#get-mobile-device-management-mdm-status)
@@ -5248,6 +5250,7 @@ If `hostname` is specified when there is more than one host with the same hostna
     "hostname": "Johns-iPhone",
     "uuid": "392547dc-0000-0000-a87a-d701ff75bc65",
     "platform": "ios",
+    "google_device_id": "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12",
     "osquery_version": "5.5.1",
     "os_version": "iOS 17.4.1",
     "build": "21E236",
@@ -5719,6 +5722,8 @@ If `hostname` is specified when there is more than one host with the same hostna
 > - `encryption_type`, `security_posture`, `system_update_status`, `security_posture_details[].security_risk`, `telephony_infos[].activation_state`, and `telephony_infos[].config_mode` carry AMAPI's raw enum values, such as `ACTIVE`, `AT_RISK`, `UP_TO_DATE`, `UNKNOWN_OS`, `ACTIVATED`, and `ADMIN_CONFIGURED`. AMAPI's "no data" sentinels (`*_UNSPECIFIED` and `UPDATE_STATUS_UNKNOWN`) are omitted from the response instead of being returned.
 > - `security_update_version` is the host's Android security patch level. It's also folded into `os_version`, for example `Android 16 (2026-05-01)`.
 
+
+> Note: `google_device_id` is only returned for iOS, iPadOS, and Android hosts. It's `""` when the host isn't bound to a device ID in Google. To bind it, use [Update host's Google device ID](#update-hosts-google-device-id).
 
 ### Get host by Fleet Desktop token
 
@@ -6252,6 +6257,114 @@ Updates the email for the data source in the human-device mapping. This source c
   ]
 }
 ```
+
+### Update host's Google device ID
+
+_Available in Fleet Premium._
+
+`PUT /api/v1/fleet/hosts/:id/google_device_id`
+
+Binds an iOS, iPadOS, or Android host to its device ID in Google, for [conditional access with Google](https://fleetdm.com/guides/google-conditional-access-integration). Setting the same ID again does nothing. Fleet refuses a different ID than the one already saved, so a registration link copied to another device can't take over the host. Each ID can only be bound to one host. Once set, the ID stays until you remove it with [Delete host's Google device ID](#delete-hosts-google-device-id) or the host is deleted. Wiping the host and enrolling it again doesn't remove it.
+
+#### Parameters
+
+| Name             | Type    | In   | Description                                                                   |
+| ---------------- | ------- | ---- | ----------------------------------------------------------------------------- |
+| id               | integer | path | **Required**. The host's `id`.                                                |
+| google_device_id | string  | body | **Required**. The host's device ID in Google. Can't be empty.                 |
+
+#### Example
+
+`PUT /api/v1/fleet/hosts/1/google_device_id`
+
+##### Request body
+
+```json
+{
+  "google_device_id": "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 1,
+  "google_device_id": "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12"
+}
+```
+
+##### Host already has a different Google device ID
+
+`Status: 409`
+
+```json
+{
+  "message": "Validation Failed",
+  "errors": [
+    {
+      "name": "google_device_id",
+      "reason": "This host already has a different Google device ID."
+    }
+  ]
+}
+```
+
+##### Google device ID is bound to another host
+
+`Status: 409`
+
+```json
+{
+  "message": "Validation Failed",
+  "errors": [
+    {
+      "name": "google_device_id",
+      "reason": "This Google device ID is already used by another host."
+    }
+  ]
+}
+```
+
+##### Host isn't an iOS, iPadOS, or Android host
+
+`Status: 422`
+
+```json
+{
+  "message": "Validation Failed",
+  "errors": [
+    {
+      "name": "google_device_id",
+      "reason": "Google device ID is only supported on iOS, iPadOS, and Android hosts."
+    }
+  ]
+}
+```
+
+### Delete host's Google device ID
+
+_Available in Fleet Premium._
+
+`DELETE /api/v1/fleet/hosts/:id/google_device_id`
+
+Removes the host's device ID in Google, so another device can register as this host. Use it after the device is wiped, since Google gives it a new device ID. If the host has no Google device ID, this does nothing.
+
+#### Parameters
+
+| Name | Type    | In   | Description                    |
+| ---- | ------- | ---- | ------------------------------ |
+| id   | integer | path | **Required**. The host's `id`. |
+
+#### Example
+
+`DELETE /api/v1/fleet/hosts/1/google_device_id`
+
+##### Default response
+
+`Status: 204`
 
 
 ### Get host's device health report
