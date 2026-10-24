@@ -2355,9 +2355,9 @@ func triggerResendDeviceNamesForIDPChange(ctx context.Context, tx sqlx.ExtContex
 	return reconcileHostDeviceNamesForHostsDB(ctx, tx, affectedHostIDs)
 }
 
-// queueManagedConfigResendJobs finds android app configs that reference any of
+// queueManagedConfigResendJobs finds app store app configs that reference any of
 // the affected fleet variables and inserts worker jobs to re-push the managed
-// configuration with the updated values.
+// configuration with the updated values, or sets a flag for VPP apps.
 func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []any) error {
 	if len(hostIDs) == 0 {
 		return nil
@@ -2406,17 +2406,32 @@ func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostI
 		return ctxerr.Wrap(ctx, err, "find affected app configs")
 	}
 
-	// Re-send iOS and iPadOS apps with the new configuration to the affected hosts that have them
 	var apps []affectedApp
+	var appleAppTeamIDs []uint
 	for _, app := range affectedApps {
-		if app.Platform != fleet.IOSPlatform && app.Platform != fleet.IPadOSPlatform {
-			apps = append(apps, app)
+		if app.Platform == fleet.IOSPlatform || app.Platform == fleet.IPadOSPlatform {
+			appleAppTeamIDs = append(appleAppTeamIDs, app.AppTeamID)
 			continue
 		}
-		appID := fleet.VPPAppID{AdamID: app.ApplicationID, Platform: app.Platform}
-		err = insertResendVPPAppConfigurationJob(ctx, tx, appID, app.GlobalOrTeamID, []uint{app.AppTeamID}, false, hostIDs)
+		apps = append(apps, app)
+	}
+
+	// Flag the affected installs of the iOS and iPadOS versions for the configuration cron
+	if len(appleAppTeamIDs) > 0 {
+		const markConfigurationResendStmt = `
+		UPDATE host_vpp_software_installs
+		SET needs_resend = 1
+		WHERE host_id IN (?) AND vpp_app_team_id IN (?) AND canceled = 0
+`
+		var markStmt string
+		var markArgs []any
+		markStmt, markArgs, err = sqlx.In(markConfigurationResendStmt, hostIDs, appleAppTeamIDs)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "queue vpp app configuration resend")
+			return ctxerr.Wrap(ctx, err, "prepare mark vpp app configuration resend")
+		}
+		_, err = tx.ExecContext(ctx, markStmt, markArgs...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "mark vpp app configuration resend")
 		}
 	}
 

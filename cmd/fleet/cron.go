@@ -1133,7 +1133,6 @@ func newWorkerIntegrationsSchedule(
 	chartSvc chart_api.Service,
 	androidBatchSize int,
 	newActivitySvc activity_api.NewActivityService,
-	vppInstaller fleet.AppleMDMVPPInstaller,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronWorkerIntegrations)
@@ -1198,7 +1197,6 @@ func newWorkerIntegrationsSchedule(
 		Log:              logger,
 		AndroidModule:    androidModule,
 		AndroidBatchSize: androidBatchSize,
-		VPPInstaller:     vppInstaller,
 	}
 	chartScrubGlobal := &worker.ChartScrubGlobal{
 		ChartService: chartSvc,
@@ -3259,6 +3257,33 @@ func newAppleMDMOSUpdatesSchedule(
 		schedule.WithLogger(logger),
 		schedule.WithJob("apple_mdm_os_updates", func(ctx context.Context) error {
 			return apple_mdm.HandleAppleMDMOSUpdates(ctx, ds, logger)
+		}),
+	)
+
+	return s, nil
+}
+
+func newAppStoreAppConfigurationReconcilerSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	vppInstaller fleet.AppleMDMVPPInstaller,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronAppStoreAppConfigurationReconciler)
+		defaultInterval = 1 * time.Minute
+		maxRunTime      = 5 * time.Minute
+	)
+
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("reconcile_apple_app_store_app_configurations", func(ctx context.Context) error {
+			workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
+			defer cancel()
+			return eeservice.ReconcileAppStoreAppConfigurations(workCtx, ds, vppInstaller, logger)
 		}),
 	)
 
