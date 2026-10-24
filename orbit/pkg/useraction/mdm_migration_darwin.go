@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 	"sync"
 	"text/template"
@@ -56,14 +55,6 @@ const defaultMDMUnenrollmentTotalWaitTime = 90 * time.Second
 // defaultUnenrollmentRetryInterval defines how long we're going to wait
 // between unenrollment checks.
 const defaultUnenrollmentRetryInterval = 5 * time.Second
-
-var mdmMigrationTemplatePreSonoma = template.Must(template.New("mdmMigrationTemplate").Parse(`
-### Migrate to Fleet
-
-Select **Start** and look for this notification in your notification center:` +
-	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-migration-screenshot-notification-2048x480.png)\n\n" +
-	"After you start, this window will popup every 3 minutes until you finish.",
-))
 
 var mdmManualMigrationTemplate = template.Must(template.New("").Parse(`
 ### Migrate to Fleet
@@ -314,16 +305,10 @@ func (m *swiftDialogMDMMigrator) render(message string, flags ...string) (chan s
 	return m.baseDialog.render(flags...)
 }
 
-func (m *swiftDialogMDMMigrator) renderLoadingSpinner(preSonoma, isManual bool) (chan swiftDialogExitCode, chan error) {
-	var body string
-	switch {
-	case preSonoma:
-		body = fmt.Sprintf(unenrollBody, "![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-migration-pre-sonoma-unenroll-1024x500.png)")
-	case isManual:
+func (m *swiftDialogMDMMigrator) renderLoadingSpinner(isManual bool) (chan swiftDialogExitCode, chan error) {
+	body := fmt.Sprintf(unenrollBody, "![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-ade-migration-1024x500.png)")
+	if isManual {
 		body = fmt.Sprintf(unenrollBody, "![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-manual-migration-1024x500.png)")
-	default:
-		// ADE migration, macOS > 14
-		body = fmt.Sprintf(unenrollBody, "![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-ade-migration-1024x500.png)")
 	}
 
 	return m.render(body,
@@ -437,15 +422,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 
 	log.Debug().Bool("isManualMigration", isManualMigration).Bool("isADEMigration", isADEMigration).Bool("enrolledViaDEP", enrolledViaDEP).Str("previousMigrationType", previousMigrationType).Msg("props after assigning")
 
-	vers, err := m.getMacOSMajorVersion()
-	if err != nil {
-		// log error for debugging and continue with default template
-		log.Error().Err(err).Msg("getting macOS major version failed: using default migration template")
-	}
-
-	isPreSonoma := vers < constant.SonomaMajorVersion
-
-	message, flags, err := m.getMessageAndFlags(vers, isManualMigration)
+	message, flags, err := m.getMessageAndFlags(isManualMigration)
 	if err != nil {
 		return fmt.Errorf("getting mdm migrator message: %w", err)
 	}
@@ -479,7 +456,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 
 		if !m.props.IsUnmanaged {
 			// show the loading spinner
-			m.renderLoadingSpinner(isPreSonoma, isManualMigration)
+			m.renderLoadingSpinner(isManualMigration)
 
 			if mdmEnrolled {
 				// send the API call
@@ -514,16 +491,6 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 			}
 
 			switch {
-			case isPreSonoma:
-				if err := m.mrw.SetMigrationFile(constant.MDMMigrationTypePreSonoma); err != nil {
-					log.Error().Str("migration_type", constant.MDMMigrationTypePreSonoma).Err(err).Msg("set migration file")
-				}
-
-				log.Info().Msg("showing instructions after pre-sonoma unenrollment")
-				if err := m.handler.ShowInstructions(); err != nil {
-					return err
-				}
-
 			case isManualMigration:
 				if err := m.mrw.SetMigrationFile(constant.MDMMigrationTypeManual); err != nil {
 					log.Error().Str("migration_type", constant.MDMMigrationTypeManual).Err(err).Msg("set migration file")
@@ -599,16 +566,10 @@ func (m *swiftDialogMDMMigrator) SetProps(props MDMMigratorProps) {
 	m.props = props
 }
 
-func (m *swiftDialogMDMMigrator) getMessageAndFlags(version int, isManualMigration bool) (*bytes.Buffer, []string, error) {
+func (m *swiftDialogMDMMigrator) getMessageAndFlags(isManualMigration bool) (*bytes.Buffer, []string, error) {
 	tmpl := mdmADEMigrationTemplate
 	if isManualMigration {
 		tmpl = mdmManualMigrationTemplate
-	}
-
-	height := "669"
-	if version != 0 && version < constant.SonomaMajorVersion {
-		height = "440"
-		tmpl = mdmMigrationTemplatePreSonoma
 	}
 
 	var message bytes.Buffer
@@ -624,7 +585,7 @@ func (m *swiftDialogMDMMigrator) getMessageAndFlags(version int, isManualMigrati
 		"--button1text", "Start",
 		// secondary button
 		"--button2text", "Later",
-		"--height", height,
+		"--height", "669",
 	}
 
 	if !m.props.DisableTakeover {
@@ -645,32 +606,6 @@ func (m *swiftDialogMDMMigrator) getMessageAndFlags(version int, isManualMigrati
 	}
 
 	return &message, flags, nil
-}
-
-// TODO: make this a variable for testing
-func (m *swiftDialogMDMMigrator) getMacOSMajorVersion() (int, error) {
-	cmd := exec.Command("sw_vers", "-productVersion")
-	out, err := cmd.Output()
-	if err != nil {
-		return 0, fmt.Errorf("getting macOS version: %w", err)
-	}
-	parts := strings.SplitN(string(out), ".", 2)
-	switch len(parts) {
-	case 0:
-		// this should never happen
-		return 0, errors.New("getting macOS version: sw_vers command returned no output")
-	case 1:
-		// unexpected, so log for debugging
-		log.Debug().Msgf("parsing macOS version: expected 2 parts, got 1: %s", out)
-	default:
-		// ok
-	}
-
-	major, err := strconv.Atoi(parts[0])
-	if err != nil {
-		return 0, fmt.Errorf("parsing macOS major version: %w", err)
-	}
-	return major, nil
 }
 
 func (m *swiftDialogMDMMigrator) MigrationInProgress() (string, error) {
