@@ -207,6 +207,7 @@ func testSettingsAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User
 		assert.Nil(t, verify.Settings)
 
 		user.Settings.HiddenHostColumns = []string{"osquery_version"}
+		user.Settings.ReportColumnOrder = map[string][]string{"6": {"last_fetched", "Host", "name"}}
 		err = ds.SaveUser(context.Background(), user)
 		assert.Nil(t, err)
 
@@ -214,6 +215,7 @@ func testSettingsAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User
 		settings, err := ds.UserSettings(context.Background(), user.ID)
 		assert.Nil(t, err)
 		assert.Equal(t, settings.HiddenHostColumns, user.Settings.HiddenHostColumns)
+		assert.Equal(t, user.Settings.ReportColumnOrder, settings.ReportColumnOrder)
 	}
 }
 

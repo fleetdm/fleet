@@ -148,6 +148,8 @@ func (u *User) ComputeStatus(now time.Time) UserStatus {
 
 type UserSettings struct {
 	HiddenHostColumns []string `json:"hidden_host_columns"`
+	// ReportColumnOrder stores each user's column layout by query ID.
+	ReportColumnOrder map[string][]string `json:"report_column_order,omitempty"`
 }
 
 // Scan implements the sql.Scanner interface, tells DB driver how to convert MySQL type (json) to
