@@ -42,6 +42,13 @@ const (
 	membersFields = "nextPageToken,members(id,type)"
 )
 
+// Member types returned by members.list. Fleet maps USER members to group
+// membership and GROUP members to nested group edges; other types are ignored.
+const (
+	memberTypeUser  = "USER"
+	memberTypeGroup = "GROUP"
+)
+
 // tokenURIKey is the key holding the OAuth2 token endpoint in a service-account
 // JSON. Real Google service-account JSON always includes it; we honor it so a
 // QA/load-test fake can route the token exchange to a stub endpoint.
@@ -85,8 +92,9 @@ type Limits struct {
 	MaxGroups int
 	// MaxGroupMembers bounds members returned for a single group.
 	MaxGroupMembers int
-	// MaxGroupMemberships bounds the total memberships kept across all groups in
-	// one pass, which is the dominant memory term for a large directory.
+	// MaxGroupMemberships bounds the total memberships (user members plus nested
+	// group edges) kept across all groups in one pass, which is the dominant
+	// memory term for a large directory.
 	MaxGroupMemberships int
 	// maxPages replaces defaultMaxPagesPerListing when set. Unexported: it is not an
 	// operator setting, only a way for tests to reach the page cap cheaply without
@@ -196,8 +204,8 @@ func (d *Directory) ListUsers(ctx context.Context) ([]*fleet.ScimUser, error) {
 	return out, nil
 }
 
-// ListGroups returns every group in the configured domain with its members'
-// external IDs (Google user IDs).
+// ListGroups returns every group in the configured domain with the external IDs
+// of its direct user members and of the groups nested inside it.
 func (d *Directory) ListGroups(ctx context.Context) ([]*fleet.GoogleWorkspaceGroup, error) {
 	groups, err := d.api.ListGroups(ctx, d.domain)
 	if err != nil {
@@ -214,19 +222,27 @@ func (d *Directory) ListGroups(ctx context.Context) ([]*fleet.GoogleWorkspaceGro
 			return nil, ctxerr.Wrapf(ctx, err, "list members of google workspace group %s", g.Id)
 		}
 		memberIDs := make([]string, 0, len(members))
+		var childGroupIDs []string
 		for _, m := range members {
 			if m.Id == "" {
 				continue
 			}
-			// Only direct user members are mapped; nested groups are not expanded in v1.
-			if m.Type != "" && m.Type != "USER" {
+			switch m.Type {
+			case memberTypeGroup:
+				// A nested group's member ID is the group's own ID in groups.list.
+				if m.Id != g.Id {
+					childGroupIDs = append(childGroupIDs, m.Id)
+				}
+			case memberTypeUser, "":
+				memberIDs = append(memberIDs, m.Id)
+			default:
+				// CUSTOMER (whole-domain membership) and anything else Google adds later.
 				continue
 			}
-			memberIDs = append(memberIDs, m.Id)
 		}
 		// Every group's members are held until the whole pull is reconciled, so cap
 		// the running total, not just each group.
-		memberships += len(memberIDs)
+		memberships += len(memberIDs) + len(childGroupIDs)
 		if d.limits.MaxGroupMemberships > 0 && memberships > d.limits.MaxGroupMemberships {
 			return nil, ctxerr.Errorf(ctx, "exceeded the limit of %d total group memberships; raise %s to sync this domain",
 				d.limits.MaxGroupMemberships, maxGroupMembershipsSetting)
@@ -235,11 +251,13 @@ func (d *Directory) ListGroups(ctx context.Context) ([]*fleet.GoogleWorkspaceGro
 			"external_id", g.Id,
 			"display_name", groupDisplayName(g),
 			"num_members", len(memberIDs),
+			"num_child_groups", len(childGroupIDs),
 		)
 		out = append(out, &fleet.GoogleWorkspaceGroup{
-			ExternalID:        g.Id,
-			DisplayName:       groupDisplayName(g),
-			MemberExternalIDs: memberIDs,
+			ExternalID:            g.Id,
+			DisplayName:           groupDisplayName(g),
+			MemberExternalIDs:     memberIDs,
+			ChildGroupExternalIDs: childGroupIDs,
 		})
 	}
 	return out, nil
