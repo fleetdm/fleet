@@ -21,6 +21,9 @@ const (
 	msgP12Mismatch = "The private key in the PKCS#12 file doesn't match its certificate."
 )
 
+// ErrP12Password is the error of a PKCS#12 password that doesn't open the file, so a caller can tell it from a problem with the file.
+var ErrP12Password = errors.New(msgP12BadPassword)
+
 // ClientCredentials is the TLS client certificate and key read from a PKCS#12 file.
 type ClientCredentials struct {
 	// CertPEM is the leaf certificate followed by any chain certificates.
@@ -37,7 +40,7 @@ func ParseClientP12(ctx context.Context, p12 []byte, password string) (*ClientCr
 	if err != nil {
 		switch {
 		case errors.Is(err, pkcs12.ErrIncorrectPassword), errors.Is(err, pkcs12.ErrDecryption):
-			return nil, ctxerr.New(ctx, msgP12BadPassword)
+			return nil, ErrP12Password
 		case isBER(p12):
 			return nil, ctxerr.New(ctx, msgP12BER)
 		default:

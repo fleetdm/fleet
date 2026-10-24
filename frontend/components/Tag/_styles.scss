@@ -12,6 +12,7 @@
   color: $ui-fleet-black-75;
   white-space: nowrap;
   box-sizing: border-box;
+  max-width: 100%;
 
   // per design, large (28px, the default set above) is used most often;
   // small is reserved for tight contexts like a table row
@@ -81,7 +82,13 @@
     overflow: hidden;
   }
 
+  &__tooltip-wrapper,
+  &__tooltip-wrapper .component__tooltip-wrapper__element {
+    max-width: 100%;
+  }
+
   &__dismiss {
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
