@@ -52,8 +52,6 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Update AB token's fleets](#update-ab-tokens-fleets)
 - [Renew AB token](#renew-ab-token)
 - [Delete AB token](#delete-ab-token)
-- [Add VPP token](#add-VPP-token)
-- [Update VPP token's fleets](#update-vpp-tokens-fleets)
 - [Renew VPP token](#renew-vpp-token)
 - [Delete VPP token](#delete-vpp-token)
 - [Batch-apply MDM custom settings](#batch-apply-mdm-custom-settings)
@@ -487,118 +485,6 @@ Content-Type: application/octet-stream
 
 `Status: 204`
 
-### Add VPP token
-
-`POST /api/v1/fleet/vpp_tokens`
-
-#### Parameters
-
-| Name | Type | In | Description |
-| ---- | ---- | -- | ----------- |
-| token | file | form | *Required* The file containing the content token (.vpptoken) from Apple Business |
-
-#### Example
-
-`POST /api/v1/fleet/vpp_tokens`
-
-##### Request header
-
-```http
-Content-Length: 850
-Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
-```
-
-##### Request body
-
-```http
---------------------------f02md47480und42y
-Content-Disposition: form-data; name="token"; filename="sToken_for_Acme.vpptoken"
-Content-Type: application/octet-stream
-<TOKEN_DATA>
---------------------------f02md47480und42y
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-"vpp_token": {
-  "id": 1,
-  "org_name": "Fleet Device Management Inc.",
-  "location": "https://example.com/mdm/apple/mdm",
-  "renew_date": "2024-10-20T00:00:00Z",
-  "terms_expired": false,
-  "teams": null,
-  "fleets": null
-}
-```
-
-### Update VPP token's fleets
-
-`PATCH /api/v1/fleet/vpp_tokens/:id/fleets`
-
-#### Parameters
-
-| Name | Type | In | Description |
-| ---- | ---- | -- | ----------- |
-| id | integer | path | *Required* The VPP token's ID |
-| fleet_ids | list | body | If you choose specific fleets, App Store apps in this VPP account will only be available to install on hosts in these fleets. If not specified, defaults to all fleets. |
-
-#### Example
-
-`PATCH /api/v1/fleet/vpp_tokens/1/fleets`
-
-##### Request body
-
-```json
-{
-  "fleet_ids": [1, 2, 3]
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-"vpp_token": {
-  "id": 1,
-  "org_name": "Fleet Device Management Inc.",
-  "location": "https://example.com/mdm/apple/mdm",
-  "renew_date": "2024-10-20T00:00:00Z",
-  "terms_expired": false,
-  "teams": [
-    {
-      "team_id": 1,
-      "name": "Team 1"
-    },
-    {
-      "team_id": 2,
-      "name": "Team 2"
-    },
-    {
-      "team_id": 2,
-      "name": "Team 3"
-    },
-  ],
-  "fleets": [
-    {
-      "fleet_id": 1,
-      "name": "Team 1"
-    },
-    {
-      "fleet_id": 2,
-      "name": "Team 2"
-    },
-    {
-      "fleet_id": 2,
-      "name": "Team 3"
-    },
-  ]
-}
-```
-
 ### Renew VPP token
 
 `PATCH /api/v1/fleet/vpp_tokens/:id/renew`
@@ -636,8 +522,9 @@ Content-Type: application/octet-stream
 "vpp_token": {
   "id": 1,
   "org_name": "Fleet Device Management Inc.",
-  "location": "https://example.com/mdm/apple/mdm",
+  "organization_unit": "Fleet Device Management Inc.",
   "renew_date": "2025-10-20T00:00:00Z",
+  "created_at": "2023-10-20T14:02:11Z",
   "terms_expired": false,
   "teams": [1, 2, 3],
   "fleets": [1, 2, 3]
@@ -1425,6 +1312,7 @@ If the `name` is not already associated with an existing fleet, this API route c
 | software.app_store_apps                   | array   | body  | An array of objects with values below. |
 | software.app_store_apps.app_store_id      | string   | body  | ID of the App Store app. |
 | software.app_store_apps.self_service      | boolean   | body  | Specifies whether or not end users can install self-service. |
+| software.app_store_apps.location      | string   | body  | The name of the organization unit in Apple Business for the VPP token that the Apple App Store app is added from. If not specified, apps that are already added to the fleet keep their current VPP token, and new apps are added from the fleet's first-added VPP token. |
 | software.app_store_apps.labels_include_any     | array   | body  | Specifies whether the app will only be available for install on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
 | software.app_store_apps.labels_exclude_any     | array   | body  | Specifies whether the app will only be available for install on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
 | software.packages                          | array   | body  | An array of objects with values below. |
@@ -1563,7 +1451,7 @@ Adds the supplied labels to Fleet. Each label requires the `name`, and `label_me
 
 If the `label_membership_type` is set to `dynamic`, the `query` property must also be specified with the value set to a query in SQL syntax.
 
-If the `label_membership_type` is set to `manual`, the `hosts` property must also be specified with the value set to a list of hostnames.
+If the `label_membership_type` is set to `manual`, the `hosts` property must also be specified with the value set to a list of host identifiers (`hardware_serial`, `uuid`, or `id`).
 
 `POST /api/v1/fleet/spec/labels`
 
@@ -1596,7 +1484,7 @@ The purpose of `names_to_move` is to allow a GitOps run to move a Fleet instance
       "name": "local_machine",
       "description": "Includes only my local machine",
       "label_membership_type": "manual",
-      "hosts": ["snacbook-pro.local"]
+      "hosts": ["C02XK1Z2JG5J"]
     }
   ],
   "names_to_move": ["local_machine"]
@@ -3949,6 +3837,7 @@ _Available in Fleet Premium._
 | app_store_apps.categories | string[] | body | An array of categories, as they are displayed in the UI, to assign to the app. |
 | app_store_apps.app_store_id | string   | body  | ID of the App Store app. |
 | app_store_apps.self_service | boolean   | body  | Whether the VPP app is available for install via the My device UI on macOS hosts. |
+| app_store_apps.location | string   | body  | The name of the organization unit in Apple Business for the VPP token that the Apple App Store app is added from. The VPP token must be assigned to the fleet. If not specified, apps that are already added to the fleet keep their current VPP token, and new apps are added from the fleet's first-added VPP token. If specified and different from the current VPP token of an app that's already added, the request fails. |
 | app_store_apps.install_during_setup | boolean  | body  | Specifies whether the VPP app is included in Setup experience.                                                                                                                                                                |
 | app_store_apps.labels_include_any | array   | body  | App will only be available for install on hosts that **have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
 | app_store_apps.labels_exclude_any | array   | body  | App will only be available for install on hosts that **don't have any** of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
