@@ -872,6 +872,8 @@ type IncrementPolicyViolationDaysFunc func(ctx context.Context) error
 
 type InitializePolicyViolationDaysFunc func(ctx context.Context) error
 
+type IncrementAIGeneratedProfileCountFunc func(ctx context.Context, platform string) error
+
 type LockFunc func(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error)
 
 type UnlockFunc func(ctx context.Context, name string, owner string) error
@@ -3886,6 +3888,9 @@ type DataStore struct {
 
 	InitializePolicyViolationDaysFunc        InitializePolicyViolationDaysFunc
 	InitializePolicyViolationDaysFuncInvoked bool
+
+	IncrementAIGeneratedProfileCountFunc        IncrementAIGeneratedProfileCountFunc
+	IncrementAIGeneratedProfileCountFuncInvoked bool
 
 	LockFunc        LockFunc
 	LockFuncInvoked bool
@@ -9469,6 +9474,13 @@ func (s *DataStore) InitializePolicyViolationDays(ctx context.Context) error {
 	s.InitializePolicyViolationDaysFuncInvoked = true
 	s.mu.Unlock()
 	return s.InitializePolicyViolationDaysFunc(ctx)
+}
+
+func (s *DataStore) IncrementAIGeneratedProfileCount(ctx context.Context, platform string) error {
+	s.mu.Lock()
+	s.IncrementAIGeneratedProfileCountFuncInvoked = true
+	s.mu.Unlock()
+	return s.IncrementAIGeneratedProfileCountFunc(ctx, platform)
 }
 
 func (s *DataStore) Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {

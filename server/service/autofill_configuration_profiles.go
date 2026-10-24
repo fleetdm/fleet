@@ -215,6 +215,11 @@ func (svc *Service) AutofillConfigProfileContent(ctx context.Context, instructio
 		return nil, autofillCheckError(ctx, err)
 	}
 
+	// Usage statistics only: the admin still gets the profile.
+	if err := svc.ds.IncrementAIGeneratedProfileCount(ctx, platform); err != nil {
+		svc.logger.ErrorContext(ctx, "failed to count AI generated configuration profile", "err", err, "platform", platform)
+	}
+
 	return result, nil
 }
 
