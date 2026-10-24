@@ -270,7 +270,7 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 				}
 			}
 
-			if err := deleteLabelsInTx(ctx, tx, teamLabelIDs); err != nil {
+			if err := ds.deleteLabelsInTx(ctx, tx, teamLabelIDs); err != nil {
 				return ctxerr.Wrap(ctx, err, "delete labels")
 			}
 		}

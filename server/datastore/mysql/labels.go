@@ -777,7 +777,7 @@ func (ds *Datastore) DeleteLabel(ctx context.Context, name string, filter fleet.
 			return ctxerr.Wrap(ctx, foreignKey("configuration profile labels", name), "delete label")
 		}
 
-		if err := deleteLabelsInTx(ctx, tx, []uint{labelID}); err != nil {
+		if err := ds.deleteLabelsInTx(ctx, tx, []uint{labelID}); err != nil {
 			if isMySQLForeignKey(err) {
 				return ctxerr.Wrap(ctx, foreignKey("labels", name), "delete label")
 			}
@@ -787,21 +787,24 @@ func (ds *Datastore) DeleteLabel(ctx context.Context, name string, filter fleet.
 	})
 }
 
-func deleteLabelsInTx(ctx context.Context, tx sqlx.ExtContext, labelIDs []uint) error {
+// labelMembershipDeleteBatchSize is a var so tests can exercise multiple batches. Tests that change it must not run
+// in parallel.
+var labelMembershipDeleteBatchSize = 5000
+
+// deleteLabelsInTx deletes the labels' label_membership rows only after tx commits, in short batches: deleting them in
+// tx would lock every member row until commit and stall hosts' label result writes fleet-wide.
+func (ds *Datastore) deleteLabelsInTx(ctx context.Context, tx sqlx.ExtContext, labelIDs []uint) error {
+	wtx, ok := tx.(common_mysql.WrappedExtContext)
+	if !ok {
+		return ctxerr.New(ctx, "deleting labels requires a transaction that supports commit hooks")
+	}
+
 	query, args, err := sqlx.In(`DELETE FROM labels WHERE id IN (?)`, labelIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "build sqlx.In statement for labels")
 	}
 	if _, err = tx.ExecContext(ctx, query, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete label")
-	}
-
-	query, args, err = sqlx.In(`DELETE FROM label_membership WHERE label_id IN (?)`, labelIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "build sqlx.In statement for label_membership")
-	}
-	if _, err = tx.ExecContext(ctx, query, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete label_membership")
 	}
 
 	query, args, err = sqlx.In(`DELETE FROM pack_targets WHERE type = ? AND target_id IN (?)`, fleet.TargetLabel, labelIDs)
@@ -812,6 +815,55 @@ func deleteLabelsInTx(ctx context.Context, tx sqlx.ExtContext, labelIDs []uint) 
 		return ctxerr.Wrap(ctx, err, "deleting pack_targets")
 	}
 
+	wtx.AddOnCommitHook(func() { ds.deleteMembershipOfDeletedLabels(ctx, labelIDs) })
+	return nil
+}
+
+func (ds *Datastore) deleteMembershipOfDeletedLabels(ctx context.Context, labelIDs []uint) {
+	// The labels are already gone, so a client disconnect must not leave their rows behind.
+	ctx = context.WithoutCancel(ctx)
+	if err := ds.deleteLabelMembershipInBatches(ctx, labelIDs); err != nil {
+		// Logged only: the labels' deletion is already committed.
+		ds.logger.ErrorContext(ctx, "deleting membership of deleted labels", "label_ids", labelIDs, "err", err)
+		ctxerr.Handle(ctx, err)
+	}
+}
+
+func (ds *Datastore) deleteLabelMembershipInBatches(ctx context.Context, labelIDs []uint) error {
+	db := ds.writer(ctx)
+	for _, labelID := range labelIDs {
+		var afterHostID uint
+		for {
+			var hostIDs []uint
+			// Pages are read from the primary: this cleanup runs once, so rows a lagging replica hasn't caught up on
+			// would never be deleted. The host_id cursor seeks past deleted rows instead of rescanning them while purge
+			// catches up. The index is forced because for ORDER BY host_id the optimizer may walk the primary key
+			// (host_id, label_id) instead, scanning every host's labels to find this label's rows.
+			if err := sqlx.SelectContext(ctx, db, &hostIDs, `
+				SELECT host_id FROM label_membership FORCE INDEX (idx_lm_label_id)
+				WHERE label_id = ? AND host_id > ?
+				ORDER BY host_id
+				LIMIT ?`, labelID, afterHostID, labelMembershipDeleteBatchSize); err != nil {
+				return ctxerr.Wrapf(ctx, err, "select label_membership batch for label %d", labelID)
+			}
+			if len(hostIDs) == 0 {
+				break
+			}
+
+			stmt, args, err := sqlx.In(`DELETE FROM label_membership WHERE label_id = ? AND host_id IN (?)`, labelID, hostIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build label_membership batch delete")
+			}
+			// Retry to get past deadlocks with hosts' label result writes.
+			if err := common_mysql.WithRetryTxx(ctx, db, func(tx sqlx.ExtContext) error {
+				_, err := tx.ExecContext(ctx, stmt, args...)
+				return err
+			}, ds.logger); err != nil {
+				return ctxerr.Wrapf(ctx, err, "delete label_membership batch for label %d", labelID)
+			}
+			afterHostID = hostIDs[len(hostIDs)-1]
+		}
+	}
 	return nil
 }
 
