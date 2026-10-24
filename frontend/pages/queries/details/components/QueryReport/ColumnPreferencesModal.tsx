@@ -27,6 +27,9 @@ const ColumnPreferencesModal = ({ columns, onSave, onExit }: IProps) => {
     const row = rows.find(
       (element) => element.getAttribute("data-column-id") === pending.id
     );
+    // React reorders rows by moving DOM nodes, which restarts CSS animations,
+    // so clear stale highlights before style recalc or earlier rows re-flash.
+    rows.forEach((element) => element.classList.remove(MOVED_CLASS));
     if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       // FLIP: start each swapped row at its old position and slide it into place.
       rows.forEach((element) => {
@@ -43,7 +46,6 @@ const ColumnPreferencesModal = ({ columns, onSave, onExit }: IProps) => {
         }
       });
       if (row) {
-        row.classList.remove(MOVED_CLASS);
         row.getBoundingClientRect(); // force reflow to restart the highlight
         row.classList.add(MOVED_CLASS);
       }
