@@ -90,8 +90,6 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, false, stats.VulnDetectionEnabled)
 	assert.Equal(t, false, stats.HostsStatusWebHookEnabled)
 	assert.Equal(t, 0, stats.NumWeeklyActiveUsers)
-	assert.Equal(t, 0, stats.NumWeeklyPolicyViolationDaysActual)
-	assert.Equal(t, 0, stats.NumWeeklyPolicyViolationDaysPossible)
 	assert.Equal(t, `[{"count":10,"loc":["a","b","c"]}]`, string(stats.StoredErrors))
 	assert.Equal(t, []fleet.HostsCountByOsqueryVersion{}, stats.HostsEnrolledByOsqueryVersion) // should be empty slice instead of nil
 	assert.Equal(t, []fleet.HostsCountByOrbitVersion{}, stats.HostsEnrolledByOrbitVersion)     // should be empty slice instead of nil
@@ -215,20 +213,6 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// Initialize policy violation days for test
-	pvdJSON, err := json.Marshal(PolicyViolationDays{FailingHostCount: 5, TotalHostCount: 10})
-	require.NoError(t, err)
-	_, err = ds.writer(ctx).ExecContext(ctx, `
-		INSERT INTO
-			aggregated_stats (id, global_stats, type, json_value, created_at, updated_at)
-		VALUES (?, ?, ?, CAST(? AS JSON), ?, ?)
-		ON DUPLICATE KEY UPDATE
-			json_value = VALUES(json_value),
-			updated_at = VALUES(updated_at)
-	`, 0, true, aggregatedStatsTypePolicyViolationsDays, pvdJSON, time.Now().Add(-48*time.Hour), time.Now().Add(-7*24*time.Hour))
-	require.NoError(t, err)
-
-	require.NoError(t, err)
 	cfg.Features.EnableSoftwareInventory = false
 	cfg.Features.EnableHostUsers = false
 	cfg.VulnerabilitySettings.DatabasesPath = ""
@@ -268,8 +252,6 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, false, stats.VulnDetectionEnabled)
 	assert.Equal(t, true, stats.HostsStatusWebHookEnabled)
 	assert.Equal(t, 1, stats.NumWeeklyActiveUsers)
-	assert.Equal(t, 5, stats.NumWeeklyPolicyViolationDaysActual)
-	assert.Equal(t, 10, stats.NumWeeklyPolicyViolationDaysPossible)
 	assert.Equal(t, `[{"count":10,"loc":["a","b","c"]}]`, string(stats.StoredErrors))
 	assert.Equal(t, []fleet.HostsCountByOsqueryVersion{{OsqueryVersion: "4.9.0", NumHosts: 1}}, stats.HostsEnrolledByOsqueryVersion)
 	assert.Equal(t, []fleet.HostsCountByOrbitVersion{{OrbitVersion: "1.1.0", NumHosts: 1}}, stats.HostsEnrolledByOrbitVersion)
@@ -376,7 +358,6 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 0, stats.NumSoftwareCVEs)
 	assert.Equal(t, 0, stats.NumWeeklyActiveUsers)          // no active user since last stats were sent
 	require.Len(t, stats.HostsEnrolledByOperatingSystem, 3) // empty platform, rhel and macos
-	assert.Equal(t, 5, stats.NumWeeklyPolicyViolationDaysActual)
 	require.ElementsMatch(t, []fleet.HostsCountByOSVersion{
 		{Version: "Fedora 35", NumEnrolled: 2},
 		{Version: "Fedora 36", NumEnrolled: 1},
@@ -405,10 +386,6 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	_, err = ds.NewSession(ctx, u1.ID, 8)
 	require.NoError(t, err)
 
-	// CleanupStatistics resets policy violation days
-	err = ds.CleanupStatistics(ctx)
-	require.NoError(t, err)
-
 	// wait a bit and resend statistics
 	time.Sleep(1100 * time.Millisecond) // ensure the DB timestamp is not in the same second
 
@@ -429,8 +406,6 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 0, stats.NumSoftwareCPEs)
 	assert.Equal(t, 0, stats.NumSoftwareCVEs)
 	assert.Equal(t, 1, stats.NumWeeklyActiveUsers)
-	assert.Equal(t, 0, stats.NumWeeklyPolicyViolationDaysActual)
-	assert.Equal(t, 0, stats.NumWeeklyPolicyViolationDaysPossible)
 	assert.Equal(t, `[{"count":10,"loc":["a","b","c"]}]`, string(stats.StoredErrors))
 	assert.Equal(t, false, stats.AIFeaturesDisabled)
 	assert.Equal(t, false, stats.MaintenanceWindowsEnabled)

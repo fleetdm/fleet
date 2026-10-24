@@ -1,0 +1,1 @@
+- Removed the `increment_policy_violation_days` cron job and the `numWeeklyPolicyViolationDaysActual`/`numWeeklyPolicyViolationDaysPossible` usage statistics, which ran full counts over `policy_membership` on the primary database every day.
