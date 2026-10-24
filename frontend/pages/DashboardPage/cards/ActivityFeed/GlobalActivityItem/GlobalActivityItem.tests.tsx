@@ -2982,6 +2982,22 @@ describe("Activity Feed", () => {
     expect(screen.getByText(/DIGICERT_TEST/)).toBeInTheDocument();
   });
 
+  it.each([
+    [ActivityType.AddedEJBCA, /added a certificate authority/],
+    [ActivityType.EditedEJBCA, /edited a certificate authority/],
+    [ActivityType.DeletedEJBCA, /deleted a certificate authority/],
+  ])("renders %s activity correctly", (type, text) => {
+    const activity = createMockActivity({
+      type,
+      details: { name: "EJBCA_TEST" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(screen.getByText(text)).toBeInTheDocument();
+    expect(screen.getByText(/EJBCA_TEST/)).toBeInTheDocument();
+  });
+
   it("renders addedHydrant activity correctly", () => {
     const activity = createMockActivity({
       type: ActivityType.AddedHydrant,

@@ -13,6 +13,11 @@ import { getDisplayErrMessage } from "../AddCertAuthorityModal/helpers";
 import { ICustomESTFormData } from "../CustomESTForm/CustomESTForm";
 import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 import { IDigicertFormData } from "../DigicertForm/DigicertForm";
+import { IEJBCAFormData } from "../EJBCAForm/EJBCAForm";
+import {
+  generateEJBCAEditData,
+  generateEJBCAFormData,
+} from "../EJBCAForm/helpers";
 import { IHydrantFormData } from "../HydrantForm/HydrantForm";
 import { INDESFormData } from "../NDESForm/NDESForm";
 import { ISmallstepFormData } from "../SmallstepForm/SmallstepForm";
@@ -39,6 +44,8 @@ export const generateDefaultFormData = (
           certAuthority.certificate_user_principal_names?.[0] ?? "",
         certificateSeatId: certAuthority.certificate_seat_id,
       };
+    case "ejbca":
+      return generateEJBCAFormData(certAuthority);
     case "hydrant":
       return {
         name: certAuthority.name,
@@ -129,6 +136,10 @@ export const generateEditCertAuthorityData = (
         ),
       };
     }
+    case "ejbca":
+      return {
+        ejbca: generateEJBCAEditData(certAuthority, formData as IEJBCAFormData),
+      };
     case "hydrant": {
       const {
         name: hydrantName,
