@@ -541,7 +541,7 @@ Packs are a function of osquery that provide a portable format to import/export 
 
 Instead, 2017 "packs" functionality has been combined with the concept of queries. Queries now have built-in schedule features and (in Fleet Premium) can target specific groups of hosts via teams.
 
-As of Fleet 5.0, 2017 packs are removed, including the packs API endpoints and `fleetctl` commands. To keep a 2017 pack's queries, run `fleetctl upgrade-packs` on Fleet 4 before upgrading to convert them to reports.
+To keep a 2017 pack's queries, run `fleetctl upgrade-packs` on Fleet 4 before upgrading to convert them to reports. [Learn more](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs) about query pack support.
 
 ### What happens when I turn off MDM?
 
