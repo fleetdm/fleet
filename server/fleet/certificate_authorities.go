@@ -227,6 +227,34 @@ func (c *CertificateAuthority) ESTProxyCA() (ESTProxyCA, error) {
 	}, nil
 }
 
+// GoogleCASCA returns the Google CAS settings of a Google CAS CA, which needs all of them to issue a certificate.
+func (c *CertificateAuthority) GoogleCASCA() (GoogleCASCA, error) {
+	if CAType(c.Type) != CATypeGoogleCAS {
+		return GoogleCASCA{}, fmt.Errorf("Certificate authority of type %s is not a Google CAS certificate authority.", c.Type)
+	}
+	for _, field := range []struct {
+		value *string
+		label string
+	}{
+		{c.GoogleCASProject, "Google Cloud project ID"},
+		{c.GoogleCASLocation, "location"},
+		{c.GoogleCASCAPool, "CA pool"},
+		{c.GoogleCASAPIKeyJSON, "service account key"},
+	} {
+		if field.value == nil || *field.value == "" {
+			return GoogleCASCA{}, fmt.Errorf("Certificate authority does not have a %s configured.", field.label)
+		}
+	}
+	return GoogleCASCA{
+		ID:         c.ID,
+		Name:       ptr.ValOrZero(c.Name),
+		Project:    *c.GoogleCASProject,
+		Location:   *c.GoogleCASLocation,
+		CAPool:     *c.GoogleCASCAPool,
+		APIKeyJSON: GoogleCASKeyJSON(*c.GoogleCASAPIKeyJSON),
+	}, nil
+}
+
 type CertificateAuthorityPayload struct {
 	DigiCert        *DigiCertCA           `json:"digicert,omitempty"`
 	NDESSCEPProxy   *NDESSCEPProxyCA      `json:"ndes_scep_proxy,omitempty"`
