@@ -60,7 +60,7 @@ type overrideEntry struct {
 
 	KeyPath string `json:"key_path"` // Apple loosen: the key; add: its parent dictionary ("" for the top level)
 
-	Action string `json:"action"` // loosen: "types" or "any"
+	Action string `json:"action"` // loosen: "types", "any", or "open"
 	// Types are Apple types, or DDF formats for windows entries (see loosenTypes); loosen with
 	// action "types". Plain strings, so they're checked against the entry's kind before use.
 	Types []string `json:"types"`
@@ -182,12 +182,15 @@ func (f *overridesFile) validate() error {
 					}
 				}
 			}
-		case "any":
+		case "any", "open":
 			if len(e.Types) > 0 {
-				p = append(p, `action "any" takes no types`)
+				p = append(p, fmt.Sprintf("action %q takes no types", e.Action))
+			}
+			if e.Action == "open" && e.Kind == kindWindows {
+				p = append(p, `action "open" applies to Apple dictionaries only`)
 			}
 		default:
-			p = append(p, fmt.Sprintf(`action must be "types" or "any", got %q`, e.Action))
+			p = append(p, fmt.Sprintf(`action must be "types", "any", or "open", got %q`, e.Action))
 		}
 		if e.Name != "" || e.Key != nil || e.Keys != nil {
 			p = append(p, "loosen takes no name, key, or keys")
@@ -380,12 +383,19 @@ func (a *overrideApplier) loosen(e overrideEntry) error {
 		if rest != "" || k == root {
 			return fmt.Errorf("key_path %q not found (no key matches %q); Apple may have renamed or removed it", e.KeyPath, rest)
 		}
-		if e.Action == "any" {
+		switch e.Action {
+		case "open":
+			// Unlisted keys pass; listed ones stay checked.
+			if !slices.Contains(k.Type, profilevalidation.AppleTypeDictionary) {
+				return fmt.Errorf("key_path %q is a %v, not a dictionary", e.KeyPath, k.Type)
+			}
+			k.Open = true
+		case "any":
 			k.Type, k.Open = profilevalidation.AppleTypes{profilevalidation.AppleTypeAny}, true
 			// "Any value" must not stay narrowed by value constraints. Required, Items, Keys, and
 			// Values stay: any value isn't optional, and nested keys may come from an earlier add.
 			k.RangeList, k.Range, k.Format, k.ValueType, k.Repetition = nil, nil, "", "", nil
-		} else {
+		default:
 			// Unioned, never replaced: an override can only widen.
 			types := make(profilevalidation.AppleTypes, 0, len(e.Types))
 			for _, t := range e.Types {
