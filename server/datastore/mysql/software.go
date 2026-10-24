@@ -2962,34 +2962,78 @@ func (ds *Datastore) LoadHostSoftware(ctx context.Context, host *fleet.Host, inc
 	return nil
 }
 
+// Rows per page; a var so tests can shrink it.
+var softwareIteratorPageSize = 10000
+
+const softwareIteratorPageStmt = `SELECT
+		s.id, s.name, s.version, s.source, s.bundle_identifier, s.release, s.arch, s.vendor, s.extension_for, s.extension_id, s.title_id,
+		COALESCE(sc.cpe, '') AS generated_cpe
+		FROM software s
+	LEFT JOIN software_cpe sc ON (s.id=sc.software_id)
+	WHERE s.id IN (?)`
+
+// Loads matching ids up front and rows a page at a time rather than holding one cursor open: callers
+// do slow per-row work, and a cursor kept open across all of it shows up as sustained load on the
+// reader while it waits on us. Not keyset pages (id > ? LIMIT n): the source index isn't ordered by
+// id, so every page of a single-source query would re-read the rest of that source.
 type softwareIterator struct {
-	rows *sqlx.Rows
+	ctx  context.Context
+	db   sqlx.QueryerContext
+	ids  []uint
+	page []fleet.Software
+	pos  int
+	err  error
+}
+
+func (si *softwareIterator) fetchPage() error {
+	n := min(softwareIteratorPageSize, len(si.ids))
+	stmt, args, err := sqlx.In(softwareIteratorPageStmt, si.ids[:n])
+	if err != nil {
+		return ctxerr.Wrap(si.ctx, err, "building software iterator page query")
+	}
+	si.page = si.page[:0]
+	if err := sqlx.SelectContext(si.ctx, si.db, &si.page, stmt, args...); err != nil {
+		return ctxerr.Wrap(si.ctx, err, "select software iterator page")
+	}
+	si.ids = si.ids[n:]
+	si.pos = -1
+	return nil
 }
 
 func (si *softwareIterator) Value() (*fleet.Software, error) {
-	dest := fleet.Software{}
-	err := si.rows.StructScan(&dest)
-	if err != nil {
-		return nil, err
-	}
-	return &dest, nil
+	sw := si.page[si.pos]
+	return &sw, nil
 }
 
 func (si *softwareIterator) Err() error {
-	return si.rows.Err()
+	return si.err
 }
 
 func (si *softwareIterator) Close() error {
-	return si.rows.Close()
+	si.ids = nil
+	si.page = nil
+	return nil
 }
 
 func (si *softwareIterator) Next() bool {
-	return si.rows.Next()
+	if si.err != nil {
+		return false
+	}
+	// A page comes back short, or empty, when software is deleted after the ids were loaded.
+	for si.pos+1 >= len(si.page) {
+		if len(si.ids) == 0 {
+			return false
+		}
+		if si.err = si.fetchPage(); si.err != nil {
+			return false
+		}
+	}
+	si.pos++
+	return true
 }
 
 // AllSoftwareIterator Returns an iterator for the 'software' table, filtering out
-// software entries based on the 'query' param. The rows.Close call is done by the caller once
-// iteration using the returned fleet.SoftwareIterator is done.
+// software entries based on the 'query' param.
 func (ds *Datastore) AllSoftwareIterator(
 	ctx context.Context,
 	query fleet.SoftwareIterQueryOptions,
@@ -3001,11 +3045,7 @@ func (ds *Datastore) AllSoftwareIterator(
 	var err error
 	var args []interface{}
 
-	stmt := `SELECT
-		s.id, s.name, s.version, s.source, s.bundle_identifier, s.release, s.arch, s.vendor, s.extension_for, s.extension_id, s.title_id,
-		COALESCE(sc.cpe, '') AS generated_cpe
-		FROM software s
-	LEFT JOIN software_cpe sc ON (s.id=sc.software_id)`
+	stmt := `SELECT s.id FROM software s`
 
 	var conditionals []string
 
@@ -3038,11 +3078,14 @@ func (ds *Datastore) AllSoftwareIterator(
 		return nil, fmt.Errorf("error building 'In' query part on software iterator: %w", err)
 	}
 
-	rows, err := ds.reader(ctx).QueryxContext(ctx, stmt, args...) //nolint:sqlclosecheck
-	if err != nil {
-		return nil, fmt.Errorf("executing all software iterator %w", err)
+	db := ds.reader(ctx)
+	var ids []uint
+	if err = sqlx.SelectContext(ctx, db, &ids, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select software iterator ids")
 	}
-	return &softwareIterator{rows: rows}, nil
+	// Sorted so each page reads one narrow range of the primary key.
+	slices.Sort(ids)
+	return &softwareIterator{ctx: ctx, db: db, ids: ids}, nil
 }
 
 func (ds *Datastore) UpsertSoftwareCPEs(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
