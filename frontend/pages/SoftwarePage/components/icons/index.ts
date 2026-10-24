@@ -1910,6 +1910,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   nightfall: Nightfall,
   "nitro pdf pro": NitroPdfPro,
   "node.js": Nodejs,
+  "node.js 22": Nodejs,
   "nord vpn": NordVpn,
   nordlayer: Nordlayer,
   nordpass: Nordpass,

@@ -255,6 +255,7 @@ var windowsOpenQueryOverrides = map[string]string{ //nolint:gosec // G101 false 
 	"Mozilla Firefox Nightly":                   "= 'firefox.exe'",
 	"Mozilla Firefox Nightly (ARM64)":           "= 'firefox.exe'",
 	"Node.js":                                   "= 'node.exe'",
+	"Node.js 22":                                "= 'node.exe'",
 	"Notion Calendar":                           "IN ('cron.exe','notion calendar.exe')",
 	"OBS":                                       "IN ('obs32.exe','obs64.exe')",
 	"Okta Verify":                               "= 'oktaverify.exe'",

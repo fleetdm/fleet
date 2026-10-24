@@ -6071,6 +6071,13 @@
       "description": "Nitro PDF Pro is a PDF editing software."
     },
     {
+      "name": "Node.js 22",
+      "slug": "nodejs-22/windows",
+      "platform": "windows",
+      "unique_identifier": "Node.js",
+      "description": "Node.js 22 is the 22.x long-term support release line of the Node.js JavaScript runtime."
+    },
+    {
       "name": "Node.js",
       "slug": "nodejs/windows",
       "platform": "windows",
