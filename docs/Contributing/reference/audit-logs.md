@@ -10,6 +10,8 @@ This page includes a list of activities.
 
 Generated when creating scheduled query packs.
 
+> Not generated as of Fleet 5.0, which removes 2017 packs. Listed for activities created before upgrading.
+
 This activity contains the following fields:
 - "pack_id": the id of the created pack.
 - "pack_name": the name of the created pack.
@@ -26,6 +28,8 @@ This activity contains the following fields:
 ## edited_pack
 
 Generated when editing scheduled query packs.
+
+> Not generated as of Fleet 5.0, which removes 2017 packs. Listed for activities created before upgrading.
 
 This activity contains the following fields:
 - "pack_id": the id of the edited pack.
@@ -44,6 +48,8 @@ This activity contains the following fields:
 
 Generated when deleting scheduled query packs.
 
+> Not generated as of Fleet 5.0, which removes 2017 packs. Listed for activities created before upgrading.
+
 This activity contains the following fields:
 - "pack_name": the name of the created pack.
 
@@ -58,6 +64,8 @@ This activity contains the following fields:
 ## applied_spec_pack
 
 Generated when applying a scheduled query pack spec.
+
+> Not generated as of Fleet 5.0, which removes 2017 packs. Listed for activities created before upgrading.
 
 This activity does not contain any detail fields.
 

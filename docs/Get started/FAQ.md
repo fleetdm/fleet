@@ -541,7 +541,7 @@ Packs are a function of osquery that provide a portable format to import/export 
 
 Instead, 2017 "packs" functionality has been combined with the concept of queries. Queries now have built-in schedule features and (in Fleet Premium) can target specific groups of hosts via teams.
 
-The "Packs" section of the UI has been removed, but [access to query packs via the API and CLI is still available](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs). The `fleetctl upgrade-packs` command can be used to convert existing 2017 "packs" to queries.
+As of Fleet 5.0, 2017 packs are removed, including the packs API endpoints and `fleetctl` commands. To keep a 2017 pack's queries, run `fleetctl upgrade-packs` on Fleet 4 before upgrading to convert them to reports.
 
 ### What happens when I turn off MDM?
 
@@ -767,11 +767,11 @@ Scheduled queries are not gone! Instead, the concept of a scheduled query has be
 To achieve the above, 4.35 implemented an automatic migration which transitions any pre-existing scheduled query and [2017 pack](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs) into the new merged query concept:
 - Any global scheduled query will have its query converted into a global query with the relevant schedule attributes (frequency, min. osquery version, logging, etc.).
 - Any team-specific scheduled query will be converted into a query on that team with the relevant schedule characteristics.
-- Any query that is referenced by a 2017 pack will be converted into a global query, and the 2017 pack will reference it. The 2017 packs should continue functioning as before.
+- Any query that is referenced by a 2017 pack will be converted into a global query, and the 2017 pack will reference it. The 2017 packs continued functioning until Fleet 5.0, which removes them.
 
 Important: To avoid naming conflicts, a query must have a unique name within its team. Therefore, the migration will add a timestamp after each migrated query. If you are using gitops for queries, we recommend that you run `fleetctl get queries --yaml` after the migration to get the latest set of yaml files. Otherwise, if you run `fleetctl apply -f queries.yml`, it will result in the creation of new queries rather than updating the existing ones. To prevent this issue, we recommend you use `PATCH /api/v1/fleet/queries/{id}` for updating or changing query names.
 
-For any automated workflows that use the schedule endpoints on the API, we recommend consolidating to the query endpoints, which now accept the scheduled query attributes. The schedule endpoints in the API still function but are deprecated. To accommodate the new unified query concept, the schedule endpoints behave differently under the hood:
+For any automated workflows that use the schedule endpoints on the API, we recommend consolidating to the query endpoints, which now accept the scheduled query attributes. The schedule endpoints were deprecated, and are removed in Fleet 5.0. To accommodate the new unified query concept, the schedule endpoints behave differently under the hood:
 - The POST endpoints will create a new query with the specified attributes
 - The PATCH endpoint will modify the specified query with the specified attributes
 - The DELETE endpoint will delete the specified query.

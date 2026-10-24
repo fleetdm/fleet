@@ -4287,7 +4287,6 @@ Returns the information of the specified host.
         "label_membership_type": "dynamic"
       }
     ],
-    "packs": [],
     "policies": [
       {
         "id": 2,
@@ -4639,7 +4638,6 @@ Returns the information of the specified host.
         "label_membership_type": "dynamic"
       }
     ],
-    "packs": [],
     "policies": [
       {
         "id": 2,
@@ -4884,7 +4882,6 @@ Returns the information of the specified host.
         "label_membership_type": "manual"
       }
     ],
-    "packs": [],
     "policies": [],
     "software": [
       {
@@ -5122,25 +5119,6 @@ If `hostname` is specified when there is more than one host with the same hostna
         "platform": "",
         "label_type": "builtin",
         "label_membership_type": "dynamic"
-      }
-    ],
-    "packs": [
-      {
-        "created_at": "2021-09-17T05:28:54Z",
-        "updated_at": "2021-09-17T05:28:54Z",
-        "id": 1,
-        "name": "Global",
-        "description": "Global pack",
-        "disabled": false,
-        "type": "global",
-        "labels": null,
-        "label_ids": null,
-        "hosts": null,
-        "host_ids": null,
-        "teams": null,
-        "fleet": null,
-        "team_ids": null,
-        "fleet_ids": null
       }
     ],
     "policies": [
@@ -5406,25 +5384,6 @@ If `hostname` is specified when there is more than one host with the same hostna
         "label_membership_type": "dynamic"
       }
     ],
-    "packs": [
-      {
-        "created_at": "2021-09-17T05:28:54Z",
-        "updated_at": "2021-09-17T05:28:54Z",
-        "id": 1,
-        "name": "Global",
-        "description": "Global pack",
-        "disabled": false,
-        "type": "global",
-        "labels": null,
-        "label_ids": null,
-        "hosts": null,
-        "host_ids": null,
-        "teams": null,
-        "fleet": null,
-        "team_ids": null,
-        "fleet_ids": null
-      }
-    ],
     "policies": [
       {
         "id": 142,
@@ -5642,7 +5601,6 @@ If `hostname` is specified when there is more than one host with the same hostna
         "label_membership_type": "manual"
       }
     ],
-    "packs": [],
     "policies": [],
     "software": [
       {
@@ -5900,7 +5858,6 @@ For iOS/iPadOS hosts, Fleet omits identifying details from the response: `uuid`,
         "vulnerabilities": null
       }
     ],
-    "packs": [],
     "mdm": {
       "encryption_key_available": true,
       "enrollment_status": "On (manual)",
@@ -12436,17 +12393,6 @@ Returns a list of reports. To see each report's data, use the [get report data](
       "author_name": "noah",
       "author_email": "noah@example.com",
       "labels_include_any": [],
-      "packs": [
-        {
-          "created_at": "2021-01-05T21:13:04Z",
-          "updated_at": "2021-01-07T19:12:54Z",
-          "id": 1,
-          "name": "Pack",
-          "description": "Pack",
-          "platform": "",
-          "disabled": true
-        }
-      ],
       "stats": {
         "system_time_p50": 1.32,
         "system_time_p95": 4.02,
@@ -12477,17 +12423,6 @@ Returns a list of reports. To see each report's data, use the [get report data](
       "author_name": "noah",
       "author_email": "noah@example.com",
       "labels_include_any": [],
-      "packs": [
-        {
-          "created_at": "2021-01-05T21:13:04Z",
-          "updated_at": "2021-01-07T19:12:54Z",
-          "id": 1,
-          "name": "Pack",
-          "description": "Pack",
-          "platform": "",
-          "disabled": true
-        }
-      ],
       "stats": {
         "system_time_p50": 1.32,
         "system_time_p95": 4.02,
@@ -12516,17 +12451,6 @@ Returns a list of reports. To see each report's data, use the [get report data](
       "author_name": "noah",
       "author_email": "noah@example.com",
       "labels_include_any": ["macOS 13+"],
-      "packs": [
-        {
-          "created_at": "2021-01-19T17:08:31Z",
-          "updated_at": "2021-01-19T17:08:31Z",
-          "id": 14,
-          "name": "test_pack",
-          "description": "",
-          "platform": "",
-          "disabled": false
-        }
-      ],
       "stats": {
         "system_time_p50": null,
         "system_time_p95": null,
@@ -12669,17 +12593,6 @@ Returns the report specified by ID.
     "author_name": "John",
     "author_email": "john@example.com",
     "labels_include_any": [],
-    "packs": [
-      {
-        "created_at": "2021-01-19T17:08:31Z",
-        "updated_at": "2021-01-19T17:08:31Z",
-        "id": 14,
-        "name": "test_pack",
-        "description": "",
-        "platform": "",
-        "disabled": false
-      }
-    ],
     "stats": {
       "system_time_p50": 1.32,
       "system_time_p95": 4.02,
@@ -12940,7 +12853,6 @@ Only one of  `labels_include_any` or `labels_include_all` can be specified. If n
     "author_email": "",
     "observer_can_run": true,
     "discard_data": false,
-    "packs": [],
     "labels_include_any": [
       "Hosts with Docker installed"
     ]
@@ -12964,7 +12876,6 @@ Only one of  `labels_include_any` or `labels_include_all` can be specified. If n
     "author_email": "",
     "observer_can_run": true,
     "discard_data": false,
-    "packs": [],
     "labels_include_any": [
       "Hosts with Docker installed"
     ]
@@ -13049,7 +12960,6 @@ Only one of  `labels_include_any` or `labels_include_all` can be specified. If n
     "author_name": "noah",
     "observer_can_run": true,
     "discard_data": true,
-    "packs": [],
     "labels_include_any": [
       "Hosts with Docker installed",
       "macOS 13+"
@@ -13073,7 +12983,6 @@ Only one of  `labels_include_any` or `labels_include_all` can be specified. If n
     "author_name": "noah",
     "observer_can_run": true,
     "discard_data": true,
-    "packs": [],
     "labels_include_any": [
       "Hosts with Docker installed",
       "macOS 13+"
