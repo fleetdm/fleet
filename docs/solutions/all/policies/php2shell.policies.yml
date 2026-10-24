@@ -129,8 +129,6 @@
     fix (switch to a supported branch or an LTS vendor), or a repository mirror hasn't synced yet.
     Until you can update, run mitigate-php2shell-linux.sh.
   platform: linux
-  run_script:
-    path: ../../linux/scripts/remediate-php2shell-linux.sh
 
 - name: Linux - PHP session upload progress disabled (PHP2Shell interim mitigation)
   query: |
@@ -198,8 +196,6 @@
     formula as the Homebrew owner and restarts PHP services managed by brew services. Replace
     php@8.1 or older with a supported formula.
   platform: darwin
-  run_script:
-    path: ../../macos/scripts/remediate-php2shell-macos.sh
 
 - name: Windows - PHP builds patched for PHP2Shell (CVE-2026-109618, CVE-2026-109619)
   query: |
@@ -238,5 +234,3 @@
     workers load the new build. For XAMPP, WAMP, or Laragon, install the bundle's updated PHP.
     Until then, run mitigate-php2shell-windows.ps1 to disable session upload progress.
   platform: windows
-  run_script:
-    path: ../../windows/scripts/mitigate-php2shell-windows.ps1
