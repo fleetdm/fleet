@@ -1069,6 +1069,7 @@ import Unclutter from "./png/Unclutter.png";
 import Unicodechecker from "./png/Unicodechecker.png";
 import UnityHub from "./png/UnityHub.png";
 import UnnaturalScrollWheels from "./png/UnnaturalScrollWheels.png";
+import Updf from "./png/Updf.png";
 import Upscayl from "./png/Upscayl.png";
 import UsageApp from "./png/UsageApp.png";
 import Utm from "./png/Utm.png";
@@ -2272,6 +2273,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   unicodechecker: Unicodechecker,
   "unity hub": UnityHub,
   unnaturalscrollwheels: UnnaturalScrollWheels,
+  updf: Updf,
   upscayl: Upscayl,
   usage: UsageApp,
   utm: Utm,
