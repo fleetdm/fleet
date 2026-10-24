@@ -679,7 +679,7 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 		require.True(t, ds.GetHostEscrowStateFuncInvoked)
 
 		// Linux distributions Fleet does not escrow for, even though they are recognized platforms
-		unsupportedLinux := []string{"arch", "omarchy", "cachyos", "debian", "pop"}
+		unsupportedLinux := []string{"arch", "cachyos", "debian", "pop"}
 		for _, platform := range unsupportedLinux {
 			host.Platform = platform
 			host.OSVersion = platform

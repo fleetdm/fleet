@@ -1264,6 +1264,7 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 var LUKSSupportedPlatforms = []string{
 	"ubuntu", // also Kubuntu
 	"zorin",
+	"omarchy", // Omarchy 4+; earlier versions report "arch" and aren't supported
 }
 
 // IsLUKSSupported returns true if the host runs a Linux distribution Fleet escrows LUKS keys for.

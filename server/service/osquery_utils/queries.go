@@ -4011,6 +4011,7 @@ var luksVerifyQuery = DetailQuery{
 		WITH RECURSIVE
 		devices AS (
 			SELECT
+				parent,
 				MAX(CASE WHEN key = 'path' THEN value ELSE NULL END) AS path,
 				MAX(CASE WHEN key = 'kname' THEN value ELSE NULL END) AS kname,
 				MAX(CASE WHEN key = 'pkname' THEN value ELSE NULL END) AS pkname,
@@ -4020,6 +4021,14 @@ var luksVerifyQuery = DetailQuery{
 			GROUP BY parent
 		HAVING path <> '' AND fstype <> ''
 		),
+		-- lsblk lists every mount point of a device under "mountpoints" and keeps only
+		-- one of them in "mountpoint". A btrfs root with subvolumes (Omarchy) mounts the
+		-- same device at /, /home and more, so '/' may appear only in the list.
+		root_devices AS (
+			SELECT substr(parent, 1, length(parent) - length('/mountpoints')) AS parent
+			FROM lsblk
+			WHERE parent LIKE '%/mountpoints' AND value = '/'
+		),
 		root_mount AS (
 			SELECT
 				path,
@@ -4028,7 +4037,7 @@ var luksVerifyQuery = DetailQuery{
 				CASE WHEN fstype = 'crypto_LUKS' THEN NULL ELSE pkname END as pkname,
 				fstype
 			FROM devices
-			WHERE mountpoint = '/'
+			WHERE mountpoint = '/' OR parent IN (SELECT parent FROM root_devices)
 		),
 		luks_h(path, kname, pkname, fstype) AS (
 			SELECT

@@ -152,7 +152,7 @@ describe("Device User Banners", () => {
     ).toBeInTheDocument();
   });
 
-  it.each<HostPlatform>(["arch", "omarchy"])(
+  it.each<HostPlatform>(["arch", "cachyos"])(
     "does not offer a linux disk encryption key on %s, which Fleet cannot escrow for",
     (platform) => {
       render(
