@@ -2115,7 +2115,7 @@ policies:
     app_store_id: "123456"
 `
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "not found on team")
+	require.ErrorContains(t, err, "not found on fleet")
 
 	// Policy references a software installer not present in the team.
 	config = getTeamConfig([]string{"policies"})
@@ -2144,7 +2144,7 @@ software:
 	_, err = GitOpsFromFile(path, basePath, &appConfig, nopLogf)
 	require.ErrorContains(
 		t, err,
-		"install_software.package_path URL https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg not found on team",
+		"install_software.package_path URL https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg not found on fleet",
 	)
 
 	// Policy references a software installer file that has an invalid yaml.
@@ -5642,7 +5642,7 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		assert.Equal(t, sha2, policy.InstallSoftware.Other.HashSHA256)
 	})
 
-	t.Run("bare hash_sha256 not found on team errors", func(t *testing.T) {
+	t.Run("bare hash_sha256 not found on fleet errors", func(t *testing.T) {
 		t.Parallel()
 
 		bogusSHA := "cccc999999999999999999999999999999999999999999999999999999999999"
@@ -5659,7 +5659,36 @@ func TestParsePolicyInstallSoftware(t *testing.T) {
 		packages := []*fleet.SoftwarePackageSpec{{URL: url1, SHA256: sha1}}
 		errs := parsePolicyInstallSoftware(".", &teamName, policy, packages, nil, nil)
 		require.Len(t, errs, 1)
-		assert.Contains(t, errs[0].Error(), fmt.Sprintf("install_software.hash_sha256 %s not found on team", bogusSHA))
+		assert.Contains(t, errs[0].Error(), fmt.Sprintf("install_software.hash_sha256 %s not found on fleet", bogusSHA))
+	})
+
+	t.Run("software not found on fleet errors say fleet", func(t *testing.T) {
+		t.Parallel()
+
+		bogusSHA := "dddd999999999999999999999999999999999999999999999999999999999999"
+		dir := t.TempDir()
+		shaOnlyPath := filepath.Join(dir, "sha.yml")
+		require.NoError(t, os.WriteFile(shaOnlyPath, []byte("hash_sha256: "+bogusSHA+"\n"), 0o644))
+
+		cases := []struct {
+			name     string
+			software *PolicyInstallSoftware
+			wantErr  string
+		}{
+			{"package_path SHA256", &PolicyInstallSoftware{PackagePath: shaOnlyPath}, fmt.Sprintf("install_software.package_path SHA256 %s not found on fleet: %s", bogusSHA, shaOnlyPath)},
+			{"app_store_id", &PolicyInstallSoftware{AppStoreID: "123"}, fmt.Sprintf("install_software.app_store_id 123 not found on fleet %s", teamName)},
+			{"fleet_maintained_app_slug", &PolicyInstallSoftware{FleetMaintainedAppSlug: "1password/darwin"}, fmt.Sprintf(`install_software.fleet_maintained_app_slug "1password/darwin" not found in software.fleet_maintained_apps for fleet %s`, teamName)},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				var installSoftware optjson.BoolOr[*PolicyInstallSoftware]
+				installSoftware.Other = tc.software
+				policy := &Policy{Name: "missing software policy", InstallSoftware: installSoftware}
+				errs := parsePolicyInstallSoftware(".", &teamName, policy, nil, nil, nil)
+				require.Len(t, errs, 1)
+				assert.Contains(t, errs[0].Error(), tc.wantErr)
+			})
+		}
 	})
 
 	t.Run("package_path pointing at a multi-package file errors with hash_sha256 hint", func(t *testing.T) {
