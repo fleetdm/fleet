@@ -94,7 +94,7 @@ class CertificateEnrollmentHandlerTest {
         val failure = result as CertificateEnrollmentHandler.EnrollmentResult.Failure
         assertFalse(failure.isRetryable)
         assertEquals(
-            "The certificate authority didn't issue the certificate. Check your certificate authority configuration: Mock enrollment failed",
+            "The certificate authority didn't issue the certificate. Check your certificate authority configuration. Mock enrollment failed",
             failure.reason,
         )
     }
@@ -114,7 +114,7 @@ class CertificateEnrollmentHandlerTest {
         assertTrue(result is CertificateEnrollmentHandler.EnrollmentResult.Failure)
         val failure = result as CertificateEnrollmentHandler.EnrollmentResult.Failure
         assertTrue(failure.isRetryable)
-        assertEquals("Couldn't reach the certificate authority: Mock network error", failure.reason)
+        assertEquals("Couldn't reach the certificate authority. Mock network error", failure.reason)
     }
 
     @Test
@@ -129,7 +129,7 @@ class CertificateEnrollmentHandlerTest {
         assertTrue(result is CertificateEnrollmentHandler.EnrollmentResult.Failure)
         val failure = result as CertificateEnrollmentHandler.EnrollmentResult.Failure
         assertFalse(failure.isRetryable)
-        assertEquals("Something went wrong while getting the certificate: Mock general error", failure.reason)
+        assertEquals("Something went wrong while getting the certificate. Mock general error", failure.reason)
     }
 
     @Test
@@ -177,7 +177,7 @@ class CertificateEnrollmentHandlerTest {
         val failure = result as CertificateEnrollmentHandler.EnrollmentResult.Failure
         assertFalse(failure.isRetryable)
         assertTrue(failure.reason.contains("CERT_INSTALL delegation not granted"))
-        assertTrue(failure.reason.startsWith("Couldn't install the \"device-cert\" certificate on the host:"))
+        assertTrue(failure.reason.startsWith("Couldn't install the \"device-cert\" certificate on the host."))
     }
 
     @Test

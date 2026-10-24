@@ -105,7 +105,7 @@ describe("OS setting status cell", () => {
         operation_type: "install",
         status: "delivered",
         detail:
-          "Couldn't reach the certificate authority: Failed to communicate with SCEP server",
+          "Couldn't reach the certificate authority. Failed to communicate with SCEP server",
         certificate_template_id: 4,
         retrying: true,
         retry_count: 1,
