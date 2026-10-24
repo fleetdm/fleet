@@ -469,14 +469,18 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID stri
 		sb.RemoveFile(shellSingleQuote(path))
 	})
 
-	process(u.RmDir, func(dir string) {
-		sb.Writef("sudo rmdir %s", shellSingleQuote(dir))
-	})
-
 	process(u.Trash, func(path string) {
 		addUserVar()
 		sb.AddFunction("trash", trashFunc)
 		sb.Writef(`trash "$LOGGED_IN_USER" %s`, shellSingleQuote(path))
+	})
+
+	// rmdir runs after trash, as in brew, so a parent folder emptied by trash
+	// can then be removed.
+	process(u.RmDir, func(dir string) {
+		addUserVar()
+		sb.AddFunction("remove_empty_dir", removeEmptyDirFunc)
+		sb.Writef(`remove_empty_dir "$LOGGED_IN_USER" %s`, shellSingleQuote(dir))
 	})
 }
 
@@ -1077,6 +1081,22 @@ const trashFunc = `trash() {
   else
     echo "$target_file doesn't exist."
   fi
+}`
+
+// removeEmptyDirFunc keeps rmdir's empty-only semantics: casks use rmdir for
+// folders that may hold user data, so a non-empty or missing directory is left
+// alone without failing the script. A quoted "~" never expands, so it's
+// resolved to the console user's home the same way trash does.
+const removeEmptyDirFunc = `remove_empty_dir() {
+  local logged_in_user="$1"
+  local dir="$2"
+
+  if [[ "$dir" == "~" || "$dir" == "~/"* ]]; then
+    [[ -n "$logged_in_user" && "$logged_in_user" != "root" && "$logged_in_user" != "loginwindow" ]] || return 0
+    dir="/Users/$logged_in_user${dir:1}"
+  fi
+
+  sudo rmdir "$dir" 2>/dev/null || true
 }`
 
 const sendSignalFunc = `send_signal() {
