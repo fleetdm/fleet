@@ -761,8 +761,8 @@ const HostDetailsPage = ({
     }
   );
 
-  const mdmConfig = host?.team_id
-    ? teams?.find((t) => t.id === host.team_id)?.mdm
+  const mdmConfig = host?.fleet_id
+    ? teams?.find((t) => t.id === host.fleet_id)?.mdm
     : config?.mdm;
 
   // We must check if the host has a UUID. Not-yet-enrolled hosts synced over from ABM will have
@@ -836,8 +836,8 @@ const HostDetailsPage = ({
     }
   );
 
-  const featuresConfig = host?.team_id
-    ? teams?.find((t) => t.id === host.team_id)?.features
+  const featuresConfig = host?.fleet_id
+    ? teams?.find((t) => t.id === host.fleet_id)?.features
     : config?.features;
 
   // undefined = still resolving. Global config must be loaded, and for a
@@ -845,7 +845,7 @@ const HostDetailsPage = ({
   // teams-load failure falls back to the global setting rather than spinning
   // forever; a missing team-level override is treated as "not disabled".
   const teamFeaturesResolved =
-    !host?.team_id || teams !== undefined || isTeamsError;
+    !host?.fleet_id || teams !== undefined || isTeamsError;
   const uptimeGloballyEnabled =
     config?.features?.historical_data?.uptime ?? true;
   const uptimeCollectionEnabled: boolean | undefined =
@@ -971,7 +971,7 @@ const HostDetailsPage = ({
       // Trigger APNS ping independently
       if (
         canTriggerAPNSPing(host) &&
-        permissions.isGlobalOrTeamObserverOrAbove(currentUser, host.team_id)
+        permissions.isGlobalOrTeamObserverOrAbove(currentUser, host.fleet_id)
       ) {
         hostAPI.apnsPing(host.id).catch((error) => {
           notify.error("Failed to send APNS ping", { response: error });
@@ -1292,8 +1292,8 @@ const HostDetailsPage = ({
 
   // enforce-only (macOS disk encryption on, escrow off) fleets never receive
   // keys, so the disk encryption control drops its key phrasing
-  const hostFleetMdm = host?.team_id
-    ? teams?.find((team) => team.id === host.team_id)?.mdm
+  const hostFleetMdm = host?.fleet_id
+    ? teams?.find((team) => team.id === host.fleet_id)?.mdm
     : config?.mdm;
   const fleetDiskEncryptionSettings = getDiskEncryptionSettings(hostFleetMdm);
 
@@ -1357,7 +1357,7 @@ const HostDetailsPage = ({
 
     return (
       <HostActionsDropdown
-        hostTeamId={host.team_id}
+        hostTeamId={host.fleet_id}
         onSelect={onSelectHostAction}
         hostPlatform={host.platform}
         hostCpuType={host.cpu_type}
@@ -1626,19 +1626,19 @@ const HostDetailsPage = ({
     );
   };
 
-  const isHostTeamAdmin = permissions.isTeamAdmin(currentUser, host?.team_id);
+  const isHostTeamAdmin = permissions.isTeamAdmin(currentUser, host?.fleet_id);
   const isHostTeamMaintainer = permissions.isTeamMaintainer(
     currentUser,
-    host?.team_id
+    host?.fleet_id
   );
   const isHostTeamTechnician = permissions.isTeamTechnician(
     currentUser,
-    host?.team_id
+    host?.fleet_id
   );
 
   const isHostTeamObserverPlus =
     !!currentUser &&
-    permissions.isObserverPlus(currentUser, host?.team_id ?? null);
+    permissions.isObserverPlus(currentUser, host?.fleet_id ?? null);
 
   // CTA permissions are checked against the host's specific team, not the
   // currently selected team in the nav. Must align with the /reports/new
@@ -1752,7 +1752,7 @@ const HostDetailsPage = ({
                 onShowInventoryVersions={
                   onSetSelectedHostSWForInventoryVersions
                 }
-                hostTeamId={host.team_id || 0}
+                hostTeamId={host.fleet_id || 0}
                 hostMdmEnrollmentStatus={host.mdm.enrollment_status}
               />
               {isMacOSHost && macadmins?.munki?.version && (
@@ -1787,7 +1787,7 @@ const HostDetailsPage = ({
                   onShowInventoryVersions={
                     onSetSelectedHostSWForInventoryVersions
                   }
-                  hostTeamId={host.team_id || 0}
+                  hostTeamId={host.fleet_id || 0}
                   hostName={host.display_name}
                   hostMDMEnrolled={host.mdm.connected_to_fleet}
                   isHostOnline={host.status === "online"}
@@ -1811,7 +1811,7 @@ const HostDetailsPage = ({
               }}
               pathname={location.pathname}
               onShowInventoryVersions={onSetSelectedHostSWForInventoryVersions}
-              hostTeamId={host.team_id || 0}
+              hostTeamId={host.fleet_id || 0}
             />
             {isMacOSHost && macadmins?.munki?.version && (
               <MunkiIssuesCard
@@ -2027,7 +2027,7 @@ const HostDetailsPage = ({
                     canResendHostNameTemplate={canResendProfiles}
                     canAddControls={canAddControls}
                     isConnectedToFleetMdm={!!host.mdm?.connected_to_fleet}
-                    teamId={host.team_id}
+                    teamId={host.fleet_id}
                     resendRequest={resendProfile}
                     resendCertificateRequest={resendCertificate}
                     rotateRecoveryLockPassword={rotateRecoveryLockPassword}
@@ -2070,7 +2070,7 @@ const HostDetailsPage = ({
                       router.push(
                         getPathWithQueryParams(PATHS.NEW_REPORT, {
                           host_id: host.id,
-                          fleet_id: host.team_id,
+                          fleet_id: host.fleet_id,
                         })
                       )
                     }
@@ -2090,7 +2090,7 @@ const HostDetailsPage = ({
                     onManagePolicies={() =>
                       router.push(
                         getPathWithQueryParams(PATHS.MANAGE_POLICIES, {
-                          fleet_id: host.team_id,
+                          fleet_id: host.fleet_id,
                         })
                       )
                     }
@@ -2115,7 +2115,7 @@ const HostDetailsPage = ({
               onCancel={() => setShowSelectReportModal(false)}
               isOnlyObserver={isOnlyObserver}
               hostId={hostIdFromURL}
-              hostTeamId={host?.team_id}
+              hostTeamId={host?.fleet_id}
               router={router}
               currentTeamId={currentTeam?.id}
             />
@@ -2135,7 +2135,7 @@ const HostDetailsPage = ({
               teams={teams || []}
               isGlobalAdmin={isGlobalAdmin as boolean}
               isUpdating={isUpdating}
-              hostsTeamId={host.team_id}
+              hostsTeamId={host.fleet_id}
             />
           )}
           {!!host && showPolicyDetailsModal && (
@@ -2503,7 +2503,7 @@ const HostDetailsPage = ({
         {showOnlineHistoryModal && (
           <HostOnlineHistoryModal
             hostId={host.id}
-            fleetId={host.team_id ?? undefined}
+            fleetId={host.fleet_id ?? undefined}
             uptimeCollectionEnabled={uptimeCollectionEnabled}
             uptimeGloballyEnabled={uptimeGloballyEnabled}
             onExit={toggleOnlineHistoryModal}
@@ -2523,7 +2523,7 @@ const HostDetailsPage = ({
         )}
         {showMDMStatusModal && host.mdm.enrollment_status && (
           <MDMStatusModal
-            fleetId={host.team_id}
+            fleetId={host.fleet_id}
             hostId={host.id}
             depProfileError={host.mdm.dep_profile_error}
             enrollmentStatus={host.mdm.enrollment_status}

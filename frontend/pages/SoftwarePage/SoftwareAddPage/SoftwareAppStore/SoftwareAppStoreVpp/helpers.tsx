@@ -30,7 +30,7 @@ export const teamHasVPPToken = (
       return true;
     }
 
-    return token.teams?.some((team) => team.team_id === currentTeamId);
+    return token.teams?.some((team) => team.fleet_id === currentTeamId);
   });
 };
 

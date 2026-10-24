@@ -70,8 +70,8 @@ const HostSummary = ({
     <DataSet
       title="Fleet"
       value={
-        summaryData.team_name !== DEFAULT_EMPTY_CELL_VALUE ? (
-          `${summaryData.team_name}`
+        summaryData.fleet_name !== DEFAULT_EMPTY_CELL_VALUE ? (
+          `${summaryData.fleet_name}`
         ) : (
           <span className="no-team">Unassigned</span>
         )

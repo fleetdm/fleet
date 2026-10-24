@@ -188,7 +188,7 @@ export const DEFAULT_QUERY: ISchedulableQuery = {
   saved: false,
   author_id: 0,
   packs: [],
-  team_id: 0,
+  fleet_id: 0,
   author_email: "",
   stats: {},
   editingExistingQuery: false,
@@ -462,7 +462,7 @@ export const HOST_SUMMARY_DATA: (keyof IHost)[] = [
   "platform",
   "detail_updated_at",
   "policy_updated_at",
-  "team_name",
+  "fleet_name",
   "display_name", // Not rendered on my device page
   "maintenance_window", // Not rendered on my device page
   "os_version",

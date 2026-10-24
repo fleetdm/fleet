@@ -257,7 +257,7 @@ describe("Policies table", () => {
       },
     });
 
-    const hiddenPolicy = createMockPolicy({ team_id: 2, hidden: true });
+    const hiddenPolicy = createMockPolicy({ fleet_id: 2, hidden: true });
 
     const { user } = render(
       <PoliciesTable
@@ -294,7 +294,7 @@ describe("Policies table", () => {
 
     render(
       <PoliciesTable
-        policiesList={[createMockPolicy({ team_id: 2, hidden: false })]}
+        policiesList={[createMockPolicy({ fleet_id: 2, hidden: false })]}
         isLoading={false}
         onDeletePoliciesClick={noop}
         onAddPolicyClick={noop}
@@ -322,7 +322,7 @@ describe("Policies table", () => {
       },
     });
 
-    const testInheritedPolicy = createMockPolicy({ team_id: null });
+    const testInheritedPolicy = createMockPolicy({ fleet_id: null });
 
     const { user } = render(
       <PoliciesTable
@@ -362,7 +362,7 @@ describe("Policies table", () => {
       },
     });
 
-    const testGlobalPolicy = createMockPolicy({ team_id: null });
+    const testGlobalPolicy = createMockPolicy({ fleet_id: null });
 
     render(
       <PoliciesTable
@@ -395,14 +395,14 @@ describe("Policies table", () => {
     });
 
     const testInheritedPolicies = [
-      createMockPolicy({ team_id: null, name: "Inherited policy 1" }),
-      createMockPolicy({ id: 2, team_id: null, name: "Inherited policy 2" }),
-      createMockPolicy({ id: 3, team_id: null, name: "Inherited policy 3" }),
+      createMockPolicy({ fleet_id: null, name: "Inherited policy 1" }),
+      createMockPolicy({ id: 2, fleet_id: null, name: "Inherited policy 2" }),
+      createMockPolicy({ id: 3, fleet_id: null, name: "Inherited policy 3" }),
     ];
 
     const testTeamPolicies = [
-      createMockPolicy({ id: 4, team_id: 2, name: "Team policy 1" }),
-      createMockPolicy({ id: 5, team_id: 2, name: "Team policy 2" }),
+      createMockPolicy({ id: 4, fleet_id: 2, name: "Team policy 1" }),
+      createMockPolicy({ id: 5, fleet_id: 2, name: "Team policy 2" }),
     ];
 
     const policiesList = [...testInheritedPolicies, ...testTeamPolicies];

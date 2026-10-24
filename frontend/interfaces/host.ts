@@ -56,7 +56,7 @@ export default PropTypes.shape({
   distributed_interval: PropTypes.number,
   config_tls_refresh: PropTypes.number,
   logger_tls_period: PropTypes.number,
-  team_id: PropTypes.number,
+  fleet_id: PropTypes.number,
   pack_stats: PropTypes.arrayOf(
     PropTypes.shape({
       pack_id: PropTypes.number,
@@ -64,7 +64,7 @@ export default PropTypes.shape({
       query_stats: PropTypes.arrayOf(queryStatsInterface),
     })
   ),
-  team_name: PropTypes.string,
+  fleet_name: PropTypes.string,
   additional: PropTypes.object, // eslint-disable-line react/forbid-prop-types
   percent_disk_space_available: PropTypes.number,
   gigs_disk_space_available: PropTypes.number,
@@ -533,9 +533,9 @@ export interface IHost {
   distributed_interval: number;
   config_tls_refresh: number;
   logger_tls_period: number;
-  team_id: number | null;
+  fleet_id: number | null;
   pack_stats: IPackStats[] | null;
-  team_name: string | null;
+  fleet_name: string | null;
   additional?: object; // eslint-disable-line @typescript-eslint/ban-types
   percent_disk_space_available: number;
   gigs_disk_space_available: number;

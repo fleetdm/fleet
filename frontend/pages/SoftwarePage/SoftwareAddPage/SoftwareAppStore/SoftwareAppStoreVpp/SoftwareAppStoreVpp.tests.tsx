@@ -27,7 +27,7 @@ const teamMismatchVppHandler = http.get(baseUrl("/vpp_tokens"), () => {
         org_name: "Test Org",
         location: "US",
         renew_date: "2027-01-01",
-        teams: [{ team_id: 999, name: "Other fleet" }],
+        teams: [{ fleet_id: 999, name: "Other fleet" }],
       },
     ],
   });
@@ -41,7 +41,7 @@ const teamVppHandler = http.get(baseUrl("/vpp_tokens"), () => {
         org_name: "Test Org",
         location: "US",
         renew_date: "2027-01-01",
-        teams: [{ team_id: 1, name: "Workstations" }],
+        teams: [{ fleet_id: 1, name: "Workstations" }],
       },
     ],
   });

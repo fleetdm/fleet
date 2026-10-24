@@ -30,7 +30,7 @@ const mockPolicy: IPolicy = {
   author_email: "test@example.com",
   resolution: "",
   platform: "",
-  team_id: null,
+  fleet_id: null,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
   critical: false,

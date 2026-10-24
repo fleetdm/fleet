@@ -38,7 +38,7 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
     "queries/6": RESPONSES.globalQuery5,
     "queries/7": RESPONSES.globalQuery6,
     "queries/8": RESPONSES.teamQuery2,
-    "queries?team_id=13": RESPONSES.teamQueries,
+    "queries?fleet_id=13": RESPONSES.teamQueries,
     "queries/113/report?order_key=host_name&order_direction=asc":
       RESPONSES.queryReport,
     "custom_variables?page=*&per_page=*": RESPONSES.variables,
@@ -58,7 +58,7 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
       observer_can_run: false,
       query: "SELECT * FROM osquery_info;",
       id: 1,
-      team_id: null,
+      fleet_id: null,
       platform: "linux",
     },
     "autofill/policies": RESPONSES.aiAutofillPolicy,
