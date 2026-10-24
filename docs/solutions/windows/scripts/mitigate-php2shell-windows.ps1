@@ -113,15 +113,33 @@ function Get-ApachePhp {
     }
 }
 
-# HKLM\SOFTWARE\PHP\<x.y.z|x.y|x>\IniFilePath, most specific first.
-function Get-RegistryIniPaths([version]$Version) {
-    $subkeys = @()
-    if ($Version) { $subkeys = @("\$($Version.Major).$($Version.Minor).$($Version.Build)", "\$($Version.Major).$($Version.Minor)", "\$($Version.Major)") }
-    foreach ($root in 'HKLM:\SOFTWARE\PHP', 'HKLM:\SOFTWARE\WOW6432Node\PHP') {
-        foreach ($key in @($subkeys | ForEach-Object { $root + $_ }) + $root) {
-            $p = Get-ItemProperty -LiteralPath $key -Name IniFilePath -ErrorAction SilentlyContinue
-            if ($p -and $p.IniFilePath) { ConvertTo-WindowsPath $p.IniFilePath }
-        }
+# A 32-bit PHP on 64-bit Windows reads the WOW6432Node registry view, so check the build's PE machine type.
+function Test-Php32Bit([string]$Dir) {
+    foreach ($exe in 'php.exe', 'php-cgi.exe') {
+        $path = Join-Path $Dir $exe
+        if (-not (Test-Path -LiteralPath $path)) { continue }
+        $fs = [IO.File]::OpenRead($path)
+        try {
+            $reader = New-Object IO.BinaryReader($fs)
+            $fs.Position = 0x3C
+            $fs.Position = $reader.ReadInt32() + 4
+            return $reader.ReadUInt16() -eq 0x14C
+        } finally { $fs.Dispose() }
+    }
+    return $false
+}
+
+# PHP opens the first existing key of HKLM\SOFTWARE\PHP\<x.y.z|x.y|x> and HKLM\SOFTWARE\PHP in its own
+# registry view, and reads IniFilePath from that key only.
+function Get-RegistryIniPath([version]$Version, [bool]$Is32Bit) {
+    $root = if ($Is32Bit -and [Environment]::Is64BitOperatingSystem) { 'HKLM:\SOFTWARE\WOW6432Node\PHP' } else { 'HKLM:\SOFTWARE\PHP' }
+    $keys = @()
+    if ($Version) { $keys = @("$root\$($Version.Major).$($Version.Minor).$($Version.Build)", "$root\$($Version.Major).$($Version.Minor)", "$root\$($Version.Major)") }
+    foreach ($key in $keys + $root) {
+        if (-not (Test-Path -LiteralPath $key)) { continue }
+        $p = Get-ItemProperty -LiteralPath $key -Name IniFilePath -ErrorAction SilentlyContinue
+        if ($p -and $p.IniFilePath) { return ConvertTo-WindowsPath $p.IniFilePath }
+        return
     }
 }
 
@@ -173,19 +191,32 @@ function Resolve-IniFiles([string[]]$Paths) {
     }
 }
 
+# PHP applies [HOST=...] and [PATH=...] sections (CGI and FastCGI) to one host or path, so the directive
+# goes in global scope before the first such section, and definitions inside them are commented out.
 function Set-IniDirective([System.Collections.Generic.List[string]]$Lines, [string]$Name, [string]$Value) {
     $pattern = '^\s*;?\s*' + [regex]::Escape($Name) + '\s*='
     $done = $false
+    $scoped = $false
+    $firstScoped = -1
     for ($i = 0; $i -lt $Lines.Count; $i++) {
-        if ($Lines[$i] -match $pattern) {
-            if (-not $done) { $Lines[$i] = "$Name = $Value"; $done = $true }
-            elseif ($Lines[$i] -notmatch '^\s*;') { $Lines[$i] = '; ' + $Lines[$i] + '  ; disabled by mitigate-php2shell-windows.ps1' }
+        if ($Lines[$i] -match '^\s*\[') {
+            $scoped = $Lines[$i] -match '^\s*\[\s*(HOST|PATH)'
+            if ($scoped -and $firstScoped -lt 0) { $firstScoped = $i }
+            continue
         }
+        if ($Lines[$i] -notmatch $pattern) { continue }
+        if (-not $scoped -and -not $done) { $Lines[$i] = "$Name = $Value"; $done = $true }
+        elseif ($Lines[$i] -notmatch '^\s*;') { $Lines[$i] = '; ' + $Lines[$i] + '  ; disabled by mitigate-php2shell-windows.ps1' }
     }
     if (-not $done) {
-        if ($Lines.Count -eq 0 -or $Lines[$Lines.Count - 1] -ne '') { $Lines.Add('') }
-        $Lines.Add('; PHP2Shell interim mitigation (CVE-2026-109618, CVE-2026-109619). Not a substitute for updating PHP.')
-        $Lines.Add("$Name = $Value")
+        $block = @('; PHP2Shell interim mitigation (CVE-2026-109618, CVE-2026-109619). Not a substitute for updating PHP.', "$Name = $Value")
+        if ($firstScoped -ge 0) {
+            if ($firstScoped -gt 0 -and $Lines[$firstScoped - 1] -ne '') { $block = @('') + $block }
+            $Lines.InsertRange($firstScoped, [string[]]($block + ''))
+        } else {
+            if ($Lines.Count -eq 0 -or $Lines[$Lines.Count - 1] -ne '') { $Lines.Add('') }
+            $Lines.AddRange([string[]]$block)
+        }
     }
 }
 
@@ -246,7 +277,7 @@ try {
         if (-not $fixed) { Warn "PHP: $dir is $v, a branch with no fixed Windows build; move to 8.2 or newer" }
         elseif ($v -lt $fixed) { Warn "PHP: $dir is $v, UPDATE to $fixed from https://windows.php.net/download/" }
         else { Log "PHP: $dir is $v, FIXED" }
-        $registry = @(Get-RegistryIniPaths $v)
+        $registry = @(Get-RegistryIniPath -Version $v -Is32Bit (Test-Php32Bit $dir))
         $iisPaths = @($iisApps | Where-Object { $_.Dir -eq $dir } | ForEach-Object { $_.IniPaths })
         $searches.Add(@($iisPaths + $phprc + $registry + $dir + $env:windir))
         foreach ($apache in @($apaches | Where-Object { $_.ModuleDirs -contains $dir })) {
