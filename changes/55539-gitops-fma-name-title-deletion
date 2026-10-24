@@ -1,0 +1,1 @@
+- Fixed GitOps listing a Fleet-maintained app or package as deleted on every run when it was attached to an existing software title by name, such as a macOS title without a bundle identifier.

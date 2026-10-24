@@ -27,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
@@ -3939,6 +3940,76 @@ func TestSoftwareBatchUploadMSIReuseUninstallScript(t *testing.T) {
 			require.Equal(t, want.UninstallScript, applied[0].UninstallScript)
 		})
 	}
+}
+
+func TestSoftwareBatchUploadKeepsTitleAttachedByName(t *testing.T) {
+	run := func(t *testing.T, dryRun bool, resolveErr error) (status string, deleted *string) {
+		ds := new(mock.Store)
+		ds.TeamLiteFunc = func(ctx context.Context, tmID uint) (*fleet.TeamLite, error) {
+			return &fleet.TeamLite{ID: tmID}, nil
+		}
+		ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+			title, bundle := "ForkLift", "com.example.forklift"
+			if sha256 == "new-hash" {
+				title, bundle = "New App", "com.example.new"
+			}
+			return map[uint][]*fleet.ExistingSoftwareInstaller{1: {{
+				Title: title, Extension: "pkg", Filename: title + ".pkg", Platform: "darwin", Source: "apps",
+				BundleIdentifier: &bundle, PackageIDs: []string{bundle},
+			}}}, nil
+		}
+		ds.GetExistingSoftwareInstallerTitleIDFunc = func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+			require.True(t, ctxdb.IsPrimaryRequired(ctx))
+			switch {
+			case payload.Title == "New App":
+				return 0, &notFoundError{}
+			case resolveErr != nil:
+				return 0, resolveErr
+			case payload.Title == "ForkLift" && payload.BundleIdentifier == "com.example.forklift":
+				return 20, nil
+			}
+			return 99, nil
+		}
+		// Title 20 came from inventory (lowercase name); title 5 is another title displayed as "ForkLift".
+		ds.GetSoftwareInstallersPendingDeletionFunc = func(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+			return []fleet.DeletedSoftwarePackage{{TitleID: 20, DisplayName: "forklift"}, {TitleID: 5, DisplayName: "ForkLift"}}, nil
+		}
+		ds.BatchSetSoftwareInstallersFunc = func(context.Context, *uint, []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) { return nil, nil }
+		ds.BatchSetInHouseAppsInstallersFunc = func(context.Context, *uint, []*fleet.UploadSoftwareInstallerPayload) error { return nil }
+		ds.ReconcileWindowsMaintainedAppSoftwareTitlesFunc = func(context.Context) error { return nil }
+
+		svc := newTestService(t, ds)
+		svc.keyValueStore, _ = inMemoryKeyValueStore()
+		svc.softwareInstallStore = &mocksoftware.SoftwareInstallerStore{
+			ExistsFunc: func(ctx context.Context, id string) (bool, error) { return true, nil },
+		}
+		svc.softwareBatchUpload("req-uuid", new(uint(1)), 1, []*fleet.SoftwareInstallerPayload{{SHA256: "new-hash"}, {SHA256: "forklift-hash"}}, dryRun)
+
+		got, err := svc.keyValueStore.Get(t.Context(), batchSoftwarePrefix+"req-uuid")
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		deleted, err = svc.keyValueStore.Get(t.Context(), batchSoftwarePrefix+"req-uuid"+batchSoftwareDeletedSuffix)
+		require.NoError(t, err)
+		return *got, deleted
+	}
+
+	for _, dryRun := range []bool{true, false} {
+		t.Run(fmt.Sprintf("dry run %t reports only the title no payload resolves to", dryRun), func(t *testing.T) {
+			status, deleted := run(t, dryRun, nil)
+			require.Equal(t, batchSetCompleted, status)
+			require.NotNil(t, deleted)
+			var got []fleet.DeletedSoftwarePackage
+			require.NoError(t, json.Unmarshal([]byte(*deleted), &got))
+			require.Equal(t, []fleet.DeletedSoftwarePackage{{TitleID: 5, DisplayName: "ForkLift"}}, got)
+		})
+	}
+
+	t.Run("a resolver error fails the batch", func(t *testing.T) {
+		status, deleted := run(t, true, errors.New("boom"))
+		require.Contains(t, status, batchSetFailedPrefix)
+		require.Contains(t, status, "boom")
+		require.Nil(t, deleted)
+	})
 }
 
 func TestSoftwareBatchUploadWindowsFMAKeepsManifestUninstallScript(t *testing.T) {
