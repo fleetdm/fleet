@@ -12,17 +12,17 @@
           </div>
         </div>
         <div purpose="hero-image">
-          <div purpose="teams-animation" role="img" aria-label="A Microsoft Teams chat with Fleet. An admin asks which Windows hosts haven't checked in for over a week. Fleet reports that 1,136 of 12,480 are offline, flags 41 Broad ring workstations missing for 30+ days, and offers to open a pull request. The admin says yes, and Fleet opens PR #1284 to enforce a 3-day Windows update deadline, pending their review.">
+          <div purpose="teams-animation" role="img" aria-label="A Microsoft Teams chat with Fleet. An admin asks what it takes to meet CIS Level 2 on their Windows devices. Fleet reports that 2,184 of 2,350 Windows hosts pass Level 1, that Level 2 adds 38 settings, and that the biggest gaps are Credential Guard, telemetry limits, and unneeded services, then offers to propose changes to close those gaps. The admin says yes, and Fleet proposes 3 new profiles and 38 policies for their review.">
             <div purpose="teams-window" aria-hidden="true">
               <picture purpose="teams-chrome">
                 <source media="(max-width: 767px)" srcset="/images/teams-chat-window-mobile-492x576.svg">
                 <source media="(max-width: 991px)" srcset="/images/teams-chat-window-tablet-844x576.svg">
-                <img alt="" src="/images/teams-chat-window-1044x576.svg">
+                <img alt="" src="/images/teams-chat-window-1044x520.svg">
               </picture>
               <div purpose="teams-messages">
                 <div purpose="teams-message-stack">
                   <div purpose="teams-first-message">
-                    <p><strong>@Fleet</strong> show me Windows hosts that haven’t checked in for over a week.</p>
+                    <p><strong>@Fleet</strong> what do we need for CIS level 2 on our Windows devices?</p>
                   </div>
                   <div purpose="teams-first-reply">
                     <div purpose="teams-typing">
@@ -34,16 +34,18 @@
                       <div purpose="teams-reply-body">
                         <span purpose="teams-sender">Fleet</span>
                         <div purpose="teams-reply-bubble">
-                          <p><strong>1,136 of 12,480 Windows hosts are offline</strong>. 52 have been gone 30+ days (MIA).</p>
-                          <p><strong>Workstations – Broad ring (needs attention)</strong>: 87<br>&nbsp;• 41 MIA, 30+ days. Likely lost, left with departed staff, or reimaged without the agent.<br>&nbsp;• 46 offline for under 30 days<br>&nbsp;• Including <strong>WS-FIN-2291</strong>, <strong>WS-ENG-0874</strong>, <strong>WS-SLS-1450</strong>, and 84 more</p>
-                          <p><strong>Likely expected: 1,049</strong><br>&nbsp;• 812 in Lab devices and VDI pools, routinely powered off<br>&nbsp;• 237 kiosks on overnight shutdown</p>
-                          <p>The 41 MIA workstations in the Broad ring are the real risk. They haven’t received updates or policy changes in over a month. Want me to open a PR so they install pending updates within 3 days of reconnecting?</p>
+                          <p>2,184 of 2,350 Windows hosts pass Level 1. Level 2 adds 38 settings. The biggest gaps are Credential Guard, telemetry limits, and unneeded services.</p>
+                        </div>
+                        <div purpose="teams-follow-up">
+                          <div purpose="teams-reply-bubble">
+                            <p>Want me to propose changes that close those gaps?</p>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
                   <div purpose="teams-second-message">
-                    <p>Yes, open the PR. Tag me as reviewer.</p>
+                    <p>Yes</p>
                   </div>
                   <div purpose="teams-second-reply">
                     <div purpose="teams-typing">
@@ -55,26 +57,7 @@
                       <div purpose="teams-reply-body">
                         <span purpose="teams-sender">Fleet</span>
                         <div purpose="teams-reply-bubble">
-                          <div purpose="teams-reply-section">
-                            <p>I’ve opened a pull request to enforce Windows update deadlines on Workstations - Broad ring.</p>
-                            <p><strong>PR #1284: Enforce 3-day Windows update deadline for Workstations - Broad ring</strong> <code>fleets/workstations-broad-ring.yml</code></p>
-                          </div>
-                          <div purpose="teams-code-block">
-                            <p>diff</p>
-                            <pre>controls:
-<span purpose="diff-sign">+</span> <span purpose="diff-added">windows_updates:</span>
-<span purpose="diff-sign">+</span><span purpose="diff-added">   deadline_days: 3</span>
-<span purpose="diff-sign">+</span><span purpose="diff-added">   grace_period_days: 1</span></pre>
-                          </div>
-                          <div>
-                            <p><strong>What this changes</strong></p>
-                            <ul>
-                              <li>Applies to all 9,214 Windows hosts in the Broad ring</li>
-                              <li>Offline hosts get the deadline the next time they check in</li>
-                              <li>Users get a 1-day grace period after a restart before updates are forced</li>
-                            </ul>
-                            <p purpose="teams-reply-footer">Nothing changes until the PR is merged. I’ve requested your review on <span purpose="teams-pr-link">PR #1284</span></p>
-                          </div>
+                          <p>Done. I’ve proposed 3 new profiles and 38 policies <span purpose="teams-link">for your review</span>.</p>
                         </div>
                       </div>
                     </div>
@@ -88,138 +71,41 @@
 
       <div purpose="page-section">
         <div purpose="section-heading" class="left-aligned">
-          <h2>Put AI to work on your Windows fleet</h2>
-          <p>Every setting in Fleet is a file and every feature has an API, so you can make AI do real admin work for you, with a human review between it and production.</p>
+          <h2>Get AI working for you</h2>
+          <p>Every setting in Fleet is a file and every feature has an API, so you can use AI to propose changes, with a human review between it and production.</p>
         </div>
         <div purpose="two-column-features">
           <div purpose="feature">
-            <h5>Ask your PCs in plain language</h5>
-            <p>See what’s patched and what’s compliant, and investigate CVEs without waiting hours.</p>
+            <h5>Use AI to configure Windows</h5>
+            <p>Manage Windows and third-party apps, with prompts like <em>“Disable camera in Firefox”</em>. Use Copilot, Claude, or any AI harness.</p>
           </div>
           <div purpose="feature">
-            <h5>Patch and write Windows settings with AI</h5>
-            <p>Generate CSP profiles, scripts, and software config with Copilot, Claude, or any AI harness.</p>
+            <h5>Chat with your PCs</h5>
+            <p>See what’s patched and what’s compliant without waiting hours. Investigate CVEs and supply chain issues in seconds.</p>
           </div>
-        </div>
-      </div>
-
-      <div purpose="feature-with-image" class="reverse">
-        <div purpose="photo-collage">
-          <img purpose="photo-celebration" alt="A Fleet workshop attendee" src="/images/fast-track-certification-celebration-600x450@2x.jpg">
-          <img purpose="photo-classroom" alt="Fleet workshop attendees" src="/images/fast-track-certification-classroom-600x450@2x.jpg">
-          <img purpose="photo-training" alt="Fleet workshop attendees" src="/images/fast-track-certification-training-400x533@2x.jpg">
-        </div>
-        <div purpose="feature-text">
-          <h2>Get your team AI certified</h2>
-          <div purpose="checklist">
-            <p>Earn certification you can add to your LinkedIn profile to demonstrate your proficiency with AI-native endpoint management.</p>
-            <p>Practice new AI-native techniques developed by the IT teams at leading tech companies.</p>
-          </div>
-          <animated-arrow-button href="/workshops">View workshops</animated-arrow-button>
         </div>
       </div>
 
       <div purpose="quote-and-logos">
         <div purpose="section-quote">
           <div purpose="quote-author-image">
-            <img alt="Mason Peressini" src="/images/mason-peressini-120x120@2x.png">
+            <img alt="Robert Trencheny" src="/images/testimonial-author-robert-trencheny-2-48x48@2x.png">
           </div>
           <div purpose="quote-content">
-            <p purpose="quote-text">“I’m spending about 20 hours a week less on managing PCs than I was with Intune.”</p>
+            <p purpose="quote-text">“I love being able to throw a prompt at Fleet to run diagnostics and troubleshoot employee devices. It’s way faster than me on my own.”</p>
             <div purpose="name-and-title">
-              <p purpose="author-name">Mason Peressini</p>
-              <p purpose="author-title">Sr Systems Support Specialist, Reed College</p>
+              <p purpose="author-name">Robert Trencheny</p>
+              <p purpose="author-title">Head of IT and Infrastructure</p>
             </div>
           </div>
         </div>
         <div purpose="logo-grid">
-          <div purpose="logo"><img height="32" alt="NVIDIA logo" src="/images/logos/logo-nvidia-color-161x32@2x.png"></div>
-          <div purpose="logo"><img height="40" alt="Stripe logo" src="/images/stripe-logo-96x40@2x.png"></div>
-          <div purpose="logo"><img height="28" alt="Reddit logo" src="/images/logo-reddit-96x28@2x.png"></div>
-          <div purpose="logo"><img height="20" alt="Pinterest logo" src="/images/logo-pinterest-108x20@2x.png"></div>
-          <div purpose="logo"><img height="46" alt="Epic Games logo" src="/images/logos/logo-epic-games-40x46@2x.png"></div>
-          <div purpose="logo"><img height="40" alt="Mollie logo" src="/images/mollie-logo-136x40@2x.png"></div>
-        </div>
-      </div>
-
-      <div purpose="feature-with-image" class="reverse">
-        <div purpose="feature-image">
-          <img alt="Recent application crash results collected from Windows hosts in Fleet" src="/images/feature-image-stop-waiting-for-intune-504x378@2x.png">
-        </div>
-        <div purpose="feature-text">
-          <div purpose="feature-heading">
-            <h2>Stop waiting for Intune to sync</h2>
-            <p>Fleet keeps a live connection to every Windows PC, so you see what’s actually on a device right now, not what it reported hours ago.</p>
-          </div>
-          <div purpose="feature-items">
-            <div purpose="feature-item">
-              <h5>No calls with the end user</h5>
-              <p>Pull logs and diagnostics remotely, without asking anyone to dig through folders.</p>
-            </div>
-            <div purpose="feature-item">
-              <h5>Real status, not “pending”</h5>
-              <p>See exactly which profile, script, or install failed, and why.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div purpose="migration-banner">
-        <div purpose="banner-image">
-          <img alt="" src="/images/migration-banner-366x225@2x.png">
-        </div>
-        <div purpose="banner-text">
-          <h3>Moving off Intune or Workspace ONE?</h3>
-          <p>Automatic Windows MDM migration brings hosts over to Fleet without losing user state.</p>
-          <a purpose="cta-button" href="/contact?talkToUs">Get a demo</a>
-        </div>
-      </div>
-
-      <div purpose="feature-with-image">
-        <div purpose="feature-image">
-          <img alt="Adding a Fleet-maintained app for Windows in Fleet" src="/images/feature-image-fleet-maintained-software-windows-528x377@2x.png">
-        </div>
-        <div purpose="feature-text">
-          <div purpose="feature-heading">
-            <h2>Stop packaging <br purpose="desktop-break">every app update</h2>
-            <p>Fleet downloads the installer from the vendor, writes the install and uninstall scripts, tests them on real Windows hosts, and keeps the app current.</p>
-          </div>
-          <animated-arrow-button href="/software-catalog">Software catalog</animated-arrow-button>
-        </div>
-      </div>
-
-      <div purpose="feature-with-image" class="reverse">
-        <div purpose="feature-image">
-          <img alt="" src="/images/feature-image-keep-patching-504x378@2x.png">
-        </div>
-        <div purpose="feature-text">
-          <div purpose="feature-heading">
-            <h2>Keep patching without <br purpose="desktop-break">breaking anyone’s day</h2>
-            <p>Fleet honors your hard-earned lessons and decisions about when updates land, who gets them first, and when they can’t wait.</p>
-          </div>
-          <div purpose="feature-items">
-            <div purpose="feature-item">
-              <h5>Patch when app is closed</h5>
-              <p>Update when nobody is using the app, or right away when a vulnerability can’t wait.</p>
-            </div>
-            <div purpose="feature-item">
-              <h5>Rings and rolling deployments</h5>
-              <p>Patch your test devices and minimize errors before you patch everyone else.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div purpose="feature-with-image">
-        <div purpose="feature-image">
-          <img alt="AI tools found on Windows, macOS, and Linux devices in Fleet" src="/images/feature-image-see-every-ai-tool-504x378@2x.png">
-        </div>
-        <div purpose="feature-text">
-          <div purpose="feature-heading">
-            <h2>See every AI tool</h2>
-            <p>Everyone has an AI agent working for them now. Fleet finds AI tools across Windows, macOS, and Linux, including frontier hardware like NVIDIA’s new DGX hardware.</p>
-          </div>
-          <animated-arrow-button href="/endpoint-governance">Endpoint governance</animated-arrow-button>
+          <div purpose="logo"><img height="22" alt="NVIDIA logo" src="/images/logos/logo-nvidia-color-161x32@2x.png"></div>
+          <div purpose="logo"><img height="32" alt="Stripe logo" src="/images/stripe-logo-96x40@2x.png"></div>
+          <div purpose="logo"><img height="24" alt="Reddit logo" src="/images/logo-reddit-96x28@2x.png"></div>
+          <div purpose="logo"><img height="18" alt="Pinterest logo" src="/images/logo-pinterest-108x20@2x.png"></div>
+          <div purpose="logo"><img height="40" alt="Epic Games logo" src="/images/logos/logo-epic-games-40x46@2x.png"></div>
+          <div purpose="logo"><img height="24" alt="Mollie logo" src="/images/mollie-logo-136x40@2x.png"></div>
         </div>
       </div>
 
@@ -237,21 +123,46 @@
           <span purpose="pill">BitLocker</span>
           <span purpose="pill">Windows Update policies</span>
           <span purpose="pill">Custom CSP settings</span>
+          <span purpose="pill">Remote wipe</span>
+          <span purpose="pill">Remote lock</span>
         </div>
-        <div purpose="two-column-features">
-          <div purpose="feature">
-            <div purpose="feature-card-image">
-              <img alt="Locking a Windows host in Fleet" src="/images/feature-image-remote-lock-windows-600x338@2x.png">
-            </div>
-            <h5>Offboard Windows users and stay compliant</h5>
-            <p>Lock or wipe a lost or compromised device, with every action in the activity log.</p>
+      </div>
+
+      <div purpose="feature-pair">
+        <div purpose="feature-with-image">
+          <div purpose="feature-image">
+            <img alt="Locking a Windows host in Fleet" src="/images/feature-image-remote-lock-windows-600x338@2x.png">
           </div>
-          <div purpose="feature">
-            <div purpose="feature-card-image">
-              <img alt="Vulnerabilities ranked by severity and probability of exploit in Fleet" src="/images/feature-image-vulnerability-detection-600x338@2x.png">
+          <div purpose="feature-text">
+            <div purpose="feature-heading">
+              <h2>Lock your Windows</h2>
+              <p>Unlike Intune, Fleet lets you lock Windows 10/11 devices to cut off access quickly when an employee leaves the company or during a security incident.</p>
             </div>
-            <h5>A single agent for device and vulnerability management</h5>
-            <p>Rank CVEs with CISA KEV and EPSS, so you patch what’s exploitable first.</p>
+          </div>
+        </div>
+
+        <div purpose="feature-with-image" class="reverse">
+          <div purpose="feature-image">
+            <img alt="Recent application crash results collected from Windows hosts in Fleet" src="/images/feature-image-stop-waiting-for-intune-504x378@2x.png">
+          </div>
+          <div purpose="feature-text">
+            <div purpose="feature-heading">
+              <h2>Stop waiting for Intune to sync</h2>
+              <p>Fleet keeps a live connection to every Windows PC, so you see what’s actually on a device right now, not what it reported hours ago.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="quote-section">
+        <p purpose="quote-text">“I’m spending about 20 hours a week less on managing PCs than I was with Intune.”</p>
+        <div purpose="quote-author-info">
+          <div purpose="quote-author-image">
+            <img alt="Mason Peressini" src="/images/mason-peressini-120x120@2x.png">
+          </div>
+          <div purpose="name-and-title">
+            <p purpose="author-name">Mason Peressini</p>
+            <p purpose="author-title">Sr Systems Support Specialist</p>
           </div>
         </div>
       </div>
@@ -261,53 +172,70 @@
           <h2>With or without Autopilot and Entra</h2>
           <p>Ship devices straight to employees, or stage them on the bench. Either way, Fleet delivers the same software, scripts, and settings.</p>
         </div>
-        <div purpose="enrollment-options">
-          <div purpose="enrollment-option">
-            <div purpose="enrollment-icon">
-              <img purpose="windows-icon" alt="Windows Autopilot" src="/images/icon-windows-logo-56x56@2x.png">
-            </div>
-            <h5>Windows Autopilot</h5>
-            <p>Register devices in Autopilot and let Fleet handle the rest of setup.</p>
-            <div purpose="checklist">
-              <p>Default fleet for new enrollments</p>
-              <p>Hidden local admin with an escrowed password</p>
-            </div>
+        <div purpose="feature-with-image" class="reverse">
+          <div purpose="feature-image">
+            <img alt="Software installing on a new Windows host during setup in Fleet" src="/images/feature-image-zero-touch-windows-504x378@2x.png">
           </div>
-          <div purpose="enrollment-option">
-            <div purpose="enrollment-icon">
-              <img purpose="entra-icon" alt="Microsoft Entra" src="/images/icon-microsoft-entra-64x64@2x.png">
+          <div purpose="feature-text">
+            <div purpose="feature-heading">
+              <h2>Zero touch, $0</h2>
+              <p>You shouldn’t have to pay a tax for the privilege of installing an operating system. Fleet supports Autopilot and Entra, but you don’t need them to create a great end user setup experience.</p>
+              <p>Compatible with hardware from Dell, Lenovo, and HP, and proven on thousands of Windows devices. No USB sticks required.</p>
             </div>
-            <h5>Microsoft Entra automatic enrollment</h5>
-            <p>Connect Entra and devices self-enroll the first time a user signs in.</p>
-            <div purpose="checklist">
-              <p>IdP identities mapped to hosts automatically</p>
-              <p>Same setup experience as Autopilot</p>
-            </div>
-          </div>
-          <div purpose="enrollment-option">
-            <div purpose="enrollment-icon">
-              <img purpose="provisioning-package-icon" alt="Provisioning package" src="/images/icon-provisioning-package-66x66@2x.png">
-            </div>
-            <h5>Provisioning package</h5>
-            <p>Stage locally or have your hardware partner apply it at their warehouse.</p>
-            <div purpose="checklist">
-              <p>White-glove staging by your hardware partner</p>
-              <p>Devices not registered in Autopilot</p>
-            </div>
+            <animated-arrow-button href="/articles/autopilot-without-autopilot">See how it works</animated-arrow-button>
           </div>
         </div>
       </div>
 
-      <div purpose="quote-section">
-        <p purpose="quote-text">“I love being able to throw a simple prompt at Fleet’s AI and have it run diagnostics to troubleshoot employee devices — it’s way more thorough than I by default.”</p>
-        <div purpose="quote-author-info">
-          <div purpose="quote-author-image">
-            <img alt="Robert Trencheny" src="/images/testimonial-author-robert-trencheny-2-48x48@2x.png">
+      <div purpose="migration-banner">
+        <div purpose="banner-image">
+          <img alt="" src="/images/migration-banner-366x225@2x.png">
+        </div>
+        <div purpose="banner-text">
+          <h3>Moving off Workspace ONE or Intune?</h3>
+          <p>Automatic Windows MDM migration brings hosts over to Fleet without losing user state.</p>
+          <a purpose="cta-button" href="/contact?talkToUs">Get a demo</a>
+        </div>
+      </div>
+
+      <div purpose="feature-with-image" class="reverse">
+        <div purpose="feature-image">
+          <img alt="Adding a Fleet-maintained app for Windows in Fleet" src="/images/feature-image-fleet-maintained-software-windows-528x377@2x.png">
+        </div>
+        <div purpose="feature-text">
+          <div purpose="feature-heading">
+            <h2>Stop packaging <br purpose="desktop-break">every app update</h2>
+            <p>Fleet downloads the installer from the vendor, writes the install and uninstall scripts, tests them on real Windows hosts, and keeps the app current.</p>
           </div>
-          <div purpose="name-and-title">
-            <p purpose="author-name">Robert Trencheny</p>
-            <p purpose="author-title">Building infra and IT</p>
+          <animated-arrow-button href="/software-catalog">Software catalog</animated-arrow-button>
+        </div>
+      </div>
+
+      <div purpose="feature-with-image">
+        <div purpose="feature-image">
+          <img alt="" src="/images/feature-image-patch-without-breaking-504x378@2x.png">
+        </div>
+        <div purpose="feature-text">
+          <div purpose="feature-heading">
+            <h2>Patch without breaking anyone’s day</h2>
+            <p>Fleet makes it easy to notify users and enforce deadlines. You can queue an update for when the app is closed, or patch right away when a vulnerability can’t wait.</p>
           </div>
+        </div>
+      </div>
+
+      <div purpose="feature-with-image" class="reverse">
+        <div purpose="photo-collage">
+          <img purpose="photo-celebration" alt="A Fleet workshop attendee" src="/images/fast-track-certification-celebration-600x450@2x.jpg">
+          <img purpose="photo-classroom" alt="Fleet workshop attendees" src="/images/fast-track-certification-classroom-600x450@2x.jpg">
+          <img purpose="photo-training" alt="Fleet workshop attendees" src="/images/fast-track-certification-training-400x533@2x.jpg">
+        </div>
+        <div purpose="feature-text">
+          <h2>Get certified</h2>
+          <div purpose="checklist">
+            <p>Earn certification you can add to your LinkedIn profile to demonstrate your proficiency with AI-native endpoint management.</p>
+            <p>Practice new AI-native techniques developed by the IT teams at leading tech companies.</p>
+          </div>
+          <animated-arrow-button href="/workshops">Free workshops</animated-arrow-button>
         </div>
       </div>
 
@@ -347,7 +275,8 @@
               <span class="fa fa-angle-down"></span>
             </p>
             <div purpose="accordion-answer" id="accordion__body-faq-4" class="collapse" aria-labelledby="accordion__header-faq-4">
-              <p>No. With Windows MDM turned on, installing Fleet’s agent enrolls the host, either directly or through a provisioning package. Connecting Entra adds automatic enrollment the first time a user signs in. Autopilot adds pre-registration and holds the device at the Enrollment Status Page until setup finishes.</p>
+              <p>No. Hardware vendors’ factory services, available from Dell, Lenovo, and HP, can install Fleet’s agent (fleetd) before the device ships. When the end user turns it on and finishes Windows setup, the device enrolls in Fleet and starts installing your software. No Autopilot or Entra required.</p>
+              <p>Already paying for Entra? Fleet supports Entra and Autopilot too, so you can keep using them. You can also install fleetd directly on devices you already have.</p>
             </div>
           </div>
           <div purpose="accordion-item">
@@ -356,7 +285,7 @@
               <span class="fa fa-angle-down"></span>
             </p>
             <div purpose="accordion-answer" id="accordion__body-faq-5" class="collapse" aria-labelledby="accordion__header-faq-5">
-              <p>Your tenant needs one qualifying subscription, such as Microsoft 365 E3 or E5, or Enterprise Mobility + Security E3 or E5. Each user who enrolls automatically needs a Microsoft Entra ID P1 license, which Microsoft 365 E3 and E5 already include. You don’t need Intune licenses for end users.</p>
+              <p>None, if you use a hardware vendor’s factory service to preinstall Fleet’s agent. Microsoft licenses only apply if you choose to enroll through Entra. In that case, each user who enrolls needs a Microsoft Entra ID P1 license.</p>
             </div>
           </div>
           <div purpose="accordion-item">
