@@ -793,6 +793,10 @@ type NewMDMActivationUnsupportedProfileFunc func(ctx context.Context, teamID uin
 
 type NewMDMInvalidJSONConfigProfileFunc func(ctx context.Context, teamID uint, err error) error
 
+type AutofillConfigProfileNameDescriptionFunc func(ctx context.Context, instructions string, platform string) (name string, description string, err error)
+
+type AutofillConfigProfileContentFunc func(ctx context.Context, instructions string, platform string, teamID uint) (*fleet.AutofilledConfigProfile, error)
+
 type UpdateMDMConfigProfileFunc func(ctx context.Context, profileUUID string, profileName string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte], description *string, selfService *bool, hidden *bool) error
 
 type ListMDMConfigProfilesFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error)
@@ -2201,6 +2205,12 @@ type Service struct {
 
 	NewMDMInvalidJSONConfigProfileFunc        NewMDMInvalidJSONConfigProfileFunc
 	NewMDMInvalidJSONConfigProfileFuncInvoked bool
+
+	AutofillConfigProfileNameDescriptionFunc        AutofillConfigProfileNameDescriptionFunc
+	AutofillConfigProfileNameDescriptionFuncInvoked bool
+
+	AutofillConfigProfileContentFunc        AutofillConfigProfileContentFunc
+	AutofillConfigProfileContentFuncInvoked bool
 
 	UpdateMDMConfigProfileFunc        UpdateMDMConfigProfileFunc
 	UpdateMDMConfigProfileFuncInvoked bool
@@ -5280,6 +5290,20 @@ func (s *Service) NewMDMInvalidJSONConfigProfile(ctx context.Context, teamID uin
 	s.NewMDMInvalidJSONConfigProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.NewMDMInvalidJSONConfigProfileFunc(ctx, teamID, err)
+}
+
+func (s *Service) AutofillConfigProfileNameDescription(ctx context.Context, instructions string, platform string) (name string, description string, err error) {
+	s.mu.Lock()
+	s.AutofillConfigProfileNameDescriptionFuncInvoked = true
+	s.mu.Unlock()
+	return s.AutofillConfigProfileNameDescriptionFunc(ctx, instructions, platform)
+}
+
+func (s *Service) AutofillConfigProfileContent(ctx context.Context, instructions string, platform string, teamID uint) (*fleet.AutofilledConfigProfile, error) {
+	s.mu.Lock()
+	s.AutofillConfigProfileContentFuncInvoked = true
+	s.mu.Unlock()
+	return s.AutofillConfigProfileContentFunc(ctx, instructions, platform, teamID)
 }
 
 func (s *Service) UpdateMDMConfigProfile(ctx context.Context, profileUUID string, profileName string, profile []byte, labelsInclude []string, labelsMembershipMode fleet.MDMLabelsMode, labelsExcludeAny []string, activation optjson.Slice[byte], description *string, selfService *bool, hidden *bool) error {
