@@ -17,7 +17,7 @@ export PATH="/usr/bin:/bin:/usr/sbin:/sbin"
 EXIT=0
 
 log()  { echo "$*"; }
-warn() { echo "WARN: $*"; [ "$EXIT" -eq 0 ] && EXIT=2; }
+warn() { echo "WARN: $*"; EXIT=2; }
 
 # Fixed version for a Homebrew formula version string ("8.3.35_1" -> 8.3.36), empty if no fix.
 fixed_for() {
@@ -50,7 +50,7 @@ restart_php_services() {
 }
 
 main() {
-    local brew owner installed name version fixed changed=0
+    local brew owner installed name version fixed new imgs changed=0
     for brew in /opt/homebrew/bin/brew /usr/local/bin/brew; do [ -x "$brew" ] && break; brew=""; done
     if [ -z "$brew" ]; then
         log "Homebrew is not installed; nothing to do."
@@ -82,9 +82,15 @@ main() {
                     continue
                 fi
                 if run_brew upgrade "$name" >/dev/null 2>&1; then
-                    changed=1
-                    log "UPGRADED: $name -> $(run_brew list --versions "$name" 2>/dev/null | awk '{ print $NF }')"
-                    restart_php_services "$name"
+                    # brew upgrade also exits 0 when the tap has no newer formula yet.
+                    new=$(run_brew list --versions "$name" 2>/dev/null | awk '{ print $NF }')
+                    if at_least "$new" "$fixed"; then
+                        changed=1
+                        log "UPGRADED: $name -> $new"
+                        restart_php_services "$name"
+                    else
+                        warn "$name is still $new after brew upgrade; Homebrew hasn't published $fixed yet, or brew update failed"
+                    fi
                 else
                     warn "brew upgrade $name failed; run it by hand as $owner"
                 fi
@@ -101,7 +107,10 @@ main() {
     fi
     if command -v docker >/dev/null 2>&1 || [ -x /usr/local/bin/docker ]; then
         imgs=$(/usr/local/bin/docker ps --format '{{.Names}} {{.Image}}' 2>/dev/null | grep -iE 'php|wordpress|drupal|joomla|nextcloud|laravel|frankenphp')
-        [ -n "$imgs" ] && warn "running containers use PHP images; pull or rebuild them on a fixed base and recreate:" && echo "$imgs" | sed 's/^/  CONTAINER: /'
+        if [ -n "$imgs" ]; then
+            warn "running containers use PHP images; pull or rebuild them on a fixed base and recreate:"
+            echo "$imgs" | sed 's/^/  CONTAINER: /'
+        fi
     fi
     pgrep -x php-fpm >/dev/null 2>&1 && log "php-fpm is running: $(pgrep -x php-fpm | head -1 | xargs -I{} sh -c 'ps -o comm= -p {}' 2>/dev/null)"
 

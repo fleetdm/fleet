@@ -79,6 +79,9 @@
             WHEN substr(v, 1, 3) = '8.3' THEN '8.3.36' WHEN substr(v, 1, 3) = '8.2' THEN '8.2.35'
             WHEN major = '11' AND substr(v, 1, 3) = '7.4' THEN '7.4.33-1+deb11u14'
             WHEN major = '10' AND substr(v, 1, 3) = '7.3' THEN '7.3.31-1~deb10u16' END
+          -- osquery reports every distro with /etc/redhat-release as platform 'rhel', Fedora included, so match Fedora first
+          WHEN platform = 'fedora' OR os_version LIKE 'Fedora%' THEN CASE substr(v, 1, 3)
+            WHEN '8.5' THEN '8.5.12' WHEN '8.4' THEN '8.4.27' END
           -- AlmaLinux rebuilds keep the old version and add a .alma.1 release (ALSA 2026-10-21)
           WHEN platform = 'rhel' AND alma THEN CASE
             WHEN major = '10' AND substr(v, 1, 3) = '8.4' THEN '8.4.24-1.el10_2.alma.1'
@@ -104,8 +107,6 @@
           -- Amazon Linux 2023 (ALAS2023-2026-3301 to 3304) and the AL2 php8.2 extra. php8.1 and AL2 core php: no fix planned.
           WHEN platform = 'amzn' THEN CASE substr(v, 1, 3)
             WHEN '8.5' THEN '8.5.12' WHEN '8.4' THEN '8.4.27' WHEN '8.3' THEN '8.3.36' WHEN '8.2' THEN '8.2.35' END
-          WHEN platform = 'fedora' THEN CASE substr(v, 1, 3)
-            WHEN '8.5' THEN '8.5.12' WHEN '8.4' THEN '8.4.27' END
           -- SUSE (SUSE-SU-2026:4843-1, 4844-1, 4852-1, 4853-1, 4870-1)
           WHEN platform_like LIKE '%suse%' THEN CASE
             WHEN substr(v, 1, 3) = '8.5' THEN '8.5.12' WHEN substr(v, 1, 3) = '8.4' THEN '8.4.27'
@@ -154,7 +155,7 @@
     SELECT 'mitigation_dropin', path, datetime(mtime, 'unixepoch') || 'Z', 'PRESENT session upload progress disabled (partial mitigation, update PHP)'
     FROM file
     WHERE path LIKE '/etc/php/%/%/conf.d/99-php2shell-mitigation.ini' OR path = '/etc/php.d/99-php2shell-mitigation.ini'
-       OR path LIKE '/etc/php[0-9]/conf.d/99-php2shell-mitigation.ini' OR path LIKE '/etc/php[0-9][0-9]/conf.d/99-php2shell-mitigation.ini'
+       OR (path LIKE '/etc/php%/conf.d/99-php2shell-mitigation.ini' AND path GLOB '/etc/php[0-9]*/conf.d/99-php2shell-mitigation.ini')
        OR path LIKE '/etc/opt/remi/php%/php.d/99-php2shell-mitigation.ini' OR path LIKE '/opt/cpanel/ea-php%/root/etc/php.d/99-php2shell-mitigation.ini'
        OR path LIKE '/opt/alt/php%/etc/php.d/99-php2shell-mitigation.ini'
     UNION ALL
@@ -200,7 +201,7 @@
     FROM homebrew_packages
     WHERE name = 'php' OR name LIKE 'php@%'
     UNION ALL
-    SELECT 'mamp_php', filename, path, 'CHECK bundled runtime; MAMP must ship 8.2.35, 8.3.36, 8.4.27, or 8.5.12'
+    SELECT 'mamp_php', replace(rtrim(path, '/'), '/Applications/MAMP/bin/php/', ''), rtrim(path, '/'), 'CHECK bundled runtime; MAMP must ship 8.2.35, 8.3.36, 8.4.27, or 8.5.12'
     FROM file
     WHERE path LIKE '/Applications/MAMP/bin/php/php%' AND type = 'directory'
     UNION ALL

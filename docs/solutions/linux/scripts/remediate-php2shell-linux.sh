@@ -19,7 +19,7 @@ export DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a
 EXIT=0
 
 log()  { echo "$*"; }
-warn() { echo "WARN: $*"; [ "$EXIT" -eq 0 ] && EXIT=2; }
+warn() { echo "WARN: $*"; EXIT=2; }
 die()  { echo "ERROR: $*" >&2; exit 1; }
 
 [ "$(id -u)" -eq 0 ] || die "must run as root"
@@ -87,9 +87,10 @@ apache_uses_mod_php() {
 
 restart_workers() {
     local unit
-    # php-fpm.service (RHEL, SUSE, Alpine), phpX.Y-fpm.service (Debian, Ubuntu), php84-php-fpm.service (Remi)
+    # php-fpm.service (RHEL, SUSE, Alpine), phpX.Y-fpm.service (Debian, Ubuntu), php84-php-fpm.service (Remi),
+    # ea-php84-php-fpm.service (cPanel), alt-php84-fpm.service (CloudLinux)
     for unit in $(systemctl list-units --type=service --state=active --plain --no-legend 2>/dev/null \
-                  | awk '{ print $1 }' | grep -E '^php[0-9.]*(-php)?-fpm\.service$'); do
+                  | awk '{ print $1 }' | grep -E '^(ea-|alt-)?php[0-9.]*(-php)?-fpm\.service$'); do
         if systemctl restart "$unit" >/dev/null 2>&1; then log "RESTARTED: $unit"; else warn "failed to restart $unit"; fi
     done
     if apache_uses_mod_php; then

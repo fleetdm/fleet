@@ -110,6 +110,9 @@ Add this policy. It passes when the host has no PHP packages, or when every inst
             WHEN substr(v, 1, 3) = '8.3' THEN '8.3.36' WHEN substr(v, 1, 3) = '8.2' THEN '8.2.35'
             WHEN major = '11' AND substr(v, 1, 3) = '7.4' THEN '7.4.33-1+deb11u14'
             WHEN major = '10' AND substr(v, 1, 3) = '7.3' THEN '7.3.31-1~deb10u16' END
+          -- osquery reports every distro with /etc/redhat-release as platform 'rhel', Fedora included, so match Fedora first
+          WHEN platform = 'fedora' OR os_version LIKE 'Fedora%' THEN CASE substr(v, 1, 3)
+            WHEN '8.5' THEN '8.5.12' WHEN '8.4' THEN '8.4.27' END
           -- AlmaLinux rebuilds keep the old version and add a .alma.1 release (ALSA 2026-10-21)
           WHEN platform = 'rhel' AND alma THEN CASE
             WHEN major = '10' AND substr(v, 1, 3) = '8.4' THEN '8.4.24-1.el10_2.alma.1'
@@ -135,8 +138,6 @@ Add this policy. It passes when the host has no PHP packages, or when every inst
           -- Amazon Linux 2023 (ALAS2023-2026-3301 to 3304) and the AL2 php8.2 extra. php8.1 and AL2 core php: no fix planned.
           WHEN platform = 'amzn' THEN CASE substr(v, 1, 3)
             WHEN '8.5' THEN '8.5.12' WHEN '8.4' THEN '8.4.27' WHEN '8.3' THEN '8.3.36' WHEN '8.2' THEN '8.2.35' END
-          WHEN platform = 'fedora' THEN CASE substr(v, 1, 3)
-            WHEN '8.5' THEN '8.5.12' WHEN '8.4' THEN '8.4.27' END
           -- SUSE (SUSE-SU-2026:4843-1, 4844-1, 4852-1, 4853-1, 4870-1)
           WHEN platform_like LIKE '%suse%' THEN CASE
             WHEN substr(v, 1, 3) = '8.5' THEN '8.5.12' WHEN substr(v, 1, 3) = '8.4' THEN '8.4.27'
@@ -269,7 +270,7 @@ For hosts that fail:
 
 1. Download the fixed build for the same branch, architecture, and thread-safety variant from [windows.php.net](https://windows.php.net/download/), and replace the PHP directory. For XAMPP, WAMP, or Laragon, install the bundle's updated PHP.
 2. Restart IIS with `iisreset`, or restart the Apache service, so `php-cgi.exe` workers load the new build.
-3. Until you can replace the build, run [`mitigate-php2shell-windows.ps1`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/mitigate-php2shell-windows.ps1). It reports every build it finds, including the one IIS's FastCGI handler points at, writes the step 5 settings into each build's `php.ini` with a `.pre-php2shell` backup, and restarts IIS and Apache services.
+3. Until you can replace the build, run [`mitigate-php2shell-windows.ps1`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/mitigate-php2shell-windows.ps1). It reports every build it finds, including the ones IIS's FastCGI handlers and Apache's `LoadModule` lines point at, without running any of them. It writes the step 5 settings into every ini file PHP can load for those builds, including the IIS `PHPRC`, Apache `PHPIniDir`, and registry locations, with a `.pre-php2shell` backup. It restarts IIS and Apache services when their PHP workers started before the change.
 
 ## Step 5: Apply the interim mitigation where you can't update yet
 
@@ -285,13 +286,15 @@ On Linux, add this policy. It passes when the host has no PHP configuration dire
 - name: Linux - PHP session upload progress disabled (PHP2Shell interim mitigation)
   query: |
     WITH conf_dirs AS (
-      SELECT path FROM file
-      WHERE (path LIKE '/etc/php/%/fpm/conf.d' OR path LIKE '/etc/php/%/apache2/conf.d'
-             OR path LIKE '/etc/php/%/cgi/conf.d' OR path LIKE '/etc/php/%/litespeed/conf.d'
-             OR path LIKE '/etc/php/%/embed/conf.d' OR path = '/etc/php.d'
-             OR path LIKE '/etc/php[0-9]/conf.d' OR path LIKE '/etc/php[0-9][0-9]/conf.d'
-             OR path LIKE '/etc/opt/remi/php%/php.d' OR path LIKE '/opt/cpanel/ea-php%/root/etc/php.d'
-             OR path LIKE '/opt/alt/php%/etc/php.d')
+      -- The file table returns directories matched with LIKE with a trailing slash, so the patterns end in / and rtrim drops it.
+      SELECT rtrim(path, '/') AS path FROM file
+      WHERE (path LIKE '/etc/php/%/fpm/conf.d/' OR path LIKE '/etc/php/%/apache2/conf.d/'
+             OR path LIKE '/etc/php/%/cgi/conf.d/' OR path LIKE '/etc/php/%/litespeed/conf.d/'
+             OR path LIKE '/etc/php/%/embed/conf.d/' OR path = '/etc/php.d'
+             -- SUSE /etc/php8 and Alpine /etc/php83: LIKE has no [0-9], so GLOB keeps only numeric names
+             OR (path LIKE '/etc/php%/conf.d/' AND path GLOB '/etc/php[0-9]*/conf.d/')
+             OR path LIKE '/etc/opt/remi/php%/php.d/' OR path LIKE '/opt/cpanel/ea-php%/root/etc/php.d/'
+             OR path LIKE '/opt/alt/php%/etc/php.d/')
         AND type = 'directory'
     )
     SELECT 1 WHERE NOT EXISTS (
