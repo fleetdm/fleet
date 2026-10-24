@@ -1,3 +1,9 @@
+## Fleet 4.93.2 (Oct 21, 2026)
+
+### Bug fixes
+
+- Removed the emSign ECC Root CA - G3, emSign Root CA - C1, and emSign ECC Root CA - C3 root certificates from accepted certificates on the server matching curl's CA bundle, following the eMudhra intermediate CA key compromise.
+
 ## Fleet 4.93.1 (Oct 19, 2026)
 
 ### Bug fixes

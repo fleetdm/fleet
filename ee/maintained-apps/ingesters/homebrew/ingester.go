@@ -151,6 +151,10 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 
 	out.Name = input.Name
 	out.Version = strings.Split(cask.Version, ",")[0]
+	if input.Token == "lm-studio" {
+		// App reports "0.4.26+4"; the cask says "0.4.26,4".
+		out.Version = strings.ReplaceAll(cask.Version, ",", "+")
+	}
 	out.InstallerURL = cask.URL
 	out.UniqueIdentifier = input.UniqueIdentifier
 	out.SHA256 = cask.SHA256
@@ -202,7 +206,7 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			cask.PostUninstallScripts = input.PostUninstallScripts
 		}
 
-		uninstallScript = uninstallScriptForApp(&cask)
+		uninstallScript = uninstallScriptForApp(input, &cask)
 	default:
 		if len(input.PreUninstallScripts) != 0 {
 			return nil, ctxerr.New(ctx, "cannot provide pre-uninstall scripts if uninstall script is provided")
@@ -313,6 +317,15 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 		// Steam installed. Compare bundle_version (CFBundleVersion, "6.0", which the
 		// cask version tracks); that's also the value software inventory falls back
 		// to, so patch status and inventory agree.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
+	if input.Token == "logitech-g-hub" {
+		// lghub.app ships without a CFBundleShortVersionString, so bundle_short_version
+		// is empty and the default patch policy can never pass. The cask version
+		// matches CFBundleVersion.
 		out.Queries.Patched = fmt.Sprintf(
 			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
 			out.UniqueIdentifier, out.Version,
