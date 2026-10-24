@@ -1150,6 +1150,16 @@ func TestUninstallScriptQuitsAppOnce(t *testing.T) {
 		require.Contains(t, script, `send_signal 'TERM' 'com.example.Foo' "$LOGGED_IN_USER"`)
 	})
 
+	// Like busycontacts: the signal is the fallback for a quit that fails.
+	t.Run("cask quits and signals the app", func(t *testing.T) {
+		script := uninstallScriptForApp(app, &brewCask{Artifacts: []*brewArtifact{
+			{Uninstall: []*brewUninstall{{Quit: strs("com.example.Foo"), Signal: strs("KILL", "com.example.Foo")}}},
+			appArtifact,
+		}})
+		require.Empty(t, stoppingQuit.FindAllString(script, -1), script)
+		require.Less(t, strings.Index(script, "quit_application 'com.example.Foo'\n"), strings.Index(script, "send_signal 'KILL'"))
+	})
+
 	t.Run("cask signals something else", func(t *testing.T) {
 		script := uninstallScriptForApp(app, &brewCask{Artifacts: []*brewArtifact{
 			{Uninstall: []*brewUninstall{{Signal: strs("TERM", "com.example.Updater")}}},

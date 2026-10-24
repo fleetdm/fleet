@@ -106,7 +106,8 @@ func uninstallScriptForApp(app inputApp, cask *brewCask) string {
 	sb := newScriptBuilder()
 	// Most casks don't name the app in uninstall quit, so quit it at the stanza's
 	// quit step, or else before the app artifact, which brew lists after it.
-	appStopped := app.UniqueIdentifier == "" || uninstallStopsApp(cask, app.UniqueIdentifier)
+	appSignaled := uninstallSignalsApp(cask, app.UniqueIdentifier)
+	appStopped := app.UniqueIdentifier == "" || appSignaled || uninstallQuitsApp(cask, app.UniqueIdentifier)
 
 	for _, artifact := range cask.Artifacts {
 		switch {
@@ -149,7 +150,7 @@ func uninstallScriptForApp(app inputApp, cask *brewCask) string {
 				sb.Write(strings.Join(cask.PreUninstallScripts, "\n"))
 			}
 			for _, u := range artifact.Uninstall {
-				processUninstallArtifact(u, sb, app.UniqueIdentifier, &appStopped)
+				processUninstallArtifact(u, sb, app.UniqueIdentifier, &appStopped, appSignaled)
 			}
 			if len(cask.PostUninstallScripts) > 0 {
 				sb.Write(strings.Join(cask.PostUninstallScripts, "\n"))
@@ -157,7 +158,7 @@ func uninstallScriptForApp(app inputApp, cask *brewCask) string {
 		case len(artifact.Zap) > 0:
 			sortUninstall(artifact.Zap)
 			for _, z := range artifact.Zap {
-				processUninstallArtifact(z, sb, app.UniqueIdentifier, nil)
+				processUninstallArtifact(z, sb, app.UniqueIdentifier, nil, appSignaled)
 			}
 		}
 	}
@@ -391,7 +392,7 @@ const cdConsoleUserHome = `cd "/Users/$LOGGED_IN_USER" 2>/dev/null || cd /`
 
 // processUninstallArtifact writes an uninstall or zap directive. appStopped is
 // nil for zap, which runs after the app is removed.
-func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID string, appStopped *bool) {
+func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID string, appStopped *bool, appSignaled bool) {
 	process := func(target optjson.StringOr[[]string], f func(path string)) {
 		if target.IsOther {
 			for _, path := range target.Other {
@@ -423,9 +424,10 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder, bundleID stri
 		// Other IDs (helpers, shared updaters like Microsoft AutoUpdate, other
 		// vendors' apps) keep Homebrew's warn-and-continue: most of them aren't
 		// in the bundle being removed, and a helper that launchd relaunches would
-		// block the uninstall for good.
+		// block the uninstall for good. A cask that also signals the app counts
+		// on the signal when the quit fails, so that quit doesn't stop either.
 		var stop string
-		if quitTargetsApp(appName, bundleID) {
+		if quitTargetsApp(appName, bundleID) && !appSignaled {
 			stop = " || exit 1"
 		}
 		// osascript can't resolve a wildcard application id, so the pattern is
@@ -503,30 +505,41 @@ func quitTargetsApp(quitID, bundleID string) bool {
 	return regexp.MustCompile(`(?i)^` + pattern + `$`).MatchString(bundleID)
 }
 
-// uninstallStopsApp reports whether a cask's uninstall stanza quits or signals
-// the app. Casks signal apps that don't quit cleanly, so a quit that stops the
-// script mustn't run ahead of the signal.
-func uninstallStopsApp(cask *brewCask, bundleID string) bool {
-	names := func(target optjson.StringOr[[]string]) []string {
-		if target.IsOther {
-			return target.Other
-		}
-		if target.String == "" {
-			return nil
-		}
-		return []string{target.String}
-	}
-	targetsApp := func(id string) bool { return quitTargetsApp(id, bundleID) }
-	quitsApp := func(id string) bool { return targetsApp(caskQuitID(id, bundleID)) }
+// uninstallQuitsApp reports whether a cask's uninstall stanza quits the app.
+func uninstallQuitsApp(cask *brewCask, bundleID string) bool {
+	quitsApp := func(id string) bool { return quitTargetsApp(caskQuitID(id, bundleID), bundleID) }
 	for _, artifact := range cask.Artifacts {
 		for _, u := range artifact.Uninstall {
-			if slices.ContainsFunc(names(u.Quit), quitsApp) ||
-				(u.Signal.IsOther && len(u.Signal.Other) == 2 && targetsApp(u.Signal.Other[1])) {
+			if slices.ContainsFunc(stanzaNames(u.Quit), quitsApp) {
 				return true
 			}
 		}
 	}
 	return false
+}
+
+// uninstallSignalsApp reports whether a cask's uninstall stanza signals the
+// app. Casks signal apps that don't quit cleanly, so a quit that stops the
+// script mustn't run ahead of the signal.
+func uninstallSignalsApp(cask *brewCask, bundleID string) bool {
+	for _, artifact := range cask.Artifacts {
+		for _, u := range artifact.Uninstall {
+			if u.Signal.IsOther && len(u.Signal.Other) == 2 && quitTargetsApp(u.Signal.Other[1], bundleID) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func stanzaNames(target optjson.StringOr[[]string]) []string {
+	if target.IsOther {
+		return target.Other
+	}
+	if target.String == "" {
+		return nil
+	}
+	return []string{target.String}
 }
 
 // quitAppBeforeRemoval quits the app being uninstalled, as the install script's
