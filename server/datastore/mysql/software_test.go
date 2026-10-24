@@ -74,6 +74,7 @@ func TestSoftware(t *testing.T) {
 		{"ListSoftwareForVulnDetection", testListSoftwareForVulnDetection},
 		{"ListSoftwareForVulnDetectionByOSVersion", testListSoftwareForVulnDetectionByOSVersion},
 		{"UpdateHostSoftwareMetadata", testUpdateHostSoftwareMetadata},
+		{"CleanupUnusedSoftwareBatches", testCleanupUnusedSoftwareBatches},
 		{"ListSoftwareVulnerabilitiesBySoftwareIDs", testListSoftwareVulnerabilitiesBySoftwareIDs},
 		{"AllSoftwareIterator", testAllSoftwareIterator},
 		{"AllSoftwareIteratorForCustomLinuxImages", testSoftwareIteratorForLinuxKernelCustomImages},
@@ -16322,4 +16323,45 @@ func testListHostSoftwareAIToolFilter(t *testing.T, ds *Datastore) {
 			}
 		})
 	}
+}
+
+func testCleanupUnusedSoftwareBatches(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	defer func(size, iterations int) {
+		cleanupBatchSize, cleanupMaxIterations = size, iterations
+	}(cleanupBatchSize, cleanupMaxIterations)
+	cleanupBatchSize, cleanupMaxIterations = 2, 10
+
+	host := test.NewHost(t, ds, "cleanup-host", "", "cleanup-hostkey", "cleanup-hostuuid", time.Now())
+	// Add one package at a time so software IDs ascend with the names.
+	software := make([]fleet.Software, 0, 6)
+	for i := range 6 {
+		software = append(software, fleet.Software{Name: fmt.Sprintf("sw%d", i), Version: "1.0", Source: "deb_packages"})
+		_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+		require.NoError(t, err)
+	}
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{software[2], software[5]})
+	require.NoError(t, err)
+
+	// Deleting sw4 in the second batch orphans sw2, which the cursor has already passed, so it must
+	// survive until the next run instead of being found by a rescan.
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		CREATE TRIGGER test_orphan_behind_cursor AFTER DELETE ON software FOR EACH ROW
+		IF OLD.name = 'sw4' THEN
+			DELETE hsw FROM host_software hsw
+			JOIN software s ON s.id = hsw.software_id
+			JOIN hosts h ON h.id = hsw.host_id
+			WHERE s.name = 'sw2' AND h.hostname = 'cleanup-host';
+		END IF`)
+	require.NoError(t, err)
+	defer func() {
+		_, err := ds.writer(ctx).ExecContext(ctx, `DROP TRIGGER IF EXISTS test_orphan_behind_cursor`)
+		require.NoError(t, err)
+	}()
+
+	require.NoError(t, ds.cleanupUnusedSoftware(ctx))
+
+	var names []string
+	require.NoError(t, sqlx.SelectContext(ctx, ds.writer(ctx), &names, `SELECT name FROM software ORDER BY name`))
+	require.Equal(t, []string{"sw2", "sw5"}, names)
 }
