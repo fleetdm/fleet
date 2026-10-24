@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.2.3",
+      "version": "1.2.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mace.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mace.app' AND version_compare(bundle_short_version, '1.2.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.mace.app' AND version_compare(bundle_short_version, '1.2.4') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.mace.app' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/MACE-App/MACE/releases/download/v1.2.3/M.A.C.E.V1.2.3.dmg",
+      "installer_url": "https://github.com/MACE-App/MACE/releases/download/v1.2.4/M.A.C.E.V1.2.4.dmg",
       "install_script_ref": "95c10f56",
       "uninstall_script_ref": "41b0f56f",
-      "sha256": "c42426b0c24ae44314bb4a72efe10358466995841db5d5540d7c9cf71ad5df50",
+      "sha256": "63f46c841d5134bad4b44adbf249048db09acec78ffb18c71700eb790e30a15a",
       "default_categories": [
         "Productivity"
       ]
