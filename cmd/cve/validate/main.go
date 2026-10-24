@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed"
 	feednvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd/schema"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 )
 
@@ -106,6 +107,30 @@ func checkNVDVulnerabilities(vulnPath string, logger *slog.Logger) {
 	if vulns["CVE-2023-0626"].Config()[0].Product != "desktop" {
 		panic(errors.New("docker_desktop spot-check failed for CVE-2023-0626"))
 	}
+
+	vulns, err = cvefeed.LoadJSONDictionary(filepath.Join(vulnPath, "nvdcve-1.1-2026.json.gz"))
+	if err != nil {
+		panic(err)
+	}
+
+	// make sure cve_overrides.json is applied to the stored feeds. Only the bad NVD value is
+	// checked, so a corrected NVD record doesn't fail the release.
+	vulnEntry, ok = vulns["CVE-2026-40217"].(*feednvd.Vuln)
+	if !ok {
+		panic("failed to cast CVE-2026-40217 to a Vuln")
+	}
+	var walk func(nodes []*schema.NVDCVEFeedJSON10DefNode)
+	walk = func(nodes []*schema.NVDCVEFeedJSON10DefNode) {
+		for _, node := range nodes {
+			for _, match := range node.CPEMatch {
+				if strings.Contains(match.Cpe23Uri, ":litellm:litellm:") && match.VersionEndIncluding == "2026-04-08" {
+					panic(errors.New("cve override spot-check failed for litellm on CVE-2026-40217: date bound still present"))
+				}
+			}
+			walk(node.Children)
+		}
+	}
+	walk(vulnEntry.Schema().Configurations.Nodes)
 }
 
 func checkGovalDictionaryVulnerabilities(vulnPath string) {
