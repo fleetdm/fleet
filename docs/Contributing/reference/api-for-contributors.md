@@ -1482,7 +1482,8 @@ Returns the raw data about a DEP device's current state from the [Get Device Det
     "deleted_at": null,
     "ab_token_id": 1,
     "mdm_migration_deadline": "2025-12-05T00:00:00Z",
-    "mdm_migration_completed": "2025-12-05T00:00:00Z"
+    "mdm_migration_completed": "2025-12-05T00:00:00Z",
+    "throttled_retry_after": "2025-12-05T06:00:00Z"
   },
   "dep_device_error": null
 }
