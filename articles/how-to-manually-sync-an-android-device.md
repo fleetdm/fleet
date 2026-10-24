@@ -1,8 +1,6 @@
 # How to manually sync an Android device
 
-For Android hosts, there's no **Refetch** button on the **Host details** page in Fleet because Android hosts sync data automatically when they change. 
-
-Sometimes changes don't appear immediately due to Google rate limiting. For testing, if you have physical access to the Android host, you can sync manually to speed things up:
+For testing, if you have physical access to the Android host, you can sync manually to speed things up:
 
 1. Go to your Work Profile in **Settings**:
    1. Google devices: select your name at the top of **Settings**, then select your Work Profile.
@@ -24,6 +22,45 @@ To disable Developer options:
    - Google devices: select **System > Developer options**.
    - Samsung devices: select **Developer options** at the bottom of Settings, under About phone.
 2. At the top, select the toggle to turn off Developer options.
+
+## How Android hosts get changes from Fleet
+
+Fleet only communicates with Android hosts directly for certificate delivery. For all other features, Fleet and each host communicate through Google's Android Management API (AMAPI). Fleet delivers these changes by updating the host's policy, which is stored on Google's servers:
+
+- [Software deployment](https://fleetdm.com/guides/install-app-store-apps)
+- [Configuration profiles](https://fleetdm.com/guides/custom-os-settings)
+- [App configuration](https://fleetdm.com/guides/install-app-store-apps#managed-configuration)
+
+Each change follows the same steps:
+
+1. Fleet updates the host's policy on Google's servers (via AMAPI). For example, when you install an app, Fleet adds it to the policy's application list.
+2. The next time the host syncs with Google (around an hour), Google delivers the updated policy and the host applies it. In this example, the host installs the app.
+3. The host sends a status report to Google, and Google forwards it to Fleet. Fleet then updates the host's details, such as the app's status.
+
+```mermaid
+sequenceDiagram
+    participant Fleet
+    participant Google as Google (AMAPI)
+    participant Host as Android host
+
+    Note over Fleet: Status: Install pending
+    Fleet->>Google: 1. Update ApplicationPolicy
+    Host->>Google: Syncs with Google
+    Google->>Host: 2. Deliver updated policy
+    Note over Host: Installs app
+    Host->>Google: 3. Send status report
+    Google->>Fleet: Forward via Pub/Sub
+    Note over Fleet: Status: Installed
+```
+
+Fleet doesn't control when steps 2 and 3 happen. Sometimes changes don't appear immediately due to Google rate limiting, so a status like "Install pending" can stay in Fleet longer than you'd expect.
+
+Host details, like the OS version and installed software, also come from these status reports. That's why there's no **Refetch** button for Android hosts.
+
+Some changes don't use the host's policy, so manually syncing won't speed them up:
+
+- Commands like **Lock**, **Wipe**, and **Clear passcode** are sent to the host as MDM commands instead of policy changes.
+- Certificates are installed by the Fleet app on the host, which checks Fleet for new certificates every 15 minutes in ideal conditions. Ideal conditions means the device is connected to the internet and has sufficient battery.
 
 <meta name="articleTitle" value="How to manually sync an Android device">
 <meta name="authorFullName" value="Steven Palmesano">
