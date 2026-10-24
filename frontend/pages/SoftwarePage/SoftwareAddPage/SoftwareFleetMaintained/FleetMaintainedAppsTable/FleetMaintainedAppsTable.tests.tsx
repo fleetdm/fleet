@@ -24,6 +24,37 @@ describe("combineAppsByPlatform", () => {
     expect(combined[0].windows?.id).toBe(2);
   });
 
+  it("uses the macOS name regardless of the order of the entries", () => {
+    const macos = app({
+      id: 1,
+      name: "R for macOS",
+      slug: "r/darwin",
+      platform: "darwin",
+    });
+    const windows = app({
+      id: 2,
+      name: "R for Windows",
+      slug: "r/windows",
+      platform: "windows",
+    });
+
+    expect(combineAppsByPlatform([macos, windows])[0].name).toBe("R for macOS");
+    expect(combineAppsByPlatform([windows, macos])[0].name).toBe("R for macOS");
+  });
+
+  it("keeps the Windows name for a Windows-only app", () => {
+    const combined = combineAppsByPlatform([
+      app({
+        id: 2,
+        name: "Notepad++",
+        slug: "notepad++/windows",
+        platform: "windows",
+      }),
+    ]);
+
+    expect(combined[0].name).toBe("Notepad++");
+  });
+
   it("keeps two distinct apps that share a display name as separate rows", () => {
     // MacPaw Gemini and Google Gemini share the name "Gemini" but have
     // different slug tokens, so they must not collapse into one row.

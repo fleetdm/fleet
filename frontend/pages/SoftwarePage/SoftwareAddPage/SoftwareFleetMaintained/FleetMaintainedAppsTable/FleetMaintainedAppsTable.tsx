@@ -60,6 +60,9 @@ export const combineAppsByPlatform = (
     }
 
     if (platform === "darwin") {
+      // The API orders entries by name in the requested direction, so take the
+      // name from the macOS entry to keep it stable across sort directions.
+      combinedApps[appToken].name = name;
       combinedApps[appToken].macos = {
         platform: platform as FleetMaintainedAppPlatform,
         ...rest,
