@@ -1,11 +1,10 @@
 # Reports (queries)
 
-Contributor docs for Fleet's reports — live and scheduled osquery queries and query packs.
+Contributor docs for Fleet's reports — live and scheduled osquery queries.
 
 - [Orchestration overview](orchestration-overview.md)
 - [Live queries](live-queries.md)
 - [Scheduled queries](scheduled-queries.md)
-- [Query packs](query-packs.md)
 
 ## Related
 
