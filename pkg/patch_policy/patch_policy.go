@@ -73,7 +73,17 @@ func versionCompareSuffix(platform, existsQuery, version string) (string, error)
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf(" AND version_compare(%s, '%s') < 0);", column, escapeSQLLiteral(version)), nil
+	return fmt.Sprintf(" AND %s < 0);", versionCompare(column, version)), nil
+}
+
+// versionCompare returns a version_compare call for column against version. osquery
+// doesn't treat "+" as a delimiter, so a "+build" segment compares by string length
+// ("0.4.25+10" sorts above "0.4.26+4"); make "+" a dot on both sides instead.
+func versionCompare(column, version string) string {
+	if strings.Contains(version, "+") {
+		return fmt.Sprintf("version_compare(REPLACE(%s, '+', '.'), '%s')", column, escapeSQLLiteral(strings.ReplaceAll(version, "+", ".")))
+	}
+	return fmt.Sprintf("version_compare(%s, '%s')", column, escapeSQLLiteral(version))
 }
 
 func versionCompareColumn(platform, existsQuery string) (string, error) {
@@ -141,13 +151,13 @@ func GenerateFromInstaller(p PolicyData, installer *fleet.SoftwareInstaller) (*P
 }
 
 func defaultMacOSQuery(bundleIdentifier string, version string) string {
-	patchTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0);"
-	return fmt.Sprintf(patchTemplate, escapeSQLLiteral(bundleIdentifier), escapeSQLLiteral(version))
+	patchTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND %s < 0);"
+	return fmt.Sprintf(patchTemplate, escapeSQLLiteral(bundleIdentifier), versionCompare("bundle_short_version", version))
 }
 
 func defaultWindowsQuery(softwareTitle string, version string) string {
-	patchTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '%s' AND version_compare(version, '%s') < 0);"
-	return fmt.Sprintf(patchTemplate, escapeSQLLiteral(softwareTitle), escapeSQLLiteral(version))
+	patchTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = '%s' AND %s < 0);"
+	return fmt.Sprintf(patchTemplate, escapeSQLLiteral(softwareTitle), versionCompare("version", version))
 }
 
 // GenerateOpenQuery returns a pre-install query that returns a row only when the app is closed.
