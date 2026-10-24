@@ -2969,7 +2969,7 @@ func (svc *Service) SetHostGoogleDeviceID(ctx context.Context, hostID uint, goog
 			"stored_google_device_id", conflict.StoredID, "google_device_id", googleDeviceID)
 	}
 	if err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "set host google device id")
 	}
 	if !changed {
 		return nil
@@ -3012,7 +3012,7 @@ func (svc *Service) DeleteHostGoogleDeviceID(ctx context.Context, hostID uint) e
 
 	removed, err := svc.ds.GetHostGoogleDeviceID(ctxdb.RequirePrimary(ctx, true), hostID)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "get host google device id")
 	}
 	if removed == "" {
 		return nil
@@ -3020,7 +3020,7 @@ func (svc *Service) DeleteHostGoogleDeviceID(ctx context.Context, hostID uint) e
 	// Deleting only the value read above keeps the activity accurate if a concurrent request changes it.
 	deleted, err := svc.ds.DeleteHostGoogleDeviceID(ctx, hostID, removed)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "delete host google device id")
 	}
 	if !deleted {
 		return nil

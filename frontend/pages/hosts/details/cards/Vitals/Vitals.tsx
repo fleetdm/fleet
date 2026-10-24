@@ -415,7 +415,7 @@ export const buildHostVitals = ({
         <DataSet
           key="google-device-id"
           title={
-            <TooltipWrapper tipContent="Device ID in Google Workspace">
+            <TooltipWrapper tipContent="The host's device ID in Google, used for conditional access.">
               Google device ID
             </TooltipWrapper>
           }
