@@ -1,0 +1,3 @@
+- Added Google Cloud Certificate Authority Service (CAS) as a certificate authority type.
+- Added the certificate authority's name to the activity recorded when a Hydrant certificate authority is added through the REST API.
+- `fleetctl gitops` on Fleet Free now returns an error for custom EST and Smallstep certificate authorities, which require Fleet Premium, instead of ignoring them.
