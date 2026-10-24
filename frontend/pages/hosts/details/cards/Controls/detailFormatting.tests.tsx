@@ -161,7 +161,7 @@ describe("getDetailGuidance for android certificates", () => {
           status: "failed",
           certificate_template_id: 4,
           detail:
-            "Couldn't reach the certificate authority. Failed to communicate with SCEP server",
+            "Couldn't reach the certificate authority: Failed to communicate with SCEP server",
         })
       )
     ).toBeNull();

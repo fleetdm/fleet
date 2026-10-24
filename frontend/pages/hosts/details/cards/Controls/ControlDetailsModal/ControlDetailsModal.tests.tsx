@@ -521,7 +521,7 @@ describe("ControlDetailsModal", () => {
   // is the only place the failure is explained.
   describe("retrying android certificate", () => {
     const CERT_ERROR =
-      "Couldn't reach the certificate authority. Failed to communicate with SCEP server";
+      "Couldn't reach the certificate authority: Failed to communicate with SCEP server";
 
     const retryingCert = (
       overrides?: Partial<IHostMdmProfile>
