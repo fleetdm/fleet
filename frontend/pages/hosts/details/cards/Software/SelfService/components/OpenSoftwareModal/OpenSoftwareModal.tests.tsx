@@ -44,7 +44,7 @@ describe("OpenSoftwareModal", () => {
     render(
       <OpenSoftwareModal
         softwareSource="chrome_extensions"
-        softwareName="Chrome extension"
+        softwareName="Browser extension (Chrome)"
         onExit={noop}
       />
     );
