@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -135,6 +136,16 @@ func createEnrolledAndroidHost(t *testing.T, ctx context.Context, ds *Datastore,
 	err = ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "", false, "", "", fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 	return host
+}
+
+// setAndroidDeviceAppliedPolicy records the policy the host's device reports as applied.
+func setAndroidDeviceAppliedPolicy(t *testing.T, ctx context.Context, ds *Datastore, host *fleet.Host, policyID *string) {
+	_, err := ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO android_devices (host_id, device_id, applied_policy_id) VALUES (?, ?, ?)
+		ON DUPLICATE KEY UPDATE applied_policy_id = VALUES(applied_policy_id)`,
+		host.ID, strings.ReplaceAll(uuid.NewString(), "-", ""), policyID,
+	)
+	require.NoError(t, err)
 }
 
 func testListAndroidHostUUIDsWithDeliverableCertificateTemplates(t *testing.T, ds *Datastore) {
@@ -745,7 +756,8 @@ func testListAndroidHostUUIDsWithPendingCertificateTemplates(t *testing.T, ds *D
 
 		// Create enrolled Android hosts with pending records
 		for _, hostUUID := range []string{"host-1", "host-2"} {
-			createEnrolledAndroidHost(t, ctx, ds, hostUUID, &setup.team.ID)
+			host := createEnrolledAndroidHost(t, ctx, ds, hostUUID, &setup.team.ID)
+			setAndroidDeviceAppliedPolicy(t, ctx, ds, host, &hostUUID)
 		}
 		_, err := ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, setup.template.ID, setup.team.ID)
 		require.NoError(t, err)
@@ -755,6 +767,26 @@ func testListAndroidHostUUIDsWithPendingCertificateTemplates(t *testing.T, ds *D
 		require.Len(t, results, 2)
 		require.Contains(t, results, "host-1")
 		require.Contains(t, results, "host-2")
+	})
+
+	t.Run("does not return hosts whose device has not applied its host-specific policy", func(t *testing.T) {
+		defer TruncateTables(t, ds)
+		setup := createCertTemplateTestSetup(t, ctx, ds, "")
+
+		defaultPolicyHost := createEnrolledAndroidHost(t, ctx, ds, "host-default-policy", &setup.team.ID)
+		setAndroidDeviceAppliedPolicy(t, ctx, ds, defaultPolicyHost, new("1"))
+		noPolicyHost := createEnrolledAndroidHost(t, ctx, ds, "host-no-policy", &setup.team.ID)
+		setAndroidDeviceAppliedPolicy(t, ctx, ds, noPolicyHost, nil)
+		createEnrolledAndroidHost(t, ctx, ds, "host-no-device", &setup.team.ID)
+		ownPolicyHost := createEnrolledAndroidHost(t, ctx, ds, "host-own-policy", &setup.team.ID)
+		setAndroidDeviceAppliedPolicy(t, ctx, ds, ownPolicyHost, &ownPolicyHost.UUID)
+
+		_, err := ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, setup.template.ID, setup.team.ID)
+		require.NoError(t, err)
+
+		results, err := ds.ListAndroidHostUUIDsWithPendingCertificateTemplates(ctx, 0, 10)
+		require.NoError(t, err)
+		require.Equal(t, []string{"host-own-policy"}, results)
 	})
 
 	t.Run("does not return hosts with non-pending status", func(t *testing.T) {
@@ -781,9 +813,12 @@ func testListAndroidHostUUIDsWithPendingCertificateTemplates(t *testing.T, ds *D
 
 		// Insert pending records for 5 hosts
 		for i := range 5 {
+			hostUUID := fmt.Sprintf("host-%d", i)
+			host := createEnrolledAndroidHost(t, ctx, ds, hostUUID, &setup.team.ID)
+			setAndroidDeviceAppliedPolicy(t, ctx, ds, host, &hostUUID)
 			_, err := ds.writer(ctx).ExecContext(ctx,
 				"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, name) VALUES (?, ?, ?, ?, ?)",
-				fmt.Sprintf("host-%d", i), setup.template.ID, "pending", "install", setup.template.Name,
+				hostUUID, setup.template.ID, "pending", "install", setup.template.Name,
 			)
 			require.NoError(t, err)
 		}
@@ -822,7 +857,8 @@ func testCertificateTemplateFullStateMachine(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Create enrolled Android host
-	createEnrolledAndroidHost(t, ctx, ds, "android-host", &setup.team.ID)
+	host := createEnrolledAndroidHost(t, ctx, ds, "android-host", &setup.team.ID)
+	setAndroidDeviceAppliedPolicy(t, ctx, ds, host, &host.UUID)
 
 	// Step 1: Create pending records
 	rowsAffected, err := ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, setup.template.ID, setup.team.ID)
@@ -1479,6 +1515,7 @@ func testListAndroidHostUUIDsWithPendingCertificateTemplatesIncludesRemoval(t *t
 
 	setup := createCertTemplateTestSetup(t, ctx, ds, "")
 	host := createEnrolledAndroidHost(t, ctx, ds, uuid.New().String(), &setup.team.ID)
+	setAndroidDeviceAppliedPolicy(t, ctx, ds, host, &host.UUID)
 
 	// Insert a pending removal template using BulkInsertHostCertificateTemplates
 	err := ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{{

@@ -441,17 +441,21 @@ func (ds *Datastore) UpsertCertificateStatus(ctx context.Context, update *fleet.
 
 // ListAndroidHostUUIDsWithPendingCertificateTemplates returns hosts that have
 // certificate templates in 'pending' status ready for delivery (both install and remove operations).
+// Hosts whose device has not yet applied its host-specific policy are excluded: that policy may
+// not exist in AMAPI yet, and the setup experience delivers the certificates once it creates it.
 func (ds *Datastore) ListAndroidHostUUIDsWithPendingCertificateTemplates(
 	ctx context.Context,
 	offset int,
 	limit int,
 ) ([]string, error) {
 	stmt := fmt.Sprintf(`
-		SELECT DISTINCT host_uuid
-		FROM host_certificate_templates
-		WHERE status = '%s'
-		  AND (retry_count = 0 OR retry_count > %d OR updated_at <= NOW() - INTERVAL CAST(POW(2, retry_count - 1) * 30 AS UNSIGNED) SECOND)
-		ORDER BY host_uuid
+		SELECT DISTINCT hct.host_uuid
+		FROM host_certificate_templates hct
+		JOIN hosts h ON h.uuid = hct.host_uuid AND h.platform = 'android'
+		JOIN android_devices ad ON ad.host_id = h.id AND ad.applied_policy_id = hct.host_uuid
+		WHERE hct.status = '%s'
+		  AND (hct.retry_count = 0 OR hct.retry_count > %d OR hct.updated_at <= NOW() - INTERVAL CAST(POW(2, hct.retry_count - 1) * 30 AS UNSIGNED) SECOND)
+		ORDER BY hct.host_uuid
 		LIMIT ? OFFSET ?
 	`, fleet.CertificateTemplatePending, fleet.MaxCertificateInstallRetries)
 	var hostUUIDs []string
